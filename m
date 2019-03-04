@@ -2,154 +2,288 @@ Return-Path: <SRS0=F7ZL=RH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-13.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E06ABC43381
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 14:09:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 751B5C4360F
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 14:11:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8D53820675
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 14:09:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 036E1208E4
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 14:11:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="iwOmvDFJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8D53820675
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="l1xFb9c2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 036E1208E4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2CE2D8E0003; Mon,  4 Mar 2019 09:09:16 -0500 (EST)
+	id 479638E0003; Mon,  4 Mar 2019 09:11:27 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 257C78E0001; Mon,  4 Mar 2019 09:09:16 -0500 (EST)
+	id 42B6B8E0001; Mon,  4 Mar 2019 09:11:27 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 11EBC8E0003; Mon,  4 Mar 2019 09:09:16 -0500 (EST)
+	id 317D98E0003; Mon,  4 Mar 2019 09:11:27 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D8DCA8E0001
-	for <linux-mm@kvack.org>; Mon,  4 Mar 2019 09:09:15 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id f24so5147009qte.4
-        for <linux-mm@kvack.org>; Mon, 04 Mar 2019 06:09:15 -0800 (PST)
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0797D8E0001
+	for <linux-mm@kvack.org>; Mon,  4 Mar 2019 09:11:27 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id h3so5489351itb.4
+        for <linux-mm@kvack.org>; Mon, 04 Mar 2019 06:11:27 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=XeUZ0bSuaagpODDaNgkebhSpO4mdjSfmcYJ84JIvp08=;
-        b=YQY7IJvGEs8SQ/q9Gc+njeVzqrUeEnQ+igrpesO/M4DZgW5CJ14nq+Oluo/urzEquq
-         qmMupg7rfCb1jt5nG5o2+/vIiL1oMTaArH/1TdwffGkZy4QBB7CLOOvyDxGyNwTeEF/p
-         nUCFpQWVBtk5916Uq+14C63z/WIVnuT0tOa6dGsCfI+boNT2cDuSb/QNqSSfiB4k14Oe
-         Uww2Uba3PuDQ/4T+NSK5qOl4Qf8DsW1gOKWXepUw6ng3ls1LZkYJKs6/M1Y0bgp3JK+V
-         5YYao4uMnO6cEXl53w8Qp+H9qxP9jdzTnLm4ZJqNAJjSNLhlgOE/IMpRfr7mVxuL8+4F
-         jhSA==
-X-Gm-Message-State: APjAAAWksasKnqHB9mPOQKw5jHxrusNDa7cHv1oEHNbHrVzHCpQqnKPa
-	yQ8TrGSC0ZXdDl0J5tblwyTGPT8TGwLQUDNQhoA7UnjjMMTmpArrvfmTH+tF+021N0UXLkFO9qr
-	qEzOCtNQTiV64hOX2ncktCHcFzYU/IlrF1fXR6/j3BfFOUgQTXd1FHTQJLtWh2d6n3rdybi0GHe
-	Ids3iQ8Xjagn1zZ+xBZC3STbX4D+Ceo5hi/hV8Bu/r5WenyTu1P2W4/JxaQbtqHmE0F3rn5u3qV
-	soE2X6H93urjzTQuqk8aTEUOsetTF8mzNG0xVhOOrGNi7NATS/MhTaw7+6gZgZPVbp55dPdubZc
-	0WO3v8c0WHN1XBtnljJBGKy/EBTEElZ9caEFG2T12HpHZVBKrRjVC3wixRlgKEAavvBYhw5/GG6
-	t
-X-Received: by 2002:ac8:354e:: with SMTP id z14mr14853555qtb.131.1551708555524;
-        Mon, 04 Mar 2019 06:09:15 -0800 (PST)
-X-Received: by 2002:ac8:354e:: with SMTP id z14mr14853492qtb.131.1551708554601;
-        Mon, 04 Mar 2019 06:09:14 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551708554; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=TqxJghP918UPMYvFNBhGMvF0VxjxcsMTEAmWEQ5o17E=;
+        b=Zc6A+qDC6iOEi4TbYHD489RdMPhu8VJm9fPWmyS/4Q9tFCaiFTRvp9ypM5wNLvbaWK
+         dPsVgExAEZYquMzqfXSEVEHBwEbhsir6x10z/Kx70N5FPUwAb/eH9DHlzDS/YGLkv78t
+         6QPHiDeI15HV5nqezKC3qNVnXPDcQssXZRpPfIbOZyGwuK4HuXDUxeYjGwGV1HzAgtk0
+         fDNGWg3rMu6rvRzXgK9M09GsFgsf5Rn5jYq4RiD5wr0w8KehxagKK7mPHPiFpt+IfsIZ
+         LT8Z00ue/TJkmgUUQG7Yh6v2hRL0F5u4OJCIUMt7oXKsJ2eannWtyEqJCUJ04RP4S/Yh
+         AGMg==
+X-Gm-Message-State: APjAAAVKw2bd7EEk2HDogX4W5017rioEfXvDDFfR6baevgYnzG/XZ8Qp
+	I89t3staOndbm9rBpjA9JmNxOw96janpxNYPcYbIZ+t9nixOYv57SlHO4tt2B7mle0fqgNg7N8u
+	oifYCwDZRAnrXX5DDBFOSvCvGKVz1TjIs7pxlbHPX6zlFEIqUfaSR1YrQt8TiZF1GbVbPvUT3kp
+	XfkF++nhDzbBF/oXob510qVTSXCnAbNlByRmvolm8fOCc6rX7v9YxfOpOI0Evx6adPcaoQw042A
+	yqSIL/Bf2yP6gYaOZZpJz/tPHppMzEhbOe55And7bE+Sni/TR2xxGk4SL3ozy0wggNwaxsFh16i
+	puzkUDAOcaqFCelIkGkQ6FPph7pnOLLyaLis0lOO3dGoiDoYs2BQqd2BvRx4Q6gkwc+C9VkMtml
+	2
+X-Received: by 2002:a24:e14:: with SMTP id 20mr9945968ite.176.1551708686698;
+        Mon, 04 Mar 2019 06:11:26 -0800 (PST)
+X-Received: by 2002:a24:e14:: with SMTP id 20mr9945897ite.176.1551708685354;
+        Mon, 04 Mar 2019 06:11:25 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551708685; cv=none;
         d=google.com; s=arc-20160816;
-        b=G8OYfGHZvroQMCKejYFRa17G4+LZJosMbT+F1MoTMVjj8ihqG3sbgJBxSsWby0fwUN
-         fl78QnruroZi8CAEA9fBlQwOFdFt0gx2dwXfdL2jtWzMC1lGbjZY7oz6WALc49dtlKdd
-         osmWtQ1E/8cXPfaZyfESjstZgRRDt3wmMZUYM2fi2VLUxKZtTc0mmkOVspkwVc3/yMG5
-         eI+0qdcLjBYb6z46NoarMs+5Io82F/wOgSpJ3lfD2RQwg4InF4FrqHISzuWtEh4aUvDD
-         0dGcdwudswCPyMQyewx0mIvBHB5yny4Kd+Y4G7pauN7lQPTsXsxYGc0S9w8O5TLXnEXf
-         Pn2w==
+        b=sdAXS0jgFoe1Fo3J12S64DsjKm/vayjsFfB0AIDe34Xu28fmaAT8+uy7qfFLnOPwpZ
+         WUHo1yYByJ+AowpSO69I8kwPG2WdADe8m72wtzmY9050XVrCOJHqkcmW4xmsd/RPaE6d
+         +O5ys5WIlr8uz+7t30XljrMlJ/4DwToTFqJP3bJGqPBvjTRpTDUtk+cceLyXTuHOoi/d
+         E2qljG1W7YVJryOdTzsaiaxPZhU68a6KnFfpXLMY1z8jjLq9poVmCa3cgODigvf4RKLE
+         CE03HL3siONWqOUtn7hBP+C/EvKR2T6c2o+/iK26W5WX3v69TGbfqMwpBBPiEHU8PMzk
+         1/mg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=XeUZ0bSuaagpODDaNgkebhSpO4mdjSfmcYJ84JIvp08=;
-        b=TgQNp39rJGVibEo9hG0hqRzMSbMxyTmrcMwRIM+DYgNK8JL+FyDkXNrRbDJAAkgKKg
-         jJVTxTFN9dE9GJdjDeDsrnXy12EJ3NC6HFfmEvrDk3ipsMXI65c2dczErf+Mu24QBH0J
-         qomt9hm8M7OuvaOuhtUtR1mK0NjePUY3zCwRhBx1PU1TelPtBCMIulpMSU00+4rbre9Y
-         1rvesWxNCXZDYnBWzFuB8Srq8Nn0Z5O8CN91VVB0X1fZbNDD2JKyHaPimpOCsMsOtmJX
-         7OIRB5TjUN3J8GZTkPbBH6c9WDyhQEHV6MIv0oGQhW9vcDA5s/0X98ckImXzh0bIExmN
-         mQ2g==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=TqxJghP918UPMYvFNBhGMvF0VxjxcsMTEAmWEQ5o17E=;
+        b=fht/BILsNQJ5zPYId6RA6v1O8Fp/1mA5Bu5XMyTFBYzxiGwHNwealqfWAIQfgd9feg
+         25F2Sz5iBAkuY7GxV/KUjhknbaSK9MBZIGmoA4J1qIx7vKspxsQAH85qUhvv7SL9uXU8
+         R9UrB9Z+LG8G6bM8xEe+Dkei2f8hZJvdS99WOAA3YZrc8Rsez+Kqk2i2QKw6OHvMCrQJ
+         zbpS5nfee0x5VMcwNBMKVkL/gjrp6OgyECLicaVUydHT4KSqrEdaDyhAm9XbAsb+JaJV
+         tEDuwpxcjwcqBpd9DhCXc9fdTKZrJft+qb6+ZxqG3lHshMOCYrVHYAQpEja2meaS+Fwn
+         GGRQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=iwOmvDFJ;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+       dkim=pass header.i=@google.com header.s=20161025 header.b=l1xFb9c2;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j18sor6999452qtc.70.2019.03.04.06.09.14
+        by mx.google.com with SMTPS id g4sor14868803jan.10.2019.03.04.06.11.25
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 04 Mar 2019 06:09:14 -0800 (PST)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 04 Mar 2019 06:11:25 -0800 (PST)
+Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=iwOmvDFJ;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+       dkim=pass header.i=@google.com header.s=20161025 header.b=l1xFb9c2;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=subject:to:cc:references:from:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=XeUZ0bSuaagpODDaNgkebhSpO4mdjSfmcYJ84JIvp08=;
-        b=iwOmvDFJyslQ30B84EdbQ9EcU0e9z0nlF7veasjUif1D/2vlMYSgIj9v/R4afuGm66
-         wCCf6sJ25kH2fJMu3lsfy6eAZm1KlksFQih5qpltw+Qr8dshZKnHMCFEs/Esu3jMh+sH
-         nGUFsAVx5cBV11ddc0bK/Q99QD0unMqIVe0ZaxbglNDwwjg9YOW/YBCRD76CseCKJhkN
-         FvmVTKEPJF5GRRemIlvy8WaDd61LFbb3WBUm1yc6hXH+Wsa8u4iMROz9FF+p3J39PPMT
-         dnPjt4HVnZGB90xEwwgOM/6+M+5ckD7AKD2KV1U1Lt7nVlbuMLMJGMjpyGF0n1VWGGAz
-         58bA==
-X-Google-Smtp-Source: APXvYqxebk4cygCw66b8m5/eWF71BIN2+jlrN1rpbLDw4AjriPIoka3S/L5IeqOWgi//Y9xk4xIwzw==
-X-Received: by 2002:ac8:67ca:: with SMTP id r10mr14668266qtp.134.1551708554226;
-        Mon, 04 Mar 2019 06:09:14 -0800 (PST)
-Received: from ovpn-120-151.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id x25sm4186313qtx.71.2019.03.04.06.09.13
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Mar 2019 06:09:13 -0800 (PST)
-Subject: Re: [PATCH v2] mm/hugepages: fix "orig_pud" set but not used
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
- Matthew Wilcox <willy@infradead.org>, Linux-MM <linux-mm@kvack.org>,
- linux-kernel@vger.kernel.org
-References: <20190301221956.97493-1-cai@lca.pw>
- <CAFqt6zZr8ZCM6_7QDzDEf=5gH=+EkaumXk86X35dGTdn_SLvvA@mail.gmail.com>
-From: Qian Cai <cai@lca.pw>
-Message-ID: <935fc484-70e3-ed7a-ed82-329529e0e280@lca.pw>
-Date: Mon, 4 Mar 2019 09:09:12 -0500
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
- Gecko/20100101 Thunderbird/60.3.3
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=TqxJghP918UPMYvFNBhGMvF0VxjxcsMTEAmWEQ5o17E=;
+        b=l1xFb9c2QlxGXGkf9K60t3GcMhuKxCPgZHcvgYn9Y8q6Av/jL+4ez91RQ+CCRCD457
+         K6G3x+kYiL3TanU8A2R51RIZjVB5Qgaawv9skR2tuIWWvMcH9nOfmgWEeHf4pGQWd1kR
+         4dqd1XUf4lxJBfXtT+CBltGtw9lFHevF1Eu0dzjOuZH6/c/6CsooOuQkN7Q9XZ5FPIbk
+         93qZJVMs8pV9/QeNUZgK2nbGKynBNkPiPxy+WABbzWF9OieUu6dtYQYx2RHlAk4JiOJu
+         dX4W1Dw4iDsgocLShOweRDEg8GEcLbOYX6sMWwUlGGv9ZSHNq1m5gdh5JbmYwnrg9GUB
+         M3Iw==
+X-Google-Smtp-Source: APXvYqzuKHuJW9dtDdbL/dxxwYqtmYbB5cBT1K0LcE7XYQvn0lRGlG0zxLGs1yeXpXHvvqjAMljo5Lo43BGaDh8OxdE=
+X-Received: by 2002:a02:a58a:: with SMTP id b10mr10018406jam.82.1551708684762;
+ Mon, 04 Mar 2019 06:11:24 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CAFqt6zZr8ZCM6_7QDzDEf=5gH=+EkaumXk86X35dGTdn_SLvvA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <00000000000006457e057c341ff8@google.com> <5C7BFE94.6070500@huawei.com>
+ <CACT4Y+Z+CH0UTdSz-w_woMPrBwg-GuobV1Su4qd9ReffTkyfVg@mail.gmail.com> <5C7D2F82.40907@huawei.com>
+In-Reply-To: <5C7D2F82.40907@huawei.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Mon, 4 Mar 2019 15:11:13 +0100
+Message-ID: <CACT4Y+agwaszODNGJHCqn4fSk4Le9exn3Cau0nornJ0RaTpDJw@mail.gmail.com>
+Subject: Re: KASAN: use-after-free Read in get_mem_cgroup_from_mm
+To: zhong jiang <zhongjiang@huawei.com>
+Cc: syzbot <syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com>, 
+	Michal Hocko <mhocko@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, cgroups@vger.kernel.org, 
+	Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Linux-MM <linux-mm@kvack.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, 
+	Vladimir Davydov <vdavydov.dev@gmail.com>, David Rientjes <rientjes@google.com>, 
+	Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, Mel Gorman <mgorman@suse.de>, 
+	Vlastimil Babka <vbabka@suse.cz>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, Mar 4, 2019 at 3:00 PM zhong jiang <zhongjiang@huawei.com> wrote:
+>
+> On 2019/3/4 15:40, Dmitry Vyukov wrote:
+> > On Sun, Mar 3, 2019 at 5:19 PM zhong jiang <zhongjiang@huawei.com> wrote:
+> >> Hi, guys
+> >>
+> >> I also hit the following issue. but it fails to reproduce the issue by the log.
+> >>
+> >> it seems to the case that we access the mm->owner and deference it will result in the UAF.
+> >> But it should not be possible that we specify the incomplete process to be the mm->owner.
+> >>
+> >> Any thoughts?
+> > FWIW syzbot was able to reproduce this with this reproducer.
+> > This looks like a very subtle race (threaded reproducer that runs
+> > repeatedly in multiple processes), so most likely we are looking for
+> > something like few instructions inconsistency window.
+> >
+>
+> I has a little doubtful about the instrustions inconsistency window.
+>
+> I guess that you mean some smb barriers should be taken into account.:-)
+>
+> Because IMO, It should not be the lock case to result in the issue.
 
 
-On 3/4/19 7:02 AM, Souptick Joarder wrote:
-> On Sat, Mar 2, 2019 at 3:50 AM Qian Cai <cai@lca.pw> wrote:
->>
->> The commit a00cc7d9dd93 ("mm, x86: add support for PUD-sized transparent
->> hugepages") introduced pudp_huge_get_and_clear_full() but no one uses
->> its return code. In order to not diverge from
->> pmdp_huge_get_and_clear_full(), just change zap_huge_pud() to not assign
->> the return value from pudp_huge_get_and_clear_full().
->>
->> mm/huge_memory.c: In function 'zap_huge_pud':
->> mm/huge_memory.c:1982:8: warning: variable 'orig_pud' set but not used
->> [-Wunused-but-set-variable]
->>   pud_t orig_pud;
->>         ^~~~~~~~
->>
-> 
-> 4th argument passed to pudp_huge_get_and_clear_full() is not used.
-> Is it fine to remove *int full * in  pudp_huge_get_and_clear_full() if
-> there is no plan to use it in future ?
-> 
-> This is applicable to below functions as well -
-> pmdp_huge_get_and_clear_full()
-> ptep_get_and_clear_full()
-> pte_clear_not_present_full()
+Since the crash was triggered on x86 _most likley_ this is not a
+missed barrier. What I meant is that one thread needs to executed some
+code, while another thread is stopped within few instructions.
 
-I suppose arches may override those that could make use of "int full".
+
+
+> Thanks,
+> zhong jinag
+> >> Thanks,
+> >> zhong jiang
+> >>
+> >> On 2018/12/4 23:43, syzbot wrote:
+> >>> syzbot has found a reproducer for the following crash on:
+> >>>
+> >>> HEAD commit:    0072a0c14d5b Merge tag 'media/v4.20-4' of git://git.kernel..
+> >>> git tree:       upstream
+> >>> console output: https://syzkaller.appspot.com/x/log.txt?x=11c885a3400000
+> >>> kernel config:  https://syzkaller.appspot.com/x/.config?x=b9cc5a440391cbfd
+> >>> dashboard link: https://syzkaller.appspot.com/bug?extid=cbb52e396df3e565ab02
+> >>> compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+> >>> syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=12835e25400000
+> >>> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=172fa5a3400000
+> >>>
+> >>> IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> >>> Reported-by: syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com
+> >>>
+> >>> cgroup: fork rejected by pids controller in /syz2
+> >>> ==================================================================
+> >>> BUG: KASAN: use-after-free in __read_once_size include/linux/compiler.h:182 [inline]
+> >>> BUG: KASAN: use-after-free in task_css include/linux/cgroup.h:477 [inline]
+> >>> BUG: KASAN: use-after-free in mem_cgroup_from_task mm/memcontrol.c:815 [inline]
+> >>> BUG: KASAN: use-after-free in get_mem_cgroup_from_mm.part.62+0x6d7/0x880 mm/memcontrol.c:844
+> >>> Read of size 8 at addr ffff8881b72af310 by task syz-executor198/9332
+> >>>
+> >>> CPU: 0 PID: 9332 Comm: syz-executor198 Not tainted 4.20.0-rc5+ #142
+> >>> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS Google 01/01/2011
+> >>> Call Trace:
+> >>>  __dump_stack lib/dump_stack.c:77 [inline]
+> >>>  dump_stack+0x244/0x39d lib/dump_stack.c:113
+> >>>  print_address_description.cold.7+0x9/0x1ff mm/kasan/report.c:256
+> >>>  kasan_report_error mm/kasan/report.c:354 [inline]
+> >>>  kasan_report.cold.8+0x242/0x309 mm/kasan/report.c:412
+> >>>  __asan_report_load8_noabort+0x14/0x20 mm/kasan/report.c:433
+> >>>  __read_once_size include/linux/compiler.h:182 [inline]
+> >>>  task_css include/linux/cgroup.h:477 [inline]
+> >>>  mem_cgroup_from_task mm/memcontrol.c:815 [inline]
+> >>>  get_mem_cgroup_from_mm.part.62+0x6d7/0x880 mm/memcontrol.c:844
+> >>>  get_mem_cgroup_from_mm mm/memcontrol.c:834 [inline]
+> >>>  mem_cgroup_try_charge+0x608/0xe20 mm/memcontrol.c:5888
+> >>>  mcopy_atomic_pte mm/userfaultfd.c:71 [inline]
+> >>>  mfill_atomic_pte mm/userfaultfd.c:418 [inline]
+> >>>  __mcopy_atomic mm/userfaultfd.c:559 [inline]
+> >>>  mcopy_atomic+0xb08/0x2c70 mm/userfaultfd.c:609
+> >>>  userfaultfd_copy fs/userfaultfd.c:1705 [inline]
+> >>>  userfaultfd_ioctl+0x29fb/0x5610 fs/userfaultfd.c:1851
+> >>>  vfs_ioctl fs/ioctl.c:46 [inline]
+> >>>  file_ioctl fs/ioctl.c:509 [inline]
+> >>>  do_vfs_ioctl+0x1de/0x1790 fs/ioctl.c:696
+> >>>  ksys_ioctl+0xa9/0xd0 fs/ioctl.c:713
+> >>>  __do_sys_ioctl fs/ioctl.c:720 [inline]
+> >>>  __se_sys_ioctl fs/ioctl.c:718 [inline]
+> >>>  __x64_sys_ioctl+0x73/0xb0 fs/ioctl.c:718
+> >>>  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+> >>>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> >>> RIP: 0033:0x44c7e9
+> >>> Code: 5d c5 fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7 48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff ff 0f 83 2b c5 fb ff c3 66 2e 0f 1f 84 00 00 00 00
+> >>> RSP: 002b:00007f906b69fdb8 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+> >>> RAX: ffffffffffffffda RBX: 00000000006e4a08 RCX: 000000000044c7e9
+> >>> RDX: 0000000020000100 RSI: 00000000c028aa03 RDI: 0000000000000004
+> >>> RBP: 00000000006e4a00 R08: 0000000000000000 R09: 0000000000000000
+> >>> R10: 0000000000000000 R11: 0000000000000246 R12: 00000000006e4a0c
+> >>> R13: 00007ffdfd47813f R14: 00007f906b6a09c0 R15: 000000000000002d
+> >>>
+> >>> Allocated by task 9325:
+> >>>  save_stack+0x43/0xd0 mm/kasan/kasan.c:448
+> >>>  set_track mm/kasan/kasan.c:460 [inline]
+> >>>  kasan_kmalloc+0xc7/0xe0 mm/kasan/kasan.c:553
+> >>>  kasan_slab_alloc+0x12/0x20 mm/kasan/kasan.c:490
+> >>>  kmem_cache_alloc_node+0x144/0x730 mm/slab.c:3644
+> >>>  alloc_task_struct_node kernel/fork.c:158 [inline]
+> >>>  dup_task_struct kernel/fork.c:843 [inline]
+> >>>  copy_process+0x2026/0x87a0 kernel/fork.c:1751
+> >>>  _do_fork+0x1cb/0x11d0 kernel/fork.c:2216
+> >>>  __do_sys_clone kernel/fork.c:2323 [inline]
+> >>>  __se_sys_clone kernel/fork.c:2317 [inline]
+> >>>  __x64_sys_clone+0xbf/0x150 kernel/fork.c:2317
+> >>>  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+> >>>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> >>>
+> >>> Freed by task 9325:
+> >>>  save_stack+0x43/0xd0 mm/kasan/kasan.c:448
+> >>>  set_track mm/kasan/kasan.c:460 [inline]
+> >>>  __kasan_slab_free+0x102/0x150 mm/kasan/kasan.c:521
+> >>>  kasan_slab_free+0xe/0x10 mm/kasan/kasan.c:528
+> >>>  __cache_free mm/slab.c:3498 [inline]
+> >>>  kmem_cache_free+0x83/0x290 mm/slab.c:3760
+> >>>  free_task_struct kernel/fork.c:163 [inline]
+> >>>  free_task+0x16e/0x1f0 kernel/fork.c:457
+> >>>  copy_process+0x1dcc/0x87a0 kernel/fork.c:2148
+> >>>  _do_fork+0x1cb/0x11d0 kernel/fork.c:2216
+> >>>  __do_sys_clone kernel/fork.c:2323 [inline]
+> >>>  __se_sys_clone kernel/fork.c:2317 [inline]
+> >>>  __x64_sys_clone+0xbf/0x150 kernel/fork.c:2317
+> >>>  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+> >>>  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> >>>
+> >>> The buggy address belongs to the object at ffff8881b72ae240
+> >>>  which belongs to the cache task_struct(81:syz2) of size 6080
+> >>> The buggy address is located 4304 bytes inside of
+> >>>  6080-byte region [ffff8881b72ae240, ffff8881b72afa00)
+> >>> The buggy address belongs to the page:
+> >>> page:ffffea0006dcab80 count:1 mapcount:0 mapping:ffff8881d2dce0c0 index:0x0 compound_mapcount: 0
+> >>> flags: 0x2fffc0000010200(slab|head)
+> >>> raw: 02fffc0000010200 ffffea00074a1f88 ffffea0006ebbb88 ffff8881d2dce0c0
+> >>> raw: 0000000000000000 ffff8881b72ae240 0000000100000001 ffff8881d87fe580
+> >>> page dumped because: kasan: bad access detected
+> >>> page->mem_cgroup:ffff8881d87fe580
+> >>>
+> >>> Memory state around the buggy address:
+> >>>  ffff8881b72af200: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> >>>  ffff8881b72af280: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> >>>> ffff8881b72af300: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> >>>                          ^
+> >>>  ffff8881b72af380: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> >>>  ffff8881b72af400: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> >>> ==================================================================
+> >>>
+> >>>
+> >>> .
+> >>>
+> >>
+> >> --
+> >> You received this message because you are subscribed to the Google Groups "syzkaller-bugs" group.
+> >> To unsubscribe from this group and stop receiving emails from it, send an email to syzkaller-bugs+unsubscribe@googlegroups.com.
+> >> To view this discussion on the web visit https://groups.google.com/d/msgid/syzkaller-bugs/5C7BFE94.6070500%40huawei.com.
+> >> For more options, visit https://groups.google.com/d/optout.
+> > .
+> >
+>
+>
 
