@@ -2,164 +2,156 @@ Return-Path: <SRS0=F7ZL=RH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 51DEAC43381
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 20:00:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 69B56C43381
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 20:31:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1984C20830
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 20:00:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1984C20830
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arndb.de
+	by mail.kernel.org (Postfix) with ESMTP id 216FF20823
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 20:31:36 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="JFeTGKR4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 216FF20823
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BDAF08E0003; Mon,  4 Mar 2019 15:00:40 -0500 (EST)
+	id A658A8E0003; Mon,  4 Mar 2019 15:31:35 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B8A7D8E0001; Mon,  4 Mar 2019 15:00:40 -0500 (EST)
+	id 9EC718E0001; Mon,  4 Mar 2019 15:31:35 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A55138E0003; Mon,  4 Mar 2019 15:00:40 -0500 (EST)
+	id 8B4E88E0003; Mon,  4 Mar 2019 15:31:35 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DC9B8E0001
-	for <linux-mm@kvack.org>; Mon,  4 Mar 2019 15:00:40 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id f4so4227823wrj.11
-        for <linux-mm@kvack.org>; Mon, 04 Mar 2019 12:00:40 -0800 (PST)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B0F08E0001
+	for <linux-mm@kvack.org>; Mon,  4 Mar 2019 15:31:35 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id 207so5364274qkf.9
+        for <linux-mm@kvack.org>; Mon, 04 Mar 2019 12:31:35 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=ZfakE/CbS8xrs43Lrg/OoZsO+6PpNSqmllDKU14czno=;
-        b=b8cfyn2EK2S8kDiVLaxEb+ODDkWQovuKRRVIYIZwA3QPrOud1rM/jC73E4alzHWrlX
-         NqCd7rk8DYcS5DrmPK3/3shZ/20b6bGbQVsBaEntiF0VcLvtuVdKofTgvvKBDwS4PjMs
-         bWA8+eXxN24hIUasy8dzuZhydAqwHMgk3BLk4FeR24hLnoQxcvEclvuvexnZXyz/BYFZ
-         v6y4SD2vf4XLaekL4Cl0+9XlWN7NoLU0V2u2lpvMPocRZ7DaObmbxZnrpXwm1w0MDAkG
-         eWqkuAUrgV6cn5BczTybywnKpIbWy8t+eGoiCuqSBAfCY2GlM7sdqTHQDFUywbSFXWoz
-         3rKg==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 212.227.17.13 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
-X-Gm-Message-State: APjAAAWfSpcNICAr/Kmf01yPdpOCV85MctDwEehhLMj3lU6G2CPZU+24
-	O2qmBykrgkYUj9XLGEnlgCAPJ2G8Ks+F3rWMUua3D7pRDoFT528HFZAa7Rl9f19eE6KBD9TZ1Zx
-	KRiodACnOBswxfKJv7aXY6oV520XRH75kxELCdmvXgI/6cIzpSKRcVh83PmGI9F0=
-X-Received: by 2002:adf:c543:: with SMTP id s3mr13058615wrf.192.1551729639788;
-        Mon, 04 Mar 2019 12:00:39 -0800 (PST)
-X-Google-Smtp-Source: APXvYqz3JDz2ydrQmWIb9NKMgW+yZhsRgU2EknZ07kRQcF8t7342P149FjWLxn85BmuKzxFNsGM2
-X-Received: by 2002:adf:c543:: with SMTP id s3mr13058562wrf.192.1551729638566;
-        Mon, 04 Mar 2019 12:00:38 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551729638; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=z9mIcxxt8Vhpd9V+/EyizlMRIl0unlkK0sf4EYC970w=;
+        b=n4pi43xvrFcz5oBmIFlpPhahxunaA2r3f2EQVAVifCSVZsweviFYmXF8q40ZU/5pS/
+         x1u7EVpvpvvmJ15M585JDC79qqGPnFYDopGnuvnid+/6AtrbtQdLSKHQpDIoGoOQAXVC
+         pvSUy77+ghQiu5hKChNT41uU21s6I47pC9CMJ+3wmTM0bcnAfnXSyUkGAEtxsp0j65tr
+         6BhnhNLzVfyWYVOHr9y/bhCxNNYIiMv3zv//cUUsaOYnHk03iV9RGnCX0DTtuGiXCmhw
+         Scc4oGnouKOXOxJZn8jHQrc+/zh+7H+DdGFMBxGy2bz01QOjLL6//3kGyvrVleftPauJ
+         r3wg==
+X-Gm-Message-State: APjAAAUDj9/IcSNT3Uyip/ccAB8XBjk6cxgTPw7ESoDVIUgm+vjDV/xn
+	i/EKFtZt0F7wgl8sa+o2cdxcPM0VWMfXQBX9ZmmumC0j/AS4mh3i/vzlgjzTviXTMUgdSIp9KpF
+	4knquuxa/FATjD2WjKDFRqvbGpE51aPmk2j0NiKBPdrOjvvHFYyXbaQUuAvphbPiXLp6apiKnt9
+	qye2OX2qEOamwwyDPwrJ1XD6Z6/L9hjIL5niMvUnx+8ydswvNqZIl7l65H6jeWNOJmAzOFt1Erx
+	XxLIklc5yCMX3f/K+d9Q8KnnWfrr5jqCDn717TIfwdXSQhnXRJe08sj2PPCSKPKFbNOKnmLymk5
+	K58Wne6MthgtSCAAobFLq7KFLjeEdU42JsHJofgi9eWFk+ULIwzoDEWZd13UxHKjt4MghJImdGe
+	u
+X-Received: by 2002:a37:a783:: with SMTP id q125mr14579075qke.264.1551731495030;
+        Mon, 04 Mar 2019 12:31:35 -0800 (PST)
+X-Received: by 2002:a37:a783:: with SMTP id q125mr14579038qke.264.1551731494184;
+        Mon, 04 Mar 2019 12:31:34 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551731494; cv=none;
         d=google.com; s=arc-20160816;
-        b=HilTUj/Hcb8hauHob5YrRg9wgEfR5PFIJ7AEqiG8v1Kj4RHw4F7QJZLQaSFv9eA8cP
-         yurs0dP+w+FTOo+42zm+uRBcggxAvKV2lUBYiZG7VW5gT8IyttOaIM7/mf5XgMU8EEu/
-         AUlz5HUR5d75gwcVrEgTCeAsK2eHGR94+5gXJV1tCLIaY/jrRTjSBC1AAerR/uF3euSB
-         mYw6eQVn8EXagiYlArIOaTeKPJsKk1AQKoBroDA4lLxAiqTxrBvLOxkZb7gF6QN/AeOg
-         zmJWQCjgMnAfRVxcJTUKoqaoQ0b43ubotcWSvsrZ04gOI2ZpFTIStoQQrT8HFheoLTre
-         AhjQ==
+        b=rCyADJJeM4UTtsI8CZQ8Ca6pKDE4JQ4Bsf6UAVWoTiLP068pMT1l+u3Rmvth3eOc6J
+         GQD469Bqzq+CyvjQ8HP8D/Wv8uKXodMwwzaVM1kB2L1zaYuLj/hphs+BQm4Ndv2pRi1r
+         zIjm1eEfZW5XEFMeMyUv12ZlP+D2JdCie1K75fLzX4XjeBguMof/AAEhruDYNXGudXUh
+         bJza0RDCmO9qUxai6C09n8Si3bk6ijZrcZ2w3vyU6TSNZg/H2DEB1t5fwSGB8J1UqBn7
+         4PAWDO5czSkM5gKnC/lMyFpOBx3IqyVOIpkh0X2z24nsM36KnnyH64BSMmVJSUx/aTOg
+         9x9w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=ZfakE/CbS8xrs43Lrg/OoZsO+6PpNSqmllDKU14czno=;
-        b=xCpkg7Ptv808+teOBGqbaIURmXX9LAiX9gd2+QP3a71aWs1DWHfuURofl5PcAjdkdJ
-         NymsU6dS/Cr4LBlg5Z/tHb7Sg2xiQtYM3QYHSpsIzlxlNE2ku2oIv9Oc3Ogr9Qz6UX9q
-         lrQR4jcTXvPT4R4XUXj2fqAWrva/VRsoBeQtcEeJtw/aCbqdMo674vXQ7rlMaHi+jMZS
-         JgDG+BGtmnue94zzyEZxhxXi9zvlV4yBCRdWzhfNaU7nEtXHpwExiJJJHo6V5Z7r/vYL
-         +hGmr+AOpG5acFfvSpOCvtXK6iq19vPJ0aNH5KTxS5G4vS1UCs8U3P6u319UM8OwE/uT
-         Y4NQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=z9mIcxxt8Vhpd9V+/EyizlMRIl0unlkK0sf4EYC970w=;
+        b=AbMnceT8VreK23Av9quILnv8mfK2Z8ua1vx8GEpouHTN2cmehoRHBeOC9j00FQ/RBR
+         kVE8gQnNUONju9RVvY1ExKFid/IHamTBYvtC6eVJ7y3H54ypKqDjZKUI2EGhi0GV0IPX
+         IsTn1wTMOujg1/tnEgAOHny8Gp7ISc/BhaIulss9gIsherxMHK48SDIazZfgnTfvHqvl
+         oGdTtP1S3Cj+SQBY1qvkfF3BB4iPKfc87JBUMiYXR0T+VhePTXiY72yXv3A18h0/FrEj
+         buqtx0PZqGZ58PlZqsyJn/1xSHWbqDNNkDHYo8iotzTXPA+e04/hsNV4z09kdwq3dQIq
+         R1jw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 212.227.17.13 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.13])
-        by mx.google.com with ESMTPS id q16si4365487wrr.21.2019.03.04.12.00.38
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=JFeTGKR4;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a81sor3807075qkg.130.2019.03.04.12.31.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Mar 2019 12:00:38 -0800 (PST)
-Received-SPF: neutral (google.com: 212.227.17.13 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) client-ip=212.227.17.13;
+        (Google Transport Security);
+        Mon, 04 Mar 2019 12:31:34 -0800 (PST)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 212.227.17.13 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
-Received: from wuerfel.lan ([109.192.41.194]) by mrelayeu.kundenserver.de
- (mreue108 [212.227.15.145]) with ESMTPA (Nemesis) id
- 1M6UVr-1gu34r0Gef-006t1z; Mon, 04 Mar 2019 21:00:32 +0100
-From: Arnd Bergmann <arnd@arndb.de>
-To: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Cc: Arnd Bergmann <arnd@arndb.de>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	Stephen Rothwell <sfr@canb.auug.org.au>,
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=JFeTGKR4;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=z9mIcxxt8Vhpd9V+/EyizlMRIl0unlkK0sf4EYC970w=;
+        b=JFeTGKR46hqecjdgXUCXA+PrbOcfhOUKyqsz887pdoaKWDSgn6hDTL0Vw2FtXeY27z
+         uqHxm+aSfSxHxZ04/5/ZtHeiRLJEW7inwMIPplCUR4hpul8lUHW40ct3ly1elJgUOtl3
+         2f7QDs6t+X10nndWu2iI0sbpfI2fUOIuDRKNJlnEQK9p17hrAo/g/LtwaD8rWGOATZG9
+         /Z+HAQhJD3m9L4bWuMRZNEIloPHbC/1kenvBf/HdjZ5ZRgkljDYALHNnXkZn20kyTsfd
+         u/JCaroIdy8grFikzQJOZwoS9sX/C/R/aTXdqEFhaZl9tooNa1cnx7fhZisHUuw/d1Zy
+         cd3g==
+X-Google-Smtp-Source: APXvYqyctoESLU+Xtxd++N/+Ff3gZfUlHc/dMEjqqr/V+Al9QV4wBeo2newWfQLW5Xw86infcw5cnQ==
+X-Received: by 2002:ae9:ec19:: with SMTP id h25mr15120648qkg.122.1551731493848;
+        Mon, 04 Mar 2019 12:31:33 -0800 (PST)
+Received: from ziepe.ca ([24.137.65.181])
+        by smtp.gmail.com with ESMTPSA id f58sm4696098qtc.14.2019.03.04.12.31.33
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 04 Mar 2019 12:31:33 -0800 (PST)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1h0uFI-0000Hb-73; Mon, 04 Mar 2019 16:31:32 -0400
+Date: Mon, 4 Mar 2019 16:31:32 -0400
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: john.hubbard@gmail.com
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>,
 	John Hubbard <jhubbard@nvidia.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH] mm/hmm: fix unused variable warnings
-Date: Mon,  4 Mar 2019 21:00:10 +0100
-Message-Id: <20190304200026.1140281-1-arnd@arndb.de>
-X-Mailer: git-send-email 2.20.0
+	Leon Romanovsky <leon@kernel.org>, Ira Weiny <ira.weiny@intel.com>,
+	Doug Ledford <dledford@redhat.com>, linux-rdma@vger.kernel.org
+Subject: Re: [PATCH v3] RDMA/umem: minor bug fix in error handling path
+Message-ID: <20190304203132.GA1055@ziepe.ca>
+References: <20190304194645.10422-1-jhubbard@nvidia.com>
+ <20190304194645.10422-2-jhubbard@nvidia.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-Provags-ID: V03:K1:oWsSM4Y3uyql69Hm+fLCuZ/Z86r27PiGHo7NAGMIgk4M3l90Nmy
- ydt8NvS6JaKV9VYNJVXLvscG9GMvo8XEdiR6O3sbiNSD7GDDpU1tE+T8tlNO8zQbwDD+k8E
- frU6qfqluZQZsGnwrwDOxAonBEvSxyVOmY9fmDQpIhagAGKEhh7UwYeUUNj89pMMdI1vMmz
- cLJYkuRg8vUOAfTEjf+Bw==
-X-UI-Out-Filterresults: notjunk:1;V03:K0:LbCpmeYVQ1U=:XVRFS0l/dUFasWwUJgPIv1
- ToRudy+Iv+x7SApootlGef3ekqNy0FBxNQSrUS1m6HtV3vIVDE0SbbhpiTagwLoHowEOHWP/m
- pVsKzk9glXiv1wz8HBLU4ZIlonYcgQVnj5t+r/UYnxvG7BzVx7BLPSiEnq2UtCoxSgKm+9qNv
- VnuIIEZa6CV0WcjB2rJt3spS0GGwNYzY6CVvGKcDDS60UijVm9H1wWFUODOTAg/bdXp69StXl
- UvSk71BoH2XAVeQnHrZr5PL+hgOnmgjiZe/uuhasbIShcQwCObHpfOMDy3eSzmF8gWJMzH8Yo
- C5gRjXpqguAj/FJlY3J2OxCdYCZ660/Zp6fwaQkIQH5HumHTfM370DD3QbmszKGsWgJizbRTR
- ue9xQ+RiNntu+g+b8M07hhiZlGzH5XIkX4GOvHofQ9F4RauryZW4E4STvAoiAjpomwZSihthp
- 5BbMWf34FGrKLMxAoidOLEVcRHkAqXHShXSZgOxGE5zd9Bjjx6IYXNuPU0dVqPSRTeYsfAx1j
- IMNEkTyMStC/EjzZrwCAOaWTf1cRT310OcHuj54g5YWs4SluXcRpjkXSrdljhWXKZsngfVHOX
- cfZVguTufmuAci5UNUwE2yFHGqSgulN2amAO2G1Jpjjn+xbvqspz9nQo1JDGlo9OjJNGyJqPR
- agdR/bQiwx1bTK6np7azeryTDA/FLrKJDmFlfvkkOgbSGFVnXyFO9dyV8e+/1BiA/lFPPddLZ
- 4a91sSb12qpjgIIN5rgqj85y93y31rlswfP48w==
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190304194645.10422-2-jhubbard@nvidia.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When CONFIG_HUGETLB_PAGE is disabled, the only use of the variable 'h'
-is compiled out, and the compiler thinks it is unnecessary:
+On Mon, Mar 04, 2019 at 11:46:45AM -0800, john.hubbard@gmail.com wrote:
+> From: John Hubbard <jhubbard@nvidia.com>
+> 
+> 1. Bug fix: fix an off by one error in the code that
+> cleans up if it fails to dma-map a page, after having
+> done a get_user_pages_remote() on a range of pages.
+> 
+> 2. Refinement: for that same cleanup code, release_pages()
+> is better than put_page() in a loop.
+> 
+> Cc: Leon Romanovsky <leon@kernel.org>
+> Cc: Ira Weiny <ira.weiny@intel.com>
+> Cc: Jason Gunthorpe <jgg@ziepe.ca>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Doug Ledford <dledford@redhat.com>
+> Cc: linux-rdma@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+> Signed-off-by: Ira Weiny <ira.weiny@intel.com>
+> Reviewed-by: Ira Weiny <ira.weiny@intel.com>
+> Acked-by: Leon Romanovsky <leonro@mellanox.com>
+> ---
+>  drivers/infiniband/core/umem_odp.c | 9 ++++++---
+>  1 file changed, 6 insertions(+), 3 deletions(-)
 
-mm/hmm.c: In function 'hmm_range_snapshot':
-mm/hmm.c:1015:19: error: unused variable 'h' [-Werror=unused-variable]
-    struct hstate *h = hstate_vma(vma);
+Applied to for-next, thanks
 
-Rephrase the code to avoid the temporary variable instead, so the
-compiler stops warning.
-
-Fixes: 5409a90d4212 ("mm/hmm: support hugetlbfs (snapshotting, faulting and DMA mapping)")
-Signed-off-by: Arnd Bergmann <arnd@arndb.de>
----
- mm/hmm.c | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
-
-diff --git a/mm/hmm.c b/mm/hmm.c
-index 3c9781037918..c4beb1628cad 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -1012,9 +1012,8 @@ long hmm_range_snapshot(struct hmm_range *range)
- 			return -EFAULT;
- 
- 		if (is_vm_hugetlb_page(vma)) {
--			struct hstate *h = hstate_vma(vma);
--
--			if (huge_page_shift(h) != range->page_shift &&
-+			if (range->page_shift !=
-+				huge_page_shift(hstate_vma(vma)) &&
- 			    range->page_shift != PAGE_SHIFT)
- 				return -EINVAL;
- 		} else {
-@@ -1115,9 +1114,8 @@ long hmm_range_fault(struct hmm_range *range, bool block)
- 			return -EFAULT;
- 
- 		if (is_vm_hugetlb_page(vma)) {
--			struct hstate *h = hstate_vma(vma);
--
--			if (huge_page_shift(h) != range->page_shift &&
-+			if (range->page_shift !=
-+				huge_page_shift(hstate_vma(vma)) &&
- 			    range->page_shift != PAGE_SHIFT)
- 				return -EINVAL;
- 		} else {
--- 
-2.20.0
+Jason
 
