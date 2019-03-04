@@ -2,167 +2,143 @@ Return-Path: <SRS0=F7ZL=RH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 382ACC43381
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 13:11:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C0178C10F03
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 13:16:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EC1AD2075B
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 13:11:19 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="N8cidJa+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC1AD2075B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	by mail.kernel.org (Postfix) with ESMTP id 8728920830
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 13:16:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8728920830
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8C6E38E0004; Mon,  4 Mar 2019 08:11:19 -0500 (EST)
+	id 20EDD8E0005; Mon,  4 Mar 2019 08:16:56 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8774A8E0001; Mon,  4 Mar 2019 08:11:19 -0500 (EST)
+	id 195318E0001; Mon,  4 Mar 2019 08:16:56 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 78EF18E0004; Mon,  4 Mar 2019 08:11:19 -0500 (EST)
+	id 05E128E0005; Mon,  4 Mar 2019 08:16:56 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 343098E0001
-	for <linux-mm@kvack.org>; Mon,  4 Mar 2019 08:11:19 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id o24so4825204pgh.5
-        for <linux-mm@kvack.org>; Mon, 04 Mar 2019 05:11:19 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E1328E0001
+	for <linux-mm@kvack.org>; Mon,  4 Mar 2019 08:16:55 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id 29so2600857eds.12
+        for <linux-mm@kvack.org>; Mon, 04 Mar 2019 05:16:55 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=0mz8hR/PW+TukAB77KzXlPfAhIvUFB5c4A/6VIejvxk=;
-        b=nTxcxfWicIFXhNwvBNKO47ZJiUp0kCSxsot7fU4YmDLQmrAKVqy89s2uvcTwA90Kcb
-         ATrIZybOErWfWKNBK7kfQ5SPInAEa0njMabmHztTzKpfbOYDc66fy6Tcd/qTJeHvj1TF
-         U7ORtoyUy/axmTL4N7c3zeBEFq+DTi2vJI9uXXgZdbRRQVzwpPcHffWF0gPKEK5ob7Ry
-         NT04X3OaCx/NYwLa4sL8iVFjdAxgeMkgUYtR2eZwpzH0vGhn1rvwsB7BUtTL1JY4Y+SP
-         EwzNZB2tKjyFlLqsVES/ZHYq4DtEiA6Fjczow2iJKb+RiCC2ZzjBwG/h86tsASe5ZcW7
-         NClg==
-X-Gm-Message-State: APjAAAXgFOo13VG1ndoTe9vi025/XO77h8edwVIDsGyNCXe93R2Dd3w1
-	cJIPDXn7UkAUSdaHBnDS9p2zfrkzuLCE+mj+IqDDSyhIDhVcPkd7ueDtLmW+HyQ7BV6xUCiq0GU
-	Cm6eMpFmtxC0NIVHI9mFSYs5Ie7jP/1Xg3dRHAzZmju4LJjGtf6TC5yqn0sbEU/keY74IWz4diX
-	bKjg2jirRDXhoO8zeazkj4YVq1B8h61BSPB+Q4cdwbqxlyF3Acj3WLRL99stk8hWTEuN3lFrtp6
-	pKy0M4PyVk0vpxojv9e7Ix8MEPpVBX21/0/aBBGWZ40Fm5RXWzBYtM2A2sfW+UtbOt3AF2mLinj
-	wLc4TGpJ/obddBt/BnXv1DmXfzEbIy1frftRsJbT24iNJqIDDmBkBNYMV8PxXCORQ7KXQ2dQkSr
-	l
-X-Received: by 2002:a17:902:76c8:: with SMTP id j8mr10724733plt.18.1551705078912;
-        Mon, 04 Mar 2019 05:11:18 -0800 (PST)
-X-Received: by 2002:a17:902:76c8:: with SMTP id j8mr10724677plt.18.1551705078254;
-        Mon, 04 Mar 2019 05:11:18 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551705078; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=eBdK89kLVUJPHT8ZWFzjm3+mucLgD5VYryVZKZ9KcUY=;
+        b=Zgj+yq7ZqA7uoBEXa3LZQ1znAJ1dp7cAzWSg04joywEacZYlhV6K666oXSeI1RtD67
+         QxsRk7MOosVBg8YMew12dHQMIdC3Nrec+HyYzGvdIG9E5GLO1s4Gb0OJTV7FUmitimS8
+         u9bQYDkoDwlyTjHLizjQsDCsOGtF/GdQhotb1Jfo23ICv9ZYU4qalo4As0o3NkjR8rJD
+         BirnUcv9paqHYs0qHI7CF0KtBwIWHS7IrIIaNHab7YVj0qWANqDN2oJZ6LGVRsKCxnBI
+         zFyrGr7NF5OvEglJf43k8TXaAmLMOwaKlfpyrf7bvTsxzsHXGRbr6TpAXKcR53CZFbHH
+         Qi1Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+X-Gm-Message-State: APjAAAUKy3CcA6/x47fc5BEwGvXcF5WkmDneLbdN1KbTKCmOIbktQVQM
+	1TsFgW1kEhETCdWOusrjZCglA2SjWmFLB27leZ5Cen+yyir2rVURNDqjl9LqU2zRSzEXJI+mUQM
+	XbQIrP/DZHSqDEtPUuKj+OY0duCJUCVGeEJ/Bl/zqulljz1EIIwcjsn9A1gSqj4mINw==
+X-Received: by 2002:a17:906:b742:: with SMTP id fx2mr12845883ejb.199.1551705415200;
+        Mon, 04 Mar 2019 05:16:55 -0800 (PST)
+X-Google-Smtp-Source: APXvYqz3OtFb6lGjxk+RVY2pCEYi51+xuJ2ifIpwxB52LGOXcid/4haposrFuwwmQTJOYatkNYY5
+X-Received: by 2002:a17:906:b742:: with SMTP id fx2mr12845835ejb.199.1551705414310;
+        Mon, 04 Mar 2019 05:16:54 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551705414; cv=none;
         d=google.com; s=arc-20160816;
-        b=fMhFsCV2zgfCjJbiYoZz5ezd3svzRxjYL+xK9CgR9D5altnMnv8VLgE/KcUYWfFu+0
-         LVqzpdrt4bqp2EJVrfZMAlBRggdpzkTUv0VHsq091+y36pDDxI46Mzqy3A8Us/IzDzfw
-         GnGG6uO6RJb7ZtUl6Xc2jkwbAzoLQyUH+naiVgMiAQhiZaJl3ydp7/zYGMiVRAlrySLl
-         cPDIKa6zZUZiXl+HV/ItFSUQREyg99SWmM3M9Yy54xWdIlgOg40diIuCULVISMChSOsZ
-         zpyp0yF4eMdkMcy85MNmdkrYb2TsEDNWDJLSj4om/Rr7zVVij2cUb1OmU9b5Cz8y8fXv
-         MK2A==
+        b=g80T4yyrxWjeUdmUH6AVHhMai/1nQuQw10ePHz6sHVI5WzpYgH1IztpDqaZBm+NmS+
+         wyuWRNsoHuTBt0tO/h8Y6EsqoEzqSY2i7DrWLYku0V2l08oEWCJyccYGuyGHR++v03Wx
+         a2htFMRZ7iQhZLchHfDsXRSo2wB7UGj1oIjapblh5vdOe3SY9kdZF+vV4xaL0KygLVzO
+         xrpsxEiZEpFoozLT5Xb5aiw79XlOTX+2b3CDdIJpcFnPlS/AEoaSfYK4/Uz93d1WShlh
+         039UY/goZu0blnVMqBpcCgnu0ugex3gJStN2tRia/6dcsXj9fu7WvDeUDa4CGEGFaI2d
+         WRQw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=0mz8hR/PW+TukAB77KzXlPfAhIvUFB5c4A/6VIejvxk=;
-        b=JqSotwCtripdkdRoi+pV00BA6QO84PvBEb81VXdR4e/meofa8Go9UE30Jq/SwTnVPE
-         0GQrt2DJO7YKfWtg3PO7dKHIY1wbtDclZ9DHl/0hfjjz4scHxxkhQ3OXebpgKzvZ9oGp
-         P8oT52QGtFiWxxtsmWzhkxTCYukGKoEg8eU/tQCWIXdL2Sw75ZmEg+WsYIl4dS40SDVE
-         DYiGoFEcIEjVWJESVietvUENwAC8Nc6q/hw/BXuFKIlMHKIs0s8GsMzV/fjBu7cExjdW
-         ZPJvQiBtL7Nx3Id1wZX37Ef4WhTMH/L/37CHyGNisHIbNOfZTgM4CmxyWNkwBHHmOWxv
-         xK4w==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=eBdK89kLVUJPHT8ZWFzjm3+mucLgD5VYryVZKZ9KcUY=;
+        b=lJtIzzdoNqVpgNFDTZ2kLNSidYOczowZGqPXES4yGr89BlKnNz7f045ESS5I+Lx7zY
+         KY/4e5zYg16NnSxCqKwW9fbP5+6XfKSLYdSvzw0+67p6R5OWdeIWzqcZkhP1TEPeBUzu
+         0tu/GfLjhKO6Q0aOFP9eMR+DQplGr/FANXG4ZXLOG3rSytDzjylWj5TKcNZEG6gf8QgZ
+         RkE8GggEJkOF7js5TlXdI4+ZO5vA7sgMUwUCCZfucHOFqW/X3wyyKV4y4NvrS3HW6x6M
+         Y/uWmu/VrGKHTcdfsbihAtXMyFaO9qZv652cov3O5+LTx+TmRNZEvNQ4eJvz/onia15q
+         ltYA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=N8cidJa+;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w190sor8658211pgd.67.2019.03.04.05.11.18
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 04 Mar 2019 05:11:18 -0800 (PST)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id w27si2342049edi.262.2019.03.04.05.16.54
+        for <linux-mm@kvack.org>;
+        Mon, 04 Mar 2019 05:16:54 -0800 (PST)
+Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=N8cidJa+;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=0mz8hR/PW+TukAB77KzXlPfAhIvUFB5c4A/6VIejvxk=;
-        b=N8cidJa+RBPGSL+FpF/dmOQUuLI1A9v0JjWx4C3aX+xibANTueBDzft2D+a3cvEHdu
-         ZBbZPzSMgIcHuBY8biFXoXeJo85Qodj1KzLd5RsEJda/rl8QB/jcFckZllQYBND4I9db
-         IFXv1KogTJk3/eGYvqccL6WziE2Oz9xj/ktRqxWvtARahwOh22wYKWaseQ5OqyzEDi3q
-         z/To1xy/WMuTBcGyGNxUp5sWGAJS7/dBCr2ouCq0CXGRFzkC5eySyZKUYSVGNxzhnE6O
-         jV25/GxjZcafM4uCvTHkUX1FvmvZ8UHrqXoAdE6HGE/cfws19vborK26vWJlV9v2XcpR
-         OguQ==
-X-Google-Smtp-Source: APXvYqzAWJ2k3k7IQ3uno9qOI/nhQp7EloMYKyZOcYGMZpgzNkdiqKlyXi09LWDL4bNZVmSSr/me3Q==
-X-Received: by 2002:a65:620f:: with SMTP id d15mr18557884pgv.112.1551705077993;
-        Mon, 04 Mar 2019 05:11:17 -0800 (PST)
-Received: from kshutemo-mobl1.localdomain ([192.55.54.40])
-        by smtp.gmail.com with ESMTPSA id v6sm8704444pgb.2.2019.03.04.05.11.17
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Mar 2019 05:11:17 -0800 (PST)
-Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
-	id 0B911300429; Mon,  4 Mar 2019 16:11:14 +0300 (+03)
-Date: Mon, 4 Mar 2019 16:11:14 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Steven Price <steven.price@arm.com>
-Cc: Mark Rutland <Mark.Rutland@arm.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org,
-	"H. Peter Anvin" <hpa@zytor.com>,
-	"Liang, Kan" <kan.liang@linux.intel.com>,
-	linux-c6x-dev@linux-c6x.org, x86@kernel.org,
-	Ingo Molnar <mingo@redhat.com>, Mark Salter <msalter@redhat.com>,
-	Arnd Bergmann <arnd@arndb.de>,
-	Aurelien Jacquiot <jacquiot.aurelien@gmail.com>,
-	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-	Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	linux-arm-kernel@lists.infradead.org,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	linux-kernel@vger.kernel.org, James Morse <james.morse@arm.com>
-Subject: Re: [PATCH v3 05/34] c6x: mm: Add p?d_large() definitions
-Message-ID: <20190304131113.qlf4bs7to77wm3ui@kshutemo-mobl1>
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id F35CEEBD;
+	Mon,  4 Mar 2019 05:16:52 -0800 (PST)
+Received: from [10.1.196.69] (e112269-lin.cambridge.arm.com [10.1.196.69])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 5F6333F575;
+	Mon,  4 Mar 2019 05:16:49 -0800 (PST)
+Subject: Re: [PATCH v3 08/34] ia64: mm: Add p?d_large() definitions
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Mark Rutland <Mark.Rutland@arm.com>, linux-ia64@vger.kernel.org,
+ Peter Zijlstra <peterz@infradead.org>,
+ Catalin Marinas <catalin.marinas@arm.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon
+ <will.deacon@arm.com>, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>,
+ "Liang, Kan" <kan.liang@linux.intel.com>, x86@kernel.org,
+ Ingo Molnar <mingo@redhat.com>, Fenghua Yu <fenghua.yu@intel.com>,
+ Arnd Bergmann <arnd@arndb.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+ <jglisse@redhat.com>, Borislav Petkov <bp@alien8.de>,
+ Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>,
+ linux-arm-kernel@lists.infradead.org, Tony Luck <tony.luck@intel.com>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>, linux-kernel@vger.kernel.org,
+ James Morse <james.morse@arm.com>
 References: <20190227170608.27963-1-steven.price@arm.com>
- <20190227170608.27963-6-steven.price@arm.com>
- <20190301214851.ucems2icwt64iabx@kshutemo-mobl1>
- <f840db0e-bbb3-db7e-d883-79b5a630767c@arm.com>
+ <20190227170608.27963-9-steven.price@arm.com>
+ <20190301215728.nk7466zohdlgelcb@kshutemo-mobl1>
+From: Steven Price <steven.price@arm.com>
+Message-ID: <15100043-26e4-2ee1-28fe-101e12f74926@arm.com>
+Date: Mon, 4 Mar 2019 13:16:47 +0000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f840db0e-bbb3-db7e-d883-79b5a630767c@arm.com>
-User-Agent: NeoMutt/20180716
+In-Reply-To: <20190301215728.nk7466zohdlgelcb@kshutemo-mobl1>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 04, 2019 at 12:01:37PM +0000, Steven Price wrote:
-> On 01/03/2019 21:48, Kirill A. Shutemov wrote:
-> > On Wed, Feb 27, 2019 at 05:05:39PM +0000, Steven Price wrote:
-> >> walk_page_range() is going to be allowed to walk page tables other than
-> >> those of user space. For this it needs to know when it has reached a
-> >> 'leaf' entry in the page tables. This information is provided by the
-> >> p?d_large() functions/macros.
-> >>
-> >> For c6x there's no MMU so there's never a large page, so just add stubs.
-> > 
-> > Other option would be to provide the stubs via generic headers form !MMU.
-> > 
+On 01/03/2019 21:57, Kirill A. Shutemov wrote:
+> On Wed, Feb 27, 2019 at 05:05:42PM +0000, Steven Price wrote:
+>> walk_page_range() is going to be allowed to walk page tables other than
+>> those of user space. For this it needs to know when it has reached a
+>> 'leaf' entry in the page tables. This information is provided by the
+>> p?d_large() functions/macros.
+>>
+>> For ia64 leaf entries are always at the lowest level, so implement
+>> stubs returning 0.
 > 
-> I agree that could be done, but equally the definitions of
-> p?d_present/p?d_none/p?d_bad etc could be provided by a generic header
-> for !MMU but currently are not. It makes sense to keep the p?d_large
-> definitions next to the others.
+> Are you sure about this? I see pte_mkhuge defined for ia64 and Kconfig
+> contains hugetlb references.
 > 
-> I'd prefer to stick with a (relatively) small change here - it's already
-> quite a long series! But this is certainly something that could be
-> tidied up for !MMU archs.
 
-Agreed.
+I'm not completely familiar with ia64, but my understanding is that it
+doesn't have the situation where a page table walk ends early - there is
+always the full depth of entries. The p?d_huge() functions always return 0.
 
--- 
- Kirill A. Shutemov
+However my understanding is that it does support huge TLB entries, so
+when populating the TLB a region larger than a standard page can be mapped.
+
+I'd definitely welcome review by someone more familiar with ia64 to
+check my assumptions.
+
+Thanks,
+
+Steve
 
