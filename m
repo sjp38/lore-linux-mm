@@ -2,193 +2,268 @@ Return-Path: <SRS0=F7ZL=RH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-13.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CB602C43381
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 07:15:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C406FC10F03
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 07:40:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 92DDB20863
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 07:15:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 92DDB20863
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
+	by mail.kernel.org (Postfix) with ESMTP id 4E3DC206B8
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 07:40:31 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Jqw1/mIe"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E3DC206B8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1BE508E0003; Mon,  4 Mar 2019 02:15:07 -0500 (EST)
+	id B71D88E0004; Mon,  4 Mar 2019 02:40:30 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 16CDD8E0001; Mon,  4 Mar 2019 02:15:07 -0500 (EST)
+	id B1F4C8E0001; Mon,  4 Mar 2019 02:40:30 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 05D238E0003; Mon,  4 Mar 2019 02:15:07 -0500 (EST)
+	id A0E6F8E0004; Mon,  4 Mar 2019 02:40:30 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A6D248E0001
-	for <linux-mm@kvack.org>; Mon,  4 Mar 2019 02:15:06 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id a9so2217343edy.13
-        for <linux-mm@kvack.org>; Sun, 03 Mar 2019 23:15:06 -0800 (PST)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 780F48E0001
+	for <linux-mm@kvack.org>; Mon,  4 Mar 2019 02:40:30 -0500 (EST)
+Received: by mail-io1-f71.google.com with SMTP id g3so3721712ioh.12
+        for <linux-mm@kvack.org>; Sun, 03 Mar 2019 23:40:30 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=UIqKjVw6zXIlgp+pCnBsV3pcfmamnx1f6tQPJUXWIdo=;
-        b=GQnkJjUpkwXLMYOw9UAR6m5n0lgGm7f0KoRpfkQpKx9GAFc+fjAyrmiMZZv00fo68/
-         BRg9V/z9W4edC48RWFcgVfhtrvTHi24mTF3SlKJdVJIckaTWyr04jpoBhQ5RiTn3v8fL
-         0Cv0Llf3S3koV8oKrDO5c5WoV3YEtvfiRlKjgzbWXUUevnBsUf0flZTSbjsiTGu4ufnS
-         4oWU3TkwHi1yujsGwEbVHJcQ8p4K6ktNhLrzlY5ClJBBAZ3DPCV22pKTWdJ8gEtkZ6dP
-         LTfir+wHRsiSt6yyNbf6B/v2Ks29nyMg5Zkv431NBsrahcjJFcMiGywcqp54sMNvNWY3
-         uCBA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
-X-Gm-Message-State: APjAAAWtj6gIWmhaozuQZe9+odP4oooto1FUxsRfztZq/C5gs1KR8kmb
-	DIXsEu2jTlbu55Q8mZbJHvWqFvhl7RUh0um6u0O7ITO9+sWH+yBX3K+rykeP4X0A3PtPNQRljaF
-	KSvbnBRD4ip9kl4WfBDLHVfekfyms2jyKOmf+srHmuyN62rNIELYvjFN/03Zw78eg3A==
-X-Received: by 2002:a17:906:60d7:: with SMTP id f23mr11519615ejk.177.1551683706253;
-        Sun, 03 Mar 2019 23:15:06 -0800 (PST)
-X-Google-Smtp-Source: APXvYqzsQy4jSNZEG8ycLUHuf6e30YBgnZMhHHKAMLbsQLhiSe5xbnUETQ0a7bfMJ4EAijiu1NYp
-X-Received: by 2002:a17:906:60d7:: with SMTP id f23mr11519570ejk.177.1551683705383;
-        Sun, 03 Mar 2019 23:15:05 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551683705; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=mNxcrSiCEByRBkhBzvnKSv6lRX2m2/83M0Lin0WFdxQ=;
+        b=tpmDYqrB/H0qLNaaIYCO/v0G/e8q+VkPcbQZve7QDi4CCSP+4pFYkyCq/NquhUhBSD
+         xQMnBw0nqKQ5Q9/Wj6dqrEOiwHFEVT3q8VjavXk6TZDpAKj7XZE/lknJ6YAK91VQ/czc
+         yvem2An//+6rVasZdLbh11AMNw3MQ/hJXFHLZ471vAo0SwtJkcXRh1QbcnQxrrUutlUy
+         6vkn9t+k8MFfh5E0/7nTlFXBB+a5HuWfvRjQ7EJESBittGuGvZtYTaiNXm8usjGgdB0z
+         yoaFy1hxC6U0N5WsXgndedin2SE338HCLLGEtFHRQTxGvFR56zgdD+86kyQ12w4AE+jS
+         3hvw==
+X-Gm-Message-State: APjAAAUmiJ/GTiKDkLLSZ9Jpip+NAfVd1bxiBv7R3fivEa39kh1y6qrQ
+	6tiRCsv4CpzP3pDbIGEUIZ+2YxvHaqibbjeaMY+HzbCEIAzOpRgds/4hSlboCzoWD/RBs6AvamS
+	IxS21I/UNqevkYR3hLZ/GuvHNJaeDL0uIzSXQmdhFBaQQfLdy39hQtPjKvN+BNZ3u+7vCxem1LM
+	37x4UQz0gIABPQjpP+VeB7/vGza25pY8yJdA3Ln4SVnbNBbx/CYxT7cXEpov9G5JlH6f16f0sZr
+	oUtl9i7NsKh9Gb0Pvg4PDgUoKUIFBpkUPk7S7KM9tjw/QRLbY0Ai9xZoflcm5VXnRrkUIq+dahN
+	SYbb/vsWSHOfZ8xpyGLz4y/H86ToxjnitUcewH/KMDc/xMYsq6cwHjaFqKSd5Jy4O7U0ulCs6xf
+	5
+X-Received: by 2002:a24:68c9:: with SMTP id v192mr8568763itb.64.1551685230168;
+        Sun, 03 Mar 2019 23:40:30 -0800 (PST)
+X-Received: by 2002:a24:68c9:: with SMTP id v192mr8568740itb.64.1551685228889;
+        Sun, 03 Mar 2019 23:40:28 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551685228; cv=none;
         d=google.com; s=arc-20160816;
-        b=vCA8JVuItfnYjhvcF50g1fU4TJNUm8+4vcB6xbdYGjX5mxEvZDYYMeMJXnL7tMqA+v
-         xOtRXSfvUcEk7SJwwEL0BPXhi6gk7ZlmT+Yhp8PqEN7q1pqBnlepvwYbJlAb8RH6IYFV
-         tiny/ARZLGzqDWlizz0Mj41p3bCWlAhngGPwG6Rh/fJym4AH9JF61/S4yft+OLXpzEIq
-         lKpJoVyQdeiecWjWwncvchEAGuIUMLcUmBuYCRX+EjRfYtZtjAChUbGmMxvRCe54wvr0
-         L5jxn5Cbo8WL6WaroDsKYc5Qkzd2ykxY8v96tvKuG8uj4OeOjeJbt5l7OndYkinz/sdl
-         KvFg==
+        b=h4oxpJKRk8JJM8jWR9yEZZg2NjV9Z0SxDFPYr+rdcUlHBhyHBD8droc9ckM95aNfPk
+         5482pK806FokTmVGwSB12yE2BmSXZSEsqiDlE2p/JMb0MLtBlon4vev7xo38HKAhg+mN
+         IYRy7hvwmTj+3GN9M6iOxINpsK60e0cCKVr6kk3DTA2bOJMytv5Uc63fbmmxV2Z8A607
+         rqkifdl6IECNK2QUuQjtUngGEgzrwFD+jgEJ3ISxdyt5C3C1uGaO82duvnudbZsRxk6P
+         3Ekm9fhqgj4fXy45cyrrq/tpORWOJQMoJqyowpS+LaTvkEqIrnWiV8LGAqt+6hRUszoQ
+         42gw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=UIqKjVw6zXIlgp+pCnBsV3pcfmamnx1f6tQPJUXWIdo=;
-        b=UnoY4tAPWKIgmrIrnpnIXs3SrC/J/RAGVZkpudUzJ8eMQryB4rR5PNnEXQ/vxP81uy
-         qS4Y1WrGIlXekOFuFqmZLxuWUA6zQ6Kbme2DoKi8z2N8oEC6ELZgIDURSUVk9XseN7lh
-         kbw0VXsZQStDr1OXE3e33GQbzWa4s7ArVNhChSOgwx4tRQpQUDWqsrMamXkRs2Wzh8hy
-         ibf92f+amzSyR+FAsqaXnss37RRPr2sLpcBcvIFBpbaJWiAlOwWYwKz8bv3fGFeR7e/3
-         sFEVrJYyL+7Yv6fxzIyZzUdLHSZXgV+AyC3tjIYGEdOGdASv9ZFfS9H3Ez+rC6TvmV1E
-         ArTg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=mNxcrSiCEByRBkhBzvnKSv6lRX2m2/83M0Lin0WFdxQ=;
+        b=jqqNm9a5KElHSa2tEF8dS1uj/ODQMwzwo+tEJMkKPUxSvhBjW5DhjCSy7lRKpHmrob
+         dwBTaylQXsMXePyuoVZSyIU9Zt8hW9cgNAUdZjw88wbrUrYoJcnopQWYgAEmePfJQdqv
+         QXVQKhfy0w8S/9xzSyZlwHNQNwdJmUYgjjZLqyy4F/FyAjOMC+ZRn5a54+eDznkT4Ygr
+         y8K2i4pmKmwNNtwhyOLpDPuRwmAzezlyzsGmgxM21m9Uu9WGZwYJApgG3XpUE7HsGkFl
+         mgbv5h1FYO0DVddkpVnkqi+k75/e3pZYEW17FT29XgJngZPirZGVRa/0RAq3/242k8CR
+         06kw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r25si2335854edb.15.2019.03.03.23.15.05
+       dkim=pass header.i=@google.com header.s=20161025 header.b="Jqw1/mIe";
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q19sor1818327ioj.109.2019.03.03.23.40.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 03 Mar 2019 23:15:05 -0800 (PST)
-Received-SPF: pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Sun, 03 Mar 2019 23:40:28 -0800 (PST)
+Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id E133EACD3;
-	Mon,  4 Mar 2019 07:15:02 +0000 (UTC)
-Subject: Re: [PATCH v2 0/8] mm/kdump: allow to exclude pages that are
- logically offline
-To: Dave Young <dyoung@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org,
- devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org,
- linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org,
- kexec-ml <kexec@lists.infradead.org>, pv-drivers@vmware.com,
- Alexander Duyck <alexander.h.duyck@linux.intel.com>,
- Alexey Dobriyan <adobriyan@gmail.com>, Arnd Bergmann <arnd@arndb.de>,
- Baoquan He <bhe@redhat.com>, Borislav Petkov <bp@alien8.de>,
- Boris Ostrovsky <boris.ostrovsky@oracle.com>,
- Christian Hansen <chansen3@cisco.com>, David Rientjes <rientjes@google.com>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Haiyang Zhang <haiyangz@microsoft.com>, Jonathan Corbet <corbet@lwn.net>,
- Julien Freche <jfreche@vmware.com>, Kairui Song <kasong@redhat.com>,
- Kazuhito Hagio <k-hagio@ab.jp.nec.com>,
- "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
- Konstantin Khlebnikov <koct9i@gmail.com>,
- "K. Y. Srinivasan" <kys@microsoft.com>, Len Brown <len.brown@intel.com>,
- Lianbo Jiang <lijiang@redhat.com>, Matthew Wilcox <willy@infradead.org>,
- "Michael S. Tsirkin" <mst@redhat.com>, Michal Hocko <mhocko@kernel.org>,
- Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>,
- Miles Chen <miles.chen@mediatek.com>, Nadav Amit <namit@vmware.com>,
- Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Omar Sandoval <osandov@fb.com>,
- Pankaj gupta <pagupta@redhat.com>, Pavel Machek <pavel@ucw.cz>,
- Pavel Tatashin <pasha.tatashin@oracle.com>,
- "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>,
- "Rafael J. Wysocki" <rjw@rjwysocki.net>,
- Stefano Stabellini <sstabellini@kernel.org>,
- Stephen Hemminger <sthemmin@microsoft.com>,
- Stephen Rothwell <sfr@canb.auug.org.au>,
- Vitaly Kuznetsov <vkuznets@redhat.com>, Vlastimil Babka <vbabka@suse.cz>,
- Xavier Deguillard <xdeguillard@vmware.com>
-References: <20181122100627.5189-1-david@redhat.com>
- <20190227053214.GA12302@dhcp-128-65.nay.redhat.com>
- <20190228114535.150dfaebbe4d00ae48716bf0@linux-foundation.org>
- <20190304062118.GA31037@dhcp-128-65.nay.redhat.com>
-From: Juergen Gross <jgross@suse.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=jgross@suse.com; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <2fb07c46-79c8-a49e-1b05-ffb33ad6c7da@suse.com>
-Date: Mon, 4 Mar 2019 08:14:52 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.3.0
+       dkim=pass header.i=@google.com header.s=20161025 header.b="Jqw1/mIe";
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=mNxcrSiCEByRBkhBzvnKSv6lRX2m2/83M0Lin0WFdxQ=;
+        b=Jqw1/mIe5vq9NDjcGNvA8LlSMLA5KgcMHHSqqwr53MaBWvV/ouA1OAjam1Am1zbPwh
+         PaypYp9BTqW2NAoxMcx99lQPUGEmKn7Mj06H6pmt34xiMjJHn3+s2a+GsRtNIfr1WaFi
+         JRgE7RR5hE6KDmavWuwU2oDCArQVGcCNRYuHPZCtzSlLNsNH1OvlhD7e3+JRumuJdEJX
+         VdeWlxRqbAAj7OwQk7wrzjQ62wYGhe415WvjM+ro0+A2mpDCBLkz6Uyg01/j0MsHuJV3
+         5P8EsZ9GL3myoRT9EpT5ioDdDWIM5vcgcG6i3uZ0Sd7Fah63SFHBCK68Vy1mUXx9m9q6
+         xXkw==
+X-Google-Smtp-Source: APXvYqzgQwzaX1um8y7pstwcCrz/1lulCUFYehpHK/g15Tk7QvNKNUr+kncHTDITLRLRcwj/NOv5RwxDf2pDZSZA+Dc=
+X-Received: by 2002:a5d:84c3:: with SMTP id z3mr9164568ior.11.1551685228249;
+ Sun, 03 Mar 2019 23:40:28 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20190304062118.GA31037@dhcp-128-65.nay.redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: de-DE
-Content-Transfer-Encoding: 7bit
+References: <00000000000006457e057c341ff8@google.com> <5C7BFE94.6070500@huawei.com>
+In-Reply-To: <5C7BFE94.6070500@huawei.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Mon, 4 Mar 2019 08:40:16 +0100
+Message-ID: <CACT4Y+Z+CH0UTdSz-w_woMPrBwg-GuobV1Su4qd9ReffTkyfVg@mail.gmail.com>
+Subject: Re: KASAN: use-after-free Read in get_mem_cgroup_from_mm
+To: zhong jiang <zhongjiang@huawei.com>
+Cc: syzbot <syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com>, 
+	Michal Hocko <mhocko@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, cgroups@vger.kernel.org, 
+	Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Linux-MM <linux-mm@kvack.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, 
+	Vladimir Davydov <vdavydov.dev@gmail.com>, David Rientjes <rientjes@google.com>, 
+	Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@infradead.org>, Mel Gorman <mgorman@suse.de>, 
+	Vlastimil Babka <vbabka@suse.cz>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/03/2019 07:21, Dave Young wrote:
-> On 02/28/19 at 11:45am, Andrew Morton wrote:
->> On Wed, 27 Feb 2019 13:32:14 +0800 Dave Young <dyoung@redhat.com> wrote:
->>
->>> This series have been in -next for some days, could we get this in
->>> mainline? 
->>
->> It's been in -next for two months?
-> 
-> Should be around 3 months
-> 
->>
->>> Andrew, do you have plan about them, maybe next release?
->>
->> They're all reviewed except for "xen/balloon: mark inflated pages
->> PG_offline". 
->> (https://ozlabs.org/~akpm/mmotm/broken-out/xen-balloon-mark-inflated-pages-pg_offline.patch).
+On Sun, Mar 3, 2019 at 5:19 PM zhong jiang <zhongjiang@huawei.com> wrote:
+>
+> Hi, guys
+>
+> I also hit the following issue. but it fails to reproduce the issue by the log.
+>
+> it seems to the case that we access the mm->owner and deference it will result in the UAF.
+> But it should not be possible that we specify the incomplete process to be the mm->owner.
+>
+> Any thoughts?
 
-I did review that one:
-
-https://lore.kernel.org/lkml/3d5250b7-870e-e702-a6e4-937d2362fea4@suse.com/
+FWIW syzbot was able to reproduce this with this reproducer.
+This looks like a very subtle race (threaded reproducer that runs
+repeatedly in multiple processes), so most likely we are looking for
+something like few instructions inconsistency window.
 
 
-Juergen
+> Thanks,
+> zhong jiang
+>
+> On 2018/12/4 23:43, syzbot wrote:
+> > syzbot has found a reproducer for the following crash on:
+> >
+> > HEAD commit:    0072a0c14d5b Merge tag 'media/v4.20-4' of git://git.kernel..
+> > git tree:       upstream
+> > console output: https://syzkaller.appspot.com/x/log.txt?x=11c885a3400000
+> > kernel config:  https://syzkaller.appspot.com/x/.config?x=b9cc5a440391cbfd
+> > dashboard link: https://syzkaller.appspot.com/bug?extid=cbb52e396df3e565ab02
+> > compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
+> > syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=12835e25400000
+> > C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=172fa5a3400000
+> >
+> > IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> > Reported-by: syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com
+> >
+> > cgroup: fork rejected by pids controller in /syz2
+> > ==================================================================
+> > BUG: KASAN: use-after-free in __read_once_size include/linux/compiler.h:182 [inline]
+> > BUG: KASAN: use-after-free in task_css include/linux/cgroup.h:477 [inline]
+> > BUG: KASAN: use-after-free in mem_cgroup_from_task mm/memcontrol.c:815 [inline]
+> > BUG: KASAN: use-after-free in get_mem_cgroup_from_mm.part.62+0x6d7/0x880 mm/memcontrol.c:844
+> > Read of size 8 at addr ffff8881b72af310 by task syz-executor198/9332
+> >
+> > CPU: 0 PID: 9332 Comm: syz-executor198 Not tainted 4.20.0-rc5+ #142
+> > Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS Google 01/01/2011
+> > Call Trace:
+> >  __dump_stack lib/dump_stack.c:77 [inline]
+> >  dump_stack+0x244/0x39d lib/dump_stack.c:113
+> >  print_address_description.cold.7+0x9/0x1ff mm/kasan/report.c:256
+> >  kasan_report_error mm/kasan/report.c:354 [inline]
+> >  kasan_report.cold.8+0x242/0x309 mm/kasan/report.c:412
+> >  __asan_report_load8_noabort+0x14/0x20 mm/kasan/report.c:433
+> >  __read_once_size include/linux/compiler.h:182 [inline]
+> >  task_css include/linux/cgroup.h:477 [inline]
+> >  mem_cgroup_from_task mm/memcontrol.c:815 [inline]
+> >  get_mem_cgroup_from_mm.part.62+0x6d7/0x880 mm/memcontrol.c:844
+> >  get_mem_cgroup_from_mm mm/memcontrol.c:834 [inline]
+> >  mem_cgroup_try_charge+0x608/0xe20 mm/memcontrol.c:5888
+> >  mcopy_atomic_pte mm/userfaultfd.c:71 [inline]
+> >  mfill_atomic_pte mm/userfaultfd.c:418 [inline]
+> >  __mcopy_atomic mm/userfaultfd.c:559 [inline]
+> >  mcopy_atomic+0xb08/0x2c70 mm/userfaultfd.c:609
+> >  userfaultfd_copy fs/userfaultfd.c:1705 [inline]
+> >  userfaultfd_ioctl+0x29fb/0x5610 fs/userfaultfd.c:1851
+> >  vfs_ioctl fs/ioctl.c:46 [inline]
+> >  file_ioctl fs/ioctl.c:509 [inline]
+> >  do_vfs_ioctl+0x1de/0x1790 fs/ioctl.c:696
+> >  ksys_ioctl+0xa9/0xd0 fs/ioctl.c:713
+> >  __do_sys_ioctl fs/ioctl.c:720 [inline]
+> >  __se_sys_ioctl fs/ioctl.c:718 [inline]
+> >  __x64_sys_ioctl+0x73/0xb0 fs/ioctl.c:718
+> >  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+> >  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> > RIP: 0033:0x44c7e9
+> > Code: 5d c5 fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7 48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff ff 0f 83 2b c5 fb ff c3 66 2e 0f 1f 84 00 00 00 00
+> > RSP: 002b:00007f906b69fdb8 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+> > RAX: ffffffffffffffda RBX: 00000000006e4a08 RCX: 000000000044c7e9
+> > RDX: 0000000020000100 RSI: 00000000c028aa03 RDI: 0000000000000004
+> > RBP: 00000000006e4a00 R08: 0000000000000000 R09: 0000000000000000
+> > R10: 0000000000000000 R11: 0000000000000246 R12: 00000000006e4a0c
+> > R13: 00007ffdfd47813f R14: 00007f906b6a09c0 R15: 000000000000002d
+> >
+> > Allocated by task 9325:
+> >  save_stack+0x43/0xd0 mm/kasan/kasan.c:448
+> >  set_track mm/kasan/kasan.c:460 [inline]
+> >  kasan_kmalloc+0xc7/0xe0 mm/kasan/kasan.c:553
+> >  kasan_slab_alloc+0x12/0x20 mm/kasan/kasan.c:490
+> >  kmem_cache_alloc_node+0x144/0x730 mm/slab.c:3644
+> >  alloc_task_struct_node kernel/fork.c:158 [inline]
+> >  dup_task_struct kernel/fork.c:843 [inline]
+> >  copy_process+0x2026/0x87a0 kernel/fork.c:1751
+> >  _do_fork+0x1cb/0x11d0 kernel/fork.c:2216
+> >  __do_sys_clone kernel/fork.c:2323 [inline]
+> >  __se_sys_clone kernel/fork.c:2317 [inline]
+> >  __x64_sys_clone+0xbf/0x150 kernel/fork.c:2317
+> >  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+> >  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> >
+> > Freed by task 9325:
+> >  save_stack+0x43/0xd0 mm/kasan/kasan.c:448
+> >  set_track mm/kasan/kasan.c:460 [inline]
+> >  __kasan_slab_free+0x102/0x150 mm/kasan/kasan.c:521
+> >  kasan_slab_free+0xe/0x10 mm/kasan/kasan.c:528
+> >  __cache_free mm/slab.c:3498 [inline]
+> >  kmem_cache_free+0x83/0x290 mm/slab.c:3760
+> >  free_task_struct kernel/fork.c:163 [inline]
+> >  free_task+0x16e/0x1f0 kernel/fork.c:457
+> >  copy_process+0x1dcc/0x87a0 kernel/fork.c:2148
+> >  _do_fork+0x1cb/0x11d0 kernel/fork.c:2216
+> >  __do_sys_clone kernel/fork.c:2323 [inline]
+> >  __se_sys_clone kernel/fork.c:2317 [inline]
+> >  __x64_sys_clone+0xbf/0x150 kernel/fork.c:2317
+> >  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
+> >  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> >
+> > The buggy address belongs to the object at ffff8881b72ae240
+> >  which belongs to the cache task_struct(81:syz2) of size 6080
+> > The buggy address is located 4304 bytes inside of
+> >  6080-byte region [ffff8881b72ae240, ffff8881b72afa00)
+> > The buggy address belongs to the page:
+> > page:ffffea0006dcab80 count:1 mapcount:0 mapping:ffff8881d2dce0c0 index:0x0 compound_mapcount: 0
+> > flags: 0x2fffc0000010200(slab|head)
+> > raw: 02fffc0000010200 ffffea00074a1f88 ffffea0006ebbb88 ffff8881d2dce0c0
+> > raw: 0000000000000000 ffff8881b72ae240 0000000100000001 ffff8881d87fe580
+> > page dumped because: kasan: bad access detected
+> > page->mem_cgroup:ffff8881d87fe580
+> >
+> > Memory state around the buggy address:
+> >  ffff8881b72af200: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> >  ffff8881b72af280: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> >> ffff8881b72af300: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> >                          ^
+> >  ffff8881b72af380: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> >  ffff8881b72af400: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> > ==================================================================
+> >
+> >
+> > .
+> >
+>
+>
+> --
+> You received this message because you are subscribed to the Google Groups "syzkaller-bugs" group.
+> To unsubscribe from this group and stop receiving emails from it, send an email to syzkaller-bugs+unsubscribe@googlegroups.com.
+> To view this discussion on the web visit https://groups.google.com/d/msgid/syzkaller-bugs/5C7BFE94.6070500%40huawei.com.
+> For more options, visit https://groups.google.com/d/optout.
 
