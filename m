@@ -2,148 +2,164 @@ Return-Path: <SRS0=F7ZL=RH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D638EC43381
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 19:13:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 75623C10F03
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 19:46:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A05EB2070B
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 19:13:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A05EB2070B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 16EC020823
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 19:46:53 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="sQWEo9K1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 16EC020823
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 399638E0003; Mon,  4 Mar 2019 14:13:49 -0500 (EST)
+	id 750F18E0003; Mon,  4 Mar 2019 14:46:53 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 322D08E0001; Mon,  4 Mar 2019 14:13:49 -0500 (EST)
+	id 700B28E0001; Mon,  4 Mar 2019 14:46:53 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1EC758E0003; Mon,  4 Mar 2019 14:13:49 -0500 (EST)
+	id 5C92D8E0003; Mon,  4 Mar 2019 14:46:53 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E5C5C8E0001
-	for <linux-mm@kvack.org>; Mon,  4 Mar 2019 14:13:48 -0500 (EST)
-Received: by mail-yw1-f69.google.com with SMTP id c188so9540733ywf.14
-        for <linux-mm@kvack.org>; Mon, 04 Mar 2019 11:13:48 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B45A8E0001
+	for <linux-mm@kvack.org>; Mon,  4 Mar 2019 14:46:53 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id y1so5899838pgo.0
+        for <linux-mm@kvack.org>; Mon, 04 Mar 2019 11:46:53 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=aK0M0EiBqkVrwI5zhtbHcvzqiuEwqS72VfobOx94u04=;
-        b=UdtiNdYZClTRsMFNuiK6kVZKv9NTSNLMZDkZDKTvkeRVKbKmPzTEB/okwDIv2uKOU1
-         D02gyjM20d0Jo5dr/ZO56lcAXw5NoLD54LKRh7QTLsc/XLyE05jCytfAG3dG/hos/DfJ
-         vkSsY+t2MLcs24L4WxzCR4dkhsSlK344V1+fXjTSE9Pib4btQy28/LTHUhP8qHOIPLVV
-         rkmsHImzEt8I1SmWj6lKpvXWTJu1Fvk0hakN/W3VuaVXjj6giefD4Bp/vcSbhQUyZta3
-         keZLgJjQaG2RR8m5BS7X+EKN4JCs9Iw9ZbNIya96gcwbRoYWPCBLaI0B+Y8Y1fkaqasT
-         4kUw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVh6YIp19kATUS1Q6AXNUyBVzRYaEHvcAAOUvt7iSdo6pRzeqYE
-	UAWeaKMWdgSb8QA7WMoFwk8UP3g1nKdWHB+2fk9H62K00TShFq9jxXm14FUvFXAMomjrcgbpXUZ
-	T6uzW+5ZCtgZmsRO1Upr6DlVVhz9q0qQIFtvQ/gNejRAKuViMzoacbfUfr/Oa+7kcuVquU9eQg+
-	p6czvUvxoH6zrNtxEnCPvRlMS7PtQG6k9z21moyd3FcSCRo9cNcHcFMllTT99dDxxp6vLWTqRsT
-	4zLSTsjXK9ut9azbl0RSElc84vlAls0R8XCbVTm0qscLFgqr7uvOeVqHnEy3kAf/TvENk44uprA
-	2HiB6VKlohyaHizbIW6hZCO0Pq3ZZhaxA/fbuQUyGPQUavlqy5qSDuPkcm/rIy6M/M2DLJMv/Q=
-	=
-X-Received: by 2002:a25:abe6:: with SMTP id v93mr6138900ybi.378.1551726828587;
-        Mon, 04 Mar 2019 11:13:48 -0800 (PST)
-X-Received: by 2002:a25:abe6:: with SMTP id v93mr6138861ybi.378.1551726827972;
-        Mon, 04 Mar 2019 11:13:47 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551726827; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=Xmz5CLW0FSy25OQrcpPjEI+jhUMsvf19y6/jwFDBJlQ=;
+        b=jPrZrGZW4LPdu+UsSaIPfJYc5Euu6yHmCxdh7IYg4hGAMyK1D96B9lCMoLeSnUh0E1
+         KXgWkh2SE1z9BsBKnLvBI+MTtdHYq+kJsjp6/tP/cZVzh5FSV/hyCJ7C2egoqvr+DzPq
+         ItznU8NPY4Wr45J/E69EMxaQ8dLak/B3QPAVUG49u2vdOftX8Abh62EecaIKgtGyT7xo
+         c3bpyG0d7a6PIIgfc1iWkjKaLFC3v0pcyyIpSQdymYXNnPkiHIBqrfrEdFJegSM75VsY
+         00QqC8KWoDN4NI3LHft4ls3I2jd5YYY0XESwYsAaczfzBWauTfDzn3KxPIkrjxkfrPi/
+         EdfA==
+X-Gm-Message-State: APjAAAUUVKm18sRD8fGQo2HuKa+ZXi6qJcjrHMMj+dZbeqrnPJ3PdysZ
+	iUKEDR5o4W8DJYLRpTrp0atAYqAzLOmsEnlyzqkgyHVGBsAOi6ZpllpYEn6Cds1WwAv7GUFnUHk
+	RbA2A4ul71MFnUF79RBRZHGL7DyoGpYoA71aQS8sv3vXLT0BfIofOy5gIHhvfOI7hOOwNUsBRxx
+	aBeemvYRZHxpp0/8x8/WtoNmld17i06EuBdvqOv8uRyM/mpuaA9lcKdinma44q01njMhWZyVOCe
+	1qgqDe7avK4NpEtkUAPthqjSfr7Xm1xZMvuUFQTPXPeUgiaiy2VQjEXQ0fE5z8TUsvtRy06v9ej
+	SGMDHzM8sf+xbJbFigMLCoT7oG3sf7njBEUUBeFO62b5KEhrDR9s33KBTURmUsGEUp+TsSxxt63
+	h
+X-Received: by 2002:a17:902:1a9:: with SMTP id b38mr21933959plb.37.1551728812619;
+        Mon, 04 Mar 2019 11:46:52 -0800 (PST)
+X-Received: by 2002:a17:902:1a9:: with SMTP id b38mr21933845plb.37.1551728811322;
+        Mon, 04 Mar 2019 11:46:51 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551728811; cv=none;
         d=google.com; s=arc-20160816;
-        b=0za7cqpDVrc1DQZ8uzycIvOonWgqEJoABQQNwpyoEd1cjJZKC2gfwppcAiQm3ThbHs
-         q3qRLRgeraBSfw9S53G/QBwehhoG31DkziWyFsryGpxXLpHTtpxCA73k03sdk/U0WxPg
-         hZTmqumz99YcAyf0fiujTaqG7Fx8b/4nH+ivyDSpo6Lb7vqxkXZqodEMVpL9xz18j7DJ
-         NFNEbJclgm51v/ZgQ8udUEiOpkyaa1aKmiGzlZ3evAOEUfQAXR5jVx8/Lj0w6ob5TLTu
-         jdnykWCwmfMJh6pfYHHnfmMC1czv1g7rNXOV7b17lYIKSA6a7ShsYY2vcWHgDHGMkLQn
-         QBiA==
+        b=NZ6tZB0w2l6zzkL72qNJK5yDFCVaWJKcem8/erqojBtJRXEi74SKFMY8OHpft2N+I2
+         /0uZ/z3n0fBKVkSujdsaIThkinhCAi6lKjZSWCWz5X7y6QTNKAJZ6AHXYYUJlzHUJg5M
+         YmcVhSyn3o7/7R8tI8lnWdvzq1l5aXN+cW2aueG1G1NrkCh94TMsddjZagECpZi/XTb6
+         pD0jwTKLj9ym/KhZlzQTbSrfRicCD4vLQXFb3Hu7jhEbtsU4uMwWz6FPnf/9cB3U7U5b
+         83ohdwb18T3Eum+gKq129uRqkopqQpCXGz0BqlFc8eaXEifahuZDlglBji9Z830eBPUt
+         bPug==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=aK0M0EiBqkVrwI5zhtbHcvzqiuEwqS72VfobOx94u04=;
-        b=TUfkkW2oRRG3dL8KLMo/C28hQh9uyLiMZU9zsDbVOVNSTkj39zOOFywVMVk6VRZqZv
-         X4UUr37pfHFZYcwuoz0skZO/MawxyxRJvgilOYBFL8t2cT8yUZgtHmZIAT3FzwTWbjAS
-         eWUWLMGki2CI+XRkVs95mLQdkxDhmFa5rRpNE5su+QvFwxq2umM7Rp/ycjsoMgHhWxdZ
-         AsROc+YiRgnALlas+9uNuTeITMxtYMX975InXOEdLwCTX+6D76FZwvO+BUZUpqC+LDz6
-         uUu/o486o6rWMLhlKWlGV1f9m98INKSb6J5AWg3Yz+fx3wdmdUcB52v6mPLW9RDEdgbH
-         NbNQ==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=Xmz5CLW0FSy25OQrcpPjEI+jhUMsvf19y6/jwFDBJlQ=;
+        b=le8/zUVcSK5nHpfNcu7xTINp/R2FyWetu7oBOeIfmnm4k0io/0U2ICpPCmqtiqzY7+
+         IkipNyuFH386KAhefXEUTvKuKB8Vb02O7p38J6iKoDXT7h5pmS9pY/xyOVOrnykfiN7j
+         hsdSf72gNphxMJ4096f1SO//r6I4S2B4PeD7MAJnLucoY61X+Ve8pawDMrAe69yKsqx/
+         qq2BmGaEsy1hpRlxauggWcc8TsbWDF7HDuWmKHSZqIsAYwHaFt3+L//cEIEll8NWDVXm
+         reaAsmoRGkb39DwC+1f5nLzbrgIJ4nFHC4aVyKo8VW9/z72A7UrznLLLhO8k9jpEErXr
+         /BIg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=sQWEo9K1;
+       spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o13sor3077548ybp.24.2019.03.04.11.13.47
+        by mx.google.com with SMTPS id p25sor9982611pgl.75.2019.03.04.11.46.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 04 Mar 2019 11:13:47 -0800 (PST)
-Received-SPF: pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 04 Mar 2019 11:46:51 -0800 (PST)
+Received-SPF: pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: APXvYqx3uSLSfjeKLSN4KzA85sxETmTJc3iojCUNRzzqn3SqaXb3qkSgnP+LcswtZobNlwlYzUER3g==
-X-Received: by 2002:a25:2f91:: with SMTP id v139mr9660229ybv.407.1551726827678;
-        Mon, 04 Mar 2019 11:13:47 -0800 (PST)
-Received: from dennisz-mbp.dhcp.thefacebook.com ([2620:10d:c091:200::1:8d76])
-        by smtp.gmail.com with ESMTPSA id s186sm2989973yws.13.2019.03.04.11.13.46
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=sQWEo9K1;
+       spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=Xmz5CLW0FSy25OQrcpPjEI+jhUMsvf19y6/jwFDBJlQ=;
+        b=sQWEo9K1CGxltrMpEXO2LIK894eOWnmM8qXH1cQ+A8sgxCaq8NFdhDnAbfI+RFxqit
+         ROUCK8A6X/kbviOJ6RZLIQEKMqb5Lr5qOi7NnkoRBAj+dcJcv1MI+Eqw0e1K7TAxXu79
+         GBsuV/VhOEaScy5T55Ed8fR6FHDxwE6sUQxdlseSe9RJFX263YFbwRw6DLTXtcdlroYU
+         F1o5tHsA2TAZt59Y3qqPq2PpGgtI0TW0ZMUd+xx/TuBQ0+IRskNaorJ6s2CffjVxgeC6
+         7Fdf6skIKB52MA/FRYZhA8aXy6jIQ646pH8q9J7yfVEEMTn6O49yHz+WkGp4bnzJt9xQ
+         c64Q==
+X-Google-Smtp-Source: APXvYqxXGf+BxuaG8hXTW5NUGoEESrfS6v3Gbr/JMYj+Zojw5syYOQxjoXKNa9Y30ghsqwDey2xXyw==
+X-Received: by 2002:a63:440d:: with SMTP id r13mr19917825pga.5.1551728810418;
+        Mon, 04 Mar 2019 11:46:50 -0800 (PST)
+Received: from blueforge.nvidia.com (searspoint.nvidia.com. [216.228.112.21])
+        by smtp.gmail.com with ESMTPSA id v15sm13499604pfa.75.2019.03.04.11.46.48
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Mar 2019 11:13:46 -0800 (PST)
-Date: Mon, 4 Mar 2019 14:13:44 -0500
-From: Dennis Zhou <dennis@kernel.org>
-To: Peng Fan <peng.fan@nxp.com>
-Cc: "tj@kernel.org" <tj@kernel.org>, "cl@linux.com" <cl@linux.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"van.freenix@gmail.com" <van.freenix@gmail.com>
-Subject: Re: [PATCH 1/2] perpcu: correct pcpu_find_block_fit comments
-Message-ID: <20190304191344.GB17970@dennisz-mbp.dhcp.thefacebook.com>
-References: <20190304104541.25745-1-peng.fan@nxp.com>
+        Mon, 04 Mar 2019 11:46:49 -0800 (PST)
+From: john.hubbard@gmail.com
+X-Google-Original-From: jhubbard@nvidia.com
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>,
+	John Hubbard <jhubbard@nvidia.com>,
+	Leon Romanovsky <leon@kernel.org>,
+	Ira Weiny <ira.weiny@intel.com>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Doug Ledford <dledford@redhat.com>,
+	linux-rdma@vger.kernel.org
+Subject: [PATCH v3 0/1] RDMA/umem: minor bug fix in error handling path
+Date: Mon,  4 Mar 2019 11:46:44 -0800
+Message-Id: <20190304194645.10422-1-jhubbard@nvidia.com>
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190304104541.25745-1-peng.fan@nxp.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-NVConfidentiality: public
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 04, 2019 at 10:33:52AM +0000, Peng Fan wrote:
-> pcpu_find_block_fit is not find block index, it is to find
-> the bitmap off in a chunk.
-> 
-> Signed-off-by: Peng Fan <peng.fan@nxp.com>
-> ---
-> 
-> V1:
->   Based on https://patchwork.kernel.org/cover/10832459/ applied linux-next
-> 
->  mm/percpu.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/percpu.c b/mm/percpu.c
-> index 7f630d5469e8..5ee90fc34ea3 100644
-> --- a/mm/percpu.c
-> +++ b/mm/percpu.c
-> @@ -1061,7 +1061,7 @@ static bool pcpu_is_populated(struct pcpu_chunk *chunk, int bit_off, int bits,
->  }
->  
->  /**
-> - * pcpu_find_block_fit - finds the block index to start searching
-> + * pcpu_find_block_fit - finds the offset in chunk bitmap to start searching
->   * @chunk: chunk of interest
->   * @alloc_bits: size of request in allocation units
->   * @align: alignment of area (max PAGE_SIZE bytes)
-> -- 
-> 2.16.4
-> 
+From: John Hubbard <jhubbard@nvidia.com>
 
-So really the block index is encoded in the bit offset. I'm not super
-happy with either wording because the point of the function really is to
-find a block(s) that can support this allocation and it happens the
-output is a chunk offset.
+Hi,
 
-Thanks,
-Dennis
+Ira Weiny alerted me to a couple of places where I'd missed a change from
+put_page() to put_user_page(), in my pending patchsets. But when I
+attempted to dive more deeply into that code, I ran into a bug in the
+cleanup code. Leon Romanovsky has confirmed that and requested this
+simplified patch to fix it, so here it is.
+
+Changes since v2:
+
+1) Removed the part of the patch that tried to delete "dead code",
+because that code was dealing with huge pages.
+
+2) Reverted the pr_*() line shortening, so as to keep this to only
+the minimal bug fix required.
+
+3) Rebased to today's linux.git.
+
+Cc: Leon Romanovsky <leon@kernel.org>
+Cc: Ira Weiny <ira.weiny@intel.com>
+Cc: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Doug Ledford <dledford@redhat.com>
+Cc: linux-rdma@vger.kernel.org
+Cc: linux-mm@kvack.org
+
+John Hubbard (1):
+  RDMA/umem: minor bug fix in error handling path
+
+ drivers/infiniband/core/umem_odp.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+-- 
+2.21.0
 
