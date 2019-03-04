@@ -2,160 +2,174 @@ Return-Path: <SRS0=F7ZL=RH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT,
-	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 73FC6C43381
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 17:04:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9E357C43381
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 18:29:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2FC192082F
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 17:04:52 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3549B20823
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 18:29:43 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="CWqRYwOg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2FC192082F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="F5U7Apqk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3549B20823
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C87768E0003; Mon,  4 Mar 2019 12:04:51 -0500 (EST)
+	id 8C9398E0003; Mon,  4 Mar 2019 13:29:42 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C36728E0001; Mon,  4 Mar 2019 12:04:51 -0500 (EST)
+	id 84E208E0001; Mon,  4 Mar 2019 13:29:42 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B4C718E0003; Mon,  4 Mar 2019 12:04:51 -0500 (EST)
+	id 6C8C68E0003; Mon,  4 Mar 2019 13:29:42 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D33C8E0001
-	for <linux-mm@kvack.org>; Mon,  4 Mar 2019 12:04:51 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id s8so5561497qth.18
-        for <linux-mm@kvack.org>; Mon, 04 Mar 2019 09:04:51 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2397C8E0001
+	for <linux-mm@kvack.org>; Mon,  4 Mar 2019 13:29:42 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id y1so5692530pgo.0
+        for <linux-mm@kvack.org>; Mon, 04 Mar 2019 10:29:42 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
-         :subject:from:to:cc;
-        bh=y9YtX+guuq4jzTb5p6KJENEt5MDOMi6rFV456jle65Q=;
-        b=IF9NI1W7MbaWr1fPFzv5Xrxk3kSLiseFCYxwKuRijktLQAi947YPlurgWHlMtbqOS/
-         aAEoJqIl7BfYBM8Fnpbj1aPKCblww9BkNH1OiIzQCgMHZFb1fYc3/O/Z1qjqhw7vji/C
-         z6X9Vy90irzr6EXrHpnMmcRj9jKUN03ZEp16LXixwnJLGRJGC7O6OHWxpRHkzTEwbSks
-         GqG965gTzwPdIMwTOGUqBFnRAoLXDX566ff63XWftAI+zwriXiNAH3Y9oHK3QM3UqS9k
-         tA/U3CwfH+U6MbM7GSoAjnjNDa1Z1lGRoksWI3/ioiUoBxqSZBNPlb0HjhGm+7PjrXQy
-         RvNg==
-X-Gm-Message-State: APjAAAWvNXXvXu1QWQBADC15IhZJpBO3rVfAd46RJP6Xz+uXHHKlLvmx
-	ZNtiGSF+sTq23H5jUbytplklsolbnQE/BcKj6TB0zGuPu8/CjwyngggP17Jk7w7pDLYEMqqFr4b
-	su3KKX+5dZ4N9cJDSTNm12i/e63puFAmfudVbxkqSAnvEdc/A+ZXUn/382hDNSlqLGYJofDCOIq
-	8BpLIWS1S2q9T6L3JWO+ifUB1IoYQG7a22M3e4F9trlnHWNdbonHrKsrkhrwXyNBKrFsDkChrxH
-	De+AvCmXBXMrwO0WWf/xoArnGVLOhVRKeGhkVtcwAaoRZZ8WT+thTXZ6LtkrgyxFpEPJ93CkLl/
-	jYuwnp7IXtIECLjPKdhxZzkIeh1SzsKlTA7hqmLUEs/EABRrbuYoQgHqVNRKe6oGPCL761sTOOt
-	8
-X-Received: by 2002:aed:3608:: with SMTP id e8mr4425442qtb.31.1551719091194;
-        Mon, 04 Mar 2019 09:04:51 -0800 (PST)
-X-Received: by 2002:aed:3608:: with SMTP id e8mr4425366qtb.31.1551719090125;
-        Mon, 04 Mar 2019 09:04:50 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551719090; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=iTZRfcoGZHsfdcunl2nlWqFf9M0yDE8914vhM69NWh4=;
+        b=Y9/bN2g7CGs48gqt8oeZT5zSv5m6YOAwPa+At5CU8fCVPoYPklHPJ8RuNRKOsMDglr
+         ATioHEhdBO4vxINjCwHSdmbr3tawqLQQiSxx/jzRWspKLGR2OZhiWGahgTBYyLUB+kKn
+         pNMlETWBcwqZLcnoZftZHX65p7F+2AWrVxJxmBjOWiirNf3jnD51WibeZgShaGF/GR6M
+         xksNXk0chZzYAzAFulSZIKX+eQf+pW2VU6/1CjqP5yddttdNxWmI1E7m+rt6B5/C9Fse
+         05YAWEw2rgDi7kvBwkpq77ui660mWEJGNrccmTgVCM5iX+hfmOpdBN/K6IoXRlH0kdQz
+         2GKg==
+X-Gm-Message-State: AHQUAubVw6TsWt4XAEK230yZCQeU+PiUClv+xGGrNb031xLImHOXKNi+
+	jHmzdxQGOcOCQkas7FanwGTpzUBKYEFxz3ecxtmrQKRsZYPMVmrYiJqJ8oSl3P5FcrerAw/ZOAA
+	kFdlmJc+0GHruSam3+uzDE9kEJqmIPwjitvB71vadSwEdb3tRX1haJWrjHSylk6cDfA==
+X-Received: by 2002:a62:b61a:: with SMTP id j26mr21155587pff.151.1551724181716;
+        Mon, 04 Mar 2019 10:29:41 -0800 (PST)
+X-Google-Smtp-Source: APXvYqySzgpWa8zez5Nw3RVLH5G8zziwH1QFRHktoUQub0UeGlvPo3S2VLBwn0lx3/RbkZzRno//
+X-Received: by 2002:a62:b61a:: with SMTP id j26mr21155475pff.151.1551724179832;
+        Mon, 04 Mar 2019 10:29:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551724179; cv=none;
         d=google.com; s=arc-20160816;
-        b=ftB1BFRTqKJtSmnq1e2jk2LbptTdIWQWU9TDbHPcK6sEk0i2XUcFeBws2LjXhg7DQH
-         tPpJ2VbPCM5xILT520LxwhwlWTO0IPWRosJwwnbHHz+uMpm40/fosoZOaMxYcqUuJtwH
-         EeG65bq0pXyZZgwvdkF783btXsokM/l8a6XqAaZ2R4AJYqViSIijHvNQo3pLDRAidG3I
-         4RB0TBvS+Mb/cinPU1PCOGHPd3YHc6f+eOc5iUv4HcKdZyFbpJvDo7oy3x2Eg/UUqfBy
-         3PMfY2I0LeS9eGvgpOvFCASOOoibx2InDxNWGpyVApdA5AbpSpIVixUuJx8HMdituxEf
-         bCow==
+        b=pZef2vU4W002NQO7EiSj6sRjoX6FcxgYisMMgTqK1+xZQCMOAQjl0fh6IROA212dNm
+         01d/V9zyvY5MS9UMDd+LYcIQVN/hjF4B9JgM+XHKKlNFG34z0ZWs2j5ZRBo2ZppQWtT1
+         Z7stkly6pVpB4MGXcSagTCOM4YJt/e+eXT62CisP+y/b58K+/ExSMie5kh4I1K3C8EhE
+         YXplMv5K2+J5X6RNngakBD0TlFnz8YsOftZVJJRC/aUc9ADwxhQXU3uw0enU8xPa2sBd
+         smxAmOa/R85qmET6vQk+ST4bak8s6DPNkbRJrKaXnaEx50KncQJWmc1KhQhMmFcXA6gU
+         gWKQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
-        bh=y9YtX+guuq4jzTb5p6KJENEt5MDOMi6rFV456jle65Q=;
-        b=xgjU/uPZ7mtW1z7nXHL+wZgQRXYufSSpwSEmcL8248Y31H62SpZBVhpfa9XgzsNfNx
-         2v1Jj06LPWtY0yrPqIjisrmvpWwYekWpvN+ZYjWc3aqrhfzBjUnVUFzj93bskxpm0Tet
-         XYZrRUaranQqRo1sZDXIBv94mJfgwn2Mkgn88RCePWzytKPr7mtjiWraX8qZjVWvneYW
-         ZLQRKqOYKhdUvlf6QJROZNV0HaomQxdludW0iig2rrz4Vo2dQjGBSHurHLkpXN83UoYz
-         RRFxgw/unzg2UUGIe1mYbNfi45MHDiC5nHAqP87mLuWazRkrpqf4pWtbJUN5e3Rekss4
-         OWfQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:to:subject
+         :dkim-signature;
+        bh=iTZRfcoGZHsfdcunl2nlWqFf9M0yDE8914vhM69NWh4=;
+        b=eAXdqptemvLLQv0acqJHWhHyxOIQ+ATw+Fh2HtmflEQmd7feYKJqnilwd6uykZm442
+         mmA4rbs7LVBRpQjlrFOxTFivrOUV4VMXRAcgwjSAZ/NBL2JMOv1XZzWkUOqd8m4YfJvI
+         RJfAg4OqI2anIIwNU0x88V9RiIx/7QuUXL3VwKwI4gyyvF5j8uRYIv3CPxFqFH1A54Kb
+         EmoPXRhkWXXBltSAub9apQaF0zEwWAM1rYdHWS6ZbEdfBC/aBWnQ9jjO7MvOX7uFYnEa
+         tlSSFFb/SoduiYOGjyKhvhIW/il01lyXVCi7ZY9kyKO/xcwWf3ZZHeF+t10ks3v+bto+
+         OFGg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=CWqRYwOg;
-       spf=pass (google.com: domain of 3svp9xaokceyivlzm6sv3towwotm.kwutqv25-uus3iks.wzo@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3sVp9XAoKCEYivlzm6sv3towwotm.kwutqv25-uus3iks.wzo@flex--andreyknvl.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id e31sor7558394qte.64.2019.03.04.09.04.50
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=F5U7Apqk;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id 75si5641139pgb.230.2019.03.04.10.29.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 04 Mar 2019 09:04:50 -0800 (PST)
-Received-SPF: pass (google.com: domain of 3svp9xaokceyivlzm6sv3towwotm.kwutqv25-uus3iks.wzo@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 Mar 2019 10:29:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=CWqRYwOg;
-       spf=pass (google.com: domain of 3svp9xaokceyivlzm6sv3towwotm.kwutqv25-uus3iks.wzo@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3sVp9XAoKCEYivlzm6sv3towwotm.kwutqv25-uus3iks.wzo@flex--andreyknvl.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:message-id:mime-version:subject:from:to:cc;
-        bh=y9YtX+guuq4jzTb5p6KJENEt5MDOMi6rFV456jle65Q=;
-        b=CWqRYwOgcRdTy/1Zuf8A3CD/jL6JjEg15KYHyTccY8wV9VTBQZFKPDp7YcXEOJ24fR
-         MSdmCSL73tkBebZK9OULfdflqqbl8LZsrwI17gQTN8ko6agIOf/R4gBl/HiR07eTdbER
-         BaKm8iyStIOkCK7UjmOug4DEMbA+SZXW64b0UHxsMx7QR7LuZx6DYzI9kA52c99QZkuj
-         +fdLeqGmGuzjo/8YIKNUuAqkd28EmzlINQz118sDfQJsa7kNKx5FPov5yz1VsMLkpI7Z
-         Vx0NFv+uUFcHtx4VehXMJz8fL9q/Fq/o4b2kTqjb+cVZWg1o5vBMXZzzr3wZ8Fk+hgCY
-         Ri7g==
-X-Google-Smtp-Source: APXvYqxtwN3Nu40niShYMTIoBxqcCBnOl1jnM4/HsXPlf1g0bpaPMXqeZBH1+ePQ3SuwTRGJ7sGylO2mohh48XlI
-X-Received: by 2002:ac8:2539:: with SMTP id 54mr11239168qtm.45.1551719089934;
- Mon, 04 Mar 2019 09:04:49 -0800 (PST)
-Date: Mon,  4 Mar 2019 18:04:45 +0100
-Message-Id: <1fa6fadf644859e8a6a8ecce258444b49be8c7ee.1551716733.git.andreyknvl@google.com>
-Mime-Version: 1.0
-X-Mailer: git-send-email 2.21.0.352.gf09ad66450-goog
-Subject: [PATCH] kasan: fix coccinelle warnings in kasan_p*_table
-From: Andrey Konovalov <andreyknvl@google.com>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, 
-	Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, 
-	linux-kernel@vger.kernel.org
-Cc: Kostya Serebryany <kcc@google.com>, Andrey Konovalov <andreyknvl@google.com>, 
-	kbuild test robot <lkp@intel.com>
-Content-Type: text/plain; charset="UTF-8"
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=F5U7Apqk;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x24IOQ02066707;
+	Mon, 4 Mar 2019 18:29:35 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=iTZRfcoGZHsfdcunl2nlWqFf9M0yDE8914vhM69NWh4=;
+ b=F5U7ApqkchNQ9QKskKrJgvWscctRJ21BBQaSNBldW+snKRJHosSYZGjpkqbXHXcaa1/j
+ KJV+PKWiHTi54tgrTWao73MvdVmFjxwyMVWfPBOfQ7NM9MjeCo4E+kN01sng+ALWm6Pe
+ Fc9l4V5muQg3q0Cjucspo/EkeOjokIz06rQ3mNPETKM1J184AziO1+lDVzZqJi+e4vT/
+ LAijwgl/hJlA4HB5zvqzy87vtfXVIWBrIYVbPuohjc1f01JIr6JCzhipJWy/tZwF8YNy
+ HeVPwrgXUVA2MQVEyuRcAtCPStgDndS0/2eyH6Axtpz8BH7ci01sMb1/zAKkAKEzvcWu 6A== 
+Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
+	by userp2120.oracle.com with ESMTP id 2qyjfr8dyq-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 04 Mar 2019 18:29:35 +0000
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x24ITXlT021745
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 4 Mar 2019 18:29:34 GMT
+Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x24ITWD1025745;
+	Mon, 4 Mar 2019 18:29:33 GMT
+Received: from [192.168.1.164] (/50.38.38.67)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Mon, 04 Mar 2019 10:29:32 -0800
+Subject: Re: [PATCH] hugetlbfs: fix memory leak for resv_map
+To: Yufen Yu <yuyufen@huawei.com>, linux-mm@kvack.org
+References: <20190302104713.31467-1-yuyufen@huawei.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <16c7f90d-ad52-4255-f937-b585b649ce57@oracle.com>
+Date: Mon, 4 Mar 2019 10:29:31 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
+MIME-Version: 1.0
+In-Reply-To: <20190302104713.31467-1-yuyufen@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9185 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1903040132
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-kasan_p4d_table, kasan_pmd_table and kasan_pud_table are declared as
-returning bool, but return 0 instead of false, which produces a coccinelle
-warning. Fix it.
+Thank you for finding this issue.
 
-Fixes: 0207df4fa1a8 ("kernel/memremap, kasan: make ZONE_DEVICE with work with KASAN")
-Reported-by: kbuild test robot <lkp@intel.com>
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- mm/kasan/init.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+On 3/2/19 2:47 AM, Yufen Yu wrote:
+> When .mknod create a block device file in hugetlbfs, it will
+> allocate an inode, and kmalloc a 'struct resv_map' in resv_map_alloc().
+> For now, inode->i_mapping->private_data is used to point the resv_map.
+> However, when open the device, bd_acquire() will set i_mapping as
+> bd_inode->imapping, result in resv_map memory leak.
 
-diff --git a/mm/kasan/init.c b/mm/kasan/init.c
-index 45a1b5e38e1e..fcaa1ca03175 100644
---- a/mm/kasan/init.c
-+++ b/mm/kasan/init.c
-@@ -42,7 +42,7 @@ static inline bool kasan_p4d_table(pgd_t pgd)
- #else
- static inline bool kasan_p4d_table(pgd_t pgd)
- {
--	return 0;
-+	return false;
- }
- #endif
- #if CONFIG_PGTABLE_LEVELS > 3
-@@ -54,7 +54,7 @@ static inline bool kasan_pud_table(p4d_t p4d)
- #else
- static inline bool kasan_pud_table(p4d_t p4d)
- {
--	return 0;
-+	return false;
- }
- #endif
- #if CONFIG_PGTABLE_LEVELS > 2
-@@ -66,7 +66,7 @@ static inline bool kasan_pmd_table(pud_t pud)
- #else
- static inline bool kasan_pmd_table(pud_t pud)
- {
--	return 0;
-+	return false;
- }
- #endif
- pte_t kasan_early_shadow_pte[PTRS_PER_PTE] __page_aligned_bss;
+We are certainly leaking the resv_map.
+
+> We fix the leak by adding a new entry resv_map in hugetlbfs_inode_info.
+> It can store resv_map pointer.
+
+This approach preserves the way the existing code always allocates a
+resv_map at inode allocation time.  However, it does add an extra word
+to every hugetlbfs inode.  My first thought was, why not special case
+the block/char inode creation to not allocate a resv_map?  After all,
+it is not used in this case.  In fact, we only need/use the resv_map
+when mmap'ing a regular file.  It is a waste to allocate the structure
+in all other cases.
+
+It seems like we should be able to wait until a call to hugetlb_reserve_pages()
+to allocate the inode specific resv_map in much the same way we do for
+private mappings.  We could then remove the resv_map allocation at inode
+creation time.  Of course, we would still need the code to free the structure
+when the inode is destroyed.
+
+I have not looked too closely at this approach, and there may be some
+unknown issues.  However, it would address the leak you discovered and
+would result in less memory used for hugetlbfs inodes that are never
+mmap'ed.
+
+Any thoughts on this approach?
+
+I know it is beyond the scope of your patch.  If you do not want to try this,
+I can code up something in a couple days.
 -- 
-2.21.0.352.gf09ad66450-goog
+Mike Kravetz
 
