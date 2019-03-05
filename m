@@ -1,228 +1,200 @@
-Return-Path: <SRS0=F7ZL=RH=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=tSF5=RI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EE97FC43381
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 23:36:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2B391C43381
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Mar 2019 00:05:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8EBE020663
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 23:36:06 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="fwlOmLl0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8EBE020663
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id E071C206B8
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Mar 2019 00:05:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E071C206B8
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ah.jp.nec.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0B3B28E0003; Mon,  4 Mar 2019 18:36:06 -0500 (EST)
+	id 706038E0003; Mon,  4 Mar 2019 19:05:30 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 03B118E0001; Mon,  4 Mar 2019 18:36:05 -0500 (EST)
+	id 6B5568E0001; Mon,  4 Mar 2019 19:05:30 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E21658E0003; Mon,  4 Mar 2019 18:36:05 -0500 (EST)
+	id 57EA88E0003; Mon,  4 Mar 2019 19:05:30 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DB958E0001
-	for <linux-mm@kvack.org>; Mon,  4 Mar 2019 18:36:05 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id q15so6470805pgv.22
-        for <linux-mm@kvack.org>; Mon, 04 Mar 2019 15:36:05 -0800 (PST)
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 260D38E0001
+	for <linux-mm@kvack.org>; Mon,  4 Mar 2019 19:05:30 -0500 (EST)
+Received: by mail-oi1-f199.google.com with SMTP id p131so291649oif.8
+        for <linux-mm@kvack.org>; Mon, 04 Mar 2019 16:05:30 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:from:to:cc:references:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=LUypKyWAgSGyWeHvdhOBpuLWhC2w577ik03jidPipkE=;
-        b=BUkqGuCreYp1KVedCrCZhXtoSlIsKGQQ4To5wVFJ2klZpeGFwaEzcmfHUvNMtlmv3h
-         I91Tn7Br1vTpkIlqwLJgcbYYLOZXI9fXBKbUzzzCOU5Te94GoCdkUNwuy3CNJGVqorEq
-         GMqDI2oq3e6APrn6Kdl9aTjbPjMq0IH1/RuNA5NXfYy4U+/4SQAMnGM4a4M5nNfZ/bBL
-         2c7PYrDPfrGO4m/p/Ww7VrYNPhsHbsO2B7Y5FLxagLwrQ1HUkfIIUmNljHh2yo06yvqE
-         INPwXMpem2Zli6bVU+uZQ79OGaqDNX7ovEKpf7r3I523R0uU9Z22u8rIWVIEX32PUsu7
-         k8bA==
-X-Gm-Message-State: APjAAAWl4p7ykwh3w9VGI3IzSk64imr9RH2lRBwWoecAMUcEdDaSiUCM
-	cZPzWFFnY4Xk4v3YMFreZaBfCvRgks568uuUz1vA9IKIsR4OvnTXj4C7diS5Peh5A09/7ag9xvG
-	CA8CxwrdRTzhfZ12KcwHg86sU0kj9yFdhB0X7eUaDrXkKdp94S+pkrUUGvi71XHZPbA==
-X-Received: by 2002:a17:902:9306:: with SMTP id bc6mr22540517plb.59.1551742565114;
-        Mon, 04 Mar 2019 15:36:05 -0800 (PST)
-X-Google-Smtp-Source: APXvYqwdpyZ9Wur3dwtJbfFbeeeoPOJKcrQNCdH7Q50PfpXD65mnwCiGKFxWoOOl1eA+EH43CUqW
-X-Received: by 2002:a17:902:9306:: with SMTP id bc6mr22540441plb.59.1551742564035;
-        Mon, 04 Mar 2019 15:36:04 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551742564; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:thread-topic:thread-index:date:message-id:references
+         :in-reply-to:accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=CbM9gHvG4wMm1LFqcYuYdGuMeLonmorIIzq+hI7EJ9s=;
+        b=p2zQPQHvHvsJ16/yyeFKpKYC9gj8jgEE3Gr0vnAPRboChFbseqV+P4HbPO/Z8ADf71
+         UdttigLy8FQGhD1zqhANknEU3VhfStJm+33BhPyq54ilfeB8Mv4m+cjx4L9gYWhPGtiR
+         AurQF42rK/r3imTJe8KPD1QXalo4Zq4huOvhuOhGqmN/+reh4/Rj9lPP47wPab3YCq6i
+         yuDZvcb5FBBRHkIpBnBOpazKz8VXhm3MXxPHHDmJGvAuMMSiQVFQJ2rYadtZwiTZMNvO
+         yr7Ppk3YJguvIQ6rZx6me3//C/IWebohX/OGR0z8C4T6yu+D6efS0F38QtUNjfYQil+c
+         ktpQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
+X-Gm-Message-State: APjAAAU/CSM4YTTUtRP+NB2/3s3dmfRZaMMgE25RAHpyooFfOkWWatDC
+	SdW3SfaMaxx45idlLjBegnf3Rp+QwL3Ido6lmcN4Wi/UU7/1f/Rayyyltnr4juLCRlqY4HJABWq
+	fA2OU1q9dowe/XuyoiebHHbI/IMwbw4pb2opNtK8y3xD5RKVgn8kKNMJs1I0N7vSk4A==
+X-Received: by 2002:a9d:76c5:: with SMTP id p5mr14457935otl.283.1551744329826;
+        Mon, 04 Mar 2019 16:05:29 -0800 (PST)
+X-Google-Smtp-Source: APXvYqyfzm3QYVoRBrcu63M7rh5zgHgMg12NQkGSxP85GktZf6JtXjMzUaj8DaBfGhibenI5MBnu
+X-Received: by 2002:a9d:76c5:: with SMTP id p5mr14457875otl.283.1551744328778;
+        Mon, 04 Mar 2019 16:05:28 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551744328; cv=none;
         d=google.com; s=arc-20160816;
-        b=pV/o7P3F+z1qnQr/P0CykdbOni8TN7ycj3cY2VbBDuhdMw3dAB2mTgiFtZccGXi0ea
-         QMpu7W/BRMwsQMchsdLO1NjxYOEGU7DQBpMVaB9rWSeW5pQ2h8nf94NH1/5viGLui2s/
-         QZNXMIc/jd0YFWHBM5W7ioUNugJnjrIKQx5yhYOA7AYPSx1LgXo60CWe6NO51PntpF/v
-         L/2t8Nq9DZoxkpMyixQpA4pKRGU22r2vr74BFrW2cds2D+3R0+4JLe2KJ91uqTksL9Yy
-         d7LwC5yiIw12A5pdZPT+ecKP8Xewn3t9RDyW632h0x59iE8pJJR53rkZOJhPdd7gtBER
-         qhDg==
+        b=hVf6jLFkKfJ5sXzetDjRIWnw8s+Sbh0tay0Y0HKgClQ5poLoNqp28VTzZ1Ilch+l7S
+         wFhu7eJkZUI/P+tY3LDHzOxhKOKzJQKUu3WcTavy6ECh+vkm5AgyPZx9h1L1oU2PiFPA
+         OfS6x2yqjZKLzUi2+VtI4hVAOeL0KA57vx/PR64nDOlfZVLMmX0NFSC1RG/JKwawKaW7
+         1RiorCrG6FRgUogCoxMVW7Ogeo5aenECBpNrJlUuThKISg9Yu7eO8K2MxhqO6Zl3EGC+
+         y21bfKXnpgIkM8p1qb3MnTCkpa1sFiBGXJdYMVRAzNQ3xDIx8SWcsh6nxBMWvBGVf7bH
+         KwkA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:references:cc
-         :to:from:subject;
-        bh=LUypKyWAgSGyWeHvdhOBpuLWhC2w577ik03jidPipkE=;
-        b=zcI8+uRv320XDkakN7obJZsE3Mpp1prYLP6yiuKrOa8Ruk3y5QTFnIU6NkvcDliwZA
-         a4mWcUEl3gz/V6bPmVChW2MwjwKdOUjrMK+nOV/JxlHYJPE1cRfZqnsgVR9ZXH4rsch/
-         O4xztxSq3v5FG2I3ixPkwIYBVuYsbpr6GOOQu1xYgb6bR6/wvuxm6c+C097Ba0ZqcCX7
-         xKZpNrE1IB6wpQRuSdtZ+AR93Z0RJ+S0ZGcPeTcO+2noPfTp7wsblmReG4Ro5QTsUrm8
-         vNqXUaIR1qb8co3dwbmOmtCKMQW1e3lVvkPdXf3B+4TRau4GymvTVI11RH1+qzQ+ODfI
-         9i3A==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from;
+        bh=CbM9gHvG4wMm1LFqcYuYdGuMeLonmorIIzq+hI7EJ9s=;
+        b=jx2QFPcwrEQa6ysKhTpqZXVIwP9ckiMOxwUm0/e+ZEbErOY+8WnEYISMCzJH3HfaIw
+         bfEqm2O/0hXEMQJsu7c8kbA66a91qMR8P1Ql5XGCvFSRxHSNpi8NOdf2+yQZa9W+pe2v
+         PLgkVB2hTLoN9C+uT8u0+GSOL/+bfJTgUfFDWGLgNNf58bO2lAyWOOd5xRS21L94gy4m
+         8C6qogDaC4gDBIgE9uSD/FJUhNbwuCMx3jzqA85YuA3tmWUP5fD8uXC/fDZNpmcKftkA
+         pS4qFSESQZKpTYGKZntbniMqowKH6AE6w39kVPg1UThP1dvyVfoJ6I1bQLV96ckZapDE
+         0DnQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=fwlOmLl0;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id cg1si7396785plb.124.2019.03.04.15.36.03
+       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id l13si3105994otp.220.2019.03.04.16.05.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Mar 2019 15:36:04 -0800 (PST)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        Mon, 04 Mar 2019 16:05:28 -0800 (PST)
+Received-SPF: pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) client-ip=114.179.232.161;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=fwlOmLl0;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5c7db65b0003>; Mon, 04 Mar 2019 15:35:56 -0800
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Mon, 04 Mar 2019 15:36:03 -0800
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Mon, 04 Mar 2019 15:36:03 -0800
-Received: from [10.110.48.28] (10.124.1.5) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Mon, 4 Mar
- 2019 23:36:03 +0000
-Subject: Re: [PATCH v2] RDMA/umem: minor bug fix and cleanup in error handling
- paths
-From: John Hubbard <jhubbard@nvidia.com>
-To: Ira Weiny <ira.weiny@intel.com>, Artemy Kovalyov <artemyko@mellanox.com>
-CC: "john.hubbard@gmail.com" <john.hubbard@gmail.com>, "linux-mm@kvack.org"
-	<linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML
-	<linux-kernel@vger.kernel.org>, Jason Gunthorpe <jgg@ziepe.ca>, Doug Ledford
-	<dledford@redhat.com>, "linux-rdma@vger.kernel.org"
-	<linux-rdma@vger.kernel.org>
-References: <20190302032726.11769-2-jhubbard@nvidia.com>
- <20190302202435.31889-1-jhubbard@nvidia.com>
- <20190302194402.GA24732@iweiny-DESK2.sc.intel.com>
- <2404c962-8f6d-1f6d-0055-eb82864ca7fc@mellanox.com>
- <20190303165550.GB27123@iweiny-DESK2.sc.intel.com>
- <bef8680b-acc5-9f13-f49e-8f36f1939387@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <f73f326b-1ef3-075a-ca11-88d0d881dacb@nvidia.com>
-Date: Mon, 4 Mar 2019 15:36:02 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
+Received: from mailgate02.nec.co.jp ([114.179.233.122])
+	by tyo161.gate.nec.co.jp (8.15.1/8.15.1) with ESMTPS id x2505DvQ001559
+	(version=TLSv1.2 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
+	Tue, 5 Mar 2019 09:05:13 +0900
+Received: from mailsv01.nec.co.jp (mailgate-v.nec.co.jp [10.204.236.94])
+	by mailgate02.nec.co.jp (8.15.1/8.15.1) with ESMTP id x2505D98029259;
+	Tue, 5 Mar 2019 09:05:13 +0900
+Received: from mail02.kamome.nec.co.jp (mail02.kamome.nec.co.jp [10.25.43.5])
+	by mailsv01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x2504r7K005945;
+	Tue, 5 Mar 2019 09:05:13 +0900
+Received: from bpxc99gp.gisp.nec.co.jp ([10.38.151.149] [10.38.151.149]) by mail03.kamome.nec.co.jp with ESMTP id BT-MMP-3007610; Tue, 5 Mar 2019 09:04:01 +0900
+Received: from BPXM23GP.gisp.nec.co.jp ([10.38.151.215]) by
+ BPXC21GP.gisp.nec.co.jp ([10.38.151.149]) with mapi id 14.03.0319.002; Tue, 5
+ Mar 2019 09:04:00 +0900
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+CC: Andrew Morton <akpm@linux-foundation.org>,
+        David Rientjes <rientjes@google.com>,
+        Jing Xiangfeng <jingxiangfeng@huawei.com>,
+        "mhocko@kernel.org" <mhocko@kernel.org>,
+        "hughd@google.com" <hughd@google.com>,
+        "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        "Andrea Arcangeli" <aarcange@redhat.com>,
+        "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>,
+        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH v4] mm/hugetlb: Fix unsigned overflow in
+ __nr_hugepages_store_common()
+Thread-Topic: [PATCH v4] mm/hugetlb: Fix unsigned overflow in
+ __nr_hugepages_store_common()
+Thread-Index: AQHUzKNmJ08QFadITkadXECqBzMSPaXvQTOAgADisACAABkvAIAAEDUAgAB2wwCAAEK9AIAA3REAgAAzZACAABhSgIAJbiwA
+Date: Tue, 5 Mar 2019 00:03:59 +0000
+Message-ID: <20190305000402.GA4698@hori.linux.bs1.fc.nec.co.jp>
+References: <388cbbf5-7086-1d04-4c49-049021504b9d@oracle.com>
+ <alpine.DEB.2.21.1902241913000.34632@chino.kir.corp.google.com>
+ <8c167be7-06fa-a8c0-8ee7-0bfad41eaba2@oracle.com>
+ <13400ee2-3d3b-e5d6-2d78-a770820417de@oracle.com>
+ <alpine.DEB.2.21.1902251116180.167839@chino.kir.corp.google.com>
+ <5C74A2DA.1030304@huawei.com>
+ <alpine.DEB.2.21.1902252220310.40851@chino.kir.corp.google.com>
+ <e2bded2f-40ca-c308-5525-0a21777ed221@oracle.com>
+ <20190226143620.c6af15c7c897d3362b191e36@linux-foundation.org>
+ <086c4a4b-a37d-f144-00c0-d9a4062cc5fe@oracle.com>
+In-Reply-To: <086c4a4b-a37d-f144-00c0-d9a4062cc5fe@oracle.com>
+Accept-Language: en-US, ja-JP
+Content-Language: ja-JP
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-originating-ip: [10.34.125.96]
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <853429AEAD48A04F86B60F723266BFD0@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <bef8680b-acc5-9f13-f49e-8f36f1939387@nvidia.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL108.nvidia.com (172.18.146.13) To
- HQMAIL101.nvidia.com (172.20.187.10)
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US-large
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1551742556; bh=LUypKyWAgSGyWeHvdhOBpuLWhC2w577ik03jidPipkE=;
-	h=X-PGP-Universal:Subject:From:To:CC:References:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=fwlOmLl0bA1eSZQSHtrtyySK3uXtyYQNojUOe98wUXJuDL0XQXYZx5dI+BUXIkkUE
-	 io0h06ZVgQ5wgEDK7p+XIJVPQ6G/OwNmqo269Ob8b2+kDDwCuMuYABBIPrgB1eDcCW
-	 vyTLErz7dXLyE93JSquox3by49k4sUg+OU+6bBagQBO1ie7qJnaz8BpNitzoZT0b6b
-	 nU9IHAf19k8bqcdaQjDFYmDAvK978fFxrzopTxp2LSk9NIQQGiI5bgR61Mtirmfi1I
-	 hlB5MC1721tALbWwhAe2ZP8NFT6SjUD8/Ysnez4F/7IA8uatSL40zNlLMB2vVfGEHp
-	 vkqcqkjgAYRbw==
+X-TM-AS-MML: disable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/4/19 3:11 PM, John Hubbard wrote:
-> On 3/3/19 8:55 AM, Ira Weiny wrote:
->> On Sun, Mar 03, 2019 at 11:52:41AM +0200, Artemy Kovalyov wrote:
->>>
->>>
->>> On 02/03/2019 21:44, Ira Weiny wrote:
->>>>
->>>> On Sat, Mar 02, 2019 at 12:24:35PM -0800, john.hubbard@gmail.com wrote:
->>>>> From: John Hubbard <jhubbard@nvidia.com>
->>>>>
->>>>> ...
->>>>> 3. Dead code removal: the check for (user_virt & ~page_mask)
->>>>> is checking for a condition that can never happen,
->>>>> because earlier:
->>>>>
->>>>>      user_virt = user_virt & page_mask;
->>>>>
->>>>> ...so, remove that entire phrase.
->>>>>
->>>>>   		bcnt -= min_t(size_t, npages << PAGE_SHIFT, bcnt);
->>>>>   		mutex_lock(&umem_odp->umem_mutex);
->>>>>   		for (j = 0; j < npages; j++, user_virt += PAGE_SIZE) {
->>>>> -			if (user_virt & ~page_mask) {
->>>>> -				p += PAGE_SIZE;
->>>>> -				if (page_to_phys(local_page_list[j]) != p) {
->>>>> -					ret = -EFAULT;
->>>>> -					break;
->>>>> -				}
->>>>> -				put_page(local_page_list[j]);
->>>>> -				continue;
->>>>> -			}
->>>>> -
->>>>
->>>> I think this is trying to account for compound pages. (ie page_mask could
->>>> represent more than PAGE_SIZE which is what user_virt is being incrimented by.)
->>>> But putting the page in that case seems to be the wrong thing to do?
->>>>
->>>> Yes this was added by Artemy[1] now cc'ed.
->>>
->>> Right, this is for huge pages, please keep it.
->>> put_page() needed to decrement refcount of the head page.
->>
->> You mean decrement the refcount of the _non_-head pages?
->>
->> Ira
->>
-> 
-> Actually, I'm sure Artemy means head page, because put_page() always
-> operates on the head page. 
-> 
-> And this reminds me that I have a problem to solve nearby: get_user_pages
-> on huge pages increments the page->_refcount *for each tail page* as well.
-> That's a minor problem for my put_user_page() 
-> patchset, because my approach so far assumed that I could just change us
-> over to:
-> 
-> get_user_page(): increments page->_refcount by a large amount (1024)
-> 
-> put_user_page(): decrements page->_refcount by a large amount (1024)
-> 
-> ...and just stop doing the odd (to me) technique of incrementing once for
-> each tail page. I cannot see any reason why that's actually required, as
-> opposed to just "raise the page->_refcount enough to avoid losing the head
-> page too soon".
-> 
-> However, it may be tricky to do this in one pass. Probably at first, I'll have
-> to do this horrible thing approach:
-> 
-> get_user_page(): increments page->_refcount by a large amount (1024)
-> 
-> put_user_page(): decrements page->_refcount by a large amount (1024) MULTIPLIED
->                  by the number of tail pages. argghhh that's ugly.
-> 
+On Tue, Feb 26, 2019 at 04:03:23PM -0800, Mike Kravetz wrote:
+> On 2/26/19 2:36 PM, Andrew Morton wrote:
+...
+> >>
+> >> +	} else {
+> >>  		/*
+> >> -		 * per node hstate attribute: adjust count to global,
+> >> -		 * but restrict alloc/free to the specified node.
+> >> +		 * Node specific request, but we could not allocate
+> >> +		 * node mask.  Pass in ALL nodes, and clear nid.
+> >>  		 */
+> >=20
+> > Ditto here, somewhat.
 
-I see that this is still not stated quite right.
+# I missed this part when reviewing yesterday for some reason, sorry.
 
-...to clarify, I mean to leave the existing behavior alone. So it would be
-the call sites (not put_user_page as the above says) that would be doing all
-that decrementing. The call sites know how many decrements are appropriate.
+>=20
+> I was just going to update the comments and send you a new patch, but
+> but your comment got me thinking about this situation.  I did not really
+> change the way this code operates.  As a reminder, the original code is l=
+ike:
+>=20
+> NODEMASK_ALLOC(nodemask_t, nodes_allowed, GFP_KERNEL | __GFP_NORETRY);
+>=20
+> if (nid =3D=3D NUMA_NO_NODE) {
+> 	/* do something */
+> } else if (nodes_allowed) {
+> 	/* do something else */
+> } else {
+> 	nodes_allowed =3D &node_states[N_MEMORY];
+> }
+>=20
+> So, the only way we get to that final else if if we can not allocate
+> a node mask (kmalloc a few words).  Right?  I wonder why we should
+> even try to continue in this case.  Why not just return right there?
 
-Unless someone thinks of a clever way to clean this up in one shot. I'm not
-really seeing any way.
+Simply returning on allocation failure looks better to me.
+As you mentioned below, current behavior for this 'else' case is not
+helpful for anyone.
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+Thanks,
+Naoya Horiguchi
+
+>=20
+> The specified count value is either a request to increase number of
+> huge pages or decrease.  If we can't allocate a few words, we certainly
+> are not going to find memory to create huge pages.  There 'might' be
+> surplus pages which can be converted to permanent pages.  But remember
+> this is a 'node specific' request and we can't allocate a mask to pass
+> down to the conversion routines.  So, chances are good we would operate
+> on the wrong node.  The same goes for a request to 'free' huge pages.
+> Since, we can't allocate a node mask we are likely to free them from
+> the wrong node.
+>=20
+> Unless my reasoning above is incorrect, I think that final else block
+> in __nr_hugepages_store_common() is wrong.
+>=20
+> Any additional thoughts?
+> --=20
+> Mike Kravetz
+> =
 
