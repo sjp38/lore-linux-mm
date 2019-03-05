@@ -2,126 +2,96 @@ Return-Path: <SRS0=tSF5=RI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E0128C43381
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Mar 2019 21:35:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7CA2DC43381
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Mar 2019 21:42:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8DD8B20675
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Mar 2019 21:35:51 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="LnEEbcFm"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8DD8B20675
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 3B89D20675
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Mar 2019 21:42:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B89D20675
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2C7378E0003; Tue,  5 Mar 2019 16:35:51 -0500 (EST)
+	id BC60D8E0003; Tue,  5 Mar 2019 16:42:01 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2771C8E0001; Tue,  5 Mar 2019 16:35:51 -0500 (EST)
+	id B4D7C8E0001; Tue,  5 Mar 2019 16:42:01 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1405A8E0003; Tue,  5 Mar 2019 16:35:51 -0500 (EST)
+	id 9EE738E0003; Tue,  5 Mar 2019 16:42:01 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DACAD8E0001
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2019 16:35:50 -0500 (EST)
-Received: by mail-yw1-f71.google.com with SMTP id g6so14960380ywa.13
-        for <linux-mm@kvack.org>; Tue, 05 Mar 2019 13:35:50 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 411EF8E0001
+	for <linux-mm@kvack.org>; Tue,  5 Mar 2019 16:42:01 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id k21so5237725eds.19
+        for <linux-mm@kvack.org>; Tue, 05 Mar 2019 13:42:01 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=dd0IhN9cI+1i2Tp8erb3U8cREidlOlbPPgACu+UVMlU=;
-        b=aA9FieA6Zf8Yzg8+WfysCC/dJdc6Ftd5012rmjdDwIy+JOJslMZgyr51vcZKjW8Hs5
-         rwkTlmNUUXr8azezai/yAdLIsuGP4JcVbw5cpwPuouiG8nvDEePz8fERErjBU4KgXCl4
-         u9ENCCx17/3yt65LsaQ6fbqZ7Sv50ph/y0YPbWX3QTTdebYtFUKR78fd1hlKqOYn5qvd
-         he/8UihjkS9u+Z4EV46qTy87NeoM6GhCJBWdge/QLECuUB+M62pn2S/mRhjYRuKfJPuj
-         5i++cbOORXugRw5E9gXc7ZfkduuiOwcxAU4vu+qIhb3HMbhZFXTSZpmu1Rco/is/WS08
-         Iqtw==
-X-Gm-Message-State: APjAAAUWved7QrxxWvcDz+V3MIp3zsz7vW1BDWrwj9BEGR78LjMR1Uqe
-	6sKx/GU3sCU+bVIVx6Op/uAKGyesz7RJS9BdMKqo2HgsN6vYvUjYKZG7LetU0dKsp6QQcukeri1
-	Nuke9M76Y0zHcbZZrK8OK4hktt/qt4FcTzLk8CNw21fC9hMBYkqBh7ga+DUFx8glRcw==
-X-Received: by 2002:a81:98d3:: with SMTP id p202mr2821808ywg.49.1551821750652;
-        Tue, 05 Mar 2019 13:35:50 -0800 (PST)
-X-Google-Smtp-Source: APXvYqyLGndsqVIbrjhBRewRe76hEJW3uFEFS9h5b/+rFbSEH2Btl3Ab07ZU86dyx1B+92Km4COa
-X-Received: by 2002:a81:98d3:: with SMTP id p202mr2821771ywg.49.1551821749919;
-        Tue, 05 Mar 2019 13:35:49 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551821749; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:references:message-id:date:user-agent:mime-version
+         :in-reply-to:content-transfer-encoding;
+        bh=Bwz5i5J4w6R1JZ8oshOTubR9szUXAlwoXGZPPZY1maE=;
+        b=q2tpcM+6S3mVCTcg0EYIkdasSjXlCheD5t+P3s8LsphP5NigQlkXIwqWCVaGLmmEl/
+         kRBl5qR03rJR3/ZOnz71qNosfhuV4QAf0icwtbN2nqF122q5T2J9CVu/+9uRwNqQ+oB9
+         FjIXo2gMxYy+hLg1Ag5fRuZzY28k6Cudv4mHSL+zcT1Qv6ZZj5QtRDf8rXnivB84JM1p
+         gUCGzJEYazjT42HFtE/P2aQNQoZrlSmk8mbQ/K0Cr69GrvD+c5VxznLxbuDX1frqOfd3
+         MeRKNn46VWVb1nsEWlwgjGoW4peoRRH65mgQlXtpDJOKKVd9ezWMAJTpC5Gbc9s8UQMH
+         RDPw==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Gm-Message-State: APjAAAUZOvnTiwH3Kl/SUzWl1Qqs5WhVTRHZaQzspaZ0B5ZqA6WdOumF
+	gKy7Dv0dYeYQahGtOUqeaxFGU7XONpg79E6Obu2RQXdZviCnQ0qO21nrbNMfUVi6D8vUXR5w23+
+	cpP3KbuAbM20A/hOpDCyQZ7Cfbyrgh+B5vrYTYZgG13B8Oev7u3qBUtEkEWBj1aE=
+X-Received: by 2002:a17:906:4212:: with SMTP id z18mr1652627ejk.78.1551822120846;
+        Tue, 05 Mar 2019 13:42:00 -0800 (PST)
+X-Google-Smtp-Source: APXvYqw9OEbYbY++jj+37j4jpGpCYpebjtw/5YcLRkSUa/HgRbPaUMsdALTZpf9PX3TluIEvQt+H
+X-Received: by 2002:a17:906:4212:: with SMTP id z18mr1652596ejk.78.1551822120003;
+        Tue, 05 Mar 2019 13:42:00 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551822119; cv=none;
         d=google.com; s=arc-20160816;
-        b=D/eXdcD/WOs4mcfhhWk9nQWfUQSNsH8ChDe0t7ufHicdEvML7v2j6fg81tL7agP+hx
-         atlPTjiGvOKIy94XtlmG/a3V5TffQEV/m5va7ejUvFOOxENekulTm/OK6sGXNmX4f4/b
-         dXKUSPXIOzjDX3uR0WgJwlNmj6hypmE7njcJI/6T0IpaCn5OnMG5l4UBOGRlfXCzZVFS
-         HiInxE6NxMyju5cIxGvWmawg4/JCpXiMvZzZjy6Vt3wfN6vS92sb75QTth2nleDD1hYa
-         nGQSdlH/saWKJvYr+n6MY90J1ZXFOj7/b7pepX+u7A4RFW+sfNWDxbdw2+wzKdnqJgT0
-         K/LQ==
+        b=z6vcQDpu2yELrBAfj0EQIvo+1e/yD77Gqvnhqu+jbIxqa7C5mrB9WzXuQu9X4yS3E3
+         tJN7A70PLJvLsagguu0PQqndrveT+8Dlg/+uk7t5Pdii1pglPwvOk2YXb5Ta21YsDGLn
+         3u325zf2gW8VODAyvMCD/rbkmaGl0INZkop2EQiGtG+Af21f0VDs7WkCsolGxpccRdfE
+         HYkNDCWZWhLyG8HICO+VoFC0pz1Z03YdzN8Puo5+c1tajQED1im7uTcBGQFxHJ+kZP9C
+         Qb2+xQliBzwFwRYgr9YaJoWWjM/uBYzjfq/PkQw0mZ+yAYcyLO5ZWW/4Z3jTPPcWk1C0
+         0tDw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=dd0IhN9cI+1i2Tp8erb3U8cREidlOlbPPgACu+UVMlU=;
-        b=PrhEl9Vj21xJQUbXYX7RZkw2jOV7BMlBpefs0jEoPhzbSJj83mPZtA2mC7omks7CBG
-         Vcb/lukefM3gzg8YHfZs1Hf9z4XZvLY4b4CcxuQRi+kZ3aqhWi09ki1IOZM0lTAsSQyn
-         euytcr+QkJGgFmbr+351yPD3RueUWtBa5W9KfORMMzNijBsHo/z935Pw+Smnz+y5X7CE
-         XuEvhEW/UQA3ddRRoRDdXmq/mWs8HXlLkGnw1qJ72MOIMMP26/lmEyjx/i1/JHYuoWpy
-         C0mJQll5aA4xkK44rZbmotPU5+gt3CG+mbzbnq1gyxH9j3UQIkBcXiVTSWoKhD431HMj
-         S6XQ==
+        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
+         :message-id:references:subject:cc:to:from;
+        bh=Bwz5i5J4w6R1JZ8oshOTubR9szUXAlwoXGZPPZY1maE=;
+        b=vdzgqX7qhktT4VW3VRb+jFMV4nFfHqSgUJexBsM6zeszb4Xr7P4QrAsqIkLlAySTXF
+         B9d45tVqrys/I8NkMxVhP5zPThkSspkVA51Q1ecHMqm4ZPqFv3JEmXTu5E4oTLtewZz0
+         A4wyukuBe3Lg9pnQsMuEjxylxDv0/rBS8RrJbqBc0A2hblb/KJHsBwGmk6k6GsQh0MGc
+         BpW9M0pfrxtDp2JHGpCOzwzrADLH8Lejvpw0Tqz+hkP8uEuWHg25UrVcpLKxq/AY9Uvj
+         k0QvNWhuLBw+S5L6UCR0o9TnG48owtweo7SsKqYqnOv+VVwPe6hmSBJX+56LyEZOv7aU
+         w/QQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=LnEEbcFm;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id x14si5579554ybl.188.2019.03.05.13.35.49
+       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from relay9-d.mail.gandi.net (relay9-d.mail.gandi.net. [217.70.183.199])
+        by mx.google.com with ESMTPS id f19si703137edf.175.2019.03.05.13.41.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Mar 2019 13:35:49 -0800 (PST)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 05 Mar 2019 13:41:59 -0800 (PST)
+Received-SPF: neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.199;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=LnEEbcFm;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x25LTUQt021430;
-	Tue, 5 Mar 2019 21:35:37 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=dd0IhN9cI+1i2Tp8erb3U8cREidlOlbPPgACu+UVMlU=;
- b=LnEEbcFmRjn9Eyva4qBxkxP6nVJGbhJ0Iezd7O7yPYHdt9hb/SUawSbfgF5t9ZT/ka7l
- mL2Xt3qRR1DYoW5TU5Zaiq0y3q5s2H3CNsnUOc12umVam0eXHSwuGTdZO2G3Ke9+ROnx
- GoZUxdYDWergnvUuC1BFy23Ioo2TUBfodfM/zqLPI1ygJ4BgGRGsSRTrNRsYGtQLl5P+
- VTsEIs3L7BVwQYGOgbBjTnIjrbsckh343xgtvuKiJnVfoVEJLk/vq0bIny6a4sTAlx2Q
- F/ZtBwmYDef8x6/JBaOAE+tDSwBPq+/5jwMZ/keGXV+Tv0OZrVfYJeIRKIILXKKNfjEh 5g== 
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by userp2130.oracle.com with ESMTP id 2qyh8u87vt-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 05 Mar 2019 21:35:36 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x25LZZlc012622
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 5 Mar 2019 21:35:35 GMT
-Received: from abhmp0014.oracle.com (abhmp0014.oracle.com [141.146.116.20])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x25LZYg9015103;
-	Tue, 5 Mar 2019 21:35:34 GMT
-Received: from [192.168.1.164] (/50.38.38.67)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 05 Mar 2019 13:35:34 -0800
+       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Originating-IP: 79.86.19.127
+Received: from [192.168.0.11] (127.19.86.79.rev.sfr.net [79.86.19.127])
+	(Authenticated sender: alex@ghiti.fr)
+	by relay9-d.mail.gandi.net (Postfix) with ESMTPSA id 49734FF804;
+	Tue,  5 Mar 2019 21:41:56 +0000 (UTC)
+From: Alex Ghiti <alex@ghiti.fr>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+ Oscar Salvador <osalvador@suse.de>, David Rientjes <rientjes@google.com>,
+ Jing Xiangfeng <jingxiangfeng@huawei.com>,
+ "mhocko@kernel.org" <mhocko@kernel.org>, "hughd@google.com"
+ <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ Andrea Arcangeli <aarcange@redhat.com>,
+ "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>,
+ linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH v4] mm/hugetlb: Fix unsigned overflow in
  __nr_hugepages_store_common()
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-        Oscar Salvador <osalvador@suse.de>,
-        David Rientjes <rientjes@google.com>,
-        Jing Xiangfeng <jingxiangfeng@huawei.com>,
-        "mhocko@kernel.org" <mhocko@kernel.org>,
-        "hughd@google.com"
- <hughd@google.com>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        Andrea Arcangeli <aarcange@redhat.com>,
-        "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>,
-        linux-kernel@vger.kernel.org, Alexandre Ghiti <alex@ghiti.fr>
 References: <388cbbf5-7086-1d04-4c49-049021504b9d@oracle.com>
  <alpine.DEB.2.21.1902241913000.34632@chino.kir.corp.google.com>
  <8c167be7-06fa-a8c0-8ee7-0bfad41eaba2@oracle.com>
@@ -135,42 +105,35 @@ References: <388cbbf5-7086-1d04-4c49-049021504b9d@oracle.com>
  <20190305000402.GA4698@hori.linux.bs1.fc.nec.co.jp>
  <8f3aede3-c07e-ac15-1577-7667e5b70d2f@oracle.com>
  <20190305131643.94aa32165fecdb53a1109028@linux-foundation.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <9a23edc9-b2e5-839e-30d6-0723cb98246d@oracle.com>
-Date: Tue, 5 Mar 2019 13:35:32 -0800
+ <9a23edc9-b2e5-839e-30d6-0723cb98246d@oracle.com>
+Message-ID: <8d77e5ba-3de6-801c-8497-6a219665bc57@ghiti.fr>
+Date: Tue, 5 Mar 2019 16:41:55 -0500
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+ Thunderbird/60.5.3
 MIME-Version: 1.0
-In-Reply-To: <20190305131643.94aa32165fecdb53a1109028@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+In-Reply-To: <9a23edc9-b2e5-839e-30d6-0723cb98246d@oracle.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9186 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1903050138
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/5/19 1:16 PM, Andrew Morton wrote:
-> On Mon, 4 Mar 2019 20:15:40 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
-> 
->> Andrew, this is on top of Alexandre Ghiti's "hugetlb: allow to free gigantic
->> pages regardless of the configuration" patch.  Both patches modify
->> __nr_hugepages_store_common().  Alex's patch is going to change slightly
->> in this area.
-> 
-> OK, thanks, I missed that.  Are the changes significant?
-> 
+On 3/5/19 4:35 PM, Mike Kravetz wrote:
+> On 3/5/19 1:16 PM, Andrew Morton wrote:
+>> On Mon, 4 Mar 2019 20:15:40 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+>>
+>>> Andrew, this is on top of Alexandre Ghiti's "hugetlb: allow to free gigantic
+>>> pages regardless of the configuration" patch.  Both patches modify
+>>> __nr_hugepages_store_common().  Alex's patch is going to change slightly
+>>> in this area.
+>> OK, thanks, I missed that.  Are the changes significant?
+>>
+> No, changes should be minor.  IIRC, just checking for a condition in an
+> error path.
+I will send the v5 of this patch tomorrow, I was waiting for architecture
+maintainer remarks. I still miss sh, but I'm confident on this change.
 
-No, changes should be minor.  IIRC, just checking for a condition in an
-error path.
-
--- 
-Mike Kravetz
+Alex
 
