@@ -2,192 +2,124 @@ Return-Path: <SRS0=tSF5=RI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BDA5CC4360F
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Mar 2019 20:10:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0C627C43381
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Mar 2019 21:16:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6D2D12087C
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Mar 2019 20:10:07 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="lce5inAw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D2D12087C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id A4E19205F4
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Mar 2019 21:16:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A4E19205F4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EA23E8E0003; Tue,  5 Mar 2019 15:10:06 -0500 (EST)
+	id 03F548E0003; Tue,  5 Mar 2019 16:16:47 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E55458E0001; Tue,  5 Mar 2019 15:10:06 -0500 (EST)
+	id F08C18E0001; Tue,  5 Mar 2019 16:16:46 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D67E08E0003; Tue,  5 Mar 2019 15:10:06 -0500 (EST)
+	id DABF08E0003; Tue,  5 Mar 2019 16:16:46 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 96C5C8E0001
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2019 15:10:06 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id m10so10606765pfj.4
-        for <linux-mm@kvack.org>; Tue, 05 Mar 2019 12:10:06 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 998458E0001
+	for <linux-mm@kvack.org>; Tue,  5 Mar 2019 16:16:46 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id h15so10780759pfj.22
+        for <linux-mm@kvack.org>; Tue, 05 Mar 2019 13:16:46 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=nFm92H0F0foev1f/IZP1befItBmU4OpaeUP7oINCO1c=;
-        b=p0dXjgKwrBNTKSaS5K0kbrI+0+juhYf9owGw0ZQv0IqqsY9uG/M0vqd7L0tS1O9YY9
-         P2tOB9LYh/p3OXCB0mqfmLxrbGhlF6k3AtdbhVhm+BUSWK/zm5fcZ08hsQlT7xWJzTn2
-         VjKBMz6xOsKy6ROXbfBwA1sihhcZoMTx8HjRy1SYpmQjtwK47BX8l6AOqjvPJCsHWt15
-         SovcAM6w3Hxjp2AVp7BwqgBRJImZ9kgadj5B9dr1keNb8VXG1TCKtTTUJqPLmLdkkwd3
-         CU+HY9SQQLqhlfk0hAea7CLD2ur809hhvFXFyDqEo4LYW7zWJEOPVAYtxHkkTUy0t32A
-         TZcg==
-X-Gm-Message-State: APjAAAXbXVgYELrdBNk0hcJQ4PmG1wuIOvmWvsjjvJxuMKZXJyRhHeo1
-	Wsd2rX1d3fwgwUMG2qc0l56HBboL8I/uNpCpG8Gn0u0iaetJW01TofO/DiTPZfmIGAfJkoApMy7
-	nESJBVNBx8DbwVq+mAdmtUjs8ndx40+n6CvDiL93uD6bfYAc42kwrzbZTZWmxI4pH5w==
-X-Received: by 2002:a63:2c4c:: with SMTP id s73mr2984231pgs.113.1551816606131;
-        Tue, 05 Mar 2019 12:10:06 -0800 (PST)
-X-Google-Smtp-Source: APXvYqx4Vmr8fFoJVRrhBLRjFuKnYgDkPfy5BiQBPrgvWlcHEIc047wR6+/5WQxW2TwQAm+Tz46B
-X-Received: by 2002:a63:2c4c:: with SMTP id s73mr2984133pgs.113.1551816604731;
-        Tue, 05 Mar 2019 12:10:04 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551816604; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=bW8ImPyWYkqRlGFXBHr5QyjY43Bs1+Zz3QCbHLGpdic=;
+        b=BClA5All7rkcdabwMOT0/jD0C2RrgNqbHrWCxOJoPyDC7a3oRQhOhDw01DHvkUB9eq
+         rhBkLHFFXnXLa4lPUAAAD4/0hFOQctSYM6Iii5HRBNquGmJEyiAEJdqwcDZIAfBLW1NO
+         SQ+yzbPckv6R21gSY6Bi0XBS3zo0CgG87WF/UzZAW84c+92C9L2bosF/8cC1Xf3Ld+EO
+         HrrDleD6d5p4bBkClEOjgEeMwfUBUrC+elmzczxnmS9M6zo/PM9oy47wvrSDFJaRnmXf
+         6kiO+cwN/j4rti29gFo4lUxUjwUU8cZRjYufBZTyiDIb2clo4LHD974DaN1XtgDKN63m
+         P0Gg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+X-Gm-Message-State: APjAAAVGuuPyV/HEIAXp9s18pew4VlccS3KX3tBOT3d9jgFCY14W/AML
+	+fE7wiEcF9TSxrqb1+JHmMSXT10kp44zz4OVhaxOoHs1NpJkRVthNcahZHBvfn7rRbG28NHswbL
+	GJjNGEXShPhO20zv5DYvCF7JunAP+exqgNnBUlbuFurcIDzloc1JCwLERFpL7+plIug==
+X-Received: by 2002:a62:76d4:: with SMTP id r203mr3844819pfc.15.1551820606250;
+        Tue, 05 Mar 2019 13:16:46 -0800 (PST)
+X-Google-Smtp-Source: APXvYqwagOazJkODxvz9gFVriKiLGwBPJHhb91icvmJsrEgoNgu8lj8+wSwJZ+N0gDHI8N0t5t1w
+X-Received: by 2002:a62:76d4:: with SMTP id r203mr3844759pfc.15.1551820605238;
+        Tue, 05 Mar 2019 13:16:45 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551820605; cv=none;
         d=google.com; s=arc-20160816;
-        b=BFx4mnp3pw9FtcxhfVqtIBBiciIP77815f/g/hM2TVseTpDySeJbXG/HJjTGENEgT1
-         GkLjd2Cz5tYhqSVwJkzkFIoj5+OqEbVgKGTNQyyXiujzstoDow8aZEMGk3F4D2sx8Y6J
-         WKz4zeLxUEMF9DGdnA6I6tawsTnFPKXY92l/an2XfLPK9fF4OumEEitWSsKYjXAjkiBa
-         dUPte/QZoOyqAXoj4/ZHcb46erK0Ez481bH1geoOKC8WouKtW2RTZvQ7iW2BjdnWkXSF
-         ICwYQ+RtlMnMm7emttw/D1BF+TeiqsDlanolfxf+5K1injoWBcDVa/aMpfTBeEm4xBY9
-         pnGw==
+        b=jRooIJyKsI8ms360M2lS4U1eseuCLAK/2LPwPY+A6Jt55/XCyfOYsiz3hVXpwV7xQ5
+         KRnwHozc//YJK/UoVJ/Y/KMRGhSdSS6Mln+joFKfuKM2jTOW75KqFjz6vySPAeMQ7cCc
+         hpw7Roo9MDfOimXDGgoQ0hWO4WMuIk1sSDiSJjm8/w1Ja4nQe0aUuHLgLnhiwCtN20J0
+         MSr1YJHAeEgtK5M0EV+Ut0X/xXHwMr6zhx2lZD6IkjY44xmCTglZboIAXAZ4AincSYka
+         fOwoD4kPTokMfsj4zLfcBdxyFFwHlWw06oSH+gH6J4cLcE33GB3gYx6BdpgyapKZquLS
+         Zx2g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=nFm92H0F0foev1f/IZP1befItBmU4OpaeUP7oINCO1c=;
-        b=G9e1+T3T/2oNlJK8L8zV5MUy24cnnrrT/cQt+LthohF6+uXYQCs2yFi1gNlKyftrmK
-         Oapn7lBC0LKCI+f95kfwyrozv4qPK1m3ZUj+4RdIRb8MHWfFCsSWI9gg1DYITZE4PmdS
-         n4caESb+tFjvhGqZ26oELCiwnL7btC3nq/xgh8gnthw2/hsnAycFdNeguGQQHKxFuzUK
-         cXYCnGwO+Dg34t2l07GqhbIPhLDTRFrhB+jtU2MpN85oH6cazsAIy/5bVLpEwCyUxEy7
-         QzmE3xyWQrR5MykzdtoShSTdivKl/+WmSazVqJWVAzx5ukQuv/XKOlxN0AqSjtBmfhw/
-         6J2Q==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date;
+        bh=bW8ImPyWYkqRlGFXBHr5QyjY43Bs1+Zz3QCbHLGpdic=;
+        b=LcQ/dVfU3rRNAKqk3oSidW2DdqfQ+R1Z31t61oMie12DgfEgt1P2g0LKbMbEfKwkdQ
+         9hUmFLsqSqfc0CTVsr7sCLrxzhlQArT+txkjpjdbCsAdQEBtImdCyxTtMJMIIpm1BWI/
+         OTa+vVvABAR1sIA5t6AfFMSvHn7QTHcXZy751OXL9M5Atu284fFX5xcOoxOT7ELeNOEO
+         zvfMmrWxYQ7zWuv+XdVgNY2GT8UDUsCUR+9dvzZSpQYuWRIFWC+2S6xsSQ9nt/1EBlcb
+         Ky6THVaZg68vu50xfIUwJnwnr5ccQGd8DLb+cCDY2x2uXFKwy6ktTFRTfgrLNZVHujnh
+         wnhA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=lce5inAw;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id c18si5090929plo.405.2019.03.05.12.10.04
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id q10si5478689plr.347.2019.03.05.13.16.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Mar 2019 12:10:04 -0800 (PST)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
+        Tue, 05 Mar 2019 13:16:45 -0800 (PST)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=lce5inAw;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5c7ed79b0001>; Tue, 05 Mar 2019 12:10:03 -0800
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
-  Tue, 05 Mar 2019 12:10:04 -0800
-X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Tue, 05 Mar 2019 12:10:04 -0800
-Received: from [10.110.48.28] (172.20.13.39) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Tue, 5 Mar
- 2019 20:10:03 +0000
-Subject: Re: [PATCH v2] RDMA/umem: minor bug fix and cleanup in error handling
- paths
-To: Ira Weiny <ira.weiny@intel.com>
-CC: Artemy Kovalyov <artemyko@mellanox.com>, "john.hubbard@gmail.com"
-	<john.hubbard@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew
- Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>,
-	Jason Gunthorpe <jgg@ziepe.ca>, Doug Ledford <dledford@redhat.com>,
-	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>
-References: <20190302032726.11769-2-jhubbard@nvidia.com>
- <20190302202435.31889-1-jhubbard@nvidia.com>
- <20190302194402.GA24732@iweiny-DESK2.sc.intel.com>
- <2404c962-8f6d-1f6d-0055-eb82864ca7fc@mellanox.com>
- <20190303165550.GB27123@iweiny-DESK2.sc.intel.com>
- <bef8680b-acc5-9f13-f49e-8f36f1939387@nvidia.com>
- <20190304201338.GA28731@iweiny-DESK2.sc.intel.com>
-From: John Hubbard <jhubbard@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <9502d777-73e1-f96f-120d-acc1f31045ae@nvidia.com>
-Date: Tue, 5 Mar 2019 12:10:03 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
-MIME-Version: 1.0
-In-Reply-To: <20190304201338.GA28731@iweiny-DESK2.sc.intel.com>
-X-Originating-IP: [172.20.13.39]
-X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
- HQMAIL101.nvidia.com (172.20.187.10)
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US-large
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 5AB6CF89B;
+	Tue,  5 Mar 2019 21:16:44 +0000 (UTC)
+Date: Tue, 5 Mar 2019 13:16:43 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Oscar Salvador
+ <osalvador@suse.de>, David Rientjes <rientjes@google.com>, Jing Xiangfeng
+ <jingxiangfeng@huawei.com>, "mhocko@kernel.org" <mhocko@kernel.org>,
+ "hughd@google.com" <hughd@google.com>, "linux-mm@kvack.org"
+ <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>,
+ "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>,
+ linux-kernel@vger.kernel.org, Alexandre Ghiti <alex@ghiti.fr>
+Subject: Re: [PATCH v4] mm/hugetlb: Fix unsigned overflow in
+ __nr_hugepages_store_common()
+Message-Id: <20190305131643.94aa32165fecdb53a1109028@linux-foundation.org>
+In-Reply-To: <8f3aede3-c07e-ac15-1577-7667e5b70d2f@oracle.com>
+References: <388cbbf5-7086-1d04-4c49-049021504b9d@oracle.com>
+	<alpine.DEB.2.21.1902241913000.34632@chino.kir.corp.google.com>
+	<8c167be7-06fa-a8c0-8ee7-0bfad41eaba2@oracle.com>
+	<13400ee2-3d3b-e5d6-2d78-a770820417de@oracle.com>
+	<alpine.DEB.2.21.1902251116180.167839@chino.kir.corp.google.com>
+	<5C74A2DA.1030304@huawei.com>
+	<alpine.DEB.2.21.1902252220310.40851@chino.kir.corp.google.com>
+	<e2bded2f-40ca-c308-5525-0a21777ed221@oracle.com>
+	<20190226143620.c6af15c7c897d3362b191e36@linux-foundation.org>
+	<086c4a4b-a37d-f144-00c0-d9a4062cc5fe@oracle.com>
+	<20190305000402.GA4698@hori.linux.bs1.fc.nec.co.jp>
+	<8f3aede3-c07e-ac15-1577-7667e5b70d2f@oracle.com>
+X-Mailer: Sylpheed 3.6.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1551816603; bh=nFm92H0F0foev1f/IZP1befItBmU4OpaeUP7oINCO1c=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=lce5inAwqd2AW64oEefNbUeVk4kKbL7wNLqPT2AyKiDspWK8bgalRoKahUSdq23ma
-	 1lAf+Ll8ipe6pkApZLtol2TNcVoGkWVKX6c3KFar0vxUn2z1s7JlFtdH/aE5Vi80Kn
-	 Z3UQnMOqPIkyFs6vR88OtS4FCnUzwQxhIRfiG2HZSSzJUq2n1WNjcsYWPHT+qlrdm0
-	 yR5uao9zObAzIcVTBibXwodKbWFuvP9di72kverwQKzBoROP8u4YUuguQvzx26WYpn
-	 2QsMMicMCoDJhiMIhl9BMsux3tIGPY0aMUHIGgfzrsNXxgeUGAz9M/pFXF/RyWXBer
-	 Gst1xAnYdNfHw==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/4/19 12:13 PM, Ira Weiny wrote:
-[snip]
->> And this reminds me that I have a problem to solve nearby: get_user_pages
->> on huge pages increments the page->_refcount *for each tail page* as well.
->> That's a minor problem for my put_user_page() 
->> patchset, because my approach so far assumed that I could just change us
->> over to:
->>
->> get_user_page(): increments page->_refcount by a large amount (1024)
->>
->> put_user_page(): decrements page->_refcount by a large amount (1024)
->>
->> ...and just stop doing the odd (to me) technique of incrementing once for
->> each tail page. I cannot see any reason why that's actually required, as
->> opposed to just "raise the page->_refcount enough to avoid losing the head
->> page too soon".
-> 
-> What about splitting a huge page?
-> 
-> From Documention/vm/transhuge.rst
-> 
-> <quoute>
-> split_huge_page internally has to distribute the refcounts in the head
-> page to the tail pages before clearing all PG_head/tail bits from the page
-> structures. It can be done easily for refcounts taken by page table
-> entries. But we don't have enough information on how to distribute any
-> additional pins (i.e. from get_user_pages). split_huge_page() fails any
-> requests to split pinned huge page: it expects page count to be equal to
-> sum of mapcount of all sub-pages plus one (split_huge_page caller must
-> have reference for head page).
-> </quote>
-> 
+On Mon, 4 Mar 2019 20:15:40 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 
-heh, so in the end, split_huge_page just needs enough information to say
-"no" for gup pages. So as long as page->_refcount avoids one particular
-value, the code keeps working. :)
+> Andrew, this is on top of Alexandre Ghiti's "hugetlb: allow to free gigantic
+> pages regardless of the configuration" patch.  Both patches modify
+> __nr_hugepages_store_common().  Alex's patch is going to change slightly
+> in this area.
 
-
-> FWIW, I'm not sure why it needs to "store" the reference in the head page for
-> this.  I don't see any check to make sure the ref has been "stored" but I'm not
-> really familiar with the compound page code yet.
-> 
-> Ira
-> 
-
-Thanks for peeking at this, I'll look deeper too.
-
-thanks,
--- 
-John Hubbard
-NVIDIA
+OK, thanks, I missed that.  Are the changes significant?
 
