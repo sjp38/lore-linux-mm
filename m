@@ -2,270 +2,156 @@ Return-Path: <SRS0=43/C=RJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E8351C43381
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 10:14:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 62E1FC43381
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 10:19:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 95FF520675
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 10:14:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 95FF520675
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=collabora.com
+	by mail.kernel.org (Postfix) with ESMTP id 19BAF20675
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 10:19:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 19BAF20675
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arndb.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2B59D8E0003; Wed,  6 Mar 2019 05:14:53 -0500 (EST)
+	id AEE068E0003; Wed,  6 Mar 2019 05:19:31 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 264118E0002; Wed,  6 Mar 2019 05:14:53 -0500 (EST)
+	id A9D538E0002; Wed,  6 Mar 2019 05:19:31 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 12BEE8E0003; Wed,  6 Mar 2019 05:14:53 -0500 (EST)
+	id 9B2D68E0003; Wed,  6 Mar 2019 05:19:31 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B2C2B8E0002
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 05:14:52 -0500 (EST)
-Received: by mail-wm1-f70.google.com with SMTP id b197so2343710wmb.9
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 02:14:52 -0800 (PST)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 728F78E0002
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 05:19:31 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id f70so9365278qke.8
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 02:19:31 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:subject
-         :to:cc:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-language:content-transfer-encoding;
-        bh=f7gBgcOA+fOS6Oku977CuUDpQCEwyMgjWsG2i/sLnn8=;
-        b=QXQdrh/iof5hZUW3aMhIWe8vzoapaZYyE6eupYrF5fLXhyoXAJb5eprlv7uC/q2OLL
-         /DKFMdMdIh/qHdTq1JPSGVfaTqI3N4PF6bQ437kn5cH0Gw/KNN8wBnCJZO8bYb6zonAV
-         Sw7H/gR7bNG4PIaru3xI3tW7YM2IqqOtQneGMJunWib8DPYkRjTfXO/VGcETuUaFKFzf
-         NWeotGaIjbCHSEzqexxbo3gbLFV0VtKuujQsgRrWRm/TNx49AM5aAbks7/YsMKTN8n9h
-         ZPsXDdozQuV4xWGEJry7z9LVSVita9xOb5KTnDYMSuRXfxw9PgcdLj1K0aqtI4W4EgBt
-         vmMQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of guillaume.tucker@collabora.com designates 2a00:1098:0:82:1000:25:2eeb:e3e3 as permitted sender) smtp.mailfrom=guillaume.tucker@collabora.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
-X-Gm-Message-State: APjAAAU1UCfAyg3DZSyGqHVYMsQdpn+Sp8dAmq67R4koOpGtTskWZMqT
-	sEJn3Z0Aqh5sn1RtnzTGkRVywBgNnemWj0ZlwjkpgB4hGF+h/UoF+c7Qzv9PPBUP2bmkWjKRlDt
-	wsJ9g60PcuL5ws/fyqX49Ng1+AABfd92uP0e9fHpX/y0DmOtgFMsgt3IxqD+l2tknlQ==
-X-Received: by 2002:a1c:6684:: with SMTP id a126mr1762424wmc.47.1551867292170;
-        Wed, 06 Mar 2019 02:14:52 -0800 (PST)
-X-Google-Smtp-Source: APXvYqy58wPNMMxANi9VAfBJluAfj7dMe49LC/Dcmgg4PaNBKd/TirzKy9rTBpAy+/oOTZWWAIYn
-X-Received: by 2002:a1c:6684:: with SMTP id a126mr1762374wmc.47.1551867290913;
-        Wed, 06 Mar 2019 02:14:50 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551867290; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :references:in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=KDuqq3OQugnVi/sHGn4FIjHcj0fzu4Mo+4imtCZdOzM=;
+        b=oSLDqkfvkugGwQdFf0p/W/tvtxaOSvgQLJvzlkK++MF9VfiHWbCsdTl7d5LOkbtQ4v
+         E2koFSBMyu9OKZej1NzK1Y+qUjyEDVdP2kxsfIU1RnEZeHxrx2rHIHJU81u2zv1IBDkA
+         vZOuDUSzpq5/+/3i13szy9WRy0cQfWRV7n7CAIsHjHE4sJDswRo1yU8METrNw8f3fb+g
+         8FXEq2eXQfYDfh6+NZ9y1kCgNpolXZ0opbslHobv/rVw9H+EmSogHvlpJa+oET/oxu2h
+         fMxXhaHx89qVPnBL8byFPe6L9md/JWKXvWAw3G0LQPQuJbq1JgJE5WMJfgnRPu0lfKYD
+         buow==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
+X-Gm-Message-State: APjAAAXtM35/27ti5zI3oFXmQoa2NgiZrNX4vHoheUixEsyQ5aalzgSm
+	+rZk70xNyCcx/ESYgvJktNxFDVMQVz0y5gdY+XjQUbyHmB9/jyMzovhzpvUPKhJ2SUNrECwsTtf
+	7Gx85tGcpKVUP/NCDF1DCEJ7R3GR4Y4XkFMgxQUTOR8Odv6regk+xS37AnUvo3xaWy6b17Fc2F8
+	OPQ0/qloFwiudruqm/iW6rCSZnWwkqtdUqweE79vowOaVTvcwaLLR2x/sFLox1NlWLgNa0nwTMI
+	r0A13iX1wQQDpRFjqkSyC7s4ffqCQRjuKiU8mAF93TOOjiOGBO8uaMy+EbziNvsVuDvpVDG8Jc5
+	jaLUJraP0/rVrOiBXExxO2TtsRMlBYxaSC27tGW3RpvSyxchY4DyGXhTRpEI1w2JGaV7E5eVeA=
+	=
+X-Received: by 2002:aed:27d6:: with SMTP id m22mr5217694qtg.374.1551867571243;
+        Wed, 06 Mar 2019 02:19:31 -0800 (PST)
+X-Received: by 2002:aed:27d6:: with SMTP id m22mr5217645qtg.374.1551867570499;
+        Wed, 06 Mar 2019 02:19:30 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551867570; cv=none;
         d=google.com; s=arc-20160816;
-        b=Z7KigywvBoqxUitFSYEwqxSWoGgVvqxoyCUvw6EZjyW3I8J3uyk/1VOhz5DhV/rkdn
-         TTlcxO29i4e8rBV/yakvZ+VTZoj0u59IFggApCCbGJUKmu4OYey2dAjQDiLRALFJ8ukI
-         pO6wEKm1RUNQC+eU9pKfiqaDvn7LXIh6DQ5ZlXBEhBh1Wj6YTcdVcHarNLBYrTA2OH85
-         edOmE35VBRYivF0F14X7n3qjLzjqy4wWB9OYAWL69G3uJ3HOMFBdYmP71511C+OPg8RS
-         /fPc8WT5pEoO7emJyY6oJDN9vL4VLhYT7Ysgs4PQroI0v4QpBjvn67Gf8apVvuf/ARSb
-         u5WQ==
+        b=OPuKVOq2MZADcBRrJdKZMqBrLsNlEh0tI6/KQXwvAsaDf5Zr5LN9Zf1DNFEBuwQVfM
+         9z9iIetGyOvMsPnb/xgY8h0kODy2Yb9Vy4/azSerk6/1xoj/vjcH3yOIgFVDXZ/HWzSM
+         jrhEtdzGVa1/xZgRUVM1oOANQ95hw/s1Joofhwn3EXxLJKn/NFcX5SrZkr4xRzsnUN2O
+         Aa//oXccUeolwun0r2YwsWEN7w1mWXazt6y9Km3c4SdhnUyRo3P5hZAy5f6mozvRrOa/
+         pO9cb+d/rmnueCxQ89Y9G7DwKrrGMD0wbH5WUjfWQC2XSmF0xELgw1TIeYAmpgz6Sel0
+         HZ4Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:subject:from;
-        bh=f7gBgcOA+fOS6Oku977CuUDpQCEwyMgjWsG2i/sLnn8=;
-        b=OaTxpZTwyMMN78aBRWITR4cyiuQfDYOHxyoFLUxwNQDKpPgVd/3gc3leGHBIOmxyQI
-         r4LxIz7RGeEdwiUSsTJXMre69YkwKquDC2wql7G8W37bR1DJBNSoG3ZRHcwLrxBocdll
-         Wj6pXTgjPHrFYlFKexjouGCbM2riW0094skyQmsSDd/99bpj2VzJiMa8lDmJ8w0bi+Gg
-         OS3OMBHkrgJ82HSJbkk7DEBNw39/EYj5CmL3+oEeQds2IpguqiUFzyMhdXX89Wh2fsmX
-         jUIZosrh/tOLbwbdbD0WU22xFRo7GxIAbnLTb+SKLYFezrIvBjw+mX9sII31BjrkPXV+
-         +iFg==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version;
+        bh=KDuqq3OQugnVi/sHGn4FIjHcj0fzu4Mo+4imtCZdOzM=;
+        b=qqZX4Wo7z0eF45iztPYRaWu74aK9YVke35IY8vo/gxTm5ZYrPYN3ozGLFoKZcx4CHd
+         etwJCzi4/9BM8koiC/EH4lZZSMQRU6m+fso/8PSEKWZoF7TdJ4Mpf7mzesHqfZoO3xHK
+         RaqcjB8a3tG/FElxAEqczE/YyWHVGWf+XBmBnhWyWQmd0811XnvUYTCG73KPgqhHEI6z
+         Q/PqiLJJApFqsHl2jnPHW8Wg3PF/r0hmiJL5Be/noXEZWToouoVAXNST0nY+iRxEIr53
+         QQau1MNGo8t0ISNFup6l0UeBE0czeB9650XwXEtwOSoAHER7Jw60NANqg7BbK+rtflMG
+         TG4A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of guillaume.tucker@collabora.com designates 2a00:1098:0:82:1000:25:2eeb:e3e3 as permitted sender) smtp.mailfrom=guillaume.tucker@collabora.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
-Received: from bhuna.collabora.co.uk (bhuna.collabora.co.uk. [2a00:1098:0:82:1000:25:2eeb:e3e3])
-        by mx.google.com with ESMTPS id j34si716985wre.310.2019.03.06.02.14.50
+       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y16sor1218775qvh.62.2019.03.06.02.19.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 06 Mar 2019 02:14:50 -0800 (PST)
-Received-SPF: pass (google.com: domain of guillaume.tucker@collabora.com designates 2a00:1098:0:82:1000:25:2eeb:e3e3 as permitted sender) client-ip=2a00:1098:0:82:1000:25:2eeb:e3e3;
+        (Google Transport Security);
+        Wed, 06 Mar 2019 02:19:30 -0800 (PST)
+Received-SPF: pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of guillaume.tucker@collabora.com designates 2a00:1098:0:82:1000:25:2eeb:e3e3 as permitted sender) smtp.mailfrom=guillaume.tucker@collabora.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
-Received: from [127.0.0.1] (localhost [127.0.0.1])
-	(Authenticated sender: gtucker)
-	with ESMTPSA id 9C83427E5CE
-From: Guillaume Tucker <guillaume.tucker@collabora.com>
-Subject: Re: next/master boot bisection: next-20190215 on beaglebone-black
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko
- <mhocko@suse.com>, Mark Brown <broonie@kernel.org>,
- Tomeu Vizoso <tomeu.vizoso@collabora.com>,
- Matt Hart <matthew.hart@linaro.org>, Stephen Rothwell
- <sfr@canb.auug.org.au>, khilman@baylibre.com, enric.balletbo@collabora.com,
- Nicholas Piggin <npiggin@gmail.com>,
- Dominik Brodowski <linux@dominikbrodowski.net>,
- Masahiro Yamada <yamada.masahiro@socionext.com>,
- Kees Cook <keescook@chromium.org>, Adrian Reber <adrian@lisas.de>,
- Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
- Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>,
- Mathieu Desnoyers <mathieu.desnoyers@efficios.com>,
- Richard Guy Briggs <rgb@redhat.com>,
- "Peter Zijlstra (Intel)" <peterz@infradead.org>, info@kernelci.org
-References: <5c6702da.1c69fb81.12a14.4ece@mx.google.com>
- <20190215104325.039dbbd9c3bfb35b95f9247b@linux-foundation.org>
- <20190215185151.GG7897@sirena.org.uk>
- <20190226155948.299aa894a5576e61dda3e5aa@linux-foundation.org>
- <CAPcyv4ivjC8fNkfjdFyaYCAjGh7wtvFQnoPpOcR=VNZ=c6d6Rg@mail.gmail.com>
- <20190228151438.fc44921e66f2f5d393c8d7b4@linux-foundation.org>
- <CAPcyv4hDmmK-L=0txw7L9O8YgvAQxZfVFiSoB4LARRnGQ3UC7Q@mail.gmail.com>
- <026b5082-32f2-e813-5396-e4a148c813ea@collabora.com>
- <20190301124100.62a02e2f622ff6b5f178a7c3@linux-foundation.org>
- <3fafb552-ae75-6f63-453c-0d0e57d818f3@collabora.com>
- <CAPcyv4hMNiiM11ULjbOnOf=9N=yCABCRsAYLpjXs+98bRoRpCA@mail.gmail.com>
-Message-ID: <36faea07-139c-b97d-3585-f7d6d362abc3@collabora.com>
-Date: Wed, 6 Mar 2019 10:14:47 +0000
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
+X-Google-Smtp-Source: APXvYqwlRefBtN7F0BSjmxiEhBo6nicOMU4ZZ22wsdOnFGndKuvhBT7TV6ri6KNFkjGqXGJxdr4OPG0fXMcEPCvYwSA=
+X-Received: by 2002:a0c:b501:: with SMTP id d1mr5707775qve.115.1551867570098;
+ Wed, 06 Mar 2019 02:19:30 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4hMNiiM11ULjbOnOf=9N=yCABCRsAYLpjXs+98bRoRpCA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <20190304200026.1140281-1-arnd@arndb.de> <bf509a99-604b-10a4-e71b-f4f8e61f00b3@nvidia.com>
+In-Reply-To: <bf509a99-604b-10a4-e71b-f4f8e61f00b3@nvidia.com>
+From: Arnd Bergmann <arnd@arndb.de>
+Date: Wed, 6 Mar 2019 11:19:13 +0100
+Message-ID: <CAK8P3a2no2gjWXTcgg_g1DJ9B-j8LfyaeOn+Ji18bWS5mQNZUA@mail.gmail.com>
+Subject: Re: [PATCH] mm/hmm: fix unused variable warnings
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, Ralph Campbell <rcampbell@nvidia.com>, 
+	Stephen Rothwell <sfr@canb.auug.org.au>, Dan Williams <dan.j.williams@intel.com>, 
+	Linux-MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 01/03/2019 23:23, Dan Williams wrote:
-> On Fri, Mar 1, 2019 at 1:05 PM Guillaume Tucker
-> <guillaume.tucker@collabora.com> wrote:
->>
->> On 01/03/2019 20:41, Andrew Morton wrote:
->>> On Fri, 1 Mar 2019 09:25:24 +0100 Guillaume Tucker <guillaume.tucker@collabora.com> wrote:
->>>
->>>>>>> Michal had asked if the free space accounting fix up addressed this
->>>>>>> boot regression? I was awaiting word on that.
->>>>>>
->>>>>> hm, does bot@kernelci.org actually read emails?  Let's try info@ as well..
->>>>
->>>> bot@kernelci.org is not person, it's a send-only account for
->>>> automated reports.  So no, it doesn't read emails.
->>>>
->>>> I guess the tricky point here is that the authors of the commits
->>>> found by bisections may not always have the hardware needed to
->>>> reproduce the problem.  So it needs to be dealt with on a
->>>> case-by-case basis: sometimes they do have the hardware,
->>>> sometimes someone else on the list or on CC does, and sometimes
->>>> it's better for the people who have access to the test lab which
->>>> ran the KernelCI test to deal with it.
->>>>
->>>> This case seems to fall into the last category.  As I have access
->>>> to the Collabora lab, I can do some quick checks to confirm
->>>> whether the proposed patch does fix the issue.  I hadn't realised
->>>> that someone was waiting for this to happen, especially as the
->>>> BeagleBone Black is a very common platform.  Sorry about that,
->>>> I'll take a look today.
->>>>
->>>> It may be a nice feature to be able to give access to the
->>>> KernelCI test infrastructure to anyone who wants to debug an
->>>> issue reported by KernelCI or verify a fix, so they won't need to
->>>> have the hardware locally.  Something to think about for the
->>>> future.
->>>
->>> Thanks, that all sounds good.
->>>
->>>>>> Is it possible to determine whether this regression is still present in
->>>>>> current linux-next?
->>>>
->>>> I'll try to re-apply the patch that caused the issue, then see if
->>>> the suggested change fixes it.  As far as the current linux-next
->>>> master branch is concerned, KernelCI boot tests are passing fine
->>>> on that platform.
->>>
->>> They would, because I dropped
->>> mm-shuffle-default-enable-all-shuffling.patch, so your tests presumably
->>> now have shuffling disabled.
->>>
->>> Is it possible to add the below to linux-next and try again?
->>
->> I've actually already done that, and essentially the issue can
->> still be reproduced by applying that patch.  See this branch:
->>
->>   https://gitlab.collabora.com/gtucker/linux/commits/next-20190301-beaglebone-black-debug
->>
->> next-20190301 boots fine but the head fails, using
->> multi_v7_defconfig + SMP=n in both cases and
->> SHUFFLE_PAGE_ALLOCATOR=y enabled in the 2nd case as a result
->> of the change in the default value.
->>
->> The change suggested by Michal Hocko on Feb 15th has now been
->> applied in linux-next, it's part of this commit but as
->> explained above it does not actually resolve the boot failure:
->>
->>   98cf198ee8ce mm: move buddy list manipulations into helpers
->>
->> I can send more details on Monday and do a bit of debugging to
->> help narrowing down the problem.  Please let me know if
->> there's anything in particular that would seem be worth
->> trying.
->>
-> 
-> Thanks for taking a look!
-> 
-> Some questions when you get a chance:
-> 
-> Is there an early-printk facility that can be turned on to see how far
-> we get in the boot?
+On Wed, Mar 6, 2019 at 12:51 AM John Hubbard <jhubbard@nvidia.com> wrote:
+>
+> With some Kconfig local hacks that removed all HUGE* support, while leavi=
+ng
+> HMM enabled, I was able to reproduce your results, and also to verify the
+> fix. It also makes sense from reading it.
 
-Yes, I've done that now by enabling CONFIG_DEBUG_AM33XXUART1 and
-earlyprintk in the command line.  Here's the result, with the
-commit cherry picked on top of next-20190304:
+Thanks for the confirmation.
 
-  https://lava.collabora.co.uk/scheduler/job/1526326
+> Also, I ran into one more warning as well:
+>
+> mm/hmm.c: In function =E2=80=98hmm_vma_walk_pud=E2=80=99:
+> mm/hmm.c:764:25: warning: unused variable =E2=80=98vma=E2=80=99 [-Wunused=
+-variable]
+>   struct vm_area_struct *vma =3D walk->vma;
+>                          ^~~
+>
+> ...which can be fixed like this:
+>
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index c4beb1628cad..c1cbe82d12b5 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -761,7 +761,6 @@ static int hmm_vma_walk_pud(pud_t *pudp,
+>  {
+>         struct hmm_vma_walk *hmm_vma_walk =3D walk->private;
+>         struct hmm_range *range =3D hmm_vma_walk->range;
+> -       struct vm_area_struct *vma =3D walk->vma;
+>         unsigned long addr =3D start, next;
+>         pmd_t *pmdp;
+>         pud_t pud;
+> @@ -807,7 +806,7 @@ static int hmm_vma_walk_pud(pud_t *pudp,
+>                 return 0;
+>         }
+>
+> -       split_huge_pud(vma, pudp, addr);
+> +       split_huge_pud(walk->vma, pudp, addr);
+>         if (pud_none(*pudp))
+>                 goto again;
+>
+> ...so maybe you'd like to fold that into your patch?
 
-[    1.379522] ti-sysc 4804a000.target-module: sysc_flags 00000222 != 00000022
-[    1.396718] Unable to handle kernel paging request at virtual address 77bb4003
-[    1.404203] pgd = (ptrval)
-[    1.406971] [77bb4003] *pgd=00000000
-[    1.410650] Internal error: Oops: 5 [#1] ARM
-[...]
-[    1.672310] [<c07051a0>] (clk_hw_create_clk.part.21) from [<c06fea34>] (devm_clk_get+0x4c/0x80)
-[    1.681232] [<c06fea34>] (devm_clk_get) from [<c064253c>] (sysc_probe+0x28c/0xde4)
+I also ran into this one last night during further randconfig testing,
+and came up with the same patch that you showed here. I'll
+send this one to Andrew and add a Reported-by line for you,
+since he already merged the first patch.
 
-It's always failing at that point in the code.  Also when
-enabling "debug" on the kernel command line, the issue goes
-away (exact same binaries etc..):
+I'll leave it up to Andrew to fold the fixes into one, or into the original
+patches if he thinks that makes sense.
 
-  https://lava.collabora.co.uk/scheduler/job/1526327
-
-For the record, here's the branch I've been using:
-
-  https://gitlab.collabora.com/gtucker/linux/tree/beaglebone-black-next-20190304-debug
-
-The board otherwise boots fine with next-20190304 (SMP=n), and
-also with the patch applied but the shuffle configs set to n.
-
-> Do any of the QEMU machine types [1] approximate this board? I.e. so I
-> might be able to independently debug.
-
-Unfortunately there doesn't appear to be any QEMU machine
-emulating the TI AM335x SoC or the BeagleBone Black board.
-
-> Were there any boot *successes* on ARM with shuffling enabled? I.e.
-> clues about what's different about the specific memory setup for
-> beagle-bone-black.
-
-Looking at the KernelCI results from next-20190215, it looks like
-only the BeagleBone Black with SMP=n failed to boot:
-
-  https://kernelci.org/boot/all/job/next/branch/master/kernel/next-20190215/
-
-Of course that's not all the ARM boards that exist out there, but
-it's a fairly large coverage already.
-
-As the kernel panic always seems to originate in ti-sysc.c,
-there's a chance it's only visible on that platform...  I'm doing
-a KernelCI run now with my test branch to double check that,
-it'll take a few hours so I'll send an update later if I get
-anything useful out of it.
-
-In the meantime, I'm happy to try out other things with more
-debug configs turned on or any potential fixes someone might
-have.
-
-Thanks,
-Guillaume
-
-> Thanks for the help!
-> 
-> [1]: https://wiki.qemu.org/Documentation/Platforms/ARM
-
+     Arnd
 
