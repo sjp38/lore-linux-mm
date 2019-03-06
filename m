@@ -2,165 +2,138 @@ Return-Path: <SRS0=43/C=RJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4ECAEC4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 08:53:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D67A9C43381
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 09:13:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 185CC20675
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 08:53:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 185CC20675
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 279A9206DD
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 09:13:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 279A9206DD
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 932D58E0003; Wed,  6 Mar 2019 03:53:07 -0500 (EST)
+	id 9C21F8E0003; Wed,  6 Mar 2019 04:13:25 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8EA8A8E0001; Wed,  6 Mar 2019 03:53:07 -0500 (EST)
+	id 96F358E0002; Wed,  6 Mar 2019 04:13:25 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7A9858E0003; Wed,  6 Mar 2019 03:53:07 -0500 (EST)
+	id 8611E8E0003; Wed,  6 Mar 2019 04:13:25 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 19C668E0001
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 03:53:07 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id d31so5962506eda.1
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 00:53:07 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 284408E0002
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 04:13:25 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id j5so5964699edt.17
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 01:13:25 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:user-agent:mime-version;
-        bh=j/cO0QT9gHHXuTUV7/YQ2ezgg4fDau5xMe/vyjSujpI=;
-        b=luAr0tTcaWr4RO97lgt3S5oIh4kwQ4K8v6IvxkM+NmCXVc/6fsEbnfvi1arMicVbZH
-         GmCqOwpaJG8XHOiy03yGUi/JvVUvl9DKDl70PIUXwuOSCicXKKRotmrL4n8sEBcZPzyP
-         2t6OiJx9s3G6QCI1tk4U2Ny742r4g2m6NZmIY/riVjGkzTQNXqe5NR7Df4z+yD1H00Z9
-         g775iRy3tdc8btyFPn30Lsb2y1CHSzZW0l44laDbp0+n43cn51GB503O5bdCL4PP/Abc
-         at7Y3EwG15Z2CgllsV7BhKheDbHXQ1nTi8XVwnzZdTko3kwxeAsxPzMVDqQHDezhnpyy
-         GBQg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rguenther@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=rguenther@suse.de
-X-Gm-Message-State: APjAAAWVZD5dNBBPislhpGMdHHJsBSYJfScucuwf/mYr7tX5K4mXl+5t
-	V7YGRcwuraxsTdlYEM6MPRSr2OiZWLy9i+lHmCo2Smzk0SestLjyUUA1ScU5AY9jfvorH1tns05
-	TitGEAcTb5uDR2TqHsMECZcw9Dcl/xcQCrdhAalSNfhezIwu3xtTOxV8FA1i7EXIrRQ==
-X-Received: by 2002:a17:906:f101:: with SMTP id gv1mr3120147ejb.73.1551862386432;
-        Wed, 06 Mar 2019 00:53:06 -0800 (PST)
-X-Google-Smtp-Source: APXvYqzQurq0Wd1KBwsuO8I9Fi2hS7JirqIkHfitRzDQOGMPRw29JLceCj4590gi/kptzJ2sMK2J
-X-Received: by 2002:a17:906:f101:: with SMTP id gv1mr3120079ejb.73.1551862385045;
-        Wed, 06 Mar 2019 00:53:05 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551862385; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=rAfjh4wn8vAHmGZywffeERW4e2x5OmrorKNgu268+FM=;
+        b=RaVPyOlVXAyONd+J9cqeqA8CThknbxyKwyoevj5FojkCOEyqzI7Xb7MDjxOuL5YFkL
+         4pbnFxqx0r9jJcQjYPcWfTX6boofUgWryjrdYt6aXUGN4Y8GnIibyWvbmcPVEcpP4OsM
+         YrNvbHioC8RGMdMecbhItXFjKbHrmW33qN2EX+tMfSBbDyqSCQo6D3Eva94+dSW8HnNC
+         Wc24OSe6jnYjg+mduYXEjrnXmp6W8AWViu+Br3znA094FEWBU0aCcNleWbcOn4pLT6Lp
+         en2DBDMyaN/+q5yjTNUa/FgbC+I4JBWCEADY0sbRaOFDDINM5zHrsuir4vwtFYQJeLCa
+         +/Rg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.15 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAW0WvAI49sL3h0Oni8jSnhnB+dI+EnmlCymuE6p2NrSAs5x5V8C
+	2jWZgYoNDBQVSFEQW0WNLT9GC2Vl2cJ8u3N+RcOj6nn40gHp7Dq2jQxo9LAU2FIhcRieeG41tdE
+	zB8VyRjQLm97FDq9DPtqDS4xLCD2Rjwmed+rWfnh1j+SgxLo3pedF6503MnPJxPp2dw==
+X-Received: by 2002:a50:ae63:: with SMTP id c90mr22408524edd.285.1551863604762;
+        Wed, 06 Mar 2019 01:13:24 -0800 (PST)
+X-Google-Smtp-Source: APXvYqzrNa2JLHr2jCDBpY9u+dsTPA4o9WbWnEr5mrJCVYcgM2if+LNfrBow2tHxA/IxAR2XRfZm
+X-Received: by 2002:a50:ae63:: with SMTP id c90mr22408488edd.285.1551863603993;
+        Wed, 06 Mar 2019 01:13:23 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551863603; cv=none;
         d=google.com; s=arc-20160816;
-        b=gOYPHuKxyMf2nCuj9dAG/3+UxOXWLbdCHUdEPtXmzj1BX8sPJ0hLfDp5zdUw1Thb/+
-         rQlm2xirb375Wzmlk20N0fiuI+XYNOmcPgp62gJnb06BEsuLtDKZ9eLpzLXOypAD/vZH
-         Zv9lsIipTycSKkBuN16mtPu0ZbGoWl/YT6UbZqrjGb6wyfTSelD+n0acpLn6pGTtOH3n
-         v5bV6jhfAj4EIed5v+Xsu123+iWKC1vdBrKGPiqk+bTOvPXDYxMuYo5miqYWY8jJhpU6
-         ASQ7ywRx04tv7krqdoTqFdk46ii78R23iKETH5DFZF3QNj+p8BC6wHTFM+Fjb5k1gP0Q
-         JCJQ==
+        b=IuKICJ5+2NuNpmwIbxs8ezhqwpQcpevG9vZmuyeGuqYxTW2hQya+Og01P6qSRCMpiG
+         1AOwVUg8dadWEXtJ/bVIkC8XZlGMXa/Iq5Yj/EJwUJeQK15xyOe9m2WR0/lbbDOR34aJ
+         vFpSuXFi5VoYTrLDjyN84PCn00IHkJmiAFAevewn5WjU1Zi3h4ytcSRH9jp1+BwgaLKq
+         AcBL1JciFYofEPysc+vizWmwWlcwhySOCA5+AkDqz3soOb2TafajYQtF3B5URBCCb5TM
+         bEvdS+Jd/5irVKDRgOkqt+oBlnLZSDufUGSJXMaJxAX8jdQz6Ubt084qjQWKLk+YeFnb
+         3vWA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:message-id:subject:cc:to:from:date;
-        bh=j/cO0QT9gHHXuTUV7/YQ2ezgg4fDau5xMe/vyjSujpI=;
-        b=BwmwMPNlalSOgjzBfNzzTJ/TWXW0qgWYky94Ch1LnuEqprpFdooVDRRH0Ck5J9X6zK
-         KI/EGmrt9Y7lQPEYmNiIY2dNrbBI1a6ODSBNFMnmnkrVo0PuOxB0BJlHG56f1fOlHTsG
-         N6xt32P5i2WJM8eci711qkvN168UXk2CUm3SfUYit19rtmeJZ4EQlTQ9R9vovOK9AxN8
-         5GCHC8V9QXqGSNkeD8EpSx+QYyFoLtpBkySqBdV78MJlgZ42joSKUFEI3UC++taKumRN
-         ihDgdXcFNu7sTrtX/ouCK584B27IWIibk5MPfqyGHY7NBH6QUDbc05yHz+KLbaFMxV/4
-         OYLw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=rAfjh4wn8vAHmGZywffeERW4e2x5OmrorKNgu268+FM=;
+        b=q8RU+4Rbu2mkzguNkITgvC5Kd3fkizNGxiCxTvqcVZjThM1V3E78Y/9JXiKrp58Afi
+         6CGbWnjxi+Zbyurc3a/PCCdhlE7p12ENNFSBN/Tr9QkvvfmMNhup3dyYKG1LKc1454wm
+         Yz72+8UlKv7BKGCvIMh/0NHOYRE14EyDTXEjGc9+ntja90R4PnByki/t3o/lz5C+NS4W
+         G7dOFL1kmeJEVISh7uFVl5iG7smjs/zpQKgpANHcj+mE/l7MYPjcNps7S+HORR2l35K6
+         vyZzaqkIjyodYM78LxuCvYN00EQRy6zFZT6lgnG0XvMMfgr6Nfzj2OIav24chdJvFbIJ
+         +HcQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rguenther@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=rguenther@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b11si378739ede.340.2019.03.06.00.53.04
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.15 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id d50si400693edb.246.2019.03.06.01.13.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Mar 2019 00:53:05 -0800 (PST)
-Received-SPF: pass (google.com: domain of rguenther@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Wed, 06 Mar 2019 01:13:23 -0800 (PST)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.15 as permitted sender) client-ip=46.22.139.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rguenther@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=rguenther@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 0FC33AFDF;
-	Wed,  6 Mar 2019 08:53:04 +0000 (UTC)
-Date: Wed, 6 Mar 2019 09:53:03 +0100 (CET)
-From: Richard Biener <rguenther@suse.de>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@intel.com
-cc: mhocko@suse.com
-Subject: Kernel bug with MPX?
-Message-ID: <alpine.LSU.2.20.1903060944550.7898@zhemvz.fhfr.qr>
-User-Agent: Alpine 2.20 (LSU 67 2015-01-07)
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.15 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 2E7EC1C239E
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 09:13:21 +0000 (GMT)
+Received: (qmail 19130 invoked from network); 6 Mar 2019 09:13:21 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 6 Mar 2019 09:13:20 -0000
+Date: Wed, 6 Mar 2019 09:13:19 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Qian Cai <cai@lca.pw>
+Cc: vbabka@suse.cz, Linux-MM <linux-mm@kvack.org>
+Subject: Re: low-memory crash with patch "capture a page under direct
+ compaction"
+Message-ID: <20190306091319.GJ9565@techsingularity.net>
+References: <604a92ae-cbbb-7c34-f9aa-f7c08925bedf@lca.pw>
+ <20190305144234.GH9565@techsingularity.net>
+ <1551798804.7087.7.camel@lca.pw>
+ <20190305152759.GI9565@techsingularity.net>
+ <1d3a13fc-72b4-005a-7d73-2203b1ff25e4@lca.pw>
+ <5eecbceb-2522-c880-7d6a-af20cf548500@lca.pw>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <5eecbceb-2522-c880-7d6a-af20cf548500@lca.pw>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Mar 05, 2019 at 10:14:29PM -0500, Qian Cai wrote:
+> I don't understand this part.
+> 
+> @@ -2279,14 +2286,24 @@ static enum compact_result compact_zone_order(struct
+> zone *zone, int order,
+>                 .ignore_skip_hint = (prio == MIN_COMPACT_PRIORITY),
+>                 .ignore_block_suitable = (prio == MIN_COMPACT_PRIORITY)
+>         };
+> +       struct capture_control capc = {
+> +               .cc = &cc,
+> +               .page = NULL,
+> +       };
+> +
+> +       if (capture)
+> +               current->capture_control = &capc;
+> 
+> 
+> That check will always be true as it is,
+> 
 
-Hi,
-
-I've reported this internally but got directed here, hopefully
-the correct forum for bugreporting.
-
-When running the gcc.target/i386/mpx/memmove-1.c testcase
-from the GCC 8 branch on MPX capable hardware the testcase
-faults and the kernel log reports the following:
-
-[1216548.787494] BUG: Bad rss-counter state mm:0000000017ce560b idx:0 
-val:385
-[1216548.787498] BUG: Bad rss-counter state mm:0000000017ce560b idx:1 
-val:551
-[1216548.787500] BUG: non-zero pgtables_bytes on freeing mm: 24576
-
-This is on a 4.20.7 kernel but it was reproduced it with 5.0 as well.
-I believe it was fine on earlier kernels though.
-
-I've put a statically linked executable at
-http://www.suse.de/~rguenther/memmove-1.exe (needs some time to sync
-to the public webserver still).
-
-Thanks,
-Richard.
+It's a defensive check allowing for the possibility that
+try_to_compact_pages() is passed NULL. Originally the structure was
+different but I preserved the NULL check to avoid potential surprises.
+It could be changed but I don't think it'll help. I aim to setup a machine
+with your config today, try again to reproduce the problem and look at
+the patch again to see can I spot how it could corrupt anything.
 
 -- 
-Richard Biener <rguenther@suse.de>
-SUSE LINUX GmbH, GF: Felix Imendoerffer, Jane Smithard, Graham Norton, HRB 21284 (AG Nuernberg)
-
----------- Forwarded message ----------
-Date: Tue, 5 Mar 2019 15:22:22 +0100
-From: Michal Hocko <mhocko@suse.com>
-To: Richard Biener <rguenther@suse.de>
-Cc: suse-labs@suse.de
-Subject: Re: [suse-labs] Kernel bug with MPX?
-
-On Mon 04-03-19 14:12:07, Richard Guenther wrote:
-> 
-> I have a MPX testcase (GCC mpx testsuite) that triggers
-> 
-> [1216548.787494] BUG: Bad rss-counter state mm:0000000017ce560b idx:0 
-> val:385
-> [1216548.787498] BUG: Bad rss-counter state mm:0000000017ce560b idx:1 
-> val:551
-> [1216548.787500] BUG: non-zero pgtables_bytes on freeing mm: 24576
-> 
-> on Tumbleweed from a few weeks ago
-
-That looks like both file and anonymous mappings do not get torn down
-properly and some memory leaks.
-
-> > uname -a
-> Linux e23 4.20.7-1-default #1 SMP PREEMPT Thu Feb 7 07:16:45 UTC 2019 
-> (730812f) x86_64 x86_64 x86_64 GNU/Linux
-> 
-> does this ring any bell?
-
-Not really but I haven't been following MPX development closely. I
-can reproduce the issue on 5.0 kernel
-
-BUG: Bad rss-counter state mm:00000000406bd30e idx:1 val:25591
-
-so I guess it would be best to report upstream (Cc linux-mm@kvack.org,
-linux-kernel@vger.kernel.org and dave.hansen@intel.com). Let me know if
-you need any help.
-
--- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
