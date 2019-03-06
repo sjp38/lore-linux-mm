@@ -2,171 +2,240 @@ Return-Path: <SRS0=43/C=RJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BBEE1C43381
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 13:06:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A86ABC4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 13:07:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 62F4920684
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 13:06:29 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="cLak+fkR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 62F4920684
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	by mail.kernel.org (Postfix) with ESMTP id 64E1220684
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 13:07:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 64E1220684
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E91738E0003; Wed,  6 Mar 2019 08:06:28 -0500 (EST)
+	id 037538E0004; Wed,  6 Mar 2019 08:07:14 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E190D8E0002; Wed,  6 Mar 2019 08:06:28 -0500 (EST)
+	id F03448E0002; Wed,  6 Mar 2019 08:07:13 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CB9EB8E0003; Wed,  6 Mar 2019 08:06:28 -0500 (EST)
+	id DCBB78E0004; Wed,  6 Mar 2019 08:07:13 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8664E8E0002
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 08:06:28 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id 11so12243018pgd.19
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 05:06:28 -0800 (PST)
+Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AAF728E0002
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 08:07:13 -0500 (EST)
+Received: by mail-vs1-f72.google.com with SMTP id n190so894082vsn.16
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 05:07:13 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=lYFisdL+emxX/yjhRwvfei8UQc72RGGLjL/HzcIurDc=;
-        b=B+BbdmhnLvDl8X2SP9scnzhl1PTOuDMltOVo4JfUL+qmt54Ri8Zqqn/pVFQ2pcrY/c
-         dVGTi44eV4adAcALwN5DaZQ5G81fFuO7InTblmyo/uxMX33d5WORvNjHROH06al5jgqp
-         IWCGVwq39G/eQ7GfpfgaVRB2IJ5HjG6DR+pCm9prvzhSTHvMN8HG/hrTpqOK/My+BrUK
-         kT+UHFbjKJZbcdWHDfhpj9pcMQwfUESY422qQ/H5ggxRQ+26jMUmohuDRUKu4bYpXns9
-         +mHkHmjrHOb54JEkd7Xh6xldcIUqfCvJ0ufULJPp9hXnocn0cozbL0clHVth8kLzjlF4
-         K4Xw==
-X-Gm-Message-State: APjAAAXlroZWk134zIjt9UdFLGqBiJru4gOgJvIUfx6+9u25Y20u2Tz5
-	2SH7Ge5rMhX4NTp+AYC7S5tDrFyMA8kUF86zVAhJwedfuAdROPoJagPrd6D6Aw0aGuBA56rPnqY
-	QvVK6iRyARHNPLkesz5IHxwOjPaQwCw4O9XdUrietfwGCJEkQg/AiFeTDwvH1/CKjPnPvYQckck
-	5BPEdtKgOsAo82yIluKKkcBo+9Cx7Q8ZpgxIzLudyO1DJv8Hg12ZkiF3kfsT9AIDA3N6b12gB8+
-	BalwVAsbzEip3cPavm0OL7JhSkN7pId0YRHiY/tDNq9s8doWz0lf8Pi7qaLa/fLCma4OWI2gOOa
-	oCAeOwqhhCV2YmcXwjCf23/sBpqbk25MDJJ8GVPxMwXlOBywnVC9j71J7BRxWYyDXv89+AI9k6Y
-	r
-X-Received: by 2002:a17:902:6b81:: with SMTP id p1mr7019212plk.106.1551877588217;
-        Wed, 06 Mar 2019 05:06:28 -0800 (PST)
-X-Received: by 2002:a17:902:6b81:: with SMTP id p1mr7019114plk.106.1551877587198;
-        Wed, 06 Mar 2019 05:06:27 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551877587; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :date:from:user-agent:mime-version:to:cc:subject:references
+         :in-reply-to:content-transfer-encoding;
+        bh=R4G19FfPuGO1kd+Ueh6V4KiHOyXdbGtWxeWFLTCzxsY=;
+        b=b9d2rt/rZyslLwuWpvA/YMes2RiERs/cibpcSqk2CJiYSWUkeUNbXyjS0Jz8KX6vwB
+         F//Yug27O7WigGdkbsp64/ar/IgczrETSQ26p4aenFpd/ScdFDESEKwu93XuOnZ2GM15
+         2plbnVpoe8peBJtHOdUm6obtXO/KBcl220XLMIVopkEk/gEZSMEllNiZ3Ts8DM3ZG5kR
+         vPlAbPPaw1rbYaF4g2tK+S4JJpc6HaApGUn6C9Cx4E/TQnhd3J4G3HLsq2Onyyn7dQM6
+         CQL/plu3GHunGwoor+gxx5GQ9wYLajQvv2rCioHmhZ//rLWOWvilitAFJS6pHBxd3SDp
+         +H2g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
+X-Gm-Message-State: APjAAAXdPs7nI+k+Jibi/HnKwq759fWKt/YAYufu/QjWUH7YqyIzAAxv
+	7VG06WpXHJSdp3PVIBL+8Bic7zfhmq7UwcGDzqHh/jYoh/HV6wPotapunziobZJzP/Or0/08Dbz
+	XSmtGK2P/KOVkjKo+ASHnZGUGW66nSe4HHEXoPgeBPDzUX6If21G75JFRH0bdrhKNBA==
+X-Received: by 2002:a67:b64a:: with SMTP id e10mr3790913vsm.168.1551877633309;
+        Wed, 06 Mar 2019 05:07:13 -0800 (PST)
+X-Google-Smtp-Source: APXvYqxWsKkThakXeJbzlSvg4Epo4/fN9ewSQs8qL3hrsHPensWn9MOqlrV8Hopb7NIlMqaq8v8S
+X-Received: by 2002:a67:b64a:: with SMTP id e10mr3790870vsm.168.1551877632356;
+        Wed, 06 Mar 2019 05:07:12 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551877632; cv=none;
         d=google.com; s=arc-20160816;
-        b=VlKWYGagp7v6UUlEpwnnd70fdPfXoGF/jI2HXf5tf1viVUfU+UaFouIlObI9m6/By6
-         gN93iqkTpQ9+nHWbOt1CJ3N0rKbNr6h51wA804F1P+L7k5phOG/MVTtFVQTtuZ/toDiF
-         M36NiOWKgn80Iz+n70sdqpq6abpqeRodytOIAfXYH5mDPYP33VAiqt4xcMkeslXjLFkn
-         MABIc7/vgpoDzNt9k0AWIUSzuDhFjMCpucc5FC8DldQf9jqmP+GUTiqVKQcA0QAD7uDY
-         mQwrgHtDJkMqCw4J+QrtKYsAbXpDxQg2KT30/c7XHtmS0vt8qezd5JM5jIi7X4Vkye7W
-         rZQA==
+        b=F9Mlgv/DMth2U13flUIYRuiMd+cnCRiIyOVUQ14Bl3jOMuG3sBT4lvXMw7Qep504Cp
+         nGrKElhWya+QxxqBpz94secD4yrf7OoL65533I/xVzEHShlwIm7r/7V9GPgg3yZAV4v9
+         hF5qJ5jMZVmjm6Vh/Gmsz+UFyiy9H2cG3YaSizwoH1N0XtDrM7gXl+a7ysftZQACWkAj
+         DoT3/yf5a6zKOqZPTWWRPTPztCVdLrcHemgndF0ocB1XeGgzcsLf16RBpazqhXc2SHrt
+         38bzIQsWjIHWrHNbIJM4RdXX6bG82SOBpZhZEYr/3p4Yo1hGJ1QasZt9/9UZ5DjVcDSt
+         5i5g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=lYFisdL+emxX/yjhRwvfei8UQc72RGGLjL/HzcIurDc=;
-        b=tvIdQPaiayqZqCPPtuFSU459DenUOYO+XScDcR+I2aWxmbbylszUylDL+p+oK7O7Bx
-         +MqfwyJN1xJ76C1ofz3qJhcRMT7tz4fqMI1rvS+1V4WohsxqK9bGFP+7naoG7aiRI+1e
-         i4XEgSf7QPOUECQ5x7DTVHG+39vGAUPQsohgo1Z4Upug1i7O8M1sh4Ig1BZhKvzWaD0C
-         zQtCmS9CATOUdlTMOYRAsTqmpoHX8ZvfMox2zxa1LPCEThyuBMhuX96B8MhuDBSfTv3/
-         0j7X2qrlYlTggXtCQMiNxaQMwZKu52brblMVfbTifPc2JyClySFi4zugRni5SPIqr+gc
-         +/7g==
+        h=content-transfer-encoding:in-reply-to:references:subject:cc:to
+         :mime-version:user-agent:from:date:message-id;
+        bh=R4G19FfPuGO1kd+Ueh6V4KiHOyXdbGtWxeWFLTCzxsY=;
+        b=k1SPC3fa23pdMF6VOtrDl4iKfTEyWjsHBMoxUEZwH8ekm5RqRva9G3qwm+iG+7o2Jo
+         J3jj4SLqcfnUt5BiPfJPASi9piDQXzsC47iul/UBzAW8qhX3gMgYm9j+3p+F8Y3XxZ9d
+         lIqc+S4UswnysYllGizEN7uZWyi4Zj6tKhQO6CzKE9sx5ZKUv/tk5oIze7DlEHSVuQI5
+         0T1pOSvWyXgn/BnA1BMvu1/iMR4W5TMyRJ4Zx9SIOhPCMgBjSRsSgwAEUZNzpcEjTWa5
+         jtAC6isrZWJK6etRJr+9twA2gez1cQZ+h8wavULJxYpS6eAHc+LFB20iJCu8rfUeF1Z3
+         4PMA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=cLak+fkR;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m68sor2796093pfi.2.2019.03.06.05.06.26
+       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
+Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
+        by mx.google.com with ESMTPS id l15si300773vsn.409.2019.03.06.05.07.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 06 Mar 2019 05:06:27 -0800 (PST)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=cLak+fkR;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=lYFisdL+emxX/yjhRwvfei8UQc72RGGLjL/HzcIurDc=;
-        b=cLak+fkRb0O9N36cRBXR0tIORoqVJxZ7ho2DOkLt9kahJGvAC87zHhp1EhS+FaCI6N
-         64Nca7nkQJmc8Ta4Xu5NycVUDhC+r0AdMVUYL3w+51kWq9QtPbdBEF2WaGRHDv03lA3V
-         0/b/Rf4n74LhnFC3Kksz+CwFlyn5hivfSwNhTuzAZU7m6SVWyix3v7rS4wyqjjZOlQuX
-         zX1kyt/LbnnJgOYR9xb2o+9l5g/v3e371TkOhKxTCH3gTa3ftEUk55v9oRM+IqBC2dUn
-         i9j2ihAYu03W9iivIo1u4bpyt44/sSHgVPZS+Sg9DcAbppyJSuoiEyGosF4XIvC4e9Zr
-         KhEw==
-X-Google-Smtp-Source: APXvYqzAzhlyQEbt3pF4RlErlixy++ggRJiOcUf8oHOCw2kVjZAxkP62zfdXeK2RBjhWPna+/sKHbg==
-X-Received: by 2002:a62:4553:: with SMTP id s80mr7069624pfa.141.1551877586275;
-        Wed, 06 Mar 2019 05:06:26 -0800 (PST)
-Received: from kshutemo-mobl1.localdomain (fmdmzpr04-ext.fm.intel.com. [192.55.54.39])
-        by smtp.gmail.com with ESMTPSA id h10sm3128992pfo.128.2019.03.06.05.06.25
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Mar 2019 05:06:25 -0800 (PST)
-Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
-	id 98357301186; Wed,  6 Mar 2019 16:06:21 +0300 (+03)
-Date: Wed, 6 Mar 2019 16:06:21 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: Michal =?utf-8?B?U3VjaMOhbmVr?= <msuchanek@suse.de>,
-	Dan Williams <dan.j.williams@intel.com>, Oliver <oohall@gmail.com>,
-	Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	Linux MM <linux-mm@kvack.org>, Ross Zwisler <zwisler@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH 2/2] mm/dax: Don't enable huge dax mapping by default
-Message-ID: <20190306130621.qrwybv5dpv3bzyym@kshutemo-mobl1>
-References: <20190228083522.8189-1-aneesh.kumar@linux.ibm.com>
- <20190228083522.8189-2-aneesh.kumar@linux.ibm.com>
- <CAOSf1CHjkyX2NTex7dc1AEHXSDcWA_UGYX8NoSyHpb5s_RkwXQ@mail.gmail.com>
- <CAPcyv4jhEvijybSVsy+wmvgqfvyxfePQ3PUqy1hhmVmPtJTyqQ@mail.gmail.com>
- <87k1hc8iqa.fsf@linux.ibm.com>
- <20190306124453.126d36d8@naga.suse.cz>
- <df01bf6e-84a1-53fb-bf0c-0957af2f79e1@linux.ibm.com>
+        Wed, 06 Mar 2019 05:07:12 -0800 (PST)
+Received-SPF: pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
+Received: from DGGEMS405-HUB.china.huawei.com (unknown [172.30.72.60])
+	by Forcepoint Email with ESMTP id EAEBA2FA65824E1C345B;
+	Wed,  6 Mar 2019 21:07:05 +0800 (CST)
+Received: from [127.0.0.1] (10.177.29.68) by DGGEMS405-HUB.china.huawei.com
+ (10.3.19.205) with Microsoft SMTP Server id 14.3.408.0; Wed, 6 Mar 2019
+ 21:07:02 +0800
+Message-ID: <5C7FC5F4.40903@huawei.com>
+Date: Wed, 6 Mar 2019 21:07:00 +0800
+From: zhong jiang <zhongjiang@huawei.com>
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20120428 Thunderbird/12.0.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <df01bf6e-84a1-53fb-bf0c-0957af2f79e1@linux.ibm.com>
-User-Agent: NeoMutt/20180716
+To: Peter Xu <peterx@redhat.com>, Mike Rapoport <rppt@linux.ibm.com>, "Andrea
+ Arcangeli" <aarcange@redhat.com>
+CC: Dmitry Vyukov <dvyukov@google.com>, syzbot
+	<syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com>, Michal Hocko
+	<mhocko@kernel.org>, <cgroups@vger.kernel.org>, Johannes Weiner
+	<hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM
+	<linux-mm@kvack.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>, David Rientjes
+	<rientjes@google.com>, Hugh Dickins <hughd@google.com>, Matthew Wilcox
+	<willy@infradead.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka
+	<vbabka@suse.cz>, Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: KASAN: use-after-free Read in get_mem_cgroup_from_mm
+References: <CACT4Y+Z+CH0UTdSz-w_woMPrBwg-GuobV1Su4qd9ReffTkyfVg@mail.gmail.com> <5C7D2F82.40907@huawei.com> <CACT4Y+agwaszODNGJHCqn4fSk4Le9exn3Cau0nornJ0RaTpDJw@mail.gmail.com> <5C7D4500.3070607@huawei.com> <CACT4Y+b6y_3gTpR8LvNREHOV0TP7jB=Zp1L03dzpaz_SaeESng@mail.gmail.com> <5C7E1A38.2060906@huawei.com> <20190306020540.GA23850@redhat.com> <5C7F6048.2050802@huawei.com> <20190306062625.GA3549@rapoport-lnx> <5C7F7992.7050806@huawei.com> <20190306081201.GC11093@xz-x1>
+In-Reply-To: <20190306081201.GC11093@xz-x1>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.177.29.68]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 06, 2019 at 06:15:25PM +0530, Aneesh Kumar K.V wrote:
-> On 3/6/19 5:14 PM, Michal Suchánek wrote:
-> > On Wed, 06 Mar 2019 14:47:33 +0530
-> > "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> wrote:
-> > 
-> > > Dan Williams <dan.j.williams@intel.com> writes:
-> > > 
-> > > > On Thu, Feb 28, 2019 at 1:40 AM Oliver <oohall@gmail.com> wrote:
-> > > > > 
-> > > > > On Thu, Feb 28, 2019 at 7:35 PM Aneesh Kumar K.V
-> > > > > <aneesh.kumar@linux.ibm.com> wrote:
-> > > Also even if the user decided to not use THP, by
-> > > echo "never" > transparent_hugepage/enabled , we should continue to map
-> > > dax fault using huge page on platforms that can support huge pages.
-> > 
-> > Is this a good idea?
-> > 
-> > This knob is there for a reason. In some situations having huge pages
-> > can severely impact performance of the system (due to host-guest
-> > interaction or whatever) and the ability to really turn off all THP
-> > would be important in those cases, right?
-> > 
-> 
-> My understanding was that is not true for dax pages? These are not regular
-> memory that got allocated. They are allocated out of /dev/dax/ or
-> /dev/pmem*. Do we have a reason not to use hugepages for mapping pages in
-> that case?
+On 2019/3/6 16:12, Peter Xu wrote:
+> On Wed, Mar 06, 2019 at 03:41:06PM +0800, zhong jiang wrote:
+>> On 2019/3/6 14:26, Mike Rapoport wrote:
+>>> Hi,
+>>>
+>>> On Wed, Mar 06, 2019 at 01:53:12PM +0800, zhong jiang wrote:
+>>>> On 2019/3/6 10:05, Andrea Arcangeli wrote:
+>>>>> Hello everyone,
+>>>>>
+>>>>> [ CC'ed Mike and Peter ]
+>>>>>
+>>>>> On Tue, Mar 05, 2019 at 02:42:00PM +0800, zhong jiang wrote:
+>>>>>> On 2019/3/5 14:26, Dmitry Vyukov wrote:
+>>>>>>> On Mon, Mar 4, 2019 at 4:32 PM zhong jiang <zhongjiang@huawei.com> wrote:
+>>>>>>>> On 2019/3/4 22:11, Dmitry Vyukov wrote:
+>>>>>>>>> On Mon, Mar 4, 2019 at 3:00 PM zhong jiang <zhongjiang@huawei.com> wrote:
+>>>>>>>>>> On 2019/3/4 15:40, Dmitry Vyukov wrote:
+>>>>>>>>>>> On Sun, Mar 3, 2019 at 5:19 PM zhong jiang <zhongjiang@huawei.com> wrote:
+>>>>>>>>>>>> Hi, guys
+>>>>>>>>>>>>
+>>>>>>>>>>>> I also hit the following issue. but it fails to reproduce the issue by the log.
+>>>>>>>>>>>>
+>>>>>>>>>>>> it seems to the case that we access the mm->owner and deference it will result in the UAF.
+>>>>>>>>>>>> But it should not be possible that we specify the incomplete process to be the mm->owner.
+>>>>>>>>>>>>
+>>>>>>>>>>>> Any thoughts?
+>>>>>>>>>>> FWIW syzbot was able to reproduce this with this reproducer.
+>>>>>>>>>>> This looks like a very subtle race (threaded reproducer that runs
+>>>>>>>>>>> repeatedly in multiple processes), so most likely we are looking for
+>>>>>>>>>>> something like few instructions inconsistency window.
+>>>>>>>>>>>
+>>>>>>>>>> I has a little doubtful about the instrustions inconsistency window.
+>>>>>>>>>>
+>>>>>>>>>> I guess that you mean some smb barriers should be taken into account.:-)
+>>>>>>>>>>
+>>>>>>>>>> Because IMO, It should not be the lock case to result in the issue.
+>>>>>>>>> Since the crash was triggered on x86 _most likley_ this is not a
+>>>>>>>>> missed barrier. What I meant is that one thread needs to executed some
+>>>>>>>>> code, while another thread is stopped within few instructions.
+>>>>>>>>>
+>>>>>>>>>
+>>>>>>>> It is weird and I can not find any relationship you had said with the issue.:-(
+>>>>>>>>
+>>>>>>>> Because It is the cause that mm->owner has been freed, whereas we still deference it.
+>>>>>>>>
+>>>>>>>> From the lastest freed task call trace, It fails to create process.
+>>>>>>>>
+>>>>>>>> Am I miss something or I misunderstand your meaning. Please correct me.
+>>>>>>> Your analysis looks correct. I am just saying that the root cause of
+>>>>>>> this use-after-free seems to be a race condition.
+>>>>>>>
+>>>>>>>
+>>>>>>>
+>>>>>> Yep, Indeed,  I can not figure out how the race works. I will dig up further.
+>>>>> Yes it's a race condition.
+>>>>>
+>>>>> We were aware about the non-cooperative fork userfaultfd feature
+>>>>> creating userfaultfd file descriptor that gets reported to the parent
+>>>>> uffd, despite they belong to mm created by failed forks.
+>>>>>
+>>>>> https://www.spinics.net/lists/linux-mm/msg136357.html
+>>>>>
+>>>> Hi, Andrea
+>>>>
+>>>> I still not clear why uffd ioctl can use the incomplete process as the mm->owner.
+>>>> and how to produce the race.
+>>> There is a C reproducer in  the syzcaller report:
+>>>
+>>> https://syzkaller.appspot.com/x/repro.c?x=172fa5a3400000
+>>>  
+>>>> From your above explainations,   My underdtanding is that the process handling do_exexve
+>>>> will have a temporary mm,  which will be used by the UUFD ioctl.
+>>> The race is between userfaultfd operation and fork() failure:
+>>>
+>>> forking thread                  | userfaultfd monitor thread
+>>> --------------------------------+-------------------------------
+>>> fork()                          |
+>>>   dup_mmap()                    |
+>>>     dup_userfaultfd()           |
+>>>     dup_userfaultfd_complete()  |
+>>>                                 |  read(UFFD_EVENT_FORK)
+>>>                                 |  uffdio_copy()
+>>>                                 |    mmget_not_zero()
+>>>     goto bad_fork_something     |
+>>>     ...                         |
+>>> bad_fork_free:                  |
+>>>       free_task()               |
+>>>                                 |  mem_cgroup_from_task()
+>>>                                 |       /* access stale mm->owner */
+>>>  
+>> Hi, Mike
+> Hi, Zhong,
+>
+>> forking thread fails to create the process ,and then free the allocated task struct.
+>> Other userfaultfd monitor thread should not access the stale mm->owner.
+>>
+>> The parent process and child process do not share the mm struct.  Userfaultfd monitor thread's
+>> mm->owner should not point to the freed child task_struct.
+> IIUC the problem is that above mm (of the mm->owner) is the child
+> process's mm rather than the uffd monitor's.  When
+> dup_userfaultfd_complete() is called there will be a new userfaultfd
+> context sent to the uffd monitor thread which linked to the chlid
+> process's mm, and if the monitor thread do UFFDIO_COPY upon the newly
+> received userfaultfd it'll operate on that new mm too.
+Thank Mike and Peter for further explanation. I get it.
 
-Yes. Like when you don't want dax to compete for TLB with mission-critical
-application (which uses hugetlb for instance).
+Yes, The race indeed will result in the issue.
 
--- 
- Kirill A. Shutemov
+but as for the patch Andrea has posted. I still has a little worry.
+
+The patch use call_rcu to delay free the task_struct, but It is possible to free the task_struct
+ahead of get_mem_cgroup_from_mm. is it right?
+
+Thanks,
+zhong jiang
+>> and due to the existence of tasklist_lock,  we can not specify the mm->owner to freed task_struct.
+>>
+>> I miss something,=-O
+>>
+>> Thanks,
+>> zhong jiang
+>>>> Thanks,
+>>>> zhong jiang
+>>
+> Regards,
+>
+
 
