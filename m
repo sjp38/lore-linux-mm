@@ -2,208 +2,372 @@ Return-Path: <SRS0=43/C=RJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0ACB0C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 21:17:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F2BC7C43381
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 21:31:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 94D5420661
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 21:17:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 94D5420661
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 88FBA20657
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 21:31:10 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Y21BzpwZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 88FBA20657
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F190C8E0003; Wed,  6 Mar 2019 16:17:36 -0500 (EST)
+	id 23BDD8E0003; Wed,  6 Mar 2019 16:31:10 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EC6A58E0002; Wed,  6 Mar 2019 16:17:36 -0500 (EST)
+	id 1ED158E0002; Wed,  6 Mar 2019 16:31:10 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D416D8E0003; Wed,  6 Mar 2019 16:17:36 -0500 (EST)
+	id 1045B8E0003; Wed,  6 Mar 2019 16:31:10 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FD9D8E0002
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 16:17:36 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id 27so13707185pgv.14
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 13:17:36 -0800 (PST)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DB16A8E0002
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 16:31:09 -0500 (EST)
+Received: by mail-io1-f71.google.com with SMTP id 68so10764153iov.7
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 13:31:09 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=loVhwJRnpkgdnpbZ2Uea8dnQHINtHnxdKbkFjujEQsI=;
-        b=ErJONuaGtmD2Cl07UokikFYG+v+C8OypuzQ8cTE4soKK/uE7djRADrak45I8xqFJth
-         GIamkPSb674hD7zCxw8pP2ca/ip6+K/ZMHgM/Pd/IR6zkcj3bCzg6ldJiotyBSf+wQSq
-         MH5wrpc3QLJZE/HPU2CKwbWHUgxxpVU3i/qChcVvVtpzEqiQj4FdsL5IjlJaytL18hZ9
-         +wKBDcT3R3428ifPAU9t6zQJxvpYCVhlWFco4bNkV35M4q2APJXfzeieWkrZn5f5UavZ
-         6cUNvt8ZueBPLeQSj+YQder2N/JUBM+++4b5qRhLOBak6Me+5q1ly0EjqC48X5BWqmtE
-         odDw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUrCQ6XSsIMfUWu1e0lsp8vsVsztPtJ4WWlaq4lZor1RFTk8Bpx
-	n6komCNU/ccUQXnSvDZeYxOXRCB4f0LvON/69nvuoOFGRYE4VOrghcCkbYI5YblBrwCZ4BHf7nl
-	iSLq1qbDEKxbnyo9AsHghhtO1eqbPWc3yNUgXD8xKZyUxdw6lUYvDO6Q7ykhhf+x7KQ==
-X-Received: by 2002:a17:902:25ab:: with SMTP id y40mr8970931pla.62.1551907056212;
-        Wed, 06 Mar 2019 13:17:36 -0800 (PST)
-X-Google-Smtp-Source: APXvYqzkSXmgLHEiIDqk60oa0j5mCee+M19TT6L98ZIs0THcTbtMiUbafqI7i1f4tov2qLQIC8lf
-X-Received: by 2002:a17:902:25ab:: with SMTP id y40mr8970847pla.62.1551907055186;
-        Wed, 06 Mar 2019 13:17:35 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551907055; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=ECTPCfgZaf/q6OslBRVwg5/A6wyE+SZLjVIdlnaBcgI=;
+        b=gColCMTKX8iNH1QQnTpBkEsLSZLC+OU58rCKGDKO+XTi2vMXb8PnvXjqhBGkkE84Jc
+         f3kKtJ5LAuQTbVGUME4MqWCGEmcdLo5nWcwC+b5FfvFwNfFdLLwZDxdyBrZKHN8HoyaR
+         IWpkSrs2mJHuCEJ2P5LZxXzHkkL/rn+7wJ8iQt7Hqga+nBXPeYvfVE4ptkFZmx/femH6
+         ClasMs9MwxngaGJri0kBQbH45ge5DbpRypKjjX2k5db/eeSabXBnYYyCTLsvX8/Cv/KQ
+         E7Loj6bOSZYOAmR3pZdutGxmRLprTIl77emDqRR/9Stl2mzRv/x9LfgjO4fAaNTtGM0Y
+         b5DA==
+X-Gm-Message-State: APjAAAVQHv9dIlX9TMNFlAfPzN5AoDYpc6Q3jOF1glNap+sCRQDPMN0U
+	8X9lX1yQP92BXvf09DSynwjl0B5jdYUIx/dcWyNCpBLiL4L+wTLNAK3wZzV/XSON/XjhAeSMM5X
+	QYARAQsc+cF0+4iJ4v7HjfudzzUPeeBxPPjUB6YZK0C4LALX06ANSHQvFTcTpXMTOYRJdRyis2h
+	yK4XmVevC4nrw2sMTIYAuwWxsDzijd6KDeozUP+aGnuwRaLDMaTUpnVHGOg2eJw6bqhCa3hRuWn
+	TeqPUqRwRcCdCXCjrtIoSf06OUPbyRsot6JChkVNWIsba5vcvrvw0L1wKYvZWqwZZ0ACI/5jA/W
+	TWp+nqiCC4WoxFX2mM/+QdNK1b+YeMGMooPJgOlfEpI6nlgG3VAUJqqxXKCc1lESJj3oDXPUdnN
+	D
+X-Received: by 2002:a24:2251:: with SMTP id o78mr3694631ito.134.1551907869615;
+        Wed, 06 Mar 2019 13:31:09 -0800 (PST)
+X-Received: by 2002:a24:2251:: with SMTP id o78mr3694570ito.134.1551907868481;
+        Wed, 06 Mar 2019 13:31:08 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551907868; cv=none;
         d=google.com; s=arc-20160816;
-        b=WYw5qSXTM1la9lwYEhmNzrK3iRtTZCEFSQVZ/+Yq3hBr55hiPWEJ2CYQvDpMpR0v0v
-         L9Tdoz06BQcS+Pjm7GzMRg1N7/myiO7U3l9EnQ04i9zvP5eRMOBCdGgHiKHt2vpEIdpD
-         KwVUni8f1zQuyQuSjmpspzCgxik3+mZnOQWyR1SITAPCuPaG61b7o1cZvXG4q6aZdEGM
-         9+AYYxtD+22Qj0U6thccPJlmqjZFRDC4CagY3MCH8h5BJer5iclwmxNdTXoiqjq1QsCm
-         HGQKNi+KcOVFUqj8X4FORjY1Bcp7JuUuUMVoVGiesOUlZHtZPLqgLSHvw3VKaY44NGgW
-         0BAQ==
+        b=HdZ44ofavKMrEwIVArKHeoMxS5XZoc5eWehULcvH0BivZm8yYh6mdGGufeCzBWccjq
+         cJt4TFgP1yJaUyLmOMKxwMYamL4Eg/3Psgedw6q0SqRlDvTRmlKYLq+BWfWleQClHhPw
+         ruG79axyi3TEXyUTHZczeT8f49urRg1PkcSrTwoJVe2qYA2kCjRwoFCSJHcyITrY3iE7
+         4hvTvZvAZFBpr8KDfsRvA15zxRiOkD6WqFF/q6x3z66t+EaNGpQ6v1GsmbZPcxk4/4Vz
+         YCAaBGUE6Wjvnrgp150mfSMtk8C8QwXpm2FqKTaT/mv+H+pxdBtLUxXyYhwgrmRtT4BH
+         K+9A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:to
-         :subject;
-        bh=loVhwJRnpkgdnpbZ2Uea8dnQHINtHnxdKbkFjujEQsI=;
-        b=dKbO3WGP6lwB7K+mH2DgEbma600xmM7ahUvbc9NETCQldiUAhcPGwDrqoHzlnbWAzE
-         /WT7Gc+sKLMQ2C9nkFIZsca4o3k3wbOIQAIfWo1qiGJjNzJxqiVi4bi5xTDa7mrbhT6P
-         e/VcC0P30THVqOke80UvHMRR14Wzy0xWLKnozQoiArNKK+8UBonaXJy5iwBMSfC+jjmY
-         qopwaEW+DekA+0+nhImEvMNrOUx7JI3nfVhF+FKQ7+TFEUsO5eQTRd4pnzz/MCvo0tR+
-         pJDuLVROzktLCyIJSl+K04RWIBKrdtGIFyKLXbZ9MepPfSZUZ08F+OLVQPF28PD414l4
-         cLkg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=ECTPCfgZaf/q6OslBRVwg5/A6wyE+SZLjVIdlnaBcgI=;
+        b=qt8V6XxwACRV7Mx1kQ9vwoRfoKNcabM7c7LY1tKXO6qt7rPTbunsMmR0MFOAZMJgvs
+         QRoMusFgEfej25t9xSn/v/EKj2GxZu4g7FC7s/5U19anyzS/1BHOTLKBdY0Ly93eNBuK
+         f/aPGlFA3ROiQTptGWBJKfjDIgejb3AL6JgDm3toWeFXTf5lxoIyGV/iUUlQxQwQWx3F
+         WYCe+jM0vq46t4XfzD1lV5FzHLf3Par4sfikVnsIhC2RTKJUqe5bFsrwnV6BnDv4cEm6
+         sOy7/Tk9vGUIlysi9Y2cUX8oga22IWu6y71MWh85IBmuRuHHW5rZP9letUW/Y/IWKBvN
+         Ia1g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id z9si1414028pfg.21.2019.03.06.13.17.34
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Y21BzpwZ;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v9sor1554938iod.121.2019.03.06.13.31.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Mar 2019 13:17:35 -0800 (PST)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        (Google Transport Security);
+        Wed, 06 Mar 2019 13:31:08 -0800 (PST)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga005.jf.intel.com ([10.7.209.41])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Mar 2019 13:17:34 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,449,1544515200"; 
-   d="scan'208";a="304986830"
-Received: from ray.jf.intel.com (HELO [10.7.201.16]) ([10.7.201.16])
-  by orsmga005.jf.intel.com with ESMTP; 06 Mar 2019 13:17:34 -0800
-Subject: Re: [PATCH v5 4/4] hugetlb: allow to free gigantic pages regardless
- of the configuration
-To: Alex Ghiti <alex@ghiti.fr>, Vlastimil Babka <vbabka@suse.cz>,
- Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
- <will.deacon@arm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>,
- Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
- "David S . Miller" <davem@davemloft.net>,
- Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
- Borislav Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>,
- x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>,
- Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
- Mike Kravetz <mike.kravetz@oracle.com>,
- linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
- linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
- linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org
-References: <20190306190005.7036-1-alex@ghiti.fr>
- <20190306190005.7036-5-alex@ghiti.fr>
- <7c81abe0-5f9d-32f9-1e9a-70ab06d48f8e@intel.com>
- <82a3f572-e9c1-0151-3d7d-a646f5e5302c@ghiti.fr>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- mQINBE6HMP0BEADIMA3XYkQfF3dwHlj58Yjsc4E5y5G67cfbt8dvaUq2fx1lR0K9h1bOI6fC
- oAiUXvGAOxPDsB/P6UEOISPpLl5IuYsSwAeZGkdQ5g6m1xq7AlDJQZddhr/1DC/nMVa/2BoY
- 2UnKuZuSBu7lgOE193+7Uks3416N2hTkyKUSNkduyoZ9F5twiBhxPJwPtn/wnch6n5RsoXsb
- ygOEDxLEsSk/7eyFycjE+btUtAWZtx+HseyaGfqkZK0Z9bT1lsaHecmB203xShwCPT49Blxz
- VOab8668QpaEOdLGhtvrVYVK7x4skyT3nGWcgDCl5/Vp3TWA4K+IofwvXzX2ON/Mj7aQwf5W
- iC+3nWC7q0uxKwwsddJ0Nu+dpA/UORQWa1NiAftEoSpk5+nUUi0WE+5DRm0H+TXKBWMGNCFn
- c6+EKg5zQaa8KqymHcOrSXNPmzJuXvDQ8uj2J8XuzCZfK4uy1+YdIr0yyEMI7mdh4KX50LO1
- pmowEqDh7dLShTOif/7UtQYrzYq9cPnjU2ZW4qd5Qz2joSGTG9eCXLz5PRe5SqHxv6ljk8mb
- ApNuY7bOXO/A7T2j5RwXIlcmssqIjBcxsRRoIbpCwWWGjkYjzYCjgsNFL6rt4OL11OUF37wL
- QcTl7fbCGv53KfKPdYD5hcbguLKi/aCccJK18ZwNjFhqr4MliQARAQABtEVEYXZpZCBDaHJp
- c3RvcGhlciBIYW5zZW4gKEludGVsIFdvcmsgQWRkcmVzcykgPGRhdmUuaGFuc2VuQGludGVs
- LmNvbT6JAjgEEwECACIFAlQ+9J0CGwMGCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEGg1
- lTBwyZKwLZUP/0dnbhDc229u2u6WtK1s1cSd9WsflGXGagkR6liJ4um3XCfYWDHvIdkHYC1t
- MNcVHFBwmQkawxsYvgO8kXT3SaFZe4ISfB4K4CL2qp4JO+nJdlFUbZI7cz/Td9z8nHjMcWYF
- IQuTsWOLs/LBMTs+ANumibtw6UkiGVD3dfHJAOPNApjVr+M0P/lVmTeP8w0uVcd2syiaU5jB
- aht9CYATn+ytFGWZnBEEQFnqcibIaOrmoBLu2b3fKJEd8Jp7NHDSIdrvrMjYynmc6sZKUqH2
- I1qOevaa8jUg7wlLJAWGfIqnu85kkqrVOkbNbk4TPub7VOqA6qG5GCNEIv6ZY7HLYd/vAkVY
- E8Plzq/NwLAuOWxvGrOl7OPuwVeR4hBDfcrNb990MFPpjGgACzAZyjdmYoMu8j3/MAEW4P0z
- F5+EYJAOZ+z212y1pchNNauehORXgjrNKsZwxwKpPY9qb84E3O9KYpwfATsqOoQ6tTgr+1BR
- CCwP712H+E9U5HJ0iibN/CDZFVPL1bRerHziuwuQuvE0qWg0+0SChFe9oq0KAwEkVs6ZDMB2
- P16MieEEQ6StQRlvy2YBv80L1TMl3T90Bo1UUn6ARXEpcbFE0/aORH/jEXcRteb+vuik5UGY
- 5TsyLYdPur3TXm7XDBdmmyQVJjnJKYK9AQxj95KlXLVO38lcuQINBFRjzmoBEACyAxbvUEhd
- GDGNg0JhDdezyTdN8C9BFsdxyTLnSH31NRiyp1QtuxvcqGZjb2trDVuCbIzRrgMZLVgo3upr
- MIOx1CXEgmn23Zhh0EpdVHM8IKx9Z7V0r+rrpRWFE8/wQZngKYVi49PGoZj50ZEifEJ5qn/H
- Nsp2+Y+bTUjDdgWMATg9DiFMyv8fvoqgNsNyrrZTnSgoLzdxr89FGHZCoSoAK8gfgFHuO54B
- lI8QOfPDG9WDPJ66HCodjTlBEr/Cwq6GruxS5i2Y33YVqxvFvDa1tUtl+iJ2SWKS9kCai2DR
- 3BwVONJEYSDQaven/EHMlY1q8Vln3lGPsS11vSUK3QcNJjmrgYxH5KsVsf6PNRj9mp8Z1kIG
- qjRx08+nnyStWC0gZH6NrYyS9rpqH3j+hA2WcI7De51L4Rv9pFwzp161mvtc6eC/GxaiUGuH
- BNAVP0PY0fqvIC68p3rLIAW3f97uv4ce2RSQ7LbsPsimOeCo/5vgS6YQsj83E+AipPr09Caj
- 0hloj+hFoqiticNpmsxdWKoOsV0PftcQvBCCYuhKbZV9s5hjt9qn8CE86A5g5KqDf83Fxqm/
- vXKgHNFHE5zgXGZnrmaf6resQzbvJHO0Fb0CcIohzrpPaL3YepcLDoCCgElGMGQjdCcSQ+Ci
- FCRl0Bvyj1YZUql+ZkptgGjikQARAQABiQIfBBgBAgAJBQJUY85qAhsMAAoJEGg1lTBwyZKw
- l4IQAIKHs/9po4spZDFyfDjunimEhVHqlUt7ggR1Hsl/tkvTSze8pI1P6dGp2XW6AnH1iayn
- yRcoyT0ZJ+Zmm4xAH1zqKjWplzqdb/dO28qk0bPso8+1oPO8oDhLm1+tY+cOvufXkBTm+whm
- +AyNTjaCRt6aSMnA/QHVGSJ8grrTJCoACVNhnXg/R0g90g8iV8Q+IBZyDkG0tBThaDdw1B2l
- asInUTeb9EiVfL/Zjdg5VWiF9LL7iS+9hTeVdR09vThQ/DhVbCNxVk+DtyBHsjOKifrVsYep
- WpRGBIAu3bK8eXtyvrw1igWTNs2wazJ71+0z2jMzbclKAyRHKU9JdN6Hkkgr2nPb561yjcB8
- sIq1pFXKyO+nKy6SZYxOvHxCcjk2fkw6UmPU6/j/nQlj2lfOAgNVKuDLothIxzi8pndB8Jju
- KktE5HJqUUMXePkAYIxEQ0mMc8Po7tuXdejgPMwgP7x65xtfEqI0RuzbUioFltsp1jUaRwQZ
- MTsCeQDdjpgHsj+P2ZDeEKCbma4m6Ez/YWs4+zDm1X8uZDkZcfQlD9NldbKDJEXLIjYWo1PH
- hYepSffIWPyvBMBTW2W5FRjJ4vLRrJSUoEfJuPQ3vW9Y73foyo/qFoURHO48AinGPZ7PC7TF
- vUaNOTjKedrqHkaOcqB185ahG2had0xnFsDPlx5y
-Message-ID: <5058428f-f351-ce26-7348-3b2255e5425d@intel.com>
-Date: Wed, 6 Mar 2019 13:17:38 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Y21BzpwZ;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=ECTPCfgZaf/q6OslBRVwg5/A6wyE+SZLjVIdlnaBcgI=;
+        b=Y21BzpwZI0MiddBJDbWgPxbJA9Lez2FU3Ks0vpx0tfDzSI3qD8OsLzD7Azkt88+rIX
+         XnP0fCSoYep2ys1/DzAGdcd784XaK5lI/02v9kwTLduExJb7+OhXyKiHp39cE3+SUbLD
+         ltWFLyKkHC/rAqi+dg3jUDqq3eLdCxAUWDMjNqKKGY0D8rw4acDVWwoitYVhkA81GrsK
+         1qjgRP+Z+WvsiH7xYrOPvAyJWj4zBhq+beCMPynEYVKbCnklz1UinGKwqMYQw8ZJsCwO
+         gODbkKMOWM2bimSMCDbTry/yPpdsP81l9WOPbBH4XEbbLNGYiKfr2gc7fy4/uJ4TGRde
+         IFaA==
+X-Google-Smtp-Source: APXvYqyjGdnxxxLRK4n4UMvMi3e5AUYrt6rTzHYghAkfXr6FqMOq2pk2Jrf/gYUv9qVJ6MYUtw/TqPPvMDtNSKsUd+Y=
+X-Received: by 2002:a6b:f70a:: with SMTP id k10mr4782690iog.68.1551907867874;
+ Wed, 06 Mar 2019 13:31:07 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <82a3f572-e9c1-0151-3d7d-a646f5e5302c@ghiti.fr>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+References: <20190306155048.12868-1-nitesh@redhat.com> <20190306155048.12868-4-nitesh@redhat.com>
+In-Reply-To: <20190306155048.12868-4-nitesh@redhat.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Wed, 6 Mar 2019 13:30:56 -0800
+Message-ID: <CAKgT0Udrzo4Ddx4UsJr+x-kgEVJpzQf_PhtAmoShSU8PPDOZEQ@mail.gmail.com>
+Subject: Re: [RFC][Patch v9 3/6] KVM: Enables the kernel to report isolated pages
+To: Nitesh Narayan Lal <nitesh@redhat.com>
+Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
+	linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com, 
+	pagupta@redhat.com, wei.w.wang@intel.com, 
+	Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>, 
+	David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, dodgen@google.com, 
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com, 
+	Andrea Arcangeli <aarcange@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/6/19 12:08 PM, Alex Ghiti wrote:
->>>
->>> +    /*
->>> +     * Gigantic pages allocation depends on the capability for large
->>> page
->>> +     * range allocation. If the system cannot provide
->>> alloc_contig_range,
->>> +     * allow users to free gigantic pages.
->>> +     */
->>> +    if (hstate_is_gigantic(h) && !IS_ENABLED(CONFIG_CONTIG_ALLOC)) {
->>> +        spin_lock(&hugetlb_lock);
->>> +        if (count > persistent_huge_pages(h)) {
->>> +            spin_unlock(&hugetlb_lock);
->>> +            return -EINVAL;
->>> +        }
->>> +        goto decrease_pool;
->>> +    }
->> We talked about it during the last round and I don't seen any mention of
->> it here in comments or the changelog: Why is this a goto?  Why don't we
->> just let the code fall through to the "decrease_pool" label?  Why is
->> this new block needed at all?  Can't we just remove the old check and
->> let it be?
-> 
-> I'll get rid of the goto, I don't know how to justify it properly in a
-> comment,
-> maybe because it is not necessary.
-> This is not a new block, this means exactly the same as before (remember
-> gigantic_page_supported() actually meant CONTIG_ALLOC before this series),
-> except that now we allow a user to free boottime allocated gigantic pages.
-> And no we cannot just remove the check and let it be since it would modify
-> the current behaviour, which is to return an error when trying to allocate
-> gigantic pages whereas alloc_contig_range is not defined. I thought it was
-> clearly commented above, I can try to make it more explicit.
+On Wed, Mar 6, 2019 at 7:51 AM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+>
+> This patch enables the kernel to report the isolated pages
+> to the host via virtio balloon driver.
+> In order to do so a new virtuqeue (hinting_vq) is added to the
+> virtio balloon driver. As the host responds back after freeing
+> the pages, all the isolated pages are returned back to the buddy
+> via __free_one_page().
+>
+> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
 
-OK, that makes sense.  Could you get some of this in the changelog,
-please?  Otherwise this all looks good to me.
+I ran into a few build issues due to this patch. Comments below.
+
+> ---
+>  drivers/virtio/virtio_balloon.c     | 72 ++++++++++++++++++++++++++++-
+>  include/linux/page_hinting.h        |  4 ++
+>  include/uapi/linux/virtio_balloon.h |  8 ++++
+>  virt/kvm/page_hinting.c             | 18 ++++++--
+>  4 files changed, 98 insertions(+), 4 deletions(-)
+>
+> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> index 728ecd1eea30..cfe7574b5204 100644
+> --- a/drivers/virtio/virtio_balloon.c
+> +++ b/drivers/virtio/virtio_balloon.c
+> @@ -57,13 +57,15 @@ enum virtio_balloon_vq {
+>         VIRTIO_BALLOON_VQ_INFLATE,
+>         VIRTIO_BALLOON_VQ_DEFLATE,
+>         VIRTIO_BALLOON_VQ_STATS,
+> +       VIRTIO_BALLOON_VQ_HINTING,
+>         VIRTIO_BALLOON_VQ_FREE_PAGE,
+>         VIRTIO_BALLOON_VQ_MAX
+>  };
+>
+>  struct virtio_balloon {
+>         struct virtio_device *vdev;
+> -       struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_page_vq;
+> +       struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_page_vq,
+> +                                                               *hinting_vq;
+>
+>         /* Balloon's own wq for cpu-intensive work items */
+>         struct workqueue_struct *balloon_wq;
+> @@ -122,6 +124,56 @@ static struct virtio_device_id id_table[] = {
+>         { 0 },
+>  };
+>
+> +#ifdef CONFIG_KVM_FREE_PAGE_HINTING
+> +int virtballoon_page_hinting(struct virtio_balloon *vb,
+> +                            void *hinting_req,
+> +                            int entries)
+> +{
+> +       struct scatterlist sg;
+> +       struct virtqueue *vq = vb->hinting_vq;
+> +       int err;
+> +       int unused;
+> +       struct virtio_balloon_hint_req *hint_req;
+> +       u64 gpaddr;
+> +
+> +       hint_req = kmalloc(sizeof(struct virtio_balloon_hint_req), GFP_KERNEL);
+> +       while (virtqueue_get_buf(vq, &unused))
+> +               ;
+> +
+> +       gpaddr = virt_to_phys(hinting_req);
+> +       hint_req->phys_addr = cpu_to_virtio64(vb->vdev, gpaddr);
+> +       hint_req->count = cpu_to_virtio32(vb->vdev, entries);
+> +       sg_init_one(&sg, hint_req, sizeof(struct virtio_balloon_hint_req));
+> +       err = virtqueue_add_outbuf(vq, &sg, 1, hint_req, GFP_KERNEL);
+> +       if (!err)
+> +               virtqueue_kick(vb->hinting_vq);
+> +       else
+> +               kfree(hint_req);
+> +       return err;
+> +}
+> +
+> +static void hinting_ack(struct virtqueue *vq)
+> +{
+> +       int len = sizeof(struct virtio_balloon_hint_req);
+> +       struct virtio_balloon_hint_req *hint_req = virtqueue_get_buf(vq, &len);
+> +       void *v_addr = phys_to_virt(hint_req->phys_addr);
+> +
+> +       release_buddy_pages(v_addr, hint_req->count);
+> +       kfree(hint_req);
+> +}
+> +
+
+You use release_buddy_pages here, but never exported it in the call
+down below. Since this can be built as a module and I believe the page
+hinting can be built either into the kernel or as a seperate module
+shouldn't you be exporting it?
+
+> +static void enable_hinting(struct virtio_balloon *vb)
+> +{
+> +       request_hypercall = (void *)&virtballoon_page_hinting;
+> +       balloon_ptr = vb;
+> +}
+> +
+> +static void disable_hinting(void)
+> +{
+> +       balloon_ptr = NULL;
+> +}
+> +#endif
+> +
+>  static u32 page_to_balloon_pfn(struct page *page)
+>  {
+>         unsigned long pfn = page_to_pfn(page);
+> @@ -481,6 +533,7 @@ static int init_vqs(struct virtio_balloon *vb)
+>         names[VIRTIO_BALLOON_VQ_DEFLATE] = "deflate";
+>         names[VIRTIO_BALLOON_VQ_STATS] = NULL;
+>         names[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
+> +       names[VIRTIO_BALLOON_VQ_HINTING] = NULL;
+>
+>         if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+>                 names[VIRTIO_BALLOON_VQ_STATS] = "stats";
+> @@ -492,11 +545,18 @@ static int init_vqs(struct virtio_balloon *vb)
+>                 callbacks[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
+>         }
+>
+> +       if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING)) {
+> +               names[VIRTIO_BALLOON_VQ_HINTING] = "hinting_vq";
+> +               callbacks[VIRTIO_BALLOON_VQ_HINTING] = hinting_ack;
+> +       }
+>         err = vb->vdev->config->find_vqs(vb->vdev, VIRTIO_BALLOON_VQ_MAX,
+>                                          vqs, callbacks, names, NULL, NULL);
+>         if (err)
+>                 return err;
+>
+> +       if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING))
+> +               vb->hinting_vq = vqs[VIRTIO_BALLOON_VQ_HINTING];
+> +
+>         vb->inflate_vq = vqs[VIRTIO_BALLOON_VQ_INFLATE];
+>         vb->deflate_vq = vqs[VIRTIO_BALLOON_VQ_DEFLATE];
+>         if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+> @@ -908,6 +968,11 @@ static int virtballoon_probe(struct virtio_device *vdev)
+>                 if (err)
+>                         goto out_del_balloon_wq;
+>         }
+> +
+> +#ifdef CONFIG_KVM_FREE_PAGE_HINTING
+> +       if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING))
+> +               enable_hinting(vb);
+> +#endif
+>         virtio_device_ready(vdev);
+>
+>         if (towards_target(vb))
+> @@ -950,6 +1015,10 @@ static void virtballoon_remove(struct virtio_device *vdev)
+>         cancel_work_sync(&vb->update_balloon_size_work);
+>         cancel_work_sync(&vb->update_balloon_stats_work);
+>
+> +#ifdef CONFIG_KVM_FREE_PAGE_HINTING
+> +       if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING))
+> +               disable_hinting();
+> +#endif
+>         if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
+>                 cancel_work_sync(&vb->report_free_page_work);
+>                 destroy_workqueue(vb->balloon_wq);
+> @@ -1009,6 +1078,7 @@ static unsigned int features[] = {
+>         VIRTIO_BALLOON_F_MUST_TELL_HOST,
+>         VIRTIO_BALLOON_F_STATS_VQ,
+>         VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
+> +       VIRTIO_BALLOON_F_HINTING,
+>         VIRTIO_BALLOON_F_FREE_PAGE_HINT,
+>         VIRTIO_BALLOON_F_PAGE_POISON,
+>  };
+> diff --git a/include/linux/page_hinting.h b/include/linux/page_hinting.h
+> index d554a2581826..a32af8851081 100644
+> --- a/include/linux/page_hinting.h
+> +++ b/include/linux/page_hinting.h
+> @@ -11,6 +11,8 @@
+>  #define HINTING_THRESHOLD      128
+>  #define FREE_PAGE_HINTING_MIN_ORDER    (MAX_ORDER - 1)
+>
+> +extern void *balloon_ptr;
+> +
+>  void guest_free_page_enqueue(struct page *page, int order);
+>  void guest_free_page_try_hinting(void);
+>  extern int __isolate_free_page(struct page *page, unsigned int order);
+> @@ -18,3 +20,5 @@ extern void __free_one_page(struct page *page, unsigned long pfn,
+>                             struct zone *zone, unsigned int order,
+>                             int migratetype);
+>  void release_buddy_pages(void *obj_to_free, int entries);
+> +extern int (*request_hypercall)(void *balloon_ptr,
+> +                               void *hinting_req, int entries);
+> diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
+> index a1966cd7b677..a7e909d77447 100644
+> --- a/include/uapi/linux/virtio_balloon.h
+> +++ b/include/uapi/linux/virtio_balloon.h
+> @@ -29,6 +29,7 @@
+>  #include <linux/virtio_types.h>
+>  #include <linux/virtio_ids.h>
+>  #include <linux/virtio_config.h>
+> +#include <linux/page_hinting.h>
+>
+>  /* The feature bitmap for virtio balloon */
+>  #define VIRTIO_BALLOON_F_MUST_TELL_HOST        0 /* Tell before reclaiming pages */
+
+So I am pretty sure that this isn't valid. You have a file in
+include/uapi/linux referencing one in include/linux. As such when the
+userspace headers are built off of this they cannot access the kernel
+include file.
+
+> @@ -36,6 +37,7 @@
+>  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM        2 /* Deflate balloon on OOM */
+>  #define VIRTIO_BALLOON_F_FREE_PAGE_HINT        3 /* VQ to report free pages */
+>  #define VIRTIO_BALLOON_F_PAGE_POISON   4 /* Guest is using page poisoning */
+> +#define VIRTIO_BALLOON_F_HINTING       5 /* Page hinting virtqueue */
+>
+>  /* Size of a PFN in the balloon interface. */
+>  #define VIRTIO_BALLOON_PFN_SHIFT 12
+> @@ -108,4 +110,10 @@ struct virtio_balloon_stat {
+>         __virtio64 val;
+>  } __attribute__((packed));
+>
+> +#ifdef CONFIG_KVM_FREE_PAGE_HINTING
+> +struct virtio_balloon_hint_req {
+> +       __virtio64 phys_addr;
+> +       __virtio64 count;
+> +};
+> +#endif
+>  #endif /* _LINUX_VIRTIO_BALLOON_H */
+> diff --git a/virt/kvm/page_hinting.c b/virt/kvm/page_hinting.c
+> index 9885b372b5a9..eb0c0ddfe990 100644
+> --- a/virt/kvm/page_hinting.c
+> +++ b/virt/kvm/page_hinting.c
+> @@ -31,11 +31,16 @@ struct guest_isolated_pages {
+>         unsigned int order;
+>  };
+>
+> -void release_buddy_pages(void *obj_to_free, int entries)
+> +int (*request_hypercall)(void *balloon_ptr, void *hinting_req, int entries);
+> +EXPORT_SYMBOL(request_hypercall);
+> +void *balloon_ptr;
+> +EXPORT_SYMBOL(balloon_ptr);
+> +
+
+Why are you using a standard EXPORT_SYMBOL here instead of
+EXPORT_SYMBOL_GPL? It seems like these are core functions that can
+impact the memory allocator. It might make more sense to use
+EXPORT_SYMBOL_GPL.
+
+> +void release_buddy_pages(void *hinting_req, int entries)
+>  {
+>         int i = 0;
+>         int mt = 0;
+> -       struct guest_isolated_pages *isolated_pages_obj = obj_to_free;
+> +       struct guest_isolated_pages *isolated_pages_obj = hinting_req;
+>
+>         while (i < entries) {
+>                 struct page *page = pfn_to_page(isolated_pages_obj[i].pfn);
+
+See my comment above, I am pretty sure you need to be exporting this.
+I had to change this in order to be able to build.
 
