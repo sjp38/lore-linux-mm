@@ -2,575 +2,339 @@ Return-Path: <SRS0=43/C=RJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D18A2C43381
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 21:54:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B6CAEC10F00
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 22:06:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 45A0120663
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 21:54:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5B6DD20840
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 22:06:10 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="XlRyhqkq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 45A0120663
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ovCilbDl"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5B6DD20840
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CB2D08E0003; Wed,  6 Mar 2019 16:54:26 -0500 (EST)
+	id EF3C78E0003; Wed,  6 Mar 2019 17:06:09 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C62318E0002; Wed,  6 Mar 2019 16:54:26 -0500 (EST)
+	id EA35B8E0002; Wed,  6 Mar 2019 17:06:09 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B2A098E0003; Wed,  6 Mar 2019 16:54:26 -0500 (EST)
+	id D928C8E0003; Wed,  6 Mar 2019 17:06:09 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 55E908E0002
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 16:54:26 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id y1so7656418wrh.21
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 13:54:26 -0800 (PST)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B43BF8E0002
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 17:06:09 -0500 (EST)
+Received: by mail-io1-f70.google.com with SMTP id r21so11056756ioa.13
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 14:06:09 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=CGxYoqjaGuMadUkLxrfjnlC6FBZGZqJqaeni3+wCIDY=;
-        b=Da9gX1yJYtRvcWx0lGwhTC+s9ro3U4amievzjEhgKhXhSghiaPpwE0/7HGsfKor9ZT
-         59+4bBofH7qrXmelNVvjlHoH+Trm3dHat3i5eQKwE7TxQLGx5VfLiWsuqzORAvGiWY14
-         QrdW0xt32AkyMXztP/RlffMXLARBB4CpHP0sioyLB/09b6MOsuajjTnRZ1F2TDSRBhzN
-         6neh4dePoBXlr8CIRD+7RR1QxDh8TodMAY0yRZdj6aRA7WrtesUT0PhWNaLRGWs+h3Wz
-         f1sfP9ExJVZbBr1aFl0UzsyP/qChu4h07ucO03b+XZStyCu1gJLp3vXuNQlP/0/ymsu4
-         O6CQ==
-X-Gm-Message-State: APjAAAWU2WuJfnD+DTVgLMZrfHIAOOM+3u9Hon+5vl88exinXCy6c+H9
-	rahuUhGME1XsPHhW1RBscn1NvxuLxsqBRixvZRvs0r11Ewdb32mIHMWCnXUDJkyCNI71KejFvKs
-	iqCihQLPq44vbmwSRZHKes3Z5A+djODpo0TuzfNzC92CzwiWvFaf1EGnRAM7JUCLBBA==
-X-Received: by 2002:adf:9ecc:: with SMTP id b12mr4542893wrf.83.1551909265644;
-        Wed, 06 Mar 2019 13:54:25 -0800 (PST)
-X-Google-Smtp-Source: APXvYqxTX8o25rC55iy8C+j03oMTgVZjXuBZip3IN0rPuh9bbBwP3ESqCbGAp5+9DiKUZIieADT+
-X-Received: by 2002:adf:9ecc:: with SMTP id b12mr4542854wrf.83.1551909264211;
-        Wed, 06 Mar 2019 13:54:24 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551909264; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=lqPYOaCXuNPqYA0GOIDbs7rPmzwX5TT0hcpajmda5F4=;
+        b=aoMXzyFttigoS/q28IIrZ3MdcpN8tGCi0yzZgkT9Nn73J74IDgPzBBJ0tdcQgSEMzz
+         oOTR7urfh7U3jSfgazWbuZX+p1G2VCfghrns4e9AdR+95tU6xqGcDWCv7Szyv1dn1Otb
+         1IcN/0LPKvVzyXaQ/MIvkM7iKh3rRpHmGtYmxcbkOngQk7/f/a241vMiDGpfYePoFiwg
+         0i0zfBuXfAbP68vkVZSlgqTuQay9RQDaHZEliiZ84e9hpVEQGlydlN/PJWVlosO4w4ns
+         lajeWNR949W4JKTfrYna2+gZG03lN4XnX/L6cYsmIjGb+vGNzoHoylL+xAnMfT48I2so
+         2Z7Q==
+X-Gm-Message-State: APjAAAV2oPcouS8yH+602M9/ENzDm8KPO3ID092RKSIvd3sxrdanfS5i
+	FM9++Spnt16FOkZwxxVEvdSCZGDSm+w/MorGmHRV29bOtaSwUQ0f4sPkvDTbptn2O2WlFTgAL2i
+	eLALhYPLFN3645pPrl7wAk1caFO1ZoN/10g+Um8/mvJ/eGo8FQqy+Dvupvn/mDhytCoFBxwKOnG
+	EKAbWxq3JbHSNG1QYQ2FhE0s1O0eOd9uMqstBcOMoy1XjYPkx0W00WTGqr6+7Fe0b2vhpVroVOx
+	pY4DSnX0ZVJlnFy9wtVoLUW2QRm6X0k7uN1ZKrlfZOtVTPfV83aHUdpLjo8iDWjVAAqppmyeQxY
+	C0es/+RPgYs7wshINBjupUZplbSp/QOraOa92nXfutAke9YSft4ExNN//pUbhZWoDezlWdkYcMt
+	1
+X-Received: by 2002:a6b:7b05:: with SMTP id l5mr4351694iop.285.1551909969429;
+        Wed, 06 Mar 2019 14:06:09 -0800 (PST)
+X-Received: by 2002:a6b:7b05:: with SMTP id l5mr4351586iop.285.1551909966982;
+        Wed, 06 Mar 2019 14:06:06 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551909966; cv=none;
         d=google.com; s=arc-20160816;
-        b=JwUIaSQzT3k3oY40SdFX+1DRlz2d6TB3v+YAu1EhvaTSPHdvqeVjMZuThdNR3ow9RA
-         QHCnhoQLjgW5NGn+OO9/fxj9+yuVXu/SVqK9M4aUJEe/XAsOu03cO/tcwg1XP7sHNJDv
-         Gh2SKUgIp1JBv793DcMP8EdRE8lJHSr/mLTPEMDlbhFkJ1cTrcl7nXMeEymwxPLyT9vY
-         +4fXThmLM+xDl2HfR1jVLsxrlBkSEoOLDbpuI7r7EGLj/0I/DYAQv8FD6kBQ01mKOKIy
-         P/3Ak4FItEF9qg1gTKMWUwfaCO6C08QYb/oIiZoVOneyd2/99aBwjcPKJRiQeLbBPq9r
-         +DFA==
+        b=s59x1aqZyF36Dx7UNp1U+8eoysp5ledVJKBW/ofpkYO2z5HrFLO9OxukSAcnEE27QO
+         TTr4v7GHGqp4F3/Y10GVklKf39zMgRaacIQvy5ZY9KSfeohRDa/maywCXNPPZrai3YHh
+         NNSYPyBKFpQt2faWw4crlByJFXrGuDXlrDsDXRXfwGNtWGON10gb/Q32pR4Fw3jJMzwK
+         21gcWmhjuXc+kVpLiZmjt/t2jvAUjf33ex3lfSUBwYzyf2MwDuwF9hDWPNIgDdPyYN3e
+         ASiaPZX37x35SuJ257CNjNu3pSDC6rfemiUaCWUtApMdwbME2N/tZ/Kz3NBAQgX6OxEP
+         mbWA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=CGxYoqjaGuMadUkLxrfjnlC6FBZGZqJqaeni3+wCIDY=;
-        b=i+KYWmGgs768UH3AYnOGYSjNwUZwcfp7Obgklshzm+2XfT/lOb+n1euP6dLivVYSad
-         IG8e2wSxl5p8eNShH0pc4MBlmIoef50Q4Vrows6cUAHDcGpEQ4F0oZUOyHCes2a7waXc
-         aT9OL+EaV14sR1Q2EYSGv5EmaFqg4FoFOXj1evrpDzl7nAn0l8/FXGQUozx+Oxeq/pIE
-         gjG0oh3XQ98KIix4U0yxqAMz40rqsezPMDMyLmooA/LSPXVrWcPnPsg8eC6SSm2v7l34
-         mgEV1M/jHQ6pL0SZAoRPBLENYachYJgjsFouUJ9+8buOpawfIe9LNEsAV5QM9o2Qmvyj
-         GueQ==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=lqPYOaCXuNPqYA0GOIDbs7rPmzwX5TT0hcpajmda5F4=;
+        b=qPkSbbfpvoB5NOr+NIBTMIjDB1ZDfiZSQenrEa0EKLpxKFWZ7pHpmatpIDvWpeLOJh
+         9z/3sOfIJjR2gLauMVJJoZ6ndgTqrvpspkFA2/WdcL7pfC56Yb7LHWjSV/h46ffRBrrd
+         BR/v9LK8dqjU6FJTBPgkq41DH1jPeLKATi7b/GxNsNvy3ZW/3cSC2YyM7Jz02SqfCTrA
+         3x2STHw7bktOIwDFJDG1xxIzeOl9hqVc+0+80fZOAuNswXZuq8S4WHuZ5TeRlSejIg2T
+         U56of2ti84oio2CDSHJZF5hqfqDKn5BLTT/MfdYQct0hfkY50tcM1qwhbrVOKKXRtcXm
+         1wzw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=XlRyhqkq;
-       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
-Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id 93si1954626wrq.442.2019.03.06.13.54.24
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ovCilbDl;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x100sor5179898ita.29.2019.03.06.14.06.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Mar 2019 13:54:24 -0800 (PST)
-Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
+        (Google Transport Security);
+        Wed, 06 Mar 2019 14:06:06 -0800 (PST)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=XlRyhqkq;
-       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
-Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 44F6wv3g43z9vBwH;
-	Wed,  6 Mar 2019 22:54:23 +0100 (CET)
-Authentication-Results: localhost; dkim=pass
-	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=XlRyhqkq; dkim-adsp=pass;
-	dkim-atps=neutral
-X-Virus-Scanned: Debian amavisd-new at c-s.fr
-Received: from pegase1.c-s.fr ([192.168.12.234])
-	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id 273gzFdN5yJi; Wed,  6 Mar 2019 22:54:23 +0100 (CET)
-Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 44F6wv2VRgz9vBwC;
-	Wed,  6 Mar 2019 22:54:23 +0100 (CET)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1551909263; bh=CGxYoqjaGuMadUkLxrfjnlC6FBZGZqJqaeni3+wCIDY=;
-	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
-	b=XlRyhqkqavVwbeiS6mwQnLZHW5+JZTRbTno00ZCyDiny3OCr3/228JQ8cvYFfPm/C
-	 0Pd5oeXTyMjXXAaeZhXFUPLO/MBwFniFqvcx3x+eFBXmd5WAwAXBTUrYPtVi3u7y2d
-	 qrIgWdrlH80VeS1bpb9uwXiGYfqCZfasFx5drbQY=
-Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 856C28B8AB;
-	Wed,  6 Mar 2019 22:54:23 +0100 (CET)
-X-Virus-Scanned: amavisd-new at c-s.fr
-Received: from messagerie.si.c-s.fr ([127.0.0.1])
-	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id veWWKZs18AFI; Wed,  6 Mar 2019 22:54:23 +0100 (CET)
-Received: from PO15451 (unknown [192.168.4.90])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 686DC8B883;
-	Wed,  6 Mar 2019 22:54:22 +0100 (CET)
-Subject: Re: [PATCH v9 02/11] powerpc: prepare string/mem functions for KASAN
-To: Daniel Axtens <dja@axtens.net>,
- Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
- Nicholas Piggin <npiggin@gmail.com>,
- "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
- Andrey Ryabinin <aryabinin@virtuozzo.com>,
- Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
-Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
- kasan-dev@googlegroups.com, linux-mm@kvack.org
-References: <cover.1551443452.git.christophe.leroy@c-s.fr>
- <45fb252fc1b27f2804109fa35ba2882ae29e6035.1551443453.git.christophe.leroy@c-s.fr>
- <87sgw31a85.fsf@dja-thinkpad.axtens.net>
-From: Christophe Leroy <christophe.leroy@c-s.fr>
-Message-ID: <c69636a6-1f43-78e6-ff88-a3e4f3a35132@c-s.fr>
-Date: Wed, 6 Mar 2019 22:54:22 +0100
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ovCilbDl;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=lqPYOaCXuNPqYA0GOIDbs7rPmzwX5TT0hcpajmda5F4=;
+        b=ovCilbDlrzJq3s5qWLY8FgCbaDYdeGY1uoh6Uxp6KqIaRFOpnLv4C+XYHd2+HmWlke
+         qZiGhWTSqDH9bQjgTNemPcHj1e+ciz24NFq/CVhxlkoGzMC/FmVdRC7DL7RGuAxbT4dK
+         MINPIMe12fto75VzOihCuchAZ5USA8Rz5P5pPhLOUd8oRklzNbSS2qSSW0egH4yXWgk0
+         VqE8La0fkaYEojAezSXn8zXAjTUlrggsyPxp/zTqzXs1feJHj/FrjSKW5j+yrK2VAnQn
+         1NIi/3nGxKJTVHbeydLssjBg8CkVD21gsYyUtD2ker/F23gQWfeyF5q5mYE1789RFD0z
+         3YXA==
+X-Google-Smtp-Source: APXvYqxCBqEmb582tjxfS8Hn0YXcYFl+HtWOzqWbWTd94BKUX34IFenEiQS2F2UsciVYOzbAf21UpFGeXSJn+avDdLw=
+X-Received: by 2002:a02:95a:: with SMTP id f87mr5361433jad.83.1551909966364;
+ Wed, 06 Mar 2019 14:06:06 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <87sgw31a85.fsf@dja-thinkpad.axtens.net>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: fr
-Content-Transfer-Encoding: 8bit
+References: <20190306155048.12868-1-nitesh@redhat.com> <CAKgT0Ud35pmmfAabYJijWo8qpucUWS8-OzBW=gsotfxZFuS9PQ@mail.gmail.com>
+ <1d5e27dc-aade-1be7-2076-b7710fa513b6@redhat.com>
+In-Reply-To: <1d5e27dc-aade-1be7-2076-b7710fa513b6@redhat.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Wed, 6 Mar 2019 14:05:54 -0800
+Message-ID: <CAKgT0UdNPADF+8NMxnWuiB_+_M6_0jTt5NfoOvFN9qbPjGWNtw@mail.gmail.com>
+Subject: Re: [RFC][Patch v9 0/6] KVM: Guest Free Page Hinting
+To: Nitesh Narayan Lal <nitesh@redhat.com>
+Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
+	linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com, 
+	pagupta@redhat.com, wei.w.wang@intel.com, 
+	Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>, 
+	David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, dodgen@google.com, 
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com, 
+	Andrea Arcangeli <aarcange@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed, Mar 6, 2019 at 11:07 AM Nitesh Narayan Lal <nitesh@redhat.com> wrot=
+e:
+>
+>
+> On 3/6/19 1:00 PM, Alexander Duyck wrote:
+> > On Wed, Mar 6, 2019 at 7:51 AM Nitesh Narayan Lal <nitesh@redhat.com> w=
+rote:
+> >> The following patch-set proposes an efficient mechanism for handing fr=
+eed memory between the guest and the host. It enables the guests with no pa=
+ge cache to rapidly free and reclaims memory to and from the host respectiv=
+ely.
+> >>
+> >> Benefit:
+> >> With this patch-series, in our test-case, executed on a single system =
+and single NUMA node with 15GB memory, we were able to successfully launch =
+5 guests(each with 5 GB memory) when page hinting was enabled and 3 without=
+ it. (Detailed explanation of the test procedure is provided at the bottom =
+under Test - 1).
+> >>
+> >> Changelog in v9:
+> >>         * Guest free page hinting hook is now invoked after a page has=
+ been merged in the buddy.
+> >>         * Free pages only with order FREE_PAGE_HINTING_MIN_ORDER(curre=
+ntly defined as MAX_ORDER - 1) are captured.
+> >>         * Removed kthread which was earlier used to perform the scanni=
+ng, isolation & reporting of free pages.
+> > Without a kthread this has the potential to get really ugly really
+> > fast. If we are going to run asynchronously we should probably be
+> > truly asynchonous and just place a few pieces of data in the page that
+> > a worker thread can use to identify which pages have been hinted and
+> > which pages have not.
+>
+> Can you please explain what do you mean by truly asynchronous?
+>
+> With this implementation also I am not reporting the pages synchronously.
 
+The problem is you are making it pseudo synchronous by having to push
+pages off to a side buffer aren't you? In my mind we should be able to
+have the page hinting go on with little to no interference with
+existing page allocation and freeing.
 
-Le 04/03/2019 à 06:26, Daniel Axtens a écrit :
-> Hi Christophe,
->> diff --git a/arch/powerpc/include/asm/kasan.h b/arch/powerpc/include/asm/kasan.h
->> new file mode 100644
->> index 000000000000..c3161b8fc017
->> --- /dev/null
->> +++ b/arch/powerpc/include/asm/kasan.h
->> @@ -0,0 +1,15 @@
->> +/* SPDX-License-Identifier: GPL-2.0 */
->> +#ifndef __ASM_KASAN_H
->> +#define __ASM_KASAN_H
->> +
->> +#ifdef CONFIG_KASAN
->> +#define _GLOBAL_KASAN(fn)	.weak fn ; _GLOBAL(__##fn) ; _GLOBAL(fn)
->> +#define _GLOBAL_TOC_KASAN(fn)	.weak fn ; _GLOBAL_TOC(__##fn) ; _GLOBAL_TOC(fn)
->> +#define EXPORT_SYMBOL_KASAN(fn)	EXPORT_SYMBOL(__##fn) ; EXPORT_SYMBOL(fn)
-> 
-> I'm having some trouble with this. I get warnings like this:
+> > Then we can have that one thread just walking
+> > through the zone memory pulling out fixed size pieces at a time and
+> > providing hints on that. By doing that we avoid the potential of
+> > creating a batch of pages that eat up most of the system memory.
+> >
+> >>         * Pages, captured in the per cpu array are sorted based on the=
+ zone numbers. This is to avoid redundancy of acquiring zone locks.
+> >>         * Dynamically allocated space is used to hold the isolated gue=
+st free pages.
+> > I have concerns that doing this per CPU and allocating memory
+> > dynamically can result in you losing a significant amount of memory as
+> > it sits waiting to be hinted.
+> It should not as the buddy will keep merging the pages and we are only
+> capturing MAX_ORDER - 1.
+> This was the issue with the last patch-series when I was capturing all
+> order pages resulting in the per-cpu array to be filled with lower order
+> pages.
+> >
+> >>         * All the pages are reported asynchronously to the host via vi=
+rtio driver.
+> >>         * Pages are returned back to the guest buddy free list only wh=
+en the host response is received.
+> > I have been thinking about this. Instead of stealing the page couldn't
+> > you simply flag it that there is a hint in progress and simply wait in
+> > arch_alloc_page until the hint has been processed?
+> With the flag, I am assuming you mean to block the allocation until
+> hinting is going on, which is an issue. That was one of the issues
+> discussed earlier which I wanted to solve with this implementation.
 
-I don't have such problem, neither with ppc32 nor with ppc64e_defconfig.
+With the flag we would allow the allocation, but would have to
+synchronize with the hinting at that point. I got the idea from the
+way the s390 code works. They have both an arch_free_page and an
+arch_alloc_page. If I understand correctly the arch_alloc_page is what
+is meant to handle the case of a page that has been marked for
+hinting, but may not have been hinted on yet. My thought for now is to
+keep it simple and use a page flag to indicate that a page is
+currently pending a hint. We should be able to spin in such a case and
+it would probably still perform better than a solution where we would
+not have the memory available and possibly be under memory pressure.
 
-What config are you using ?
+> > The problem is in
+> > stealing pages you are going to introduce false OOM issues when the
+> > memory isn't available because it is being hinted on.
+> I think this situation will arise when the guest is under memory
+> pressure. In such situations any attempt to perform isolation will
+> anyways fail and we may not be reporting anything at that time.
 
-Another (unrelated) question I have:
-On the initial arm64 implementation (39d114ddc682 arm64: add KASAN 
-support) they made KASAN implementation depend on SPARSEMEM_VMEMMAP 
-(allthough they later removed that dependency with commit e17d8025f07e 
-arm64/mm/kasan: don't use vmemmap_populate() to initialize shadow)
+What I want to avoid is the scenario where an application grabs a
+large amount of memory, then frees said memory, and we are sitting on
+it for some time because we decide to try and hint on the large chunk.
+By processing this sometime after the pages are sent to the buddy
+allocator in a separate thread, and by processing a small fixed window
+of memory at a time we can avoid making freeing memory expensive, and
+still provide the hints in a reasonable time frame.
 
-So I'm wondering why on your side, KASAN depends on !SPARSEMEM_VMEMMAP
+> >
+> >> Pending items:
+> >>         * Make sure that the guest free page hinting's current impleme=
+ntation doesn't break hugepages or device assigned guests.
+> >>         * Follow up on VIRTIO_BALLOON_F_PAGE_POISON's device side supp=
+ort. (It is currently missing)
+> >>         * Compare reporting free pages via vring with vhost.
+> >>         * Decide between MADV_DONTNEED and MADV_FREE.
+> >>         * Analyze overall performance impact due to guest free page hi=
+nting.
+> >>         * Come up with proper/traceable error-message/logs.
+> > I'll try applying these patches and see if I can reproduce the results
+> > you reported.
+> Thanks. Let me know if you run into any issues.
+> > With the last patch set I couldn't reproduce the results
+> > as you reported them.
+> If I remember correctly then the last time you only tried with multiple
+> vcpus and not with 1 vcpu.
 
-Thanks
-Christophe
+I had tried 1 vcpu, however I ended up running into some other issues
+that made it difficult to even boot the system last week.
 
-> 
-> WARNING: EXPORT symbol "__memcpy" [vmlinux] version generation failed, symbol will not be versioned.
-> 
-> It seems to be related to the export line, as if I swap the exports to
-> do fn before __##fn I get:
-> 
-> WARNING: EXPORT symbol "memset" [vmlinux] version generation failed, symbol will not be versioned.
-> 
-> I have narrowed this down to combining 2 EXPORT_SYMBOL()s on one line.
-> This works - no warning:
-> 
-> EXPORT_SYMBOL(memset)
-> EXPORT_SYMBOL(__memset)
-> 
-> This throws a warning:
-> 
-> EXPORT_SYMBOL(memset) ; EXPORT_SYMBOL(__memset)
-> 
-> I notice in looking at the diff of preprocessed source we end up
-> invoking an asm macro that doesn't seem to have a full final argument, I
-> wonder if that's relevant...
-> 
-> -___EXPORT_SYMBOL __memset, __memset, ; ___EXPORT_SYMBOL memset, memset,
-> +___EXPORT_SYMBOL __memset, __memset,
-> +___EXPORT_SYMBOL memset, memset,
-> 
-> I also notice that nowhere else in the source do people have multiple
-> EXPORT_SYMBOLs on the same line, and other arches seem to just
-> unconditionally export both symbols on multiple lines.
-> 
-> I have no idea how this works for you - maybe it's affected by something 32bit.
-> 
-> How would you feel about this approach instead? I'm not tied to any of
-> the names or anything.
-> 
-> diff --git a/arch/powerpc/include/asm/ppc_asm.h b/arch/powerpc/include/asm/ppc_asm.h
-> index e0637730a8e7..7b6a91b448dd 100644
-> --- a/arch/powerpc/include/asm/ppc_asm.h
-> +++ b/arch/powerpc/include/asm/ppc_asm.h
-> @@ -214,6 +214,9 @@ name: \
->   
->   #define DOTSYM(a)      a
->   
-> +#define PROVIDE_WEAK_ALIAS(strongname, weakname) \
-> +       .weak weakname ; .set weakname, strongname ;
-> +
->   #else
->   
->   #define XGLUE(a,b) a##b
-> @@ -236,6 +239,10 @@ GLUE(.,name):
->   
->   #define DOTSYM(a)      GLUE(.,a)
->   
-> +#define PROVIDE_WEAK_ALIAS(strongname, weakname) \
-> +       .weak weakname ; .set weakname, strongname ; \
-> +       .weak DOTSYM(weakname) ; .set DOTSYM(weakname), DOTSYM(strongname) ;
-> +
->   #endif
->   
->   #else /* 32-bit */
-> @@ -251,6 +258,9 @@ GLUE(.,name):
->   
->   #define _GLOBAL_TOC(name) _GLOBAL(name)
->   
-> +#define PROVIDE_WEAK_ALIAS(strongname, weakname) \
-> +       .weak weakname ; .set weakname, strongname ;
-> +
->   #endif
->   
->   /*
-> --- a/arch/powerpc/lib/mem_64.S
-> +++ b/arch/powerpc/lib/mem_64.S
-> @@ -33,7 +33,8 @@ EXPORT_SYMBOL(__memset32)
->   EXPORT_SYMBOL(__memset64)
->   #endif
->   
-> -_GLOBAL_KASAN(memset)
-> +PROVIDE_WEAK_ALIAS(__memset,memset)
-> +_GLOBAL(__memset)
->          neg     r0,r3
->          rlwimi  r4,r4,8,16,23
->          andi.   r0,r0,7                 /* # bytes to be 8-byte aligned */
-> @@ -98,9 +99,11 @@ _GLOBAL_KASAN(memset)
->   10:    bflr    31
->          stb     r4,0(r6)
->          blr
-> -EXPORT_SYMBOL_KASAN(memset)
-> +EXPORT_SYMBOL(memset)
-> +EXPORT_SYMBOL(__memset)
->   
-> -_GLOBAL_TOC_KASAN(memmove)
-> +PROVIDE_WEAK_ALIAS(__memmove,memove)
-> +_GLOBAL_TOC(__memmove)
->          cmplw   0,r3,r4
->          bgt     backwards_memcpy
->          b       memcpy
-> @@ -141,4 +144,5 @@ _GLOBAL(backwards_memcpy)
->          beq     2b
->          mtctr   r7
->          b       1b
-> -EXPORT_SYMBOL_KASAN(memmove)
-> +EXPORT_SYMBOL(memmove)
-> +EXPORT_SYMBOL(__memmove)
-> diff --git a/arch/powerpc/lib/memcpy_64.S b/arch/powerpc/lib/memcpy_64.S
-> index 862b515b8868..7c1b09556cad 100644
-> --- a/arch/powerpc/lib/memcpy_64.S
-> +++ b/arch/powerpc/lib/memcpy_64.S
-> @@ -19,7 +19,8 @@
->   #endif
->   
->          .align  7
-> -_GLOBAL_TOC_KASAN(memcpy)
-> +PROVIDE_WEAK_ALIAS(__memcpy,memcpy)
-> +_GLOBAL_TOC(__memcpy)
->   BEGIN_FTR_SECTION
->   #ifdef __LITTLE_ENDIAN__
->          cmpdi   cr7,r5,0
-> @@ -230,4 +231,5 @@ END_FTR_SECTION_IFCLR(CPU_FTR_UNALIGNED_LD_STD)
->   4:     ld      r3,-STACKFRAMESIZE+STK_REG(R31)(r1)     /* return dest pointer */
->          blr
->   #endif
-> -EXPORT_SYMBOL_KASAN(memcpy)
-> +EXPORT_SYMBOL(__memcpy)
-> +EXPORT_SYMBOL(memcpy)
-> 
-> 
-> Regards,
-> Daniel
-> 
-> 
->> +#else
->> +#define _GLOBAL_KASAN(fn)	_GLOBAL(fn)
->> +#define _GLOBAL_TOC_KASAN(fn)	_GLOBAL_TOC(fn)
->> +#define EXPORT_SYMBOL_KASAN(fn)	EXPORT_SYMBOL(fn)
->> +#endif
->> +
->> +#endif
->> diff --git a/arch/powerpc/include/asm/string.h b/arch/powerpc/include/asm/string.h
->> index 1647de15a31e..9bf6dffb4090 100644
->> --- a/arch/powerpc/include/asm/string.h
->> +++ b/arch/powerpc/include/asm/string.h
->> @@ -4,14 +4,17 @@
->>   
->>   #ifdef __KERNEL__
->>   
->> +#ifndef CONFIG_KASAN
->>   #define __HAVE_ARCH_STRNCPY
->>   #define __HAVE_ARCH_STRNCMP
->> +#define __HAVE_ARCH_MEMCHR
->> +#define __HAVE_ARCH_MEMCMP
->> +#define __HAVE_ARCH_MEMSET16
->> +#endif
->> +
->>   #define __HAVE_ARCH_MEMSET
->>   #define __HAVE_ARCH_MEMCPY
->>   #define __HAVE_ARCH_MEMMOVE
->> -#define __HAVE_ARCH_MEMCMP
->> -#define __HAVE_ARCH_MEMCHR
->> -#define __HAVE_ARCH_MEMSET16
->>   #define __HAVE_ARCH_MEMCPY_FLUSHCACHE
->>   
->>   extern char * strcpy(char *,const char *);
->> @@ -27,7 +30,27 @@ extern int memcmp(const void *,const void *,__kernel_size_t);
->>   extern void * memchr(const void *,int,__kernel_size_t);
->>   extern void * memcpy_flushcache(void *,const void *,__kernel_size_t);
->>   
->> +void *__memset(void *s, int c, __kernel_size_t count);
->> +void *__memcpy(void *to, const void *from, __kernel_size_t n);
->> +void *__memmove(void *to, const void *from, __kernel_size_t n);
->> +
->> +#if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
->> +/*
->> + * For files that are not instrumented (e.g. mm/slub.c) we
->> + * should use not instrumented version of mem* functions.
->> + */
->> +#define memcpy(dst, src, len) __memcpy(dst, src, len)
->> +#define memmove(dst, src, len) __memmove(dst, src, len)
->> +#define memset(s, c, n) __memset(s, c, n)
->> +
->> +#ifndef __NO_FORTIFY
->> +#define __NO_FORTIFY /* FORTIFY_SOURCE uses __builtin_memcpy, etc. */
->> +#endif
->> +
->> +#endif
->> +
->>   #ifdef CONFIG_PPC64
->> +#ifndef CONFIG_KASAN
->>   #define __HAVE_ARCH_MEMSET32
->>   #define __HAVE_ARCH_MEMSET64
->>   
->> @@ -49,8 +72,11 @@ static inline void *memset64(uint64_t *p, uint64_t v, __kernel_size_t n)
->>   {
->>   	return __memset64(p, v, n * 8);
->>   }
->> +#endif
->>   #else
->> +#ifndef CONFIG_KASAN
->>   #define __HAVE_ARCH_STRLEN
->> +#endif
->>   
->>   extern void *memset16(uint16_t *, uint16_t, __kernel_size_t);
->>   #endif
->> diff --git a/arch/powerpc/kernel/prom_init_check.sh b/arch/powerpc/kernel/prom_init_check.sh
->> index 667df97d2595..181fd10008ef 100644
->> --- a/arch/powerpc/kernel/prom_init_check.sh
->> +++ b/arch/powerpc/kernel/prom_init_check.sh
->> @@ -16,8 +16,16 @@
->>   # If you really need to reference something from prom_init.o add
->>   # it to the list below:
->>   
->> +grep "^CONFIG_KASAN=y$" .config >/dev/null
->> +if [ $? -eq 0 ]
->> +then
->> +	MEM_FUNCS="__memcpy __memset"
->> +else
->> +	MEM_FUNCS="memcpy memset"
->> +fi
->> +
->>   WHITELIST="add_reloc_offset __bss_start __bss_stop copy_and_flush
->> -_end enter_prom memcpy memset reloc_offset __secondary_hold
->> +_end enter_prom $MEM_FUNCS reloc_offset __secondary_hold
->>   __secondary_hold_acknowledge __secondary_hold_spinloop __start
->>   strcmp strcpy strlcpy strlen strncmp strstr kstrtobool logo_linux_clut224
->>   reloc_got2 kernstart_addr memstart_addr linux_banner _stext
->> diff --git a/arch/powerpc/lib/Makefile b/arch/powerpc/lib/Makefile
->> index 79396e184bca..47a4de434c22 100644
->> --- a/arch/powerpc/lib/Makefile
->> +++ b/arch/powerpc/lib/Makefile
->> @@ -8,9 +8,14 @@ ccflags-$(CONFIG_PPC64)	:= $(NO_MINIMAL_TOC)
->>   CFLAGS_REMOVE_code-patching.o = $(CC_FLAGS_FTRACE)
->>   CFLAGS_REMOVE_feature-fixups.o = $(CC_FLAGS_FTRACE)
->>   
->> -obj-y += string.o alloc.o code-patching.o feature-fixups.o
->> +obj-y += alloc.o code-patching.o feature-fixups.o
->>   
->> -obj-$(CONFIG_PPC32)	+= div64.o copy_32.o crtsavres.o strlen_32.o
->> +ifndef CONFIG_KASAN
->> +obj-y	+=	string.o memcmp_$(BITS).o
->> +obj-$(CONFIG_PPC32)	+= strlen_32.o
->> +endif
->> +
->> +obj-$(CONFIG_PPC32)	+= div64.o copy_32.o crtsavres.o
->>   
->>   obj-$(CONFIG_FUNCTION_ERROR_INJECTION)	+= error-inject.o
->>   
->> @@ -34,7 +39,7 @@ obj64-$(CONFIG_KPROBES_SANITY_TEST)	+= test_emulate_step.o \
->>   					   test_emulate_step_exec_instr.o
->>   
->>   obj-y			+= checksum_$(BITS).o checksum_wrappers.o \
->> -			   string_$(BITS).o memcmp_$(BITS).o
->> +			   string_$(BITS).o
->>   
->>   obj-y			+= sstep.o ldstfp.o quad.o
->>   obj64-y			+= quad.o
->> diff --git a/arch/powerpc/lib/copy_32.S b/arch/powerpc/lib/copy_32.S
->> index ba66846fe973..fc4fa7246200 100644
->> --- a/arch/powerpc/lib/copy_32.S
->> +++ b/arch/powerpc/lib/copy_32.S
->> @@ -14,6 +14,7 @@
->>   #include <asm/ppc_asm.h>
->>   #include <asm/export.h>
->>   #include <asm/code-patching-asm.h>
->> +#include <asm/kasan.h>
->>   
->>   #define COPY_16_BYTES		\
->>   	lwz	r7,4(r4);	\
->> @@ -68,6 +69,7 @@ CACHELINE_BYTES = L1_CACHE_BYTES
->>   LG_CACHELINE_BYTES = L1_CACHE_SHIFT
->>   CACHELINE_MASK = (L1_CACHE_BYTES-1)
->>   
->> +#ifndef CONFIG_KASAN
->>   _GLOBAL(memset16)
->>   	rlwinm.	r0 ,r5, 31, 1, 31
->>   	addi	r6, r3, -4
->> @@ -81,6 +83,7 @@ _GLOBAL(memset16)
->>   	sth	r4, 4(r6)
->>   	blr
->>   EXPORT_SYMBOL(memset16)
->> +#endif
->>   
->>   /*
->>    * Use dcbz on the complete cache lines in the destination
->> @@ -91,7 +94,7 @@ EXPORT_SYMBOL(memset16)
->>    * We therefore skip the optimised bloc that uses dcbz. This jump is
->>    * replaced by a nop once cache is active. This is done in machine_init()
->>    */
->> -_GLOBAL(memset)
->> +_GLOBAL_KASAN(memset)
->>   	cmplwi	0,r5,4
->>   	blt	7f
->>   
->> @@ -150,7 +153,7 @@ _GLOBAL(memset)
->>   9:	stbu	r4,1(r6)
->>   	bdnz	9b
->>   	blr
->> -EXPORT_SYMBOL(memset)
->> +EXPORT_SYMBOL_KASAN(memset)
->>   
->>   /*
->>    * This version uses dcbz on the complete cache lines in the
->> @@ -163,12 +166,12 @@ EXPORT_SYMBOL(memset)
->>    * We therefore jump to generic_memcpy which doesn't use dcbz. This jump is
->>    * replaced by a nop once cache is active. This is done in machine_init()
->>    */
->> -_GLOBAL(memmove)
->> +_GLOBAL_KASAN(memmove)
->>   	cmplw	0,r3,r4
->>   	bgt	backwards_memcpy
->>   	/* fall through */
->>   
->> -_GLOBAL(memcpy)
->> +_GLOBAL_KASAN(memcpy)
->>   1:	b	generic_memcpy
->>   	patch_site	1b, patch__memcpy_nocache
->>   
->> @@ -242,8 +245,8 @@ _GLOBAL(memcpy)
->>   	stbu	r0,1(r6)
->>   	bdnz	40b
->>   65:	blr
->> -EXPORT_SYMBOL(memcpy)
->> -EXPORT_SYMBOL(memmove)
->> +EXPORT_SYMBOL_KASAN(memcpy)
->> +EXPORT_SYMBOL_KASAN(memmove)
->>   
->>   generic_memcpy:
->>   	srwi.	r7,r5,3
->> diff --git a/arch/powerpc/lib/mem_64.S b/arch/powerpc/lib/mem_64.S
->> index 3c3be02f33b7..7cd6cf6822a2 100644
->> --- a/arch/powerpc/lib/mem_64.S
->> +++ b/arch/powerpc/lib/mem_64.S
->> @@ -12,7 +12,9 @@
->>   #include <asm/errno.h>
->>   #include <asm/ppc_asm.h>
->>   #include <asm/export.h>
->> +#include <asm/kasan.h>
->>   
->> +#ifndef CONFIG_KASAN
->>   _GLOBAL(__memset16)
->>   	rlwimi	r4,r4,16,0,15
->>   	/* fall through */
->> @@ -29,8 +31,9 @@ _GLOBAL(__memset64)
->>   EXPORT_SYMBOL(__memset16)
->>   EXPORT_SYMBOL(__memset32)
->>   EXPORT_SYMBOL(__memset64)
->> +#endif
->>   
->> -_GLOBAL(memset)
->> +_GLOBAL_KASAN(memset)
->>   	neg	r0,r3
->>   	rlwimi	r4,r4,8,16,23
->>   	andi.	r0,r0,7			/* # bytes to be 8-byte aligned */
->> @@ -95,9 +98,9 @@ _GLOBAL(memset)
->>   10:	bflr	31
->>   	stb	r4,0(r6)
->>   	blr
->> -EXPORT_SYMBOL(memset)
->> +EXPORT_SYMBOL_KASAN(memset)
->>   
->> -_GLOBAL_TOC(memmove)
->> +_GLOBAL_TOC_KASAN(memmove)
->>   	cmplw	0,r3,r4
->>   	bgt	backwards_memcpy
->>   	b	memcpy
->> @@ -138,4 +141,4 @@ _GLOBAL(backwards_memcpy)
->>   	beq	2b
->>   	mtctr	r7
->>   	b	1b
->> -EXPORT_SYMBOL(memmove)
->> +EXPORT_SYMBOL_KASAN(memmove)
->> diff --git a/arch/powerpc/lib/memcpy_64.S b/arch/powerpc/lib/memcpy_64.S
->> index 273ea67e60a1..862b515b8868 100644
->> --- a/arch/powerpc/lib/memcpy_64.S
->> +++ b/arch/powerpc/lib/memcpy_64.S
->> @@ -11,6 +11,7 @@
->>   #include <asm/export.h>
->>   #include <asm/asm-compat.h>
->>   #include <asm/feature-fixups.h>
->> +#include <asm/kasan.h>
->>   
->>   #ifndef SELFTEST_CASE
->>   /* For big-endian, 0 == most CPUs, 1 == POWER6, 2 == Cell */
->> @@ -18,7 +19,7 @@
->>   #endif
->>   
->>   	.align	7
->> -_GLOBAL_TOC(memcpy)
->> +_GLOBAL_TOC_KASAN(memcpy)
->>   BEGIN_FTR_SECTION
->>   #ifdef __LITTLE_ENDIAN__
->>   	cmpdi	cr7,r5,0
->> @@ -229,4 +230,4 @@ END_FTR_SECTION_IFCLR(CPU_FTR_UNALIGNED_LD_STD)
->>   4:	ld	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)	/* return dest pointer */
->>   	blr
->>   #endif
->> -EXPORT_SYMBOL(memcpy)
->> +EXPORT_SYMBOL_KASAN(memcpy)
->> -- 
->> 2.13.3
+> > It has me wondering if you were somehow seeing
+> > the effects of a balloon instead of the actual memory hints as I
+> > couldn't find any evidence of the memory ever actually being freed
+> > back by the hints functionality.
+>
+> Can you please elaborate what kind of evidence you are looking for?
+>
+> I did trace the hints on the QEMU/host side.
+
+It looks like the new patches are working as I am seeing the memory
+freeing occurring this time around. Although it looks like this is
+still generating traces from free_pcpages_bulk if I enable multiple
+VCPUs:
+
+[  175.823539] list_add corruption. next->prev should be prev
+(ffff947c7ffd61e0), but was ffffc7a29f9e0008. (next=3Dffffc7a29f4c0008).
+[  175.825978] ------------[ cut here ]------------
+[  175.826889] kernel BUG at lib/list_debug.c:25!
+[  175.827766] invalid opcode: 0000 [#1] SMP PTI
+[  175.828621] CPU: 5 PID: 1344 Comm: page_fault1_thr Not tainted
+5.0.0-next-20190306-baseline+ #76
+[  175.830312] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996),
+BIOS Bochs 01/01/2011
+[  175.831885] RIP: 0010:__list_add_valid+0x35/0x70
+[  175.832784] Code: 18 48 8b 32 48 39 f0 75 39 48 39 c7 74 1e 48 39
+fa 74 19 b8 01 00 00 00 c3 48 89 c1 48 c7 c7 80 b5 0f a9 31 c0 e8 8f
+aa c8 ff <0f> 0b 48 89 c1 48 89 fe 31 c0 48 c7 c7 30 b6 0f a9 e8 79 aa
+c8 ff
+[  175.836379] RSP: 0018:ffffa717c40839b0 EFLAGS: 00010046
+[  175.837394] RAX: 0000000000000075 RBX: ffff947c7ffd61e0 RCX: 00000000000=
+00000
+[  175.838779] RDX: 0000000000000000 RSI: ffff947c5f957188 RDI: ffff947c5f9=
+57188
+[  175.840162] RBP: ffff947c7ffd61d0 R08: 000000000000026f R09: 00000000000=
+00005
+[  175.841539] R10: 0000000000000000 R11: ffffa717c4083730 R12: ffffc7a29f2=
+60008
+[  175.842932] R13: ffff947c7ffd5d00 R14: ffffc7a29f4c0008 R15: ffffc7a29f2=
+60000
+[  175.844319] FS:  0000000000000000(0000) GS:ffff947c5f940000(0000)
+knlGS:0000000000000000
+[  175.845896] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  175.847009] CR2: 00007fffe3421000 CR3: 000000051220e006 CR4: 00000000001=
+60ee0
+[  175.848390] Call Trace:
+[  175.848896]  free_pcppages_bulk+0x4bc/0x6a0
+[  175.849723]  free_unref_page_list+0x10d/0x190
+[  175.850567]  release_pages+0x103/0x4a0
+[  175.851313]  tlb_flush_mmu_free+0x36/0x50
+[  175.852105]  unmap_page_range+0x963/0xd50
+[  175.852897]  unmap_vmas+0x62/0xc0
+[  175.853549]  exit_mmap+0xb5/0x1a0
+[  175.854205]  mmput+0x5b/0x120
+[  175.854794]  do_exit+0x273/0xc30
+[  175.855426]  ? free_unref_page_commit+0x85/0xf0
+[  175.856312]  do_group_exit+0x39/0xa0
+[  175.857018]  get_signal+0x172/0x7c0
+[  175.857703]  do_signal+0x36/0x620
+[  175.858355]  ? percpu_counter_add_batch+0x4b/0x60
+[  175.859280]  ? __do_munmap+0x288/0x390
+[  175.860020]  exit_to_usermode_loop+0x4c/0xa8
+[  175.860859]  do_syscall_64+0x152/0x170
+[  175.861595]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+[  175.862586] RIP: 0033:0x7ffff76a8ec7
+[  175.863292] Code: Bad RIP value.
+[  175.863928] RSP: 002b:00007ffff4422eb8 EFLAGS: 00000212 ORIG_RAX:
+000000000000000b
+[  175.865396] RAX: 0000000000000000 RBX: 00007ffff7ff7280 RCX: 00007ffff76=
+a8ec7
+[  175.866799] RDX: 00007fffe3422000 RSI: 0000000008000000 RDI: 00007fffdb4=
+22000
+[  175.868194] RBP: 0000000000001000 R08: ffffffffffffffff R09: 00000000000=
+00000
+[  175.869582] R10: 0000000000000022 R11: 0000000000000212 R12: 00007ffff44=
+22fc0
+[  175.870984] R13: 0000000000000001 R14: 00007fffffffc1b0 R15: 00007ffff44=
+239c0
+[  175.872350] Modules linked in: ip6t_rpfilter ip6t_REJECT
+nf_reject_ipv6 xt_conntrack ip_set nfnetlink ebtable_nat
+ebtable_broute bridge stp llc ip6table_nat ip6table_mangle
+ip6table_raw ip6table_security iptable_nat nf_nat nf_conntrack
+nf_defrag_ipv6 nf_defrag_ipv4 iptable_mangle iptable_raw
+iptable_security ebtable_filter ebtables ip6table_filter ip6_tables
+sunrpc sb_edac crct10dif_pclmul crc32_pclmul ghash_clmulni_intel
+kvm_intel kvm ppdev irqbypass parport_pc parport virtio_balloon pcspkr
+i2c_piix4 joydev xfs libcrc32c cirrus drm_kms_helper ttm drm e1000
+crc32c_intel virtio_blk serio_raw ata_generic floppy pata_acpi
+qemu_fw_cfg
+[  175.883153] ---[ end trace 5b67f12a67d1f373 ]---
+
+I should be able to rebuild the kernels/qemu and test this patch set
+over the next day or two.
+
+Thanks.
+
+- Alex
 
