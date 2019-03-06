@@ -2,182 +2,270 @@ Return-Path: <SRS0=43/C=RJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0CCD1C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 13:45:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 28696C43381
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 14:05:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DAEBC20828
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 13:45:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DAEBC20828
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id C6A0520661
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 14:05:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C6A0520661
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 39BAA8E0003; Wed,  6 Mar 2019 08:45:16 -0500 (EST)
+	id 4C4B68E0003; Wed,  6 Mar 2019 09:05:57 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 34CA38E0002; Wed,  6 Mar 2019 08:45:16 -0500 (EST)
+	id 474E78E0002; Wed,  6 Mar 2019 09:05:57 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 23BD58E0003; Wed,  6 Mar 2019 08:45:16 -0500 (EST)
+	id 33C1D8E0003; Wed,  6 Mar 2019 09:05:57 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BDDD98E0002
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 08:45:15 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id i20so6364674edv.21
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 05:45:15 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A8D28E0002
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 09:05:57 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id c9so11458538qte.11
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 06:05:57 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=YQ91Tw+lPlaS4wmnEbzIvvhfkLGIOAOpEjqXhUR1SNE=;
-        b=ZKYM9gIFozAanBjAmir+nGBSOLCxUpq6bkU34UQjrh418uVygT/Y3mHsvPldEVLS3r
-         Cw0NZHIUMcXlpFAvcq+eCfddnonnePe+72FCiPQek+BAZZitRYUHcE+gxB8fnr2BI8QY
-         8gq0f5GpvQE2szWeBejfHSYzohx6olf46BtVcgXuiaq8Eg8/5yoahveRzungDyv9WqKK
-         pYzQYronZ0BQW9/4e5zKssrIbSeAddvuWSniuQG1Ly9ZL9v0t271I22KcTdVlUn5faQh
-         Z864i7KTaMUQeURRcfXNREF/7NAc++Ru/iCLNI/Vunv0keQxXuJvWHyQBboWns2W/Quu
-         quhw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAWFs885wyJur42BAPpkXOdh1rcA8JY/N6wXtfLukt8UaKvW75PH
-	KZcMfa1WuYnzFBpUIXQpkSF73XjxOnPJgxGPR0gZfuMAqRiiNjBJH+B5q/C2D5jVapaQ58YDfy7
-	7tNw5UCFDh5+H7olBXgnS4bYqQ3mw0n0ApXgBuGbWT5euHaAtNrQicUPrYaLMLs0d4g==
-X-Received: by 2002:a50:b6e6:: with SMTP id f35mr23909821ede.94.1551879915323;
-        Wed, 06 Mar 2019 05:45:15 -0800 (PST)
-X-Google-Smtp-Source: APXvYqyNtexk3IQry71v4FS8lVIoh+KnJtbRX3OVpOeq7Bq5qBghvysyN8IcYyDWBQdWr94ByiKp
-X-Received: by 2002:a50:b6e6:: with SMTP id f35mr23909756ede.94.1551879914311;
-        Wed, 06 Mar 2019 05:45:14 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551879914; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=LXgWVOy3sOBoikPx50pGkn3Ly/MrV17Yo0vjSvlko2M=;
+        b=WAar2oD4nHAtecrz927fOPS+R34FN8VKNCh/dc4nV/dDJNYTAVmnHwoufVLoNgySfq
+         FgTJKJB/xZFCGXEAdkJs+ZaEOV7Dlsgxnakkp1ViwVBxywuUee2hT2yND8J6L+6ByOSB
+         Pvr2xs3s2f2ZbruwX0CmIyfhzErYqScdvMXsSZRE+KXIQOF9BWjfqOT7Px6tj7FG6x/c
+         fgeVB0XuS1kBvbf8CJEA4BzG/2zFs/IUUT7k2KP3kvDt3CuNf6OQH/bi+/2rgpFYEJld
+         MNiLnB0fkBfGcARcaj20Ds5Q5O0xAAoA+IxvmZCbV7l6pcJ1F6BLwZEQ6VOjYKWflUF8
+         GJeA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAVbzAM3lIGdFLG004m/rEPygTo2Z7ZdNQF90fjpFSGGUpXy4A8P
+	my6/Fqock+WKFFKa0vPoSChfdpmXohSexuDl5g7hn7GAWMAzzFrgs+SYqrzMrfvHqSb7LhKcVZ3
+	qu30bvXk1yrDGv5GWVA9pf3409VLmSzToQFS0O8JAOtpclz0k9X+OJlikfwXgkhnYTg==
+X-Received: by 2002:ae9:c119:: with SMTP id z25mr5755427qki.222.1551881156714;
+        Wed, 06 Mar 2019 06:05:56 -0800 (PST)
+X-Google-Smtp-Source: APXvYqyGo2d+KQgn1G6voiZY1LlbiOHWyADFZJe+aLhDg52u0Ae/1EacL4LJfSMg4pKMyzOnbuy0
+X-Received: by 2002:ae9:c119:: with SMTP id z25mr5755303qki.222.1551881155031;
+        Wed, 06 Mar 2019 06:05:55 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551881155; cv=none;
         d=google.com; s=arc-20160816;
-        b=nqaNua5LoaFaauJcHzETWhPa31zCncBeUSYtkVHdWXZjhJ5kRaByK/HDuypOmrcYUU
-         v1GUE/p2Hsh1dVPd0Q5exCeC/udLK2aMrqC/VLmQvilN3nrmj7oZLZ0sPkhxMqPREH5d
-         aadOB7ujSj9PpPe8ZfqCLOg7D+1f9ONVfhWzY0YozYGHYhn3k2bnNsFV4DOjijjdE9LA
-         lcDvTop6VwMTycDaZ6mRVTiAX0E+iTQgNiJPMONcd2TeEizi//BchuIJ7EDAxmTjgLfC
-         zv/cEOpJKqXsqH0m++8xoM77tqvJWjvGmrUQP2J3332Rog8ApDSukq+OuRddsjDD2q92
-         hyQw==
+        b=0qlzpzNfbnpowVb8IPjaSrNfEL+oXFmzAn1aRdfRbjaHOZBkpNagAfbHBM18JL4Ssr
+         3lwdPEx9mtYQQGRwEXgkJXyNiubZyQNPYuy5Ec+a343w7Ccr+YwSaI3PuWO2hm+T4Y96
+         4jAwhWXJLYqZp3h6jIWh07cR9ZvQxG1O6D0RbzrQNK+93Ws2fnc/ObzYMd7SSYkYKETv
+         s4sGgPdz00LjVdRkDBnwH8sWcPrKEzZTvuXrbFoM3q84UAKuKUum52kj58edy3Aht2jM
+         z+bPXSpJZXY4fhY/uyBGhXEfxIggpd2mhm3BWhp5zaPzVVu3inLRf9PSQJ31dDG9T9oN
+         W0RA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=YQ91Tw+lPlaS4wmnEbzIvvhfkLGIOAOpEjqXhUR1SNE=;
-        b=KKt605THgSRHV34LNzOPoc0emsNnoHSAs5m+xCLll849SDZKRmtfE8xkIxwsD/bI4Z
-         AeEN/gnU3R0ig4nsvfL/NEHtfx7QVB3vsNCEkGpu99rMdtbKZ2U5v2H2s38OauaEcGAL
-         eMeSfnA//993GGdh/Ngp03nyA5WrkElfIdZzFSnwwTYAqnZkM3oHNtoXv3mrhuaPVqrY
-         4ISCTNYLYxzxVIIDzBBJ+/mak22hDG0DpWFvpSzUJayreBnwencM7EglWFdA2/hXtV/z
-         fU7pIl3kWV7weZt0NmrLzAXwlAxC4B9q5Unbz91YtQffRUx2Fr21MKVGv3rV9sOxMWeu
-         iCqg==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=LXgWVOy3sOBoikPx50pGkn3Ly/MrV17Yo0vjSvlko2M=;
+        b=K4RuPuIdBwRU1QMESaZQVeK7zR+v/OSbTUcAQPK5v6bUrmiEipGZpuAZ9H8dt1uZAq
+         +iszZHIiHOxAB6w/fBKw4fjaTHHdDPtyuAqfcC7SOCh1llaL9ipYQkwOvTwIMmw3Io51
+         q/+2yRhhDSaZZveh7JVT9Pv5M5HLd5VSIjDAnepuvQB4jwku5cWnpnpB083eVksusbE0
+         6arNnbj6nKUiwHuwZw7BMGX4ddY1baI6yDZRTpqMtKVycBuBrBH7RgyFlfbERXVPaXJG
+         SuUtG4NuVcIMCcdnv5N3pjLLCPrfXzn4bQztYccThad3w46Oe8DjqRzmaUHBkjwlHwNg
+         KNlA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id x23si637251eda.273.2019.03.06.05.45.13
-        for <linux-mm@kvack.org>;
-        Wed, 06 Mar 2019 05:45:14 -0800 (PST)
-Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 12si982794qvq.198.2019.03.06.06.05.54
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Mar 2019 06:05:54 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 100A6EBD;
-	Wed,  6 Mar 2019 05:45:13 -0800 (PST)
-Received: from [10.1.196.69] (e112269-lin.cambridge.arm.com [10.1.196.69])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 5B9503F71D;
-	Wed,  6 Mar 2019 05:45:09 -0800 (PST)
-Subject: Re: [PATCH v3 08/34] ia64: mm: Add p?d_large() definitions
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: Mark Rutland <Mark.Rutland@arm.com>, linux-ia64@vger.kernel.org,
- Peter Zijlstra <peterz@infradead.org>,
- Catalin Marinas <catalin.marinas@arm.com>,
- Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon
- <will.deacon@arm.com>, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>,
- "Liang, Kan" <kan.liang@linux.intel.com>, x86@kernel.org,
- Ingo Molnar <mingo@redhat.com>, Fenghua Yu <fenghua.yu@intel.com>,
- Arnd Bergmann <arnd@arndb.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
- <jglisse@redhat.com>, Borislav Petkov <bp@alien8.de>,
- Andy Lutomirski <luto@kernel.org>, "Kirill A. Shutemov"
- <kirill@shutemov.name>, Thomas Gleixner <tglx@linutronix.de>,
- linux-arm-kernel@lists.infradead.org,
- Ard Biesheuvel <ard.biesheuvel@linaro.org>, linux-kernel@vger.kernel.org,
- James Morse <james.morse@arm.com>
-References: <20190227170608.27963-1-steven.price@arm.com>
- <20190227170608.27963-9-steven.price@arm.com>
- <20190301215728.nk7466zohdlgelcb@kshutemo-mobl1>
- <15100043-26e4-2ee1-28fe-101e12f74926@arm.com>
- <20190304190637.GA13947@agluck-desk>
-From: Steven Price <steven.price@arm.com>
-Message-ID: <aab0ac18-fe3b-a753-009e-8704edb15623@arm.com>
-Date: Wed, 6 Mar 2019 13:45:07 +0000
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x26E4de7094872
+	for <linux-mm@kvack.org>; Wed, 6 Mar 2019 09:05:54 -0500
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2r2fn702gv-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 06 Mar 2019 09:05:53 -0500
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Wed, 6 Mar 2019 14:05:51 -0000
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 6 Mar 2019 14:05:44 -0000
+Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x26E5hx116777316
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Wed, 6 Mar 2019 14:05:43 GMT
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 5CBE911C04C;
+	Wed,  6 Mar 2019 14:05:43 +0000 (GMT)
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id CC5A111C04A;
+	Wed,  6 Mar 2019 14:05:41 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.84])
+	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Wed,  6 Mar 2019 14:05:41 +0000 (GMT)
+Date: Wed, 6 Mar 2019 16:05:40 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Guillaume Tucker <guillaume.tucker@collabora.com>
+Cc: Dan Williams <dan.j.williams@intel.com>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Michal Hocko <mhocko@suse.com>, Mark Brown <broonie@kernel.org>,
+        Tomeu Vizoso <tomeu.vizoso@collabora.com>,
+        Matt Hart <matthew.hart@linaro.org>,
+        Stephen Rothwell <sfr@canb.auug.org.au>, khilman@baylibre.com,
+        enric.balletbo@collabora.com, Nicholas Piggin <npiggin@gmail.com>,
+        Dominik Brodowski <linux@dominikbrodowski.net>,
+        Masahiro Yamada <yamada.masahiro@socionext.com>,
+        Kees Cook <keescook@chromium.org>, Adrian Reber <adrian@lisas.de>,
+        Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+        Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>,
+        Mathieu Desnoyers <mathieu.desnoyers@efficios.com>,
+        Richard Guy Briggs <rgb@redhat.com>,
+        "Peter Zijlstra (Intel)" <peterz@infradead.org>, info@kernelci.org
+Subject: Re: next/master boot bisection: next-20190215 on beaglebone-black
+References: <20190215185151.GG7897@sirena.org.uk>
+ <20190226155948.299aa894a5576e61dda3e5aa@linux-foundation.org>
+ <CAPcyv4ivjC8fNkfjdFyaYCAjGh7wtvFQnoPpOcR=VNZ=c6d6Rg@mail.gmail.com>
+ <20190228151438.fc44921e66f2f5d393c8d7b4@linux-foundation.org>
+ <CAPcyv4hDmmK-L=0txw7L9O8YgvAQxZfVFiSoB4LARRnGQ3UC7Q@mail.gmail.com>
+ <026b5082-32f2-e813-5396-e4a148c813ea@collabora.com>
+ <20190301124100.62a02e2f622ff6b5f178a7c3@linux-foundation.org>
+ <3fafb552-ae75-6f63-453c-0d0e57d818f3@collabora.com>
+ <CAPcyv4hMNiiM11ULjbOnOf=9N=yCABCRsAYLpjXs+98bRoRpCA@mail.gmail.com>
+ <36faea07-139c-b97d-3585-f7d6d362abc3@collabora.com>
 MIME-Version: 1.0
-In-Reply-To: <20190304190637.GA13947@agluck-desk>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <36faea07-139c-b97d-3585-f7d6d362abc3@collabora.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19030614-0008-0000-0000-000002C945FD
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19030614-0009-0000-0000-00002235507C
+Message-Id: <20190306140529.GG3549@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-06_10:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1903060097
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/03/2019 19:06, Luck, Tony wrote:
-> On Mon, Mar 04, 2019 at 01:16:47PM +0000, Steven Price wrote:
->> On 01/03/2019 21:57, Kirill A. Shutemov wrote:
->>> On Wed, Feb 27, 2019 at 05:05:42PM +0000, Steven Price wrote:
->>>> walk_page_range() is going to be allowed to walk page tables other than
->>>> those of user space. For this it needs to know when it has reached a
->>>> 'leaf' entry in the page tables. This information is provided by the
->>>> p?d_large() functions/macros.
->>>>
->>>> For ia64 leaf entries are always at the lowest level, so implement
->>>> stubs returning 0.
->>>
->>> Are you sure about this? I see pte_mkhuge defined for ia64 and Kconfig
->>> contains hugetlb references.
->>>
->>
->> I'm not completely familiar with ia64, but my understanding is that it
->> doesn't have the situation where a page table walk ends early - there is
->> always the full depth of entries. The p?d_huge() functions always return 0.
->>
->> However my understanding is that it does support huge TLB entries, so
->> when populating the TLB a region larger than a standard page can be mapped.
->>
->> I'd definitely welcome review by someone more familiar with ia64 to
->> check my assumptions.
+On Wed, Mar 06, 2019 at 10:14:47AM +0000, Guillaume Tucker wrote:
+> On 01/03/2019 23:23, Dan Williams wrote:
+> > On Fri, Mar 1, 2019 at 1:05 PM Guillaume Tucker
+> > <guillaume.tucker@collabora.com> wrote:
+> > 
+> > Is there an early-printk facility that can be turned on to see how far
+> > we get in the boot?
 > 
-> ia64 has several ways to manage page tables. The one
-> used by Linux has multi-level table walks like other
-> architectures, but we don't allow mixing of different
-> page sizes within a "region" (there are eight regions
-> selected by the high 3 bits of the virtual address).
+> Yes, I've done that now by enabling CONFIG_DEBUG_AM33XXUART1 and
+> earlyprintk in the command line.  Here's the result, with the
+> commit cherry picked on top of next-20190304:
+> 
+>   https://lava.collabora.co.uk/scheduler/job/1526326
+> 
+> [    1.379522] ti-sysc 4804a000.target-module: sysc_flags 00000222 != 00000022
+> [    1.396718] Unable to handle kernel paging request at virtual address 77bb4003
+> [    1.404203] pgd = (ptrval)
+> [    1.406971] [77bb4003] *pgd=00000000
+> [    1.410650] Internal error: Oops: 5 [#1] ARM
+> [...]
+> [    1.672310] [<c07051a0>] (clk_hw_create_clk.part.21) from [<c06fea34>] (devm_clk_get+0x4c/0x80)
+> [    1.681232] [<c06fea34>] (devm_clk_get) from [<c064253c>] (sysc_probe+0x28c/0xde4)
+> 
+> It's always failing at that point in the code.  Also when
+> enabling "debug" on the kernel command line, the issue goes
+> away (exact same binaries etc..):
+> 
+>   https://lava.collabora.co.uk/scheduler/job/1526327
+> 
+> For the record, here's the branch I've been using:
+> 
+>   https://gitlab.collabora.com/gtucker/linux/tree/beaglebone-black-next-20190304-debug
+> 
+> The board otherwise boots fine with next-20190304 (SMP=n), and
+> also with the patch applied but the shuffle configs set to n.
+> 
+> > Were there any boot *successes* on ARM with shuffling enabled? I.e.
+> > clues about what's different about the specific memory setup for
+> > beagle-bone-black.
+> 
+> Looking at the KernelCI results from next-20190215, it looks like
+> only the BeagleBone Black with SMP=n failed to boot:
+> 
+>   https://kernelci.org/boot/all/job/next/branch/master/kernel/next-20190215/
+> 
+> Of course that's not all the ARM boards that exist out there, but
+> it's a fairly large coverage already.
+> 
+> As the kernel panic always seems to originate in ti-sysc.c,
+> there's a chance it's only visible on that platform...  I'm doing
+> a KernelCI run now with my test branch to double check that,
+> it'll take a few hours so I'll send an update later if I get
+> anything useful out of it.
+> 
+> In the meantime, I'm happy to try out other things with more
+> debug configs turned on or any potential fixes someone might
+> have.
 
-I'd gathered ia64 has this "region" concept, from what I can tell the
-existing p?d_present() etc macros are assuming a particular
-configuration of a region, and so the p?d_large macros would follow that
-scheme. This of course does limit any generic page walking code to
-dealing only with this one type of region, but that doesn't seem
-unreasonable.
+ARM is the only arch that sets ARCH_HAS_HOLES_MEMORYMODEL to 'y'. Maybe the
+failure has something to do with it...
 
-> Is the series in some GIT tree that I can pull, rather
-> than tracking down all 34 pieces?  I can try it out and
-> see if things work/break.
+Guillaume, can you try this patch:
 
-At the moment I don't have a public tree - I'm trying to get that set
-up. In the meantime you can download the entire series as a mbox from
-patchwork:
+diff --git a/mm/shuffle.c b/mm/shuffle.c
+index 3ce1248..4a04aac 100644
+--- a/mm/shuffle.c
++++ b/mm/shuffle.c
+@@ -58,7 +58,8 @@ module_param_call(shuffle, shuffle_store, shuffle_show, &shuffle_param, 0400);
+  * For two pages to be swapped in the shuffle, they must be free (on a
+  * 'free_area' lru), have the same order, and have the same migratetype.
+  */
+-static struct page * __meminit shuffle_valid_page(unsigned long pfn, int order)
++static struct page * __meminit shuffle_valid_page(unsigned long pfn, int order,
++						  struct zone *z)
+ {
+ 	struct page *page;
+ 
+@@ -80,6 +81,9 @@ static struct page * __meminit shuffle_valid_page(unsigned long pfn, int order)
+ 	if (!PageBuddy(page))
+ 		return NULL;
+ 
++	if (!memmap_valid_within(pfn, page, z))
++		return NULL;
++
+ 	/*
+ 	 * ...is the page on the same list as the page we will
+ 	 * shuffle it with?
+@@ -123,7 +127,7 @@ void __meminit __shuffle_zone(struct zone *z)
+ 		 * page_j randomly selected in the span @zone_start_pfn to
+ 		 * @spanned_pages.
+ 		 */
+-		page_i = shuffle_valid_page(i, order);
++		page_i = shuffle_valid_page(i, order, z);
+ 		if (!page_i)
+ 			continue;
+ 
+@@ -137,7 +141,7 @@ void __meminit __shuffle_zone(struct zone *z)
+ 			j = z->zone_start_pfn +
+ 				ALIGN_DOWN(get_random_long() % z->spanned_pages,
+ 						order_pages);
+-			page_j = shuffle_valid_page(j, order);
++			page_j = shuffle_valid_page(j, order, z);
+ 			if (page_j && page_j != page_i)
+ 				break;
+ 		}
+ 
 
-https://patchwork.kernel.org/series/85673/mbox/
-
-(it's currently based on v5.0-rc6)
-
-However you won't see anything particularly interesting on ia64 (yet)
-because my focus has been converting the PTDUMP implementations that
-several architecture have (arm, arm64, powerpc, s390, x86) but not ia64.
-For now I've also only done the PTDUMP work for arm64/x86 as a way of
-testing out the idea. Ideally the PTDUMP code can be made generic enough
-that implementing it for other architecture (including ia64) will be
-trivial.
-
-Thanks,
-
-Steve
+-- 
+Sincerely yours,
+Mike.
 
