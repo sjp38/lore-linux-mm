@@ -2,215 +2,326 @@ Return-Path: <SRS0=43/C=RJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C6D2C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 17:13:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 96F4BC43381
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 18:07:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B7D9F206DD
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 17:13:05 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=wavesemi.onmicrosoft.com header.i=@wavesemi.onmicrosoft.com header.b="SCNXtahL"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B7D9F206DD
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mips.com
+	by mail.kernel.org (Postfix) with ESMTP id 4D76D20652
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 18:07:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D76D20652
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 178608E0003; Wed,  6 Mar 2019 12:13:05 -0500 (EST)
+	id BFA168E0003; Wed,  6 Mar 2019 13:07:55 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 127878E0002; Wed,  6 Mar 2019 12:13:05 -0500 (EST)
+	id BAB088E0002; Wed,  6 Mar 2019 13:07:55 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F097C8E0003; Wed,  6 Mar 2019 12:13:04 -0500 (EST)
+	id A72F28E0003; Wed,  6 Mar 2019 13:07:55 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 98A748E0002
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 12:13:04 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id j5so6666064edt.17
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 09:13:04 -0800 (PST)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DB458E0002
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 13:07:55 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id q15so10620035qki.14
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 10:07:55 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:user-agent:content-id:content-transfer-encoding
-         :mime-version;
-        bh=fcrIwh5FAS/p9ZnN5P/05g+4grW/DAzlhzsDUfqXcHs=;
-        b=SAHIk3+9TBztXVQ5857aB+E6gW1ylhvjZlIjVRw/nG09/Xs5ugvE3xp1Rb39ED5Cov
-         56kYxlEoDtrZ1tJAbGWgZ5ICFqCqZaufDGWob86AS6VAFYWLZkBrxvo9ZShM2Wv8x5bR
-         BxC9xrCxGogSgEg8x5y5PYRY4OAPXfEDVdHdpmgkInQJcFsNJGGykkFdFp897K9RwiiK
-         lI22+zWhElmCTlQyZFAm94YqUaAzveyi4pLkhmRQcSRS/og5jPhd+9IfmfgbXSL+UiKs
-         FgkCMRVkzhhPHLhbncnhyt3IcivG//X6EQBIf2WmkYfTZNjGgb4g7fuy0YNIBTl+mibH
-         UtCw==
-X-Gm-Message-State: APjAAAWkG0I+JYT9lGRFRBhOwK2lYilZrCkt0Ja4uX3kOQa27ggD9EFh
-	ev3CkeXAbKundsB0ieV8lmBi0I+8B/eO4bZe9AY0dJ5OCkXI3Ho5s3oqbGv7hikOefG012F027c
-	eetes832PGSuRhsSpCJF60O0bI/vQWg3tQLm+9fL2IioNGXcjwotr9hUrOfnCx6o=
-X-Received: by 2002:a17:906:3450:: with SMTP id d16mr4596617ejb.51.1551892384197;
-        Wed, 06 Mar 2019 09:13:04 -0800 (PST)
-X-Google-Smtp-Source: APXvYqynu7y5g55dqFi/DtNhlGxrRgF7yO1xUTb0KlfyRUJCRBBZrCZrAtq7JFs4ofuzkMIbMmwG
-X-Received: by 2002:a17:906:3450:: with SMTP id d16mr4596559ejb.51.1551892383163;
-        Wed, 06 Mar 2019 09:13:03 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551892383; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to;
+        bh=8SC+A5bGes6rvC1+IIh5/kbesOiJW6bttiBw9f5Y398=;
+        b=WnHGD1HmkrSM0A6wS/8oEMSBC4t2nAcQoXUzolG1ke8Anm9QcE39gnxjszLEIKbniT
+         0Nr2NYrH99a9wRoHB3qmmDQLJmRsF8NbHyw2tWYS5JZLN9Cf3SrdXjXPqHmepcNOnWfo
+         6JcjrtUIxazqxCtRbaulXfvaxlbmYnlC7tosnOhPjH5joNLlo+nsAVQBms67oIYXs13x
+         D70mP7pPcNzGShS019O2UxSubmmDbfMVmlt0QV5n8IlQKObu9N5k/HMNjIcsEBnh7px4
+         lQolqEOitqKvEdIT/vTUH4vaUrG9gTwdPes8mKPPp7dCLEAF2pXEk+2+9eZ2ezQGTbQc
+         8nsA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXbHL7IzO/Ay9ERvERvV+5I2iV+4vs9QVq4uECzPG8b66H4UOXO
+	AZ0Fh2WxGwo5/qFpBLGUKe0/px4QvQARGFNJgg73zJTNZDaB/yhvAdl2zFuYZBe6Bcxlxw4A/ds
+	E/BQEGy7rurFaQ8caSBIzW/4Al2bYRo4RQm8UU09u+I7EA0uNWxW0CYzXZUT+szdpPg==
+X-Received: by 2002:ac8:168b:: with SMTP id r11mr6638928qtj.387.1551895675236;
+        Wed, 06 Mar 2019 10:07:55 -0800 (PST)
+X-Google-Smtp-Source: APXvYqyQgClmgnc+QP2WiUiLB0wu7ZJd9jiBIzF/FKMNOqVeR9o00+OXscoCdXGtvQZVU+M4tP+p
+X-Received: by 2002:ac8:168b:: with SMTP id r11mr6638855qtj.387.1551895674272;
+        Wed, 06 Mar 2019 10:07:54 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551895674; cv=none;
         d=google.com; s=arc-20160816;
-        b=jKQQKh9xr/yqoKo/UTyDs2wJ/XLvhz+0ey+wdhhPXchNNRUCgYgHy0EvJrlKKnYjft
-         yE+amjw63IHxXJmQjNdlIFK+cRNZaCIqKeqNOSeUrlcTjWlpY0xN1JZlpJom7ZzoV1M+
-         VA+eTbDH62bQ9powoUWQ5p4r/ypKCCSzYvXiHKR4wuYF7mxf+upmrl910mqTAalm5xeC
-         o1CBUvBe0C6h6onU4Hc1RXjtwZYq61MiovvLdBKuyAWIqop7bmJhQdMUhvDng1B8o6zf
-         gP8tktwz9GBlRpoGXrySu7OXhHOMIWHr3YcN6VdSjVZAkWppNqvzR+4yLfEEEbieMaBM
-         SJ1w==
+        b=nSAOiFaO5lGwA9MA93N4mAyU2NB5uu4qNat8zNGXUhhvtmLdV0JPzHGup4PweU3YoZ
+         bBzkJaxOfztLpE4HPu2xcmT+kUM6O/e+pFVcXr+CUzJOjTXNwhrbJ23i/3FBEclezR7q
+         She3VldMpCZ8VKj1AOm/QoDKgF+g5pHr+HCfeTPIA6kPq36/4udXEhAH6gQjQb+3vCd7
+         pcg4fY7cIErAOX8U5KTLZi2H2hy8FvfSWh7JF4NKMgYwZF5zDsXmterAFfyFBIHRZO1N
+         kv9Qr2XPVcYAWHXr4juEad/+byoMrBBjJwit43UTZNoxCt4S7M+cxI7zai692twlkh4+
+         jD7Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:user-agent
-         :content-language:accept-language:in-reply-to:references:message-id
-         :date:thread-index:thread-topic:subject:cc:to:from:dkim-signature;
-        bh=fcrIwh5FAS/p9ZnN5P/05g+4grW/DAzlhzsDUfqXcHs=;
-        b=O0dze5OLtSLaR6NWVWXTMluVnWUU9/nRgo+KeUt3U4WDOO4D7yBifHWCb0Kh5IP8/2
-         wRBSSbWK9FiqfUgmnGiRMex35i5aqcmMsu7vS+7yzDMFr9hG0jeq+LrQ+rZ1MAUbVCxL
-         LjrU798uVg715wwFXiNnhzKWQBAVu5BnnIv8WJ14DYS1F618vpYMw46MQtouUWY69aJ5
-         HuL4OhQgV7tOz3pa6fubINAtqYmBvmK0SxMSj5zM8jdU3zGXFSAVYgEhyHPT+O+gx3Si
-         jYBaNLmrnjNifiNK8ffygXVhDO61m4bcJQplZZ1hDn2OgnRkaRvIxxjqofiA7sWOqVfQ
-         V0xQ==
+        h=in-reply-to:mime-version:user-agent:date:message-id:organization
+         :autocrypt:openpgp:from:references:cc:to:subject;
+        bh=8SC+A5bGes6rvC1+IIh5/kbesOiJW6bttiBw9f5Y398=;
+        b=DnnGXZ+BwVemrZoEhi+m1dMj9ju3rnMTQSFmfuzfeyRSUg1PXT1leyBlq2dQR61Khc
+         AYBrlACUjjKbryapao57REF3SxI3ndD/rKhu/JsxDMwzOqFvZa4RDHT7mFmCizH20kXA
+         buAJwDZDaaFVcuePwnLRp2wzZ1T/6RHXAl9y4pcmxn/QquP5nB3+lWW3siwvVFMdWFL4
+         O+oKP3t5D+ofJtbjfQi8vTql4ITxzMWIRNBr4Fhq1tsSWXzUAYyCl+oaI1fEdbCn2/yJ
+         3kZzTRZGfKi2RqV9/LmXRz8UL3/mpSh6KU+i4tH4SySlQ7FHXJMEz5ojBCp39nAQ691M
+         TAoA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@wavesemi.onmicrosoft.com header.s=selector1-wavecomp-com header.b=SCNXtahL;
-       spf=pass (google.com: domain of pburton@wavecomp.com designates 40.107.77.95 as permitted sender) smtp.mailfrom=pburton@wavecomp.com
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-eopbgr770095.outbound.protection.outlook.com. [40.107.77.95])
-        by mx.google.com with ESMTPS id v21si866799edm.85.2019.03.06.09.13.02
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l29si1350681qtb.91.2019.03.06.10.07.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 06 Mar 2019 09:13:03 -0800 (PST)
-Received-SPF: pass (google.com: domain of pburton@wavecomp.com designates 40.107.77.95 as permitted sender) client-ip=40.107.77.95;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Mar 2019 10:07:54 -0800 (PST)
+Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@wavesemi.onmicrosoft.com header.s=selector1-wavecomp-com header.b=SCNXtahL;
-       spf=pass (google.com: domain of pburton@wavecomp.com designates 40.107.77.95 as permitted sender) smtp.mailfrom=pburton@wavecomp.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=wavesemi.onmicrosoft.com; s=selector1-wavecomp-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=fcrIwh5FAS/p9ZnN5P/05g+4grW/DAzlhzsDUfqXcHs=;
- b=SCNXtahLLKEaqGDYdpx0420+UtlkuOktGW+vyeSD+fqyhg4Sv4ERsXLNSQU++8mQ0ZTPe5DKX6VXnFj8tvewBVoUzvGUNBKxGe+ey8fA/ddcq8s9QWSv+/fXWpmVakVthkpxSYVfSSys9sePXXVe3tgTcE+swKqs3wzkvPNQynI=
-Received: from MWHPR2201MB1277.namprd22.prod.outlook.com (10.174.162.17) by
- MWHPR2201MB1261.namprd22.prod.outlook.com (10.174.162.13) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1686.18; Wed, 6 Mar 2019 17:12:59 +0000
-Received: from MWHPR2201MB1277.namprd22.prod.outlook.com
- ([fe80::b8d4:8f0d:d6d1:4018]) by MWHPR2201MB1277.namprd22.prod.outlook.com
- ([fe80::b8d4:8f0d:d6d1:4018%3]) with mapi id 15.20.1665.020; Wed, 6 Mar 2019
- 17:12:59 +0000
-From: Paul Burton <paul.burton@mips.com>
-To: Steven Price <steven.price@arm.com>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andy Lutomirski
-	<luto@kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Arnd Bergmann
-	<arnd@arndb.de>, Borislav Petkov <bp@alien8.de>, Catalin Marinas
-	<catalin.marinas@arm.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo
- Molnar <mingo@redhat.com>, James Morse <james.morse@arm.com>,
-	=?iso-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, Peter Zijlstra
-	<peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Will Deacon
-	<will.deacon@arm.com>, "x86@kernel.org" <x86@kernel.org>, "H. Peter Anvin"
-	<hpa@zytor.com>, "linux-arm-kernel@lists.infradead.org"
-	<linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>, Mark Rutland <Mark.Rutland@arm.com>, "Liang,
- Kan" <kan.liang@linux.intel.com>, Ralf Baechle <ralf@linux-mips.org>, James
- Hogan <jhogan@kernel.org>, "linux-mips@vger.kernel.org"
-	<linux-mips@vger.kernel.org>
-Subject: Re: [PATCH v4 03/19] mips: mm: Add p?d_large() definitions
-Thread-Topic: [PATCH v4 03/19] mips: mm: Add p?d_large() definitions
-Thread-Index: AQHU1DRlehjTtbAKgEapDADsPcSi/KX+10aA
-Date: Wed, 6 Mar 2019 17:12:58 +0000
-Message-ID: <20190306171257.5eii6aqpfp6kvszb@pburton-laptop>
-References: <20190306155031.4291-1-steven.price@arm.com>
- <20190306155031.4291-4-steven.price@arm.com>
-In-Reply-To: <20190306155031.4291-4-steven.price@arm.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: BYAPR07CA0086.namprd07.prod.outlook.com
- (2603:10b6:a03:12b::27) To MWHPR2201MB1277.namprd22.prod.outlook.com
- (2603:10b6:301:24::17)
-user-agent: NeoMutt/20180716
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=pburton@wavecomp.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [67.207.99.198]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 49a42e8a-b36c-444c-b2f5-08d6a256fb2e
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600127)(711020)(4605104)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7153060)(7193020);SRVR:MWHPR2201MB1261;
-x-ms-traffictypediagnostic: MWHPR2201MB1261:
-x-microsoft-exchange-diagnostics:
- =?iso-8859-1?Q?1;MWHPR2201MB1261;23:c5ZQguQj1PJYjxSVVFvqQhrLxF/zVtPpatgzX?=
- =?iso-8859-1?Q?iIDGxc0/UiApQJGQUTc7jij7C9Z73HTCl5RMQtMGNZVkcuN4APzpNC8s8e?=
- =?iso-8859-1?Q?9xHcGwQT0jvaB7nNJeECofMPPTTfoc2hS2Jl4zVgmgNL4fKZSwOH5mRGv3?=
- =?iso-8859-1?Q?yK0iKW/Cz8pBcw3j7FMHM1hmjz3n2urVNR5eui23Ai0DvALsrknfhHhsYD?=
- =?iso-8859-1?Q?s0UMgI88Cy/ks3cMfqVumlpk1q/X+vYFhXX6l+eRSGzMQ6BcabY7/Vubp6?=
- =?iso-8859-1?Q?tKU9ik7E0VlxuMUIN4v653DZ7fULwl8wQVwRz1NdGncCpAb0tKTy1cIQdg?=
- =?iso-8859-1?Q?eB6oPAYf7k+BbVuAft3vftWTNFNMV11t7cgsVrP/FZ+lMirRLsz0QIo2TR?=
- =?iso-8859-1?Q?ikiiydMmz5bq7dJZbycmOWkMUNsSkqMwaCEVbzUnBo8CzQZgBtaNLg4CN3?=
- =?iso-8859-1?Q?Zr2g4dySwdo58fj4WyTTwOi+HV1pN01umSYG1B9BtrA5piyaXdJ8Mb/24k?=
- =?iso-8859-1?Q?vkqu0p5EtGBNSNfWMpsIy+EU9VpYMe3RxVFubLiClsKvogvkkLHubPCFGX?=
- =?iso-8859-1?Q?C9+4GUe/CAgcC4Rsk5IyRK3kMOyCl1CAKycgzHvGwRiIM3YqxM78rKasD2?=
- =?iso-8859-1?Q?x9dQ9CR3Wtw123reCicsTMbTaHN+cubgnHo1qQEnocPE4i/83B1NKhF5/e?=
- =?iso-8859-1?Q?deBW006a9LJL/RhIyNtlJ6Lw/Q5OizIO0Ak0ms2/lSQWHiwiEEk/jDm5qc?=
- =?iso-8859-1?Q?hCzUYUnNadp5y4qSGEbWzav4IUKpmo0CNavIgeX6GsNfuoOaTIQSzciRhE?=
- =?iso-8859-1?Q?mc/AMLFVta10ApCGpxY/In9HiXuGsRxwlMy4GqCog643UwfOYPUTrfteTl?=
- =?iso-8859-1?Q?zTuoBCN+xq3JJdIatfs4UvtbS8BaGDrFO+BKJPs0TY/E9r3Wj1a2Dm5fFe?=
- =?iso-8859-1?Q?7+KsaR8vl95v547kQD8PavrQ3Uo38RPIYpj/lhKQfykViJwcKbmRMKG1Qn?=
- =?iso-8859-1?Q?bNaTL78h7Yh7pfF3cSVDRR3UuPtmOgWqZ8v7Ys5lxfH4cpghxgS6bxn4CQ?=
- =?iso-8859-1?Q?AvveO/C/YIMd8c2x1Fbv7PpNMtQshXKIagMUQ4Ieb3fChA2lU/AwkTpCrk?=
- =?iso-8859-1?Q?1Ljdu68A5CmyCnIBw1OJIypcmEETWYAtsCNI6W/XpYYu7J5YmCzCO9HnAj?=
- =?iso-8859-1?Q?BTPsOD4pJIGnlOpEMKomdcl1Wbh9GlCclBhA/IAAeKiHv9G6knsKJ9qDHY?=
- =?iso-8859-1?Q?phrhQB+A48WiKm2KZL23iBJEEq3xditrd07mVgvTX7uVfSOHyVMij4oeud?=
- =?iso-8859-1?Q?3tJTLG962b33K5194a7X3rclYpALRo3ua9GhmbrT5kav0aL4tPnE+TJmT6?=
- =?iso-8859-1?Q?/lpn+hnOBw=3D?=
-x-microsoft-antispam-prvs:
- <MWHPR2201MB126180195E437DD9F7F5A281C1730@MWHPR2201MB1261.namprd22.prod.outlook.com>
-x-forefront-prvs: 0968D37274
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10019020)(7916004)(136003)(376002)(366004)(346002)(39840400004)(396003)(189003)(199004)(25786009)(7736002)(6436002)(53936002)(106356001)(256004)(478600001)(305945005)(6916009)(3846002)(4326008)(6116002)(97736004)(316002)(58126008)(6246003)(4744005)(6512007)(9686003)(54906003)(1076003)(5660300002)(6486002)(71190400001)(71200400001)(6506007)(386003)(33716001)(102836004)(8676002)(81156014)(81166006)(229853002)(99286004)(8936002)(7416002)(68736007)(476003)(11346002)(42882007)(44832011)(486006)(2906002)(446003)(105586002)(26005)(66066001)(52116002)(76176011)(14454004)(186003);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR2201MB1261;H:MWHPR2201MB1277.namprd22.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: wavecomp.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- 8jt+BVppR0Vb816sAwTQVXEmfvJS8UX31/SIqi1LS8KwFNkItVuCccfF40InI0eRNBWGPv4swBJNshjxVoEHQDtGOhX4G0gYAROsy2nSssGrX0I/H4rvl+k04FCexW7PH+XVAZrTrYx5zp2SU2tW8MV3OqmBi9JGJDspSzC9k07uBg29cRCsH4iIECei9wRmxnl5D8gNdgcTJ8RFoI6YlHn1HQnsyfrHOZ4fUVQVt54hpD5JinFs3+D1Qmcd7f/uof7VU4fuYb0huPdKZFA8mZ/7KoxDYqqHRZ0bkvNvoupdOh51suwpeuVB7f+WzU3BbSMHuvhpHQM+QH4U7M0nZF5zXeDISYdiEnaKx410DahMzD+I4P3X/lE4krQssIstG19tQuYolI0vTraKLrnkQb6JJ9BeQ94tBl0AcetVoAs=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-ID: <166FB649BE7A0943BDD8181B357816BB@namprd22.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 3F5683092658;
+	Wed,  6 Mar 2019 18:07:53 +0000 (UTC)
+Received: from [10.18.17.32] (dhcp-17-32.bos.redhat.com [10.18.17.32])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 91CACA4F84;
+	Wed,  6 Mar 2019 18:07:51 +0000 (UTC)
+Subject: Re: [RFC][Patch v9 0/6] KVM: Guest Free Page Hinting
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ pbonzini@redhat.com, lcapitulino@redhat.com, pagupta@redhat.com,
+ wei.w.wang@intel.com, yang.zhang.wz@gmail.com, riel@surriel.com,
+ david@redhat.com, dodgen@google.com, konrad.wilk@oracle.com,
+ dhildenb@redhat.com, aarcange@redhat.com, alexander.duyck@gmail.com
+References: <20190306155048.12868-1-nitesh@redhat.com>
+ <20190306110501-mutt-send-email-mst@kernel.org>
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ VujM7c/b4pps
+Organization: Red Hat Inc,
+Message-ID: <bd029eb2-501a-8d2d-5f75-5d2b229c7e75@redhat.com>
+Date: Wed, 6 Mar 2019 13:07:50 -0500
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-X-OriginatorOrg: mips.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 49a42e8a-b36c-444c-b2f5-08d6a256fb2e
-X-MS-Exchange-CrossTenant-originalarrivaltime: 06 Mar 2019 17:12:58.7825
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 463607d3-1db3-40a0-8a29-970c56230104
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR2201MB1261
+In-Reply-To: <20190306110501-mutt-send-email-mst@kernel.org>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="JxYzMsx6no2b159rO7jMVpujrTFgIS6rJ"
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Wed, 06 Mar 2019 18:07:53 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Steven,
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--JxYzMsx6no2b159rO7jMVpujrTFgIS6rJ
+Content-Type: multipart/mixed; boundary="gsK4cdQ2SmPsmm3JcrDh3layyISQw5H9P";
+ protected-headers="v1"
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ pbonzini@redhat.com, lcapitulino@redhat.com, pagupta@redhat.com,
+ wei.w.wang@intel.com, yang.zhang.wz@gmail.com, riel@surriel.com,
+ david@redhat.com, dodgen@google.com, konrad.wilk@oracle.com,
+ dhildenb@redhat.com, aarcange@redhat.com, alexander.duyck@gmail.com
+Message-ID: <bd029eb2-501a-8d2d-5f75-5d2b229c7e75@redhat.com>
+Subject: Re: [RFC][Patch v9 0/6] KVM: Guest Free Page Hinting
+References: <20190306155048.12868-1-nitesh@redhat.com>
+ <20190306110501-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20190306110501-mutt-send-email-mst@kernel.org>
 
-On Wed, Mar 06, 2019 at 03:50:15PM +0000, Steven Price wrote:
-> walk_page_range() is going to be allowed to walk page tables other than
-> those of user space. For this it needs to know when it has reached a
-> 'leaf' entry in the page tables. This information is provided by the
-> p?d_large() functions/macros.
->=20
-> For mips, we only support large pages on 64 bit.
->=20
-> For 64 bit if _PAGE_HUGE is defined we can simply look for it. When not
-> defined we can be confident that there are no large pages in existence
-> and fall back on the generic implementation (added in a later patch)
-> which returns 0.
->=20
-> CC: Ralf Baechle <ralf@linux-mips.org>
-> CC: Paul Burton <paul.burton@mips.com>
-> CC: James Hogan <jhogan@kernel.org>
-> CC: linux-mips@vger.kernel.org
-> Signed-off-by: Steven Price <steven.price@arm.com>
+--gsK4cdQ2SmPsmm3JcrDh3layyISQw5H9P
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
 
-Acked-by: Paul Burton <paul.burton@mips.com>
 
-Thanks,
-    Paul
+On 3/6/19 11:09 AM, Michael S. Tsirkin wrote:
+> On Wed, Mar 06, 2019 at 10:50:42AM -0500, Nitesh Narayan Lal wrote:
+>> The following patch-set proposes an efficient mechanism for handing fr=
+eed memory between the guest and the host. It enables the guests with no =
+page cache to rapidly free and reclaims memory to and from the host respe=
+ctively.
+>>
+>> Benefit:
+>> With this patch-series, in our test-case, executed on a single system =
+and single NUMA node with 15GB memory, we were able to successfully launc=
+h 5 guests(each with 5 GB memory) when page hinting was enabled and 3 wit=
+hout it. (Detailed explanation of the test procedure is provided at the b=
+ottom under Test - 1).
+>>
+>> Changelog in v9:
+>> 	* Guest free page hinting hook is now invoked after a page has been m=
+erged in the buddy.
+>>         * Free pages only with order FREE_PAGE_HINTING_MIN_ORDER(curre=
+ntly defined as MAX_ORDER - 1) are captured.
+>> 	* Removed kthread which was earlier used to perform the scanning, iso=
+lation & reporting of free pages.
+>> 	* Pages, captured in the per cpu array are sorted based on the zone n=
+umbers. This is to avoid redundancy of acquiring zone locks.
+>>         * Dynamically allocated space is used to hold the isolated gue=
+st free pages.
+>>         * All the pages are reported asynchronously to the host via vi=
+rtio driver.
+>>         * Pages are returned back to the guest buddy free list only wh=
+en the host response is received.
+>>
+>> Pending items:
+>>         * Make sure that the guest free page hinting's current impleme=
+ntation doesn't break hugepages or device assigned guests.
+>> 	* Follow up on VIRTIO_BALLOON_F_PAGE_POISON's device side support. (I=
+t is currently missing)
+>>         * Compare reporting free pages via vring with vhost.
+>>         * Decide between MADV_DONTNEED and MADV_FREE.
+>> 	* Analyze overall performance impact due to guest free page hinting.
+>> 	* Come up with proper/traceable error-message/logs.
+>>
+>> Tests:
+>> 1. Use-case - Number of guests we can launch
+>>
+>> 	NUMA Nodes =3D 1 with 15 GB memory
+>> 	Guest Memory =3D 5 GB
+>> 	Number of cores in guest =3D 1
+>> 	Workload =3D test allocation program allocates 4GB memory, touches it=
+ via memset and exits.
+>> 	Procedure =3D
+>> 	The first guest is launched and once its console is up, the test allo=
+cation program is executed with 4 GB memory request (Due to this the gues=
+t occupies almost 4-5 GB of memory in the host in a system without page h=
+inting). Once this program exits at that time another guest is launched i=
+n the host and the same process is followed. We continue launching the gu=
+ests until a guest gets killed due to low memory condition in the host.
+>>
+>> 	Results:
+>> 	Without hinting =3D 3
+>> 	With hinting =3D 5
+>>
+>> 2. Hackbench
+>> 	Guest Memory =3D 5 GB=20
+>> 	Number of cores =3D 4
+>> 	Number of tasks		Time with Hinting	Time without Hinting
+>> 	4000			19.540			17.818
+>>
+> How about memhog btw?
+> Alex reported:
+>
+> 	My testing up till now has consisted of setting up 4 8GB VMs on a syst=
+em
+> 	with 32GB of memory and 4GB of swap. To stress the memory on the syste=
+m I
+> 	would run "memhog 8G" sequentially on each of the guests and observe h=
+ow
+> 	long it took to complete the run. The observed behavior is that on the=
+
+> 	systems with these patches applied in both the guest and on the host I=
+ was
+> 	able to complete the test with a time of 5 to 7 seconds per guest. On =
+a
+> 	system without these patches the time ranged from 7 to 49 seconds per
+> 	guest. I am assuming the variability is due to time being spent writin=
+g
+> 	pages out to disk in order to free up space for the guest.
+>
+Here are the results:
+
+Procedure: 3 Guests of size 5GB is launched on a single NUMA node with
+total memory of 15GB and no swap. In each of the guest, memhog is run
+with 5GB. Post-execution of memhog, Host memory usage is monitored by
+using Free command.
+
+Without Hinting:
+=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=
+=C2=A0 Time of execution=C2=A0=C2=A0=C2=A0 Host used memory
+Guest 1:=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 45 seconds=C2=A0=C2=A0=C2=A0=
+ =C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 5.4 GB
+Guest 2:=C2=A0=C2=A0 =C2=A0=C2=A0 =C2=A0 45 seconds=C2=A0=C2=A0=C2=A0 =C2=
+=A0=C2=A0 =C2=A0=C2=A0 =C2=A0 10 GB
+Guest 3:=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 1=C2=A0 minute=C2=A0=C2=A0=C2=
+=A0 =C2=A0=C2=A0 =C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0=C2=A0 15 GB
+
+With Hinting:
+=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0 =C2=A0 Ti=
+me of execution =C2=A0=C2=A0=C2=A0 Host used memory
+Guest 1:=C2=A0=C2=A0 =C2=A0=C2=A0 =C2=A0 49 seconds=C2=A0=C2=A0=C2=A0 =C2=
+=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 2.4 GB
+Guest 2:=C2=A0=C2=A0 =C2=A0=C2=A0 =C2=A0 40 seconds=C2=A0=C2=A0=C2=A0 =C2=
+=A0=C2=A0 =C2=A0=C2=A0 =C2=A0 4.3 GB
+Guest 3:=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 50 seconds=C2=A0=C2=A0=C2=A0=
+ =C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 6.3 GB
+
+--=20
+Regards
+Nitesh
+
+
+--gsK4cdQ2SmPsmm3JcrDh3layyISQw5H9P--
+
+--JxYzMsx6no2b159rO7jMVpujrTFgIS6rJ
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEkXcoRVGaqvbHPuAGo4ZA3AYyozkFAlyADHYACgkQo4ZA3AYy
+ozkwHxAAwWuIcoLYbXpaVTgkAQjS58cpp8y0fUeNTTCp9lLte05X7trXtbU84Ilm
+BGrPLyzl11WCPjC8SQ9UjbDq+1SbGTmxMNzEOKumXWbfNQk01B/1LK6NKdLi9Y+f
+Cu7Q7/p9wiBe1lLVPBsl2E6MgP+TDUkT1EVxG78d7XcCKeOQjB/TobGMRfrohyEo
+8CaWFy5q6Pm3+vBXbfdec5hdSJwd6Sc8g1M0Axw9RWvEqaVtuhF1Z7Henm3BvU2R
+89oNUZmGM6rHmdhKKqVcrV23WNLvSOobLwZHexydU/pHJfYtKzt8EBr+SMkRXUgK
+aKVuoZIMJPfJBtyE0CzSp33b738A9yatb6m0KOu0kKrwJ8YzgPI1F1T/Bwo0LxZ0
+MRn3Qpm0J9xOOGeDRW+rPDVvWhwVX3/CnkcCTUFjzLV213kOwVt5kOmeg9oBw5Ui
+iyw+GE8u2W/mK+hPiZKPbH4TIS7TPddftyNO2OdZLM7jccJcXhkEHYPF446lV8c7
+N9iCpGxEUXjIBDvmZX0mtBUkX0eIT838HgphfyOsDzsPtEcd2IkfxMUyUL8Qtj53
+0Xt277DRWmw3euqjCsqTm1IfSO7zTB6ljxqK9YPFBSUziYnDEDUbIwBoDg08aCXD
+uBwnS9/DqS40HLXFUnDodu/c+ZaDr1jcuLh/clu8wzLLlOpNSFA=
+=J3yz
+-----END PGP SIGNATURE-----
+
+--JxYzMsx6no2b159rO7jMVpujrTFgIS6rJ--
 
