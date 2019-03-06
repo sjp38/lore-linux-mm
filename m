@@ -2,293 +2,194 @@ Return-Path: <SRS0=43/C=RJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D494AC43381
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 15:52:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 12B96C10F00
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 15:57:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 80C8E20684
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 15:52:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 80C8E20684
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id B80E120675
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 15:57:44 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="DpxZGAGZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B80E120675
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 24C548E001F; Wed,  6 Mar 2019 10:52:43 -0500 (EST)
+	id 3F8748E0020; Wed,  6 Mar 2019 10:57:44 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1D6478E0015; Wed,  6 Mar 2019 10:52:43 -0500 (EST)
+	id 3A7548E0015; Wed,  6 Mar 2019 10:57:44 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 09EC58E001F; Wed,  6 Mar 2019 10:52:43 -0500 (EST)
+	id 295FB8E0020; Wed,  6 Mar 2019 10:57:44 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CFD7F8E0015
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 10:52:42 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id 203so10143331qke.7
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 07:52:42 -0800 (PST)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E9D258E0015
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 10:57:43 -0500 (EST)
+Received: by mail-ot1-f72.google.com with SMTP id b10so5383323oti.21
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 07:57:43 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=JiW1DshD3jPhWd4ff8xKJyYancTHEzbJFr24dtVc7Mo=;
-        b=UKtpKkQNLa4i9LPSs9ZCSueisBbnzvdnGtfHhgLxHdfTlzOqEPDRn7eV0gK4lvthDl
-         gkddMiaLPc6D4jrnCmKE5KYT5S2kv7f7rM6ufucHzIDzm2yhmXnpKqn1Uiy4PuX0HPuV
-         TKqbE3z5qYCXTCFwleYxhbDUMZBB8DAqboJDigGozb3bcmhl3hycY07tnD1wAOrrf0f/
-         TcUo8G8M46b8RCilXo5FrKipZ71NCE44QObHxCtSs/iCGSMNKVA8+v3pgdTjvYfBKK7n
-         3w00rVU1KsnRK+p700MdWCaJoJnvmnhoAoJVD4qHB+T8UQ5SOVk5OomhggjtIn3RJvkX
-         5HHg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVRxYDCMdOaKqdJqvQi+Kvl5/ZYIwroe6c1s/4qg8ZlwLsRku/z
-	3bVoOB1MlmMnYrPEMjhRrdCvi+7wDJo5hFK3kAONtALEs5sLYxvIPciXn1HFrX/cLTsCcqxemuF
-	QJJeBttCu9gWn8NlKhndiW0Wiizm4ldr6ZPTcnDivoci0dBka4zJsarZFRPvdTRLaaQ==
-X-Received: by 2002:ac8:38b3:: with SMTP id f48mr6362546qtc.125.1551887562599;
-        Wed, 06 Mar 2019 07:52:42 -0800 (PST)
-X-Google-Smtp-Source: APXvYqzbv7bD9IySHQiff390xFDa+hEI/tvci6s5ufIX4q2OEjcZZqi8xcmOzm8eXMmdbxnxUJfn
-X-Received: by 2002:ac8:38b3:: with SMTP id f48mr6362449qtc.125.1551887561137;
-        Wed, 06 Mar 2019 07:52:41 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551887561; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=12aSmT+/lR/NKB5S9pyJmInfMczgWXtoG0X5j52F2FA=;
+        b=TrPktqxs9d7BWFmCg7NDul5s/1R70busyEoo1AJ+U6uDEEhyUP70SMJtNl8D4f364K
+         H4wfdD/WscX3DFn1Zx7IP5/pB5pofA/798LZWd65cDohJA2KEOZgJVJTQ3X4YDlwbJNv
+         u1bFYBOXsg3kKKYg0j+B/sR9OSwgN4PrbANEnwyApOnX+YPQuDrVexh+ij5m9qlec7VE
+         QwpGJOyByqSRXZ4th17yci+LZ7VUt4iRPF54HfpAVEMhg/SujWzdPHH7mItGufVQtxE0
+         psd3rDopEeNvyD9VtJ75jKGAWoBcrKR5XeZy4LFIJjRg47Xza0CKSZJAxuZsnTqFzgGC
+         5MwA==
+X-Gm-Message-State: APjAAAV4/+bATMvceyCVZfOC1CzSNBH0xWiMNNmanCNpjIom7o76d6gw
+	SJ08xSfSgwMKzAV1eeUN58r2vyM2XJUPzd2jMhXPLMbERKeUcvllfILxd8hTGKgKlz2ZgKi69Rb
+	dot33Gr9KvIDr8Q2JlvjDpd7UNqc66A+N2CHPLVao+GuG+ZJhdsrpJjDkDDo+CSH0R36+EoWBMS
+	5T7dze9YznkAf2RKH6yFUg20sAcQWso/mHHRfmHIYp7OFCmJgLFCXgK0rft31GwCv9SE8UgE+UV
+	mzKZ+Jj3B4GcQr/Hj0qXP1PIZnqxDT2YqJ9ISST4JDncwqaVkQ591V+y+NIj6srwMLDXNDZFKY7
+	YQvGU1pbrouTfX4kfPgsxVu8T3kjHOEdEWIvWtaEzoqFBq9pWEzd0xh0ICUBHd82bTBjYim8AIU
+	Y
+X-Received: by 2002:a9d:76c5:: with SMTP id p5mr2617518otl.283.1551887863477;
+        Wed, 06 Mar 2019 07:57:43 -0800 (PST)
+X-Received: by 2002:a9d:76c5:: with SMTP id p5mr2617477otl.283.1551887862631;
+        Wed, 06 Mar 2019 07:57:42 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551887862; cv=none;
         d=google.com; s=arc-20160816;
-        b=JDGtUTSaYhGoJIdNHxuMqgGl/kod9JEiOAmuldYfDp9IsK0V2/Z+iDFsbbsU79xFpq
-         Z1iKlUTHfBcTecbNWiUxGI/ZACeEy2vp7nF/lV7IwVVnzd3cXdFODnb+bnGcgdNUmHkP
-         bZC6i5sSlzY53ASSwXG80twQEAP4GP8p7oU5AyzVAR8x9mYZApGwl9jLjsqWCdl45MzX
-         9BL+X50bolcn/TukCJdxXdaq4XNtFBbWCqXCDWzwyg1UN+CUMdwUZSlYfi/NWRUhNO+w
-         lUDMlAZ6wEzEMMK8AqGZawhXG92meynrjvYS0OL9vfrGZ5DvWWSFKR+y/FxP3MMhBeU9
-         E4og==
+        b=VC2ALs25KR/GXDHsX5GLYmvocgWrYccHCw75byY5PoMwq4GoWrgr/ci1swoAXuH9Du
+         Lh9UJsSMRIUqvc+lYKEHz/JfIAkyRVUjszElxPWT7loM4qC4AwJl+5ltyNTRREkgaDgw
+         /gMCHwKQ9YsoimvqW5jrj2B7RJUumu814vuz+IctELB6Rp5aDYwABgru7x7wlxuoEMSJ
+         a09GhiW0A0AzNMIbjmMakcpDhslDLL0nrS+6I0y7sabl0VhEXQthG3V07NHGHVeyyk4r
+         7IOz9yjFUa/eonD/4IKPPtUEo26Pger+F1MrHDruX0dyuAnQbyuXY5LVz51dsRxChDL5
+         jM/A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=JiW1DshD3jPhWd4ff8xKJyYancTHEzbJFr24dtVc7Mo=;
-        b=DyaHMLkN/M/robefJJ423hzTYTZesxlPV7PAGsU5uP7uklqM8Ppnv4+OCJFx384XA+
-         QdAdAE8v7ZVxR+/F4farwRJy5hcDlQ2oSjkR3j/JUufQm6s1XSWJM5lkSv7R8ji7xKL0
-         ObhUbVK3o8Onk5eT2owuSo4OJDnNNT7qQYnJ1eBJzQ1GRgt4YzYFkr7+y4R9NFlt5a6j
-         iZqmpzS+MedCt8MPP2btGjhuMrgHPXXIkvPADy5SR8HoE76Y39tqLSshWzX3CvQ187Jn
-         tgbngNJlRc/6fyNXYWGwL+KlVdLmc7kEj4pdFuoMDEfMra0n3RnxJ+OnnXLfXunvmAcf
-         a5TQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=12aSmT+/lR/NKB5S9pyJmInfMczgWXtoG0X5j52F2FA=;
+        b=d3awPXiOTTzm5N3z6rGgGQfjTviNuKk6QHiyilbrbNXjsyM7MpZ18LDPOW9kiX/D5I
+         vhHe3PU5lp4JjzcKq8HbgrtKGNs3f9gbE0yWEhCFnIVGEvzk6tV9T810xOoJ23DGCmOt
+         ieOZqf513xHRBRwev9eP94ZbEsLiPBoTCgMP5BBcDjem/TfarGT+m7lVOWelmNlbwcxb
+         TSWJfpqxO9ud9k+1gHe7n2D6BloNARHhgOPQq2Oe6OfjzTurSc0ol11Z+UTE6tT537Es
+         0A6HwNkEf7sRF204Atx+yxBRzZVBX5FCKPUOLodHDqxUmbA3mxo4ME5e/JlACTS/swqX
+         iWNQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n21si516952qki.15.2019.03.06.07.52.40
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=DpxZGAGZ;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m13sor1076823otn.97.2019.03.06.07.57.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Mar 2019 07:52:41 -0800 (PST)
-Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Wed, 06 Mar 2019 07:57:42 -0800 (PST)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 34F0AE6A74;
-	Wed,  6 Mar 2019 15:52:40 +0000 (UTC)
-Received: from virtlab420.virt.lab.eng.bos.redhat.com (virtlab420.virt.lab.eng.bos.redhat.com [10.19.152.148])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id DBE1960139;
-	Wed,  6 Mar 2019 15:52:29 +0000 (UTC)
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-To: kvm@vger.kernel.org,
-	linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org,
-	pbonzini@redhat.com,
-	lcapitulino@redhat.com,
-	pagupta@redhat.com,
-	wei.w.wang@intel.com,
-	yang.zhang.wz@gmail.com,
-	riel@surriel.com,
-	david@redhat.com,
-	mst@redhat.com,
-	dodgen@google.com,
-	konrad.wilk@oracle.com,
-	dhildenb@redhat.com,
-	aarcange@redhat.com,
-	alexander.duyck@gmail.com
-Cc: Nitesh Narayan Lal <nitesh@redhat.com>
-Subject: [RFC][QEMU Patch] KVM: Enable QEMU to free the pages hinted by the guest
-Date: Wed,  6 Mar 2019 10:52:20 -0500
-Message-Id: <20190306155220.12944-1-nitesh@redhat.com>
-In-Reply-To: <20190306155048.12868-1-nitesh@redhat.com>
-References: <20190306155048.12868-1-nitesh@redhat.com>
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Wed, 06 Mar 2019 15:52:40 +0000 (UTC)
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=DpxZGAGZ;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=12aSmT+/lR/NKB5S9pyJmInfMczgWXtoG0X5j52F2FA=;
+        b=DpxZGAGZBbtSRaU8yNyR/UJx6v0B6VF0wbwKQXom3BSBwFwORw4Y3lwi0wBMP/JMe2
+         pGvKBDjpy8pjFT4ngLe02Pjt6xjFj3xPmYx7PwHsbO15wu3dkdDkeijdm7lnRA3bzTTh
+         MFlPzfS2C9FcJLevidZTKPoZdfyuLkemQ5jzytrJnsqz22wvD9+g3SbKEIVejHE79tHs
+         0q7d3EYiXhxOLLJRU19C4/HXoy/qTzq5SU6Df/GtveDoeSD/D2ED43GFkmmfpNquwPpX
+         ltSMyJp1kNvleGXZ/UguDIzllcig24OTNV9N3VhD27CCuUZ80n2kUe5idEbX9Jckwr2S
+         M5Hg==
+X-Google-Smtp-Source: APXvYqyUK8bFOXOkwmQyq5HlPa9dyaManelpH63WsqJmzxRH2vRpGlCqwOef9mTyxEDLlq+0NuZ+l6SwEIBonJdW/W4=
+X-Received: by 2002:a9d:77d1:: with SMTP id w17mr4679585otl.353.1551887861656;
+ Wed, 06 Mar 2019 07:57:41 -0800 (PST)
+MIME-Version: 1.0
+References: <20190129212150.GP3176@redhat.com> <CAPcyv4hZMcJ6r0Pw5aJsx37+YKx4qAY0rV4Ascc9LX6eFY8GJg@mail.gmail.com>
+ <20190130030317.GC10462@redhat.com> <CAPcyv4jS7Y=DLOjRHbdRfwBEpxe_r7wpv0ixTGmL7kL_ThaQFA@mail.gmail.com>
+ <20190130183616.GB5061@redhat.com> <CAPcyv4hB4p6po1+-hJ4Podxoan35w+T6uZJzqbw=zvj5XdeNVQ@mail.gmail.com>
+ <20190131041641.GK5061@redhat.com> <CAPcyv4gb+r==riKFXkVZ7gGdnKe62yBmZ7xOa4uBBByhnK9Tzg@mail.gmail.com>
+ <20190305141635.8134e310ba7187bc39532cd3@linux-foundation.org>
+ <CAA9_cmd2Z62Z5CSXvne4rj3aPSpNhS0Gxt+kZytz0bVEuzvc=A@mail.gmail.com> <20190306155126.GB3230@redhat.com>
+In-Reply-To: <20190306155126.GB3230@redhat.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 6 Mar 2019 07:57:30 -0800
+Message-ID: <CAPcyv4iB+7LF-ZOF1VXE+g2hS7Gb=+RbGAmTiGWDsaikEuXGYw@mail.gmail.com>
+Subject: Re: [PATCH 09/10] mm/hmm: allow to mirror vma of a file on a DAX
+ backed filesystem
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Ralph Campbell <rcampbell@nvidia.com>, 
+	John Hubbard <jhubbard@nvidia.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch enables QEMU to perform MADVISE_DONTNEED on the pages
-reported by the guest.
+On Wed, Mar 6, 2019 at 7:51 AM Jerome Glisse <jglisse@redhat.com> wrote:
+>
+> On Tue, Mar 05, 2019 at 08:20:10PM -0800, Dan Williams wrote:
+> > On Tue, Mar 5, 2019 at 2:16 PM Andrew Morton <akpm@linux-foundation.org> wrote:
+> > >
+> > > On Wed, 30 Jan 2019 21:44:46 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
+> > >
+> > > > >
+> > > > > > Another way to help allay these worries is commit to no new exports
+> > > > > > without in-tree users. In general, that should go without saying for
+> > > > > > any core changes for new or future hardware.
+> > > > >
+> > > > > I always intend to have an upstream user the issue is that the device
+> > > > > driver tree and the mm tree move a different pace and there is always
+> > > > > a chicken and egg problem. I do not think Andrew wants to have to
+> > > > > merge driver patches through its tree, nor Linus want to have to merge
+> > > > > drivers and mm trees in specific order. So it is easier to introduce
+> > > > > mm change in one release and driver change in the next. This is what
+> > > > > i am doing with ODP. Adding things necessary in 5.1 and working with
+> > > > > Mellanox to have the ODP HMM patch fully tested and ready to go in
+> > > > > 5.2 (the patch is available today and Mellanox have begin testing it
+> > > > > AFAIK). So this is the guideline i will be following. Post mm bits
+> > > > > with driver patches, push to merge mm bits one release and have the
+> > > > > driver bits in the next. I do hope this sound fine to everyone.
+> > > >
+> > > > The track record to date has not been "merge HMM patch in one release
+> > > > and merge the driver updates the next". If that is the plan going
+> > > > forward that's great, and I do appreciate that this set came with
+> > > > driver changes, and maintain hope the existing exports don't go
+> > > > user-less for too much longer.
+> > >
+> > > Decision time.  Jerome, how are things looking for getting these driver
+> > > changes merged in the next cycle?
+> > >
+> > > Dan, what's your overall take on this series for a 5.1-rc1 merge?
+> >
+> > My hesitation would be drastically reduced if there was a plan to
+> > avoid dangling unconsumed symbols and functionality. Specifically one
+> > or more of the following suggestions:
+> >
+> > * EXPORT_SYMBOL_GPL on all exports to avoid a growing liability
+> > surface for out-of-tree consumers to come grumble at us when we
+> > continue to refactor the kernel as we are wont to do.
+> >
+> > * A commitment to consume newly exported symbols in the same merge
+> > window, or the following merge window. When that goal is missed revert
+> > the functionality until such time that it can be consumed, or
+> > otherwise abandoned.
+> >
+> > * No new symbol exports and functionality while existing symbols go unconsumed.
+> >
+> > These are the minimum requirements I would expect my work, or any
+> > core-mm work for that matter, to be held to, I see no reason why HMM
+> > could not meet the same.
+>
+> nouveau use all of this and other driver patchset have been posted to
+> also use this API.
+>
+> > On this specific patch I would ask that the changelog incorporate the
+> > motivation that was teased out of our follow-on discussion, not "There
+> > is no reason not to support that case." which isn't a justification.
+>
+> mlx5 wants to use HMM without DAX support it would regress mlx5. Other
+> driver like nouveau also want to access DAX filesystem. So yes there is
+> no reason not to support DAX filesystem. Why do you not want DAX with
+> mirroring ? You want to cripple HMM ? Why ?
 
-Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
----
- hw/virtio/trace-events                        |  1 +
- hw/virtio/virtio-balloon.c                    | 90 +++++++++++++++++++
- include/hw/virtio/virtio-balloon.h            |  2 +-
- .../standard-headers/linux/virtio_balloon.h   |  1 +
- 4 files changed, 93 insertions(+), 1 deletion(-)
-
-diff --git a/hw/virtio/trace-events b/hw/virtio/trace-events
-index 07bcbe9e85..e3ab66f126 100644
---- a/hw/virtio/trace-events
-+++ b/hw/virtio/trace-events
-@@ -46,3 +46,4 @@ virtio_balloon_handle_output(const char *name, uint64_t gpa) "section name: %s g
- virtio_balloon_get_config(uint32_t num_pages, uint32_t actual) "num_pages: %d actual: %d"
- virtio_balloon_set_config(uint32_t actual, uint32_t oldactual) "actual: %d oldactual: %d"
- virtio_balloon_to_target(uint64_t target, uint32_t num_pages) "balloon target: 0x%"PRIx64" num_pages: %d"
-+virtio_balloon_hinting_request(unsigned long pfn, unsigned int num_pages) "Guest page hinting request: %lu num_pages: %d"
-diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
-index a12677d4d5..7ab1471017 100644
---- a/hw/virtio/virtio-balloon.c
-+++ b/hw/virtio/virtio-balloon.c
-@@ -33,6 +33,13 @@
- 
- #define BALLOON_PAGE_SIZE  (1 << VIRTIO_BALLOON_PFN_SHIFT)
- 
-+struct guest_pages {
-+	unsigned long pfn;
-+	unsigned int order;
-+};
-+
-+void page_hinting_request(uint64_t addr, uint32_t len);
-+
- static void balloon_page(void *addr, int deflate)
- {
-     if (!qemu_balloon_is_inhibited()) {
-@@ -207,6 +214,85 @@ static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,
-     balloon_stats_change_timer(s, 0);
- }
- 
-+static void *gpa2hva(MemoryRegion **p_mr, hwaddr addr, Error **errp)
-+{
-+    MemoryRegionSection mrs = memory_region_find(get_system_memory(),
-+                                                 addr, 1);
-+
-+    if (!mrs.mr) {
-+        error_setg(errp, "No memory is mapped at address 0x%" HWADDR_PRIx, addr);
-+        return NULL;
-+    }
-+
-+    if (!memory_region_is_ram(mrs.mr) && !memory_region_is_romd(mrs.mr)) {
-+        error_setg(errp, "Memory at address 0x%" HWADDR_PRIx "is not RAM", addr);
-+        memory_region_unref(mrs.mr);
-+        return NULL;
-+    }
-+
-+    *p_mr = mrs.mr;
-+    return qemu_map_ram_ptr(mrs.mr->ram_block, mrs.offset_within_region);
-+}
-+
-+void page_hinting_request(uint64_t addr, uint32_t len)
-+{
-+    Error *local_err = NULL;
-+    MemoryRegion *mr = NULL;
-+    int ret = 0;
-+    struct guest_pages *guest_obj;
-+    int i = 0;
-+    void *hvaddr_to_free;
-+    unsigned long pfn, pfn_end;
-+    uint64_t gpaddr_to_free;
-+    void * temp_addr = gpa2hva(&mr, addr, &local_err);
-+
-+    if (local_err) {
-+        error_report_err(local_err);
-+        return;
-+    }
-+    guest_obj = temp_addr;
-+    while (i < len) {
-+        pfn = guest_obj[i].pfn;
-+	pfn_end = guest_obj[i].pfn + (1 << guest_obj[i].order) - 1;
-+	trace_virtio_balloon_hinting_request(pfn,(1 << guest_obj[i].order));
-+	while (pfn <= pfn_end) {
-+	        gpaddr_to_free = pfn << VIRTIO_BALLOON_PFN_SHIFT;
-+	        hvaddr_to_free = gpa2hva(&mr, gpaddr_to_free, &local_err);
-+	        if (local_err) {
-+			error_report_err(local_err);
-+		        return;
-+		}
-+		ret = qemu_madvise((void *)hvaddr_to_free, 4096, QEMU_MADV_DONTNEED);
-+		if (ret == -1)
-+		    printf("\n%d:%s Error: Madvise failed with error:%d\n", __LINE__, __func__, ret);
-+		pfn++;
-+	}
-+	i++;
-+    }
-+}
-+
-+static void virtio_balloon_page_hinting(VirtIODevice *vdev, VirtQueue *vq)
-+{
-+    VirtQueueElement *elem = NULL;
-+    uint64_t temp_addr;
-+    uint32_t temp_len;
-+    size_t size, t_size = 0;
-+
-+    elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
-+    if (!elem) {
-+	printf("\npop error\n");
-+	return;
-+    }
-+    size = iov_to_buf(elem->out_sg, elem->out_num, 0, &temp_addr, sizeof(temp_addr));
-+    t_size += size;
-+    size = iov_to_buf(elem->out_sg, elem->out_num, 8, &temp_len, sizeof(temp_len));
-+    t_size += size;
-+    page_hinting_request(temp_addr, temp_len);
-+    virtqueue_push(vq, elem, t_size);
-+    virtio_notify(vdev, vq);
-+    g_free(elem);
-+}
-+
- static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
- {
-     VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
-@@ -376,6 +462,7 @@ static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
-     VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
-     f |= dev->host_features;
-     virtio_add_feature(&f, VIRTIO_BALLOON_F_STATS_VQ);
-+    virtio_add_feature(&f, VIRTIO_BALLOON_F_HINTING);
-     return f;
- }
- 
-@@ -445,6 +532,7 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
-     s->ivq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
-     s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
-     s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
-+    s->hvq = virtio_add_queue(vdev, 128, virtio_balloon_page_hinting);
- 
-     reset_stats(s);
- }
-@@ -488,6 +576,8 @@ static void virtio_balloon_instance_init(Object *obj)
- 
-     object_property_add(obj, "guest-stats", "guest statistics",
-                         balloon_stats_get_all, NULL, NULL, s, NULL);
-+    object_property_add(obj, "guest-page-hinting", "guest page hinting",
-+                        NULL, NULL, NULL, s, NULL);
- 
-     object_property_add(obj, "guest-stats-polling-interval", "int",
-                         balloon_stats_get_poll_interval,
-diff --git a/include/hw/virtio/virtio-balloon.h b/include/hw/virtio/virtio-balloon.h
-index e0df3528c8..774498a6ca 100644
---- a/include/hw/virtio/virtio-balloon.h
-+++ b/include/hw/virtio/virtio-balloon.h
-@@ -32,7 +32,7 @@ typedef struct virtio_balloon_stat_modern {
- 
- typedef struct VirtIOBalloon {
-     VirtIODevice parent_obj;
--    VirtQueue *ivq, *dvq, *svq;
-+    VirtQueue *ivq, *dvq, *svq, *hvq;
-     uint32_t num_pages;
-     uint32_t actual;
-     uint64_t stats[VIRTIO_BALLOON_S_NR];
-diff --git a/include/standard-headers/linux/virtio_balloon.h b/include/standard-headers/linux/virtio_balloon.h
-index 4dbb7dc6c0..f50c0d95ea 100644
---- a/include/standard-headers/linux/virtio_balloon.h
-+++ b/include/standard-headers/linux/virtio_balloon.h
-@@ -34,6 +34,7 @@
- #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
- #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
- #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
-+#define VIRTIO_BALLOON_F_HINTING	5 /* Page hinting virtqueue */
- 
- /* Size of a PFN in the balloon interface. */
- #define VIRTIO_BALLOON_PFN_SHIFT 12
--- 
-2.17.2
+There is a misunderstanding... my request for this patch was to update
+the changelog to describe the merits of DAX mirroring to replace the
+"There is no reason not to support that case." Otherwise someone
+reading this changelog in a year will wonder what the motivation was.
 
