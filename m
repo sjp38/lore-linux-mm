@@ -3,189 +3,207 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A33ADC43381
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 20:32:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0ACB0C4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 21:17:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 587BC20684
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 20:32:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 587BC20684
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 94D5420661
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 21:17:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 94D5420661
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0BB6F8E0004; Wed,  6 Mar 2019 15:32:14 -0500 (EST)
+	id F190C8E0003; Wed,  6 Mar 2019 16:17:36 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0425A8E0002; Wed,  6 Mar 2019 15:32:13 -0500 (EST)
+	id EC6A58E0002; Wed,  6 Mar 2019 16:17:36 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E27DA8E0004; Wed,  6 Mar 2019 15:32:13 -0500 (EST)
+	id D416D8E0003; Wed,  6 Mar 2019 16:17:36 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B4D438E0002
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 15:32:13 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id i36so12755177qte.6
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 12:32:13 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FD9D8E0002
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 16:17:36 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id 27so13707185pgv.14
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 13:17:36 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to;
-        bh=zdlXK/K9DrmgdShzIBPYnOPsskIKfhagYRirY+udO1c=;
-        b=gUrEGIqB/rprFsJvp0cp724PqwXkwGYO/kdM3rpChTBTLoIE2YE3DrNhDD5vrYc1Ov
-         WIQ37vJEkXJrx1sx8TyGizYIJLGqiIXegGNxUyqGwOD9nabMFzCbtkjabGsBjF7E/qRs
-         g88GnkovvyOCH6JtlY+TteHDggwL+IpUmrh0XjOY9S951e51eLd9nG2mcWNLmNjYires
-         nG0pJ4Iuas+HCGQArecluA7wrQnI64zbcGWFMuahHURQ8Yx6deB9bY67PYAVBjMntULP
-         Ob1xKZ+vRzuEzE6mCHWdJwX9ARSzr1c3eFrAopQh4t2h9p/Ki0iSE86bo1IKcD4b1/Os
-         F3TA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUPerKfimsZ5oXWUdVHVxhEPaz2DjSzxPs8eAPa2SdYxM++9icn
-	+HD64S87B7CHfRUQ3rQyXJhTIWzyijcEVg50Zw8cUp84Bx8EkEu2ejdXOqxlFreUMXhEBNS+T9E
-	pqLL+Sfl6y1tr/6YQrJEZU47XfLgF4HK/QHB9rLMN+f8jpx+Ooc54eZmtE/0JBOMt6qrx3K1Tyc
-	z8I3HS51uNKzjablPQf6lomropYW/OAoAxFbxEQzqUdeoMZt5KiPhNFmhYJyCYev/Hwi3zSjGTJ
-	gNap+MN1GvvhxkY2RuUKlZ8dVyp6UlM098Ja4NrGUgqvi5AxfQ4+tcImxQ2iHqslfBlsarMgZ0f
-	Bj4XU6tXJOckKCM5J6boEWbw0iFJmuode00p7KJOd6xwbUmViTMPy49Plhzfk+/K1JGqAp9g+D1
-	g
-X-Received: by 2002:ac8:fbb:: with SMTP id b56mr7490449qtk.41.1551904333523;
-        Wed, 06 Mar 2019 12:32:13 -0800 (PST)
-X-Received: by 2002:ac8:fbb:: with SMTP id b56mr7490371qtk.41.1551904332392;
-        Wed, 06 Mar 2019 12:32:12 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551904332; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=loVhwJRnpkgdnpbZ2Uea8dnQHINtHnxdKbkFjujEQsI=;
+        b=ErJONuaGtmD2Cl07UokikFYG+v+C8OypuzQ8cTE4soKK/uE7djRADrak45I8xqFJth
+         GIamkPSb674hD7zCxw8pP2ca/ip6+K/ZMHgM/Pd/IR6zkcj3bCzg6ldJiotyBSf+wQSq
+         MH5wrpc3QLJZE/HPU2CKwbWHUgxxpVU3i/qChcVvVtpzEqiQj4FdsL5IjlJaytL18hZ9
+         +wKBDcT3R3428ifPAU9t6zQJxvpYCVhlWFco4bNkV35M4q2APJXfzeieWkrZn5f5UavZ
+         6cUNvt8ZueBPLeQSj+YQder2N/JUBM+++4b5qRhLOBak6Me+5q1ly0EjqC48X5BWqmtE
+         odDw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUrCQ6XSsIMfUWu1e0lsp8vsVsztPtJ4WWlaq4lZor1RFTk8Bpx
+	n6komCNU/ccUQXnSvDZeYxOXRCB4f0LvON/69nvuoOFGRYE4VOrghcCkbYI5YblBrwCZ4BHf7nl
+	iSLq1qbDEKxbnyo9AsHghhtO1eqbPWc3yNUgXD8xKZyUxdw6lUYvDO6Q7ykhhf+x7KQ==
+X-Received: by 2002:a17:902:25ab:: with SMTP id y40mr8970931pla.62.1551907056212;
+        Wed, 06 Mar 2019 13:17:36 -0800 (PST)
+X-Google-Smtp-Source: APXvYqzkSXmgLHEiIDqk60oa0j5mCee+M19TT6L98ZIs0THcTbtMiUbafqI7i1f4tov2qLQIC8lf
+X-Received: by 2002:a17:902:25ab:: with SMTP id y40mr8970847pla.62.1551907055186;
+        Wed, 06 Mar 2019 13:17:35 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551907055; cv=none;
         d=google.com; s=arc-20160816;
-        b=A6GJWH1z8gw3FlhmGgql9TneH8zDpmms5GNegdIAaSE7XBNhvA2t4qza7reDLnI7ap
-         B4MmiNQVzlTl99FajAfY2rGsL30Zd4gZkSulKTizPPc/1hCpkUyQgOlUj/XWzda6Keqb
-         ESY+T06/9cm63iWeLG6/Sgg/0zE54fwJriZsDH+UsiYnih53imZ8yOB23NYYnL6RF4/S
-         yAae5gFlirsROSO0gNOvaFsvM/Gssn1qxO2/nG+BSmy41Eg65iAguRvK/GfKDrUP0ghH
-         XHIFUhPILufv8ZCmP2UdkfdN7ovvuRJkTcX8gUASHu8v0v8EDu5rhy5V446IPX3p5TBQ
-         ZlVA==
+        b=WYw5qSXTM1la9lwYEhmNzrK3iRtTZCEFSQVZ/+Yq3hBr55hiPWEJ2CYQvDpMpR0v0v
+         L9Tdoz06BQcS+Pjm7GzMRg1N7/myiO7U3l9EnQ04i9zvP5eRMOBCdGgHiKHt2vpEIdpD
+         KwVUni8f1zQuyQuSjmpspzCgxik3+mZnOQWyR1SITAPCuPaG61b7o1cZvXG4q6aZdEGM
+         9+AYYxtD+22Qj0U6thccPJlmqjZFRDC4CagY3MCH8h5BJer5iclwmxNdTXoiqjq1QsCm
+         HGQKNi+KcOVFUqj8X4FORjY1Bcp7JuUuUMVoVGiesOUlZHtZPLqgLSHvw3VKaY44NGgW
+         0BAQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-transfer-encoding:content-disposition
-         :mime-version:references:message-id:subject:cc:to:from:date;
-        bh=zdlXK/K9DrmgdShzIBPYnOPsskIKfhagYRirY+udO1c=;
-        b=qe7peqguity/kt5eg6Zs2DyA74UNJ7QUsHO87eY6FjnQP+QB1eabQ2Wlfw61i1KIMG
-         hSTa63NbGx5ZmYDP02CELWWTik2/WraihkQf3QnqYisoQujWj8BetzT8VnEa60nItVZa
-         zMvdo8ADJoSU6ZvsMZZ3LlKxXkytj5l5c8wg8dATk/u8acHDP8vMiFr8yal0x4l/8XqS
-         /Y02z4XhNkNSUvY8rXf2wM9PNjmzlrapkSjEcXU1nR3rXs4g91hVVfTOK0oryzSpGf5h
-         WGfXwyLxOCnqDO9+R55b8CCrtOoHj+2fRbI4FoE95nrbD3dfLr9BHVQllB445RjeGdMk
-         YGmQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:to
+         :subject;
+        bh=loVhwJRnpkgdnpbZ2Uea8dnQHINtHnxdKbkFjujEQsI=;
+        b=dKbO3WGP6lwB7K+mH2DgEbma600xmM7ahUvbc9NETCQldiUAhcPGwDrqoHzlnbWAzE
+         /WT7Gc+sKLMQ2C9nkFIZsca4o3k3wbOIQAIfWo1qiGJjNzJxqiVi4bi5xTDa7mrbhT6P
+         e/VcC0P30THVqOke80UvHMRR14Wzy0xWLKnozQoiArNKK+8UBonaXJy5iwBMSfC+jjmY
+         qopwaEW+DekA+0+nhImEvMNrOUx7JI3nfVhF+FKQ7+TFEUsO5eQTRd4pnzz/MCvo0tR+
+         pJDuLVROzktLCyIJSl+K04RWIBKrdtGIFyKLXbZ9MepPfSZUZ08F+OLVQPF28PD414l4
+         cLkg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w3sor1678043qka.89.2019.03.06.12.32.12
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id z9si1414028pfg.21.2019.03.06.13.17.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 06 Mar 2019 12:32:12 -0800 (PST)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Mar 2019 13:17:35 -0800 (PST)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqxms3WUU7IeqX32+lnwJ/uUR/49fW9yRJm447yiqeryyZJ3BJoAMav/eWIlJ6fELpmiv5iJ0g==
-X-Received: by 2002:a05:620a:124c:: with SMTP id a12mr7158890qkl.103.1551904332106;
-        Wed, 06 Mar 2019 12:32:12 -0800 (PST)
-Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
-        by smtp.gmail.com with ESMTPSA id v25sm1108008qtp.92.2019.03.06.12.32.09
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 06 Mar 2019 12:32:10 -0800 (PST)
-Date: Wed, 6 Mar 2019 15:32:08 -0500
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: David Hildenbrand <david@redhat.com>
-Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	pbonzini@redhat.com, lcapitulino@redhat.com, pagupta@redhat.com,
-	wei.w.wang@intel.com, yang.zhang.wz@gmail.com, riel@surriel.com,
-	dodgen@google.com, konrad.wilk@oracle.com, dhildenb@redhat.com,
-	aarcange@redhat.com, alexander.duyck@gmail.com
-Subject: Re: [RFC][Patch v9 0/6] KVM: Guest Free Page Hinting
-Message-ID: <20190306140917-mutt-send-email-mst@kernel.org>
-References: <20190306155048.12868-1-nitesh@redhat.com>
- <20190306110501-mutt-send-email-mst@kernel.org>
- <bd029eb2-501a-8d2d-5f75-5d2b229c7e75@redhat.com>
- <20190306130955-mutt-send-email-mst@kernel.org>
- <afc52d00-c769-01a0-949a-8bc96af47fab@redhat.com>
- <20190306133826-mutt-send-email-mst@kernel.org>
- <3f87916d-8d18-013c-8988-9eb516c9cd2e@redhat.com>
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga005.jf.intel.com ([10.7.209.41])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Mar 2019 13:17:34 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,449,1544515200"; 
+   d="scan'208";a="304986830"
+Received: from ray.jf.intel.com (HELO [10.7.201.16]) ([10.7.201.16])
+  by orsmga005.jf.intel.com with ESMTP; 06 Mar 2019 13:17:34 -0800
+Subject: Re: [PATCH v5 4/4] hugetlb: allow to free gigantic pages regardless
+ of the configuration
+To: Alex Ghiti <alex@ghiti.fr>, Vlastimil Babka <vbabka@suse.cz>,
+ Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
+ <will.deacon@arm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>,
+ Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
+ "David S . Miller" <davem@davemloft.net>,
+ Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+ Borislav Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>,
+ x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>,
+ Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
+ Mike Kravetz <mike.kravetz@oracle.com>,
+ linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+ linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
+ linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org
+References: <20190306190005.7036-1-alex@ghiti.fr>
+ <20190306190005.7036-5-alex@ghiti.fr>
+ <7c81abe0-5f9d-32f9-1e9a-70ab06d48f8e@intel.com>
+ <82a3f572-e9c1-0151-3d7d-a646f5e5302c@ghiti.fr>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <5058428f-f351-ce26-7348-3b2255e5425d@intel.com>
+Date: Wed, 6 Mar 2019 13:17:38 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+In-Reply-To: <82a3f572-e9c1-0151-3d7d-a646f5e5302c@ghiti.fr>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <3f87916d-8d18-013c-8988-9eb516c9cd2e@redhat.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 06, 2019 at 07:59:57PM +0100, David Hildenbrand wrote:
-> On 06.03.19 19:43, Michael S. Tsirkin wrote:
-> > On Wed, Mar 06, 2019 at 01:30:14PM -0500, Nitesh Narayan Lal wrote:
-> >>>> Here are the results:
-> >>>>
-> >>>> Procedure: 3 Guests of size 5GB is launched on a single NUMA node with
-> >>>> total memory of 15GB and no swap. In each of the guest, memhog is run
-> >>>> with 5GB. Post-execution of memhog, Host memory usage is monitored by
-> >>>> using Free command.
-> >>>>
-> >>>> Without Hinting:
-> >>>>                  Time of execution    Host used memory
-> >>>> Guest 1:        45 seconds            5.4 GB
-> >>>> Guest 2:        45 seconds            10 GB
-> >>>> Guest 3:        1  minute               15 GB
-> >>>>
-> >>>> With Hinting:
-> >>>>                 Time of execution     Host used memory
-> >>>> Guest 1:        49 seconds            2.4 GB
-> >>>> Guest 2:        40 seconds            4.3 GB
-> >>>> Guest 3:        50 seconds            6.3 GB
-> >>> OK so no improvement.
-> >> If we are looking in terms of memory we are getting back from the guest,
-> >> then there is an improvement. However, if we are looking at the
-> >> improvement in terms of time of execution of memhog then yes there is none.
-> > 
-> > Yes but the way I see it you can't overcommit this unused memory
-> > since guests can start using it at any time.  You timed it carefully
-> > such that this does not happen, but what will cause this timing on real
-> > guests?
+On 3/6/19 12:08 PM, Alex Ghiti wrote:
+>>>
+>>> +Â Â Â  /*
+>>> +Â Â Â Â  * Gigantic pages allocation depends on the capability for large
+>>> page
+>>> +Â Â Â Â  * range allocation. If the system cannot provide
+>>> alloc_contig_range,
+>>> +Â Â Â Â  * allow users to free gigantic pages.
+>>> +Â Â Â Â  */
+>>> +Â Â Â  if (hstate_is_gigantic(h) && !IS_ENABLED(CONFIG_CONTIG_ALLOC)) {
+>>> +Â Â Â Â Â Â Â  spin_lock(&hugetlb_lock);
+>>> +Â Â Â Â Â Â Â  if (count > persistent_huge_pages(h)) {
+>>> +Â Â Â Â Â Â Â Â Â Â Â  spin_unlock(&hugetlb_lock);
+>>> +Â Â Â Â Â Â Â Â Â Â Â  return -EINVAL;
+>>> +Â Â Â Â Â Â Â  }
+>>> +Â Â Â Â Â Â Â  goto decrease_pool;
+>>> +Â Â Â  }
+>> We talked about it during the last round and I don't seen any mention of
+>> it here in comments or the changelog: Why is this a goto?Â  Why don't we
+>> just let the code fall through to the "decrease_pool" label?Â  Why is
+>> this new block needed at all?Â  Can't we just remove the old check and
+>> let it be?
 > 
-> Whenever you overcommit you will need backup swap.
+> I'll get rid of the goto, I don't know how to justify it properly in a
+> comment,
+> maybe because it is not necessary.
+> This is not a new block, this means exactly the same as before (remember
+> gigantic_page_supported() actually meant CONTIG_ALLOC before this series),
+> except that now we allow a user to free boottime allocated gigantic pages.
+> And no we cannot just remove the check and let it be since it would modify
+> the current behaviour, which is to return an error when trying to allocate
+> gigantic pages whereas alloc_contig_range is not defined. I thought it was
+> clearly commented above, I can try to make it more explicit.
 
-Right and the point of hinting is that pages can just be
-discarded and not end up in swap.
-
-
-Point is you should be able to see the gain.
-
-Hinting patches cost some CPU so we need to know whether
-they cost too much. How much is too much? When the cost
-is bigger than benefit. But we can't compare CPU cycles
-to bytes. So we need to benchmark everything in terms of
-cycles.
-
-> There is no way
-> around it. It just makes the probability of you having to go to disk
-> less likely.
-
-
-Right and let's quantify this. Does this result in net gain or loss?
-
-
-> If you assume that all of your guests will be using all of their memory
-> all the time, you don't have to think about overcommiting memory in the
-> first place. But this is not what we usually have.
-
-Right and swap is there to support overcommit. However it
-was felt that hinting can be faster since it avoids IO
-involved in swap.
-
-> > 
-> > So the real reason to want this is to avoid need for writeback on free
-> > pages.
-> > 
-> > Right?
-> 
-> -- 
-> 
-> Thanks,
-> 
-> David / dhildenb
+OK, that makes sense.  Could you get some of this in the changelog,
+please?  Otherwise this all looks good to me.
 
