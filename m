@@ -2,133 +2,148 @@ Return-Path: <SRS0=43/C=RJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=FROM_EXCESS_BASE64,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0BBF8C43381
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 11:44:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D64DC10F00
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 12:11:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C82BB2064A
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 11:44:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C82BB2064A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id E6F0820684
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 12:11:47 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="PlEMSfIY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E6F0820684
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5CB698E0002; Wed,  6 Mar 2019 06:44:58 -0500 (EST)
+	id 606098E0005; Wed,  6 Mar 2019 07:11:47 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 57A9E8E0004; Wed,  6 Mar 2019 06:44:58 -0500 (EST)
+	id 5B44E8E0004; Wed,  6 Mar 2019 07:11:47 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 476858E0002; Wed,  6 Mar 2019 06:44:58 -0500 (EST)
+	id 4C9CE8E0005; Wed,  6 Mar 2019 07:11:47 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E2CEE8E0002
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 06:44:57 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id a21so6321820eda.3
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 03:44:57 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D2538E0004
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 07:11:47 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id w16so13249875pfn.3
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 04:11:47 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=8YfZSnQB+LVGFyraNiu3foi3/Wiq/19xgJ3IqcCf2/0=;
-        b=NAn7qLJUcyiIc54jERD+HJg6/ZuAs8z4g/5tj6Qtn2EX7j02wBB9zgOe0IBPPRrO6A
-         pIpvWuQ6GC4Z7cGbAFOjrzEFoIVKNXSkZqmB5cdFusH/YctkyW4ytQSchBR0UjVQM2VK
-         pm7rs1OwCAvw5xVwzV5DaDndc3304tLX9xFBsJCLlHM0EZj9QOr7ABRTZG+rGytYlWMP
-         fdodP4ryh5/hZNjE8s4bNxFnGZY1+UJ97h8SixE+ulIcqT7uo2yMIhqAWWApN3HnkB/n
-         RmiHNPrDzL3A2n4n39EjIukzh9ZTuiMqfHdHMt+PTl8qTSisj5NHFkrhJMDIDT/JQRAt
-         eO4Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of msuchanek@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=msuchanek@suse.de
-X-Gm-Message-State: APjAAAUvrAX6LZfNg2lJGKhjJCXBK4RkG/n/4SyGZe4ziYh+ntPOzjJB
-	kPVzNnOuCLUVOsmp8zFsXcoR3ChYTdappL1MLstTeiO1m8xWo6HQRXylVdqVCF+RUuyWMDOyQo6
-	AL6T6zOCD2X9TEce8LXAMWVWsapkRM397fUhwqFi7BKoMdtjpC2cgyeIJWSpmp3uJ7A==
-X-Received: by 2002:a17:906:2e9b:: with SMTP id o27mr3670272eji.98.1551872697528;
-        Wed, 06 Mar 2019 03:44:57 -0800 (PST)
-X-Google-Smtp-Source: APXvYqw2M8KXTYGtezX7cTsMdUj/HiI1A5UH2wJ9REoTcoVx1W1Mw9J1aJ1+PX+vBAeSRIW89ThF
-X-Received: by 2002:a17:906:2e9b:: with SMTP id o27mr3670224eji.98.1551872696581;
-        Wed, 06 Mar 2019 03:44:56 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551872696; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version;
+        bh=HO2FVV3s3+gu7HhzXsc5YZvRD9XgD7vWiglwP/Nj1rc=;
+        b=bR1FI1UJp84UP4wv+hcW7VhE1+uEMfo7TBn2EuxGnbMey3I2kFgl2avtU6cNqxnp21
+         AktXsHK0cxNYoveyg54s2DaFv4QSDyLQwTY+0P2tIbl7ochRdeJ7PAzK42xJrmpUkUf2
+         swLZED5mPOgojNrzTWllqawnk9wWSjT6cOsbuGTC1W7IOjYjMkcMlSVvY9zT4JH4tU9O
+         GxO0R8G4bXQu2KPs4ZCww1khPPHVO9clDeb8b1+XkqwzSUXgcklofozF2evIjMdY4wq2
+         HMTyyY8FB2csNcai1v/eRcJZCziewPn3dgk0/7a8oGdVJAWKqiCb4dIx/JlBFTsN5ef8
+         8mAg==
+X-Gm-Message-State: APjAAAVLcBq0ZKihNEwm778Ne3dQqHDdStuhEIHLBoJumXrYQ5DMQaUj
+	dN4hunacJcvUmFYD4D1ljub6FyEoWJHI/MhUg48ishTMfiw+544Gj2sUZVOYSTDC+23BLoW9jLH
+	qPlg9Y2Hk7ozl3nLis2eBiKhEsTlPjlXlaj220lQrAOq3WxIpdFPr5L5rB51ylw/76g==
+X-Received: by 2002:a63:cc05:: with SMTP id x5mr5961069pgf.31.1551874306642;
+        Wed, 06 Mar 2019 04:11:46 -0800 (PST)
+X-Google-Smtp-Source: APXvYqxFIijSoszNRlqegGV/zomzlDBbImgr6sM6lo8NxTatS5cXB5oxKbL9zRLLyAWuRx6qy4b8
+X-Received: by 2002:a63:cc05:: with SMTP id x5mr5961001pgf.31.1551874305711;
+        Wed, 06 Mar 2019 04:11:45 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551874305; cv=none;
         d=google.com; s=arc-20160816;
-        b=wVNX7otdY9wmKdn/ALPJ6O6IjQVZN8yB0mYVJK0TWuMvkFoweoKEhnQZbIueBBcRIQ
-         7hsJi/2wYdUR4/Vh282klO7HTsyl3scBMPPFWxmPz26P9mywwVX9nP1G8RECiwhWsK/F
-         bNRTs+Y7OvMMmiPVSPl4coRlbm5BXgPSPns/4LvP7UPlfyKCwycmehn9CZ/kFPM9Cy12
-         7dVTa3fdsiBygGjXyCUHqQMCF70EUShlPDOZYturK4dDD2tJeS14tRqLdTYBaZCi4hsy
-         aricoGgk7q0r4JGN2kn5IiadvbyvFNmN0rYS/dAnhTIpYawgwrNLs4a9U7Oc0FDcYf8L
-         rN8A==
+        b=WqfwzPkZa+sLMd0UAJ1Y/HAtoeYAp0Wl2joESd8P/hLhFSwZ67ZyyXwlGmQhldrHpx
+         IAE5b56LjdgjWn/GK0YNBhIvJAZAYz6DJV75j67d/Bft7CEDbmbT8GLqhLDPBZEc7FtU
+         NqeZgV58fxmhbAyD82qNlyjpKqcTmFLQL/aV5BlzxQJbER6iyZsJOxgTkCWjnwlHgTyk
+         hNPCJgQY785RTDLmisq20Xk/r8YWXdJfLh9LqT5bEJmRRb0w4XNBveA1IZSxnqlMf5Kw
+         0u3uOxzVhSApyeP43UcqL6QfW8ZZob1Q0D6ytf96PuXKPD/0lRV9soZc4UO/AoML5QaL
+         dwDw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date;
-        bh=8YfZSnQB+LVGFyraNiu3foi3/Wiq/19xgJ3IqcCf2/0=;
-        b=C6hAkp1UuPSMDZwX3GLWH39pJNFPytFe0iX3lpii+kc6OETcYEgfhRFlmeCFrniLfH
-         dXLll3B8o+iI7a9KkmFQU3NhilF5T/29wU4r0rCep8Cw879l/M/2wT8s9BmZUnPHly73
-         A+ZhUv/jyHLagsBIXRRPsf6nffjzTnRrkWjM2BCu46kyd+rQ5aWW7B54DrpHNESDYGzN
-         Z9OmFQyv9vil6y/J0zI5NSiFjQhhTXJdzzpcSVKQP+y/2f0LKsyVx+nS3p2GyFt7ymrV
-         lVZ0DMZoTnXO/5mNOBXS43pslb19pOBn7+ymVajCFiSeVQ+tzrQXrSWsrf3VbcJvRh7L
-         PG1w==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date:dkim-signature;
+        bh=HO2FVV3s3+gu7HhzXsc5YZvRD9XgD7vWiglwP/Nj1rc=;
+        b=FNViLKpPkeiep2SZ2fgbrNCrPdW+arhJJw90gdqVvIiZtPIn8DfdQ1PE88DSVhocZa
+         xRBSegnPAE7Ydj6/m/24td9O43B4hlxU0r6+SEt+L81kVc7EiNN66V3LQ0xzn8oVSSP0
+         0jCHpPHBkWPA7UBI7xIwmz3ZTE49F1VZ7W68Ik1G2airWkvoxcxsSem2SvyqkTcAqon6
+         Dld5kDC/mX1+J8nv1XhtSeKsUN7XadeMu95qe8Iljdw2XAs6QS4cXQ4grn8gLwhYcYPA
+         IwQmP9rNTI1pN8VMBrddAaiFBK4Jsjiji95qo/QYpVANMRTJu/duDl3qWvNgOYS9fGRR
+         lPQw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of msuchanek@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=msuchanek@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c10si535671edc.119.2019.03.06.03.44.56
+       dkim=pass header.i=@kernel.org header.s=default header.b=PlEMSfIY;
+       spf=pass (google.com: domain of jikos@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=jikos@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id v3si1290524pgr.11.2019.03.06.04.11.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Mar 2019 03:44:56 -0800 (PST)
-Received-SPF: pass (google.com: domain of msuchanek@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Wed, 06 Mar 2019 04:11:45 -0800 (PST)
+Received-SPF: pass (google.com: domain of jikos@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of msuchanek@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=msuchanek@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 13F9DB12F;
-	Wed,  6 Mar 2019 11:44:56 +0000 (UTC)
-Date: Wed, 6 Mar 2019 12:44:53 +0100
-From: Michal =?UTF-8?B?U3VjaMOhbmVr?= <msuchanek@suse.de>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, Oliver <oohall@gmail.com>, Jan
- Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, Linux Kernel Mailing List
- <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Ross Zwisler
- <zwisler@kernel.org>, Andrew Morton <akpm@linux-foundation.org>,
- linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, "Kirill A . Shutemov"
- <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH 2/2] mm/dax: Don't enable huge dax mapping by default
-Message-ID: <20190306124453.126d36d8@naga.suse.cz>
-In-Reply-To: <87k1hc8iqa.fsf@linux.ibm.com>
-References: <20190228083522.8189-1-aneesh.kumar@linux.ibm.com>
-	<20190228083522.8189-2-aneesh.kumar@linux.ibm.com>
-	<CAOSf1CHjkyX2NTex7dc1AEHXSDcWA_UGYX8NoSyHpb5s_RkwXQ@mail.gmail.com>
-	<CAPcyv4jhEvijybSVsy+wmvgqfvyxfePQ3PUqy1hhmVmPtJTyqQ@mail.gmail.com>
-	<87k1hc8iqa.fsf@linux.ibm.com>
-X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-suse-linux-gnu)
+       dkim=pass header.i=@kernel.org header.s=default header.b=PlEMSfIY;
+       spf=pass (google.com: domain of jikos@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=jikos@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from pobox.suse.cz (prg-ext-pat.suse.com [213.151.95.130])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 0535A204EC;
+	Wed,  6 Mar 2019 12:11:41 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1551874305;
+	bh=tBnhCSlqLgwmBPyAmakrTsJfwyq/CWP9Ej0xMCJAKnk=;
+	h=Date:From:To:cc:Subject:In-Reply-To:References:From;
+	b=PlEMSfIYj3VIj20iNGIDIhCSALkxRH8E1gNsF4aE7mQfqYOIIKLAvfX4MXRpQP8Xj
+	 gnmDKbdWO9OVXEwOWECFgOGxzl/nYuCOkRdUsGUs+XlQmJMRZhyRe0OQ9OfBOhZeMI
+	 1qrdOpBdKnBYmpNV3LvEO/al1TcWEoJBSBHyc2XA=
+Date: Wed, 6 Mar 2019 13:11:39 +0100 (CET)
+From: Jiri Kosina <jikos@kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>, 
+    Andrew Morton <akpm@linux-foundation.org>
+cc: Linus Torvalds <torvalds@linux-foundation.org>, 
+    linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
+    linux-api@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, 
+    Greg KH <gregkh@linuxfoundation.org>, Jann Horn <jannh@google.com>, 
+    Andy Lutomirski <luto@amacapital.net>, Cyril Hrubis <chrubis@suse.cz>, 
+    Daniel Gruss <daniel@gruss.cc>, Dave Chinner <david@fromorbit.com>, 
+    Dominique Martinet <asmadeus@codewreck.org>, 
+    Kevin Easton <kevin@guarana.org>, 
+    "Kirill A. Shutemov" <kirill@shutemov.name>, 
+    Matthew Wilcox <willy@infradead.org>, Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 0/3] mincore() and IOCB_NOWAIT adjustments
+In-Reply-To: <20190130124420.1834-1-vbabka@suse.cz>
+Message-ID: <nycvar.YFH.7.76.1903061310170.19912@cbobk.fhfr.pm>
+References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm> <20190130124420.1834-1-vbabka@suse.cz>
+User-Agent: Alpine 2.21 (LSU 202 2017-01-01)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 06 Mar 2019 14:47:33 +0530
-"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> wrote:
+On Wed, 30 Jan 2019, Vlastimil Babka wrote:
 
-> Dan Williams <dan.j.williams@intel.com> writes:
+> I've collected the patches from the discussion for formal posting. The first
+> two should be settled already, third one is the possible improvement I've
+> mentioned earlier, where only in restricted case we resort to existence of page
+> table mapping (the original and later reverted approach from Linus) instead of
+> faking the result completely. Review and testing welcome.
 > 
-> > On Thu, Feb 28, 2019 at 1:40 AM Oliver <oohall@gmail.com> wrote:  
-> >>
-> >> On Thu, Feb 28, 2019 at 7:35 PM Aneesh Kumar K.V
-> >> <aneesh.kumar@linux.ibm.com> wrote:  
- 
-> Also even if the user decided to not use THP, by
-> echo "never" > transparent_hugepage/enabled , we should continue to map
-> dax fault using huge page on platforms that can support huge pages.
+> The consensus seems to be going through -mm tree for 5.1, unless Linus wants
+> them alredy for 5.0.
+> 
+> Jiri Kosina (2):
+>   mm/mincore: make mincore() more conservative
+>   mm/filemap: initiate readahead even if IOCB_NOWAIT is set for the I/O
+> 
+> Vlastimil Babka (1):
+>   mm/mincore: provide mapped status when cached status is not allowed
 
-Is this a good idea?
+Andrew,
 
-This knob is there for a reason. In some situations having huge pages
-can severely impact performance of the system (due to host-guest
-interaction or whatever) and the ability to really turn off all THP
-would be important in those cases, right?
+could you please take at least the correct and straightforward fix for 
+mincore() before we figure out how to deal with the slightly less 
+practical RWF_NOWAIT? Thanks.
 
-Thanks
-
-Michal
+-- 
+Jiri Kosina
+SUSE Labs
 
