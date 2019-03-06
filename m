@@ -2,151 +2,192 @@ Return-Path: <SRS0=43/C=RJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EFA2FC43381
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 15:51:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EF0A8C10F00
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 15:51:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B186920663
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 15:51:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B186920663
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id ADBF420663
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 15:51:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ADBF420663
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D24548E0012; Wed,  6 Mar 2019 10:51:28 -0500 (EST)
+	id B9EAB8E0013; Wed,  6 Mar 2019 10:51:30 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CAE8A8E0002; Wed,  6 Mar 2019 10:51:28 -0500 (EST)
+	id B76E18E0002; Wed,  6 Mar 2019 10:51:30 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B9B378E0012; Wed,  6 Mar 2019 10:51:28 -0500 (EST)
+	id A156A8E0013; Wed,  6 Mar 2019 10:51:30 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 87AD88E0002
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 10:51:28 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id j22so11783625qtq.21
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 07:51:28 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 485D98E0002
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 10:51:30 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id m25so6553359edd.6
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 07:51:30 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to
-         :subject:date:message-id:in-reply-to:references;
-        bh=MP5e6YhXBk99SlgyMaFRYTASfilfVGzXwWWzUP9r2gA=;
-        b=JwyqkT+axrDpfyOnL4rHh1O9s5IQTSZgk8l8fvTrV+NAoKvny85hkJrZke1dFVbYpi
-         clj5+VX5KHUpriABehjXzUwd8GxVAezizrPxPEe2/lRf+uWCwn0BN2J2sWZiP7lwCgeo
-         gl3hQCAX4TednpDWQRtv7TLBZewInc2tY0vTbjEkhU6uqkyJ4i3ZcSsXBLN3tzSWdPbM
-         iLzpPQPO2LI5TwFLqVFJePQNVHE6l/SNukH8wWedwp3Gqyg0NFaezEdH0zdPFRgZOD9X
-         bzH0vURamSKX3mw9efIut0xBAdyvBI2Ruh1L2anX0h/PLkvQyHsxkg5/R/lXCNn+tnYE
-         ShUw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXwo00IOeD6qaJcFxqCx9Xw1Hxni2dARPFhKdcCDc/wiFJ6YMP0
-	MXAIBSEvj6qLqhwXucEIwGE+SUlc1VMrQup4lT7aaNi/lD3c3LPGhADLX/UIDjWHaRLJSb452Dc
-	bzjc4a8pqgaWPHDauZxTxclRTaMKe/A6KUZJoqoEp+6SeqqUW3Atk3tB6bf29c/w+Mg==
-X-Received: by 2002:ae9:e702:: with SMTP id m2mr6363669qka.279.1551887488332;
-        Wed, 06 Mar 2019 07:51:28 -0800 (PST)
-X-Google-Smtp-Source: APXvYqxQFDQJDK+/7SBaBugRIZkyRPURe1g1JYxdudxi+aS/EMXkuD1zfgcS103UrGpD/Jz3vcqo
-X-Received: by 2002:ae9:e702:: with SMTP id m2mr6363596qka.279.1551887487252;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=NXbLxkVEjkUC98nDqbwMu9XwBnfr8Fy+W9xUz87hsi8=;
+        b=RWGP8MQSkVeoeLICm8a+huNeS+QgLG9x4b8zbJ3u22Q0Od5cSZLMyNXtDmD5XJnK2K
+         UstEu7e7ygrqx3G1qX7CWkuJu8pbhSTrx+rYlM/dfv/HsV9gsGM2ObDat5IKFkj26A/y
+         LXH9ggj/uAY0+KGxL/1VV9sPutygGhNRnkjagec0IjPTA4w5EfIUcVl2G/1FZ+Xss4en
+         5BX5yGNJjn8wBd/ShH9Mjeb+CekGgmkmXZIfnIg6PCf2Ko67NTHoOoTYiFGF9u3scfOJ
+         g7yOXjIJSVe50wlfWY9Qb/SGIYXLgccxQbccZhDh1lTFH3G37MJnsBVI2WobXI8oDCwW
+         uElg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+X-Gm-Message-State: APjAAAVVbyu8b8NzISMaTiwIqw8UnAbsCIgtnl8oHZMS04W9rQGhajbp
+	6C+sIIsHzFaqOspF04LLzs1G+3wi0/6iRzAR8r1xRg42c4ATaDDr5SambjvQKpMtkjL/I4gYvy4
+	R3xcDO63bwRO1l3m0rdVd4/5QAUXXsctVnoZTfnhO1zuIi3IxtOTWNK56yK2M3Ky0xw==
+X-Received: by 2002:a50:8eab:: with SMTP id w40mr24985888edw.172.1551887489515;
+        Wed, 06 Mar 2019 07:51:29 -0800 (PST)
+X-Google-Smtp-Source: APXvYqwk9yH1bT3T7hC8Tl+StBsl9D2vekfGpdFU6gKha8/VtRTVeSftgJQJWM7hmzXmbPQAm9XC
+X-Received: by 2002:a50:8eab:: with SMTP id w40mr24985784edw.172.1551887487981;
         Wed, 06 Mar 2019 07:51:27 -0800 (PST)
 ARC-Seal: i=1; a=rsa-sha256; t=1551887487; cv=none;
         d=google.com; s=arc-20160816;
-        b=dhYjUi9iHvEZvSDAoYYLEh15asQIHa86VrHkpEm4diOrXDKdVNqyCXu6F97NwPmBY6
-         bmXnBmdVcqErvhg83t0p6X3AdkXGGUjXLkv2FLEmHzLXYuWw2sG5dsFqBVoeVSDcLSFJ
-         KxcwfEMV05Xzc5DubQwLEvAgaW+NJ3JuvlJYNeysG8sUO5HF1FUo9LScr+jr6XsfU/6x
-         JsF88i1uIO+I/Q4D88yes5knfdtpzIEyO9/xKl2BxlRTUzEmVidl/R54NAkf6xFft3v7
-         FSk7Ee0Udt38ry0N9C2olZRVQyEV40ld/gP/BMYhka72KxwXpY1bga9zPCEy8ugwI5xy
-         PCbw==
+        b=JEilWf5TWxO7eo0C3g7xNWZiOdhHMfehKQoM4PGNMmOt3dSfAgK2T1Qw5CEnfCT03T
+         tcGbt/LBl0WqZOwscduGX92OKu+d4VejNzipAjeZ/n0fPh1PMqLiyYevsgl7oQDAkUnm
+         WKAELDkU/8pd1uyUoV/ngVNchQIcfdPKqBZkwrsbaR7tp7QA5qSmzyxIEqU8H4JH+5oN
+         joiGm2NcI23irmpAQrGMMlj/Af0uy7h4IQakH64OO8/1rvMqq/qo2I6zjymMFZ6mrEX7
+         U6gZWS6zo0J/W3yUGD2RdWQKJAk6uUB7K/5l1P8LyltQPuJoOfBzL7+bZCFhsYckLjdF
+         PJ4w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:to:from;
-        bh=MP5e6YhXBk99SlgyMaFRYTASfilfVGzXwWWzUP9r2gA=;
-        b=s/680UxkI25pRaA5pRqV82OpL2xxvE8/7Wt/mHGTw8plee+4HatoVaHjnA2p9r+MVn
-         iC2UvQbL4ngJL6/ZsSF9aFe1I9NwdfSAMrvLlFkGvHEaeRb36GbdEt7hLR0A/aFR9q9q
-         SH0SXxiGlfwdSuGFjqwtAUoXMFs+EdY1A/bIS6h7GGVA2wPkIYKMV/fx/YScX4UMWQEo
-         CYAhk1SrHMS835UnYGI1aHLjkt8ioC32ThYsebVtdAyE4AJ4MFD29Hjlwt7EM0ZcJl5D
-         NYVoY4HDOENWXrua6JW3aDurwvDPNxBrrlcX9H/5cEHN/1ntaGOyQef5LOALnK1A61p2
-         72UA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=NXbLxkVEjkUC98nDqbwMu9XwBnfr8Fy+W9xUz87hsi8=;
+        b=DFHihknwM89do0+VIBn+dxBxbnUsigVuyvfjYgwl6DRk/c83vUPLlnO7lNT/VG6OMY
+         fiqh59Bfk3C/j90QJHx5p7d4QwC8161avN24X9daUNmBMR8Xg/wVsTT+EYrfHpiFUofj
+         hPkvOGqgrJrnLnCuVgOlp8RtViAowpffML3rxIA4bvMegIDO0tKHZ8ECuR831rM8+rqm
+         zY89B5gGCEUnITOhkl04FLP681WMUfbM11yxl7Yv5lSuY6/2miJtM87ZiQsShAqfXjn5
+         8a+qxJiRRR2wO+6Xf1yKSVe3lc0WOcQPmVLISXjEkGNWrfgXTwhJ99D+yn1W8xAayWwt
+         J99w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v21si1138511qvc.165.2019.03.06.07.51.27
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id p18si725435ejz.318.2019.03.06.07.51.27
+        for <linux-mm@kvack.org>;
         Wed, 06 Mar 2019 07:51:27 -0800 (PST)
-Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 7EBB388305;
-	Wed,  6 Mar 2019 15:51:26 +0000 (UTC)
-Received: from virtlab420.virt.lab.eng.bos.redhat.com (virtlab420.virt.lab.eng.bos.redhat.com [10.19.152.148])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id CBFFF1001E60;
-	Wed,  6 Mar 2019 15:51:21 +0000 (UTC)
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-To: kvm@vger.kernel.org,
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 1760F1993;
+	Wed,  6 Mar 2019 07:51:27 -0800 (PST)
+Received: from e112269-lin.arm.com (e112269-lin.cambridge.arm.com [10.1.196.69])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id D017A3F703;
+	Wed,  6 Mar 2019 07:51:23 -0800 (PST)
+From: Steven Price <steven.price@arm.com>
+To: linux-mm@kvack.org
+Cc: Steven Price <steven.price@arm.com>,
+	Andy Lutomirski <luto@kernel.org>,
+	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+	Arnd Bergmann <arnd@arndb.de>,
+	Borislav Petkov <bp@alien8.de>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Ingo Molnar <mingo@redhat.com>,
+	James Morse <james.morse@arm.com>,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Will Deacon <will.deacon@arm.com>,
+	x86@kernel.org,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	linux-arm-kernel@lists.infradead.org,
 	linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org,
-	pbonzini@redhat.com,
-	lcapitulino@redhat.com,
-	pagupta@redhat.com,
-	wei.w.wang@intel.com,
-	yang.zhang.wz@gmail.com,
-	riel@surriel.com,
-	david@redhat.com,
-	mst@redhat.com,
-	dodgen@google.com,
-	konrad.wilk@oracle.com,
-	dhildenb@redhat.com,
-	aarcange@redhat.com,
-	alexander.duyck@gmail.com
-Subject: [RFC][Patch v9 4/6] KVM: Reporting page poisoning value to the host
-Date: Wed,  6 Mar 2019 10:50:46 -0500
-Message-Id: <20190306155048.12868-5-nitesh@redhat.com>
-In-Reply-To: <20190306155048.12868-1-nitesh@redhat.com>
-References: <20190306155048.12868-1-nitesh@redhat.com>
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Wed, 06 Mar 2019 15:51:26 +0000 (UTC)
+	Mark Rutland <Mark.Rutland@arm.com>,
+	"Liang, Kan" <kan.liang@linux.intel.com>
+Subject: [PATCH v4 11/19] mm: pagewalk: Allow walking without vma
+Date: Wed,  6 Mar 2019 15:50:23 +0000
+Message-Id: <20190306155031.4291-12-steven.price@arm.com>
+X-Mailer: git-send-email 2.20.1
+In-Reply-To: <20190306155031.4291-1-steven.price@arm.com>
+References: <20190306155031.4291-1-steven.price@arm.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch enables the kernel to report the page poisoning value
-to the host by using VIRTIO_BALLOON_F_PAGE_POISON feature.
-Page Poisoning is a feature in which the page is filled with a specific
-pattern of (0x00 or 0xaa) after freeing and the same is verified
-before allocation to prevent following issues:
-    *information leak from the freed data
-    *use after free bugs
-    *memory corruption
-The issue arises when the pattern used for Page Poisoning is 0xaa while
-the newly allocated page received from the host by the guest is
-filled with the pattern 0x00. This will result in memory corruption errors.
+Since 48684a65b4e3: "mm: pagewalk: fix misbehavior of walk_page_range
+for vma(VM_PFNMAP)", page_table_walk() will report any kernel area as
+a hole, because it lacks a vma.
 
-Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
+This means each arch has re-implemented page table walking when needed,
+for example in the per-arch ptdump walker.
+
+Remove the requirement to have a vma except when trying to split huge
+pages.
+
+Signed-off-by: Steven Price <steven.price@arm.com>
 ---
- drivers/virtio/virtio_balloon.c | 5 +++++
- 1 file changed, 5 insertions(+)
+ mm/pagewalk.c | 25 +++++++++++++++++--------
+ 1 file changed, 17 insertions(+), 8 deletions(-)
 
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index cfe7574b5204..e82c72cd916b 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -970,6 +970,11 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 	}
+diff --git a/mm/pagewalk.c b/mm/pagewalk.c
+index 98373a9f88b8..dac0c848b458 100644
+--- a/mm/pagewalk.c
++++ b/mm/pagewalk.c
+@@ -36,7 +36,7 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
+ 	do {
+ again:
+ 		next = pmd_addr_end(addr, end);
+-		if (pmd_none(*pmd) || !walk->vma) {
++		if (pmd_none(*pmd)) {
+ 			if (walk->pte_hole)
+ 				err = walk->pte_hole(addr, next, walk);
+ 			if (err)
+@@ -59,9 +59,14 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
+ 		if (!walk->pte_entry)
+ 			continue;
  
- #ifdef CONFIG_KVM_FREE_PAGE_HINTING
-+	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_PAGE_POISON)) {
-+		memset(&poison_val, PAGE_POISON, sizeof(poison_val));
-+		virtio_cwrite(vb->vdev, struct virtio_balloon_config,
-+			      poison_val, &poison_val);
-+	}
- 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING))
- 		enable_hinting(vb);
- #endif
+-		split_huge_pmd(walk->vma, pmd, addr);
+-		if (pmd_trans_unstable(pmd))
+-			goto again;
++		if (walk->vma) {
++			split_huge_pmd(walk->vma, pmd, addr);
++			if (pmd_trans_unstable(pmd))
++				goto again;
++		} else if (pmd_large(*pmd)) {
++			continue;
++		}
++
+ 		err = walk_pte_range(pmd, addr, next, walk);
+ 		if (err)
+ 			break;
+@@ -81,7 +86,7 @@ static int walk_pud_range(p4d_t *p4d, unsigned long addr, unsigned long end,
+ 	do {
+  again:
+ 		next = pud_addr_end(addr, end);
+-		if (pud_none(*pud) || !walk->vma) {
++		if (pud_none(*pud)) {
+ 			if (walk->pte_hole)
+ 				err = walk->pte_hole(addr, next, walk);
+ 			if (err)
+@@ -95,9 +100,13 @@ static int walk_pud_range(p4d_t *p4d, unsigned long addr, unsigned long end,
+ 				break;
+ 		}
+ 
+-		split_huge_pud(walk->vma, pud, addr);
+-		if (pud_none(*pud))
+-			goto again;
++		if (walk->vma) {
++			split_huge_pud(walk->vma, pud, addr);
++			if (pud_none(*pud))
++				goto again;
++		} else if (pud_large(*pud)) {
++			continue;
++		}
+ 
+ 		if (walk->pmd_entry || walk->pte_entry)
+ 			err = walk_pmd_range(pud, addr, next, walk);
 -- 
-2.17.2
+2.20.1
 
