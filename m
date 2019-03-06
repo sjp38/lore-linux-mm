@@ -2,160 +2,358 @@ Return-Path: <SRS0=43/C=RJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 970B6C43381
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 15:51:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F3111C10F00
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 15:51:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5721A20684
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 15:51:34 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5721A20684
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id AFAD820663
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 15:51:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AFAD820663
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A8D098E000F; Wed,  6 Mar 2019 10:51:23 -0500 (EST)
+	id 81C588E0010; Wed,  6 Mar 2019 10:51:24 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A3CCF8E0002; Wed,  6 Mar 2019 10:51:23 -0500 (EST)
+	id 7CC108E0002; Wed,  6 Mar 2019 10:51:24 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 93D278E000F; Wed,  6 Mar 2019 10:51:23 -0500 (EST)
+	id 6E2248E0010; Wed,  6 Mar 2019 10:51:24 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3ADA98E0002
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 10:51:23 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id o27so6570854edc.14
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 07:51:23 -0800 (PST)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 471CF8E0002
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 10:51:24 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id q15so10234191qki.14
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 07:51:24 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=qsXQmPprpxmuBeYVH9lG+Xt4hLaFoJ/AyXxwtZbC41E=;
-        b=gCZ3elKmVHBaOgncHgUg3wRaG9actA6Wxtflx+Zq7ba6YRdq/oMZL+AdfwnldN00T6
-         ybrw2H3v89+x/TBS534QrBOhFtxmVqaD4RdPsmjNynz+5tJ3+VCXzl6m1m/i+ohSIRYn
-         v0kcB8QRmG7N+NOQOXne9Tfo0adkkImrXYmkHNR141qRtghRnOyKa3JtdOfw8qs65lO1
-         ngSEhmwDm/PaNz1jBgGQ+yrFndfZvXe+P1i81Jr8z0P+EugZ8Gl4WKtUELV06JJddSVO
-         HKk4NfRsTCeHQSBc0v6yJJESKGqz3kxGLYvuGXhqFTuv4lw3CGgvg8M3aps6nCvNuU52
-         ta7A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAXqX03qSUrGVapBMz4l5Byi2j/3GherISSLFkCQE0xvG26F2x7c
-	lzC4eVlynMkkvdtUFVj9XgEGDEnRAnV/3zK5bi2cy0BRdor9b6FIsnXn4yRKcnxllvx0qRc7QpR
-	+YVVlzkfOf+OTnN7UNWSbZp2VWr9Sjtl2LjtkrwMSXcN4FMAQIm+D3N07yP+4K9GM3g==
-X-Received: by 2002:a17:906:4692:: with SMTP id a18mr4389774ejr.96.1551887482425;
+        h=x-original-authentication-results:x-gm-message-state:from:to
+         :subject:date:message-id:in-reply-to:references;
+        bh=SDAjsyepZLh/WZox/FRYNcXV19MUoD/4Bc1Xd7DSs80=;
+        b=kflVS+woggRErKvrLrreCdiUfXiajwZBZrZKppaSp//KlxmK3NuAsdiD9bIXDm0Cik
+         Yb4YRajJGNAlkmpk7YeTtwHtcATSZImlrLrRQqHA+Il4PSAkzTPWJb9cAGGES1NzlhsF
+         4n1Q+UtRg3HAPkLBDoUYBwecPbfBODdHjnQAjUTyQuqXK8okWd6k2mn96nob+8XVqunL
+         xMTZOK7lQvbbSLSpf0zs/devezXEvOcnBPcBcJ58WCrJgmha95KlV40Guqy9ZQ6NEW95
+         dV8IZ5OG8j2VBY4Xb3lOiE6R+WvqgBB346JTfED2ORsj8P3p+2DSWSlbWw0p62/tUSa5
+         lG+A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXG+NcY1ZzIqCDFQ9M6cgrISfTvF5UoGKl7itv9dVW6hSyD0Xp2
+	fvU/yWTAMMosAfyPK3W/QsC85ndIKNLXlriarJURligWfK8QyVsRe5a8B6meWcAFf5wQgzexvw2
+	0vMcM+RO7LGMUs1iiXI13slndAn11IgKTYuVWXMYIPALa9yqKv9QhzOpms3o5c1J+TQ==
+X-Received: by 2002:ac8:354e:: with SMTP id z14mr6311197qtb.131.1551887484039;
+        Wed, 06 Mar 2019 07:51:24 -0800 (PST)
+X-Google-Smtp-Source: APXvYqytAXwmHRh/fweBXs7WJD/2jD1mDQ2lOv9c3bbRci/RsB9E7KvPiEg39oXY1XHE6tgXBhSx
+X-Received: by 2002:ac8:354e:: with SMTP id z14mr6311101qtb.131.1551887482637;
         Wed, 06 Mar 2019 07:51:22 -0800 (PST)
-X-Google-Smtp-Source: APXvYqz0nT49JRCWl9XjczbWHdABBwsVlciQN7J+8OidGwkgFvdTlfH6J2lMukaKy2rJ+x3813IJ
-X-Received: by 2002:a17:906:4692:: with SMTP id a18mr4389695ejr.96.1551887480971;
-        Wed, 06 Mar 2019 07:51:20 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551887480; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1551887482; cv=none;
         d=google.com; s=arc-20160816;
-        b=y1P1YVE88/FEriFubiRWgMLq/yWxQEv/w6KaSX9Xc16fVRTfcy1FMp78HmdhBahoVE
-         cN1Y6K8oRsGGvQM14IRF7B4ubtFTnLctfUsivt6Xj2VAY0JY1wmMjJgx6Lzl9YwbRpSz
-         bpf61EdDOHO7pkfiHMnZgBE71JAS2sSvhP3WyhvgJo8mCVl2MiZIFbzg4HF2pGkPzQkc
-         jSXRHr8hYjW9c5zSmcw3vmq3ccDqy111yMHIhhZWJzptvg19ioM45ts6o/4ZCYguCkaD
-         H1t3/kSSED1FZcuIrrNy78/v4qBFgueO9l9ut+XmHJ9Xhb4npSRaL41TKGg9Va6acFNH
-         RcwA==
+        b=NGczrPDzdXiajXhS0aCa9j056soMxENqD6aTRiDZAyhoWvAk9ms4SfN5o/cInJxrJ8
+         ehLe2kFtFmA8hcEq+2++2YiBeGUspk8JHNmB0jar0wuasX8qXnZsKB7IJ1HAhUsZGx85
+         8sjPRhoGivsuErDZtsFp6QOuiIXpebetKnSnixfvwfwHhNkAS25VYXHCcoF5rRejRx+7
+         PzvCm/RkEvdfLOLw1OPQ+t3rY8p2E0M2evqUOq8t6GaCJlJjlqBWLl2CNE1f8NrRqn60
+         ZWtxOusLrYLnHDnRGG6vYJtJlWJ2gV2pz17nd4Mc3sm+jRwTzX2mT917e0gL7r2ywKl0
+         M0sA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=qsXQmPprpxmuBeYVH9lG+Xt4hLaFoJ/AyXxwtZbC41E=;
-        b=FwhorZYKGBBdtVTRoiPZO9/DuideTzJNZ8qdWxj+38Xt3RKPPzy0nVnvS38VsXicOD
-         0sRKSi/AoivMMcUle2H2uvEqfJe6/rzj0fLIif+0xpjJr2+sok+fuxxQdEq82rkAKYlu
-         BcvOZPW8g6Z7Sd+gcxY3mgY69Hh/iwaL3X5Ch7Sslr4p52phtGakOIwGdt89Y2EU2N2Y
-         lU8+aeSoO8k5hVygH5JZ/1Kht307y/6BaskeMXF/jcQOvcWBQ7baK7DyeZaxbCp8HMK/
-         4r+ZaZ+ryZ4T0vyAFedJeP6aY00tLIlcM5BJ8mDDMMrFC6VlYEhlPhsWSc8lE4yM++xw
-         hGgQ==
+        h=references:in-reply-to:message-id:date:subject:to:from;
+        bh=SDAjsyepZLh/WZox/FRYNcXV19MUoD/4Bc1Xd7DSs80=;
+        b=H92iy6w702tmADOpOFOV652eov1+4ayf7dwgCd4EYnIyEoGVsVxQqNbKKjHbP9Mt+T
+         5aneesuJ+WAEW2EA81IuOmFNo/0QqYdDbluQc19aT1bUv9Ktq4/TpKJt7pwQwibMCHFB
+         UElPQMqUHqRQnRFwie+ANmfVbfwts1/ZSjPGFffD43Mib0qufJqoplbjwCdmGe5u/6TR
+         69BrmkYfe1hd4daLQxs7/6N4kA5AsNcbG4TTCd0tjiWzpiIhOoIP8+P1eXr0HaGc+Ol/
+         iCqFxpzPQ7nOvCmBYVtPL+09wfPd/Gppj88ciWdZrqCi6D5VWMny/mNVQHFOGgg2O7GH
+         3LOg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id m15si781444edm.144.2019.03.06.07.51.20
-        for <linux-mm@kvack.org>;
-        Wed, 06 Mar 2019 07:51:20 -0800 (PST)
-Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y23si887879qve.20.2019.03.06.07.51.22
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Mar 2019 07:51:22 -0800 (PST)
+Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 15C1B165C;
-	Wed,  6 Mar 2019 07:51:20 -0800 (PST)
-Received: from e112269-lin.arm.com (e112269-lin.cambridge.arm.com [10.1.196.69])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id CF1BD3F703;
-	Wed,  6 Mar 2019 07:51:16 -0800 (PST)
-From: Steven Price <steven.price@arm.com>
-To: linux-mm@kvack.org
-Cc: Steven Price <steven.price@arm.com>,
-	Andy Lutomirski <luto@kernel.org>,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Arnd Bergmann <arnd@arndb.de>,
-	Borislav Petkov <bp@alien8.de>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Ingo Molnar <mingo@redhat.com>,
-	James Morse <james.morse@arm.com>,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Will Deacon <will.deacon@arm.com>,
-	x86@kernel.org,
-	"H. Peter Anvin" <hpa@zytor.com>,
-	linux-arm-kernel@lists.infradead.org,
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id AA96A308FED5;
+	Wed,  6 Mar 2019 15:51:21 +0000 (UTC)
+Received: from virtlab420.virt.lab.eng.bos.redhat.com (virtlab420.virt.lab.eng.bos.redhat.com [10.19.152.148])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id F3D551001DCE;
+	Wed,  6 Mar 2019 15:51:14 +0000 (UTC)
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+To: kvm@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
-	Mark Rutland <Mark.Rutland@arm.com>,
-	"Liang, Kan" <kan.liang@linux.intel.com>
-Subject: [PATCH v4 09/19] mm: Add generic p?d_large() macros
-Date: Wed,  6 Mar 2019 15:50:21 +0000
-Message-Id: <20190306155031.4291-10-steven.price@arm.com>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190306155031.4291-1-steven.price@arm.com>
-References: <20190306155031.4291-1-steven.price@arm.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+	linux-mm@kvack.org,
+	pbonzini@redhat.com,
+	lcapitulino@redhat.com,
+	pagupta@redhat.com,
+	wei.w.wang@intel.com,
+	yang.zhang.wz@gmail.com,
+	riel@surriel.com,
+	david@redhat.com,
+	mst@redhat.com,
+	dodgen@google.com,
+	konrad.wilk@oracle.com,
+	dhildenb@redhat.com,
+	aarcange@redhat.com,
+	alexander.duyck@gmail.com
+Subject: [RFC][Patch v9 3/6] KVM: Enables the kernel to report isolated pages
+Date: Wed,  6 Mar 2019 10:50:45 -0500
+Message-Id: <20190306155048.12868-4-nitesh@redhat.com>
+In-Reply-To: <20190306155048.12868-1-nitesh@redhat.com>
+References: <20190306155048.12868-1-nitesh@redhat.com>
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Wed, 06 Mar 2019 15:51:21 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Exposing the pud/pgd levels of the page tables to walk_page_range() means
-we may come across the exotic large mappings that come with large areas
-of contiguous memory (such as the kernel's linear map).
+This patch enables the kernel to report the isolated pages
+to the host via virtio balloon driver.
+In order to do so a new virtuqeue (hinting_vq) is added to the
+virtio balloon driver. As the host responds back after freeing
+the pages, all the isolated pages are returned back to the buddy
+via __free_one_page().
 
-For architectures that don't provide p?d_large() macros, provide generic
-does nothing defaults.
-
-Signed-off-by: Steven Price <steven.price@arm.com>
+Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
 ---
- include/asm-generic/pgtable.h | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ drivers/virtio/virtio_balloon.c     | 72 ++++++++++++++++++++++++++++-
+ include/linux/page_hinting.h        |  4 ++
+ include/uapi/linux/virtio_balloon.h |  8 ++++
+ virt/kvm/page_hinting.c             | 18 ++++++--
+ 4 files changed, 98 insertions(+), 4 deletions(-)
 
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 05e61e6c843f..f0de24100ac6 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -1186,4 +1186,23 @@ static inline bool arch_has_pfn_modify_check(void)
- #define mm_pmd_folded(mm)	__is_defined(__PAGETABLE_PMD_FOLDED)
- #endif
+diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+index 728ecd1eea30..cfe7574b5204 100644
+--- a/drivers/virtio/virtio_balloon.c
++++ b/drivers/virtio/virtio_balloon.c
+@@ -57,13 +57,15 @@ enum virtio_balloon_vq {
+ 	VIRTIO_BALLOON_VQ_INFLATE,
+ 	VIRTIO_BALLOON_VQ_DEFLATE,
+ 	VIRTIO_BALLOON_VQ_STATS,
++	VIRTIO_BALLOON_VQ_HINTING,
+ 	VIRTIO_BALLOON_VQ_FREE_PAGE,
+ 	VIRTIO_BALLOON_VQ_MAX
+ };
  
-+/*
-+ * p?d_large() - true if this entry is a final mapping to a physical address.
-+ * This differs from p?d_huge() by the fact that they are always available (if
-+ * the architecture supports large pages at the appropriate level) even
-+ * if CONFIG_HUGETLB_PAGE is not defined.
-+ */
-+#ifndef pgd_large
-+#define pgd_large(x)	0
-+#endif
-+#ifndef p4d_large
-+#define p4d_large(x)	0
-+#endif
-+#ifndef pud_large
-+#define pud_large(x)	0
-+#endif
-+#ifndef pmd_large
-+#define pmd_large(x)	0
+ struct virtio_balloon {
+ 	struct virtio_device *vdev;
+-	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_page_vq;
++	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_page_vq,
++								*hinting_vq;
+ 
+ 	/* Balloon's own wq for cpu-intensive work items */
+ 	struct workqueue_struct *balloon_wq;
+@@ -122,6 +124,56 @@ static struct virtio_device_id id_table[] = {
+ 	{ 0 },
+ };
+ 
++#ifdef CONFIG_KVM_FREE_PAGE_HINTING
++int virtballoon_page_hinting(struct virtio_balloon *vb,
++			     void *hinting_req,
++			     int entries)
++{
++	struct scatterlist sg;
++	struct virtqueue *vq = vb->hinting_vq;
++	int err;
++	int unused;
++	struct virtio_balloon_hint_req *hint_req;
++	u64 gpaddr;
++
++	hint_req = kmalloc(sizeof(struct virtio_balloon_hint_req), GFP_KERNEL);
++	while (virtqueue_get_buf(vq, &unused))
++		;
++
++	gpaddr = virt_to_phys(hinting_req);
++	hint_req->phys_addr = cpu_to_virtio64(vb->vdev, gpaddr);
++	hint_req->count = cpu_to_virtio32(vb->vdev, entries);
++	sg_init_one(&sg, hint_req, sizeof(struct virtio_balloon_hint_req));
++	err = virtqueue_add_outbuf(vq, &sg, 1, hint_req, GFP_KERNEL);
++	if (!err)
++		virtqueue_kick(vb->hinting_vq);
++	else
++		kfree(hint_req);
++	return err;
++}
++
++static void hinting_ack(struct virtqueue *vq)
++{
++	int len = sizeof(struct virtio_balloon_hint_req);
++	struct virtio_balloon_hint_req *hint_req = virtqueue_get_buf(vq, &len);
++	void *v_addr = phys_to_virt(hint_req->phys_addr);
++
++	release_buddy_pages(v_addr, hint_req->count);
++	kfree(hint_req);
++}
++
++static void enable_hinting(struct virtio_balloon *vb)
++{
++	request_hypercall = (void *)&virtballoon_page_hinting;
++	balloon_ptr = vb;
++}
++
++static void disable_hinting(void)
++{
++	balloon_ptr = NULL;
++}
 +#endif
 +
- #endif /* _ASM_GENERIC_PGTABLE_H */
+ static u32 page_to_balloon_pfn(struct page *page)
+ {
+ 	unsigned long pfn = page_to_pfn(page);
+@@ -481,6 +533,7 @@ static int init_vqs(struct virtio_balloon *vb)
+ 	names[VIRTIO_BALLOON_VQ_DEFLATE] = "deflate";
+ 	names[VIRTIO_BALLOON_VQ_STATS] = NULL;
+ 	names[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
++	names[VIRTIO_BALLOON_VQ_HINTING] = NULL;
+ 
+ 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+ 		names[VIRTIO_BALLOON_VQ_STATS] = "stats";
+@@ -492,11 +545,18 @@ static int init_vqs(struct virtio_balloon *vb)
+ 		callbacks[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
+ 	}
+ 
++	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING)) {
++		names[VIRTIO_BALLOON_VQ_HINTING] = "hinting_vq";
++		callbacks[VIRTIO_BALLOON_VQ_HINTING] = hinting_ack;
++	}
+ 	err = vb->vdev->config->find_vqs(vb->vdev, VIRTIO_BALLOON_VQ_MAX,
+ 					 vqs, callbacks, names, NULL, NULL);
+ 	if (err)
+ 		return err;
+ 
++	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING))
++		vb->hinting_vq = vqs[VIRTIO_BALLOON_VQ_HINTING];
++
+ 	vb->inflate_vq = vqs[VIRTIO_BALLOON_VQ_INFLATE];
+ 	vb->deflate_vq = vqs[VIRTIO_BALLOON_VQ_DEFLATE];
+ 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+@@ -908,6 +968,11 @@ static int virtballoon_probe(struct virtio_device *vdev)
+ 		if (err)
+ 			goto out_del_balloon_wq;
+ 	}
++
++#ifdef CONFIG_KVM_FREE_PAGE_HINTING
++	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING))
++		enable_hinting(vb);
++#endif
+ 	virtio_device_ready(vdev);
+ 
+ 	if (towards_target(vb))
+@@ -950,6 +1015,10 @@ static void virtballoon_remove(struct virtio_device *vdev)
+ 	cancel_work_sync(&vb->update_balloon_size_work);
+ 	cancel_work_sync(&vb->update_balloon_stats_work);
+ 
++#ifdef CONFIG_KVM_FREE_PAGE_HINTING
++	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING))
++		disable_hinting();
++#endif
+ 	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
+ 		cancel_work_sync(&vb->report_free_page_work);
+ 		destroy_workqueue(vb->balloon_wq);
+@@ -1009,6 +1078,7 @@ static unsigned int features[] = {
+ 	VIRTIO_BALLOON_F_MUST_TELL_HOST,
+ 	VIRTIO_BALLOON_F_STATS_VQ,
+ 	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
++	VIRTIO_BALLOON_F_HINTING,
+ 	VIRTIO_BALLOON_F_FREE_PAGE_HINT,
+ 	VIRTIO_BALLOON_F_PAGE_POISON,
+ };
+diff --git a/include/linux/page_hinting.h b/include/linux/page_hinting.h
+index d554a2581826..a32af8851081 100644
+--- a/include/linux/page_hinting.h
++++ b/include/linux/page_hinting.h
+@@ -11,6 +11,8 @@
+ #define HINTING_THRESHOLD	128
+ #define FREE_PAGE_HINTING_MIN_ORDER	(MAX_ORDER - 1)
+ 
++extern void *balloon_ptr;
++
+ void guest_free_page_enqueue(struct page *page, int order);
+ void guest_free_page_try_hinting(void);
+ extern int __isolate_free_page(struct page *page, unsigned int order);
+@@ -18,3 +20,5 @@ extern void __free_one_page(struct page *page, unsigned long pfn,
+ 			    struct zone *zone, unsigned int order,
+ 			    int migratetype);
+ void release_buddy_pages(void *obj_to_free, int entries);
++extern int (*request_hypercall)(void *balloon_ptr,
++				void *hinting_req, int entries);
+diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
+index a1966cd7b677..a7e909d77447 100644
+--- a/include/uapi/linux/virtio_balloon.h
++++ b/include/uapi/linux/virtio_balloon.h
+@@ -29,6 +29,7 @@
+ #include <linux/virtio_types.h>
+ #include <linux/virtio_ids.h>
+ #include <linux/virtio_config.h>
++#include <linux/page_hinting.h>
+ 
+ /* The feature bitmap for virtio balloon */
+ #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
+@@ -36,6 +37,7 @@
+ #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
+ #define VIRTIO_BALLOON_F_FREE_PAGE_HINT	3 /* VQ to report free pages */
+ #define VIRTIO_BALLOON_F_PAGE_POISON	4 /* Guest is using page poisoning */
++#define VIRTIO_BALLOON_F_HINTING	5 /* Page hinting virtqueue */
+ 
+ /* Size of a PFN in the balloon interface. */
+ #define VIRTIO_BALLOON_PFN_SHIFT 12
+@@ -108,4 +110,10 @@ struct virtio_balloon_stat {
+ 	__virtio64 val;
+ } __attribute__((packed));
+ 
++#ifdef CONFIG_KVM_FREE_PAGE_HINTING
++struct virtio_balloon_hint_req {
++	__virtio64 phys_addr;
++	__virtio64 count;
++};
++#endif
+ #endif /* _LINUX_VIRTIO_BALLOON_H */
+diff --git a/virt/kvm/page_hinting.c b/virt/kvm/page_hinting.c
+index 9885b372b5a9..eb0c0ddfe990 100644
+--- a/virt/kvm/page_hinting.c
++++ b/virt/kvm/page_hinting.c
+@@ -31,11 +31,16 @@ struct guest_isolated_pages {
+ 	unsigned int order;
+ };
+ 
+-void release_buddy_pages(void *obj_to_free, int entries)
++int (*request_hypercall)(void *balloon_ptr, void *hinting_req, int entries);
++EXPORT_SYMBOL(request_hypercall);
++void *balloon_ptr;
++EXPORT_SYMBOL(balloon_ptr);
++
++void release_buddy_pages(void *hinting_req, int entries)
+ {
+ 	int i = 0;
+ 	int mt = 0;
+-	struct guest_isolated_pages *isolated_pages_obj = obj_to_free;
++	struct guest_isolated_pages *isolated_pages_obj = hinting_req;
+ 
+ 	while (i < entries) {
+ 		struct page *page = pfn_to_page(isolated_pages_obj[i].pfn);
+@@ -51,7 +56,14 @@ void release_buddy_pages(void *obj_to_free, int entries)
+ void guest_free_page_report(struct guest_isolated_pages *isolated_pages_obj,
+ 			    int entries)
+ {
+-	release_buddy_pages(isolated_pages_obj, entries);
++	int err = 0;
++
++	if (balloon_ptr) {
++		err = request_hypercall(balloon_ptr, isolated_pages_obj,
++					entries);
++		if (err)
++			release_buddy_pages(isolated_pages_obj, entries);
++	}
+ }
+ 
+ static int sort_zonenum(const void *a1, const void *b1)
 -- 
-2.20.1
+2.17.2
 
