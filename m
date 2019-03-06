@@ -2,183 +2,310 @@ Return-Path: <SRS0=43/C=RJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 92C91C10F09
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 02:04:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 69840C4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 02:05:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 221E920663
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 02:04:39 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="i9027WbB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 221E920663
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 167822082C
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 02:05:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 167822082C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9072C8E0003; Tue,  5 Mar 2019 21:04:38 -0500 (EST)
+	id 8B6E28E0003; Tue,  5 Mar 2019 21:05:46 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 88EF48E0001; Tue,  5 Mar 2019 21:04:38 -0500 (EST)
+	id 866F68E0001; Tue,  5 Mar 2019 21:05:46 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 732928E0003; Tue,  5 Mar 2019 21:04:38 -0500 (EST)
+	id 756448E0003; Tue,  5 Mar 2019 21:05:46 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C2B58E0001
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2019 21:04:38 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id e4so11634825pfh.14
-        for <linux-mm@kvack.org>; Tue, 05 Mar 2019 18:04:38 -0800 (PST)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 47CC38E0001
+	for <linux-mm@kvack.org>; Tue,  5 Mar 2019 21:05:46 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id s65so8616997qke.16
+        for <linux-mm@kvack.org>; Tue, 05 Mar 2019 18:05:46 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=rp+EqwcLxAs6h2sIfzKgeVXiunRhEMOEhWjqu8NVtN8=;
-        b=ncmYC08aPZ8dp/TztuoFhhmBaNUrdslhW4OD+r6PQzfC964KKOVc0nCh8BcGvNJKOg
-         xdTto0Gcqwcw0sIpS/ZbuvHzWmJwpJKNp8IO+7AQDw6OWVFd42PrdYvIoJpikw3YBjVf
-         q+TWaz0Xd8sEc4Kr/QesjmcB7qv2o1CjoPbA3FpiOher6qBzWm4zQjPJTxwwrx9u9A2I
-         +n0XSbrCBLODxeHLKyI5C3LwYuCL2m6NzsrTyXyDrq2lg8Swk290RszhnRsPgdDVmrZ0
-         3Mxhw5XJBi5y14mPwn7HQKOlxiFY+ROHkOZXUWgHwA8XQZRBxCs2jUY8aoJul/WAh7Ec
-         SUPQ==
-X-Gm-Message-State: APjAAAU3OWWH05Z2pgOHNQ54dtt8iN5aSULG/XT1PFC0zSo50BwIjEaN
-	kEiRuiphoSwiInuay4SyaNIjRN2/feLUumPhsDhz3WTeFFBYuYSXG5Pjfd9TRVhArnYxDxSYd45
-	ZhpBlxz51NNa1fCU47YHnBMmpH44dB6Rr5A7K4FWeSYQgJe3QtKiacmEcnW/9IqStww==
-X-Received: by 2002:aa7:8847:: with SMTP id k7mr4740046pfo.99.1551837877782;
-        Tue, 05 Mar 2019 18:04:37 -0800 (PST)
-X-Google-Smtp-Source: APXvYqxgDP0UVjl4BhPbnQpsyC1DRJK7xNIBog6aTahU0GacwY/YYLLeuwEiC+Vme6lPi17S8nr3
-X-Received: by 2002:aa7:8847:: with SMTP id k7mr4739982pfo.99.1551837876828;
-        Tue, 05 Mar 2019 18:04:36 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551837876; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=J0CC6t7furmIfZ0tJkstKRpObNiPXT5mpNBRsWN62vw=;
+        b=TAjQQDLF+xIELYCIltfVSrhGXYptb977zh816dHOrtOYMDnAr6JeZLg2cOu5CRgltY
+         +HfqlW9YiBsQWNxdbntalOyHjxc7HTNTIHVb0Tl27vdXPrOFayz7nVId7F4j60LJHus9
+         l9DQ/MykCSJ5Mu6kaFYsaa8rK5dLq5ClG4eY0LsynwsE4kqRcviB0BqnAbOP4UvGPfx2
+         IKEJIdIZpXEGbtUV8KmfXsX0igSoxEPmgtQwvUSKvKdy/1g76cuHuC3lpysO5CxJqXkr
+         Ab2QtDRb/WDS+X65bM1odGJuDlJzRb+OeIUiwuvUR6WZk6n/o1h3SD5hESjzVAFY0vRv
+         sZOA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVrKXPAZ1NXFYYcTPArh0rNWrMu5QcRfK5yT1WcizfOU0RBv029
+	yEL8PDPrL6IhA4/8/LZRMsJ+vZxuyGj5sRAkaSsm/woTb/GCmG9FD4ggyIHIMtzNmR0fdDLC/41
+	PkG0yljQlZd1osBH9TeMQVpGPP+wqkyYoIXdlnyfT+691v6NSeRHIhG/gB7xIY9WVqA==
+X-Received: by 2002:a37:dd41:: with SMTP id n62mr3934240qki.11.1551837946015;
+        Tue, 05 Mar 2019 18:05:46 -0800 (PST)
+X-Google-Smtp-Source: APXvYqznXbZCrdEOdHFI21pbRovqKdx/9XJKS8gA1FJ3SRJ+YtEaGVgcmUFqPvR5gLScsex5l9BY
+X-Received: by 2002:a37:dd41:: with SMTP id n62mr3934202qki.11.1551837945040;
+        Tue, 05 Mar 2019 18:05:45 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551837945; cv=none;
         d=google.com; s=arc-20160816;
-        b=IKWFKoQR7zFHfIBa84sXsJSVp3NinGqSlVmcNr8Il+BtVBQ2WN+xOkV0KzJ2G39vAA
-         DdlUeGpXqj4kDUtsh+iOLiF7eT8dFTj5j6NjATF+5w4rKYND9zfmXhH6iFCfjUZSvAgP
-         6tMBA/IZgSgAomsubKduaVHRsS8uoncjD8XR6NG6ozq4rg1l2S26Fs+XSHgRXjvyesUF
-         9xee7YxGmadWIUCAbMJ6siLHxPxvz+BO3lFB4Ehy5dEByiObbRB/oPWIjEtMfQVZA+uI
-         vxVyLWj9Adr/zbyThPk9ZQkRX5MDoZMXx+5HUOtCxg/g2zD/G9SluXWYNWX8xINLNAbc
-         SYNQ==
+        b=R+jfJv4q9XAGi3axJRCmngXJAkLDuv1mSQrU8pXQux7ieWuCt8X+Kht1NB+eGJGZik
+         g7uiyYPETdSsFLY2CWY+LQNlo+EJ7puq8KRSXZZqSgTZflZI+JXEXoRaGAMC9skLm6xm
+         5ed2PsdWBGp4nhJXxxqJJxToUeeaTuW1CMLeh0GZdZRpfbuNgzvqPlr+F8B4W4/dSgx3
+         4jHVNkn+0DKyZBM54ssK+MR2qXplawPLThR+NzK/lW1jfH7bIAlYpx0Z1LwGiaitNRa5
+         VNh1o/LLQlPVY1l/vA60E7HMI65bZ8NbIQuyEDZ+n9dgZFGW/mMjAy054BvvBNiW/5R5
+         egVg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=rp+EqwcLxAs6h2sIfzKgeVXiunRhEMOEhWjqu8NVtN8=;
-        b=LU9LnAQsSfnf3Ffudj1UzNncxfZJukWUV6rHfURNR8DbBmTjIXCDslyRw6NcYRIFtb
-         W0xm+1Q2AyjU8/AEtxE4TsYqW6E5IGj18Pju06uBIFhgD5itV6AcxXIbgqVT1YEhJeJl
-         uPWsnbFn2iIxjDCZrQH+7Zw1ojTUddbORNEFVgerkbm0I8mV+JzDHyuU9/QkcCjH3D/h
-         vIB2+BoJh/HRTEQPAHQFjC6IzMCmitppmt6NrD3FtIfATL+r/IuQIJJ5Y/g4K1+5V2/N
-         41i+UmmvBAEk6Uh+g5LIc0T4DhVXh3GOCIb8JxFE/qgPPYxLJRkDuRKSsA5Mkz70GzAe
-         /wBg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=J0CC6t7furmIfZ0tJkstKRpObNiPXT5mpNBRsWN62vw=;
+        b=XBY7ibQXJpg8ek3Yue1Totv3oQ+j7GCX7Tf/tSrkSBbs4kFpq6o4CiPNxXWLFdUCKr
+         eCvLcUBhdNBQoTV2xdMvvfzIO2pU/lO+OVmbOaClFdsnrMPiXk5ODuGoUL4u3aOcnG9Z
+         DhCqDXtk5D1ElkfePFee5aL72jmVA/IumSCteZvLMIAhc+9kMpEgN6tHr2Jwe4hFcr1x
+         mtahuP3OIxFDKwNALxe3dZtn17M/tYmPRpIys2XAEsB9lEDJeExwXX/QCDinKPZaZ8eg
+         Ol6tsKOkY7vEW9YnrolaNodyahnJOuSRGAdGGGK22xkQlsbnzHHPrX1bEdtjyD9XNlOK
+         InlQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=i9027WbB;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id o26si410871pfi.141.2019.03.05.18.04.36
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 198si215150qkj.8.2019.03.05.18.05.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Mar 2019 18:04:36 -0800 (PST)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
+        Tue, 05 Mar 2019 18:05:45 -0800 (PST)
+Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=i9027WbB;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5c7f2ab30000>; Tue, 05 Mar 2019 18:04:35 -0800
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Tue, 05 Mar 2019 18:04:36 -0800
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Tue, 05 Mar 2019 18:04:36 -0800
-Received: from [10.110.48.28] (10.124.1.5) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 6 Mar
- 2019 02:04:35 +0000
-Subject: Re: [PATCH v2] RDMA/umem: minor bug fix and cleanup in error handling
- paths
-To: Jason Gunthorpe <jgg@ziepe.ca>
-CC: Artemy Kovalyov <artemyko@mellanox.com>, Ira Weiny <ira.weiny@intel.com>,
-	"john.hubbard@gmail.com" <john.hubbard@gmail.com>, "linux-mm@kvack.org"
-	<linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML
-	<linux-kernel@vger.kernel.org>, Doug Ledford <dledford@redhat.com>,
-	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>
-References: <20190302032726.11769-2-jhubbard@nvidia.com>
- <20190302202435.31889-1-jhubbard@nvidia.com>
- <20190302194402.GA24732@iweiny-DESK2.sc.intel.com>
- <2404c962-8f6d-1f6d-0055-eb82864ca7fc@mellanox.com>
- <332021c5-ab72-d54f-85c8-b2b12b76daed@nvidia.com>
- <903383a6-f2c9-4a69-83c0-9be9c052d4be@mellanox.com>
- <20190306013213.GA1662@ziepe.ca>
- <74f196a1-bd27-2e94-2f9f-0cf657eb0c91@nvidia.com>
- <be6303c6-d8d2-483a-5271-b6707c21178e@nvidia.com>
- <20190306015123.GB1662@ziepe.ca>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <1f922d79-0057-ed80-305c-01768dd40cad@nvidia.com>
-Date: Tue, 5 Mar 2019 18:04:35 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id F30F5308222E;
+	Wed,  6 Mar 2019 02:05:43 +0000 (UTC)
+Received: from sky.random (ovpn-121-1.rdu2.redhat.com [10.10.121.1])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 14774600D7;
+	Wed,  6 Mar 2019 02:05:40 +0000 (UTC)
+Date: Tue, 5 Mar 2019 21:05:40 -0500
+From: Andrea Arcangeli <aarcange@redhat.com>
+To: zhong jiang <zhongjiang@huawei.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>,
+	syzbot <syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com>,
+	Michal Hocko <mhocko@kernel.org>, cgroups@vger.kernel.org,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
+	syzkaller-bugs <syzkaller-bugs@googlegroups.com>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	David Rientjes <rientjes@google.com>,
+	Hugh Dickins <hughd@google.com>,
+	Matthew Wilcox <willy@infradead.org>, Mel Gorman <mgorman@suse.de>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Peter Xu <peterx@redhat.com>
+Subject: Re: KASAN: use-after-free Read in get_mem_cgroup_from_mm
+Message-ID: <20190306020540.GA23850@redhat.com>
+References: <00000000000006457e057c341ff8@google.com>
+ <5C7BFE94.6070500@huawei.com>
+ <CACT4Y+Z+CH0UTdSz-w_woMPrBwg-GuobV1Su4qd9ReffTkyfVg@mail.gmail.com>
+ <5C7D2F82.40907@huawei.com>
+ <CACT4Y+agwaszODNGJHCqn4fSk4Le9exn3Cau0nornJ0RaTpDJw@mail.gmail.com>
+ <5C7D4500.3070607@huawei.com>
+ <CACT4Y+b6y_3gTpR8LvNREHOV0TP7jB=Zp1L03dzpaz_SaeESng@mail.gmail.com>
+ <5C7E1A38.2060906@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20190306015123.GB1662@ziepe.ca>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL101.nvidia.com (172.20.187.10) To
- HQMAIL101.nvidia.com (172.20.187.10)
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US-large
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1551837875; bh=rp+EqwcLxAs6h2sIfzKgeVXiunRhEMOEhWjqu8NVtN8=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:Message-ID:Date:
-	 User-Agent:MIME-Version:In-Reply-To:X-Originating-IP:
-	 X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=i9027WbBk1QDJvGlMPz43I4bjPtR+8kQ3Qe8qTjCZhgoEfMYxXWIuFdRaEuKiC8gy
-	 h3ERXxuT+FuM5Ttk2RGejBBXVtURrvVQ8Kn8i3kLDdw1C5yXfKewVvTQn5EDyYEqGm
-	 B1bg6oiZh85z6ZCVoiJwrnIB5qxQfI2wRE7PCLywl5Zuuq/4VjDB13Z54PFZy79d+V
-	 4AeIIeQl/KdkZvoIdwc3/RRtOESyovJReuhajO4x7ocAuZG6YkPR1oABb8oVrQJBsY
-	 zXzSsRKW2u/6OBYh5cg1kk9ZIpo9Hy9EjwufJl9zCU4aMfv8y9iVe8ty2BqsEoYVjI
-	 y93TEEXRXUl+A==
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5C7E1A38.2060906@huawei.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Wed, 06 Mar 2019 02:05:44 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/5/19 5:51 PM, Jason Gunthorpe wrote:
-> On Tue, Mar 05, 2019 at 05:37:18PM -0800, John Hubbard wrote:
->> On 3/5/19 5:34 PM, John Hubbard wrote:
->> [snip]
->>>>> So release_pages(&local_page_list[j+1], npages - j-1) would be correct.
->>>>
->>>> Someone send a fixup patch please...
->>>>
->>>> Jason
->>>
->>> Yeah, I'm on it. Just need to double-check that this is the case. But Jason,
->>> you're confirming it already, so that helps too.
-> 
-> I didn't look, just assuming Artemy is right since he knows this
-> code..
-> 
+Hello everyone,
 
-OK. And I've confirmed it, too.
+[ CC'ed Mike and Peter ]
 
->>> Patch coming shortly.
->>>
->>
->> Jason, btw, do you prefer a patch that fixes the previous one, or a new 
->> patch that stands alone? (I'm not sure how this tree is maintained, exactly.)
-> 
-> It has past the point when I should apply a fixup, rdma is general has
-> about an approximately 1 day period after the 'thanks applied' message
-> where rebase is possible
-> 
-> Otherwise the tree is strictly no rebase
-> 
-> Jason
-> 
+On Tue, Mar 05, 2019 at 02:42:00PM +0800, zhong jiang wrote:
+> On 2019/3/5 14:26, Dmitry Vyukov wrote:
+> > On Mon, Mar 4, 2019 at 4:32 PM zhong jiang <zhongjiang@huawei.com> wrote:
+> >> On 2019/3/4 22:11, Dmitry Vyukov wrote:
+> >>> On Mon, Mar 4, 2019 at 3:00 PM zhong jiang <zhongjiang@huawei.com> wrote:
+> >>>> On 2019/3/4 15:40, Dmitry Vyukov wrote:
+> >>>>> On Sun, Mar 3, 2019 at 5:19 PM zhong jiang <zhongjiang@huawei.com> wrote:
+> >>>>>> Hi, guys
+> >>>>>>
+> >>>>>> I also hit the following issue. but it fails to reproduce the issue by the log.
+> >>>>>>
+> >>>>>> it seems to the case that we access the mm->owner and deference it will result in the UAF.
+> >>>>>> But it should not be possible that we specify the incomplete process to be the mm->owner.
+> >>>>>>
+> >>>>>> Any thoughts?
+> >>>>> FWIW syzbot was able to reproduce this with this reproducer.
+> >>>>> This looks like a very subtle race (threaded reproducer that runs
+> >>>>> repeatedly in multiple processes), so most likely we are looking for
+> >>>>> something like few instructions inconsistency window.
+> >>>>>
+> >>>> I has a little doubtful about the instrustions inconsistency window.
+> >>>>
+> >>>> I guess that you mean some smb barriers should be taken into account.:-)
+> >>>>
+> >>>> Because IMO, It should not be the lock case to result in the issue.
+> >>> Since the crash was triggered on x86 _most likley_ this is not a
+> >>> missed barrier. What I meant is that one thread needs to executed some
+> >>> code, while another thread is stopped within few instructions.
+> >>>
+> >>>
+> >> It is weird and I can not find any relationship you had said with the issue.:-(
+> >>
+> >> Because It is the cause that mm->owner has been freed, whereas we still deference it.
+> >>
+> >> From the lastest freed task call trace, It fails to create process.
+> >>
+> >> Am I miss something or I misunderstand your meaning. Please correct me.
+> > Your analysis looks correct. I am just saying that the root cause of
+> > this use-after-free seems to be a race condition.
+> >
+> >
+> >
+> Yep, Indeed,  I can not figure out how the race works. I will dig up further.
 
-Got it, patch is posted now.
+Yes it's a race condition.
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+We were aware about the non-cooperative fork userfaultfd feature
+creating userfaultfd file descriptor that gets reported to the parent
+uffd, despite they belong to mm created by failed forks.
+
+https://www.spinics.net/lists/linux-mm/msg136357.html
+
+The fork failure in my testcase happened because of signal pending
+that interrupted fork after the failed-fork uffd context, was already
+pushed to the userfaultfd reader/monitor. CRIU then takes care of
+filtering the failed fork cases so we didn't want to make the fork
+code more complicated just for userfaultfd.
+
+In reality if MEMCG is enabled at build time, mm->owner maintainance
+code now creates a race condition in the above case, with any fork
+failure.
+
+I pinged Mike yesterday to ask if my theory could be true for this bug
+and one solution he suggested is to do the userfaultfd_dup at a point
+where fork cannot fail anymore. That's precisely what we were
+wondering to do back then to avoid the failed fork reports to the
+non cooperative uffd monitor.
+
+That will solve the false positive deliveries that CRIU manager
+currently filters out too. From a theoretical standpoint it's also
+quite strange to even allow any uffd ioctl to run on a otherwise long
+gone mm created for a process that in the end wasn't even created (the
+mm got temporarily fully created, but no child task really ever used
+such mm). However that mm is on its way to exit_mmap as soon as the
+ioclt returns and this only ever happens during race conditions, so
+the way CRIU monitor works there wasn't anything fundamentally
+concerning about this detail, despite it's remarkably "strange". Our
+priority was to keep the fork code as simple as possible and keep
+userfaultfd as non intrusive as possible.
+
+One alternative solution I'm wondering about for this memcg issue is
+to free the task struct with RCU also when fork has failed and to add
+the mm_update_next_owner before mmput. That will still report failed
+forks to the uffd monitor, so it's not the ideal fix, but since it's
+probably simpler I'm posting it below. Also I couldn't reproduce the
+problem with the testcase here yet.
+
+From 6cbf9d377b705476e5226704422357176f79e32c Mon Sep 17 00:00:00 2001
+From: Andrea Arcangeli <aarcange@redhat.com>
+Date: Tue, 5 Mar 2019 19:21:37 -0500
+Subject: [PATCH 1/1] userfaultfd: use RCU to free the task struct when fork
+ fails if MEMCG
+
+MEMCG depends on the task structure not to be freed under
+rcu_read_lock() in get_mem_cgroup_from_mm() after it dereferences
+mm->owner.
+
+A better fix would be to avoid registering forked vmas in userfaultfd
+contexts reported to the monitor, if case fork ends up failing.
+
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ kernel/fork.c | 34 ++++++++++++++++++++++++++++++++--
+ 1 file changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/fork.c b/kernel/fork.c
+index eb9953c82104..3bcbb361ffbc 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -953,6 +953,15 @@ static void mm_init_aio(struct mm_struct *mm)
+ #endif
+ }
+ 
++static __always_inline void mm_clear_owner(struct mm_struct *mm,
++					   struct task_struct *p)
++{
++#ifdef CONFIG_MEMCG
++	if (mm->owner == p)
++		mm->owner = NULL;
++#endif
++}
++
+ static void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
+ {
+ #ifdef CONFIG_MEMCG
+@@ -1345,6 +1354,7 @@ static struct mm_struct *dup_mm(struct task_struct *tsk)
+ free_pt:
+ 	/* don't put binfmt in mmput, we haven't got module yet */
+ 	mm->binfmt = NULL;
++	mm_init_owner(mm, NULL);
+ 	mmput(mm);
+ 
+ fail_nomem:
+@@ -1676,6 +1686,24 @@ static inline void rcu_copy_process(struct task_struct *p)
+ #endif /* #ifdef CONFIG_TASKS_RCU */
+ }
+ 
++#ifdef CONFIG_MEMCG
++static void __delayed_free_task(struct rcu_head *rhp)
++{
++	struct task_struct *tsk = container_of(rhp, struct task_struct, rcu);
++
++	free_task(tsk);
++}
++#endif /* CONFIG_MEMCG */
++
++static __always_inline void delayed_free_task(struct task_struct *tsk)
++{
++#ifdef CONFIG_MEMCG
++	call_rcu(&tsk->rcu, __delayed_free_task);
++#else /* CONFIG_MEMCG */
++	free_task(tsk);
++#endif /* CONFIG_MEMCG */
++}
++
+ /*
+  * This creates a new process as a copy of the old one,
+  * but does not actually start it yet.
+@@ -2137,8 +2165,10 @@ static __latent_entropy struct task_struct *copy_process(
+ bad_fork_cleanup_namespaces:
+ 	exit_task_namespaces(p);
+ bad_fork_cleanup_mm:
+-	if (p->mm)
++	if (p->mm) {
++		mm_clear_owner(p->mm, p);
+ 		mmput(p->mm);
++	}
+ bad_fork_cleanup_signal:
+ 	if (!(clone_flags & CLONE_THREAD))
+ 		free_signal_struct(p->signal);
+@@ -2169,7 +2199,7 @@ static __latent_entropy struct task_struct *copy_process(
+ bad_fork_free:
+ 	p->state = TASK_DEAD;
+ 	put_task_stack(p);
+-	free_task(p);
++	delayed_free_task(p);
+ fork_out:
+ 	spin_lock_irq(&current->sighand->siglock);
+ 	hlist_del_init(&delayed.node);
 
