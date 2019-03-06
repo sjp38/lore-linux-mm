@@ -2,155 +2,160 @@ Return-Path: <SRS0=43/C=RJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2955EC43381
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 15:51:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 077A0C43381
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 15:51:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DBCEA206DD
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 15:51:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DBCEA206DD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id BAFFB206DD
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 15:51:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BAFFB206DD
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 891878E000A; Wed,  6 Mar 2019 10:51:12 -0500 (EST)
+	id B75C38E0009; Wed,  6 Mar 2019 10:51:12 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8186D8E0009; Wed,  6 Mar 2019 10:51:12 -0500 (EST)
+	id B4DBF8E0002; Wed,  6 Mar 2019 10:51:12 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7308C8E000A; Wed,  6 Mar 2019 10:51:12 -0500 (EST)
+	id A1B4B8E000B; Wed,  6 Mar 2019 10:51:12 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D2C18E0009
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 39F698E0002
 	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 10:51:12 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id k37so11920304qtb.20
+Received: by mail-ed1-f72.google.com with SMTP id f2so6456789edm.18
         for <linux-mm@kvack.org>; Wed, 06 Mar 2019 07:51:12 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to
-         :subject:date:message-id;
-        bh=gVh63R6jXWGvfH8lhiTdxs5SO95iMTODRGtrqioWTbU=;
-        b=dqlS3WGnloFk4OP/w7xdo5iC0LO/LEMKOqxC5LlP0oUflRxuc+t1bLqsnmcA6jAbYg
-         fM/CBd7bTJm3h1gABsTKZGCZXWnmgDAoAiQQHktPehGAhSbWDWlUAinU78BLCJro2o7X
-         3RY34dmKY5aPtDvlK428gyWvN0WCV+PEJGYn6fcq7wnmRiiw8Laqdl4WY7Q0rgddZ8jx
-         hYm6nwnfPWK4JaiVKPrPuHSoZxNvTQvJYHD4KD5O1bjL/EjgC54NM7uZIIuZUIleJsFH
-         RkLsGjSN4hMKFPAae8x2JyOeORKvlyJUDcTsutFbSCbbuov6bDrLjTAbndAhrHGo3kEn
-         iyLw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVRnk8tEMi362FtMOHXzJrWLpG9fWf1tqsUqlJNtM7BSQ4eQafi
-	PRBVUmOzmOn/LItqoxQuRYpxFcumdqGUNLe4M3hdhL7PCQk977HpD4PkdXtuab5F500I3fNfCzz
-	Iu9Y4LwIR2MMIXfRiSf7xtsvcYmIrt4aiGAnILoRGn60QWc1wF/B21h6bSVqpcDOSMg==
-X-Received: by 2002:a37:aa17:: with SMTP id t23mr6163020qke.133.1551887471986;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=FbmI8H/LDLwwCfkSNCFyqL30B69VDCB+cT3TXJ207I8=;
+        b=GXbTa+mmmNXYgx5uWqFJp1I7/QxjSXeF5ray8lLSHSoZWWKKUsMpUBI6UyxpPuOGTF
+         DVGLx2ka13H1RB9yr+i5PpDjVOKedQfQdwsD4xLOnppmcebPzzixFwTasjRRkz4/MwLC
+         linpcvwyxqiVdPSDYrUzb9Kde/jEJ2B7E5zQwNklnTUeNVp2Vi9TA+6MSavsHvvUPuU3
+         QpCaXzxpvMnyi/vzio3n7D2nTGyNIt8BGTH1f07l62EhP7BUUenjTl8dHWBerNRnzIv7
+         BFAAcHL23kOzKMeL6wO0ehasm0r59VpaD3ICRzuEO2qKqXTQRn4rNsMtgUWghRbw8V1W
+         RRlg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+X-Gm-Message-State: APjAAAUewThDso6FNnSrRbm8qoEkifjjxCK+IcN9+MkV7zU1vk9kB5LI
+	dE+FAPPsW1UgCfnzZUEiZGeLEIKHKwOIVhOBWE0fmov3ux2ZOxph+XIwBJ9bAFLvrxhY1Mh/tFl
+	bx1tpFI/FIMfSKvNOuFUhmP6mPX+pBQ1ijhn09FVl8uvdhWKJP5tmekji5/a7qLkFQA==
+X-Received: by 2002:aa7:db14:: with SMTP id t20mr23906858eds.231.1551887471484;
         Wed, 06 Mar 2019 07:51:11 -0800 (PST)
-X-Google-Smtp-Source: APXvYqxmi/h0tYgD+2I43uoj85dhr6nh/L6xkuL3/bdIbrNQX6DZO0wCf3E/I/AccOR6VA+L6pmh
-X-Received: by 2002:a37:aa17:: with SMTP id t23mr6162955qke.133.1551887470681;
+X-Google-Smtp-Source: APXvYqyiLtwa3olOJ27DEGKDs6T7LVT6+cB+sjWA7jwyhywQw1Pdpd1V11kTxju87e++LNTBbZ5w
+X-Received: by 2002:aa7:db14:: with SMTP id t20mr23906777eds.231.1551887470269;
         Wed, 06 Mar 2019 07:51:10 -0800 (PST)
 ARC-Seal: i=1; a=rsa-sha256; t=1551887470; cv=none;
         d=google.com; s=arc-20160816;
-        b=vMJ9RAvQi77PFMXn86q6wNzcmUPcs9MYAgHl4wdJRBiE18pcZu/cLXvNRYY5ISUZNR
-         vjywerBBz/GRkENQl1a/Gxr20C30VP+gLhuxgqgh6CFEl2FSNKUT+yl93kpgoacO2XnM
-         Q7zsLhVBvIzyq9kvr2TeTD+u20+yww4RROGTGgA824Tsnpy2PSJsZzqCyA8ttewxthkg
-         RE7RIM6zytyHQSAecIUkATAiHT2Hn0N7/XTd2z0lzpQvmSiY/1IhczdLkqMxnlcJOLC9
-         yk7F1wD9va7rLt7aUelvD74AUmChTdngz7rD0DHdIY7bqUinvGQu/5YDuh4ARNkmUN8B
-         Zxww==
+        b=kxH83nkLKX4XrwqQSijdpyJ33ILWLdzm5RxLgCG6ih9D20NlFpHXpbkOOr5BnHsZxB
+         5nwQZTxDAarsrnEFDWFwWR0dAFL0RTTikkKO+NMdHk/yd6XO8bTM/kYCYJaYWqEX2/ho
+         ozHyXgq57vq4yVDCJkAjxFeTxWJCq/Ecr0jZuSTiAT7A8zwyt2sYz3QDnb5nqgGbZKME
+         ojWfw6iEBmN32+RdW+Dm+72nWmzEI2ZKCd5wD9jfdENglEEHuceuulfIqVDj8Bb1/5qV
+         2vvHCM4Q/WZvdcrtzhQZz1X33ztNPLCk82tmkm5JUF7m+Np29jwoUnnl7aeNc9DURUKE
+         DiSg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:to:from;
-        bh=gVh63R6jXWGvfH8lhiTdxs5SO95iMTODRGtrqioWTbU=;
-        b=uIOoTfyO/n68EuTqwLxu+URjPS7S7ZttGfNhUT8c5wsco/ydb+jxao8sjELRkCalt5
-         hnsnOCeL+0RfLBKgiZjyclqv2Ww/t6tXSKcwL+A4RFceuLrREHoI85urOHLEYFBiEHY4
-         dt4/hrPV9EaLEDkNmUnuqE8NIYoQTWvV4fQwzA1g50wKDU2uyvjhlk5Gl309yOS5n+aN
-         whcwzKNt7m9gGCW0No6hpW2YWvkYeTctJPSSpKn7QFFk3vAvSUvTu5fSCkou/8Ir7til
-         W81sOpbkU5oNJydmbPYo9FkrLE/NzN0m6akBAoZ52PC6j0HQh2s6M91H3yA2jNhFb7oR
-         UsHw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=FbmI8H/LDLwwCfkSNCFyqL30B69VDCB+cT3TXJ207I8=;
+        b=E7OG9sAPcnCOOPAubxLzZh7m6jAKPTtIzqAZu6/04CRrMrLJOVkZxJnWUXFIeHkR4w
+         PXWWmjOisRz2dIZaRw9soim4enedheSLcsfA2XVwxeRe07PXCg3d/q6xBnzqTUmf9IeS
+         i7LLx5BtY4fF/ppZy0O/L84K84RINPq1oKea+SXRojaEG/PuxBJDpgczgIACBFhaCG3J
+         TqdKeyf0/VJsCuqm/4X3cYl76m0Hc2aAxVpqKIeEgKRXnAlk32+boSSRIunKrNAhMGIL
+         C1x5qoB0BF/q28QgwVsbXErqX1CKPSXi8BRqtraPWltpmUK5dy4YX0tG+4G53xKgq4Rv
+         mvww==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h19si47042qkg.18.2019.03.06.07.51.10
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 22si767445edu.228.2019.03.06.07.51.09
+        for <linux-mm@kvack.org>;
         Wed, 06 Mar 2019 07:51:10 -0800 (PST)
-Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id B703181E16;
-	Wed,  6 Mar 2019 15:51:09 +0000 (UTC)
-Received: from virtlab420.virt.lab.eng.bos.redhat.com (virtlab420.virt.lab.eng.bos.redhat.com [10.19.152.148])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 5FFB51001DF0;
-	Wed,  6 Mar 2019 15:50:55 +0000 (UTC)
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-To: kvm@vger.kernel.org,
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 4631D80D;
+	Wed,  6 Mar 2019 07:51:09 -0800 (PST)
+Received: from e112269-lin.arm.com (e112269-lin.cambridge.arm.com [10.1.196.69])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 94F673F703;
+	Wed,  6 Mar 2019 07:51:05 -0800 (PST)
+From: Steven Price <steven.price@arm.com>
+To: linux-mm@kvack.org
+Cc: Steven Price <steven.price@arm.com>,
+	Andy Lutomirski <luto@kernel.org>,
+	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+	Arnd Bergmann <arnd@arndb.de>,
+	Borislav Petkov <bp@alien8.de>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Ingo Molnar <mingo@redhat.com>,
+	James Morse <james.morse@arm.com>,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Will Deacon <will.deacon@arm.com>,
+	x86@kernel.org,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	linux-arm-kernel@lists.infradead.org,
 	linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org,
-	pbonzini@redhat.com,
-	lcapitulino@redhat.com,
-	pagupta@redhat.com,
-	wei.w.wang@intel.com,
-	yang.zhang.wz@gmail.com,
-	riel@surriel.com,
-	david@redhat.com,
-	mst@redhat.com,
-	dodgen@google.com,
-	konrad.wilk@oracle.com,
-	dhildenb@redhat.com,
-	aarcange@redhat.com,
-	alexander.duyck@gmail.com
-Subject: [RFC][Patch v9 0/6] KVM: Guest Free Page Hinting
-Date: Wed,  6 Mar 2019 10:50:42 -0500
-Message-Id: <20190306155048.12868-1-nitesh@redhat.com>
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Wed, 06 Mar 2019 15:51:09 +0000 (UTC)
+	Mark Rutland <Mark.Rutland@arm.com>,
+	"Liang, Kan" <kan.liang@linux.intel.com>,
+	Martin Schwidefsky <schwidefsky@de.ibm.com>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	linux-s390@vger.kernel.org
+Subject: [PATCH v4 06/19] s390: mm: Add p?d_large() definitions
+Date: Wed,  6 Mar 2019 15:50:18 +0000
+Message-Id: <20190306155031.4291-7-steven.price@arm.com>
+X-Mailer: git-send-email 2.20.1
+In-Reply-To: <20190306155031.4291-1-steven.price@arm.com>
+References: <20190306155031.4291-1-steven.price@arm.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The following patch-set proposes an efficient mechanism for handing freed memory between the guest and the host. It enables the guests with no page cache to rapidly free and reclaims memory to and from the host respectively.
+walk_page_range() is going to be allowed to walk page tables other than
+those of user space. For this it needs to know when it has reached a
+'leaf' entry in the page tables. This information is provided by the
+p?d_large() functions/macros.
 
-Benefit:
-With this patch-series, in our test-case, executed on a single system and single NUMA node with 15GB memory, we were able to successfully launch 5 guests(each with 5 GB memory) when page hinting was enabled and 3 without it. (Detailed explanation of the test procedure is provided at the bottom under Test - 1).
+For s390, pud_large() and pmd_large() are already implemented as static
+inline functions. Add a #define so we don't pick up the generic version
+introduced in a later patch.
 
-Changelog in v9:
-	* Guest free page hinting hook is now invoked after a page has been merged in the buddy.
-        * Free pages only with order FREE_PAGE_HINTING_MIN_ORDER(currently defined as MAX_ORDER - 1) are captured.
-	* Removed kthread which was earlier used to perform the scanning, isolation & reporting of free pages.
-	* Pages, captured in the per cpu array are sorted based on the zone numbers. This is to avoid redundancy of acquiring zone locks.
-        * Dynamically allocated space is used to hold the isolated guest free pages.
-        * All the pages are reported asynchronously to the host via virtio driver.
-        * Pages are returned back to the guest buddy free list only when the host response is received.
+CC: Martin Schwidefsky <schwidefsky@de.ibm.com>
+CC: Heiko Carstens <heiko.carstens@de.ibm.com>
+CC: linux-s390@vger.kernel.org
+Signed-off-by: Steven Price <steven.price@arm.com>
+---
+ arch/s390/include/asm/pgtable.h | 2 ++
+ 1 file changed, 2 insertions(+)
 
-Pending items:
-        * Make sure that the guest free page hinting's current implementation doesn't break hugepages or device assigned guests.
-	* Follow up on VIRTIO_BALLOON_F_PAGE_POISON's device side support. (It is currently missing)
-        * Compare reporting free pages via vring with vhost.
-        * Decide between MADV_DONTNEED and MADV_FREE.
-	* Analyze overall performance impact due to guest free page hinting.
-	* Come up with proper/traceable error-message/logs.
-
-Tests:
-1. Use-case - Number of guests we can launch
-
-	NUMA Nodes = 1 with 15 GB memory
-	Guest Memory = 5 GB
-	Number of cores in guest = 1
-	Workload = test allocation program allocates 4GB memory, touches it via memset and exits.
-	Procedure =
-	The first guest is launched and once its console is up, the test allocation program is executed with 4 GB memory request (Due to this the guest occupies almost 4-5 GB of memory in the host in a system without page hinting). Once this program exits at that time another guest is launched in the host and the same process is followed. We continue launching the guests until a guest gets killed due to low memory condition in the host.
-
-	Results:
-	Without hinting = 3
-	With hinting = 5
-
-2. Hackbench
-	Guest Memory = 5 GB 
-	Number of cores = 4
-	Number of tasks		Time with Hinting	Time without Hinting
-	4000			19.540			17.818
-
+diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
+index 063732414dfb..1f188004ba95 100644
+--- a/arch/s390/include/asm/pgtable.h
++++ b/arch/s390/include/asm/pgtable.h
+@@ -679,6 +679,7 @@ static inline int pud_none(pud_t pud)
+ 	return pud_val(pud) == _REGION3_ENTRY_EMPTY;
+ }
+ 
++#define pud_large	pud_large
+ static inline int pud_large(pud_t pud)
+ {
+ 	if ((pud_val(pud) & _REGION_ENTRY_TYPE_MASK) != _REGION_ENTRY_TYPE_R3)
+@@ -696,6 +697,7 @@ static inline unsigned long pud_pfn(pud_t pud)
+ 	return (pud_val(pud) & origin_mask) >> PAGE_SHIFT;
+ }
+ 
++#define pmd_large	pmd_large
+ static inline int pmd_large(pmd_t pmd)
+ {
+ 	return (pmd_val(pmd) & _SEGMENT_ENTRY_LARGE) != 0;
+-- 
+2.20.1
 
