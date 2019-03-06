@@ -2,84 +2,85 @@ Return-Path: <SRS0=43/C=RJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 045ECC43381
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 19:00:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4AE1DC43381
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 19:01:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C066B20645
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 19:00:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C066B20645
+	by mail.kernel.org (Postfix) with ESMTP id 16B4D20657
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 19:01:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 16B4D20657
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7174D8E0006; Wed,  6 Mar 2019 14:00:24 -0500 (EST)
+	id B0E368E0003; Wed,  6 Mar 2019 14:01:30 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6C7188E0002; Wed,  6 Mar 2019 14:00:24 -0500 (EST)
+	id ABD828E0002; Wed,  6 Mar 2019 14:01:30 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5B6B38E0006; Wed,  6 Mar 2019 14:00:24 -0500 (EST)
+	id 9D5088E0003; Wed,  6 Mar 2019 14:01:30 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 01B6C8E0002
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 14:00:24 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id 29so6708638eds.12
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 11:00:23 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 453638E0002
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 14:01:30 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id k32so6696707edc.23
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 11:01:30 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=BfWJYZ2J24t6kH8BtPo7VG82cFv6GMI/3MLWu1tNCfU=;
-        b=IInGPOgMeQ9+ZqafTEeQ+jceyB67t7X/IOOPJwziIr220z2jnLUfg2rqMtKTObwtiC
-         LWJeX4QUuBJsE/AmQ+4GFcL8ZDCnzq+t5IXpU+Qf4dn9SoaH934CyYZbTfkjYFQ3uZxa
-         S3TJT4dqdtTfUyrZ/6k/gqWfukOQqBZhVl9R2Hr83Wr1wYg2/l/aybhytYBNwnhH0+kS
-         NDc45LEWWPl1oX0UJfrKA51eJzcPq8i21PS0TM9cx2qVU9hyrqRQoVmEttzD7TlAhoSB
-         RXSpfHcRW2+d6uqnTPo3bbGuLkcUU09dKMTRnBAj4k/FkO7PxzSBIBcrETiiCbCx2MBE
-         Y1WA==
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=r/Vjiixhx3FNLOyNCupP3O6rpRbR7vCnpvYlarBDlm4=;
+        b=Qe1iZNIFw94ucNJ1566x6+8LKb9gvA388Al+CmGXJvVUoGJuPWXeo5JJhyJcURQeG1
+         OiRNvH3eHJH0BEjetM7srdo5QXxZcVaRdNrymnQuzY8z/jwRFsUlr2XFTDsmEmcpUcQ+
+         JK6kZnuKETbKT8/+45u4EIRgC4emHhtjivbPGxmE/sCtw6G6eThqsu74DYNule7gqIId
+         f2IIaygAQQ1JUm7R/pkEFF/osHQYckrMMbi7r/fnaR7NoOUV67TvnCndqqjLRpNXmSXO
+         RIxrG+8AZO22tX5IXYBZTPJ4hq93JJq0Ctb3vy6SU+aAHpYwKkwCyUdYtkf+97qGcZuJ
+         BQOw==
 X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.193 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Gm-Message-State: APjAAAXB/F7jWttNZ5QQ5XoIr7pNoQGpZchBDS2V96ULfVAvBXdrHvCo
-	Jp9cJ5IgvpNJ6hbmZaZM34X7P0PBs46RcIX2y1wlwB0E1/x01rhEmNS9KGw7B/qEvc1tgsMRBJz
-	ijzzvbjdrUyshn2GSaiO/7mffdiYHOWgxJoTTsBdqcEadbNGnZUPx+GlJAB8UzOg=
-X-Received: by 2002:a50:b646:: with SMTP id c6mr25146023ede.149.1551898823157;
-        Wed, 06 Mar 2019 11:00:23 -0800 (PST)
-X-Google-Smtp-Source: APXvYqw52DvU3j2NXzyHRWLJbUrVeC0VgvTOzyVQjo6HlyTEEbQ48lJa7qQkz1CGmIPYZEgnvyFo
-X-Received: by 2002:a50:b646:: with SMTP id c6mr25145930ede.149.1551898821352;
-        Wed, 06 Mar 2019 11:00:21 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551898821; cv=none;
+X-Gm-Message-State: APjAAAUVS+urSpeZ8KamHSvRAZlmg2ShAr+nYSWxbYY4rd8RtnoUQizt
+	jwN6tYbL4F3bdH1cG/g0HJOoplZYAFjFaNOv/XDFm4WCN3dEYVkgJwWw6wLyD7PahoA+/zPYnqO
+	SO/9hyMJ/7aERLsVInvENsnToFI6HeWhh2AKsM8V0xmb7YCPCMcW27rozpygHseE=
+X-Received: by 2002:a50:aef1:: with SMTP id f46mr24822825edd.184.1551898889523;
+        Wed, 06 Mar 2019 11:01:29 -0800 (PST)
+X-Google-Smtp-Source: APXvYqwu86fx8NO8js7HzV7yRedfLa0aW5YWzi3RuUfs7cRd/y1FVYws9gbEh8IolgsEJNbCUU1g
+X-Received: by 2002:a50:aef1:: with SMTP id f46mr24822745edd.184.1551898888063;
+        Wed, 06 Mar 2019 11:01:28 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551898888; cv=none;
         d=google.com; s=arc-20160816;
-        b=mbvEoCRRTvn1MAu/vjhxibrE8QAheDVZ6mdGhnr7RDyg8PzQK+OQgAZ326sfTTQiuQ
-         /QBVz6EQIKt+cibYucgfXEw8nIEzeVEiW4QOYSAQaxeb6GNvRD17jImtczRQuSWPJjUI
-         Ya5ZKk/YfddGwWHrf8J+9pKdktiJC+f+36f0sMRFUpedsm0k3QzycdELVdAc86vvFfcJ
-         CxxdcVUgU8nWQ5V4RwJpZstax6gWi5hCYhfNQaFv4FPmwLRAON3FtXNXjGRy0MmVR8K4
-         00NjGRxms3BpSCaZfOZRpR67nH30y7/FkM4JqdPTT7+Buio/mMBzoJLnE5lUIXbHYf11
-         Juwg==
+        b=HLLAQ+4UG7BpqhBYN/uGIgBPF0Ex33iuyxVimlil6FMSkBb8RYQz16DG8V+RloI7hZ
+         sXc07awbjSxB8Krx1IXYUJ43khM/GB0ZjwtDESsj4cLfv1eW+aTNLu/L+URtWsb933Hv
+         jrKppWHQaoesDOTmzYKOtT6tUGwlNJdQ/dGzpjwlEmNfW6i5i7s4xqxMgK5Cu1fr+sFS
+         DNwhtCfz6M1h+AArZ2NKFqwUSkygSfSkt4G5yoS3JCp0w4u2IBp19+el7st8VoshanM0
+         SLNgZQ7rB8+SZxoM4JLDpud/jkMwY+woOpYRQ43tAAGrd+zFxW9do76CJXOCHjP2cPPt
+         mKpA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=BfWJYZ2J24t6kH8BtPo7VG82cFv6GMI/3MLWu1tNCfU=;
-        b=jklDta2ln2p8p5vCwLPZQta0I7K8t5yxYKEEdtbiVaE5I3nDnulSRKzHCPk0t2FSL2
-         AFjwzQkOrwsm8KX1n4rxG0WEHXPeLp7cyzzXrvVNbTrxMlrotxCGvsniwmvqprskG6D8
-         wD8lNivr45WKWJWBtlV8Gnd1a72Nzf+9IG994s43iAJAqV/0PihKgDnKck9Cnc/+T18s
-         Z10EzxhY2yD4PGVCjXNMZd1QjqI3/AEArNCONIqy2ki36zTmOKEX4sNgmFqCug87/gJc
-         ceW+miYya+qGtHyqSpgVZ4V3S07hRE2ukD+YpYKAVUdi5HPQLeccZtgqiNukSaqwF9ln
-         TrhA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=r/Vjiixhx3FNLOyNCupP3O6rpRbR7vCnpvYlarBDlm4=;
+        b=dv4r/k0ScdSLRazdZlE1v7ooopL50U2HSk1jykXe2Arr71htXQBaxb7vo90+9lm9ET
+         PhHWEGuQhsWFTOOy1v77k4cTDDFkIQ7a72jXC8c4I7R7R+8B53MnSgJ/oyck9ufzVMHQ
+         0cvm5jpeDTDdtTXPSaVaSM+v5QXWQdIZRtEGjXgDesEgcDLxV26mWzFx6rhSPT50B6Td
+         i9mZRnoJU7+G+sD0YCV1LxCZn32HVo3JfX1sjAdGwtxe5M4ZILWZbPrs90RjTPxh7asB
+         kze9he8MojSEnhPyB3aQkOrLGCb4cL0mK6RQTAy23GAT/fv9MvPo1KifBpAmDMsZfJk2
+         W89A==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=neutral (google.com: 217.70.183.193 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
 Received: from relay1-d.mail.gandi.net (relay1-d.mail.gandi.net. [217.70.183.193])
-        by mx.google.com with ESMTPS id w27si987578edi.262.2019.03.06.11.00.21
+        by mx.google.com with ESMTPS id m20si76901edp.72.2019.03.06.11.01.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 06 Mar 2019 11:00:21 -0800 (PST)
+        Wed, 06 Mar 2019 11:01:28 -0800 (PST)
 Received-SPF: neutral (google.com: 217.70.183.193 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.193;
 Authentication-Results: mx.google.com;
        spf=neutral (google.com: 217.70.183.193 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
 X-Originating-IP: 79.86.19.127
 Received: from alex.numericable.fr (127.19.86.79.rev.sfr.net [79.86.19.127])
 	(Authenticated sender: alex@ghiti.fr)
-	by relay1-d.mail.gandi.net (Postfix) with ESMTPSA id 8D8ED24000D;
-	Wed,  6 Mar 2019 19:00:06 +0000 (UTC)
+	by relay1-d.mail.gandi.net (Postfix) with ESMTPSA id 683D2240003;
+	Wed,  6 Mar 2019 19:01:21 +0000 (UTC)
 From: Alexandre Ghiti <alex@ghiti.fr>
 To: Vlastimil Babka <vbabka@suse.cz>,
 	Catalin Marinas <catalin.marinas@arm.com>,
@@ -109,10 +110,12 @@ To: Vlastimil Babka <vbabka@suse.cz>,
 	sparclinux@vger.kernel.org,
 	linux-mm@kvack.org
 Cc: Alexandre Ghiti <alex@ghiti.fr>
-Subject: [PATCH v5 0/4] Fix free/allocation of runtime gigantic pages
-Date: Wed,  6 Mar 2019 14:00:01 -0500
-Message-Id: <20190306190005.7036-1-alex@ghiti.fr>
+Subject: [PATCH v5 1/4] sh: Advertise gigantic page support
+Date: Wed,  6 Mar 2019 14:00:02 -0500
+Message-Id: <20190306190005.7036-2-alex@ghiti.fr>
 X-Mailer: git-send-email 2.20.1
+In-Reply-To: <20190306190005.7036-1-alex@ghiti.fr>
+References: <20190306190005.7036-1-alex@ghiti.fr>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -121,65 +124,31 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This series fixes sh and sparc that did not advertise their gigantic page
-support and then were not able to allocate and free those pages at runtime.
-It renames MEMORY_ISOLATION && COMPACTION || CMA condition into the more
-accurate CONTIG_ALLOC, since it allows the definition of alloc_contig_range
-function.
-Finally, it then fixes the wrong definition of ARCH_HAS_GIGANTIC_PAGE config
-that, without MEMORY_ISOLATION && COMPACTION || CMA defined, did not allow
-architectures to free boottime allocated gigantic pages although unrelated.
+sh actually supports gigantic pages and selecting
+ARCH_HAS_GIGANTIC_PAGE allows it to allocate and free
+gigantic pages at runtime.
 
-Changes in v5:
-- Fix bug in previous version thanks to Mike Kravetz
-- Fix block comments that did not respect coding style thanks to Dave Hensen
-- Define ARCH_HAS_GIGANTIC_PAGE only for sparc64 as advised by David Miller
-- Factorize "def_bool" and "depends on" thanks to Vlastimil Babka
+At least sdk7786_defconfig exposes such a configuration with
+huge pages of 64MB, pages of 4KB and MAX_ORDER = 11:
+HPAGE_SHIFT (26) - PAGE_SHIFT (12) = 14 >= MAX_ORDER (11)
 
-Changes in v4 as suggested by Dave Hensen:
-- Split previous version into small patches
-- Do not compile alloc_gigantic** functions for architectures that do not
-  support those pages
-- Define correct ARCH_HAS_GIGANTIC_PAGE in all arch that support them to avoid
-  useless runtime check
-- Add comment in set_max_huge_pages to explain that freeing is possible even
-  without CONTIG_ALLOC defined
-- Remove gigantic_page_supported function across all archs
+Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
+---
+ arch/sh/Kconfig | 1 +
+ 1 file changed, 1 insertion(+)
 
-Changes in v3 as suggested by Vlastimil Babka and Dave Hansen:
-- config definition was wrong and is now in mm/Kconfig
-- COMPACTION_CORE was renamed in CONTIG_ALLOC
-
-Changes in v2 as suggested by Vlastimil Babka:
-- Get rid of ARCH_HAS_GIGANTIC_PAGE
-- Get rid of architecture specific gigantic_page_supported
-- Factorize CMA or (MEMORY_ISOLATION && COMPACTION) into COMPACTION_CORE
-
-*** BLURB HERE ***
-
-Alexandre Ghiti (4):
-  sh: Advertise gigantic page support
-  sparc: Advertise gigantic page support
-  mm: Simplify MEMORY_ISOLATION && COMPACTION || CMA into CONTIG_ALLOC
-  hugetlb: allow to free gigantic pages regardless of the configuration
-
- arch/arm64/Kconfig                           |  2 +-
- arch/arm64/include/asm/hugetlb.h             |  4 --
- arch/powerpc/include/asm/book3s/64/hugetlb.h |  7 ---
- arch/powerpc/platforms/Kconfig.cputype       |  2 +-
- arch/s390/Kconfig                            |  2 +-
- arch/s390/include/asm/hugetlb.h              |  3 --
- arch/sh/Kconfig                              |  1 +
- arch/sparc/Kconfig                           |  1 +
- arch/x86/Kconfig                             |  2 +-
- arch/x86/include/asm/hugetlb.h               |  4 --
- arch/x86/mm/hugetlbpage.c                    |  2 +-
- include/linux/gfp.h                          |  4 +-
- mm/Kconfig                                   |  3 ++
- mm/hugetlb.c                                 | 54 ++++++++++++--------
- mm/page_alloc.c                              |  7 ++-
- 15 files changed, 48 insertions(+), 50 deletions(-)
-
+diff --git a/arch/sh/Kconfig b/arch/sh/Kconfig
+index a9c36f95744a..299a17bed67c 100644
+--- a/arch/sh/Kconfig
++++ b/arch/sh/Kconfig
+@@ -53,6 +53,7 @@ config SUPERH
+ 	select HAVE_FUTEX_CMPXCHG if FUTEX
+ 	select HAVE_NMI
+ 	select NEED_SG_DMA_LENGTH
++	select ARCH_HAS_GIGANTIC_PAGE if (MEMORY_ISOLATION && COMPACTION) || CMA
+ 
+ 	help
+ 	  The SuperH is a RISC processor targeted for use in embedded systems
 -- 
 2.20.1
 
