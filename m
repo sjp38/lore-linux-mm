@@ -2,229 +2,162 @@ Return-Path: <SRS0=43/C=RJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_NEOMUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4A314C43381
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 09:41:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6466BC43381
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 09:44:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0431520675
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 09:41:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0431520675
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 13EE020661
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 09:44:15 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="i8JwL2yV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 13EE020661
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 84AF48E0003; Wed,  6 Mar 2019 04:41:37 -0500 (EST)
+	id A20DF8E0003; Wed,  6 Mar 2019 04:44:15 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7FA9D8E0002; Wed,  6 Mar 2019 04:41:37 -0500 (EST)
+	id 9CD128E0002; Wed,  6 Mar 2019 04:44:15 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6EA198E0003; Wed,  6 Mar 2019 04:41:37 -0500 (EST)
+	id 8BDC58E0003; Wed,  6 Mar 2019 04:44:15 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1291C8E0002
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 04:41:37 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id o27so6023436edc.14
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 01:41:37 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4866F8E0002
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 04:44:15 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id k198so11775037pgc.20
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 01:44:15 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=z+KCFvi482qs3sMlCDVL0O5iW/1W++W9hvXvifDSHk4=;
-        b=pHgl0oN4eUpZAcK+eKB1ZFr/ZDc/q2UeZ4VIBGo+Gdw0/SVjYSHM/lA13JV1MPP0im
-         hRbMpyR0Wz++5Nw218MP25q9mOH6tySJYewfC5IZCgffztCK5x3V/rG5OvkW6MKRcDq7
-         v+pkB6aDUc61iHKpFf3FHeQYTkl5Hlo9y71+zqwBFOP9xkBqXnt8TcwZS6uSJE+LQ9oP
-         DFzVjHupZ9j9ngRMgaCt9LubNcFcPuNQijczEjThgx1MlxQ94mk3XGBEmRRvpeKw37mf
-         YUMo465Wk4jurxcftF8nkKfVtOM5NTxDQMrqN1sRh9OnaplTlJF5RL3U8C1rnk17pNsw
-         /U1Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAVlRBq02uI/XMfYfz2anQ6O7tz+olr39pEqMvpERk1klfXhriDR
-	Xf8n0o8E/8mb0emBR2Z5k4AJWDis9/VgUxBRAubgsXDN5GyJtjWTt0CFDA8ncPFpi8zQ4CQUMQM
-	nZoWvy8Dl2nuHOAYbYCqNoknSYig7RGOLbsGVCau3OGQvU8hch9gQTQZ7xbDkymlsgA==
-X-Received: by 2002:a50:a5f4:: with SMTP id b49mr22870101edc.23.1551865296652;
-        Wed, 06 Mar 2019 01:41:36 -0800 (PST)
-X-Google-Smtp-Source: APXvYqz162A8f+ir2wWCYjo2qFBV2BXOXyvKcPfka9Sa+hFAfjkP8BbaOFG+X9fOql8SaCHy9mFF
-X-Received: by 2002:a50:a5f4:: with SMTP id b49mr22870047edc.23.1551865295608;
-        Wed, 06 Mar 2019 01:41:35 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551865295; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=Ta2O7DF2/9sJVKubh+k6nXiTfVoZACDiA2PHCH49IPI=;
+        b=O8JNkRFF842fvYgbD6JxumF3Up/usAhg8BxuV5EGAP0/25Mdw42YmTkHwP3r5K2Ith
+         TGrBA08c1GFmtqGPDpCvJQ2H/M174i5dM0YKBgjogbOCf9PI51ilNlO0+xBta1PR6XkT
+         S5x735Eb1Cl0zRRS3VbhRajK70EkpeH3eVGOQhOqn9j72BK98s2Xh/lfN9MVooQo9O5A
+         yuKPj6LKWSCb3x1zROa++9m6J5Fsad8lGF1T9oNpeiMWiROqtAtxXMOCAiFNtihM+EUx
+         WqzRbBDvTzr4LMDWKHvQicfylkmHoB/JLq3M//lflVoE0nFpP67umU/H6w4SHwKEJOer
+         l1Sw==
+X-Gm-Message-State: APjAAAVygJT6iQVqGDWEUXgfJpSouKgwqKsSyimpuRmSkvFHpwHM3+Wg
+	T8kIA6zmEdNieBgx5okdcfXrcwi3CzSQh0dyUYcOFq2yVmNNcoq0bF45G+o23wkdc0Y3MYBvlVo
+	E0/zjomNDfUGog16QkJxYl8CjUJDxIrXbZBL/FlCa7KqTkn3+Bxmc3vLBvkCmcSGisg==
+X-Received: by 2002:a17:902:6b03:: with SMTP id o3mr6023267plk.126.1551865454914;
+        Wed, 06 Mar 2019 01:44:14 -0800 (PST)
+X-Google-Smtp-Source: APXvYqxpKtPLwSEsu0aOSxgi3KDL6IyQ8/aXMhN7a/MlkIAUJNu1nPgohT1EqE5YeVy+/z6Df0vY
+X-Received: by 2002:a17:902:6b03:: with SMTP id o3mr6023185plk.126.1551865453851;
+        Wed, 06 Mar 2019 01:44:13 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551865453; cv=none;
         d=google.com; s=arc-20160816;
-        b=Jj8qlcZXz4Jj0OI/tvM3qgf2fcmzGx6FtH3btX6/6Vx2EsAOFM1J4TNUCroS0UJCR9
-         G1lCZdzdY9D0XjTr8iTBDNJYQc5aQtVfYn5IibFDKj+DDNeK9pynJZzH/vGK1Lv3rNW2
-         60a1rhrrGNrrlNLsHJ1igXllZWsqpmkylshgcxADsgiEx0zwm1go1PNqOa1Imadbi9OJ
-         0v1IEWhoJKAJGn/FAsZbOwxxoBNiHysXIBLwebNiYWn7y57amcp90JlVrozWo4iuy1cU
-         JYCnOnx1j69cYSgdl98Pns33B9b9oW4jGiivr9A6vlXe7yHluzGb8OVOFm4m/2JC8ckl
-         Zymw==
+        b=CaeZ6sQ0yrTdVDQSqNCE1krPSvba+agvzLM+pNoqKwhoAJ19KZAo6HRXjROOzpiyxu
+         PBe9iYLQOWqGoHWtJkwr4c05WOs5DObOlKVzvqPuLHuik9RRg31Wa9WSa9TJXRXUOfOy
+         1ApRdvb8JztAuEi8egyXE2kB/a5aNl4mkZFJDuP9r9Q4YjII3Z0Di5Bt5yP0NpRyPb+X
+         T0KFIhCpjAjW+xAhlDX6xP85Qj/LZiAu9xmcv+w0zwBDkDoKEWCDX800K+lmE3RAlNYZ
+         WxhFYTIPIqIoXEJ5bKDQ16YJtxxGU3D2DeGDBgsj3lJa7LsisIqPbaCRYaSZ1FsWs9M4
+         BD8A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=z+KCFvi482qs3sMlCDVL0O5iW/1W++W9hvXvifDSHk4=;
-        b=IEdrfJBWPa1pXGWu1Svpsa25Vc2PPrIcRA8kGW+h3C12RWm5mm/0pGvMw3fRhbFL+Y
-         fziXfyeqZ7leSR1EinO8iZWNk7TQ7zF6pE3AdTiIDJWXl8rXnSNvjBHb30qyhHXP1D4q
-         ClHw90KLdaRo2DtgJNLpgS+D4x5puccfaJD+VP5wHJKc/bIRe61ZpGIyX1a78ldZRbP9
-         P9OBsEK4XK3Eekn2Di3xeFyvONtbA2ISQ1J9ykgizCZ4QEsJoQ+HMIsntY9ZykmtUc68
-         4cNIdhwvXNvyDp58TUGP+QZUL6JB9uhGn40mOSUVi0JYydTDcDtWcx8PlOle3R8SokpJ
-         g05Q==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=Ta2O7DF2/9sJVKubh+k6nXiTfVoZACDiA2PHCH49IPI=;
+        b=nW7pe+stwZ2u5R7tAhy/YdzzOvwR03CfbQTlZ++pKuR0svGtDSuVcW3uPZ2gifqp1H
+         otEs87bB/6w4vWjPNk7zd2UVpeRvbSw6Yaz+syIKBwqVqp7OmD6cYw8+Nfzr9SLuWo2+
+         oI5jyUSmuoIOXzLk4GvprbwJATFboyYC3zT49oC+aRPMpw6ef7uZr/9oMEcZffc1ayp6
+         i4/sN6UCau127bSuIgA1KgSgkefAGlN9XMDNAW04Z/98KCLiQ6YabFQ+Ii1Juhot/8OY
+         4wN8S/7Ax1H6nkebG6OZePr6rs1/C+rQrVHZYLfORx7+FDeQAgcx6EiIv2LUaQB4/ALV
+         gukA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from suse.de (charybdis-ext.suse.de. [195.135.221.2])
-        by mx.google.com with ESMTP id k10si446448ejv.156.2019.03.06.01.41.35
-        for <linux-mm@kvack.org>;
-        Wed, 06 Mar 2019 01:41:35 -0800 (PST)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) client-ip=195.135.221.2;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=i8JwL2yV;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id n10si1071280pgk.36.2019.03.06.01.44.13
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Mar 2019 01:44:13 -0800 (PST)
+Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: by suse.de (Postfix, from userid 1000)
-	id A3FDF44A0; Wed,  6 Mar 2019 10:41:34 +0100 (CET)
-Date: Wed, 6 Mar 2019 10:41:34 +0100
-From: Oscar Salvador <osalvador@suse.de>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	David Rientjes <rientjes@google.com>,
-	Jing Xiangfeng <jingxiangfeng@huawei.com>,
-	"mhocko@kernel.org" <mhocko@kernel.org>,
-	"hughd@google.com" <hughd@google.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	"kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>,
-	linux-kernel@vger.kernel.org, Alexandre Ghiti <alex@ghiti.fr>
-Subject: Re: [PATCH v4] mm/hugetlb: Fix unsigned overflow in
- __nr_hugepages_store_common()
-Message-ID: <20190306094130.q5v7qfgbekatnmyk@d104.suse.de>
-References: <8c167be7-06fa-a8c0-8ee7-0bfad41eaba2@oracle.com>
- <13400ee2-3d3b-e5d6-2d78-a770820417de@oracle.com>
- <alpine.DEB.2.21.1902251116180.167839@chino.kir.corp.google.com>
- <5C74A2DA.1030304@huawei.com>
- <alpine.DEB.2.21.1902252220310.40851@chino.kir.corp.google.com>
- <e2bded2f-40ca-c308-5525-0a21777ed221@oracle.com>
- <20190226143620.c6af15c7c897d3362b191e36@linux-foundation.org>
- <086c4a4b-a37d-f144-00c0-d9a4062cc5fe@oracle.com>
- <20190305000402.GA4698@hori.linux.bs1.fc.nec.co.jp>
- <8f3aede3-c07e-ac15-1577-7667e5b70d2f@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8f3aede3-c07e-ac15-1577-7667e5b70d2f@oracle.com>
-User-Agent: NeoMutt/20170421 (1.8.2)
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=i8JwL2yV;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x269i5wd178554;
+	Wed, 6 Mar 2019 09:44:09 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
+ mime-version : subject : from : in-reply-to : date : cc :
+ content-transfer-encoding : message-id : references : to;
+ s=corp-2018-07-02; bh=Ta2O7DF2/9sJVKubh+k6nXiTfVoZACDiA2PHCH49IPI=;
+ b=i8JwL2yVjtY3nbaJfOkHpuZZqqbEnDoZuL9jVH5TymH/qibTUUF760TmpB2LtVPk0AGH
+ fIBrsOvPtWiyiV1tOqiSQslp3Zl5CaRF8ge0PT0BPI48moyolfqlQlFHwOROSu3GL1Rr
+ kvxtOR09Ab5dz9smV9x/HjKT0s3ys3yOs4ffHxdCIGD/KUDW/dBXkLo5vYhBfXNe3Yzg
+ bmxGuRNczS8MzmBmjqJ+1rYSTCbTk/NV88YuEoe8Ox7Hwi5F4MlgHyvzvnR9qxDnteUi
+ 1Q/+3wwZKDDBFk2JVdlAxZwKxOhV07j3nX9FOZc4nukP+Hm5CvLJk96k/8V/cwbU1zui fw== 
+Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
+	by aserp2130.oracle.com with ESMTP id 2qyfbeb11p-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 06 Mar 2019 09:44:09 +0000
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x269i7cm018805
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 6 Mar 2019 09:44:08 GMT
+Received: from abhmp0018.oracle.com (abhmp0018.oracle.com [141.146.116.24])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x269i6XL028425;
+	Wed, 6 Mar 2019 09:44:06 GMT
+Received: from [192.168.0.110] (/73.243.10.6)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Wed, 06 Mar 2019 01:44:06 -0800
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.2\))
+Subject: Re: [PATCH] mm/filemap: fix minor typo
+From: William Kucharski <william.kucharski@oracle.com>
+In-Reply-To: <20190304155240.19215-1-ldufour@linux.ibm.com>
+Date: Wed, 6 Mar 2019 02:44:06 -0700
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+        Matthew Wilcox <willy@infradead.org>
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <D730117D-A44D-4380-8E58-E809A86BD245@oracle.com>
+References: <20190304155240.19215-1-ldufour@linux.ibm.com>
+To: Laurent Dufour <ldufour@linux.ibm.com>
+X-Mailer: Apple Mail (2.3445.104.2)
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9186 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1903060067
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 04, 2019 at 08:15:40PM -0800, Mike Kravetz wrote:
-> In addition, the code in __nr_hugepages_store_common() which tries to
-> handle the case of not being able to allocate a node mask would likely
-> result in incorrect behavior.  Luckily, it is very unlikely we will
-> ever take this path.  If we do, simply return ENOMEM.
 
-Hi Mike,
-
-I still thnk that we could just get rid of the NODEMASK_ALLOC machinery
-here, it adds a needlessly complexity IMHO.
-Note that before "(5df66d306ec9: mm: fix comment for NODEMASK_ALLOC)",
-the comment about the size was wrong, showing a much bigger size that it
-actually was, and I would not be surprised if people started to add
-NODEMASK_ALLOC here and there because of that.
-
-Actually, there was a little talk about removing NODEMASK_ALLOC altogether,
-but some further checks must be done before.
-
-> Reported-by: Jing Xiangfeng <jingxiangfeng@huawei.com>
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-
-But the overall change looks good to me:
-
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
-
+> Cc: Matthew Wilcox <willy@infradead.org>
+> Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
 > ---
->  mm/hugetlb.c | 42 +++++++++++++++++++++++++++++++++---------
->  1 file changed, 33 insertions(+), 9 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index c5c4558e4a79..5a190a652cac 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2274,7 +2274,7 @@ static int adjust_pool_surplus(struct hstate *h, nodemask_t *nodes_allowed,
->  }
->  
->  #define persistent_huge_pages(h) (h->nr_huge_pages - h->surplus_huge_pages)
-> -static int set_max_huge_pages(struct hstate *h, unsigned long count,
-> +static int set_max_huge_pages(struct hstate *h, unsigned long count, int nid,
->  						nodemask_t *nodes_allowed)
->  {
->  	unsigned long min_count, ret;
-> @@ -2289,6 +2289,28 @@ static int set_max_huge_pages(struct hstate *h, unsigned long count,
->  		goto decrease_pool;
->  	}
->  
-> +	spin_lock(&hugetlb_lock);
-> +
-> +	/*
-> +	 * Check for a node specific request.
-> +	 * Changing node specific huge page count may require a corresponding
-> +	 * change to the global count.  In any case, the passed node mask
-> +	 * (nodes_allowed) will restrict alloc/free to the specified node.
-> +	 */
-> +	if (nid != NUMA_NO_NODE) {
-> +		unsigned long old_count = count;
-> +
-> +		count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
-> +		/*
-> +		 * User may have specified a large count value which caused the
-> +		 * above calculation to overflow.  In this case, they wanted
-> +		 * to allocate as many huge pages as possible.  Set count to
-> +		 * largest possible value to align with their intention.
-> +		 */
-> +		if (count < old_count)
-> +			count = ULONG_MAX;
-> +	}
-> +
->  	/*
->  	 * Increase the pool size
->  	 * First take pages out of surplus state.  Then make up the
-> @@ -2300,7 +2322,6 @@ static int set_max_huge_pages(struct hstate *h, unsigned long count,
->  	 * pool might be one hugepage larger than it needs to be, but
->  	 * within all the constraints specified by the sysctls.
->  	 */
-> -	spin_lock(&hugetlb_lock);
->  	while (h->surplus_huge_pages && count > persistent_huge_pages(h)) {
->  		if (!adjust_pool_surplus(h, nodes_allowed, -1))
->  			break;
-> @@ -2421,16 +2442,19 @@ static ssize_t __nr_hugepages_store_common(bool obey_mempolicy,
->  			nodes_allowed = &node_states[N_MEMORY];
->  		}
->  	} else if (nodes_allowed) {
-> +		/* Node specific request */
-> +		init_nodemask_of_node(nodes_allowed, nid);
-> +	} else {
->  		/*
-> -		 * per node hstate attribute: adjust count to global,
-> -		 * but restrict alloc/free to the specified node.
-> +		 * Node specific request, but we could not allocate the few
-> +		 * words required for a node mask.  We are unlikely to hit
-> +		 * this condition.  Since we can not pass down the appropriate
-> +		 * node mask, just return ENOMEM.
->  		 */
-> -		count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
-> -		init_nodemask_of_node(nodes_allowed, nid);
-> -	} else
-> -		nodes_allowed = &node_states[N_MEMORY];
-> +		return -ENOMEM;
-> +	}
->  
-> -	err = set_max_huge_pages(h, count, nodes_allowed);
-> +	err = set_max_huge_pages(h, count, nid, nodes_allowed);
->  	if (err)
->  		goto out;
->  
-> -- 
-> 2.17.2
-> 
+> mm/filemap.c | 2 +-
+> 1 file changed, 1 insertion(+), 1 deletion(-)
+>=20
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index cace3eb8069f..377cedaa3ae5 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -1440,7 +1440,7 @@ pgoff_t page_cache_next_miss(struct =
+address_space *mapping,
+> EXPORT_SYMBOL(page_cache_next_miss);
+>=20
+> /**
+> - * page_cache_prev_miss() - Find the next gap in the page cache.
+> + * page_cache_prev_miss() - Find the previous gap in the page cache.
+>  * @mapping: Mapping.
+>  * @index: Index.
+>  * @max_scan: Maximum range to search.
+> --=20
+> 2.21.0
+>=20
 
--- 
-Oscar Salvador
-SUSE L3
+Reviewed-by: William Kucharski <william.kucharski@oracle.com>
 
