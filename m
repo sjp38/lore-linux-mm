@@ -2,204 +2,191 @@ Return-Path: <SRS0=43/C=RJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 718F2C43381
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 19:24:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C5FC8C43381
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 19:33:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2130A20661
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 19:24:39 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="JlpLV90R"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2130A20661
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 6FFDB20657
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 19:33:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6FFDB20657
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B4B408E0003; Wed,  6 Mar 2019 14:24:38 -0500 (EST)
+	id D1A3F8E0003; Wed,  6 Mar 2019 14:33:45 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AFA978E0002; Wed,  6 Mar 2019 14:24:38 -0500 (EST)
+	id CEFE18E0002; Wed,  6 Mar 2019 14:33:45 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9E9CC8E0003; Wed,  6 Mar 2019 14:24:38 -0500 (EST)
+	id BB7988E0003; Wed,  6 Mar 2019 14:33:45 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 739D58E0002
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 14:24:38 -0500 (EST)
-Received: by mail-io1-f72.google.com with SMTP id k24so10452379ioh.11
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 11:24:38 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 63DD48E0002
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 14:33:45 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id u25so6859896edd.15
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 11:33:45 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=ZiEiSPvTWNYJkEcELHi6QZ0IqecrFI4s8OYugZS1pk8=;
-        b=a6ZFZVUT7ZqC5dGCTpwBwzNjoRcH8UxiHyY/9ziESYkWvjErzSk9oCXefBsu/7yBgW
-         XXE6EY/g0NFvwIxRQ6twf+nCdKJ/wj6T2m6dkvFNXqjIRcV6EevxVMgBkrWA6A+r1CGf
-         HFTujUuiTve3nRdQw5BLbQOmIQrq1X5ZCNuhgcFMAwWoipqcV8P8F1o9T0C5zvp1h4B0
-         +xyKlJrHTehCWOyerL8vGMPO5PYtUsNGv3FUucPbd3qFpyCdl1u4mLk4mCvVRdIl6xUz
-         E73EvObt/BF/TRIsviLmiyTj7BQKBzaxCNs8eYv0feuITgP5yv//d2wSB1h7OiiT/gTM
-         TkRg==
-X-Gm-Message-State: APjAAAWPaWmRgoFwmaprR22f1GrIuEEThpC+Fa2eeVDxpxFjywBw/P6G
-	AB9ZWUE33SplgCUPPrJ4EaQoQkNy4HemrHNEkwVtP0ScfH+AK3V7D5xI1Sw6P4xn199WZU6FLcM
-	9S0k7jl+RtsMfyMHHrgFcd+Z9DXR8lDi7jgazXqAOsJByBadheXR+UQrjXYhOnVjMv617I3mkek
-	/lPOp/J5UdTxyxPXNf2u5V5ICSETgi+v6pIwGntA3ul36rTXh986dpzbp0YYkuwTZ1G0s74rtjp
-	hVvZAgc6dxMzYdn3vpWvFCMqGb0OPavdS9eSNOo/npb0saSE2ymWBhaEQEVK4PnwDnicDJ0qiZF
-	wFloscuydBOuJ3HMkY6stCw13oq2DiOPOczEKEBhktKvOJvwUfz6iqatx5U1//F7Sgrltnfv4wg
-	T
-X-Received: by 2002:a24:2c11:: with SMTP id i17mr2918768iti.146.1551900278188;
-        Wed, 06 Mar 2019 11:24:38 -0800 (PST)
-X-Received: by 2002:a24:2c11:: with SMTP id i17mr2918741iti.146.1551900277289;
-        Wed, 06 Mar 2019 11:24:37 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551900277; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=bPuTZpVW+7pAzzJ3XCaoyngvVm7VQv1rQsXmrMTyhaU=;
+        b=OslY8A+nb2NVVxrhXyW3lAoh47tlw+9t/mvvT1pH/9YivDT/HhvZ2mkGChU7O5qlFL
+         Wo51VGTyk+ua3+0SJ8E/kLdAoiEjQ9B7juuJKHeZLDrtbR5pGWjJQEqbWOt/ZcUoAlwB
+         FKEAZ/jICKpDqpyQ7AudvgQnwsFWGXa2Q0np6iTiiVEZZfUbnfvi0bHMIZOvFkx5BlkG
+         Ee3ImUZuAW6LV+9hwtezrq2U4DARckH5yEgVuJjQTLEce0uVH3ZeFSge2fmeGTo1Lekm
+         bqEo/dGS6SbPBh/6UTcxfcLfyb5fDQQdfpMRMjixRT0UsNd40QuOcLbDHN1rWlQSCzR4
+         894A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAWPIe+n/KJ2mnTJT4zIPH2CU+OX4lGN+J7za0NIXZGGsE9zsOBs
+	4goPN4iI3dO6CyXy6UNKIjkPqmKQA10bw5GqDEiEOsK3234EFsn9vOA6yaJZY1mjmRPzNE0nkl8
+	sTQxMNhqAiYxae00PFQ+WnnHTMJM0ab5er/rw+uTfxjyswh8RTCQ9FURxR/T8WBU0iw==
+X-Received: by 2002:a50:ca41:: with SMTP id e1mr24983987edi.73.1551900824815;
+        Wed, 06 Mar 2019 11:33:44 -0800 (PST)
+X-Google-Smtp-Source: APXvYqyO8drwOaek2CMECvzoZwd6xc3f2bx+hz0r/riiwNVGnuYLYVsTfRRX/SOhEQO9ZpZysTi5
+X-Received: by 2002:a50:ca41:: with SMTP id e1mr24983935edi.73.1551900823932;
+        Wed, 06 Mar 2019 11:33:43 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551900823; cv=none;
         d=google.com; s=arc-20160816;
-        b=DR0lNLLbN38+3mJ4lRA5h5bhfCEKaoofVkZ362DaQgwM61DqG3gwryyaaEZTNzp5cY
-         zkEvWrZOpuRF2/hQJC3Qs26j3TcPrP8UUyfhc8jjCVPLhMkFx6gQwSA3LXRCuRZjxoar
-         aCApSboDZrUuWsJDgRBNg8cPrAxs50wsorRkrq+5/JcLINAymU79gcN78irDzmdp+br0
-         db4m/DlSeKCE9tvolSArCJ8AmC82k4jQC7JR7U34IL0L219Lv4WKfT/Jk4+U2RQs08/o
-         P6d8sFs9Enr0G6lsNG9ebClzbLD+ancwh116bk8J3iTbqRYOqol2wjMb1741rtAeIVu2
-         74FA==
+        b=dEB2r1B76Jz6FvYoqnAiga2gHXIWyH5HXXXiMCn03XksMBE0+6Ui1wkzMS4Mhotp+H
+         P7/jACNsSdCzzE2dE4y2cTHC4aqx8aQwuYAhIH3INSd+e8ezghG3xJSuUXRWaIDEF2LQ
+         J+CnwqyROXNCdqM1V54nmt940KDS19mdJyF3txLmvYYpPxkSYlpTrFRHNtYvCTbKjcus
+         c3U8rXqie+bUkWCJ+UHMGo7+SproUmdMpWYf8stekU4EOVsbufNKXMxXu6sdmQRmUpKh
+         js6C6e+H29zLOso0Od1QkzZushxCfJ3SAOB7HQKNY4WyfEfprGcwpxWt0XWlJQO4XPKu
+         9IQA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=ZiEiSPvTWNYJkEcELHi6QZ0IqecrFI4s8OYugZS1pk8=;
-        b=ojTVIQR5bYhcF19nTB/g70fY8pyEjZnGAbzKqgs43a89PpbZPsvSG2e973555MtCTA
-         +5nNxbPhnb0UgMhGpym5i5hRSwaTRniJccnkaK6Y1iXLzZADJyxZBK0NYw9Vx8npQrjw
-         LHaAyg9W/E1L+TuxqPqc+gqHFb3Q/Hxs2TN8aShynd8ACucabgalktPDrNLbozJhq1Ba
-         tfEKFneAZx1lb6cLIHq5/XBzVUxg+BB8NdhQ2XU0WPW1vDZfdPJpD2OSfdYAnMg2tp1p
-         33n47QW5ETI34nreI2sLjZ/QiWK1sTmIWmM1SlYIXfEIqbX1Fg+VBKW8dOLvfzntMMSa
-         /FEQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:to
+         :subject;
+        bh=bPuTZpVW+7pAzzJ3XCaoyngvVm7VQv1rQsXmrMTyhaU=;
+        b=OQ4mIC2RXg7U1jPuU7Xs9Wx4H8PyjC514NICv3i/pMXuNltWYzFE+FQi0ZGZDn6q6X
+         RokiCqsA3vjSKn/UxDUtNGZKN7JpvfkPt1teOlvFN7h1THgiXPrSmFHpHGA4QAcUY4Q6
+         tDeZN8jduTHkxyzAOSsxQ3N807fxZ3qz9v3UwKfXMrG1UEv3ztS6ubCugN3RMj/xRDQt
+         zuMpGyfFISWlYa3hQyaF7mOC+2pnknspC6lOg7EJoYldJa7Rnw3fIQct1rrFVJXt8pv+
+         3JkhMhlTo0CeMBhvOUOSXBv2/N6ifoS5DZGoow2DZzZvzcsmhenE5lN3P57EgLvHrV/3
+         Vh3Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JlpLV90R;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m13sor1367075iop.30.2019.03.06.11.24.37
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e40si974983ede.135.2019.03.06.11.33.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 06 Mar 2019 11:24:37 -0800 (PST)
-Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Mar 2019 11:33:43 -0800 (PST)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JlpLV90R;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=ZiEiSPvTWNYJkEcELHi6QZ0IqecrFI4s8OYugZS1pk8=;
-        b=JlpLV90RSAH9k2d8QE8l2UpOhkwPDT2DBu7qsYNQWSwJ3b8kyHxkbeLUmnOZam92wO
-         ptfQvJSaMm4OWI6oL/DKWwLBGZogWE1idXjwrp/N5KZ2NfX+MMWjqhHs3BGW5DuYQ0/X
-         V107f0kLkqdaUYWTcHuEof422ZXnOJ1fDogcM4pWurNbKtJFEN8tQefl0+BnW5g97Ned
-         L3K62T0wOUYE/xQS2E21HWxLRsvfUNUKvpxoDhzXmWIG8nf0JN+RSnu0rYu+YN7w1g40
-         caBTO1XHQLns3wytFIijKK/mIKYrycSIBDoenfHez74MJcrPDEQW6PPhZ94a6XFXIxti
-         pqCg==
-X-Google-Smtp-Source: APXvYqxSUzuRjOdKAez74kTF5p1HGD/t+z3j7naZJe5Kawrl9zyHEpoKMYeP3t+JkBAQkFnxYzs4nIKVc/P54WqFdUA=
-X-Received: by 2002:a5e:8c14:: with SMTP id n20mr3926504ioj.200.1551900276823;
- Wed, 06 Mar 2019 11:24:36 -0800 (PST)
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id D1E90B6E2;
+	Wed,  6 Mar 2019 19:33:42 +0000 (UTC)
+Subject: Re: [PATCH v5 3/4] mm: Simplify MEMORY_ISOLATION && COMPACTION || CMA
+ into CONTIG_ALLOC
+To: Alexandre Ghiti <alex@ghiti.fr>, Catalin Marinas
+ <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>,
+ Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>,
+ Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
+ "David S . Miller" <davem@davemloft.net>,
+ Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+ Borislav Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>,
+ x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>,
+ Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
+ Mike Kravetz <mike.kravetz@oracle.com>,
+ linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+ linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
+ linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org
+References: <20190306190005.7036-1-alex@ghiti.fr>
+ <20190306190005.7036-4-alex@ghiti.fr>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <6a50153b-c68b-f96c-1840-df6b7dd2cc61@suse.cz>
+Date: Wed, 6 Mar 2019 20:30:30 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.2
 MIME-Version: 1.0
-References: <20190306155048.12868-1-nitesh@redhat.com> <20190306110501-mutt-send-email-mst@kernel.org>
- <bd029eb2-501a-8d2d-5f75-5d2b229c7e75@redhat.com> <20190306130955-mutt-send-email-mst@kernel.org>
- <afc52d00-c769-01a0-949a-8bc96af47fab@redhat.com> <20190306133826-mutt-send-email-mst@kernel.org>
- <3f87916d-8d18-013c-8988-9eb516c9cd2e@redhat.com> <CAKgT0UdqCb37VNe7pABBYBXYFrVzYdPntmPf-V6ZYp9DdwmxYA@mail.gmail.com>
- <7b98b7b3-68f5-e4e0-1454-2217f41e46ad@redhat.com>
-In-Reply-To: <7b98b7b3-68f5-e4e0-1454-2217f41e46ad@redhat.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Wed, 6 Mar 2019 11:24:26 -0800
-Message-ID: <CAKgT0UePn86cnjzietzuqdosjJH3McH2xDQ3ocjbujMKdsk7Pw@mail.gmail.com>
-Subject: Re: [RFC][Patch v9 0/6] KVM: Guest Free Page Hinting
-To: David Hildenbrand <david@redhat.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>, 
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
-	Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com, pagupta@redhat.com, 
-	wei.w.wang@intel.com, Yang Zhang <yang.zhang.wz@gmail.com>, 
-	Rik van Riel <riel@surriel.com>, dodgen@google.com, 
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com, 
-	Andrea Arcangeli <aarcange@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190306190005.7036-4-alex@ghiti.fr>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 6, 2019 at 11:18 AM David Hildenbrand <david@redhat.com> wrote:
->
-> On 06.03.19 20:08, Alexander Duyck wrote:
-> > On Wed, Mar 6, 2019 at 11:00 AM David Hildenbrand <david@redhat.com> wrote:
-> >>
-> >> On 06.03.19 19:43, Michael S. Tsirkin wrote:
-> >>> On Wed, Mar 06, 2019 at 01:30:14PM -0500, Nitesh Narayan Lal wrote:
-> >>>>>> Here are the results:
-> >>>>>>
-> >>>>>> Procedure: 3 Guests of size 5GB is launched on a single NUMA node with
-> >>>>>> total memory of 15GB and no swap. In each of the guest, memhog is run
-> >>>>>> with 5GB. Post-execution of memhog, Host memory usage is monitored by
-> >>>>>> using Free command.
-> >>>>>>
-> >>>>>> Without Hinting:
-> >>>>>>                  Time of execution    Host used memory
-> >>>>>> Guest 1:        45 seconds            5.4 GB
-> >>>>>> Guest 2:        45 seconds            10 GB
-> >>>>>> Guest 3:        1  minute               15 GB
-> >>>>>>
-> >>>>>> With Hinting:
-> >>>>>>                 Time of execution     Host used memory
-> >>>>>> Guest 1:        49 seconds            2.4 GB
-> >>>>>> Guest 2:        40 seconds            4.3 GB
-> >>>>>> Guest 3:        50 seconds            6.3 GB
-> >>>>> OK so no improvement.
-> >>>> If we are looking in terms of memory we are getting back from the guest,
-> >>>> then there is an improvement. However, if we are looking at the
-> >>>> improvement in terms of time of execution of memhog then yes there is none.
-> >>>
-> >>> Yes but the way I see it you can't overcommit this unused memory
-> >>> since guests can start using it at any time.  You timed it carefully
-> >>> such that this does not happen, but what will cause this timing on real
-> >>> guests?
-> >>
-> >> Whenever you overcommit you will need backup swap. There is no way
-> >> around it. It just makes the probability of you having to go to disk
-> >> less likely.
-> >>
-> >> If you assume that all of your guests will be using all of their memory
-> >> all the time, you don't have to think about overcommiting memory in the
-> >> first place. But this is not what we usually have.
-> >
-> > Right, but the general idea is that free page hinting allows us to
-> > avoid having to use the swap if we are hinting the pages as unused.
-> > The general assumption we are working with is that some percentage of
-> > the VMs are unused most of the time so you can share those resources
-> > between multiple VMs and have them free those up normally.
->
-> Yes, similar to VCPU yielding or playin scheduling when the VCPU is
-> spleeping. Instead of busy looping, hand over the resource to somebody
-> who can actually make use of it.
->
-> >
-> > If we can reduce swap usage we can improve overall performance and
-> > that was what I was pointing out with my test. I had also done
-> > something similar to what Nitesh was doing with his original test
-> > where I had launched 8 VMs with 8GB of memory per VM on a system with
-> > 32G of RAM and only 4G of swap. In that setup I could keep a couple
-> > VMs busy at a time without issues, and obviously without the patch I
-> > just started to OOM qemu instances and  could only have 4 VMs at a
-> > time running at maximum.
->
-> While these are nice experiments (especially to showcase reduced swap
-> usage!), I would not suggest to use 4GB of swap on a x2 overcomited
-> system (32GB overcommited). Disks are so cheap nowadays that one does
-> not have to play with fire.
+On 3/6/19 8:00 PM, Alexandre Ghiti wrote:
+> This condition allows to define alloc_contig_range, so simplify
+> it into a more accurate naming.
+> 
+> Suggested-by: Vlastimil Babka <vbabka@suse.cz>
+> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
 
-Right. The only reason for using 4G is because the system normally has
-128G of RAM available and I didn't really think I would need swap for
-the system when I originally configured it.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-> But yes, reducing swap usage implies overall system performance (unless
-> the hinting is terribly slow :) ). Reducing swap usage, not swap space :)
-
-Right. Also the swap is really a necessity if we are going to look at
-things like MADV_FREE as I have not seen us really start to free up
-resources until we are starting to put some pressure on swap.
+(you could have sent this with my ack from v4 as there wasn't
+significant change, just the one I suggested :)
 
