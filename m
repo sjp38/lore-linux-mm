@@ -2,688 +2,215 @@ Return-Path: <SRS0=43/C=RJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B3B16C43381
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 16:31:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C6D2C4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 17:13:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 51EA0206DD
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 16:31:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 51EA0206DD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id B7D9F206DD
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 17:13:05 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=wavesemi.onmicrosoft.com header.i=@wavesemi.onmicrosoft.com header.b="SCNXtahL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B7D9F206DD
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mips.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E65AB8E0004; Wed,  6 Mar 2019 11:31:28 -0500 (EST)
+	id 178608E0003; Wed,  6 Mar 2019 12:13:05 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E3D418E0003; Wed,  6 Mar 2019 11:31:28 -0500 (EST)
+	id 127878E0002; Wed,  6 Mar 2019 12:13:05 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D06528E0004; Wed,  6 Mar 2019 11:31:28 -0500 (EST)
+	id F097C8E0003; Wed,  6 Mar 2019 12:13:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C6778E0003
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 11:31:28 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id i66so10238123qke.21
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 08:31:28 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 98A748E0002
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 12:13:04 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id j5so6666064edt.17
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 09:13:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to;
-        bh=vWjDEiShTtYZHLzV3ow5JATlpVpFdKwiiEiACkztbXc=;
-        b=O+P2mxX0k7vhol0cZIV1tG2j/sSY8BWSclGJLF8/ZK+TKn/wqCpOwsN/oXFR0KSy8B
-         O56MwJ6KkxEwvHA0kRbuDcqhi9YF4HC9LoREuiRkJbmli7FbLCUamRjLqAOqI1Njk7Mg
-         otD/P7TWNSUPpeydDqBkcMnyUYcAwszSuV8scVsX4Ds1vDhvUzOMAfzLb7YUKYxww7zO
-         TfQVSP96eXnzlYuQhBXT7Vh603+IOm+BuItaYsGeo8HzAcl5AitIRM8Q++3q6u0Vapy1
-         /cv8sST5/7xMnBldiHa48IvZjKUaF6Napz4FNBMBlFBly0faPQ81SzFeWilf0w1vCkBD
-         mnCA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAX9SNiIU/x3sQRca/K0okR2piIh71RyAGIeNJQz19Fpl0SAEdON
-	fK5agYmWMdgO/KntOrc8xKLR/CJCEKWa/D2gSBlJkMUVJpb/XlF1LD4UJcuNLooYhBIdDcF97WZ
-	i/DQeXS6LuXaVhnva1oxXGs4A1m7P9Q5kep4eBC7wAEz2O4AgaK4qSr+l6SMkinmF4exXQnGNy7
-	QgltBpxEkYFi5+O5g7rXwOzcGriTLV6aOBmJyu1HBZMIek5aI5EZfYABfJnsBxMvJN26jjP8fFT
-	nFGEDfWwZuWNaBKWm5LAeybE2l07VTC+m8sRinptUfprJJjdFfF1WSjKiCD/K6mpZpUoqrrOd4h
-	anAFoL9FqzgRhog/tp8DCMmJbBuv2+HfRz8sjnMN/JMeORVIXzjkeH39RLSTWSivmvwlUob4xMq
-	N
-X-Received: by 2002:aed:236a:: with SMTP id i39mr6213258qtc.238.1551889888364;
-        Wed, 06 Mar 2019 08:31:28 -0800 (PST)
-X-Received: by 2002:aed:236a:: with SMTP id i39mr6213175qtc.238.1551889887186;
-        Wed, 06 Mar 2019 08:31:27 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551889887; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:user-agent:content-id:content-transfer-encoding
+         :mime-version;
+        bh=fcrIwh5FAS/p9ZnN5P/05g+4grW/DAzlhzsDUfqXcHs=;
+        b=SAHIk3+9TBztXVQ5857aB+E6gW1ylhvjZlIjVRw/nG09/Xs5ugvE3xp1Rb39ED5Cov
+         56kYxlEoDtrZ1tJAbGWgZ5ICFqCqZaufDGWob86AS6VAFYWLZkBrxvo9ZShM2Wv8x5bR
+         BxC9xrCxGogSgEg8x5y5PYRY4OAPXfEDVdHdpmgkInQJcFsNJGGykkFdFp897K9RwiiK
+         lI22+zWhElmCTlQyZFAm94YqUaAzveyi4pLkhmRQcSRS/og5jPhd+9IfmfgbXSL+UiKs
+         FgkCMRVkzhhPHLhbncnhyt3IcivG//X6EQBIf2WmkYfTZNjGgb4g7fuy0YNIBTl+mibH
+         UtCw==
+X-Gm-Message-State: APjAAAWkG0I+JYT9lGRFRBhOwK2lYilZrCkt0Ja4uX3kOQa27ggD9EFh
+	ev3CkeXAbKundsB0ieV8lmBi0I+8B/eO4bZe9AY0dJ5OCkXI3Ho5s3oqbGv7hikOefG012F027c
+	eetes832PGSuRhsSpCJF60O0bI/vQWg3tQLm+9fL2IioNGXcjwotr9hUrOfnCx6o=
+X-Received: by 2002:a17:906:3450:: with SMTP id d16mr4596617ejb.51.1551892384197;
+        Wed, 06 Mar 2019 09:13:04 -0800 (PST)
+X-Google-Smtp-Source: APXvYqynu7y5g55dqFi/DtNhlGxrRgF7yO1xUTb0KlfyRUJCRBBZrCZrAtq7JFs4ofuzkMIbMmwG
+X-Received: by 2002:a17:906:3450:: with SMTP id d16mr4596559ejb.51.1551892383163;
+        Wed, 06 Mar 2019 09:13:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551892383; cv=none;
         d=google.com; s=arc-20160816;
-        b=s7/LkwukcKidaTjQ+3/A9gckLhlsZ7S91yGpvQPvobnFHS5f5ZO2K22P92MhUsqUHZ
-         OAAh+pRTvNe/7p6hoCHf013Aiq1O7xwEWT8kunn+HrMlyk0B9+iD1QVt1J/wfxUCbYij
-         c1BwcuM5KuC8AqJToluOoPGT+qLqz36Sa5B8mi7j3wlUPy1+WwC0AcFegdA/hZtLNX74
-         e//3u3ghxo3KZr6ROzi28rfxcn5eoki9lEdxvYE2es1p2PalclS6epAZXPusipnDS9IU
-         iNDgHQBXNIoYzEwyIMSf00G011sb9mQ9XpffW1GIqgVbgA/Pidd0La99OyTYDpdCX9l9
-         i9Ew==
+        b=jKQQKh9xr/yqoKo/UTyDs2wJ/XLvhz+0ey+wdhhPXchNNRUCgYgHy0EvJrlKKnYjft
+         yE+amjw63IHxXJmQjNdlIFK+cRNZaCIqKeqNOSeUrlcTjWlpY0xN1JZlpJom7ZzoV1M+
+         VA+eTbDH62bQ9powoUWQ5p4r/ypKCCSzYvXiHKR4wuYF7mxf+upmrl910mqTAalm5xeC
+         o1CBUvBe0C6h6onU4Hc1RXjtwZYq61MiovvLdBKuyAWIqop7bmJhQdMUhvDng1B8o6zf
+         gP8tktwz9GBlRpoGXrySu7OXhHOMIWHr3YcN6VdSjVZAkWppNqvzR+4yLfEEEbieMaBM
+         SJ1w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date;
-        bh=vWjDEiShTtYZHLzV3ow5JATlpVpFdKwiiEiACkztbXc=;
-        b=eTFQ7jWy3bTyMu2UJTh9DtRsh+As9RdkKj7wdFZ2TeoukSIx0RVjUFqmvLtQotrFCv
-         9iCm9Lf64xv2eQr/yct+POzhoUDk+zJ34penuxQB+B91a1kRey8QqDW3LLE2zuvYxfPz
-         2wbrkpD+dPURs4NDQikL/4d8ywh5r5Y4PNU2zPP7EwsOqEtOFnx22WZ1eccCRs1NAuis
-         tiwIAIzmaJDNy694Hn/s7DNHq6VRNouY8ZMKar0+iDyHBWz3ChGzvc4Pu0L11/YnD5sF
-         CBRd+YGtamc3u8l3/mN5Orr5VLUnMZF4YgqS/wWF5jxjC6PvfTl2qlDQZaYkLElw2vTQ
-         jmDg==
+        h=mime-version:content-transfer-encoding:content-id:user-agent
+         :content-language:accept-language:in-reply-to:references:message-id
+         :date:thread-index:thread-topic:subject:cc:to:from:dkim-signature;
+        bh=fcrIwh5FAS/p9ZnN5P/05g+4grW/DAzlhzsDUfqXcHs=;
+        b=O0dze5OLtSLaR6NWVWXTMluVnWUU9/nRgo+KeUt3U4WDOO4D7yBifHWCb0Kh5IP8/2
+         wRBSSbWK9FiqfUgmnGiRMex35i5aqcmMsu7vS+7yzDMFr9hG0jeq+LrQ+rZ1MAUbVCxL
+         LjrU798uVg715wwFXiNnhzKWQBAVu5BnnIv8WJ14DYS1F618vpYMw46MQtouUWY69aJ5
+         HuL4OhQgV7tOz3pa6fubINAtqYmBvmK0SxMSj5zM8jdU3zGXFSAVYgEhyHPT+O+gx3Si
+         jYBaNLmrnjNifiNK8ffygXVhDO61m4bcJQplZZ1hDn2OgnRkaRvIxxjqofiA7sWOqVfQ
+         V0xQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k44sor2549027qta.8.2019.03.06.08.31.27
+       dkim=pass header.i=@wavesemi.onmicrosoft.com header.s=selector1-wavecomp-com header.b=SCNXtahL;
+       spf=pass (google.com: domain of pburton@wavecomp.com designates 40.107.77.95 as permitted sender) smtp.mailfrom=pburton@wavecomp.com
+Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-eopbgr770095.outbound.protection.outlook.com. [40.107.77.95])
+        by mx.google.com with ESMTPS id v21si866799edm.85.2019.03.06.09.13.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 06 Mar 2019 08:31:27 -0800 (PST)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 06 Mar 2019 09:13:03 -0800 (PST)
+Received-SPF: pass (google.com: domain of pburton@wavecomp.com designates 40.107.77.95 as permitted sender) client-ip=40.107.77.95;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqx78FT+PTgz3Wv+wxfQwynpA8Sh3Bl3+3IGmU2qO6A7euVIuJ/SKC+7E0qJggTs1kCrb8Le+w==
-X-Received: by 2002:ac8:31ab:: with SMTP id h40mr6578368qte.122.1551889886815;
-        Wed, 06 Mar 2019 08:31:26 -0800 (PST)
-Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
-        by smtp.gmail.com with ESMTPSA id o3sm1032894qte.55.2019.03.06.08.31.25
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 06 Mar 2019 08:31:25 -0800 (PST)
-Date: Wed, 6 Mar 2019 11:31:23 -0500
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: Jason Wang <jasowang@redhat.com>
-Cc: kvm@vger.kernel.org, virtualization@lists.linux-foundation.org,
-	netdev@vger.kernel.org, linux-kernel@vger.kernel.org,
-	peterx@redhat.com, linux-mm@kvack.org, aarcange@redhat.com
-Subject: Re: [RFC PATCH V2 5/5] vhost: access vq metadata through kernel
- virtual address
-Message-ID: <20190306092837-mutt-send-email-mst@kernel.org>
-References: <1551856692-3384-1-git-send-email-jasowang@redhat.com>
- <1551856692-3384-6-git-send-email-jasowang@redhat.com>
+       dkim=pass header.i=@wavesemi.onmicrosoft.com header.s=selector1-wavecomp-com header.b=SCNXtahL;
+       spf=pass (google.com: domain of pburton@wavecomp.com designates 40.107.77.95 as permitted sender) smtp.mailfrom=pburton@wavecomp.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=wavesemi.onmicrosoft.com; s=selector1-wavecomp-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=fcrIwh5FAS/p9ZnN5P/05g+4grW/DAzlhzsDUfqXcHs=;
+ b=SCNXtahLLKEaqGDYdpx0420+UtlkuOktGW+vyeSD+fqyhg4Sv4ERsXLNSQU++8mQ0ZTPe5DKX6VXnFj8tvewBVoUzvGUNBKxGe+ey8fA/ddcq8s9QWSv+/fXWpmVakVthkpxSYVfSSys9sePXXVe3tgTcE+swKqs3wzkvPNQynI=
+Received: from MWHPR2201MB1277.namprd22.prod.outlook.com (10.174.162.17) by
+ MWHPR2201MB1261.namprd22.prod.outlook.com (10.174.162.13) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1686.18; Wed, 6 Mar 2019 17:12:59 +0000
+Received: from MWHPR2201MB1277.namprd22.prod.outlook.com
+ ([fe80::b8d4:8f0d:d6d1:4018]) by MWHPR2201MB1277.namprd22.prod.outlook.com
+ ([fe80::b8d4:8f0d:d6d1:4018%3]) with mapi id 15.20.1665.020; Wed, 6 Mar 2019
+ 17:12:59 +0000
+From: Paul Burton <paul.burton@mips.com>
+To: Steven Price <steven.price@arm.com>
+CC: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andy Lutomirski
+	<luto@kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Arnd Bergmann
+	<arnd@arndb.de>, Borislav Petkov <bp@alien8.de>, Catalin Marinas
+	<catalin.marinas@arm.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo
+ Molnar <mingo@redhat.com>, James Morse <james.morse@arm.com>,
+	=?iso-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, Peter Zijlstra
+	<peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Will Deacon
+	<will.deacon@arm.com>, "x86@kernel.org" <x86@kernel.org>, "H. Peter Anvin"
+	<hpa@zytor.com>, "linux-arm-kernel@lists.infradead.org"
+	<linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>, Mark Rutland <Mark.Rutland@arm.com>, "Liang,
+ Kan" <kan.liang@linux.intel.com>, Ralf Baechle <ralf@linux-mips.org>, James
+ Hogan <jhogan@kernel.org>, "linux-mips@vger.kernel.org"
+	<linux-mips@vger.kernel.org>
+Subject: Re: [PATCH v4 03/19] mips: mm: Add p?d_large() definitions
+Thread-Topic: [PATCH v4 03/19] mips: mm: Add p?d_large() definitions
+Thread-Index: AQHU1DRlehjTtbAKgEapDADsPcSi/KX+10aA
+Date: Wed, 6 Mar 2019 17:12:58 +0000
+Message-ID: <20190306171257.5eii6aqpfp6kvszb@pburton-laptop>
+References: <20190306155031.4291-1-steven.price@arm.com>
+ <20190306155031.4291-4-steven.price@arm.com>
+In-Reply-To: <20190306155031.4291-4-steven.price@arm.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: BYAPR07CA0086.namprd07.prod.outlook.com
+ (2603:10b6:a03:12b::27) To MWHPR2201MB1277.namprd22.prod.outlook.com
+ (2603:10b6:301:24::17)
+user-agent: NeoMutt/20180716
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=pburton@wavecomp.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [67.207.99.198]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 49a42e8a-b36c-444c-b2f5-08d6a256fb2e
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600127)(711020)(4605104)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7153060)(7193020);SRVR:MWHPR2201MB1261;
+x-ms-traffictypediagnostic: MWHPR2201MB1261:
+x-microsoft-exchange-diagnostics:
+ =?iso-8859-1?Q?1;MWHPR2201MB1261;23:c5ZQguQj1PJYjxSVVFvqQhrLxF/zVtPpatgzX?=
+ =?iso-8859-1?Q?iIDGxc0/UiApQJGQUTc7jij7C9Z73HTCl5RMQtMGNZVkcuN4APzpNC8s8e?=
+ =?iso-8859-1?Q?9xHcGwQT0jvaB7nNJeECofMPPTTfoc2hS2Jl4zVgmgNL4fKZSwOH5mRGv3?=
+ =?iso-8859-1?Q?yK0iKW/Cz8pBcw3j7FMHM1hmjz3n2urVNR5eui23Ai0DvALsrknfhHhsYD?=
+ =?iso-8859-1?Q?s0UMgI88Cy/ks3cMfqVumlpk1q/X+vYFhXX6l+eRSGzMQ6BcabY7/Vubp6?=
+ =?iso-8859-1?Q?tKU9ik7E0VlxuMUIN4v653DZ7fULwl8wQVwRz1NdGncCpAb0tKTy1cIQdg?=
+ =?iso-8859-1?Q?eB6oPAYf7k+BbVuAft3vftWTNFNMV11t7cgsVrP/FZ+lMirRLsz0QIo2TR?=
+ =?iso-8859-1?Q?ikiiydMmz5bq7dJZbycmOWkMUNsSkqMwaCEVbzUnBo8CzQZgBtaNLg4CN3?=
+ =?iso-8859-1?Q?Zr2g4dySwdo58fj4WyTTwOi+HV1pN01umSYG1B9BtrA5piyaXdJ8Mb/24k?=
+ =?iso-8859-1?Q?vkqu0p5EtGBNSNfWMpsIy+EU9VpYMe3RxVFubLiClsKvogvkkLHubPCFGX?=
+ =?iso-8859-1?Q?C9+4GUe/CAgcC4Rsk5IyRK3kMOyCl1CAKycgzHvGwRiIM3YqxM78rKasD2?=
+ =?iso-8859-1?Q?x9dQ9CR3Wtw123reCicsTMbTaHN+cubgnHo1qQEnocPE4i/83B1NKhF5/e?=
+ =?iso-8859-1?Q?deBW006a9LJL/RhIyNtlJ6Lw/Q5OizIO0Ak0ms2/lSQWHiwiEEk/jDm5qc?=
+ =?iso-8859-1?Q?hCzUYUnNadp5y4qSGEbWzav4IUKpmo0CNavIgeX6GsNfuoOaTIQSzciRhE?=
+ =?iso-8859-1?Q?mc/AMLFVta10ApCGpxY/In9HiXuGsRxwlMy4GqCog643UwfOYPUTrfteTl?=
+ =?iso-8859-1?Q?zTuoBCN+xq3JJdIatfs4UvtbS8BaGDrFO+BKJPs0TY/E9r3Wj1a2Dm5fFe?=
+ =?iso-8859-1?Q?7+KsaR8vl95v547kQD8PavrQ3Uo38RPIYpj/lhKQfykViJwcKbmRMKG1Qn?=
+ =?iso-8859-1?Q?bNaTL78h7Yh7pfF3cSVDRR3UuPtmOgWqZ8v7Ys5lxfH4cpghxgS6bxn4CQ?=
+ =?iso-8859-1?Q?AvveO/C/YIMd8c2x1Fbv7PpNMtQshXKIagMUQ4Ieb3fChA2lU/AwkTpCrk?=
+ =?iso-8859-1?Q?1Ljdu68A5CmyCnIBw1OJIypcmEETWYAtsCNI6W/XpYYu7J5YmCzCO9HnAj?=
+ =?iso-8859-1?Q?BTPsOD4pJIGnlOpEMKomdcl1Wbh9GlCclBhA/IAAeKiHv9G6knsKJ9qDHY?=
+ =?iso-8859-1?Q?phrhQB+A48WiKm2KZL23iBJEEq3xditrd07mVgvTX7uVfSOHyVMij4oeud?=
+ =?iso-8859-1?Q?3tJTLG962b33K5194a7X3rclYpALRo3ua9GhmbrT5kav0aL4tPnE+TJmT6?=
+ =?iso-8859-1?Q?/lpn+hnOBw=3D?=
+x-microsoft-antispam-prvs:
+ <MWHPR2201MB126180195E437DD9F7F5A281C1730@MWHPR2201MB1261.namprd22.prod.outlook.com>
+x-forefront-prvs: 0968D37274
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10019020)(7916004)(136003)(376002)(366004)(346002)(39840400004)(396003)(189003)(199004)(25786009)(7736002)(6436002)(53936002)(106356001)(256004)(478600001)(305945005)(6916009)(3846002)(4326008)(6116002)(97736004)(316002)(58126008)(6246003)(4744005)(6512007)(9686003)(54906003)(1076003)(5660300002)(6486002)(71190400001)(71200400001)(6506007)(386003)(33716001)(102836004)(8676002)(81156014)(81166006)(229853002)(99286004)(8936002)(7416002)(68736007)(476003)(11346002)(42882007)(44832011)(486006)(2906002)(446003)(105586002)(26005)(66066001)(52116002)(76176011)(14454004)(186003);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR2201MB1261;H:MWHPR2201MB1277.namprd22.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: wavecomp.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ 8jt+BVppR0Vb816sAwTQVXEmfvJS8UX31/SIqi1LS8KwFNkItVuCccfF40InI0eRNBWGPv4swBJNshjxVoEHQDtGOhX4G0gYAROsy2nSssGrX0I/H4rvl+k04FCexW7PH+XVAZrTrYx5zp2SU2tW8MV3OqmBi9JGJDspSzC9k07uBg29cRCsH4iIECei9wRmxnl5D8gNdgcTJ8RFoI6YlHn1HQnsyfrHOZ4fUVQVt54hpD5JinFs3+D1Qmcd7f/uof7VU4fuYb0huPdKZFA8mZ/7KoxDYqqHRZ0bkvNvoupdOh51suwpeuVB7f+WzU3BbSMHuvhpHQM+QH4U7M0nZF5zXeDISYdiEnaKx410DahMzD+I4P3X/lE4krQssIstG19tQuYolI0vTraKLrnkQb6JJ9BeQ94tBl0AcetVoAs=
+Content-Type: text/plain; charset="iso-8859-1"
+Content-ID: <166FB649BE7A0943BDD8181B357816BB@namprd22.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1551856692-3384-6-git-send-email-jasowang@redhat.com>
+X-OriginatorOrg: mips.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 49a42e8a-b36c-444c-b2f5-08d6a256fb2e
+X-MS-Exchange-CrossTenant-originalarrivaltime: 06 Mar 2019 17:12:58.7825
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 463607d3-1db3-40a0-8a29-970c56230104
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR2201MB1261
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 06, 2019 at 02:18:12AM -0500, Jason Wang wrote:
-> It was noticed that the copy_user() friends that was used to access
-> virtqueue metdata tends to be very expensive for dataplane
-> implementation like vhost since it involves lots of software checks,
-> speculation barrier, hardware feature toggling (e.g SMAP). The
-> extra cost will be more obvious when transferring small packets since
-> the time spent on metadata accessing become more significant.
-> 
-> This patch tries to eliminate those overheads by accessing them
-> through kernel virtual address by vmap(). To make the pages can be
-> migrated, instead of pinning them through GUP, we use MMU notifiers to
-> invalidate vmaps and re-establish vmaps during each round of metadata
-> prefetching if necessary. It looks to me .invalidate_range() is
-> sufficient for catching this since we don't need extra TLB flush. For
-> devices that doesn't use metadata prefetching, the memory accessors
-> fallback to normal copy_user() implementation gracefully. The
-> invalidation was synchronized with datapath through vq mutex, and in
-> order to avoid hold vq mutex during range checking, MMU notifier was
-> teared down when trying to modify vq metadata.
-> 
-> Dirty page checking is done by calling set_page_dirty_locked()
-> explicitly for the page that used ring stay after each round of
-> processing.
-> 
-> Note that this was only done when device IOTLB is not enabled. We
-> could use similar method to optimize it in the future.
-> 
-> Tests shows at most about 22% improvement on TX PPS when using
-> virtio-user + vhost_net + xdp1 + TAP on 2.6GHz Broadwell:
-> 
->         SMAP on | SMAP off
-> Before: 5.0Mpps | 6.6Mpps
-> After:  6.1Mpps | 7.4Mpps
-> 
-> Cc: <linux-mm@kvack.org>
-> Signed-off-by: Jason Wang <jasowang@redhat.com>
-> ---
->  drivers/vhost/net.c   |   2 +
->  drivers/vhost/vhost.c | 281 +++++++++++++++++++++++++++++++++++++++++++++++++-
->  drivers/vhost/vhost.h |  16 +++
->  3 files changed, 297 insertions(+), 2 deletions(-)
-> 
-> diff --git a/drivers/vhost/net.c b/drivers/vhost/net.c
-> index bf55f99..c276371 100644
-> --- a/drivers/vhost/net.c
-> +++ b/drivers/vhost/net.c
-> @@ -982,6 +982,7 @@ static void handle_tx(struct vhost_net *net)
->  	else
->  		handle_tx_copy(net, sock);
->  
-> +	vq_meta_prefetch_done(vq);
->  out:
->  	mutex_unlock(&vq->mutex);
->  }
-> @@ -1250,6 +1251,7 @@ static void handle_rx(struct vhost_net *net)
->  		vhost_net_enable_vq(net, vq);
->  out:
->  	vhost_net_signal_used(nvq);
-> +	vq_meta_prefetch_done(vq);
->  	mutex_unlock(&vq->mutex);
->  }
->  
-> diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
-> index 1015464..36ccf7c 100644
-> --- a/drivers/vhost/vhost.c
-> +++ b/drivers/vhost/vhost.c
-> @@ -434,6 +434,74 @@ static size_t vhost_get_desc_size(struct vhost_virtqueue *vq, int num)
->  	return sizeof(*vq->desc) * num;
->  }
->  
-> +static void vhost_uninit_vmap(struct vhost_vmap *map)
-> +{
-> +	if (map->addr) {
-> +		vunmap(map->unmap_addr);
-> +		kfree(map->pages);
-> +		map->pages = NULL;
-> +		map->npages = 0;
-> +	}
-> +
-> +	map->addr = NULL;
-> +	map->unmap_addr = NULL;
-> +}
-> +
-> +static void vhost_invalidate_vmap(struct vhost_virtqueue *vq,
-> +				  struct vhost_vmap *map,
-> +				  unsigned long ustart,
-> +				  size_t size,
-> +				  unsigned long start,
-> +				  unsigned long end)
-> +{
-> +	if (end < ustart || start > ustart - 1 + size)
-> +		return;
-> +
-> +	dump_stack();
-> +	mutex_lock(&vq->mutex);
-> +	vhost_uninit_vmap(map);
-> +	mutex_unlock(&vq->mutex);
-> +}
-> +
-> +
-> +static void vhost_invalidate(struct vhost_dev *dev,
-> +			     unsigned long start, unsigned long end)
-> +{
-> +	int i;
-> +
-> +	for (i = 0; i < dev->nvqs; i++) {
-> +		struct vhost_virtqueue *vq = dev->vqs[i];
-> +
-> +		vhost_invalidate_vmap(vq, &vq->avail_ring,
-> +				      (unsigned long)vq->avail,
-> +				      vhost_get_avail_size(vq, vq->num),
-> +				      start, end);
-> +		vhost_invalidate_vmap(vq, &vq->desc_ring,
-> +				      (unsigned long)vq->desc,
-> +				      vhost_get_desc_size(vq, vq->num),
-> +				      start, end);
-> +		vhost_invalidate_vmap(vq, &vq->used_ring,
-> +				      (unsigned long)vq->used,
-> +				      vhost_get_used_size(vq, vq->num),
-> +				      start, end);
-> +	}
-> +}
-> +
-> +
-> +static void vhost_invalidate_range(struct mmu_notifier *mn,
-> +				   struct mm_struct *mm,
-> +				   unsigned long start, unsigned long end)
-> +{
-> +	struct vhost_dev *dev = container_of(mn, struct vhost_dev,
-> +					     mmu_notifier);
-> +
-> +	vhost_invalidate(dev, start, end);
-> +}
-> +
-> +static const struct mmu_notifier_ops vhost_mmu_notifier_ops = {
-> +	.invalidate_range = vhost_invalidate_range,
-> +};
-> +
->  void vhost_dev_init(struct vhost_dev *dev,
->  		    struct vhost_virtqueue **vqs, int nvqs, int iov_limit)
->  {
+Hi Steven,
 
+On Wed, Mar 06, 2019 at 03:50:15PM +0000, Steven Price wrote:
+> walk_page_range() is going to be allowed to walk page tables other than
+> those of user space. For this it needs to know when it has reached a
+> 'leaf' entry in the page tables. This information is provided by the
+> p?d_large() functions/macros.
+>=20
+> For mips, we only support large pages on 64 bit.
+>=20
+> For 64 bit if _PAGE_HUGE is defined we can simply look for it. When not
+> defined we can be confident that there are no large pages in existence
+> and fall back on the generic implementation (added in a later patch)
+> which returns 0.
+>=20
+> CC: Ralf Baechle <ralf@linux-mips.org>
+> CC: Paul Burton <paul.burton@mips.com>
+> CC: James Hogan <jhogan@kernel.org>
+> CC: linux-mips@vger.kernel.org
+> Signed-off-by: Steven Price <steven.price@arm.com>
 
-Note that
-.invalidate_range seems to be called after page lock has
-been dropped.
+Acked-by: Paul Burton <paul.burton@mips.com>
 
-Looking at page dirty below:
-
-
-
-
-> @@ -449,6 +517,7 @@ void vhost_dev_init(struct vhost_dev *dev,
->  	dev->mm = NULL;
->  	dev->worker = NULL;
->  	dev->iov_limit = iov_limit;
-> +	dev->mmu_notifier.ops = &vhost_mmu_notifier_ops;
->  	init_llist_head(&dev->work_list);
->  	init_waitqueue_head(&dev->wait);
->  	INIT_LIST_HEAD(&dev->read_list);
-> @@ -462,6 +531,9 @@ void vhost_dev_init(struct vhost_dev *dev,
->  		vq->indirect = NULL;
->  		vq->heads = NULL;
->  		vq->dev = dev;
-> +		vq->avail_ring.addr = NULL;
-> +		vq->used_ring.addr = NULL;
-> +		vq->desc_ring.addr = NULL;
->  		mutex_init(&vq->mutex);
->  		vhost_vq_reset(dev, vq);
->  		if (vq->handle_kick)
-> @@ -542,7 +614,13 @@ long vhost_dev_set_owner(struct vhost_dev *dev)
->  	if (err)
->  		goto err_cgroup;
->  
-> +	err = mmu_notifier_register(&dev->mmu_notifier, dev->mm);
-> +	if (err)
-> +		goto err_mmu_notifier;
-> +
->  	return 0;
-> +err_mmu_notifier:
-> +	vhost_dev_free_iovecs(dev);
->  err_cgroup:
->  	kthread_stop(worker);
->  	dev->worker = NULL;
-> @@ -633,6 +711,81 @@ static void vhost_clear_msg(struct vhost_dev *dev)
->  	spin_unlock(&dev->iotlb_lock);
->  }
->  
-> +static int vhost_init_vmap(struct vhost_dev *dev,
-> +			   struct vhost_vmap *map, unsigned long uaddr,
-> +			   size_t size, int write)
-> +{
-> +	struct page **pages;
-> +	int npages = DIV_ROUND_UP(size, PAGE_SIZE);
-> +	int npinned;
-> +	void *vaddr;
-> +	int err = -EFAULT;
-> +
-> +	err = -ENOMEM;
-> +	pages = kmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
-> +	if (!pages)
-> +		goto err_uaddr;
-> +
-> +	err = EFAULT;
-> +	npinned = get_user_pages_fast(uaddr, npages, write, pages);
-> +	if (npinned != npages)
-> +		goto err_gup;
-> +
-> +	vaddr = vmap(pages, npages, VM_MAP, PAGE_KERNEL);
-> +	if (!vaddr)
-> +		goto err_gup;
-> +
-> +	map->addr = vaddr + (uaddr & (PAGE_SIZE - 1));
-> +	map->unmap_addr = vaddr;
-> +	map->npages = npages;
-> +	map->pages = pages;
-> +
-> +err_gup:
-> +	/* Don't pin pages, mmu notifier will notify us about page
-> +	 * migration.
-> +	 */
-> +	if (npinned > 0)
-> +		release_pages(pages, npinned);
-> +err_uaddr:
-> +	return err;
-> +}
-> +
-> +static void vhost_uninit_vq_vmaps(struct vhost_virtqueue *vq)
-> +{
-> +	vhost_uninit_vmap(&vq->avail_ring);
-> +	vhost_uninit_vmap(&vq->desc_ring);
-> +	vhost_uninit_vmap(&vq->used_ring);
-> +}
-> +
-> +static int vhost_setup_avail_vmap(struct vhost_virtqueue *vq,
-> +				  unsigned long avail)
-> +{
-> +	return vhost_init_vmap(vq->dev, &vq->avail_ring, avail,
-> +			       vhost_get_avail_size(vq, vq->num), false);
-> +}
-> +
-> +static int vhost_setup_desc_vmap(struct vhost_virtqueue *vq,
-> +				 unsigned long desc)
-> +{
-> +	return vhost_init_vmap(vq->dev, &vq->desc_ring, desc,
-> +			       vhost_get_desc_size(vq, vq->num), false);
-> +}
-> +
-> +static int vhost_setup_used_vmap(struct vhost_virtqueue *vq,
-> +				 unsigned long used)
-> +{
-> +	return vhost_init_vmap(vq->dev, &vq->used_ring, used,
-> +			       vhost_get_used_size(vq, vq->num), true);
-> +}
-> +
-> +static void vhost_set_vmap_dirty(struct vhost_vmap *used)
-> +{
-> +	int i;
-> +
-> +	for (i = 0; i < used->npages; i++)
-> +		set_page_dirty_lock(used->pages[i]);
-
-
-This seems to rely on page lock to mark page dirty.
-
-Could it happen that page writeback will check the
-page, find it clean, and then you mark it dirty and then
-invalidate callback is called?
-
-
-> +}
-> +
->  void vhost_dev_cleanup(struct vhost_dev *dev)
->  {
->  	int i;
-> @@ -662,8 +815,12 @@ void vhost_dev_cleanup(struct vhost_dev *dev)
->  		kthread_stop(dev->worker);
->  		dev->worker = NULL;
->  	}
-> -	if (dev->mm)
-> +	for (i = 0; i < dev->nvqs; i++)
-> +		vhost_uninit_vq_vmaps(dev->vqs[i]);
-> +	if (dev->mm) {
-> +		mmu_notifier_unregister(&dev->mmu_notifier, dev->mm);
->  		mmput(dev->mm);
-> +	}
->  	dev->mm = NULL;
->  }
->  EXPORT_SYMBOL_GPL(vhost_dev_cleanup);
-> @@ -892,6 +1049,16 @@ static inline void __user *__vhost_get_user(struct vhost_virtqueue *vq,
->  
->  static inline int vhost_put_avail_event(struct vhost_virtqueue *vq)
->  {
-> +	if (!vq->iotlb) {
-> +		struct vring_used *used = vq->used_ring.addr;
-> +
-> +		if (likely(used)) {
-> +			*((__virtio16 *)&used->ring[vq->num]) =
-> +				cpu_to_vhost16(vq, vq->avail_idx);
-> +			return 0;
-> +		}
-> +	}
-> +
->  	return vhost_put_user(vq, cpu_to_vhost16(vq, vq->avail_idx),
->  			      vhost_avail_event(vq));
->  }
-> @@ -900,6 +1067,16 @@ static inline int vhost_put_used(struct vhost_virtqueue *vq,
->  				 struct vring_used_elem *head, int idx,
->  				 int count)
->  {
-> +	if (!vq->iotlb) {
-> +		struct vring_used *used = vq->used_ring.addr;
-> +
-> +		if (likely(used)) {
-> +			memcpy(used->ring + idx, head,
-> +			       count * sizeof(*head));
-> +			return 0;
-> +		}
-> +	}
-> +
->  	return vhost_copy_to_user(vq, vq->used->ring + idx, head,
->  				  count * sizeof(*head));
->  }
-> @@ -907,6 +1084,15 @@ static inline int vhost_put_used(struct vhost_virtqueue *vq,
->  static inline int vhost_put_used_flags(struct vhost_virtqueue *vq)
->  
->  {
-> +	if (!vq->iotlb) {
-> +		struct vring_used *used = vq->used_ring.addr;
-> +
-> +		if (likely(used)) {
-> +			used->flags = cpu_to_vhost16(vq, vq->used_flags);
-> +			return 0;
-> +		}
-> +	}
-> +
->  	return vhost_put_user(vq, cpu_to_vhost16(vq, vq->used_flags),
->  			      &vq->used->flags);
->  }
-> @@ -914,6 +1100,15 @@ static inline int vhost_put_used_flags(struct vhost_virtqueue *vq)
->  static inline int vhost_put_used_idx(struct vhost_virtqueue *vq)
->  
->  {
-> +	if (!vq->iotlb) {
-> +		struct vring_used *used = vq->used_ring.addr;
-> +
-> +		if (likely(used)) {
-> +			used->idx = cpu_to_vhost16(vq, vq->last_used_idx);
-> +			return 0;
-> +		}
-> +	}
-> +
->  	return vhost_put_user(vq, cpu_to_vhost16(vq, vq->last_used_idx),
->  			      &vq->used->idx);
->  }
-> @@ -959,12 +1154,30 @@ static void vhost_dev_unlock_vqs(struct vhost_dev *d)
->  static inline int vhost_get_avail_idx(struct vhost_virtqueue *vq,
->  				      __virtio16 *idx)
->  {
-> +	if (!vq->iotlb) {
-> +		struct vring_avail *avail = vq->avail_ring.addr;
-> +
-> +		if (likely(avail)) {
-> +			*idx = avail->idx;
-> +			return 0;
-> +		}
-> +	}
-> +
->  	return vhost_get_avail(vq, *idx, &vq->avail->idx);
->  }
->  
->  static inline int vhost_get_avail_head(struct vhost_virtqueue *vq,
->  				       __virtio16 *head, int idx)
->  {
-> +	if (!vq->iotlb) {
-> +		struct vring_avail *avail = vq->avail_ring.addr;
-> +
-> +		if (likely(avail)) {
-> +			*head = avail->ring[idx & (vq->num - 1)];
-> +			return 0;
-> +		}
-> +	}
-> +
->  	return vhost_get_avail(vq, *head,
->  			       &vq->avail->ring[idx & (vq->num - 1)]);
->  }
-> @@ -972,24 +1185,60 @@ static inline int vhost_get_avail_head(struct vhost_virtqueue *vq,
->  static inline int vhost_get_avail_flags(struct vhost_virtqueue *vq,
->  					__virtio16 *flags)
->  {
-> +	if (!vq->iotlb) {
-> +		struct vring_avail *avail = vq->avail_ring.addr;
-> +
-> +		if (likely(avail)) {
-> +			*flags = avail->flags;
-> +			return 0;
-> +		}
-> +	}
-> +
->  	return vhost_get_avail(vq, *flags, &vq->avail->flags);
->  }
->  
->  static inline int vhost_get_used_event(struct vhost_virtqueue *vq,
->  				       __virtio16 *event)
->  {
-> +	if (!vq->iotlb) {
-> +		struct vring_avail *avail = vq->avail_ring.addr;
-> +
-> +		if (likely(avail)) {
-> +			*event = (__virtio16)avail->ring[vq->num];
-> +			return 0;
-> +		}
-> +	}
-> +
->  	return vhost_get_avail(vq, *event, vhost_used_event(vq));
->  }
->  
->  static inline int vhost_get_used_idx(struct vhost_virtqueue *vq,
->  				     __virtio16 *idx)
->  {
-> +	if (!vq->iotlb) {
-> +		struct vring_used *used = vq->used_ring.addr;
-> +
-> +		if (likely(used)) {
-> +			*idx = used->idx;
-> +			return 0;
-> +		}
-> +	}
-> +
->  	return vhost_get_used(vq, *idx, &vq->used->idx);
->  }
->  
->  static inline int vhost_get_desc(struct vhost_virtqueue *vq,
->  				 struct vring_desc *desc, int idx)
->  {
-> +	if (!vq->iotlb) {
-> +		struct vring_desc *d = vq->desc_ring.addr;
-> +
-> +		if (likely(d)) {
-> +			*desc = *(d + idx);
-> +			return 0;
-> +		}
-> +	}
-> +
->  	return vhost_copy_from_user(vq, desc, vq->desc + idx, sizeof(*desc));
->  }
->  
-> @@ -1330,8 +1579,16 @@ int vq_meta_prefetch(struct vhost_virtqueue *vq)
->  {
->  	unsigned int num = vq->num;
->  
-> -	if (!vq->iotlb)
-> +	if (!vq->iotlb) {
-> +		if (unlikely(!vq->avail_ring.addr))
-> +			vhost_setup_avail_vmap(vq, (unsigned long)vq->avail);
-> +		if (unlikely(!vq->desc_ring.addr))
-> +			vhost_setup_desc_vmap(vq, (unsigned long)vq->desc);
-> +		if (unlikely(!vq->used_ring.addr))
-> +			vhost_setup_used_vmap(vq, (unsigned long)vq->used);
-> +
->  		return 1;
-> +	}
->  
->  	return iotlb_access_ok(vq, VHOST_ACCESS_RO, (u64)(uintptr_t)vq->desc,
->  			       vhost_get_desc_size(vq, num), VHOST_ADDR_DESC) &&
-> @@ -1343,6 +1600,15 @@ int vq_meta_prefetch(struct vhost_virtqueue *vq)
->  }
->  EXPORT_SYMBOL_GPL(vq_meta_prefetch);
->  
-> +void vq_meta_prefetch_done(struct vhost_virtqueue *vq)
-> +{
-> +	if (vq->iotlb)
-> +		return;
-> +	if (likely(vq->used_ring.addr))
-> +		vhost_set_vmap_dirty(&vq->used_ring);
-> +}
-> +EXPORT_SYMBOL_GPL(vq_meta_prefetch_done);
-> +
->  /* Can we log writes? */
->  /* Caller should have device mutex but not vq mutex */
->  bool vhost_log_access_ok(struct vhost_dev *dev)
-> @@ -1483,6 +1749,13 @@ long vhost_vring_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *arg
->  
->  	mutex_lock(&vq->mutex);
->  
-> +	/* Unregister MMU notifer to allow invalidation callback
-> +	 * can access vq->avail, vq->desc , vq->used and vq->num
-> +	 * without holding vq->mutex.
-> +	 */
-> +	if (d->mm)
-> +		mmu_notifier_unregister(&d->mmu_notifier, d->mm);
-> +
->  	switch (ioctl) {
->  	case VHOST_SET_VRING_NUM:
->  		/* Resizing ring with an active backend?
-> @@ -1499,6 +1772,7 @@ long vhost_vring_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *arg
->  			r = -EINVAL;
->  			break;
->  		}
-> +		vhost_uninit_vq_vmaps(vq);
->  		vq->num = s.num;
->  		break;
->  	case VHOST_SET_VRING_BASE:
-> @@ -1581,6 +1855,7 @@ long vhost_vring_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *arg
->  		vq->avail = (void __user *)(unsigned long)a.avail_user_addr;
->  		vq->log_addr = a.log_guest_addr;
->  		vq->used = (void __user *)(unsigned long)a.used_user_addr;
-> +		vhost_uninit_vq_vmaps(vq);
->  		break;
->  	case VHOST_SET_VRING_KICK:
->  		if (copy_from_user(&f, argp, sizeof f)) {
-> @@ -1656,6 +1931,8 @@ long vhost_vring_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *arg
->  	if (pollstart && vq->handle_kick)
->  		r = vhost_poll_start(&vq->poll, vq->kick);
->  
-> +	if (d->mm)
-> +		mmu_notifier_register(&d->mmu_notifier, d->mm);
->  	mutex_unlock(&vq->mutex);
->  
->  	if (pollstop && vq->handle_kick)
-> diff --git a/drivers/vhost/vhost.h b/drivers/vhost/vhost.h
-> index 7a7fc00..146076e 100644
-> --- a/drivers/vhost/vhost.h
-> +++ b/drivers/vhost/vhost.h
-> @@ -12,6 +12,8 @@
->  #include <linux/virtio_config.h>
->  #include <linux/virtio_ring.h>
->  #include <linux/atomic.h>
-> +#include <linux/pagemap.h>
-> +#include <linux/mmu_notifier.h>
->  
->  struct vhost_work;
->  typedef void (*vhost_work_fn_t)(struct vhost_work *work);
-> @@ -80,6 +82,13 @@ enum vhost_uaddr_type {
->  	VHOST_NUM_ADDRS = 3,
->  };
->  
-> +struct vhost_vmap {
-> +	void *addr;
-> +	void *unmap_addr;
-> +	int npages;
-> +	struct page **pages;
-> +};
-> +
->  /* The virtqueue structure describes a queue attached to a device. */
->  struct vhost_virtqueue {
->  	struct vhost_dev *dev;
-> @@ -90,6 +99,11 @@ struct vhost_virtqueue {
->  	struct vring_desc __user *desc;
->  	struct vring_avail __user *avail;
->  	struct vring_used __user *used;
-> +
-> +	struct vhost_vmap avail_ring;
-> +	struct vhost_vmap desc_ring;
-> +	struct vhost_vmap used_ring;
-> +
->  	const struct vhost_umem_node *meta_iotlb[VHOST_NUM_ADDRS];
->  	struct file *kick;
->  	struct eventfd_ctx *call_ctx;
-> @@ -158,6 +172,7 @@ struct vhost_msg_node {
->  
->  struct vhost_dev {
->  	struct mm_struct *mm;
-> +	struct mmu_notifier mmu_notifier;
->  	struct mutex mutex;
->  	struct vhost_virtqueue **vqs;
->  	int nvqs;
-> @@ -210,6 +225,7 @@ int vhost_log_write(struct vhost_virtqueue *vq, struct vhost_log *log,
->  		    unsigned int log_num, u64 len,
->  		    struct iovec *iov, int count);
->  int vq_meta_prefetch(struct vhost_virtqueue *vq);
-> +void vq_meta_prefetch_done(struct vhost_virtqueue *vq);
->  
->  struct vhost_msg_node *vhost_new_msg(struct vhost_virtqueue *vq, int type);
->  void vhost_enqueue_msg(struct vhost_dev *dev,
-> -- 
-> 1.8.3.1
+Thanks,
+    Paul
 
