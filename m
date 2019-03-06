@@ -2,446 +2,347 @@ Return-Path: <SRS0=43/C=RJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 902B6C43381
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 19:05:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 584EAC10F00
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 19:07:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 448A02064A
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 19:05:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 448A02064A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
+	by mail.kernel.org (Postfix) with ESMTP id E938B2064A
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 19:07:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E938B2064A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F2CB08E0003; Wed,  6 Mar 2019 14:05:10 -0500 (EST)
+	id 89A128E0003; Wed,  6 Mar 2019 14:07:55 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EB2BC8E0002; Wed,  6 Mar 2019 14:05:10 -0500 (EST)
+	id 848498E0002; Wed,  6 Mar 2019 14:07:55 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D7CB48E0003; Wed,  6 Mar 2019 14:05:10 -0500 (EST)
+	id 737B98E0003; Wed,  6 Mar 2019 14:07:55 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7599A8E0002
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 14:05:10 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id y26so6834336edb.4
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 11:05:10 -0800 (PST)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 46A478E0002
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 14:07:55 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id v67so10680791qkl.22
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 11:07:55 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=TkAOEgy5h56Sjpr0jJg1QYO3/h/nucaF4AnKnp9WKIQ=;
-        b=mhu06XN0AsZ2tXbnjC9XK3O6WM8X5fT2qxNjAiLb5+QFbwY7hqhU3h8OCkjJYU2ggM
-         NrVgChs6DlbUhlM9AnKLVbiPOIsXQH00nL/3LAbei2lXZ5tNZQnuXpjIazXs1wlW8kV8
-         EeHsoBlESgWhCoomZzr/HVZHCkAXXvk+WL8vJlX462tfNG/YQQ8BazTbzflGOQfx8uZe
-         yj6337NY30NAIrD6QK7pLo80z/2pPKQsD5ijOa8RYJfmLDXj5mXOKRDpA+rM2YNnm8XM
-         uVV2oBLH7jJQvul/IeAXU9aK1WFlNm6E3pcZ0BThjYeeuGyveXdO0uGxIaQKxikNg7UC
-         hq3g==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Gm-Message-State: APjAAAVMT7bQe7anP7O1VQqVeEDFlSs1ZWmxjSv5fdhWXkmx6javeMq3
-	s/1MdGgHr2U95vdro7fSur3CrF4lziK4AyL2ZZtuA8IB0RXn+ZNG9rPmMQw84ok6ZWgW+2GDDp4
-	7DhjgCAhGb2MllNlXz9+wqmPp50vKwQvr+q+7mD+hyMkdEFigHT06PzkatitxLAg=
-X-Received: by 2002:a17:906:b30c:: with SMTP id n12mr5011488ejz.49.1551899109633;
-        Wed, 06 Mar 2019 11:05:09 -0800 (PST)
-X-Google-Smtp-Source: APXvYqwJnFcKbFQCIEC6qkIrreHCxw2EhVnHk4Mew90xJkfoE1lVjXkpzG/s5q+p5GsibDb0Ch3e
-X-Received: by 2002:a17:906:b30c:: with SMTP id n12mr5011418ejz.49.1551899108051;
-        Wed, 06 Mar 2019 11:05:08 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551899108; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to;
+        bh=c099gEyHL/56ut1F55VjE8EgoWWvImxPp1gy/waTSOI=;
+        b=APH3oCdZFdUYJnHQBdZZRQSD6cX9+eKpxUkvZXzpxgTYbeRNXmaCAOUvUTx9bY84lM
+         hpW/uyNldCBSUOaUuM3H6/tegyUnrn9QjTnvT8jQHFQjfBGKQS/KbWGgo8pSyeN+Rq86
+         ECtIpTDJpI03MBN86DikV2QopFj6dVRwKwCRfzuD5Y4A2HfVMhu/Tov/mJlN1kbfH0sz
+         oYqds+yOUJKtLGO0cKcIwxS1udw2F7M9JhcRPxxh9xL0+RfaTyoK+EUKuTV6HxQQkSPV
+         fSoyQHnprEXfDJYYqxlCwx27nCfThoEUDcyeU8iBfvH0frhcaDpxfqsWww53eI8rcFQU
+         UPww==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWd/jcBq9flGZFef+e4WZdLzdkO9lj8n87PdLjV6Y0eqZVTcHlQ
+	EFKx0VxPNm5R/pMTxSAclXfkRTkSEUtNHWWMjBshDAvuqJ0UhsPcBL9NLa6OieDLYu5O+wP57jG
+	3z3egdNv+gfo7LYswbYpqFTQQGU5p4UsoJ2rOZ8tM2EWPjuKu8SideJhOMHqK0CSkGg==
+X-Received: by 2002:a0c:879c:: with SMTP id 28mr7390722qvj.63.1551899275002;
+        Wed, 06 Mar 2019 11:07:55 -0800 (PST)
+X-Google-Smtp-Source: APXvYqxeEVH0SQDFXsWaAqCFqcqL7jsZB1gHCSCJDYs8x1L5G4swCMK8wo7sAid9hYdc9c8AkdH6
+X-Received: by 2002:a0c:879c:: with SMTP id 28mr7390656qvj.63.1551899274036;
+        Wed, 06 Mar 2019 11:07:54 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551899274; cv=none;
         d=google.com; s=arc-20160816;
-        b=XJcBZQ/3jYwlojlWC7M8HbVWJlydFNRsDaSiIhdq3CQN7qNqSPhmjl+mxDEQVl9b7n
-         mw8k8AggrbqzmBr+Faavd1ilAsS6oy/vs3cevSh7X5sWUyvO2T7QgEenTHWdSdl2k9vg
-         mOYSo1YeWx6HYH3NbXHmoDbjNng28GxguIQlyuvxeNDUGEBt3qvDwcrCaeyFInckYkWh
-         CGv49TVxixT3tbIEUEAQ1PTFInLUMOtfQDuOTvR34OAGOyi5FPpiPqJmoYA9jvXpJPQ6
-         +70m6lHnt8OdPLeSTl6GTM67Qem4Wi14aUiqlsfIdeU2Vy6lox9sh9X9mD9dHhmnBMaD
-         R0Og==
+        b=hPIHfxDN6kmtHHDjnCpcvXp2FTzBIj29KDpZkeCF3pbn9UY5Ufthwmc6GvjMCItt8J
+         9wQgW8QWkTaLnpksaKMJVYnkV9HMLf9X8z7qviBZhmmJ9tGmIdnBaZgDCNbiwxiNlSvF
+         NjAlHs4hw0btVZglF0/cy5T8f0G+OpmxDee9697rD4ziIOf6b/H4UetmNho4uHwbE5xd
+         c+/wyrfi8SIPDcg5T2514r86JYuE71Co1CF4p+1YiVncnXtRYldXHZLUxmmRtpLeowcd
+         3yxwPe+S1PM+BfMZcBnBvuwvcSeytnmQbUt2J9xMD2Crps27i1OOLugQkg39XWFECKq8
+         CBrw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=TkAOEgy5h56Sjpr0jJg1QYO3/h/nucaF4AnKnp9WKIQ=;
-        b=Jf3b9BJ5Ay8v+Ftkd/KFLS38RzDI+yderiTEPvK/P1MSfvnM5vMUB/cUyA/oOfswQ4
-         4KVHDaczN0kveUy2m4jmQ4vy5bHHN+nbejukhNkx9amBd+BEc6K3pUKJguayi39g2w9F
-         3/bePdKLjTautS/1pIkDkW2cCrdk+x3EM8ptWHd/LWQgrbnoXZFNvacSu/NV1FQZ0aNO
-         94MGO+A9jNJiU70An2ZeZ8SOe4iCoSzpgDzYyz25y+iUP/uF7EufQ2Q6rDiKezHlAHOW
-         6VGOfEIqu4REka18MckosRzRMlomJrSvr1ZiMXz621K2wSdz5SFpzMjeO7fQa5buaTxg
-         VKKQ==
+        h=in-reply-to:mime-version:user-agent:date:message-id:organization
+         :autocrypt:openpgp:from:references:cc:to:subject;
+        bh=c099gEyHL/56ut1F55VjE8EgoWWvImxPp1gy/waTSOI=;
+        b=N7Nh/4DW+5guxaxb6N7NigBBZzLM7Rgg6Uo3rxiPDn2/tLDqp02nW8+x8YnyeMnyj6
+         cy+hZxLhGHWf0u7XUHHDhJUoc5AJFUrizBkk9poNWzgIS5+EGsBXuiA/DKPZnvRKS3k/
+         zDd+CWfxiz/zFa5W2LbpiMmvBmr2Nmgx810CDKLU6wS7m/Gq9bW635IhXvKFqCWWh7nM
+         pvT72ty7lS5hShrT2PvM1GjNATD68nhKDsiBQC5IeWYvQIzppJVRFFrWKO1qJQ2FE6iI
+         caGKAzMjqccYee6W/gU0KbJ7hAJ3frSxenIS8rQAnj24Ao0yiHcfi48fDJgWIGBOf2Ex
+         k09w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-Received: from relay5-d.mail.gandi.net (relay5-d.mail.gandi.net. [217.70.183.197])
-        by mx.google.com with ESMTPS id cj22si925319ejb.206.2019.03.06.11.05.07
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w18si539386qka.41.2019.03.06.11.07.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 06 Mar 2019 11:05:08 -0800 (PST)
-Received-SPF: neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.197;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Mar 2019 11:07:54 -0800 (PST)
+Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Originating-IP: 79.86.19.127
-Received: from alex.numericable.fr (127.19.86.79.rev.sfr.net [79.86.19.127])
-	(Authenticated sender: alex@ghiti.fr)
-	by relay5-d.mail.gandi.net (Postfix) with ESMTPSA id 1E16B1C0004;
-	Wed,  6 Mar 2019 19:04:59 +0000 (UTC)
-From: Alexandre Ghiti <alex@ghiti.fr>
-To: Vlastimil Babka <vbabka@suse.cz>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Paul Mackerras <paulus@samba.org>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	Martin Schwidefsky <schwidefsky@de.ibm.com>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	Yoshinori Sato <ysato@users.sourceforge.jp>,
-	Rich Felker <dalias@libc.org>,
-	"David S . Miller" <davem@davemloft.net>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>,
-	Borislav Petkov <bp@alien8.de>,
-	"H . Peter Anvin" <hpa@zytor.com>,
-	x86@kernel.org,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Andy Lutomirski <luto@kernel.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	linux-arm-kernel@lists.infradead.org,
-	linux-kernel@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org,
-	linux-s390@vger.kernel.org,
-	linux-sh@vger.kernel.org,
-	sparclinux@vger.kernel.org,
-	linux-mm@kvack.org
-Cc: Alexandre Ghiti <alex@ghiti.fr>
-Subject: [PATCH v5 4/4] hugetlb: allow to free gigantic pages regardless of the configuration
-Date: Wed,  6 Mar 2019 14:00:05 -0500
-Message-Id: <20190306190005.7036-5-alex@ghiti.fr>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190306190005.7036-1-alex@ghiti.fr>
-References: <20190306190005.7036-1-alex@ghiti.fr>
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 37A7158E38;
+	Wed,  6 Mar 2019 19:07:53 +0000 (UTC)
+Received: from [10.18.17.32] (dhcp-17-32.bos.redhat.com [10.18.17.32])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id D1CCE600C5;
+	Wed,  6 Mar 2019 19:07:44 +0000 (UTC)
+Subject: Re: [RFC][Patch v9 0/6] KVM: Guest Free Page Hinting
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+ linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>,
+ lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
+ Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
+ David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>,
+ dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>
+References: <20190306155048.12868-1-nitesh@redhat.com>
+ <CAKgT0Ud35pmmfAabYJijWo8qpucUWS8-OzBW=gsotfxZFuS9PQ@mail.gmail.com>
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ VujM7c/b4pps
+Organization: Red Hat Inc,
+Message-ID: <1d5e27dc-aade-1be7-2076-b7710fa513b6@redhat.com>
+Date: Wed, 6 Mar 2019 14:07:43 -0500
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAKgT0Ud35pmmfAabYJijWo8qpucUWS8-OzBW=gsotfxZFuS9PQ@mail.gmail.com>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="dRDaSzssymHtsRfrS36m7IfOIFpVkpG3R"
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Wed, 06 Mar 2019 19:07:53 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On systems without CONTIG_ALLOC activated but that support gigantic pages,
-boottime reserved gigantic pages can not be freed at all. This patch
-simply enables the possibility to hand back those pages to memory
-allocator.
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--dRDaSzssymHtsRfrS36m7IfOIFpVkpG3R
+Content-Type: multipart/mixed; boundary="s88sWQsaJltwgeGmpg6DNlYbCx6gnM26D";
+ protected-headers="v1"
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+ linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>,
+ lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
+ Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
+ David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>,
+ dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>
+Message-ID: <1d5e27dc-aade-1be7-2076-b7710fa513b6@redhat.com>
+Subject: Re: [RFC][Patch v9 0/6] KVM: Guest Free Page Hinting
+References: <20190306155048.12868-1-nitesh@redhat.com>
+ <CAKgT0Ud35pmmfAabYJijWo8qpucUWS8-OzBW=gsotfxZFuS9PQ@mail.gmail.com>
+In-Reply-To: <CAKgT0Ud35pmmfAabYJijWo8qpucUWS8-OzBW=gsotfxZFuS9PQ@mail.gmail.com>
 
-Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
----
- arch/arm64/Kconfig                           |  2 +-
- arch/arm64/include/asm/hugetlb.h             |  4 --
- arch/powerpc/include/asm/book3s/64/hugetlb.h |  7 ---
- arch/powerpc/platforms/Kconfig.cputype       |  2 +-
- arch/s390/Kconfig                            |  2 +-
- arch/s390/include/asm/hugetlb.h              |  3 --
- arch/sh/Kconfig                              |  2 +-
- arch/sparc/Kconfig                           |  2 +-
- arch/x86/Kconfig                             |  2 +-
- arch/x86/include/asm/hugetlb.h               |  4 --
- include/linux/gfp.h                          |  2 +-
- mm/hugetlb.c                                 | 54 ++++++++++++--------
- mm/page_alloc.c                              |  4 +-
- 13 files changed, 42 insertions(+), 48 deletions(-)
+--s88sWQsaJltwgeGmpg6DNlYbCx6gnM26D
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
 
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 091a513b93e9..af687eff884a 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -18,7 +18,7 @@ config ARM64
- 	select ARCH_HAS_FAST_MULTIPLIER
- 	select ARCH_HAS_FORTIFY_SOURCE
- 	select ARCH_HAS_GCOV_PROFILE_ALL
--	select ARCH_HAS_GIGANTIC_PAGE if CONTIG_ALLOC
-+	select ARCH_HAS_GIGANTIC_PAGE
- 	select ARCH_HAS_KCOV
- 	select ARCH_HAS_MEMBARRIER_SYNC_CORE
- 	select ARCH_HAS_PTE_SPECIAL
-diff --git a/arch/arm64/include/asm/hugetlb.h b/arch/arm64/include/asm/hugetlb.h
-index fb6609875455..59893e766824 100644
---- a/arch/arm64/include/asm/hugetlb.h
-+++ b/arch/arm64/include/asm/hugetlb.h
-@@ -65,8 +65,4 @@ extern void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr,
- 
- #include <asm-generic/hugetlb.h>
- 
--#ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
--static inline bool gigantic_page_supported(void) { return true; }
--#endif
--
- #endif /* __ASM_HUGETLB_H */
-diff --git a/arch/powerpc/include/asm/book3s/64/hugetlb.h b/arch/powerpc/include/asm/book3s/64/hugetlb.h
-index 5b0177733994..d04a0bcc2f1c 100644
---- a/arch/powerpc/include/asm/book3s/64/hugetlb.h
-+++ b/arch/powerpc/include/asm/book3s/64/hugetlb.h
-@@ -32,13 +32,6 @@ static inline int hstate_get_psize(struct hstate *hstate)
- 	}
- }
- 
--#ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
--static inline bool gigantic_page_supported(void)
--{
--	return true;
--}
--#endif
--
- /* hugepd entry valid bit */
- #define HUGEPD_VAL_BITS		(0x8000000000000000UL)
- 
-diff --git a/arch/powerpc/platforms/Kconfig.cputype b/arch/powerpc/platforms/Kconfig.cputype
-index f677c8974212..dc0328de20cd 100644
---- a/arch/powerpc/platforms/Kconfig.cputype
-+++ b/arch/powerpc/platforms/Kconfig.cputype
-@@ -319,7 +319,7 @@ config ARCH_ENABLE_SPLIT_PMD_PTLOCK
- config PPC_RADIX_MMU
- 	bool "Radix MMU Support"
- 	depends on PPC_BOOK3S_64
--	select ARCH_HAS_GIGANTIC_PAGE if CONTIG_ALLOC
-+	select ARCH_HAS_GIGANTIC_PAGE
- 	default y
- 	help
- 	  Enable support for the Power ISA 3.0 Radix style MMU. Currently this
-diff --git a/arch/s390/Kconfig b/arch/s390/Kconfig
-index 1c57b83c76f5..d84e536796b1 100644
---- a/arch/s390/Kconfig
-+++ b/arch/s390/Kconfig
-@@ -69,7 +69,7 @@ config S390
- 	select ARCH_HAS_ELF_RANDOMIZE
- 	select ARCH_HAS_FORTIFY_SOURCE
- 	select ARCH_HAS_GCOV_PROFILE_ALL
--	select ARCH_HAS_GIGANTIC_PAGE if CONTIG_ALLOC
-+	select ARCH_HAS_GIGANTIC_PAGE
- 	select ARCH_HAS_KCOV
- 	select ARCH_HAS_PTE_SPECIAL
- 	select ARCH_HAS_SET_MEMORY
-diff --git a/arch/s390/include/asm/hugetlb.h b/arch/s390/include/asm/hugetlb.h
-index 2d1afa58a4b6..bd191560efcf 100644
---- a/arch/s390/include/asm/hugetlb.h
-+++ b/arch/s390/include/asm/hugetlb.h
-@@ -116,7 +116,4 @@ static inline pte_t huge_pte_modify(pte_t pte, pgprot_t newprot)
- 	return pte_modify(pte, newprot);
- }
- 
--#ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
--static inline bool gigantic_page_supported(void) { return true; }
--#endif
- #endif /* _ASM_S390_HUGETLB_H */
-diff --git a/arch/sh/Kconfig b/arch/sh/Kconfig
-index c7266302691c..404b12a0d871 100644
---- a/arch/sh/Kconfig
-+++ b/arch/sh/Kconfig
-@@ -53,7 +53,7 @@ config SUPERH
- 	select HAVE_FUTEX_CMPXCHG if FUTEX
- 	select HAVE_NMI
- 	select NEED_SG_DMA_LENGTH
--	select ARCH_HAS_GIGANTIC_PAGE if CONTIG_ALLOC
-+	select ARCH_HAS_GIGANTIC_PAGE
- 
- 	help
- 	  The SuperH is a RISC processor targeted for use in embedded systems
-diff --git a/arch/sparc/Kconfig b/arch/sparc/Kconfig
-index ca33c80870e2..234a6bd46e89 100644
---- a/arch/sparc/Kconfig
-+++ b/arch/sparc/Kconfig
-@@ -90,7 +90,7 @@ config SPARC64
- 	select ARCH_CLOCKSOURCE_DATA
- 	select ARCH_HAS_PTE_SPECIAL
- 	select PCI_DOMAINS if PCI
--	select ARCH_HAS_GIGANTIC_PAGE if CONTIG_ALLOC
-+	select ARCH_HAS_GIGANTIC_PAGE
- 
- config ARCH_DEFCONFIG
- 	string
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 8ba90f3e0038..ff24eaeef211 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -23,7 +23,7 @@ config X86_64
- 	def_bool y
- 	depends on 64BIT
- 	# Options that are inherently 64-bit kernel only:
--	select ARCH_HAS_GIGANTIC_PAGE if CONTIG_ALLOC
-+	select ARCH_HAS_GIGANTIC_PAGE
- 	select ARCH_SUPPORTS_INT128
- 	select ARCH_USE_CMPXCHG_LOCKREF
- 	select HAVE_ARCH_SOFT_DIRTY
-diff --git a/arch/x86/include/asm/hugetlb.h b/arch/x86/include/asm/hugetlb.h
-index 7469d321f072..f65cfb48cfdd 100644
---- a/arch/x86/include/asm/hugetlb.h
-+++ b/arch/x86/include/asm/hugetlb.h
-@@ -17,8 +17,4 @@ static inline void arch_clear_hugepage_flags(struct page *page)
- {
- }
- 
--#ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
--static inline bool gigantic_page_supported(void) { return true; }
--#endif
--
- #endif /* _ASM_X86_HUGETLB_H */
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 1f1ad9aeebb9..58ea44bf75de 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -589,8 +589,8 @@ static inline bool pm_suspended_storage(void)
- /* The below functions must be run on a range from a single zone. */
- extern int alloc_contig_range(unsigned long start, unsigned long end,
- 			      unsigned migratetype, gfp_t gfp_mask);
--extern void free_contig_range(unsigned long pfn, unsigned nr_pages);
- #endif
-+extern void free_contig_range(unsigned long pfn, unsigned int nr_pages);
- 
- #ifdef CONFIG_CMA
- /* CMA stuff */
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index afef61656c1e..7c57d58051ec 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1058,6 +1058,7 @@ static void free_gigantic_page(struct page *page, unsigned int order)
- 	free_contig_range(page_to_pfn(page), 1 << order);
- }
- 
-+#ifdef CONFIG_CONTIG_ALLOC
- static int __alloc_gigantic_page(unsigned long start_pfn,
- 				unsigned long nr_pages, gfp_t gfp_mask)
- {
-@@ -1142,11 +1143,20 @@ static struct page *alloc_gigantic_page(struct hstate *h, gfp_t gfp_mask,
- 
- static void prep_new_huge_page(struct hstate *h, struct page *page, int nid);
- static void prep_compound_gigantic_page(struct page *page, unsigned int order);
-+#else /* !CONFIG_CONTIG_ALLOC */
-+static struct page *alloc_gigantic_page(struct hstate *h, gfp_t gfp_mask,
-+					int nid, nodemask_t *nodemask)
-+{
-+	return NULL;
-+}
-+#endif /* CONFIG_CONTIG_ALLOC */
- 
- #else /* !CONFIG_ARCH_HAS_GIGANTIC_PAGE */
--static inline bool gigantic_page_supported(void) { return false; }
- static struct page *alloc_gigantic_page(struct hstate *h, gfp_t gfp_mask,
--		int nid, nodemask_t *nodemask) { return NULL; }
-+					int nid, nodemask_t *nodemask)
-+{
-+	return NULL;
-+}
- static inline void free_gigantic_page(struct page *page, unsigned int order) { }
- static inline void destroy_compound_gigantic_page(struct page *page,
- 						unsigned int order) { }
-@@ -1156,9 +1166,6 @@ static void update_and_free_page(struct hstate *h, struct page *page)
- {
- 	int i;
- 
--	if (hstate_is_gigantic(h) && !gigantic_page_supported())
--		return;
--
- 	h->nr_huge_pages--;
- 	h->nr_huge_pages_node[page_to_nid(page)]--;
- 	for (i = 0; i < pages_per_huge_page(h); i++) {
-@@ -2276,13 +2283,24 @@ static int adjust_pool_surplus(struct hstate *h, nodemask_t *nodes_allowed,
- }
- 
- #define persistent_huge_pages(h) (h->nr_huge_pages - h->surplus_huge_pages)
--static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
--						nodemask_t *nodes_allowed)
-+static int set_max_huge_pages(struct hstate *h, unsigned long count,
-+			      nodemask_t *nodes_allowed)
- {
- 	unsigned long min_count, ret;
- 
--	if (hstate_is_gigantic(h) && !gigantic_page_supported())
--		return h->max_huge_pages;
-+	/*
-+	 * Gigantic pages allocation depends on the capability for large page
-+	 * range allocation. If the system cannot provide alloc_contig_range,
-+	 * allow users to free gigantic pages.
-+	 */
-+	if (hstate_is_gigantic(h) && !IS_ENABLED(CONFIG_CONTIG_ALLOC)) {
-+		spin_lock(&hugetlb_lock);
-+		if (count > persistent_huge_pages(h)) {
-+			spin_unlock(&hugetlb_lock);
-+			return -EINVAL;
-+		}
-+		goto decrease_pool;
-+	}
- 
- 	/*
- 	 * Increase the pool size
-@@ -2322,6 +2340,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
- 			goto out;
- 	}
- 
-+decrease_pool:
- 	/*
- 	 * Decrease the pool size
- 	 * First return free pages to the buddy allocator (being careful
-@@ -2350,9 +2369,10 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
- 			break;
- 	}
- out:
--	ret = persistent_huge_pages(h);
-+	h->max_huge_pages = persistent_huge_pages(h);
- 	spin_unlock(&hugetlb_lock);
--	return ret;
-+
-+	return 0;
- }
- 
- #define HSTATE_ATTR_RO(_name) \
-@@ -2404,11 +2424,6 @@ static ssize_t __nr_hugepages_store_common(bool obey_mempolicy,
- 	int err;
- 	NODEMASK_ALLOC(nodemask_t, nodes_allowed, GFP_KERNEL | __GFP_NORETRY);
- 
--	if (hstate_is_gigantic(h) && !gigantic_page_supported()) {
--		err = -EINVAL;
--		goto out;
--	}
--
- 	if (nid == NUMA_NO_NODE) {
- 		/*
- 		 * global hstate attribute
-@@ -2428,15 +2443,12 @@ static ssize_t __nr_hugepages_store_common(bool obey_mempolicy,
- 	} else
- 		nodes_allowed = &node_states[N_MEMORY];
- 
--	h->max_huge_pages = set_max_huge_pages(h, count, nodes_allowed);
-+	err = set_max_huge_pages(h, count, nodes_allowed);
- 
- 	if (nodes_allowed != &node_states[N_MEMORY])
- 		NODEMASK_FREE(nodes_allowed);
- 
--	return len;
--out:
--	NODEMASK_FREE(nodes_allowed);
--	return err;
-+	return err ? err : len;
- }
- 
- static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ac9c45ffb344..a4547d90fa7a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -8234,8 +8234,9 @@ int alloc_contig_range(unsigned long start, unsigned long end,
- 				pfn_max_align_up(end), migratetype);
- 	return ret;
- }
-+#endif /* CONFIG_CONTIG_ALLOC */
- 
--void free_contig_range(unsigned long pfn, unsigned nr_pages)
-+void free_contig_range(unsigned long pfn, unsigned int nr_pages)
- {
- 	unsigned int count = 0;
- 
-@@ -8247,7 +8248,6 @@ void free_contig_range(unsigned long pfn, unsigned nr_pages)
- 	}
- 	WARN(count != 0, "%d pages are still in use!\n", count);
- }
--#endif
- 
- #ifdef CONFIG_MEMORY_HOTPLUG
- /*
--- 
-2.20.1
+
+On 3/6/19 1:00 PM, Alexander Duyck wrote:
+> On Wed, Mar 6, 2019 at 7:51 AM Nitesh Narayan Lal <nitesh@redhat.com> w=
+rote:
+>> The following patch-set proposes an efficient mechanism for handing fr=
+eed memory between the guest and the host. It enables the guests with no =
+page cache to rapidly free and reclaims memory to and from the host respe=
+ctively.
+>>
+>> Benefit:
+>> With this patch-series, in our test-case, executed on a single system =
+and single NUMA node with 15GB memory, we were able to successfully launc=
+h 5 guests(each with 5 GB memory) when page hinting was enabled and 3 wit=
+hout it. (Detailed explanation of the test procedure is provided at the b=
+ottom under Test - 1).
+>>
+>> Changelog in v9:
+>>         * Guest free page hinting hook is now invoked after a page has=
+ been merged in the buddy.
+>>         * Free pages only with order FREE_PAGE_HINTING_MIN_ORDER(curre=
+ntly defined as MAX_ORDER - 1) are captured.
+>>         * Removed kthread which was earlier used to perform the scanni=
+ng, isolation & reporting of free pages.
+> Without a kthread this has the potential to get really ugly really
+> fast. If we are going to run asynchronously we should probably be
+> truly asynchonous and just place a few pieces of data in the page that
+> a worker thread can use to identify which pages have been hinted and
+> which pages have not.=20
+
+Can you please explain what do you mean by truly asynchronous?
+
+With this implementation also I am not reporting the pages synchronously.=
+
+
+> Then we can have that one thread just walking
+> through the zone memory pulling out fixed size pieces at a time and
+> providing hints on that. By doing that we avoid the potential of
+> creating a batch of pages that eat up most of the system memory.
+>
+>>         * Pages, captured in the per cpu array are sorted based on the=
+ zone numbers. This is to avoid redundancy of acquiring zone locks.
+>>         * Dynamically allocated space is used to hold the isolated gue=
+st free pages.
+> I have concerns that doing this per CPU and allocating memory
+> dynamically can result in you losing a significant amount of memory as
+> it sits waiting to be hinted.
+It should not as the buddy will keep merging the pages and we are only
+capturing MAX_ORDER - 1.
+This was the issue with the last patch-series when I was capturing all
+order pages resulting in the per-cpu array to be filled with lower order
+pages.
+>
+>>         * All the pages are reported asynchronously to the host via vi=
+rtio driver.
+>>         * Pages are returned back to the guest buddy free list only wh=
+en the host response is received.
+> I have been thinking about this. Instead of stealing the page couldn't
+> you simply flag it that there is a hint in progress and simply wait in
+> arch_alloc_page until the hint has been processed?=20
+With the flag, I am assuming you mean to block the allocation until
+hinting is going on, which is an issue. That was one of the issues
+discussed earlier which I wanted to solve with this implementation.
+> The problem is in
+> stealing pages you are going to introduce false OOM issues when the
+> memory isn't available because it is being hinted on.
+I think this situation will arise when the guest is under memory
+pressure. In such situations any attempt to perform isolation will
+anyways fail and we may not be reporting anything at that time.
+>
+>> Pending items:
+>>         * Make sure that the guest free page hinting's current impleme=
+ntation doesn't break hugepages or device assigned guests.
+>>         * Follow up on VIRTIO_BALLOON_F_PAGE_POISON's device side supp=
+ort. (It is currently missing)
+>>         * Compare reporting free pages via vring with vhost.
+>>         * Decide between MADV_DONTNEED and MADV_FREE.
+>>         * Analyze overall performance impact due to guest free page hi=
+nting.
+>>         * Come up with proper/traceable error-message/logs.
+> I'll try applying these patches and see if I can reproduce the results
+> you reported.=20
+Thanks. Let me know if you run into any issues.
+> With the last patch set I couldn't reproduce the results
+> as you reported them.=20
+If I remember correctly then the last time you only tried with multiple
+vcpus and not with 1 vcpu.
+> It has me wondering if you were somehow seeing
+> the effects of a balloon instead of the actual memory hints as I
+> couldn't find any evidence of the memory ever actually being freed
+> back by the hints functionality.
+
+Can you please elaborate what kind of evidence you are looking for?
+
+I did trace the hints on the QEMU/host side.
+
+>
+> Also do you have any idea if this patch set will work with an SMP
+> setup or is it still racy? I might try enabling SMP in my environment
+> to see if I can test the scalability of the VM with something like a
+> will-it-scale test.
+I did try running page_fault1_threads in will-it-scale with 4 vcpus.
+It didn't give me any issue.
+>
+>> Tests:
+>> 1. Use-case - Number of guests we can launch
+>>
+>>         NUMA Nodes =3D 1 with 15 GB memory
+>>         Guest Memory =3D 5 GB
+>>         Number of cores in guest =3D 1
+>>         Workload =3D test allocation program allocates 4GB memory, tou=
+ches it via memset and exits.
+>>         Procedure =3D
+>>         The first guest is launched and once its console is up, the te=
+st allocation program is executed with 4 GB memory request (Due to this t=
+he guest occupies almost 4-5 GB of memory in the host in a system without=
+ page hinting). Once this program exits at that time another guest is lau=
+nched in the host and the same process is followed. We continue launching=
+ the guests until a guest gets killed due to low memory condition in the =
+host.
+>>
+>>         Results:
+>>         Without hinting =3D 3
+>>         With hinting =3D 5
+>>
+>> 2. Hackbench
+>>         Guest Memory =3D 5 GB
+>>         Number of cores =3D 4
+>>         Number of tasks         Time with Hinting       Time without H=
+inting
+>>         4000                    19.540                  17.818
+>>
+>>
+--=20
+Nitesh
+
+
+--s88sWQsaJltwgeGmpg6DNlYbCx6gnM26D--
+
+--dRDaSzssymHtsRfrS36m7IfOIFpVkpG3R
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEkXcoRVGaqvbHPuAGo4ZA3AYyozkFAlyAGn8ACgkQo4ZA3AYy
+ozlcpA/+M2yz4zBSPI4bcJRgJLgRUFR3N07g2HjQ7/he1oiumZyAU12b9P5VH8Li
+7JVMd6aYMeJ7lotWU4g9kzzQaSe7YnJoVBeICXIEyeuKuq1g2lyIcCRJpOzUV0Bn
+RqcamKVY0ndX2MYJXq31LWdm/0ux9wlqlyR+WEZT1wSmiIhLLnJ6S9wAbFPFK4tn
+gq2ttDHDIiCs1YemM9QhTH+YYIGPKtrQOgprCbL85JvpbY7rCqi9QoELIxXi+cUM
+Wjb88EMVcr6gXBKiS1ta9GJh6IQm8Y3PJPsRZRmEOTROZyLY/7Toujmcz+1uQm+v
+o8G3BMSsyqOHw0KbIFy1l7RrB1mVQJVsUo5zqp80NnKBFlLlmr9jn7EieH1UbxGM
+IwToFqR8p8wOCNLHM8ujfQ6TUEaY9fwonCWsWDb9KrkaAAZtjZgaRU+rKSwOP1VZ
+9OMgHYst6Hzp+1yuA7T1QfsOOa1xAjv2SpXnNT8aS9k4HJ1N/W4MYfgpOqdXqDzT
+4xXTXCg5UIMbjy1Ib2PAvtaK8qP0zvGrYFBk4Qw+DpW+MRYYTmVHZ0ddULCrxgdc
+bENegLQ7eLIbk1ttsTylZHN+ok48oTFUGYtX9DQjUM4j1zqRlfl3OZy9jyMkEC81
+iYxpV/KRe9Lwq8J/xcXvMifzkH9Pua6oMElqxNN9GDCrxIFHvaM=
+=cUBW
+-----END PGP SIGNATURE-----
+
+--dRDaSzssymHtsRfrS36m7IfOIFpVkpG3R--
 
