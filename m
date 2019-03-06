@@ -2,165 +2,260 @@ Return-Path: <SRS0=43/C=RJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0CAC5C10F00
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 16:08:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 73861C43381
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 16:25:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C9F5A206DD
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 16:08:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C9F5A206DD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 2712E20684
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Mar 2019 16:25:24 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="mExFPkFx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2712E20684
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5EB528E0023; Wed,  6 Mar 2019 11:08:54 -0500 (EST)
+	id A9B0F8E0004; Wed,  6 Mar 2019 11:25:23 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 59A5D8E0015; Wed,  6 Mar 2019 11:08:54 -0500 (EST)
+	id A49218E0003; Wed,  6 Mar 2019 11:25:23 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 489338E0023; Wed,  6 Mar 2019 11:08:54 -0500 (EST)
+	id 939B08E0004; Wed,  6 Mar 2019 11:25:23 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 26A128E0015
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 11:08:54 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id 35so11986857qtq.5
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 08:08:54 -0800 (PST)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BE468E0003
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 11:25:23 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id k21so10320657qkg.19
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 08:25:23 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=EKFB8D0qVF0WPKvVoOsdIHshwq45qGd6+k3S79Bfb8c=;
-        b=JvHEKDmzYHcF8Glg74wuGOj4HbtK5v0XMfZIU6sVfn5u1VIbaz44WK/46HNXq2PP8Z
-         pyLkRpx8vDnMAUmDAAkNrDImHsmAYlpplb/Ilv+VKWxWW9XqiWhqEadSW1hJZP/rFWhA
-         klDiWEuJq2D4l4jUW/3s+BPEE3HwSBIeD2eL5JM8JTMG+1e6Pqp8x6B31X27/VP/fTID
-         BEp1/zZd3VRKC1WcteaNl8r/xbDnUL5y+/x3Z4OfUNiF6YM1JkEG9jUUfhr2UEAGn1u6
-         sxlfstlRTGyLx9ChHqUsQeT9zmx96wTeU4IoPJI5oAPnj3NdYgvNpA8Yl6dEvCZNf5uB
-         cE8Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXqG8dLA1ibulT/5VRe9S5X3ZAZldN85FsjL3BeBXnizJVk92Ew
-	pqkSUvFS8l6tjR5gHPb6TlwllVw5eCtWaDz36EGItmvFswv90vfU3hq++NSMm6gL1QyyJVpi+c+
-	XbItIuKlhv0e3k2+0NTXjB/lD0cyiFYILqZobLaze9Kmd5N4Iei+G45zt2J60kwdRlQ==
-X-Received: by 2002:ac8:2ca1:: with SMTP id 30mr6424225qtw.245.1551888533917;
-        Wed, 06 Mar 2019 08:08:53 -0800 (PST)
-X-Google-Smtp-Source: APXvYqywAOlDnZ2SuVC/11fscVf0gsIfsJehU82e54sQMKoqbFWtfG7Aktcn9OHC6QuhedQZYGaq
-X-Received: by 2002:ac8:2ca1:: with SMTP id 30mr6424176qtw.245.1551888533210;
-        Wed, 06 Mar 2019 08:08:53 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551888533; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=TLFNRaBXKZns1+8KdSrlpQM+Fx38R+PSvw7GHUE0UyQ=;
+        b=ipiEe8I0IfnNLt6mkU/jwr2OZs7T9uErrznr8PED1xRCji54cQ1LzWPttDZ/YOI3gN
+         +MbmyvcyrSVSPtY3mxOjKtNpFwBsVNq7w5bvcnhVX0gLTE+qHzMbFWQdXvZsV84Ai7KL
+         X1CHqUiWSShiPrRmzpjK4V35AMeJfBx3d1YKLKMcZJ3N7vVb19mlLSrIwVk8T7Ea8/Zh
+         Mebxpuj8yWbynhhH3bkRYRC73gQRNuRnzNulyf/jye/f6y7mUmXQRwbESrqr+5S3qO9Z
+         hQoqV+1UqTTS9/UVlvbbVYXcijV14s747goJch0SDR0czwlnM32+cSLhaELbySiqLfhi
+         mVuA==
+X-Gm-Message-State: APjAAAVCMp5nlGPUuPzGQaSyarAv71C94471pvdytbRS0kLjf7dGxJIv
+	UjsGptRNiFe6X6YBT4Ivswf7Bd7v4y5VELjoXawdODKn+hYe2R+TTq6AL+A6k+yfHCBqzTUKI7k
+	CpOfQhadKIlpQzx1YYKRVBhzsodJhLQDgnqtArvcCUgpfavP3ESr4jxKEzmGZOzrNz3E7vPOC8d
+	vhuVF2jZeQv/t9kU+abLUFDX7YLfMaZTCn7jYr0umGnMFLgiVm8bM4GdeTe7DG+ibQyuNWgDBNr
+	22ksfxTxJASaAgXJn8e9lu2lcm7crq6ZiQEfkU6JfJoHzbhlbtYa6OctABod5hHarx7vGR+/Lil
+	LbQIFMM9poR03ArthJb+Dg1OiDNVP3F1+hG9RkD0LSfml/OIN99KqMXTqWYO3DYg3oOY75DGsNq
+	e
+X-Received: by 2002:ac8:27ba:: with SMTP id w55mr6385536qtw.228.1551889523163;
+        Wed, 06 Mar 2019 08:25:23 -0800 (PST)
+X-Received: by 2002:ac8:27ba:: with SMTP id w55mr6385462qtw.228.1551889522003;
+        Wed, 06 Mar 2019 08:25:22 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551889522; cv=none;
         d=google.com; s=arc-20160816;
-        b=0P+t/63y6E8G/M9ppDh6RQX4EVlfE8UDubOaaJrhnRTHmHbFAXa9QtnwCf47z5u58H
-         pqhlMJmyAfzagDlIgUeQzCDxv2J0+QeM2QlMnS9iHX3JaO+l+1FwvF7goDGV0V7ODWcs
-         OzLKIu+sd35uOoAXgpElQCWyAoDBnS2n6KDUymUMSwsZraYDw8n7WudAuVgR8S7Ad8dS
-         /yEgZKKc3vYJla72WPKVAWZjkm8dfs7Xn9sJvCNegvOOCTtbMvn4Aqa0K/frB8mTiAUr
-         c9DWMGxSdSSAb9AfXZhQVILAIMykF/65yVa0mZzNmeKpKAwvU98XN3Uj2eVhSWNJ5Sir
-         MZMA==
+        b=QgsTV6fgsTAxxwdAaQzf0h81Nd6v/wOud1/1y7w37JNTQGcqQY9RtXv78+ZVVkBE2l
+         KkQu7bRgvTO1tpYzer6Odf/4GIz0RXucVFWzb5QCDnlbu6MYnRRz8ZIo2C0rIoBVC2vI
+         JMHMUUzqwAkuL0XLhqJ1Ik+3yVienvHG9cWV9HLNeSnEm6pwDgJPenC6Pw3YEn206BGV
+         e17CmijKpB1P5y9/RWUCskP9povNQ2KEuBoXmdfO/+lD3Q1n5465dpD2/zxBl6S+mDDK
+         M19uH0twuweIW0UQA9nLzxAPGEMeLOrCTaZfPHh8Frz7QWw/xijkXA2kVY/4H2OOv/oD
+         Tzzw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=EKFB8D0qVF0WPKvVoOsdIHshwq45qGd6+k3S79Bfb8c=;
-        b=g3BXaFm7O7DaHI8aPUAhienjP7RwNNb//+6UbnxmmhOFly41jlZ5ZZcEbqBCUNnriN
-         Ow/Ci8DssOD0Rva6awSEZjBHMUN6DoQZA+N925Ya1eFpRkbX9YFAkV3mva1EDEmAG9VV
-         Xto62SMZheh+MQCiVqPtUzMEBQQyv68TH2SNEODL441aSHlNtSmCt0htp4C58abXJib/
-         sb0eH65Pg0DlnNRaJ7YnRMJ6Uxpx/cfhQkLNuc5514enFhBaWH9UGAMJdH9xAtKRZYhO
-         9fYh75cAtAYqjUwvCB66EVuyHzRGC1njK0ybzxfnpEuvEwvDRcv7wS7Ftx7AdsJiiLm9
-         37cw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=TLFNRaBXKZns1+8KdSrlpQM+Fx38R+PSvw7GHUE0UyQ=;
+        b=LTZyzAAOyy0+dQJUyEptmYP0elyMbcsOLcYXxBW0e30BvGXvKUWavxZMLOtPMAOwcs
+         aObhQmW5xVsabQvPWn+y+mIdmX6KcmeNZIRBcdAuifMDRrWQosFhHssJpIKWNhnS7zZy
+         g7Q4KdzXxsrEsWELRPTM/kZytI0mRn3Hquhwn+WlicBxGUYx1BAp2AbLJBRlHrp67u/n
+         ad8ghajMa4BOC7Iz4CwggCT5D9TDvT6TabL92Fb+isQQllQHGP9j419Hq1P8ABM1uWBw
+         oEGz4YfuI9eVuKZy4hi71VTjuHzq34Auw8T77S/l6va67hRaeJOMFpOf+/Af9SPlfLtQ
+         whJA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u7si1199164qki.138.2019.03.06.08.08.53
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=mExFPkFx;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r13sor2304769qvn.37.2019.03.06.08.25.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Mar 2019 08:08:53 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Wed, 06 Mar 2019 08:25:21 -0800 (PST)
+Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 64B02C0528D8;
-	Wed,  6 Mar 2019 16:08:52 +0000 (UTC)
-Received: from redhat.com (ovpn-125-142.rdu2.redhat.com [10.10.125.142])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 6DE781001DCE;
-	Wed,  6 Mar 2019 16:08:51 +0000 (UTC)
-Date: Wed, 6 Mar 2019 11:08:48 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: John Hubbard <jhubbard@nvidia.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	Dan Williams <dan.j.williams@intel.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm/hmm: fix unused variable warning in hmm_vma_walk_pud
-Message-ID: <20190306160847.GA4076@redhat.com>
-References: <20190306110109.2386057-1-arnd@arndb.de>
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=mExFPkFx;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=joelfernandes.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=TLFNRaBXKZns1+8KdSrlpQM+Fx38R+PSvw7GHUE0UyQ=;
+        b=mExFPkFxzhZwwgDc8Iiv/OP6/UoPj699I3u/Zaoh9iDqrcedzjMWCQ7H0ddSeD2S6q
+         MItIlD7YeYCStj7UezZI0nLL/giXtsyzgEHq7PmmGQfpFbOuX3pnC7u5/g/HBDXWBXbf
+         zdDt/mP+tC67xtGszwTEv3P1NE9KvT0piKTfQ=
+X-Google-Smtp-Source: APXvYqzcrKQw6+sLInw6mV4NIizF2Oy6RZ5vBLLoODVN6ZGWsVQGoHNU7QfNQxHlseqA/x8Y4pdqeg==
+X-Received: by 2002:a0c:88db:: with SMTP id 27mr6880276qvo.41.1551889521472;
+        Wed, 06 Mar 2019 08:25:21 -0800 (PST)
+Received: from localhost ([2620:0:1004:1100:cca9:fccc:8667:9bdc])
+        by smtp.gmail.com with ESMTPSA id w8sm1626418qkw.80.2019.03.06.08.25.20
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 06 Mar 2019 08:25:20 -0800 (PST)
+Date: Wed, 6 Mar 2019 11:25:19 -0500
+From: Joel Fernandes <joel@joelfernandes.org>
+To: Uladzislau Rezki <urezki@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>,
+	Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org,
+	LKML <linux-kernel@vger.kernel.org>,
+	Thomas Garnier <thgarnie@google.com>,
+	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
+	Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v1 2/2] mm: add priority threshold to
+ __purge_vmap_area_lazy()
+Message-ID: <20190306162519.GB193418@google.com>
+References: <20190124115648.9433-1-urezki@gmail.com>
+ <20190124115648.9433-3-urezki@gmail.com>
+ <20190128224528.GB38107@google.com>
+ <20190129173936.4sscooiybzbhos77@pc636>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190306110109.2386057-1-arnd@arndb.de>
+In-Reply-To: <20190129173936.4sscooiybzbhos77@pc636>
 User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Wed, 06 Mar 2019 16:08:52 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 06, 2019 at 12:00:55PM +0100, Arnd Bergmann wrote:
-> Without CONFIG_HUGETLB_PAGE, the 'vma' variable is never referenced
-> on x86, so we get this warning:
+On Tue, Jan 29, 2019 at 06:39:36PM +0100, Uladzislau Rezki wrote:
+> On Mon, Jan 28, 2019 at 05:45:28PM -0500, Joel Fernandes wrote:
+> > On Thu, Jan 24, 2019 at 12:56:48PM +0100, Uladzislau Rezki (Sony) wrote:
+> > > commit 763b218ddfaf ("mm: add preempt points into
+> > > __purge_vmap_area_lazy()")
+> > > 
+> > > introduced some preempt points, one of those is making an
+> > > allocation more prioritized over lazy free of vmap areas.
+> > > 
+> > > Prioritizing an allocation over freeing does not work well
+> > > all the time, i.e. it should be rather a compromise.
+> > > 
+> > > 1) Number of lazy pages directly influence on busy list length
+> > > thus on operations like: allocation, lookup, unmap, remove, etc.
+> > > 
+> > > 2) Under heavy stress of vmalloc subsystem i run into a situation
+> > > when memory usage gets increased hitting out_of_memory -> panic
+> > > state due to completely blocking of logic that frees vmap areas
+> > > in the __purge_vmap_area_lazy() function.
+> > > 
+> > > Establish a threshold passing which the freeing is prioritized
+> > > back over allocation creating a balance between each other.
+> > 
+> > I'm a bit concerned that this will introduce the latency back if vmap_lazy_nr
+> > is greater than half of lazy_max_pages(). Which IIUC will be more likely if
+> > the number of CPUs is large.
+> > 
+> The threshold that we establish is two times more than lazy_max_pages(),
+> i.e. in case of 4 system CPUs lazy_max_pages() is 24576, therefore the
+> threshold is 49152, if PAGE_SIZE is 4096.
 > 
-> mm/hmm.c: In function 'hmm_vma_walk_pud':
-> mm/hmm.c:764:25: error: unused variable 'vma' [-Werror=unused-variable]
-> 
-> Remove the local variable by open-coding walk-vma in the only
-> place it is used.
-> 
-> Reported-by: John Hubbard <jhubbard@nvidia.com>
-> Suggested-by: John Hubbard <jhubbard@nvidia.com>
-> Fixes: 1bed8a07a556 ("mm/hmm: allow to mirror vma of a file on a DAX backed filesystem")
-> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+> It means that we allow rescheduling if vmap_lazy_nr < 49152. If vmap_lazy_nr 
+> is higher then we forbid rescheduling and free areas until it becomes lower
+> again to stabilize the system. By doing that, we will not allow vmap_lazy_nr
+> to be enormously increased.
 
-Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
+Sorry for late reply.
 
-> ---
-> Andrew, you already took a similar patch from me for a different
-> warning in the same file. Feel free to fold both patches into
-> one if you haven't already forwarded the first patch, or leave
-> them separate. Note that the warnings were introduced by different
-> patches from the same series originally.
-> ---
->  mm/hmm.c | 3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
+This sounds reasonable. Such an extreme situation of vmap_lazy_nr being twice
+the lazy_max_pages() is probably only possible using a stress test anyway
+since (hopefully) the try_purge_vmap_area_lazy() call is happening often
+enough to keep the vmap_lazy_nr low.
+
+Have you experimented with what is the highest threshold that prevents the
+issues you're seeing? Have you tried 3x or 4x the vmap_lazy_nr?
+
+I also wonder what is the cost these days of the global TLB flush on the most
+common Linux architectures and if the whole purge vmap_area lazy stuff is
+starting to get a bit dated, and if we can do the purging inline as areas are
+freed. There is a cost to having this mechanism too as you said, which is as
+the list size grows, all other operations also take time.
+
+thanks,
+
+ - Joel
+
+
+> > In fact, when vmap_lazy_nr is high, that's when the latency will be the worst
+> > so one could say that that's when you *should* reschedule since the frees are
+> > taking too long and hurting real-time tasks.
+> > 
+> > Could this be better solved by tweaking lazy_max_pages() such that purging is
+> > more aggressive?
+> > 
+> > Another approach could be to detect the scenario you brought up (allocations
+> > happening faster than free), somehow, and avoid a reschedule?
+> > 
+> This is what i am trying to achieve by this change. 
 > 
-> diff --git a/mm/hmm.c b/mm/hmm.c
-> index c4beb1628cad..c1cbe82d12b5 100644
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -761,7 +761,6 @@ static int hmm_vma_walk_pud(pud_t *pudp,
->  {
->  	struct hmm_vma_walk *hmm_vma_walk = walk->private;
->  	struct hmm_range *range = hmm_vma_walk->range;
-> -	struct vm_area_struct *vma = walk->vma;
->  	unsigned long addr = start, next;
->  	pmd_t *pmdp;
->  	pud_t pud;
-> @@ -807,7 +806,7 @@ static int hmm_vma_walk_pud(pud_t *pudp,
->  		return 0;
->  	}
->  
-> -	split_huge_pud(vma, pudp, addr);
-> +	split_huge_pud(walk->vma, pudp, addr);
->  	if (pud_none(*pudp))
->  		goto again;
->  
-> -- 
-> 2.20.0
+> Thank you for your comments.
 > 
+> --
+> Vlad Rezki
+> > > 
+> > > Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
+> > > ---
+> > >  mm/vmalloc.c | 18 ++++++++++++------
+> > >  1 file changed, 12 insertions(+), 6 deletions(-)
+> > > 
+> > > diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> > > index fb4fb5fcee74..abe83f885069 100644
+> > > --- a/mm/vmalloc.c
+> > > +++ b/mm/vmalloc.c
+> > > @@ -661,23 +661,27 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
+> > >  	struct llist_node *valist;
+> > >  	struct vmap_area *va;
+> > >  	struct vmap_area *n_va;
+> > > -	bool do_free = false;
+> > > +	int resched_threshold;
+> > >  
+> > >  	lockdep_assert_held(&vmap_purge_lock);
+> > >  
+> > >  	valist = llist_del_all(&vmap_purge_list);
+> > > +	if (unlikely(valist == NULL))
+> > > +		return false;
+> > > +
+> > > +	/*
+> > > +	 * TODO: to calculate a flush range without looping.
+> > > +	 * The list can be up to lazy_max_pages() elements.
+> > > +	 */
+> > >  	llist_for_each_entry(va, valist, purge_list) {
+> > >  		if (va->va_start < start)
+> > >  			start = va->va_start;
+> > >  		if (va->va_end > end)
+> > >  			end = va->va_end;
+> > > -		do_free = true;
+> > >  	}
+> > >  
+> > > -	if (!do_free)
+> > > -		return false;
+> > > -
+> > >  	flush_tlb_kernel_range(start, end);
+> > > +	resched_threshold = (int) lazy_max_pages() << 1;
+> > >  
+> > >  	spin_lock(&vmap_area_lock);
+> > >  	llist_for_each_entry_safe(va, n_va, valist, purge_list) {
+> > > @@ -685,7 +689,9 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
+> > >  
+> > >  		__free_vmap_area(va);
+> > >  		atomic_sub(nr, &vmap_lazy_nr);
+> > > -		cond_resched_lock(&vmap_area_lock);
+> > > +
+> > > +		if (atomic_read(&vmap_lazy_nr) < resched_threshold)
+> > > +			cond_resched_lock(&vmap_area_lock);
+> > >  	}
+> > >  	spin_unlock(&vmap_area_lock);
+> > >  	return true;
+> > > -- 
+> > > 2.11.0
+> > > 
 
