@@ -6,185 +6,153 @@ X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C54AC43381
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 18:56:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 17407C10F03
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 19:09:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 51B9A20675
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 18:56:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 51B9A20675
+	by mail.kernel.org (Postfix) with ESMTP id 950BB20675
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 19:09:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 950BB20675
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E84E88E0005; Thu,  7 Mar 2019 13:56:28 -0500 (EST)
+	id F13A68E0003; Thu,  7 Mar 2019 14:09:19 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E0A5B8E0002; Thu,  7 Mar 2019 13:56:28 -0500 (EST)
+	id EC3468E0002; Thu,  7 Mar 2019 14:09:19 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CAC0B8E0005; Thu,  7 Mar 2019 13:56:28 -0500 (EST)
+	id DB1FC8E0003; Thu,  7 Mar 2019 14:09:19 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D0418E0002
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 13:56:28 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id j1so13832928qkl.23
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 10:56:28 -0800 (PST)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AD4B98E0002
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 14:09:19 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id 35so16271935qtq.5
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 11:09:19 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :content-transfer-encoding:in-reply-to:user-agent;
-        bh=7g6R7arc9MO4XHg9VJeEmN4q7bHX3l4uTM+2nxIkx3o=;
-        b=uJ1yjq0on7zf/75pPUV5Mru7hg37Kcp+W+qQ1juXET85DLAFVuUCuJjxqmz4sO1UPR
-         KstB4EpGvf1R1tMRnPUok72/0qWTWyIjnZPVT0rCHD8TTL40A3x3k7VQIhvbPPGdWt8c
-         BIdVcAfTFOgSWzBz6UIbwPiUTMeJvXR1qAuFEirpcb7i4iv37NGhU2Z0CViRJp1RnlTN
-         1ly5uFWOL6QvUCuoZrWGsHetd6K/WeuI1Ltp0PfVksrPFER/rtrF7t1tpiEvIfE/Lh6S
-         2huLn8d+47MRITYxRYIkGxMaeePt8eyiO6Kjy0cdqvxzQPEL+1/5m9TMs+upsentclj/
-         h9Sw==
+        bh=32zrO7xBXs0KROXy8g7w0rZEmlukD4hz2w9EGiPJ94M=;
+        b=kGj83mQC1op6WllCOSpVOh4soZU6DbBdcosjeBskhtbRs2Sq7H+bL9SZQl2Db1V7CU
+         P0D7WyEv18eKcxRW9wq6+wNLgy8lhxxVU3SH9I5IPAwNJ2T0bSrCXDGWWZ9lxeAZViNl
+         NUsWbjnUekFnWz9KEddgqTXz5g+83XAGFvEf7v4DGXE/OBHUQMGdPPpi2vsGFv4IXFwa
+         Hz1tMdZJGQJsc0XjabeW7xUAbrmAeSIe3ZBLRO52yfky/VoXeJjNhEkzolL/LiYJmTBC
+         jYhB/+fsvy3LLskhasYC+mcsRK0rWTLEk91GRrCTN7TiiFNptEpMV5w0QqOgzsKa/Klr
+         ywOA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWmQLZCM4vQR8LVkKvG7fHx7C71qXWZT+ErU5XXIYNfxMEjjr1d
-	oYeiT5mpnsEByIBrt6HmvGAgaXQWVSSA4gqRNTOFWdHPbhH2oapFK8fzQIMaDiudSfTbVyndXbF
-	XktcOpSy6dZPnrZcBA1suBisDOr2OHaL1mHoZCWJA6LtcJLbpSDusZzhADzODM2XX5Q==
-X-Received: by 2002:ac8:1a51:: with SMTP id q17mr11285480qtk.310.1551984988390;
-        Thu, 07 Mar 2019 10:56:28 -0800 (PST)
-X-Google-Smtp-Source: APXvYqw1fFZZVAukgwJLwvcsBFV3OVkspL/dmvfU7mwx8ZWsGxBVVs91FJb/aSct0tSvjvuqlejQ
-X-Received: by 2002:ac8:1a51:: with SMTP id q17mr11285428qtk.310.1551984987530;
-        Thu, 07 Mar 2019 10:56:27 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551984987; cv=none;
+X-Gm-Message-State: APjAAAUchjLSpBmIc5CVJTj/F5ZRKzFPlBtZweJn8hrTC1d94uNTXHHf
+	Iq2VyjV5aczr/dX1BL9kre2wWOjqdm+ilYJfXZbqY58shXkazc7n71ys2+/uvWzo/JwNGlcO/NT
+	XmJXWAt7AUVUU2trdGQ2GLr7azHMs9ksFYFsfwuzxw6v4enXbE45mUq5JzoLMS+A5BA==
+X-Received: by 2002:a37:c313:: with SMTP id a19mr10693163qkj.220.1551985759476;
+        Thu, 07 Mar 2019 11:09:19 -0800 (PST)
+X-Google-Smtp-Source: APXvYqy/CBYQQ22699z0M8f9KwdwCGa+YFQoT6Rmw4J6NIYDYQghpOUMT/NF+SJpq55dqsEXiaQw
+X-Received: by 2002:a37:c313:: with SMTP id a19mr10693121qkj.220.1551985758770;
+        Thu, 07 Mar 2019 11:09:18 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551985758; cv=none;
         d=google.com; s=arc-20160816;
-        b=anH+ortHjv0Bot26hn9lE/4XmkM++tje9ntf+QyJOdNkX8L6pqiLpJHtBaRpEEvO4Y
-         jyxImHunhqaXeoEegV7Fqgxy5iQJFt2U4TTr4OZfKogqezadgZPRUcY+yT6XAMCLDTus
-         VFGy376rmgfBPQ+fPLt28M+m9DjObXC2ZxVRDi9eRC0Jci5XTHvHHr7jHp0+8YznKXrd
-         xgh5/R0h9Kq/VilPvdM1lStTnR50u99G6q6szDRXxg2ookRh0I7WIyOGpH0GvTzLL36Q
-         Zw/DcM6ppeZe3d3bYUFd5+eUFBowlj9NDf7FF5D5bIW6vxoKO2y4VzvmLv+s47g5B1Jd
-         tGUA==
+        b=wSrbcVZ9+QDr+d3FJDMLq/oipSzi6saYVmVhm1rML2SOQ+i3S++vjqqqLPzTcIapuk
+         YieJzHGQi8grRm6xyl9eMX2UJoetWwtNfRsrJ4HYhd330ZHzASOlFdd43XmKhCSajThY
+         q8JrkuABZK1jca96n15O/uePC1wWh49MkrOQphAuIPeToglbTWZK2/WnUhtRHZCfG5z2
+         nVfi8stjxXaISHXEvvHxntK7gUA9C7vDcJnnuu1BoZeYOmdJ0Oa5jvnbOlOro8KmzMsf
+         qdyyKLGXIaFOYg2xIvD1Hu1JH2sVUCTc7yGR9kz6t+CfCsfzQ6Myo8x9XgWnzhaZ/dEf
+         b60A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-transfer-encoding
          :content-disposition:mime-version:references:message-id:subject:cc
          :to:from:date;
-        bh=7g6R7arc9MO4XHg9VJeEmN4q7bHX3l4uTM+2nxIkx3o=;
-        b=vT3HG2fkClVnv+VQj99XgsE1Ihn+FQ2ce5Mt42Dr5etXNhMyQZ4w8WhVeC+6L1rz0/
-         sMG2ZABy8XsK0LThnbdgnDyWM779F3gl+lpcBOG08uRyyR98VbOwnTMRFoyVtgJyTDwL
-         bo2TJ8/1cA7Z8fSIjkDH4q1nNKsT507mL9LgRTjPQdvTOFws0N7rkK0H1W4kLcAnUyV7
-         oJjMr6swcLmnjvuBHNFgHHDSwRjTGNHaqY16up4TvHiZOqpBg1P/JwcAA2cdiqvI4Dtx
-         sLa5eS0QO+OfRXdjJ1swsx7P2Pg8XoydIi0iG5gEIbHiVuALulDBjjZZvYKFO5MZNniU
-         w5vQ==
+        bh=32zrO7xBXs0KROXy8g7w0rZEmlukD4hz2w9EGiPJ94M=;
+        b=fJpj5OWUR4/Ta8oPc4YxlaCd8PSB4vx2RkIv2Q1UVhMQza/wu0/TPIym+IR7oEaAhy
+         7ON/XUivbmDxrI4guLV/yeDtpf2UxotUalx4gT9uqGK+GOYai9wnYD4xVld50WAKl1xT
+         8dgTanPwOPcbzM+W7uHvdSWfQQkjWrrIF/TOhzXDoMk+DwXoLFNZ4eK9Y+GGlL/HKESj
+         bj24eP/r/eMMkF5trkS62HahU4ZGBdEtoBfHfcPHUJRB2lNvUk1xCE5clGhti8Y/TxaY
+         Dd9agU02Cd1o4w2x4FwY5aHs6afhTwsONQZHjFgPuIf0w2uvJaKggQAxH2N+mEFkZbiZ
+         N1eg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l44si3319001qtk.19.2019.03.07.10.56.27
+        by mx.google.com with ESMTPS id c21si1322833qtc.197.2019.03.07.11.09.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Mar 2019 10:56:27 -0800 (PST)
+        Thu, 07 Mar 2019 11:09:18 -0800 (PST)
 Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id A060F30917A8;
-	Thu,  7 Mar 2019 18:56:26 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 137B9882F0;
+	Thu,  7 Mar 2019 19:09:18 +0000 (UTC)
 Received: from redhat.com (ovpn-125-54.rdu2.redhat.com [10.10.125.54])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id A2D7F19C65;
-	Thu,  7 Mar 2019 18:56:25 +0000 (UTC)
-Date: Thu, 7 Mar 2019 13:56:23 -0500
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id BD4136013F;
+	Thu,  7 Mar 2019 19:09:12 +0000 (UTC)
+Date: Thu, 7 Mar 2019 14:09:10 -0500
 From: Jerome Glisse <jglisse@redhat.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dan Williams <dan.j.williams@intel.com>, Linux MM <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>
-Subject: Re: [PATCH 09/10] mm/hmm: allow to mirror vma of a file on a DAX
- backed filesystem
-Message-ID: <20190307185623.GD3835@redhat.com>
-References: <CAPcyv4hZMcJ6r0Pw5aJsx37+YKx4qAY0rV4Ascc9LX6eFY8GJg@mail.gmail.com>
- <20190130030317.GC10462@redhat.com>
- <CAPcyv4jS7Y=DLOjRHbdRfwBEpxe_r7wpv0ixTGmL7kL_ThaQFA@mail.gmail.com>
- <20190130183616.GB5061@redhat.com>
- <CAPcyv4hB4p6po1+-hJ4Podxoan35w+T6uZJzqbw=zvj5XdeNVQ@mail.gmail.com>
- <20190131041641.GK5061@redhat.com>
- <CAPcyv4gb+r==riKFXkVZ7gGdnKe62yBmZ7xOa4uBBByhnK9Tzg@mail.gmail.com>
- <20190305141635.8134e310ba7187bc39532cd3@linux-foundation.org>
- <CAA9_cmd2Z62Z5CSXvne4rj3aPSpNhS0Gxt+kZytz0bVEuzvc=A@mail.gmail.com>
- <20190307094654.35391e0066396b204d133927@linux-foundation.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Jason Wang <jasowang@redhat.com>, kvm@vger.kernel.org,
+	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
+	linux-kernel@vger.kernel.org, peterx@redhat.com, linux-mm@kvack.org,
+	aarcange@redhat.com
+Subject: Re: [RFC PATCH V2 5/5] vhost: access vq metadata through kernel
+ virtual address
+Message-ID: <20190307190910.GE3835@redhat.com>
+References: <1551856692-3384-1-git-send-email-jasowang@redhat.com>
+ <1551856692-3384-6-git-send-email-jasowang@redhat.com>
+ <20190306092837-mutt-send-email-mst@kernel.org>
+ <15105894-4ec1-1ed0-1976-7b68ed9eeeda@redhat.com>
+ <20190307101708-mutt-send-email-mst@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190307094654.35391e0066396b204d133927@linux-foundation.org>
+In-Reply-To: <20190307101708-mutt-send-email-mst@kernel.org>
 User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Thu, 07 Mar 2019 18:56:26 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Thu, 07 Mar 2019 19:09:18 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 07, 2019 at 09:46:54AM -0800, Andrew Morton wrote:
-> On Tue, 5 Mar 2019 20:20:10 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
-> 
-> > My hesitation would be drastically reduced if there was a plan to
-> > avoid dangling unconsumed symbols and functionality. Specifically one
-> > or more of the following suggestions:
+On Thu, Mar 07, 2019 at 10:34:39AM -0500, Michael S. Tsirkin wrote:
+> On Thu, Mar 07, 2019 at 10:45:57AM +0800, Jason Wang wrote:
 > > 
-> > * EXPORT_SYMBOL_GPL on all exports to avoid a growing liability
-> > surface for out-of-tree consumers to come grumble at us when we
-> > continue to refactor the kernel as we are wont to do.
+> > On 2019/3/7 上午12:31, Michael S. Tsirkin wrote:
+> > > > +static void vhost_set_vmap_dirty(struct vhost_vmap *used)
+> > > > +{
+> > > > +	int i;
+> > > > +
+> > > > +	for (i = 0; i < used->npages; i++)
+> > > > +		set_page_dirty_lock(used->pages[i]);
+> > > This seems to rely on page lock to mark page dirty.
+> > > 
+> > > Could it happen that page writeback will check the
+> > > page, find it clean, and then you mark it dirty and then
+> > > invalidate callback is called?
+> > > 
+> > > 
+> > 
+> > Yes. But does this break anything?
+> > The page is still there, we just remove a
+> > kernel mapping to it.
+> > 
+> > Thanks
 > 
-> The existing patches use EXPORT_SYMBOL() so that's a sticking point. 
-> Jerome, what would happen is we made these EXPORT_SYMBOL_GPL()?
-
-So Dan argue that GPL export solve the problem of out of tree user and
-my personnal experience is that it does not. The GPU sub-system has tons
-of GPL drivers that are not upstream and we never felt that we were bound
-to support them in anyway. We always were very clear that if you are not
-upstream that you do not have any voice on changes we do.
-
-So my exeperience is that GPL does not help here. It is just about being
-clear and ignoring anyone who does not have an upstream driver ie we have
-free hands to update HMM in anyway as long as we keep supporting the
-upstream user.
-
-That being said if the GPL aspect is that much important to some then
-fine let switch all HMM symbol to GPL.
-
+> Yes it's the same problem as e.g. RDMA:
+> 	we've just marked the page as dirty without having buffers.
+> 	Eventually writeback will find it and filesystem will complain...
+> 	So if the pages are backed by a non-RAM-based filesystem, it’s all just broken.
 > 
-> > * A commitment to consume newly exported symbols in the same merge
-> > window, or the following merge window. When that goal is missed revert
-> > the functionality until such time that it can be consumed, or
-> > otherwise abandoned.
-> 
-> It sounds like we can tick this box.
+> one can hope that RDMA guys will fix it in some way eventually.
+> For now, maybe add a flag in e.g. VMA that says that there's no
+> writeback so it's safe to mark page dirty at any point?
 
-I wouldn't be too strick either, when adding something in release N
-the driver change in N+1 can miss N+1 because of bug or regression
-and be push to N+2.
-
-I think a better stance here is that if we do not get any sign-off
-on the feature from driver maintainer for which the feature is intended
-then we just do not merge. If after few release we still can not get
-the driver to use it then we revert.
-
-It just feels dumb to revert at N+1 just to get it back in N+2 as
-the driver bit get fix.
-
-> 
-> > * No new symbol exports and functionality while existing symbols go unconsumed.
-> 
-> Unsure about this one?
-
-With nouveau upstream now everything is use. ODP will use some of the
-symbol too. PPC has patchset posted to use lot of HMM too. I have been
-working with other vendor that have patchset being work on to use HMM
-too.
-
-I have not done all those function just for the fun of it :) They do
-have real use and user. It took a longtime to get nouveau because of
-userspace we had a lot of catchup to do in mesa and llvm and we are
-still very rough there.
+I thought this patch was only for anonymous memory ie not file back ?
+If so then set dirty is mostly useless it would only be use for swap
+but for this you can use an unlock version to set the page dirty.
 
 Cheers,
-J�r�me
+Jérôme
 
