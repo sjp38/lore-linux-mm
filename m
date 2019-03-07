@@ -2,236 +2,278 @@ Return-Path: <SRS0=NBIx=RK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5E960C43381
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 21:28:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4E526C43381
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 21:32:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 07C8920684
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 21:28:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 07C8920684
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id DF3E320684
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 21:32:41 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="LjOhpI08"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DF3E320684
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ADB998E0004; Thu,  7 Mar 2019 16:28:28 -0500 (EST)
+	id 819128E0004; Thu,  7 Mar 2019 16:32:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A8B848E0002; Thu,  7 Mar 2019 16:28:28 -0500 (EST)
+	id 7A16F8E0002; Thu,  7 Mar 2019 16:32:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 953D68E0004; Thu,  7 Mar 2019 16:28:28 -0500 (EST)
+	id 641A38E0004; Thu,  7 Mar 2019 16:32:41 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 68E578E0002
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 16:28:28 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id f24so16668398qte.4
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 13:28:28 -0800 (PST)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 369C38E0002
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 16:32:41 -0500 (EST)
+Received: by mail-io1-f70.google.com with SMTP id r21so14099009ioa.13
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 13:32:41 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=rIqgl/6/WFCRjPs27GP+si0pYdgDZ7NndsX3jKTFacw=;
-        b=tYd+Z9bSUVpM0fb0Kjd/FM8ndIgbpbB1dzI4UiMrDZK38SFKrqFoFveoINQ9f5OhUg
-         6wJRY8Gx5GWvh0KrZR5KZrLg218ms+M2pfWDMkxf7G6sjmwURhGXPN6Qv6JN+rQnJZ82
-         RZ0JvSl/P8cTYWOwyBvjAgAODNg07d7mpriwwAt5SY78RyqpdpS7JCnCIrRA1tgwUK2F
-         CsmZ4yuuNRgS1M0vYDfKBrkoDTAHjv0pcdlLxG18VvNzu1GSCjjObxquOInIgg0xvL9z
-         kOiq6adx1ms311ngmZoAuyk4AW7FwLBRviNFg1BA0RjNV3qSXh8nm/yxB/+fMqRdyN7T
-         eqog==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXyZuuoOmbuNpTCbxXiTCKg3ynIL5LN0OtJj2WZoOJIJze+4NT0
-	D89nmPYA4PvIXn0jifBUaMXnHWM8ETk6Zrlg6sl1TgrAAFxhndD4RYB67+oc/0KWAL6XCuj5MF+
-	5XwbRF+sJ6zN3uxGHZLkJp/KD9Oic1sfEZzPWI+4ktDHh3Dtv6v4iO+YrzGYf1tMaag==
-X-Received: by 2002:aed:2269:: with SMTP id o38mr12356965qtc.222.1551994108205;
-        Thu, 07 Mar 2019 13:28:28 -0800 (PST)
-X-Google-Smtp-Source: APXvYqyk4/rP/+qChkdUz+NFml9M1JM1zfzK3i2HsCgA67h6fLsM0kTN6OIAC+9/7SZChx1RvY4q
-X-Received: by 2002:aed:2269:: with SMTP id o38mr12356909qtc.222.1551994107293;
-        Thu, 07 Mar 2019 13:28:27 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551994107; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=j+TIUlP+9LqYKoo9au+R+NKrwoKPpt3T3L/Q7f7u8Hk=;
+        b=VqnWKHJ2sAcTbUKO5PILtJSXfOnJRrwQr4w/koY/gLKuNKo9L45DqSkr+GoTb9q+Y5
+         8KqzIZ6aCdvqZiGfo7eDadu48NG9nmnFVj0wFjSptO58IMJfuLnnjlea9pR2cGH9mU7G
+         zisrkpGxyHE/iFBh3hVZqK/gbQaQvi8wm9cltpOJipi40ly+4J7M32EqHRoDnybuA0Ei
+         7mDwHNr2E+cqAkebrpxvkCSKJfYItBUAW5FVWRnY/dNhG9d8U17PwRbctIfTpr/7g+yF
+         dTPTVipkU827zbQYfO0BDgd8WRFfJ0s0FWoU2R0UghD0YlvgUobyhBdCRjbBlIU1DxNB
+         Z1NA==
+X-Gm-Message-State: APjAAAWRWaGekW2BwLsLEu3DYEToIq+3SQZKPd0ZfNNGgnncq2MuTim5
+	hTFfwHFMkey0OAdxqsxFGAGakqVtHi9td36QczynO7exvHSHOuj8DEitojlOkcgdwqMT8+YghL2
+	XLEF9ooxhcxhM+RIlNhw2JVQuuzGvec5WMVuS4lhKn/8gVS6cJK2rS/vdiQz62KIaJZxukIVeKt
+	XAlRg1NDWTSTfCLJPR3zMfJPcodEP5SL8nCaLB42voXhuYxFUfrVOcQXEGWSy+8H4mU0aM9cp89
+	TuGlbuZ1sfnf7Mtpfx1xNu4kkFI5xGJfQ39NdNEI/g8oESoKtCpEFe4snvjEGcZtVk6YN5UKdAu
+	+pNEF8tG8ZjYG2StsOy97ZWc8PxYIDeouzZDD6dkmdO0VeZTd/c93Ek6zjNtaN3TwcWmWDKlCIz
+	D
+X-Received: by 2002:a6b:c545:: with SMTP id v66mr8148159iof.40.1551994360900;
+        Thu, 07 Mar 2019 13:32:40 -0800 (PST)
+X-Received: by 2002:a6b:c545:: with SMTP id v66mr8148128iof.40.1551994359983;
+        Thu, 07 Mar 2019 13:32:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551994359; cv=none;
         d=google.com; s=arc-20160816;
-        b=GFn1KTt6LDM5s3QcsVJcUVC47yfT+Klzply5cMo2+AZ/Q/I89wDlJez/QSqZYd/u9s
-         bUuOXEDj7pVljPw4V0aLk/jZ0M5MvGVGAd448dpVMQdaBZeuDCSvr0i5u6/vdMx/ToW6
-         7wLIx/YPkNk4vNKtVY8mh6+/dj5cFJ0nvgYNRtBRGvCwmp9XEIKtA85mdRa9AkJ6lDe4
-         UwH4qSxvGE+AtOaPKIvD2rcWsVNLhKNSTN2O2eJR6xNi5pxYc2itG1ylqdblXoc+kCCq
-         NGVjUsS+yWnj5pcNILmmz3/DDBK/d4CO903N7LeCL3Pj6Ld+8Wt6Hr0zD//VqqbeMG58
-         STQQ==
+        b=lpf6IgzI4gHR+cPavqljyWyNUWa+QrLFZ9BwPfrLBOrnu/1H22AhgvS4PGUDXgiNqg
+         J9AtNqncA5OZvaLkuxVNC2bB1JrDIG2+h5WQOkzv+bdcUYiBLZgBw1WPZu+a8l7na/Gs
+         8Reif1Q235JX/o3kG6KxrEQmBgtDzOPFSML5HYirhAm4+SlAj6gztMuR/Aj8JvPDrEI3
+         K0yaexWd+Z46kd0FBiQsply8FkoUiFjmT4olUgCjXf/7Rzu6a6X6VyEKrkdGj1MkFv8z
+         ObRo2nIPnKaftCWj/QDs+K1xVMeD2tjXA9AedLjebzgPQqTR8nQ+MHgaBUMlyp/ZZWte
+         yGRA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=rIqgl/6/WFCRjPs27GP+si0pYdgDZ7NndsX3jKTFacw=;
-        b=Tj+YvwM1sKYV8IatMA8VuKVITL0QERwj/Os5/SaFGtknDHrVhTkUAhVAvtduY6OX1k
-         vidJToLVxqyoh+Ll/7fVHimGswvTAUauDFGgQZYM3b4iCLBqlIZH5QOLGo+bzZolHGWc
-         GRYK0eEm91I8U1MaGc5JEiqOrDTbsgMRnn1mWL6mlyyirEyLGOGuEWaR2djolrVNTCAx
-         1LRH/glFi8lHcRs6zz1qWRysYFb7cEJVrxxdG2LRm/ifB2PZG30uTTrJ9YUy+7EhM71y
-         zz/wut5lhJp56YRLirRlHl6I0RGcAy7o+Yi02uQyzbUpnHe2daeHC4yakWVA/eQs6tCt
-         fUnA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=j+TIUlP+9LqYKoo9au+R+NKrwoKPpt3T3L/Q7f7u8Hk=;
+        b=WuOOKaHdjcUaCai/Z9OIatD6FYzoWyw2BDy2GHN7BLkSJT00gRDk0ji1z+lb4pijvM
+         JhqxI9D5BkNIvPCpOaY8V1q9jWxL52lkEhe0pak2p60qa1iH4OtHKug+0CvkIsCLiGp4
+         7V3mfgSJRGF/T2QqLD9Pf9KcwjhC8QZZv6I+4WOJ56dEGrRysc8SGuMx+zqkhZRA8IhX
+         IKCr2ruHLKwjMVDrZjUICP+KN6ArWVL7yE0bZQvNW4HpX9P+Wg136kZiPMA2K1cd4n0W
+         YDr8HqD4L4ljK2m55a+A0Y+9TFEfhvKa40dXFbBwtJO1JeZDEjpHAk37n6b14WdQNQoe
+         /SQA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w130si116502qkw.222.2019.03.07.13.28.27
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=LjOhpI08;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i18sor10817881itb.16.2019.03.07.13.32.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Mar 2019 13:28:27 -0800 (PST)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Thu, 07 Mar 2019 13:32:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 2FAFAC05090A;
-	Thu,  7 Mar 2019 21:28:26 +0000 (UTC)
-Received: from [10.36.116.67] (ovpn-116-67.ams2.redhat.com [10.36.116.67])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id DFFE75D786;
-	Thu,  7 Mar 2019 21:28:14 +0000 (UTC)
-Subject: Re: [RFC][Patch v9 0/6] KVM: Guest Free Page Hinting
-To: Alexander Duyck <alexander.duyck@gmail.com>,
- "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>,
- LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
- Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com,
- pagupta@redhat.com, wei.w.wang@intel.com,
- Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
- dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
- dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>
-References: <20190306155048.12868-1-nitesh@redhat.com>
- <CAKgT0Ud35pmmfAabYJijWo8qpucUWS8-OzBW=gsotfxZFuS9PQ@mail.gmail.com>
- <1d5e27dc-aade-1be7-2076-b7710fa513b6@redhat.com>
- <CAKgT0UdNPADF+8NMxnWuiB_+_M6_0jTt5NfoOvFN9qbPjGWNtw@mail.gmail.com>
- <2269c59c-968c-bbff-34c4-1041a2b1898a@redhat.com>
- <CAKgT0UdHkDB1vFMp7T9_pdoiuDW4qvgxhqsNztPQXrRCAmYNng@mail.gmail.com>
- <20190307134744-mutt-send-email-mst@kernel.org>
- <CAKgT0Ue=Y-6-mzqzZ+tJYvfOd4ZeK59okeZKjfJ7LHwhbdpY_w@mail.gmail.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <f15ccc0d-7c92-bab5-cc24-f49a4fea576f@redhat.com>
-Date: Thu, 7 Mar 2019 22:28:14 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=LjOhpI08;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=j+TIUlP+9LqYKoo9au+R+NKrwoKPpt3T3L/Q7f7u8Hk=;
+        b=LjOhpI08+gPsODT2ilekjiyJ6JFIJSNIb8VSdJHq8eh3ORh1yx+PNlqqOASNu2aeSZ
+         Juutrs850efakswXWqHpFOH5+ml1bHsWJzzrABgdniSjXHjO9N2jANPqDq/ey1y8P6b7
+         /ZDM7rN+zolSMi9meoJQQlcyiDuRYLjHtl36UaIOaP9H9YlkV52gw3FxS/lSVf3itfic
+         fX+Oh7w0nCkCYHsap2MV9ffKyZZiyazUS+Hmm1aI/dGOOn43cb5qi8G2Oo3NHFvrbMLH
+         6YPshR8zcx2Sdt1L8RnBYUZ6ouLjyZhKLKUtfIh5y8YUPRACKLqRYTFJEAQ1SkGuK0Cz
+         6wpQ==
+X-Google-Smtp-Source: APXvYqxhnYUmSvQyKkX0f12oQ5gwsgM923fNYDhQgS8eq4ni/0X30MImXSOhzDndCnd23kceYrPKH1fdxMoW65j9jtQ=
+X-Received: by 2002:a24:4650:: with SMTP id j77mr6570876itb.6.1551994359429;
+ Thu, 07 Mar 2019 13:32:39 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CAKgT0Ue=Y-6-mzqzZ+tJYvfOd4ZeK59okeZKjfJ7LHwhbdpY_w@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Thu, 07 Mar 2019 21:28:26 +0000 (UTC)
+References: <20190306155048.12868-1-nitesh@redhat.com> <20190306155048.12868-3-nitesh@redhat.com>
+ <CAKgT0UdDohCXZY3q9qhQsHw-2vKp_CAgvf2dd2e6U6KLsAkVng@mail.gmail.com>
+ <2d9ae889-a9b9-7969-4455-ff36944f388b@redhat.com> <22e4b1cd-38a5-6642-8cbe-d68e4fcbb0b7@redhat.com>
+In-Reply-To: <22e4b1cd-38a5-6642-8cbe-d68e4fcbb0b7@redhat.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Thu, 7 Mar 2019 13:32:28 -0800
+Message-ID: <CAKgT0UcAqGX26pcQLzFUevHsLu-CtiyOYe15uG3bkhGZ5BJKAg@mail.gmail.com>
+Subject: Re: [RFC][Patch v9 2/6] KVM: Enables the kernel to isolate guest free pages
+To: David Hildenbrand <david@redhat.com>
+Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>, 
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
+	Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com, pagupta@redhat.com, 
+	wei.w.wang@intel.com, Yang Zhang <yang.zhang.wz@gmail.com>, 
+	Rik van Riel <riel@surriel.com>, "Michael S. Tsirkin" <mst@redhat.com>, dodgen@google.com, 
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com, 
+	Andrea Arcangeli <aarcange@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07.03.19 22:14, Alexander Duyck wrote:
-> On Thu, Mar 7, 2019 at 10:53 AM Michael S. Tsirkin <mst@redhat.com> wrote:
->>
->> On Thu, Mar 07, 2019 at 10:45:58AM -0800, Alexander Duyck wrote:
->>> To that end what I think w may want to do is instead just walk the LRU
->>> list for a given zone/order in reverse order so that we can try to
->>> identify the pages that are most likely to be cold and unused and
->>> those are the first ones we want to be hinting on rather than the ones
->>> that were just freed. If we can look at doing something like adding a
->>> jiffies value to the page indicating when it was last freed we could
->>> even have a good point for determining when we should stop processing
->>> pages in a given zone/order list.
->>>
->>> In reality the approach wouldn't be too different from what you are
->>> doing now, the only real difference would be that we would just want
->>> to walk the LRU list for the given zone/order rather then pulling
->>> hints on what to free from the calls to free_one_page. In addition we
->>> would need to add a couple bits to indicate if the page has been
->>> hinted on, is in the middle of getting hinted on, and something such
->>> as the jiffies value I mentioned which we could use to determine how
->>> old the page is.
->>
->> Do we really need bits in the page?
->> Would it be bad to just have a separate hint list?
-> 
-> The issue is lists are expensive to search. If we have a single bit in
-> the page we can check it as soon as we have the page.
-> 
->> If you run out of free memory you can check the hint
->> list, if you find stuff there you can spin
->> or kick the hypervisor to hurry up.
-> 
-> This implies you are keeping a separate list of pages for what has
-> been hinted on. If we are pulling pages out of the LRU list for that
-> it will require the zone lock to move the pages back and forth and for
-> higher core counts that isn't going to scale very well, and if you are
-> trying to pull out a page that is currently being hinted on you will
-> run into the same issue of having to wait for the hint to be completed
-> before proceeding.
-> 
->> Core mm/ changes, so nothing's easy, I know.
-> 
-> We might be able to reuse some existing page flags. For example, there
-> is the PG_young and PG_idle flags that would actually be a pretty good
-> fit in terms of what we are looking for in behavior. We could set
-> PG_young when the page is initially freed, then clear it when we start
-> to perform the hint, and set PG_idle once the hint has been completed.
+On Thu, Mar 7, 2019 at 11:30 AM David Hildenbrand <david@redhat.com> wrote:
+>
+> On 07.03.19 20:23, Nitesh Narayan Lal wrote:
+> >
+> > On 3/7/19 1:30 PM, Alexander Duyck wrote:
+> >> On Wed, Mar 6, 2019 at 7:51 AM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+> >>> This patch enables the kernel to scan the per cpu array
+> >>> which carries head pages from the buddy free list of order
+> >>> FREE_PAGE_HINTING_MIN_ORDER (MAX_ORDER - 1) by
+> >>> guest_free_page_hinting().
+> >>> guest_free_page_hinting() scans the entire per cpu array by
+> >>> acquiring a zone lock corresponding to the pages which are
+> >>> being scanned. If the page is still free and present in the
+> >>> buddy it tries to isolate the page and adds it to a
+> >>> dynamically allocated array.
+> >>>
+> >>> Once this scanning process is complete and if there are any
+> >>> isolated pages added to the dynamically allocated array
+> >>> guest_free_page_report() is invoked. However, before this the
+> >>> per-cpu array index is reset so that it can continue capturing
+> >>> the pages from buddy free list.
+> >>>
+> >>> In this patch guest_free_page_report() simply releases the pages back
+> >>> to the buddy by using __free_one_page()
+> >>>
+> >>> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
+> >> I'm pretty sure this code is not thread safe and has a few various issues.
+> >>
+> >>> ---
+> >>>  include/linux/page_hinting.h |   5 ++
+> >>>  mm/page_alloc.c              |   2 +-
+> >>>  virt/kvm/page_hinting.c      | 154 +++++++++++++++++++++++++++++++++++
+> >>>  3 files changed, 160 insertions(+), 1 deletion(-)
+> >>>
+> >>> diff --git a/include/linux/page_hinting.h b/include/linux/page_hinting.h
+> >>> index 90254c582789..d554a2581826 100644
+> >>> --- a/include/linux/page_hinting.h
+> >>> +++ b/include/linux/page_hinting.h
+> >>> @@ -13,3 +13,8 @@
+> >>>
+> >>>  void guest_free_page_enqueue(struct page *page, int order);
+> >>>  void guest_free_page_try_hinting(void);
+> >>> +extern int __isolate_free_page(struct page *page, unsigned int order);
+> >>> +extern void __free_one_page(struct page *page, unsigned long pfn,
+> >>> +                           struct zone *zone, unsigned int order,
+> >>> +                           int migratetype);
+> >>> +void release_buddy_pages(void *obj_to_free, int entries);
+> >>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >>> index 684d047f33ee..d38b7eea207b 100644
+> >>> --- a/mm/page_alloc.c
+> >>> +++ b/mm/page_alloc.c
+> >>> @@ -814,7 +814,7 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
+> >>>   * -- nyc
+> >>>   */
+> >>>
+> >>> -static inline void __free_one_page(struct page *page,
+> >>> +inline void __free_one_page(struct page *page,
+> >>>                 unsigned long pfn,
+> >>>                 struct zone *zone, unsigned int order,
+> >>>                 int migratetype)
+> >>> diff --git a/virt/kvm/page_hinting.c b/virt/kvm/page_hinting.c
+> >>> index 48b4b5e796b0..9885b372b5a9 100644
+> >>> --- a/virt/kvm/page_hinting.c
+> >>> +++ b/virt/kvm/page_hinting.c
+> >>> @@ -1,5 +1,9 @@
+> >>>  #include <linux/mm.h>
+> >>>  #include <linux/page_hinting.h>
+> >>> +#include <linux/page_ref.h>
+> >>> +#include <linux/kvm_host.h>
+> >>> +#include <linux/kernel.h>
+> >>> +#include <linux/sort.h>
+> >>>
+> >>>  /*
+> >>>   * struct guest_free_pages- holds array of guest freed PFN's along with an
+> >>> @@ -16,6 +20,54 @@ struct guest_free_pages {
+> >>>
+> >>>  DEFINE_PER_CPU(struct guest_free_pages, free_pages_obj);
+> >>>
+> >>> +/*
+> >>> + * struct guest_isolated_pages- holds the buddy isolated pages which are
+> >>> + * supposed to be freed by the host.
+> >>> + * @pfn: page frame number for the isolated page.
+> >>> + * @order: order of the isolated page.
+> >>> + */
+> >>> +struct guest_isolated_pages {
+> >>> +       unsigned long pfn;
+> >>> +       unsigned int order;
+> >>> +};
+> >>> +
+> >>> +void release_buddy_pages(void *obj_to_free, int entries)
+> >>> +{
+> >>> +       int i = 0;
+> >>> +       int mt = 0;
+> >>> +       struct guest_isolated_pages *isolated_pages_obj = obj_to_free;
+> >>> +
+> >>> +       while (i < entries) {
+> >>> +               struct page *page = pfn_to_page(isolated_pages_obj[i].pfn);
+> >>> +
+> >>> +               mt = get_pageblock_migratetype(page);
+> >>> +               __free_one_page(page, page_to_pfn(page), page_zone(page),
+> >>> +                               isolated_pages_obj[i].order, mt);
+> >>> +               i++;
+> >>> +       }
+> >>> +       kfree(isolated_pages_obj);
+> >>> +}
+> >> You shouldn't be accessing __free_one_page without holding the zone
+> >> lock for the page. You might consider confining yourself to one zone
+> >> worth of hints at a time. Then you can acquire the lock once, and then
+> >> return the memory you have freed.
+> > That is correct.
+> >>
+> >> This is one of the reasons why I am thinking maybe a bit in the page
+> >> and then spinning on that bit in arch_alloc_page might be a nice way
+> >> to get around this. Then you only have to take the zone lock when you
+> >> are finding the pages you want to hint on and setting the bit
+> >> indicating they are mid hint. Otherwise you have to take the zone lock
+> >> to pull pages out, and to put them back in and the likelihood of a
+> >> lock collision is much higher.
+> > Do you think adding a new flag to the page structure will be acceptable?
+>
+> My lesson learned: forget it. If (at all) reuse some other one that
+> might be safe in that context. Hard to tell if that is even possible and
+> will be accepted upstream.
 
-Just noting that when hinting, we have to set all affected sub-page bits
-as far as I see.
+I was thinking we could probably just resort to reuse. Essentially
+what we are looking at doing is idle page tracking so my thought is to
+see if we can just reuse those bits in the buddy allocator. Then we
+would essentially have 3 stages, young, "hinting", and idle.
 
-> 
-> The check for if we could use a page would be pretty fast as a result
-> as well since if PG_young or PG_idle are set it means the page is free
-> to use so the check in arch_alloc_page would be pretty cheap since we
-> could probably test for both bits in one read.
-> 
+> Spinning is not the solution. What you would want is the buddy to
+> actually skip over these pages and only try to use them (-> spin) when
+> OOM. Core mm changes (see my other reply).
 
-I still dislike spinning on ordinary allocation paths. If we want to go
-that way, core mm has to consider these bits and try other pages first.
+It is more of a workaround. Ideally we should almost never encounter
+this anyway as what we really want to be doing is performing hints on
+cold pages, so hopefully we will be on the other end of the LRU list
+from any active allocations.
 
--- 
+> This all sounds like future work which can be built on top of this work.
 
-Thanks,
+Actually I was kind of thinking about this the other way. The simple
+spin approach is a good first step. If we have a bit or two in the
+page that tells us if the page is available or not we could then
+follow-up with optimizations to only allocate either a young or idle
+page and doesn't bother with pages being "hinted", at least in the
+first pass.
 
-David / dhildenb
+As it currently stands we are only really performing hints on higher
+order pages anyway so if we happen to encounter a slight delay under
+memory pressure it probably wouldn't be that noticeable versus the
+memory system having to go through and try to compact things from some
+lower order pages. In my mind us introducing a delay in memory
+allocation in the case of a collision would be preferable versus us
+triggering allocation failures.
 
