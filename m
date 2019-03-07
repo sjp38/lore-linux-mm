@@ -2,225 +2,142 @@ Return-Path: <SRS0=NBIx=RK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 77053C43381
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 15:43:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 57656C43381
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 15:47:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 249B720652
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 15:43:28 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="DFyuMIqd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 249B720652
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id EA8CC20652
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 15:47:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EA8CC20652
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B20E88E0006; Thu,  7 Mar 2019 10:43:27 -0500 (EST)
+	id 727588E0007; Thu,  7 Mar 2019 10:47:27 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AAC4D8E0002; Thu,  7 Mar 2019 10:43:27 -0500 (EST)
+	id 6D7448E0002; Thu,  7 Mar 2019 10:47:27 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 94BCC8E0006; Thu,  7 Mar 2019 10:43:27 -0500 (EST)
+	id 5CA978E0007; Thu,  7 Mar 2019 10:47:27 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A55E8E0002
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 10:43:27 -0500 (EST)
-Received: by mail-oi1-f198.google.com with SMTP id q82so8376309oia.9
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 07:43:27 -0800 (PST)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EE2B8E0002
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 10:47:27 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id u66so1974868qkf.17
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 07:47:27 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=qKGaHUyzIh3xGQPZMEblrTpuIIpfqqUpWtcHIge83ME=;
-        b=gaFv99ww4D7jBpwk+jxrKXcWuF7iaq58DEyLf06lcPXXsXsgBt3KRAtCsfn3+I922v
-         Y+1uUVarO8KFpEV0rNYRtpJPY3ZVbgwSGmi+tVDeD6rHOe4mhJHFO50wQmT6DAAGXET4
-         43EeZioTcYYuWWrRAfn5qf+yZ/lX+lInH+66kgsV1glL+Rpgw/8HT66t690N8nww55Oa
-         9JLQRlWK5hEmHWbHFKJEE1w03ZAJMkxdkuCbqS9oZ0q7xcPKHk393VVPU2+ol4MTtNvN
-         MARl++Cc+zwTCY4uiDx0ZuRWDW6QazYqIxJ90kMOe2sQ5DyjehssIF2MUDDFyAYsdm/2
-         5u9g==
-X-Gm-Message-State: APjAAAVL6F/dvJryJghawtI/WqTkM/uquXxOd7UVTO48vyfhATFTZXpq
-	mbPQCkxtDPIXQDuJ9oAamMDQ+eERtGWpq9N2IC78u9Emxegf+hiMZal6D2z0iJ2FhJ3qaTuUCvj
-	gmPPgMtUj8fG0XkYl7y3O/Z5BfVGjlS5yob3WpAUW4HG/SpQtK4CPctOvq5SA60TREn+VAHcVsI
-	ziMjTc93+NZQn6TlRFZl/cRj5hRxpzxrubh2De+3Yh5UuaNmtM45ZG9umRL98hvfqKRNT1AVkbP
-	vS31xT4yLdf17KUCUot+G8lLF1i3ZeHFIdLCPZtFSH8y62/XTkZM6K+gCUno36AhzvYII7sK3JW
-	WytOBjPcqMN8nsIrcAj0O9m1g52JmaT/8JulOtogkyEeDxRSqivb9mAKTxkRmQIFhw7E1gwC99z
-	O
-X-Received: by 2002:a9d:73d7:: with SMTP id m23mr8770154otk.142.1551973406892;
-        Thu, 07 Mar 2019 07:43:26 -0800 (PST)
-X-Received: by 2002:a9d:73d7:: with SMTP id m23mr8770120otk.142.1551973405952;
-        Thu, 07 Mar 2019 07:43:25 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551973405; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=BhTxD3ySC1uQNcQaurRgNi8lE2OWakmfxk2tvcIPUn4=;
+        b=l4Bu/sgbUCN1AR9Nx3xt4hg+oklHpmDNq/WEvk9UYjtAJWPpKTJklOkpi6gBgiOWcs
+         HKQCiPUTkesDjS/+j2P2Df/F0qnWMe0gkMwrq9PxzetAILDM0OdJESGO95FiNvhScfeK
+         QCzX246wJP7sS1o19JgbHx1iC7BZhk/FBKIRqkZgOD/Wyi4xf4FdDKVZGH+LM0qrbGKk
+         BOOg5jX6M9j0tpy7rzuHQIF59Ah8jWEySD1yBZMxXRRDjgjYN8rvtokZsaHng+BUxBGU
+         vM6he9+NJzD0QctuzBhiYEjyQoiLXjC61kc4fnJGIVAuYyIgJFMzWWKp4haD1Elvp3z1
+         tHCQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWOqV4ThBxGVr2HLYgFuVR/gnjqdDF22kwZhMTd1k2m7n07C9IM
+	VeX4GKFkF1f30HQOsCHdHgdBuMazL0b0H3i3ZtGwhQIJGkUtbFyoFkyFVDPrBagqKyfbdGdOvQe
+	f5xi1adZENPWwLIxj9WUZ0a19l97LkHmGJPdXSO/6OgSkZ4F0W+XdsljlDlV9AvVlyZSCL+QP9o
+	d37LxqjdminAS9+pLECpGAl5niw/NlbcoYtmCdSkTcF8J8q/AbT92YSsuFaKyv87z0JrlnFOx1X
+	MQIFseC0TafdMWNIKbVNIkerdd6+6DKaOeaf4bbwttzzu323xmbvX5EEEB8sZYekYi5FYubLl2d
+	I3/8XQRlef20xlmxG/KW5f49Z2d7txQ1OAN1t1MdercmTmEw5Zniri5We/cJtqL8XyA/ck1xZNw
+	X
+X-Received: by 2002:ac8:30d3:: with SMTP id w19mr10767587qta.48.1551973646961;
+        Thu, 07 Mar 2019 07:47:26 -0800 (PST)
+X-Received: by 2002:ac8:30d3:: with SMTP id w19mr10767555qta.48.1551973646320;
+        Thu, 07 Mar 2019 07:47:26 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551973646; cv=none;
         d=google.com; s=arc-20160816;
-        b=kJ2/+5N+C6JqL7fniUIL/K1aT7Ip37D/kbMD+yfuZVdutru6yq4TVYqEyuiJu83I4U
-         b+qQS3fsRuTul5Ib9nPMcYr+iZXzuFuSQzn0D6oIr+hPiaH1GycKeyyUc1CC6CYLeH0W
-         pJ4O+xwRc34qjE9/+YOQj3AN98Mzc6j7hp4sncK0ZNXgpZUtFeK5RgZjOcQbfOixQQiJ
-         pFfDPR7OFLxogqv6rDaDvT7QGgR3ThKVrV5x67QOylqBeCGYFInBhAuD85F5THeVxeW6
-         49+c6Iyvf47itYMHofBhAyJIVARvxuVS+7UCIXkyfx8z4OYpE1Jpr7VH2lnkDNs8wtb4
-         eZ2w==
+        b=IAwQSxaiFKMwvGMVJ1MKkmXDklPPD2ifq/eur+9RWff4x28wmMEHOO0V7PrqU2alfl
+         /kyvpRpIf3gqOY5/R15EjzS8S5eg+AeR4eafipP8LHofCTcKV0C787ZCOIex3ATHwdKg
+         t+C5gshYGSV5M6/jV0u6q9bJFovHoI2blVC90kN+Gt5Xd8lKDoxxkQ05bbqlfv9hWdzq
+         aj+hqf1tLWffornMUjDhsRqkQ/rdeokxdJA4umM4pndTfVScfrMCUsYNHZK3Ii8QQowP
+         k+ufDV9BNkxKu1dkFSNIq3BnUInc4leyaPr0nxovVSHYn3Ezoz8QTOIlxQtSiRPyMWig
+         kdCw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=qKGaHUyzIh3xGQPZMEblrTpuIIpfqqUpWtcHIge83ME=;
-        b=sAULtqx+f7rIyxUz/faa+Impbzo9NLl2O/Gd2jruzNpzJ5vp4+yn5soaOI3H11fFNq
-         4DuV6vFZ6vBEKS5svyEE3JOq4CmNjEspaHIHTRSPY+ON6NxgcUAJeoBuhrywX1yvNdNU
-         WKO+tQnZKYDY4h0tYL+MM7Na002Qe1c4n3rAWWlsR83aUaZ6eYtg6tXl2sbegYnCROX7
-         dats2F3cRFsGoselHAMLTHnTBiUsLzFCvRxOAObw7xq5I84kuvTtZP12zdCQUKX6DB9s
-         BmHGCkfXMRNEzEqCfZtvNv+tmjT1RqYUJjo7N3fXBBGZIoY+bpHbIjy+YkUceZaMBihF
-         q+lg==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=BhTxD3ySC1uQNcQaurRgNi8lE2OWakmfxk2tvcIPUn4=;
+        b=BxYUJw96rLrcO6A4aE/sAvJgacIEqiff0JjvreRXeN5TS4J/6DDrdN0dkkf3/Y9rC3
+         JT8XUc4VENaz1NnEmbXKejrsPUjTP6evdFcb84KDsAhvfsnLhRs6sJWDE8oLlobVwK8Y
+         QQLDDk8qZC4A0ZLRc9yiKY9Fl8m62YXqYvw1NNKo57m71YZ7EElwO7msuAWyOU9XW5sj
+         Y/Jhy8rr+LzRlo4IjdJP2KQ5m2F+ceoFyNiKyymkqiSdR/lc8eVahaiwcthJNAueK6jD
+         UelXRrefLpF9ep2Uhb/No6ThfLSoUrM0i3pJWP5SCrG+iaujLzMppOtBTgM1GYJOnvrn
+         VcuA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=DFyuMIqd;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g13sor2661765otn.127.2019.03.07.07.43.25
+        by mx.google.com with SMTPS id g66sor2793689qkb.134.2019.03.07.07.47.26
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 07 Mar 2019 07:43:25 -0800 (PST)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 07 Mar 2019 07:47:26 -0800 (PST)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=DFyuMIqd;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=qKGaHUyzIh3xGQPZMEblrTpuIIpfqqUpWtcHIge83ME=;
-        b=DFyuMIqdhSCl9cGCV0H+W2YCuFo+UOLYLTrUe90UZYTDabNmpNr4YjE23uVNsxoHQY
-         N2y7iomY2lAXugTXr9KA6VZY/BoNzHcdPR9TEWdgmfM2NoocRYqLDP4M2zUZVAboG/YU
-         40Se2MRU/Anl4K0j2LCHN5wsrlR2uOYlkQJA9R+TU7Pdvj67f6fOBmGWzPVJBFNLJetO
-         z5FHVAXMAG0d6eLa4xq2VcnHPJYadkzF/cvQ36ue5gLdLFkuUjbF7WhW+aCiVyitr79g
-         w1rVYgxIkZfAPIvZkeuWv61ydRO120C1U8hF61/27Yn2Okkzx8XPmNeGdOlAiug8+57l
-         +/LA==
-X-Google-Smtp-Source: APXvYqzmuBXqeSb5D/wiRVpXtAObgpIaxn+OpnsGIN20WuMuogaiVmT5/JJOybtcmvccCAdKGZHlmsIUHViT89KsQ70=
-X-Received: by 2002:a9d:224a:: with SMTP id o68mr8764180ota.214.1551973404975;
- Thu, 07 Mar 2019 07:43:24 -0800 (PST)
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqwmzGcW5lj5Q8CC2/neDVhy2nmaELi4a1GVCRW653iKSH/SbNxUxxC4uElvkGE3ZhcVB5QJ0g==
+X-Received: by 2002:a05:620a:148a:: with SMTP id w10mr10023352qkj.172.1551973646133;
+        Thu, 07 Mar 2019 07:47:26 -0800 (PST)
+Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
+        by smtp.gmail.com with ESMTPSA id s49sm3115748qtk.7.2019.03.07.07.47.23
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 07 Mar 2019 07:47:25 -0800 (PST)
+Date: Thu, 7 Mar 2019 10:47:22 -0500
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Jason Wang <jasowang@redhat.com>
+Cc: kvm@vger.kernel.org, virtualization@lists.linux-foundation.org,
+	netdev@vger.kernel.org, linux-kernel@vger.kernel.org,
+	peterx@redhat.com, linux-mm@kvack.org, aarcange@redhat.com
+Subject: Re: [RFC PATCH V2 5/5] vhost: access vq metadata through kernel
+ virtual address
+Message-ID: <20190307103503-mutt-send-email-mst@kernel.org>
+References: <1551856692-3384-1-git-send-email-jasowang@redhat.com>
+ <1551856692-3384-6-git-send-email-jasowang@redhat.com>
 MIME-Version: 1.0
-References: <20190215185151.GG7897@sirena.org.uk> <20190226155948.299aa894a5576e61dda3e5aa@linux-foundation.org>
- <CAPcyv4ivjC8fNkfjdFyaYCAjGh7wtvFQnoPpOcR=VNZ=c6d6Rg@mail.gmail.com>
- <20190228151438.fc44921e66f2f5d393c8d7b4@linux-foundation.org>
- <CAPcyv4hDmmK-L=0txw7L9O8YgvAQxZfVFiSoB4LARRnGQ3UC7Q@mail.gmail.com>
- <026b5082-32f2-e813-5396-e4a148c813ea@collabora.com> <20190301124100.62a02e2f622ff6b5f178a7c3@linux-foundation.org>
- <3fafb552-ae75-6f63-453c-0d0e57d818f3@collabora.com> <CAPcyv4hMNiiM11ULjbOnOf=9N=yCABCRsAYLpjXs+98bRoRpCA@mail.gmail.com>
- <36faea07-139c-b97d-3585-f7d6d362abc3@collabora.com> <20190306140529.GG3549@rapoport-lnx>
- <21d138a5-13e4-9e83-d7fe-e0639a8d180a@collabora.com>
-In-Reply-To: <21d138a5-13e4-9e83-d7fe-e0639a8d180a@collabora.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 7 Mar 2019 07:43:13 -0800
-Message-ID: <CAPcyv4jBjUScKExK09VkL8XKibNcbw11ET4WNUWUWbPXeT9DFQ@mail.gmail.com>
-Subject: Re: next/master boot bisection: next-20190215 on beaglebone-black
-To: Guillaume Tucker <guillaume.tucker@collabora.com>
-Cc: Mike Rapoport <rppt@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Michal Hocko <mhocko@suse.com>, Mark Brown <broonie@kernel.org>, 
-	Tomeu Vizoso <tomeu.vizoso@collabora.com>, Matt Hart <matthew.hart@linaro.org>, 
-	Stephen Rothwell <sfr@canb.auug.org.au>, khilman@baylibre.com, enric.balletbo@collabora.com, 
-	Nicholas Piggin <npiggin@gmail.com>, Dominik Brodowski <linux@dominikbrodowski.net>, 
-	Masahiro Yamada <yamada.masahiro@socionext.com>, Kees Cook <keescook@chromium.org>, 
-	Adrian Reber <adrian@lisas.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
-	Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, 
-	Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Richard Guy Briggs <rgb@redhat.com>, 
-	"Peter Zijlstra (Intel)" <peterz@infradead.org>, info@kernelci.org
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1551856692-3384-6-git-send-email-jasowang@redhat.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 7, 2019 at 1:17 AM Guillaume Tucker
-<guillaume.tucker@collabora.com> wrote:
->
-> On 06/03/2019 14:05, Mike Rapoport wrote:
-> > On Wed, Mar 06, 2019 at 10:14:47AM +0000, Guillaume Tucker wrote:
-> >> On 01/03/2019 23:23, Dan Williams wrote:
-> >>> On Fri, Mar 1, 2019 at 1:05 PM Guillaume Tucker
-> >>> <guillaume.tucker@collabora.com> wrote:
-> >>>
-> >>> Is there an early-printk facility that can be turned on to see how far
-> >>> we get in the boot?
-> >>
-> >> Yes, I've done that now by enabling CONFIG_DEBUG_AM33XXUART1 and
-> >> earlyprintk in the command line.  Here's the result, with the
-> >> commit cherry picked on top of next-20190304:
-> >>
-> >>   https://lava.collabora.co.uk/scheduler/job/1526326
-> >>
-> >> [    1.379522] ti-sysc 4804a000.target-module: sysc_flags 00000222 != 00000022
-> >> [    1.396718] Unable to handle kernel paging request at virtual address 77bb4003
-> >> [    1.404203] pgd = (ptrval)
-> >> [    1.406971] [77bb4003] *pgd=00000000
-> >> [    1.410650] Internal error: Oops: 5 [#1] ARM
-> >> [...]
-> >> [    1.672310] [<c07051a0>] (clk_hw_create_clk.part.21) from [<c06fea34>] (devm_clk_get+0x4c/0x80)
-> >> [    1.681232] [<c06fea34>] (devm_clk_get) from [<c064253c>] (sysc_probe+0x28c/0xde4)
-> >>
-> >> It's always failing at that point in the code.  Also when
-> >> enabling "debug" on the kernel command line, the issue goes
-> >> away (exact same binaries etc..):
-> >>
-> >>   https://lava.collabora.co.uk/scheduler/job/1526327
-> >>
-> >> For the record, here's the branch I've been using:
-> >>
-> >>   https://gitlab.collabora.com/gtucker/linux/tree/beaglebone-black-next-20190304-debug
-> >>
-> >> The board otherwise boots fine with next-20190304 (SMP=n), and
-> >> also with the patch applied but the shuffle configs set to n.
-> >>
-> >>> Were there any boot *successes* on ARM with shuffling enabled? I.e.
-> >>> clues about what's different about the specific memory setup for
-> >>> beagle-bone-black.
-> >>
-> >> Looking at the KernelCI results from next-20190215, it looks like
-> >> only the BeagleBone Black with SMP=n failed to boot:
-> >>
-> >>   https://kernelci.org/boot/all/job/next/branch/master/kernel/next-20190215/
-> >>
-> >> Of course that's not all the ARM boards that exist out there, but
-> >> it's a fairly large coverage already.
-> >>
-> >> As the kernel panic always seems to originate in ti-sysc.c,
-> >> there's a chance it's only visible on that platform...  I'm doing
-> >> a KernelCI run now with my test branch to double check that,
-> >> it'll take a few hours so I'll send an update later if I get
-> >> anything useful out of it.
->
-> Here's the result, there were a couple of failures but some were
-> due to infrastructure errors (nyan-big) and I'm not sure about
-> what was the problem with the meson boards:
->
->   https://staging.kernelci.org/boot/all/job/gtucker/branch/kernelci-local/kernel/next-20190304-1-g4f0b547b03da/
->
-> So there's no clear indicator that the shuffle config is causing
-> any issue on any other platform than the BeagleBone Black.
->
-> >> In the meantime, I'm happy to try out other things with more
-> >> debug configs turned on or any potential fixes someone might
-> >> have.
-> >
-> > ARM is the only arch that sets ARCH_HAS_HOLES_MEMORYMODEL to 'y'. Maybe the
-> > failure has something to do with it...
-> >
-> > Guillaume, can you try this patch:
+On Wed, Mar 06, 2019 at 02:18:12AM -0500, Jason Wang wrote:
+> +static const struct mmu_notifier_ops vhost_mmu_notifier_ops = {
+> +	.invalidate_range = vhost_invalidate_range,
+> +};
+> +
+>  void vhost_dev_init(struct vhost_dev *dev,
+>  		    struct vhost_virtqueue **vqs, int nvqs, int iov_limit)
+>  {
 
-Mike, I appreciate the help!
+I also wonder here: when page is write protected then
+it does not look like .invalidate_range is invoked.
 
->
-> Sure, it doesn't seem to be fixing the problem though:
->
->   https://lava.collabora.co.uk/scheduler/job/1527471
->
-> I've added the patch to the same branch based on next-20190304.
->
-> I guess this needs to be debugged a little further to see what
-> the panic really is about.  I'll see if I can spend a bit more
-> time on it this week, unless there's any BeagleBone expert
-> available to help or if someone has another fix to try out.
+E.g. mm/ksm.c calls
 
-Thanks for the help Guillaume!
+mmu_notifier_invalidate_range_start and
+mmu_notifier_invalidate_range_end but not mmu_notifier_invalidate_range.
 
-I went ahead and acquired one of these boards to see if I can can
-debug this locally.
+Similarly, rmap in page_mkclean_one will not call
+mmu_notifier_invalidate_range.
+
+If I'm right vhost won't get notified when page is write-protected since you
+didn't install start/end notifiers. Note that end notifier can be called
+with page locked, so it's not as straight-forward as just adding a call.
+Writing into a write-protected page isn't a good idea.
+
+Note that documentation says:
+	it is fine to delay the mmu_notifier_invalidate_range
+	call to mmu_notifier_invalidate_range_end() outside the page table lock.
+implying it's called just later.
+
+-- 
+MST
 
