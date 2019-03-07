@@ -6,298 +6,518 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 76E82C43381
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 19:30:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BEA2CC10F03
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 19:32:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1FF7120851
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 19:30:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1FF7120851
+	by mail.kernel.org (Postfix) with ESMTP id 6262F20854
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 19:32:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6262F20854
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8C4D08E0003; Thu,  7 Mar 2019 14:30:29 -0500 (EST)
+	id F2A448E0003; Thu,  7 Mar 2019 14:32:35 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 84B628E0002; Thu,  7 Mar 2019 14:30:29 -0500 (EST)
+	id ED8EF8E0002; Thu,  7 Mar 2019 14:32:35 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6EB5E8E0003; Thu,  7 Mar 2019 14:30:29 -0500 (EST)
+	id D79868E0003; Thu,  7 Mar 2019 14:32:35 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DB328E0002
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 14:30:29 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id b6so14084452qkg.4
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 11:30:29 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A4A5C8E0002
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 14:32:35 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id b40so16354455qte.1
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 11:32:35 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=GxJJhzGE8mLEihj1od1M7jIU1CQSil+6Kv73vhXfjHk=;
-        b=rkXQtbBvKgOATF5kQ/SsdOgYx0sJQUVaXZBDORMHTHFroF/nQ0U3cb64XUH9NxPopl
-         aVrMewY3lIlrA5j0UrxI5zdaaAuNkvJYSa5D6FIFCRkcc0/aPQnbl4Zqh4bu5BNuTgpa
-         gj8HZJeortmVcsOr/ZgBopzimQbCgn5Isr68Sq5+gIN1pkgU4BH2dRRk8hpZvMa10BuR
-         64DkmtUwgod5AHL1FiL7p8zz0fc6rscmF7qtOnLhEgmYuGptoboz40cwtIGRN/VDHy01
-         jjtoVGfpjfntF5uGGyD0H20x7X4jMzEfiDuC2ui66KTvqYFFifbGbLki1AWzftWVYCqF
-         4SQw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWmyMZgLn4JdQFgcXNvIyZC/am2jCeClRu/X5cY2lJTpsRhRceT
-	VzeJ1b/olmuT/XjdGSzx9yhOvXOBI434gSQ0dn13FKLyI7cRheUUHbWHS2xIL+f1fTEPaQQINtl
-	VSDMzLHeMcSZi9SxY3NFbiFz/jY+EYulEpQrRj9KP452dDOxFRHhT1Zpm0fB6UsgWhA==
-X-Received: by 2002:a37:4dc5:: with SMTP id a188mr11117648qkb.181.1551987028958;
-        Thu, 07 Mar 2019 11:30:28 -0800 (PST)
-X-Google-Smtp-Source: APXvYqxeyjqR8jL+PRpX7jWtMM5r1EdjBjKkT+677QkNCxlNd4j7nteGIfhYNeblE8JRpdoK+UPa
-X-Received: by 2002:a37:4dc5:: with SMTP id a188mr11117593qkb.181.1551987028043;
-        Thu, 07 Mar 2019 11:30:28 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551987028; cv=none;
+         :user-agent:mime-version:in-reply-to;
+        bh=HacS1MucMtBKOF2yn0p2joIgyw5UFBoUBLAb4i3XbN0=;
+        b=c4nr5POrBhq/P21HGMrzssd4wRsbsLqcMnjrPwcmu6v02sPf3E9Ea/avcc3715iRED
+         1mcLxLGmBRRXCuioVVDe6NaIxXCLe4UJp0ISu/sszHrP8C0fo1Rf04ksABPysXjqbkoO
+         X1fS5S0qwv3wg4q0P8DJMGmSpoWinZ9xccC2K6pHGa4R0IsSWV/fMIOKh4O8Fd6QNY0x
+         IR3cn8AMIGtUvNpE+0oWAd5W6NqaH4Es0QHdF0QjKiBVhzVL8lPVgmSaA9TgqE8jgPkp
+         U5uExrcLfpT/+sVT/f8N8cttxCXseS7GQSyCt9yKZYhk7uVH94Rs7GozcbSZUieFbGvE
+         /I6A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXw4Cxleb9lLMaLPzxTihaGLC9Cr8E8WR7tY1iVY1wvANTAGXI2
+	x4Hz8HieXJwsC7rzoZfb06KDYwJnie4a7hscN0OElkQ3qy0qKrmR8Onxya+A/IToXWzg6xT2eOW
+	GCs/G/UiKLlHLH2ll5AdJmWhAFqFxXdxcKO/JINW4Ui8YLEEHvv9+mo5g2b7jZxn/jA==
+X-Received: by 2002:ae9:c30f:: with SMTP id n15mr11046429qkg.227.1551987155367;
+        Thu, 07 Mar 2019 11:32:35 -0800 (PST)
+X-Google-Smtp-Source: APXvYqzt04y4kgKJt9rH5PSqL4Mu4tdjmN1At3a23nfe75vheXUnx3kKn8jFzzABFITGV+3vGZwQ
+X-Received: by 2002:ae9:c30f:: with SMTP id n15mr11046360qkg.227.1551987154259;
+        Thu, 07 Mar 2019 11:32:34 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551987154; cv=none;
         d=google.com; s=arc-20160816;
-        b=rsUS5n7Ot12T7toOxqdZ0ndac7Z3BMe8OO/1u+m8nMqXIyj4CnWdrhlQvCohikVnOt
-         KyGM/DzUdLuHd9yZCLrPJlvNubwKNYfOREIHQfMpU5c27il75xvLxv9soxXu534uuvUu
-         OBs+ZUTtXKQQFvz810Zwh8AZTcHVBWowsdSxLY1G4dQUf6ivhsChq/aTa7r3PaEYIEQ5
-         phH7ueMtX7Kh347iOeL0bryk+uzU2ACgwNVaioBMy7zhOVn8hfC05i8YfFiAsfciCTcB
-         vfMey+mWOB0hUHUp1OZnlOMtelZxQd7l65ej3t4OFjND27Xchd0sRXNvP/42P3fLmbem
-         5O3w==
+        b=b3lRgaQWXJ7T6SE8nHplvN7mQ0n1Zj11iGpXodRizEiiOrhg3zuV15jGEcVmR2WCNa
+         BDCymh2ECauz2b4BZcbcDM0w/xo/jJ5EEMzvhQDsozt22saiqLdNZLyve+2d55vypDtY
+         SH7v9FwAKzmD/OI4CzJBBAMDcxjOkBOO0B5+HTGvIgRIeut31DBFOzkbArwpdHw3zncR
+         ULednxMmXthJRo7lnYRzBhPfxlxXp/Q6QX2tHLwZAaIenQe8OKY12ry1K96ELR/3kRgS
+         /oUjwXILdsLHq98zD1If4QB35E1mTE0gBN/RyniSL5hj4g71ilbGxAzHgFJHx4zj+AnP
+         +HfA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=GxJJhzGE8mLEihj1od1M7jIU1CQSil+6Kv73vhXfjHk=;
-        b=IghnKneDh1kw1v/wfRO5uS2dptLEv3eUGg+4FvtFEbq6SjQ6i8FzT7tlxudNoLXian
-         B6dcGJgYiLc8IZFOH9x09vcBLZS/dp90VNSDk0O/UXRKnr8WSuQBG3uRxd+cVyMYVRwv
-         AbDXi8I/CgzAK6exIURa13+DaEbQQZO3db8lDnIKZmQHsFnVEOzmSMSDTIPRGM9IB7zw
-         K7TRhTuuFU1vTzy7bHnsNUTn31wmd2SzzypdXVqRv76EmkWaMzSHdJlLFYiirt5CKzhL
-         f+rSRm6DuUFEkgXapN5abAxvXCAlK/ScBM6IKOmWmqjDjxgCHPXw/n36PiJjA8DCPtyP
-         V/4A==
+        h=in-reply-to:mime-version:user-agent:date:message-id:organization
+         :autocrypt:openpgp:from:references:cc:to:subject;
+        bh=HacS1MucMtBKOF2yn0p2joIgyw5UFBoUBLAb4i3XbN0=;
+        b=tJJSVigWirxNuJPtdZv0CZOaXX3fLxnOyNVe6G5d7nS4HwFaTyuqdTFXhlbC2Ws/BW
+         7TuQ/3VPykM6Q0Zs6xKhXwrDlMysZB8YisMqDaRuSIm8Emuc9HWsob6F1d9oYFwL36HS
+         v7CI2/aNAtfDdZLcll8PI6TN+qDw/cTGieJ9K1RVT7BdKLB5bxfqc/dhzSr1G9dD3Ssm
+         SSxZI9iHPgq2aE0XC86XRjt0IaDE0KaRegBzK93IkJk04r1paNgKKUmuyqDzV7gfU92I
+         IAa8K8WnABG5DJBs5t/46TFx6Z5Gs/5ufc1y/rioxbRFoQKRGAzrUnNWvrbF8+iiPglM
+         Ns9g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h68si211745qkb.14.2019.03.07.11.30.27
+        by mx.google.com with ESMTPS id o1si317687qkk.270.2019.03.07.11.32.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Mar 2019 11:30:28 -0800 (PST)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 07 Mar 2019 11:32:34 -0800 (PST)
+Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 12B98C04AC51;
-	Thu,  7 Mar 2019 19:30:27 +0000 (UTC)
-Received: from [10.36.116.67] (ovpn-116-67.ams2.redhat.com [10.36.116.67])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 52E541001DDC;
-	Thu,  7 Mar 2019 19:30:08 +0000 (UTC)
-Subject: Re: [RFC][Patch v9 2/6] KVM: Enables the kernel to isolate guest free
- pages
-To: Nitesh Narayan Lal <nitesh@redhat.com>,
- Alexander Duyck <alexander.duyck@gmail.com>
+	by mx1.redhat.com (Postfix) with ESMTPS id 6751458E38;
+	Thu,  7 Mar 2019 19:32:33 +0000 (UTC)
+Received: from [10.18.17.32] (dhcp-17-32.bos.redhat.com [10.18.17.32])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 9981FBA5D;
+	Thu,  7 Mar 2019 19:32:27 +0000 (UTC)
+Subject: Re: [RFC][Patch v9 1/6] KVM: Guest free page hinting support
+To: Alexander Duyck <alexander.duyck@gmail.com>
 Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
  linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>,
  lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
  Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
- "Michael S. Tsirkin" <mst@redhat.com>, dodgen@google.com,
- Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com,
- Andrea Arcangeli <aarcange@redhat.com>
+ David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>,
+ dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>
 References: <20190306155048.12868-1-nitesh@redhat.com>
- <20190306155048.12868-3-nitesh@redhat.com>
- <CAKgT0UdDohCXZY3q9qhQsHw-2vKp_CAgvf2dd2e6U6KLsAkVng@mail.gmail.com>
- <2d9ae889-a9b9-7969-4455-ff36944f388b@redhat.com>
-From: David Hildenbrand <david@redhat.com>
+ <20190306155048.12868-2-nitesh@redhat.com>
+ <CAKgT0Uf5ZAMbg8s3Shcs2ooMueajXvVNx+gKi3eUKchNBj1mrQ@mail.gmail.com>
+From: Nitesh Narayan Lal <nitesh@redhat.com>
 Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <22e4b1cd-38a5-6642-8cbe-d68e4fcbb0b7@redhat.com>
-Date: Thu, 7 Mar 2019 20:30:07 +0100
+Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ VujM7c/b4pps
+Organization: Red Hat Inc,
+Message-ID: <d2fb61d9-8b50-78be-13d4-450a6f66bb14@redhat.com>
+Date: Thu, 7 Mar 2019 14:32:26 -0500
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <2d9ae889-a9b9-7969-4455-ff36944f388b@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Thu, 07 Mar 2019 19:30:27 +0000 (UTC)
+In-Reply-To: <CAKgT0Uf5ZAMbg8s3Shcs2ooMueajXvVNx+gKi3eUKchNBj1mrQ@mail.gmail.com>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="Z3TviIheIIeDFGvyoxTLiFC4vRYSGaxce"
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Thu, 07 Mar 2019 19:32:33 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07.03.19 20:23, Nitesh Narayan Lal wrote:
-> 
-> On 3/7/19 1:30 PM, Alexander Duyck wrote:
->> On Wed, Mar 6, 2019 at 7:51 AM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
->>> This patch enables the kernel to scan the per cpu array
->>> which carries head pages from the buddy free list of order
->>> FREE_PAGE_HINTING_MIN_ORDER (MAX_ORDER - 1) by
->>> guest_free_page_hinting().
->>> guest_free_page_hinting() scans the entire per cpu array by
->>> acquiring a zone lock corresponding to the pages which are
->>> being scanned. If the page is still free and present in the
->>> buddy it tries to isolate the page and adds it to a
->>> dynamically allocated array.
->>>
->>> Once this scanning process is complete and if there are any
->>> isolated pages added to the dynamically allocated array
->>> guest_free_page_report() is invoked. However, before this the
->>> per-cpu array index is reset so that it can continue capturing
->>> the pages from buddy free list.
->>>
->>> In this patch guest_free_page_report() simply releases the pages back
->>> to the buddy by using __free_one_page()
->>>
->>> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
->> I'm pretty sure this code is not thread safe and has a few various issues.
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--Z3TviIheIIeDFGvyoxTLiFC4vRYSGaxce
+Content-Type: multipart/mixed; boundary="8gM7KYMlNrXCn2l5mLKLO20GnXXLn7IVt";
+ protected-headers="v1"
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+ linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>,
+ lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
+ Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
+ David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>,
+ dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>
+Message-ID: <d2fb61d9-8b50-78be-13d4-450a6f66bb14@redhat.com>
+Subject: Re: [RFC][Patch v9 1/6] KVM: Guest free page hinting support
+References: <20190306155048.12868-1-nitesh@redhat.com>
+ <20190306155048.12868-2-nitesh@redhat.com>
+ <CAKgT0Uf5ZAMbg8s3Shcs2ooMueajXvVNx+gKi3eUKchNBj1mrQ@mail.gmail.com>
+In-Reply-To: <CAKgT0Uf5ZAMbg8s3Shcs2ooMueajXvVNx+gKi3eUKchNBj1mrQ@mail.gmail.com>
+
+--8gM7KYMlNrXCn2l5mLKLO20GnXXLn7IVt
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
+
+
+On 3/6/19 6:43 PM, Alexander Duyck wrote:
+> On Wed, Mar 6, 2019 at 7:51 AM Nitesh Narayan Lal <nitesh@redhat.com> w=
+rote:
+>> This patch adds the following:
+>> 1. Functional skeleton for the guest implementation. It enables the
+>> guest to maintain the PFN of head buddy free pages of order
+>> FREE_PAGE_HINTING_MIN_ORDER (currently defined as MAX_ORDER - 1)
+>> in a per-cpu array.
+>> Guest uses guest_free_page_enqueue() to enqueue the free pages post bu=
+ddy
+>> merging to the above mentioned per-cpu array.
+>> guest_free_page_try_hinting() is used to initiate hinting operation on=
+ce
+>> the collected entries of the per-cpu array reaches or exceeds
+>> HINTING_THRESHOLD (128). Having larger array size(MAX_FGPT_ENTRIES =3D=
+ 256)
+>> than HINTING_THRESHOLD allows us to capture more pages specifically wh=
+en
+>> guest_free_page_enqueue() is called from free_pcppages_bulk().
+>> For now guest_free_page_hinting() just resets the array index to conti=
+nue
+>> capturing of the freed pages.
+>> 2. Enables the support for x86 architecture.
 >>
->>> ---
->>>  include/linux/page_hinting.h |   5 ++
->>>  mm/page_alloc.c              |   2 +-
->>>  virt/kvm/page_hinting.c      | 154 +++++++++++++++++++++++++++++++++++
->>>  3 files changed, 160 insertions(+), 1 deletion(-)
->>>
->>> diff --git a/include/linux/page_hinting.h b/include/linux/page_hinting.h
->>> index 90254c582789..d554a2581826 100644
->>> --- a/include/linux/page_hinting.h
->>> +++ b/include/linux/page_hinting.h
->>> @@ -13,3 +13,8 @@
->>>
->>>  void guest_free_page_enqueue(struct page *page, int order);
->>>  void guest_free_page_try_hinting(void);
->>> +extern int __isolate_free_page(struct page *page, unsigned int order);
->>> +extern void __free_one_page(struct page *page, unsigned long pfn,
->>> +                           struct zone *zone, unsigned int order,
->>> +                           int migratetype);
->>> +void release_buddy_pages(void *obj_to_free, int entries);
->>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>> index 684d047f33ee..d38b7eea207b 100644
->>> --- a/mm/page_alloc.c
->>> +++ b/mm/page_alloc.c
->>> @@ -814,7 +814,7 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
->>>   * -- nyc
->>>   */
->>>
->>> -static inline void __free_one_page(struct page *page,
->>> +inline void __free_one_page(struct page *page,
->>>                 unsigned long pfn,
->>>                 struct zone *zone, unsigned int order,
->>>                 int migratetype)
->>> diff --git a/virt/kvm/page_hinting.c b/virt/kvm/page_hinting.c
->>> index 48b4b5e796b0..9885b372b5a9 100644
->>> --- a/virt/kvm/page_hinting.c
->>> +++ b/virt/kvm/page_hinting.c
->>> @@ -1,5 +1,9 @@
->>>  #include <linux/mm.h>
->>>  #include <linux/page_hinting.h>
->>> +#include <linux/page_ref.h>
->>> +#include <linux/kvm_host.h>
->>> +#include <linux/kernel.h>
->>> +#include <linux/sort.h>
->>>
->>>  /*
->>>   * struct guest_free_pages- holds array of guest freed PFN's along with an
->>> @@ -16,6 +20,54 @@ struct guest_free_pages {
->>>
->>>  DEFINE_PER_CPU(struct guest_free_pages, free_pages_obj);
->>>
->>> +/*
->>> + * struct guest_isolated_pages- holds the buddy isolated pages which are
->>> + * supposed to be freed by the host.
->>> + * @pfn: page frame number for the isolated page.
->>> + * @order: order of the isolated page.
->>> + */
->>> +struct guest_isolated_pages {
->>> +       unsigned long pfn;
->>> +       unsigned int order;
->>> +};
->>> +
->>> +void release_buddy_pages(void *obj_to_free, int entries)
->>> +{
->>> +       int i = 0;
->>> +       int mt = 0;
->>> +       struct guest_isolated_pages *isolated_pages_obj = obj_to_free;
->>> +
->>> +       while (i < entries) {
->>> +               struct page *page = pfn_to_page(isolated_pages_obj[i].pfn);
->>> +
->>> +               mt = get_pageblock_migratetype(page);
->>> +               __free_one_page(page, page_to_pfn(page), page_zone(page),
->>> +                               isolated_pages_obj[i].order, mt);
->>> +               i++;
->>> +       }
->>> +       kfree(isolated_pages_obj);
->>> +}
->> You shouldn't be accessing __free_one_page without holding the zone
->> lock for the page. You might consider confining yourself to one zone
->> worth of hints at a time. Then you can acquire the lock once, and then
->> return the memory you have freed.
-> That is correct.
+>> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
+>> ---
+>>  arch/x86/Kbuild              |  2 +-
+>>  arch/x86/kvm/Kconfig         |  8 +++
+>>  arch/x86/kvm/Makefile        |  2 +
+>>  include/linux/page_hinting.h | 15 ++++++
+>>  mm/page_alloc.c              |  5 ++
+>>  virt/kvm/page_hinting.c      | 98 +++++++++++++++++++++++++++++++++++=
++
+>>  6 files changed, 129 insertions(+), 1 deletion(-)
+>>  create mode 100644 include/linux/page_hinting.h
+>>  create mode 100644 virt/kvm/page_hinting.c
 >>
->> This is one of the reasons why I am thinking maybe a bit in the page
->> and then spinning on that bit in arch_alloc_page might be a nice way
->> to get around this. Then you only have to take the zone lock when you
->> are finding the pages you want to hint on and setting the bit
->> indicating they are mid hint. Otherwise you have to take the zone lock
->> to pull pages out, and to put them back in and the likelihood of a
->> lock collision is much higher.
-> Do you think adding a new flag to the page structure will be acceptable?
+>> diff --git a/arch/x86/Kbuild b/arch/x86/Kbuild
+>> index c625f57472f7..3244df4ee311 100644
+>> --- a/arch/x86/Kbuild
+>> +++ b/arch/x86/Kbuild
+>> @@ -2,7 +2,7 @@ obj-y +=3D entry/
+>>
+>>  obj-$(CONFIG_PERF_EVENTS) +=3D events/
+>>
+>> -obj-$(CONFIG_KVM) +=3D kvm/
+>> +obj-$(subst m,y,$(CONFIG_KVM)) +=3D kvm/
+>>
+>>  # Xen paravirtualization support
+>>  obj-$(CONFIG_XEN) +=3D xen/
+>> diff --git a/arch/x86/kvm/Kconfig b/arch/x86/kvm/Kconfig
+>> index 72fa955f4a15..2fae31459706 100644
+>> --- a/arch/x86/kvm/Kconfig
+>> +++ b/arch/x86/kvm/Kconfig
+>> @@ -96,6 +96,14 @@ config KVM_MMU_AUDIT
+>>          This option adds a R/W kVM module parameter 'mmu_audit', whic=
+h allows
+>>          auditing of KVM MMU events at runtime.
+>>
+>> +# KVM_FREE_PAGE_HINTING will allow the guest to report the free pages=
+ to the
+>> +# host in regular interval of time.
+>> +config KVM_FREE_PAGE_HINTING
+>> +       def_bool y
+>> +       depends on KVM
+>> +       select VIRTIO
+>> +       select VIRTIO_BALLOON
+>> +
+>>  # OK, it's a little counter-intuitive to do this, but it puts it neat=
+ly under
+>>  # the virtualization menu.
+>>  source "drivers/vhost/Kconfig"
+>> diff --git a/arch/x86/kvm/Makefile b/arch/x86/kvm/Makefile
+>> index 69b3a7c30013..78640a80501e 100644
+>> --- a/arch/x86/kvm/Makefile
+>> +++ b/arch/x86/kvm/Makefile
+>> @@ -16,6 +16,8 @@ kvm-y                 +=3D x86.o mmu.o emulate.o i82=
+59.o irq.o lapic.o \
+>>                            i8254.o ioapic.o irq_comm.o cpuid.o pmu.o m=
+trr.o \
+>>                            hyperv.o page_track.o debugfs.o
+>>
+>> +obj-$(CONFIG_KVM_FREE_PAGE_HINTING)    +=3D $(KVM)/page_hinting.o
+>> +
+>>  kvm-intel-y            +=3D vmx/vmx.o vmx/vmenter.o vmx/pmu_intel.o v=
+mx/vmcs12.o vmx/evmcs.o vmx/nested.o
+>>  kvm-amd-y              +=3D svm.o pmu_amd.o
+>>
+>> diff --git a/include/linux/page_hinting.h b/include/linux/page_hinting=
+=2Eh
+>> new file mode 100644
+>> index 000000000000..90254c582789
+>> --- /dev/null
+>> +++ b/include/linux/page_hinting.h
+>> @@ -0,0 +1,15 @@
+>> +#include <linux/gfp.h>
+>> +/*
+>> + * Size of the array which is used to store the freed pages is define=
+d by
+>> + * MAX_FGPT_ENTRIES.
+>> + */
+>> +#define MAX_FGPT_ENTRIES       256
+>> +/*
+>> + * Threshold value after which hinting needs to be initiated on the c=
+aptured
+>> + * free pages.
+>> + */
+>> +#define HINTING_THRESHOLD      128
+>> +#define FREE_PAGE_HINTING_MIN_ORDER    (MAX_ORDER - 1)
+>> +
+>> +void guest_free_page_enqueue(struct page *page, int order);
+>> +void guest_free_page_try_hinting(void);
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index d295c9bc01a8..684d047f33ee 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -67,6 +67,7 @@
+>>  #include <linux/lockdep.h>
+>>  #include <linux/nmi.h>
+>>  #include <linux/psi.h>
+>> +#include <linux/page_hinting.h>
+>>
+>>  #include <asm/sections.h>
+>>  #include <asm/tlbflush.h>
+>> @@ -1194,9 +1195,11 @@ static void free_pcppages_bulk(struct zone *zon=
+e, int count,
+>>                         mt =3D get_pageblock_migratetype(page);
+>>
+>>                 __free_one_page(page, page_to_pfn(page), zone, 0, mt);=
 
-My lesson learned: forget it. If (at all) reuse some other one that
-might be safe in that context. Hard to tell if that is even possible and
-will be accepted upstream.
+>> +               guest_free_page_enqueue(page, 0);
+>>                 trace_mm_page_pcpu_drain(page, 0, mt);
+>>         }
+>>         spin_unlock(&zone->lock);
+>> +       guest_free_page_try_hinting();
+>>  }
+>>
+> Trying to enqueue pages from here seems like a really bad idea. You
+> are essentially putting yourself in a hot-path for order 0 pages and
+> going to cause significant bottlenecks.
+>
+>>  static void free_one_page(struct zone *zone,
+>> @@ -1210,7 +1213,9 @@ static void free_one_page(struct zone *zone,
+>>                 migratetype =3D get_pfnblock_migratetype(page, pfn);
+>>         }
+>>         __free_one_page(page, pfn, zone, order, migratetype);
+>> +       guest_free_page_enqueue(page, order);
+>>         spin_unlock(&zone->lock);
+>> +       guest_free_page_try_hinting();
+>>  }
+> I really think it would be better to leave the page assembly to the
+> buddy allocator. Instead you may want to focus on somehow tagging the
+> pages as being recently freed but not hinted on so that you can come
+> back later to work on them.
+I think this will lead us to the same discussion which we are having
+under other patch about having a page flag. Let's discuss it there.
+>
+>>  static void __meminit __init_single_page(struct page *page, unsigned =
+long pfn,
+>> diff --git a/virt/kvm/page_hinting.c b/virt/kvm/page_hinting.c
+>> new file mode 100644
+>> index 000000000000..48b4b5e796b0
+>> --- /dev/null
+>> +++ b/virt/kvm/page_hinting.c
+>> @@ -0,0 +1,98 @@
+>> +#include <linux/mm.h>
+>> +#include <linux/page_hinting.h>
+>> +
+>> +/*
+>> + * struct guest_free_pages- holds array of guest freed PFN's along wi=
+th an
+>> + * index variable to track total freed PFN's.
+>> + * @free_pfn_arr: array to store the page frame number of all the pag=
+es which
+>> + * are freed by the guest.
+>> + * @guest_free_pages_idx: index to track the number entries stored in=
 
-Spinning is not the solution. What you would want is the buddy to
-actually skip over these pages and only try to use them (-> spin) when
-OOM. Core mm changes (see my other reply).
+>> + * free_pfn_arr.
+>> + */
+>> +struct guest_free_pages {
+>> +       unsigned long free_page_arr[MAX_FGPT_ENTRIES];
+>> +       int free_pages_idx;
+>> +};
+>> +
+>> +DEFINE_PER_CPU(struct guest_free_pages, free_pages_obj);
+>> +
+>> +struct page *get_buddy_page(struct page *page)
+>> +{
+>> +       unsigned long pfn =3D page_to_pfn(page);
+>> +       unsigned int order;
+>> +
+>> +       for (order =3D 0; order < MAX_ORDER; order++) {
+>> +               struct page *page_head =3D page - (pfn & ((1 << order)=
+ - 1));
+>> +
+>> +               if (PageBuddy(page_head) && page_private(page_head) >=3D=
+ order)
+>> +                       return page_head;
+>> +       }
+>> +       return NULL;
+>> +}
+>> +
+> You would be much better off just letting the buddy allocator take care=
+ of this.
+>
+> I really think the spot I had my arch_merge_page call would work much
+> better than this. The buddy allocator is already optimized to handle
+> merging the pages and such so we should really let it do its job
+> rather than reinventing it ourselves.
+Yes I can have my hook in __free_one_page() but then in order to avoid
+duplicate hints we need to have some page flag bit.
+>
+>> +static void guest_free_page_hinting(void)
+>> +{
+>> +       struct guest_free_pages *hinting_obj =3D &get_cpu_var(free_pag=
+es_obj);
+>> +
+>> +       hinting_obj->free_pages_idx =3D 0;
+>> +       put_cpu_var(hinting_obj);
+>> +}
+>> +
+> Shouldn't this be guarded with a local_irq_save to prevent someone
+> from possibly performing an enqueue on the same CPU as the one you are
+> resetting the work on, or is just the preempt_disable int he
+> get_cpu_var enough to handle the case? If so could we get away with
+> the same thing for the guest_free_page_enqueue?
+I am not sure about this, I will take a look at it.
+>
+>> +int if_exist(struct page *page)
+>> +{
+>> +       int i =3D 0;
+>> +       struct guest_free_pages *hinting_obj =3D this_cpu_ptr(&free_pa=
+ges_obj);
+>> +
+>> +       while (i < MAX_FGPT_ENTRIES) {
+>> +               if (page_to_pfn(page) =3D=3D hinting_obj->free_page_ar=
+r[i])
+>> +                       return 1;
+>> +               i++;
+>> +       }
+>> +       return 0;
+>> +}
+>> +
+> Doing a linear search for the page is going to be painful. Also this
+> is only searching a per-cpu list. What if you have this split over a
+> couple of CPUs?
+That's correct if there is the same page in multiple per cpu array. Then
+the isolation request corresponding to the per cpu array in which it's
+added at a later point of time will fail.
+>
+>> +void guest_free_page_enqueue(struct page *page, int order)
+>> +{
+>> +       unsigned long flags;
+>> +       struct guest_free_pages *hinting_obj;
+>> +       int l_idx;
+>> +
+>> +       /*
+>> +        * use of global variables may trigger a race condition betwee=
+n irq and
+>> +        * process context causing unwanted overwrites. This will be r=
+eplaced
+>> +        * with a better solution to prevent such race conditions.
+>> +        */
+>> +       local_irq_save(flags);
+>> +       hinting_obj =3D this_cpu_ptr(&free_pages_obj);
+>> +       l_idx =3D hinting_obj->free_pages_idx;
+>> +       if (l_idx !=3D MAX_FGPT_ENTRIES) {
+>> +               if (PageBuddy(page) && page_private(page) >=3D
+>> +                   FREE_PAGE_HINTING_MIN_ORDER) {
+>> +                       hinting_obj->free_page_arr[l_idx] =3D page_to_=
+pfn(page);
+>> +                       hinting_obj->free_pages_idx +=3D 1;
+>> +               } else {
+>> +                       struct page *buddy_page =3D get_buddy_page(pag=
+e);
+>> +
+>> +                       if (buddy_page && page_private(buddy_page) >=3D=
 
-This all sounds like future work which can be built on top of this work.
+>> +                           FREE_PAGE_HINTING_MIN_ORDER &&
+>> +                           !if_exist(buddy_page)) {
+>> +                               unsigned long buddy_pfn =3D
+>> +                                       page_to_pfn(buddy_page);
+>> +
+>> +                               hinting_obj->free_page_arr[l_idx] =3D
+>> +                                                       buddy_pfn;
+>> +                               hinting_obj->free_pages_idx +=3D 1;
+>> +                       }
+>> +               }
+>> +       }
+>> +       local_irq_restore(flags);
+>> +}
+>> +
+>> +void guest_free_page_try_hinting(void)
+>> +{
+>> +       struct guest_free_pages *hinting_obj;
+>> +
+>> +       hinting_obj =3D this_cpu_ptr(&free_pages_obj);
+>> +       if (hinting_obj->free_pages_idx >=3D HINTING_THRESHOLD)
+>> +               guest_free_page_hinting();
+>> +}
+>> --
+>> 2.17.2
+>>
+--=20
+Regards
+Nitesh
 
 
--- 
+--8gM7KYMlNrXCn2l5mLKLO20GnXXLn7IVt--
 
-Thanks,
+--Z3TviIheIIeDFGvyoxTLiFC4vRYSGaxce
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
 
-David / dhildenb
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEkXcoRVGaqvbHPuAGo4ZA3AYyozkFAlyBccoACgkQo4ZA3AYy
+ozn0ZhAAy428eMfnKzSHLRkdenTXCzQBgqqkmgNpMWJDa4xePYq98J39Wu+Fqq3t
+2PPZvbYan2zeDZbPCVzgtFic8Dd8963wGEijfEjFQHSnNiD+er+4S+33JxFJIS8e
+Onb39QDRS56PvvHjnUsUuAoUrUimtbNvCcD/jNwHUbG+ELk2yOjydvTDYc9iv0rj
+m0vZpAlNmvPzC/UZ8roEP3MepeRhM3Ix5m2vvuOpaYBFtoLUzAZ3gLijqfF9X2yU
+MIc2RfCfcmWvdFYknyTb8tehFfGvt5QGlQfCNI2KlslOeOuT3QJKjGBbsXVri6Wx
+KG0mOvKHLkPbjmOXU26fNNzF6Mo/Qupys0RZtKPiD8+NKH+m8Vkgo92kzpX7f4HP
+J9gF+c1q5Z3dNCxoD2XxDYA/7xq862yYj8G1Zjx+Ewxx1cpBk6ptAMs66ivMDzl8
+9OY2ralA6LlwtkEeOtXpwCNI6FQFb0iGFwnOPQh926fFvzvU+L9BCOZg9vzMCHf0
+8Frfe1DEDXejJPeXE5BplOHR8T4gVedtDClHRNjGyevfAFxZono8aRUyR0pS1CJk
+m+/QHXofkvxmzXgVM+qmV6NaixQm3XENph1HQji2KQugE2p251o77uXKPeGsNk28
+pADgGeNNtu1clRW0IxYHav7j9alj9pcDUQp8ChP6QSGnf/K76DE=
+=rsx8
+-----END PGP SIGNATURE-----
+
+--Z3TviIheIIeDFGvyoxTLiFC4vRYSGaxce--
 
