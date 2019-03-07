@@ -2,135 +2,157 @@ Return-Path: <SRS0=NBIx=RK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1D8E3C10F00
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 02:46:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C223C4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 05:46:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D7AAA2064A
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 02:46:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D7AAA2064A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id B3B1E20851
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 05:46:09 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="JnpI9P7J"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3B1E20851
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 56F7B8E0003; Wed,  6 Mar 2019 21:46:09 -0500 (EST)
+	id 24E748E0003; Thu,  7 Mar 2019 00:46:09 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 51EB78E0002; Wed,  6 Mar 2019 21:46:09 -0500 (EST)
+	id 1FF798E0002; Thu,  7 Mar 2019 00:46:09 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 434E08E0003; Wed,  6 Mar 2019 21:46:09 -0500 (EST)
+	id 0EF498E0003; Thu,  7 Mar 2019 00:46:09 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ADE08E0002
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 21:46:09 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id k1so13902411qta.2
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 18:46:09 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C17AB8E0002
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 00:46:08 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id o38so15021838pgb.6
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 21:46:08 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=V8y4Da7EC7/NkkBxiw9MiVHU1l5kq31Xn/NFenvOq/Q=;
-        b=dvWqZtE0vTGSDfqdNCQQ6NnG+UY+l/qNHrwOJqSa7PSmHR+E+GLIhnBDCMVrmAl4Or
-         FEGMIMfjR6vGZeMpmawCUvMGQ6iTpjF5AZbMYg26uxWlg+HBkLB522Jqyy1XO6EOjU3V
-         +BD25jNgXglpzvbrp3PaCBjFdPmWACWCC5Cmwgg+x5OdfcPP32pgL4jKFFDg6Vodbxn+
-         2SrFI9iadr2yuAfPZjbgQh+qwndYJHhJM/nDjKpUHQfB8CS8jsgxni0iqZH1hYoCEXA0
-         Lbk3LFn+Dag7bEmqSAtaTd/TBpp+jtZnfQYFZU6F5OmiLcNN1XvDUauGBUTOy/pG7tnh
-         3Psg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWxb5JsmX4VYcOxrAlax09d4yB9rmUOT3vg/VobmtA+g6PgHu1q
-	Aet+gIbnaOGFa+E5OoBieR90PH2MZDAZNfvjEnfg74Ig3khgmQSbPqPo4y42qafZQp0eTtyruPS
-	2jNGFnI5PTOgpHvYzoe4HCQajuFubkSFTeT23ALKu+Z843ASXH1EG+/SicSXP/LmF9g==
-X-Received: by 2002:a37:c097:: with SMTP id v23mr8157746qkv.62.1551926768909;
-        Wed, 06 Mar 2019 18:46:08 -0800 (PST)
-X-Google-Smtp-Source: APXvYqxth5xdi67Govi7kqCoGZVvBfBoupaN7UdjIa6h5e0cSzgqVz90LVeQDf+oBJAw1CLDeT+D
-X-Received: by 2002:a37:c097:: with SMTP id v23mr8157720qkv.62.1551926768196;
-        Wed, 06 Mar 2019 18:46:08 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551926768; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version;
+        bh=hVbymYoSRu2oLMeB8gDg+j1RGrwnXBAbOJznDFzNjik=;
+        b=K2fkZ//Zsz3sBMoIwBgqdaJObIm8iXBsY3L8JbVJB4pU3y38jXM7UZgxh4kb9+UsfS
+         HVUfKPF0/g9yHbnUcn1dXrmZEW9LIaChuKMmwVxjL1Xfe0u0hGjT/9ax6WeBqJcIxGtu
+         LQxHRZ85rgB80wprZYOS/CwKGfIOaSBJ/SF7ki4cQz/ueZsT63x4GKxSpJK7Ysrxcgk/
+         qdsSol0AibsGxlzY8vAqyALcpQjLDaPV+qG5pubs3nhqVVqRv5r9xd/o7bDAykl/kM0H
+         t7nIZkQC2YPUdo7bWoTAZkqkHfTk+JTYK3RVy2ZAOjzHjABt4SyACcigDm18HHdnhz8s
+         25ug==
+X-Gm-Message-State: APjAAAX9zJZc25x50L7+1xA5MLIxd5QazTJpLCz5egSC49Xy3qgNxZwT
+	nDWXQQLz4MRAnLpjxYLkIF22WlU4huIiDzxKZFPbcQ1JmTA/pYGyHFJf3AjcwO1rgtWWSl4sD7P
+	uKO+oeWEkC5+7L/zYR9fkrcsNu0xafLbkL2ZZksMgPKE5pLG8o+CUswPj/F9NxkRnhA==
+X-Received: by 2002:a17:902:622:: with SMTP id 31mr11147229plg.31.1551937568198;
+        Wed, 06 Mar 2019 21:46:08 -0800 (PST)
+X-Google-Smtp-Source: APXvYqxvM5I/LID3yr2SW0tcqLApPDIjCEDGPlfm+wYIGCs76MU/v3dipZ1AmLf6qL0eHgOjq4TO
+X-Received: by 2002:a17:902:622:: with SMTP id 31mr11147167plg.31.1551937567238;
+        Wed, 06 Mar 2019 21:46:07 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551937567; cv=none;
         d=google.com; s=arc-20160816;
-        b=QDlxkIY0NdwqXMO8doiLK1x/mZJik4tzxcg/y/KCxg74DGl8W3fWUPONtNIyukHoKQ
-         FHwwpElXA4yhu+3udguL7pismt8znPoMJ8gs8qCWGRg9gu2T2lhxBXAavkHf1AN6RYkg
-         WMnb69mnNks7X25lmim3fdzn/1fMbeQ+Omlsb3/xcmL4qdW37uC3hw/pzUfuV1q93R+r
-         dImgooIarkiv8Q60VRHHJe/QdqFBa5hGPAYaZiP/TSfGODYN4jd2URdBMW2lttw11ZKJ
-         ZaQzJWutUj4RhWRj4YudlrJMrku/NyGnP2/yJVQK7Kazf2TfzuA/9bORWoE6phTOQCy+
-         Kftw==
+        b=mwVT97bhd/0Ci6tj5tMQ45MZjk9ZGTAX1WlvbelsYGplzzg4g778Z/puPtgLb7bxmE
+         k0qFIZkRpgtqD+k/LYr/KtMr1MOyLHX785CR6V2H7IWsqG9GPHP1AD6EzEXdo2xGGJnf
+         lNbt8H20fKzoNJqKVWOtSCSN3gkqlrGNOqgq6i7n7vRm8yOIqyy7kCw0ifX4quMkRWMf
+         vZef/s+mNzsl9A6eGDgQQMccCK22Blh1p2xcA1FE6fyIvu1yusT7Lc1DDmfuLUUpGj+R
+         5UISqhMJa/r/tyVIbDkT7i2ETlHH1BKxml0ZM0pvhNltVAZWjev74bQHVfM+Rci1wxLr
+         7Row==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=V8y4Da7EC7/NkkBxiw9MiVHU1l5kq31Xn/NFenvOq/Q=;
-        b=GEiiaEV1KQ7N5LD9PJNHqBIBqHlSR0pwhK2s+IbrgKQRkdMD82bJK57crQIFMd6Yl/
-         p4xsLGQFXKeAYV0RSlLVT/uOO/SGtiQ2SSwIEtGUpjgWW/uQ67JH3MWeV75XE4xLLkJO
-         lSsLVOJx4XqcYhNRhitwSLWE61oYaEmZPCwSu4tkZvet5yq/qzY9Ed2H4gAvTpwwfEyr
-         thrOsxafHr6rqMTTpAs0LYO3FnyFpNctfSokOVYyutTNxCWkG2fhjG7G6gTV0AMs3co5
-         AfZvPWSBQ65QvIzPSjrtOZ1psAuKZKOGkP0ziN7OIBID0ZNfcDVK0HDFdZ7cKBkoTDmt
-         yl/Q==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date:dkim-signature;
+        bh=hVbymYoSRu2oLMeB8gDg+j1RGrwnXBAbOJznDFzNjik=;
+        b=CQe7BuwnlUWocVwDrHxSl5Wkqk6Wn1LebDLaNxksLe7cCIAmbsUT3/O+KQMtEv6EpS
+         UnN3jnez6LY5Gchis2Lkj8m3/kQ7eGU6eZBAa7Ozwg2BORC6Z+RElzyw0wz0RFr4Yhzr
+         viCX/8HJdacBiYhUDpFfi6dIcCM6ASCXHi1eiJTbNUKmhEEsGpb+ZiJcvphpRyGlnqEV
+         e8YTi6F/FpAZf99WnqZSCZf4qW2xttY3KLwGicP7NHgY09OlE+cegd648XPoNNX/V5Yt
+         Baz84ii3zgn5avq8NIEfFQbe0P3RkpFk90kIZ+teT18xQBRdugtiXq/YDEXzxU51ZVGH
+         tCWQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b22si2046164qvb.187.2019.03.06.18.46.08
+       dkim=pass header.i=@kernel.org header.s=default header.b=JnpI9P7J;
+       spf=pass (google.com: domain of jikos@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=jikos@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id d10si3515082pla.42.2019.03.06.21.46.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Mar 2019 18:46:08 -0800 (PST)
-Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Wed, 06 Mar 2019 21:46:07 -0800 (PST)
+Received-SPF: pass (google.com: domain of jikos@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+       dkim=pass header.i=@kernel.org header.s=default header.b=JnpI9P7J;
+       spf=pass (google.com: domain of jikos@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=jikos@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from pobox.suse.cz (prg-ext-pat.suse.com [213.151.95.130])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 65AF7C05090A;
-	Thu,  7 Mar 2019 02:46:07 +0000 (UTC)
-Received: from [10.72.12.83] (ovpn-12-83.pek2.redhat.com [10.72.12.83])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id A0A7C1001DD9;
-	Thu,  7 Mar 2019 02:45:59 +0000 (UTC)
-Subject: Re: [RFC PATCH V2 5/5] vhost: access vq metadata through kernel
- virtual address
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: kvm@vger.kernel.org, virtualization@lists.linux-foundation.org,
- netdev@vger.kernel.org, linux-kernel@vger.kernel.org, peterx@redhat.com,
- linux-mm@kvack.org, aarcange@redhat.com
-References: <1551856692-3384-1-git-send-email-jasowang@redhat.com>
- <1551856692-3384-6-git-send-email-jasowang@redhat.com>
- <20190306092837-mutt-send-email-mst@kernel.org>
-From: Jason Wang <jasowang@redhat.com>
-Message-ID: <15105894-4ec1-1ed0-1976-7b68ed9eeeda@redhat.com>
-Date: Thu, 7 Mar 2019 10:45:57 +0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+	by mail.kernel.org (Postfix) with ESMTPSA id 47BE920835;
+	Thu,  7 Mar 2019 05:46:03 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1551937566;
+	bh=woS8eJdF9WhN4ajNoBXAip9dtR/2dJRhAAKFISudxNA=;
+	h=Date:From:To:cc:Subject:In-Reply-To:References:From;
+	b=JnpI9P7JZvwsGbKHOcx2/JGhPR4vyJd/ZcnCjfwjYyMtNLhlCRy9CwMVhuNuQC9jZ
+	 k+M7DQS2Z6GhDz7L7A7ychx/sNNQ7Uj8dW/doLFzVkZazEc8s7GKodp1OXF6z717H+
+	 lA8f3sfTnF8sP3Dj2+wfATWll6jNd1aOxje5dJiQ=
+Date: Thu, 7 Mar 2019 06:46:00 +0100 (CET)
+From: Jiri Kosina <jikos@kernel.org>
+To: Dominique Martinet <asmadeus@codewreck.org>
+cc: Andrew Morton <akpm@linux-foundation.org>, 
+    Vlastimil Babka <vbabka@suse.cz>, 
+    Linus Torvalds <torvalds@linux-foundation.org>, 
+    linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
+    linux-api@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, 
+    Greg KH <gregkh@linuxfoundation.org>, Jann Horn <jannh@google.com>, 
+    Andy Lutomirski <luto@amacapital.net>, Dave Chinner <david@fromorbit.com>, 
+    Kevin Easton <kevin@guarana.org>, Matthew Wilcox <willy@infradead.org>, 
+    Cyril Hrubis <chrubis@suse.cz>, Tejun Heo <tj@kernel.org>, 
+    "Kirill A . Shutemov" <kirill@shutemov.name>, 
+    Daniel Gruss <daniel@gruss.cc>
+Subject: Re: [PATCH 1/3] mm/mincore: make mincore() more conservative
+In-Reply-To: <20190307004036.GA16785@nautica>
+Message-ID: <nycvar.YFH.7.76.1903070643560.19912@cbobk.fhfr.pm>
+References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm> <20190130124420.1834-1-vbabka@suse.cz> <20190130124420.1834-2-vbabka@suse.cz> <20190306151351.f8ae1acae51ccad1a3537284@linux-foundation.org> <nycvar.YFH.7.76.1903070047360.19912@cbobk.fhfr.pm>
+ <20190307004036.GA16785@nautica>
+User-Agent: Alpine 2.21 (LSU 202 2017-01-01)
 MIME-Version: 1.0
-In-Reply-To: <20190306092837-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Thu, 07 Mar 2019 02:46:07 +0000 (UTC)
+Content-Type: text/plain; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, 7 Mar 2019, Dominique Martinet wrote:
 
-On 2019/3/7 上午12:31, Michael S. Tsirkin wrote:
->> +static void vhost_set_vmap_dirty(struct vhost_vmap *used)
->> +{
->> +	int i;
->> +
->> +	for (i = 0; i < used->npages; i++)
->> +		set_page_dirty_lock(used->pages[i]);
-> This seems to rely on page lock to mark page dirty.
->
-> Could it happen that page writeback will check the
-> page, find it clean, and then you mark it dirty and then
-> invalidate callback is called?
->
->
+> > > 
+> > > 	addr = 4095
+> > > 	vma->vm_end = 4096
+> > > 	pages = 1000
+> > > 
+> > > then `end' is 4096 and `(end - addr) << PAGE_SHIFT' is zero, but it
+> > > should have been 1.
+> > 
+> > Good catch! It should rather be something like
+> > 
+> > 	unsigned long pages = (end >> PAGE_SHIFT) - (addr >> PAGE_SHIFT);
+> 
+> That would be 0 for addr = 0 and vma->vm_end = 1; I assume we would
+> still want to count that as one page.
 
-Yes. But does this break anything? The page is still there, we just 
-remove a kernel mapping to it.
+Yeah, that was bogus as well, ETOOTIRED yesterday, sorry for the noise. 
+Both the variants are off.
 
-Thanks
+> I'm not too familiar with this area of the code, but I think there's a
+> handy macro we can use for this, perhaps
+>   DIV_ROUND_UP(end - addr, PAGE_SIZE) ?
+> 
+> kernel/kexec_core.c has defined PAGE_COUNT() which seems more
+> appropriate but I do not see a global equivalent
+> #define PAGE_COUNT(x) (((x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
+
+I'll fix that up when doing the other changes requested by Andrew.
+
+Thanks,
+
+-- 
+Jiri Kosina
+SUSE Labs
 
