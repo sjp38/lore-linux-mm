@@ -2,208 +2,366 @@ Return-Path: <SRS0=NBIx=RK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.4 required=3.0 tests=DATE_IN_PAST_06_12,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3F808C43381
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 16:33:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DF776C10F03
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 16:38:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EAF2D2081B
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 16:33:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EAF2D2081B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id 8DAFE2085A
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 16:38:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8DAFE2085A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 889608E0006; Thu,  7 Mar 2019 11:33:00 -0500 (EST)
+	id 132148E0006; Thu,  7 Mar 2019 11:38:56 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 839028E0002; Thu,  7 Mar 2019 11:33:00 -0500 (EST)
+	id 0E42E8E0002; Thu,  7 Mar 2019 11:38:56 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 728328E0006; Thu,  7 Mar 2019 11:33:00 -0500 (EST)
+	id F0A6C8E0006; Thu,  7 Mar 2019 11:38:55 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 05B9A8E0002
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 11:33:00 -0500 (EST)
-Received: by mail-lj1-f199.google.com with SMTP id h14so3647309lja.11
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 08:32:59 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AD8CF8E0002
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 11:38:55 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id 134so18391102pfx.21
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 08:38:55 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=RiQ8pHh1Q5auGmeQ1VAumpFkjTv6HITHLxc+Gt1bcGE=;
-        b=Jjm8GHFkSzeVPPfOJvZxKVvm+Pe5lTX365siAWOzlfk9JISQYlvfMbbuCqKPg8brLS
-         edcz8+3C4ftKSuQKiaQU7Owejxkt0wvfS4Py7sVWOEjNRt2E/Yz/tHznxqJ+6wa+fNQV
-         jQI8NQVD5WgGgyN/hO5UeY7mmRZA/i0KpdRadvE87baScuXqCtKww53475oFcKoVvpWe
-         jmcpM7o71Rpj02qBuR6hHU0RrALCEfqTZYY+frpGAE242YcfLJc0vab4JWwnGyNaFvRQ
-         aj0d7Z3cW+c60ARjFxa1KV7QsF0l9PuG0OyvL2JCfb4M7novuTF2LEVychNEb/cUavG0
-         nAvw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAWUeoxP5eM7kWU0jO3C951eNb/AVt4Vo/ao+oFPQzT1cIV1G6Rg
-	RgggPUFuuQnr7cKX5vbzU9d2TltUKqU52ZGshgnIuIJBto+9xPFOr690puX/ZYqZMclPqIBztzI
-	qWIPTau5vdDzGedHXTy6ABckEXyO9CqOb3hHz1rvaYQyLJKCjioWao1rF7OWFCR1WXg==
-X-Received: by 2002:ac2:569e:: with SMTP id 30mr7696117lfr.93.1551976379292;
-        Thu, 07 Mar 2019 08:32:59 -0800 (PST)
-X-Google-Smtp-Source: APXvYqzAR8v2xeyVaJfI9tJPzbL9MTsam5EDOBFcAIwvkfHKHFTXPA1ojoCPq4PWBauD7QZi/c4S
-X-Received: by 2002:ac2:569e:: with SMTP id 30mr7696059lfr.93.1551976378066;
-        Thu, 07 Mar 2019 08:32:58 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551976378; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=ewlumg6CCGkfxUO72Yi4z9djh6d1wc1yinxVVUQlnPg=;
+        b=n43cORIMdklPuC7VByMeHPoS5u7StqNHtIDgKfaOjNcyjNfLzVQW4gluJHv+/40axH
+         6WwOxVi8PbMd5+b7TJvkH+bjF8NoAq9Y8Fcc/PmKBWP72bCFCmx53bgZUfV1V2tGsOmb
+         dRnZ09Cu+mcVOWE1+G9DuG+ND6sDNx7crIZRam/3HrBW5UvR3VMdFNANXB8tPjjGHWI2
+         uQSKHO5a9durED18FG/H07DY7TaapgJw6uzpMPGHKWiKkBOF4VejVvcu+C3guVW59fX+
+         w3iUEbrkYdX5PNVXWu1L27tLJtaHg3neL7MEjE94foTXRnfQ55ON0gBNBYmJeYav7+pN
+         JnCg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWs/2kgIrGlHhzP3Qd8Xz/UMGJ1LFhY15ShbeLcZgQVKsaSA2j8
+	GI9RqDdhBzlSXlxPsMDUKzFFlMJJseVWx1PIDxf3fOFjD8GxQ41FhnxCUHl3RbMHzVvYS2rubXX
+	lZheFBb6IxpOflt/jLZ+Z3Yyp6oYMynWhz9acyhmXOdPHKXvP3RnfPThkGLn6NQAsNg==
+X-Received: by 2002:a62:53c7:: with SMTP id h190mr13968553pfb.204.1551976735334;
+        Thu, 07 Mar 2019 08:38:55 -0800 (PST)
+X-Google-Smtp-Source: APXvYqzFjNNxzMqAQw0fmvXevxCmCG3rzi8JeW7KohZwicDA/A7Uh7FA/kFVxKyKkLR1dq5PT9K9
+X-Received: by 2002:a62:53c7:: with SMTP id h190mr13968462pfb.204.1551976733840;
+        Thu, 07 Mar 2019 08:38:53 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551976733; cv=none;
         d=google.com; s=arc-20160816;
-        b=u5ypC2licg1IigICLshby/mOFErgBxdEwiJbkXL+Se/gmc40A4D1W7lMAsxZ+Mi5/6
-         97ImVJbKSzZZsSO56Q/DME9Ww4GE8i8X78RBovpcJARKuCqVgd2QC8vSPxfc60mwH4ck
-         o+PIA5dTiCX0sMzImex/e71uZIs3P9O3ilTA3xYf0uGIFfeBaEAGKso2o2RZNi1rrD6c
-         CzynWNJd/P683vTb13/YOlFL9kwWcPLsSx+4hOffV1zxnykaYGpKfQK8g+SnG68kUE++
-         +1QwwcXbdQ/Fqwm7/YaHJD5OwvStsjzb1zPVVxCIwglesILDpcDxjWuOn+7Xi1903Ik0
-         mvhA==
+        b=Fz/Sf9oPvIE07xcwb9c6VD6hsoA3v/DHCOBtHSEZssv58szNp+feSYg8QeQ1fYDi83
+         GunuR/01k9Jks+8AdHAhJVHC4Zzg5mWkZ5HIUo8fGV5WYw3wLbtjm4EsuYJo8J8ypDD0
+         2kLXQBLg8BZNuEcZ9kEvbaFER5EEywyLZtjXor0bmHhhbhMdn0DTdj/jWgX2BC0PQdpz
+         BJGtc8gHWVWKbVwxXCfYmNgf3/mKCou1jk/5W/tCYfuR8VBPBeoZS03mJhtksr5SKnEd
+         JJag7pQa+CWSDcI9v0LbGsbtJZjtviyPzy07fWiVMhKd2CUfXVecRchHJ0oRVMTGXu2B
+         8kcQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=RiQ8pHh1Q5auGmeQ1VAumpFkjTv6HITHLxc+Gt1bcGE=;
-        b=Ze5GjCB9kVoUNSRawPO7wurMkNifzHGrrmobaD7riXIC/tyuCdIN/DOAgrqGUdEXAj
-         XYNGzOQ7QFuzugH4hH+tecc1AfgcLs3agUW7+DXXVCFwHknpoqkPoTeALuJTzR98Wxrn
-         SMhTUANI3jj2tNSzJPuLO3/J2CsjMPGXsWs5svv22iLAPFFgW+jEnL/d22s+K8AKXsP9
-         8+IHrQTgCok1n7rrWIe976XFQqdJf2+mk50bGu27KjfEUigcZBxiMs8XGj2mGy93Jrvk
-         fcQO8MLQqSkU9W8TEH5NIFSJpL4MJqWnKCu1kH7BUdoeg5x39wu6D4Yjum1WUIN31CX6
-         jPFA==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=ewlumg6CCGkfxUO72Yi4z9djh6d1wc1yinxVVUQlnPg=;
+        b=WlD4AE7l6INvWvUNPmGLHrku6NsP5lSIbjvVuFLdSIuoNIBsUjxsoBW71dVcRycF31
+         esKw2W3wwN6KZ1N0IxGG+HMB+nwd/z0dyU4/Ee3uroldPKGWxuZlSOiWXKO6xAiL4c/8
+         KmjJNeeR+vt9S6dZDHxGNLjYIlffn+JbHLW3VpQC9PRe4tEeTlA6b7V28KHAGOFT4TIu
+         CL7Y5qELGBLr/4IpGula7hCzv6/HCSaCGubCnLsAiQ8GZOJhH/70fBkmjXsddH4hOZVs
+         1IKDrCCG0dE7K1zjI2oZPZCI80Wm7fEltlYcV4a0TYTrNujY0xMQBmXkGLToCLkmRhEj
+         h6Og==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id q29si3383019lfb.114.2019.03.07.08.32.57
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id a4si4515841pfj.68.2019.03.07.08.38.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Mar 2019 08:32:58 -0800 (PST)
-Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        Thu, 07 Mar 2019 08:38:53 -0800 (PST)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.12]
-	by relay.sw.ru with esmtp (Exim 4.91)
-	(envelope-from <aryabinin@virtuozzo.com>)
-	id 1h1vwz-0002uH-SI; Thu, 07 Mar 2019 19:32:54 +0300
-Subject: Re: [PATCH] mm: fix sleeping function warning in alloc_swap_info
-To: Aaron Lu <aaron.lu@linux.alibaba.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
- Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
- Yang Shi <shy828301@gmail.com>, Jiufei Xue <jiufei.xue@linux.alibaba.com>,
- Linux MM <linux-mm@kvack.org>, joseph.qi@linux.alibaba.com,
- Linus Torvalds <torvalds@linux-foundation.org>
-References: <b9781d8e-88f7-efc0-3a3c-76d8e7937f10@i-love.sakura.ne.jp>
- <CAHbLzkots=t69A8VmE=gRezSUuyk1-F9RV8uy6Q7Bhcmv6PRJw@mail.gmail.com>
- <201901300042.x0U0g6EH085874@www262.sakura.ne.jp>
- <20190129170150.57021080bdfd3a46a479d45d@linux-foundation.org>
- <20190307144329.GA124730@h07e11201.sqa.eu95>
- <647c164c-6726-13d8-bffc-be366fba0004@virtuozzo.com>
- <20190307152446.GA37687@h07e11201.sqa.eu95>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <afce7abf-dbc3-3b3e-9b61-a8de96fcaa2d@virtuozzo.com>
-Date: Thu, 7 Mar 2019 19:33:22 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.2
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from fmsmga004.fm.intel.com ([10.253.24.48])
+  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Mar 2019 08:38:53 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,451,1544515200"; 
+   d="scan'208";a="150217459"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by fmsmga004.fm.intel.com with ESMTP; 07 Mar 2019 08:38:52 -0800
+Date: Thu, 7 Mar 2019 00:37:17 -0800
+From: Ira Weiny <ira.weiny@intel.com>
+To: john.hubbard@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	Al Viro <viro@zeniv.linux.org.uk>,
+	Christian Benvenuti <benve@cisco.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	Christopher Lameter <cl@linux.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dave Chinner <david@fromorbit.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>,
+	Doug Ledford <dledford@redhat.com>, Jan Kara <jack@suse.cz>,
+	Jason Gunthorpe <jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
+	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
+	John Hubbard <jhubbard@nvidia.com>
+Subject: Re: [PATCH v3 0/1] mm: introduce put_user_page*(), placeholder
+ versions
+Message-ID: <20190307083716.GA21304@iweiny-DESK2.sc.intel.com>
+References: <20190306235455.26348-1-jhubbard@nvidia.com>
 MIME-Version: 1.0
-In-Reply-To: <20190307152446.GA37687@h07e11201.sqa.eu95>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190306235455.26348-1-jhubbard@nvidia.com>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 3/7/19 6:24 PM, Aaron Lu wrote:
-> On Thu, Mar 07, 2019 at 05:47:13PM +0300, Andrey Ryabinin wrote:
->>
->>
->> On 3/7/19 5:43 PM, Aaron Lu wrote:
->>> On Tue, Jan 29, 2019 at 05:01:50PM -0800, Andrew Morton wrote:
->>>> On Wed, 30 Jan 2019 09:42:06 +0900 Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp> wrote:
->>>>
->>>>>>>
->>>>>>> If we want to allow vfree() to sleep, at least we need to test with
->>>>>>> kvmalloc() == vmalloc() (i.e. force kvmalloc()/kvfree() users to use
->>>>>>> vmalloc()/vfree() path). For now, reverting the
->>>>>>> "Context: Either preemptible task context or not-NMI interrupt." change
->>>>>>> will be needed for stable kernels.
->>>>>>
->>>>>> So, the comment for vfree "May sleep if called *not* from interrupt
->>>>>> context." is wrong?
->>>>>
->>>>> Commit bf22e37a641327e3 ("mm: add vfree_atomic()") says
->>>>>
->>>>>     We are going to use sleeping lock for freeing vmap.  However some
->>>>>     vfree() users want to free memory from atomic (but not from interrupt)
->>>>>     context.  For this we add vfree_atomic() - deferred variation of vfree()
->>>>>     which can be used in any atomic context (except NMIs).
->>>>>
->>>>> and commit 52414d3302577bb6 ("kvfree(): fix misleading comment") made
->>>>>
->>>>>     - * Context: Any context except NMI.
->>>>>     + * Context: Either preemptible task context or not-NMI interrupt.
->>>>>
->>>>> change. But I think that we converted kmalloc() to kvmalloc() without checking
->>>>> context of kvfree() callers. Therefore, I think that kvfree() needs to use
->>>>> vfree_atomic() rather than just saying "vfree() might sleep if called not in
->>>>> interrupt context."...
->>>>
->>>> Whereabouts in the vfree() path can the kernel sleep?
->>>
->>> (Sorry for the late reply.)
->>>
->>> Adding Andrey Ryabinin, author of commit 52414d3302577bb6
->>> ("kvfree(): fix misleading comment"), maybe Andrey remembers
->>> where vfree() can sleep.
->>>
->>> In the meantime, does "cond_resched_lock(&vmap_area_lock);" in
->>> __purge_vmap_area_lazy() count as a sleep point?
->>
->> Yes, this is the place (the only one) where vfree() can sleep.
+On Wed, Mar 06, 2019 at 03:54:54PM -0800, john.hubbard@gmail.com wrote:
+> From: John Hubbard <jhubbard@nvidia.com>
 > 
-> OK, thanks for the quick confirm.
+> Hi Andrew and all,
 > 
-> So what about this: use __vfree_deferred() when:
->  - in_interrupt(), because we can't use mutex_trylock() as pointed out
->    by Tetsuo;
->  - in_atomic(), because cond_resched_lock();
->  - irqs_disabled(), as smp_call_function_many() will deadlock.
+> Can we please apply this (destined for 5.2) once the time is right?
+> (I see that -mm just got merged into the main tree today.)
 > 
-> An untested diff to show the idea(not sure if warn is needed):
+> We seem to have pretty solid consensus on the concept and details of the
+> put_user_pages() approach. Or at least, if we don't, someone please speak
+> up now. Christopher Lameter, especially, since you had some concerns
+> recently.
 > 
+> Therefore, here is the first patch--only. This allows us to begin
+> converting the get_user_pages() call sites to use put_user_page(), instead
+> of put_page(). This is in order to implement tracking of get_user_page()
+> pages.
+> 
+> Normally I'd include a user of this code, but in this case, I think we have
+> examples of how it will work in the RFC and related discussions [1]. What
+> matters more at this point is unblocking the ability to start fixing up
+> various subsystems, through git trees other than linux-mm. For example, the
+> Infiniband example conversion now needs to pick up some prerequisite
+> patches via the RDMA tree. It seems likely that other call sites may need
+> similar attention, and so having put_user_pages() available would really
+> make this go more quickly.
+>
 
-It was discussed before. You're not the first one suggesting something like this.
-There is the comment near in_atomic() explaining  well why and when your patch won't work.
+FWIW I agree with John.
 
-The easiest way of making vfree() to be safe in atomic contexts is this patch:
-http://lkml.kernel.org/r/20170330102719.13119-1-aryabinin@virtuozzo.com
+Ira
 
-But the final decision at that time was to fix caller so the call vfree from sleepable context instead:
- http://lkml.kernel.org/r/20170330152229.f2108e718114ed77acae7405@linux-foundation.org
-
- 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index e86ba6e74b50..28d200f054b0 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -1578,7 +1578,7 @@ void vfree_atomic(const void *addr)
->  
->  static void __vfree(const void *addr)
->  {
-> -	if (unlikely(in_interrupt()))
-> +	if (unlikely(in_interrupt() || in_atomic() || irqs_disabled()))
->  		__vfree_deferred(addr);
->  	else
->  		__vunmap(addr, 1);
-> @@ -1606,8 +1606,6 @@ void vfree(const void *addr)
->  
->  	kmemleak_free(addr);
->  
-> -	might_sleep_if(!in_interrupt());
-> -
->  	if (!addr)
->  		return;
->  
+> 
+> Previous cover letter follows:
+> ==============================
+> 
+> A discussion of the overall problem is below.
+> 
+> As mentioned in patch 0001, the steps are to fix the problem are:
+> 
+> 1) Provide put_user_page*() routines, intended to be used
+>    for releasing pages that were pinned via get_user_pages*().
+> 
+> 2) Convert all of the call sites for get_user_pages*(), to
+>    invoke put_user_page*(), instead of put_page(). This involves dozens of
+>    call sites, and will take some time.
+> 
+> 3) After (2) is complete, use get_user_pages*() and put_user_page*() to
+>    implement tracking of these pages. This tracking will be separate from
+>    the existing struct page refcounting.
+> 
+> 4) Use the tracking and identification of these pages, to implement
+>    special handling (especially in writeback paths) when the pages are
+>    backed by a filesystem.
+> 
+> Overview
+> ========
+> 
+> Some kernel components (file systems, device drivers) need to access
+> memory that is specified via process virtual address. For a long time, the
+> API to achieve that was get_user_pages ("GUP") and its variations. However,
+> GUP has critical limitations that have been overlooked; in particular, GUP
+> does not interact correctly with filesystems in all situations. That means
+> that file-backed memory + GUP is a recipe for potential problems, some of
+> which have already occurred in the field.
+> 
+> GUP was first introduced for Direct IO (O_DIRECT), allowing filesystem code
+> to get the struct page behind a virtual address and to let storage hardware
+> perform a direct copy to or from that page. This is a short-lived access
+> pattern, and as such, the window for a concurrent writeback of GUP'd page
+> was small enough that there were not (we think) any reported problems.
+> Also, userspace was expected to understand and accept that Direct IO was
+> not synchronized with memory-mapped access to that data, nor with any
+> process address space changes such as munmap(), mremap(), etc.
+> 
+> Over the years, more GUP uses have appeared (virtualization, device
+> drivers, RDMA) that can keep the pages they get via GUP for a long period
+> of time (seconds, minutes, hours, days, ...). This long-term pinning makes
+> an underlying design problem more obvious.
+> 
+> In fact, there are a number of key problems inherent to GUP:
+> 
+> Interactions with file systems
+> ==============================
+> 
+> File systems expect to be able to write back data, both to reclaim pages,
+> and for data integrity. Allowing other hardware (NICs, GPUs, etc) to gain
+> write access to the file memory pages means that such hardware can dirty
+> the pages, without the filesystem being aware. This can, in some cases
+> (depending on filesystem, filesystem options, block device, block device
+> options, and other variables), lead to data corruption, and also to kernel
+> bugs of the form:
+> 
+>     kernel BUG at /build/linux-fQ94TU/linux-4.4.0/fs/ext4/inode.c:1899!
+>     backtrace:
+>         ext4_writepage
+>         __writepage
+>         write_cache_pages
+>         ext4_writepages
+>         do_writepages
+>         __writeback_single_inode
+>         writeback_sb_inodes
+>         __writeback_inodes_wb
+>         wb_writeback
+>         wb_workfn
+>         process_one_work
+>         worker_thread
+>         kthread
+>         ret_from_fork
+> 
+> ...which is due to the file system asserting that there are still buffer
+> heads attached:
+> 
+>         ({                                                      \
+>                 BUG_ON(!PagePrivate(page));                     \
+>                 ((struct buffer_head *)page_private(page));     \
+>         })
+> 
+> Dave Chinner's description of this is very clear:
+> 
+>     "The fundamental issue is that ->page_mkwrite must be called on every
+>     write access to a clean file backed page, not just the first one.
+>     How long the GUP reference lasts is irrelevant, if the page is clean
+>     and you need to dirty it, you must call ->page_mkwrite before it is
+>     marked writeable and dirtied. Every. Time."
+> 
+> This is just one symptom of the larger design problem: filesystems do not
+> actually support get_user_pages() being called on their pages, and letting
+> hardware write directly to those pages--even though that pattern has been
+> going on since about 2005 or so.
+> 
+> Long term GUP
+> =============
+> 
+> Long term GUP is an issue when FOLL_WRITE is specified to GUP (so, a
+> writeable mapping is created), and the pages are file-backed. That can lead
+> to filesystem corruption. What happens is that when a file-backed page is
+> being written back, it is first mapped read-only in all of the CPU page
+> tables; the file system then assumes that nobody can write to the page, and
+> that the page content is therefore stable. Unfortunately, the GUP callers
+> generally do not monitor changes to the CPU pages tables; they instead
+> assume that the following pattern is safe (it's not):
+> 
+>     get_user_pages()
+> 
+>     Hardware can keep a reference to those pages for a very long time,
+>     and write to it at any time. Because "hardware" here means "devices
+>     that are not a CPU", this activity occurs without any interaction
+>     with the kernel's file system code.
+> 
+>     for each page
+>         set_page_dirty
+>         put_page()
+> 
+> In fact, the GUP documentation even recommends that pattern.
+> 
+> Anyway, the file system assumes that the page is stable (nothing is writing
+> to the page), and that is a problem: stable page content is necessary for
+> many filesystem actions during writeback, such as checksum, encryption,
+> RAID striping, etc. Furthermore, filesystem features like COW (copy on
+> write) or snapshot also rely on being able to use a new page for as memory
+> for that memory range inside the file.
+> 
+> Corruption during write back is clearly possible here. To solve that, one
+> idea is to identify pages that have active GUP, so that we can use a bounce
+> page to write stable data to the filesystem. The filesystem would work
+> on the bounce page, while any of the active GUP might write to the
+> original page. This would avoid the stable page violation problem, but note
+> that it is only part of the overall solution, because other problems
+> remain.
+> 
+> Other filesystem features that need to replace the page with a new one can
+> be inhibited for pages that are GUP-pinned. This will, however, alter and
+> limit some of those filesystem features. The only fix for that would be to
+> require GUP users to monitor and respond to CPU page table updates.
+> Subsystems such as ODP and HMM do this, for example. This aspect of the
+> problem is still under discussion.
+> 
+> Direct IO
+> =========
+> 
+> Direct IO can cause corruption, if userspace does Direct-IO that writes to
+> a range of virtual addresses that are mmap'd to a file.  The pages written
+> to are file-backed pages that can be under write back, while the Direct IO
+> is taking place.  Here, Direct IO races with a write back: it calls
+> GUP before page_mkclean() has replaced the CPU pte with a read-only entry.
+> The race window is pretty small, which is probably why years have gone by
+> before we noticed this problem: Direct IO is generally very quick, and
+> tends to finish up before the filesystem gets around to do anything with
+> the page contents.  However, it's still a real problem.  The solution is
+> to never let GUP return pages that are under write back, but instead,
+> force GUP to take a write fault on those pages.  That way, GUP will
+> properly synchronize with the active write back.  This does not change the
+> required GUP behavior, it just avoids that race.
+> 
+> Changes since v2:
+> 
+>  * Reduced down to just one patch, in order to avoid dependencies between
+>    subsystem git repos.
+> 
+>  * Rebased to latest linux.git: commit afe6fe7036c6 ("Merge tag
+>    'armsoc-late' of git://git.kernel.org/pub/scm/linux/kernel/git/soc/soc")
+> 
+>  * Added Ira's review tag, based on
+>    https://lore.kernel.org/lkml/20190215002312.GC7512@iweiny-DESK2.sc.intel.com/
+> 
+> 
+> [1] https://lore.kernel.org/r/20190208075649.3025-3-jhubbard@nvidia.com
+>     (RFC v2: mm: gup/dma tracking)
+> 
+> Cc: Christian Benvenuti <benve@cisco.com>
+> Cc: Christoph Hellwig <hch@infradead.org>
+> Cc: Christopher Lameter <cl@linux.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Dave Chinner <david@fromorbit.com>
+> Cc: Dennis Dalessandro <dennis.dalessandro@intel.com>
+> Cc: Doug Ledford <dledford@redhat.com>
+> Cc: Ira Weiny <ira.weiny@intel.com>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Jason Gunthorpe <jgg@ziepe.ca>
+> Cc: Jérôme Glisse <jglisse@redhat.com>
+> Cc: Matthew Wilcox <willy@infradead.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Mike Rapoport <rppt@linux.ibm.com>
+> Cc: Mike Marciniszyn <mike.marciniszyn@intel.com>
+> Cc: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: Tom Talpey <tom@talpey.com>
+> 
+> 
+> John Hubbard (1):
+>   mm: introduce put_user_page*(), placeholder versions
+> 
+>  include/linux/mm.h | 24 ++++++++++++++
+>  mm/swap.c          | 82 ++++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 106 insertions(+)
+> 
+> -- 
+> 2.21.0
 > 
 
