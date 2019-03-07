@@ -2,122 +2,191 @@ Return-Path: <SRS0=NBIx=RK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D9345C43381
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 15:19:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F8BBC43381
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 15:24:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A093920840
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 15:19:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A093920840
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id E293620643
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 15:24:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E293620643
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 36B828E0003; Thu,  7 Mar 2019 10:19:14 -0500 (EST)
+	id 738768E0004; Thu,  7 Mar 2019 10:24:58 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 31AB58E0002; Thu,  7 Mar 2019 10:19:14 -0500 (EST)
+	id 6E95C8E0002; Thu,  7 Mar 2019 10:24:58 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1BF008E0003; Thu,  7 Mar 2019 10:19:14 -0500 (EST)
+	id 5FED68E0004; Thu,  7 Mar 2019 10:24:58 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DCC2F8E0002
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 10:19:13 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id z1so18134956pfz.8
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 07:19:13 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 23AC68E0002
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 10:24:58 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id 73so16523226pga.18
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 07:24:58 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=+AHp0RucQjCfAIAYJGoA6OeFHqTVPnwS4ZyRJVethww=;
-        b=oGZ+TpC1gesMX7EG+9xJzzMUR/5/AVh3f25n7hkjPJChActfwlH5xFwQqOq2MLfQ7J
-         RX0cKONJP+xWAQtWRNfJZP3JcbaaE6UWBN+jBdJi1YSJAqDNmhRb1EauGcOthOVf6RsF
-         R5nkpsqy22ssy8MXpMmOSKsHZ7jFHbIsVOCos6NRkMJlNw4C3SMDge9HQV74bYR1gHuR
-         nfM/yjJ3xBAd5u6BXtRf9k4IvbjgUVVUxqmJBCiS8kY5vsXDBOrO+ZP0NzYoWGOrE/O6
-         9yWjbG3hkqB1+MYKjdPdWA6TSm1orHUtAsxCdazVjQi7LG91CDsVrfXaYwMV8FZ6/vYC
-         3+4w==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning kbusch@kernel.org does not designate 134.134.136.20 as permitted sender) smtp.mailfrom=kbusch@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVweHsvbM6qPnvxt5/hyt7fddWSLHMAEvv1g2iSCBIov2b/Ll0v
-	hJopGtJmYe1vfmTm76QAc10tG6aOd+BrzFr2sGLABS+6Fn/j4kZm2Wz7g+9hZ7q4yXHIXsPJzT6
-	c9b0sumfxHaB8lGFVlXvMydWBen8NORN5daSkJ15bm5weTkUyMn8EsqRNcJ1RWDY=
-X-Received: by 2002:a65:4348:: with SMTP id k8mr11928303pgq.289.1551971953433;
-        Thu, 07 Mar 2019 07:19:13 -0800 (PST)
-X-Google-Smtp-Source: APXvYqx0Y1kyxtA+WBMwMuhrdiBdle5ap3rNrwljIZuieG0Iv5VLuN6pLQuTdSCZG5vJ53EOnzRp
-X-Received: by 2002:a65:4348:: with SMTP id k8mr11928057pgq.289.1551971949607;
-        Thu, 07 Mar 2019 07:19:09 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551971949; cv=none;
+        bh=zHVQK5ryASDeC+o/16Ls2IqWDN787GIxwxfv+hgrnnU=;
+        b=pDc0Z5kFELKwah1HiNDHCAPfSQUdLXWUJlv/HziQ4Mw5PpZ9kWZkfTzi/+djaZJB35
+         bcqFrSGeNaDvDbQZ0EayoN4KmrJYcxVU3pGDPCFkDCCO2Ze08pjfAiTQMbx9cIupENU3
+         FHi/PvSxF+btPGPchPDKZ7DlaUb2w6pYVjOvm3+y1+oiHNGNHVwwSJIPBKr4Z+n04qBK
+         7OK14sN8ZGS14NHXV+GK6IiHtG2lKST4NFyr0apimEYU1/ilMba0P1OwaR7HX6IXe+HH
+         Xx/B9TwrfV7yxZRPzCM8a/g9QZpvnSezOMM4ZeaNa1TDjDTlV12+KczOPaL4ZW67FAEB
+         7LXA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aaron.lu@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=aaron.lu@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAXvLhiFjr6J2mpujJsh3yeplujqugNFeo6JWwJGQTtDNRAeGX1d
+	V72yx0GXa4ctgMUCxU9UnK76QLuUXHscytex0sc+AFSztgLxTVqvpzMyMNPFNIUKK7co/MQ+ejI
+	e4OEKZKmR835eeHoPuEJHkUjf8/DSjeN5Ld98745/Uiwh44seX/w6B8GeUFii+4i8gA==
+X-Received: by 2002:a17:902:8f82:: with SMTP id z2mr13509565plo.163.1551972297794;
+        Thu, 07 Mar 2019 07:24:57 -0800 (PST)
+X-Google-Smtp-Source: APXvYqwuyT1Ao1ztisrfIM7QL79y1sMB3PKfN6O1T4c0SoLUfrHghDf42t/3jAc9z8AB8FaEaDlB
+X-Received: by 2002:a17:902:8f82:: with SMTP id z2mr13509510plo.163.1551972296937;
+        Thu, 07 Mar 2019 07:24:56 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551972296; cv=none;
         d=google.com; s=arc-20160816;
-        b=oFtaXZiWf9dpSgsBOKXX/pYfm5b2gLZ6jrbpXGJ6DMd5I2CqfCYMXyOc+4xfIkBzov
-         1LoLDYJllVbJXfHUI9LYxYtt/Sq7sMVY0aazjZV4ik9jA/+WUblXfTUUC+OgK+FtzXBp
-         PZjKa8dXwkN7jawfweCsFkFMk0wAAbhagJ7oZ/Tp0bcWe8c5kiFKBYPBbuUlZ9yn0JQG
-         iwkFxMtAEW1deUWJc+5zZiV71RQ2ZXjM2BmMHC7vBfmJXQ8UYlQFSekdBdZYIg6+tP+Z
-         tN2CChs3F78moHPdb1WSSn86BOyfZJh4dvemi7EEWoEF39voszUkG9FwndtFLnpw8AJJ
-         A7Vw==
+        b=wAW84X7Jl4IiwviWFoIEAl3aNNuIjqiyIovIiCYjUeVimmaY+JJM23UqNluX8oTz7f
+         Ztc84kQG5R1G2Aj33UXW19GBPADAd87C24Y0gsblXGbTikLLR0IAHwwlMRqBZPJqA2xK
+         HRpykdBsx45E2r45SqRu2t8NsbMsFd5ZuWEEZvJ09Nzi2DJIgFDk6EvHF0K6wT8iAE4R
+         a5Bm5JrsqtojCovJBwi3c6iUu5UL9rTCKk1yG8m5ZXut2z9ZDhcwLqiyFI8F7HlwtZ/D
+         o2vb2RzNpQahTYP36QgF4W4nwlyeiLTwcJbffVfravmLhwRDBSiRtsBuX1WufgN/ZvOM
+         21rw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=+AHp0RucQjCfAIAYJGoA6OeFHqTVPnwS4ZyRJVethww=;
-        b=t4Tc74Mw7mTiyTLFEBHPVB6Fq7jHQFtrkuYZpJHxguZYgo2Jfujsv7Jx92VKth2WWH
-         WuVyn/o1sPaAbNb/DV0Bns23LwZFAb04OXPih0OwN8IQwvLAgx+gpvXKykSb2Uni2ZQH
-         Jf4irHN1blZEykUrRGxd6C/nBM7sHMAp3td1Jq1pQYWRgDePR87Rb6xDGZpRT/C8/j52
-         8H6Vi73BBWIBd2u03QCfhNH7lS3Oya6JeGA9xImYbMQd9lrukhXBg7lJ3zbCmL3/bDS8
-         d8yMnMeV2U/ANKEFOLglsjUBcVNR5P2Jntp0Y9kQ4JwJamKUwWK0MyYpDzcaHBdMbJE5
-         Sqqg==
+        bh=zHVQK5ryASDeC+o/16Ls2IqWDN787GIxwxfv+hgrnnU=;
+        b=CdBTd+TAIzLrKhbl2DJ+kGpuSBp1tkAsnMPb1u9RPI7E+r8jsNM4D63xEx7cYT54Bj
+         vbaH3fHcyf0k4eFqZ+ABwQHH3AkuDQE22QL7WlD1r6dokDhBaSDEvV287MePO1IbQx5F
+         Uhj0rKW671Uy/BbSNxsXG4kCpCvnIs01NbgQcE/fSC1YWxe9gkHbglk7+E167mKVWtLG
+         cXxLEqeErjvR61WFlewREBjgzT5rLyjoaf3w1p2FQ25hPEOLUa1i3POsOhKO7PAq3rSg
+         4yb7JjJa6qPyIL+B9MxffVljARLv0FVjNELNsOxL1lVEweGr+2WAR1aIpz7XwwDeBuwx
+         ekxg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning kbusch@kernel.org does not designate 134.134.136.20 as permitted sender) smtp.mailfrom=kbusch@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id g63si4040769pgc.382.2019.03.07.07.19.09
+       spf=pass (google.com: domain of aaron.lu@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=aaron.lu@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
+        by mx.google.com with ESMTPS id h8si4285962pls.365.2019.03.07.07.24.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Mar 2019 07:19:09 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning kbusch@kernel.org does not designate 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        Thu, 07 Mar 2019 07:24:56 -0800 (PST)
+Received-SPF: pass (google.com: domain of aaron.lu@linux.alibaba.com designates 115.124.30.133 as permitted sender) client-ip=115.124.30.133;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning kbusch@kernel.org does not designate 134.134.136.20 as permitted sender) smtp.mailfrom=kbusch@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from fmsmga004.fm.intel.com ([10.253.24.48])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Mar 2019 07:19:09 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,451,1544515200"; 
-   d="scan'208";a="150180347"
-Received: from unknown (HELO localhost.localdomain) ([10.232.112.69])
-  by fmsmga004.fm.intel.com with ESMTP; 07 Mar 2019 07:19:08 -0800
-Date: Thu, 7 Mar 2019 08:19:38 -0700
-From: Keith Busch <kbusch@kernel.org>
-To: Brice Goglin <Brice.Goglin@inria.fr>
-Cc: "Busch, Keith" <keith.busch@intel.com>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-api@vger.kernel.org" <linux-api@vger.kernel.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Rafael Wysocki <rafael@kernel.org>,
-	"Hansen, Dave" <dave.hansen@intel.com>,
-	"Williams, Dan J" <dan.j.williams@intel.com>
-Subject: Re: [PATCHv6 07/10] acpi/hmat: Register processor domain to its
- memory
-Message-ID: <20190307151938.GC1844@localhost.localdomain>
-References: <20190214171017.9362-1-keith.busch@intel.com>
- <20190214171017.9362-8-keith.busch@intel.com>
- <8fb27d2c-2165-7029-6ea1-94fc379b3be7@inria.fr>
+       spf=pass (google.com: domain of aaron.lu@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=aaron.lu@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R321e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04396;MF=aaron.lu@linux.alibaba.com;NM=1;PH=DS;RN=8;SR=0;TI=SMTPD_---0TMC5uwe_1551972287;
+Received: from h07e11201.sqa.eu95(mailfrom:aaron.lu@linux.alibaba.com fp:SMTPD_---0TMC5uwe_1551972287)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Thu, 07 Mar 2019 23:24:54 +0800
+Date: Thu, 7 Mar 2019 23:24:47 +0800
+From: Aaron Lu <aaron.lu@linux.alibaba.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
+	Yang Shi <shy828301@gmail.com>,
+	Jiufei Xue <jiufei.xue@linux.alibaba.com>,
+	Linux MM <linux-mm@kvack.org>, joseph.qi@linux.alibaba.com,
+	Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [PATCH] mm: fix sleeping function warning in alloc_swap_info
+Message-ID: <20190307152446.GA37687@h07e11201.sqa.eu95>
+References: <b9781d8e-88f7-efc0-3a3c-76d8e7937f10@i-love.sakura.ne.jp>
+ <CAHbLzkots=t69A8VmE=gRezSUuyk1-F9RV8uy6Q7Bhcmv6PRJw@mail.gmail.com>
+ <201901300042.x0U0g6EH085874@www262.sakura.ne.jp>
+ <20190129170150.57021080bdfd3a46a479d45d@linux-foundation.org>
+ <20190307144329.GA124730@h07e11201.sqa.eu95>
+ <647c164c-6726-13d8-bffc-be366fba0004@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <8fb27d2c-2165-7029-6ea1-94fc379b3be7@inria.fr>
-User-Agent: Mutt/1.9.1 (2017-09-22)
+In-Reply-To: <647c164c-6726-13d8-bffc-be366fba0004@virtuozzo.com>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Brice,
+On Thu, Mar 07, 2019 at 05:47:13PM +0300, Andrey Ryabinin wrote:
+> 
+> 
+> On 3/7/19 5:43 PM, Aaron Lu wrote:
+> > On Tue, Jan 29, 2019 at 05:01:50PM -0800, Andrew Morton wrote:
+> >> On Wed, 30 Jan 2019 09:42:06 +0900 Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp> wrote:
+> >>
+> >>>>>
+> >>>>> If we want to allow vfree() to sleep, at least we need to test with
+> >>>>> kvmalloc() == vmalloc() (i.e. force kvmalloc()/kvfree() users to use
+> >>>>> vmalloc()/vfree() path). For now, reverting the
+> >>>>> "Context: Either preemptible task context or not-NMI interrupt." change
+> >>>>> will be needed for stable kernels.
+> >>>>
+> >>>> So, the comment for vfree "May sleep if called *not* from interrupt
+> >>>> context." is wrong?
+> >>>
+> >>> Commit bf22e37a641327e3 ("mm: add vfree_atomic()") says
+> >>>
+> >>>     We are going to use sleeping lock for freeing vmap.  However some
+> >>>     vfree() users want to free memory from atomic (but not from interrupt)
+> >>>     context.  For this we add vfree_atomic() - deferred variation of vfree()
+> >>>     which can be used in any atomic context (except NMIs).
+> >>>
+> >>> and commit 52414d3302577bb6 ("kvfree(): fix misleading comment") made
+> >>>
+> >>>     - * Context: Any context except NMI.
+> >>>     + * Context: Either preemptible task context or not-NMI interrupt.
+> >>>
+> >>> change. But I think that we converted kmalloc() to kvmalloc() without checking
+> >>> context of kvfree() callers. Therefore, I think that kvfree() needs to use
+> >>> vfree_atomic() rather than just saying "vfree() might sleep if called not in
+> >>> interrupt context."...
+> >>
+> >> Whereabouts in the vfree() path can the kernel sleep?
+> > 
+> > (Sorry for the late reply.)
+> > 
+> > Adding Andrey Ryabinin, author of commit 52414d3302577bb6
+> > ("kvfree(): fix misleading comment"), maybe Andrey remembers
+> > where vfree() can sleep.
+> > 
+> > In the meantime, does "cond_resched_lock(&vmap_area_lock);" in
+> > __purge_vmap_area_lazy() count as a sleep point?
+> 
+> Yes, this is the place (the only one) where vfree() can sleep.
 
-Please see v7 of this series from last week instead for reviews:
+OK, thanks for the quick confirm.
 
- https://patchwork.kernel.org/cover/10832365/
+So what about this: use __vfree_deferred() when:
+ - in_interrupt(), because we can't use mutex_trylock() as pointed out
+   by Tetsuo;
+ - in_atomic(), because cond_resched_lock();
+ - irqs_disabled(), as smp_call_function_many() will deadlock.
+
+An untested diff to show the idea(not sure if warn is needed):
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index e86ba6e74b50..28d200f054b0 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1578,7 +1578,7 @@ void vfree_atomic(const void *addr)
+ 
+ static void __vfree(const void *addr)
+ {
+-	if (unlikely(in_interrupt()))
++	if (unlikely(in_interrupt() || in_atomic() || irqs_disabled()))
+ 		__vfree_deferred(addr);
+ 	else
+ 		__vunmap(addr, 1);
+@@ -1606,8 +1606,6 @@ void vfree(const void *addr)
+ 
+ 	kmemleak_free(addr);
+ 
+-	might_sleep_if(!in_interrupt());
+-
+ 	if (!addr)
+ 		return;
+ 
 
