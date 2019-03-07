@@ -7,102 +7,102 @@ X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 93A72C43381
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 23:00:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E0D8C43381
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 23:00:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 34B1A20840
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 23:00:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EBD4720840
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 23:00:44 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="V2nhvsUU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 34B1A20840
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="cOsHXC8q"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EBD4720840
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D52E28E0004; Thu,  7 Mar 2019 18:00:40 -0500 (EST)
+	id 195378E0005; Thu,  7 Mar 2019 18:00:43 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CDBAF8E0002; Thu,  7 Mar 2019 18:00:40 -0500 (EST)
+	id 0F5DD8E0002; Thu,  7 Mar 2019 18:00:42 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B075F8E0004; Thu,  7 Mar 2019 18:00:40 -0500 (EST)
+	id D7A958E0005; Thu,  7 Mar 2019 18:00:42 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6550B8E0002
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 18:00:40 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id f6so17929987pgo.15
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 15:00:40 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 951438E0002
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 18:00:42 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id o4so450014pgl.6
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 15:00:42 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=2zD5nbQljCuVZEpjxLRZoYsTQjqMS5l1KBU8Q+Sdfe8=;
-        b=r0P5tS96oy57mHdytocBnlPVNR93IeULEgneezapjFsXMGrSK2gJ9kCjkLq9VBi0LY
-         l40DP9k1ecpqbC3Yma2UjDEC3cqWKNZV9OskQBHy//E1h3IMrno2f2fqAjVUSJFUMO+u
-         6QWePw6iMosHLHTSKm7qGfS8qtvML8mPa3kJ20FRvQreEnVQocMpuaCuGZBHQqDKguQl
-         KgF5jGSuyUQ++I9AFKNWfGOgHbBfH/hezA+5xN6MagDOMk7eteT0nssrGghEodKZ4iyV
-         VgyuIrYdoW5pACD8moKof3kXja8ExYsHyf0tWBTAQw0FT1IvsG02PNUq698MFTrmG3Q6
-         WKmw==
-X-Gm-Message-State: APjAAAVGbZHLfYixtoAv03MZNr2fimTMaSXQVsIZZZzSAFuhz0wEAW+P
-	Gkuz27Vu+XQvp6MBsjPQIYOyRWDlb6DdoW+rIfHS9YBfwVdzlG+57NdpPX1TGnjb5e3qqM1x9a2
-	LG6FMxgbyscnmqLsz8BGCPqkrifhfMBlUe1avbqaWhUYg7nSfUeRUu/+UP9fo8ZElfJWNv2AZ9Q
-	MYR3yMMqybTlQg4AfCDM2uT6EQWi0VW65sAbCIhfr8lD5dawt1JmXVkGTWX4zi5j/mE32R7vA9q
-	3BbI1ussZx0vrjjGh3145nDX9Kc/StU3MWlM2rTfu+GKRMfw/wai2MSDg8poSCDhiy/qxFLKO/d
-	RiiLNzUph/oIDIpsJ0m9pc4RXibGC1mypUX1ZeNEDpQzuMl27YIIfRWVy7abIJOZDtZYQ3LXYvq
-	Z
-X-Received: by 2002:a63:f648:: with SMTP id u8mr13374540pgj.91.1551999639933;
-        Thu, 07 Mar 2019 15:00:39 -0800 (PST)
-X-Received: by 2002:a63:f648:: with SMTP id u8mr13374459pgj.91.1551999638738;
-        Thu, 07 Mar 2019 15:00:38 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551999638; cv=none;
+        bh=XVAzLd6hdIPZj35NxoEZAwxg04Tr002qNrQDR1YF6Fc=;
+        b=IaNMktEbM53lYajwIkJoEdFjgOFhVRENbH/3nL3COr7c9PKYhyeDLSHmdAap1rNs3q
+         LiNYEF73FlEoGuTVKJeYjFoqDGLnY9788xru9a6OpQjX4M04YYxqdn4sIZAOgcncMrXb
+         L8OV+NwJYCMWXqexipEKA1q9g8h8pT4I6V8k713/R1O+lZEkDMYTMUWqh3Mbdpfa8z05
+         5KIbJC5zo76+gNtMAhmlKeMQnFVFSX3Wem/yHSPT4ZTLWNtN5FOFCsrVm5JXjjYVPG+p
+         Nu0shKfCH9E9Ijm5lmNtumSWTGNiUxbmQU6ii92s1AW7ijTjn9XYnzRPt0YRLiDbDFrn
+         /UGw==
+X-Gm-Message-State: APjAAAV4j9YRu9KBP0YT2o6VujfK1kj6sYXLXXYKNbfha6KQSga3uPcB
+	+HPuabq9JWsrWj7abJij8y5xIWlgukcwrNZpoYxuaWkuWW2Pi7nw+DK6pwmd8vyUsPj9WBEslBp
+	TA+bFvqGufQMqUDi4t/r5Oqep7f0uBWYjqT+khfPcqqbrAtXK28dWrQFXZmAXO1rBjDR+m1d8TI
+	d5dFWGnDxpaADB1VTcdvcGR3ja9C9GIifcx0mAPSg0B4sJ6yso2Brw7YslrLLmeDOFkndG9CYsS
+	t/f7HOijrk7bv9u8KQPsRH+tblivWTEs5guZXz9bJp8KQZNXORLsMSDz3/f3K80a7B6xCopZ55y
+	DPWjGUFW00cCgciPYOfzMyZVcn8dQePaaHGwx154golFh7KiTVaMl6xculCwzWJqmO7RJgEnEZD
+	1
+X-Received: by 2002:a17:902:b493:: with SMTP id y19mr15773222plr.9.1551999641962;
+        Thu, 07 Mar 2019 15:00:41 -0800 (PST)
+X-Received: by 2002:a17:902:b493:: with SMTP id y19mr15773054plr.9.1551999640273;
+        Thu, 07 Mar 2019 15:00:40 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551999640; cv=none;
         d=google.com; s=arc-20160816;
-        b=ua/QYeMTpjRpo59WBV6qL3nwU21quhQwxg9lkd9KBEIdv38nxMLuHkaiFCVJ9YLxSV
-         j7JFJxlQZe0uP9OO62ySeX5Oj856m5ki3vgLJRAwroe5/VMx6uYZs3YSUPv36x+ZOPxH
-         ank5HkVhd/JhhMaUaEWiOLH1c+6kh0MFVwY+cby2N3UiRoYuEpTVRE0/hfOHbB4o10Y0
-         YdnTjBxeODh01Eovr2t1v1Aeoc2UjuvI52+48lQeC3YfQgXq+fxJF/13H32IlBsf4IFH
-         cMwhjTB30xNSxwL2xjU61kc1SCT/mLlf+wRYJRbcTF1xJYbrJUPiwDk5ExWv/F+SGMcu
-         CUBA==
+        b=tFFi9uF3ExeZP8XCbOehNZ/Hj26WdOR5/BjCuKHe9emOWDkoWNJ685f/eRZir2xcLg
+         /qtOIEPp9uILHDxon2+iRMUpp689W8gXBuDAH/WfRl1A8z+n8c2/N0UGHQbEfx7aY71S
+         qL3WNlzgM3tQ8rMatCH1VX4sVFco3tzEzZYMTJ+hnUanN83IWwRO3HQXZ+qyveb2Axwy
+         WzGIZ+2ZZ8R5lEw5lS1WEXsmrS+3CEoT7tfxpZkjrZH5M1PLpzsgL5qQ7AhhMnf1c/9T
+         XvgHG5r8FiwLAeU5Azy5TwI1R1uB9OxORAA1tUd4iXNaXRLehUX3CtL9WA3N27+zCiCW
+         TSoA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=2zD5nbQljCuVZEpjxLRZoYsTQjqMS5l1KBU8Q+Sdfe8=;
-        b=embJrdm32xNs9YieZdeMWJbg7lPPDXUZ1OthwKmlLa3aItcqVl85QHBckuzlNFjLQX
-         4ys1A5hMVHKnWBGjVJWr1gZjXL1pcmUyW9HiAyOVcHEGZ8usnt7ZOCVMhGdlAfzwNfmk
-         E4s0XhdIi5deMuFP6B8kaQL6EgWLphhk0AD5B/AC+89NH/OeLGJpB67TkM87FF2izOwl
-         p05gPZpLhhFyNrlWqiLL4hx3wSMeXx36HAHwULVTbi4qYPEHzA3YtVqHbSKvEKvKF5D3
-         d72QbTA28MER1IppGi2C4A65NYx9d6oOkNCdCFQj5UdDN7Pqp2KOyl8IGYW5m62GkhYi
-         R8KA==
+        bh=XVAzLd6hdIPZj35NxoEZAwxg04Tr002qNrQDR1YF6Fc=;
+        b=zG+4bBnZ5X1eM8OnowMyI6IkrHlLycsYwf8ZfInCdj5b7kXttwGsrWQLWIv2I/5hse
+         cSiL+BjhWTGcUndBtYI19pbHoQ5UmKh8TSpuj4S0Lf16UhMvJWfCVvlIL1fKzpwBPNxK
+         KYx78Ls9jIF3NIkiT4vWsg6z2TmhQwozOlIaVLCTPNVih9uN3pD5epLZXEqbMXAvzMhp
+         7OilehA2MCW7+9cBqTsKeLP6MDo3BH7u7gohvpCmLKkJ5wzyivxyN+8gcu9m5jO0J3CJ
+         FNpRn4JFiPalrZSXZPJywPrfR5NizvKDpggOpScDwWeKxQatIiqd6HbPpt5HNatYPJ+U
+         mNlw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=V2nhvsUU;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=cOsHXC8q;
        spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k190sor10086711pgc.32.2019.03.07.15.00.38
+        by mx.google.com with SMTPS id z4sor10087520pgr.3.2019.03.07.15.00.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 07 Mar 2019 15:00:38 -0800 (PST)
+        Thu, 07 Mar 2019 15:00:40 -0800 (PST)
 Received-SPF: pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=V2nhvsUU;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=cOsHXC8q;
        spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=2zD5nbQljCuVZEpjxLRZoYsTQjqMS5l1KBU8Q+Sdfe8=;
-        b=V2nhvsUUyX9TXoESjQOB5eMsm4xQAzZMmf0SgpDQU7WMnu5kBdLHv4JgEV90jf5GaP
-         uLrVJnKQZ8gCQy3lXQGbFxG1kH6Z73WBa/x9i686DxKP3jrlEbvTTwherxEuLZByWTzX
-         nadisGvGx7A5xom2xCSmhRoOfxmH8wlh5mbXW6Hg3mlOTrGa45fdNr1Ippn1B2ZD2QpU
-         VC0ELQPKCVT6Wan0Qj5xK8EZevASG2q8+5N/HDZ8/O6H7arZTtoWzTyiGhyBwggpbdid
-         /n/RTPzgam2gKExM2V7cwQSMLg41yt45EO4w/irg/VubtzXAhB5+O97LteDwWzCzNe9A
-         WVTg==
-X-Google-Smtp-Source: APXvYqx/NgILDTTJRVUsh55o+xNSO6KhGs1zskXimET2dZyUOOxDdBosr71+ch0fXmf8EM8Wuep8xA==
-X-Received: by 2002:a65:4243:: with SMTP id d3mr13633502pgq.56.1551999638120;
-        Thu, 07 Mar 2019 15:00:38 -0800 (PST)
+        bh=XVAzLd6hdIPZj35NxoEZAwxg04Tr002qNrQDR1YF6Fc=;
+        b=cOsHXC8q1NlpYG2/9ohgQ48P9MJVgooAsBgk28QQbidN3suqAiF/mMOKqLcnQisWny
+         D5RakrhfayswSpAIWwziHUMt52tfLfZKPBc/1xsRfVDrRIrqSdV++twQXPUiCwW8KvDa
+         FfffGsXE2gkHQZPwi+1Kh3E4yORU25DiUZHtZhxNTkIiBGwmPNH38R/SFQP7Uv+ZDNiI
+         45Ptn3Amz54/mVGvbfQduB5lcVD8Qx9kFvrx+5XPyFShwlyP/VnzRKGtbQyUG9wbXLUs
+         MPg4Z5uW7sOdJbJRFNjVgdZM99iSdhB3P6zXS1sDD9weT3lXJBR5Q956ZiY+/TEWY2nQ
+         YCAg==
+X-Google-Smtp-Source: APXvYqzIHdXQsfrnBx1c44K71SD+IKizHnfv93In7LvP+Dos1vMHhkeSszM33wViMkWYf7DfSWojFQ==
+X-Received: by 2002:a63:6ecb:: with SMTP id j194mr14086143pgc.250.1551999639357;
+        Thu, 07 Mar 2019 15:00:39 -0800 (PST)
 Received: from tower.thefacebook.com ([2620:10d:c090:200::2:d18b])
-        by smtp.gmail.com with ESMTPSA id i126sm11864806pfb.15.2019.03.07.15.00.37
+        by smtp.gmail.com with ESMTPSA id i126sm11864806pfb.15.2019.03.07.15.00.38
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 07 Mar 2019 15:00:37 -0800 (PST)
+        Thu, 07 Mar 2019 15:00:38 -0800 (PST)
 From: Roman Gushchin <guroan@gmail.com>
 X-Google-Original-From: Roman Gushchin <guro@fb.com>
 To: linux-mm@kvack.org,
@@ -113,9 +113,9 @@ Cc: linux-kernel@vger.kernel.org,
 	Johannes Weiner <hannes@cmpxchg.org>,
 	Michal Hocko <mhocko@kernel.org>,
 	Roman Gushchin <guro@fb.com>
-Subject: [PATCH 1/5] mm: prepare to premature release of memcg->vmstats_percpu
-Date: Thu,  7 Mar 2019 15:00:29 -0800
-Message-Id: <20190307230033.31975-2-guro@fb.com>
+Subject: [PATCH 2/5] mm: prepare to premature release of per-node lruvec_stat_cpu
+Date: Thu,  7 Mar 2019 15:00:30 -0800
+Message-Id: <20190307230033.31975-3-guro@fb.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190307230033.31975-1-guro@fb.com>
 References: <20190307230033.31975-1-guro@fb.com>
@@ -127,244 +127,104 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Prepare to handle premature release of memcg->vmstats_percpu data.
-Currently it's a generic pointer which is expected to be non-NULL
-during the whole life time of a memcg. Switch over to the
-rcu-protected pointer, and carefully check it for being non-NULL.
+Similar to the memcg's vmstats_percpu, per-memcg per-node stats
+consists of percpu- and atomic counterparts, and we do expect
+that both coexist during the whole life-cycle of the memcg.
 
-This change is a required step towards dynamic premature release
-of percpu memcg data.
+To prepare for a premature release of percpu per-node data,
+let's pretend that lruvec_stat_cpu is a rcu-protected pointer,
+which can be NULL. This patch adds corresponding checks whenever
+required.
 
 Signed-off-by: Roman Gushchin <guro@fb.com>
 ---
- include/linux/memcontrol.h | 40 +++++++++++++++++-------
- mm/memcontrol.c            | 62 +++++++++++++++++++++++++++++---------
- 2 files changed, 77 insertions(+), 25 deletions(-)
+ include/linux/memcontrol.h | 21 +++++++++++++++------
+ mm/memcontrol.c            | 11 +++++++++--
+ 2 files changed, 24 insertions(+), 8 deletions(-)
 
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 534267947664..05ca77767c6a 100644
+index 05ca77767c6a..8ac04632002a 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -274,7 +274,7 @@ struct mem_cgroup {
- 	struct task_struct	*move_lock_task;
+@@ -126,7 +126,7 @@ struct memcg_shrinker_map {
+ struct mem_cgroup_per_node {
+ 	struct lruvec		lruvec;
  
- 	/* memory.stat */
--	struct memcg_vmstats_percpu __percpu *vmstats_percpu;
-+	struct memcg_vmstats_percpu __rcu /* __percpu */ *vmstats_percpu;
+-	struct lruvec_stat __percpu *lruvec_stat_cpu;
++	struct lruvec_stat __rcu /* __percpu */ *lruvec_stat_cpu;
+ 	atomic_long_t		lruvec_stat[NR_VM_NODE_STAT_ITEMS];
  
- 	MEMCG_PADDING(_pad2_);
- 
-@@ -597,17 +597,26 @@ static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
- static inline void __mod_memcg_state(struct mem_cgroup *memcg,
- 				     int idx, int val)
+ 	unsigned long		lru_zone_size[MAX_NR_ZONES][NR_LRU_LISTS];
+@@ -682,6 +682,7 @@ static inline unsigned long lruvec_page_state(struct lruvec *lruvec,
+ static inline void __mod_lruvec_state(struct lruvec *lruvec,
+ 				      enum node_stat_item idx, int val)
  {
-+	struct memcg_vmstats_percpu __percpu *vmstats_percpu;
++	struct lruvec_stat __percpu *lruvec_stat_cpu;
+ 	struct mem_cgroup_per_node *pn;
  	long x;
  
- 	if (mem_cgroup_disabled())
- 		return;
+@@ -697,12 +698,20 @@ static inline void __mod_lruvec_state(struct lruvec *lruvec,
+ 	__mod_memcg_state(pn->memcg, idx, val);
  
--	x = val + __this_cpu_read(memcg->vmstats_percpu->stat[idx]);
+ 	/* Update lruvec */
+-	x = val + __this_cpu_read(pn->lruvec_stat_cpu->count[idx]);
 -	if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
--		atomic_long_add(x, &memcg->vmstats[idx]);
+-		atomic_long_add(x, &pn->lruvec_stat[idx]);
 -		x = 0;
 +	rcu_read_lock();
-+	vmstats_percpu = (struct memcg_vmstats_percpu __percpu *)
-+		rcu_dereference(memcg->vmstats_percpu);
-+	if (likely(vmstats_percpu)) {
-+		x = val + __this_cpu_read(vmstats_percpu->stat[idx]);
++	lruvec_stat_cpu = (struct lruvec_stat __percpu *)
++		rcu_dereference(pn->lruvec_stat_cpu);
++	if (likely(lruvec_stat_cpu)) {
++		x = val + __this_cpu_read(lruvec_stat_cpu->count[idx]);
 +		if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
-+			atomic_long_add(x, &memcg->vmstats[idx]);
++			atomic_long_add(x, &pn->lruvec_stat[idx]);
 +			x = 0;
 +		}
-+		__this_cpu_write(vmstats_percpu->stat[idx], x);
++		__this_cpu_write(lruvec_stat_cpu->count[idx], x);
 +	} else {
-+		atomic_long_add(val, &memcg->vmstats[idx]);
++		atomic_long_add(val, &pn->lruvec_stat[idx]);
  	}
--	__this_cpu_write(memcg->vmstats_percpu->stat[idx], x);
+-	__this_cpu_write(pn->lruvec_stat_cpu->count[idx], x);
 +	rcu_read_unlock();
  }
  
- /* idx can be of type enum memcg_stat_item or node_stat_item */
-@@ -740,17 +749,26 @@ static inline void __count_memcg_events(struct mem_cgroup *memcg,
- 					enum vm_event_item idx,
- 					unsigned long count)
- {
-+	struct memcg_vmstats_percpu __percpu *vmstats_percpu;
- 	unsigned long x;
- 
- 	if (mem_cgroup_disabled())
- 		return;
- 
--	x = count + __this_cpu_read(memcg->vmstats_percpu->events[idx]);
--	if (unlikely(x > MEMCG_CHARGE_BATCH)) {
--		atomic_long_add(x, &memcg->vmevents[idx]);
--		x = 0;
-+	rcu_read_lock();
-+	vmstats_percpu = (struct memcg_vmstats_percpu __percpu *)
-+		rcu_dereference(memcg->vmstats_percpu);
-+	if (likely(vmstats_percpu)) {
-+		x = count + __this_cpu_read(vmstats_percpu->events[idx]);
-+		if (unlikely(x > MEMCG_CHARGE_BATCH)) {
-+			atomic_long_add(x, &memcg->vmevents[idx]);
-+			x = 0;
-+		}
-+		__this_cpu_write(vmstats_percpu->events[idx], x);
-+	} else {
-+		atomic_long_add(count, &memcg->vmevents[idx]);
- 	}
--	__this_cpu_write(memcg->vmstats_percpu->events[idx], x);
-+	rcu_read_unlock();
- }
- 
- static inline void count_memcg_events(struct mem_cgroup *memcg,
+ static inline void mod_lruvec_state(struct lruvec *lruvec,
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index c532f8685aa3..803c772f354b 100644
+index 803c772f354b..8f3cac02221a 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -697,6 +697,8 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
- 					 struct page *page,
- 					 bool compound, int nr_pages)
- {
-+	struct memcg_vmstats_percpu __percpu *vmstats_percpu;
-+
- 	/*
- 	 * Here, RSS means 'mapped anon' and anon's SwapCache. Shmem/tmpfs is
- 	 * counted as CACHE even if it's on ANON LRU.
-@@ -722,7 +724,12 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
- 		nr_pages = -nr_pages; /* for event */
- 	}
- 
--	__this_cpu_add(memcg->vmstats_percpu->nr_page_events, nr_pages);
-+	rcu_read_lock();
-+	vmstats_percpu = (struct memcg_vmstats_percpu __percpu *)
-+		rcu_dereference(memcg->vmstats_percpu);
-+	if (likely(vmstats_percpu))
-+		__this_cpu_add(vmstats_percpu->nr_page_events, nr_pages);
-+	rcu_read_unlock();
- }
- 
- unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
-@@ -756,10 +763,18 @@ static unsigned long mem_cgroup_nr_lru_pages(struct mem_cgroup *memcg,
- static bool mem_cgroup_event_ratelimit(struct mem_cgroup *memcg,
- 				       enum mem_cgroup_events_target target)
- {
-+	struct memcg_vmstats_percpu __percpu *vmstats_percpu;
- 	unsigned long val, next;
-+	bool ret = false;
- 
--	val = __this_cpu_read(memcg->vmstats_percpu->nr_page_events);
--	next = __this_cpu_read(memcg->vmstats_percpu->targets[target]);
-+	rcu_read_lock();
-+	vmstats_percpu = (struct memcg_vmstats_percpu __percpu *)
-+		rcu_dereference(memcg->vmstats_percpu);
-+	if (!vmstats_percpu)
-+		goto out;
-+
-+	val = __this_cpu_read(vmstats_percpu->nr_page_events);
-+	next = __this_cpu_read(vmstats_percpu->targets[target]);
- 	/* from time_after() in jiffies.h */
- 	if ((long)(next - val) < 0) {
- 		switch (target) {
-@@ -775,10 +790,12 @@ static bool mem_cgroup_event_ratelimit(struct mem_cgroup *memcg,
- 		default:
- 			break;
- 		}
--		__this_cpu_write(memcg->vmstats_percpu->targets[target], next);
--		return true;
-+		__this_cpu_write(vmstats_percpu->targets[target], next);
-+		ret = true;
- 	}
--	return false;
-+out:
-+	rcu_read_unlock();
-+	return ret;
- }
- 
- /*
-@@ -2104,22 +2121,29 @@ static void drain_all_stock(struct mem_cgroup *root_memcg)
- 
+@@ -2122,6 +2122,7 @@ static void drain_all_stock(struct mem_cgroup *root_memcg)
  static int memcg_hotplug_cpu_dead(unsigned int cpu)
  {
-+	struct memcg_vmstats_percpu __percpu *vmstats_percpu;
+ 	struct memcg_vmstats_percpu __percpu *vmstats_percpu;
++	struct lruvec_stat __percpu *lruvec_stat_cpu;
  	struct memcg_stock_pcp *stock;
  	struct mem_cgroup *memcg;
  
- 	stock = &per_cpu(memcg_stock, cpu);
- 	drain_stock(stock);
+@@ -2152,7 +2153,12 @@ static int memcg_hotplug_cpu_dead(unsigned int cpu)
+ 				struct mem_cgroup_per_node *pn;
  
-+	rcu_read_lock();
- 	for_each_mem_cgroup(memcg) {
- 		int i;
- 
-+		vmstats_percpu = (struct memcg_vmstats_percpu __percpu *)
-+			rcu_dereference(memcg->vmstats_percpu);
+ 				pn = mem_cgroup_nodeinfo(memcg, nid);
+-				x = this_cpu_xchg(pn->lruvec_stat_cpu->count[i], 0);
 +
- 		for (i = 0; i < MEMCG_NR_STAT; i++) {
- 			int nid;
- 			long x;
++				lruvec_stat_cpu = (struct lruvec_stat __percpu*)
++					rcu_dereference(pn->lruvec_stat_cpu);
++				if (!lruvec_stat_cpu)
++					continue;
++				x = this_cpu_xchg(lruvec_stat_cpu->count[i], 0);
+ 				if (x)
+ 					atomic_long_add(x, &pn->lruvec_stat[i]);
+ 			}
+@@ -4430,7 +4436,8 @@ static int alloc_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
+ 	if (!pn)
+ 		return 1;
  
--			x = this_cpu_xchg(memcg->vmstats_percpu->stat[i], 0);
--			if (x)
--				atomic_long_add(x, &memcg->vmstats[i]);
-+			if (vmstats_percpu) {
-+				x = this_cpu_xchg(vmstats_percpu->stat[i], 0);
-+				if (x)
-+					atomic_long_add(x, &memcg->vmstats[i]);
-+			}
- 
- 			if (i >= NR_VM_NODE_STAT_ITEMS)
- 				continue;
-@@ -2137,11 +2161,14 @@ static int memcg_hotplug_cpu_dead(unsigned int cpu)
- 		for (i = 0; i < NR_VM_EVENT_ITEMS; i++) {
- 			long x;
- 
--			x = this_cpu_xchg(memcg->vmstats_percpu->events[i], 0);
--			if (x)
--				atomic_long_add(x, &memcg->vmevents[i]);
-+			if (vmstats_percpu) {
-+				x = this_cpu_xchg(vmstats_percpu->events[i], 0);
-+				if (x)
-+					atomic_long_add(x, &memcg->vmevents[i]);
-+			}
- 		}
- 	}
-+	rcu_read_unlock();
- 
- 	return 0;
- }
-@@ -4464,7 +4491,8 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
- 	if (memcg->id.id < 0)
- 		goto fail;
- 
--	memcg->vmstats_percpu = alloc_percpu(struct memcg_vmstats_percpu);
-+	rcu_assign_pointer(memcg->vmstats_percpu,
-+			   alloc_percpu(struct memcg_vmstats_percpu));
- 	if (!memcg->vmstats_percpu)
- 		goto fail;
- 
-@@ -6054,6 +6082,7 @@ static void uncharge_batch(const struct uncharge_gather *ug)
- {
- 	unsigned long nr_pages = ug->nr_anon + ug->nr_file + ug->nr_kmem;
- 	unsigned long flags;
-+	struct memcg_vmstats_percpu __percpu *vmstats_percpu;
- 
- 	if (!mem_cgroup_is_root(ug->memcg)) {
- 		page_counter_uncharge(&ug->memcg->memory, nr_pages);
-@@ -6070,7 +6099,12 @@ static void uncharge_batch(const struct uncharge_gather *ug)
- 	__mod_memcg_state(ug->memcg, MEMCG_RSS_HUGE, -ug->nr_huge);
- 	__mod_memcg_state(ug->memcg, NR_SHMEM, -ug->nr_shmem);
- 	__count_memcg_events(ug->memcg, PGPGOUT, ug->pgpgout);
--	__this_cpu_add(ug->memcg->vmstats_percpu->nr_page_events, nr_pages);
-+	rcu_read_lock();
-+	vmstats_percpu = (struct memcg_vmstats_percpu __percpu *)
-+		rcu_dereference(ug->memcg->vmstats_percpu);
-+	if (likely(vmstats_percpu))
-+		__this_cpu_add(vmstats_percpu->nr_page_events, nr_pages);
-+	rcu_read_unlock();
- 	memcg_check_events(ug->memcg, ug->dummy_page);
- 	local_irq_restore(flags);
- 
+-	pn->lruvec_stat_cpu = alloc_percpu(struct lruvec_stat);
++	rcu_assign_pointer(pn->lruvec_stat_cpu,
++			   alloc_percpu(struct lruvec_stat));
+ 	if (!pn->lruvec_stat_cpu) {
+ 		kfree(pn);
+ 		return 1;
 -- 
 2.20.1
 
