@@ -2,259 +2,187 @@ Return-Path: <SRS0=NBIx=RK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B8EF8C43381
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 09:16:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7451BC10F03
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 11:16:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0BABF20652
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 09:16:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0BABF20652
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=collabora.com
+	by mail.kernel.org (Postfix) with ESMTP id A1F3620675
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 11:16:11 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="BJf28etv"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A1F3620675
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 97EC48E0003; Thu,  7 Mar 2019 04:16:26 -0500 (EST)
+	id EED308E0003; Thu,  7 Mar 2019 06:16:10 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 952378E0002; Thu,  7 Mar 2019 04:16:26 -0500 (EST)
+	id E9CA58E0002; Thu,  7 Mar 2019 06:16:10 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 841FF8E0003; Thu,  7 Mar 2019 04:16:26 -0500 (EST)
+	id D65848E0003; Thu,  7 Mar 2019 06:16:10 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 32A128E0002
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 04:16:26 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id t7so8303488wrw.8
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 01:16:26 -0800 (PST)
+Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 696788E0002
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 06:16:10 -0500 (EST)
+Received: by mail-lf1-f71.google.com with SMTP id j26so2229248lfb.20
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 03:16:10 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=jJIve9JggU4atD/taMUsPkxPsAp5WxeGrkvIqccMBw0=;
-        b=SfgNEfDI/xsdYBUfuvHxP36mTafRyOrnygUt252Vz5O1EevpsKtWATUfkqG4QtrPxa
-         1jG0L8l0qlT22myJWm8xwzUqs5IBw9WDKsYP7Gz9bA80CaqyHQJYxzYUPdqBPB761dIa
-         vWkwco9sHhXwLp36qKNNuxvVElxR+7rB3APw6Ka9IdmnHdYwSD3J2IWGB0GcrfeCe3Bd
-         BAwM5n5mdsBX9t9jZQ0IpWhusr0GDl3OKOI52crKJB+zPU97uJtZ3qaGRFLsnocr6Bwg
-         Lzc8OKzqW92XgefLRRDsrn7HkylGFoVQPv5B8XQwTHa0/1iFX8sKFW/pTFxGt0Sl+ytG
-         itOQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of guillaume.tucker@collabora.com designates 46.235.227.227 as permitted sender) smtp.mailfrom=guillaume.tucker@collabora.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
-X-Gm-Message-State: APjAAAXIKVcOSBAdRCt6iVDrPVEWWO2VKYVKiPCyf1uY6aywa47hRq+4
-	6+HXYnreqzUwK9lkOYzPuCrGnxrVeb3Mi5gHhuEAOa7clygJP6u3bSwdwMza4f92OYROvzZozU1
-	AZeXJYo8bxDY60aHUDdASl9nbPNWJmXNE8dJ+sOYbfa2HTXLyQgmI8AQubykYCogKIQ==
-X-Received: by 2002:a5d:4e52:: with SMTP id r18mr5815849wrt.7.1551950185675;
-        Thu, 07 Mar 2019 01:16:25 -0800 (PST)
-X-Google-Smtp-Source: APXvYqx8AMO6eXOgPIa9JZdnWqjusa3bYtoqaTh+hJzqWMC7bcPn8GETonXCvPSuOQPhG71X35eY
-X-Received: by 2002:a5d:4e52:: with SMTP id r18mr5815793wrt.7.1551950184556;
-        Thu, 07 Mar 2019 01:16:24 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551950184; cv=none;
+        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=WMVyycMTsIe4Nr/6crMm8olRB10R6ZOP2aiYf26xmmI=;
+        b=ZJTYGZc3ksdU681b+EkDGp4JIBOEtmMtMVqYQD7kFww0q2yhDVZGlf+wtX8ak7KnVN
+         jxM/RRe8RRe5O05K5BZBzLVoxHsPLyERGLyos9CKyVN116aPCnvrm7krtDCWxTAFnp5Y
+         NW6N3jjP0hCEgPEgVYkQ0KwF40gxlA5b7h1MCzog5pSTJRHk+fFlkhDlGwoE7KBmAMmL
+         KKgPENyTcIgownMpslNIq93jNPdJkMSfu4DdedSmqoJXKmKPLQ4OrQWWBBbDzd0UTa9Y
+         wOHM6rkX6G4XPMmCkeOHmAENS/qODCckMzXeOjV66EgWE53Va01XDnyDqf6v92/0nfUT
+         yphA==
+X-Gm-Message-State: APjAAAWS35LmP24okuecSHyXN5h7k1jAlFdyTILgO5SjNT7iCZb0p4zG
+	xxzANaX960Ot6uNmHcqxcIbU3apZImVb//KtTbOWtMp5QtrCDeSPuAFKllUpIWpnw7Pr667dUuZ
+	O5XIhDpxYWQAoVRHrICdYEF7Mri7fsY6dCC58xHZwtk3eOeCfqCdRRhBYGT6q/qbqKFmKqfCLGZ
+	k1Sa4733GvhoxlcweShd5q1nEfV02VdTqIEf4/l5YaxkvbRi8LlK9EwdPPWsWyaLu7K7Xd9J0M3
+	PpAsnHd7dtrPGWzq1lp47ZN7s46uY2MnK2CboKZHTtAzM6PXEdqo35SdzmO03dXGgvj/ufjFqer
+	XNcDspnY26ebrTX1M8ooGk7a0uQ97BBbpJXbX0quFjBgqqK74uv7D8ignTtDudRuoFInSRDTQqB
+	Q
+X-Received: by 2002:a2e:8456:: with SMTP id u22mr5349710ljh.108.1551957369438;
+        Thu, 07 Mar 2019 03:16:09 -0800 (PST)
+X-Received: by 2002:a2e:8456:: with SMTP id u22mr5349633ljh.108.1551957368002;
+        Thu, 07 Mar 2019 03:16:08 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551957367; cv=none;
         d=google.com; s=arc-20160816;
-        b=xcDSTYwK50sNulHWPryOKRDDsLdv/sc5j3LArcfcQA9hPYA/chKrdN6l3JZNAiBi71
-         c5hO+Fq+43HdPHjVNRxXEgmspQBDAl/POGjHctCy/0O1OBXw7hLC0O7mh1EbPPp9QrsH
-         6zrzp915CBMvRxVe95zEeQkfIibIaa72oZW72gqFgpgJYCbKCFjymxHrgXwpYidJEUYS
-         E7c72Sq+x3MBncWDt3b3rS+e8BF0HJzXrRa3ZJcDDR5fAu7YxwCSpTVexpK8Ek/YYtKU
-         8aAVHzhWSw1E1qB++wwZK+3FRD7HxrmC46a3Xu2Kp3ea7ibsmI58FnhH5DlsP0jxfP4W
-         FSwA==
+        b=RCsxN4tgZLMRvoBVmHdybKGWv9TAu5t4/qyRH3BMwjEy4LXr/xAZQCLy/zQHjbDqgW
+         VbNCHBCkUQAo674gVu3lUl9m2HH8B5sfywbF07mEunlVaKjILa8bl6HA1HIEoCwKbnZ8
+         1+wTiyAud89GrpTjV7RfToWPsFlaT3McP4GvWJ3xJXtXFky6n8DLyEtzLbo2cy92AZQ7
+         aulXiqW9ESl2XPOy8c5OEf4zFl2BwVLxaek8HqvguV6Wys7RkaxN9uZfEvoRsT7lzQSD
+         MrT/n99PIJv3+Db6XRZiUIFvSvd1YmuKQj0SrlwTNdcU+fhxmBCy+kFdwi5inlDsQcNc
+         npGQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=jJIve9JggU4atD/taMUsPkxPsAp5WxeGrkvIqccMBw0=;
-        b=pIrP6jWK/+eUdGel9sdr42SfQDgETyl6fySpQj6P2zzk9RXsE2zq5id0ofKi7NPaRA
-         FnH+tApzdlA8HkzcOZtHz6EjFZrdqPGau7EvFhgKb/zeUVzREKMhs7vHfr0iQlOCb01S
-         YcT8BZegC6l2snS5WDNUmOgma+Hm6m5qKupredGYqCRICvZgVbJDFSPhP2nDJegmuMg+
-         wrtemzCKkvMV9bCqCDO0qDMvZ93wMqb03GT0pqHaqCZF7IVQx9gmNyMomsetLagRyaTB
-         yaCuQ60H6NY2EtKN1UIjWMPGs+DCML6iSJhNPTn+8X2IpQYvoapx94m3Z8d+r+gFnP/t
-         IA5A==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:date:from:dkim-signature;
+        bh=WMVyycMTsIe4Nr/6crMm8olRB10R6ZOP2aiYf26xmmI=;
+        b=td7gIxxFvCLBHWGJVWaGa9Z7zy2GHyh38/bMphJll/D2BriA/q4ttVm0Oupud17lSA
+         6jISZtq0VKeww5quLiltk7tAGgGFb2fAofuz+DerswJssVbE5ce+Q3CEAYkKVcgKw4Me
+         bUbjb5Uf4kWCFDFuAA/dhjvnLVqmOqjfD5mD/nTVkSb7dVHj356tz047MHfvPl0S+sVr
+         UARS0d5cnXBC41NJKWPMtdVwFBCwPgNpWxuduLRr0N68uLn7iZmkISQX6KZzgykkV7OM
+         DQfB7lVadZ9yv+AtipeI45j3VO0uMH9+CUp4/ReB3089o/c3uMmjy50ln99F8ho17bOD
+         y9tw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of guillaume.tucker@collabora.com designates 46.235.227.227 as permitted sender) smtp.mailfrom=guillaume.tucker@collabora.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
-Received: from bhuna.collabora.co.uk (bhuna.collabora.co.uk. [46.235.227.227])
-        by mx.google.com with ESMTPS id d13si2597888wrw.116.2019.03.07.01.16.24
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BJf28etv;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r11sor1409677lff.20.2019.03.07.03.16.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 07 Mar 2019 01:16:24 -0800 (PST)
-Received-SPF: pass (google.com: domain of guillaume.tucker@collabora.com designates 46.235.227.227 as permitted sender) client-ip=46.235.227.227;
+        (Google Transport Security);
+        Thu, 07 Mar 2019 03:16:07 -0800 (PST)
+Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of guillaume.tucker@collabora.com designates 46.235.227.227 as permitted sender) smtp.mailfrom=guillaume.tucker@collabora.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
-Received: from [IPv6:2a00:5f00:102:0:6dae:eb08:2e0f:5281] (unknown [IPv6:2a00:5f00:102:0:6dae:eb08:2e0f:5281])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	(Authenticated sender: gtucker)
-	by bhuna.collabora.co.uk (Postfix) with ESMTPSA id B6FCC27F136;
-	Thu,  7 Mar 2019 09:16:23 +0000 (GMT)
-Subject: Re: next/master boot bisection: next-20190215 on beaglebone-black
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: Dan Williams <dan.j.williams@intel.com>,
- Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>,
- Mark Brown <broonie@kernel.org>, Tomeu Vizoso <tomeu.vizoso@collabora.com>,
- Matt Hart <matthew.hart@linaro.org>, Stephen Rothwell
- <sfr@canb.auug.org.au>, khilman@baylibre.com, enric.balletbo@collabora.com,
- Nicholas Piggin <npiggin@gmail.com>,
- Dominik Brodowski <linux@dominikbrodowski.net>,
- Masahiro Yamada <yamada.masahiro@socionext.com>,
- Kees Cook <keescook@chromium.org>, Adrian Reber <adrian@lisas.de>,
- Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
- Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>,
- Mathieu Desnoyers <mathieu.desnoyers@efficios.com>,
- Richard Guy Briggs <rgb@redhat.com>,
- "Peter Zijlstra (Intel)" <peterz@infradead.org>, info@kernelci.org
-References: <20190215185151.GG7897@sirena.org.uk>
- <20190226155948.299aa894a5576e61dda3e5aa@linux-foundation.org>
- <CAPcyv4ivjC8fNkfjdFyaYCAjGh7wtvFQnoPpOcR=VNZ=c6d6Rg@mail.gmail.com>
- <20190228151438.fc44921e66f2f5d393c8d7b4@linux-foundation.org>
- <CAPcyv4hDmmK-L=0txw7L9O8YgvAQxZfVFiSoB4LARRnGQ3UC7Q@mail.gmail.com>
- <026b5082-32f2-e813-5396-e4a148c813ea@collabora.com>
- <20190301124100.62a02e2f622ff6b5f178a7c3@linux-foundation.org>
- <3fafb552-ae75-6f63-453c-0d0e57d818f3@collabora.com>
- <CAPcyv4hMNiiM11ULjbOnOf=9N=yCABCRsAYLpjXs+98bRoRpCA@mail.gmail.com>
- <36faea07-139c-b97d-3585-f7d6d362abc3@collabora.com>
- <20190306140529.GG3549@rapoport-lnx>
-From: Guillaume Tucker <guillaume.tucker@collabora.com>
-Message-ID: <21d138a5-13e4-9e83-d7fe-e0639a8d180a@collabora.com>
-Date: Thu, 7 Mar 2019 09:16:20 +0000
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BJf28etv;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:date:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=WMVyycMTsIe4Nr/6crMm8olRB10R6ZOP2aiYf26xmmI=;
+        b=BJf28etvckVHxeo9MvwwUbmc9QIZ8Esf9IKVMcdBigrfpEcna4elY6WN7hZBWZwDKk
+         QdazJTwEokYaINgTiQpDex4Q5o2d9jB7j8KeVyIAHhOnOVt6GZ5lSbjEV4cKcVjgBzyH
+         FZNEt1NKUmnBtqX29bMMmhuDcMNxADk74cmE05j7kNQG5ybM28yIAROAihig89jgocz8
+         dT4xfuXok4sVzNx9Drr1UGUGa96w/f5ujTlwmmdqaxjO6hj3cHyCgAQ2xgfRmSdTIt7B
+         wWu13TrfKymBeDSE/q72DqiWC1OOWYdjn8qjdKpw4RXChr2Hb+yB93jC4U01D4Hd+bAa
+         Qokg==
+X-Google-Smtp-Source: APXvYqxGDqSz9m4M1vH9THRh0aQvp9dJ49oRkFP6utyKZKRK2KdjRwasldkXhq+TE5OwRh2Yz6p2GQ==
+X-Received: by 2002:ac2:562c:: with SMTP id b12mr4913007lff.160.1551957367396;
+        Thu, 07 Mar 2019 03:16:07 -0800 (PST)
+Received: from pc636 ([37.139.158.167])
+        by smtp.gmail.com with ESMTPSA id e83sm790905lji.68.2019.03.07.03.16.05
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 07 Mar 2019 03:16:06 -0800 (PST)
+From: Uladzislau Rezki <urezki@gmail.com>
+X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
+Date: Thu, 7 Mar 2019 12:15:59 +0100
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: Uladzislau Rezki <urezki@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>,
+	Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org,
+	LKML <linux-kernel@vger.kernel.org>,
+	Thomas Garnier <thgarnie@google.com>,
+	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
+	Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v1 2/2] mm: add priority threshold to
+ __purge_vmap_area_lazy()
+Message-ID: <20190307111559.gnqsk7juhojjuopp@pc636>
+References: <20190124115648.9433-1-urezki@gmail.com>
+ <20190124115648.9433-3-urezki@gmail.com>
+ <20190128224528.GB38107@google.com>
+ <20190129173936.4sscooiybzbhos77@pc636>
+ <20190306162519.GB193418@google.com>
 MIME-Version: 1.0
-In-Reply-To: <20190306140529.GG3549@rapoport-lnx>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190306162519.GB193418@google.com>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 06/03/2019 14:05, Mike Rapoport wrote:
-> On Wed, Mar 06, 2019 at 10:14:47AM +0000, Guillaume Tucker wrote:
->> On 01/03/2019 23:23, Dan Williams wrote:
->>> On Fri, Mar 1, 2019 at 1:05 PM Guillaume Tucker
->>> <guillaume.tucker@collabora.com> wrote:
->>>
->>> Is there an early-printk facility that can be turned on to see how far
->>> we get in the boot?
->>
->> Yes, I've done that now by enabling CONFIG_DEBUG_AM33XXUART1 and
->> earlyprintk in the command line.  Here's the result, with the
->> commit cherry picked on top of next-20190304:
->>
->>   https://lava.collabora.co.uk/scheduler/job/1526326
->>
->> [    1.379522] ti-sysc 4804a000.target-module: sysc_flags 00000222 != 00000022
->> [    1.396718] Unable to handle kernel paging request at virtual address 77bb4003
->> [    1.404203] pgd = (ptrval)
->> [    1.406971] [77bb4003] *pgd=00000000
->> [    1.410650] Internal error: Oops: 5 [#1] ARM
->> [...]
->> [    1.672310] [<c07051a0>] (clk_hw_create_clk.part.21) from [<c06fea34>] (devm_clk_get+0x4c/0x80)
->> [    1.681232] [<c06fea34>] (devm_clk_get) from [<c064253c>] (sysc_probe+0x28c/0xde4)
->>
->> It's always failing at that point in the code.  Also when
->> enabling "debug" on the kernel command line, the issue goes
->> away (exact same binaries etc..):
->>
->>   https://lava.collabora.co.uk/scheduler/job/1526327
->>
->> For the record, here's the branch I've been using:
->>
->>   https://gitlab.collabora.com/gtucker/linux/tree/beaglebone-black-next-20190304-debug
->>
->> The board otherwise boots fine with next-20190304 (SMP=n), and
->> also with the patch applied but the shuffle configs set to n.
->>
->>> Were there any boot *successes* on ARM with shuffling enabled? I.e.
->>> clues about what's different about the specific memory setup for
->>> beagle-bone-black.
->>
->> Looking at the KernelCI results from next-20190215, it looks like
->> only the BeagleBone Black with SMP=n failed to boot:
->>
->>   https://kernelci.org/boot/all/job/next/branch/master/kernel/next-20190215/
->>
->> Of course that's not all the ARM boards that exist out there, but
->> it's a fairly large coverage already.
->>
->> As the kernel panic always seems to originate in ti-sysc.c,
->> there's a chance it's only visible on that platform...  I'm doing
->> a KernelCI run now with my test branch to double check that,
->> it'll take a few hours so I'll send an update later if I get
->> anything useful out of it.
-
-Here's the result, there were a couple of failures but some were
-due to infrastructure errors (nyan-big) and I'm not sure about
-what was the problem with the meson boards:
-
-  https://staging.kernelci.org/boot/all/job/gtucker/branch/kernelci-local/kernel/next-20190304-1-g4f0b547b03da/
-
-So there's no clear indicator that the shuffle config is causing
-any issue on any other platform than the BeagleBone Black.
-
->> In the meantime, I'm happy to try out other things with more
->> debug configs turned on or any potential fixes someone might
->> have.
+> > > 
+> > > I'm a bit concerned that this will introduce the latency back if vmap_lazy_nr
+> > > is greater than half of lazy_max_pages(). Which IIUC will be more likely if
+> > > the number of CPUs is large.
+> > > 
+> > The threshold that we establish is two times more than lazy_max_pages(),
+> > i.e. in case of 4 system CPUs lazy_max_pages() is 24576, therefore the
+> > threshold is 49152, if PAGE_SIZE is 4096.
+> > 
+> > It means that we allow rescheduling if vmap_lazy_nr < 49152. If vmap_lazy_nr 
+> > is higher then we forbid rescheduling and free areas until it becomes lower
+> > again to stabilize the system. By doing that, we will not allow vmap_lazy_nr
+> > to be enormously increased.
 > 
-> ARM is the only arch that sets ARCH_HAS_HOLES_MEMORYMODEL to 'y'. Maybe the
-> failure has something to do with it...
+> Sorry for late reply.
 > 
-> Guillaume, can you try this patch:
-
-Sure, it doesn't seem to be fixing the problem though:
-
-  https://lava.collabora.co.uk/scheduler/job/1527471
-
-I've added the patch to the same branch based on next-20190304.
-
-I guess this needs to be debugged a little further to see what
-the panic really is about.  I'll see if I can spend a bit more
-time on it this week, unless there's any BeagleBone expert
-available to help or if someone has another fix to try out.
-
-Guillaume
-
-> diff --git a/mm/shuffle.c b/mm/shuffle.c
-> index 3ce1248..4a04aac 100644
-> --- a/mm/shuffle.c
-> +++ b/mm/shuffle.c
-> @@ -58,7 +58,8 @@ module_param_call(shuffle, shuffle_store, shuffle_show, &shuffle_param, 0400);
->   * For two pages to be swapped in the shuffle, they must be free (on a
->   * 'free_area' lru), have the same order, and have the same migratetype.
->   */
-> -static struct page * __meminit shuffle_valid_page(unsigned long pfn, int order)
-> +static struct page * __meminit shuffle_valid_page(unsigned long pfn, int order,
-> +						  struct zone *z)
->  {
->  	struct page *page;
->  
-> @@ -80,6 +81,9 @@ static struct page * __meminit shuffle_valid_page(unsigned long pfn, int order)
->  	if (!PageBuddy(page))
->  		return NULL;
->  
-> +	if (!memmap_valid_within(pfn, page, z))
-> +		return NULL;
-> +
->  	/*
->  	 * ...is the page on the same list as the page we will
->  	 * shuffle it with?
-> @@ -123,7 +127,7 @@ void __meminit __shuffle_zone(struct zone *z)
->  		 * page_j randomly selected in the span @zone_start_pfn to
->  		 * @spanned_pages.
->  		 */
-> -		page_i = shuffle_valid_page(i, order);
-> +		page_i = shuffle_valid_page(i, order, z);
->  		if (!page_i)
->  			continue;
->  
-> @@ -137,7 +141,7 @@ void __meminit __shuffle_zone(struct zone *z)
->  			j = z->zone_start_pfn +
->  				ALIGN_DOWN(get_random_long() % z->spanned_pages,
->  						order_pages);
-> -			page_j = shuffle_valid_page(j, order);
-> +			page_j = shuffle_valid_page(j, order, z);
->  			if (page_j && page_j != page_i)
->  				break;
->  		}
->  
+> This sounds reasonable. Such an extreme situation of vmap_lazy_nr being twice
+> the lazy_max_pages() is probably only possible using a stress test anyway
+> since (hopefully) the try_purge_vmap_area_lazy() call is happening often
+> enough to keep the vmap_lazy_nr low.
 > 
+> Have you experimented with what is the highest threshold that prevents the
+> issues you're seeing? Have you tried 3x or 4x the vmap_lazy_nr?
+> 
+I do not think it make sense to go with 3x/4x/etc threshold for many
+reasons. One of them is we just need to prevent that skew, returning back
+to reasonable balance.
+
+>
+> I also wonder what is the cost these days of the global TLB flush on the most
+> common Linux architectures and if the whole purge vmap_area lazy stuff is
+> starting to get a bit dated, and if we can do the purging inline as areas are
+> freed. There is a cost to having this mechanism too as you said, which is as
+> the list size grows, all other operations also take time.
+> 
+I guess if we go with flushing the TLB each time per each vmap_area freeing,
+then i think we are in trouble. Though, i have not analyzed how that approach
+impacts performance.
+
+I agree about the cost of having such mechanism. Basically it is one of the
+source of bigger fragmentation(not limited to it). But from the other hand
+the KVA allocator has to be capable of effective and fast allocation even
+in that condition.
+
+I am working on v2 of https://lkml.org/lkml/2018/10/19/786. When i complete
+some other job related tasks i will upload a new RFC.
+
+--
+Vlad Rezki
 
