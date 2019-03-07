@@ -2,214 +2,243 @@ Return-Path: <SRS0=NBIx=RK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E7F5DC43381
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 23:00:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E12CFC43381
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 23:51:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9935520840
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 23:00:52 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 70AA320840
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 23:51:11 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Xm1kKMC9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9935520840
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Cgp7ojbY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 70AA320840
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EB2978E0007; Thu,  7 Mar 2019 18:00:45 -0500 (EST)
+	id BF18D8E0003; Thu,  7 Mar 2019 18:51:10 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E1A748E0002; Thu,  7 Mar 2019 18:00:45 -0500 (EST)
+	id BA0508E0002; Thu,  7 Mar 2019 18:51:10 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AB7C38E0009; Thu,  7 Mar 2019 18:00:45 -0500 (EST)
+	id A691C8E0003; Thu,  7 Mar 2019 18:51:10 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6604F8E0007
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 18:00:45 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id d5so19636665pfo.5
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 15:00:45 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 518518E0002
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 18:51:10 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id h16so8894171edq.16
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 15:51:10 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=JZX5VXWRV31e/dorMIyOAZjwZx1Lnus1V/4dOHz/P7o=;
-        b=sKVHQ8P2PD1QG3uvp/Agrcv5Ef8alVxF3XuIhVlC+Z5S2coqtWAasX6VJOkFUOH48d
-         E0qATS+6blzW58bX6zUXLGLs7Ov+6LnzZjk1XG3AoVKaQA3xYyE3zA5vLwswgJW2QHjM
-         BF/He5Y0WbzjohcQpwDWZ8SpvRVgG10/rpX1bGK+3sF0im/gu3sd0aoLDJHxV+mYpIYD
-         NSLNXahBeDrcziZXUDIq4B2HfEsPyzfc543LakooAvqlasYRo3irK8V1VUSOP86aLyCe
-         bZp2bxwGZaDUcMtdpXBhGJKcBunqvbXu1cRj2/cZTLWDvJ87gI6m2SlpoYmySj31ZZXP
-         8vmA==
-X-Gm-Message-State: APjAAAXZpU9qcKnRpctE6qdE+45xBzCNBHg5dQsybEMxBDVFO0A94RP4
-	Ez2ctld4eit0VSu5PqdOAk5z3AfuDHYDrV98soat00cVrkJSre2npj12opz0Wqj1GOwPbomdCzc
-	Y1+EToCTzDFK6NtXwZQYwjFNUIuuv3Nfm8y7QBjr0kw1+k0fs3lIXl3ZRP8S90Lm/MCO2y31cTm
-	vKbjuHz5EZ+owBojRKu9a466gXNqMFigzrXGefCCe2/RINGOGbXDfKo25HGf3+TaV7bM08QRsB9
-	r41RIZWktNA89J4xS5yG3yLXAiI9rdVblBZ2n+vZ8ENDJCYtM4CBxx+AnCLS3pImBvEJY7GD3zH
-	O1D3LrJyINV/f4B6eoaETTgaK83TP2DeDSjrlwpXf6WUBFbrprW5lYYn3gK+StmVZJxN3VsU9ZY
-	k
-X-Received: by 2002:a62:f20d:: with SMTP id m13mr15051947pfh.174.1551999644982;
-        Thu, 07 Mar 2019 15:00:44 -0800 (PST)
-X-Received: by 2002:a62:f20d:: with SMTP id m13mr15051816pfh.174.1551999643345;
-        Thu, 07 Mar 2019 15:00:43 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551999643; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:from:to:references:cc
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=4bAgnaCZ4AZSn5kaF2eBKx8oWqAK20GUr15eBLtGPIU=;
+        b=ClHa7NUeqCSGG2/BCDezxX/RhjZG4Dzo+vIlD19/ob7OqT+r5xH/OesATmBz1suvjc
+         XnuZ+tGU3HXXKzwzG8Xje7oiTPUhpjlAaHK+msouWtcq6YNZ1jt3BnB+tyP5tZDLwqLJ
+         sQi6frfzkFEtv5lXmmPh0zeK8U92ctIzUEqGP1mKRZvhCS8ClTNSPGGom8OH+ZKyJMbT
+         UV5T51CYWl4bIHV0BgivZplGxZDFgJCU8aH8PYG00Brop35kYpTgzuOdJ42TaBAnv5rb
+         bycLeCa57yV1as6zHm5dWVlBMeIQC1VI9TL/BkgeeoNWajEvoTsv5R4eWWG+97hYpHaB
+         SPcQ==
+X-Gm-Message-State: APjAAAXj6eghEYdeqBZ5b/wzFk5zi5SUv8Hc4nNg3VuvPqcwO0Xaq1fn
+	/1LPCzpEZPLxXyAUBk/2/JjN4lekuFFHTW4jjiJK7k6mHGjdi/i5tHVHZva2JnJtslTuc6GO6+Q
+	gS1RmZx75bZGX1j9aNsj8pdiPxkl+5a2UblQT9bR/4c7SvNJYjbZeHxsCh2nTTK2iAg==
+X-Received: by 2002:a17:906:1d4c:: with SMTP id o12mr9469977ejh.234.1552002669684;
+        Thu, 07 Mar 2019 15:51:09 -0800 (PST)
+X-Google-Smtp-Source: APXvYqyHvwsXbWk3rxvoPfBC9rm1GodjfrQAPTYZ5HFbi2GMawvQW/Et2b+I+DHZxXD4HCxX+/Ru
+X-Received: by 2002:a17:906:1d4c:: with SMTP id o12mr9469931ejh.234.1552002668438;
+        Thu, 07 Mar 2019 15:51:08 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1552002668; cv=none;
         d=google.com; s=arc-20160816;
-        b=SP/er3PRydp0E5l+z9LTKXlZM0KDimOMufn+WCbCBd4B0aRvYm2AI1aUe+4nmsmoEe
-         DmxW5JXpUg9KMvEw6xdfiqh/nmHoa7REGhmDXlF58hQyMkwsnsIKA5YHgv5AHtGp6233
-         T8IciBaek01sNSPXYvW1FFCVtLmGoxyEB9mRkZKRuU/XD4lnozeifcUEhqDL0/2x5VIF
-         w4yw2nmbMsWZKB3NGZlYG5OOA6kUQrHMTpaIBSBXXj1RF4lbMj+QsNZuHvnPJx/kjSB4
-         K6LlzzKlSPJlUDVtetbSKqqZAvY/18v+4frwHmrT2ma7R3dVPzXAXQnzZO+7cZecfX6s
-         iQ4w==
+        b=k7FgBMDukjEeNrJbhV+bVfzoyRS4ok5qvD4fXJXesi690KipBVBWiL3dLkuPzK80t0
+         Rt9APkHYURgs7EBlUqd0+pgXKshOP/+WXszp/TKj+h5XjfnFelVg6ukQJBJ+d9ptypJM
+         IeV/kCF9TLjCJBgnLW4jfy0zPVe8gS0Jz2foLznT1orjWQDEn83Y80K2e0bcC7qkStBX
+         BYoku41OUgRiZkFZfo4psRcEQJKSq93diOgVs4iMsQ7jljyJxvUcQIruanDwE0PSn4ww
+         dqSB8D/KxIlRgQe78pa0xBxwA6jgC8wB6K+/1flUKDY2jkL02D3Pdt/2OernMy2tHMV+
+         osgw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=JZX5VXWRV31e/dorMIyOAZjwZx1Lnus1V/4dOHz/P7o=;
-        b=uaoA5jlut1xLs+c6LAarnXKbGzm+UiCrUZ2YtFC+wxVIkbElbulzXrxBZ5mjkJeZq7
-         4vBO0Yw44KkME1AZvdPp0rj5o2IlpVucuAnZyNvKzsM0iQjwIB58IdAqZXRdSXvDzrSu
-         cs/D8UHBbz07Wqp/4TQNOpMuhzO1PlWGEpogLqk4DsWQKNxB8uSHad+veUVHja0AgvZm
-         35P73fgk0Hssu/KagW/xMbE5XcVX/BwfTs28cG5nPuhhucj2H/IkjKdxvb+7jn5R9Iqi
-         hFbRPwv8dHIATnheHafnTHZ7tX4CenQL/asnnP8lx5ojOI/SbeTSdKtx+J/rGZ0nGSEv
-         1xtQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:cc:references:to:from:subject
+         :dkim-signature;
+        bh=4bAgnaCZ4AZSn5kaF2eBKx8oWqAK20GUr15eBLtGPIU=;
+        b=iVvh1yrDXcyajCESfZd+z0SPmDY46AizLuJdk1Grfb3ldKCUmcM4CNxtZ33fsmuAkJ
+         FdTbzwse9h4CXiKhxdasci7OZwsOJq/BF93f7xFJM7bTXB4EVKvB4WiSPqEMhwpJ6yM5
+         pd+0g3y3qSU5f//wgXrYfjjxmLhlq6dDUjFLchu5w4JuH8puEfZtkt1H5P7AieofpGP2
+         Rh8epCC6syrBDmOTJjgOzXjBe1MKC5Gr+eHQ/+SaDnmmAZ7Ey9OPx/caLT62aGG9rUQo
+         6atg8jP7yobBkYTuyejQjnuDstwHae9ET5prfwMs6ZbEDrcfhuB3M+TMh69XbJJzKZ0w
+         mtsw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Xm1kKMC9;
-       spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a10sor9528123pgt.24.2019.03.07.15.00.43
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Cgp7ojbY;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id p18si792929ejz.318.2019.03.07.15.51.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 07 Mar 2019 15:00:43 -0800 (PST)
-Received-SPF: pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Mar 2019 15:51:08 -0800 (PST)
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Xm1kKMC9;
-       spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=JZX5VXWRV31e/dorMIyOAZjwZx1Lnus1V/4dOHz/P7o=;
-        b=Xm1kKMC9B2w4t88wFEbcqoH6e3UjYFTd0TJSqsFikzco+7ogxo96EX0nP16sMJbA/D
-         LLSVBZJBDEz2s/pXjjVn9UsVgWRbZVxLUbIf2ptRACQNUAGqUprEX6a1DRinHKw5cqeA
-         saSPrh0ac7GIbDXM2tqBY5JabMVeKZK5pq2AM6gHHd2NgUEUM5jV35C6N+sm6BhlMSik
-         OrbKHp1PzKc/8Lqk+TeUJEZBxlxgSWd6IjScBzR+zqvggjmPRH3lsIVbl0hk5XRSCeMU
-         7HEsMpuv84maXQ4wCXQUhIkvGmgg1GgNgoeCuvcEah9F6lF2KaEUozcRhvJrkXRIRfs3
-         bBLQ==
-X-Google-Smtp-Source: APXvYqyQ0WlWO2ShjokCb1rn3KTI4g8tpX1+qir97KWkQkaWwmJJtvRCFS7kkyFXX+SvJ87Cs4JUAQ==
-X-Received: by 2002:a63:8b42:: with SMTP id j63mr13351207pge.79.1551999642755;
-        Thu, 07 Mar 2019 15:00:42 -0800 (PST)
-Received: from tower.thefacebook.com ([2620:10d:c090:200::2:d18b])
-        by smtp.gmail.com with ESMTPSA id i126sm11864806pfb.15.2019.03.07.15.00.41
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 07 Mar 2019 15:00:42 -0800 (PST)
-From: Roman Gushchin <guroan@gmail.com>
-X-Google-Original-From: Roman Gushchin <guro@fb.com>
-To: linux-mm@kvack.org,
-	kernel-team@fb.com
-Cc: linux-kernel@vger.kernel.org,
-	Tejun Heo <tj@kernel.org>,
-	Rik van Riel <riel@surriel.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Roman Gushchin <guro@fb.com>
-Subject: [PATCH 5/5] mm: spill memcg percpu stats and events before releasing
-Date: Thu,  7 Mar 2019 15:00:33 -0800
-Message-Id: <20190307230033.31975-6-guro@fb.com>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190307230033.31975-1-guro@fb.com>
-References: <20190307230033.31975-1-guro@fb.com>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Cgp7ojbY;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x27NmaQJ117340;
+	Thu, 7 Mar 2019 23:50:58 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : from : to :
+ references : cc : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=4bAgnaCZ4AZSn5kaF2eBKx8oWqAK20GUr15eBLtGPIU=;
+ b=Cgp7ojbYVt7O3TR9fgazyXJAtI+94+WM54ifEOClG3YQiludYTT9vuVQs7xw4PKIdIiy
+ SbxCXalCxfAxvzqP0BrQw88oAFMN4e2yy2FgLjl3JsakA5mQsTGNejCrxIgIGfOJxhpN
+ sfzWP6sZq0/Rd8TI/eqhC9Bc8EFs/xX/dkFlGJbqc0nBK6VqhkVgUYZlUOfhdzLdxBCQ
+ FaAggmmSWmKNrFM5648Skd0r0pDBoiVvZJ/X/IpyzJl5K1zZb6k+aoMjRZtiwxVKUtlr
+ P4QVHUBEVBwfbf1hfi/tcqIRCVx9JsLwn8D3HDW+y9Eb6+7AQh4jTfAvW3m9me70LRln QA== 
+Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
+	by userp2120.oracle.com with ESMTP id 2qyjfrwc35-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 07 Mar 2019 23:50:58 +0000
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x27NovDx001288
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 7 Mar 2019 23:50:57 GMT
+Received: from abhmp0017.oracle.com (abhmp0017.oracle.com [141.146.116.23])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x27Nou1D017505;
+	Thu, 7 Mar 2019 23:50:56 GMT
+Received: from [192.168.1.164] (/50.38.38.67)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Thu, 07 Mar 2019 15:50:56 -0800
+Subject: Re: [PATCH v2] hugetlbfs: fix memory leak for resv_map
+From: Mike Kravetz <mike.kravetz@oracle.com>
+To: Yufen Yu <yuyufen@huawei.com>, linux-mm@kvack.org,
+        linux-kernel <linux-kernel@vger.kernel.org>
+References: <20190306061007.61645-1-yuyufen@huawei.com>
+ <ac030f5b-3d9c-9a71-bd39-1c1f707bc931@oracle.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+        Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+        Michal Hocko
+ <mhocko@kernel.org>,
+        Andrew Morton <akpm@linux-foundation.org>
+Message-ID: <6aecc2e3-030b-5a3f-2fee-14ee90a47f5a@oracle.com>
+Date: Thu, 7 Mar 2019 15:50:55 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <ac030f5b-3d9c-9a71-bd39-1c1f707bc931@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9188 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1903070157
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Spill percpu stats and events data to corresponding before releasing
-percpu memory.
+Adding others on Cc to see if they have comments or opinions.
 
-Although per-cpu stats are never exactly precise, dropping them on
-floor regularly may lead to an accumulation of an error. So, it's
-safer to sync them before releasing.
+On 3/6/19 3:52 PM, Mike Kravetz wrote:
+> On 3/5/19 10:10 PM, Yufen Yu wrote:
+>> When .mknod create a block device file in hugetlbfs, it will
+>> allocate an inode, and kmalloc a 'struct resv_map' in resv_map_alloc().
+>> For now, inode->i_mapping->private_data is used to point the resv_map.
+>> However, when open the device, bd_acquire() will set i_mapping as
+>> bd_inode->imapping, result in resv_map memory leak.
+>>
+>> We fix it by waiting until a call to hugetlb_reserve_pages() to allocate
+>> the inode specific resv_map. We could then remove the resv_map allocation
+>> at inode creation time.
+>>
+>> Programs to reproduce:
+>> 	mount -t hugetlbfs nodev hugetlbfs
+>> 	mknod hugetlbfs/dev b 0 0
+>> 	exec 30<> hugetlbfs/dev
+>> 	umount hugetlbfs/
+>>
+>> Signed-off-by: Yufen Yu <yuyufen@huawei.com>
+> 
+> Thank you.  That is the approach I had in mind.
+> 
+> Unfortunately, this patch causes several regressions in the libhugetlbfs
+> test suite.  I have not debugged to determine exact cause.  
+> 
+> I was unsure about one thing with this approach.  We set
+> inode->i_mapping->private_data while holding the inode lock, so there
+> should be no problem there.  However, we access inode_resv_map() in the
+> page fault path without the inode lock.  The page fault path should get
+> NULL or a resv_map.  I just wonder if there may be some races where the
+> fault path may still be seeing NULL.
+> 
+> I can do more debug, but it will take a couple days as I am busy with
+> other things right now.
 
-To minimize the number of atomic updates, let's sum all stats/events
-on all cpus locally, and then make a single update per entry.
+My apologies.  Calling resv_map_alloc() only from hugetlb_reserve_pages()
+is not going to work.  The reason why is that the reserv_map is used to track
+page allocations even if there are not reservations.  So, if reservations
+are not created other huge page accounting is impacted.
 
-Signed-off-by: Roman Gushchin <guro@fb.com>
+Sorry for suggesting that approach.
+
+As mentioned, I do not like your original approach as it adds an extra word
+to every hugetlbfs inode.  How about something like the following which
+only adds the resv_map to inodes which can have associated page allocations?
+I have only done limited regression testing with this.
+
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Date: Thu, 7 Mar 2019 15:37:31 -0800
+Subject: [PATCH] hugetlbfs: only allocate reserve map for inodes that can
+ allocate pages
+
+Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- mm/memcontrol.c | 52 +++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 52 insertions(+)
+ fs/hugetlbfs/inode.c | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 18e863890392..b7eb6fac735e 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4612,11 +4612,63 @@ static int mem_cgroup_css_online(struct cgroup_subsys_state *css)
- 	return 0;
- }
- 
-+/*
-+ * Spill all per-cpu stats and events into atomics.
-+ * Try to minimize the number of atomic writes by gathering data from
-+ * all cpus locally, and then make one atomic update.
-+ * No locking is required, because no one has an access to
-+ * the offlined percpu data.
-+ */
-+static void mem_cgroup_spill_offlined_percpu(struct mem_cgroup *memcg)
-+{
-+	struct memcg_vmstats_percpu __percpu *vmstats_percpu;
-+	struct lruvec_stat __percpu *lruvec_stat_cpu;
-+	struct mem_cgroup_per_node *pn;
-+	int cpu, i;
-+	long x;
-+
-+	vmstats_percpu = memcg->vmstats_percpu_offlined;
-+
-+	for (i = 0; i < MEMCG_NR_STAT; i++) {
-+		int nid;
-+
-+		x = 0;
-+		for_each_possible_cpu(cpu)
-+			x += per_cpu(vmstats_percpu->stat[i], cpu);
-+		if (x)
-+			atomic_long_add(x, &memcg->vmstats[i]);
-+
-+		if (i >= NR_VM_NODE_STAT_ITEMS)
-+			continue;
-+
-+		for_each_node(nid) {
-+			pn = mem_cgroup_nodeinfo(memcg, nid);
-+			lruvec_stat_cpu = pn->lruvec_stat_cpu_offlined;
-+
-+			x = 0;
-+			for_each_possible_cpu(cpu)
-+				x += per_cpu(lruvec_stat_cpu->count[i], cpu);
-+			if (x)
-+				atomic_long_add(x, &pn->lruvec_stat[i]);
-+		}
-+	}
-+
-+	for (i = 0; i < NR_VM_EVENT_ITEMS; i++) {
-+		x = 0;
-+		for_each_possible_cpu(cpu)
-+			x += per_cpu(vmstats_percpu->events[i], cpu);
-+		if (x)
-+			atomic_long_add(x, &memcg->vmevents[i]);
-+	}
-+}
-+
- static void mem_cgroup_free_percpu(struct rcu_head *rcu)
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index a7fa037b876b..a3a3d256fb0e 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -741,11 +741,17 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
+ 					umode_t mode, dev_t dev)
  {
- 	struct mem_cgroup *memcg = container_of(rcu, struct mem_cgroup, rcu);
- 	int node;
+ 	struct inode *inode;
+-	struct resv_map *resv_map;
++	struct resv_map *resv_map = NULL;
  
-+	mem_cgroup_spill_offlined_percpu(memcg);
-+
- 	for_each_node(node) {
- 		struct mem_cgroup_per_node *pn = memcg->nodeinfo[node];
+-	resv_map = resv_map_alloc();
+-	if (!resv_map)
+-		return NULL;
++	/*
++	 * Reserve maps are only needed for inodes that can have associated
++	 * page allocations.
++	 */
++	if (S_ISREG(mode) || S_ISLNK(mode)) {
++		resv_map = resv_map_alloc();
++		if (!resv_map)
++			return NULL;
++	}
  
+ 	inode = new_inode(sb);
+ 	if (inode) {
+@@ -780,8 +786,10 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
+ 			break;
+ 		}
+ 		lockdep_annotate_inode_mutex_key(inode);
+-	} else
+-		kref_put(&resv_map->refs, resv_map_release);
++	} else {
++		if (resv_map)
++			kref_put(&resv_map->refs, resv_map_release);
++	}
+ 
+ 	return inode;
+ }
 -- 
-2.20.1
+2.17.2
 
