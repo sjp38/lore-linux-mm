@@ -3,198 +3,258 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 99B79C4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 08:41:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B8EF8C43381
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 09:16:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3398620652
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 08:41:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3398620652
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 0BABF20652
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 09:16:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0BABF20652
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=collabora.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 74AB38E0003; Thu,  7 Mar 2019 03:41:25 -0500 (EST)
+	id 97EC48E0003; Thu,  7 Mar 2019 04:16:26 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6FB128E0002; Thu,  7 Mar 2019 03:41:25 -0500 (EST)
+	id 952378E0002; Thu,  7 Mar 2019 04:16:26 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5EAFE8E0003; Thu,  7 Mar 2019 03:41:25 -0500 (EST)
+	id 841FF8E0003; Thu,  7 Mar 2019 04:16:26 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 34BAB8E0002
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 03:41:25 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id p40so14404437qtb.10
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 00:41:25 -0800 (PST)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 32A128E0002
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 04:16:26 -0500 (EST)
+Received: by mail-wr1-f71.google.com with SMTP id t7so8303488wrw.8
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 01:16:26 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=a/9DxzPpcPbbDU3VE07Uwxj8pi0fwDEEQG6s/QSqbss=;
-        b=QrkDSYjFhAozzJQTC6P2moO9mYK1+qUy1z9p0qW6TOs5BJbylOo5rIdu8ncnpUJRoM
-         n0DOibriLuZSkT2C2Qa+WI88VlURJSwBmrtnjPp4f/ebbIitu5Pxbw+tOFZQ3MLJiAzm
-         OI7HLUkEolUF879zOGrTxlbBg81/XSLhUsHHJX/hcvPUwIV5lmtH3XjIpcHujk963ubd
-         g+PA0DnEeCLxQz2kGB+6GTZKLud9/M8S91jCXK9jlc/u3r7KzK+vEzwQQrg0QlAGQti0
-         4KLblCMsqCdGAcJ2r+H21Qt1RRcwIF0JQVZdNMvXEbbUbNR2hzqWZfoxC8XJeKbKczvF
-         rjrQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAX3Lwyz5yqnnnl+cOkgjUwUmvjRmgFeqj82Kg33xCn2lHRS6jaQ
-	dmjgTZRjFWbjrvG0rmHEMs8zpH7TAnjTmvBaMlKMf6b848uWb6He89fsRFhR+bGeQflg3sJRbBB
-	Y112x0pI5ZIRW/0pKLaTEB0h5TWFIuAJfAJynGN0w5fVdpV/xbFjrAlxYECh049xLgg==
-X-Received: by 2002:ac8:21c9:: with SMTP id 9mr9293638qtz.78.1551948084907;
-        Thu, 07 Mar 2019 00:41:24 -0800 (PST)
-X-Google-Smtp-Source: APXvYqyLSoe36eIseEAbjakbX5DV/zUySE2ZhjGgGhSDsSTf8pxfYWzfhJQD4CUqJbYnAeA1Kd6g
-X-Received: by 2002:ac8:21c9:: with SMTP id 9mr9293605qtz.78.1551948084179;
-        Thu, 07 Mar 2019 00:41:24 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551948084; cv=none;
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=jJIve9JggU4atD/taMUsPkxPsAp5WxeGrkvIqccMBw0=;
+        b=SfgNEfDI/xsdYBUfuvHxP36mTafRyOrnygUt252Vz5O1EevpsKtWATUfkqG4QtrPxa
+         1jG0L8l0qlT22myJWm8xwzUqs5IBw9WDKsYP7Gz9bA80CaqyHQJYxzYUPdqBPB761dIa
+         vWkwco9sHhXwLp36qKNNuxvVElxR+7rB3APw6Ka9IdmnHdYwSD3J2IWGB0GcrfeCe3Bd
+         BAwM5n5mdsBX9t9jZQ0IpWhusr0GDl3OKOI52crKJB+zPU97uJtZ3qaGRFLsnocr6Bwg
+         Lzc8OKzqW92XgefLRRDsrn7HkylGFoVQPv5B8XQwTHa0/1iFX8sKFW/pTFxGt0Sl+ytG
+         itOQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of guillaume.tucker@collabora.com designates 46.235.227.227 as permitted sender) smtp.mailfrom=guillaume.tucker@collabora.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
+X-Gm-Message-State: APjAAAXIKVcOSBAdRCt6iVDrPVEWWO2VKYVKiPCyf1uY6aywa47hRq+4
+	6+HXYnreqzUwK9lkOYzPuCrGnxrVeb3Mi5gHhuEAOa7clygJP6u3bSwdwMza4f92OYROvzZozU1
+	AZeXJYo8bxDY60aHUDdASl9nbPNWJmXNE8dJ+sOYbfa2HTXLyQgmI8AQubykYCogKIQ==
+X-Received: by 2002:a5d:4e52:: with SMTP id r18mr5815849wrt.7.1551950185675;
+        Thu, 07 Mar 2019 01:16:25 -0800 (PST)
+X-Google-Smtp-Source: APXvYqx8AMO6eXOgPIa9JZdnWqjusa3bYtoqaTh+hJzqWMC7bcPn8GETonXCvPSuOQPhG71X35eY
+X-Received: by 2002:a5d:4e52:: with SMTP id r18mr5815793wrt.7.1551950184556;
+        Thu, 07 Mar 2019 01:16:24 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551950184; cv=none;
         d=google.com; s=arc-20160816;
-        b=DXDjeFskRspuAonEx8cQeEE9W93DMW12qmWlNAgNr9GXyhuny5BXbuPxIVExUV+zfs
-         /Ubt939FFWPaFRjBW/oXjlPPvjUBwBCIdTs4p/VfW7mPW0PlVfJho/p62QUeSPc+bO0K
-         6IEnDwiCgsYOLhkUs7+0FK1k4yBOvuNuqILEpE6+aHdroIE5cbBjdrhlZDDIblQYWuhc
-         S2Sm+tbPTPTK9HbBCD5c/jgCzqRFG44xHGVzOIawe4Hj+Gr7Jx/E8GXIqENdr1nFoIG2
-         zfNGb39pXTK52jA3cmhQGdt2ER9iXonqaF31780kcCPw+6GLpbX27ZNn/PLS3UVizQqv
-         A3ww==
+        b=xcDSTYwK50sNulHWPryOKRDDsLdv/sc5j3LArcfcQA9hPYA/chKrdN6l3JZNAiBi71
+         c5hO+Fq+43HdPHjVNRxXEgmspQBDAl/POGjHctCy/0O1OBXw7hLC0O7mh1EbPPp9QrsH
+         6zrzp915CBMvRxVe95zEeQkfIibIaa72oZW72gqFgpgJYCbKCFjymxHrgXwpYidJEUYS
+         E7c72Sq+x3MBncWDt3b3rS+e8BF0HJzXrRa3ZJcDDR5fAu7YxwCSpTVexpK8Ek/YYtKU
+         8aAVHzhWSw1E1qB++wwZK+3FRD7HxrmC46a3Xu2Kp3ea7ibsmI58FnhH5DlsP0jxfP4W
+         FSwA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=a/9DxzPpcPbbDU3VE07Uwxj8pi0fwDEEQG6s/QSqbss=;
-        b=GPFicK/hmytOCcEEdqAoc+ArHkCLPy34UtN6ofhGfEE1Df5KYcx8SijYR0zd+n8dYf
-         0R2jY4JQ5GephFST81jHjJuiu5h3jJ4jq/aU6h6FxZD9m5xO6cv0xmb0lpbI67xrgjJd
-         oC6LlBl4aZa1zpEpl/lfVSA1wytGUpnHWKBNhW0GJcKn2PgYx1c6elVPsAVWCnhSTGvE
-         YuXTPMpiqeFJmGEuKHCjuwU9+MzptGyXImFGAdt9Jc/KITQFWnaFtUx1DFz+xrH3phLU
-         DrKvDhrGOU4pzKdvEWQtbi+rp6Jn4FGBsEHzq+DlnetE7vEsB0GDTd/WX5QgRM60+imG
-         ulqQ==
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=jJIve9JggU4atD/taMUsPkxPsAp5WxeGrkvIqccMBw0=;
+        b=pIrP6jWK/+eUdGel9sdr42SfQDgETyl6fySpQj6P2zzk9RXsE2zq5id0ofKi7NPaRA
+         FnH+tApzdlA8HkzcOZtHz6EjFZrdqPGau7EvFhgKb/zeUVzREKMhs7vHfr0iQlOCb01S
+         YcT8BZegC6l2snS5WDNUmOgma+Hm6m5qKupredGYqCRICvZgVbJDFSPhP2nDJegmuMg+
+         wrtemzCKkvMV9bCqCDO0qDMvZ93wMqb03GT0pqHaqCZF7IVQx9gmNyMomsetLagRyaTB
+         yaCuQ60H6NY2EtKN1UIjWMPGs+DCML6iSJhNPTn+8X2IpQYvoapx94m3Z8d+r+gFnP/t
+         IA5A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u1si2060279qth.256.2019.03.07.00.41.23
+       spf=pass (google.com: domain of guillaume.tucker@collabora.com designates 46.235.227.227 as permitted sender) smtp.mailfrom=guillaume.tucker@collabora.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
+Received: from bhuna.collabora.co.uk (bhuna.collabora.co.uk. [46.235.227.227])
+        by mx.google.com with ESMTPS id d13si2597888wrw.116.2019.03.07.01.16.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Mar 2019 00:41:24 -0800 (PST)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 07 Mar 2019 01:16:24 -0800 (PST)
+Received-SPF: pass (google.com: domain of guillaume.tucker@collabora.com designates 46.235.227.227 as permitted sender) client-ip=46.235.227.227;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+       spf=pass (google.com: domain of guillaume.tucker@collabora.com designates 46.235.227.227 as permitted sender) smtp.mailfrom=guillaume.tucker@collabora.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
+Received: from [IPv6:2a00:5f00:102:0:6dae:eb08:2e0f:5281] (unknown [IPv6:2a00:5f00:102:0:6dae:eb08:2e0f:5281])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 3AFE8C0467FA;
-	Thu,  7 Mar 2019 08:41:23 +0000 (UTC)
-Received: from [10.36.117.175] (ovpn-117-175.ams2.redhat.com [10.36.117.175])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 352CD60139;
-	Thu,  7 Mar 2019 08:41:20 +0000 (UTC)
-Subject: Re: [PATCH v2] makedumpfile: exclude pages that are logically offline
-To: Kazuhito Hagio <k-hagio@ab.jp.nec.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>,
- "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>,
- "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
- "linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>,
- "xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>,
- kexec-ml <kexec@lists.infradead.org>,
- "pv-drivers@vmware.com" <pv-drivers@vmware.com>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>
-References: <20181122100627.5189-1-david@redhat.com>
- <20181122100938.5567-1-david@redhat.com>
- <4AE2DC15AC0B8543882A74EA0D43DBEC03561800@BPXM09GP.gisp.nec.co.jp>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <7c9d6d5c-d6cf-00a7-7f23-bf28cbb382af@redhat.com>
-Date: Thu, 7 Mar 2019 09:41:15 +0100
+	(Authenticated sender: gtucker)
+	by bhuna.collabora.co.uk (Postfix) with ESMTPSA id B6FCC27F136;
+	Thu,  7 Mar 2019 09:16:23 +0000 (GMT)
+Subject: Re: next/master boot bisection: next-20190215 on beaglebone-black
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Dan Williams <dan.j.williams@intel.com>,
+ Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>,
+ Mark Brown <broonie@kernel.org>, Tomeu Vizoso <tomeu.vizoso@collabora.com>,
+ Matt Hart <matthew.hart@linaro.org>, Stephen Rothwell
+ <sfr@canb.auug.org.au>, khilman@baylibre.com, enric.balletbo@collabora.com,
+ Nicholas Piggin <npiggin@gmail.com>,
+ Dominik Brodowski <linux@dominikbrodowski.net>,
+ Masahiro Yamada <yamada.masahiro@socionext.com>,
+ Kees Cook <keescook@chromium.org>, Adrian Reber <adrian@lisas.de>,
+ Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+ Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>,
+ Mathieu Desnoyers <mathieu.desnoyers@efficios.com>,
+ Richard Guy Briggs <rgb@redhat.com>,
+ "Peter Zijlstra (Intel)" <peterz@infradead.org>, info@kernelci.org
+References: <20190215185151.GG7897@sirena.org.uk>
+ <20190226155948.299aa894a5576e61dda3e5aa@linux-foundation.org>
+ <CAPcyv4ivjC8fNkfjdFyaYCAjGh7wtvFQnoPpOcR=VNZ=c6d6Rg@mail.gmail.com>
+ <20190228151438.fc44921e66f2f5d393c8d7b4@linux-foundation.org>
+ <CAPcyv4hDmmK-L=0txw7L9O8YgvAQxZfVFiSoB4LARRnGQ3UC7Q@mail.gmail.com>
+ <026b5082-32f2-e813-5396-e4a148c813ea@collabora.com>
+ <20190301124100.62a02e2f622ff6b5f178a7c3@linux-foundation.org>
+ <3fafb552-ae75-6f63-453c-0d0e57d818f3@collabora.com>
+ <CAPcyv4hMNiiM11ULjbOnOf=9N=yCABCRsAYLpjXs+98bRoRpCA@mail.gmail.com>
+ <36faea07-139c-b97d-3585-f7d6d362abc3@collabora.com>
+ <20190306140529.GG3549@rapoport-lnx>
+From: Guillaume Tucker <guillaume.tucker@collabora.com>
+Message-ID: <21d138a5-13e4-9e83-d7fe-e0639a8d180a@collabora.com>
+Date: Thu, 7 Mar 2019 09:16:20 +0000
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-In-Reply-To: <4AE2DC15AC0B8543882A74EA0D43DBEC03561800@BPXM09GP.gisp.nec.co.jp>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20190306140529.GG3549@rapoport-lnx>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Thu, 07 Mar 2019 08:41:23 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 27.11.18 17:32, Kazuhito Hagio wrote:
->> Linux marks pages that are logically offline via a page flag (map count).
->> Such pages e.g. include pages infated as part of a balloon driver or
->> pages that were not actually onlined when onlining the whole section.
+On 06/03/2019 14:05, Mike Rapoport wrote:
+> On Wed, Mar 06, 2019 at 10:14:47AM +0000, Guillaume Tucker wrote:
+>> On 01/03/2019 23:23, Dan Williams wrote:
+>>> On Fri, Mar 1, 2019 at 1:05 PM Guillaume Tucker
+>>> <guillaume.tucker@collabora.com> wrote:
+>>>
+>>> Is there an early-printk facility that can be turned on to see how far
+>>> we get in the boot?
 >>
->> While the hypervisor usually allows to read such inflated memory, we
->> basically read and dump data that is completely irrelevant. Also, this
->> might result in quite some overhead in the hypervisor. In addition,
->> we saw some problems under Hyper-V, whereby we can crash the kernel by
->> dumping, when reading memory of a partially onlined memory segment
->> (for memory added by the Hyper-V balloon driver).
+>> Yes, I've done that now by enabling CONFIG_DEBUG_AM33XXUART1 and
+>> earlyprintk in the command line.  Here's the result, with the
+>> commit cherry picked on top of next-20190304:
 >>
->> Therefore, don't read and dump pages that are marked as being logically
->> offline.
+>>   https://lava.collabora.co.uk/scheduler/job/1526326
 >>
->> Signed-off-by: David Hildenbrand <david@redhat.com>
+>> [    1.379522] ti-sysc 4804a000.target-module: sysc_flags 00000222 != 00000022
+>> [    1.396718] Unable to handle kernel paging request at virtual address 77bb4003
+>> [    1.404203] pgd = (ptrval)
+>> [    1.406971] [77bb4003] *pgd=00000000
+>> [    1.410650] Internal error: Oops: 5 [#1] ARM
+>> [...]
+>> [    1.672310] [<c07051a0>] (clk_hw_create_clk.part.21) from [<c06fea34>] (devm_clk_get+0x4c/0x80)
+>> [    1.681232] [<c06fea34>] (devm_clk_get) from [<c064253c>] (sysc_probe+0x28c/0xde4)
+>>
+>> It's always failing at that point in the code.  Also when
+>> enabling "debug" on the kernel command line, the issue goes
+>> away (exact same binaries etc..):
+>>
+>>   https://lava.collabora.co.uk/scheduler/job/1526327
+>>
+>> For the record, here's the branch I've been using:
+>>
+>>   https://gitlab.collabora.com/gtucker/linux/tree/beaglebone-black-next-20190304-debug
+>>
+>> The board otherwise boots fine with next-20190304 (SMP=n), and
+>> also with the patch applied but the shuffle configs set to n.
+>>
+>>> Were there any boot *successes* on ARM with shuffling enabled? I.e.
+>>> clues about what's different about the specific memory setup for
+>>> beagle-bone-black.
+>>
+>> Looking at the KernelCI results from next-20190215, it looks like
+>> only the BeagleBone Black with SMP=n failed to boot:
+>>
+>>   https://kernelci.org/boot/all/job/next/branch/master/kernel/next-20190215/
+>>
+>> Of course that's not all the ARM boards that exist out there, but
+>> it's a fairly large coverage already.
+>>
+>> As the kernel panic always seems to originate in ti-sysc.c,
+>> there's a chance it's only visible on that platform...  I'm doing
+>> a KernelCI run now with my test branch to double check that,
+>> it'll take a few hours so I'll send an update later if I get
+>> anything useful out of it.
+
+Here's the result, there were a couple of failures but some were
+due to infrastructure errors (nyan-big) and I'm not sure about
+what was the problem with the meson boards:
+
+  https://staging.kernelci.org/boot/all/job/gtucker/branch/kernelci-local/kernel/next-20190304-1-g4f0b547b03da/
+
+So there's no clear indicator that the shuffle config is causing
+any issue on any other platform than the BeagleBone Black.
+
+>> In the meantime, I'm happy to try out other things with more
+>> debug configs turned on or any potential fixes someone might
+>> have.
 > 
-> Thanks for the v2 update.
-> I'm going to merge this patch after the kernel patches are merged
-> and it tests fine with the kernel.
+> ARM is the only arch that sets ARCH_HAS_HOLES_MEMORYMODEL to 'y'. Maybe the
+> failure has something to do with it...
 > 
-> Kazu
+> Guillaume, can you try this patch:
 
-Hi Kazu,
+Sure, it doesn't seem to be fixing the problem though:
 
-the patches are now upstream. Thanks!
+  https://lava.collabora.co.uk/scheduler/job/1527471
 
--- 
+I've added the patch to the same branch based on next-20190304.
 
-Thanks,
+I guess this needs to be debugged a little further to see what
+the panic really is about.  I'll see if I can spend a bit more
+time on it this week, unless there's any BeagleBone expert
+available to help or if someone has another fix to try out.
 
-David / dhildenb
+Guillaume
+
+> diff --git a/mm/shuffle.c b/mm/shuffle.c
+> index 3ce1248..4a04aac 100644
+> --- a/mm/shuffle.c
+> +++ b/mm/shuffle.c
+> @@ -58,7 +58,8 @@ module_param_call(shuffle, shuffle_store, shuffle_show, &shuffle_param, 0400);
+>   * For two pages to be swapped in the shuffle, they must be free (on a
+>   * 'free_area' lru), have the same order, and have the same migratetype.
+>   */
+> -static struct page * __meminit shuffle_valid_page(unsigned long pfn, int order)
+> +static struct page * __meminit shuffle_valid_page(unsigned long pfn, int order,
+> +						  struct zone *z)
+>  {
+>  	struct page *page;
+>  
+> @@ -80,6 +81,9 @@ static struct page * __meminit shuffle_valid_page(unsigned long pfn, int order)
+>  	if (!PageBuddy(page))
+>  		return NULL;
+>  
+> +	if (!memmap_valid_within(pfn, page, z))
+> +		return NULL;
+> +
+>  	/*
+>  	 * ...is the page on the same list as the page we will
+>  	 * shuffle it with?
+> @@ -123,7 +127,7 @@ void __meminit __shuffle_zone(struct zone *z)
+>  		 * page_j randomly selected in the span @zone_start_pfn to
+>  		 * @spanned_pages.
+>  		 */
+> -		page_i = shuffle_valid_page(i, order);
+> +		page_i = shuffle_valid_page(i, order, z);
+>  		if (!page_i)
+>  			continue;
+>  
+> @@ -137,7 +141,7 @@ void __meminit __shuffle_zone(struct zone *z)
+>  			j = z->zone_start_pfn +
+>  				ALIGN_DOWN(get_random_long() % z->spanned_pages,
+>  						order_pages);
+> -			page_j = shuffle_valid_page(j, order);
+> +			page_j = shuffle_valid_page(j, order, z);
+>  			if (page_j && page_j != page_i)
+>  				break;
+>  		}
+>  
+> 
 
