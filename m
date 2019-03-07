@@ -2,115 +2,123 @@ Return-Path: <SRS0=NBIx=RK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 17916C43381
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 00:22:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C60DBC10F00
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 00:35:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C5BC620842
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 00:22:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7561A206DD
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Mar 2019 00:35:19 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="rdJBXQWf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C5BC620842
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="I0s1x8+f"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7561A206DD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 629CE8E0003; Wed,  6 Mar 2019 19:22:41 -0500 (EST)
+	id 0A5688E0003; Wed,  6 Mar 2019 19:35:19 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5D94B8E0002; Wed,  6 Mar 2019 19:22:41 -0500 (EST)
+	id 0034E8E0002; Wed,  6 Mar 2019 19:35:18 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4A24F8E0003; Wed,  6 Mar 2019 19:22:41 -0500 (EST)
+	id D98AE8E0003; Wed,  6 Mar 2019 19:35:18 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 23F888E0002
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 19:22:41 -0500 (EST)
-Received: by mail-io1-f69.google.com with SMTP id l10so11097489iob.22
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 16:22:41 -0800 (PST)
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B9388E0002
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2019 19:35:18 -0500 (EST)
+Received: by mail-oi1-f199.google.com with SMTP id p65so7310595oib.15
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2019 16:35:18 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:references:from:cc
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=iIWkAuLqjZp48a6KUYh7dQ4ey2EITMMpWIX4xWhIWFY=;
-        b=edB+oFPMugjN5VgMT751t/pwIwktBbuZHxxQ6PODvCa0CuzGBLLvfBDH1J4gi1XxPp
-         G7mSk4QotPnmwUt0oh8c117Ccymx7fXWVr6vebF/QcgJBxaCgy3k7wl4aFoehsxfs2YX
-         IqyMAKaQW+feO97Klosvysk2WXVsDDNnuBvyPy2/YSYF/6wG6rlYadN5DvuVk/X+PcBX
-         NPpYf/qCkgfZk+SJMgw2TAieZq733XdE0eGZaP9U4EgL96cBo0VC2VghqQVIFU5lbfjz
-         jC0BFUfRH4q1rOGDDeBB7dwUxtS2MuKiLxuRN7oCWMBbg9C8YIne62cw6gVIyydiPFyy
-         J+Rg==
-X-Gm-Message-State: APjAAAUF6yfNjFNcJQotHj18wb0kiC+8RlY4961CgMRKqjmTzQPOj6yF
-	iNXJASDu/RyOO+X3UoyMueqzOJtHbijM7VVK+C2CPTYXwSyuJudwAvFm3bnWDwka6L15crykL1y
-	+3m0owUqAdIzUeduurpdTqF+rpsnJ6yZjT72ZEult/cb0w64fjww42ZE5slZlvMAiGA==
-X-Received: by 2002:a05:660c:243:: with SMTP id t3mr3720317itk.152.1551918160866;
-        Wed, 06 Mar 2019 16:22:40 -0800 (PST)
-X-Google-Smtp-Source: APXvYqylwtgQ+Q+GhNyV+mNT1k7LFcE9BC2smqqd/o8g8UVY66d5vxFH4z2MYomunyn/JfT424Zo
-X-Received: by 2002:a05:660c:243:: with SMTP id t3mr3720287itk.152.1551918159877;
-        Wed, 06 Mar 2019 16:22:39 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551918159; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
+         :message-id:in-reply-to:references:user-agent:mime-version
+         :content-transfer-encoding;
+        bh=YGf5z/1I8Cu2i8LbrxNhN+soNX9B52Mijub6rlc4WZU=;
+        b=meYhjniH5XDx9RqeDZ9s6g/36r3zJuU79i64ROLx99R05KAOTEcKP9/FeOwJgS5zlZ
+         WjRRnjAboNjMyVRRfK7viz1WoiCzPdM0F+xFHnzBfFVSa+c1eAN8zdKFMWktk1CSEn9r
+         zvGSj1pOGSUq3xFv2HJTqB1jrnx8ka100sGGU6DZ1e4GDDEGU5mUiUWpk6obeIPExGCa
+         8KVWLlfqcsPkY1Sap5MKLfI/3jFUFJsC2WBnaDyiB29Cu39Tl0Y/q5c9mncwXvUJJuNa
+         phEiiITUuHpOcsJnpf84hapBFFroBbpFIis9UeISL78FCRBDpkAcHu0rwyDeXJUaVrKI
+         Utfg==
+X-Gm-Message-State: APjAAAXY/lyigFosbTniIqlBW3+CsKROLiybQJ5zV1bJKDepEy28c5xG
+	elwn1AhZzqHwon3TMvwNcSK8ZMLiXm7UTcr4pdTNqsGRQHUCMu9iiHtmWcHu3njoCDV7cAuKIEi
+	yniSzlzH2rQCZSJV7ZS9cX//HO/jLZgsdbwLxcD8SrkWi9Yu7KfFlc/ERpnY8w+lY4QqXhc7sW6
+	xMj1uGtmxDApix4inNNFqiR/z5/9SryHNwfLfEGw6lNn5xCneYmi66oHEUGH9EL+Ctqb8TTFO/i
+	ZwsU+eilzAbTOLvnhBQaysk8Uqww8NlzWGDSiY00b796cD4sIRSxPSGEWks9oi5ek6LO8EH00Hj
+	8E+98Q/UVkgpuNXGgmLi5DF3ARFUFXZn7DJNwKCIIuaP6JVgnKMhDOR9hWtTqFukuEnzf6o4s1J
+	e
+X-Received: by 2002:a9d:6c48:: with SMTP id g8mr6022759otq.268.1551918918091;
+        Wed, 06 Mar 2019 16:35:18 -0800 (PST)
+X-Received: by 2002:a9d:6c48:: with SMTP id g8mr6022707otq.268.1551918916689;
+        Wed, 06 Mar 2019 16:35:16 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551918916; cv=none;
         d=google.com; s=arc-20160816;
-        b=LqIozOLqvWkZFALW232kEV2cRBc7ZADqiEyZa6pk23unfnj5MfveahVUf8tuSoqHMz
-         DJ72TAKj/3gkGszvp6yxxOr4yJ35tvE7xY8Jndx5FPJwNWyEpyLDlICk1YpJikCG4m6T
-         CsoxGUYE6yAN3KwCBzyj0NJpopZC0YVh71hYdFk++ljdvGD+eUaP5qP88yEVQJJi2Kf4
-         7Cz+l4SJ6dsuSBMNokUydsgr+YWt5ilhZialnz4XrpojmemzDxsh+5BJS+q0LKLWrxJg
-         hHl3cBe5N+5/h6MnhjpeJh3E7jBsxTESr52mEq7mdU2S7cRP/3uv4rsbUmxCWfQ5SFm1
-         LVGw==
+        b=SYykUL1TrP30Ua9lIZ0y7BcdMbLfzNkVVw54h4v0iPSYa6LSndYnVhv1qF+0Qgdfv3
+         xKQddkSOoahYv3SOM5R2OC1YqHUCq8ANx09JYMMh9e5YgBOhQHQp7g/fVwMT3HCQVL94
+         iFy8MWJzF/4p6g8SJKsXc0JWr5a5c0nffwD2nYbnMB5Jf72Bhi48CEvuH341MoK/WRpj
+         k0c527Epa8aJGN+OcYEW5XbBCkaJnxFv5pMcOgCn6590iUW1yZyV6JbVz/2BK0gBsNkk
+         MdIuFIFxJ6tfRdqwvHi5uPh3tV/sDz2tuWucSGwTGx6b29npfMolE2ToN6L7JL2l2xdo
+         3XmQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:cc:from:references:to:subject
-         :dkim-signature;
-        bh=iIWkAuLqjZp48a6KUYh7dQ4ey2EITMMpWIX4xWhIWFY=;
-        b=b/uocg6WUAazGETb9V33RzJhRZiGdCFMmOYP4OPEAO6c20QktKLvhb7wRo2VIoPM7l
-         POuJT6CYI5Pn0ASPM/4d/tpvbRgVkdpnktVBaG+GvRXQm+34cw0OcpVWhPpZir/yVH6Q
-         Bxvf0KY5cCd83SZsO1fn1mSQpOJjj1VV+3bKp6j7HfSmpUgwCd7YPZFIkDvdFyB3aXo2
-         s6b9hyf2MuD+WBqj7BeFmwo7NWiQ1D1oN//fCi2w+GgtglFuipzkEsyOhZRiPcIfV6pe
-         ElaJelpM2DmoTl9B4iKQXIfK0C8SMmtc/X4k3mygkhdd1uwuVBt9G6wzr2gxhOZk2rJP
-         nKbw==
+        h=content-transfer-encoding:mime-version:user-agent:references
+         :in-reply-to:message-id:date:cc:to:from:subject:dkim-signature;
+        bh=YGf5z/1I8Cu2i8LbrxNhN+soNX9B52Mijub6rlc4WZU=;
+        b=jfo+gilpZWZtJoGUDsEznT+7foMQKy6KS27kKBwCL2ljm2qwtQfagbUnBcAjfX4Yvd
+         weMjdSxP4zVfI3j9MTOeXmV5cHrUMk9wsQWrIoKlUu1FwMoWvIooEFVbw9w4mEuSwlWH
+         c4mEBO08+O1VloCpBjFC+hv8aWtk0KqEyUTbFBwaNkWhjmZ+mzxVHDLxERVSYmeGkYnB
+         q8PvzbIXZspRhhiY940yRIfNneokipWPrT3pyAaoc9zWtfbIZO22ozGjqUS/lBOMD1d6
+         MjvrsZrB/8J7ZelI7pItC9hPScH4NYwwG2ZorUBz6mcYXCn3rGyu0qT9PmaiIDm+kKCe
+         l7CA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=rdJBXQWf;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id e184si1823100itg.29.2019.03.06.16.22.39
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=I0s1x8+f;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k7sor1693141otj.158.2019.03.06.16.35.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 06 Mar 2019 16:22:39 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+        (Google Transport Security);
+        Wed, 06 Mar 2019 16:35:16 -0800 (PST)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=rdJBXQWf;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=Content-Transfer-Encoding:Content-Type:
-	In-Reply-To:MIME-Version:Date:Message-ID:Cc:From:References:To:Subject:Sender
-	:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
-	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
-	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=iIWkAuLqjZp48a6KUYh7dQ4ey2EITMMpWIX4xWhIWFY=; b=rdJBXQWf0FwtOdyV5cwEdsh882
-	MFCt4Z+lANe8eTOzI2e2tYH6fX3CBY6MoPSes6wi6QhlEZulw1NtT++z02g8kGSUJ2a3CUtK3NTBi
-	NG2y5DTWtxBXBWDmAdGnjwzIlCNr1UEPE9qyEflVnVT/oeTMiMr15AajpBNBXfq4Y2h4I/uE3VRDQ
-	pVOyXn0TsjRQP9s8ZeZw7zLdVcSk658TsESqzXobq2HF1PaOfzmnrSv7RskOZN4Dj3m9a05ChGPnN
-	hS86lPgWMLnRwAM2SJe4ZhLQLKznRzwo3gVXupRE/C3S28adBqc+nO+3As1XzYwtqkn7QrGSRsh2U
-	ljjfOF+A==;
-Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=dragon.dunlab)
-	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1h1gnw-0007Fb-GR; Thu, 07 Mar 2019 00:22:33 +0000
-Subject: Re: mmotm 2019-03-05-16-36 uploaded (zstd)
-To: akpm@linux-foundation.org, broonie@kernel.org, mhocko@suse.cz,
- sfr@canb.auug.org.au, linux-next@vger.kernel.org,
- linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org
-References: <20190306003721.eX4wF%akpm@linux-foundation.org>
-From: Randy Dunlap <rdunlap@infradead.org>
-Cc: Nick Terrell <terrelln@fb.com>, Chris Mason <clm@fb.com>
-Message-ID: <a02fdae6-1f3c-6725-88e5-73316017f5ac@infradead.org>
-Date: Wed, 6 Mar 2019 16:22:04 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.3.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=I0s1x8+f;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=subject:from:to:cc:date:message-id:in-reply-to:references
+         :user-agent:mime-version:content-transfer-encoding;
+        bh=YGf5z/1I8Cu2i8LbrxNhN+soNX9B52Mijub6rlc4WZU=;
+        b=I0s1x8+fBh9mmhBiUpJfTfq43dSaCCTQNPHBIPvz4UGKBiB1dMI4p+gtQskK8g6UWt
+         NvmhiVZVlFOgURFvkGNS5dkA/jbY/aASwhilTiD6oMspkajZL7bH8XtMv4GLUw3xu8Z+
+         7I2eXkyb8rZfbc2XXVQyXAOjLyRNQf0FC5mS0Ng1MOsobToLEL8Oa4PBD+KVV4poZdUg
+         MW0CrsN+5tVEIIdjLGJvF+eWihDK18nLSJUQrmg07zhvKSRS+lZnXdnwj0qoHBYZEq3G
+         LEZic+GWvonEyM3kRws9QqGCpW/mOyaDJJy9o4OGwTOrJV+dUyxigAJLuvcf7LpQ6pFg
+         dldg==
+X-Google-Smtp-Source: APXvYqxa+KLNBt+1ZOSJVAWjFOCQyK+jvCyFdDoS+Brw+FLkOhiejAsTBNA41dPAcvSqIg7fqZ0E5w==
+X-Received: by 2002:a9d:77c7:: with SMTP id w7mr6530870otl.207.1551918916044;
+        Wed, 06 Mar 2019 16:35:16 -0800 (PST)
+Received: from localhost.localdomain (50-126-100-225.drr01.csby.or.frontiernet.net. [50.126.100.225])
+        by smtp.gmail.com with ESMTPSA id g80sm1192115otg.38.2019.03.06.16.35.14
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Mar 2019 16:35:15 -0800 (PST)
+Subject: Re: [RFC][QEMU Patch] KVM: Enable QEMU to free the pages hinted by
+ the guest
+From: Alexander Duyck <alexander.duyck@gmail.com>
+To: nitesh@redhat.com
+Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, kvm@vger.kernel.org,
+ riel@surriel.com, david@redhat.com, linux-kernel@vger.kernel.org,
+ lcapitulino@redhat.com, linux-mm@kvack.org, wei.w.wang@intel.com,
+ aarcange@redhat.com, mst@redhat.com, dhildenb@redhat.com, pbonzini@redhat.com,
+ dodgen@google.com, konrad.wilk@oracle.com
+Date: Wed, 06 Mar 2019 16:35:13 -0800
+Message-ID: <20190307003207.25058.4638.stgit@localhost.localdomain>
+In-Reply-To: <CAKgT0Ue=kGB4D2oV1WUmWHiYhrXa64KWBP2ZhLgHNgvWyOng5A@mail.gmail.com>
+References: <CAKgT0Ue=kGB4D2oV1WUmWHiYhrXa64KWBP2ZhLgHNgvWyOng5A@mail.gmail.com>
+User-Agent: StGit/0.17.1-dirty
 MIME-Version: 1.0
-In-Reply-To: <20190306003721.eX4wF%akpm@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -118,59 +126,81 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/5/19 4:37 PM, akpm@linux-foundation.org wrote:
-> The mm-of-the-moment snapshot 2019-03-05-16-36 has been uploaded to
-> 
->    http://www.ozlabs.org/~akpm/mmotm/
-> 
-> mmotm-readme.txt says
-> 
-> README for mm-of-the-moment:
-> 
-> http://www.ozlabs.org/~akpm/mmotm/
-> 
-> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-> more than once a week.
-> 
-> You will need quilt to apply these patches to the latest Linus release (5.x
-> or 5.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-> http://ozlabs.org/~akpm/mmotm/series
-> 
-> The file broken-out.tar.gz contains two datestamp files: .DATE and
-> .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-> followed by the base kernel version against which this patch series is to
-> be applied.
+Here are some changes I made to your patch in order to address the sizing
+issue I called out. You may want to try testing with this patch applied to
+your QEMU as I am finding it is making a signficant difference. It has cut
+the test time for the 32G memhog test I called out earlier in half.
 
-on x86_64:
+Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+---
+ hw/virtio/virtio-balloon.c |   28 +++++++++++++++++-----------
+ 1 file changed, 17 insertions(+), 11 deletions(-)
 
-../lib/zstd/decompress.c: In function 'ZSTD_decompressStream':
-../lib/zstd/decompress.c:416:2: warning: argument 1 null where non-null expected [-Wnonnull]
-  memcpy(dst, src, srcSize);
-  ^~~~~~~~~~~~~~~~~~~~~~~~~
-In file included from ../arch/x86/include/asm/string.h:5:0,
-                 from ../include/linux/string.h:20,
-                 from ../lib/zstd/mem.h:24,
-                 from ../lib/zstd/bitstream.h:54,
-                 from ../lib/zstd/fse.h:228,
-                 from ../lib/zstd/decompress.c:32:
-../arch/x86/include/asm/string_64.h:14:14: note: in a call to function 'memcpy' declared here
- extern void *memcpy(void *to, const void *from, size_t len);
-              ^~~~~~
-../lib/zstd/decompress.c:426:2: warning: argument 1 null where non-null expected [-Wnonnull]
-  memset(dst, *(const BYTE *)src, regenSize);
-  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-In file included from ../arch/x86/include/asm/string.h:5:0,
-                 from ../include/linux/string.h:20,
-                 from ../lib/zstd/mem.h:24,
-                 from ../lib/zstd/bitstream.h:54,
-                 from ../lib/zstd/fse.h:228,
-                 from ../lib/zstd/decompress.c:32:
-../arch/x86/include/asm/string_64.h:18:7: note: in a call to function 'memset' declared here
- void *memset(void *s, int c, size_t n);
-       ^~~~~~
-
-
-
--- 
-~Randy
+diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
+index d2cf66ada3c0..3ca6b1c6d511 100644
+--- a/hw/virtio/virtio-balloon.c
++++ b/hw/virtio/virtio-balloon.c
+@@ -285,7 +285,7 @@ static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,
+     balloon_stats_change_timer(s, 0);
+ }
+ 
+-static void *gpa2hva(MemoryRegion **p_mr, hwaddr addr, Error **errp)
++static void *gpa2hva(MemoryRegion **p_mr, unsigned long *size, hwaddr addr, Error **errp)
+ {
+     MemoryRegionSection mrs = memory_region_find(get_system_memory(),
+                                                  addr, 1);
+@@ -302,6 +302,7 @@ static void *gpa2hva(MemoryRegion **p_mr, hwaddr addr, Error **errp)
+     }
+ 
+     *p_mr = mrs.mr;
++    *size = mrs.mr->size - mrs.offset_within_region;
+     return qemu_map_ram_ptr(mrs.mr->ram_block, mrs.offset_within_region);
+ }
+ 
+@@ -313,30 +314,35 @@ void page_hinting_request(uint64_t addr, uint32_t len)
+     struct guest_pages *guest_obj;
+     int i = 0;
+     void *hvaddr_to_free;
+-    unsigned long pfn, pfn_end;
+     uint64_t gpaddr_to_free;
+-    void * temp_addr = gpa2hva(&mr, addr, &local_err);
++    unsigned long madv_size, size;
++    void * temp_addr = gpa2hva(&mr, &madv_size, addr, &local_err);
+ 
+     if (local_err) {
+         error_report_err(local_err);
+         return;
+     }
++    if (madv_size < sizeof(*guest_obj)) {
++	printf("\nBad guest object ptr\n");
++	return;
++    }
+     guest_obj = temp_addr;
+     while (i < len) {
+-        pfn = guest_obj[i].pfn;
+-	pfn_end = guest_obj[i].pfn + (1 << guest_obj[i].order) - 1;
+-	trace_virtio_balloon_hinting_request(pfn,(1 << guest_obj[i].order));
+-	while (pfn <= pfn_end) {
+-	        gpaddr_to_free = pfn << VIRTIO_BALLOON_PFN_SHIFT;
+-	        hvaddr_to_free = gpa2hva(&mr, gpaddr_to_free, &local_err);
++        gpaddr_to_free = guest_obj[i].pfn << VIRTIO_BALLOON_PFN_SHIFT;
++	size = (1 << VIRTIO_BALLOON_PFN_SHIFT) << guest_obj[i].order;
++	while (size) {
++	        hvaddr_to_free = gpa2hva(&mr, &madv_size, gpaddr_to_free, &local_err);
+ 	        if (local_err) {
+ 			error_report_err(local_err);
+ 		        return;
+ 		}
+-		ret = qemu_madvise((void *)hvaddr_to_free, 4096, QEMU_MADV_DONTNEED);
++		if (size < madv_size)
++			madv_size = size;
++		ret = qemu_madvise((void *)hvaddr_to_free, madv_size, QEMU_MADV_DONTNEED);
+ 		if (ret == -1)
+ 		    printf("\n%d:%s Error: Madvise failed with error:%d\n", __LINE__, __func__, ret);
+-		pfn++;
++		gpaddr_to_free += madv_size;
++		size -= madv_size;
+ 	}
+ 	i++;
+     }
 
