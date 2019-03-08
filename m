@@ -7,105 +7,104 @@ X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 03954C4360F
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 18:43:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8E277C43381
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 18:43:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A3A9120857
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 18:43:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1D69920857
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 18:43:47 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="c1B9mpz6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A3A9120857
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="GhJzk1A0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1D69920857
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4D5FC8E0009; Fri,  8 Mar 2019 13:43:41 -0500 (EST)
+	id B878E8E000A; Fri,  8 Mar 2019 13:43:46 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 481D18E0002; Fri,  8 Mar 2019 13:43:41 -0500 (EST)
+	id B38A88E0002; Fri,  8 Mar 2019 13:43:46 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 374C58E0009; Fri,  8 Mar 2019 13:43:41 -0500 (EST)
+	id A00D68E000A; Fri,  8 Mar 2019 13:43:46 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 06A318E0002
-	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 13:43:41 -0500 (EST)
-Received: by mail-ua1-f70.google.com with SMTP id g9so2566245ual.8
-        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 10:43:41 -0800 (PST)
+Received: from mail-vk1-f200.google.com (mail-vk1-f200.google.com [209.85.221.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 68BA18E0002
+	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 13:43:46 -0500 (EST)
+Received: by mail-vk1-f200.google.com with SMTP id b123so9823817vka.21
+        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 10:43:46 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
          :mime-version:references:subject:from:to:cc;
-        bh=CEhrqtVYU2GGjH6ppRjAuHHm7jjOcyih+GpEA+oebn8=;
-        b=nftQaUqqT5M3Kfojyyz0myS1ftvjAJrJWTrfirjatTIeMYufqRk3cbMFRhMxe18hsZ
-         cIq1z+Matn6/KEOZY60SDH0Bi7OhCuNNM26ogQazcCyRSaENepxC+QOUx5wo++Dp51pa
-         e1BLv6U+VPYao7ldwVtbpHtTZiX7yeZ9J1esccKgiohwhsypeNWZpJXkPL9RNxWlx7Ta
-         T56a2V3SmEzkzn5GJITTeagpWD/bzuVgkoQ7eKHUmNp9yJ6XmcSYnGDKl1zqvoVwKtGz
-         1HQL+NZ+LLx6gipLh63NxQqOv99c6YiHQxyMIg5Vnmm+4UiHeXBit3cQtzwk8C3swm7G
-         fryg==
-X-Gm-Message-State: APjAAAXtEWtA3630iKwa56bH4nz+/kWyzuc9vmjMd0BW6z9YEPAbmftR
-	HC38VrzSiPJuB6MPTiggShJop9KWrnTNfnzKMX0Co0N05YjDew+YDYE0z2NxJ856mEmGQV1vRhp
-	W/UIGVDVMWe/H1Qu9iMqkQLhRiKu5DUS5NElBjdVU27NBpXPRwvsXSlWh+FpA9XH1YJyybU3CGp
-	HF04QIudkKvA/YA7dAIAIwOg/tRtlQYyguHEzmkPjw22f9S08u6Cfbp6sc2K/VfVyE74fGhlZhu
-	HnsalSvhAyjz1ooO590SDg7/u4cJ4qQJ9ZR3uyPI0HBKElAt7qzs0rIwRTh9Y9vdvZRdGjP9yge
-	2DFQzo5J5AoAumE4ye74DItm7tKTt3pfhp+d0Ch6rEYdeLhw8jGwATP1y5zYHOHUu12pB0dy8rD
-	x
-X-Received: by 2002:a67:f90e:: with SMTP id t14mr10648733vsq.181.1552070620640;
-        Fri, 08 Mar 2019 10:43:40 -0800 (PST)
-X-Received: by 2002:a67:f90e:: with SMTP id t14mr10648697vsq.181.1552070619935;
-        Fri, 08 Mar 2019 10:43:39 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1552070619; cv=none;
+        bh=0ZL/3pZ59izFS2kEKhcW03BhmVQQsRxh317XsxqmI88=;
+        b=O6rTA9RTmxK4LuYKSX3NcmvVjrh/rqTepMdFbGC01nv4+C/IoqJ3m0WZ/dY5buN2nx
+         2zeiucMPZiwafep8qqiUUWN2R93a7sE/0kqw/CI9lfEp+2BJM9puPJcO+VouGZtg0Myh
+         36rlOdEvHCU+mGaYvlwKqwWZn8suOMAYCCGpfVOTHLPgHMf9SUZPt2c5DZinF5ZYvbCb
+         rVqnt/Xbh8Rkq+K5bSlu3KkihysrPRAlkdHUw+dwDalGrr71WFOiQ/wJskyiFS/XYzZK
+         ZNS6iMD1Em5kXG6Yh8lAivGGxBD1JEgxcxi1U6GCI4bsey1QlI/vuQNFa1Esq4rbMm/5
+         Pojg==
+X-Gm-Message-State: APjAAAVPNVYKbp/tzTofeghHA6zNiC60AeajlqrVAl2g2BWvjzzyv5fz
+	hclUnfeZhpSqeHX/4M2ifCcX1cqrvimqg8zYOwIemWcX/nNMx9WK0x568iQLG0REIpR0DtaR5tI
+	eh5JdlXLultQn0I+tNzez0pGbShAyWWlNyUz9lplysgv7Ia6eD0rN26MCf/2BmD+P5pkqcjVY0M
+	2n6kUv3K6qUwUhTAnKfc5IY+gRHQS9lueflXu5oktUHCDQebwbqU9SBQMqN7cxog2+taN82iIb4
+	oy0ud1ZPu0r9vF6/dPmI7T4jMrYYsHLZ2yuiAUaJzi13qjMw/hTyaS1I2ce4TU7v7Ks1+j3T68I
+	0tSBpa0ORkjBjnGkATyzCG6E56znU7VjPUa5gRg7o4/Y4zUbwhqfWKvcsYYbd8mkU2op9PaJw/3
+	y
+X-Received: by 2002:a67:fd13:: with SMTP id f19mr10029909vsr.58.1552070626039;
+        Fri, 08 Mar 2019 10:43:46 -0800 (PST)
+X-Received: by 2002:a67:fd13:: with SMTP id f19mr10029827vsr.58.1552070623662;
+        Fri, 08 Mar 2019 10:43:43 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1552070623; cv=none;
         d=google.com; s=arc-20160816;
-        b=jNPt/a/ZipKHtMx7hz+PHL1rM7mDEEmJkwCGxDaycXeycjlASX3jFL8Q3SikXIsVCO
-         K9U8OslFCcdL/P+WjG29pE5c8y9mdE2Fq8TPaCF7CPn+00lBmoHmFe4oCl+QVMFf3epO
-         I7CnFI/JU6VIezlMNJiLJP0Vyj+UpGUA+9pSKN18N5IeCn2iNz9NyDsnf2te+v/sPSJL
-         S8tjU5CGdE08YF+s2kKVV8Sv20dKhmq375+yFgXeMlDUo7P7ZVd4rK5/+m2VgskZEeu8
-         endQGEMjwF/EoJTFdSoiirW+d2CM1PoaKFHJwZYTcrRUADM1Hz5JPoddnoguOKVUGkkD
-         pN6Q==
+        b=AJCz/YgO6mbOK7jgwaNYtjdaFjB6VdG+6DZVg2Q2SIP1NoTMIhVmmd3aqNcXtvU9HH
+         Qwz6W99nka2xErFlrSEO+CTfaM1Inmq8wH+sVLVgDupiZ+fleqj7zx4cahFG/X/hNVvP
+         1EXjwCZRxMeAWwnkMPt908tDbMVTlrYgga90z427ZyB1ycqewv3adc0vEHB5qxoOYYDi
+         NCe3B+no9dS8pHr9cFYHKkhg6ycV9oMBUGRI286VD8ms0Ar6RgN5RxT/fYhQRWgg4VYx
+         4vpLh3hE89v8D1BGRZHLawngH3DobXqfJ3cLuHQtytk8P6Cp/Inh3I6zoZz5VcCcwiai
+         Ri3w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
          :date:dkim-signature;
-        bh=CEhrqtVYU2GGjH6ppRjAuHHm7jjOcyih+GpEA+oebn8=;
-        b=HySEk6nripgGbeyN0L8A0I1IwVo5i2wlYD2/jUzti5XH1e87g9OAoV1THn8NQPuoSU
-         oojZUa4k5M4BfAZmGZpqexX+eluAcbrpFC5NTvid71Y5oLnO2+4rhTS7oR48Q1slp5HN
-         jehcS0PGf2vN8bU9zBan6QSrsEfLEhgH3aCEe5/lnCe306rB2RBb7rWOH2XaPtM8fObR
-         7NYyMcHNRQrum/ajAqut0DbcU0yxt9Sy6Czgpa2EJqkrzpyRGOf/AyFGgWxc2sA6FjtD
-         tuXb7ZGy6GkWNKRx0o9js074DruNueZAWcOr1aZHGcMltV5rh3e6pMiQD2bn48YU7QLE
-         pUbg==
+        bh=0ZL/3pZ59izFS2kEKhcW03BhmVQQsRxh317XsxqmI88=;
+        b=Lqak96muL2Z6L3w3j44BSv9gRU4VUgw75MKbbqhV6p+VjPZivX9Amv7GtIdVWIhdYJ
+         k78VEYUkUvkrhVRgmeGgSLPUQhHl6hGxLyRFX/ZTzg1gYj/z7uab9fVGEDj/WfDJAhNd
+         dVj3KIQZ2FWf1MKCxue6RQyfEEUcztuTVsk1CqVxTUVeyKr0PDDXfJ9Ck++7qQjYmzJ3
+         A/6FB8T/TWYfqH4cDNFupoop4cho7y3AkJ6La313JMC2KqHAQe9Jdjzz5/4s369jQwOW
+         QsAKMhzD7tNWamwqBS+dkJn/EEA/s0YIn5fCLA1r0zlevmQTirHtgEAdxlpuEho9beY8
+         fhUw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=c1B9mpz6;
-       spf=pass (google.com: domain of 327ecxaykceauwtgpdiqqing.eqonkpwz-oomxcem.qti@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=327eCXAYKCEAuwtgpdiqqing.eqonkpwz-oomxcem.qti@flex--surenb.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=GhJzk1A0;
+       spf=pass (google.com: domain of 337ecxaykceqy0xkthmuumrk.iusrot03-ssq1giq.uxm@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=337eCXAYKCEQy0xkthmuumrk.iusrot03-ssq1giq.uxm@flex--surenb.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id b138sor5124071vkf.37.2019.03.08.10.43.39
+        by mx.google.com with SMTPS id y25sor5481226vsn.20.2019.03.08.10.43.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 08 Mar 2019 10:43:39 -0800 (PST)
-Received-SPF: pass (google.com: domain of 327ecxaykceauwtgpdiqqing.eqonkpwz-oomxcem.qti@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Fri, 08 Mar 2019 10:43:43 -0800 (PST)
+Received-SPF: pass (google.com: domain of 337ecxaykceqy0xkthmuumrk.iusrot03-ssq1giq.uxm@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=c1B9mpz6;
-       spf=pass (google.com: domain of 327ecxaykceauwtgpdiqqing.eqonkpwz-oomxcem.qti@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=327eCXAYKCEAuwtgpdiqqing.eqonkpwz-oomxcem.qti@flex--surenb.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=GhJzk1A0;
+       spf=pass (google.com: domain of 337ecxaykceqy0xkthmuumrk.iusrot03-ssq1giq.uxm@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=337eCXAYKCEQy0xkthmuumrk.iusrot03-ssq1giq.uxm@flex--surenb.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=date:in-reply-to:message-id:mime-version:references:subject:from:to
          :cc;
-        bh=CEhrqtVYU2GGjH6ppRjAuHHm7jjOcyih+GpEA+oebn8=;
-        b=c1B9mpz6Jdou6pRY5OyrvSpDJl27rnNzP0KEjEWa2lnSzKi/TY8GKvZho04eqIPWmf
-         Mbevkjhd2kB1p4b+u2RldlGvn2Q8iDTxMc777xOikyWl3V3hnX65J+i46DkaENmm3zXP
-         ozcooURxLG/exN3rOJjFJdR1Ogw7wIrCqH2mzI50xZsiMCTvriahuZwLjq2O1Cljiul0
-         K0ygd6c+lQS5P2P2rKrX8m+cmDot+mdoua/nr3GSl9KtOOGf5I97XVGRs4twCtOTiwdC
-         aQoZP+Pvr8fOhYrbuPvxicE4lRRk5dgLyBHNiYroYQyHmB/+K5WjqAJKLwrTKLEZiYWj
-         0MMA==
-X-Google-Smtp-Source: APXvYqwN0/Nf7GBGjuQW1wdXf6SKvccB1lEA9aOmPCgozi8YOkJIIOWvh+1BhGa6Czel6AwwlTaUyObxUrY=
-X-Received: by 2002:a1f:7d06:: with SMTP id y6mr12317055vkc.19.1552070619702;
- Fri, 08 Mar 2019 10:43:39 -0800 (PST)
-Date: Fri,  8 Mar 2019 10:43:10 -0800
+        bh=0ZL/3pZ59izFS2kEKhcW03BhmVQQsRxh317XsxqmI88=;
+        b=GhJzk1A0ryZH53AjlI90bDUlCqp6CIMeYszP9fYPPKvXoULkUBmCOBROAHZSDxDCoa
+         cj0bNUzUacf0RxUKpZX4QnukkYJIST8aFdpJFQjxNHCdCM8aUfllEWLUHpDDHvqTcYqX
+         uqvScywnfV1Dla0bYiYKRBU2L7onNhf6Rwl2YhK2XyBJMi2VtkZ9ehPN6YSnaLM4kTlH
+         su1eOvmUbsRUq64F/g7lBUgTjZfynF2ZkyGjjLQGcz/bcWtZHto+5bb7ey8urxlVmSOl
+         3GVtu79i+Jb8WXh97eWrzXVSU2uyhnpzWu96foB+vbf/unkkBLfFnLWpwUPVa4yMOkRF
+         hbSg==
+X-Google-Smtp-Source: APXvYqzQJx8wd9uhB05DpOyRslnOwWJkrlQA8DQpjapGCOCNfcTch9IrLubZTjX/zzgZNGmNsJNzc8Mxuzg=
+X-Received: by 2002:a67:efc1:: with SMTP id s1mr13017815vsp.1.1552070623342;
+ Fri, 08 Mar 2019 10:43:43 -0800 (PST)
+Date: Fri,  8 Mar 2019 10:43:11 -0800
 In-Reply-To: <20190308184311.144521-1-surenb@google.com>
-Message-Id: <20190308184311.144521-7-surenb@google.com>
+Message-Id: <20190308184311.144521-8-surenb@google.com>
 Mime-Version: 1.0
 References: <20190308184311.144521-1-surenb@google.com>
 X-Mailer: git-send-email 2.21.0.360.g471c308f928-goog
-Subject: [PATCH v5 6/7] refactor header includes to allow kthread.h inclusion
- in psi_types.h
+Subject: [PATCH v5 7/7] psi: introduce psi monitor
 From: Suren Baghdasaryan <surenb@google.com>
 To: gregkh@linuxfoundation.org
 Cc: tj@kernel.org, lizefan@huawei.com, hannes@cmpxchg.org, axboe@kernel.dk, 
@@ -121,64 +120,1055 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-kthread.h can't be included in psi_types.h because it creates a circular
-inclusion with kthread.h eventually including psi_types.h and complaining
-on kthread structures not being defined because they are defined further
-in the kthread.h. Resolve this by removing psi_types.h inclusion from the
-headers included from kthread.h.
+Psi monitor aims to provide a low-latency short-term pressure
+detection mechanism configurable by users. It allows users to
+monitor psi metrics growth and trigger events whenever a metric
+raises above user-defined threshold within user-defined time window.
+
+Time window and threshold are both expressed in usecs. Multiple psi
+resources with different thresholds and window sizes can be monitored
+concurrently.
+
+Psi monitors activate when system enters stall state for the monitored
+psi metric and deactivate upon exit from the stall state. While system
+is in the stall state psi signal growth is monitored at a rate of 10 times
+per tracking window. Min window size is 500ms, therefore the min monitoring
+interval is 50ms. Max window size is 10s with monitoring interval of 1s.
+
+When activated psi monitor stays active for at least the duration of one
+tracking window to avoid repeated activations/deactivations when psi
+signal is bouncing.
+
+Notifications to the users are rate-limited to one per tracking window.
 
 Signed-off-by: Suren Baghdasaryan <surenb@google.com>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- include/linux/kthread.h | 3 ++-
- include/linux/sched.h   | 1 -
- kernel/kthread.c        | 1 +
- 3 files changed, 3 insertions(+), 2 deletions(-)
+ Documentation/accounting/psi.txt | 107 +++++++
+ include/linux/psi.h              |   8 +
+ include/linux/psi_types.h        |  82 ++++-
+ kernel/cgroup/cgroup.c           |  71 ++++-
+ kernel/sched/psi.c               | 494 ++++++++++++++++++++++++++++++-
+ 5 files changed, 742 insertions(+), 20 deletions(-)
 
-diff --git a/include/linux/kthread.h b/include/linux/kthread.h
-index 2c89e60bc752..0f9da966934e 100644
---- a/include/linux/kthread.h
-+++ b/include/linux/kthread.h
-@@ -4,7 +4,6 @@
- /* Simple interface for creating and stopping kernel threads without mess. */
- #include <linux/err.h>
- #include <linux/sched.h>
--#include <linux/cgroup.h>
+diff --git a/Documentation/accounting/psi.txt b/Documentation/accounting/psi.txt
+index b8ca28b60215..4fb40fe94828 100644
+--- a/Documentation/accounting/psi.txt
++++ b/Documentation/accounting/psi.txt
+@@ -63,6 +63,110 @@ tracked and exported as well, to allow detection of latency spikes
+ which wouldn't necessarily make a dent in the time averages, or to
+ average trends over custom time frames.
  
- __printf(4, 5)
- struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
-@@ -198,6 +197,8 @@ bool kthread_cancel_delayed_work_sync(struct kthread_delayed_work *work);
- 
- void kthread_destroy_worker(struct kthread_worker *worker);
- 
-+struct cgroup_subsys_state;
++Monitoring for pressure thresholds
++==================================
 +
- #ifdef CONFIG_BLK_CGROUP
- void kthread_associate_blkcg(struct cgroup_subsys_state *css);
- struct cgroup_subsys_state *kthread_blkcg(void);
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 1549584a1538..20b9f03399a7 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -26,7 +26,6 @@
- #include <linux/latencytop.h>
- #include <linux/sched/prio.h>
- #include <linux/signal_types.h>
--#include <linux/psi_types.h>
- #include <linux/mm_types_task.h>
- #include <linux/task_io_accounting.h>
- #include <linux/rseq.h>
-diff --git a/kernel/kthread.c b/kernel/kthread.c
-index 5942eeafb9ac..be4e8795561a 100644
---- a/kernel/kthread.c
-+++ b/kernel/kthread.c
-@@ -11,6 +11,7 @@
- #include <linux/kthread.h>
- #include <linux/completion.h>
- #include <linux/err.h>
-+#include <linux/cgroup.h>
- #include <linux/cpuset.h>
- #include <linux/unistd.h>
- #include <linux/file.h>
++Users can register triggers and use poll() to be woken up when resource
++pressure exceeds certain thresholds.
++
++A trigger describes the maximum cumulative stall time over a specific
++time window, e.g. 100ms of total stall time within any 500ms window to
++generate a wakeup event.
++
++To register a trigger user has to open psi interface file under
++/proc/pressure/ representing the resource to be monitored and write the
++desired threshold and time window. The open file descriptor should be
++used to wait for trigger events using select(), poll() or epoll().
++The following format is used:
++
++<some|full> <stall amount in us> <time window in us>
++
++For example writing "some 150000 1000000" into /proc/pressure/memory
++would add 150ms threshold for partial memory stall measured within
++1sec time window. Writing "full 50000 1000000" into /proc/pressure/io
++would add 50ms threshold for full io stall measured within 1sec time window.
++
++Triggers can be set on more than one psi metric and more than one trigger
++for the same psi metric can be specified. However for each trigger a separate
++file descriptor is required to be able to poll it separately from others,
++therefore for each trigger a separate open() syscall should be made even
++when opening the same psi interface file.
++
++Monitors activate only when system enters stall state for the monitored
++psi metric and deactivates upon exit from the stall state. While system is
++in the stall state psi signal growth is monitored at a rate of 10 times per
++tracking window.
++
++The kernel accepts window sizes ranging from 500ms to 10s, therefore min
++monitoring update interval is 50ms and max is 1s. Min limit is set to
++prevent overly frequent polling. Max limit is chosen as a high enough number
++after which monitors are most likely not needed and psi averages can be used
++instead.
++
++When activated, psi monitor stays active for at least the duration of one
++tracking window to avoid repeated activations/deactivations when system is
++bouncing in and out of the stall state.
++
++Notifications to the userspace are rate-limited to one per tracking window.
++
++The trigger will de-register when the file descriptor used to define the
++trigger  is closed.
++
++Userspace monitor usage example
++===============================
++
++#include <errno.h>
++#include <fcntl.h>
++#include <stdio.h>
++#include <poll.h>
++#include <string.h>
++#include <unistd.h>
++
++/*
++ * Monitor memory partial stall with 1s tracking window size
++ * and 150ms threshold.
++ */
++int main() {
++	const char trig[] = "some 150000 1000000";
++	struct pollfd fds;
++	int n;
++
++	fds.fd = open("/proc/pressure/memory", O_RDWR | O_NONBLOCK);
++	if (fds.fd < 0) {
++		printf("/proc/pressure/memory open error: %s\n",
++			strerror(errno));
++		return 1;
++	}
++	fds.events = POLLPRI;
++
++	if (write(fds.fd, trig, strlen(trig) + 1) < 0) {
++		printf("/proc/pressure/memory write error: %s\n",
++			strerror(errno));
++		return 1;
++	}
++
++	printf("waiting for events...\n");
++	while (1) {
++		n = poll(&fds, 1, -1);
++		if (n < 0) {
++			printf("poll error: %s\n", strerror(errno));
++			return 1;
++		}
++		if (fds.revents & POLLERR) {
++			printf("got POLLERR, event source is gone\n");
++			return 0;
++		}
++		if (fds.revents & POLLPRI) {
++			printf("event triggered!\n");
++		} else {
++			printf("unknown event received: 0x%x\n", fds.revents);
++			return 1;
++		}
++	}
++
++	return 0;
++}
++
+ Cgroup2 interface
+ =================
+ 
+@@ -71,3 +175,6 @@ mounted, pressure stall information is also tracked for tasks grouped
+ into cgroups. Each subdirectory in the cgroupfs mountpoint contains
+ cpu.pressure, memory.pressure, and io.pressure files; the format is
+ the same as the /proc/pressure/ files.
++
++Per-cgroup psi monitors can be specified and used the same way as
++system-wide ones.
+diff --git a/include/linux/psi.h b/include/linux/psi.h
+index 7006008d5b72..af892c290116 100644
+--- a/include/linux/psi.h
++++ b/include/linux/psi.h
+@@ -4,6 +4,7 @@
+ #include <linux/jump_label.h>
+ #include <linux/psi_types.h>
+ #include <linux/sched.h>
++#include <linux/poll.h>
+ 
+ struct seq_file;
+ struct css_set;
+@@ -26,6 +27,13 @@ int psi_show(struct seq_file *s, struct psi_group *group, enum psi_res res);
+ int psi_cgroup_alloc(struct cgroup *cgrp);
+ void psi_cgroup_free(struct cgroup *cgrp);
+ void cgroup_move_task(struct task_struct *p, struct css_set *to);
++
++struct psi_trigger *psi_trigger_create(struct psi_group *group,
++			char *buf, size_t nbytes, enum psi_res res);
++void psi_trigger_replace(void **trigger_ptr, struct psi_trigger *t);
++
++__poll_t psi_trigger_poll(void **trigger_ptr, struct file *file,
++			poll_table *wait);
+ #endif
+ 
+ #else /* CONFIG_PSI */
+diff --git a/include/linux/psi_types.h b/include/linux/psi_types.h
+index 4d1c1f67be18..07aaf9b82241 100644
+--- a/include/linux/psi_types.h
++++ b/include/linux/psi_types.h
+@@ -1,8 +1,11 @@
+ #ifndef _LINUX_PSI_TYPES_H
+ #define _LINUX_PSI_TYPES_H
+ 
++#include <linux/kthread.h>
+ #include <linux/seqlock.h>
+ #include <linux/types.h>
++#include <linux/kref.h>
++#include <linux/wait.h>
+ 
+ #ifdef CONFIG_PSI
+ 
+@@ -44,6 +47,12 @@ enum psi_states {
+ 	NR_PSI_STATES = 6,
+ };
+ 
++enum psi_aggregators {
++	PSI_AVGS = 0,
++	PSI_POLL,
++	NR_PSI_AGGREGATORS,
++};
++
+ struct psi_group_cpu {
+ 	/* 1st cacheline updated by the scheduler */
+ 
+@@ -65,7 +74,55 @@ struct psi_group_cpu {
+ 	/* 2nd cacheline updated by the aggregator */
+ 
+ 	/* Delta detection against the sampling buckets */
+-	u32 times_prev[NR_PSI_STATES] ____cacheline_aligned_in_smp;
++	u32 times_prev[NR_PSI_AGGREGATORS][NR_PSI_STATES]
++			____cacheline_aligned_in_smp;
++};
++
++/* PSI growth tracking window */
++struct psi_window {
++	/* Window size in ns */
++	u64 size;
++
++	/* Start time of the current window in ns */
++	u64 start_time;
++
++	/* Value at the start of the window */
++	u64 start_value;
++
++	/* Value growth in the previous window */
++	u64 prev_growth;
++};
++
++struct psi_trigger {
++	/* PSI state being monitored by the trigger */
++	enum psi_states state;
++
++	/* User-spacified threshold in ns */
++	u64 threshold;
++
++	/* List node inside triggers list */
++	struct list_head node;
++
++	/* Backpointer needed during trigger destruction */
++	struct psi_group *group;
++
++	/* Wait queue for polling */
++	wait_queue_head_t event_wait;
++
++	/* Pending event flag */
++	int event;
++
++	/* Tracking window */
++	struct psi_window win;
++
++	/*
++	 * Time last event was generated. Used for rate-limiting
++	 * events to one per window
++	 */
++	u64 last_event_time;
++
++	/* Refcounting to prevent premature destruction */
++	struct kref refcount;
+ };
+ 
+ struct psi_group {
+@@ -79,11 +136,32 @@ struct psi_group {
+ 	u64 avg_total[NR_PSI_STATES - 1];
+ 	u64 avg_last_update;
+ 	u64 avg_next_update;
++
++	/* Aggregator work control */
+ 	struct delayed_work avgs_work;
+ 
+ 	/* Total stall times and sampled pressure averages */
+-	u64 total[NR_PSI_STATES - 1];
++	u64 total[NR_PSI_AGGREGATORS][NR_PSI_STATES - 1];
+ 	unsigned long avg[NR_PSI_STATES - 1][3];
++
++	/* Monitor work control */
++	atomic_t poll_scheduled;
++	struct kthread_worker __rcu *poll_kworker;
++	struct kthread_delayed_work poll_work;
++
++	/* Protects data used by the monitor */
++	struct mutex trigger_lock;
++
++	/* Configured polling triggers */
++	struct list_head triggers;
++	u32 nr_triggers[NR_PSI_STATES - 1];
++	u32 poll_states;
++	u64 poll_min_period;
++
++	/* Total stall times at the start of monitor activation */
++	u64 polling_total[NR_PSI_STATES - 1];
++	u64 polling_next_update;
++	u64 polling_until;
+ };
+ 
+ #else /* CONFIG_PSI */
+diff --git a/kernel/cgroup/cgroup.c b/kernel/cgroup/cgroup.c
+index eef24a25bda7..005d7b453fce 100644
+--- a/kernel/cgroup/cgroup.c
++++ b/kernel/cgroup/cgroup.c
+@@ -3465,7 +3465,65 @@ static int cgroup_cpu_pressure_show(struct seq_file *seq, void *v)
+ {
+ 	return psi_show(seq, &seq_css(seq)->cgroup->psi, PSI_CPU);
+ }
+-#endif
++
++static ssize_t cgroup_pressure_write(struct kernfs_open_file *of, char *buf,
++					  size_t nbytes, enum psi_res res)
++{
++	struct psi_trigger *new;
++	struct cgroup *cgrp;
++
++	cgrp = cgroup_kn_lock_live(of->kn, false);
++	if (!cgrp)
++		return -ENODEV;
++
++	cgroup_get(cgrp);
++	cgroup_kn_unlock(of->kn);
++
++	new = psi_trigger_create(&cgrp->psi, buf, nbytes, res);
++	if (IS_ERR(new)) {
++		cgroup_put(cgrp);
++		return PTR_ERR(new);
++	}
++
++	psi_trigger_replace(&of->priv, new);
++
++	cgroup_put(cgrp);
++
++	return nbytes;
++}
++
++static ssize_t cgroup_io_pressure_write(struct kernfs_open_file *of,
++					  char *buf, size_t nbytes,
++					  loff_t off)
++{
++	return cgroup_pressure_write(of, buf, nbytes, PSI_IO);
++}
++
++static ssize_t cgroup_memory_pressure_write(struct kernfs_open_file *of,
++					  char *buf, size_t nbytes,
++					  loff_t off)
++{
++	return cgroup_pressure_write(of, buf, nbytes, PSI_MEM);
++}
++
++static ssize_t cgroup_cpu_pressure_write(struct kernfs_open_file *of,
++					  char *buf, size_t nbytes,
++					  loff_t off)
++{
++	return cgroup_pressure_write(of, buf, nbytes, PSI_CPU);
++}
++
++static __poll_t cgroup_pressure_poll(struct kernfs_open_file *of,
++					  poll_table *pt)
++{
++	return psi_trigger_poll(&of->priv, of->file, pt);
++}
++
++static void cgroup_pressure_release(struct kernfs_open_file *of)
++{
++	psi_trigger_replace(&of->priv, NULL);
++}
++#endif /* CONFIG_PSI */
+ 
+ static int cgroup_file_open(struct kernfs_open_file *of)
+ {
+@@ -4620,18 +4678,27 @@ static struct cftype cgroup_base_files[] = {
+ 		.name = "io.pressure",
+ 		.flags = CFTYPE_NOT_ON_ROOT,
+ 		.seq_show = cgroup_io_pressure_show,
++		.write = cgroup_io_pressure_write,
++		.poll = cgroup_pressure_poll,
++		.release = cgroup_pressure_release,
+ 	},
+ 	{
+ 		.name = "memory.pressure",
+ 		.flags = CFTYPE_NOT_ON_ROOT,
+ 		.seq_show = cgroup_memory_pressure_show,
++		.write = cgroup_memory_pressure_write,
++		.poll = cgroup_pressure_poll,
++		.release = cgroup_pressure_release,
+ 	},
+ 	{
+ 		.name = "cpu.pressure",
+ 		.flags = CFTYPE_NOT_ON_ROOT,
+ 		.seq_show = cgroup_cpu_pressure_show,
++		.write = cgroup_cpu_pressure_write,
++		.poll = cgroup_pressure_poll,
++		.release = cgroup_pressure_release,
+ 	},
+-#endif
++#endif /* CONFIG_PSI */
+ 	{ }	/* terminate */
+ };
+ 
+diff --git a/kernel/sched/psi.c b/kernel/sched/psi.c
+index 59e4e1f8bc02..f0dfa9190b4d 100644
+--- a/kernel/sched/psi.c
++++ b/kernel/sched/psi.c
+@@ -4,6 +4,9 @@
+  * Copyright (c) 2018 Facebook, Inc.
+  * Author: Johannes Weiner <hannes@cmpxchg.org>
+  *
++ * Polling support by Suren Baghdasaryan <surenb@google.com>
++ * Copyright (c) 2018 Google, Inc.
++ *
+  * When CPU, memory and IO are contended, tasks experience delays that
+  * reduce throughput and introduce latencies into the workload. Memory
+  * and IO contention, in addition, can cause a full loss of forward
+@@ -129,9 +132,13 @@
+ #include <linux/seq_file.h>
+ #include <linux/proc_fs.h>
+ #include <linux/seqlock.h>
++#include <linux/uaccess.h>
+ #include <linux/cgroup.h>
+ #include <linux/module.h>
+ #include <linux/sched.h>
++#include <linux/ctype.h>
++#include <linux/file.h>
++#include <linux/poll.h>
+ #include <linux/psi.h>
+ #include "sched.h"
+ 
+@@ -156,6 +163,11 @@ __setup("psi=", setup_psi);
+ #define EXP_60s		1981		/* 1/exp(2s/60s) */
+ #define EXP_300s	2034		/* 1/exp(2s/300s) */
+ 
++/* PSI trigger definitions */
++#define WINDOW_MIN_US 500000	/* Min window size is 500ms */
++#define WINDOW_MAX_US 10000000	/* Max window size is 10s */
++#define UPDATES_PER_WINDOW 10	/* 10 updates per window */
++
+ /* Sampling frequency in nanoseconds */
+ static u64 psi_period __read_mostly;
+ 
+@@ -176,6 +188,17 @@ static void group_init(struct psi_group *group)
+ 	group->avg_next_update = sched_clock() + psi_period;
+ 	INIT_DELAYED_WORK(&group->avgs_work, psi_avgs_work);
+ 	mutex_init(&group->avgs_lock);
++	/* Init trigger-related members */
++	atomic_set(&group->poll_scheduled, 0);
++	mutex_init(&group->trigger_lock);
++	INIT_LIST_HEAD(&group->triggers);
++	memset(group->nr_triggers, 0, sizeof(group->nr_triggers));
++	group->poll_states = 0;
++	group->poll_min_period = U32_MAX;
++	memset(group->polling_total, 0, sizeof(group->polling_total));
++	group->polling_next_update = ULLONG_MAX;
++	group->polling_until = 0;
++	rcu_assign_pointer(group->poll_kworker, NULL);
+ }
+ 
+ void __init psi_init(void)
+@@ -210,7 +233,8 @@ static bool test_state(unsigned int *tasks, enum psi_states state)
+ 	}
+ }
+ 
+-static void get_recent_times(struct psi_group *group, int cpu, u32 *times,
++static void get_recent_times(struct psi_group *group, int cpu,
++			     enum psi_aggregators aggregator, u32 *times,
+ 			     u32 *pchanged_states)
+ {
+ 	struct psi_group_cpu *groupc = per_cpu_ptr(group->pcpu, cpu);
+@@ -245,8 +269,8 @@ static void get_recent_times(struct psi_group *group, int cpu, u32 *times,
+ 		if (state_mask & (1 << s))
+ 			times[s] += now - state_start;
+ 
+-		delta = times[s] - groupc->times_prev[s];
+-		groupc->times_prev[s] = times[s];
++		delta = times[s] - groupc->times_prev[aggregator][s];
++		groupc->times_prev[aggregator][s] = times[s];
+ 
+ 		times[s] = delta;
+ 		if (delta)
+@@ -274,7 +298,9 @@ static void calc_avgs(unsigned long avg[3], int missed_periods,
+ 	avg[2] = calc_load(avg[2], EXP_300s, pct);
+ }
+ 
+-static void collect_percpu_times(struct psi_group *group, u32 *pchanged_states)
++static void collect_percpu_times(struct psi_group *group,
++				 enum psi_aggregators aggregator,
++				 u32 *pchanged_states)
+ {
+ 	u64 deltas[NR_PSI_STATES - 1] = { 0, };
+ 	unsigned long nonidle_total = 0;
+@@ -295,7 +321,7 @@ static void collect_percpu_times(struct psi_group *group, u32 *pchanged_states)
+ 		u32 nonidle;
+ 		u32 cpu_changed_states;
+ 
+-		get_recent_times(group, cpu, times,
++		get_recent_times(group, cpu, aggregator, times,
+ 				&cpu_changed_states);
+ 		changed_states |= cpu_changed_states;
+ 
+@@ -320,7 +346,8 @@ static void collect_percpu_times(struct psi_group *group, u32 *pchanged_states)
+ 
+ 	/* total= */
+ 	for (s = 0; s < NR_PSI_STATES - 1; s++)
+-		group->total[s] += div_u64(deltas[s], max(nonidle_total, 1UL));
++		group->total[aggregator][s] +=
++				div_u64(deltas[s], max(nonidle_total, 1UL));
+ 
+ 	if (pchanged_states)
+ 		*pchanged_states = changed_states;
+@@ -352,7 +379,7 @@ static u64 update_averages(struct psi_group *group, u64 now)
+ 	for (s = 0; s < NR_PSI_STATES - 1; s++) {
+ 		u32 sample;
+ 
+-		sample = group->total[s] - group->avg_total[s];
++		sample = group->total[PSI_AVGS][s] - group->avg_total[s];
+ 		/*
+ 		 * Due to the lockless sampling of the time buckets,
+ 		 * recorded time deltas can slip into the next period,
+@@ -394,7 +421,7 @@ static void psi_avgs_work(struct work_struct *work)
+ 
+ 	now = sched_clock();
+ 
+-	collect_percpu_times(group, &changed_states);
++	collect_percpu_times(group, PSI_AVGS, &changed_states);
+ 	nonidle = changed_states & (1 << PSI_NONIDLE);
+ 	/*
+ 	 * If there is task activity, periodically fold the per-cpu
+@@ -415,6 +442,187 @@ static void psi_avgs_work(struct work_struct *work)
+ 	mutex_unlock(&group->avgs_lock);
+ }
+ 
++/* Trigger tracking window manupulations */
++static void window_reset(struct psi_window *win, u64 now, u64 value,
++			 u64 prev_growth)
++{
++	win->start_time = now;
++	win->start_value = value;
++	win->prev_growth = prev_growth;
++}
++
++/*
++ * PSI growth tracking window update and growth calculation routine.
++ *
++ * This approximates a sliding tracking window by interpolating
++ * partially elapsed windows using historical growth data from the
++ * previous intervals. This minimizes memory requirements (by not storing
++ * all the intermediate values in the previous window) and simplifies
++ * the calculations. It works well because PSI signal changes only in
++ * positive direction and over relatively small window sizes the growth
++ * is close to linear.
++ */
++static u64 window_update(struct psi_window *win, u64 now, u64 value)
++{
++	u64 elapsed;
++	u64 growth;
++
++	elapsed = now - win->start_time;
++	growth = value - win->start_value;
++	/*
++	 * After each tracking window passes win->start_value and
++	 * win->start_time get reset and win->prev_growth stores
++	 * the average per-window growth of the previous window.
++	 * win->prev_growth is then used to interpolate additional
++	 * growth from the previous window assuming it was linear.
++	 */
++	if (elapsed > win->size)
++		window_reset(win, now, value, growth);
++	else {
++		u32 remaining;
++
++		remaining = win->size - elapsed;
++		growth += div_u64(win->prev_growth * remaining, win->size);
++	}
++
++	return growth;
++}
++
++static void init_triggers(struct psi_group *group, u64 now)
++{
++	struct psi_trigger *t;
++
++	list_for_each_entry(t, &group->triggers, node)
++		window_reset(&t->win, now,
++				group->total[PSI_POLL][t->state], 0);
++	memcpy(group->polling_total, group->total[PSI_POLL],
++		   sizeof(group->polling_total));
++	group->polling_next_update = now + group->poll_min_period;
++}
++
++static u64 update_triggers(struct psi_group *group, u64 now)
++{
++	struct psi_trigger *t;
++	bool new_stall = false;
++	u64 *total = group->total[PSI_POLL];
++
++	/*
++	 * On subsequent updates, calculate growth deltas and let
++	 * watchers know when their specified thresholds are exceeded.
++	 */
++	list_for_each_entry(t, &group->triggers, node) {
++		u64 growth;
++
++		/* Check for stall activity */
++		if (group->polling_total[t->state] == total[t->state])
++			continue;
++
++		/*
++		 * Multiple triggers might be looking at the same state,
++		 * remember to update group->polling_total[] once we've
++		 * been through all of them. Also remember to extend the
++		 * polling time if we see new stall activity.
++		 */
++		new_stall = true;
++
++		/* Calculate growth since last update */
++		growth = window_update(&t->win, now, total[t->state]);
++		if (growth < t->threshold)
++			continue;
++
++		/* Limit event signaling to once per window */
++		if (now < t->last_event_time + t->win.size)
++			continue;
++
++		/* Generate an event */
++		if (cmpxchg(&t->event, 0, 1) == 0)
++			wake_up_interruptible(&t->event_wait);
++		t->last_event_time = now;
++	}
++
++	if (new_stall)
++		memcpy(group->polling_total, total,
++				sizeof(group->polling_total));
++
++	return now + group->poll_min_period;
++}
++
++/*
++ * Schedule polling if it's not already scheduled. It's safe to call even from
++ * hotpath because even though kthread_queue_delayed_work takes worker->lock
++ * spinlock that spinlock is never contended due to poll_scheduled atomic
++ * preventing such competition.
++ */
++static void psi_schedule_poll_work(struct psi_group *group, unsigned long delay)
++{
++	struct kthread_worker *kworker;
++
++	/* Do not reschedule if already scheduled */
++	if (atomic_cmpxchg(&group->poll_scheduled, 0, 1) != 0)
++		return;
++
++	rcu_read_lock();
++
++	kworker = rcu_dereference(group->poll_kworker);
++	/*
++	 * kworker might be NULL in case psi_trigger_destroy races with
++	 * psi_task_change (hotpath) which can't use locks
++	 */
++	if (likely(kworker))
++		kthread_queue_delayed_work(kworker, &group->poll_work, delay);
++	else
++		atomic_set(&group->poll_scheduled, 0);
++
++	rcu_read_unlock();
++}
++
++static void psi_poll_work(struct kthread_work *work)
++{
++	struct kthread_delayed_work *dwork;
++	struct psi_group *group;
++	u32 changed_states;
++	u64 now;
++
++	dwork = container_of(work, struct kthread_delayed_work, work);
++	group = container_of(dwork, struct psi_group, poll_work);
++
++	atomic_set(&group->poll_scheduled, 0);
++
++	mutex_lock(&group->trigger_lock);
++
++	now = sched_clock();
++
++	collect_percpu_times(group, PSI_POLL, &changed_states);
++
++	if (changed_states & group->poll_states) {
++		/* Initialize trigger windows when entering polling mode */
++		if (now > group->polling_until)
++			init_triggers(group, now);
++
++		/*
++		 * Keep the monitor active for at least the duration of the
++		 * minimum tracking window as long as monitor states are
++		 * changing.
++		 */
++		group->polling_until = now +
++			group->poll_min_period * UPDATES_PER_WINDOW;
++	}
++
++	if (now > group->polling_until) {
++		group->polling_next_update = ULLONG_MAX;
++		goto out;
++	}
++
++	if (now >= group->polling_next_update)
++		group->polling_next_update = update_triggers(group, now);
++
++	psi_schedule_poll_work(group,
++		nsecs_to_jiffies(group->polling_next_update - now) + 1);
++
++out:
++	mutex_unlock(&group->trigger_lock);
++}
++
+ static void record_times(struct psi_group_cpu *groupc, int cpu,
+ 			 bool memstall_tick)
+ {
+@@ -461,8 +669,8 @@ static void record_times(struct psi_group_cpu *groupc, int cpu,
+ 		groupc->times[PSI_NONIDLE] += delta;
+ }
+ 
+-static void psi_group_change(struct psi_group *group, int cpu,
+-			     unsigned int clear, unsigned int set)
++static u32 psi_group_change(struct psi_group *group, int cpu,
++			    unsigned int clear, unsigned int set)
+ {
+ 	struct psi_group_cpu *groupc;
+ 	unsigned int t, m;
+@@ -508,6 +716,8 @@ static void psi_group_change(struct psi_group *group, int cpu,
+ 	groupc->state_mask = state_mask;
+ 
+ 	write_seqcount_end(&groupc->seq);
++
++	return state_mask;
+ }
+ 
+ static struct psi_group *iterate_groups(struct task_struct *task, void **iter)
+@@ -568,7 +778,11 @@ void psi_task_change(struct task_struct *task, int clear, int set)
+ 		wake_clock = false;
+ 
+ 	while ((group = iterate_groups(task, &iter))) {
+-		psi_group_change(group, cpu, clear, set);
++		u32 state_mask = psi_group_change(group, cpu, clear, set);
++
++		if (state_mask & group->poll_states)
++			psi_schedule_poll_work(group, 1);
++
+ 		if (wake_clock && !delayed_work_pending(&group->avgs_work))
+ 			schedule_delayed_work(&group->avgs_work, PSI_FREQ);
+ 	}
+@@ -669,6 +883,8 @@ void psi_cgroup_free(struct cgroup *cgroup)
+ 
+ 	cancel_delayed_work_sync(&cgroup->psi.avgs_work);
+ 	free_percpu(cgroup->psi.pcpu);
++	/* All triggers must be removed by now */
++	WARN_ONCE(cgroup->psi.poll_states, "psi: trigger leak\n");
+ }
+ 
+ /**
+@@ -730,7 +946,7 @@ int psi_show(struct seq_file *m, struct psi_group *group, enum psi_res res)
+ 
+ 	/* Update averages before reporting them */
+ 	mutex_lock(&group->avgs_lock);
+-	collect_percpu_times(group, NULL);
++	collect_percpu_times(group, PSI_AVGS, NULL);
+ 	update_averages(group, sched_clock());
+ 	mutex_unlock(&group->avgs_lock);
+ 
+@@ -741,7 +957,8 @@ int psi_show(struct seq_file *m, struct psi_group *group, enum psi_res res)
+ 
+ 		for (w = 0; w < 3; w++)
+ 			avg[w] = group->avg[res * 2 + full][w];
+-		total = div_u64(group->total[res * 2 + full], NSEC_PER_USEC);
++		total = div_u64(group->total[PSI_AVGS][res * 2 + full],
++				NSEC_PER_USEC);
+ 
+ 		seq_printf(m, "%s avg10=%lu.%02lu avg60=%lu.%02lu avg300=%lu.%02lu total=%llu\n",
+ 			   full ? "full" : "some",
+@@ -784,25 +1001,270 @@ static int psi_cpu_open(struct inode *inode, struct file *file)
+ 	return single_open(file, psi_cpu_show, NULL);
+ }
+ 
++struct psi_trigger *psi_trigger_create(struct psi_group *group,
++			char *buf, size_t nbytes, enum psi_res res)
++{
++	struct psi_trigger *t;
++	enum psi_states state;
++	u32 threshold_us;
++	u32 window_us;
++
++	if (static_branch_likely(&psi_disabled))
++		return ERR_PTR(-EOPNOTSUPP);
++
++	if (sscanf(buf, "some %u %u", &threshold_us, &window_us) == 2)
++		state = PSI_IO_SOME + res * 2;
++	else if (sscanf(buf, "full %u %u", &threshold_us, &window_us) == 2)
++		state = PSI_IO_FULL + res * 2;
++	else
++		return ERR_PTR(-EINVAL);
++
++	if (state >= PSI_NONIDLE)
++		return ERR_PTR(-EINVAL);
++
++	if (window_us < WINDOW_MIN_US ||
++		window_us > WINDOW_MAX_US)
++		return ERR_PTR(-EINVAL);
++
++	/* Check threshold */
++	if (threshold_us == 0 || threshold_us > window_us)
++		return ERR_PTR(-EINVAL);
++
++	t = kmalloc(sizeof(*t), GFP_KERNEL);
++	if (!t)
++		return ERR_PTR(-ENOMEM);
++
++	t->group = group;
++	t->state = state;
++	t->threshold = threshold_us * NSEC_PER_USEC;
++	t->win.size = window_us * NSEC_PER_USEC;
++	window_reset(&t->win, 0, 0, 0);
++
++	t->event = 0;
++	t->last_event_time = 0;
++	init_waitqueue_head(&t->event_wait);
++	kref_init(&t->refcount);
++
++	mutex_lock(&group->trigger_lock);
++
++	if (!rcu_access_pointer(group->poll_kworker)) {
++		struct sched_param param = {
++			.sched_priority = MAX_RT_PRIO - 1,
++		};
++		struct kthread_worker *kworker;
++
++		kworker = kthread_create_worker(0, "psimon");
++		if (IS_ERR(kworker)) {
++			kfree(t);
++			mutex_unlock(&group->trigger_lock);
++			return ERR_CAST(kworker);
++		}
++		sched_setscheduler(kworker->task, SCHED_FIFO, &param);
++		kthread_init_delayed_work(&group->poll_work,
++				psi_poll_work);
++		rcu_assign_pointer(group->poll_kworker, kworker);
++	}
++
++	list_add(&t->node, &group->triggers);
++	group->poll_min_period = min(group->poll_min_period,
++		div_u64(t->win.size, UPDATES_PER_WINDOW));
++	group->nr_triggers[t->state]++;
++	group->poll_states |= (1 << t->state);
++
++	mutex_unlock(&group->trigger_lock);
++
++	return t;
++}
++
++static void psi_trigger_destroy(struct kref *ref)
++{
++	struct psi_trigger *t = container_of(ref, struct psi_trigger, refcount);
++	struct psi_group *group = t->group;
++	struct kthread_worker *kworker_to_destroy = NULL;
++
++	if (static_branch_likely(&psi_disabled))
++		return;
++
++	/*
++	 * Wakeup waiters to stop polling. Can happen if cgroup is deleted
++	 * from under a polling process.
++	 */
++	wake_up_interruptible(&t->event_wait);
++
++	mutex_lock(&group->trigger_lock);
++
++	if (!list_empty(&t->node)) {
++		struct psi_trigger *tmp;
++		u64 period = ULLONG_MAX;
++
++		list_del(&t->node);
++		group->nr_triggers[t->state]--;
++		if (!group->nr_triggers[t->state])
++			group->poll_states &= ~(1 << t->state);
++		/* reset min update period for the remaining triggers */
++		list_for_each_entry(tmp, &group->triggers, node)
++			period = min(period, div_u64(tmp->win.size,
++					UPDATES_PER_WINDOW));
++		group->poll_min_period = period;
++		/* Destroy poll_kworker when the last trigger is destroyed */
++		if (group->poll_states == 0) {
++			group->polling_until = 0;
++			kworker_to_destroy = rcu_dereference_protected(
++					group->poll_kworker,
++					lockdep_is_held(&group->trigger_lock));
++			rcu_assign_pointer(group->poll_kworker, NULL);
++		}
++	}
++
++	mutex_unlock(&group->trigger_lock);
++
++	/*
++	 * Wait for both *trigger_ptr from psi_trigger_replace and
++	 * poll_kworker RCUs to complete their read-side critical sections
++	 * before destroying the trigger and optionally the poll_kworker
++	 */
++	synchronize_rcu();
++	/*
++	 * Destroy the kworker after releasing trigger_lock to prevent a
++	 * deadlock while waiting for psi_poll_work to acquire trigger_lock
++	 */
++	if (kworker_to_destroy) {
++		kthread_cancel_delayed_work_sync(&group->poll_work);
++		kthread_destroy_worker(kworker_to_destroy);
++	}
++	kfree(t);
++}
++
++void psi_trigger_replace(void **trigger_ptr, struct psi_trigger *new)
++{
++	struct psi_trigger *old = *trigger_ptr;
++
++	if (static_branch_likely(&psi_disabled))
++		return;
++
++	rcu_assign_pointer(*trigger_ptr, new);
++	if (old)
++		kref_put(&old->refcount, psi_trigger_destroy);
++}
++
++__poll_t psi_trigger_poll(void **trigger_ptr,
++				struct file *file, poll_table *wait)
++{
++	__poll_t ret = DEFAULT_POLLMASK;
++	struct psi_trigger *t;
++
++	if (static_branch_likely(&psi_disabled))
++		return DEFAULT_POLLMASK | EPOLLERR | EPOLLPRI;
++
++	rcu_read_lock();
++
++	t = rcu_dereference(*(void __rcu __force **)trigger_ptr);
++	if (!t) {
++		rcu_read_unlock();
++		return DEFAULT_POLLMASK | EPOLLERR | EPOLLPRI;
++	}
++	kref_get(&t->refcount);
++
++	rcu_read_unlock();
++
++	poll_wait(file, &t->event_wait, wait);
++
++	if (cmpxchg(&t->event, 1, 0) == 1)
++		ret |= EPOLLPRI;
++
++	kref_put(&t->refcount, psi_trigger_destroy);
++
++	return ret;
++}
++
++static ssize_t psi_write(struct file *file, const char __user *user_buf,
++			 size_t nbytes, enum psi_res res)
++{
++	char buf[32];
++	size_t buf_size;
++	struct seq_file *seq;
++	struct psi_trigger *new;
++
++	if (static_branch_likely(&psi_disabled))
++		return -EOPNOTSUPP;
++
++	buf_size = min(nbytes, (sizeof(buf) - 1));
++	if (copy_from_user(buf, user_buf, buf_size))
++		return -EFAULT;
++
++	buf[buf_size - 1] = '\0';
++
++	new = psi_trigger_create(&psi_system, buf, nbytes, res);
++	if (IS_ERR(new))
++		return PTR_ERR(new);
++
++	seq = file->private_data;
++	/* Take seq->lock to protect seq->private from concurrent writes */
++	mutex_lock(&seq->lock);
++	psi_trigger_replace(&seq->private, new);
++	mutex_unlock(&seq->lock);
++
++	return nbytes;
++}
++
++static ssize_t psi_io_write(struct file *file, const char __user *user_buf,
++			    size_t nbytes, loff_t *ppos)
++{
++	return psi_write(file, user_buf, nbytes, PSI_IO);
++}
++
++static ssize_t psi_memory_write(struct file *file, const char __user *user_buf,
++				size_t nbytes, loff_t *ppos)
++{
++	return psi_write(file, user_buf, nbytes, PSI_MEM);
++}
++
++static ssize_t psi_cpu_write(struct file *file, const char __user *user_buf,
++			     size_t nbytes, loff_t *ppos)
++{
++	return psi_write(file, user_buf, nbytes, PSI_CPU);
++}
++
++static __poll_t psi_fop_poll(struct file *file, poll_table *wait)
++{
++	struct seq_file *seq = file->private_data;
++
++	return psi_trigger_poll(&seq->private, file, wait);
++}
++
++static int psi_fop_release(struct inode *inode, struct file *file)
++{
++	struct seq_file *seq = file->private_data;
++
++	psi_trigger_replace(&seq->private, NULL);
++	return single_release(inode, file);
++}
++
+ static const struct file_operations psi_io_fops = {
+ 	.open           = psi_io_open,
+ 	.read           = seq_read,
+ 	.llseek         = seq_lseek,
+-	.release        = single_release,
++	.write          = psi_io_write,
++	.poll           = psi_fop_poll,
++	.release        = psi_fop_release,
+ };
+ 
+ static const struct file_operations psi_memory_fops = {
+ 	.open           = psi_memory_open,
+ 	.read           = seq_read,
+ 	.llseek         = seq_lseek,
+-	.release        = single_release,
++	.write          = psi_memory_write,
++	.poll           = psi_fop_poll,
++	.release        = psi_fop_release,
+ };
+ 
+ static const struct file_operations psi_cpu_fops = {
+ 	.open           = psi_cpu_open,
+ 	.read           = seq_read,
+ 	.llseek         = seq_lseek,
+-	.release        = single_release,
++	.write          = psi_cpu_write,
++	.poll           = psi_fop_poll,
++	.release        = psi_fop_release,
+ };
+ 
+ static int __init psi_proc_init(void)
 -- 
 2.21.0.360.g471c308f928-goog
 
