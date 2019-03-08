@@ -2,224 +2,219 @@ Return-Path: <SRS0=92PK=RL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BA236C43381
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 03:08:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 98EC6C43381
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 03:15:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 601C320675
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 03:08:43 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 49E3B2081B
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 03:15:29 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="cSYLQtG/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 601C320675
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="PaTfFJ61"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 49E3B2081B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DF5BA8E0003; Thu,  7 Mar 2019 22:08:42 -0500 (EST)
+	id DCD018E0003; Thu,  7 Mar 2019 22:15:28 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DA5288E0002; Thu,  7 Mar 2019 22:08:42 -0500 (EST)
+	id D78E68E0002; Thu,  7 Mar 2019 22:15:28 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C6C728E0003; Thu,  7 Mar 2019 22:08:42 -0500 (EST)
+	id C19888E0003; Thu,  7 Mar 2019 22:15:28 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B0508E0002
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 22:08:42 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id w134so14892934qka.6
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 19:08:42 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F1C78E0002
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 22:15:28 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id y8so18677125pgk.2
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 19:15:28 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=iSC5NRaIYEqe1epLXpU+YNht7NR85W950XiWInzYTE4=;
-        b=AdEg0XjVeYwTcUr1oDHdd+OvdHv5jFV7pineEiKSdHchTuRin+hHrsWhMkNbsjd3Lz
-         cjdw+RPqFdWQNttx8s9Ta7a83IuQmlxJF1j7BH5fTwGKNTcsMTDOgrlGp0nrYN2sBlIg
-         PA+SrAVOorLEgTzqg73AljMmGsKy/DGlIsl5zDf+7webj8dKE/Ipspb+RAY06GURIckp
-         q9dF+YiN6AqtVGEKIco9rT91AAj1GbU2AROLrW4N5y5Z7fipNaezMne8WE4k3eEHIeNm
-         F4ffII6sIMB3jIa4ox6Dan/gxue4iPtYK2gGThfQuYrlNwaeOQ2pd0CWLRuTUeaMPR0w
-         p/2w==
-X-Gm-Message-State: APjAAAX0++d2zKapCJr1V1TtMB07T4DudGRQjdsaOeIWsQIVJu8D1EGv
-	AexNL4Ma7tUfI0qNWmyx0s4b3X2jVH4RYdrQ+/OBL6QGuuNNur4pzGCf5Y6edXpDFqCvKq94fM0
-	D/C5WoAM5cJ56BGTeFeKL3ug8FhE7f/riXKfSxyvUCKr/Oub61ZDPBR0GbL3VzTQ=
-X-Received: by 2002:a0c:ba9d:: with SMTP id x29mr13404901qvf.112.1552014522356;
-        Thu, 07 Mar 2019 19:08:42 -0800 (PST)
-X-Google-Smtp-Source: APXvYqwdwDZROvSJNOk1GfLImg448we2xgy5nAek0biXZ85jK9I/QIpObeAGfGPhpjG7CbYVBbyr
-X-Received: by 2002:a0c:ba9d:: with SMTP id x29mr13404866qvf.112.1552014521482;
-        Thu, 07 Mar 2019 19:08:41 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1552014521; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=FtB7YHOvjTXAc8oTZpYQd0JJbEPfa0oBJdIjz2jF9Mk=;
+        b=T0bpHctEM4bA49Fvzk0KIGSpPapL2/Tnd8kqlgEVgsN2tCKnnJSuiHZ4+N/EB9F7X8
+         5GiWBH1KLB13LbZiDU9CywWTcErCXrppBpeXgcQfjHBVbIkcPqcqUGFDe8yVlQAwxV6r
+         6rBmvpV2NeXDgmi42ORFh1JsbCU46ekwCzcGKGfEpovfDcZoASWZobC5lsW6BCfsrK3w
+         FCUFs1OtkMjBh/FSInxYWJhGTn3W1sWRYBnujLQvaVCAMWa2WXUreQPo19RrHRy31vSA
+         V3zICtKwT20g18L7N/GBWu0YyTgBL2z7m/X754nkVkH72RNBJud5fAzUtBg2BbCDR8bc
+         jR8g==
+X-Gm-Message-State: APjAAAUeUXstviMl8JWH/32ZLjT36zxFtUov9IkpplBUu8cgpvyPMTzW
+	vCYlZju84aaFlczH6q8HaXePhwpdwDVUnvnJb+mAOv6mP3FRW41FO3MVkGleQmUeIS4zXj4cpK2
+	/ZFRX16m4qQUdOReno1cVgSjCFNgA1eE899/yZA03YXDYzLAo63N4Jsfkw0mbZDvXhQ==
+X-Received: by 2002:a65:43c7:: with SMTP id n7mr1742661pgp.173.1552014928053;
+        Thu, 07 Mar 2019 19:15:28 -0800 (PST)
+X-Google-Smtp-Source: APXvYqxB0hQDGtcuXeO9wAkyYzWTRJEDvj+jIavWE6vhyixHRGmSzPJF32sQ39KpMRD9lgvOAqoQ
+X-Received: by 2002:a65:43c7:: with SMTP id n7mr1742582pgp.173.1552014927061;
+        Thu, 07 Mar 2019 19:15:27 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1552014927; cv=none;
         d=google.com; s=arc-20160816;
-        b=Zd18/oma3sNcLFupgqF0SnD4DRjZnrLeanuK8pa+Fv+OH/pEaHXl9qT1b9eYtxf3YY
-         odQ3jyklCMC5ZKpE4aZWobi16SI0If2htehITugFKz3VlJeTfHPNWyXWCbwao/MH8xR5
-         W5L4LK4Bt3APHOjoPqp4eZ+oMoMKwAWnBUvOWBt4o1l7HPF+Y5IaeU9qottCdAkScQhN
-         chlGqalVDW0omRQB36EetWp4wzNExmrmGkYKDHxWOO00E9SkTlJn9qzh2j4P6dF89wZz
-         3y/ZUHnkDHK/waDE5lYzz68hs0FudlwgktBJi5vhR3QlOBZamcwkOO6oIPdPgbHtzkIo
-         +NDw==
+        b=zDO9s8OWjA0j2pDD8fSFLatYTT5R2FsZjlIH2RCvGTpd/qOfIqk2rhiQhdoC4+HGm8
+         Wn03LswY9C7reJJ6/fWMTKJuByuaQOyn2i03p3V/xMnJydkHKmcnypj1TEGv65AVQjkU
+         THK/vqxjrX8YR4IDDqejWUlEYaer15Nac12yD6brPWfp872vQcY9GTRbZju2Cn/4EA5O
+         mxlNwdlOdaC0G/eBgvzQrtMKfbLg6lqIKqyjAm0cEadxUWY/CkEwixfh4J/uvxDE+ntK
+         TO2UiYMxeDacnuBifHG88+kVbEYM8tGH2LwndvyLHEu4uhf/PQNA8m3ydLtQzATfFiDs
+         Do1w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=iSC5NRaIYEqe1epLXpU+YNht7NR85W950XiWInzYTE4=;
-        b=G4XyI8Vgz0s0VrkYhHIKUgDnm+igigSQchivao/pFfeY8eqUc2XarwtkvBPP12xAUF
-         k3yxjPsrF9UEhNLtzdMgb+0o2mFqi3p4wWWKrC2SdXkB8nzcD2gYO+FfVNo2Ms2xoKKz
-         KTg7cmr920K7xt6t7TJYPapRRduWAEq/hao4XwMHwvrvN+IgFIyxUy79nJesjOFn/0Qt
-         D60D0+QYXTdXoOD4VWRgvBWTEEcPaYvgPPkDZobGcNqXntePBpo9FpdRXwUolEzP1zhU
-         /jBdcCxeJn4bg4tVCAKAdYTwJ5zKjN1Rsi2Ey0rgUnQWW2jmiWS7aOW/XhIKO3s3pYe0
-         /ARQ==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=FtB7YHOvjTXAc8oTZpYQd0JJbEPfa0oBJdIjz2jF9Mk=;
+        b=N0H34qXu0dLpa0ngJPvHLydpUB3j/NhI3EzQHNtowHIKYoAvEOWYK9cSgR/2mkErHL
+         CChS5SoThtjaA/3xF/gwd6PAfeQzJiskr8K0+JyU5F4dTn4E7lO5i2Ix6z6wT119OxOn
+         P5PTSWVWBKtlZ0slYPmAiLHH43lhkLCxG1gjCS+btIh3SNtP5rAreOh98NOikCzat1xa
+         MTSZxt8iNncnRlIYkI2IQNYfZGEXXUaFubi+5f0cHOtS/YDvTAggRRBuEy7/7BgLv5uz
+         oxft8wXGSuHoDNcpDB5uCPQc6iV7OXW12/f1xxkKqKJHdwfn9Nc7AdU2/6zBeh4Pxj8Q
+         cD1A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b="cSYLQtG/";
-       spf=pass (google.com: domain of 010001695b4631cd-f4b8fcbf-a760-4267-afce-fb7969e3ff87-000000@amazonses.com designates 54.240.9.30 as permitted sender) smtp.mailfrom=010001695b4631cd-f4b8fcbf-a760-4267-afce-fb7969e3ff87-000000@amazonses.com
-Received: from a9-30.smtp-out.amazonses.com (a9-30.smtp-out.amazonses.com. [54.240.9.30])
-        by mx.google.com with ESMTPS id d19si2182037qvd.31.2019.03.07.19.08.41
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=PaTfFJ61;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id a18si6001621pfc.23.2019.03.07.19.15.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 07 Mar 2019 19:08:41 -0800 (PST)
-Received-SPF: pass (google.com: domain of 010001695b4631cd-f4b8fcbf-a760-4267-afce-fb7969e3ff87-000000@amazonses.com designates 54.240.9.30 as permitted sender) client-ip=54.240.9.30;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Mar 2019 19:15:27 -0800 (PST)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b="cSYLQtG/";
-       spf=pass (google.com: domain of 010001695b4631cd-f4b8fcbf-a760-4267-afce-fb7969e3ff87-000000@amazonses.com designates 54.240.9.30 as permitted sender) smtp.mailfrom=010001695b4631cd-f4b8fcbf-a760-4267-afce-fb7969e3ff87-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1552014520;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=Qsyil3aA8gB2bCI9HRfEXGR5NVCprjsvM1XdMK95rKI=;
-	b=cSYLQtG/NGkELqStS9fYnd9XGtShvawWekbQcHxUgiRa5T6ixwFOhU5nD7/h7oHL
-	A2jHz+Ze6sUjCTS+pO+u1Uf6RyWBCp8BpLs/BfcPr54oLkXiDVO7P5am8S3zp9aHZ5f
-	HO1EhnpUaH4gwXrGIlmtajbNx4EeV+TqJLxqegXw=
-Date: Fri, 8 Mar 2019 03:08:40 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
-To: john.hubbard@gmail.com
-cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, 
-    Al Viro <viro@zeniv.linux.org.uk>, Christian Benvenuti <benve@cisco.com>, 
-    Christoph Hellwig <hch@infradead.org>, 
-    Dan Williams <dan.j.williams@intel.com>, 
-    Dave Chinner <david@fromorbit.com>, 
-    Dennis Dalessandro <dennis.dalessandro@intel.com>, 
-    Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>, 
-    Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>, 
-    Jerome Glisse <jglisse@redhat.com>, Matthew Wilcox <willy@infradead.org>, 
-    Michal Hocko <mhocko@kernel.org>, Mike Rapoport <rppt@linux.ibm.com>, 
-    Mike Marciniszyn <mike.marciniszyn@intel.com>, 
-    Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>, 
-    LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, 
-    John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [PATCH v3 0/1] mm: introduce put_user_page*(), placeholder
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=PaTfFJ61;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c81de4c0000>; Thu, 07 Mar 2019 19:15:24 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate102.nvidia.com (PGP Universal service);
+  Thu, 07 Mar 2019 19:15:25 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate102.nvidia.com on Thu, 07 Mar 2019 19:15:25 -0800
+Received: from [10.110.48.28] (172.20.13.39) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 8 Mar
+ 2019 03:15:25 +0000
+Subject: Re: [PATCH v3 1/1] mm: introduce put_user_page*(), placeholder
  versions
-In-Reply-To: <20190306235455.26348-1-jhubbard@nvidia.com>
-Message-ID: <010001695b4631cd-f4b8fcbf-a760-4267-afce-fb7969e3ff87-000000@email.amazonses.com>
+To: Christopher Lameter <cl@linux.com>, <john.hubbard@gmail.com>
+CC: Andrew Morton <akpm@linux-foundation.org>, <linux-mm@kvack.org>, Al Viro
+	<viro@zeniv.linux.org.uk>, Christian Benvenuti <benve@cisco.com>, Christoph
+ Hellwig <hch@infradead.org>, Dan Williams <dan.j.williams@intel.com>, Dave
+ Chinner <david@fromorbit.com>, Dennis Dalessandro
+	<dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Ira Weiny
+	<ira.weiny@intel.com>, Jan Kara <jack@suse.cz>, Jason Gunthorpe
+	<jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>, Matthew Wilcox
+	<willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Mike Rapoport
+	<rppt@linux.ibm.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Ralph
+ Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>, LKML
+	<linux-kernel@vger.kernel.org>, <linux-fsdevel@vger.kernel.org>
 References: <20190306235455.26348-1-jhubbard@nvidia.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+ <20190306235455.26348-2-jhubbard@nvidia.com>
+ <010001695b3d2701-3215b423-7367-44d6-98bc-64fc2f84264a-000000@email.amazonses.com>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <3cc3c382-2505-3b6c-ec58-1f14ebcb77e8@nvidia.com>
+Date: Thu, 7 Mar 2019 19:15:24 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.3
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.03.08-54.240.9.30
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+In-Reply-To: <010001695b3d2701-3215b423-7367-44d6-98bc-64fc2f84264a-000000@email.amazonses.com>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US-large
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1552014925; bh=FtB7YHOvjTXAc8oTZpYQd0JJbEPfa0oBJdIjz2jF9Mk=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=PaTfFJ61biJBo7uGPG2BuzWxq8swoNQ/7IQR8UHih2Tu3sE0fdYuM9voZ54bMHgpE
+	 A/wSahEtYBX4SyO9mpKc29e/BW9s/KI4sb7BR1shM0kuRVd6zTZBqc4vyS4jWzCyrD
+	 WJKCcRWIPxCX7g1pQo/UJ/Lonhb8umOa8LdmJr2C8R5Q6v4lr3mY7XnRgyJzuY9OqB
+	 vu4A+0gyx3UG3ekzq8Tjx+WmoXxfj5enhPv+34k6qj1B+QhTxVcQyOF09nU12kOaG3
+	 yfRwyvP9AXMEakDrS+OYChxyAvM8F5M7CKeFFXU90VOHh3agHsllvho0m9E/azcvLL
+	 MvIP9G1BWJuDg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 6 Mar 2019, john.hubbard@gmail.com wrote:
+On 3/7/19 6:58 PM, Christopher Lameter wrote:
+> On Wed, 6 Mar 2019, john.hubbard@gmail.com wrote:
+> 
+>> Dave Chinner's description of this is very clear:
+>>
+>>     "The fundamental issue is that ->page_mkwrite must be called on every
+>>     write access to a clean file backed page, not just the first one.
+>>     How long the GUP reference lasts is irrelevant, if the page is clean
+>>     and you need to dirty it, you must call ->page_mkwrite before it is
+>>     marked writeable and dirtied. Every. Time."
+>>
+>> This is just one symptom of the larger design problem: filesystems do not
+>> actually support get_user_pages() being called on their pages, and letting
+>> hardware write directly to those pages--even though that patter has been
+>> going on since about 2005 or so.
+> 
+> Can we distinguish between real filesystems that actually write to a
+> backing device and the special filesystems (like hugetlbfs, shm and
+> friends) that are like anonymous memory and do not require
+> ->page_mkwrite() in the same way as regular filesystems?
+
+Yes. I'll change the wording in the commit message to say "real filesystems
+that actually write to a backing device", instead of "filesystems". That
+does help, thanks.
+
+> 
+> The use that I have seen in my section of the world has been restricted to
+> RDMA and get_user_pages being limited to anonymous memory and those
+> special filesystems. And if the RDMA memory is of such type then the use
+> in the past and present is safe.
+
+Agreed.
+
+> 
+> So a logical other approach would be to simply not allow the use of
+> long term get_user_page() on real filesystem pages. I hope this patch
+> supports that?
+
+This patch neither prevents nor provides that. What this patch does is
+provide a prerequisite to clear identification of pages that have had
+get_user_pages() called on them.
 
 
-> GUP was first introduced for Direct IO (O_DIRECT), allowing filesystem code
-> to get the struct page behind a virtual address and to let storage hardware
-> perform a direct copy to or from that page. This is a short-lived access
-> pattern, and as such, the window for a concurrent writeback of GUP'd page
-> was small enough that there were not (we think) any reported problems.
-> Also, userspace was expected to understand and accept that Direct IO was
-> not synchronized with memory-mapped access to that data, nor with any
-> process address space changes such as munmap(), mremap(), etc.
+> 
+> It is customary after all that a file read or write operation involve one
+> single file(!) and that what is written either comes from or goes to
+> memory (anonymous or special memory filesystem).
+> 
+> If you have an mmapped memory segment with a regular device backed file
+> then you already have one file associated with a memory segment and a
+> filesystem that does take care of synchronizing the contents of the memory
+> segment to a backing device.
+> 
+> If you now perform RDMA or device I/O on such a memory segment then you
+> will have *two* different devices interacting with that memory segment. I
+> think that ought not to happen and not be supported out of the box. It
+> will be difficult to handle and the semantics will be hard for users to
+> understand.
+> 
+> What could happen is that the filesystem could agree on request to allow
+> third party I/O to go to such a memory segment. But that needs to be well
+> defined and clearly and explicitly handled by some mechanism in user space
+> that has well defined semantics for data integrity for the filesystem as
+> well as the RDMA or device I/O.
+> 
 
-It would good if that understanding would be enforced somehow given the problems
-that we see.
+Those discussions are underway. Dave Chinner and others have been talking
+about filesystem leases, for example. The key point here is that we'll still
+need, in any of these approaches, to be able to identify the gup-pinned
+pages. And there are lots (100+) of call sites to change. So I figure we'd
+better get that started.
 
-> Interactions with file systems
-> ==============================
->
-> File systems expect to be able to write back data, both to reclaim pages,
-
-Regular filesystems do that. But usually those are not used with GUP
-pinning AFAICT.
-
-> and for data integrity. Allowing other hardware (NICs, GPUs, etc) to gain
-> write access to the file memory pages means that such hardware can dirty
-> the pages, without the filesystem being aware. This can, in some cases
-> (depending on filesystem, filesystem options, block device, block device
-> options, and other variables), lead to data corruption, and also to kernel
-> bugs of the form:
-
-> Long term GUP
-> =============
->
-> Long term GUP is an issue when FOLL_WRITE is specified to GUP (so, a
-> writeable mapping is created), and the pages are file-backed. That can lead
-> to filesystem corruption. What happens is that when a file-backed page is
-> being written back, it is first mapped read-only in all of the CPU page
-> tables; the file system then assumes that nobody can write to the page, and
-> that the page content is therefore stable. Unfortunately, the GUP callers
-> generally do not monitor changes to the CPU pages tables; they instead
-> assume that the following pattern is safe (it's not):
->
->     get_user_pages()
->
->     Hardware can keep a reference to those pages for a very long time,
->     and write to it at any time. Because "hardware" here means "devices
->     that are not a CPU", this activity occurs without any interaction
->     with the kernel's file system code.
->
->     for each page
->         set_page_dirty
->         put_page()
->
-> In fact, the GUP documentation even recommends that pattern.
-
-Isnt that pattern safe for anonymous memory and memory filesystems like
-hugetlbfs etc? Which is the common use case.
-
-> Anyway, the file system assumes that the page is stable (nothing is writing
-> to the page), and that is a problem: stable page content is necessary for
-> many filesystem actions during writeback, such as checksum, encryption,
-> RAID striping, etc. Furthermore, filesystem features like COW (copy on
-> write) or snapshot also rely on being able to use a new page for as memory
-> for that memory range inside the file.
->
-> Corruption during write back is clearly possible here. To solve that, one
-> idea is to identify pages that have active GUP, so that we can use a bounce
-> page to write stable data to the filesystem. The filesystem would work
-> on the bounce page, while any of the active GUP might write to the
-> original page. This would avoid the stable page violation problem, but note
-> that it is only part of the overall solution, because other problems
-> remain.
-
-Yes you now have the filesystem as well as the GUP pinner claiming
-authority over the contents of a single memory segment. Maybe better not
-allow that?
-
-> Direct IO
-> =========
->
-> Direct IO can cause corruption, if userspace does Direct-IO that writes to
-> a range of virtual addresses that are mmap'd to a file.  The pages written
-> to are file-backed pages that can be under write back, while the Direct IO
-> is taking place.  Here, Direct IO races with a write back: it calls
-> GUP before page_mkclean() has replaced the CPU pte with a read-only entry.
-> The race window is pretty small, which is probably why years have gone by
-> before we noticed this problem: Direct IO is generally very quick, and
-> tends to finish up before the filesystem gets around to do anything with
-> the page contents.  However, it's still a real problem.  The solution is
-> to never let GUP return pages that are under write back, but instead,
-> force GUP to take a write fault on those pages.  That way, GUP will
-> properly synchronize with the active write back.  This does not change the
-> required GUP behavior, it just avoids that race.
-
-Direct IO on a mmapped file backed page doesnt make any sense. The direct
-I/O write syscall already specifies one file handle of a filesystem that
-the data is to be written onto.  Plus mmap already established another
-second filehandle and another filesystem that is also in charge of that
-memory segment.
-
-Two filesystem trying to sync one memory segment both believing to have
-exclusive access and we want to sort this out. Why? Dont allow this.
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
