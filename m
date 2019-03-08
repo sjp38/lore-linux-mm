@@ -2,252 +2,292 @@ Return-Path: <SRS0=92PK=RL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5C772C43381
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 19:07:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CAFF0C10F09
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 19:10:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0C0CC206DF
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 19:07:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0C0CC206DF
+	by mail.kernel.org (Postfix) with ESMTP id 7B4EB206DF
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 19:10:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B4EB206DF
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9076E8E0004; Fri,  8 Mar 2019 14:07:11 -0500 (EST)
+	id 139E88E0003; Fri,  8 Mar 2019 14:10:43 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8B5758E0002; Fri,  8 Mar 2019 14:07:11 -0500 (EST)
+	id 113188E0002; Fri,  8 Mar 2019 14:10:43 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 77DE98E0004; Fri,  8 Mar 2019 14:07:11 -0500 (EST)
+	id 001568E0003; Fri,  8 Mar 2019 14:10:42 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 48C3E8E0002
-	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 14:07:11 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id j22so19432442qtq.21
-        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 11:07:11 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CD9948E0002
+	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 14:10:42 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id i3so19437129qtc.7
+        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 11:10:42 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=5E4Tnav1S2Urq+vp9w2ZVy8g8n1qxLBmW9ozbHH5GYY=;
-        b=W0tOnLhzT5OsKuDvw+OlF0+iKnkYU/rndUpruFfRoAzWyh2eApYkD31JPuBWnEBSWP
-         CawhFtRltcR9SwsFqnwAxZPliW5lL/KBRB12P7gLSqW8EzYPa7yEVbdhFOrZNKJjV4Hv
-         Uy51tYKTD0ZAbK2YtMghcw1kM12NFQb+QTtwl1tG95zbvkZba0JoKF+g8QzctdrK3iIm
-         E1hVpmfBIgRJpnKtLJMDebEKIdC8usMnIZpPVwbe74lcN435TJ7zfxFbb80UGXWL/NSM
-         PCAQgNhIpZagKpn9jzFb5yYM6dlfioSpDnKZ7/L50CM6sBq9UVRPKqjbJNLGIuObR/JW
-         2BHA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAW4u/5MryxintuncRGIwr6z0XVWSTBMYr0T0vDgULDWGQnG8AJT
-	7OOTGVH+aKnLcU3JWlM7IlRY2m999wi9JLqhj8dv62kvVX1PgY0632p4O8+6e94Le9gIfgfY+30
-	faSW1sKZrz93TY9af3YZL9IW24GmA1RRFBVlDWO+PwgiF/RvT82/t3o7ihxooP7QJSw==
-X-Received: by 2002:ac8:22d6:: with SMTP id g22mr15313712qta.97.1552072031050;
-        Fri, 08 Mar 2019 11:07:11 -0800 (PST)
-X-Google-Smtp-Source: APXvYqzX4wwjq5mkUNJR5FynuhCoJbiRdRZIZG6kD1HBowPIgDVrkmL+IxptTdzik2xU2SS2fT2h
-X-Received: by 2002:ac8:22d6:: with SMTP id g22mr15313631qta.97.1552072029872;
-        Fri, 08 Mar 2019 11:07:09 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1552072029; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to;
+        bh=FMBr24ynMW9XPu7VBssYQrMAzHMlm70SAIn8+HmMO90=;
+        b=p3VELv89tgTMqepm3PKK3m8ulFRSAqwP6jtkNyI6p54fcmShzv0shgC6f6G/k78hUc
+         8iR6M070pq8ZM1XJhXeBkBHEdat1YkeQ2N3js2w/+qUoxYNJXOQbOjfYYHsNw3K72L8t
+         i9HuEc/IeYw0cnxOLQeB4+TlFSjNlygUoQ/gkWIY9/bEFIth0C/ovyYyAmuW1sWvqZ7p
+         Lo0j5n3+v5n+4prx6E0vXnPTkb9MAV0eDIBR7/eVmrtIqE+kIJIHdvwZ3uT8nWHfkXrG
+         KpjeJxZGpYMt+xHt5M4B8iFv6Qch0rexXFkArtwTIhCj6P4XDdWvz5cGy1Lrj+vOHQke
+         9IPg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVMehI+AH25wu9IohWKsUUOw9pWw5AkFIqbeAJDLH5+vkFZhYGS
+	D+H/tkRjtsvR2Odpv1LDNXbSyW+PTnRwuALEWhpixNgznFcSmMjoKLOYsoTbuIEBxOQX7xyyHWA
+	GUKiCGyVRYnSP2sK23UO/tS9ppeZIB954SHTsHxY5skVCTdbYpG1co/kwAjHeDz2tZA==
+X-Received: by 2002:a37:657:: with SMTP id 84mr14551515qkg.86.1552072242572;
+        Fri, 08 Mar 2019 11:10:42 -0800 (PST)
+X-Google-Smtp-Source: APXvYqwYYPctBL/jBuQJ4o+5RhPSRFf6D3eOgfYviSMB2Q9yxiztqeP3s23LOHR5WbL2XLPm7moT
+X-Received: by 2002:a37:657:: with SMTP id 84mr14551465qkg.86.1552072241502;
+        Fri, 08 Mar 2019 11:10:41 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1552072241; cv=none;
         d=google.com; s=arc-20160816;
-        b=seXnffcPP2vrZ95C4/+qxiOIfGwuJ0gr6SsbjSM2NOmf6BJ684dqITAZ+9PPXwSPFI
-         jUeXHuHn3fXd0SX8ZxbhlzPUi+x22IH+cN4/nY1zYB69mxTLFCcNxT3PhtpP/qwIKb+H
-         7/bE1lDja1NXab9gunsX7UfXtJ/f5FlWFyOMum7iTqCWYpV/VpGz6OVVKUHa9Ma3O30T
-         zdRqQc38PPj86lB2VngnZHR8WDiymIYw9DY1NanGfvukyy3OFu+H54S9bqyGG/aY1ZzM
-         tJazk85mpwrM2K9KCt8fs9AWQdhG0jBM+/Rf5oFs2YFhp0lHv8/pp56cmiUAoO/zo04h
-         epDw==
+        b=nr0cYzkdwFC9RhQlszvUkxmKACuOtAwh6Fn8U85wugluqiKNaITmwnklXk4WlkZz75
+         Ts3qixg3jkTw2xBg/3rQYlXRZuxo29qLHc30gnPcPXaTOYyqu2qxTpHqTf8MVp3yRCv9
+         xI4jzQtb7M7OifajZIbK8CyonDLloBJSdSzoULxf/Qr42n3anmYseIuiH6hzx9f04XHL
+         PwLKBRaHPs+6h5YlANjm40ybTx5ZSMKdpoNuf6pt/4HiyaG1TOgPAqxx3LV6Ywhbgw0N
+         JyMDQiACWri2+8jOBAscVYcwUTus+14U+FIM0kVopfDVN9yZ/DgCo9/nSh3a70Bahpvx
+         7B2A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=5E4Tnav1S2Urq+vp9w2ZVy8g8n1qxLBmW9ozbHH5GYY=;
-        b=XjJrGjxfBrEArrIzC1ZL8yT1xxvjTzBddN/+iThpB22myJXSvBsJZTTLJW0oWMCdld
-         539mhIYgJ6dceTHGhWaZjcTfRLPBCKBWC6GtsdNo6bY4zNeDkmwps+C3Koe2GSLGFJIY
-         d3gfBSEFTRChVsnbWlJJ2VWOIgo1EPTDIIWZCt2Kr4OseqMjtOiqpyFV0txNxuIW0jng
-         aEPlbgjTSkFPPFZdshGtsWoDBlI7oD//YctW6DZfB0VB0kRedWxkAqY3VyJoJyE6fokL
-         8nH7mxtTQBlnfX00UG4BZzVfhbrphyGkkIf/828NItMfsfhjo4Vshthh5LoSqtHxpJqu
-         W/Zg==
+        h=in-reply-to:mime-version:user-agent:date:message-id:organization
+         :autocrypt:openpgp:from:references:cc:to:subject;
+        bh=FMBr24ynMW9XPu7VBssYQrMAzHMlm70SAIn8+HmMO90=;
+        b=nv/L8rRgOVKdO4da702QRfEu5kgfySGqMlYoIlyu+UCZsNHcYfOk25aMLGBEIyC6ot
+         BQJijDzwgRg+Kr/cZ34D6dF0uNGb0kaJZLy8gqa7B+gXtvmeLA4/ALhp7Wlt2jt+7/4F
+         eeJGpd6cCkdm4NgncUeDWW0ihZ7NGGQWj0UTHihL+LWFuiE9pczt9X43kF8hFoBU+nnY
+         EJ5JXXAPkXlremQV29O9WG+EhGFn2bBvoU2hZMxl873Y/gUaoJ5VYmx9mYL7yoZW1gJC
+         grOTmYFgYb3H8XWPgMuPL0UDzopcDX4j9e2wyitXHfHXZL6Nhc5v7Lh0K8JcUaEcHLQc
+         aqMg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p63si857020qkd.245.2019.03.08.11.07.09
+        by mx.google.com with ESMTPS id o35si616807qvf.8.2019.03.08.11.10.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Mar 2019 11:07:09 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Fri, 08 Mar 2019 11:10:41 -0800 (PST)
+Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id B543581F19;
-	Fri,  8 Mar 2019 19:07:08 +0000 (UTC)
-Received: from redhat.com (ovpn-124-248.rdu2.redhat.com [10.10.124.248])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 4CF165C1A1;
-	Fri,  8 Mar 2019 19:07:06 +0000 (UTC)
-Date: Fri, 8 Mar 2019 14:07:04 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-To: Christopher Lameter <cl@linux.com>
-Cc: john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm@kvack.org, Al Viro <viro@zeniv.linux.org.uk>,
-	Christian Benvenuti <benve@cisco.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Chinner <david@fromorbit.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>,
-	Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
-	Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
-	Matthew Wilcox <willy@infradead.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Mike Marciniszyn <mike.marciniszyn@intel.com>,
-	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
-	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [PATCH v3 0/1] mm: introduce put_user_page*(), placeholder
- versions
-Message-ID: <20190308190704.GC5618@redhat.com>
-References: <20190306235455.26348-1-jhubbard@nvidia.com>
- <010001695b4631cd-f4b8fcbf-a760-4267-afce-fb7969e3ff87-000000@email.amazonses.com>
+	by mx1.redhat.com (Postfix) with ESMTPS id 9E056C04D29A;
+	Fri,  8 Mar 2019 19:10:40 +0000 (UTC)
+Received: from [10.40.205.251] (unknown [10.40.205.251])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 33CCE1001DD4;
+	Fri,  8 Mar 2019 19:10:23 +0000 (UTC)
+Subject: Re: [RFC][Patch v9 2/6] KVM: Enables the kernel to isolate guest free
+ pages
+To: Alexander Duyck <alexander.duyck@gmail.com>,
+ "Michael S. Tsirkin" <mst@redhat.com>
+Cc: David Hildenbrand <david@redhat.com>, kvm list <kvm@vger.kernel.org>,
+ LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+ Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com,
+ pagupta@redhat.com, wei.w.wang@intel.com,
+ Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
+ dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>
+References: <20190306155048.12868-1-nitesh@redhat.com>
+ <20190306155048.12868-3-nitesh@redhat.com>
+ <CAKgT0UdDohCXZY3q9qhQsHw-2vKp_CAgvf2dd2e6U6KLsAkVng@mail.gmail.com>
+ <2d9ae889-a9b9-7969-4455-ff36944f388b@redhat.com>
+ <22e4b1cd-38a5-6642-8cbe-d68e4fcbb0b7@redhat.com>
+ <CAKgT0UcAqGX26pcQLzFUevHsLu-CtiyOYe15uG3bkhGZ5BJKAg@mail.gmail.com>
+ <78b604be-2129-a716-a7a6-f5b382c9fb9c@redhat.com>
+ <CAKgT0Uc_z9Vi+JhQcJYX+J9c4J56RRSkzzegbb2=9xO-NY3dgw@mail.gmail.com>
+ <20190307212845-mutt-send-email-mst@kernel.org>
+ <CAKgT0Ucu3EMsYBfdKtEiprrn-VBZy3Y+0HdEp5b4PO2SQgGsRw@mail.gmail.com>
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ VujM7c/b4pps
+Organization: Red Hat Inc,
+Message-ID: <17d2afa6-556e-ec73-40dc-beac536b3f20@redhat.com>
+Date: Fri, 8 Mar 2019 14:10:20 -0500
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <010001695b4631cd-f4b8fcbf-a760-4267-afce-fb7969e3ff87-000000@email.amazonses.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Fri, 08 Mar 2019 19:07:09 +0000 (UTC)
+In-Reply-To: <CAKgT0Ucu3EMsYBfdKtEiprrn-VBZy3Y+0HdEp5b4PO2SQgGsRw@mail.gmail.com>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="xD6yFrm8IWkNhOHZM6MlHlwxr5wIiR1nl"
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Fri, 08 Mar 2019 19:10:40 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 08, 2019 at 03:08:40AM +0000, Christopher Lameter wrote:
-> On Wed, 6 Mar 2019, john.hubbard@gmail.com wrote:
-> 
-> 
-> > GUP was first introduced for Direct IO (O_DIRECT), allowing filesystem code
-> > to get the struct page behind a virtual address and to let storage hardware
-> > perform a direct copy to or from that page. This is a short-lived access
-> > pattern, and as such, the window for a concurrent writeback of GUP'd page
-> > was small enough that there were not (we think) any reported problems.
-> > Also, userspace was expected to understand and accept that Direct IO was
-> > not synchronized with memory-mapped access to that data, nor with any
-> > process address space changes such as munmap(), mremap(), etc.
-> 
-> It would good if that understanding would be enforced somehow given the problems
-> that we see.
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--xD6yFrm8IWkNhOHZM6MlHlwxr5wIiR1nl
+Content-Type: multipart/mixed; boundary="dufyYFqOkdVSep0QbzK5h22WftvV2Qan2";
+ protected-headers="v1"
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>,
+ "Michael S. Tsirkin" <mst@redhat.com>
+Cc: David Hildenbrand <david@redhat.com>, kvm list <kvm@vger.kernel.org>,
+ LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+ Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com,
+ pagupta@redhat.com, wei.w.wang@intel.com,
+ Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
+ dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>
+Message-ID: <17d2afa6-556e-ec73-40dc-beac536b3f20@redhat.com>
+Subject: Re: [RFC][Patch v9 2/6] KVM: Enables the kernel to isolate guest free
+ pages
+References: <20190306155048.12868-1-nitesh@redhat.com>
+ <20190306155048.12868-3-nitesh@redhat.com>
+ <CAKgT0UdDohCXZY3q9qhQsHw-2vKp_CAgvf2dd2e6U6KLsAkVng@mail.gmail.com>
+ <2d9ae889-a9b9-7969-4455-ff36944f388b@redhat.com>
+ <22e4b1cd-38a5-6642-8cbe-d68e4fcbb0b7@redhat.com>
+ <CAKgT0UcAqGX26pcQLzFUevHsLu-CtiyOYe15uG3bkhGZ5BJKAg@mail.gmail.com>
+ <78b604be-2129-a716-a7a6-f5b382c9fb9c@redhat.com>
+ <CAKgT0Uc_z9Vi+JhQcJYX+J9c4J56RRSkzzegbb2=9xO-NY3dgw@mail.gmail.com>
+ <20190307212845-mutt-send-email-mst@kernel.org>
+ <CAKgT0Ucu3EMsYBfdKtEiprrn-VBZy3Y+0HdEp5b4PO2SQgGsRw@mail.gmail.com>
+In-Reply-To: <CAKgT0Ucu3EMsYBfdKtEiprrn-VBZy3Y+0HdEp5b4PO2SQgGsRw@mail.gmail.com>
 
-This has been discuss extensively already. GUP usage is now widespread in
-multiple drivers, removing that would regress userspace ie break existing
-application. We all know what the rules for that is.
+--dufyYFqOkdVSep0QbzK5h22WftvV2Qan2
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
 
-> 
-> > Interactions with file systems
-> > ==============================
-> >
-> > File systems expect to be able to write back data, both to reclaim pages,
-> 
-> Regular filesystems do that. But usually those are not used with GUP
-> pinning AFAICT.
-> 
-> > and for data integrity. Allowing other hardware (NICs, GPUs, etc) to gain
-> > write access to the file memory pages means that such hardware can dirty
-> > the pages, without the filesystem being aware. This can, in some cases
-> > (depending on filesystem, filesystem options, block device, block device
-> > options, and other variables), lead to data corruption, and also to kernel
-> > bugs of the form:
-> 
-> > Long term GUP
-> > =============
-> >
-> > Long term GUP is an issue when FOLL_WRITE is specified to GUP (so, a
-> > writeable mapping is created), and the pages are file-backed. That can lead
-> > to filesystem corruption. What happens is that when a file-backed page is
-> > being written back, it is first mapped read-only in all of the CPU page
-> > tables; the file system then assumes that nobody can write to the page, and
-> > that the page content is therefore stable. Unfortunately, the GUP callers
-> > generally do not monitor changes to the CPU pages tables; they instead
-> > assume that the following pattern is safe (it's not):
-> >
-> >     get_user_pages()
-> >
-> >     Hardware can keep a reference to those pages for a very long time,
-> >     and write to it at any time. Because "hardware" here means "devices
-> >     that are not a CPU", this activity occurs without any interaction
-> >     with the kernel's file system code.
-> >
-> >     for each page
-> >         set_page_dirty
-> >         put_page()
-> >
-> > In fact, the GUP documentation even recommends that pattern.
-> 
-> Isnt that pattern safe for anonymous memory and memory filesystems like
-> hugetlbfs etc? Which is the common use case.
 
-Still an issue in respect to swapout ie if anon/shmem page was map
-read only in preparation for swapout and we do not report the page
-as dirty what endup in swap might lack what was written last through
-GUP.
+On 3/8/19 1:06 PM, Alexander Duyck wrote:
+> On Thu, Mar 7, 2019 at 6:32 PM Michael S. Tsirkin <mst@redhat.com> wrot=
+e:
+>> On Thu, Mar 07, 2019 at 02:35:53PM -0800, Alexander Duyck wrote:
+>>> The only other thing I still want to try and see if I can do is to ad=
+d
+>>> a jiffies value to the page private data in the case of the buddy
+>>> pages.
+>> Actually there's one extra thing I think we should do, and that is mak=
+e
+>> sure we do not leave less than X% off the free memory at a time.
+>> This way chances of triggering an OOM are lower.
+> If nothing else we could probably look at doing a watermark of some
+> sort so we have to have X amount of memory free but not hinted before
+> we will start providing the hints. It would just be a matter of
+> tracking how much memory we have hinted on versus the amount of memory
+> that has been pulled from that pool.
+This is to avoid false OOM in the guest?
+>  It is another reason why we
+> probably want a bit in the buddy pages somewhere to indicate if a page
+> has been hinted or not as we can then use that to determine if we have
+> to account for it in the statistics.
 
-> 
-> > Anyway, the file system assumes that the page is stable (nothing is writing
-> > to the page), and that is a problem: stable page content is necessary for
-> > many filesystem actions during writeback, such as checksum, encryption,
-> > RAID striping, etc. Furthermore, filesystem features like COW (copy on
-> > write) or snapshot also rely on being able to use a new page for as memory
-> > for that memory range inside the file.
-> >
-> > Corruption during write back is clearly possible here. To solve that, one
-> > idea is to identify pages that have active GUP, so that we can use a bounce
-> > page to write stable data to the filesystem. The filesystem would work
-> > on the bounce page, while any of the active GUP might write to the
-> > original page. This would avoid the stable page violation problem, but note
-> > that it is only part of the overall solution, because other problems
-> > remain.
-> 
-> Yes you now have the filesystem as well as the GUP pinner claiming
-> authority over the contents of a single memory segment. Maybe better not
-> allow that?
+The one benefit which I can see of having an explicit bit is that it
+will help us to have a single hook away from the hot path within buddy
+merging code (just like your arch_merge_page) and still avoid duplicate
+hints while releasing pages.
 
-This goes back to regressing existing driver with existing users.
+I still have to check PG_idle and PG_young which you mentioned but I
+don't think we can reuse any existing bits.
 
-> 
-> > Direct IO
-> > =========
-> >
-> > Direct IO can cause corruption, if userspace does Direct-IO that writes to
-> > a range of virtual addresses that are mmap'd to a file.  The pages written
-> > to are file-backed pages that can be under write back, while the Direct IO
-> > is taking place.  Here, Direct IO races with a write back: it calls
-> > GUP before page_mkclean() has replaced the CPU pte with a read-only entry.
-> > The race window is pretty small, which is probably why years have gone by
-> > before we noticed this problem: Direct IO is generally very quick, and
-> > tends to finish up before the filesystem gets around to do anything with
-> > the page contents.  However, it's still a real problem.  The solution is
-> > to never let GUP return pages that are under write back, but instead,
-> > force GUP to take a write fault on those pages.  That way, GUP will
-> > properly synchronize with the active write back.  This does not change the
-> > required GUP behavior, it just avoids that race.
-> 
-> Direct IO on a mmapped file backed page doesnt make any sense. The direct
-> I/O write syscall already specifies one file handle of a filesystem that
-> the data is to be written onto.  Plus mmap already established another
-> second filehandle and another filesystem that is also in charge of that
-> memory segment.
-> 
-> Two filesystem trying to sync one memory segment both believing to have
-> exclusive access and we want to sort this out. Why? Dont allow this.
+If we really want to have something like a watermark, then can't we use
+zone->free_pages before isolating to see how many free pages are there
+and put a threshold on it? (__isolate_free_page() does a similar thing
+but it does that on per request basis).
 
-This is allowed, it always was, forbidding that case now would regress
-existing application and it would also means that we are modifying the
-API we expose to userspace. So again this is not something we can block
-without regressing existing user.
+>
+>>> With that we could track the age of the page so it becomes
+>>> easier to only target pages that are truly going cold rather than
+>>> trying to grab pages that were added to the freelist recently.
+>> I like that but I have a vague memory of discussing this with Rik van
+>> Riel and him saying it's actually better to take away recently used
+>> ones. Can't see why would that be but maybe I remember wrong. Rik - am=
+ I
+>> just confused?
+> It is probably to cut down on the need for disk writes in the case of
+> swap. If that is the case it ends up being a trade off.
+>
+> The sooner we hint the less likely it is that we will need to write a
+> given page to disk. However the sooner we hint, the more likely it is
+> we will need to trigger a page fault and pull back in a zero page to
+> populate the last page we were working on. The sweet spot will be that
+> period of time that is somewhere in between so we don't trigger
+> unnecessary page faults and we don't need to perform additional swap
+> reads/writes.
+--=20
+Regards
+Nitesh
 
-Cheers,
-Jérôme
+
+--dufyYFqOkdVSep0QbzK5h22WftvV2Qan2--
+
+--xD6yFrm8IWkNhOHZM6MlHlwxr5wIiR1nl
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEkXcoRVGaqvbHPuAGo4ZA3AYyozkFAlyCvhwACgkQo4ZA3AYy
+ozklHg//U4m8Ze127fvPDuSxHHYFcioTxdYLp2hdRLjhbWE4Oe+dBBHYmh53nkzq
+wWcMhfbDNBDBf1wYcPLEK+i1Hrf0GXyzAFd0XO0W8tOcv4AQi+q7KtZR9ieMaLyo
+sqxAlflvm+Vn6o89L+6mLW/l/xh/83J6GJjwETBvogCX/z84wx+AaZ4Iq5aV561P
+h7OpQJdyywMMRE8PRvh3kYGppGqLZ5kDtCbbC4QVOjXM8Hzu40MqJzrqU2rndPHo
+qOv4cIIBLxmS4nX288aRKSBr9Y6HDs1KnUv8gjwSA6yW0wd5SnZE4CrR4ERNmXc0
+KqNABQdpyZI1lEoao8Cf6yGnrPKUmV7Md7NwldWYOiE7/2Oy8AlDJG6xWywU+nHV
+mgumckUeZiOd7gr8ZLX1W+GlVafa4Sxj8s87rLgaAeC5uyvAAIHA4XzNa3NkdJnW
+J3bjvxr9DlWKVJoq4n6NUG918u8FH+kdBLmHChJwwB2SN5crCYuMxeEhESGY0jGi
+7UzUgF8e3gEHWcnZ4MZ3xsUyxBcFAyhzh5jHmCYqINe10sdZN4ebRqdONFebRS5v
+MXhRko7axTD7BW1goaaLEwEp7FY7xhNRg1JNeJUfsuWNCl2YnJiR7aobHF93jXjR
+3fDCjQ5FQGdkQzkrLwIls+ycXbZ9kktcaOxEvPoU59l2XLbPSLY=
+=Rc9w
+-----END PGP SIGNATURE-----
+
+--xD6yFrm8IWkNhOHZM6MlHlwxr5wIiR1nl--
 
