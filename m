@@ -2,125 +2,158 @@ Return-Path: <SRS0=92PK=RL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6DB13C4360F
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 08:18:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BF4FFC43381
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 08:31:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 317552081B
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 08:18:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 317552081B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id 8A55020811
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 08:31:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A55020811
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 93FF78E0003; Fri,  8 Mar 2019 03:18:14 -0500 (EST)
+	id 58CB68E0004; Fri,  8 Mar 2019 03:31:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8C76A8E0002; Fri,  8 Mar 2019 03:18:14 -0500 (EST)
+	id 53AD58E0002; Fri,  8 Mar 2019 03:31:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 78EEE8E0003; Fri,  8 Mar 2019 03:18:14 -0500 (EST)
+	id 450688E0004; Fri,  8 Mar 2019 03:31:41 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E6118E0002
-	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 03:18:14 -0500 (EST)
-Received: by mail-wm1-f69.google.com with SMTP id r8so3345495wme.2
-        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 00:18:14 -0800 (PST)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 196FB8E0002
+	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 03:31:41 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id t13so3646392qkm.2
+        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 00:31:41 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=hC4T6u1BRvOkqIp+Jt0JbQCJRWtZMS76tvYDhQtpJFw=;
-        b=Wf/aXmxJxM7X/PMAgA4d/r0D2SWpNgl8AxA+0KZlPEGoec9fVxvTyVXhf2MQBxZjgL
-         I0rBBFu3zTeLV/IdP3OtT1rOxyYT+XgYULca+/81efRho/n90bO3UKG0B/bMFXD9cXb0
-         1P3+lY8wCZ+YmNePpUsuWqzYnAX9PDJfyRweC7leGZx3iKXFx+WJQHrhl8G/2emGjnHy
-         6UGEEXWQgoTuGBVssvXw99KAL4YmEtMEw13iTWi84NVkTkF562YAJbLc+D0kF6z61mLm
-         BEQVZdJlQB/Ubilr6Auu2vrtK1abjXgmK6A1lcBfsel+A2Co9xThy0I7Daqo3880LIn4
-         qN3Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: APjAAAVn/JF+coQwGvIHS3aZEmkY9XLaMb1xxeytevnrBYPYxTp7r7wT
-	0lkl9d1CbRG6Ewpx3MT8xjlDiPhEJ/0cOhGPuGvQA1LaWma5XlenzaZkIzi/M5UjWrjIn0tjXqP
-	MGUkCzkRx+uP8YXA5rngxqCadHLEpsJdiVvyJS6gYZ+3xnkE0vwBGwycd7ApkAe0feg==
-X-Received: by 2002:a5d:53c2:: with SMTP id a2mr9612158wrw.244.1552033093544;
-        Fri, 08 Mar 2019 00:18:13 -0800 (PST)
-X-Google-Smtp-Source: APXvYqwP3urpfxgVjclQAGzz/7XasdmT9OIy8aOG6Pzk/T4XA0V5IxGEVcKSONiQYJUdyi6yk/Yx
-X-Received: by 2002:a5d:53c2:: with SMTP id a2mr9612110wrw.244.1552033092644;
-        Fri, 08 Mar 2019 00:18:12 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1552033092; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=LDLvu3bgPlLprKlle7wIEeDM1lyxWYMbYNm7tRx0nR4=;
+        b=c+FJ/ZGorQFZhhdRF9mQCR4rEdIODtoXmO06l7e5XuC7FK5zL0QcsYA02DYX6mHVM+
+         +kG0SZKv2cFv7O3llwUJRhd5RZJyrlya7d0zSAjDqqPLzgQK3aBwC9KKhjBozNeVjEVl
+         ynMHUpoM2SDjfISyG4vi+LU568MKi1o3CR+wMbgYf+3biLCSEAlNbfa8nHibg7dp152x
+         FCcqrpK9Sd+W7l7TN6Au4bBAb92+NVtIQ7/SCEqcQiR4rlCCrP4Zhxxpqcvq1zesZi5x
+         071MagYZVgj1RGZGzOzkk4QEpKj4z9zgvJKn5mqTzeI6SQlH2RuaLYzetio3f4U1sW+g
+         pyZQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAX0z+x1knoozLLUrLpe13bGAnQZXkKplwO5d+YM/zJt5L81s9M9
+	zBGdZ+hU6nS985AP+NmHkP6zWaX3oyiMdDRhRYMxOT6LPaw0tsXfLx930diwrhiUn+WGsTDxHzh
+	SS0goJ5Wqjv2UmdzD0T5zzHBtUkRXXWBX5ddh3kyF7V/dDNEuLbyW9Zy/9PXlZDUh3g==
+X-Received: by 2002:a0c:d1a7:: with SMTP id e36mr14360790qvh.127.1552033900717;
+        Fri, 08 Mar 2019 00:31:40 -0800 (PST)
+X-Google-Smtp-Source: APXvYqyvsDUjcvN7J2daJBrlQlH/xUc/T4Uj3pmbJ5CuoIy03MMuwJrWupQoMqA7Ab02vriodA42
+X-Received: by 2002:a0c:d1a7:: with SMTP id e36mr14360748qvh.127.1552033899859;
+        Fri, 08 Mar 2019 00:31:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1552033899; cv=none;
         d=google.com; s=arc-20160816;
-        b=Kf8NY9rKxXI8PJO8rHgZ/t/JPO6n2uyG2QunlFayJwvq15Wm+/QpZ7a9BmQScWIdzz
-         830aHA2qOjI028tB0czvW6Ele+5As4bZqIW20zGSsv4IdiBGKUw7AG3QZRdh3VZQ0HA3
-         QUUGDR5E9BnaftkWDAJE44WU4UgSx9e3BtmdetQ2qwaZbmI+R2AuUx8hJ4kbTBzbUDJE
-         KP/de751LBxaj27GYvyeuitAvwfqlUXlc1gmvZX9FxffFs6ncYLNrNikfBB4Zu+rMwAY
-         UN5NhHO+KpmkKDeaaxkuYSgc3gjlWq/Bu7n+ZAflDDEtLjfJTmPnauN0TJkLu4H9VH6U
-         S+Vw==
+        b=0WLircjdaUqnLNzRhOkepK5RiRxABeGC4eUppkd7IJOkVI1V83GCnJzd/wahEvAOAN
+         cd2Z7Q2F9zstqTK9Vf9CEaXrwxRRA84juEJwXwVX0tNKN9n0Baduew2gWG+F+1QnTIXA
+         IfuJsbUwzC/N69dqMA4ZBPdl9TnuK4Bzy6UcXIHVB6jBbtiJvNynsKt5kl84ArJe+EXL
+         et3dN6sTOYaGzPY6fDOFVJsY6HYxwftWX+kL3GUzedHfQRJnGTP7PcIZH2JhJ5Jwe1Tw
+         hst0Of+m5Ivu62lRpTP9qGmef6oc/IPNT6yeGZBCB1xayl75AY+zeuvFGkMdlvHuqVhz
+         17VA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=hC4T6u1BRvOkqIp+Jt0JbQCJRWtZMS76tvYDhQtpJFw=;
-        b=mSImsQlLnCtQs91U5oC8ZFBO2DplH97hXVcqBmLDHP85vXc+nqY5TFlX37dWorcVCT
-         NYLycVjIRU9fjbxI71KHZ3fZHGwdEuOEAvUf3TWUW15kus4aLsJoIlHo7hMInAqVsvYV
-         ZOV84Co+8UuzfrScwp11KaJBE5Zb3RRH3LhPMfom75e3tz9Zmx60Rc2Hvf7X46sWxLx+
-         CWz7vMqNfY8U1e6EgN2YwTd0cNRAcJPu1Ny3Rz3ZDZLNuidxpL3cBSR4KKeu3m9K5P+h
-         XSsF8KYUJxV1HXvCuHW3Q5+VbE4DoV3eKj+4XZKzCwyV3wr2nrTdyHvKsg0wKYKlR24p
-         CVcQ==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=LDLvu3bgPlLprKlle7wIEeDM1lyxWYMbYNm7tRx0nR4=;
+        b=PhKonK4qwhEOJvNlwNEcooAYjMG3VIXo6ASqV6Guo2yqbZeWSB4IYl6QgxA+EeTfE5
+         13VaTacB/gaJBt3/bzcyyQCie2uy4OjE0MbB40v+51zUNTMbRocIVl0KQAHben4s2jKA
+         Tb0fr87HPdJJUbe/luZh7Y34XhZKY2ovvr/3X6LZe7gaxkq0Ym6791q30fp/dAdB6mLM
+         g08/Ud77dhQzpnku3mTaR4Rzx8TSkPzl4nVS8mz9TeEofB+tJTv1c67I/LJgzO15UBDw
+         VhtaETakLnDOKov6xYdW9DVtFbcSeCmtnTyZI8WrpBppu6U/MDA3uKoVfjz/VYWCGdWh
+         wr7w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id b22si4306350wmb.128.2019.03.08.00.18.12
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l81si2119455qke.236.2019.03.08.00.31.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Mar 2019 00:18:12 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        Fri, 08 Mar 2019 00:31:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by newverein.lst.de (Postfix, from userid 2407)
-	id 0585868C4E; Fri,  8 Mar 2019 09:18:08 +0100 (CET)
-Date: Fri, 8 Mar 2019 09:18:07 +0100
-From: Christoph Hellwig <hch@lst.de>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Matthew Wilcox <willy@infradead.org>,
-	"Darrick J. Wong" <darrick.wong@oracle.com>,
-	Ming Lei <ming.lei@redhat.com>, Ming Lei <tom.leiming@gmail.com>,
-	Dave Chinner <david@fromorbit.com>,
-	"open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>,
-	Jens Axboe <axboe@kernel.dk>,
-	Vitaly Kuznetsov <vkuznets@redhat.com>,
-	Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>,
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
-	Aaron Lu <aaron.lu@intel.com>, Christopher Lameter <cl@linux.com>,
-	Linux FS Devel <linux-fsdevel@vger.kernel.org>,
-	linux-mm <linux-mm@kvack.org>,
-	linux-block <linux-block@vger.kernel.org>,
-	Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] xfs: allocate sector sized IO buffer via
- page_frag_alloc
-Message-ID: <20190308081807.GB12909@lst.de>
-References: <a641feb8-ceb2-2dac-27aa-7b1df10f5ae5@suse.cz> <CACVXFVMX=WpTRBbDTSibfXkTZxckk3ootetbE+rkJtHhsZkRAw@mail.gmail.com> <20190226121209.GC11592@bombadil.infradead.org> <20190226123545.GA6163@ming.t460p> <20190226130230.GD11592@bombadil.infradead.org> <20190226134247.GA30942@ming.t460p> <20190226140440.GF11592@bombadil.infradead.org> <20190226161433.GH21626@magnolia> <20190226161912.GG11592@bombadil.infradead.org> <095ae112-f98e-9516-910a-43b49ea5bf0d@suse.cz>
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id E0B2310C6C;
+	Fri,  8 Mar 2019 08:31:38 +0000 (UTC)
+Received: from [10.72.12.27] (ovpn-12-27.pek2.redhat.com [10.72.12.27])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id C3731611D1;
+	Fri,  8 Mar 2019 08:31:31 +0000 (UTC)
+Subject: Re: [RFC PATCH V2 5/5] vhost: access vq metadata through kernel
+ virtual address
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: kvm@vger.kernel.org, virtualization@lists.linux-foundation.org,
+ netdev@vger.kernel.org, linux-kernel@vger.kernel.org, peterx@redhat.com,
+ linux-mm@kvack.org, aarcange@redhat.com
+References: <1551856692-3384-1-git-send-email-jasowang@redhat.com>
+ <1551856692-3384-6-git-send-email-jasowang@redhat.com>
+ <20190306092837-mutt-send-email-mst@kernel.org>
+ <15105894-4ec1-1ed0-1976-7b68ed9eeeda@redhat.com>
+ <20190307101708-mutt-send-email-mst@kernel.org>
+From: Jason Wang <jasowang@redhat.com>
+Message-ID: <92dfa6cc-a86c-0cef-6384-98aeb8b9e567@redhat.com>
+Date: Fri, 8 Mar 2019 16:31:29 +0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <095ae112-f98e-9516-910a-43b49ea5bf0d@suse.cz>
-User-Agent: Mutt/1.5.17 (2007-11-01)
+In-Reply-To: <20190307101708-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Fri, 08 Mar 2019 08:31:38 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 27, 2019 at 08:07:31AM +0100, Vlastimil Babka wrote:
-> > I don't know _what_ Ming Lei is saying.  I thought the problem was
-> > with slab redzones, which need to be before and after each object,
-> > but apparently the problem is with KASAN as well.
-> 
-> That's what I thought as well. But if we can solve it for caches created
-> by kmem_cache_create(..., align, ...) then IMHO we could guarantee
-> natural alignment for power-of-two kmalloc caches as well.
 
-Yes, having a version of kmalloc that guarantees power of two alignment
-would be extremely helpful and avoid a lot of pointless boilerplate code.
+On 2019/3/7 下午11:34, Michael S. Tsirkin wrote:
+> On Thu, Mar 07, 2019 at 10:45:57AM +0800, Jason Wang wrote:
+>> On 2019/3/7 上午12:31, Michael S. Tsirkin wrote:
+>>>> +static void vhost_set_vmap_dirty(struct vhost_vmap *used)
+>>>> +{
+>>>> +	int i;
+>>>> +
+>>>> +	for (i = 0; i < used->npages; i++)
+>>>> +		set_page_dirty_lock(used->pages[i]);
+>>> This seems to rely on page lock to mark page dirty.
+>>>
+>>> Could it happen that page writeback will check the
+>>> page, find it clean, and then you mark it dirty and then
+>>> invalidate callback is called?
+>>>
+>>>
+>> Yes. But does this break anything?
+>> The page is still there, we just remove a
+>> kernel mapping to it.
+>>
+>> Thanks
+> Yes it's the same problem as e.g. RDMA:
+> 	we've just marked the page as dirty without having buffers.
+> 	Eventually writeback will find it and filesystem will complain...
+> 	So if the pages are backed by a non-RAM-based filesystem, it’s all just broken.
+
+
+Yes, we can't depend on the pages that might have been invalidated. As 
+suggested, the only suitable place is the MMU notifier callbacks.
+
+Thanks
+
+
+> one can hope that RDMA guys will fix it in some way eventually.
+> For now, maybe add a flag in e.g. VMA that says that there's no
+> writeback so it's safe to mark page dirty at any point?
+>
+>
+>
+>
+>
 
