@@ -2,291 +2,276 @@ Return-Path: <SRS0=92PK=RL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3A5DAC43381
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 08:38:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 01034C43381
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 08:50:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D7C2520811
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 08:38:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D7C2520811
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 8C11820684
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 08:50:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8C11820684
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 734048E0004; Fri,  8 Mar 2019 03:38:01 -0500 (EST)
+	id E7D778E0003; Fri,  8 Mar 2019 03:50:50 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6E3318E0002; Fri,  8 Mar 2019 03:38:01 -0500 (EST)
+	id E2CE78E0002; Fri,  8 Mar 2019 03:50:50 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 586408E0004; Fri,  8 Mar 2019 03:38:01 -0500 (EST)
+	id D42D18E0003; Fri,  8 Mar 2019 03:50:50 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 28E2A8E0002
-	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 03:38:01 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id u66so4014620qkf.17
-        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 00:38:01 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id AC1AE8E0002
+	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 03:50:50 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id k21so15504123qkg.19
+        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 00:50:50 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=ePhRCP/1RbXIVh3HvW2KjFjjpUVfZZoUSVe3o/osuz8=;
-        b=GS+hibjtAgX+wCCrjoAupEr6qJ0+Pf9stdvh4J29sL3Qdb2o+Eu2A0hTkLlGPD85rp
-         qEg+iQixiNnQiJ71WQGk3IyW2SkbfrFFcohCVL58yXZ547TlSI5xpVdtynk7rDQ4vydZ
-         sA+GToBBFMit+ToIJAEr8rcM61U/6MgyVCH8AnnNfKmDeXK0Sp5g1HAls47nWBFbijhC
-         S0EbAw4XNb3FOXd2MnTMyzf/sejvP3ytDfGMYs/xAy0Y7yNuF0w1ev4s3i0MLMuoDPOo
-         6nROD5EA09dKHJvLWWZeTrHOYt+wCsik8dfYH7cC1sCmlSaF6DodzigL1TJR/+LL9qBR
-         E8dw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAV3dZalwsZ6fJbtpsiVyyVLmzSK9UDn1mVmqDCkAPez13pXtF7W
-	zMMtHWtOck8SmOf/sStMo6g7wE3EHDJxhf3/s1tAtaW6iH+tsPp+ryCYNTcVtssfFLt3HtdClGn
-	K1fiKbZPk8pTDC7oFq2AGoqN3Z/fKmMLyF/+jEBKYEyFb34VMm9eTVTEQRoZxvy079g==
-X-Received: by 2002:a37:5f85:: with SMTP id t127mr13415408qkb.268.1552034280905;
-        Fri, 08 Mar 2019 00:38:00 -0800 (PST)
-X-Google-Smtp-Source: APXvYqwr9hkVeCK4JJ3XrnSzf7W1pA72NxX/bbL9zgGD1rb7HAXhIFcPolgpwllW6LsQZT5zAv5C
-X-Received: by 2002:a37:5f85:: with SMTP id t127mr13415377qkb.268.1552034280242;
-        Fri, 08 Mar 2019 00:38:00 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1552034280; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=9enBgOU8y+sWTs3bRAOAEeGMAvftWKvi1kqpH53zTEk=;
+        b=BaLg+/m/QueKkc3emrI4qEIFS3pyFuHeb1qhsCt8iu67/c0h5CVQu0aSVP1WMHfwfY
+         MBgs/nyFKnEZzKXuIHUtGlB7mCPFTHDhIa0PwKiPS56nYqLro/aOvcAnVMefLcx91kcX
+         +ukQfcxqcpwdYm0mTRgK+4+ZGuJ1gJXCx5yCQk+W8zAhJMzximw0h56oMPJhfOGgMSqb
+         CCbU6yoUZIGhI6wN9f2bS0dRersgLirlIVhl0B25ctevkJLj314iA6aBFHDQQT6JNanD
+         oBVNIATulCtYQaWFxVdRsSr5TzwL0Xo6u7sEvq8zu1iyK+P6OweXRN1V8rOiMoUmTYIt
+         dgHw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUJlYFexLTOFO+E83WeU+LmJLlg7hLUIg0V1PqOcNVmR9ovq41z
+	qfuu4y2jCChBBE9QA6Xp+QR12CqtKfVPMpD/MmG3yqhl2x/nSsvNfOGb3mkBvmkRWOYvEILkp9c
+	AC+0ECbL2QH8Et6OvFNYrAhClSR1mZN6bd3xesaS9QS8sheaE/8Qt9PK8lZErpB8MSA==
+X-Received: by 2002:a37:c30d:: with SMTP id a13mr13381271qkj.18.1552035050413;
+        Fri, 08 Mar 2019 00:50:50 -0800 (PST)
+X-Google-Smtp-Source: APXvYqwKXuN1usroZ10gPHBGvbmT3E3LkYVKj361uLaGTk3Poi0iIlXaswT18dLOCTizYcHjQSON
+X-Received: by 2002:a37:c30d:: with SMTP id a13mr13381226qkj.18.1552035049299;
+        Fri, 08 Mar 2019 00:50:49 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1552035049; cv=none;
         d=google.com; s=arc-20160816;
-        b=Wgeng7PkLSyZCUmbjlpasTJlXaXCz7ZUN4HqMzXw8vNzxGaEGaCO04Gr6AKS/Ruc6z
-         ot8mOPNbnj7fxgMDRpv6xAo23S4YhMQoIq6i6yQiw9RIlV+W0ePsgbCtlULy3pDlAk7k
-         e8qQOaDjj8gRVfO1c0vyTz9f9hxj2gx4WsmQ7m6jjEMbxDCdzKELgM9pe6maVSo2G8VO
-         nolnmVWR7/ordtj5hSOTycGlzng6CmdKlhVPCI0KxG+EmwbLe4DXkx5zM1YM5Zzw3G4c
-         TDaQSX8hb43bkoSvTjJiGR53Loc3CBbFtmC/7Mblr6/vt1H7T37amRuQPB2m7ZNe2h5k
-         s20Q==
+        b=FmrPI3imdC71eeheLhiCdazJFfUiIFB6p8sp78OYWr1zGYZ/asgLTtfNqd1PY8eIxQ
+         w2mSl68BrW5Iw6q+3pF0em5nwTg1ULzwfdrn28v+F3tl7kvT89qqmamrXETaHhbOBaxk
+         gBC+dyvZluwaGXLGygwRYi2ZzWCoLuMTwuZmE7+zKOMbHKCubqS5wreU/Drc0nCcSleC
+         bcJqLrVbvt8xzJYJKkejXmxiCCTK3+Q9UqbHVrfG6endImVhUt0hn8g+HtZDNCDGeF4s
+         TRc+kpkI/sr0Kak+5oW2fUlhBfntYfLjfo1ICsUcasRhUClLRStco1qCOx1oqSY8Gffl
+         1Pjg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=ePhRCP/1RbXIVh3HvW2KjFjjpUVfZZoUSVe3o/osuz8=;
-        b=vpM38c/b7/+L6O4SU5bgfbfH0g0fJ7QLt0t6/mqAZd49M3jQWY1qPrjbIlhRWVOtLf
-         caDjJHmLcNlfki+7XuX6y3MQODTgdNtL2IMMWomRmuBYzXB7mpYBdYAcqxufT/O885cA
-         2EB+UJO857Xls1q2w6AldrDL3Zmrozpj59AndkAf4KC5BArPvif8EQcITEhIWxpCYix0
-         tUMIGNkyV0Z8A4wiWtVfcNEbxbn+GsEP7aR8ThiPdRI0LyqyIbzxIMksq6CwFm3WTzGU
-         IC4w0SnspD5fP5GGaZeM/G4a+IUO95LCbI8OeqqYr4fBPor3Qja61cZ0j1FpO8tENBk1
-         MKJQ==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=9enBgOU8y+sWTs3bRAOAEeGMAvftWKvi1kqpH53zTEk=;
+        b=W8+faj4rbiouMpusgZu8IHX5k4T6Ly/KYZid8lYtVqF07pcegvn2pgsvGtauxI0EI2
+         M1l0nqcstvP9aqxIE3w/7SFUE95PAeIBMS9/tpeaziFH+h+xh9rIvjY3hsMWkQsh6NLr
+         la2lGu2nSVbM+KUoGxPVSD4F5StlrTSjRzJ7MGFYYirtT3At7GRtQH2N/nEmT2dLICUB
+         Vq61RlhrgkXTMxPCD4xQyoXKsbXB5BksvPSKdWw6O1a70ouZffclCsRUVPkaSA7brb7G
+         gkJuvgz7K9M3Qpv31rJqfTAAI8ovHMdG0OwqJ/qpJ8lO/giMSMRGp3b05xiTZw2Ehrg6
+         rEkA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id x19si3790744qkf.241.2019.03.08.00.37.59
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f12si1936346qvh.98.2019.03.08.00.50.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Mar 2019 00:37:59 -0800 (PST)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Fri, 08 Mar 2019 00:50:49 -0800 (PST)
+Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x288XnnN067536
-	for <linux-mm@kvack.org>; Fri, 8 Mar 2019 03:37:59 -0500
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2r3krsu90k-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 08 Mar 2019 03:37:59 -0500
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Fri, 8 Mar 2019 08:37:57 -0000
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Fri, 8 Mar 2019 08:37:50 -0000
-Received: from d06av21.portsmouth.uk.ibm.com (d06av21.portsmouth.uk.ibm.com [9.149.105.232])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x288bnKj60686356
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 8 Mar 2019 08:37:49 GMT
-Received: from d06av21.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 281C15204F;
-	Fri,  8 Mar 2019 08:37:49 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.204.28])
-	by d06av21.portsmouth.uk.ibm.com (Postfix) with ESMTPS id EF93D52052;
-	Fri,  8 Mar 2019 08:37:46 +0000 (GMT)
-Date: Fri, 8 Mar 2019 10:37:45 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Steven Price <steven.price@arm.com>
-Cc: linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>,
-        Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-        Arnd Bergmann <arnd@arndb.de>, Borislav Petkov <bp@alien8.de>,
-        Catalin Marinas <catalin.marinas@arm.com>,
-        Dave Hansen <dave.hansen@linux.intel.com>,
-        Ingo Molnar <mingo@redhat.com>, James Morse <james.morse@arm.com>,
-        =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-        Peter Zijlstra <peterz@infradead.org>,
-        Thomas Gleixner <tglx@linutronix.de>,
-        Will Deacon <will.deacon@arm.com>, x86@kernel.org,
-        "H. Peter Anvin" <hpa@zytor.com>, linux-arm-kernel@lists.infradead.org,
-        linux-kernel@vger.kernel.org, Mark Rutland <Mark.Rutland@arm.com>,
-        "Liang, Kan" <kan.liang@linux.intel.com>,
-        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-        Paul Mackerras <paulus@samba.org>,
-        Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org,
-        kvm-ppc@vger.kernel.org
-Subject: Re: [PATCH v4 04/19] powerpc: mm: Add p?d_large() definitions
-References: <20190306155031.4291-1-steven.price@arm.com>
- <20190306155031.4291-5-steven.price@arm.com>
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 6D5C788306;
+	Fri,  8 Mar 2019 08:50:48 +0000 (UTC)
+Received: from [10.72.12.27] (ovpn-12-27.pek2.redhat.com [10.72.12.27])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id BD200611DF;
+	Fri,  8 Mar 2019 08:50:37 +0000 (UTC)
+Subject: Re: [RFC PATCH V2 5/5] vhost: access vq metadata through kernel
+ virtual address
+To: Andrea Arcangeli <aarcange@redhat.com>,
+ "Michael S. Tsirkin" <mst@redhat.com>
+Cc: kvm@vger.kernel.org, virtualization@lists.linux-foundation.org,
+ netdev@vger.kernel.org, linux-kernel@vger.kernel.org, peterx@redhat.com,
+ linux-mm@kvack.org, Jerome Glisse <jglisse@redhat.com>
+References: <1551856692-3384-1-git-send-email-jasowang@redhat.com>
+ <1551856692-3384-6-git-send-email-jasowang@redhat.com>
+ <20190307103503-mutt-send-email-mst@kernel.org>
+ <20190307124700-mutt-send-email-mst@kernel.org>
+ <20190307191622.GP23850@redhat.com>
+From: Jason Wang <jasowang@redhat.com>
+Message-ID: <e2fad6ed-9257-b53c-394b-bc913fc444c0@redhat.com>
+Date: Fri, 8 Mar 2019 16:50:36 +0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190306155031.4291-5-steven.price@arm.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19030808-0028-0000-0000-0000035189F9
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19030808-0029-0000-0000-0000240FFED7
-Message-Id: <20190308083744.GA6592@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-08_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1903080062
+In-Reply-To: <20190307191622.GP23850@redhat.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Fri, 08 Mar 2019 08:50:48 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 06, 2019 at 03:50:16PM +0000, Steven Price wrote:
-> walk_page_range() is going to be allowed to walk page tables other than
-> those of user space. For this it needs to know when it has reached a
-> 'leaf' entry in the page tables. This information is provided by the
-> p?d_large() functions/macros.
-> 
-> For powerpc pmd_large() was already implemented, so hoist it out of the
-> CONFIG_TRANSPARENT_HUGEPAGE condition and implement the other levels.
-> 
-> Also since we now have a pmd_large always implemented we can drop the
-> pmd_is_leaf() function.
-> 
-> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> CC: Paul Mackerras <paulus@samba.org>
-> CC: Michael Ellerman <mpe@ellerman.id.au>
-> CC: linuxppc-dev@lists.ozlabs.org
-> CC: kvm-ppc@vger.kernel.org
-> Signed-off-by: Steven Price <steven.price@arm.com>
-> ---
->  arch/powerpc/include/asm/book3s/64/pgtable.h | 30 ++++++++++++++------
 
-There is one more definition of pmd_large() in
-arch/powerpc/include/asm/pgtable.h
+On 2019/3/8 上午3:16, Andrea Arcangeli wrote:
+> On Thu, Mar 07, 2019 at 12:56:45PM -0500, Michael S. Tsirkin wrote:
+>> On Thu, Mar 07, 2019 at 10:47:22AM -0500, Michael S. Tsirkin wrote:
+>>> On Wed, Mar 06, 2019 at 02:18:12AM -0500, Jason Wang wrote:
+>>>> +static const struct mmu_notifier_ops vhost_mmu_notifier_ops = {
+>>>> +	.invalidate_range = vhost_invalidate_range,
+>>>> +};
+>>>> +
+>>>>   void vhost_dev_init(struct vhost_dev *dev,
+>>>>   		    struct vhost_virtqueue **vqs, int nvqs, int iov_limit)
+>>>>   {
+>>> I also wonder here: when page is write protected then
+>>> it does not look like .invalidate_range is invoked.
+>>>
+>>> E.g. mm/ksm.c calls
+>>>
+>>> mmu_notifier_invalidate_range_start and
+>>> mmu_notifier_invalidate_range_end but not mmu_notifier_invalidate_range.
+>>>
+>>> Similarly, rmap in page_mkclean_one will not call
+>>> mmu_notifier_invalidate_range.
+>>>
+>>> If I'm right vhost won't get notified when page is write-protected since you
+>>> didn't install start/end notifiers. Note that end notifier can be called
+>>> with page locked, so it's not as straight-forward as just adding a call.
+>>> Writing into a write-protected page isn't a good idea.
+>>>
+>>> Note that documentation says:
+>>> 	it is fine to delay the mmu_notifier_invalidate_range
+>>> 	call to mmu_notifier_invalidate_range_end() outside the page table lock.
+>>> implying it's called just later.
+>> OK I missed the fact that _end actually calls
+>> mmu_notifier_invalidate_range internally. So that part is fine but the
+>> fact that you are trying to take page lock under VQ mutex and take same
+>> mutex within notifier probably means it's broken for ksm and rmap at
+>> least since these call invalidate with lock taken.
+> Yes this lock inversion needs more thoughts.
+>
+>> And generally, Andrea told me offline one can not take mutex under
+>> the notifier callback. I CC'd Andrea for why.
+> Yes, the problem then is the ->invalidate_page is called then under PT
+> lock so it cannot take mutex, you also cannot take the page_lock, it
+> can at most take a spinlock or trylock_page.
+>
+> So it must switch back to the _start/_end methods unless you rewrite
+> the locking.
+>
+> The difference with _start/_end, is that ->invalidate_range avoids the
+> _start callback basically, but to avoid the _start callback safely, it
+> has to be called in between the ptep_clear_flush and the set_pte_at
+> whenever the pfn changes like during a COW. So it cannot be coalesced
+> in a single TLB flush that invalidates all sptes in a range like we
+> prefer for performance reasons for example in KVM. It also cannot
+> sleep.
+>
+> In short ->invalidate_range must be really fast (it shouldn't require
+> to send IPI to all other CPUs like KVM may require during an
+> invalidate_range_start) and it must not sleep, in order to prefer it
+> to _start/_end.
+>
+> I.e. the invalidate of the secondary MMU that walks the linux
+> pagetables in hardware (in vhost case with GUP in software) has to
+> happen while the linux pagetable is zero, otherwise a concurrent
+> hardware pagetable lookup could re-instantiate a mapping to the old
+> page in between the set_pte_at and the invalidate_range_end (which
+> internally calls ->invalidate_range). Jerome documented it nicely in
+> Documentation/vm/mmu_notifier.rst .
 
->  arch/powerpc/kvm/book3s_64_mmu_radix.c       | 12 ++------
->  2 files changed, 24 insertions(+), 18 deletions(-)
-> 
-> diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> index c9bfe526ca9d..c4b29caf2a3b 100644
-> --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-> +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> @@ -907,6 +907,12 @@ static inline int pud_present(pud_t pud)
->  	return (pud_raw(pud) & cpu_to_be64(_PAGE_PRESENT));
->  }
-> 
-> +#define pud_large	pud_large
-> +static inline int pud_large(pud_t pud)
-> +{
-> +	return !!(pud_raw(pud) & cpu_to_be64(_PAGE_PTE));
-> +}
-> +
->  extern struct page *pud_page(pud_t pud);
->  extern struct page *pmd_page(pmd_t pmd);
->  static inline pte_t pud_pte(pud_t pud)
-> @@ -954,6 +960,12 @@ static inline int pgd_present(pgd_t pgd)
->  	return (pgd_raw(pgd) & cpu_to_be64(_PAGE_PRESENT));
->  }
-> 
-> +#define pgd_large	pgd_large
-> +static inline int pgd_large(pgd_t pgd)
-> +{
-> +	return !!(pgd_raw(pgd) & cpu_to_be64(_PAGE_PTE));
-> +}
-> +
->  static inline pte_t pgd_pte(pgd_t pgd)
->  {
->  	return __pte_raw(pgd_raw(pgd));
-> @@ -1107,6 +1119,15 @@ static inline bool pmd_access_permitted(pmd_t pmd, bool write)
->  	return pte_access_permitted(pmd_pte(pmd), write);
->  }
-> 
-> +#define pmd_large	pmd_large
-> +/*
-> + * returns true for pmd migration entries, THP, devmap, hugetlb
-> + */
-> +static inline int pmd_large(pmd_t pmd)
-> +{
-> +	return !!(pmd_raw(pmd) & cpu_to_be64(_PAGE_PTE));
-> +}
-> +
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->  extern pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot);
->  extern pmd_t mk_pmd(struct page *page, pgprot_t pgprot);
-> @@ -1133,15 +1154,6 @@ pmd_hugepage_update(struct mm_struct *mm, unsigned long addr, pmd_t *pmdp,
->  	return hash__pmd_hugepage_update(mm, addr, pmdp, clr, set);
->  }
-> 
-> -/*
-> - * returns true for pmd migration entries, THP, devmap, hugetlb
-> - * But compile time dependent on THP config
-> - */
-> -static inline int pmd_large(pmd_t pmd)
-> -{
-> -	return !!(pmd_raw(pmd) & cpu_to_be64(_PAGE_PTE));
-> -}
-> -
->  static inline pmd_t pmd_mknotpresent(pmd_t pmd)
->  {
->  	return __pmd(pmd_val(pmd) & ~_PAGE_PRESENT);
-> diff --git a/arch/powerpc/kvm/book3s_64_mmu_radix.c b/arch/powerpc/kvm/book3s_64_mmu_radix.c
-> index 1b821c6efdef..040db20ac2ab 100644
-> --- a/arch/powerpc/kvm/book3s_64_mmu_radix.c
-> +++ b/arch/powerpc/kvm/book3s_64_mmu_radix.c
-> @@ -363,12 +363,6 @@ static void kvmppc_pte_free(pte_t *ptep)
->  	kmem_cache_free(kvm_pte_cache, ptep);
->  }
-> 
-> -/* Like pmd_huge() and pmd_large(), but works regardless of config options */
-> -static inline int pmd_is_leaf(pmd_t pmd)
-> -{
-> -	return !!(pmd_val(pmd) & _PAGE_PTE);
-> -}
-> -
->  static pmd_t *kvmppc_pmd_alloc(void)
->  {
->  	return kmem_cache_alloc(kvm_pmd_cache, GFP_KERNEL);
-> @@ -455,7 +449,7 @@ static void kvmppc_unmap_free_pmd(struct kvm *kvm, pmd_t *pmd, bool full,
->  	for (im = 0; im < PTRS_PER_PMD; ++im, ++p) {
->  		if (!pmd_present(*p))
->  			continue;
-> -		if (pmd_is_leaf(*p)) {
-> +		if (pmd_large(*p)) {
->  			if (full) {
->  				pmd_clear(p);
->  			} else {
-> @@ -588,7 +582,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
->  	else if (level <= 1)
->  		new_pmd = kvmppc_pmd_alloc();
-> 
-> -	if (level == 0 && !(pmd && pmd_present(*pmd) && !pmd_is_leaf(*pmd)))
-> +	if (level == 0 && !(pmd && pmd_present(*pmd) && !pmd_large(*pmd)))
->  		new_ptep = kvmppc_pte_alloc();
-> 
->  	/* Check if we might have been invalidated; let the guest retry if so */
-> @@ -657,7 +651,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
->  		new_pmd = NULL;
->  	}
->  	pmd = pmd_offset(pud, gpa);
-> -	if (pmd_is_leaf(*pmd)) {
-> +	if (pmd_large(*pmd)) {
->  		unsigned long lgpa = gpa & PMD_MASK;
-> 
->  		/* Check if we raced and someone else has set the same thing */
-> -- 
-> 2.20.1
-> 
 
--- 
-Sincerely yours,
-Mike.
+Right, I've actually gone through this several times but some details 
+were missed by me obviously.
+
+
+>
+> Now you don't really walk the pagetable in hardware in vhost, but if
+> you use gup_fast after usemm() it's similar.
+>
+> For vhost the invalidate would be really fast, there are no IPI to
+> deliver at all, the problem is just the mutex.
+
+
+Yes. A possible solution is to introduce a valid flag for VA. Vhost may 
+only try to access kernel VA when it was valid. Invalidate_range_start() 
+will clear this under the protection of the vq mutex when it can block. 
+Then invalidate_range_end() then can clear this flag. An issue is 
+blockable is  always false for range_end().
+
+
+>
+>> That's a separate issue from set_page_dirty when memory is file backed.
+> Yes. I don't yet know why the ext4 internal __writepage cannot
+> re-create the bh if they've been freed by the VM and why such race
+> where the bh are freed for a pinned VM_SHARED ext4 page doesn't even
+> exist for transient pins like O_DIRECT (does it work by luck?), but
+> with mmu notifiers there are no long term pins anyway, so this works
+> normally and it's like the memory isn't pinned. In any case I think
+> that's a kernel bug in either __writepage or try_to_free_buffers, so I
+> would ignore it considering qemu will only use anon memory or tmpfs or
+> hugetlbfs as backing store for the virtio ring. It wouldn't make sense
+> for qemu to risk triggering I/O on a VM_SHARED ext4, so we shouldn't
+> be even exposed to what seems to be an orthogonal kernel bug.
+>
+> I suppose whatever solution will fix the set_page_dirty_lock on
+> VM_SHARED ext4 for the other places that don't or can't use mmu
+> notifiers, will then work for vhost too which uses mmu notifiers and
+> will be less affected from the start if something.
+>
+> Reading the lwn link about the discussion about the long term GUP pin
+> from Jan vs set_page_dirty_lock: I can only agree with the last part
+> where Jerome correctly pointed out at the end that mellanox RDMA got
+> it right by avoiding completely long term pins by using mmu notifier
+> and in general mmu notifier is the standard solution to avoid long
+> term pins. Nothing should ever take long term GUP pins, if it does it
+> means software is bad or the hardware lacks features to support on
+> demand paging. Still I don't get why transient pins like O_DIRECT
+> where mmu notifier would be prohibitive to use (registering into mmu
+> notifier cannot be done at high frequency, the locking to do so is
+> massive) cannot end up into the same ext4 _writepage crash as long
+> term pins: long term or short term transient is a subjective measure
+> from VM standpoint, the VM won't know the difference, luck will
+> instead.
+>
+>> It's because of all these issues that I preferred just accessing
+>> userspace memory and handling faults. Unfortunately there does not
+>> appear to exist an API that whitelists a specific driver along the lines
+>> of "I checked this code for speculative info leaks, don't add barriers
+>> on data path please".
+> Yes that's unfortunate, __uaccess_begin_nospec() is now making
+> prohibitive to frequently access userland code.
+>
+> I doubt we can do like access_ok() and only check it once. access_ok
+> checks the virtual address, and if the virtual address is ok doesn't
+> wrap around and it points to userland in a safe range, it's always
+> ok. There's no need to run access_ok again if we keep hitting on the
+> very same address.
+>
+> __uaccess_begin_nospec() instead is about runtime stuff that can
+> change the moment copy-user has completed even before returning to
+> userland, so there's no easy way to do it just once.
+>
+> On top of skipping the __uaccess_begin_nospec(), the mmu notifier soft
+> vhost design will further boost the performance by guaranteeing the
+> use of gigapages TLBs when available (or 2M TLBs worst case) even if
+> QEMU runs on smaller pages.
+
+
+Just to make sure I understand here. For boosting through huge TLB, do 
+you mean we can do that in the future (e.g by mapping more userspace 
+pages to kenrel) or it can be done by this series (only about three 4K 
+pages were vmapped per virtqueue)?
+
+Thanks
+
+
+>
+> Thanks,
+> Andrea
 
