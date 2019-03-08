@@ -5,92 +5,92 @@ X-Spam-Level:
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5EFBBC43381
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 02:24:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 76B7BC43381
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 02:28:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1524120675
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 02:24:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1524120675
+	by mail.kernel.org (Postfix) with ESMTP id 3C95020661
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 02:28:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C95020661
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8BF928E0003; Thu,  7 Mar 2019 21:24:07 -0500 (EST)
+	id CD93C8E0004; Thu,  7 Mar 2019 21:28:17 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 86D6E8E0002; Thu,  7 Mar 2019 21:24:07 -0500 (EST)
+	id C89668E0002; Thu,  7 Mar 2019 21:28:17 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 75DD78E0003; Thu,  7 Mar 2019 21:24:07 -0500 (EST)
+	id BB0F08E0004; Thu,  7 Mar 2019 21:28:17 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 484A58E0002
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 21:24:07 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id b6so14956546qkg.4
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 18:24:07 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E6908E0002
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 21:28:17 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id m34so17319233qtb.14
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 18:28:17 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to;
-        bh=HFB1/hmklm0Jy3Ks9RMvEc3DUyAnT1Dy4tSZTF9cz4o=;
-        b=jaAu2mvEGfcuh7ZzW00x/v77z3uUJMMtO7piYzmM5BTRPoag8ciMLOVnWPkSfH/ScG
-         BYsjq3MiomlzDKHypeSHkbx3krvSWLhSr+BVfHNgbteuBNeQetyTOjO17Tnef8o2ehEp
-         xMsoxs0gsZqqt3FbxupumtmxdZ6SxbvEAgId6m/cXjEjWXTWkHAVpaYI6y2pTaAVhF2S
-         O0dL1c5Gx1Y2NgDHTmE9FH/w7pM4Z+GyRMfUm3chPNUaxh7uvg5G8qqFQIfPo1YWWHdb
-         DS8D9U8Ndnbpba8awiL5SdZT3v19RV7JIEy48RXmpUPzFYlS/OrFA9GQqeXnBeEM2RRq
-         /fLQ==
+        bh=zKK43uCcWqjLoLEJvg2c7OBgge7uFgnGW1Yv+ah7HRo=;
+        b=hz3fCZQyESjI8YjzqAr4ywmlYGJWuDygkYXPXiSxBFD+8eQ2at78e7unNgQ4Jd70ox
+         UN4+Bh9lu6uGvE5zFkl5QD0Zb9JM4Hm96PRoCp3PMUSbqQAFhEVoPDDH8NbbHTbBIyYo
+         /WMdXvZHMOxxLQBudYvDHMpoe3MzcN/XUsI4exzprb2RifS6V2P/7ThTHkbw14zh8GCq
+         gntWjzACyUBobryRF/MqNN4rhxgamC+ZXgOj462kz5U8mlaMfVS/n07ijnZZEOl9Ud2p
+         KE6SOoYi63DxvUKrfz1/DbMQ8I6Axe2645DNj447h1YnWn66A+NmeMuurgrL/PAk0DJ0
+         sSxA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXs8Bsh1BGjI4QYFpMgTKwAf3DGltGKED8b0wUKsk61ZRaCRzJT
-	KCBffORBK+8pOvAEMkhVY/zSF3hdZJmbp8co1/pt+ItrNXhZuXTb5SSScLC9qJnFpgbiHHCT/rj
-	IAfT2zAWrebO9Jh2NsVzOFBfJvvCkGKBoD/rx8IcY2E5/dNt38a6UkWHqqPfqkfcKLCIJw+gIFR
-	2GxDJgVUvbmNk0ythrueLLgLzpaXJp5NQ2kl/yPnJoG+e/UUCUdNmDlNTf0uZqxujrKnPOnLps5
-	O0uWOyAr0tpGXQZo7mQtayn9Mo36b68icxjfhVr7sPakiPdt2mLV8T18k5TtSFHWqwNHgaUIDsS
-	GMCZ0YXoJ4zE+HbD1Ohpcx2dxPEwhogkxrN8QHOvm6kK/B7zhDICDEjUnBM+FBYDdeR0+anddHq
-	Z
-X-Received: by 2002:ae9:ed0c:: with SMTP id c12mr11955771qkg.306.1552011847045;
-        Thu, 07 Mar 2019 18:24:07 -0800 (PST)
-X-Received: by 2002:ae9:ed0c:: with SMTP id c12mr11955733qkg.306.1552011846146;
-        Thu, 07 Mar 2019 18:24:06 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1552011846; cv=none;
+X-Gm-Message-State: APjAAAUucNBVp8GzB52OfSnDDRjrLh7WSksH0uwcGgocReGnH2qCD1Em
+	fBF9eoVrH+SPhyqbV9wlPMwhEYm+5O6ursqZwgTGKYnH76DoX7d7+IqLF0jK0Qbo6+9/iIfxsv1
+	zflz7ZDbtbNH0adkUJI9hH0QuUhnHT9n0jBK7LBt+C7e5In/sTfpIwwzjDJMO/hBYEtAly1ZYRx
+	QKd3CjuiGDXoVcxU9+peC19pbknjO1wQXOzAMczHRfNJNE1IBxLZOmtDzcj6Ehbzcl46XXEElu6
+	Fs7sr8ReM63lAI9gf+ez1qyYFI/yNtiZNA4bAeoQN4y5VXLupbi+5oRjIXFwlfGXf8d/XCQeprZ
+	q1NOPZ9YNh6uC3pCEGyjtCEMPBCXa+rFp/T7VfjQCPlGmhkF523mKztdv9h3iNTsb53s4DOs3Sy
+	J
+X-Received: by 2002:aed:3904:: with SMTP id l4mr12614726qte.194.1552012097369;
+        Thu, 07 Mar 2019 18:28:17 -0800 (PST)
+X-Received: by 2002:aed:3904:: with SMTP id l4mr12614705qte.194.1552012096836;
+        Thu, 07 Mar 2019 18:28:16 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1552012096; cv=none;
         d=google.com; s=arc-20160816;
-        b=OnonUxvB/MZTwfITwRttRCSevyzVwNRELWb0kjIuldKC9u8U7yrIJWNpu1uBqsY8Qn
-         6VnVFAxM3gpK99vbN3sds+TqvXNrmWBNlmvBDXT5jNGmfljl8BctnKYf5Z+rHxey1AGl
-         RPJAaWQroH+1GQ1XmNQEsytWmlay5redy0dum5jS/HSEb2Quw1am5J+D91KCuqpJtlJk
-         CcXCpRq27hsotGRI6oHsRgccKyK7pZSsGABwa/+Daxi/Z1QhOiBddREBoHJ89KVgaGlR
-         RW3P/SDxND+rJKbPD529UsSvMpBZ5UU6e9no8PXkUxnOlew3RZl7x6xOfKTVpTD9gxM+
-         Hjqw==
+        b=RRseBNTekYPDwAVRocgtgOWhiNwPq1Gul1Oi/R6V6h6pXed3jegzBBlqLA8ZpwGMyT
+         XeBmIp2BUHXrrlhcG3Zl7rB4TWXqS+/zdbevVJqE50cxS1dUJ4gx7Evh7jhFVyQcqhAw
+         d0SGR2UPlR/HDTatWoKb4WviN64DOZ6c2OeoX+8NWSPDw9VBowEovaYZxs+a2+UvzBLL
+         BNDWAGmdy+e5GxPRaepNTpAqOLUxdE5hr8BkBihQ0eSG+vufrIPNTs31vlkRtmo12kdj
+         MZ0R07VwPEDXk87H2OTRp6KQOBnPk1Xf2STD2lCrv3S4uqWF+8Qwxc4Vyi40sfdxEyO/
+         Py5w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=in-reply-to:content-disposition:mime-version:references:message-id
          :subject:cc:to:from:date;
-        bh=HFB1/hmklm0Jy3Ks9RMvEc3DUyAnT1Dy4tSZTF9cz4o=;
-        b=m1ippZm7UUXYkTyLR2PAaP+5lshIzvbwlz9ADzqynKnvQtKLpgJSxMcRwCUTXZVJrm
-         37Zby+X4oO2lrANpMtY8OsKNSwp/R+02314CCY9LFvMLP2qrd9Q5cMkY88Reuz+jD/oh
-         06VJyWAJFph12yZPjSYTr3QS17LTYNkLZ5NVC9u63g4thuPfcMyw3jgPFk/mqDWEIRnp
-         vZbKTQPcSYCxjMN52woMh/oXMW5pzj0m9mNOYKGsVi9NS13Si+o0Gd/zuCoAHY5+jFgU
-         JTIEG2yBu6FWD4c/TiUGvZsOSfXSv0oAz3bzvA8aOE0hXaTJQAW4/p2FZ+1VUXHEPAk6
-         0G6Q==
+        bh=zKK43uCcWqjLoLEJvg2c7OBgge7uFgnGW1Yv+ah7HRo=;
+        b=r65nu2tgBAeBsqQPhtmKExUKmYXpH5BZQxGXhfQb66PFpd55k+FC5wGg/0svAjKuIy
+         URGH+vzI/LyviliRy2H3FexlhAW1qusOCO+p5otjFCNgeIqyOrEzhAhm40FMq2VubgYu
+         V/3SfzoZ4di6kAqeSytJbfrWDMOxx4QpgL0GO0RyzPL1PHtdMVmpyBtVdxCZHhBti5K/
+         pIjHQc+HnYnNsOT1UMG/muDENFpMxHtmFqJazYp2TXijt17skwIUbixDwUsZiMnss6t9
+         1UnjHOhQdCBy7g3Lls1XFGRv8KYoJ3FFLdBLjpin+Xrx1/kdQwHD1BrOfoiFTssHOGoY
+         E7kQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y15sor8002527qtk.69.2019.03.07.18.24.06
+        by mx.google.com with SMTPS id i91sor7984491qtb.30.2019.03.07.18.28.16
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 07 Mar 2019 18:24:06 -0800 (PST)
+        Thu, 07 Mar 2019 18:28:16 -0800 (PST)
 Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqxyR5VSZJ10NMp5R3OZz2CZl0aMWXR/whNO6r58qmBONItF91Ol3Hiusgm23h08v4UTO1SLzA==
-X-Received: by 2002:aed:21cc:: with SMTP id m12mr12868000qtc.203.1552011845911;
-        Thu, 07 Mar 2019 18:24:05 -0800 (PST)
+X-Google-Smtp-Source: APXvYqyRVLMras7lNSpHauaLLOEtnihh5o2zR9sVHmfKIk3hSYOwwHqHO8+Xizp0FcO/cSqhDNSk4Q==
+X-Received: by 2002:ac8:2297:: with SMTP id f23mr1534205qta.348.1552012096590;
+        Thu, 07 Mar 2019 18:28:16 -0800 (PST)
 Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
-        by smtp.gmail.com with ESMTPSA id c73sm4923114qka.37.2019.03.07.18.24.04
+        by smtp.gmail.com with ESMTPSA id x43sm4586211qtc.10.2019.03.07.18.28.14
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 07 Mar 2019 18:24:05 -0800 (PST)
-Date: Thu, 7 Mar 2019 21:24:02 -0500
+        Thu, 07 Mar 2019 18:28:15 -0800 (PST)
+Date: Thu, 7 Mar 2019 21:28:13 -0500
 From: "Michael S. Tsirkin" <mst@redhat.com>
-To: David Hildenbrand <david@redhat.com>
-Cc: Alexander Duyck <alexander.duyck@gmail.com>,
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: David Hildenbrand <david@redhat.com>,
 	Nitesh Narayan Lal <nitesh@redhat.com>,
 	kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
 	linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>,
@@ -99,88 +99,36 @@ Cc: Alexander Duyck <alexander.duyck@gmail.com>,
 	Rik van Riel <riel@surriel.com>, dodgen@google.com,
 	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com,
 	Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC][Patch v9 0/6] KVM: Guest Free Page Hinting
-Message-ID: <20190307212253-mutt-send-email-mst@kernel.org>
+Subject: Re: [RFC][Patch v9 2/6] KVM: Enables the kernel to isolate guest
+ free pages
+Message-ID: <20190307212654-mutt-send-email-mst@kernel.org>
 References: <20190306155048.12868-1-nitesh@redhat.com>
- <CAKgT0Ud35pmmfAabYJijWo8qpucUWS8-OzBW=gsotfxZFuS9PQ@mail.gmail.com>
- <1d5e27dc-aade-1be7-2076-b7710fa513b6@redhat.com>
- <CAKgT0UdNPADF+8NMxnWuiB_+_M6_0jTt5NfoOvFN9qbPjGWNtw@mail.gmail.com>
- <2269c59c-968c-bbff-34c4-1041a2b1898a@redhat.com>
- <CAKgT0UdHkDB1vFMp7T9_pdoiuDW4qvgxhqsNztPQXrRCAmYNng@mail.gmail.com>
- <20190307134744-mutt-send-email-mst@kernel.org>
- <ebca2674-ac15-f1a9-87a4-2ee17a257e4c@redhat.com>
+ <20190306155048.12868-3-nitesh@redhat.com>
+ <CAKgT0UdDohCXZY3q9qhQsHw-2vKp_CAgvf2dd2e6U6KLsAkVng@mail.gmail.com>
+ <2d9ae889-a9b9-7969-4455-ff36944f388b@redhat.com>
+ <22e4b1cd-38a5-6642-8cbe-d68e4fcbb0b7@redhat.com>
+ <CAKgT0UcAqGX26pcQLzFUevHsLu-CtiyOYe15uG3bkhGZ5BJKAg@mail.gmail.com>
+ <78b604be-2129-a716-a7a6-f5b382c9fb9c@redhat.com>
+ <CAKgT0Uc_z9Vi+JhQcJYX+J9c4J56RRSkzzegbb2=9xO-NY3dgw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <ebca2674-ac15-f1a9-87a4-2ee17a257e4c@redhat.com>
+In-Reply-To: <CAKgT0Uc_z9Vi+JhQcJYX+J9c4J56RRSkzzegbb2=9xO-NY3dgw@mail.gmail.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 07, 2019 at 08:27:32PM +0100, David Hildenbrand wrote:
-> On 07.03.19 19:53, Michael S. Tsirkin wrote:
-> > On Thu, Mar 07, 2019 at 10:45:58AM -0800, Alexander Duyck wrote:
-> >> To that end what I think w may want to do is instead just walk the LRU
-> >> list for a given zone/order in reverse order so that we can try to
-> >> identify the pages that are most likely to be cold and unused and
-> >> those are the first ones we want to be hinting on rather than the ones
-> >> that were just freed. If we can look at doing something like adding a
-> >> jiffies value to the page indicating when it was last freed we could
-> >> even have a good point for determining when we should stop processing
-> >> pages in a given zone/order list.
-> >>
-> >> In reality the approach wouldn't be too different from what you are
-> >> doing now, the only real difference would be that we would just want
-> >> to walk the LRU list for the given zone/order rather then pulling
-> >> hints on what to free from the calls to free_one_page. In addition we
-> >> would need to add a couple bits to indicate if the page has been
-> >> hinted on, is in the middle of getting hinted on, and something such
-> >> as the jiffies value I mentioned which we could use to determine how
-> >> old the page is.
-> > 
-> > Do we really need bits in the page?
-> > Would it be bad to just have a separate hint list?
-> > 
-> > If you run out of free memory you can check the hint
-> > list, if you find stuff there you can spin
-> > or kick the hypervisor to hurry up.
-> > 
-> > Core mm/ changes, so nothing's easy, I know.
-> 
-> We evaluated the idea of busy spinning on some bit/list entry a while
-> ago. While it sounds interesting, it is usually not what we want and has
-> other negative performance impacts.
-> 
-> Talking about "marking" pages, what we actually would want is to rework
-> the buddy to skip over these "marked" pages and only really spin in case
-> there are no other pages left. Allocation paths should only ever be
-> blocked if OOM, not if just some hinting activity is going on on another
-> VCPU.
-> 
-> However as you correctly say: "core mm changes". New page flag?
-> Basically impossible.
+On Thu, Mar 07, 2019 at 02:35:53PM -0800, Alexander Duyck wrote:
+> With us hinting currently on MAX_ORDER - 1 pages only that actually
+> takes care of the risk of a merge really wiping out any data about
+> what has been hinted on and what hasn't.
 
-Well not exactly. page bits are at a premium but only for
-*allocated* pages. pages in the buddy are free and there are
-some unused bits for these.
+Oh nice. I had this feeling MAX_ORDER - 1 specifically will
+turn out being a better choice than something related to THP.
+Now there's an actual reason why this makes things easier!
 
-> Reuse another one? Can easily get horrbily
-> confusing and can easily get rejected upstream. What about the buddy
-> wanting to merge pages that are marked (assuming we also want something
-> < MAX_ORDER - 1)? This smells like possibly heavy core mm changes.
-> 
-> Lesson learned: Avoid such heavy changes. Especially in the first shot.
-> 
-> The interesting thing about Nitesh's aproach right now is that we can
-> easily rework these details later on. The host->guest interface will
-> stay the same. Instead of temporarily taking pages out of the buddy, we
-> could e.g. mark them and make the buddy or other users skip over them.
-> 
-> -- 
-> 
-> Thanks,
-> 
-> David / dhildenb
+-- 
+MST
 
