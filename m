@@ -2,167 +2,192 @@ Return-Path: <SRS0=92PK=RL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C0D2EC4360F
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 20:08:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0D1EDC10F09
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 21:27:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1458C205F4
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 20:08:48 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 891D820652
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 21:27:10 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=tycho-ws.20150623.gappssmtp.com header.i=@tycho-ws.20150623.gappssmtp.com header.b="ztSEzU/6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1458C205F4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=tycho.ws
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="aa43xZK6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 891D820652
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9E7FD8E0004; Fri,  8 Mar 2019 15:08:47 -0500 (EST)
+	id F05478E0003; Fri,  8 Mar 2019 16:27:09 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9969A8E0002; Fri,  8 Mar 2019 15:08:47 -0500 (EST)
+	id EB59B8E0002; Fri,  8 Mar 2019 16:27:09 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8883D8E0004; Fri,  8 Mar 2019 15:08:47 -0500 (EST)
+	id DA3748E0003; Fri,  8 Mar 2019 16:27:09 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D4998E0002
-	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 15:08:47 -0500 (EST)
-Received: by mail-yw1-f70.google.com with SMTP id l11so28812621ywl.18
-        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 12:08:47 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9887F8E0002
+	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 16:27:09 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id e4so23537330pfh.14
+        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 13:27:09 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=lsDKYgY/vW+4PZgtpL6UxmadwcQMmmAKs9/Wm6oIc60=;
-        b=eFDEHXsTxknG01nwTcA/a06wJ9PcC8Am/s09o9WyjEeUMtGxon+f4X4yQNzVrYIpMW
-         IUWNf1icfWbacOckWbETAL+t01ET4/7KorTOorx0T+ET9yRIarkkUuD8X4DJ45Go9YPn
-         Jej3Cow6udC7ri/0d5ynXiHZhI6tyHzY+Dtz1V4bHnao7LQZpEjSUxvw1ADSktvP+Ul/
-         9QJhkb+kMepwL24JK61RIuXf0a90Dcg72ePURyCppnrdiEr/sHGg58rVx4pAYXdjS+pi
-         YQN2Hd/VnVOhAnNVw0AHgyTmiB98W1BFzfeeA+CPtAvL6DreBJI4m7RiXa25Qq9txbU2
-         xwjQ==
-X-Gm-Message-State: APjAAAXOA2hIerI67hUskzb9Vnvax4r4TPM9JG2x9kK0mjN3rWbofBQi
-	wxbRE8kZIyEj2hEn9jdz/l8sXqjFPAGZ0VgSptGe9kLtg/9bxBvAbxTuCMNNFFfX8njzuZ92COJ
-	fTc8y1qyvX2TueR03WKF5IjltFC3vhDTYQAsjRR6hqSoqq9XMna28FGHIimSTle9I5Osn8FoWGp
-	vCcghX5I7QzBXVntbp4lD4KEbuy1F6IepbHjaM3P8wJMaIdYbp6fgUWtKZx1Xhq4k1FnkV+Rb3P
-	Mkx/ZFEU71h3XZ/Js5Qm+IVx6Y+VQwdEqHmolE+Ky175TWnGe4VvhUNiY9yZAA8VMHAXv5g9WwO
-	bKDcMoYZ2i1Lf3/ktwg8kh9jnKsZX1If76XqPqONMhEA3M+DBmzn/dIR/0w+4hf4y91c6fBh1Xh
-	K
-X-Received: by 2002:a81:4c17:: with SMTP id z23mr15528230ywa.20.1552075727115;
-        Fri, 08 Mar 2019 12:08:47 -0800 (PST)
-X-Received: by 2002:a81:4c17:: with SMTP id z23mr15528192ywa.20.1552075726434;
-        Fri, 08 Mar 2019 12:08:46 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1552075726; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=3tvUY7zeJ4w84IzUd3MSVKGooVlpXF75LlcBQTZLcB4=;
+        b=i3eUQgmNoVanRpjWA4ka03/MPssCFpyLb4NL07a6xUzu3oLTs7jQvnyU3Y/e91ItI2
+         WALGQkYCgb1sc2Ocfvv27zT6vk+quHMyeO/sl8xNzkbqsD+Xj362Ewp+A7RrAmMV/l4d
+         PCb7+QZtAT96yGPx87Eo5Q7qQvY64dot+z0ngJz1Xk0Y9/LHpzmuYHIXDPQWhxjY0ojh
+         +18Z/CetAQATsZ70wlryowc0/u/Matpm+5Dp1zVQG+oGvyQH+JIArcFdGNJE6CbrfXMO
+         LZgJU7GAmcJAlEJfHZV7KSYm+RaLQAOtY+BIA1LM1acSmI3+up17TSf+N6HI5pBYOM6o
+         NH/A==
+X-Gm-Message-State: APjAAAVv7XaV7WxUsyYf955CP15pkkk3b/OPUBope32xZXFOKG1T/Am8
+	TgjAuJ0MmRpQNgDq3a2DrroIXYFTLyzm03xutZGd6BBCp71iZNDTHDhY4pFhb8+xw3piVp4f05b
+	GPUjVl1A8xeexm3I1nKEOjF/zw1W1sSjt9kk0ZVLK9pNhYUsvfTREOQ/zmCDT6JTVLw==
+X-Received: by 2002:a17:902:ba84:: with SMTP id k4mr21254904pls.103.1552080428973;
+        Fri, 08 Mar 2019 13:27:08 -0800 (PST)
+X-Google-Smtp-Source: APXvYqydo/MUwKYg+dCLZbFvUO1mRxnlvRB6+66d7LWDgufESwYFL8mEmM3k+Rw+KqtlgXvlIQjJ
+X-Received: by 2002:a17:902:ba84:: with SMTP id k4mr21254818pls.103.1552080427939;
+        Fri, 08 Mar 2019 13:27:07 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1552080427; cv=none;
         d=google.com; s=arc-20160816;
-        b=IXSkBz8+9uxWBPc0rhbDjlVMlY3xw+PHP9BGzvBU4LgPi1AIFwDmJbBgeQTyThuwgf
-         keKMTF+BZa/R320EoL+UWCcRxaBA3fQaeUOrgN0BmXteKUC776gNE9zSaAGQR0NV+SeP
-         qBV8a9DSblaEdl2FRJsqtFw7eWfoljV0Xp6CW8BcsD9UiOsIsOe49OpmPXQMH6DzzPyi
-         Mc7kv25PZ29cae4jsiO+YN7lKppzDYpeqZmGa8AmTNbMdQ+HrWLHVJsFI0iyZZgsjTG5
-         g3cLkmFMsPj2oZfRFw8ZNwLpqsdbNRtXZzDwk6GhEpHXiTDxOWiD9g9cx5gUyfKCCqcS
-         3cjw==
+        b=CX+I41a1NblFqj83kZTlA4f+wfvsDr/yHhDI/TL5SmMOe2s2EtwI5w/VEfJhCMCllP
+         e6jb+zsy2hZZBa4MJZ2USuy5uNrq9aaZBhzu0yyMPPzO8pKNdCY9itNKKLThronFM8hd
+         TGsIdYeRiShAdhS2z1QQ0FBzflJSn4XWuL6x9w2GjWtZ7cTHvfnseLD4tORJMO7/MN/y
+         UguaUXChgpM41xVyXdfcWEzr7Vw9OPIBmvv4tV2qOQRG2Hbz5kIOIHaxOxIdA3zUJRIL
+         BuHE7DUTVUAmpA8YTdRGpU6JGHSlM+pk/a0nJsri2+KeR1Q8+6xDRyVborEIO1n1U/iz
+         uSEQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=lsDKYgY/vW+4PZgtpL6UxmadwcQMmmAKs9/Wm6oIc60=;
-        b=hZ+kKjnrjulMFFVbYtrwJGRVVI/Cb1lEBFR5/AdMVYcyFEaLVvBDR1YP4imcmqdI1b
-         H3l1Oe9pdh4T9eq+p0P0bJn8xJ977KKeaitUJBb/LxFpECZ8TjP/FRdOfda5bOWLMUSH
-         asAhmWYGYxxk4Ipt/TQ+ypCWGJMTzVOqY83m6aSPgjU6NdXdOBM6be3lWxPyhMs0iVZw
-         FgiOquXG/xieerIXkTqJ5MUpA7HMn8Vz2FA6of8fszZWvU0ld9KMVO94UyU0Kz8bHC1c
-         LW6wEs/5q0N7f2EdPFWgN6CbpXebWqXkm+PNwmj2TZPJrpOHivnKPjk+eeigkZoCNsrD
-         YKWw==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=3tvUY7zeJ4w84IzUd3MSVKGooVlpXF75LlcBQTZLcB4=;
+        b=a6sJ7+rJYlbolc6ADBi8/nOXbbSHpPulc8GLLvmWIpK7H4DQfeJcWHKrfWpAORNlzN
+         DVtWIgbNI9JwgAOkjSs2JR1S//eCmgRbdpLJhW1WYXwpVcsIApPbxoBt05vH2tnsigGy
+         K96LTUO60AkGKCs9yM9hAq7jQeNuZxIjOaz2l6rO5pxk9jexbL9rkjinz7bkOC2QHH1o
+         75DRUMGt4KttMphOLaxLXWFpR9wFWbdRTvijPuomODJ6vBc5ZNgKd+Kr0fAxnRJv9sC6
+         +mXBYW+5DlAwwAaz7HdKQ1mY02F2xFHF9vDqBqOrqmqD5GhDgHAaFhfGBvIYzsyHbWRg
+         2RkQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@tycho-ws.20150623.gappssmtp.com header.s=20150623 header.b="ztSEzU/6";
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of tycho@tycho.ws) smtp.mailfrom=tycho@tycho.ws
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a80sor1287856ywe.75.2019.03.08.12.08.46
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=aa43xZK6;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id p10si7649018pls.296.2019.03.08.13.27.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 08 Mar 2019 12:08:46 -0800 (PST)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of tycho@tycho.ws) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 08 Mar 2019 13:27:07 -0800 (PST)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@tycho-ws.20150623.gappssmtp.com header.s=20150623 header.b="ztSEzU/6";
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of tycho@tycho.ws) smtp.mailfrom=tycho@tycho.ws
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=tycho-ws.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=lsDKYgY/vW+4PZgtpL6UxmadwcQMmmAKs9/Wm6oIc60=;
-        b=ztSEzU/6vBGBf9DrjQO0t5ZpIaSdOqZQyNVmCAsJmoAIkaaqfilKrcCTlQuxeJZbqE
-         6Zardof+knqLJhbUghmNHG8oo+rpaByG1Z6DYq/6tVKVWpEtnySkX9np1nLchgYBXCfk
-         bZeIJqhjnHWCSOv+tcoBYYaGO14uYTUykOH9M3QakiiJ8nq5aE+IWEgUHFriGvmMIPr4
-         u7H+u6GUCvI4GLPfLWckLtm8EK/Y/8fr7JdfVIAQNaZ1T1SDbLTiOyytxe+IBxqr/NUz
-         GIIIv/ggIVWjQc45wKQllONXB8b+oImRROVROuXY4lXNMLfuV+z7UcEgz3TP/rhHZk2g
-         dgMQ==
-X-Google-Smtp-Source: APXvYqxq6tlH3XmO+b/yYa/g/R5gxvHmySxARKfdam4+aP/F+bTd15GfgEDVQRkid+zicODj41s4rw==
-X-Received: by 2002:a25:9002:: with SMTP id s2mr415ybl.375.1552075725718;
-        Fri, 08 Mar 2019 12:08:45 -0800 (PST)
-Received: from cisco ([2601:282:901:dd7b:316c:2a55:1ab5:9f1c])
-        by smtp.gmail.com with ESMTPSA id y67sm3073646ywf.89.2019.03.08.12.08.43
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 08 Mar 2019 12:08:44 -0800 (PST)
-Date: Fri, 8 Mar 2019 13:08:42 -0700
-From: Tycho Andersen <tycho@tycho.ws>
-To: "Tobin C. Harding" <me@tobin.cc>
-Cc: Christopher Lameter <cl@linux.com>,
-	"Tobin C. Harding" <tobin@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Pekka Enberg <penberg@cs.helsinki.fi>,
-	Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [RFC 02/15] slub: Add isolate() and migrate() methods
-Message-ID: <20190308200842.GF373@cisco>
-References: <20190308041426.16654-1-tobin@kernel.org>
- <20190308041426.16654-3-tobin@kernel.org>
- <20190308152820.GB373@cisco>
- <010001695e16cdef-9831bf56-3075-4f0e-8c25-5d60103cb95f-000000@email.amazonses.com>
- <20190308162237.GD373@cisco>
- <20190308195322.GA25102@eros.localdomain>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=aa43xZK6;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c82de2c0000>; Fri, 08 Mar 2019 13:27:08 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Fri, 08 Mar 2019 13:27:07 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Fri, 08 Mar 2019 13:27:07 -0800
+Received: from [10.110.48.28] (10.124.1.5) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 8 Mar
+ 2019 21:27:06 +0000
+Subject: Re: [PATCH v3 1/1] mm: introduce put_user_page*(), placeholder
+ versions
+To: Jerome Glisse <jglisse@redhat.com>, <john.hubbard@gmail.com>
+CC: Andrew Morton <akpm@linux-foundation.org>, <linux-mm@kvack.org>, Al Viro
+	<viro@zeniv.linux.org.uk>, Christian Benvenuti <benve@cisco.com>, Christoph
+ Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, Dan Williams
+	<dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dennis
+ Dalessandro <dennis.dalessandro@intel.com>, Doug Ledford
+	<dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>, Jan Kara
+	<jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>, Matthew Wilcox
+	<willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Mike Rapoport
+	<rppt@linux.ibm.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Ralph
+ Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>, LKML
+	<linux-kernel@vger.kernel.org>, <linux-fsdevel@vger.kernel.org>
+References: <20190306235455.26348-1-jhubbard@nvidia.com>
+ <20190306235455.26348-2-jhubbard@nvidia.com>
+ <20190308175712.GD3661@redhat.com>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <2e7ca6e2-70aa-8285-5010-808bb9568e5f@nvidia.com>
+Date: Fri, 8 Mar 2019 13:27:06 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.3
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190308195322.GA25102@eros.localdomain>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190308175712.GD3661@redhat.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL101.nvidia.com (172.20.187.10) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US-large
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1552080428; bh=3tvUY7zeJ4w84IzUd3MSVKGooVlpXF75LlcBQTZLcB4=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=aa43xZK68IFXNgycq4yBvet4MIraEeY3y1GqNe4M8SYFF5Mi5c7A8gDJfWYiSkmKD
+	 jGzeYYcLDYMMF7DIksAJXqoPxPuKM/6b856idCc5eNF/afPlyLPQR+zUfX9eHReeeR
+	 qF5QXOed6drRl+XcJkFa3TbOa5Feh+Cwo0PEuRXrRzXROoCJM/7kg4w2zwlBZGNhTj
+	 N0sa7vY3UJcqR3iwZ6QcAtE5LhceFDkYsAPTRWr3W5K0Ne5Kv8DpdJR6/XToXH9WC8
+	 x0xSAPq6bpTx7v6CE5RNEK0vyS/eEUbpoKNyhGFKFz4nPV1VVPp7d6LDVkFB6KM94U
+	 KzXgvGYMzvLNw==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Mar 09, 2019 at 06:53:22AM +1100, Tobin C. Harding wrote:
-> On Fri, Mar 08, 2019 at 09:22:37AM -0700, Tycho Andersen wrote:
-> > On Fri, Mar 08, 2019 at 04:15:46PM +0000, Christopher Lameter wrote:
-> > > On Fri, 8 Mar 2019, Tycho Andersen wrote:
-> > > 
-> > > > On Fri, Mar 08, 2019 at 03:14:13PM +1100, Tobin C. Harding wrote:
-> > > > > diff --git a/mm/slab_common.c b/mm/slab_common.c
-> > > > > index f9d89c1b5977..754acdb292e4 100644
-> > > > > --- a/mm/slab_common.c
-> > > > > +++ b/mm/slab_common.c
-> > > > > @@ -298,6 +298,10 @@ int slab_unmergeable(struct kmem_cache *s)
-> > > > >  	if (!is_root_cache(s))
-> > > > >  		return 1;
-> > > > >
-> > > > > +	/*
-> > > > > +	 * s->isolate and s->migrate imply s->ctor so no need to
-> > > > > +	 * check them explicitly.
-> > > > > +	 */
-> > > >
-> > > > Shouldn't this implication go the other way, i.e.
-> > > >     s->ctor => s->isolate & s->migrate
-> > > 
-> > > A cache can have a constructor but the object may not be movable (I.e.
-> > > currently dentries and inodes).
-> > 
-> > Yep, thanks. Somehow I got confused by the comment.
-> 
-> I removed code here from the original RFC-v2, if this comment is
-> confusing perhaps we are better off without it.
+On 3/8/19 9:57 AM, Jerome Glisse wrote:
+[snip]=20
+> Just a small comments below that would help my life :)
+>=20
+> Reviewed-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>=20
 
-I'd say leave it, unless others have objections. I got lost in the
-"no need" and return true for unmergable too-many-nots goop, but it's
-definitely worth noting that one implies the other. An alternative
-might be to move it to a comment on the struct member instead.
+Thanks for the review!=20
 
-Tycho
+>> ---
+>>  include/linux/mm.h | 24 ++++++++++++++
+>>  mm/swap.c          | 82 ++++++++++++++++++++++++++++++++++++++++++++++
+>=20
+> Why not putting those functions in gup.c instead of swap.c ?
+
+Yes, gup.c is better for these. And it passes the various cross compiler an=
+d
+tinyconfig builds locally, so I think I'm not missing any cases. (The swap.=
+c=20
+location was an artifact of very early approaches, pre-dating the
+put_user_pages() name.)=20
+
+[snip]
+
+>>  #define SECTION_IN_PAGE_FLAGS
+>>  #endif
+>> diff --git a/mm/swap.c b/mm/swap.c
+>> index 4d7d37eb3c40..a6b4f693f46d 100644
+>> --- a/mm/swap.c
+>> +++ b/mm/swap.c
+>> @@ -133,6 +133,88 @@ void put_pages_list(struct list_head *pages)
+>>  }
+>>  EXPORT_SYMBOL(put_pages_list);
+>> =20
+>> +typedef int (*set_dirty_func)(struct page *page);
+>=20
+> set_dirty_func_t would be better as it is the rule for typedef to append
+> the _t also it make it easier for coccinelle patch.
+>=20
+
+Done. I'm posting a v4 in a moment, with both of the above, plus
+Christopher's "real filesystems" wording change, and your reviewed-by
+tag.
+
+
+thanks,
+--=20
+John Hubbard
+NVIDIA
 
