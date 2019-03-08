@@ -2,199 +2,158 @@ Return-Path: <SRS0=92PK=RL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 87861C10F09
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 12:56:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E90E4C10F09
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 13:28:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 23D7020449
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 12:56:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 23D7020449
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id AA1C5208E4
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 13:28:27 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="m6OBewAW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AA1C5208E4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7FB1D8E0003; Fri,  8 Mar 2019 07:56:10 -0500 (EST)
+	id 413188E0003; Fri,  8 Mar 2019 08:28:27 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7AC248E0002; Fri,  8 Mar 2019 07:56:10 -0500 (EST)
+	id 3C0028E0002; Fri,  8 Mar 2019 08:28:27 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 69A6A8E0003; Fri,  8 Mar 2019 07:56:10 -0500 (EST)
+	id 2B0358E0003; Fri,  8 Mar 2019 08:28:27 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 42D988E0002
-	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 07:56:10 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id b11so15977651qka.3
-        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 04:56:10 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DDFA08E0002
+	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 08:28:26 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id a72so21986402pfj.19
+        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 05:28:26 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to;
-        bh=A+ONulh89ZRd0TBrQbX2xsE4uKRIImlni/lkNnnezk4=;
-        b=VPYYcHi8Bc4GzxH9xESfrqF9UrbzURNnLRBDLK28xCJ3f8gSK1z9OJKiO2gNzD+hnH
-         dMbDYP8PQEzFgl/TmKLYL4/FRQJyh34TAOTrrF5FPyDcELCo8soTTK18rOweHO0PvHNX
-         6V7Ub3RVEZLSKuI/FxKekdk3nggWyVeEyHomR90scLSPG4FcotpqwZlGUMn4/cwei5kD
-         YBJqXC44K9d7ybQkkrb/tjhlJGfffP5rSIh8DAtUuve5k47rin2VEm8oti7cN2zpLdj3
-         UfSjKAn2+7rAyb11SKqQLhVsaMMhkRZ/zksB3XUIkmA2SePfQ30NZ51OwIpzKMZjgpVk
-         AaZQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWvsg9yz2C0c/Argj5Yv3lmVJOvxZhp762FoFPLjqYgu/8CmWDP
-	6hFRuY3BkwE3ZsfsrPCpnuUqMJutmHFrT3zUNzo9iPLhJCvnOa182SSDawH1QAGW2NWZlt7Rw7m
-	h6Jfcd0UjYQQL9wJKN6ZysWanZFrszbw283UsVmzf3sE1sepspSXtkFmXi5lAuz/R24/dc/7rai
-	KXLnvcUIudkyuu9airg0MzL7GjH+7N1esnTPufb1WAFoJI/51WnnMSLjmLfZLIRwoJ9pRvrm41c
-	vdSqEib1h9dUD8l4sRekWP2sV6NP/jkFr5R87+nA/f27Hn1Dm/uEoE/jA6yns6knZl0ODsmocIm
-	CStWYqoYAf5Oz5ERqIiEjTp81lhIZM7r4bsYgZYogOWo2g3Aq+snRBK1G5B1rnxt32bJiOZSZhe
-	L
-X-Received: by 2002:a0c:91e1:: with SMTP id r30mr15095395qvr.136.1552049769699;
-        Fri, 08 Mar 2019 04:56:09 -0800 (PST)
-X-Received: by 2002:a0c:91e1:: with SMTP id r30mr15095344qvr.136.1552049768656;
-        Fri, 08 Mar 2019 04:56:08 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1552049768; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=FyjpcBkC3+QXgBsEHjZu+57owpddRjqMxQQ5rKRaBBs=;
+        b=aJ0PLU7L80d5Rv8acwFA6lvBC0pQaKf2TnwJ92a//IQurqh7jLi5cPyHQGDaf9EaC/
+         OAxRbtLTkqSbqMF9wET15uCmu58ILbNDH8dypGcZl0yXh+bfeFF2MB5nTnWihUQ71I5n
+         EzBCc/hTIbs8v8eqqXIUkG/wQryrV6p/PxE96qzuZHqKDlBboKu5TZXRrON2sQVVNxL6
+         chDLWp9s5Eg5z12laAgVmHTqzjaoF3dndvuiiZMFyLohaDtP9mlHoCduQOFYYya3yvTy
+         kPzsqcXE1zNGxv1khmSauZtv6lQUoPnyj2LM4j7wWoKo/LWuzK7iaxSkiiGzDP3UGZnA
+         MS7g==
+X-Gm-Message-State: APjAAAV9j70OtPPgaUglHId89MdWjemlhKrJghzqBN9fJQROE3uavQb5
+	ZUMLDTwdYnmmg74/MlfZEes5bMw32lekhJlWG4rODJkci0W5+oSWSrB0oSKa01rHydpbapU9oAz
+	fJCCHHftPcj4tJSnzXJnKrHlttVMLkUwBkynJr1o0rm+hOhTaacfMwZMGp4ByYT/f/scL9kFeAH
+	3Z7zIg2YVPLp6Yviyx56zlgHo3zvMaAL8jFJhdrId6xSJUboDHEb1uClrNlJm4F0PdytCrdOa5Q
+	I1AsVcSYG/JwSHVhhtAp2nWV1PQkz5ejI94v1G23catrpIHBwSD6mCplJX9DEuEhyf95zTZQjrV
+	u8ugJPNsJBXDP69j+lGHgzGf1r+sGw6CmInC2kw+JTobzMH3nkzKaLbaC9YvDAuz/KaJ/W7RbqI
+	7
+X-Received: by 2002:a17:902:9f94:: with SMTP id g20mr19062725plq.0.1552051706437;
+        Fri, 08 Mar 2019 05:28:26 -0800 (PST)
+X-Received: by 2002:a17:902:9f94:: with SMTP id g20mr19062653plq.0.1552051705492;
+        Fri, 08 Mar 2019 05:28:25 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1552051705; cv=none;
         d=google.com; s=arc-20160816;
-        b=tZ3UErH/0kvM9WWhqvbjuX42CI8IpExijFqFwMvoIiX5AFeT8Q6wNOzrakM6UYg0oo
-         255/fs5cg2DxLFNN+iaBvC6N7EYLQuv78gN/vZihB8ujtnubZp4+nqEBqII86pkYj83y
-         MFkoPuFupfiEC2ig7u+Oj3J12Fsi5JDPRLoxnbOqpFZZ9cIvc1mdBREOf9R8w+6+7tWc
-         CENrpN92MnetKMBpwGIiy+UF9cEmrY/zl0HiuqizSLCM+liBfCbTfX5GQ7kGS5071Kyp
-         c6puURCZHxbPYy9Ee3VJ68aTYb/TRELALLizyEfeLByxkQmLAFp9kSWdrtlL0LhLRhAx
-         zt9w==
+        b=PmPrOXcuyA9Sut3Ib7QhV2E0J8BXMXDfvYwrDGLxN+j+r33VWWt+i9wF0ZjAmEz3bD
+         sGySI5pIlR29CL+xa9TBIPTSvunIGJhbQWqIY8LkmOGvPbsw1YGOQsf3WXSomYQmnvWg
+         eCATpCuKUjWz3XbyuryFXwgA06tRYS9fMS1qnNhrO0Y3Uhaer7Q0B8Fi5oI9RkI6jooU
+         j2o4ELSBZY9v7YThkohS934QmFUVN7OJNHr1UVxTgbeYrnLABq6kK7z4SxkErEhtyT3Y
+         ywPLs29QcXGG6ALHMJ2r1zY52lz3K4zjPZrqmtghb53UzoVrzKKhx6UwzkqGe7oyMJGh
+         NZXQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-transfer-encoding:content-disposition
-         :mime-version:references:message-id:subject:cc:to:from:date;
-        bh=A+ONulh89ZRd0TBrQbX2xsE4uKRIImlni/lkNnnezk4=;
-        b=EDwRUY7crG/fULjhihtmvzazkfwOVWjRuI4kwME8rNAo4HOa6FFJQvaUC6aOFYIUkX
-         +SPNGqXdkpEM2qrX9fIrurSQZV1cCarI7N2QEZw5KlBLE4xLkrfGj6lxHLHgEEu7uUKY
-         OklepYChCvbTtp+95WBcO9+jGzp5AHkU2cVXS6ucr7qTqH9VEdoalA4NlFM8a+H3HFT/
-         FnGZnMsnXdBC6JT/XjFSdwTCqvucDIN+CYp4GAicYxcJaJjQ2TEyXcRu87RgBXNVu71w
-         h/gFKLUyr9YJV0HokK/lhUKUhhTCLRYXIywCSk5U/Q3qlw9OzKLxrDFrVqRONoHh2TtO
-         zumQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=FyjpcBkC3+QXgBsEHjZu+57owpddRjqMxQQ5rKRaBBs=;
+        b=JtUkh9FFOkzbm23exCnKRTFLnweSc6RX2swnU9gkbLpoCaaawNLyPU5xhqaS5eNx99
+         AtgBr90jDd3N7jDs9MkoK6cd4MUmbdXw1/b0AqhoTTMDZORqKOSC2WjaINyjB+o2Px7L
+         5/DosqAHEQzJZ1pfpXYi8NH/JT96KmuiZpy5ZLk4DPmIC4ZKJzSDmWisaMFYpG/mzw04
+         fppFDwP/HymJRjWqDR5Zq+d9zDvWwta82ipBqkaMXB7RecslGYywGJf23B3XHF0bbEEv
+         55wbNRL0rnPG9s9Adve9B0QZAPP2o+TNrXrMdIzrfh2YKf57GPYOCmRDWA+0kzCzDP2m
+         czgw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=m6OBewAW;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f39sor8512348qvf.46.2019.03.08.04.56.08
+        by mx.google.com with SMTPS id j31sor12483555pgb.10.2019.03.08.05.28.25
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 08 Mar 2019 04:56:08 -0800 (PST)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 08 Mar 2019 05:28:25 -0800 (PST)
+Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqzpMhMBKy1jpKKr6R0JL9ZfZz/BygDitVhs5ihNJGMR5qa+oBECnJQrUvrvVc+PbC/lY2Xgtw==
-X-Received: by 2002:a0c:927a:: with SMTP id 55mr14838918qvz.226.1552049768331;
-        Fri, 08 Mar 2019 04:56:08 -0800 (PST)
-Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
-        by smtp.gmail.com with ESMTPSA id j9sm2940101qki.21.2019.03.08.04.56.06
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 08 Mar 2019 04:56:07 -0800 (PST)
-Date: Fri, 8 Mar 2019 07:56:04 -0500
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: Jason Wang <jasowang@redhat.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, kvm@vger.kernel.org,
-	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
-	linux-kernel@vger.kernel.org, peterx@redhat.com, linux-mm@kvack.org,
-	aarcange@redhat.com
-Subject: Re: [RFC PATCH V2 5/5] vhost: access vq metadata through kernel
- virtual address
-Message-ID: <20190308075506-mutt-send-email-mst@kernel.org>
-References: <1551856692-3384-1-git-send-email-jasowang@redhat.com>
- <1551856692-3384-6-git-send-email-jasowang@redhat.com>
- <20190307103503-mutt-send-email-mst@kernel.org>
- <20190307124700-mutt-send-email-mst@kernel.org>
- <20190307191720.GF3835@redhat.com>
- <43408100-84d9-a359-3e78-dc65fb7b0ad1@redhat.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=m6OBewAW;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=FyjpcBkC3+QXgBsEHjZu+57owpddRjqMxQQ5rKRaBBs=;
+        b=m6OBewAWjkywbpCPTSZabjiZXhK9buy+zAMSO87deXEe85TsdqiOb82Ps2UO9CaQwj
+         SdTfU95zwNKBM3pwRRNO/1GwzPAygbEFDWXL2MRjqR5MtUcp6OZ6P88u36nSn3uQYkk5
+         Iw7dypPK0jor2LxLRL4mOcoIqGjdpVOrdGaPhkCY7cZRbiVfKcszX4i9YDVZrbAjb3Uk
+         8PAylcobfSsQ73t/dXOTVgoUorAjAbtXboW+Pr3fPMDS9KiIDS50MFl5h39BwdlVlA2K
+         GrLLBo1K/6nu1mtaxtwg3b+/P8ByJI5Yrwg5awMFQ7W121ITksrDtw2gYsmvfeO6OQa9
+         GhPw==
+X-Google-Smtp-Source: APXvYqyu0BPW0Y9CUwYxR0k8WbBupMRI6PneB77HpPmxRnIqWxoBwJhmZog67CqS6mTUUH4Fzm4ztWenK+uQk7wDVBI=
+X-Received: by 2002:a65:6651:: with SMTP id z17mr15878595pgv.95.1552051704883;
+ Fri, 08 Mar 2019 05:28:24 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <43408100-84d9-a359-3e78-dc65fb7b0ad1@redhat.com>
+References: <20190307185244.54648-1-cai@lca.pw>
+In-Reply-To: <20190307185244.54648-1-cai@lca.pw>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Fri, 8 Mar 2019 14:28:14 +0100
+Message-ID: <CAAeHK+xdGubYXJiJi7J=1NH+-iB_yhXgoMWqacf=xh5UnugO1A@mail.gmail.com>
+Subject: Re: [PATCH] kasan: fix variable 'tag' set but not used warning
+To: Qian Cai <cai@lca.pw>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, 
+	Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, 
+	kasan-dev <kasan-dev@googlegroups.com>, 
+	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 08, 2019 at 04:58:44PM +0800, Jason Wang wrote:
-> 
-> On 2019/3/8 上午3:17, Jerome Glisse wrote:
-> > On Thu, Mar 07, 2019 at 12:56:45PM -0500, Michael S. Tsirkin wrote:
-> > > On Thu, Mar 07, 2019 at 10:47:22AM -0500, Michael S. Tsirkin wrote:
-> > > > On Wed, Mar 06, 2019 at 02:18:12AM -0500, Jason Wang wrote:
-> > > > > +static const struct mmu_notifier_ops vhost_mmu_notifier_ops = {
-> > > > > +	.invalidate_range = vhost_invalidate_range,
-> > > > > +};
-> > > > > +
-> > > > >   void vhost_dev_init(struct vhost_dev *dev,
-> > > > >   		    struct vhost_virtqueue **vqs, int nvqs, int iov_limit)
-> > > > >   {
-> > > > I also wonder here: when page is write protected then
-> > > > it does not look like .invalidate_range is invoked.
-> > > > 
-> > > > E.g. mm/ksm.c calls
-> > > > 
-> > > > mmu_notifier_invalidate_range_start and
-> > > > mmu_notifier_invalidate_range_end but not mmu_notifier_invalidate_range.
-> > > > 
-> > > > Similarly, rmap in page_mkclean_one will not call
-> > > > mmu_notifier_invalidate_range.
-> > > > 
-> > > > If I'm right vhost won't get notified when page is write-protected since you
-> > > > didn't install start/end notifiers. Note that end notifier can be called
-> > > > with page locked, so it's not as straight-forward as just adding a call.
-> > > > Writing into a write-protected page isn't a good idea.
-> > > > 
-> > > > Note that documentation says:
-> > > > 	it is fine to delay the mmu_notifier_invalidate_range
-> > > > 	call to mmu_notifier_invalidate_range_end() outside the page table lock.
-> > > > implying it's called just later.
-> > > OK I missed the fact that _end actually calls
-> > > mmu_notifier_invalidate_range internally. So that part is fine but the
-> > > fact that you are trying to take page lock under VQ mutex and take same
-> > > mutex within notifier probably means it's broken for ksm and rmap at
-> > > least since these call invalidate with lock taken.
-> > > 
-> > > And generally, Andrea told me offline one can not take mutex under
-> > > the notifier callback. I CC'd Andrea for why.
-> > Correct, you _can not_ take mutex or any sleeping lock from within the
-> > invalidate_range callback as those callback happens under the page table
-> > spinlock. You can however do so under the invalidate_range_start call-
-> > back only if it is a blocking allow callback (there is a flag passdown
-> > with the invalidate_range_start callback if you are not allow to block
-> > then return EBUSY and the invalidation will be aborted).
-> > 
-> > 
-> > > That's a separate issue from set_page_dirty when memory is file backed.
-> > If you can access file back page then i suggest using set_page_dirty
-> > from within a special version of vunmap() so that when you vunmap you
-> > set the page dirty without taking page lock. It is safe to do so
-> > always from within an mmu notifier callback if you had the page map
-> > with write permission which means that the page had write permission
-> > in the userspace pte too and thus it having dirty pte is expected
-> > and calling set_page_dirty on the page is allowed without any lock.
-> > Locking will happen once the userspace pte are tear down through the
-> > page table lock.
-> 
-> 
-> Can I simply can set_page_dirty() before vunmap() in the mmu notifier
-> callback, or is there any reason that it must be called within vumap()?
-> 
-> Thanks
+On Thu, Mar 7, 2019 at 7:53 PM Qian Cai <cai@lca.pw> wrote:
+>
+> set_tag() compiles away when CONFIG_KASAN_SW_TAGS=n, so make
+> arch_kasan_set_tag() a static inline function to fix warnings below.
+>
+> mm/kasan/common.c: In function '__kasan_kmalloc':
+> mm/kasan/common.c:475:5: warning: variable 'tag' set but not used
+> [-Wunused-but-set-variable]
+>   u8 tag;
+>      ^~~
+>
+> Signed-off-by: Qian Cai <cai@lca.pw>
+> ---
+>  mm/kasan/kasan.h | 5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
+>
+> diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+> index 3e0c11f7d7a1..3ce956efa0cb 100644
+> --- a/mm/kasan/kasan.h
+> +++ b/mm/kasan/kasan.h
+> @@ -163,7 +163,10 @@ static inline u8 random_tag(void)
+>  #endif
+>
+>  #ifndef arch_kasan_set_tag
+> -#define arch_kasan_set_tag(addr, tag)  ((void *)(addr))
+> +static inline const void *arch_kasan_set_tag(const void *addr, u8 tag)
+> +{
+> +       return addr;
+> +}
+>  #endif
+>  #ifndef arch_kasan_reset_tag
+>  #define arch_kasan_reset_tag(addr)     ((void *)(addr))
+> --
+> 2.17.2 (Apple Git-113)
+>
 
+Reviewed-by: Andrey Konovalov <andreyknvl@google.com>
 
-I think this is what Jerome is saying, yes.
-Maybe add a patch to mmu notifier doc file, documenting this?
-
-
-> 
-> > 
-> > > It's because of all these issues that I preferred just accessing
-> > > userspace memory and handling faults. Unfortunately there does not
-> > > appear to exist an API that whitelists a specific driver along the lines
-> > > of "I checked this code for speculative info leaks, don't add barriers
-> > > on data path please".
-> > Maybe it would be better to explore adding such helper then remapping
-> > page into kernel address space ?
-> > 
-> > Cheers,
-> > Jérôme
+Thanks!
 
