@@ -6,112 +6,112 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 59633C43381
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 04:15:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BA7A7C43381
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 04:15:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0B7F120851
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 04:15:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 65F3320855
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 04:15:20 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="5HYCTy6Q"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0B7F120851
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="5CgYTMir"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 65F3320855
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B07918E0007; Thu,  7 Mar 2019 23:15:16 -0500 (EST)
+	id 146FD8E0008; Thu,  7 Mar 2019 23:15:20 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AB7FA8E0002; Thu,  7 Mar 2019 23:15:16 -0500 (EST)
+	id 0CC758E0002; Thu,  7 Mar 2019 23:15:20 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 980D88E0007; Thu,  7 Mar 2019 23:15:16 -0500 (EST)
+	id ED74F8E0008; Thu,  7 Mar 2019 23:15:19 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C7838E0002
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 23:15:16 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id 35so17518473qtq.5
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 20:15:16 -0800 (PST)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C2B6C8E0002
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 23:15:19 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id q193so14944802qke.12
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 20:15:19 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=JsjE/DB7CgND14aqwEzfQQRvORRnlRv5KuF04km8r4g=;
-        b=JZkaVz+lv6gP6HWmAocjemJ42+nbo2Uka5XzFjVYo5XHRy2aDd7ADxak9KsOqq+O/Y
-         d6K8/nzG/k/7tpNUrjfwjryfrbFdEqo6Jw3pcbHnetY/s0aMTCXPtZquvKI4JBzMDVOW
-         ZfrOOslOLyCdGeWlowbxeE7QM4CljTuMix/8+50B8F6ApPcjnw52Zmd8dKRYupbkJ0du
-         2/pxtgXwHQsYVn9WIzLRYjvvclSQj8xZ2mvtBMfejCbXQlvHIR+Y6fDXXLlXehuRrA7d
-         TGYy34Nh/nRsxXjqtBxGpFG0oY/FDuu8U1mKYQnOm6W601q0JAh4RyYPa/66qNY57cPS
-         YgXA==
-X-Gm-Message-State: APjAAAWjmnkXPQfOSOMDfM2KgIAWoDaT5sKZ476vzTLs76t+yFHvLUai
-	XJVFmXbRcrXmW/Ev9xiWEZYVq4ezUrUwH2CI9aUgZslPxFME03MPBMYJY3ehtNS6eaH18BGZMT2
-	kfUr7xPNCFnqM7QuZu1X2g/crB5+FDcYlI09y071pnigulVjPgyL3lbopWAsxGqw=
-X-Received: by 2002:a37:4e58:: with SMTP id c85mr12898670qkb.89.1552018516166;
-        Thu, 07 Mar 2019 20:15:16 -0800 (PST)
-X-Google-Smtp-Source: APXvYqwZnZgR52PBFcXIRF6Iu6muaLBKduodd7AkV3fDTnrydsfjWGJKTZ2CPyJ0YX7LGSi/vSJ5
-X-Received: by 2002:a37:4e58:: with SMTP id c85mr12898617qkb.89.1552018514722;
-        Thu, 07 Mar 2019 20:15:14 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1552018514; cv=none;
+        bh=7aXu4Ayrrg1lqUVhlvuMknXlREOy+clc066/B0tC+rw=;
+        b=CZbjFUH7k8c63KOm5ayjzTRLjbmJwwseDfqmVjXaWsS36knfX3zta61X+LtVpYDSaT
+         oR1gN0OfLg+7r3AJ1zkyLPluyhgFE4DIwpEYevifry+PLF8RXg4R4g4lXYkvWQLzB0o/
+         THkdmjE782XOwnn3vIESxdwK32LhmDBsa+lY6qgyGXoC/qz1fVpJprTXj2/RPIjfCk7/
+         o4t/FVuRpEejIfZzoXqldfOGo3XABGMK3LhjEluu5cQHmh3+Uu1lKPkl0rRn/JMLgZ5F
+         emgfgV6v+9UO+o92G1jitrLrpzjMMtt9rpEGhq12Bf3GDf0Jm84I9DAPFlTnNEzd4fXH
+         hDLQ==
+X-Gm-Message-State: APjAAAW3Rva1zRjR9dZxGbnTdUQIaFYj1u6rX1CBcdKOHh5toT74pmjP
+	AWqEATSST0gni/7eadzuWBuZghZYfe5qeHMwwRfITUqPjcWPPtm3E/+EVL69clhngApeBLM8/HW
+	EU1mQCIqoUC7x/Dh2jFPOc4+Dzhil4RiVluXv8QDTRnb+QL9vEWAQqmyraMzWNDM=
+X-Received: by 2002:a37:bd81:: with SMTP id n123mr12668561qkf.249.1552018519548;
+        Thu, 07 Mar 2019 20:15:19 -0800 (PST)
+X-Google-Smtp-Source: APXvYqxe0x3bCh5gjBzTqcLt5UnDCC5ayqzgejHT0FVAmdxGAfuYQMdkyUSvsySyPta5h/lNJwxi
+X-Received: by 2002:a37:bd81:: with SMTP id n123mr12668524qkf.249.1552018518549;
+        Thu, 07 Mar 2019 20:15:18 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1552018518; cv=none;
         d=google.com; s=arc-20160816;
-        b=dzIweopGXQxrAIIpYcKQsvK72+1YtQ7r5KdAyqQVYCfL4qb6ZHLtkxJYgRRuAirFdq
-         FZy/sPbaNG2VEQd4jN/2lHjVKBrcd/k7u0OQaB5sa1Wm2EnCV5itcAwEcUNCOBPF4vZd
-         ptnXNeNunctjm0ZqMKVvx6423c7E+9pddw5kqDUeSe/s3o2SpADPs21F4Wyv8Tlzhjbr
-         b+mflxw4hNIEZZcwbWzpUJCJwSlvbl6h9FmTAGn4S3xhmuzAQdBFkJx8mQk2guHhwYRR
-         oRiA4sGwS7vgmxiLkDVGqX3yP0waetDC1gKOIywZAcvNq9qdBciCLgTPI4q/ror7Pa1h
-         QB9A==
+        b=BVSJXSm2XLLg5aND9/KK3Vxvb8FmO+8uRuiwngZHqLjP6tZY1Y7jWYDu0S+WReGIaD
+         eKAmUI/ypwzrGScva+mPlLQMZCZfCYSzR+0TSaBcaEbtEOOcboFS7MlYolsaFQJuBg5t
+         o95QOGJj+4Rg5Ex/P1IjG+A9kXsT40qQ0mKNng7SeKDDoi+Z7W1VIqXSuSxVuuijznFq
+         tpIXBr5seFINQcgDaEbJTZGbSMULB7I3vM2Vnh1GhI57RIN2Kq+VVOvKJNPq8Qz4tOpS
+         tk9NNT6lw4wE89i4zdyBQkM3ivfznpl0Cb43iFX16tV5nyKpeexilryPbFPCzBxrD/d8
+         fhag==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=JsjE/DB7CgND14aqwEzfQQRvORRnlRv5KuF04km8r4g=;
-        b=nZbXIoj3r/C23123T5sTzBmuFunYN7m979BiDSZDLWmSUjhxfIFRigBAXLv3lzk5sw
-         pB0n3kJIeqe4ytUAZrh+/7OKUACgYs5RxJ+qnKIIwGJIdyE6sxUy088XhJtVUcLkPIGN
-         RawHbkUDuACSawkM7HEXhs5YuZfFrXb8eLXphBOqqJndVG5EqnZ57ODXlKuSLaPSuANY
-         oih7HdhY8cwkJFfgFpNK5vr1aiJ3FeUFrhpjtGbQ/tnPLdD3zroloFFifGlkbBYVRkKb
-         ZrHBefTdcBCXfHqJuBg8hh8U+m9YM6IhCvAsJQ5vIwwQVG76T49tlxHm4f3vhV5sbG8J
-         kv4g==
+        bh=7aXu4Ayrrg1lqUVhlvuMknXlREOy+clc066/B0tC+rw=;
+        b=juCaHLrFSjIubRteW7lAaslt1JTp9ygagsI9EYsROXmaclWylvRn7ZDXUiR5NmVnwP
+         2kY7JxYhIqS/LLZM2y4VJwHl3dVLLVfva0w8adiPIQtKfnnGxUKkk/iPurtG0LOZL3cu
+         EsBIDCvTb1yV7p/kXbuoRToDeioUnLmL/WJcaVZNNAhV7/8ZxXDMkH9ya+MyYACBGDMZ
+         1fkyBRk4ok5JFSvjofgKj/IalAtmYsG2A9w7e13qVZoCw4uhDC9WbzYS2Tyapye+T7Iu
+         17t6Mn8FUXpVCU9FpsepLijprsFCm1vQKv3yELDCqd4sa98pGn2FnBJxKwEOOkUsxPkE
+         uC8g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=5HYCTy6Q;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=5CgYTMir;
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 64.147.123.25 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from wout2-smtp.messagingengine.com (wout2-smtp.messagingengine.com. [64.147.123.25])
-        by mx.google.com with ESMTPS id r47si4132237qte.237.2019.03.07.20.15.14
+        by mx.google.com with ESMTPS id q33si3942514qvc.139.2019.03.07.20.15.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Mar 2019 20:15:14 -0800 (PST)
+        Thu, 07 Mar 2019 20:15:18 -0800 (PST)
 Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 64.147.123.25 as permitted sender) client-ip=64.147.123.25;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=5HYCTy6Q;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=5CgYTMir;
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 64.147.123.25 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.west.internal (Postfix) with ESMTP id 46DC2344B;
-	Thu,  7 Mar 2019 23:15:13 -0500 (EST)
+	by mailout.west.internal (Postfix) with ESMTP id 170A336A8;
+	Thu,  7 Mar 2019 23:15:17 -0500 (EST)
 Received: from mailfrontend1 ([10.202.2.162])
-  by compute3.internal (MEProxy); Thu, 07 Mar 2019 23:15:13 -0500
+  by compute3.internal (MEProxy); Thu, 07 Mar 2019 23:15:17 -0500
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:subject:to
 	:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=JsjE/DB7CgND14aqwEzfQQRvORRnlRv5KuF04km8r4g=; b=5HYCTy6Q
-	SrpVPWr/y+ND4NM8vTUOx2ewIo94P8eltVKp2IISnKwCwKGZpS7bBcL5LhXseLEf
-	BFc3fPcknZqqUCRxQLGeyeIJH8jV82MMXd68wn5ZyBCjgOSNxyxN6s66vpg8kN6+
-	9N5SlPIlYPUa0n+55Rw1mG5uewIztNB24PdDIsi9uZ1R6N4mXIK3gsY+7ylL4XZ9
-	mcwf7Y6iJ/qdj45+nd8XdsDgTPCC85svuHWJsVwblWMXRu17KzS6Fonpednchwzj
-	CssUz1rmk/3sOkyr1qd7/tJh+ALGFCfejcKwQ1Ns50O9P+QeCATwIj85kM11HrmN
-	UmDYJba33ioUWQ==
-X-ME-Sender: <xms:UOyBXJ-vpX7X9ZFa0mQKkveizclr0CW4dj0DV-h98tM6aHYWHsaiOw>
+	fm2; bh=7aXu4Ayrrg1lqUVhlvuMknXlREOy+clc066/B0tC+rw=; b=5CgYTMir
+	sAHs6VuabE1G9iZrzN0Oi5mXbESfWpoQZyZRGmnw4vSL55ewvT5H4u8AeazvgsMc
+	rBbvfmAZdeB25lubI+EM1xiVKSwZeeys5B8eRxi+inmikijvx6nHd/8Tnntb3twx
+	7PwPKdTAvpLyCjJGRCGxKIbhsIuh4buEjLuDNfszP6jm+/FrPDmdT5Y2dHQ2QE2i
+	KZ7ZmY7za7/dNYV/AxNH19RNfLr5ccEHuVTJNyl4WSYdA93J0yS9d5Lp+2/py9HX
+	Jof8yQjdClrJMhbQKcrKin5JiEl59DbFAfiBu+fYq2gyP5artxGvyE9+f6rz6saK
+	7xPc5fBThFgsRA==
+X-ME-Sender: <xms:VOyBXH0qsqvhr-dhk1uH2Jjg7homNmmhHQMmAA6SD5o_MenLRRn_ag>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedutddrfeelgdeifecutefuodetggdotefrodftvf
     curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
     uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenuc
     fjughrpefhvffufffkofgjfhgggfestdekredtredttdenucfhrhhomhepfdfvohgsihhn
     ucevrdcujfgrrhguihhnghdfuceothhosghinheskhgvrhhnvghlrdhorhhgqeenucfkph
     epuddvgedrudeiledrhedrudehkeenucfrrghrrghmpehmrghilhhfrhhomhepthhosghi
-    nheskhgvrhhnvghlrdhorhhgnecuvehluhhsthgvrhfuihiivgepvd
-X-ME-Proxy: <xmx:UOyBXPTdlsN7t1M6OwkaV7SuR43XoemkdTkjad_kTS-gaMKODTYFgg>
-    <xmx:UOyBXGRPIE5V-OHnFl50fCvBkP6fnejxg8ljXUvUvTdVOvRbYxXH_A>
-    <xmx:UOyBXD53RF56hdvw_xduML2C7WYaI6Oae5pZvDrE9Xvk-LYeF2HA7A>
-    <xmx:UOyBXOCGLMrGWXXV7Eh4AzC4XNnqcQNl2Bon-NOil2xPN_tQlFvGyA>
+    nheskhgvrhhnvghlrdhorhhgnecuvehluhhsthgvrhfuihiivgepge
+X-ME-Proxy: <xmx:VOyBXM21B0Ensgjz-kAXWpSp5DKmvWs_sAoMdqB3lTz6ixXV621TCg>
+    <xmx:VOyBXJp2Ti_I1qryjFn1xVrKDvWxYSIWvIj3trNCPR-amIA54TlbsQ>
+    <xmx:VOyBXIiwDAwY5IgwsfMPW89t7BwprkYHjHfyVYsTL-a-wKHfP4OENQ>
+    <xmx:VOyBXDrk1gtI_4psQwRLwknP-oT_PIe5sM6m9IrmgiBYn6PwXxCDTg>
 Received: from eros.localdomain (124-169-5-158.dyn.iinet.net.au [124.169.5.158])
-	by mail.messagingengine.com (Postfix) with ESMTPA id EA496E4481;
-	Thu,  7 Mar 2019 23:15:09 -0500 (EST)
+	by mail.messagingengine.com (Postfix) with ESMTPA id BE59DE4548;
+	Thu,  7 Mar 2019 23:15:13 -0500 (EST)
 From: "Tobin C. Harding" <tobin@kernel.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: "Tobin C. Harding" <tobin@kernel.org>,
@@ -121,9 +121,9 @@ Cc: "Tobin C. Harding" <tobin@kernel.org>,
 	Tycho Andersen <tycho@tycho.ws>,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [RFC 04/15] slub: Enable Slab Movable Objects (SMO)
-Date: Fri,  8 Mar 2019 15:14:15 +1100
-Message-Id: <20190308041426.16654-5-tobin@kernel.org>
+Subject: [RFC 05/15] slub: Sort slab cache list
+Date: Fri,  8 Mar 2019 15:14:16 +1100
+Message-Id: <20190308041426.16654-6-tobin@kernel.org>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190308041426.16654-1-tobin@kernel.org>
 References: <20190308041426.16654-1-tobin@kernel.org>
@@ -135,114 +135,55 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We have now in place a mechanism for adding callbacks to a cache in
-order to be able to implement object migration.
-
-Add a function __move() that implements SMO by moving all objects in a
-slab page using the isolate/migrate callback methods.
+It is advantageous to have all defragmentable slabs together at the
+beginning of the list of slabs so that there is no need to scan the
+complete list. Put defragmentable caches first when adding a slab cache
+and others last.
 
 Co-developed-by: Christoph Lameter <cl@linux.com>
 Signed-off-by: Tobin C. Harding <tobin@kernel.org>
 ---
- mm/slub.c | 85 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 85 insertions(+)
+ mm/slab_common.c | 2 +-
+ mm/slub.c        | 6 ++++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)
 
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 754acdb292e4..1d492b59eee1 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -397,7 +397,7 @@ static struct kmem_cache *create_cache(const char *name,
+ 		goto out_free_cache;
+ 
+ 	s->refcount = 1;
+-	list_add(&s->list, &slab_caches);
++	list_add_tail(&s->list, &slab_caches);
+ 	memcg_link_cache(s);
+ out:
+ 	if (err)
 diff --git a/mm/slub.c b/mm/slub.c
-index 0133168d1089..6ce866b420f1 100644
+index 6ce866b420f1..f37103e22d3f 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -4325,6 +4325,91 @@ int __kmem_cache_create(struct kmem_cache *s, slab_flags_t flags)
- 	return err;
- }
+@@ -4427,6 +4427,8 @@ void kmem_cache_setup_mobility(struct kmem_cache *s,
+ 		return;
+ 	}
  
-+/*
-+ * Allocate a slab scratch space that is sufficient to keep pointers to
-+ * individual objects for all objects in cache and also a bitmap for the
-+ * objects (used to mark which objects are active).
-+ */
-+static inline void *alloc_scratch(struct kmem_cache *s)
-+{
-+	unsigned int size = oo_objects(s->max);
++	mutex_lock(&slab_mutex);
 +
-+	return kmalloc(size * sizeof(void *) +
-+		       BITS_TO_LONGS(size) * sizeof(unsigned long),
-+		       GFP_KERNEL);
-+}
+ 	s->isolate = isolate;
+ 	s->migrate = migrate;
+ 
+@@ -4435,6 +4437,10 @@ void kmem_cache_setup_mobility(struct kmem_cache *s,
+ 	 * to disable fast cmpxchg based processing.
+ 	 */
+ 	s->flags &= ~__CMPXCHG_DOUBLE;
 +
-+/*
-+ * __move() - Move all objects in the given slab.
-+ * @page: The slab we are working on.
-+ * @scratch: Pointer to scratch space.
-+ * @node: The target node to move objects to.
-+ *
-+ * If the target node is not the current node then the object is moved
-+ * to the target node.  If the target node is the current node then this
-+ * is an effective way of defragmentation since the current slab page
-+ * with its object is exempt from allocation.
-+ */
-+static void __move(struct page *page, void *scratch, int node)
-+{
-+	unsigned long objects;
-+	struct kmem_cache *s;
-+	unsigned long flags;
-+	unsigned long *map;
-+	void *private;
-+	int count;
-+	void *p;
-+	void **vector = scratch;
-+	void *addr = page_address(page);
++	list_move(&s->list, &slab_caches);	/* Move to top */
 +
-+	local_irq_save(flags);
-+	slab_lock(page);
-+
-+	BUG_ON(!PageSlab(page)); /* Must be s slab page */
-+	BUG_ON(!page->frozen);	 /* Slab must have been frozen earlier */
-+
-+	s = page->slab_cache;
-+	objects = page->objects;
-+	map = scratch + objects * sizeof(void **);
-+
-+	/* Determine used objects */
-+	bitmap_fill(map, objects);
-+	for (p = page->freelist; p; p = get_freepointer(s, p))
-+		__clear_bit(slab_index(p, s, addr), map);
-+
-+	/* Build vector of pointers to objects */
-+	count = 0;
-+	memset(vector, 0, objects * sizeof(void **));
-+	for_each_object(p, s, addr, objects)
-+		if (test_bit(slab_index(p, s, addr), map))
-+			vector[count++] = p;
-+
-+	if (s->isolate)
-+		private = s->isolate(s, vector, count);
-+	else
-+		/* Objects do not need to be isolated */
-+		private = NULL;
-+
-+	/*
-+	 * Pinned the objects. Now we can drop the slab lock. The slab
-+	 * is frozen so it cannot vanish from under us nor will
-+	 * allocations be performed on the slab. However, unlocking the
-+	 * slab will allow concurrent slab_frees to proceed. So the
-+	 * subsystem must have a way to tell from the content of the
-+	 * object that it was freed.
-+	 *
-+	 * If neither RCU nor ctor is being used then the object may be
-+	 * modified by the allocator after being freed which may disrupt
-+	 * the ability of the migrate function to tell if the object is
-+	 * free or not.
-+	 */
-+	slab_unlock(page);
-+	local_irq_restore(flags);
-+
-+	/* Perform callback to move the objects */
-+	s->migrate(s, vector, count, node, private);
-+}
-+
- void kmem_cache_setup_mobility(struct kmem_cache *s,
- 			       kmem_cache_isolate_func isolate,
- 			       kmem_cache_migrate_func migrate)
++	mutex_unlock(&slab_mutex);
+ }
+ EXPORT_SYMBOL(kmem_cache_setup_mobility);
+ 
 -- 
 2.21.0
 
