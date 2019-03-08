@@ -2,122 +2,113 @@ Return-Path: <SRS0=92PK=RL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+X-Spam-Status: No, score=-10.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 70E83C43381
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 18:06:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 69FDDC10F09
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 18:43:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 25E1720851
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 18:06:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0537F20857
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 18:43:20 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="nkbEsXyM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 25E1720851
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="J0E6l8PL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0537F20857
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AB9748E0004; Fri,  8 Mar 2019 13:06:27 -0500 (EST)
+	id 5E26E8E0003; Fri,  8 Mar 2019 13:43:20 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A696A8E0002; Fri,  8 Mar 2019 13:06:27 -0500 (EST)
+	id 593528E0002; Fri,  8 Mar 2019 13:43:20 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 930CF8E0004; Fri,  8 Mar 2019 13:06:27 -0500 (EST)
+	id 485228E0003; Fri,  8 Mar 2019 13:43:20 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6823B8E0002
-	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 13:06:27 -0500 (EST)
-Received: by mail-it1-f198.google.com with SMTP id v12so12619968itv.9
-        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 10:06:27 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 042B38E0002
+	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 13:43:20 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id y1so21160605pgo.0
+        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 10:43:19 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=D5rKTyfVZijrMz/zqJoeUoWvK7hLmtFUj70DH++ifvI=;
-        b=XAeGH/9mnaw4eKgKdx11wMu4LatbeaZ1GyY2xkxENtj+h1m6CHt9pzG/WQP/W/EX8V
-         ICtgegkivP4GTpeN2WLRH+/o347wFNo4XWZRYIv+Ot7lmC8YCwWwIaBr3aeRYp7SGgh9
-         Le/ObGOUpBJbwAorWviM3BID1ablbVGaR6mhrR0AfqrHHQyLmXd9qnj7uqIkyQExFyOC
-         LjZSLa86liPbA5zx6UgS90BErl/02qs5wLeZ/kLirWXlA4Y12ItrZ2YryMGbd1ETGNQl
-         XhCH6Hp6YCl17bXGM+Ikaqa7j49ICQnDMWfTF/sHIYpSW3ooL6SkPmYvxo1PtN7Ob2uH
-         bdAw==
-X-Gm-Message-State: APjAAAWYM+XZx6KHkvonrhIamDWGV86lIiYFt6ms6cd+WzqICKMvFulo
-	KcTY44S26hINnwKgetCYbEnlszQtfRnFFw4D0BbXFwocoo5FvIzDc/Y82dugD/DKSEwVHxqMvx4
-	6C3JArWg7bEZY/FeVDLOT6+ZahJI1Sd08QidGBAmHMLZQJchIoZOShJpVEtkJEwdFX2ftJboewe
-	5V+eKLBzSnJDy0oVFxUxc0dB3VqflTHYh8lOQWTiNy3gNlqjNAL7Ih/jp9Hvt3LZ9n+ihSirsb+
-	Tsilp/5YChNGFsGG/kX0KQoWky9/g5xZ5Czf2xL7o+TkOTyixkiaTv3+2qZx4uvZA1MN/pCiM/q
-	f/unJFUM8S7MGUSLOi6NGboiZbMC2F5I+cEkmIASRA43K++rF3Xaxz/f1dM9DDVNdH511xPh3Us
-	4
-X-Received: by 2002:a24:e506:: with SMTP id g6mr8808031iti.127.1552068387144;
-        Fri, 08 Mar 2019 10:06:27 -0800 (PST)
-X-Received: by 2002:a24:e506:: with SMTP id g6mr8807972iti.127.1552068386095;
-        Fri, 08 Mar 2019 10:06:26 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1552068386; cv=none;
+        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
+         :subject:from:to:cc;
+        bh=ACm0jVzCyuutlk8CKHsubOzb2TygYzufZCwbrPfQ1JQ=;
+        b=dvsA7om6jZZzLTpT4OJBlz80ahkdd/DJUQvQ4rSzSOfP1BtTxg7Gsn3a2KFluhHcKf
+         aj29h69WNcv9elY81X3DIxdsAQQUAPg0F1VLiFnbU+7OmOsYn2k3FmBGsfDfGeQyzXad
+         XNKBXIZBBkkmDUgTN0mwBaJmYuowfHKzFieeVhiBJ8B274a4lGIaQw7TaO1cyHhZIRfl
+         NVp5wALGounXNm5FodDVn/aCk0EcpB1G1v6LP3Ttqryn+3c4pXxOd38P29blNCMU2C5D
+         74Op7Lkoqt5NUR9e+3JgwyFNORaBbZe1tmUN/Ys9DzmSA9dzp2aOWr0Oq4Len0grcHtp
+         VWJw==
+X-Gm-Message-State: APjAAAV0Lo0XEoFBRQcyvWb6Hw9oeNnYkh9prAdAA+Kwc1Ytr22c0e+G
+	LH1cxh3ksRfP6tF6BLo8unprT3JPJRCiidlskQd9opByOaDJMHPWFb/f3/CbJvUCWqnzhbUAK3D
+	5JwjQfO4azGQAAxqwPJjxK7CHNHb2kG8j8gjyC+9vhpOY6ZyPk8YPs4gjQ4IxUOyeVnKQCaKCwT
+	pMGa6ecTfF0QUMxQzIDmijmrECEfG27Duns8MGWoZqvbs7aDBPjR9zVSz8ahjm4kdh3aIvB8pF0
+	YBDmwbJNYwKtF7Ce76KNtF4VChv5xr4gFOmznER4FjbBp3dX9jzrDeYOxp5nyApgSrVWcpCPVPj
+	K4V6ncfiNmkG9UXcP2zJ/JkUDDA0vLe2wxJDrZHc4aKrjtOlPC9ifjfkljJ5VwLhx814la771PR
+	0
+X-Received: by 2002:a17:902:6684:: with SMTP id e4mr20272909plk.90.1552070599562;
+        Fri, 08 Mar 2019 10:43:19 -0800 (PST)
+X-Received: by 2002:a17:902:6684:: with SMTP id e4mr20272841plk.90.1552070598458;
+        Fri, 08 Mar 2019 10:43:18 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1552070598; cv=none;
         d=google.com; s=arc-20160816;
-        b=hgmZRewn4CHT9bcsNHIR8XSLEUTDc9WNSU/9kRVmBWwQmcW2808c7+SkwOw/Pvujxd
-         t+b/YJOdbgMexzDVjk1apivLDrRq9YDyT5PUQf7FyglvWGZ8d7C66jVlz0UbK0dKJCiF
-         ZmZyuHcVIFQX1QpBgkO8aEOCMDbrjW17sC1br+hjX80dsteEzWea3BY6bNVK0ss/rtw1
-         7A7WFwepbmBIq5oM1B0sZeEkkCwzlaBbm/rUk4m9XY7StIFFZldRpLv/Z3BEWDMC/LJb
-         mw9o4vaqZIEpDJyUGwxtVcROx7R8dV6X+jATtLE89qgN9hlYO/aYWthm/+Xcrm4CHz0d
-         8LIw==
+        b=SQISQSERbrYMNi/vOzpxqs+guQA98A4RvRkKBw5I2+1NHRgxhOz1WXrLwYsPRKhp2I
+         N8W7W7lRliC/9Dk9ZnuFUTduMOx6fA9V4mwdWM0i/HC1g9gzWKLXVOuXpCmVJU7jOX7Q
+         LeP0qZZ88fQNHWU+4sLVkGNFEVCminVL7u31mZP4Xr6DBlqKgtIRh7HimRVSfwWc5aaX
+         HLbU0+ncK29ESUhSfkDnXpsR09UnExOjWGP/aRWM9SU8/vPZlwo/qWu0qBS39xdvayqN
+         y9Jbk4tvBGDMpyQIKIhnQCXeJIlzPIRMjTGxarCNy/fzEWVvmAI7Am0xJSCX0mj1fJ55
+         g2+A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=D5rKTyfVZijrMz/zqJoeUoWvK7hLmtFUj70DH++ifvI=;
-        b=PNYy/5GzABkMPm42Y4nBjj1tJPDhYvX0wAJ2fUt2rvyRXawrxOmQl1HaNGj7MnkKbX
-         p4xzd4XBQ+BrQ/L5R8Cv7UnVrfkk2OOWn8F2lZpNK5c7MXy1NsLGjdjOYIYvLW9sBBsg
-         g9E9BPm89EOWjr1EVZtC/Z5X/lTVXjIIgIz9Mp9YDSFIB2skldAybbpZMLPJj0a5KTGl
-         iw3TcwiumzvWu51K+pA94bmFjkdgDs5Kw5uz0OgBSOXHTnhdJh1bJAxcqvEqMWr4023j
-         BrhyZlM78RnQt6RR82n3qxPAuCUl7n7tUrQnHhXfjpks2OGSljKjop4yH95y+LXOulfg
-         ZFQg==
+        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
+        bh=ACm0jVzCyuutlk8CKHsubOzb2TygYzufZCwbrPfQ1JQ=;
+        b=VnWBvS65U3BSGmQcy07ozG9V+o43Ni0SV1WQ+kpwxWn4Ca0UM28M7cYQkUUW91iB+6
+         uHdKwrRAcXYBHkcqfOP8vfED5GCjAYjKgCaOoS5lh4Urlsb+KQJ0vHIv5/U3XVD59Gnm
+         sp31DhrBJtWBD2dEP7jVFhUSTDpaQM9uNoQiGitk+2SCsCdBdvYjIfjSz+v0jKFvBFC+
+         XArYm2qCFGb0zV5b7w5Xb1X00tbPZfzpcgSK2jrnPaS4DesxHHiaLOQo/CCHg1MuLUDB
+         UNqnZOfc/AVIC79jE6bid46LYmSaBHiRobk21ywMas4g8/7XaGUSn1HupbQFMLXHgbPw
+         yjzw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=nkbEsXyM;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id n129sor19317791jaa.12.2019.03.08.10.06.26
+       dkim=pass header.i=@google.com header.s=20161025 header.b=J0E6l8PL;
+       spf=pass (google.com: domain of 3xbecxaykccoyaxkthmuumrk.iusrotad-ssqbgiq.uxm@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3xbeCXAYKCCoYaXKTHMUUMRK.IUSROTad-SSQbGIQ.UXM@flex--surenb.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id g67sor13428439plb.5.2019.03.08.10.43.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 08 Mar 2019 10:06:26 -0800 (PST)
-Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        Fri, 08 Mar 2019 10:43:18 -0800 (PST)
+Received-SPF: pass (google.com: domain of 3xbecxaykccoyaxkthmuumrk.iusrotad-ssqbgiq.uxm@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=nkbEsXyM;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=J0E6l8PL;
+       spf=pass (google.com: domain of 3xbecxaykccoyaxkthmuumrk.iusrotad-ssqbgiq.uxm@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3xbeCXAYKCCoYaXKTHMUUMRK.IUSROTad-SSQbGIQ.UXM@flex--surenb.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=D5rKTyfVZijrMz/zqJoeUoWvK7hLmtFUj70DH++ifvI=;
-        b=nkbEsXyMXcEtPbGSAf1kaE6FvSfYAjTcy/5fMk4ANcma+AlXUAnDi9hlng0LmL8mke
-         Mf8a+jldG7g3805jNHaVYw3gLTVsQbhrCV19H4sucJiqbD7WwJT/MXjEWbz8YbVnTrdO
-         OLbbVRTxDMd/CV1qqTEpRcDhbPbq17hO2TCk4lT53cems5JLRbNodgVs/QwxpGm28fMm
-         5V+EGHqfCJJFk5PWu5r7ZQ56DykRUDlqYm+gN0pFFYlO/rPQ3NfuHGu86cnIIBnZ9Uza
-         xkRu7gZyjTU8w54CFljY+1KMQUBnPYO80csf/oWXcyvanXfWzjUpGFpwuazreVN64ogb
-         vCIw==
-X-Google-Smtp-Source: APXvYqxe8SAllqyBBiYJBgaC2gPebe+RMsZWPiQrsuncalBXI8HdlDKnm1Ro75y9UtqsMNImF5874Z6e6mBrSivrTG0=
-X-Received: by 2002:a02:2309:: with SMTP id u9mr195309jau.114.1552068385617;
- Fri, 08 Mar 2019 10:06:25 -0800 (PST)
-MIME-Version: 1.0
-References: <20190306155048.12868-1-nitesh@redhat.com> <20190306155048.12868-3-nitesh@redhat.com>
- <CAKgT0UdDohCXZY3q9qhQsHw-2vKp_CAgvf2dd2e6U6KLsAkVng@mail.gmail.com>
- <2d9ae889-a9b9-7969-4455-ff36944f388b@redhat.com> <22e4b1cd-38a5-6642-8cbe-d68e4fcbb0b7@redhat.com>
- <CAKgT0UcAqGX26pcQLzFUevHsLu-CtiyOYe15uG3bkhGZ5BJKAg@mail.gmail.com>
- <78b604be-2129-a716-a7a6-f5b382c9fb9c@redhat.com> <CAKgT0Uc_z9Vi+JhQcJYX+J9c4J56RRSkzzegbb2=9xO-NY3dgw@mail.gmail.com>
- <20190307212845-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20190307212845-mutt-send-email-mst@kernel.org>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Fri, 8 Mar 2019 10:06:14 -0800
-Message-ID: <CAKgT0Ucu3EMsYBfdKtEiprrn-VBZy3Y+0HdEp5b4PO2SQgGsRw@mail.gmail.com>
-Subject: Re: [RFC][Patch v9 2/6] KVM: Enables the kernel to isolate guest free pages
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: David Hildenbrand <david@redhat.com>, Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>, 
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
-	Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com, pagupta@redhat.com, 
-	wei.w.wang@intel.com, Yang Zhang <yang.zhang.wz@gmail.com>, 
-	Rik van Riel <riel@surriel.com>, dodgen@google.com, 
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com, 
-	Andrea Arcangeli <aarcange@redhat.com>
+        d=google.com; s=20161025;
+        h=date:message-id:mime-version:subject:from:to:cc;
+        bh=ACm0jVzCyuutlk8CKHsubOzb2TygYzufZCwbrPfQ1JQ=;
+        b=J0E6l8PLxa5AD+SoFiGGjQrXKPVXQ7Cx91Pa0ZqDnL4UDnfiPF53kuY9n0IrxtSJiM
+         EIMnT7i9kQ+MVedAntcAllJrZpI4iOUum/s1tw+sRsvJ4hwpOnCAsLrq1Bjgn5EAsHn6
+         63AjOaYrP0ccldyFwZsJ0TY2SmZpeFs1HC280O5/5PUWcwrYCg0URIhkoBBt3tD121nY
+         gjebWK2xb+jE87wqcSqDIS3q9gc5xe2SgWxrcUBr2POsuqcgVIgQ4zLSHPNt3Ba/++Iu
+         08MHlYhpV7pNvDPrwT9m2ejAUuXL5nsURLT6CZT97fJchmrfMW81badeAl+Zd4jnRhF6
+         1OMg==
+X-Google-Smtp-Source: APXvYqy9OwpfshRBnwEzf4DRMpDWh9yi53/pJqTjDnVCsZY46HDQRmUGVPGKcekhVOLLENr+XNITRbfI8MY=
+X-Received: by 2002:a17:902:8f92:: with SMTP id z18mr6275215plo.17.1552070597966;
+ Fri, 08 Mar 2019 10:43:17 -0800 (PST)
+Date: Fri,  8 Mar 2019 10:43:04 -0800
+Message-Id: <20190308184311.144521-1-surenb@google.com>
+Mime-Version: 1.0
+X-Mailer: git-send-email 2.21.0.360.g471c308f928-goog
+Subject: [PATCH v5 0/7] psi: pressure stall monitors v5
+From: Suren Baghdasaryan <surenb@google.com>
+To: gregkh@linuxfoundation.org
+Cc: tj@kernel.org, lizefan@huawei.com, hannes@cmpxchg.org, axboe@kernel.dk, 
+	dennis@kernel.org, dennisszhou@gmail.com, mingo@redhat.com, 
+	peterz@infradead.org, akpm@linux-foundation.org, corbet@lwn.net, 
+	cgroups@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, 
+	linux-kernel@vger.kernel.org, kernel-team@android.com, 
+	Suren Baghdasaryan <surenb@google.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -125,43 +116,104 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 7, 2019 at 6:32 PM Michael S. Tsirkin <mst@redhat.com> wrote:
->
-> On Thu, Mar 07, 2019 at 02:35:53PM -0800, Alexander Duyck wrote:
-> > The only other thing I still want to try and see if I can do is to add
-> > a jiffies value to the page private data in the case of the buddy
-> > pages.
->
-> Actually there's one extra thing I think we should do, and that is make
-> sure we do not leave less than X% off the free memory at a time.
-> This way chances of triggering an OOM are lower.
+This is respin of:
+  https://lwn.net/ml/linux-kernel/20190206023446.177362-1-surenb%40google.com/
 
-If nothing else we could probably look at doing a watermark of some
-sort so we have to have X amount of memory free but not hinted before
-we will start providing the hints. It would just be a matter of
-tracking how much memory we have hinted on versus the amount of memory
-that has been pulled from that pool. It is another reason why we
-probably want a bit in the buddy pages somewhere to indicate if a page
-has been hinted or not as we can then use that to determine if we have
-to account for it in the statistics.
+Android is adopting psi to detect and remedy memory pressure that
+results in stuttering and decreased responsiveness on mobile devices.
 
-> > With that we could track the age of the page so it becomes
-> > easier to only target pages that are truly going cold rather than
-> > trying to grab pages that were added to the freelist recently.
->
-> I like that but I have a vague memory of discussing this with Rik van
-> Riel and him saying it's actually better to take away recently used
-> ones. Can't see why would that be but maybe I remember wrong. Rik - am I
-> just confused?
+Psi gives us the stall information, but because we're dealing with
+latencies in the millisecond range, periodically reading the pressure
+files to detect stalls in a timely fashion is not feasible. Psi also
+doesn't aggregate its averages at a high-enough frequency right now.
 
-It is probably to cut down on the need for disk writes in the case of
-swap. If that is the case it ends up being a trade off.
+This patch series extends the psi interface such that users can
+configure sensitive latency thresholds and use poll() and friends to
+be notified when these are breached.
 
-The sooner we hint the less likely it is that we will need to write a
-given page to disk. However the sooner we hint, the more likely it is
-we will need to trigger a page fault and pull back in a zero page to
-populate the last page we were working on. The sweet spot will be that
-period of time that is somewhere in between so we don't trigger
-unnecessary page faults and we don't need to perform additional swap
-reads/writes.
+As high-frequency aggregation is costly, it implements an aggregation
+method that is optimized for fast, short-interval averaging, and makes
+the aggregation frequency adaptive, such that high-frequency updates
+only happen while monitored stall events are actively occurring.
+
+With these patches applied, Android can monitor for, and ward off,
+mounting memory shortages before they cause problems for the user.
+For example, using memory stall monitors in userspace low memory
+killer daemon (lmkd) we can detect mounting pressure and kill less
+important processes before device becomes visibly sluggish. In our
+memory stress testing psi memory monitors produce roughly 10x less
+false positives compared to vmpressure signals. Having ability to
+specify multiple triggers for the same psi metric allows other parts
+of Android framework to monitor memory state of the device and act
+accordingly.
+
+The new interface is straight-forward. The user opens one of the
+pressure files for writing and writes a trigger description into the
+file descriptor that defines the stall state - some or full, and the
+maximum stall time over a given window of time. E.g.:
+
+        /* Signal when stall time exceeds 100ms of a 1s window */
+        char trigger[] = "full 100000 1000000"
+        fd = open("/proc/pressure/memory")
+        write(fd, trigger, sizeof(trigger))
+        while (poll() >= 0) {
+                ...
+        };
+        close(fd);
+
+When the monitored stall state is entered, psi adapts its aggregation
+frequency according to what the configured time window requires in
+order to emit event signals in a timely fashion. Once the stalling
+subsides, aggregation reverts back to normal.
+
+The trigger is associated with the open file descriptor. To stop
+monitoring, the user only needs to close the file descriptor and the
+trigger is discarded.
+
+Patches 1-6 prepare the psi code for polling support. Patch 7 implements
+the adaptive polling logic, the pressure growth detection optimized for
+short intervals, and hooks up write() and poll() on the pressure files.
+
+The patches were developed in collaboration with Johannes Weiner.
+
+The patches are based on 5.0-rc8 (Merge tag 'drm-next-2019-03-06').
+
+Suren Baghdasaryan (7):
+  psi: introduce state_mask to represent stalled psi states
+  psi: make psi_enable static
+  psi: rename psi fields in preparation for psi trigger addition
+  psi: split update_stats into parts
+  psi: track changed states
+  refactor header includes to allow kthread.h inclusion in psi_types.h
+  psi: introduce psi monitor
+
+ Documentation/accounting/psi.txt | 107 ++++++
+ include/linux/kthread.h          |   3 +-
+ include/linux/psi.h              |   8 +
+ include/linux/psi_types.h        | 105 +++++-
+ include/linux/sched.h            |   1 -
+ kernel/cgroup/cgroup.c           |  71 +++-
+ kernel/kthread.c                 |   1 +
+ kernel/sched/psi.c               | 613 ++++++++++++++++++++++++++++---
+ 8 files changed, 833 insertions(+), 76 deletions(-)
+
+Changes in v5:
+- Fixed sparse: error: incompatible types in comparison expression, as per
+ Andrew
+- Changed psi_enable to static, as per Andrew
+- Refactored headers to be able to include kthread.h into psi_types.h
+without creating a circular inclusion, as per Johannes
+- Split psi monitor from aggregator, used RT worker for psi monitoring to
+prevent it being starved by other RT threads and memory pressure events
+being delayed or lost, as per Minchan and Android Performance Team
+- Fixed blockable memory allocation under rcu_read_lock inside
+psi_trigger_poll by using refcounting, as per Eva Huang and Minchan
+- Misc cleanup and improvements, as per Johannes
+
+Notes:
+0001-psi-introduce-state_mask-to-represent-stalled-psi-st.patch is unchanged
+from the previous version and provided for completeness.
+
+-- 
+2.21.0.360.g471c308f928-goog
 
