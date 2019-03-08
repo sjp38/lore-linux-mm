@@ -2,107 +2,108 @@ Return-Path: <SRS0=92PK=RL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C0982C43381
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 21:36:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5766CC4360F
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 21:36:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 629A220652
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 21:36:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0ADBA20652
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 21:36:47 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="QNTO0WU8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 629A220652
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="fs1CsZCl"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0ADBA20652
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 00A898E0004; Fri,  8 Mar 2019 16:36:46 -0500 (EST)
+	id 191F58E0005; Fri,  8 Mar 2019 16:36:47 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EFCE98E0002; Fri,  8 Mar 2019 16:36:45 -0500 (EST)
+	id 11C2A8E0002; Fri,  8 Mar 2019 16:36:47 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DEB168E0004; Fri,  8 Mar 2019 16:36:45 -0500 (EST)
+	id EAF1B8E0005; Fri,  8 Mar 2019 16:36:46 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 99BF18E0002
-	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 16:36:45 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id 73so21643367pga.18
-        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 13:36:45 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id A52DD8E0002
+	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 16:36:46 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id b12so21650871pgj.7
+        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 13:36:46 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=R8pjqCJyuCOC9qIxLWExhAZb4xVkg5yY/1ua3SMhyTU=;
-        b=kDTW7sgHX5Q2JiJKtpUcdq9fB6pl7aIyv2Y4ObKHEhEzSN3mdeVWwaRFFhsLsBTkKs
-         OghAMLhg4UtLAxpX9mqfyFMuDCO4388bKme8ild4kz9dnKsM4HuB1vzWREol4Ddxo9yY
-         WP4ms9LB2+VuyIfg5BXE9I/wiWjiNa5XKth8TM1h1+ajZcqspEySJ3HnFPZ/oTQgGk+8
-         q0v2aPEIsgc8PgmxhfZgR9zEoggkNVY9dYKUAlDtk9X7AfOmGdPLioDS4rCqr5LMEsOI
-         rsTxZ3ejxvyK3q6miydXeY7Z9AXFjJaLp/5ovQfp0AkUDuxoUKGk5UFrBX/yyWfc4+eT
-         umkg==
-X-Gm-Message-State: APjAAAXA3uhPEMZtuPmGmQFZyze4BauUbty3PxYchvsOyJrBPpm19kb/
-	1dBqQ3hfpm3EMHr2dHN5mBvqCLv8+0soHFD5mu+8hUWh7NekeWzIOolWgf1+cdUc+0zzyTb5+l0
-	z3CcY+bOf0p9JIhnSR+wM7giB0oAjUSoF7G85lJh2Qc/Jv9pqC+MdSFiyH168jCfZzx/n0qjIU1
-	lBQkM1PHQzK4489dfRqE3UFHz1mhTDrWHUNbCRMeLWPfXryeH9VVVm9orJG76cYK9zTQa6qn93S
-	czOS4CBZ2MJ+MbaEuL0ePzOt2gpw58DduwICRD1ceKfnPOHLT9+r9Tk/c4txHGkAJrE/pv/wHW7
-	h5r4OCP+pwTIwHUmHZVYrJAGxKHqPWLlQ5iUMlNvDcUDdo5vleEcXMqX4O8oUWvyS3Vj7UokxlC
-	a
-X-Received: by 2002:a62:1c43:: with SMTP id c64mr20558774pfc.259.1552081005201;
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=kDKTJmGRrB2DVmVkF369QsCrmEvxOyKIOnMGmStFbjc=;
+        b=nnWRjqCB4lg0nW700ITvT4GB3hpmH9I01YFTTcx8LXNDiXiA2qyIdnq41wx+Xic0ko
+         4s9HQXMheeSaMmMV3oAiBWMtZYmdDEliQYM7g9P/UbIODjhNRuJjUi1TGu1VYQwOBb7e
+         zTUUGiJEe4ABWWB//WkawrHsm2+Jlgac2zTIBQN5OEVL/yeN64miLcavA+ukI47bF1/L
+         ptabtn2phxV/OmieSR4/n/0RdV8H4ltNCW0yP6e8MoIJF7U8fU3tGdlXBT8YC7aQD2xX
+         HYWaqVf+oqd4WSJ31BhzVKCOglRBu19vPHZtu6uj/lzX6GKf97henIrOsSPMkOZNg7+o
+         jhwA==
+X-Gm-Message-State: APjAAAUzZmE7Gx1Jip3czhSZOLfi7o/rw7mzbwlxQrEIezGe+LOxA9QV
+	HMjZ7DgNfbpCumYvfU+1WIofoBCD7cqUW5JpyYWBaB+uNHA+Y3eWnUHiE+qtgdjIUKbePHfFusz
+	KEZx2cxrpNqHoPs+p0EJWQTGhlcRG/7/g+Y3Rv4zHKNi9X3984dYQSQM/8XtxPP+s2FZGs9QMai
+	8yorm+7C/ci4IAXk2Zln+MBoxJ3KmQzigwU3AZbh+ByV/7HlAs0ZUnwjK2MtyqhXmISpgj2ds0X
+	guSn+izKchKtuGOMZ+SchN7Dh4yashz6muJ8HbJ2MoelHyajlTolXvbzAdYpH5O8lGACK4AQy48
+	cuP8ZrGBjRfxGonqLJ/7UjqBZFuHrRyUHsbkcQTQa67F1SVzhAk/Pi+rJdeJMtFhL/uenpG96z7
+	U
+X-Received: by 2002:a17:902:b404:: with SMTP id x4mr21201854plr.232.1552081006320;
+        Fri, 08 Mar 2019 13:36:46 -0800 (PST)
+X-Received: by 2002:a17:902:b404:: with SMTP id x4mr21201797plr.232.1552081005442;
         Fri, 08 Mar 2019 13:36:45 -0800 (PST)
-X-Received: by 2002:a62:1c43:: with SMTP id c64mr20558678pfc.259.1552081003792;
-        Fri, 08 Mar 2019 13:36:43 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1552081003; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1552081005; cv=none;
         d=google.com; s=arc-20160816;
-        b=hZfT1ZHL2YoUjGg+9PZ+08+2D16iV2IlgnAKGgYvEEYHyEWawZbaz88LgohkEH5S6c
-         2Fji4v5/nrwtrjIwKPBQCbS+8UPjxxs/BohwFLO888pA4W2rSk8B/QD3CL0nYeVN5czj
-         cA5HRWKu25whP/famcqr74XLozE6j1wvAJAUGqt+54RClHzxj7kLFv7T7mTCwVeXuBzp
-         30bYaVqB/2S5k/uX7T3rbI93kXM9Oef4pbZ2jD5Qjlv7Y6+8pUbunCzA5cBIee0k9M3b
-         1r/4gXW2km31l8TEuVSFGFXRurIHPMZste8rKlrc2MTTkt5+sxqlGFRfcYzj6Opd7LkP
-         i0uw==
+        b=P3f+tfNr8gfDjSFG3TZGMcV0GZIEW3cqkxQ3A331RSSkhP/YgDI6BPbTDRskyb9oHP
+         xfrE4HSLhjTW/BwU05LBV6wyNQ6fXGPhVXKJbHj77TOquO8qzIkHgoGXtW6teRhujENn
+         0vJSPljJ6jstazk5qJLeQh8Wv90WUByl6B1Qc/jbAG392Zk5MTFN3YIGAdGEeSwgGABu
+         E6LWPVwjyQ/ZSCzk4YiCxXDRrdrrMKfkQVV5C5NSaYhlTk5GzwY5Dx0V1NRGMv0VeCb3
+         xcnHAK1SmEBuEUAPiUKmonqCgly7O4T4DYIbiHo7vJCpaFhfFukGw6M2273R1gJwuOrX
+         zwlw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=R8pjqCJyuCOC9qIxLWExhAZb4xVkg5yY/1ua3SMhyTU=;
-        b=ESsEh68lIpa/CWMFSaaEulbEDAsgF8sKQThdwhoeo6d7E557q6bZui2ut6KVvdBB9t
-         uQZENmuaD3xtbOt86YpllQ/gWujK6xz5anynE5WOwz1uE+zIcRyXfU8e4iGVTAoiIDJF
-         LpEP8vcqWterD4uznwAuNpLqirZZ6ww5pB+oInnJ5+yodIBJcuAetd9/MyCUzgay6IuD
-         afC32JKeZqe8mW4vjLfpF5duTscsjR7hPPBclf9R6W/zhzSf77gyEPjYCpWoQdzEduFz
-         GSgGLuRf8jByUzfRZrR4jBcuf3nMYKAHrP0IWaLOwmeUgF0B6LyDHyHgLU8uD3vUhQ3M
-         bUYA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=kDKTJmGRrB2DVmVkF369QsCrmEvxOyKIOnMGmStFbjc=;
+        b=eGvKpn6Vg6LHu6zH2thEIeOVhtnlqkrKkvqBgFhKiBZoD7uoKM/IugS3/TfwWnl5rW
+         TD2raaE154VcfF9Og9yYRBFmFq/vHmVYvLTMxUv5EjBYiWCWeGVemdt6VPzOv/8YmM1G
+         Bg3LK1Wjr2FZ0O4Ic/6pqzsFwyXrPRpwszTZfqwqMdq7b/2r7EQjCWoNbAnpC+xMkIAk
+         OzBELengKdVuwjJUYAVlMldciiLVwynozRoZC2rJyLLFjMwYyOgihAt8zaxsTJRCJfWq
+         OtK2DGrov7DFi4CBN3vJ73srOOYi1ws/AXc3toTgt0CkdWUiCnpRts7XDCaZQ29jz7DR
+         /zdg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QNTO0WU8;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=fs1CsZCl;
        spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 62sor14432952ple.72.2019.03.08.13.36.43
+        by mx.google.com with SMTPS id h1sor14386976plh.28.2019.03.08.13.36.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 08 Mar 2019 13:36:43 -0800 (PST)
+        Fri, 08 Mar 2019 13:36:45 -0800 (PST)
 Received-SPF: pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QNTO0WU8;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=fs1CsZCl;
        spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=R8pjqCJyuCOC9qIxLWExhAZb4xVkg5yY/1ua3SMhyTU=;
-        b=QNTO0WU8+ixmJ22Rnrjz68AdSVgpgICB9uk7ItHCy9HTrpdvbgClWSo8fVtxDvOtGn
-         axjt1l9RTOdJFZV+RzhemigSw43NH/5Nr2uhlmOBOclDiyqdV6JS4P7SSRgL+5RFVMSd
-         DQ21zVOp615X2qwmjG4iKPvUULTRVFUNHdpoy0+BnK49ZKfyUEd+/xdb2PbsJx+etXyl
-         3onxKw4hX5E3naz8Jwg+rdj7ckCw1jwM72aCeR/7sOO35c1M4Am5iSE10SWwc2FpAMBV
-         feRUfk1hfuIfRIuEL+ywjmemSRxQD2bkijC7wYN2HJDWg2FVcfF3019BlJJeEgA1qtyD
-         gxlg==
-X-Google-Smtp-Source: APXvYqzBK+M1uDC+BRaBhjDUHnMAXagND1pk9LFJymgS/dyF4dszKAnpEKz5FsA83W5cHrsesI57Zw==
-X-Received: by 2002:a17:902:765:: with SMTP id 92mr20505285pli.95.1552081003342;
-        Fri, 08 Mar 2019 13:36:43 -0800 (PST)
+        h=from:to:cc:subject:date:message-id:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=kDKTJmGRrB2DVmVkF369QsCrmEvxOyKIOnMGmStFbjc=;
+        b=fs1CsZClBj/tPusa5tzCdpVn9k4H831T/6g0t2ayB41nLJFQYyQKkY3OSx4jbis2FT
+         VZxqNzdFlqhM4K2niXutB9uVA2ugJpJgsQKExfM4d+53RVYsl6dVRyj/jSrrXRn3DuLO
+         1d+v8UrIIWEvGusGNWYVsTP0prolwNn8XkQgDGNaWsRLwoT2t9fn3jur3rRNRoOH2B9F
+         YJq07WHRFZmeGrzcabAym1Jqs7ANZz9utF4WxaUXOFWdlBX/V/GRZNj6JnsVIKG0hB0t
+         g4TmRGOe/ZUnWo+nR1czQaDxeT3bdgmw2wklm0LDBe0AZ5lOiuAZno6T+WrQZqIm4ZPn
+         jb3A==
+X-Google-Smtp-Source: APXvYqwBT3c+yxcqZogCJP6Pgjl6XxolMZFjfPf2ee4HvtbNq06N5dzwgW5FdnBCSeaa20T/qf19qQ==
+X-Received: by 2002:a17:902:59c1:: with SMTP id d1mr20579787plj.324.1552081005077;
+        Fri, 08 Mar 2019 13:36:45 -0800 (PST)
 Received: from blueforge.nvidia.com (searspoint.nvidia.com. [216.228.112.21])
-        by smtp.gmail.com with ESMTPSA id c2sm11803665pfd.159.2019.03.08.13.36.41
+        by smtp.gmail.com with ESMTPSA id c2sm11803665pfd.159.2019.03.08.13.36.43
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Mar 2019 13:36:42 -0800 (PST)
+        Fri, 08 Mar 2019 13:36:44 -0800 (PST)
 From: john.hubbard@gmail.com
 X-Google-Original-From: jhubbard@nvidia.com
 To: Andrew Morton <akpm@linux-foundation.org>,
@@ -128,10 +129,12 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>,
 	LKML <linux-kernel@vger.kernel.org>,
 	linux-fsdevel@vger.kernel.org,
 	John Hubbard <jhubbard@nvidia.com>
-Subject: [PATCH v4 0/1] mm: introduce put_user_page*(), placeholder versions
-Date: Fri,  8 Mar 2019 13:36:32 -0800
-Message-Id: <20190308213633.28978-1-jhubbard@nvidia.com>
+Subject: [PATCH v4 1/1] mm: introduce put_user_page*(), placeholder versions
+Date: Fri,  8 Mar 2019 13:36:33 -0800
+Message-Id: <20190308213633.28978-2-jhubbard@nvidia.com>
 X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190308213633.28978-1-jhubbard@nvidia.com>
+References: <20190308213633.28978-1-jhubbard@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 X-NVConfidentiality: public
@@ -144,89 +147,27 @@ List-ID: <linux-mm.kvack.org>
 
 From: John Hubbard <jhubbard@nvidia.com>
 
-Hi Andrew and all,
+Introduces put_user_page(), which simply calls put_page().
+This provides a way to update all get_user_pages*() callers,
+so that they call put_user_page(), instead of put_page().
 
-Can we please apply this (destined for 5.2) once the time is right?
-(I see that -mm just got merged into the main tree today.)
+Also introduces put_user_pages(), and a few dirty/locked variations,
+as a replacement for release_pages(), and also as a replacement
+for open-coded loops that release multiple pages.
+These may be used for subsequent performance improvements,
+via batching of pages to be released.
 
-We seem to have pretty solid consensus on the concept and details of the
-put_user_pages() approach. Or at least, if we don't, someone please speak
-up now. Christopher Lameter, especially, since you had some concerns
-recently.
+This is the first step of fixing a problem (also described in [1] and
+[2]) with interactions between get_user_pages ("gup") and filesystems.
 
-Therefore, here is the first patch--only. This allows us to begin
-converting the get_user_pages() call sites to use put_user_page(), instead
-of put_page(). This is in order to implement tracking of get_user_page()
-pages.
-
-Normally I'd include a user of this code, but in this case, I think we have
-examples of how it will work in the RFC and related discussions [1]. What
-matters more at this point is unblocking the ability to start fixing up
-various subsystems, through git trees other than linux-mm. For example, the
-Infiniband example conversion now needs to pick up some prerequisite
-patches via the RDMA tree. It seems likely that other call sites may need
-similar attention, and so having put_user_pages() available would really
-make this go more quickly.
-
-Previous cover letter follows:
-==============================
-
-A discussion of the overall problem is below.
-
-As mentioned in patch 0001, the steps are to fix the problem are:
-
-1) Provide put_user_page*() routines, intended to be used
-   for releasing pages that were pinned via get_user_pages*().
-
-2) Convert all of the call sites for get_user_pages*(), to
-   invoke put_user_page*(), instead of put_page(). This involves dozens of
-   call sites, and will take some time.
-
-3) After (2) is complete, use get_user_pages*() and put_user_page*() to
-   implement tracking of these pages. This tracking will be separate from
-   the existing struct page refcounting.
-
-4) Use the tracking and identification of these pages, to implement
-   special handling (especially in writeback paths) when the pages are
-   backed by a filesystem.
-
-Overview
-========
-
-Some kernel components (file systems, device drivers) need to access
-memory that is specified via process virtual address. For a long time, the
-API to achieve that was get_user_pages ("GUP") and its variations. However,
-GUP has critical limitations that have been overlooked; in particular, GUP
-does not interact correctly with filesystems in all situations. That means
-that file-backed memory + GUP is a recipe for potential problems, some of
-which have already occurred in the field.
-
-GUP was first introduced for Direct IO (O_DIRECT), allowing filesystem code
-to get the struct page behind a virtual address and to let storage hardware
-perform a direct copy to or from that page. This is a short-lived access
-pattern, and as such, the window for a concurrent writeback of GUP'd page
-was small enough that there were not (we think) any reported problems.
-Also, userspace was expected to understand and accept that Direct IO was
-not synchronized with memory-mapped access to that data, nor with any
-process address space changes such as munmap(), mremap(), etc.
-
-Over the years, more GUP uses have appeared (virtualization, device
-drivers, RDMA) that can keep the pages they get via GUP for a long period
-of time (seconds, minutes, hours, days, ...). This long-term pinning makes
-an underlying design problem more obvious.
-
-In fact, there are a number of key problems inherent to GUP:
-
-Interactions with file systems
-==============================
-
-File systems expect to be able to write back data, both to reclaim pages,
-and for data integrity. Allowing other hardware (NICs, GPUs, etc) to gain
-write access to the file memory pages means that such hardware can dirty
-the pages, without the filesystem being aware. This can, in some cases
-(depending on filesystem, filesystem options, block device, block device
-options, and other variables), lead to data corruption, and also to kernel
-bugs of the form:
+Problem description: let's start with a bug report. Below, is what happens
+sometimes, under memory pressure, when a driver pins some pages via gup,
+and then marks those pages dirty, and releases them. Note that the gup
+documentation actually recommends that pattern. The problem is that the
+filesystem may do a writeback while the pages were gup-pinned, and then the
+filesystem believes that the pages are clean. So, when the driver later
+marks the pages as dirty, that conflicts with the filesystem's page
+tracking and results in a BUG(), like this one that I experienced:
 
     kernel BUG at /build/linux-fQ94TU/linux-4.4.0/fs/ext4/inode.c:1899!
     backtrace:
@@ -267,122 +208,178 @@ get_user_pages() being called on their pages, and letting hardware write
 directly to those pages--even though that pattern has been going on since
 about 2005 or so.
 
+The steps are to fix it are:
 
-Long term GUP
-=============
+1) (This patch): provide put_user_page*() routines, intended to be used
+   for releasing pages that were pinned via get_user_pages*().
 
-Long term GUP is an issue when FOLL_WRITE is specified to GUP (so, a
-writeable mapping is created), and the pages are file-backed. That can lead
-to filesystem corruption. What happens is that when a file-backed page is
-being written back, it is first mapped read-only in all of the CPU page
-tables; the file system then assumes that nobody can write to the page, and
-that the page content is therefore stable. Unfortunately, the GUP callers
-generally do not monitor changes to the CPU pages tables; they instead
-assume that the following pattern is safe (it's not):
+2) Convert all of the call sites for get_user_pages*(), to
+   invoke put_user_page*(), instead of put_page(). This involves dozens of
+   call sites, and will take some time.
 
-    get_user_pages()
+3) After (2) is complete, use get_user_pages*() and put_user_page*() to
+   implement tracking of these pages. This tracking will be separate from
+   the existing struct page refcounting.
 
-    Hardware can keep a reference to those pages for a very long time,
-    and write to it at any time. Because "hardware" here means "devices
-    that are not a CPU", this activity occurs without any interaction
-    with the kernel's file system code.
+4) Use the tracking and identification of these pages, to implement
+   special handling (especially in writeback paths) when the pages are
+   backed by a filesystem.
 
-    for each page
-        set_page_dirty
-        put_page()
+[1] https://lwn.net/Articles/774411/ : "DMA and get_user_pages()"
+[2] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
 
-In fact, the GUP documentation even recommends that pattern.
-
-Anyway, the file system assumes that the page is stable (nothing is writing
-to the page), and that is a problem: stable page content is necessary for
-many filesystem actions during writeback, such as checksum, encryption,
-RAID striping, etc. Furthermore, filesystem features like COW (copy on
-write) or snapshot also rely on being able to use a new page for as memory
-for that memory range inside the file.
-
-Corruption during write back is clearly possible here. To solve that, one
-idea is to identify pages that have active GUP, so that we can use a bounce
-page to write stable data to the filesystem. The filesystem would work
-on the bounce page, while any of the active GUP might write to the
-original page. This would avoid the stable page violation problem, but note
-that it is only part of the overall solution, because other problems
-remain.
-
-Other filesystem features that need to replace the page with a new one can
-be inhibited for pages that are GUP-pinned. This will, however, alter and
-limit some of those filesystem features. The only fix for that would be to
-require GUP users to monitor and respond to CPU page table updates.
-Subsystems such as ODP and HMM do this, for example. This aspect of the
-problem is still under discussion.
-
-Direct IO
-=========
-
-Direct IO can cause corruption, if userspace does Direct-IO that writes to
-a range of virtual addresses that are mmap'd to a file.  The pages written
-to are file-backed pages that can be under write back, while the Direct IO
-is taking place.  Here, Direct IO races with a write back: it calls
-GUP before page_mkclean() has replaced the CPU pte with a read-only entry.
-The race window is pretty small, which is probably why years have gone by
-before we noticed this problem: Direct IO is generally very quick, and
-tends to finish up before the filesystem gets around to do anything with
-the page contents.  However, it's still a real problem.  The solution is
-to never let GUP return pages that are under write back, but instead,
-force GUP to take a write fault on those pages.  That way, GUP will
-properly synchronize with the active write back.  This does not change the
-required GUP behavior, it just avoids that race.
-
-Changes since v3:
-
- * Moved put_user_page*() implementation from swap.c to gup.c, as per
-   Jerome's review recommendation.
-
- * Updated wording in patch #1 (and in this cover letter) to refer to real
-   filesystems with a backing store, as per Christopher Lameter's feedback.
-
- * Rebased to latest linux.git: commit 3601fe43e816 ("Merge tag
-   'gpio-v5.1-1' of git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-gpio")
-
-Changes since v2:
-
- * Reduced down to just one patch, in order to avoid dependencies between
-   subsystem git repos.
-
- * Rebased to latest linux.git: commit afe6fe7036c6 ("Merge tag
-   'armsoc-late' of git://git.kernel.org/pub/scm/linux/kernel/git/soc/soc")
-
- * Added Ira's review tag, based on
-   https://lore.kernel.org/lkml/20190215002312.GC7512@iweiny-DESK2.sc.intel.com/
-
-
-[1] https://lore.kernel.org/r/20190208075649.3025-3-jhubbard@nvidia.com
-    (RFC v2: mm: gup/dma tracking)
-
-Cc: Christian Benvenuti <benve@cisco.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>
 Cc: Christoph Hellwig <hch@infradead.org>
 Cc: Christopher Lameter <cl@linux.com>
 Cc: Dan Williams <dan.j.williams@intel.com>
 Cc: Dave Chinner <david@fromorbit.com>
-Cc: Dennis Dalessandro <dennis.dalessandro@intel.com>
-Cc: Doug Ledford <dledford@redhat.com>
 Cc: Ira Weiny <ira.weiny@intel.com>
 Cc: Jan Kara <jack@suse.cz>
 Cc: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Jérôme Glisse <jglisse@redhat.com>
+Cc: Jerome Glisse <jglisse@redhat.com>
 Cc: Matthew Wilcox <willy@infradead.org>
 Cc: Michal Hocko <mhocko@kernel.org>
 Cc: Mike Rapoport <rppt@linux.ibm.com>
-Cc: Mike Marciniszyn <mike.marciniszyn@intel.com>
 Cc: Ralph Campbell <rcampbell@nvidia.com>
-Cc: Tom Talpey <tom@talpey.com>
 
-John Hubbard (1):
-  mm: introduce put_user_page*(), placeholder versions
-
+Reviewed-by: Jan Kara <jack@suse.cz>
+Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>    # docs
+Reviewed-by: Ira Weiny <ira.weiny@intel.com>
+Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
+Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+---
  include/linux/mm.h | 24 ++++++++++++++
  mm/gup.c           | 82 ++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 106 insertions(+)
 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 5801ee849f36..353035c8b115 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -993,6 +993,30 @@ static inline void put_page(struct page *page)
+ 		__put_page(page);
+ }
+ 
++/**
++ * put_user_page() - release a gup-pinned page
++ * @page:            pointer to page to be released
++ *
++ * Pages that were pinned via get_user_pages*() must be released via
++ * either put_user_page(), or one of the put_user_pages*() routines
++ * below. This is so that eventually, pages that are pinned via
++ * get_user_pages*() can be separately tracked and uniquely handled. In
++ * particular, interactions with RDMA and filesystems need special
++ * handling.
++ *
++ * put_user_page() and put_page() are not interchangeable, despite this early
++ * implementation that makes them look the same. put_user_page() calls must
++ * be perfectly matched up with get_user_page() calls.
++ */
++static inline void put_user_page(struct page *page)
++{
++	put_page(page);
++}
++
++void put_user_pages_dirty(struct page **pages, unsigned long npages);
++void put_user_pages_dirty_lock(struct page **pages, unsigned long npages);
++void put_user_pages(struct page **pages, unsigned long npages);
++
+ #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
+ #define SECTION_IN_PAGE_FLAGS
+ #endif
+diff --git a/mm/gup.c b/mm/gup.c
+index f84e22685aaa..37085b8163b1 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -28,6 +28,88 @@ struct follow_page_context {
+ 	unsigned int page_mask;
+ };
+ 
++typedef int (*set_dirty_func_t)(struct page *page);
++
++static void __put_user_pages_dirty(struct page **pages,
++				   unsigned long npages,
++				   set_dirty_func_t sdf)
++{
++	unsigned long index;
++
++	for (index = 0; index < npages; index++) {
++		struct page *page = compound_head(pages[index]);
++
++		if (!PageDirty(page))
++			sdf(page);
++
++		put_user_page(page);
++	}
++}
++
++/**
++ * put_user_pages_dirty() - release and dirty an array of gup-pinned pages
++ * @pages:  array of pages to be marked dirty and released.
++ * @npages: number of pages in the @pages array.
++ *
++ * "gup-pinned page" refers to a page that has had one of the get_user_pages()
++ * variants called on that page.
++ *
++ * For each page in the @pages array, make that page (or its head page, if a
++ * compound page) dirty, if it was previously listed as clean. Then, release
++ * the page using put_user_page().
++ *
++ * Please see the put_user_page() documentation for details.
++ *
++ * set_page_dirty(), which does not lock the page, is used here.
++ * Therefore, it is the caller's responsibility to ensure that this is
++ * safe. If not, then put_user_pages_dirty_lock() should be called instead.
++ *
++ */
++void put_user_pages_dirty(struct page **pages, unsigned long npages)
++{
++	__put_user_pages_dirty(pages, npages, set_page_dirty);
++}
++EXPORT_SYMBOL(put_user_pages_dirty);
++
++/**
++ * put_user_pages_dirty_lock() - release and dirty an array of gup-pinned pages
++ * @pages:  array of pages to be marked dirty and released.
++ * @npages: number of pages in the @pages array.
++ *
++ * For each page in the @pages array, make that page (or its head page, if a
++ * compound page) dirty, if it was previously listed as clean. Then, release
++ * the page using put_user_page().
++ *
++ * Please see the put_user_page() documentation for details.
++ *
++ * This is just like put_user_pages_dirty(), except that it invokes
++ * set_page_dirty_lock(), instead of set_page_dirty().
++ *
++ */
++void put_user_pages_dirty_lock(struct page **pages, unsigned long npages)
++{
++	__put_user_pages_dirty(pages, npages, set_page_dirty_lock);
++}
++EXPORT_SYMBOL(put_user_pages_dirty_lock);
++
++/**
++ * put_user_pages() - release an array of gup-pinned pages.
++ * @pages:  array of pages to be marked dirty and released.
++ * @npages: number of pages in the @pages array.
++ *
++ * For each page in the @pages array, release the page using put_user_page().
++ *
++ * Please see the put_user_page() documentation for details.
++ */
++void put_user_pages(struct page **pages, unsigned long npages)
++{
++	unsigned long index;
++
++	for (index = 0; index < npages; index++)
++		put_user_page(pages[index]);
++}
++EXPORT_SYMBOL(put_user_pages);
++
+ static struct page *no_page_table(struct vm_area_struct *vma,
+ 		unsigned int flags)
+ {
 -- 
 2.21.0
 
