@@ -6,112 +6,112 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 582FBC43381
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 04:15:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3F82AC43381
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 04:15:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E2B7B20851
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 04:15:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E920D20855
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 04:15:45 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="cFTe3Ppy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E2B7B20851
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="wnPbtlN6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E920D20855
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 514518E000E; Thu,  7 Mar 2019 23:15:42 -0500 (EST)
+	id 4C68C8E000F; Thu,  7 Mar 2019 23:15:45 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4C53C8E0002; Thu,  7 Mar 2019 23:15:42 -0500 (EST)
+	id 49D588E0002; Thu,  7 Mar 2019 23:15:45 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3406B8E000E; Thu,  7 Mar 2019 23:15:42 -0500 (EST)
+	id 3663B8E000F; Thu,  7 Mar 2019 23:15:45 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 075DE8E0002
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 23:15:42 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id j1so14950260qkl.23
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 20:15:42 -0800 (PST)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 066C08E0002
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 23:15:45 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id i66so14969163qke.21
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 20:15:45 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=RSgAG8NWAqhqaqFn6hmlGT2i6l9FjY7KjetbZTZBKNE=;
-        b=Bq/P0j6cT4MwijUTOxMTE3AJaB2He1qVuAsYINmhzchuyAhnHsP3OaWylg4qsUWQxC
-         k86+l8zAkyCinqMqBqM/vOB+jCH7QPVBLfeiM4HhK8IoHYhilX91ZojJmfGgwkRHw8bD
-         9aTsYR0MvwsK8y4HVje1ZuWllLZ6UXhyIhXUa2WbzIZSEbEGDzHLVQfBsKqgP4URdMKC
-         /AsLFzQhoz9leshQuK3GGEsK6km2VbocQ3MxIPU32KGlV4+cbOedWPRrU0OzLbVD/eS3
-         3/dUeP3Mr2K4yPz7h7Xg9LVnB2SYbUbVbkzo6ATP5ioCwNoCacz6R+zu7kI1MFf0Dn6f
-         Gvcg==
-X-Gm-Message-State: APjAAAV9dR6H9HxXyt6ynf8mgif+pgnbo2UZ+/T1KikOBTMVbCeopg9t
-	Iw87zMhMXESYdeknPaXf9Aw5aPz+ZcMqzlCuxNKv4w7iZ+t8TR39egamx90W1eEfHnRr5cWhskU
-	GLjjvQam6LVbMM7r+a0/mZ8iUgpiSnXcPklKdb9fiTVP1IlkyAyPlDdteJaWeAAQ=
-X-Received: by 2002:ae9:e8d8:: with SMTP id a207mr12465903qkg.199.1552018541692;
-        Thu, 07 Mar 2019 20:15:41 -0800 (PST)
-X-Google-Smtp-Source: APXvYqzcJjJbfHgME0OWkwfZwdDHKxLy5Cjrb/emcMwiBfGBks3AG+q3OXHlzsiRGR36bVuOcAUq
-X-Received: by 2002:ae9:e8d8:: with SMTP id a207mr12465869qkg.199.1552018540421;
-        Thu, 07 Mar 2019 20:15:40 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1552018540; cv=none;
+        bh=3ICf1F4yYMSB9kWf6DNRwgEAL3fOm46vEzPIjpQE3AA=;
+        b=gNM2kvVD7gJTjYHlu5H7/Ae2xTbRgc4VXFH+GedR/FxWJS6+bxQHPAaQIst5Q20isI
+         Tjvqt3WM/l7H6jW3QvzsRqhR8TqqcbN3kXloPQD65h5RXWaSAjGufuNpgSdji2jUtNEE
+         ji/Ap/X/My9lhNrLSUrsOz4Jk19XYTqxTUf54WvuYNV2iS9e/I/Jj4UgR1HvoQ0gMWjF
+         U9oSgzHvE5eLKcWY9PPcJBbt9XR0dY8ynxGYvzZqTRVgu1Q6QW/5M3z/6MujJLHIHDj0
+         jZEOVXinEPGxxzQDWP0OXbPWjLKuBKxr635bibYoAg+KZJbrBgFtnO2SUxwj8RwIsvhj
+         41hg==
+X-Gm-Message-State: APjAAAUQZTQCBGOBfGr2hGN7a4qIxzEeMcHSI/sY0HdSjsGriTw5Mq25
+	nwxwU9LjzcbmhZcOKLtqnNmpD6bcF28g7Y/Fy90ddZzehIO4l/kbmB3D5u+wlQBfUsscVSmFZ32
+	+azf6Rop/KMOA+9Q0JXX9j0yUNqyZZKXx/pqS6tUxv4bEnnA+ezN+Md+K1IZOORE=
+X-Received: by 2002:ae9:e913:: with SMTP id x19mr12699037qkf.45.1552018544788;
+        Thu, 07 Mar 2019 20:15:44 -0800 (PST)
+X-Google-Smtp-Source: APXvYqxaAa676OUvZnP8ColV8X+YpWynk+qJd60PP9EPSwz41bpr5hcTsV3RZh09x5VilYh7+/x6
+X-Received: by 2002:ae9:e913:: with SMTP id x19mr12699001qkf.45.1552018543689;
+        Thu, 07 Mar 2019 20:15:43 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1552018543; cv=none;
         d=google.com; s=arc-20160816;
-        b=QbIcSq+QeiTJnchw/kQm0L/SeK6mehi7YoRFCiy2+kH1f7FHvKatrfp9ex6tZ3p67B
-         /FuooFIGHI5r+LbAl37t+lHFiCHDtdD794iEK8ci9cUFR4lAYkGrFctnfG0K0qxRBDTF
-         rcK1tMQl0JtwjZ5tQRnicE/Dwk2aoclWb/FP4jCF4JMlNAPgZirMF84XayvPY0fT+/pq
-         LvsUH4/3skMYrdn0U+/yUsNZEvbfW3j7rJM40wOd3Hhs2IEm7N6tzrt8+fp8g69NlHXa
-         WpBrEqHC0AeONg4UtQcj+j9l2R8dPQDGPVkXTWIpDk4LZPxXT+jrB6tfH3o0Rk1js+Z2
-         Kvtg==
+        b=go0sI4rr8+DIiCNijk72FvB9dXIefZAVs2qHqfnt+2tSDue+0m+yuSbnByEjySEXF2
+         uNYCD7uuWPo3/KQng+RmhSgcfIParwWtBJT7o8RYPPxo/+Ir3DcxeE8gAjESM0ECHh/w
+         E/7cxJCqXbcRvLmNCDZT9Pjt3HKbJvSz6zbshsWuab7nvT6+jNz8l+r+z5gX1+aTwfy4
+         rLfrZzUrXIIer9qiuJkhzwXVMXwmA4muuwX/rO7cmKOYvd3M7UZOY23/HWnvqjgageCE
+         yBGMN+vILgamSrR1vWnwGZzrWmK8FAHWydR5c4+hEMgMM+RV44pnvItMZSrJEyEQsoi5
+         sH6w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=RSgAG8NWAqhqaqFn6hmlGT2i6l9FjY7KjetbZTZBKNE=;
-        b=OzvPA+2wL2zW+AFAd4mLEGJnCEM3JWy/K3xOOjc/2Vr8Knv0vjRU+YF3OKSsdKheNx
-         L2R9hemQ1ZvS9cuaywWC116FyL4ijfKBv90zXc9t+sjO7hPOvejihjBLI0Vo8MKLRQ7H
-         1LKfwfxcmE7GMfNKBEQMR7cwX8pKNBK8eig35PX3hwx73ylHy+9gXavi8B13a9+N+5Ut
-         S4r/bGb6vs58LArKFzXIg7FwH2cR2LP1U+vdnYEoP2s70F+7Ni4nvMfNSQGS2AkYV9tY
-         yK1AV7kvyNbDrMNWgKm3RN6beNvOCT/2oeaNtuuXykrC49eK/2KfD3RWRVG0IBLPJ28F
-         O9hQ==
+        bh=3ICf1F4yYMSB9kWf6DNRwgEAL3fOm46vEzPIjpQE3AA=;
+        b=EKndcbjKvg5dkBrap41HoTr75/4VSBu3pXVyrMtnYz7HOucLYWiJrH80STxi+6vm3p
+         mCwbkvVnDoYNjeLLOyjhUqlxb4pXhGxjP7iR7h6ddAKya+LnuBT11sBKY8iD7nExRz0o
+         905V6A/NGa7l/UZ7WunX5u+j2fLvDX7OjfH0AmWyEkLEHkoAa86CGv0jTaOiW7Oy+HvB
+         H0S8MUe3kKV6XHt+qrvwJ1LMlKSsXf/mO0PhosxQjzLpik/Z3JVxYeLmZ/Gxytn7GKjE
+         RIOjVsq4Lfg4l7VSOiTy+JWxR3QASAzMDmdi5Z+ufRckAyvK4ezM1yJX/ezmdEfZlGNt
+         aFDQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=cFTe3Ppy;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=wnPbtlN6;
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 64.147.123.25 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from wout2-smtp.messagingengine.com (wout2-smtp.messagingengine.com. [64.147.123.25])
-        by mx.google.com with ESMTPS id t24si4176696qtt.183.2019.03.07.20.15.40
+        by mx.google.com with ESMTPS id p6si79931qkk.40.2019.03.07.20.15.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Mar 2019 20:15:40 -0800 (PST)
+        Thu, 07 Mar 2019 20:15:43 -0800 (PST)
 Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 64.147.123.25 as permitted sender) client-ip=64.147.123.25;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=cFTe3Ppy;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=wnPbtlN6;
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 64.147.123.25 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.west.internal (Postfix) with ESMTP id EDEAF344B;
-	Thu,  7 Mar 2019 23:15:38 -0500 (EST)
+	by mailout.west.internal (Postfix) with ESMTP id 3F395173F;
+	Thu,  7 Mar 2019 23:15:42 -0500 (EST)
 Received: from mailfrontend1 ([10.202.2.162])
-  by compute3.internal (MEProxy); Thu, 07 Mar 2019 23:15:39 -0500
+  by compute3.internal (MEProxy); Thu, 07 Mar 2019 23:15:42 -0500
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:subject:to
 	:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=RSgAG8NWAqhqaqFn6hmlGT2i6l9FjY7KjetbZTZBKNE=; b=cFTe3Ppy
-	SQ5wqRk6MbzNZia4g99/MsVNWiihWpqeb5dh7RrpU01ASM2x8hy8ugngve7oykzj
-	OA9Ra/0lMtUGy5zeZ3DlF9Sx2RMykqMAIGeIJsabgFHImFPyEqvypZA7oIWEqlHw
-	Ohd4IkxYBItyQ1Vjz0PbS4zt1dNLfuqFM2cD6k0uEYXGZ1mxuF6vQfmZLH7kwqyL
-	LcfM/zG8UCQB4BDnnxjcwh2CrF/gznx5+eSLVI/LhOKN5XdHMPZgbql7h3PRB16i
-	OgY+AlXXW3gYws6+qBS5uisMVK1t1qs10AT9M5yoKexITPQKh7vgUrPjOksH0MUL
-	Kz1Lsvwv9RUDUA==
-X-ME-Sender: <xms:auyBXKVxeXnH-3_5KBIMMZzRpKrvCTWhY-zUWGp4l93AhKyzLIC6QQ>
+	fm2; bh=3ICf1F4yYMSB9kWf6DNRwgEAL3fOm46vEzPIjpQE3AA=; b=wnPbtlN6
+	RC57mehAdbkgLwnR/WvJ/TT8udSoYHVbvFCmZkCjkSaSMoUAm5LlwMU312bg57+H
+	6xwUIAkxleRGO/DO1Mo2+EvPzombVF6OqLWYKPFTldgVN9nDbPCpJQGa1MDwpLhB
+	DFyag4Efz62jiOXOvKDvJIfFE5Z2yGLheTL5xI8RPuZu8/X0Eb2m616FqlsJPjR1
+	dEtwyMJrztDmNqW4SbHfw665vzC4m7Vb3PAFpX+MOUXgQoPEMHhtaOupOqYaqtqP
+	q9BdKJ08/wTkvvix56kpnZDHp8l9wijvkwFdnG+kSzHMuZqGz1byU5qfGsrzT+gy
+	p4CKCE9JbR+oag==
+X-ME-Sender: <xms:beyBXLwlRjE2GRY2ugZ0DNCpLsX9QiqrWy6N9yQqLiXNXnltQRvXFg>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedutddrfeelgdeifecutefuodetggdotefrodftvf
     curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
     uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenuc
     fjughrpefhvffufffkofgjfhgggfestdekredtredttdenucfhrhhomhepfdfvohgsihhn
     ucevrdcujfgrrhguihhnghdfuceothhosghinheskhgvrhhnvghlrdhorhhgqeenucfkph
     epuddvgedrudeiledrhedrudehkeenucfrrghrrghmpehmrghilhhfrhhomhepthhosghi
-    nheskhgvrhhnvghlrdhorhhgnecuvehluhhsthgvrhfuihiivgeple
-X-ME-Proxy: <xmx:auyBXC6OlnA6vpJOIwKq-WDSNSFRkbH1Ghxmv_4ADp2V29AFs2AmYg>
-    <xmx:auyBXBLnPjlNbiYZLHi_9eseXhJje0N09EXvuoeKBpmG9PE_FEDSOg>
-    <xmx:auyBXDIujlwmFyGCQYsileD4fMtJgMZfJbK906JDLG4qMPOY6iINtg>
-    <xmx:auyBXEn1ixlbF4HM5V2pVaHqSmX2LGAA0mj2G03oLcDduoV9kHeJwg>
+    nheskhgvrhhnvghlrdhorhhgnecuvehluhhsthgvrhfuihiivgepuddu
+X-ME-Proxy: <xmx:beyBXK5U70WJnwW9yY16_1Yv2ye0Ywm-9qGurpVlFDuVk_hbABlbrw>
+    <xmx:beyBXC9dzE_ysDh2v5l8At9TcypYH-TDGnQkF-jPbxKwDIqr0zjlxw>
+    <xmx:beyBXPqknNJ6ASlOl1Ua-OSCcPgRqIqlGySq0FWtl26xl0XsPu7OFQ>
+    <xmx:beyBXCiUHCLaAHIvdvyNiKyVjt0MQFB9HTOqo32BDSVYgrStxDz70w>
 Received: from eros.localdomain (124-169-5-158.dyn.iinet.net.au [124.169.5.158])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 82352E4548;
-	Thu,  7 Mar 2019 23:15:35 -0500 (EST)
+	by mail.messagingengine.com (Postfix) with ESMTPA id EB429E4362;
+	Thu,  7 Mar 2019 23:15:38 -0500 (EST)
 From: "Tobin C. Harding" <tobin@kernel.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: "Tobin C. Harding" <tobin@kernel.org>,
@@ -121,9 +121,9 @@ Cc: "Tobin C. Harding" <tobin@kernel.org>,
 	Tycho Andersen <tycho@tycho.ws>,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [RFC 11/15] tools/testing/slab: Add object migration test suite
-Date: Fri,  8 Mar 2019 15:14:22 +1100
-Message-Id: <20190308041426.16654-12-tobin@kernel.org>
+Subject: [RFC 12/15] xarray: Implement migration function for objects
+Date: Fri,  8 Mar 2019 15:14:23 +1100
+Message-Id: <20190308041426.16654-13-tobin@kernel.org>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190308041426.16654-1-tobin@kernel.org>
 References: <20190308041426.16654-1-tobin@kernel.org>
@@ -135,518 +135,101 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We just added a module that enables testing the SLUB allocators ability
-to defrag/shrink caches via movable objects.  Tests are better when they
-are automated.
+Implement functions to migrate objects. This is based on
+initial code by Matthew Wilcox and was modified to work with
+slab object migration.
 
-Add automated testing via a python script for SLUB movable objects.
-
-Example output:
-
-  $ cd path/to/linux/tools/testing/slab
-  $ /slub_defrag.py
-  Please run script as root
-
-  $ sudo ./slub_defrag.py
-  <test are quiet, no output on success>
-
-  $ sudo ./slub_defrag.py --debug
-  Loading module ...
-  Slab cache smo_test created
-  Objects per slab: 20
-  Running sanity checks ...
-
-  Running module stress test (see dmesg for additional test output) ...
-  Removing module slub_defrag ...
-  Loading module ...
-  Slab cache smo_test created
-
-  Running test non-movable ...
-  testing slab 'smo_test' prior to enabling movable objects ...
-  verified non-movable slabs are NOT shrinkable
-
-  Running test movable ...
-  testing slab 'smo_test' after enabling movable objects ...
-  verified movable slabs are shrinkable
-
-  Removing module slub_defrag ...
-
+Co-developed-by: Christoph Lameter <cl@linux.com>
 Signed-off-by: Tobin C. Harding <tobin@kernel.org>
 ---
- tools/testing/slab/slub_defrag.c  |   1 +
- tools/testing/slab/slub_defrag.py | 451 ++++++++++++++++++++++++++++++
- 2 files changed, 452 insertions(+)
- create mode 100755 tools/testing/slab/slub_defrag.py
+ lib/radix-tree.c | 13 +++++++++++++
+ lib/xarray.c     | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+)
 
-diff --git a/tools/testing/slab/slub_defrag.c b/tools/testing/slab/slub_defrag.c
-index 502ddd8a67e8..206545d62021 100644
---- a/tools/testing/slab/slub_defrag.c
-+++ b/tools/testing/slab/slub_defrag.c
-@@ -337,6 +337,7 @@ static int smo_run_module_tests(int nr_objs, int keep)
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index 14d51548bea6..9412c2853726 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -1613,6 +1613,17 @@ static int radix_tree_cpu_dead(unsigned int cpu)
+ 	return 0;
+ }
  
- /*
-  * struct functions() - Map command to a function pointer.
-+ * If you update this please update the documentation in slub_defrag.py
-  */
- struct functions {
- 	char *fn_name;
-diff --git a/tools/testing/slab/slub_defrag.py b/tools/testing/slab/slub_defrag.py
-new file mode 100755
-index 000000000000..41747c0db39b
---- /dev/null
-+++ b/tools/testing/slab/slub_defrag.py
-@@ -0,0 +1,451 @@
-+#!/usr/bin/env python3
-+# SPDX-License-Identifier: GPL-2.0
-+
-+import subprocess
-+import sys
-+from os import path
-+
-+# SLUB Movable Objects test suite.
-+#
-+# Requirements:
-+#  - CONFIG_SLUB=y
-+#  - CONFIG_SLUB_DEBUG=y
-+#  - The slub_defrag module in this directory.
-+
-+# Test SMO using a kernel module that enables triggering arbitrary
-+# kernel code from userspace via a debugfs file.
-+#
-+# Module code is in ./slub_defrag.c, basically the functionality is as
-+# follows:
-+#
-+#  - Creates debugfs file /sys/kernel/debugfs/smo/callfn
-+#  - Writes to 'callfn' are parsed as a command string and the function
-+#    associated with command is called.
-+#  - Defines 4 commands (all commands operate on smo_test cache):
-+#     - 'test': Runs module stress tests.
-+#     - 'alloc N': Allocates N slub objects
-+#     - 'free N POS': Frees N objects starting at POS (see below)
-+#     - 'enable': Enables SLUB Movable Objects
-+#
-+# The module maintains a list of allocated objects.  Allocation adds
-+# objects to the tail of the list.  Free'ing frees from the head of the
-+# list.  This has the effect of creating free slots in the slab.  For
-+# finer grained control over where in the cache slots are free'd POS
-+# (position) argument may be used.
-+
-+# The main() function is reasonably readable; the test suite does the
-+# following:
-+#
-+# 1. Runs the module stress tests.
-+# 2. Tests the cache without movable objects enabled.
-+#    - Creates multiple partial slabs as explained above.
-+#    - Verifies that partial slabs are _not_ removed by shrink (see below).
-+# 3. Tests the cache with movable objects enabled.
-+#    - Creates multiple partial slabs as explained above.
-+#    - Verifies that partial slabs _are_ removed by shrink (see below).
-+
-+# The sysfs file /sys/kernel/slab/<cache>/shrink enables calling the
-+# function kmem_cache_shrink() (see mm/slab_common.c and mm/slub.cc).
-+# Shrinking a cache attempts to consolidate all partial slabs by moving
-+# objects if object migration is enable for the cache, otherwise
-+# shrinking a cache simply re-orders the partial list so as most densely
-+# populated slab are at the head of the list.
-+
-+# Enable/disable debugging output (also enabled via -d | --debug).
-+debug = False
-+
-+# Used in debug messages and when running `insmod`.
-+MODULE_NAME = "slub_defrag"
-+
-+# Slab cache created by the test module.
-+CACHE_NAME = "smo_test"
-+
-+# Set by get_slab_config()
-+objects_per_slab = 0
-+pages_per_slab = 0
-+debugfs_mounted = False         # Set to true if we mount debugfs.
-+
-+
-+def eprint(*args, **kwargs):
-+    print(*args, file=sys.stderr, **kwargs)
-+
-+
-+def dprint(*args, **kwargs):
-+    if debug:
-+        print(*args, file=sys.stderr, **kwargs)
-+
-+
-+def run_shell(cmd):
-+    return subprocess.call([cmd], shell=True)
-+
-+
-+def run_shell_get_stdout(cmd):
-+    return subprocess.check_output([cmd], shell=True)
-+
-+
-+def assert_root():
-+    user = run_shell_get_stdout('whoami')
-+    if user != b'root\n':
-+        eprint("Please run script as root")
-+        sys.exit(1)
-+
-+
-+def mount_debugfs():
-+    mounted = False
-+
-+    # Check if debugfs is mounted at a known mount point.
-+    ret = run_shell('mount -l | grep /sys/kernel/debug > /dev/null 2>&1')
-+    if ret != 0:
-+        run_shell('mount -t debugfs none /sys/kernel/debug/')
-+        mounted = True
-+        dprint("Mounted debugfs on /sys/kernel/debug")
-+
-+    return mounted
-+
-+
-+def umount_debugfs():
-+    dprint("Un-mounting debugfs")
-+    run_shell('umount /sys/kernel/debug')
-+
-+
-+def load_module():
-+    """Loads the test module.
-+
-+    We need a clean slab state to start with so module must
-+    be loaded by the test suite.
-+    """
-+    ret = run_shell('lsmod | grep %s > /dev/null' % MODULE_NAME)
-+    if ret == 0:
-+        eprint("Please unload slub_defrag module before running test suite")
-+        return -1
-+
-+    dprint('Loading module ...')
-+    ret = run_shell('insmod %s.ko' % MODULE_NAME)
-+    if ret != 0:                # ret==1 on error
-+        return -1
-+
-+    dprint("Slab cache %s created" % CACHE_NAME)
-+    return 0
-+
-+
-+def unload_module():
-+    ret = run_shell('lsmod | grep %s > /dev/null' % MODULE_NAME)
-+    if ret == 0:
-+        dprint('Removing module %s ...' % MODULE_NAME)
-+        run_shell('rmmod %s > /dev/null 2>&1' % MODULE_NAME)
-+
-+
-+def get_sysfs_value(filename):
-+    """
-+    Parse slab sysfs files (single line: '20 N0=20')
-+    """
-+    path = '/sys/kernel/slab/smo_test/%s' % filename
-+    f = open(path, "r")
-+    s = f.readline()
-+    tokens = s.split(" ")
-+
-+    return int(tokens[0])
-+
-+
-+def get_nr_objects_active():
-+    return get_sysfs_value('objects')
-+
-+
-+def get_nr_objects_total():
-+    return get_sysfs_value('total_objects')
-+
-+
-+def get_nr_slabs_total():
-+    return get_sysfs_value('slabs')
-+
-+
-+def get_nr_slabs_partial():
-+    return get_sysfs_value('partial')
-+
-+
-+def get_nr_slabs_full():
-+    return get_nr_slabs_total() - get_nr_slabs_partial()
-+
-+
-+def get_slab_config():
-+    """Get relevant information from sysfs."""
-+    global objects_per_slab
-+
-+    objects_per_slab = get_sysfs_value('objs_per_slab')
-+    if objects_per_slab < 0:
-+        return -1
-+
-+    dprint("Objects per slab: %d" % objects_per_slab)
-+    return 0
-+
-+
-+def verify_state(nr_objects_active, nr_objects_total,
-+                 nr_slabs_partial, nr_slabs_full, nr_slabs_total, msg=''):
-+    err = 0
-+    got_nr_objects_active = get_nr_objects_active()
-+    got_nr_objects_total = get_nr_objects_total()
-+    got_nr_slabs_partial = get_nr_slabs_partial()
-+    got_nr_slabs_full = get_nr_slabs_full()
-+    got_nr_slabs_total = get_nr_slabs_total()
-+
-+    if got_nr_objects_active != nr_objects_active:
-+        err = -1
-+
-+    if got_nr_objects_total != nr_objects_total:
-+        err = -2
-+
-+    if got_nr_slabs_partial != nr_slabs_partial:
-+        err = -3
-+
-+    if got_nr_slabs_full != nr_slabs_full:
-+        err = -4
-+
-+    if got_nr_slabs_total != nr_slabs_total:
-+        err = -5
-+
-+    if err != 0:
-+        dprint("Verify state: %s" % msg)
-+        dprint("  what\t\t\twant\tgot")
-+        dprint("-----------------------------------------")
-+        dprint("  %s\t%d\t%d" % ('nr_objects_active', nr_objects_active, got_nr_objects_active))
-+        dprint("  %s\t%d\t%d" % ('nr_objects_total', nr_objects_total, got_nr_objects_total))
-+        dprint("  %s\t%d\t%d" % ('nr_slabs_partial', nr_slabs_partial, got_nr_slabs_partial))
-+        dprint("  %s\t\t%d\t%d" % ('nr_slabs_full', nr_slabs_full, got_nr_slabs_full))
-+        dprint("  %s\t%d\t%d\n" % ('nr_slabs_total', nr_slabs_total, got_nr_slabs_total))
-+
-+    return err
-+
-+
-+def exec_via_sysfs(command):
-+        ret = run_shell('echo %s > /sys/kernel/debug/smo/callfn' % command)
-+        if ret != 0:
-+            eprint("Failed to echo command to sysfs: %s" % command)
-+
-+        return ret
-+
-+
-+def enable_movable_objects():
-+    return exec_via_sysfs('enable')
-+
-+
-+def alloc(n):
-+    exec_via_sysfs("alloc %d" % n)
-+
-+
-+def free(n, pos = 0):
-+    exec_via_sysfs('free %d %d' % (n, pos))
-+
-+
-+def shrink():
-+    ret = run_shell('slabinfo smo_test -s')
-+    if ret != 0:
-+            eprint("Failed to execute slabinfo -s")
-+
-+
-+def sanity_checks():
-+    # Verify everything is 0 to start with.
-+    return verify_state(0, 0, 0, 0, 0, "sanity check")
-+
-+
-+def test_non_movable():
-+    one_over = objects_per_slab + 1
-+
-+    dprint("testing slab 'smo_test' prior to enabling movable objects ...")
-+
-+    alloc(one_over)
-+
-+    objects_active = one_over
-+    objects_total = objects_per_slab * 2
-+    slabs_partial = 1
-+    slabs_full = 1
-+    slabs_total = 2
-+    ret = verify_state(objects_active, objects_total,
-+                       slabs_partial, slabs_full, slabs_total,
-+                       "non-movable: initial allocation")
-+    if ret != 0:
-+        eprint("test_non_movable: failed to verify initial state")
-+        return -1
-+
-+    # Free object from first slot of first slab.
-+    free(1)
-+    objects_active = one_over - 1
-+    objects_total = objects_per_slab * 2
-+    slabs_partial = 2
-+    slabs_full = 0
-+    slabs_total = 2
-+    ret = verify_state(objects_active, objects_total,
-+                       slabs_partial, slabs_full, slabs_total,
-+                       "non-movable: after free")
-+    if ret != 0:
-+        eprint("test_non_movable: failed to verify after free")
-+        return -1
-+
-+    # Non-movable cache, shrink should have no effect.
-+    shrink()
-+    ret = verify_state(objects_active, objects_total,
-+                       slabs_partial, slabs_full, slabs_total,
-+                       "non-movable: after shrink")
-+    if ret != 0:
-+        eprint("test_non_movable: failed to verify after shrink")
-+        return -1
-+
-+    # Cleanup
-+    free(objects_per_slab)
-+    shrink()
-+
-+    dprint("verified non-movable slabs are NOT shrinkable")
-+    return 0
-+
-+
-+def test_movable():
-+    one_over = objects_per_slab + 1
-+
-+    dprint("testing slab 'smo_test' after enabling movable objects ...")
-+
-+    alloc(one_over)
-+
-+    objects_active = one_over
-+    objects_total = objects_per_slab * 2
-+    slabs_partial = 1
-+    slabs_full = 1
-+    slabs_total = 2
-+    ret = verify_state(objects_active, objects_total,
-+                       slabs_partial, slabs_full, slabs_total,
-+                       "movable: initial allocation")
-+    if ret != 0:
-+        eprint("test_movable: failed to verify initial state")
-+        return -1
-+
-+    # Free object from first slot of first slab.
-+    free(1)
-+    objects_active = one_over - 1
-+    objects_total = objects_per_slab * 2
-+    slabs_partial = 2
-+    slabs_full = 0
-+    slabs_total = 2
-+    ret = verify_state(objects_active, objects_total,
-+                       slabs_partial, slabs_full, slabs_total,
-+                       "movable: after free")
-+    if ret != 0:
-+        eprint("test_movable: failed to verify after free")
-+        return -1
-+
-+    # movable cache, shrink should move objects and free slab.
-+    shrink()
-+    objects_active = one_over - 1
-+    objects_total = objects_per_slab * 1
-+    slabs_partial = 0
-+    slabs_full = 1
-+    slabs_total = 1
-+    ret = verify_state(objects_active, objects_total,
-+                       slabs_partial, slabs_full, slabs_total,
-+                       "movable: after shrink")
-+    if ret != 0:
-+        eprint("test_movable: failed to verify after shrink")
-+        return -1
-+
-+    # Cleanup
-+    free(objects_per_slab)
-+    shrink()
-+
-+    dprint("verified movable slabs are shrinkable")
-+    return 0
-+
-+
-+def dprint_start_test(test):
-+    dprint("Running %s ..." % test)
-+
-+
-+def dprint_done():
-+    dprint("")
-+
-+
-+def run_test(fn, desc):
-+    dprint_start_test(desc)
-+    ret = fn()
-+    if ret < 0:
-+        fail_test(desc)
-+    dprint_done()
-+
-+
-+# Load and unload the module for this test to ensure clean state.
-+def run_module_stress_test():
-+    dprint("Running module stress test (see dmesg for additional test output) ...")
-+
-+    unload_module()
-+    ret = load_module()
-+    if ret < 0:
-+        cleanup_and_exit(ret)
-+
-+    exec_via_sysfs("test");
-+
-+    unload_module()
-+
-+    dprint()
-+
-+
-+def fail_test(msg):
-+    eprint("\nFAIL: test failed: '%s' ... aborting\n" % msg)
-+    cleanup_and_exit(1)
-+
-+
-+def display_help():
-+    print("Usage: %s [OPTIONS]\n" % path.basename(sys.argv[0]))
-+    print("\tRuns defrag test suite (a.k.a. SLUB Movable Objects)\n")
-+    print("OPTIONS:")
-+    print("\t-d | --debug       Enable verbose debug output")
-+    print("\t-h | --help        Print this help and exit")
-+
-+
-+def cleanup_and_exit(return_code):
-+    global debugfs_mounted
-+
-+    if debugfs_mounted == True:
-+        umount_debugfs()
-+
-+    unload_module()
-+
-+    sys.exit(return_code)
-+
-+
-+def main():
-+    global debug
-+
-+    if len(sys.argv) > 1:
-+        if sys.argv[1] == '-h' or sys.argv[1] == '--help':
-+            display_help()
-+            sys.exit(0)
-+
-+        if sys.argv[1] == '-d' or sys.argv[1] == '--debug':
-+            debug = True
-+
-+    assert_root()
-+
-+    # Use cleanup_and_exit() instead of sys.exit() after mounting debugfs.
-+    debugfs_mounted = mount_debugfs()
-+
-+    # Loads and unloads the module.
-+    run_module_stress_test()
-+
-+    ret = load_module()
-+    if (ret < 0):
-+        cleanup_and_exit(ret)
-+
-+    ret = get_slab_config()
-+    if (ret != 0):
-+        fail_test("get slab config details")
-+
-+    run_test(sanity_checks, "sanity checks")
-+
-+    run_test(test_non_movable, "test non-movable")
-+
-+    ret = enable_movable_objects()
-+    if (ret != 0):
-+        fail_test("enable movable objects")
-+
-+    run_test(test_movable, "test movable")
-+
-+    cleanup_and_exit(0)
-+
-+if __name__== "__main__":
-+  main()
++extern void xa_object_migrate(void *tree_node, int numa_node);
++
++static void radix_tree_migrate(struct kmem_cache *s, void **objects, int nr,
++			       int node, void *private)
++{
++	int i;
++
++	for (i = 0; i < nr; i++)
++		xa_object_migrate(objects[i], node);
++}
++
+ void __init radix_tree_init(void)
+ {
+ 	int ret;
+@@ -1627,4 +1638,6 @@ void __init radix_tree_init(void)
+ 	ret = cpuhp_setup_state_nocalls(CPUHP_RADIX_DEAD, "lib/radix:dead",
+ 					NULL, radix_tree_cpu_dead);
+ 	WARN_ON(ret < 0);
++	kmem_cache_setup_mobility(radix_tree_node_cachep, NULL,
++				  radix_tree_migrate);
+ }
+diff --git a/lib/xarray.c b/lib/xarray.c
+index 81c3171ddde9..4f6f17c87769 100644
+--- a/lib/xarray.c
++++ b/lib/xarray.c
+@@ -1950,6 +1950,50 @@ void xa_destroy(struct xarray *xa)
+ }
+ EXPORT_SYMBOL(xa_destroy);
+ 
++void xa_object_migrate(struct xa_node *node, int numa_node)
++{
++	struct xarray *xa = READ_ONCE(node->array);
++	void __rcu **slot;
++	struct xa_node *new_node;
++	int i;
++
++	/* Freed or not yet in tree then skip */
++	if (!xa || xa == XA_FREE_MARK)
++		return;
++
++	new_node = kmem_cache_alloc_node(radix_tree_node_cachep,
++					 GFP_KERNEL, numa_node);
++
++	xa_lock_irq(xa);
++
++	/* Check again..... */
++	if (xa != node->array || !list_empty(&node->private_list)) {
++		node = new_node;
++		goto unlock;
++	}
++
++	memcpy(new_node, node, sizeof(struct xa_node));
++
++	/* Move pointers to new node */
++	INIT_LIST_HEAD(&new_node->private_list);
++	for (i = 0; i < XA_CHUNK_SIZE; i++) {
++		void *x = xa_entry_locked(xa, new_node, i);
++
++		if (xa_is_node(x))
++			rcu_assign_pointer(xa_to_node(x)->parent, new_node);
++	}
++	if (!new_node->parent)
++		slot = &xa->xa_head;
++	else
++		slot = &xa_parent_locked(xa, new_node)->slots[new_node->offset];
++	rcu_assign_pointer(*slot, xa_mk_node(new_node));
++
++unlock:
++	xa_unlock_irq(xa);
++	xa_node_free(node);
++	rcu_barrier();
++}
++
+ #ifdef XA_DEBUG
+ void xa_dump_node(const struct xa_node *node)
+ {
 -- 
 2.21.0
 
