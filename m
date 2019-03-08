@@ -2,493 +2,387 @@ Return-Path: <SRS0=92PK=RL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B96C8C43381
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 21:28:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C0982C43381
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 21:36:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 685B720857
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 21:28:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 685B720857
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=canonical.com
+	by mail.kernel.org (Postfix) with ESMTP id 629A220652
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 21:36:46 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="QNTO0WU8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 629A220652
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E68868E0004; Fri,  8 Mar 2019 16:28:12 -0500 (EST)
+	id 00A898E0004; Fri,  8 Mar 2019 16:36:46 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E16EC8E0002; Fri,  8 Mar 2019 16:28:12 -0500 (EST)
+	id EFCE98E0002; Fri,  8 Mar 2019 16:36:45 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CE0EA8E0004; Fri,  8 Mar 2019 16:28:12 -0500 (EST)
+	id DEB168E0004; Fri,  8 Mar 2019 16:36:45 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7768B8E0002
-	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 16:28:12 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id z16so10770650wrt.0
-        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 13:28:12 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 99BF18E0002
+	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 16:36:45 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id 73so21643367pga.18
+        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 13:36:45 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:mime-version:content-disposition:user-agent;
-        bh=JaqPMjNUg8YGoZrvXWIJxyaScX79kLBvByC21D5oQZA=;
-        b=dDbDgGoDWu09ZQBRh8BzAv4hXQSdU/ewyvg26SJpv/Pu2PJwA9QqLOvNNqcAjI4C7h
-         GN8YYdIvRZzU1yM2c1mIIRDZ7Ksk1JQmXNEa+zo2OL0RwV1sm1zvOD4aK6jCM4OoHyjm
-         GR6CLbXlxI5B7TjPEpduXHq+SfiqSxGXBG5pXIjepu5dNGpOM+ezEwcNOu3mYCZztwaD
-         DiT1Q+utoqxbbIXCg5Jt2Egk+Y/PU/nbb3pcFl4IMChRRESUMg6if+Jbxu5lHOuEdGsG
-         a6YaUc59ueX3X75dhD3Jjfvq3VT0MT9n2Zaen3dRkIw24NgU8JDaE9O+sB7QAdmMC+f6
-         koAA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of andrea.righi@canonical.com designates 91.189.89.112 as permitted sender) smtp.mailfrom=andrea.righi@canonical.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=canonical.com
-X-Gm-Message-State: APjAAAXdNg/prbvMczX62J8HLB6GjlIYb90lbK3M9R41VyQZNq2q9KzZ
-	RFlVqSvYeyYHyRheCLlYfdx0fWrxIpYoKOu2gyc88rHVFF6CBZantbn0XOb5Mcivo4Ym+1bPqDO
-	KkH8llshPiBP4NGoozgcOoAoB/YftezgAleo83yKyRbcpS/yTavZ9Uj2eNBLNRLYz1DE9epSHsx
-	5k0Kja8fF5CFMTNK6PObXuQh6Nstz7Vr5v7eU64iGP/bMa23tR8VFVEs9qMpYKRI5RNO2ZcvT6V
-	BiiSyV9dS5jYnDsQmgVLlFFhj1MbOYB2SeJ2yUI/WL9DA44wUb/8OslWuQaLelv1yc8sBSlssxR
-	Rapr0gF6LOzHW64gklJYXVEbO36zzxNWhCV7GfPJUz2b8WRza7MRngg/Qk58lTDIiI5C8YKLJDY
-	Ay+tKkXRN9v+b7qFws0OzXsF2fz2KxkJC5uPutUe1xn6Eu+8nIQ/zKbNV+zAU9agJAJpYyO0t9q
-	+7l11AlkxdyjYlVJQ4Ad3XnxPfzJN8I6yal3g8Oxq95N9qX5yUbqy/DowCjAwR0SOAr/hoVU6wC
-	pEAp8qIctwCEcr/eHVKqYN5iaQT/BpVrfCE1+wEBCa6JNNNl6U+bniU0XKo9MawOXFEnGBff/S+
-	P9nviIw+oc6C
-X-Received: by 2002:a1c:23c4:: with SMTP id j187mr10089732wmj.13.1552080491625;
-        Fri, 08 Mar 2019 13:28:11 -0800 (PST)
-X-Google-Smtp-Source: APXvYqwOeOJoebFlIq2xeEouiB1sQZ9ZjMFjgG7l7+HcGA05Jhyz+5oPRAe8MFBCFEjOor+APc6t
-X-Received: by 2002:a1c:23c4:: with SMTP id j187mr10089684wmj.13.1552080489933;
-        Fri, 08 Mar 2019 13:28:09 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1552080489; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=R8pjqCJyuCOC9qIxLWExhAZb4xVkg5yY/1ua3SMhyTU=;
+        b=kDTW7sgHX5Q2JiJKtpUcdq9fB6pl7aIyv2Y4ObKHEhEzSN3mdeVWwaRFFhsLsBTkKs
+         OghAMLhg4UtLAxpX9mqfyFMuDCO4388bKme8ild4kz9dnKsM4HuB1vzWREol4Ddxo9yY
+         WP4ms9LB2+VuyIfg5BXE9I/wiWjiNa5XKth8TM1h1+ajZcqspEySJ3HnFPZ/oTQgGk+8
+         q0v2aPEIsgc8PgmxhfZgR9zEoggkNVY9dYKUAlDtk9X7AfOmGdPLioDS4rCqr5LMEsOI
+         rsTxZ3ejxvyK3q6miydXeY7Z9AXFjJaLp/5ovQfp0AkUDuxoUKGk5UFrBX/yyWfc4+eT
+         umkg==
+X-Gm-Message-State: APjAAAXA3uhPEMZtuPmGmQFZyze4BauUbty3PxYchvsOyJrBPpm19kb/
+	1dBqQ3hfpm3EMHr2dHN5mBvqCLv8+0soHFD5mu+8hUWh7NekeWzIOolWgf1+cdUc+0zzyTb5+l0
+	z3CcY+bOf0p9JIhnSR+wM7giB0oAjUSoF7G85lJh2Qc/Jv9pqC+MdSFiyH168jCfZzx/n0qjIU1
+	lBQkM1PHQzK4489dfRqE3UFHz1mhTDrWHUNbCRMeLWPfXryeH9VVVm9orJG76cYK9zTQa6qn93S
+	czOS4CBZ2MJ+MbaEuL0ePzOt2gpw58DduwICRD1ceKfnPOHLT9+r9Tk/c4txHGkAJrE/pv/wHW7
+	h5r4OCP+pwTIwHUmHZVYrJAGxKHqPWLlQ5iUMlNvDcUDdo5vleEcXMqX4O8oUWvyS3Vj7UokxlC
+	a
+X-Received: by 2002:a62:1c43:: with SMTP id c64mr20558774pfc.259.1552081005201;
+        Fri, 08 Mar 2019 13:36:45 -0800 (PST)
+X-Received: by 2002:a62:1c43:: with SMTP id c64mr20558678pfc.259.1552081003792;
+        Fri, 08 Mar 2019 13:36:43 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1552081003; cv=none;
         d=google.com; s=arc-20160816;
-        b=SnDHOxR4h9ZVBkHd+ZrRpy4Q/7dcISWncxhGa7c7cnEc+gYZ8ywkqUBnFxKrTcCelT
-         za4AQCNCLdj0Lpi7JP1Xhzz5YBuRRE1qysAkjoZxmKrtnzSblOweXWQG9io4dA3iu1O4
-         Vo3KrmpeAqczzYzfC02/hPUss8nwSO2lGASMCE7eXlPS5szrQmoNGuATgX6SsB/6IBqZ
-         zmjDlmPbkItbIgTMxLU/96RhKHZk+JpdN1Kn2/c5+eIbpRq0N457X0ZZoSdybIgWnDKL
-         5AgHOFi3bAaz6+/iFl0oRUvlOF55BnBCHWF3hjWnCOfEMH8Gb/On8hd0xd7bTIGk0dEc
-         6fKg==
+        b=hZfT1ZHL2YoUjGg+9PZ+08+2D16iV2IlgnAKGgYvEEYHyEWawZbaz88LgohkEH5S6c
+         2Fji4v5/nrwtrjIwKPBQCbS+8UPjxxs/BohwFLO888pA4W2rSk8B/QD3CL0nYeVN5czj
+         cA5HRWKu25whP/famcqr74XLozE6j1wvAJAUGqt+54RClHzxj7kLFv7T7mTCwVeXuBzp
+         30bYaVqB/2S5k/uX7T3rbI93kXM9Oef4pbZ2jD5Qjlv7Y6+8pUbunCzA5cBIee0k9M3b
+         1r/4gXW2km31l8TEuVSFGFXRurIHPMZste8rKlrc2MTTkt5+sxqlGFRfcYzj6Opd7LkP
+         i0uw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:message-id:subject:cc
-         :to:from:date;
-        bh=JaqPMjNUg8YGoZrvXWIJxyaScX79kLBvByC21D5oQZA=;
-        b=LuuRL8Qrmn04qT5+Hd+9z0DN6NQ0bxBplLfxrNKoPav2Vm0r4GEi9ShzPOFPlHtZv6
-         p/+sghHyBf4SwtwJxVt0pDtYLw7S57MI4uJsTM7sz9U2w2DCb3Vc3HvNA4ya0WQg/+AB
-         G+8AFm8WtP06Zng8aT5PAM2IHdvBXamzaEtJ39VRMdHvUTtHGvDs9Eq6W690tzld6ZkD
-         4hGKiNwBjeFqqZBaLzrcQlnDGc/Yrds/qy1gukJxc4iz2MxHwhz0QDcPBZKxevUF+82h
-         FLoxcxC/QsYe4h3XCGTYXtCC8D6yFKdz7KNQj1htaJpB0exnRH/9Ew34vF7AFhoBDZBI
-         srZg==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=R8pjqCJyuCOC9qIxLWExhAZb4xVkg5yY/1ua3SMhyTU=;
+        b=ESsEh68lIpa/CWMFSaaEulbEDAsgF8sKQThdwhoeo6d7E557q6bZui2ut6KVvdBB9t
+         uQZENmuaD3xtbOt86YpllQ/gWujK6xz5anynE5WOwz1uE+zIcRyXfU8e4iGVTAoiIDJF
+         LpEP8vcqWterD4uznwAuNpLqirZZ6ww5pB+oInnJ5+yodIBJcuAetd9/MyCUzgay6IuD
+         afC32JKeZqe8mW4vjLfpF5duTscsjR7hPPBclf9R6W/zhzSf77gyEPjYCpWoQdzEduFz
+         GSgGLuRf8jByUzfRZrR4jBcuf3nMYKAHrP0IWaLOwmeUgF0B6LyDHyHgLU8uD3vUhQ3M
+         bUYA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of andrea.righi@canonical.com designates 91.189.89.112 as permitted sender) smtp.mailfrom=andrea.righi@canonical.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=canonical.com
-Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
-        by mx.google.com with ESMTPS id j17si4203669wrr.234.2019.03.08.13.28.09
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QNTO0WU8;
+       spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 62sor14432952ple.72.2019.03.08.13.36.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 08 Mar 2019 13:28:09 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of andrea.righi@canonical.com designates 91.189.89.112 as permitted sender) client-ip=91.189.89.112;
+        (Google Transport Security);
+        Fri, 08 Mar 2019 13:36:43 -0800 (PST)
+Received-SPF: pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of andrea.righi@canonical.com designates 91.189.89.112 as permitted sender) smtp.mailfrom=andrea.righi@canonical.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=canonical.com
-Received: from mail-wr1-f72.google.com ([209.85.221.72])
-	by youngberry.canonical.com with esmtps (TLS1.0:RSA_AES_128_CBC_SHA1:16)
-	(Exim 4.76)
-	(envelope-from <andrea.righi@canonical.com>)
-	id 1h2N2H-0001SV-5R
-	for linux-mm@kvack.org; Fri, 08 Mar 2019 21:28:09 +0000
-Received: by mail-wr1-f72.google.com with SMTP id b9so10769788wrw.14
-        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 13:28:09 -0800 (PST)
-X-Received: by 2002:adf:f744:: with SMTP id z4mr4414412wrp.66.1552080488695;
-        Fri, 08 Mar 2019 13:28:08 -0800 (PST)
-X-Received: by 2002:adf:f744:: with SMTP id z4mr4414388wrp.66.1552080488308;
-        Fri, 08 Mar 2019 13:28:08 -0800 (PST)
-Received: from localhost (host157-124-dynamic.27-79-r.retail.telecomitalia.it. [79.27.124.157])
-        by smtp.gmail.com with ESMTPSA id g3sm5072472wmk.32.2019.03.08.13.28.06
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 08 Mar 2019 13:28:07 -0800 (PST)
-Date: Fri, 8 Mar 2019 22:28:06 +0100
-From: Andrea Righi <andrea.righi@canonical.com>
-To: Josef Bacik <josef@toxicpanda.com>, Tejun Heo <tj@kernel.org>
-Cc: Li Zefan <lizefan@huawei.com>, Paolo Valente <paolo.valente@linaro.org>,
-	Johannes Weiner <hannes@cmpxchg.org>, Jens Axboe <axboe@kernel.dk>,
-	Vivek Goyal <vgoyal@redhat.com>, Dennis Zhou <dennis@kernel.org>,
-	cgroups@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: [PATCH v3] blkcg: prevent priority inversion problem during sync()
-Message-ID: <20190308212806.GA1172@xps-13>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QNTO0WU8;
+       spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=R8pjqCJyuCOC9qIxLWExhAZb4xVkg5yY/1ua3SMhyTU=;
+        b=QNTO0WU8+ixmJ22Rnrjz68AdSVgpgICB9uk7ItHCy9HTrpdvbgClWSo8fVtxDvOtGn
+         axjt1l9RTOdJFZV+RzhemigSw43NH/5Nr2uhlmOBOclDiyqdV6JS4P7SSRgL+5RFVMSd
+         DQ21zVOp615X2qwmjG4iKPvUULTRVFUNHdpoy0+BnK49ZKfyUEd+/xdb2PbsJx+etXyl
+         3onxKw4hX5E3naz8Jwg+rdj7ckCw1jwM72aCeR/7sOO35c1M4Am5iSE10SWwc2FpAMBV
+         feRUfk1hfuIfRIuEL+ywjmemSRxQD2bkijC7wYN2HJDWg2FVcfF3019BlJJeEgA1qtyD
+         gxlg==
+X-Google-Smtp-Source: APXvYqzBK+M1uDC+BRaBhjDUHnMAXagND1pk9LFJymgS/dyF4dszKAnpEKz5FsA83W5cHrsesI57Zw==
+X-Received: by 2002:a17:902:765:: with SMTP id 92mr20505285pli.95.1552081003342;
+        Fri, 08 Mar 2019 13:36:43 -0800 (PST)
+Received: from blueforge.nvidia.com (searspoint.nvidia.com. [216.228.112.21])
+        by smtp.gmail.com with ESMTPSA id c2sm11803665pfd.159.2019.03.08.13.36.41
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 08 Mar 2019 13:36:42 -0800 (PST)
+From: john.hubbard@gmail.com
+X-Google-Original-From: jhubbard@nvidia.com
+To: Andrew Morton <akpm@linux-foundation.org>,
+	linux-mm@kvack.org
+Cc: Al Viro <viro@zeniv.linux.org.uk>,
+	Christian Benvenuti <benve@cisco.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	Christopher Lameter <cl@linux.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dave Chinner <david@fromorbit.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>,
+	Doug Ledford <dledford@redhat.com>,
+	Ira Weiny <ira.weiny@intel.com>,
+	Jan Kara <jack@suse.cz>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	Tom Talpey <tom@talpey.com>,
+	LKML <linux-kernel@vger.kernel.org>,
+	linux-fsdevel@vger.kernel.org,
+	John Hubbard <jhubbard@nvidia.com>
+Subject: [PATCH v4 0/1] mm: introduce put_user_page*(), placeholder versions
+Date: Fri,  8 Mar 2019 13:36:32 -0800
+Message-Id: <20190308213633.28978-1-jhubbard@nvidia.com>
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset=UTF-8
+X-NVConfidentiality: public
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When sync(2) is executed from a high-priority cgroup, the process is
-forced to wait the completion of the entire outstanding writeback I/O,
-even the I/O that was originally generated by low-priority cgroups
-potentially.
+From: John Hubbard <jhubbard@nvidia.com>
 
-This may cause massive latencies to random processes (even those running
-in the root cgroup) that shouldn't be I/O-throttled at all, similarly to
-a classic priority inversion problem.
+Hi Andrew and all,
 
-Prevent this problem by saving a list of blkcg's that are waiting for
-writeback: every time a sync(2) is executed the current blkcg is added
-to the list.
+Can we please apply this (destined for 5.2) once the time is right?
+(I see that -mm just got merged into the main tree today.)
 
-Then, when I/O is throttled, if there's a blkcg waiting for writeback
-different than the current blkcg, no throttling is applied (we can
-probably refine this logic later, i.e., a better policy could be to
-adjust the I/O rate using the blkcg with the highest speed from the list
-of waiters).
+We seem to have pretty solid consensus on the concept and details of the
+put_user_pages() approach. Or at least, if we don't, someone please speak
+up now. Christopher Lameter, especially, since you had some concerns
+recently.
 
-See also:
-  https://lkml.org/lkml/2019/3/7/640
+Therefore, here is the first patch--only. This allows us to begin
+converting the get_user_pages() call sites to use put_user_page(), instead
+of put_page(). This is in order to implement tracking of get_user_page()
+pages.
 
-Signed-off-by: Andrea Righi <andrea.righi@canonical.com>
----
-Changes in v3:
- - drop sync(2) isolation patches (this will be addressed by another
-   patch, potentially operating at the fs namespace level)
- - use a per-bdi lock and a per-bdi list instead of a global lock and a
-   global list to save the list of sync(2) waiters
+Normally I'd include a user of this code, but in this case, I think we have
+examples of how it will work in the RFC and related discussions [1]. What
+matters more at this point is unblocking the ability to start fixing up
+various subsystems, through git trees other than linux-mm. For example, the
+Infiniband example conversion now needs to pick up some prerequisite
+patches via the RDMA tree. It seems likely that other call sites may need
+similar attention, and so having put_user_pages() available would really
+make this go more quickly.
 
- block/blk-cgroup.c               | 130 +++++++++++++++++++++++++++++++
- block/blk-throttle.c             |  11 ++-
- fs/fs-writeback.c                |   5 ++
- fs/sync.c                        |   8 +-
- include/linux/backing-dev-defs.h |   2 +
- include/linux/blk-cgroup.h       |  25 ++++++
- mm/backing-dev.c                 |   2 +
- 7 files changed, 179 insertions(+), 4 deletions(-)
+Previous cover letter follows:
+==============================
 
-diff --git a/block/blk-cgroup.c b/block/blk-cgroup.c
-index 2bed5725aa03..b380d678cfc2 100644
---- a/block/blk-cgroup.c
-+++ b/block/blk-cgroup.c
-@@ -1351,6 +1351,136 @@ struct cgroup_subsys io_cgrp_subsys = {
- };
- EXPORT_SYMBOL_GPL(io_cgrp_subsys);
- 
-+#ifdef CONFIG_CGROUP_WRITEBACK
-+struct blkcg_wb_sleeper {
-+	struct blkcg *blkcg;
-+	refcount_t refcnt;
-+	struct list_head node;
-+};
-+
-+static struct blkcg_wb_sleeper *
-+blkcg_wb_sleeper_find(struct blkcg *blkcg, struct backing_dev_info *bdi)
-+{
-+	struct blkcg_wb_sleeper *bws;
-+
-+	list_for_each_entry(bws, &bdi->cgwb_waiters, node)
-+		if (bws->blkcg == blkcg)
-+			return bws;
-+	return NULL;
-+}
-+
-+static void
-+blkcg_wb_sleeper_add(struct backing_dev_info *bdi, struct blkcg_wb_sleeper *bws)
-+{
-+	list_add(&bws->node, &bdi->cgwb_waiters);
-+}
-+
-+static void
-+blkcg_wb_sleeper_del(struct backing_dev_info *bdi, struct blkcg_wb_sleeper *bws)
-+{
-+	list_del_init(&bws->node);
-+}
-+
-+/**
-+ * blkcg_wb_waiters_on_bdi - check for writeback waiters on a block device
-+ * @blkcg: current blkcg cgroup
-+ * @bdi: block device to check
-+ *
-+ * Return true if any other blkcg different than the current one is waiting for
-+ * writeback on the target block device, false otherwise.
-+ */
-+bool blkcg_wb_waiters_on_bdi(struct blkcg *blkcg, struct backing_dev_info *bdi)
-+{
-+	struct blkcg_wb_sleeper *bws;
-+	bool ret = false;
-+
-+	if (likely(list_empty(&bdi->cgwb_waiters)))
-+		return false;
-+	spin_lock(&bdi->cgwb_waiters_lock);
-+	list_for_each_entry(bws, &bdi->cgwb_waiters, node)
-+		if (bws->blkcg != blkcg) {
-+			ret = true;
-+			break;
-+		}
-+	spin_unlock(&bdi->cgwb_waiters_lock);
-+
-+	return ret;
-+}
-+
-+/**
-+ * blkcg_start_wb_wait_on_bdi - add current blkcg to writeback waiters list
-+ * @bdi: target block device
-+ *
-+ * Add current blkcg to the list of writeback waiters on target block device.
-+ */
-+void blkcg_start_wb_wait_on_bdi(struct backing_dev_info *bdi)
-+{
-+	struct blkcg_wb_sleeper *new_bws, *bws;
-+	struct blkcg *blkcg;
-+
-+	new_bws = kzalloc(sizeof(*new_bws), GFP_KERNEL);
-+	if (unlikely(!new_bws))
-+		return;
-+
-+	rcu_read_lock();
-+	blkcg = blkcg_from_current();
-+	if (likely(blkcg)) {
-+		/* Check if blkcg is already sleeping on bdi */
-+		spin_lock_bh(&bdi->cgwb_waiters_lock);
-+		bws = blkcg_wb_sleeper_find(blkcg, bdi);
-+		if (bws) {
-+			refcount_inc(&bws->refcnt);
-+		} else {
-+			/* Add current blkcg as a new wb sleeper on bdi */
-+			css_get(&blkcg->css);
-+			new_bws->blkcg = blkcg;
-+			refcount_set(&new_bws->refcnt, 1);
-+			blkcg_wb_sleeper_add(bdi, new_bws);
-+			new_bws = NULL;
-+		}
-+		spin_unlock_bh(&bdi->cgwb_waiters_lock);
-+	}
-+	rcu_read_unlock();
-+
-+	kfree(new_bws);
-+}
-+
-+/**
-+ * blkcg_stop_wb_wait_on_bdi - remove current blkcg from writeback waiters list
-+ * @bdi: target block device
-+ *
-+ * Remove current blkcg from the list of writeback waiters on target block
-+ * device.
-+ */
-+void blkcg_stop_wb_wait_on_bdi(struct backing_dev_info *bdi)
-+{
-+	struct blkcg_wb_sleeper *bws = NULL;
-+	struct blkcg *blkcg;
-+
-+	rcu_read_lock();
-+	blkcg = blkcg_from_current();
-+	if (!blkcg) {
-+		rcu_read_unlock();
-+		return;
-+	}
-+	spin_lock_bh(&bdi->cgwb_waiters_lock);
-+	bws = blkcg_wb_sleeper_find(blkcg, bdi);
-+	if (unlikely(!bws)) {
-+		/* blkcg_start/stop_wb_wait_on_bdi() mismatch */
-+		WARN_ON(1);
-+		goto out_unlock;
-+	}
-+	if (refcount_dec_and_test(&bws->refcnt)) {
-+		blkcg_wb_sleeper_del(bdi, bws);
-+		css_put(&blkcg->css);
-+		kfree(bws);
-+	}
-+out_unlock:
-+	spin_unlock_bh(&bdi->cgwb_waiters_lock);
-+	rcu_read_unlock();
-+}
-+#endif
-+
- /**
-  * blkcg_activate_policy - activate a blkcg policy on a request_queue
-  * @q: request_queue of interest
-diff --git a/block/blk-throttle.c b/block/blk-throttle.c
-index 1b97a73d2fb1..da817896cded 100644
---- a/block/blk-throttle.c
-+++ b/block/blk-throttle.c
-@@ -970,9 +970,13 @@ static bool tg_may_dispatch(struct throtl_grp *tg, struct bio *bio,
- {
- 	bool rw = bio_data_dir(bio);
- 	unsigned long bps_wait = 0, iops_wait = 0, max_wait = 0;
-+	struct throtl_data *td = tg->td;
-+	struct request_queue *q = td->queue;
-+	struct backing_dev_info *bdi = q->backing_dev_info;
-+	struct blkcg_gq *blkg = tg_to_blkg(tg);
- 
- 	/*
-- 	 * Currently whole state machine of group depends on first bio
-+	 * Currently whole state machine of group depends on first bio
- 	 * queued in the group bio list. So one should not be calling
- 	 * this function with a different bio if there are other bios
- 	 * queued.
-@@ -981,8 +985,9 @@ static bool tg_may_dispatch(struct throtl_grp *tg, struct bio *bio,
- 	       bio != throtl_peek_queued(&tg->service_queue.queued[rw]));
- 
- 	/* If tg->bps = -1, then BW is unlimited */
--	if (tg_bps_limit(tg, rw) == U64_MAX &&
--	    tg_iops_limit(tg, rw) == UINT_MAX) {
-+	if (blkcg_wb_waiters_on_bdi(blkg->blkcg, bdi) ||
-+	    (tg_bps_limit(tg, rw) == U64_MAX &&
-+	    tg_iops_limit(tg, rw) == UINT_MAX)) {
- 		if (wait)
- 			*wait = 0;
- 		return true;
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 36855c1f8daf..77c039a0ec25 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -28,6 +28,7 @@
- #include <linux/tracepoint.h>
- #include <linux/device.h>
- #include <linux/memcontrol.h>
-+#include <linux/blk-cgroup.h>
- #include "internal.h"
- 
- /*
-@@ -2446,6 +2447,8 @@ void sync_inodes_sb(struct super_block *sb)
- 		return;
- 	WARN_ON(!rwsem_is_locked(&sb->s_umount));
- 
-+	blkcg_start_wb_wait_on_bdi(bdi);
-+
- 	/* protect against inode wb switch, see inode_switch_wbs_work_fn() */
- 	bdi_down_write_wb_switch_rwsem(bdi);
- 	bdi_split_work_to_wbs(bdi, &work, false);
-@@ -2453,6 +2456,8 @@ void sync_inodes_sb(struct super_block *sb)
- 	bdi_up_write_wb_switch_rwsem(bdi);
- 
- 	wait_sb_inodes(sb);
-+
-+	blkcg_stop_wb_wait_on_bdi(bdi);
- }
- EXPORT_SYMBOL(sync_inodes_sb);
- 
-diff --git a/fs/sync.c b/fs/sync.c
-index b54e0541ad89..3958b8f98b85 100644
---- a/fs/sync.c
-+++ b/fs/sync.c
-@@ -16,6 +16,7 @@
- #include <linux/pagemap.h>
- #include <linux/quotaops.h>
- #include <linux/backing-dev.h>
-+#include <linux/blk-cgroup.h>
- #include "internal.h"
- 
- #define VALID_FLAGS (SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE| \
-@@ -76,8 +77,13 @@ static void sync_inodes_one_sb(struct super_block *sb, void *arg)
- 
- static void sync_fs_one_sb(struct super_block *sb, void *arg)
- {
--	if (!sb_rdonly(sb) && sb->s_op->sync_fs)
-+	struct backing_dev_info *bdi = sb->s_bdi;
-+
-+	if (!sb_rdonly(sb) && sb->s_op->sync_fs) {
-+		blkcg_start_wb_wait_on_bdi(bdi);
- 		sb->s_op->sync_fs(sb, *(int *)arg);
-+		blkcg_stop_wb_wait_on_bdi(bdi);
-+	}
- }
- 
- static void fdatawrite_one_bdev(struct block_device *bdev, void *arg)
-diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
-index 07e02d6df5ad..095e4dd0427b 100644
---- a/include/linux/backing-dev-defs.h
-+++ b/include/linux/backing-dev-defs.h
-@@ -191,6 +191,8 @@ struct backing_dev_info {
- 	struct rb_root cgwb_congested_tree; /* their congested states */
- 	struct mutex cgwb_release_mutex;  /* protect shutdown of wb structs */
- 	struct rw_semaphore wb_switch_rwsem; /* no cgwb switch while syncing */
-+	struct list_head cgwb_waiters; /* list of all waiters for writeback */
-+	spinlock_t cgwb_waiters_lock; /* protect cgwb_waiters list */
- #else
- 	struct bdi_writeback_congested *wb_congested;
- #endif
-diff --git a/include/linux/blk-cgroup.h b/include/linux/blk-cgroup.h
-index 76c61318fda5..66d7b6901c77 100644
---- a/include/linux/blk-cgroup.h
-+++ b/include/linux/blk-cgroup.h
-@@ -56,6 +56,7 @@ struct blkcg {
- 
- 	struct list_head		all_blkcgs_node;
- #ifdef CONFIG_CGROUP_WRITEBACK
-+	struct list_head		cgwb_wait_node;
- 	struct list_head		cgwb_list;
- 	refcount_t			cgwb_refcnt;
- #endif
-@@ -252,6 +253,12 @@ static inline struct blkcg *css_to_blkcg(struct cgroup_subsys_state *css)
- 	return css ? container_of(css, struct blkcg, css) : NULL;
- }
- 
-+static inline struct blkcg *blkcg_from_current(void)
-+{
-+	WARN_ON_ONCE(!rcu_read_lock_held());
-+	return css_to_blkcg(blkcg_css());
-+}
-+
- /**
-  * __bio_blkcg - internal, inconsistent version to get blkcg
-  *
-@@ -454,6 +461,10 @@ static inline void blkcg_cgwb_put(struct blkcg *blkcg)
- 		blkcg_destroy_blkgs(blkcg);
- }
- 
-+bool blkcg_wb_waiters_on_bdi(struct blkcg *blkcg, struct backing_dev_info *bdi);
-+void blkcg_start_wb_wait_on_bdi(struct backing_dev_info *bdi);
-+void blkcg_stop_wb_wait_on_bdi(struct backing_dev_info *bdi);
-+
- #else
- 
- static inline void blkcg_cgwb_get(struct blkcg *blkcg) { }
-@@ -464,6 +475,14 @@ static inline void blkcg_cgwb_put(struct blkcg *blkcg)
- 	blkcg_destroy_blkgs(blkcg);
- }
- 
-+static inline bool
-+blkcg_wb_waiters_on_bdi(struct blkcg *blkcg, struct backing_dev_info *bdi)
-+{
-+	return false;
-+}
-+static inline void blkcg_start_wb_wait_on_bdi(struct backing_dev_info *bdi) { }
-+static inline void blkcg_stop_wb_wait_on_bdi(struct backing_dev_info *bdi) { }
-+
- #endif
- 
- /**
-@@ -772,6 +791,7 @@ static inline void blkcg_bio_issue_init(struct bio *bio)
- static inline bool blkcg_bio_issue_check(struct request_queue *q,
- 					 struct bio *bio)
- {
-+	struct backing_dev_info *bdi = q->backing_dev_info;
- 	struct blkcg_gq *blkg;
- 	bool throtl = false;
- 
-@@ -788,6 +808,11 @@ static inline bool blkcg_bio_issue_check(struct request_queue *q,
- 
- 	blkg = bio->bi_blkg;
- 
-+	local_bh_disable();
-+	if (blkcg_wb_waiters_on_bdi(blkg->blkcg, bdi))
-+		bio_set_flag(bio, BIO_THROTTLED);
-+	local_bh_enable();
-+
- 	throtl = blk_throtl_bio(q, blkg, bio);
- 
- 	if (!throtl) {
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index 72e6d0c55cfa..8848d26e8bf6 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -686,10 +686,12 @@ static int cgwb_bdi_init(struct backing_dev_info *bdi)
- {
- 	int ret;
- 
-+	INIT_LIST_HEAD(&bdi->cgwb_waiters);
- 	INIT_RADIX_TREE(&bdi->cgwb_tree, GFP_ATOMIC);
- 	bdi->cgwb_congested_tree = RB_ROOT;
- 	mutex_init(&bdi->cgwb_release_mutex);
- 	init_rwsem(&bdi->wb_switch_rwsem);
-+	spin_lock_init(&bdi->cgwb_waiters_lock);
- 
- 	ret = wb_init(&bdi->wb, bdi, 1, GFP_KERNEL);
- 	if (!ret) {
+A discussion of the overall problem is below.
+
+As mentioned in patch 0001, the steps are to fix the problem are:
+
+1) Provide put_user_page*() routines, intended to be used
+   for releasing pages that were pinned via get_user_pages*().
+
+2) Convert all of the call sites for get_user_pages*(), to
+   invoke put_user_page*(), instead of put_page(). This involves dozens of
+   call sites, and will take some time.
+
+3) After (2) is complete, use get_user_pages*() and put_user_page*() to
+   implement tracking of these pages. This tracking will be separate from
+   the existing struct page refcounting.
+
+4) Use the tracking and identification of these pages, to implement
+   special handling (especially in writeback paths) when the pages are
+   backed by a filesystem.
+
+Overview
+========
+
+Some kernel components (file systems, device drivers) need to access
+memory that is specified via process virtual address. For a long time, the
+API to achieve that was get_user_pages ("GUP") and its variations. However,
+GUP has critical limitations that have been overlooked; in particular, GUP
+does not interact correctly with filesystems in all situations. That means
+that file-backed memory + GUP is a recipe for potential problems, some of
+which have already occurred in the field.
+
+GUP was first introduced for Direct IO (O_DIRECT), allowing filesystem code
+to get the struct page behind a virtual address and to let storage hardware
+perform a direct copy to or from that page. This is a short-lived access
+pattern, and as such, the window for a concurrent writeback of GUP'd page
+was small enough that there were not (we think) any reported problems.
+Also, userspace was expected to understand and accept that Direct IO was
+not synchronized with memory-mapped access to that data, nor with any
+process address space changes such as munmap(), mremap(), etc.
+
+Over the years, more GUP uses have appeared (virtualization, device
+drivers, RDMA) that can keep the pages they get via GUP for a long period
+of time (seconds, minutes, hours, days, ...). This long-term pinning makes
+an underlying design problem more obvious.
+
+In fact, there are a number of key problems inherent to GUP:
+
+Interactions with file systems
+==============================
+
+File systems expect to be able to write back data, both to reclaim pages,
+and for data integrity. Allowing other hardware (NICs, GPUs, etc) to gain
+write access to the file memory pages means that such hardware can dirty
+the pages, without the filesystem being aware. This can, in some cases
+(depending on filesystem, filesystem options, block device, block device
+options, and other variables), lead to data corruption, and also to kernel
+bugs of the form:
+
+    kernel BUG at /build/linux-fQ94TU/linux-4.4.0/fs/ext4/inode.c:1899!
+    backtrace:
+        ext4_writepage
+        __writepage
+        write_cache_pages
+        ext4_writepages
+        do_writepages
+        __writeback_single_inode
+        writeback_sb_inodes
+        __writeback_inodes_wb
+        wb_writeback
+        wb_workfn
+        process_one_work
+        worker_thread
+        kthread
+        ret_from_fork
+
+...which is due to the file system asserting that there are still buffer
+heads attached:
+
+        ({                                                      \
+                BUG_ON(!PagePrivate(page));                     \
+                ((struct buffer_head *)page_private(page));     \
+        })
+
+Dave Chinner's description of this is very clear:
+
+    "The fundamental issue is that ->page_mkwrite must be called on every
+    write access to a clean file backed page, not just the first one.
+    How long the GUP reference lasts is irrelevant, if the page is clean
+    and you need to dirty it, you must call ->page_mkwrite before it is
+    marked writeable and dirtied. Every. Time."
+
+This is just one symptom of the larger design problem: real filesystems
+that actually write to a backing device, do not actually support
+get_user_pages() being called on their pages, and letting hardware write
+directly to those pages--even though that pattern has been going on since
+about 2005 or so.
+
+
+Long term GUP
+=============
+
+Long term GUP is an issue when FOLL_WRITE is specified to GUP (so, a
+writeable mapping is created), and the pages are file-backed. That can lead
+to filesystem corruption. What happens is that when a file-backed page is
+being written back, it is first mapped read-only in all of the CPU page
+tables; the file system then assumes that nobody can write to the page, and
+that the page content is therefore stable. Unfortunately, the GUP callers
+generally do not monitor changes to the CPU pages tables; they instead
+assume that the following pattern is safe (it's not):
+
+    get_user_pages()
+
+    Hardware can keep a reference to those pages for a very long time,
+    and write to it at any time. Because "hardware" here means "devices
+    that are not a CPU", this activity occurs without any interaction
+    with the kernel's file system code.
+
+    for each page
+        set_page_dirty
+        put_page()
+
+In fact, the GUP documentation even recommends that pattern.
+
+Anyway, the file system assumes that the page is stable (nothing is writing
+to the page), and that is a problem: stable page content is necessary for
+many filesystem actions during writeback, such as checksum, encryption,
+RAID striping, etc. Furthermore, filesystem features like COW (copy on
+write) or snapshot also rely on being able to use a new page for as memory
+for that memory range inside the file.
+
+Corruption during write back is clearly possible here. To solve that, one
+idea is to identify pages that have active GUP, so that we can use a bounce
+page to write stable data to the filesystem. The filesystem would work
+on the bounce page, while any of the active GUP might write to the
+original page. This would avoid the stable page violation problem, but note
+that it is only part of the overall solution, because other problems
+remain.
+
+Other filesystem features that need to replace the page with a new one can
+be inhibited for pages that are GUP-pinned. This will, however, alter and
+limit some of those filesystem features. The only fix for that would be to
+require GUP users to monitor and respond to CPU page table updates.
+Subsystems such as ODP and HMM do this, for example. This aspect of the
+problem is still under discussion.
+
+Direct IO
+=========
+
+Direct IO can cause corruption, if userspace does Direct-IO that writes to
+a range of virtual addresses that are mmap'd to a file.  The pages written
+to are file-backed pages that can be under write back, while the Direct IO
+is taking place.  Here, Direct IO races with a write back: it calls
+GUP before page_mkclean() has replaced the CPU pte with a read-only entry.
+The race window is pretty small, which is probably why years have gone by
+before we noticed this problem: Direct IO is generally very quick, and
+tends to finish up before the filesystem gets around to do anything with
+the page contents.  However, it's still a real problem.  The solution is
+to never let GUP return pages that are under write back, but instead,
+force GUP to take a write fault on those pages.  That way, GUP will
+properly synchronize with the active write back.  This does not change the
+required GUP behavior, it just avoids that race.
+
+Changes since v3:
+
+ * Moved put_user_page*() implementation from swap.c to gup.c, as per
+   Jerome's review recommendation.
+
+ * Updated wording in patch #1 (and in this cover letter) to refer to real
+   filesystems with a backing store, as per Christopher Lameter's feedback.
+
+ * Rebased to latest linux.git: commit 3601fe43e816 ("Merge tag
+   'gpio-v5.1-1' of git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-gpio")
+
+Changes since v2:
+
+ * Reduced down to just one patch, in order to avoid dependencies between
+   subsystem git repos.
+
+ * Rebased to latest linux.git: commit afe6fe7036c6 ("Merge tag
+   'armsoc-late' of git://git.kernel.org/pub/scm/linux/kernel/git/soc/soc")
+
+ * Added Ira's review tag, based on
+   https://lore.kernel.org/lkml/20190215002312.GC7512@iweiny-DESK2.sc.intel.com/
+
+
+[1] https://lore.kernel.org/r/20190208075649.3025-3-jhubbard@nvidia.com
+    (RFC v2: mm: gup/dma tracking)
+
+Cc: Christian Benvenuti <benve@cisco.com>
+Cc: Christoph Hellwig <hch@infradead.org>
+Cc: Christopher Lameter <cl@linux.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Dave Chinner <david@fromorbit.com>
+Cc: Dennis Dalessandro <dennis.dalessandro@intel.com>
+Cc: Doug Ledford <dledford@redhat.com>
+Cc: Ira Weiny <ira.weiny@intel.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Jérôme Glisse <jglisse@redhat.com>
+Cc: Matthew Wilcox <willy@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Mike Marciniszyn <mike.marciniszyn@intel.com>
+Cc: Ralph Campbell <rcampbell@nvidia.com>
+Cc: Tom Talpey <tom@talpey.com>
+
+John Hubbard (1):
+  mm: introduce put_user_page*(), placeholder versions
+
+ include/linux/mm.h | 24 ++++++++++++++
+ mm/gup.c           | 82 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 106 insertions(+)
+
 -- 
-2.20.1
+2.21.0
 
