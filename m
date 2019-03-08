@@ -3,115 +3,115 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6546BC43381
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 04:15:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D9554C4360F
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 04:15:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 09AD220851
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 04:15:35 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6673620851
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 04:15:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="4OgKHpNJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 09AD220851
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="PV5ezQi/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6673620851
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ABC0A8E000C; Thu,  7 Mar 2019 23:15:34 -0500 (EST)
+	id 1696B8E000D; Thu,  7 Mar 2019 23:15:40 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A68658E0002; Thu,  7 Mar 2019 23:15:34 -0500 (EST)
+	id 0F6788E0002; Thu,  7 Mar 2019 23:15:40 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8E9ED8E000C; Thu,  7 Mar 2019 23:15:34 -0500 (EST)
+	id ED7048E000D; Thu,  7 Mar 2019 23:15:39 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F5758E0002
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 23:15:34 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id i3so17349401qtc.7
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 20:15:34 -0800 (PST)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BBDFD8E0002
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 23:15:39 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id v67so14970169qkl.22
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 20:15:39 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=8QX/a55REiyFrStRj7zkmM3pdCMENMhdp/xRcRhpQ7Q=;
-        b=tpdZakJEQ1LvOhbkt/iodWe1XRO2HU9bHOqE+0laAmtqhNcRDYr9qeZ/vTvTw8ZUj1
-         cmZn6arWlDNxVZnuOSFV/PlmmQ8RlbuNx2wV59we7TzVi6uWNPlXxhZp8BOz9uWou2Lq
-         0esmD8FSDfrIiJBrjaGZzzeLrittJDpuaehrUJh435p9ykRtW06XjH0JlNY7Y2QX4t3I
-         zIuY1ISRL2mGSduTo/cCcu8UzuIYKh3zOI+EkxKwXOYhOIxbkDc6IexHclTHSvZ4x2Le
-         KS+Ahd4Jg0G0X9FuLFtl3phWpzeXCFT5pTqwL0EKFIDCFgCnxhS8sxHoo0zi95Mzch64
-         it7Q==
-X-Gm-Message-State: APjAAAVQY3sGwnFYn4G5+4K3FEztD9ncklf6z2YmsgWPbzRqamKRXFnq
-	MlwX+boPs8PsvdhrtlPRu7kGs0LH9dp4HP3pX9YIzBesVgQejqNdvmnf4/vQa5wqOVlE84IgvxB
-	8mT8G9i1cnaVbxiJXUX8s0y2iuHZHdAX9i+paT7YnnaKkxQwbPkXJPWZUIeah2hI=
-X-Received: by 2002:a37:5786:: with SMTP id l128mr12576420qkb.263.1552018534090;
-        Thu, 07 Mar 2019 20:15:34 -0800 (PST)
-X-Google-Smtp-Source: APXvYqz0vu0JXVHJypOH1w76f4CEjge2//Ztc1PDrSktUW31ccrVP8kqz1C1iBqV5gKYAdavQqSx
-X-Received: by 2002:a37:5786:: with SMTP id l128mr12576376qkb.263.1552018532780;
-        Thu, 07 Mar 2019 20:15:32 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1552018532; cv=none;
+        bh=QmV7ZEyKxExjVycQ3/nLatxUyOxud0wzuK6ffRy4uC8=;
+        b=SxkUZ/5fHoccy1iRVEgFm2OKDGLVVq8DCjEi75HZZPShfBsfUAFX3q+UzF2DSoIIx/
+         JgOzCPnIjkP2kXmQxFgGvbNIZ4qv6sKuDsO+kv59tu55wpi1WW2giNE7q0WRNznqhYjV
+         KTQr2cW/5xz+GJMTN7bQU+Zi43VSNxPsqpPlCZ6sj8dV6TCJk945dcwDRNRoQWIC014a
+         RTk9eX7JMJbDKR3KCEDZEGiHkO+Yuv0XlwBQSZfWTRWWGlpaDShx7AoLVsTrmi8AG3Cs
+         y5/IVjV3l+JUU25GVapa4CMdHLO9eIpZD9qsdXg6QOj2xKMQHjZ/rCfxp23AKI1IEtM7
+         YIFQ==
+X-Gm-Message-State: APjAAAX9YgvT8h98szf3kERH3C9IBWSe3F7Awvhew5MXVn0KPaWUarpc
+	sHE3u0WYi0D79tovJUR9Uc//ydjl4jUspOuhEQ0Z2FlOlS/wzepNEbJuTBZe9Q97PRDa5gt9A8T
+	10IWPvurRNbZP7piBSCIUKZD7IbSZlZ3s8egqT4Y50RhGB+wWnGJQCEgygiiwuog=
+X-Received: by 2002:a0c:d24a:: with SMTP id o10mr13735804qvh.170.1552018539442;
+        Thu, 07 Mar 2019 20:15:39 -0800 (PST)
+X-Google-Smtp-Source: APXvYqwZ8lcZ1Hv+ehQSkcVVIuFJCbQDDZzc0V3UdvItWkVo2xeXupqsxorPb/CdullcwPI4Vniv
+X-Received: by 2002:a0c:d24a:: with SMTP id o10mr13735702qvh.170.1552018536803;
+        Thu, 07 Mar 2019 20:15:36 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1552018536; cv=none;
         d=google.com; s=arc-20160816;
-        b=Yld44B1koIbgeOWkK39uDIYEJWtxnKYAD9ScNb++bBdOD+9j5JRFUsEmSLtpajE67I
-         rpPMhiHxXo2hnKzuMzHRQuMYp8PWqxuww91awMxZajJFfomZzp94kpcG0LlqsfcRhkzj
-         QtieCCM9hK08LOdtPoMs6cgwH9Go/VhWobKdRTjORUvRk86PMd5Bcc4SZUX6/0KmgrVk
-         6b9wW2w9eGuf7Yu3MWIELJIhMLjKn6zhkjXV4pvoIRgqRpQlWm4uEDCnNTJrokMQMjND
-         Dk0VBGf9lcMDEHOEYjKj4MNMnerW5Jlah6exfjRYqlj0WWEqkT+aUHKBKbAXXxBhGII2
-         aHMA==
+        b=s9j4n1GTFRwA1teDdRILViXHu/MVA9sSitT9qdj9ywoK44fDhkN0NABSWCesI3kWP6
+         8xbr+bI09Ie1glTTbsTyprhAHr+5E5O2rh6UDSnk1WYKw0Fj9qu96zkSqUs7tYowtqlz
+         cvMF0fS2ICbyIRL2SAqcgpSuFDb81DAR3KmRV66huTBkwI5d+YxT/isslL5mUbStUSNZ
+         kNwk+/PUleiJ+xr+2AUiMUQhlC5H85GA4wgPxEzlsZbhviwCVGXoLVDhpC4SWiMUJUPI
+         njvw/lgKwXVs+YFdCRCZi7XVu45wY8vwqfCweyX1wHP9jJi+Bo3y/qeTX+ZjakZubuS2
+         9Ddw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=8QX/a55REiyFrStRj7zkmM3pdCMENMhdp/xRcRhpQ7Q=;
-        b=PhlqSlLifKyKpaHgT4ZY6oIvOmmPpY27vHVktMkwQcUdh6IIpQfvxQO51zszM0g4MM
-         Wlq80u4k4NbALwJ1419rfEbDAiF2dTtt0ouQS7sHE1qzWK7E0HxI/1Iumb0S3uH9/4J/
-         EhEvslvNZzzfX2mbrq5VPH/wkilB/ksXzc2/uF32urrP0iozbtJ1IhB/vtwfH1LYZbPk
-         gSTPVSwawFEPDXD/5uXtvqkQOBuufLq7wS5JDBR/HHUMhvVJwPypcdarVJ6H9IZe22iR
-         l9XW7zyqKlEgH7ptdMCtmXIdz9uiMb/WSNLjHyovr3TODpHfINPWFtPa20mDWrSRa6FT
-         lbFA==
+        bh=QmV7ZEyKxExjVycQ3/nLatxUyOxud0wzuK6ffRy4uC8=;
+        b=fWiVB5mWzLZTzfqa/Aauy6HBri/3zVJHDkZHVQ7zL9AUwO50NA0SjQ3M0I16E3IeyK
+         c4PEkCXExajD5JRsgBP+P+NJPgPYDk5h0CLN+C4IR5PcLGW6Pge0Hp27KfGkAZqNzk1N
+         gM0bCfx2xSEdFG9mAm1o/nGX3htFDUUsVqw8PGsEfAAJp8PzX8lx1FTJog0rOTN52Yie
+         ZOBJDSS8qJY9DVEeheabgdkVaH69QUak/KkF/5SqJ8grJz7e66pavk27zrznsf/w/QyW
+         7HdyBnlDK8WvDSbS/u+CIvNmYmzzjAB+/1lusSDQP7wcZ3woqhhouCKVt2UyYbDyGBoA
+         VRPQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=4OgKHpNJ;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="PV5ezQi/";
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 64.147.123.25 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from wout2-smtp.messagingengine.com (wout2-smtp.messagingengine.com. [64.147.123.25])
-        by mx.google.com with ESMTPS id g189si4728946qka.158.2019.03.07.20.15.32
+        by mx.google.com with ESMTPS id p23si3296094qve.170.2019.03.07.20.15.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Mar 2019 20:15:32 -0800 (PST)
+        Thu, 07 Mar 2019 20:15:36 -0800 (PST)
 Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 64.147.123.25 as permitted sender) client-ip=64.147.123.25;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=4OgKHpNJ;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="PV5ezQi/";
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 64.147.123.25 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.west.internal (Postfix) with ESMTP id 540D736AD;
-	Thu,  7 Mar 2019 23:15:31 -0500 (EST)
+	by mailout.west.internal (Postfix) with ESMTP id 5C4983536;
+	Thu,  7 Mar 2019 23:15:35 -0500 (EST)
 Received: from mailfrontend1 ([10.202.2.162])
-  by compute3.internal (MEProxy); Thu, 07 Mar 2019 23:15:31 -0500
+  by compute3.internal (MEProxy); Thu, 07 Mar 2019 23:15:35 -0500
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:subject:to
 	:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=8QX/a55REiyFrStRj7zkmM3pdCMENMhdp/xRcRhpQ7Q=; b=4OgKHpNJ
-	1u0eko9YuAGds8yLt2tfSydWns7NHejGA2AAwya5Bz3c0CwCeK70XZqnpT0p1sBL
-	c9Ph1Vdcc3bz148QGhCZRVvschnqBbGge0KzukdGjW16FCctqo0voU2skY0wg8n0
-	EywD+QLBn0poqfSWeSiCDJWN1hRader6UwHc2kkBKRGKp4dEBwd6T0sk2uArtHFW
-	WFRqglq0qTU8UTqL81s784f7C3PrbQZOlYX0gZ3QQqMeGHldWAnL3iCXuI63eppF
-	ES2sLOEFDMvqVD/m2YvVrLWJA6J2hN2hZbKZqDJHFCaHAQ9ltEBJsdRvbIrAhLB2
-	mTtGV/h1ohjjLg==
-X-ME-Sender: <xms:YuyBXJrl8qIA9oXaX0sg0Aifvaxp3Pum-0Z0Oq7tcruBqkqMKCVcwA>
+	fm2; bh=QmV7ZEyKxExjVycQ3/nLatxUyOxud0wzuK6ffRy4uC8=; b=PV5ezQi/
+	slrQ8Pxwo+lwwFUVqDQ6cM3ipG0ngidhQUGPLwFW++kdE4BHNPINgyYmVe6cB4a4
+	Mb9LtMJE0kb2hvLQ3wSacBDaAtxHFYt3eCRfzpWY+7kmW4HVmwbiG6jUtQRZVXc2
+	eRztomlagJp0CyqEuTEGUyOkeG2lPfcZdta756LWOdIeTf/awCW1errGQtpuY4Cw
+	jjKcZb+wICWjxen1Dd3Eh50C7b/wJRhZwAa43bu4/uGbTSsvswzKq9sNDRTCg22k
+	HVpJCvz27j1kLm/253fOmU4urReIPjvtD3DPU5kRHq5iADOC+3b+a41CnAyWKbXD
+	Ap1cX4haAL2kcQ==
+X-ME-Sender: <xms:ZuyBXN_vN_sTisoJT6NdIXk6d_LRqOM9LZVkJyDs_7AneNOToALBHQ>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedutddrfeelgdeifecutefuodetggdotefrodftvf
     curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
     uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenuc
     fjughrpefhvffufffkofgjfhgggfestdekredtredttdenucfhrhhomhepfdfvohgsihhn
     ucevrdcujfgrrhguihhnghdfuceothhosghinheskhgvrhhnvghlrdhorhhgqeenucfkph
     epuddvgedrudeiledrhedrudehkeenucfrrghrrghmpehmrghilhhfrhhomhepthhosghi
-    nheskhgvrhhnvghlrdhorhhgnecuvehluhhsthgvrhfuihiivgepke
-X-ME-Proxy: <xmx:YuyBXHEw9dASlVsp2ggeJWT1W5ppPBPdekZT46OA-3eyR9Pw3QVy2g>
-    <xmx:YuyBXE5MCDiXKJxt6K526-mya_ynhVj1CwIq54C03vkePUfspon7iA>
-    <xmx:YuyBXCDAoKQT9V-BZvOXg8J6Re89bhQ4WT6lMnPo3bBhVW4efLwwqQ>
-    <xmx:YuyBXKWxfisv5AA6o7kDvYiNQHXBrjlbrePiriPnqH-JhbwqzjNf4w>
+    nheskhgvrhhnvghlrdhorhhgnecuvehluhhsthgvrhfuihiivgeple
+X-ME-Proxy: <xmx:ZuyBXPY0UzeXgi47I9F2rJd6QYUmNmNemME828nQ_XzAlmz6B4YCzQ>
+    <xmx:ZuyBXFcnJjfSIAfPLT1samx16KU34zNSSn6uPB5KsmB5iP8FNYbx1A>
+    <xmx:ZuyBXJoLlYLTEysDdJsTafoVgJGcG1Hk8dsyJqVhjrGl_vcRps5U8w>
+    <xmx:ZuyBXGyxkaSixPR9DqVCtnxEUrHjkA82X-B2phgRiYfo1sSr8A6M_Q>
 Received: from eros.localdomain (124-169-5-158.dyn.iinet.net.au [124.169.5.158])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 6A98CE4548;
-	Thu,  7 Mar 2019 23:15:27 -0500 (EST)
+	by mail.messagingengine.com (Postfix) with ESMTPA id 9133DE4481;
+	Thu,  7 Mar 2019 23:15:31 -0500 (EST)
 From: "Tobin C. Harding" <tobin@kernel.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: "Tobin C. Harding" <tobin@kernel.org>,
@@ -121,9 +121,9 @@ Cc: "Tobin C. Harding" <tobin@kernel.org>,
 	Tycho Andersen <tycho@tycho.ws>,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [RFC 09/15] slub: Enable slab defragmentation using SMO
-Date: Fri,  8 Mar 2019 15:14:20 +1100
-Message-Id: <20190308041426.16654-10-tobin@kernel.org>
+Subject: [RFC 10/15] tools/testing/slab: Add object migration test module
+Date: Fri,  8 Mar 2019 15:14:21 +1100
+Message-Id: <20190308041426.16654-11-tobin@kernel.org>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190308041426.16654-1-tobin@kernel.org>
 References: <20190308041426.16654-1-tobin@kernel.org>
@@ -135,370 +135,741 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-If many objects are allocated with the slab allocator and freed in an
-arbitrary order then the slab caches can become internally fragmented.
-Now that the slab allocator supports movable objects we can defragment
-any cache that has this feature enabled.
+We just implemented slab movable objects for the SLUB allocator.  We
+should test that code.  In order to do so we need to be able to a number
+of things
 
-Slab defragmentation may occur:
+ - Create a cache
+ - Allocate objects to the cache
+ - Free objects from within specific slabs of the cache
+ - Enable Slab Movable Objects for the cache
 
-1. Unconditionally when __kmem_cache_shrink() is called on a slab cache
-   by the kernel calling kmem_cache_shrink().
+We can do all this via a loadable module.
 
-2. Unconditionally through the use of the slabinfo command.
+Add a module that defines functions that can be triggered from userspace
+via a debugfs entry. From the source:
 
-	slabinfo <cache> -s
+  /*
+   * SLUB defragmentation a.k.a. Slab Movable Objects (SMO).
+   *
+   * This module is used for testing the SLUB allocator.  Enables
+   * userspace to run kernel functions via a debugfs file.
+   *
+   *   debugfs: /sys/kernel/debugfs/smo/callfn (write only)
+   *
+   * String written to `callfn` is parsed by the module and associated
+   * function is called.  See fn_tab for mapping of strings to functions.
+   */
 
-3. Conditionally via the use of kmem_cache_defrag()
+References to allocated objects are kept by the module in a linked list
+so that userspace can control which object to free.
 
-Use SMO when shrinking cache.  Currently when the kernel calls
-kmem_cache_shrink() we curate the partial slabs list.  If object
-migration is not enabled for the cache we still do this, if however SMO
-is enabled, we attempt to move objects in partially full slabs in order
-to defragment the cache.  Shrink attempts to move all objects in order
-to reduce the cache to a single partial slab for each node.
+We introduce the following four functions via the function table
 
-kmem_cache_defrag() differs from shrink in that it operates dependent on
-the defrag_used_ratio and only attempts to move objects if the number of
-partial slabs exceeds MAX_PARTIAL (for each node).
+  "alloc X": Allocates X objects
+  "free X [Y]": Frees X objects starting at list position Y (default Y==0)
+  "enable": Enables object migration for the test cache.
+  "test": Runs [stress] tests from within the module (see below).
 
-Add function kmem_cache_defrag(int node).
+       {"alloc", smo_alloc_objects},
+       {"free", smo_free_object},
+       {"enable", smo_enable_cache_mobility},
+       {"test", smo_run_module_tests},
 
-   kmem_cache_defrag() only performs defragmentation if the usage ratio
-   of the slab is lower than the configured percentage (sysfs file added
-   in previous patch).  Fragmentation ratios are measured by calculating
-   the percentage of objects in use compared to the total number of
-   objects that the slab page can accommodate.
+Freeing from the start of the list creates a hole in the slab being
+freed from (i.e. creates a partial slab).  The results of running these
+commands can be see using `slabinfo` (available in tools/vm/):
 
-   The scanning of slab caches is optimized because the defragmentable
-   slabs come first on the list. Thus we can terminate scans on the
-   first slab encountered that does not support defragmentation.
+	make -o slabinfo tools/vm/slabinfo.c
 
-   kmem_cache_defrag() takes a node parameter. This can either be -1 if
-   defragmentation should be performed on all nodes, or a node number.
+Stress tests can be run from within the module.  These tests are
+internal to the module because we verify that object references are
+still good after object migration.  These are called 'stress' tests
+because it is intended that they create/free a lot of objects.
+Userspace can control the number of objects to create, default is 1000.
 
-   Defragmentation may be disabled by setting defrag ratio to 0
+Example test session
+--------------------
 
-	echo 0 > /sys/kernel/slab/<cache>/defrag_used_ratio
+Relevant /proc/slabinfo column headers:
 
-In order for a cache to be defragmentable the cache must support object
-migration (SMO).  Enabling SMO for a cache is done via a call to the
-recently added function:
+  name   <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab>
 
-	void kmem_cache_setup_mobility(struct kmem_cache *,
-				       kmem_cache_isolate_func,
-			               kmem_cache_migrate_func);
+  # mount -t debugfs none /sys/kernel/debug/
+  $ cd path/to/linux/tools/testing/slab; make
+  ...
 
-Co-developed-by: Christoph Lameter <cl@linux.com>
+  # insmod slub_defrag.ko
+  # cat /proc/slabinfo | grep smo_test | sed 's/:.*//'
+  smo_test               0      0    392   20    2
+
+From this we can see that the module created cache 'smo_test' with 20
+objects per slab and 2 pages per slab (and cache is currently empty).
+
+We can run the stress tests (with the default number of objects):
+
+  # cd /sys/kernel/debug/smo
+  # echo 'test' > callfn
+  [    3.576617] smo: test using nr_objs: 1000 keep: 10
+  [    3.580169] smo: Module tests completed successfully
+
+And we can play with the slab allocator manually:
+
+  # insmod slub_defrag.ko
+  # echo 'alloc 21' > callfn
+  # cat /proc/slabinfo | grep smo_test | sed 's/:.*//'
+  smo_test              21     40    392   20    2
+
+We see here that 21 active objects have been allocated creating 2
+slabs (40 total objects).
+
+  # slabinfo smo_test --report
+
+  Slabcache: smo_test         Aliases:  0 Order :  1 Objects: 21
+
+  Sizes (bytes)     Slabs              Debug                Memory
+  ------------------------------------------------------------------------
+  Object :      56  Total  :       2   Sanity Checks : On   Total:   16384
+  SlabObj:     392  Full   :       1   Redzoning     : On   Used :    1176
+  SlabSiz:    8192  Partial:       1   Poisoning     : On   Loss :   15208
+  Loss   :     336  CpuSlab:       0   Tracking      : On   Lalig:    7056
+  Align  :       8  Objects:      20   Tracing       : Off  Lpadd:     704
+
+Now free an object from the first slot of the first slab
+
+  # echo 'free 1' > callfn
+  # cat /proc/slabinfo | grep smo_test | sed 's/:.*//'
+  smo_test              20     40    392   20    2
+
+  # slabinfo smo_test --report
+
+  Slabcache: smo_test         Aliases:  0 Order :  1 Objects: 20
+
+  Sizes (bytes)     Slabs              Debug                Memory
+  ------------------------------------------------------------------------
+  Object :      56  Total  :       2   Sanity Checks : On   Total:   16384
+  SlabObj:     392  Full   :       0   Redzoning     : On   Used :    1120
+  SlabSiz:    8192  Partial:       2   Poisoning     : On   Loss :   15264
+  Loss   :     336  CpuSlab:       0   Tracking      : On   Lalig:    6720
+  Align  :       8  Objects:      20   Tracing       : Off  Lpadd:     704
+
+Calling shrink now on the cache does nothing because object migration is
+not enabled (output omitted).  If we enable object migration then shrink
+the cache we expect the object from the second slab to me moved to the
+first slot in the first slab and the second slab to be removed from the
+partial list.
+
+  # echo 'enable' > callfn
+  # slabinfo smo_test --shrink
+  # slabinfo smo_test --report
+
+  Slabcache: smo_test         Aliases:  0 Order :  1 Objects: 20
+  ** Defragmentation at 30%
+
+  Sizes (bytes)     Slabs              Debug                Memory
+  ------------------------------------------------------------------------
+  Object :      56  Total  :       1   Sanity Checks : On   Total:    8192
+  SlabObj:     392  Full   :       1   Redzoning     : On   Used :    1120
+  SlabSiz:    8192  Partial:       0   Poisoning     : On   Loss :    7072
+  Loss   :     336  CpuSlab:       0   Tracking      : On   Lalig:    6720
+  Align  :       8  Objects:      20   Tracing       : Off  Lpadd:     352
+
 Signed-off-by: Tobin C. Harding <tobin@kernel.org>
 ---
- include/linux/slab.h |   1 +
- mm/slub.c            | 266 +++++++++++++++++++++++++++++++------------
- 2 files changed, 194 insertions(+), 73 deletions(-)
+ tools/testing/slab/Makefile      |  10 +
+ tools/testing/slab/slub_defrag.c | 566 +++++++++++++++++++++++++++++++
+ 2 files changed, 576 insertions(+)
+ create mode 100644 tools/testing/slab/Makefile
+ create mode 100644 tools/testing/slab/slub_defrag.c
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 22e87c41b8a4..b9b46bc9937e 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -147,6 +147,7 @@ struct kmem_cache *kmem_cache_create_usercopy(const char *name,
- 			void (*ctor)(void *));
- void kmem_cache_destroy(struct kmem_cache *);
- int kmem_cache_shrink(struct kmem_cache *);
-+int kmem_cache_defrag(int node);
- 
- void memcg_create_kmem_cache(struct mem_cgroup *, struct kmem_cache *);
- void memcg_deactivate_kmem_caches(struct mem_cgroup *);
-diff --git a/mm/slub.c b/mm/slub.c
-index 515db0f36c55..53dd4cb5b5a4 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -354,6 +354,12 @@ static __always_inline void slab_lock(struct page *page)
- 	bit_spin_lock(PG_locked, &page->flags);
- }
- 
-+static __always_inline int slab_trylock(struct page *page)
-+{
-+	VM_BUG_ON_PAGE(PageTail(page), page);
-+	return bit_spin_trylock(PG_locked, &page->flags);
-+}
+diff --git a/tools/testing/slab/Makefile b/tools/testing/slab/Makefile
+new file mode 100644
+index 000000000000..440c2e3e356f
+--- /dev/null
++++ b/tools/testing/slab/Makefile
+@@ -0,0 +1,10 @@
++obj-m += slub_defrag.o
 +
- static __always_inline void slab_unlock(struct page *page)
- {
- 	VM_BUG_ON_PAGE(PageTail(page), page);
-@@ -3959,79 +3965,6 @@ void kfree(const void *x)
- }
- EXPORT_SYMBOL(kfree);
- 
--#define SHRINK_PROMOTE_MAX 32
--
--/*
-- * kmem_cache_shrink discards empty slabs and promotes the slabs filled
-- * up most to the head of the partial lists. New allocations will then
-- * fill those up and thus they can be removed from the partial lists.
-- *
-- * The slabs with the least items are placed last. This results in them
-- * being allocated from last increasing the chance that the last objects
-- * are freed in them.
-- */
--int __kmem_cache_shrink(struct kmem_cache *s)
--{
--	int node;
--	int i;
--	struct kmem_cache_node *n;
--	struct page *page;
--	struct page *t;
--	struct list_head discard;
--	struct list_head promote[SHRINK_PROMOTE_MAX];
--	unsigned long flags;
--	int ret = 0;
--
--	flush_all(s);
--	for_each_kmem_cache_node(s, node, n) {
--		INIT_LIST_HEAD(&discard);
--		for (i = 0; i < SHRINK_PROMOTE_MAX; i++)
--			INIT_LIST_HEAD(promote + i);
--
--		spin_lock_irqsave(&n->list_lock, flags);
--
--		/*
--		 * Build lists of slabs to discard or promote.
--		 *
--		 * Note that concurrent frees may occur while we hold the
--		 * list_lock. page->inuse here is the upper limit.
--		 */
--		list_for_each_entry_safe(page, t, &n->partial, lru) {
--			int free = page->objects - page->inuse;
--
--			/* Do not reread page->inuse */
--			barrier();
--
--			/* We do not keep full slabs on the list */
--			BUG_ON(free <= 0);
--
--			if (free == page->objects) {
--				list_move(&page->lru, &discard);
--				n->nr_partial--;
--			} else if (free <= SHRINK_PROMOTE_MAX)
--				list_move(&page->lru, promote + free - 1);
--		}
--
--		/*
--		 * Promote the slabs filled up most to the head of the
--		 * partial list.
--		 */
--		for (i = SHRINK_PROMOTE_MAX - 1; i >= 0; i--)
--			list_splice(promote + i, &n->partial);
--
--		spin_unlock_irqrestore(&n->list_lock, flags);
--
--		/* Release empty slabs */
--		list_for_each_entry_safe(page, t, &discard, lru)
--			discard_slab(s, page);
--
--		if (slabs_node(s, node))
--			ret = 1;
--	}
--
--	return ret;
--}
--
- #ifdef CONFIG_MEMCG
- static void kmemcg_cache_deact_after_rcu(struct kmem_cache *s)
- {
-@@ -4411,6 +4344,193 @@ static void __move(struct page *page, void *scratch, int node)
- 	s->migrate(s, vector, count, node, private);
- }
- 
++KTREE=../../..
++
++all:
++	make -C ${KTREE} M=$(PWD) modules
++
++clean:
++	make -C ${KTREE} M=$(PWD) clean
++
+diff --git a/tools/testing/slab/slub_defrag.c b/tools/testing/slab/slub_defrag.c
+new file mode 100644
+index 000000000000..502ddd8a67e8
+--- /dev/null
++++ b/tools/testing/slab/slub_defrag.c
+@@ -0,0 +1,566 @@
++// SPDX-License-Identifier: GPL-2.0+
++#include <linux/init.h>
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/slab.h>
++#include <linux/string.h>
++#include <linux/uaccess.h>
++#include <linux/list.h>
++#include <linux/gfp.h>
++#include <linux/debugfs.h>
++#include <linux/numa.h>
++
 +/*
-+ * __defrag() - Defragment node.
-+ * @s: cache we are working on.
-+ * @node: The node to move objects from.
-+ * @target_node: The node to move objects to.
-+ * @ratio: The defrag ratio (percentage, between 0 and 100).
++ * SLUB defragmentation a.k.a. Slab Movable Objects (SMO).
 + *
-+ * Release slabs with zero objects and try to call the migration function
-+ * for slabs with less than the 'ratio' percentage of objects allocated.
++ * This module is used for testing the SLUB allocator.  Enables
++ * userspace to run kernel functions via a debugfs file.
 + *
-+ * Moved objects are allocated on @target_node.
++ *   debugfs: /sys/kernel/debugfs/smo/callfn (write only)
 + *
-+ * Return: The number of partial slabs left on the node after the operation.
++ * String written to `callfn` is parsed by the module and associated
++ * function is called.  See fn_tab for mapping of strings to functions.
 + */
-+static unsigned long __defrag(struct kmem_cache *s, int node, int target_node,
-+			      int ratio)
++
++/* debugfs commands accept two optional arguments */
++#define SMO_CMD_DEFAUT_ARG -1
++
++#define SMO_DEBUGFS_DIR "smo"
++struct dentry *smo_debugfs_root;
++
++#define SMO_CACHE_NAME "smo_test"
++static struct kmem_cache *cachep;
++
++struct smo_slub_object {
++	struct list_head list;
++	char buf[32];		/* Unused except to control size of object */
++	long id;
++};
++
++/* Our list of allocated objects */
++LIST_HEAD(objects);
++
++static void list_add_to_objects(struct smo_slub_object *so)
 +{
-+	struct kmem_cache_node *n = get_node(s, node);
-+	struct page *page, *page2;
-+	LIST_HEAD(move_list);
-+	unsigned long flags;
-+
-+	if (node == target_node && n->nr_partial <= 1) {
-+		/*
-+		 * Trying to reduce fragmentation on a node but there is
-+		 * only a single or no partial slab page. This is already
-+		 * the optimal object density that we can reach.
-+		 */
-+		return n->nr_partial;
-+	}
-+
-+	spin_lock_irqsave(&n->list_lock, flags);
-+	list_for_each_entry_safe(page, page2, &n->partial, lru) {
-+		if (!slab_trylock(page))
-+			/* Busy slab. Get out of the way */
-+			continue;
-+
-+		if (page->inuse) {
-+			if (page->inuse > ratio * page->objects / 100) {
-+				slab_unlock(page);
-+				/*
-+				 * Skip slab because the object density
-+				 * in the slab page is high enough.
-+				 */
-+				continue;
-+			}
-+
-+			list_move(&page->lru, &move_list);
-+			if (s->migrate) {
-+				/* Stop page being considered for allocations */
-+				n->nr_partial--;
-+				page->frozen = 1;
-+			}
-+			slab_unlock(page);
-+		} else {	/* Empty slab page */
-+			list_del(&page->lru);
-+			n->nr_partial--;
-+			slab_unlock(page);
-+			discard_slab(s, page);
-+		}
-+	}
-+
-+	if (!s->migrate) {
-+		/*
-+		 * No defrag method. By simply putting the zaplist at the
-+		 * end of the partial list we can let them simmer longer
-+		 * and thus increase the chance of all objects being
-+		 * reclaimed.
-+		 *
-+		 */
-+		list_splice(&move_list, n->partial.prev);
-+	}
-+
-+	spin_unlock_irqrestore(&n->list_lock, flags);
-+
-+	if (s->migrate && !list_empty(&move_list)) {
-+		void **scratch = alloc_scratch(s);
-+		struct page *page, *page2;
-+
-+		if (scratch) {
-+			/* Try to remove / move the objects left */
-+			list_for_each_entry(page, &move_list, lru) {
-+				if (page->inuse)
-+					__move(page, scratch, target_node);
-+			}
-+			kfree(scratch);
-+		}
-+
-+		/* Inspect results and dispose of pages */
-+		spin_lock_irqsave(&n->list_lock, flags);
-+		list_for_each_entry_safe(page, page2, &move_list, lru) {
-+			list_del(&page->lru);
-+			slab_lock(page);
-+			page->frozen = 0;
-+
-+			if (page->inuse) {
-+				/*
-+				 * Objects left in slab page, move it to the
-+				 * tail of the partial list to increase the
-+				 * chance that the freeing of the remaining
-+				 * objects will free the slab page.
-+				 */
-+				n->nr_partial++;
-+				list_add_tail(&page->lru, &n->partial);
-+				slab_unlock(page);
-+			} else {
-+				slab_unlock(page);
-+				discard_slab(s, page);
-+			}
-+		}
-+		spin_unlock_irqrestore(&n->list_lock, flags);
-+	}
-+
-+	return n->nr_partial;
++	/*
++	 * We free from the front of the list so store at the
++	 * tail in order to put holes in the cache when we free.
++	 */
++	list_add_tail(&so->list, &objects);
 +}
 +
 +/**
-+ * kmem_cache_defrag() - Defrag slab caches.
-+ * @node: The node to defrag or -1 for all nodes.
-+ *
-+ * Defrag slabs conditional on the amount of fragmentation in a page.
++ * smo_object_ctor() - SMO object constructor function.
++ * @ptr: Pointer to memory where the object should be constructed.
 + */
-+int kmem_cache_defrag(int node)
++void smo_object_ctor(void *ptr)
 +{
-+	struct kmem_cache *s;
-+	unsigned long left = 0;
++	struct smo_slub_object *so = ptr;
++
++	INIT_LIST_HEAD(&so->list);
++	memset(so->buf, 0, sizeof(so->buf));
++	so->id = -1;
++}
++
++/**
++ * smo_cache_migrate() - kmem_cache migrate function.
++ * @cp: kmem_cache pointer.
++ * @objs: Array of pointers to objects to migrate.
++ * @size: Number of objects in @objs.
++ * @node: NUMA node where the object should be allocated.
++ * @private: Pointer returned by kmem_cache_isolate_func().
++ */
++void smo_cache_migrate(struct kmem_cache *cp, void **objs, int size,
++		       int node, void *private)
++{
++	struct smo_slub_object **so_objs = (struct smo_slub_object **)objs;
++	struct smo_slub_object *so_old, *so_new;
++	int i;
++
++	for (i = 0; i < size; i++) {
++		so_old = so_objs[i];
++
++		so_new = kmem_cache_alloc_node(cachep, GFP_KERNEL, node);
++		if (!so_new) {
++			pr_debug("kmem_cache_alloc failded\n");
++			return;
++		}
++
++		/* Copy object */
++		so_new->id = so_old->id;
++
++		/* Update references to old object */
++		list_del(&so_old->list);
++		list_add_to_objects(so_new);
++
++		kmem_cache_free(cachep, so_old);
++	}
++}
++
++/*
++ * smo_alloc_objects() - Allocate objects and store reference.
++ * @nr_objs: Number of objects to allocate.
++ * @node: NUMA node to allocate objects on.
++ *
++ * Allocates @n smo_slub_objects.  Stores a reference to them in
++ * the global list of objects (at the tail of the list).
++ *
++ * Return: The number of objects allocated.
++ */
++static int smo_alloc_objects(int nr_objs, int node)
++{
++	struct smo_slub_object *so;
++	int i;
++
++	/* Set sane parameters if no args passed in */
++	if (nr_objs == SMO_CMD_DEFAUT_ARG)
++		nr_objs = 1;
++	if (node == SMO_CMD_DEFAUT_ARG)
++		node = NUMA_NO_NODE;
++
++	for (i = 0; i < nr_objs; i++) {
++		if (node == NUMA_NO_NODE)
++			so = kmem_cache_alloc(cachep, GFP_KERNEL);
++		else
++			so = kmem_cache_alloc_node(cachep, GFP_KERNEL, node);
++		if (!so) {
++			pr_err("smo: Failed to alloc object %d of %d\n", i, nr_objs);
++			return i;
++		}
++		list_add_to_objects(so);
++	}
++	return nr_objs;
++}
++
++/*
++ * smo_free_object() - Frees n objects from position.
++ * @nr_objs: Number of objects to free.
++ * @pos: Position in global list to start freeing.
++ *
++ * Iterates over the global list of objects to position @pos then frees @n
++ * objects from there (or to end of list).  Does nothing if @n > list length.
++ *
++ * Calling with @n==0 frees all objects starting at @pos.
++ *
++ * Return: Number of objects freed.
++ */
++static int smo_free_object(int nr_objs, int pos)
++{
++	struct smo_slub_object *cur, *tmp;
++	int deleted = 0;
++	int i = 0;
++
++	/* Set sane parameters if no args passed in */
++	if (nr_objs == SMO_CMD_DEFAUT_ARG)
++		nr_objs = 1;
++	if (pos == SMO_CMD_DEFAUT_ARG)
++		pos = 0;
++
++	list_for_each_entry_safe(cur, tmp, &objects, list) {
++		if (i < pos) {
++			i++;
++			continue;
++		}
++
++		list_del(&cur->list);
++		kmem_cache_free(cachep, cur);
++		deleted++;
++		if (deleted == nr_objs)
++			break;
++	}
++	return deleted;
++}
++
++static int smo_enable_cache_mobility(int _unused, int __unused)
++{
++	/* Enable movable objects: BOOM! */
++	kmem_cache_setup_mobility(cachep, NULL, smo_cache_migrate);
++	pr_info("smo: kmem_cache %s defrag enabled\n", SMO_CACHE_NAME);
++	return 0;
++}
++
++static int index_for_expected_id(long *expected, int size, long id)
++{
++	int i;
++
++	/* Array is unsorted, just iterate the whole thing */
++	for (i = 0; i < size; i++) {
++		if (expected[i] == id)
++			return i;
++	}
++	return -1;		/* Not found */
++}
++
++static int assert_have_objects(int nr_objs, int keep)
++{
++	struct smo_slub_object *cur;
++	long *expected;		/* Array of expected IDs */
++	int nr_ids;		/* Length of array */
++	long id;
++	int index, i;
++
++	nr_ids = nr_objs / keep + 1;
++
++	expected = kmalloc_array(nr_ids, sizeof(long), GFP_KERNEL);
++	if (!expected)
++		return -ENOMEM;
++
++	id = 0;
++	for (i = 0; i < nr_ids; i++) {
++		expected[i] = id;
++		id += keep;
++	}
++
++	list_for_each_entry(cur, &objects, list) {
++		index = index_for_expected_id(expected, nr_ids, cur->id);
++		if (index < 0) {
++			pr_err("smo: ID not found: %ld\n", cur->id);
++			return -1;
++		}
++
++		if (expected[index] == -1) {
++			pr_err("smo: ID already encountered: %ld\n", cur->id);
++			return -1;
++		}
++		expected[index] = -1;
++	}
++	return 0;
++}
++
++/*
++ * smo_run_module_tests() - Runs unit tests from within the module
++ * @nr_objs: Number of objects to allocate.
++ * @keep: Free all but 1 in @keep objects.
++ *
++ * Allocates @nr_objects then iterates over the allocated objects
++ * freeing all but 1 out of every @keep objects i.e. for @keep==10
++ * keeps the first object then frees the next 9.
++ *
++ * Caller is responsible for ensuring that the cache has at most a
++ * single slab on the partial list without any objects in it.  This is
++ * easy enough to ensure, just call this when the module is freshly
++ * loaded.
++ */
++static int smo_run_module_tests(int nr_objs, int keep)
++{
++	struct smo_slub_object *so;
++	struct smo_slub_object *cur, *tmp;
++	long i;
++
++	if (!list_empty(&objects)) {
++		pr_err("smo: test requires clean module state\n");
++		return -1;
++	}
++
++	/* Set sane parameters if no args passed in */
++	if (nr_objs == SMO_CMD_DEFAUT_ARG)
++		nr_objs = 1000;
++	if (keep == SMO_CMD_DEFAUT_ARG)
++		keep = 10;
++
++	pr_info("smo: test using nr_objs: %d keep: %d\n", nr_objs, keep);
++
++	/* Perhaps we got called like this 'test 1000' */
++	if (keep == 0) {
++		pr_err("Usage: test <nr_objs> <keep>\n");
++		return -1;
++	}
++
++	/* Test constructor */
++	so = kmem_cache_alloc(cachep, GFP_KERNEL);
++	if (!so) {
++		pr_err("smo: Failed to alloc object\n");
++		return -1;
++	}
++	if (so->id != -1) {
++		pr_err("smo: Initial state incorrect");
++		return -1;
++	}
++	kmem_cache_free(cachep, so);
 +
 +	/*
-+	 * kmem_cache_defrag may be called from the reclaim path which may be
-+	 * called for any page allocator alloc. So there is the danger that we
-+	 * get called in a situation where slub already acquired the slub_lock
-+	 * for other purposes.
++	 * Test that object migration is correctly implemented by module
++	 *
++	 * This gives us confidence that if new code correctly enables
++	 * object migration (via correct implementation of migrate and
++	 * isolate functions) then the slub allocator code that does
++	 * object migration is correct.
 +	 */
-+	if (!mutex_trylock(&slab_mutex))
-+		return 0;
 +
-+	list_for_each_entry(s, &slab_caches, list) {
-+		/*
-+		 * Defragmentable caches come first. If the slab cache is not
-+		 * defragmentable then we can stop traversing the list.
-+		 */
-+		if (!s->migrate)
-+			break;
++	for (i = 0; i < nr_objs; i++) {
++		so = kmem_cache_alloc(cachep, GFP_KERNEL);
++		if (!so) {
++			pr_err("smo: Failed to alloc object %ld of %d\n",
++			       i, nr_objs);
++			return -1;
++		}
++		so->id = (long)i;
++		list_add_to_objects(so);
++	}
 +
-+		if (node == -1) {
-+			int nid;
++	assert_have_objects(nr_objs, 1);
 +
-+			for_each_node_state(nid, N_NORMAL_MEMORY)
-+				if (s->node[nid]->nr_partial > MAX_PARTIAL)
-+					left += __defrag(s, nid, nid, s->defrag_used_ratio);
-+		} else {
-+			if (s->node[node]->nr_partial > MAX_PARTIAL)
-+				left += __defrag(s, node, node, s->defrag_used_ratio);
++	i = 0;
++	list_for_each_entry_safe(cur, tmp, &objects, list) {
++		if (i++ % keep == 0)
++			continue;
++
++		list_del(&cur->list);
++		kmem_cache_free(cachep, cur);
++	}
++
++	/* Verify shrink does nothing when migration is not enabled */
++	kmem_cache_shrink(cachep);
++	assert_have_objects(nr_objs, 1);
++
++	/* Now test shrink */
++	kmem_cache_setup_mobility(cachep, NULL, smo_cache_migrate);
++	kmem_cache_shrink(cachep);
++	/*
++	 * Because of how migrate function deletes and adds objects to
++	 * the objects list we have no way of knowing the order.  We
++	 * want to confirm that we have all the objects after shrink
++	 * that we had before we did the shrink.
++	 */
++	assert_have_objects(nr_objs, keep);
++
++	/* cleanup */
++	list_for_each_entry_safe(cur, tmp, &objects, list) {
++		list_del(&cur->list);
++		kmem_cache_free(cachep, cur);
++	}
++	kmem_cache_shrink(cachep); /* Remove empty slabs from partial list */
++
++	pr_info("smo: Module tests completed successfully\n");
++	return 0;
++}
++
++/*
++ * struct functions() - Map command to a function pointer.
++ */
++struct functions {
++	char *fn_name;
++	int (*fn_ptr)(int arg0, int arg1);
++} fn_tab[] = {
++	/*
++	 * Because of the way we parse the function table no command
++	 * may have another command as its prefix.
++	 *  i.e. this will break: 'foo'  and 'foobar'
++	 */
++	{"alloc", smo_alloc_objects},
++	{"free", smo_free_object},
++	{"enable", smo_enable_cache_mobility},
++	{"test", smo_run_module_tests},
++};
++
++#define FN_TAB_SIZE (sizeof(fn_tab) / sizeof(struct functions))
++
++/*
++ * parse_cmd_buf() - Gets command and arguments command string.
++ * @buf: Buffer containing the command string.
++ * @cmd: Out parameter, pointer to the command.
++ * @arg1: Out parameter, stores the first argument.
++ * @arg2: Out parameter, stores the second argument.
++ *
++ * Parses and tokenizes the input command buffer. Stores a pointer to the
++ * command (start of @buf) in @cmd.  Stores the converted long values for
++ * argument 1 and 2 in the respective out parameters @arg1 and @arg2.
++ *
++ * Since arguments are optional, if they are not found the default values are
++ * returned.  In order for the caller to differentiate defaults from arguments
++ * of the same value the number of arguments parsed is returned.
++ *
++ * Return: Number of arguments found.
++ */
++static int parse_cmd_buf(char *buf, char **cmd, long *arg1, long *arg2)
++{
++	int found;
++	char *ptr;
++	int ret;
++
++	*arg1 = SMO_CMD_DEFAUT_ARG;
++	*arg2 = SMO_CMD_DEFAUT_ARG;
++	found = 0;
++
++	/* Jump over the command, check if there are any args */
++	ptr = strsep(&buf, " ");
++	if (!ptr || !buf)
++		return found;
++
++	ptr = strsep(&buf, " ");
++	ret = kstrtol(ptr, 10, arg1);
++	if (ret < 0) {
++		pr_err("failed to convert arg, defaulting to %d. (%s)\n",
++		       SMO_CMD_DEFAUT_ARG, ptr);
++		return found;
++	}
++	found++;
++	if (!buf)		/* No second arg */
++		return found;
++
++	ptr = strsep(&buf, " ");
++	ret = kstrtol(ptr, 10, arg2);
++	if (ret < 0) {
++		pr_err("failed to convert arg, defaulting to %d. (%s)\n",
++		       SMO_CMD_DEFAUT_ARG, ptr);
++		return found;
++	}
++	found++;
++
++	return found;
++}
++
++/*
++ * call_function() - Calls the function described by str.
++ * @str: '<cmd> [<arg>]'
++ *
++ * Does table lookup on <cmd>, calls appropriate function passing
++ * <arg> as a the argument.  Optional arg defaults to 1.
++ */
++static void call_function(char *str)
++{
++	char *cmd;
++	long arg1 = 0;
++	long arg2 = 0;
++	int i;
++
++	if (!str)
++		return;
++
++	(void)parse_cmd_buf(str, &cmd, &arg1, &arg2);
++
++	for (i = 0; i < FN_TAB_SIZE; i++) {
++		char *fn_name = fn_tab[i].fn_name;
++
++		if (strcmp(fn_name, str) == 0) {
++			fn_tab[i].fn_ptr(arg1, arg2);
++			return;	/* All done */
 +		}
 +	}
-+	mutex_unlock(&slab_mutex);
-+	return left;
-+}
-+EXPORT_SYMBOL(kmem_cache_defrag);
 +
-+/**
-+ * __kmem_cache_shrink() - Shrink a cache.
-+ * @s: The cache to shrink.
++	pr_err("failed to call function for cmd: %s\n", str);
++}
++
++/*
++ * smo_callfn_debugfs_write() - debugfs write function.
++ * @file: User file
++ * @user_buf: Userspace buffer
++ * @len: Length of the user space buffer
++ * @off: Offset within the file
 + *
-+ * Reduces the memory footprint of a slab cache by as much as possible.
++ * Used for triggering functions by writing command to debugfs file.
 + *
-+ * This works by:
-+ *  1. Removing empty slabs from the partial list.
-+ *  2. Migrating slab objects to denser slab pages if the slab cache
-+ *  supports migration.  If not, reorganizing the partial list so that
-+ *  more densely allocated slab pages come first.
++ *   echo '<cmd> <arg>'  > /sys/kernel/debug/smo/callfn
 + *
-+ * Not called directly, called by kmem_cache_shrink().
++ * Return: Number of bytes copied if request succeeds,
++ *	   the corresponding error code otherwise.
 + */
-+int __kmem_cache_shrink(struct kmem_cache *s)
++static ssize_t smo_callfn_debugfs_write(struct file *file,
++					const char __user *ubuf,
++					size_t len,
++					loff_t *off)
 +{
-+	int node;
-+	int left = 0;
++	char *kbuf;
++	int nbytes = 0;
 +
-+	flush_all(s);
-+	for_each_node_state(node, N_NORMAL_MEMORY)
-+		left += __defrag(s, node, node, 100);
++	if (*off != 0 || len == 0)
++		return -EINVAL;
 +
-+	return left;
++	kbuf = kzalloc(len, GFP_KERNEL);
++	if (!kbuf)
++		return -ENOMEM;
++
++	nbytes = strncpy_from_user(kbuf, ubuf, len);
++	if (nbytes < 0)
++		goto out;
++
++	if (kbuf[nbytes - 1] == '\n')
++		kbuf[nbytes - 1] = '\0';
++
++	call_function(kbuf);	/* Tokenizes kbuf */
++out:
++	kfree(kbuf);
++	return nbytes;
 +}
-+EXPORT_SYMBOL(__kmem_cache_shrink);
 +
- void kmem_cache_setup_mobility(struct kmem_cache *s,
- 			       kmem_cache_isolate_func isolate,
- 			       kmem_cache_migrate_func migrate)
++const struct file_operations fops_callfn_debugfs = {
++	.owner = THIS_MODULE,
++	.write = smo_callfn_debugfs_write,
++};
++
++static int __init smo_debugfs_init(void)
++{
++	struct dentry *d;
++
++	smo_debugfs_root = debugfs_create_dir(SMO_DEBUGFS_DIR, NULL);
++	d = debugfs_create_file("callfn", 0200, smo_debugfs_root, NULL,
++				&fops_callfn_debugfs);
++	if (IS_ERR(d))
++		return PTR_ERR(d);
++
++	return 0;
++}
++
++static void __exit smo_debugfs_cleanup(void)
++{
++	debugfs_remove_recursive(smo_debugfs_root);
++}
++
++static int __init smo_cache_init(void)
++{
++	cachep = kmem_cache_create(SMO_CACHE_NAME,
++				   sizeof(struct smo_slub_object),
++				   0, 0, smo_object_ctor);
++	if (!cachep)
++		return -1;
++
++	return 0;
++}
++
++static void __exit smo_cache_cleanup(void)
++{
++	struct smo_slub_object *cur, *tmp;
++
++	list_for_each_entry_safe(cur, tmp, &objects, list) {
++		list_del(&cur->list);
++		kmem_cache_free(cachep, cur);
++	}
++	kmem_cache_destroy(cachep);
++}
++
++static int __init smo_init(void)
++{
++	int ret;
++
++	ret = smo_cache_init();
++	if (ret) {
++		pr_err("smo: Failed to create cache\n");
++		return ret;
++	}
++	pr_info("smo: Created kmem_cache: %s\n", SMO_CACHE_NAME);
++
++	ret = smo_debugfs_init();
++	if (ret) {
++		pr_err("smo: Failed to init debugfs\n");
++		return ret;
++	}
++	pr_info("smo: Created debugfs directory: /sys/kernel/debugfs/%s\n",
++		SMO_DEBUGFS_DIR);
++
++	pr_info("smo: Test module loaded\n");
++	return 0;
++}
++module_init(smo_init);
++
++static void __exit smo_exit(void)
++{
++	smo_debugfs_cleanup();
++	smo_cache_cleanup();
++
++	pr_info("smo: Test module removed\n");
++}
++module_exit(smo_exit);
++
++MODULE_LICENSE("GPL");
++MODULE_AUTHOR("Tobin C. Harding");
++MODULE_DESCRIPTION("SLUB Movable Objects test module.");
 -- 
 2.21.0
 
