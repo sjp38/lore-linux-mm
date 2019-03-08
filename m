@@ -2,289 +2,166 @@ Return-Path: <SRS0=92PK=RL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C3972C43381
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 17:57:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 70E83C43381
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 18:06:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7720020851
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 17:57:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7720020851
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 25E1720851
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 18:06:28 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="nkbEsXyM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 25E1720851
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0B01E8E0003; Fri,  8 Mar 2019 12:57:21 -0500 (EST)
+	id AB9748E0004; Fri,  8 Mar 2019 13:06:27 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 05E948E0002; Fri,  8 Mar 2019 12:57:21 -0500 (EST)
+	id A696A8E0002; Fri,  8 Mar 2019 13:06:27 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E91358E0003; Fri,  8 Mar 2019 12:57:20 -0500 (EST)
+	id 930CF8E0004; Fri,  8 Mar 2019 13:06:27 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BBD868E0002
-	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 12:57:20 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id q11so19230956qtj.16
-        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 09:57:20 -0800 (PST)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6823B8E0002
+	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 13:06:27 -0500 (EST)
+Received: by mail-it1-f198.google.com with SMTP id v12so12619968itv.9
+        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 10:06:27 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=t7q9Qy1rM9CTjX8p9TJuDVtqBgD1PqqAr/9MuCZE/PY=;
-        b=PHzCSGbGtPZOZUNom0KanHvyHjQ+xDg3bpdDV8sI+8M2nZXywQAQdeASKncGQlLS1l
-         YCd9nEWV9eg/2To7Jv7lVGKT2dn4eHFALAMqvQFkcCFMwb2aqAM5CPvshS1gXcBM7nBm
-         09yBonWNzgtjWZtdS5ffP4Vem42hBpDnBRlPGfi5JIWg/glB7Tjwaz7I6hat50e5D1GM
-         1Ww6vMqNs3Xf09Va4359QrRzHNwz1m/iP3/9BSMhjYhzkBkDW5zZf8r7bjgZ9CvcCjjV
-         11qehjB+XwPen86nuuIO16O7s8Z04jD4YXWDDtHYN5FyvZfwtwrsEE4K1dwD6Sexw5lg
-         Kg9g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXzxh53zOAnF/x7ulquo991CJoYKmdj1dJzCCCRaplzBqM/k34F
-	tA0xSt7APPMOCeGl05X9z6JEK2WOpV3Mi4N+DjdJ1UUC+Rnbqpv2rqitmUqCxlEdUaYtRbuNVOM
-	dVr03zU1/CfLTqtCBGsZck8aKbikH6Aeo450dg+ovUdvDQQOAVx01Bddz+/kMIiUk0Q==
-X-Received: by 2002:a0c:ecc5:: with SMTP id o5mr16323649qvq.106.1552067840461;
-        Fri, 08 Mar 2019 09:57:20 -0800 (PST)
-X-Google-Smtp-Source: APXvYqxx7KQvcG09GhZtg2ad8WEvN02ZUZ/140b7AXqqohZEJXKJNdIiFCBfJjSsGfOFXvfkywkW
-X-Received: by 2002:a0c:ecc5:: with SMTP id o5mr16323605qvq.106.1552067839614;
-        Fri, 08 Mar 2019 09:57:19 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1552067839; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=D5rKTyfVZijrMz/zqJoeUoWvK7hLmtFUj70DH++ifvI=;
+        b=XAeGH/9mnaw4eKgKdx11wMu4LatbeaZ1GyY2xkxENtj+h1m6CHt9pzG/WQP/W/EX8V
+         ICtgegkivP4GTpeN2WLRH+/o347wFNo4XWZRYIv+Ot7lmC8YCwWwIaBr3aeRYp7SGgh9
+         Le/ObGOUpBJbwAorWviM3BID1ablbVGaR6mhrR0AfqrHHQyLmXd9qnj7uqIkyQExFyOC
+         LjZSLa86liPbA5zx6UgS90BErl/02qs5wLeZ/kLirWXlA4Y12ItrZ2YryMGbd1ETGNQl
+         XhCH6Hp6YCl17bXGM+Ikaqa7j49ICQnDMWfTF/sHIYpSW3ooL6SkPmYvxo1PtN7Ob2uH
+         bdAw==
+X-Gm-Message-State: APjAAAWYM+XZx6KHkvonrhIamDWGV86lIiYFt6ms6cd+WzqICKMvFulo
+	KcTY44S26hINnwKgetCYbEnlszQtfRnFFw4D0BbXFwocoo5FvIzDc/Y82dugD/DKSEwVHxqMvx4
+	6C3JArWg7bEZY/FeVDLOT6+ZahJI1Sd08QidGBAmHMLZQJchIoZOShJpVEtkJEwdFX2ftJboewe
+	5V+eKLBzSnJDy0oVFxUxc0dB3VqflTHYh8lOQWTiNy3gNlqjNAL7Ih/jp9Hvt3LZ9n+ihSirsb+
+	Tsilp/5YChNGFsGG/kX0KQoWky9/g5xZ5Czf2xL7o+TkOTyixkiaTv3+2qZx4uvZA1MN/pCiM/q
+	f/unJFUM8S7MGUSLOi6NGboiZbMC2F5I+cEkmIASRA43K++rF3Xaxz/f1dM9DDVNdH511xPh3Us
+	4
+X-Received: by 2002:a24:e506:: with SMTP id g6mr8808031iti.127.1552068387144;
+        Fri, 08 Mar 2019 10:06:27 -0800 (PST)
+X-Received: by 2002:a24:e506:: with SMTP id g6mr8807972iti.127.1552068386095;
+        Fri, 08 Mar 2019 10:06:26 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1552068386; cv=none;
         d=google.com; s=arc-20160816;
-        b=hmvwW/8kkNoloqI/EzpOwDoXBdIEVC+7sidwXEdduqWKK172V88rh0ZhwVw1So++vP
-         KnDRHlSg/Zbb9psL9NE/vbIbk3ScxRkOG4wnH0ANib/bzSA3UzG7FLROd+FUgN9Wfqnd
-         9wbtszjMQFXANuL1A1RkbzmH1eiWTg+GmMmchfyzyMmyQuU/cs8fHVu2ZtfQyg99hYkV
-         va8llL+ngzh+Pq89EU9bOAcbbBWS7ZHho+dUNvdf3dCR1Qnthp/c+sFnSFtq9ApnJMgx
-         Eo6hEv5mT66PZQgMmDqKuMo0OS/I5AyMcYe5pipYRLl9xB8BqX26Dfr1FRlIKLnYpxOJ
-         UgKw==
+        b=hgmZRewn4CHT9bcsNHIR8XSLEUTDc9WNSU/9kRVmBWwQmcW2808c7+SkwOw/Pvujxd
+         t+b/YJOdbgMexzDVjk1apivLDrRq9YDyT5PUQf7FyglvWGZ8d7C66jVlz0UbK0dKJCiF
+         ZmZyuHcVIFQX1QpBgkO8aEOCMDbrjW17sC1br+hjX80dsteEzWea3BY6bNVK0ss/rtw1
+         7A7WFwepbmBIq5oM1B0sZeEkkCwzlaBbm/rUk4m9XY7StIFFZldRpLv/Z3BEWDMC/LJb
+         mw9o4vaqZIEpDJyUGwxtVcROx7R8dV6X+jATtLE89qgN9hlYO/aYWthm/+Xcrm4CHz0d
+         8LIw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=t7q9Qy1rM9CTjX8p9TJuDVtqBgD1PqqAr/9MuCZE/PY=;
-        b=c4rKX+IFxB+/kcndqfpXnfXJTrNgWe+gGIrW8m7xiNjqhvkHuF1pT7mbs5hfnDVWa7
-         QQ+w4oGMWt0bvoiBuidGt8vBHc7DDVqRbM4zG2IFwQp6M1dcIM2hZ3EOjEsfUoYSRc5G
-         vimdrkTpL87Fh9aYPWF+6Hp7j05IGkBXpYoRr1L+7L/f7U7kNWaORWM0WCMQBB67o0Cw
-         gXKGWk/Jj4HtAPKPd9FwEWCD8usP0Dqd0DRs1WlZsF99DXXI3M70ojZhWj4zUymvViuX
-         p0Fmn4EJdFisJiFqV+/VSUYKVOpVwdoxNYVFTxCQoWNNYu2X5ENgm1Mw3qPBTQ2iHhJA
-         cfkQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=D5rKTyfVZijrMz/zqJoeUoWvK7hLmtFUj70DH++ifvI=;
+        b=PNYy/5GzABkMPm42Y4nBjj1tJPDhYvX0wAJ2fUt2rvyRXawrxOmQl1HaNGj7MnkKbX
+         p4xzd4XBQ+BrQ/L5R8Cv7UnVrfkk2OOWn8F2lZpNK5c7MXy1NsLGjdjOYIYvLW9sBBsg
+         g9E9BPm89EOWjr1EVZtC/Z5X/lTVXjIIgIz9Mp9YDSFIB2skldAybbpZMLPJj0a5KTGl
+         iw3TcwiumzvWu51K+pA94bmFjkdgDs5Kw5uz0OgBSOXHTnhdJh1bJAxcqvEqMWr4023j
+         BrhyZlM78RnQt6RR82n3qxPAuCUl7n7tUrQnHhXfjpks2OGSljKjop4yH95y+LXOulfg
+         ZFQg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z2si2118353qvs.47.2019.03.08.09.57.19
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=nkbEsXyM;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id n129sor19317791jaa.12.2019.03.08.10.06.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Mar 2019 09:57:19 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Fri, 08 Mar 2019 10:06:26 -0800 (PST)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 1EE7E3089E62;
-	Fri,  8 Mar 2019 17:57:18 +0000 (UTC)
-Received: from redhat.com (ovpn-124-248.rdu2.redhat.com [10.10.124.248])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 8BA7F1001DDE;
-	Fri,  8 Mar 2019 17:57:15 +0000 (UTC)
-Date: Fri, 8 Mar 2019 12:57:13 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-To: john.hubbard@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	Al Viro <viro@zeniv.linux.org.uk>,
-	Christian Benvenuti <benve@cisco.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Christopher Lameter <cl@linux.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Chinner <david@fromorbit.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>,
-	Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
-	Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
-	Matthew Wilcox <willy@infradead.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Mike Marciniszyn <mike.marciniszyn@intel.com>,
-	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
-	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [PATCH v3 1/1] mm: introduce put_user_page*(), placeholder
- versions
-Message-ID: <20190308175712.GD3661@redhat.com>
-References: <20190306235455.26348-1-jhubbard@nvidia.com>
- <20190306235455.26348-2-jhubbard@nvidia.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=nkbEsXyM;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=D5rKTyfVZijrMz/zqJoeUoWvK7hLmtFUj70DH++ifvI=;
+        b=nkbEsXyMXcEtPbGSAf1kaE6FvSfYAjTcy/5fMk4ANcma+AlXUAnDi9hlng0LmL8mke
+         Mf8a+jldG7g3805jNHaVYw3gLTVsQbhrCV19H4sucJiqbD7WwJT/MXjEWbz8YbVnTrdO
+         OLbbVRTxDMd/CV1qqTEpRcDhbPbq17hO2TCk4lT53cems5JLRbNodgVs/QwxpGm28fMm
+         5V+EGHqfCJJFk5PWu5r7ZQ56DykRUDlqYm+gN0pFFYlO/rPQ3NfuHGu86cnIIBnZ9Uza
+         xkRu7gZyjTU8w54CFljY+1KMQUBnPYO80csf/oWXcyvanXfWzjUpGFpwuazreVN64ogb
+         vCIw==
+X-Google-Smtp-Source: APXvYqxe8SAllqyBBiYJBgaC2gPebe+RMsZWPiQrsuncalBXI8HdlDKnm1Ro75y9UtqsMNImF5874Z6e6mBrSivrTG0=
+X-Received: by 2002:a02:2309:: with SMTP id u9mr195309jau.114.1552068385617;
+ Fri, 08 Mar 2019 10:06:25 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190306235455.26348-2-jhubbard@nvidia.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Fri, 08 Mar 2019 17:57:18 +0000 (UTC)
+References: <20190306155048.12868-1-nitesh@redhat.com> <20190306155048.12868-3-nitesh@redhat.com>
+ <CAKgT0UdDohCXZY3q9qhQsHw-2vKp_CAgvf2dd2e6U6KLsAkVng@mail.gmail.com>
+ <2d9ae889-a9b9-7969-4455-ff36944f388b@redhat.com> <22e4b1cd-38a5-6642-8cbe-d68e4fcbb0b7@redhat.com>
+ <CAKgT0UcAqGX26pcQLzFUevHsLu-CtiyOYe15uG3bkhGZ5BJKAg@mail.gmail.com>
+ <78b604be-2129-a716-a7a6-f5b382c9fb9c@redhat.com> <CAKgT0Uc_z9Vi+JhQcJYX+J9c4J56RRSkzzegbb2=9xO-NY3dgw@mail.gmail.com>
+ <20190307212845-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20190307212845-mutt-send-email-mst@kernel.org>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Fri, 8 Mar 2019 10:06:14 -0800
+Message-ID: <CAKgT0Ucu3EMsYBfdKtEiprrn-VBZy3Y+0HdEp5b4PO2SQgGsRw@mail.gmail.com>
+Subject: Re: [RFC][Patch v9 2/6] KVM: Enables the kernel to isolate guest free pages
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: David Hildenbrand <david@redhat.com>, Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>, 
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
+	Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com, pagupta@redhat.com, 
+	wei.w.wang@intel.com, Yang Zhang <yang.zhang.wz@gmail.com>, 
+	Rik van Riel <riel@surriel.com>, dodgen@google.com, 
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com, 
+	Andrea Arcangeli <aarcange@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 06, 2019 at 03:54:55PM -0800, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
-> 
-> Introduces put_user_page(), which simply calls put_page().
-> This provides a way to update all get_user_pages*() callers,
-> so that they call put_user_page(), instead of put_page().
-> 
-> Also introduces put_user_pages(), and a few dirty/locked variations,
-> as a replacement for release_pages(), and also as a replacement
-> for open-coded loops that release multiple pages.
-> These may be used for subsequent performance improvements,
-> via batching of pages to be released.
-> 
-> This is the first step of fixing a problem (also described in [1] and
-> [2]) with interactions between get_user_pages ("gup") and filesystems.
-> 
-> Problem description: let's start with a bug report. Below, is what happens
-> sometimes, under memory pressure, when a driver pins some pages via gup,
-> and then marks those pages dirty, and releases them. Note that the gup
-> documentation actually recommends that pattern. The problem is that the
-> filesystem may do a writeback while the pages were gup-pinned, and then the
-> filesystem believes that the pages are clean. So, when the driver later
-> marks the pages as dirty, that conflicts with the filesystem's page
-> tracking and results in a BUG(), like this one that I experienced:
-> 
->     kernel BUG at /build/linux-fQ94TU/linux-4.4.0/fs/ext4/inode.c:1899!
->     backtrace:
->         ext4_writepage
->         __writepage
->         write_cache_pages
->         ext4_writepages
->         do_writepages
->         __writeback_single_inode
->         writeback_sb_inodes
->         __writeback_inodes_wb
->         wb_writeback
->         wb_workfn
->         process_one_work
->         worker_thread
->         kthread
->         ret_from_fork
-> 
-> ...which is due to the file system asserting that there are still buffer
-> heads attached:
-> 
->         ({                                                      \
->                 BUG_ON(!PagePrivate(page));                     \
->                 ((struct buffer_head *)page_private(page));     \
->         })
-> 
-> Dave Chinner's description of this is very clear:
-> 
->     "The fundamental issue is that ->page_mkwrite must be called on every
->     write access to a clean file backed page, not just the first one.
->     How long the GUP reference lasts is irrelevant, if the page is clean
->     and you need to dirty it, you must call ->page_mkwrite before it is
->     marked writeable and dirtied. Every. Time."
-> 
-> This is just one symptom of the larger design problem: filesystems do not
-> actually support get_user_pages() being called on their pages, and letting
-> hardware write directly to those pages--even though that patter has been
-> going on since about 2005 or so.
-> 
-> The steps are to fix it are:
-> 
-> 1) (This patch): provide put_user_page*() routines, intended to be used
->    for releasing pages that were pinned via get_user_pages*().
-> 
-> 2) Convert all of the call sites for get_user_pages*(), to
->    invoke put_user_page*(), instead of put_page(). This involves dozens of
->    call sites, and will take some time.
-> 
-> 3) After (2) is complete, use get_user_pages*() and put_user_page*() to
->    implement tracking of these pages. This tracking will be separate from
->    the existing struct page refcounting.
-> 
-> 4) Use the tracking and identification of these pages, to implement
->    special handling (especially in writeback paths) when the pages are
->    backed by a filesystem.
-> 
-> [1] https://lwn.net/Articles/774411/ : "DMA and get_user_pages()"
-> [2] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
-> 
-> Cc: Al Viro <viro@zeniv.linux.org.uk>
-> Cc: Christoph Hellwig <hch@infradead.org>
-> Cc: Christopher Lameter <cl@linux.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Dave Chinner <david@fromorbit.com>
-> Cc: Ira Weiny <ira.weiny@intel.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Jason Gunthorpe <jgg@ziepe.ca>
-> Cc: Jerome Glisse <jglisse@redhat.com>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Mike Rapoport <rppt@linux.ibm.com>
-> Cc: Ralph Campbell <rcampbell@nvidia.com>
-> 
-> Reviewed-by: Jan Kara <jack@suse.cz>
-> Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>    # docs
-> Reviewed-by: Ira Weiny <ira.weiny@intel.com>
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+On Thu, Mar 7, 2019 at 6:32 PM Michael S. Tsirkin <mst@redhat.com> wrote:
+>
+> On Thu, Mar 07, 2019 at 02:35:53PM -0800, Alexander Duyck wrote:
+> > The only other thing I still want to try and see if I can do is to add
+> > a jiffies value to the page private data in the case of the buddy
+> > pages.
+>
+> Actually there's one extra thing I think we should do, and that is make
+> sure we do not leave less than X% off the free memory at a time.
+> This way chances of triggering an OOM are lower.
 
-Just a small comments below that would help my life :)
+If nothing else we could probably look at doing a watermark of some
+sort so we have to have X amount of memory free but not hinted before
+we will start providing the hints. It would just be a matter of
+tracking how much memory we have hinted on versus the amount of memory
+that has been pulled from that pool. It is another reason why we
+probably want a bit in the buddy pages somewhere to indicate if a page
+has been hinted or not as we can then use that to determine if we have
+to account for it in the statistics.
 
-Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
+> > With that we could track the age of the page so it becomes
+> > easier to only target pages that are truly going cold rather than
+> > trying to grab pages that were added to the freelist recently.
+>
+> I like that but I have a vague memory of discussing this with Rik van
+> Riel and him saying it's actually better to take away recently used
+> ones. Can't see why would that be but maybe I remember wrong. Rik - am I
+> just confused?
 
-> ---
->  include/linux/mm.h | 24 ++++++++++++++
->  mm/swap.c          | 82 ++++++++++++++++++++++++++++++++++++++++++++++
+It is probably to cut down on the need for disk writes in the case of
+swap. If that is the case it ends up being a trade off.
 
-Why not putting those functions in gup.c instead of swap.c ?
-
->  2 files changed, 106 insertions(+)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 80bb6408fe73..809b7397d41e 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -993,6 +993,30 @@ static inline void put_page(struct page *page)
->  		__put_page(page);
->  }
->  
-> +/**
-> + * put_user_page() - release a gup-pinned page
-> + * @page:            pointer to page to be released
-> + *
-> + * Pages that were pinned via get_user_pages*() must be released via
-> + * either put_user_page(), or one of the put_user_pages*() routines
-> + * below. This is so that eventually, pages that are pinned via
-> + * get_user_pages*() can be separately tracked and uniquely handled. In
-> + * particular, interactions with RDMA and filesystems need special
-> + * handling.
-> + *
-> + * put_user_page() and put_page() are not interchangeable, despite this early
-> + * implementation that makes them look the same. put_user_page() calls must
-> + * be perfectly matched up with get_user_page() calls.
-> + */
-> +static inline void put_user_page(struct page *page)
-> +{
-> +	put_page(page);
-> +}
-> +
-> +void put_user_pages_dirty(struct page **pages, unsigned long npages);
-> +void put_user_pages_dirty_lock(struct page **pages, unsigned long npages);
-> +void put_user_pages(struct page **pages, unsigned long npages);
-> +
->  #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
->  #define SECTION_IN_PAGE_FLAGS
->  #endif
-> diff --git a/mm/swap.c b/mm/swap.c
-> index 4d7d37eb3c40..a6b4f693f46d 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -133,6 +133,88 @@ void put_pages_list(struct list_head *pages)
->  }
->  EXPORT_SYMBOL(put_pages_list);
->  
-> +typedef int (*set_dirty_func)(struct page *page);
-
-set_dirty_func_t would be better as it is the rule for typedef to append
-the _t also it make it easier for coccinelle patch.
+The sooner we hint the less likely it is that we will need to write a
+given page to disk. However the sooner we hint, the more likely it is
+we will need to trigger a page fault and pull back in a zero page to
+populate the last page we were working on. The sweet spot will be that
+period of time that is somewhere in between so we don't trigger
+unnecessary page faults and we don't need to perform additional swap
+reads/writes.
 
