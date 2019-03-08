@@ -4,104 +4,104 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A7425C10F09
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 07:38:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E8607C43381
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 07:39:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4392720854
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 07:38:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4392720854
+	by mail.kernel.org (Postfix) with ESMTP id A5BD02081B
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 07:39:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A5BD02081B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=canonical.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 983AB8E0003; Fri,  8 Mar 2019 02:38:48 -0500 (EST)
+	id 42C528E0004; Fri,  8 Mar 2019 02:39:55 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 933C28E0002; Fri,  8 Mar 2019 02:38:48 -0500 (EST)
+	id 3DC128E0002; Fri,  8 Mar 2019 02:39:55 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 84A7B8E0003; Fri,  8 Mar 2019 02:38:48 -0500 (EST)
+	id 2A4B88E0004; Fri,  8 Mar 2019 02:39:55 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E5B58E0002
-	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 02:38:48 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id h65so9787793wrh.16
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 23:38:48 -0800 (PST)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C98EE8E0002
+	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 02:39:54 -0500 (EST)
+Received: by mail-wr1-f70.google.com with SMTP id b9so9831012wrw.14
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 23:39:54 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=1XOvH1ZwcKfdCsQmFCknNIDKEgX2lwdmfDpwL/zvWFU=;
-        b=aRIusLoMCRGkfWfjgTYf+svNeLWDZyEekRCrb8VXxqsHWJcQcUICmnaAx8MGILT02f
-         HMRmYIoC7pgNyy/wMrKPECnhTwj0vxjvQwEPYllErKc3c8/Iv9tEWn/JgPz7yLC/XBt8
-         plbPkrRpc21LNalH338ZHEhwIBhm5m3l32VuGxHT92ZbBNbw8RFnc/VbpU8lN59N8pop
-         veF3q5GgzdsImmhoOuM6FfWWzjfMApGL5IaBtol27ZL60QZb6yE3ZuLYbQp9/48A4CxG
-         Z6lCxYCZscvRYhUeMk01Uslht8zAe13W51EB8eEGKg+8LOBZdOGjFeYok+m8nibPTtBv
-         3G2w==
+        bh=JJc0aaYe86uBtyFNHwS97nDpP6ya73K7Xpte85VT6jM=;
+        b=JIOhm3o7dLHIHPfvCZGtCToLqlKz94DynOF9TIoIOjq3Bn5wDAOtrY1UaJSFpm3ztu
+         iMA5PcjW+xqmurNFp9mmsz8Q6FOh9sWuLJjywg/gxizVFwPglCx4wBPt4vgzTufvPc0d
+         RolNCiaoVUmSZ1PuVQsGRDsXocrTSNuM1e7p7dzS2/N4BOgZT9rhi4xwEVrjA+oQJB5V
+         NicjDWd52XOug0nQmh3QwcIS9sd3mxdImCg5qg6a2MA9xXCJ/omKI9kD2Aeyj0KCE9rn
+         BcgOxrlw75y7RTdHaogPwomeIP81K7S8vawpqdwNRVspQQR5ciKDF5J5pYrTGZFCXUk+
+         8Cew==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of andrea.righi@canonical.com designates 91.189.89.112 as permitted sender) smtp.mailfrom=andrea.righi@canonical.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=canonical.com
-X-Gm-Message-State: APjAAAWkBbv3ukUmEidLzpqxJpwXbA66dGOq0m8A+leipfN7Q7YlXrQC
-	RJhZbLZqMpoJSM/IGZQb/raAO7Akv8Sc1kMUNIIKrr2D7chwdAyJym+qe4SVGsz7y91+BngHmUm
-	qmr3pucfrTJom0midCkOUKI2A/Ftq6T/c4TDU/36PEgCamuqMN1HoCLCLXQrK3g/C4O0SA9Yde6
-	DQh0ZgwciAicjs3ugEq2VwTYAei1iwjwLZa2NqkdytMVeWyY+dJFf2c93i+Kqmj+Kyv0/9xmEcV
-	EdN8nVlLbElWGiZ6k8F4CyOw2UxawMr4/UrZaLEcoveo4UOvlYcdsYuaAytxUesFk98NqfVbGcg
-	owYsfkWQUuwdLsVzyY74dyi7v7RVC5TBqRThoVQ+3WlMWoTSfGTbkMRJf24eCRbeVX2a13Zhp4i
-	VQTRDRvzHIWkc4v9VD3KxWOCv50hK9rzySfc49muTpSmIh4I/cpKqO6nDV+e8zxKyD01cwK+3j6
-	f0OwBztLl5mrHZFz5y00sO1ZlgWn5HgQ0mI0v75HbYJJ/1+NNKMyLoC856BtoC3peqjApcnJVgc
-	/FE0p+p8TU6i6cEGwhpVrul6QO9oNTPYEsIUxSlg/VD37I0KursdCD85lOQt2741sGiGJ8uzw36
-	urHD2QaKxgag
-X-Received: by 2002:adf:deca:: with SMTP id i10mr9217407wrn.312.1552030727746;
-        Thu, 07 Mar 2019 23:38:47 -0800 (PST)
-X-Google-Smtp-Source: APXvYqwLI0ST7T6wGYj7PNrIkwrOPZW2xUvmf5lKGH4tgfhnxBqXcjneLt3lPREl+hy409tsGSw/
-X-Received: by 2002:adf:deca:: with SMTP id i10mr9217358wrn.312.1552030726828;
-        Thu, 07 Mar 2019 23:38:46 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1552030726; cv=none;
+X-Gm-Message-State: APjAAAW5zz8KCZUbQEtJsIDNYyCNn29xtNX8ZjpXFr/fjNzDboQlfBKR
+	6ZyQadtDbIUsnYfgXkJ7Rxv3mym4+2wC74z6P8R4A+0eV8QPFjfX3FkBNxUABwbQofMi4mZS53+
+	J4hwoL42Lw9wX8JQrPOdL21P5WjbkhWu2HwziL3JTbirNWNbJcbNxuZZX3u9rGXhqJIQTiV9y5g
+	+PONqrI6SG1bVxzmp/t3dXYeTR7VRBzXY0D1FBktTOr85XWxn8difGC5JLlKgJHqJjo8z1wM1B5
+	71PEqlAhyOjMfPLj5ndSCTKGanc9KtvrzzTElKTlUp3y1sOvFgBIyjKCzxNIUtHdO5hffF5SapT
+	SpA8lLIh99okcKWO7r7fUtBR7cyFRMK64H+WCIIhl5zRyHNqGD4eUb2ibJcUnFpYVDP46M0fpH7
+	KHXD+h8FIM+0ZsuJsUufO+84o56OmtePb0agBnqAYc0sae5ntxzV/y+IKIdAdXxh6QN6j7kNPnA
+	Q9lYA5s1nqJoefCwnOCIOfJHrd93OA44uwMrP6EObCPmpAIcAvtnDkPITpENfHrLv7YwPb+9XKK
+	Gpl/2v1HrWaK9M4w00ibeByTO4oZVojeESFybZ7LJq9Je9t0oNq9a8dFumI4jC57KgHoKRAi+ys
+	A52mlePCvRPj
+X-Received: by 2002:a1c:b403:: with SMTP id d3mr8006301wmf.85.1552030794322;
+        Thu, 07 Mar 2019 23:39:54 -0800 (PST)
+X-Google-Smtp-Source: APXvYqxIkN7nJlpIlYe00ujsrQeJTuHbCaZkDiKHodvcVTKZHWxbs7sIjGhRlDTZAykTt2N32LDG
+X-Received: by 2002:a1c:b403:: with SMTP id d3mr8006255wmf.85.1552030793528;
+        Thu, 07 Mar 2019 23:39:53 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1552030793; cv=none;
         d=google.com; s=arc-20160816;
-        b=tqLiaQdgUK2zQ54zM9O0c/6C0/kpgPfSywXnnWOqXuCGOHklKBMn4m6U15/1CYScL7
-         mNZeXSrq1DwZKhzIaaVjwot1PK8uHkMetoFC/Vft/FQW+7gF/7xJawg0de+USNVs+V/B
-         cynLQKfr1I7jwdxvEDH7+Mmet/Ggw1uJqy6VIrpj0QjOb5gNpKLQMc7wEAt0EwlyrcPg
-         Ybul3nEkAi4PETNWcsRPasuyuMup8sd3Kmd1KQTpFug2DMBDGGThI1hYIwybTp0skXLk
-         g9q9lC74Ru05kjpD6rG9SIHhnmh0ao9/SgyvTHR6e5bEBXIUfM6iwRMvxaY4S13A80I8
-         fBqg==
+        b=jmfCM4LNFdHujhslJj9LKaN9yattFPZON608ZauRb3e/aFJHz2WUuB52rmSAh/3c7V
+         tknBc2Y9zUgohZTjUV4Oi2HLGoxPMjEPLcZSdescVBPDesfDON2d9X09TDpAQ5LF6pOj
+         v+RcfokTxYGpP/1XLeg+yUGDrkJIW55E+E0aDxxO5EYxlAOAiYAIJgWFctshfQpOy8IC
+         b78pig6LLw1W5Zf1IqkxXUEi/t/vIQjX/YvqG/G/sVMgScm2qk3esdxIJ9Bodkr8qsVM
+         Wdm74KcZcBvBgVvMHKIqMEghHiOwG7ZN1s+InBBbL/xOotgnwDBUkPmApxWU5RRGwq51
+         G/AQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=1XOvH1ZwcKfdCsQmFCknNIDKEgX2lwdmfDpwL/zvWFU=;
-        b=Q7U4l5mjBJ3Aq5mnpNkyeCFRQn2AqFWvAqMpGMbUzsYUbfKik7gv+v93nuF0qsSRcX
-         iDcCT7fTyj5A4qwru3Vz00DUKXqLyxV/zPN/vzZ/kezKnhZksJdvB79sQ70SxhJeJr2U
-         KFnuaUdtTk8uj/hstZr+PZ3JAeVBCmcjuHZA2kKGGf0pxyfemubjmiV6h77DZdX24MZI
-         4gouwgIxO5AnLzS/acXwrcq5GxFA1VoT2oq0A4JPJ+A/aL5gyxzofRkR4cXmU1keZXfT
-         4qm7LrorzDK+ndgs/N0Gk5JwZG0adXenXf786LaGuihgrYN36FAtOshT84g51LjEHBNt
-         ZHhA==
+        bh=JJc0aaYe86uBtyFNHwS97nDpP6ya73K7Xpte85VT6jM=;
+        b=xImJ6HoVB8esj4ZgCGHNYKyOMGmBDDInepEft/h+kJ6KrKz/8JYExCEUAqEFl7yecY
+         WMEs4v0lAkHDbpj+Bjn5/82gXqChmbc9UWG7oeDQ58kKajgNcpv8eGngzSxP58fKHXdA
+         LZlmrm0ladYCzrOeva/fuWzbT+tNiqaqgL0J5tISiUBw8qXxDy0aXoBYSTBgAoSFQ74Z
+         D4LY+KTCEGf3fkwj+nDF0JRGfjoxdje11q52YYDbmLsHStgZ3JfJNs/mjBXNGJikoHRu
+         GGGSnrPRCOdofz32DkDhgRs7szZ9F3VbgE9tNkOV9Wo8RMJzeVKoIQZwLtMF/mqdrEjw
+         R6QA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of andrea.righi@canonical.com designates 91.189.89.112 as permitted sender) smtp.mailfrom=andrea.righi@canonical.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=canonical.com
 Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
-        by mx.google.com with ESMTPS id z18si5093889wrs.315.2019.03.07.23.38.46
+        by mx.google.com with ESMTPS id m7si4396853wmc.171.2019.03.07.23.39.53
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 Mar 2019 23:38:46 -0800 (PST)
+        Thu, 07 Mar 2019 23:39:53 -0800 (PST)
 Received-SPF: pass (google.com: best guess record for domain of andrea.righi@canonical.com designates 91.189.89.112 as permitted sender) client-ip=91.189.89.112;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: best guess record for domain of andrea.righi@canonical.com designates 91.189.89.112 as permitted sender) smtp.mailfrom=andrea.righi@canonical.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=canonical.com
-Received: from mail-wm1-f69.google.com ([209.85.128.69])
+Received: from mail-wm1-f70.google.com ([209.85.128.70])
 	by youngberry.canonical.com with esmtps (TLS1.0:RSA_AES_128_CBC_SHA1:16)
 	(Exim 4.76)
 	(envelope-from <andrea.righi@canonical.com>)
-	id 1h2A5d-0002zv-VG
-	for linux-mm@kvack.org; Fri, 08 Mar 2019 07:38:45 +0000
-Received: by mail-wm1-f69.google.com with SMTP id q126so3857309wme.7
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 23:38:45 -0800 (PST)
-X-Received: by 2002:a1c:80d6:: with SMTP id b205mr8479025wmd.109.1552030725618;
-        Thu, 07 Mar 2019 23:38:45 -0800 (PST)
-X-Received: by 2002:a1c:80d6:: with SMTP id b205mr8478997wmd.109.1552030725252;
-        Thu, 07 Mar 2019 23:38:45 -0800 (PST)
+	id 1h2A6j-000349-3W
+	for linux-mm@kvack.org; Fri, 08 Mar 2019 07:39:53 +0000
+Received: by mail-wm1-f70.google.com with SMTP id t190so3865521wmt.8
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 23:39:53 -0800 (PST)
+X-Received: by 2002:a05:600c:246:: with SMTP id 6mr8339774wmj.150.1552030792764;
+        Thu, 07 Mar 2019 23:39:52 -0800 (PST)
+X-Received: by 2002:a05:600c:246:: with SMTP id 6mr8339760wmj.150.1552030792587;
+        Thu, 07 Mar 2019 23:39:52 -0800 (PST)
 Received: from localhost (host22-124-dynamic.46-79-r.retail.telecomitalia.it. [79.46.124.22])
-        by smtp.gmail.com with ESMTPSA id y1sm8080826wrh.65.2019.03.07.23.38.44
+        by smtp.gmail.com with ESMTPSA id 203sm9224529wme.30.2019.03.07.23.39.51
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 07 Mar 2019 23:38:44 -0800 (PST)
-Date: Fri, 8 Mar 2019 08:38:43 +0100
+        Thu, 07 Mar 2019 23:39:52 -0800 (PST)
+Date: Fri, 8 Mar 2019 08:39:50 +0100
 From: Andrea Righi <andrea.righi@canonical.com>
 To: Josef Bacik <josef@toxicpanda.com>
 Cc: Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>,
@@ -110,16 +110,15 @@ Cc: Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>,
 	Vivek Goyal <vgoyal@redhat.com>, Dennis Zhou <dennis@kernel.org>,
 	cgroups@vger.kernel.org, linux-block@vger.kernel.org,
 	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v2 1/3] blkcg: prevent priority inversion problem during
- sync()
-Message-ID: <20190308073843.GA9732@xps-13>
+Subject: Re: [PATCH v2 3/3] blkcg: implement sync() isolation
+Message-ID: <20190308073950.GA6087@xps-13>
 References: <20190307180834.22008-1-andrea.righi@canonical.com>
- <20190307180834.22008-2-andrea.righi@canonical.com>
- <20190307221051.ruhpp73q6ek2at3d@macbook-pro-91.dhcp.thefacebook.com>
+ <20190307180834.22008-4-andrea.righi@canonical.com>
+ <20190307220659.5qmye2pxmto7nlei@macbook-pro-91.dhcp.thefacebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190307221051.ruhpp73q6ek2at3d@macbook-pro-91.dhcp.thefacebook.com>
+In-Reply-To: <20190307220659.5qmye2pxmto7nlei@macbook-pro-91.dhcp.thefacebook.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -127,112 +126,93 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 07, 2019 at 05:10:53PM -0500, Josef Bacik wrote:
-> On Thu, Mar 07, 2019 at 07:08:32PM +0100, Andrea Righi wrote:
-> > Prevent priority inversion problem when a high-priority blkcg issues a
-> > sync() and it is forced to wait the completion of all the writeback I/O
-> > generated by any other low-priority blkcg, causing massive latencies to
-> > processes that shouldn't be I/O-throttled at all.
+On Thu, Mar 07, 2019 at 05:07:01PM -0500, Josef Bacik wrote:
+> On Thu, Mar 07, 2019 at 07:08:34PM +0100, Andrea Righi wrote:
+> > Keep track of the inodes that have been dirtied by each blkcg cgroup and
+> > make sure that a blkcg issuing a sync() can trigger the writeback + wait
+> > of only those pages that belong to the cgroup itself.
 > > 
-> > The idea is to save a list of blkcg's that are waiting for writeback:
-> > every time a sync() is executed the current blkcg is added to the list.
-> > 
-> > Then, when I/O is throttled, if there's a blkcg waiting for writeback
-> > different than the current blkcg, no throttling is applied (we can
-> > probably refine this logic later, i.e., a better policy could be to
-> > adjust the throttling I/O rate using the blkcg with the highest speed
-> > from the list of waiters - priority inheritance, kinda).
+> > This behavior is applied only when io.sync_isolation is enabled in the
+> > cgroup, otherwise the old behavior is applied: sync() triggers the
+> > writeback of any dirty page.
 > > 
 > > Signed-off-by: Andrea Righi <andrea.righi@canonical.com>
 > > ---
-> >  block/blk-cgroup.c               | 131 +++++++++++++++++++++++++++++++
-> >  block/blk-throttle.c             |  11 ++-
-> >  fs/fs-writeback.c                |   5 ++
-> >  fs/sync.c                        |   8 +-
-> >  include/linux/backing-dev-defs.h |   2 +
-> >  include/linux/blk-cgroup.h       |  23 ++++++
-> >  mm/backing-dev.c                 |   2 +
-> >  7 files changed, 178 insertions(+), 4 deletions(-)
+> >  block/blk-cgroup.c         | 47 ++++++++++++++++++++++++++++++++++
+> >  fs/fs-writeback.c          | 52 +++++++++++++++++++++++++++++++++++---
+> >  fs/inode.c                 |  1 +
+> >  include/linux/blk-cgroup.h | 22 ++++++++++++++++
+> >  include/linux/fs.h         |  4 +++
+> >  mm/page-writeback.c        |  1 +
+> >  6 files changed, 124 insertions(+), 3 deletions(-)
 > > 
 > > diff --git a/block/blk-cgroup.c b/block/blk-cgroup.c
-> > index 2bed5725aa03..4305e78d1bb2 100644
+> > index 4305e78d1bb2..7d3b26ba4575 100644
 > > --- a/block/blk-cgroup.c
 > > +++ b/block/blk-cgroup.c
-> > @@ -1351,6 +1351,137 @@ struct cgroup_subsys io_cgrp_subsys = {
-> >  };
-> >  EXPORT_SYMBOL_GPL(io_cgrp_subsys);
-> >  
-> > +#ifdef CONFIG_CGROUP_WRITEBACK
-> > +struct blkcg_wb_sleeper {
-> > +	struct backing_dev_info *bdi;
-> > +	struct blkcg *blkcg;
-> > +	refcount_t refcnt;
-> > +	struct list_head node;
-> > +};
+> > @@ -1480,6 +1480,53 @@ void blkcg_stop_wb_wait_on_bdi(struct backing_dev_info *bdi)
+> >  	spin_unlock(&blkcg_wb_sleeper_lock);
+> >  	rcu_read_unlock();
+> >  }
 > > +
-> > +static DEFINE_SPINLOCK(blkcg_wb_sleeper_lock);
-> > +static LIST_HEAD(blkcg_wb_sleeper_list);
-> > +
-> > +static struct blkcg_wb_sleeper *
-> > +blkcg_wb_sleeper_find(struct blkcg *blkcg, struct backing_dev_info *bdi)
+> > +/**
+> > + * blkcg_set_mapping_dirty - set owner of a dirty mapping
+> > + * @mapping: target address space
+> > + *
+> > + * Set the current blkcg as the owner of the address space @mapping (the first
+> > + * blkcg that dirties @mapping becomes the owner).
+> > + */
+> > +void blkcg_set_mapping_dirty(struct address_space *mapping)
 > > +{
-> > +	struct blkcg_wb_sleeper *bws;
+> > +	struct blkcg *curr_blkcg, *blkcg;
 > > +
-> > +	list_for_each_entry(bws, &blkcg_wb_sleeper_list, node)
-> > +		if (bws->blkcg == blkcg && bws->bdi == bdi)
-> > +			return bws;
-> > +	return NULL;
-> > +}
+> > +	if (mapping_tagged(mapping, PAGECACHE_TAG_WRITEBACK) ||
+> > +	    mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
+> > +		return;
 > > +
-> > +static void blkcg_wb_sleeper_add(struct blkcg_wb_sleeper *bws)
-> > +{
-> > +	list_add(&bws->node, &blkcg_wb_sleeper_list);
-> > +}
-> > +
-> > +static void blkcg_wb_sleeper_del(struct blkcg_wb_sleeper *bws)
-> > +{
-> > +	list_del_init(&bws->node);
+> > +	rcu_read_lock();
+> > +	curr_blkcg = blkcg_from_current();
+> > +	blkcg = blkcg_from_mapping(mapping);
+> > +	if (curr_blkcg != blkcg) {
+> > +		if (blkcg)
+> > +			css_put(&blkcg->css);
+> > +		css_get(&curr_blkcg->css);
+> > +		rcu_assign_pointer(mapping->i_blkcg, curr_blkcg);
+> > +	}
+> > +	rcu_read_unlock();
 > > +}
 > > +
 > > +/**
-> > + * blkcg_wb_waiters_on_bdi - check for writeback waiters on a block device
-> > + * @blkcg: current blkcg cgroup
-> > + * @bdi: block device to check
+> > + * blkcg_set_mapping_clean - clear the owner of a dirty mapping
+> > + * @mapping: target address space
 > > + *
-> > + * Return true if any other blkcg different than the current one is waiting for
-> > + * writeback on the target block device, false otherwise.
+> > + * Unset the owner of @mapping when it becomes clean.
 > > + */
-> > +bool blkcg_wb_waiters_on_bdi(struct blkcg *blkcg, struct backing_dev_info *bdi)
+> > +
+> > +void blkcg_set_mapping_clean(struct address_space *mapping)
 > > +{
-> > +	struct blkcg_wb_sleeper *bws;
-> > +	bool ret = false;
+> > +	struct blkcg *blkcg;
 > > +
-> > +	spin_lock(&blkcg_wb_sleeper_lock);
-> > +	list_for_each_entry(bws, &blkcg_wb_sleeper_list, node)
-> > +		if (bws->bdi == bdi && bws->blkcg != blkcg) {
-> > +			ret = true;
-> > +			break;
-> > +		}
-> > +	spin_unlock(&blkcg_wb_sleeper_lock);
-> > +
-> > +	return ret;
+> > +	rcu_read_lock();
+> > +	blkcg = rcu_dereference(mapping->i_blkcg);
+> > +	if (blkcg) {
+> > +		css_put(&blkcg->css);
+> > +		RCU_INIT_POINTER(mapping->i_blkcg, NULL);
+> > +	}
+> > +	rcu_read_unlock();
 > > +}
+> >  #endif
+> >  
 > 
-> No global lock please, add something to the bdi I think?  Also have a fast path
-> of
-
-OK, I'll add a list per-bdi and a lock as well.
-
-> 
-> if (list_empty(blkcg_wb_sleeper_list))
->    return false;
-
-OK.
-
-> 
-> we don't need to be super accurate here.  Thanks,
+> Why do we need this?  We already have the inode_attach_wb(), which has the
+> blkcg_css embedded in it for whoever dirtied the inode first.  Can we not just
+> use that?  Thanks,
 > 
 > Josef
+
+I'm realizing only now that inode_attach_wb() also has blkcg embedded
+in addition to the memcg. I think I can use that and drop these
+blkcg_set_mapping_dirty/clean()..
 
 Thanks,
 -Andrea
