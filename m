@@ -2,178 +2,251 @@ Return-Path: <SRS0=92PK=RL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F32EC10F09
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 03:45:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D9C2C4360F
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 04:15:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D4EC320675
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 03:45:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D4EC320675
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 194FF20851
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 04:15:03 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="8Hr/M5Gi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 194FF20851
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 80F0C8E0003; Thu,  7 Mar 2019 22:45:49 -0500 (EST)
+	id 7D2E58E0003; Thu,  7 Mar 2019 23:15:03 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7BE428E0002; Thu,  7 Mar 2019 22:45:49 -0500 (EST)
+	id 75B2A8E0002; Thu,  7 Mar 2019 23:15:03 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6AF448E0004; Thu,  7 Mar 2019 22:45:49 -0500 (EST)
+	id 624CD8E0003; Thu,  7 Mar 2019 23:15:03 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4336F8E0002
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 22:45:49 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id s65so14918215qke.16
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 19:45:49 -0800 (PST)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 35AAC8E0002
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2019 23:15:03 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id f70so14945786qke.8
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2019 20:15:03 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=oNTtiF+hrkLpsvw7f4dRXrLixWTSG0zB1RYyJEtcVgk=;
-        b=QxouilrMp7r62dKJ6xGJcJzgnMMRLYH8mrw6RZDnhvVqiOHpdmnRfL6A+OtyWQ2ozZ
-         3rLcqpdX28XZq1I3D1X3gIW8bK/RiHmBW1bnHlFfq5/5fR6grlDzyzt49huqsURN7vvB
-         lrIdJ2Mk65nvP4x5i7u83S81RnRE5j7Pmu8i/KZmMDAMmcMsj/UyfbTzJH8ePVJ+VLSH
-         EILOFDDI0XwUpBqRhQwlVp7CK9KvBPsLfFFVhZiUSGU20S+SlLrqXZMEaCorTZnVNqvN
-         EAfne6ABugb+xqjwZGW5UK/twpheTgzWgmCYOZ7eey+FFRWj0doXNKAMhq18Ymr+g3Py
-         oy6Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVKWD6Le+8Xw1/8PqLXBsk8HnipIQWACQC/ZupOKva8ksiEWzfU
-	FSLGQW9rjQj2APJSXOnIbHV4rBgQNlHj0zcN7A+S3Djl7PTDdEHA8LM6csWUlvoREK8VqDYHy8o
-	yCdOaAGleS8yVGnXEgn716bRl7ZllSxHpgh5cWqrQhRLA/bbOb0+PhH9sfDpp9T+uMw==
-X-Received: by 2002:a37:32d4:: with SMTP id y203mr12313149qky.282.1552016749018;
-        Thu, 07 Mar 2019 19:45:49 -0800 (PST)
-X-Google-Smtp-Source: APXvYqz1y6Wjts0NEjcDsUgW7x77Y7Z7hLj4ZP33zbXZEJ4oQ4htxLwoBjzC7PskcwH+05oh/qoT
-X-Received: by 2002:a37:32d4:: with SMTP id y203mr12313128qky.282.1552016748355;
-        Thu, 07 Mar 2019 19:45:48 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1552016748; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=7/t3e0/zYUawBXj9+EopDjHPelY75KptaGn3t9VpyZA=;
+        b=SPw3ODBEmxO5KY55jZGU4YA/CgKyPf7FgJaiPGbkQAIyxpav3cJ8aPtYMagav4gn8D
+         wltH8si751hTSCXZR+zcja/3XFnPJT8aweqCoUWd7K9jEczuDG1dPZCRjsarwx4Oz5BV
+         kdIhjPiU872DCtkg75pxB+nrryRcaPJGfR0eapT4r6YA4lY/SpIJdb/AFqxClHoyKUny
+         DMK9yn+MrsVTe22eVHWPE7gP4rTJZLb2OVyolunsEDRFy8F8JCM9DqGdf2zvz/78L2BA
+         iEwIaoa504lxeGuuFHatSNYs6KfUvRzlIUzJzunLrBWQF0vnPdpZj55hBwMBTsqEOXeo
+         IWng==
+X-Gm-Message-State: APjAAAU7++cjirDlAYgAb1vWlm4/d6Y3/Y1UVl08EdEWvfGbii4mFixD
+	U+qYfKqkR1oYCTpKPQbN3i2hgsaep930rGMLhTOc7VteV3M5GLpPDlcmS6n80LQOiMsfhFC6e20
+	Z37QIV7kR+ArZgGzmmimB+o5qxle8u7bjAEIxi91ht2YxlDuuxLcd+FRDpchtVOg=
+X-Received: by 2002:ac8:1888:: with SMTP id s8mr13409954qtj.338.1552018502772;
+        Thu, 07 Mar 2019 20:15:02 -0800 (PST)
+X-Google-Smtp-Source: APXvYqy0lvbmj9g/GN6/0si2OXZhBL8KDQvdQR2BZm1WWwyMEfjpgc1oat0Sdb/XbiMoxdgFbbdJ
+X-Received: by 2002:ac8:1888:: with SMTP id s8mr13409912qtj.338.1552018501731;
+        Thu, 07 Mar 2019 20:15:01 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1552018501; cv=none;
         d=google.com; s=arc-20160816;
-        b=AAiy1aUMwyWn2/nxxT4f6+54erU9DWjLY7o/xWqyMpmwHfyTvEOgdnsLO75QucuT4B
-         Hqa6bJ/mnnWVxERUjEfGTsPDPdnK87n+4awZ7zYSHQlL9+UunY+eYfYu1D4HGRarOaFF
-         RQxgOSQ7G7XmfXGL9iw9EnhxvGrPpP2HR08GGOSOX3iPbepFGZglSzjph/7J5BmnZIi6
-         lPT9Kxp0hRnnk5YYWpo3Jwd3+GagFoc+dXDRExjdC5ocRinwNZgvanUK/IBniZdsmBSv
-         b2yCeBA1oYHSVNRz6g7WHvWtcwFJavnFfhc7hypCOqkYDj2a2aiM/LPykFCLVDQyOdCr
-         +GFg==
+        b=CzXUsnGgUu/VXQdPLL4Yy5M0qvFOlyAAWI1S6YmMn/ZkOEvB0sxbEJqQRMz6URxWG+
+         DmAVh1VvGOa8uSVRZinOaFGiwGbP/o8cFZoKH8PQGsirXoF7BQP+pX/x70y9Ojb5lPCm
+         xOkrtOVUcCI+j81INeO5By8NzWWvQNRBpiT9ej6I7tQj6oo+Seqft6egKbYgXKXqKx6e
+         /+BedawiC1cbjOx5dcTVNTIYRWLtq1ROTEdA2duEV+sn5dt7tz4ADyTGH7ECWg/yenZs
+         fKTJ4LPV5Q6NDhF0jV4BuLpb0KieJXPUEl3KW0OLJfCp52/Q0PeVTDU0l+fzqGDRCnQ6
+         ZLCw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=oNTtiF+hrkLpsvw7f4dRXrLixWTSG0zB1RYyJEtcVgk=;
-        b=oMSsljPNH6q7Jj9iLAAmxuRXaEyLN2URh+gNQjsca4eEMf1LkC5n579K7TD8ekajeX
-         Vs4vf5WiHdP+ET4+yGGi3N2xGMKErnWonuuKbi7X2u6GXiyKzN1MVvF9i2YFpagLF7R9
-         8kO+mh4/ftrObLtWGqIDuPcEMuQeM8QDT6gudOKX5DtlpB8Ut1JgZdtQRzogVu1R4XxB
-         ZX5IcKbkou7NqmIo8LKdxs/j/bIsxBy7xz5QQ1f9LFhDgGNfPEFAYta6N3U2lYb4aBZT
-         6kQDbMXSpXJzmhDjxaQlS35n8skOFGlGAYAFC/NahOV4vXLtsxFABkHgkXW4YCUCAYCh
-         rR+w==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=7/t3e0/zYUawBXj9+EopDjHPelY75KptaGn3t9VpyZA=;
+        b=j4vo8NoyZkJnPrHJHU0npx8ra/AEWHllOm3MY/4BNH6DN06hlX1T/Koz4ocEiHoypm
+         J9jEgX2/IAVPgQRgnFlayftcY1R+ckthe/6N4P/3uY33XFODztd8/5fpwDLtC9X6+a2F
+         0KqiPDQ6Ar6eX/s7PadxK6Q3VTXsz/6Bt+v31m5BtsNVx1gSLkBGXVlyIGrC0fFfivHB
+         Zi+5NqiurUSUIn7bfElH298qko37WSFNlwMPW3KukzKPvthj+Ay+oJHTW9sZY77n56/S
+         /ojnvfqZhlP73njsPf1jq9KEJqbYFMG4xg6S34pVdCsyogKoBXdqxBGlrHRyJ33gcM+1
+         GL3A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p31si60121qta.179.2019.03.07.19.45.48
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="8Hr/M5Gi";
+       spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 64.147.123.25 as permitted sender) smtp.mailfrom=tobin@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from wout2-smtp.messagingengine.com (wout2-smtp.messagingengine.com. [64.147.123.25])
+        by mx.google.com with ESMTPS id p6si79001qkk.40.2019.03.07.20.15.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Mar 2019 19:45:48 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 07 Mar 2019 20:15:01 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 64.147.123.25 as permitted sender) client-ip=64.147.123.25;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 8894930EBE93;
-	Fri,  8 Mar 2019 03:45:47 +0000 (UTC)
-Received: from redhat.com (ovpn-125-54.rdu2.redhat.com [10.10.125.54])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 6EBC15D9D5;
-	Fri,  8 Mar 2019 03:45:42 +0000 (UTC)
-Date: Thu, 7 Mar 2019 22:45:40 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Jason Wang <jasowang@redhat.com>, kvm@vger.kernel.org,
-	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
-	linux-kernel@vger.kernel.org, peterx@redhat.com, linux-mm@kvack.org,
-	aarcange@redhat.com
-Subject: Re: [RFC PATCH V2 5/5] vhost: access vq metadata through kernel
- virtual address
-Message-ID: <20190308034540.GC5562@redhat.com>
-References: <1551856692-3384-1-git-send-email-jasowang@redhat.com>
- <1551856692-3384-6-git-send-email-jasowang@redhat.com>
- <20190307103503-mutt-send-email-mst@kernel.org>
- <20190307124700-mutt-send-email-mst@kernel.org>
- <20190307191720.GF3835@redhat.com>
- <20190307211506-mutt-send-email-mst@kernel.org>
- <20190308025539.GA5562@redhat.com>
- <20190307221549-mutt-send-email-mst@kernel.org>
- <20190308034053.GB5562@redhat.com>
- <20190307224143-mutt-send-email-mst@kernel.org>
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="8Hr/M5Gi";
+       spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 64.147.123.25 as permitted sender) smtp.mailfrom=tobin@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
+	by mailout.west.internal (Postfix) with ESMTP id 9AD2B3536;
+	Thu,  7 Mar 2019 23:14:59 -0500 (EST)
+Received: from mailfrontend1 ([10.202.2.162])
+  by compute3.internal (MEProxy); Thu, 07 Mar 2019 23:15:00 -0500
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-transfer-encoding:date:from
+	:message-id:mime-version:subject:to:x-me-proxy:x-me-proxy
+	:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=7/t3e0/zYUawBXj9+
+	EopDjHPelY75KptaGn3t9VpyZA=; b=8Hr/M5GiKhCs8Z9et8zGvTL8mXvjusOf7
+	Dp6j1RrL1bUco2RuNEB/NFua3JudSPk0xD0QfedqHzriEOEDctWh5KhUjUYdniHW
+	5WhgJBx0zrYjSU1pIC8+OxrDHbUaWZkpyKr434YNTuPOK2qclnaDJgSOeWJ5NAlM
+	y5A/p6P8+r+DNdVfibcHddrGCfS0fvc2EimwHQO5sW6d94lyzoOXTMeCPqwy9oCJ
+	EpvHQoCJlHWiv3afAScPNs7dd1PRBIXUVS2hmiM1pRDTJzg1cDusH8DOMQGwTSDg
+	FJ8ISEhSjJLvRizWKSkpUoJ5PxDVS1GVYLSaIBf4Ot3Bk7uDaw/4Q==
+X-ME-Sender: <xms:QuyBXGQuoNtWO5tOJ2yhF3l_BWJ8bQN_-Canj2fG1qRVxu6hOopK3g>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedutddrfeelgdeifecutefuodetggdotefrodftvf
+    curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
+    uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenuc
+    fjughrpefhvffufffkofgggfestdekredtredttdenucfhrhhomhepfdfvohgsihhnucev
+    rdcujfgrrhguihhnghdfuceothhosghinheskhgvrhhnvghlrdhorhhgqeenucffohhmrg
+    hinhepkhgvrhhnvghlrdhorhhgnecukfhppeduvdegrdduieelrdehrdduheeknecurfgr
+    rhgrmhepmhgrihhlfhhrohhmpehtohgsihhnsehkvghrnhgvlhdrohhrghenucevlhhush
+    htvghrufhiiigvpedt
+X-ME-Proxy: <xmx:QuyBXHpr9t-HH1Y1rb-CUchlp7Bsly2x6SBvVspjn7oGXI5FjcLWGw>
+    <xmx:QuyBXA16vnD1HMxtBt5aVORi6Y0f3C608aDFBuJWkhFm5_qFaVKONQ>
+    <xmx:QuyBXG4Q76kYUcPW2vVaYIcqRFGZZmlMdUuc13DxsPUZqaMa2tn-hA>
+    <xmx:Q-yBXK1cd0Yl75EwTYJ63xF8bo2POczBbcCcs0u6KgSdjZb3r9OAMg>
+Received: from eros.localdomain (124-169-5-158.dyn.iinet.net.au [124.169.5.158])
+	by mail.messagingengine.com (Postfix) with ESMTPA id 6CB7EE4383;
+	Thu,  7 Mar 2019 23:14:55 -0500 (EST)
+From: "Tobin C. Harding" <tobin@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Tobin C. Harding" <tobin@kernel.org>,
+	Christopher Lameter <cl@linux.com>,
+	Pekka Enberg <penberg@cs.helsinki.fi>,
+	Matthew Wilcox <willy@infradead.org>,
+	Tycho Andersen <tycho@tycho.ws>,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [RFC 00/15] mm: Implement Slab Movable Objects (SMO)
+Date: Fri,  8 Mar 2019 15:14:11 +1100
+Message-Id: <20190308041426.16654-1-tobin@kernel.org>
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190307224143-mutt-send-email-mst@kernel.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Fri, 08 Mar 2019 03:45:47 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 07, 2019 at 10:43:12PM -0500, Michael S. Tsirkin wrote:
-> On Thu, Mar 07, 2019 at 10:40:53PM -0500, Jerome Glisse wrote:
-> > On Thu, Mar 07, 2019 at 10:16:00PM -0500, Michael S. Tsirkin wrote:
-> > > On Thu, Mar 07, 2019 at 09:55:39PM -0500, Jerome Glisse wrote:
-> > > > On Thu, Mar 07, 2019 at 09:21:03PM -0500, Michael S. Tsirkin wrote:
-> > > > > On Thu, Mar 07, 2019 at 02:17:20PM -0500, Jerome Glisse wrote:
-> > > > > > > It's because of all these issues that I preferred just accessing
-> > > > > > > userspace memory and handling faults. Unfortunately there does not
-> > > > > > > appear to exist an API that whitelists a specific driver along the lines
-> > > > > > > of "I checked this code for speculative info leaks, don't add barriers
-> > > > > > > on data path please".
-> > > > > > 
-> > > > > > Maybe it would be better to explore adding such helper then remapping
-> > > > > > page into kernel address space ?
-> > > > > 
-> > > > > I explored it a bit (see e.g. thread around: "__get_user slower than
-> > > > > get_user") and I can tell you it's not trivial given the issue is around
-> > > > > security.  So in practice it does not seem fair to keep a significant
-> > > > > optimization out of kernel because *maybe* we can do it differently even
-> > > > > better :)
-> > > > 
-> > > > Maybe a slightly different approach between this patchset and other
-> > > > copy user API would work here. What you want really is something like
-> > > > a temporary mlock on a range of memory so that it is safe for the
-> > > > kernel to access range of userspace virtual address ie page are
-> > > > present and with proper permission hence there can be no page fault
-> > > > while you are accessing thing from kernel context.
-> > > > 
-> > > > So you can have like a range structure and mmu notifier. When you
-> > > > lock the range you block mmu notifier to allow your code to work on
-> > > > the userspace VA safely. Once you are done you unlock and let the
-> > > > mmu notifier go on. It is pretty much exactly this patchset except
-> > > > that you remove all the kernel vmap code. A nice thing about that
-> > > > is that you do not need to worry about calling set page dirty it
-> > > > will already be handle by the userspace VA pte. It also use less
-> > > > memory than when you have kernel vmap.
-> > > > 
-> > > > This idea might be defeated by security feature where the kernel is
-> > > > running in its own address space without the userspace address
-> > > > space present.
-> > > 
-> > > Like smap?
-> > 
-> > Yes like smap but also other newer changes, with similar effect, since
-> > the spectre drama.
-> > 
-> > Cheers,
-> > Jérôme
-> 
-> Sorry do you mean meltdown and kpti?
+Hi,
 
-Yes all that and similar thing. I do not have the full list in my head.
+Here is a patch set implementing movable objects within the SLUB
+allocator.  This is work based on Christopher's patch set:
 
-Cheers,
-Jérôme
+ https://lore.kernel.org/patchwork/project/lkml/list/?series=377335
+
+The original code logic is from that set and implemented by Christopher.
+Clean up, refactoring, documentation, and additional features by myself.
+Blame for any bugs remaining falls solely with myself.  Patches using
+Christopher's code use the Co-developed-by tag.
+
+After movable objects are implemented a number of useful features become
+possible.  Some of these are implemented in this series, including:
+
+ - Cache defragmentation.	   
+
+    Currently the SLUB allocator is susceptible to internal
+    fragmentation.  This occurs when a large number of cached objects
+    are allocated and then freed in an arbitrary order.  As the cache
+    fragments the number of pages used by the partial slabs list
+    increases.  This wastes memory.
+
+    Patch set implements the machinery to facilitate conditional cache
+    defragmentation (via kmem_cache_defrag()) and unconditional
+    defragmentation (via kmem_cache_shrink()).  Various sysfs knobs are
+    provided to interact with and configure this.
+
+    Patch set implements movable objects and cache defragmentation for
+    the XArray.
+
+ - Moving objects to and from a specific NUMA node.
+
+ - Balancing objects across all NUMA nodes.
+
+We add a test module to facilitate playing around with movable objects
+and a python test suite that uses the module.
+
+Everything except the NUMA stuff was tested on bare metal, the NUMA
+stuff was tested with Qemu NUMA emulation.
+
+Possible further work:
+
+1. Implementing movable objects for the inode and dentry caches.
+
+2. Tying into the page migration and page defragmentation logic so that
+   so far unmovable pages that are in the way of creating a contiguous
+   block of memory will become movable.  This would mean checking for
+   slab pages in the migration logic and calling slab to see if it can
+   move the page by migrating all objects.
+
+
+Patch 1-4 - Implement Slab Movable Objects.
+Patch 5-9 - Implement slab cache defragmentation.
+Patch 10 - Adds the test module.
+Patch 11 - Adds the test suite.
+Patch 12-13 - Adds object migration to the XArray (and test code).
+Patch 14 - Adds moving objects to and from a specified NUMA node.
+Patch 15 - Adds object balancing across all NUMA nodes.
+
+Patch 12 introduces an build warning, I tried a bunch of things and I
+couldn't work out what it should be.
+
+  linux/lib/xarray.c:1961:16: warning: comparison between pointer and
+  zero character constant [-Wpointer-compare] 
+    if (!xa || xa == XA_FREE_MARK)
+                ^~
+  linux/lib/xarray.c:1961:13: note: did you mean to dereference the pointer?
+    if (!xa || xa == XA_FREE_MARK)
+
+Perhaps you will put me out of my misery Willy and just tell me what its
+supposed to be.
+
+Patch 14 and 15 are particularly early stage (I hacked those :) 
+
+thanks,
+Tobin.
+
+
+Tobin C. Harding (15):
+  slub: Create sysfs field /sys/slab/<cache>/ops
+  slub: Add isolate() and migrate() methods
+  tools/vm/slabinfo: Add support for -C and -F options
+  slub: Enable Slab Movable Objects (SMO)
+  slub: Sort slab cache list
+  tools/vm/slabinfo: Add remote node defrag ratio output
+  slub: Add defrag_used_ratio field and sysfs support
+  tools/vm/slabinfo: Add defrag_used_ratio output
+  slub: Enable slab defragmentation using SMO
+  tools/testing/slab: Add object migration test module
+  tools/testing/slab: Add object migration test suite
+  xarray: Implement migration function for objects
+  tools/testing/slab: Add XArray movable objects tests
+  slub: Enable move _all_ objects to node
+  slub: Enable balancing slab objects across nodes
+
+ Documentation/ABI/testing/sysfs-kernel-slab |  14 +
+ include/linux/slab.h                        |  70 ++
+ include/linux/slub_def.h                    |  10 +
+ lib/radix-tree.c                            |  13 +
+ lib/xarray.c                                |  44 ++
+ mm/Kconfig                                  |   7 +
+ mm/slab_common.c                            |   6 +-
+ mm/slub.c                                   | 800 ++++++++++++++++++--
+ tools/testing/slab/Makefile                 |  10 +
+ tools/testing/slab/slub_defrag.c            | 567 ++++++++++++++
+ tools/testing/slab/slub_defrag.py           | 451 +++++++++++
+ tools/testing/slab/slub_defrag_xarray.c     | 211 ++++++
+ tools/vm/slabinfo.c                         |  51 +-
+ 13 files changed, 2172 insertions(+), 82 deletions(-)
+ create mode 100644 tools/testing/slab/Makefile
+ create mode 100644 tools/testing/slab/slub_defrag.c
+ create mode 100755 tools/testing/slab/slub_defrag.py
+ create mode 100644 tools/testing/slab/slub_defrag_xarray.c
+
+-- 
+2.21.0
 
