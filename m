@@ -2,164 +2,199 @@ Return-Path: <SRS0=92PK=RL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BFF16C43381
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 11:58:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 87861C10F09
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 12:56:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6F7BD20684
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 11:58:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F7BD20684
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 23D7020449
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Mar 2019 12:56:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 23D7020449
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1E4108E0003; Fri,  8 Mar 2019 06:58:06 -0500 (EST)
+	id 7FB1D8E0003; Fri,  8 Mar 2019 07:56:10 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 196438E0002; Fri,  8 Mar 2019 06:58:06 -0500 (EST)
+	id 7AC248E0002; Fri,  8 Mar 2019 07:56:10 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 085448E0003; Fri,  8 Mar 2019 06:58:06 -0500 (EST)
+	id 69A6A8E0003; Fri,  8 Mar 2019 07:56:10 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A49CC8E0002
-	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 06:58:05 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id u25so9668879edd.15
-        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 03:58:05 -0800 (PST)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 42D988E0002
+	for <linux-mm@kvack.org>; Fri,  8 Mar 2019 07:56:10 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id b11so15977651qka.3
+        for <linux-mm@kvack.org>; Fri, 08 Mar 2019 04:56:10 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=ff98EBAYYireNvqAi03UBURE2/pTc5yPGS5Q1xsxTmE=;
-        b=Y6YlOg28etT0EZ2tR99iiMdmlWXMrtx69FtwsB0oFGHxaMhRvjAwDq7tUfDn80+faS
-         x1EzvxJvqGjAFlwfwYQqxwnZf+M1ZSNriXGihq4mmQC5Op8sOQqzGKZnzwFUuYZNsNh8
-         i5XnzK/9Eag2hkixH5JIMLiYiUa8PMRmJg7FMCmByAUmuPG4kgCEzbN9o83x1cnvrmt4
-         ZHtaj2KrM0jL8WqOiXuZ4Zonz1rRuymMrDVbM6f1o5xbsY0PROSKXfFzsO7AHjKGH5Vv
-         hty6w1WjlZzA/GxR905TUJaXW2L+yYDdF42Qes7ddbp8Zs7SxMUZgJnuUtKhz+EodDza
-         6qRw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUQLJqVuhM2O7+j1DMQX1tQuDr8f6EspNcZxBWnPD0Xaqf4Kd6s
-	JPVFp7zxSM2htQS4RrA2VGo9hvbmLo3DV4Mgahiz7fnAV28pRbp84cxCBuphZQHsf1WOa1IR634
-	lsssQ8Lj8539wK6m/YZjG3QCsvLMG0yYRHGQvG0E+7Deu06loI8QRxOrew9r6dX4=
-X-Received: by 2002:a50:b3bc:: with SMTP id s57mr31737170edd.206.1552046285168;
-        Fri, 08 Mar 2019 03:58:05 -0800 (PST)
-X-Google-Smtp-Source: APXvYqzmumr4tDaNrlLk5lJ4n1kftDmBd3CpyOqgk8QUKlr4jx8fzDPpOHbFVgYuAlAh04qATzy0
-X-Received: by 2002:a50:b3bc:: with SMTP id s57mr31737118edd.206.1552046284328;
-        Fri, 08 Mar 2019 03:58:04 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1552046284; cv=none;
+         :content-transfer-encoding:in-reply-to;
+        bh=A+ONulh89ZRd0TBrQbX2xsE4uKRIImlni/lkNnnezk4=;
+        b=VPYYcHi8Bc4GzxH9xESfrqF9UrbzURNnLRBDLK28xCJ3f8gSK1z9OJKiO2gNzD+hnH
+         dMbDYP8PQEzFgl/TmKLYL4/FRQJyh34TAOTrrF5FPyDcELCo8soTTK18rOweHO0PvHNX
+         6V7Ub3RVEZLSKuI/FxKekdk3nggWyVeEyHomR90scLSPG4FcotpqwZlGUMn4/cwei5kD
+         YBJqXC44K9d7ybQkkrb/tjhlJGfffP5rSIh8DAtUuve5k47rin2VEm8oti7cN2zpLdj3
+         UfSjKAn2+7rAyb11SKqQLhVsaMMhkRZ/zksB3XUIkmA2SePfQ30NZ51OwIpzKMZjgpVk
+         AaZQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWvsg9yz2C0c/Argj5Yv3lmVJOvxZhp762FoFPLjqYgu/8CmWDP
+	6hFRuY3BkwE3ZsfsrPCpnuUqMJutmHFrT3zUNzo9iPLhJCvnOa182SSDawH1QAGW2NWZlt7Rw7m
+	h6Jfcd0UjYQQL9wJKN6ZysWanZFrszbw283UsVmzf3sE1sepspSXtkFmXi5lAuz/R24/dc/7rai
+	KXLnvcUIudkyuu9airg0MzL7GjH+7N1esnTPufb1WAFoJI/51WnnMSLjmLfZLIRwoJ9pRvrm41c
+	vdSqEib1h9dUD8l4sRekWP2sV6NP/jkFr5R87+nA/f27Hn1Dm/uEoE/jA6yns6knZl0ODsmocIm
+	CStWYqoYAf5Oz5ERqIiEjTp81lhIZM7r4bsYgZYogOWo2g3Aq+snRBK1G5B1rnxt32bJiOZSZhe
+	L
+X-Received: by 2002:a0c:91e1:: with SMTP id r30mr15095395qvr.136.1552049769699;
+        Fri, 08 Mar 2019 04:56:09 -0800 (PST)
+X-Received: by 2002:a0c:91e1:: with SMTP id r30mr15095344qvr.136.1552049768656;
+        Fri, 08 Mar 2019 04:56:08 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1552049768; cv=none;
         d=google.com; s=arc-20160816;
-        b=Cdezk1WXCEqVVCFhJD4hnDj9MBK/V3LhB8lj1zw8rEeJQ5oEgJ7Mqk6M5S/YHl7Syt
-         9oC9/dUUIDmW+v4eBtFPFwonB2R5fpG/lba05yVklM0q7LuIFh46NMStL4s7Z1kPupZX
-         mmkNpwR50FVC9H9Wq/pEGlzMp+S0Kc2mD6JSvffy0GeRKEtdXlP9Zf/bZq+EYT3gkliU
-         8FIY9Nd0gWBkau30Bvs0Z/qqcDqYCLaLdUlS1ig/e0OcYHiPtIjrky9F/KUOr9C98geV
-         I6rBtTIqPnq2JJDpWrS0F6q551r/ZYJyGJYg4iAoPX7jdZcTpIqRKgbwuXja630yGkzk
-         eUTw==
+        b=tZ3UErH/0kvM9WWhqvbjuX42CI8IpExijFqFwMvoIiX5AFeT8Q6wNOzrakM6UYg0oo
+         255/fs5cg2DxLFNN+iaBvC6N7EYLQuv78gN/vZihB8ujtnubZp4+nqEBqII86pkYj83y
+         MFkoPuFupfiEC2ig7u+Oj3J12Fsi5JDPRLoxnbOqpFZZ9cIvc1mdBREOf9R8w+6+7tWc
+         CENrpN92MnetKMBpwGIiy+UF9cEmrY/zl0HiuqizSLCM+liBfCbTfX5GQ7kGS5071Kyp
+         c6puURCZHxbPYy9Ee3VJ68aTYb/TRELALLizyEfeLByxkQmLAFp9kSWdrtlL0LhLRhAx
+         zt9w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=ff98EBAYYireNvqAi03UBURE2/pTc5yPGS5Q1xsxTmE=;
-        b=HoAN9rzBUUdHGMcQyqSiFBcvjQs27MvdNhO0RziEjwhL3f11No9g1R1hswyMf7aU/0
-         eOoA79B20YTctWpxClNn/0D+JBEkslGWZiY97+oYON1z+D7bTYBGLSX7t11OtMBuxFmG
-         PaoSLPQQhXiQzdipwbxDZ7KHi2ilL6w7V9lUdR+yq9CrtSIVfx6M+fDBNPvDe6SURoY/
-         8MHR80OqWZk01wOWm2SyoNLQeSn/KrjNmNB8uAiHJwG7FvGeWuOs0pRricA5HoecHaI9
-         OkSoNt2Ech3OGCCRxPiw2VIDCATtDyjjMWDQMJzsSZhwrwX/egmaRbAoIH22NQFqRXZz
-         sO7A==
+        h=in-reply-to:content-transfer-encoding:content-disposition
+         :mime-version:references:message-id:subject:cc:to:from:date;
+        bh=A+ONulh89ZRd0TBrQbX2xsE4uKRIImlni/lkNnnezk4=;
+        b=EDwRUY7crG/fULjhihtmvzazkfwOVWjRuI4kwME8rNAo4HOa6FFJQvaUC6aOFYIUkX
+         +SPNGqXdkpEM2qrX9fIrurSQZV1cCarI7N2QEZw5KlBLE4xLkrfGj6lxHLHgEEu7uUKY
+         OklepYChCvbTtp+95WBcO9+jGzp5AHkU2cVXS6ucr7qTqH9VEdoalA4NlFM8a+H3HFT/
+         FnGZnMsnXdBC6JT/XjFSdwTCqvucDIN+CYp4GAicYxcJaJjQ2TEyXcRu87RgBXNVu71w
+         h/gFKLUyr9YJV0HokK/lhUKUhhTCLRYXIywCSk5U/Q3qlw9OzKLxrDFrVqRONoHh2TtO
+         zumQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j8si1495174edh.122.2019.03.08.03.58.04
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f39sor8512348qvf.46.2019.03.08.04.56.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Mar 2019 03:58:04 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Fri, 08 Mar 2019 04:56:08 -0800 (PST)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 7AFE3ADFB;
-	Fri,  8 Mar 2019 11:58:03 +0000 (UTC)
-Date: Fri, 8 Mar 2019 12:58:02 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org,
-	Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] mm,oom: Teach lockdep about oom_lock.
-Message-ID: <20190308115802.GJ5232@dhcp22.suse.cz>
-References: <1552040522-9085-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20190308110325.GF5232@dhcp22.suse.cz>
- <0ada8109-19a7-6d9c-8420-45f32811c6aa@i-love.sakura.ne.jp>
- <20190308115413.GI5232@dhcp22.suse.cz>
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqzpMhMBKy1jpKKr6R0JL9ZfZz/BygDitVhs5ihNJGMR5qa+oBECnJQrUvrvVc+PbC/lY2Xgtw==
+X-Received: by 2002:a0c:927a:: with SMTP id 55mr14838918qvz.226.1552049768331;
+        Fri, 08 Mar 2019 04:56:08 -0800 (PST)
+Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
+        by smtp.gmail.com with ESMTPSA id j9sm2940101qki.21.2019.03.08.04.56.06
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 08 Mar 2019 04:56:07 -0800 (PST)
+Date: Fri, 8 Mar 2019 07:56:04 -0500
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Jason Wang <jasowang@redhat.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, kvm@vger.kernel.org,
+	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
+	linux-kernel@vger.kernel.org, peterx@redhat.com, linux-mm@kvack.org,
+	aarcange@redhat.com
+Subject: Re: [RFC PATCH V2 5/5] vhost: access vq metadata through kernel
+ virtual address
+Message-ID: <20190308075506-mutt-send-email-mst@kernel.org>
+References: <1551856692-3384-1-git-send-email-jasowang@redhat.com>
+ <1551856692-3384-6-git-send-email-jasowang@redhat.com>
+ <20190307103503-mutt-send-email-mst@kernel.org>
+ <20190307124700-mutt-send-email-mst@kernel.org>
+ <20190307191720.GF3835@redhat.com>
+ <43408100-84d9-a359-3e78-dc65fb7b0ad1@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190308115413.GI5232@dhcp22.suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <43408100-84d9-a359-3e78-dc65fb7b0ad1@redhat.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 08-03-19 12:54:13, Michal Hocko wrote:
-> [Cc Petr for the lockdep part - the patch is
-> http://lkml.kernel.org/r/1552040522-9085-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp]
-
-now for real.
-
-> On Fri 08-03-19 20:29:46, Tetsuo Handa wrote:
-> > On 2019/03/08 20:03, Michal Hocko wrote:
-> > > On Fri 08-03-19 19:22:02, Tetsuo Handa wrote:
-> > >> Since we are not allowed to depend on blocking memory allocations when
-> > >> oom_lock is already held, teach lockdep to consider that blocking memory
-> > >> allocations might wait for oom_lock at as early location as possible, and
-> > >> teach lockdep to consider that oom_lock is held by mutex_lock() than by
-> > >> mutex_trylock().
+On Fri, Mar 08, 2019 at 04:58:44PM +0800, Jason Wang wrote:
+> 
+> On 2019/3/8 上午3:17, Jerome Glisse wrote:
+> > On Thu, Mar 07, 2019 at 12:56:45PM -0500, Michael S. Tsirkin wrote:
+> > > On Thu, Mar 07, 2019 at 10:47:22AM -0500, Michael S. Tsirkin wrote:
+> > > > On Wed, Mar 06, 2019 at 02:18:12AM -0500, Jason Wang wrote:
+> > > > > +static const struct mmu_notifier_ops vhost_mmu_notifier_ops = {
+> > > > > +	.invalidate_range = vhost_invalidate_range,
+> > > > > +};
+> > > > > +
+> > > > >   void vhost_dev_init(struct vhost_dev *dev,
+> > > > >   		    struct vhost_virtqueue **vqs, int nvqs, int iov_limit)
+> > > > >   {
+> > > > I also wonder here: when page is write protected then
+> > > > it does not look like .invalidate_range is invoked.
+> > > > 
+> > > > E.g. mm/ksm.c calls
+> > > > 
+> > > > mmu_notifier_invalidate_range_start and
+> > > > mmu_notifier_invalidate_range_end but not mmu_notifier_invalidate_range.
+> > > > 
+> > > > Similarly, rmap in page_mkclean_one will not call
+> > > > mmu_notifier_invalidate_range.
+> > > > 
+> > > > If I'm right vhost won't get notified when page is write-protected since you
+> > > > didn't install start/end notifiers. Note that end notifier can be called
+> > > > with page locked, so it's not as straight-forward as just adding a call.
+> > > > Writing into a write-protected page isn't a good idea.
+> > > > 
+> > > > Note that documentation says:
+> > > > 	it is fine to delay the mmu_notifier_invalidate_range
+> > > > 	call to mmu_notifier_invalidate_range_end() outside the page table lock.
+> > > > implying it's called just later.
+> > > OK I missed the fact that _end actually calls
+> > > mmu_notifier_invalidate_range internally. So that part is fine but the
+> > > fact that you are trying to take page lock under VQ mutex and take same
+> > > mutex within notifier probably means it's broken for ksm and rmap at
+> > > least since these call invalidate with lock taken.
 > > > 
-> > > I do not understand this. It is quite likely that we will have multiple
-> > > allocations hitting this path while somebody else might hold the oom
-> > > lock.
-> > 
-> > The thread who succeeded to hold oom_lock must not involve blocking memory
-> > allocations. It is explained in the comment before get_page_from_freelist().
-> 
-> Yes this is correct.
-> 
-> > > What kind of problem does this actually want to prevent? Could you be
-> > > more specific please?
-> > 
-> > e.g.
-> > 
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -3688,6 +3688,7 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
-> >          * attempt shall not depend on __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
-> >          * allocation which will never fail due to oom_lock already held.
-> >          */
-> > +       kfree(kmalloc(PAGE_SIZE, GFP_NOIO));
-> >         page = get_page_from_freelist((gfp_mask | __GFP_HARDWALL) &
-> >                                       ~__GFP_DIRECT_RECLAIM, order,
-> >                                       ALLOC_WMARK_HIGH|ALLOC_CPUSET, ac);
+> > > And generally, Andrea told me offline one can not take mutex under
+> > > the notifier callback. I CC'd Andrea for why.
+> > Correct, you _can not_ take mutex or any sleeping lock from within the
+> > invalidate_range callback as those callback happens under the page table
+> > spinlock. You can however do so under the invalidate_range_start call-
+> > back only if it is a blocking allow callback (there is a flag passdown
+> > with the invalidate_range_start callback if you are not allow to block
+> > then return EBUSY and the invalidation will be aborted).
 > > 
 > > 
-> > Since https://lore.kernel.org/lkml/20190308013134.GB4063@jagdpanzerIV/T/#u made me
-> > worry that we might by error introduce such dependency in near future, I propose
-> > this change as a proactive protection.
+> > > That's a separate issue from set_page_dirty when memory is file backed.
+> > If you can access file back page then i suggest using set_page_dirty
+> > from within a special version of vunmap() so that when you vunmap you
+> > set the page dirty without taking page lock. It is safe to do so
+> > always from within an mmu notifier callback if you had the page map
+> > with write permission which means that the page had write permission
+> > in the userspace pte too and thus it having dirty pte is expected
+> > and calling set_page_dirty on the page is allowed without any lock.
+> > Locking will happen once the userspace pte are tear down through the
+> > page table lock.
 > 
-> OK, that makes sense to me. I cannot judge the implementation because I
-> am not really familiar with lockdep machinery. Could you explain how it
-> doesn't trigger for all other allocations?
 > 
-> Also why it is not sufficient to add the lockdep annotation prior to the
-> trylock in __alloc_pages_may_oom?
+> Can I simply can set_page_dirty() before vunmap() in the mmu notifier
+> callback, or is there any reason that it must be called within vumap()?
 > 
-> -- 
-> Michal Hocko
-> SUSE Labs
+> Thanks
 
--- 
-Michal Hocko
-SUSE Labs
+
+I think this is what Jerome is saying, yes.
+Maybe add a patch to mmu notifier doc file, documenting this?
+
+
+> 
+> > 
+> > > It's because of all these issues that I preferred just accessing
+> > > userspace memory and handling faults. Unfortunately there does not
+> > > appear to exist an API that whitelists a specific driver along the lines
+> > > of "I checked this code for speculative info leaks, don't add barriers
+> > > on data path please".
+> > Maybe it would be better to explore adding such helper then remapping
+> > page into kernel address space ?
+> > 
+> > Cheers,
+> > Jérôme
 
