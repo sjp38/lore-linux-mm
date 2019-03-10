@@ -2,172 +2,145 @@ Return-Path: <SRS0=tu4S=RN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 17128C43381
-	for <linux-mm@archiver.kernel.org>; Sun, 10 Mar 2019 20:01:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2CFDCC43381
+	for <linux-mm@archiver.kernel.org>; Sun, 10 Mar 2019 20:02:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A0BF520652
-	for <linux-mm@archiver.kernel.org>; Sun, 10 Mar 2019 20:01:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DB6A520652
+	for <linux-mm@archiver.kernel.org>; Sun, 10 Mar 2019 20:02:04 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="bc2gNDeY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A0BF520652
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="ewyfIUGw"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB6A520652
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3CC708E0005; Sun, 10 Mar 2019 16:01:16 -0400 (EDT)
+	id 948EB8E0006; Sun, 10 Mar 2019 16:02:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 37A1B8E0002; Sun, 10 Mar 2019 16:01:16 -0400 (EDT)
+	id 91EE28E0002; Sun, 10 Mar 2019 16:02:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 292418E0005; Sun, 10 Mar 2019 16:01:16 -0400 (EDT)
+	id 8377F8E0006; Sun, 10 Mar 2019 16:02:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0076A8E0002
-	for <linux-mm@kvack.org>; Sun, 10 Mar 2019 16:01:15 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id z13so2836943qkf.14
-        for <linux-mm@kvack.org>; Sun, 10 Mar 2019 13:01:15 -0700 (PDT)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 163CB8E0002
+	for <linux-mm@kvack.org>; Sun, 10 Mar 2019 16:02:04 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id h14so649236lja.11
+        for <linux-mm@kvack.org>; Sun, 10 Mar 2019 13:02:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=cJzQZJGS3u6X82yZ/MtBJfkke08BS/hFxdt9Bk28ewU=;
-        b=TenQXCdUDMlZmzglgTsK3VTSSYqPdSk0lS+pw3qy3w3SAmJyJJWO+VUNSs/RptaV3G
-         dEJTZyL9/XKaRUad2E1L+ldf0+fdkaR2dSmtFxMez1dFLQT9C8X3AQAFNt64X2SQu8kj
-         gQCU0nX9Fc+O9DofJXnurL8X9eP/15uw85LW9cuEhSwhSXMZFHUPLy4CMh5uVS2Jttt6
-         hzqsjGgJpWQsFfW9fqdNU7YGXelB0kFp4fR2TVyrNG23mU6xIA2CR2jX92gr6wmX37XR
-         2eLv73+w3S0T5afLmvvIT5BtFZr3iqHbKTTWpZpk/UowK95VxH7h41oPOYvA+dJdEQur
-         I6pg==
-X-Gm-Message-State: APjAAAUExC8bjySegzZvNSagZPHdIWD9uwEVCZkR/hOXQrdjIMH4SX9Y
-	lYFOnTz46G69b15yG0XpFbThgRe7pVV4CHT+xGQ7z/yGGYo0GJSBQvoL3+GkXZvMyZ7mSEfQg69
-	AqwBF381bykNYd+ue/NfIyp9NXuedBVE3auZ2Ifxf0Wahnn4+ivLiblV+wNKbeL0Fwhz2g75uvj
-	L3w3wDnLDzqIKiku+KJXxnq5REwZeu2/wStLsyNhNkdI2dokutu2asx4U/q8fC6NfUg+kKYgu8m
-	9oFG9r10zJ6Y9rTMuC2fJ26Nnk0BvTnriJI9BOhrNLCr76fIDp2FGfzalsNnv0k9jxZwR7yQQ5b
-	K29gu+vxlRhtXQuxRtCC2w28Mv8HaJGgZjoLMFqoOEMERboBR6fg9ZVdpHORegPc0HV157AVtUa
-	0
-X-Received: by 2002:a05:620a:10b2:: with SMTP id h18mr6267753qkk.211.1552248075658;
-        Sun, 10 Mar 2019 13:01:15 -0700 (PDT)
-X-Received: by 2002:a05:620a:10b2:: with SMTP id h18mr6267715qkk.211.1552248074836;
-        Sun, 10 Mar 2019 13:01:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552248074; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=RwbjVaBjZI45PpSmnw9Xlin3P9fcUPM1xOoSmpv1WFs=;
+        b=Tqg9i/lJh4R7MUmxin/kH4X2msKZQe8AiMDqaTNdrNapH2sQxxYzMryPK/xMRuimuN
+         PhBHQtd9wpCfgmeecgzLyeEwPWP/ALGigfWJLvpRejWwNoBdJM5xDMcm9zd/e5+hnqDy
+         sAGZiJA8v2edZPd8AGARdLxrvBP+4e7q9cgoPorXfluerSaFSAtHY4kzIQS3Fonzg+SJ
+         iew6wZveNRBgHtUqsIuEbjGlF7VrxsaebnzHaYy81Xz7aNkxd3ObrBadGVOP0nwBqE0h
+         B4gpXyXDOT3Oc9pLBVeUuV+msuw3CZ75zc+URy1hUa4ea2Sul1MZJLI0dbsqE6N7VEqR
+         735Q==
+X-Gm-Message-State: APjAAAVlh7nRzGFz5Uyb+EO1r6mi3AoV9Ws0+v9yJyQvNy8BzQ8p2E8Z
+	JH7zC7C+fjmvJvoIPk+Fv387ZAadLTUwHXqga3JUG873jQ2HFRM7OJ+LFknACU0Ot4mA1rFK145
+	7kg7X9Lpso3Um+nmlTUPHBr4u2DFPQQdYiSuJiNGTNTx6CTLfFsvNDe+szqrJFb/Vpwmx/LAxfQ
+	gIRC6kDNayK0HUUE+L92VhAc/0GNZ7GTcqty3A9dE/my6WgtAl2aijsAJSca/F758hrHROLYYlX
+	lvLQoklSik5B7BvNCN6SQSa5eVFWjUXgZWb0A8n7QqqYkGWvrCYlPql2/39pVC+k0+THzeGGa1h
+	v1K5AuPX+T0LaFBRg0wk4YC6qWthepKNAy4qxpXQVTbE9869QdYuA6jBGUEFXsF9mm55tm6P6A2
+	m
+X-Received: by 2002:a2e:251:: with SMTP id 78mr14616352ljc.90.1552248123130;
+        Sun, 10 Mar 2019 13:02:03 -0700 (PDT)
+X-Received: by 2002:a2e:251:: with SMTP id 78mr14616328ljc.90.1552248122271;
+        Sun, 10 Mar 2019 13:02:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552248122; cv=none;
         d=google.com; s=arc-20160816;
-        b=F5NjD1+CjEb1YkqnnZN7IYCpxQRzYHZqEAjvbK59LKRbYA804o+N1Ln+D//kVRtRyw
-         243FVtpwH/tcLy93snJxqVqsxtcz1ywJDEfeqloBQFj98HSjGf+1u+msI8sjyrBVsWy1
-         ZmgYPhvgsgN2bxQkyobQwel1vYp0LVznvPq6XFCE4ynj7XBsKeCTSUBSlp3jiiEwZT05
-         LWwveO5oDKghVa3KSB8oxp2hywdX3zN+pZbRyKeIk5Qgb5BuHEVcVMA5TU9Nt9qGrjOa
-         28iNrqNx6EYOBFnDy04GI4GLXbck13vpga2Cg0N/p1SfcftdponmPg3z32TwvjQckKzn
-         8qtw==
+        b=tPqsTAyhV8YrXKF6f5l7dUbOgNBFbW5MVXEhM+XOGjf6b14WC39gYhCAHjb3PptaOc
+         HrD+gTd89sTJ6nnx2O7Qvs7/+Hp6ErKCB8avF9UwIpkGGUvGAF0+Yq8WAHCNBp2W/QZn
+         sjrYRaoYwaaxfoLmxcN0WAr5ceVLz79IWE+iiAX2Gjs87MwH5pi1MVQObBGuCm9MzURP
+         VnJKtN1YNXXcnZyvQWAe20RmeN5bqdEp5tpQn+7snC8+YiZemiTBikasakrqB0vUNlf7
+         Re/AwTsGq5pAkWFAsYqyurLgaGn69TQD507yMTtedlshBHrlpgwKT1Jil9bqHxnUBSgQ
+         VXZQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=cJzQZJGS3u6X82yZ/MtBJfkke08BS/hFxdt9Bk28ewU=;
-        b=mFEXlWY5g02TqT5kAVheLy/oG1cOrPI51AdG4uSH03ZvVfN/53PEr1ldqxjs1Z2Lqd
-         TGzZJYHN7YZzPNPRlb/0Qcflkg63AWFsweBkEGMdfyW+LXnYQ8XkKUg+fVNnwSlZfdRN
-         i2L6LueW2REaO0Bm/IkVSPH7E1SKOif8yk6Gh2QDCj15WGXoDFN+S31Tg3T0dlc9ujyL
-         JaNg+QtB8O6K/ysBJsMenZhrn7Zdy7FENqNHQesEHf5DGjc98p9eSJZheYKzALyjcFbU
-         KqLFUL10nfFkU3lPFCYx0AUkXfz4VJcP+8hvn/aL0+1vuKW71FR8oKfaWyBeDt42t/SW
-         OVmw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=RwbjVaBjZI45PpSmnw9Xlin3P9fcUPM1xOoSmpv1WFs=;
+        b=qQmeRfzw13Fg7751Dvwakt9zE/rej6H4Kic3hKUXRuYH4forhs0uJybgicCWphGE9t
+         KtDPJ11OS2towSLCaMxep9JAP7S7cwaXyDXeg7izP4omZ/rjtXB9GGa6nnRYXTc3F3Pz
+         SFmbEy9HWmh17U5R61Pw6XcpAhhXK6P6Q8o/BZPWn698G+NjMtDeie7QxASB9HJUb3IY
+         c3mXc1Iail/ZXpGMuSC9XKJ7NBplJyBVp+2FHyd8/MSo6yE9LunmqQqBefbbQ+1mI7Gc
+         02MGDrF21IFjK4vsqOK/A4yCVIcXrQpj6/f30RY+vak7sCHbrCIdPBV6y5C3mMEZQfx9
+         dzAg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=bc2gNDeY;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=ewyfIUGw;
+       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e27sor4025327qvh.65.2019.03.10.13.01.14
+        by mx.google.com with SMTPS id v87sor1325085lje.22.2019.03.10.13.02.01
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 10 Mar 2019 13:01:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Sun, 10 Mar 2019 13:02:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=bc2gNDeY;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=ewyfIUGw;
+       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=from:to:cc:subject:date:message-id;
-        bh=cJzQZJGS3u6X82yZ/MtBJfkke08BS/hFxdt9Bk28ewU=;
-        b=bc2gNDeYf6gDx3Yr3oQIeqvlH4mJsYHUhfZ1+LC+UjBPBRDDX5hwmcC+qNhr5HcH4p
-         xE89kZjSVpwK2nAfwhyP0W1GrZr/pOCLlncHTInpN0FUTPKX5usrc6ffiwTCwb9dNO+m
-         rSjfRu2emN1m4XZT6uksSk7mchCKi7fe/Efl7+ATZEUIiSnMa2rwDXpi4LHlriEkNPMo
-         FWTtsdDolQZDYnKo6Q2v89MWozhanuIeFTTYVd6ZNyUV6t9+1xgkCr+Xh3o5jxuYJoVg
-         HLgp2gmTuSIVfKDv8SJfIVeQ0FUb/gNUibpOmvfrCrhcmI6StAHlS4Zd0nZfAq62AgHT
-         kMxA==
-X-Google-Smtp-Source: APXvYqy43fpnSl61MlAaf6NcvNVwq1vbUnCoIdIqy0jXzR5xcuDTtfUMGWMtYF/5yU3isT1d1VT2Sg==
-X-Received: by 2002:ad4:5190:: with SMTP id b16mr2614239qvp.100.1552248074382;
-        Sun, 10 Mar 2019 13:01:14 -0700 (PDT)
-Received: from ovpn-121-103.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id s76sm2263077qki.42.2019.03.10.13.01.13
+        d=linux-foundation.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=RwbjVaBjZI45PpSmnw9Xlin3P9fcUPM1xOoSmpv1WFs=;
+        b=ewyfIUGwAK2fYQ0/fgJSxZvDXnRz/KigyMZQj+N5yGgaFqZxUL+cfJsHlOyxSc+d8w
+         r5M7lHrUm9YEBxmcstuML6Xz/zsJYfmknk2kx+lyrYsY/LWN1M/PoNRgKYFkKXTbLwuQ
+         e3tfBZKnQNUPLaadV6RptIF3zc1xiEs0OaTQ4=
+X-Google-Smtp-Source: APXvYqx9ouNujF+oQhUSY7gZxXw1y3MKn57gGwhnjT2IdbzTLqPPsLv76Djt4b2wrwB5Hl7m56NEGw==
+X-Received: by 2002:a2e:9e57:: with SMTP id g23mr14417033ljk.124.1552248120811;
+        Sun, 10 Mar 2019 13:02:00 -0700 (PDT)
+Received: from mail-lf1-f51.google.com (mail-lf1-f51.google.com. [209.85.167.51])
+        by smtp.gmail.com with ESMTPSA id u15sm661063lja.73.2019.03.10.13.01.59
+        for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 10 Mar 2019 13:01:13 -0700 (PDT)
-From: Qian Cai <cai@lca.pw>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com,
-	vbabka@suse.cz,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Qian Cai <cai@lca.pw>
-Subject: [RESEND PATCH] mm/hotplug: don't reset pagetype flags for offline
-Date: Sun, 10 Mar 2019 16:01:02 -0400
-Message-Id: <20190310200102.88014-1-cai@lca.pw>
-X-Mailer: git-send-email 2.17.2 (Apple Git-113)
+        Sun, 10 Mar 2019 13:02:00 -0700 (PDT)
+Received: by mail-lf1-f51.google.com with SMTP id f16so1829547lfk.12
+        for <linux-mm@kvack.org>; Sun, 10 Mar 2019 13:01:59 -0700 (PDT)
+X-Received: by 2002:ac2:5542:: with SMTP id l2mr13312531lfk.136.1552248119399;
+ Sun, 10 Mar 2019 13:01:59 -0700 (PDT)
+MIME-Version: 1.0
+References: <CAPcyv4he0q_FdqqiXarp0bXjcggs8QZX8Od560E2iFxzCU3Qag@mail.gmail.com>
+In-Reply-To: <CAPcyv4he0q_FdqqiXarp0bXjcggs8QZX8Od560E2iFxzCU3Qag@mail.gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Sun, 10 Mar 2019 13:01:43 -0700
+X-Gmail-Original-Message-ID: <CAHk-=wjvmwD_0=CRQtNs5RBh8oJwrriXDn+XNWOU=wk8OyQ5ew@mail.gmail.com>
+Message-ID: <CAHk-=wjvmwD_0=CRQtNs5RBh8oJwrriXDn+XNWOU=wk8OyQ5ew@mail.gmail.com>
+Subject: Re: [GIT PULL] device-dax for 5.1: PMEM as RAM
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	Linux MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The commit f1dd2cd13c4b ("mm, memory_hotplug: do not associate hotadded
-memory to zones until online") introduced move_pfn_range_to_zone() which
-calls memmap_init_zone() during onlining a memory block.
-memmap_init_zone() will reset pagetype flags and makes migrate type to
-be MOVABLE.
+On Sun, Mar 10, 2019 at 12:54 PM Dan Williams <dan.j.williams@intel.com> wrote:
+>
+> Hi Linus, please pull from:
+>
+>   git://git.kernel.org/pub/scm/linux/kernel/git/nvdimm/nvdimm
+> tags/devdax-for-5.1
+>
+> ...to receive new device-dax infrastructure to allow persistent memory
+> and other "reserved" / performance differentiated memories, to be
+> assigned to the core-mm as "System RAM".
 
-However, in __offline_pages(), it also call undo_isolate_page_range()
-after offline_isolated_pages() to do the same thing. Due to
-the commit 2ce13640b3f4 ("mm: __first_valid_page skip over offline
-pages") changed __first_valid_page() to skip offline pages,
-undo_isolate_page_range() here just waste CPU cycles looping around the
-offlining PFN range while doing nothing, because __first_valid_page()
-will return NULL as offline_isolated_pages() has already marked all
-memory sections within the pfn range as offline via
-offline_mem_sections().
+I'm not pulling this until I get official Intel clarification on the
+whole "pmem vs rep movs vs machine check" behavior.
 
-Also, after calling the "useless" undo_isolate_page_range() here, it
-reaches the point of no returning by notifying MEM_OFFLINE. Those pages
-will be marked as MIGRATE_MOVABLE again once onlining. In addition, fix
-an incorrect comment along the way.
+Last I saw it was deadly and didn't work, and we have a whole "mc-safe
+memory copy" thing for it in the kernel because repeat string
+instructions didn't work correctly on nvmem.
 
-Signed-off-by: Qian Cai <cai@lca.pw>
----
- mm/memory_hotplug.c | 2 --
- mm/sparse.c         | 2 +-
- 2 files changed, 1 insertion(+), 3 deletions(-)
+No way am I exposing any users to something like that.
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 6b05576fb4ec..46017040b2f8 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1655,8 +1655,6 @@ static int __ref __offline_pages(unsigned long start_pfn,
- 	/* Ok, all of our target is isolated.
- 	   We cannot do rollback at this point. */
- 	offline_isolated_pages(start_pfn, end_pfn);
--	/* reset pagetype flags and makes migrate type to be MOVABLE */
--	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
- 	/* removal success */
- 	adjust_managed_page_count(pfn_to_page(start_pfn), -offlined_pages);
- 	zone->present_pages -= offlined_pages;
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 77a0554fa5bd..b3771f35a0ed 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -556,7 +556,7 @@ void online_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--/* Mark all memory sections within the pfn range as online */
-+/* Mark all memory sections within the pfn range as offline */
- void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
- {
- 	unsigned long pfn;
--- 
-2.17.2 (Apple Git-113)
+We need a way to know when it works and when it doesn't, and only do
+it when it's safe.
+
+                    Linus
 
