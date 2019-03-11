@@ -2,129 +2,147 @@ Return-Path: <SRS0=4gxf=RO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 85058C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 14:20:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A02E6C10F06
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 14:45:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4BED62075C
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 14:20:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4BED62075C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arndb.de
+	by mail.kernel.org (Postfix) with ESMTP id 4DB7620657
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 14:45:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4DB7620657
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CC4838E0003; Mon, 11 Mar 2019 10:20:23 -0400 (EDT)
+	id 92C3F8E0003; Mon, 11 Mar 2019 10:45:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C71B88E0002; Mon, 11 Mar 2019 10:20:23 -0400 (EDT)
+	id 8D9C58E0002; Mon, 11 Mar 2019 10:45:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B87298E0003; Mon, 11 Mar 2019 10:20:23 -0400 (EDT)
+	id 7C9AE8E0003; Mon, 11 Mar 2019 10:45:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EA278E0002
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 10:20:23 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id g17so1474833qte.17
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 07:20:23 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 24AAD8E0002
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 10:45:30 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id o9so2154028edh.10
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 07:45:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :references:in-reply-to:from:date:message-id:subject:to:cc;
-        bh=1Y3MYVOh5XrWx8jyQqXUdSXlpmDeQ4BYs/m6bZ/MDUg=;
-        b=gCzj4STERBslM6xd47XtbYuwL59dBrHWj7LH/THHAR/G6tH80yVe5KC7JJGaxlm3Cu
-         qoGut8XYQ8auBm9JfjwXmCUNwu8+zLBaNxHq4fbEbMYIxajQ4VBm3GbhyiuITEyxgyZg
-         7e/SYgmhO6K66EcexdMtyb4TNzSC/Iludg6VOAxIgkYNTNskfHoYSfb9HhARGqZtoQHw
-         jVALn2qc52Q72vK/GJ3RZhLhO500vU5EA+Zy6AsvWi4Lf7g4jovSD37gibZpAuZFYryF
-         rnpy1TUfdmKnDWgqYnXiRHfYN34bnuC6DokoftOdfZWSUivSp+2ZeJzyCtb0pmouAXwm
-         o9/A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
-X-Gm-Message-State: APjAAAUszl3EwSDabEDdiZS7kjtTxMw+IZkc/KJLygswTJwQ2Z/1lXYN
-	eszFJbM99xdx8jNz4Nl+c3EAJG0HqIv4OR53ae50jv8ZMsbbsuSHZ/IMatPtR65Ta7eCMCoMZjJ
-	jJwI8TJ5bl16keTfdLw7KKnwTqK/Lu/N030dmWCjJ7VuYd+UzJST7ro4HFBo+yQV/qz2lvGR53d
-	ksH0ee66daS1MCL779wTA0PTy1mKpTnsW1NfNKXk8BLA+5utFI+kcW2tW5aN5n7gblLY5CIaLdM
-	eulYM5v5g12qn48dygUlL3ElxAXdi+biaFwkPgu1m6V49Sv7prJqVXW1CkxDcnXsfEfS3N980nh
-	3Aqy1Ig2j3qQr5P6xICZqbl07tlGpvBn+pa0sR5FoTgNn6JaxLZUQyfF3FZIhQ+/bxcSnG3YJg=
-	=
-X-Received: by 2002:a05:620a:1189:: with SMTP id b9mr9266536qkk.44.1552314023432;
-        Mon, 11 Mar 2019 07:20:23 -0700 (PDT)
-X-Received: by 2002:a05:620a:1189:: with SMTP id b9mr9266463qkk.44.1552314022378;
-        Mon, 11 Mar 2019 07:20:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552314022; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=l+70bmUqVAHUvk1TSJTAp5bmdCxhjc87upuAYRQHNPM=;
+        b=OU26mfgciy/liwzHhYj8XZEDuOKj9dx/HUuaX500XoQaacLdvvbvGC4/DMjLyJjYbB
+         BH94tt0ytdJDzvPZ3o5c3yaZxdJNnTtl3AKszvGrszujDOoFry+lUt4eZGDkZSeZO3Ut
+         kHAn2gwjot2Co6wBjpQV0JVRpswPxMsIEKqp95dvTMF9iAcdwluS8NzpDg91EgkMxRez
+         bls55PhT0NaMfYc3x3U4MWpUV56yYH3v1FtV3wDKMlCIx4gigjzhVDRaUhch7uUZzFsE
+         oIojDml4e9Ye/EdGLWfgz5FxFx+hRoyNr9gO5gKDq5Ufoe+dSK9CQN8KtSjGppBEgW0r
+         xAiw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Gm-Message-State: APjAAAW7aSU+/FYAj31NM3fhj3LQhvsZ+R+R8WL5rR0I8nxM7tWWK5jW
+	93pNugG5d5DUBFitM/yN9DxT9shMOth9Els3v6yOo4Dyo1vTwjX9sfy9rkOdR5jQNj5J/0hUIxb
+	WsOnNM6tFxzO9gqxfKWGVS1TJqW016rgNpXcRy5oJT4i4eAKSIsry9ECK/5ik1qWcYw==
+X-Received: by 2002:a50:978e:: with SMTP id e14mr42541600edb.234.1552315529723;
+        Mon, 11 Mar 2019 07:45:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqykPWXvdJhBmKPDt0RK50I/U2qU0xoYPaRR/g9f4LYq/AzFBY+qlwglUVpCcT4/l6tU6Edq
+X-Received: by 2002:a50:978e:: with SMTP id e14mr42541540edb.234.1552315528720;
+        Mon, 11 Mar 2019 07:45:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552315528; cv=none;
         d=google.com; s=arc-20160816;
-        b=pao5zQHomIFTxVBPOgzwK+P0vRwf0KiEgOJkohbAEYwEFjR27hdekBOzpuM6yFp4lz
-         UiEF+hwBj521VdFhT2AlkeI3X1aHrzFBsFJNEZC/1ic0JzGcV6AHpiiEZxaPUdn741IW
-         1xx/VWBPaoKB+N4OTmk0IklHGDiO1Emuj0LZ74F8iXD2y7tda7rDAWbGRakvRSj6u91C
-         H4AuA0Vj0IPDQ6tQ+h4vC0q+LSgbYqMHNzg63HxD/PUMpN0J3uOKORc14ZtKBtcZedCW
-         tVcsR/bQqf0yZPDLEGZIoCxCHulozZxpBE306ZRpdMPr40RjIeJFahto2yLXhX74Nw+h
-         w5pA==
+        b=qLJDHe/N5yUqm1jHsPRM8Z4B2u3SRDZagdeOS4ctmsR0Gj0dBuU4NDXJrtjRxsab4y
+         CGBfaL0tRRdxefjTILIPN9HJtt22q9CSfKYvOoIXfsf+UULSzh+ePj4dD0aAawggiop1
+         sFfWlQDbvvJd0BZ+fZGFd/6NaW6zOIk2win2d72ASBErzZbS7xjvXrEjElmNVQa+p0Rg
+         A91loEYUMTt9gP7TceQM4maYexOuovROva9LQMp5DWjtXxdjz1vR4+d96m7gVmPu8CjW
+         aLVxaOErRimGpUh5LwPPgH/ZiG/T1yQ8tZw5vEvJh2hWgL1rYEqqQK/phLTDJFQdOdsx
+         YMLA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version;
-        bh=1Y3MYVOh5XrWx8jyQqXUdSXlpmDeQ4BYs/m6bZ/MDUg=;
-        b=ivUutXWaBg8MtLTahMYHY+wmiRfvQztxpS6X/J9XqmmeqpCf5J6GjUQBT0Qh6RM5gA
-         SCKUQYB4GcvDUTg2DijLRg7kxMRqYg77Pp7O+WFioLoaiuIAg1R4M0rAU7GzBnJ/mc6t
-         00lPlsr6RdR7VijwgRt8AJ6Sm4awdynGqNELW8WcoNdaSpArOWvqEXCUcfZI9Zm2RZbt
-         ApbMOfJnB02rhEO+403XgIV5/Fxh3ImdKlbVTVLB8YISKDfDJsB4KQY80VPi2PGlIqb0
-         OLz8PNeBIs1FoK1hqsvVIQcI6r6Jc1POpk0Y27d6zacrQ4xaBOLCTAsZo0ZcerupZgII
-         v0ww==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=l+70bmUqVAHUvk1TSJTAp5bmdCxhjc87upuAYRQHNPM=;
+        b=Fq9ONJjsmZv88MFHJwmEriOt1NpiXCIQrr7MHg1AG6ON9mAMOjoB6LRBBG68RMtShn
+         BuVw/LLvJyIFLpHTVhVZMKkIX4bvWer7KT+FF3HJoKQLP+Gr4jRrAvdEFFAdlO0Rq1uL
+         R8mHJ+HcNNXi93m6is+oboIFeGkhFG+u+bafJLrexrVbCjpBHF7xyjCy4UKyNMiIpayp
+         AIQxQ13Nb6i2O8fNs8yh0cU+Gp2Nr2GlnIL1i+ScNAI7w+bITL+8+S18SHy5u9XZyseP
+         ss8puSTk7UXx6gu1ICg8CwsNRsnmrhZUYKu9Bsjob9w6sjtgUKapG/G4ljM2OoXdetgL
+         6f0A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j76sor3311122qke.88.2019.03.11.07.20.22
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l26si544117ejs.214.2019.03.11.07.45.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 11 Mar 2019 07:20:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Mar 2019 07:45:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
-X-Google-Smtp-Source: APXvYqwEkNkObrgu0s7jgf1NG7rEFN32sPNQ5/QbDS3VJOqC4lzuD8NgGXPrL7k6qfcPkHcn4TLzbDTZ2u/bnfvHI6s=
-X-Received: by 2002:a05:620a:158c:: with SMTP id d12mr7991661qkk.173.1552314021843;
- Mon, 11 Mar 2019 07:20:21 -0700 (PDT)
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id E1BFAAFBB;
+	Mon, 11 Mar 2019 14:45:27 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id 594E51E426A; Mon, 11 Mar 2019 15:45:27 +0100 (CET)
+Date: Mon, 11 Mar 2019 15:45:27 +0100
+From: Jan Kara <jack@suse.cz>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Jerome Glisse <jglisse@redhat.com>,
+	"Michael S. Tsirkin" <mst@redhat.com>,
+	Jason Wang <jasowang@redhat.com>, kvm@vger.kernel.org,
+	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
+	linux-kernel@vger.kernel.org, peterx@redhat.com, linux-mm@kvack.org,
+	Jan Kara <jack@suse.cz>
+Subject: Re: [RFC PATCH V2 5/5] vhost: access vq metadata through kernel
+ virtual address
+Message-ID: <20190311144527.GM11553@quack2.suse.cz>
+References: <1551856692-3384-1-git-send-email-jasowang@redhat.com>
+ <1551856692-3384-6-git-send-email-jasowang@redhat.com>
+ <20190306092837-mutt-send-email-mst@kernel.org>
+ <15105894-4ec1-1ed0-1976-7b68ed9eeeda@redhat.com>
+ <20190307101708-mutt-send-email-mst@kernel.org>
+ <20190307190910.GE3835@redhat.com>
+ <20190307193838.GQ23850@redhat.com>
+ <20190307201722.GG3835@redhat.com>
+ <20190307212717.GS23850@redhat.com>
 MIME-Version: 1.0
-References: <20190310183051.87303-1-cai@lca.pw> <20190311035815.kq7ftc6vphy6vwen@linux-r8p5>
- <20190311122100.GF22862@mellanox.com> <1552312822.7087.11.camel@lca.pw>
-In-Reply-To: <1552312822.7087.11.camel@lca.pw>
-From: Arnd Bergmann <arnd@arndb.de>
-Date: Mon, 11 Mar 2019 15:20:04 +0100
-Message-ID: <CAK8P3a0QB7+oPz4sfbW_g2EGZZmC=LMEnkMNLCW_FD=fEZoQPA@mail.gmail.com>
-Subject: Re: [PATCH] mm/debug: add a cast to u64 for atomic64_read()
-To: Qian Cai <cai@lca.pw>
-Cc: Jason Gunthorpe <jgg@mellanox.com>, 
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mark Rutland <mark.rutland@arm.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190307212717.GS23850@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 11, 2019 at 3:00 PM Qian Cai <cai@lca.pw> wrote:
->
-> On Mon, 2019-03-11 at 12:21 +0000, Jason Gunthorpe wrote:
-> > On Sun, Mar 10, 2019 at 08:58:15PM -0700, Davidlohr Bueso wrote:
-> > > On Sun, 10 Mar 2019, Qian Cai wrote:
-> >
-> > Not saying this patch shouldn't go ahead..
-> >
-> > But is there a special reason the atomic64*'s on ppc don't use the u64
-> > type like other archs? Seems like a better thing to fix than adding
-> > casts all over the place.
-> >
->
-> A bit of history here,
->
-> https://patchwork.kernel.org/patch/7344011/#15495901
+On Thu 07-03-19 16:27:17, Andrea Arcangeli wrote:
+> > driver that GUP page for hours/days/weeks/months ... obviously the
+> > race window is big enough here. It affects many fs (ext4, xfs, ...)
+> > in different ways. I think ext4 is the most obvious because of the
+> > kernel log trace it leaves behind.
+> > 
+> > Bottom line is for set_page_dirty to be safe you need the following:
+> >     lock_page()
+> >     page_mkwrite()
+> >     set_pte_with_write()
+> >     unlock_page()
+> 
+> I also wondered why ext4 writepage doesn't recreate the bh if they got
+> dropped by the VM and page->private is 0. I mean, page->index and
+> page->mapping are still there, that's enough info for writepage itself
+> to take a slow path and calls page_mkwrite to find where to write the
+> page on disk.
 
-Ah, I had already forgotten about that discussion.
+There are two problems:
 
-At least the atomic_long part we discussed there has been resolved now
-as part of commit b5d47ef9ea5c ("locking/atomics: Switch to generated
-atomic-long").
+1) What to do with errors that page_mkwrite() can generate (ENOMEM, ENOSPC,
+EIO). On page fault you just propagate them to userspace, on set_page_dirty()
+you have no chance so you just silently loose data.
 
-Adding Mark Rutland to Cc, maybe he has some ideas of how to use
-the infrastructure he added to use consistent types for atomic64()
-on the remaining 64-bit architectures.
+2) We need various locks to protect page_mkwrite(), possibly do some IO.
+set_page_dirty() is rather uncertain context to acquire locks or do IO...
 
-     Arnd
+									Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
