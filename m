@@ -2,206 +2,206 @@ Return-Path: <SRS0=4gxf=RO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 18988C4360F
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 12:48:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 19273C4360F
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 12:57:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C809F206BA
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 12:48:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C809F206BA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id C74982084F
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 12:57:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C74982084F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 519BA8E0003; Mon, 11 Mar 2019 08:48:43 -0400 (EDT)
+	id 5D97C8E0003; Mon, 11 Mar 2019 08:57:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4A2F48E0002; Mon, 11 Mar 2019 08:48:43 -0400 (EDT)
+	id 55F818E0002; Mon, 11 Mar 2019 08:57:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 344478E0003; Mon, 11 Mar 2019 08:48:43 -0400 (EDT)
+	id 4011B8E0003; Mon, 11 Mar 2019 08:57:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 06F6F8E0002
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 08:48:43 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id i3so5060137qtc.7
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 05:48:43 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D64CD8E0002
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 08:57:32 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id h37so2013722eda.7
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 05:57:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to;
-        bh=PGJ8zbf+GI7ZC/qAnsaCLtDgJXBhsk00TKBeRn8gflg=;
-        b=VqMTLkeumgIrxH+fRm9A2SzZVBkk9qX/+ehP91yQZ4y+wi5xvV55BiBvksnUdLW+1L
-         nDb/qkqSbMDAkcLPvdGe2EVoZxRcM+2sDvLC2AEp67eutZ3I5GA5aWu+RQzxAoKdFGl8
-         kZaPtO5BvIqkbv7l2ic6d6ql0LqbS0ak6oeYtqA8GQQLYMVFQ3/mou06JJKdBdHI+nCI
-         DmAESCpXpOwljZofW1m9O2mQrvsrWysZQYt+7LSaFtsNSlMoWV4kJXjLgSFfUtvoUFxr
-         Xk1qbb1viDFl5QIQGlV5VTf1ttD+UkO/Prl72FF41unLvQFhn+y34+c/jzcN5onV4FJi
-         G11A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWQ/DoI5OS8/K5yzcEn3kqpd5RODedrad0Exmojcl+EUbp672hg
-	ygZ11UYrNbl/wIEMHTL4ySWo9mulHeuw443Ut2R8VB1g7jnJx+xykO+L4O6+GDsPicdF5ecNKpi
-	ziQtcvb9MaEtvqHzIYAmn0X+MvagpbiMpj5atKYSDq/6foUXrca94hAoWxcc+uQLm6x5+7E8BQy
-	kXt0tZGy2/XQqv7qsdv63ZysXuvumwg8nCG5XTdnrj98g1PBE4GH6deBoyazHRC1BvRV1PwXSNE
-	gvz///IuImHrjP8wKlhUP5i32yTnfel+KB4kyhHjBfq0rAc43m9dTD7S7Gb2hjTDtOg/6k9KUxr
-	IAmrtWgkq5vQSFfTNrhBFx6f5dXMIeXQ5KHULnezv8eLXKlGwluRHkYxXzR8f0NfBSludEsGtdb
-	5
-X-Received: by 2002:a37:b105:: with SMTP id a5mr23751321qkf.298.1552308522755;
-        Mon, 11 Mar 2019 05:48:42 -0700 (PDT)
-X-Received: by 2002:a37:b105:: with SMTP id a5mr23751270qkf.298.1552308521768;
-        Mon, 11 Mar 2019 05:48:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552308521; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=1q4ihnr11LykE9o1evwAkt5htWvWqDEGL5yyE8V/PKQ=;
+        b=c7/O/umye3Q3dexmhWzbkNx82FzDcmWcxeFwwpkB7C0BMv22+iIyzSE4Da8Ga4bo1p
+         Kw91PuoVYTNZ2BS7Z2RH5FQl8M5LT0YgugLxNDVR3cwc83d1436ofzQVqxa2dz1dDQvf
+         CBW213dvil9FF+J2Yd+fw0OiwsfcZZw66nBJ/8VCRDV1MPwJf8IUXC6T80gSTxbWWL76
+         ET3p/YlMUh9hW5EPfhd+BGT1m4wO79mp3OTcWF4SPbi7+iHv8flPAE4uuGfD2BRFRaFz
+         sX/oWWupbWGdO86ieT/u5akeNwwGcSyTp4auB24rs/GN/W1AVtomGjWphztl8IaLV7nv
+         a1lg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAWEYEX6Dyhe1tUfqvkov+tKNHQaKaPl/E4iUkbdtEigfBsl6ZHt
+	s2dabNOUTmYZClHTxoh7ZsBFYm8Jn+efguQ3sN5bcwZe8KPTC20+XbqGF4yPtM+tQRfjY5PBAIq
+	FnOpNiXzHf2P/KbtBwRTp2y3gsAUHy9bcD0DKE9M9r+1jAX6AMkNAs7gnXNmcNeLNOw==
+X-Received: by 2002:a17:906:6c12:: with SMTP id j18mr20610912ejr.99.1552309052292;
+        Mon, 11 Mar 2019 05:57:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzeGTp2xW2lw21eSCOW7oyU/+O6+qhfKBEaUr9YFHdkJOYE1YM5gyokAADDlRkttuDEUDsz
+X-Received: by 2002:a17:906:6c12:: with SMTP id j18mr20610861ejr.99.1552309051241;
+        Mon, 11 Mar 2019 05:57:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552309051; cv=none;
         d=google.com; s=arc-20160816;
-        b=Btidj2e3w1RalybhFgRpaGe9QRaEMG1/bl7o8JufSry70425d00qnBiUgQM0EX7bmA
-         bhg/mVVjhZp4HZbh3SNhjmAg4hKRwnCMSRc5isBnO9ti2Sb0IuYhEt6wt7FLSfQCWjGE
-         ddd/EFc9r1vPcDTu8tgOamftw5aDzP/zXANAN9RGyaEkj8x28f4+bftceQxX4Je10sKJ
-         AsGZF9EIxJPr9657ILLVrlj/b+K5BBLxS/P96CSAy3k5yNqSa8nMMskEBq7qyRSOgxb6
-         7fMOwvpUe7WScamQRsm8za9LqRVRCfxkEGfYjqh8uvmUI0Ob34KCqdmyWEeER35LvvVh
-         c/Lg==
+        b=fBY30zjnWh2RoxkIya3OX058RXkEZ/GrDnWGig6BT6Z0gCsJIjJs4DI3JJYg4FBumT
+         WvxyL8G9OYdZC1c/4vHfaaibodDh2uVfD9FX+ELsSO7dKqlVHSXZ9f7ICT+ef6Fajt5G
+         296+bQu8+eaAvl0aFDZF6mxhp0gr0RKJzcb2jQxfiphAZKDkgw0Wmbs4b1eWB11BPKYA
+         v1oeRhu/omMokgoBvryrS9P+a7w584JhCwHnsOq/JMCljpxUgeFF/hlQSf0A7BfoDE6H
+         hDCVQbnwy/ge4PPVssA8HxiQ6m4efbkxkQu26naCVd698UH7Jq1BqYBiEqW+mDgM+nbc
+         gnhg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-transfer-encoding:content-disposition
-         :mime-version:references:message-id:subject:cc:to:from:date;
-        bh=PGJ8zbf+GI7ZC/qAnsaCLtDgJXBhsk00TKBeRn8gflg=;
-        b=qEzPwh9Z0Scv79GcYtJiO9FpMqelGi1Ygdqv7yLX1t9dy8qwNqLLXZ6s3ak8eHnJU/
-         zS3dDmzRrep3HNTvdXAwYU45AH1ZWkEmTMul7aq9uOL/tO27VZ8BFMZRppK/aiiAnDbc
-         O4ddFuS8YlhBKYuInydyUSNcLvRdTqLYi3i3xVOfob6WU/3zet/HAvtTA3Vto5PBBlcd
-         9BmLBH50wfrB3n70v2hruUSQdHiDjkXHqhS5uI28K6nqSKIBMoq4j9ZXseYre0j6eVM1
-         6Zka2PYk+jYBJ4A5diKuoNmTOBa44HcTZQQtgJpVXaN+Km4/3JZPMUmQrs3lWfx/eHvw
-         VgYw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=1q4ihnr11LykE9o1evwAkt5htWvWqDEGL5yyE8V/PKQ=;
+        b=CyTz6KbXp/Qi779mG4tJY1JMUdo7ATaLiub8yv9FpZQql7lErKGEpBejyPlUgH9cKA
+         yOyF+VEe3sO31uyLxL/H8QfFrNogmulxnWzofmmkJXg8FeWe5DrZG2MaDEAgPWyhEO0s
+         bqWt7q6bnzLoXyttK7x55MVwCToRL93jtxXNcw8flmezKyOWciapec41IYXyU5LTKDEZ
+         /DfE6UqDECnl+HfJeU5sXWxgaryYKW9JVyzwHUBFaxkfmiVjw5vedXa6QjFihMsZwbmu
+         rn8XFfErb5tJtkByCpxYL1y3FiiFpijY5wg91a4HhcYwqsd/FUoRqOF0Xqo3Xwkoapb9
+         /19Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d3sor5906130qvc.35.2019.03.11.05.48.41
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 11 Mar 2019 05:48:41 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id a8si352792eje.35.2019.03.11.05.57.30
+        for <linux-mm@kvack.org>;
+        Mon, 11 Mar 2019 05:57:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqxitHgoNrrmoC1MNnHg0e8hERINGOglRw7Z0VJ/zXaiPKexOixiLmMkua/cdJCvwC/0bEHapg==
-X-Received: by 2002:a0c:d849:: with SMTP id i9mr1325157qvj.207.1552308520546;
-        Mon, 11 Mar 2019 05:48:40 -0700 (PDT)
-Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
-        by smtp.gmail.com with ESMTPSA id l6sm3005169qkc.36.2019.03.11.05.48.38
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 11 Mar 2019 05:48:39 -0700 (PDT)
-Date: Mon, 11 Mar 2019 08:48:37 -0400
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: Jason Wang <jasowang@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org,
-	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
-	linux-kernel@vger.kernel.org, peterx@redhat.com, linux-mm@kvack.org,
-	Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [RFC PATCH V2 5/5] vhost: access vq metadata through kernel
- virtual address
-Message-ID: <20190311084525-mutt-send-email-mst@kernel.org>
-References: <1551856692-3384-1-git-send-email-jasowang@redhat.com>
- <1551856692-3384-6-git-send-email-jasowang@redhat.com>
- <20190307103503-mutt-send-email-mst@kernel.org>
- <20190307124700-mutt-send-email-mst@kernel.org>
- <20190307191622.GP23850@redhat.com>
- <e2fad6ed-9257-b53c-394b-bc913fc444c0@redhat.com>
- <20190308194845.GC26923@redhat.com>
- <8b68a2a0-907a-15f5-a07f-fc5b53d7ea19@redhat.com>
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id F178FA78;
+	Mon, 11 Mar 2019 05:57:29 -0700 (PDT)
+Received: from [10.163.1.86] (unknown [10.163.1.86])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 058B03F703;
+	Mon, 11 Mar 2019 05:57:22 -0700 (PDT)
+Subject: Re: [PATCH v3 3/3] arm64: mm: enable per pmd page table lock
+To: Mark Rutland <mark.rutland@arm.com>, Yu Zhao <yuzhao@google.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>,
+ Will Deacon <will.deacon@arm.com>,
+ "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>,
+ Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@gmail.com>,
+ Peter Zijlstra <peterz@infradead.org>,
+ Joel Fernandes <joel@joelfernandes.org>,
+ "Kirill A . Shutemov" <kirill@shutemov.name>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Chintan Pandya <cpandya@codeaurora.org>, Jun Yao <yaojun8558363@gmail.com>,
+ Laura Abbott <labbott@redhat.com>, linux-arm-kernel@lists.infradead.org,
+ linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
+References: <20190218231319.178224-1-yuzhao@google.com>
+ <20190310011906.254635-1-yuzhao@google.com>
+ <20190310011906.254635-3-yuzhao@google.com>
+ <20190311121147.GA23361@lakrids.cambridge.arm.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <c567eb7f-40ca-ae20-94c3-5f48c9780f96@arm.com>
+Date: Mon, 11 Mar 2019 18:27:19 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
+In-Reply-To: <20190311121147.GA23361@lakrids.cambridge.arm.com>
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <8b68a2a0-907a-15f5-a07f-fc5b53d7ea19@redhat.com>
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 11, 2019 at 03:40:31PM +0800, Jason Wang wrote:
+On 03/11/2019 05:42 PM, Mark Rutland wrote:
+> Hi,
 > 
-> On 2019/3/9 上午3:48, Andrea Arcangeli wrote:
-> > Hello Jeson,
-> > 
-> > On Fri, Mar 08, 2019 at 04:50:36PM +0800, Jason Wang wrote:
-> > > Just to make sure I understand here. For boosting through huge TLB, do
-> > > you mean we can do that in the future (e.g by mapping more userspace
-> > > pages to kenrel) or it can be done by this series (only about three 4K
-> > > pages were vmapped per virtqueue)?
-> > When I answered about the advantages of mmu notifier and I mentioned
-> > guaranteed 2m/gigapages where available, I overlooked the detail you
-> > were using vmap instead of kmap. So with vmap you're actually doing
-> > the opposite, it slows down the access because it will always use a 4k
-> > TLB even if QEMU runs on THP or gigapages hugetlbfs.
-> > 
-> > If there's just one page (or a few pages) in each vmap there's no need
-> > of vmap, the linearity vmap provides doesn't pay off in such
-> > case.
-> > 
-> > So likely there's further room for improvement here that you can
-> > achieve in the current series by just dropping vmap/vunmap.
-> > 
-> > You can just use kmap (or kmap_atomic if you're in preemptible
-> > section, should work from bh/irq).
-> > 
-> > In short the mmu notifier to invalidate only sets a "struct page *
-> > userringpage" pointer to NULL without calls to vunmap.
-> > 
-> > In all cases immediately after gup_fast returns you can always call
-> > put_page immediately (which explains why I'd like an option to drop
-> > FOLL_GET from gup_fast to speed it up).
-> > 
-> > Then you can check the sequence_counter and inc/dec counter increased
-> > by _start/_end. That will tell you if the page you got and you called
-> > put_page to immediately unpin it or even to free it, cannot go away
-> > under you until the invalidate is called.
-> > 
-> > If sequence counters and counter tells that gup_fast raced with anyt
-> > mmu notifier invalidate you can just repeat gup_fast. Otherwise you're
-> > done, the page cannot go away under you, the host virtual to host
-> > physical mapping cannot change either. And the page is not pinned
-> > either. So you can just set the "struct page * userringpage = page"
-> > where "page" was the one setup by gup_fast.
-> > 
-> > When later the invalidate runs, you can just call set_page_dirty if
-> > gup_fast was called with "write = 1" and then you clear the pointer
-> > "userringpage = NULL".
-> > 
-> > When you need to read/write to the memory
-> > kmap/kmap_atomic(userringpage) should work.
+> On Sat, Mar 09, 2019 at 06:19:06PM -0700, Yu Zhao wrote:
+>> Switch from per mm_struct to per pmd page table lock by enabling
+>> ARCH_ENABLE_SPLIT_PMD_PTLOCK. This provides better granularity for
+>> large system.
+>>
+>> I'm not sure if there is contention on mm->page_table_lock. Given
+>> the option comes at no cost (apart from initializing more spin
+>> locks), why not enable it now.
+>>
+>> We only do so when pmd is not folded, so we don't mistakenly call
+>> pgtable_pmd_page_ctor() on pud or p4d in pgd_pgtable_alloc(). (We
+>> check shift against PMD_SHIFT, which is same as PUD_SHIFT when pmd
+>> is folded).
 > 
+> Just to check, I take it pgtable_pmd_page_ctor() is now a NOP when the
+> PMD is folded, and this last paragraph is stale?
 > 
-> Yes, I've considered kmap() from the start. The reason I don't do that is
-> large virtqueue may need more than one page so VA might not be contiguous.
-> But this is probably not a big issue which just need more tricks in the
-> vhost memory accessors.
+>> Signed-off-by: Yu Zhao <yuzhao@google.com>
+>> ---
+>>  arch/arm64/Kconfig               |  3 +++
+>>  arch/arm64/include/asm/pgalloc.h | 12 +++++++++++-
+>>  arch/arm64/include/asm/tlb.h     |  5 ++++-
+>>  3 files changed, 18 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+>> index cfbf307d6dc4..a3b1b789f766 100644
+>> --- a/arch/arm64/Kconfig
+>> +++ b/arch/arm64/Kconfig
+>> @@ -872,6 +872,9 @@ config ARCH_WANT_HUGE_PMD_SHARE
+>>  config ARCH_HAS_CACHE_LINE_SIZE
+>>  	def_bool y
+>>  
+>> +config ARCH_ENABLE_SPLIT_PMD_PTLOCK
+>> +	def_bool y if PGTABLE_LEVELS > 2
+>> +
+>>  config SECCOMP
+>>  	bool "Enable seccomp to safely compute untrusted bytecode"
+>>  	---help---
+>> diff --git a/arch/arm64/include/asm/pgalloc.h b/arch/arm64/include/asm/pgalloc.h
+>> index 52fa47c73bf0..dabba4b2c61f 100644
+>> --- a/arch/arm64/include/asm/pgalloc.h
+>> +++ b/arch/arm64/include/asm/pgalloc.h
+>> @@ -33,12 +33,22 @@
+>>  
+>>  static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+>>  {
+>> -	return (pmd_t *)__get_free_page(PGALLOC_GFP);
+>> +	struct page *page;
+>> +
+>> +	page = alloc_page(PGALLOC_GFP);
+>> +	if (!page)
+>> +		return NULL;
+>> +	if (!pgtable_pmd_page_ctor(page)) {
+>> +		__free_page(page);
+>> +		return NULL;
+>> +	}
+>> +	return page_address(page);
+>>  }
+>>  
+>>  static inline void pmd_free(struct mm_struct *mm, pmd_t *pmdp)
+>>  {
+>>  	BUG_ON((unsigned long)pmdp & (PAGE_SIZE-1));
+>> +	pgtable_pmd_page_dtor(virt_to_page(pmdp));
+>>  	free_page((unsigned long)pmdp);
+>>  }
 > 
+> It looks like arm64's existing stage-2 code is inconsistent across
+> alloc/free, and IIUC this change might turn that into a real problem.
+> Currently we allocate all levels of stage-2 table with
+> __get_free_page(), but free them with p?d_free(). We always miss the
+> ctor and always use the dtor.
 > 
-> > 
-> > In short because there's no hardware involvement here, the established
-> > mapping is just the pointer to the page, there is no need of setting
-> > up any pagetables or to do any TLB flushes (except on 32bit archs if
-> > the page is above the direct mapping but it never happens on 64bit
-> > archs).
-> 
-> 
-> I see, I believe we don't care much about the performance of 32bit archs (or
-> we can just fallback to copy_to_user() friends).
+> Other than that, this patch looks fine to me, but I'd feel more
+> comfortable if we could first fix the stage-2 code to free those stage-2
+> tables without invoking the dtor.
 
-Using copyXuser is better I guess.
-
-> Using direct mapping (I
-> guess kernel will always try hugepage for that?) should be better and we can
-> even use it for the data transfer not only for the metadata.
+Thats right. I have already highlighted this problem.
+ 
 > 
-> Thanks
+> Anshuman, IIRC you had a patch to fix the stage-2 code to not invoke the
+> dtors. If so, could you please post that so that we could take it as a
+> preparatory patch for this series?
 
-We can't really. The big issue is get user pages. Doing that on data
-path will be slower than copyXuser. Or maybe it won't with the
-amount of mitigations spread around. Go ahead and try.
+Sure I can after fixing PTE level pte_free_kernel/__free_page which I had
+missed in V2.
 
-
-> 
-> > 
-> > Thanks,
-> > Andrea
+https://www.spinics.net/lists/arm-kernel/msg710118.html
 
