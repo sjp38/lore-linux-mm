@@ -2,205 +2,166 @@ Return-Path: <SRS0=4gxf=RO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIMWL_WL_MED,
-	DKIM_SIGNED,DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AF66DC43381
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 21:55:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E7D24C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 22:15:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 697162147C
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 21:55:31 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9BF4D20657
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 22:15:49 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="bOj9klGS";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="Brqapsrb"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 697162147C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="STIu7ueW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9BF4D20657
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E2CAE8E0003; Mon, 11 Mar 2019 17:55:30 -0400 (EDT)
+	id 08A608E0003; Mon, 11 Mar 2019 18:15:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DDBDB8E0002; Mon, 11 Mar 2019 17:55:30 -0400 (EDT)
+	id 010728E0002; Mon, 11 Mar 2019 18:15:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CA3748E0003; Mon, 11 Mar 2019 17:55:30 -0400 (EDT)
+	id DF2E58E0003; Mon, 11 Mar 2019 18:15:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C5B98E0002
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 17:55:30 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id b6so686319ywd.23
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 14:55:30 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 86C918E0002
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 18:15:48 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id v8so165048wrt.18
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 15:15:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=5WpMukIKjceil3SpIAngqgCoYJv6uUf8iK+7I+cfzkA=;
-        b=TmxnjuiKbd6JuF3utORyW6kzmVVXBF0OP9WfVmspeHpeHOLNY+y2/10BbLY1W1w7Yj
-         mYASk+tofTbftmEvSFFh5baiRvbNGSZxqKkYxJldLy289zEYBEN7G34YeJq9RfNBSpRB
-         j+w82IIPXi953UwtlOdO+0TDv7B7wGZDLIxvzg2oxDeNXM50j0DQo7AKRPfXOpURVkYO
-         o58YmgEHVJwIWohV7uuU8W0yPGOsFhRK8b6EPjR+38LEVlUc6jTT4ZF1J4m+4B9qqLLw
-         9lZlQ8+hj8301suvxdLbPGXc6bdSYbppQhV0qMH91T71LmJOWvrwsn44F/jo2K3E+htr
-         wtIw==
-X-Gm-Message-State: APjAAAWs1zP8olWJ0YsL38fRbPmDyKMJCJKkbwef2SB/MP7Q/NXL5oij
-	pDIO6vIgL1vvdyH4zU2PjemANxftlGp5oGat5RkGZS1oIQ5d6k4vvm8cO23nIux67PaxcOs/Ul4
-	w8/XoENO4VJdz84jYLCE7cL3nHCSTDQumA6hYrPEokgYvaLME8Wc4FuwLpxBDsshntg==
-X-Received: by 2002:a0d:edc3:: with SMTP id w186mr27294404ywe.301.1552341330403;
-        Mon, 11 Mar 2019 14:55:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy1+hfzvmNQKfKis2z05T4aNdQCxWpRG/+XIYwDhD/J5nSftYkRwsTxJsYo+TAoe4LwfyOz
-X-Received: by 2002:a0d:edc3:: with SMTP id w186mr27294393ywe.301.1552341329936;
-        Mon, 11 Mar 2019 14:55:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552341329; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=GnI0fUcdzJqZU/DTruBcUGekoe8aZHTHc7dj/1D9pDo=;
+        b=rraddH2Z8chbMKVpDsmYR2/GHjFgm8f4SVASf+ohvt87qkmyrhb/Q8H0yPqdOY/d0+
+         sizAr5FAaHKiE02VUcAH4/qGptI3mlHN/pZ1EwDS3GtQJ+1xSsZ3tbReLNnqgHQufDNc
+         3PBcKRsxXBA2Q/Gct+GMiHkJm8RkEyJjs6VnJxmdrvx4c1aXxIjvw7iscGwwwO0ZS7vt
+         pOa+2ugpTefnjdS/LIXg2Eh05r/Pt8v81LCn6tgv0LvYqS1v7QlKxkBhjJXd9DBDhX5q
+         gof7z/Ro2GObnlno487gyLxJyD0wb+psvd5qPJftAYOkHigANLSwoDcxJAPGUs8+Qewv
+         Dghg==
+X-Gm-Message-State: APjAAAWdeL3LL+8JuRuRgh9prOgJXSgdeeIDHjj7/8A+pSslK5i3MuyJ
+	M38IUu9spomQYvF0e5jogqZ/n4z0m0lkTsfM0HjtfeIvTOr8jAJed97SFgZ0b8gOYfZqEDZArBk
+	c5TGYqE8WXyA2AIdd8tK/R2Jg6VsRfEMD1p1KSKNxNjC2zl15gtxKy+mobFEI3RdDDE7R7GVNJo
+	GaKW4gYO3fKizSSpY+4AflQUVT0i5zH/OJHb5k3swNIBcHGAZ+JFsg92p315Axs68uDdJBIBANx
+	AmFn0ilsBczIBbo4icAOZmUFGfTxwmFQud4I3mU/pv+JVVRC04dnIf+982M9fhLlKhsi4smQ+29
+	vBXFRKDRvtbICPtJgNhYbw5oGGyFec3lGA7Hy8SvQhuY05qZKsUVrb4lW34QZsFiwRex3d8wuXS
+	c
+X-Received: by 2002:adf:e988:: with SMTP id h8mr7450130wrm.260.1552342548134;
+        Mon, 11 Mar 2019 15:15:48 -0700 (PDT)
+X-Received: by 2002:adf:e988:: with SMTP id h8mr7450100wrm.260.1552342547290;
+        Mon, 11 Mar 2019 15:15:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552342547; cv=none;
         d=google.com; s=arc-20160816;
-        b=rooUdccMTxpaTo1ofxCdMwogiS4/rYzKDeQf/lxORpbsgdE15fJTtyB7AvmsDNyhw7
-         Fox85ordWPPra8iXyOtDYVTjiCg9jACn2CIKAKKlf6y7B7osIF46qBbK8oipzoQKYsLD
-         MfdN5GJtc/EIQoCqnpS+/cCvm7mdrcRTDe+3OvTT5hbP9FSY+YO97wMuiCar+kaL6skE
-         fJU/DVsWe2qGarUTwaosBvK1W2M77wIZ7Uaq51nLo+XpwXS6wyyr2pVOwpPd2yo8POFP
-         4GhErj3q6n3a2TtORhU9j6ajMWoj7ll2zGo5rT2wh3Gm7UBU3D3pubE5UZYyyq8H16Om
-         e3bw==
+        b=U+pwo5Ctkh6snVUwH0QVfqdRCeS34bHe7y7zJsM+f5mImaE/ZY2HixI/wZrtV5fayW
+         2v5JFRJsd2E0DM4wp2WJCxjlAuVl8l57Z7kUhPgmviGCyIPv3roqC3hWC6DbgUoa8mIc
+         KuquXzm3dOYMSVj00ygIOVLsbANh06teKKcchFjsyjPVkwR6mEd9FISumyt5K9TV/K9k
+         i+Ua0/HygSgxamQM37Z9MQFMvpO/jzRYBPmN1i8k47Kd/LfjgRqqiL1MAgqq0iM2vOeH
+         /TpQYErJjD1EskBSTNoTKWAxqs7KHNAMDwRJvGbwcYZg12wafarY5uX9YECTEf5l2Tt+
+         bXSQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=5WpMukIKjceil3SpIAngqgCoYJv6uUf8iK+7I+cfzkA=;
-        b=itUFrqzo4cZIuvIAcXHhJutUyG/R1FF7wnVyxq4tOMqsnRhi+EzEMvsjgFIrFTxcRy
-         Q4BpT1SsDYEB30Qd7A0AvXC+j/0DuPpfHW0MZHZmAarxcz+d0S9+YqXK11Nx2V0pFSqj
-         Tw7G7GTZEx5vpyygeFEOanaqbHZYIAlzh6sxDuX1iwrITTv9LPAId8hVtp4a1wT7evRk
-         NZYDHbwvJjevNo5O3OnCURpcH1nIbVttfXu7yhO7mKCzA6awmn/VdgD+EE3MHXHLv+pT
-         5rJW+yVcjokF/GDEbY4LMTWzJt57DzekIIxSHbdl35gryJYwNsNiqt5oez/Ie/TqdY0I
-         7DgQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=GnI0fUcdzJqZU/DTruBcUGekoe8aZHTHc7dj/1D9pDo=;
+        b=BIBjhvgQJKvUZREFeaoy6aptSUHXt1T6M+VBkyafahzVZD+0MCRMn22QTRcqMeHuv+
+         aUDm8oegQf2IwrEYYw761PyrtYExSH9WtAcI88225WRP712mwtr5vrhbB0wdyBIj3G2H
+         /UmrQ2474BxoSFTQsZhDzcWW6M1jipHQYXhkHBFe+z+xq9Wvg51/C8nNun83/nqzDb9K
+         Mw2u83he5IMt80loUSfb/2/kF7Fc8LLYN/aD/Y2M16/BKyx4ZggFAI2GJcoJ8ZAp9OE/
+         ZWyp8px3koHbtvTMKOj5geofi7q4u/QnYGCyhEgFJRiRZXKLoCrE5TcYZ5AygIOpVp14
+         eVlA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=bOj9klGS;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=Brqapsrb;
-       spf=pass (google.com: domain of prvs=897363b8f0=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=897363b8f0=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id w66si4214023ybg.222.2019.03.11.14.55.29
+       dkim=pass header.i=@google.com header.s=20161025 header.b=STIu7ueW;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l1sor4537562wrx.37.2019.03.11.15.15.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Mar 2019 14:55:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=897363b8f0=guro@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+        (Google Transport Security);
+        Mon, 11 Mar 2019 15:15:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=bOj9klGS;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=Brqapsrb;
-       spf=pass (google.com: domain of prvs=897363b8f0=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=897363b8f0=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0044010.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2BLkFTj016244;
-	Mon, 11 Mar 2019 14:55:20 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=5WpMukIKjceil3SpIAngqgCoYJv6uUf8iK+7I+cfzkA=;
- b=bOj9klGSQ91vAxDIFYyo3BVCqMYyAS1Y6230xl+Hu2cKPIyaLgJeoQxAmg6gQ96uBmc2
- BbG5R7OP2aD/5m5IE+oXo2HaQAhXSp+tTZd3VcvHNjcMfjY5wSbJRwDG7QD0lkg+IsFN
- elk2mNJd5Zh1aVHaUlHNrOYOCDF5wCniLhA= 
-Received: from mail.thefacebook.com ([199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2r5w3srmff-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Mon, 11 Mar 2019 14:55:20 -0700
-Received: from prn-hub03.TheFacebook.com (2620:10d:c081:35::127) by
- prn-hub02.TheFacebook.com (2620:10d:c081:35::126) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Mon, 11 Mar 2019 14:54:18 -0700
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.27) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Mon, 11 Mar 2019 14:54:18 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=5WpMukIKjceil3SpIAngqgCoYJv6uUf8iK+7I+cfzkA=;
- b=BrqapsrbN0Y2HSsETtFKz1p0Y/QXvDcVRmhasiQa9q4fXYyY8vcMa+NHKgz2hvxQ4JV2YZ9DCCXvc+oyfiV0UDUVfxSW1Uu7jRq/Apyo22bu5+pidCA24TpF1BcjmbJH0YcvPqAIRMmCXQ2z4qDuAB21QW+j6pr3m1tB+cF9VPs=
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
- BYAPR15MB2262.namprd15.prod.outlook.com (52.135.197.16) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1686.19; Mon, 11 Mar 2019 21:54:17 +0000
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::790e:7294:b086:9ded]) by BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::790e:7294:b086:9ded%2]) with mapi id 15.20.1686.021; Mon, 11 Mar 2019
- 21:54:17 +0000
-From: Roman Gushchin <guro@fb.com>
-To: "Tobin C. Harding" <tobin@kernel.org>
-CC: Andrew Morton <akpm@linux-foundation.org>,
-        Christopher Lameter
-	<cl@linux.com>,
-        Pekka Enberg <penberg@cs.helsinki.fi>,
-        Matthew Wilcox
-	<willy@infradead.org>, Tycho Andersen <tycho@tycho.ws>,
-        "linux-mm@kvack.org"
-	<linux-mm@kvack.org>,
-        "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>
-Subject: Re: [RFC 03/15] tools/vm/slabinfo: Add support for -C and -F options
-Thread-Topic: [RFC 03/15] tools/vm/slabinfo: Add support for -C and -F options
-Thread-Index: AQHU1WW9Q5dc3ffqEUmrnDIqAHiCmKYG/yKA
-Date: Mon, 11 Mar 2019 21:54:17 +0000
-Message-ID: <20190311215413.GB7915@tower.DHCP.thefacebook.com>
-References: <20190308041426.16654-1-tobin@kernel.org>
- <20190308041426.16654-4-tobin@kernel.org>
-In-Reply-To: <20190308041426.16654-4-tobin@kernel.org>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: MWHPR22CA0038.namprd22.prod.outlook.com
- (2603:10b6:300:69::24) To BYAPR15MB2631.namprd15.prod.outlook.com
- (2603:10b6:a03:152::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::1:b487]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 5f8a58a6-10e4-4e7c-61b3-08d6a66c1bb5
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600127)(711020)(4605104)(2017052603328)(7153060)(7193020);SRVR:BYAPR15MB2262;
-x-ms-traffictypediagnostic: BYAPR15MB2262:
-x-microsoft-exchange-diagnostics: 1;BYAPR15MB2262;20:xk69ZlJcxUOgdCxxHWbjcFMj0bKl4x8tv4Mes8xEx8VLaL+hWoPRqc30FsGXzQ1vYriXxJWzx78I509yUmLliRjCoipBfgxzEW9BmkfJAmbxANW7fYzNozwbxRzFu51MTTU0No1KP+RzFTGBVzYXkJ1fWytGmZYuga5oUpuB7AU=
-x-microsoft-antispam-prvs: <BYAPR15MB226231FA91450427DE6FD9BABE480@BYAPR15MB2262.namprd15.prod.outlook.com>
-x-forefront-prvs: 09730BD177
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(39860400002)(396003)(366004)(136003)(346002)(376002)(199004)(189003)(5660300002)(6116002)(53936002)(316002)(6486002)(54906003)(81166006)(478600001)(68736007)(305945005)(386003)(4744005)(6512007)(99286004)(81156014)(76176011)(1076003)(52116002)(6436002)(6506007)(8936002)(9686003)(7736002)(25786009)(105586002)(229853002)(6246003)(2906002)(8676002)(97736004)(186003)(4326008)(106356001)(6916009)(14454004)(71190400001)(446003)(71200400001)(11346002)(486006)(476003)(33656002)(46003)(256004)(102836004)(86362001);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB2262;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: kX7YyUhaqp6Z8wmqVaKmlj+IhGwDxFPc3GCC5Pj4fWR1uipGO9TK3NQZhxlV6kjef8fONRhx/KkrIk2qWN0qsyk2/y3f2SmjAKSwaK33+zMtFxyat4xOS6e9qtwu8VGcHsGLVdijbFiyTodjUVdspdLhQYA1qHkkL2uSWQwjEpsqfm6hTpwAUR5RY/QlpavAZBXDigrdl6UrlqE1+DDyq1wtbFXgXCS0i3Lq5HZ0fiRLA6/H+vh+7WuoVfD14ZkXM1nlSaT/feWcnU1E/0NiBoFhRmGLY5oy4bQukHYoagQEeE7mY/W5wnh3GVnRTe/NO+ba8wtiGJT7QDWqZpsO3J0tnieAaggw8lTJ1ozU7s9M4P7OiDZ2fn+78JPticfDjHQ67D4LEUKUmaOgCl5bKiDymwPXVX1vK4hYhc88wOM=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <A029BE8C00B34E46921E29BCC8B15777@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@google.com header.s=20161025 header.b=STIu7ueW;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=GnI0fUcdzJqZU/DTruBcUGekoe8aZHTHc7dj/1D9pDo=;
+        b=STIu7ueW7L5p2TzqtAmcSxV3KguqBPhLN6KQwuyu1G/VOQH2p4moWrluTFiiebcZm1
+         2ophhi5lSUP4fDVmfI0KcWubjRj4LCAlzmeJpYEmsP8nYT5i/q68XwmRJFtefA3K0hda
+         59PwzZAiKgBJhKbu6DUDWiNTBR5KSaJ3JNjZLRz3uD2vNTvh2EwFVcQW1x/KYks26Me8
+         QAYi7AzGhCn/NCSVOfTrKslxmO1dYD4CN+rMR2EYg6sLjWKTb/33PHxfLgv3BOunhxmf
+         RnTqLJ618Y737n7uyVNi0p/Js7fLX03g6gLEgh7tXJqfFwPDOUwY9NPzq6Qblqg0aLsj
+         vSOA==
+X-Google-Smtp-Source: APXvYqzBPV7OZeaIUoX8OaAcEt5nnkBCXbML20FxMXjDLjGWNCMW1qTFcwXaA28SNy5pChjGUFMWmTrpLR8E9AbMQ+M=
+X-Received: by 2002:adf:f80c:: with SMTP id s12mr19405040wrp.150.1552342546588;
+ Mon, 11 Mar 2019 15:15:46 -0700 (PDT)
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 5f8a58a6-10e4-4e7c-61b3-08d6a66c1bb5
-X-MS-Exchange-CrossTenant-originalarrivaltime: 11 Mar 2019 21:54:17.3656
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB2262
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-11_16:,,
- signatures=0
-X-Proofpoint-Spam-Reason: safe
-X-FB-Internal: Safe
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+References: <20190310203403.27915-1-sultan@kerneltoast.com>
+ <20190311174320.GC5721@dhcp22.suse.cz> <20190311175800.GA5522@sultan-box.localdomain>
+ <CAJuCfpHTjXejo+u--3MLZZj7kWQVbptyya4yp1GLE3hB=BBX7w@mail.gmail.com> <20190311204626.GA3119@sultan-box.localdomain>
+In-Reply-To: <20190311204626.GA3119@sultan-box.localdomain>
+From: Suren Baghdasaryan <surenb@google.com>
+Date: Mon, 11 Mar 2019 15:15:35 -0700
+Message-ID: <CAJuCfpGpBxofTT-ANEEY+dFCSdwkQswox3s8Uk9Eq0BnK9i0iA@mail.gmail.com>
+Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
+To: Sultan Alsawaf <sultan@kerneltoast.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
+	=?UTF-8?B?QXJ2ZSBIasO4bm5ldsOlZw==?= <arve@android.com>, 
+	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>, 
+	Joel Fernandes <joel@joelfernandes.org>, Christian Brauner <christian@brauner.io>, 
+	Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, 
+	LKML <linux-kernel@vger.kernel.org>, devel@driverdev.osuosl.org, 
+	linux-mm <linux-mm@kvack.org>, Tim Murray <timmurray@google.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 08, 2019 at 03:14:14PM +1100, Tobin C. Harding wrote:
-> -F lists caches that support object migration.
+On Mon, Mar 11, 2019 at 1:46 PM Sultan Alsawaf <sultan@kerneltoast.com> wrote:
+>
+> On Mon, Mar 11, 2019 at 01:10:36PM -0700, Suren Baghdasaryan wrote:
+> > The idea seems interesting although I need to think about this a bit
+> > more. Killing processes based on failed page allocation might backfire
+> > during transient spikes in memory usage.
+>
+> This issue could be alleviated if tasks could be killed and have their pages
+> reaped faster. Currently, Linux takes a _very_ long time to free a task's memory
+> after an initial privileged SIGKILL is sent to a task, even with the task's
+> priority being set to the highest possible (so unwanted scheduler preemption
+> starving dying tasks of CPU time is not the issue at play here). I've
+> frequently measured the difference in time between when a SIGKILL is sent for a
+> task and when free_task() is called for that task to be hundreds of
+> milliseconds, which is incredibly long. AFAIK, this is a problem that LMKD
+> suffers from as well, and perhaps any OOM killer implementation in Linux, since
+> you cannot evaluate effect you've had on memory pressure by killing a process
+> for at least several tens of milliseconds.
 
-Maybe -M?
+Yeah, killing speed is a well-known problem which we are considering
+in LMKD. For example the recent LMKD change to assign process being
+killed to a cpuset cgroup containing big cores cuts the kill time
+considerably. This is not ideal and we are thinking about better ways
+to expedite the cleanup process.
 
->=20
-> -C lists caches that use a ctor.
->=20
-> Add command line options to show caches with a constructor and caches
-> with that are migratable (i.e. have isolate and migrate functions).
->=20
-> Co-developed-by: Christoph Lameter <cl@linux.com>
-> Signed-off-by: Tobin C. Harding <tobin@kernel.org>
-> ---
->  tools/vm/slabinfo.c | 40 ++++++++++++++++++++++++++++++++++++----
->  1 file changed, 36 insertions(+), 4 deletions(-)
+> > AFAIKT the biggest issue with using this approach in userspace is that
+> > it's not practically implementable without heavy in-kernel support.
+> > How to implement such interaction between kernel and userspace would
+> > be an interesting discussion which I would be happy to participate in.
+>
+> You could signal a lightweight userspace process that has maximum scheduler
+> priority and have it kill the tasks it'd like.
 
-Thanks!
+This what LMKD currently is - a userspace RT process.
+My point was that this page allocation queue that you implemented
+can't be implemented in userspace, at least not without extensive
+communication with kernel.
+
+> Thanks,
+> Sultan
+
+Thanks,
+Suren.
 
