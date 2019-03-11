@@ -2,167 +2,147 @@ Return-Path: <SRS0=4gxf=RO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4CFE5C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 20:56:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 82C7FC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 21:11:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 014EA214AF
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 20:56:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 014EA214AF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 37DEC2147C
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 21:11:29 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="dcva41yz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 37DEC2147C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 842298E000D; Mon, 11 Mar 2019 16:55:51 -0400 (EDT)
+	id B1D668E000E; Mon, 11 Mar 2019 17:11:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7EFB98E0009; Mon, 11 Mar 2019 16:55:51 -0400 (EDT)
+	id ACA9B8E0009; Mon, 11 Mar 2019 17:11:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 70C7A8E000D; Mon, 11 Mar 2019 16:55:51 -0400 (EDT)
+	id 993208E000E; Mon, 11 Mar 2019 17:11:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2986D8E0009
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 16:55:51 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id b12so166720pgj.7
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 13:55:51 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 72CBB8E0009
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 17:11:28 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id p40so324252qtb.10
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 14:11:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=ewJqgFUqDpv8Lqv/Yuto2PNWo7oT6nVxI/FcdI99OAY=;
-        b=bQYmzGpFByakjg/rieMGCWnS83IKBpp4bA3EL9RtJwnhxArZN37+7tTVE2aqfCX1g6
-         SKfeKRVWLyDQQTMPxkkosJiu/MHeC5aNX3ArMY9OdoCknV4sVso7A0SeI8QRMHbKPHrc
-         pKc/XVr6aV31Zd93NEOr9feRYx/uq8mMg6wsRpDfOK6Qj4VUWLpRiF9UqtRTWryuM7A9
-         jVj1NxDKiLX2BT/upCu/L7wnfTBtXkxHlsBksdvYNV0D1Iruw43V/w1WynRU/O+qWfd5
-         UbFgWAkM8M9SbrXlyR+Gwk1aG0jX9wotGvInZTKhP0e97uUs7+ed7UHZQ3Y+nbICc3/W
-         ryMA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVJ5zcMY2Kqld4pgdcIBSISE/FZ3ExrNx+Qt/OKun/MDytRrZzr
-	NhnwqHLz+BxKh5oJ58EHksfBNkeONamzBPiHkjXjiT+pOAVuSzpJC0DxsykzkTqsBeOsse/qDSl
-	F/7yye2wK+TmYJdhcEvSS4KbcdP/w8EGwZIIsNuIjUjj0LXRKXDUAYgUNr4wBENBHqw==
-X-Received: by 2002:a17:902:4181:: with SMTP id f1mr36340728pld.280.1552337750850;
-        Mon, 11 Mar 2019 13:55:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzkhioyz15OthJELyfR2DDInXBKFVgNv3iYtOROHIB9VcvOWHtNXxHyFnyLGNSB4uJYT60K
-X-Received: by 2002:a17:902:4181:: with SMTP id f1mr36340348pld.280.1552337743684;
-        Mon, 11 Mar 2019 13:55:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552337743; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=smMkHZ9JhQfb6/mQRtbcBe+zcweWT3OeKffPkYTaNks=;
+        b=FdVNsvA8TM5q897GulJnkHoWkLDqlyZSpsdngUqMPb29gN7GfvgJ52wLqW0Ouf/SId
+         xFbuVuaJJ94PXLw9Y87HJZqWEb4n5NbI8XQNOqZKf6O9pudtofa/gPC/l7S4YDanzK//
+         hpD4xsvHzlZO83EN26MABl9q3haP7jbNjalCfIVUrGYv64MKniGkwH/vdh+58xNsKVVf
+         jURwcuJektj0eQBtjk5ORiSY4h9onpjoU5GgZF4kVrEBoDQ+ux2zVfe7jgcL0cqr3Xa2
+         kCm9ScejVikjr9dr4dQSzul7kEWC4/Q5NA0Y9ZgesZj776n6vnOj5D+WU0A4VZuxYZoa
+         NboQ==
+X-Gm-Message-State: APjAAAXgY2EyZl3M/R7TZWrw2sZhFCROXp5nLAmidSRUF6SfL7bof/ll
+	JPvX+D8cI24r5YRMKXFJDN5CetjAw1mA13ksOVTL+EMBiUcAxiL5bfLMjC0OZwkMo3lpX1BKYdb
+	E7TAoWlT2Z1A7DRt4E/L18sN3DZlUMQyT9J0lVGRMVzuFuLT13eiCnmehE/rq/x7Xgq4zHa+iPM
+	Uo0Y5m6GvO1SYqCyDW92vtmhVAvV7lJjoxpslN5dHW1Let+sYNcwlmh5hc5sDxYhEoxNsmc3DeL
+	CPIZZjUbdvrcjuQ2BJM2sdobS/SBWPOkDwgzCgKHfDxsIhsKUpUP32cg+IShyO3B5w9zC/YwCJg
+	w9owUZynIN0rgSxKw/NRmw3Wgwu2ciqqv5i7hF2zwdWU7qFkFGiVtPJ82zQiQtRoEXQOg7tCzkV
+	v
+X-Received: by 2002:ac8:3f3b:: with SMTP id c56mr26643500qtk.81.1552338688246;
+        Mon, 11 Mar 2019 14:11:28 -0700 (PDT)
+X-Received: by 2002:ac8:3f3b:: with SMTP id c56mr26643466qtk.81.1552338687539;
+        Mon, 11 Mar 2019 14:11:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552338687; cv=none;
         d=google.com; s=arc-20160816;
-        b=hDx0gVVShuWmlM4ImlJJJeE2V8ZGnwf6bqfcAvpDUm2Ga9vSE37N9jMTjWr3sTMmpC
-         ZG5VjCR8SKBLn84ForNMIFjGaGM3nBQSITCZbPEIU9IVHF+i5g1utXfmGdvn/ORjquc5
-         0BGGfszUuvLER1QScHNKx67DJPsprY3k/KYy4RcwLdIuuhErIFVAjpJAtP+wmU3D08DU
-         fXQUE8HfkcRjYGqTOMG5UkoMsscm36R4ZLFkXSx/5NAPczuJygIkAlmT9sZJQ+Dnujy6
-         BCXpS1/mVj7W1+TLUQJRe6q/SPmxGZbqjU4nLP9QUNdpz611Lz+y5Kvg/TCXzj82QpKE
-         oPWQ==
+        b=yViT7aEvOxvhHSVS8ViEkGctAvUUGFV1ozXFG+7uOD3E8PaEqWULZVhxHgxM70o85i
+         3mLfLuXbog0mP9jVONdN2e5t3j6WzYoo+LbMzZe6p3lf6PtCZE5TzN/04TX8nvxFpkfB
+         BAJ6QRs4uuLMWXediJ0aHkgxG4fzj1YvdHG/IT9QEV9zyZLQCUcixGPmJlZh/B865U1C
+         oBayc3iWQPPnlWuOZq2XC21SaS/VR9C/sz2dgJKEWpIwP+/1/AuilJxSCoRgrbXrrqYD
+         bm08zvw6m0aPLaozOnyfDVYmMYzHe+ScC5m6oGxjbE303sdD2Yd1UqQmC+rDku26AI+V
+         2lxw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=ewJqgFUqDpv8Lqv/Yuto2PNWo7oT6nVxI/FcdI99OAY=;
-        b=YpgY70NDzaiWJOPplKY4ZTeNeR1L5khl9Dq+5qlmOaarNMc1uY2/ddFNDOdVkz3dyl
-         M2oKzSHMV4vPOLDbDzaJRxklbwBb0mudqmpsc46tYIQqiLK0gDMh5jWx+F3iwfGUXFb6
-         mAMlSThQCm7PbtXn+WwVBqKplzeouWnpYRSbPkZuGgANdZmvoonhsbTCJPg9uENqKo8q
-         jWefOIbjWah2btT3a29zlwedkxJ68Wx61nRuW+pu2Il7vioNbnEMzVrXEQS/bTA2pq5c
-         wv4s2qPxsIk5Y4Coz1E/gbcCDIYgH6Co/XxW/pTD29WzRgDT4e5MUMgSyxeI6imwWb87
-         xOag==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=smMkHZ9JhQfb6/mQRtbcBe+zcweWT3OeKffPkYTaNks=;
+        b=zoVhlf7TH5UvWblSG5qNanebl++HH2vXQHstV2lBzaVKCMTCa+BKBTBqRRe7Vqaozs
+         a+R0LnMr2bFCE2BwoFTbHRCLcKysUmHiGA3dYTZRqY+add/sKEZZs8ZVtWofsDD3CjQL
+         OAbFl9SoHzpRN59e+RRNXUrfM1Wzt5m6XgYWhHopvePR3oWW+4gcsd2qf4JPooY7Tar3
+         b3HNYycBWyNdRTBm89H93UlzBI8b6lkX6wtp96MFZYDRFiRlAvt80etaw5v7tmRsYTXi
+         6hdj17XxNJXiETimc1myKzOYMu9300VO3W3vS7OabG9+qM53k4kZ01OIpqm5H0Whi0E+
+         IR2A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id n189si5626588pga.46.2019.03.11.13.55.43
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=dcva41yz;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e63sor4006113qkj.30.2019.03.11.14.11.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Mar 2019 13:55:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keith.busch@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        (Google Transport Security);
+        Mon, 11 Mar 2019 14:11:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga003.fm.intel.com ([10.253.24.29])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Mar 2019 13:55:43 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,468,1544515200"; 
-   d="scan'208";a="139910190"
-Received: from unknown (HELO localhost.lm.intel.com) ([10.232.112.69])
-  by FMSMGA003.fm.intel.com with ESMTP; 11 Mar 2019 13:55:43 -0700
-From: Keith Busch <keith.busch@intel.com>
-To: linux-kernel@vger.kernel.org,
-	linux-acpi@vger.kernel.org,
-	linux-mm@kvack.org,
-	linux-api@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Rafael Wysocki <rafael@kernel.org>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Jonathan Cameron <jonathan.cameron@huawei.com>,
-	Brice Goglin <Brice.Goglin@inria.fr>,
-	Keith Busch <keith.busch@intel.com>
-Subject: [PATCHv8 08/10] acpi/hmat: Register performance attributes
-Date: Mon, 11 Mar 2019 14:56:04 -0600
-Message-Id: <20190311205606.11228-9-keith.busch@intel.com>
-X-Mailer: git-send-email 2.13.6
-In-Reply-To: <20190311205606.11228-1-keith.busch@intel.com>
-References: <20190311205606.11228-1-keith.busch@intel.com>
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=dcva41yz;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=joelfernandes.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=smMkHZ9JhQfb6/mQRtbcBe+zcweWT3OeKffPkYTaNks=;
+        b=dcva41yz79DBmbxdi62q2hDd5KunjFFVwMtEIXhRo0y2Ob9tWcI9vUYahMLSc2agDD
+         1hVJvgi6SbMGAEJn2gJnoB0nWZNwX2j2ZGvATle39540M+XyP4qwocsJZhcn6YUCTxsf
+         xEis5Uz2pqJHVnokDUmexoOV/bVauBtGu8a30=
+X-Google-Smtp-Source: APXvYqxhPuKNd77/mnrTTLYNW5WlEYXalbibNjZXhCpLFMDWnTiPawwwmi+VCuY3bg9ERhA+zqSbJw==
+X-Received: by 2002:a37:378f:: with SMTP id e137mr26822049qka.137.1552338687026;
+        Mon, 11 Mar 2019 14:11:27 -0700 (PDT)
+Received: from localhost ([2620:0:1004:1100:cca9:fccc:8667:9bdc])
+        by smtp.gmail.com with ESMTPSA id g82sm3841105qkb.34.2019.03.11.14.11.25
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 11 Mar 2019 14:11:26 -0700 (PDT)
+Date: Mon, 11 Mar 2019 17:11:25 -0400
+From: Joel Fernandes <joel@joelfernandes.org>
+To: Sultan Alsawaf <sultan@kerneltoast.com>
+Cc: Suren Baghdasaryan <surenb@google.com>,
+	Michal Hocko <mhocko@kernel.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>,
+	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
+	Christian Brauner <christian@brauner.io>,
+	Ingo Molnar <mingo@redhat.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	LKML <linux-kernel@vger.kernel.org>, devel@driverdev.osuosl.org,
+	linux-mm <linux-mm@kvack.org>, Tim Murray <timmurray@google.com>
+Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
+Message-ID: <20190311211125.GA127617@google.com>
+References: <20190310203403.27915-1-sultan@kerneltoast.com>
+ <20190311174320.GC5721@dhcp22.suse.cz>
+ <20190311175800.GA5522@sultan-box.localdomain>
+ <CAJuCfpHTjXejo+u--3MLZZj7kWQVbptyya4yp1GLE3hB=BBX7w@mail.gmail.com>
+ <20190311204626.GA3119@sultan-box.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190311204626.GA3119@sultan-box.localdomain>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.011731, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Save the best performance access attributes and register these with the
-memory's node if HMAT provides the locality table. While HMAT does make
-it possible to know performance for all possible initiator-target
-pairings, we export only the local pairings at this time.
+On Mon, Mar 11, 2019 at 01:46:26PM -0700, Sultan Alsawaf wrote:
+> On Mon, Mar 11, 2019 at 01:10:36PM -0700, Suren Baghdasaryan wrote:
+> > The idea seems interesting although I need to think about this a bit
+> > more. Killing processes based on failed page allocation might backfire
+> > during transient spikes in memory usage.
+> 
+> This issue could be alleviated if tasks could be killed and have their pages
+> reaped faster.
 
-Acked-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
-Signed-off-by: Keith Busch <keith.busch@intel.com>
----
- drivers/acpi/hmat/Kconfig |  5 ++++-
- drivers/acpi/hmat/hmat.c  | 10 +++++++++-
- 2 files changed, 13 insertions(+), 2 deletions(-)
+But the point is that a transient temporary memory spike should not be a
+signal to kill _any_ process.  The reaction to kill shouldn't be so
+spontaneous that unwanted tasks are killed because the system went into
+panic mode. It should be averaged out which I believe is what PSI does.
 
-diff --git a/drivers/acpi/hmat/Kconfig b/drivers/acpi/hmat/Kconfig
-index 13cddd612a52..95a29964dbea 100644
---- a/drivers/acpi/hmat/Kconfig
-+++ b/drivers/acpi/hmat/Kconfig
-@@ -2,7 +2,10 @@
- config ACPI_HMAT
- 	bool "ACPI Heterogeneous Memory Attribute Table Support"
- 	depends on ACPI_NUMA
-+	select HMEM_REPORTING
- 	help
- 	 If set, this option has the kernel parse and report the
- 	 platform's ACPI HMAT (Heterogeneous Memory Attributes Table),
--	 and register memory initiators with their targets.
-+	 register memory initiators with their targets, and export
-+	 performance attributes through the node's sysfs device if
-+	 provided.
-diff --git a/drivers/acpi/hmat/hmat.c b/drivers/acpi/hmat/hmat.c
-index 01a6eddac6f7..7a3a2b50cadd 100644
---- a/drivers/acpi/hmat/hmat.c
-+++ b/drivers/acpi/hmat/hmat.c
-@@ -545,12 +545,20 @@ static __init void hmat_register_target_initiators(struct memory_target *target)
- 	}
- }
- 
-+static __init void hmat_register_target_perf(struct memory_target *target)
-+{
-+	unsigned mem_nid = pxm_to_node(target->memory_pxm);
-+	node_set_perf_attrs(mem_nid, &target->hmem_attrs, 0);
-+}
-+
- static __init void hmat_register_targets(void)
- {
- 	struct memory_target *target;
- 
--	list_for_each_entry(target, &targets, node)
-+	list_for_each_entry(target, &targets, node) {
- 		hmat_register_target_initiators(target);
-+		hmat_register_target_perf(target);
-+	}
- }
- 
- static __init void hmat_free_structures(void)
--- 
-2.14.4
+thanks,
+
+- Joel
 
