@@ -2,143 +2,184 @@ Return-Path: <SRS0=4gxf=RO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,FSL_HELO_FAKE,HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT,USER_IN_DEF_DKIM_WL autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 53F88C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 23:16:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 37DD7C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 23:23:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 060ED2148D
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 23:16:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D77B52148D
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 23:23:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="VKsly5J8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 060ED2148D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="gZKWQc2K"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D77B52148D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A45508E0003; Mon, 11 Mar 2019 19:16:41 -0400 (EDT)
+	id 7306E8E0003; Mon, 11 Mar 2019 19:23:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9CF368E0002; Mon, 11 Mar 2019 19:16:41 -0400 (EDT)
+	id 6E25F8E0002; Mon, 11 Mar 2019 19:23:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 86D978E0003; Mon, 11 Mar 2019 19:16:41 -0400 (EDT)
+	id 5F7218E0003; Mon, 11 Mar 2019 19:23:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 42D498E0002
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 19:16:41 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id o67so784002pfa.20
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 16:16:41 -0700 (PDT)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 380DD8E0002
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 19:23:30 -0400 (EDT)
+Received: by mail-it1-f198.google.com with SMTP id 142so646384itx.0
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 16:23:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=VRk8dTonCC66f9q4pJTMkfYABO9GvpgzSFGe1HmkjIQ=;
-        b=MHBQ4yvij1T/PtyF/gqILw58XwQZMjAN2P3/kQjGr6eMsemigYk8I+1uhvQCSQA3Sa
-         iOjgGHIsOD83KYwTvRyOenQDDZlNqtB6zBlrl1Y5i1rhFgSsk2/or/qzZFOjbePCkiFh
-         ihGo1wPqFKuOtFTn95fUhgumK1C1BH7Up1JNWVmu4yMPnZqGcM0ToxRLhnCOXj9YhCTJ
-         vNo3B5V9Q9KqO5zroGUm3jeL/HcIGxZiEU0oAO0GwKEg59DwLVkHac7fOK91v6ZOq+Qn
-         ojKToZ7FyZ3R9xsLmmSOCnyprn89kxpY8FvejQZg2EsbGGi+Am5rEZb1SwM58japhEV1
-         caEA==
-X-Gm-Message-State: APjAAAU9lvH0qqMeUHOMFVbA27PKnCTC7diUm/1Iofhe1YdlnfS1RBsf
-	jXQmA5n6Kw4aDt1nEeYa4LaC+mFUJq7NCkU5AxMJcFnHgVtCFhprWmcGDoSbOvYyh5FxH9YIQPp
-	muKC/ZpKgP9902NguN4oRSwRNaHM0SWDrFHSIVouYoMeGQ1ULurKoTQ6JInJg/xv1xw==
-X-Received: by 2002:a63:1a12:: with SMTP id a18mr11969602pga.200.1552346200911;
-        Mon, 11 Mar 2019 16:16:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwMb5kpwG70cJuRmvIqTx38XAwX7jOgEbnjatNePJTpRtXG7YSLozkl7OwrZyI9gXZxKfRo
-X-Received: by 2002:a63:1a12:: with SMTP id a18mr11969530pga.200.1552346199856;
-        Mon, 11 Mar 2019 16:16:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552346199; cv=none;
+        bh=2Iy+HRoKGbvYIX/HJ/Oa3YNfE4vvNj0SEEupfHgAt7I=;
+        b=JDRAeyuVC/AljBYeb4aVeeVv9xo7IdAM5HkI1pe13UcwcXhvbr/MQiY9loCalHTE3M
+         sjmgzApw8l1PrV4YmguEbF7UuPArE6WTuzy1DYceTh+3wB5MbRyRPgE7cUboyBY1uVaB
+         gUsS3F3HLjhnTKnqYxjfDz5d5UU0lG+3OHSk4F88IU8hI16YME39PCGhpj+uTIgJuggW
+         cK+4XDjLMO9KsBpuH+y3WRDs5osM0CCzzH0SwRS7sqg0y9FhKG1VFBqs7Gq4JsHWzgqo
+         /wog5iRhpXUewiPlUJqZ2YJ9jsEz61ernNS+rY6W96lCzC67mX4K5u4h88igjQnych5I
+         wdnQ==
+X-Gm-Message-State: APjAAAV3Q/COZyNQYqtmaTdDMXzosjy9ibDMRNf39rDC5EYUtSLJOJ3e
+	nRDSgXE2CP0giwvP57Lyw8/YwVWawcfKS2X9iJLpcpd1cx73tyTth5o5gDnVterNVHOCe9tq2TB
+	m3fkyUxzjusFvt2rkjsPt6hL+vFA2FTbC/jmVMrjp7nuOqWS0JNzHaiI2pZSjut1IbKF02ScwJG
+	yOsJgAW1IBV99eWCTwohcgJm4fsAXhch3XuJFOW/PGnyQHaRdFqhyW813ym2z85aJU/HVJ+6gUw
+	PZ8MCSxFwUHIOimIEqEouCa+CQ43j1+3Xg+zC0nxQ4sIM/CXgW/YIq9Hz7bIuYlVrrTBAcpcRPQ
+	kwto5hdu3j43pfpL2lYwgv+H5Cv4Uj+TnUc8Vhb648V3g5RhwjMDvs7ilgXOSSr7RGd0mUYL9ZJ
+	x
+X-Received: by 2002:a5d:8d84:: with SMTP id b4mr17975631ioj.109.1552346609959;
+        Mon, 11 Mar 2019 16:23:29 -0700 (PDT)
+X-Received: by 2002:a5d:8d84:: with SMTP id b4mr17975597ioj.109.1552346608614;
+        Mon, 11 Mar 2019 16:23:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552346608; cv=none;
         d=google.com; s=arc-20160816;
-        b=wjS0klDvvm8kAAiAISH40+sjIbB6cPE6BwFe5e7rbsMj4DGLNs83VJpriRIaY48iOd
-         sYNfJ3llOpXNaP8AnUZbklx+i3utit6o7XFKuOH2bMFI6z/ZkfehvjzqD/L3EQlAI/CM
-         bbcwYGyOdhSGajApYOYz8nZDwCsT9AKOPaDumWAnIuzdiWwtBAHfwK7jslh8n6/77hwg
-         Mt6FGaffuW+H9ZrlWstbMdagjl0EXIbet8iYDIxepz7kBmwIus1UAjZbXnlvqlJeQt0h
-         wVhoAat1Da5lcquhi4pZmNxmigZOsuQrpX6icXXvWKjOrnRtFUWHTB0YCmT+Mv3eqCVg
-         Nl0g==
+        b=GhkJiL1llXdNDZhHYmaF5FJjPyVP3BLkYneg5ya1Za8WTnIuhA/JNN5J5v89OxiFI/
+         loaJjVRfMAfG1nuzYlZPbDBEuKAIbjB/Xls/IU460XM1AJ28h5SIgOJvc6d1HnggBVFn
+         RNo6YG8iEgVof71Q9MWFLSS4p1m6mwqq/ELwZRCiQIM3mY/Q3ewAC/s6VlmqzAezL/cO
+         ok88m5kgOSsbPBbHbaqCPLKjBvgT+RbDMjaufVqDiNJHyVqD8MSx0h61xK1B+lV1KfKE
+         Kz++GYM5G9gpgvj/7LopJIsZ1Mz+9f+IGAPSIDxV8+5xcpuEEn6/a3Am9h6NWj4SOQky
+         4/qg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=VRk8dTonCC66f9q4pJTMkfYABO9GvpgzSFGe1HmkjIQ=;
-        b=pSlAu7VFmywMWED9GvV0EVSel/bqimHNLjpM8xO0BD+aYxj5AhKwVATBuk/w/tSKxH
-         Qgj+RTrs6C6TtbK6TRyQz5IK/UI/zzrWGEYCIUUW5NP9cKi6gf/jXgoh4gM9NFIelI1f
-         BtEn9hN1OW+FRo/evm4qZubSy4enRxx9VsG9t1MqcqzAsGKqjUnjWyAOM17TNIjXbxax
-         Z1sWCUnonqmEG2Wd+Ad1wBMFH6zV7EQU2OWJglugfyD48qjN7jcitwcIQdc6Cb/q0VnH
-         40FarRuwVyMXgtMP7TbLreOK2u6u9LDTgeb5758aWCif+WP3meiISHC4uJbv8dT+lY2G
-         ypJQ==
+        bh=2Iy+HRoKGbvYIX/HJ/Oa3YNfE4vvNj0SEEupfHgAt7I=;
+        b=Fk+eLIfBGoCobvVB8/hPErb0KYXe9NH2K0T+ccnR+fZoQZr7Uq9UifjVeH6O86Cuek
+         2YO+Zs7tIggMFurTtFKL/d7EZ5dqGyS6tKW+Xu2nCecF9vkb1yeEYDPipyiHGtdzsvIj
+         t7QJ4Mdx8gQiPE1uKakaXJgjnmswPURMZJ/k+52qEabHG4TVCBa9JjN4pf+2fSjzl8ie
+         9+hiz7hYSOf45UUdhl1rOBBj7RjDhZtDT6eVAz2IEtevOmHr0R06r/eX3lV8R/bqxMa5
+         kKc63V7uIExkVa3o7yaXyP6CZtptrpHrNMSniZrN3Dg3d24KRO5c7kDchMONMt+MQuxK
+         pYag==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=VKsly5J8;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id g9si6284252pfd.234.2019.03.11.16.16.39
+       dkim=pass header.i=@google.com header.s=20161025 header.b=gZKWQc2K;
+       spf=pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yuzhao@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 184sor1034231ita.36.2019.03.11.16.23.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 11 Mar 2019 16:16:39 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Mon, 11 Mar 2019 16:23:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=VKsly5J8;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=VRk8dTonCC66f9q4pJTMkfYABO9GvpgzSFGe1HmkjIQ=; b=VKsly5J8ERsC1H7zgSrPBqf0Y
-	g4bn3XesRKnq1azJLVGInGQHZuQClN2MazwVuR1kCkrfyXDjQIQsEPtIkjFx90+YVNWSTerbMjiKw
-	X9rQztt44nwZXr3dEhYLRP1dnWacDtJdbxoZvxT/LfColfM4Vhgf7UgXdKqLC+tL+5V97jDPSe7uD
-	N+AlyC8wsyWUt0DtbBHSvWpGiQ+v7Gpl06LuWiApmLPHDp2UCoobbRAL+2kw+FfcmSmXvxDWXAAJU
-	USkzG7rhaT6QVfZyOB/2n+CQnoEnDQtcqQd1ppP370AwiGaNqjnFCeofgTmhxySfXd0YtUk0qOkg/
-	6FdPXQ0HQ==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1h3U9q-0005zC-0K; Mon, 11 Mar 2019 23:16:34 +0000
-Date: Mon, 11 Mar 2019 16:16:33 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: "Tobin C. Harding" <tobin@kernel.org>,
+       dkim=pass header.i=@google.com header.s=20161025 header.b=gZKWQc2K;
+       spf=pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yuzhao@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=2Iy+HRoKGbvYIX/HJ/Oa3YNfE4vvNj0SEEupfHgAt7I=;
+        b=gZKWQc2KYwGAX3WowtGwdPrVrqqb8O6bfCdDhL1oyXMRPps7k/Zwmb6pXoM+qjET4y
+         ip+aHfBkpp8BwRnBmV+PyaqmdFa+7T1XGd8BqUKvbh5hD9u0P3rz93oaPt9Eq6HsGs34
+         jgRj/Whff2r8sgBtjJ6NkZFimIloBJzAodGLYhC9pLsH5dCg26QMKYR9Vzm+6Vf5e0YZ
+         8cyq1PVFJILFTXtWlv/sVYeRRSjHGjMpPsYhXYXbjYX/tar0JYGUR63GNmlD8XOTUxMR
+         +Dx6uSX090lfloxgp8KMYGqDlUaUNZm6h/JcRcxE1Sjm2keTgiwUwkSFiBhmWg7CVxi7
+         BSow==
+X-Google-Smtp-Source: APXvYqyPGkSJFsx3J+ev890Ozq1EHLT5IDQIVnuh3g3snXm234Vr+JhVinPiWYKVphuheOwwdBLDpg==
+X-Received: by 2002:a24:c4c5:: with SMTP id v188mr448374itf.27.1552346608185;
+        Mon, 11 Mar 2019 16:23:28 -0700 (PDT)
+Received: from google.com ([2620:15c:183:0:a0c3:519e:9276:fc96])
+        by smtp.gmail.com with ESMTPSA id w127sm443830itc.4.2019.03.11.16.23.26
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 11 Mar 2019 16:23:27 -0700 (PDT)
+Date: Mon, 11 Mar 2019 17:23:23 -0600
+From: Yu Zhao <yuzhao@google.com>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	"Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 0/4] mm: Use slab_list list_head instead of lru
-Message-ID: <20190311231633.GF19508@bombadil.infradead.org>
-References: <20190311010744.5862-1-tobin@kernel.org>
- <20190311204919.GA20002@tower.DHCP.thefacebook.com>
+	Nick Piggin <npiggin@gmail.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+	Chintan Pandya <cpandya@codeaurora.org>,
+	Jun Yao <yaojun8558363@gmail.com>,
+	Laura Abbott <labbott@redhat.com>,
+	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+	linux-arch@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH v3 1/3] arm64: mm: use appropriate ctors for page tables
+Message-ID: <20190311232323.GC207964@google.com>
+References: <20190218231319.178224-1-yuzhao@google.com>
+ <20190310011906.254635-1-yuzhao@google.com>
+ <b0ae4f65-aa0f-148a-eced-0d9831a7bf01@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190311204919.GA20002@tower.DHCP.thefacebook.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <b0ae4f65-aa0f-148a-eced-0d9831a7bf01@arm.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 11, 2019 at 08:49:23PM +0000, Roman Gushchin wrote:
-> The patchset looks good to me, however I'd add some clarifications
-> why switching from lru to slab_list is safe.
+On Mon, Mar 11, 2019 at 01:15:55PM +0530, Anshuman Khandual wrote:
+> Hello Yu,
 > 
-> My understanding is that the slab_list fields isn't currently in use,
-> but it's not that obvious that putting slab_list and next/pages/pobjects
-> fields into a union is safe (for the slub case).
+> We had some disagreements over this series last time around after which I had
+> posted the following series [1] which tried to enable ARCH_ENABLE_SPLIT_PMD_PTLOCK
+> after doing some pgtable accounting changes. After some thoughts and deliberations
+> I figure that its better not to do pgtable alloc changes on arm64 creating a brand
+> new semantics which ideally should be first debated and agreed upon in generic MM.
+> 
+> Though I still see value in a changed generic pgtable page allocation semantics
+> for user and kernel space that should not stop us from enabling more granular
+> PMD level locks through ARCH_ENABLE_SPLIT_PMD_PTLOCK right now.
+> 
+> [1] https://www.spinics.net/lists/arm-kernel/msg709917.html
+> 
+> Having said that this series attempts to enable ARCH_ENABLE_SPLIT_PMD_PTLOCK with
+> some minimal changes to existing kernel pgtable page allocation code. Hence just
+> trying to re-evaluate the series in that isolation.
+> 
+> On 03/10/2019 06:49 AM, Yu Zhao wrote:
+> 
+> > For pte page, use pgtable_page_ctor(); for pmd page, use
+> > pgtable_pmd_page_ctor(); and for the rest (pud, p4d and pgd),
+> > don't use any.
+> 
+> This is semantics change. Hence the question is why ? Should not we wait until a
+> generic MM agreement in place in this regard ? Can we avoid this ? Is the change
+> really required to enable ARCH_ENABLE_SPLIT_PMD_PTLOCK for user space THP which
+> this series originally intended to achieve ?
+> 
+> > 
+> > For now, we don't select ARCH_ENABLE_SPLIT_PMD_PTLOCK and
+> > pgtable_pmd_page_ctor() is a nop. When we do in patch 3, we
+> > make sure pmd is not folded so we won't mistakenly call
+> > pgtable_pmd_page_ctor() on pud or p4d.
+> 
+> This makes sense from code perspective but I still dont understand the need to
+> change kernel pgtable page allocation semantics without any real benefit or fix at
+> the moment. Cant we keep kernel page table page allocation unchanged for now and
+> just enable ARCH_ENABLE_SPLIT_PMD_PTLOCK for user space THP benefits ? Do you see
+> any concern with that.
 
-It's already in a union.
-
-struct page {
-        union {
-                struct {        /* Page cache and anonymous pages */
-                        struct list_head lru;
-...
-                struct {        /* slab, slob and slub */
-                        union {
-                                struct list_head slab_list;     /* uses lru */
-                                struct {        /* Partial pages */
-                                        struct page *next;
-
-slab_list and lru are in the same bits.  Once this patch set is in,
-we can remove the enigmatic 'uses lru' comment that I added.
+This is not for kernel page tables (i.e. init_mm). This is to
+accommodate pre-allocated efi_mm page tables because it uses
+apply_to_page_range() which then calls pte_alloc_map_lock().
 
