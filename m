@@ -4,108 +4,120 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5BEE2C4360F
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 19:59:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8367BC10F06
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 20:00:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 12185214AE
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 19:59:33 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 39293214D8
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 20:00:02 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="a0WVV8Kk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 12185214AE
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Oftf0J15"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 39293214D8
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ADCF18E0004; Mon, 11 Mar 2019 15:59:32 -0400 (EDT)
+	id D9E188E0005; Mon, 11 Mar 2019 16:00:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A8C9B8E0002; Mon, 11 Mar 2019 15:59:32 -0400 (EDT)
+	id D24BA8E0002; Mon, 11 Mar 2019 16:00:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 97D398E0004; Mon, 11 Mar 2019 15:59:32 -0400 (EDT)
+	id B9ED98E0005; Mon, 11 Mar 2019 16:00:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 589AE8E0002
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 15:59:32 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id z14so35171pgu.1
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 12:59:32 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 772A08E0002
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 16:00:01 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id z5so8889pgv.11
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 13:00:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=EUuj2VgVnXDPuYpq4H9aIttMM8iEI6Y+lDt9Lz9PsgQ=;
-        b=k9WHesUJaGAJ2p5i/u77DIbW4cgfez88rJxlrKwutIhwM8fRvCV0ogIJi5ulbm8Ij/
-         w/+icpSyQVYAFgMIHwjuxQs9PfgjKO8nTyBRaaDOj+NcptiQonZxH219dtajQ0iowROY
-         68J+T6pOXPgU00REjtCf/ZpBUS+2ZhQ+GQBxi4X7TZtcSSwr5xcHnshOwCSoGY3Oq4dZ
-         WZ7d0nVfEILr9yEYiuN3VfxUHpJ8TEK0Oku9uytt/81n7FlYAtzIxHcVGlFh1rokW8Ep
-         hi1K/ce9iLSZgONqVFzf03JuqjKIxFvoP0f91tYhhNoxt3SQH+gLmT/vDaEbByHclZLV
-         A5xw==
-X-Gm-Message-State: APjAAAXvr/ePWQLkd6r4rzmncuWgpRQft/ES13VMbElFJ1NMf578FSLw
-	uFi3l2Xm/YiYrfmJnPD2PwXZrb6Ncp3Xy6l31x+nv2sS69ozluV2LJnD5QOLQqMrUO3hYfNifbu
-	5Wos9A2WWy/dIJG+Kys9PazeXLo1h9RFp2IR6QR8d6n1/EsbX6BknYolH7UNKekU4jA==
-X-Received: by 2002:a17:902:bf41:: with SMTP id u1mr19385092pls.230.1552334372064;
-        Mon, 11 Mar 2019 12:59:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw0LP3Loe/0WHsuMxeX8uncSUkHwYLG7OZ0WVjkQVVvExprDvQ4BahTs2HOi15dlsIRti07
-X-Received: by 2002:a17:902:bf41:: with SMTP id u1mr19385045pls.230.1552334371290;
-        Mon, 11 Mar 2019 12:59:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552334371; cv=none;
+        bh=Q7aKCqbKwPKjXc9GxI3Tout/MP+Hue4x+jJeP3QpjUM=;
+        b=rTMFbWFC4Fst0B/MRIfX9Ya3hQ0TPKijqv93Tf9aHLigaApno9YEDp51cp9JqvnhGp
+         q01EzMjBw/M0OxoKL3nFy2W7CnO23qvSUuI+NWs85tw8PDvu406TVU5hYMYL9/l3lnxA
+         pMSXfYFReUR5O8vaf1bfBjxJL94ZHNxqiH7p1A3kcLyyFVWs4XYzpEG5hyVQvTcmy0d8
+         0zs+VoIXLJy6awtBguVN6CDNKA/K2aobe7LcvIKzQdChh0FsYfStopRGGJFL9TG1zz/B
+         bmZywGqpSl2Nj+H+Frs2+S6YPdAK1gG3s80ZZ7KrkQsLJljYkTgxojU8E7RXFokcSaHn
+         7QJQ==
+X-Gm-Message-State: APjAAAXfUE5MAlw9HoVG45O8XgblQKuwnzhUWQA4yHo16PYq7JbYuc0C
+	ibdGgm1lmdM2VfkfoJWgGWuS5n5xvbSGgmhZvV7kxZP3hEJMreJyjsY5T+QDQC3N91pMpBY9SDV
+	+tetHjYHImWdOTadU+onEKjT233MGFSrPmmzmqY/wItosAZSvsKKcerikN52xVPi0ow==
+X-Received: by 2002:a62:e716:: with SMTP id s22mr34414074pfh.35.1552334401177;
+        Mon, 11 Mar 2019 13:00:01 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyHls5yS+EvBuqitJY4rg9hWsefZtBooNuNCaoO5jWcvjkc4N4cOZtVA+d67o5y1Z9hyCyC
+X-Received: by 2002:a62:e716:: with SMTP id s22mr34414042pfh.35.1552334400503;
+        Mon, 11 Mar 2019 13:00:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552334400; cv=none;
         d=google.com; s=arc-20160816;
-        b=WEZ5vuH2RF+eJP6l0+c71mTB9V3N+xwH9DnlAKcQjusaF8teMGwqLkvxpL/MoNkXaR
-         EyBZ8JBvMiyGgxYBiBx/mT06Jik53wsoJezZz0EJNN/buDhpgS1Cr5mKDzj7KEihoapt
-         Ko6tKKbNFH+oS9jt/BbFxRTpgQowaN5fWSeQleDDziGlca8Il356bELjp7is1vxwASRn
-         9k+TUaNzXsM1N7y59KPouFwoSwjIYhRUDZ6ieab/P4ctxkyzNvnYz2c77M20ySx4HC40
-         TLGC4jbwZ64ZmpzzgeJTTqtEmD6+nnTuWBs8+oDFoCB/+pTt+0H+QA0WlHPsu7keFvDp
-         eR7w==
+        b=DUOv1ARd/SCKDzOsNlEF0YkQJvszrmacF6IddferIwPhWMERYY/DF222yhKKYNR/E3
+         rwrQcxxJLZqGCsWSk+S5a8DSv1fYW3VlZk0HwaOrj6Fz/7XGlggaLdb2U5N7qnJ6usLC
+         SKghr2W5E6JXXgzhjpbVuHfJTNR2Ur0Su3qS76nEgP6tOrwHrkL/xtfc4C/0wogAj61M
+         gvn1m1EkbsrDPLWgCqQZkKSdJyzx8VgPzN9Zl/pSY+UftUBnGtPU+kWB8DAYjlJJJmVF
+         XdMg2EdtAoNDXDgCpD3Vxg1YGpf0pKJmd6oLMCfujtWcD4OsqyFL4H++DZQS2eLCE7Na
+         eINw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=EUuj2VgVnXDPuYpq4H9aIttMM8iEI6Y+lDt9Lz9PsgQ=;
-        b=yHQebmUeNZIfcXjpgXW20sEZ8mtnY26kftkue89u3pqmfpIWqUE0We+j74gP2DSseQ
-         Zk0s86wjCAPIQAzSnm9ryrcaqAjI5F4qeqOgJbXbr6scQu3RfeNRMGfcIJ0bscAXESR3
-         3z9y7t9JXT+8sW+AObf+0uDxSJqHQKZp2Jh7fMTmEFUru/kdHrojSWHRdza9/b9xsWgJ
-         vhO9e8glEa3J2x82xrUOiImlCyq/loiMt6tJGL2Ce5DYjCs++A5tKsesZdllqcm1dEEt
-         B2xDsNZURxLEuVskhuA8Gfm9xaz6+1VTrE21mVXjrtX2lwvM79V6qWK3qiM+LRF8rBqy
-         IjdA==
+        bh=Q7aKCqbKwPKjXc9GxI3Tout/MP+Hue4x+jJeP3QpjUM=;
+        b=mE3BVgkIvW7RxMj1dH8PCwNce1+QBW1Ngx7+9T8K4w7233KdIZwjH5MQLipKb7H3lj
+         lduGabkCrmoFEiZvcrpyJFd++NcDsfM2DOEKarncNB61EdZvVmjDyimmiVmaTCCdQuu7
+         odN9tU7FlgmR1ja/Hnmx5R2Wi8UIk7qj34ZMx7g/OCy9asqklzzrDZ1WDuqYdRphQgqs
+         JzTOx22IWbbiV7axIIbmzYbeJk7yb2UWTUWEsv/ZUxkDahyQPzp1p0ot6ZZxNYGkROvH
+         +bFJg+NVtzryy5Q1wQAFxMTAN+P8+231JKFGqbWnigBPTe7wCJudkyQHdlIAkMOrr5Ig
+         k6jw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=a0WVV8Kk;
+       dkim=pass header.i=@kernel.org header.s=default header.b=Oftf0J15;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id r124si6316847pfr.252.2019.03.11.12.59.31
+        by mx.google.com with ESMTPS id j2si6152216pfb.268.2019.03.11.13.00.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Mar 2019 12:59:31 -0700 (PDT)
+        Mon, 11 Mar 2019 13:00:00 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=a0WVV8Kk;
+       dkim=pass header.i=@kernel.org header.s=default header.b=Oftf0J15;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 4DAB42087C;
-	Mon, 11 Mar 2019 19:59:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 830FE2064A;
+	Mon, 11 Mar 2019 19:59:58 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1552334371;
-	bh=XvHTynYYjho/ocuBvOKjHCIiHUp4C0UmYEyfVhjekqQ=;
+	s=default; t=1552334400;
+	bh=2ahr39JG4ahpvgXXMLZcvQGN109+8NUbGczsBU2Hx7g=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=a0WVV8KkyLxpevI5Rv79g6hVw5Rtd4PjgspX93GV3IhuC6lPNevqhqElKfRtfH6mn
-	 NKRKkY4h14hGdC8g6biGYF/EMBAqq0c31pd8f78+AokwQrMlM3GxWTFVrObD0gf0Ri
-	 XRQzMVjRekkCHVZdTiXBMeznPkqg308/7ryslmDw=
+	b=Oftf0J15CcPizWZ9C6WR5oNE7StelMq+UfdPDnPmGSmzmoV7lh0Y20AAxR6zoYGZk
+	 FythV8wA1etlKCuMYRZydtHobOIWS/h6qwXD0Qe+V4c0Sy6Wr17QUjMLL6PAxPaVaA
+	 dVeeytRimHRQd4nNetRAj4kx0Z/GuvzzUaN4haog=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Jann Horn <jannh@google.com>,
-	"David S . Miller" <davem@davemloft.net>,
+Cc: Yu Zhao <yuzhao@google.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Huang Ying <ying.huang@intel.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Keith Busch <keith.busch@intel.com>,
+	"Michael S . Tsirkin" <mst@redhat.com>,
+	John Hubbard <jhubbard@nvidia.com>,
+	Wei Yang <richard.weiyang@gmail.com>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.9 09/12] mm: page_alloc: fix ref bias in page_frag_alloc() for 1-byte allocs
-Date: Mon, 11 Mar 2019 15:59:09 -0400
-Message-Id: <20190311195912.139410-9-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 3.18 4/6] mm/gup: fix gup_pmd_range() for dax
+Date: Mon, 11 Mar 2019 15:59:49 -0400
+Message-Id: <20190311195951.139741-4-sashal@kernel.org>
 X-Mailer: git-send-email 2.19.1
-In-Reply-To: <20190311195912.139410-1-sashal@kernel.org>
-References: <20190311195912.139410-1-sashal@kernel.org>
+In-Reply-To: <20190311195951.139741-1-sashal@kernel.org>
+References: <20190311195951.139741-1-sashal@kernel.org>
 MIME-Version: 1.0
 X-Patchwork-Hint: Ignore
 Content-Transfer-Encoding: 8bit
@@ -115,72 +127,48 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Jann Horn <jannh@google.com>
+From: Yu Zhao <yuzhao@google.com>
 
-[ Upstream commit 2c2ade81741c66082f8211f0b96cf509cc4c0218 ]
+[ Upstream commit 414fd080d125408cb15d04ff4907e1dd8145c8c7 ]
 
-The basic idea behind ->pagecnt_bias is: If we pre-allocate the maximum
-number of references that we might need to create in the fastpath later,
-the bump-allocation fastpath only has to modify the non-atomic bias value
-that tracks the number of extra references we hold instead of the atomic
-refcount. The maximum number of allocations we can serve (under the
-assumption that no allocation is made with size 0) is nc->size, so that's
-the bias used.
+For dax pmd, pmd_trans_huge() returns false but pmd_huge() returns true
+on x86.  So the function works as long as hugetlb is configured.
+However, dax doesn't depend on hugetlb.
 
-However, even when all memory in the allocation has been given away, a
-reference to the page is still held; and in the `offset < 0` slowpath, the
-page may be reused if everyone else has dropped their references.
-This means that the necessary number of references is actually
-`nc->size+1`.
-
-Luckily, from a quick grep, it looks like the only path that can call
-page_frag_alloc(fragsz=1) is TAP with the IFF_NAPI_FRAGS flag, which
-requires CAP_NET_ADMIN in the init namespace and is only intended to be
-used for kernel testing and fuzzing.
-
-To test for this issue, put a `WARN_ON(page_ref_count(page) == 0)` in the
-`offset < 0` path, below the virt_to_page() call, and then repeatedly call
-writev() on a TAP device with IFF_TAP|IFF_NO_PI|IFF_NAPI_FRAGS|IFF_NAPI,
-with a vector consisting of 15 elements containing 1 byte each.
-
-Signed-off-by: Jann Horn <jannh@google.com>
-Signed-off-by: David S. Miller <davem@davemloft.net>
+Link: http://lkml.kernel.org/r/20190111034033.601-1-yuzhao@google.com
+Signed-off-by: Yu Zhao <yuzhao@google.com>
+Reviewed-by: Jan Kara <jack@suse.cz>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Huang Ying <ying.huang@intel.com>
+Cc: Matthew Wilcox <willy@infradead.org>
+Cc: Keith Busch <keith.busch@intel.com>
+Cc: "Michael S . Tsirkin" <mst@redhat.com>
+Cc: John Hubbard <jhubbard@nvidia.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>
+Cc: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/page_alloc.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ mm/gup.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 3af727d95c17..05f141e39ac1 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3955,11 +3955,11 @@ void *__alloc_page_frag(struct page_frag_cache *nc,
- 		/* Even if we own the page, we do not use atomic_set().
- 		 * This would break get_page_unless_zero() users.
- 		 */
--		page_ref_add(page, size - 1);
-+		page_ref_add(page, size);
+diff --git a/mm/gup.c b/mm/gup.c
+index ce1630bf0b95..29a36fae8624 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -885,7 +885,8 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+ 		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
+ 			return 0;
  
- 		/* reset page count bias and offset to start of new frag */
- 		nc->pfmemalloc = page_is_pfmemalloc(page);
--		nc->pagecnt_bias = size;
-+		nc->pagecnt_bias = size + 1;
- 		nc->offset = size;
- 	}
- 
-@@ -3975,10 +3975,10 @@ void *__alloc_page_frag(struct page_frag_cache *nc,
- 		size = nc->size;
- #endif
- 		/* OK, page count is 0, we can safely set it */
--		set_page_count(page, size);
-+		set_page_count(page, size + 1);
- 
- 		/* reset page count bias and offset to start of new frag */
--		nc->pagecnt_bias = size;
-+		nc->pagecnt_bias = size + 1;
- 		offset = size - fragsz;
- 	}
- 
+-		if (unlikely(pmd_trans_huge(pmd) || pmd_huge(pmd))) {
++		if (unlikely(pmd_trans_huge(pmd) || pmd_huge(pmd) ||
++			     pmd_devmap(pmd))) {
+ 			/*
+ 			 * NUMA hinting faults need to be handled in the GUP
+ 			 * slowpath for accounting purposes and so that they
 -- 
 2.19.1
 
