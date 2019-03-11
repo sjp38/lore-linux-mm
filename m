@@ -2,159 +2,190 @@ Return-Path: <SRS0=4gxf=RO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 12FA8C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 08:47:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D9AE7C10F0C
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 09:04:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CCE5F20657
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 08:47:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CCE5F20657
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 961B12075C
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 09:04:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 961B12075C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 660B98E000B; Mon, 11 Mar 2019 04:47:46 -0400 (EDT)
+	id 1007C8E000C; Mon, 11 Mar 2019 05:04:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 60FA28E0002; Mon, 11 Mar 2019 04:47:46 -0400 (EDT)
+	id 087888E0002; Mon, 11 Mar 2019 05:04:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 527AD8E000B; Mon, 11 Mar 2019 04:47:46 -0400 (EDT)
+	id EB6E08E000C; Mon, 11 Mar 2019 05:04:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EFB0D8E0002
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 04:47:45 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id d16so1708392edv.22
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 01:47:45 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C82888E0002
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 05:04:21 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id e25so1353372qkj.12
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 02:04:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=IQliClByDtdpq2tK0UidAA17wxvL04QTsP8PR6jl6h4=;
-        b=HWq71mS0roWpW7r4y8dNaf9UAKwOgkYBEBTQXi6zrHMBkEE0jkp5YZms+qIwjUK3gT
-         Ebu8ZhVT5rbc1tqw55G+MoZPk4dWll+088RUKdO7cB41aQ+vEjC0s1U1yxpdX9XVZLYD
-         nZB97hhA3F7Lqt0hznV4PKhhM8eO2H3AvUeB21guhpNkeY50N2H4EK+BVvWZD1l0YD4r
-         skDnKMsZrPhb04ow9bh55HrZOYOCzpcrnu7T+l13NtrZP+nqMKS83IC9Zr2DqLJ+XA0G
-         K1QjEA4Xn2ZuAQECVBPLgCNE/Od826nMhLLbyOjurO7UkwYvSF0wcLgoPo4EljjYstbo
-         qQxg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWbDAmiyKlBX6VXOEz2v6O4Xyj8QHFJWukTH6TjrmkO4SZ63DkC
-	YOL2dvDE5/eiOqttaTdw4Ur1+kDB0yW+/wpW3XAKePcndP7/ZzMtroLrp5VHDOox2gPgoBwt3Oj
-	JwYJin7uGfj6wyII5bVIIQWb5SvWdXiruusSQru6nqG0+Pf4zWVrSfFxkYPtbIZM=
-X-Received: by 2002:a50:b16e:: with SMTP id l43mr41313871edd.99.1552294065534;
-        Mon, 11 Mar 2019 01:47:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxSBjL99NnwS81hhBkRcvm276evEN/MshB27oKKOTiUfePMzoFHYIb2Duzg22acMH2/HAj5
-X-Received: by 2002:a50:b16e:: with SMTP id l43mr41313823edd.99.1552294064610;
-        Mon, 11 Mar 2019 01:47:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552294064; cv=none;
+        bh=EZGrVHTNl3bipmE1CeosgRQxxqQbbdPXAWWbkLc656k=;
+        b=c43nnLVbLlNmEfivyn0wx2tFlxdLHBuhQRDOfLfo9PDqZHSu8MAYkfMcpsZkFgq2nc
+         9z+YGYH5/gFaq463T2GQLgPMR8C2YYctPvNPl70At+NZnxOE7/faTmUwCXIw7NcNBy92
+         RKfmH2gNK9OSuPpMwDcrRVv88OHq/CnJzqPY9ClhHBwXYyxQ8mgKjvlqdubOSB1Ro4U4
+         7IkbJEa3cPFHbn+YO2T9U14dzttL3Zu8UHNJ2t4uxcl20SqGUYSXpwHpbYj/c6KiqjNw
+         H1NSIZYfL3e18jabj7RXAUYmuykuYjDNv/U1p39hULASKYHkhcIjjqV6zu3BHClvJU64
+         3T4g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dyoung@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dyoung@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUGLHR8kxrZat9x2Conavef0rRQW8jca3dlJANF5DZCGjH+LSNX
+	MZjkuecqqD993c+ph7ENYoTu1WBV3h7sbAwUUQU0ifIB8PmFjZavw9qDhFCD04Mjv2m+Ns2MWcu
+	4GlXGlDgH4lRcA0pxSj5ZeKUTLR6gGKDnjgEHirbOEHTDO/1Hbk7VfdLo11czYAG79Q==
+X-Received: by 2002:a0c:9609:: with SMTP id 9mr9160910qvx.195.1552295061543;
+        Mon, 11 Mar 2019 02:04:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwuJ7cLQlpG6CqubRs+4KCLbXd8+LIple4xxKIzi3Pv6eeiRyH1HEnhu2byxyM6CKD5XZT1
+X-Received: by 2002:a0c:9609:: with SMTP id 9mr9160868qvx.195.1552295060784;
+        Mon, 11 Mar 2019 02:04:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552295060; cv=none;
         d=google.com; s=arc-20160816;
-        b=hQlVle37snWkIiNzib1EP6tmgPqPlanfEy8vYiEAVxykN7GOYn0TFO56D+wUM9XJfI
-         Y0jTnluigFNGpf9nF3cPKnutwI1iSYEaLDCMU9uowZodMfbenovewDF7OAYx890DebVe
-         2hJWFRm7MWO3yU7nKTv4zuZA6c2ptnz0LgiNoHr3DYztKWQzvtkauKrySfN9MlzFj2VD
-         7Jggj8McysNH6rO6uDxQzIht0JkiLZB92W40NyEjAMfAqXn/GjKbHriBqJfCCTLqotPm
-         ipC7V9zVWDJbTqSWsLquVJ74r84frwDC8lLaDLcWX2WmC+U3ELj1EDL146Aq2FeDsm4t
-         lmyg==
+        b=jl1f9p/YwQnCdY1rLF8K6NUxA2ofzIPe4UNg3VNxwjdPFLaES3fhtGkfxj/TdiI93K
+         QQNcdjSKKm2e5GoSfmOyd2wGw87M2D9prl+Wj1VYDWhOg/k60b+1nY4C141Su/qtHHY7
+         blvtpM0AIYyfosAJQbD7nePwDtk0i7v+3VQLeRxoccO2k5oj/o9khgIpxshS4ZMcUtAE
+         3wt68NLKjYCQYJ92cnXtYKsywL4dQmbu5D4PE2J9nN4p9Bi46FYJRqFMdXwPC2q/qrG8
+         om+mdRb/5HYOih9Odca2GFHuN1qIQe83+eZlNT/Uw2fstK+cltirXQOv0oldveEbTG6Q
+         T/ww==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=IQliClByDtdpq2tK0UidAA17wxvL04QTsP8PR6jl6h4=;
-        b=aQU+aJsgRyCnCVbcOAGkNJkzCyxJrTs4KFXbXDvu8R0LUCVv/ucSGe3yiitvTw1XLe
-         GOVAGqkGFusPYX12cok/WdK6ZjzJpIO20x5Tg4pRW1Yh9FJDQ5L++EGzxYeN35ku2Hxj
-         75EFGKrC2vD532X6/OzY8180RUWa957T2I0KqOdV5ch37K85rzsIsH1TFylLI2coCnLT
-         vYIm65sdVY2BcvU94CRn+yQ0Ui03yS2wz+iSypqwmHj+HpTYlSoOTjNL8V5oL4R2kAW4
-         CwMLHsC0LSdyDAdK8HenoNMfLRiAzHtO3ofuGT8e7GDhZk/EqXQeo7QsqQTc4TrVADuZ
-         I6Mw==
+        bh=EZGrVHTNl3bipmE1CeosgRQxxqQbbdPXAWWbkLc656k=;
+        b=ZVyEG7gyAoZ/vVuufk8GKrAHYPKiulwKu0ZD5KbseRAqCBuN6yros9sOEbNzRyPuI6
+         2gvchL7dXh0lychPLm2XJdnAjCX3F7pPqfQZ1YPA6leZFN9theRCLpv5/PmkPHE6FUw1
+         8YI8vqcfTCWeSTRMBDolKbWODv/+yHT87uQc45dpU1qiE1qJipBFJ6OGNKv5UA3MdwxY
+         amrTUjyTj2gZ0YVWZ3yPCGL7846emIT/4Dhp+RRB+8GrGox6k/tGskzBfwPIvSq0KnwK
+         u2UIeYmk5VlSjQ0gkvbhK6i3cHtDMieyxUm3CcANLfj4BEs+3Ddozc1FVXBbRK4j1C+1
+         djsA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v19si3609720eja.285.2019.03.11.01.47.44
+       spf=pass (google.com: domain of dyoung@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dyoung@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a9si733667qtg.234.2019.03.11.02.04.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Mar 2019 01:47:44 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 11 Mar 2019 02:04:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dyoung@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 2FD81ACC8;
-	Mon, 11 Mar 2019 08:47:44 +0000 (UTC)
-Date: Mon, 11 Mar 2019 09:47:43 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: vbabka@suse.cz, jrdr.linux@gmail.com, akpm@linux-foundation.org,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	shaoyafang@didiglobal.com
-Subject: Re: [PATCH] mm: vmscan: show zone type in kswapd tracepoints
-Message-ID: <20190311084743.GX5232@dhcp22.suse.cz>
-References: <1551425934-28068-1-git-send-email-laoar.shao@gmail.com>
+       spf=pass (google.com: domain of dyoung@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dyoung@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id C5602E6A81;
+	Mon, 11 Mar 2019 09:04:19 +0000 (UTC)
+Received: from dhcp-128-65.nay.redhat.com (ovpn-12-113.pek2.redhat.com [10.72.12.113])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 0E5845DA62;
+	Mon, 11 Mar 2019 09:04:06 +0000 (UTC)
+Date: Mon, 11 Mar 2019 17:04:02 +0800
+From: Dave Young <dyoung@redhat.com>
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	linux-doc@vger.kernel.org, devel@linuxdriverproject.org,
+	linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org,
+	xen-devel@lists.xenproject.org,
+	kexec-ml <kexec@lists.infradead.org>, pv-drivers@vmware.com,
+	Andrew Morton <akpm@linux-foundation.org>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Baoquan He <bhe@redhat.com>, Omar Sandoval <osandov@fb.com>,
+	Arnd Bergmann <arnd@arndb.de>, Matthew Wilcox <willy@infradead.org>,
+	Michal Hocko <mhocko@suse.com>,
+	"Michael S. Tsirkin" <mst@redhat.com>,
+	Lianbo Jiang <lijiang@redhat.com>, Borislav Petkov <bp@alien8.de>,
+	Kazuhito Hagio <k-hagio@ab.jp.nec.com>
+Subject: Re: [PATCH v2 3/8] kexec: export PG_offline to VMCOREINFO
+Message-ID: <20190311090402.GA12071@dhcp-128-65.nay.redhat.com>
+References: <20181122100627.5189-1-david@redhat.com>
+ <20181122100627.5189-4-david@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1551425934-28068-1-git-send-email-laoar.shao@gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20181122100627.5189-4-david@redhat.com>
+User-Agent: Mutt/1.9.5 (2018-04-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Mon, 11 Mar 2019 09:04:20 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 01-03-19 15:38:54, Yafang Shao wrote:
-> If we want to know the zone type, we have to check whether
-> CONFIG_ZONE_DMA, CONFIG_ZONE_DMA32 and CONFIG_HIGHMEM are set or not,
-> that's not so convenient.
+Hi David,
+On 11/22/18 at 11:06am, David Hildenbrand wrote:
+> Right now, pages inflated as part of a balloon driver will be dumped
+> by dump tools like makedumpfile. While XEN is able to check in the
+> crash kernel whether a certain pfn is actuall backed by memory in the
+> hypervisor (see xen_oldmem_pfn_is_ram) and optimize this case, dumps of
+> other balloon inflated memory will essentially result in zero pages getting
+> allocated by the hypervisor and the dump getting filled with this data.
 > 
-> We'd better show the zone type directly.
-
-I do agree that zone number is quite PITA to process in general but do
-we really need this information in the first place? Why do we even care?
-
-Zones are an MM internal implementation details and the more we export
-to the userspace the more we are going to argue about breaking userspace
-when touching them. So I would rather not export that information unless
-it is terribly useful.
-
-> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+> The allocation and reading of zero pages can directly be avoided if a
+> dumping tool could know which pages only contain stale information not to
+> be dumped.
+> 
+> We now have PG_offline which can be (and already is by virtio-balloon)
+> used for marking pages as logically offline. Follow up patches will
+> make use of this flag also in other balloon implementations.
+> 
+> Let's export PG_offline via PAGE_OFFLINE_MAPCOUNT_VALUE, so
+> makedumpfile can directly skip pages that are logically offline and the
+> content therefore stale. (we export is as a macro to match how it is
+> done for PG_buddy. This way it is clearer that this is not actually a flag
+> but only a very specific mapcount value to represent page types).
+> 
+> Please note that this is also helpful for a problem we were seeing under
+> Hyper-V: Dumping logically offline memory (pages kept fake offline while
+> onlining a section via online_page_callback) would under some condicions
+> result in a kernel panic when dumping them.
+> 
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Dave Young <dyoung@redhat.com>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Baoquan He <bhe@redhat.com>
+> Cc: Omar Sandoval <osandov@fb.com>
+> Cc: Arnd Bergmann <arnd@arndb.de>
+> Cc: Matthew Wilcox <willy@infradead.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: "Michael S. Tsirkin" <mst@redhat.com>
+> Cc: Lianbo Jiang <lijiang@redhat.com>
+> Cc: Borislav Petkov <bp@alien8.de>
+> Cc: Kazuhito Hagio <k-hagio@ab.jp.nec.com>
+> Acked-by: Michael S. Tsirkin <mst@redhat.com>
+> Acked-by: Dave Young <dyoung@redhat.com>
+> Signed-off-by: David Hildenbrand <david@redhat.com>
 > ---
->  include/trace/events/vmscan.h | 9 ++++++---
->  1 file changed, 6 insertions(+), 3 deletions(-)
+>  kernel/crash_core.c | 2 ++
+>  1 file changed, 2 insertions(+)
 > 
-> diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-> index a1cb913..4c8880b 100644
-> --- a/include/trace/events/vmscan.h
-> +++ b/include/trace/events/vmscan.h
-> @@ -73,7 +73,10 @@
->  		__entry->order	= order;
->  	),
+> diff --git a/kernel/crash_core.c b/kernel/crash_core.c
+> index 933cb3e45b98..093c9f917ed0 100644
+> --- a/kernel/crash_core.c
+> +++ b/kernel/crash_core.c
+> @@ -464,6 +464,8 @@ static int __init crash_save_vmcoreinfo_init(void)
+>  	VMCOREINFO_NUMBER(PAGE_BUDDY_MAPCOUNT_VALUE);
+>  #ifdef CONFIG_HUGETLB_PAGE
+>  	VMCOREINFO_NUMBER(HUGETLB_PAGE_DTOR);
+> +#define PAGE_OFFLINE_MAPCOUNT_VALUE	(~PG_offline)
+> +	VMCOREINFO_NUMBER(PAGE_OFFLINE_MAPCOUNT_VALUE);
+>  #endif
 >  
-> -	TP_printk("nid=%d zid=%d order=%d", __entry->nid, __entry->zid, __entry->order)
-> +	TP_printk("nid=%d zid=%-8s order=%d",
-> +		__entry->nid,
-> +		__print_symbolic(__entry->zid, ZONE_TYPE),
-> +		__entry->order)
->  );
->  
->  TRACE_EVENT(mm_vmscan_wakeup_kswapd,
-> @@ -96,9 +99,9 @@
->  		__entry->gfp_flags	= gfp_flags;
->  	),
->  
-> -	TP_printk("nid=%d zid=%d order=%d gfp_flags=%s",
-> +	TP_printk("nid=%d zid=%-8s order=%d gfp_flags=%s",
->  		__entry->nid,
-> -		__entry->zid,
-> +		__print_symbolic(__entry->zid, ZONE_TYPE),
->  		__entry->order,
->  		show_gfp_flags(__entry->gfp_flags))
->  );
-> -- 
-> 1.8.3.1
-> 
+>  	arch_crash_save_vmcoreinfo();
 
--- 
-Michal Hocko
-SUSE Labs
+The patch has been merged, would you mind to send a documentation patch
+for the vmcoreinfo, which is added recently in Documentation/kdump/vmcoreinfo.txt
+
+A brief description about how this vmcoreinfo field is used is good to
+have.
+
+Thanks
+Dave
 
