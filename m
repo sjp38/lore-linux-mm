@@ -3,75 +3,75 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 91F64C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 09:37:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 81BBFC10F0C
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 09:37:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3CBE42075C
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 09:37:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3CBE42075C
+	by mail.kernel.org (Postfix) with ESMTP id 3EA5D2084D
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 09:37:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3EA5D2084D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DB8668E000E; Mon, 11 Mar 2019 05:37:24 -0400 (EDT)
+	id C33F28E000F; Mon, 11 Mar 2019 05:37:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D682C8E0002; Mon, 11 Mar 2019 05:37:24 -0400 (EDT)
+	id BE1BD8E0002; Mon, 11 Mar 2019 05:37:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C311F8E000E; Mon, 11 Mar 2019 05:37:24 -0400 (EDT)
+	id A84388E000F; Mon, 11 Mar 2019 05:37:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9510C8E0002
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 05:37:24 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id n16so3872996qtp.14
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 02:37:24 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8363B8E0002
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 05:37:36 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id r9so4031646qkl.4
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 02:37:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=sw4yziM5HH4yKUiDjHU8TNYvF7G664O4vw4D9f9xkAM=;
-        b=SrfsE0Sg1Q3a7XX3prHa+KUSsGNMedV4EDLjlKwxn4D3Aq9C2O0NL12WjrkU0Xjb/C
-         NZ06uGtqawp4ORJjM2fAgGIYeQp0jN4Ob+08YlOdMdy+Umc5rNoC6beaF2srTRgOkS4M
-         vx0RDZkVrsem9aATO0pNgVeJHylvtk48dHF2YsVVt64Z2lHVwBO7h/urQom8FgxGoVk/
-         aRekXC+plHM1/Zhsz3M0cKTZMpa3Z14P25VZKlMAJopspbSV4+V2ySCknMtmp8CN/fMx
-         ycdNW/uoI4vUC8rNSTKu8RkdznURW5j+i1WCnavMCzywxBy6+XyaxpeBVIDOtysWrHX1
-         6BTw==
+        bh=s3q6ORQAbgpYgrufMEFyMW+lw2VCVXcyiiCRY7039hg=;
+        b=pE6knGaP34kXJHftsYlqpfLJZl52TXe8xpypMXt93vvS+wu4tDMcYZhV7eW8DddCUo
+         I88t3UWin4DWJs1kyKuUiTo2uSbIQC/qmr+i6nu6CTtsq+63UqW8QCTikSvCJoVyilPL
+         x2JUuFFlWuiWWvkQuJkKclgbP35OOGX1ZlSrW+69WggVZc4yKHzAAVzMuzRdqVwpI/xH
+         ZidTvLtFtDl35A0uzrIrQd+5Qmw1XJfQ3WOO0v4UV2374wofXZQ+E0mn9T/0DpD3HI7z
+         zdJWGCW61SpYbB2POn567cEHJjTBM+m6+y4pB4B98+hioUp4cMk4LzatpL8ILW9vPKHC
+         WMEg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUPg+MwT7VLWDodpTMhlmPPYG9yr6EVkxXoai2kmw5L6+tRAzHQ
-	NQvId4B7Da4lseONuWWuIiFIkofJ4VpZRD9Iiu1+jv0Niav6hHMVPY31tVXAaFmC81RyehKNY3U
-	mCtbz8doxnh+2at4ylO1RR1oi4EscEVowK30BR3j/Z80Khq1zJFS3ranDewmIQFg2nw==
-X-Received: by 2002:ac8:3718:: with SMTP id o24mr24844932qtb.2.1552297044398;
-        Mon, 11 Mar 2019 02:37:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyKF0PawsTJH9Ij+tWg0I4np6kwqZ21x1VtydIsLsJd3xf1URBFRQD9uqcHiDXa16CmtslN
-X-Received: by 2002:ac8:3718:: with SMTP id o24mr24844909qtb.2.1552297043529;
-        Mon, 11 Mar 2019 02:37:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552297043; cv=none;
+X-Gm-Message-State: APjAAAUDaveK3M20eS6RAxNU5RzFudPBOnQht7CNwF8AUbZdsg26KcBV
+	tLE3E+ucj3lxy4R7QdhYJEAuabCPvt8V4nK0d/h2WRLnYSzP2u8NsRRPEZfzeLBtvez+jN9m/LN
+	iPR2LUCQyHHLGRjeVZVX2jnqkuenc3Wg+ur3NJ+sQEH/PzV/V4+4O8x1/AMRYtjgtJA==
+X-Received: by 2002:ac8:3802:: with SMTP id q2mr24313606qtb.325.1552297056334;
+        Mon, 11 Mar 2019 02:37:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqztyYHCX4apmZ+jyhAkjc2VD97vlPO/63AEG6OZwGsbFby0iQ/ENx6DUFkBdmCt8sCCUf5C
+X-Received: by 2002:ac8:3802:: with SMTP id q2mr24313556qtb.325.1552297055091;
+        Mon, 11 Mar 2019 02:37:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552297055; cv=none;
         d=google.com; s=arc-20160816;
-        b=TPZLsA1AnAJsQ7ZGimyzyvfHX27dtLX0EvB2oN+ag492IciREoIJU77ZZsfX82BnCU
-         t9nB56SG69dTdhK1Y1FYMt8T7Wzs3m6uqb6Ach4OzsnYOzJl/8P/XzZWGp5t/phlQz2/
-         kLI6IUjr3MmCTDqy0kzoyiZ00uBKoikh18SB/8X6nhj3jEArihvd/jUTfzuLAKHXxCqH
-         R2BhNAAJcXmDtYizNEyIHa9On0utKNDNpgE6jKwBvA6r4z2PSaegPloo5w8Cb/XJ1bjR
-         JG/zwblPY9lH4JzwT0wXXED684ArcRdOx3sRRGuiTzFkWTrfuSHgq0HYzmb9vclaSj8Y
-         gs5w==
+        b=lrBixZjxBRCDJW+qjyeUm0j7XU0YGWxxzoCaLZ2JWAEwX1cMCERywFYEC5KA2LjE7H
+         +9zam+CqJYpYALhBei5t3cp5DBIoMLVW/t/fcaDXSb9Axe1Hhj9gwyMZ25+ppQOSFZ6n
+         AKlla8/ry2IyYJ/yMO3yguvYMLalnHoTzh/Bem696/kDPOjN2n/1DA5OjhDccU/xGD7B
+         5qR22C5IK7aamFGhSVx9A1eowG2Jo2R/FvBQHWTB9Ub/vm42NNRTAJJbSu9LEyJDwuNS
+         M7addhsulV5YDtPzzflGQLRY3m/vmad5PSePVSaBwNDEcVgpSVFqd+4q79+/Xx5Z6l+U
+         UZVw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=sw4yziM5HH4yKUiDjHU8TNYvF7G664O4vw4D9f9xkAM=;
-        b=A3Q2R2YOaWn14EOhBa7JMRNQ1nILvmn19iR8X3HSqfKM0ftrqAZNRRFKLN08HL5p6K
-         rqcg9YuOlLkiFEGMge6QdfR2L4i/GKuJIj6GU3JO4cipErEKqfpgALHxEgkH4XZr2bEp
-         tefcnzNYLS9COkvbclwYAh7XAe/yIZHZasgOlN/Mop7xqL9UaB6nq3aEIbzBKEZ0r+L+
-         SBTb6NamEnkL6W7bkaG+2G4mXYMFrZM05siRRt7d9jIqiiZFAKyT4EF5r/22cAwo1nL9
-         XA7MykEg8lRhu5cm91Oz4XqRSqcrFPHxmlDH1FhYuMqsAmRcCL4GtBNzGjr1CIfHCBy2
-         iR4A==
+        bh=s3q6ORQAbgpYgrufMEFyMW+lw2VCVXcyiiCRY7039hg=;
+        b=wNAj3fbvY7xjR6bx0HsDGlnn9F6Z8h82U4BvAImC4YOdR0ICMFMWJe5ndGy8y9ELqQ
+         X/TfFXC91xqoWiNRp3wAGbWbnBCEQGB1IDuHsmzBM45IKpe2RbB3j/byzHjhVeEq8Hjs
+         Ro+4NsCrMFaOkpe1hD9BBEx4hezHAJOC9MS4NxLHLbHznsCV+Ukzsj3nBMszYq2wo0jL
+         LBTASVgiR9ECWub0y5JGZ11UqRuB9Jbyz3GnPNj42vVOfH1DdfDsQB8nVIsUltzTINQq
+         5WmKWJw8hBclnOEJgrpGLpaz3ne20n6acUhjdEQfRVbzT5pNjbDwDJORQsjEhUtFEsOt
+         hR1A==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m12si1132440qkl.250.2019.03.11.02.37.23
+        by mx.google.com with ESMTPS id x60si102818qte.315.2019.03.11.02.37.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Mar 2019 02:37:23 -0700 (PDT)
+        Mon, 11 Mar 2019 02:37:35 -0700 (PDT)
 Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
@@ -79,11 +79,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 71CFD30821E2;
-	Mon, 11 Mar 2019 09:37:22 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 399093086265;
+	Mon, 11 Mar 2019 09:37:34 +0000 (UTC)
 Received: from xz-x1.nay.redhat.com (dhcp-14-116.nay.redhat.com [10.66.14.116])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 595225D706;
-	Mon, 11 Mar 2019 09:37:15 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id EAB725D705;
+	Mon, 11 Mar 2019 09:37:22 +0000 (UTC)
 From: Peter Xu <peterx@redhat.com>
 To: linux-kernel@vger.kernel.org
 Cc: Paolo Bonzini <pbonzini@redhat.com>,
@@ -109,230 +109,67 @@ Cc: Paolo Bonzini <pbonzini@redhat.com>,
 	linux-fsdevel@vger.kernel.org,
 	"Dr . David Alan Gilbert" <dgilbert@redhat.com>,
 	Andrew Morton <akpm@linux-foundation.org>
-Subject: [PATCH 1/3] userfaultfd/sysctl: introduce unprivileged_userfaultfd
-Date: Mon, 11 Mar 2019 17:36:59 +0800
-Message-Id: <20190311093701.15734-2-peterx@redhat.com>
+Subject: [PATCH 2/3] kvm/mm: introduce MMF_USERFAULTFD_ALLOW flag
+Date: Mon, 11 Mar 2019 17:37:00 +0800
+Message-Id: <20190311093701.15734-3-peterx@redhat.com>
 In-Reply-To: <20190311093701.15734-1-peterx@redhat.com>
 References: <20190311093701.15734-1-peterx@redhat.com>
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Mon, 11 Mar 2019 09:37:22 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Mon, 11 Mar 2019 09:37:34 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Introduce a new sysctl called "vm.unprivileged_userfaultfd" that can
-be used to decide whether userfaultfd syscalls are allowed by
-unprivileged users.  It'll allow three modes:
+Introduce a new MMF_USERFAULTFD_ALLOW flag and tag it upon the process
+memory address space as long as the process opened the /dev/kvm once.
+It'll be dropped automatically when fork() by MMF_INIT_TASK to reset
+the userfaultfd permission.
 
-  - disabled: disallow unprivileged users to use uffd
+Detecting the flag gives us a chance to open the green light for kvm
+upon using userfaultfd when we want to make sure all the existing kvm
+users will still be able to run their userspace programs without being
+affected by the new unprivileged userfaultfd switch.
 
-  - enabled:  allow unprivileged users to use uffd
-
-  - kvm:      allow unprivileged users to use uffd only if the user
-              had enough permission to open /dev/kvm (this option only
-              exists if the kernel turned on KVM).
-
-This patch only introduce the new interface but not yet applied it to
-the userfaultfd syscalls, which will be done in the follow up patch.
-
+Suggested-by: Andrea Arcangeli <aarcange@redhat.com>
 Signed-off-by: Peter Xu <peterx@redhat.com>
 ---
- fs/userfaultfd.c              | 96 +++++++++++++++++++++++++++++++++++
- include/linux/userfaultfd_k.h |  5 ++
- init/Kconfig                  | 11 ++++
- kernel/sysctl.c               | 11 ++++
- 4 files changed, 123 insertions(+)
+ include/linux/sched/coredump.h | 1 +
+ virt/kvm/kvm_main.c            | 7 +++++++
+ 2 files changed, 8 insertions(+)
 
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index 89800fc7dc9d..c2188464555a 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -29,6 +29,8 @@
- #include <linux/ioctl.h>
- #include <linux/security.h>
- #include <linux/hugetlb.h>
-+#include <linux/sysctl.h>
-+#include <linux/string.h>
+diff --git a/include/linux/sched/coredump.h b/include/linux/sched/coredump.h
+index ecdc6542070f..9f6e71182892 100644
+--- a/include/linux/sched/coredump.h
++++ b/include/linux/sched/coredump.h
+@@ -72,6 +72,7 @@ static inline int get_dumpable(struct mm_struct *mm)
+ #define MMF_DISABLE_THP		24	/* disable THP for all VMAs */
+ #define MMF_OOM_VICTIM		25	/* mm is the oom victim */
+ #define MMF_OOM_REAP_QUEUED	26	/* mm was queued for oom_reaper */
++#define MMF_USERFAULTFD_ALLOW	27	/* allow userfaultfd syscall */
+ #define MMF_DISABLE_THP_MASK	(1 << MMF_DISABLE_THP)
  
- static struct kmem_cache *userfaultfd_ctx_cachep __read_mostly;
+ #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK |\
+diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+index d237d3350a99..079f6ac00c36 100644
+--- a/virt/kvm/kvm_main.c
++++ b/virt/kvm/kvm_main.c
+@@ -3403,7 +3403,14 @@ static long kvm_dev_ioctl(struct file *filp,
+ 	return r;
+ }
  
-@@ -93,6 +95,95 @@ struct userfaultfd_wake_range {
- 	unsigned long len;
- };
- 
-+enum unprivileged_userfaultfd {
-+	/* Disallow unprivileged users to use userfaultfd syscalls */
-+	UFFD_UNPRIV_DISABLED = 0,
-+	/* Allow unprivileged users to use userfaultfd syscalls */
-+	UFFD_UNPRIV_ENABLED,
-+#if IS_ENABLED(CONFIG_KVM)
-+	/*
-+	 * Allow unprivileged users to use userfaultfd syscalls only
-+	 * if the user had enough permission to open /dev/kvm
-+	 */
-+	UFFD_UNPRIV_KVM,
-+#endif
-+	UFFD_UNPRIV_NUM,
-+};
-+
-+static int unprivileged_userfaultfd __read_mostly;
-+static const char *unprivileged_userfaultfd_str[UFFD_UNPRIV_NUM] = {
-+	"disabled", "enabled",
-+#if IS_ENABLED(CONFIG_KVM)
-+	"kvm",
-+#endif
-+};
-+
-+static int unprivileged_uffd_parse(char *buf, size_t size)
++static int kvm_dev_open(struct inode *inode, struct file *file)
 +{
-+	int i;
-+
-+	for (i = 0; i < UFFD_UNPRIV_NUM; i++) {
-+		if (!strncmp(unprivileged_userfaultfd_str[i], buf, size)) {
-+			unprivileged_userfaultfd = i;
-+			return 0;
-+		}
-+	}
-+
-+	return -EFAULT;
++	set_bit(MMF_USERFAULTFD_ALLOW, &current->mm->flags);
++	return 0;
 +}
 +
-+static void unprivileged_uffd_dump(char *buf, size_t size)
-+{
-+	int i;
-+
-+	*buf = 0x00;
-+	for (i = 0; i < UFFD_UNPRIV_NUM; i++) {
-+		if (i == unprivileged_userfaultfd)
-+			strncat(buf, "[", size - strlen(buf));
-+		strncat(buf, unprivileged_userfaultfd_str[i],
-+			size - strlen(buf));
-+		if (i == unprivileged_userfaultfd)
-+			strncat(buf, "]", size - strlen(buf));
-+		strncat(buf, " ", size - strlen(buf));
-+	}
-+
-+}
-+
-+int proc_unprivileged_userfaultfd(struct ctl_table *table, int write,
-+				  void __user *buffer, size_t *lenp,
-+				  loff_t *ppos)
-+{
-+	struct ctl_table tmp_table = { .maxlen = 0 };
-+	int ret;
-+
-+	if (write) {
-+		tmp_table.maxlen = UFFD_UNPRIV_STRLEN;
-+		tmp_table.data = kmalloc(UFFD_UNPRIV_STRLEN, GFP_KERNEL);
-+
-+		ret = proc_dostring(&tmp_table, write, buffer, lenp, ppos);
-+		if (ret)
-+			goto out;
-+
-+		ret = unprivileged_uffd_parse(tmp_table.data,
-+					      UFFD_UNPRIV_STRLEN);
-+	} else {
-+		/* Leave space for "[]" */
-+		int len = UFFD_UNPRIV_STRLEN * UFFD_UNPRIV_NUM + 2;
-+
-+		tmp_table.maxlen = len;
-+		tmp_table.data = kmalloc(len, GFP_KERNEL);
-+
-+		unprivileged_uffd_dump(tmp_table.data, len);
-+
-+		ret = proc_dostring(&tmp_table, write, buffer, lenp, ppos);
-+	}
-+
-+out:
-+	if (tmp_table.data)
-+		kfree(tmp_table.data);
-+	return ret;
-+}
-+
- static int userfaultfd_wake_function(wait_queue_entry_t *wq, unsigned mode,
- 				     int wake_flags, void *key)
- {
-@@ -1955,6 +2046,11 @@ SYSCALL_DEFINE1(userfaultfd, int, flags)
- 
- static int __init userfaultfd_init(void)
- {
-+	char unpriv_uffd[UFFD_UNPRIV_STRLEN] =
-+	    CONFIG_USERFAULTFD_UNPRIVILEGED_DEFAULT;
-+
-+	unprivileged_uffd_parse(unpriv_uffd, sizeof(unpriv_uffd));
-+
- 	userfaultfd_ctx_cachep = kmem_cache_create("userfaultfd_ctx_cache",
- 						sizeof(struct userfaultfd_ctx),
- 						0,
-diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
-index 37c9eba75c98..f53bc02ccffc 100644
---- a/include/linux/userfaultfd_k.h
-+++ b/include/linux/userfaultfd_k.h
-@@ -28,6 +28,11 @@
- #define UFFD_SHARED_FCNTL_FLAGS (O_CLOEXEC | O_NONBLOCK)
- #define UFFD_FLAGS_SET (EFD_SHARED_FCNTL_FLAGS)
- 
-+#define UFFD_UNPRIV_STRLEN 16
-+int proc_unprivileged_userfaultfd(struct ctl_table *table, int write,
-+				  void __user *buffer, size_t *lenp,
-+				  loff_t *ppos);
-+
- extern vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason);
- 
- extern ssize_t mcopy_atomic(struct mm_struct *dst_mm, unsigned long dst_start,
-diff --git a/init/Kconfig b/init/Kconfig
-index c9386a365eea..d90caa4fed17 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -1512,6 +1512,17 @@ config USERFAULTFD
- 	  Enable the userfaultfd() system call that allows to intercept and
- 	  handle page faults in userland.
- 
-+config USERFAULTFD_UNPRIVILEGED_DEFAULT
-+        string "Default behavior for unprivileged userfault syscalls"
-+        depends on USERFAULTFD
-+        default "disabled"
-+        help
-+          Set this to "enabled" to allow userfaultfd syscalls from
-+          unprivileged users.  Set this to "disabled" to forbid
-+          userfaultfd syscalls from unprivileged users.  Set this to
-+          "kvm" to forbid unpriviledged users but still allow users
-+          who had enough permission to open /dev/kvm.
-+
- config ARCH_HAS_MEMBARRIER_CALLBACKS
- 	bool
- 
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 7578e21a711b..5dc9f3d283dd 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -96,6 +96,9 @@
- #ifdef CONFIG_LOCKUP_DETECTOR
- #include <linux/nmi.h>
- #endif
-+#ifdef CONFIG_USERFAULTFD
-+#include <linux/userfaultfd_k.h>
-+#endif
- 
- #if defined(CONFIG_SYSCTL)
- 
-@@ -1704,6 +1707,14 @@ static struct ctl_table vm_table[] = {
- 		.extra1		= (void *)&mmap_rnd_compat_bits_min,
- 		.extra2		= (void *)&mmap_rnd_compat_bits_max,
- 	},
-+#endif
-+#ifdef CONFIG_USERFAULTFD
-+	{
-+		.procname	= "unprivileged_userfaultfd",
-+		.maxlen		= UFFD_UNPRIV_STRLEN,
-+		.mode		= 0644,
-+		.proc_handler	= proc_unprivileged_userfaultfd,
-+	},
- #endif
- 	{ }
- };
+ static struct file_operations kvm_chardev_ops = {
++	.open		= kvm_dev_open,
+ 	.unlocked_ioctl = kvm_dev_ioctl,
+ 	.llseek		= noop_llseek,
+ 	KVM_COMPAT(kvm_dev_ioctl),
 -- 
 2.17.1
 
