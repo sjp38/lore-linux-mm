@@ -2,206 +2,221 @@ Return-Path: <SRS0=4gxf=RO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 50370C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 11:59:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 01CACC10F06
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 12:12:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0E463206BA
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 11:59:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0E463206BA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id B64652075C
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 12:12:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B64652075C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A6F468E001B; Mon, 11 Mar 2019 07:59:21 -0400 (EDT)
+	id 50EE88E001B; Mon, 11 Mar 2019 08:12:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A1E848E0002; Mon, 11 Mar 2019 07:59:21 -0400 (EDT)
+	id 4710C8E0002; Mon, 11 Mar 2019 08:12:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 90E6A8E001B; Mon, 11 Mar 2019 07:59:21 -0400 (EDT)
+	id 33A118E001B; Mon, 11 Mar 2019 08:12:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EFD68E0002
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 07:59:21 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id x17so5867937pfn.16
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 04:59:21 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CEBF18E0002
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 08:12:38 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id m25so1951490edd.6
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 05:12:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:mime-version:message-id;
-        bh=LVKsj2RASlREhHmMLDLyaiyuoK6HBltB58cGNLVvY90=;
-        b=gFXDFzPM02FYRwKkWGJu02fWjfz7uaGsRD/bj66/ZLJCsJy59g8qQfzTx0WgFY9/0+
-         fVttCFkCKEVUHG1SZuzjuXa/TANzTU0TsYLYyv0MhWJMlQFroziomaXWr6A2IiY3kCj3
-         Q4+DjR34MD8DoIXr5WZgn8Fc+SfN9md3eL8/1TRkxFOFGPedI+FkO07hpsRcCReTsP+F
-         dIATNNH7Y87v7ZeRvorDHMu40uiQvHBMmQXXW8i38G3oI7SooRCh8BtyHae/oaa6q2Cg
-         m+8EMojoBV+kAnX9D5v88pGlFY6MaQhpvfe4rKSKbwqH+9zKPS+Su3ERU4vRM9El4RdU
-         7xfQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAWFuVNmMMAI2YSYpbFXKYLWQv1pr+07n97fFQwQYoa/t1v0HK5W
-	wSPmophclNR+shU8u9qo6QresxLMS6ujx2kvFWfWiLSfcPbarsYnMlYqPh+4kdInCq9KKMu7aAT
-	f7p2missneAQHbq93ipdv9DPDr4w9k6/akqH2F9ty2t5XtRzMPTpZO9qHjsmacc4z6A==
-X-Received: by 2002:a17:902:e50b:: with SMTP id ck11mr34223823plb.25.1552305560992;
-        Mon, 11 Mar 2019 04:59:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzer1QthdqgZhyDxq+EoRziCHmzFwrfhNy7vI5FmX4YfI+BpBIO2o1guYXDQDRbY4C/YPq4
-X-Received: by 2002:a17:902:e50b:: with SMTP id ck11mr34223774plb.25.1552305560063;
-        Mon, 11 Mar 2019 04:59:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552305560; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=rhsrKwwju6wpjkXF857RTIdXgrqhpbn3Au0/5mrqPOs=;
+        b=YvMnJ250YhC9z5t1Zt3VFZ/yFyYwqnI2tw856FIzn2JxEczb2MF0ys5ChVvyoMq578
+         1Zf6Mm9r+1r+zwOCRRdqxrRMCbhOyYtLNLKS1vtdNXp0bz8luOYtg7SxkQyetTjTcrhy
+         YodFAjFu+GZHxwtcaXjkmdoElgEGcSvRSIBCaJAmS1txGuShg9R3hv+ELmcFlvqrlBMb
+         GPLd2qZncml9rMGT6VizMBgo5idX74Qd+V2VnehqFdIHdvknajQVMQFca5FwS0jkpH++
+         4vxoShabZ1HrT8OXyhSd38HEWCf+dmE8vUPH5pnrybvgT9YOMBDnVlY+E3wbACOg2NPP
+         oomw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+X-Gm-Message-State: APjAAAVC2IjPir0sFxdqUYYFdjwdBFUZMB6pBi4VIpiXzGr63Z2pjQUJ
+	sEXAVe2HS+dcYMEzSXvSpUIAPt/xqipKzzXL5e3NpI+903g+hJvTDklTjc4UYqHrzrZhYEzWa6c
+	pQArWlUDakIE80Ha61E4CULf7qagP+r87VFa6M3EF2tyO8OPyaAeKE/5WGlkFG65Peg==
+X-Received: by 2002:a50:ca41:: with SMTP id e1mr44093308edi.73.1552306358420;
+        Mon, 11 Mar 2019 05:12:38 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy1XLAQQpeuD64HdTdH/AycZLen0NAq2TIZug4nKoWy7E6lxgLQ39BFdaRkUkRkhYRuiu++
+X-Received: by 2002:a50:ca41:: with SMTP id e1mr44093253edi.73.1552306357421;
+        Mon, 11 Mar 2019 05:12:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552306357; cv=none;
         d=google.com; s=arc-20160816;
-        b=usqV5b007KXb2ugTPJqFL5vIn/AmDUsm/ta7WKxn/iwE+uZOc7tNjWPF8Ak7IHz6R0
-         9qck+bhH4PIOx2JfGAGSiHc/dkXQ2ljFz1lGkJAdM/tVjHjfEP7YlNTU25yUVwt+UIl2
-         QuqoXbfex9VLZSeqBPmmKAw0fcVe3YWPy5axvsPbHBrwUgCcN319SJFKAC9gqKYAnnSF
-         TYLzLwPqfD09EpZmYyzti4HviNQn0BDzTux3x8IGqs71vTZYMTyT4ynPTCf+x2bl/SBm
-         +MZOnl9GtWX9qL70A53Sbfr9voyXvb9uRMHaCoS2Aj2SyR6csx7SJuk8tA2c750WZdQX
-         7ASw==
+        b=hGA0kY5C+aeaD47V7i7Du3ZjhZWW+JCvf239JQtYRsgUyOFCIJ3SbsBzvZevHbQX+Q
+         EqLSf9qmud+GX2S8WdUcGRVbsb2DkdVf8brECnATnsMqLPWtmrc8ohfG46SRfVJALQDk
+         oKLzqh7F0Tr7sezjWwNA/Q/6RRpDcIs9KAQAiIVS/lTFfIwbVyGUNSAJRJiK6KgGdBYd
+         0+tChQHUksfeY02d0Jyck8usJlsvno1eWhcQR397EYcQacW9KJ8wke7Tnt8TSgbOXBxm
+         j95wovOKo49Ogn2aWJl+y/VgHLbjRMvJnG0/wz9tZKT0mkvFTfc0joGqbiiGdC/lLFwU
+         KMZA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=LVKsj2RASlREhHmMLDLyaiyuoK6HBltB58cGNLVvY90=;
-        b=SkVzPpwSKFabr85rhGg0PdUOBHz+3Xm85K1zzP1ONvT2Gt2hed2w1pmlGF7A/VgD9x
-         eGq6UER/xGGTyXGLPmptvcmovMOvUzelMaT9D6LumDkeekJdnaYqSXrm1MAPZA463nQY
-         f53/pqDTFrj8ehtEt8UWKMMdn14bw1IyKg71JDa1xaf0wacraspTj39+mPPBm3pyQHLX
-         y7jw9mZYoYkxRCGyCqWSkitKV/MAN5j4DcntCjEBbKPDEGEERBdzDyyrBuNvedVmNyqY
-         rNDWk2Hn8mhH3xLq5u5IHElq7XItgNL8jm6bPbC/D65IUOV5JIDJExMI7r255J2oLxR0
-         fxow==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=rhsrKwwju6wpjkXF857RTIdXgrqhpbn3Au0/5mrqPOs=;
+        b=E7FIoCGxOZ5xl5K+zsVCXxzN+amSwfR7RdOt4dgAYhFWQmdHsztcBtpydQl2zJplOD
+         QuIo1FjQlQ53prwuz6jeLMH5piUFvem0wNfnVlgfx5Uc7xFw3dTHgahBBU6GpvcofUaU
+         cMvYxHYDqD0aWaaLuQjI39pOwQvYLk0BMFB4VrKPuGSF0R7S8rBV5oy5r9BmDzD0QVJU
+         FL1TJm7YHXxf8KyvOoXfokZj2em0GNcDETbSh5pp3Blb0ISrzQyHy8OgUhw2oUD5noyf
+         MVbp/SbXl4YBqbFvPnDlPMyc1E3E+q17hqIQ7NuwrJfmmgFTxT7Hw5zhx850e6wINVLa
+         eG0g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id x7si5342050plr.73.2019.03.11.04.59.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Mar 2019 04:59:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id n15si5921581ejk.117.2019.03.11.05.12.36
+        for <linux-mm@kvack.org>;
+        Mon, 11 Mar 2019 05:12:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2BBwr4B075827
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 07:59:19 -0400
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2r5mn5y2cm-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 07:59:18 -0400
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Mon, 11 Mar 2019 11:59:14 -0000
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
-	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Mon, 11 Mar 2019 11:59:11 -0000
-Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x2BBxAMQ52166772
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 11 Mar 2019 11:59:10 GMT
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 3DE104C044;
-	Mon, 11 Mar 2019 11:59:10 +0000 (GMT)
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id A67F74C05A;
-	Mon, 11 Mar 2019 11:59:07 +0000 (GMT)
-Received: from skywalker.linux.ibm.com (unknown [9.199.35.189])
-	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Mon, 11 Mar 2019 11:59:07 +0000 (GMT)
-X-Mailer: emacs 26.1 (via feedmail 11-beta-1 I)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>,
-        Chandan Rajendra <chandan@linux.ibm.com>, Jan Kara <jack@suse.cz>,
-        stable@vger.kernel.org
-Subject: Re: [PATCH] mm: Fix modifying of page protection by insert_pfn()
-In-Reply-To: <20190311084537.16029-1-jack@suse.cz>
-References: <20190311084537.16029-1-jack@suse.cz>
-Date: Mon, 11 Mar 2019 17:29:05 +0530
+       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 22B80374;
+	Mon, 11 Mar 2019 05:12:36 -0700 (PDT)
+Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 2E8FE3F703;
+	Mon, 11 Mar 2019 05:12:33 -0700 (PDT)
+Date: Mon, 11 Mar 2019 12:12:28 +0000
+From: Mark Rutland <mark.rutland@arm.com>
+To: Yu Zhao <yuzhao@google.com>,
+	Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	"Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Nick Piggin <npiggin@gmail.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+	Chintan Pandya <cpandya@codeaurora.org>,
+	Jun Yao <yaojun8558363@gmail.com>,
+	Laura Abbott <labbott@redhat.com>,
+	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+	linux-arch@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH v3 3/3] arm64: mm: enable per pmd page table lock
+Message-ID: <20190311121147.GA23361@lakrids.cambridge.arm.com>
+References: <20190218231319.178224-1-yuzhao@google.com>
+ <20190310011906.254635-1-yuzhao@google.com>
+ <20190310011906.254635-3-yuzhao@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-X-TM-AS-GCONF: 00
-x-cbid: 19031111-0012-0000-0000-000003013D3F
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19031111-0013-0000-0000-000021385852
-Message-Id: <874l89wrjq.fsf@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-11_09:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1903110091
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190310011906.254635-3-yuzhao@google.com>
+User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Jan Kara <jack@suse.cz> writes:
+Hi,
 
-> Aneesh has reported that PPC triggers the following warning when
-> excercising DAX code:
->
-> [c00000000007610c] set_pte_at+0x3c/0x190
-> LR [c000000000378628] insert_pfn+0x208/0x280
-> Call Trace:
-> [c0000002125df980] [8000000000000104] 0x8000000000000104 (unreliable)
-> [c0000002125df9c0] [c000000000378488] insert_pfn+0x68/0x280
-> [c0000002125dfa30] [c0000000004a5494] dax_iomap_pte_fault.isra.7+0x734/0xa40
-> [c0000002125dfb50] [c000000000627250] __xfs_filemap_fault+0x280/0x2d0
-> [c0000002125dfbb0] [c000000000373abc] do_wp_page+0x48c/0xa40
-> [c0000002125dfc00] [c000000000379170] __handle_mm_fault+0x8d0/0x1fd0
-> [c0000002125dfd00] [c00000000037a9b0] handle_mm_fault+0x140/0x250
-> [c0000002125dfd40] [c000000000074bb0] __do_page_fault+0x300/0xd60
-> [c0000002125dfe20] [c00000000000acf4] handle_page_fault+0x18
->
-> Now that is WARN_ON in set_pte_at which is
->
->         VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protnone(*ptep));
->
-> The problem is that on some architectures set_pte_at() cannot cope with
-> a situation where there is already some (different) valid entry present.
->
-> Use ptep_set_access_flags() instead to modify the pfn which is built to
-> deal with modifying existing PTE.
->
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+On Sat, Mar 09, 2019 at 06:19:06PM -0700, Yu Zhao wrote:
+> Switch from per mm_struct to per pmd page table lock by enabling
+> ARCH_ENABLE_SPLIT_PMD_PTLOCK. This provides better granularity for
+> large system.
+> 
+> I'm not sure if there is contention on mm->page_table_lock. Given
+> the option comes at no cost (apart from initializing more spin
+> locks), why not enable it now.
+> 
+> We only do so when pmd is not folded, so we don't mistakenly call
+> pgtable_pmd_page_ctor() on pud or p4d in pgd_pgtable_alloc(). (We
+> check shift against PMD_SHIFT, which is same as PUD_SHIFT when pmd
+> is folded).
 
-> CC: stable@vger.kernel.org
-> Fixes: b2770da64254 "mm: add vm_insert_mixed_mkwrite()"
-> Reported-by: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-> Signed-off-by: Jan Kara <jack@suse.cz>
+Just to check, I take it pgtable_pmd_page_ctor() is now a NOP when the
+PMD is folded, and this last paragraph is stale?
+
+> Signed-off-by: Yu Zhao <yuzhao@google.com>
 > ---
->  mm/memory.c | 11 ++++++-----
->  1 file changed, 6 insertions(+), 5 deletions(-)
->
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 47fe250307c7..ab650c21bccd 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1549,10 +1549,12 @@ static vm_fault_t insert_pfn(struct vm_area_struct *vma, unsigned long addr,
->  				WARN_ON_ONCE(!is_zero_pfn(pte_pfn(*pte)));
->  				goto out_unlock;
->  			}
-> -			entry = *pte;
-> -			goto out_mkwrite;
-> -		} else
-> -			goto out_unlock;
-> +			entry = pte_mkyoung(*pte);
-> +			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-> +			if (ptep_set_access_flags(vma, addr, pte, entry, 1))
-> +				update_mmu_cache(vma, addr, pte);
-> +		}
-> +		goto out_unlock;
->  	}
+>  arch/arm64/Kconfig               |  3 +++
+>  arch/arm64/include/asm/pgalloc.h | 12 +++++++++++-
+>  arch/arm64/include/asm/tlb.h     |  5 ++++-
+>  3 files changed, 18 insertions(+), 2 deletions(-)
+> 
+> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+> index cfbf307d6dc4..a3b1b789f766 100644
+> --- a/arch/arm64/Kconfig
+> +++ b/arch/arm64/Kconfig
+> @@ -872,6 +872,9 @@ config ARCH_WANT_HUGE_PMD_SHARE
+>  config ARCH_HAS_CACHE_LINE_SIZE
+>  	def_bool y
 >  
->  	/* Ok, finally just insert the thing.. */
-> @@ -1561,7 +1563,6 @@ static vm_fault_t insert_pfn(struct vm_area_struct *vma, unsigned long addr,
->  	else
->  		entry = pte_mkspecial(pfn_t_pte(pfn, prot));
+> +config ARCH_ENABLE_SPLIT_PMD_PTLOCK
+> +	def_bool y if PGTABLE_LEVELS > 2
+> +
+>  config SECCOMP
+>  	bool "Enable seccomp to safely compute untrusted bytecode"
+>  	---help---
+> diff --git a/arch/arm64/include/asm/pgalloc.h b/arch/arm64/include/asm/pgalloc.h
+> index 52fa47c73bf0..dabba4b2c61f 100644
+> --- a/arch/arm64/include/asm/pgalloc.h
+> +++ b/arch/arm64/include/asm/pgalloc.h
+> @@ -33,12 +33,22 @@
 >  
-> -out_mkwrite:
->  	if (mkwrite) {
->  		entry = pte_mkyoung(entry);
->  		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+>  static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+>  {
+> -	return (pmd_t *)__get_free_page(PGALLOC_GFP);
+> +	struct page *page;
+> +
+> +	page = alloc_page(PGALLOC_GFP);
+> +	if (!page)
+> +		return NULL;
+> +	if (!pgtable_pmd_page_ctor(page)) {
+> +		__free_page(page);
+> +		return NULL;
+> +	}
+> +	return page_address(page);
+>  }
+>  
+>  static inline void pmd_free(struct mm_struct *mm, pmd_t *pmdp)
+>  {
+>  	BUG_ON((unsigned long)pmdp & (PAGE_SIZE-1));
+> +	pgtable_pmd_page_dtor(virt_to_page(pmdp));
+>  	free_page((unsigned long)pmdp);
+>  }
+
+It looks like arm64's existing stage-2 code is inconsistent across
+alloc/free, and IIUC this change might turn that into a real problem.
+Currently we allocate all levels of stage-2 table with
+__get_free_page(), but free them with p?d_free(). We always miss the
+ctor and always use the dtor.
+
+Other than that, this patch looks fine to me, but I'd feel more
+comfortable if we could first fix the stage-2 code to free those stage-2
+tables without invoking the dtor.
+
+Anshuman, IIRC you had a patch to fix the stage-2 code to not invoke the
+dtors. If so, could you please post that so that we could take it as a
+preparatory patch for this series?
+
+Thanks,
+Mark.
+
+> diff --git a/arch/arm64/include/asm/tlb.h b/arch/arm64/include/asm/tlb.h
+> index 106fdc951b6e..4e3becfed387 100644
+> --- a/arch/arm64/include/asm/tlb.h
+> +++ b/arch/arm64/include/asm/tlb.h
+> @@ -62,7 +62,10 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
+>  static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
+>  				  unsigned long addr)
+>  {
+> -	tlb_remove_table(tlb, virt_to_page(pmdp));
+> +	struct page *page = virt_to_page(pmdp);
+> +
+> +	pgtable_pmd_page_dtor(page);
+> +	tlb_remove_table(tlb, page);
+>  }
+>  #endif
+>  
 > -- 
-> 2.16.4
+> 2.21.0.360.g471c308f928-goog
+> 
 
