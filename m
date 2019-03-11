@@ -2,166 +2,205 @@ Return-Path: <SRS0=4gxf=RO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 74027C4360F
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 13:43:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4DBA0C10F06
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 13:54:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 30193206BA
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 13:43:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 30193206BA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 16E4C2087C
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 13:54:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 16E4C2087C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=metux.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9F9678E0004; Mon, 11 Mar 2019 09:43:16 -0400 (EDT)
+	id A37238E0003; Mon, 11 Mar 2019 09:54:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9A84E8E0002; Mon, 11 Mar 2019 09:43:16 -0400 (EDT)
+	id 9CA4E8E0002; Mon, 11 Mar 2019 09:54:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8705A8E0004; Mon, 11 Mar 2019 09:43:16 -0400 (EDT)
+	id 8B83C8E0003; Mon, 11 Mar 2019 09:54:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B4F48E0002
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 09:43:16 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id p5so5285253qtp.3
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 06:43:16 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3680D8E0002
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 09:54:11 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id b9so2731990wrw.14
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 06:54:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Z3EIsUvEIE7G0WMXubY5nFUqlUE4AmhxMu27cHfiDB8=;
-        b=s+I2kHNyRQC9vtrxEu4NuZNxqFpFfiAW+i+eOFtO2d/vgsUXHHSSBYLMi+ZcbI/plS
-         PxqbCmxs+8yclwVSkFvyKfuO2y31mRO0f42ImVK8zTeOpAb//31LD2xSSh4WPDbHwcTD
-         TM0O0rOQjaQM1CGrD+dg9p662gOjGsempIenaNO30IQk6h26arrQ/6wwvCMbaCa91Csx
-         tpD0ab6MVxzDRTVxLrd34VB7+cWUkO4kKYhARv+EHsjNztvP0FKbc9/KclVPrVAytoXG
-         ySaeqx9+hInIqtGCnX8aMCv+rVXpZyv21dcEgXV918mZP0VfS9p6d27ly9MgVCAQQQXd
-         TIZw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVcJH7pP64b5afLFYP0na3VVimRdjv24HZ2EvE/VjYt8NVlDkqc
-	saqG9gEtZ5tjT6FfDYQcJNJOZJK2XEOYbT+fVmJtuY5ngaNgMwiNLxykoEZIoJQ/i9S+ODC4zDF
-	J6zyLca4lxk8ZMXEyJIfjwRQnby4OYQOx7eERJdBHbjwZR7PVGhgcC2XE0qYKvV7UEg==
-X-Received: by 2002:a05:620a:1288:: with SMTP id w8mr1821988qki.338.1552311796156;
-        Mon, 11 Mar 2019 06:43:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxsaAC1B4F0FYJH6djMdFzQ8JWSaKiOC2XOORJg5bp3UdneLGQot8EtAbHqLvkMo5IpRAAB
-X-Received: by 2002:a05:620a:1288:: with SMTP id w8mr1821921qki.338.1552311795131;
-        Mon, 11 Mar 2019 06:43:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552311795; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=Qiu0KMlFT5eaek3nig1Zzpm6rk81HOuTnBnEZlkUuCc=;
+        b=CLDEN3gHcyiop+MZwVW3XzDzId1wELyFdSObiZtewgzyrwG+JWQm0P3Y3EUsULMXgR
+         zR86Y27uqVjQzsLNZo1jg+TBPk3RYETsw4Z+mSr6JJ+l+0+s4wGK923RsFtd52ZD2d/S
+         ds73Sq7iVR8mT2nEj1LQnSYpe2Zpg6U0WX00FtB4AgAnm+wEbKFKqQpod00zPBHGXvAD
+         9WwFLNn3UOy6h3JMgRT2cDfCRs4St8fE6SF8/jor4cLou/KtjKBNlL968VeDCIqX+zPe
+         ueKQJqqtd0wM2cQu6H/bo9vosm7uh8rRnRB0OPVQ7JAapAsXwx4hBeQmvYYrRWczZK1s
+         N8wg==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 212.227.17.10 is neither permitted nor denied by best guess record for domain of info@metux.net) smtp.mailfrom=info@metux.net
+X-Gm-Message-State: APjAAAWh4PuIRZmH7t1fO3eBt8+5VUIqz6ci6MY6BpQaniOz8r73V7bl
+	iwh41ThXBuYImqqP8InlLUxDORrHEo6tRyQsRvLH7bYw8Kztf1nwY3ayXgtlGE9NfyfXKj8hHqK
+	eq7Zmd7ts0WdwSBnv/zThoCMg96bY4IO8CK3V7uWN0AieoRU7Yg44yuIfaGdjxMg=
+X-Received: by 2002:a1c:a756:: with SMTP id q83mr17300202wme.8.1552312450392;
+        Mon, 11 Mar 2019 06:54:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz7nM+keS7FYv+9ug5p2NkVdQOIUUbCYWqYIT3xpHw9Es7JLACn72OkVDABRZhlppSwjyRr
+X-Received: by 2002:a1c:a756:: with SMTP id q83mr17300123wme.8.1552312448430;
+        Mon, 11 Mar 2019 06:54:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552312448; cv=none;
         d=google.com; s=arc-20160816;
-        b=agrGgGRvB0u3gclJKhg/g+blfWcepoiLQxhqvOivaBz1r3nW5olxfRb+bqT36PkAaS
-         kB+RzX9u4JObXd5jWIRZTwqda8EigjhodKFtiq81zgYPZqTsc0n1EPjYBKXLNOhnmdq9
-         aeDDadH3LYkt5oFCRpIevnsJ6Enkx37uc8q25Jzr+GOU1AWetLH3lJWbdxtp+N2BUtDg
-         yqqMrYzgc+5fkxTUL+FxIJplqSOLg+YgW1hql36EZk2L3ygfVqQ1+fFbGBHz20IMvSNs
-         lpeEmAHl447xlTlUWAcNwksERc6Uj3HeCFdpaQC8hOa5/OtxctVlPmutkwGQ2Co+7s4X
-         LPfg==
+        b=luy/AKrPoX51GkPawlIEjg38RgnCPLYzdba2rjjhRcAGzBv+v4aOohFqOOPDwRS6K9
+         kWd2GgAxc0sAJYjkZfLQOZNEWYcqsupVOvvqvbUMqunNiptoKatcTejDbGSgfFZxgteT
+         dpUP4OtvQs35yjeK7o0k5MdsUzXbswiduQjqM+rAKsTpdXtfsMWoGUCPGPSthhoUelVs
+         HfPBEDQLoMK08Y+E3oTg7m/iAKHShLZNNFik0Bea5VWKbWrEOBxDQEQfodYWlCJztpEs
+         CD1+vkmVygnDGmzF65CkQUeLMUPqBKq88PfD7I5YSX8D/uMQSKneHai7NGYoscM0hgpX
+         1Xug==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Z3EIsUvEIE7G0WMXubY5nFUqlUE4AmhxMu27cHfiDB8=;
-        b=peXJW5+D71WSnCZDBKWzc6XRMSoscAQkScUNztSiKEV4C82r1FmslZe+4xRPQtufrc
-         Q25I/RftR7BU4nGe/VCvU2sT61KzNd8U8bPqZNLcM/Q6/6G0Xajt5BVhTCBLqVDl2bWX
-         RC+emVEpY/MRe1JTI2UOh66TYBQI/FTpKTWXExuPUgoYXU8RP2Y0keCY+Md8bRRdSNeb
-         guqtTxK64rkK11O1+QTN2ezGuTSsYbQXHTNcqmyttEd6tArSn8YBj2IENN3oxh9/Q1GT
-         dmNG8uSwTrEkkkncFdI9qI1iG+0mdHwxV2Sq/f67+4katr+h21OQ/jlQGTKu3oPKnWt/
-         fBqQ==
+        h=message-id:date:subject:cc:to:from;
+        bh=Qiu0KMlFT5eaek3nig1Zzpm6rk81HOuTnBnEZlkUuCc=;
+        b=up3ntBfK35QsMT3zXCaSFfQOywU+/nYi0JyzFiCHf9jXSnQ8YMSuKGFuPETJp7mowb
+         IYmfqBdswAO1fjXklnqQ4yq35KJKj7VRR8Ar4PIoXi3QlR/6BtUUG8sT19UbudFsLWRB
+         27h8jJPHYQh5Fv6fRRIhZnEatL/UQ/UQxbUDZcZ6X3dhTvBdZh8h1Lvblx3q3Il3nPJW
+         vx2pyFtJ22ycnh2oHOQmMEdJ+jolos+Bg9I22M4XV18b5nbsl69m0GIDTqIWzmYMVDg1
+         DsOssaL99gvH/wumjhJ+CrzHfBcZncNw5GJzgiBVwMe4UJ0/7dBmOl0KNLtkG5Us7QTl
+         eN+g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r30si2099322qvc.94.2019.03.11.06.43.15
+       spf=neutral (google.com: 212.227.17.10 is neither permitted nor denied by best guess record for domain of info@metux.net) smtp.mailfrom=info@metux.net
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.10])
+        by mx.google.com with ESMTPS id t18si3519040wrm.268.2019.03.11.06.54.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Mar 2019 06:43:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Mon, 11 Mar 2019 06:54:08 -0700 (PDT)
+Received-SPF: neutral (google.com: 212.227.17.10 is neither permitted nor denied by best guess record for domain of info@metux.net) client-ip=212.227.17.10;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 64A5430832CF;
-	Mon, 11 Mar 2019 13:43:14 +0000 (UTC)
-Received: from sky.random (ovpn-121-1.rdu2.redhat.com [10.10.121.1])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 2AA7D8BE63;
-	Mon, 11 Mar 2019 13:43:06 +0000 (UTC)
-Date: Mon, 11 Mar 2019 09:43:05 -0400
-From: Andrea Arcangeli <aarcange@redhat.com>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Jason Wang <jasowang@redhat.com>, kvm@vger.kernel.org,
-	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
-	linux-kernel@vger.kernel.org, peterx@redhat.com, linux-mm@kvack.org,
-	Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [RFC PATCH V2 5/5] vhost: access vq metadata through kernel
- virtual address
-Message-ID: <20190311134305.GC23321@redhat.com>
-References: <1551856692-3384-1-git-send-email-jasowang@redhat.com>
- <1551856692-3384-6-git-send-email-jasowang@redhat.com>
- <20190307103503-mutt-send-email-mst@kernel.org>
- <20190307124700-mutt-send-email-mst@kernel.org>
- <20190307191622.GP23850@redhat.com>
- <e2fad6ed-9257-b53c-394b-bc913fc444c0@redhat.com>
- <20190308194845.GC26923@redhat.com>
- <8b68a2a0-907a-15f5-a07f-fc5b53d7ea19@redhat.com>
- <20190311084525-mutt-send-email-mst@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190311084525-mutt-send-email-mst@kernel.org>
-User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Mon, 11 Mar 2019 13:43:14 +0000 (UTC)
+       spf=neutral (google.com: 212.227.17.10 is neither permitted nor denied by best guess record for domain of info@metux.net) smtp.mailfrom=info@metux.net
+Received: from orion.localdomain ([95.115.159.19]) by mrelayeu.kundenserver.de
+ (mreue106 [212.227.15.183]) with ESMTPSA (Nemesis) id
+ 1Md6AP-1gU0pI0x6Z-00aCVB; Mon, 11 Mar 2019 14:54:07 +0100
+From: "Enrico Weigelt, metux IT consult" <info@metux.net>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
+Subject: [PATCH] mm: Kconfig: pedantic formatting
+Date: Mon, 11 Mar 2019 14:54:04 +0100
+Message-Id: <1552312444-24572-1-git-send-email-info@metux.net>
+X-Mailer: git-send-email 1.9.1
+X-Provags-ID: V03:K1:bafHJ2JVH9BUC2oLYNjgUVX5blGqKNn3Itah62vN4Gr3/ptUe0k
+ qebJAoRDSi72UxJOCmkZ0bdFNiOzHftyMzvDSf2rtEx9IOqPfaxxU86mtKBPUrBuvIwCbTK
+ g1P5kGyr7qFM8O0ba4ODc8aka8KlSRB00jY2ugGNHvrTBuwoOUs0uc87vPUOYzw+X2VrHNv
+ ztsky/IjigjYYyC5RtM2Q==
+X-UI-Out-Filterresults: notjunk:1;V03:K0:dXDytxCcq8A=:wx09j4PCzoyWeo3iJM25L/
+ bohkfyPw61pjdGDM5coJ3n313KHY4mA9LUm1KbNoYx8sAiPI78yyztiVPhFSj6+P+T0yaCZdC
+ 7UEQ41BcKl4l31h5QIFWYjeSeuScLWkyzyx9wD6GkVgSzvpd6z8wEPs2XYHr/iw1zTxE8154v
+ KAJq5DxznJSCLjHCGMagTwvXRHPghzGcAier7BZpn6xizdB4Z3FX458jdfkfwHVpXlfKIWecj
+ /Mw7pEkAuu7jdTzFQ2rJbu/9nYdYvvobT3PZUn3EfIoI6GsXSag1hTjGb9y6AABuJFWo5OQem
+ FOjtnPHX0oYQFiz8cjNxKaY0urh/d4EZFmmricao4DuVFYgifDUGCMAia7oMMZvMtHujIF4rM
+ QqBFCyr8NkBaDMJGFmy5s5nERqaMzmwzq2tZ/TX+0zUORM+VBHL9pCUm46sdaVK7PeBT07OVS
+ r7KkDuf4flatOKgzhcdm0YUH9BDFg2OPgNG+dhETANvZJUT6svATeF4oIvUh6YC+5FgHNfvDX
+ rT6VLiSehx/lElhDsW5I2vnpwWY54PGqCIv87hJwlcDG+nTtkBEcPl3BrmBnxSbtx2H9qnHlZ
+ 8M9qlFHp2CVZH+y5BualavBCi+bLb0QOmUBpcOIB1woGOcnZkQF1DEoYYooVUIbfqetlIptTq
+ 6pldjBlXl1H0bMMpN5o4iSRLdK1uRsICMYLKyYPhEtZvotbmPV7xh30fG8psJ0d3s5XT16xSj
+ qWar2KUMDSZhEoXQYU/AoJuzIGdE9l1hUHig+g==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 11, 2019 at 08:48:37AM -0400, Michael S. Tsirkin wrote:
-> Using copyXuser is better I guess.
+Formatting of Kconfig files doesn't look so pretty, so let the
+Great White Handkerchief come around and clean it up.
 
-It certainly would be faster there, but I don't think it's needed if
-that would be the only use case left that justifies supporting two
-different models. On small 32bit systems with little RAM kmap won't
-perform measurably different on 32bit or 64bit systems. If the 32bit
-host has a lot of ram it all gets slow anyway at accessing RAM above
-the direct mapping, if compared to 64bit host kernels, it's not just
-an issue for vhost + mmu notifier + kmap and the best way to optimize
-things is to run 64bit host kernels.
+Signed-off-by: Enrico Weigelt, metux IT consult <info@metux.net>
+---
+ mm/Kconfig | 40 ++++++++++++++++++++--------------------
+ 1 file changed, 20 insertions(+), 20 deletions(-)
 
-Like Christoph pointed out, the main use case for retaining the
-copy-user model would be CPUs with virtually indexed not physically
-tagged data caches (they'll still suffer from the spectre-v1 fix,
-although I exclude they have to suffer the SMAP
-slowdown/feature). Those may require some additional flushing than the
-current copy-user model requires.
-
-As a rule of thumb any arch where copy_user_page doesn't define as
-copy_page will require some additional cache flushing after the
-kmap. Supposedly with vmap, the vmap layer should have taken care of
-that (I didn't verify that yet).
-
-There are some accessories like copy_to_user_page()
-copy_from_user_page() that could work and obviously defines to raw
-memcpy on x86 (the main cons is they don't provide word granular
-access) and at least on sparc they're tailored to ptrace assumptions
-so then we'd need to evaluate what happens if this is used outside of
-ptrace context. kmap has been used generally either to access whole
-pages (i.e. copy_user_page), so ptrace may actually be the only use
-case with subpage granularity access.
-
-#define copy_to_user_page(vma, page, vaddr, dst, src, len)		\
-	do {								\
-		flush_cache_page(vma, vaddr, page_to_pfn(page));	\
-		memcpy(dst, src, len);					\
-		flush_ptrace_access(vma, page, vaddr, src, len, 0);	\
-	} while (0)
-
-So I wouldn't rule out the need for a dual model, until we solve how
-to run this stable on non-x86 arches with not physically tagged
-caches.
-
-Thanks,
-Andrea
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 25c71eb..9181eb2 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -123,9 +123,9 @@ config SPARSEMEM_VMEMMAP
+ 	depends on SPARSEMEM && SPARSEMEM_VMEMMAP_ENABLE
+ 	default y
+ 	help
+-	 SPARSEMEM_VMEMMAP uses a virtually mapped memmap to optimise
+-	 pfn_to_page and page_to_pfn operations.  This is the most
+-	 efficient option when sufficient kernel resources are available.
++	  SPARSEMEM_VMEMMAP uses a virtually mapped memmap to optimise
++	  pfn_to_page and page_to_pfn operations.  This is the most
++	  efficient option when sufficient kernel resources are available.
+ 
+ config HAVE_MEMBLOCK_NODE_MAP
+ 	bool
+@@ -160,10 +160,10 @@ config MEMORY_HOTPLUG_SPARSE
+ 	depends on SPARSEMEM && MEMORY_HOTPLUG
+ 
+ config MEMORY_HOTPLUG_DEFAULT_ONLINE
+-        bool "Online the newly added memory blocks by default"
+-        default n
+-        depends on MEMORY_HOTPLUG
+-        help
++	bool "Online the newly added memory blocks by default"
++	default n
++	depends on MEMORY_HOTPLUG
++	help
+ 	  This option sets the default policy setting for memory hotplug
+ 	  onlining policy (/sys/devices/system/memory/auto_online_blocks) which
+ 	  determines what happens to newly added memory regions. Policy setting
+@@ -228,14 +228,14 @@ config COMPACTION
+ 	select MIGRATION
+ 	depends on MMU
+ 	help
+-          Compaction is the only memory management component to form
+-          high order (larger physically contiguous) memory blocks
+-          reliably. The page allocator relies on compaction heavily and
+-          the lack of the feature can lead to unexpected OOM killer
+-          invocations for high order memory requests. You shouldn't
+-          disable this option unless there really is a strong reason for
+-          it and then we would be really interested to hear about that at
+-          linux-mm@kvack.org.
++	  Compaction is the only memory management component to form
++	  high order (larger physically contiguous) memory blocks
++	  reliably. The page allocator relies on compaction heavily and
++	  the lack of the feature can lead to unexpected OOM killer
++	  invocations for high order memory requests. You shouldn't
++	  disable this option unless there really is a strong reason for
++	  it and then we would be really interested to hear about that at
++	  linux-mm@kvack.org.
+ 
+ #
+ # support for page migration
+@@ -304,10 +304,10 @@ config KSM
+ 	  root has set /sys/kernel/mm/ksm/run to 1 (if CONFIG_SYSFS is set).
+ 
+ config DEFAULT_MMAP_MIN_ADDR
+-        int "Low address space to protect from user allocation"
++	int "Low address space to protect from user allocation"
+ 	depends on MMU
+-        default 4096
+-        help
++	default 4096
++	help
+ 	  This is the portion of low virtual memory which should be protected
+ 	  from userspace allocation.  Keeping a user from writing to low pages
+ 	  can help reduce the impact of kernel NULL pointer bugs.
+@@ -400,7 +400,7 @@ choice
+ 	  benefit but it will work automatically for all applications.
+ 
+ 	config TRANSPARENT_HUGEPAGE_MADVISE
+-		bool "madvise"
++	bool "madvise"
+ 	help
+ 	  Enabling Transparent Hugepage madvise, will only provide a
+ 	  performance improvement benefit to the applications using
+@@ -410,7 +410,7 @@ choice
+ endchoice
+ 
+ config ARCH_WANTS_THP_SWAP
+-       def_bool n
++	def_bool n
+ 
+ config THP_SWAP
+ 	def_bool y
+-- 
+1.9.1
 
