@@ -2,173 +2,168 @@ Return-Path: <SRS0=4gxf=RO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8367BC10F06
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 20:00:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DD3F3C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 20:10:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 39293214D8
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 20:00:02 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 91C502064A
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 20:10:50 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Oftf0J15"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 39293214D8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ZoyMlSr4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 91C502064A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D9E188E0005; Mon, 11 Mar 2019 16:00:01 -0400 (EDT)
+	id 2E4468E0003; Mon, 11 Mar 2019 16:10:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D24BA8E0002; Mon, 11 Mar 2019 16:00:01 -0400 (EDT)
+	id 2947F8E0002; Mon, 11 Mar 2019 16:10:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B9ED98E0005; Mon, 11 Mar 2019 16:00:01 -0400 (EDT)
+	id 1ABEF8E0003; Mon, 11 Mar 2019 16:10:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 772A08E0002
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 16:00:01 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id z5so8889pgv.11
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 13:00:01 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BC55B8E0002
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 16:10:49 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id s5so42278wrp.17
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 13:10:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=Q7aKCqbKwPKjXc9GxI3Tout/MP+Hue4x+jJeP3QpjUM=;
-        b=rTMFbWFC4Fst0B/MRIfX9Ya3hQ0TPKijqv93Tf9aHLigaApno9YEDp51cp9JqvnhGp
-         q01EzMjBw/M0OxoKL3nFy2W7CnO23qvSUuI+NWs85tw8PDvu406TVU5hYMYL9/l3lnxA
-         pMSXfYFReUR5O8vaf1bfBjxJL94ZHNxqiH7p1A3kcLyyFVWs4XYzpEG5hyVQvTcmy0d8
-         0zs+VoIXLJy6awtBguVN6CDNKA/K2aobe7LcvIKzQdChh0FsYfStopRGGJFL9TG1zz/B
-         bmZywGqpSl2Nj+H+Frs2+S6YPdAK1gG3s80ZZ7KrkQsLJljYkTgxojU8E7RXFokcSaHn
-         7QJQ==
-X-Gm-Message-State: APjAAAXfUE5MAlw9HoVG45O8XgblQKuwnzhUWQA4yHo16PYq7JbYuc0C
-	ibdGgm1lmdM2VfkfoJWgGWuS5n5xvbSGgmhZvV7kxZP3hEJMreJyjsY5T+QDQC3N91pMpBY9SDV
-	+tetHjYHImWdOTadU+onEKjT233MGFSrPmmzmqY/wItosAZSvsKKcerikN52xVPi0ow==
-X-Received: by 2002:a62:e716:: with SMTP id s22mr34414074pfh.35.1552334401177;
-        Mon, 11 Mar 2019 13:00:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyHls5yS+EvBuqitJY4rg9hWsefZtBooNuNCaoO5jWcvjkc4N4cOZtVA+d67o5y1Z9hyCyC
-X-Received: by 2002:a62:e716:: with SMTP id s22mr34414042pfh.35.1552334400503;
-        Mon, 11 Mar 2019 13:00:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552334400; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=ZKCjSMCXnbl4Pu4JXE4MWbjLrTVkbghT9J2ILGHq6Q8=;
+        b=UeNpIeaEw3lk7VnQEQU2mbmnWLWN6XmLPpeumgiLmrUDHMCviC79t8qqlpN2evtMnR
+         1ynsv7VVB9m2OpUp9/jZQrrukr/eVQvZzVIKB1mog9XyXx3Skdxb7MacJz0TU2ZKjNuh
+         zrhezOcW07S8zhesV7fajq60+d7EQDgCaTjC9+985w0TViv6qXEgQF/JOAmNMwIyoFrR
+         j9gyBeQ3rjgIfURZgM5/ZB4nN5g/KwSuWxT4qV+/q8aICJl0bhL13YfUUWz4p11UjIeK
+         vKvgvAM+i4g6u2TfM85G1nYLB+GyzRrVDPebV5SNkXVSuYdrGOzqz6OzdNkckVJZjdFJ
+         L3Sw==
+X-Gm-Message-State: APjAAAW3MgxLc0/Uj1wpd4FOAaxQmbCQvZGxNoLSgeyeKKGzcRkorFrZ
+	Re39fi2FOZIqgYFzSjYuWKO0TyC/SA3E8kh5b4W7QTG1mE9GavtIXArUs1pgU2Pt3BPF6HOYK/U
+	iYyX0xXK5gNBQJsB77z2VJd5+ruTGLxovtikmSS/5qOIecXhQwTw2/0Gz8AjYaUf5606PcgwZUf
+	4IV/2T6D1PV0Uv0ntl8Ig3BlVb7w3jt1rQpDBbcdx/wZqMFYLneNMt1CJfPsqcK+DYsfid8NSuK
+	6nVwBW4REaRK3177ioXdeAK/ane3kTAtqBdxz4PRLSOBD18mS+ajd6UcKkAifqam9wZ7557i8zI
+	9tnIBTzyh9QbeAofur9ERpQ3Dwzg+Sw9ja1IGpN77d8WcvTBsrfL8kdljtvu6Fasrq+Hl5aR6fE
+	/
+X-Received: by 2002:a5d:668b:: with SMTP id l11mr20817598wru.116.1552335049293;
+        Mon, 11 Mar 2019 13:10:49 -0700 (PDT)
+X-Received: by 2002:a5d:668b:: with SMTP id l11mr20817561wru.116.1552335048293;
+        Mon, 11 Mar 2019 13:10:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552335048; cv=none;
         d=google.com; s=arc-20160816;
-        b=DUOv1ARd/SCKDzOsNlEF0YkQJvszrmacF6IddferIwPhWMERYY/DF222yhKKYNR/E3
-         rwrQcxxJLZqGCsWSk+S5a8DSv1fYW3VlZk0HwaOrj6Fz/7XGlggaLdb2U5N7qnJ6usLC
-         SKghr2W5E6JXXgzhjpbVuHfJTNR2Ur0Su3qS76nEgP6tOrwHrkL/xtfc4C/0wogAj61M
-         gvn1m1EkbsrDPLWgCqQZkKSdJyzx8VgPzN9Zl/pSY+UftUBnGtPU+kWB8DAYjlJJJmVF
-         XdMg2EdtAoNDXDgCpD3Vxg1YGpf0pKJmd6oLMCfujtWcD4OsqyFL4H++DZQS2eLCE7Na
-         eINw==
+        b=gyIMCtiMXryMLtR15iLOD7u3TZyY7YZwWNCkJwkrUuUfmO81cgycDMkDGQuc4lQifz
+         iJGFVTNZOPDI0sN5z3mLkYmhtcgY1qFOKdD+c8c7kbG7jJqswagkUj2GGyr9nTAhw0xz
+         z4ViixmyRvh2ktdVYhqjWVyKn7HyfW23PXEeXuzUo2tS7mjpwufD/zlHEDYqg7k8XOhF
+         +4Dohtsg1EcNlcq05IZUk3gTQaH7BNw9rRVA4du4iE9tphx4KlQUur+uITLBtcl1q/Oj
+         bt7B11Nt/9YuoH2R6jvGkedY4kZ8KZ/hpowSggFMETjGF7sMNB2JwegF7eWzJloYdk6q
+         MOaA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=Q7aKCqbKwPKjXc9GxI3Tout/MP+Hue4x+jJeP3QpjUM=;
-        b=mE3BVgkIvW7RxMj1dH8PCwNce1+QBW1Ngx7+9T8K4w7233KdIZwjH5MQLipKb7H3lj
-         lduGabkCrmoFEiZvcrpyJFd++NcDsfM2DOEKarncNB61EdZvVmjDyimmiVmaTCCdQuu7
-         odN9tU7FlgmR1ja/Hnmx5R2Wi8UIk7qj34ZMx7g/OCy9asqklzzrDZ1WDuqYdRphQgqs
-         JzTOx22IWbbiV7axIIbmzYbeJk7yb2UWTUWEsv/ZUxkDahyQPzp1p0ot6ZZxNYGkROvH
-         +bFJg+NVtzryy5Q1wQAFxMTAN+P8+231JKFGqbWnigBPTe7wCJudkyQHdlIAkMOrr5Ig
-         k6jw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=ZKCjSMCXnbl4Pu4JXE4MWbjLrTVkbghT9J2ILGHq6Q8=;
+        b=AyjXtGk+Ib17o4uzF2reVENVrew76Ds/KpweYZuQ5n3DSJHTP2xQOASG2OJvu16M2P
+         AkR8SkjpDeK74ko0OS/FzQmXWAEewjpLeZtjf2CTZEdx8Dszsz99PGEe2lkyPUedRMWR
+         CYAMi1fh0lgXzRRdA08AoFQtvwGMEJfZ1O5epNEUkCRg8plwYVJH91wjOj2hklaYh/9o
+         t21vS73Bexukpktp8EtwQzWyJrWWIFZT/utAAEgoMK52ZAJ0snhGNS/BNyM4+TDs6IcK
+         dFZVw18W5qMfMjrTbsXzaSXjLBfig6ifSRQ0eZ0IbSZoPsKq9y9VMoHkiP1HAN0rcEbq
+         Hq8A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=Oftf0J15;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id j2si6152216pfb.268.2019.03.11.13.00.00
+       dkim=pass header.i=@google.com header.s=20161025 header.b=ZoyMlSr4;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f12sor167300wmc.9.2019.03.11.13.10.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Mar 2019 13:00:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Mon, 11 Mar 2019 13:10:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=Oftf0J15;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 830FE2064A;
-	Mon, 11 Mar 2019 19:59:58 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1552334400;
-	bh=2ahr39JG4ahpvgXXMLZcvQGN109+8NUbGczsBU2Hx7g=;
-	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=Oftf0J15CcPizWZ9C6WR5oNE7StelMq+UfdPDnPmGSmzmoV7lh0Y20AAxR6zoYGZk
-	 FythV8wA1etlKCuMYRZydtHobOIWS/h6qwXD0Qe+V4c0Sy6Wr17QUjMLL6PAxPaVaA
-	 dVeeytRimHRQd4nNetRAj4kx0Z/GuvzzUaN4haog=
-From: Sasha Levin <sashal@kernel.org>
-To: linux-kernel@vger.kernel.org,
-	stable@vger.kernel.org
-Cc: Yu Zhao <yuzhao@google.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Huang Ying <ying.huang@intel.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Keith Busch <keith.busch@intel.com>,
-	"Michael S . Tsirkin" <mst@redhat.com>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Wei Yang <richard.weiyang@gmail.com>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Sasha Levin <sashal@kernel.org>,
-	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 3.18 4/6] mm/gup: fix gup_pmd_range() for dax
-Date: Mon, 11 Mar 2019 15:59:49 -0400
-Message-Id: <20190311195951.139741-4-sashal@kernel.org>
-X-Mailer: git-send-email 2.19.1
-In-Reply-To: <20190311195951.139741-1-sashal@kernel.org>
-References: <20190311195951.139741-1-sashal@kernel.org>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=ZoyMlSr4;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=ZKCjSMCXnbl4Pu4JXE4MWbjLrTVkbghT9J2ILGHq6Q8=;
+        b=ZoyMlSr4ebBY08p033osdVOmkU3R9VXs9CSVj/pQyFonxmrwtnSc0LmAVDsfbgP55D
+         ddEnaeZ6ws19K7QMY4nRzaczDzZkCQCCyshQblMFWRu/p9vnvksfGlqiQpzEWPHfCHAv
+         O2QKUZQ7GMZW0nuLBwPK3KFK9befY91P4bUk0zbAfc1mZTDhSKU6nSdb6IQtUIcVtNPs
+         sdHDJ1Egdru01rBhc3N8MHLdIOhSc/XihtaTUrpIfYIttNUT91ca27+5fhDDVQZbXno4
+         v5hFaJkbB8G0d4TGxibTSjoLPjvodmj+RX42iAMEJHe+K4qc+Nygj0cw9soZ+ous0rok
+         fIAw==
+X-Google-Smtp-Source: APXvYqyAhHtIn/JyZsUQaWeDQx/1ZnVIq0WJwtHUsqjs8SGHawVn6dVOeO6ND9qSoUIG6lWkjiWgCCAM1fETYT6zmf4=
+X-Received: by 2002:a1c:20d3:: with SMTP id g202mr11751wmg.74.1552335047677;
+ Mon, 11 Mar 2019 13:10:47 -0700 (PDT)
 MIME-Version: 1.0
-X-Patchwork-Hint: Ignore
-Content-Transfer-Encoding: 8bit
+References: <20190310203403.27915-1-sultan@kerneltoast.com>
+ <20190311174320.GC5721@dhcp22.suse.cz> <20190311175800.GA5522@sultan-box.localdomain>
+In-Reply-To: <20190311175800.GA5522@sultan-box.localdomain>
+From: Suren Baghdasaryan <surenb@google.com>
+Date: Mon, 11 Mar 2019 13:10:36 -0700
+Message-ID: <CAJuCfpHTjXejo+u--3MLZZj7kWQVbptyya4yp1GLE3hB=BBX7w@mail.gmail.com>
+Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
+To: Sultan Alsawaf <sultan@kerneltoast.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
+	=?UTF-8?B?QXJ2ZSBIasO4bm5ldsOlZw==?= <arve@android.com>, 
+	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>, 
+	Joel Fernandes <joel@joelfernandes.org>, Christian Brauner <christian@brauner.io>, 
+	Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, 
+	LKML <linux-kernel@vger.kernel.org>, devel@driverdev.osuosl.org, 
+	linux-mm <linux-mm@kvack.org>, Tim Murray <timmurray@google.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Yu Zhao <yuzhao@google.com>
+Hi Sultan,
 
-[ Upstream commit 414fd080d125408cb15d04ff4907e1dd8145c8c7 ]
+On Mon, Mar 11, 2019 at 10:58 AM Sultan Alsawaf <sultan@kerneltoast.com> wrote:
+>
+> On Mon, Mar 11, 2019 at 06:43:20PM +0100, Michal Hocko wrote:
+> > I am sorry but we are not going to maintain two different OOM
+> > implementations in the kernel. From a quick look the implementation is
+> > quite a hack which is not really suitable for anything but a very
+> > specific usecase. E.g. reusing a freed page for a waiting allocation
+> > sounds like an interesting idea but it doesn't really work for many
+> > reasons. E.g. any NUMA affinity is broken, zone protection doesn't work
+> > either. Not to mention how the code hooks into the allocator hot paths.
+> > This is simply no no.
+> >
+> > Last but not least people have worked really hard to provide means (PSI)
+> > to do what you need in the userspace.
+>
+> Hi Michal,
+>
+> Thanks for the feedback. I had no doubt that this would be vehemently rejected
+> on the mailing list, but I wanted feedback/opinions on it and thus sent it as anRFC.
 
-For dax pmd, pmd_trans_huge() returns false but pmd_huge() returns true
-on x86.  So the function works as long as hugetlb is configured.
-However, dax doesn't depend on hugetlb.
+Thanks for the proposal. I think Michal and Joel already answered why
+in-kernel LMK will not be accepted and that was one of the reasons the
+lowmemorykiller driver was removed in 4.12.
 
-Link: http://lkml.kernel.org/r/20190111034033.601-1-yuzhao@google.com
-Signed-off-by: Yu Zhao <yuzhao@google.com>
-Reviewed-by: Jan Kara <jack@suse.cz>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Huang Ying <ying.huang@intel.com>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Keith Busch <keith.busch@intel.com>
-Cc: "Michael S . Tsirkin" <mst@redhat.com>
-Cc: John Hubbard <jhubbard@nvidia.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>
-Cc: Mike Rapoport <rppt@linux.ibm.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: Sasha Levin <sashal@kernel.org>
----
- mm/gup.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+> At best I thought perhaps the mechanisms I've employed might serve as
+> inspiration for LMKD improvements in Android, since this hacky OOM killer I've
+> devised does work quite well for the very specific usecase it is set out to
+> address. The NUMA affinity and zone protection bits are helpful insights too.
 
-diff --git a/mm/gup.c b/mm/gup.c
-index ce1630bf0b95..29a36fae8624 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -885,7 +885,8 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
- 		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
- 			return 0;
- 
--		if (unlikely(pmd_trans_huge(pmd) || pmd_huge(pmd))) {
-+		if (unlikely(pmd_trans_huge(pmd) || pmd_huge(pmd) ||
-+			     pmd_devmap(pmd))) {
- 			/*
- 			 * NUMA hinting faults need to be handled in the GUP
- 			 * slowpath for accounting purposes and so that they
--- 
-2.19.1
+The idea seems interesting although I need to think about this a bit
+more. Killing processes based on failed page allocation might backfire
+during transient spikes in memory usage.
+AFAIKT the biggest issue with using this approach in userspace is that
+it's not practically implementable without heavy in-kernel support.
+How to implement such interaction between kernel and userspace would
+be an interesting discussion which I would be happy to participate in.
+
+> I'll take a look at PSI which Joel mentioned as well.
+>
+> Thanks,
+> Sultan Alsawaf
+
+Thanks,
+Suren.
 
