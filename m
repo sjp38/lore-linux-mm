@@ -2,221 +2,224 @@ Return-Path: <SRS0=4gxf=RO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 01CACC10F06
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 12:12:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AC598C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 12:21:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B64652075C
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 12:12:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B64652075C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 31E7C2075C
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 12:21:10 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="hwV4GC5S"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 31E7C2075C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 50EE88E001B; Mon, 11 Mar 2019 08:12:39 -0400 (EDT)
+	id A862B8E000C; Mon, 11 Mar 2019 08:21:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4710C8E0002; Mon, 11 Mar 2019 08:12:39 -0400 (EDT)
+	id A37F78E0002; Mon, 11 Mar 2019 08:21:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 33A118E001B; Mon, 11 Mar 2019 08:12:39 -0400 (EDT)
+	id 926158E000C; Mon, 11 Mar 2019 08:21:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CEBF18E0002
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 08:12:38 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id m25so1951490edd.6
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 05:12:38 -0700 (PDT)
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FEF18E0002
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 08:21:09 -0400 (EDT)
+Received: by mail-wm1-f71.google.com with SMTP id t190so638910wmt.8
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 05:21:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=rhsrKwwju6wpjkXF857RTIdXgrqhpbn3Au0/5mrqPOs=;
-        b=YvMnJ250YhC9z5t1Zt3VFZ/yFyYwqnI2tw856FIzn2JxEczb2MF0ys5ChVvyoMq578
-         1Zf6Mm9r+1r+zwOCRRdqxrRMCbhOyYtLNLKS1vtdNXp0bz8luOYtg7SxkQyetTjTcrhy
-         YodFAjFu+GZHxwtcaXjkmdoElgEGcSvRSIBCaJAmS1txGuShg9R3hv+ELmcFlvqrlBMb
-         GPLd2qZncml9rMGT6VizMBgo5idX74Qd+V2VnehqFdIHdvknajQVMQFca5FwS0jkpH++
-         4vxoShabZ1HrT8OXyhSd38HEWCf+dmE8vUPH5pnrybvgT9YOMBDnVlY+E3wbACOg2NPP
-         oomw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-X-Gm-Message-State: APjAAAVC2IjPir0sFxdqUYYFdjwdBFUZMB6pBi4VIpiXzGr63Z2pjQUJ
-	sEXAVe2HS+dcYMEzSXvSpUIAPt/xqipKzzXL5e3NpI+903g+hJvTDklTjc4UYqHrzrZhYEzWa6c
-	pQArWlUDakIE80Ha61E4CULf7qagP+r87VFa6M3EF2tyO8OPyaAeKE/5WGlkFG65Peg==
-X-Received: by 2002:a50:ca41:: with SMTP id e1mr44093308edi.73.1552306358420;
-        Mon, 11 Mar 2019 05:12:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy1XLAQQpeuD64HdTdH/AycZLen0NAq2TIZug4nKoWy7E6lxgLQ39BFdaRkUkRkhYRuiu++
-X-Received: by 2002:a50:ca41:: with SMTP id e1mr44093253edi.73.1552306357421;
-        Mon, 11 Mar 2019 05:12:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552306357; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=oZxeVsP88EDa5tTFZGWkUZL6SMNS5qnzeBxJN4yAP5U=;
+        b=jVsYAsxnrC8RfZgu0jaVuXuAR9mCHjHWEGSYQTyGGwuYGUh5nwOVlE3LzM6NObn649
+         BWa2yEgHzzY1Z/oOu/oW6rlrd3PYyyTPoQRQ49ZSpiM+yXfBmGhmvJAVlgoEpAuCw0Mh
+         Ef/4xaSbvR4yVGOrChuHcYMRKVQKknDHZoZo9015yMDSfECEqkvUTM6EtB+PoNAfWknE
+         rlgzqi13sKuOQGsB/SRxPzSH3idLIhyd7m0HJ/Flwc1KxerygxAjcGU0vQ2jralwsMiY
+         0MDJRK7O8or23Bu22ZiDapY4aGByAKvBTunNWFNC4JKdss/so7W9US8stteF3w8yfNiW
+         89qg==
+X-Gm-Message-State: APjAAAVJoc+9zIesfNYFEYhn8ZXrVqExHmZ271Oz4BQfT/o9DYcYCmZc
+	LkSQXjiFTJXQ6LJHgRIEWFL6Vm+4lQAluLSnCPiI+cm1C4/Kyv+55GDcsWOeoUK7GFXbYTk/lfO
+	7Ic1Xsg1BApaG0tp8RpCYvBfL46AWcVVX6sST+sZdnjThHrOhOxtBS4YqvUvEi0jwZQ==
+X-Received: by 2002:adf:cd87:: with SMTP id q7mr21254453wrj.92.1552306868645;
+        Mon, 11 Mar 2019 05:21:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzUhlluV/7Y+aH7n8L7FbcC8wHFts8/aLSSBp2K4b5B4z3JeB3xGsYi5ZC+rVD1ocqFocHF
+X-Received: by 2002:adf:cd87:: with SMTP id q7mr21254392wrj.92.1552306867482;
+        Mon, 11 Mar 2019 05:21:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552306867; cv=none;
         d=google.com; s=arc-20160816;
-        b=hGA0kY5C+aeaD47V7i7Du3ZjhZWW+JCvf239JQtYRsgUyOFCIJ3SbsBzvZevHbQX+Q
-         EqLSf9qmud+GX2S8WdUcGRVbsb2DkdVf8brECnATnsMqLPWtmrc8ohfG46SRfVJALQDk
-         oKLzqh7F0Tr7sezjWwNA/Q/6RRpDcIs9KAQAiIVS/lTFfIwbVyGUNSAJRJiK6KgGdBYd
-         0+tChQHUksfeY02d0Jyck8usJlsvno1eWhcQR397EYcQacW9KJ8wke7Tnt8TSgbOXBxm
-         j95wovOKo49Ogn2aWJl+y/VgHLbjRMvJnG0/wz9tZKT0mkvFTfc0joGqbiiGdC/lLFwU
-         KMZA==
+        b=rvWkYW99fAcm8DjoK1nCe9JT/EkmVem7EpvzZ1zimZhhLg2SJ+/B5EP2pc4DXeCRBj
+         UHJwjInkge1yzgdi9YPt5DE4y8nm8xpgTIZHPvTRQbDlNnGxiAWytXbgJTN9tV2lZJel
+         I6PiaVT9HxBVlUIdLNq2SjpNmKC29KtAbTH/Lv66TnkbANKowCftYcMAIlY+LeKQyNOA
+         qp9oStw7TuJInaPdgAMvhtFvfDZp5iWLSq323DtnIyElvGtyxBGSQG4FxCE3mgpIC86D
+         VYcJsYVqsqCwT4Ww65oxiM6XEre3scUsDMw8y0TrkxKPxGgC5iQbSSO7PiXckkRoyGcb
+         L0LQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=rhsrKwwju6wpjkXF857RTIdXgrqhpbn3Au0/5mrqPOs=;
-        b=E7FIoCGxOZ5xl5K+zsVCXxzN+amSwfR7RdOt4dgAYhFWQmdHsztcBtpydQl2zJplOD
-         QuIo1FjQlQ53prwuz6jeLMH5piUFvem0wNfnVlgfx5Uc7xFw3dTHgahBBU6GpvcofUaU
-         cMvYxHYDqD0aWaaLuQjI39pOwQvYLk0BMFB4VrKPuGSF0R7S8rBV5oy5r9BmDzD0QVJU
-         FL1TJm7YHXxf8KyvOoXfokZj2em0GNcDETbSh5pp3Blb0ISrzQyHy8OgUhw2oUD5noyf
-         MVbp/SbXl4YBqbFvPnDlPMyc1E3E+q17hqIQ7NuwrJfmmgFTxT7Hw5zhx850e6wINVLa
-         eG0g==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:to:from:dkim-signature;
+        bh=oZxeVsP88EDa5tTFZGWkUZL6SMNS5qnzeBxJN4yAP5U=;
+        b=bEugSeihVj8Sg5BbYxvJyuVZG54Vx5Lm7sWxrkZJG7dCspUygxr3YtzaueLm/13QW8
+         /7Ry/UTJnb6ezgvHmN7LcpjsVeEGhWMbozpECHrEtBHw1iGoQ9HWLyAYajOK1NHPf6aS
+         tWIZqIbwF2TT4vocEx5JB5eCGhBwjsJvI2NldINgo2UjfVosaUu1D65GfS4L06RARflj
+         ENm+4/72r23G/S0bA7NmaHa/CSWKpxeCGFjsfm1ErtpA0GUowibU/2JgK5RFlwB5VMWy
+         RCV7fn6qGf/ZDZ/cH2CskCJEMCOy7z8fzJG/JKBtPjL6lrd07OKsklHvZehcTv2mAUNu
+         cwPQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id n15si5921581ejk.117.2019.03.11.05.12.36
-        for <linux-mm@kvack.org>;
-        Mon, 11 Mar 2019 05:12:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b=hwV4GC5S;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.7.55 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+Received: from EUR04-HE1-obe.outbound.protection.outlook.com (mail-eopbgr70055.outbound.protection.outlook.com. [40.107.7.55])
+        by mx.google.com with ESMTPS id h7si3205910wru.58.2019.03.11.05.21.07
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Mar 2019 05:21:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.7.55 as permitted sender) client-ip=40.107.7.55;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 22B80374;
-	Mon, 11 Mar 2019 05:12:36 -0700 (PDT)
-Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 2E8FE3F703;
-	Mon, 11 Mar 2019 05:12:33 -0700 (PDT)
-Date: Mon, 11 Mar 2019 12:12:28 +0000
-From: Mark Rutland <mark.rutland@arm.com>
-To: Yu Zhao <yuzhao@google.com>,
-	Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	"Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Nick Piggin <npiggin@gmail.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Chintan Pandya <cpandya@codeaurora.org>,
-	Jun Yao <yaojun8558363@gmail.com>,
-	Laura Abbott <labbott@redhat.com>,
-	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
-	linux-arch@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH v3 3/3] arm64: mm: enable per pmd page table lock
-Message-ID: <20190311121147.GA23361@lakrids.cambridge.arm.com>
-References: <20190218231319.178224-1-yuzhao@google.com>
- <20190310011906.254635-1-yuzhao@google.com>
- <20190310011906.254635-3-yuzhao@google.com>
+       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b=hwV4GC5S;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.7.55 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector1;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=oZxeVsP88EDa5tTFZGWkUZL6SMNS5qnzeBxJN4yAP5U=;
+ b=hwV4GC5Scv+/hH7H0vP8K4s7M7j3FKlYht+qXytQ8Qs/d+JRb42njxM92mST+JNE8MsTAKYscvqvtFmfkTSryQlXR45GjUMyDV6Tnue/b58OJPmcrlesAjfEkYGSq7/zT2WnT3cI3qVGofRJ4V86281EcqYud8l6eOfwDYL6Fbg=
+Received: from DBBPR05MB6570.eurprd05.prod.outlook.com (20.179.44.81) by
+ DBBPR05MB6297.eurprd05.prod.outlook.com (20.179.40.144) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1665.19; Mon, 11 Mar 2019 12:21:05 +0000
+Received: from DBBPR05MB6570.eurprd05.prod.outlook.com
+ ([fe80::5d59:2e1c:c260:ea6f]) by DBBPR05MB6570.eurprd05.prod.outlook.com
+ ([fe80::5d59:2e1c:c260:ea6f%2]) with mapi id 15.20.1686.021; Mon, 11 Mar 2019
+ 12:21:05 +0000
+From: Jason Gunthorpe <jgg@mellanox.com>
+To: Qian Cai <cai@lca.pw>, "akpm@linux-foundation.org"
+	<akpm@linux-foundation.org>, "arnd@arndb.de" <arnd@arndb.de>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH] mm/debug: add a cast to u64 for atomic64_read()
+Thread-Topic: [PATCH] mm/debug: add a cast to u64 for atomic64_read()
+Thread-Index: AQHU129qkdpyS6s9ikO3HiiIZ0g4PKYFzm+AgACMeAA=
+Date: Mon, 11 Mar 2019 12:21:05 +0000
+Message-ID: <20190311122100.GF22862@mellanox.com>
+References: <20190310183051.87303-1-cai@lca.pw>
+ <20190311035815.kq7ftc6vphy6vwen@linux-r8p5>
+In-Reply-To: <20190311035815.kq7ftc6vphy6vwen@linux-r8p5>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: YQXPR0101CA0045.CANPRD01.PROD.OUTLOOK.COM
+ (2603:10b6:c00:14::22) To DBBPR05MB6570.eurprd05.prod.outlook.com
+ (2603:10a6:10:d1::17)
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [24.137.65.181]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: b2be0e62-1792-46b8-83f9-08d6a61c0885
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600127)(711020)(4605104)(4618075)(2017052603328)(7153060)(7193020);SRVR:DBBPR05MB6297;
+x-ms-traffictypediagnostic: DBBPR05MB6297:
+x-microsoft-exchange-diagnostics:
+ =?us-ascii?Q?1;DBBPR05MB6297;23:P7xtHHClqt/GURYNk801RMY3na87eOmiGEzkdXw0t?=
+ =?us-ascii?Q?uP8Z+jzqUyzexocaV2u3jZRvIdUGajYf6HZByDCSSpd6coRVeP078dKbfw6v?=
+ =?us-ascii?Q?3wcxre1191tqqknZxGB5or8N0JNG+S/jGqHQ+jMSGo8Xdp0FqsgpZ+5B+3D7?=
+ =?us-ascii?Q?zNje7eQZOF7HeRV72ORwazxkyZM0IfRdwxb3guTEACqrn2Nl9opV208LxX2/?=
+ =?us-ascii?Q?Y8y9145icm1PgxJ33a5ZuvRqwOhHqSoP0fFlfsNcqtVeVJ0pRt4h35EvW3XY?=
+ =?us-ascii?Q?Dyc7fLpTBrxmNSeUUr7abtyXTGxqfzAmoeYf0A+uflDkLXqFZzv00rTn6sq5?=
+ =?us-ascii?Q?5OIxrPj37SLou4h8e26D7/dYlDdYDMxUTvTcjrCRPvQ6cq5Uc9ZXh5rNOV6B?=
+ =?us-ascii?Q?67cRKQa30Bn4uv7AaVbX8EcdoDppcMNFEx+XA+l9zKcFUB9WMmghzt8iSZz7?=
+ =?us-ascii?Q?zxjzQdySCasO7jMLkkrDtDN/dEaO0dxWI6cWU4a2t17X7H0EP+j4Dqzg+3Ua?=
+ =?us-ascii?Q?klI9X+JWMFnIbuomS3I815SNG9Ile79hGhED/GtaVy/7Kdu5j0tYDsgbckaU?=
+ =?us-ascii?Q?gLj4e3Ts386YjkLoyBlKf7ht1ae93nm9jh/6Myan67QQVdtNzMpBD9nHNPYY?=
+ =?us-ascii?Q?H2w8gth8Iy6d2NSdaLHctuRqn2RbEGqi6/WboDaWtAUmpIDfdiFFahKI2QNe?=
+ =?us-ascii?Q?42av1Sbe67ixAHAmdy8HU8FlxfduLmk96kjpABgIJj+lIleN32vbS+x13YHk?=
+ =?us-ascii?Q?cr3uy/QqkhWZ9+4Lns7vX13ubdFHpEe+8AKxxV51E6jO9Akrs61vGdCL2uU0?=
+ =?us-ascii?Q?kgaJWwngis6/Xu7xdt8eA3WYzTJrtcWsmToelRJrbDe/egzE0XHdErfeWQAK?=
+ =?us-ascii?Q?Nm463adNRIG3rGlVEtRNjfa68KhqJsoPtXeHXuZw5yzuVY25wwOF+sCMBcM5?=
+ =?us-ascii?Q?RGACAmswddF6HnzmRFt5dGOya1AY+5HXoVM8UnE9PCSxtZql3KIxDBpv7h+V?=
+ =?us-ascii?Q?fCyiolniawCe414RgCJSH5cnltLieqiPdxofgxf99r1Q/dbfJu7qx40hzsMD?=
+ =?us-ascii?Q?XMTJHDB4GovdtkeIEI7ZZwuCU/Lu3U5neh39AdUzrCtyfjCCrwR+/YjKLh90?=
+ =?us-ascii?Q?GP/sJK7joBnVWty3CgKETYNlCWSxze1jeB7a4XXFTwAHiZvHu39nrb89DJZs?=
+ =?us-ascii?Q?DR2ucy+aXGz3vQbhBettUK5XUoqhF4v+IQB9Ipvwsvv/I3Q9RVE4/zM4zGMw?=
+ =?us-ascii?Q?bZQ3uO70XmnytjdNJtWuhvdtJEj7U5NqhhFRmqAkt3GDOvSgaBNSNL/BrkNg?=
+ =?us-ascii?B?UT09?=
+x-microsoft-antispam-prvs:
+ <DBBPR05MB6297EEE29F45807BFDE934B6CF480@DBBPR05MB6297.eurprd05.prod.outlook.com>
+x-forefront-prvs: 09730BD177
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(376002)(136003)(346002)(39860400002)(366004)(396003)(189003)(199004)(5660300002)(478600001)(6486002)(36756003)(6436002)(68736007)(486006)(8936002)(1076003)(6506007)(186003)(6512007)(99286004)(2906002)(105586002)(71190400001)(106356001)(2501003)(110136005)(8676002)(2616005)(6246003)(316002)(6116002)(66066001)(71200400001)(86362001)(76176011)(6346003)(52116002)(11346002)(3846002)(476003)(386003)(33656002)(7736002)(14444005)(305945005)(256004)(26005)(102836004)(97736004)(81166006)(25786009)(14454004)(2201001)(446003)(53936002)(81156014)(229853002);DIR:OUT;SFP:1101;SCL:1;SRVR:DBBPR05MB6297;H:DBBPR05MB6570.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
+ permitted sender hosts)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jgg@mellanox.com; 
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ sp9gzXRPK1KsVsaILHbhwfGN5eRzAIjeLVTM0rwJdjdG5O8TM+rXf0kMRwsNL8MWh2oZc6ZSEsiGX+TEbmnsicQJWWaRDIwTOb8/9OLoXygcycrpSeDlLmA42YyBUiVo6+N7cmG+5VdkMthBO+LgmmfSTtC0GLgSu76ZSYD0v7iorFKx5nAcUcf0TqHiG79Rv2LRHUJtTOZzEoWpg9DQQTm1ZQHAb55VYUtpmoL30djzpJwfhazA08SFmtyne8cGsDryT7MBlKPo+Y1EteMLjMJYUSWIPWlliT2ohsnh7rtYh8TD644mbLLDf0cwwQnkbNnbc6HWhGQIdqQpkRWBl/erUTeCHN368A1olkBN5VHcgCPGl2ojg//p02QCOsojuhoW0c5qEGumK951Vp0m9EgB1Rr+n6yx7iJfla1pWSE=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <6E5A9794289BF749B57BA2804F2A7859@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190310011906.254635-3-yuzhao@google.com>
-User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: b2be0e62-1792-46b8-83f9-08d6a61c0885
+X-MS-Exchange-CrossTenant-originalarrivaltime: 11 Mar 2019 12:21:05.3928
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: DBBPR05MB6297
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Sun, Mar 10, 2019 at 08:58:15PM -0700, Davidlohr Bueso wrote:
+> On Sun, 10 Mar 2019, Qian Cai wrote:
+>=20
+> > atomic64_read() on ppc64le returns "long int", so fix the same way as
+> > the commit d549f545e690 ("drm/virtio: use %llu format string form
+> > atomic64_t") by adding a cast to u64, which makes it work on all arches=
+.
+> >=20
+> > In file included from ./include/linux/printk.h:7,
+> >                 from ./include/linux/kernel.h:15,
+> >                 from mm/debug.c:9:
+> > mm/debug.c: In function 'dump_mm':
+> > ./include/linux/kern_levels.h:5:18: warning: format '%llx' expects
+> > argument of type 'long long unsigned int', but argument 19 has type
+> > 'long int' [-Wformat=3D]
+> > #define KERN_SOH "\001"  /* ASCII Start Of Header */
+> >                  ^~~~~~
+> > ./include/linux/kern_levels.h:8:20: note: in expansion of macro
+> > 'KERN_SOH'
+> > #define KERN_EMERG KERN_SOH "0" /* system is unusable */
+> >                    ^~~~~~~~
+> > ./include/linux/printk.h:297:9: note: in expansion of macro 'KERN_EMERG=
+'
+> >  printk(KERN_EMERG pr_fmt(fmt), ##__VA_ARGS__)
+> >         ^~~~~~~~~~
+> > mm/debug.c:133:2: note: in expansion of macro 'pr_emerg'
+> >  pr_emerg("mm %px mmap %px seqnum %llu task_size %lu\n"
+> >  ^~~~~~~~
+> > mm/debug.c:140:17: note: format string is defined here
+> >   "pinned_vm %llx data_vm %lx exec_vm %lx stack_vm %lx\n"
+> >              ~~~^
+> >              %lx
+> >=20
+> > Fixes: 70f8a3ca68d3 ("mm: make mm->pinned_vm an atomic64 counter")
+> > Signed-off-by: Qian Cai <cai@lca.pw>
+>=20
+> Acked-by: Davidlohr Bueso <dbueso@suse.de>
 
-On Sat, Mar 09, 2019 at 06:19:06PM -0700, Yu Zhao wrote:
-> Switch from per mm_struct to per pmd page table lock by enabling
-> ARCH_ENABLE_SPLIT_PMD_PTLOCK. This provides better granularity for
-> large system.
-> 
-> I'm not sure if there is contention on mm->page_table_lock. Given
-> the option comes at no cost (apart from initializing more spin
-> locks), why not enable it now.
-> 
-> We only do so when pmd is not folded, so we don't mistakenly call
-> pgtable_pmd_page_ctor() on pud or p4d in pgd_pgtable_alloc(). (We
-> check shift against PMD_SHIFT, which is same as PUD_SHIFT when pmd
-> is folded).
+Not saying this patch shouldn't go ahead..
 
-Just to check, I take it pgtable_pmd_page_ctor() is now a NOP when the
-PMD is folded, and this last paragraph is stale?
+But is there a special reason the atomic64*'s on ppc don't use the u64
+type like other archs? Seems like a better thing to fix than adding
+casts all over the place.
 
-> Signed-off-by: Yu Zhao <yuzhao@google.com>
-> ---
->  arch/arm64/Kconfig               |  3 +++
->  arch/arm64/include/asm/pgalloc.h | 12 +++++++++++-
->  arch/arm64/include/asm/tlb.h     |  5 ++++-
->  3 files changed, 18 insertions(+), 2 deletions(-)
-> 
-> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> index cfbf307d6dc4..a3b1b789f766 100644
-> --- a/arch/arm64/Kconfig
-> +++ b/arch/arm64/Kconfig
-> @@ -872,6 +872,9 @@ config ARCH_WANT_HUGE_PMD_SHARE
->  config ARCH_HAS_CACHE_LINE_SIZE
->  	def_bool y
->  
-> +config ARCH_ENABLE_SPLIT_PMD_PTLOCK
-> +	def_bool y if PGTABLE_LEVELS > 2
-> +
->  config SECCOMP
->  	bool "Enable seccomp to safely compute untrusted bytecode"
->  	---help---
-> diff --git a/arch/arm64/include/asm/pgalloc.h b/arch/arm64/include/asm/pgalloc.h
-> index 52fa47c73bf0..dabba4b2c61f 100644
-> --- a/arch/arm64/include/asm/pgalloc.h
-> +++ b/arch/arm64/include/asm/pgalloc.h
-> @@ -33,12 +33,22 @@
->  
->  static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
->  {
-> -	return (pmd_t *)__get_free_page(PGALLOC_GFP);
-> +	struct page *page;
-> +
-> +	page = alloc_page(PGALLOC_GFP);
-> +	if (!page)
-> +		return NULL;
-> +	if (!pgtable_pmd_page_ctor(page)) {
-> +		__free_page(page);
-> +		return NULL;
-> +	}
-> +	return page_address(page);
->  }
->  
->  static inline void pmd_free(struct mm_struct *mm, pmd_t *pmdp)
->  {
->  	BUG_ON((unsigned long)pmdp & (PAGE_SIZE-1));
-> +	pgtable_pmd_page_dtor(virt_to_page(pmdp));
->  	free_page((unsigned long)pmdp);
->  }
-
-It looks like arm64's existing stage-2 code is inconsistent across
-alloc/free, and IIUC this change might turn that into a real problem.
-Currently we allocate all levels of stage-2 table with
-__get_free_page(), but free them with p?d_free(). We always miss the
-ctor and always use the dtor.
-
-Other than that, this patch looks fine to me, but I'd feel more
-comfortable if we could first fix the stage-2 code to free those stage-2
-tables without invoking the dtor.
-
-Anshuman, IIRC you had a patch to fix the stage-2 code to not invoke the
-dtors. If so, could you please post that so that we could take it as a
-preparatory patch for this series?
-
-Thanks,
-Mark.
-
-> diff --git a/arch/arm64/include/asm/tlb.h b/arch/arm64/include/asm/tlb.h
-> index 106fdc951b6e..4e3becfed387 100644
-> --- a/arch/arm64/include/asm/tlb.h
-> +++ b/arch/arm64/include/asm/tlb.h
-> @@ -62,7 +62,10 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
->  static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
->  				  unsigned long addr)
->  {
-> -	tlb_remove_table(tlb, virt_to_page(pmdp));
-> +	struct page *page = virt_to_page(pmdp);
-> +
-> +	pgtable_pmd_page_dtor(page);
-> +	tlb_remove_table(tlb, page);
->  }
->  #endif
->  
-> -- 
-> 2.21.0.360.g471c308f928-goog
-> 
+Jason
 
