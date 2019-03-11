@@ -2,224 +2,206 @@ Return-Path: <SRS0=4gxf=RO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AC598C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 12:21:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 18988C4360F
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 12:48:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 31E7C2075C
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 12:21:10 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="hwV4GC5S"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 31E7C2075C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	by mail.kernel.org (Postfix) with ESMTP id C809F206BA
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 12:48:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C809F206BA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A862B8E000C; Mon, 11 Mar 2019 08:21:09 -0400 (EDT)
+	id 519BA8E0003; Mon, 11 Mar 2019 08:48:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A37F78E0002; Mon, 11 Mar 2019 08:21:09 -0400 (EDT)
+	id 4A2F48E0002; Mon, 11 Mar 2019 08:48:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 926158E000C; Mon, 11 Mar 2019 08:21:09 -0400 (EDT)
+	id 344478E0003; Mon, 11 Mar 2019 08:48:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FEF18E0002
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 08:21:09 -0400 (EDT)
-Received: by mail-wm1-f71.google.com with SMTP id t190so638910wmt.8
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 05:21:09 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 06F6F8E0002
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 08:48:43 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id i3so5060137qtc.7
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 05:48:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=oZxeVsP88EDa5tTFZGWkUZL6SMNS5qnzeBxJN4yAP5U=;
-        b=jVsYAsxnrC8RfZgu0jaVuXuAR9mCHjHWEGSYQTyGGwuYGUh5nwOVlE3LzM6NObn649
-         BWa2yEgHzzY1Z/oOu/oW6rlrd3PYyyTPoQRQ49ZSpiM+yXfBmGhmvJAVlgoEpAuCw0Mh
-         Ef/4xaSbvR4yVGOrChuHcYMRKVQKknDHZoZo9015yMDSfECEqkvUTM6EtB+PoNAfWknE
-         rlgzqi13sKuOQGsB/SRxPzSH3idLIhyd7m0HJ/Flwc1KxerygxAjcGU0vQ2jralwsMiY
-         0MDJRK7O8or23Bu22ZiDapY4aGByAKvBTunNWFNC4JKdss/so7W9US8stteF3w8yfNiW
-         89qg==
-X-Gm-Message-State: APjAAAVJoc+9zIesfNYFEYhn8ZXrVqExHmZ271Oz4BQfT/o9DYcYCmZc
-	LkSQXjiFTJXQ6LJHgRIEWFL6Vm+4lQAluLSnCPiI+cm1C4/Kyv+55GDcsWOeoUK7GFXbYTk/lfO
-	7Ic1Xsg1BApaG0tp8RpCYvBfL46AWcVVX6sST+sZdnjThHrOhOxtBS4YqvUvEi0jwZQ==
-X-Received: by 2002:adf:cd87:: with SMTP id q7mr21254453wrj.92.1552306868645;
-        Mon, 11 Mar 2019 05:21:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzUhlluV/7Y+aH7n8L7FbcC8wHFts8/aLSSBp2K4b5B4z3JeB3xGsYi5ZC+rVD1ocqFocHF
-X-Received: by 2002:adf:cd87:: with SMTP id q7mr21254392wrj.92.1552306867482;
-        Mon, 11 Mar 2019 05:21:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552306867; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to;
+        bh=PGJ8zbf+GI7ZC/qAnsaCLtDgJXBhsk00TKBeRn8gflg=;
+        b=VqMTLkeumgIrxH+fRm9A2SzZVBkk9qX/+ehP91yQZ4y+wi5xvV55BiBvksnUdLW+1L
+         nDb/qkqSbMDAkcLPvdGe2EVoZxRcM+2sDvLC2AEp67eutZ3I5GA5aWu+RQzxAoKdFGl8
+         kZaPtO5BvIqkbv7l2ic6d6ql0LqbS0ak6oeYtqA8GQQLYMVFQ3/mou06JJKdBdHI+nCI
+         DmAESCpXpOwljZofW1m9O2mQrvsrWysZQYt+7LSaFtsNSlMoWV4kJXjLgSFfUtvoUFxr
+         Xk1qbb1viDFl5QIQGlV5VTf1ttD+UkO/Prl72FF41unLvQFhn+y34+c/jzcN5onV4FJi
+         G11A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWQ/DoI5OS8/K5yzcEn3kqpd5RODedrad0Exmojcl+EUbp672hg
+	ygZ11UYrNbl/wIEMHTL4ySWo9mulHeuw443Ut2R8VB1g7jnJx+xykO+L4O6+GDsPicdF5ecNKpi
+	ziQtcvb9MaEtvqHzIYAmn0X+MvagpbiMpj5atKYSDq/6foUXrca94hAoWxcc+uQLm6x5+7E8BQy
+	kXt0tZGy2/XQqv7qsdv63ZysXuvumwg8nCG5XTdnrj98g1PBE4GH6deBoyazHRC1BvRV1PwXSNE
+	gvz///IuImHrjP8wKlhUP5i32yTnfel+KB4kyhHjBfq0rAc43m9dTD7S7Gb2hjTDtOg/6k9KUxr
+	IAmrtWgkq5vQSFfTNrhBFx6f5dXMIeXQ5KHULnezv8eLXKlGwluRHkYxXzR8f0NfBSludEsGtdb
+	5
+X-Received: by 2002:a37:b105:: with SMTP id a5mr23751321qkf.298.1552308522755;
+        Mon, 11 Mar 2019 05:48:42 -0700 (PDT)
+X-Received: by 2002:a37:b105:: with SMTP id a5mr23751270qkf.298.1552308521768;
+        Mon, 11 Mar 2019 05:48:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552308521; cv=none;
         d=google.com; s=arc-20160816;
-        b=rvWkYW99fAcm8DjoK1nCe9JT/EkmVem7EpvzZ1zimZhhLg2SJ+/B5EP2pc4DXeCRBj
-         UHJwjInkge1yzgdi9YPt5DE4y8nm8xpgTIZHPvTRQbDlNnGxiAWytXbgJTN9tV2lZJel
-         I6PiaVT9HxBVlUIdLNq2SjpNmKC29KtAbTH/Lv66TnkbANKowCftYcMAIlY+LeKQyNOA
-         qp9oStw7TuJInaPdgAMvhtFvfDZp5iWLSq323DtnIyElvGtyxBGSQG4FxCE3mgpIC86D
-         VYcJsYVqsqCwT4Ww65oxiM6XEre3scUsDMw8y0TrkxKPxGgC5iQbSSO7PiXckkRoyGcb
-         L0LQ==
+        b=Btidj2e3w1RalybhFgRpaGe9QRaEMG1/bl7o8JufSry70425d00qnBiUgQM0EX7bmA
+         bhg/mVVjhZp4HZbh3SNhjmAg4hKRwnCMSRc5isBnO9ti2Sb0IuYhEt6wt7FLSfQCWjGE
+         ddd/EFc9r1vPcDTu8tgOamftw5aDzP/zXANAN9RGyaEkj8x28f4+bftceQxX4Je10sKJ
+         AsGZF9EIxJPr9657ILLVrlj/b+K5BBLxS/P96CSAy3k5yNqSa8nMMskEBq7qyRSOgxb6
+         7fMOwvpUe7WScamQRsm8za9LqRVRCfxkEGfYjqh8uvmUI0Ob34KCqdmyWEeER35LvvVh
+         c/Lg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:to:from:dkim-signature;
-        bh=oZxeVsP88EDa5tTFZGWkUZL6SMNS5qnzeBxJN4yAP5U=;
-        b=bEugSeihVj8Sg5BbYxvJyuVZG54Vx5Lm7sWxrkZJG7dCspUygxr3YtzaueLm/13QW8
-         /7Ry/UTJnb6ezgvHmN7LcpjsVeEGhWMbozpECHrEtBHw1iGoQ9HWLyAYajOK1NHPf6aS
-         tWIZqIbwF2TT4vocEx5JB5eCGhBwjsJvI2NldINgo2UjfVosaUu1D65GfS4L06RARflj
-         ENm+4/72r23G/S0bA7NmaHa/CSWKpxeCGFjsfm1ErtpA0GUowibU/2JgK5RFlwB5VMWy
-         RCV7fn6qGf/ZDZ/cH2CskCJEMCOy7z8fzJG/JKBtPjL6lrd07OKsklHvZehcTv2mAUNu
-         cwPQ==
+        h=in-reply-to:content-transfer-encoding:content-disposition
+         :mime-version:references:message-id:subject:cc:to:from:date;
+        bh=PGJ8zbf+GI7ZC/qAnsaCLtDgJXBhsk00TKBeRn8gflg=;
+        b=qEzPwh9Z0Scv79GcYtJiO9FpMqelGi1Ygdqv7yLX1t9dy8qwNqLLXZ6s3ak8eHnJU/
+         zS3dDmzRrep3HNTvdXAwYU45AH1ZWkEmTMul7aq9uOL/tO27VZ8BFMZRppK/aiiAnDbc
+         O4ddFuS8YlhBKYuInydyUSNcLvRdTqLYi3i3xVOfob6WU/3zet/HAvtTA3Vto5PBBlcd
+         9BmLBH50wfrB3n70v2hruUSQdHiDjkXHqhS5uI28K6nqSKIBMoq4j9ZXseYre0j6eVM1
+         6Zka2PYk+jYBJ4A5diKuoNmTOBa44HcTZQQtgJpVXaN+Km4/3JZPMUmQrs3lWfx/eHvw
+         VgYw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b=hwV4GC5S;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.7.55 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR04-HE1-obe.outbound.protection.outlook.com (mail-eopbgr70055.outbound.protection.outlook.com. [40.107.7.55])
-        by mx.google.com with ESMTPS id h7si3205910wru.58.2019.03.11.05.21.07
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d3sor5906130qvc.35.2019.03.11.05.48.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Mar 2019 05:21:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.7.55 as permitted sender) client-ip=40.107.7.55;
+        (Google Transport Security);
+        Mon, 11 Mar 2019 05:48:41 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b=hwV4GC5S;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.7.55 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=oZxeVsP88EDa5tTFZGWkUZL6SMNS5qnzeBxJN4yAP5U=;
- b=hwV4GC5Scv+/hH7H0vP8K4s7M7j3FKlYht+qXytQ8Qs/d+JRb42njxM92mST+JNE8MsTAKYscvqvtFmfkTSryQlXR45GjUMyDV6Tnue/b58OJPmcrlesAjfEkYGSq7/zT2WnT3cI3qVGofRJ4V86281EcqYud8l6eOfwDYL6Fbg=
-Received: from DBBPR05MB6570.eurprd05.prod.outlook.com (20.179.44.81) by
- DBBPR05MB6297.eurprd05.prod.outlook.com (20.179.40.144) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1665.19; Mon, 11 Mar 2019 12:21:05 +0000
-Received: from DBBPR05MB6570.eurprd05.prod.outlook.com
- ([fe80::5d59:2e1c:c260:ea6f]) by DBBPR05MB6570.eurprd05.prod.outlook.com
- ([fe80::5d59:2e1c:c260:ea6f%2]) with mapi id 15.20.1686.021; Mon, 11 Mar 2019
- 12:21:05 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Qian Cai <cai@lca.pw>, "akpm@linux-foundation.org"
-	<akpm@linux-foundation.org>, "arnd@arndb.de" <arnd@arndb.de>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH] mm/debug: add a cast to u64 for atomic64_read()
-Thread-Topic: [PATCH] mm/debug: add a cast to u64 for atomic64_read()
-Thread-Index: AQHU129qkdpyS6s9ikO3HiiIZ0g4PKYFzm+AgACMeAA=
-Date: Mon, 11 Mar 2019 12:21:05 +0000
-Message-ID: <20190311122100.GF22862@mellanox.com>
-References: <20190310183051.87303-1-cai@lca.pw>
- <20190311035815.kq7ftc6vphy6vwen@linux-r8p5>
-In-Reply-To: <20190311035815.kq7ftc6vphy6vwen@linux-r8p5>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: YQXPR0101CA0045.CANPRD01.PROD.OUTLOOK.COM
- (2603:10b6:c00:14::22) To DBBPR05MB6570.eurprd05.prod.outlook.com
- (2603:10a6:10:d1::17)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [24.137.65.181]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: b2be0e62-1792-46b8-83f9-08d6a61c0885
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600127)(711020)(4605104)(4618075)(2017052603328)(7153060)(7193020);SRVR:DBBPR05MB6297;
-x-ms-traffictypediagnostic: DBBPR05MB6297:
-x-microsoft-exchange-diagnostics:
- =?us-ascii?Q?1;DBBPR05MB6297;23:P7xtHHClqt/GURYNk801RMY3na87eOmiGEzkdXw0t?=
- =?us-ascii?Q?uP8Z+jzqUyzexocaV2u3jZRvIdUGajYf6HZByDCSSpd6coRVeP078dKbfw6v?=
- =?us-ascii?Q?3wcxre1191tqqknZxGB5or8N0JNG+S/jGqHQ+jMSGo8Xdp0FqsgpZ+5B+3D7?=
- =?us-ascii?Q?zNje7eQZOF7HeRV72ORwazxkyZM0IfRdwxb3guTEACqrn2Nl9opV208LxX2/?=
- =?us-ascii?Q?Y8y9145icm1PgxJ33a5ZuvRqwOhHqSoP0fFlfsNcqtVeVJ0pRt4h35EvW3XY?=
- =?us-ascii?Q?Dyc7fLpTBrxmNSeUUr7abtyXTGxqfzAmoeYf0A+uflDkLXqFZzv00rTn6sq5?=
- =?us-ascii?Q?5OIxrPj37SLou4h8e26D7/dYlDdYDMxUTvTcjrCRPvQ6cq5Uc9ZXh5rNOV6B?=
- =?us-ascii?Q?67cRKQa30Bn4uv7AaVbX8EcdoDppcMNFEx+XA+l9zKcFUB9WMmghzt8iSZz7?=
- =?us-ascii?Q?zxjzQdySCasO7jMLkkrDtDN/dEaO0dxWI6cWU4a2t17X7H0EP+j4Dqzg+3Ua?=
- =?us-ascii?Q?klI9X+JWMFnIbuomS3I815SNG9Ile79hGhED/GtaVy/7Kdu5j0tYDsgbckaU?=
- =?us-ascii?Q?gLj4e3Ts386YjkLoyBlKf7ht1ae93nm9jh/6Myan67QQVdtNzMpBD9nHNPYY?=
- =?us-ascii?Q?H2w8gth8Iy6d2NSdaLHctuRqn2RbEGqi6/WboDaWtAUmpIDfdiFFahKI2QNe?=
- =?us-ascii?Q?42av1Sbe67ixAHAmdy8HU8FlxfduLmk96kjpABgIJj+lIleN32vbS+x13YHk?=
- =?us-ascii?Q?cr3uy/QqkhWZ9+4Lns7vX13ubdFHpEe+8AKxxV51E6jO9Akrs61vGdCL2uU0?=
- =?us-ascii?Q?kgaJWwngis6/Xu7xdt8eA3WYzTJrtcWsmToelRJrbDe/egzE0XHdErfeWQAK?=
- =?us-ascii?Q?Nm463adNRIG3rGlVEtRNjfa68KhqJsoPtXeHXuZw5yzuVY25wwOF+sCMBcM5?=
- =?us-ascii?Q?RGACAmswddF6HnzmRFt5dGOya1AY+5HXoVM8UnE9PCSxtZql3KIxDBpv7h+V?=
- =?us-ascii?Q?fCyiolniawCe414RgCJSH5cnltLieqiPdxofgxf99r1Q/dbfJu7qx40hzsMD?=
- =?us-ascii?Q?XMTJHDB4GovdtkeIEI7ZZwuCU/Lu3U5neh39AdUzrCtyfjCCrwR+/YjKLh90?=
- =?us-ascii?Q?GP/sJK7joBnVWty3CgKETYNlCWSxze1jeB7a4XXFTwAHiZvHu39nrb89DJZs?=
- =?us-ascii?Q?DR2ucy+aXGz3vQbhBettUK5XUoqhF4v+IQB9Ipvwsvv/I3Q9RVE4/zM4zGMw?=
- =?us-ascii?Q?bZQ3uO70XmnytjdNJtWuhvdtJEj7U5NqhhFRmqAkt3GDOvSgaBNSNL/BrkNg?=
- =?us-ascii?B?UT09?=
-x-microsoft-antispam-prvs:
- <DBBPR05MB6297EEE29F45807BFDE934B6CF480@DBBPR05MB6297.eurprd05.prod.outlook.com>
-x-forefront-prvs: 09730BD177
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(376002)(136003)(346002)(39860400002)(366004)(396003)(189003)(199004)(5660300002)(478600001)(6486002)(36756003)(6436002)(68736007)(486006)(8936002)(1076003)(6506007)(186003)(6512007)(99286004)(2906002)(105586002)(71190400001)(106356001)(2501003)(110136005)(8676002)(2616005)(6246003)(316002)(6116002)(66066001)(71200400001)(86362001)(76176011)(6346003)(52116002)(11346002)(3846002)(476003)(386003)(33656002)(7736002)(14444005)(305945005)(256004)(26005)(102836004)(97736004)(81166006)(25786009)(14454004)(2201001)(446003)(53936002)(81156014)(229853002);DIR:OUT;SFP:1101;SCL:1;SRVR:DBBPR05MB6297;H:DBBPR05MB6570.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- sp9gzXRPK1KsVsaILHbhwfGN5eRzAIjeLVTM0rwJdjdG5O8TM+rXf0kMRwsNL8MWh2oZc6ZSEsiGX+TEbmnsicQJWWaRDIwTOb8/9OLoXygcycrpSeDlLmA42YyBUiVo6+N7cmG+5VdkMthBO+LgmmfSTtC0GLgSu76ZSYD0v7iorFKx5nAcUcf0TqHiG79Rv2LRHUJtTOZzEoWpg9DQQTm1ZQHAb55VYUtpmoL30djzpJwfhazA08SFmtyne8cGsDryT7MBlKPo+Y1EteMLjMJYUSWIPWlliT2ohsnh7rtYh8TD644mbLLDf0cwwQnkbNnbc6HWhGQIdqQpkRWBl/erUTeCHN368A1olkBN5VHcgCPGl2ojg//p02QCOsojuhoW0c5qEGumK951Vp0m9EgB1Rr+n6yx7iJfla1pWSE=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <6E5A9794289BF749B57BA2804F2A7859@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqxitHgoNrrmoC1MNnHg0e8hERINGOglRw7Z0VJ/zXaiPKexOixiLmMkua/cdJCvwC/0bEHapg==
+X-Received: by 2002:a0c:d849:: with SMTP id i9mr1325157qvj.207.1552308520546;
+        Mon, 11 Mar 2019 05:48:40 -0700 (PDT)
+Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
+        by smtp.gmail.com with ESMTPSA id l6sm3005169qkc.36.2019.03.11.05.48.38
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 11 Mar 2019 05:48:39 -0700 (PDT)
+Date: Mon, 11 Mar 2019 08:48:37 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Jason Wang <jasowang@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org,
+	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
+	linux-kernel@vger.kernel.org, peterx@redhat.com, linux-mm@kvack.org,
+	Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [RFC PATCH V2 5/5] vhost: access vq metadata through kernel
+ virtual address
+Message-ID: <20190311084525-mutt-send-email-mst@kernel.org>
+References: <1551856692-3384-1-git-send-email-jasowang@redhat.com>
+ <1551856692-3384-6-git-send-email-jasowang@redhat.com>
+ <20190307103503-mutt-send-email-mst@kernel.org>
+ <20190307124700-mutt-send-email-mst@kernel.org>
+ <20190307191622.GP23850@redhat.com>
+ <e2fad6ed-9257-b53c-394b-bc913fc444c0@redhat.com>
+ <20190308194845.GC26923@redhat.com>
+ <8b68a2a0-907a-15f5-a07f-fc5b53d7ea19@redhat.com>
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: b2be0e62-1792-46b8-83f9-08d6a61c0885
-X-MS-Exchange-CrossTenant-originalarrivaltime: 11 Mar 2019 12:21:05.3928
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DBBPR05MB6297
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <8b68a2a0-907a-15f5-a07f-fc5b53d7ea19@redhat.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Mar 10, 2019 at 08:58:15PM -0700, Davidlohr Bueso wrote:
-> On Sun, 10 Mar 2019, Qian Cai wrote:
->=20
-> > atomic64_read() on ppc64le returns "long int", so fix the same way as
-> > the commit d549f545e690 ("drm/virtio: use %llu format string form
-> > atomic64_t") by adding a cast to u64, which makes it work on all arches=
-.
-> >=20
-> > In file included from ./include/linux/printk.h:7,
-> >                 from ./include/linux/kernel.h:15,
-> >                 from mm/debug.c:9:
-> > mm/debug.c: In function 'dump_mm':
-> > ./include/linux/kern_levels.h:5:18: warning: format '%llx' expects
-> > argument of type 'long long unsigned int', but argument 19 has type
-> > 'long int' [-Wformat=3D]
-> > #define KERN_SOH "\001"  /* ASCII Start Of Header */
-> >                  ^~~~~~
-> > ./include/linux/kern_levels.h:8:20: note: in expansion of macro
-> > 'KERN_SOH'
-> > #define KERN_EMERG KERN_SOH "0" /* system is unusable */
-> >                    ^~~~~~~~
-> > ./include/linux/printk.h:297:9: note: in expansion of macro 'KERN_EMERG=
-'
-> >  printk(KERN_EMERG pr_fmt(fmt), ##__VA_ARGS__)
-> >         ^~~~~~~~~~
-> > mm/debug.c:133:2: note: in expansion of macro 'pr_emerg'
-> >  pr_emerg("mm %px mmap %px seqnum %llu task_size %lu\n"
-> >  ^~~~~~~~
-> > mm/debug.c:140:17: note: format string is defined here
-> >   "pinned_vm %llx data_vm %lx exec_vm %lx stack_vm %lx\n"
-> >              ~~~^
-> >              %lx
-> >=20
-> > Fixes: 70f8a3ca68d3 ("mm: make mm->pinned_vm an atomic64 counter")
-> > Signed-off-by: Qian Cai <cai@lca.pw>
->=20
-> Acked-by: Davidlohr Bueso <dbueso@suse.de>
+On Mon, Mar 11, 2019 at 03:40:31PM +0800, Jason Wang wrote:
+> 
+> On 2019/3/9 上午3:48, Andrea Arcangeli wrote:
+> > Hello Jeson,
+> > 
+> > On Fri, Mar 08, 2019 at 04:50:36PM +0800, Jason Wang wrote:
+> > > Just to make sure I understand here. For boosting through huge TLB, do
+> > > you mean we can do that in the future (e.g by mapping more userspace
+> > > pages to kenrel) or it can be done by this series (only about three 4K
+> > > pages were vmapped per virtqueue)?
+> > When I answered about the advantages of mmu notifier and I mentioned
+> > guaranteed 2m/gigapages where available, I overlooked the detail you
+> > were using vmap instead of kmap. So with vmap you're actually doing
+> > the opposite, it slows down the access because it will always use a 4k
+> > TLB even if QEMU runs on THP or gigapages hugetlbfs.
+> > 
+> > If there's just one page (or a few pages) in each vmap there's no need
+> > of vmap, the linearity vmap provides doesn't pay off in such
+> > case.
+> > 
+> > So likely there's further room for improvement here that you can
+> > achieve in the current series by just dropping vmap/vunmap.
+> > 
+> > You can just use kmap (or kmap_atomic if you're in preemptible
+> > section, should work from bh/irq).
+> > 
+> > In short the mmu notifier to invalidate only sets a "struct page *
+> > userringpage" pointer to NULL without calls to vunmap.
+> > 
+> > In all cases immediately after gup_fast returns you can always call
+> > put_page immediately (which explains why I'd like an option to drop
+> > FOLL_GET from gup_fast to speed it up).
+> > 
+> > Then you can check the sequence_counter and inc/dec counter increased
+> > by _start/_end. That will tell you if the page you got and you called
+> > put_page to immediately unpin it or even to free it, cannot go away
+> > under you until the invalidate is called.
+> > 
+> > If sequence counters and counter tells that gup_fast raced with anyt
+> > mmu notifier invalidate you can just repeat gup_fast. Otherwise you're
+> > done, the page cannot go away under you, the host virtual to host
+> > physical mapping cannot change either. And the page is not pinned
+> > either. So you can just set the "struct page * userringpage = page"
+> > where "page" was the one setup by gup_fast.
+> > 
+> > When later the invalidate runs, you can just call set_page_dirty if
+> > gup_fast was called with "write = 1" and then you clear the pointer
+> > "userringpage = NULL".
+> > 
+> > When you need to read/write to the memory
+> > kmap/kmap_atomic(userringpage) should work.
+> 
+> 
+> Yes, I've considered kmap() from the start. The reason I don't do that is
+> large virtqueue may need more than one page so VA might not be contiguous.
+> But this is probably not a big issue which just need more tricks in the
+> vhost memory accessors.
+> 
+> 
+> > 
+> > In short because there's no hardware involvement here, the established
+> > mapping is just the pointer to the page, there is no need of setting
+> > up any pagetables or to do any TLB flushes (except on 32bit archs if
+> > the page is above the direct mapping but it never happens on 64bit
+> > archs).
+> 
+> 
+> I see, I believe we don't care much about the performance of 32bit archs (or
+> we can just fallback to copy_to_user() friends).
 
-Not saying this patch shouldn't go ahead..
+Using copyXuser is better I guess.
 
-But is there a special reason the atomic64*'s on ppc don't use the u64
-type like other archs? Seems like a better thing to fix than adding
-casts all over the place.
+> Using direct mapping (I
+> guess kernel will always try hugepage for that?) should be better and we can
+> even use it for the data transfer not only for the metadata.
+> 
+> Thanks
 
-Jason
+We can't really. The big issue is get user pages. Doing that on data
+path will be slower than copyXuser. Or maybe it won't with the
+amount of mitigations spread around. Go ahead and try.
+
+
+> 
+> > 
+> > Thanks,
+> > Andrea
 
