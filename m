@@ -6,64 +6,64 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B724C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 20:55:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 55E01C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 20:55:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2E0C9214AF
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 20:55:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E0C9214AF
+	by mail.kernel.org (Postfix) with ESMTP id 01AE4214D8
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Mar 2019 20:55:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 01AE4214D8
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6E5828E0004; Mon, 11 Mar 2019 16:55:43 -0400 (EDT)
+	id 2546B8E0007; Mon, 11 Mar 2019 16:55:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6926D8E0002; Mon, 11 Mar 2019 16:55:43 -0400 (EDT)
+	id 1694F8E0002; Mon, 11 Mar 2019 16:55:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4EFE28E0007; Mon, 11 Mar 2019 16:55:43 -0400 (EDT)
+	id E58768E0008; Mon, 11 Mar 2019 16:55:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DD41E8E0002
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 16:55:42 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id x17so397788pfn.16
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 13:55:42 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id A6DEB8E0002
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 16:55:43 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id 23so393135pfj.18
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 13:55:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=RjVTAY2+ujki8k5tgFibEHfkVGcKOQe0TjN/ucwTdzo=;
-        b=j5DS5VWP28iZZF1zHvI0mT6c9zQA9WhaDhdEtEky3yo9F5nn0yXQCeFLG+/s72VZIp
-         MayH8xcMjlZVSvxs/yz9Z5LDl/PXQv/9xr+oE7V7/eQGH+lli4y1qvnlH6A8ByS5QFKm
-         ctfdMoPssFaYs63HWTXdJwziCDG+iS8SwLnh5kWEPb7adfnBzSHXewaxsvljYcbadtWS
-         f+LpQRukv9Z4x2A/mtNZlpqPENQkOObGy1M3ybTzU82N+gHdJCsnyCUX8ZMZHNJJmvTe
-         +9k3fn1xCxKoKzQcb+kJ5Gc32bbz9woItz+IRBahVBvxaK6pbICt9fD4Qz9Iqw0/9Uvg
-         ratg==
+        bh=cpR3OpYE195Vh/Fe4KM3ys5RMhW3S64GKi84HFN56dw=;
+        b=Wrv9VMrjBEKNO7v37YjhxwsPXYPY76117CwGw8NagxLIA3d8kZ0elCMbmU74tgdgXb
+         aVqycgEtF54P62U8FH48Hp9jILa616kPztRiutVAu+rYsGse7gWYxb6WGUQRlnq2x/m5
+         n0P7AUqSqzcF9GUCcvTLF2EwKggxC81O2IEkCabsAxE6PqHjz3KLIxRKC83iJO2k1N4w
+         AY1M5mSgI4dUA2uPbDLtihpwuaUoeQWfJ3r+GsT4RJZ+HACl94a0z1Ah19Mbt6hKc+2j
+         EzF8M2kdhWCrTwesWe3+quytk5wR7A0w7TP63pXNqpcUyv14XM4VdsBfJ83E7AeCizjF
+         CS3A==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVg4Yv0Y2mFMir0AIS6CXcxsuwaX5IvcruhyYk9e39RVaItr6dE
-	5bc6LmoU/qC8tISSTEK8hxfCPM7Ok3eLD5gftHRemuJe8JqI8xiSR6hCNxDT6T6Q2LcUzVfubOJ
-	UkX0qWj7ZiRBDiYuLt8p5tlDrPtlm71JEZ7ylZNe/4EqFrdtNG87CnUaotyNhl85M+w==
-X-Received: by 2002:a65:51c3:: with SMTP id i3mr31356939pgq.45.1552337742563;
-        Mon, 11 Mar 2019 13:55:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxTnqLW7r4qEddV3eCZa742rEl/QZaacVt7ITIp//1CuniWVtBL1yHhoYJW6+im26ORLiFl
-X-Received: by 2002:a65:51c3:: with SMTP id i3mr31356882pgq.45.1552337741274;
+X-Gm-Message-State: APjAAAXIfJQ1WVLK6/y2XVEcYQQWDnuDNkzc33Qe1m7CH+mB6Q6SVkst
+	Hd9W/wx7lcfzwSNobyg4KpIz5Q2VW/GIiFbNVSAuS7ZV2cBkSrKAKNNs8jgJ9hIRD2w5wf2/PPf
+	5alolWm9DrnsghLy60aG39SDCI6RqrKqkOFI3StMpyhtuTtvcwSQlB7bFcwiAnwaSPA==
+X-Received: by 2002:a17:902:4081:: with SMTP id c1mr36112788pld.297.1552337743276;
+        Mon, 11 Mar 2019 13:55:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxhaU/jDZZEgPfbXiTBYoVuT3bLIOy40oy9vcSkQk321VM4aRU+y4OXWwqQveQ/YIkvzc6a
+X-Received: by 2002:a17:902:4081:: with SMTP id c1mr36112708pld.297.1552337741747;
         Mon, 11 Mar 2019 13:55:41 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1552337741; cv=none;
         d=google.com; s=arc-20160816;
-        b=Vb/ZxqO1XXZEPrbunutokPqhH6jM60kKTwIM2w4BmDjXa7htblfO7BLh9j4xFCXKvk
-         fkWxHXWAynWlvZoaXHCleh3byVklRO5jT0gpCDkhkdRceTkU9OJUWSrNV+S3ETCRhbvE
-         msYvX9fOgN5vMLC+bsOPN6wQB3As4WsGbUoO/LRoZinIISBez9QtaOaXVJFV77u6o4Wc
-         ol8HKL1f3agDP4EafLV3Lp9RUL2LRVyRgr4tUuMtvxCUpuNJyf7fhXtRRDN/RlM0tOce
-         XYkmChqCzdccsLoNu229jPp2zssf6NgJ+crUoQnsZUd0PlrbY9WxtdF8lLJfVGPA3u6F
-         ljJQ==
+        b=XyKHidVCYXDSjMAbMHCU5RVKyrdMp19nndRQbcyTAqkfjL9LKVkFLmuRMHpc13vJ1r
+         Pr9Q8tqJtd6jw7n3WDOhIRilZ8FEnqyvo6c8O68JL/UVTCsv7PqIIJULrk2rCsQyX9Zi
+         U6m6/sjblR8gft8qA8jGLUc+pCYZJNAkwk/gDg2PXBcxJrUTtY84sGGOF3hKK9o66Q2u
+         j1ol0omqK+3QyzkKgRetpz6Tr73pN+hxzeOCOCgfDKYJtZw8RD97Gr58ZMwBBZFKzShB
+         DqiO1EeKq1CH09/trkC0fWl2twUsrt4/BaNX02NbazKc8TxwCEV7NIWLKFKfX5XHAw5E
+         wbAA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=RjVTAY2+ujki8k5tgFibEHfkVGcKOQe0TjN/ucwTdzo=;
-        b=z9gHWY28ElQJ2dhR7j+x+HsSFuf1g3r4qm5vX5cdzO1v8dmfpAW7/IVrx+OQMnnJtS
-         s/te8PS7u9b4M6wvFlNuBeOqZr+17W+vSeiHdi8ooFPxGmSpgQmh+5g5bOx9CCWybIdH
-         SQz202eWbKJZFVxFkvP0QGhYhFsydQu3NQeGkllr0HR40oyv1aDBW5X9AXZUMHkkCkCY
-         HbgzYkZyUe9hGQKZf2loPen85JGbT/aUrZI1JqLjz1yv8nI0oD/l6kSJKJM6HrhY0ulJ
-         k8Dj24NBbnX2ErDvGC2DUEnD8DNMgvjG0yw4ORZT8cTM5dADY7RkgnTjynx4VkFi+X6G
-         AtAA==
+        bh=cpR3OpYE195Vh/Fe4KM3ys5RMhW3S64GKi84HFN56dw=;
+        b=Uj7u3fMuxiXc9GmzvlYYTbXTLyZsGvnqOwlMbhE32Wzvtd4QdAhvYW8JKMwoJVJU5f
+         xeY1bUNGxKkeTLeQgTXHCcZsW0FpSqa41A0FskQoaGiQE4nRQSf41HIU+rHzO/28XQJb
+         12Ulhcn9/7w7wTJHX586e2q7058J83u7cApUANb/oH7wA2AVomVxAeQd81KHyZOkdLm7
+         MpkuhxTaBIlFjJN9NxNcuISW21/rdXb0W20WKUfN3xdHqX3okwZVvpCQjRhwLtZpKONr
+         jylu8GnUPfHfdE5+/2V7Da8BWNRmFVchcfsSB3pKGIfqqqB4q+8MF1grpPugLsZOUN/8
+         mJjg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
@@ -79,12 +79,12 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from fmsmga003.fm.intel.com ([10.253.24.29])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Mar 2019 13:55:40 -0700
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Mar 2019 13:55:41 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.58,468,1544515200"; 
-   d="scan'208";a="139910164"
+   d="scan'208";a="139910171"
 Received: from unknown (HELO localhost.lm.intel.com) ([10.232.112.69])
-  by FMSMGA003.fm.intel.com with ESMTP; 11 Mar 2019 13:55:40 -0700
+  by FMSMGA003.fm.intel.com with ESMTP; 11 Mar 2019 13:55:41 -0700
 From: Keith Busch <keith.busch@intel.com>
 To: linux-kernel@vger.kernel.org,
 	linux-acpi@vger.kernel.org,
@@ -97,9 +97,9 @@ Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
 	Jonathan Cameron <jonathan.cameron@huawei.com>,
 	Brice Goglin <Brice.Goglin@inria.fr>,
 	Keith Busch <keith.busch@intel.com>
-Subject: [PATCHv8 03/10] acpi/hmat: Parse and report heterogeneous memory
-Date: Mon, 11 Mar 2019 14:55:59 -0600
-Message-Id: <20190311205606.11228-4-keith.busch@intel.com>
+Subject: [PATCHv8 04/10] node: Link memory nodes to their compute nodes
+Date: Mon, 11 Mar 2019 14:56:00 -0600
+Message-Id: <20190311205606.11228-5-keith.busch@intel.com>
 X-Mailer: git-send-email 2.13.6
 In-Reply-To: <20190311205606.11228-1-keith.busch@intel.com>
 References: <20190311205606.11228-1-keith.busch@intel.com>
@@ -109,312 +109,295 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Systems may provide different memory types and export this information
-in the ACPI Heterogeneous Memory Attribute Table (HMAT). Parse these
-tables provided by the platform and report the memory access and caching
-attributes to the kernel messages.
+Systems may be constructed with various specialized nodes. Some nodes
+may provide memory, some provide compute devices that access and use
+that memory, and others may provide both. Nodes that provide memory are
+referred to as memory targets, and nodes that can initiate memory access
+are referred to as memory initiators.
 
-Reviewed-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
-Acked-by: Jonathan Cameron <Jonathan.Cameron@huawei.com>
-Tested-by: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+Memory targets will often have varying access characteristics from
+different initiators, and platforms may have ways to express those
+relationships. In preparation for these systems, provide interfaces for
+the kernel to export the memory relationship among different nodes memory
+targets and their initiators with symlinks to each other.
+
+If a system provides access locality for each initiator-target pair, nodes
+may be grouped into ranked access classes relative to other nodes. The
+new interface allows a subsystem to register relationships of varying
+classes if available and desired to be exported.
+
+A memory initiator may have multiple memory targets in the same access
+class. The target memory's initiators in a given class indicate the
+nodes access characteristics share the same performance relative to other
+linked initiator nodes. Each target within an initiator's access class,
+though, do not necessarily perform the same as each other.
+
+A memory target node may have multiple memory initiators. All linked
+initiators in a target's class have the same access characteristics to
+that target.
+
+The following example show the nodes' new sysfs hierarchy for a memory
+target node 'Y' with access class 0 from initiator node 'X':
+
+  # symlinks -v /sys/devices/system/node/nodeX/access0/
+  relative: /sys/devices/system/node/nodeX/access0/targets/nodeY -> ../../nodeY
+
+  # symlinks -v /sys/devices/system/node/nodeY/access0/
+  relative: /sys/devices/system/node/nodeY/access0/initiators/nodeX -> ../../nodeX
+
+The new attributes are added to the sysfs stable documentation.
+
+Reviewed-by: Jonathan Cameron <Jonathan.Cameron@huawei.com>
 Signed-off-by: Keith Busch <keith.busch@intel.com>
 ---
- drivers/acpi/Kconfig       |   1 +
- drivers/acpi/Makefile      |   1 +
- drivers/acpi/hmat/Kconfig  |   7 ++
- drivers/acpi/hmat/Makefile |   1 +
- drivers/acpi/hmat/hmat.c   | 236 +++++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 246 insertions(+)
- create mode 100644 drivers/acpi/hmat/Kconfig
- create mode 100644 drivers/acpi/hmat/Makefile
- create mode 100644 drivers/acpi/hmat/hmat.c
+ Documentation/ABI/stable/sysfs-devices-node |  25 ++++-
+ drivers/base/node.c                         | 142 +++++++++++++++++++++++++++-
+ include/linux/node.h                        |   6 ++
+ 3 files changed, 171 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/acpi/Kconfig b/drivers/acpi/Kconfig
-index 4e015c77e48e..283ee94224c6 100644
---- a/drivers/acpi/Kconfig
-+++ b/drivers/acpi/Kconfig
-@@ -475,6 +475,7 @@ config ACPI_REDUCED_HARDWARE_ONLY
- 	  If you are unsure what to do, do not enable this option.
+diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
+index 3e90e1f3bf0a..433bcc04e542 100644
+--- a/Documentation/ABI/stable/sysfs-devices-node
++++ b/Documentation/ABI/stable/sysfs-devices-node
+@@ -90,4 +90,27 @@ Date:		December 2009
+ Contact:	Lee Schermerhorn <lee.schermerhorn@hp.com>
+ Description:
+ 		The node's huge page size control/query attributes.
+-		See Documentation/admin-guide/mm/hugetlbpage.rst
+\ No newline at end of file
++		See Documentation/admin-guide/mm/hugetlbpage.rst
++
++What:		/sys/devices/system/node/nodeX/accessY/
++Date:		December 2018
++Contact:	Keith Busch <keith.busch@intel.com>
++Description:
++		The node's relationship to other nodes for access class "Y".
++
++What:		/sys/devices/system/node/nodeX/accessY/initiators/
++Date:		December 2018
++Contact:	Keith Busch <keith.busch@intel.com>
++Description:
++		The directory containing symlinks to memory initiator
++		nodes that have class "Y" access to this target node's
++		memory. CPUs and other memory initiators in nodes not in
++		the list accessing this node's memory may have different
++		performance.
++
++What:		/sys/devices/system/node/nodeX/accessY/targets/
++Date:		December 2018
++Contact:	Keith Busch <keith.busch@intel.com>
++Description:
++		The directory containing symlinks to memory targets that
++		this initiator node has class "Y" access.
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 86d6cd92ce3d..6f4097680580 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -17,6 +17,7 @@
+ #include <linux/nodemask.h>
+ #include <linux/cpu.h>
+ #include <linux/device.h>
++#include <linux/pm_runtime.h>
+ #include <linux/swap.h>
+ #include <linux/slab.h>
  
- source "drivers/acpi/nfit/Kconfig"
-+source "drivers/acpi/hmat/Kconfig"
+@@ -59,6 +60,94 @@ static inline ssize_t node_read_cpulist(struct device *dev,
+ static DEVICE_ATTR(cpumap,  S_IRUGO, node_read_cpumask, NULL);
+ static DEVICE_ATTR(cpulist, S_IRUGO, node_read_cpulist, NULL);
  
- source "drivers/acpi/apei/Kconfig"
- source "drivers/acpi/dptf/Kconfig"
-diff --git a/drivers/acpi/Makefile b/drivers/acpi/Makefile
-index bb857421c2e8..5d361e4e3405 100644
---- a/drivers/acpi/Makefile
-+++ b/drivers/acpi/Makefile
-@@ -80,6 +80,7 @@ obj-$(CONFIG_ACPI_PROCESSOR)	+= processor.o
- obj-$(CONFIG_ACPI)		+= container.o
- obj-$(CONFIG_ACPI_THERMAL)	+= thermal.o
- obj-$(CONFIG_ACPI_NFIT)		+= nfit/
-+obj-$(CONFIG_ACPI_HMAT)		+= hmat/
- obj-$(CONFIG_ACPI)		+= acpi_memhotplug.o
- obj-$(CONFIG_ACPI_HOTPLUG_IOAPIC) += ioapic.o
- obj-$(CONFIG_ACPI_BATTERY)	+= battery.o
-diff --git a/drivers/acpi/hmat/Kconfig b/drivers/acpi/hmat/Kconfig
-new file mode 100644
-index 000000000000..2f7111b7af62
---- /dev/null
-+++ b/drivers/acpi/hmat/Kconfig
-@@ -0,0 +1,7 @@
-+# SPDX-License-Identifier: GPL-2.0
-+config ACPI_HMAT
-+	bool "ACPI Heterogeneous Memory Attribute Table Support"
-+	depends on ACPI_NUMA
-+	help
-+	 If set, this option has the kernel parse and report the
-+	 platform's ACPI HMAT (Heterogeneous Memory Attributes Table).
-diff --git a/drivers/acpi/hmat/Makefile b/drivers/acpi/hmat/Makefile
-new file mode 100644
-index 000000000000..e909051d3d00
---- /dev/null
-+++ b/drivers/acpi/hmat/Makefile
-@@ -0,0 +1 @@
-+obj-$(CONFIG_ACPI_HMAT) := hmat.o
-diff --git a/drivers/acpi/hmat/hmat.c b/drivers/acpi/hmat/hmat.c
-new file mode 100644
-index 000000000000..4758beb3b2c1
---- /dev/null
-+++ b/drivers/acpi/hmat/hmat.c
-@@ -0,0 +1,236 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * Copyright (c) 2019, Intel Corporation.
-+ *
-+ * Heterogeneous Memory Attributes Table (HMAT) representation
-+ *
-+ * This program parses and reports the platform's HMAT tables, and registers
-+ * the applicable attributes with the node's interfaces.
++/**
++ * struct node_access_nodes - Access class device to hold user visible
++ * 			      relationships to other nodes.
++ * @dev:	Device for this memory access class
++ * @list_node:	List element in the node's access list
++ * @access:	The access class rank
 + */
++struct node_access_nodes {
++	struct device		dev;
++	struct list_head	list_node;
++	unsigned		access;
++};
++#define to_access_nodes(dev) container_of(dev, struct node_access_nodes, dev)
 +
-+#include <linux/acpi.h>
-+#include <linux/bitops.h>
-+#include <linux/device.h>
-+#include <linux/init.h>
++static struct attribute *node_init_access_node_attrs[] = {
++	NULL,
++};
++
++static struct attribute *node_targ_access_node_attrs[] = {
++	NULL,
++};
++
++static const struct attribute_group initiators = {
++	.name	= "initiators",
++	.attrs	= node_init_access_node_attrs,
++};
++
++static const struct attribute_group targets = {
++	.name	= "targets",
++	.attrs	= node_targ_access_node_attrs,
++};
++
++static const struct attribute_group *node_access_node_groups[] = {
++	&initiators,
++	&targets,
++	NULL,
++};
++
++static void node_remove_accesses(struct node *node)
++{
++	struct node_access_nodes *c, *cnext;
++
++	list_for_each_entry_safe(c, cnext, &node->access_list, list_node) {
++		list_del(&c->list_node);
++		device_unregister(&c->dev);
++	}
++}
++
++static void node_access_release(struct device *dev)
++{
++	kfree(to_access_nodes(dev));
++}
++
++static struct node_access_nodes *node_init_node_access(struct node *node,
++						       unsigned access)
++{
++	struct node_access_nodes *access_node;
++	struct device *dev;
++
++	list_for_each_entry(access_node, &node->access_list, list_node)
++		if (access_node->access == access)
++			return access_node;
++
++	access_node = kzalloc(sizeof(*access_node), GFP_KERNEL);
++	if (!access_node)
++		return NULL;
++
++	access_node->access = access;
++	dev = &access_node->dev;
++	dev->parent = &node->dev;
++	dev->release = node_access_release;
++	dev->groups = node_access_node_groups;
++	if (dev_set_name(dev, "access%u", access))
++		goto free;
++
++	if (device_register(dev))
++		goto free_name;
++
++	pm_runtime_no_callbacks(dev);
++	list_add_tail(&access_node->list_node, &node->access_list);
++	return access_node;
++free_name:
++	kfree_const(dev->kobj.name);
++free:
++	kfree(access_node);
++	return NULL;
++}
++
+ #define K(x) ((x) << (PAGE_SHIFT - 10))
+ static ssize_t node_read_meminfo(struct device *dev,
+ 			struct device_attribute *attr, char *buf)
+@@ -340,7 +429,7 @@ static int register_node(struct node *node, int num)
+ void unregister_node(struct node *node)
+ {
+ 	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
+-
++	node_remove_accesses(node);
+ 	device_unregister(&node->dev);
+ }
+ 
+@@ -372,6 +461,56 @@ int register_cpu_under_node(unsigned int cpu, unsigned int nid)
+ 				 kobject_name(&node_devices[nid]->dev.kobj));
+ }
+ 
++/**
++ * register_memory_node_under_compute_node - link memory node to its compute
++ *					     node for a given access class.
++ * @mem_node:	Memory node number
++ * @cpu_node:	Cpu  node number
++ * @access:	Access class to register
++ *
++ * Description:
++ * 	For use with platforms that may have separate memory and compute nodes.
++ * 	This function will export node relationships linking which memory
++ * 	initiator nodes can access memory targets at a given ranked access
++ * 	class.
++ */
++int register_memory_node_under_compute_node(unsigned int mem_nid,
++					    unsigned int cpu_nid,
++					    unsigned access)
++{
++	struct node *init_node, *targ_node;
++	struct node_access_nodes *initiator, *target;
++	int ret;
++
++	if (!node_online(cpu_nid) || !node_online(mem_nid))
++		return -ENODEV;
++
++	init_node = node_devices[cpu_nid];
++	targ_node = node_devices[mem_nid];
++	initiator = node_init_node_access(init_node, access);
++	target = node_init_node_access(targ_node, access);
++	if (!initiator || !target)
++		return -ENOMEM;
++
++	ret = sysfs_add_link_to_group(&initiator->dev.kobj, "targets",
++				      &targ_node->dev.kobj,
++				      dev_name(&targ_node->dev));
++	if (ret)
++		return ret;
++
++	ret = sysfs_add_link_to_group(&target->dev.kobj, "initiators",
++				      &init_node->dev.kobj,
++				      dev_name(&init_node->dev));
++	if (ret)
++		goto err;
++
++	return 0;
++ err:
++	sysfs_remove_link_from_group(&initiator->dev.kobj, "targets",
++				     dev_name(&targ_node->dev));
++	return ret;
++}
++
+ int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
+ {
+ 	struct device *obj;
+@@ -580,6 +719,7 @@ int __register_one_node(int nid)
+ 			register_cpu_under_node(cpu, nid);
+ 	}
+ 
++	INIT_LIST_HEAD(&node_devices[nid]->access_list);
+ 	/* initialize work queue for memory hot plug */
+ 	init_node_hugetlb_work(nid);
+ 
+diff --git a/include/linux/node.h b/include/linux/node.h
+index 257bb3d6d014..bb288817ed33 100644
+--- a/include/linux/node.h
++++ b/include/linux/node.h
+@@ -17,10 +17,12 @@
+ 
+ #include <linux/device.h>
+ #include <linux/cpumask.h>
 +#include <linux/list.h>
-+#include <linux/node.h>
-+#include <linux/sysfs.h>
+ #include <linux/workqueue.h>
+ 
+ struct node {
+ 	struct device	dev;
++	struct list_head access_list;
+ 
+ #if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HUGETLBFS)
+ 	struct work_struct	node_work;
+@@ -75,6 +77,10 @@ extern int register_mem_sect_under_node(struct memory_block *mem_blk,
+ extern int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+ 					   unsigned long phys_index);
+ 
++extern int register_memory_node_under_compute_node(unsigned int mem_nid,
++						   unsigned int cpu_nid,
++						   unsigned access);
 +
-+static __initdata u8 hmat_revision;
-+
-+static __init const char *hmat_data_type(u8 type)
-+{
-+	switch (type) {
-+	case ACPI_HMAT_ACCESS_LATENCY:
-+		return "Access Latency";
-+	case ACPI_HMAT_READ_LATENCY:
-+		return "Read Latency";
-+	case ACPI_HMAT_WRITE_LATENCY:
-+		return "Write Latency";
-+	case ACPI_HMAT_ACCESS_BANDWIDTH:
-+		return "Access Bandwidth";
-+	case ACPI_HMAT_READ_BANDWIDTH:
-+		return "Read Bandwidth";
-+	case ACPI_HMAT_WRITE_BANDWIDTH:
-+		return "Write Bandwidth";
-+	default:
-+		return "Reserved";
-+	}
-+}
-+
-+static __init const char *hmat_data_type_suffix(u8 type)
-+{
-+	switch (type) {
-+	case ACPI_HMAT_ACCESS_LATENCY:
-+	case ACPI_HMAT_READ_LATENCY:
-+	case ACPI_HMAT_WRITE_LATENCY:
-+		return " nsec";
-+	case ACPI_HMAT_ACCESS_BANDWIDTH:
-+	case ACPI_HMAT_READ_BANDWIDTH:
-+	case ACPI_HMAT_WRITE_BANDWIDTH:
-+		return " MB/s";
-+	default:
-+		return "";
-+	}
-+}
-+
-+static __init u32 hmat_normalize(u16 entry, u64 base, u8 type)
-+{
-+	u32 value;
-+
-+	/*
-+	 * Check for invalid and overflow values
-+	 */
-+	if (entry == 0xffff || !entry)
-+		return 0;
-+	else if (base > (UINT_MAX / (entry)))
-+		return 0;
-+
-+	/*
-+	 * Divide by the base unit for version 1, convert latency from
-+	 * picosenonds to nanoseconds if revision 2.
-+	 */
-+	value = entry * base;
-+	if (hmat_revision == 1) {
-+		if (value < 10)
-+			return 0;
-+		value = DIV_ROUND_UP(value, 10);
-+	} else if (hmat_revision == 2) {
-+		switch (type) {
-+		case ACPI_HMAT_ACCESS_LATENCY:
-+		case ACPI_HMAT_READ_LATENCY:
-+		case ACPI_HMAT_WRITE_LATENCY:
-+			value = DIV_ROUND_UP(value, 1000);
-+			break;
-+		default:
-+			break;
-+		}
-+	}
-+	return value;
-+}
-+
-+static __init int hmat_parse_locality(union acpi_subtable_headers *header,
-+				      const unsigned long end)
-+{
-+	struct acpi_hmat_locality *hmat_loc = (void *)header;
-+	unsigned int init, targ, total_size, ipds, tpds;
-+	u32 *inits, *targs, value;
-+	u16 *entries;
-+	u8 type;
-+
-+	if (hmat_loc->header.length < sizeof(*hmat_loc)) {
-+		pr_notice("HMAT: Unexpected locality header length: %d\n",
-+			 hmat_loc->header.length);
-+		return -EINVAL;
-+	}
-+
-+	type = hmat_loc->data_type;
-+	ipds = hmat_loc->number_of_initiator_Pds;
-+	tpds = hmat_loc->number_of_target_Pds;
-+	total_size = sizeof(*hmat_loc) + sizeof(*entries) * ipds * tpds +
-+		     sizeof(*inits) * ipds + sizeof(*targs) * tpds;
-+	if (hmat_loc->header.length < total_size) {
-+		pr_notice("HMAT: Unexpected locality header length:%d, minimum required:%d\n",
-+			 hmat_loc->header.length, total_size);
-+		return -EINVAL;
-+	}
-+
-+	pr_info("HMAT: Locality: Flags:%02x Type:%s Initiator Domains:%d Target Domains:%d Base:%lld\n",
-+		hmat_loc->flags, hmat_data_type(type), ipds, tpds,
-+		hmat_loc->entry_base_unit);
-+
-+	inits = (u32 *)(hmat_loc + 1);
-+	targs = inits + ipds;
-+	entries = (u16 *)(targs + tpds);
-+	for (init = 0; init < ipds; init++) {
-+		for (targ = 0; targ < tpds; targ++) {
-+			value = hmat_normalize(entries[init * tpds + targ],
-+					       hmat_loc->entry_base_unit,
-+					       type);
-+			pr_info("  Initiator-Target[%d-%d]:%d%s\n",
-+				inits[init], targs[targ], value,
-+				hmat_data_type_suffix(type));
-+		}
-+	}
-+
-+	return 0;
-+}
-+
-+static __init int hmat_parse_cache(union acpi_subtable_headers *header,
-+				   const unsigned long end)
-+{
-+	struct acpi_hmat_cache *cache = (void *)header;
-+	u32 attrs;
-+
-+	if (cache->header.length < sizeof(*cache)) {
-+		pr_notice("HMAT: Unexpected cache header length: %d\n",
-+			 cache->header.length);
-+		return -EINVAL;
-+	}
-+
-+	attrs = cache->cache_attributes;
-+	pr_info("HMAT: Cache: Domain:%d Size:%llu Attrs:%08x SMBIOS Handles:%d\n",
-+		cache->memory_PD, cache->cache_size, attrs,
-+		cache->number_of_SMBIOShandles);
-+
-+	return 0;
-+}
-+
-+static int __init hmat_parse_proximity_domain(union acpi_subtable_headers *header,
-+					      const unsigned long end)
-+{
-+	struct acpi_hmat_proximity_domain *p = (void *)header;
-+
-+	if (p->header.length != sizeof(*p)) {
-+		pr_notice("HMAT: Unexpected address range header length: %d\n",
-+			 p->header.length);
-+		return -EINVAL;
-+	}
-+
-+	if (hmat_revision == 1)
-+		pr_info("HMAT: Memory (%#llx length %#llx) Flags:%04x Processor Domain:%d Memory Domain:%d\n",
-+			p->reserved3, p->reserved4, p->flags, p->processor_PD,
-+			p->memory_PD);
-+	else
-+		pr_info("HMAT: Memory Flags:%04x Processor Domain:%d Memory Domain:%d\n",
-+			p->flags, p->processor_PD, p->memory_PD);
-+
-+	return 0;
-+}
-+
-+static int __init hmat_parse_subtable(union acpi_subtable_headers *header,
-+				      const unsigned long end)
-+{
-+	struct acpi_hmat_structure *hdr = (void *)header;
-+
-+	if (!hdr)
-+		return -EINVAL;
-+
-+	switch (hdr->type) {
-+	case ACPI_HMAT_TYPE_ADDRESS_RANGE:
-+		return hmat_parse_proximity_domain(header, end);
-+	case ACPI_HMAT_TYPE_LOCALITY:
-+		return hmat_parse_locality(header, end);
-+	case ACPI_HMAT_TYPE_CACHE:
-+		return hmat_parse_cache(header, end);
-+	default:
-+		return -EINVAL;
-+	}
-+}
-+
-+static __init int hmat_init(void)
-+{
-+	struct acpi_table_header *tbl;
-+	enum acpi_hmat_type i;
-+	acpi_status status;
-+
-+	if (srat_disabled())
-+		return 0;
-+
-+	status = acpi_get_table(ACPI_SIG_HMAT, 0, &tbl);
-+	if (ACPI_FAILURE(status))
-+		return 0;
-+
-+	hmat_revision = tbl->revision;
-+	switch (hmat_revision) {
-+	case 1:
-+	case 2:
-+		break;
-+	default:
-+		pr_notice("Ignoring HMAT: Unknown revision:%d\n", hmat_revision);
-+		goto out_put;
-+	}
-+
-+	for (i = ACPI_HMAT_TYPE_ADDRESS_RANGE; i < ACPI_HMAT_TYPE_RESERVED; i++) {
-+		if (acpi_table_parse_entries(ACPI_SIG_HMAT,
-+					     sizeof(struct acpi_table_hmat), i,
-+					     hmat_parse_subtable, 0) < 0) {
-+			pr_notice("Ignoring HMAT: Invalid table");
-+			goto out_put;
-+		}
-+	}
-+out_put:
-+	acpi_put_table(tbl);
-+	return 0;
-+}
-+subsys_initcall(hmat_init);
+ #ifdef CONFIG_HUGETLBFS
+ extern void register_hugetlbfs_with_node(node_registration_func_t doregister,
+ 					 node_registration_func_t unregister);
 -- 
 2.14.4
 
