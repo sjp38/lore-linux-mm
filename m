@@ -3,102 +3,97 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 06946C10F00
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 14:58:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C424CC4360F
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 15:06:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9D264214AE
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 14:58:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D264214AE
+	by mail.kernel.org (Postfix) with ESMTP id 7DE2E2147C
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 15:06:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7DE2E2147C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0CA138E0003; Tue, 12 Mar 2019 10:58:18 -0400 (EDT)
+	id 15E5A8E0003; Tue, 12 Mar 2019 11:06:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 028E18E0002; Tue, 12 Mar 2019 10:58:17 -0400 (EDT)
+	id 10DAD8E0002; Tue, 12 Mar 2019 11:06:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E33D98E0003; Tue, 12 Mar 2019 10:58:17 -0400 (EDT)
+	id F3DC28E0003; Tue, 12 Mar 2019 11:06:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 861208E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 10:58:17 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id x13so1212109edq.11
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 07:58:17 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id A063C8E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 11:06:06 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id u2so1236549edm.1
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 08:06:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=wl7Ff/wPObHM79OrDDPjxHJ6QXsnrK3/b8nVrJfMOtc=;
-        b=Mswcy233terDpA9lq20M40r3Q8vbR5PPHWjZhnJTXKRsYNIgMAZQyDIsLwS4z9450j
-         LzKXFzxRXDbQ/1tmxVGsDLeqXtps6p/UySDirPr/g0MIqWRCsdICtLCOQGF2DK6qVuSN
-         w+hygaBJUZecY5228SXaBw8o88n2uYqYpfdsZt2zDFnZ55MWc0bX5Aja22zuMy+lnaDI
-         q64mO3DAAgfk+ZzYZvs4DGux5CwMS/BQt2EUaQzWOVg4dOnK+5W6eVpgo+vbPRpfHFBs
-         Bjxa3gpEzryORsXd66kkN4O+2XBm3fVbDmF48Z8dVDXfruR1NFkhligbHLg+wDdYoORS
-         UmyA==
+        bh=NEI+AKx/9QZTXNcTwFpmeZODUaYDB3D9cokv8oOjJ6w=;
+        b=gFfnAhKhvdCV5ntOG6k62hWmOHzlj/XBby9K/jQJtERYMd6xptxU8wrXRwydoeP/MA
+         dcNy/+fDbdTAaGZkCHIJsj8f9a2dqL0Y91s4BVcwPs+zBSoaqIFL5ePqjkKtY+1PmzsV
+         bRstrbGxuxSOWai/QI875YNzs7qDXWDmdoXLzbzBdAOzPQelZkzxBp9QetMArNrU0V0k
+         ko8CjLr/Z8KqMtTen0FWWkBpTgE1RcZZrJcsu+js4JDcFCmCHZRZT8QTGLtXnNr78MSO
+         UDCVFGKVezDkh4WMnkHChy1qc6YvFiJGgQxQDFVbE0wGUhv1vLrXMf8iMw/zLu8iYOvB
+         sjuw==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXvm3CIxjvU1WS8xKCi/1ZEa45mxneUre2h6DmdrvbCCjNv90+y
-	TM1xJC7kj7y87xUOtFUx7z4LpHgCY084HciF7oZHd2EiOYppBAbZ4jmxnNXo7bfcKcrIWFjdt5/
-	0Pj2FigeqeyrDOU+VJS8XmKlxvd8O7lxe/LfhsvehnjZHXoo1/+a68nfaLGRjiQc=
-X-Received: by 2002:a05:6402:750:: with SMTP id p16mr2838679edy.268.1552402697140;
-        Tue, 12 Mar 2019 07:58:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwYTRxYGFVjCRch2/Y2s03FqvauzRmj1EWNp9FFDJcwJqjwCyHV0PucIryQbFHe79OSBRQD
-X-Received: by 2002:a05:6402:750:: with SMTP id p16mr2838628edy.268.1552402696260;
-        Tue, 12 Mar 2019 07:58:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552402696; cv=none;
+X-Gm-Message-State: APjAAAV1M5UqwYYRpGCIlDFYFzJ5PiMDyfpZ1GfhQhk8bMVh/g1sHPLQ
+	rhDcCknj6WsCHGzdecdRZ78p0+GVV2XpVTuZwYQudqQ3eT/9Gtu+qqQu64Np1iucTQGOh+12S3V
+	lg+VOEOnd6S7IrfDq3YyEVzvXm4UraW8z/wy/ou/TQ/yRWuIs00UEsCemLDotRlA=
+X-Received: by 2002:aa7:d944:: with SMTP id l4mr3689910eds.146.1552403166228;
+        Tue, 12 Mar 2019 08:06:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy/NHEI9HAJzygVX2hVLvUYzFwjuhADHljgduKlgBp5Z5dRoOHO0NljgWPdU3xN3wsIk+eu
+X-Received: by 2002:aa7:d944:: with SMTP id l4mr3689856eds.146.1552403165365;
+        Tue, 12 Mar 2019 08:06:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552403165; cv=none;
         d=google.com; s=arc-20160816;
-        b=TZLQF1q3yBqeNI4g6X9nojv435SLKGlQQjlHjAnlsHzEQwDZ2XNy1J8fJhWCINdD/i
-         uKBbTSAYEH9ofQxkRob1Nr9VfX8nVc2mRfxAH+jqBxckg4bvT1aY9+tbfvnNItEP7fMP
-         H2abUy0fXV840+LD668gaOoe9sFWw7wbjXUYiLsT0DnDNZN9TH5Hcp35sulT7p+FnY3A
-         8PA+ns884Tay/9fA2bLqED9A5Vq17oG91gUPpEkOt0/v6gVcCUqCztJYBDbZLQscOkgO
-         GZwhZ5BMIN8yT6wiXV1unOjAqiiirToiT2K5BIPZFw7ocs0DlBVdPoX8ALh4vt6kAPRb
-         cX6Q==
+        b=SAHJtrIVTS2X68pKJPtfMzem3d9YkNlzm1LDWlzSIomV1ZlGs9VC6fjHIVN/8hyoI7
+         7kuG4QYikpSJjKlPork/jYxvHVE31wokKlb47vk5O035tMXotxyGeLBcliWCcMcZrwFK
+         ZmjflINRDSzYeDhlsVg8a2ajOw7xXoVBuPHBn3nm+t55r8yhI4GILxOmr6vqewmKuTTp
+         chCI1z/y6L0I6K/RIgJ6UcyABdh4J12eD/rsKH/prvQ0ZoCLGunkS8HJUujJ8Lt3+tjM
+         fQp81YbL5Lpqt3OOpeT8Gz36FDQ/kXud079jir2pJZJx54twZ7zvhbJ1YZqa7EATl3de
+         lLdA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=wl7Ff/wPObHM79OrDDPjxHJ6QXsnrK3/b8nVrJfMOtc=;
-        b=RvnYkgtLTq4nA2CJQPG5G4y6mKKosClCbBDctKfU1jJ73lRW9s3IHqllsI5W1x8ipz
-         NwyRLzaa62pWJw+dhg3HUnVKAdQEyUATd1oVgH5JTEBAyK4ekFb8YTPtOjDMUNJqrI8d
-         FalnXmbixeaEIUY+qj2hdp8enp7XCKu2fTOZVlKTK8kn7e9FT0rT7FDYUNBpkXIVoPZk
-         BGWcpBWOHuv6z8lG62XZX61HvVjS3XQLRxmpL8iXiwBLxBO2WtqGYjkM+mLQb8TxdYbM
-         E+F22xvw/f4h2+mCdzqKbZ/PfMfPqiVtTqTZe01p4ZJpdLu9OJu0XciahQPgiN/jQB3R
-         cRlg==
+        bh=NEI+AKx/9QZTXNcTwFpmeZODUaYDB3D9cokv8oOjJ6w=;
+        b=BUnVQ2LaFaFHrlut7dojRIly7e8cPtkrQtje2LOktOLMJO0Rj1Jpo3GZLLTCn5R7EJ
+         dMT85gC9UGSl+AwgKxPMxKwzYDXYQTu0xrcevsl5jlp5y/NTja6wgzAldXfeLq1bO7u0
+         q+uctNFVM+6uRxgcjRknv9BkfFlKH+w13KmI49MeZkj8TucFK4aIQ5HGTQN4HXE+b6j9
+         MIZElWyWsTtiicoocfeV/427E3ppw/Ay8l7/PK5rc8mGWeRWlKAdotiaA2+HUilAncyO
+         oOnCOU5NGElpJ8GsLTeLNMToQutT5+7JCN1uIhK2YprHbgdDYTZGqK/cgyQTRi3L4CPy
+         2J7w==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z4si468394ejq.224.2019.03.12.07.58.16
+        by mx.google.com with ESMTPS id h6si1469217eja.76.2019.03.12.08.06.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 07:58:16 -0700 (PDT)
+        Tue, 12 Mar 2019 08:06:05 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 44819B682;
-	Tue, 12 Mar 2019 14:58:15 +0000 (UTC)
-Date: Tue, 12 Mar 2019 15:58:13 +0100
+	by mx1.suse.de (Postfix) with ESMTP id B9D05B168;
+	Tue, 12 Mar 2019 15:06:04 +0000 (UTC)
+Date: Tue, 12 Mar 2019 16:06:04 +0100
 From: Michal Hocko <mhocko@kernel.org>
-To: Laurent Dufour <ldufour@linux.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	stable@vger.kernel.org, Christoph Lameter <cl@linux.com>,
-	Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/slab: protect cache_reap() against CPU and memory hot
- plug operations
-Message-ID: <20190312145813.GS5721@dhcp22.suse.cz>
-References: <20190311191701.24325-1-ldufour@linux.ibm.com>
+To: Qian Cai <cai@lca.pw>
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [RESEND PATCH] mm/hotplug: don't reset pagetype flags for offline
+Message-ID: <20190312150604.GT5721@dhcp22.suse.cz>
+References: <20190310200102.88014-1-cai@lca.pw>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190311191701.24325-1-ldufour@linux.ibm.com>
+In-Reply-To: <20190310200102.88014-1-cai@lca.pw>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -106,66 +101,67 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 11-03-19 20:17:01, Laurent Dufour wrote:
-> The commit 95402b382901 ("cpu-hotplug: replace per-subsystem mutexes with
-> get_online_cpus()") remove the CPU_LOCK_ACQUIRE operation which was use to
-> grap the cache_chain_mutex lock which was protecting cache_reap() against
-> CPU hot plug operations.
+On Sun 10-03-19 16:01:02, Qian Cai wrote:
+> The commit f1dd2cd13c4b ("mm, memory_hotplug: do not associate hotadded
+> memory to zones until online") introduced move_pfn_range_to_zone() which
+> calls memmap_init_zone() during onlining a memory block.
+> memmap_init_zone() will reset pagetype flags and makes migrate type to
+> be MOVABLE.
 > 
-> Later the commit 18004c5d4084 ("mm, sl[aou]b: Use a common mutex
-> definition") changed cache_chain_mutex to slab_mutex but this didn't help
-> fixing the missing the cache_reap() protection against CPU hot plug
-> operations.
+> However, in __offline_pages(), it also call undo_isolate_page_range()
+> after offline_isolated_pages() to do the same thing. Due to
+> the commit 2ce13640b3f4 ("mm: __first_valid_page skip over offline
+> pages") changed __first_valid_page() to skip offline pages,
+> undo_isolate_page_range() here just waste CPU cycles looping around the
+> offlining PFN range while doing nothing, because __first_valid_page()
+> will return NULL as offline_isolated_pages() has already marked all
+> memory sections within the pfn range as offline via
+> offline_mem_sections().
 > 
-> Here we are stopping the per cpu worker while holding the slab_mutex to
-> ensure that cache_reap() is not running in our back and will not be
-> triggered anymore for this cpu.
+> Also, after calling the "useless" undo_isolate_page_range() here, it
+> reaches the point of no returning by notifying MEM_OFFLINE. Those pages
+> will be marked as MIGRATE_MOVABLE again once onlining. In addition, fix
+> an incorrect comment along the way.
 > 
-> This patch fixes that race leading to SLAB's data corruption when CPU
-> hotplug are triggered. We hit it while doing partition migration on PowerVM
-> leading to CPU reconfiguration through the CPU hotplug mechanism.
+> Signed-off-by: Qian Cai <cai@lca.pw>
 
-What is the actual race? slab_offline_cpu calls cancel_delayed_work_sync
-so it removes a pending item and waits for the item to finish if they run
-concurently. So why do we need an additional lock?
+Well spotted. Thanks!
 
-> This fix is covering kernel containing to the commit 6731d4f12315 ("slab:
-> Convert to hotplug state machine"), ie 4.9.1, earlier kernel needs a
-> slightly different patch.
-> 
-> Cc: stable@vger.kernel.org
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Pekka Enberg <penberg@kernel.org>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+
 > ---
->  mm/slab.c | 2 ++
->  1 file changed, 2 insertions(+)
+>  mm/memory_hotplug.c | 2 --
+>  mm/sparse.c         | 2 +-
+>  2 files changed, 1 insertion(+), 3 deletions(-)
 > 
-> diff --git a/mm/slab.c b/mm/slab.c
-> index 28652e4218e0..ba499d90f27f 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -1103,6 +1103,7 @@ static int slab_online_cpu(unsigned int cpu)
->  
->  static int slab_offline_cpu(unsigned int cpu)
->  {
-> +	mutex_lock(&slab_mutex);
->  	/*
->  	 * Shutdown cache reaper. Note that the slab_mutex is held so
->  	 * that if cache_reap() is invoked it cannot do anything
-> @@ -1112,6 +1113,7 @@ static int slab_offline_cpu(unsigned int cpu)
->  	cancel_delayed_work_sync(&per_cpu(slab_reap_work, cpu));
->  	/* Now the cache_reaper is guaranteed to be not running. */
->  	per_cpu(slab_reap_work, cpu).work.func = NULL;
-> +	mutex_unlock(&slab_mutex);
->  	return 0;
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 6b05576fb4ec..46017040b2f8 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1655,8 +1655,6 @@ static int __ref __offline_pages(unsigned long start_pfn,
+>  	/* Ok, all of our target is isolated.
+>  	   We cannot do rollback at this point. */
+>  	offline_isolated_pages(start_pfn, end_pfn);
+> -	/* reset pagetype flags and makes migrate type to be MOVABLE */
+> -	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
+>  	/* removal success */
+>  	adjust_managed_page_count(pfn_to_page(start_pfn), -offlined_pages);
+>  	zone->present_pages -= offlined_pages;
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 77a0554fa5bd..b3771f35a0ed 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -556,7 +556,7 @@ void online_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
 >  }
 >  
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
+> -/* Mark all memory sections within the pfn range as online */
+> +/* Mark all memory sections within the pfn range as offline */
+>  void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
+>  {
+>  	unsigned long pfn;
 > -- 
-> 2.21.0
+> 2.17.2 (Apple Git-113)
 
 -- 
 Michal Hocko
