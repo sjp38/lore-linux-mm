@@ -2,211 +2,193 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_NEOMUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 406EFC4360F
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 07:49:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 19E69C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 07:52:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E215F217D9
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 07:49:57 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="dp0W2MNX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E215F217D9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	by mail.kernel.org (Postfix) with ESMTP id CDB30214D8
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 07:52:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CDB30214D8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5B7D78E0003; Tue, 12 Mar 2019 03:49:57 -0400 (EDT)
+	id 7B2228E0003; Tue, 12 Mar 2019 03:52:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 567468E0002; Tue, 12 Mar 2019 03:49:57 -0400 (EDT)
+	id 7617A8E0002; Tue, 12 Mar 2019 03:52:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 42E3A8E0003; Tue, 12 Mar 2019 03:49:57 -0400 (EDT)
+	id 629838E0003; Tue, 12 Mar 2019 03:52:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 019018E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 03:49:57 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id t6so1766026pgp.10
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 00:49:56 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BDCD8E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 03:52:09 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id x12so1523405qtk.2
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 00:52:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=/olhjbpJtT1r+7uavB4KWlJpqCZECUEc8ErNDYVV/Hk=;
-        b=WhmMVX8iICiEvQUT1jlIR8ou8iweh2SklhchE5+UvpCJnNfGwGMum3SLoV2uHMzW5n
-         fFXiyCFn22Tuy/lRVqHm/sa9YreuDmVgsBOP/N2i+02Rwt1MpNp0jVYfdBtcjl4k0mdX
-         iQQhp9CQEN9sCLtQNyRDHRv0y6lRgnpYXr6+dWtoD0UD+AMEuM5wVW6e5rYY6KG3o8+3
-         jKEMksQjx11giEcPOglToyjRvZedn8ndm9lPhANPud49ELIC4lR5bIQeQcDnIZo3rTo2
-         7fJfoe6xVmqbyfeVALFME7W2bP99YjjjAEYk20IShbPFTy+KrXnrJ68ahiw1wnFEOG/f
-         /F+g==
-X-Gm-Message-State: APjAAAXzKpW3C5fd7LpMxymTfUr4EFKSMkzZ5pNZTV7c0t9Lb4Ns7Eg0
-	21ERyeCAIn0tsp+2geCeKkuC1xDmVqNk1sud+aoGwOV+wJkh50VjHQsD02BFF1smNmlu10K+wFf
-	rERhGzqICvJaZQOyJ1KpNvBMtFbfbkUWRSJ9W63Lzmev+460truHBSWZYL9db1rr6nSrgC77Fc+
-	pgdyhRoHMOFzBoLw14Ajg+o3PLna2Apgod2w+Ui7Kfc2CA3YVosvNQrWj7i2+CrIK+Lk/PwI7SE
-	wqCijxEHjKowOM+YyyEyuti+E/bdKklPcLjMmWYEIOuXsYMtnp9Nk1Bx2tkqaTgwL1sXT/ZuSvk
-	dHgcosC8/j8OhF7bhA1lSq1T8RqnJfLLDwJNUPdHtx5YOpiph8cV9t/ZFXT99VH7xy9chOuw9Uy
-	N
-X-Received: by 2002:a63:dc4a:: with SMTP id f10mr3640185pgj.231.1552376996527;
-        Tue, 12 Mar 2019 00:49:56 -0700 (PDT)
-X-Received: by 2002:a63:dc4a:: with SMTP id f10mr3640124pgj.231.1552376995468;
-        Tue, 12 Mar 2019 00:49:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552376995; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=tuMFvOlBO7UZPvcLns7+MXnrq5AaaEB3ZM3FeQS8H6k=;
+        b=rqNi9QnhqGNcZSZpI9Ibxzn/zUSxyxkh/n4+i+/SKQKKV5tsfyxp4bV7Cy4zbqY3nY
+         O1ivVg/FJY19IU6ao3GS1BakMCezpLHp5mCYBwGDI8cTV5cnQU+5HX9ymSpz8dKqH+Up
+         r7dUuny/DhhQVFmVSQ/J7UAX8qzN2f1IZVYSMhjzaevMz2kvq8DhPaSJD5UyshAc42Bx
+         Xug8E29xcNiqnFOaYf59ggjO9IuGNE/Fk0QrsAyb7fjtqTr99BBs/Li+i5oswf4wX4Zc
+         nbT6fxKQiCTsfMssCNlfrqaCN53LQ/pJdDDFZTme41m61PeEGey0DKfiEU+nQCnqekU/
+         54LQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUdyv29yY0Ob/0I0B0B5za36rgWWECN4L/QkrE88hXliHPb4FOq
+	HhPC5xU19YSLO+lESFx4aPpUg8UkfWPSFI00km4I1FAORZvURGJ4oEyCi02+yIdCJiEtVHPoiPB
+	0SMsn3u7xtvJlRCn4kRuCeclrWcdUGuUgYETdRiaonvmuJUCHOiYVrfZy4g14SmBzCA==
+X-Received: by 2002:a05:620a:12a5:: with SMTP id x5mr27827780qki.291.1552377129007;
+        Tue, 12 Mar 2019 00:52:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxtUkEDnNHmms0N5t9sOwtgYzJ+3oy79P4Vbhg/8rr2XAcFY12Vk6Boi3Ep0SO8zrSIVvc9
+X-Received: by 2002:a05:620a:12a5:: with SMTP id x5mr27827752qki.291.1552377128320;
+        Tue, 12 Mar 2019 00:52:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552377128; cv=none;
         d=google.com; s=arc-20160816;
-        b=GtmGRHYEzyCeNgHi5NqUDtCmh/XhiGFX2L8lzH3rDaVUttsVA2WOTthfWwffvY7Zj1
-         5gevkBoyUbU5VjsdaU0WQV2ko443UeiB2ouzOa0hbR7VkE+IzRkDH6Ns4mNZFP4GWbXQ
-         6fZvuCECS8eLp9lxz+YNFd5ilX/7Gu1wv9vD+b3dtlf4awXlUlHaWrtwGj5hoC1bG608
-         e/o1uE1vP/iZehIW4euV9Dl22mPqqyg/W4M8xQs3rYVx1eHehRGyJHf7dG3OqxmHgao4
-         4a5QdW54MX62VCMiiDL5E7HV4/oC2A6On90fKGyZVYiKD5+W18A6gin0g9oxtWri69Bz
-         yy7w==
+        b=mIddchr7UJazufjrYphhlUhwE1N0fPP0Jfz60XF9yWCQ9emK9ONxXcK4TGynwQysEU
+         CZAYAh2CFaq/CSq4gf7SQL7JpSj8viEEeby/ynPrkJRmg63HSmKaLI3abeDBkhtdenMz
+         fEUtaasvlC0MIRa4LHKj4J2QGG2Pcq47m9kwgexlBA3QrZ/VN00qUn8kJ8qT8YIHaXtW
+         vPw3dDelAinN0Rg85LtnlK2bUbjzUwQcEv3ytkRVwGmJk9FA11Ml8vzFSyocw/xxFtRh
+         Lri8qSOMEINrE/20WpYY+SFV0mG79silGA2uNyvHOBSu7r3wswbxLMIvMU9hDm4TPt+Y
+         BUBg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=/olhjbpJtT1r+7uavB4KWlJpqCZECUEc8ErNDYVV/Hk=;
-        b=dxTQcVtOMCgKq13WuNPqoKF51di1NDgLHm9bmYORonleiV0nh54MIfg0VkqUlKxFAT
-         pnEKZT05FxewLqwzo1N3v6TxMM0LP964yrJWkPnskGw7hs9N7ESVdVgKNrvaKGQaJzHS
-         hb7HIo3XHZCLlHSZ6nkfrUQ19wyO2r5D1ai3b0UQegHgw68E/voU7V/nB1cursVuSOVV
-         6SLdKh+JpxzOuSSrgW50EUbNy1czfvG74Un7v22fuz4G6yq+7eCjj9O0kehXhBQa+dnA
-         TajLiVqCWdEzgJtI8TqrEsU142hEroqesbZnZebLY/vP8xbFARqx1eIfrHqRC7mZa1Fh
-         Ao2w==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=tuMFvOlBO7UZPvcLns7+MXnrq5AaaEB3ZM3FeQS8H6k=;
+        b=xpfYNwVLIQF5v+cA0y9H1Qp+0+sbIN9aT35bDd9YWJw+lq6EEo4hFCbqv7Rbs4+oJh
+         3vhCb3DWHhgv1/h+OSVak8Ig9c+2I4H2+UKBxj6+i2jh7qWYILWb/zNdi3Z+KBw4+e4U
+         qlQWXuZEhAYril3GZF3SpgNRYCyiJRZB7R6XNrvCvGwprjIqfRaoPZ3F1kxNMKkGsdTb
+         xjvU6WKm6SDnOruVudnAvNzoinW+MtXQVtnEztirUiV/8DnZAdOCpldYtjkXJMuKAdVN
+         2oEpZW0rQOzHkBlXnEqm702aF7Ku+NN7tslLtrU2CaDcvazuk3bx5pBVQjCQiahTCeNc
+         Xm1g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=dp0W2MNX;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 1sor12577467pfy.19.2019.03.12.00.49.55
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m4si390066qvg.167.2019.03.12.00.52.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Mar 2019 00:49:55 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=dp0W2MNX;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=/olhjbpJtT1r+7uavB4KWlJpqCZECUEc8ErNDYVV/Hk=;
-        b=dp0W2MNXHHwMurb7064PydUXyMqSIuX9WHN8wbk1FpKFfs4OSrPwv7gmXApzlzCY2d
-         GbbBJMVpiYY2uZEAAZkZHZlQEcn6et3K8/ApQZ+AJo72JyN+d/lPasNL5as3MpAt+37N
-         J1q2apNjiRCSEBFvuFoVBn9oMKRzzx1ccQ/3yoBjkjweP2R8E9kNu4A3BZwXtmDNPYUc
-         BFvryNedtwL8eFbTaB9tqxqIprA7NJBu6Fa+m5yuAFOBcbnfMPeiRxIp8HL4Pb2jMb8/
-         pyegpYg2Sae3wkHR/n1VnhwN5fk7MQGU3ivU1LKCIPnZ1EUZaFByAGTW3vnECAXEyRyW
-         f9SQ==
-X-Google-Smtp-Source: APXvYqxhoObJjZuttW1IPJrOnClfmIL5opPUfwHN9lGtlRAK/7XJitiZM5dBu2mlrfC7DZuBgNTIUQ==
-X-Received: by 2002:aa7:8d42:: with SMTP id s2mr37450966pfe.116.1552376994892;
-        Tue, 12 Mar 2019 00:49:54 -0700 (PDT)
-Received: from kshutemo-mobl1.localdomain (fmdmzpr04-ext.fm.intel.com. [192.55.54.39])
-        by smtp.gmail.com with ESMTPSA id x1sm13580445pge.73.2019.03.12.00.49.53
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 00:49:54 -0700 (PDT)
-Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
-	id B21DA3011CA; Tue, 12 Mar 2019 10:49:51 +0300 (+03)
-Date: Tue, 12 Mar 2019 10:49:51 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Peter Xu <peterx@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Paolo Bonzini <pbonzini@redhat.com>,
-	Hugh Dickins <hughd@google.com>,
-	Luis Chamberlain <mcgrof@kernel.org>,
-	Maxime Coquelin <maxime.coquelin@redhat.com>, kvm@vger.kernel.org,
-	Jerome Glisse <jglisse@redhat.com>,
-	Pavel Emelyanov <xemul@virtuozzo.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Martin Cracauer <cracauer@cons.org>,
-	Denis Plotnikov <dplotnikov@virtuozzo.com>, linux-mm@kvack.org,
-	Marty McFadden <mcfadden8@llnl.gov>,
-	Maya Gokhale <gokhale2@llnl.gov>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>,
-	linux-fsdevel@vger.kernel.org,
-	"Dr . David Alan Gilbert" <dgilbert@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-api@vger.kernel.org
-Subject: Re: [PATCH 0/3] userfaultfd: allow to forbid unprivileged users
-Message-ID: <20190312074951.i2md3npcjcceywqj@kshutemo-mobl1>
-References: <20190311093701.15734-1-peterx@redhat.com>
+        Tue, 12 Mar 2019 00:52:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 4FA493082200;
+	Tue, 12 Mar 2019 07:52:07 +0000 (UTC)
+Received: from [10.72.12.17] (ovpn-12-17.pek2.redhat.com [10.72.12.17])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 07EDA5DD74;
+	Tue, 12 Mar 2019 07:51:55 +0000 (UTC)
+Subject: Re: [RFC PATCH V2 0/5] vhost: accelerate metadata access through
+ vmap()
+To: James Bottomley <James.Bottomley@HansenPartnership.com>,
+ David Miller <davem@davemloft.net>, mst@redhat.com
+Cc: hch@infradead.org, kvm@vger.kernel.org,
+ virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
+ linux-kernel@vger.kernel.org, peterx@redhat.com, linux-mm@kvack.org,
+ aarcange@redhat.com, linux-arm-kernel@lists.infradead.org,
+ linux-parisc@vger.kernel.org
+References: <20190308141220.GA21082@infradead.org>
+ <56374231-7ba7-0227-8d6d-4d968d71b4d6@redhat.com>
+ <20190311095405-mutt-send-email-mst@kernel.org>
+ <20190311.111413.1140896328197448401.davem@davemloft.net>
+ <6b6dcc4a-2f08-ba67-0423-35787f3b966c@redhat.com>
+ <1552367685.23859.22.camel@HansenPartnership.com>
+From: Jason Wang <jasowang@redhat.com>
+Message-ID: <f9e52313-0a06-22b6-140c-ded75eecde20@redhat.com>
+Date: Tue, 12 Mar 2019 15:51:53 +0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190311093701.15734-1-peterx@redhat.com>
-User-Agent: NeoMutt/20180716
+In-Reply-To: <1552367685.23859.22.camel@HansenPartnership.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Tue, 12 Mar 2019 07:52:07 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 11, 2019 at 05:36:58PM +0800, Peter Xu wrote:
-> Hi,
-> 
-> (The idea comes from Andrea, and following discussions with Mike and
->  other people)
-> 
-> This patchset introduces a new sysctl flag to allow the admin to
-> forbid users from using userfaultfd:
-> 
->   $ cat /proc/sys/vm/unprivileged_userfaultfd
->   [disabled] enabled kvm
 
-CC linux-api@
+On 2019/3/12 下午1:14, James Bottomley wrote:
+> On Tue, 2019-03-12 at 10:59 +0800, Jason Wang wrote:
+>> On 2019/3/12 上午2:14, David Miller wrote:
+>>> From: "Michael S. Tsirkin" <mst@redhat.com>
+>>> Date: Mon, 11 Mar 2019 09:59:28 -0400
+>>>
+>>>> On Mon, Mar 11, 2019 at 03:13:17PM +0800, Jason Wang wrote:
+>>>>> On 2019/3/8 下午10:12, Christoph Hellwig wrote:
+>>>>>> On Wed, Mar 06, 2019 at 02:18:07AM -0500, Jason Wang wrote:
+>>>>>>> This series tries to access virtqueue metadata through
+>>>>>>> kernel virtual
+>>>>>>> address instead of copy_user() friends since they had too
+>>>>>>> much
+>>>>>>> overheads like checks, spec barriers or even hardware
+>>>>>>> feature
+>>>>>>> toggling. This is done through setup kernel address through
+>>>>>>> vmap() and
+>>>>>>> resigter MMU notifier for invalidation.
+>>>>>>>
+>>>>>>> Test shows about 24% improvement on TX PPS. TCP_STREAM
+>>>>>>> doesn't see
+>>>>>>> obvious improvement.
+>>>>>> How is this going to work for CPUs with virtually tagged
+>>>>>> caches?
+>>>>> Anything different that you worry?
+>>>> If caches have virtual tags then kernel and userspace view of
+>>>> memory
+>>>> might not be automatically in sync if they access memory
+>>>> through different virtual addresses. You need to do things like
+>>>> flush_cache_page, probably multiple times.
+>>> "flush_dcache_page()"
+>>
+>> I get this. Then I think the current set_bit_to_user() is suspicious,
+>> we
+>> probably miss a flush_dcache_page() there:
+>>
+>>
+>> static int set_bit_to_user(int nr, void __user *addr)
+>> {
+>>           unsigned long log = (unsigned long)addr;
+>>           struct page *page;
+>>           void *base;
+>>           int bit = nr + (log % PAGE_SIZE) * 8;
+>>           int r;
+>>
+>>           r = get_user_pages_fast(log, 1, 1, &page);
+>>           if (r < 0)
+>>                   return r;
+>>           BUG_ON(r != 1);
+>>           base = kmap_atomic(page);
+>>           set_bit(bit, base);
+>>           kunmap_atomic(base);
+> This sequence should be OK.  get_user_pages() contains a flush which
+> clears the cache above the user virtual address, so on kmap, the page
+> is coherent at the new alias.  On parisc at least, kunmap embodies a
+> flush_dcache_page() which pushes any changes in the cache above the
+> kernel virtual address back to main memory and makes it coherent again
+> for the user alias to pick it up.
 
-This is unusual way to return current value for sysctl. Does it work fine
-with sysctl tool?
 
-Have you considered to place the switch into /sys/kernel/mm instead?
-I doubt it's the last tunable for userfaultfd. Maybe we should have an
-directory for it under /sys/kernel/mm?
+It would be good if kmap()/kunmap() can do this but looks like we can 
+not assume this? For example, sparc's flush_dcache_page() doesn't do 
+flush_dcache_page(). And bio_copy_data_iter() do flush_dcache_page() 
+after kunmap_atomic().
 
->   - When set to "disabled", all unprivileged users are forbidden to
->     use userfaultfd syscalls.
-> 
->   - When set to "enabled", all users are allowed to use userfaultfd
->     syscalls.
-> 
->   - When set to "kvm", all unprivileged users are forbidden to use the
->     userfaultfd syscalls, except the user who has permission to open
->     /dev/kvm.
-> 
-> This new flag can add one more layer of security to reduce the attack
-> surface of the kernel by abusing userfaultfd.  Here we grant the
-> thread userfaultfd permission by checking against CAP_SYS_PTRACE
-> capability.  By default, the value is "disabled" which is the most
-> strict policy.  Distributions can have their own perferred value.
-> 
-> The "kvm" entry is a bit special here only to make sure that existing
-> users like QEMU/KVM won't break by this newly introduced flag.  What
-> we need to do is simply set the "unprivileged_userfaultfd" flag to
-> "kvm" here to automatically grant userfaultfd permission for processes
-> like QEMU/KVM without extra code to tweak these flags in the admin
-> code.
-> 
-> Patch 1:  The interface patch to introduce the flag
-> 
-> Patch 2:  The KVM related changes to detect opening of /dev/kvm
-> 
-> Patch 3:  Apply the flag to userfaultfd syscalls
-> 
-> All comments would be greatly welcomed.  Thanks,
-> 
-> Peter Xu (3):
->   userfaultfd/sysctl: introduce unprivileged_userfaultfd
->   kvm/mm: introduce MMF_USERFAULTFD_ALLOW flag
->   userfaultfd: apply unprivileged_userfaultfd check
-> 
->  fs/userfaultfd.c               | 121 +++++++++++++++++++++++++++++++++
->  include/linux/sched/coredump.h |   1 +
->  include/linux/userfaultfd_k.h  |   5 ++
->  init/Kconfig                   |  11 +++
->  kernel/sysctl.c                |  11 +++
->  virt/kvm/kvm_main.c            |   7 ++
->  6 files changed, 156 insertions(+)
-> 
-> -- 
-> 2.17.1
-> 
+Thanks
 
--- 
- Kirill A. Shutemov
+
+>
+> James
+>
 
