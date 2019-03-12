@@ -2,175 +2,153 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.4 required=3.0 tests=DATE_IN_PAST_06_12,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CDCA0C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 18:41:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B1BAC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 18:43:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 884812077B
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 18:41:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 884812077B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id E18B7205C9
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 18:43:26 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="OwoZi4sC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E18B7205C9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1A9098E0003; Tue, 12 Mar 2019 14:41:06 -0400 (EDT)
+	id 6ACD98E0003; Tue, 12 Mar 2019 14:43:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 157C18E0002; Tue, 12 Mar 2019 14:41:06 -0400 (EDT)
+	id 65DEC8E0002; Tue, 12 Mar 2019 14:43:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 020B88E0003; Tue, 12 Mar 2019 14:41:05 -0400 (EDT)
+	id 54CD38E0003; Tue, 12 Mar 2019 14:43:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B34208E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 14:41:05 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id d2so4033194pfn.2
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 11:41:05 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 386128E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 14:43:26 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id n15so2512481ioc.0
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 11:43:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=ALsnwes5ankFWQd/y9xm0PV9fR/e70I0ltHr+DSdKPc=;
-        b=mWs6eZT9/HMAiRjjWYyO4dPkYtScvGDsG2R3IBVDZjwWDrnQUp5fC9gdd6R56ViC7F
-         /cY82Q6csV1TttNUGhh2DlePeRBJaGedl8r2EilMGQxK4IAbhUA3LLC03js4f+fMzwoz
-         aT2BknVLLoVO9Q9szGgjlVHIbneyHkkXQ3fJB5KDus8ildhzWhka09xAeNUmLWj2/fSg
-         5h+KW3CQP0wyFF1rDukCUV4yxUb4N9ld/hTuYpkwGs0baUK7aVTOznHhISuaG4rbEFFa
-         vSlSTqmebEy0awHovJkooZ5XULMlX78h5ZFYTyEyoZb8LSaTC56CwjQ0i1FobH48G5N6
-         cqiQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVdCpD6B30I9iQgVhzvOQrQ2hF2L14LnrB2mduGKGbYCLuwim3G
-	Kd6HowuNTT0jMFnqYXQFOty1zheaJG72KYRpceHfSDb0dMpFowbybeEwCjggh2X3nh+WKGF3Zyd
-	3zNEcnB2+MKmY+YCNhkTW8bAJfzMxFVtENK56w0n4r6YBPQsKDNZ68yRwwM88wOmOLQ==
-X-Received: by 2002:a63:2ad4:: with SMTP id q203mr37136227pgq.43.1552416065240;
-        Tue, 12 Mar 2019 11:41:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyPAehmLa4Bp5uYE5unx/gNHFp4i4y6/9qknOobQpPd5IWjnqJ5EorU7Nd+kIKpzkcJvDe0
-X-Received: by 2002:a63:2ad4:: with SMTP id q203mr37136141pgq.43.1552416063965;
-        Tue, 12 Mar 2019 11:41:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552416063; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=fo/v7SBqR9Y8HorvRV4qY+qTc74qy6r2ZpOJax4E0b4=;
+        b=OVAKkvvHt01TeojEtfpAOugNP7sBTnXagZgCdhkI7RNw9WuKiP39YfmkyzV4AsNB86
+         fD19x2Xd1SoqgftuoubPE+vnufmSs8Hn0puz5mKMnEdt8b/0/nPkbsRepmPgeEnFTtk4
+         /M92m4udNeR/mpHvYGhnWoJT2//JekQO36jsm2ET9w98eYEd9HuMQ7jREycWbTShwCiC
+         G/YUghLo2XxO1Dkm0zMDwSa7SiS5N/jSbEoVaeDqlOMLfJNZwdAFiqN6ws66TErVwmGn
+         3R6jvPRHlLHLNr3bVdsn+HYxPccXrPKLvPuGRhqxO/VHJ0NM9zCzEmuHn9c2GdrWlFhB
+         g1ng==
+X-Gm-Message-State: APjAAAUdEuQoVGHsTakvgNq7reK5UP0nnfFGoXWRc/0UXzHyrd4ABPYL
+	JrYZ6W3lk/2o2NsyJuNHDfCbfUuthZ8WiwFsmCoI3YFQ06UIPuHybxW/NWk/tO57xyzN2amD6fp
+	1kc9QlfJpphjBgA70HApwLHJJ6CAyC37GVGEhOJXKr0kcuSpqrrn2/WYNPjv9i5VCXtwC6nLZ/A
+	je3LRvuVg7GFNH+X+Epc9SL254Ei7vOxtFbjDEEQPKgYcSovh/pGPT2J38BodTsYO6T2/HfUkZl
+	T/1gRuQoJa1WXZppi7kljCOvayUa2DnmVq7Ly6Mv7DInz6tBqiR5eew+UjJfwLYj6zJDgcsQLba
+	ntKR9NCn65SL2JjOyxvO0QRX3HSElZZ2Lb3Dk5mV53OYhuRp8+wgDi503BtW4O+3hfI1I5rnysM
+	H
+X-Received: by 2002:a5d:984a:: with SMTP id p10mr5567693ios.217.1552416205967;
+        Tue, 12 Mar 2019 11:43:25 -0700 (PDT)
+X-Received: by 2002:a5d:984a:: with SMTP id p10mr5567671ios.217.1552416205241;
+        Tue, 12 Mar 2019 11:43:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552416205; cv=none;
         d=google.com; s=arc-20160816;
-        b=kvaI7mSvAhe3+vxwBaktRxFKevXfumdN19Bh5LyQnAzpH0S6s3vEm9vo8TLOPfZrms
-         MyG/K2Kr5ZbHFblsbqGOAvECz76zGWHAoKRdZo+9lKYJ09OSrlyD84QRXWAwAiAn2pI1
-         GEwsHk99METqaYhXdlhY+Je1Fk+diKkETHsswY0ry6jXp/BsH3vGiqKBors1Q+vy3MeZ
-         2MhFLiR8ZmI7eN2vhJ++eWqt+PTb992peujaYDce7VRsbQVvcjtrxQOVML54dfMC9AW+
-         iiy9Jo799HnpJfmsNshPQTfCjmommrdcaxi3R4v1LnHjImp7tp+MOXO2VKMQsB2meG2w
-         cdgQ==
+        b=HUS7y2D6uWmBpFAkNdRVXZS32Yk5nRlyFQSyEgTMq1m4ecHQ6jBUvIOu2g0Ni2BUl0
+         Lix7+YlbR4dQurbWlSsshgv5rSRjwcuxY4RHpEDgTJ1FIVhAq2NKGyOg+wXDhVKDf8eG
+         STafoK6YewOIGNadVdu9DxsFoAH8lnEXtYoPgrTmwTNy3+VdaaFKn1y27C2dXPsKEPQb
+         fVJr10LMfvlj/uJDHQehbzVv39Wbcfh2+zgsxmEO4QldBDAwVLLwmZbSHmjntK7+ck+D
+         HFr6XkS1TDbI7bd5Y1hJVTr6WfuJPLYru7jWubTmOscFk2alpfyuw+tYkVnuDuJ0BRad
+         ANZg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=ALsnwes5ankFWQd/y9xm0PV9fR/e70I0ltHr+DSdKPc=;
-        b=NtO5wXyFlU0rOccPmzr4luErN/K7sxrl4fPQxsPr5hyC/ZsvbZbFLnhzrH1PE9nRuy
-         IH1ADVhY3nEzbOEaC0aD2jyPS1Sk8b7XimUdiDIVEeNZBHtSfejAc6tAdt+twDDlPsm3
-         J9/w1zGY+NBLmVY9K2Ja/iWEQ3OGCVPqReeYQsy8mM8rUbZQYnr7JZfJo2GV0Ls8zFOi
-         ZIORr/HEFtMm824OMD8cWRD0/cLfLr6v+1kBuyNhpfbfVtN8g9zlkKbjZtOysr4aQc3r
-         XTw8UQtajPpNvoKOxMrIp9Gg19iBp3yvXVloWHmoMFLI0Xh1QK4Kg/ckTnkgj7Kp7h3q
-         Gl/Q==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=fo/v7SBqR9Y8HorvRV4qY+qTc74qy6r2ZpOJax4E0b4=;
+        b=qW/4UQhO3fp+6IiFs22sF4hEw62fX8hXmHRlYo0GYYh5eDkRv2pTG6Fz6ThAe5UgsE
+         l8a9nOiDwvMo/JCU9PUoQQ87et2OD4oU/moxugnIkKeWdvh8uTzzdsMq6VgCZpSDDSLF
+         YqKwnEg2Rha+I4eHOYSSJH7t6YxFoDCQyHyemZ8c/UssL3044aY63fRp6F6/9LZg0NAX
+         jWCqlz0VFCFf7gNQyXOdWhGznCeOYtjgQ7bTgyRT4oJb1DFlomsOPgUEWbMhDFe10c+q
+         lWx0xsi01weffz57GcGOGKljOtzQRQEWIxi+YeN03Q8VMOP2RiDYMpDJ5F47hKO0UoF6
+         Dm+A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id 8si8133679pgq.591.2019.03.12.11.41.03
+       dkim=pass header.i=@google.com header.s=20161025 header.b=OwoZi4sC;
+       spf=pass (google.com: domain of timmurray@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=timmurray@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s25sor2387160iol.28.2019.03.12.11.43.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 11:41:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        (Google Transport Security);
+        Tue, 12 Mar 2019 11:43:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of timmurray@google.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga005.jf.intel.com ([10.7.209.41])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Mar 2019 11:41:03 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,471,1544515200"; 
-   d="scan'208";a="306615952"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga005.jf.intel.com with ESMTP; 12 Mar 2019 11:41:02 -0700
-Date: Tue, 12 Mar 2019 03:39:33 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: Christopher Lameter <cl@linux.com>
-Cc: Dave Chinner <david@fromorbit.com>, john.hubbard@gmail.com,
-	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	Al Viro <viro@zeniv.linux.org.uk>,
-	Christian Benvenuti <benve@cisco.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>,
-	Doug Ledford <dledford@redhat.com>, Jan Kara <jack@suse.cz>,
-	Jason Gunthorpe <jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Mike Marciniszyn <mike.marciniszyn@intel.com>,
-	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
-	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [PATCH v3 0/1] mm: introduce put_user_page*(), placeholder
- versions
-Message-ID: <20190312103932.GD1119@iweiny-DESK2.sc.intel.com>
-References: <20190306235455.26348-1-jhubbard@nvidia.com>
- <010001695b4631cd-f4b8fcbf-a760-4267-afce-fb7969e3ff87-000000@email.amazonses.com>
- <20190310224742.GK26298@dastard>
- <01000169705aecf0-76f2b83d-ac18-4872-9421-b4b6efe19fc7-000000@email.amazonses.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=OwoZi4sC;
+       spf=pass (google.com: domain of timmurray@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=timmurray@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=fo/v7SBqR9Y8HorvRV4qY+qTc74qy6r2ZpOJax4E0b4=;
+        b=OwoZi4sCHLXm6jIB0SrimzodzEpnuPM1ocHav7KTqC/dNINfGz1ZTNNM/Qor4MM/g0
+         N+4QizOgiWx6nzvYXPvQ/Cv4V0+kOKHlBD849Q6u93IR06hIERUU+zCuFjk+zYBU0hVW
+         +9wA5VDFmCWUJQo4t4/PMQqmEY68hU97RT4cDqmb03LNd8WglTVlQSADJx8bOSlnFh/h
+         IM6esZI0z3TL94uA0L3h1/beuuBxUp2WaMn2DAMWX4EW2ypY0Ylq3Lr8IdGG/Z4WJy+L
+         nTpuBSvtJn5K6TfhDU/Iupb3+Qq+u8M1sDN4xRN4LTInedhd+UXZkbovRG74KnkZKRpC
+         N40A==
+X-Google-Smtp-Source: APXvYqxl7+sqyVCZd0nlCLusQ7k24/I/mt+5W6Z1PdcID4CmgBm88PBxwF51+PonJKlNy38PiMl+aatep/V5nuxT7XQ=
+X-Received: by 2002:a5e:db0d:: with SMTP id q13mr425229iop.279.1552416204862;
+ Tue, 12 Mar 2019 11:43:24 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <01000169705aecf0-76f2b83d-ac18-4872-9421-b4b6efe19fc7-000000@email.amazonses.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+References: <20190310203403.27915-1-sultan@kerneltoast.com>
+ <20190311174320.GC5721@dhcp22.suse.cz> <20190311175800.GA5522@sultan-box.localdomain>
+ <CAJuCfpHTjXejo+u--3MLZZj7kWQVbptyya4yp1GLE3hB=BBX7w@mail.gmail.com>
+ <20190311204626.GA3119@sultan-box.localdomain> <CAJuCfpGpBxofTT-ANEEY+dFCSdwkQswox3s8Uk9Eq0BnK9i0iA@mail.gmail.com>
+ <20190312080532.GE5721@dhcp22.suse.cz> <20190312163741.GA2762@sultan-box.localdomain>
+ <CAEe=Sxn_uayj48wo7oqf8mNZ7QAGJUQVmkPcHcuEGjA_Z8ELeQ@mail.gmail.com> <20190312174520.GA9276@sultan-box.localdomain>
+In-Reply-To: <20190312174520.GA9276@sultan-box.localdomain>
+From: Tim Murray <timmurray@google.com>
+Date: Tue, 12 Mar 2019 11:43:13 -0700
+Message-ID: <CAEe=Sx=MxzBB46WxuwHTQcocBkx1UW+fmVOa3VWv_eUferzVYw@mail.gmail.com>
+Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
+To: Sultan Alsawaf <sultan@kerneltoast.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Suren Baghdasaryan <surenb@google.com>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, =?UTF-8?B?QXJ2ZSBIasO4bm5ldsOlZw==?= <arve@android.com>, 
+	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>, 
+	Joel Fernandes <joel@joelfernandes.org>, Christian Brauner <christian@brauner.io>, 
+	Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, 
+	LKML <linux-kernel@vger.kernel.org>, devel@driverdev.osuosl.org, 
+	linux-mm <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 12, 2019 at 05:23:21AM +0000, Christopher Lameter wrote:
-> On Mon, 11 Mar 2019, Dave Chinner wrote:
-> 
-> > > Direct IO on a mmapped file backed page doesnt make any sense.
-> >
-> > People have used it for many, many years as zero-copy data movement
-> > pattern. i.e. mmap the destination file, use direct IO to DMA direct
-> > into the destination file page cache pages, fdatasync() to force
-> > writeback of the destination file.
-> 
-> Well we could make that more safe through a special API that designates a
-> range of pages in a file in the same way as for RDMA. This is inherently
-> not reliable as we found out.
+On Tue, Mar 12, 2019 at 10:45 AM Sultan Alsawaf <sultan@kerneltoast.com> wrote:
+>
+> On Tue, Mar 12, 2019 at 10:17:43AM -0700, Tim Murray wrote:
+> > Knowing whether a SIGKILL'd process has finished reclaiming is as far
+> > as I know not possible without something like procfds. That's where
+> > the 100ms timeout in lmkd comes in. lowmemorykiller and lmkd both
+> > attempt to wait up to 100ms for reclaim to finish by checking for the
+> > continued existence of the thread that received the SIGKILL, but this
+> > really means that they wait up to 100ms for the _thread_ to finish,
+> > which doesn't tell you anything about the memory used by that process.
+> > If those threads terminate early and lowmemorykiller/lmkd get a signal
+> > to kill again, then there may be two processes competing for CPU time
+> > to reclaim memory. That doesn't reclaim any faster and may be an
+> > unnecessary kill.
+> > ...
+> > - offer a way to wait for process termination so lmkd can tell when
+> > reclaim has finished and know when killing another process is
+> > appropriate
+>
+> Should be pretty easy with something like this:
 
-I'm not following.  What API was not reliable?  In[2] we had ideas on such an
-API but AFAIK these have not been tried.
+Yeah, that's in the spirit of what I was suggesting, but there are lot
+of edge cases around how to get that data out efficiently and PID
+reuse (it's a real issue--often the Android apps that are causing
+memory pressure are also constantly creating/destroying threads).
 
-From what I have seen the above is racy and is prone to the issues John has
-seen.  The difference is that Direct IO has a smaller window than RDMA.  (Or at
-least I thought we already established that?)
-
-	"And also remember that while RDMA might be the case at least some
-	people care about here it really isn't different from any of the other
-	gup + I/O cases, including doing direct I/O to a mmap area.  The only
-	difference in the various cases is how long the area should be pinned
-	down..."
-
-		-- Christoph Hellwig : https://lkml.org/lkml/2018/10/1/591
-
-> 
-> > Now we have copy_file_range() to optimise this sort of data
-> > movement, the need for games with mmap+direct IO largely goes away.
-> > However, we still can't just remove that functionality as it will
-> > break lots of random userspace stuff...
-> 
-> It is already broken and unreliable. Are there really "lots" of these
-> things around? Can we test this by adding a warning in the kernel and see
-> where it actually crops up?
-
-IMHO I don't think that the copy_file_range() is going to carry us through the
-next wave of user performance requirements.  RDMA, while the first, is not the
-only technology which is looking to have direct access to files.  XDP is
-another.[1]
-
-Ira
-
-[1] https://www.kernel.org/doc/html/v4.19-rc1/networking/af_xdp.html
-[2] https://lore.kernel.org/lkml/20190205175059.GB21617@iweiny-DESK2.sc.intel.com/
+I believe procfds or a similar mechanism will be a good solution to this.
 
