@@ -2,145 +2,133 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B314C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 16:37:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 60C03C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 16:44:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D9F9F206DF
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 16:37:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D9F9F206DF
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kerneltoast.com
+	by mail.kernel.org (Postfix) with ESMTP id 24DB62054F
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 16:44:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 24DB62054F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 734B58E0003; Tue, 12 Mar 2019 12:37:49 -0400 (EDT)
+	id 92EC68E0003; Tue, 12 Mar 2019 12:44:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6E46D8E0002; Tue, 12 Mar 2019 12:37:49 -0400 (EDT)
+	id 8B4A58E0002; Tue, 12 Mar 2019 12:44:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5AB388E0003; Tue, 12 Mar 2019 12:37:49 -0400 (EDT)
+	id 755BB8E0003; Tue, 12 Mar 2019 12:44:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 212938E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 12:37:49 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id f125so1365994oib.4
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 09:37:49 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 194BD8E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 12:44:25 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id t13so1367235edw.13
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 09:44:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=NpM11hIB0n3yQhJ/sBrftpwbwYTEMvFewCfyZrELSOY=;
-        b=JO+0Ztb9YsBK2JNttYqSFgIgaVxVuAHaOT9k+DwyTTaUzpMIHPt4uxtSowRAyfuJSW
-         XYjPBwGTjqzu/MissahXe0qaOvwVG8bzr4cG5WvSR73Rea1JCzBdfG9zEi2+VL+rDVn3
-         LCdy62jpDtO+vNntdih+j1ZO6vEtnXzuGRtUjxyxHJpJm8QSRQfnt2ZqFw5JZprEj+y7
-         0QglgArv9w306O9liD3hYRtFYx/srx03blT3E98K/7SgiNirZWwnZNr0kGj0tYawD+NR
-         A2WzrS4COba+8X+Xvqp1McUv5QVqq9z9IiTMxKrLMMFG3K2mjUnPorC4DIf6gSdrPnKd
-         Gtag==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sultan.kerneltoast@gmail.com
-X-Gm-Message-State: APjAAAWwcLNr7kLr5TcUsRDnfyyv2sq76BDYJLSXcDSO3wlvtEnQqxIG
-	XeSL4DALD7tvQZji9elrwZccfUeh1yeHoWWeJAbcFYl0SnROXpEOgfAx9LITLckplTD07Ku4gjU
-	q9BYw6WzMzyJ/OMFLEVAwDFTyNL4ZWcOy4zIPzim+Q1ZiKTlvmaWa8J0aSCbFi34=
-X-Received: by 2002:aca:538f:: with SMTP id h137mr2317888oib.54.1552408668710;
-        Tue, 12 Mar 2019 09:37:48 -0700 (PDT)
-X-Received: by 2002:aca:538f:: with SMTP id h137mr2317850oib.54.1552408667863;
-        Tue, 12 Mar 2019 09:37:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552408667; cv=none;
+        bh=w2+DN2EdxMC+DqJF2V5AG1mbh5gPVmAecYxS5FTayVs=;
+        b=WH/MsIGQzGaFt8gKPLkRv4ckdBIAUxiJjLtBnCOPLW77amuf9goNv7UYraQcJD9Icd
+         z1kIrIm12dZOUn3MCZT5/SST+IxZqHA2eIeYDk2kOfMMaUC4+d+U6GV3Suw90Pa1lnul
+         b2pm5oth2AzgH7NRmlc4R91ucN3InzqhnBiBXKwkwaGCDkb4lJBHQAqpCGsNxVI2AHmC
+         o0cmhd9DSyHxn9/cy5Yhz3ZemMjqRYCsJDY7qw6MIlFd2nwwaxzQmL90cYET2S4J3Qt6
+         KmOHomNkPHqjArffQNNWyQzH59D/gLzfZDlO2MJ40BPgeHEPjEDdkrcz0lkb+BRLrxL3
+         6DeQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWINLyR3Rv/iygff7hKdNs+wDSvRZ82k8jC0zZLHBnEEE1fgTdw
+	P0uvaIu0srEq7iLf6Oe/ePvNdSXJgsBR0Mt0ziWWJ8+FzsxqcX8KEB4Tnwigr3UNa29l1yfF81T
+	snHXdNMIrRPTeIiWjffm1R+GVsOsjSl1YIMszq1HvTyzAvlYQh4+gm2RkA1ciSXM=
+X-Received: by 2002:a17:906:4688:: with SMTP id a8mr13929599ejr.246.1552409064610;
+        Tue, 12 Mar 2019 09:44:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxA2az3JUAR45hrw4RkqwIZi0OJbmzX61haqKFwOADrKmcld61mQgBAVH2y+1FwwbLIGHQ2
+X-Received: by 2002:a17:906:4688:: with SMTP id a8mr13929561ejr.246.1552409063736;
+        Tue, 12 Mar 2019 09:44:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552409063; cv=none;
         d=google.com; s=arc-20160816;
-        b=j3YsC+pL72Mj/u/9ca2gGlbx8oWP+l/rgj29lFgAQvlSwa8qtZ/Q0PCVMBr3Y9miSV
-         AyF1r+L4gKqdEbx81aku1Z7t7t6TH5wiK/gTJj/s1c9IUfKEy/qxjYVYvHzwCkUwDyDj
-         G81lqYcYZxgSIjYFB9t0+7hydganqoCaUGA11EIA5a6jgR6xInKcguBIT1ebU40cUdUa
-         /n3TpQA38RTPnJ50m34keRLOEGbfOioM7kEgG18Yu1IGa5gBsk91mrbqw26trf1gn/wn
-         /mIdvBjuV2+DNilL5IuBDdTrqYwT+3NQ825cY1lcUWqs+b3NGJeiJ9S3vStcd8zCc4jl
-         rB1A==
+        b=nGMlpU9cGmd9CEj3JrdkbY2TbrtftF0pnBMer84KJ7OSxE9Irt5dEnJmpnk1nUKNgW
+         +nSrayuB3WOI8G3GMgvnN+ysL84E5TkcWDblSnIOD9HH36Pq1Vu+jSyT2keykF8BqALn
+         Jy8s7qNqZEjmjw3FlYWB6xI8iwmR3Xm0VV+Iep6SheyRcKe4vBh8YL7TCwmKp+Kpt5B5
+         KrqmqOj1Bv3UjjTbJO280PDLd014VS7QY97h5uszLz1IL/MK4y8+voGv1pHJcIARDcKj
+         tJTKKW5nME9eavBQMWiI9iyQjKpniHfCeKcBxV5AP9fZsBJKOpg+qkmWGIdsrgiRYLmZ
+         /YMw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=NpM11hIB0n3yQhJ/sBrftpwbwYTEMvFewCfyZrELSOY=;
-        b=T8LMBONY25wHS4Qe+scBmbzZgkivi8J4zBMi5+2eINZ1hZVaqka0P1QIN19m1BxPZm
-         4qScph85YEDjf1/i8Lm0YqSFR2Sl0ya0XPxmVC82LmySZZw8/dMzaPNb7dnt40HKHa0p
-         rT4VOeDdQn9m6xqElPhRUspRdbCD+222Zb9pb4p2mnB62pIigD39BxO685xCqmNyjOKV
-         S4AikJgMWMC64E4xpgwkvoyEWvdn1z8rbLgIePDeoEjt/t8K30MdMyrQpiHQO+AHXNbj
-         9s38HqX/18QDUikVEzanDqe8IoQExOOIqVqAI1OWNf/Absj/1z84IELlsx+mUXUkJUcx
-         JK4Q==
+        bh=w2+DN2EdxMC+DqJF2V5AG1mbh5gPVmAecYxS5FTayVs=;
+        b=CVSKuQY1Bz2xKQRh8L2MyASlgmXcFnAKPRZ/KJ1orqwOXBhpAPG4sn8n98lroO3gJ1
+         7gI+ng+7nLUh1B7L1K8vfrS84EcxWs+EHbXdzEtszr9Eu67Z1ApNNfLJ2qnLEpCvR3vd
+         dTx5c1906EDcI7u36m7+v9uQ1jh64bO5b7M2ga86K173toAlrNPuG0p/VVF/9o5Wa4G0
+         gvNysf32G53JNdRzv12aFbyjWbpr3OC2/sU3HKCnDZnFVsc0Q/vaR9M8TwEP9DDUrVyQ
+         Em5Y0XYnNSUDAfPN5Oe0nuWMjxbFr0NkWfhcZ7Fn3JcI8TQMoN4u4mbninnR1Z3b8AlK
+         HNbg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sultan.kerneltoast@gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 35sor4847758otj.185.2019.03.12.09.37.47
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w9si1747237edh.232.2019.03.12.09.44.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Mar 2019 09:37:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Mar 2019 09:44:23 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sultan.kerneltoast@gmail.com
-X-Google-Smtp-Source: APXvYqwfZPbiQHE8MnOV1ufVTRg1Zl49w8DhEYFFealjY7DbjEoz7zfH9VFfZWBjcFLOm7HAbUx4/A==
-X-Received: by 2002:a9d:76d4:: with SMTP id p20mr25164261otl.11.1552408667449;
-        Tue, 12 Mar 2019 09:37:47 -0700 (PDT)
-Received: from sultan-box.localdomain ([107.193.118.89])
-        by smtp.gmail.com with ESMTPSA id 97sm4321579otn.39.2019.03.12.09.37.45
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 12 Mar 2019 09:37:46 -0700 (PDT)
-Date: Tue, 12 Mar 2019 09:37:41 -0700
-From: Sultan Alsawaf <sultan@kerneltoast.com>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Suren Baghdasaryan <surenb@google.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>,
-	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Christian Brauner <christian@brauner.io>,
-	Ingo Molnar <mingo@redhat.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	LKML <linux-kernel@vger.kernel.org>, devel@driverdev.osuosl.org,
-	linux-mm <linux-mm@kvack.org>, Tim Murray <timmurray@google.com>
-Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
-Message-ID: <20190312163741.GA2762@sultan-box.localdomain>
-References: <20190310203403.27915-1-sultan@kerneltoast.com>
- <20190311174320.GC5721@dhcp22.suse.cz>
- <20190311175800.GA5522@sultan-box.localdomain>
- <CAJuCfpHTjXejo+u--3MLZZj7kWQVbptyya4yp1GLE3hB=BBX7w@mail.gmail.com>
- <20190311204626.GA3119@sultan-box.localdomain>
- <CAJuCfpGpBxofTT-ANEEY+dFCSdwkQswox3s8Uk9Eq0BnK9i0iA@mail.gmail.com>
- <20190312080532.GE5721@dhcp22.suse.cz>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 4E0F8AF0C;
+	Tue, 12 Mar 2019 16:44:23 +0000 (UTC)
+Date: Tue, 12 Mar 2019 17:44:22 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>,
+	Souptick Joarder <jrdr.linux@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+	shaoyafang@didiglobal.com
+Subject: Re: [PATCH] mm: compaction: some tracepoints should be defined only
+ when CONFIG_COMPACTION is set
+Message-ID: <20190312164422.GD5721@dhcp22.suse.cz>
+References: <1551501538-4092-1-git-send-email-laoar.shao@gmail.com>
+ <1551501538-4092-2-git-send-email-laoar.shao@gmail.com>
+ <20190312161803.GC5721@dhcp22.suse.cz>
+ <CALOAHbBR119mzbkkQ5fmGQ5Bqxu2O4EFgq89gVRXqXN+USzDEA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190312080532.GE5721@dhcp22.suse.cz>
-User-Agent: Mutt/1.11.3 (2019-02-01)
+In-Reply-To: <CALOAHbBR119mzbkkQ5fmGQ5Bqxu2O4EFgq89gVRXqXN+USzDEA@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 12, 2019 at 09:05:32AM +0100, Michal Hocko wrote:
-> The only way to control the OOM behavior pro-actively is to throttle
-> allocation speed. We have memcg high limit for that purpose. Along with
-> PSI, I can imagine a reasonably working user space early oom
-> notifications and reasonable acting upon that.
+On Wed 13-03-19 00:29:57, Yafang Shao wrote:
+> On Wed, Mar 13, 2019 at 12:18 AM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Sat 02-03-19 12:38:58, Yafang Shao wrote:
+> > > Only mm_compaction_isolate_{free, migrate}pages may be used when
+> > > CONFIG_COMPACTION is not set.
+> > > All others are used only when CONFIG_COMPACTION is set.
+> >
+> > Why is this an improvement?
+> >
+> 
+> After this change, if CONFIG_COMPACTION is not set, the tracepoints
+> that only work when CONFIG_COMPACTION is set will not be exposed to
+> the usespace.
+> Without this change, they will always be expose in debugfs no matter
+> CONFIG_COMPACTION is set or not.
 
-The issue with pro-active memory management that prompted me to create this was
-poor memory utilization. All of the alternative means of reclaiming pages in the
-page allocator's slow path turn out to be very useful for maximizing memory
-utilization, which is something that we would have to forgo by relying on a
-purely pro-active solution. I have not had a chance to look at PSI yet, but
-unless a PSI-enabled solution allows allocations to reach the same point as when
-the OOM killer is invoked (which is contradictory to what it sets out to do),
-then it cannot take advantage of all of the alternative memory-reclaim means
-employed in the slowpath, and will result in killing a process before it is
-_really_ necessary.
-
-> If you design is relies on the speed of killing then it is fundamentally
-> flawed AFAICT. You cannot assume anything about how quickly a task dies.
-> It might be blocked in an uninterruptible sleep or performin an
-> operation which takes some time. Sure, oom_reaper might help here but
-> still.
-
-In theory we could instantly zap any process that is not trapped in the kernel
-at the time that the OOM killer is invoked without any consequences though, no?
-
-Thanks,
-Sultan
+And this is exactly something that the changelog should mention. I
+wasn't aware that we do export tracepoints even when they are not used
+by any code path. This whole macro based programming is just a black
+magic.
+-- 
+Michal Hocko
+SUSE Labs
 
