@@ -2,174 +2,135 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9B5BEC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 02:19:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 32BEEC4360F
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 02:38:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3CA932087C
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 02:19:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3CA932087C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id E3911214AE
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 02:38:39 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="W3Al45pt"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E3911214AE
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9BDDF8E0003; Mon, 11 Mar 2019 22:19:14 -0400 (EDT)
+	id 73E678E0003; Mon, 11 Mar 2019 22:38:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 944198E0002; Mon, 11 Mar 2019 22:19:14 -0400 (EDT)
+	id 6C66E8E0002; Mon, 11 Mar 2019 22:38:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 80C198E0003; Mon, 11 Mar 2019 22:19:14 -0400 (EDT)
+	id 567FB8E0003; Mon, 11 Mar 2019 22:38:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 28A448E0002
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 22:19:14 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id i59so440334edi.15
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 19:19:14 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 152CB8E0002
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 22:38:39 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id z1so1356011pfz.8
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 19:38:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=3pCXzyanmebXEImbNpsvxMzq7GEb2lfHeN2z4ZAilVQ=;
-        b=EAetX0O0RDc2YxsCI5RCcJuZw1sAgTQjzgLQEiD1PEke+nYLr2efCzUGfyQQDjr8AQ
-         NfufaafIJZmLMVqV5ls9HXfmoJpX3D1iexY7THhLoyHMOQ/AHF39/xzlKPCiJHRQRIVD
-         iVouxi3AAD/y+YCqcShO/uRmJkgb17xlyvcxk0gfXOXrNhvtc0p01oMoKvJnlL3VT/aN
-         iAEzCdreeOvu2L85uaTEblEn8jnCSVYJwutSj9vgs3XuYD2rIHeKRXfstPPNDazT18nu
-         yhGNCY5lUl/shit/1dERED4F8zsSUMW852x3whBxNMfnkL8xIKyJii7XJx4OzA45OEgZ
-         rZtw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAX5rDN0kdwTY2Eke62x91c5eTOHK0cqyIlWBfqaaZLtnBlSxzwW
-	8TOvsALXMsym1GTOZ5HK36eSEkccGlOrh4nVdqskc2QWXeYgI2Bmj17mgggyLCOVA3yvfrESWVi
-	Rf2pB6MhFRtdIbLVFj/9oyaIyvhX5yZXpYwbXtYZlfhmvkojhISah3y+lqMLiB8PB7Q==
-X-Received: by 2002:a17:906:8491:: with SMTP id m17mr10295266ejx.229.1552357153397;
-        Mon, 11 Mar 2019 19:19:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyPzEWIJF859V2bx6+zuTfQ3dFnicddRTMivGCSw6w1TtluFXvnIJy5jGv+7llOUwmwRLJy
-X-Received: by 2002:a17:906:8491:: with SMTP id m17mr10295184ejx.229.1552357151543;
-        Mon, 11 Mar 2019 19:19:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552357151; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=Ok7Jka9kdFefhwhAvAaPL3/12Bc5D9En5EUc/BRhy+g=;
+        b=ZrW+pA2QEnG84zo4+7FRXz9TaPMtY7dnJ/jY8q0i0Yt++HtRlWHqp0oDzdnsItP+bs
+         iwwazdAu+C33Tktrg7bz0ZhXGpBLdoC2P0lqZivif2hJepIiHFXzOWgauziNHncfjhBn
+         WPQw3nnNGSYbSUlFZzM+6v72ZY6cObYUNn74/44WVpb0BcTWsbX5e8LQEhwUxUkLcCg6
+         i7nFMYmoY7+AU3ICxNp3GNJf+RaE4qGjvJWPOXcP8wMQDpv4Pqal4cvwT3jkdRVoSSxI
+         TXYZVk8jE7YsucE085LCojK3vmknjt8AfI+uGO+QGnAB57I79Sc05i2ylKvK8NUNgx7f
+         1vUQ==
+X-Gm-Message-State: APjAAAX7EGGM+W3uf19swKdk3eAI2B3vLVpXEEJN3eZ7zyv9XuTcVYGk
+	YqJKJwNL2ZZ+5L2jojgErAcAXLlcHJ7oTK0oXehbo46/AdKiywEnA63B8RI3lnlSrtCgWS1YTr1
+	Li3HfBj/jCu4Zgkj1kjFppqpLKbcOgEteaHhkrT0y4FxEA4tlAkB0zMFfNh6vvt0XnQ==
+X-Received: by 2002:a63:5318:: with SMTP id h24mr32916543pgb.76.1552358318765;
+        Mon, 11 Mar 2019 19:38:38 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwLWDMRw2Z824j5NFtvV+3NtxzqGJWv+G4BhtHzLy6J2sEoCqq4HMG5P/cq0+r/AtR2Tt6+
+X-Received: by 2002:a63:5318:: with SMTP id h24mr32916476pgb.76.1552358317697;
+        Mon, 11 Mar 2019 19:38:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552358317; cv=none;
         d=google.com; s=arc-20160816;
-        b=0RXkaVk4tXjFKc5SqkTtvBn2mFgVosYNOGmNfMPHcC19YumrcQPI4WKU2N2xgxYrqC
-         bTJCAcNmxJdvhJE43KNAn+pSPziVKIE6RT7LphnOxxq6jHc7z7Q/JSZWwnCexoBHOCyK
-         G6CyeOkVmne3Hbf0cGIer/gFJrP2jTUUflTDNNTxCnDY7fv7JGhCNT9CAjPDs3paeIyv
-         8ahjnqTMvsgyaQJZ2/E9ngUFdcZctvnbUVfDbV2O5FtUullbWq34yrCuiZv+bYY+oCiA
-         lc17SIvvrNmRmJxdk8QG4QQ8PS3kce1T7tIKW1U/pyCNszx2Ql2tu9vGkyVgBv+fwmrZ
-         KglQ==
+        b=dZNuJfGtVo0BNqkiJ0BNZ3cJHwplZzALU2UwqTMPpFwLGmQ8VahkCHNiQx1XHj9fxJ
+         eOQakAsWxAg9GUL9UKC1ke+evxs4TcF2ePZGghN4VUVOs+CQZvi8D9JFJcubC3q8+z9x
+         3vwlWFxYwyRy3JFvPXAm1DejkJeFAokTp3UMzb6fs2w+lZtQjCU9M+vuTsTMNo71j2ba
+         k8nGFOYrLhQdIWe2YW8C07MkVTXJGEuk9v6ZGr6wSfRH/8Npi5lCssnysPlLEmucZqzp
+         31UmxgTQ8z6TS8Gb4LreX/e65Z0pI21xqzDYQixMRzAhqgJDUJxWTUcpAfU3ADn4P25t
+         lxrQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=3pCXzyanmebXEImbNpsvxMzq7GEb2lfHeN2z4ZAilVQ=;
-        b=xu5dpx/QaSOQA4noUD2JgZhtn8W2ft7FLi0/Q0aqPvj83Biu3BIZQbVcWaipAanbdV
-         H+c4PA8Af8ei/DkOW/QLMRFKyICscV5WWQ/zzmLM0+RRIYBurpOgBsLuq2+y+330dedb
-         fvxf3Qsa6K+MVW9JDHV+XrvUGgulHp9FT0y0M/g8mMc1LZK9CgADEJ67AEc/+endiQLs
-         FarIxlFhjL4zEbUSvxRxTLVbkRSioTgokIC4lwNF0jNg5FUvcCaiDZuuD2Cg/TpUNdzN
-         amc85HHxJotR9+h/PJMkr9vpnprbAkyb7OLCeaiFfqGO35DMCTmYgh6keIeMvLu5Qele
-         5nWQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=Ok7Jka9kdFefhwhAvAaPL3/12Bc5D9En5EUc/BRhy+g=;
+        b=cSaOE5IBhCchiW0ndMBZRgT9oJ0VMQ1O+1JFHzUxy/uEPieafTm8mOQnxqHSgpqY+L
+         ZaWRiZLWaPgMqU7/+2YcEvS5FjCviOu3dkeHlSezSo2BJ/6XoaIYo+rd5joJj/uEzN0U
+         HuIWqNqMBf/0JO+jeuNigek2K/TPeGFSE070MTPsFherHbwSzR7DBsvc5BI7vMJFiXPl
+         5ISzyAoDkoEBwHPrbccORa6Y8yXL6MGQmh8bKP7zdsNPrxJdkyFwDMtExgJ401h9UmUt
+         piX4xHyLaelo3wSmZ5JjkBufwowRUQmUjmF1H7lKmwg+IU9gS/hn4p+u9njJsovm0YKv
+         vk+Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id g26si4323477ejd.14.2019.03.11.19.19.11
-        for <linux-mm@kvack.org>;
-        Mon, 11 Mar 2019 19:19:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=W3Al45pt;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 71si6453300pgc.87.2019.03.11.19.38.37
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 11 Mar 2019 19:38:37 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 4E6BBA78;
-	Mon, 11 Mar 2019 19:19:10 -0700 (PDT)
-Received: from p8cg001049571a15.arm.com (unknown [10.163.1.86])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 0C9523F59C;
-	Mon, 11 Mar 2019 19:19:07 -0700 (PDT)
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-To: catalin.marinas@arm.com,
-	will.deacon@arm.com,
-	mark.rutland@arm.com,
-	yuzhao@google.com
-Cc: linux-mm@kvack.org,
-	linux-arm-kernel@lists.infradead.org
-Subject: [PATCH] KVM: ARM: Remove pgtable page standard functions from stage-2 page tables
-Date: Tue, 12 Mar 2019 07:49:02 +0530
-Message-Id: <1552357142-636-1-git-send-email-anshuman.khandual@arm.com>
-X-Mailer: git-send-email 2.7.4
-In-Reply-To: <20190312005749.30166-3-yuzhao@google.com>
-References: <20190312005749.30166-3-yuzhao@google.com>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=W3Al45pt;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=Ok7Jka9kdFefhwhAvAaPL3/12Bc5D9En5EUc/BRhy+g=; b=W3Al45ptYcop7XvpXCgnlleG7
+	TIKOrvpx+7LOVG250M7sMevNxQZoQ627xff+ixZVyFr0LG/dt5bqM7C+A73yF0Asx/TzkJYe8YFkZ
+	rpWZ9Js6X0PpFSegVFkfJ5pBRJmSsn10l8TdOxPuuHQ8dD4E+nvlvA+OVTD39oNZb6/HMgL0f4+i7
+	8fwJTyt2vvpWbYpjDIqr6NJOtH7Ks6Ng61NTZoPZ1LYTT9VDWoDXMAmfmD7lLFVdf9gN9YPFlhnPy
+	E79U6+f5j1u1JpDEDey46Fdjb4fWyKUVP+OmB0SEsez0rit5VpJIV2ib4F+rFxmQzOcTRAy9awN/b
+	DMY+a1QUA==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1h3XJE-0005kn-RB; Tue, 12 Mar 2019 02:38:28 +0000
+Date: Mon, 11 Mar 2019 19:38:28 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: "Tobin C. Harding" <me@tobin.cc>
+Cc: Roman Gushchin <guro@fb.com>, "Tobin C. Harding" <tobin@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 0/4] mm: Use slab_list list_head instead of lru
+Message-ID: <20190312023828.GH19508@bombadil.infradead.org>
+References: <20190311010744.5862-1-tobin@kernel.org>
+ <20190311204919.GA20002@tower.DHCP.thefacebook.com>
+ <20190311231633.GF19508@bombadil.infradead.org>
+ <20190312010554.GA9362@eros.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190312010554.GA9362@eros.localdomain>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-ARM64 standard pgtable functions are going to use pgtable_page_[ctor|dtor]
-or pgtable_pmd_page_[ctor|dtor] constructs. At present KVM guest stage-2
-PUD|PMD|PTE level page tabe pages are allocated with __get_free_page()
-via mmu_memory_cache_alloc() but released with standard pud|pmd_free() or
-pte_free_kernel(). These will fail once they start calling into pgtable_
-[pmd]_page_dtor() for pages which never originally went through respective
-constructor functions. Hence convert all stage-2 page table page release
-functions to call buddy directly while freeing pages.
+On Tue, Mar 12, 2019 at 12:05:54PM +1100, Tobin C. Harding wrote:
+> > slab_list and lru are in the same bits.  Once this patch set is in,
+> > we can remove the enigmatic 'uses lru' comment that I added.
+> 
+> Funny you should say this, I came to me today while daydreaming that I
+> should have removed that comment :)
+> 
+> I'll remove it in v2.
 
-Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
----
- arch/arm/include/asm/stage2_pgtable.h   | 4 ++--
- arch/arm64/include/asm/stage2_pgtable.h | 4 ++--
- virt/kvm/arm/mmu.c                      | 2 +-
- 3 files changed, 5 insertions(+), 5 deletions(-)
-
-diff --git a/arch/arm/include/asm/stage2_pgtable.h b/arch/arm/include/asm/stage2_pgtable.h
-index de2089501b8b..417a3be00718 100644
---- a/arch/arm/include/asm/stage2_pgtable.h
-+++ b/arch/arm/include/asm/stage2_pgtable.h
-@@ -32,14 +32,14 @@
- #define stage2_pgd_present(kvm, pgd)		pgd_present(pgd)
- #define stage2_pgd_populate(kvm, pgd, pud)	pgd_populate(NULL, pgd, pud)
- #define stage2_pud_offset(kvm, pgd, address)	pud_offset(pgd, address)
--#define stage2_pud_free(kvm, pud)		pud_free(NULL, pud)
-+#define stage2_pud_free(kvm, pud)		free_page((unsigned long)pud)
- 
- #define stage2_pud_none(kvm, pud)		pud_none(pud)
- #define stage2_pud_clear(kvm, pud)		pud_clear(pud)
- #define stage2_pud_present(kvm, pud)		pud_present(pud)
- #define stage2_pud_populate(kvm, pud, pmd)	pud_populate(NULL, pud, pmd)
- #define stage2_pmd_offset(kvm, pud, address)	pmd_offset(pud, address)
--#define stage2_pmd_free(kvm, pmd)		pmd_free(NULL, pmd)
-+#define stage2_pmd_free(kvm, pmd)		free_page((unsigned long)pmd)
- 
- #define stage2_pud_huge(kvm, pud)		pud_huge(pud)
- 
-diff --git a/arch/arm64/include/asm/stage2_pgtable.h b/arch/arm64/include/asm/stage2_pgtable.h
-index 5412fa40825e..915809e4ac32 100644
---- a/arch/arm64/include/asm/stage2_pgtable.h
-+++ b/arch/arm64/include/asm/stage2_pgtable.h
-@@ -119,7 +119,7 @@ static inline pud_t *stage2_pud_offset(struct kvm *kvm,
- static inline void stage2_pud_free(struct kvm *kvm, pud_t *pud)
- {
- 	if (kvm_stage2_has_pud(kvm))
--		pud_free(NULL, pud);
-+		free_page((unsigned long)pud);
- }
- 
- static inline bool stage2_pud_table_empty(struct kvm *kvm, pud_t *pudp)
-@@ -192,7 +192,7 @@ static inline pmd_t *stage2_pmd_offset(struct kvm *kvm,
- static inline void stage2_pmd_free(struct kvm *kvm, pmd_t *pmd)
- {
- 	if (kvm_stage2_has_pmd(kvm))
--		pmd_free(NULL, pmd);
-+		free_page((unsigned long)pmd);
- }
- 
- static inline bool stage2_pud_huge(struct kvm *kvm, pud_t pud)
-diff --git a/virt/kvm/arm/mmu.c b/virt/kvm/arm/mmu.c
-index e9d28a7ca673..00bd79a2f0b1 100644
---- a/virt/kvm/arm/mmu.c
-+++ b/virt/kvm/arm/mmu.c
-@@ -191,7 +191,7 @@ static void clear_stage2_pmd_entry(struct kvm *kvm, pmd_t *pmd, phys_addr_t addr
- 	VM_BUG_ON(pmd_thp_or_huge(*pmd));
- 	pmd_clear(pmd);
- 	kvm_tlb_flush_vmid_ipa(kvm, addr);
--	pte_free_kernel(NULL, pte_table);
-+	__free_page(virt_to_page(pte_table));
- 	put_page(virt_to_page(pmd));
- }
- 
--- 
-2.20.1
+That's great.  BTW, something else you could do to verify this patch
+set is check that the object file is unchanged before/after the patch.
+I tend to use 'objdump -dr' to before.s and after.s and use 'diff'
+to compare the two.
 
