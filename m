@@ -2,174 +2,160 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5E722C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 13:59:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2999DC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 14:04:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0CC9D2087C
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 13:59:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DCD3A2087C
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 14:04:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="WMOwULbJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0CC9D2087C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=baylibre-com.20150623.gappssmtp.com header.i=@baylibre-com.20150623.gappssmtp.com header.b="xXGa1xhP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DCD3A2087C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=baylibre.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9818C8E0003; Tue, 12 Mar 2019 09:59:00 -0400 (EDT)
+	id 758718E0003; Tue, 12 Mar 2019 10:04:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 907378E0002; Tue, 12 Mar 2019 09:59:00 -0400 (EDT)
+	id 707F98E0002; Tue, 12 Mar 2019 10:04:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7D06A8E0003; Tue, 12 Mar 2019 09:59:00 -0400 (EDT)
+	id 5CFA58E0003; Tue, 12 Mar 2019 10:04:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E4988E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 09:59:00 -0400 (EDT)
-Received: by mail-it1-f199.google.com with SMTP id q184so2282479itd.6
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 06:59:00 -0700 (PDT)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ADC98E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 10:04:05 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id u24so1172311otk.13
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 07:04:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :organization:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=4ZMOItDFTh1XM3CjXjtxCCu74z5TNsFK2Hx8PSjO5W0=;
-        b=nMzV+vnMT87phRUETwd/mcYJeNJCbpcePJ8EOskxo1VCHfn0h/WnTmtN/qqBiOCj4J
-         rfzszFGPWXisvMgVo+iaM24bipF+xSS3mXOE5a8Ff1i+NtwBUHheTCYREXptOchE7dgs
-         ihxCHLzmADKfw+GRKkpX3pJKBeZFPl/iD4sqts6fU6iktQi9HHNcjjiDtb9/zfKCx+wE
-         hkoZXulCk65k5B6vCdwcZ8eWiAH4LoB560ac+Fp26bEALALiDE6flIv+0ZXAQ7wgpKlz
-         f3CmzLjffVU6dExFDdd4U4Sl6r6qOzk+Mc5MBLju4Bd/JzLrNmBKNYkv7FYuoBJQfVEB
-         RFLw==
-X-Gm-Message-State: APjAAAUtJynxiZyBumIU6Xj6A8pqe7ui/WBSpINQZCs124EA/HIRkJKf
-	SDtLAVp9Y1aEJ3oh0cf3BmJCUAiAmY904Uyqf2hCf39f62mQdh4n4lnfjTB7OClQ7MrxeEeBj9/
-	g7e4tl8+TUQc9Ivp4JGSogCkU46gVqylZuges0zsgQxEc6HKaIwow7nC7Xk73g9k90w==
-X-Received: by 2002:a5e:aa03:: with SMTP id s3mr444999ioe.279.1552399140062;
-        Tue, 12 Mar 2019 06:59:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxKdTO7CHjyrK4PyCKtmNxQ+rv4dxiKd0bJIqL+Kt0Lchyu/1zRPXfl0ARTEMsgNyPe0odo
-X-Received: by 2002:a5e:aa03:: with SMTP id s3mr444954ioe.279.1552399138941;
-        Tue, 12 Mar 2019 06:58:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552399138; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=RC9n/L2urRzMIddaEkM47GUXLJfkJCfKnT+zLB1fxyQ=;
+        b=IF6WM0IB1B1Nod6MVNQaZxLor9c8c+p8fEa+gw9bjy/oM88woASMabEyb/Hemsm35+
+         n3gdKWlucRCfXgPSZOCRRQgC2Wb3VV3rkd5g97Zs2lg/a0cpLd4Y5WSCg+B3ux2pRx+t
+         1XGUB3RkR4DRAU2CIWkf0RcNQU5Glm7y5tzihaSpTJbR3RWJyPg1wpRUWJtAkVSTI2ru
+         r+j54l25wbj4Lnt/xzEn8PyCK5tiUU3XqsTmz7UK54z3zYLw1MzjZMrvbvrF5ClzBtcV
+         DerwxxpmIGPKS2DZVQ/LpQNj5aqAf0kUUaA+OI66tvdphtJAly726h+KL6201PczvDLN
+         k/Cw==
+X-Gm-Message-State: APjAAAV1iH1AYc7MSBkgchCUEwszgvd/e6LK4KWqxE1b/AEv7DsBR31T
+	u67am9oFoTjrndQaS1jV4w+lMT5GK6CXs22I6JU9V6L3qVpzsP5m93xZQrG5OAtrTaeDQBGe2iW
+	PemWwV3BhruJdzzOMfXmDZpQWXK+ESRC9FhcbUUueD1LSSCSGVKAW7na1DH4Z8dg1CnZblU9nya
+	ALdr/BwWZaiQrNYviZ6YyZTJMHqSf488qWS6HmhDW5UUEYaaloGjiyZnR3kxA5V5fN9B1uXAmQs
+	CKEMmpQAvzXRLxcwvfxwfsy1V/rXLFBpWDnV/Z73A6Bcsl4O9TiSwqfIovt/oyEz6gHeFiJdz/7
+	trbDF/K4Z/YzQSICLAkZVBo2MzgszuG3ayI3JVL7VVAxrwsa31R62yUmXEmLh5M4L8eRsqEpLZN
+	N
+X-Received: by 2002:aca:4b51:: with SMTP id y78mr1838251oia.88.1552399444720;
+        Tue, 12 Mar 2019 07:04:04 -0700 (PDT)
+X-Received: by 2002:aca:4b51:: with SMTP id y78mr1838199oia.88.1552399443899;
+        Tue, 12 Mar 2019 07:04:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552399443; cv=none;
         d=google.com; s=arc-20160816;
-        b=tNFHVuQzEqijuostZivmzfUu3dwwwJE8n93FBR1vjvfAW6E6omueflWYiftKikBme+
-         tRmU597lugkj533VG7kRYb/NiLOTRMwhuMlA95t0gO9cSPOOxOculXP3oDIrhy6ykjPr
-         dCCm9WBNLT9tGonmOAQNffo93AHfY12tToqhAkfAFywCMBqDem5it5KBVYy/HzrjRfai
-         Bu0SJxW9IwfHmMN69RBvNt9RJaWEBlOIcelZtgp816QAvhe2itFgMlwRr8C9+qzXI1sv
-         dmawvMqcbaM7UDe00mct0SosjkgMsUsjP1R3hToNKfVcrk3fu0OFONotYjg+cNNZYdli
-         NxjA==
+        b=vF93NzgNBs71UeAp8BmUOdzouRQJn83a4uQKM+Epp9STk6kCWbzDxMnAvM5dyfohFI
+         1DvSB9Sped2GdGzx7RzyZ3n+igH8A3BPssvcNK2dL+BBswcmGcyNOAk2Ity9bSOCUDbN
+         7jkqVJjlikJUhog3ynAwBUmXp8KepCzVExmtTXnn4vyAFamK3QBDQ8mP7Y8yXlAb2VKy
+         jpM3XRBhHkPlc7sJUWnxvszZs0MFKgTx75cd16qiz8VaPt+Svh4UzGUSmmPtcFVDIgcK
+         AQCrXoAXDTu64WWJPD61AeAb39OVvKFBPJ3bYFmqgbMVq10+vYAbPgmW3BfXGuFa5KAy
+         XMrQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:from:references:cc:to
-         :subject:dkim-signature;
-        bh=4ZMOItDFTh1XM3CjXjtxCCu74z5TNsFK2Hx8PSjO5W0=;
-        b=SJbapRWhOaXYvbN+OY9rJwuF5PpKWrYy1QlDC6IsykT/JKswoXh8VGCyP3Lt2SqbA5
-         d+pS9crc9lypCBpYxYPn2i+8h5pwOZmJT1k7wIr2e/4eO3Z5UtF5Jt8gNxTxenIdzc+J
-         Xn4+GnuRJgKh7rPp1HEjAkXLvWhDwTzdNQZRCThUJVbRE6xV+iu6XAw/dUcivOvfBdUB
-         HAjJ9T7aYZm7+7IC0hYehNXS8RhFavJCgWhHi1d0aeaBrn4onAdVl/FFSg4JGx0neUPy
-         PYalo1H/249oo40hqh8HVhayxgVbNZYR69AahNSXWHV4sSf1ducCAUmAPQGmahSXG43b
-         9tsg==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=RC9n/L2urRzMIddaEkM47GUXLJfkJCfKnT+zLB1fxyQ=;
+        b=EPzjz2p3cSN1zMBnbA7aRIFg0ZLTgECu2xqkd+e3YO4jpwsWmxb26trEtrunlBI1Sj
+         KKNUMmWM6vMPzPM2REIWRjuceiuPbh4h9Scq5hi+pIieDlfk1iuZ+Cp3lDJTN01tQyJh
+         GqDd4gQhlhcS89RVcBcnLvH9r4e7Mzk8Vz7LwJzAqcw/a6W52tDg1O2OEWFk20hPW7B3
+         pAV9ZsaIkbDgiCpGT44WClX85yTX9O2FhnWOYHmLJ6soNbQRido9ok+/wSVPopctB/CU
+         BG968h/V23u7bqABdq+OI8kosgT1YeLrn7BGBwwg4m/lz9X98QT2k+NUdUZHWNgdqR+Y
+         Gw8w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=WMOwULbJ;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id m197si1347529itb.30.2019.03.12.06.58.58
+       dkim=pass header.i=@baylibre-com.20150623.gappssmtp.com header.s=20150623 header.b=xXGa1xhP;
+       spf=pass (google.com: domain of bgolaszewski@baylibre.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bgolaszewski@baylibre.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f206sor4453724oia.151.2019.03.12.07.04.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 06:58:58 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        (Google Transport Security);
+        Tue, 12 Mar 2019 07:04:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of bgolaszewski@baylibre.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=WMOwULbJ;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x2CDvUmC124541;
-	Tue, 12 Mar 2019 13:58:56 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=4ZMOItDFTh1XM3CjXjtxCCu74z5TNsFK2Hx8PSjO5W0=;
- b=WMOwULbJ5OAaymHHf1NW2GtgBx4yNyJCUcPDMGKc7W7xcQ6lTU4jCjzV1RqZUfolZWOJ
- zxOWNVYcwgaOrvq6f0VXQdrwckLdOEl1W6gpGZGpL0Jthh2oIQxKUr/t+8d6B56QszWz
- vIfr1m4lUUyOjU0KrQ7qtrmW9nUOsTIWs4M3qQswori95BRSHtgx9Pzl/4Z2Ey3MNQ9v
- nQUp03TMuPu2QGEcj7+HwdkMqLQ+Zppg3RiV5dmvATZiN3YMeryt7HvBL4urGtycUu3d
- VHWYGEIGFAPx2L3T6HQdRV2QZ12NDEGVbuvM428cP5n0ss5ypMRWhB9G70XGSGg9MoPZ Gg== 
-Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by userp2130.oracle.com with ESMTP id 2r44wu4sgf-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 12 Mar 2019 13:58:56 +0000
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x2CDwtSQ010468
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 12 Mar 2019 13:58:55 GMT
-Received: from abhmp0017.oracle.com (abhmp0017.oracle.com [141.146.116.23])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x2CDwrSe025273;
-	Tue, 12 Mar 2019 13:58:53 GMT
-Received: from [192.168.1.16] (/24.9.64.241)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 12 Mar 2019 06:58:53 -0700
-Subject: Re: [PATCH] mm: remove unused variable
-To: Bartosz Golaszewski <brgl@bgdev.pl>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Anthony Yznaga <anthony.yznaga@oracle.com>,
-        "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>,
-        =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-        Bartosz Golaszewski <bgolaszewski@baylibre.com>
-References: <20190312132852.20115-1-brgl@bgdev.pl>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Organization: Oracle Corp
-Message-ID: <c86234af-a83a-712a-8dc8-0ec2a5dad103@oracle.com>
-Date: Tue, 12 Mar 2019 07:58:51 -0600
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       dkim=pass header.i=@baylibre-com.20150623.gappssmtp.com header.s=20150623 header.b=xXGa1xhP;
+       spf=pass (google.com: domain of bgolaszewski@baylibre.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bgolaszewski@baylibre.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=baylibre-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=RC9n/L2urRzMIddaEkM47GUXLJfkJCfKnT+zLB1fxyQ=;
+        b=xXGa1xhPq962PZh/0M3j4mAOlmZhS6NFDXzo4vogkbyqv8U/tAbx8VNHJd6v5gaJbq
+         iGPH2tBC8fkPtNUdDfrARZkcdTs9pn6H7O9/hI80ITNHS0D1dz4jr2y2Fb+w3ZCGYfCE
+         A4mGfJj1LXwVSWhi/LvnZ6mfPUrMgPy61gAjgvpnWxvleAq+h6HXaEMYRJxwZVWCmRmq
+         CQ87C8MPJdouValtJ3f2b6kP2ucp6E2Oxmpv+N5ezPOzbEMBLqVYMG1ZZ6L944+2pORs
+         UX9YOCdpXCFbej3zSL4snoaAfGWMegeigvwjUU+7ia/FQcyNWZr8FXPErpNcFtn4MuC0
+         7C1w==
+X-Google-Smtp-Source: APXvYqyO6Ri3cTvigCbe4KdbtZeEZKJtgtqAvWC8KsVCZmDNW8WB/VAD7yQrl9q0/Vf+C2xe+YiOvgpi4jzuwHVVbrk=
+X-Received: by 2002:aca:4dca:: with SMTP id a193mr1806746oib.21.1552399443282;
+ Tue, 12 Mar 2019 07:04:03 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190312132852.20115-1-brgl@bgdev.pl>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+References: <20190312132852.20115-1-brgl@bgdev.pl> <c86234af-a83a-712a-8dc8-0ec2a5dad103@oracle.com>
+In-Reply-To: <c86234af-a83a-712a-8dc8-0ec2a5dad103@oracle.com>
+From: Bartosz Golaszewski <bgolaszewski@baylibre.com>
+Date: Tue, 12 Mar 2019 15:03:52 +0100
+Message-ID: <CAMpxmJVeeMRPaXMKp29mE08pKFU4RRMetY=9-pWmazLg3DMLbg@mail.gmail.com>
+Subject: Re: [PATCH] mm: remove unused variable
+To: Khalid Aziz <khalid.aziz@oracle.com>
+Cc: Bartosz Golaszewski <brgl@bgdev.pl>, Andrew Morton <akpm@linux-foundation.org>, 
+	Anthony Yznaga <anthony.yznaga@oracle.com>, 
+	"Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9192 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1903120099
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/12/19 7:28 AM, Bartosz Golaszewski wrote:
-> From: Bartosz Golaszewski <bgolaszewski@baylibre.com>
->=20
-> The mm variable is set but unused. Remove it.
-
-It is used. Look further down for calls to set_pte_at().
-
---
-Khalid
-
->=20
-> Signed-off-by: Bartosz Golaszewski <bgolaszewski@baylibre.com>
-> ---
->  mm/mprotect.c | 1 -
->  1 file changed, 1 deletion(-)
->=20
-> diff --git a/mm/mprotect.c b/mm/mprotect.c
-> index 028c724dcb1a..130dac3ad04f 100644
-> --- a/mm/mprotect.c
-> +++ b/mm/mprotect.c
-> @@ -39,7 +39,6 @@ static unsigned long change_pte_range(struct vm_area_=
+wt., 12 mar 2019 o 14:59 Khalid Aziz <khalid.aziz@oracle.com> napisa=C5=82(=
+a):
+>
+> On 3/12/19 7:28 AM, Bartosz Golaszewski wrote:
+> > From: Bartosz Golaszewski <bgolaszewski@baylibre.com>
+> >
+> > The mm variable is set but unused. Remove it.
+>
+> It is used. Look further down for calls to set_pte_at().
+>
+> --
+> Khalid
+>
+> >
+> > Signed-off-by: Bartosz Golaszewski <bgolaszewski@baylibre.com>
+> > ---
+> >  mm/mprotect.c | 1 -
+> >  1 file changed, 1 deletion(-)
+> >
+> > diff --git a/mm/mprotect.c b/mm/mprotect.c
+> > index 028c724dcb1a..130dac3ad04f 100644
+> > --- a/mm/mprotect.c
+> > +++ b/mm/mprotect.c
+> > @@ -39,7 +39,6 @@ static unsigned long change_pte_range(struct vm_area_=
 struct *vma, pmd_t *pmd,
->  		unsigned long addr, unsigned long end, pgprot_t newprot,
->  		int dirty_accountable, int prot_numa)
->  {
-> -	struct mm_struct *mm =3D vma->vm_mm;
->  	pte_t *pte, oldpte;
->  	spinlock_t *ptl;
->  	unsigned long pages =3D 0;
->=20
+> >               unsigned long addr, unsigned long end, pgprot_t newprot,
+> >               int dirty_accountable, int prot_numa)
+> >  {
+> > -     struct mm_struct *mm =3D vma->vm_mm;
+> >       pte_t *pte, oldpte;
+> >       spinlock_t *ptl;
+> >       unsigned long pages =3D 0;
+> >
+>
+>
 
+Oops, I blindly assumed the compiler is right, sorry for that. GCC
+complains it's unused when building usermode linux. I guess it's a
+matter of how set_pte_at() is defined for ARCH=3Dum. I'll take a second
+look.
+
+Bart
 
