@@ -2,270 +2,245 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8066AC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 17:49:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 99CD1C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 17:55:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 33277206DF
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 17:49:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 33277206DF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 45B58205C9
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 17:55:43 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="OLhnbQDK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 45B58205C9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C2F898E0003; Tue, 12 Mar 2019 13:49:20 -0400 (EDT)
+	id B66FB8E0003; Tue, 12 Mar 2019 13:55:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BDFF08E0002; Tue, 12 Mar 2019 13:49:20 -0400 (EDT)
+	id B16958E0002; Tue, 12 Mar 2019 13:55:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A81018E0003; Tue, 12 Mar 2019 13:49:20 -0400 (EDT)
+	id A06398E0003; Tue, 12 Mar 2019 13:55:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 81B168E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 13:49:20 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id v23so2856360qkf.7
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 10:49:20 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4928D8E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 13:55:42 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id t133so853696wmg.4
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 10:55:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=WgsJLoCYWe+qnvgnPz2Ds9usX4rvBjl3Dx+busAuk2o=;
-        b=IsKl8gRt6vqPGnnzeZ8x+VlqzuQNqbHWLVc7JYFGPzCeiQG2s3azQ2H9Gip2g/tSl0
-         elIThiOZB2fq1JTCQFee7Rsl0s2Etlj5HmqIhX6mdTf5DV57FPs8OtT4wjg5uX2K7Dvh
-         Cw0Lyr9j683PRaBhQXmpQu1q31etXsyYipcJaOgGaK+fRbT798ea3VGtPP1wapUq/5bX
-         puXvzq8BPwudRXb6Y91rZ7nlJ9mCHtb8S3p7rTgPt6NY67RYK1S5GFjfJGsVC1f9fRIL
-         3YxI5hzgr9A45MyaZ8PYYi+nZTVOZnKGuFlHb1KIElJxgjVAJytHypx3XbsdpL5Tcg/T
-         dg8g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAX21S1k4ui7Da21yv1uGFUqsr8ZWUgEg88gSacGg28Zz89BGm0U
-	e6tXO0LbEH85iyaZCCPUO2B2W7iuGQ3Yl+4qWq7TyFM53fjo8J1Xs3UPNGM9LYYPVEZjqAPQE/M
-	/SL28rHlA6rzWXAYKsJ7mZcZwhDaseV3R0+tvxf89pbL7K/iuKk0/wAOFumUHrShCJQ==
-X-Received: by 2002:a0c:eb4d:: with SMTP id c13mr7512766qvq.243.1552412960291;
-        Tue, 12 Mar 2019 10:49:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwVd+RbAFHyxN+D7JCGG4bv5vjzwlkbUSweUa6xxMOMT8xxC/7a1yGrz9spYkZHwv38qeL3
-X-Received: by 2002:a0c:eb4d:: with SMTP id c13mr7512711qvq.243.1552412959374;
-        Tue, 12 Mar 2019 10:49:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552412959; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:from:date:message-id
+         :subject:to;
+        bh=Wwv4OC/5UKkx+hi7JxDLNFBGMRfe7Oq9haS0eC+cjr8=;
+        b=h+oKyRuvE7O77VpdovLqnZxTLDJcYfSfhse6Y9wz/UuvfGKNF3QjLiyFJvZFlwApHo
+         9kWw/kfunNtvXY7K4BnGMcUbKjMseDKLI9QDSMjmxNtzoAh05FIQ8nykxkC8RNHpynC+
+         WvV/i4t8THOwasr0058V/FPjnBr/aBrD0R6tUK3xVIsSNs/E4fppK77EkNkt+TAlNOAW
+         u02lZ9Oi0zwpczwVUCK4oxo5ZjICmwA+S2sdIQlOkdQ81C337W7NUjXeZ9RRgh6dpN7+
+         ktTmUA5qD5+OXduYzdTnR3+qBqIUbtF6JWrafZ/xlfnSB+DSZ58YQy6gUJE5GQV2MZLV
+         G+6g==
+X-Gm-Message-State: APjAAAVXJML2vrZU2kcJKu9kXArTxbGbA/8Gy+e/0mPXF3WjhNEidtmQ
+	DnFjifrdk6G5Oi8qkN97ahhphRiURcW5G+2yLS3wyRokC3XJP19ZL+5dWrjMn10/rhi4A/+VG17
+	FXmwxEVU+iciYgw/f2Mp5gkp2yqKteO+kiROmB/MycDOb91y6IIlieFAEOnQeYYiQIw==
+X-Received: by 2002:a7b:c41a:: with SMTP id k26mr3525904wmi.6.1552413341411;
+        Tue, 12 Mar 2019 10:55:41 -0700 (PDT)
+X-Received: by 2002:a7b:c41a:: with SMTP id k26mr3525832wmi.6.1552413339836;
+        Tue, 12 Mar 2019 10:55:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552413339; cv=none;
         d=google.com; s=arc-20160816;
-        b=EmcVDqrmLOG84131s2xWO4DwLu6xa0G56dokNp1YR0d4qbhd5qfFAd9B/YfkKVegW1
-         pPRzdcoG8JZ3O0mkQpprV3hKLYiYMdnR1BXoe9S6tRAVi4MMF9hkUhOXfAz2PUwogHj9
-         Sh6nCH8y5M7jbEnZrHI/QvgAhmkH1hJyhvYNQeHxcMy+O/ofrEY/EVYApxN489rHHQDz
-         lrf7sVaQdRHYrLArlRzQF3c1v3U3uKU1x9X9U6Y6FSNl4s+ciZ3llmUCMP3UqKdz5W7P
-         PHfcrIljWarLGXSizkaADZRfK2c3CsouDLTenATaLlq7F013B3y3hvDSWvcJFbhT5MqF
-         xS6A==
+        b=VtMZYPjBQcYwF594ImDz7MGUECygW+9QMZxIQnZWNvwUHSHAFuyEUIK+R/4icLRUeV
+         lqzRfzp5XVwq6C9axVjm3072ZQ5vdggWpTCp/mFiwT8EmItVnjB9rLXFfGKdvbgjKtat
+         lZEWXzdbFigcmO3eyhkXTEYSj4eU8aBpqw6GVrf+J5d8vo7QgIJtIrXyokH0v7wHe8tl
+         Gc1EuNGLZ/BnEhQoubVq0bqtUUjDYW9rMoJI2XhABy4tr6KGZbROKRiyxuJEI7wgK/hA
+         UCkzK8WPt4srwayc7004f7gpLVEBT0yRfugcjU1Qts2Ponz8XbIs2x2EooSCQCM0/2HT
+         GOFg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=WgsJLoCYWe+qnvgnPz2Ds9usX4rvBjl3Dx+busAuk2o=;
-        b=RO8/ThAyA9bCNtSrcvdUqsIaNwHEpTMw3jcmtmVlG+Di0yS102yuUlhdxSu9PWrDsq
-         YGtK4ALpZ0wB3BkuM51fjibE5tvxRBL1Ps7vXRcUF1EnNHyBMTdCmHSEHoJF4x6ZSRws
-         qZB9O3XkV9f4Q+GAKKzuT0ttknQ41fg+iMnUhr5k9JRWUar4XrLhaSNlEFEtIRUkY/n8
-         Ds0Od17aBTDqYYkUBbPvtquGCUdfjbjd5J946dJ2pT4CLW1I7A3Pm73pNI7y/SFvYVvC
-         V3gnKnCTAPIM89Pr9nZJTcaXxBPEyKRFWuGxTHrRbToUF491o6QgQfwYnNRQtLsEAKII
-         Gvuw==
+        h=to:subject:message-id:date:from:mime-version:dkim-signature;
+        bh=Wwv4OC/5UKkx+hi7JxDLNFBGMRfe7Oq9haS0eC+cjr8=;
+        b=fF+GZ7F6outKsytRl666KQe4vpy++PVRl8exWHR10gCVeUDZ3jeYrhFOeE/NApQhUU
+         VW947KXNLeDr/t2br/ltNjgyM7k2FlE1Ls333YzHZzwwy4UyG/sQL/tWvSWfEedvKX93
+         ymw/nE6Wc3OqiZr+WG46DJn+R8P5G58Ci2TqpkLlEohT2lma4u+D6vM985A4VYAiKHsL
+         gJeUyzCUv0TYPDgxoVVItXGnhhKaDokBiiiBXWDXUDDVtl6yVWof+wgOARHLIA87UsnQ
+         a//nYMiSOq/xKNjMlWf+QXIsvCMOqEXpaVxeKw6RS3zT0syw2w+SrYvVIZDd/hagYeYT
+         L7dA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v8si2767505qtj.135.2019.03.12.10.49.19
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=OLhnbQDK;
+       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d9sor1654960wru.27.2019.03.12.10.55.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 10:49:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Tue, 12 Mar 2019 10:55:39 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 67A057F6E3;
-	Tue, 12 Mar 2019 17:49:18 +0000 (UTC)
-Received: from [10.36.117.44] (ovpn-117-44.ams2.redhat.com [10.36.117.44])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 43C3F171C2;
-	Tue, 12 Mar 2019 17:49:15 +0000 (UTC)
-Subject: Re: xen: Can't insert balloon page into VM userspace (WAS Re:
- [Xen-devel] [linux-linus bisection] complete test-arm64-arm64-xl-xsm)
-To: Julien Grall <julien.grall@arm.com>, Matthew Wilcox <willy@infradead.org>
-Cc: osstest service owner <osstest-admin@xenproject.org>,
- xen-devel@lists.xenproject.org, Juergen Gross <jgross@suse.com>,
- Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
- Boris Ostrovsky <boris.ostrovsky@oracle.com>,
- Stefano Stabellini <sstabellini@kernel.org>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- Kees Cook <keescook@chromium.org>, k.khlebnikov@samsung.com,
- Julien Freche <jfreche@vmware.com>, Nadav Amit <namit@vmware.com>,
- "VMware, Inc." <pv-drivers@vmware.com>, linux-mm@kvack.org
-References: <E1h3Uiq-0002L6-Ij@osstest.test-lab.xenproject.org>
- <80211e70-5f54-9421-8e8f-2a4fc758ce39@arm.com>
- <46118631-61d4-adb6-6ffc-4e7c62ea3da9@arm.com>
- <20190312171421.GJ19508@bombadil.infradead.org>
- <e0b64793-260d-5e70-0544-e7290509b605@redhat.com>
- <180a9edf-855e-6a29-5724-cc0f929de71c@arm.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <e693ecf5-c28d-6b4b-d577-ed43b60ee079@redhat.com>
-Date: Tue, 12 Mar 2019 18:49:14 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=OLhnbQDK;
+       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:from:date:message-id:subject:to;
+        bh=Wwv4OC/5UKkx+hi7JxDLNFBGMRfe7Oq9haS0eC+cjr8=;
+        b=OLhnbQDKTFwW7rbhdfodrticak5jfV1/nlf6gF/G9jzt5kKvIL95B+zdnYhyN1GKEs
+         2W0PF4VrfRUsce+wJaJs3EvZGr9Di4vb3h2KXGNvL1EDikxMxZ5yD1i9PczSKiEJQyqO
+         w4osIiBFDjrAbc18UuYMhp302JJT8vUBet6dVrxt4Z8nEfHUQ64HChzv5gv3RQIVYmTJ
+         776dqQ66RLF7HTitqgAkGwcfi9EQWOEWu99KJrgTq94vYSCmNWxUIzEkJJfpn4SzJlvr
+         F96pGtEu3ThDXWUn/OM81ZeR1H+At70t9Ef/W1dd+/ZdWrhlt2mO1nY4WXzWHxgsugia
+         vSZg==
+X-Google-Smtp-Source: APXvYqz89FavtsZg/+uFfjZ1Yw2bJe5QT0wK+td0E1luKxixjMEdWvhGWWsz5XxW++KlnEIlQcHlvdBG93zxW4xpGnI=
+X-Received: by 2002:a5d:5510:: with SMTP id b16mr5515580wrv.163.1552413338806;
+ Tue, 12 Mar 2019 10:55:38 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <180a9edf-855e-6a29-5724-cc0f929de71c@arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Tue, 12 Mar 2019 17:49:18 +0000 (UTC)
+From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Date: Tue, 12 Mar 2019 22:55:27 +0500
+Message-ID: <CABXGCsM-SgUCAKA3=WpL7oWZ0Xq8A1Wf-Eh6MO0seee+TviDWQ@mail.gmail.com>
+Subject: kernel BUG at include/linux/mm.h:1020!
+To: linux-mm@kvack.org
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 12.03.19 18:39, Julien Grall wrote:
-> Hi David,
-> 
-> On 3/12/19 5:18 PM, David Hildenbrand wrote:
->> On 12.03.19 18:14, Matthew Wilcox wrote:
->>> On Tue, Mar 12, 2019 at 05:05:39PM +0000, Julien Grall wrote:
->>>> On 3/12/19 3:59 PM, Julien Grall wrote:
->>>>> It looks like all the arm test for linus [1] and next [2] tree
->>>>> are now failing. x86 seems to be mostly ok.
->>>>>
->>>>> The bisector fingered the following commit:
->>>>>
->>>>> commit 0ee930e6cafa048c1925893d0ca89918b2814f2c
->>>>> Author: Matthew Wilcox <willy@infradead.org>
->>>>> Date:   Tue Mar 5 15:46:06 2019 -0800
->>>>>
->>>>>       mm/memory.c: prevent mapping typed pages to userspace
->>>>>       Pages which use page_type must never be mapped to userspace as it would
->>>>>       destroy their page type.  Add an explicit check for this instead of
->>>>>       assuming that kernel drivers always get this right.
->>>
->>> Oh good, it found a real problem.
->>>
->>>> It turns out the problem is because the balloon driver will call
->>>> __SetPageOffline() on allocated page. Therefore the page has a type and
->>>> vm_insert_pages will deny the insertion.
->>>>
->>>> My knowledge is quite limited in this area. So I am not sure how we can
->>>> solve the problem.
->>>>
->>>> I would appreciate if someone could provide input of to fix the mapping.
->>>
->>> I don't know the balloon driver, so I don't know why it was doing this,
->>> but what it was doing was Wrong and has been since 2014 with:
->>>
->>> commit d6d86c0a7f8ddc5b38cf089222cb1d9540762dc2
->>> Author: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
->>> Date:   Thu Oct 9 15:29:27 2014 -0700
->>>
->>>      mm/balloon_compaction: redesign ballooned pages management
->>>
->>> If ballooned pages are supposed to be mapped into userspace, you can't mark
->>> them as ballooned pages using the mapcount field.
->>>
->>
->> Asking myself why anybody would want to map balloon inflated pages into
->> user space (this just sounds plain wrong but my understanding to what
->> XEN balloon driver does might be limited), but I assume the easy fix
->> would be to revert
-> 
-> Balloon pages are used to map foreign guest pages. As backend PV drivers 
-> may live in userspace (e.g QEMU, Xenconsoled...) we need to be able to
-> to insert balloon pages in the VM.
+Hi folks.
+I am observed kernel panic after updated to git commit 610cd4eadec4.
+I am did not make git bisect because this crashes occurs spontaneously
+and I not have exactly instruction how reproduce it.
 
-Okay, so this is really XEN specific (especially looking at Andrew's
-reply). All other balloon drivers told the hypervisor that the inflated
-page is dead and it is not going to be use before telling the hypervisor
-otherwise. Mapping to user space would violate that contract (and even
-be considered harmful in some hypervisor implementations).
+Hope backtrace below could help understand how fix it:
 
-> 
->>
->>
->> commit 2f085ff37d08ecbc7849d5abb9424bd7927dda1d
-> 
-> I guess you meant 77c4adf6a6df6f8f39807eaed48eb73d0eb4261e?
+page:ffffef46607ce000 is uninitialized and poisoned
+raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff ffffffffffffffff
+raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff ffffffffffffffff
+page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
+------------[ cut here ]------------
+kernel BUG at include/linux/mm.h:1020!
+invalid opcode: 0000 [#1] SMP NOPTI
+CPU: 1 PID: 118 Comm: kswapd0 Tainted: G         C
+5.1.0-0.rc0.git4.1.fc31.x86_64 #1
+Hardware name: System manufacturer System Product Name/ROG STRIX
+X470-I GAMING, BIOS 1201 12/07/2018
+RIP: 0010:__reset_isolation_pfn+0x244/0x2b0
+Code: fe 06 e8 cf 8d fc ff 44 0f b6 4c 24 04 48 85 c0 0f 85 dc fe ff
+ff e9 68 fe ff ff 48 c7 c6 70 cd 2e 8c 4c 89 ff e8 ec 74 00 00 <0f> 0b
+48 c7 c6 70 cd 2e 8c e8 de 74 00 00 0f 0b 48 89 fa 41 b8 01
+RSP: 0018:ffffbe2d43f1fde8 EFLAGS: 00010246
+RAX: 0000000000000034 RBX: 000000000081f380 RCX: ffff9a1e3cfd6c20
+RDX: 0000000000000000 RSI: 0000000000000006 RDI: ffff9a1e3cfd6c20
+RBP: 0000000000000001 R08: 000004bdd8f302a3 R09: 0000000000000000
+R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000100000
+R13: 0000000000100000 R14: 0000000000000001 R15: ffffef46607ce000
+FS:  0000000000000000(0000) GS:ffff9a1e3ce00000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 000038d164286000 CR3: 000000056c4ca000 CR4: 00000000003406e0
+Call Trace:
+ __reset_isolation_suitable+0x62/0x120
+ reset_isolation_suitable+0x3b/0x40
+ kswapd+0x147/0x540
+ ? finish_wait+0x90/0x90
+ kthread+0x108/0x140
+ ? balance_pgdat+0x560/0x560
+ ? kthread_park+0x90/0x90
+ ret_from_fork+0x27/0x50
+Modules linked in: macvtap macvlan tap uinput fuse rfcomm
+ipt_MASQUERADE tun bridge stp llc xt_conntrack nf_conntrack_netbios_ns
+nf_conntrack_broadcast xt_CT ebtable_nat iptable_nat nf_nat
+iptable_mangle iptable_raw iptable_security nf_conntrack
+nf_defrag_ipv6 nf_defrag_ipv4 libcrc32c cmac ip_set nfnetlink
+ebtable_filter ebtables bnep sunrpc vfat fat edac_mce_amd arc4 kvm_amd
+kvm r8822be(C) irqbypass uvcvideo eeepc_wmi asus_wmi videobuf2_vmalloc
+joydev sparse_keymap videobuf2_memops video snd_hda_codec_realtek
+wmi_bmof videobuf2_v4l2 mac80211 snd_hda_codec_generic
+videobuf2_common ledtrig_audio videodev snd_hda_codec_hdmi
+crct10dif_pclmul crc32_pclmul snd_usb_audio media snd_hda_intel
+snd_hda_codec snd_usbmidi_lib btusb snd_rawmidi btrtl snd_hda_core
+btbcm ghash_clmulni_intel btintel snd_hwdep bluetooth snd_seq
+snd_seq_device cfg80211 k10temp snd_pcm ecdh_generic rfkill snd_timer
+snd sp5100_tco soundcore ccp i2c_piix4 pcc_cpufreq gpio_amdpt
+gpio_generic acpi_cpufreq binfmt_misc
+ hid_sony ff_memless amdgpu hid_logitech_hidpp chash amd_iommu_v2
+gpu_sched ttm drm_kms_helper drm crc32c_intel igb nvme dca
+i2c_algo_bit hid_logitech_dj nvme_core wmi pinctrl_amd
+---[ end trace 44c9a3d09c80c5ae ]---
+RIP: 0010:__reset_isolation_pfn+0x244/0x2b0
+Code: fe 06 e8 cf 8d fc ff 44 0f b6 4c 24 04 48 85 c0 0f 85 dc fe ff
+ff e9 68 fe ff ff 48 c7 c6 70 cd 2e 8c 4c 89 ff e8 ec 74 00 00 <0f> 0b
+48 c7 c6 70 cd 2e 8c e8 de 74 00 00 0f 0b 48 89 fa 41 b8 01
+RSP: 0018:ffffbe2d43f1fde8 EFLAGS: 00010246
+RAX: 0000000000000034 RBX: 000000000081f380 RCX: ffff9a1e3cfd6c20
+RDX: 0000000000000000 RSI: 0000000000000006 RDI: ffff9a1e3cfd6c20
+RBP: 0000000000000001 R08: 000004bdd8f302a3 R09: 0000000000000000
+R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000100000
+R13: 0000000000100000 R14: 0000000000000001 R15: ffffef46607ce000
+FS:  0000000000000000(0000) GS:ffff9a1e3ce00000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 000038d164286000 CR3: 000000056c4ca000 CR4: 00000000003406e0
+------------[ cut here ]------------
+do not call blocking ops when !TASK_RUNNING; state=1 set at
+[<0000000088e85547>] prepare_to_wait+0x3a/0xc0
+WARNING: CPU: 1 PID: 118 at kernel/sched/core.c:6136 __might_sleep+0x6c/0x70
+Modules linked in: macvtap macvlan tap uinput fuse rfcomm
+ipt_MASQUERADE tun bridge stp llc xt_conntrack nf_conntrack_netbios_ns
+nf_conntrack_broadcast xt_CT ebtable_nat iptable_nat nf_nat
+iptable_mangle iptable_raw iptable_security nf_conntrack
+nf_defrag_ipv6 nf_defrag_ipv4 libcrc32c cmac ip_set nfnetlink
+ebtable_filter ebtables bnep sunrpc vfat fat edac_mce_amd arc4 kvm_amd
+kvm r8822be(C) irqbypass uvcvideo eeepc_wmi asus_wmi videobuf2_vmalloc
+joydev sparse_keymap videobuf2_memops video snd_hda_codec_realtek
+wmi_bmof videobuf2_v4l2 mac80211 snd_hda_codec_generic
+videobuf2_common ledtrig_audio videodev snd_hda_codec_hdmi
+crct10dif_pclmul crc32_pclmul snd_usb_audio media snd_hda_intel
+snd_hda_codec snd_usbmidi_lib btusb snd_rawmidi btrtl snd_hda_core
+btbcm ghash_clmulni_intel btintel snd_hwdep bluetooth snd_seq
+snd_seq_device cfg80211 k10temp snd_pcm ecdh_generic rfkill snd_timer
+snd sp5100_tco soundcore ccp i2c_piix4 pcc_cpufreq gpio_amdpt
+gpio_generic acpi_cpufreq binfmt_misc
+ hid_sony ff_memless amdgpu hid_logitech_hidpp chash amd_iommu_v2
+gpu_sched ttm drm_kms_helper drm crc32c_intel igb nvme dca
+i2c_algo_bit hid_logitech_dj nvme_core wmi pinctrl_amd
+CPU: 1 PID: 118 Comm: kswapd0 Tainted: G      D  C
+5.1.0-0.rc0.git4.1.fc31.x86_64 #1
+Hardware name: System manufacturer System Product Name/ROG STRIX
+X470-I GAMING, BIOS 1201 12/07/2018
+RIP: 0010:__might_sleep+0x6c/0x70
+Code: 41 5c 41 5d e9 35 fe ff ff 48 8b 90 48 2e 00 00 48 8b 70 10 48
+c7 c7 80 73 2f 8c c6 05 b5 ea 7c 01 01 48 89 d1 e8 fd be fc ff <0f> 0b
+eb c8 0f 1f 44 00 00 48 8b 87 a0 0a 00 00 8b 97 08 0b 00 00
+RSP: 0018:ffffbe2d43f1fea0 EFLAGS: 00010286
+RAX: 0000000000000000 RBX: ffff9a1e2f47b2c0 RCX: ffff9a1e3cfd6c20
+RDX: 0000000000000007 RSI: 0000000000000006 RDI: ffff9a1e3cfd6c20
+RBP: ffffffff8c2f1eae R08: 0000000000000001 R09: 0000000000000000
+R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000022
+R13: 0000000000000000 R14: ffff9a1e2f47b2c0 R15: 0000000000000000
+FS:  0000000000000000(0000) GS:ffff9a1e3ce00000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 000038d164286000 CR3: 000000056c4ca000 CR4: 00000000003406e0
+Call Trace:
+ exit_signals+0x30/0x240
+ ? finish_wait+0x90/0x90
+ do_exit+0xbc/0xd20
+ ? kthread+0x108/0x140
+ rewind_stack_do_exit+0x17/0x20
+irq event stamp: 18264061
+hardirqs last  enabled at (18264061): [<ffffffff8b02b87a>]
+do_error_trap+0xda/0x120
+hardirqs last disabled at (18264060): [<ffffffff8b0037fa>]
+trace_hardirqs_off_thunk+0x1a/0x1c
+softirqs last  enabled at (18263974): [<ffffffff8be0035f>]
+__do_softirq+0x35f/0x46a
+softirqs last disabled at (18263967): [<ffffffff8b0eddb2>] irq_exit+0x102/0x110
+---[ end trace 44c9a3d09c80c5af ]---
+------------[ cut here ]------------
+kernel BUG at kernel/sched/core.c:3536!
 
-Yes indeed, no idea where that commit id came from :)
-
-> 
-> I have reverted the patch and can now access the guest console. Is there 
-> a way to keep this patch and at the same time mapping the page in the 
-> userspace?
-
-Not without another page flag. And we all know that is unlikely to happen :)
-
-Thanks!
-
-> 
-> 
->> Author: David Hildenbrand <david@redhat.com>
->> Date:   Wed Mar 6 11:42:24 2019 +1100
->>
->>      xen/balloon: mark inflated pages PG_offline
->>
->>      Mark inflated and never onlined pages PG_offline, to tell the world that
->>      the content is stale and should not be dumped.
->>
->>
-> 
-> Cheers,
-> 
 
 
--- 
+Thanks.
 
-Thanks,
-
-David / dhildenb
+--
+Best Regards,
+Mike Gavrilov.
 
