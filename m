@@ -4,113 +4,110 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E2D48C4360F
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 03:14:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 06724C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 03:35:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9312520842
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 03:14:08 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 980D32084F
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 03:35:20 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="IHy3W6de"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9312520842
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="a+P5awS+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 980D32084F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2419D8E0003; Mon, 11 Mar 2019 23:14:08 -0400 (EDT)
+	id EB2AA8E0003; Mon, 11 Mar 2019 23:35:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1D4D58E0002; Mon, 11 Mar 2019 23:14:08 -0400 (EDT)
+	id E62778E0002; Mon, 11 Mar 2019 23:35:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 08F828E0003; Mon, 11 Mar 2019 23:14:08 -0400 (EDT)
+	id D51428E0003; Mon, 11 Mar 2019 23:35:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C27BB8E0002
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 23:14:07 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id 31so516432ota.8
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 20:14:07 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FFAB8E0002
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 23:35:19 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id i4so545299otf.3
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 20:35:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=7qWivrke1+JwuU7zvcFQdEBmYHHYCsO9zAVfk3gSSCA=;
-        b=fkWIzZUhZ7Sr+aCIfWDQu/rsORXS0e+GwKy3ryqPOT0eAfDsubMRFimsXMvup2jWv4
-         in0odQZ3uxmg/PhxudVZv1V7in1hN7DB0YmqEg4QsLzHPFR8RjKx3qdhSri2wFy0sLdN
-         rxdZib9nmuqMJRDgj12jugmTKgA+eGur/RonQCOchLDKeW13r/ahfwr4xiOwzBpavq9u
-         Lpvlw/vylcyCMV4nf7hZ0CWRgBClcACp5zye8vAqoBJ+4JnBqSqiNujTg/SH+v2qVBAU
-         XqW+T/FUdyUd5T4Eb0nnL0xeR9hRXzkQPVdXXvhQv4YGE92M2vSh8Hi4EC7x8jrfnDbZ
-         zreA==
-X-Gm-Message-State: APjAAAVoqcDUxfex2hKi1/DQTST1ECQvE7AfOUVCrOXFU2zlKiwEsJTe
-	dcqXoPhpFVQyEA7C2NtCpKNcmxJRFFM7WVRwJNFNc5u9SFnJEyNFOPQK3/iVB7vKE5JFsaQ/qGJ
-	gadBLYjQYYxGjdgiHrSyMJUcW73VQjlGKZTX82bG9AoKCtl+hcoLLc4gilmkkpkusew==
-X-Received: by 2002:aca:4e06:: with SMTP id c6mr349369oib.71.1552360447250;
-        Mon, 11 Mar 2019 20:14:07 -0700 (PDT)
-X-Received: by 2002:aca:4e06:: with SMTP id c6mr349334oib.71.1552360446160;
-        Mon, 11 Mar 2019 20:14:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552360446; cv=none;
+        bh=HV9Xo5Ma6lVYXnnefOkN3s7QC0UD+0lVGEF+kVfiIRk=;
+        b=oeynOMADsRV8aB8eV2H4LdFCBiDqBEFCrqtzq+CEWWnGuNl+Iwmj0Y4sSTtyV5l2zL
+         tivboD07J4dLeb1/pJ3c8MteUBv9qeuBaXi0LBoaoWMerKW5jXO6mdkhKv1kmTmEs5n8
+         KJ52glNwq/4x+4MEX2+NIcSgk3/ySGprVs+lTGUyZ1h6JVttF/Tbq5eZijw8TdfYq+/2
+         L5ddoqYHgGvx//+pILrbu7UNzg8xjdI9ngbcMygYcFOt5QfadSS7fa04ZCBVUQ0/ac5+
+         1xHkD7TYSEGuDpBa6QVfr2LQpW3Lctcflz21mzo/iu1MgjGCZdSw8OHt7AI+e7cUwoov
+         w9OQ==
+X-Gm-Message-State: APjAAAUgMKB4wgOKThIpzz0m9DjtSCwAzT6aQE0ebuvskU56d277m4lc
+	CsKpdPO664GHEUkNbhzI09qsgojODm/srjV6jAXdndz549R4Zn2cvbwLXjmw9mE30rVMA+pwxOt
+	drzzXjTQuYO/x/1YGdAjhxWvzamNONb1Qy3g4x4PQsp9bNAdcf4tWNkMWE2FtINUXePv0dl22in
+	SUrPRM930dG/vaOEGZp3ddNTBe0M6RDnboopXTlEXlVGxt7HuC4VeBnfCjmCOh+hdO8I+KPYv3M
+	tvvfrNsNrLB7XN+o398qL2I6keU7rWVbO5xVH7cphzWlzBS0YRJrzW/juAcCXS+gXkG7ZwRDMO8
+	UJHogz31FiV8ZXIpEgGgqYCJXuUw9l5w+LkTszyKAShXnWlDsDwLrTJvR7EV/A52UYngVTuo5S6
+	4
+X-Received: by 2002:aca:5450:: with SMTP id i77mr400974oib.174.1552361719221;
+        Mon, 11 Mar 2019 20:35:19 -0700 (PDT)
+X-Received: by 2002:aca:5450:: with SMTP id i77mr400949oib.174.1552361718332;
+        Mon, 11 Mar 2019 20:35:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552361718; cv=none;
         d=google.com; s=arc-20160816;
-        b=L8VblgcAopIVv7B8vwiuVk/P0Wlv2kkLRzI98JP7bAHt61fEHhtnIVWiVlfdc1Uz0G
-         8x0t3al7vcnhSAG99DLsAW635F0vrkYleziDXvSfCDrXteQyURVTN9SbUfu5yG2ZC7uX
-         OHmy/ppDV5f2REc5FSHtQhX7cwzTyxmYmkxYyp9Z2IEhpFdIsZPa7n0rhxrKqL4oodht
-         dAGrst7Hv+ArS3i8SwFc3qAeukXU7ULpzknhakAg+6kp5zFLRkwhSdYQsLcRofPtExCT
-         kMGBUu3pnzBmK2k6IS+SKjsbYRy+lQBhvvhwArGTGSYvMS8iEp/a9piEW2pC9KdaAfOi
-         VUuA==
+        b=ABOKNn++WCtqPyaDPuE2NipNIcNN2HvyiJSqftqs7vd9nC5F2UN0U5aMU1eFle+V3F
+         tEysT/am0hA5ULSIbzRDwBeq+Z0PN/JwV7s2idL5ubG3jxQJmjjDwHkIhOejIsMNO51h
+         8JGtf+9DhkvmdmIcujrnSiWpVFHSPXC+112TAMtBa7z5QC7qPEJbWvtUfINIpj+BUugr
+         8OlZmL/okx7wHdhz+PCXt4TsadqIJbrqdqTMsDU3/hxfZiYFqGlOmfM1PnfRkD6oQ73Q
+         yBp/Sl0k+1+wNLPylwEu16BE26EbMXWWXcwu+vTBoSHnRACxzHpLU529CXwa0vef++bI
+         AwNQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=7qWivrke1+JwuU7zvcFQdEBmYHHYCsO9zAVfk3gSSCA=;
-        b=yO05zu4MQUVC7bT26/2Ts0VW7HXPfIcEcEnCFDpNsNj7zfYUyEjpB+XayO0Ra2oCV0
-         3o57ih7aFxhPu2WCekXWrBQntHh+fTF5SW67Nt7qCjWKRntjR0BINHImbax4e5ZTRiGd
-         IrCL+zOIp8u1Ncd4B8Lft3ij+dauOpBmARTMBO/23KTyxpITkQ6Ra7JInH1iGDvwAay5
-         elFtcgkIlPq8M/fRUkywClocTxyP6wqGtCUGa8T4Z1a8LBvu9MMP9VJuXElbbmuRgYU3
-         Scvj4b6qHp2Fi8Y8RuuVoXQCZ36zXx1GePyhjnUxM8lIw0Y6VZiK3z8c/nBYCK7zzVD6
-         psDw==
+        bh=HV9Xo5Ma6lVYXnnefOkN3s7QC0UD+0lVGEF+kVfiIRk=;
+        b=SBNay4r2Pjjvx/jXrYIMtXRffxY9EVU6yRPlkWysvgJH0zefCyVeTGAE2nMn84UlFR
+         PQdrcEZNJ8SUbvyeTBH382Uf99EKT5xxGS7ZU/gwE5qJiUyRi0c7S7d827zIAdM+qvou
+         XbYMpBX784tFFOy3HZfg8ENbSXc5Z1gWZEMrAFCGZXJQ85Ht+cg+Hx0WE2nDpICW1kHQ
+         VogxBGliUFTaFgQVLabo3y+15wZBTU3VQrc5mQjbTsr8s/Q/d0pF2Ew7gCmHiIjTXgZP
+         KsPc84Ig1suG0bHJhambEzId3RNnp4agQ52AnbkxoT1zNOp4Ur5263Ep2AdZqQWxxxng
+         CigQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=IHy3W6de;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=a+P5awS+;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m4sor4423333otk.41.2019.03.11.20.14.05
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id m13sor4042570otn.97.2019.03.11.20.35.17
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 11 Mar 2019 20:14:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 11 Mar 2019 20:35:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=IHy3W6de;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=a+P5awS+;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=intel-com.20150623.gappssmtp.com; s=20150623;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=7qWivrke1+JwuU7zvcFQdEBmYHHYCsO9zAVfk3gSSCA=;
-        b=IHy3W6defCeVWZYQh+mwDXXzgdoiGiM9ZPoxi+t0V6RSb0enrLdUrdrsH/+cO0ESRu
-         pow8hTXrUvTPY8ub4I4WILV6GPWncs5UZzWThq+KRoKQ6Wt6hlt6arK9n/dAymH879rx
-         hgaVO9mHgNWfkJF7KTN7GjKu2+TBOtoYCbfx771O3bWwVxLs//2roMuT0mR2H0ebOApT
-         85GY04wPz8g7iJ56ZOiRKa1tgWhrhsjGsqodolkig6DErig6fWBFjoDXNG5OiffLJ2/x
-         WTlq47eDLuPvi6OOHPk7Ov/aYtAM2McbCP+xrE170rKhbrHq39nbCt8F4tg32TYLjMJW
-         Zm0g==
-X-Google-Smtp-Source: APXvYqzq2BNXr3IOMOHqX1ihZacbvqShg/WC5JuoL3Q3eN+1qDMtXiRWdE3qmeU0IrrnbFpKX+nxlWm9FiUKY6nJuxs=
-X-Received: by 2002:a05:6830:1c1:: with SMTP id r1mr22402830ota.229.1552360444860;
- Mon, 11 Mar 2019 20:14:04 -0700 (PDT)
+        bh=HV9Xo5Ma6lVYXnnefOkN3s7QC0UD+0lVGEF+kVfiIRk=;
+        b=a+P5awS+rHv8SYzpZkCKu06tF99ysSWmtYV0NVebAMMHSOrnd69FxXz5cDXGXcTnNk
+         Hqi4YJkOQDtFQKiC1IZYDviCQADNHx/H+lniP5PaNMrMIGwyP2Om2T52GGZLx+vuu3n7
+         VABvZk/Cu0B+gegCvVBhAy2hBpwRVEviEPbOivYhVFFnetsaobRzBkN+TLNUHE/Wgke5
+         1HIrT1YcrSEXFf2cAPx9jFR8UyMAfVTz683Mxya9JX7x08iPRdkxqQUhNEBuTysZ0MlB
+         Oz4eE9TN1Y1JGr/Zjde9K+rdQQat+A7WN1bd7X8rsoQ9makNrLnvWiBIoIFkty8Fxg0A
+         w8Gw==
+X-Google-Smtp-Source: APXvYqz3+xhcwjCTABnnnXaqWa211tTYNu9X+gsXADebkmDMCPT6c+SVz0UNy13y3/3bWz3gOG4LDoLrrfuMon9I190=
+X-Received: by 2002:a9d:4c85:: with SMTP id m5mr22472717otf.367.1552361716668;
+ Mon, 11 Mar 2019 20:35:16 -0700 (PDT)
 MIME-Version: 1.0
-References: <CAPcyv4hZMcJ6r0Pw5aJsx37+YKx4qAY0rV4Ascc9LX6eFY8GJg@mail.gmail.com>
- <20190130030317.GC10462@redhat.com> <CAPcyv4jS7Y=DLOjRHbdRfwBEpxe_r7wpv0ixTGmL7kL_ThaQFA@mail.gmail.com>
- <20190130183616.GB5061@redhat.com> <CAPcyv4hB4p6po1+-hJ4Podxoan35w+T6uZJzqbw=zvj5XdeNVQ@mail.gmail.com>
- <20190131041641.GK5061@redhat.com> <CAPcyv4gb+r==riKFXkVZ7gGdnKe62yBmZ7xOa4uBBByhnK9Tzg@mail.gmail.com>
- <20190305141635.8134e310ba7187bc39532cd3@linux-foundation.org>
- <CAA9_cmd2Z62Z5CSXvne4rj3aPSpNhS0Gxt+kZytz0bVEuzvc=A@mail.gmail.com>
- <20190307094654.35391e0066396b204d133927@linux-foundation.org> <20190307185623.GD3835@redhat.com>
-In-Reply-To: <20190307185623.GD3835@redhat.com>
+References: <CAPcyv4hwHpX-MkUEqxwdTj7wCCZCN4RV-L4jsnuwLGyL_UEG4A@mail.gmail.com>
+ <20190311150947.GD19508@bombadil.infradead.org>
+In-Reply-To: <20190311150947.GD19508@bombadil.infradead.org>
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 11 Mar 2019 20:13:53 -0700
-Message-ID: <CAPcyv4gkxmmkB0nofVOvkmV7HcuBDb+1VLR9CSsp+m-QLX_mxA@mail.gmail.com>
-Subject: Re: [PATCH 09/10] mm/hmm: allow to mirror vma of a file on a DAX
- backed filesystem
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Ralph Campbell <rcampbell@nvidia.com>, 
-	John Hubbard <jhubbard@nvidia.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+Date: Mon, 11 Mar 2019 20:35:05 -0700
+Message-ID: <CAPcyv4jG5r2LOesxSx+Mdf+L_gQWqnhk+gKZyKAAPTHy1Drvqw@mail.gmail.com>
+Subject: Re: Hang / zombie process from Xarray page-fault conversion (bisected)
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Linux MM <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>, "Barror, Robert" <robert.barror@intel.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -118,100 +115,41 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 7, 2019 at 10:56 AM Jerome Glisse <jglisse@redhat.com> wrote:
+On Mon, Mar 11, 2019 at 8:10 AM Matthew Wilcox <willy@infradead.org> wrote:
 >
-> On Thu, Mar 07, 2019 at 09:46:54AM -0800, Andrew Morton wrote:
-> > On Tue, 5 Mar 2019 20:20:10 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
+> On Thu, Mar 07, 2019 at 10:16:17PM -0800, Dan Williams wrote:
+> > Hi Willy,
 > >
-> > > My hesitation would be drastically reduced if there was a plan to
-> > > avoid dangling unconsumed symbols and functionality. Specifically one
-> > > or more of the following suggestions:
-> > >
-> > > * EXPORT_SYMBOL_GPL on all exports to avoid a growing liability
-> > > surface for out-of-tree consumers to come grumble at us when we
-> > > continue to refactor the kernel as we are wont to do.
+> > We're seeing a case where RocksDB hangs and becomes defunct when
+> > trying to kill the process. v4.19 succeeds and v4.20 fails. Robert was
+> > able to bisect this to commit b15cd800682f "dax: Convert page fault
+> > handlers to XArray".
 > >
-> > The existing patches use EXPORT_SYMBOL() so that's a sticking point.
-> > Jerome, what would happen is we made these EXPORT_SYMBOL_GPL()?
->
-> So Dan argue that GPL export solve the problem of out of tree user and
-> my personnal experience is that it does not. The GPU sub-system has tons
-> of GPL drivers that are not upstream and we never felt that we were bound
-> to support them in anyway. We always were very clear that if you are not
-> upstream that you do not have any voice on changes we do.
->
-> So my exeperience is that GPL does not help here. It is just about being
-> clear and ignoring anyone who does not have an upstream driver ie we have
-> free hands to update HMM in anyway as long as we keep supporting the
-> upstream user.
->
-> That being said if the GPL aspect is that much important to some then
-> fine let switch all HMM symbol to GPL.
-
-I should add that I would not be opposed to moving symbols to
-non-GPL-only over time, but that should be based on our experience
-with the stability and utility of the implementation. For brand new
-symbols there's just no data to argue that we can / should keep the
-interface stable, or that the interface exposes something fragile that
-we'd rather not export at all. That experience gathering and thrash is
-best constrained to upstream GPL-only drivers that are signing up to
-participate in that maturation process.
-
-So I think it is important from a practical perspective and is a lower
-risk way to run this HMM experiment of "merge infrastructure way in
-advance of an upstream user".
-
-> > > * A commitment to consume newly exported symbols in the same merge
-> > > window, or the following merge window. When that goal is missed revert
-> > > the functionality until such time that it can be consumed, or
-> > > otherwise abandoned.
+> > I see some direct usage of xa_index and wonder if there are some more
+> > pmd fixups to do?
 > >
-> > It sounds like we can tick this box.
+> > Other thoughts?
 >
-> I wouldn't be too strick either, when adding something in release N
-> the driver change in N+1 can miss N+1 because of bug or regression
-> and be push to N+2.
->
-> I think a better stance here is that if we do not get any sign-off
-> on the feature from driver maintainer for which the feature is intended
-> then we just do not merge.
+> I don't see why killing a process would have much to do with PMD
+> misalignment.  The symptoms (hanging on a signal) smell much more like
+> leaving a locked entry in the tree.  Is this easy to reproduce?  Can you
+> get /proc/$pid/stack for a hung task?
 
-Agree, no driver maintainer sign-off then no merge.
+It's fairly easy to reproduce, I'll see if I can package up all the
+dependencies into something that fails in a VM.
 
-> If after few release we still can not get
-> the driver to use it then we revert.
+It's limited to xfs, no failure on ext4 to date.
 
-As long as it is made clear to the driver maintainer that they have
-one cycle to consume it then we can have a conversation if it is too
-early to merge the infrastructure. If no one has time to consume the
-feature, why rush dead code into the kernel? Also, waiting 2 cycles
-means the infrastructure that was hard to review without a user is now
-even harder to review because any review momentum has been lost by the
-time the user show up, so we're better off keeping them close together
-in time.
+The hung process appears to be:
 
+     kworker/53:1-xfs-sync/pmem0
 
-> It just feels dumb to revert at N+1 just to get it back in N+2 as
-> the driver bit get fix.
+...and then the rest of the database processes grind to a halt from there.
 
-No, I think it just means the infrastructure went in too early if a
-driver can't consume it in a development cycle. Lets revisit if it
-becomes a problem in practice.
+Robert was kind enough to capture /proc/$pid/stack, but nothing interesting:
 
-> > > * No new symbol exports and functionality while existing symbols go unconsumed.
-> >
-> > Unsure about this one?
->
-> With nouveau upstream now everything is use. ODP will use some of the
-> symbol too. PPC has patchset posted to use lot of HMM too. I have been
-> working with other vendor that have patchset being work on to use HMM
-> too.
->
-> I have not done all those function just for the fun of it :) They do
-> have real use and user. It took a longtime to get nouveau because of
-> userspace we had a lot of catchup to do in mesa and llvm and we are
-> still very rough there.
-
-Sure, this one is less of a concern if we can stick to tighter
-timelines between infrastructure and driver consumer merge.
+[<0>] worker_thread+0xb2/0x380
+[<0>] kthread+0x112/0x130
+[<0>] ret_from_fork+0x1f/0x40
+[<0>] 0xffffffffffffffff
 
