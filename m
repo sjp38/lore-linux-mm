@@ -2,199 +2,250 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 35647C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 21:10:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 207D8C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 21:11:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DDCD72077B
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 21:10:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DDCD72077B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id D9781214AE
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 21:11:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D9781214AE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5F72B8E0005; Tue, 12 Mar 2019 17:10:12 -0400 (EDT)
+	id 752D08E0004; Tue, 12 Mar 2019 17:11:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5A4698E0002; Tue, 12 Mar 2019 17:10:12 -0400 (EDT)
+	id 702868E0002; Tue, 12 Mar 2019 17:11:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 493B68E0005; Tue, 12 Mar 2019 17:10:12 -0400 (EDT)
+	id 5F2F48E0004; Tue, 12 Mar 2019 17:11:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 03B858E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 17:10:12 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id v2so3955442pfn.14
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 14:10:11 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 33C3A8E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 17:11:25 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id k5so3628472qte.0
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 14:11:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=WHoBSpazQxbTj5zzDQc+0xfXtDWfyvD2aJzrJ7gW3Uc=;
-        b=ghpMw4YihoH5tChU31fDqFK4+rpCUGqvNCAvBmaDnv5A+LRAlg766YJHMu162qUAyY
-         Vq2IJniOGFRwmvvsd8veF7s59ZTXwYd+yGfRjMGRLXbYj56wUPm16y68OY/w2FkWQq7b
-         Pfy4PMFJkjhQO1BjeMwYnbhYJsCxz5w3T46Luc2WbEymMVL2g4G0QyHxZJHSjsF7oOy7
-         IlnVwMKjlr+KxT726vWiGehb3l4vL/L5Mz7ceLWvkONJJbjnZO5+IxH7J7tAo9ikTQMM
-         QnM/6DwnMZbPjdsGgTV40wl6evRQ5Uwk4KT2OK/zFvGg8PMf/0X3dhYrSHEaitMrSSlM
-         D5+w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: APjAAAUfDsqlYy0Al4JdcYd2Es9wqTi0O/eWUoEwYvVWTMqQTYyF61A0
-	Qz93Wboj+fIBUEvE9y39Xv7N/1bfLHUBf3FU/9vUrpumjfRUMsASbgm4Qeucrb0Yn1Ij6N+4NpL
-	V3uPCgKFrZT7em6TOMWe633ewvpgUr2d0+AIYDWxouF8S2GDPRvP5IbE79Mh/e2c9uQ==
-X-Received: by 2002:a17:902:2ba7:: with SMTP id l36mr19956307plb.246.1552425011439;
-        Tue, 12 Mar 2019 14:10:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyWGewktN4+75w17qtNEYmZirZmmeqqi6xWQhaX2XpQH/IQ935t6fR5WOSN3MTTfnEHjq5p
-X-Received: by 2002:a17:902:2ba7:: with SMTP id l36mr19956248plb.246.1552425010434;
-        Tue, 12 Mar 2019 14:10:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552425010; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=6D85umQO+3uCuVnh3eG7mrlbQDpMKyiC7PlzHjAJQLM=;
+        b=qjJHdyj5RDH41uj2vPM244jFspHUi3Z5EN5xPJsYhM+GR2c0kTG07mw2gpCcvmGId3
+         l1IME5ZqCwI5aH8fidCHQV0C6/bReT2kJntAuqw3I7056qOxRaYQNvoVQtqDEP/fjoGO
+         AIh5IbU9h7LQr/vpMaBd0PWF88xvs/HelHGKNhcKXtZhLegKQMTPbwMOFqx63Gxm/1pa
+         PiKveSCo8b1e7VNhcsDh5YISLFCibtRnHz/uPe2uP6uVWGSwXGko+AaCMzMnK0cQYUCp
+         VI+heFAAywMYGLMGAYgVuG6F7AXKaL5mRIySh36vDH21jfhXRjRqN/qp/MAapABy8oqq
+         BQPQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWTPT0UOTc0sM/YLDFM8n9qIgrhombhb0DG3/Gee5RZwpl3PyLS
+	OOTFN44RwXxmk3bos+RGMm8pftY+2kveuznnCEnITbNIpjEr3EMOvpzOpz5QfsTnhKCt7yaF0mg
+	E8U716pVNAB+p9HjUmryRAxlEuyG4OhjJZl2jtEoXqagF0imLlR2n8jhYV0UAJhOOAQ==
+X-Received: by 2002:ac8:3032:: with SMTP id f47mr2834367qte.105.1552425084984;
+        Tue, 12 Mar 2019 14:11:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzNASPL+BYySwfm8FcukuHitleHAdko2miLlOHj2qmt5JxkSOKC/DHC/WT5NW0CllBAo6bS
+X-Received: by 2002:ac8:3032:: with SMTP id f47mr2834329qte.105.1552425084126;
+        Tue, 12 Mar 2019 14:11:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552425084; cv=none;
         d=google.com; s=arc-20160816;
-        b=HGdvAfejsuYwh6F7tPkyGDhnVr1N5okad8LanvgUh86XAsM3mvYdovQ39QB5GARVul
-         VdcgzolcE57QFATmI1GdlhvlJejjTxPbxKGsaXYhQCLibdoa/OeIvb6z+nvKzJ6MXNjy
-         QFUjCKHdM0GnUZG/EF90f+/FL4DXvSgExGus3ks509nUg1IXIwktX09uS7qj/Y1D3lY0
-         FMYGWDRgtCiC5zsaSCGDvxe4orlzi1VakUCQZ7qPB/kMsA6C2x6xREY5O9cDqgZpDXpP
-         Ww16Og3Cor5M3+WatmITAND2lea1tv0reLed6TNlpKBdOgaKyJYapUNnFwqQY6Latq8q
-         VuCw==
+        b=1EICU4bxye2Nyr3DKofp7iMEP3ypCX1HU2X8qQNq6NaV+fCTEkYANK3MsmseS+y8G6
+         yV++vfCOtuZVDR8Jay4pJD6i2AGnC/sWL64Ufu+mD6unxZ+cMs84HtJrWKIwSsFpq+Uv
+         nw9JdlWzjD6ScQ4/q+F/ISuAKUPLn5u+C5tGnqUDhkgKXMOKLXKNYvJVjAPACwPK88+W
+         dEtQxvj+G4Jj9vnkMlI7KseIQgOPUkQ7/RHxFEXlIY5FQqzIbxKpfVrm0QBBQjNoC4DD
+         BcXEfAi7ItkadzNs0wdtY3qoCg3vjc4SnYk8LulcOz6FGpW/ySoZf+OT63GvA0VShOWz
+         jHtw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=WHoBSpazQxbTj5zzDQc+0xfXtDWfyvD2aJzrJ7gW3Uc=;
-        b=j6UKpauISpG+n/ffwTWfitF8Wh3FNPt4ld7u5MVvPUPNZ8xBlmVZHl91JU/grUaZVT
-         ntGI+nnDrMpat+E1dVYanD8tqWs+jWeyYUsgk/UZ/hMyQHS2YPAvdZrsawLWiMCDdDtx
-         A8e0i+8t9vjqboOvPf9S1nIiJ88WKlvaTjBVD7/qIJr32F26H1Az0305sJKshDwyyHyJ
-         V0+MRBGI9gYtP38OwDDXvtnyjTkornwSHS28cOOorkogruBQ83fWL6NFtOq92W5eJv03
-         xVi2CaagZqGGjX27ZaGPCsE3JK7TdkkLlxKStTOiDRp9Gy5NG/SOHT8EZW+kEI0uDu/P
-         zktg==
+        bh=6D85umQO+3uCuVnh3eG7mrlbQDpMKyiC7PlzHjAJQLM=;
+        b=pPrvsyt7YXF0USH+5L6QqCrQyzLVt6fZ6M5r+9A/wPPEoV86fuJoQH6S835ry9i635
+         O93pD/rxreHH7lGZp7yWkxYaJHnpwP2vApe33FuNi0yGsIRHfBVLYIkhmCFd7rSzFt7T
+         95jeNI/l1ceyFOS/D78L+dFtG2bRigGbg8R1QWSbxGEv66FJTYFDdWRZmqknt/P+DJQv
+         8Xlr0K6GfNd/EJBwu0q33kCUWzUaTMPA6XEH0EHVgq/ZlfUt6FwVId3EcME1NkulLTD9
+         tdHybYdWntbKC7gD9Evx1+TeYJLXXoPBUGnsVjr8zNemU5SjKdosf9GjQUik72jAPjvN
+         dEcA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i39si9350864plb.210.2019.03.12.14.10.10
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 51si2723878qvz.176.2019.03.12.14.11.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 14:10:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
+        Tue, 12 Mar 2019 14:11:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id CCA49E3C;
-	Tue, 12 Mar 2019 21:10:09 +0000 (UTC)
-Date: Tue, 12 Mar 2019 14:10:08 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Qian Cai <cai@lca.pw>
-Cc: catalin.marinas@arm.com, agraf@suse.de, paulus@ozlabs.org,
- benh@kernel.crashing.org, pe@ellerman.id.au, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, kvm-ppc@vger.kernel.org,
- linuxppc-dev@lists.ozlabs.org
-Subject: Re: [PATCH] kmemleak: skip scanning holes in the .bss section
-Message-Id: <20190312141008.39eca5a0f03aaf2b86178ae9@linux-foundation.org>
-In-Reply-To: <20190312191412.28656-1-cai@lca.pw>
-References: <20190312191412.28656-1-cai@lca.pw>
-X-Mailer: Sylpheed 3.6.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 3EB26307D844;
+	Tue, 12 Mar 2019 21:11:23 +0000 (UTC)
+Received: from sky.random (ovpn-121-1.rdu2.redhat.com [10.10.121.1])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id EA5474C3;
+	Tue, 12 Mar 2019 21:11:17 +0000 (UTC)
+Date: Tue, 12 Mar 2019 17:11:17 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>,
+	David Miller <davem@davemloft.net>, hch@infradead.org,
+	kvm@vger.kernel.org, virtualization@lists.linux-foundation.org,
+	netdev@vger.kernel.org, linux-kernel@vger.kernel.org,
+	peterx@redhat.com, linux-mm@kvack.org,
+	linux-arm-kernel@lists.infradead.org, linux-parisc@vger.kernel.org
+Subject: Re: [RFC PATCH V2 0/5] vhost: accelerate metadata access through
+ vmap()
+Message-ID: <20190312211117.GB25147@redhat.com>
+References: <56374231-7ba7-0227-8d6d-4d968d71b4d6@redhat.com>
+ <20190311095405-mutt-send-email-mst@kernel.org>
+ <20190311.111413.1140896328197448401.davem@davemloft.net>
+ <6b6dcc4a-2f08-ba67-0423-35787f3b966c@redhat.com>
+ <20190311235140-mutt-send-email-mst@kernel.org>
+ <76c353ed-d6de-99a9-76f9-f258074c1462@redhat.com>
+ <20190312075033-mutt-send-email-mst@kernel.org>
+ <1552405610.3083.17.camel@HansenPartnership.com>
+ <20190312200450.GA25147@redhat.com>
+ <1552424017.14432.11.camel@HansenPartnership.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1552424017.14432.11.camel@HansenPartnership.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Tue, 12 Mar 2019 21:11:23 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 Mar 2019 15:14:12 -0400 Qian Cai <cai@lca.pw> wrote:
-
-> The commit 2d4f567103ff ("KVM: PPC: Introduce kvm_tmp framework") adds
-> kvm_tmp[] into the .bss section and then free the rest of unused spaces
-> back to the page allocator.
+On Tue, Mar 12, 2019 at 01:53:37PM -0700, James Bottomley wrote:
+> I've got to say: optimize what?  What code do we ever have in the
+> kernel that kmap's a page and then doesn't do anything with it? You can
+> guarantee that on kunmap the page is either referenced (needs
+> invalidating) or updated (needs flushing). The in-kernel use of kmap is
+> always
 > 
-> kernel_init
->   kvm_guest_init
->     kvm_free_tmp
->       free_reserved_area
->         free_unref_page
->           free_unref_page_prepare
+> kmap
+> do something with the mapped page
+> kunmap
 > 
-> With DEBUG_PAGEALLOC=y, it will unmap those pages from kernel. As the
-> result, kmemleak scan will trigger a panic below when it scans the .bss
-> section with unmapped pages.
+> In a very short interval.  It seems just a simplification to make
+> kunmap do the flush if needed rather than try to have the users
+> remember.  The thing which makes this really simple is that on most
+> architectures flush and invalidate is the same operation.  If you
+> really want to optimize you can use the referenced and dirty bits on
+> the kmapped pte to tell you what operation to do, but if your flush is
+> your invalidate, you simply assume the data needs flushing on kunmap
+> without checking anything.
+
+Except other archs like arm64 and sparc do the cache flushing on
+copy_to_user_page and copy_user_page, not on kunmap.
+
+#define copy_user_page(to,from,vaddr,pg) __cpu_copy_user_page(to, from, vaddr)
+void __cpu_copy_user_page(void *kto, const void *kfrom, unsigned long vaddr)
+{
+	struct page *page = virt_to_page(kto);
+	copy_page(kto, kfrom);
+	flush_dcache_page(page);
+}
+#define copy_user_page(to, from, vaddr, page)	\
+	do {	copy_page(to, from);		\
+		sparc_flush_page_to_ram(page);	\
+	} while (0)
+
+And they do nothing on kunmap:
+
+static inline void kunmap(struct page *page)
+{
+	BUG_ON(in_interrupt());
+	if (!PageHighMem(page))
+		return;
+	kunmap_high(page);
+}
+void kunmap_high(struct page *page)
+{
+	unsigned long vaddr;
+	unsigned long nr;
+	unsigned long flags;
+	int need_wakeup;
+	unsigned int color = get_pkmap_color(page);
+	wait_queue_head_t *pkmap_map_wait;
+
+	lock_kmap_any(flags);
+	vaddr = (unsigned long)page_address(page);
+	BUG_ON(!vaddr);
+	nr = PKMAP_NR(vaddr);
+
+	/*
+	 * A count must never go down to zero
+	 * without a TLB flush!
+	 */
+	need_wakeup = 0;
+	switch (--pkmap_count[nr]) {
+	case 0:
+		BUG();
+	case 1:
+		/*
+		 * Avoid an unnecessary wake_up() function call.
+		 * The common case is pkmap_count[] == 1, but
+		 * no waiters.
+		 * The tasks queued in the wait-queue are guarded
+		 * by both the lock in the wait-queue-head and by
+		 * the kmap_lock.  As the kmap_lock is held here,
+		 * no need for the wait-queue-head's lock.  Simply
+		 * test if the queue is empty.
+		 */
+		pkmap_map_wait = get_pkmap_wait_queue_head(color);
+		need_wakeup = waitqueue_active(pkmap_map_wait);
+	}
+	unlock_kmap_any(flags);
+
+	/* do wake-up, if needed, race-free outside of the spin lock */
+	if (need_wakeup)
+		wake_up(pkmap_map_wait);
+}
+static inline void kunmap(struct page *page)
+{
+}
+
+because they already did it just above.
+
+
+> > Which means after we fix vhost to add the flush_dcache_page after
+> > kunmap, Parisc will get a double hit (but it also means Parisc was
+> > the only one of those archs needed explicit cache flushes, where
+> > vhost worked correctly so far.. so it kinds of proofs your point of
+> > giving up being the safe choice).
 > 
-> Since this is done way before the first kmemleak_scan(), just go
-> lockless to make the implementation simple and skip those pages when
-> scanning the .bss section. Later, those pages could be tracked by
-> kmemleak again once allocated by the page allocator. Overall, this is
-> such a special case, so no need to make it a generic to let kmemleak
-> gain an ability to skip blocks in scan_large_block().
-> 
-> BUG: Unable to handle kernel data access at 0xc000000001610000
-> Faulting instruction address: 0xc0000000003cc178
-> Oops: Kernel access of bad area, sig: 11 [#1]
-> LE PAGE_SIZE=64K MMU=Hash SMP NR_CPUS=256 DEBUG_PAGEALLOC NUMA pSeries
-> CPU: 3 PID: 130 Comm: kmemleak Kdump: loaded Not tainted 5.0.0+ #9
-> REGS: c0000004b05bf940 TRAP: 0300   Not tainted  (5.0.0+)
-> NIP [c0000000003cc178] scan_block+0xa8/0x190
-> LR [c0000000003cc170] scan_block+0xa0/0x190
-> Call Trace:
-> [c0000004b05bfbd0] [c0000000003cc170] scan_block+0xa0/0x190 (unreliable)
-> [c0000004b05bfc30] [c0000000003cc2c0] scan_large_block+0x60/0xa0
-> [c0000004b05bfc70] [c0000000003ccc64] kmemleak_scan+0x254/0x960
-> [c0000004b05bfd40] [c0000000003cdd50] kmemleak_scan_thread+0xec/0x12c
-> [c0000004b05bfdb0] [c000000000104388] kthread+0x1b8/0x1c0
-> [c0000004b05bfe20] [c00000000000b364] ret_from_kernel_thread+0x5c/0x78
-> Instruction dump:
-> 7fa3eb78 4844667d 60000000 60000000 60000000 60000000 3bff0008 7fbcf840
-> 409d00b8 4bfffeed 2fa30000 409e00ac <e87f0000> e93e0128 7fa91840
-> 419dffdc
-> 
+> What double hit?  If there's no cache to flush then cache flush is a
+> no-op.  It's also a highly piplineable no-op because the CPU has the L1
+> cache within easy reach.  The only event when flush takes a large
+> amount time is if we actually have dirty data to write back to main
+> memory.
 
-hm, yes, this is super crude.  I guess we can turn it into something
-more sophisticated if another caller is identified.
+The double hit is in parisc copy_to_user_page:
 
-> --- a/mm/kmemleak.c
-> +++ b/mm/kmemleak.c
-> @@ -237,6 +237,10 @@ static int kmemleak_skip_disable;
->  /* If there are leaks that can be reported */
->  static bool kmemleak_found_leaks;
->  
-> +/* Skip scanning of a range in the .bss section. */
-> +static void *bss_hole_start;
-> +static void *bss_hole_stop;
-> +
->  static bool kmemleak_verbose;
->  module_param_named(verbose, kmemleak_verbose, bool, 0600);
->  
-> @@ -1265,6 +1269,18 @@ void __ref kmemleak_ignore_phys(phys_addr_t phys)
->  }
->  EXPORT_SYMBOL(kmemleak_ignore_phys);
->  
-> +/**
-> + * kmemleak_bss_hole - skip scanning a range in the .bss section
-> + *
-> + * @start:	start of the range
-> + * @stop:	end of the range
-> + */
-> +void kmemleak_bss_hole(void *start, void *stop)
-> +{
-> +	bss_hole_start = start;
-> +	bss_hole_stop = stop;
-> +}
+#define copy_to_user_page(vma, page, vaddr, dst, src, len) \
+do { \
+	flush_cache_page(vma, vaddr, page_to_pfn(page)); \
+	memcpy(dst, src, len); \
+	flush_kernel_dcache_range_asm((unsigned long)dst, (unsigned long)dst + len); \
+} while (0)
 
-I'll make this __init.
+That is executed just before kunmap:
 
->  /*
->   * Update an object's checksum and return true if it was modified.
->   */
-> @@ -1531,7 +1547,14 @@ static void kmemleak_scan(void)
->  
->  	/* data/bss scanning */
->  	scan_large_block(_sdata, _edata);
-> -	scan_large_block(__bss_start, __bss_stop);
-> +
-> +	if (bss_hole_start) {
-> +		scan_large_block(__bss_start, bss_hole_start);
-> +		scan_large_block(bss_hole_stop, __bss_stop);
-> +	} else {
-> +		scan_large_block(__bss_start, __bss_stop);
-> +	}
-> +
->  	scan_large_block(__start_ro_after_init, __end_ro_after_init);
->  
->  #ifdef CONFIG_SMP
+static inline void kunmap(struct page *page)
+{
+	flush_kernel_dcache_page_addr(page_address(page));
+}
+
+Can't argue about the fact your "safer" kunmap is safer, but we cannot
+rely on common code unless we remove some optimization from the common
+code abstractions and we make all archs do kunmap like parisc.
+
+Thanks,
+Andrea
 
