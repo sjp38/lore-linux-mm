@@ -2,137 +2,147 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C56DFC4360F
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 04:09:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 95ACEC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 04:35:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8DB08214AE
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 04:09:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8DB08214AE
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=zeniv.linux.org.uk
+	by mail.kernel.org (Postfix) with ESMTP id 505932087C
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 04:35:17 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="dPZiNMzA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 505932087C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1A3EC8E0003; Tue, 12 Mar 2019 00:09:00 -0400 (EDT)
+	id C63418E0004; Tue, 12 Mar 2019 00:35:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 150EA8E0002; Tue, 12 Mar 2019 00:09:00 -0400 (EDT)
+	id C133C8E0002; Tue, 12 Mar 2019 00:35:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 041738E0003; Tue, 12 Mar 2019 00:09:00 -0400 (EDT)
+	id B01CE8E0004; Tue, 12 Mar 2019 00:35:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A597F8E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 00:08:59 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id l1so515421wrn.13
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 21:08:59 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 847C18E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 00:35:16 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id n16so1162882qtp.14
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 21:35:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent:sender;
-        bh=uXh7454/9Uf8isKtFfGwageUQb08ErDcitp4OA86oVI=;
-        b=PsHsRy1YbO5lIPkQqUEyx99rVvz6I1iR0NNVK4+lZlCdf+r1FhlZQZA6+GcA+r/kFG
-         GD+vZm8KOrRe7/pQTUOo56gZ2o6NRfIAZmALRrlLQrnZ9EK5Qdy9A4xaHj+yR7nrgFDE
-         05xz2tdJCZd23Q9x2vKv10QkyhmPmAqqjcrWOtheSrG8j8AGKY7THAmYCnE/0j8CGcgW
-         jzQ38LvhSLOUxTjGZqqiipDe9BG9+YMJnsvskkVaCY1NZ8M3DHYngyID11en/FNfKrNs
-         gT6zkCUsvOySRaCZzmG3ZUYZARQr3Lu1QAf3uY7l6s2y/bJ1bN9FOHIyp4XjYQvswbSO
-         f6aQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
-X-Gm-Message-State: APjAAAURQmJntFYOqqwivnK+qcFRMdiayePDENQBxP0MFOEutcrd8yaX
-	KsZfIohl39EEBsOIZilsRzUj8SJqb2TM7wgVgeOU6PJRlbq6e2ReRoBlq0K8cMdRSitFzjnVTM4
-	U/v2Cx9YTFKYiJmNMLPFbtdWKTo5fWC5Y71EXnyU9eyCdX0Mq+ZAGcWNbAP8atuTerg==
-X-Received: by 2002:a1c:d18a:: with SMTP id i132mr806226wmg.27.1552363739236;
-        Mon, 11 Mar 2019 21:08:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyra6jahAlTYfPCDVhuUy+q9MbNEfirrac53M0Uu/iePGkKNFfPOOEnZKr09jv4OyZKqHGl
-X-Received: by 2002:a1c:d18a:: with SMTP id i132mr806202wmg.27.1552363738401;
-        Mon, 11 Mar 2019 21:08:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552363738; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version
+         :feedback-id;
+        bh=4mqdNc8jzh5hJ0hdB0WUXyd0kgpmExzkooynOQeDpZQ=;
+        b=gPUWqumwOrGMrUmPreVJsOTvOPoGRqPHrankrAmRH3nC4cHIICspDlsq2pqSHSMCIx
+         JvX5lEKkYdujhi6KrtliD39xz3uCrGX3HD5aoy/4Nhh+flKbksum6NA8T6HMgOkWdyg1
+         wLiY61HbHE10qHa0cN0JYAuLRfD61+mJW81fooaeZNeV+gqlWp6QKvOcB/kA3nrfJEvl
+         8Igv+j5aTMD9vzQx7N2Kha69fnebOkK2ZmxBLHt5KPAvYwx+DBWOGLVbExLD/vAq2TNy
+         BSDJuzC5kLtwqHoJa/znIgOF1EkjH0U2lryUNxQ7ljg8+eXAHN5Q7Bgo21ZkbCQuiSjX
+         8UzA==
+X-Gm-Message-State: APjAAAXktZdfzCAiq39YRbSBhOPOZYaQ8SmolIZg2ht0BPmnu5aOCz9o
+	zGraxlZGbhlJkPVDJBXGX5siORm2pIWeMGxVQ3IhSIDRQzh0VPOaVjE1xIVGU8lxU0u08C25/Ro
+	zNUIKwyfnQ+2ZirrVR2bD11yZcthAflAvfqzZmtUrO8aF1COX/cmc6VmkU6JHZPE=
+X-Received: by 2002:a37:8301:: with SMTP id f1mr2081326qkd.215.1552365316257;
+        Mon, 11 Mar 2019 21:35:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwzbGMLi6lP0eOtmlS1ILhko5P/jKlDhFsQxVaHPKupT14Qxl41WPSxTGUjURM0QmF31WQ8
+X-Received: by 2002:a37:8301:: with SMTP id f1mr2081304qkd.215.1552365315540;
+        Mon, 11 Mar 2019 21:35:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552365315; cv=none;
         d=google.com; s=arc-20160816;
-        b=KyRsY+BSTDpHGRYSlgjrF98wDBGlXov0EPHfmYWWb5QJD1sT9JBn6sYc4hGz89JOdB
-         QESZ9u+DA8uutVjyorHIb6Gf0kE4m9YCVmKkQqgLClOaZGRRmnDq4jIFt9MfIn4+dmhl
-         4UdiY/FyWcYHNTzs0lh4ElfJOhazXVOuazevi7OHJpSfl7rsDGCb5dJB1b9zJ715HS4n
-         me3bzr15+lpU/0rTx9I8v8Ua8Z/4UDrigGePw00o3mdlh+gXqBUAvpx0cmXrTxqTBAZF
-         cSdT6NwaL9WXR0CzuhqON3S9RIUNH8cT3fwqDZe9A/t55FH82sGnLXb1pYMbk/R4ZerZ
-         g7dQ==
+        b=edbFzFyuwmPoBbw2VGZIye5kJ2k7AtanMY7IyahCtpaSORy5+Wq8yUn0M5TkkcXoyr
+         BTN5roZGS2fz33LsiSaCcw26vI+nqb1S4i6szF7WNDNF9n4afGqeeaLQdibtI5MuclQt
+         0mEKC5H1GYvIKrGGEQfgsSPZBaGQaJ1ue9u/YELNJHm9VAzrfyKdYjwA6gmwLSMADjTO
+         bOacNuDswwhLM/Z9x2fC+U7j4EmGm1UWMUe04sLyHtJGW+ZI/hqby1Aqu682Y/PC07V5
+         FngAg+nSZMICtTNrhGHeJzrPFL4o87izTr82MCkyXYWGBpQfJW+CcMdHnlFRfnGsborq
+         rUDA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=sender:user-agent:in-reply-to:content-disposition:mime-version
-         :references:message-id:subject:cc:to:from:date;
-        bh=uXh7454/9Uf8isKtFfGwageUQb08ErDcitp4OA86oVI=;
-        b=yyFXprhuAkqzNU8stw4ktWVps8wfZPQbp284X3pb0iyoKp8yMbfpMfUbr/lAPOqT05
-         qU02VviSZildx8gaEoIvaSf2zawTmqNN4HsmxvqP/PBYJt1fcLG8bBwYBZ8lHz+ntAtW
-         mlqDe59OaaUEj5uhL+6cgJPbb04jgXkYV+7tOSPv4FnVFd/WVq0X/WmpRwzjBWm1FVuS
-         F4c2yC2ar/UZ8lJ1/hH7jq8s77hHPxDJIzW2hwleMQhjanqbJpvfqj9y2guZEI2DvZgv
-         1wdul3byFcpSXjnkSjNliRu16AEcL8NWvd/21xP2eIRqKgRWwh7MtybtYugkz4dGFvuC
-         aveg==
+        h=feedback-id:mime-version:user-agent:references:message-id
+         :in-reply-to:subject:cc:to:from:date:dkim-signature;
+        bh=4mqdNc8jzh5hJ0hdB0WUXyd0kgpmExzkooynOQeDpZQ=;
+        b=MAJm0Y8DCOyW5sB3zD21rls+DrXHCN5gDeqv7OkTiDvGIt5r46Gs9iyQ/jg0q5ErV4
+         qMrcQZTyBuXxi6oH40BDq6er6ftD6nh7cP6dKynGnnNJVd4kvfFtHz6wEHGfchiQjR2D
+         p8IU37xzZapfrPLshWK3vgS3/1G/GEclcCPmhdJBNzXUeGHloUSZWl/NYobZZqjRhHyz
+         WzGiBFoqffgqWMddm/4G16OrIoRQnO3JOsNjjJi/nhRBqUlscPgsiClAasjrK7/HFWKz
+         LD3BEcxz2l1ue4Sf0NsJ8pwxK7+RwgK/xPrKTde/ZbmWLlJo0Sw/496a3hLpzHj3HDsX
+         z23w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
-Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
-        by mx.google.com with ESMTPS id i7si4649849wrp.46.2019.03.11.21.08.58
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=dPZiNMzA;
+       spf=pass (google.com: domain of 01000169702ee357-fe8b85e5-e601-41da-8ba2-25e8b7db52eb-000000@amazonses.com designates 54.240.9.46 as permitted sender) smtp.mailfrom=01000169702ee357-fe8b85e5-e601-41da-8ba2-25e8b7db52eb-000000@amazonses.com
+Received: from a9-46.smtp-out.amazonses.com (a9-46.smtp-out.amazonses.com. [54.240.9.46])
+        by mx.google.com with ESMTPS id c28si4284141qkk.3.2019.03.11.21.35.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 11 Mar 2019 21:08:58 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) client-ip=195.92.253.2;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 11 Mar 2019 21:35:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 01000169702ee357-fe8b85e5-e601-41da-8ba2-25e8b7db52eb-000000@amazonses.com designates 54.240.9.46 as permitted sender) client-ip=54.240.9.46;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
-Received: from viro by ZenIV.linux.org.uk with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1h3YiL-0003ts-SD; Tue, 12 Mar 2019 04:08:30 +0000
-Date: Tue, 12 Mar 2019 04:08:29 +0000
-From: Al Viro <viro@zeniv.linux.org.uk>
-To: syzbot <syzbot+1505c80c74256c6118a5@syzkaller.appspotmail.com>
-Cc: airlied@linux.ie, akpm@linux-foundation.org, amir73il@gmail.com,
-	chris@chris-wilson.co.uk, darrick.wong@oracle.com,
-	david@fromorbit.com, dri-devel@lists.freedesktop.org,
-	dvyukov@google.com, eparis@redhat.com, hannes@cmpxchg.org,
-	hughd@google.com, intel-gfx@lists.freedesktop.org, jack@suse.cz,
-	jani.nikula@linux.intel.com, joonas.lahtinen@linux.intel.com,
-	jrdr.linux@gmail.com, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, mingo@redhat.com, mszeredi@redhat.com,
-	penguin-kernel@i-love.sakura.ne.jp, peterz@infradead.org,
-	rodrigo.vivi@intel.com, syzkaller-bugs@googlegroups.com,
-	willy@infradead.org
-Subject: Re: INFO: rcu detected stall in sys_sendfile64 (2)
-Message-ID: <20190312040829.GQ2217@ZenIV.linux.org.uk>
-References: <00000000000010b2fc057fcdfaba@google.com>
- <0000000000008c75b50583ddb5f8@google.com>
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=dPZiNMzA;
+       spf=pass (google.com: domain of 01000169702ee357-fe8b85e5-e601-41da-8ba2-25e8b7db52eb-000000@amazonses.com designates 54.240.9.46 as permitted sender) smtp.mailfrom=01000169702ee357-fe8b85e5-e601-41da-8ba2-25e8b7db52eb-000000@amazonses.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1552365315;
+	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
+	bh=IbeuS+zdcBFTccbustqiwuLJ9wpMqCNVsFWBtNbKAts=;
+	b=dPZiNMzAgEKy+d5R3GmABBmXu0+p3BIgveTRcb7Y/V7shB2pxnRd55Rqpq7Yz/RQ
+	7+pnOikBn+Tz2XvX+HJq2s3moWzsIlT6WXoDzB+cHCSn8yPHAMbQ+c+XWdpOzK9LIjj
+	1sdDXaJUK9OT5kVjMh14wrdnAv2+iM2QHZ5z4Jjw=
+Date: Tue, 12 Mar 2019 04:35:15 +0000
+From: Christopher Lameter <cl@linux.com>
+X-X-Sender: cl@nuc-kabylake
+To: Roman Gushchin <guro@fb.com>
+cc: "Tobin C. Harding" <tobin@kernel.org>, 
+    Andrew Morton <akpm@linux-foundation.org>, 
+    Pekka Enberg <penberg@cs.helsinki.fi>, 
+    Matthew Wilcox <willy@infradead.org>, Tycho Andersen <tycho@tycho.ws>, 
+    "linux-mm@kvack.org" <linux-mm@kvack.org>, 
+    "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [RFC 02/15] slub: Add isolate() and migrate() methods
+In-Reply-To: <20190311215106.GA7915@tower.DHCP.thefacebook.com>
+Message-ID: <01000169702ee357-fe8b85e5-e601-41da-8ba2-25e8b7db52eb-000000@email.amazonses.com>
+References: <20190308041426.16654-1-tobin@kernel.org> <20190308041426.16654-3-tobin@kernel.org> <20190311215106.GA7915@tower.DHCP.thefacebook.com>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0000000000008c75b50583ddb5f8@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset=US-ASCII
+X-SES-Outgoing: 2019.03.12-54.240.9.46
+Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 11, 2019 at 08:59:00PM -0700, syzbot wrote:
-> syzbot has bisected this bug to:
-> 
-> commit 34e07e42c55aeaa78e93b057a6664e2ecde3fadb
-> Author: Chris Wilson <chris@chris-wilson.co.uk>
-> Date:   Thu Feb 8 10:54:48 2018 +0000
-> 
->     drm/i915: Add missing kerneldoc for 'ent' in i915_driver_init_early
-> 
-> bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=13220283200000
-> start commit:   34e07e42 drm/i915: Add missing kerneldoc for 'ent' in i915..
-> git tree:       upstream
-> final crash:    https://syzkaller.appspot.com/x/report.txt?x=10a20283200000
-> console output: https://syzkaller.appspot.com/x/log.txt?x=17220283200000
-> kernel config:  https://syzkaller.appspot.com/x/.config?x=abc3dc9b7a900258
-> dashboard link: https://syzkaller.appspot.com/bug?extid=1505c80c74256c6118a5
-> userspace arch: amd64
-> syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=12c4dc28c00000
-> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=15df4108c00000
-> 
-> Reported-by: syzbot+1505c80c74256c6118a5@syzkaller.appspotmail.com
-> Fixes: 34e07e42 ("drm/i915: Add missing kerneldoc for 'ent' in
-> i915_driver_init_early")
+On Mon, 11 Mar 2019, Roman Gushchin wrote:
 
-Umm...  Might be a good idea to add some plausibility filters - it is,
-in theory, possible that adding a line in a comment changes behaviour
-(without compiler bugs, even - playing with __LINE__ is all it would
-take), but the odds that it's _not_ a false positive are very low.
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -4325,6 +4325,34 @@ int __kmem_cache_create(struct kmem_cache *s, slab_flags_t flags)
+> >  	return err;
+> >  }
+> >
+> > +void kmem_cache_setup_mobility(struct kmem_cache *s,
+> > +			       kmem_cache_isolate_func isolate,
+> > +			       kmem_cache_migrate_func migrate)
+> > +{
+>
+> I wonder if it's better to adapt kmem_cache_create() to take two additional
+> argument? I suspect mobility is not a dynamic option, so it can be
+> set on kmem_cache creation.
+
+One other idea that prior versions of this patchset used was to change
+kmem_cache_create() so that the ctor parameter becomes an ops vector.
+
+However, in order to reduce the size of the patchset I dropped that. It
+could be easily moved back to the way it was before.
+
+> > +	/*
+> > +	 * Sadly serialization requirements currently mean that we have
+> > +	 * to disable fast cmpxchg based processing.
+> > +	 */
+>
+> Can you, please, elaborate a bit more here?
+
+cmpxchg based processing does not lock the struct page. SMO requires to
+ensure that all changes on a slab page can be stopped. The page->lock will
+accomplish that. I think we could avoid dealing with actually locking the
+page with some more work.
 
