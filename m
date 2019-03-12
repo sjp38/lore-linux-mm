@@ -2,147 +2,147 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 82516C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 01:54:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6C2B9C10F06
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 02:02:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2C253214AE
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 01:54:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1B6842175B
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 02:02:35 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="Uf/KtrOT";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="2HSi7Br/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2C253214AE
+	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="qNSobwJB";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="OBy44wk1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B6842175B
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=tobin.cc
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B56168E0004; Mon, 11 Mar 2019 21:54:57 -0400 (EDT)
+	id AB3F58E0004; Mon, 11 Mar 2019 22:02:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ADCE78E0002; Mon, 11 Mar 2019 21:54:57 -0400 (EDT)
+	id A3B618E0002; Mon, 11 Mar 2019 22:02:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9A5928E0004; Mon, 11 Mar 2019 21:54:57 -0400 (EDT)
+	id 8B4968E0004; Mon, 11 Mar 2019 22:02:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7517B8E0002
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 21:54:57 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id x12so943398qtk.2
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 18:54:57 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 66D248E0002
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 22:02:34 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id o135so795757qke.11
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 19:02:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:dkim-signature:date:from:to:cc
          :subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=DWxYFqFht/GTnBUrw50jGcXbdTjgIErrdzyLX70BJKc=;
-        b=r9HRvV7/qDKqQOUmfPjzhLES2yZJZrRyO0CAHu82gz/VouwwK6ch80exQQm3KDimZq
-         RaYIQQWo+cHFv/9twSgrQxYYWRXQIcE7rRnwgSUdh5tek9DsrdGxRLv9xThLlgLMfsqN
-         858kRck3NYSaDV+mXbCAE0ybmdBdKXu3hgoWKEZYtwQhEqEYWo6QdsU0E4EsoQbmYl86
-         mwHlsj4Pl+2wl1gi5DwtxtA5q0mF1mmi/DsmEImg/VLTFuzn/FmXV/zMhaYd1H73wrWj
-         9zOmL3F9BGop1YZ2fm++RH2NKiPgqaxPyakUsGHAd7sTb091Xq9f0XCpomCn51kT54d9
-         3r0Q==
-X-Gm-Message-State: APjAAAX+raGmSVdD+NrRYrtYLoQ4km8nfbVYPIxX85+KEqXPeSaakYuo
-	W876TUfo7Qx6/51EME9qOLWL6QD2K7CfCChiS0U3EAnNmY5KTTUm+24NZO8PPp/0gNyjUmBVxOs
-	/X7pi1NeW9mlpKFvoM2l1+9p845QdzrAywCHTOnb7qyCxpZ9cnb1IEBOfABLtLv4K+A==
-X-Received: by 2002:ac8:2deb:: with SMTP id q40mr4347789qta.272.1552355697203;
-        Mon, 11 Mar 2019 18:54:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqycAUNO9W5QS7/u1pJ9IWe0mJAJ1mppXpjm2Flh/ul4TKNX/G9LCglu2W76/F1Yt+4r6A4c
-X-Received: by 2002:ac8:2deb:: with SMTP id q40mr4347773qta.272.1552355696492;
-        Mon, 11 Mar 2019 18:54:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552355696; cv=none;
+        bh=t+vi9vkWEvQdhqL9XEq4Jv0l/8VRKRuscgdakwpYeMI=;
+        b=Qy1VtUmrH1hO+m79PiWsbdOBE6AjyUSRVProo7O/GlmKZ8f3Y8cW2+u6AFpCI+Eoyh
+         8sEBDzBnvwCJ50n5u0KWXRjS8zPWIe1sZPlXFXrEMRG8BepcapHanywaEYsHanLZUY6E
+         e9aTDexWD+ZMngnRapEzjcTwlwt+uYif+l4zVmslXLke032baciFVmRcd8CjJuHQ2WzY
+         ZMVxOZWOZmlAqxYNu2LwxJoYXd8mFF331hxrC9FPtwVLG/pd5yIKsTdbBuITdRkJjb4P
+         n5ngRLRM9YLp5xcUxear3JD7Bwe8R2OttQAw4IVJBtfxzIXJI1JRagMa7IgpL98yGVu5
+         A9jA==
+X-Gm-Message-State: APjAAAUOuGOVT819Dq7otNNoBTvQBT/+de0GKwWKsT1EFc56sDMv04GT
+	nnyaZRn+F2P7s1cmO7C9LTTRlBbZBSB+RQeIfVhSY2IDy4eiTxpXhb7Kh32e6UNKDAoAHC86s67
+	WLfEK5Vxjl4kfYXiQ5BmvG8P6MlWBum4zmRy8kn2sDEFZSYqEBreKhSkcXOayCFIluw==
+X-Received: by 2002:ac8:7194:: with SMTP id w20mr11867569qto.213.1552356154224;
+        Mon, 11 Mar 2019 19:02:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwjj+uDNWMZZ5jGNketiomLr6YoXPUfCxC9lZU0Vx8A5TOHqSLb6HT9JU1HyWcwegxhMwsR
+X-Received: by 2002:ac8:7194:: with SMTP id w20mr11867534qto.213.1552356153495;
+        Mon, 11 Mar 2019 19:02:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552356153; cv=none;
         d=google.com; s=arc-20160816;
-        b=hBeZ3YE1X8XX7/z5ZjG7kjLyiEwlqbvUG6Vq/gDAcImjAFSA6McddydlsBSMgZCFWC
-         DVO1xhyzUtoHGwbifLxO2DN+NpvaYC8+0FnIJgupVZ6/0rCotNkTJiXrNiwEyEx9J/xu
-         hU7HBeUYspFIxEWxWHuAFY7bcY4uYcT0A9P8YYUnQYqVShbTkxONbo74JM83nZFFfrbb
-         YJWMbODJYZMp062PI5C2C8uB9j3IDEEYJRfpd/cIMS/0aLQSLcMa3BkecNZQ0nspSiT6
-         NPhYjSUj0c+p23b2jyIikf65ne0pU+N/b7R6uv4bcl8sO+4vQu2jPFmQ3SiieNP7B1s2
-         5bPQ==
+        b=zSRu/y171Myz7MzFrvEk4hOR0iZqko3qOYl3sqOuk/RS6TliGWudti2ZlsdZCoDxA3
+         zq/hjBRzMwQvV0lUk1MfdyhqVNMC7bFXJyVQ1YGT+wJ6DYKNBe1xYSMRxnjpOznUQcqs
+         4IqZImaOlvbzSipHmGKpQE18PQCeZ2r+0LrohT+Oxn0kcO1WU1cDUi0Eh4svWiq2IZ86
+         r2HTRXIHTQ1AcWQGW7eXo5vAFvNi5kmywucnpPMHQ4Sn1BdPdHuit+bDbDUq77jYtdZV
+         pWBYlII5tHQy3/cvodoHfqH6t9GUHb9pXH9ugosgn/S/MxQCbGJ8j3F+cyf5E6bSrUd+
+         7gbg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature:dkim-signature;
-        bh=DWxYFqFht/GTnBUrw50jGcXbdTjgIErrdzyLX70BJKc=;
-        b=C+B0CjcBK2rmGk79rQUADraRDDu+poObSC4i9S6tezMCe5PU7ioagtyU20wMGOkqbd
-         zLxed4tvSHNawUlvXZRmJ3RBFSOVVWAKMV59jmmFJ/I8dN30ABHKVr5Xycfjdkp6iiCg
-         TK10MjtChqQiuEUq4hKy7rmpfiSAduJ8z/Pnx+Vhs3Iz2snsXgRysemw834MSqb39QFX
-         lxEFQHxr/RQ9p9EKkL5bWfeWIQG/xZZE5vhGHiX1KuVC2XdRH8T3q6bR7o0hzhC5qb3s
-         y1KRjdygpm9aa5eg3EHUNacU+ks+r9PNKy1iMvp0nqTPpNvebQYy5bpZTG+CFXo9946I
-         MNVQ==
+        bh=t+vi9vkWEvQdhqL9XEq4Jv0l/8VRKRuscgdakwpYeMI=;
+        b=npJ7+RAmsFKgPW1VVAzow1K5mCxfZr7jDS2Iy/n31vuY78CqjKfrqMIOhKvGMMojHx
+         FoBGsmRNKLgYslufvPNJnvcsy1a+q9Gl1rwTewmAfJilgv9kjqIzJlAyTaX4yw5AJPqQ
+         SA5OXXiQF6tXgObxCXk8HOb6r/zwa2PGrrjbckF7arJe2jwNFPHbc7mqEFmF1sR4UBrJ
+         Dk6vBWOEcwAbexIAJXHVjQHgui/cgz3OKbmrqIhMMLq6BrjG/T2WQgHiEa5IdYKeKMgQ
+         UmVc7SOzDXtquLT/wOQ5iJ129UNePxVwb32OhaiI9UbVZK360/vC3wKJekdqsh00wfHU
+         YdQA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@tobin.cc header.s=fm2 header.b="Uf/KtrOT";
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="2HSi7Br/";
+       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=qNSobwJB;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=OBy44wk1;
        spf=neutral (google.com: 66.111.4.26 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
 Received: from out2-smtp.messagingengine.com (out2-smtp.messagingengine.com. [66.111.4.26])
-        by mx.google.com with ESMTPS id b16si3145679qtq.32.2019.03.11.18.54.56
+        by mx.google.com with ESMTPS id n19si323562qtn.138.2019.03.11.19.02.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Mar 2019 18:54:56 -0700 (PDT)
+        Mon, 11 Mar 2019 19:02:33 -0700 (PDT)
 Received-SPF: neutral (google.com: 66.111.4.26 is neither permitted nor denied by best guess record for domain of me@tobin.cc) client-ip=66.111.4.26;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@tobin.cc header.s=fm2 header.b="Uf/KtrOT";
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="2HSi7Br/";
+       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=qNSobwJB;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=OBy44wk1;
        spf=neutral (google.com: 66.111.4.26 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
 Received: from compute5.internal (compute5.nyi.internal [10.202.2.45])
-	by mailout.nyi.internal (Postfix) with ESMTP id 3818023176;
-	Mon, 11 Mar 2019 21:54:56 -0400 (EDT)
+	by mailout.nyi.internal (Postfix) with ESMTP id 32CAC22101;
+	Mon, 11 Mar 2019 22:02:33 -0400 (EDT)
 Received: from mailfrontend1 ([10.202.2.162])
-  by compute5.internal (MEProxy); Mon, 11 Mar 2019 21:54:56 -0400
+  by compute5.internal (MEProxy); Mon, 11 Mar 2019 22:02:33 -0400
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=tobin.cc; h=date
 	:from:to:cc:subject:message-id:references:mime-version
-	:content-type:in-reply-to; s=fm2; bh=DWxYFqFht/GTnBUrw50jGcXbdTj
-	gIErrdzyLX70BJKc=; b=Uf/KtrOTzgHM/DVKJ0i0SYM1puQbNeo5DjesYmUCojg
-	6eZDxn4eU6RurNSVtPL3EKm1kxCtoUmnnGkLStn2C62TmuywYz1t0+rqa9DbZVJY
-	FZhC0HMn1KXZ3W9R0hvDfQpF3upZTuXeKhc6tNAFIqf/AXrHWphWpSo72TKkjXr0
-	slBfXZzxZVqRe8lWzdX7bmfsN6CYQqM+uNnQlQmiLwRcGb/wWaEysYczOUmwag2Z
-	fvT6vKzqUW8GO3b7hgGanMz6uebyNM6LShiHH7Y6eHQfHjIoRQ48FiTre2ZqH7tn
-	6GYeQuIchvVTwEo00++K9cTyt6BwY45wGaH8NweGYlA==
+	:content-type:in-reply-to; s=fm2; bh=t+vi9vkWEvQdhqL9XEq4Jv0l/8V
+	RKRuscgdakwpYeMI=; b=qNSobwJBVluA9sSGqRjqg+kqOcrP67t1AkbwiMVfzzM
+	o0uxLX/KyTEryiaHt/vQk5JY0AN8onQHLrwEDA5YI0IZ7teDzOOfJ2rR5BfGtLcf
+	d1BDX7RHuMbFLcg3vdmFE90JubG+4y84cKyUNqgxuVSTyVfSsCvcmDLbr4bgDtmp
+	eNSSL2uy5hQSIc0j3l3ULHYef9kf9eWNVbQ1xHi9hgmA4Brrudc54U1LCFddlMhb
+	zYuabPa1l14nYBaemf2MWumqrui5UcAizYKu1M5RC12G9vN8FXfFgtGnNyKgsdRj
+	LViUz233at3c22Dp8PmvJEoCX/1YMUnPqwYHed0RMFw==
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-type:date:from:in-reply-to
 	:message-id:mime-version:references:subject:to:x-me-proxy
-	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=DWxYFq
-	Fht/GTnBUrw50jGcXbdTjgIErrdzyLX70BJKc=; b=2HSi7Br/pN+UMckjZh3KC5
-	GZ1dG+6z2quFoSUwO4lPc64LxWCi1rfoF/shfxDC9swDyi7PJ74DdxYHDgIzs+xp
-	pbMS1p7nA9DoO6i5EeJm2ae0sgIJPvLQ4BQ8rBe9zVpxAl+vhvjv1N8ytz3hb87q
-	oKuZZYM9l6vMaNeezcsu5j8Dyqo3w8+VikvJjz76pHGsFhJwARlTJ+2clkzuBW9m
-	PHgD9wpIZdRAuG8WsYdvAIL19J1kvbxaGGeeVgXu8KiweL0nbCnIW1n4+/wcIGag
-	Ai7N7rGBCp0PCbaHZgUAHzOLDA7qMDzzhCI9jDkiLbmkji4KfihThzydv2CoLiSQ
+	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=t+vi9v
+	kWEvQdhqL9XEq4Jv0l/8VRKRuscgdakwpYeMI=; b=OBy44wk1OXwkB4anjukE4N
+	uQuxYdiGaXE8BrymM+qmULY9p22YP20pOa6J9qLPnySUVKXxw6MueXROxKziFsE0
+	G9WutsuHH6w4bSj6qxFlCjnVaqMv0yxlvHXgOQcXxVSTaWbqkj+kE4RvJhSB7mHu
+	5njYpNTNa00gP3KHfvgQLdp8L5wRDgXdrevU2KHzea5UlR3oSwpFggaT005fSSLg
+	Q7qOM9yI64A0aDbt1RckmbRuWgchfSpksbCQ13RB1j0haanIFcvgVxPGL1Y5SSpx
+	wuPEaPQ0TS79We8HOt4ZV8T5xOHoi2b55Xs/ApNVxJS5j4IttaAp1WlGMqP2fz8A
 	==
-X-ME-Sender: <xms:bhGHXIY1Sa3BMaDcyURcL8rGVRZLnuMQqFvGaOKcopmG7Z2C4KEG8w>
-X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedutddrgeejgdefjecutefuodetggdotefrodftvf
+X-ME-Sender: <xms:OBOHXCdz5yjplf3hng7QceLw_74KLL4fYxtYRZRSzBpTeTpveQaaBw>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedutddrgeejgdeflecutefuodetggdotefrodftvf
     curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
     uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenfg
-    hrlhcuvffnffculddutddmnecujfgurhepfffhvffukfhfgggtuggjofgfsehttdertdfo
+    hrlhcuvffnffculdduhedmnecujfgurhepfffhvffukfhfgggtuggjofgfsehttdertdfo
     redvnecuhfhrohhmpedfvfhosghinhcuvedrucfjrghrughinhhgfdcuoehmvgesthhosg
     hinhdrtggtqeenucfkphepuddvgedrudeiledrvdefrddukeegnecurfgrrhgrmhepmhgr
     ihhlfhhrohhmpehmvgesthhosghinhdrtggtnecuvehluhhsthgvrhfuihiivgeptd
-X-ME-Proxy: <xmx:bhGHXC-2KyZD3iH_YoXwop1pPkWXsZt6p2mdDJj_UAFUq3F-nqQirw>
-    <xmx:bhGHXGtG51OEbRvgVdl2ZbrP3bMYpEjyQDqJ2VKlJOpB6eb6u__PhA>
-    <xmx:bhGHXHFUgjSGEo9hBxyDTF5UYzjRLMmuTIL2evF0fJgPZz3Sob-10g>
-    <xmx:cBGHXBnWiRcQl4KU5xa1yQEVHMLBa74qRrtCe8EkfFs0o5tX2Ni0ng>
+X-ME-Proxy: <xmx:OBOHXCmoFxQCehxzRvZHOC7ap5bN8wv_9NxbJfd34I-P0ImNg-xiJw>
+    <xmx:OBOHXINvmauqekS8ns7PY5srYUDIy5_W2q7VPhBIu1jo0vmg9-l_3A>
+    <xmx:OBOHXDFT6iOnESa8f9dB6RAeLidUBguI-hTmml45gkB7YIUSo77y_A>
+    <xmx:OROHXCJ2QvHv4IhExcGHzk9QK4DbrBWIeobQXFteCxap0qATy9XoNw>
 Received: from localhost (124-169-23-184.dyn.iinet.net.au [124.169.23.184])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 1F935E4173;
-	Mon, 11 Mar 2019 21:54:53 -0400 (EDT)
-Date: Tue, 12 Mar 2019 12:54:32 +1100
+	by mail.messagingengine.com (Postfix) with ESMTPA id 48D7BE4665;
+	Mon, 11 Mar 2019 22:02:31 -0400 (EDT)
+Date: Tue, 12 Mar 2019 13:01:53 +1100
 From: "Tobin C. Harding" <me@tobin.cc>
 To: Roman Gushchin <guro@fb.com>
-Cc: "Tobin C. Harding" <tobin@kernel.org>,
+Cc: Matthew Wilcox <willy@infradead.org>,
+	"Tobin C. Harding" <tobin@kernel.org>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Christopher Lameter <cl@linux.com>,
-	Pekka Enberg <penberg@cs.helsinki.fi>,
-	Matthew Wilcox <willy@infradead.org>,
-	Tycho Andersen <tycho@tycho.ws>,
+	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
 	"linux-mm@kvack.org" <linux-mm@kvack.org>,
 	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [RFC 12/15] xarray: Implement migration function for objects
-Message-ID: <20190312015432.GI9362@eros.localdomain>
-References: <20190308041426.16654-1-tobin@kernel.org>
- <20190308041426.16654-13-tobin@kernel.org>
- <20190312001602.GB25059@tower.DHCP.thefacebook.com>
+Subject: Re: [PATCH 0/4] mm: Use slab_list list_head instead of lru
+Message-ID: <20190312020153.GJ9362@eros.localdomain>
+References: <20190311010744.5862-1-tobin@kernel.org>
+ <20190311204919.GA20002@tower.DHCP.thefacebook.com>
+ <20190311231633.GF19508@bombadil.infradead.org>
+ <20190312002217.GA31718@tower.DHCP.thefacebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190312001602.GB25059@tower.DHCP.thefacebook.com>
+In-Reply-To: <20190312002217.GA31718@tower.DHCP.thefacebook.com>
 X-Mailer: Mutt 1.11.3 (2019-02-01)
 User-Agent: Mutt/1.11.3 (2019-02-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -151,89 +151,40 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 12, 2019 at 12:16:07AM +0000, Roman Gushchin wrote:
-> On Fri, Mar 08, 2019 at 03:14:23PM +1100, Tobin C. Harding wrote:
-> > Implement functions to migrate objects. This is based on
-> > initial code by Matthew Wilcox and was modified to work with
-> > slab object migration.
+On Tue, Mar 12, 2019 at 12:22:23AM +0000, Roman Gushchin wrote:
+> On Mon, Mar 11, 2019 at 04:16:33PM -0700, Matthew Wilcox wrote:
+> > On Mon, Mar 11, 2019 at 08:49:23PM +0000, Roman Gushchin wrote:
+> > > The patchset looks good to me, however I'd add some clarifications
+> > > why switching from lru to slab_list is safe.
+> > > 
+> > > My understanding is that the slab_list fields isn't currently in use,
+> > > but it's not that obvious that putting slab_list and next/pages/pobjects
+> > > fields into a union is safe (for the slub case).
 > > 
-> > Co-developed-by: Christoph Lameter <cl@linux.com>
-> > Signed-off-by: Tobin C. Harding <tobin@kernel.org>
-> > ---
-> >  lib/radix-tree.c | 13 +++++++++++++
-> >  lib/xarray.c     | 44 ++++++++++++++++++++++++++++++++++++++++++++
-> >  2 files changed, 57 insertions(+)
+> > It's already in a union.
 > > 
-> > diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-> > index 14d51548bea6..9412c2853726 100644
-> > --- a/lib/radix-tree.c
-> > +++ b/lib/radix-tree.c
-> > @@ -1613,6 +1613,17 @@ static int radix_tree_cpu_dead(unsigned int cpu)
-> >  	return 0;
-> >  }
-> >  
-> > +extern void xa_object_migrate(void *tree_node, int numa_node);
-> > +
-> > +static void radix_tree_migrate(struct kmem_cache *s, void **objects, int nr,
-> > +			       int node, void *private)
-> > +{
-> > +	int i;
-> > +
-> > +	for (i = 0; i < nr; i++)
-> > +		xa_object_migrate(objects[i], node);
-> > +}
-> > +
-> >  void __init radix_tree_init(void)
-> >  {
-> >  	int ret;
-> > @@ -1627,4 +1638,6 @@ void __init radix_tree_init(void)
-> >  	ret = cpuhp_setup_state_nocalls(CPUHP_RADIX_DEAD, "lib/radix:dead",
-> >  					NULL, radix_tree_cpu_dead);
-> >  	WARN_ON(ret < 0);
-> > +	kmem_cache_setup_mobility(radix_tree_node_cachep, NULL,
-> > +				  radix_tree_migrate);
-> >  }
-> > diff --git a/lib/xarray.c b/lib/xarray.c
-> > index 81c3171ddde9..4f6f17c87769 100644
-> > --- a/lib/xarray.c
-> > +++ b/lib/xarray.c
-> > @@ -1950,6 +1950,50 @@ void xa_destroy(struct xarray *xa)
-> >  }
-> >  EXPORT_SYMBOL(xa_destroy);
-> >  
-> > +void xa_object_migrate(struct xa_node *node, int numa_node)
-> > +{
-> > +	struct xarray *xa = READ_ONCE(node->array);
-> > +	void __rcu **slot;
-> > +	struct xa_node *new_node;
-> > +	int i;
-> > +
-> > +	/* Freed or not yet in tree then skip */
-> > +	if (!xa || xa == XA_FREE_MARK)
-> > +		return;
+> > struct page {
+> >         union {
+> >                 struct {        /* Page cache and anonymous pages */
+> >                         struct list_head lru;
+> > ...
+> >                 struct {        /* slab, slob and slub */
+> >                         union {
+> >                                 struct list_head slab_list;     /* uses lru */
+> >                                 struct {        /* Partial pages */
+> >                                         struct page *next;
+> > 
+> > slab_list and lru are in the same bits.  Once this patch set is in,
+> > we can remove the enigmatic 'uses lru' comment that I added.
 > 
-> XA_FREE_MARK is equal to 0, so the second check is redundant.
+> Ah, perfect, thanks! Makes total sense then.
 > 
-> #define XA_MARK_0		((__force xa_mark_t)0U)
-> #define XA_MARK_1		((__force xa_mark_t)1U)
-> #define XA_MARK_2		((__force xa_mark_t)2U)
-> #define XA_PRESENT		((__force xa_mark_t)8U)
-> #define XA_MARK_MAX		XA_MARK_2
-> #define XA_FREE_MARK		XA_MARK_0
-> 
-> xa_node_free() sets node->array to XA_RCU_FREE, so maybe it's
-> what you need. I'm not sure however, Matthew should know better
+> Tobin, can you, please, add a note to the commit message?
+> With the note:
+> Reviewed-by: Roman Gushchin <guro@fb.com>
 
-Cheers, will wait for his input.
+Awesome, thanks.  That's for all 4 patches or excluding 2?
 
-> > +
-> > +	new_node = kmem_cache_alloc_node(radix_tree_node_cachep,
-> > +					 GFP_KERNEL, numa_node);
-> 
-> We need to check here if the allocation was successful.
-
-Woops, bad Tobin.  Thanks.
-
-
-	Tobin.
+thanks,
+Tobin.
 
