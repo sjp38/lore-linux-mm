@@ -2,197 +2,270 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4CB08C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 17:45:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8066AC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 17:49:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0B64A2087C
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 17:45:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0B64A2087C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kerneltoast.com
+	by mail.kernel.org (Postfix) with ESMTP id 33277206DF
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 17:49:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 33277206DF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 88C2D8E0003; Tue, 12 Mar 2019 13:45:28 -0400 (EDT)
+	id C2F898E0003; Tue, 12 Mar 2019 13:49:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 811988E0002; Tue, 12 Mar 2019 13:45:28 -0400 (EDT)
+	id BDFF08E0002; Tue, 12 Mar 2019 13:49:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6D98D8E0003; Tue, 12 Mar 2019 13:45:28 -0400 (EDT)
+	id A81018E0003; Tue, 12 Mar 2019 13:49:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 33DB58E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 13:45:28 -0400 (EDT)
-Received: by mail-oi1-f198.google.com with SMTP id x133so1478646oia.3
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 10:45:28 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 81B168E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 13:49:20 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id v23so2856360qkf.7
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 10:49:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=HccK+fYLtqpEZfMwiBe6D8C3e7wDwbf9WW50Z/PProI=;
-        b=k5CwnV6HkqxQ9gdT8RmpI7tLzrJ6UvLI6+MA6QX54Xg0G6+ksbzTRAn7F26a5Kkt9z
-         CiDBXM9vP15/imewN9q+qElMGGX7Pz1hA4SoKOKt4gXlSraggVO4Prae37bVrK5KEJtB
-         LNiNNr2m+VkHO84sWgd8W2MDgVdRPycWZ9UQ5IkbVW4GPtnVAIMQ9ZUc3I+5hDpWQjKU
-         Ov8SEt9aK/DZwbiO3Fm6IX9IxWPJPlG+NvrtLEEWAB4DN3Kvdl7i3Hb6EQk0m0iqGjfR
-         E9xnhB9JvS8hGqMZVI+7QYmRZV5OJplrPvB5el64MKMYYQBeOeMHim8GpdQFx51VVEli
-         xB8A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sultan.kerneltoast@gmail.com
-X-Gm-Message-State: APjAAAWoixYR34ivnDpOBw0jkjq594x1QRTKOvMR69mmpALPqD39acwk
-	VHfsBp9lHyXrRgPkDRo+vlTvuAAlFj7iTBTQQkrFfw5QLl9F4yXKJ+qR0XHkNgHPwzawYlqndzQ
-	aJy1SBBXc+yVKc3GPI8/jV9OV3ZQaQiUNmWRnPMUO5HUSjseW1UMdCWxt8GLLXw1ZtjjNy2MDIf
-	iV7GjOQQdCkO42HqWjpV21rfBgca5tMtjaFUqBY6PiI5wUSuKIQAAr1TrjgtxZGWkFnw0LHDocA
-	z+FG1ddtT9UBXm3W9DyTL1MNdtTu2rbW25aI+BKaKI0xtUu4AqIrvM6VZQat7G8ZiqylY3iLH2d
-	UQzVSkZ/nr/G2jznwU/iMd8/xxe+F4b9hCVzLuBM+aqcmKw1Emt92Zo76nQmsLJVU9Gc3bMtAQ=
-	=
-X-Received: by 2002:a05:6830:20d7:: with SMTP id z23mr25261892otq.178.1552412727917;
-        Tue, 12 Mar 2019 10:45:27 -0700 (PDT)
-X-Received: by 2002:a05:6830:20d7:: with SMTP id z23mr25261807otq.178.1552412726452;
-        Tue, 12 Mar 2019 10:45:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552412726; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=WgsJLoCYWe+qnvgnPz2Ds9usX4rvBjl3Dx+busAuk2o=;
+        b=IsKl8gRt6vqPGnnzeZ8x+VlqzuQNqbHWLVc7JYFGPzCeiQG2s3azQ2H9Gip2g/tSl0
+         elIThiOZB2fq1JTCQFee7Rsl0s2Etlj5HmqIhX6mdTf5DV57FPs8OtT4wjg5uX2K7Dvh
+         Cw0Lyr9j683PRaBhQXmpQu1q31etXsyYipcJaOgGaK+fRbT798ea3VGtPP1wapUq/5bX
+         puXvzq8BPwudRXb6Y91rZ7nlJ9mCHtb8S3p7rTgPt6NY67RYK1S5GFjfJGsVC1f9fRIL
+         3YxI5hzgr9A45MyaZ8PYYi+nZTVOZnKGuFlHb1KIElJxgjVAJytHypx3XbsdpL5Tcg/T
+         dg8g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAX21S1k4ui7Da21yv1uGFUqsr8ZWUgEg88gSacGg28Zz89BGm0U
+	e6tXO0LbEH85iyaZCCPUO2B2W7iuGQ3Yl+4qWq7TyFM53fjo8J1Xs3UPNGM9LYYPVEZjqAPQE/M
+	/SL28rHlA6rzWXAYKsJ7mZcZwhDaseV3R0+tvxf89pbL7K/iuKk0/wAOFumUHrShCJQ==
+X-Received: by 2002:a0c:eb4d:: with SMTP id c13mr7512766qvq.243.1552412960291;
+        Tue, 12 Mar 2019 10:49:20 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwVd+RbAFHyxN+D7JCGG4bv5vjzwlkbUSweUa6xxMOMT8xxC/7a1yGrz9spYkZHwv38qeL3
+X-Received: by 2002:a0c:eb4d:: with SMTP id c13mr7512711qvq.243.1552412959374;
+        Tue, 12 Mar 2019 10:49:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552412959; cv=none;
         d=google.com; s=arc-20160816;
-        b=Aq96NhRhez2CFVyPBl8wHsdMCpq5FhuuLozt0wjBmzspVZacbkOKVySdEsyn3cNjQM
-         +ADdW53J6eEfdTgv3uZNFg43X6q/NbIAfU85kK/mku54UqgzwHmrbsFZuSsBp0iYrt7B
-         OpvQX/HmtSCvBmgKv3vq9kDnwLG66itkc20iwG7FtcfglJfpbNwrpgONb67HemBltY6I
-         q+RMGWfaE4vDv2duZkwjywikPD+8f47TNNKQKx812/prenS0Yk22JSA7YDsAkFhGnzov
-         iywy4xx4mxO1hW3lEWlp+1k5lNPCBzXoQbSrYdpC2Nlnfph2izY0vvWiv0xORjwPDcln
-         QmSA==
+        b=EmcVDqrmLOG84131s2xWO4DwLu6xa0G56dokNp1YR0d4qbhd5qfFAd9B/YfkKVegW1
+         pPRzdcoG8JZ3O0mkQpprV3hKLYiYMdnR1BXoe9S6tRAVi4MMF9hkUhOXfAz2PUwogHj9
+         Sh6nCH8y5M7jbEnZrHI/QvgAhmkH1hJyhvYNQeHxcMy+O/ofrEY/EVYApxN489rHHQDz
+         lrf7sVaQdRHYrLArlRzQF3c1v3U3uKU1x9X9U6Y6FSNl4s+ciZ3llmUCMP3UqKdz5W7P
+         PHfcrIljWarLGXSizkaADZRfK2c3CsouDLTenATaLlq7F013B3y3hvDSWvcJFbhT5MqF
+         xS6A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=HccK+fYLtqpEZfMwiBe6D8C3e7wDwbf9WW50Z/PProI=;
-        b=Lk/tLoMeVv4uZj/jB7kmdCXOVwsXX5FXgq795C8oiJr59YLr2OjQzvio0Tz+vQ8xtG
-         sh6rTKBVBF7YBcvgPIwrzUsJhN/CTKxoHbI/Xr7xadgNmllRX4kpx2a/OemrlICaBoIm
-         HkRANPNaUhhd6khMhJMxa10al41sR8W2NpKTNiFE8gUtJ0H6ssYVaTpHFv+Og4pPpKvK
-         /TNUEQEg/pdLVI7OcwP9QcSAvhtr55YaCOo3moNHem0cJQTVap9W8zGOpoSDTdW4l3bM
-         pu1ij2GfG2/kI3G9tVeKeCgy9aa0thvkbBlJsV4kntFNhuYjo83QcEj/tHcyO+2SxIdL
-         hEVA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=WgsJLoCYWe+qnvgnPz2Ds9usX4rvBjl3Dx+busAuk2o=;
+        b=RO8/ThAyA9bCNtSrcvdUqsIaNwHEpTMw3jcmtmVlG+Di0yS102yuUlhdxSu9PWrDsq
+         YGtK4ALpZ0wB3BkuM51fjibE5tvxRBL1Ps7vXRcUF1EnNHyBMTdCmHSEHoJF4x6ZSRws
+         qZB9O3XkV9f4Q+GAKKzuT0ttknQ41fg+iMnUhr5k9JRWUar4XrLhaSNlEFEtIRUkY/n8
+         Ds0Od17aBTDqYYkUBbPvtquGCUdfjbjd5J946dJ2pT4CLW1I7A3Pm73pNI7y/SFvYVvC
+         V3gnKnCTAPIM89Pr9nZJTcaXxBPEyKRFWuGxTHrRbToUF491o6QgQfwYnNRQtLsEAKII
+         Gvuw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sultan.kerneltoast@gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u81sor4856104oie.88.2019.03.12.10.45.26
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v8si2767505qtj.135.2019.03.12.10.49.19
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Mar 2019 10:45:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Mar 2019 10:49:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sultan.kerneltoast@gmail.com
-X-Google-Smtp-Source: APXvYqye0hnmv7pAGXdBIolazCUN2OVPVRFmxBCKF9wVuEGFBFrjN4yDlavLRNISW9yrF7O+Mdtchg==
-X-Received: by 2002:aca:6cc9:: with SMTP id h192mr2487951oic.161.1552412726061;
-        Tue, 12 Mar 2019 10:45:26 -0700 (PDT)
-Received: from sultan-box.localdomain ([107.193.118.89])
-        by smtp.gmail.com with ESMTPSA id x3sm3536175otg.52.2019.03.12.10.45.24
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 12 Mar 2019 10:45:25 -0700 (PDT)
-Date: Tue, 12 Mar 2019 10:45:20 -0700
-From: Sultan Alsawaf <sultan@kerneltoast.com>
-To: Tim Murray <timmurray@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>,
-	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Christian Brauner <christian@brauner.io>,
-	Ingo Molnar <mingo@redhat.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	LKML <linux-kernel@vger.kernel.org>, devel@driverdev.osuosl.org,
-	linux-mm <linux-mm@kvack.org>
-Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
-Message-ID: <20190312174520.GA9276@sultan-box.localdomain>
-References: <20190310203403.27915-1-sultan@kerneltoast.com>
- <20190311174320.GC5721@dhcp22.suse.cz>
- <20190311175800.GA5522@sultan-box.localdomain>
- <CAJuCfpHTjXejo+u--3MLZZj7kWQVbptyya4yp1GLE3hB=BBX7w@mail.gmail.com>
- <20190311204626.GA3119@sultan-box.localdomain>
- <CAJuCfpGpBxofTT-ANEEY+dFCSdwkQswox3s8Uk9Eq0BnK9i0iA@mail.gmail.com>
- <20190312080532.GE5721@dhcp22.suse.cz>
- <20190312163741.GA2762@sultan-box.localdomain>
- <CAEe=Sxn_uayj48wo7oqf8mNZ7QAGJUQVmkPcHcuEGjA_Z8ELeQ@mail.gmail.com>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 67A057F6E3;
+	Tue, 12 Mar 2019 17:49:18 +0000 (UTC)
+Received: from [10.36.117.44] (ovpn-117-44.ams2.redhat.com [10.36.117.44])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 43C3F171C2;
+	Tue, 12 Mar 2019 17:49:15 +0000 (UTC)
+Subject: Re: xen: Can't insert balloon page into VM userspace (WAS Re:
+ [Xen-devel] [linux-linus bisection] complete test-arm64-arm64-xl-xsm)
+To: Julien Grall <julien.grall@arm.com>, Matthew Wilcox <willy@infradead.org>
+Cc: osstest service owner <osstest-admin@xenproject.org>,
+ xen-devel@lists.xenproject.org, Juergen Gross <jgross@suse.com>,
+ Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ Boris Ostrovsky <boris.ostrovsky@oracle.com>,
+ Stefano Stabellini <sstabellini@kernel.org>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ Kees Cook <keescook@chromium.org>, k.khlebnikov@samsung.com,
+ Julien Freche <jfreche@vmware.com>, Nadav Amit <namit@vmware.com>,
+ "VMware, Inc." <pv-drivers@vmware.com>, linux-mm@kvack.org
+References: <E1h3Uiq-0002L6-Ij@osstest.test-lab.xenproject.org>
+ <80211e70-5f54-9421-8e8f-2a4fc758ce39@arm.com>
+ <46118631-61d4-adb6-6ffc-4e7c62ea3da9@arm.com>
+ <20190312171421.GJ19508@bombadil.infradead.org>
+ <e0b64793-260d-5e70-0544-e7290509b605@redhat.com>
+ <180a9edf-855e-6a29-5724-cc0f929de71c@arm.com>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <e693ecf5-c28d-6b4b-d577-ed43b60ee079@redhat.com>
+Date: Tue, 12 Mar 2019 18:49:14 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAEe=Sxn_uayj48wo7oqf8mNZ7QAGJUQVmkPcHcuEGjA_Z8ELeQ@mail.gmail.com>
-User-Agent: Mutt/1.11.3 (2019-02-01)
+In-Reply-To: <180a9edf-855e-6a29-5724-cc0f929de71c@arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Tue, 12 Mar 2019 17:49:18 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 12, 2019 at 10:17:43AM -0700, Tim Murray wrote:
-> Knowing whether a SIGKILL'd process has finished reclaiming is as far
-> as I know not possible without something like procfds. That's where
-> the 100ms timeout in lmkd comes in. lowmemorykiller and lmkd both
-> attempt to wait up to 100ms for reclaim to finish by checking for the
-> continued existence of the thread that received the SIGKILL, but this
-> really means that they wait up to 100ms for the _thread_ to finish,
-> which doesn't tell you anything about the memory used by that process.
-> If those threads terminate early and lowmemorykiller/lmkd get a signal
-> to kill again, then there may be two processes competing for CPU time
-> to reclaim memory. That doesn't reclaim any faster and may be an
-> unnecessary kill.
-> ...
-> - offer a way to wait for process termination so lmkd can tell when
-> reclaim has finished and know when killing another process is
-> appropriate
+On 12.03.19 18:39, Julien Grall wrote:
+> Hi David,
+> 
+> On 3/12/19 5:18 PM, David Hildenbrand wrote:
+>> On 12.03.19 18:14, Matthew Wilcox wrote:
+>>> On Tue, Mar 12, 2019 at 05:05:39PM +0000, Julien Grall wrote:
+>>>> On 3/12/19 3:59 PM, Julien Grall wrote:
+>>>>> It looks like all the arm test for linus [1] and next [2] tree
+>>>>> are now failing. x86 seems to be mostly ok.
+>>>>>
+>>>>> The bisector fingered the following commit:
+>>>>>
+>>>>> commit 0ee930e6cafa048c1925893d0ca89918b2814f2c
+>>>>> Author: Matthew Wilcox <willy@infradead.org>
+>>>>> Date:   Tue Mar 5 15:46:06 2019 -0800
+>>>>>
+>>>>>       mm/memory.c: prevent mapping typed pages to userspace
+>>>>>       Pages which use page_type must never be mapped to userspace as it would
+>>>>>       destroy their page type.  Add an explicit check for this instead of
+>>>>>       assuming that kernel drivers always get this right.
+>>>
+>>> Oh good, it found a real problem.
+>>>
+>>>> It turns out the problem is because the balloon driver will call
+>>>> __SetPageOffline() on allocated page. Therefore the page has a type and
+>>>> vm_insert_pages will deny the insertion.
+>>>>
+>>>> My knowledge is quite limited in this area. So I am not sure how we can
+>>>> solve the problem.
+>>>>
+>>>> I would appreciate if someone could provide input of to fix the mapping.
+>>>
+>>> I don't know the balloon driver, so I don't know why it was doing this,
+>>> but what it was doing was Wrong and has been since 2014 with:
+>>>
+>>> commit d6d86c0a7f8ddc5b38cf089222cb1d9540762dc2
+>>> Author: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
+>>> Date:   Thu Oct 9 15:29:27 2014 -0700
+>>>
+>>>      mm/balloon_compaction: redesign ballooned pages management
+>>>
+>>> If ballooned pages are supposed to be mapped into userspace, you can't mark
+>>> them as ballooned pages using the mapcount field.
+>>>
+>>
+>> Asking myself why anybody would want to map balloon inflated pages into
+>> user space (this just sounds plain wrong but my understanding to what
+>> XEN balloon driver does might be limited), but I assume the easy fix
+>> would be to revert
+> 
+> Balloon pages are used to map foreign guest pages. As backend PV drivers 
+> may live in userspace (e.g QEMU, Xenconsoled...) we need to be able to
+> to insert balloon pages in the VM.
 
-Should be pretty easy with something like this:
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 1549584a1..6ac478af2 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1199,6 +1199,7 @@ struct task_struct {
- 	unsigned long			lowest_stack;
- 	unsigned long			prev_lowest_stack;
- #endif
-+	ktime_t sigkill_time;
- 
- 	/*
- 	 * New fields for task_struct should be added above here, so that
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 9dcd18aa2..0ae182777 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -435,6 +435,8 @@ void put_task_stack(struct task_struct *tsk)
- 
- void free_task(struct task_struct *tsk)
- {
-+	ktime_t sigkill_time = tsk->sigkill_time;
-+	pid_t pid = tsk->pid;
- #ifndef CONFIG_THREAD_INFO_IN_TASK
- 	/*
- 	 * The task is finally done with both the stack and thread_info,
-@@ -455,6 +457,9 @@ void free_task(struct task_struct *tsk)
- 	if (tsk->flags & PF_KTHREAD)
- 		free_kthread_struct(tsk);
- 	free_task_struct(tsk);
-+	if (sigkill_time)
-+		printk("%d killed after %lld us\n", pid,
-+		       ktime_us_delta(ktime_get(), sigkill_time));
- }
- EXPORT_SYMBOL(free_task);
- 
-@@ -1881,6 +1886,7 @@ static __latent_entropy struct task_struct *copy_process(
- 	p->sequential_io	= 0;
- 	p->sequential_io_avg	= 0;
- #endif
-+	p->sigkill_time = 0;
- 
- 	/* Perform scheduler related setup. Assign this task to a CPU. */
- 	retval = sched_fork(clone_flags, p);
-diff --git a/kernel/signal.c b/kernel/signal.c
-index 5d53183e2..1142c8811 100644
---- a/kernel/signal.c
-+++ b/kernel/signal.c
-@@ -1168,6 +1168,8 @@ static int __send_signal(int sig, struct kernel_siginfo *info, struct task_struc
- 	}
- 
- out_set:
-+	if (sig == SIGKILL)
-+		t->sigkill_time = ktime_get();
- 	signalfd_notify(t, sig);
- 	sigaddset(&pending->signal, sig);
+Okay, so this is really XEN specific (especially looking at Andrew's
+reply). All other balloon drivers told the hypervisor that the inflated
+page is dead and it is not going to be use before telling the hypervisor
+otherwise. Mapping to user space would violate that contract (and even
+be considered harmful in some hypervisor implementations).
+
+> 
+>>
+>>
+>> commit 2f085ff37d08ecbc7849d5abb9424bd7927dda1d
+> 
+> I guess you meant 77c4adf6a6df6f8f39807eaed48eb73d0eb4261e?
+
+Yes indeed, no idea where that commit id came from :)
+
+> 
+> I have reverted the patch and can now access the guest console. Is there 
+> a way to keep this patch and at the same time mapping the page in the 
+> userspace?
+
+Not without another page flag. And we all know that is unlikely to happen :)
+
+Thanks!
+
+> 
+> 
+>> Author: David Hildenbrand <david@redhat.com>
+>> Date:   Wed Mar 6 11:42:24 2019 +1100
+>>
+>>      xen/balloon: mark inflated pages PG_offline
+>>
+>>      Mark inflated and never onlined pages PG_offline, to tell the world that
+>>      the content is stale and should not be dumped.
+>>
+>>
+> 
+> Cheers,
+> 
+
+
+-- 
+
+Thanks,
+
+David / dhildenb
 
