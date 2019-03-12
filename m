@@ -2,135 +2,199 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 927DFC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 21:09:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 35647C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 21:10:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 817652077B
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 21:09:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 817652077B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=surriel.com
+	by mail.kernel.org (Postfix) with ESMTP id DDCD72077B
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 21:10:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DDCD72077B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C5E468E0004; Tue, 12 Mar 2019 17:09:14 -0400 (EDT)
+	id 5F72B8E0005; Tue, 12 Mar 2019 17:10:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C0DDF8E0002; Tue, 12 Mar 2019 17:09:14 -0400 (EDT)
+	id 5A4698E0002; Tue, 12 Mar 2019 17:10:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B26108E0004; Tue, 12 Mar 2019 17:09:14 -0400 (EDT)
+	id 493B68E0005; Tue, 12 Mar 2019 17:10:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 867858E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 17:09:14 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id h11so3356928qkg.18
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 14:09:14 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 03B858E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 17:10:12 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id v2so3955442pfn.14
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 14:10:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:in-reply-to:references:date:mime-version:sender;
-        bh=rI5ap6mkrGe8GVinQyElyBzzUSKIlMHijrNgy0Pm1a4=;
-        b=rHh5yyAarK2VqJ8quOOf/gjaYcGPWVj8JYjZXaQhS85m7d+2FfaPOzaOkW71unsIOm
-         1638fbd4kPvX0+6ZI4vSQlYPCqZsswELECV/hUmTw792VN4gTa2F7oReAtrceK+R+8HI
-         z2y2Icv7tALwoxxNLH8qQIHmmxB8tSo5VVfgzftLQ/CnNC2Y+erepcvb7jGe84IrxN52
-         VdvlOPzPJ08lIBB6vOPjZRh2TV7N5kRAtnb7K+kUCVkpkmpTK708CVFfRCU+rHXp/1GN
-         C/dKQ7ggacjSYpSvyMxZrvYVhu3v8cjjQi1c9PkmUxwGGtJZUtIuaYQneV7JTxW4Lyk8
-         zWNw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-X-Gm-Message-State: APjAAAXUBFL/du13zZ5MsD8gIH1ByXx6SFX5bZbFAAIWCzX/GIYfUfCc
-	y93Q40imJFiXnCUFOPPm5W7P8YJxtJ2KjMWv7uHPk+CfiAe3zudbHX338OYTBAEjkht9vjDwDeB
-	tpH6Avff1Xum/FWmn12Mpxw8bi/GUhsNKCGtQh4xt+IS24ZXFKYK9AoY5Na2Dq7dgpQ==
-X-Received: by 2002:ad4:528a:: with SMTP id v10mr7869422qvr.89.1552424954310;
-        Tue, 12 Mar 2019 14:09:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyOa+BxsIw+3GnnJl02aEcAlJD9YWz1kj6f0sPm4vW405kYhXItN15jCty8rIUQQtn+hopa
-X-Received: by 2002:ad4:528a:: with SMTP id v10mr7869387qvr.89.1552424953746;
-        Tue, 12 Mar 2019 14:09:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552424953; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=WHoBSpazQxbTj5zzDQc+0xfXtDWfyvD2aJzrJ7gW3Uc=;
+        b=ghpMw4YihoH5tChU31fDqFK4+rpCUGqvNCAvBmaDnv5A+LRAlg766YJHMu162qUAyY
+         Vq2IJniOGFRwmvvsd8veF7s59ZTXwYd+yGfRjMGRLXbYj56wUPm16y68OY/w2FkWQq7b
+         Pfy4PMFJkjhQO1BjeMwYnbhYJsCxz5w3T46Luc2WbEymMVL2g4G0QyHxZJHSjsF7oOy7
+         IlnVwMKjlr+KxT726vWiGehb3l4vL/L5Mz7ceLWvkONJJbjnZO5+IxH7J7tAo9ikTQMM
+         QnM/6DwnMZbPjdsGgTV40wl6evRQ5Uwk4KT2OK/zFvGg8PMf/0X3dhYrSHEaitMrSSlM
+         D5+w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+X-Gm-Message-State: APjAAAUfDsqlYy0Al4JdcYd2Es9wqTi0O/eWUoEwYvVWTMqQTYyF61A0
+	Qz93Wboj+fIBUEvE9y39Xv7N/1bfLHUBf3FU/9vUrpumjfRUMsASbgm4Qeucrb0Yn1Ij6N+4NpL
+	V3uPCgKFrZT7em6TOMWe633ewvpgUr2d0+AIYDWxouF8S2GDPRvP5IbE79Mh/e2c9uQ==
+X-Received: by 2002:a17:902:2ba7:: with SMTP id l36mr19956307plb.246.1552425011439;
+        Tue, 12 Mar 2019 14:10:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyWGewktN4+75w17qtNEYmZirZmmeqqi6xWQhaX2XpQH/IQ935t6fR5WOSN3MTTfnEHjq5p
+X-Received: by 2002:a17:902:2ba7:: with SMTP id l36mr19956248plb.246.1552425010434;
+        Tue, 12 Mar 2019 14:10:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552425010; cv=none;
         d=google.com; s=arc-20160816;
-        b=0QsJXwyYltKQV4OUeyV5dMN8iH+bnpbxkFD1v0ZBXJ3cB5m94TXBgx1zq/6GknLGZF
-         CPi8j65up6wKE4E005uHZ78u5afUf7O8xiIX6nf64CzABarUQrJ+L3EZ2O4/plvqbLf5
-         l24VXQB1yNxCphIZEDuckI+BIR2A0YPUgAsUHFCrYew1VJz0FLz72mP+xGGhC3VnhVWn
-         k8jXR2D8BDBpcEcgtKBOAJb1dZ/4/Qz40D4X7KUFIuSlgfH/LvcwMAHtbd/Xo5uwZGRq
-         g8dZwJG5eS5z66akKLvdGEcxva9COXr4Gp1vZ84rB2iaFDYYV+iE4J7x+HefTTmejP2h
-         8SNQ==
+        b=HGdvAfejsuYwh6F7tPkyGDhnVr1N5okad8LanvgUh86XAsM3mvYdovQ39QB5GARVul
+         VdcgzolcE57QFATmI1GdlhvlJejjTxPbxKGsaXYhQCLibdoa/OeIvb6z+nvKzJ6MXNjy
+         QFUjCKHdM0GnUZG/EF90f+/FL4DXvSgExGus3ks509nUg1IXIwktX09uS7qj/Y1D3lY0
+         FMYGWDRgtCiC5zsaSCGDvxe4orlzi1VakUCQZ7qPB/kMsA6C2x6xREY5O9cDqgZpDXpP
+         Ww16Og3Cor5M3+WatmITAND2lea1tv0reLed6TNlpKBdOgaKyJYapUNnFwqQY6Latq8q
+         VuCw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=sender:mime-version:date:references:in-reply-to:to:from:subject
-         :message-id;
-        bh=rI5ap6mkrGe8GVinQyElyBzzUSKIlMHijrNgy0Pm1a4=;
-        b=xLM0BUxw5uDr7KGNoURP+vOk2I2DNo2YHcINvWyB6V14Xrr3B8yLUTDvYEyzBUGKaP
-         T1u+MPIt+4ZSG1CCguX4HvxKeKzibd+wFM9uDWsSDZ6yPwgCZ8qjllCEKdbUe4xlfGFe
-         MT61Ii1WcmTZdlp9dR5wIVPyKYmc8GK6vY6gc/oMM4uQEO1jOrfIb8RtrnPlBOKwQR8i
-         4IRaIN34CZT+/eGAH+0WnuevMHQuL+95eBsjygGxwBeUVBcK9qd/O6ZYRBt19SYeAVDo
-         e5jGVwmQocb+mEdytqFtNfCE41rBV18TTfVSqELJblNgz7H3Z7dxHzz97mLGPRtgjFjV
-         ROQg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date;
+        bh=WHoBSpazQxbTj5zzDQc+0xfXtDWfyvD2aJzrJ7gW3Uc=;
+        b=j6UKpauISpG+n/ffwTWfitF8Wh3FNPt4ld7u5MVvPUPNZ8xBlmVZHl91JU/grUaZVT
+         ntGI+nnDrMpat+E1dVYanD8tqWs+jWeyYUsgk/UZ/hMyQHS2YPAvdZrsawLWiMCDdDtx
+         A8e0i+8t9vjqboOvPf9S1nIiJ88WKlvaTjBVD7/qIJr32F26H1Az0305sJKshDwyyHyJ
+         V0+MRBGI9gYtP38OwDDXvtnyjTkornwSHS28cOOorkogruBQ83fWL6NFtOq92W5eJv03
+         xVi2CaagZqGGjX27ZaGPCsE3JK7TdkkLlxKStTOiDRp9Gy5NG/SOHT8EZW+kEI0uDu/P
+         zktg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id j50si6034000qtk.7.2019.03.12.14.09.12
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id i39si9350864plb.210.2019.03.12.14.10.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 14:09:12 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) client-ip=96.67.55.147;
+        Tue, 12 Mar 2019 14:10:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-Received: from imladris.surriel.com ([96.67.55.152])
-	by shelob.surriel.com with esmtpsa (TLSv1.2:ECDHE-RSA-AES256-GCM-SHA384:256)
-	(Exim 4.91)
-	(envelope-from <riel@shelob.surriel.com>)
-	id 1h3oe7-0005Sp-06; Tue, 12 Mar 2019 17:09:11 -0400
-Message-ID: <a0bd108182aca3d41927819be09405e1d048a77b.camel@surriel.com>
-Subject: Re: [PATCH] filemap: don't unlock null page in FGP_FOR_MMAP case
-From: Rik van Riel <riel@surriel.com>
-To: Josef Bacik <josef@toxicpanda.com>, akpm@linux-foundation.org, 
-	linux-mm@kvack.org, kernel-team@fb.com
-In-Reply-To: <20190312201742.22935-1-josef@toxicpanda.com>
-References: <20190312201742.22935-1-josef@toxicpanda.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-683ghCUDNgaxptg4V6Lv"
-Date: Tue, 12 Mar 2019 17:08:50 -0400
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id CCA49E3C;
+	Tue, 12 Mar 2019 21:10:09 +0000 (UTC)
+Date: Tue, 12 Mar 2019 14:10:08 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Qian Cai <cai@lca.pw>
+Cc: catalin.marinas@arm.com, agraf@suse.de, paulus@ozlabs.org,
+ benh@kernel.crashing.org, pe@ellerman.id.au, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, kvm-ppc@vger.kernel.org,
+ linuxppc-dev@lists.ozlabs.org
+Subject: Re: [PATCH] kmemleak: skip scanning holes in the .bss section
+Message-Id: <20190312141008.39eca5a0f03aaf2b86178ae9@linux-foundation.org>
+In-Reply-To: <20190312191412.28656-1-cai@lca.pw>
+References: <20190312191412.28656-1-cai@lca.pw>
+X-Mailer: Sylpheed 3.6.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
 Mime-Version: 1.0
-X-Mailer: Evolution 3.28.5 (3.28.5-2.fc28) 
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 12 Mar 2019 15:14:12 -0400 Qian Cai <cai@lca.pw> wrote:
 
---=-683ghCUDNgaxptg4V6Lv
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+> The commit 2d4f567103ff ("KVM: PPC: Introduce kvm_tmp framework") adds
+> kvm_tmp[] into the .bss section and then free the rest of unused spaces
+> back to the page allocator.
+> 
+> kernel_init
+>   kvm_guest_init
+>     kvm_free_tmp
+>       free_reserved_area
+>         free_unref_page
+>           free_unref_page_prepare
+> 
+> With DEBUG_PAGEALLOC=y, it will unmap those pages from kernel. As the
+> result, kmemleak scan will trigger a panic below when it scans the .bss
+> section with unmapped pages.
+> 
+> Since this is done way before the first kmemleak_scan(), just go
+> lockless to make the implementation simple and skip those pages when
+> scanning the .bss section. Later, those pages could be tracked by
+> kmemleak again once allocated by the page allocator. Overall, this is
+> such a special case, so no need to make it a generic to let kmemleak
+> gain an ability to skip blocks in scan_large_block().
+> 
+> BUG: Unable to handle kernel data access at 0xc000000001610000
+> Faulting instruction address: 0xc0000000003cc178
+> Oops: Kernel access of bad area, sig: 11 [#1]
+> LE PAGE_SIZE=64K MMU=Hash SMP NR_CPUS=256 DEBUG_PAGEALLOC NUMA pSeries
+> CPU: 3 PID: 130 Comm: kmemleak Kdump: loaded Not tainted 5.0.0+ #9
+> REGS: c0000004b05bf940 TRAP: 0300   Not tainted  (5.0.0+)
+> NIP [c0000000003cc178] scan_block+0xa8/0x190
+> LR [c0000000003cc170] scan_block+0xa0/0x190
+> Call Trace:
+> [c0000004b05bfbd0] [c0000000003cc170] scan_block+0xa0/0x190 (unreliable)
+> [c0000004b05bfc30] [c0000000003cc2c0] scan_large_block+0x60/0xa0
+> [c0000004b05bfc70] [c0000000003ccc64] kmemleak_scan+0x254/0x960
+> [c0000004b05bfd40] [c0000000003cdd50] kmemleak_scan_thread+0xec/0x12c
+> [c0000004b05bfdb0] [c000000000104388] kthread+0x1b8/0x1c0
+> [c0000004b05bfe20] [c00000000000b364] ret_from_kernel_thread+0x5c/0x78
+> Instruction dump:
+> 7fa3eb78 4844667d 60000000 60000000 60000000 60000000 3bff0008 7fbcf840
+> 409d00b8 4bfffeed 2fa30000 409e00ac <e87f0000> e93e0128 7fa91840
+> 419dffdc
+> 
 
-On Tue, 2019-03-12 at 16:17 -0400, Josef Bacik wrote:
-> We noticed a panic happening in production with the filemap fault
-> pages
-> because we were unlocking a NULL page.  If add_to_page_cache() fails
-> then we'll have a NULL page, so fix this check to only unlock if we
-> have a valid page.
->=20
-> Signed-off-by: Josef Bacik <josef@toxicpanda.com>
+hm, yes, this is super crude.  I guess we can turn it into something
+more sophisticated if another caller is identified.
 
-Reviewed-by: Rik van Riel <riel@surriel.com>
---=20
-All Rights Reversed.
+> --- a/mm/kmemleak.c
+> +++ b/mm/kmemleak.c
+> @@ -237,6 +237,10 @@ static int kmemleak_skip_disable;
+>  /* If there are leaks that can be reported */
+>  static bool kmemleak_found_leaks;
+>  
+> +/* Skip scanning of a range in the .bss section. */
+> +static void *bss_hole_start;
+> +static void *bss_hole_stop;
+> +
+>  static bool kmemleak_verbose;
+>  module_param_named(verbose, kmemleak_verbose, bool, 0600);
+>  
+> @@ -1265,6 +1269,18 @@ void __ref kmemleak_ignore_phys(phys_addr_t phys)
+>  }
+>  EXPORT_SYMBOL(kmemleak_ignore_phys);
+>  
+> +/**
+> + * kmemleak_bss_hole - skip scanning a range in the .bss section
+> + *
+> + * @start:	start of the range
+> + * @stop:	end of the range
+> + */
+> +void kmemleak_bss_hole(void *start, void *stop)
+> +{
+> +	bss_hole_start = start;
+> +	bss_hole_stop = stop;
+> +}
 
---=-683ghCUDNgaxptg4V6Lv
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
+I'll make this __init.
 
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAlyIH9wACgkQznnekoTE
-3oN6jAgAqTu+s2gKCRXJoaObMpfHImpZhZ7V8zUHpj0JazUpYUHXRzUrzt3jCLMj
-7v0daqn+w9fnxEeJ9ejKogs5WjHV9dRKfG6l+odEJqHnkW4xCG1GQnVdOsLaM47j
-J5T8TYb/NbjmdsZ9iVugKdA03toAbWEf4dEm5X4iRlwDcpQdZFUJ+7XKIUOJnS41
-NsBeg5M5jH895QAgUSzu/dCpUDx5IMu6o1VV3RqsX4+JABOrQzrjOVfZh0lBQHq+
-Vel30dsbLCuteca8XjP5bHsva30aSHzJaZ+SrTnsZrMNljMd10fZM4HTZCmbuJu4
-banfl+UjWGZEUFcypgAJq9Bt2xf1MQ==
-=jXvC
------END PGP SIGNATURE-----
-
---=-683ghCUDNgaxptg4V6Lv--
+>  /*
+>   * Update an object's checksum and return true if it was modified.
+>   */
+> @@ -1531,7 +1547,14 @@ static void kmemleak_scan(void)
+>  
+>  	/* data/bss scanning */
+>  	scan_large_block(_sdata, _edata);
+> -	scan_large_block(__bss_start, __bss_stop);
+> +
+> +	if (bss_hole_start) {
+> +		scan_large_block(__bss_start, bss_hole_start);
+> +		scan_large_block(bss_hole_stop, __bss_stop);
+> +	} else {
+> +		scan_large_block(__bss_start, __bss_stop);
+> +	}
+> +
+>  	scan_large_block(__start_ro_after_init, __end_ro_after_init);
+>  
+>  #ifdef CONFIG_SMP
 
