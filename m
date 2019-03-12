@@ -6,119 +6,118 @@ X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
 	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 85340C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 22:17:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2231FC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 22:17:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 26234213A2
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 22:17:01 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B6F74213A2
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 22:17:04 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="c8XcioCi"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 26234213A2
+	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="figi3DEp"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B6F74213A2
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8124C8E0014; Tue, 12 Mar 2019 18:16:26 -0400 (EDT)
+	id C08168E0015; Tue, 12 Mar 2019 18:16:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 799D58E0011; Tue, 12 Mar 2019 18:16:26 -0400 (EDT)
+	id B90EE8E0011; Tue, 12 Mar 2019 18:16:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5EACB8E0014; Tue, 12 Mar 2019 18:16:26 -0400 (EDT)
+	id A34DE8E0015; Tue, 12 Mar 2019 18:16:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 006A08E0011
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 18:16:26 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id g7so1248900wrp.23
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 15:16:25 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D1B18E0011
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 18:16:28 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id g7so1248943wrp.23
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 15:16:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:message-id:in-reply-to:references
          :from:subject:to:cc:date;
-        bh=dEzxTiGln0bue6uZbHj/H20SjQwnB1JvnNPVgqIMv3k=;
-        b=p8lDuO6lGPrc4pyr9lmHA37yoH+V5cGcNTCviUbXEWt9Q1v4scFsp1Nm/1omfMJLVa
-         uzmQbMehrHtFzQoUgvO0kYhKeefHjGOgP5gXhUHwBjzEz2W2lAdHDUtk//c3FnSSVZ6w
-         Rf8eTFzafUeiMXNvw90hJ5EeATdcQUVQ8OEqZgSZDxMWcfz535A8ckTfkVg2yrOnd3w8
-         dRAaxiVLZ7S9J47Y/IVzwSJuhKfWYpLeZzkHEWeVnkSDjQZX2o6brldGkpNVrK7rnhDU
-         PLagCVXE1KOSviuV+ziggUbRkThegqScg/NNA0yrrVv65X5NUiKzsdz09dm8ubpOXJ9t
-         uGOQ==
-X-Gm-Message-State: APjAAAWh/OObRXiar483Sx6uIAp+rXkyShX/xEOa4qxFmd+B9WvFEhB1
-	NzLpwr/aoGvyW1j4LxOcxbhXFFU5Myn2iMQKSkc+Uktbu1NGZBs6PeIpeP918/WGi5UvZNL+rCt
-	MMChUTPI6Te3AzMDAiBtwCjGLnlkgB2wJ4QncQl2uhrEOVjcWSJ+I24o0uouWSclrIQ==
-X-Received: by 2002:a1c:4e19:: with SMTP id g25mr34109wmh.106.1552428985386;
+        bh=QZsl/Ru3+/IhFFfMtEstuOanA3qKYxjkILWkI1v0IwY=;
+        b=guzMJ1tatsNmGV/b0IwZqMXt8OrDNwzucviC6W+g+9chpLiQyHKTByS3UsbS/2YrsT
+         61DimWmzU5hcxnBA875JmIG5H34TJH/7N6TugJ6wa2bgeXkdGqFYKu/va6uQ7AuTLvFf
+         79dDsXHx0zl7tCIdZNXO7SodaUSJ3B/z9OGKDjZ7anNrafwqGz6j/2i4vqjgNZHd8eNE
+         ZAVdDgvV+1zFnfuUSeQ9DRkNQvFv7+unoSA8S1z1gE93UdhmJQN1c8PYXlU9yhslrm3l
+         c/clYoniKlj7dJ/DFMGQyvQZs8FeoznpeFB5lerqtqzlMVcNRGDoa29eOvJhOKYw+Msd
+         4DUQ==
+X-Gm-Message-State: APjAAAUGATGYrqtKTDOLWDpuy2ywSl4q9h/ugCM3vTYnjSm+vgkQroCp
+	AszvjI+opqHpBGpSJbhZ/lLd6wqhu8LC2lkzKfktxqgBpDpHBsa6/G4DxJYjCyH+R2NhUKyqmFv
+	z02wURWe6M8UGKHRwYyZBKZtrmhTshM69YO1UXB3wb8EQlg2Z9Yunsw33ZuKcRXUHeA==
+X-Received: by 2002:adf:ce90:: with SMTP id r16mr25111039wrn.64.1552428987437;
+        Tue, 12 Mar 2019 15:16:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyTet7ufUUnl6TDPejvpGn1GO9EuUMlhohV8/ZDE9j2RcrFkIehNLsrFZf0MlCv7CSzYo11
+X-Received: by 2002:adf:ce90:: with SMTP id r16mr25110962wrn.64.1552428985393;
         Tue, 12 Mar 2019 15:16:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqws4PHFZyXCflfBoe/TqKHOXIKROVeXodi9PO4JzGNCIOb75WbO+yUFrHK/Xmi7RLaQQsSm
-X-Received: by 2002:a1c:4e19:: with SMTP id g25mr34071wmh.106.1552428984274;
-        Tue, 12 Mar 2019 15:16:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552428984; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1552428985; cv=none;
         d=google.com; s=arc-20160816;
-        b=vjBeuOmjEIKoD5+Oi0Gq46zF3i0M8evqCW5kZkaZ8zi+TX8qseUR2CZYqPo7NLPt8y
-         rPM4MCp954QTfaHp2EbSk55Qy6Ue9eTlNWoYBF5+jbHuYeLaP5XGiGv/S0IORb1gM/xh
-         1YgLEh7tJf6WSTK5bWhYmiFOaNAFIE+bZWNlsS8Sv5bCyIp2TBd6DuzjIf/41XfNCJef
-         HpK15MVGmbeiQ0r3wnuexpiOAti21/DRgoflF0/62dwH0eijIRDdYa6wjscC9rn865lB
-         DTPhdCprCfCb/pHJKRM0g0nQUDxV+2qph8C+WyMoNCBkVia02cxMgkWgdG+hKTm4pqVC
-         EYXA==
+        b=vBer8mQ5hxYXMaqChFc39S9M+lWMU5gAH2MZb/rZvnksvkfnmTzC9zF3huA83zbSV/
+         cr7ypYIEiK3RtWROBP5b4IsC/qzdaE32jEeTCaRz5Td0iEX7AOlJtLLEueY6sqlj8Kpo
+         Yjn4n9rYRZKTHFOTBMtqqj7TQoiE6FefAJe4ViaOejHseJVrWC6Ebol/jAaYlxW704J1
+         b/fUo2HIPiRMyV2kKf/jkX9MOqEX5I6bQFl1sct35O9PJykWwmZT9VdAt6eXn+6Vr5n/
+         st40dyiyjhzni1EIKiMj342eF70hVRPB7YqRYeicuBviOeSDKvxC+UthbwDeOYUYaxSU
+         ukLA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=date:cc:to:subject:from:references:in-reply-to:message-id
          :dkim-signature;
-        bh=dEzxTiGln0bue6uZbHj/H20SjQwnB1JvnNPVgqIMv3k=;
-        b=QH03AppgWUGl5vjtHxnsAn8dqezychTy5Cmh8FBPIw7U5fqAbHR8o9LXRXz086ZIWa
-         GaRK1B7iKR2AM3FmQO8mZ1SfD6ImoBZYgYgeaK4Lw3Yej5dm+aklD714VNsv+Au9kB3E
-         6TJQCIAQnuF1hKl78JHk/9bjLrZES1GyHMcn4N1lOAzaRWPkTWJJk7ru83MbYNBktgRb
-         pKSFjvrA2nCSyDNz8ga357Hzh5KCEyPbq5D+jcgCrjmX550kw6U/ZgSUKOnvlfubDqLu
-         JKvCCaFKwqDntQggRfcwv6Ytv1YqqadKTdvH8s/6PrN2YyW9dhvn/KXXA6ZW3ioXlQ6e
-         ELaw==
+        bh=QZsl/Ru3+/IhFFfMtEstuOanA3qKYxjkILWkI1v0IwY=;
+        b=BCHc0xNVZPQYY5axSQQtWiMfTtchfbJ0MlyVksK/cUxBxxst03kwz5Xl+bqHSq34NO
+         0AaWXex5y5DW9VugXHtS9NaIKqQR5HHGOi8BmlJSfQGYaofo960qYhZQbGiwkfvt9lG7
+         K8XJkb12wHos3liiNBD/dh69AweoPUxXlOBUwkEqE2vgvG4DXVkOZeUFobSHvOZGNoGT
+         HqBw41UHseTtVizylgZRJwepF2ec4PNgv/AE/Ve+MilgLbdszzFwM4sMB3ZRsOwItOp8
+         3gjCLK1gRQOXoZD7xWGy1TYJFkZqnFZwsAmHxY8YVfsLx0VB19JOdnJzt6NE+saCRD+U
+         BCUw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=c8XcioCi;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=figi3DEp;
        spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
 Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id o13si6109394wrm.409.2019.03.12.15.16.24
+        by mx.google.com with ESMTPS id a18si5973236wrx.194.2019.03.12.15.16.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 15:16:24 -0700 (PDT)
+        Tue, 12 Mar 2019 15:16:25 -0700 (PDT)
 Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=c8XcioCi;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=figi3DEp;
        spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
 Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 44Jq7W4RDwz9tylr;
-	Tue, 12 Mar 2019 23:16:23 +0100 (CET)
+	by localhost (Postfix) with ESMTP id 44Jq7X5bKZz9tyls;
+	Tue, 12 Mar 2019 23:16:24 +0100 (CET)
 Authentication-Results: localhost; dkim=pass
 	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=c8XcioCi; dkim-adsp=pass;
+	header.d=c-s.fr header.i=@c-s.fr header.b=figi3DEp; dkim-adsp=pass;
 	dkim-atps=neutral
 X-Virus-Scanned: Debian amavisd-new at c-s.fr
 Received: from pegase1.c-s.fr ([192.168.12.234])
 	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id 62bjLAJtcdl6; Tue, 12 Mar 2019 23:16:23 +0100 (CET)
+	with ESMTP id EVsQyKb7Wlnp; Tue, 12 Mar 2019 23:16:24 +0100 (CET)
 Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 44Jq7W3BJcz9tyll;
-	Tue, 12 Mar 2019 23:16:23 +0100 (CET)
+	by pegase1.c-s.fr (Postfix) with ESMTP id 44Jq7X4F2Qz9tyll;
+	Tue, 12 Mar 2019 23:16:24 +0100 (CET)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1552428983; bh=dEzxTiGln0bue6uZbHj/H20SjQwnB1JvnNPVgqIMv3k=;
+	t=1552428984; bh=QZsl/Ru3+/IhFFfMtEstuOanA3qKYxjkILWkI1v0IwY=;
 	h=In-Reply-To:References:From:Subject:To:Cc:Date:From;
-	b=c8XcioCi6Zr8+Kp6xAb9yUXdneRo3pqOMJ1PRDU2sB9qOiRQg1QeN8NxmdI0sw8Zi
-	 C1Hyab7dVkRqTDrI0m6wwDXP5xTu+FzqpvWQydoQuxGAXk1AC2w+qsOVSGPtLZUlcg
-	 N8mWkzbGl8dgqo6eb6MhZBVpDFB1J5EiU1vvSFjk=
+	b=figi3DEpy672YkUFS5X5eRxrv3Kb0CtlE9a5CafpdoUrGP3PGVQVNX4d+D3E1G271
+	 dWDd15Av7efTvva1yHz6GRkWTpS0/R+LQzi4PWx1pIsSH1lebvRD5klY7hPx0K2hl4
+	 yG8aJxXwHoNWyd4eIfknHOxH1lUOUVOhxq25BwPw=
 Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id A4D518B8B1;
-	Tue, 12 Mar 2019 23:16:23 +0100 (CET)
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id C675F8B8B1;
+	Tue, 12 Mar 2019 23:16:24 +0100 (CET)
 X-Virus-Scanned: amavisd-new at c-s.fr
 Received: from messagerie.si.c-s.fr ([127.0.0.1])
 	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id rsP8JgWWL1Z7; Tue, 12 Mar 2019 23:16:23 +0100 (CET)
+	with ESMTP id mAvbpiVo68Nq; Tue, 12 Mar 2019 23:16:24 +0100 (CET)
 Received: from po16846vm.idsi0.si.c-s.fr (unknown [192.168.4.90])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 6C0338B8A7;
-	Tue, 12 Mar 2019 23:16:23 +0100 (CET)
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 827728B8A7;
+	Tue, 12 Mar 2019 23:16:24 +0100 (CET)
 Received: by po16846vm.idsi0.si.c-s.fr (Postfix, from userid 0)
-	id 2B12E6FA15; Tue, 12 Mar 2019 22:16:23 +0000 (UTC)
-Message-Id: <4f888b49a3c72105ef8e74997fcb2ab20ad2252d.1552428161.git.christophe.leroy@c-s.fr>
+	id 3CB036FA15; Tue, 12 Mar 2019 22:16:24 +0000 (UTC)
+Message-Id: <3e97aba429c769bd99ccd8d6f16eda98f7d378a7.1552428161.git.christophe.leroy@c-s.fr>
 In-Reply-To: <cover.1552428161.git.christophe.leroy@c-s.fr>
 References: <cover.1552428161.git.christophe.leroy@c-s.fr>
 From: Christophe Leroy <christophe.leroy@c-s.fr>
-Subject: [PATCH RFC v3 17/18] kasan: allow architectures to provide an outline
- readiness check
+Subject: [PATCH RFC v3 18/18] powerpc: KASAN for 64bit Book3E
 To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Daniel Axtens <dja@axtens.net>
 Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
-Date: Tue, 12 Mar 2019 22:16:23 +0000 (UTC)
+Date: Tue, 12 Mar 2019 22:16:24 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -127,60 +126,267 @@ List-ID: <linux-mm.kvack.org>
 
 From: Daniel Axtens <dja@axtens.net>
 
-In powerpc (as I understand it), we spend a lot of time in boot
-running in real mode before MMU paging is initialised. During
-this time we call a lot of generic code, including printk(). If
-we try to access the shadow region during this time, things fail.
+Wire up KASAN. Only outline instrumentation is supported.
 
-My attempts to move early init before the first printk have not
-been successful. (Both previous RFCs for ppc64 - by 2 different
-people - have needed this trick too!)
+The KASAN shadow area is mapped into vmemmap space:
+0x8000 0400 0000 0000 to 0x8000 0600 0000 0000.
+To do this we require that vmemmap be disabled. (This is the default
+in the kernel config that QorIQ provides for the machine in their
+SDK anyway - they use flat memory.)
 
-So, allow architectures to define a kasan_arch_is_ready()
-hook that bails out of check_memory_region_inline() unless the
-arch has done all of the init.
+Only the kernel linear mapping (0xc000...) is checked. The vmalloc and
+ioremap areas (also in 0x800...) are all mapped to the zero page. As
+with the Book3S hash series, this requires overriding the memory <->
+shadow mapping.
 
-Link: https://lore.kernel.org/patchwork/patch/592820/ # ppc64 hash series
-Link: https://patchwork.ozlabs.org/patch/795211/      # ppc radix series
-Originally-by: Balbir Singh <bsingharora@gmail.com>
+Also, as with both previous 64-bit series, early instrumentation is not
+supported.  It would allow us to drop the check_return_arch_not_ready()
+hook in the KASAN core, but it's tricky to get it set up early enough:
+we need it setup before the first call to instrumented code like printk().
+Perhaps in the future.
+
+Only KASAN_MINIMAL works.
+
+Tested on e6500. KVM, kexec and xmon have not been tested.
+
+The test_kasan module fires warnings as expected, except for the
+following tests:
+
+ - Expected/by design:
+kasan test: memcg_accounted_kmem_cache allocate memcg accounted object
+
+ - Due to only supporting KASAN_MINIMAL:
+kasan test: kasan_stack_oob out-of-bounds on stack
+kasan test: kasan_global_oob out-of-bounds global variable
+kasan test: kasan_alloca_oob_left out-of-bounds to left on alloca
+kasan test: kasan_alloca_oob_right out-of-bounds to right on alloca
+kasan test: use_after_scope_test use-after-scope on int
+kasan test: use_after_scope_test use-after-scope on array
+
+Thanks to those who have done the heavy lifting over the past several
+years:
+ - Christophe's 32 bit series: https://lists.ozlabs.org/pipermail/linuxppc-dev/2019-February/185379.html
+ - Aneesh's Book3S hash series: https://lwn.net/Articles/655642/
+ - Balbir's Book3S radix series: https://patchwork.ozlabs.org/patch/795211/
+
+Cc: Christophe Leroy <christophe.leroy@c-s.fr>
 Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Balbir Singh <bsingharora@gmail.com>
 Signed-off-by: Daniel Axtens <dja@axtens.net>
-[check_return_arch_not_ready() ==> static inline kasan_arch_is_ready()]
+[- Removed EXPORT_SYMBOL of the static key
+ - Fixed most checkpatch problems
+ - Replaced kasan_zero_page[] by kasan_early_shadow_page[]
+ - Reduced casting mess by using intermediate locals
+ - Fixed build failure on pmac32_defconfig]
 Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
 ---
- include/linux/kasan.h | 4 ++++
- mm/kasan/generic.c    | 3 +++
- 2 files changed, 7 insertions(+)
+ arch/powerpc/Kconfig                         |  1 +
+ arch/powerpc/Kconfig.debug                   |  2 +-
+ arch/powerpc/include/asm/kasan.h             | 71 ++++++++++++++++++++++++++++
+ arch/powerpc/mm/Makefile                     |  2 +
+ arch/powerpc/mm/kasan/Makefile               |  1 +
+ arch/powerpc/mm/kasan/kasan_init_book3e_64.c | 50 ++++++++++++++++++++
+ 6 files changed, 126 insertions(+), 1 deletion(-)
+ create mode 100644 arch/powerpc/mm/kasan/kasan_init_book3e_64.c
 
-diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-index f6261840f94c..a630d53f1a36 100644
---- a/include/linux/kasan.h
-+++ b/include/linux/kasan.h
-@@ -14,6 +14,10 @@ struct task_struct;
- #include <asm/kasan.h>
- #include <asm/pgtable.h>
+diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
+index d9364368329b..51ef9fac6c5d 100644
+--- a/arch/powerpc/Kconfig
++++ b/arch/powerpc/Kconfig
+@@ -174,6 +174,7 @@ config PPC
+ 	select HAVE_ARCH_AUDITSYSCALL
+ 	select HAVE_ARCH_JUMP_LABEL
+ 	select HAVE_ARCH_KASAN			if PPC32
++	select HAVE_ARCH_KASAN			if PPC_BOOK3E_64 && !SPARSEMEM_VMEMMAP
+ 	select HAVE_ARCH_KGDB
+ 	select HAVE_ARCH_MMAP_RND_BITS
+ 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if COMPAT
+diff --git a/arch/powerpc/Kconfig.debug b/arch/powerpc/Kconfig.debug
+index 61febbbdd02b..fc1f5fa7554e 100644
+--- a/arch/powerpc/Kconfig.debug
++++ b/arch/powerpc/Kconfig.debug
+@@ -369,5 +369,5 @@ config PPC_FAST_ENDIAN_SWITCH
  
-+#ifndef kasan_arch_is_ready
-+static inline bool kasan_arch_is_ready(void)	{ return true; }
-+#endif
+ config KASAN_SHADOW_OFFSET
+ 	hex
+-	depends on KASAN
++	depends on KASAN && PPC32
+ 	default 0xe0000000
+diff --git a/arch/powerpc/include/asm/kasan.h b/arch/powerpc/include/asm/kasan.h
+index 296e51c2f066..ae410f0e060d 100644
+--- a/arch/powerpc/include/asm/kasan.h
++++ b/arch/powerpc/include/asm/kasan.h
+@@ -21,12 +21,15 @@
+ #define KASAN_SHADOW_START	(KASAN_SHADOW_OFFSET + \
+ 				 (PAGE_OFFSET >> KASAN_SHADOW_SCALE_SHIFT))
+ 
++#ifdef CONFIG_PPC32
+ #define KASAN_SHADOW_OFFSET	ASM_CONST(CONFIG_KASAN_SHADOW_OFFSET)
+ 
+ #define KASAN_SHADOW_END	0UL
+ 
+ #define KASAN_SHADOW_SIZE	(KASAN_SHADOW_END - KASAN_SHADOW_START)
+ 
++#endif /* CONFIG_PPC32 */
 +
- extern unsigned char kasan_early_shadow_page[PAGE_SIZE];
- extern pte_t kasan_early_shadow_pte[PTRS_PER_PTE];
- extern pmd_t kasan_early_shadow_pmd[PTRS_PER_PMD];
-diff --git a/mm/kasan/generic.c b/mm/kasan/generic.c
-index a5b28e3ceacb..0336f31bbae3 100644
---- a/mm/kasan/generic.c
-+++ b/mm/kasan/generic.c
-@@ -170,6 +170,9 @@ static __always_inline void check_memory_region_inline(unsigned long addr,
- 						size_t size, bool write,
- 						unsigned long ret_ip)
- {
-+	if (!kasan_arch_is_ready())
+ #ifdef CONFIG_KASAN
+ void kasan_early_init(void);
+ void kasan_mmu_init(void);
+@@ -36,5 +39,73 @@ static inline void kasan_init(void) { }
+ static inline void kasan_mmu_init(void) { }
+ #endif
+ 
++#ifdef CONFIG_PPC_BOOK3E_64
++#include <asm/pgtable.h>
++#include <linux/jump_label.h>
++
++/*
++ * We don't put this in Kconfig as we only support KASAN_MINIMAL, and
++ * that will be disabled if the symbol is available in Kconfig
++ */
++#define KASAN_SHADOW_OFFSET	ASM_CONST(0x6800040000000000)
++
++#define KASAN_SHADOW_SIZE	(KERN_VIRT_SIZE >> KASAN_SHADOW_SCALE_SHIFT)
++
++extern struct static_key_false powerpc_kasan_enabled_key;
++extern unsigned char kasan_early_shadow_page[];
++
++static inline bool kasan_arch_is_ready_book3e(void)
++{
++	if (static_branch_likely(&powerpc_kasan_enabled_key))
++		return true;
++	return false;
++}
++#define kasan_arch_is_ready kasan_arch_is_ready_book3e
++
++static inline void *kasan_mem_to_shadow_book3e(const void *ptr)
++{
++	unsigned long addr = (unsigned long)ptr;
++
++	if (addr >= KERN_VIRT_START && addr < KERN_VIRT_START + KERN_VIRT_SIZE)
++		return kasan_early_shadow_page;
++
++	return (void *)(addr >> KASAN_SHADOW_SCALE_SHIFT) + KASAN_SHADOW_OFFSET;
++}
++#define kasan_mem_to_shadow kasan_mem_to_shadow_book3e
++
++static inline void *kasan_shadow_to_mem_book3e(const void *shadow_addr)
++{
++	/*
++	 * We map the entire non-linear virtual mapping onto the zero page so if
++	 * we are asked to map the zero page back just pick the beginning of that
++	 * area.
++	 */
++	if (shadow_addr >= (void *)kasan_early_shadow_page &&
++	    shadow_addr < (void *)(kasan_early_shadow_page + PAGE_SIZE))
++		return (void *)KERN_VIRT_START;
++
++	return (void *)(((unsigned long)shadow_addr - KASAN_SHADOW_OFFSET) <<
++			KASAN_SHADOW_SCALE_SHIFT);
++}
++#define kasan_shadow_to_mem kasan_shadow_to_mem_book3e
++
++static inline bool kasan_addr_has_shadow_book3e(const void *ptr)
++{
++	unsigned long addr = (unsigned long)ptr;
++
++	/*
++	 * We want to specifically assert that the addresses in the 0x8000...
++	 * region have a shadow, otherwise they are considered by the kasan
++	 * core to be wild pointers
++	 */
++	if (addr >= KERN_VIRT_START && addr < (KERN_VIRT_START + KERN_VIRT_SIZE))
++		return true;
++
++	return (ptr >= kasan_shadow_to_mem((void *)KASAN_SHADOW_START));
++}
++#define kasan_addr_has_shadow kasan_addr_has_shadow_book3e
++
++#endif /* CONFIG_PPC_BOOK3E_64 */
++
+ #endif /* __ASSEMBLY */
+ #endif
+diff --git a/arch/powerpc/mm/Makefile b/arch/powerpc/mm/Makefile
+index 80382a2d169b..fc49231f807c 100644
+--- a/arch/powerpc/mm/Makefile
++++ b/arch/powerpc/mm/Makefile
+@@ -8,9 +8,11 @@ ccflags-$(CONFIG_PPC64)	:= $(NO_MINIMAL_TOC)
+ CFLAGS_REMOVE_slb.o = $(CC_FLAGS_FTRACE)
+ 
+ KASAN_SANITIZE_ppc_mmu_32.o := n
++KASAN_SANITIZE_fsl_booke_mmu.o := n
+ 
+ ifdef CONFIG_KASAN
+ CFLAGS_ppc_mmu_32.o  		+= -DDISABLE_BRANCH_PROFILING
++CFLAGS_fsl_booke_mmu.o		+= -DDISABLE_BRANCH_PROFILING
+ endif
+ 
+ obj-y				:= fault.o mem.o pgtable.o mmap.o \
+diff --git a/arch/powerpc/mm/kasan/Makefile b/arch/powerpc/mm/kasan/Makefile
+index 6577897673dd..f8f164ad8ade 100644
+--- a/arch/powerpc/mm/kasan/Makefile
++++ b/arch/powerpc/mm/kasan/Makefile
+@@ -3,3 +3,4 @@
+ KASAN_SANITIZE := n
+ 
+ obj-$(CONFIG_PPC32)           += kasan_init_32.o
++obj-$(CONFIG_PPC_BOOK3E_64)   += kasan_init_book3e_64.o
+diff --git a/arch/powerpc/mm/kasan/kasan_init_book3e_64.c b/arch/powerpc/mm/kasan/kasan_init_book3e_64.c
+new file mode 100644
+index 000000000000..f116c211d83c
+--- /dev/null
++++ b/arch/powerpc/mm/kasan/kasan_init_book3e_64.c
+@@ -0,0 +1,50 @@
++// SPDX-License-Identifier: GPL-2.0
++
++#define DISABLE_BRANCH_PROFILING
++
++#include <linux/kasan.h>
++#include <linux/printk.h>
++#include <linux/memblock.h>
++#include <linux/sched/task.h>
++#include <asm/pgalloc.h>
++
++DEFINE_STATIC_KEY_FALSE(powerpc_kasan_enabled_key);
++
++static void __init kasan_init_region(struct memblock_region *reg)
++{
++	void *start = __va(reg->base);
++	void *end = __va(reg->base + reg->size);
++	unsigned long k_start, k_end, k_cur;
++
++	if (start >= end)
 +		return;
 +
- 	if (unlikely(size == 0))
- 		return;
- 
++	k_start = (unsigned long)kasan_mem_to_shadow(start);
++	k_end = (unsigned long)kasan_mem_to_shadow(end);
++
++	for (k_cur = k_start; k_cur < k_end; k_cur += PAGE_SIZE) {
++		void *va = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
++
++		map_kernel_page(k_cur, __pa(va), PAGE_KERNEL);
++	}
++	flush_tlb_kernel_range(k_start, k_end);
++}
++
++void __init kasan_init(void)
++{
++	struct memblock_region *reg;
++
++	for_each_memblock(memory, reg)
++		kasan_init_region(reg);
++
++	/* map the zero page RO */
++	map_kernel_page((unsigned long)kasan_early_shadow_page,
++			__pa(kasan_early_shadow_page), PAGE_KERNEL_RO);
++
++	/* Turn on checking */
++	static_branch_inc(&powerpc_kasan_enabled_key);
++
++	/* Enable error messages */
++	init_task.kasan_depth = 0;
++	pr_info("KASAN init done (64-bit Book3E)\n");
++}
 -- 
 2.13.3
 
