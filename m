@@ -2,272 +2,266 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 51278C10F00
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 19:06:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1746BC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 19:14:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EEC8B214D8
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 19:06:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EEC8B214D8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 7A7E82077B
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 19:14:32 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="Y9l2Xk7Y"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7A7E82077B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 898AA8E0003; Tue, 12 Mar 2019 15:06:12 -0400 (EDT)
+	id E10088E0003; Tue, 12 Mar 2019 15:14:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 848568E0002; Tue, 12 Mar 2019 15:06:12 -0400 (EDT)
+	id DC0658E0002; Tue, 12 Mar 2019 15:14:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7101B8E0003; Tue, 12 Mar 2019 15:06:12 -0400 (EDT)
+	id C88668E0003; Tue, 12 Mar 2019 15:14:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 456E08E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 15:06:12 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id w134so3075723qka.6
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 12:06:12 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BED48E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 15:14:31 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id n16so3260677qtp.14
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 12:14:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=hurHGZI0DQPb19rTiUVsBBDeTIIswNCdKRmWsKLy81o=;
-        b=oAhUF6KMRvdSEi2jybihbYWvAWEklTy0vJC7XnyPur/HtPBhEtZOdn2MUyE7p/dRT4
-         WBcDsWsc0NkYyDW6mDpH62iK2z7FZOLo49lm1q3kVTfCfKqbDDP4927/J68lrr5CSlaT
-         IQnit72NYMqAlncsZiyL+OfK0HqtWK1vk7PuxIIhuQOGiyM5XhbhuPKQ7Wbs0A2GTpMH
-         Vya2p6pjd1hySCVXGNUT3c1gw6LfKeMdwOqMMHgKrmdT/SBkyyBG9VP+wX8nVCdwUtsB
-         kN7CEuoiWe7P4n4cyh5CD7qK4ITzyaSk+DsWOV7ag85M4At2VF9Bwdh0fpuPZ6hYjFJy
-         GshA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVsaRe4yL6gKjyIlR4siKAXUGcgKN2KpWP+CGixC7tq/YsgDwBx
-	rRc+KKcoWDQfjkHDUeBq707gMJYihmaNlZ5H/x3/2vXCWR74arqW68nWImsKYAEDjsstJ5CYlHY
-	2O8lvtWpv+Am8B+ieZBXvZ7UxCqdZQCDoqX+kXa7zy+rUj4FLvv54C8QdXJaAVvwM2Q==
-X-Received: by 2002:ac8:2297:: with SMTP id f23mr19862615qta.348.1552417571963;
-        Tue, 12 Mar 2019 12:06:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxh5PzttSi8wl5HIm5aRnbEZTtB/61H4edWmT/83FVue4u0SXSWJJY70WjnMLXmDGDX4CbZ
-X-Received: by 2002:ac8:2297:: with SMTP id f23mr19862529qta.348.1552417570915;
-        Tue, 12 Mar 2019 12:06:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552417570; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=DZ0zrk+Q+rSDOvWbVsPGd6SV907FycK77BA535duIaY=;
+        b=mWUkImaXhD8pfI6bERzU4Tbdto2BokkbivOFEQpNGykfw1SF9uAsY3bgRxohH89Krk
+         w70xtGGyYTdc+g/Si4sX7mmzA8ZPuC6OcfWXtCDT1dglqiWq7ETucyAUmgJxP/GqSLUR
+         wRC/DG6iFflSY/kNGxzuU3+aggwKLq4N9YZ68hM8KASEyYUxnm19+05J3jRSQsffgGMt
+         V2pgzJWJwKGOYCEhlcsyntJYo5BAFmSNR23HE1E7HnHOpfsY7mXPoUNhn6+3qVTTc1WR
+         1im3pSPGaQtyW09mLTXXWr+P98JOQfmDdJm/oE8FLEvwHBDIt26xbY8Ow2Cg41JlBhZz
+         bilg==
+X-Gm-Message-State: APjAAAV8G6qUV6Oa23HMHVpAQW6JAu4i+DiPyfVviPG4CJBYUslFzvzH
+	LG3TFXelRjOBzZmyr67TtLX4BDaKLEkE0EvmFlKYHL/KVw7N/f59jJwxyNC+sDE8LZFVkp/XDjv
+	A5nKn3ZuXiGxwXGuW3o8oLqcsQ69sGbg3/XNZ3eRbINMBtDOuKjzqjyDEToXfRJIzz3tbTrEnRr
+	jibH1SF4nu3OzK6Jo/voQkj5Iv7xTyIEY8OZcZIzoVozDBiHWuPY1g03cioR4i98HP6A+yPYVsk
+	zVaSSE3WqqJlB3h4d7vYLB0amgvsSnEkpvmHCC+1HRa30c3Z8GPzvM02gjQHpyPJ2kAYmVGF2Lz
+	B92nnxNhYWUi6eR7Xj7fQsJFqbXzxZgj5dTfwVK9zS4saTj3QVhDq3+Z3ADFGnrEmjgGA+IkPlP
+	M
+X-Received: by 2002:ac8:3513:: with SMTP id y19mr31922196qtb.49.1552418071351;
+        Tue, 12 Mar 2019 12:14:31 -0700 (PDT)
+X-Received: by 2002:ac8:3513:: with SMTP id y19mr31922108qtb.49.1552418070011;
+        Tue, 12 Mar 2019 12:14:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552418070; cv=none;
         d=google.com; s=arc-20160816;
-        b=sDBUWRjIVtZN4BudB5S5exPDNanNe4iLKZ4jlydzH5q5V5yUhrLKJwVGCeYL+NeoNs
-         r787YA25LGRdinoAqpteuqyxdGLZaAY8ADlw+mNP4gcLVU3shGP+NDJ7ScEL37omO7ja
-         XULlrOflx7Nrozzq8pTgqacA12OUbM8eRubh/Ezq3ZB2DfM/RriQDaeZEBmdGPngA/qy
-         5HFfwnmxWV+i9TXs2HXCUm/gjYx0QpLcAwCUk3FDdmPPHHV7+mPJmYh5TBSXmnuArEKs
-         Q0szqedYew+RaqcFtvP17u/0MVhyDCgjcxssOGWtp+4OiVS6HYmkPqTxZEjQOObLTwta
-         gV3g==
+        b=cLKlHpCMJ2VJeOyHBVtHn3x6RgOOyBp+S87e9zTmqRPu0OUqp/TNTnrbtoftle3kwY
+         spRsDPV5yUoez43HKZjJOsEZ/2G8nEWyhtu2tm3xVdv71+VchI4cGHlrvMYjXuAFoH9x
+         dhgeEn+pFaqovkcrNzFuToc7csdOfvo5fB+hj/EIxTBWL9RmTYV9lkcGDUXn5Z5H6bZS
+         cRhLXcnnG+kmOevpEVoncNeHFWokjPGfynLtXlmmHOf2NK40xbRtDA6ON4b5PqtM6Yi+
+         AWWppZWGOquDGGB4uEbk5T7iip34hcbIuwNe/QzIm/EqqTQORTVQ+8mWfVAAXQqru9WN
+         aodg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=hurHGZI0DQPb19rTiUVsBBDeTIIswNCdKRmWsKLy81o=;
-        b=MYY7m/I8qJPx21MWEOM3sBtCbubaCiuBwPp40sN0DwJmo5DNtyFG+AIUBivlgrg0qH
-         LMphjDENo78/kO3RVrf7wwX2eNT7AaMqbWrNtL95i6kD3+bkmJwRILvl6Wr62uBO1owa
-         SSFZ/g/4eZqKem8UD1KeeqG+i/bnRV6WBxgi7/NXXwdIhKKGLdsHVtfRjKOeAaedlO1F
-         jzxHD+HuDa+pSiMtUklmqNTQsMtcOxJ73lCQv3fADxQmsyHBs8ilkmRJ2RSJXEKSJwPc
-         WTK2tIkewJur71NJeGe3HhXvhD4D7ek+7xLFvy8fBVQ9Z4TF/IdwSiSyV00W1m14S1D+
-         CqTw==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=DZ0zrk+Q+rSDOvWbVsPGd6SV907FycK77BA535duIaY=;
+        b=bPJdaG5bEAE0OjL3hfzAMVJv0kYEsyNLMunBEMOacRk6fJ3hyHy6Vjml1v/QB6hfQ+
+         3UFdf4bdC5oyWyauDqzIQSzl7hB55L0FGqbCojYkuflsgSqdhZjLne+PEZFWxsZI5I3X
+         GDv2J12ql/EXMeaa7IqmKNeNR4iwTZahxUtiE/4pNkPtgpb0D3LCd/SUddUwMSK2H9/7
+         36YVH98LRi1qVk6YCYhjQCScAi8n5KWCpmk7Z6YYFffW6DcOA4S4d63CECVh5vo0Wd7/
+         3TCplIRSj6MxTN3zVfJ4HDtYF5SmqkD1UqP/Hv4DwKKF1mlb6Sdd6KlAqNnjQ0bfbFad
+         ckdQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 3si1987349qvh.62.2019.03.12.12.06.10
+       dkim=pass header.i=@lca.pw header.s=google header.b=Y9l2Xk7Y;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m34sor11643231qtc.49.2019.03.12.12.14.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 12:06:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Tue, 12 Mar 2019 12:14:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id D11B5A146A;
-	Tue, 12 Mar 2019 19:06:09 +0000 (UTC)
-Received: from redhat.com (ovpn-117-131.phx2.redhat.com [10.3.117.131])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id DCDEE66857;
-	Tue, 12 Mar 2019 19:06:08 +0000 (UTC)
-Date: Tue, 12 Mar 2019 15:06:07 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Linux MM <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>
-Subject: Re: [PATCH 09/10] mm/hmm: allow to mirror vma of a file on a DAX
- backed filesystem
-Message-ID: <20190312190606.GA15675@redhat.com>
-References: <CAPcyv4hB4p6po1+-hJ4Podxoan35w+T6uZJzqbw=zvj5XdeNVQ@mail.gmail.com>
- <20190131041641.GK5061@redhat.com>
- <CAPcyv4gb+r==riKFXkVZ7gGdnKe62yBmZ7xOa4uBBByhnK9Tzg@mail.gmail.com>
- <20190305141635.8134e310ba7187bc39532cd3@linux-foundation.org>
- <CAA9_cmd2Z62Z5CSXvne4rj3aPSpNhS0Gxt+kZytz0bVEuzvc=A@mail.gmail.com>
- <20190307094654.35391e0066396b204d133927@linux-foundation.org>
- <20190307185623.GD3835@redhat.com>
- <CAPcyv4gkxmmkB0nofVOvkmV7HcuBDb+1VLR9CSsp+m-QLX_mxA@mail.gmail.com>
- <20190312152551.GA3233@redhat.com>
- <CAPcyv4iYzTVpP+4iezH1BekawwPwJYiMvk2GZDzfzFLUnO+RgA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAPcyv4iYzTVpP+4iezH1BekawwPwJYiMvk2GZDzfzFLUnO+RgA@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Tue, 12 Mar 2019 19:06:10 +0000 (UTC)
+       dkim=pass header.i=@lca.pw header.s=google header.b=Y9l2Xk7Y;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=from:to:cc:subject:date:message-id;
+        bh=DZ0zrk+Q+rSDOvWbVsPGd6SV907FycK77BA535duIaY=;
+        b=Y9l2Xk7YmcNPlU7pESh76E+NVmKWcjH/4XxSUYg2DmYLCBGlNF+ge8cXu7sMTges85
+         tmVdhk6QM3R8g2Y3wqE535Dzb3XbPxh+0ljDyqANxnNZq0U3wMcv3cSWoOuZbDCZyBto
+         DK/eNcWX9kyrN4fwmP2lRtWUlG8piY9B+k0WZotC+4pMVPqAGWxWCWfVDhJUCNTgHXE3
+         eRG0JLZPaKfIGk86wAK4d3RKwHcDSqO7zjo2NFY+D1HPg7y3qTQmOMJZsj9Of8KdH9eV
+         g0YoUUFEz2iOZrbIEeEbDZIFnCi5d4Xun6IvY49CuxHrkvaGEytpDGPiz2J7JJG7Tz3O
+         MQvw==
+X-Google-Smtp-Source: APXvYqyaKjuQ9G/lbn+bzG4co0WQXrOgZ88CnaC/q38aNxY5TbGX8BuaCucyZT/J32tQ96EM6dn6Zw==
+X-Received: by 2002:ac8:22ea:: with SMTP id g39mr20713118qta.73.1552418069670;
+        Tue, 12 Mar 2019 12:14:29 -0700 (PDT)
+Received: from ovpn-121-103.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id j9sm5083856qtb.30.2019.03.12.12.14.28
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Mar 2019 12:14:29 -0700 (PDT)
+From: Qian Cai <cai@lca.pw>
+To: akpm@linux-foundation.org
+Cc: catalin.marinas@arm.com,
+	agraf@suse.de,
+	paulus@ozlabs.org,
+	benh@kernel.crashing.org,
+	pe@ellerman.id.au,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	kvm-ppc@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org,
+	Qian Cai <cai@lca.pw>
+Subject: [PATCH] kmemleak: skip scanning holes in the .bss section
+Date: Tue, 12 Mar 2019 15:14:12 -0400
+Message-Id: <20190312191412.28656-1-cai@lca.pw>
+X-Mailer: git-send-email 2.17.2 (Apple Git-113)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 12, 2019 at 09:06:12AM -0700, Dan Williams wrote:
-> On Tue, Mar 12, 2019 at 8:26 AM Jerome Glisse <jglisse@redhat.com> wrote:
-> >
-> > On Mon, Mar 11, 2019 at 08:13:53PM -0700, Dan Williams wrote:
-> > > On Thu, Mar 7, 2019 at 10:56 AM Jerome Glisse <jglisse@redhat.com> wrote:
-> > > >
-> > > > On Thu, Mar 07, 2019 at 09:46:54AM -0800, Andrew Morton wrote:
-> > > > > On Tue, 5 Mar 2019 20:20:10 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
-> > > > >
-> > > > > > My hesitation would be drastically reduced if there was a plan to
-> > > > > > avoid dangling unconsumed symbols and functionality. Specifically one
-> > > > > > or more of the following suggestions:
-> > > > > >
-> > > > > > * EXPORT_SYMBOL_GPL on all exports to avoid a growing liability
-> > > > > > surface for out-of-tree consumers to come grumble at us when we
-> > > > > > continue to refactor the kernel as we are wont to do.
-> > > > >
-> > > > > The existing patches use EXPORT_SYMBOL() so that's a sticking point.
-> > > > > Jerome, what would happen is we made these EXPORT_SYMBOL_GPL()?
-> > > >
-> > > > So Dan argue that GPL export solve the problem of out of tree user and
-> > > > my personnal experience is that it does not. The GPU sub-system has tons
-> > > > of GPL drivers that are not upstream and we never felt that we were bound
-> > > > to support them in anyway. We always were very clear that if you are not
-> > > > upstream that you do not have any voice on changes we do.
-> > > >
-> > > > So my exeperience is that GPL does not help here. It is just about being
-> > > > clear and ignoring anyone who does not have an upstream driver ie we have
-> > > > free hands to update HMM in anyway as long as we keep supporting the
-> > > > upstream user.
-> > > >
-> > > > That being said if the GPL aspect is that much important to some then
-> > > > fine let switch all HMM symbol to GPL.
-> > >
-> > > I should add that I would not be opposed to moving symbols to
-> > > non-GPL-only over time, but that should be based on our experience
-> > > with the stability and utility of the implementation. For brand new
-> > > symbols there's just no data to argue that we can / should keep the
-> > > interface stable, or that the interface exposes something fragile that
-> > > we'd rather not export at all. That experience gathering and thrash is
-> > > best constrained to upstream GPL-only drivers that are signing up to
-> > > participate in that maturation process.
-> > >
-> > > So I think it is important from a practical perspective and is a lower
-> > > risk way to run this HMM experiment of "merge infrastructure way in
-> > > advance of an upstream user".
-> > >
-> > > > > > * A commitment to consume newly exported symbols in the same merge
-> > > > > > window, or the following merge window. When that goal is missed revert
-> > > > > > the functionality until such time that it can be consumed, or
-> > > > > > otherwise abandoned.
-> > > > >
-> > > > > It sounds like we can tick this box.
-> > > >
-> > > > I wouldn't be too strick either, when adding something in release N
-> > > > the driver change in N+1 can miss N+1 because of bug or regression
-> > > > and be push to N+2.
-> > > >
-> > > > I think a better stance here is that if we do not get any sign-off
-> > > > on the feature from driver maintainer for which the feature is intended
-> > > > then we just do not merge.
-> > >
-> > > Agree, no driver maintainer sign-off then no merge.
-> > >
-> > > > If after few release we still can not get
-> > > > the driver to use it then we revert.
-> > >
-> > > As long as it is made clear to the driver maintainer that they have
-> > > one cycle to consume it then we can have a conversation if it is too
-> > > early to merge the infrastructure. If no one has time to consume the
-> > > feature, why rush dead code into the kernel? Also, waiting 2 cycles
-> > > means the infrastructure that was hard to review without a user is now
-> > > even harder to review because any review momentum has been lost by the
-> > > time the user show up, so we're better off keeping them close together
-> > > in time.
-> >
-> > Miss-understanding here, in first post the infrastructure and the driver
-> > bit get posted just like have been doing lately. So that you know that
-> > you have working user with the feature and what is left is pushing the
-> > driver bits throught the appropriate tree. So driver maintainer support
-> > is about knowing that they want the feature and have some confidence
-> > that it looks ready.
-> >
-> > It also means you can review the infrastructure along side user of it.
-> 
-> Sounds good.
-> 
-> > > > It just feels dumb to revert at N+1 just to get it back in N+2 as
-> > > > the driver bit get fix.
-> > >
-> > > No, I think it just means the infrastructure went in too early if a
-> > > driver can't consume it in a development cycle. Lets revisit if it
-> > > becomes a problem in practice.
-> >
-> > Well that's just dumb to have hard guideline like that. Many things
-> > can lead to missing deadline. For instance bug i am refering too might
-> > have nothing to do with the feature, it can be something related to
-> > integrating the feature an unforseen side effect. So i believe a better
-> > guideline is that driver maintainer rejecting the feature rather than
-> > just failure to meet one deadline.
-> 
-> The history of the Linux kernel disagrees with this statement. It's
-> only HMM that has recently ignored precedent and pushed to land
-> infrastructure in advance of consumers, a one cycle constraint is
-> already generous in that light.
-> 
-> > > > > > * No new symbol exports and functionality while existing symbols go unconsumed.
-> > > > >
-> > > > > Unsure about this one?
-> > > >
-> > > > With nouveau upstream now everything is use. ODP will use some of the
-> > > > symbol too. PPC has patchset posted to use lot of HMM too. I have been
-> > > > working with other vendor that have patchset being work on to use HMM
-> > > > too.
-> > > >
-> > > > I have not done all those function just for the fun of it :) They do
-> > > > have real use and user. It took a longtime to get nouveau because of
-> > > > userspace we had a lot of catchup to do in mesa and llvm and we are
-> > > > still very rough there.
-> > >
-> > > Sure, this one is less of a concern if we can stick to tighter
-> > > timelines between infrastructure and driver consumer merge.
-> >
-> > Issue is that consumer timeline can be hard to know, sometimes
-> > the consumer go over few revision (like ppc for instance) and
-> > not because of the infrastructure but for other reasons. So
-> > reverting the infrastructure just because user had its timeline
-> > change is not productive. User missing one cycle means they would
-> > get delayed for 2 cycles ie reupstreaming the infrastructure in
-> > next cycle and repushing the user the cycle after. This sounds
-> > like a total wastage of everyone times. While keeping the infra-
-> > structure would allow the timeline to slip by just one cycle.
-> >
-> > Spirit of the rule is better than blind application of rule.
-> 
-> Again, I fail to see why HMM is suddenly unable to make forward
-> progress when the infrastructure that came before it was merged with
-> consumers in the same development cycle.
-> 
-> A gate to upstream merge is about the only lever a reviewer has to
-> push for change, and these requests to uncouple the consumer only
-> serve to weaken that review tool in my mind.
+The commit 2d4f567103ff ("KVM: PPC: Introduce kvm_tmp framework") adds
+kvm_tmp[] into the .bss section and then free the rest of unused spaces
+back to the page allocator.
 
-Well let just agree to disagree and leave it at that and stop
-wasting each other time
+kernel_init
+  kvm_guest_init
+    kvm_free_tmp
+      free_reserved_area
+        free_unref_page
+          free_unref_page_prepare
 
-Jérôme
+With DEBUG_PAGEALLOC=y, it will unmap those pages from kernel. As the
+result, kmemleak scan will trigger a panic below when it scans the .bss
+section with unmapped pages.
+
+Since this is done way before the first kmemleak_scan(), just go
+lockless to make the implementation simple and skip those pages when
+scanning the .bss section. Later, those pages could be tracked by
+kmemleak again once allocated by the page allocator. Overall, this is
+such a special case, so no need to make it a generic to let kmemleak
+gain an ability to skip blocks in scan_large_block().
+
+BUG: Unable to handle kernel data access at 0xc000000001610000
+Faulting instruction address: 0xc0000000003cc178
+Oops: Kernel access of bad area, sig: 11 [#1]
+LE PAGE_SIZE=64K MMU=Hash SMP NR_CPUS=256 DEBUG_PAGEALLOC NUMA pSeries
+CPU: 3 PID: 130 Comm: kmemleak Kdump: loaded Not tainted 5.0.0+ #9
+REGS: c0000004b05bf940 TRAP: 0300   Not tainted  (5.0.0+)
+NIP [c0000000003cc178] scan_block+0xa8/0x190
+LR [c0000000003cc170] scan_block+0xa0/0x190
+Call Trace:
+[c0000004b05bfbd0] [c0000000003cc170] scan_block+0xa0/0x190 (unreliable)
+[c0000004b05bfc30] [c0000000003cc2c0] scan_large_block+0x60/0xa0
+[c0000004b05bfc70] [c0000000003ccc64] kmemleak_scan+0x254/0x960
+[c0000004b05bfd40] [c0000000003cdd50] kmemleak_scan_thread+0xec/0x12c
+[c0000004b05bfdb0] [c000000000104388] kthread+0x1b8/0x1c0
+[c0000004b05bfe20] [c00000000000b364] ret_from_kernel_thread+0x5c/0x78
+Instruction dump:
+7fa3eb78 4844667d 60000000 60000000 60000000 60000000 3bff0008 7fbcf840
+409d00b8 4bfffeed 2fa30000 409e00ac <e87f0000> e93e0128 7fa91840
+419dffdc
+
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
+ arch/powerpc/kernel/kvm.c |  3 +++
+ include/linux/kmemleak.h  |  4 ++++
+ mm/kmemleak.c             | 25 ++++++++++++++++++++++++-
+ 3 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/arch/powerpc/kernel/kvm.c b/arch/powerpc/kernel/kvm.c
+index 683b5b3805bd..5cddc8fc56bb 100644
+--- a/arch/powerpc/kernel/kvm.c
++++ b/arch/powerpc/kernel/kvm.c
+@@ -26,6 +26,7 @@
+ #include <linux/slab.h>
+ #include <linux/of.h>
+ #include <linux/pagemap.h>
++#include <linux/kmemleak.h>
+ 
+ #include <asm/reg.h>
+ #include <asm/sections.h>
+@@ -712,6 +713,8 @@ static void kvm_use_magic_page(void)
+ 
+ static __init void kvm_free_tmp(void)
+ {
++	kmemleak_bss_hole(&kvm_tmp[kvm_tmp_index],
++			  &kvm_tmp[ARRAY_SIZE(kvm_tmp)]);
+ 	free_reserved_area(&kvm_tmp[kvm_tmp_index],
+ 			   &kvm_tmp[ARRAY_SIZE(kvm_tmp)], -1, NULL);
+ }
+diff --git a/include/linux/kmemleak.h b/include/linux/kmemleak.h
+index 5ac416e2d339..3d8949b9c6f5 100644
+--- a/include/linux/kmemleak.h
++++ b/include/linux/kmemleak.h
+@@ -46,6 +46,7 @@ extern void kmemleak_alloc_phys(phys_addr_t phys, size_t size, int min_count,
+ extern void kmemleak_free_part_phys(phys_addr_t phys, size_t size) __ref;
+ extern void kmemleak_not_leak_phys(phys_addr_t phys) __ref;
+ extern void kmemleak_ignore_phys(phys_addr_t phys) __ref;
++extern void kmemleak_bss_hole(void *start, void *stop);
+ 
+ static inline void kmemleak_alloc_recursive(const void *ptr, size_t size,
+ 					    int min_count, slab_flags_t flags,
+@@ -131,6 +132,9 @@ static inline void kmemleak_not_leak_phys(phys_addr_t phys)
+ static inline void kmemleak_ignore_phys(phys_addr_t phys)
+ {
+ }
++static inline void kmemleak_bss_hole(void *start, void *stop)
++{
++}
+ 
+ #endif	/* CONFIG_DEBUG_KMEMLEAK */
+ 
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index 707fa5579f66..42349cd9ef7a 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -237,6 +237,10 @@ static int kmemleak_skip_disable;
+ /* If there are leaks that can be reported */
+ static bool kmemleak_found_leaks;
+ 
++/* Skip scanning of a range in the .bss section. */
++static void *bss_hole_start;
++static void *bss_hole_stop;
++
+ static bool kmemleak_verbose;
+ module_param_named(verbose, kmemleak_verbose, bool, 0600);
+ 
+@@ -1265,6 +1269,18 @@ void __ref kmemleak_ignore_phys(phys_addr_t phys)
+ }
+ EXPORT_SYMBOL(kmemleak_ignore_phys);
+ 
++/**
++ * kmemleak_bss_hole - skip scanning a range in the .bss section
++ *
++ * @start:	start of the range
++ * @stop:	end of the range
++ */
++void kmemleak_bss_hole(void *start, void *stop)
++{
++	bss_hole_start = start;
++	bss_hole_stop = stop;
++}
++
+ /*
+  * Update an object's checksum and return true if it was modified.
+  */
+@@ -1531,7 +1547,14 @@ static void kmemleak_scan(void)
+ 
+ 	/* data/bss scanning */
+ 	scan_large_block(_sdata, _edata);
+-	scan_large_block(__bss_start, __bss_stop);
++
++	if (bss_hole_start) {
++		scan_large_block(__bss_start, bss_hole_start);
++		scan_large_block(bss_hole_stop, __bss_stop);
++	} else {
++		scan_large_block(__bss_start, __bss_stop);
++	}
++
+ 	scan_large_block(__start_ro_after_init, __end_ro_after_init);
+ 
+ #ifdef CONFIG_SMP
+-- 
+2.17.2 (Apple Git-113)
 
