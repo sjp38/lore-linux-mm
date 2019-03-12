@@ -6,93 +6,93 @@ X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BF0C4C10F06
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 02:52:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7FC1CC4360F
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 02:56:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7C61A2087C
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 02:52:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7C61A2087C
+	by mail.kernel.org (Postfix) with ESMTP id 3AC1E20842
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 02:56:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3AC1E20842
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1B44F8E0004; Mon, 11 Mar 2019 22:52:29 -0400 (EDT)
+	id C5F648E0004; Mon, 11 Mar 2019 22:56:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 163FE8E0002; Mon, 11 Mar 2019 22:52:29 -0400 (EDT)
+	id C0F1F8E0002; Mon, 11 Mar 2019 22:56:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 056048E0004; Mon, 11 Mar 2019 22:52:29 -0400 (EDT)
+	id AD8DD8E0004; Mon, 11 Mar 2019 22:56:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CF6158E0002
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 22:52:28 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id x63so1077612qka.5
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 19:52:28 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F10E8E0002
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 22:56:32 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id d49so1003436qtd.15
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 19:56:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-transfer-encoding:content-language;
-        bh=GGKAsUxN6UHNQJq87Wd3hDZhTKE7+fAOFl3iNbX+jcs=;
-        b=LSADBz4rNExcvrXbwdoh6J7TDAty5Z/8H1MAf8if4x9vwBBnYS1287x4cTSSc3jA9I
-         y6k8wigALlllyFoErBBKayPrv6aEIQkvZFSTpsjYZMM71cDzMlg0AE+r8uOQ2gNUf/Wi
-         aBuD8LZM8pliboWNEZu8HE4l4lTLMviRhiY8oCUykMxXe0uMRuI7kkp3LLvPMFl+uHdD
-         uzrNVA1Kw+6ZcgGxrGCtdeYkfbHdqa81fym9cpuCDOdnKKMCMu7yXRavdiReaKV9GOxu
-         VmMjbcrWTA32pDXtfB2KQG221ABfSMfQPJ9EoKwVzjrh2hn2iXOnyqcJixsHd7USsMTL
-         MmzA==
+        bh=bzMUsu5FGRfqkUpBkiKCi1f1o4wZkOeI47MzQSOTMcg=;
+        b=nOgG3essQ8Q8txBpzpEszeHU8pIux0DbhqLol3uv3d8TF83G4NQrVMANJK7qd6j9yh
+         7yPbuNvUdcv0mn9IgDoY9J84kzcvF8Sj5J00QOum36j3UqjB/JgthF7btD3Sz2CNsvmR
+         0aXZWwRJLo62k8b9EiS/SydFm+90jQoAwcM2X0+YgA2cnkqUOXcQjOIfzHvhm36MlWOF
+         xegEqAQlp+MRRYUiegv83+gsgnxZfmA4uFWPoYbTY7ftN8P3HvfIwKYjTNncsanVlXrj
+         tlKW3JrHekVopRYj3wlP9o0NowBdiGQ58LkxbFtL/zyZl+Yndmb2+oJs1C8ZKi/zPXlb
+         dQBw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAX+lDw+/nP82VycYWy39jk5dsiHPnBj2Pin2NqFFJsNQaETMPZd
-	jDcyaCzlvZIO7l26HmWro59CBjdDn+iOrUhKPanFZ1kGh9TheUpt8sLyA06IMWCxOyOG5gBLawu
-	giyRw8qY0NRnlFNFP98MQ8whM9DZw2yqA4+iTBEw5XzAaJGg8ye5yqiCiAWMfjr/3pA==
-X-Received: by 2002:ac8:180b:: with SMTP id q11mr4601195qtj.113.1552359148514;
-        Mon, 11 Mar 2019 19:52:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxwJ/dnK9E6Ws2LI2eXQr4fwdMDAyrBBxqbB/FLboJqGk9Pg3LKUZmj8hK20rKjJchCIhe5
-X-Received: by 2002:ac8:180b:: with SMTP id q11mr4601167qtj.113.1552359147685;
-        Mon, 11 Mar 2019 19:52:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552359147; cv=none;
+X-Gm-Message-State: APjAAAU3wFQ3p/aVYlPOXgJPBq5q4z3P58ipWx7uTM0JiWCGViSNJEMA
+	E3gNWhRQJYvPQJyfMtvCjyf6nLgvz4JUX7b/SR7JWcZXOfbfRoTw8NGRVwAw0nTZSMkRMP8VfMV
+	I7RXv4X9juXuPwjgkeUabMaKIv2ArvA12rwBEU4UVa5noPGvUXJRls/5Ye1w3gYAvZg==
+X-Received: by 2002:a37:e503:: with SMTP id e3mr25604207qkg.316.1552359392316;
+        Mon, 11 Mar 2019 19:56:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzGwN4egn4M2FGrsvNEsee6qlB8M9uKfxnFs0EiXDyyAChHIUDt9hU9nn2UomJFlNUeIIb+
+X-Received: by 2002:a37:e503:: with SMTP id e3mr25604185qkg.316.1552359391533;
+        Mon, 11 Mar 2019 19:56:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552359391; cv=none;
         d=google.com; s=arc-20160816;
-        b=PDJzKj79rqvjcBkyXaOa1v/HWUEuTHKseNmWmy/p7TBg9Y/B7lF1yNNTYUAXCEB5D1
-         Q52HwrzXZ7zI4SVE9goktz0tknh8MAZtMB6CDNF4bMiciD4fRUXD/Rcw58vZIdtRWJmA
-         mHhghSw6tNPGKekPnZ2u4NVuOU5i0LWJ191ZdFCABz9VGZuwMYnNqMmBHdUb2i52ABbH
-         kjHqtvXHi9fFnzgiqOiZPWxzuazcKIP9oI8wvHBfM0iQExcd/Zl7nzPOhnpOEOs4qsUh
-         2/ctfw+HUGwTRfi/n/AjoxRsqlIglYQBzteLzsXuViCXqXRPOvNscpyPJb2QOrOqHuJW
-         DQ7g==
+        b=QVP6jq5f23jtTpGyTNWy7VnS+YpRnxIqZB3Mip++gHTa5Abvi4i4+6dMmFuaU+Rs7L
+         4URgTV7/LAWK/K4HwcHO+rmqfIDpOnIR9vukP9u74phbEHJXRkScWvAx4Z+FLVM7Fm7z
+         IqT1G4hB29ZinrRM2f2l0rwUa2wAEBScUQ5zoZ7JdiktgTN8s9ejxrK+3ZNbrN2a7GrK
+         V5d7kWigy2SuBYoO1h3kEnWDs5f4LQxOn0emDBgf/ki9CqDr37L9/hat+gtWchXpcggC
+         tgMVPkS7sggg8iqENYu80hiuV3RTz//jKv5Z65Tp/QcTf7IRtN6bYbKX7piyxYSMMJFO
+         Q50w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-language:content-transfer-encoding:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=GGKAsUxN6UHNQJq87Wd3hDZhTKE7+fAOFl3iNbX+jcs=;
-        b=beKvbctJJuZQA2Z16l6z1rA4OnFdftFJf6EcG/JduE1CTdaDmng4vL74GBMZPSrMnM
-         oL3Ms+SmHp38YZahLtly+yFsHJ8yUwyYiZoP2h1zYfXdx3inDXjJPTdLw/THifZevWug
-         tfRufyIk3KDlfNqR5kE+ru7O6X4yPP2huN6jZ8m8u9xbnrDtZExsRIgTCVT6PRQqIJgY
-         rFfrX46jvTqqOf9vIax5bJPlBj5m0cNW1MFKqEWVzcYwUrkefH4ZskxTCUM23t2sIyyW
-         LPhiabOJH7HALd2V48g7kxss+Ukn+aod9er6/55F1uD2vOCXUbJklwqSDfdqKTrFxhFa
-         /FsA==
+        bh=bzMUsu5FGRfqkUpBkiKCi1f1o4wZkOeI47MzQSOTMcg=;
+        b=emizsgovVxdq52v8xL8j8mg0b4u2pBWdsF2fSzwJTgl31og15fDkgxCVkhfP80kr8p
+         V4z4G0/I7t2lE3aJdgzaDkF+KpiiTaIG6Uc0Xk8Txb2fFG2jc/20AxR3sDCIiPShlvPU
+         u+sn19O1wdZHtsHiePDxFDbLxI15v8yCVC8LGpHlssgjJneMEt78bczillkK7CoXU1Zn
+         JYF27sFLM7HEa2lPb5dIxz2u0YLcKJNb0FYR/11JuZwwJyE7zVSDgRqAxysJxomN7SiZ
+         xaW3dCpOW+4T6SlAGffZGZniuUtENjTmTg+a8pqnPQK1pZZP/CRSdWycNmpxg6Lp3KSN
+         3tjA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z6si546853qke.0.2019.03.11.19.52.27
+        by mx.google.com with ESMTPS id b66si232346qke.128.2019.03.11.19.56.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Mar 2019 19:52:27 -0700 (PDT)
+        Mon, 11 Mar 2019 19:56:31 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id D6559C049E23;
-	Tue, 12 Mar 2019 02:52:26 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 928DE88313;
+	Tue, 12 Mar 2019 02:56:30 +0000 (UTC)
 Received: from [10.72.12.17] (ovpn-12-17.pek2.redhat.com [10.72.12.17])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 3C3EB5DA27;
-	Tue, 12 Mar 2019 02:52:16 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id A380460C4C;
+	Tue, 12 Mar 2019 02:56:22 +0000 (UTC)
 Subject: Re: [RFC PATCH V2 5/5] vhost: access vq metadata through kernel
  virtual address
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org,
- virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
- linux-kernel@vger.kernel.org, peterx@redhat.com, linux-mm@kvack.org,
- Jerome Glisse <jglisse@redhat.com>
+To: Andrea Arcangeli <aarcange@redhat.com>,
+ "Michael S. Tsirkin" <mst@redhat.com>
+Cc: kvm@vger.kernel.org, virtualization@lists.linux-foundation.org,
+ netdev@vger.kernel.org, linux-kernel@vger.kernel.org, peterx@redhat.com,
+ linux-mm@kvack.org, Jerome Glisse <jglisse@redhat.com>
 References: <1551856692-3384-1-git-send-email-jasowang@redhat.com>
  <1551856692-3384-6-git-send-email-jasowang@redhat.com>
  <20190307103503-mutt-send-email-mst@kernel.org>
@@ -102,18 +102,19 @@ References: <1551856692-3384-1-git-send-email-jasowang@redhat.com>
  <20190308194845.GC26923@redhat.com>
  <8b68a2a0-907a-15f5-a07f-fc5b53d7ea19@redhat.com>
  <20190311084525-mutt-send-email-mst@kernel.org>
+ <20190311134305.GC23321@redhat.com>
 From: Jason Wang <jasowang@redhat.com>
-Message-ID: <ff45ea43-1145-5ea6-767c-1a99d55a9c61@redhat.com>
-Date: Tue, 12 Mar 2019 10:52:15 +0800
+Message-ID: <4979eed5-9e3f-5ee0-f4f4-1a5e2a839b21@redhat.com>
+Date: Tue, 12 Mar 2019 10:56:20 +0800
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.5.1
 MIME-Version: 1.0
-In-Reply-To: <20190311084525-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20190311134305.GC23321@redhat.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Tue, 12 Mar 2019 02:52:26 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Tue, 12 Mar 2019 02:56:30 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -121,96 +122,58 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On 2019/3/11 下午8:48, Michael S. Tsirkin wrote:
-> On Mon, Mar 11, 2019 at 03:40:31PM +0800, Jason Wang wrote:
->> On 2019/3/9 上午3:48, Andrea Arcangeli wrote:
->>> Hello Jeson,
->>>
->>> On Fri, Mar 08, 2019 at 04:50:36PM +0800, Jason Wang wrote:
->>>> Just to make sure I understand here. For boosting through huge TLB, do
->>>> you mean we can do that in the future (e.g by mapping more userspace
->>>> pages to kenrel) or it can be done by this series (only about three 4K
->>>> pages were vmapped per virtqueue)?
->>> When I answered about the advantages of mmu notifier and I mentioned
->>> guaranteed 2m/gigapages where available, I overlooked the detail you
->>> were using vmap instead of kmap. So with vmap you're actually doing
->>> the opposite, it slows down the access because it will always use a 4k
->>> TLB even if QEMU runs on THP or gigapages hugetlbfs.
->>>
->>> If there's just one page (or a few pages) in each vmap there's no need
->>> of vmap, the linearity vmap provides doesn't pay off in such
->>> case.
->>>
->>> So likely there's further room for improvement here that you can
->>> achieve in the current series by just dropping vmap/vunmap.
->>>
->>> You can just use kmap (or kmap_atomic if you're in preemptible
->>> section, should work from bh/irq).
->>>
->>> In short the mmu notifier to invalidate only sets a "struct page *
->>> userringpage" pointer to NULL without calls to vunmap.
->>>
->>> In all cases immediately after gup_fast returns you can always call
->>> put_page immediately (which explains why I'd like an option to drop
->>> FOLL_GET from gup_fast to speed it up).
->>>
->>> Then you can check the sequence_counter and inc/dec counter increased
->>> by _start/_end. That will tell you if the page you got and you called
->>> put_page to immediately unpin it or even to free it, cannot go away
->>> under you until the invalidate is called.
->>>
->>> If sequence counters and counter tells that gup_fast raced with anyt
->>> mmu notifier invalidate you can just repeat gup_fast. Otherwise you're
->>> done, the page cannot go away under you, the host virtual to host
->>> physical mapping cannot change either. And the page is not pinned
->>> either. So you can just set the "struct page * userringpage = page"
->>> where "page" was the one setup by gup_fast.
->>>
->>> When later the invalidate runs, you can just call set_page_dirty if
->>> gup_fast was called with "write = 1" and then you clear the pointer
->>> "userringpage = NULL".
->>>
->>> When you need to read/write to the memory
->>> kmap/kmap_atomic(userringpage) should work.
->> Yes, I've considered kmap() from the start. The reason I don't do that is
->> large virtqueue may need more than one page so VA might not be contiguous.
->> But this is probably not a big issue which just need more tricks in the
->> vhost memory accessors.
->>
->>
->>> In short because there's no hardware involvement here, the established
->>> mapping is just the pointer to the page, there is no need of setting
->>> up any pagetables or to do any TLB flushes (except on 32bit archs if
->>> the page is above the direct mapping but it never happens on 64bit
->>> archs).
->> I see, I believe we don't care much about the performance of 32bit archs (or
->> we can just fallback to copy_to_user() friends).
-> Using copyXuser is better I guess.
-
-
-Ok.
-
-
+On 2019/3/11 下午9:43, Andrea Arcangeli wrote:
+> On Mon, Mar 11, 2019 at 08:48:37AM -0400, Michael S. Tsirkin wrote:
+>> Using copyXuser is better I guess.
+> It certainly would be faster there, but I don't think it's needed if
+> that would be the only use case left that justifies supporting two
+> different models. On small 32bit systems with little RAM kmap won't
+> perform measurably different on 32bit or 64bit systems. If the 32bit
+> host has a lot of ram it all gets slow anyway at accessing RAM above
+> the direct mapping, if compared to 64bit host kernels, it's not just
+> an issue for vhost + mmu notifier + kmap and the best way to optimize
+> things is to run 64bit host kernels.
 >
->> Using direct mapping (I
->> guess kernel will always try hugepage for that?) should be better and we can
->> even use it for the data transfer not only for the metadata.
->>
->> Thanks
-> We can't really. The big issue is get user pages. Doing that on data
-> path will be slower than copyXuser.
+> Like Christoph pointed out, the main use case for retaining the
+> copy-user model would be CPUs with virtually indexed not physically
+> tagged data caches (they'll still suffer from the spectre-v1 fix,
+> although I exclude they have to suffer the SMAP
+> slowdown/feature). Those may require some additional flushing than the
+> current copy-user model requires.
+>
+> As a rule of thumb any arch where copy_user_page doesn't define as
+> copy_page will require some additional cache flushing after the
+> kmap. Supposedly with vmap, the vmap layer should have taken care of
+> that (I didn't verify that yet).
 
 
-I meant if we can find a way to avoid doing gup in datapath. E.g vhost 
-maintain a range tree and add or remove ranges through MMU notifier. 
-Then in datapath, if we find the range, then use direct mapping 
-otherwise copy_to_user().
+vmap_page_range()/free_unmap_vmap_area() will call 
+fluch_cache_vmap()/flush_cache_vunmap(). So vmap layer should be ok.
 
 Thanks
 
 
->   Or maybe it won't with the
-> amount of mitigations spread around. Go ahead and try.
 >
+> There are some accessories like copy_to_user_page()
+> copy_from_user_page() that could work and obviously defines to raw
+> memcpy on x86 (the main cons is they don't provide word granular
+> access) and at least on sparc they're tailored to ptrace assumptions
+> so then we'd need to evaluate what happens if this is used outside of
+> ptrace context. kmap has been used generally either to access whole
+> pages (i.e. copy_user_page), so ptrace may actually be the only use
+> case with subpage granularity access.
 >
+> #define copy_to_user_page(vma, page, vaddr, dst, src, len)		\
+> 	do {								\
+> 		flush_cache_page(vma, vaddr, page_to_pfn(page));	\
+> 		memcpy(dst, src, len);					\
+> 		flush_ptrace_access(vma, page, vaddr, src, len, 0);	\
+> 	} while (0)
+>
+> So I wouldn't rule out the need for a dual model, until we solve how
+> to run this stable on non-x86 arches with not physically tagged
+> caches.
+>
+> Thanks,
+> Andrea
 
