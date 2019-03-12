@@ -6,214 +6,235 @@ X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
 	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ACD87C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 22:16:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6C2ACC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 22:16:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5C3F8213A2
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 22:16:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1F5C6213A2
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 22:16:33 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="ukLy0Za9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5C3F8213A2
+	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="fQXoenqm"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1F5C6213A2
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1F9C18E000B; Tue, 12 Mar 2019 18:16:18 -0400 (EDT)
+	id 8AD638E000C; Tue, 12 Mar 2019 18:16:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 181B08E000C; Tue, 12 Mar 2019 18:16:18 -0400 (EDT)
+	id 80D6A8E0008; Tue, 12 Mar 2019 18:16:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F41098E000B; Tue, 12 Mar 2019 18:16:17 -0400 (EDT)
+	id 6883A8E000C; Tue, 12 Mar 2019 18:16:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EE268E0008
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 18:16:17 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id n15so1617168wrr.2
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 15:16:17 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DCBF8E0008
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 18:16:18 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id a5so1615260wrq.3
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 15:16:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:message-id:in-reply-to:references
          :from:subject:to:cc:date;
-        bh=T5roomQKloe+Cr1IT+Xg0/TzN2EQ/rbW1mXIN5nYL+c=;
-        b=qftxIRS2sXPtUc8RllSiVhFeKOVSdrNhU7qz1nf0Bb2QFvqTrA2fRJUTXu+bOepi/q
-         K9RaPaOtbmbD4CBeWGDwwcEtxg745TQgh7B5J+iMZsgBsib+/+BVkH3bfjoKDnISq5aY
-         NVBWwNWKN1PP84KBjPqXgrr/Q1ZkMUjCmNMtn3s90I0tJ/553nqaTqJzRVb9DOPB39u1
-         LruFFYFS8jkvnlXD/CLCFvL7PRrm8aPK/6lYkI3lKwAx0Li+Hm9JWeQL0r7dv97DnPSK
-         ZveWNoeQoF2Ze1HvqTIaNCL/U3L1tZRu1T2ULQ57cUVLkk7g4CrtUAnukM+4eeWSE1yO
-         0AUA==
-X-Gm-Message-State: APjAAAW+ee2cj3bMA5ELQ7LYN87K68yF9aewp0/Ve8jIXyCfs90z9zaJ
-	DpB1BKFwzABxOMz/5OUG//nyK4Cy3iisckeGBQkX+gMMSLar4GCE8KNG+eSvAgTq65LN6tG9hgH
-	DbzZbGAJev/ZedG9kcxJZ1UCZj3u2eFz5IwAn4mk93WEEOcDmBXh2KtPYNgDv2hsetw==
-X-Received: by 2002:adf:ecca:: with SMTP id s10mr4744808wro.138.1552428976797;
+        bh=mIGQaprlAVCVWpPiH4xPJkXAyE92iR9cx2tnTNWnRqU=;
+        b=HMSPZ1xmlljfhDhsGxSVbQjugBIiRDHtjmQTSsBcIbxLN5/hEQSbiUUlupF6ujEsz4
+         haeojwyRgwNEfMoWQj6cSTesZ5NCkT85dFMnAuwwLANeFa0VsD0/qbGlyRwXaNIbpWu9
+         FBVYwMy7TusiUOXKRf6Zvbgctne/2qwhGgbpGnOdne5aQHPZCwnQ/vRu3anxjbdJOmFX
+         OJ8NYDEBRUYRR1fF0Ifi4yNOKaww3n1yMFkYoJDl4b+4RGsf4ZLsWeFaOBV5SL4NBT50
+         QxSxGq04Qm06yx6Lrh27QpTsTK6qlEKgFUTEXrOtyIL6aecQiCkBNMhJltwdCA5jAoIv
+         R6OQ==
+X-Gm-Message-State: APjAAAXTTIw3EvwU0p/VHHEBmVg3LRxX1gLLO2ZyYmP4jw6LyL3orzcp
+	AE6YivAD6ULM5OyPoHIhSZDyS8Yh4wV3V8B/lighe7mmV0F7zHmkftJc2PfFkSqRz+y8m6MYnM5
+	YxDxkgR5ndbFPx4FgMTqkFUDu4eM132S5o9/0TL+CDWDmEPF15XSb1kmDeLUUyGcuOw==
+X-Received: by 2002:a1c:96ce:: with SMTP id y197mr30503wmd.126.1552428977268;
+        Tue, 12 Mar 2019 15:16:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxhhVEI9HaE4BJWiLTTn016XGRpncBxIwWYOLAqsPDex2cSx0DQ+bewh3VIYspYVmaSDB1s
+X-Received: by 2002:a1c:96ce:: with SMTP id y197mr30464wmd.126.1552428976021;
         Tue, 12 Mar 2019 15:16:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwByTm386H9vY0vxl4COpm9zrIM/G9lJx+a91hsg0OKfgh4VGtesD2VhxqPPxhfDvigprOd
-X-Received: by 2002:adf:ecca:: with SMTP id s10mr4744748wro.138.1552428975098;
-        Tue, 12 Mar 2019 15:16:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552428975; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1552428976; cv=none;
         d=google.com; s=arc-20160816;
-        b=cXCaPLsQ9ZU6COsdB9mWh5iZc/bX6/paranmtKh5RTqenLLBZtqhvNF4YqtMvOFLYQ
-         +1SN6QoXLMYRtHTLu/tScpayh7QRmcm7d3ZLYX9Tz+eAnenT1giGzzy959qQEHNkt+7+
-         qm9inyZtpqslkSiDR7ouP6EQLShfEPQ9kt5cB/zgHMqyyDciZI1LGVXTy0CE0XMDicxr
-         Bd2H//1Grcu1UQ/uLbhWVaT1Ere2vn5iAo2vZkVlrt2o2W1pcRWQTHkUI0p7/x0qvBqP
-         mD0iKkQZi7tlTmXQQGJa8EirZnhWMbecejJUVF0jZieA6lTA57uT04zPNm4wmc96zchA
-         wi4Q==
+        b=kQyHwr2SQLr37yYeCrs7gfAzFb07JY0cATBbhd+mTsqM8x6Pl31xRyaUgug8jMMHeq
+         Imspfey9em62xWnRBVeFhSS/k4VoxBVxQ4r9fk/i8G/WrCv4N2ZsbjAm9/e+H/G/3rHo
+         /OWvT3RgNQJ+eslW/j1WEEVV3oxTc5edxLrNJiNN8JEsj+OWjoY4GG6LsiRI9Tzh8iVg
+         ynSv+SL0TgKhUXDqJwo/Y7RlUCIp1L8K1oh6VoeLufjZbl+T5aR8P+0olr+hmOi7GMrJ
+         /eiCSkmFbNjjsF9VdaSW6GrnadOPZumxxtGtkJ7B99ou/8WxbGB0Mc3Xl0VKjkARTU2D
+         pbmQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=date:cc:to:subject:from:references:in-reply-to:message-id
          :dkim-signature;
-        bh=T5roomQKloe+Cr1IT+Xg0/TzN2EQ/rbW1mXIN5nYL+c=;
-        b=uxLbzpWkqA3tR5hO08CXpJJJPn1bvUZvZWexXk6B81jUdhdjt8qwniSoWszj1SeHCb
-         mzddii9U7YEp4rkDgqJE0iQMsdB1pkEG466hmW2H5PLpms8fQ/L2Uamw+XYLEzMx8TIJ
-         5gpuMBwCMGbzZhGtb1DodBhV2dNtEQjNvoXdO83n2KiuADwOZroNdUOLbv/WikzWNV9u
-         UU+jqGy8/B8ARgnfx4ztvoLBiPSDnC7LRsw0m1A772e6WKo+IZbarQtdSl5dxW36oLX0
-         zc/TNI1j5nuRT7+aaigaodDmMDFpxLMktnW4oGVL8aA7wXcKsrLUTVkFGDHy57tLkalF
-         e6RA==
+        bh=mIGQaprlAVCVWpPiH4xPJkXAyE92iR9cx2tnTNWnRqU=;
+        b=GQbcqXkZw48D/794xiSSgCJvKYoxBrX3yPAdNsHGv+XAACJufDmG4O3D9GjGz0fkXv
+         9JmsEeeGpCFGiPYzyIPS3mLEqkDwqk4tqJaOseHEsrBPYEdreToK7i6HlcE2/rCAtxsr
+         F+a/FPJWpBYUNc35CpirxfVRUlB9cH8mVHpuAnNJ4tu2XZvn9pdOnJPON8EVGGxGhuH+
+         IHMzJvRJKo6acVx3NT//NgpAtkyt5oYKKuwErNSMW6y/xvlAcCssEeIw3RZhk77n0srj
+         g5Cfol7nPx0+kvtJMiwWkX5fzM/d2FxW9Qf1PeWMwp1m/kPeROOhBQ/fGZLkTtgJwFi8
+         Gn3w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=ukLy0Za9;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=fQXoenqm;
        spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
 Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id v62si8551wma.181.2019.03.12.15.16.14
+        by mx.google.com with ESMTPS id p21si7427wmh.194.2019.03.12.15.16.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 15:16:15 -0700 (PDT)
+        Tue, 12 Mar 2019 15:16:16 -0700 (PDT)
 Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=ukLy0Za9;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=fQXoenqm;
        spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
 Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 44Jq7L3FNPzB09Zr;
-	Tue, 12 Mar 2019 23:16:14 +0100 (CET)
+	by localhost (Postfix) with ESMTP id 44Jq7M26gczB09Zt;
+	Tue, 12 Mar 2019 23:16:15 +0100 (CET)
 Authentication-Results: localhost; dkim=pass
 	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=ukLy0Za9; dkim-adsp=pass;
+	header.d=c-s.fr header.i=@c-s.fr header.b=fQXoenqm; dkim-adsp=pass;
 	dkim-atps=neutral
 X-Virus-Scanned: Debian amavisd-new at c-s.fr
 Received: from pegase1.c-s.fr ([192.168.12.234])
 	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id NpOVPJM2k5EE; Tue, 12 Mar 2019 23:16:14 +0100 (CET)
+	with ESMTP id EGUj0-8sqf2W; Tue, 12 Mar 2019 23:16:15 +0100 (CET)
 Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 44Jq7L1t58zB09ZG;
-	Tue, 12 Mar 2019 23:16:14 +0100 (CET)
+	by pegase1.c-s.fr (Postfix) with ESMTP id 44Jq7M0xDPzB09ZG;
+	Tue, 12 Mar 2019 23:16:15 +0100 (CET)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1552428974; bh=T5roomQKloe+Cr1IT+Xg0/TzN2EQ/rbW1mXIN5nYL+c=;
+	t=1552428975; bh=mIGQaprlAVCVWpPiH4xPJkXAyE92iR9cx2tnTNWnRqU=;
 	h=In-Reply-To:References:From:Subject:To:Cc:Date:From;
-	b=ukLy0Za9/10Y50KeWbhKydgkJlcMYhErBoRYvRsfPVuX8rSO6AVpAdsfVE4jOuIi4
-	 fxh/RCV5Ue/ZYpKNg6W57QN2M9NkZ5wT+6ZIMAwhoapHqrA2qN8FA4yY014heZapOp
-	 jgM36KvCrY8IRR3k9ZEWbMsySbINf4sVELLVsmqM=
+	b=fQXoenqm0P/pOBebO8hAN+jBJviFvKS7NXJNClJzbO3yPlr+BfXpE8olkWTXIqIWQ
+	 JN4rPm6po/CtsDbWm5giWD1Hx5PvyEod2zciYPIVeO/nz0+M9vTpVKFX7HC4z29YHC
+	 e+lOdfyIVMx63wfeVNhLjHiwFYAKkEecDGoICk24=
 Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 762368B8B1;
-	Tue, 12 Mar 2019 23:16:14 +0100 (CET)
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 571DD8B8B1;
+	Tue, 12 Mar 2019 23:16:15 +0100 (CET)
 X-Virus-Scanned: amavisd-new at c-s.fr
 Received: from messagerie.si.c-s.fr ([127.0.0.1])
 	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id uIH54hV_LXXN; Tue, 12 Mar 2019 23:16:14 +0100 (CET)
+	with ESMTP id aG88fi4S6WiR; Tue, 12 Mar 2019 23:16:15 +0100 (CET)
 Received: from po16846vm.idsi0.si.c-s.fr (unknown [192.168.4.90])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 2AD288B8A7;
-	Tue, 12 Mar 2019 23:16:14 +0100 (CET)
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 1A8BC8B8A7;
+	Tue, 12 Mar 2019 23:16:15 +0100 (CET)
 Received: by po16846vm.idsi0.si.c-s.fr (Postfix, from userid 0)
-	id D31F86FA15; Tue, 12 Mar 2019 22:16:13 +0000 (UTC)
-Message-Id: <43d22280ffb24112df6393b912c7f8b9e5962611.1552428161.git.christophe.leroy@c-s.fr>
+	id D9B0D6FA15; Tue, 12 Mar 2019 22:16:14 +0000 (UTC)
+Message-Id: <9ddd549404655be32ea511fc055f50bc168bb30d.1552428161.git.christophe.leroy@c-s.fr>
 In-Reply-To: <cover.1552428161.git.christophe.leroy@c-s.fr>
 References: <cover.1552428161.git.christophe.leroy@c-s.fr>
 From: Christophe Leroy <christophe.leroy@c-s.fr>
-Subject: [PATCH v10 08/18] powerpc/32: make KVIRT_TOP dependent on
- FIXMAP_START
+Subject: [PATCH v10 09/18] powerpc/32: prepare shadow area for KASAN
 To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Daniel Axtens <dja@axtens.net>
 Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
-Date: Tue, 12 Mar 2019 22:16:13 +0000 (UTC)
+Date: Tue, 12 Mar 2019 22:16:14 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When we add KASAN shadow area, KVIRT_TOP can't be anymore fixed
-at 0xfe000000.
+This patch prepares a shadow area for KASAN.
 
-This patch uses FIXADDR_START to define KVIRT_TOP.
+The shadow area will be at the top of the kernel virtual
+memory space above the fixmap area and will occupy one
+eighth of the total kernel virtual memory space.
 
 Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
 ---
- arch/powerpc/include/asm/book3s/32/pgtable.h | 13 ++++++++++---
- arch/powerpc/include/asm/nohash/32/pgtable.h | 13 ++++++++++---
- 2 files changed, 20 insertions(+), 6 deletions(-)
+ arch/powerpc/Kconfig.debug        |  5 +++++
+ arch/powerpc/include/asm/fixmap.h |  5 +++++
+ arch/powerpc/include/asm/kasan.h  | 16 ++++++++++++++++
+ arch/powerpc/mm/mem.c             |  4 ++++
+ arch/powerpc/mm/ptdump/ptdump.c   |  8 ++++++++
+ 5 files changed, 38 insertions(+)
 
-diff --git a/arch/powerpc/include/asm/book3s/32/pgtable.h b/arch/powerpc/include/asm/book3s/32/pgtable.h
-index aa8406b8f7ba..838de59f6754 100644
---- a/arch/powerpc/include/asm/book3s/32/pgtable.h
-+++ b/arch/powerpc/include/asm/book3s/32/pgtable.h
-@@ -134,15 +134,24 @@ static inline bool pte_user(pte_t pte)
- #define PGDIR_MASK	(~(PGDIR_SIZE-1))
- 
- #define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
+diff --git a/arch/powerpc/Kconfig.debug b/arch/powerpc/Kconfig.debug
+index 4e00cb0a5464..61febbbdd02b 100644
+--- a/arch/powerpc/Kconfig.debug
++++ b/arch/powerpc/Kconfig.debug
+@@ -366,3 +366,8 @@ config PPC_FAST_ENDIAN_SWITCH
+         depends on DEBUG_KERNEL && PPC_BOOK3S_64
+         help
+ 	  If you're unsure what this is, say N.
 +
-+#ifndef __ASSEMBLY__
-+
-+int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
-+
-+#endif /* !__ASSEMBLY__ */
-+
- /*
-  * This is the bottom of the PKMAP area with HIGHMEM or an arbitrary
-  * value (for now) on others, from where we can start layout kernel
-  * virtual space that goes below PKMAP and FIXMAP
-  */
-+#include <asm/fixmap.h>
-+
- #ifdef CONFIG_HIGHMEM
- #define KVIRT_TOP	PKMAP_BASE
- #else
--#define KVIRT_TOP	(0xfe000000UL)	/* for now, could be FIXMAP_BASE ? */
-+#define KVIRT_TOP	FIXADDR_START
++config KASAN_SHADOW_OFFSET
++	hex
++	depends on KASAN
++	default 0xe0000000
+diff --git a/arch/powerpc/include/asm/fixmap.h b/arch/powerpc/include/asm/fixmap.h
+index b9fbed84ddca..0cfc365d814b 100644
+--- a/arch/powerpc/include/asm/fixmap.h
++++ b/arch/powerpc/include/asm/fixmap.h
+@@ -22,7 +22,12 @@
+ #include <asm/kmap_types.h>
  #endif
  
- /*
-@@ -373,8 +382,6 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
- #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) >> 3 })
- #define __swp_entry_to_pte(x)		((pte_t) { (x).val << 3 })
++#ifdef CONFIG_KASAN
++#include <asm/kasan.h>
++#define FIXADDR_TOP	(KASAN_SHADOW_START - PAGE_SIZE)
++#else
+ #define FIXADDR_TOP	((unsigned long)(-PAGE_SIZE))
++#endif
  
--int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
--
- /* Generic accessors to PTE bits */
- static inline int pte_write(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_RW);}
- static inline int pte_read(pte_t pte)		{ return 1; }
-diff --git a/arch/powerpc/include/asm/nohash/32/pgtable.h b/arch/powerpc/include/asm/nohash/32/pgtable.h
-index bed433358260..0284f8f5305f 100644
---- a/arch/powerpc/include/asm/nohash/32/pgtable.h
-+++ b/arch/powerpc/include/asm/nohash/32/pgtable.h
-@@ -64,15 +64,24 @@ extern int icache_44x_need_flush;
- #define pgd_ERROR(e) \
- 	pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
+ /*
+  * Here we define all the compile-time 'special' virtual
+diff --git a/arch/powerpc/include/asm/kasan.h b/arch/powerpc/include/asm/kasan.h
+index 2c179a39d4ba..05274dea3109 100644
+--- a/arch/powerpc/include/asm/kasan.h
++++ b/arch/powerpc/include/asm/kasan.h
+@@ -12,4 +12,20 @@
+ #define EXPORT_SYMBOL_KASAN(fn)
+ #endif
  
 +#ifndef __ASSEMBLY__
 +
-+int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
++#include <asm/page.h>
 +
-+#endif /* !__ASSEMBLY__ */
++#define KASAN_SHADOW_SCALE_SHIFT	3
 +
++#define KASAN_SHADOW_START	(KASAN_SHADOW_OFFSET + \
++				 (PAGE_OFFSET >> KASAN_SHADOW_SCALE_SHIFT))
 +
- /*
-  * This is the bottom of the PKMAP area with HIGHMEM or an arbitrary
-  * value (for now) on others, from where we can start layout kernel
-  * virtual space that goes below PKMAP and FIXMAP
-  */
-+#include <asm/fixmap.h>
++#define KASAN_SHADOW_OFFSET	ASM_CONST(CONFIG_KASAN_SHADOW_OFFSET)
 +
- #ifdef CONFIG_HIGHMEM
- #define KVIRT_TOP	PKMAP_BASE
- #else
--#define KVIRT_TOP	(0xfe000000UL)	/* for now, could be FIXMAP_BASE ? */
-+#define KVIRT_TOP	FIXADDR_START
++#define KASAN_SHADOW_END	0UL
++
++#define KASAN_SHADOW_SIZE	(KASAN_SHADOW_END - KASAN_SHADOW_START)
++
++#endif /* __ASSEMBLY */
  #endif
+diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
+index f6787f90e158..4e7fa4eb2dd3 100644
+--- a/arch/powerpc/mm/mem.c
++++ b/arch/powerpc/mm/mem.c
+@@ -309,6 +309,10 @@ void __init mem_init(void)
+ 	mem_init_print_info(NULL);
+ #ifdef CONFIG_PPC32
+ 	pr_info("Kernel virtual memory layout:\n");
++#ifdef CONFIG_KASAN
++	pr_info("  * 0x%08lx..0x%08lx  : kasan shadow mem\n",
++		KASAN_SHADOW_START, KASAN_SHADOW_END);
++#endif
+ 	pr_info("  * 0x%08lx..0x%08lx  : fixmap\n", FIXADDR_START, FIXADDR_TOP);
+ #ifdef CONFIG_HIGHMEM
+ 	pr_info("  * 0x%08lx..0x%08lx  : highmem PTEs\n",
+diff --git a/arch/powerpc/mm/ptdump/ptdump.c b/arch/powerpc/mm/ptdump/ptdump.c
+index 37138428ab55..812ed680024f 100644
+--- a/arch/powerpc/mm/ptdump/ptdump.c
++++ b/arch/powerpc/mm/ptdump/ptdump.c
+@@ -101,6 +101,10 @@ static struct addr_marker address_markers[] = {
+ 	{ 0,	"Fixmap start" },
+ 	{ 0,	"Fixmap end" },
+ #endif
++#ifdef CONFIG_KASAN
++	{ 0,	"kasan shadow mem start" },
++	{ 0,	"kasan shadow mem end" },
++#endif
+ 	{ -1,	NULL },
+ };
  
- /*
-@@ -379,8 +388,6 @@ static inline int pte_young(pte_t pte)
- #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) >> 3 })
- #define __swp_entry_to_pte(x)		((pte_t) { (x).val << 3 })
+@@ -322,6 +326,10 @@ static void populate_markers(void)
+ #endif
+ 	address_markers[i++].start_address = FIXADDR_START;
+ 	address_markers[i++].start_address = FIXADDR_TOP;
++#ifdef CONFIG_KASAN
++	address_markers[i++].start_address = KASAN_SHADOW_START;
++	address_markers[i++].start_address = KASAN_SHADOW_END;
++#endif
+ #endif /* CONFIG_PPC64 */
+ }
  
--int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
--
- #endif /* !__ASSEMBLY__ */
- 
- #endif /* __ASM_POWERPC_NOHASH_32_PGTABLE_H */
 -- 
 2.13.3
 
