@@ -2,132 +2,187 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-13.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 68127C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 16:58:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A201DC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 17:10:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 216372083D
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 16:58:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 216372083D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 334902083D
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 17:10:51 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="hSBUd/eG"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 334902083D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C089B8E0003; Tue, 12 Mar 2019 12:58:08 -0400 (EDT)
+	id 7918F8E0003; Tue, 12 Mar 2019 13:10:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BB6E18E0002; Tue, 12 Mar 2019 12:58:08 -0400 (EDT)
+	id 71A4D8E0002; Tue, 12 Mar 2019 13:10:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AA68B8E0003; Tue, 12 Mar 2019 12:58:08 -0400 (EDT)
+	id 5E3168E0003; Tue, 12 Mar 2019 13:10:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 510DB8E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 12:58:08 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id p5so1383284edh.2
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 09:58:08 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 393988E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 13:10:51 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id n15so2317957ioc.0
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 10:10:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=pHx7fAnnL4V1/6hOmMndEvCqfYhmC/Qy1nXTCyCh3eM=;
-        b=jeqm6p8wEadOK+bNP12HQJycBL6lSfGOsGisoG/pWd9kbruXOd70GNpm3V1LJP+prN
-         RQoksXOLdw+p+lvFCtWarPTVFoXWDS+nKRbLzYnnCjtN8ps4RT2YJ2bHqW5YzlGRA+cB
-         v+m1oPyYTcL/QixZLTb1nW1VeBlmfcrqecexQnG3MQcGl8MGF0zBfZKltgcTZTRkL9/7
-         1S0Zm7AXkZIj/ctpp5Ycvsd1IK/4YZVI5BWqD/HDMOQ96TXmjNqCqt0WVZb7HYtFmASv
-         2N6N6ki8M3U6xdBktIZ92U1Yo/BiPOqbu4w8Bq9EU9WO+b5nXRY7FVC2G0RkcPM8yTUO
-         orbg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAU7AUneCaRdt9tUT+hairEKIqxsoArY84wJyuqMAtRaiSjNZVX4
-	1ejRe0YKf1oXd77VeVJNCbDDX+bC7mBY/dhwVP1NNmkRbwnfCxzmR2rubilW4Gor69OHUmRf5tf
-	ORerCzXIeWRRWa06m6BsXM+JMwRqoG9PIQGWFkoMsmzjaBYdWLiGfBRSgjmJlL4k=
-X-Received: by 2002:a50:b7b6:: with SMTP id h51mr3995262ede.277.1552409887825;
-        Tue, 12 Mar 2019 09:58:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwW0QS9HKKtoOMNMUzJpGGQx9anJEG8fcFDJ6nJ6GCvnL93pkLoedvGkInBQYDK9r4UeVFW
-X-Received: by 2002:a50:b7b6:: with SMTP id h51mr3995223ede.277.1552409887003;
-        Tue, 12 Mar 2019 09:58:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552409886; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=q63ookcgnvhAqs3Sfl5pVKDmKu933OB0+OqZ26Ou1RY=;
+        b=bNHauiMGMQZ0pCEdu2n41fES4XcQLLBJYTc/oPzPa8jGnTBnWtPNZwyuUz4FGbDN0M
+         oVSNjAdrGopINS+c6M9XpWnntOjf306LxEkLzJyS9uhPrUTAv6lw38MPtMwxRKWhNQrn
+         oE+5Pfwm8yhu7Mx9q20YbO9KWkKwIWexiJSKBhTauWd2prtdvSufiieBITP7m0f19aE6
+         O+b7tpSQr2KbGj+VRc+oD2V5YUXcHwuuAKGoEq4uJXTSViwH2yoJMTB+x6esM4nLXDQV
+         hRRly0A5eihebC5GIsfLcJPtsj08B0vy01BJZuPquIy/TQugcw188tOjyg7nQZ18CuL/
+         wGEw==
+X-Gm-Message-State: APjAAAUCXGtKKeWtSIN95N8ieYozoD8S+I1KBbni2Chzx3dU8IBPJ7rW
+	tpTfPb822oExjx1eBc1xNQVQ9ODdTlV325fzndZ3WjeLjFOJ4NeW5KlF6ZnmOqYgxuFxIF8X621
+	wGOL2yu6nZLPp2UIoObCA50NTtCkOnNcElu5p/q9utPak1e2BxBdLjHmSDjKymYOx067WbbLYBd
+	gBz1pvFl+9zWfzz2OGh+3PAQEWu7a6yqaousvtoad1lZfexz/Le3Z7ByL6Pv1KWyvysLg+myhJg
+	SAUaDcthwu/oOPTyFyIK82GbGjYZLdMNFgYSN8TIiohUrPBYrqVMdRCm5LZJpm8lFv0uA71OJLw
+	WoCQ7PyOHRGSpkfc0e1RMbjjkcKxhGe57MVfxp12UnVV9qiWSEj40Iu4kQ+9XHSBBPOz+FIp/cK
+	1
+X-Received: by 2002:a24:2812:: with SMTP id h18mr2733502ith.173.1552410650978;
+        Tue, 12 Mar 2019 10:10:50 -0700 (PDT)
+X-Received: by 2002:a24:2812:: with SMTP id h18mr2733449ith.173.1552410649906;
+        Tue, 12 Mar 2019 10:10:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552410649; cv=none;
         d=google.com; s=arc-20160816;
-        b=z7sqZwyNPNZpyIiqfBsFIXv3skbLPmgUXgs+UPpmEHCbyeJ9vEJ1z/niHXgzvYSX2j
-         zg/Z8d/e1KOcc3Qz/wxLUHCoQblHylgrmpYRrdWjwTy+aaVEvwVEG7uuwTve9TLPwF6q
-         QObqoGmVoFubEHf//t5sQjVTRCRDYs3DSxGYAGnbhlTLRnwj3+hzp3cf29IGjOdP+GMa
-         kKIgBedv1jKFi0NQiCO/DdZQ4HcAoPqPZLQ2TKoM+Alh4zyzGa1gX2k/Q8iOhWc/2apS
-         Ktu7+Q1HvR8HM7lRvdyov/ykn7zgQJEaNUaBI9YQvrMDeqJPi96Xxm5La1B2uh2gi4ki
-         ia4Q==
+        b=BUJHNtyyksl8VZMBsDPDWyiz4f+6K42ovLc6Xp/4AN+5FMqlbw3Al3FEHbDJTONHRy
+         7CHPCP7VlZf45N20Z+1RdswQfpcJ+ACIfSkm/5GC1wrl6Siv6C+2jNIwYDpUJ0W4nRDq
+         EW+BQt+5rhEDHVEZdM6+R7FMKZb0VdNq7KdwkdoN8mO21IvNQWXSfj+iBZksw8YTrxdD
+         Wx0edDVJl/V5EqCpnKK7j5fSCCG5CUpH4eTxp56/TwgW7TcMRZjsjAsKI6nHu+QFgQ+E
+         6uStddu7RFqmNLiUTKhNp/VtdIL02T3ZAJ3R4ihbxQO1F7dNcCBFQiSjbqxRLe1whIEY
+         dhMQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=pHx7fAnnL4V1/6hOmMndEvCqfYhmC/Qy1nXTCyCh3eM=;
-        b=gnEpkeXCmJlaBYyNJ7qkB6sUSiJQR8t17Pg3J8iV+Keqh4AwuirlDMssbeFavU+Ncr
-         2SgiPA7nbMEMLhPLaVClRzb0HHF+WfVLGY1/JX2RR+moqyLoLg9TTA2UO7qS/fJmEO6d
-         HTxPiit5qpNLBSrGWNFsh991B/mo4c+QdogoGxUwtenOZUqXwvsEkZ3sZENMkrPSqMaY
-         UMioCyMeqEP5XkxXbtnolfvKOxkzCFNVnlkP3/NApxDwyScroeDJe+7DhQNY/wV5gzsS
-         TObjAGSio4PK6rxFAwIy2oGFUHg6rqE3HPud3CiqpgE+3nDN+TU2QRGRNodVrRJ3MmZy
-         yOkg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=q63ookcgnvhAqs3Sfl5pVKDmKu933OB0+OqZ26Ou1RY=;
+        b=fCJ6/a1MFi1ABut4Yv9nepXHb7H9sw0l3NjMHu51H27R1zKXc1OlnjqwPmECXgTPBD
+         p7FQ2ZGvq7+2BY6zG4i8TVe01Qy2sKrtJd5RuLhGIcR1LV5ZDputviK3BUY1uZ9oSFGK
+         8brqNcjUSqWooIPV7HUkIC6GhlJN77YfY5oxUXD29hEBoysOTxZmO/8Hos/+dQYd3b55
+         z+mU+NZ2fSNHHUY+hPX3BrQi154ZUzCV+a6sJR3LU5CZ7OE6kzCc7AiHfEIQu/EOd2W6
+         nv9WU/Q/ZzPTs1PP6zKYCZw0PTAqJT0cI80B5ViRZPcj9bgwKJjt9NmugViSQN8oOVG1
+         uxCg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v26si67702eja.293.2019.03.12.09.58.06
+       dkim=pass header.i=@google.com header.s=20161025 header.b="hSBUd/eG";
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m200sor4853185itm.33.2019.03.12.10.10.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 09:58:06 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Tue, 12 Mar 2019 10:10:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 83920AEA9;
-	Tue, 12 Mar 2019 16:58:06 +0000 (UTC)
-Date: Tue, 12 Mar 2019 17:58:05 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Sultan Alsawaf <sultan@kerneltoast.com>
-Cc: Suren Baghdasaryan <surenb@google.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>,
-	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Christian Brauner <christian@brauner.io>,
-	Ingo Molnar <mingo@redhat.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	LKML <linux-kernel@vger.kernel.org>, devel@driverdev.osuosl.org,
-	linux-mm <linux-mm@kvack.org>, Tim Murray <timmurray@google.com>
-Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
-Message-ID: <20190312165805.GF5721@dhcp22.suse.cz>
-References: <20190310203403.27915-1-sultan@kerneltoast.com>
- <20190311174320.GC5721@dhcp22.suse.cz>
- <20190311175800.GA5522@sultan-box.localdomain>
- <CAJuCfpHTjXejo+u--3MLZZj7kWQVbptyya4yp1GLE3hB=BBX7w@mail.gmail.com>
- <20190311204626.GA3119@sultan-box.localdomain>
- <CAJuCfpGpBxofTT-ANEEY+dFCSdwkQswox3s8Uk9Eq0BnK9i0iA@mail.gmail.com>
- <20190312080532.GE5721@dhcp22.suse.cz>
- <20190312163741.GA2762@sultan-box.localdomain>
+       dkim=pass header.i=@google.com header.s=20161025 header.b="hSBUd/eG";
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=q63ookcgnvhAqs3Sfl5pVKDmKu933OB0+OqZ26Ou1RY=;
+        b=hSBUd/eG9bU9hkcXf07Vnzfvi70ZPJSBcBfruaCjFYM14tdDKN1568MVLHVkp1/rzg
+         +6Kvr4CytIiREYS1zYlJHoH0flAM+XoTrGW0QCnwrTFi8ah/X4azfw5jprA37easCbb6
+         WWKnUm+2oRUpKiOdwawihqIoCdbHuur985R5Kkka3cKAsMMJZbuwhwEvkcBX7iQcpmff
+         Ltj6D7ENtQA15Jtc0daYUa/UPPmEAq+7Q7HYNkrp8zPyXJl1seIegJbM0EEuiUPKUWsi
+         h6I5mMiXJmk0x9sKsteaUVj7+VdBvxAvjIcz+jlPIwTaTcR9NVX/luULEMgqgAncsgAa
+         nynw==
+X-Google-Smtp-Source: APXvYqwqCfJYHXCtfsLZSl2M8UsGhzjYvPKuIRwXqEZvL3LVq/MLO/l88WdygX5M9kEtHiE4/PMhCh92IpnBJ8mAObU=
+X-Received: by 2002:a24:3b01:: with SMTP id c1mr2440750ita.144.1552410649381;
+ Tue, 12 Mar 2019 10:10:49 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190312163741.GA2762@sultan-box.localdomain>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <00000000000010b2fc057fcdfaba@google.com> <0000000000008c75b50583ddb5f8@google.com>
+ <20190312040829.GQ2217@ZenIV.linux.org.uk>
+In-Reply-To: <20190312040829.GQ2217@ZenIV.linux.org.uk>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Tue, 12 Mar 2019 18:10:37 +0100
+Message-ID: <CACT4Y+atEoMK8GFHTyH-L617-Qbsds5OkqcU1ibc2NR7DUKK3Q@mail.gmail.com>
+Subject: Re: INFO: rcu detected stall in sys_sendfile64 (2)
+To: Al Viro <viro@zeniv.linux.org.uk>
+Cc: syzbot <syzbot+1505c80c74256c6118a5@syzkaller.appspotmail.com>, 
+	David Airlie <airlied@linux.ie>, Andrew Morton <akpm@linux-foundation.org>, 
+	Amir Goldstein <amir73il@gmail.com>, Chris Wilson <chris@chris-wilson.co.uk>, 
+	"Darrick J. Wong" <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, 
+	DRI <dri-devel@lists.freedesktop.org>, eparis@redhat.com, 
+	Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, 
+	intel-gfx <intel-gfx@lists.freedesktop.org>, Jan Kara <jack@suse.cz>, 
+	Jani Nikula <jani.nikula@linux.intel.com>, 
+	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Souptick Joarder <jrdr.linux@gmail.com>, 
+	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
+	Ingo Molnar <mingo@redhat.com>, mszeredi@redhat.com, 
+	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Peter Zijlstra <peterz@infradead.org>, 
+	Rodrigo Vivi <rodrigo.vivi@intel.com>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, 
+	Matthew Wilcox <willy@infradead.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 12-03-19 09:37:41, Sultan Alsawaf wrote:
-> I have not had a chance to look at PSI yet, but
-> unless a PSI-enabled solution allows allocations to reach the same point as when
-> the OOM killer is invoked (which is contradictory to what it sets out to do),
-> then it cannot take advantage of all of the alternative memory-reclaim means
-> employed in the slowpath, and will result in killing a process before it is
-> _really_ necessary.
+On Tue, Mar 12, 2019 at 5:08 AM Al Viro <viro@zeniv.linux.org.uk> wrote:
+>
+> On Mon, Mar 11, 2019 at 08:59:00PM -0700, syzbot wrote:
+> > syzbot has bisected this bug to:
+> >
+> > commit 34e07e42c55aeaa78e93b057a6664e2ecde3fadb
+> > Author: Chris Wilson <chris@chris-wilson.co.uk>
+> > Date:   Thu Feb 8 10:54:48 2018 +0000
+> >
+> >     drm/i915: Add missing kerneldoc for 'ent' in i915_driver_init_early
+> >
+> > bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=13220283200000
+> > start commit:   34e07e42 drm/i915: Add missing kerneldoc for 'ent' in i915..
+> > git tree:       upstream
+> > final crash:    https://syzkaller.appspot.com/x/report.txt?x=10a20283200000
+> > console output: https://syzkaller.appspot.com/x/log.txt?x=17220283200000
+> > kernel config:  https://syzkaller.appspot.com/x/.config?x=abc3dc9b7a900258
+> > dashboard link: https://syzkaller.appspot.com/bug?extid=1505c80c74256c6118a5
+> > userspace arch: amd64
+> > syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=12c4dc28c00000
+> > C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=15df4108c00000
+> >
+> > Reported-by: syzbot+1505c80c74256c6118a5@syzkaller.appspotmail.com
+> > Fixes: 34e07e42 ("drm/i915: Add missing kerneldoc for 'ent' in
+> > i915_driver_init_early")
+>
+> Umm...  Might be a good idea to add some plausibility filters - it is,
+> in theory, possible that adding a line in a comment changes behaviour
+> (without compiler bugs, even - playing with __LINE__ is all it would
+> take), but the odds that it's _not_ a false positive are very low.
 
-One more note. The above is true, but you can also hit one of the
-thrashing reclaim behaviors and reclaim last few pages again and again
-with the whole system really sluggish. That is what PSI is trying to
-help with.
--- 
-Michal Hocko
-SUSE Labs
+Thanks for pointing this out.
+
+I've started collecting all such cases, so that we are able to draw
+broader conclusions later:
+https://github.com/google/syzkaller/issues/1051
+
+added for this one:
+=========
+A mix of problems: unrelated bug triggered by the same repro
+("WARNING: ODEBUG bug in netdev_freemem"); lots of infrastructure
+failures ("failed to copy test binary to VM"); also the original
+failure seems to be flaky. All this contributed to pointing to a
+random commit.
+Al Viro points out that the commit only touches comments, so we could
+mark the end result as suspicious.
+=========
+
+The infrastructure problems is definitely something we need to fix
+("failed to copy test binary to VM") (currently the machine hangs
+periodically with lots of time consumed by dmcrypt, but I don't know
+if it's related or not yet).
+
+Re the comment-only changes, I would like to see more cases where it
+would help before we start creating new universes for this. We could
+parse sources with clang to understand that a change was comment-only,
+but I guess kernel is mostly broken with clang throughout history....
 
