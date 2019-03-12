@@ -2,161 +2,205 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C7515C10F00
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 20:34:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4CED3C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 20:53:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7F6F42171F
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 20:34:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F6F42171F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id E34C4213A2
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 20:53:43 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=hansenpartnership.com header.i=@hansenpartnership.com header.b="xlq9MgHs"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E34C4213A2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=HansenPartnership.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E9B2A8E0003; Tue, 12 Mar 2019 16:34:41 -0400 (EDT)
+	id 786A58E0003; Tue, 12 Mar 2019 16:53:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E48EE8E0002; Tue, 12 Mar 2019 16:34:41 -0400 (EDT)
+	id 736C18E0002; Tue, 12 Mar 2019 16:53:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D11758E0003; Tue, 12 Mar 2019 16:34:41 -0400 (EDT)
+	id 626F08E0003; Tue, 12 Mar 2019 16:53:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B3778E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 16:34:41 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id m10so4364014pfj.4
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 13:34:41 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4250F8E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 16:53:43 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id 68so3540950ywb.20
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 13:53:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=lnw/i8+cwkwS041v7FVN5RKf/++KHvsp9rzwYmaSjcA=;
-        b=F+0Pouhjw+72JtTjIliolWPj61VcOKc3V8DFNoeBCTEtaYV6nLxZVttVfcHSCIW38T
-         AeISvfQfkJlh9y6WX1/wMMWUz9zEwKqcDOkjxvleOiWLaJBeX6ND1SX4JNYNVuU1lN+o
-         HgKd5t5EWI4DD3fgVLyOcscBpH8ecYGihskGxs2j2wui3+IBtXGXoyNNUHBLoENLDl3v
-         MupNs+H5im5jpqD4Iw2S4fHTx+XypnTvJTAtDv8NW2UEQNS5qMqIXIIbUsdJXibOjCWd
-         EkMwEBdpp1QfEPYLKftlA+u0Ut1gbXaS0nea2J6Jf9ow3/Ho+O4TVoAE+xJ/2tQMtWpQ
-         PDYA==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 150.101.137.136 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: APjAAAW/f1svW7cbhu3Gh7t03NPEr+EnKrL0noLsLKqGXtAn7t5hOdAA
-	X2YVb1dj4xLIu4/CCptIK+0A9GRZgvN6/k1JEwk6+xQSCiGAER5mM2WlI0V97iG98HdougqfwNk
-	19WRxQIBWW13iwehe8KqOopBVS9ZABM4NH2Zr/qTMkU34JzIT4rKwADMLj3CE724=
-X-Received: by 2002:a65:6497:: with SMTP id e23mr35844035pgv.21.1552422881002;
-        Tue, 12 Mar 2019 13:34:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwcqZeC45YT5ITn/gJyMGNumAZ2388zJmKbnLJHXML+e7SZnSoKrv+xnZA7LEekg+VdKkF3
-X-Received: by 2002:a65:6497:: with SMTP id e23mr35843968pgv.21.1552422879637;
-        Tue, 12 Mar 2019 13:34:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552422879; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:mime-version:content-transfer-encoding;
+        bh=0Ksmlz1hgMCgdNvE/4Heh7hLPR1irc1qLSUkSv1U2PM=;
+        b=D9InrAMeMmh/ozyIplbOkD3hlENH6aFPxR52oSSf14hMPzuJXir3XWsYVoNylwNBAh
+         ugcAlAAn9hL7XIlYvye9ArPee5zQ/zGF2fb50umxxJRLeVZalH+Pw8r2eMci5VG+bfLa
+         rSKhJIYeyfIpSo+cVhgxVxgufxoI8V/IHlbFi4Q59sE6QIanKqWyFT64tGdMz0Dirt29
+         LC+Uuq1uOfAlS11n5A9P2GmDuBvcqO7WMXdAjIkNnpuked0aWI1FA6Re6giUiLaIoYrp
+         vqouGjZxdVCDGVFOOmy43JZKTLXDITYEuNpP62oLkkiE1S4zegggjpcLXll7kVsSHt/g
+         fVSQ==
+X-Gm-Message-State: APjAAAWD6ZTL3vcQSD1Ld5OE6gC3qW/H4TpMW0vHJse9g3kUpqmbYVul
+	sk08S0y7D9zpQ9m1pwXKo6jocRdb+gDZGUO0+n/m02HTZm3AdXCMvzRfTqamtiTo63hJSZ5O3Bo
+	hum6sylacLLUGzGZNu5fMIopeMQeon/92Hqr8/SFi/IsN6PnGfJS5bagFA+/4rpwSQQ==
+X-Received: by 2002:a25:a083:: with SMTP id y3mr33744686ybh.40.1552424022921;
+        Tue, 12 Mar 2019 13:53:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzeCBeadH+fx0uirQjqMcq44bIvuXQnx8qo/8Z8vF9OJ/mHa3IaZPE+EgaJ3kt09vdGy7Xr
+X-Received: by 2002:a25:a083:: with SMTP id y3mr33744637ybh.40.1552424021688;
+        Tue, 12 Mar 2019 13:53:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552424021; cv=none;
         d=google.com; s=arc-20160816;
-        b=P/ABok82vldpynd4NwL/va7D0f4ffHzwmwSnzZk0Jbn0T4UbsrK/1M3FJELVNDuBuU
-         aiKM1nbfgxFVYPUlMhU5oJn/e28OhqmTFf9PEL31yVOAuEpy+dSL+7diewwEocOplVXQ
-         MWa+kp/rWBBqmqOxABNs18I9nxqT6WIRyaxi7smOev3uqJPyJnmwBXEdhZobL0mYBapB
-         IF/XpP7LmGzwCWZL7Ws6FMPE4dNilWCyhV4qX7H8VBM5+zQpVR+xLc5K9ANg9sXzbdeC
-         w+0kotMTEepXzJ4QprzH3uT4TERzhYNCTWplun+/inr35w4r5iJee9L8Tb3aO3jc9LVV
-         /y3g==
+        b=02qBhRKaMNvwUaA0d9a8257NjZF+eERrj1E/pNoXvl2r3LL+qKI99tQcFPR+zzYDHw
+         wOo9eEZHbgfuId+BIKbVv2PxDIjOm2cdesZM8flhegjXigc5wYs+OmdDfwN7NchJRZlz
+         bsZB2L4yOX0TBxVvR7c8qweEYdAeB+Vkh2HxqzEqtxMIzBbgmSC2+EIM8FuzyQBqfWOv
+         HfSUveZlFNfDW2d4V/H/cm8fd5v8WQhpgvczwv50S7EV7FzLYJs1SNQ0xjYZMCJLQ0Wc
+         tZQT67H4k9HSyN4VaiC7UmWn14c8C4RYUfPki63nrsbexEoUxf1BaE+6IpM7Ka+OKQSx
+         Kmyw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=lnw/i8+cwkwS041v7FVN5RKf/++KHvsp9rzwYmaSjcA=;
-        b=nQhLExMLD6o2Q7n7SC0/EKI7W6GE+/HXvokxTN+yv4zK0gboTC27gGOYOzVop8aNts
-         Ln9YgZzZerYYXbQYr0ynFm1d8iJh0MD2TphQcvbyxY1tviuiJKCe+hCLewkBGr2NgRmp
-         UubIroj9JJtl1LaFBdKg6jRHLy3wj1m9eI6kfo8cPK1DQB3AL1Kj7zNsAJNrQ6dI2guY
-         O6lYLNXxlg+3GA0RRwO+K8aa51Qk14F/7uA3xAmN6N4adXSsh6ipJ7GFBCaCAo5ZzKTM
-         9WjRjpcGl9vYmE8dtwedoh0d3ndVV779k7O7eaVWWu+Ap3b8flOotaQEN0kDYFRHuJnH
-         8DYA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id:dkim-signature;
+        bh=0Ksmlz1hgMCgdNvE/4Heh7hLPR1irc1qLSUkSv1U2PM=;
+        b=KFFAXRUjCOlyTRAT2U3KJSdSc+CemHTXsCXqmi8X3dnur+uGJpPZGJq2A8/7z4rfk1
+         KcJ+/OpQ7UghyWb1uCq0wNIATIKdYop1Yq0YVjqn/8wBmYXIwEf6xah/4CSC7b/GKQy9
+         lBCgl+y8/ifX8fZ8U/2XycYM2P0qXqdJk2k8OHr3QeZrvvcg33qwBexGjFiacmOMO0Wh
+         1xcs+fos1BWP/qjHjGv+dJ8YWe9sW2FI1fNpNcDWnDkVmCgHQLNPRpCEmPVIfWGnvbLz
+         Q3SXxrmNeYOUnTO7vXuu4RpmeaBAG3HtfxLQslDxPO9d+Sa8cw+/0+VI2ofHH0yrtids
+         tmOw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 150.101.137.136 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from ipmail01.adl6.internode.on.net (ipmail01.adl6.internode.on.net. [150.101.137.136])
-        by mx.google.com with ESMTP id d62si8803506pfg.160.2019.03.12.13.34.38
-        for <linux-mm@kvack.org>;
-        Tue, 12 Mar 2019 13:34:39 -0700 (PDT)
-Received-SPF: neutral (google.com: 150.101.137.136 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=150.101.137.136;
+       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=xlq9MgHs;
+       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTPS id d187si5794011ywf.176.2019.03.12.13.53.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 12 Mar 2019 13:53:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) client-ip=66.63.167.143;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 150.101.137.136 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from ppp59-167-129-252.static.internode.on.net (HELO dastard) ([59.167.129.252])
-  by ipmail01.adl6.internode.on.net with ESMTP; 13 Mar 2019 07:04:36 +1030
-Received: from dave by dastard with local (Exim 4.80)
-	(envelope-from <david@fromorbit.com>)
-	id 1h3o6e-0001QJ-6W; Wed, 13 Mar 2019 07:34:36 +1100
-Date: Wed, 13 Mar 2019 07:34:36 +1100
-From: Dave Chinner <david@fromorbit.com>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Jerome Glisse <jglisse@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linux MM <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>
-Subject: Re: [PATCH 09/10] mm/hmm: allow to mirror vma of a file on a DAX
- backed filesystem
-Message-ID: <20190312203436.GE23020@dastard>
-References: <CAPcyv4gb+r==riKFXkVZ7gGdnKe62yBmZ7xOa4uBBByhnK9Tzg@mail.gmail.com>
- <20190305141635.8134e310ba7187bc39532cd3@linux-foundation.org>
- <CAA9_cmd2Z62Z5CSXvne4rj3aPSpNhS0Gxt+kZytz0bVEuzvc=A@mail.gmail.com>
- <20190307094654.35391e0066396b204d133927@linux-foundation.org>
- <20190307185623.GD3835@redhat.com>
- <CAPcyv4gkxmmkB0nofVOvkmV7HcuBDb+1VLR9CSsp+m-QLX_mxA@mail.gmail.com>
- <20190312152551.GA3233@redhat.com>
- <CAPcyv4iYzTVpP+4iezH1BekawwPwJYiMvk2GZDzfzFLUnO+RgA@mail.gmail.com>
- <20190312190606.GA15675@redhat.com>
- <CAPcyv4g-z8nkM1B65oR-3PT_RFQbmQMsM-J-P0-nzyvvJ8gVog@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4g-z8nkM1B65oR-3PT_RFQbmQMsM-J-P0-nzyvvJ8gVog@mail.gmail.com>
-User-Agent: Mutt/1.5.21 (2010-09-15)
+       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=xlq9MgHs;
+       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
+Received: from localhost (localhost [127.0.0.1])
+	by bedivere.hansenpartnership.com (Postfix) with ESMTP id 33B738EE1ED;
+	Tue, 12 Mar 2019 13:53:39 -0700 (PDT)
+Received: from bedivere.hansenpartnership.com ([127.0.0.1])
+	by localhost (bedivere.hansenpartnership.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id wLorcc8lOR75; Tue, 12 Mar 2019 13:53:39 -0700 (PDT)
+Received: from [153.66.254.194] (unknown [50.35.68.20])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by bedivere.hansenpartnership.com (Postfix) with ESMTPSA id 688588EE0F5;
+	Tue, 12 Mar 2019 13:53:38 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=hansenpartnership.com;
+	s=20151216; t=1552424018;
+	bh=xBXu18RoJWJ5B4KHNewRd2Rk9PRsAei+eBQI4KiIbeY=;
+	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
+	b=xlq9MgHsTme9IiV3l5DS1bhGe2e2yBGv5xMnFuAUo3FND/cNBSgTYhs2hLcTvBHBt
+	 YXaNutNhc7CQMLA18VtnBZRLFNVrMv8VFLcdGmoUhK+Sy6721n6yei9bvNTLp1k2xB
+	 VUr8feAFN96BKuJ90nrtw4xh7PaBspbU6h6RJU4k=
+Message-ID: <1552424017.14432.11.camel@HansenPartnership.com>
+Subject: Re: [RFC PATCH V2 0/5] vhost: accelerate metadata access through
+ vmap()
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>,
+  David Miller <davem@davemloft.net>, hch@infradead.org,
+ kvm@vger.kernel.org,  virtualization@lists.linux-foundation.org,
+ netdev@vger.kernel.org,  linux-kernel@vger.kernel.org, peterx@redhat.com,
+ linux-mm@kvack.org,  linux-arm-kernel@lists.infradead.org,
+ linux-parisc@vger.kernel.org
+Date: Tue, 12 Mar 2019 13:53:37 -0700
+In-Reply-To: <20190312200450.GA25147@redhat.com>
+References: <20190308141220.GA21082@infradead.org>
+	 <56374231-7ba7-0227-8d6d-4d968d71b4d6@redhat.com>
+	 <20190311095405-mutt-send-email-mst@kernel.org>
+	 <20190311.111413.1140896328197448401.davem@davemloft.net>
+	 <6b6dcc4a-2f08-ba67-0423-35787f3b966c@redhat.com>
+	 <20190311235140-mutt-send-email-mst@kernel.org>
+	 <76c353ed-d6de-99a9-76f9-f258074c1462@redhat.com>
+	 <20190312075033-mutt-send-email-mst@kernel.org>
+	 <1552405610.3083.17.camel@HansenPartnership.com>
+	 <20190312200450.GA25147@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.26.6 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 12, 2019 at 12:30:52PM -0700, Dan Williams wrote:
-> On Tue, Mar 12, 2019 at 12:06 PM Jerome Glisse <jglisse@redhat.com> wrote:
-> > On Tue, Mar 12, 2019 at 09:06:12AM -0700, Dan Williams wrote:
-> > > On Tue, Mar 12, 2019 at 8:26 AM Jerome Glisse <jglisse@redhat.com> wrote:
-> [..]
-> > > > Spirit of the rule is better than blind application of rule.
-> > >
-> > > Again, I fail to see why HMM is suddenly unable to make forward
-> > > progress when the infrastructure that came before it was merged with
-> > > consumers in the same development cycle.
-> > >
-> > > A gate to upstream merge is about the only lever a reviewer has to
-> > > push for change, and these requests to uncouple the consumer only
-> > > serve to weaken that review tool in my mind.
-> >
-> > Well let just agree to disagree and leave it at that and stop
-> > wasting each other time
+On Tue, 2019-03-12 at 16:04 -0400, Andrea Arcangeli wrote:
+> On Tue, Mar 12, 2019 at 08:46:50AM -0700, James Bottomley wrote:
+> > On Tue, 2019-03-12 at 07:54 -0400, Michael S. Tsirkin wrote:
+> > > On Tue, Mar 12, 2019 at 03:17:00PM +0800, Jason Wang wrote:
+> > > > 
+> > > > On 2019/3/12 ä¸Šåˆ11:52, Michael S. Tsirkin wrote:
+> > > > > On Tue, Mar 12, 2019 at 10:59:09AM +0800, Jason Wang wrote:
+> > 
+> > [...]
+> > > > At least for -stable, we need the flush?
+> > > > 
+> > > > 
+> > > > > Three atomic ops per bit is way to expensive.
+> > > > 
+> > > > 
+> > > > Yes.
+> > > > 
+> > > > Thanks
+> > > 
+> > > See James's reply - I stand corrected we do kunmap so no need to
+> > > flush.
+> > 
+> > Well, I said that's what we do on Parisc.  The cachetlb document
+> > definitely says if you alter the data between kmap and kunmap you
+> > are responsible for the flush.  It's just that flush_dcache_page()
+> > is a no-op on x86 so they never remember to add it and since it
+> > will crash parisc if you get it wrong we finally gave up trying to
+> > make them.
+> > 
+> > But that's the point: it is a no-op on your favourite architecture
+> > so it costs you nothing to add it.
 > 
-> I'm fine to continue this discussion if you are. Please be specific
-> about where we disagree and what aspect of the proposed rules about
-> merge staging are either acceptable, painful-but-doable, or
-> show-stoppers. Do you agree that HMM is doing something novel with
-> merge staging, am I off base there? I expect I can find folks that
-> would balk with even a one cycle deferment of consumers, but can we
-> start with that concession and see how it goes? I'm missing where I've
-> proposed something that is untenable for the future of HMM which is
-> addressing some real needs in gaps in the kernel's support for new
-> hardware.
+> Yes, the fact Parisc gave up and is doing it on kunmap is reasonable
+> approach for Parisc, but it doesn't move the needle as far as vhost
+> common code is concerned, because other archs don't flush any cache
+> on kunmap.
+> 
+> So either all other archs give up trying to optimize, or vhost still
+> has to call flush_dcache_page() after kunmap.
 
-/me quietly wonders why the hmm infrastructure can't be staged in a
-maintainer tree development branch on a kernel.org and then
-all merged in one go when that branch has both infrastructure and
-drivers merged into it...
+I've got to say: optimize what?  What code do we ever have in the
+kernel that kmap's a page and then doesn't do anything with it? You can
+guarantee that on kunmap the page is either referenced (needs
+invalidating) or updated (needs flushing). The in-kernel use of kmap is
+always
 
-i.e. everyone doing hmm driver work gets the infrastructure from the
-dev tree, not mainline. That's a pretty standard procedure for
-developing complex features, and it avoids all the issues being
-argued over right now...
+kmap
+do something with the mapped page
+kunmap
 
-Cheers,
+In a very short interval.  It seems just a simplification to make
+kunmap do the flush if needed rather than try to have the users
+remember.  The thing which makes this really simple is that on most
+architectures flush and invalidate is the same operation.  If you
+really want to optimize you can use the referenced and dirty bits on
+the kmapped pte to tell you what operation to do, but if your flush is
+your invalidate, you simply assume the data needs flushing on kunmap
+without checking anything.
 
-Dave/
--- 
-Dave Chinner
-david@fromorbit.com
+> Which means after we fix vhost to add the flush_dcache_page after
+> kunmap, Parisc will get a double hit (but it also means Parisc was
+> the only one of those archs needed explicit cache flushes, where
+> vhost worked correctly so far.. so it kinds of proofs your point of
+> giving up being the safe choice).
+
+What double hit?  If there's no cache to flush then cache flush is a
+no-op.  It's also a highly piplineable no-op because the CPU has the L1
+cache within easy reach.  The only event when flush takes a large
+amount time is if we actually have dirty data to write back to main
+memory.
+
+James
 
