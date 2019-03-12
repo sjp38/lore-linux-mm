@@ -2,143 +2,165 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6CE1EC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 05:23:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BD8A4C10F00
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 06:08:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1AD032087C
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 05:23:23 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 535AC2147C
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 06:08:53 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="h93TzIKV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1AD032087C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="hqE6AUsr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 535AC2147C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A1F2B8E0003; Tue, 12 Mar 2019 01:23:22 -0400 (EDT)
+	id 9AF808E0003; Tue, 12 Mar 2019 02:08:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9A66D8E0002; Tue, 12 Mar 2019 01:23:22 -0400 (EDT)
+	id 95CE88E0002; Tue, 12 Mar 2019 02:08:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 86EC98E0003; Tue, 12 Mar 2019 01:23:22 -0400 (EDT)
+	id 84C048E0003; Tue, 12 Mar 2019 02:08:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FF4B8E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 01:23:22 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id d8so1240883qkk.17
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 22:23:22 -0700 (PDT)
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 56C708E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 02:08:52 -0400 (EDT)
+Received: by mail-it1-f200.google.com with SMTP id i4so1342410itb.1
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 23:08:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=z01aYAg46TzuTIqJisqKm8re0ji3PJzla2eSuVgDaEg=;
-        b=Y2kQtEd0jBCgPXFi+udK1lU9JiOHYA0LzrsdGZ6oVYc4Egu3f3mNTQ9TNaRVfJfEff
-         wtSKj6blbAc4gBBH71mt+jTujtzYEP2Z8LfdaXZGX+hg0QY3R4lwwka/vEm78DhbzhK2
-         Rzx8eXRuDG5pvCzbL4jNXTyMmGJNY5kDdifx72e1fN0IgkpWc/Is8GaVJdMaVOWdFK1R
-         /SBrpTWIRLH0JFZ2iSOmn/JBuDlraHPjBXfY4ei/3bNTA0BM1AJPpiQUAYUWely2Mh9e
-         Mefrl9hkrI7GnfVAS8O9Z5SCzdj/3a2jEcvGkYCGOopTpOsdWx795syTjCL2Lvki1vxD
-         V60g==
-X-Gm-Message-State: APjAAAUCEdN1mkpHVl7QLGT8Q3v1JACvXNOHqHHAFlxrJvpjX3jLP9nm
-	DdXPV/t73cpjzuR2sfGKruTepoysAq0J5nIW0pt31FAXj3BifBPLLnhjfhOWYKe/ljIoGYGAjRv
-	Q9AtSumAUlGk1o42red55eRqNk2hnR5hg0RzL2x6L7jXH46QqqKGYJCql9fbzYPo=
-X-Received: by 2002:ac8:3258:: with SMTP id y24mr5236131qta.0.1552368202159;
-        Mon, 11 Mar 2019 22:23:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy/5vgQ2lnBWB8rigM7sLKUYtdAxp/oOLkzM+glao8I/umv3849X1BxLBGP/D4V9x49tD9O
-X-Received: by 2002:ac8:3258:: with SMTP id y24mr5236112qta.0.1552368201525;
-        Mon, 11 Mar 2019 22:23:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552368201; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=N1JiQ1cf1uHp+tMakySvUAuKGEi8FGoygCN9wkQMXqw=;
+        b=FyByUwzZ4sizpJqiLQ1HXK/QKRoxcXbOEXaDIdMz2anYyfL2LtnI1kLv4VfiyDDyd9
+         Rxp41bOLMkagndbcvWZ9ZXbNdfCEkjfRFVliMY18SXlOk+NHOAZE5bFlYW6bGap5sFfQ
+         xbF7a0F8t2zm+bzz90OQUXKromtsFLNz3piUgS4eIxL2oRKHDO1A6pqO3JkrcQE3KRrX
+         acgVOIXdqMZxplHqnLDNQYPjCTnesLyeUZUPp6i9hrqFWOjUZGduoAkEk6/TKCXST3l/
+         Ye9G9+tb5o670H8AlV2lTLOGjvciGPB08epSmq2Ee3+1g/1T3sV8/kW6PiEbDnoTPgDq
+         nuoA==
+X-Gm-Message-State: APjAAAUl2qHqlGjQIjYJs+7k/mnP8F2/AhDAwJCDJSgXopHcH7Y9FnMK
+	gUQDc+s9mppDnqCVBQm6RoAdxrGisapS6YNljkWWyRL84oir4vYuxE27RJufV095bsUbYQrbqsh
+	HKNSCQ2A/1F0qTqvZ3JKYkkkhMjW4VNDW5tNXYByleyNvVLRX+ISJwO3S0YqJgjisLsGDqC5oHq
+	Crof7ojNiVNKW4HTBTNgXjSH35pvoogHcbVLPbmwPL0+oB2bPe61aJnbtZNjq4BG9763uRu9gCk
+	5wpYrmpUfObEN8FjjoLJHUQ1ZRNMNw0lRKQaheIMZcPQdVpEJcufyadJF5950L+mGr4Mf55EOrp
+	IMjtO4nvqaUc43eZyFSGQfkGT5WJNf13F021tHG+ZxX59xY4Y2C1Wd0eHg4RyM9vDyrvwnCGswM
+	s
+X-Received: by 2002:a24:b24e:: with SMTP id h14mr1169184iti.38.1552370932080;
+        Mon, 11 Mar 2019 23:08:52 -0700 (PDT)
+X-Received: by 2002:a24:b24e:: with SMTP id h14mr1169151iti.38.1552370931039;
+        Mon, 11 Mar 2019 23:08:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552370931; cv=none;
         d=google.com; s=arc-20160816;
-        b=pVWhUUERx+v2JyjVBTXJQOIhPJbtmXos1IOe2pvfAgcslCn1I60XaDCEuHvWOFRZ53
-         Lb0WNiC0PkIdQmFrWi6r0IdNeiGQvzru7RkBQAosVyr3FfC9OIwxr8+6t1z+MQemH2I7
-         0rh7DZYqks8/NeXeT8poT7rxoqt5cuGrPZTrpXZ1A4RBjkre0iaKE151fr1sWcDpMWsm
-         F+auB5druaq4yWeccxTmPQSL6pV9NcFYXleMovjrz0144nLHeadXgfCkpiJGT6zK5Zw+
-         K6/IIUbFK0qNaDQ8MlN71kxVKlRDQlYty0cya7jr2FgQw0gf4ZS1cmg+4I+wBqBFZKqX
-         nWhw==
+        b=f+ZxEAoi5bXuLPvyXssY/lesBr+281ZS+9lbmiD4aKhD+2f39H8Royf/AIWt3d+Zln
+         hgiLvYToAIyCQFBtfnaLocNwpe/0RYwoa1LzUfw8mpXqrpMjuR/frVL3F+VVN3BOWb5Y
+         tg51mYpZL2XroFCCcJ/Fd78aowMboYVZp+ixA35S7hDEgGn023/3bejKtWYH4kYO3nDD
+         fsH8sGlC9DtxaDpCdPho1TIs8bcyuqRs4fPMAZQ4CKn6TDdYdmp2yJJ6cGmuRFjkl71X
+         Iwvh4br25KDnp2fMtNJbu3aX9wxucxx6I4qrow7rFhtgckaOUMNUC/KgsZxC395bKI44
+         25AA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=z01aYAg46TzuTIqJisqKm8re0ji3PJzla2eSuVgDaEg=;
-        b=lVhSZj5Z1sVsFmwZtP+vbN+nsCPxoyqLtssBPGyRKQklDppMU17NamxnY7KMDE8MyS
-         r0wLRr+FBBUGG5KumZMc3gqR6c83RoFvX7eqaqZDODnKBDGzYdQVYe7RAh6m6nxG4nYk
-         HyxIN6Wr7i13z0hFdv9JQOJettCAQfXA/qwLY+2eJEHklKhm6Rfvmo3flrTWFNVyG+27
-         cEasHx8DBHZJqiyFr2h+RHHqx89vDbr/qCAhdSnfiXgSJ4wzsE/DIatvRBipQc7EL/2N
-         2aPgswsgqy2JUPPj7hOz7vFFkF5CFVB10c/jNMitG4HMzykztzuB140MC5Os/22svtlD
-         tShw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=N1JiQ1cf1uHp+tMakySvUAuKGEi8FGoygCN9wkQMXqw=;
+        b=jKr66Zl1KQMWCj+fPkRvy8B4AMVLj5X4oR57supE2r4Jf6KjFW44yG2/ct0HXMILFr
+         Xz6fuOJyYqyPPfWGQIUYljZPBCFRBygfe07BjfGhOLBpi7ebayfWokG67C+JIEcYmLOu
+         41x/Z7qvr54e4U4SAuBo+zJHlBT2rmQSiwEMSiB0S74JFiWxffWxXV9HXHnirzGQD35h
+         fwH3l3r+1lJI7t7RyGEeJX1NHeAazWggUkZdwWmGzHq4njXbiKa32hAVxItQaUh+CEW/
+         IJHG6jGJJiPSfkOR87adkPdW189lNCuduChknCeZTWDx5bbW7JFArsX4rFn3HQKRObec
+         BQug==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=h93TzIKV;
-       spf=pass (google.com: domain of 01000169705aecf0-76f2b83d-ac18-4872-9421-b4b6efe19fc7-000000@amazonses.com designates 54.240.9.99 as permitted sender) smtp.mailfrom=01000169705aecf0-76f2b83d-ac18-4872-9421-b4b6efe19fc7-000000@amazonses.com
-Received: from a9-99.smtp-out.amazonses.com (a9-99.smtp-out.amazonses.com. [54.240.9.99])
-        by mx.google.com with ESMTPS id y141si4595838qky.221.2019.03.11.22.23.21
+       dkim=pass header.i=@google.com header.s=20161025 header.b=hqE6AUsr;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r18sor2328766itb.5.2019.03.11.23.08.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 11 Mar 2019 22:23:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 01000169705aecf0-76f2b83d-ac18-4872-9421-b4b6efe19fc7-000000@amazonses.com designates 54.240.9.99 as permitted sender) client-ip=54.240.9.99;
+        (Google Transport Security);
+        Mon, 11 Mar 2019 23:08:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=h93TzIKV;
-       spf=pass (google.com: domain of 01000169705aecf0-76f2b83d-ac18-4872-9421-b4b6efe19fc7-000000@amazonses.com designates 54.240.9.99 as permitted sender) smtp.mailfrom=01000169705aecf0-76f2b83d-ac18-4872-9421-b4b6efe19fc7-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1552368201;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=z01aYAg46TzuTIqJisqKm8re0ji3PJzla2eSuVgDaEg=;
-	b=h93TzIKVo3t5INkiUh683/9f5Ugs9bfgUZdPiU/mr0UMqzn5NDgBRiJ3s5JEF+q8
-	MCB0EzTQifuAOul+pMn3x3RE6Uc8yfiVVPn2ZlbQ2S6YRNPiiBPKCSP9WUi6vkuKjqx
-	+lSakYv0fmIQcKCWRIscw1prKTsiJYtGzxtnpPis=
-Date: Tue, 12 Mar 2019 05:23:21 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
-To: Dave Chinner <david@fromorbit.com>
-cc: john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>, 
-    linux-mm@kvack.org, Al Viro <viro@zeniv.linux.org.uk>, 
-    Christian Benvenuti <benve@cisco.com>, 
-    Christoph Hellwig <hch@infradead.org>, 
-    Dan Williams <dan.j.williams@intel.com>, 
-    Dennis Dalessandro <dennis.dalessandro@intel.com>, 
-    Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>, 
-    Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>, 
-    Jerome Glisse <jglisse@redhat.com>, Matthew Wilcox <willy@infradead.org>, 
-    Michal Hocko <mhocko@kernel.org>, Mike Rapoport <rppt@linux.ibm.com>, 
-    Mike Marciniszyn <mike.marciniszyn@intel.com>, 
-    Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>, 
-    LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, 
-    John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [PATCH v3 0/1] mm: introduce put_user_page*(), placeholder
- versions
-In-Reply-To: <20190310224742.GK26298@dastard>
-Message-ID: <01000169705aecf0-76f2b83d-ac18-4872-9421-b4b6efe19fc7-000000@email.amazonses.com>
-References: <20190306235455.26348-1-jhubbard@nvidia.com> <010001695b4631cd-f4b8fcbf-a760-4267-afce-fb7969e3ff87-000000@email.amazonses.com> <20190310224742.GK26298@dastard>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       dkim=pass header.i=@google.com header.s=20161025 header.b=hqE6AUsr;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=N1JiQ1cf1uHp+tMakySvUAuKGEi8FGoygCN9wkQMXqw=;
+        b=hqE6AUsrdIaw8AqgtLspHLAVKb5SxCwC13bRoQ+Z0wXsi36QiN13hYYns2oMwfN6qO
+         Pc8GSslcZrTFHx+8t2295LkvYl28Oia+4xOaj0EUqW0xLreRAVcsNOiyvls9FHg5Hitw
+         5PARefocPhP7I/YbPrPyxPfC518gAUgj23ET9aaCDOrZxUaVlesbZWpGxRwxd7jaE+5J
+         wC0ypf6VGxVCc5XixFadnCaB1n5jJQu6rdgO5eE/wMwWsjUgKM7XGZMcg/8ZXv41k5Oo
+         d8WmszRQ+rfKrZay/cpoqmTHKNlZjsJe0pTj6SN32Dv98bDzjmMIkX6VW08aG7bJB3XT
+         xLWQ==
+X-Google-Smtp-Source: APXvYqyGXtnMS2ogIjE5olP/bMefqZZmG86bf7yTmNWT6Oi2bSZlY5OSUGoDZnJnkjBP5bwMQsCr5Os3poCp9xG8Zic=
+X-Received: by 2002:a05:660c:3d1:: with SMTP id c17mr966026itl.166.1552370930231;
+ Mon, 11 Mar 2019 23:08:50 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.03.12-54.240.9.99
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+References: <0000000000001fd5780583d1433f@google.com> <20190311163747.f56cceebd9c2661e4519bdfc@linux-foundation.org>
+In-Reply-To: <20190311163747.f56cceebd9c2661e4519bdfc@linux-foundation.org>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Tue, 12 Mar 2019 07:08:38 +0100
+Message-ID: <CACT4Y+byKQSOCte3JS9XOnyr+aVSEFtBvLxG2-HUrZX3-82Hcg@mail.gmail.com>
+Subject: Re: KASAN: null-ptr-deref Read in reclaim_high
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: syzbot <syzbot+fa11f9da42b46cea3b4a@syzkaller.appspotmail.com>, 
+	cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, 
+	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
+	Michal Hocko <mhocko@kernel.org>, Michal Hocko <mhocko@suse.com>, 
+	Stephen Rothwell <sfr@canb.auug.org.au>, Shakeel Butt <shakeelb@google.com>, 
+	syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Vladimir Davydov <vdavydov.dev@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Mar 2019, Dave Chinner wrote:
-
-> > Direct IO on a mmapped file backed page doesnt make any sense.
+On Tue, Mar 12, 2019 at 12:37 AM Andrew Morton
+<akpm@linux-foundation.org> wrote:
 >
-> People have used it for many, many years as zero-copy data movement
-> pattern. i.e. mmap the destination file, use direct IO to DMA direct
-> into the destination file page cache pages, fdatasync() to force
-> writeback of the destination file.
+> On Mon, 11 Mar 2019 06:08:01 -0700 syzbot <syzbot+fa11f9da42b46cea3b4a@syzkaller.appspotmail.com> wrote:
+>
+> > syzbot has bisected this bug to:
+> >
+> > commit 29a4b8e275d1f10c51c7891362877ef6cffae9e7
+> > Author: Shakeel Butt <shakeelb@google.com>
+> > Date:   Wed Jan 9 22:02:21 2019 +0000
+> >
+> >      memcg: schedule high reclaim for remote memcgs on high_work
+> >
+> > bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=155bf5db200000
+> > start commit:   29a4b8e2 memcg: schedule high reclaim for remote memcgs on..
+> > git tree:       linux-next
+> > final crash:    https://syzkaller.appspot.com/x/report.txt?x=175bf5db200000
+> > console output: https://syzkaller.appspot.com/x/log.txt?x=135bf5db200000
+> > kernel config:  https://syzkaller.appspot.com/x/.config?x=611f89e5b6868db
+> > dashboard link: https://syzkaller.appspot.com/bug?extid=fa11f9da42b46cea3b4a
+> > userspace arch: amd64
+> > syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=14259017400000
+> > C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=141630a0c00000
+> >
+> > Reported-by: syzbot+fa11f9da42b46cea3b4a@syzkaller.appspotmail.com
+> > Fixes: 29a4b8e2 ("memcg: schedule high reclaim for remote memcgs on
+> > high_work")
+>
+> The following patch
+> memcg-schedule-high-reclaim-for-remote-memcgs-on-high_work-v3.patch
+> might have fixed this.  Was it applied?
 
-Well we could make that more safe through a special API that designates a
-range of pages in a file in the same way as for RDMA. This is inherently
-not reliable as we found out.
+Hi Andrew,
 
-> Now we have copy_file_range() to optimise this sort of data
-> movement, the need for games with mmap+direct IO largely goes away.
-> However, we still can't just remove that functionality as it will
-> break lots of random userspace stuff...
+You mean if the patch was applied during the bisection?
+No, it wasn't. Bisection is very specifically done on the same tree
+where the bug was hit. There are already too many factors that make
+the result flaky/wrong/inconclusive without changing the tree state.
+Now, if syzbot would know about any pending fix for this bug, then it
+would not do the bisection at all. But it have not seen any patch in
+upstream/linux-next with the Reported-by tag, nor it received any syz
+fix commands for this bugs. Should have been it aware of the fix? How?
 
-It is already broken and unreliable. Are there really "lots" of these
-things around? Can we test this by adding a warning in the kernel and see
-where it actually crops up?
+Thanks
 
