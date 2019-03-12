@@ -2,223 +2,188 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+X-Spam-Status: No, score=-1.4 required=3.0 tests=DATE_IN_PAST_06_12,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A80F8C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 22:57:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 04856C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 23:24:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 615DC217D9
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 22:57:22 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=hansenpartnership.com header.i=@hansenpartnership.com header.b="TOJYB90P"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 615DC217D9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=HansenPartnership.com
+	by mail.kernel.org (Postfix) with ESMTP id A6C092147C
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 23:24:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A6C092147C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F40EE8E0003; Tue, 12 Mar 2019 18:57:21 -0400 (EDT)
+	id 1BFB98E0003; Tue, 12 Mar 2019 19:24:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EF0988E0002; Tue, 12 Mar 2019 18:57:21 -0400 (EDT)
+	id 147FA8E0002; Tue, 12 Mar 2019 19:24:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DDFAF8E0003; Tue, 12 Mar 2019 18:57:21 -0400 (EDT)
+	id F2AB18E0003; Tue, 12 Mar 2019 19:24:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B77678E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 18:57:21 -0400 (EDT)
-Received: by mail-yw1-f69.google.com with SMTP id b6so5471284ywd.23
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 15:57:21 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A977F8E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 19:24:47 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id n24so18405pgm.17
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 16:24:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=5vFP26CUQPLhQhavIv7KLQW+HvC8lzvQsktord7sqXU=;
-        b=dPSOiXIZmcuvQfcK69Y2yB/5Ozg6VU5zF/pAt2dVBqPfUS907hjj1dhM6Hv3nFTEJp
-         cvSpuxFnOuDFmrGlo6p6S6Rb6Tzo6lqiV5Y2E/z0EszmzTdnze6hWfKfcyflI2iAu5Xu
-         Wx6T2vegWeMoiVPcw6CI5Y3rVlCKk9hjpOhAblMA6oCu6ZU4WmEUjotlY67g8Q+okBL7
-         mDYphGS0ZR3l17HS8/Gbq1TuJRz/fWCiCO4zTlFVhg+MCDxPXhBDNcnR/BQA8ajfCX8K
-         QZoKHT+Mrtscwlc+GNkX7mBtZinK9j4iue6pRfL7s3yk9tbUPlYWSG4bGtfnST1X9F8A
-         kWCQ==
-X-Gm-Message-State: APjAAAUqn3FWN6d5BwdG+ZcTeX5j9qCgrvyX6YhwamuVH3FB1Y8KgZFt
-	PIPcZe1kUo4rI0iD6BajnxTW+tvhW9v+fgMjTxGxYMWJUNzmg6OdxVmZUnPf5nVl+w65ORHuQzH
-	RNxW6CT5/ZD8qeZh4KHC+cyV/dzbfxeul3+4xKq7TMjG6CRglCN9iv1258ayQwSjQqQ==
-X-Received: by 2002:a25:b31b:: with SMTP id l27mr35060251ybj.67.1552431441417;
-        Tue, 12 Mar 2019 15:57:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwVG4kpFg3jKH0AffVdXU3zqt2BdxoAKAnzVeb5/lq6papTAsvWtG31L12uVqVpT8Tw5s+8
-X-Received: by 2002:a25:b31b:: with SMTP id l27mr35060215ybj.67.1552431440495;
-        Tue, 12 Mar 2019 15:57:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552431440; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=+FO/aZAptqOuIx/FLxANaTDEsqif69hcVQygxSgbHdw=;
+        b=Et/q7uH+XzsTkeryU1RL3r8XTxiqp+M2a7dAxqQvCf8GCRjzRq6Z9+6iUgWP9AJhz8
+         qEAxLr6hI6hbx83XWgPVWZgE0LoaT6NjFh9zdfzXk7bGi/3HTN+U+64+ZtgxmHfe3mfq
+         c+5Ei9zX1hnCn3d8MB5o/zNmEmmnYeRPxgF5DX4Sch4ScEMgtCf4tF/3KUAoZmWOOFlz
+         CXP84l894sdF44sZPLoCSO1Oby7HqGOAGnPX12JfRuMLVbTPGtdfbsaXC7yvnA/Wp6cG
+         P9mSUjR1NqbUzLKOm0JdSn5Hwsqw8smb2osUvPnIbopPcGksHFa1Pj0oF08cEBrOcR/V
+         X60Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVGGkfUEZjRQtDUcpuq7mkOpmDNWpW2sk2J8Yg9EMY9KSuxQ4nl
+	w4msZhS+c/+bzdAo7WDJFtro4G4MGLtGBxI9obDMi1z+ksD18fU+knHc7MFCI6U+2WD3gXMuJo4
+	xSbpSFOifewhlr8eWuJEII5c+5nLzNIWwpKHcvMCJZWeSLBI4S1GOjjVtVe38sKaKgQ==
+X-Received: by 2002:aa7:8516:: with SMTP id v22mr6048976pfn.23.1552433087291;
+        Tue, 12 Mar 2019 16:24:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwx5iBCU2LKycQFZw2JQMmsYNYJPC+gyW0XyptnDka9ancqkM6P8zdcAImGuZfh8uag2JDT
+X-Received: by 2002:aa7:8516:: with SMTP id v22mr6048931pfn.23.1552433086183;
+        Tue, 12 Mar 2019 16:24:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552433086; cv=none;
         d=google.com; s=arc-20160816;
-        b=PnkEVCdeF4aGir8AiaPgddXh+AcOLVp8kuihhVX2G9GGgq/PuQ4Pjf+MIf2bc9/XxN
-         aywI2VObdByTE9qdMgyLfipTqEq9Sop3pBx7MW61iQo/hNgV7vQUyxUk8cdYYaOg2X7I
-         +N1jlbBieQIbqZ8I9NL1nRjZ7xQOMB45vn+3o3OVx83IuKW3jTd5Uw3lvGfLQjkf+XoK
-         sJyg6t0VEYkm8Ks8Wl7PwxjJpQz3Ylog/wWGZaw4sF5MQ1EqsXOd90MSptNq27iPMR5j
-         32GabDgr5UpumLXXg2wclLcJEVcJP+8lMYDm87DkWWnpDUjKHai19eRRLUH+Iq3QImyv
-         5IgQ==
+        b=q7HaOwYbTRzpRTZlGZeSIs2IM2++vkS8h8xppSe0XCv2vVOFgS3r+BxgK0S0M2CCKc
+         92AaV6eZ3WP8ku61afwai22cEW1All6AfIA2+xqnrkhyuQGBPwwhNRMo2I4NHDjtY7Vd
+         JC2upwlaptVGGgZgOC3Kpcy5uf2ntnBvz/EpoIxcemwakuA81ZMrRA8umpTZjb94HGuv
+         YKElCUPTKxuB+uc7QUONkyXdGEGWiJn+eQnrt5Nr2UJYmi5l58FC/eZJ5nfWnTmIuQCD
+         +Cb0sPJRZ7GnU4lis//2aIiuXETGPYw/FJ7aEmLQfG7D3bFzrEiFZlBUCOf1hJCeCIHx
+         fqvw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=5vFP26CUQPLhQhavIv7KLQW+HvC8lzvQsktord7sqXU=;
-        b=QSLSeW8tzB6/1Y1/KvZaK5K8NchHk/GgG9QLsolD25obJBFYLx/VsE8QHcOXl4dA5p
-         4/s0GQvxpouQvqLce4nn4c/ASO6Ma6PxmT0MolG7AX7gnGLU2VxuE3x/SyOOr2tac3zh
-         t9eMqNWTftuxcew8Ljxo2FyMNTlCJ+FdjzCOeTd5w5KygWbko57Tliep6ObpX/Cnr8E5
-         QoO4d6b/K6GyDfhJu6X/P00eMnO3GDTHHZcir5kzVncqC/yMAW+P5iyX2X+G7KB3X3NV
-         oHWjtbNSQ5dcH5AIQDpEgpwh102OXoSGfELRFKk9W45sqGtxZyuiN0PsefTTY5S01Lmk
-         Lm0Q==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=+FO/aZAptqOuIx/FLxANaTDEsqif69hcVQygxSgbHdw=;
+        b=wToanrtdqbm2JnpFbawBDUXAgiyOZTjtfgu9fCdkn7BfgEt+YvgxV52lec0lDnbpWf
+         s/y2zdvv9c9KVpmjLVmQ/EW2gClsKzPZTyx3P7R7+mM0TNb1GpAkhEXoWB2b0VsKg19I
+         aoqFpZ4voHQFONkz1KsioFNP7KMPvo2bnF1s8+9HOIfi6019zefL0q9z1BlfmsWOXytN
+         NmfIS4nUPvRjoNM6R0mO5rb8fc3BsU4ufjfHxumxOIURWsKzNMLArQtS6DZToP+zN2hy
+         Oljtk6M2lXhuDxkLU2ZAm4Ru9OYuVO0y0keAEmpYPKGwShZjeHFct/Q/OlxRGsayDpOj
+         JVMA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=TOJYB90P;
-       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTPS id s10si5487737ybg.203.2019.03.12.15.57.19
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id a7si9174075plm.420.2019.03.12.16.24.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 12 Mar 2019 15:57:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) client-ip=66.63.167.143;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Mar 2019 16:24:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=TOJYB90P;
-       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
-Received: from localhost (localhost [127.0.0.1])
-	by bedivere.hansenpartnership.com (Postfix) with ESMTP id BB7C38EE20E;
-	Tue, 12 Mar 2019 15:57:17 -0700 (PDT)
-Received: from bedivere.hansenpartnership.com ([127.0.0.1])
-	by localhost (bedivere.hansenpartnership.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id bIXGJAv6LSQ8; Tue, 12 Mar 2019 15:57:17 -0700 (PDT)
-Received: from [153.66.254.194] (unknown [50.35.68.20])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by bedivere.hansenpartnership.com (Postfix) with ESMTPSA id D55418EE0F5;
-	Tue, 12 Mar 2019 15:57:16 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=hansenpartnership.com;
-	s=20151216; t=1552431437;
-	bh=nqauZTMjLIlCtdjWAuZ6B+xT+zykoUqdVHDcgv40x8U=;
-	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
-	b=TOJYB90P8bGGBEgy/p2OzDozxFdWmdmTmVmEbZ2kxfHjm8Wnvw7af8NCL1GtxlDfT
-	 CejvYaJVYV9EA/FkWkrN20QgY7XgolCcEnHjrMbejdgOOXNh3wKjFfiVxVq932K3Dx
-	 h2zVGng+Z8FhH1B/f+R4JyloBXH9kXZ0FY4mGKB4=
-Message-ID: <1552431434.14432.47.camel@HansenPartnership.com>
-Subject: Re: [RFC PATCH V2 0/5] vhost: accelerate metadata access through
- vmap()
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>,
-  David Miller <davem@davemloft.net>, hch@infradead.org,
- kvm@vger.kernel.org,  virtualization@lists.linux-foundation.org,
- netdev@vger.kernel.org,  linux-kernel@vger.kernel.org, peterx@redhat.com,
- linux-mm@kvack.org,  linux-arm-kernel@lists.infradead.org,
- linux-parisc@vger.kernel.org
-Date: Tue, 12 Mar 2019 15:57:14 -0700
-In-Reply-To: <20190312225032.GD25147@redhat.com>
-References: <20190311235140-mutt-send-email-mst@kernel.org>
-	 <76c353ed-d6de-99a9-76f9-f258074c1462@redhat.com>
-	 <20190312075033-mutt-send-email-mst@kernel.org>
-	 <1552405610.3083.17.camel@HansenPartnership.com>
-	 <20190312200450.GA25147@redhat.com>
-	 <1552424017.14432.11.camel@HansenPartnership.com>
-	 <20190312211117.GB25147@redhat.com>
-	 <1552425555.14432.14.camel@HansenPartnership.com>
-	 <20190312215321.GC25147@redhat.com>
-	 <1552428174.14432.39.camel@HansenPartnership.com>
-	 <20190312225032.GD25147@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.26.6 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from fmsmga008.fm.intel.com ([10.253.24.58])
+  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Mar 2019 16:24:45 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,472,1544515200"; 
+   d="scan'208";a="131107170"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by fmsmga008.fm.intel.com with ESMTP; 12 Mar 2019 16:24:45 -0700
+Date: Tue, 12 Mar 2019 08:23:16 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Christopher Lameter <cl@linux.com>, john.hubbard@gmail.com,
+	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	Al Viro <viro@zeniv.linux.org.uk>,
+	Christian Benvenuti <benve@cisco.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>,
+	Doug Ledford <dledford@redhat.com>, Jan Kara <jack@suse.cz>,
+	Jason Gunthorpe <jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
+	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
+	John Hubbard <jhubbard@nvidia.com>
+Subject: Re: [PATCH v3 0/1] mm: introduce put_user_page*(), placeholder
+ versions
+Message-ID: <20190312152316.GF1119@iweiny-DESK2.sc.intel.com>
+References: <20190306235455.26348-1-jhubbard@nvidia.com>
+ <010001695b4631cd-f4b8fcbf-a760-4267-afce-fb7969e3ff87-000000@email.amazonses.com>
+ <20190310224742.GK26298@dastard>
+ <01000169705aecf0-76f2b83d-ac18-4872-9421-b4b6efe19fc7-000000@email.amazonses.com>
+ <20190312103932.GD1119@iweiny-DESK2.sc.intel.com>
+ <20190312221113.GF23020@dastard>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190312221113.GF23020@dastard>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2019-03-12 at 18:50 -0400, Andrea Arcangeli wrote:
-> On Tue, Mar 12, 2019 at 03:02:54PM -0700, James Bottomley wrote:
-> > I'm sure there must be workarounds elsewhere in the other arch code
-> > otherwise things like this, which appear all over drivers/,
-> > wouldn't
-> > work:
-> > 
-> > drivers/scsi/isci/request.c:1430
-> > 
-> > 	kaddr = kmap_atomic(page);
-> > 	memcpy(kaddr + sg->offset, src_addr, copy_len);
-> > 	kunmap_atomic(kaddr);
-> > 
+On Wed, Mar 13, 2019 at 09:11:13AM +1100, Dave Chinner wrote:
+> On Tue, Mar 12, 2019 at 03:39:33AM -0700, Ira Weiny wrote:
+> > IMHO I don't think that the copy_file_range() is going to carry us through the
+> > next wave of user performance requirements.  RDMA, while the first, is not the
+> > only technology which is looking to have direct access to files.  XDP is
+> > another.[1]
 > 
-> Are you sure "page" is an userland page with an alias address?
+> Sure, all I doing here was demonstrating that people have been
+> trying to get local direct access to file mappings to DMA directly
+> into them for a long time. Direct Io games like these are now
+> largely unnecessary because we now have much better APIs to do
+> zero-copy data transfer between files (which can do hardware offload
+> if it is available!).
 > 
-> 	sg->page_link = (unsigned long)virt_to_page(addr);
+> It's the long term pins that RDMA does that are the problem here.
+> I'm asssuming that for XDP, you're talking about userspace zero copy
+> from files to the network hardware and vice versa? transmit is
+> simple (read-only mapping), but receive probably requires bpf
+> programs to ensure that data (minus headers) in the incoming packet
+> stream is correctly placed into the UMEM region?
 
-Yes, it's an element of a scatter gather list, which may be either a
-kernel page or a user page, but is usually the latter.
+Yes, exactly.
 
-> page_link seems to point to kernel memory.
 > 
-> I found an apparent solution like parisc on arm 32bit:
-> 
-> void __kunmap_atomic(void *kvaddr)
-> {
-> 	unsigned long vaddr = (unsigned long) kvaddr & PAGE_MASK;
-> 	int idx, type;
-> 
-> 	if (kvaddr >= (void *)FIXADDR_START) {
-> 		type = kmap_atomic_idx();
-> 		idx = FIX_KMAP_BEGIN + type + KM_TYPE_NR *
-> smp_processor_id();
-> 
-> 		if (cache_is_vivt())
-> 			__cpuc_flush_dcache_area((void *)vaddr,
-> PAGE_SIZE);
-> 
-> However on arm 64bit kunmap_atomic is not implemented at all and
-> other 32bit implementations don't do it, for example sparc seems to
-> do the cache flush too if the kernel is built with
-> CONFIG_DEBUG_HIGHMEM (which makes the flushing conditional to the
-> debug option).
-> 
-> The kunmap_atomic where fixmap is used, is flushing the tlb lazily so
-> even on 32bit you can't even be sure if there was a tlb flush for
-> each single page you unmapped, so it's hard to see how the above can
-> work safe, is "page" would have been an userland page mapped with
-> aliased CPU cache.
-> 
-> > the sequence dirties the kernel virtual address but doesn't flush
-> > before doing kunmap.  There are hundreds of other examples which is
-> > why I think adding flush_kernel_dcache_page() is an already lost
-> > cause.
-> 
-> In lots of cases kmap is needed to just modify kernel memory not to
-> modify userland memory (where get/put_user is more commonly used
-> instead..), there's no cache aliasing in such case.
+> XDP receive seems pretty much like the same problem as RDMA writes
+> into the file. i.e.  the incoming write DMAs are going to have to
+> trigger page faults if the UMEM is a long term pin so the filesystem
+> behaves correctly with this remote data placement.  I'd suggest that
+> RDMA, XDP and anything other hardware that is going to pin
+> file-backed mappings for the long term need to use the same "inform
+> the fs of a write operation into it's mapping" mechanisms...
 
-That's why I picked drivers/  The use case in there is mostly kmap to
-put a special value into a scatter gather list entry.
+Yes agreed.  I have a hack patch I'm testing right now which allows the user to
+take a LAYOUT lease from user space and GUP triggers on that, either allowing
+or rejecting the pin based on the lease.  I think this is the first step of
+what Jan suggested.[1]  There is a lot more detail to work out with what
+happens if that lease needs to be broken.
 
-> > Actually copy_user_page() is unused in the main kernel.  The big
-> > problem is copy_user_highpage() but that's mostly highly optimised
-> > by the VIPT architectures (in other words you can fiddle with kmap
-> > without impacting it).
 > 
-> copy_user_page is not unused, it's called precisely by
-> copy_user_highpage, which is why the cache flushes are done inside
-> copy_user_page.
-> 
-> static inline void copy_user_highpage(struct page *to, struct page
-> *from,
-> 	unsigned long vaddr, struct vm_area_struct *vma)
-> {
-> 	char *vfrom, *vto;
-> 
-> 	vfrom = kmap_atomic(from);
-> 	vto = kmap_atomic(to);
-> 	copy_user_page(vto, vfrom, vaddr, to);
-> 	kunmap_atomic(vto);
-> 	kunmap_atomic(vfrom);
-> }
+> And if we start talking about wanting to do peer-to-peer DMA from
+> network/GPU device to storage device without going through a
+> file-backed CPU mapping, we still need to have the filesystem
+> involved to translate file offsets to storage locations the
+> filesystem has allocated for the data and to lock them down for as
+> long as the peer-to-peer DMA offload is in place.  In effect, this
+> is the same problem as RDMA+FS-DAXs - the filesystem owns the file
+> offset to storage location mapping and manages storage access
+> arbitration, not the mm/vma mapping presented to userspace....
 
-That's the asm/generic implementation.  Most VIPT architectures
-override it.
+I've only daydreamed about Peer-to-peer transfers.  But yes I think this is the
+direction we need to go.  But The details of doing a
 
-James
+GPU -> RDMA -> {network } -> RDMA -> FS DAX
+
+And back again... without CPU/OS involvement are only a twinkle in my eye...
+If that.
+
+Ira
+
+[1] https://lore.kernel.org/lkml/20190212160707.GA19076@quack2.suse.cz/
 
