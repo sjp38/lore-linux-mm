@@ -6,203 +6,229 @@ X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
 	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C015C10F00
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 22:16:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3AF7FC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 22:16:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4BD5E213A2
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 22:16:12 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DED49213A2
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 22:16:14 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="KOMrUZ4F"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4BD5E213A2
+	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="Y8gsJdMA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DED49213A2
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6153F8E0002; Tue, 12 Mar 2019 18:16:10 -0400 (EDT)
+	id 504988E0005; Tue, 12 Mar 2019 18:16:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 574838E0003; Tue, 12 Mar 2019 18:16:10 -0400 (EDT)
+	id 48ADD8E0003; Tue, 12 Mar 2019 18:16:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3EE128E0002; Tue, 12 Mar 2019 18:16:10 -0400 (EDT)
+	id 3055F8E0005; Tue, 12 Mar 2019 18:16:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C26688E0003
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 18:16:09 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id s5so1587985wrp.17
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 15:16:09 -0700 (PDT)
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C7FF88E0003
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 18:16:10 -0400 (EDT)
+Received: by mail-wm1-f71.google.com with SMTP id h79so1034281wme.3
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 15:16:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:message-id:in-reply-to:references
          :from:subject:to:cc:date;
-        bh=OGZz0Q4R6Zdt3TK+8zOZmGmuwyLbFuizUxlVfu9yL9A=;
-        b=n/ZaiOZaosz1iXIInfdpd5TCAEjSjjrNozVqHDfiQj6qpk+dlhkL0uriTULkzdXq5K
-         fmXnuCQ1zbW0EhBFBVlK2YeF0XqkWA9F0XmQb+rqKRAMavJVN9gzkrs9rTkpume4rzVm
-         W/p5KtZ2J9k0Z+EXm69vU98eNxfFBHp3hQAid+WP30wxFh+j/Z09iurhYx99J5eDCzJI
-         XddJjEPQXYDqygVHg5v/ZpKAKvPjin4kuyTEpg/wrutisgIXqZdTLKHJj23zgK35jxOS
-         eTewNrIfTSxKKjnwZJc/C0WadbvWeDTvR2KH9V5OFCMpc4axj7o4v/Vd8GzlVlwKFJ8N
-         maBg==
-X-Gm-Message-State: APjAAAUtV5D4MVhTBf4DucuL++764PnW1/Gzxuw4DzRLXxhbHMq/QkIM
-	JFa+nPzGQ9wcJVgQLNdYjuP949rqpk5hSECJSwgjO9Rp3dDI9v6rOG+HkVw50CR/E/cxilB/0Zx
-	0A1DEPgDX2J9Rr9gN0aRKNU9f9QYOHufC8dE8Cvvb8n45VbbIT1IYKJy+XH8yuZWDVw==
-X-Received: by 2002:a5d:624a:: with SMTP id m10mr7226537wrv.18.1552428968991;
+        bh=fZn4Ngfk7JFea7diHSde6/p9kbdGl4xxyo9G2/zdnzw=;
+        b=cp1s1lcJf8yPz0cgkimg6MiUxnDSOvCtACmua/HM3dyTeUWbBsh47z1e6Xfvx2oBtK
+         RR2SaVoR6/sGuZmpD/prjoYOHweXJKAKUUB39F5pDjoVB6KCNWUIVjqo3GTglvR3gaIa
+         Y3slVisuza3YYcG7M0RelUf2Np/FyBn1TxtYkjtWPhuCYs1Z+1Alm8OftEmqB3bcnWAY
+         Pl2jhz0atvUmd+XkkTUNDojy9Ca4ir2fHxpxOQQQh8laaw3kjXByJ/9tH1tNJMymlxqL
+         0XW5i6hTICcmyVmphpcEAqkS6wKM2z8n6xjFo/nPJx/27M6qDhwcdAGxQ3xEtC4cx46T
+         RFpQ==
+X-Gm-Message-State: APjAAAVM8dYv4hq0GKdqs2Ksow1I0cgR6rRilg0vWG+cYYfMJetSGYjD
+	VtDoUOOz8lTvkgDInxuq2PF2UTNjpjtG15Nvx952YQm7DKrg7wKazND28pSxBb9/lO3koDnwUkb
+	sqoFzC6Y7eqS9BPuyHNMbNGk7wC9guTUXp2JPFBlvp9f6YYhT6txMndYfHh79X7z44Q==
+X-Received: by 2002:adf:ed48:: with SMTP id u8mr18465249wro.185.1552428970035;
+        Tue, 12 Mar 2019 15:16:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwJ+ETr32BKNwHls4oFEFvvN4mz2/JIxiniGQcKuSpHk0HlN53UVxByUCcewhml8dxtvYZS
+X-Received: by 2002:adf:ed48:: with SMTP id u8mr18465211wro.185.1552428968760;
         Tue, 12 Mar 2019 15:16:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyZ69pNgpfFFwmoPwCqp0ILfA2u/KayufJlU+k3eguYsPAve81vV6ZSikCE7Ddw7l0RIayI
-X-Received: by 2002:a5d:624a:: with SMTP id m10mr7226497wrv.18.1552428967729;
-        Tue, 12 Mar 2019 15:16:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552428967; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1552428968; cv=none;
         d=google.com; s=arc-20160816;
-        b=aKHb67lMxCRhGC4cDoDh/y2s+cIK+9eKX3XZ8LISJNv+D5mR5CHSsd2Nzw2nkbuPXt
-         o4xz3b8go1+O3Q2L19jvEUGZRWfB/lTmozoki+/D9fmCwS1m/S0DQE8IZca64+hV8e9e
-         JThcRgpbri0MZn8T1zBy8TsHtq2W1GfMXOs+xiE1SDCiy8xOkbA79mRkhtkVY1OWoU1R
-         fKKGW8DVOPhRpTKjW7xBQ5QENS1O2TMfSaVlnnqrFpPly6QJVUnMb9ao9IfSc+pr22aK
-         7XpcoRuj+2LIusKzP6eAIX8EjdnYV+uT9RYvzCOKpDw1Etf9b6yAxU5S52zWCWhSap3/
-         Bn/A==
+        b=xR7KuLn8bpi86k5AxhQbKtob5GIXl0vlBKzRAudT5ejEUt8hUjFuoBg782q4iFi2at
+         863G9DTtSZ+kQWWnQc4Cu/mIKjWaHJcdOl7RK/LhdPxhmLQo77vKXN0VLPHnIfWATo3f
+         3zPr6IjpZfQYAZfXgfejF95JRDT+vsjdj7xnU4YVxPfoyzX01ACfwlckBCGdLqGtsscN
+         9QWknmAux7Pch3bVh5qEsUp0Aj4wgywjxFr3Ai3rXdZsISimP0zSL+ckQUj4KSWHbW1x
+         FWjBjy0OeklFq0CddmnBMQYeAw0+17Mlc8LKTyto7uEr9uytBQ4lXCXT37jLOGoOfPn5
+         t4rA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=date:cc:to:subject:from:references:in-reply-to:message-id
          :dkim-signature;
-        bh=OGZz0Q4R6Zdt3TK+8zOZmGmuwyLbFuizUxlVfu9yL9A=;
-        b=AWDkYP4hQ24nC+uuT5SVfREAhCXHHDiVG616kzvgn8FVihTXD7hSxYwym3JU043lPq
-         Dqiu4VK0c2vPB+dXSLkJA+Xglry0+rOU0Ap3/pv3TGcn9GrhXMicjcRWjY1YUURsD5kr
-         SBM3QqPz3Wt1RIDGv8S2JHiGzoYT1w0H3i7ggSYR6AR4H5ZMM7LlLKmOOBZA+glT4f3q
-         ylnmArP3678sFIfMZTU2tuEDhx4mml4JSBITeZ3Vre549TJUITFwf8+bY615SoV5rbs0
-         n0PKNGCYm5Vdb0EoNr1yiIjO68ji6JlytfhqE5GHlDMhDAA3kGfIM21RqPQ2GCQyObye
-         h7/Q==
+        bh=fZn4Ngfk7JFea7diHSde6/p9kbdGl4xxyo9G2/zdnzw=;
+        b=rR4hj3p1sdreP+g1CIUm2BJWByisHy4ZAsGf8emRH/LMCc1FUG157k+6WBlVM+Ps8s
+         /uRrqKjX3tbaH4hVwgOJtfo3iurOfIqeiuCAaWbIVm+rsGkP6YIDnnhSc8aN6qEd6gD6
+         js9FU6KfI/g300+xqpwYmab2iRtczdTfWt99Y0YvzJZAKExHbB+98y1PpBH3IXeAz0JD
+         DEZsdSULk+xu1NY181vOoAX2DCzndRYabSTnbcuO3n+B0DOagWcdTqRE6rdFUhESwjOo
+         xQhWWZ58lGlB3k8MkK9JgS7LCN7G7PQYYyhlICHdahPJmBtQEuQgoLXzkbwceI38FXOx
+         w1LA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=KOMrUZ4F;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=Y8gsJdMA;
        spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
 Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id 80si11947wma.155.2019.03.12.15.16.07
+        by mx.google.com with ESMTPS id 4si13815wma.133.2019.03.12.15.16.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 15:16:07 -0700 (PDT)
+        Tue, 12 Mar 2019 15:16:08 -0700 (PDT)
 Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=KOMrUZ4F;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=Y8gsJdMA;
        spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
 Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 44Jq7C05ytz9vRb3;
-	Tue, 12 Mar 2019 23:16:07 +0100 (CET)
+	by localhost (Postfix) with ESMTP id 44Jq7D0GS6z9vRb5;
+	Tue, 12 Mar 2019 23:16:08 +0100 (CET)
 Authentication-Results: localhost; dkim=pass
 	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=KOMrUZ4F; dkim-adsp=pass;
+	header.d=c-s.fr header.i=@c-s.fr header.b=Y8gsJdMA; dkim-adsp=pass;
 	dkim-atps=neutral
 X-Virus-Scanned: Debian amavisd-new at c-s.fr
 Received: from pegase1.c-s.fr ([192.168.12.234])
 	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id elEkdr7Q7Ccb; Tue, 12 Mar 2019 23:16:06 +0100 (CET)
+	with ESMTP id eMIA2_JKQpuj; Tue, 12 Mar 2019 23:16:07 +0100 (CET)
 Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 44Jq7B666bz9vRb0;
-	Tue, 12 Mar 2019 23:16:06 +0100 (CET)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1552428966; bh=OGZz0Q4R6Zdt3TK+8zOZmGmuwyLbFuizUxlVfu9yL9A=;
-	h=In-Reply-To:References:From:Subject:To:Cc:Date:From;
-	b=KOMrUZ4FKyn9Qx1LCGBi8JhdyFrSKh1AC5NYVUt4kLLKAUUMshB3pcEdeJe/MY8Ar
-	 x6dG2+UiC7TocRsy2IisyT4g135rUL8xdYwIiXsIJFWi4PX7IQjNBohPT0deK3LkXw
-	 gl4IRuc04fxu6pHHL1SfvxrWbTTKcopk05zMCiEY=
-Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 119218B8B1;
+	by pegase1.c-s.fr (Postfix) with ESMTP id 44Jq7C69p1z9vRb0;
 	Tue, 12 Mar 2019 23:16:07 +0100 (CET)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
+	t=1552428967; bh=fZn4Ngfk7JFea7diHSde6/p9kbdGl4xxyo9G2/zdnzw=;
+	h=In-Reply-To:References:From:Subject:To:Cc:Date:From;
+	b=Y8gsJdMA5GXDZeMcgNgsR7alt/mVnPZ6JaVQyWb/hBAIiQ4/3bPBWZRORtN/JZR2g
+	 6P0VwAKSHk0QsYNOc6mnJvYkRLLZDteEi4U6qhdwfqZcC4yiuqdDUHWoVXDnFzNiSx
+	 pukj6CB1uVQSRYGUT8arvUIT0A3t1i4KQe0A0HIE=
+Received: from localhost (localhost [127.0.0.1])
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 153158B8B1;
+	Tue, 12 Mar 2019 23:16:08 +0100 (CET)
 X-Virus-Scanned: amavisd-new at c-s.fr
 Received: from messagerie.si.c-s.fr ([127.0.0.1])
 	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id EYmmjq3CtNLR; Tue, 12 Mar 2019 23:16:06 +0100 (CET)
+	with ESMTP id 6NxrO2II63pO; Tue, 12 Mar 2019 23:16:07 +0100 (CET)
 Received: from po16846vm.idsi0.si.c-s.fr (unknown [192.168.4.90])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id CD0438B8A7;
-	Tue, 12 Mar 2019 23:16:06 +0100 (CET)
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id CD5D58B8A7;
+	Tue, 12 Mar 2019 23:16:07 +0100 (CET)
 Received: by po16846vm.idsi0.si.c-s.fr (Postfix, from userid 0)
-	id A162C6FA15; Tue, 12 Mar 2019 22:16:06 +0000 (UTC)
-Message-Id: <5047ab5aaf0fd90887fa1e5f0369182d71dcf0f6.1552428161.git.christophe.leroy@c-s.fr>
+	id A73A96FA15; Tue, 12 Mar 2019 22:16:07 +0000 (UTC)
+Message-Id: <3c64608cacd6706fc026575bdaf4f24a20ad1fc7.1552428161.git.christophe.leroy@c-s.fr>
 In-Reply-To: <cover.1552428161.git.christophe.leroy@c-s.fr>
 References: <cover.1552428161.git.christophe.leroy@c-s.fr>
 From: Christophe Leroy <christophe.leroy@c-s.fr>
-Subject: [PATCH v10 01/18] powerpc/6xx: fix setup and use of SPRN_SPRG_PGDIR
- for hash32
+Subject: [PATCH v10 02/18] powerpc/32: Move early_init() in a separate file
 To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Daniel Axtens <dja@axtens.net>
 Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
-Date: Tue, 12 Mar 2019 22:16:06 +0000 (UTC)
+Date: Tue, 12 Mar 2019 22:16:07 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Not only the 603 but all 6xx need SPRN_SPRG_PGDIR to be initialised at
-startup. This patch move it from __setup_cpu_603() to start_here()
-and __secondary_start(), close to the initialisation of SPRN_THREAD.
+In preparation of KASAN, move early_init() into a separate
+file in order to allow deactivation of KASAN for that function.
 
-Previously, virt addr of PGDIR was retrieved from thread struct.
-Now that it is the phys addr which is stored in SPRN_SPRG_PGDIR,
-hash_page() shall not convert it to phys anymore.
-This patch removes the conversion.
-
-Fixes: 93c4a162b014("powerpc/6xx: Store PGDIR physical address in a SPRG")
-Reported-by: Guenter Roeck <linux@roeck-us.net>
-Tested-by: Guenter Roeck <linux@roeck-us.net>
 Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
 ---
- arch/powerpc/kernel/cpu_setup_6xx.S | 3 ---
- arch/powerpc/kernel/head_32.S       | 6 ++++++
- arch/powerpc/mm/hash_low_32.S       | 8 ++++----
- 3 files changed, 10 insertions(+), 7 deletions(-)
+ arch/powerpc/kernel/Makefile   |  2 +-
+ arch/powerpc/kernel/early_32.c | 36 ++++++++++++++++++++++++++++++++++++
+ arch/powerpc/kernel/setup_32.c | 28 ----------------------------
+ 3 files changed, 37 insertions(+), 29 deletions(-)
+ create mode 100644 arch/powerpc/kernel/early_32.c
 
-diff --git a/arch/powerpc/kernel/cpu_setup_6xx.S b/arch/powerpc/kernel/cpu_setup_6xx.S
-index 6f1c11e0691f..7534ecff5e92 100644
---- a/arch/powerpc/kernel/cpu_setup_6xx.S
-+++ b/arch/powerpc/kernel/cpu_setup_6xx.S
-@@ -24,9 +24,6 @@ BEGIN_MMU_FTR_SECTION
- 	li	r10,0
- 	mtspr	SPRN_SPRG_603_LRU,r10		/* init SW LRU tracking */
- END_MMU_FTR_SECTION_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
--	lis	r10, (swapper_pg_dir - PAGE_OFFSET)@h
--	ori	r10, r10, (swapper_pg_dir - PAGE_OFFSET)@l
--	mtspr	SPRN_SPRG_PGDIR, r10
+diff --git a/arch/powerpc/kernel/Makefile b/arch/powerpc/kernel/Makefile
+index cddadccf551d..45e47752b692 100644
+--- a/arch/powerpc/kernel/Makefile
++++ b/arch/powerpc/kernel/Makefile
+@@ -93,7 +93,7 @@ extra-y				+= vmlinux.lds
  
- BEGIN_FTR_SECTION
- 	bl	__init_fpu_registers
-diff --git a/arch/powerpc/kernel/head_32.S b/arch/powerpc/kernel/head_32.S
-index ce6a972f2584..48051c8977c5 100644
---- a/arch/powerpc/kernel/head_32.S
-+++ b/arch/powerpc/kernel/head_32.S
-@@ -855,6 +855,9 @@ __secondary_start:
- 	li	r3,0
- 	stw	r3, RTAS_SP(r4)		/* 0 => not in RTAS */
- #endif
-+	lis	r4, (swapper_pg_dir - PAGE_OFFSET)@h
-+	ori	r4, r4, (swapper_pg_dir - PAGE_OFFSET)@l
-+	mtspr	SPRN_SPRG_PGDIR, r4
+ obj-$(CONFIG_RELOCATABLE)	+= reloc_$(BITS).o
  
- 	/* enable MMU and jump to start_secondary */
- 	li	r4,MSR_KERNEL
-@@ -942,6 +945,9 @@ start_here:
- 	li	r3,0
- 	stw	r3, RTAS_SP(r4)		/* 0 => not in RTAS */
- #endif
-+	lis	r4, (swapper_pg_dir - PAGE_OFFSET)@h
-+	ori	r4, r4, (swapper_pg_dir - PAGE_OFFSET)@l
-+	mtspr	SPRN_SPRG_PGDIR, r4
+-obj-$(CONFIG_PPC32)		+= entry_32.o setup_32.o
++obj-$(CONFIG_PPC32)		+= entry_32.o setup_32.o early_32.o
+ obj-$(CONFIG_PPC64)		+= dma-iommu.o iommu.o
+ obj-$(CONFIG_KGDB)		+= kgdb.o
+ obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
+diff --git a/arch/powerpc/kernel/early_32.c b/arch/powerpc/kernel/early_32.c
+new file mode 100644
+index 000000000000..cf3cdd81dc47
+--- /dev/null
++++ b/arch/powerpc/kernel/early_32.c
+@@ -0,0 +1,36 @@
++// SPDX-License-Identifier: GPL-2.0
++
++/*
++ * Early init before relocation
++ */
++
++#include <linux/init.h>
++#include <linux/kernel.h>
++#include <asm/setup.h>
++#include <asm/sections.h>
++#include <asm/asm-prototypes.h>
++
++/*
++ * We're called here very early in the boot.
++ *
++ * Note that the kernel may be running at an address which is different
++ * from the address that it was linked at, so we must use RELOC/PTRRELOC
++ * to access static data (including strings).  -- paulus
++ */
++notrace unsigned long __init early_init(unsigned long dt_ptr)
++{
++	unsigned long offset = reloc_offset();
++
++	/* First zero the BSS -- use memset_io, some platforms don't have caches on yet */
++	memset_io((void __iomem *)PTRRELOC(&__bss_start), 0, __bss_stop - __bss_start);
++
++	/*
++	 * Identify the CPU type and fix up code sections
++	 * that depend on which cpu we have.
++	 */
++	identify_cpu(offset, mfspr(SPRN_PVR));
++
++	apply_feature_fixups();
++
++	return KERNELBASE + offset;
++}
+diff --git a/arch/powerpc/kernel/setup_32.c b/arch/powerpc/kernel/setup_32.c
+index 4a65e08a6042..3fb9f64f88fd 100644
+--- a/arch/powerpc/kernel/setup_32.c
++++ b/arch/powerpc/kernel/setup_32.c
+@@ -64,34 +64,6 @@ EXPORT_SYMBOL(DMA_MODE_READ);
+ EXPORT_SYMBOL(DMA_MODE_WRITE);
  
- 	/* stack */
- 	lis	r1,init_thread_union@ha
-diff --git a/arch/powerpc/mm/hash_low_32.S b/arch/powerpc/mm/hash_low_32.S
-index 1f13494efb2b..a6c491f18a04 100644
---- a/arch/powerpc/mm/hash_low_32.S
-+++ b/arch/powerpc/mm/hash_low_32.S
-@@ -70,12 +70,12 @@ _GLOBAL(hash_page)
- 	lis	r0,KERNELBASE@h		/* check if kernel address */
- 	cmplw	0,r4,r0
- 	ori	r3,r3,_PAGE_USER|_PAGE_PRESENT /* test low addresses as user */
--	mfspr	r5, SPRN_SPRG_PGDIR	/* virt page-table root */
-+	mfspr	r5, SPRN_SPRG_PGDIR	/* phys page-table root */
- 	blt+	112f			/* assume user more likely */
--	lis	r5,swapper_pg_dir@ha	/* if kernel address, use */
--	addi	r5,r5,swapper_pg_dir@l	/* kernel page table */
-+	lis	r5, (swapper_pg_dir - PAGE_OFFSET)@ha	/* if kernel address, use */
-+	addi	r5 ,r5 ,(swapper_pg_dir - PAGE_OFFSET)@l	/* kernel page table */
- 	rlwimi	r3,r9,32-12,29,29	/* MSR_PR -> _PAGE_USER */
--112:	tophys(r5, r5)
-+112:
- #ifndef CONFIG_PTE_64BIT
- 	rlwimi	r5,r4,12,20,29		/* insert top 10 bits of address */
- 	lwz	r8,0(r5)		/* get pmd entry */
+ /*
+- * We're called here very early in the boot.
+- *
+- * Note that the kernel may be running at an address which is different
+- * from the address that it was linked at, so we must use RELOC/PTRRELOC
+- * to access static data (including strings).  -- paulus
+- */
+-notrace unsigned long __init early_init(unsigned long dt_ptr)
+-{
+-	unsigned long offset = reloc_offset();
+-
+-	/* First zero the BSS -- use memset_io, some platforms don't have
+-	 * caches on yet */
+-	memset_io((void __iomem *)PTRRELOC(&__bss_start), 0,
+-			__bss_stop - __bss_start);
+-
+-	/*
+-	 * Identify the CPU type and fix up code sections
+-	 * that depend on which cpu we have.
+-	 */
+-	identify_cpu(offset, mfspr(SPRN_PVR));
+-
+-	apply_feature_fixups();
+-
+-	return KERNELBASE + offset;
+-}
+-
+-
+-/*
+  * This is run before start_kernel(), the kernel has been relocated
+  * and we are running with enough of the MMU enabled to have our
+  * proper kernel virtual addresses
 -- 
 2.13.3
 
