@@ -2,145 +2,154 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E9414C10F00
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 08:00:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C0FE7C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 08:05:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B094E214AE
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 08:00:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B094E214AE
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 7AFE4214AE
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 08:05:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7AFE4214AE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4C5618E0003; Tue, 12 Mar 2019 04:00:49 -0400 (EDT)
+	id 13EFA8E0003; Tue, 12 Mar 2019 04:05:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 44D958E0002; Tue, 12 Mar 2019 04:00:49 -0400 (EDT)
+	id 0F0CC8E0002; Tue, 12 Mar 2019 04:05:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 33F3F8E0003; Tue, 12 Mar 2019 04:00:49 -0400 (EDT)
+	id F1FC58E0003; Tue, 12 Mar 2019 04:05:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E19E68E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 04:00:48 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id x23so2160140pfm.0
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 01:00:48 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 98DF38E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 04:05:35 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id x47so724584eda.8
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 01:05:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:organization:references:date:message-id
-         :mime-version;
-        bh=NoCWmPWMbEDDUtlvUfSXY3QAjLpWmnzbXqbiPtoxywY=;
-        b=d+uE3azHqL1ov5G2UJsjER6uXj8yXa5xWMiPohK9XbJwikFe2y4aqqN3xbc9NdlRrl
-         ktiy7o8aY7hRdDQcMYt8CqQKcwE+4NTrvu+86if8IgwyLClokPR5Z28XwYRZjYiuCFJb
-         t/Ob36PS/1Q/AQF+NfKqWt7j7pEki06h7fhy19F8nRYp/av8KU+1b375tLyn4KIGS1uM
-         KSBfjaKhDaEKtfMAAL0Skb21iB7XClLd4KZWsU0ZmSACMLu5gPSOzWIDPSKcm1Gb4D8a
-         ekSWKXuBJxx7yAmMw0aV+UdBokVpYV7wENi8POg9UR+XGghJKdiYocg5Qr7q1pLZT5w0
-         TvZw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jani.nikula@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=jani.nikula@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVish3IJNQdY7rrQ9sVK7jXwl+U1dwsf1Ylc9jtWRczeOULKOJG
-	6ODZ3nN2O/c5DdodZqGwnceM4mtExsy1/1rTpmrNxjCcVFtNrHmRQdFuM5CiPClhAX06jXLxyMI
-	oUpGZjh8xqjYN5+XxH1UoBSXm7h1F9ZX9LcbLuGaM/WXpHAlDGgy31v8jin0U2xHVCA==
-X-Received: by 2002:a17:902:8697:: with SMTP id g23mr39030147plo.30.1552377648569;
-        Tue, 12 Mar 2019 01:00:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwi5gdVjXuDIMog4oQItA374edlk6x/VCm6jojBsT4QMWatTg/ZuCPP3Yimc1nQz27pAUcs
-X-Received: by 2002:a17:902:8697:: with SMTP id g23mr39030042plo.30.1552377647540;
-        Tue, 12 Mar 2019 01:00:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552377647; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=PnZH9gEna2A0B89ORaNc6cIrFvLDGY87+yg2rusnRGE=;
+        b=rDdbO9zysc86bN+wERvG0GZAX0nRA8mq2g76rDA1Fkl/+ZY00QH6n/KpomEQbIvG+B
+         mb20JWSyR/kOQxaoiuORIQU6BwyVTXd4DmFNV798vkTYi3y2DvMni87r9FsBxLWPQZWg
+         tqjvCEr+TElG2KvnZRH2sPmqjvcV7kNi3KhQJmskq2vMXLO/0qX8VWKQvXRBbqQcTl5K
+         Nn8wQPjh1/SHRo1InfsL5ZYFskMWVYB+d+76szwwXeVRLvcQ51bpyudXAeR7Beiycqbe
+         0TaUPviS3v21Lo4hqI/6nbLUOl0pTEzTzzauVEuOkC/XMgPpkWoqhEXuoR31ZwR63NBa
+         Nqvg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAXjHMvx9rIcOIQ3JlRRCKe1VFnD1dL5ezbolglOobLlz3az0E54
+	4ZvYboutTS96D5P84lGhe+MOp5y54iOMzq8o4o+VvVatiEueXv0sAjjdyB/hsW2jxAYP4C3JSX2
+	oZK8JIG5l9X2xG9UbydKpdbCW9XNNhjsLP+ClcZI8CIC+Cvyafj7KQJewP84N6i8=
+X-Received: by 2002:a50:b4e6:: with SMTP id x35mr2308242edd.123.1552377935123;
+        Tue, 12 Mar 2019 01:05:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxlrzNkYaopZvi0Jk75DLu4WJ9zxlvWB6GGslhmbBDPoGyYs4AGghq86AoH+wZ8OfNcCSyA
+X-Received: by 2002:a50:b4e6:: with SMTP id x35mr2308187edd.123.1552377934207;
+        Tue, 12 Mar 2019 01:05:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552377934; cv=none;
         d=google.com; s=arc-20160816;
-        b=jdFpciCxqxUzj6bTSyfjSDaBjiI5a3jNJbV5dFwuqqHR1uNccKFd3kTPF4gXx7Pfr2
-         IgVEX0IqF09u0b/0wAuPwnmHkCqdCXO0Ng7rpiDuWTtWthkWzh8jLQ/vBCnDLJ587Jfh
-         HWgqCf9mg0TM+5dwEMrO03yW5X116BVvduw7D2aWyinZITc5cTB1YU680K4O0oSuLxPy
-         4v1JOBc8JttPCJuZVoiQdm0DPlkJ0lU5Jx5MWbB5s+QmH4JiXzWNJm4L46RhwvUmbmNx
-         nSFnihZx8YwSCyhuVOGgqb5VvJNm83319TTlqrehwEW5K2iDTixrODO2kDZFYod8wVZu
-         9NOg==
+        b=TYa/3ew9wWOAouGOOt7lvQVJ5v+NvTxbAzTLwcvEIMbPwz5VxdPTvSPYsn/gJluM64
+         HqThebqg1OYRrgRmgSRTI6YrCUBkmXQ93otUnMila8tc9844XrxYSI/s2+Bhy6uXOIn+
+         TGuvnMTABMNNfV8Qsl1IrvhXHpZ/2XNIJAOZmveO0nQNTC2kAyEoygjHDNkEMhQNq+nc
+         6QtbN6aA3OpKU/0N5t5Z8Z5kXKEjpnq0Dn0a7Zhz7QW1GIXxlVAUtn0OyjgSFa7U/xr0
+         50hLv2knybCLcuoYJCNtEKirlqNXzoxaH/JmPSwBFJTSJMNpXzx9E4zlrm4IerR1X/KK
+         Ehzg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:references:organization:in-reply-to
-         :subject:cc:to:from;
-        bh=NoCWmPWMbEDDUtlvUfSXY3QAjLpWmnzbXqbiPtoxywY=;
-        b=azJVr6GPEOb7HTqd7vPPkDC+iBLkhQkS5/yn4UyyF3ynacCh3GfmnZCtTpWrA4RLE0
-         XbZ0XfZ1p+6NWyCYl5xlk92O3cAMeXsGRT/g7v0xf8k3SRPJR0Dt0ABo2a70T4Qc5NRz
-         4vh7MpYfTRTOW85u4SVkHOoHGzns2Y9cWQ1ibm9wWnUzhF5uTGm4WpccgOAshzQKcIUW
-         FofugG2hyrQlSgv+e2dYZxLe3K55y6whGglV529qoEZJwew2pzqb1hS99pizCZ/0dHzh
-         nc54B6jWTx5C0Z+axJzqvJMJmdwnrk/Z28V1N3QGcYFDWxMDGxavPBfQ48KfOkh7EYFv
-         Rjcg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=PnZH9gEna2A0B89ORaNc6cIrFvLDGY87+yg2rusnRGE=;
+        b=UJXWfGSwlfm5KIdfxUMItpzSCg04IhzzBitCitGuDw1vepTk4cU8lElrB26GRONI4B
+         wqAqlpFZnkCOMrLxzbH370e+Izw5QU5XmE8sE1Wa1IgVAJPfizbncAqiIzNN1KPHGCTh
+         QyZJSNgJEA0r2XpflejpG9YmbgqZjjYmb0fk8fsm4PjEYlWKD+21WFI5Es3bPF+haAvj
+         9TyaIKyHoVWuzk2s/ztKxSVUV8zkLbrU+spRR4QhzujGN80Kpo3fcYSv2ycVHY7bKTXP
+         LNh72PD5s2uUaAs4Gjnq9mzjwZPWkDzBZYdY+5+bh0Y7MV8Wq5gQ56/OcHrNvnAiwIK3
+         34Hg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jani.nikula@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=jani.nikula@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id b2si7436767pgl.531.2019.03.12.01.00.46
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n48si5105893edd.114.2019.03.12.01.05.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 01:00:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jani.nikula@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+        Tue, 12 Mar 2019 01:05:34 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jani.nikula@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=jani.nikula@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga001.fm.intel.com ([10.253.24.23])
-  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Mar 2019 01:00:45 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,470,1544515200"; 
-   d="scan'208";a="154206711"
-Received: from hkrasnod-mobl.ger.corp.intel.com (HELO localhost) ([10.252.62.84])
-  by fmsmga001.fm.intel.com with ESMTP; 12 Mar 2019 01:00:37 -0700
-From: Jani Nikula <jani.nikula@linux.intel.com>
-To: Al Viro <viro@zeniv.linux.org.uk>, syzbot <syzbot+1505c80c74256c6118a5@syzkaller.appspotmail.com>
-Cc: airlied@linux.ie, akpm@linux-foundation.org, amir73il@gmail.com, chris@chris-wilson.co.uk, darrick.wong@oracle.com, david@fromorbit.com, dri-devel@lists.freedesktop.org, dvyukov@google.com, eparis@redhat.com, hannes@cmpxchg.org, hughd@google.com, intel-gfx@lists.freedesktop.org, jack@suse.cz, joonas.lahtinen@linux.intel.com, jrdr.linux@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@redhat.com, mszeredi@redhat.com, penguin-kernel@i-love.sakura.ne.jp, peterz@infradead.org, rodrigo.vivi@intel.com, syzkaller-bugs@googlegroups.com, willy@infradead.org
-Subject: Re: INFO: rcu detected stall in sys_sendfile64 (2)
-In-Reply-To: <20190312040829.GQ2217@ZenIV.linux.org.uk>
-Organization: Intel Finland Oy - BIC 0357606-4 - Westendinkatu 7, 02160 Espoo
-References: <00000000000010b2fc057fcdfaba@google.com> <0000000000008c75b50583ddb5f8@google.com> <20190312040829.GQ2217@ZenIV.linux.org.uk>
-Date: Tue, 12 Mar 2019 10:00:36 +0200
-Message-ID: <871s3cfrob.fsf@intel.com>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 64782B608;
+	Tue, 12 Mar 2019 08:05:33 +0000 (UTC)
+Date: Tue, 12 Mar 2019 09:05:32 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Suren Baghdasaryan <surenb@google.com>
+Cc: Sultan Alsawaf <sultan@kerneltoast.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>,
+	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Christian Brauner <christian@brauner.io>,
+	Ingo Molnar <mingo@redhat.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	LKML <linux-kernel@vger.kernel.org>, devel@driverdev.osuosl.org,
+	linux-mm <linux-mm@kvack.org>, Tim Murray <timmurray@google.com>
+Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
+Message-ID: <20190312080532.GE5721@dhcp22.suse.cz>
+References: <20190310203403.27915-1-sultan@kerneltoast.com>
+ <20190311174320.GC5721@dhcp22.suse.cz>
+ <20190311175800.GA5522@sultan-box.localdomain>
+ <CAJuCfpHTjXejo+u--3MLZZj7kWQVbptyya4yp1GLE3hB=BBX7w@mail.gmail.com>
+ <20190311204626.GA3119@sultan-box.localdomain>
+ <CAJuCfpGpBxofTT-ANEEY+dFCSdwkQswox3s8Uk9Eq0BnK9i0iA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJuCfpGpBxofTT-ANEEY+dFCSdwkQswox3s8Uk9Eq0BnK9i0iA@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 Mar 2019, Al Viro <viro@zeniv.linux.org.uk> wrote:
-> On Mon, Mar 11, 2019 at 08:59:00PM -0700, syzbot wrote:
->> syzbot has bisected this bug to:
->> 
->> commit 34e07e42c55aeaa78e93b057a6664e2ecde3fadb
->> Author: Chris Wilson <chris@chris-wilson.co.uk>
->> Date:   Thu Feb 8 10:54:48 2018 +0000
->> 
->>     drm/i915: Add missing kerneldoc for 'ent' in i915_driver_init_early
->> 
->> bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=13220283200000
->> start commit:   34e07e42 drm/i915: Add missing kerneldoc for 'ent' in i915..
->> git tree:       upstream
->> final crash:    https://syzkaller.appspot.com/x/report.txt?x=10a20283200000
->> console output: https://syzkaller.appspot.com/x/log.txt?x=17220283200000
->> kernel config:  https://syzkaller.appspot.com/x/.config?x=abc3dc9b7a900258
->> dashboard link: https://syzkaller.appspot.com/bug?extid=1505c80c74256c6118a5
->> userspace arch: amd64
->> syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=12c4dc28c00000
->> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=15df4108c00000
->> 
->> Reported-by: syzbot+1505c80c74256c6118a5@syzkaller.appspotmail.com
->> Fixes: 34e07e42 ("drm/i915: Add missing kerneldoc for 'ent' in
->> i915_driver_init_early")
->
-> Umm...  Might be a good idea to add some plausibility filters - it is,
-> in theory, possible that adding a line in a comment changes behaviour
-> (without compiler bugs, even - playing with __LINE__ is all it would
-> take), but the odds that it's _not_ a false positive are very low.
+On Mon 11-03-19 15:15:35, Suren Baghdasaryan wrote:
+> On Mon, Mar 11, 2019 at 1:46 PM Sultan Alsawaf <sultan@kerneltoast.com> wrote:
+> >
+> > On Mon, Mar 11, 2019 at 01:10:36PM -0700, Suren Baghdasaryan wrote:
+> > > The idea seems interesting although I need to think about this a bit
+> > > more. Killing processes based on failed page allocation might backfire
+> > > during transient spikes in memory usage.
+> >
+> > This issue could be alleviated if tasks could be killed and have their pages
+> > reaped faster. Currently, Linux takes a _very_ long time to free a task's memory
+> > after an initial privileged SIGKILL is sent to a task, even with the task's
+> > priority being set to the highest possible (so unwanted scheduler preemption
+> > starving dying tasks of CPU time is not the issue at play here). I've
+> > frequently measured the difference in time between when a SIGKILL is sent for a
+> > task and when free_task() is called for that task to be hundreds of
+> > milliseconds, which is incredibly long. AFAIK, this is a problem that LMKD
+> > suffers from as well, and perhaps any OOM killer implementation in Linux, since
+> > you cannot evaluate effect you've had on memory pressure by killing a process
+> > for at least several tens of milliseconds.
+> 
+> Yeah, killing speed is a well-known problem which we are considering
+> in LMKD. For example the recent LMKD change to assign process being
+> killed to a cpuset cgroup containing big cores cuts the kill time
+> considerably. This is not ideal and we are thinking about better ways
+> to expedite the cleanup process.
 
-If it's not a false positive, it's bound to be good source material for
-IOCCC.
+If you design is relies on the speed of killing then it is fundamentally
+flawed AFAICT. You cannot assume anything about how quickly a task dies.
+It might be blocked in an uninterruptible sleep or performin an
+operation which takes some time. Sure, oom_reaper might help here but
+still.
 
-BR,
-Jani.
-
-
+The only way to control the OOM behavior pro-actively is to throttle
+allocation speed. We have memcg high limit for that purpose. Along with
+PSI, I can imagine a reasonably working user space early oom
+notifications and reasonable acting upon that.
 -- 
-Jani Nikula, Intel Open Source Graphics Center
+Michal Hocko
+SUSE Labs
 
