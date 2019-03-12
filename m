@@ -2,171 +2,169 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CA7C6C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 20:00:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EEF56C4360F
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 20:04:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7684220449
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 20:00:01 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="HNfNGy6M"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7684220449
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id A827A206BA
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 20:04:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A827A206BA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2CAE78E0003; Tue, 12 Mar 2019 16:00:01 -0400 (EDT)
+	id 33C998E0003; Tue, 12 Mar 2019 16:04:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2A1C48E0002; Tue, 12 Mar 2019 16:00:01 -0400 (EDT)
+	id 2C5768E0002; Tue, 12 Mar 2019 16:04:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 191918E0003; Tue, 12 Mar 2019 16:00:01 -0400 (EDT)
+	id 166908E0003; Tue, 12 Mar 2019 16:04:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E565B8E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 16:00:00 -0400 (EDT)
-Received: by mail-it1-f200.google.com with SMTP id 9so3128897ita.8
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 13:00:00 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DAD048E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 16:04:55 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id 35so3428682qtq.5
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 13:04:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=A9gtozJFv5iJI4Lopf5E2MEM4Cit9pl4LJXAm7hrIaU=;
-        b=Sd/7c8mcWZtR/R4hdwtYCxaKnP/PMsByVlaPk5C5zAuRSTW4MiRpavabQfmsvV/4KO
-         /0VBIA2wBsXMSbfBRwCRCwdu/ZVm3ftzEYsLS5jG8EgY+VTtrB/wd+Y3ZO4312HOw4E4
-         4ebc0j4q90xMyIULK9ismdUw8I5OHFi27eawlU0/D0+v6R9YkQuGAJlD9h/PWpblCFJh
-         Y7ooXb2gZ7F+OJzxoo7/30lKPlWbBR6SJq2Kb3DmJSkUK2rxuUGDOPJFawS6N9GVOLuP
-         r0e75MN06P9J2768jiufXek+hdKyxOJYVyNujFIPMMmbJaV71CeZZkyeJ/RqzOBhH3aD
-         0LBA==
-X-Gm-Message-State: APjAAAX+Vz+KqDeyVjMdKsBQ4sJtPVm1UC9dnwcQ1Xf0QvVIrKzcP0kA
-	E7IAqJp4tCo/4lxy6eCgc90lynoNuFANTKqbMuqYOqkXcUWHaThh/mjkwaXoe8lPE9u8NbuEozt
-	MnWO+GkXHgQR1r2GYhLW3FT48y6V2RlefD6lO2cUdwx2VF1E5vmAXjtNfQZNrkb/uTA==
-X-Received: by 2002:a02:660e:: with SMTP id k14mr22482626jac.34.1552420800695;
-        Tue, 12 Mar 2019 13:00:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqza/UYECJ5ZtJIpyzkPm8OG51IIhWOsrtrD+5TOL00ibUoY3UgNKnnx0McG9eQSpMPDxvnR
-X-Received: by 2002:a02:660e:: with SMTP id k14mr22482585jac.34.1552420799789;
-        Tue, 12 Mar 2019 12:59:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552420799; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=akxVDaqCkmLREnINvadIYFkfVvDbWfWA451PFdxqjq4=;
+        b=Sx6Fs2IcmoK6y/mQhi+cA7hIgVP0Uz5N3HrK0sAeX44+o6bKXX/Xazs0sLGh6un322
+         YEzBNvrORriqT531EArkhLnZghz2Ja3FNF9TPqB0FEvB67IxTMndgC6tcx8d1Ei3b+Mk
+         2RFyLDCNkcF3MeL8Wbn4wI0BHj/iXXZjXWC/08rkU2drEpv/J4atlzmfJsFGtIKW3JfG
+         2yOuOMx90c/fBdFDqlgAcbq4YpUdNkV2LsgGAEV+ttZ+5g+UtDVIQFXoUs8qRp/5tPUJ
+         yZx/XkagYTiv43CSTRj5ii7O+zLduzpGyISqLxJobtX9FfE4J0eqU5oWTWhozWWa3FhQ
+         Kqyg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXtZJiqTHYZJ1oY/v+f7uOAJjlnq717jtebCwphNHidoKrkZ/DY
+	TtuW5IVtNsipfjCjlEk1zbybdRQ3KyNX67T4+gkiXxBkvtV5e1etXShoNgxWDv7c0aYNh1KAJMm
+	YQd5OhyHRsU/Vyy3vnmPU7roskqGUBbhQLFD6fgWVqaeweiyjzIz8jaV8egutrf0NxQ==
+X-Received: by 2002:a37:68cc:: with SMTP id d195mr10128925qkc.131.1552421095656;
+        Tue, 12 Mar 2019 13:04:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx6wmDRQGX6xVSho1zIUXj+lOclSUUF/0dmZVSSDjJSlRExZEtB+/9YwHboD5xZtuxghW2c
+X-Received: by 2002:a37:68cc:: with SMTP id d195mr10128870qkc.131.1552421094858;
+        Tue, 12 Mar 2019 13:04:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552421094; cv=none;
         d=google.com; s=arc-20160816;
-        b=JbgShe697+iLR9VRdaew/L4EE7ideWqSDOeR2xjYOrS1uBY8Eo68QDi5jtzlWlzdmp
-         EM/B0FNb+CeJh4AgKXlId+C1Nz/GCM/Ac5s7H+DoAkXRCQ4bhRWnJJVpQ0VRv9R1AfeI
-         +aqABolp7vfQ4wdygTT7YVbbabPDf6ghVf6Srms07JkJc2kcEutx7gdQHcO7AZxct1nS
-         IyF4CjbfxORjNuOKVjNARhaSX/fXOatKadQXxjUPu/7R+JP9kDz6PJYHH+qusa9I7jdu
-         T6f1I2zdBceO1G2k6lttGyc13HOAAEFOH8/gpEBD788mh5E0wFYoaw/QGyHGOTG75T7H
-         rUMg==
+        b=YLGLXo+88b9KrG8JW75aql92bLIRI4gG46cxOX+u/TdXe4IAafkTPhDKOGrsEfGldV
+         AR5lBVxwAedK/XqmnS3GhsCCLJDQbw3oEDzD21UPYzz/uaOkkwM1UJWDLRM3RpZx3bOL
+         HrdCH3yga3C0eNnToJwgFbVw2AAUBHnVHDEz4wHVCmRZ0qWi9d2uEMnXV6ti6elcUo1D
+         7M4kfL/lP/QtFYbidqFVVvcbpXiYYQnQqkS5bmd/Br80hnnqLspM6WlqJPK+1os1TngU
+         WFrha9FIlFeiaR+WCYKtJxQb8q3RzAgQtxsj5nMnDAUVqBMyieb3j+uMBHYV1zWATdlA
+         78pQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=A9gtozJFv5iJI4Lopf5E2MEM4Cit9pl4LJXAm7hrIaU=;
-        b=jlIY5YgERUhmaU/qrfN96ay1Iv+ulNRz08zH68TnWSjyi7p6B5edEbZPow9K1nQ5ol
-         3TZmH/uTq8Xdverj5qCVN+Q5qjdN5tjSAqh1MqYi82uq4nZb5ei9lhm13T+9ULQaYJtU
-         5djEW3Vnn9j1ePJRXvL01Z3WG6pjpgSokCl+cX6YwkqlpXh6gnmgwwHMEA5drkwSZC8x
-         E/eHC4gzV+o1cGXaEGVKbtRU8k6VbtevL2T77BR1TFcRC7Dmz5k7sA0PGHrOEjz2nFUy
-         9NrVEY1z8AQM0LV5Z0ES/w3Olo195UQLKCYZeaAIah1LDvH1/sxMBqXDVHQTT/Tz3BMc
-         odpg==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=akxVDaqCkmLREnINvadIYFkfVvDbWfWA451PFdxqjq4=;
+        b=GeV8+gkFz5UfAYe/kW12bo2aTfqmvSbN9V4pk/ZvthQ8h30JQWfJhhA3hT8BqhrI/w
+         JG9RHHaelB1Cv2hKn2HPUFR04cP3hIG1sk4IsIddjp7iYforzSUIhysJ3W1PCms9BK+a
+         jZfmj2A8x4HL2hHMMFpoi4JPh9I4+4eOqHXnA4u5Y4w62+9kxvJ2OcJsksish0fFYEUx
+         +4AQ54LeEXhE1cj9LG2kcM9ID56quML47rSrDs5tSBI02RW4govXBi6m2gq3/CL22LKs
+         ziJaNQ2+1QhLqgQVabzcR4fPfy/2KnChRccdLD+12GWIZPJlzLfBHE1nKkoedd8Spo6X
+         RFhA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=HNfNGy6M;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id y72si1920347ity.16.2019.03.12.12.59.59
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v91si2069260qvv.54.2019.03.12.13.04.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 12:59:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Tue, 12 Mar 2019 13:04:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=HNfNGy6M;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x2CJx5MX109207;
-	Tue, 12 Mar 2019 19:59:49 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=A9gtozJFv5iJI4Lopf5E2MEM4Cit9pl4LJXAm7hrIaU=;
- b=HNfNGy6MLKML/gftAsYYxKcbb5V2y/J95OrbzuvtCMlRlroDupWboAUPv6W2O30oYMH3
- ncwOenKTSc0IrwSt9A3qYnSVWRluJGESnk5sjN3vjVW7aTSPQmdNXjpWt4YEnnrtKoa6
- JF6gUNTa/wls2MtPfUvnrqu+savyt/Nfvo/vc6kqFyds8BSDgVl9zn0/mJCChlEAyhgu
- FB+t84+PjLGD/M4P79fuI+t4fXhgUFvRtz6t0p0Dp5gainpkfW40/LpfYsLm31TtG1t9
- XPwJNkEEqvHugD4944rzrqiwu92EygE1hbnPSr+3JJKwjEQOZQ1v5PBAyGlH05P+kvhd ag== 
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by aserp2130.oracle.com with ESMTP id 2r430eqf9m-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 12 Mar 2019 19:59:49 +0000
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x2CJxhY9015680
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 12 Mar 2019 19:59:43 GMT
-Received: from abhmp0004.oracle.com (abhmp0004.oracle.com [141.146.116.10])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x2CJxbr9011784;
-	Tue, 12 Mar 2019 19:59:37 GMT
-Received: from [192.168.1.222] (/50.38.38.67)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 12 Mar 2019 12:59:36 -0700
-Subject: Re: [PATCH 0/3] userfaultfd: allow to forbid unprivileged users
-To: Peter Xu <peterx@redhat.com>, linux-kernel@vger.kernel.org
-Cc: Paolo Bonzini <pbonzini@redhat.com>, Hugh Dickins <hughd@google.com>,
-        Luis Chamberlain <mcgrof@kernel.org>,
-        Maxime Coquelin <maxime.coquelin@redhat.com>, kvm@vger.kernel.org,
-        Jerome Glisse <jglisse@redhat.com>,
-        Pavel Emelyanov <xemul@virtuozzo.com>,
-        Johannes Weiner <hannes@cmpxchg.org>,
-        Martin Cracauer <cracauer@cons.org>,
-        Denis Plotnikov <dplotnikov@virtuozzo.com>, linux-mm@kvack.org,
-        Marty McFadden <mcfadden8@llnl.gov>, Maya Gokhale <gokhale2@llnl.gov>,
-        Andrea Arcangeli <aarcange@redhat.com>,
-        Mike Rapoport <rppt@linux.vnet.ibm.com>,
-        Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>,
-        "Kirill A . Shutemov" <kirill@shutemov.name>,
-        linux-fsdevel@vger.kernel.org,
-        "Dr . David Alan Gilbert"
- <dgilbert@redhat.com>,
-        Andrew Morton <akpm@linux-foundation.org>
-References: <20190311093701.15734-1-peterx@redhat.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <58e63635-fc1b-cb53-a4d1-237e6b8b7236@oracle.com>
-Date: Tue, 12 Mar 2019 12:59:34 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id C82453086203;
+	Tue, 12 Mar 2019 20:04:53 +0000 (UTC)
+Received: from sky.random (ovpn-121-1.rdu2.redhat.com [10.10.121.1])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 20E951001DFA;
+	Tue, 12 Mar 2019 20:04:51 +0000 (UTC)
+Date: Tue, 12 Mar 2019 16:04:50 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>,
+	David Miller <davem@davemloft.net>, hch@infradead.org,
+	kvm@vger.kernel.org, virtualization@lists.linux-foundation.org,
+	netdev@vger.kernel.org, linux-kernel@vger.kernel.org,
+	peterx@redhat.com, linux-mm@kvack.org,
+	linux-arm-kernel@lists.infradead.org, linux-parisc@vger.kernel.org
+Subject: Re: [RFC PATCH V2 0/5] vhost: accelerate metadata access through
+ vmap()
+Message-ID: <20190312200450.GA25147@redhat.com>
+References: <20190308141220.GA21082@infradead.org>
+ <56374231-7ba7-0227-8d6d-4d968d71b4d6@redhat.com>
+ <20190311095405-mutt-send-email-mst@kernel.org>
+ <20190311.111413.1140896328197448401.davem@davemloft.net>
+ <6b6dcc4a-2f08-ba67-0423-35787f3b966c@redhat.com>
+ <20190311235140-mutt-send-email-mst@kernel.org>
+ <76c353ed-d6de-99a9-76f9-f258074c1462@redhat.com>
+ <20190312075033-mutt-send-email-mst@kernel.org>
+ <1552405610.3083.17.camel@HansenPartnership.com>
 MIME-Version: 1.0
-In-Reply-To: <20190311093701.15734-1-peterx@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9193 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=681 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1903120135
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1552405610.3083.17.camel@HansenPartnership.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Tue, 12 Mar 2019 20:04:54 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/11/19 2:36 AM, Peter Xu wrote:
+On Tue, Mar 12, 2019 at 08:46:50AM -0700, James Bottomley wrote:
+> On Tue, 2019-03-12 at 07:54 -0400, Michael S. Tsirkin wrote:
+> > On Tue, Mar 12, 2019 at 03:17:00PM +0800, Jason Wang wrote:
+> > > 
+> > > On 2019/3/12 上午11:52, Michael S. Tsirkin wrote:
+> > > > On Tue, Mar 12, 2019 at 10:59:09AM +0800, Jason Wang wrote:
+> [...]
+> > > At least for -stable, we need the flush?
+> > > 
+> > > 
+> > > > Three atomic ops per bit is way to expensive.
+> > > 
+> > > 
+> > > Yes.
+> > > 
+> > > Thanks
+> > 
+> > See James's reply - I stand corrected we do kunmap so no need to
+> > flush.
 > 
-> The "kvm" entry is a bit special here only to make sure that existing
-> users like QEMU/KVM won't break by this newly introduced flag.  What
-> we need to do is simply set the "unprivileged_userfaultfd" flag to
-> "kvm" here to automatically grant userfaultfd permission for processes
-> like QEMU/KVM without extra code to tweak these flags in the admin
-> code.
+> Well, I said that's what we do on Parisc.  The cachetlb document
+> definitely says if you alter the data between kmap and kunmap you are
+> responsible for the flush.  It's just that flush_dcache_page() is a no-
+> op on x86 so they never remember to add it and since it will crash
+> parisc if you get it wrong we finally gave up trying to make them.
+> 
+> But that's the point: it is a no-op on your favourite architecture so
+> it costs you nothing to add it.
 
-Another user is Oracle DB, specifically with hugetlbfs.  For them, we would
-like to add a special case like kvm described above.  The admin controls
-who can have access to hugetlbfs, so I think adding code to the open
-routine as in patch 2 of this series would seem to work.
+Yes, the fact Parisc gave up and is doing it on kunmap is reasonable
+approach for Parisc, but it doesn't move the needle as far as vhost
+common code is concerned, because other archs don't flush any cache on
+kunmap.
 
-However, I can imagine more special cases being added for other users.  And,
-once you have more than one special case then you may want to combine them.
-For example, kvm and hugetlbfs together.
--- 
-Mike Kravetz
+So either all other archs give up trying to optimize, or vhost still
+has to call flush_dcache_page() after kunmap.
+
+Which means after we fix vhost to add the flush_dcache_page after
+kunmap, Parisc will get a double hit (but it also means Parisc was the
+only one of those archs needed explicit cache flushes, where vhost
+worked correctly so far.. so it kinds of proofs your point of giving
+up being the safe choice).
+
+Thanks,
+Andrea
 
