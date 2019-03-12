@@ -2,175 +2,193 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 90299C10F00
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 04:52:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B8F8C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 05:14:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4E825214AE
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 04:52:09 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2D1A32087C
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 05:14:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="dElPNkce"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E825214AE
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	dkim=pass (1024-bit key) header.d=hansenpartnership.com header.i=@hansenpartnership.com header.b="xYRhAyEt"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D1A32087C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=HansenPartnership.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BE14A8E0003; Tue, 12 Mar 2019 00:52:08 -0400 (EDT)
+	id B36168E0003; Tue, 12 Mar 2019 01:14:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B91748E0002; Tue, 12 Mar 2019 00:52:08 -0400 (EDT)
+	id ABF098E0002; Tue, 12 Mar 2019 01:14:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A80788E0003; Tue, 12 Mar 2019 00:52:08 -0400 (EDT)
+	id 986EB8E0003; Tue, 12 Mar 2019 01:14:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C0938E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 00:52:08 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id d49so1185313qtd.15
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 21:52:08 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7265F8E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 01:14:50 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id 68so388921ywb.20
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 22:14:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=qK7Kkdb/luLy5flAaiCvdcEVBIH2RfSi6TODITDFLgA=;
-        b=HTtj33ton4/ahpDPVjuSjT56llz4Ud/bkejhV9fP486ZUFOZoBfjMWFReGM4jhg6tR
-         c3Ju4Idmgx4g67CYAVybmJGNFroiwKPu2k6n70LxlgbKylghEogvRmFINoqIbBss1SL1
-         bFw6qK8IQ6iyJy1CaoMZhpaTni21de4hT6Q7qE6XfnirporZru81eleNqeWHVj68DL55
-         pqNpJvLehjYVL5irta4nb7h/RRMTOh0/dUN320e1spnI6qQJF811/qABDM2c8BkKTahg
-         2PalAhHzDakdePg1Hvdn6+uW1d8XxpiVTtN5Y7T9xIMnEQbTqdywe0W24CNKb/Os/Spg
-         jPyA==
-X-Gm-Message-State: APjAAAX3mxIYYuAoAmduPSzFIADa2jSj1VdjAE/lufupc1uxWQnYkTR/
-	ITMG7jZUBMVtKKgmNcUvYNoVRqr5cUHmocHtO9Qbt0RronZcoTdRqdMBfcG00taSIMA31oBtB3H
-	9+GsmzB8oKvPjKh24CIQwH672yJWKBG+DiN62X1ty16PUgeqiswJxD5i6lh4ghdE=
-X-Received: by 2002:ac8:3653:: with SMTP id n19mr5079746qtb.95.1552366328299;
-        Mon, 11 Mar 2019 21:52:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxO6x573+yOTisLH1UFAlSKEiM/8Rsw2OGnthFKqvTgo3wGo2AffAMYXVxISfWi/0bbcgKF
-X-Received: by 2002:ac8:3653:: with SMTP id n19mr5079727qtb.95.1552366327621;
-        Mon, 11 Mar 2019 21:52:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552366327; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:mime-version:content-transfer-encoding;
+        bh=BPGBeTtv+V2Jbjb6BaPL+xnbEz7NLMxj98oZ1QwXP1A=;
+        b=fN4vQu7z6oGeSaR8MVp778tXs66vF0Qw6UI8MQo1pFoYxcpfCO053TF3XpQczKqoW9
+         srYxSrz4MpL7822kGKw7KCB7JwAakieJP5a2IwdDjZwnX6f9Ak7+CLV0nR+MJpuhXBQd
+         U4YU4OinRVZ/qOAOa70WYGb8ArES5oI6r2gb4hXKXMDG42s2uPa+OepJuxuTzCOh8/sz
+         l/ki3gQK6ByalQWjbXOo7elp9IgHcPVkYKdtPu+Y3uV9iwq58niME0WBF/4y18ipjDHV
+         SATTax7ZDhWTTJJGFOD1wWVI0rgjTtdKg5Dxbz5dpL9d6j+Z2ow0ey9OVjNYUMlABjJ4
+         V6bg==
+X-Gm-Message-State: APjAAAXcYXuA5F+D2j/ngMbTCcMRxDxkNM0lOZtjiTpt4r6KdZuVu7Cc
+	rWv/DQBC2LbzViYmsjyCsmFG7OKNQ/Ia6712Fb7E3XpH7VlBC7UVOdMX5bZin3cLdqBa6edvG+5
+	JuPbD2vo4I2ac2YK3saZUa3oDpjaLWQe1KFGP9Ieqpicl8KGxd1Rz8cvKqgaf01u99w==
+X-Received: by 2002:a81:5a41:: with SMTP id o62mr28436538ywb.101.1552367690192;
+        Mon, 11 Mar 2019 22:14:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy/sNpT7IxalU1SL+EBy7YYp+aNXbCqSWVTZQSV6aPKMSkPRRzqvOo7OpHYd9XfvibXB2ga
+X-Received: by 2002:a81:5a41:: with SMTP id o62mr28436501ywb.101.1552367689185;
+        Mon, 11 Mar 2019 22:14:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552367689; cv=none;
         d=google.com; s=arc-20160816;
-        b=wwRrYDlN1x3ceyu5vFGKde2PSKZ7i4O41swVRH8emebOku0UVMA0nNqzj1AemUZv+k
-         92u6EkG05FHprsXo0XTy7ikk2AaWCQXnjcEKfqI8hCwbwNVgjVKriTC4KRhwpVSNu2zE
-         owoT09ykDsHZquuVVDJyUatfeILfBqSEgd5SouivWLW/bzGhinHWRwh3WYDfjGN+0s+a
-         1EHKMcbBXT+FdKjD6J1tdib3JGR9XuDIp2Shxw2d8n1n03T143vBs12qXXjJ0XoGS8Ej
-         MwptAGfthM8z3l5M+za7gats7xPtqWDUbbQ3eHpSsFgwxILDdX5V4ZA0nU14fU5IegYs
-         Y4/g==
+        b=qIGijQObWVRalRtESE4ibg2AWNL5VVV+HpC8LPrlxYkEZ+HhSAnoa5KE7wuPMylW/g
+         uyV+VS24NUfgR51cW9pY+wKj6OoZB1Un/ClafS4DZCj18Ts2O8RQ4bADUnERt2K+cSLm
+         7wMxp/Undfm3opZRi+0ivn9XiM5z2/F21i0FvvI3lbjKnweilSgNXgCorB9ZEGTSzC8E
+         vUnAxveGelil8rNaVtcdbx+sZRKQwfiGud7M8pSTse8HtIcgk7n6T36a1BoSI4QFC3O1
+         TeRX9UeaoKtpsFQrhazFJa2wXVhFKCALmIzbqfFrKQerxkBp/IFkQrNKTzYr2y+Wq20n
+         HKGA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=qK7Kkdb/luLy5flAaiCvdcEVBIH2RfSi6TODITDFLgA=;
-        b=DS4roxoJ/pgJ47v/UxcuJTRwobruXILFnVxoOLGfjvwg2DccgzCRVLUpZbOluPfUPC
-         WUoGgaSNeNoA2jS3WuAUWbYQxEHgjpgJmejkvwdrIcxXsn5dGzfR1PoWn3YPwphfmuhL
-         4Gy018Z8FnKZQ+ekh5N0UN1MhpmEn642+JPdU/WtZFsXx9FtUGLy4o4+zg9Zgan2W36I
-         /3sfzDhNQ1lg6xCnGy3kh13lKg5k3K0y0rouPVjHE8v4igzIXwMxR0g9hc/X+SeZa6HZ
-         j3aTDNdDVm6eXWKFmjlMpmaWL0jtoieM41Bdb+iflH+n9TVAl5Anb2yq+S1Y2ukowpXF
-         nBGg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id:dkim-signature;
+        bh=BPGBeTtv+V2Jbjb6BaPL+xnbEz7NLMxj98oZ1QwXP1A=;
+        b=OqtENmqLouOfyeEN16ySynnWSsCb74Omm2NEb8cVI78lg2paw8v0TfXti9xm2HJfLP
+         7KGvYQ6qgsM9QJ/P0YKd0/IQyBOMlAQQxDyCXs/+0+vNOHVdVVsAPp4cS9V0PHN/tyrS
+         bTw2s+fMhf8/J7vCAUHlWuzRZkj1RSWvaeuA3AxLe7z2kzbNMBuKe5bcsr1BtNiZDLc7
+         nmRodC9DPs22KxpOIqB1wd/P8jx/NdptmomlC4o58Xl/4Z5ulGWdbfqv3VN76+tU7YA6
+         VP2hP65qUj/nQmi5p+XGiYgmxoYjTLaZ5nusnZiPbBvegXMc8cWk4rSHmzlGx+EydEDB
+         y0iw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=dElPNkce;
-       spf=pass (google.com: domain of 01000169703e5495-2815ba73-34e8-45d5-b970-45784f653a34-000000@amazonses.com designates 54.240.9.32 as permitted sender) smtp.mailfrom=01000169703e5495-2815ba73-34e8-45d5-b970-45784f653a34-000000@amazonses.com
-Received: from a9-32.smtp-out.amazonses.com (a9-32.smtp-out.amazonses.com. [54.240.9.32])
-        by mx.google.com with ESMTPS id 30si1674093qtt.223.2019.03.11.21.52.07
+       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=xYRhAyEt;
+       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTPS id 65si4217434ybz.279.2019.03.11.22.14.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 11 Mar 2019 21:52:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 01000169703e5495-2815ba73-34e8-45d5-b970-45784f653a34-000000@amazonses.com designates 54.240.9.32 as permitted sender) client-ip=54.240.9.32;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 11 Mar 2019 22:14:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) client-ip=66.63.167.143;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=dElPNkce;
-       spf=pass (google.com: domain of 01000169703e5495-2815ba73-34e8-45d5-b970-45784f653a34-000000@amazonses.com designates 54.240.9.32 as permitted sender) smtp.mailfrom=01000169703e5495-2815ba73-34e8-45d5-b970-45784f653a34-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1552366327;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=qK7Kkdb/luLy5flAaiCvdcEVBIH2RfSi6TODITDFLgA=;
-	b=dElPNkceskPXXplCyxkN3dRK3hqf46DyzKgPZ7kq+A9+qVfIrCUBt86RwQ9sawsh
-	l/WOqpQNr7g2MIGzf2mgaad0g5o3koVlF16EgjpIcP5ROkP90TqcntjqBI+w1bPoYQe
-	xcBj3TFY3yhzoc369I5gBAAaRilESZrIA3dLnEaI=
-Date: Tue, 12 Mar 2019 04:52:07 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
-To: Jerome Glisse <jglisse@redhat.com>
-cc: john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>, 
-    linux-mm@kvack.org, Al Viro <viro@zeniv.linux.org.uk>, 
-    Christian Benvenuti <benve@cisco.com>, 
-    Christoph Hellwig <hch@infradead.org>, 
-    Dan Williams <dan.j.williams@intel.com>, 
-    Dave Chinner <david@fromorbit.com>, 
-    Dennis Dalessandro <dennis.dalessandro@intel.com>, 
-    Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>, 
-    Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>, 
-    Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, 
-    Mike Rapoport <rppt@linux.ibm.com>, 
-    Mike Marciniszyn <mike.marciniszyn@intel.com>, 
-    Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>, 
-    LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, 
-    John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [PATCH v3 0/1] mm: introduce put_user_page*(), placeholder
- versions
-In-Reply-To: <20190308190704.GC5618@redhat.com>
-Message-ID: <01000169703e5495-2815ba73-34e8-45d5-b970-45784f653a34-000000@email.amazonses.com>
-References: <20190306235455.26348-1-jhubbard@nvidia.com> <010001695b4631cd-f4b8fcbf-a760-4267-afce-fb7969e3ff87-000000@email.amazonses.com> <20190308190704.GC5618@redhat.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.03.12-54.240.9.32
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=xYRhAyEt;
+       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
+Received: from localhost (localhost [127.0.0.1])
+	by bedivere.hansenpartnership.com (Postfix) with ESMTP id 13D308EE14F;
+	Mon, 11 Mar 2019 22:14:47 -0700 (PDT)
+Received: from bedivere.hansenpartnership.com ([127.0.0.1])
+	by localhost (bedivere.hansenpartnership.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id 7WtYXw-QTR3T; Mon, 11 Mar 2019 22:14:46 -0700 (PDT)
+Received: from [153.66.254.194] (unknown [50.35.68.20])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by bedivere.hansenpartnership.com (Postfix) with ESMTPSA id 3BBB58EE130;
+	Mon, 11 Mar 2019 22:14:46 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=hansenpartnership.com;
+	s=20151216; t=1552367686;
+	bh=AW3dolA78+lzEd83tz6QQ+NipDZU+vh1dNrlssMHnVU=;
+	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
+	b=xYRhAyEtbC9eyaeABxwkOllNzY+9kjpj9FhbZaQeAldW3lO5vxwuVmjyIp3KNFqBG
+	 LD4cAqF1Nc+zpH6hIwFgFhhJvaNSxmq46EBcnVR1m2djSf239RlCYCBinxR2v67gmY
+	 JHvGMLPDK4DrxvhtR46iCuydqs9rTvtKEn+Y8lKk=
+Message-ID: <1552367685.23859.22.camel@HansenPartnership.com>
+Subject: Re: [RFC PATCH V2 0/5] vhost: accelerate metadata access through
+ vmap()
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+To: Jason Wang <jasowang@redhat.com>, David Miller <davem@davemloft.net>, 
+	mst@redhat.com
+Cc: hch@infradead.org, kvm@vger.kernel.org, 
+	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org, 
+	linux-kernel@vger.kernel.org, peterx@redhat.com, linux-mm@kvack.org, 
+	aarcange@redhat.com, linux-arm-kernel@lists.infradead.org, 
+	linux-parisc@vger.kernel.org
+Date: Mon, 11 Mar 2019 22:14:45 -0700
+In-Reply-To: <6b6dcc4a-2f08-ba67-0423-35787f3b966c@redhat.com>
+References: <20190308141220.GA21082@infradead.org>
+	 <56374231-7ba7-0227-8d6d-4d968d71b4d6@redhat.com>
+	 <20190311095405-mutt-send-email-mst@kernel.org>
+	 <20190311.111413.1140896328197448401.davem@davemloft.net>
+	 <6b6dcc4a-2f08-ba67-0423-35787f3b966c@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.26.6 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 8 Mar 2019, Jerome Glisse wrote:
+On Tue, 2019-03-12 at 10:59 +0800, Jason Wang wrote:
+> On 2019/3/12 上午2:14, David Miller wrote:
+> > From: "Michael S. Tsirkin" <mst@redhat.com>
+> > Date: Mon, 11 Mar 2019 09:59:28 -0400
+> > 
+> > > On Mon, Mar 11, 2019 at 03:13:17PM +0800, Jason Wang wrote:
+> > > > On 2019/3/8 下午10:12, Christoph Hellwig wrote:
+> > > > > On Wed, Mar 06, 2019 at 02:18:07AM -0500, Jason Wang wrote:
+> > > > > > This series tries to access virtqueue metadata through
+> > > > > > kernel virtual
+> > > > > > address instead of copy_user() friends since they had too
+> > > > > > much
+> > > > > > overheads like checks, spec barriers or even hardware
+> > > > > > feature
+> > > > > > toggling. This is done through setup kernel address through
+> > > > > > vmap() and
+> > > > > > resigter MMU notifier for invalidation.
+> > > > > > 
+> > > > > > Test shows about 24% improvement on TX PPS. TCP_STREAM
+> > > > > > doesn't see
+> > > > > > obvious improvement.
+> > > > > 
+> > > > > How is this going to work for CPUs with virtually tagged
+> > > > > caches?
+> > > > 
+> > > > Anything different that you worry?
+> > > 
+> > > If caches have virtual tags then kernel and userspace view of
+> > > memory
+> > > might not be automatically in sync if they access memory
+> > > through different virtual addresses. You need to do things like
+> > > flush_cache_page, probably multiple times.
+> > 
+> > "flush_dcache_page()"
+> 
+> 
+> I get this. Then I think the current set_bit_to_user() is suspicious,
+> we 
+> probably miss a flush_dcache_page() there:
+> 
+> 
+> static int set_bit_to_user(int nr, void __user *addr)
+> {
+>          unsigned long log = (unsigned long)addr;
+>          struct page *page;
+>          void *base;
+>          int bit = nr + (log % PAGE_SIZE) * 8;
+>          int r;
+> 
+>          r = get_user_pages_fast(log, 1, 1, &page);
+>          if (r < 0)
+>                  return r;
+>          BUG_ON(r != 1);
+>          base = kmap_atomic(page);
+>          set_bit(bit, base);
+>          kunmap_atomic(base);
 
-> >
-> > It would good if that understanding would be enforced somehow given the problems
-> > that we see.
->
-> This has been discuss extensively already. GUP usage is now widespread in
-> multiple drivers, removing that would regress userspace ie break existing
-> application. We all know what the rules for that is.
+This sequence should be OK.  get_user_pages() contains a flush which
+clears the cache above the user virtual address, so on kmap, the page
+is coherent at the new alias.  On parisc at least, kunmap embodies a
+flush_dcache_page() which pushes any changes in the cache above the
+kernel virtual address back to main memory and makes it coherent again
+for the user alias to pick it up.
 
-The applications that work are using anonymous memory and memory
-filesystems. I have never seen use cases with a real filesystem and would
-have objected if someone tried something crazy like that.
-
-Because someone was able to get away with weird ways of abusing the system
-it not an argument that we should continue to allow such things. In fact
-we have repeatedly ensured that the kernel works reliably by improving the
-kernel so that a proper failure is occurring.
-
-
-> > > In fact, the GUP documentation even recommends that pattern.
-> >
-> > Isnt that pattern safe for anonymous memory and memory filesystems like
-> > hugetlbfs etc? Which is the common use case.
->
-> Still an issue in respect to swapout ie if anon/shmem page was map
-> read only in preparation for swapout and we do not report the page
-> as dirty what endup in swap might lack what was written last through
-> GUP.
-
-Well swapout cannot occur if the page is pinned and those pages are also
-often mlocked.
-
-> >
-> > Yes you now have the filesystem as well as the GUP pinner claiming
-> > authority over the contents of a single memory segment. Maybe better not
-> > allow that?
->
-> This goes back to regressing existing driver with existing users.
-
-There is no regression if that behavior never really worked.
-
-> > Two filesystem trying to sync one memory segment both believing to have
-> > exclusive access and we want to sort this out. Why? Dont allow this.
->
-> This is allowed, it always was, forbidding that case now would regress
-> existing application and it would also means that we are modifying the
-> API we expose to userspace. So again this is not something we can block
-> without regressing existing user.
-
-We have always stopped the user from doing obviously stupid and risky
-things. It would be logical to do it here as well.
+James
 
