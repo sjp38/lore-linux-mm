@@ -2,434 +2,590 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.4 required=3.0 tests=DATE_IN_PAST_06_12,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C945FC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 23:32:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8E5BBC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 23:38:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5BC822173C
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 23:32:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5BC822173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 1B0112173C
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 23:38:34 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=axtens.net header.i=@axtens.net header.b="SLbzoMMg"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B0112173C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=axtens.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BCB0E8E0003; Tue, 12 Mar 2019 19:32:08 -0400 (EDT)
+	id A3F498E0003; Tue, 12 Mar 2019 19:38:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B7A888E0002; Tue, 12 Mar 2019 19:32:08 -0400 (EDT)
+	id 9EE2F8E0002; Tue, 12 Mar 2019 19:38:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A689C8E0003; Tue, 12 Mar 2019 19:32:08 -0400 (EDT)
+	id 8DDA98E0003; Tue, 12 Mar 2019 19:38:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 61ACB8E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 19:32:08 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id j10so4832799pfn.13
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 16:32:08 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 48F748E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 19:38:33 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id q15so39600pgv.22
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 16:38:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=0iQObOkZ72kLNPB4QTa5CPExJBocYoE5w6OoqUu1CKw=;
-        b=C8Zg8mvdPdOPfYEkR9+8I/qVfBpDVyxLxtSlm579GwxGjfB2IXAgnh1F14PjVjwgWF
-         M3o34bBmxMvMRFc5SZSMGGeo7roDu7j3WWrLdNSTHqX49O6PYI9LsdyY2bQ/01Y/oqp3
-         J9GTkaBgz6hj0eShDjUp8hhpoIFWVBJgbEikuD7NHn99O7WdqAvi0m6Efrt2cLptHcv8
-         5YephYMVOkggZjHy0HyXl0/iygDkbO7JM/TdBO4LRTShbNJaZ/XT2xlMPORUdxBFUuKK
-         3YMs65hhVy2toSBCaTIgWqvk/MecL1OMRDZdBxaasHInyXZa4AZuexuaL0cXkJfZUu2r
-         ga8g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXDV22wvwwPqyG1Z6cKKnksO85LCtXEb77wmbzZ7wfmzwz37UBX
-	Wm2zDeRb0TJE0oaCf74tmbGwL38CBIkXJE6vOAgcgE7ITfIvMM/RWk4/B5vg+I2CfqJjCJTxIky
-	miG1OqlE7q9p0oYNzNmDC8qhSAs8zRB5dhDEDNmhrdIZugVQCTI2WohVgwIbQBIA6fw==
-X-Received: by 2002:a17:902:7e49:: with SMTP id a9mr40102943pln.303.1552433526531;
-        Tue, 12 Mar 2019 16:32:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw6SVGOFT/CGb+1E5zqzIcV/d8HygttSAOqt5UfVi0U4ERc6qTOIPS78dwgkaHAl8dkGQd3
-X-Received: by 2002:a17:902:7e49:: with SMTP id a9mr40102758pln.303.1552433523367;
-        Tue, 12 Mar 2019 16:32:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552433523; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:in-reply-to
+         :references:date:message-id:mime-version;
+        bh=PU775P2DQwgKsZzzul90rUNaMx21fIcIS+/gjK9d6BA=;
+        b=HfeRUD74MovV4Xnug7rbblJ7z1EhjMH5VrKbfgnS/8OJfZ8jy9vpZlQzXWgYmVGa7I
+         G4iGHHbHJYoGaIF3sq5DSMum5g/io2sO50ruulKw/5G9gvYcLCT+pz24ANWOZ0f+FHUR
+         c2cpqJad/GecP9jatUtltIrmcJ0iT5sm/iuhB2onrtnIwlJAVNRTzkVeZMeqw9ABoD9w
+         QhMycXIQNd0Tlk9P9IQkhF8blBPE+nUA3Pz5IVfxBwOdXkVigXDrRIdIUgektBaMkf8F
+         XGUNObkgTU12LgWNMlwBgn4+JfUpeXhAJGzLFOUzPiL0ve4uBltO9VoGrysBNgh+8m5V
+         9GWg==
+X-Gm-Message-State: APjAAAVLa0NnnScKEt5vaFcsimKdjhBWmj0WUdz+mcZZvAISKOj0+ClT
+	55KRTNqm1F54EkpJuGGlk2ESUV0Y1x3dm1c5p4I32IFpJdZuYbJCNhggL/3twxjAb+WpuysQ4F2
+	y0z1pBIAsdA89/ZyQf0pUY2+b7Br9aoIsj3sik1d+ukXJYsrgxr7kNmmlEwovTSMLIXWw2/UHeg
+	ybV2QAJ03K1+BlVdFMtaelr7TLnIUQOsKCOgUKOhFeLKMs7Gt2JpHEJCVVHsGczoDqC8zHpBWgf
+	U6IAxPrHX+jYHuRzac0RdR2k37KyJAq0kjp0wx5GpzMFsuV9x0AA4j9RIJx9usvH8Nq6Rc/PGpF
+	yRD7OGkLtIgDiaUQmwTVstvDXxOskQ6xbXjl39nfw39aQPCIZNrLFGGvBB2FbRc+pTZhket2PEv
+	X
+X-Received: by 2002:a17:902:547:: with SMTP id 65mr42521424plf.242.1552433912811;
+        Tue, 12 Mar 2019 16:38:32 -0700 (PDT)
+X-Received: by 2002:a17:902:547:: with SMTP id 65mr42521343plf.242.1552433911302;
+        Tue, 12 Mar 2019 16:38:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552433911; cv=none;
         d=google.com; s=arc-20160816;
-        b=WQDf1l6fP5pO813DoJLKJGIAnUkcvhKJ1OE3oohIwW/KQJJVy6hHiJVM/+vaA3i4RP
-         E2b3PD4LqITWs1g+dMgvO0Ywa8weJkfmx9bTRf9od29uZS2Uw2jwFYyljSWRUn+E+Chi
-         SKfkiVOUEtdzB2YkbXmKC1KOakb35EIABauyIraiGL8/1oPP1dr/6BR6ADCR3QGkvip7
-         pexfXAb3T2qQSWHkbSHqbvJPjAvolBvD9gEpc9QeXF7QXo/SgqFkqEj41vpZ6Fw/DgXo
-         NXKTE0xhneZVxjQcq3k0GeCUusL41sV1AiVgz+jBPwxVfmQDYwEg1e8ZGe10DCE7qIiQ
-         +jkw==
+        b=hnlcC+u5uZwlFTHkWfGyd5uFwmCDzTyv8z2ba+YCsbbAAm005JJS1Avw9qAJHiuSql
+         Tnj3hRM2J3oQWY3S8zk23L40lXnQbnO8NJlmBJLY0mbcj8LtxSC3x7+p5R7pATQOrBH+
+         sdp0r5A5zb+JOzb4ve4+WdReOaiK9Oui6eoBkCIEvNwCDVrX4oAl7mm9glhHbcRvFZoK
+         N9i+LKZnJ5xFY/fOU5e3wbQsnTTEM7VmSc8IvAd5e2nzNgrwRoteKaBc9OBODo1Bx+8D
+         IofjYCLbOPOOAxZZ6cOHxdYWrHDgepekIVvWFkItBDUTxQLZtVrEHLe8sRfXhwS9C2s9
+         jHrQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=0iQObOkZ72kLNPB4QTa5CPExJBocYoE5w6OoqUu1CKw=;
-        b=03UKkaayhrRT4f+7VTdiIJEcZopT3lQmpupt/S+5cIruwK9iFuotpRYrrO0tu5/0/v
-         6zBvMfPsIEri3bpO8ygsMLhrm5QzuJjTkZuyAUu+9wpcsDAJP87yp8Nwj2W2hSPd6i7G
-         ZHPPCeqeYUxZJsTFULgD/AclRiVOr9U9LJWc4Jv8USs1D78+GCXq7i5YmhVeuKc5oMhD
-         v20pqEbgKOmlerKKqQFnlFipMSmaO4My4X3MOrCQrVUY/xI9WMwh7Fa+6M4QQjYaSecx
-         O222oqhZ1r3uBuZmWVENpt/KEX+B7trlWq09E0UxvV0hKNnKLJDyhTekpC3w11Vp+Q5B
-         vXxQ==
+        h=mime-version:message-id:date:references:in-reply-to:subject:cc:to
+         :from:dkim-signature;
+        bh=PU775P2DQwgKsZzzul90rUNaMx21fIcIS+/gjK9d6BA=;
+        b=IH1/Ii9btD2dS/ru2OUe50VbQTRRKcpUQQP3KuZVUaB+mPM3QMIwFf8HlZzbUuyRqf
+         4laZqVapoztSNRanyOhpBKQ9s7r2Y4FposAoNIwnx2KPmYDvLmVgLb/q1z/UGDi+n5QI
+         rpX0tjMpTTZ3OtsB4W9Q6B6yrmOO39E4VZv368xl11VXo7m5tqodjdJWQLvn5CeUcGLe
+         /By0HvNZoN7dfkt4Ow3LgXj4OUjzS3xDhXB5x1ACqtn1Hp9vBCOrYWo/VC56sIhqHQQH
+         rvH0oWwp4oA71rjO7VX+XTwrsFn9CcAS8xepflJ10pG7dLsUSmgISrjcYBB6w2y5LzV+
+         QTag==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id u2si8587985pgp.549.2019.03.12.16.32.03
+       dkim=pass header.i=@axtens.net header.s=google header.b=SLbzoMMg;
+       spf=pass (google.com: domain of dja@axtens.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=dja@axtens.net
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m6sor15794394pls.18.2019.03.12.16.38.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 16:32:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
+        (Google Transport Security);
+        Tue, 12 Mar 2019 16:38:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dja@axtens.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from fmsmga005.fm.intel.com ([10.253.24.32])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Mar 2019 16:32:02 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,472,1544515200"; 
-   d="scan'208";a="328052848"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by fmsmga005.fm.intel.com with ESMTP; 12 Mar 2019 16:32:02 -0700
-Date: Tue, 12 Mar 2019 08:30:33 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: john.hubbard@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	Al Viro <viro@zeniv.linux.org.uk>,
-	Christian Benvenuti <benve@cisco.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Christopher Lameter <cl@linux.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Chinner <david@fromorbit.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>,
-	Doug Ledford <dledford@redhat.com>, Jan Kara <jack@suse.cz>,
-	Jason Gunthorpe <jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Mike Marciniszyn <mike.marciniszyn@intel.com>,
-	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
-	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [PATCH v3 1/1] mm: introduce put_user_page*(), placeholder
- versions
-Message-ID: <20190312153033.GG1119@iweiny-DESK2.sc.intel.com>
-References: <20190306235455.26348-1-jhubbard@nvidia.com>
- <20190306235455.26348-2-jhubbard@nvidia.com>
+       dkim=pass header.i=@axtens.net header.s=google header.b=SLbzoMMg;
+       spf=pass (google.com: domain of dja@axtens.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=dja@axtens.net
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=axtens.net; s=google;
+        h=from:to:cc:subject:in-reply-to:references:date:message-id
+         :mime-version;
+        bh=PU775P2DQwgKsZzzul90rUNaMx21fIcIS+/gjK9d6BA=;
+        b=SLbzoMMgLWAiIe7bC31r+X1um1+wY2DBOLnI+dEY9sHH4wy2RVIxXaZSBIzDOzexUQ
+         7Z2CBD0ef96y9lnPZ4qDf+Obqnadt7MyvX7d5xsMJbP6ofYetdarHEurXowpORJrexno
+         EeSakB6Bn+P5KO4vcdQpUZTPzOorxUMmvLl/0=
+X-Google-Smtp-Source: APXvYqzp7UKXp98ftxUglKEJfRtHdxAHPgmpIXl33ZlioVgoCRFi0CKcey5UC+rnKQMxMQ6nPNwjuw==
+X-Received: by 2002:a17:902:e192:: with SMTP id cd18mr43333055plb.309.1552433910704;
+        Tue, 12 Mar 2019 16:38:30 -0700 (PDT)
+Received: from localhost (124-171-102-1.dyn.iinet.net.au. [124.171.102.1])
+        by smtp.gmail.com with ESMTPSA id j1sm12364911pgp.84.2019.03.12.16.38.29
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 12 Mar 2019 16:38:29 -0700 (PDT)
+From: Daniel Axtens <dja@axtens.net>
+To: Christophe Leroy <christophe.leroy@c-s.fr>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
+Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
+Subject: Re: [PATCH v10 05/18] powerpc/prom_init: don't use string functions from lib/
+In-Reply-To: <dc2eb0480f2c87316561435cfcf4c78254d2166b.1552428161.git.christophe.leroy@c-s.fr>
+References: <cover.1552428161.git.christophe.leroy@c-s.fr> <dc2eb0480f2c87316561435cfcf4c78254d2166b.1552428161.git.christophe.leroy@c-s.fr>
+Date: Wed, 13 Mar 2019 10:38:26 +1100
+Message-ID: <87ftrracjx.fsf@dja-thinkpad.axtens.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190306235455.26348-2-jhubbard@nvidia.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+Content-Type: text/plain
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 06, 2019 at 03:54:55PM -0800, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
-> 
-> Introduces put_user_page(), which simply calls put_page().
-> This provides a way to update all get_user_pages*() callers,
-> so that they call put_user_page(), instead of put_page().
+Hi Christophe,
 
-So I've been running with these patches for a while but today while ramping up
-my testing I hit the following:
+In trying to extend my KASAN implementation to Book3S 64bit, I found one
+other change needed to prom_init. I don't know if you think it should go
+in this patch, the next one, or somewhere else entirely - I will leave
+it up to you. Just let me know if you want me to carry it separately.
 
-[ 1355.557819] ------------[ cut here ]------------
-[ 1355.563436] get_user_pages pin count overflowed
-[ 1355.563446] WARNING: CPU: 1 PID: 1740 at mm/gup.c:73 get_gup_pin_page+0xa5/0xb0
-[ 1355.577391] Modules linked in: ib_isert iscsi_target_mod ib_srpt target_core_mod ib_srp scsi_transpo
-rt_srp ext4 mbcache jbd2 mlx4_ib opa_vnic rpcrdma sunrpc rdma_ucm ib_iser rdma_cm ib_umad iw_cm libiscs
-i ib_ipoib scsi_transport_iscsi ib_cm sb_edac x86_pkg_temp_thermal intel_powerclamp coretemp kvm irqbyp
-ass snd_hda_codec_realtek ib_uverbs snd_hda_codec_generic crct10dif_pclmul ledtrig_audio snd_hda_intel
-crc32_pclmul snd_hda_codec snd_hda_core ghash_clmulni_intel snd_hwdep snd_pcm aesni_intel crypto_simd s
-nd_timer ib_core cryptd snd glue_helper dax_pmem soundcore nd_pmem ipmi_si device_dax nd_btt ioatdma nd
-_e820 ipmi_devintf ipmi_msghandler iTCO_wdt i2c_i801 iTCO_vendor_support libnvdimm pcspkr lpc_ich mei_m
-e mei mfd_core wmi pcc_cpufreq acpi_cpufreq sch_fq_codel xfs libcrc32c mlx4_en sr_mod cdrom sd_mod mgag
-200 drm_kms_helper syscopyarea sysfillrect sysimgblt fb_sys_fops mlx4_core ttm crc32c_intel igb isci ah
-ci dca libsas firewire_ohci drm i2c_algo_bit libahci scsi_transport_sas
-[ 1355.577429]  firewire_core crc_itu_t i2c_core libata dm_mod [last unloaded: rdmavt]
-[ 1355.686703] CPU: 1 PID: 1740 Comm: reg-mr Not tainted 5.0.0+ #10
-[ 1355.693851] Hardware name: Intel Corporation W2600CR/W2600CR, BIOS SE5C600.86B.02.04.0003.1023201411
-38 10/23/2014
-[ 1355.705750] RIP: 0010:get_gup_pin_page+0xa5/0xb0
-[ 1355.711348] Code: e8 40 02 ff ff 80 3d ba a2 fb 00 00 b8 b5 ff ff ff 75 bb 48 c7 c7 48 0a e9 81 89 4
-4 24 04 c6 05 a1 a2 fb 00 01 e8 35 63 e8 ff <0f> 0b 8b 44 24 04 eb 9c 0f 1f 00 66 66 66 66 90 41 57 49
-bf 00 00
-[ 1355.733244] RSP: 0018:ffffc90005a23b30 EFLAGS: 00010286
-[ 1355.739536] RAX: 0000000000000000 RBX: ffffea0014220000 RCX: 0000000000000000
-[ 1355.748005] RDX: 0000000000000003 RSI: ffffffff827d94a3 RDI: 0000000000000246
-[ 1355.756453] RBP: ffffea0014220000 R08: 0000000000000002 R09: 0000000000022400
-[ 1355.764907] R10: 0009ccf0ad0c4203 R11: 0000000000000001 R12: 0000000000010207
-[ 1355.773369] R13: ffff8884130b7040 R14: fff0000000000fff R15: 000fffffffe00000
-[ 1355.781836] FS:  00007f2680d0d740(0000) GS:ffff88842e840000(0000) knlGS:0000000000000000
-[ 1355.791384] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[ 1355.798319] CR2: 0000000000589000 CR3: 000000040b05e004 CR4: 00000000000606e0
-[ 1355.806809] Call Trace:
-[ 1355.810078]  follow_page_pte+0x4f3/0x5c0
-[ 1355.814987]  __get_user_pages+0x1eb/0x730
-[ 1355.820020]  get_user_pages+0x3e/0x50
-[ 1355.824657]  ib_umem_get+0x283/0x500 [ib_uverbs]
-[ 1355.830340]  ? _cond_resched+0x15/0x30
-[ 1355.835065]  mlx4_ib_reg_user_mr+0x75/0x1e0 [mlx4_ib]
-[ 1355.841235]  ib_uverbs_reg_mr+0x10c/0x220 [ib_uverbs]
-[ 1355.847400]  ib_uverbs_write+0x2f9/0x4d0 [ib_uverbs]
-[ 1355.853473]  __vfs_write+0x36/0x1b0
-[ 1355.857904]  ? selinux_file_permission+0xf0/0x130
-[ 1355.863702]  ? security_file_permission+0x2e/0xe0
-[ 1355.869503]  vfs_write+0xa5/0x1a0
-[ 1355.873751]  ksys_write+0x4f/0xb0
-[ 1355.878009]  do_syscall_64+0x5b/0x180
-[ 1355.882656]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
-[ 1355.888862] RIP: 0033:0x7f2680ec3ed8
-[ 1355.893420] Code: 89 02 48 c7 c0 ff ff ff ff eb b3 0f 1f 80 00 00 00 00 f3 0f 1e fa 48 8d 05 45 78 0
-d 00 8b 00 85 c0 75 17 b8 01 00 00 00 0f 05 <48> 3d 00 f0 ff ff 77 58 c3 0f 1f 80 00 00 00 00 41 54 49
-89 d4 55
-[ 1355.915573] RSP: 002b:00007ffe65d50bc8 EFLAGS: 00000246 ORIG_RAX: 0000000000000001
-[ 1355.924621] RAX: ffffffffffffffda RBX: 00007ffe65d50c74 RCX: 00007f2680ec3ed8
-[ 1355.933195] RDX: 0000000000000030 RSI: 00007ffe65d50c80 RDI: 0000000000000003
-[ 1355.941760] RBP: 0000000000000030 R08: 0000000000000007 R09: 0000000000581260
-[ 1355.950326] R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000581930
-[ 1355.958885] R13: 000000000000000c R14: 0000000000581260 R15: 0000000000000000
-[ 1355.967430] ---[ end trace bc771ac6189977a2 ]---
+Thanks again for all your work on this and the integration of my series.
 
+Regards,
+Daniel
 
-I'm not sure what I did to do this and I'm going to work on a reproducer.  At
-the time of the Warning I only had 1 GUP user?!?!?!?!
+diff --git a/arch/powerpc/kernel/prom_init.c b/arch/powerpc/kernel/prom_init.c
+index 7017156168e8..cebb3fc535ba 100644
+--- a/arch/powerpc/kernel/prom_init.c
++++ b/arch/powerpc/kernel/prom_init.c
+@@ -1265,7 +1265,8 @@ static void __init prom_check_platform_support(void)
+                                       "ibm,arch-vec-5-platform-support");
+ 
+        /* First copy the architecture vec template */
+-       ibm_architecture_vec = ibm_architecture_vec_template;
++       memcpy(&ibm_architecture_vec, &ibm_architecture_vec_template,
++              sizeof(struct ibm_arch_vec));
+ 
+        if (prop_len > 1) {
+                int i;
 
-I'm not using ODP, so I don't think the changes we have discussed there are a
-problem.
-
-Ira
-
-> 
-> Also introduces put_user_pages(), and a few dirty/locked variations,
-> as a replacement for release_pages(), and also as a replacement
-> for open-coded loops that release multiple pages.
-> These may be used for subsequent performance improvements,
-> via batching of pages to be released.
-> 
-> This is the first step of fixing a problem (also described in [1] and
-> [2]) with interactions between get_user_pages ("gup") and filesystems.
-> 
-> Problem description: let's start with a bug report. Below, is what happens
-> sometimes, under memory pressure, when a driver pins some pages via gup,
-> and then marks those pages dirty, and releases them. Note that the gup
-> documentation actually recommends that pattern. The problem is that the
-> filesystem may do a writeback while the pages were gup-pinned, and then the
-> filesystem believes that the pages are clean. So, when the driver later
-> marks the pages as dirty, that conflicts with the filesystem's page
-> tracking and results in a BUG(), like this one that I experienced:
-> 
->     kernel BUG at /build/linux-fQ94TU/linux-4.4.0/fs/ext4/inode.c:1899!
->     backtrace:
->         ext4_writepage
->         __writepage
->         write_cache_pages
->         ext4_writepages
->         do_writepages
->         __writeback_single_inode
->         writeback_sb_inodes
->         __writeback_inodes_wb
->         wb_writeback
->         wb_workfn
->         process_one_work
->         worker_thread
->         kthread
->         ret_from_fork
-> 
-> ...which is due to the file system asserting that there are still buffer
-> heads attached:
-> 
->         ({                                                      \
->                 BUG_ON(!PagePrivate(page));                     \
->                 ((struct buffer_head *)page_private(page));     \
->         })
-> 
-> Dave Chinner's description of this is very clear:
-> 
->     "The fundamental issue is that ->page_mkwrite must be called on every
->     write access to a clean file backed page, not just the first one.
->     How long the GUP reference lasts is irrelevant, if the page is clean
->     and you need to dirty it, you must call ->page_mkwrite before it is
->     marked writeable and dirtied. Every. Time."
-> 
-> This is just one symptom of the larger design problem: filesystems do not
-> actually support get_user_pages() being called on their pages, and letting
-> hardware write directly to those pages--even though that patter has been
-> going on since about 2005 or so.
-> 
-> The steps are to fix it are:
-> 
-> 1) (This patch): provide put_user_page*() routines, intended to be used
->    for releasing pages that were pinned via get_user_pages*().
-> 
-> 2) Convert all of the call sites for get_user_pages*(), to
->    invoke put_user_page*(), instead of put_page(). This involves dozens of
->    call sites, and will take some time.
-> 
-> 3) After (2) is complete, use get_user_pages*() and put_user_page*() to
->    implement tracking of these pages. This tracking will be separate from
->    the existing struct page refcounting.
-> 
-> 4) Use the tracking and identification of these pages, to implement
->    special handling (especially in writeback paths) when the pages are
->    backed by a filesystem.
-> 
-> [1] https://lwn.net/Articles/774411/ : "DMA and get_user_pages()"
-> [2] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
-> 
-> Cc: Al Viro <viro@zeniv.linux.org.uk>
-> Cc: Christoph Hellwig <hch@infradead.org>
-> Cc: Christopher Lameter <cl@linux.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Dave Chinner <david@fromorbit.com>
-> Cc: Ira Weiny <ira.weiny@intel.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Jason Gunthorpe <jgg@ziepe.ca>
-> Cc: Jerome Glisse <jglisse@redhat.com>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Mike Rapoport <rppt@linux.ibm.com>
-> Cc: Ralph Campbell <rcampbell@nvidia.com>
-> 
-> Reviewed-by: Jan Kara <jack@suse.cz>
-> Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>    # docs
-> Reviewed-by: Ira Weiny <ira.weiny@intel.com>
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+> When KASAN is active, the string functions in lib/ are doing the
+> KASAN checks. This is too early for prom_init.
+>
+> This patch implements dedicated string functions for prom_init,
+> which will be compiled in with KASAN disabled.
+>
+> Size of prom_init before the patch:
+>    text	   data	    bss	    dec	    hex	filename
+>   12060	    488	   6960	  19508	   4c34	arch/powerpc/kernel/prom_init.o
+>
+> Size of prom_init after the patch:
+>    text	   data	    bss	    dec	    hex	filename
+>   12460	    488	   6960	  19908	   4dc4	arch/powerpc/kernel/prom_init.o
+>
+> This increases the size of prom_init a bit, but as prom_init is
+> in __init section, it is freed after boot anyway.
+>
+> Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
 > ---
->  include/linux/mm.h | 24 ++++++++++++++
->  mm/swap.c          | 82 ++++++++++++++++++++++++++++++++++++++++++++++
->  2 files changed, 106 insertions(+)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 80bb6408fe73..809b7397d41e 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -993,6 +993,30 @@ static inline void put_page(struct page *page)
->  		__put_page(page);
->  }
+>  arch/powerpc/kernel/prom_init.c        | 211 ++++++++++++++++++++++++++-------
+>  arch/powerpc/kernel/prom_init_check.sh |   2 +-
+>  2 files changed, 171 insertions(+), 42 deletions(-)
+>
+> diff --git a/arch/powerpc/kernel/prom_init.c b/arch/powerpc/kernel/prom_init.c
+> index ecf083c46bdb..7017156168e8 100644
+> --- a/arch/powerpc/kernel/prom_init.c
+> +++ b/arch/powerpc/kernel/prom_init.c
+> @@ -224,6 +224,135 @@ static bool  __prombss rtas_has_query_cpu_stopped;
+>  #define PHANDLE_VALID(p)	((p) != 0 && (p) != PROM_ERROR)
+>  #define IHANDLE_VALID(i)	((i) != 0 && (i) != PROM_ERROR)
 >  
-> +/**
-> + * put_user_page() - release a gup-pinned page
-> + * @page:            pointer to page to be released
-> + *
-> + * Pages that were pinned via get_user_pages*() must be released via
-> + * either put_user_page(), or one of the put_user_pages*() routines
-> + * below. This is so that eventually, pages that are pinned via
-> + * get_user_pages*() can be separately tracked and uniquely handled. In
-> + * particular, interactions with RDMA and filesystems need special
-> + * handling.
-> + *
-> + * put_user_page() and put_page() are not interchangeable, despite this early
-> + * implementation that makes them look the same. put_user_page() calls must
-> + * be perfectly matched up with get_user_page() calls.
-> + */
-> +static inline void put_user_page(struct page *page)
+> +/* Copied from lib/string.c and lib/kstrtox.c */
+> +
+> +static int __init prom_strcmp(const char *cs, const char *ct)
 > +{
-> +	put_page(page);
-> +}
+> +	unsigned char c1, c2;
 > +
-> +void put_user_pages_dirty(struct page **pages, unsigned long npages);
-> +void put_user_pages_dirty_lock(struct page **pages, unsigned long npages);
-> +void put_user_pages(struct page **pages, unsigned long npages);
-> +
->  #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
->  #define SECTION_IN_PAGE_FLAGS
->  #endif
-> diff --git a/mm/swap.c b/mm/swap.c
-> index 4d7d37eb3c40..a6b4f693f46d 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -133,6 +133,88 @@ void put_pages_list(struct list_head *pages)
->  }
->  EXPORT_SYMBOL(put_pages_list);
->  
-> +typedef int (*set_dirty_func)(struct page *page);
-> +
-> +static void __put_user_pages_dirty(struct page **pages,
-> +				   unsigned long npages,
-> +				   set_dirty_func sdf)
-> +{
-> +	unsigned long index;
-> +
-> +	for (index = 0; index < npages; index++) {
-> +		struct page *page = compound_head(pages[index]);
-> +
-> +		if (!PageDirty(page))
-> +			sdf(page);
-> +
-> +		put_user_page(page);
+> +	while (1) {
+> +		c1 = *cs++;
+> +		c2 = *ct++;
+> +		if (c1 != c2)
+> +			return c1 < c2 ? -1 : 1;
+> +		if (!c1)
+> +			break;
 > +	}
+> +	return 0;
 > +}
 > +
-> +/**
-> + * put_user_pages_dirty() - release and dirty an array of gup-pinned pages
-> + * @pages:  array of pages to be marked dirty and released.
-> + * @npages: number of pages in the @pages array.
-> + *
-> + * "gup-pinned page" refers to a page that has had one of the get_user_pages()
-> + * variants called on that page.
-> + *
-> + * For each page in the @pages array, make that page (or its head page, if a
-> + * compound page) dirty, if it was previously listed as clean. Then, release
-> + * the page using put_user_page().
-> + *
-> + * Please see the put_user_page() documentation for details.
-> + *
-> + * set_page_dirty(), which does not lock the page, is used here.
-> + * Therefore, it is the caller's responsibility to ensure that this is
-> + * safe. If not, then put_user_pages_dirty_lock() should be called instead.
-> + *
-> + */
-> +void put_user_pages_dirty(struct page **pages, unsigned long npages)
+> +static char __init *prom_strcpy(char *dest, const char *src)
 > +{
-> +	__put_user_pages_dirty(pages, npages, set_page_dirty);
-> +}
-> +EXPORT_SYMBOL(put_user_pages_dirty);
+> +	char *tmp = dest;
 > +
-> +/**
-> + * put_user_pages_dirty_lock() - release and dirty an array of gup-pinned pages
-> + * @pages:  array of pages to be marked dirty and released.
-> + * @npages: number of pages in the @pages array.
-> + *
-> + * For each page in the @pages array, make that page (or its head page, if a
-> + * compound page) dirty, if it was previously listed as clean. Then, release
-> + * the page using put_user_page().
-> + *
-> + * Please see the put_user_page() documentation for details.
-> + *
-> + * This is just like put_user_pages_dirty(), except that it invokes
-> + * set_page_dirty_lock(), instead of set_page_dirty().
-> + *
-> + */
-> +void put_user_pages_dirty_lock(struct page **pages, unsigned long npages)
+> +	while ((*dest++ = *src++) != '\0')
+> +		/* nothing */;
+> +	return tmp;
+> +}
+> +
+> +static int __init prom_strncmp(const char *cs, const char *ct, size_t count)
 > +{
-> +	__put_user_pages_dirty(pages, npages, set_page_dirty_lock);
-> +}
-> +EXPORT_SYMBOL(put_user_pages_dirty_lock);
+> +	unsigned char c1, c2;
 > +
-> +/**
-> + * put_user_pages() - release an array of gup-pinned pages.
-> + * @pages:  array of pages to be marked dirty and released.
-> + * @npages: number of pages in the @pages array.
-> + *
-> + * For each page in the @pages array, release the page using put_user_page().
-> + *
-> + * Please see the put_user_page() documentation for details.
-> + */
-> +void put_user_pages(struct page **pages, unsigned long npages)
+> +	while (count) {
+> +		c1 = *cs++;
+> +		c2 = *ct++;
+> +		if (c1 != c2)
+> +			return c1 < c2 ? -1 : 1;
+> +		if (!c1)
+> +			break;
+> +		count--;
+> +	}
+> +	return 0;
+> +}
+> +
+> +static size_t __init prom_strlen(const char *s)
 > +{
-> +	unsigned long index;
+> +	const char *sc;
 > +
-> +	for (index = 0; index < npages; index++)
-> +		put_user_page(pages[index]);
+> +	for (sc = s; *sc != '\0'; ++sc)
+> +		/* nothing */;
+> +	return sc - s;
 > +}
-> +EXPORT_SYMBOL(put_user_pages);
 > +
->  /*
->   * get_kernel_pages() - pin kernel pages in memory
->   * @kiov:	An array of struct kvec structures
+> +static int __init prom_memcmp(const void *cs, const void *ct, size_t count)
+> +{
+> +	const unsigned char *su1, *su2;
+> +	int res = 0;
+> +
+> +	for (su1 = cs, su2 = ct; 0 < count; ++su1, ++su2, count--)
+> +		if ((res = *su1 - *su2) != 0)
+> +			break;
+> +	return res;
+> +}
+> +
+> +static char __init *prom_strstr(const char *s1, const char *s2)
+> +{
+> +	size_t l1, l2;
+> +
+> +	l2 = prom_strlen(s2);
+> +	if (!l2)
+> +		return (char *)s1;
+> +	l1 = prom_strlen(s1);
+> +	while (l1 >= l2) {
+> +		l1--;
+> +		if (!prom_memcmp(s1, s2, l2))
+> +			return (char *)s1;
+> +		s1++;
+> +	}
+> +	return NULL;
+> +}
+> +
+> +static size_t __init prom_strlcpy(char *dest, const char *src, size_t size)
+> +{
+> +	size_t ret = prom_strlen(src);
+> +
+> +	if (size) {
+> +		size_t len = (ret >= size) ? size - 1 : ret;
+> +		memcpy(dest, src, len);
+> +		dest[len] = '\0';
+> +	}
+> +	return ret;
+> +}
+> +
+> +#ifdef CONFIG_PPC_PSERIES
+> +static int __init prom_strtobool(const char *s, bool *res)
+> +{
+> +	if (!s)
+> +		return -EINVAL;
+> +
+> +	switch (s[0]) {
+> +	case 'y':
+> +	case 'Y':
+> +	case '1':
+> +		*res = true;
+> +		return 0;
+> +	case 'n':
+> +	case 'N':
+> +	case '0':
+> +		*res = false;
+> +		return 0;
+> +	case 'o':
+> +	case 'O':
+> +		switch (s[1]) {
+> +		case 'n':
+> +		case 'N':
+> +			*res = true;
+> +			return 0;
+> +		case 'f':
+> +		case 'F':
+> +			*res = false;
+> +			return 0;
+> +		default:
+> +			break;
+> +		}
+> +	default:
+> +		break;
+> +	}
+> +
+> +	return -EINVAL;
+> +}
+> +#endif
+>  
+>  /* This is the one and *ONLY* place where we actually call open
+>   * firmware.
+> @@ -555,7 +684,7 @@ static int __init prom_setprop(phandle node, const char *nodename,
+>  	add_string(&p, tohex((u32)(unsigned long) value));
+>  	add_string(&p, tohex(valuelen));
+>  	add_string(&p, tohex(ADDR(pname)));
+> -	add_string(&p, tohex(strlen(pname)));
+> +	add_string(&p, tohex(prom_strlen(pname)));
+>  	add_string(&p, "property");
+>  	*p = 0;
+>  	return call_prom("interpret", 1, 1, (u32)(unsigned long) cmd);
+> @@ -638,23 +767,23 @@ static void __init early_cmdline_parse(void)
+>  	if ((long)prom.chosen > 0)
+>  		l = prom_getprop(prom.chosen, "bootargs", p, COMMAND_LINE_SIZE-1);
+>  	if (IS_ENABLED(CONFIG_CMDLINE_BOOL) && (l <= 0 || p[0] == '\0')) /* dbl check */
+> -		strlcpy(prom_cmd_line, CONFIG_CMDLINE, sizeof(prom_cmd_line));
+> +		prom_strlcpy(prom_cmd_line, CONFIG_CMDLINE, sizeof(prom_cmd_line));
+>  	prom_printf("command line: %s\n", prom_cmd_line);
+>  
+>  #ifdef CONFIG_PPC64
+> -	opt = strstr(prom_cmd_line, "iommu=");
+> +	opt = prom_strstr(prom_cmd_line, "iommu=");
+>  	if (opt) {
+>  		prom_printf("iommu opt is: %s\n", opt);
+>  		opt += 6;
+>  		while (*opt && *opt == ' ')
+>  			opt++;
+> -		if (!strncmp(opt, "off", 3))
+> +		if (!prom_strncmp(opt, "off", 3))
+>  			prom_iommu_off = 1;
+> -		else if (!strncmp(opt, "force", 5))
+> +		else if (!prom_strncmp(opt, "force", 5))
+>  			prom_iommu_force_on = 1;
+>  	}
+>  #endif
+> -	opt = strstr(prom_cmd_line, "mem=");
+> +	opt = prom_strstr(prom_cmd_line, "mem=");
+>  	if (opt) {
+>  		opt += 4;
+>  		prom_memory_limit = prom_memparse(opt, (const char **)&opt);
+> @@ -666,13 +795,13 @@ static void __init early_cmdline_parse(void)
+>  
+>  #ifdef CONFIG_PPC_PSERIES
+>  	prom_radix_disable = !IS_ENABLED(CONFIG_PPC_RADIX_MMU_DEFAULT);
+> -	opt = strstr(prom_cmd_line, "disable_radix");
+> +	opt = prom_strstr(prom_cmd_line, "disable_radix");
+>  	if (opt) {
+>  		opt += 13;
+>  		if (*opt && *opt == '=') {
+>  			bool val;
+>  
+> -			if (kstrtobool(++opt, &val))
+> +			if (prom_strtobool(++opt, &val))
+>  				prom_radix_disable = false;
+>  			else
+>  				prom_radix_disable = val;
+> @@ -1025,7 +1154,7 @@ static int __init prom_count_smt_threads(void)
+>  		type[0] = 0;
+>  		prom_getprop(node, "device_type", type, sizeof(type));
+>  
+> -		if (strcmp(type, "cpu"))
+> +		if (prom_strcmp(type, "cpu"))
+>  			continue;
+>  		/*
+>  		 * There is an entry for each smt thread, each entry being
+> @@ -1472,7 +1601,7 @@ static void __init prom_init_mem(void)
+>  			 */
+>  			prom_getprop(node, "name", type, sizeof(type));
+>  		}
+> -		if (strcmp(type, "memory"))
+> +		if (prom_strcmp(type, "memory"))
+>  			continue;
+>  
+>  		plen = prom_getprop(node, "reg", regbuf, sizeof(regbuf));
+> @@ -1753,19 +1882,19 @@ static void __init prom_initialize_tce_table(void)
+>  		prom_getprop(node, "device_type", type, sizeof(type));
+>  		prom_getprop(node, "model", model, sizeof(model));
+>  
+> -		if ((type[0] == 0) || (strstr(type, "pci") == NULL))
+> +		if ((type[0] == 0) || (prom_strstr(type, "pci") == NULL))
+>  			continue;
+>  
+>  		/* Keep the old logic intact to avoid regression. */
+>  		if (compatible[0] != 0) {
+> -			if ((strstr(compatible, "python") == NULL) &&
+> -			    (strstr(compatible, "Speedwagon") == NULL) &&
+> -			    (strstr(compatible, "Winnipeg") == NULL))
+> +			if ((prom_strstr(compatible, "python") == NULL) &&
+> +			    (prom_strstr(compatible, "Speedwagon") == NULL) &&
+> +			    (prom_strstr(compatible, "Winnipeg") == NULL))
+>  				continue;
+>  		} else if (model[0] != 0) {
+> -			if ((strstr(model, "ython") == NULL) &&
+> -			    (strstr(model, "peedwagon") == NULL) &&
+> -			    (strstr(model, "innipeg") == NULL))
+> +			if ((prom_strstr(model, "ython") == NULL) &&
+> +			    (prom_strstr(model, "peedwagon") == NULL) &&
+> +			    (prom_strstr(model, "innipeg") == NULL))
+>  				continue;
+>  		}
+>  
+> @@ -1914,12 +2043,12 @@ static void __init prom_hold_cpus(void)
+>  
+>  		type[0] = 0;
+>  		prom_getprop(node, "device_type", type, sizeof(type));
+> -		if (strcmp(type, "cpu") != 0)
+> +		if (prom_strcmp(type, "cpu") != 0)
+>  			continue;
+>  
+>  		/* Skip non-configured cpus. */
+>  		if (prom_getprop(node, "status", type, sizeof(type)) > 0)
+> -			if (strcmp(type, "okay") != 0)
+> +			if (prom_strcmp(type, "okay") != 0)
+>  				continue;
+>  
+>  		reg = cpu_to_be32(-1); /* make sparse happy */
+> @@ -1995,9 +2124,9 @@ static void __init prom_find_mmu(void)
+>  		return;
+>  	version[sizeof(version) - 1] = 0;
+>  	/* XXX might need to add other versions here */
+> -	if (strcmp(version, "Open Firmware, 1.0.5") == 0)
+> +	if (prom_strcmp(version, "Open Firmware, 1.0.5") == 0)
+>  		of_workarounds = OF_WA_CLAIM;
+> -	else if (strncmp(version, "FirmWorks,3.", 12) == 0) {
+> +	else if (prom_strncmp(version, "FirmWorks,3.", 12) == 0) {
+>  		of_workarounds = OF_WA_CLAIM | OF_WA_LONGTRAIL;
+>  		call_prom("interpret", 1, 1, "dev /memory 0 to allow-reclaim");
+>  	} else
+> @@ -2030,7 +2159,7 @@ static void __init prom_init_stdout(void)
+>  	call_prom("instance-to-path", 3, 1, prom.stdout, path, 255);
+>  	prom_printf("OF stdout device is: %s\n", of_stdout_device);
+>  	prom_setprop(prom.chosen, "/chosen", "linux,stdout-path",
+> -		     path, strlen(path) + 1);
+> +		     path, prom_strlen(path) + 1);
+>  
+>  	/* instance-to-package fails on PA-Semi */
+>  	stdout_node = call_prom("instance-to-package", 1, 1, prom.stdout);
+> @@ -2040,7 +2169,7 @@ static void __init prom_init_stdout(void)
+>  		/* If it's a display, note it */
+>  		memset(type, 0, sizeof(type));
+>  		prom_getprop(stdout_node, "device_type", type, sizeof(type));
+> -		if (strcmp(type, "display") == 0)
+> +		if (prom_strcmp(type, "display") == 0)
+>  			prom_setprop(stdout_node, path, "linux,boot-display", NULL, 0);
+>  	}
+>  }
+> @@ -2061,19 +2190,19 @@ static int __init prom_find_machine_type(void)
+>  		compat[len] = 0;
+>  		while (i < len) {
+>  			char *p = &compat[i];
+> -			int sl = strlen(p);
+> +			int sl = prom_strlen(p);
+>  			if (sl == 0)
+>  				break;
+> -			if (strstr(p, "Power Macintosh") ||
+> -			    strstr(p, "MacRISC"))
+> +			if (prom_strstr(p, "Power Macintosh") ||
+> +			    prom_strstr(p, "MacRISC"))
+>  				return PLATFORM_POWERMAC;
+>  #ifdef CONFIG_PPC64
+>  			/* We must make sure we don't detect the IBM Cell
+>  			 * blades as pSeries due to some firmware issues,
+>  			 * so we do it here.
+>  			 */
+> -			if (strstr(p, "IBM,CBEA") ||
+> -			    strstr(p, "IBM,CPBW-1.0"))
+> +			if (prom_strstr(p, "IBM,CBEA") ||
+> +			    prom_strstr(p, "IBM,CPBW-1.0"))
+>  				return PLATFORM_GENERIC;
+>  #endif /* CONFIG_PPC64 */
+>  			i += sl + 1;
+> @@ -2090,7 +2219,7 @@ static int __init prom_find_machine_type(void)
+>  			   compat, sizeof(compat)-1);
+>  	if (len <= 0)
+>  		return PLATFORM_GENERIC;
+> -	if (strcmp(compat, "chrp"))
+> +	if (prom_strcmp(compat, "chrp"))
+>  		return PLATFORM_GENERIC;
+>  
+>  	/* Default to pSeries. We need to know if we are running LPAR */
+> @@ -2152,7 +2281,7 @@ static void __init prom_check_displays(void)
+>  	for (node = 0; prom_next_node(&node); ) {
+>  		memset(type, 0, sizeof(type));
+>  		prom_getprop(node, "device_type", type, sizeof(type));
+> -		if (strcmp(type, "display") != 0)
+> +		if (prom_strcmp(type, "display") != 0)
+>  			continue;
+>  
+>  		/* It seems OF doesn't null-terminate the path :-( */
+> @@ -2256,9 +2385,9 @@ static unsigned long __init dt_find_string(char *str)
+>  	s = os = (char *)dt_string_start;
+>  	s += 4;
+>  	while (s <  (char *)dt_string_end) {
+> -		if (strcmp(s, str) == 0)
+> +		if (prom_strcmp(s, str) == 0)
+>  			return s - os;
+> -		s += strlen(s) + 1;
+> +		s += prom_strlen(s) + 1;
+>  	}
+>  	return 0;
+>  }
+> @@ -2291,7 +2420,7 @@ static void __init scan_dt_build_strings(phandle node,
+>  		}
+>  
+>   		/* skip "name" */
+> - 		if (strcmp(namep, "name") == 0) {
+> +		if (prom_strcmp(namep, "name") == 0) {
+>   			*mem_start = (unsigned long)namep;
+>   			prev_name = "name";
+>   			continue;
+> @@ -2303,7 +2432,7 @@ static void __init scan_dt_build_strings(phandle node,
+>  			namep = sstart + soff;
+>  		} else {
+>  			/* Trim off some if we can */
+> -			*mem_start = (unsigned long)namep + strlen(namep) + 1;
+> +			*mem_start = (unsigned long)namep + prom_strlen(namep) + 1;
+>  			dt_string_end = *mem_start;
+>  		}
+>  		prev_name = namep;
+> @@ -2372,7 +2501,7 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
+>  			break;
+>  
+>   		/* skip "name" */
+> - 		if (strcmp(pname, "name") == 0) {
+> +		if (prom_strcmp(pname, "name") == 0) {
+>   			prev_name = "name";
+>   			continue;
+>   		}
+> @@ -2403,7 +2532,7 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
+>  		call_prom("getprop", 4, 1, node, pname, valp, l);
+>  		*mem_start = _ALIGN(*mem_start, 4);
+>  
+> -		if (!strcmp(pname, "phandle"))
+> +		if (!prom_strcmp(pname, "phandle"))
+>  			has_phandle = 1;
+>  	}
+>  
+> @@ -2473,8 +2602,8 @@ static void __init flatten_device_tree(void)
+>  
+>  	/* Add "phandle" in there, we'll need it */
+>  	namep = make_room(&mem_start, &mem_end, 16, 1);
+> -	strcpy(namep, "phandle");
+> -	mem_start = (unsigned long)namep + strlen(namep) + 1;
+> +	prom_strcpy(namep, "phandle");
+> +	mem_start = (unsigned long)namep + prom_strlen(namep) + 1;
+>  
+>  	/* Build string array */
+>  	prom_printf("Building dt strings...\n"); 
+> @@ -2796,7 +2925,7 @@ static void __init fixup_device_tree_efika(void)
+>  	rv = prom_getprop(node, "model", prop, sizeof(prop));
+>  	if (rv == PROM_ERROR)
+>  		return;
+> -	if (strcmp(prop, "EFIKA5K2"))
+> +	if (prom_strcmp(prop, "EFIKA5K2"))
+>  		return;
+>  
+>  	prom_printf("Applying EFIKA device tree fixups\n");
+> @@ -2804,13 +2933,13 @@ static void __init fixup_device_tree_efika(void)
+>  	/* Claiming to be 'chrp' is death */
+>  	node = call_prom("finddevice", 1, 1, ADDR("/"));
+>  	rv = prom_getprop(node, "device_type", prop, sizeof(prop));
+> -	if (rv != PROM_ERROR && (strcmp(prop, "chrp") == 0))
+> +	if (rv != PROM_ERROR && (prom_strcmp(prop, "chrp") == 0))
+>  		prom_setprop(node, "/", "device_type", "efika", sizeof("efika"));
+>  
+>  	/* CODEGEN,description is exposed in /proc/cpuinfo so
+>  	   fix that too */
+>  	rv = prom_getprop(node, "CODEGEN,description", prop, sizeof(prop));
+> -	if (rv != PROM_ERROR && (strstr(prop, "CHRP")))
+> +	if (rv != PROM_ERROR && (prom_strstr(prop, "CHRP")))
+>  		prom_setprop(node, "/", "CODEGEN,description",
+>  			     "Efika 5200B PowerPC System",
+>  			     sizeof("Efika 5200B PowerPC System"));
+> diff --git a/arch/powerpc/kernel/prom_init_check.sh b/arch/powerpc/kernel/prom_init_check.sh
+> index 181fd10008ef..4cac45cb5de5 100644
+> --- a/arch/powerpc/kernel/prom_init_check.sh
+> +++ b/arch/powerpc/kernel/prom_init_check.sh
+> @@ -27,7 +27,7 @@ fi
+>  WHITELIST="add_reloc_offset __bss_start __bss_stop copy_and_flush
+>  _end enter_prom $MEM_FUNCS reloc_offset __secondary_hold
+>  __secondary_hold_acknowledge __secondary_hold_spinloop __start
+> -strcmp strcpy strlcpy strlen strncmp strstr kstrtobool logo_linux_clut224
+> +logo_linux_clut224
+>  reloc_got2 kernstart_addr memstart_addr linux_banner _stext
+>  __prom_init_toc_start __prom_init_toc_end btext_setup_display TOC."
+>  
 > -- 
-> 2.21.0
-> 
+> 2.13.3
 
