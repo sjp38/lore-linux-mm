@@ -2,189 +2,193 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A516C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 10:37:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BDD48C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 11:05:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9F49020449
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 10:37:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9F49020449
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 6C0FA206DF
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 11:05:21 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="mOW5+EKM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6C0FA206DF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0CACE8E0003; Tue, 12 Mar 2019 06:37:16 -0400 (EDT)
+	id E72038E0003; Tue, 12 Mar 2019 07:05:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0539E8E0002; Tue, 12 Mar 2019 06:37:16 -0400 (EDT)
+	id E22028E0002; Tue, 12 Mar 2019 07:05:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E5EEB8E0003; Tue, 12 Mar 2019 06:37:15 -0400 (EDT)
+	id D384C8E0003; Tue, 12 Mar 2019 07:05:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8837B8E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 06:37:15 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id k21so900179eds.19
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 03:37:15 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A88CD8E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 07:05:20 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id i24so1497730iol.21
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 04:05:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=Z1k/I+a9ysUE55mD4bf8R56mFDe27wL1ClBMSKt65mI=;
-        b=ZNX6vGjGPcuBNQZtY9t4ZUgkff+M3vudb0L/OhIeclRO21SFtbXzXr3NL+2hVOGmg9
-         o2zVUS7RNdsvPUfbjiM8TNfxL5xE//4YkTWxe7z3B4XBqodt9yM0Rl0HjvJb5AqClok5
-         psc4bA/Js8jIgtX5pqLNqjxXyW/H1Xpr05DiwoMnPi999St+ZZIMqEgsitB7g4045n0y
-         PhJ76ImMDRBB0+pAJUak8jIntl7bqcGMyzc/9lDyjJ40dMajrf7a6YAQFZcoNH2CE7D9
-         m3SYaQLOUZPTontjfu+QLTRQGrKmKHHyPuVHUAqfitpXiV4fQqcr/BHV3D5i9hgcqidu
-         vpwA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of suzuki.poulose@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=suzuki.poulose@arm.com
-X-Gm-Message-State: APjAAAVooDp5NOpCMzX4ZOJt1hVUph/sz2G2yNJj3MdAjlqoSF+uCgDh
-	BWVAmjO9H7kZFlFzZKy1ZIc2uNzm8CRGcL3qUF1cvhiPWpFHcayEc+oQfymXkeQOy/Br12QgRzb
-	sFrB7Vmd7TepLgTTmdLWZCNhjFsNkReztxQKVbhQ+NAEp/kCuRCg8WTKYJnQxB9N/wQ==
-X-Received: by 2002:a17:906:d0ce:: with SMTP id bq14mr4848026ejb.33.1552387034994;
-        Tue, 12 Mar 2019 03:37:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxewK9xkLohaRaIZqW3RotNpI+Xn+rI3C+J+XsMsA8QRu5d4NLWAEOC1ErFJN5cV6C5mAN/
-X-Received: by 2002:a17:906:d0ce:: with SMTP id bq14mr4847960ejb.33.1552387033501;
-        Tue, 12 Mar 2019 03:37:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552387033; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=xH7u0SIa2NIqLp+XLrFdsgjL0uBSb7uHvpHDRDB7p5U=;
+        b=Gf4lmTtgnP30BeKepE3ShhrvrUz/m0ITE+rmV12ZDUCDj0qkz/A0Yq+e+n6baei9fM
+         eCRj/WRXOjSrlL+hOqqDJTysdmSc+vlR00AjQOk5synfSkFckMT5Sg4bJvwcnTRbJ1pR
+         jNF6QovxPrWDx2qhdweoE2c9dTIbZeelO7+p2YznlwAVZ0kp/phvwq7xQZ9ZtDwH6lvV
+         lD8aEKCDHUGq8a1599zPvEtjZT4Fjvm2BpFMifrNSjT3LztQ2DsMMIEZWkLPrfWW65J3
+         aUt5OccT9wv0IF8xj6EOl5ttNNKuWmvQtH5HhojoomQ5Prir2oBNlEAVc37qxG7Sb02g
+         YKOA==
+X-Gm-Message-State: APjAAAU4XZKtYVwXvy1t+dBsXl/CKISPs9jJ2WsUOghj/Jtx/aRy8KIo
+	SblOV5uMXeyIgoIE/Q6joLVo4j8HNLU8JVau88X7P/ow0NQWKs6YoEkDouavJHiCIDcKKOegeb3
+	6xjKIUJHR16IIJdxc9C/56Y+c5KRO8qCTZ8wBNLvfruRekBNJQGJjU+bICz4KjAyWEuvns8bWh1
+	m0IQ72Hdxvv0FxBSjBzryujnnmmtYmb7QtDrup6yYKpYfIo9XYTFy/37xjCgQHZUZJYKv4fpj7+
+	lQwTWRU+CMeLiLd3zWLcPbqjomi8HhmQA9plfoCsCNw1hfGeD3sajFlGWobYtv4le4s1uPoCC4g
+	KkXZyEdnc83hmKE3Ei2bmCGtDwbvhRx+gWdr2Y2a92idZpp2O9BXi7cAADpAaMGGlg72qmdj9L1
+	E
+X-Received: by 2002:a24:5a8d:: with SMTP id v135mr1618032ita.87.1552388720436;
+        Tue, 12 Mar 2019 04:05:20 -0700 (PDT)
+X-Received: by 2002:a24:5a8d:: with SMTP id v135mr1617976ita.87.1552388719297;
+        Tue, 12 Mar 2019 04:05:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552388719; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ug5+2/zbhWJQ/+tJ5dUxu1GUUf/VEb7pxHmR5bIr42QNI4Jw+BM0Ccxh3ikfIFoBcS
-         fGwrWGKXC9TEzHpo1UQgag/PqiwIOI9QV+1E+A8+3rLWEBVWTg2U8lSlGYmB4C2gEhA5
-         9IFB/CD9VLWliQADLj087pkKtzpo+4VZBK/WxuEqP2HLMKAa/d6LERs6PDlVyeGRXVZF
-         elK6jQzIPzaI59MRs3k2MSNREsfVkDZ9hHiguH+7TTM+6pe/VhfFth1u9x9VAJztnBbg
-         SxrEe+id3q91fR9s8Gr0YLlNEj7AP3u6Qxb5Gp8bfbywZPJMlWLIY6Lx5DIbu3tICF6g
-         lMZw==
+        b=ocEvZalGIYq9fG7zLV1R3E1KoNNFGmTyxk+n7i/pcETTGZjPkgJseBiAxjOwIKcK2a
+         wVwe1n3alG3VDhUIE0200UqJ7R6VsEAmfgSItXNeMxcUvRfoVQPKjIa6Dqlieh+Yr5ul
+         VyFAKOwh9Q+iIIPNOMpJgfu/n0TGjkcgPheklyjyttNj2rP6/G2ayKuMLe8vK08pdAHD
+         hP/ffCTvbumD9XlhxT4pmF/BwhHqZa91BPdxAk7y9hJBTPr5/UQwckNtwGJfF/lYk3IE
+         4T8K8aujVtUSiV6Mp4kKt7H36hJvdSUb7zzWsEp/FsyjHUcUZT0P34FOPphARSDnMJqC
+         0DwQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=Z1k/I+a9ysUE55mD4bf8R56mFDe27wL1ClBMSKt65mI=;
-        b=LfK0ZhPjiGBcD0u+34GWapesLBpMkrUxUCOJNKc0z71jXS10eeDISWcFhyR3Iu2KXs
-         AGuZ0toAYjAQJh5a1k2ldxLtd0PVNQd3Ul0hQ8TSoCRNJA1cZ3w3lfXYVSQwDRoCz9Nv
-         GAZiUfZvbagfcFmw7CBMmo5Ppkta8e0fEx0LcxyhVIHXDleRvWrLMlkMPpCraW+rdVzL
-         dZSdNZljXposFB07at3DU4xjtLb9eZnicErgIDvd4v4i0KOdkm6D5Ou7HQ3bJXiIPG7q
-         NgFPzjLpbgMxJRNLgq2rpF0egvZrsP0vRYCnbH3OeG4KDQ2bzIYnwY6a8oayQM1vHtdY
-         zOUQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=xH7u0SIa2NIqLp+XLrFdsgjL0uBSb7uHvpHDRDB7p5U=;
+        b=jtXT1mvE7ap5oMO7zvef+/Vqr1hCXLhGFlMdxfJGaFLBuPe8HC20V5VFEG6agyr1+O
+         NJOauk/JBVGfFWhaZPwt90yVTb820NM4RNZC4tsJ5MzRZsb8Q8TnDAUCBo6FxOp9Hyo5
+         8nNdtHAtfNK/1DTsMEf7fQvYrHWUG750WXY8hY+zWlIXR2Dny4yqqEPn4pU3mdjA2NcH
+         CoWMgL3D7ChQSGWHJsBUBBSaIFpuv5QSsLtNtVnhrYwoEgBuJfAgn3uBG0WgxVmQUEoM
+         kah+scokJMfcy3HDn++0vaV/REQ+Hl34QFm7kGliU/iMLAcu5kkZPx4VCCugOQPyPlcY
+         qx+Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of suzuki.poulose@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=suzuki.poulose@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id dt11si135486ejb.118.2019.03.12.03.37.12
-        for <linux-mm@kvack.org>;
-        Tue, 12 Mar 2019 03:37:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of suzuki.poulose@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=mOW5+EKM;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a2sor595914ios.3.2019.03.12.04.05.19
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 12 Mar 2019 04:05:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of suzuki.poulose@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=suzuki.poulose@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 08A2CA78;
-	Tue, 12 Mar 2019 03:37:12 -0700 (PDT)
-Received: from [10.1.196.93] (en101.cambridge.arm.com [10.1.196.93])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id A29B93F59C;
-	Tue, 12 Mar 2019 03:37:10 -0700 (PDT)
-Subject: Re: [PATCH] KVM: ARM: Remove pgtable page standard functions from
- stage-2 page tables
-To: anshuman.khandual@arm.com, catalin.marinas@arm.com, will.deacon@arm.com,
- mark.rutland@arm.com, yuzhao@google.com
-Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
-References: <20190312005749.30166-3-yuzhao@google.com>
- <1552357142-636-1-git-send-email-anshuman.khandual@arm.com>
-From: Suzuki K Poulose <suzuki.poulose@arm.com>
-Message-ID: <5b82c7c4-93cc-2820-46ad-3fb731a0eefc@arm.com>
-Date: Tue, 12 Mar 2019 10:37:08 +0000
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=mOW5+EKM;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=xH7u0SIa2NIqLp+XLrFdsgjL0uBSb7uHvpHDRDB7p5U=;
+        b=mOW5+EKMTy+WiyZtH8detQ3wUr/c7TNL1Qy/LragZbtl6h2wdtk49YpuBuEexJQlsa
+         lj/VBzbcVbMX9yaYBUWfsQ0b2NhR9CXKz8alLTdwboeei/qmPJnXqLG8iXsTOscAjjtt
+         BPWsJi0A6suM2TbTuXNmpBd6Phl7VhP5Bs3JpSRno1kE3EhPCbL3OmVCeuasv/g7wd6A
+         qgANJkBulCV5vrq4nIXXatCsj+DHQvBUNkXsDgLx+iPRf1AM6GTmRBfwRN8ns3HckGyH
+         hXZyUvVqNQA2PhtNZu6YCe372FG3VMhaerjz6N3zJZdaJkrIc9zUGliaB8LDWp7BE1c7
+         AZEg==
+X-Google-Smtp-Source: APXvYqweUbWZD1AYGdvU7fmlc//2ygm4OyFUT2sT8YLocP/dIa+DgeNXPueNq3IZMDBFiLToCtAqmFh43FtBmqfwndc=
+X-Received: by 2002:a6b:c3cc:: with SMTP id t195mr7892691iof.11.1552388718871;
+ Tue, 12 Mar 2019 04:05:18 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1552357142-636-1-git-send-email-anshuman.khandual@arm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <1551425934-28068-1-git-send-email-laoar.shao@gmail.com> <20190311084743.GX5232@dhcp22.suse.cz>
+In-Reply-To: <20190311084743.GX5232@dhcp22.suse.cz>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Tue, 12 Mar 2019 19:04:43 +0800
+Message-ID: <CALOAHbDHM1mJ3X9x3vFpDagd81T+hrb7_xdqM12x6JQXuHqwxA@mail.gmail.com>
+Subject: Re: [PATCH] mm: vmscan: show zone type in kswapd tracepoints
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Souptick Joarder <jrdr.linux@gmail.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
+	LKML <linux-kernel@vger.kernel.org>, shaoyafang@didiglobal.com
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Anshuman,
+On Mon, Mar 11, 2019 at 4:47 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Fri 01-03-19 15:38:54, Yafang Shao wrote:
+> > If we want to know the zone type, we have to check whether
+> > CONFIG_ZONE_DMA, CONFIG_ZONE_DMA32 and CONFIG_HIGHMEM are set or not,
+> > that's not so convenient.
+> >
+> > We'd better show the zone type directly.
+>
+> I do agree that zone number is quite PITA to process in general but do
+> we really need this information in the first place? Why do we even care?
+>
 
-On 12/03/2019 02:19, Anshuman Khandual wrote:
-> ARM64 standard pgtable functions are going to use pgtable_page_[ctor|dtor]
-> or pgtable_pmd_page_[ctor|dtor] constructs. At present KVM guest stage-2
-> PUD|PMD|PTE level page tabe pages are allocated with __get_free_page()
-> via mmu_memory_cache_alloc() but released with standard pud|pmd_free() or
-> pte_free_kernel(). These will fail once they start calling into pgtable_
-> [pmd]_page_dtor() for pages which never originally went through respective
-> constructor functions. Hence convert all stage-2 page table page release
-> functions to call buddy directly while freeing pages.
-> 
-> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
-> ---
->   arch/arm/include/asm/stage2_pgtable.h   | 4 ++--
->   arch/arm64/include/asm/stage2_pgtable.h | 4 ++--
->   virt/kvm/arm/mmu.c                      | 2 +-
->   3 files changed, 5 insertions(+), 5 deletions(-)
-> 
-> diff --git a/arch/arm/include/asm/stage2_pgtable.h b/arch/arm/include/asm/stage2_pgtable.h
-> index de2089501b8b..417a3be00718 100644
-> --- a/arch/arm/include/asm/stage2_pgtable.h
-> +++ b/arch/arm/include/asm/stage2_pgtable.h
-> @@ -32,14 +32,14 @@
->   #define stage2_pgd_present(kvm, pgd)		pgd_present(pgd)
->   #define stage2_pgd_populate(kvm, pgd, pud)	pgd_populate(NULL, pgd, pud)
->   #define stage2_pud_offset(kvm, pgd, address)	pud_offset(pgd, address)
-> -#define stage2_pud_free(kvm, pud)		pud_free(NULL, pud)
-> +#define stage2_pud_free(kvm, pud)		free_page((unsigned long)pud)
+Sometimes we want to know this event occurs in which zone, then we can
+get the information of this zone,
+for example via /proc/zoneinfo.
+It could give us more information for debugging.
 
-That must be a NOP, as we don't have pud on arm32 (we have 3 level table).
-The pud_* helpers here all fallback to the generic no-pud helpers.
 
->   
->   #define stage2_pud_none(kvm, pud)		pud_none(pud)
->   #define stage2_pud_clear(kvm, pud)		pud_clear(pud)
->   #define stage2_pud_present(kvm, pud)		pud_present(pud)
->   #define stage2_pud_populate(kvm, pud, pmd)	pud_populate(NULL, pud, pmd)
->   #define stage2_pmd_offset(kvm, pud, address)	pmd_offset(pud, address)
-> -#define stage2_pmd_free(kvm, pmd)		pmd_free(NULL, pmd)
-> +#define stage2_pmd_free(kvm, pmd)		free_page((unsigned long)pmd)
->   
->   #define stage2_pud_huge(kvm, pud)		pud_huge(pud)
->   
-> diff --git a/arch/arm64/include/asm/stage2_pgtable.h b/arch/arm64/include/asm/stage2_pgtable.h
-> index 5412fa40825e..915809e4ac32 100644
-> --- a/arch/arm64/include/asm/stage2_pgtable.h
-> +++ b/arch/arm64/include/asm/stage2_pgtable.h
-> @@ -119,7 +119,7 @@ static inline pud_t *stage2_pud_offset(struct kvm *kvm,
->   static inline void stage2_pud_free(struct kvm *kvm, pud_t *pud)
->   {
->   	if (kvm_stage2_has_pud(kvm))
-> -		pud_free(NULL, pud);
-> +		free_page((unsigned long)pud);
->   }
->   
->   static inline bool stage2_pud_table_empty(struct kvm *kvm, pud_t *pudp)
-> @@ -192,7 +192,7 @@ static inline pmd_t *stage2_pmd_offset(struct kvm *kvm,
->   static inline void stage2_pmd_free(struct kvm *kvm, pmd_t *pmd)
->   {
->   	if (kvm_stage2_has_pmd(kvm))
-> -		pmd_free(NULL, pmd);
-> +		free_page((unsigned long)pmd);
->   }
->   
->   static inline bool stage2_pud_huge(struct kvm *kvm, pud_t pud)
-> diff --git a/virt/kvm/arm/mmu.c b/virt/kvm/arm/mmu.c
-> index e9d28a7ca673..00bd79a2f0b1 100644
-> --- a/virt/kvm/arm/mmu.c
-> +++ b/virt/kvm/arm/mmu.c
-> @@ -191,7 +191,7 @@ static void clear_stage2_pmd_entry(struct kvm *kvm, pmd_t *pmd, phys_addr_t addr
->   	VM_BUG_ON(pmd_thp_or_huge(*pmd));
->   	pmd_clear(pmd);
->   	kvm_tlb_flush_vmid_ipa(kvm, addr);
-> -	pte_free_kernel(NULL, pte_table);
-> +	__free_page(virt_to_page(pte_table));
->   	put_page(virt_to_page(pmd));
->   }
->   
+> Zones are an MM internal implementation details and the more we export
+> to the userspace the more we are going to argue about breaking userspace
+> when touching them. So I would rather not export that information unless
+> it is terribly useful.
+>
 
-With that fixed,
+I 'm not sure whether zone type is  terribly useful or not, but the
+'zid' is useless at all.
 
-Reviewed-by: Suzuki K Poulose <suzuki.poulose@arm.com>
+I don't agree that Zones are MM internal.
+We can get the zone type in many ways, for example /proc/zoneinfo.
+
+If we show this event occurs in which zone, we'd better show the zone type,
+or we should drop this 'zid'.
+
+
+> > Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+> > ---
+> >  include/trace/events/vmscan.h | 9 ++++++---
+> >  1 file changed, 6 insertions(+), 3 deletions(-)
+> >
+> > diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+> > index a1cb913..4c8880b 100644
+> > --- a/include/trace/events/vmscan.h
+> > +++ b/include/trace/events/vmscan.h
+> > @@ -73,7 +73,10 @@
+> >               __entry->order  = order;
+> >       ),
+> >
+> > -     TP_printk("nid=%d zid=%d order=%d", __entry->nid, __entry->zid, __entry->order)
+> > +     TP_printk("nid=%d zid=%-8s order=%d",
+> > +             __entry->nid,
+> > +             __print_symbolic(__entry->zid, ZONE_TYPE),
+> > +             __entry->order)
+> >  );
+> >
+> >  TRACE_EVENT(mm_vmscan_wakeup_kswapd,
+> > @@ -96,9 +99,9 @@
+> >               __entry->gfp_flags      = gfp_flags;
+> >       ),
+> >
+> > -     TP_printk("nid=%d zid=%d order=%d gfp_flags=%s",
+> > +     TP_printk("nid=%d zid=%-8s order=%d gfp_flags=%s",
+> >               __entry->nid,
+> > -             __entry->zid,
+> > +             __print_symbolic(__entry->zid, ZONE_TYPE),
+> >               __entry->order,
+> >               show_gfp_flags(__entry->gfp_flags))
+> >  );
+> > --
+> > 1.8.3.1
+> >
+>
+> --
+> Michal Hocko
+> SUSE Labs
 
