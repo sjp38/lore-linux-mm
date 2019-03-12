@@ -2,207 +2,205 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9CF6BC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 13:46:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D9CEAC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 13:53:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2AC1A2147C
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 13:46:13 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="amrURANU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2AC1A2147C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 91CA8214AE
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 13:53:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 91CA8214AE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8ECE38E0003; Tue, 12 Mar 2019 09:46:12 -0400 (EDT)
+	id 256F98E0003; Tue, 12 Mar 2019 09:53:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 89CA28E0002; Tue, 12 Mar 2019 09:46:12 -0400 (EDT)
+	id 206BB8E0002; Tue, 12 Mar 2019 09:53:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 78BC28E0003; Tue, 12 Mar 2019 09:46:12 -0400 (EDT)
+	id 0F7FC8E0003; Tue, 12 Mar 2019 09:53:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B3B18E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 09:46:12 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id f67so3445645ywa.6
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 06:46:12 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DF1FD8E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 09:53:32 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id o135so1990219qke.11
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 06:53:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=Z9o+ZRkqKfziSen8lPKKS3g4b+sPcaG2W3T+6uzEH9g=;
-        b=eZk6Ejo1CJ5+altOv0T3o0NqiK1xg96rGEJs/DDGThVGC5CR46jvOY+gTfWE7ZdowD
-         ASVJLX2Q2rNMj06j3W0ojUiyRHK5N3DOU5BAm7n8R5A5t1/tVGqU2uBNBPhLvMcpqt9k
-         lOFASr+0eiSP3hm8gqrE+ijkEi79VdJES87AG+xOr7YN7X6GZI+Z+XFUs4MFhdCuo+bi
-         sJEskqlERhJuuqmDnGHlAdMmgnwBEqZP6WCPVPpPyGv8fQYo6hxDUeRwJXAmMW0xgl4n
-         KjEPqNRaZhXCfueaktk3BoFlRzV08Ex7j8CAGQUR1sgAO6K03xdKztGEUI12SZNP+HZ3
-         nv5g==
-X-Gm-Message-State: APjAAAUxyFzgdu4A7OkETep4UfCcciAkV/mHlZkEC5zMmRsE4ZYJQRP6
-	EvX/rnXclz4dBI4CuvZpyoEtDO1a160FE/auBblwOnYfG4yG5BdPORFcBri1wJnMcGPDvkPH7dj
-	eYyBZjhkiI4ngQmBGHNN1FHhUJSaiaWHJNOhYmvpZiV2v95egTeH2/1EBodWU5u5k8OBNwzGh+W
-	VmkgU75U5Tp19FU7yjlPeKIWzAJetEqXPTE3V7gCwq/Diujd1Rq4+TAFGnTSlpHdFyDtTtad3aL
-	UB0Nn61Pi6xJojaZ4ZNBaLmMkSLWWjrxZco+ZBW0PA3pEklm48y+TvpDt0Y0IJGT340X4yshw8i
-	b1k4zl6+K+WWsvCIUvBaO/SfqC7/NJlvwK3xPraNStb+HeUCUqCDPG7IW6QXSEYcwiNM7tkv+nr
-	O
-X-Received: by 2002:a81:1a03:: with SMTP id a3mr28998827ywa.429.1552398371933;
-        Tue, 12 Mar 2019 06:46:11 -0700 (PDT)
-X-Received: by 2002:a81:1a03:: with SMTP id a3mr28998762ywa.429.1552398370980;
-        Tue, 12 Mar 2019 06:46:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552398370; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=Bafzwra03unlq9sNsDcu+GafVaU7H8EP+iRO+JOu7mw=;
+        b=SkRJ/9QpzEbHldU4tvsG5/w/Aj/Xk2ChIosZJgNqFvDqKP0oBgrdUecUrJKw3AB5jj
+         fQyc2ZJWc4f2csyHZHjGUUgqh6eQ6TuyAhgSCg7ZYZTmTsnwY9wOU/3maFmOguXSf6kf
+         VWkMROcj414dDphtBR+YAZ6IFmT+ncY9Wf58OQcborrW/P66e4g/fbbh6J1pITXLE4i3
+         QRwMrIF/2eys4UoU7fyNsv92J4q+bMrIew/GgivTe51jV5In7X3WZAehMWDklPokqGQR
+         gQB+2UyLhMXecNrjfdLDCfmxJVrH5gG6PV3hBQsiJ3js81YcPLzcdbZcWd09LD23nCwN
+         HKiQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAXHvAc4r0kggQ/l24FB26LxN9SpugjnTkC/lpPJ3dEMD8gKq4xw
+	8QAlBrBQsbyy15yxWI6F599ccVnQ7I7OJiWH3ojYHtrmRrZhgV49D95q/WfjR41gJ1LLRduo8R2
+	EBhjHaDxp6ZvGLdYJ3tWC3vr7pFfqMCFIV5t8v6hW4ukZsveTxxcJvH89CN7wyrvqEQ==
+X-Received: by 2002:ac8:2b6f:: with SMTP id 44mr30021066qtv.366.1552398812713;
+        Tue, 12 Mar 2019 06:53:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxGk0D7H0zH4L1KHurL0lu7q3NvGt5dtpR5C2KW8XPnAvN4gPUSyk4TkbDOT2Mh1ij1sm1y
+X-Received: by 2002:ac8:2b6f:: with SMTP id 44mr30021026qtv.366.1552398812085;
+        Tue, 12 Mar 2019 06:53:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552398812; cv=none;
         d=google.com; s=arc-20160816;
-        b=qBD/X2UtBZDbLy6kWXXgyJBBlzS7vozTIck12oUrgp933Ecs62GUqAkd/hbDv9aRZw
-         ID4rySBILwRcp81cfSibIVI2DtRl6yM5WYIvIl3+WIAsKmBZl2Ezj5UDSRhtRANdMDdK
-         yUrcehKGLwvTTHJJXgZU3ig3C1M1SrQE8aKFJjlpu7QiI3TDUSniIG/lPaDWWDct87Tl
-         AB2Au9RTi84tmvDtD8DUIvNPabXiWvWdxSrNRMpci4PQ5dtYWT9iKY79++lNd7QDMlyK
-         MgG4y5qkQ73rS7Lx1wmd0hl9ogTdGTq5jjmrNq57Dw2wuJJiLUF7++fT4ZidTnEuT/8U
-         01Zg==
+        b=UeIqSKSKd21tZeOlhblZw4Kwt8dQf8okIkjRQUNreCXA6dHXZj2H07PHoHrI1hrgOS
+         sgRWr2OuOZnLVImiuXC0bi3C9sisqyxa7viTgQIn5h+7zB4ZIEQ70VqkIz5ihDcy2QiW
+         RVq7XZ9qpGQNKJjah4keDJQmeH8EhmFvC05Rtkyp4DOUgoLTWSIyePDBnVVFumeSLcvi
+         RX48RyyWul55qoC/ySBuMK7v142Deewl6EHGpWdnAHWc/j7SfGWMxrnbk1mJruQ/usSM
+         sqD6OTaK3PFEpvc7gN/vYZZewYf2v1UXPdiFxVXetLdWkgJoev/eXcGEETMh9V5+QwPQ
+         gPEw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=Z9o+ZRkqKfziSen8lPKKS3g4b+sPcaG2W3T+6uzEH9g=;
-        b=SZtT8CgpIPNYTAHTyWqjiNZDbR0Lm6hiNm1wE7yZqcAL4OnqRgmMGYv8uv/YHwbgWh
-         R5S0zY9znI2AESybPi1JSkLiqe34hVRRXJOzffcvpfD7OJuJqPbyB2RyS5nL7P/9RCDj
-         dKQP6X5i9PBDNVIA5boVvyFNDctOuP44LCBPpwIT+n8Z4/v2HDCiWF/VzyhHJoNJ3Y8J
-         FaCDWKMB++6mik0GB9VamLLLWERfdPhHu5CG8Jqu3QO6MPQqzUxzZp+r2atMF6nlgmSr
-         QbkU0JWEa0lGJpfUhCKX8ulZByo6/YgMjWGz9dQAdn8qXjwke7Pujq6FkksFO0Ee9ekA
-         On/Q==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=Bafzwra03unlq9sNsDcu+GafVaU7H8EP+iRO+JOu7mw=;
+        b=0GNZpYs4yHHxgEBL4rw68Nx/W49K6573HR7rBYkH4KPotC8WAAeoblXSRXgRZ+WWKS
+         lhBFwtkf0aXvieyGokq3HpZ/fn8IJUKW5pM42KU409uu9dZHcQtSbr47kTXG7rDHEGCG
+         dxfavmLMrDOwxKtX/m3lKuSxZ8OZ+XaEJAL+aGtVEZbK4XilVNftS4Owry25svAbtMPI
+         CGpHBcQ+F257DREaiwqQYsUocUwDT5oJiBsIsp+yuXwyXki4zPkMI928EHj/xbdpkSUu
+         eFlsEgYpGBkAC4uLL9EH8wGhdm29/QwA3fri1p6EgriOYmk3Lt/l7L8QLfFSIUrryxmd
+         bOgA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=amrURANU;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o19sor1168021ywo.66.2019.03.12.06.46.10
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id f129si1355251qkb.56.2019.03.12.06.53.31
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Mar 2019 06:46:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Mar 2019 06:53:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=amrURANU;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=Z9o+ZRkqKfziSen8lPKKS3g4b+sPcaG2W3T+6uzEH9g=;
-        b=amrURANUVN08ADXnnxxWasXpOUxyxp5dMTdRZhdlsTUqBXurp0Ma56c+nJgxdfQT/n
-         4ob3IR3dt/041CJFWuyoaA/uB8WxO80ry2YKSeP9161NGGaP4Wine1dexnni0CyVc/ni
-         pTmH8h465/sg6DwmTjSlkCD7m//oju951OCmBnucU8KgD6sC/abyjeO1uFQhYlZ1HF8A
-         54d2nDMKPt2BBatRrIcfjCVXYiW4DeBd1e2WhjcXKSvyihEhAAauyWtIFZo1Mb3IZKFp
-         2r8dIFMD+e9GHO8RgMcSxc+x83llphU0mksSc97Sne5pyDxu9oqrsi2KHijTVx/pDlu3
-         W3Gg==
-X-Google-Smtp-Source: APXvYqxLVjwTbEkLiEnQqelf1e6ZM2Rq3Ip9doTY9hdELEmrtmkYxYbEwYx9rIiOkqWDr5yTI5jssibFJwLhnlXV4mE=
-X-Received: by 2002:a81:a047:: with SMTP id x68mr29403501ywg.349.1552398370146;
- Tue, 12 Mar 2019 06:46:10 -0700 (PDT)
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2CDYjno073916
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 09:53:31 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2r6dejjt90-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 09:53:31 -0400
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Tue, 12 Mar 2019 13:53:28 -0000
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 12 Mar 2019 13:53:21 -0000
+Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x2CDrKpf31588396
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Tue, 12 Mar 2019 13:53:20 GMT
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 72642A4059;
+	Tue, 12 Mar 2019 13:53:20 +0000 (GMT)
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id C2510A4053;
+	Tue, 12 Mar 2019 13:53:18 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.84])
+	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Tue, 12 Mar 2019 13:53:18 +0000 (GMT)
+Date: Tue, 12 Mar 2019 15:53:17 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Peter Xu <peterx@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Paolo Bonzini <pbonzini@redhat.com>,
+        Hugh Dickins <hughd@google.com>, Luis Chamberlain <mcgrof@kernel.org>,
+        Maxime Coquelin <maxime.coquelin@redhat.com>, kvm@vger.kernel.org,
+        Jerome Glisse <jglisse@redhat.com>,
+        Pavel Emelyanov <xemul@virtuozzo.com>,
+        Johannes Weiner <hannes@cmpxchg.org>,
+        Martin Cracauer <cracauer@cons.org>,
+        Denis Plotnikov <dplotnikov@virtuozzo.com>, linux-mm@kvack.org,
+        Marty McFadden <mcfadden8@llnl.gov>, Maya Gokhale <gokhale2@llnl.gov>,
+        Mike Kravetz <mike.kravetz@oracle.com>,
+        Andrea Arcangeli <aarcange@redhat.com>,
+        Mike Rapoport <rppt@linux.vnet.ibm.com>,
+        Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>,
+        "Kirill A . Shutemov" <kirill@shutemov.name>,
+        linux-fsdevel@vger.kernel.org,
+        "Dr . David Alan Gilbert" <dgilbert@redhat.com>,
+        Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/3] userfaultfd/sysctl: introduce
+ unprivileged_userfaultfd
+References: <20190311093701.15734-1-peterx@redhat.com>
+ <20190311093701.15734-2-peterx@redhat.com>
+ <20190312065830.GB9497@rapoport-lnx>
+ <20190312122633.GE14108@xz-x1>
 MIME-Version: 1.0
-References: <0000000000001fd5780583d1433f@google.com> <20190311163747.f56cceebd9c2661e4519bdfc@linux-foundation.org>
- <CACT4Y+byKQSOCte3JS9XOnyr+aVSEFtBvLxG2-HUrZX3-82Hcg@mail.gmail.com>
- <20190311232541.db8571d2e3e0ca636785f31f@linux-foundation.org> <CACT4Y+Y0JdB-=yLLchw8icokn11iH2-XYoLJEOFKm6F88fJ3WQ@mail.gmail.com>
-In-Reply-To: <CACT4Y+Y0JdB-=yLLchw8icokn11iH2-XYoLJEOFKm6F88fJ3WQ@mail.gmail.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Tue, 12 Mar 2019 06:45:59 -0700
-Message-ID: <CALvZod6ADEHE4_gFpod-gmXz0h3WjoOZE+cN2BCG20ORb2V5Qg@mail.gmail.com>
-Subject: Re: KASAN: null-ptr-deref Read in reclaim_high
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, 
-	syzbot <syzbot+fa11f9da42b46cea3b4a@syzkaller.appspotmail.com>, 
-	Cgroups <cgroups@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, 
-	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
-	Michal Hocko <mhocko@kernel.org>, Michal Hocko <mhocko@suse.com>, 
-	Stephen Rothwell <sfr@canb.auug.org.au>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, 
-	Vladimir Davydov <vdavydov.dev@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190312122633.GE14108@xz-x1>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19031213-0008-0000-0000-000002CBB02B
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19031213-0009-0000-0000-00002237D009
+Message-Id: <20190312135316.GA22990@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-12_07:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=863 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1903120097
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 12, 2019 at 1:33 AM Dmitry Vyukov <dvyukov@google.com> wrote:
->
-> On Tue, Mar 12, 2019 at 7:25 AM Andrew Morton <akpm@linux-foundation.org> wrote:
-> >
-> > On Tue, 12 Mar 2019 07:08:38 +0100 Dmitry Vyukov <dvyukov@google.com> wrote:
-> >
-> > > On Tue, Mar 12, 2019 at 12:37 AM Andrew Morton
-> > > <akpm@linux-foundation.org> wrote:
-> > > >
-> > > > On Mon, 11 Mar 2019 06:08:01 -0700 syzbot <syzbot+fa11f9da42b46cea3b4a@syzkaller.appspotmail.com> wrote:
-> > > >
-> > > > > syzbot has bisected this bug to:
-> > > > >
-> > > > > commit 29a4b8e275d1f10c51c7891362877ef6cffae9e7
-> > > > > Author: Shakeel Butt <shakeelb@google.com>
-> > > > > Date:   Wed Jan 9 22:02:21 2019 +0000
-> > > > >
-> > > > >      memcg: schedule high reclaim for remote memcgs on high_work
-> > > > >
-> > > > > bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=155bf5db200000
-> > > > > start commit:   29a4b8e2 memcg: schedule high reclaim for remote memcgs on..
-> > > > > git tree:       linux-next
-> > > > > final crash:    https://syzkaller.appspot.com/x/report.txt?x=175bf5db200000
-> > > > > console output: https://syzkaller.appspot.com/x/log.txt?x=135bf5db200000
-> > > > > kernel config:  https://syzkaller.appspot.com/x/.config?x=611f89e5b6868db
-> > > > > dashboard link: https://syzkaller.appspot.com/bug?extid=fa11f9da42b46cea3b4a
-> > > > > userspace arch: amd64
-> > > > > syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=14259017400000
-> > > > > C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=141630a0c00000
-> > > > >
-> > > > > Reported-by: syzbot+fa11f9da42b46cea3b4a@syzkaller.appspotmail.com
-> > > > > Fixes: 29a4b8e2 ("memcg: schedule high reclaim for remote memcgs on
-> > > > > high_work")
-> > > >
-> > > > The following patch
-> > > > memcg-schedule-high-reclaim-for-remote-memcgs-on-high_work-v3.patch
-> > > > might have fixed this.  Was it applied?
-> > >
-> > > Hi Andrew,
-> > >
-> > > You mean if the patch was applied during the bisection?
-> > > No, it wasn't. Bisection is very specifically done on the same tree
-> > > where the bug was hit. There are already too many factors that make
-> > > the result flaky/wrong/inconclusive without changing the tree state.
-> > > Now, if syzbot would know about any pending fix for this bug, then it
-> > > would not do the bisection at all. But it have not seen any patch in
-> > > upstream/linux-next with the Reported-by tag, nor it received any syz
-> > > fix commands for this bugs. Should have been it aware of the fix? How?
-> >
-> > memcg-schedule-high-reclaim-for-remote-memcgs-on-high_work-v3.patch was
-> > added to linux-next on Jan 10.  I take it that this bug was hit when
-> > testing the entire linux-next tree, so we can assume that
-> > memcg-schedule-high-reclaim-for-remote-memcgs-on-high_work-v3.patch
-> > does not fix it, correct?
-> > In which case, over to Shakeel!
->
-> Jan 10 is exactly when this bug was reported:
-> https://groups.google.com/forum/#!msg/syzkaller-bugs/5YkhNUg2PFY/4-B5M7bDCAAJ
-> https://syzkaller.appspot.com/bug?extid=fa11f9da42b46cea3b4a
->
-> We don't know if that patch fixed the bug or not because nobody tested
-> the reproducer with that patch.
->
-> It seems that the problem here is that nobody associated the fix with
-> the bug report. So people looking at open bug reports will spend time
-> again and again debugging this just to find that this was fixed months
-> ago. syzbot also doesn't have a chance to realize that this is fixed
-> and bisection is not necessary anymore. It also won't confirm/disprove
-> that the fix actually fixes the bug because even if the crash will
-> continue to happen it will look like the old crash just continues to
-> happen, so nothing to notify about.
->
-> Associating fixes with bug reports solves all these problems for
-> humans and bots.
+On Tue, Mar 12, 2019 at 08:26:33PM +0800, Peter Xu wrote:
+> On Tue, Mar 12, 2019 at 08:58:30AM +0200, Mike Rapoport wrote:
+> 
+> [...]
+> 
+> > > +config USERFAULTFD_UNPRIVILEGED_DEFAULT
+> > > +        string "Default behavior for unprivileged userfault syscalls"
+> > > +        depends on USERFAULTFD
+> > > +        default "disabled"
+> > > +        help
+> > > +          Set this to "enabled" to allow userfaultfd syscalls from
+> > > +          unprivileged users.  Set this to "disabled" to forbid
+> > > +          userfaultfd syscalls from unprivileged users.  Set this to
+> > > +          "kvm" to forbid unpriviledged users but still allow users
+> > > +          who had enough permission to open /dev/kvm.
+> > 
+> > I'd phrase it a bit differently:
+> > 
+> > This option controls privilege level required to execute userfaultfd
+>                       ^
+>                       +---- add " the default"?
+> 
+> > system call.
+> > 
+> > Set this to "enabled" to allow userfaultfd system call from unprivileged
+> > users. 
+> > Set this to "disabled" to allow userfaultfd system call only for users who
+> > have ptrace capability.
+> > Set this to "kvm" to restrict userfaultfd system call usage to users with
+>                                                                       ^
+>                          add " who have ptrace capability, or" -------+
+> 
+> > permissions to open "/dev/kvm".
+> 
+> I think your version is better than mine, but I'd like to confirm
+> about above two extra changes before I squash them into the patch. :)
 
-Should we add "Reported-by" for syzbot reports on linux-next patches
-as well? Please note that these patches are in flux and might be
-dropped or completely changed before merging into Linus tree.
+I like your changes.
+ 
+> Thanks!
+> 
+> -- 
+> Peter Xu
+> 
 
-Also should syzbot drop bug reports on older linux-next trees if it
-can not be repro'ed in the latest linux-next tree? IMHO yes.
-
-Shakeel
+-- 
+Sincerely yours,
+Mike.
 
