@@ -2,129 +2,130 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIMWL_WL_MED,
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIMWL_WL_MED,
 	DKIM_SIGNED,DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 93FCFC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 00:09:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8E4B8C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 00:16:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2E03A2084F
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 00:09:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3C5C22087C
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 00:16:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="k5MFHvIs";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="B4ePKuIK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E03A2084F
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="AkkaOKgR";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="EFvMpZdn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C5C22087C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CE00D8E0004; Mon, 11 Mar 2019 20:09:56 -0400 (EDT)
+	id B51B28E0003; Mon, 11 Mar 2019 20:16:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C64C98E0002; Mon, 11 Mar 2019 20:09:56 -0400 (EDT)
+	id B00288E0002; Mon, 11 Mar 2019 20:16:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AB6F48E0004; Mon, 11 Mar 2019 20:09:56 -0400 (EDT)
+	id 9C7EC8E0003; Mon, 11 Mar 2019 20:16:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7ED7E8E0002
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 20:09:56 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id f70so798146qke.8
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 17:09:56 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 754FB8E0002
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 20:16:22 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id 35so756430qtq.5
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 17:16:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
          :thread-topic:thread-index:date:message-id:references:in-reply-to
          :accept-language:content-language:content-id
          :content-transfer-encoding:mime-version;
-        bh=b7Pd1HiFaq8Q8LerO3yocf42b947cTLoE6rdxENJUnM=;
-        b=n81ikc7E1UJpZZW1SLxuGpAANCYt1kNwI6mywTvSe6h/WylD5PGAocxTpYfbTfJbRn
-         Kay5Evmp15TwqvKUYCeWOsO52uO83YccAJ5NztvmAsYxOew3l6Nwa+bvMOyfGpzMlLon
-         6S4dHoAbI4ljcUaYgOGobfBpxGUdhdyDAsg4SMlUriBGUFXBSdj1YnOoSmXkUlPGC4y5
-         QC4+ych6P/6V9br1LWiocm6c/j5Y13FmOu7U3+Vmr0ADftctMwh7/RXnvIQOZ5Ir2Ppi
-         shpbylXeBfBfZDV+SK7XWsrWB6id0ALh4KUekn8hBpb4EcylZbtDzlzPf/thaQzWvbCZ
-         9R2Q==
-X-Gm-Message-State: APjAAAXTm0inm9h/W77nv10R7O0/y5DDkFLmDrdnLoX9uj73GFAiI6pd
-	6ZBcDTFsotxB4QNOWh68GiZUoYFFlYMs1Bm6FYDODkOPAdpdRQ5XNaisy7W3QU0iQSAexvF7GYP
-	+TJdN3HGA0MA7w8266ZtXroQyQuvUU8coZ/C0fvR41fUoXkYEE8Me29QFzWr6LPya7Q==
-X-Received: by 2002:ac8:162b:: with SMTP id p40mr27161938qtj.326.1552349396186;
-        Mon, 11 Mar 2019 17:09:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwKys+qcyB9NGkw5a6wc0IXSzSRLFY43o5LUfbUuXSnkIgRAITQXnRXgOQS+Zvhn6H/T/HK
-X-Received: by 2002:ac8:162b:: with SMTP id p40mr27161912qtj.326.1552349395512;
-        Mon, 11 Mar 2019 17:09:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552349395; cv=none;
+        bh=yEsQic9A0/OZ7vFfSurRTqbvcYZcuYEV+T9ohUAOMwc=;
+        b=V6gCN/e7WjUrrYsb3FXRcteooa7tgIXGuWzUsFYJB8GeyFOeRf6Q/7K3CBj4PqxOxX
+         W/FcfWCnzdQTV+IP9Kz9xuXGIhj4V7EBfRsYPDn2I9WgMAGUCXla07kq/xEXsSVL/1tS
+         NvpOFei9X8srYAnLgByJF5GtOx8wT6WycKROKglC1QtaDDHMPWusE+1aMx+aoUXcJDVV
+         SFh+VtH87v28u7ciBvjULItOgcNokKFmKA98HFK6hQEx/+b3giKAGk53hoodBsf+9VE/
+         zGqS+yUDOg3MLy5+dqexR63/hJX9rIjCwK5Ee1PMakx1jEFzjqEG5vf4DB5Ht/EohfJ8
+         j1Lg==
+X-Gm-Message-State: APjAAAWXKmko1D2lmHCdSOAwtIJ2PKcMS0J5UnS+UfMnq+u2PUrb0+Vy
+	8GLid04NOMNFEOOad8xMFb0DLbBRdXhsyRp636qWACN9X4BcLKFIOcvmwQe+bFdn7gyRln5Gcl1
+	If4hGsQNdWLa7hH27DAvGCtEadfkOJ6/7GR3f7wESTyqpZpW75lWgJR6sV15hGN9wkQ==
+X-Received: by 2002:ac8:2dca:: with SMTP id q10mr27597319qta.187.1552349782218;
+        Mon, 11 Mar 2019 17:16:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyp3i6AI0H+osGKXI9MlxHy6tEKd+uwuJe0A9v+iXRyAzhKMMqivw5611UGoA010OMERNpn
+X-Received: by 2002:ac8:2dca:: with SMTP id q10mr27597284qta.187.1552349781389;
+        Mon, 11 Mar 2019 17:16:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552349781; cv=none;
         d=google.com; s=arc-20160816;
-        b=XWIGwOE2kubapWRuaNwfzPD1hsT2Firn0v72QMNgUJnZ15YZL7hgsV9JgcOTBgUNIH
-         wwAjI0KhYPJNfO3wD/8brWPLUqbnKL+fpV45cEXjs4bKmYFKli6a3aSukYgUYsd6Thd0
-         ftxbW4vc8f+8mlFS6OttTUh1CsEA0RYJ8CXjaln0plgr/Uva13ly+86bFIikVBdaMq1k
-         ngtFdbVRbDrok72rZtdoQ8pXuHnofTG2BvJtENWSWbrlMPeKqT3StQ+GLmMX+nfJcLMR
-         W2Uk3dnN+sHszsizWOToB5ztM6TUgyyOCVUIZA/+DzCyHFORSodZLV5KhdcZY3AZ6BEg
-         F7Bw==
+        b=gTw40ct5SHyIQDSe+3njn6u5+XpOqmyerM7FWnAX1lwaSdoXBcHLjrHQM94cKLXxKl
+         oRk66xxXSfLMsjrlnbKhCmdPVcnQ17YbarqPFLSXNxR1q20gJn2CqShFj/qoIrVxS2ae
+         gWnf7GQC33/0SdiIm5WBMu6pr0VqEWfbo8QhcdHNrVlHd49g3YfnT/7xn6t0pXPeeUrN
+         /e8S2XO7e9I4snfQiqHmFchU4hL7lrI/w7n+0whPXRpo0BKBzrW9ZQchrhwkMq5L2shK
+         xRh0ljPH4LgE88ocV2uvLlObHENH+r+Lo2z1WjgWzWSGYdVEOMbnFkH6K9a490XCjckT
+         JzNw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:content-transfer-encoding:content-id:content-language
          :accept-language:in-reply-to:references:message-id:date:thread-index
          :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=b7Pd1HiFaq8Q8LerO3yocf42b947cTLoE6rdxENJUnM=;
-        b=U9CHr9eeeSyRv6JDggFA+wcVLFAfqmj3SxxrDDdq8tWOh7IMOOI7pKFJTotOgqHBQM
-         dOhMudcj89TB8pxtB65vx406sXqZkEDHvBUU4WxnebwhvHED9mQvyF1ObdTnqefkidDK
-         DWCEWrlEQMnw7LawYjo92DAwiwlQUpLuZGB+t/XLQvVkZ1U/zUfUZqtNCbOepTZoGPgQ
-         pRmR/Fntf1qgH7FjjJf5fYiMiyEkXmMZxPgzrsn7W+hK2R8DQBf6ykz2ax2Xs5GlkjdA
-         bBbdedbag4fvHqfWrw0yRI+mupLtTXCuEyck4w4mBYpMRd7+VoF1OtVEuxFTtXds/5gl
-         +krw==
+        bh=yEsQic9A0/OZ7vFfSurRTqbvcYZcuYEV+T9ohUAOMwc=;
+        b=JpKpQzbzgX8LNbu77ecEW5fjsRW8pXkvjwTXo+akIDhibr0dBwlXPlcxnAc/zkI+K9
+         oX6LMbDH7IH3pkvhF+1bklDOBQKqyeF5mn2kuT+D6G4i+9pjpGK8wW6OqXwSdPgY6cvS
+         GhSreinRjeVZet5xlpwIKQjR7Q6WDyfYX7DJ9AnVAd9ZHckcNLDHIYaRpomqIsbNbZfo
+         fnp5KeUC9dGiEX5ETOlLpBFC97LvW1DIQqnN5ddFZkhXxOvByrSVZ8Eb9ljpiXF6ztSu
+         Oz8u+V56xWEQEx9YCYfSEkwVBwen6NnKf7g9aRSyg/CZRXrfUtDQ3MXq4trRBMV0EsqM
+         8z0A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=k5MFHvIs;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=B4ePKuIK;
+       dkim=pass header.i=@fb.com header.s=facebook header.b=AkkaOKgR;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=EFvMpZdn;
        spf=pass (google.com: domain of prvs=89745e2bfb=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=89745e2bfb=guro@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id n34si597798qvd.178.2019.03.11.17.09.54
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id 27si4262703qtz.325.2019.03.11.17.16.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Mar 2019 17:09:55 -0700 (PDT)
+        Mon, 11 Mar 2019 17:16:21 -0700 (PDT)
 Received-SPF: pass (google.com: domain of prvs=89745e2bfb=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=k5MFHvIs;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=B4ePKuIK;
+       dkim=pass header.i=@fb.com header.s=facebook header.b=AkkaOKgR;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=EFvMpZdn;
        spf=pass (google.com: domain of prvs=89745e2bfb=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=89745e2bfb=guro@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0001255.ppops.net [127.0.0.1])
-	by mx0b-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2C03GqP017275;
-	Mon, 11 Mar 2019 17:09:37 -0700
+Received: from pps.filterd (m0109331.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2C02p0U031837;
+	Mon, 11 Mar 2019 17:16:10 -0700
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
  : date : message-id : references : in-reply-to : content-type : content-id
  : content-transfer-encoding : mime-version; s=facebook;
- bh=b7Pd1HiFaq8Q8LerO3yocf42b947cTLoE6rdxENJUnM=;
- b=k5MFHvIsXJPRsrUbcb47Agd0Tay/yDPLXojd5SvapSLwa3yGgALweMFalC2BunIqsNmN
- G1JAxxu3C8/Dsmz2IAQlV0kWvJsPx78vTD/A1FtMHViPra6ju8dKAqXVjM+3HVqvsBXp
- bu++xA33s0WE0yWMQ3/stxV0FvcUWvMsv+Y= 
-Received: from maileast.thefacebook.com ([199.201.65.23])
-	by mx0b-00082601.pphosted.com with ESMTP id 2r5yvg0e4r-1
+ bh=yEsQic9A0/OZ7vFfSurRTqbvcYZcuYEV+T9ohUAOMwc=;
+ b=AkkaOKgRjZDMxGwCUNn1PNDPvyNj34mO+vmqHEuy3JJKr8EaFH72bM/BxZOS2u/xguDy
+ Gv++ftOv/FJjTm/v/dM+Toy9oCCi9dfatuzinTggNkG6s5/Rm9eIjf3e3OUK/QQX3N1S
+ hrSdTNIGP4bysqYAFVjbev0NK+AaXofGmnQ= 
+Received: from mail.thefacebook.com ([199.201.64.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 2r5yahgmg3-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Mon, 11 Mar 2019 17:09:35 -0700
-Received: from frc-mbx01.TheFacebook.com (2620:10d:c0a1:f82::25) by
- frc-hub02.TheFacebook.com (2620:10d:c021:18::172) with Microsoft SMTP Server
+	Mon, 11 Mar 2019 17:16:10 -0700
+Received: from prn-mbx02.TheFacebook.com (2620:10d:c081:6::16) by
+ prn-hub06.TheFacebook.com (2620:10d:c081:35::130) with Microsoft SMTP Server
  (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Mon, 11 Mar 2019 17:09:33 -0700
-Received: from frc-hub04.TheFacebook.com (2620:10d:c021:18::174) by
- frc-mbx01.TheFacebook.com (2620:10d:c0a1:f82::25) with Microsoft SMTP Server
+ 15.1.1713.5; Mon, 11 Mar 2019 17:16:09 -0700
+Received: from prn-hub05.TheFacebook.com (2620:10d:c081:35::129) by
+ prn-mbx02.TheFacebook.com (2620:10d:c081:6::16) with Microsoft SMTP Server
  (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Mon, 11 Mar 2019 17:09:33 -0700
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (192.168.183.28)
- by o365-in.thefacebook.com (192.168.177.74) with Microsoft SMTP Server
+ 15.1.1713.5; Mon, 11 Mar 2019 17:16:09 -0700
+Received: from NAM05-BY2-obe.outbound.protection.outlook.com (192.168.54.28)
+ by o365-in.thefacebook.com (192.168.16.29) with Microsoft SMTP Server
  (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Mon, 11 Mar 2019 17:09:33 -0700
+ via Frontend Transport; Mon, 11 Mar 2019 17:16:09 -0700
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
  s=selector1-fb-com;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=b7Pd1HiFaq8Q8LerO3yocf42b947cTLoE6rdxENJUnM=;
- b=B4ePKuIKrUBLGS+T8FazeXSRUlrvmp2OKmvaPly2N4CLXHso50gjpZaJyaqYq1iJ26nRyuvr0aAhaYgsqyY7MdplmzsEsBKOaomNJGDKT5YMZb+NalFjzP8heb8n4+JeWTvoYov6Pohl9qLh49NNxSio40c8lnhseU9BeFLfXKM=
+ bh=yEsQic9A0/OZ7vFfSurRTqbvcYZcuYEV+T9ohUAOMwc=;
+ b=EFvMpZdn5wTFgZHNPfFmkTWFvlEP3lw35xRK6ip1q9M/nz9/8Ov9LN2QTG7h/SBOd/DcSFeWUg7WCT1BFdp9JdYFJXiPP/vq7BstGRPO2CoFQ0m6985xMrPV9hr7IG4o8gqMB2wLIIlUcZF1SbdDfwc7mjHIlpToG2TlCupzlVY=
 Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
- BYAPR15MB2597.namprd15.prod.outlook.com (20.179.155.158) with Microsoft SMTP
+ BYAPR15MB2951.namprd15.prod.outlook.com (20.178.237.88) with Microsoft SMTP
  Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1686.18; Tue, 12 Mar 2019 00:09:31 +0000
+ 15.20.1686.17; Tue, 12 Mar 2019 00:16:07 +0000
 Received: from BYAPR15MB2631.namprd15.prod.outlook.com
  ([fe80::790e:7294:b086:9ded]) by BYAPR15MB2631.namprd15.prod.outlook.com
  ([fe80::790e:7294:b086:9ded%2]) with mapi id 15.20.1686.021; Tue, 12 Mar 2019
- 00:09:31 +0000
+ 00:16:07 +0000
 From: Roman Gushchin <guro@fb.com>
 To: "Tobin C. Harding" <tobin@kernel.org>
 CC: Andrew Morton <akpm@linux-foundation.org>,
@@ -137,45 +138,46 @@ CC: Andrew Morton <akpm@linux-foundation.org>,
 	<linux-mm@kvack.org>,
         "linux-kernel@vger.kernel.org"
 	<linux-kernel@vger.kernel.org>
-Subject: Re: [RFC 00/15] mm: Implement Slab Movable Objects (SMO)
-Thread-Topic: [RFC 00/15] mm: Implement Slab Movable Objects (SMO)
-Thread-Index: AQHU1WWWNeCS+/ChkEynjyh1uhCoA6YHJOwA
-Date: Tue, 12 Mar 2019 00:09:31 +0000
-Message-ID: <20190312000928.GA25059@tower.DHCP.thefacebook.com>
+Subject: Re: [RFC 12/15] xarray: Implement migration function for objects
+Thread-Topic: [RFC 12/15] xarray: Implement migration function for objects
+Thread-Index: AQHU1WWo/dXt33FMnkORmiARkMoWrqYHJsEA
+Date: Tue, 12 Mar 2019 00:16:07 +0000
+Message-ID: <20190312001602.GB25059@tower.DHCP.thefacebook.com>
 References: <20190308041426.16654-1-tobin@kernel.org>
-In-Reply-To: <20190308041426.16654-1-tobin@kernel.org>
+ <20190308041426.16654-13-tobin@kernel.org>
+In-Reply-To: <20190308041426.16654-13-tobin@kernel.org>
 Accept-Language: en-US
 Content-Language: en-US
 X-MS-Has-Attach: 
 X-MS-TNEF-Correlator: 
-x-clientproxiedby: BYAPR01CA0001.prod.exchangelabs.com (2603:10b6:a02:80::14)
- To BYAPR15MB2631.namprd15.prod.outlook.com (2603:10b6:a03:152::24)
+x-clientproxiedby: MWHPR20CA0032.namprd20.prod.outlook.com
+ (2603:10b6:300:ed::18) To BYAPR15MB2631.namprd15.prod.outlook.com
+ (2603:10b6:a03:152::24)
 x-ms-exchange-messagesentrepresentingtype: 1
 x-originating-ip: [2620:10d:c090:200::1:b487]
 x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: db79a75b-38eb-440b-a824-08d6a67f0000
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600127)(711020)(4605104)(2017052603328)(7153060)(7193020);SRVR:BYAPR15MB2597;
-x-ms-traffictypediagnostic: BYAPR15MB2597:
-x-ms-exchange-purlcount: 1
-x-microsoft-exchange-diagnostics: 1;BYAPR15MB2597;20:V3oCi9y5DXNhGoacojprWGP6D2MN/r/PHMyfQ5UtVBKcPTVODpILIdffqFRIAmEdLtOMf+u8o+uikivTZ5F1MW8ZYcUM85Q8QNsAu5Q7pZYRoVC6ZZgatIoWWjUYcnkRetgmhIGR+xkncYw+xVqJ/g9WsE/vKZ/u58osco54qFA=
-x-microsoft-antispam-prvs: <BYAPR15MB2597A5805A6F53D0AF068B1EBE490@BYAPR15MB2597.namprd15.prod.outlook.com>
+x-ms-office365-filtering-correlation-id: 6924867f-88bc-4545-b12e-08d6a67fec01
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600127)(711020)(4605104)(2017052603328)(7153060)(7193020);SRVR:BYAPR15MB2951;
+x-ms-traffictypediagnostic: BYAPR15MB2951:
+x-microsoft-exchange-diagnostics: 1;BYAPR15MB2951;20:YidRqfCZ9gfSPGeHMDzBjxi3dTUj1yciuvfhLE2i2SZ+Yzk15elcOfrd+VJHqKf/Ms5TIo0MkfnAZFlBQ1ws8eeH8dzfjZf1GVfnN1B9FYqpOKTmQZPyKImVE8c4OLVAm5OnZJ3TBFGVHNgiAYwugBYQlI3gq1icTB2ULWhp1jY=
+x-microsoft-antispam-prvs: <BYAPR15MB2951739B6DC78D4080D8B0A5BE490@BYAPR15MB2951.namprd15.prod.outlook.com>
 x-forefront-prvs: 09749A275C
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(979002)(39860400002)(376002)(396003)(136003)(366004)(346002)(189003)(199004)(6306002)(486006)(6512007)(102836004)(33656002)(476003)(99286004)(966005)(6246003)(186003)(46003)(52116002)(53936002)(386003)(9686003)(76176011)(1076003)(105586002)(11346002)(6436002)(7736002)(81166006)(446003)(5660300002)(106356001)(81156014)(305945005)(68736007)(8676002)(478600001)(8936002)(2906002)(71190400001)(71200400001)(6506007)(14454004)(25786009)(6916009)(14444005)(316002)(256004)(4326008)(6486002)(6116002)(86362001)(54906003)(97736004)(229853002)(969003)(989001)(999001)(1009001)(1019001);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB2597;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(39860400002)(346002)(376002)(396003)(136003)(366004)(199004)(189003)(46003)(256004)(6916009)(102836004)(6246003)(6116002)(81166006)(81156014)(8936002)(186003)(97736004)(6512007)(478600001)(8676002)(6436002)(9686003)(6486002)(7736002)(14454004)(53936002)(305945005)(229853002)(4326008)(6506007)(76176011)(106356001)(316002)(54906003)(386003)(105586002)(2906002)(99286004)(476003)(86362001)(486006)(11346002)(68736007)(5660300002)(52116002)(446003)(33656002)(71190400001)(1076003)(71200400001)(25786009);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB2951;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
 received-spf: None (protection.outlook.com: fb.com does not designate
  permitted sender hosts)
 x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: Rqv+5v6EqJxOmWC/5Xtzjw5U5Eua9CJpIeOvO6Jqc080IrTELc5vO+O4upD7ZJsVtUlLfDOcta5iJ9cEUJ7UsMK4CnLWbdit7bhn/bWEv8zNyFoRm0DdBw/s2CLs0pw9EYfWeQnsSpB1gpZNweCkSDooizPwdamD0OxYfUHa7JwnPTL6RK1cdZLzqpN8c8kvhP21I61U7gagXOYja6kmzUv3BlO9lwUcpL+I2S7iFW/a2Ztmkts4qneVW8fRarOFWLEGjiO+62ezixpaWmvE/4kEdG6oJZ9taHk2mvjCjAmBMz18c8OKM4aLxFDRXy3nA3bWJFBgwi5+NdGesgoFGizcr8iArYGDYloMI7VbD3kMTz7Gm3Tfl3PO69PuutPFjPKY94rWOr5hMVhWkjBW3XqESUfZAevkGERPGG6taO8=
+x-microsoft-antispam-message-info: cOW+58xwgkGYA8bzWzgQhsMtO8NZg6Jkt+k3GdLOZOZmO+mINWYg3liUiaMwgbG0fX6AAZGNEnwzngvd1FJO0sOLRnjN5x/xrT/JkzgCDAGhpMdm84sqp98vf1QJuvJuSmMdh7sYm2aooktBYSQrzAt4Nw+pbUtnNglpGvnmkXKjT7HHvkB1WTwO1Cz2Mt+AvU7tGvOcSKYcrCZgKdXSuN17tBP9uIaG72btsLralDe21n5NW0G24Jbk1BOuawbfb0umpih2BlEqtRbkOQ4jOf7ewGRSE9PWAL3izaC+53x4oRiYHnzp4aRlDyEEX4ZximtqGQ6eMHWk7pGH1fWNbpZcbsESkoqIUHmj1iO0jFIHeWVprf5T+P18uu/xrGDXzMnIr5w978nmomyWzvo5hzcoVb+/6RwvqNSFuY+pAbE=
 Content-Type: text/plain; charset="us-ascii"
-Content-ID: <39E60E583FE06A488ECD823CDDDD8185@namprd15.prod.outlook.com>
+Content-ID: <69B394CDEC3A1442927A6A5F0A9F8DC3@namprd15.prod.outlook.com>
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: db79a75b-38eb-440b-a824-08d6a67f0000
-X-MS-Exchange-CrossTenant-originalarrivaltime: 12 Mar 2019 00:09:31.3326
+X-MS-Exchange-CrossTenant-Network-Message-Id: 6924867f-88bc-4545-b12e-08d6a67fec01
+X-MS-Exchange-CrossTenant-originalarrivaltime: 12 Mar 2019 00:16:07.2987
  (UTC)
 X-MS-Exchange-CrossTenant-fromentityheader: Hosted
 X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
 X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB2597
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB2951
 X-OriginatorOrg: fb.com
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-11_17:,,
  signatures=0
@@ -187,63 +189,84 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 08, 2019 at 03:14:11PM +1100, Tobin C. Harding wrote:
-> Hi,
+On Fri, Mar 08, 2019 at 03:14:23PM +1100, Tobin C. Harding wrote:
+> Implement functions to migrate objects. This is based on
+> initial code by Matthew Wilcox and was modified to work with
+> slab object migration.
 >=20
-> Here is a patch set implementing movable objects within the SLUB
-> allocator.  This is work based on Christopher's patch set:
+> Co-developed-by: Christoph Lameter <cl@linux.com>
+> Signed-off-by: Tobin C. Harding <tobin@kernel.org>
+> ---
+>  lib/radix-tree.c | 13 +++++++++++++
+>  lib/xarray.c     | 44 ++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 57 insertions(+)
 >=20
->  https://lore.kernel.org/patchwork/project/lkml/list/?series=3D377335
->=20
-> The original code logic is from that set and implemented by Christopher.
-> Clean up, refactoring, documentation, and additional features by myself.
-> Blame for any bugs remaining falls solely with myself.  Patches using
-> Christopher's code use the Co-developed-by tag.
->=20
-> After movable objects are implemented a number of useful features become
-> possible.  Some of these are implemented in this series, including:
->=20
->  - Cache defragmentation.	  =20
->=20
->     Currently the SLUB allocator is susceptible to internal
->     fragmentation.  This occurs when a large number of cached objects
->     are allocated and then freed in an arbitrary order.  As the cache
->     fragments the number of pages used by the partial slabs list
->     increases.  This wastes memory.
->=20
->     Patch set implements the machinery to facilitate conditional cache
->     defragmentation (via kmem_cache_defrag()) and unconditional
->     defragmentation (via kmem_cache_shrink()).  Various sysfs knobs are
->     provided to interact with and configure this.
->=20
->     Patch set implements movable objects and cache defragmentation for
->     the XArray.
->=20
->  - Moving objects to and from a specific NUMA node.
->=20
->  - Balancing objects across all NUMA nodes.
->=20
-> We add a test module to facilitate playing around with movable objects
-> and a python test suite that uses the module.
->=20
-> Everything except the NUMA stuff was tested on bare metal, the NUMA
-> stuff was tested with Qemu NUMA emulation.
->=20
-> Possible further work:
->=20
-> 1. Implementing movable objects for the inode and dentry caches.
->=20
-> 2. Tying into the page migration and page defragmentation logic so that
->    so far unmovable pages that are in the way of creating a contiguous
->    block of memory will become movable.  This would mean checking for
->    slab pages in the migration logic and calling slab to see if it can
->    move the page by migrating all objects.
+> diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+> index 14d51548bea6..9412c2853726 100644
+> --- a/lib/radix-tree.c
+> +++ b/lib/radix-tree.c
+> @@ -1613,6 +1613,17 @@ static int radix_tree_cpu_dead(unsigned int cpu)
+>  	return 0;
+>  }
+> =20
+> +extern void xa_object_migrate(void *tree_node, int numa_node);
+> +
+> +static void radix_tree_migrate(struct kmem_cache *s, void **objects, int=
+ nr,
+> +			       int node, void *private)
+> +{
+> +	int i;
+> +
+> +	for (i =3D 0; i < nr; i++)
+> +		xa_object_migrate(objects[i], node);
+> +}
+> +
+>  void __init radix_tree_init(void)
+>  {
+>  	int ret;
+> @@ -1627,4 +1638,6 @@ void __init radix_tree_init(void)
+>  	ret =3D cpuhp_setup_state_nocalls(CPUHP_RADIX_DEAD, "lib/radix:dead",
+>  					NULL, radix_tree_cpu_dead);
+>  	WARN_ON(ret < 0);
+> +	kmem_cache_setup_mobility(radix_tree_node_cachep, NULL,
+> +				  radix_tree_migrate);
+>  }
+> diff --git a/lib/xarray.c b/lib/xarray.c
+> index 81c3171ddde9..4f6f17c87769 100644
+> --- a/lib/xarray.c
+> +++ b/lib/xarray.c
+> @@ -1950,6 +1950,50 @@ void xa_destroy(struct xarray *xa)
+>  }
+>  EXPORT_SYMBOL(xa_destroy);
+> =20
+> +void xa_object_migrate(struct xa_node *node, int numa_node)
+> +{
+> +	struct xarray *xa =3D READ_ONCE(node->array);
+> +	void __rcu **slot;
+> +	struct xa_node *new_node;
+> +	int i;
+> +
+> +	/* Freed or not yet in tree then skip */
+> +	if (!xa || xa =3D=3D XA_FREE_MARK)
+> +		return;
 
+XA_FREE_MARK is equal to 0, so the second check is redundant.
 
-Hi Tobin!
+#define XA_MARK_0		((__force xa_mark_t)0U)
+#define XA_MARK_1		((__force xa_mark_t)1U)
+#define XA_MARK_2		((__force xa_mark_t)2U)
+#define XA_PRESENT		((__force xa_mark_t)8U)
+#define XA_MARK_MAX		XA_MARK_2
+#define XA_FREE_MARK		XA_MARK_0
 
-Very interesting and promising patchset! Looking forward for inode/dentry
-moving support, might be a big deal for allocating huge pages dynamically.
+xa_node_free() sets node->array to XA_RCU_FREE, so maybe it's
+what you need. I'm not sure however, Matthew should know better.
+
+> +
+> +	new_node =3D kmem_cache_alloc_node(radix_tree_node_cachep,
+> +					 GFP_KERNEL, numa_node);
+
+We need to check here if the allocation was successful.
 
 Thanks!
 
