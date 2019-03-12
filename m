@@ -2,162 +2,193 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5A37BC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 11:43:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A0AD0C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 11:54:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EB7EE206DF
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 11:43:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EB7EE206DF
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 49C2E20657
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 11:54:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 49C2E20657
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4A0FA8E0003; Tue, 12 Mar 2019 07:43:09 -0400 (EDT)
+	id D7AFA8E0003; Tue, 12 Mar 2019 07:54:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 450208E0002; Tue, 12 Mar 2019 07:43:09 -0400 (EDT)
+	id D2A4F8E0002; Tue, 12 Mar 2019 07:54:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 367BA8E0003; Tue, 12 Mar 2019 07:43:09 -0400 (EDT)
+	id C183B8E0003; Tue, 12 Mar 2019 07:54:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D55B58E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 07:43:08 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id h16so968306edq.16
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 04:43:08 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 98A808E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 07:54:07 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id 207so1903029qkf.9
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 04:54:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=11vT0ckcw51NIh+LdNfv62oyMS0n/1I9czV3Y59gn58=;
-        b=NgvXlH2zsoFFPBk8HQVzOHdb5G2UvGuES4qKB+/h4noJVzaiOeEYUItIEKef+5Q0Nc
-         vQKmwuZjdNqRwUKeL5E0lE7RW5VUemdSAz0Hol2OBnjXm+tPtfNyZ4hscQFnxFoWDCWb
-         kl6KB5N41vb9ixjsKYkPoSgo7E1Y2uV9vdCXJkawGINcA3pCktfyXEeDCAx5Hf0ojGKD
-         BO7qGww3Hm3CMiEXNBt01FtoAxP0Oeu+b9Gc3sUfZjhjQ4X1suOGtMK6fXFp4Tf0CO6V
-         1SoXlregCqQkWd/PbotStj0DGjAOBheKHdqPjd0XIjmJmu2ZprS9oVs21KSQ+KQFBeSJ
-         O0QQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of suzuki.poulose@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=suzuki.poulose@arm.com
-X-Gm-Message-State: APjAAAUPLkYQBGE84ML2/wZkynGiHTdEIGqSaKECIEiHHa2eoKJj+lZM
-	MTKxNPr/9sBm1El36NkYmjR7XoJVEhj5+xpW5jq+dEv/LsGzNW87frzt8eXcWMNwR4g8j1/nj2C
-	hPqmUA5vyBdr36SK0bDzN5h5IGRDkf8a3t98H6a7Sui2VUGcMDz057NNox6MRDUx+sQ==
-X-Received: by 2002:a05:6402:1817:: with SMTP id g23mr3013062edy.295.1552390988378;
-        Tue, 12 Mar 2019 04:43:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwu1l/5ywe5cP/Fo14m8kr+/tA5/8uPGNPkVxiYyTUQJYjWv6PhE8GduxQbJylhjTy8n+XN
-X-Received: by 2002:a05:6402:1817:: with SMTP id g23mr3013010edy.295.1552390987551;
-        Tue, 12 Mar 2019 04:43:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552390987; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to;
+        bh=2kYB1p/b/VSU9SsB3LoLb0aZfIgS7NS7Z3NfTbSHKls=;
+        b=l7UlPQ4bhXAMtX6SGZO8P5VFjvAEqRW/xy92NQ64SomWyWUZ4RS3tM0RZAzyi697O8
+         GPMAEnK5nCcx2R214/+WF6uKeJt2dee3mZzxwXOhACZn9K7pHz5Ubi/7zM3Kes7wnFms
+         BCV0Bw4ecLzyFEBRqOsLVbJPr1CcCimIDgCwanuCT7ztS4xPbnmizkUTQd5wESUhc8v/
+         FfluBojr6xYBwwqdMFZzlJqSIBhFgucZ35Q0KILyGofQ985/opdAr+ad2NfwbPCBWvxr
+         6C3AJDd35LoKBnqEgYN94edY0dOQmKQ8zSQBKcozh89l/NtwaPi9XLv9CF2rkTbJ6oA4
+         GlIQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWe3JHUzxWXy9AoKvSSZb24v3oLi59gOQr5nHMxjVs69e9tFaRb
+	X7F9aEY2i6/n/aoEXKv6k735ar7SC3zUgV5DYsl3IbmG/oFY5FMXoX5SH5L3YvIOFJHbfUCrszR
+	wVTPS0f2tohp00QyCNaZVcTcJfQYUyhea8NncU9U3H0F+b4GhsYZ+/CqeHOrZtiQOeVucnnCS0E
+	xSNgJRqGzcEzAi96pfaYEOl12UMcst7EvkmTgt6+ynngrnqrsnukyG2Xxl+c5fAzNUuFQaRcdCm
+	VoBocw67+9FykjIdyF4CC7pupdKLcktmqq+BrkCly0antMmxR3RFmnh+HyIVcNPT6sK3UoovBkq
+	xqXTIK4nBUqvoVZo/C4Lkrd8Snuwdaf+PQdHTV/cVRe0U0FvRef3cqxyjTqoFxxDkoxFfUMr9zt
+	x
+X-Received: by 2002:a0c:b7a1:: with SMTP id l33mr29940849qve.160.1552391647392;
+        Tue, 12 Mar 2019 04:54:07 -0700 (PDT)
+X-Received: by 2002:a0c:b7a1:: with SMTP id l33mr29940807qve.160.1552391646443;
+        Tue, 12 Mar 2019 04:54:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552391646; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ti+eWSTUAii8INt4hYWZLCA1Tz6GibhaZr9TZsjtqXO67eJppu77MUomTsTgjSBG6U
-         of4PAVbkB7btlg3J9PhvWsDZSFY8/sHhC2Y/qsinIevN5fb5CZ/cPanM3EekEUj47e0J
-         eTzkbEWWnmSDLIkvTdrTV6bGLB21QV/tWs5wrvRwVNyDR/qQCeGzyw7ZTbshYleyf6A0
-         ci9wuaYoY+6nMsloQq0zWS037xeT8/yfTIVCqA2orwgo+kC1LvDyR7UozSfn7+hgrKpF
-         AsCaro39bLACjWY6qHbGfRGraNqNo3s8/yr670hzlOKOTPCKXf/1hyYyBALeaDn/z8uQ
-         dePA==
+        b=O+8tzteGlxK6GqgCZXa8dC6IRg+uDcwPmsumvZp0zO9zI/YzzvtYtctluNXAHpWbN6
+         F2CqPUZ6a48YwjgIBtWABjYU+v+K6zhyFgvLwYtcbTd70yBDhRv2BDvwOm5jJxwR1o01
+         wLiMh+R5qaqzHZSVY33fglqN6g3IDwJktPpEX7unC/VDInXZ1FR9wmFJZh7eHOdfPfQh
+         ObaSAuKIDaKD6xJuf5gh7RsjGPQkgBm1tInETELOhgXutIiT9Yw08YNOpJY6OhwPE+cL
+         VDkzUlqwyXglgx5RT7A2rQwdlyirm4++y2AvsramQ6pftozgaWY15/snYZnLQcT2O+1Q
+         Verg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=11vT0ckcw51NIh+LdNfv62oyMS0n/1I9czV3Y59gn58=;
-        b=kZ5qrnG0JDchEH9pCSSox+22ug77vvsHib2aFpFqpS1acX/MadzbdU/N1ve+UFCPAE
-         eNrF/SpLMVSTBQBoobwvabGBy70y/sre0zF1x5L9jEdZvGfQS0ko+ORoWkLEbVOi+88p
-         1MfXuAIlc0wP2sOs2S5AR8BWOAIEOWmolaDe+N8CAv78FEiiqu8HHOTU9ChP7IoUzebN
-         yoEM7L21TGtNNd5ycgmCHX8y/1Xlu0ko8DlsWwtvXq6WkJETeDAnBqY97ONFiXu3HSyI
-         HjeMl1bbo6fYiXAhD5JbaERgqjRIkxtXinUBgsSx6qfTZVVHuKXFwmGUomn/XrLHyYuG
-         sTFQ==
+        h=in-reply-to:content-transfer-encoding:content-disposition
+         :mime-version:references:message-id:subject:cc:to:from:date;
+        bh=2kYB1p/b/VSU9SsB3LoLb0aZfIgS7NS7Z3NfTbSHKls=;
+        b=XSZRGuqBqiLw26+Lf9OMSTbHnNRu89xTXoN/hrk9I9aJ+Kpp5SI6CO5zJEm2RK1kJY
+         MX2raMXz7u5UiFxlMFn1MkvokgGwqVdpCgIuq1iQGxIR8wh1n9Vxli9q3N/PCL0VhkT1
+         T/FsqJawT4QnBwyoJqLAZTP+m+ZVdCuKLhqDuq5m/kwKRU7OGrjrY9Cu5WN1ss5mJ2/p
+         cOeUIR0RTtcTdysMaGsdKUarxkuohAHJS/n+dDfal+tEx7ZOI9OxqiLj7WXcSwMoYxWP
+         3k8L3qBajgjTwBsUdNYcl4/Nm6Ndu/eG9KtOc4AxXHpa9GVwfs1MvI+VMk3I4ad3OqHl
+         i7pA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of suzuki.poulose@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=suzuki.poulose@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id r2si3377050ejf.139.2019.03.12.04.43.07
-        for <linux-mm@kvack.org>;
-        Tue, 12 Mar 2019 04:43:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of suzuki.poulose@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u21sor4516270qkk.33.2019.03.12.04.54.06
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 12 Mar 2019 04:54:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of suzuki.poulose@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=suzuki.poulose@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 521B1374;
-	Tue, 12 Mar 2019 04:43:06 -0700 (PDT)
-Received: from [10.1.196.93] (en101.cambridge.arm.com [10.1.196.93])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 349683F59C;
-	Tue, 12 Mar 2019 04:43:04 -0700 (PDT)
-Subject: Re: [PATCH] KVM: ARM: Remove pgtable page standard functions from
- stage-2 page tables
-To: anshuman.khandual@arm.com, catalin.marinas@arm.com, will.deacon@arm.com,
- mark.rutland@arm.com, yuzhao@google.com
-Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
-References: <20190312005749.30166-3-yuzhao@google.com>
- <1552357142-636-1-git-send-email-anshuman.khandual@arm.com>
- <5b82c7c4-93cc-2820-46ad-3fb731a0eefc@arm.com>
- <2d00c35d-ae10-ba4a-9b34-939fcf2b2f49@arm.com>
-From: Suzuki K Poulose <suzuki.poulose@arm.com>
-Message-ID: <3be0b7e0-2ef8-babb-88c9-d229e0fdd220@arm.com>
-Date: Tue, 12 Mar 2019 11:43:02 +0000
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqxlYyfklOn1Ixv2yLTKmxFig1ic497FcTleSgokOtZQtp/NrlhMzHsNN0QtF+AybUzOKVjxPQ==
+X-Received: by 2002:ae9:ec13:: with SMTP id h19mr17835707qkg.345.1552391646180;
+        Tue, 12 Mar 2019 04:54:06 -0700 (PDT)
+Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
+        by smtp.gmail.com with ESMTPSA id s186sm2889766qkb.57.2019.03.12.04.54.03
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 12 Mar 2019 04:54:04 -0700 (PDT)
+Date: Tue, 12 Mar 2019 07:54:02 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Jason Wang <jasowang@redhat.com>
+Cc: David Miller <davem@davemloft.net>, hch@infradead.org,
+	kvm@vger.kernel.org, virtualization@lists.linux-foundation.org,
+	netdev@vger.kernel.org, linux-kernel@vger.kernel.org,
+	peterx@redhat.com, linux-mm@kvack.org, aarcange@redhat.com,
+	linux-arm-kernel@lists.infradead.org, linux-parisc@vger.kernel.org
+Subject: Re: [RFC PATCH V2 0/5] vhost: accelerate metadata access through
+ vmap()
+Message-ID: <20190312075033-mutt-send-email-mst@kernel.org>
+References: <20190308141220.GA21082@infradead.org>
+ <56374231-7ba7-0227-8d6d-4d968d71b4d6@redhat.com>
+ <20190311095405-mutt-send-email-mst@kernel.org>
+ <20190311.111413.1140896328197448401.davem@davemloft.net>
+ <6b6dcc4a-2f08-ba67-0423-35787f3b966c@redhat.com>
+ <20190311235140-mutt-send-email-mst@kernel.org>
+ <76c353ed-d6de-99a9-76f9-f258074c1462@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <2d00c35d-ae10-ba4a-9b34-939fcf2b2f49@arm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <76c353ed-d6de-99a9-76f9-f258074c1462@redhat.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Mar 12, 2019 at 03:17:00PM +0800, Jason Wang wrote:
+> 
+> On 2019/3/12 上午11:52, Michael S. Tsirkin wrote:
+> > On Tue, Mar 12, 2019 at 10:59:09AM +0800, Jason Wang wrote:
+> > > On 2019/3/12 上午2:14, David Miller wrote:
+> > > > From: "Michael S. Tsirkin" <mst@redhat.com>
+> > > > Date: Mon, 11 Mar 2019 09:59:28 -0400
+> > > > 
+> > > > > On Mon, Mar 11, 2019 at 03:13:17PM +0800, Jason Wang wrote:
+> > > > > > On 2019/3/8 下午10:12, Christoph Hellwig wrote:
+> > > > > > > On Wed, Mar 06, 2019 at 02:18:07AM -0500, Jason Wang wrote:
+> > > > > > > > This series tries to access virtqueue metadata through kernel virtual
+> > > > > > > > address instead of copy_user() friends since they had too much
+> > > > > > > > overheads like checks, spec barriers or even hardware feature
+> > > > > > > > toggling. This is done through setup kernel address through vmap() and
+> > > > > > > > resigter MMU notifier for invalidation.
+> > > > > > > > 
+> > > > > > > > Test shows about 24% improvement on TX PPS. TCP_STREAM doesn't see
+> > > > > > > > obvious improvement.
+> > > > > > > How is this going to work for CPUs with virtually tagged caches?
+> > > > > > Anything different that you worry?
+> > > > > If caches have virtual tags then kernel and userspace view of memory
+> > > > > might not be automatically in sync if they access memory
+> > > > > through different virtual addresses. You need to do things like
+> > > > > flush_cache_page, probably multiple times.
+> > > > "flush_dcache_page()"
+> > > 
+> > > I get this. Then I think the current set_bit_to_user() is suspicious, we
+> > > probably miss a flush_dcache_page() there:
+> > > 
+> > > 
+> > > static int set_bit_to_user(int nr, void __user *addr)
+> > > {
+> > >          unsigned long log = (unsigned long)addr;
+> > >          struct page *page;
+> > >          void *base;
+> > >          int bit = nr + (log % PAGE_SIZE) * 8;
+> > >          int r;
+> > > 
+> > >          r = get_user_pages_fast(log, 1, 1, &page);
+> > >          if (r < 0)
+> > >                  return r;
+> > >          BUG_ON(r != 1);
+> > >          base = kmap_atomic(page);
+> > >          set_bit(bit, base);
+> > >          kunmap_atomic(base);
+> > >          set_page_dirty_lock(page);
+> > >          put_page(page);
+> > >          return 0;
+> > > }
+> > > 
+> > > Thanks
+> > I think you are right. The correct fix though is to re-implement
+> > it using asm and handling pagefault, not gup.
+> 
+> 
+> I agree but it needs to introduce new helpers in asm  for all archs which is
+> not trivial.
 
+We can have a generic implementation using kmap.
 
-On 12/03/2019 11:31, Anshuman Khandual wrote:
+> At least for -stable, we need the flush?
 > 
 > 
-> On 03/12/2019 04:07 PM, Suzuki K Poulose wrote:
->> Hi Anshuman,
->>
->> On 12/03/2019 02:19, Anshuman Khandual wrote:
->>> ARM64 standard pgtable functions are going to use pgtable_page_[ctor|dtor]
->>> or pgtable_pmd_page_[ctor|dtor] constructs. At present KVM guest stage-2
->>> PUD|PMD|PTE level page tabe pages are allocated with __get_free_page()
->>> via mmu_memory_cache_alloc() but released with standard pud|pmd_free() or
->>> pte_free_kernel(). These will fail once they start calling into pgtable_
->>> [pmd]_page_dtor() for pages which never originally went through respective
->>> constructor functions. Hence convert all stage-2 page table page release
->>> functions to call buddy directly while freeing pages.
->>>
->>> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
->>> ---
->>>    arch/arm/include/asm/stage2_pgtable.h   | 4 ++--
->>>    arch/arm64/include/asm/stage2_pgtable.h | 4 ++--
->>>    virt/kvm/arm/mmu.c                      | 2 +-
->>>    3 files changed, 5 insertions(+), 5 deletions(-)
->>>
->>> diff --git a/arch/arm/include/asm/stage2_pgtable.h b/arch/arm/include/asm/stage2_pgtable.h
->>> index de2089501b8b..417a3be00718 100644
->>> --- a/arch/arm/include/asm/stage2_pgtable.h
->>> +++ b/arch/arm/include/asm/stage2_pgtable.h
->>> @@ -32,14 +32,14 @@
->>>    #define stage2_pgd_present(kvm, pgd)        pgd_present(pgd)
->>>    #define stage2_pgd_populate(kvm, pgd, pud)    pgd_populate(NULL, pgd, pud)
->>>    #define stage2_pud_offset(kvm, pgd, address)    pud_offset(pgd, address)
->>> -#define stage2_pud_free(kvm, pud)        pud_free(NULL, pud)
->>> +#define stage2_pud_free(kvm, pud)        free_page((unsigned long)pud)
->>
->> That must be a NOP, as we don't have pud on arm32 (we have 3 level table).
->> The pud_* helpers here all fallback to the generic no-pud helpers.
-> Which is the following here for pud_free()
+> > Three atomic ops per bit is way to expensive.
 > 
-> #define pud_free(mm, x)                         do { } while (0)
 > 
-> On arm64 its protected by kvm_stage2_has_pud() helper before calling into pud_free().
-> In this case even though applicable pud_free() is NOP, it is still misleading. If we
-> are sure about page table level will always remain three it can directly have a NOP
-> (do/while) in there.
+> Yes.
 > 
+> Thanks
 
-Yes, it is fixed for arm32 and you could have it as do {} while (0), which is
-what I meant by NOP. On arm64, we had varied number of levels depending on the
-PAGE_SIZE and now due to the dynamic IPA, hence the check.
+See James's reply - I stand corrected we do kunmap so no need to flush.
 
-Cheers
-Suzuki
+-- 
+MST
 
