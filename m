@@ -3,203 +3,144 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C882C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 07:53:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E9414C10F00
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 08:00:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EB2D52173C
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 07:53:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EB2D52173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id B094E214AE
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 08:00:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B094E214AE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 876E48E0003; Tue, 12 Mar 2019 03:53:50 -0400 (EDT)
+	id 4C5618E0003; Tue, 12 Mar 2019 04:00:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 823DE8E0002; Tue, 12 Mar 2019 03:53:50 -0400 (EDT)
+	id 44D958E0002; Tue, 12 Mar 2019 04:00:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6EA7F8E0003; Tue, 12 Mar 2019 03:53:50 -0400 (EDT)
+	id 33F3F8E0003; Tue, 12 Mar 2019 04:00:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D6FD8E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 03:53:50 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id b188so1471853qkg.15
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 00:53:50 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E19E68E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 04:00:48 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id x23so2160140pfm.0
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 01:00:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-transfer-encoding:content-language;
-        bh=Z0aXoxS8rVXL7J6k2kLfOYzZULtUi8/02ywxziW0aKs=;
-        b=akbjdtALfQ8nMZ7hWEjmCxBesLskj1zzxx9PlKa0+cvMOo0h5V6DXty6TS4nzgs7vt
-         hS+UbJWYQzV+3/ti//lxa8X8B90Ae7LYuEED59zWKY7+K3JKBtfS1s4mp7jh8OufozGx
-         j0GLYkbo3Yo16vyeiC5xF0rE6l0IgIEg8lUHrUq1JIB5XmrfeBzxCNRQmgsACnEftpUW
-         x2oWcgX9B8N0ZXgsll4/OCKHV9K78R3uCGH7vcCErKtCju4SZM5thhJpI3HyccIQTYtb
-         huWquH8naPqB4vBSOxxIzHDrW0KTHJtC2MJrbxJDCuvE5VvN8Y9XlZ8zeHQeEywX2uQD
-         x/Ng==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXHnWNj2GQG4tyKjMaTFD7I15RFJS5LF/EeAnYmC6k0fKUd0Ykg
-	xpsPmfeK++wB2aQlvxoKs8J1q3Z4Tugly7+PuljKJUQ3be2Ts5UbwKFhtRs2kpizdbL8LRgnofY
-	Yc7kK4HRe06+zD1mon1NIK7mKmdlUENTUFsyOO0PXSqCe3A90tqVtldlzv7FVOLBesA==
-X-Received: by 2002:aed:3f82:: with SMTP id s2mr29607156qth.284.1552377230106;
-        Tue, 12 Mar 2019 00:53:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxQneuG3opF9li1yiNm+FzUNx59NcY6M/QZNMlzwm4Pb09TknRtxe2H/sLk2MBNnFt413rs
-X-Received: by 2002:aed:3f82:: with SMTP id s2mr29607124qth.284.1552377229423;
-        Tue, 12 Mar 2019 00:53:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552377229; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:in-reply-to:organization:references:date:message-id
+         :mime-version;
+        bh=NoCWmPWMbEDDUtlvUfSXY3QAjLpWmnzbXqbiPtoxywY=;
+        b=d+uE3azHqL1ov5G2UJsjER6uXj8yXa5xWMiPohK9XbJwikFe2y4aqqN3xbc9NdlRrl
+         ktiy7o8aY7hRdDQcMYt8CqQKcwE+4NTrvu+86if8IgwyLClokPR5Z28XwYRZjYiuCFJb
+         t/Ob36PS/1Q/AQF+NfKqWt7j7pEki06h7fhy19F8nRYp/av8KU+1b375tLyn4KIGS1uM
+         KSBfjaKhDaEKtfMAAL0Skb21iB7XClLd4KZWsU0ZmSACMLu5gPSOzWIDPSKcm1Gb4D8a
+         ekSWKXuBJxx7yAmMw0aV+UdBokVpYV7wENi8POg9UR+XGghJKdiYocg5Qr7q1pLZT5w0
+         TvZw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jani.nikula@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=jani.nikula@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVish3IJNQdY7rrQ9sVK7jXwl+U1dwsf1Ylc9jtWRczeOULKOJG
+	6ODZ3nN2O/c5DdodZqGwnceM4mtExsy1/1rTpmrNxjCcVFtNrHmRQdFuM5CiPClhAX06jXLxyMI
+	oUpGZjh8xqjYN5+XxH1UoBSXm7h1F9ZX9LcbLuGaM/WXpHAlDGgy31v8jin0U2xHVCA==
+X-Received: by 2002:a17:902:8697:: with SMTP id g23mr39030147plo.30.1552377648569;
+        Tue, 12 Mar 2019 01:00:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwi5gdVjXuDIMog4oQItA374edlk6x/VCm6jojBsT4QMWatTg/ZuCPP3Yimc1nQz27pAUcs
+X-Received: by 2002:a17:902:8697:: with SMTP id g23mr39030042plo.30.1552377647540;
+        Tue, 12 Mar 2019 01:00:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552377647; cv=none;
         d=google.com; s=arc-20160816;
-        b=Eyljvg4hYkZpjvtrSZdGksaC5Xp0SAIsysSuvIokthJWTQ9tKI+VoEtDtnUnhKRCSr
-         ECUmJHj9WyrEb1ayHUaPFrjT6nUGZBzHZLwreq53Weug2fzDzMGCFggKjwGdsYzzJ5UG
-         mE0WQGUDePZhsVp6nkAX7E5YKnqHDQynddvtEts4r0ngwH7pcWMHton9uRdLzlLZhGKq
-         NmouZ1mQ1gTTVWkv+eaKRZml2AGl30U2qmYJD5dw/grXdK7bjrtpF9XK0p/gKEataNGE
-         M0YBg4g8veKQdyTxAdJokOY/tfjISHJFrKRX034/UG7APkYbSBYCBBn3oVFdZrhDc7Mj
-         OUyw==
+        b=jdFpciCxqxUzj6bTSyfjSDaBjiI5a3jNJbV5dFwuqqHR1uNccKFd3kTPF4gXx7Pfr2
+         IgVEX0IqF09u0b/0wAuPwnmHkCqdCXO0Ng7rpiDuWTtWthkWzh8jLQ/vBCnDLJ587Jfh
+         HWgqCf9mg0TM+5dwEMrO03yW5X116BVvduw7D2aWyinZITc5cTB1YU680K4O0oSuLxPy
+         4v1JOBc8JttPCJuZVoiQdm0DPlkJ0lU5Jx5MWbB5s+QmH4JiXzWNJm4L46RhwvUmbmNx
+         nSFnihZx8YwSCyhuVOGgqb5VvJNm83319TTlqrehwEW5K2iDTixrODO2kDZFYod8wVZu
+         9NOg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:from:subject;
-        bh=Z0aXoxS8rVXL7J6k2kLfOYzZULtUi8/02ywxziW0aKs=;
-        b=kYtAXTO8G/w/Dd6pE9andyuKsfGs+kslpAGBPoUi8g8mvD5aK0Xi3HqN0GDBIgtzYG
-         WS/rv9X+F7ii+t0L7xHsdmkqwC8YvXC0jM//J7XDrlMHKWON6KcNLjkCReDXvICqGbJU
-         1kuzZBCvaNfuU0UunK99ARI2u3Me/WuiuVTK9q0mPEj68QOKPTUz3OczKeM+3JNSw/kr
-         pPDa6w4hCrN5KxhL26xIh3zlNU3fxRIL/xuJP9hLszgb9uYQyM2xX6LBmn2WWSuhFFVu
-         qFGpry8urg8rh8rfH6qTwUIFfk+70j+OM9qZzM6yB/t1hmch32J9yOzJGgdRgUGJdk3X
-         pQLQ==
+        h=mime-version:message-id:date:references:organization:in-reply-to
+         :subject:cc:to:from;
+        bh=NoCWmPWMbEDDUtlvUfSXY3QAjLpWmnzbXqbiPtoxywY=;
+        b=azJVr6GPEOb7HTqd7vPPkDC+iBLkhQkS5/yn4UyyF3ynacCh3GfmnZCtTpWrA4RLE0
+         XbZ0XfZ1p+6NWyCYl5xlk92O3cAMeXsGRT/g7v0xf8k3SRPJR0Dt0ABo2a70T4Qc5NRz
+         4vh7MpYfTRTOW85u4SVkHOoHGzns2Y9cWQ1ibm9wWnUzhF5uTGm4WpccgOAshzQKcIUW
+         FofugG2hyrQlSgv+e2dYZxLe3K55y6whGglV529qoEZJwew2pzqb1hS99pizCZ/0dHzh
+         nc54B6jWTx5C0Z+axJzqvJMJmdwnrk/Z28V1N3QGcYFDWxMDGxavPBfQ48KfOkh7EYFv
+         Rjcg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k31si334910qvh.70.2019.03.12.00.53.49
+       spf=pass (google.com: domain of jani.nikula@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=jani.nikula@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id b2si7436767pgl.531.2019.03.12.01.00.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 00:53:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Tue, 12 Mar 2019 01:00:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jani.nikula@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 904B987621;
-	Tue, 12 Mar 2019 07:53:48 +0000 (UTC)
-Received: from [10.72.12.17] (ovpn-12-17.pek2.redhat.com [10.72.12.17])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 86C1260CA3;
-	Tue, 12 Mar 2019 07:53:39 +0000 (UTC)
-Subject: Re: [RFC PATCH V2 0/5] vhost: accelerate metadata access through
- vmap()
-From: Jason Wang <jasowang@redhat.com>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>,
- David Miller <davem@davemloft.net>, mst@redhat.com
-Cc: hch@infradead.org, kvm@vger.kernel.org,
- virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
- linux-kernel@vger.kernel.org, peterx@redhat.com, linux-mm@kvack.org,
- aarcange@redhat.com, linux-arm-kernel@lists.infradead.org,
- linux-parisc@vger.kernel.org
-References: <20190308141220.GA21082@infradead.org>
- <56374231-7ba7-0227-8d6d-4d968d71b4d6@redhat.com>
- <20190311095405-mutt-send-email-mst@kernel.org>
- <20190311.111413.1140896328197448401.davem@davemloft.net>
- <6b6dcc4a-2f08-ba67-0423-35787f3b966c@redhat.com>
- <1552367685.23859.22.camel@HansenPartnership.com>
- <f9e52313-0a06-22b6-140c-ded75eecde20@redhat.com>
-Message-ID: <7f779c16-58d1-dd4f-54cf-a7538d4b6fe4@redhat.com>
-Date: Tue, 12 Mar 2019 15:53:37 +0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       spf=pass (google.com: domain of jani.nikula@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=jani.nikula@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga001.fm.intel.com ([10.253.24.23])
+  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Mar 2019 01:00:45 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,470,1544515200"; 
+   d="scan'208";a="154206711"
+Received: from hkrasnod-mobl.ger.corp.intel.com (HELO localhost) ([10.252.62.84])
+  by fmsmga001.fm.intel.com with ESMTP; 12 Mar 2019 01:00:37 -0700
+From: Jani Nikula <jani.nikula@linux.intel.com>
+To: Al Viro <viro@zeniv.linux.org.uk>, syzbot <syzbot+1505c80c74256c6118a5@syzkaller.appspotmail.com>
+Cc: airlied@linux.ie, akpm@linux-foundation.org, amir73il@gmail.com, chris@chris-wilson.co.uk, darrick.wong@oracle.com, david@fromorbit.com, dri-devel@lists.freedesktop.org, dvyukov@google.com, eparis@redhat.com, hannes@cmpxchg.org, hughd@google.com, intel-gfx@lists.freedesktop.org, jack@suse.cz, joonas.lahtinen@linux.intel.com, jrdr.linux@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@redhat.com, mszeredi@redhat.com, penguin-kernel@i-love.sakura.ne.jp, peterz@infradead.org, rodrigo.vivi@intel.com, syzkaller-bugs@googlegroups.com, willy@infradead.org
+Subject: Re: INFO: rcu detected stall in sys_sendfile64 (2)
+In-Reply-To: <20190312040829.GQ2217@ZenIV.linux.org.uk>
+Organization: Intel Finland Oy - BIC 0357606-4 - Westendinkatu 7, 02160 Espoo
+References: <00000000000010b2fc057fcdfaba@google.com> <0000000000008c75b50583ddb5f8@google.com> <20190312040829.GQ2217@ZenIV.linux.org.uk>
+Date: Tue, 12 Mar 2019 10:00:36 +0200
+Message-ID: <871s3cfrob.fsf@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <f9e52313-0a06-22b6-140c-ded75eecde20@redhat.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Tue, 12 Mar 2019 07:53:48 +0000 (UTC)
+Content-Type: text/plain
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 12 Mar 2019, Al Viro <viro@zeniv.linux.org.uk> wrote:
+> On Mon, Mar 11, 2019 at 08:59:00PM -0700, syzbot wrote:
+>> syzbot has bisected this bug to:
+>> 
+>> commit 34e07e42c55aeaa78e93b057a6664e2ecde3fadb
+>> Author: Chris Wilson <chris@chris-wilson.co.uk>
+>> Date:   Thu Feb 8 10:54:48 2018 +0000
+>> 
+>>     drm/i915: Add missing kerneldoc for 'ent' in i915_driver_init_early
+>> 
+>> bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=13220283200000
+>> start commit:   34e07e42 drm/i915: Add missing kerneldoc for 'ent' in i915..
+>> git tree:       upstream
+>> final crash:    https://syzkaller.appspot.com/x/report.txt?x=10a20283200000
+>> console output: https://syzkaller.appspot.com/x/log.txt?x=17220283200000
+>> kernel config:  https://syzkaller.appspot.com/x/.config?x=abc3dc9b7a900258
+>> dashboard link: https://syzkaller.appspot.com/bug?extid=1505c80c74256c6118a5
+>> userspace arch: amd64
+>> syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=12c4dc28c00000
+>> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=15df4108c00000
+>> 
+>> Reported-by: syzbot+1505c80c74256c6118a5@syzkaller.appspotmail.com
+>> Fixes: 34e07e42 ("drm/i915: Add missing kerneldoc for 'ent' in
+>> i915_driver_init_early")
+>
+> Umm...  Might be a good idea to add some plausibility filters - it is,
+> in theory, possible that adding a line in a comment changes behaviour
+> (without compiler bugs, even - playing with __LINE__ is all it would
+> take), but the odds that it's _not_ a false positive are very low.
 
-On 2019/3/12 下午3:51, Jason Wang wrote:
->
-> On 2019/3/12 下午1:14, James Bottomley wrote:
->> On Tue, 2019-03-12 at 10:59 +0800, Jason Wang wrote:
->>> On 2019/3/12 上午2:14, David Miller wrote:
->>>> From: "Michael S. Tsirkin" <mst@redhat.com>
->>>> Date: Mon, 11 Mar 2019 09:59:28 -0400
->>>>
->>>>> On Mon, Mar 11, 2019 at 03:13:17PM +0800, Jason Wang wrote:
->>>>>> On 2019/3/8 下午10:12, Christoph Hellwig wrote:
->>>>>>> On Wed, Mar 06, 2019 at 02:18:07AM -0500, Jason Wang wrote:
->>>>>>>> This series tries to access virtqueue metadata through
->>>>>>>> kernel virtual
->>>>>>>> address instead of copy_user() friends since they had too
->>>>>>>> much
->>>>>>>> overheads like checks, spec barriers or even hardware
->>>>>>>> feature
->>>>>>>> toggling. This is done through setup kernel address through
->>>>>>>> vmap() and
->>>>>>>> resigter MMU notifier for invalidation.
->>>>>>>>
->>>>>>>> Test shows about 24% improvement on TX PPS. TCP_STREAM
->>>>>>>> doesn't see
->>>>>>>> obvious improvement.
->>>>>>> How is this going to work for CPUs with virtually tagged
->>>>>>> caches?
->>>>>> Anything different that you worry?
->>>>> If caches have virtual tags then kernel and userspace view of
->>>>> memory
->>>>> might not be automatically in sync if they access memory
->>>>> through different virtual addresses. You need to do things like
->>>>> flush_cache_page, probably multiple times.
->>>> "flush_dcache_page()"
->>>
->>> I get this. Then I think the current set_bit_to_user() is suspicious,
->>> we
->>> probably miss a flush_dcache_page() there:
->>>
->>>
->>> static int set_bit_to_user(int nr, void __user *addr)
->>> {
->>>           unsigned long log = (unsigned long)addr;
->>>           struct page *page;
->>>           void *base;
->>>           int bit = nr + (log % PAGE_SIZE) * 8;
->>>           int r;
->>>
->>>           r = get_user_pages_fast(log, 1, 1, &page);
->>>           if (r < 0)
->>>                   return r;
->>>           BUG_ON(r != 1);
->>>           base = kmap_atomic(page);
->>>           set_bit(bit, base);
->>>           kunmap_atomic(base);
->> This sequence should be OK.  get_user_pages() contains a flush which
->> clears the cache above the user virtual address, so on kmap, the page
->> is coherent at the new alias.  On parisc at least, kunmap embodies a
->> flush_dcache_page() which pushes any changes in the cache above the
->> kernel virtual address back to main memory and makes it coherent again
->> for the user alias to pick it up.
->
->
-> It would be good if kmap()/kunmap() can do this but looks like we can 
-> not assume this? For example, sparc's flush_dcache_page() 
+If it's not a false positive, it's bound to be good source material for
+IOCCC.
+
+BR,
+Jani.
 
 
-Sorry, I meant kunmap_atomic().
-
-Thanks
-
-
-> doesn't do flush_dcache_page(). And bio_copy_data_iter() do 
-> flush_dcache_page() after kunmap_atomic().
->
-> Thanks
->
->
->>
->> James
->>
->
+-- 
+Jani Nikula, Intel Open Source Graphics Center
 
