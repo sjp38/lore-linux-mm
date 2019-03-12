@@ -2,205 +2,174 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D9CEAC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 13:53:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5E722C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 13:59:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 91CA8214AE
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 13:53:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 91CA8214AE
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 0CC9D2087C
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 13:59:00 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="WMOwULbJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0CC9D2087C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 256F98E0003; Tue, 12 Mar 2019 09:53:33 -0400 (EDT)
+	id 9818C8E0003; Tue, 12 Mar 2019 09:59:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 206BB8E0002; Tue, 12 Mar 2019 09:53:33 -0400 (EDT)
+	id 907378E0002; Tue, 12 Mar 2019 09:59:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0F7FC8E0003; Tue, 12 Mar 2019 09:53:33 -0400 (EDT)
+	id 7D06A8E0003; Tue, 12 Mar 2019 09:59:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DF1FD8E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 09:53:32 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id o135so1990219qke.11
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 06:53:32 -0700 (PDT)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E4988E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 09:59:00 -0400 (EDT)
+Received: by mail-it1-f199.google.com with SMTP id q184so2282479itd.6
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 06:59:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=Bafzwra03unlq9sNsDcu+GafVaU7H8EP+iRO+JOu7mw=;
-        b=SkRJ/9QpzEbHldU4tvsG5/w/Aj/Xk2ChIosZJgNqFvDqKP0oBgrdUecUrJKw3AB5jj
-         fQyc2ZJWc4f2csyHZHjGUUgqh6eQ6TuyAhgSCg7ZYZTmTsnwY9wOU/3maFmOguXSf6kf
-         VWkMROcj414dDphtBR+YAZ6IFmT+ncY9Wf58OQcborrW/P66e4g/fbbh6J1pITXLE4i3
-         QRwMrIF/2eys4UoU7fyNsv92J4q+bMrIew/GgivTe51jV5In7X3WZAehMWDklPokqGQR
-         gQB+2UyLhMXecNrjfdLDCfmxJVrH5gG6PV3hBQsiJ3js81YcPLzcdbZcWd09LD23nCwN
-         HKiQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAXHvAc4r0kggQ/l24FB26LxN9SpugjnTkC/lpPJ3dEMD8gKq4xw
-	8QAlBrBQsbyy15yxWI6F599ccVnQ7I7OJiWH3ojYHtrmRrZhgV49D95q/WfjR41gJ1LLRduo8R2
-	EBhjHaDxp6ZvGLdYJ3tWC3vr7pFfqMCFIV5t8v6hW4ukZsveTxxcJvH89CN7wyrvqEQ==
-X-Received: by 2002:ac8:2b6f:: with SMTP id 44mr30021066qtv.366.1552398812713;
-        Tue, 12 Mar 2019 06:53:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxGk0D7H0zH4L1KHurL0lu7q3NvGt5dtpR5C2KW8XPnAvN4gPUSyk4TkbDOT2Mh1ij1sm1y
-X-Received: by 2002:ac8:2b6f:: with SMTP id 44mr30021026qtv.366.1552398812085;
-        Tue, 12 Mar 2019 06:53:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552398812; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :organization:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=4ZMOItDFTh1XM3CjXjtxCCu74z5TNsFK2Hx8PSjO5W0=;
+        b=nMzV+vnMT87phRUETwd/mcYJeNJCbpcePJ8EOskxo1VCHfn0h/WnTmtN/qqBiOCj4J
+         rfzszFGPWXisvMgVo+iaM24bipF+xSS3mXOE5a8Ff1i+NtwBUHheTCYREXptOchE7dgs
+         ihxCHLzmADKfw+GRKkpX3pJKBeZFPl/iD4sqts6fU6iktQi9HHNcjjiDtb9/zfKCx+wE
+         hkoZXulCk65k5B6vCdwcZ8eWiAH4LoB560ac+Fp26bEALALiDE6flIv+0ZXAQ7wgpKlz
+         f3CmzLjffVU6dExFDdd4U4Sl6r6qOzk+Mc5MBLju4Bd/JzLrNmBKNYkv7FYuoBJQfVEB
+         RFLw==
+X-Gm-Message-State: APjAAAUtJynxiZyBumIU6Xj6A8pqe7ui/WBSpINQZCs124EA/HIRkJKf
+	SDtLAVp9Y1aEJ3oh0cf3BmJCUAiAmY904Uyqf2hCf39f62mQdh4n4lnfjTB7OClQ7MrxeEeBj9/
+	g7e4tl8+TUQc9Ivp4JGSogCkU46gVqylZuges0zsgQxEc6HKaIwow7nC7Xk73g9k90w==
+X-Received: by 2002:a5e:aa03:: with SMTP id s3mr444999ioe.279.1552399140062;
+        Tue, 12 Mar 2019 06:59:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxKdTO7CHjyrK4PyCKtmNxQ+rv4dxiKd0bJIqL+Kt0Lchyu/1zRPXfl0ARTEMsgNyPe0odo
+X-Received: by 2002:a5e:aa03:: with SMTP id s3mr444954ioe.279.1552399138941;
+        Tue, 12 Mar 2019 06:58:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552399138; cv=none;
         d=google.com; s=arc-20160816;
-        b=UeIqSKSKd21tZeOlhblZw4Kwt8dQf8okIkjRQUNreCXA6dHXZj2H07PHoHrI1hrgOS
-         sgRWr2OuOZnLVImiuXC0bi3C9sisqyxa7viTgQIn5h+7zB4ZIEQ70VqkIz5ihDcy2QiW
-         RVq7XZ9qpGQNKJjah4keDJQmeH8EhmFvC05Rtkyp4DOUgoLTWSIyePDBnVVFumeSLcvi
-         RX48RyyWul55qoC/ySBuMK7v142Deewl6EHGpWdnAHWc/j7SfGWMxrnbk1mJruQ/usSM
-         sqD6OTaK3PFEpvc7gN/vYZZewYf2v1UXPdiFxVXetLdWkgJoev/eXcGEETMh9V5+QwPQ
-         gPEw==
+        b=tNFHVuQzEqijuostZivmzfUu3dwwwJE8n93FBR1vjvfAW6E6omueflWYiftKikBme+
+         tRmU597lugkj533VG7kRYb/NiLOTRMwhuMlA95t0gO9cSPOOxOculXP3oDIrhy6ykjPr
+         dCCm9WBNLT9tGonmOAQNffo93AHfY12tToqhAkfAFywCMBqDem5it5KBVYy/HzrjRfai
+         Bu0SJxW9IwfHmMN69RBvNt9RJaWEBlOIcelZtgp816QAvhe2itFgMlwRr8C9+qzXI1sv
+         dmawvMqcbaM7UDe00mct0SosjkgMsUsjP1R3hToNKfVcrk3fu0OFONotYjg+cNNZYdli
+         NxjA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=Bafzwra03unlq9sNsDcu+GafVaU7H8EP+iRO+JOu7mw=;
-        b=0GNZpYs4yHHxgEBL4rw68Nx/W49K6573HR7rBYkH4KPotC8WAAeoblXSRXgRZ+WWKS
-         lhBFwtkf0aXvieyGokq3HpZ/fn8IJUKW5pM42KU409uu9dZHcQtSbr47kTXG7rDHEGCG
-         dxfavmLMrDOwxKtX/m3lKuSxZ8OZ+XaEJAL+aGtVEZbK4XilVNftS4Owry25svAbtMPI
-         CGpHBcQ+F257DREaiwqQYsUocUwDT5oJiBsIsp+yuXwyXki4zPkMI928EHj/xbdpkSUu
-         eFlsEgYpGBkAC4uLL9EH8wGhdm29/QwA3fri1p6EgriOYmk3Lt/l7L8QLfFSIUrryxmd
-         bOgA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject:dkim-signature;
+        bh=4ZMOItDFTh1XM3CjXjtxCCu74z5TNsFK2Hx8PSjO5W0=;
+        b=SJbapRWhOaXYvbN+OY9rJwuF5PpKWrYy1QlDC6IsykT/JKswoXh8VGCyP3Lt2SqbA5
+         d+pS9crc9lypCBpYxYPn2i+8h5pwOZmJT1k7wIr2e/4eO3Z5UtF5Jt8gNxTxenIdzc+J
+         Xn4+GnuRJgKh7rPp1HEjAkXLvWhDwTzdNQZRCThUJVbRE6xV+iu6XAw/dUcivOvfBdUB
+         HAjJ9T7aYZm7+7IC0hYehNXS8RhFavJCgWhHi1d0aeaBrn4onAdVl/FFSg4JGx0neUPy
+         PYalo1H/249oo40hqh8HVhayxgVbNZYR69AahNSXWHV4sSf1ducCAUmAPQGmahSXG43b
+         9tsg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id f129si1355251qkb.56.2019.03.12.06.53.31
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=WMOwULbJ;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id m197si1347529itb.30.2019.03.12.06.58.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 06:53:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Tue, 12 Mar 2019 06:58:58 -0700 (PDT)
+Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2CDYjno073916
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 09:53:31 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2r6dejjt90-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 09:53:31 -0400
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Tue, 12 Mar 2019 13:53:28 -0000
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 12 Mar 2019 13:53:21 -0000
-Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x2CDrKpf31588396
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Tue, 12 Mar 2019 13:53:20 GMT
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 72642A4059;
-	Tue, 12 Mar 2019 13:53:20 +0000 (GMT)
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id C2510A4053;
-	Tue, 12 Mar 2019 13:53:18 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.84])
-	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Tue, 12 Mar 2019 13:53:18 +0000 (GMT)
-Date: Tue, 12 Mar 2019 15:53:17 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Peter Xu <peterx@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Paolo Bonzini <pbonzini@redhat.com>,
-        Hugh Dickins <hughd@google.com>, Luis Chamberlain <mcgrof@kernel.org>,
-        Maxime Coquelin <maxime.coquelin@redhat.com>, kvm@vger.kernel.org,
-        Jerome Glisse <jglisse@redhat.com>,
-        Pavel Emelyanov <xemul@virtuozzo.com>,
-        Johannes Weiner <hannes@cmpxchg.org>,
-        Martin Cracauer <cracauer@cons.org>,
-        Denis Plotnikov <dplotnikov@virtuozzo.com>, linux-mm@kvack.org,
-        Marty McFadden <mcfadden8@llnl.gov>, Maya Gokhale <gokhale2@llnl.gov>,
-        Mike Kravetz <mike.kravetz@oracle.com>,
-        Andrea Arcangeli <aarcange@redhat.com>,
-        Mike Rapoport <rppt@linux.vnet.ibm.com>,
-        Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>,
-        "Kirill A . Shutemov" <kirill@shutemov.name>,
-        linux-fsdevel@vger.kernel.org,
-        "Dr . David Alan Gilbert" <dgilbert@redhat.com>,
-        Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/3] userfaultfd/sysctl: introduce
- unprivileged_userfaultfd
-References: <20190311093701.15734-1-peterx@redhat.com>
- <20190311093701.15734-2-peterx@redhat.com>
- <20190312065830.GB9497@rapoport-lnx>
- <20190312122633.GE14108@xz-x1>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=WMOwULbJ;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x2CDvUmC124541;
+	Tue, 12 Mar 2019 13:58:56 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=4ZMOItDFTh1XM3CjXjtxCCu74z5TNsFK2Hx8PSjO5W0=;
+ b=WMOwULbJ5OAaymHHf1NW2GtgBx4yNyJCUcPDMGKc7W7xcQ6lTU4jCjzV1RqZUfolZWOJ
+ zxOWNVYcwgaOrvq6f0VXQdrwckLdOEl1W6gpGZGpL0Jthh2oIQxKUr/t+8d6B56QszWz
+ vIfr1m4lUUyOjU0KrQ7qtrmW9nUOsTIWs4M3qQswori95BRSHtgx9Pzl/4Z2Ey3MNQ9v
+ nQUp03TMuPu2QGEcj7+HwdkMqLQ+Zppg3RiV5dmvATZiN3YMeryt7HvBL4urGtycUu3d
+ VHWYGEIGFAPx2L3T6HQdRV2QZ12NDEGVbuvM428cP5n0ss5ypMRWhB9G70XGSGg9MoPZ Gg== 
+Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
+	by userp2130.oracle.com with ESMTP id 2r44wu4sgf-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 12 Mar 2019 13:58:56 +0000
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x2CDwtSQ010468
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 12 Mar 2019 13:58:55 GMT
+Received: from abhmp0017.oracle.com (abhmp0017.oracle.com [141.146.116.23])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x2CDwrSe025273;
+	Tue, 12 Mar 2019 13:58:53 GMT
+Received: from [192.168.1.16] (/24.9.64.241)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 12 Mar 2019 06:58:53 -0700
+Subject: Re: [PATCH] mm: remove unused variable
+To: Bartosz Golaszewski <brgl@bgdev.pl>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Anthony Yznaga <anthony.yznaga@oracle.com>,
+        "Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>,
+        =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+        Bartosz Golaszewski <bgolaszewski@baylibre.com>
+References: <20190312132852.20115-1-brgl@bgdev.pl>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Organization: Oracle Corp
+Message-ID: <c86234af-a83a-712a-8dc8-0ec2a5dad103@oracle.com>
+Date: Tue, 12 Mar 2019 07:58:51 -0600
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190312122633.GE14108@xz-x1>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19031213-0008-0000-0000-000002CBB02B
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19031213-0009-0000-0000-00002237D009
-Message-Id: <20190312135316.GA22990@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-12_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=863 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1903120097
+In-Reply-To: <20190312132852.20115-1-brgl@bgdev.pl>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9192 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1903120099
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 12, 2019 at 08:26:33PM +0800, Peter Xu wrote:
-> On Tue, Mar 12, 2019 at 08:58:30AM +0200, Mike Rapoport wrote:
-> 
-> [...]
-> 
-> > > +config USERFAULTFD_UNPRIVILEGED_DEFAULT
-> > > +        string "Default behavior for unprivileged userfault syscalls"
-> > > +        depends on USERFAULTFD
-> > > +        default "disabled"
-> > > +        help
-> > > +          Set this to "enabled" to allow userfaultfd syscalls from
-> > > +          unprivileged users.  Set this to "disabled" to forbid
-> > > +          userfaultfd syscalls from unprivileged users.  Set this to
-> > > +          "kvm" to forbid unpriviledged users but still allow users
-> > > +          who had enough permission to open /dev/kvm.
-> > 
-> > I'd phrase it a bit differently:
-> > 
-> > This option controls privilege level required to execute userfaultfd
->                       ^
->                       +---- add " the default"?
-> 
-> > system call.
-> > 
-> > Set this to "enabled" to allow userfaultfd system call from unprivileged
-> > users. 
-> > Set this to "disabled" to allow userfaultfd system call only for users who
-> > have ptrace capability.
-> > Set this to "kvm" to restrict userfaultfd system call usage to users with
->                                                                       ^
->                          add " who have ptrace capability, or" -------+
-> 
-> > permissions to open "/dev/kvm".
-> 
-> I think your version is better than mine, but I'd like to confirm
-> about above two extra changes before I squash them into the patch. :)
+On 3/12/19 7:28 AM, Bartosz Golaszewski wrote:
+> From: Bartosz Golaszewski <bgolaszewski@baylibre.com>
+>=20
+> The mm variable is set but unused. Remove it.
 
-I like your changes.
- 
-> Thanks!
-> 
-> -- 
-> Peter Xu
-> 
+It is used. Look further down for calls to set_pte_at().
 
--- 
-Sincerely yours,
-Mike.
+--
+Khalid
+
+>=20
+> Signed-off-by: Bartosz Golaszewski <bgolaszewski@baylibre.com>
+> ---
+>  mm/mprotect.c | 1 -
+>  1 file changed, 1 deletion(-)
+>=20
+> diff --git a/mm/mprotect.c b/mm/mprotect.c
+> index 028c724dcb1a..130dac3ad04f 100644
+> --- a/mm/mprotect.c
+> +++ b/mm/mprotect.c
+> @@ -39,7 +39,6 @@ static unsigned long change_pte_range(struct vm_area_=
+struct *vma, pmd_t *pmd,
+>  		unsigned long addr, unsigned long end, pgprot_t newprot,
+>  		int dirty_accountable, int prot_numa)
+>  {
+> -	struct mm_struct *mm =3D vma->vm_mm;
+>  	pte_t *pte, oldpte;
+>  	spinlock_t *ptl;
+>  	unsigned long pages =3D 0;
+>=20
+
 
