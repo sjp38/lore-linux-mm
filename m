@@ -2,138 +2,161 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4097CC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 20:17:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C7515C10F00
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 20:34:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AD1472147C
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 20:17:47 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=toxicpanda-com.20150623.gappssmtp.com header.i=@toxicpanda-com.20150623.gappssmtp.com header.b="BgzCtPne"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AD1472147C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=toxicpanda.com
+	by mail.kernel.org (Postfix) with ESMTP id 7F6F42171F
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 20:34:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F6F42171F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 15EDB8E0003; Tue, 12 Mar 2019 16:17:47 -0400 (EDT)
+	id E9B2A8E0003; Tue, 12 Mar 2019 16:34:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 10F4A8E0002; Tue, 12 Mar 2019 16:17:47 -0400 (EDT)
+	id E48EE8E0002; Tue, 12 Mar 2019 16:34:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F3F0D8E0003; Tue, 12 Mar 2019 16:17:46 -0400 (EDT)
+	id D11758E0003; Tue, 12 Mar 2019 16:34:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C6B768E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 16:17:46 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id b40so3489598qte.1
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 13:17:46 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B3778E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 16:34:41 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id m10so4364014pfj.4
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 13:34:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:subject:date:message-id;
-        bh=QDBzu4VNUY5wLD/K94fhKHZWbt8UrME554jrnUlbq+w=;
-        b=DYn/M0LBgYyka0J+g9G/FeHZVLubhQc4R4VwWPykeDwI/sG/5ZJ441QZrTeRvM2OrI
-         xlCF6iGJX4Itd9xKEE1pblqNDagbEvnyYxQQd3xw6DVBhlgAxHPnyYRehzJqWnE8ng8b
-         lszGmZzVvvrpGFf90jvcN4m+bmMMW1czfnGGgu7SShe87acKrR8uvQ/RCSI2oKNbcNIj
-         oKvLLLM3z8qhCip1qL4gshb7srDiUF+MKDCGdn7upU3ktab8w5V/zcGqkUnKU7Tuqcxk
-         jvMmau2+YGuS4tdVpqcIQdTlrrPwocTm9FhdtLjPmu1BqorlHZ9cplEny0DyY1TgMN4T
-         qbmQ==
-X-Gm-Message-State: APjAAAVweIfxFrjzF8UHq5c46DBdzaHZHv6iKT/41WNiYb2CqEejUXHt
-	88t+aMh3+wiYwCi8hGKyy/t3bh3Ig2Iisv97sWyr+9MU1UYRlbNO4cSkzc5fynkhhE2XMycBfxs
-	gOvfEItNP7/OKLiu6QrCmQlbVIuntc2jDh5FhAgXQc+hnHrBF5Dc4G8nM+nVCTbNk/qDUaf4YTq
-	J6xiyOYM+a+bKgGhLES3iRj5Z+rNJGiWSwwaHesh1UuWvZ9jcradX/ZOXc0rcLclqj4RERbqcHL
-	fpyOao3twWWSgUPjHzKG/yhsqzPGlTrsUfQC6isgL8g3jiXszpvKoTGnouCggbtQscba8mJOVw2
-	ymMqx6KSrVYFepo5YrES60+0nAi9EtXTqZl8UxXVBSXoU5TlHG7J2T3t7TMY+m+Hh0tneMxXvuY
-	T
-X-Received: by 2002:aed:3bb3:: with SMTP id r48mr32455066qte.278.1552421866546;
-        Tue, 12 Mar 2019 13:17:46 -0700 (PDT)
-X-Received: by 2002:aed:3bb3:: with SMTP id r48mr32455026qte.278.1552421865832;
-        Tue, 12 Mar 2019 13:17:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552421865; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=lnw/i8+cwkwS041v7FVN5RKf/++KHvsp9rzwYmaSjcA=;
+        b=F+0Pouhjw+72JtTjIliolWPj61VcOKc3V8DFNoeBCTEtaYV6nLxZVttVfcHSCIW38T
+         AeISvfQfkJlh9y6WX1/wMMWUz9zEwKqcDOkjxvleOiWLaJBeX6ND1SX4JNYNVuU1lN+o
+         HgKd5t5EWI4DD3fgVLyOcscBpH8ecYGihskGxs2j2wui3+IBtXGXoyNNUHBLoENLDl3v
+         MupNs+H5im5jpqD4Iw2S4fHTx+XypnTvJTAtDv8NW2UEQNS5qMqIXIIbUsdJXibOjCWd
+         EkMwEBdpp1QfEPYLKftlA+u0Ut1gbXaS0nea2J6Jf9ow3/Ho+O4TVoAE+xJ/2tQMtWpQ
+         PDYA==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 150.101.137.136 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAW/f1svW7cbhu3Gh7t03NPEr+EnKrL0noLsLKqGXtAn7t5hOdAA
+	X2YVb1dj4xLIu4/CCptIK+0A9GRZgvN6/k1JEwk6+xQSCiGAER5mM2WlI0V97iG98HdougqfwNk
+	19WRxQIBWW13iwehe8KqOopBVS9ZABM4NH2Zr/qTMkU34JzIT4rKwADMLj3CE724=
+X-Received: by 2002:a65:6497:: with SMTP id e23mr35844035pgv.21.1552422881002;
+        Tue, 12 Mar 2019 13:34:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwcqZeC45YT5ITn/gJyMGNumAZ2388zJmKbnLJHXML+e7SZnSoKrv+xnZA7LEekg+VdKkF3
+X-Received: by 2002:a65:6497:: with SMTP id e23mr35843968pgv.21.1552422879637;
+        Tue, 12 Mar 2019 13:34:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552422879; cv=none;
         d=google.com; s=arc-20160816;
-        b=tpywK+5fl6V6ScP2ocg49EcDNODiY/pV/DZRPyEgrnggzv8qRJN28F4Qx0IJEd1lUd
-         qIKp/ZIpcJZ/Qsyug/MsGyVhuL2SMQ25XwVu3gqhGHgyVsXBCOe9KM6+gx2vudOsIss6
-         x4raiEpt1XGRjC2Q2qG/2XXoyGu97VpTukzgFamEVCbqxGqSzWkueLoD3B5lJw7Rro+l
-         LnilGhddVVhKCRUWLK1VYQdAQOW95ngvKvH3cHhoQpUCcylynVHVWMHDQzXRssoiALn4
-         TkLJr5a2kpFCLbEnWo7Pm3Uj2jRVkvGjlrSMtSolBnqonCe1NgmC2Aan179wR9E5p3j8
-         r4cw==
+        b=P/ABok82vldpynd4NwL/va7D0f4ffHzwmwSnzZk0Jbn0T4UbsrK/1M3FJELVNDuBuU
+         aiKM1nbfgxFVYPUlMhU5oJn/e28OhqmTFf9PEL31yVOAuEpy+dSL+7diewwEocOplVXQ
+         MWa+kp/rWBBqmqOxABNs18I9nxqT6WIRyaxi7smOev3uqJPyJnmwBXEdhZobL0mYBapB
+         IF/XpP7LmGzwCWZL7Ws6FMPE4dNilWCyhV4qX7H8VBM5+zQpVR+xLc5K9ANg9sXzbdeC
+         w+0kotMTEepXzJ4QprzH3uT4TERzhYNCTWplun+/inr35w4r5iJee9L8Tb3aO3jc9LVV
+         /y3g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:to:from:dkim-signature;
-        bh=QDBzu4VNUY5wLD/K94fhKHZWbt8UrME554jrnUlbq+w=;
-        b=T22KgsilcQhSXdj+adT520D3mR5hHosA+EWY44vE3SlIhosWOEP3HEwpuY02OO77Hj
-         DU10OWfYiGRGslptxP/XCIgzl3cxL2qmGdapVJ/qbRA6qShO3fvR69723sc3SOBVwYK9
-         SyTTR5/mvHR6ewX+euLNt4UWbNIPAvQUsnBqzFUi4jbDTORZlIRXaCTlxwIfK8ZhRI/Y
-         86kDnC7x4nZlUSnBZCeA8yZR4ts5rVdKqyBL6q42subLBMXOdTG0mKSHXIA4CjIRvZyy
-         WnjBb2I5gxzM0FzsVGQY+T65SJDMNqnLkUBBHwfdpS0ifA6XXXMI6YefniuQbiHaOJuS
-         MVoQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=lnw/i8+cwkwS041v7FVN5RKf/++KHvsp9rzwYmaSjcA=;
+        b=nQhLExMLD6o2Q7n7SC0/EKI7W6GE+/HXvokxTN+yv4zK0gboTC27gGOYOzVop8aNts
+         Ln9YgZzZerYYXbQYr0ynFm1d8iJh0MD2TphQcvbyxY1tviuiJKCe+hCLewkBGr2NgRmp
+         UubIroj9JJtl1LaFBdKg6jRHLy3wj1m9eI6kfo8cPK1DQB3AL1Kj7zNsAJNrQ6dI2guY
+         O6lYLNXxlg+3GA0RRwO+K8aa51Qk14F/7uA3xAmN6N4adXSsh6ipJ7GFBCaCAo5ZzKTM
+         9WjRjpcGl9vYmE8dtwedoh0d3ndVV779k7O7eaVWWu+Ap3b8flOotaQEN0kDYFRHuJnH
+         8DYA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@toxicpanda-com.20150623.gappssmtp.com header.s=20150623 header.b=BgzCtPne;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of josef@toxicpanda.com) smtp.mailfrom=josef@toxicpanda.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e31sor11840642qte.64.2019.03.12.13.17.45
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Mar 2019 13:17:45 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of josef@toxicpanda.com) client-ip=209.85.220.65;
+       spf=neutral (google.com: 150.101.137.136 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from ipmail01.adl6.internode.on.net (ipmail01.adl6.internode.on.net. [150.101.137.136])
+        by mx.google.com with ESMTP id d62si8803506pfg.160.2019.03.12.13.34.38
+        for <linux-mm@kvack.org>;
+        Tue, 12 Mar 2019 13:34:39 -0700 (PDT)
+Received-SPF: neutral (google.com: 150.101.137.136 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=150.101.137.136;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@toxicpanda-com.20150623.gappssmtp.com header.s=20150623 header.b=BgzCtPne;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of josef@toxicpanda.com) smtp.mailfrom=josef@toxicpanda.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=toxicpanda-com.20150623.gappssmtp.com; s=20150623;
-        h=from:to:subject:date:message-id;
-        bh=QDBzu4VNUY5wLD/K94fhKHZWbt8UrME554jrnUlbq+w=;
-        b=BgzCtPne1Bziuagj6IzfwcFxAsDOukfmqfhhBmdQhE9ltra9NJ8tF8Bih0QPt1gZLf
-         WbmTnbqpPv7kgQqNY01aOIPem0TBQSb3bIxJypdgUfvoabQsZqYbHbaXlBvI1tLYCqpp
-         tT/vs2Wue1s6tOX7W3pUuYGZWbHvdOfcyxQvAq9U6dOPgA3P82fgUeTZBT0ht7YJnuN/
-         1bzgaA+0NKCbQIyhRoZ9iHImX+FPHM7WKhIbC39sGqYO+oGiZishki4yGfeWv1e5N48v
-         lUlbkK2co6+Wa9pjSvlOKI9jRLgngWufBjWZNTkcg193eYMwqykD1GJh9JYMImftpkJs
-         Mbkg==
-X-Google-Smtp-Source: APXvYqwWy5PpExEinVaub8tOKn9MGpXVZhR1HmBlNfRCTTZN4vVlfuJ0eW9J8Gms1HOVJ/241Fbx4g==
-X-Received: by 2002:ac8:43d5:: with SMTP id w21mr29628188qtn.98.1552421865206;
-        Tue, 12 Mar 2019 13:17:45 -0700 (PDT)
-Received: from localhost ([107.15.81.208])
-        by smtp.gmail.com with ESMTPSA id h194sm5641093qke.61.2019.03.12.13.17.43
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 12 Mar 2019 13:17:43 -0700 (PDT)
-From: Josef Bacik <josef@toxicpanda.com>
-To: akpm@linux-foundation.org,
-	linux-mm@kvack.org,
-	kernel-team@fb.com
-Subject: [PATCH] filemap: don't unlock null page in FGP_FOR_MMAP case
-Date: Tue, 12 Mar 2019 16:17:42 -0400
-Message-Id: <20190312201742.22935-1-josef@toxicpanda.com>
-X-Mailer: git-send-email 2.14.3
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000061, version=1.2.4
+       spf=neutral (google.com: 150.101.137.136 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from ppp59-167-129-252.static.internode.on.net (HELO dastard) ([59.167.129.252])
+  by ipmail01.adl6.internode.on.net with ESMTP; 13 Mar 2019 07:04:36 +1030
+Received: from dave by dastard with local (Exim 4.80)
+	(envelope-from <david@fromorbit.com>)
+	id 1h3o6e-0001QJ-6W; Wed, 13 Mar 2019 07:34:36 +1100
+Date: Wed, 13 Mar 2019 07:34:36 +1100
+From: Dave Chinner <david@fromorbit.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Jerome Glisse <jglisse@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linux MM <linux-mm@kvack.org>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>,
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>
+Subject: Re: [PATCH 09/10] mm/hmm: allow to mirror vma of a file on a DAX
+ backed filesystem
+Message-ID: <20190312203436.GE23020@dastard>
+References: <CAPcyv4gb+r==riKFXkVZ7gGdnKe62yBmZ7xOa4uBBByhnK9Tzg@mail.gmail.com>
+ <20190305141635.8134e310ba7187bc39532cd3@linux-foundation.org>
+ <CAA9_cmd2Z62Z5CSXvne4rj3aPSpNhS0Gxt+kZytz0bVEuzvc=A@mail.gmail.com>
+ <20190307094654.35391e0066396b204d133927@linux-foundation.org>
+ <20190307185623.GD3835@redhat.com>
+ <CAPcyv4gkxmmkB0nofVOvkmV7HcuBDb+1VLR9CSsp+m-QLX_mxA@mail.gmail.com>
+ <20190312152551.GA3233@redhat.com>
+ <CAPcyv4iYzTVpP+4iezH1BekawwPwJYiMvk2GZDzfzFLUnO+RgA@mail.gmail.com>
+ <20190312190606.GA15675@redhat.com>
+ <CAPcyv4g-z8nkM1B65oR-3PT_RFQbmQMsM-J-P0-nzyvvJ8gVog@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4g-z8nkM1B65oR-3PT_RFQbmQMsM-J-P0-nzyvvJ8gVog@mail.gmail.com>
+User-Agent: Mutt/1.5.21 (2010-09-15)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We noticed a panic happening in production with the filemap fault pages
-because we were unlocking a NULL page.  If add_to_page_cache() fails
-then we'll have a NULL page, so fix this check to only unlock if we
-have a valid page.
+On Tue, Mar 12, 2019 at 12:30:52PM -0700, Dan Williams wrote:
+> On Tue, Mar 12, 2019 at 12:06 PM Jerome Glisse <jglisse@redhat.com> wrote:
+> > On Tue, Mar 12, 2019 at 09:06:12AM -0700, Dan Williams wrote:
+> > > On Tue, Mar 12, 2019 at 8:26 AM Jerome Glisse <jglisse@redhat.com> wrote:
+> [..]
+> > > > Spirit of the rule is better than blind application of rule.
+> > >
+> > > Again, I fail to see why HMM is suddenly unable to make forward
+> > > progress when the infrastructure that came before it was merged with
+> > > consumers in the same development cycle.
+> > >
+> > > A gate to upstream merge is about the only lever a reviewer has to
+> > > push for change, and these requests to uncouple the consumer only
+> > > serve to weaken that review tool in my mind.
+> >
+> > Well let just agree to disagree and leave it at that and stop
+> > wasting each other time
+> 
+> I'm fine to continue this discussion if you are. Please be specific
+> about where we disagree and what aspect of the proposed rules about
+> merge staging are either acceptable, painful-but-doable, or
+> show-stoppers. Do you agree that HMM is doing something novel with
+> merge staging, am I off base there? I expect I can find folks that
+> would balk with even a one cycle deferment of consumers, but can we
+> start with that concession and see how it goes? I'm missing where I've
+> proposed something that is untenable for the future of HMM which is
+> addressing some real needs in gaps in the kernel's support for new
+> hardware.
 
-Signed-off-by: Josef Bacik <josef@toxicpanda.com>
----
- mm/filemap.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+/me quietly wonders why the hmm infrastructure can't be staged in a
+maintainer tree development branch on a kernel.org and then
+all merged in one go when that branch has both infrastructure and
+drivers merged into it...
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index cace3eb8069f..2815cb79a246 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1663,7 +1663,7 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
- 		 * add_to_page_cache_lru locks the page, and for mmap we expect
- 		 * an unlocked page.
- 		 */
--		if (fgp_flags & FGP_FOR_MMAP)
-+		if (page && (fgp_flags & FGP_FOR_MMAP))
- 			unlock_page(page);
- 	}
- 
+i.e. everyone doing hmm driver work gets the infrastructure from the
+dev tree, not mainline. That's a pretty standard procedure for
+developing complex features, and it avoids all the issues being
+argued over right now...
+
+Cheers,
+
+Dave/
 -- 
-2.14.3
+Dave Chinner
+david@fromorbit.com
 
