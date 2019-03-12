@@ -2,211 +2,154 @@ Return-Path: <SRS0=zC2G=RP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 05EB6C10F00
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 15:35:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 05195C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 15:39:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BEF382171F
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 15:35:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BEF382171F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id AAA11205F4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 15:39:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AAA11205F4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5DAC38E0006; Tue, 12 Mar 2019 11:35:37 -0400 (EDT)
+	id 27D048E0003; Tue, 12 Mar 2019 11:39:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 58A908E0002; Tue, 12 Mar 2019 11:35:37 -0400 (EDT)
+	id 22C088E0002; Tue, 12 Mar 2019 11:39:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 453538E0006; Tue, 12 Mar 2019 11:35:37 -0400 (EDT)
+	id 11BEF8E0003; Tue, 12 Mar 2019 11:39:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 23A568E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 11:35:37 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id b1so1725894qtk.11
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 08:35:37 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AECE48E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 11:39:30 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id k21so1269301eds.19
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 08:39:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=qGDVXQAEG+Kh+H/FqBzQ/NnTMp/1LNIvNV/PoqSppKI=;
-        b=JjIJvoy8AHySYYR3FzGaJd3edwY/G+ROyMwjElyMVmHA7clCcsBZhTXBxChxtoiTFF
-         aNRiDVtInwOteqYNbosLc5KoAXE/3ZARMZ1GhFjGgitcNC+wsOw4qbwsQjNjgD2IxKbC
-         YOi4LJ7zHXfE0SbBMqBdoNHUfX/CzJvxOMRKJ7J2YSBnd59TcIUYuBuOt5REMy0rZ8tI
-         9q/wz9IQlYO6DJtN0V8zeu/LXSsjiNXm2vJQ+qdx4085CSCcS8F9rUjosAPic3sQJSmB
-         yWQ7NkRzz29C/ezK0E5iJ2Vqss2y9yHYtzsSMcWHT67RB6npnY5V/3S5RA4WO/QntX30
-         TZvQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXxjasruduRW2dNwSoehnwV7BcJtdHcJvi9ikAV9vSomew9ZPKE
-	6GTDUXd9jKtPpL241X4rKdOR9VpyXnrDiVxX9ysXY8UGTF3E9f3/srrm1BWRorNTV2JRDPzDkZm
-	Zth5L9mgXyIU7dfk992+uhHFyYlMtA8FCVycL3oCsMcQqMAE/nsEanImTrECpkyL5QA==
-X-Received: by 2002:ac8:fb0:: with SMTP id b45mr31579967qtk.146.1552404936934;
-        Tue, 12 Mar 2019 08:35:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzIoondVEAHKd+uVHWijoLSZIPbwDj6Ttn81wAemQKnOnE7T6Z4gGWmt89+WkKMUoOyJuO5
-X-Received: by 2002:ac8:fb0:: with SMTP id b45mr31579903qtk.146.1552404936079;
-        Tue, 12 Mar 2019 08:35:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552404936; cv=none;
+         :in-reply-to:user-agent;
+        bh=bF0KTi4f7aIMB3DIQctyhxDicchsDJrp3U+n4tBeGMI=;
+        b=t5qPAH6RBawim1CwF9kj3t3p9sRpi7xJvSS0lOUTWg1jPTZqRdRHCNxKlyAFUEwqn6
+         ogMxEaeo6JCyFdQDAU3NGJQgrCqlAWg9nybm2SQMBZJ8va1pbZPMtI6ir/8AUW20K0bH
+         lMDct/XPN9K44vAYV0iAnKgcyBCAHNs6+9zigBpWQWscqpsw4rS7kaWp1gOEygCfRFNa
+         nOU3KkE/Dak8eYrd/6NsCxYMojm1tC3I19yi7Nql3H8UaLgJ1ZhNH2QQQsUFGP31xF1u
+         FKX4cczRouQkPeAl91tiUGKMmAiVpwb1pMJbALSSwlTMSWn8wU22D4lKNFoB/fM3PJeB
+         xXHQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAVy48fE7Yqt4VZ+7eLvaZg9SbEwU63AVjcWg3G8zs3Rez3Bra46
+	tzrXzsM3L89oXkT20DTGO1xhVdtU6d7O8U9sTua8NemO2e8Kpm6h7ur98+0CvcU3iXp3zzORSI9
+	U7Aa2qeTiLgGbTjOV8JrAEsS78cnxKyFdruXoD6RrilrEvZpK7zz1u/J5OCOSo+0=
+X-Received: by 2002:a17:906:1d4a:: with SMTP id o10mr2520636ejh.232.1552405170266;
+        Tue, 12 Mar 2019 08:39:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwxaTsfNcNaLEtXhXxXan08cFxODPI/lkD4VnOkt7GvhTYsznz4ECFUnwEPE46phWy9nCNL
+X-Received: by 2002:a17:906:1d4a:: with SMTP id o10mr2520593ejh.232.1552405169424;
+        Tue, 12 Mar 2019 08:39:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552405169; cv=none;
         d=google.com; s=arc-20160816;
-        b=rYzedDsMDkyuS1+WyCc2gdPaNGwHD2I2e9Dw3pWMDwWuVK2K3YzpouFRRijt1U/Lsy
-         x5QYH90UOxpT8Qh1ROQW4fp4itaguBdXDAfa3mJtUpPNyIm0V7BCjbxq5rlR9PX0hn2Q
-         zzcWLzntlqUgKhM0eElq7elNwV4nq389+bxiqTHTQnAsEmWY7rjztIINOenDHv0pS3SJ
-         mtRxyi6dzT3wn66o210KJqvp4BqHQPMRijOKemf2HUYlz5hOQkQkAej8LNWIl7wVBtVA
-         KkgdQDrBehhvCZeES2Mn/FvrlF3nEVAtxly+wmdY6/I8Wovco218piP7cBmdxYeLp1RK
-         R89w==
+        b=Vk1y23s4AZ/6YbApedhVQdHcMdo5al00qCXx39wt8PenZcpkAYQHYTWVYVvKgYHNFB
+         RUxKDY7cVFWPemDBnnQ+tdo+lPZnIezNrMu18I/EHeSRW1lHEhzTilIRm/wm7NrIN/Qj
+         sj4OmSr/DBvdlMZBNj4nVIdEztTTWSailOJFkJdUfQNqsI8dDe6xA0tjKdlggeehv7c3
+         w8+iCh2HH027CbOE5Mx5ldI/q8h8EJZAvUM+ql4p6mRKL1dTRUCnU8iLOw83uWhMMyuH
+         NvENTnfroGozXDFRg95qDuaQn6P7QsX505TaONqhWThc5LkddqWeIIN63SAqOhdQeaTx
+         ye3w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=qGDVXQAEG+Kh+H/FqBzQ/NnTMp/1LNIvNV/PoqSppKI=;
-        b=zCySQdzuJgOCkiLzCJGCMu9hZPpjnSxskARnIK7B7jbEkIuDVjuU2tWJctl/bnuCOV
-         HygT51RypPIEXoeMMnqqb00LNNK5qoIAZB3eYl/tCDMOLwiOap6a2VKlUYg8izO2mio/
-         AIqVj5gTM7/7zyxwj1nTZm36/efk+lEr6LbkPLKFR+FfSPd9AprybprymOvS9BJh/1S7
-         467Uj+VC0OPzdyZDeFt3TChU27Q41Th+uNccj1+CfTl8QTbbBxa8s6jad9V0BbT9o2Je
-         nEfZmdMIkst9zh5yY9rjuBBvOmluUh7eZT3Z+P50ySB0AnahKmpLrjpddj1k9uhwX/ZL
-         XLwQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=bF0KTi4f7aIMB3DIQctyhxDicchsDJrp3U+n4tBeGMI=;
+        b=lQ43qefnmnf5y/8kN8nJHxq4QuukeMLY6iBmS7o+XtGume0wGrpKw1Meoo731ICeQ0
+         5tanLFwgDQHy7ABnYS5hdPqTDTX2EWxQ2aRi8GbZbCM+d5RqJ/5GiDsRGmHk+aQsXX0N
+         +Z6JuuwSJEYBEDwy6KJV0bQVQKc95kFavrjtVOYhiuW6yTgq0qnyjADbYrD3SKm4j3Bg
+         9+T5gbwzlmAy4Hkt14XCh2n+xLv5nKn6SS0seY2vpA7GEoRZEn3KZ9CJ6t3565deLzx0
+         4iM1gh8wmcXzo2lGUU2t1KZ39hlQWkm9ol+hKomfila84aRobDXZ++MknOoXGz3D3Oqz
+         4yUQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m42si1967712qvh.60.2019.03.12.08.35.35
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a17si865649ejy.247.2019.03.12.08.39.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 08:35:36 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Tue, 12 Mar 2019 08:39:29 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 9722F308FED2;
-	Tue, 12 Mar 2019 15:35:33 +0000 (UTC)
-Received: from redhat.com (ovpn-117-131.phx2.redhat.com [10.3.117.131])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 0C7025C280;
-	Tue, 12 Mar 2019 15:35:30 +0000 (UTC)
-Date: Tue, 12 Mar 2019 11:35:29 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Christopher Lameter <cl@linux.com>
-Cc: john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm@kvack.org, Al Viro <viro@zeniv.linux.org.uk>,
-	Christian Benvenuti <benve@cisco.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Chinner <david@fromorbit.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>,
-	Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
-	Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
-	Matthew Wilcox <willy@infradead.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Mike Marciniszyn <mike.marciniszyn@intel.com>,
-	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
-	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [PATCH v3 0/1] mm: introduce put_user_page*(), placeholder
- versions
-Message-ID: <20190312153528.GB3233@redhat.com>
-References: <20190306235455.26348-1-jhubbard@nvidia.com>
- <010001695b4631cd-f4b8fcbf-a760-4267-afce-fb7969e3ff87-000000@email.amazonses.com>
- <20190308190704.GC5618@redhat.com>
- <01000169703e5495-2815ba73-34e8-45d5-b970-45784f653a34-000000@email.amazonses.com>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id E7525B172;
+	Tue, 12 Mar 2019 15:39:28 +0000 (UTC)
+Date: Tue, 12 Mar 2019 16:39:28 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Suren Baghdasaryan <surenb@google.com>,
+	Sultan Alsawaf <sultan@kerneltoast.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>,
+	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Christian Brauner <christian@brauner.io>,
+	Ingo Molnar <mingo@redhat.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	LKML <linux-kernel@vger.kernel.org>, devel@driverdev.osuosl.org,
+	linux-mm <linux-mm@kvack.org>, Tim Murray <timmurray@google.com>
+Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
+Message-ID: <20190312153928.GW5721@dhcp22.suse.cz>
+References: <20190310203403.27915-1-sultan@kerneltoast.com>
+ <20190311174320.GC5721@dhcp22.suse.cz>
+ <20190311175800.GA5522@sultan-box.localdomain>
+ <CAJuCfpHTjXejo+u--3MLZZj7kWQVbptyya4yp1GLE3hB=BBX7w@mail.gmail.com>
+ <20190311204626.GA3119@sultan-box.localdomain>
+ <CAJuCfpGpBxofTT-ANEEY+dFCSdwkQswox3s8Uk9Eq0BnK9i0iA@mail.gmail.com>
+ <20190312080532.GE5721@dhcp22.suse.cz>
+ <20190312152541.GI19508@bombadil.infradead.org>
+ <20190312153315.GV5721@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <01000169703e5495-2815ba73-34e8-45d5-b970-45784f653a34-000000@email.amazonses.com>
+In-Reply-To: <20190312153315.GV5721@dhcp22.suse.cz>
 User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Tue, 12 Mar 2019 15:35:35 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 12, 2019 at 04:52:07AM +0000, Christopher Lameter wrote:
-> On Fri, 8 Mar 2019, Jerome Glisse wrote:
+On Tue 12-03-19 16:33:15, Michal Hocko wrote:
+> On Tue 12-03-19 08:25:41, Matthew Wilcox wrote:
+> > On Tue, Mar 12, 2019 at 09:05:32AM +0100, Michal Hocko wrote:
+> > > On Mon 11-03-19 15:15:35, Suren Baghdasaryan wrote:
+> > > > Yeah, killing speed is a well-known problem which we are considering
+> > > > in LMKD. For example the recent LMKD change to assign process being
+> > > > killed to a cpuset cgroup containing big cores cuts the kill time
+> > > > considerably. This is not ideal and we are thinking about better ways
+> > > > to expedite the cleanup process.
+> > > 
+> > > If you design is relies on the speed of killing then it is fundamentally
+> > > flawed AFAICT. You cannot assume anything about how quickly a task dies.
+> > > It might be blocked in an uninterruptible sleep or performin an
+> > > operation which takes some time. Sure, oom_reaper might help here but
+> > > still.
+> > 
+> > Many UNINTERRUPTIBLE sleeps can be converted to KILLABLE sleeps.  It just
+> > needs someone to do the work.
 > 
-> > >
-> > > It would good if that understanding would be enforced somehow given the problems
-> > > that we see.
-> >
-> > This has been discuss extensively already. GUP usage is now widespread in
-> > multiple drivers, removing that would regress userspace ie break existing
-> > application. We all know what the rules for that is.
-> 
-> The applications that work are using anonymous memory and memory
-> filesystems. I have never seen use cases with a real filesystem and would
-> have objected if someone tried something crazy like that.
-> 
-> Because someone was able to get away with weird ways of abusing the system
-> it not an argument that we should continue to allow such things. In fact
-> we have repeatedly ensured that the kernel works reliably by improving the
-> kernel so that a proper failure is occurring.
+> They can and should as much as possible. No question about that. But not
+> all of them can and that is why nobody should be relying on that. That
+> is the whole point of having the oom_reaper and async oom victim tear
+> down.
 
-Driver doing GUP on mmap of regular file is something that seems to
-already have widespread user (in the RDMA devices at least). So they
-are active users and they were never told that what they are doing
-was illegal.
-
-Note that i am personaly fine with breaking device driver that can not
-abide by mmu notifier but the consensus seems that it is not fine to
-do so.
-
-> > > > In fact, the GUP documentation even recommends that pattern.
-> > >
-> > > Isnt that pattern safe for anonymous memory and memory filesystems like
-> > > hugetlbfs etc? Which is the common use case.
-> >
-> > Still an issue in respect to swapout ie if anon/shmem page was map
-> > read only in preparation for swapout and we do not report the page
-> > as dirty what endup in swap might lack what was written last through
-> > GUP.
-> 
-> Well swapout cannot occur if the page is pinned and those pages are also
-> often mlocked.
-
-I would need to check the swapout code but i believe the write to disk
-can happen before the pin checks happens. I believe the event flow is:
-map read only, allocate swap, write to disk, try to free page which
-checks for pin. So that you could write stale data to disk and the GUP
-going away before you perform the pin checks.
-
-They are other thing to take into account and that need proper page
-dirtying, like soft dirtyness for instance.
-
-
-> > >
-> > > Yes you now have the filesystem as well as the GUP pinner claiming
-> > > authority over the contents of a single memory segment. Maybe better not
-> > > allow that?
-> >
-> > This goes back to regressing existing driver with existing users.
-> 
-> There is no regression if that behavior never really worked.
-
-Well RDMA driver maintainer seems to report that this has been a valid
-and working workload for their users.
-
-
-> > > Two filesystem trying to sync one memory segment both believing to have
-> > > exclusive access and we want to sort this out. Why? Dont allow this.
-> >
-> > This is allowed, it always was, forbidding that case now would regress
-> > existing application and it would also means that we are modifying the
-> > API we expose to userspace. So again this is not something we can block
-> > without regressing existing user.
-> 
-> We have always stopped the user from doing obviously stupid and risky
-> things. It would be logical to do it here as well.
-
-While i would rather only allow device that can handle mmu notifier
-it is just not acceptable to regress existing user and they do seem
-to exist and had working setup going on for a while.
-
-Cheers,
-Jérôme
+Let me clarify a bit. LMK obviously doesn't need any guarantee like the
+core oom killer because it is more of a pro-active measure than the last
+resort. I merely wanted to say that relying on a design which assumes
+anything about time victim needs to exit is flawed and it will fail
+under different workloads. On the other hand this might work good enough
+on very specific workloads to be usable. I am not questioning that. The
+point is that this is not generic enough to be accepted to the upstream
+kernel.
+-- 
+Michal Hocko
+SUSE Labs
 
