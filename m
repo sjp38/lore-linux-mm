@@ -5,104 +5,104 @@ X-Spam-Level:
 X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3A5DBC10F00
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 22:34:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CFB0AC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 22:34:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DDDB52177E
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 22:34:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 72DDF2077B
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 22:34:24 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="hlmEsoAp"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DDDB52177E
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="kPvcG3sz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 72DDF2077B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 19E108E0016; Tue, 12 Mar 2019 18:34:17 -0400 (EDT)
+	id 4F6CF8E0017; Tue, 12 Mar 2019 18:34:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 125D98E0002; Tue, 12 Mar 2019 18:34:17 -0400 (EDT)
+	id 484138E0002; Tue, 12 Mar 2019 18:34:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E8F9B8E0016; Tue, 12 Mar 2019 18:34:16 -0400 (EDT)
+	id 25B5D8E0017; Tue, 12 Mar 2019 18:34:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B0108E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 18:34:16 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id d5so4712502pfo.5
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 15:34:16 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D7E8D8E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 18:34:17 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id f12so1908364pgs.2
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 15:34:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=0AseUfXAAtgM7xE37ALVmimobdOHrae++QaZmnVS3p0=;
-        b=LPQt1R3LJKLbWf0AmTsqwRqUnctLprPlneiQqWfX1/8bUVAoq9ICr5lQqJX8dEawMK
-         uegyIzhIUYUYQEp2mqiKhJyPBrOlxt1oPbgJGS7MQ3XL6Bxm7BwjAIMEyFyRP60sdni0
-         ENn7ogIBbUkTEj5YHE78PHbEH13QTgrfi2CU9/UDUL1oty/uJyodQQQBk/BMvLXU/Ijx
-         v/CLHePyiv3FdOnc3AYoHrD0eVeJPe80XJIADO8tWpIg9wMKgT4pyoi1lN16Sfd5qlu0
-         MyVrUCJalQvJnm50fhrc0s14va9tXBbxrDBP80SD4yb9NutABpVZteuy58+s9y6LfJTY
-         kAnA==
-X-Gm-Message-State: APjAAAVKPgJ2RJVNbpHD9jbjR2/UCIHiRqpnJ29rKRH0eCPwa6cmOueh
-	FOTIVGETp3TrUiFmKtIu2GzezkecPp/jVZWRV4n6a9TQcL0rv4X71kw+YxB3iDEEzHVKUiBztMI
-	vhs9cNVyS3NyeJBKWLO8CdT5DOcqow1qUa3XqSX6o1idWfQR0RtSqXDtjzdB8uQLLV0H5lGPzrZ
-	wyjf+dUMLoM88hquQF0TTT8fK3+nyGDZA5+18HFnUQOWUwNNqfW9xwNBZchwDY0yGQ9wWqlycIu
-	In/qQJ7xV9C04wEJU9nKJkqMdVZTQFxPb+lgZgVs1FzM+4WiWU+DI/ZvRYUg5+DOi5mmbXIvArD
-	gmWFI8tgatfCJmNNjJM48QQJ0xBK3TEK+Twh6qfnLIPWa3uq8KqzKdG/rJV6Sd6mbpmM4YB8K2r
-	O
-X-Received: by 2002:a17:902:2ba7:: with SMTP id l36mr20272419plb.246.1552430056312;
+        bh=JZX5VXWRV31e/dorMIyOAZjwZx1Lnus1V/4dOHz/P7o=;
+        b=PbxS8DWJrMbbw+cfFMyEB7rCqYaiY4f6nnlOXVKvrX/e/0UeUFFnkrVmAvgs6p5rOt
+         HgK/IOWf3lnCCh6SlIETmSgMryd8d0ilbw672sFZNlGLU7vdYwlZJfxg7aitScYOHjci
+         I107TYhZY88DvE87VrVVQbCLnJT/MPFcz+7U78UjKtIM0K8ZsUOiY9vAVK0LZOVpiVcQ
+         zJUYhZIsZUBPSZ/oN5BHYSDTdugMgSkrQyw3ydVIE9kEZUmb66dIOdpP5I8VyFzHQln9
+         Rpq+3u6k6lpbToiildg/GVbA+rtzbvcWhxADOeGOEdvWmSSdAD0RjOBZ3IjLYsPD7UaD
+         b33g==
+X-Gm-Message-State: APjAAAWUE82j6XbbKBvylYNCVMbP9F7ycf5LnVQs567nOOH/308WnzrN
+	dCWwKDrnQZYJR6DXC2wkVQCXTwoX/PkVpHZgLrNmJaUdtO/VXoci+EZzVaz3xT41WmvgIF5h5cb
+	TC5ExkrywlZ2ZxrzMQ/BeHRI2GxJaDxHS2xr4QFAF4s6hy9qLT+GzcSB3nF/ZgTlBD3jtYGzaOx
+	uqesgo0mzW/Cth6WPGzT94pcuoGODiQrCrdc8OYbPwBDJjA2XB/f4UJnXicGrAABBV9XF89X6AB
+	kn25DsHTFb5gSjVIqGvjO68u6NPIdKO64gUzVE+8LaKWr5FOa4E/VVzOSTKVsMR/QJ2WlL5nTy9
+	nZlvar1BwS8zWR5vXtaN6RV1MGHPWku8AiXAFoCgm+RP7tq334AP8z9WXlEbH7PY/ZMFT7/3FfN
+	f
+X-Received: by 2002:a17:902:bf05:: with SMTP id bi5mr15730496plb.252.1552430057561;
+        Tue, 12 Mar 2019 15:34:17 -0700 (PDT)
+X-Received: by 2002:a17:902:bf05:: with SMTP id bi5mr15730412plb.252.1552430056127;
         Tue, 12 Mar 2019 15:34:16 -0700 (PDT)
-X-Received: by 2002:a17:902:2ba7:: with SMTP id l36mr20272332plb.246.1552430054959;
-        Tue, 12 Mar 2019 15:34:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552430054; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1552430056; cv=none;
         d=google.com; s=arc-20160816;
-        b=luD9qDRSyqrot6kIdKlKoM1qTf1x1VVOurjPIZB/o9ZPwvX3iw6zc0JYYeHIagNAP+
-         EbdXBXIvQHI0Uy+OoVBzVEIlZbv5SmUfwNq+xA8FYZKlJG+fBohQHvHY9HUif9O6ZBcv
-         eBMaT67WPaRG6mHQwrCw2Kyyg0ChelZ5zUahBOe83qmsh4K6N5Pc+vuHVbm7yQjB8LfY
-         lQIppuc4PXlSqIX7er+fP8/apA6IQunhQkgebddEc8/8UarbXnaZfQuUf4LIeneLS1L1
-         aIf2qvBgoYXULJcLsmhrtw/59eJvI4Po5Bo9SYhLFhOVyfo7XBzB1DqnsZS5E27H4DsI
-         /lJQ==
+        b=dDF5Zw0mWtKvYTI6qKyDMLQSvDhwo++JVHXiBLsh7RAFI9dv6O1Xmg2OY+z4cb/ddl
+         JxgpTkMTBu11TjvLapZL1+qhrdf6yuRD+KZ+uo3AT9AGy5EEusemW9Nem1CjcpjgkzWN
+         4ah+w1UXAtbLaYbsV+u5nE4jGJiKxWmpnJ8oy2o4BAl4Ir7G7j3jITd+jkb8SCt5OPGZ
+         Nw/cgVIz0jLVB90GydmfvDJFHc52b5nMbUDcTETMF6YgKS7jZ3+5wAR8xZvOX+jP/+yb
+         xvOEQaeOE1xPaagV27OpYCDwslEhaakPoIL024K84lG954ga/0UHEFrhnN3V69jOqC1R
+         pT5Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=0AseUfXAAtgM7xE37ALVmimobdOHrae++QaZmnVS3p0=;
-        b=zxpEKmOj9WveSsdcc/Q45mGwFfOnZXlHdHOBaRE7UPjMRbNIYtvTHvf5pAqOa5NHoK
-         6vzs75f5LBYnLOMuPt8q1YLmEfD522ly/qZkEgXox+JRAd3xuB2k/dLKtceSeJU4GCm9
-         kq+ljcJShjq1kFhDsaceTpDn8g92ClLfwlJPW0AjEQjiJFKQ+G7svfFYtyxnkDzC79C5
-         JA7zx/J/uYfWIQEpgnifuV3wOiHcfyVrLDDLlhlkKAkgBMBLley7VD17n9fMYPbsdA/L
-         vWv89j3jQi3iK6/H73TkyprfG2oK7dCNx8mjbm4+aRvb0AWWsUuywrCBvBnmCmoZuVUr
-         49qQ==
+        bh=JZX5VXWRV31e/dorMIyOAZjwZx1Lnus1V/4dOHz/P7o=;
+        b=ccqLFCRCRskus2zMXKK6r9tI/h9A4K9ebfiJS8QRz+g5JtPzejR8D9EDdTeGHJqZ9F
+         5pj6zJXrTW4w2aBpHImjSVHdUaFEeBMjBGQrCSyt+0Ft+vITfP7KZI/JgY5XmvsoCFfS
+         ItLFwh/MXjlLlvWO9UJgv3SKg+Bjo6erK34DA7efCBmS5n4cZUb1fm0DzouUvjWrIIWP
+         JLX/ZGTqQYbZtN5s41aMLJJsE8oTWiAvME71xUUPVNc5f/mMIFWIKq4lw9moDC3g8GuS
+         MgKso7wY+CvmAphKdAVLHLSlyFnZtjoxz/lkuXKtwx8LVy3Da8EFQjDZFTM19XuP7ZVz
+         vmEA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=hlmEsoAp;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kPvcG3sz;
        spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x1sor15122845plb.45.2019.03.12.15.34.14
+        by mx.google.com with SMTPS id c24sor15220354plo.69.2019.03.12.15.34.16
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 12 Mar 2019 15:34:14 -0700 (PDT)
+        Tue, 12 Mar 2019 15:34:16 -0700 (PDT)
 Received-SPF: pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=hlmEsoAp;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kPvcG3sz;
        spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=0AseUfXAAtgM7xE37ALVmimobdOHrae++QaZmnVS3p0=;
-        b=hlmEsoApvA/mPdl0iBW06MNbW54pe9uXKLI0ahcw+KfOFDqPsNwozyuf/2FhiVycfD
-         knJ0Vxm7F0KP7fmIjk3HSFKX7vxKdbqVR/ncWSecT8LiNZj8ed3QWLFwKx4cNWGcvC9l
-         U+r7VBADW1oe+7Q32r16t4eTIfTU/p6TXMKLGiJbf9dHzgUYXD/79078ZFmDbKAEotUk
-         GY0aTSay4wBRp5nV4d/00Yon9XA6n8xKekA/Di4Nn6DeVujfOekkgZdqIS1BykhG95E1
-         Wh/Sd0PNA2IlQP24StTYHp5SWr4M+KoUkYW35t9ukZTak76552zqkiyBUFTdIRHC23Lv
-         3QkQ==
-X-Google-Smtp-Source: APXvYqw+oQJ4ndnWt7iHQgCj/cQPi1Rt1P8zv210NZF5fOTuQOXgHm6K3xRS+YSiomUIUFri8uU6TA==
-X-Received: by 2002:a17:902:968b:: with SMTP id n11mr42163572plp.316.1552430054499;
-        Tue, 12 Mar 2019 15:34:14 -0700 (PDT)
+        bh=JZX5VXWRV31e/dorMIyOAZjwZx1Lnus1V/4dOHz/P7o=;
+        b=kPvcG3sz1oIMN+A5deEm4FkV/2Og21S/ZdzmlBgWCta1VoPocpURg5BTxxL66IPeGW
+         KebfneTeQknBMcv0RIODkHuIJ26KPqoOKTxWylOx80IgIWFxLgY+F7NNbYkjXL/u42EP
+         48K9fomPliCJxLp2CCvydxaRJ+MEH6B9Txe++8T7+1tbAK/Nh+xfThDUNjxeYlOv+7O8
+         e3jWD8BZTDObwiZvbqGhtTnRyjwIn+HA8OHG0nTDXsmHXpsbX1I/CDAJL9kE9Peb1PK4
+         wA0iNVQ3Cai5d5t2+VGgnJgjCVY6fQkOLEOWIu/d6Uy/hAmr4kaNQrNCGCx9g9u9l2bI
+         ZHqw==
+X-Google-Smtp-Source: APXvYqzD1PVjUf4iM9o/YE+Z9nZ4TfeCb+Wf1JEL8VMwvOoex1fD36Y17trO1RbFs/TmANuws+r/Lg==
+X-Received: by 2002:a17:902:8c8a:: with SMTP id t10mr5501547plo.160.1552430055663;
+        Tue, 12 Mar 2019 15:34:15 -0700 (PDT)
 Received: from tower.thefacebook.com ([2620:10d:c090:200::1:3203])
-        by smtp.gmail.com with ESMTPSA id i13sm14680592pfo.106.2019.03.12.15.34.13
+        by smtp.gmail.com with ESMTPSA id i13sm14680592pfo.106.2019.03.12.15.34.14
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 12 Mar 2019 15:34:13 -0700 (PDT)
+        Tue, 12 Mar 2019 15:34:14 -0700 (PDT)
 From: Roman Gushchin <guroan@gmail.com>
 X-Google-Original-From: Roman Gushchin <guro@fb.com>
 To: linux-mm@kvack.org,
@@ -113,9 +113,9 @@ Cc: linux-kernel@vger.kernel.org,
 	Johannes Weiner <hannes@cmpxchg.org>,
 	Michal Hocko <mhocko@kernel.org>,
 	Roman Gushchin <guro@fb.com>
-Subject: [PATCH v2 5/6] mm: flush memcg percpu stats and events before releasing
-Date: Tue, 12 Mar 2019 15:34:02 -0700
-Message-Id: <20190312223404.28665-6-guro@fb.com>
+Subject: [PATCH 5/5] mm: spill memcg percpu stats and events before releasing
+Date: Tue, 12 Mar 2019 15:34:03 -0700
+Message-Id: <20190312223404.28665-7-guro@fb.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190312223404.28665-1-guro@fb.com>
 References: <20190312223404.28665-1-guro@fb.com>
@@ -127,12 +127,12 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Flush percpu stats and events data to corresponding before releasing
+Spill percpu stats and events data to corresponding before releasing
 percpu memory.
 
 Although per-cpu stats are never exactly precise, dropping them on
 floor regularly may lead to an accumulation of an error. So, it's
-safer to flush them before releasing.
+safer to sync them before releasing.
 
 To minimize the number of atomic updates, let's sum all stats/events
 on all cpus locally, and then make a single update per entry.
@@ -143,21 +143,21 @@ Signed-off-by: Roman Gushchin <guro@fb.com>
  1 file changed, 52 insertions(+)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 1b5fe826d6d0..0f18bf2afea8 100644
+index 18e863890392..b7eb6fac735e 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2119,6 +2119,56 @@ static void drain_all_stock(struct mem_cgroup *root_memcg)
- 	mutex_unlock(&percpu_charge_mutex);
+@@ -4612,11 +4612,63 @@ static int mem_cgroup_css_online(struct cgroup_subsys_state *css)
+ 	return 0;
  }
  
 +/*
-+ * Flush all per-cpu stats and events into atomics.
++ * Spill all per-cpu stats and events into atomics.
 + * Try to minimize the number of atomic writes by gathering data from
 + * all cpus locally, and then make one atomic update.
 + * No locking is required, because no one has an access to
 + * the offlined percpu data.
 + */
-+static void memcg_flush_offline_percpu(struct mem_cgroup *memcg)
++static void mem_cgroup_spill_offlined_percpu(struct mem_cgroup *memcg)
 +{
 +	struct memcg_vmstats_percpu __percpu *vmstats_percpu;
 +	struct lruvec_stat __percpu *lruvec_stat_cpu;
@@ -200,14 +200,12 @@ index 1b5fe826d6d0..0f18bf2afea8 100644
 +	}
 +}
 +
- static int memcg_hotplug_cpu_dead(unsigned int cpu)
+ static void mem_cgroup_free_percpu(struct rcu_head *rcu)
  {
- 	struct memcg_vmstats_percpu __percpu *vmstats_percpu;
-@@ -4618,6 +4668,8 @@ static void percpu_rcu_free(struct rcu_head *rcu)
  	struct mem_cgroup *memcg = container_of(rcu, struct mem_cgroup, rcu);
  	int node;
  
-+	memcg_flush_offline_percpu(memcg);
++	mem_cgroup_spill_offlined_percpu(memcg);
 +
  	for_each_node(node) {
  		struct mem_cgroup_per_node *pn = memcg->nodeinfo[node];
