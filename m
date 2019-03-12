@@ -4,128 +4,129 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7CE2BC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 01:06:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8F358C4360F
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 01:06:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 24474214AE
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 01:06:22 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 44CA8214AE
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Mar 2019 01:06:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="v9qEBssM";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="7NOuyzjw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 24474214AE
+	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="FTG5XdsL";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="uXdN5KnI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 44CA8214AE
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=tobin.cc
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C15BA8E0003; Mon, 11 Mar 2019 21:06:21 -0400 (EDT)
+	id E393E8E0004; Mon, 11 Mar 2019 21:06:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BC4558E0002; Mon, 11 Mar 2019 21:06:21 -0400 (EDT)
+	id DE7F58E0002; Mon, 11 Mar 2019 21:06:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AB3788E0003; Mon, 11 Mar 2019 21:06:21 -0400 (EDT)
+	id CAF0C8E0004; Mon, 11 Mar 2019 21:06:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 815E78E0002
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 21:06:21 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id p5so855314qtp.3
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 18:06:21 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A13B18E0002
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2019 21:06:50 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id h11so864540qkg.18
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2019 18:06:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:dkim-signature:date:from:to:cc
          :subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=BfTF9/5XfuXj8gIHT3yfX9FHWytOy+CqJr0NmgfbW+4=;
-        b=MCO5s8SyvaIyZiwIusHdAWm4fdVJW64eNBvk7DGlKmUC5tPOVbXc+9PB9KMQQL6KYA
-         0zT5UwNkHbKPb/u3q9XCfyl53hZnAxkIyvAqZO42MFNTGCtBIvUU0UDB0aYmvoAFZpPt
-         T0TM4ndQRUBCdpjHGOGpdHBxt0EM7xNSu0XgnzjNfS05BP+Gq+o2SOEoq8cyGAyPw02k
-         0CdWPMYUyFznmQVvaOgzwxBcjhAaau6v1R6UgApAAUauOko00tU01YgeBbLEZdQTzx/l
-         7yNhyhJ4HdFOSG8/xUiXj92VFfknisYCwjei8fxaRvH7WpNRnFr2DAGqvG/ME1i2yucz
-         aihw==
-X-Gm-Message-State: APjAAAVCGWXVPAEQ7fYK7zhMmQ4Sv6EneIAvxnjEnKXyumg31ctCwlms
-	9fZpURb/k+YvYBb5VGW9avD7AUeioO3yP2xVQcXaNHbPNjUfqNhGhz2OYrfjzL5vm89YfTh4+Jc
-	rQJmLM5Gf/WoMXngN5hjNn57Uo7mKNaIptciBmk87uoL2X1HFykCSN9UCiGTqX+vjhw==
-X-Received: by 2002:a37:9b16:: with SMTP id d22mr26506411qke.356.1552352781268;
-        Mon, 11 Mar 2019 18:06:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw42DmDSQH3My8aCxhWZRyOt6Vk6EHM0bvqJ93WYNou6ZLxb44rMq/QQ0iihf9L3c9iKDeC
-X-Received: by 2002:a37:9b16:: with SMTP id d22mr26506381qke.356.1552352780644;
-        Mon, 11 Mar 2019 18:06:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552352780; cv=none;
+        bh=SKFjXI0K92phygeb6zeAtC318FscuxRVk6ZzNAcru7Q=;
+        b=ikAiyAxGDxZ5rJCbZ5JkEGaIXfQkkmHMvU1GGvh8TxfK1Pav2g1Z9GetzTjMyqwF3s
+         1RrtKwcB+hxnGH4udvR6zAdYWjFNvNhA5XpBjs2f3apsRUgbnJecnCVOR2zwSlQLjP2Q
+         RDQv35WqBYxLgMKWGKc+ejpMPX4Vq6WQpZgmedofe8axebmmX76si7UIsZ5h5wKBGqUr
+         VUNkZOFbDP6Y7nmcW06TBAubTm6LeEc7gHcCLIcenfHZ71+w48AkhoUdRuKnp8Quf4Nb
+         5PAK+Hq146oKE4uZ/Oddyu8l4UnqP1QpVIHTyRtcqtanvmL7ej2UADmg70zwNfhloVL7
+         fbVQ==
+X-Gm-Message-State: APjAAAUzkFcPONqCVNkrvKBFFrXEYmDxPwyzjPC5J10Uirsr+9Oi13t6
+	a/XvPYWP/7Bu0ceBVxxf99rWGKl3IO24AJrIpd8yz3minBs/CgtGi/L8IxUABC4qcQzmCOfJkxj
+	K3ULx244ZtLSc5zYPCrzDtesrovv0IEfzKL3cea6/unHwpx/AhkyIAYR8LxU+V4cc2Q==
+X-Received: by 2002:ac8:2ea6:: with SMTP id h35mr28167601qta.181.1552352810448;
+        Mon, 11 Mar 2019 18:06:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzTWtBA13wocSLUN2G2opvrP7zoh50HtQfUNR9UPp+PniL6l9J+DOdiRcOdcyr69jRFEdr4
+X-Received: by 2002:ac8:2ea6:: with SMTP id h35mr28167570qta.181.1552352809833;
+        Mon, 11 Mar 2019 18:06:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552352809; cv=none;
         d=google.com; s=arc-20160816;
-        b=lF+Vu9l2ADHShZxvSv84VWEoRoPAcLJnABZmWGFkFtNt3Y5bGA/zjG1PQ3yb6ktKid
-         S29fhN1Aza2TbZg1WAmAZLUctL3qb7z/62bYbqlYhDQa4m3avalOwWqOi7oXbf0dES1U
-         A5/QlreZa1iB4Q09MqENdl8/UfdM/rZWjYMYPXIRBva3idaKIdqkv2qvg3WcKezjQlRe
-         ReIW8VP4VdznUgDO8N01A7sR7ADS39IRIhYeLmd4kpj698ATNkFWdU28T7sNdM97A2P2
-         pEctfTx8YV90XvTpgAFVZpGb7q9m4t5XVHNKosCJ5W4O6uqU765wQUaICuvgWRZ84sBV
-         8pGA==
+        b=exSAVB3UjXo850ZFAf+D1fUOCqpfxqV/JvC8+niDGvqTgdOTDf2JUWQikwqVRbiprD
+         DlyjaGNuWr8dW/dtl6u+fWLPb3EsOYrHpt+aYCiFlITF3Su6BWuYGJgz67XmVuLSiNAk
+         bkXytBYJH0x8h7pMgFbQ2kzc99C3ESprwLSyddPHTzgmdFTxZYHLFMpPv/m65U/9+LVb
+         6ia+xxr+veyEjUx4HSgpagajrjeKeO3rlzvWtPfbEr8qUksdyqSTVvUcNtMAKf5mfyt5
+         FljptmCrK4X5BX84LsSkxrDz4Z8h2TDOD88nGbr9Nv1ot8rZx6VWh7Kbh0zwpJxTHEBp
+         ezzw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature:dkim-signature;
-        bh=BfTF9/5XfuXj8gIHT3yfX9FHWytOy+CqJr0NmgfbW+4=;
-        b=OZoytD0YIdfu95ynQxvjDJx0ONRe+if/BYNNb/QzgMuvhtnH2mGwT1A8zHvVqo2KkH
-         ZpUZimCQOtRooyMpGqg5eY65trcosVGlnYWIaQfyNFlG937Z5j2gRRvwyRQD+QvGesL5
-         trtXDo4R9ZwBwuOjVhXPKCE0CgYOCEvaDd5adR4mTG5muM+07u+GsK4Av8FavmhD1ybT
-         AIkk/3zKyD+oVcSoiNvX+aKXkH67vC9aX1X7DR5q9Gg9aphH8+FexrMDRCeWcOQ2eRXD
-         K/P/cm4GuWrhFcRKWBRkB53MDYoxO0L47AkPLcNSoRVDQZDlgeIXhQOu/YpCiVjoVRlN
-         iBvA==
+        bh=SKFjXI0K92phygeb6zeAtC318FscuxRVk6ZzNAcru7Q=;
+        b=IMhCuamcf4pdL+rG7JrUjUUKI5zp8utcJrwlBEvaWCPiZ1eRu29sY2tPqCcmbtLVIp
+         brxp0t7iyTYGl/RytvRdIXjJmhih9UVheiLkRGjG8CSDBKle2CAjpxNbRm3Q1Hxt1AA2
+         Tk/7+2Zy9uaVZrUOwQrCiHUGAkhRxIGAy0XAVM+cpOi8cCsU3/H5p9kHM6+OwN++Xefr
+         xJ9I5SfvRRnKAsNdf2bfoDF+XUR2TbHpZH45hW3pJaVUcs8/yqTxeHpHEHI2PYpDBOXH
+         9oSiAX7wH3Fc2w52WXCKWvm547JxxZxCSMTv4AYlUDZTfTrvAiR8/NQSYmmlzxOt972j
+         PsvA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=v9qEBssM;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=7NOuyzjw;
+       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=FTG5XdsL;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=uXdN5KnI;
        spf=neutral (google.com: 66.111.4.26 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
 Received: from out2-smtp.messagingengine.com (out2-smtp.messagingengine.com. [66.111.4.26])
-        by mx.google.com with ESMTPS id 11si3698515qtu.163.2019.03.11.18.06.20
+        by mx.google.com with ESMTPS id g5si1425154qvo.25.2019.03.11.18.06.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Mar 2019 18:06:20 -0700 (PDT)
+        Mon, 11 Mar 2019 18:06:49 -0700 (PDT)
 Received-SPF: neutral (google.com: 66.111.4.26 is neither permitted nor denied by best guess record for domain of me@tobin.cc) client-ip=66.111.4.26;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=v9qEBssM;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=7NOuyzjw;
+       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=FTG5XdsL;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=uXdN5KnI;
        spf=neutral (google.com: 66.111.4.26 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
 Received: from compute5.internal (compute5.nyi.internal [10.202.2.45])
-	by mailout.nyi.internal (Postfix) with ESMTP id 3E4E6226F4;
-	Mon, 11 Mar 2019 21:06:20 -0400 (EDT)
+	by mailout.nyi.internal (Postfix) with ESMTP id 60946226F4;
+	Mon, 11 Mar 2019 21:06:49 -0400 (EDT)
 Received: from mailfrontend2 ([10.202.2.163])
-  by compute5.internal (MEProxy); Mon, 11 Mar 2019 21:06:20 -0400
+  by compute5.internal (MEProxy); Mon, 11 Mar 2019 21:06:49 -0400
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=tobin.cc; h=date
 	:from:to:cc:subject:message-id:references:mime-version
-	:content-type:in-reply-to; s=fm2; bh=BfTF9/5XfuXj8gIHT3yfX9FHWyt
-	Oy+CqJr0NmgfbW+4=; b=v9qEBssMxx8UjrHaKeQhZGrw3xhr3nm6bsLRV6sPDqB
-	THj4osgaOer9a8BFnE4tgtFjxJDGIvVV/iCjTAGtlRodeBYxsJ+yUNZ0bn/SwS/7
-	DkuzjFVJOIhBpoH+fkfJb2/P1UW/TuSjdJcxh1HLq4b6EqGP1cqAeJ9uqlu3sge/
-	u9poj+DVXxgfDqqIAnT0OD8o660l0V5Jr3vZ8gWqf1nNNlEOZwcMOdgUng+gZTzg
-	6QalMJRVrhDiZBaysVbOhsx+GUc9/bjgOMccnxInavUpmrbN3xPVXe851HQ1Oyix
-	cYNS8/4MJO1+WqQcTAcoipOEfkb++7NZIEYqLne5yAw==
+	:content-type:in-reply-to; s=fm2; bh=SKFjXI0K92phygeb6zeAtC318Fs
+	cuxRVk6ZzNAcru7Q=; b=FTG5XdsLeuGuBvKBeti0SgcdASf3754kkTOHhi/bBRF
+	UOr245JLFX8HDfXZoouLZYIMXdjnSvy6F8UYtZwcS7/wQ508jo7dFkQQULoXitHG
+	+ztnzs+RtS0UABYkcN+rR1VaXYcwhDqODdtXbUponza4JJNa8iRkHXiu9S+fVo/X
+	6MTAIupieY+N3qniHBWcTmaCiEYLEKD6b4c2Ap7cAPiEmPMqUs061VvwfJqGo3Lk
+	y3CVzbR1rcRyJQOcEE2BpUYad4mLBoc7KxH1JoDM3JiT6jgLW3jhFq+PhOhJmg0S
+	GhRjFFUulubefDcY60ocenfTB5SkWo9R/4zhJqX1+yA==
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-type:date:from:in-reply-to
 	:message-id:mime-version:references:subject:to:x-me-proxy
-	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=BfTF9/
-	5XfuXj8gIHT3yfX9FHWytOy+CqJr0NmgfbW+4=; b=7NOuyzjwFNct8c7dj37fdO
-	AwnGdyS7YZ9+u7IhlASmz7qbcJb/xZK+a9X1cQNV1uzYjhaptK2bfGtHisp0kBis
-	hboaR+hfPtW9/KEurLqVF+edbbceyzsuwUtbYW+hJbjttmclQ8dIBnbt7B8qDtak
-	nruwK+ZjJuAveHL3xpyLkxncqg5+MTckcfwHpBkmPT/X1UQbRvc8FNvjTR3qXUAd
-	4CEXN3RZH6bqunDQfJxkX+6nVxsQBZeJPD4SDfsO/gvP4xVEbWvGAF+WThkZI7Ya
-	J7cJ1cIvCht2IOBmccJbH1z2izSuq9wHiuef5+SUQEAMFDcEmhFnJibVx8SdfKjw
+	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=SKFjXI
+	0K92phygeb6zeAtC318FscuxRVk6ZzNAcru7Q=; b=uXdN5KnIuWOlNl8kh72Or6
+	BHgmlWp4Peo46kypXqnmghVuQQfbx/NWnQkyfMh/KE5wd2xfp+AMUEsyJYMwazc5
+	gwZaM2es+vLhg6C470lfcrYMY0GJgtRw6L/sOXCbGCDgET/ebGiEgVLCBrf3+MAI
+	axFUPOq/nM+2Kc4yy7r3vwc45rzGH9sh63Zd4tbRom6uSA1n6Fy25Z+UaqTuc+kh
+	fIJHbYiBFRW4IvSvLf+5VSSpnF6lN+EhCm2DY+ZnSbTwa8AUP3j9Yp9sn6KO08Tv
+	VJq9RLHLpaSYELDd/NobaWHJDT8fShqwaRl7eE3KaXtv9YXwJGlrLT6yvKrREPuQ
 	==
-X-ME-Sender: <xms:CgaHXPy18bevCJZaVvD4E2hMf2whqgQ950KYFAYYXJ7VZtXWWV8ABQ>
+X-ME-Sender: <xms:KQaHXIfnxJrjqwCg3PSbjinpiYWs7J4rCtq8Kqt2boohuKL8cLleYA>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedutddrgeejgddviecutefuodetggdotefrodftvf
     curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
     uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenfg
-    hrlhcuvffnffculdeftddmnecujfgurhepfffhvffukfhfgggtuggjofgfsehttdertdfo
+    hrlhcuvffnffculdduhedmnecujfgurhepfffhvffukfhfgggtuggjofgfsehttdertdfo
     redvnecuhfhrohhmpedfvfhosghinhcuvedrucfjrghrughinhhgfdcuoehmvgesthhosg
     hinhdrtggtqeenucfkphepuddvgedrudeiledrvdefrddukeegnecurfgrrhgrmhepmhgr
-    ihhlfhhrohhmpehmvgesthhosghinhdrtggtnecuvehluhhsthgvrhfuihiivgeptd
-X-ME-Proxy: <xmx:CgaHXI7rg91R3vuz4n-POghIUOAhPxJD-h7wuW7Tyl-igrD_M1Ehlw>
-    <xmx:CgaHXNbEdogCkmNboxXNCVCuZa2Z4z5E6VpMzWsM_gD8OaZd_nr6mA>
-    <xmx:CgaHXP-5w56EjfhStOdjnadP9xKSayTk919MNx4gg1vzGOz7uVqIug>
-    <xmx:DAaHXINCaELhtCEs2hH3NLMsxINiXJA4GpShyndbtsD_O20v3oPHUw>
+    ihhlfhhrohhmpehmvgesthhosghinhdrtggtnecuvehluhhsthgvrhfuihiivgepud
+X-ME-Proxy: <xmx:KQaHXAxjY6ihaD8lncdqOw4bPsk4qYLniXvr3_JA0mgBNbYPiIYqyg>
+    <xmx:KQaHXG99elukCJtV9P0-X5KSt-WFBQFyjCiLIwvCzncD2qtcRqxgAA>
+    <xmx:KQaHXOIFURdASVhkmNBemEHRD9wh8N6XiVkOu9xxT9FsGZ4h_6TvhA>
+    <xmx:KQaHXOcGqFYhLHFATFYtl7PwLpoitJe4M4QfFTcRzPcAbPKMrw8BUw>
 Received: from localhost (124-169-23-184.dyn.iinet.net.au [124.169.23.184])
-	by mail.messagingengine.com (Postfix) with ESMTPA id AFE8C1030F;
-	Mon, 11 Mar 2019 21:06:16 -0400 (EDT)
-Date: Tue, 12 Mar 2019 12:05:54 +1100
+	by mail.messagingengine.com (Postfix) with ESMTPA id 768191033A;
+	Mon, 11 Mar 2019 21:06:48 -0400 (EDT)
+Date: Tue, 12 Mar 2019 12:06:28 +1100
 From: "Tobin C. Harding" <me@tobin.cc>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Roman Gushchin <guro@fb.com>, "Tobin C. Harding" <tobin@kernel.org>,
+To: Roman Gushchin <guro@fb.com>
+Cc: Matthew Wilcox <willy@infradead.org>,
+	"Tobin C. Harding" <tobin@kernel.org>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
 	David Rientjes <rientjes@google.com>,
@@ -133,14 +134,15 @@ Cc: Roman Gushchin <guro@fb.com>, "Tobin C. Harding" <tobin@kernel.org>,
 	"linux-mm@kvack.org" <linux-mm@kvack.org>,
 	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 Subject: Re: [PATCH 0/4] mm: Use slab_list list_head instead of lru
-Message-ID: <20190312010554.GA9362@eros.localdomain>
+Message-ID: <20190312010628.GB9362@eros.localdomain>
 References: <20190311010744.5862-1-tobin@kernel.org>
  <20190311204919.GA20002@tower.DHCP.thefacebook.com>
  <20190311231633.GF19508@bombadil.infradead.org>
+ <20190312002217.GA31718@tower.DHCP.thefacebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190311231633.GF19508@bombadil.infradead.org>
+In-Reply-To: <20190312002217.GA31718@tower.DHCP.thefacebook.com>
 X-Mailer: Mutt 1.11.3 (2019-02-01)
 User-Agent: Mutt/1.11.3 (2019-02-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -149,36 +151,39 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 11, 2019 at 04:16:33PM -0700, Matthew Wilcox wrote:
-> On Mon, Mar 11, 2019 at 08:49:23PM +0000, Roman Gushchin wrote:
-> > The patchset looks good to me, however I'd add some clarifications
-> > why switching from lru to slab_list is safe.
+On Tue, Mar 12, 2019 at 12:22:23AM +0000, Roman Gushchin wrote:
+> On Mon, Mar 11, 2019 at 04:16:33PM -0700, Matthew Wilcox wrote:
+> > On Mon, Mar 11, 2019 at 08:49:23PM +0000, Roman Gushchin wrote:
+> > > The patchset looks good to me, however I'd add some clarifications
+> > > why switching from lru to slab_list is safe.
+> > > 
+> > > My understanding is that the slab_list fields isn't currently in use,
+> > > but it's not that obvious that putting slab_list and next/pages/pobjects
+> > > fields into a union is safe (for the slub case).
 > > 
-> > My understanding is that the slab_list fields isn't currently in use,
-> > but it's not that obvious that putting slab_list and next/pages/pobjects
-> > fields into a union is safe (for the slub case).
+> > It's already in a union.
+> > 
+> > struct page {
+> >         union {
+> >                 struct {        /* Page cache and anonymous pages */
+> >                         struct list_head lru;
+> > ...
+> >                 struct {        /* slab, slob and slub */
+> >                         union {
+> >                                 struct list_head slab_list;     /* uses lru */
+> >                                 struct {        /* Partial pages */
+> >                                         struct page *next;
+> > 
+> > slab_list and lru are in the same bits.  Once this patch set is in,
+> > we can remove the enigmatic 'uses lru' comment that I added.
 > 
-> It's already in a union.
+> Ah, perfect, thanks! Makes total sense then.
 > 
-> struct page {
->         union {
->                 struct {        /* Page cache and anonymous pages */
->                         struct list_head lru;
-> ...
->                 struct {        /* slab, slob and slub */
->                         union {
->                                 struct list_head slab_list;     /* uses lru */
->                                 struct {        /* Partial pages */
->                                         struct page *next;
-> 
-> slab_list and lru are in the same bits.  Once this patch set is in,
-> we can remove the enigmatic 'uses lru' comment that I added.
+> Tobin, can you, please, add a note to the commit message?
+> With the note:
+> Reviewed-by: Roman Gushchin <guro@fb.com>
 
-Funny you should say this, I came to me today while daydreaming that I
-should have removed that comment :)
+Thanks for the review Roman, will add tag to v2.
 
-I'll remove it in v2.
-
-thanks,
-Tobin.
+	Tobin.
 
