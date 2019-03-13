@@ -2,167 +2,140 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6730BC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:07:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DE278C4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:07:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 170FF20643
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:07:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9CE2B20643
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:07:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="Ev3mjXd6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 170FF20643
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="NGA3Zsso"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9CE2B20643
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8FCCC8E0003; Wed, 13 Mar 2019 12:07:26 -0400 (EDT)
+	id 1D4158E0004; Wed, 13 Mar 2019 12:07:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8ADAA8E0001; Wed, 13 Mar 2019 12:07:26 -0400 (EDT)
+	id 159C68E0001; Wed, 13 Mar 2019 12:07:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 79EDF8E0003; Wed, 13 Mar 2019 12:07:26 -0400 (EDT)
+	id 023838E0004; Wed, 13 Mar 2019 12:07:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 473CD8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:07:26 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id b21so992653otl.7
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 09:07:26 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C9C338E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:07:54 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id d18so3086383ywb.2
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 09:07:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=/XfqRx4tzKzsjCcb8QbRLqX/uBHxzCtpu1uDPCItsOs=;
-        b=HBd7mlt+kFvxtxNoKC6Dr90DQukl9GE+zG/gOOhy64BubJVAuYBDj1qHegEQlSHnm5
-         yOObwoL8QgnO9tJhdEs7Xi+YelXamLni/625knbmvNgT+uO8fAKgGL6i0OaShPfQaCbn
-         66VC2C/nB8Lg3+hmp9dDFQuAz3eYQTWnhPWP0tdGN2XJ5qIPG/AohwAaOTwQ9X3Y86jy
-         hWV1j4OS2Meatswge23fZIj/KAv+BB6RdXjTlF03/RHImYjXZ/6QADGIxYrD3JPCfPTP
-         yIBG7nx9tfpngrofI6qmnV7uJJHNEZDqrG2LmIflogXdnIDmCCz4sp8awma3PwnoULjO
-         C1Rw==
-X-Gm-Message-State: APjAAAVNYcpIGYdoDHXxPUQtuHvWng1v5WhI+R0Cgjv+WyrXbb/OFVF2
-	B3igM1awGcZwnIF7+JnQ7fLz2XLNksG3Lo9fXCb7ahlQPmbhGAZMkxQhJ3PQqIx1jq+qZUVxYri
-	M0kQclnQ41GzkkxgbtdQrNu8RuENAh5bIV3dTZ5C2lJQxdR/Xv5jBjSJ5zfZbIDB2BQx1yEvu7o
-	r4W7usO7ignveH6+er+LbA98o5UpYeRclfJ/ojQyQH92PBqV/fJbdyFsnu5PLbOcLYWKjTLlLuz
-	V5cdOtWtlkbyM32GFAm5H8RI1j8Nf7TVcyl7kEB6UxYOiRNHr4p8u3ZmYSTTTj8EC57HWaWROlS
-	g3oyZNDeaTmETbNxFrLE7IC3UohnKjntpcz6nMKP83Cc/hMFiLUCHcBWeUba0An7toquDODERUK
-	S
-X-Received: by 2002:a05:6830:1547:: with SMTP id l7mr27211009otp.196.1552493245961;
-        Wed, 13 Mar 2019 09:07:25 -0700 (PDT)
-X-Received: by 2002:a05:6830:1547:: with SMTP id l7mr27210951otp.196.1552493244974;
-        Wed, 13 Mar 2019 09:07:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552493244; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=UvCYDdnf/RFGLbHek+yGIUV6NWeZaltScEJghB6OD0Y=;
+        b=ERuOxH2ulBF/ObMtNFlFNrtQGRj+ZgkOl+w9SIibMZFrFd1im6rm8i7JnjVYg47jys
+         GN5cDgReTefNYnsXs8KaabEUwnL0dDqD1MY+Qv/Fv2OPEmO0QInEvYRotad0oh+ccgZn
+         5D/W/oNUG63+uGOdyWbo1RjaQiZLU2aEfprLL0D+ZjAsR93cjZz5Dh50tQHdQ2hSemC5
+         TMGz0JqEsTfF4wWuMpUP1Eo/gYLOCu3f3bJwPZOMdfJ56wT58sXbgIj3PfYLmxuP5s74
+         54WzkBlC2g25+1XYPuf0rjE1Da3MJB24OBWdjC7a1+2vpQstjnPEO1yCP0X9DlDkBWC2
+         FWQQ==
+X-Gm-Message-State: APjAAAUSeegTd9TGaBCj5c//RC1lZxvS31mUgSlu9btm8iOqyM5gGeTm
+	tJQ44w/76AcVpxYyHl1XujrCeexcmoQnGDsA4VrTYeAxNpyvDqXeKTA2xAvHT+TmWJ11nM8W/lJ
+	uGo7t+AqtL8DDa8w83IO0kVbCYGBsnv9byFiUGSQDCKeC+FJ57GXLA+B0z/rok6DxSIGWUvBIWA
+	WzjHh4Eh0n6ei0/H+Zx3gWvLcblEWI1domUmFxTdX/nGU2ZI+EORBT5N6fVc+5u+NpWDInkpgKP
+	x5tcxOesfTh5AUbruQYl5FDwosx22dV/zazCUu5fbvDx+P0BeEb0Y2WunopuTof3Zujeio0cPRl
+	h1nvLOOAu032MklaVLoBpAiAbo+zOqfOfVdGDnzJbAYlL2SkgibW6iSqJ9lc2gGZdXcZ4G6o8nO
+	v
+X-Received: by 2002:a25:2556:: with SMTP id l83mr34736379ybl.510.1552493274491;
+        Wed, 13 Mar 2019 09:07:54 -0700 (PDT)
+X-Received: by 2002:a25:2556:: with SMTP id l83mr34736300ybl.510.1552493273708;
+        Wed, 13 Mar 2019 09:07:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552493273; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZMq3Ps8A80pYMMSHMO6iG/vP2gaYRozypiJxXXgco33N3Xu6ErzFMaT8hNOn7tHMzs
-         OshF+J7MhO0SYM8asG/JdfcCYKgUwXVYmayNKKVLZjCXzPyAzh5y28vY3e9FEsHxqqtk
-         +vRUKiD3x/fpOMXchqb9E7oNWR3Whm3g6bQldOnREDrSptI3bnxmG7RdhLFLtSseRU0C
-         ELmPZX18QTfm68hXJ3FeiPYeLzZxdAStgZ+XvcWoqAtmjE/ML9gOVa97ROw/L4TyfMad
-         hF1uUjCPxln1Eujdj8wC9EprcPZJWS4izZ7fHt839bhrTSrn8biq3/Md7/GVBBwUJl0C
-         ILkw==
+        b=Zaz3XMymK+33eq2i2TFV0J780e+ao9HA1is1a/QFl89rxlayJOFwo/c8ZDRuhqZeKh
+         slXstYmMmxA+ZMdWyX7LnDxqHbSHsW/9rYfo24Suf72IFBb9D1AfVmDR3MaDFmeRaJnK
+         W7ZypTDrw1YdzvDuVyKI6VbTHIAwXItXOjXZR5zVyXQ3gsbcsZaNyomo9ogu055tLwc2
+         rGFZE5FF7bB8oNWhD5g7SWNaxv/pbIibKXOBfdrdZJRSCaV4UyRn1uaYU9721PxDqU+g
+         GTncEzBVB8EWH33gbfA3vjsU6RRflLbMONUTftiRTTJPUl0WY02cLRNXiY8P5XeKECvo
+         aroA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=/XfqRx4tzKzsjCcb8QbRLqX/uBHxzCtpu1uDPCItsOs=;
-        b=FBNEMMRqyJ1V4cFAac7ki03bnIV2mY2bXZgWyei3NCNENswgMryb4MNmhGLDi2Gnwd
-         pQCCTIo4pwjg9tcGI9kzaVmCtnjtqdjZFOPcbC3ko9MVcQiN52UkinPkLauaGvdQanpL
-         GbAkREOrz4fwBXV0jpHovLABdEHo6906BxacddilbYQg4YXohKWMEcvJ7ulNXqk1A0Gl
-         Di4d9sQkofObLMtj6NIPJ/TMPYfV0CSmQFeX5ktX85Uw6RiYV6hJtIeIXIUxktf2bM0f
-         XL6YK3qGbkgDK2oe1BZMIcMuoFlKJMfhXexNSR/glSKDg0W+449ZeKpSxRWP/c6oM5d+
-         iRUg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=UvCYDdnf/RFGLbHek+yGIUV6NWeZaltScEJghB6OD0Y=;
+        b=urUUoA/VLBupiCByk5Sx9yHEq4eAVTLH67sD0/cjLKV1oSywoOUvVn3AiPclyMnZHt
+         x2033zlAwjrEpCeLYHJLsF4Cm5dyGtz+idR7Kq9ForC5L2yM8pZb/9yd2c6lE2r9nGWF
+         6nx/Ji70hcE1IQholTp1/nUlq0Ip1hII655u3nCavyoh58NE0BEyit74tis+0qSvN1AV
+         tUKtb8YYlZ+PZuZGGh0oJfv/O84cCRfSL1+vF/JS9uPuTqHr/jGk1pGWUBKbW5s8nb5W
+         R+AgnAKnD7gRvmzhN2OcPwlV22NbFsGpY5XgemGfyY0d5vWX7vqfPOUA7eR8uQArZ/1Q
+         zTCg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Ev3mjXd6;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=NGA3Zsso;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v88sor6386470otb.110.2019.03.13.09.07.24
+        by mx.google.com with SMTPS id 4sor6233071ybz.150.2019.03.13.09.07.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 13 Mar 2019 09:07:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 13 Mar 2019 09:07:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Ev3mjXd6;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=NGA3Zsso;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=/XfqRx4tzKzsjCcb8QbRLqX/uBHxzCtpu1uDPCItsOs=;
-        b=Ev3mjXd6En91xODIUX56pYwhJLO9DdmQ95Gif+qABOQYxSXLSsL3HdkZ996LpFM0Ok
-         BNFXboh0vkQcZET1UNi2xWbfJOgLi7YJOBlDe07HQIOTkXhyuZZtxYx1Jr323nQBINw1
-         bCIVmxF4JR2efLcgr/ZOkQzDj5SYAbGOQud/xj7awoc+6yVUoor9qC0PAVErRf0dlx+t
-         qM1zGEHB4PSIuwMXtFmThJuVWsfXkY8L4/6g612b2JAC90VycrbkkPGVtxjK+QjLV1tp
-         zV3E3pIxFXDm4fJ1q4lhu5iiryNlMnlw3ajMFHOD83PMclLscUSXLEmMdZOnDZ62lqrK
-         YZQA==
-X-Google-Smtp-Source: APXvYqzH9OHk6fwYw9vNd25aIvBEiA2sVSv1vjB2i+lT3GwQjeRBJM8aOKz1bJJDYo3s88am/imNu4byiUR9Jvcm8nc=
-X-Received: by 2002:a9d:224a:: with SMTP id o68mr16122221ota.214.1552493244500;
- Wed, 13 Mar 2019 09:07:24 -0700 (PDT)
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=UvCYDdnf/RFGLbHek+yGIUV6NWeZaltScEJghB6OD0Y=;
+        b=NGA3ZssoNF/S9CAdceP1jG1KWyrw56jfjrQz+ZkNYA/b4MTGXmhZddavjbZpoEE8Tc
+         m/r1gIvzg6gmJHVSmepHn8ieLciOciO5GSihS5Mq7DZfF31OIO+vJ1T7UsAz8Kx6CLlY
+         spDLc4f7IGXfe72lp3qMD+etk0Cz+ltEYDO+nh9+0mSbxz10yc+Sx8f8fjTYCc1OVV96
+         +UVe+ZABsuLQIxrpyc+fKeRrY1UVbtNGZm6J+lMYP0wdvFChFYJVHe+7NKiseJhc3eWf
+         vFE7OlTj7FJ3099WcSVXXYJitcCglSYIfSvn1QvBFj8SkPpLhsh5pmfpMG3CD2CEuU1S
+         3z2g==
+X-Google-Smtp-Source: APXvYqytV8vriWXbd2cv/6S1LiJ2RCYtAwfoGBHfkDec1dlcbynkQD7DF6ZQInBeFxyQolTFnHo6wA==
+X-Received: by 2002:a25:2bc3:: with SMTP id r186mr19264999ybr.292.1552493270952;
+        Wed, 13 Mar 2019 09:07:50 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:200::3:5e6])
+        by smtp.gmail.com with ESMTPSA id u185sm742557ywc.1.2019.03.13.09.07.49
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 13 Mar 2019 09:07:50 -0700 (PDT)
+Date: Wed, 13 Mar 2019 12:07:49 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Roman Gushchin <guroan@gmail.com>
+Cc: linux-mm@kvack.org, kernel-team@fb.com, linux-kernel@vger.kernel.org,
+	Tejun Heo <tj@kernel.org>, Rik van Riel <riel@surriel.com>,
+	Michal Hocko <mhocko@kernel.org>, Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH v2 6/6] mm: refactor memcg_hotplug_cpu_dead() to use
+ memcg_flush_offline_percpu()
+Message-ID: <20190313160749.GB31891@cmpxchg.org>
+References: <20190312223404.28665-1-guro@fb.com>
+ <20190312223404.28665-8-guro@fb.com>
 MIME-Version: 1.0
-References: <20190228083522.8189-1-aneesh.kumar@linux.ibm.com>
- <20190228083522.8189-2-aneesh.kumar@linux.ibm.com> <CAOSf1CHjkyX2NTex7dc1AEHXSDcWA_UGYX8NoSyHpb5s_RkwXQ@mail.gmail.com>
- <CAPcyv4jhEvijybSVsy+wmvgqfvyxfePQ3PUqy1hhmVmPtJTyqQ@mail.gmail.com>
- <87k1hc8iqa.fsf@linux.ibm.com> <20190306124453.126d36d8@naga.suse.cz> <df01bf6e-84a1-53fb-bf0c-0957af2f79e1@linux.ibm.com>
-In-Reply-To: <df01bf6e-84a1-53fb-bf0c-0957af2f79e1@linux.ibm.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 13 Mar 2019 09:07:13 -0700
-Message-ID: <CAPcyv4iLm09DSiF3niFprP3PTFrgB5pZPp9AysBpRa-m725tmw@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm/dax: Don't enable huge dax mapping by default
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: =?UTF-8?Q?Michal_Such=C3=A1nek?= <msuchanek@suse.de>, 
-	Oliver <oohall@gmail.com>, Jan Kara <jack@suse.cz>, 
-	linux-nvdimm <linux-nvdimm@lists.01.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-	Ross Zwisler <zwisler@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, 
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190312223404.28665-8-guro@fb.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 6, 2019 at 4:46 AM Aneesh Kumar K.V
-<aneesh.kumar@linux.ibm.com> wrote:
->
-> On 3/6/19 5:14 PM, Michal Such=C3=A1nek wrote:
-> > On Wed, 06 Mar 2019 14:47:33 +0530
-> > "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> wrote:
-> >
-> >> Dan Williams <dan.j.williams@intel.com> writes:
-> >>
-> >>> On Thu, Feb 28, 2019 at 1:40 AM Oliver <oohall@gmail.com> wrote:
-> >>>>
-> >>>> On Thu, Feb 28, 2019 at 7:35 PM Aneesh Kumar K.V
-> >>>> <aneesh.kumar@linux.ibm.com> wrote:
-> >
-> >> Also even if the user decided to not use THP, by
-> >> echo "never" > transparent_hugepage/enabled , we should continue to ma=
-p
-> >> dax fault using huge page on platforms that can support huge pages.
-> >
-> > Is this a good idea?
-> >
-> > This knob is there for a reason. In some situations having huge pages
-> > can severely impact performance of the system (due to host-guest
-> > interaction or whatever) and the ability to really turn off all THP
-> > would be important in those cases, right?
-> >
->
-> My understanding was that is not true for dax pages? These are not
-> regular memory that got allocated. They are allocated out of /dev/dax/
-> or /dev/pmem*. Do we have a reason not to use hugepages for mapping
-> pages in that case?
+On Tue, Mar 12, 2019 at 03:34:04PM -0700, Roman Gushchin wrote:
+> @@ -2180,50 +2179,8 @@ static int memcg_hotplug_cpu_dead(unsigned int cpu)
+> +	for_each_mem_cgroup(memcg)
+> +		memcg_flush_offline_percpu(memcg, get_cpu_mask(cpu));
 
-The problem with the transparent_hugepage/enabled interface is that it
-conflates performing compaction work to produce THP-pages with the
-ability to map huge pages at all. The compaction is a nop for dax
-because the memory is already statically allocated. If the
-administrator does not want dax to consume huge TLB entries then don't
-configure huge-page dax. If a hypervisor wants to force disable
-huge-page-configured device-dax instances after the fact it seems we
-need an explicit interface for that and not overload
-transparent_hugepage/enabled.
+cpumask_of(cpu) is the official API function, with kerneldoc and
+everything. I think get_cpu_mask() is just an implementation helper.
+
+[hannes@computer linux]$ git grep cpumask_of | wc -l
+400
+[hannes@computer linux]$ git grep get_cpu_mask | wc -l
+20
+
+Otherwise, looks good to me!
 
