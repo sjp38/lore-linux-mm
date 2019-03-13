@@ -7,102 +7,102 @@ X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 29489C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 18:40:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CC637C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 18:40:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D2EA2213A2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 18:40:07 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 84476217F5
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 18:40:10 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="hpA4uXez"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D2EA2213A2
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="hDD+JwIe"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 84476217F5
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 867EA8E0006; Wed, 13 Mar 2019 14:40:06 -0400 (EDT)
+	id D7D7A8E0007; Wed, 13 Mar 2019 14:40:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 81A998E0001; Wed, 13 Mar 2019 14:40:06 -0400 (EDT)
+	id CD59F8E0001; Wed, 13 Mar 2019 14:40:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 644628E0006; Wed, 13 Mar 2019 14:40:06 -0400 (EDT)
+	id AB32F8E0007; Wed, 13 Mar 2019 14:40:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2489C8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 14:40:06 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id c15so3101200pfn.11
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 11:40:06 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CD998E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 14:40:07 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id n24so3156188pgm.17
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 11:40:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=oz/TqQdvSWg5Jr50nmxxA8VLsKG86DG+TYlsVRNN9G4=;
-        b=Hc3jRM7WJVD8Wd3QjV/oCr7dwMAdRNsFH8o9q4FsOVlwL+gOs4wmgokeHfHpNkMZVi
-         0ayrwlgI7pzdRAu+BuPhdVavwNqOC8NnyobgiAT8298Kbh01ICHKHGvGGho9oYw/PLHM
-         F7o0Uuu5nao6qQWScML2gqtxLqJGWsQr6Iv4LsMUqWsmK2b2z02NwBktMgcj2k21Q+YH
-         kAl3KifeGQ/s8K0WWGehoRytlHjoZQwpH4Q47z+g/EIW2F2tyQh8U0OZPdJLOvypqFyP
-         YMvblU8zjZaTn1BFcHzOTXfJltEOSVAe+V20IiAIXiogGJLYz9F60jovstBfzP2I3KO0
-         spOg==
-X-Gm-Message-State: APjAAAXMddKjMHm5UIAlnXTcDOubZHC0rViFezpHl+sNWVckJdsRwiH2
-	QNNyFuDd8lYemnq52jLETi5zbEpa3hq6/gveevIv2h0pWgia5+nYY91uM1OOp0CEYSf9w3ubQII
-	qCpqzdiHN2w6zUFbAeGQAuNph1AhxuOvyTuA5H1y2KYPUSDZl7QmxvSmeuiLFieHQoryfbsqEzc
-	YTsyU/IUZPbfBGyMxevRyEqZ3ESjtP4Y4IAc1QUDjh+BRXWUWSisadvGNVZsksOKfQEW10Xfnqk
-	mfeiGn82eVWb6AcZ/LX+Uu7GxqudkMKBnSWisEn70f5u3mbymx4cFv5j8RNFKruqgmsWqnsBSJN
-	OhqBg448q7umR8pJu8e3653uoP2vRddQwBZJ6QGMv/n3OUSygf6j5ijBfAVyCQWFe/OsA95gkK3
-	f
-X-Received: by 2002:a62:ee13:: with SMTP id e19mr45315253pfi.224.1552502405815;
+        bh=WITBUxeGSIQmxb1SdGnY+GHNprTyqfSQ+9QDULNZwIA=;
+        b=AEdkU0OFrA0LhorZKSs3UxtpyoQyg1IP6LPi17H3t/E89Js5ggiJKx39chKVeBbj7O
+         KxnvgAMx93PmyCE5Bu70x2zHAEXVpPnOnnSAEYLuxymA8DeS/HFTSlBuW8/F9RgeptbF
+         rm47Uz8vSvXn7OHOE6vddq06VcUprO7ehu37hKjzSyGSa0bWU+oBJ47Rfs8J2IlQ6E3N
+         QV4x/N6OlKuClNdpBCsHwLEkK3Fzfr7bT4JpWnsH9cCjZ0b0q96z5JKa6QgvCnR1gqds
+         D9cJ6CULtmCTA+oZqpzrvBmBUG7QSGMQsRPn4YIZa01v9QP/mwGS5ic3FZMJ9cBi/tv+
+         5ydA==
+X-Gm-Message-State: APjAAAV4vE6aSoEUJ8uwm2Xfd6XLWR0moKRkvV7yXdfLCGNE2/44gLVB
+	cfcGUvEgvPPFFhrXj3n8WVXfXv36QGma6NHpnu1NPuPa6lzgjTah9kMtr4wt8pmULmz4Q2brb5D
+	sNicppIxvq49TJ3DQ3huhJEQ71BtTUA6O1QCBTboNW/IXGow0H6/l0DmWSClkcUbDs7cQYZ3Mig
+	vAlQIoNNj81LaQ1BcZobYzPSB3xJ052lAKEEuOvDP/7FVy3iO70swg/BdQn7ICrHyR6JDna1Oj/
+	n6C4+XLy6QS+MrHCt7Ay0+Q+JQxmjgumxoQm0hVIfg8JNR3xN63lUN0yrwryz3N4RXVGOy9m8X3
+	Rr+8TE/XZAO3/UnFZHeHNY0IWsK/tkHzKH0Lhd0FLLdi86+/9O6PoAgf91aRLZJwlsITreJ9QYF
+	+
+X-Received: by 2002:a65:628f:: with SMTP id f15mr41805323pgv.410.1552502407094;
+        Wed, 13 Mar 2019 11:40:07 -0700 (PDT)
+X-Received: by 2002:a65:628f:: with SMTP id f15mr41805220pgv.410.1552502405325;
         Wed, 13 Mar 2019 11:40:05 -0700 (PDT)
-X-Received: by 2002:a62:ee13:: with SMTP id e19mr45315137pfi.224.1552502404146;
-        Wed, 13 Mar 2019 11:40:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552502404; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1552502405; cv=none;
         d=google.com; s=arc-20160816;
-        b=CE6+oR28SDThB28SkdC4rdmK0xyCRqvg+/zAg4tNNBXC07e/igv7ZFmpMr0IX+pLPU
-         0lQ6YGcK3wjLovWGDAxVCYh0Utuy1TjAAexV/nt7vn4M+OEJmZ8nQEVJ3oWwnrqh935o
-         jO62PeO5NzJsu2BIsOxIJXZqb3WR+B0IfJDeZyMH7IGEefkknQw+RpdqA8tg0xBWbzy3
-         GlERp1jpvx9/4Bn6de8/QHY8t6Tpjk18rg1de/+9NfMZ9lUFGj9KYkLgja+65VTKtjhP
-         5qFT+eoA8NXtC99lriDBM3viIh3LIz4F1/3B2XnMJadMuevZhHpnEWiK2DQfjd3TO4dA
-         7u0w==
+        b=IrHIBO+Q/EeJAcEqcFBkZhorO85S+KbyxTLQ0lYzvzmoLaAQZZS/CW7T2Q3bX4DZtu
+         7dt7j+vyozCsuMkLM52PQ0tiAal2jK2Xyc7Oe9jhyCqo7xJ2LEcf61NZz+4zCSPBDPqq
+         HheBtQG++tlOq3W5YoX7qlvGd+/4Kp26K/obyrD19jjk47yrumzSsZwwNfMlkaTOMevB
+         YKzuNzYcg8RwgpZG6Ni0+5M2YwIQ5stn3V7F/DdqOPiT/PEX7LeplxnS/69GDWP3FOGH
+         DjFpNMpfWPicHMXTm3livyWJnpJBeYOTyqMYG5zwbji8KbpA61IgWKzo6VowItbWI3H/
+         qpIg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=oz/TqQdvSWg5Jr50nmxxA8VLsKG86DG+TYlsVRNN9G4=;
-        b=iMOPM5fS+qPLynA/QK+EPLVMSCeEZJnmGINcmxQINZvPB804ne07oHTZ/FUJ7pMi30
-         bBf/oh9dbmC7MW4iBnD8DFzsSkfY6qBx3a4bgfY1aOMBqfcHj3/aZqzlzChu52/TbESK
-         smF+pFV1fgjonw/JSTbtWTfAgmFsSrndUJ0Xt9ZyBOxvm8got3UrGVVuzGlsPsaVrG5+
-         Klsd73NnZho3+GjydBnS/mnLwuFFaBtidmcYFD14V7hlumYnmsW9YlmLgHWeDEGP5Haz
-         TqqbbZI6mUpEdz+NyiCKme4ZCaperYiNtuLZ/zuPRbpR3xj+xKAcMFseKy4d/kH4uXW5
-         wrqQ==
+        bh=WITBUxeGSIQmxb1SdGnY+GHNprTyqfSQ+9QDULNZwIA=;
+        b=ko1bc6rnkDgXCeJE7n/NFKtJ+YMQZcs684o49UPHFFJmFJqPQ0DZmDQRmjLpriHUxZ
+         pvrP3P/BEdVjTwYTlnrIzVwtiWVU5HZqM0PooO2j6R9IMPrOBh4DURLZlAeMpmDAjd22
+         7cKoscn2rBBEPTpQMb12oY2ychGQQq8TpcPeg5osEHYV9p5O+9JARJyL/HSo8CUEp/jZ
+         vGkuXvmrCsbFhVylMxUwAr81VqyQOVbv6WqYwsDqdWigNoLMrmPEB7rrBc8T6v32t4Rx
+         xwjoEIM61geqqYlgDpnHRn3z0RoRifbVBLFnbYy//nKYQWCR48LycTL5iaezu/Bd0BMg
+         G5NA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=hpA4uXez;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=hDD+JwIe;
        spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id gb2sor2442695plb.38.2019.03.13.11.40.04
+        by mx.google.com with SMTPS id e15sor19428312pgv.66.2019.03.13.11.40.05
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 13 Mar 2019 11:40:04 -0700 (PDT)
+        Wed, 13 Mar 2019 11:40:05 -0700 (PDT)
 Received-SPF: pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=hpA4uXez;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=hDD+JwIe;
        spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=oz/TqQdvSWg5Jr50nmxxA8VLsKG86DG+TYlsVRNN9G4=;
-        b=hpA4uXezJFytHX61offN86IKtbXpFLvm0HHYlX8PLBCp9odTDBdRU8iJWN3FkjG122
-         b3I5QU+GFy+ySN9iL/v1WbxdD4J5pM6RZhnbR/5Xy6yEWtUUb4SgbDfEL8AWQzU3ksc9
-         dxD0BT3xL9WkpAUrESpPq67O28TWu0JXAd6O2VkjjX5d4B+JUKYID4HLiDzUt007FtaP
-         kcj3J+jPbkdIisv9YZiwBzrDl94TKH+SuAm4SQFwBLlZI5bgnTYIN6xU+op53OMku+3l
-         ngLhXVK4SKh5wj9C6wp1kVoBQJwpZhaOJdgBC4HoUu/DX+kYq2axNWUAX6d2QOVCnjri
-         9lCw==
-X-Google-Smtp-Source: APXvYqx4HX+wI/C6J5UVMWvM/fRe8b3x/cIh7frkr+wyT2vN7/DzQXFBG11e1pn8YPu0Tg1SxzbrDw==
-X-Received: by 2002:a17:902:8c8a:: with SMTP id t10mr10452660plo.160.1552502403281;
-        Wed, 13 Mar 2019 11:40:03 -0700 (PDT)
+        bh=WITBUxeGSIQmxb1SdGnY+GHNprTyqfSQ+9QDULNZwIA=;
+        b=hDD+JwIeip0gJspQJIlifBLo3RZkJBVwzeLhOJ71FgqywT6SXzvZP9DGDEs867pwdR
+         WO8p8O0KNF1rt/jZhEK7qRkFmJuWonuupzsv25wmsIUlubrGq2+uI/WUOazBl55WoERs
+         6UGSTlw8yD5nIom+ZJg9sOINX3RB3BWpRWxKCIaOMpU3i5NEQIlcg9w7rqfEpTjqevdR
+         Ld2PdY9k3jCJEkbbVafk5rGX8TJUQ4ZkcPAQoycBwKqG3ienRmFTdSplpjS6WxomRczi
+         beS9hglAoeVCRuUSVrSHU2CeKJUnBfeBNkiuJhuizLUdgu8x9wOBdrgC0POHx/euvdoo
+         Zy9Q==
+X-Google-Smtp-Source: APXvYqwpwjKd2OLLFUS/RUgUqKYXyrVqeFcG3DA+RFLUuCtoNO4f0ufr+hHUm2yNJIlTPoM2CaI/SQ==
+X-Received: by 2002:a63:cd02:: with SMTP id i2mr41652810pgg.111.1552502404731;
+        Wed, 13 Mar 2019 11:40:04 -0700 (PDT)
 Received: from castle.hsd1.ca.comcast.net ([2603:3024:1704:3e00::d657])
-        by smtp.gmail.com with ESMTPSA id i13sm15792562pgq.17.2019.03.13.11.40.01
+        by smtp.gmail.com with ESMTPSA id i13sm15792562pgq.17.2019.03.13.11.40.03
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 13 Mar 2019 11:40:02 -0700 (PDT)
+        Wed, 13 Mar 2019 11:40:03 -0700 (PDT)
 From: Roman Gushchin <guroan@gmail.com>
 X-Google-Original-From: Roman Gushchin <guro@fb.com>
 To: linux-mm@kvack.org,
@@ -113,9 +113,9 @@ Cc: linux-kernel@vger.kernel.org,
 	Johannes Weiner <hannes@cmpxchg.org>,
 	Michal Hocko <mhocko@kernel.org>,
 	Roman Gushchin <guro@fb.com>
-Subject: [PATCH v3 2/6] mm: prepare to premature release of per-node lruvec_stat_cpu
-Date: Wed, 13 Mar 2019 11:39:49 -0700
-Message-Id: <20190313183953.17854-3-guro@fb.com>
+Subject: [PATCH v3 3/6] mm: release memcg percpu data prematurely
+Date: Wed, 13 Mar 2019 11:39:50 -0700
+Message-Id: <20190313183953.17854-4-guro@fb.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190313183953.17854-1-guro@fb.com>
 References: <20190313183953.17854-1-guro@fb.com>
@@ -127,118 +127,93 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Similar to the memcg's vmstats_percpu, per-memcg per-node stats
-consists of percpu- and atomic counterparts, and we do expect
-that both coexist during the whole life-cycle of the memcg.
+To reduce the memory footprint of a dying memory cgroup, let's
+release massive percpu data (vmstats_percpu) as early as possible,
+and use atomic counterparts instead.
 
-To prepare for a premature release of percpu per-node data,
-let's pretend that lruvec_stat_cpu is a rcu-protected pointer,
-which can be NULL. This patch adds corresponding checks whenever
-required.
+A dying cgroup can remain in the dying state for quite a long
+time, being pinned in memory by any reference. For example,
+if a page mlocked by some other cgroup, is charged to the dying
+cgroup, it won't go away until the page will be released.
+
+A dying memory cgroup can have some memory activity (e.g. dirty
+pages can be flushed after cgroup removal), but in general it's
+not expected to be very active in comparison to living cgroups.
+
+So reducing the memory footprint by releasing percpu data
+and switching over to atomics seems to be a good trade off.
 
 Signed-off-by: Roman Gushchin <guro@fb.com>
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- include/linux/memcontrol.h | 21 +++++++++++++++------
- mm/memcontrol.c            | 14 +++++++++++---
- 2 files changed, 26 insertions(+), 9 deletions(-)
+ include/linux/memcontrol.h |  4 ++++
+ mm/memcontrol.c            | 24 +++++++++++++++++++++++-
+ 2 files changed, 27 insertions(+), 1 deletion(-)
 
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 05ca77767c6a..8ac04632002a 100644
+index 8ac04632002a..569337514230 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -126,7 +126,7 @@ struct memcg_shrinker_map {
- struct mem_cgroup_per_node {
- 	struct lruvec		lruvec;
+@@ -275,6 +275,10 @@ struct mem_cgroup {
  
--	struct lruvec_stat __percpu *lruvec_stat_cpu;
-+	struct lruvec_stat __rcu /* __percpu */ *lruvec_stat_cpu;
- 	atomic_long_t		lruvec_stat[NR_VM_NODE_STAT_ITEMS];
+ 	/* memory.stat */
+ 	struct memcg_vmstats_percpu __rcu /* __percpu */ *vmstats_percpu;
++	struct memcg_vmstats_percpu __percpu *vmstats_percpu_offlined;
++
++	/* used to release non-used percpu memory */
++	struct rcu_head rcu;
  
- 	unsigned long		lru_zone_size[MAX_NR_ZONES][NR_LRU_LISTS];
-@@ -682,6 +682,7 @@ static inline unsigned long lruvec_page_state(struct lruvec *lruvec,
- static inline void __mod_lruvec_state(struct lruvec *lruvec,
- 				      enum node_stat_item idx, int val)
- {
-+	struct lruvec_stat __percpu *lruvec_stat_cpu;
- 	struct mem_cgroup_per_node *pn;
- 	long x;
+ 	MEMCG_PADDING(_pad2_);
  
-@@ -697,12 +698,20 @@ static inline void __mod_lruvec_state(struct lruvec *lruvec,
- 	__mod_memcg_state(pn->memcg, idx, val);
- 
- 	/* Update lruvec */
--	x = val + __this_cpu_read(pn->lruvec_stat_cpu->count[idx]);
--	if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
--		atomic_long_add(x, &pn->lruvec_stat[idx]);
--		x = 0;
-+	rcu_read_lock();
-+	lruvec_stat_cpu = (struct lruvec_stat __percpu *)
-+		rcu_dereference(pn->lruvec_stat_cpu);
-+	if (likely(lruvec_stat_cpu)) {
-+		x = val + __this_cpu_read(lruvec_stat_cpu->count[idx]);
-+		if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
-+			atomic_long_add(x, &pn->lruvec_stat[idx]);
-+			x = 0;
-+		}
-+		__this_cpu_write(lruvec_stat_cpu->count[idx], x);
-+	} else {
-+		atomic_long_add(val, &pn->lruvec_stat[idx]);
- 	}
--	__this_cpu_write(pn->lruvec_stat_cpu->count[idx], x);
-+	rcu_read_unlock();
- }
- 
- static inline void mod_lruvec_state(struct lruvec *lruvec,
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 803c772f354b..5ef4098f3f8d 100644
+index 5ef4098f3f8d..efd5bc131a38 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2122,6 +2122,7 @@ static void drain_all_stock(struct mem_cgroup *root_memcg)
- static int memcg_hotplug_cpu_dead(unsigned int cpu)
- {
- 	struct memcg_vmstats_percpu __percpu *vmstats_percpu;
-+	struct lruvec_stat __percpu *lruvec_stat_cpu;
- 	struct memcg_stock_pcp *stock;
- 	struct mem_cgroup *memcg;
+@@ -4470,7 +4470,7 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
  
-@@ -2152,7 +2153,12 @@ static int memcg_hotplug_cpu_dead(unsigned int cpu)
- 				struct mem_cgroup_per_node *pn;
+ 	for_each_node(node)
+ 		free_mem_cgroup_per_node_info(memcg, node);
+-	free_percpu(memcg->vmstats_percpu);
++	WARN_ON_ONCE(memcg->vmstats_percpu != NULL);
+ 	kfree(memcg);
+ }
  
- 				pn = mem_cgroup_nodeinfo(memcg, nid);
--				x = this_cpu_xchg(pn->lruvec_stat_cpu->count[i], 0);
+@@ -4613,6 +4613,26 @@ static int mem_cgroup_css_online(struct cgroup_subsys_state *css)
+ 	return 0;
+ }
+ 
++static void percpu_rcu_free(struct rcu_head *rcu)
++{
++	struct mem_cgroup *memcg = container_of(rcu, struct mem_cgroup, rcu);
 +
-+				lruvec_stat_cpu = (struct lruvec_stat __percpu*)
-+					rcu_dereference(pn->lruvec_stat_cpu);
-+				if (!lruvec_stat_cpu)
-+					continue;
-+				x = this_cpu_xchg(lruvec_stat_cpu->count[i], 0);
- 				if (x)
- 					atomic_long_add(x, &pn->lruvec_stat[i]);
- 			}
-@@ -4414,6 +4420,7 @@ struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
- 
- static int alloc_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
++	free_percpu(memcg->vmstats_percpu_offlined);
++	WARN_ON_ONCE(memcg->vmstats_percpu);
++
++	css_put(&memcg->css);
++}
++
++static void mem_cgroup_offline_percpu(struct mem_cgroup *memcg)
++{
++	memcg->vmstats_percpu_offlined = (struct memcg_vmstats_percpu __percpu*)
++		rcu_dereference(memcg->vmstats_percpu);
++	rcu_assign_pointer(memcg->vmstats_percpu, NULL);
++
++	css_get(&memcg->css);
++	call_rcu(&memcg->rcu, percpu_rcu_free);
++}
++
+ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
  {
-+	struct lruvec_stat __percpu *lruvec_stat_cpu;
- 	struct mem_cgroup_per_node *pn;
- 	int tmp = node;
- 	/*
-@@ -4430,11 +4437,12 @@ static int alloc_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
- 	if (!pn)
- 		return 1;
+ 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+@@ -4639,6 +4659,8 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
+ 	drain_all_stock(memcg);
  
--	pn->lruvec_stat_cpu = alloc_percpu(struct lruvec_stat);
--	if (!pn->lruvec_stat_cpu) {
-+	lruvec_stat_cpu = alloc_percpu(struct lruvec_stat);
-+	if (!lruvec_stat_cpu) {
- 		kfree(pn);
- 		return 1;
- 	}
-+	rcu_assign_pointer(pn->lruvec_stat_cpu, lruvec_stat_cpu);
+ 	mem_cgroup_id_put(memcg);
++
++	mem_cgroup_offline_percpu(memcg);
+ }
  
- 	lruvec_init(&pn->lruvec);
- 	pn->usage_in_excess = 0;
+ static void mem_cgroup_css_released(struct cgroup_subsys_state *css)
 -- 
 2.20.1
 
