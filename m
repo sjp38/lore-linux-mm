@@ -6,78 +6,78 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B4803C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:03:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 55F9FC4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:05:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 64D17206DF
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:03:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 05FC9206DF
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:05:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="HAIUAFIb"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 64D17206DF
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="WBmrDOFd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 05FC9206DF
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ECE358E0005; Wed, 13 Mar 2019 12:03:27 -0400 (EDT)
+	id 8B1448E0003; Wed, 13 Mar 2019 12:05:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E7D0C8E0001; Wed, 13 Mar 2019 12:03:27 -0400 (EDT)
+	id 8607F8E0001; Wed, 13 Mar 2019 12:05:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D1DF28E0005; Wed, 13 Mar 2019 12:03:27 -0400 (EDT)
+	id 74EFE8E0003; Wed, 13 Mar 2019 12:05:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BCE38E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:03:27 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id v15so1172027pga.22
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 09:03:27 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 340A18E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:05:34 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id e1so2693424pgs.9
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 09:05:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=uNI5X/3NiZwWGw9ll+SGYgUYDbq0/M8f6aJJzFdlRg8=;
-        b=F6YECM4JLXtM1pxAqHfaGvB91O4lm1Xro9I4NcEkfeYtZUFk9FACF3BBc/0zQkWkGJ
-         MhH8EY8LBZEuTcPxU4msLRua1hTivG/iC9bkxaoTV1BEfKS/vNRiaW49Xi4EAoDpQN1S
-         Ug1+Hkw94X2wrVLFRGtrIedYW9Eh4Q0sWjPEG4uv1f2a2BePqSLNdOFWr6FqK7X6/G0+
-         w8UJpUvnzGdX8ZuhtEYMsM9PxFV8P8z5GrOhI6okXYzpEBLeGwR/dZC2V2K53PvZ9w2h
-         zZXiIigSBySemv88zTgHStjQKVa18WMs4Zmp5FYyFZtnwGhQ0TSmnoz7zKjMgxXHp8Yu
-         Cl7w==
-X-Gm-Message-State: APjAAAUF/6PcjgDY7KWXFaDZ2Ix+oS7n3/szdLREIjxi0ndEuCf328nL
-	LTHEzz4A6Xd7Lk6BY+T7jVMYVRva/XKMbFoiDTytWF+1WFwbOveFY3e3lZI1jS4u3Wf/uOI35Z4
-	ukr7x8o2Uqv80mx4fkV4PwU/2Bo/KVnaPX42kQKhWgU32NiIJn0OqIFiDCTbuDF1p+Q==
-X-Received: by 2002:a62:2b88:: with SMTP id r130mr44559520pfr.93.1552493007075;
-        Wed, 13 Mar 2019 09:03:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxgmbGJ4v+/xASp/y2sx9IksjCrT+OJzi+Meork0D7iKP5Q6MRgnEiE/S45sfESAqa+sGL7
-X-Received: by 2002:a62:2b88:: with SMTP id r130mr44559383pfr.93.1552493005244;
-        Wed, 13 Mar 2019 09:03:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552493005; cv=none;
+        bh=Baj+lWDXGPt27lshCwJLP8POnzrLswu3QVB5Jfd4sTc=;
+        b=W9jvKE8T3MAUBhiieo5nBUSMHJ9JFQyoETn6ocbOgjm8dhBpu9Ezk89TbuK96atPKe
+         rMyvy8IXtnf9XXhWec4h9neTXK2sBaIL0GlYvyk5sJLDw9xKkEg2w0wC8uveIdKzNcLM
+         j+FI8Se5utZJt4D23n1DWXelxJGZC1KJHrVkDFtG3CkyQOh4yohIhh4Yec3wK1Zg9Obu
+         cFIYf8aZ5cQg0VYcyxT4M9p42dkQXLLR7AtRR7SOWXwvRPmYgqL5Cs0Vnsdh3wKK+Mp4
+         zv1J6trBrrT1K7XPukqZa5q/kDN72uqpMx2Gl4xD5HytatbKNmFeq1rtzB4G3VXcnOXy
+         6PUQ==
+X-Gm-Message-State: APjAAAUPdjAaDavuVVJDJxgqAzN9nOQgnkgUwEF8Vu6yYnnhqrw8ShJe
+	ZDdZkK7ax6oX14STsZ7b/h3k0b5NpLs8mshecADajoW1o+mBUDHhegRSSeKkwR434bTez6GN/Ek
+	zrfJW5RegUJ9f/mZR/5r+sLVWb+oaWU126HyrMQvJnu+FTegNTfyB1eLvjwJcaDs0/g==
+X-Received: by 2002:a63:e641:: with SMTP id p1mr7980067pgj.325.1552493133812;
+        Wed, 13 Mar 2019 09:05:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzvIcaoi1IkVhYrOzHJk7F94Ul1SbN2O8AJvS77IRpBrYCKipamoHOnWJwiGoQ3W1NL4vm+
+X-Received: by 2002:a63:e641:: with SMTP id p1mr7979982pgj.325.1552493132715;
+        Wed, 13 Mar 2019 09:05:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552493132; cv=none;
         d=google.com; s=arc-20160816;
-        b=vg95oBqhLRNGjk9bY0fJwVJcBvPjIRm3Wh2PmPLS2CsQdCiYvEb8XRpJuQ8bS3YiAA
-         rgeLVBVcQxP9RF7CGJz6CO7VimpOvVBMytU0qzKdJZ1M3ecjxwLg6tSNjb2ZaoD/1pou
-         6aqW20hCBZjq1I1oKcrHbdKPb2tPAffA/NfxXQsyUApZ8T2adg23mUSMEYnw6zAVZ7qO
-         vg9xf1s+l+2hkepcu2hUkrdxQZdJq5kuFFqgQWb9S6tNbeOEHFfeISbjufb+A94hD10n
-         lvBMm4cxM3cy6LohkhjCxGILTS8PKI9XEmby0stnJxU/p8+KrXib0GstxPmO5IIH6Au+
-         Yn5g==
+        b=t+59U9H7SBo9SwqnxnmSHlLyduLUcdPPiTimXldOQnK7Bovp0pLzhXq3P3zHjZmIQG
+         ZTd+Nbl988WUHvLUVGcEUBN5lel9R/66U11UJBoV9pDLLlk8wuGHOfH66P3piMcH+xtV
+         7oQXdWbhlMB/YTPgjDNY93fky4B1ZvNJFLEbzCRm8+uuVoojDohV6LrAfYoKcUF6e0Wf
+         WpXq9VjXs4wgtATy9tb/fJPXQM5viBZ50/9hetZuDZEU6d1RkzczsRbOZcDLQaMJEtvL
+         csOS5NwWiAPr+nMO7md7/W3FA+xFLbfBTLTfkyBJh8RzA5B8RMP3n6ne+pp3+NGdgSKd
+         9ghg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=uNI5X/3NiZwWGw9ll+SGYgUYDbq0/M8f6aJJzFdlRg8=;
-        b=NLSDC7q3cs/h99FCDKJ4USHoDjMlruP5t8+EXKNImBfDp+YQidSJbl0qNiTHwKqEUx
-         qhyuijSj5HfXke7EmiosZ/HyU0JafgXfyGIqra0otMTcTfuCMtB1k6piJnES+O+yj91V
-         5ZfrIyxsjzzL5ufW6wxnIRCTxJv+tebPDRjGR2vFSLrHSzj9cjfKImcZKwIZKFJ3+P4r
-         wNCCfucJSxnUqYpPU16dr7eUqN7CDIUL449NzWf2Y+5cpX6SyVFv+JmTcqo18RMGssCJ
-         GuLipi69uw/J4n+YtwZ/1YjxaObfGhbcwEgPjrxTPaT3yxArvDXmZPdjjSkKu2KZB8Gw
-         PU9g==
+        bh=Baj+lWDXGPt27lshCwJLP8POnzrLswu3QVB5Jfd4sTc=;
+        b=QaAvNMlH/vFVP/dqvTAlAkQX3q76bTMYyX+iRxxnbQfIb29KrGQ1cXUILJsAlP0HX8
+         eExK1xfJrMI3h7w5L2OxuTeElvFd8DfYJ1i4Ys4pL0k4BamWNQX20DuxqAhOmZBzeFYs
+         2KiJpDq2arTnaS0GoL20jb91jj9MRIiItvB30hJ4pOVgJbsXuekBuGF6vRQj+UXWPExZ
+         7ZYk4JyVc50Y+f3+U5WqdQIL+g8jOPXyYP9Trw4b50UGsomO+vyht++q/qEOlenM5Z/1
+         sJpgiw9XOPCVRqSvpmJ0qr3ZcJ5zh8WeGBJcINj6IQcz/SjATZw4sny/R2dm9Ayc3m1c
+         8aMw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=HAIUAFIb;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=WBmrDOFd;
        spf=pass (google.com: best guess record for domain of batv+cb812337220b2e68da92+5680+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+cb812337220b2e68da92+5680+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id g2si3714118plo.354.2019.03.13.09.03.25
+        by mx.google.com with ESMTPS id g18si10773144pfg.99.2019.03.13.09.05.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 13 Mar 2019 09:03:25 -0700 (PDT)
+        Wed, 13 Mar 2019 09:05:32 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+cb812337220b2e68da92+5680+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=HAIUAFIb;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=WBmrDOFd;
        spf=pass (google.com: best guess record for domain of batv+cb812337220b2e68da92+5680+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+cb812337220b2e68da92+5680+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
@@ -85,46 +85,42 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
 	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
 	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=uNI5X/3NiZwWGw9ll+SGYgUYDbq0/M8f6aJJzFdlRg8=; b=HAIUAFIbqsW3BMxa/FP5NX1sG
-	yw88chlyXN2ibo/Qu5d+gI4KxTZuL7AbNlHF0jJlGUzB21qP16G260680a2VUZLeipWU05Mn99LAu
-	PpqWc6IqgqhyIMLkJEcfN72nGVnUjHbzkIcfuVkd6VEn+tXvqAXZavNAS5s0lksDJ73gRqY7kPQ1l
-	JBqGDM9SN+rIsNP5uhBsIKXyqajBBvmyhH7qgWPZReT9+cYuPLpQDXyYo0hYgy6iZxpT1IxQlRJiI
-	3WWBkZ6SbAAmf4MBUw1zyzXRfAEkSmW5eamvKicLBu/pT0jDDL1fpCBp+a72ig51Y279e15azLyL7
-	29XFmWulA==;
+	 bh=Baj+lWDXGPt27lshCwJLP8POnzrLswu3QVB5Jfd4sTc=; b=WBmrDOFdeqXIspuqZdFAcMVYT
+	YzewMY/wBRq50wT4qf5pW+61boYgJjwEtUWHYvuvAA+t/hQpnyd7+NFHdTQMl1UnvjZgUfrXVpzNS
+	VrSoqYQZLfdfSVN/E1wKu4mZy/4WJkG47nre5T0lR2Bm5nsnv6H0D/R1O7247uk1zW/zRIEv9ysUv
+	TlxDpIA1dtVJYOVQ9eR2vQmUEA0xhxpFLYhzYZYd1mlG/jrPspUZFkFWxtON496QO+uRSS//+lYbz
+	gu5x6yBnZsyJnKKOOAuDSYTZmPmkd93XFQAjDD/yUixFfT7S6wWLCpD8KlcWUgBNqemS+Hubgfnzg
+	lYhikX1Sw==;
 Received: from hch by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1h46Lf-0004Jg-Kg; Wed, 13 Mar 2019 16:03:19 +0000
-Date: Wed, 13 Mar 2019 09:03:19 -0700
+	id 1h46Nl-0005jS-AC; Wed, 13 Mar 2019 16:05:29 +0000
+Date: Wed, 13 Mar 2019 09:05:29 -0700
 From: Christoph Hellwig <hch@infradead.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Ira Weiny <ira.weiny@intel.com>, Christopher Lameter <cl@linux.com>,
-	john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm@kvack.org, Al Viro <viro@zeniv.linux.org.uk>,
-	Christian Benvenuti <benve@cisco.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>,
-	Doug Ledford <dledford@redhat.com>, Jan Kara <jack@suse.cz>,
-	Jason Gunthorpe <jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Mike Marciniszyn <mike.marciniszyn@intel.com>,
-	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
-	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [PATCH v3 0/1] mm: introduce put_user_page*(), placeholder
- versions
-Message-ID: <20190313160319.GA15134@infradead.org>
-References: <20190306235455.26348-1-jhubbard@nvidia.com>
- <010001695b4631cd-f4b8fcbf-a760-4267-afce-fb7969e3ff87-000000@email.amazonses.com>
- <20190310224742.GK26298@dastard>
- <01000169705aecf0-76f2b83d-ac18-4872-9421-b4b6efe19fc7-000000@email.amazonses.com>
- <20190312103932.GD1119@iweiny-DESK2.sc.intel.com>
- <20190312221113.GF23020@dastard>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>,
+	"Michael S. Tsirkin" <mst@redhat.com>,
+	Jason Wang <jasowang@redhat.com>,
+	David Miller <davem@davemloft.net>, hch@infradead.org,
+	kvm@vger.kernel.org, virtualization@lists.linux-foundation.org,
+	netdev@vger.kernel.org, linux-kernel@vger.kernel.org,
+	peterx@redhat.com, linux-mm@kvack.org,
+	linux-arm-kernel@lists.infradead.org, linux-parisc@vger.kernel.org
+Subject: Re: [RFC PATCH V2 0/5] vhost: accelerate metadata access through
+ vmap()
+Message-ID: <20190313160529.GB15134@infradead.org>
+References: <56374231-7ba7-0227-8d6d-4d968d71b4d6@redhat.com>
+ <20190311095405-mutt-send-email-mst@kernel.org>
+ <20190311.111413.1140896328197448401.davem@davemloft.net>
+ <6b6dcc4a-2f08-ba67-0423-35787f3b966c@redhat.com>
+ <20190311235140-mutt-send-email-mst@kernel.org>
+ <76c353ed-d6de-99a9-76f9-f258074c1462@redhat.com>
+ <20190312075033-mutt-send-email-mst@kernel.org>
+ <1552405610.3083.17.camel@HansenPartnership.com>
+ <20190312200450.GA25147@redhat.com>
+ <1552424017.14432.11.camel@HansenPartnership.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190312221113.GF23020@dastard>
+In-Reply-To: <1552424017.14432.11.camel@HansenPartnership.com>
 User-Agent: Mutt/1.9.2 (2017-12-15)
 X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -133,22 +129,44 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 13, 2019 at 09:11:13AM +1100, Dave Chinner wrote:
-> On Tue, Mar 12, 2019 at 03:39:33AM -0700, Ira Weiny wrote:
-> > IMHO I don't think that the copy_file_range() is going to carry us through the
-> > next wave of user performance requirements.  RDMA, while the first, is not the
-> > only technology which is looking to have direct access to files.  XDP is
-> > another.[1]
+On Tue, Mar 12, 2019 at 01:53:37PM -0700, James Bottomley wrote:
+> I've got to say: optimize what?  What code do we ever have in the
+> kernel that kmap's a page and then doesn't do anything with it? You can
+> guarantee that on kunmap the page is either referenced (needs
+> invalidating) or updated (needs flushing). The in-kernel use of kmap is
+> always
 > 
-> Sure, all I doing here was demonstrating that people have been
-> trying to get local direct access to file mappings to DMA directly
-> into them for a long time. Direct Io games like these are now
-> largely unnecessary because we now have much better APIs to do
-> zero-copy data transfer between files (which can do hardware offload
-> if it is available!).
+> kmap
+> do something with the mapped page
+> kunmap
+> 
+> In a very short interval.  It seems just a simplification to make
+> kunmap do the flush if needed rather than try to have the users
+> remember.  The thing which makes this really simple is that on most
+> architectures flush and invalidate is the same operation.  If you
+> really want to optimize you can use the referenced and dirty bits on
+> the kmapped pte to tell you what operation to do, but if your flush is
+> your invalidate, you simply assume the data needs flushing on kunmap
+> without checking anything.
 
-And that is just the file to file case.  There are tons of other
-users of get_user_pages, including various drivers that do large
-amounts of I/O like video capture.  For them it makes tons of sense
-to transfer directly to/from a mmap()ed file.
+I agree that this would be a good way to simplify the API.   Now
+we'd just need volunteers to implement this for all architectures
+that need cache flushing and then remove the explicit flushing in
+the callers..
+
+> > Which means after we fix vhost to add the flush_dcache_page after
+> > kunmap, Parisc will get a double hit (but it also means Parisc was
+> > the only one of those archs needed explicit cache flushes, where
+> > vhost worked correctly so far.. so it kinds of proofs your point of
+> > giving up being the safe choice).
+> 
+> What double hit?  If there's no cache to flush then cache flush is a
+> no-op.  It's also a highly piplineable no-op because the CPU has the L1
+> cache within easy reach.  The only event when flush takes a large
+> amount time is if we actually have dirty data to write back to main
+> memory.
+
+I've heard people complaining that on some microarchitectures even
+no-op cache flushes are relatively expensive.  Don't ask me why,
+but if we can easily avoid double flushes we should do that.
 
