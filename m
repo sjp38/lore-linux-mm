@@ -2,180 +2,167 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D145AC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:06:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6730BC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:07:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8CAD62147C
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:06:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8CAD62147C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 170FF20643
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:07:26 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="Ev3mjXd6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 170FF20643
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2BEA98E0004; Wed, 13 Mar 2019 12:06:10 -0400 (EDT)
+	id 8FCCC8E0003; Wed, 13 Mar 2019 12:07:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 26CD78E0001; Wed, 13 Mar 2019 12:06:10 -0400 (EDT)
+	id 8ADAA8E0001; Wed, 13 Mar 2019 12:07:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1836C8E0004; Wed, 13 Mar 2019 12:06:10 -0400 (EDT)
+	id 79EDF8E0003; Wed, 13 Mar 2019 12:07:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C95F38E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:06:09 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id z24so2620813pfn.7
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 09:06:09 -0700 (PDT)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 473CD8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:07:26 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id b21so992653otl.7
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 09:07:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
          :content-transfer-encoding;
-        bh=Y/PodYzGOlVK5mGi8NP8ZympBH85b5fPVHvZPiIjrz0=;
-        b=egkRh/6pwIiMDERsctiIFoXxHLXI/rK4BpBajvSTDqpOYmWZ81sKm4x4Uz0jGiLHuk
-         nMdVjrl4eJXB1phz3QnkFwI1pbWs9Cw1sNhjRO6C5h7dQspm7jmuRw49uw2SMn9k1qJy
-         CFVMrfC7NcJFG4Xy6qX8/Ou6vmSVFc/ybYV6wM+5sD2jpuv3sfkOzkcC+jMeqFiWjDZg
-         o8ls6xf+medQTw1QwLc6X+2TuDg8Luk7dLgrxdZjimJBBm5z9ILpAk5Kcs5/2WWgdP8A
-         k3gwmv5J6lKlyN7BWn40ZcGE2c7lwjzmLn/IXEfq7eWfvCUxh4VbsLBvo3bDczEg1bJT
-         yGkw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: APjAAAVMgQiDgHN0ifBJ4xLQBeotJgp3c7dq16z8QzMxm92xx4btSey3
-	AHl3o0E9DeXYjzN8Kt0fUfUKLDvdePwNFHNUB2/jakCoFpd367MnwV94ipmqSVH/P7Lko8knE02
-	lRWDI436e6l1aR7NytYLZHhKlbG5jvKIvuSn46axnp3k4J1ow+d8e0laAJ133w1xVAQ==
-X-Received: by 2002:a17:902:6686:: with SMTP id e6mr46302069plk.208.1552493169354;
-        Wed, 13 Mar 2019 09:06:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqynmFpiRxAYFfNvoK34rLzhF5jNRngmuPc4lcH89eSX+1r3F0WutsK8zhIrrDdAYOPhdl4z
-X-Received: by 2002:a17:902:6686:: with SMTP id e6mr46301988plk.208.1552493168284;
-        Wed, 13 Mar 2019 09:06:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552493168; cv=none;
+        bh=/XfqRx4tzKzsjCcb8QbRLqX/uBHxzCtpu1uDPCItsOs=;
+        b=HBd7mlt+kFvxtxNoKC6Dr90DQukl9GE+zG/gOOhy64BubJVAuYBDj1qHegEQlSHnm5
+         yOObwoL8QgnO9tJhdEs7Xi+YelXamLni/625knbmvNgT+uO8fAKgGL6i0OaShPfQaCbn
+         66VC2C/nB8Lg3+hmp9dDFQuAz3eYQTWnhPWP0tdGN2XJ5qIPG/AohwAaOTwQ9X3Y86jy
+         hWV1j4OS2Meatswge23fZIj/KAv+BB6RdXjTlF03/RHImYjXZ/6QADGIxYrD3JPCfPTP
+         yIBG7nx9tfpngrofI6qmnV7uJJHNEZDqrG2LmIflogXdnIDmCCz4sp8awma3PwnoULjO
+         C1Rw==
+X-Gm-Message-State: APjAAAVNYcpIGYdoDHXxPUQtuHvWng1v5WhI+R0Cgjv+WyrXbb/OFVF2
+	B3igM1awGcZwnIF7+JnQ7fLz2XLNksG3Lo9fXCb7ahlQPmbhGAZMkxQhJ3PQqIx1jq+qZUVxYri
+	M0kQclnQ41GzkkxgbtdQrNu8RuENAh5bIV3dTZ5C2lJQxdR/Xv5jBjSJ5zfZbIDB2BQx1yEvu7o
+	r4W7usO7ignveH6+er+LbA98o5UpYeRclfJ/ojQyQH92PBqV/fJbdyFsnu5PLbOcLYWKjTLlLuz
+	V5cdOtWtlkbyM32GFAm5H8RI1j8Nf7TVcyl7kEB6UxYOiRNHr4p8u3ZmYSTTTj8EC57HWaWROlS
+	g3oyZNDeaTmETbNxFrLE7IC3UohnKjntpcz6nMKP83Cc/hMFiLUCHcBWeUba0An7toquDODERUK
+	S
+X-Received: by 2002:a05:6830:1547:: with SMTP id l7mr27211009otp.196.1552493245961;
+        Wed, 13 Mar 2019 09:07:25 -0700 (PDT)
+X-Received: by 2002:a05:6830:1547:: with SMTP id l7mr27210951otp.196.1552493244974;
+        Wed, 13 Mar 2019 09:07:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552493244; cv=none;
         d=google.com; s=arc-20160816;
-        b=0xtwaXNpien+kfuGqemLJzdZkJt0USesRyUbFBDwlPg5R6IuvoclImm0ZuqDXh6JXt
-         pnm7Q3lijnBRQjCpSc0AqlWWLG4nihyLS7HcYMaXLgxnmte+LAZybE5sKZ6OjfYukuI1
-         aXQQw4VBlOB9gOR3huAtbiwtka/0XWukBgLUdq0X93DICq5s3NX3dFYqpwQZCaEdjZ7J
-         A2745YCzP+fu74eCgFAVZhMgH8bK2mbGRQFhfmmjmJjX3z/wueF2P0qF4ehKX2cmfNtQ
-         Zb5DielcJZY8codNcRC4WMofKiEu/oy5SDwM7oUe8HqSsNGpWidiVNfgyOMJAN5jp2Ev
-         8Qdw==
+        b=ZMq3Ps8A80pYMMSHMO6iG/vP2gaYRozypiJxXXgco33N3Xu6ErzFMaT8hNOn7tHMzs
+         OshF+J7MhO0SYM8asG/JdfcCYKgUwXVYmayNKKVLZjCXzPyAzh5y28vY3e9FEsHxqqtk
+         +vRUKiD3x/fpOMXchqb9E7oNWR3Whm3g6bQldOnREDrSptI3bnxmG7RdhLFLtSseRU0C
+         ELmPZX18QTfm68hXJ3FeiPYeLzZxdAStgZ+XvcWoqAtmjE/ML9gOVa97ROw/L4TyfMad
+         hF1uUjCPxln1Eujdj8wC9EprcPZJWS4izZ7fHt839bhrTSrn8biq3/Md7/GVBBwUJl0C
+         ILkw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date;
-        bh=Y/PodYzGOlVK5mGi8NP8ZympBH85b5fPVHvZPiIjrz0=;
-        b=DG2KGnfn9YIqEzjGg18UF705ixDeoxO5+NFkMNAD5rubKtJsDEzOOT0ZOLGBRfLj3c
-         QJ1z9BNxvNJjHWNkBrG9CUFRmuVsefved02gSVvH+cyIaKukDPvlpntU9bshmXFqzOgB
-         CmWpvX2UKdOD3SYiNrLSl1qqWMdaq0v7K1PsBjmVLXa6PaMm+LFzfflMRuE+9x15fpAa
-         HqdJUQLqjAefmm0AnkA/qeRrmDZ3jixjHdUz0lJyumnMiZ7GPGSqL3c66MhrJSF2GI4v
-         ONYm7CSILiKgvzOiKWqJdQMQSuuWdgxAsAbvZUc24/JB7hQrb8PwZoHoNR44nz9F89o5
-         6orA==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=/XfqRx4tzKzsjCcb8QbRLqX/uBHxzCtpu1uDPCItsOs=;
+        b=FBNEMMRqyJ1V4cFAac7ki03bnIV2mY2bXZgWyei3NCNENswgMryb4MNmhGLDi2Gnwd
+         pQCCTIo4pwjg9tcGI9kzaVmCtnjtqdjZFOPcbC3ko9MVcQiN52UkinPkLauaGvdQanpL
+         GbAkREOrz4fwBXV0jpHovLABdEHo6906BxacddilbYQg4YXohKWMEcvJ7ulNXqk1A0Gl
+         Di4d9sQkofObLMtj6NIPJ/TMPYfV0CSmQFeX5ktX85Uw6RiYV6hJtIeIXIUxktf2bM0f
+         XL6YK3qGbkgDK2oe1BZMIcMuoFlKJMfhXexNSR/glSKDg0W+449ZeKpSxRWP/c6oM5d+
+         iRUg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id g5si10200322pgk.402.2019.03.13.09.06.08
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Ev3mjXd6;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v88sor6386470otb.110.2019.03.13.09.07.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Mar 2019 09:06:08 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
+        (Google Transport Security);
+        Wed, 13 Mar 2019 09:07:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 9909EE9C;
-	Wed, 13 Mar 2019 16:06:07 +0000 (UTC)
-Date: Wed, 13 Mar 2019 09:06:04 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, Linux MM <linux-mm@kvack.org>,
- Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Ralph Campbell
- <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, linux-fsdevel
- <linux-fsdevel@vger.kernel.org>
-Subject: Re: [PATCH 09/10] mm/hmm: allow to mirror vma of a file on a DAX
- backed filesystem
-Message-Id: <20190313090604.968100351b19338cacbfa3bc@linux-foundation.org>
-In-Reply-To: <20190313001018.GA3312@redhat.com>
-References: <20190305141635.8134e310ba7187bc39532cd3@linux-foundation.org>
-	<CAA9_cmd2Z62Z5CSXvne4rj3aPSpNhS0Gxt+kZytz0bVEuzvc=A@mail.gmail.com>
-	<20190307094654.35391e0066396b204d133927@linux-foundation.org>
-	<20190307185623.GD3835@redhat.com>
-	<CAPcyv4gkxmmkB0nofVOvkmV7HcuBDb+1VLR9CSsp+m-QLX_mxA@mail.gmail.com>
-	<20190312152551.GA3233@redhat.com>
-	<CAPcyv4iYzTVpP+4iezH1BekawwPwJYiMvk2GZDzfzFLUnO+RgA@mail.gmail.com>
-	<20190312190606.GA15675@redhat.com>
-	<CAPcyv4g-z8nkM1B65oR-3PT_RFQbmQMsM-J-P0-nzyvvJ8gVog@mail.gmail.com>
-	<20190312145214.9c8f0381cf2ff2fc2904e2d8@linux-foundation.org>
-	<20190313001018.GA3312@redhat.com>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Ev3mjXd6;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=/XfqRx4tzKzsjCcb8QbRLqX/uBHxzCtpu1uDPCItsOs=;
+        b=Ev3mjXd6En91xODIUX56pYwhJLO9DdmQ95Gif+qABOQYxSXLSsL3HdkZ996LpFM0Ok
+         BNFXboh0vkQcZET1UNi2xWbfJOgLi7YJOBlDe07HQIOTkXhyuZZtxYx1Jr323nQBINw1
+         bCIVmxF4JR2efLcgr/ZOkQzDj5SYAbGOQud/xj7awoc+6yVUoor9qC0PAVErRf0dlx+t
+         qM1zGEHB4PSIuwMXtFmThJuVWsfXkY8L4/6g612b2JAC90VycrbkkPGVtxjK+QjLV1tp
+         zV3E3pIxFXDm4fJ1q4lhu5iiryNlMnlw3ajMFHOD83PMclLscUSXLEmMdZOnDZ62lqrK
+         YZQA==
+X-Google-Smtp-Source: APXvYqzH9OHk6fwYw9vNd25aIvBEiA2sVSv1vjB2i+lT3GwQjeRBJM8aOKz1bJJDYo3s88am/imNu4byiUR9Jvcm8nc=
+X-Received: by 2002:a9d:224a:: with SMTP id o68mr16122221ota.214.1552493244500;
+ Wed, 13 Mar 2019 09:07:24 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190228083522.8189-1-aneesh.kumar@linux.ibm.com>
+ <20190228083522.8189-2-aneesh.kumar@linux.ibm.com> <CAOSf1CHjkyX2NTex7dc1AEHXSDcWA_UGYX8NoSyHpb5s_RkwXQ@mail.gmail.com>
+ <CAPcyv4jhEvijybSVsy+wmvgqfvyxfePQ3PUqy1hhmVmPtJTyqQ@mail.gmail.com>
+ <87k1hc8iqa.fsf@linux.ibm.com> <20190306124453.126d36d8@naga.suse.cz> <df01bf6e-84a1-53fb-bf0c-0957af2f79e1@linux.ibm.com>
+In-Reply-To: <df01bf6e-84a1-53fb-bf0c-0957af2f79e1@linux.ibm.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 13 Mar 2019 09:07:13 -0700
+Message-ID: <CAPcyv4iLm09DSiF3niFprP3PTFrgB5pZPp9AysBpRa-m725tmw@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm/dax: Don't enable huge dax mapping by default
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: =?UTF-8?Q?Michal_Such=C3=A1nek?= <msuchanek@suse.de>, 
+	Oliver <oohall@gmail.com>, Jan Kara <jack@suse.cz>, 
+	linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
+	Ross Zwisler <zwisler@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, 
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 Mar 2019 20:10:19 -0400 Jerome Glisse <jglisse@redhat.com> wrote:
+On Wed, Mar 6, 2019 at 4:46 AM Aneesh Kumar K.V
+<aneesh.kumar@linux.ibm.com> wrote:
+>
+> On 3/6/19 5:14 PM, Michal Such=C3=A1nek wrote:
+> > On Wed, 06 Mar 2019 14:47:33 +0530
+> > "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> wrote:
+> >
+> >> Dan Williams <dan.j.williams@intel.com> writes:
+> >>
+> >>> On Thu, Feb 28, 2019 at 1:40 AM Oliver <oohall@gmail.com> wrote:
+> >>>>
+> >>>> On Thu, Feb 28, 2019 at 7:35 PM Aneesh Kumar K.V
+> >>>> <aneesh.kumar@linux.ibm.com> wrote:
+> >
+> >> Also even if the user decided to not use THP, by
+> >> echo "never" > transparent_hugepage/enabled , we should continue to ma=
+p
+> >> dax fault using huge page on platforms that can support huge pages.
+> >
+> > Is this a good idea?
+> >
+> > This knob is there for a reason. In some situations having huge pages
+> > can severely impact performance of the system (due to host-guest
+> > interaction or whatever) and the ability to really turn off all THP
+> > would be important in those cases, right?
+> >
+>
+> My understanding was that is not true for dax pages? These are not
+> regular memory that got allocated. They are allocated out of /dev/dax/
+> or /dev/pmem*. Do we have a reason not to use hugepages for mapping
+> pages in that case?
 
-> > You're correct.  We chose to go this way because the HMM code is so
-> > large and all-over-the-place that developing it in a standalone tree
-> > seemed impractical - better to feed it into mainline piecewise.
-> > 
-> > This decision very much assumed that HMM users would definitely be
-> > merged, and that it would happen soon.  I was skeptical for a long time
-> > and was eventually persuaded by quite a few conversations with various
-> > architecture and driver maintainers indicating that these HMM users
-> > would be forthcoming.
-> > 
-> > In retrospect, the arrival of HMM clients took quite a lot longer than
-> > was anticipated and I'm not sure that all of the anticipated usage
-> > sites will actually be using it.  I wish I'd kept records of
-> > who-said-what, but I didn't and the info is now all rather dissipated.
-> > 
-> > So the plan didn't really work out as hoped.  Lesson learned, I would
-> > now very much prefer that new HMM feature work's changelogs include
-> > links to the driver patchsets which will be using those features and
-> > acks and review input from the developers of those driver patchsets.
-> 
-> This is what i am doing now and this patchset falls into that. I did
-> post the ODP and nouveau bits to use the 2 new functions (dma map and
-> unmap). I expect to merge both ODP and nouveau bits for that during
-> the next merge window.
-> 
-> Also with 5.1 everything that is upstream is use by nouveau at least.
-> They are posted patches to use HMM for AMD, Intel, Radeon, ODP, PPC.
-> Some are going through several revisions so i do not know exactly when
-> each will make it upstream but i keep working on all this.
-> 
-> So the guideline we agree on:
->     - no new infrastructure without user
->     - device driver maintainer for which new infrastructure is done
->       must either sign off or review of explicitly say that they want
->       the feature I do not expect all driver maintainer will have
->       the bandwidth to do proper review of the mm part of the infra-
->       structure and it would not be fair to ask that from them. They
->       can still provide feedback on the API expose to the device
->       driver.
-
-The patchset in -mm ("HMM updates for 5.1") has review from Ralph
-Campbell @ nvidia.  Are there any other maintainers who we should have
-feedback from?
-
->     - driver bits must be posted at the same time as the new infra-
->       structure even if they target the next release cycle to avoid
->       inter-tree dependency
->     - driver bits must be merge as soon as possible
-
-Are there links to driver patchsets which we can add to the changelogs?
-
-> Thing we do not agree on:
->     - If driver bits miss for any reason the +1 target directly
->       revert the new infra-structure. I think it should not be black
->       and white and the reasons why the driver bit missed the merge
->       window should be taken into account. If the feature is still
->       wanted and the driver bits missed the window for simple reasons
->       then it means that we push everything by 2 release ie the
->       revert is done in +1 then we reupload the infra-structure in
->       +2 and finaly repush the driver bit in +3 so we loose 1 cycle.
->       Hence why i would rather that the revert would only happen if
->       it is clear that the infrastructure is not ready or can not
->       be use in timely (over couple kernel release) fashion by any
->       drivers.
-
-I agree that this should be more a philosophy than a set of hard rules.
+The problem with the transparent_hugepage/enabled interface is that it
+conflates performing compaction work to produce THP-pages with the
+ability to map huge pages at all. The compaction is a nop for dax
+because the memory is already statically allocated. If the
+administrator does not want dax to consume huge TLB entries then don't
+configure huge-page dax. If a hypervisor wants to force disable
+huge-page-configured device-dax instances after the fact it seems we
+need an explicit interface for that and not overload
+transparent_hugepage/enabled.
 
