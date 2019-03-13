@@ -2,178 +2,214 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C91FEC4360F
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 20:02:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5702DC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 20:19:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 76A982075C
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 20:02:08 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="bGh1kutl"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 76A982075C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 11EBC206DF
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 20:19:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 11EBC206DF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0D6E18E001F; Wed, 13 Mar 2019 16:02:08 -0400 (EDT)
+	id A184B8E000A; Wed, 13 Mar 2019 16:19:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0889C8E0001; Wed, 13 Mar 2019 16:02:08 -0400 (EDT)
+	id 9C8FD8E0001; Wed, 13 Mar 2019 16:19:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EDF948E001F; Wed, 13 Mar 2019 16:02:07 -0400 (EDT)
+	id 8B6988E000A; Wed, 13 Mar 2019 16:19:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C721E8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 16:02:07 -0400 (EDT)
-Received: by mail-it1-f198.google.com with SMTP id x87so4011223ita.1
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 13:02:07 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 62B7B8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 16:19:44 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id c74so4062872ywc.9
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 13:19:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=AtBAoBWfQ92g/h0jn7C7rV5DlEJTC6rv3QAp7/w/8Co=;
-        b=oNyy1dfYKFroB00EmHCspUOU0rDzjxwjcYxg75+58RPoUzMtpySFo+0NHUStQ344HG
-         V0RP8YRocFhpQYfwgqDLJ+7h27L9wuwUaauFTDCYUsMNfBPP2PET8Gt26C2PZ8sY+/Hg
-         ssbUsQxpzssuW+xFB6Fy7h7tUftxzD5UtOLmTdXi5u1VlFyE1ULFcDS5syN3NWGApzA+
-         c7C1c73rQ2K2qAt5EW0qEpz1tvC9uKrnN7FsQek7M1TM8sLIpTih5B0JH/My05R9o2VX
-         FHe3UZuyNbvVSz55Y6goFYcDb44Yzu3wQ3nZYIKEPp3dsSATE4baXbfpFwkoKbXcsM6V
-         piOg==
-X-Gm-Message-State: APjAAAW0TMeOUEJtNOnhPx1+G3nuROY6IX8xVI7LKhYyjDU8NNeCk3SL
-	roDLLMCIweA4ibNsLo7lUo5rGFDZChZH4fnjTnVMtk1CNf7mZvc6sP3mdQly4WPYOPVzhPSBnLQ
-	jfCwZL/nQKpjQY0fqYGT2+z4NU//kG+QUjz9Nx0ttIAj1eQvT7/WTaqJq8c+23tOvjg==
-X-Received: by 2002:a24:4d15:: with SMTP id l21mr2554857itb.64.1552507327618;
-        Wed, 13 Mar 2019 13:02:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxXVzlTPrU0hpXq0YxbH8sZkonrBwGQqlFlZmmHkdUpppWm6L3wBdDTklsSkbky80RdrIGj
-X-Received: by 2002:a24:4d15:: with SMTP id l21mr2554810itb.64.1552507326725;
-        Wed, 13 Mar 2019 13:02:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552507326; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=vAX8dogAgzi5qFobW6OjpOevgIDAZa/XIjee6QmCjo4=;
+        b=mKPWkRwLaHD1vLlustq5wvJd7DPjONfDMWWgM2a6uIYhMm1FOpBqbMShv3GPkEcj4W
+         4Ytp6YO4k8vJhBEHU3pj+tRfrc40QOtRbD6bAyscAxi29EDZ0ATVyVKnS9+/UCC1YTQR
+         VGOOltfEnJbq/m6cDenBuDcpR68EDbnvfzNNNjsyeR+EB/c6oTcuaRX09rzjA0txeJMO
+         N0fdDD/qGGt1mShtIVzgRxcJQkhvhvjxfBDwNvCnutdWpm5Qzof/DVIKWSwAafvvwHed
+         r8FGJrZfxGLxLZzkHHQVVY+XKE6fqN7+WaZClbvNe5BYVXVZiEdvbzr06K8iTb375Doh
+         BKSg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAXD1htcUty/K1GlypxWr/J8ZShfqy8FpiF3diJNg3wpzwRWm69H
+	vwNpzkuh5ppftig2u8eeQltIlIAPkQXOZYKbbPnn10K4PDbVWIKgQ3ZDl8JKO9C6vihO0e+rms/
+	P+/GlQk/mB8v+I3zBrAAPN8Yw1uenfGfezCkE+bcdxi25XnRNZ7KH+RgIZMgl+O5yKW0nzLFnC5
+	29oM+LxNaybfQPBNlFnyipzEU00+aPPgniAaBgklXk/wVXNJOrA+eEPY8iPTpEfg3gk6/kp+WGG
+	+T9voU5vOk4OgIN1ENuOHtTlAU9FhKv2b+N70Sjzty4lTHmPT/i3mPMVQ6RNgdi/40+8TA84zZA
+	QL11R8sq1dE04CklFe0Vs6Sv7suO1De3RikR3bcIG0mQ4scoWjkztIgs2ivAV6EfotLM2jjo1Q=
+	=
+X-Received: by 2002:a81:46c3:: with SMTP id t186mr23784975ywa.183.1552508383984;
+        Wed, 13 Mar 2019 13:19:43 -0700 (PDT)
+X-Received: by 2002:a81:46c3:: with SMTP id t186mr23784923ywa.183.1552508383066;
+        Wed, 13 Mar 2019 13:19:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552508383; cv=none;
         d=google.com; s=arc-20160816;
-        b=Z4y/QN9XiVOb2/c4PMOcobNlyaHvAOAWDZbIGuiMtPE56JJi87PAKR/tOfjbJrRhCd
-         OiXjnjlaqxBznpf/D4u9iJVhxGuGQdKnV11Y+1x0i9pGEeTKoW84ieyrk2TV3dY5DDBi
-         QyOag/GlwMc/qpN5M2soG/uM7J2W86QF/EiisKZPOtQw9dCtkecn/GTp+1Lmjodtby42
-         kLeev12CLe4vZobySNnOaloq+J5Fs3TK+cYakr4+RynP1hY5V5j4KglfALmxD4LwnMYC
-         Dl5f1JqSEkHV2fx93CDkPQlZrkR6KFVEqvcHCg4oQzxTE6dmO7D13uo+ZlRy45OhCPmm
-         4fQw==
+        b=EjWMzPexciYAUaHU6BYj1S2M6HOSKIADGyDUNAYt5hjJ+mwJpqdjWR2Tc3yUhJtvZ5
+         QiFONTVxMBSoHkixJpXsNxarZ+fe0sL/fPnLOqcLASZQ1e5jOO6IJGdkNbIU0D8+ZCUi
+         USOYtns7aI/BAInQnI0FmkZR/TdbgJTGqxJtOiL+pSrofBRypj8UB3/z2bgpwQnso1gT
+         YgTAXp1ml6bzuKpU4PreSDlLcJe2Ak27w3J4c4g/hZL5kBFbeDT2VW1AdyvdrbVOVCsa
+         j3gncCGMfULR32zDJ/ZOZV1me0gUXU3tyLgcnMtDoWfXqy6L7If1NRqIS6BqWFvbKmwg
+         JJ2Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=AtBAoBWfQ92g/h0jn7C7rV5DlEJTC6rv3QAp7/w/8Co=;
-        b=vC30FHq5AnnGX1vZGlwk4EKILxgWaIHwZ9l5tZ2+QhelNDc6Y0LIUMfQ0u676R6yns
-         ASds9LcB8BPYtkXdiX1ZMI0Jwm5Jh/9BbXwRBS5quQ7cqkHrXoWm1Zev84z4Ffqa9lud
-         7Q56coO5amrjXLiAjr5R7NwkXr3cXjw/e7pAtZZueKgp9NSB/E/Jqyco3Gr/SiocjWCO
-         7OnXcbr661/zzT8lrMmQG2PUbDNugyzx1c8QjmAON3kF6tm6K+jiX7f1EgQPojPg0b2+
-         +lZRs6ftIwS9rjiMAY7IgLB9KiiDsnxsTI5GPg/k2WKeWfQvrINLvMdlkz8LwxFk1mve
-         01TQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=vAX8dogAgzi5qFobW6OjpOevgIDAZa/XIjee6QmCjo4=;
+        b=PK358U4a//w/p6JKoGjHuq9ZsgrQy3BnRBqX7EeQ30O1ZBuH5bfxTe/7lqXpcFVvSH
+         ZVXWmfiGE+1WYJpJghilUw58jTgeDLbQiNWae8l+ZRzq1q52VX2ff9dvEVW/JAvgw/M/
+         I1WwX8aT5FnX8HQ59kQqwK5cPBBs3mYwXaLm5XjsutHO9NbANl0jo461y2Du23y4koTl
+         /e8bCISdDHkg5i3255Q718cwFI3hEjpZnzcSyaS6CC2KXRq7iQcCWQfQ/OTP9cIpdVTG
+         XdQnx2YZZ2/NLXr/Uv4HvO88T1PWR+K17URamRXmxDGqbt1I2XGB3+q1lqm6pUnUIndj
+         7GSw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=bGh1kutl;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id o5si7065200jam.81.2019.03.13.13.02.06
+       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b204sor2276942ybc.8.2019.03.13.13.19.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Mar 2019 13:02:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        (Google Transport Security);
+        Wed, 13 Mar 2019 13:19:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=bGh1kutl;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x2DJwxnX112519;
-	Wed, 13 Mar 2019 20:01:50 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=AtBAoBWfQ92g/h0jn7C7rV5DlEJTC6rv3QAp7/w/8Co=;
- b=bGh1kutlaBX9tZaDGFzyE1XGgTUVs18/4uz765iaJsw+6I910sVzJnDuF7bdEHtFNYWc
- QqUwndVcj2dZ+IGCvky7EFIzyK9BSYl8WWFLnA02EaSpfvShx8+1+40q+SQ2lPApvt/e
- wKD0Xiud1DXNeckZ211i0Gc96yhVmLPGlbRNLZV335Lzkhfspr5O97LABI8SSP5Q9pld
- X2tK4OLUl6fFdGDDTKErjWWe75q9cGWD3/pYcOJVivSi+a/Ey0+puKrhqNNTJvcmjv/8
- FmLmzcWDndEkqCaUK5IkQcuhxhtqBKGcO+5DQDxsfj8y4BlfFf8iDAhwUmYuJPqbAYgh sw== 
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by aserp2130.oracle.com with ESMTP id 2r430ewrvh-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 13 Mar 2019 20:01:49 +0000
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x2DK1mc4007502
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 13 Mar 2019 20:01:48 GMT
-Received: from abhmp0005.oracle.com (abhmp0005.oracle.com [141.146.116.11])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x2DK1gxM016936;
-	Wed, 13 Mar 2019 20:01:42 GMT
-Received: from [192.168.1.222] (/50.38.38.67)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 13 Mar 2019 13:01:42 -0700
-Subject: Re: [PATCH 0/3] userfaultfd: allow to forbid unprivileged users
-To: Andrea Arcangeli <aarcange@redhat.com>,
-        Paolo Bonzini <pbonzini@redhat.com>
-Cc: Peter Xu <peterx@redhat.com>, linux-kernel@vger.kernel.org,
-        Hugh Dickins <hughd@google.com>, Luis Chamberlain <mcgrof@kernel.org>,
-        Maxime Coquelin <maxime.coquelin@redhat.com>, kvm@vger.kernel.org,
-        Jerome Glisse <jglisse@redhat.com>,
-        Pavel Emelyanov <xemul@virtuozzo.com>,
-        Johannes Weiner <hannes@cmpxchg.org>,
-        Martin Cracauer <cracauer@cons.org>,
-        Denis Plotnikov <dplotnikov@virtuozzo.com>, linux-mm@kvack.org,
-        Marty McFadden <mcfadden8@llnl.gov>, Maya Gokhale <gokhale2@llnl.gov>,
-        Mike Rapoport <rppt@linux.vnet.ibm.com>,
-        Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>,
-        "Kirill A . Shutemov" <kirill@shutemov.name>,
-        linux-fsdevel@vger.kernel.org,
-        "Dr . David Alan Gilbert"
- <dgilbert@redhat.com>,
-        Andrew Morton <akpm@linux-foundation.org>
-References: <20190311093701.15734-1-peterx@redhat.com>
- <58e63635-fc1b-cb53-a4d1-237e6b8b7236@oracle.com>
- <20190313060023.GD2433@xz-x1>
- <3714d120-64e3-702e-6eef-4ef253bdb66d@redhat.com>
- <20190313185230.GH25147@redhat.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <e1fcdd99-20d3-c161-8a05-b98b8036137c@oracle.com>
-Date: Wed, 13 Mar 2019 13:01:40 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Google-Smtp-Source: APXvYqx8y07VDD2YKkX/5xu1EgKjZeOAENZ/0ff9kTaY+GeumyehkYVULruUk3IrH3/yVPwwp1bigA==
+X-Received: by 2002:a25:2bc3:: with SMTP id r186mr20242387ybr.292.1552508382572;
+        Wed, 13 Mar 2019 13:19:42 -0700 (PDT)
+Received: from dennisz-mbp.dhcp.thefacebook.com ([2620:10d:c091:200::3:d743])
+        by smtp.gmail.com with ESMTPSA id w127sm4379231ywf.97.2019.03.13.13.19.40
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Mar 2019 13:19:41 -0700 (PDT)
+Date: Wed, 13 Mar 2019 16:19:39 -0400
+From: Dennis Zhou <dennis@kernel.org>
+To: Dennis Zhou <dennis@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>,
+	Vlad Buslov <vladbu@mellanox.com>, kernel-team@fb.com,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 00/12] introduce percpu block scan_hint
+Message-ID: <20190313201939.GA60770@dennisz-mbp.dhcp.thefacebook.com>
+References: <20190228021839.55779-1-dennis@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20190313185230.GH25147@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9194 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 lowpriorityscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1903130137
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190228021839.55779-1-dennis@kernel.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/13/19 11:52 AM, Andrea Arcangeli wrote:
+On Wed, Feb 27, 2019 at 09:18:27PM -0500, Dennis Zhou wrote:
+> Hi everyone,
 > 
-> hugetlbfs is more complicated to detect, because even if you inherit
-> it from fork(), the services that mounts the fs may be in a different
-> container than the one that Oracle that uses userfaultfd later on down
-> the road from a different context. And I don't think it would be ok to
-> allow running userfaultfd just because you can open a file in an
-> hugetlbfs file system. With /dev/kvm it's a bit different, that's
-> chmod o-r by default.. no luser should be able to open it.
+> It was reported a while [1] that an increase in allocation alignment
+> requirement [2] caused the percpu memory allocator to do significantly
+> more work.
 > 
-> Unless somebody suggests a consistent way to make hugetlbfs "just
-> work" (like we could achieve clean with CRIU and KVM), I think Oracle
-> will need a one liner change in the Oracle setup to echo into that
-> file in addition of running the hugetlbfs mount.
+> After spending quite a bit of time diving into it, it seems the crux was
+> the following:
+>   1) chunk management by free_bytes caused allocations to scan over
+>      chunks that could not fit due to fragmentation
+>   2) per block fragmentation required scanning from an early first_free
+>      bit causing allocations to repeat work
+> 
+> This series introduces a scan_hint for pcpu_block_md and merges the
+> paths used to manage the hints. The scan_hint represents the largest
+> known free area prior to the contig_hint. There are some caveats to
+> this. First, it may not necessarily be the largest area as we do partial
+> updates based on freeing of regions and failed scanning in
+> pcpu_alloc_area(). Second, if contig_hint == scan_hint, then
+> scan_hint_start > contig_hint_start is possible. This is necessary
+> for scan_hint discovery when refreshing the hint of a block.
+> 
+> A necessary change is to enforce a block to be the size of a page. This
+> let's the management of nr_empty_pop_pages to be done by breaking and
+> making full contig_hints in the hint update paths. Prior, this was done
+> by piggy backing off of refreshing the chunk contig_hint as it performed
+> a full scan and counting empty full pages.
+> 
+> The following are the results found using the workload provided in [3].
+> 
+>         branch        | time
+>        ------------------------
+>         5.0-rc7       | 69s
+>         [2] reverted  | 44s
+>         scan_hint     | 39s
+> 
+> The times above represent the approximate average across multiple runs.
+> I tested based on a basic 1M 16-byte allocation pattern with no
+> alignment requirement and times did not differ between 5.0-rc7 and
+> scan_hint.
+> 
+> [1] https://lore.kernel.org/netdev/CANn89iKb_vW+LA-91RV=zuAqbNycPFUYW54w_S=KZ3HdcWPw6Q@mail.gmail.com/
+> [2] https://lore.kernel.org/netdev/20181116154329.247947-1-edumazet@google.com/
+> [3] https://lore.kernel.org/netdev/vbfzhrj9smb.fsf@mellanox.com/
+> 
+> This patchset contains the following 12 patches:
+>   0001-percpu-update-free-path-with-correct-new-free-region.patch
+>   0002-percpu-do-not-search-past-bitmap-when-allocating-an-.patch
+>   0003-percpu-introduce-helper-to-determine-if-two-regions-.patch
+>   0004-percpu-manage-chunks-based-on-contig_bits-instead-of.patch
+>   0005-percpu-relegate-chunks-unusable-when-failing-small-a.patch
+>   0006-percpu-set-PCPU_BITMAP_BLOCK_SIZE-to-PAGE_SIZE.patch
+>   0007-percpu-add-block-level-scan_hint.patch
+>   0008-percpu-remember-largest-area-skipped-during-allocati.patch
+>   0009-percpu-use-block-scan_hint-to-only-scan-forward.patch
+>   0010-percpu-make-pcpu_block_md-generic.patch
+>   0011-percpu-convert-chunk-hints-to-be-based-on-pcpu_block.patch
+>   0012-percpu-use-chunk-scan_hint-to-skip-some-scanning.patch
+> 
+> 0001 fixes an issue where the chunk contig_hint was being updated
+> improperly with the new region's starting offset and possibly differing
+> contig_hint. 0002 fixes possibly scanning pass the end of the bitmap.
+> 0003 introduces a helper to do region overlap comparison. 0004 switches
+> to chunk management by contig_hint rather than free_bytes. 0005 moves
+> chunks that fail to allocate to the empty block list to prevent excess
+> scanning with of chunks with small contig_hints and poor alignment.
+> 0006 introduces the constraint PCPU_BITMAP_BLOCK_SIZE == PAGE_SIZE and
+> modifies nr_empty_pop_pages management to be a part of the hint updates.
+> 0007-0009 introduces percpu block scan_hint. 0010 makes pcpu_block_md
+> generic so chunk hints can be managed as a pcpu_block_md responsible
+> for more bits. 0011-0012 add chunk scan_hints.
+> 
+> This patchset is on top of percpu#master a3b22b9f11d9.
+> 
+> diffstats below:
+> 
+> Dennis Zhou (12):
+>   percpu: update free path with correct new free region
+>   percpu: do not search past bitmap when allocating an area
+>   percpu: introduce helper to determine if two regions overlap
+>   percpu: manage chunks based on contig_bits instead of free_bytes
+>   percpu: relegate chunks unusable when failing small allocations
+>   percpu: set PCPU_BITMAP_BLOCK_SIZE to PAGE_SIZE
+>   percpu: add block level scan_hint
+>   percpu: remember largest area skipped during allocation
+>   percpu: use block scan_hint to only scan forward
+>   percpu: make pcpu_block_md generic
+>   percpu: convert chunk hints to be based on pcpu_block_md
+>   percpu: use chunk scan_hint to skip some scanning
+> 
+>  include/linux/percpu.h |  12 +-
+>  mm/percpu-internal.h   |  15 +-
+>  mm/percpu-km.c         |   2 +-
+>  mm/percpu-stats.c      |   5 +-
+>  mm/percpu.c            | 547 +++++++++++++++++++++++++++++------------
+>  5 files changed, 404 insertions(+), 177 deletions(-)
+> 
+> Thanks,
+> Dennis
 
-I think you are suggesting the DB setup process enable uffd for all users.
-Correct?
+Applied to percpu/for-5.2.
 
-This may be too simple, and I don't really like group access, but how about
-just defining a uffd group?  If you are in the group you can make uffd
-system calls.
--- 
-Mike Kravetz
+Thanks,
+Dennis
 
