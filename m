@@ -2,174 +2,170 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C2143C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 08:39:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 87925C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 09:19:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 80C90206BA
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 08:39:15 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 13C922171F
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 09:19:07 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="nPiC2umv"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 80C90206BA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Bq7+4Znd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 13C922171F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1EDED8E0003; Wed, 13 Mar 2019 04:39:15 -0400 (EDT)
+	id 529EB8E0003; Wed, 13 Mar 2019 05:19:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 19C258E0001; Wed, 13 Mar 2019 04:39:15 -0400 (EDT)
+	id 4B3248E0001; Wed, 13 Mar 2019 05:19:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0B3908E0003; Wed, 13 Mar 2019 04:39:15 -0400 (EDT)
+	id 37ACE8E0003; Wed, 13 Mar 2019 05:19:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D4E6E8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 04:39:14 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id e1so918132iod.23
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 01:39:14 -0700 (PDT)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AE068E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 05:19:07 -0400 (EDT)
+Received: by mail-it1-f198.google.com with SMTP id z131so954598itb.2
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 02:19:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=4z+1Xm51hw88YabG5VaHi9SJ7Y/7Pom9XdSwVwq4FwA=;
-        b=O1/V75I2Zfyr+W94RWVIO+75xgzBq4s1UiA4ftaUUDW8HH/X4/UdfsYkHpmsKDMsA6
-         KpheQy+kngDELeaC6PzarFSTP7uVqlNnTK7a7DYkIBG/6x7x6TCgSQOVH0MUc8vmRxyX
-         LGc6NMHLDOLDlk2uXd7qy6etPuxib3KNT/Di/oNbdSV9mIff90ubdhAP3od8qT3uzV7h
-         JhjmWBKUup3ipbXw7Di4D19iYwz99GxVxbW0K5rVho9nvlPj+i8TUpQO7tzV6peaFcP7
-         UhfqQnLvMWcKnU5UMuDvh64vlJKRs7hhFIBtNIFDQ+rx9ohfd2xVdPeo27+Vajw6q8go
-         7g2g==
-X-Gm-Message-State: APjAAAX8wGAdaQo8gortnar+eEGaBF4pYAaEA23j5vvyN3v2ZX/xfbOu
-	wQWDzQKsf+lxmX4cMvFi0cAMnNz/bzq/TngYqtJdPZC50YXRFZ5y95Cfp9EiT9C6dxsosqk0jE5
-	W0IXvdZjZXIoVYZRfRwtv5I9hNAb9tK1v6K66YavKwvjyBpIQZ0747DGlDDWY36PKCA==
-X-Received: by 2002:a24:c141:: with SMTP id e62mr1061080itg.4.1552466354620;
-        Wed, 13 Mar 2019 01:39:14 -0700 (PDT)
-X-Received: by 2002:a24:c141:: with SMTP id e62mr1061051itg.4.1552466353648;
-        Wed, 13 Mar 2019 01:39:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552466353; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=KzxQSaJbsqgdV04fsK2ylmeyEWpxrxzz2n7IfMtSZqI=;
+        b=bi3LZKLIlzbDPptIJu5hUzazcz7TQB1uzil3iy8QHOV5H8eQNz0vmsG38TdXjSeMRn
+         rtDjBJujpjyr3NgcZF+RLrt3+5Yt5BBfigdzuTxaAIlwlWb6z2fUGZr6zYlS29G/d9+i
+         r/dr9xVKU/KGrBSZFASNVwSCJDTglPS7BqEm1zWCQX9SP73k5iw53a0cMMBgXd1Rsjpr
+         tuSdEXJzZncBXxJlOq6J2+87b8zV5BDDZdbwLG1MWpvfn6nGmujzzaq39mmckSKX7W3l
+         ijnN+UgLfC3o96z5MKP5zhSkk3Req+BUcLIVJDf2nLy1y8jm96ZdVLwb5ToyfVFtTr0F
+         FQ4g==
+X-Gm-Message-State: APjAAAUK+ufrdcE8YxSZSzmg4GT9T+Q/stu7XN5sFN2BL4EDxa90v7qO
+	r6aMOqJOszqnnGK7pAmDMoi4q3pfSXJQ/rg8VdjJXUSLEmbFUIwBMBLL2jOnjmnwJh2dGWXy0nR
+	36QRHBBnb+1hTcpLvqNp9C7SZ25F9jWw9NwiB3O4DxM5o8cnGO1xsm6SGRkr8WChkwA==
+X-Received: by 2002:a05:660c:12c2:: with SMTP id k2mr1027379itd.17.1552468746777;
+        Wed, 13 Mar 2019 02:19:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzQdPYQnlgjl7ietGK/75hnAq7c065QgHJ6x0kgH1DNbLxyQLLnR96JzPQCcjksW1l5PE0x
+X-Received: by 2002:a05:660c:12c2:: with SMTP id k2mr1027359itd.17.1552468745781;
+        Wed, 13 Mar 2019 02:19:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552468745; cv=none;
         d=google.com; s=arc-20160816;
-        b=R1CQMvMIrrwA7/Gb1tn5TNtkgwhKTg1LJ+fRF1gNIHMqy0oUzlwHrviLJtoNVik18o
-         q+8TOZrn3nuNxdUMGtyJggLo+WaL0sTAtzIPCpFWc35xCyJ1dUJ8+Yja09WUNNUm7f/d
-         GHi/PzsN3+CEtvfPDxqYHenAd2n9PI6IykAvobQtVif/O3DP8xw+9IUycW13rzOqE3k6
-         au7sMtk3KS09Y/oyv0I8lCpB4tRM7zVxvolwvS+nlw0xJR6dbsNJxWhvQXfYOZqjo6H5
-         F2AYOrCh6N3vZeeMz3CmRMtad6CvweRZsDUtD7DuWrrBe38xp5dT7ng/luOE7xyvTohp
-         pPwA==
+        b=xG8vWmFi5lDKt7DTPYTLbdhC5Z0kuWWx/F7LFIdlv8z63E3O50WQCf6/fi0wSCF9PS
+         q69y0KURL0bV7jeh5dmmq8lyxA5O6uItw8uv0HavJqQs0DQK/bjlrESHw/zzD3xBsZKp
+         apzhDB8/e/0Ze5e4ZiDbI9KySbISmD5yMYsn5q7LMMbg3L55E0rk5Elnm32QRkJONXP0
+         Ftd63vkViQGofUOwvT2vvssgcUAxuCi8guilILTinVZKl/sxn/EI8buf1OoQRmmyApG4
+         HJksu1u0fIAG0jjIIKR1Wi9ZOVlbBda9/35zCVDYi/QJ6ffrJp2ip9GsYwpF3sCtPwom
+         6F8g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=4z+1Xm51hw88YabG5VaHi9SJ7Y/7Pom9XdSwVwq4FwA=;
-        b=lZsoKz2l5KU4qotq5iSOD/o8t6V6jUwNxDvx7N2Qz/SI0Ztkjxh6o92FZGKgqfvpEZ
-         VOOIgH6eqHE6DBGzAmWM4rkoe7/N1RVKgFC4Dlrr29FAGnF5k1ok1gjQhte9xWDVCQKQ
-         rcoLaZOKFa9gupdM0JRd7LDim5IKcpfNQeq495W2/HSO61lrrvcSCQ92dFEQZ0Ncixq2
-         /Tkr/bPYriT2ctYAUuDXWPZYja0Vr1/BsTXFdyzvciurfdwu7rKlkiB1Ok6kTO5XR3Ho
-         wB633NtYVy92964h0pf9aUBUDa8MY/hXO2gjXZ6sJ4c7ichZIkpuKzbZP5wiiRixvJ6e
-         QQ+A==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=KzxQSaJbsqgdV04fsK2ylmeyEWpxrxzz2n7IfMtSZqI=;
+        b=qiRU3nYrRqG1z2uozP02fyRH+n7Rnk7dyRpzs+3Q/gKinh3+5Bf8v6C7cKXyKOjAdC
+         AJE0JsWo6xzHTE8y8GaFfo7P4MEqyjYuiccX0Dp5nLXkrUe7t81ZlL9MYeiJxjnQYr02
+         0rxXZP1+u+MPazQvpGFgDl+KrGRBv4DQtqCOqwzt+o/BTaNeErQhx/wEX8CWyZWqRfTv
+         L0p9/axA3x5kHMeM5WJo+bsnSOoCJtX62qIP9gGD8y75wMWm3cyXTPT37mmNRgTl44jo
+         b1+Z9MmVFeqGrpyl+aM4rCa3BhTVxlAMP5LqcHxL5lTP/4oDcN45fYdtSoZqIoZOmfQk
+         6a3Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=nPiC2umv;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q24sor5682489ion.147.2019.03.13.01.39.13
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=Bq7+4Znd;
+       spf=temperror (google.com: error in processing during lookup of peterz@infradead.org: DNS error) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id c27si4334023jaf.121.2019.03.13.02.19.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Mar 2019 01:39:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 13 Mar 2019 02:19:00 -0700 (PDT)
+Received-SPF: temperror (google.com: error in processing during lookup of peterz@infradead.org: DNS error) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=nPiC2umv;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=4z+1Xm51hw88YabG5VaHi9SJ7Y/7Pom9XdSwVwq4FwA=;
-        b=nPiC2umvzlvJfrIzc3OOXfz2Ba4skeyUyvEXD/zRQ7T6vD4H28uk0m/uzDkWau1enC
-         i51dm4HpS/GTtaffqhkdLhd33EBWASe7Wbpl9TRapHWWKZUFEmOC6gXy7Db4l6n3i8WC
-         lGxrdre29vAxwYdTig+sPFNPkiK23mCPQtX6F3C3pM1570WuIxAPOB7asZFyGRk0bc9x
-         d0kTDSS+96d2AMa6CCYoJOCApe9CcZwVXjvgxYQrrZFwRKDo3RVVzXwD2mxJoZu0xSUT
-         HWSfavzrB20Ald+MqbAT1XT+eew5oQz+zHS9K+1fCEhvUNVF0NWQXDWq2ckD4mdMPppJ
-         7rTA==
-X-Google-Smtp-Source: APXvYqxOZIR3JQ9Rd3c/ZGGzbpowwZ5pm3/X2tep6LbGA6Xudd9Mpl+IQs3B4HYyxnpRc0FX2cvebSO+bYbHiGxDkH4=
-X-Received: by 2002:a6b:5d17:: with SMTP id r23mr11303368iob.295.1552466353352;
- Wed, 13 Mar 2019 01:39:13 -0700 (PDT)
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=Bq7+4Znd;
+       spf=temperror (google.com: error in processing during lookup of peterz@infradead.org: DNS error) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=KzxQSaJbsqgdV04fsK2ylmeyEWpxrxzz2n7IfMtSZqI=; b=Bq7+4Zndp7tTjNamrCv1IFoTS
+	sY2LOFDg0fpvuUMjw6ms0dt7lKbF3tt1fjChxjzHCVmXCEElHpFsnz5bTt2+FyQSLIxPNEYbe5cbR
+	VBz8e5t1nIQkUiBz7ILKnAPB2bywmeBCdpRU4a5IWO7Fjti9gQcPVbFH/zGhglDag2ZoozU+TJa8P
+	dBjyy+DYaa1tVGqAfSgvE6wIFgJE+3mwHI/sf7TY9eApm28xIB3yPbF3TyLmj+UUsxtZlhtcuo4vl
+	T6UEQ6z4YJJvgyC9zQbENyHWLpN1NA1hZzksIxUyHNOcMa9GwAqu0aGBtFb9mmWHNnClTjOUcUn1M
+	vM2173Qag==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1h402D-0007do-9r; Wed, 13 Mar 2019 09:18:49 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 1C2252028B0F8; Wed, 13 Mar 2019 10:18:45 +0100 (CET)
+Date: Wed, 13 Mar 2019 10:18:44 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Qian Cai <cai@lca.pw>, Jason Gunthorpe <jgg@mellanox.com>,
+	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCH] mm/debug: add a cast to u64 for atomic64_read()
+Message-ID: <20190313091844.GA24390@hirez.programming.kicks-ass.net>
+References: <20190310183051.87303-1-cai@lca.pw>
+ <20190311035815.kq7ftc6vphy6vwen@linux-r8p5>
+ <20190311122100.GF22862@mellanox.com>
+ <1552312822.7087.11.camel@lca.pw>
+ <CAK8P3a0QB7+oPz4sfbW_g2EGZZmC=LMEnkMNLCW_FD=fEZoQPA@mail.gmail.com>
 MIME-Version: 1.0
-References: <1552451813-10833-1-git-send-email-laoar.shao@gmail.com> <20190313080354.GH5721@dhcp22.suse.cz>
-In-Reply-To: <20190313080354.GH5721@dhcp22.suse.cz>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Wed, 13 Mar 2019 16:38:37 +0800
-Message-ID: <CALOAHbCk2cF9caBHfTi53TGozvHpXZQRSALMbM0NMEB1WmwSGA@mail.gmail.com>
-Subject: Re: [PATCH] mm: vmscan: drop zone id from kswapd tracepoints
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
-	shaoyafang@didiglobal.com
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAK8P3a0QB7+oPz4sfbW_g2EGZZmC=LMEnkMNLCW_FD=fEZoQPA@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 13, 2019 at 4:03 PM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Wed 13-03-19 12:36:53, Yafang Shao wrote:
-> > The zid is meaningless to the user.
->
-> This is quite bold statement. We do not know whether that is useful.
-> Quite likely not. I would go with
->
-> "It is not clear how is the zone id useful in kswapd tracepoints and the
-> id itself is not really easy to process because it depends on the
-> configuration (available zones). Let's drop the id for now. If somebody
-> really needs that information the the zone name should be used instead."
->
+On Mon, Mar 11, 2019 at 03:20:04PM +0100, Arnd Bergmann wrote:
+> On Mon, Mar 11, 2019 at 3:00 PM Qian Cai <cai@lca.pw> wrote:
+> >
+> > On Mon, 2019-03-11 at 12:21 +0000, Jason Gunthorpe wrote:
+> > > On Sun, Mar 10, 2019 at 08:58:15PM -0700, Davidlohr Bueso wrote:
+> > > > On Sun, 10 Mar 2019, Qian Cai wrote:
+> > >
+> > > Not saying this patch shouldn't go ahead..
+> > >
+> > > But is there a special reason the atomic64*'s on ppc don't use the u64
+> > > type like other archs? Seems like a better thing to fix than adding
+> > > casts all over the place.
 
-Thanks for your improvements on the commit log :-)
+s64 if anything, atomic stuff is signed (although since we have -fwrapv
+it doesn't matter one whit).
 
-> > If we really want to expose it, we'd better expose the zone type
-> > (i.e. ZONE_NORMAL) intead of this number.
-> > Per discussion with Michal, seems this zid is not so userful in kswapd
-> > tracepoints, so we'd better drop it to avoid making noise.
+> > A bit of history here,
 > >
-> > Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
->
-> Acked-by: Michal Hocko <mhocko@suse.com>
->
-> > ---
-> >  include/trace/events/vmscan.h | 7 ++++---
-> >  1 file changed, 4 insertions(+), 3 deletions(-)
-> >
-> > diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-> > index a1cb913..d3f029f 100644
-> > --- a/include/trace/events/vmscan.h
-> > +++ b/include/trace/events/vmscan.h
-> > @@ -73,7 +73,9 @@
-> >               __entry->order  = order;
-> >       ),
-> >
-> > -     TP_printk("nid=%d zid=%d order=%d", __entry->nid, __entry->zid, __entry->order)
-> > +     TP_printk("nid=%d order=%d",
-> > +             __entry->nid,
-> > +             __entry->order)
-> >  );
-> >
-> >  TRACE_EVENT(mm_vmscan_wakeup_kswapd,
-> > @@ -96,9 +98,8 @@
-> >               __entry->gfp_flags      = gfp_flags;
-> >       ),
-> >
-> > -     TP_printk("nid=%d zid=%d order=%d gfp_flags=%s",
-> > +     TP_printk("nid=%d order=%d gfp_flags=%s",
-> >               __entry->nid,
-> > -             __entry->zid,
-> >               __entry->order,
-> >               show_gfp_flags(__entry->gfp_flags))
-> >  );
-> > --
-> > 1.8.3.1
->
-> --
-> Michal Hocko
-> SUSE Labs
+> > https://patchwork.kernel.org/patch/7344011/#15495901
+> 
+> Ah, I had already forgotten about that discussion.
+> 
+> At least the atomic_long part we discussed there has been resolved now
+> as part of commit b5d47ef9ea5c ("locking/atomics: Switch to generated
+> atomic-long").
+> 
+> Adding Mark Rutland to Cc, maybe he has some ideas of how to use
+> the infrastructure he added to use consistent types for atomic64()
+> on the remaining 64-bit architectures.
+
+A quick count shows there's only 5 definitions of atomic64_t in the
+tree, it would be trivial to align them on type.
+
+$ git grep "} atomic64_t"
+arch/arc/include/asm/atomic.h:} atomic64_t;
+arch/arm/include/asm/atomic.h:} atomic64_t;
+arch/x86/include/asm/atomic64_32.h:} atomic64_t;
+include/asm-generic/atomic64.h:} atomic64_t;
+include/linux/types.h:} atomic64_t;
+
+Note that the one used in _most_ cases, is the one from linux/types.h,
+and that is using 'long'. The others, all typically on ILP32 platforms,
+obviously must use long long.
+
+I have no objection to changing the types.h one to long long or all of
+them to s64. It really shouldn't matter at all.
 
