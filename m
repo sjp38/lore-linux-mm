@@ -2,178 +2,168 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A37B3C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 14:35:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BCD5FC4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 14:36:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5907A2087C
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 14:35:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5907A2087C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 3FB602087C
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 14:36:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FB602087C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CEF1F8E0003; Wed, 13 Mar 2019 10:35:06 -0400 (EDT)
+	id CC6D08E0004; Wed, 13 Mar 2019 10:36:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C9EEF8E0001; Wed, 13 Mar 2019 10:35:06 -0400 (EDT)
+	id C76928E0001; Wed, 13 Mar 2019 10:36:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B8F868E0003; Wed, 13 Mar 2019 10:35:06 -0400 (EDT)
+	id B422C8E0004; Wed, 13 Mar 2019 10:36:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DB988E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 10:35:06 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id t4so884833eds.1
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 07:35:06 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DB1D8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 10:36:05 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id x47so1011186eda.8
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 07:36:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=Idx8wXXBwQOOPMKRuc2dDME3eVRzsLZqZiisX++3jMY=;
-        b=Umm1AtYUmcR9SBBhEzHldfvAmO6XKbSMC/LgD0aiiEMupw1ART5uBsmELtpz/A8Frv
-         9N9mAPMj/j04o1e59sA+n+vkg9whJr0N8dsYsKCXb6ggtEWhaGST6cKUuIP4HUSatuw1
-         n40Jyx9JJfFiaBFBLvN5b1cWAnwh+7bYic4oihDZD4SlZNF60Fpgu48NHUGhUDcpLSaY
-         s4vULV6ykaUxulJ5Mpuu1c2quIU+O8VvX9Sg6n5a3afIKRy3RLU7UBUUbLeu4H8DApJ9
-         21YFxq1jo8i+NNYez9f09/oFWSIvhrFrL7OXXnHomdQ1Gbs89FuHEdkG64pmAlg7xL32
-         Gv+A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: APjAAAXZjX4kqUJfYUhYOxofSSOGHEzVX3Tf1wAAyPo8vHoVlID/JZ/C
-	bv9SALmujPESoLu/P2GpkMFtgnb7hERYET7W5Ct4sNoVQK9z8sOHq+fPB3jsVT3u8axyhctXNTR
-	tGJIXshtFA0/8DD2YNLVoPlEZQZwle0+TzpLzfXDqu2h3+g+uwdT4S75g+PL6UsgI4w==
-X-Received: by 2002:a05:6402:1699:: with SMTP id a25mr7739547edv.59.1552487705954;
-        Wed, 13 Mar 2019 07:35:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzg6anmUDwhj2fczbLI+IGIaSiszlKOvQxqu2BIS4pQv3vAFUMoKDb1stdE8fHgUculY8BH
-X-Received: by 2002:a05:6402:1699:: with SMTP id a25mr7739504edv.59.1552487705081;
-        Wed, 13 Mar 2019 07:35:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552487705; cv=none;
+        bh=pb2LhFbExs3nNra6kNtHd+/OsnC5ydhq5f0Rc0CLgt0=;
+        b=gspOCOq3C5lCVp01m6r/Wniky8R3d58/gmcKsYqHoxAcSSKCeSStMpl8r/BVZqgFoS
+         DdUS/zT0/jQ9cStpKUYoe21kEHrpaUThK1wibeXKPgV0aCp+LuP8uz2rxWT3hkuaazOu
+         dv/OMjzkWylsnqkOGfubk794nZ4vrHfJlaNOJfdNVrlzqfthxqSyX1leqWYUzfa6sDaG
+         n8gsc5VgQOZo0teKZ1Xea5TSTb7S5+OCIvLTd+TnsPQzeZDNbKDQEDmJt0+TUW6DgmME
+         eW1S2WjS5hgcJhyxF7yjms6NRnCoWd1iL3bwKRZ2DxcJ8txQeX9CG4ZA2LrSjrVcoaNR
+         Svxw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+X-Gm-Message-State: APjAAAWA+MBWpqFXF3TmmgRuGBm+H5v9EqnFySOYdZeAqVa/tcMQKNAA
+	4HzYSmHm5eHp3vSlgq1LQN4GMyNvIIdciMOMAawuqgkocsFSuEwM0ZisOAXFU2mw41Ov4Lh0RTI
+	2PE3BHrzgjsISHeuSGF/uWuLZwUiZ57NQuvHLbAQzQN6V6lS5rMzNGe+0uwN0H5l42A==
+X-Received: by 2002:a17:906:3050:: with SMTP id d16mr30098066ejd.200.1552487764954;
+        Wed, 13 Mar 2019 07:36:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyixze6C6jVEwxlJ7xKci53lCdrl2CfuXq7rLa5xEo01EV8S04/DaQE/8rkn6VK3H+AM93Q
+X-Received: by 2002:a17:906:3050:: with SMTP id d16mr30098018ejd.200.1552487764045;
+        Wed, 13 Mar 2019 07:36:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552487764; cv=none;
         d=google.com; s=arc-20160816;
-        b=i6rE7ibFspVIr5SQ4CK5ds9AG8Cuq9CUKSEB2+uErq9F8h/ZtMRZZkxymlZzNA6B9N
-         zhI9EsSDj4VM6M1McgXzw97/G4G0TNI4CqZcHqX5mrD8tbrkoaydIf4aVLLDGoQa+ptt
-         Y/IrE3mH8xPfSKxu/auFwIHDUEsJb+Vtp3m66w9WCSjpSirG8uSVuBCcFw5Yt+3lXWyv
-         EWH0FPW6uGjKRvsTPrSdrQizV5Vdy4Uhce6HANx53ta1+N0ohmEWiO19E3zivVRgf9l4
-         FjEQRYcpf3BTBWoFx20lhDGiOv4M7yGp37Qm5GcFNL/U6md2JWTCY5w+kBCkoFt6eCQ4
-         FdpA==
+        b=TVhkg5Pd/ugAFqzlrgtECML/RbR8Yu7dyY6/2yiNNCJhZg28O6g3aHBg1HaPIEhfnH
+         gCDZHqSa/QXhPUJ/kLnBFCVMURTG5375XTvobV3tgosbwuTftlZTvGAVeV+/RWeIFPbL
+         AuQFtFWMkL9vCBlCNLKxws8/mTaLrqvLApICCkh5XrJN8uHzDlDvXX9tf9M3D/Wc4z/W
+         HzTaXtLJZL0jYbZ6CLuFpemuOZ5M/QfQ7kIpG2ACOAJmJycUv72xgpzGkJoDJmMSgFnJ
+         0YBr30IkgNNW4KYAtj8wOGPd2jNVLsC+SsjzU2dsq/4NXOVBN8v40+ZjzSWMl3GOpHtY
+         lFlw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=Idx8wXXBwQOOPMKRuc2dDME3eVRzsLZqZiisX++3jMY=;
-        b=MtjWSvn/8DStnjadXBrugaUsIkcbCGofULSNci+zWbkEZMlwgG85Fr3aScUcey3pxN
-         w+gGPjyoQTTPUbOygdIUeOh3pXTeZfTQqRCnMaxWVF4QbCmtjubj8YlMx1yWz4NaxWBs
-         aN17CeMLfC6Vtwl3Ibd9HKkUWCR7h/r9igm/y5nCthGKLhtPNh/QjxmpgxBXGOa1mogA
-         d+doiL/R65Hu3Bo67yaXxDyp/xWs6rga3K+uAn+OVRQiTilsOfADkdHgMj67bWREANVQ
-         wZ6fGc6o6SqjFatNYAC4oi347OtLJN8pX78KEHHxvCu1yOg/cBO40Gw2CsMWN2BJb6fH
-         ESNQ==
+        bh=pb2LhFbExs3nNra6kNtHd+/OsnC5ydhq5f0Rc0CLgt0=;
+        b=K93f0x6h+yxAjAUjeDW/3JhwSPJQsqNU/RRE75K5R5k8zh1kvN06jIbjECxbvZk2mq
+         C3UvDI4cXPrrE7DNHA9DHkzQ/9AMvRxY1eLpJ9vXt5mawzl51dJ51CmpiOS1tFbzHFDE
+         0P3vP+M8Hkl80TIiJiBBmrBhMZQZkUDQl7OWdwUdw+hr3Dlri9g/56dCVAWRQkEdISrp
+         cTibA/oDDxDyc9aS+ZgQCeBeSpNqv6LFxM3ztFhDGeKcGtWo1MhYUEgw+Tm6VHJOaZe5
+         QHb91wzZLD46c/y1IwcqgvYiVnlIWsrrsTy7jirrJaMFcYtqufJPSxS2+Lt8TKUgSDlG
+         40Sw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h10si760571ejb.37.2019.03.13.07.35.04
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Mar 2019 07:35:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id g11si413371edf.313.2019.03.13.07.36.03
+        for <linux-mm@kvack.org>;
+        Wed, 13 Mar 2019 07:36:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 3427DAD55;
-	Wed, 13 Mar 2019 14:35:04 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 8490A1E3FE8; Wed, 13 Mar 2019 15:35:03 +0100 (CET)
-Date: Wed, 13 Mar 2019 15:35:03 +0100
-From: Jan Kara <jack@suse.cz>
-To: Kees Cook <keescook@chromium.org>
-Cc: syzbot <syzbot+2c49971e251e36216d1f@syzkaller.appspotmail.com>,
-	Amir Goldstein <amir73il@gmail.com>, Jan Kara <jack@suse.cz>,
-	Andrew Morton <akpm@linux-foundation.org>, cai@lca.pw,
-	Chris von Recklinghausen <crecklin@redhat.com>,
-	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
-	syzkaller-bugs <syzkaller-bugs@googlegroups.com>
-Subject: Re: WARNING: bad usercopy in fanotify_read
-Message-ID: <20190313143503.GD9108@quack2.suse.cz>
-References: <00000000000016f7d40583d79bd9@google.com>
- <CAGXu5jKjWwYk5N3mOH1A8fXX_0BT3r1At_3MzN9M+Ckg5irKXg@mail.gmail.com>
+       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 02F6280D;
+	Wed, 13 Mar 2019 07:36:03 -0700 (PDT)
+Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 9FD403F614;
+	Wed, 13 Mar 2019 07:36:01 -0700 (PDT)
+Date: Wed, 13 Mar 2019 14:35:53 +0000
+From: Mark Rutland <mark.rutland@arm.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, Qian Cai <cai@lca.pw>,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH] mm/debug: add a cast to u64 for atomic64_read()
+Message-ID: <20190313143552.GA39315@lakrids.cambridge.arm.com>
+References: <20190310183051.87303-1-cai@lca.pw>
+ <20190311035815.kq7ftc6vphy6vwen@linux-r8p5>
+ <20190311122100.GF22862@mellanox.com>
+ <1552312822.7087.11.camel@lca.pw>
+ <CAK8P3a0QB7+oPz4sfbW_g2EGZZmC=LMEnkMNLCW_FD=fEZoQPA@mail.gmail.com>
+ <20190313091844.GA24390@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAGXu5jKjWwYk5N3mOH1A8fXX_0BT3r1At_3MzN9M+Ckg5irKXg@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190313091844.GA24390@hirez.programming.kicks-ass.net>
+User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 12-03-19 23:26:22, Kees Cook wrote:
-> On Mon, Mar 11, 2019 at 1:42 PM syzbot
-> <syzbot+2c49971e251e36216d1f@syzkaller.appspotmail.com> wrote:
-> > C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=17ee410b200000
-> > [...]
-> > ------------[ cut here ]------------
-> > Bad or missing usercopy whitelist? Kernel memory exposure attempt detected
-> > from SLAB object 'fanotify_event' (offset 40, size 8)!
-> > [...]
-> >   copy_to_user include/linux/uaccess.h:151 [inline]
-> >   copy_fid_to_user fs/notify/fanotify/fanotify_user.c:236 [inline]
-> >   copy_event_to_user fs/notify/fanotify/fanotify_user.c:294 [inline]
+On Wed, Mar 13, 2019 at 10:18:44AM +0100, Peter Zijlstra wrote:
+> On Mon, Mar 11, 2019 at 03:20:04PM +0100, Arnd Bergmann wrote:
+> > On Mon, Mar 11, 2019 at 3:00 PM Qian Cai <cai@lca.pw> wrote:
+> > >
+> > > On Mon, 2019-03-11 at 12:21 +0000, Jason Gunthorpe wrote:
+> > > > On Sun, Mar 10, 2019 at 08:58:15PM -0700, Davidlohr Bueso wrote:
+> > > > > On Sun, 10 Mar 2019, Qian Cai wrote:
+> > > >
+> > > > Not saying this patch shouldn't go ahead..
+> > > >
+> > > > But is there a special reason the atomic64*'s on ppc don't use the u64
+> > > > type like other archs? Seems like a better thing to fix than adding
+> > > > casts all over the place.
 > 
-> Looks like this is the fh/ext_fh union in struct fanotify_fid, field
-> "fid" in struct fanotify_event. Given that "fid" is itself in a union
-> against a struct path, I think instead of a whitelist using
-> KMEM_CACHE_USERCOPY(), this should just use a bounce buffer to avoid
-> leaving a whitelist open for path or ext_fh exposure.
+> s64 if anything, atomic stuff is signed (although since we have -fwrapv
+> it doesn't matter one whit).
+> 
+> > > A bit of history here,
+> > >
+> > > https://patchwork.kernel.org/patch/7344011/#15495901
+> > 
+> > Ah, I had already forgotten about that discussion.
+> > 
+> > At least the atomic_long part we discussed there has been resolved now
+> > as part of commit b5d47ef9ea5c ("locking/atomics: Switch to generated
+> > atomic-long").
+> > 
+> > Adding Mark Rutland to Cc, maybe he has some ideas of how to use
+> > the infrastructure he added to use consistent types for atomic64()
+> > on the remaining 64-bit architectures.
+> 
+> A quick count shows there's only 5 definitions of atomic64_t in the
+> tree, it would be trivial to align them on type.
+> 
+> $ git grep "} atomic64_t"
+> arch/arc/include/asm/atomic.h:} atomic64_t;
+> arch/arm/include/asm/atomic.h:} atomic64_t;
+> arch/x86/include/asm/atomic64_32.h:} atomic64_t;
+> include/asm-generic/atomic64.h:} atomic64_t;
+> include/linux/types.h:} atomic64_t;
+> 
+> Note that the one used in _most_ cases, is the one from linux/types.h,
+> and that is using 'long'. The others, all typically on ILP32 platforms,
+> obviously must use long long.
+> 
+> I have no objection to changing the types.h one to long long or all of
+> them to s64. It really shouldn't matter at all.
 
-Do you mean to protect it from a situation when some other code (i.e. not
-copy_fid_to_user()) would be tricked into copying ext_fh containing slab
-pointer to userspace?
+I think that using s64 consistently (with any necessary alignment
+annotation) makes the most sense. That's unambigious, and what the
+common headers now use.
 
-								Honza
+Now that the scripted atomics are merged, I'd like to move arches over
+to arch_atomic_*(), so the argument and return types will become s64
+everywhere.
 
-> 
-> Maybe something like this (untested):
-> 
-> diff --git a/fs/notify/fanotify/fanotify_user.c
-> b/fs/notify/fanotify/fanotify_user.c
-> index 56992b32c6bb..b87da9580b3c 100644
-> --- a/fs/notify/fanotify/fanotify_user.c
-> +++ b/fs/notify/fanotify/fanotify_user.c
-> @@ -207,6 +207,7 @@ static int process_access_response(struct
-> fsnotify_group *group,
->  static int copy_fid_to_user(struct fanotify_event *event, char __user *buf)
->  {
->         struct fanotify_event_info_fid info = { };
-> +       unsigned char bounce[FANOTIFY_INLINE_FH_LEN], *fh;
->         struct file_handle handle = { };
->         size_t fh_len = event->fh_len;
->         size_t len = fanotify_event_info_len(event);
-> @@ -233,7 +234,18 @@ static int copy_fid_to_user(struct fanotify_event
-> *event, char __user *buf)
-> 
->         buf += sizeof(handle);
->         len -= sizeof(handle);
-> -       if (copy_to_user(buf, fanotify_event_fh(event), fh_len))
-> +
-> +       /*
-> +        * For an inline fh, copy through stack to exclude the copy from
-> +        * usercopy hardening protections.
-> +        */
-> +       fh = fanotify_event_fh(event);
-> +       if (fh_len <= sizeof(bounce)) {
-> +               memcpy(bounce, fh, fh_len);
-> +               fh = bounce;
-> +       }
-> +
-> +       if (copy_to_user(buf, fh, fh_len))
->                 return -EFAULT;
-> 
->         /* Pad with 0's */
-> 
-> 
-> -- 
-> Kees Cook
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Thanks,
+Mark.
 
