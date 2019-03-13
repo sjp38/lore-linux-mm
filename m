@@ -2,214 +2,121 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5702DC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 20:19:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D700C10F03
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 21:06:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 11EBC206DF
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 20:19:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 11EBC206DF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 404342070D
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 21:06:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 404342070D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=stgolabs.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A184B8E000A; Wed, 13 Mar 2019 16:19:44 -0400 (EDT)
+	id 9F4838E000B; Wed, 13 Mar 2019 17:06:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9C8FD8E0001; Wed, 13 Mar 2019 16:19:44 -0400 (EDT)
+	id 9A2338E0001; Wed, 13 Mar 2019 17:06:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8B6988E000A; Wed, 13 Mar 2019 16:19:44 -0400 (EDT)
+	id 893328E000B; Wed, 13 Mar 2019 17:06:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 62B7B8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 16:19:44 -0400 (EDT)
-Received: by mail-yw1-f69.google.com with SMTP id c74so4062872ywc.9
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 13:19:44 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 438BF8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 17:06:12 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id t4so1325079eds.1
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 14:06:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=vAX8dogAgzi5qFobW6OjpOevgIDAZa/XIjee6QmCjo4=;
-        b=mKPWkRwLaHD1vLlustq5wvJd7DPjONfDMWWgM2a6uIYhMm1FOpBqbMShv3GPkEcj4W
-         4Ytp6YO4k8vJhBEHU3pj+tRfrc40QOtRbD6bAyscAxi29EDZ0ATVyVKnS9+/UCC1YTQR
-         VGOOltfEnJbq/m6cDenBuDcpR68EDbnvfzNNNjsyeR+EB/c6oTcuaRX09rzjA0txeJMO
-         N0fdDD/qGGt1mShtIVzgRxcJQkhvhvjxfBDwNvCnutdWpm5Qzof/DVIKWSwAafvvwHed
-         r8FGJrZfxGLxLZzkHHQVVY+XKE6fqN7+WaZClbvNe5BYVXVZiEdvbzr06K8iTb375Doh
-         BKSg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXD1htcUty/K1GlypxWr/J8ZShfqy8FpiF3diJNg3wpzwRWm69H
-	vwNpzkuh5ppftig2u8eeQltIlIAPkQXOZYKbbPnn10K4PDbVWIKgQ3ZDl8JKO9C6vihO0e+rms/
-	P+/GlQk/mB8v+I3zBrAAPN8Yw1uenfGfezCkE+bcdxi25XnRNZ7KH+RgIZMgl+O5yKW0nzLFnC5
-	29oM+LxNaybfQPBNlFnyipzEU00+aPPgniAaBgklXk/wVXNJOrA+eEPY8iPTpEfg3gk6/kp+WGG
-	+T9voU5vOk4OgIN1ENuOHtTlAU9FhKv2b+N70Sjzty4lTHmPT/i3mPMVQ6RNgdi/40+8TA84zZA
-	QL11R8sq1dE04CklFe0Vs6Sv7suO1De3RikR3bcIG0mQ4scoWjkztIgs2ivAV6EfotLM2jjo1Q=
-	=
-X-Received: by 2002:a81:46c3:: with SMTP id t186mr23784975ywa.183.1552508383984;
-        Wed, 13 Mar 2019 13:19:43 -0700 (PDT)
-X-Received: by 2002:a81:46c3:: with SMTP id t186mr23784923ywa.183.1552508383066;
-        Wed, 13 Mar 2019 13:19:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552508383; cv=none;
+         :cc:subject:message-id:mail-followup-to:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=3VovhBSTW3HniGg4Z2OKgLJaVgk+mldhh4mTxqeNiiA=;
+        b=KJVtSn6KRolPSHzhRgh1WpWt1l/xllm9YibQroB0yHd/eR4LXGnhTpG83MbSl7nbCv
+         nBY1K8JZDbbJ0OIzZ7pFK635kN18dC6yog8mTgrTC0iK9u56Tn2+Ii8oDeEd+NX/n7TK
+         xYobdBPQH5FKMP0YGuqeqskUpLZHulG5ZlL0RyMXE+FeSNnhEIkeNSUPBBIGC9bDKop2
+         TwhubTaCbCVixpmGeZQnrQtkywhx+vXphjHYkyM9XlGPiD+cCcXzX9jCeEZEFrdL5f+8
+         sIcIwZAEz6spLADw56gcCjFcGz8DQM/30+5bXJHskfXxQYL/1ZZw2Z6+PnvIJA3a7tMo
+         URHQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=dave@stgolabs.net
+X-Gm-Message-State: APjAAAX7ler526Wy6A54P6DaEcoLxtDxa6QP65bxIEF5kY2qrBMdcaxD
+	nWaxlP2qsXES/MZAWuv2/umlXOZCPSv9uSQ5kR6UHXz8Iz+FALdw/BzKuVB6NsBi26zm5Gamzxa
+	q9PnaCNdusGgO93Yt2bneCVq68zPm8Jw6ejhiD2O2VvRMImf8rNgA3+p58NoK6Ag=
+X-Received: by 2002:a17:906:32ca:: with SMTP id k10mr11852156ejk.115.1552511171757;
+        Wed, 13 Mar 2019 14:06:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxHpbFymB37sYEn9Irl1QZJ/lwe6oKT8iCgRYOcrXmZMEGIVs0agkAcQNDFh9klzhtg4lU6
+X-Received: by 2002:a17:906:32ca:: with SMTP id k10mr11852127ejk.115.1552511170778;
+        Wed, 13 Mar 2019 14:06:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552511170; cv=none;
         d=google.com; s=arc-20160816;
-        b=EjWMzPexciYAUaHU6BYj1S2M6HOSKIADGyDUNAYt5hjJ+mwJpqdjWR2Tc3yUhJtvZ5
-         QiFONTVxMBSoHkixJpXsNxarZ+fe0sL/fPnLOqcLASZQ1e5jOO6IJGdkNbIU0D8+ZCUi
-         USOYtns7aI/BAInQnI0FmkZR/TdbgJTGqxJtOiL+pSrofBRypj8UB3/z2bgpwQnso1gT
-         YgTAXp1ml6bzuKpU4PreSDlLcJe2Ak27w3J4c4g/hZL5kBFbeDT2VW1AdyvdrbVOVCsa
-         j3gncCGMfULR32zDJ/ZOZV1me0gUXU3tyLgcnMtDoWfXqy6L7If1NRqIS6BqWFvbKmwg
-         JJ2Q==
+        b=bqeSPp28mNizeI336okxX+gkpjLCogFtW3s6J8cpRYqTeelNCYc9hc4y7hRJSwhMAO
+         FNefKr4DWzn6Mgqz8GgR96zBzNbhIFf4ZQ3+5zrOgjO/2r9Ixlp2YmOCisAtcbohZZ3K
+         aX+I44ya6cZ4pwuG5DAp843aRE1Fd9yvLC5rr8J5I9Sf1YCMKAFNjMnPU6Y+KaJxnIDs
+         n+spd55pys45MqOHXgRsMNhrDNyogncaxV9q/CYTbgAbzOv0sfqqtYGSdU4pHg+4Guq9
+         gYhWhC/TJKaa7fy9wPfFDW9snwgCMxCdjeKWZGMzdx80/tLKWnAO+xvlkXrpugjFmMv8
+         ym2w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=vAX8dogAgzi5qFobW6OjpOevgIDAZa/XIjee6QmCjo4=;
-        b=PK358U4a//w/p6JKoGjHuq9ZsgrQy3BnRBqX7EeQ30O1ZBuH5bfxTe/7lqXpcFVvSH
-         ZVXWmfiGE+1WYJpJghilUw58jTgeDLbQiNWae8l+ZRzq1q52VX2ff9dvEVW/JAvgw/M/
-         I1WwX8aT5FnX8HQ59kQqwK5cPBBs3mYwXaLm5XjsutHO9NbANl0jo461y2Du23y4koTl
-         /e8bCISdDHkg5i3255Q718cwFI3hEjpZnzcSyaS6CC2KXRq7iQcCWQfQ/OTP9cIpdVTG
-         XdQnx2YZZ2/NLXr/Uv4HvO88T1PWR+K17URamRXmxDGqbt1I2XGB3+q1lqm6pUnUIndj
-         7GSw==
+         :mail-followup-to:message-id:subject:cc:to:from:date;
+        bh=3VovhBSTW3HniGg4Z2OKgLJaVgk+mldhh4mTxqeNiiA=;
+        b=XSoVXNVx63CJwJYQiHq6NsxCQdOxUuX96LlubTgcnAXOibqBa8tQp7N1D+NLNAtP7L
+         bZSpg/IsWn7jRZ2Npma2QPf1QHszdMs/dXPA3l0+wxtOWmT1j7dXTCwpyYDR6ZoeQpKu
+         6DfxX189xAyU85HLPqzTMvEI8zwA2i2Ijj07DAB5XAEml8evSrT76CerEmHiMAm1xcnQ
+         BEsojuaeltZP0Hreyt5roW4Og01KGcMSjpnJ/LpJGinjGOQjmr71dtluo+glrPwHGa1v
+         d9Nj2uJDdNkBcesE4IuBBPrJdjMaTB4ialfncfESbvxx9V5ZNqvS4ec9xxXR0ONfxcFS
+         CnyA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b204sor2276942ybc.8.2019.03.13.13.19.43
+       spf=softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=dave@stgolabs.net
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w27si998357ejb.220.2019.03.13.14.06.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Mar 2019 13:19:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: APXvYqx8y07VDD2YKkX/5xu1EgKjZeOAENZ/0ff9kTaY+GeumyehkYVULruUk3IrH3/yVPwwp1bigA==
-X-Received: by 2002:a25:2bc3:: with SMTP id r186mr20242387ybr.292.1552508382572;
-        Wed, 13 Mar 2019 13:19:42 -0700 (PDT)
-Received: from dennisz-mbp.dhcp.thefacebook.com ([2620:10d:c091:200::3:d743])
-        by smtp.gmail.com with ESMTPSA id w127sm4379231ywf.97.2019.03.13.13.19.40
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Mar 2019 13:19:41 -0700 (PDT)
-Date: Wed, 13 Mar 2019 16:19:39 -0400
-From: Dennis Zhou <dennis@kernel.org>
-To: Dennis Zhou <dennis@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>,
-	Vlad Buslov <vladbu@mellanox.com>, kernel-team@fb.com,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 00/12] introduce percpu block scan_hint
-Message-ID: <20190313201939.GA60770@dennisz-mbp.dhcp.thefacebook.com>
-References: <20190228021839.55779-1-dennis@kernel.org>
+        Wed, 13 Mar 2019 14:06:10 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+Authentication-Results: mx.google.com;
+       spf=softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=dave@stgolabs.net
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id D7F88AB71;
+	Wed, 13 Mar 2019 21:06:09 +0000 (UTC)
+Date: Wed, 13 Mar 2019 14:06:03 -0700
+From: Davidlohr Bueso <dave@stgolabs.net>
+To: Laurent Dufour <ldufour@linux.ibm.com>
+Cc: lsf-pc@lists.linux-foundation.org, Linux-MM <linux-mm@kvack.org>,
+	linux-kernel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>
+Subject: Re: [LSF/MM TOPIC] Using XArray to manage the VMA
+Message-ID: <20190313210603.fguuxu3otj5epk3q@linux-r8p5>
+Mail-Followup-To: Laurent Dufour <ldufour@linux.ibm.com>,
+	lsf-pc@lists.linux-foundation.org, Linux-MM <linux-mm@kvack.org>,
+	linux-kernel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>
+References: <7da20892-f92a-68d8-4804-c72c1cb0d090@linux.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Disposition: inline
-In-Reply-To: <20190228021839.55779-1-dennis@kernel.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <7da20892-f92a-68d8-4804-c72c1cb0d090@linux.ibm.com>
+User-Agent: NeoMutt/20180323
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 27, 2019 at 09:18:27PM -0500, Dennis Zhou wrote:
-> Hi everyone,
-> 
-> It was reported a while [1] that an increase in allocation alignment
-> requirement [2] caused the percpu memory allocator to do significantly
-> more work.
-> 
-> After spending quite a bit of time diving into it, it seems the crux was
-> the following:
->   1) chunk management by free_bytes caused allocations to scan over
->      chunks that could not fit due to fragmentation
->   2) per block fragmentation required scanning from an early first_free
->      bit causing allocations to repeat work
-> 
-> This series introduces a scan_hint for pcpu_block_md and merges the
-> paths used to manage the hints. The scan_hint represents the largest
-> known free area prior to the contig_hint. There are some caveats to
-> this. First, it may not necessarily be the largest area as we do partial
-> updates based on freeing of regions and failed scanning in
-> pcpu_alloc_area(). Second, if contig_hint == scan_hint, then
-> scan_hint_start > contig_hint_start is possible. This is necessary
-> for scan_hint discovery when refreshing the hint of a block.
-> 
-> A necessary change is to enforce a block to be the size of a page. This
-> let's the management of nr_empty_pop_pages to be done by breaking and
-> making full contig_hints in the hint update paths. Prior, this was done
-> by piggy backing off of refreshing the chunk contig_hint as it performed
-> a full scan and counting empty full pages.
-> 
-> The following are the results found using the workload provided in [3].
-> 
->         branch        | time
->        ------------------------
->         5.0-rc7       | 69s
->         [2] reverted  | 44s
->         scan_hint     | 39s
-> 
-> The times above represent the approximate average across multiple runs.
-> I tested based on a basic 1M 16-byte allocation pattern with no
-> alignment requirement and times did not differ between 5.0-rc7 and
-> scan_hint.
-> 
-> [1] https://lore.kernel.org/netdev/CANn89iKb_vW+LA-91RV=zuAqbNycPFUYW54w_S=KZ3HdcWPw6Q@mail.gmail.com/
-> [2] https://lore.kernel.org/netdev/20181116154329.247947-1-edumazet@google.com/
-> [3] https://lore.kernel.org/netdev/vbfzhrj9smb.fsf@mellanox.com/
-> 
-> This patchset contains the following 12 patches:
->   0001-percpu-update-free-path-with-correct-new-free-region.patch
->   0002-percpu-do-not-search-past-bitmap-when-allocating-an-.patch
->   0003-percpu-introduce-helper-to-determine-if-two-regions-.patch
->   0004-percpu-manage-chunks-based-on-contig_bits-instead-of.patch
->   0005-percpu-relegate-chunks-unusable-when-failing-small-a.patch
->   0006-percpu-set-PCPU_BITMAP_BLOCK_SIZE-to-PAGE_SIZE.patch
->   0007-percpu-add-block-level-scan_hint.patch
->   0008-percpu-remember-largest-area-skipped-during-allocati.patch
->   0009-percpu-use-block-scan_hint-to-only-scan-forward.patch
->   0010-percpu-make-pcpu_block_md-generic.patch
->   0011-percpu-convert-chunk-hints-to-be-based-on-pcpu_block.patch
->   0012-percpu-use-chunk-scan_hint-to-skip-some-scanning.patch
-> 
-> 0001 fixes an issue where the chunk contig_hint was being updated
-> improperly with the new region's starting offset and possibly differing
-> contig_hint. 0002 fixes possibly scanning pass the end of the bitmap.
-> 0003 introduces a helper to do region overlap comparison. 0004 switches
-> to chunk management by contig_hint rather than free_bytes. 0005 moves
-> chunks that fail to allocate to the empty block list to prevent excess
-> scanning with of chunks with small contig_hints and poor alignment.
-> 0006 introduces the constraint PCPU_BITMAP_BLOCK_SIZE == PAGE_SIZE and
-> modifies nr_empty_pop_pages management to be a part of the hint updates.
-> 0007-0009 introduces percpu block scan_hint. 0010 makes pcpu_block_md
-> generic so chunk hints can be managed as a pcpu_block_md responsible
-> for more bits. 0011-0012 add chunk scan_hints.
-> 
-> This patchset is on top of percpu#master a3b22b9f11d9.
-> 
-> diffstats below:
-> 
-> Dennis Zhou (12):
->   percpu: update free path with correct new free region
->   percpu: do not search past bitmap when allocating an area
->   percpu: introduce helper to determine if two regions overlap
->   percpu: manage chunks based on contig_bits instead of free_bytes
->   percpu: relegate chunks unusable when failing small allocations
->   percpu: set PCPU_BITMAP_BLOCK_SIZE to PAGE_SIZE
->   percpu: add block level scan_hint
->   percpu: remember largest area skipped during allocation
->   percpu: use block scan_hint to only scan forward
->   percpu: make pcpu_block_md generic
->   percpu: convert chunk hints to be based on pcpu_block_md
->   percpu: use chunk scan_hint to skip some scanning
-> 
->  include/linux/percpu.h |  12 +-
->  mm/percpu-internal.h   |  15 +-
->  mm/percpu-km.c         |   2 +-
->  mm/percpu-stats.c      |   5 +-
->  mm/percpu.c            | 547 +++++++++++++++++++++++++++++------------
->  5 files changed, 404 insertions(+), 177 deletions(-)
-> 
-> Thanks,
-> Dennis
+On Wed, 13 Mar 2019, Laurent Dufour wrote:
 
-Applied to percpu/for-5.2.
+>If this is not too late and if there is still place available, I would 
+>like to attend the MM track and propose a topic about using the XArray 
+>to replace the VMA's RB tree and list.
+>
+>Using the XArray in place of the VMA's tree and list seems to be a 
+>first step to the long way of removing/replacing the mmap_sem.
+
+So threaded (not as in threads of execution) rbtrees are another
+alternative to deal with the two data structure approach we currently
+have. Having O(1) rb_prev/next() calls allows us to basically get rid of
+the vma list at the cost of an extra check for each node we visit on
+the way down when inserting.
 
 Thanks,
-Dennis
+Davidlohr
 
