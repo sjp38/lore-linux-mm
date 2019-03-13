@@ -2,260 +2,213 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,FSL_HELO_FAKE,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIMWL_WL_MED,
+	DKIM_SIGNED,DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CBBBBC10F03
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 18:16:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 00729C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 18:25:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 70EE72146E
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 18:16:55 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A73DF2075C
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 18:25:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="URSa0zmo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 70EE72146E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="EFvJS0ay";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="iiNPnQaF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A73DF2075C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0D9508E0004; Wed, 13 Mar 2019 14:16:55 -0400 (EDT)
+	id 3BA098E0003; Wed, 13 Mar 2019 14:25:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 089CA8E0001; Wed, 13 Mar 2019 14:16:55 -0400 (EDT)
+	id 369518E0001; Wed, 13 Mar 2019 14:25:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EE1028E0004; Wed, 13 Mar 2019 14:16:54 -0400 (EDT)
+	id 231A78E0003; Wed, 13 Mar 2019 14:25:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id ACD5C8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 14:16:54 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id m17so3145232pgk.3
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 11:16:54 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D50C08E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 14:25:04 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id w4so3105476pgl.19
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 11:25:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=nWlRgW+0+Za5z77KKGiij4P47yj0qUjVTn19Cpp/GDM=;
-        b=VaLQ/urP8c4IRdRDEE1/1zgtEHQFVr3QIW5dcjVB11lYane2AB5XSo4WanOudQ7CCE
-         +AKprkAaQzZgMDRAJj4yuCFhD5nlxUr1GXS93CeESJ/yAddpsLy6H06/G7xfZbpnCtay
-         72AnMdKzlX7WXx7dpwtRd5GYSuRM9Dtg6PGV9cF3Vx9mDbsO/paqJkuKamO/yh4h73uf
-         kZ9ywCPVj2IE+BZWWVF592XL2QKiR7z9GZTHVmnfKlTgRm+mZ5X5FMPC7oFRLtG1jcWu
-         o/9CYk8KsAlobo+ueaSRTqSjj+F1Nk0rwBNWHM5BBy9SuG9NaC3WeQQHQI8/lRZ1d7Sy
-         YpKA==
-X-Gm-Message-State: APjAAAWPvD1eDZq2r6RV7syX6f1P6jRuUi58a/HFOGqboHrpRRvri+MU
-	zdob3zT7fJNh3IMW0mobYe7d2PYHIl+ZxGSxxZBQO1OGLfLPpO4RlLqsCKEcyP/TOIEUwe8iMel
-	QT08y+TdEcnO69GQA40jYEKRhoeneiLdOQQYo7oewuUjC8T/5b9NZOMkImS5hq9iD6g==
-X-Received: by 2002:a62:5e46:: with SMTP id s67mr45171318pfb.126.1552501014167;
-        Wed, 13 Mar 2019 11:16:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzNYsu0xlo9yrRbHkrME+oVSbN/FtFweUf8FUgcCSOugaLrjcNioj4lW9FHl1OjxgEq6iUs
-X-Received: by 2002:a62:5e46:: with SMTP id s67mr45171234pfb.126.1552501012849;
-        Wed, 13 Mar 2019 11:16:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552501012; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=aikG9yz0lcCeANUDQoaSydrOSD48pgBFE7UyJ3qbhh4=;
+        b=pxTITsSWt2Zcglgl95dbwqd5MxrwR0wKOwEtjcFnljhxEEfD5v8cuI8t4+d+05tY+J
+         3jzsbPFbku/WOjuDRGBfoP6BIVx706E07UI4+I2BcsimdFM5t21oi/10PH4Vlb+1XIS8
+         rh1jOxKGaHC+n/IasOhTwG1AlXqpWkS0PREGToZU7t8fsEeabG47vwsn9c36nGYpN7Z3
+         S+NdvfLpx8I9oo2+fUPJnpPmZua8z5nhDxO0PJpEWNzavXAqyx+A7Gc2ST95uT1VJQdR
+         NQg+Remt+l2IOBkcqlkfO68Lx3N2ofxYjRy2z4+W6qtCUFW6AYScQse/yM1vMVCHBEE2
+         l3jA==
+X-Gm-Message-State: APjAAAVVK7x+bJwPNrT6SYfyIr+OBVtrZEt9Pm6BHVN04o7hueRII1FS
+	91MAhwHfS+PY8Ku8gkqexgbFyILJAmFgzDOlbfn7uSv4p/F5J/w6/v5/LHmYse4glpIu8nXy3JT
+	UKBAjTaV7qb8zuzfF4DMIVcQB+mpNtQXKdVRX3K2wVLrU12CB1joDFXJbmBGKCgWjhA==
+X-Received: by 2002:a63:160d:: with SMTP id w13mr40836518pgl.85.1552501504438;
+        Wed, 13 Mar 2019 11:25:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwShRdlOG0mJJyaF7AW2i8khnIHjtYO3YLow0DQG6MEjnCp2cW8TIylNIlUnxRftMrPTJb/
+X-Received: by 2002:a63:160d:: with SMTP id w13mr40836467pgl.85.1552501503371;
+        Wed, 13 Mar 2019 11:25:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552501503; cv=none;
         d=google.com; s=arc-20160816;
-        b=QuxagvATBQxK80Y0mDTPBvg1yE8GV3sbojtxT9v9VU3eorD48QGp5dZpcEbzoio/M8
-         /Kiggu7l2PBunx/4MyBi+OZBHfxTlhqM9DLwgmDlWi7WQ1OW+tXgmyNZdaHdIlH5LBJQ
-         4Q5KQFSwkcx/t5u8SoxTJSXJCez7s9oTIrJd2B4D1v4sGWH+uqWciPxZIFiHGir9gmmC
-         H3YPcqzwLFd7M8+qdyxdDMCiKMBOt0DyYJZ9Zr6p/tAcbH8T1M7FvUdWCELnF8kxAqpc
-         mCa2vdSSwRFj7EmoLS79mblUrlV66SPAloNbTvU+CUwL1fXGyRq+B+kuGMbWxmY7fdhI
-         02Eg==
+        b=mthOfOPIE1ppNqPS+kIrnWSoR1NJ6jr9WRIxok92gXwl3s11fA3+epgnA2HFVDvB68
+         diityuPGXLFDWn1iUpYh3g4ndCaQo7u7ysS+XBEd8O+o5RW5i5YMmNhkyk8DwV46K7tB
+         jWB9zZ4lzSER7s0bnMYZpm/z7tkGTNKlxsevvSkQFsGyqP/yOxfZE+V19StGv6UfPyw2
+         3udCAVDJu4mLyMW2Q3mx6cH0AkD7A2pz1yoPpIi2UPa3v01Klhv4xca+k9SKGDsn4HIQ
+         SrSpWEaoBiiL4m/maQGMyaCRfRvK5RnT8OtNxTRo+AlYn6uEbrh+sk9SKUfH/608RXIs
+         /png==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=nWlRgW+0+Za5z77KKGiij4P47yj0qUjVTn19Cpp/GDM=;
-        b=yH/6ATAzkQ2EzgmICRvF5x3Z2+oQJp2uuOCBxgsVig5wKXJGGwEWMPBL60rmFYccv4
-         RLA54FoXv/SRdGMPAXCzvHwl3m2Vrfs7Df+xOUvdt7TqbWJgBkBR6r9vM/BjK518em/V
-         y/Po9aafIYWw44TAKuEVmW/7N2qhonWfR4Q94jv6cvAooWvBqcvIB/25x/ruaZD2YSQe
-         zFad84NhGkR6HGi7rUP2ypdyV/37SsykAh29hX3rHPjElnmdP1hMRqoYzbXVjsIoDIL3
-         vhIJIcESt6lvd0tc4p7FR2S2ZikLNT+MiDs5XrJHXHnwUOvKSn5usiAvSrQgFOdr0nAg
-         3KKQ==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=aikG9yz0lcCeANUDQoaSydrOSD48pgBFE7UyJ3qbhh4=;
+        b=cMZf4ZRWcHYanDFsn5Jg7Zsx6qLcwW9p2JKh6HFt6oLXCMAfrC2BB4pMJ2htN6xG1Y
+         2i2l22LY8xQpHiV0kj2ocGa8MiZhEIgJxwovuEIyz5LzJRnveNcK+SijFAvPO4P+jsFT
+         eMW+wGj/4O5PIlQS9U4Sh35U/HDwkmykEk469Al4vAiqL9reb7vmAedo+3+4iSSGzB6I
+         q5G0vSB2D1knCkJg1roWcYdFB+59drJWwh0NGjxv+aooaSdxoyv3rqSjGIe2VG2SJdJN
+         HQXC2KrvgMNLtBYqSylY6vAWjpr+lY/LiyEhcWegKUWQxhM4ZXuyaNeSN8LCxkMbVRfj
+         3MBQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=URSa0zmo;
-       spf=pass (google.com: domain of ebiggers@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=ebiggers@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 189si10312932pgb.412.2019.03.13.11.16.52
+       dkim=pass header.i=@fb.com header.s=facebook header.b=EFvJS0ay;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=iiNPnQaF;
+       spf=pass (google.com: domain of prvs=8975a33d68=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=8975a33d68=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id w20si1340448pfn.93.2019.03.13.11.25.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Mar 2019 11:16:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ebiggers@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Wed, 13 Mar 2019 11:25:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=8975a33d68=guro@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=URSa0zmo;
-       spf=pass (google.com: domain of ebiggers@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=ebiggers@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from gmail.com (unknown [104.132.1.77])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id ED92D21019;
-	Wed, 13 Mar 2019 18:16:51 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1552501012;
-	bh=NBYWGtH9wtv5Jk1W5+17+1saO++Uar9ct/F9yhKpQZI=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=URSa0zmoebEWbGHKSEkWGzRrbEVoDmXu2HYX/iZre+2OIfJ8Rf6ZF4hULmOBmCzx+
-	 dy74dBbaK4VuhVexHIJ4umpIejOh8BVmW5+BNhz6omfDdr4ANQpGl2fOdpBKYGgRlo
-	 MrjBkIn1xE6P5zCFYEdVXhM1b2i+eQ/vGeSNGcRo=
-Date: Wed, 13 Mar 2019 11:16:50 -0700
-From: Eric Biggers <ebiggers@kernel.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	syzbot <syzbot+fa11f9da42b46cea3b4a@syzkaller.appspotmail.com>,
-	Cgroups <cgroups@vger.kernel.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
-	Michal Hocko <mhocko@kernel.org>, Michal Hocko <mhocko@suse.com>,
-	Stephen Rothwell <sfr@canb.auug.org.au>,
-	Shakeel Butt <shakeelb@google.com>,
-	syzkaller-bugs <syzkaller-bugs@googlegroups.com>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: KASAN: null-ptr-deref Read in reclaim_high
-Message-ID: <20190313181649.GA10169@gmail.com>
-References: <0000000000001fd5780583d1433f@google.com>
- <20190311163747.f56cceebd9c2661e4519bdfc@linux-foundation.org>
- <CACT4Y+byKQSOCte3JS9XOnyr+aVSEFtBvLxG2-HUrZX3-82Hcg@mail.gmail.com>
- <20190311232541.db8571d2e3e0ca636785f31f@linux-foundation.org>
- <CACT4Y+Y0JdB-=yLLchw8icokn11iH2-XYoLJEOFKm6F88fJ3WQ@mail.gmail.com>
- <20190312225044.GB38846@gmail.com>
- <CACT4Y+a775wdkjQcsZTLG_Jr4k2gSXnOQF6ZTJDPOc-kvPG9Xw@mail.gmail.com>
+       dkim=pass header.i=@fb.com header.s=facebook header.b=EFvJS0ay;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=iiNPnQaF;
+       spf=pass (google.com: domain of prvs=8975a33d68=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=8975a33d68=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0148461.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2DIIdbO003908;
+	Wed, 13 Mar 2019 11:25:00 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=aikG9yz0lcCeANUDQoaSydrOSD48pgBFE7UyJ3qbhh4=;
+ b=EFvJS0ayLUliwdpHarD7XqwO3TuwLTzzJz/ooI70TeJxS3TutTyBJxBycV7/foSpndlD
+ Wb/rPlX/RLtVLC5Lu4FK5SVl4rT16cErRt1S4nJDjfntgqF4VNgHYHFTmnYWt96z1n9T
+ Z9J90gkIFWKzcvhkqX73ilNistfag4d3nnQ= 
+Received: from mail.thefacebook.com ([199.201.64.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 2r76fur7ru-17
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
+	Wed, 13 Mar 2019 11:25:00 -0700
+Received: from prn-hub06.TheFacebook.com (2620:10d:c081:35::130) by
+ prn-hub04.TheFacebook.com (2620:10d:c081:35::128) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1713.5; Wed, 13 Mar 2019 11:23:12 -0700
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (192.168.54.28)
+ by o365-in.thefacebook.com (192.168.16.30) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
+ via Frontend Transport; Wed, 13 Mar 2019 11:23:12 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector1-fb-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=aikG9yz0lcCeANUDQoaSydrOSD48pgBFE7UyJ3qbhh4=;
+ b=iiNPnQaF3nJfclDdowMVP+eDNrMDAE1LvcFRwnLqbpRTUyFhkz471Oj7GlDWgwuqX29lsiSkAp/QOgQewecjEHG/sA6KePKPifBPiva0emzjADjgMFoif5WcDu9ybnSiU7HE8GqoXbeq/e2THx1vcq2swfrkaARMZg/+zUu9ee0=
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
+ BYAPR15MB3192.namprd15.prod.outlook.com (20.179.56.94) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1709.13; Wed, 13 Mar 2019 18:23:09 +0000
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::790e:7294:b086:9ded]) by BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::790e:7294:b086:9ded%2]) with mapi id 15.20.1686.021; Wed, 13 Mar 2019
+ 18:23:09 +0000
+From: Roman Gushchin <guro@fb.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+CC: Roman Gushchin <guroan@gmail.com>,
+        "linux-mm@kvack.org"
+	<linux-mm@kvack.org>,
+        Kernel Team <Kernel-team@fb.com>,
+        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+        Tejun Heo
+	<tj@kernel.org>, Rik van Riel <riel@surriel.com>,
+        Michal Hocko
+	<mhocko@kernel.org>
+Subject: Re: [PATCH v2 5/6] mm: flush memcg percpu stats and events before
+ releasing
+Thread-Topic: [PATCH v2 5/6] mm: flush memcg percpu stats and events before
+ releasing
+Thread-Index: AQHU2SPIEdyFRN8G5UOFWOBkO8hY8aYJuWyAgAAn5QA=
+Date: Wed, 13 Mar 2019 18:23:09 +0000
+Message-ID: <20190313182301.GA7336@castle.DHCP.thefacebook.com>
+References: <20190312223404.28665-1-guro@fb.com>
+ <20190312223404.28665-6-guro@fb.com> <20190313160017.GA31891@cmpxchg.org>
+In-Reply-To: <20190313160017.GA31891@cmpxchg.org>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-clientproxiedby: MWHPR21CA0041.namprd21.prod.outlook.com
+ (2603:10b6:300:129::27) To BYAPR15MB2631.namprd15.prod.outlook.com
+ (2603:10b6:a03:152::24)
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [2620:10d:c090:180::f5e6]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 41ecc687-2bbb-4fb6-7ac9-08d6a7e0f1f0
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600127)(711020)(4605104)(2017052603328)(7153060)(7193020);SRVR:BYAPR15MB3192;
+x-ms-traffictypediagnostic: BYAPR15MB3192:
+x-microsoft-antispam-prvs: <BYAPR15MB31926B4BD8449EEA55C2E948BE4A0@BYAPR15MB3192.namprd15.prod.outlook.com>
+x-forefront-prvs: 09752BC779
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(376002)(39860400002)(366004)(136003)(396003)(346002)(189003)(199004)(1076003)(6116002)(6486002)(256004)(86362001)(316002)(14444005)(6246003)(7736002)(305945005)(5660300002)(186003)(25786009)(229853002)(52116002)(4326008)(386003)(9686003)(6506007)(76176011)(6916009)(102836004)(81156014)(6436002)(71190400001)(478600001)(53936002)(8676002)(99286004)(97736004)(8936002)(446003)(46003)(14454004)(105586002)(106356001)(476003)(33656002)(11346002)(486006)(6512007)(81166006)(68736007)(2906002)(54906003)(71200400001);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB3192;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: +7PeFCMLvN9IdE+TWAxqLlkLNg6kxDnNavxXpJVIxUHTzOs0Xph1jCxGT/12gQXDC1+CsbnQHVdfRzdPUlIIp1wWSnf08TcQpkYRw7pUOtNumlOLSUv8907C8Ron+gXL465kcvlHCOvoY3mYcdd7I1zxslykLrL5b/gNEnJEGowO+0rOX+1AUCodvyAQBHW5EEngFVMMjqHtHvi9M6SE89/GZ2zX7RgUrcLjkNOkfU7c6+5mVI9uLXedjqtPhL9tc8U8hTG5Q0dIJRcfwS317VeGzIOESE/yuVB+knyiSQGpH/rOQU6j0Fna6QWKfCRowvprBKC5Wa/G0aDooMCG4l9bI824EXq+nNdZJHNxewwgUhUEH81g+i8GId2vpvKTmK1oG381KiIq7y3Z3lr0mPPxGbfJmvH3tlLP0X7+4Rg=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <3F987864893FA84898C6B92CCEE1853F@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACT4Y+a775wdkjQcsZTLG_Jr4k2gSXnOQF6ZTJDPOc-kvPG9Xw@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-MS-Exchange-CrossTenant-Network-Message-Id: 41ecc687-2bbb-4fb6-7ac9-08d6a7e0f1f0
+X-MS-Exchange-CrossTenant-originalarrivaltime: 13 Mar 2019 18:23:09.6178
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB3192
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-13_11:,,
+ signatures=0
+X-Proofpoint-Spam-Reason: safe
+X-FB-Internal: Safe
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 13, 2019 at 09:24:21AM +0100, 'Dmitry Vyukov' via syzkaller-bugs wrote:
-> On Tue, Mar 12, 2019 at 11:50 PM Eric Biggers <ebiggers@kernel.org> wrote:
-> >
-> > On Tue, Mar 12, 2019 at 09:33:44AM +0100, 'Dmitry Vyukov' via syzkaller-bugs wrote:
-> > > On Tue, Mar 12, 2019 at 7:25 AM Andrew Morton <akpm@linux-foundation.org> wrote:
-> > > >
-> > > > On Tue, 12 Mar 2019 07:08:38 +0100 Dmitry Vyukov <dvyukov@google.com> wrote:
-> > > >
-> > > > > On Tue, Mar 12, 2019 at 12:37 AM Andrew Morton
-> > > > > <akpm@linux-foundation.org> wrote:
-> > > > > >
-> > > > > > On Mon, 11 Mar 2019 06:08:01 -0700 syzbot <syzbot+fa11f9da42b46cea3b4a@syzkaller.appspotmail.com> wrote:
-> > > > > >
-> > > > > > > syzbot has bisected this bug to:
-> > > > > > >
-> > > > > > > commit 29a4b8e275d1f10c51c7891362877ef6cffae9e7
-> > > > > > > Author: Shakeel Butt <shakeelb@google.com>
-> > > > > > > Date:   Wed Jan 9 22:02:21 2019 +0000
-> > > > > > >
-> > > > > > >      memcg: schedule high reclaim for remote memcgs on high_work
-> > > > > > >
-> > > > > > > bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=155bf5db200000
-> > > > > > > start commit:   29a4b8e2 memcg: schedule high reclaim for remote memcgs on..
-> > > > > > > git tree:       linux-next
-> > > > > > > final crash:    https://syzkaller.appspot.com/x/report.txt?x=175bf5db200000
-> > > > > > > console output: https://syzkaller.appspot.com/x/log.txt?x=135bf5db200000
-> > > > > > > kernel config:  https://syzkaller.appspot.com/x/.config?x=611f89e5b6868db
-> > > > > > > dashboard link: https://syzkaller.appspot.com/bug?extid=fa11f9da42b46cea3b4a
-> > > > > > > userspace arch: amd64
-> > > > > > > syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=14259017400000
-> > > > > > > C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=141630a0c00000
-> > > > > > >
-> > > > > > > Reported-by: syzbot+fa11f9da42b46cea3b4a@syzkaller.appspotmail.com
-> > > > > > > Fixes: 29a4b8e2 ("memcg: schedule high reclaim for remote memcgs on
-> > > > > > > high_work")
-> > > > > >
-> > > > > > The following patch
-> > > > > > memcg-schedule-high-reclaim-for-remote-memcgs-on-high_work-v3.patch
-> > > > > > might have fixed this.  Was it applied?
-> > > > >
-> > > > > Hi Andrew,
-> > > > >
-> > > > > You mean if the patch was applied during the bisection?
-> > > > > No, it wasn't. Bisection is very specifically done on the same tree
-> > > > > where the bug was hit. There are already too many factors that make
-> > > > > the result flaky/wrong/inconclusive without changing the tree state.
-> > > > > Now, if syzbot would know about any pending fix for this bug, then it
-> > > > > would not do the bisection at all. But it have not seen any patch in
-> > > > > upstream/linux-next with the Reported-by tag, nor it received any syz
-> > > > > fix commands for this bugs. Should have been it aware of the fix? How?
-> > > >
-> > > > memcg-schedule-high-reclaim-for-remote-memcgs-on-high_work-v3.patch was
-> > > > added to linux-next on Jan 10.  I take it that this bug was hit when
-> > > > testing the entire linux-next tree, so we can assume that
-> > > > memcg-schedule-high-reclaim-for-remote-memcgs-on-high_work-v3.patch
-> > > > does not fix it, correct?
-> > > > In which case, over to Shakeel!
-> > >
-> > > Jan 10 is exactly when this bug was reported:
-> > > https://groups.google.com/forum/#!msg/syzkaller-bugs/5YkhNUg2PFY/4-B5M7bDCAAJ
-> > > https://syzkaller.appspot.com/bug?extid=fa11f9da42b46cea3b4a
-> > >
-> > > We don't know if that patch fixed the bug or not because nobody tested
-> > > the reproducer with that patch.
-> > >
-> > > It seems that the problem here is that nobody associated the fix with
-> > > the bug report. So people looking at open bug reports will spend time
-> > > again and again debugging this just to find that this was fixed months
-> > > ago. syzbot also doesn't have a chance to realize that this is fixed
-> > > and bisection is not necessary anymore. It also won't confirm/disprove
-> > > that the fix actually fixes the bug because even if the crash will
-> > > continue to happen it will look like the old crash just continues to
-> > > happen, so nothing to notify about.
-> > >
-> > > Associating fixes with bug reports solves all these problems for
-> > > humans and bots.
-> > >
-> >
-> > I think syzbot needs to be more aggressive about invalidating old bug reports on
-> > linux-next, e.g. automatically invalidate linux-next bugs that no longer occur
-> > after a few weeks even if there is a reproducer.  Patches get added, changed,
-> > and removed in linux-next every day.  Bugs that syzbot runs into on linux-next
-> > are often obvious enough that they get reported by other people too, resulting
-> > in bugs being fixed or dropped without people ever seeing the syzbot report.
-> > How do you propose that people associate fixes with syzbot reports when they
-> > never saw the syzbot report in the first place?
-> >
-> > This is a problem on mainline too, of course.  But we *know* it's a more severe
-> > problem on linux-next, and that a bug like this that only ever happened on
-> > linux-next and stopped happening 2 months ago, is much less likely to be
-> > relevant than a bug in mainline.  Kernel developers don't have time to examine
-> > every single syzbot report so you need to help them out by reducing the noise.
-> 
-> Please file an issue for this at https://github.com/google/syzkaller/issues
+On Wed, Mar 13, 2019 at 12:00:17PM -0400, Johannes Weiner wrote:
+> On Tue, Mar 12, 2019 at 03:34:02PM -0700, Roman Gushchin wrote:
+> > Flush percpu stats and events data to corresponding before releasing
+> > percpu memory.
+> >=20
+> > Although per-cpu stats are never exactly precise, dropping them on
+> > floor regularly may lead to an accumulation of an error. So, it's
+> > safer to flush them before releasing.
+> >=20
+> > To minimize the number of atomic updates, let's sum all stats/events
+> > on all cpus locally, and then make a single update per entry.
+> >=20
+> > Signed-off-by: Roman Gushchin <guro@fb.com>
+>=20
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+>=20
+> Do you mind merging 6/6 into this one? That would make it easier to
+> verify that the code added in this patch and the code removed in 6/6
+> are indeed functionally equivalent.
+>=20
 
-I filed https://github.com/google/syzkaller/issues/1054
+I did try, but the result is the mess of added and removed lines,
+which are *almost* the same, but are slightly different (e.g. tabs).
+So it's much easier to review it as two separate patches.
 
-> 
-> I also wonder how does this work for all other kernel bugs reports?
-> syzbot is not the only one reporting kernel bugs and we don't want to
-> invent new rules here.
-
-Well, I think you already know the answer to that.  There's no unified bug
-tracking system for all kernel subsystems, so in the worst case bugs/features
-just get ignored until someone cares to bring it up again.  I know you want to
-change that, but the larger problem is that there aren't enough people able and
-funded to do the work.  For the kernel overall (some subsystems are better, OFC)
-there so many low-quality, duplicate, or irrelevant reports/requests that no one
-can keep up.  That means maintainers have to focus on the highest priority
-reports/requests, such as the ones that are clearly relevant and get continued
-discussion, vs. some random problem someone had 2 years ago.  Just putting stuff
-on a bug tracker does not magically make people work on it.
-
-I think the reality is that until people can actually be funded to immediately
-analyze every syzbot report, syzbot needs to be designed to help developers
-focus on the reports most likely to still be actual bugs.  That means
-automatically closing bugs where the crash is no longer occurring, especially if
-it was on linux-next; and sending reminders if the crash is still occurring.
-
-> 
-> Also note that what happens now may be not representative of what will
-> happen in a steady mode later. Now syzbot bisects old bugs accumulated
-> over 1+ year. Later if it reports a bug, it should bisect sooner. So
-> all of what happens in this bug report won't take place.
-> 
-
-Sure, but I think there will continue to be syzbot reports that the relevant
-people either don't see, or don't have time or expertise to look into.  This is
-especially true when the same bug is filed as many different bug reports.
-
-- Eric
+Thanks!
 
