@@ -2,152 +2,141 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B9039C10F03
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:29:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1BCECC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:33:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7E990206BA
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:29:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7E990206BA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id DA11E2146E
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:33:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DA11E2146E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 19C768E0003; Wed, 13 Mar 2019 12:29:11 -0400 (EDT)
+	id 62C248E0003; Wed, 13 Mar 2019 12:33:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 14ADE8E0001; Wed, 13 Mar 2019 12:29:11 -0400 (EDT)
+	id 5DA928E0001; Wed, 13 Mar 2019 12:33:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 03A9E8E0003; Wed, 13 Mar 2019 12:29:10 -0400 (EDT)
+	id 4F1298E0003; Wed, 13 Mar 2019 12:33:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E8A98E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:29:10 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id f15so1180137edt.7
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 09:29:10 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F4DB8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:33:10 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id w16so2723191pfn.3
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 09:33:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=OY7cVf7fiSetvbco/da0cjAAKk/48aTVYLVyCJZ/wyo=;
-        b=kmfOUM6SvmFtXvo3iQsEPuk6t2ftYp+VMLFoaXxyYA0sBXah3Ysx8nVWZl2LKNxYdO
-         f3k1sxFTVHJnIqxsfJ+8s4GjXt72N5LH60lHX2bCiweTEVq3a8M5sLvuK83BQbqYuep7
-         wLxUFFQB9rvmxYKrRXa+wDvFGtwsS7PAffdGQ1NEYWeOg45RNbXeo/uO9ape8n66aWVb
-         7XVUeuZyOYf8GwsvXyUTbUH5N/Zu/eTHh/6EltSgEB19PhfH23H34FiTc2aZW9evDgIC
-         ro6tl8YzSiYuKH94TVGrzGMHmmm+4/p0yQAP8GMLeo3q1p9InuoBPFhF6Fn6v7j0e7t8
-         aRCg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-X-Gm-Message-State: APjAAAWQlMOMaHbu3cLBl+aPY+HoEV8P6BVi3s0I6anHAJ6OJxlmW+q+
-	DNAWmCy04UZw9p9tPKk9QexHNnJkEAGdDMBrMLdDImfMJwHbfBbac51wR0eGMZFHUFoDZ1jHDFj
-	F/ETyofGe2myxYvjuDXrJh1Bw2Lo7f70vc8KGUhMOrAGW/zs4HXNK2GPTq+s3k5aplw==
-X-Received: by 2002:a50:b493:: with SMTP id w19mr8761027edd.11.1552494550175;
-        Wed, 13 Mar 2019 09:29:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwV2UtXqKG2iwC9wbt8PzBnRh720eZ1YMgT+mcwns8K0plkqb1oTDKZN3oT+/PLpOKF1Tjj
-X-Received: by 2002:a50:b493:: with SMTP id w19mr8760973edd.11.1552494549287;
-        Wed, 13 Mar 2019 09:29:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552494549; cv=none;
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=K3s/wb0K11ci6QSQvX1zI7+LS/aGT46CY+E57M7Cxp8=;
+        b=PPY7Skqthf10L2ONKxjU37LUYiaOLNpGRR3DVo5f5O9N7MjcLhYkD4q8AbqYncLc33
+         vLxehH4+v5J7mBM/KFXslIrzGYOwvhIN1WXaPdNlAQkcXtAbtJ/Va954kxsO7ueWXUJT
+         rJTBc65SV3aYdyRLi9KSAJAeQ8phokA0e4fjPH0ucnhcd7or67Kpyz0gn0955qeuC/5r
+         uRa6LvULefPABD6emDWcCHCxjGoGgzSzKG06fdlcuYNCKJUhFyAZqVSR/ZfGa1SsoJvO
+         iDdSvBFnJRf/K7hdZHm887Of0YvOmKW+Nr14VBWVlrwx0lJjCewgmCcGU2gt/tjq4mtS
+         BPwA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+X-Gm-Message-State: APjAAAUaIXwZbg7POmO1PxGo8EknpsLhqVCcD3mdMyrXw7KK4Qo4iiOP
+	++iM4BLnB+f6VcwxTQrAp002FQ5xKSJMurPf4fgB7fPSNgeO2YzcHczX5ROHd5FgMbMO6O/FzcH
+	cj8xxVwGOPOWkZwWo2WxS7wQ9mYDj3/kqaopoqciqRoBYqind172tN4uRnHgpyLTHRg==
+X-Received: by 2002:a62:2ad1:: with SMTP id q200mr44102805pfq.34.1552494789686;
+        Wed, 13 Mar 2019 09:33:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzwGrPVq5xviqDdEaGD8oFTSSy3EMbP+fqhirYiKnwvBiDSmnVLF7i6w82RxxfXQPupU9s7
+X-Received: by 2002:a62:2ad1:: with SMTP id q200mr44102755pfq.34.1552494788676;
+        Wed, 13 Mar 2019 09:33:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552494788; cv=none;
         d=google.com; s=arc-20160816;
-        b=H6DYxc8NRJees2sQ7Toy+nBG8aaQboL9QnD98PlJzvGS6ld7EE5z6OmHWmjnUwQATZ
-         xcxF+nED0zLaBRpmVGEu4DhxQRCJJJC22VIpoXzGK0HaDuaYOSEXhQs/OEidy959kMeb
-         NYI0lFjJOkgzrcUcV0BkG/3i1mcGVLRAuwG6qeLV2b/cZaucxap/M3rI/ereFwtPbx+Q
-         hUkXndSc8Q5KGXbgUS/DPvHhMeOU8eBsd+6D1X6/yGp4uau8hjCL9/yCS3IqYhEdq80I
-         x5Jj/JRNZGOwnCwjGNvB6HeiJtSGg2dZIjloByRpsE2kFkDWNQfs4rAqXms8vMB5gmgO
-         Udpw==
+        b=kEvNwusybTZibf5Rlzuj2Xmm8VxSuIIFIAu5+Vj/n02KgA0p40R/RbwlVu536k7CHo
+         tqYLogDOeOOGoheKNiW7auk6CmURYchPy9YEz3klJexeI65IQ1KppkM48wqyQ7SbDcMB
+         MnUx9gLXkbzfGIYkJ2rtZ7RxdMF9X1/AVVbm3oXNPpGvUKzbvssh1GCPB5KqF2An6hxg
+         xEwcea1XiIWRCA1vMlijWE9PzbUBVZ57/QEXx4bvlGixf9bNtIZtponODy0JWMRExcIf
+         j3KPU6cmrqd9HiaRRMA9UPzpZ8Epp7zJDRFi/xdCfPpgLbMI5q8eMzCIb9glXT2hQcx6
+         ljXA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
+        h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date;
-        bh=OY7cVf7fiSetvbco/da0cjAAKk/48aTVYLVyCJZ/wyo=;
-        b=Myk4dI5Hu1HOJEyJaY4nj3+e3BkMwBeE5lt/eCLn92AB/MfwsGAONjv8nfxzo/WFrP
-         yTTOU3cUtYpi8SB15VzytrMlzWJEKxybup9wN0qoSlcyPJru5HRE5/XUCzWvigyEdMcp
-         h/01kos9ysUJYPSkb2nIV2lnivb64RbCWi1E2ACwC2LskCNUztwpmXFYmQ0nhxuZw8Lq
-         NDv93QuOG1NXNj1u0hGOdik4oJsBrqgABaPnNeCxxxd6NE9CLuDOvfg9BTdojmXVEXpS
-         cVqQNxyk2i/Er2OcqZylBPqXiDiisPrhKSfExg3apHWbNhHzDM6IkYmfcsrzg0T+QsXu
-         ECLg==
+        bh=K3s/wb0K11ci6QSQvX1zI7+LS/aGT46CY+E57M7Cxp8=;
+        b=tUuBF47vEoWF11so40X3wEuq04Xyel6wYbt4rRylQ55DYgGrckYNPLqLe9uoCZK/rv
+         lZEIf6KwXikaP9tHIjcPyv7wD6zS0hLXJPJMZNx+KKFedZpUgDCnHEXkXjUhP1lmiBOJ
+         cY5wLindx1uWlYM5oNY3VIHltSYmTS4TLqy4oPBJ1FrtjpGhzrElqywBBmvuAllxvCUw
+         cpiRQJwRtmU5NnRQ9s+VljbUcp7R5AEVqDSiqwNcrbkwEcSGbH28PrYsAw361R29ej46
+         bUZHGHr+hskcwt0oPDQikIHT3xsRxN89NqX5Kkv3uYKYILyUVejXZ/moEVxapdqvQAk3
+         OtrA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id z1si996578edl.211.2019.03.13.09.29.09
-        for <linux-mm@kvack.org>;
-        Wed, 13 Mar 2019 09:29:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id b1si11434684pla.382.2019.03.13.09.33.08
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Mar 2019 09:33:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 1FEE280D;
-	Wed, 13 Mar 2019 09:29:08 -0700 (PDT)
-Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id BC8233F71D;
-	Wed, 13 Mar 2019 09:29:06 -0700 (PDT)
-Date: Wed, 13 Mar 2019 16:29:04 +0000
-From: Mark Rutland <mark.rutland@arm.com>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Peter Zijlstra <peterz@infradead.org>, Qian Cai <cai@lca.pw>,
-	Jason Gunthorpe <jgg@mellanox.com>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH] mm/debug: add a cast to u64 for atomic64_read()
-Message-ID: <20190313162903.GB39315@lakrids.cambridge.arm.com>
-References: <20190310183051.87303-1-cai@lca.pw>
- <20190311035815.kq7ftc6vphy6vwen@linux-r8p5>
- <20190311122100.GF22862@mellanox.com>
- <1552312822.7087.11.camel@lca.pw>
- <CAK8P3a0QB7+oPz4sfbW_g2EGZZmC=LMEnkMNLCW_FD=fEZoQPA@mail.gmail.com>
- <20190313091844.GA24390@hirez.programming.kicks-ass.net>
- <20190313143552.GA39315@lakrids.cambridge.arm.com>
- <CAK8P3a3V+1sQJfTAipYyOeV5b379eYZXasRFjWnf9oKPtCTviQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAK8P3a3V+1sQJfTAipYyOeV5b379eYZXasRFjWnf9oKPtCTviQ@mail.gmail.com>
-User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 7739ECB7;
+	Wed, 13 Mar 2019 16:33:07 +0000 (UTC)
+Date: Wed, 13 Mar 2019 09:33:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org,
+ sparclinux@vger.kernel.org, linux-kernel@vger.kernel.org,
+ linux-nvdimm@lists.01.org, davem@davemloft.net,
+ pavel.tatashin@microsoft.com, mingo@kernel.org,
+ kirill.shutemov@linux.intel.com, dan.j.williams@intel.com,
+ dave.jiang@intel.com, rppt@linux.vnet.ibm.com, willy@infradead.org,
+ vbabka@suse.cz, khalid.aziz@oracle.com, ldufour@linux.vnet.ibm.com,
+ mgorman@techsingularity.net, yi.z.zhang@linux.intel.com
+Subject: Re: [mm PATCH v6 6/7] mm: Add reserved flag setting to
+ set_page_links
+Message-Id: <20190313093306.c4b49c6d062f506a967f843d@linux-foundation.org>
+In-Reply-To: <4c72a04bb87e341ea7c747d509f42136a99a0716.camel@linux.intel.com>
+References: <154361452447.7497.1348692079883153517.stgit@ahduyck-desk1.amr.corp.intel.com>
+	<154361479877.7497.2824031260670152276.stgit@ahduyck-desk1.amr.corp.intel.com>
+	<20181205172225.GT1286@dhcp22.suse.cz>
+	<19c9f0fe83a857d5858c386a08ca2ddeba7cf27b.camel@linux.intel.com>
+	<20181205204247.GY1286@dhcp22.suse.cz>
+	<20190312150727.cb15cbc323a742e520b9a881@linux-foundation.org>
+	<4c72a04bb87e341ea7c747d509f42136a99a0716.camel@linux.intel.com>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 13, 2019 at 03:57:42PM +0100, Arnd Bergmann wrote:
-> On Wed, Mar 13, 2019 at 3:36 PM Mark Rutland <mark.rutland@arm.com> wrote:
-> > On Wed, Mar 13, 2019 at 10:18:44AM +0100, Peter Zijlstra wrote:
-> > > On Mon, Mar 11, 2019 at 03:20:04PM +0100, Arnd Bergmann wrote:
-> > > > On Mon, Mar 11, 2019 at 3:00 PM Qian Cai <cai@lca.pw> wrote:
-> >
-> > I think that using s64 consistently (with any necessary alignment
-> > annotation) makes the most sense. That's unambigious, and what the
-> > common headers now use.
-> >
-> > Now that the scripted atomics are merged, I'd like to move arches over
-> > to arch_atomic_*(), so the argument and return types will become s64
-> > everywhere.
+On Tue, 12 Mar 2019 15:50:36 -0700 Alexander Duyck <alexander.h.duyck@linux.intel.com> wrote:
+
+> On Tue, 2019-03-12 at 15:07 -0700, Andrew Morton wrote:
+> > On Wed, 5 Dec 2018 21:42:47 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+> > 
+> > > > I got your explanation. However Andrew had already applied the patches
+> > > > and I had some outstanding issues in them that needed to be addressed.
+> > > > So I thought it best to send out this set of patches with those fixes
+> > > > before the code in mm became too stale. I am still working on what to
+> > > > do about the Reserved bit, and plan to submit it as a follow-up set.
+> > > > From my experience Andrew can drop patches between different versions of
+> > > the patchset. Things can change a lot while they are in mmotm and under
+> > > the discussion.
+> > 
+> > It's been a while and everyone has forgotten everything, so I'll drop
+> > this version of the patchset.
+> > 
 > 
-> Yes, that sounds like the easiest way, especially if we don't touch the
-> internal implementation but simply rename all the symbols provided
-> by the architectures. Is that what you had in mind, or would you go
-> beyond the minimum changes here?
+> As far as getting to the reserved bit I probably won't have the time in
+> the near future. If I were to resubmit the first 4 patches as a
+> standalone patch set would that be acceptable, or would they be held up
+> as well until the reserved bit issues is addressed?
+> 
 
-I'd expected to convert arches one-by-one, updating the types during
-conversion. I guess it's not strictly necessary to change the internal
-types, but it would seem nicer to do that.
+Yes, I think that merging the first four will be OK.  As long as they
+don't add some bug which [5/5] corrects, which happens sometimes!
 
-I don't think it's possible to do that rename right now, unless we do it
-treewide. There are a few core things that need to be fixed up first,
-e.g. making <asm-generic/atomic{,64}.h> play nicely with
-<asm-generic/atomic-instrumented.h>.
-
-In the end, what I'd like to get to is:
-
-* Arch code provids arch_atomic*_*().
-
-* Common code fleshes out the entire API as raw_atomic*_*(), build atop
-  of arch_atomic*_*(). All the ifdeffery lives here.
-
-* Common code builds the instrumented atomic*_*() API atop of the
-  raw_atomic*_*() API. No ifdeffery necessary here.
-
-Thanks,
-Mark.
+Please redo, retest and resend sometime?
 
