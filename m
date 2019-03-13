@@ -7,105 +7,105 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DAB6C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 19:11:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 472D1C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 19:11:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B80F1213A2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 19:11:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E7C052173C
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 19:11:45 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="mZKNr6LS"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B80F1213A2
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="wNnlPQ/w"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E7C052173C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 56DFF8E0004; Wed, 13 Mar 2019 15:11:41 -0400 (EDT)
+	id 9B1EF8E0005; Wed, 13 Mar 2019 15:11:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4F4B38E0001; Wed, 13 Mar 2019 15:11:41 -0400 (EDT)
+	id 9391C8E0001; Wed, 13 Mar 2019 15:11:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3BD188E0004; Wed, 13 Mar 2019 15:11:41 -0400 (EDT)
+	id 7DBC38E0005; Wed, 13 Mar 2019 15:11:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EEB738E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 15:11:40 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id d128so3286132pgc.8
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:11:40 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AF688E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 15:11:45 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id y1so3318176pgo.0
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:11:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=6Tag9EqO03KMHYu8p++5IfmVZggsrAI5p9kAMMcr9Ug=;
-        b=muAgDaDKcTIVhNVFyrAi9AT+WLz8tLmXCiyyxm2BsF0bwauetvHwMF7WpXKeSzN1oZ
-         4RFTEkJ3QcqkzMNTyC7RpvUZXtrzAuNe80S83B2J4SHpxtUOz0lb8G/hNNgbVtBSTvGR
-         ncO/iebQQXsmz9mngjuqXjfn93ceTmafpaZAbLJnRX98rpuxH16p83oedP8s9UXgfBRl
-         jsjjJBKMEs5F6L0S6zq0EGziI65cSNGSz3QALoSvqEWYIInzip4U5GKBIBChaVOXPswU
-         xdnazFcgJy56ud3407TYKLfOW2ApJliboX2Lx8wzfkOdWGTRUG4hNFXITMkuPARCRS/D
-         52Bg==
-X-Gm-Message-State: APjAAAUYEcuiX75V9D+/hntyHJhXKbX6Q0LZP4AUbY/lsLeyAVcx5v5C
-	gNuTJDy6heTaHvOAbPHiZKuxtb57gfFMw1bmdA4Au+eBNlH0CKG8mX5WRm4ZRpS8usDhjxwWJ3D
-	Kmi1k7+hm2E8qOtt2l/kNksJzNLaP0IsdqOtRqsguC7CCq5WzVBSbAt3sKB1U6/ssYA==
-X-Received: by 2002:a62:54c5:: with SMTP id i188mr44483633pfb.188.1552504300602;
-        Wed, 13 Mar 2019 12:11:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxgVJDGYB9VhLmq1jlQ/hdAoyTw5Nsy4sfZQVbcw/IWR9cp9Epfy01KOLnHO8a2oViAAHPX
-X-Received: by 2002:a62:54c5:: with SMTP id i188mr44483570pfb.188.1552504299819;
-        Wed, 13 Mar 2019 12:11:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552504299; cv=none;
+        bh=pPIycjxVsX3Ze4vTm38GWRDVORu3ZQrzKvzouG/Fgt0=;
+        b=a9043htE3rgvHyDrFVtltyOq0tQ2i0ya92fO+zJT8bEVQn/yUaEp8LrrGqOSvg5u3s
+         ML146KHCoo/OQBuT/9V4QT8xUmiyL298Qbzjn94cjh5Sj1nljXah4yTu+YS4Nnvqb/uE
+         jrOx6nVhnwp2hUQ/vebeP393yc0yHwlK7PbutVDeqb0bEmGhWCU+g5xDI8TxnXYFPUKx
+         u5ef/PVpOdan1wmQ7dhM3YnM38bhOWsnS2hYhlWSTtmSkoGyrP45fM8GIVxTpEprBv1x
+         l7/RsXAVQCXkkn2E5InX0/qwrgwV7Pv2rPs0EdgrEFgJkU1JQJrD0P14vhXDmDiPf5J+
+         wwag==
+X-Gm-Message-State: APjAAAUk8Lf6+dD4NfPxtzuaE7QKIJAeADYZa23QNVZz8IEkz1iOqiyy
+	c8nKbogXKSiTk0XbyRXFsPx1BIb0zNfA/8kwJYU/21Lr2AUKHs8lUru+K0x0zBIJ0EWW7QEzQ0h
+	5jD2j/xLoG+1Dzj7FYbwcPSgn/cQ0+KYmiumNe5qXpilJElbivRAyukp7BLH1yQpatA==
+X-Received: by 2002:a17:902:29ca:: with SMTP id h68mr3066331plb.297.1552504304831;
+        Wed, 13 Mar 2019 12:11:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyjnw6uh93/rnZQ/giI3qGJQMYY78Ont5ef6RhOBpz34Z1H9+WoNVBHNMEqgVrnONo8OrYI
+X-Received: by 2002:a17:902:29ca:: with SMTP id h68mr3066267plb.297.1552504304055;
+        Wed, 13 Mar 2019 12:11:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552504304; cv=none;
         d=google.com; s=arc-20160816;
-        b=FzkHXvlDU2A9XkEqswn3Q9VuaGpBcLPK/t/Xx+Zept1brLAujQVBt+6zpU7jFcyote
-         Qj07iaS1lGqwrxK4LL+1NaXDzg7xxibfu+6uwcaLvKDhkDZdwVmIARkQmRPlwJZWLGDL
-         ajbPF6WmOlZRt/OTgvFEQh90/8Px2uZQEPxztdvPne4PzvZpBj+J83UMQUAbMgTfPexy
-         46Jk8Q15970Ulbk2OmuaD838TsYU5smmO6jQtTpM5eg2L2Am8+8oSnuQb05Kcg8kT7jk
-         jGhfGTta6YsHUaeP6DT7aWeTUBqLwSliMpd3AS1amdof9ukdscwMUTev+0t9txuSSzt1
-         hRnQ==
+        b=hQXNFqwgau06pdR97v6fuPYNxIMYpiAUBkv9r+GwQTBNyiPr8vZj4Tusm3GRbWbPdt
+         x8oZ5nyTotKHZRVTdvBogqBYqBUiLJXELi5ufiUARZx1h1nUeuFZXRY8WFGxpU6F2x7c
+         niR8fEvYiCbuoNdj6zYs2orvB1m4+Yqe9kxCDNb5XDc9MKkhjZnuk8dn59PIcKITg/h6
+         HaMeCNKkeuj3uoH4VBEMaKX+H1Gz3NylrzUHalldEvVDhQzz1B5uA6emE4ocDqNKexe5
+         sf2HvI8TA1g8N6Kd6Gjy9LpMzNXSmOH0VKsT9iQLSoJQxK0cd60hQQDI29podBga0a9s
+         DG5g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=6Tag9EqO03KMHYu8p++5IfmVZggsrAI5p9kAMMcr9Ug=;
-        b=w3cH2U+WSQiouMUprr1jSnAUO+th+d4jXHqHIG6JSidRE7MsaEChW8EQjlmHwe+eMJ
-         pSl9vYtBFMEZHp5Cjntk7TJX5CTUmfDWpqfSIEghbshUqbqOwH+dATCP1eb2wdKo/ZDC
-         4h7b5pSd7Rbpny6SSSG/Yxwq2UKddTt9510sguxGf+nn0l1Lk5vvxMLioPIrrjwZHXrz
-         ATSzVT8OrI/vVTuTOIdqaEuIOqtGmSphVbWGmUYTk+rDtbTKt6bPuh1vfzrP9Hz60lyF
-         hY+l77wDl9u7cwF/Aq6DLSe/MVjm/8WqplzjXL++RUC7WCH5c7L/LvHT3ZZudjNThgHx
-         rPow==
+        bh=pPIycjxVsX3Ze4vTm38GWRDVORu3ZQrzKvzouG/Fgt0=;
+        b=MkqXD4WJHGIRMiGDXuP2qtB9uB43ZAhdc4K9beRUtync7SsGCYjGDPbYtjBj51gh9a
+         xK9bS/q7FG1Vofe3LhhA31jdxYXtqUuRJSwTpl4pHmoAuz3uaRU0U5d2oR5bdoRoVqAd
+         GEJpYtjs0R8+jv4q2dcOrC+Jrc+obzXWoKy6A7ANcJP6TnzCQTC3tOYxW6ooohjK7B1/
+         9j/hPAZ5UhPHjf9bUxJlMjzmOEsPOu3Z0cQeqAZEOKVnCaVX30rDJ4SntT9xghsoEujo
+         9fxJ1+Eut/EWfX3a88VKIASAxDCASpciZq/sI8SJ3sPncMbCgoYOxuPmfRc3Q9WZnpLi
+         msDQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=mZKNr6LS;
+       dkim=pass header.i=@kernel.org header.s=default header.b="wNnlPQ/w";
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id f1si11799758pld.87.2019.03.13.12.11.39
+        by mx.google.com with ESMTPS id v6si11189312plo.129.2019.03.13.12.11.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Mar 2019 12:11:39 -0700 (PDT)
+        Wed, 13 Mar 2019 12:11:44 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=mZKNr6LS;
+       dkim=pass header.i=@kernel.org header.s=default header.b="wNnlPQ/w";
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 72385213A2;
-	Wed, 13 Mar 2019 19:11:37 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 20AB9213A2;
+	Wed, 13 Mar 2019 19:11:41 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1552504299;
-	bh=jxkikg5QHx//0IM4ZsTVNLsYhaj12DfblrWwOmRjxp8=;
+	s=default; t=1552504303;
+	bh=/uP16jNlmCtvaeiTKwrjdK+zw3IfqialZn0qnVCqR9E=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=mZKNr6LSCcahl+kNRMGJFPNgnCEjY6H6QB5zTBRhSt0Opp8KoYEjdD/SkRHdOi3Yt
-	 5f3J52iaY3jy+7XqJfZwIWGnBJOx2TvMx55sBWeBfdRtXfcaFLFhCDl/nNScB3x4dU
-	 0FKlKmCwvlo/inOsAqLjefaENTjFdWwayEuXF3Ao=
+	b=wNnlPQ/wjJnsMM5pJPfKBIRyGgiKOF867/IQpbcFpJKyO2+RUXDRViHHlPQIDtn2H
+	 aFP55Eog2AP47I+aSi7tAoC/Bx91NxpL+lVi0L0lXK1oo9/mn7mbFPbvYWVo6X4zma
+	 PrbrLEF02TEYsEgN9oYoi19SyBPIGhqfPjXCYaOg=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Michal Hocko <mhocko@suse.com>,
-	Tejun Heo <tj@kernel.org>,
+Cc: "Darrick J. Wong" <darrick.wong@oracle.com>,
+	Hugh Dickins <hughd@google.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.20 35/60] mm: handle lru_add_drain_all for UP properly
-Date: Wed, 13 Mar 2019 15:09:56 -0400
-Message-Id: <20190313191021.158171-35-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.20 37/60] tmpfs: fix link accounting when a tmpfile is linked in
+Date: Wed, 13 Mar 2019 15:09:58 -0400
+Message-Id: <20190313191021.158171-37-sashal@kernel.org>
 X-Mailer: git-send-email 2.19.1
 In-Reply-To: <20190313191021.158171-1-sashal@kernel.org>
 References: <20190313191021.158171-1-sashal@kernel.org>
@@ -118,84 +118,62 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Michal Hocko <mhocko@suse.com>
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
 
-[ Upstream commit 6ea183d60c469560e7b08a83c9804299e84ec9eb ]
+[ Upstream commit 1062af920c07f5b54cf5060fde3339da6df0cf6b ]
 
-Since for_each_cpu(cpu, mask) added by commit 2d3854a37e8b767a
-("cpumask: introduce new API, without changing anything") did not
-evaluate the mask argument if NR_CPUS == 1 due to CONFIG_SMP=n,
-lru_add_drain_all() is hitting WARN_ON() at __flush_work() added by
-commit 4d43d395fed12463 ("workqueue: Try to catch flush_work() without
-INIT_WORK().") by unconditionally calling flush_work() [1].
+tmpfs has a peculiarity of accounting hard links as if they were
+separate inodes: so that when the number of inodes is limited, as it is
+by default, a user cannot soak up an unlimited amount of unreclaimable
+dcache memory just by repeatedly linking a file.
 
-Workaround this issue by using CONFIG_SMP=n specific lru_add_drain_all
-implementation.  There is no real need to defer the implementation to
-the workqueue as the draining is going to happen on the local cpu.  So
-alias lru_add_drain_all to lru_add_drain which does all the necessary
-work.
+But when v3.11 added O_TMPFILE, and the ability to use linkat() on the
+fd, we missed accommodating this new case in tmpfs: "df -i" shows that
+an extra "inode" remains accounted after the file is unlinked and the fd
+closed and the actual inode evicted.  If a user repeatedly links
+tmpfiles into a tmpfs, the limit will be hit (ENOSPC) even after they
+are deleted.
 
-[akpm@linux-foundation.org: fix various build warnings]
-[1] https://lkml.kernel.org/r/18a30387-6aa5-6123-e67c-57579ecc3f38@roeck-us.net
-Link: http://lkml.kernel.org/r/20190213124334.GH4525@dhcp22.suse.cz
-Signed-off-by: Michal Hocko <mhocko@suse.com>
-Reported-by: Guenter Roeck <linux@roeck-us.net>
-Debugged-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Tejun Heo <tj@kernel.org>
+Just skip the extra reservation from shmem_link() in this case: there's
+a sense in which this first link of a tmpfile is then cheaper than a
+hard link of another file, but the accounting works out, and there's
+still good limiting, so no need to do anything more complicated.
+
+Link: http://lkml.kernel.org/r/alpine.LSU.2.11.1902182134370.7035@eggly.anvils
+Fixes: f4e0c30c191 ("allow the temp files created by open() to be linked to")
+Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+Signed-off-by: Hugh Dickins <hughd@google.com>
+Reported-by: Matej Kupljen <matej.kupljen@gmail.com>
+Acked-by: Al Viro <viro@zeniv.linux.org.uk>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/swap.c | 17 ++++++++++-------
- 1 file changed, 10 insertions(+), 7 deletions(-)
+ mm/shmem.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
 
-diff --git a/mm/swap.c b/mm/swap.c
-index aa483719922e..e99ef3dcdfd5 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -320,11 +320,6 @@ static inline void activate_page_drain(int cpu)
- {
- }
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 5d07e0b1352f..7872e3b75e57 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -2852,10 +2852,14 @@ static int shmem_link(struct dentry *old_dentry, struct inode *dir, struct dentr
+ 	 * No ordinary (disk based) filesystem counts links as inodes;
+ 	 * but each new link needs a new dentry, pinning lowmem, and
+ 	 * tmpfs dentries cannot be pruned until they are unlinked.
++	 * But if an O_TMPFILE file is linked into the tmpfs, the
++	 * first link must skip that, to get the accounting right.
+ 	 */
+-	ret = shmem_reserve_inode(inode->i_sb);
+-	if (ret)
+-		goto out;
++	if (inode->i_nlink) {
++		ret = shmem_reserve_inode(inode->i_sb);
++		if (ret)
++			goto out;
++	}
  
--static bool need_activate_page_drain(int cpu)
--{
--	return false;
--}
--
- void activate_page(struct page *page)
- {
- 	struct zone *zone = page_zone(page);
-@@ -653,13 +648,15 @@ void lru_add_drain(void)
- 	put_cpu();
- }
- 
-+#ifdef CONFIG_SMP
-+
-+static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
-+
- static void lru_add_drain_per_cpu(struct work_struct *dummy)
- {
- 	lru_add_drain();
- }
- 
--static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
--
- /*
-  * Doesn't need any cpu hotplug locking because we do rely on per-cpu
-  * kworkers being shut down before our page_alloc_cpu_dead callback is
-@@ -702,6 +699,12 @@ void lru_add_drain_all(void)
- 
- 	mutex_unlock(&lock);
- }
-+#else
-+void lru_add_drain_all(void)
-+{
-+	lru_add_drain();
-+}
-+#endif
- 
- /**
-  * release_pages - batched put_page()
+ 	dir->i_size += BOGO_DIRENT_SIZE;
+ 	inode->i_ctime = dir->i_ctime = dir->i_mtime = current_time(inode);
 -- 
 2.19.1
 
