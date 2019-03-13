@@ -2,216 +2,196 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 42407C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 08:12:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3943BC4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 08:22:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E60DD2177E
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 08:12:48 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="RFneT7Ir"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E60DD2177E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id E88AA2147C
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 08:22:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E88AA2147C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 732EA8E0004; Wed, 13 Mar 2019 04:12:48 -0400 (EDT)
+	id 814278E0004; Wed, 13 Mar 2019 04:22:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6E08A8E0001; Wed, 13 Mar 2019 04:12:48 -0400 (EDT)
+	id 7C49E8E0001; Wed, 13 Mar 2019 04:22:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5D1498E0004; Wed, 13 Mar 2019 04:12:48 -0400 (EDT)
+	id 6B1848E0004; Wed, 13 Mar 2019 04:22:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 367FB8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 04:12:48 -0400 (EDT)
-Received: by mail-it1-f197.google.com with SMTP id r136so854143ith.3
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 01:12:48 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 442A98E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 04:22:46 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id o56so1138357qto.9
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 01:22:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=nOCnQSyICOjHIihXvleYcLez4NbqcA5J+kbiAScPb/M=;
-        b=aDHK7lkHMI/zLB/AbSyu69fj00iLmAD0i6QLgF9dCp7Qg4E2r3/u6TVloukvqeIXmn
-         yPy8MFEwanWPHjA8t1SRRt1XNnPIY2FrcAOW0yzCOJPFJ2tIPCtC4PJA+rr3NaS1AqW2
-         X0nkBTrRhUh1mZZR6mypSb1jbRlqLdW3Idqi1ycLECisstRUQ5QekcL2VxYdC6PckUyh
-         3oq/8qugOdTVpzTgL8BPwZ4EFP7bjR4+gyqf7/pb4ju/pr0m2X6G+dMid2GvsKkmRq/3
-         a1GXqGLuyd0aaFo/PZwVTJkHDJM/lQuDf1sSOJ7Tz1Z90cWTgB4BxN4KBvtg+c/R9RZw
-         Tlqw==
-X-Gm-Message-State: APjAAAVwLODyBoOIdENDBrqb5uBDZgFx1cDjWMdt26c3uWvb88gOmVJ3
-	Ih5iw0IiuM3H/7MgMXvlB02VevA2Tfq32mMK2ZOnibP14fO88niFrIL2rBYjH2gz1KlGHpwsmY5
-	oRYB3UsO4h03++Q+Dz96Xrcj5CNmPjK/SzJBaBqPPVFFHG2vdA1q7uJ1Ab6hDTf4Rhw==
-X-Received: by 2002:a24:2b4c:: with SMTP id h73mr1102684ita.159.1552464767954;
-        Wed, 13 Mar 2019 01:12:47 -0700 (PDT)
-X-Received: by 2002:a24:2b4c:: with SMTP id h73mr1102658ita.159.1552464767013;
-        Wed, 13 Mar 2019 01:12:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552464767; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=AYT6kOY7lTM/7O+kk4iJoixqbn7+/YbzDcC91OF5B6Q=;
+        b=ijQvqVhQ3JTZuZ02/spbhvf8xb4IkvVPZskzjUGVCOtB5N64xai/5oZqtW8+f9qSOT
+         Z91Sm97nh7xl3AxFQAkA9m+oeeOUsj6a6t6KOV8R0DbbiLhAxM3nSMm0gdo6N8lwqFPP
+         fgIXxdDes3frRgsUitCRLJPe5+N55hBEGD6AJMikNh81D2ghquAhlO3pb4YEbZyTtquH
+         xHNO4johwsoUfkTwYj/7ed1yFdu6M6LVsvyshIoF/1J1FIB8iX2nzvnbwnD4pJFqBqmt
+         79oBURIF3pA17ewF969oPt/Bs8mDGE7wrpCQ987lQH8UoRYKUA7AHKs7AOwrSN4TekYD
+         IdGQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of pbonzini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=pbonzini@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVIvi6SrmRzTveKEHyjFXDObuIWcyxFxLb95dEGKkMgmzpcm2oY
+	5cOsHJu8EVvh8vcOEfPRHIUuT7R+XI8zpYpb7VrjqZRKhYR4Zumjrd38kruo2ytJXeZ3f4WRPzp
+	I14I2JyXNOMHXEc4F8glOld1H6qaKI+1CShfo4GI2/4xvlq03rl9N8mrz8/FocoCb6g==
+X-Received: by 2002:a37:d91d:: with SMTP id u29mr12613529qki.9.1552465366036;
+        Wed, 13 Mar 2019 01:22:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxDM0tPsEOinBSKDLhy2KpiMNDgWpeEPLyVXsrubmjkVyob/D6VMmUUGkk4ZObRKZ4X3AAs
+X-Received: by 2002:a37:d91d:: with SMTP id u29mr12613495qki.9.1552465365370;
+        Wed, 13 Mar 2019 01:22:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552465365; cv=none;
         d=google.com; s=arc-20160816;
-        b=f8/T5UfI7An6hnnCNV7TZNuqyUFM/OYOUt8z/dsKw1XprPDM8oVKE+lXBHAAa0SEyi
-         IFcB6ZzG23uf2W+6W7lj325fpkZGxwpdrJ+LOBnXHpDum+dbZ2XbaGvztL1kO9L65Xpd
-         nzEZk6AyPtF/4p2O5VM1RUtls2ajELI4JkrrP+kuhucnmIUKutqBAjNsIwy/X7YgrEg2
-         kD8dsAQMGrBW0IcYVYuKXkoHPvA6WWoNJEWvgvk8+eZe525b1yKSxahVO2m8TOEhC9D/
-         wI5bDiyjZrAPnJt3j+sr/aR1MGc++LQlIz1Ql2Dkzb8fIqu47OaD4TPupvuAGBCXJhR+
-         XlrQ==
+        b=fsKh1a7n2xbjhNjmo+78I8T8DnnS9CgFT5K3Bg1nJyCZjMJf/U/CbXG7UyBi6U2u/R
+         DVFU/80SxeAqyBUurFj1HsDaRqJMYCnLx86l2hZwtV3Efz+1mgdu6rlB3RWqXZ/luop2
+         hxxFeUQx0ZO6WmS3C+CcjhL0jkiFsRB1JOC2qopkRLDNCgvgQufbDvWN5oShokUDC9oC
+         aMlthR+l0QoewL5OwNmDmzojpDcrO5oc8Sd+K9DT/vmyuTVvcmseGiahUVUdS0hajNbE
+         03gCR1kDHZpC9Q2YwomXCPHjS8wavWCmbaLYFbE8yE5wckKMGsuhJd8WnMnIYie/EOK/
+         Y9JQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=nOCnQSyICOjHIihXvleYcLez4NbqcA5J+kbiAScPb/M=;
-        b=vlauE4eEjWpR0+XtmfnHVKDmI0+Zq+kK7ftf1E47w0GEjMgsMxKVwuol9JC+2QItmW
-         hLYrgvDrg70Ko2odQYlMd1YtKG7CDfOXe78rNAOaDmBt7Z0IFg9FFp5v3/gc3LpT2nKW
-         7zcsUM8R8Tg1UZMW59rrNLUS4AFoN3L4xBztDl/PHCelVy+m5VVlj7WjGbObw6oBNpiY
-         iCUbYg5fPuKxm0RVMeanqbZpUHyB6x2i86oVvntQvybAnBOtOn/fC4eCb0jsYpc9I+LT
-         seiI37D2G6s8sdOErXhgYSbK0wqgmu5u0A7+37NiL33Tb8bAn9UIgdDftwRZx+wxT1Hv
-         518w==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=AYT6kOY7lTM/7O+kk4iJoixqbn7+/YbzDcC91OF5B6Q=;
+        b=g3MXgDzAcBaxGgs3uRh+t14h+XkO3srhTWwZSIw92ow5yc4y1hQ9cU7wYK4Jkqz6ID
+         j2UNkNmIngkfiCQyizRXOSaJC68LSaRjvxLlObAv0vXRPKkegXT4RwZWnUuXvinjp082
+         xF/tOz5kQkvxRorSaWuSfIKtDfz/9GFfIzLSc7ZOuskU/7+Mlh7hGrOXTiBEyAKbDONw
+         hTGdr1h4TYOayqWvxaDjEBLH1oxW1raKVO3qWLyQkZDCDHd0wuJe+tyV0Ilz+d7qknEh
+         s/7bHV65R+eS5yKOazwDNNIBvnqulzKYXJj3SxR73dmmHNwebvUocj/AG/VO9c944UPJ
+         rh1Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=RFneT7Ir;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 194sor1583711itu.23.2019.03.13.01.12.46
+       spf=pass (google.com: domain of pbonzini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=pbonzini@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c8si1555974qvp.98.2019.03.13.01.22.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Mar 2019 01:12:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Mar 2019 01:22:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pbonzini@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=RFneT7Ir;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=nOCnQSyICOjHIihXvleYcLez4NbqcA5J+kbiAScPb/M=;
-        b=RFneT7IrnqSQ/794rwi5hPOHqGioI+7ey0G8A02r6RcC7i9aIYhtEhAGpaaNrE0ttc
-         lda7mY1auh22NsRyANoBbUghKtooMVLSzUsgr43kKmOV0IOlCqLI9yA3cbpMXOYNsVwe
-         LtMOEYgYkJLoV4MHYxlT/w+KGkBvIkNBM6knHxBj/Qfy0r4CoC986CIJGkzczOnSij+w
-         V+kVKRGxgQ0IBSS3n6mkcrG5oVy1eTItdf1BKftQRshc0RmZvAlQrtpRRWWTxYr4i/32
-         NlSXIjErjgZtFbpaTAH/6aMoRJEukgapYYuY5YgInh6tud36xJZai97kRXJix59G9tI7
-         v83g==
-X-Google-Smtp-Source: APXvYqwQCCsPmmtbNRDn+twvOX+qtilAK7cV2LlBXM6Z1SYVMVSrBXys1elUlKnwoMFin2KjLABaTQL+B/C+uf5kIKY=
-X-Received: by 2002:a05:660c:3d1:: with SMTP id c17mr949206itl.166.1552464766439;
- Wed, 13 Mar 2019 01:12:46 -0700 (PDT)
+       spf=pass (google.com: domain of pbonzini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=pbonzini@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 7F626307ACE9;
+	Wed, 13 Mar 2019 08:22:43 +0000 (UTC)
+Received: from [10.36.112.43] (ovpn-112-43.ams2.redhat.com [10.36.112.43])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 3155718258;
+	Wed, 13 Mar 2019 08:22:32 +0000 (UTC)
+Subject: Re: [PATCH 0/3] userfaultfd: allow to forbid unprivileged users
+To: Peter Xu <peterx@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>,
+ Luis Chamberlain <mcgrof@kernel.org>,
+ Maxime Coquelin <maxime.coquelin@redhat.com>, kvm@vger.kernel.org,
+ Jerome Glisse <jglisse@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>,
+ Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>,
+ Denis Plotnikov <dplotnikov@virtuozzo.com>, linux-mm@kvack.org,
+ Marty McFadden <mcfadden8@llnl.gov>, Maya Gokhale <gokhale2@llnl.gov>,
+ Andrea Arcangeli <aarcange@redhat.com>,
+ Mike Rapoport <rppt@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>,
+ Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>,
+ linux-fsdevel@vger.kernel.org, "Dr . David Alan Gilbert"
+ <dgilbert@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+References: <20190311093701.15734-1-peterx@redhat.com>
+ <58e63635-fc1b-cb53-a4d1-237e6b8b7236@oracle.com>
+ <20190313060023.GD2433@xz-x1>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=pbonzini@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ uUHgL9dKIfvpm+rNXRn9wAwGjk0X/A==
+Message-ID: <3714d120-64e3-702e-6eef-4ef253bdb66d@redhat.com>
+Date: Wed, 13 Mar 2019 09:22:31 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-References: <0000000000001fd5780583d1433f@google.com> <20190311163747.f56cceebd9c2661e4519bdfc@linux-foundation.org>
- <CACT4Y+byKQSOCte3JS9XOnyr+aVSEFtBvLxG2-HUrZX3-82Hcg@mail.gmail.com>
- <20190311232541.db8571d2e3e0ca636785f31f@linux-foundation.org>
- <20190312064300.GB9123@sol.localdomain> <CACT4Y+Z1rkS5bf3x9Y+0ke=zZ+mM2F5+vN-JtSQpjD09STRNdw@mail.gmail.com>
- <20190312223113.GA38846@gmail.com>
-In-Reply-To: <20190312223113.GA38846@gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 13 Mar 2019 09:12:35 +0100
-Message-ID: <CACT4Y+ZWGYuEu0b7t=stYzD2hmfe0E2m0-o0KURa7tDjP+r7UA@mail.gmail.com>
-Subject: Re: KASAN: null-ptr-deref Read in reclaim_high
-To: Eric Biggers <ebiggers@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, 
-	syzbot <syzbot+fa11f9da42b46cea3b4a@syzkaller.appspotmail.com>, 
-	Cgroups <cgroups@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, 
-	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
-	Michal Hocko <mhocko@kernel.org>, Michal Hocko <mhocko@suse.com>, 
-	Stephen Rothwell <sfr@canb.auug.org.au>, Shakeel Butt <shakeelb@google.com>, 
-	syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Vladimir Davydov <vdavydov.dev@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190313060023.GD2433@xz-x1>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Wed, 13 Mar 2019 08:22:44 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 12, 2019 at 11:31 PM Eric Biggers <ebiggers@kernel.org> wrote:
->
-> Hi Dmitry,
->
-> On Tue, Mar 12, 2019 at 09:21:09AM +0100, 'Dmitry Vyukov' via syzkaller-bugs wrote:
-> > On Tue, Mar 12, 2019 at 7:43 AM Eric Biggers <ebiggers@kernel.org> wrote:
-> > >
-> > > On Mon, Mar 11, 2019 at 11:25:41PM -0700, Andrew Morton wrote:
-> > > > On Tue, 12 Mar 2019 07:08:38 +0100 Dmitry Vyukov <dvyukov@google.com> wrote:
-> > > >
-> > > > > On Tue, Mar 12, 2019 at 12:37 AM Andrew Morton
-> > > > > <akpm@linux-foundation.org> wrote:
-> > > > > >
-> > > > > > On Mon, 11 Mar 2019 06:08:01 -0700 syzbot <syzbot+fa11f9da42b46cea3b4a@syzkaller.appspotmail.com> wrote:
-> > > > > >
-> > > > > > > syzbot has bisected this bug to:
-> > > > > > >
-> > > > > > > commit 29a4b8e275d1f10c51c7891362877ef6cffae9e7
-> > > > > > > Author: Shakeel Butt <shakeelb@google.com>
-> > > > > > > Date:   Wed Jan 9 22:02:21 2019 +0000
-> > > > > > >
-> > > > > > >      memcg: schedule high reclaim for remote memcgs on high_work
-> > > > > > >
-> > > > > > > bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=155bf5db200000
-> > > > > > > start commit:   29a4b8e2 memcg: schedule high reclaim for remote memcgs on..
-> > > > > > > git tree:       linux-next
-> > > > > > > final crash:    https://syzkaller.appspot.com/x/report.txt?x=175bf5db200000
-> > > > > > > console output: https://syzkaller.appspot.com/x/log.txt?x=135bf5db200000
-> > > > > > > kernel config:  https://syzkaller.appspot.com/x/.config?x=611f89e5b6868db
-> > > > > > > dashboard link: https://syzkaller.appspot.com/bug?extid=fa11f9da42b46cea3b4a
-> > > > > > > userspace arch: amd64
-> > > > > > > syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=14259017400000
-> > > > > > > C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=141630a0c00000
-> > > > > > >
-> > > > > > > Reported-by: syzbot+fa11f9da42b46cea3b4a@syzkaller.appspotmail.com
-> > > > > > > Fixes: 29a4b8e2 ("memcg: schedule high reclaim for remote memcgs on
-> > > > > > > high_work")
-> > > > > >
-> > > > > > The following patch
-> > > > > > memcg-schedule-high-reclaim-for-remote-memcgs-on-high_work-v3.patch
-> > > > > > might have fixed this.  Was it applied?
-> > > > >
-> > > > > Hi Andrew,
-> > > > >
-> > > > > You mean if the patch was applied during the bisection?
-> > > > > No, it wasn't. Bisection is very specifically done on the same tree
-> > > > > where the bug was hit. There are already too many factors that make
-> > > > > the result flaky/wrong/inconclusive without changing the tree state.
-> > > > > Now, if syzbot would know about any pending fix for this bug, then it
-> > > > > would not do the bisection at all. But it have not seen any patch in
-> > > > > upstream/linux-next with the Reported-by tag, nor it received any syz
-> > > > > fix commands for this bugs. Should have been it aware of the fix? How?
-> > > >
-> > > > memcg-schedule-high-reclaim-for-remote-memcgs-on-high_work-v3.patch was
-> > > > added to linux-next on Jan 10.  I take it that this bug was hit when
-> > > > testing the entire linux-next tree, so we can assume that
-> > > > memcg-schedule-high-reclaim-for-remote-memcgs-on-high_work-v3.patch
-> > > > does not fix it, correct?
-> > > >
-> > > > In which case, over to Shakeel!
-> > > >
-> > >
-> > > I don't understand what happened here.  First, the syzbot report doesn't say
-> > > which linux-next version was tested (which it should), but I get:
-> > >
-> > > $ git tag --contains 29a4b8e275d1f10c51c7891362877ef6cffae9e7
-> > > next-20190110
-> > > next-20190111
-> > > next-20190114
-> > > next-20190115
-> > > next-20190116
-> > >
-> > > That's almost 2 months old, yet this bug was just reported now.  Why?
-> >
-> > Hi Eric,
-> >
-> > This bug was reported on Jan 10:
-> > https://syzkaller.appspot.com/bug?extid=fa11f9da42b46cea3b4a
-> > https://groups.google.com/forum/#!msg/syzkaller-bugs/5YkhNUg2PFY/4-B5M7bDCAAJ
-> >
-> > The start revision of the bisection process (provided) is the same
-> > that was used to create the reproducer. The end revision and bisection
-> > log are provided in the email.
-> >
-> > How can we improve the format to make it more clear?
-> >
->
-> syzbot started a new thread rather than sending the bisection result in the
-> existing thread.  So I thought it was a new bug report, as did everyone else
-> probably.
+On 13/03/19 07:00, Peter Xu wrote:
+>> However, I can imagine more special cases being added for other users.  And,
+>> once you have more than one special case then you may want to combine them.
+>> For example, kvm and hugetlbfs together.
+> It looks fine to me if we're using MMF_USERFAULTFD_ALLOW flag upon
+> mm_struct, since that seems to be a very general flag that can be used
+> by anything we want to grant privilege for, not only KVM?
 
-There were not In-reply-to headers in first few bisect reports. This
-should be fixed now. E.g. this one should be properly threaded:
-https://groups.google.com/forum/#!topic/syzkaller-bugs/r2t3i5E78Mw
+Perhaps you can remove the fork() limitation, and add a new suboption to
+prctl(PR_SET_MM) that sets/resets MMF_USERFAULTFD_ALLOW.  If somebody
+wants to forbid unprivileged userfaultfd and use KVM, they'll have to
+use libvirt or some other privileged management tool.
+
+We could also add support for this prctl to systemd, and then one could
+do "systemd-run -pAllowUserfaultfd=yes COMMAND".
+
+Paolo
 
