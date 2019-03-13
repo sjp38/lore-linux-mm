@@ -3,94 +3,87 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 39E45C10F03
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:42:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3381FC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:48:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E712121019
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:42:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E712121019
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id ED97D2147C
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:48:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED97D2147C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5A3F98E0007; Wed, 13 Mar 2019 12:42:01 -0400 (EDT)
+	id 70C388E0006; Wed, 13 Mar 2019 12:48:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 55EE28E0001; Wed, 13 Mar 2019 12:42:01 -0400 (EDT)
+	id 6B9AD8E0001; Wed, 13 Mar 2019 12:48:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3B2918E0006; Wed, 13 Mar 2019 12:42:01 -0400 (EDT)
+	id 5A94C8E0006; Wed, 13 Mar 2019 12:48:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id ED85D8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:42:00 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id e1so2806788pgs.9
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 09:42:00 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 047538E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:48:30 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id o9so1195744edh.10
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 09:48:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=7lSORWA3Or3ORyjx2pLX2E1gWuK1mM7cy29VvEmXqo4=;
-        b=ACcL1DGZIPOJAclKGQroPLXtJDiXN/jC6lhQnZaHan58/pJ3tWFMLQPEOPWV1BSChw
-         NKrr++MtamXuMDniHUgjJAehNskRUmIFkTDpEADgVrVtV12VqqQ1uMGk7Kku0hwu4KJY
-         iIuyrgBapxqtLu9pm+TPNI/KdUgg3sKw9gheDR9cxEufKwBKIg/hLlFlIrmc1YCHMcD1
-         5qYx+sgyPmeei53kRGM0uB1PONswmMl2u2v63Ala1YoP1j9XYPxPKyUaCo5eYcXsqLkf
-         +4nlMPJ4zWN7Jvi4f17cvTQyVYvHNhwTcAJi42TnejaTOcN/bpVM9DhsGe+WgWeQIPmZ
-         HBHQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUBEybY46yGgXrww1FFuBGabLjpuLYUB0NMF0WC8R0/H54ATE78
-	6L1Xw89/M3uOJKeRIJMa7IxwORc48JhTe/F4HToWap+pX24P1lYXPPGUt6cJ8H3B501/X4x6jdI
-	NkXF8aA6auq0z9Y4dgFL8E579sGYImUOlYtqgrQIDID2vChi+ENKquagR4jTYDouvBg==
-X-Received: by 2002:a17:902:bd06:: with SMTP id p6mr46758109pls.130.1552495320543;
-        Wed, 13 Mar 2019 09:42:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwc3k4vhCBJaSVZ6a2tzFnIN5TAtcnFhSC4f8t8N0f0aSatlYVdGpnTSou0seHqRmEHgh2F
-X-Received: by 2002:a17:902:bd06:: with SMTP id p6mr46758045pls.130.1552495319590;
-        Wed, 13 Mar 2019 09:41:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552495319; cv=none;
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=lghDKZgyrm86hfNmt3u3cOOP9IXBV2jyjrtyVBPLQx8=;
+        b=X6SYgNt5cZywb/VLtuq1XAJ24ROz+9QHEMgLgYbGcOhGLGm4nbGCuV/2QaD5pruxqa
+         YgJFf68HKyhb5CRLHQ1bG6ffTXwFAnO0gF74aVAfyYGUSGxaEzW0hmtw7v/IW8h499yg
+         rEBC35xtxLedRoumIXTOCAlVG/cDlq3E1lr1Kny10fPWtxKbYZ49cl66GOyeCWo5YZZB
+         yLztFQvNdsALMXzuZxt0Alwo4a8gmhOtkfSiqPUPEl6BlA92qseJ+6fdlWV3YYQuAiML
+         YjOCYSMgDP521YxI8KSP1sNmYoXlBzPg5WKkvl8thX9DmDLFrrsyAql4YZ2gtK2jD6RJ
+         Tvhg==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Gm-Message-State: APjAAAVLou0AoFh227/JScEpO1OTX20WcAKih2Jnv3dF6BbGj4h9u31v
+	ikED5fr0qvjgsYhS48ExNOjDze7UDPJREf4UHIIG1oTRfxkziKmWwxRT37gemZINWf7cMb7ltxG
+	4iAFY7O4XF3CVjYhEvG5QiRCKyiDI0KenpdnjppI4NQZsu+4HASSL/WXAxSJsuko=
+X-Received: by 2002:a50:c212:: with SMTP id n18mr8125275edf.23.1552495709603;
+        Wed, 13 Mar 2019 09:48:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzDf0ZAfX4htFGVXjmAL45jLMwz4aXXF6err7qfMqCG0eWxqIchJJfGmgYWtk/GyIDkZP6v
+X-Received: by 2002:a50:c212:: with SMTP id n18mr8125216edf.23.1552495708345;
+        Wed, 13 Mar 2019 09:48:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552495708; cv=none;
         d=google.com; s=arc-20160816;
-        b=usH4EhN52djRRGupWlT7oTUV52LDFO9OnqRH+AhtHfjsi7pVPlb79HK6AUB0Sd3ulu
-         +4mRpdcVG6shfFYjy5oNC7eUxeH4mmCWQtCdtaAIjJlr1QD6ONF5688kS7ABWUMnmrSc
-         tc9qS7CMjYe/qo3OQ1SQk92XThfKWWreipdZgAZJ9+gsWhV2Jfifo5e8zRmA3ruUyuzw
-         M928HZji/kyGFkVZ75xYdSIz/NcAgU4ALPyACD2CN3NcjO+3nsB4P+sSIJ9Vx2/kSgJl
-         SNNZcoIchXGyexuyEHg+PU0d0tAwtdR9uFM4NydnUIMjbfdccp9BTrtVqY1PhKLrgr2v
-         2T0A==
+        b=k1kDzfoE629ZSZ1tnnVEn+FXSJujox/KtIK1MrL9WA3pC+JWFkfPh9VvLzL2zoMSIC
+         fXlOr/MPStPimztGniEns4zaUEK0sziAmrgoW7WoZlDA7g1KjE3IeBqK44sVGlr5pkyT
+         ZPj6eIA1ChibgadQIZgPKRg7e+pnlXe5lkm2k7p/9InMZYRaZZqV06vSv3/0bmXAffAG
+         8WVajscVMfx3+iSweNFE8MAWFK0j/leOlKeF9qg9NLkDd2uU+f3tXaIzbgl+ZyAX7u4e
+         31WRxRzCq6EayuYjjkL9MKw68/vyrLLIsWeuaGL2NF5Hkso3mH4hFTUk/FbL432QtK0s
+         VcKg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:to
-         :subject;
-        bh=7lSORWA3Or3ORyjx2pLX2E1gWuK1mM7cy29VvEmXqo4=;
-        b=RLpDlY9zqpjYoaPlgCh78JwZXQ4FRqz8QDgR/P6l2utG/DuvdsUJnKSERtiC7lymEu
-         JG1szKyHvhjQTeTYpqMZiCxlHzP5/8xWl5tun5o6CzS2wOjJIuCFc3dcoL5PxIHqyn+T
-         MeG3hwT1VlcYNVAQl30ZfN1LlgcDtbMMvIUVHHt+uhcHIPERKtDKdiYjhk/5vDfVM428
-         hdO6n0pfC16IF3SVHWjWIephCqakC0ru/G79cUO4cMrjzPqnPZtAMjwtMqVBpJsQqA7N
-         KEWVC2jay2Jo0VGuZeSachohU76s2ya6PYIfj3/7G5xw/nNLCYGWMBpVxaIZxp7cJN6Q
-         i2hw==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:to:subject;
+        bh=lghDKZgyrm86hfNmt3u3cOOP9IXBV2jyjrtyVBPLQx8=;
+        b=zYx8ZD+5CtTwXaqW02tfL6l+zfRZK3MLaZ8LTsac67euUepV2OJlAKg7bKPRcbLkLk
+         s23o9JmpUHydEvMUq/4UpVII+DWWxaWtJD8GkHCCRXLFY+DkiakdM5VcJD7kk4f2aDjn
+         mBeNZh/CIc43rIRCb9kj9wk9Z7bwf2NFEM8rkIps1cuxMLy9dAiRuceKGV5jYXcGFtFY
+         WEsMx7J0flibyVrboQEB3W1avpjkC43SBLS79Uhps5K6vQxvzjH/n2+nj8BrGNPzoaGD
+         7ECVwIG3N36rST8Y5F35G/zjl04e4H1u7PXMsauNzNnBnWK3VQ5q3CCAhPDgPrLcf6Q9
+         1ZdA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id n1si5226746plp.26.2019.03.13.09.41.59
+       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from relay9-d.mail.gandi.net (relay9-d.mail.gandi.net. [217.70.183.199])
+        by mx.google.com with ESMTPS id g26si267011ejd.14.2019.03.13.09.48.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Mar 2019 09:41:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 13 Mar 2019 09:48:28 -0700 (PDT)
+Received-SPF: neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.199;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga001.jf.intel.com ([10.7.209.18])
-  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Mar 2019 09:41:59 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,474,1544515200"; 
-   d="scan'208";a="213802254"
-Received: from ray.jf.intel.com (HELO [10.7.201.16]) ([10.7.201.16])
-  by orsmga001.jf.intel.com with ESMTP; 13 Mar 2019 09:41:58 -0700
+       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Originating-IP: 81.250.144.103
+Received: from [10.30.1.20] (lneuilly-657-1-5-103.w81-250.abo.wanadoo.fr [81.250.144.103])
+	(Authenticated sender: alex@ghiti.fr)
+	by relay9-d.mail.gandi.net (Postfix) with ESMTPSA id 2A6EDFF822;
+	Wed, 13 Mar 2019 16:48:21 +0000 (UTC)
 Subject: Re: [PATCH v6 0/4] Fix free/allocation of runtime gigantic pages
-To: Alexandre Ghiti <alex@ghiti.fr>, Andrew Morton
- <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>,
+To: Dave Hansen <dave.hansen@intel.com>,
+ Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>,
  Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
  <will.deacon@arm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>,
  Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
@@ -107,78 +100,39 @@ To: Alexandre Ghiti <alex@ghiti.fr>, Andrew Morton
  linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
  linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org
 References: <20190307132015.26970-1-alex@ghiti.fr>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <875e6287-9528-45ec-788c-9c785e548942@intel.com>
-Date: Wed, 13 Mar 2019 09:41:58 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+ <875e6287-9528-45ec-788c-9c785e548942@intel.com>
+From: Alexandre Ghiti <alex@ghiti.fr>
+Message-ID: <de40e6f1-c520-bcae-2009-19c0abbcd5d5@ghiti.fr>
+Date: Wed, 13 Mar 2019 17:48:21 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.5.2
 MIME-Version: 1.0
-In-Reply-To: <20190307132015.26970-1-alex@ghiti.fr>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+In-Reply-To: <875e6287-9528-45ec-788c-9c785e548942@intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Language: fr
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/7/19 5:20 AM, Alexandre Ghiti wrote:
-> This series fixes sh and sparc that did not advertise their gigantic page
-> support and then were not able to allocate and free those pages at runtime.
-> It renames MEMORY_ISOLATION && COMPACTION || CMA condition into the more
-> accurate CONTIG_ALLOC, since it allows the definition of alloc_contig_range
-> function.
-> Finally, it then fixes the wrong definition of ARCH_HAS_GIGANTIC_PAGE config
-> that, without MEMORY_ISOLATION && COMPACTION || CMA defined, did not allow
-> architectures to free boottime allocated gigantic pages although unrelated.
+On 03/13/2019 05:41 PM, Dave Hansen wrote:
+> On 3/7/19 5:20 AM, Alexandre Ghiti wrote:
+>> This series fixes sh and sparc that did not advertise their gigantic page
+>> support and then were not able to allocate and free those pages at runtime.
+>> It renames MEMORY_ISOLATION && COMPACTION || CMA condition into the more
+>> accurate CONTIG_ALLOC, since it allows the definition of alloc_contig_range
+>> function.
+>> Finally, it then fixes the wrong definition of ARCH_HAS_GIGANTIC_PAGE config
+>> that, without MEMORY_ISOLATION && COMPACTION || CMA defined, did not allow
+>> architectures to free boottime allocated gigantic pages although unrelated.
+> Looks good, thanks for all the changes.  For everything generic in the
+> set, plus the x86 bits:
+>
+> Acked-by: Dave Hansen <dave.hansen@intel.com>
 
-Looks good, thanks for all the changes.  For everything generic in the
-set, plus the x86 bits:
+Thanks Dave,
 
-Acked-by: Dave Hansen <dave.hansen@intel.com>
+Alex
 
