@@ -2,121 +2,114 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3FB80C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 15:35:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ED464C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 15:46:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BE4DA20693
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 15:35:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A9A04206BA
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 15:46:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="fOWlZGWE"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BE4DA20693
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="K6TPrF6G"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A9A04206BA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2876C8E0003; Wed, 13 Mar 2019 11:35:49 -0400 (EDT)
+	id 9D0B58E0003; Wed, 13 Mar 2019 11:46:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 236068E0001; Wed, 13 Mar 2019 11:35:49 -0400 (EDT)
+	id 980368E0001; Wed, 13 Mar 2019 11:46:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0FEBF8E0003; Wed, 13 Mar 2019 11:35:49 -0400 (EDT)
+	id 870A58E0003; Wed, 13 Mar 2019 11:46:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f197.google.com (mail-vk1-f197.google.com [209.85.221.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D2E798E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 11:35:48 -0400 (EDT)
-Received: by mail-vk1-f197.google.com with SMTP id x207so767683vke.11
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 08:35:48 -0700 (PDT)
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 527358E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 11:46:23 -0400 (EDT)
+Received: by mail-oi1-f198.google.com with SMTP id u132so958376oif.6
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 08:46:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=5fkZ1R4sQEMo0zPoMAkzRXZhF754qG1NDK5UVkeCsEw=;
-        b=mdxS+mpqA2BXlgfwjMBtOduMeiLwHklZQMJHM4+GxpI+IJ2Pbr6sXHQ/gG027nzZfI
-         uQTpwSrW7gQMRL9FunGReoNmjzsznf2NM+x7EGgSSeaoMBFEHcVcn5rBGgbMYDljFIyY
-         iO0udsj+iUo9pBELGvchKpOE/o0dZlhHDtys7o9hdJLzugjUe7npGfDSnpqc+sFRHzQt
-         CYvwc9yD+kxdbQ7VcEEmz2cWEHAiuj10Pw+yhs3i2uIBTWQCvPU9G7srR2StqiyfcwAW
-         aWaedEX7nYOu3achS4w20e0MDLYXw//ht7a2gWwTGzwD4uzpX+wJ6rdtTMVa42yxlkoD
-         wuzQ==
-X-Gm-Message-State: APjAAAXIDEfwLeryq6ivQo+98ZpbQRVMNvxcl5Q35BupyRnbtoY75eez
-	P5V6EREV7oziqPejKLFaQIIHThjJz0Nzz7pRs54cxtjHANbrM/3/JqjamfddVQCHw4cU/HU05bI
-	YYEn7nHLehb7ZA+Ls+GwlVAfwdtcnWga0BQj1fcZ5waag6DdT0XnYTGxSn9O6phCdrHC9K0gqG+
-	PWPSoYtYe1LxFIhTU2WqmB7AgSjdR9bOxmlBjqkqap0/705bcyLib8bHLG/571jhX6IQRwpMhGU
-	li84HO4jO3RA6aca6fhbIiI13X1L7bJPZvdZi2HxnaOUaeHNY27HaXVlTAhAgVwkcVOIP9Uwh+K
-	7EVMi0NhbPZRu4BBRcv6LoyOp//mC6kq9T3KNVKpeaO/tZJRUvUgQ0gYKtgtdl/MhbqgSQNo7Sl
-	W
-X-Received: by 2002:a1f:2acb:: with SMTP id q194mr22607606vkq.92.1552491348469;
-        Wed, 13 Mar 2019 08:35:48 -0700 (PDT)
-X-Received: by 2002:a1f:2acb:: with SMTP id q194mr22607562vkq.92.1552491347455;
-        Wed, 13 Mar 2019 08:35:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552491347; cv=none;
+        bh=W+oPxX+piVpJ30lMLFWLXO5frI9ICTeBZDbNkkINo68=;
+        b=lboYC5qjggYJMU/toy5M6orSGJwlRZHDsq27nd6POUfBycGwCqIR1rTMkU2l7dfiZ8
+         SDWO1HA5zmZp+uo/ulWEtYuGCC1W8F3XX6SWPa5zfFKtd4qoQEvprix5/9JApdRHSkx8
+         G++hzKJ3iI6vCV8vvhCosCCtMvAxLOoy2xsnIGC/Pi6aG62NCiGD6cfjVjAs+7Mmz/yI
+         CIExiL8zB85IzfbrV+A7gKrEb403qKpeIUCWZH8eZsseB7KZIiugVrXjv5k+hUgHI3rC
+         wqhXnAlFH/QEXFLlOpZ+S73FSaPUsPIG3BBJM/wzTA/akKpIZQhAwfLelk27NVZlIwaC
+         oIUg==
+X-Gm-Message-State: APjAAAVD5f/MkHV006PMQwlf2IqZ0YukEHjhXQ0wgIw4DRl9n0oWmoVs
+	pLQs4YOWJR4P8LIhValckncr1dBDT5FJhSlA6/8T6D/BW9r+BVu+Gyg8IvYA+ryHij8PsfyBKYi
+	YueaDEC3lUsKEvCd6vMPlcV/XT0fa2QeRZcMHHZPDMGt4VkWzg1w0hrKkHfSycbC0xuXP/9jgOb
+	cPsOQreHLEZUzaU1EaqjNgXGOWnJH7Ib0Yq5UkEASHbZImEKtqXzQLokXgRp3hFUzYZk/vv8moq
+	J3Ia08hOn3bzO5H98+uMlYgZ45TftQvr6KZltzIxxb0aSN3JgBnuFQmk0Ro3lekQ3Q0IJuqV4JO
+	jcZghaZNJ3f7DLeTolT/Bv08WYHlwBlcyl7Els/PCT70rEguAEeFEbiLGAIQn8g/zuBFHRD+YZr
+	q
+X-Received: by 2002:aca:34d4:: with SMTP id b203mr1977142oia.123.1552491983002;
+        Wed, 13 Mar 2019 08:46:23 -0700 (PDT)
+X-Received: by 2002:aca:34d4:: with SMTP id b203mr1977110oia.123.1552491982204;
+        Wed, 13 Mar 2019 08:46:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552491982; cv=none;
         d=google.com; s=arc-20160816;
-        b=GvO1FLh127XyFL3wXSxd+kdoDxyFytsUttFlIUb+KU9fdiUB/7bnhohLlOZQ4/GVQf
-         eUvWjMarrw3kg8xMAaQc7rfkQaZjiZrPCPtxJHfDTKZcLw+DjI1n9EMbsiEtC3GqYKEp
-         cm7mByTekgoZp3qZY5qFYT0g7g/vq+Wsx6eZJGxcf8TLh1+NMasJfqq4p4LIAKMq9kT4
-         NfXsTNm1TEiXUPx3sgp6WBuL57PvB/n685CT5nXReXtKZa7a7R2///stG7detFjiiLnY
-         FaKCLILsiA8FMK+pV9l6p6uVxUfo5Lbi6NBiSZOh6I7shQISZ/VRVwN4Nr5CeD4aofCr
-         vM4g==
+        b=DsbpaFuHzXHIjlHMtAVTx6JomwQ99B/IxuxbMTDovomgr/Z7512Kncj5XTmtvsgWTP
+         BVBTaMSDNOACEt+AKuGkruMbo0nP6G1ZS1fxZdbUO7jPo32IM5rizkiyjXpAtqp1JJol
+         FGf0yYWOzim1NaNBmAmw6N3+3pwIptg4KXwnM8ib7+KVHsRQ4jNNvpNcVZU3PaQQ9PuK
+         fucDzWSYsgrEt8C3affS7YTVQWGBGVwO2+m5ANVx651Nn2R64gM/De5czJXBm7rqAyX4
+         W12lHrz/cDUFFRuYRbNXTwNCMx60CTAblcncL9HmDAQ2spz9iiVB59BPAZ+up808QC2I
+         Jefw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=5fkZ1R4sQEMo0zPoMAkzRXZhF754qG1NDK5UVkeCsEw=;
-        b=CtnDFjTJkhKDd83jruSAUkzyIUvQaa8pxSvne/xG7b6940pJCeHDiN4rXNbFYSPBrN
-         ceMc310h0gm5dYdFo5iL6hAOembd9tZW3//WrXspyCEbnl6b2B2uOzQJvWLDLbsNdxIH
-         w7ozPnt9sjF2NtKXrC7IH92bI2mywhKFsC5hyrn25NP+Zwo9n9s4TecUDC4fj0tf88pJ
-         Scs9x+HF+HQ8DMOACQ6qO7ZqwQFhe4on+cuzqNQ6wbFOV34zlthilQUWKiaj2txISu7u
-         UO1v4ug99qlNrG9qwbh1q7sdVEecvPgyoBm8A9to4UZliUru1+TqVDw+pfEHEdFZILYW
-         GH+w==
+        bh=W+oPxX+piVpJ30lMLFWLXO5frI9ICTeBZDbNkkINo68=;
+        b=POTOvaQ52VuC9rZTTyskS/NOgmi4pHgHoHJRnSo/3F7UvE0ak6piGiup5sYPQdZnqt
+         DJTPPthVhO2KJN4eehMMS5bz0oN6/42GV7fOJVtDwrNtkXwlThTpuIpzUxTVMoj1f+O7
+         2GK62fUJ/+9poaqEHN+KJgE34rrmSjXvSPCv2hdEjo0mEaA1Oq+T5tjh7yREBd2P04/8
+         m5BqJBqCzrSZ1Q2/MZ1/9FSgC8IjzrBX8ZzVHnv8WS2KbRSPQBpKjB+Y10A9UeDQx3gT
+         jsO1q9s+Xr9ZKpGQ13hZdD3XccaHe/pjrM323vMrN2pgRzp0gTNvCzHUUkeWcn20xokb
+         gnFg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=fOWlZGWE;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=K6TPrF6G;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g129sor7310506vsg.89.2019.03.13.08.35.47
+        by mx.google.com with SMTPS id e4sor5558408oif.133.2019.03.13.08.46.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 13 Mar 2019 08:35:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 13 Mar 2019 08:46:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=fOWlZGWE;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=K6TPrF6G;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=5fkZ1R4sQEMo0zPoMAkzRXZhF754qG1NDK5UVkeCsEw=;
-        b=fOWlZGWEVn0MCbN4pbgoP2zKmNPjl5jA0QapjarN8eTRKf1QL/YmUvEDHR3ddi8zwy
-         v8z/Bo777HByP3RdljwTtmsASTcwt5WD/WhJ2GvsthQfGrJZUz91fNQPjKwJjhFAYG5U
-         DIFR23GoaBYbVRf4aCoccz6Ld4KrTT7rjPcZY=
-X-Google-Smtp-Source: APXvYqz9IVVALCCpl3721pm2fUK002AUSN0zM7sVVWKhB/07oRmPqvwrbMsyb+TIiuXOVqca13dLjQ==
-X-Received: by 2002:a67:7684:: with SMTP id r126mr4643413vsc.219.1552491346372;
-        Wed, 13 Mar 2019 08:35:46 -0700 (PDT)
-Received: from mail-vs1-f47.google.com (mail-vs1-f47.google.com. [209.85.217.47])
-        by smtp.gmail.com with ESMTPSA id m14sm745502vke.4.2019.03.13.08.35.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Mar 2019 08:35:45 -0700 (PDT)
-Received: by mail-vs1-f47.google.com with SMTP id z18so1273657vso.7
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 08:35:45 -0700 (PDT)
-X-Received: by 2002:a67:fa94:: with SMTP id f20mr7091272vsq.172.1552491344698;
- Wed, 13 Mar 2019 08:35:44 -0700 (PDT)
+        bh=W+oPxX+piVpJ30lMLFWLXO5frI9ICTeBZDbNkkINo68=;
+        b=K6TPrF6Gd0Rm8cnqAH4FSX4ju5kqgdcKWeArLF3aGlkb0COO9WtMkBFFqWX8vuBCC1
+         1Oh8FfmxaaVfNPqid3tlVqyGC0CXaNmDrxv1Bm+iFBSgkUq+i00Xr40a/+Rhdcmus0Tp
+         Ue/QgklPhjO9XyX9oDRWrZ98rO5KJnn6yCWoA4qey9uEof4IQmZnl3HSOMNmU2yQbAQy
+         2SGJw6v5tfq0+7g5u/8dcDgm+SNhEPzr3++427mI5YjCNGHd3vioHbBD3Ue6zJJwZStg
+         D76rbhciwPIu6TyS0LptOspjwLG0urszdpdESrAi3MpzIrfODP4ilNp5855L4KiF5vBI
+         IiUA==
+X-Google-Smtp-Source: APXvYqzeFUEG6z2e2O4tKclCB8I51BgRRqaAVbxJi1OegFmDCC35wG8DixTGq05LsFK9tKxgwi01c1gRidpmHJjcdKc=
+X-Received: by 2002:aca:54d8:: with SMTP id i207mr2145761oib.0.1552491981719;
+ Wed, 13 Mar 2019 08:46:21 -0700 (PDT)
 MIME-Version: 1.0
-References: <00000000000016f7d40583d79bd9@google.com> <CAGXu5jKjWwYk5N3mOH1A8fXX_0BT3r1At_3MzN9M+Ckg5irKXg@mail.gmail.com>
- <20190313143503.GD9108@quack2.suse.cz>
-In-Reply-To: <20190313143503.GD9108@quack2.suse.cz>
-From: Kees Cook <keescook@chromium.org>
-Date: Wed, 13 Mar 2019 08:35:33 -0700
-X-Gmail-Original-Message-ID: <CAGXu5j+_Ao_CU8DG9nrTbx5ioDkJUFw0cGcLBMWnvNLe_eFJ4A@mail.gmail.com>
-Message-ID: <CAGXu5j+_Ao_CU8DG9nrTbx5ioDkJUFw0cGcLBMWnvNLe_eFJ4A@mail.gmail.com>
-Subject: Re: WARNING: bad usercopy in fanotify_read
+References: <20190309120721.21416-1-aneesh.kumar@linux.ibm.com>
+ <8736nrnzxm.fsf@linux.ibm.com> <20190313095834.GF32521@quack2.suse.cz>
+In-Reply-To: <20190313095834.GF32521@quack2.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 13 Mar 2019 08:46:10 -0700
+Message-ID: <CAPcyv4irZP2F1acuco7UVbvTARzn5SXvCAWstFYtP7ygLRSXTg@mail.gmail.com>
+Subject: Re: [PATCH v2] fs/dax: deposit pagetable even when installing zero page
 To: Jan Kara <jack@suse.cz>
-Cc: syzbot <syzbot+2c49971e251e36216d1f@syzkaller.appspotmail.com>, 
-	Amir Goldstein <amir73il@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, cai@lca.pw, 
-	Chris von Recklinghausen <crecklin@redhat.com>, LKML <linux-kernel@vger.kernel.org>, 
-	Linux-MM <linux-mm@kvack.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Ross Zwisler <zwisler@kernel.org>, 
+	Andrew Morton <akpm@linux-foundation.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	Linux MM <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, 
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -124,42 +117,50 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 13, 2019 at 7:35 AM Jan Kara <jack@suse.cz> wrote:
-> On Tue 12-03-19 23:26:22, Kees Cook wrote:
-> > On Mon, Mar 11, 2019 at 1:42 PM syzbot
-> > <syzbot+2c49971e251e36216d1f@syzkaller.appspotmail.com> wrote:
-> > > C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=17ee410b200000
-> > > [...]
-> > > ------------[ cut here ]------------
-> > > Bad or missing usercopy whitelist? Kernel memory exposure attempt detected
-> > > from SLAB object 'fanotify_event' (offset 40, size 8)!
-> > > [...]
-> > >   copy_to_user include/linux/uaccess.h:151 [inline]
-> > >   copy_fid_to_user fs/notify/fanotify/fanotify_user.c:236 [inline]
-> > >   copy_event_to_user fs/notify/fanotify/fanotify_user.c:294 [inline]
-> >
-> > Looks like this is the fh/ext_fh union in struct fanotify_fid, field
-> > "fid" in struct fanotify_event. Given that "fid" is itself in a union
-> > against a struct path, I think instead of a whitelist using
-> > KMEM_CACHE_USERCOPY(), this should just use a bounce buffer to avoid
-> > leaving a whitelist open for path or ext_fh exposure.
+On Wed, Mar 13, 2019 at 2:58 AM Jan Kara <jack@suse.cz> wrote:
 >
-> Do you mean to protect it from a situation when some other code (i.e. not
-> copy_fid_to_user()) would be tricked into copying ext_fh containing slab
-> pointer to userspace?
+> On Wed 13-03-19 10:17:17, Aneesh Kumar K.V wrote:
+> >
+> > Hi Dan/Andrew/Jan,
+> >
+> > "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> writes:
+> >
+> > > Architectures like ppc64 use the deposited page table to store hardware
+> > > page table slot information. Make sure we deposit a page table when
+> > > using zero page at the pmd level for hash.
+> > >
+> > > Without this we hit
+> > >
+> > > Unable to handle kernel paging request for data at address 0x00000000
+> > > Faulting instruction address: 0xc000000000082a74
+> > > Oops: Kernel access of bad area, sig: 11 [#1]
+> > > ....
+> > >
+> > > NIP [c000000000082a74] __hash_page_thp+0x224/0x5b0
+> > > LR [c0000000000829a4] __hash_page_thp+0x154/0x5b0
+> > > Call Trace:
+> > >  hash_page_mm+0x43c/0x740
+> > >  do_hash_page+0x2c/0x3c
+> > >  copy_from_iter_flushcache+0xa4/0x4a0
+> > >  pmem_copy_from_iter+0x2c/0x50 [nd_pmem]
+> > >  dax_copy_from_iter+0x40/0x70
+> > >  dax_iomap_actor+0x134/0x360
+> > >  iomap_apply+0xfc/0x1b0
+> > >  dax_iomap_rw+0xac/0x130
+> > >  ext4_file_write_iter+0x254/0x460 [ext4]
+> > >  __vfs_write+0x120/0x1e0
+> > >  vfs_write+0xd8/0x220
+> > >  SyS_write+0x6c/0x110
+> > >  system_call+0x3c/0x130
+> > >
+> > > Fixes: b5beae5e224f ("powerpc/pseries: Add driver for PAPR SCM regions")
+> > > Reviewed-by: Jan Kara <jack@suse.cz>
+> > > Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+> >
+> > Any suggestion on which tree this patch should got to? Also since this
+> > fix a kernel crash, we may want to get this to 5.1?
+>
+> I think this should go through Dan's tree...
 
-Yes. That's the design around the usercopy hardening. The
-"whitelisting" is either via code (with a bounce buffer, so only the
-specific "expected" code path can copy it), with a
-kmem_create_usercopy() range marking (generally best for areas that
-are not unions or when bounce buffers would be too big/slow), or with
-implicit whitelisting (via a constant copy size that cannot change at
-run-time, like: copy_to_user(dst, src, 6)).
-
-In this case, since there are multiple unions in place and
-FANOTIFY_INLINE_FH_LEN is small, it seemed best to go with a bounce
-buffer.
-
--- 
-Kees Cook
+I'll merge this and let it soak in -next for a week and then submit for 5.1-rc2.
 
