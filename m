@@ -2,169 +2,213 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A0699C10F03
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 19:16:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BDD7EC4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 19:17:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 53B77217F5
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 19:16:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 747AE2184D
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 19:17:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="mNs0GLwN"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 53B77217F5
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="v3k1m/Z7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 747AE2184D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 085378E0013; Wed, 13 Mar 2019 15:16:53 -0400 (EDT)
+	id 259448E0014; Wed, 13 Mar 2019 15:17:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 05CF08E0001; Wed, 13 Mar 2019 15:16:53 -0400 (EDT)
+	id 208D08E0001; Wed, 13 Mar 2019 15:17:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EB4508E0013; Wed, 13 Mar 2019 15:16:52 -0400 (EDT)
+	id 11FC78E0014; Wed, 13 Mar 2019 15:17:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C26088E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 15:16:52 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id z123so2504361qka.20
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:16:52 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C67788E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 15:17:26 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id u19so3271127pfn.1
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:17:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=nvIdXTvdBzRmRwQ0Wlhdqbz4+f72Q75prZrvS08u2DU=;
-        b=ugpdebv0KgeMU9xJfpoLXCwXNqNokLzwFQWSko13R8K+qbyTsUfDh4E6yJmc3KpC+X
-         WVtE9rofXD1uCTUvTYcqHm/qpEIK/7uizZv+MAKpW+/Mcq9Z3xeMO+8mRp04tOto2I2x
-         nOplR+VTxwp21BL+165UiS2rbkrVNET3NwwZEgEqRixX8IQOKvOBzWjhYZlzK0LGZDb9
-         ppPVhE+z9kgMzLqt2LjrwbhsvmbjCA2m3P9VVp4tN9a7jaUCe+R9Eazb0casI5K44udj
-         UoPhI6cJnlsCmT9h1qiPgmuH6iTv6vkFefKRDeOLCQg93HGHhQWOwpaW23yMAT5nMU6D
-         233A==
-X-Gm-Message-State: APjAAAUTinkvAGqbvy8BALaorfG03foJVGx7PbHDbiiH/2R1CfwrHTqV
-	ZLOvT3feRk7dUjUvt8KlsYTavPDbHm5q+kXjPj031Cl+QmcmRX16Qbkd41h538xT/VXVcs9495B
-	DYcIGDAUSLbuIC2/aJUU/sjXiMeY+XROb6nnWTGK5r6vM3a5JQ792RzYZP6FAG2s=
-X-Received: by 2002:ac8:2286:: with SMTP id f6mr36416890qta.68.1552504612594;
-        Wed, 13 Mar 2019 12:16:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwVtPYD8NqOq/qLlghttgVOizbhQ2Qfg4OlySYOCxVjIbMDFsI/s2caZec/cHCHAWByW4/K
-X-Received: by 2002:ac8:2286:: with SMTP id f6mr36416854qta.68.1552504611885;
-        Wed, 13 Mar 2019 12:16:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552504611; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=oDmw3i69mGH6D08DC7Bf8ACvPTacz8TJxBAoXmNvO3k=;
+        b=EhKC6rFxRtRCK8S/k355amPrxN+UEGPwRr9WPKjBYRbXP3vzCyHsr1OhAjXGMItjU8
+         RhvcrMInE5qXIIZZR/qmvKg2a+1z1idWqce6pnIudcVYXelQkd26Rg44aUC03NtNC95o
+         sSwgr2Xqhjo6mxh1ARt0YgxJlMOiXmwwbuqe1+JdKayYp+OlW3dKR4IdWn9SdKHeQpUi
+         wKY+4RS4nP5Zp9VmL70fy7MO/PYjBYmevQus7U5V031T0CZfQzdXb92H4jdFP3LRv98V
+         383UZkvYPLOun69FLGAXDa6I2GTW//lEeyJGOCFPFuup7rt9cyNIMYnMnr6Bb/tTAOaK
+         Q0rg==
+X-Gm-Message-State: APjAAAX1H/SWMx5znkKNiKyaErbm0K/r4v7EAKhaclzyelEOwtdv/Lx6
+	XAjV2zCePijfrYmlQaUUGMtzYoFTy/2WuvPXe+c/t4SOmmsV7P3ZRkiehUHGWmUcqZRjvQbbxaM
+	lbR822an/poUajBIagIFFizsWZJd4TxCuLtUVB7AlWjI4oh6LxqsgfKuWhOyN/dEbnA==
+X-Received: by 2002:a63:5720:: with SMTP id l32mr41702529pgb.268.1552504646482;
+        Wed, 13 Mar 2019 12:17:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyAZneFhM90bOHGaDkC2JgmgDBR0idgm5tdRv4rkatOszV+Enf2CH4JVcql/BN3KgAcF+un
+X-Received: by 2002:a63:5720:: with SMTP id l32mr41702457pgb.268.1552504645678;
+        Wed, 13 Mar 2019 12:17:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552504645; cv=none;
         d=google.com; s=arc-20160816;
-        b=JYPl+gmhTkft9bTqGNjh+v5R8dW+l6tYh1BxqoNcDxG8PReQkY20Hys3uXnPwrwZUm
-         1fI/oeh91QQoImQAdWAPMARBSLgoJVeZdkMMLz3VJ9tJvpQhO/1arV80NA/TvphFka52
-         a2bpOKSj5NuF1Ocz6U/UNO2KRRv/gQ9zUAG0wQcDZHFRiwlPqfqjr7Xe2f7sB9hBZxxC
-         s7/sWB/XMjaEUPWATLw4jipLdv04gcC+LkI+rPuYMg9BO4VqRoVhJSbpLw3Hw/yp9RRK
-         vTrdqYS3urvRKkSBc7AHhpIrK7gfibbGKYtC0yfdO7GQT0U9fgsKaBvBJTlNX9QHoq69
-         y/Yw==
+        b=OexWtkZv1y4Dlk63cph3Oc+J6BLxyj7wfgMVKPmEAph/xswtQgh9tyLSEIcUKSJvBV
+         mWCrgF5oT+6/Sx2OjFr4j48OpSow7/E09XT+UTTMqjsp+dwKWdIRDNFQEMMICP0d4CUg
+         xvDrbyyUG05lmK9Q/hmx2+T4dsd5t9ikIeriUnDtCUZcxHFeC4An+fVbmE72cSWRAQZ0
+         +ok4G1r+HJZaFtFLs2C+Tk7YSvNdIYpEEmGMy7GjDbTBAuzBdTQjUVFm3d8gDnT93RPL
+         +B/zlxNGOIXZXwmC1slbkgLG4Xr7a11kGkV+i1Fmeq0DKmxC3UqxUcev2eobOpzUmctY
+         d4zQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=nvIdXTvdBzRmRwQ0Wlhdqbz4+f72Q75prZrvS08u2DU=;
-        b=sh4wromrLo9PN4wwXN7UBguzzBvMx0WGLE+eQj3f28+H8+hmH/Qt1H2ATApRtMIRPV
-         DyFePRpkrGFqZN7WPQW5pOdblUxLNfKYIVip6ub4Lqd4oOXeiyGz8Fjspt6NUylD6Vvm
-         Zsfx0HllJfhFMFvj4LItdTUvhaW7LDnSEf/icztiF7CgkjaBOrunIIm9g+ODpTHaJ9c6
-         v/iHCvRAx69e7fUr+i8CPr84QDbjIant8K+Hpqfze+8mfW360dLp3UHzRVgYSspRJWlZ
-         bREE0lruq23FvkWxjC/EvCkdlozHksdDCmm+mwipEsso6PyQ7rk6zdj7/SPA//3bWNAf
-         yAcw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=oDmw3i69mGH6D08DC7Bf8ACvPTacz8TJxBAoXmNvO3k=;
+        b=bPiFP6heWXJz7yF+nCC9/EbOoAWOnbnVN7c6gaP3iaAN0ny60m7kaDxWi5eyM1FiFE
+         z8JsW1BG3uIQHt5/mCnYGI/l6De2x5mA1Vl2jYSSMTfD/4bVBR9D8DwT8ZmriOgPD3OS
+         4wtLlZL4h8WJisxsXXXA4L/1JyKkFyp8WCOcRwRQAOfbtWZnd1+MV0DynWyEw+OCyOIg
+         k3TB1aKFAT2l7WlSRDks/mad0+jnUF8+Aw7+Pk/bQSIW/XBH7K2v2dfy7vGIC4bTZcD0
+         eHRls/UU+SqVVblhGvwNLA1IrZ1fhHwavYlaTFYu5ZhV0Fz0YMDCTulFFGrW+AKN4Kaj
+         q/Vw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=mNs0GLwN;
-       spf=pass (google.com: domain of 01000169787c61d0-cbc5486e-960a-492f-9ac9-9f6a466efeed-000000@amazonses.com designates 54.240.9.33 as permitted sender) smtp.mailfrom=01000169787c61d0-cbc5486e-960a-492f-9ac9-9f6a466efeed-000000@amazonses.com
-Received: from a9-33.smtp-out.amazonses.com (a9-33.smtp-out.amazonses.com. [54.240.9.33])
-        by mx.google.com with ESMTPS id 21si128081qtz.60.2019.03.13.12.16.51
+       dkim=pass header.i=@kernel.org header.s=default header.b="v3k1m/Z7";
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id k1si9345574pgo.417.2019.03.13.12.17.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 13 Mar 2019 12:16:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 01000169787c61d0-cbc5486e-960a-492f-9ac9-9f6a466efeed-000000@amazonses.com designates 54.240.9.33 as permitted sender) client-ip=54.240.9.33;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Mar 2019 12:17:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=mNs0GLwN;
-       spf=pass (google.com: domain of 01000169787c61d0-cbc5486e-960a-492f-9ac9-9f6a466efeed-000000@amazonses.com designates 54.240.9.33 as permitted sender) smtp.mailfrom=01000169787c61d0-cbc5486e-960a-492f-9ac9-9f6a466efeed-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1552504611;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=nvIdXTvdBzRmRwQ0Wlhdqbz4+f72Q75prZrvS08u2DU=;
-	b=mNs0GLwNl9xKR1X8gnj67r8fWgIFpKPvdnFupmcR/v1TqCwF+zAL9fq7tlL4mJj1
-	prV0RUzPw/4sHohhMDsy7feO6rSMkyFpihUsF/I+bEn4+zKOiD6lv1BPOwb3WLblNoE
-	6eeLXu7iSI62MppM0eQYFX/LSlNl39r960DEmpQU=
-Date: Wed, 13 Mar 2019 19:16:51 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
-To: Jerome Glisse <jglisse@redhat.com>
-cc: john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>, 
-    linux-mm@kvack.org, Al Viro <viro@zeniv.linux.org.uk>, 
-    Christian Benvenuti <benve@cisco.com>, 
-    Christoph Hellwig <hch@infradead.org>, 
-    Dan Williams <dan.j.williams@intel.com>, 
-    Dave Chinner <david@fromorbit.com>, 
-    Dennis Dalessandro <dennis.dalessandro@intel.com>, 
-    Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>, 
-    Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>, 
-    Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, 
-    Mike Rapoport <rppt@linux.ibm.com>, 
-    Mike Marciniszyn <mike.marciniszyn@intel.com>, 
-    Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>, 
-    LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, 
-    John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [PATCH v3 0/1] mm: introduce put_user_page*(), placeholder
- versions
-In-Reply-To: <20190312153528.GB3233@redhat.com>
-Message-ID: <01000169787c61d0-cbc5486e-960a-492f-9ac9-9f6a466efeed-000000@email.amazonses.com>
-References: <20190306235455.26348-1-jhubbard@nvidia.com> <010001695b4631cd-f4b8fcbf-a760-4267-afce-fb7969e3ff87-000000@email.amazonses.com> <20190308190704.GC5618@redhat.com> <01000169703e5495-2815ba73-34e8-45d5-b970-45784f653a34-000000@email.amazonses.com>
- <20190312153528.GB3233@redhat.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       dkim=pass header.i=@kernel.org header.s=default header.b="v3k1m/Z7";
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 2409421850;
+	Wed, 13 Mar 2019 19:17:20 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1552504645;
+	bh=vdUzQVMHuWLFyvgnxQAmlA5Jt7STWLWQI6bJeBv0km8=;
+	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
+	b=v3k1m/Z7v6Yril3rVjYX2+4MQ+iTjZhwkw5Q7tEIDVC3GFIwF8wyPX6D6oY/HvTyN
+	 BOk5iZZV8RuoDAMKbgvXW0pUGOgc9Y2h2sxnlqJQ1IqRn+RMzf7zg9vXWuQ8JEO5RV
+	 Iegjel3V4PaV7Lb/cEcVTc/nAsIkP2YU68TM9tPg=
+From: Sasha Levin <sashal@kernel.org>
+To: linux-kernel@vger.kernel.org,
+	stable@vger.kernel.org
+Cc: Andrey Konovalov <andreyknvl@google.com>,
+	Alexander Potapenko <glider@google.com>,
+	Andrey Ryabinin <aryabinin@virtuozzo.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Christoph Lameter <cl@linux.com>,
+	David Rientjes <rientjes@google.com>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Evgeniy Stepanov <eugenis@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Kostya Serebryany <kcc@google.com>,
+	Pekka Enberg <penberg@kernel.org>,
+	Qian Cai <cai@lca.pw>,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Sasha Levin <sashal@kernel.org>,
+	linux-mm@kvack.org
+Subject: [PATCH AUTOSEL 4.9 12/24] kasan, slub: move kasan_poison_slab hook before page_address
+Date: Wed, 13 Mar 2019 15:16:35 -0400
+Message-Id: <20190313191647.160171-12-sashal@kernel.org>
+X-Mailer: git-send-email 2.19.1
+In-Reply-To: <20190313191647.160171-1-sashal@kernel.org>
+References: <20190313191647.160171-1-sashal@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.03.13-54.240.9.33
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+X-Patchwork-Hint: Ignore
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 Mar 2019, Jerome Glisse wrote:
+From: Andrey Konovalov <andreyknvl@google.com>
 
-> > > This has been discuss extensively already. GUP usage is now widespread in
-> > > multiple drivers, removing that would regress userspace ie break existing
-> > > application. We all know what the rules for that is.
+[ Upstream commit a71012242837fe5e67d8c999cfc357174ed5dba0 ]
 
-You are still misstating the issue. In RDMA land GUP is widely used for
-anonyous memory and memory based filesystems. *Not* for real filesystems.
+With tag based KASAN page_address() looks at the page flags to see whether
+the resulting pointer needs to have a tag set.  Since we don't want to set
+a tag when page_address() is called on SLAB pages, we call
+page_kasan_tag_reset() in kasan_poison_slab().  However in allocate_slab()
+page_address() is called before kasan_poison_slab().  Fix it by changing
+the order.
 
-> > Because someone was able to get away with weird ways of abusing the system
-> > it not an argument that we should continue to allow such things. In fact
-> > we have repeatedly ensured that the kernel works reliably by improving the
-> > kernel so that a proper failure is occurring.
->
-> Driver doing GUP on mmap of regular file is something that seems to
-> already have widespread user (in the RDMA devices at least). So they
-> are active users and they were never told that what they are doing
-> was illegal.
+[andreyknvl@google.com: fix compilation error when CONFIG_SLUB_DEBUG=n]
+  Link: http://lkml.kernel.org/r/ac27cc0bbaeb414ed77bcd6671a877cf3546d56e.1550066133.git.andreyknvl@google.com
+Link: http://lkml.kernel.org/r/cd895d627465a3f1c712647072d17f10883be2a1.1549921721.git.andreyknvl@google.com
+Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+Cc: Alexander Potapenko <glider@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Evgeniy Stepanov <eugenis@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Kostya Serebryany <kcc@google.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: Qian Cai <cai@lca.pw>
+Cc: Vincenzo Frascino <vincenzo.frascino@arm.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Sasha Levin <sashal@kernel.org>
+---
+ mm/slub.c | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)
 
-Not true. Again please differentiate the use cases between regular
-filesystem and anonyous mappings.
-
-> > Well swapout cannot occur if the page is pinned and those pages are also
-> > often mlocked.
->
-> I would need to check the swapout code but i believe the write to disk
-> can happen before the pin checks happens. I believe the event flow is:
-> map read only, allocate swap, write to disk, try to free page which
-> checks for pin. So that you could write stale data to disk and the GUP
-> going away before you perform the pin checks.
-
-Allocate swap is a separate step that associates a swap entry to an
-anonymous page.
-
-> They are other thing to take into account and that need proper page
-> dirtying, like soft dirtyness for instance.
-
-RDMA mapped pages are all dirty all the time.
-
-> Well RDMA driver maintainer seems to report that this has been a valid
-> and working workload for their users.
-
-No they dont.
-
-Could you please get up to date on the discussion before posting?
+diff --git a/mm/slub.c b/mm/slub.c
+index 131dee87a67c..979400b1a781 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1052,6 +1052,16 @@ static void setup_object_debug(struct kmem_cache *s, struct page *page,
+ 	init_tracking(s, object);
+ }
+ 
++static void setup_page_debug(struct kmem_cache *s, void *addr, int order)
++{
++	if (!(s->flags & SLAB_POISON))
++		return;
++
++	metadata_access_enable();
++	memset(addr, POISON_INUSE, PAGE_SIZE << order);
++	metadata_access_disable();
++}
++
+ static inline int alloc_consistency_checks(struct kmem_cache *s,
+ 					struct page *page,
+ 					void *object, unsigned long addr)
+@@ -1269,6 +1279,8 @@ unsigned long kmem_cache_flags(unsigned long object_size,
+ #else /* !CONFIG_SLUB_DEBUG */
+ static inline void setup_object_debug(struct kmem_cache *s,
+ 			struct page *page, void *object) {}
++static inline void setup_page_debug(struct kmem_cache *s,
++			void *addr, int order) {}
+ 
+ static inline int alloc_debug_processing(struct kmem_cache *s,
+ 	struct page *page, void *object, unsigned long addr) { return 0; }
+@@ -1584,12 +1596,11 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+ 	if (page_is_pfmemalloc(page))
+ 		SetPageSlabPfmemalloc(page);
+ 
+-	start = page_address(page);
++	kasan_poison_slab(page);
+ 
+-	if (unlikely(s->flags & SLAB_POISON))
+-		memset(start, POISON_INUSE, PAGE_SIZE << order);
++	start = page_address(page);
+ 
+-	kasan_poison_slab(page);
++	setup_page_debug(s, start, order);
+ 
+ 	shuffle = shuffle_freelist(s, page);
+ 
+-- 
+2.19.1
 
