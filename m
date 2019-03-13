@@ -7,93 +7,93 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 97FAEC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 19:16:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 07E4AC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 19:16:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5AB632184D
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 19:16:09 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B3277217F5
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 19:16:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="hOMwU4ol"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5AB632184D
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="ajawxJI8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3277217F5
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DF3258E0011; Wed, 13 Mar 2019 15:16:08 -0400 (EDT)
+	id 679EA8E0012; Wed, 13 Mar 2019 15:16:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DA2DD8E0001; Wed, 13 Mar 2019 15:16:08 -0400 (EDT)
+	id 6283E8E0001; Wed, 13 Mar 2019 15:16:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CBC328E0011; Wed, 13 Mar 2019 15:16:08 -0400 (EDT)
+	id 517868E0012; Wed, 13 Mar 2019 15:16:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 86C328E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 15:16:08 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id v2so3210618pfn.14
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:16:08 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C2B98E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 15:16:12 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id b15so3214209pfo.12
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:16:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=6fnYzobl2vLXQNbYiglP4/XI3PVcWRcrV7Bn9vRvS8s=;
-        b=TxROP8qxdOrr6BG/ijdMNMm1BBpBHbxuHgJ+xfVqeMgJPn360PK5VjPuUZnripmxMd
-         8ZUlVDgm0vsX5iy+N7olRIUMhWbZ0hz1sNOQvw7bgvjUfVgoz3UX3uQuN/28YzJCE3Zt
-         8QHgHF5DUQ20LDKh3gRbiN0hx1OSkWIYPdZMnxLc6ZjsIm1bUHMdCLy8P6x/QGgMDqgO
-         jT+oavDrYt2dLxs3Zxh4lt5WAYn7XEOX/hYNizUBpvakzxMgIrXvgLF97pmGy/Sz/fqL
-         iLER1oBbScwqSmna++O39N/RmQj5MFpG3hFvMTdIQXKeuhexpfRuf6H/g5Xtm54f8Dex
-         6ZNg==
-X-Gm-Message-State: APjAAAWjD8be47+UWTD45BaZhNBmQxRwtrbZnWJdJfMFg8iW7z5FMvXJ
-	4a9MgJi6j/trNjKWrha1uUYSvVyUy92karKQu3OEk8xnIUHjgyHomzcTrYr+mX6OIKquZ+olleZ
-	thT9msUhHZmShwm5cPOUb1Ioec7LIj+nARyIqrKE5donCOK2EKcrF+euJLvIfUb20sg==
-X-Received: by 2002:a17:902:aa88:: with SMTP id d8mr47466803plr.61.1552504568255;
-        Wed, 13 Mar 2019 12:16:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwNz6gGsFdZXbyhVBwt64Met2t2hf24P1nL2SBHr7Gnh1DEH5smbkTN/+/wZ6+4oSylz4Gk
-X-Received: by 2002:a17:902:aa88:: with SMTP id d8mr47466742plr.61.1552504567628;
-        Wed, 13 Mar 2019 12:16:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552504567; cv=none;
+        bh=/7wh80ojC3Qku9gbCedwkBZLV2i2JD5n0YkaTrYNDoo=;
+        b=WPLYwN3hVewNKo60w/KGCvaKBhsMy2NaZqb0nO332lof4LH98gxCmKRPMI2lnCgaDU
+         ylZHrfgewqweTID7SEko1n3Ffy8Aekih4HwOxWHvd0Azvt3U0A0V39x5CkNU1zPedS1J
+         8OZ5ssuF1Y8+H4wk454SfWrG7ir/1l6sRGynU9AaFVJSVEIzn97SZhHwgVaMNRPMKXJt
+         6nTda2oufdfH+ggRUJw3mExQLVlcmkOHt0eAxHTlbGVVKhWvVzxDbuw6nZ65mE2KPgNg
+         BGidAa2puNb+96RVBKiqaKAGllm4InZgv1Pd4Kg5tqEqwO/1Waw6UwrywlcVDjRsLYgj
+         w3DA==
+X-Gm-Message-State: APjAAAUMeMMshPPYr+eHrn4PXGzVVHGJrWSi6ruT+d3zps5fGwuwGn3A
+	nZoLYETa0CK2hrWDg11HTcVB7vAr44wRBm6HZ2gTN7164e4uCaEK8VSLk3hLsAg9RU4hKHZqJ6u
+	j39DQkDq/uXx9jI9Fz1Q9jfniBWCOZhhsmmt8qClbW74H66oMqvr3cDiG9rS1ivbIbw==
+X-Received: by 2002:a63:2a86:: with SMTP id q128mr14810074pgq.424.1552504571679;
+        Wed, 13 Mar 2019 12:16:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxWRVevoUT0Zhe7BMvFT7469R6Sw895Fbpy1hqg35soDA8nSkU8XtERcrzccY6AV9Je7F/Z
+X-Received: by 2002:a63:2a86:: with SMTP id q128mr14810015pgq.424.1552504570956;
+        Wed, 13 Mar 2019 12:16:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552504570; cv=none;
         d=google.com; s=arc-20160816;
-        b=hdJ69KeNDpm2z4WszgVsBNuxqQ2zbOGgs5/sNFJvfeTzzTlOR48xHoHe8pQ/SulGxD
-         G0NQdkBNTeN/P+rP4nGqIFp99nvggQeJ/QSENHPs8fzpF1X/DFlcAnlcfB89aEEbztvd
-         F+ylpGxRPXVH9/rvnFFGREuxKh3ktT3TKybjNPbvmMlnSMhb6Eq2C0D1yYhBT1T8DDwn
-         dyLLclg8O7sSYCFBe4+AlQnPvrNjWooKJCy9mxC/CjcsiJWz6qPsbBEJ1T3ECZ3efDtn
-         2xsaxZyl06ooFnwVPGz4TWfO4CmBGtFQ/1x2O9tBKdOL6Ao9XKGwx7kcdcW03NBGpP8J
-         8EaA==
+        b=YJlkTspAfKLvGNnr01Ve4mHVoA5SLT6yjYH8byWMqcoJigJEQy9ZimIKfVB1GbjX3Z
+         Ey2V/4z9Kg2n8Ijw4aRdI8R1QLTYHf88nQzN6OCVXb9I58GKXGTu8uEquejtsroY6/qK
+         lefj2qz++3DFa3iElqElXuvVlorfajG7tmV4mHb5hVuUNfRY5Jqyy65sy7NMXIXsqGCn
+         FMxSOE5DcUGb0SbAQGyTf0U2K1raDsBASoKb5n8Fyp8z9R+UV/mSqzQr5x4m2V+5jDeO
+         q/d8i3wWerbahdy/fI/x2dOR7gHnmrRR5NuwSL2yzP1J+VaNMViD1/JUaNqEwD+qHJ2K
+         Mc4g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=6fnYzobl2vLXQNbYiglP4/XI3PVcWRcrV7Bn9vRvS8s=;
-        b=jMt7Grm+QhKny6N6qyRd3blPM+QrXgLHtDOrPvniqdkzCDlx1qpvP5Bp+xmTe+ZQKs
-         rY5gxUsedo4X8uVgvIciUwP44QR6keJ1p0jpAfVHoj0TeT4Oo7PjptrddtpRhjMuLWEn
-         eecLnDqT9jMKF4as929j3a0GBQGcSXvY+W0jQFNdpvGw1jAWOgUHQaxew/R3IazuGJOu
-         9srVbaBa6bJVBKVevVM2021msNlK5QEjNYQ6r7sXFk9xBlg1JfYyxRF0HfKuYWiS+MCv
-         oTkqYS6V+87VsP3UBX+Lkx2ULWalN3glklVpi23X5zRS3ybxLi4MqBqkB9c5nt1g8R/D
-         Vr6Q==
+        bh=/7wh80ojC3Qku9gbCedwkBZLV2i2JD5n0YkaTrYNDoo=;
+        b=ummrWINBAYN5MXRomMUgsSYGPtU1ZD4fvU1Sa8By9GhJVGEk06jY14tYFg8Xp6KfHa
+         AQGrHxA5dQuZePeAC3Nf6m7pTJgzKlgVhISvGPM2alfSg/GN4RoRAht8vJlmweCtWvlK
+         vNodQwa4iVULAYrwkfHG64l5pvWG1Cl3OMdBcNoY36H2zc6wwq0ljRKAKJeJGP2csnu6
+         /MUN5NfQ+3MGiY+iwDJ/tEUukvIUUxVMYDE6XTvY2BooWgBq6Sm9TPi2HlRn4cx6706m
+         /uqU1LlQ4rV9XTw5Kg1GtWvini3J/+gCMNOhXPJFcXAbRCrPqFEoEFnhxPPVXVkRNWLM
+         vorQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=hOMwU4ol;
+       dkim=pass header.i=@kernel.org header.s=default header.b=ajawxJI8;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id g32si11125154pgg.223.2019.03.13.12.16.07
+        by mx.google.com with ESMTPS id g19si10599189pgk.300.2019.03.13.12.16.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Mar 2019 12:16:07 -0700 (PDT)
+        Wed, 13 Mar 2019 12:16:10 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=hOMwU4ol;
+       dkim=pass header.i=@kernel.org header.s=default header.b=ajawxJI8;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 99A03217F5;
-	Wed, 13 Mar 2019 19:16:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id DEED8213A2;
+	Wed, 13 Mar 2019 19:16:07 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1552504567;
-	bh=WXStNE+A0hOhZFnpfm+WbnYTeAPEF8BMGMrdEHJJtUk=;
+	s=default; t=1552504570;
+	bh=UepDjovFIr+6yJpnkmsAsF7ulrlMGkOgEZ/Ew1Fua4s=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=hOMwU4olg5/X/A86zXSsWZhuv3JKhD/WQ8tIgx50SwiUQfn08P7TGIjGDC0TMAsjC
-	 e/mOFZm9wuy+/a3tjmbzm1FQnj4HGHUwjtSmgZVxB0nEFcXGhLLqbSfdOwX4/3fFfT
-	 9X8xZodhW18skmY0zvaEilvk820EAXGFAWZPPqoA=
+	b=ajawxJI8UWRYYjuCdHl//7MCBOxUL/qp7hIjSOsL9zSkNiYVuTW0vZKqFPU3flDMb
+	 D0sZ1ItyKLtUElEsTkdSjOawYxQa3HCY3NyqI+gICJDCGA+2SEJnyPns98aUZeOGsR
+	 rkXLDdGURGQymqBqOqdxdc3xjzukOxBBKnXNQ/+8=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
@@ -109,9 +109,9 @@ Cc: Andrey Konovalov <andreyknvl@google.com>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.14 21/33] kasan, slab: fix conflicts with CONFIG_HARDENED_USERCOPY
-Date: Wed, 13 Mar 2019 15:14:54 -0400
-Message-Id: <20190313191506.159677-21-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.14 22/33] kasan, slab: make freelist stored without tags
+Date: Wed, 13 Mar 2019 15:14:55 -0400
+Message-Id: <20190313191506.159677-22-sashal@kernel.org>
 X-Mailer: git-send-email 2.19.1
 In-Reply-To: <20190313191506.159677-1-sashal@kernel.org>
 References: <20190313191506.159677-1-sashal@kernel.org>
@@ -126,13 +126,15 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andrey Konovalov <andreyknvl@google.com>
 
-[ Upstream commit 219667c23c68eb3dbc0d5662b9246f28477fe529 ]
+[ Upstream commit 51dedad06b5f6c3eea7ec1069631b1ef7796912a ]
 
-Similarly to commit 96fedce27e13 ("kasan: make tag based mode work with
-CONFIG_HARDENED_USERCOPY"), we need to reset pointer tags in
-__check_heap_object() in mm/slab.c before doing any pointer math.
+Similarly to "kasan, slub: move kasan_poison_slab hook before
+page_address", move kasan_poison_slab() before alloc_slabmgmt(), which
+calls page_address(), to make page_address() return value to be
+non-tagged.  This, combined with calling kasan_reset_tag() for off-slab
+slab management object, leads to freelist being stored non-tagged.
 
-Link: http://lkml.kernel.org/r/9a5c0f958db10e69df5ff9f2b997866b56b7effc.1550602886.git.andreyknvl@google.com
+Link: http://lkml.kernel.org/r/dfb53b44a4d00de3879a05a9f04c1f55e584f7a1.1550602886.git.andreyknvl@google.com
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 Tested-by: Qian Cai <cai@lca.pw>
 Cc: Alexander Potapenko <glider@google.com>
@@ -146,22 +148,43 @@ Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/slab.c | 2 ++
- 1 file changed, 2 insertions(+)
+ mm/slab.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
 
 diff --git a/mm/slab.c b/mm/slab.c
-index 09df506ae830..409631e49295 100644
+index 409631e49295..766043dd3f8e 100644
 --- a/mm/slab.c
 +++ b/mm/slab.c
-@@ -4415,6 +4415,8 @@ const char *__check_heap_object(const void *ptr, unsigned long n,
- 	unsigned int objnr;
- 	unsigned long offset;
+@@ -2378,6 +2378,7 @@ static void *alloc_slabmgmt(struct kmem_cache *cachep,
+ 		/* Slab management obj is off-slab. */
+ 		freelist = kmem_cache_alloc_node(cachep->freelist_cache,
+ 					      local_flags, nodeid);
++		freelist = kasan_reset_tag(freelist);
+ 		if (!freelist)
+ 			return NULL;
+ 	} else {
+@@ -2690,6 +2691,13 @@ static struct page *cache_grow_begin(struct kmem_cache *cachep,
  
-+	ptr = kasan_reset_tag(ptr);
+ 	offset *= cachep->colour_off;
+ 
++	/*
++	 * Call kasan_poison_slab() before calling alloc_slabmgmt(), so
++	 * page_address() in the latter returns a non-tagged pointer,
++	 * as it should be for slab pages.
++	 */
++	kasan_poison_slab(page);
 +
- 	/* Find and validate object. */
- 	cachep = page->slab_cache;
- 	objnr = obj_to_index(cachep, page, (void *)ptr);
+ 	/* Get slab management. */
+ 	freelist = alloc_slabmgmt(cachep, page, offset,
+ 			local_flags & ~GFP_CONSTRAINT_MASK, page_node);
+@@ -2698,7 +2706,6 @@ static struct page *cache_grow_begin(struct kmem_cache *cachep,
+ 
+ 	slab_map_pages(cachep, page, freelist);
+ 
+-	kasan_poison_slab(page);
+ 	cache_init_objs(cachep, page);
+ 
+ 	if (gfpflags_allow_blocking(local_flags))
 -- 
 2.19.1
 
