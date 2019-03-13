@@ -2,119 +2,192 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5BAE9C4360F
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 01:27:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BC3D2C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 01:42:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 26121214AE
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 01:27:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 26121214AE
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 51E2D2177E
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 01:42:34 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="e7XyM4kB"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 51E2D2177E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C7DA98E0004; Tue, 12 Mar 2019 21:27:11 -0400 (EDT)
+	id 9FEDD8E0003; Tue, 12 Mar 2019 21:42:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C042A8E0002; Tue, 12 Mar 2019 21:27:11 -0400 (EDT)
+	id 9AE178E0002; Tue, 12 Mar 2019 21:42:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A57688E0004; Tue, 12 Mar 2019 21:27:11 -0400 (EDT)
+	id 8C43C8E0003; Tue, 12 Mar 2019 21:42:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F5A68E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 21:27:11 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id b3so181527qkd.21
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 18:27:11 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 64BD28E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 21:42:33 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id k21so213904qkg.19
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 18:42:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=um0r7NxHpZAEIj2XWQs5JYojdIIDlGSLJxxWq2fz7/Q=;
-        b=V+E2SWoDg2cWn1FpL9JjYJ+SsSEwJh4yg7zk9ibE4/rIR1VbY00SBgEQxkoB2PHahd
-         lezC7bDEDoIAyPoOdXZ/nfhF3KEX5nMBJ/dNlXpFykP/22JpBfrbnWwQ/ZaRyFuJ3qen
-         ++j11xO8dVaIKl99DXskXtlzqpV9PdjCFHRjh9Ah1icGesHmMy093H1zbufzMMwJGN18
-         vBTH2NKi1buUwyWspv1dzTmSRdQBvSUCxw+OwZm/Ky8h5iubQiILOSBQf7hlI+ker3Xa
-         0MFikyPfeGDQYZhmtbbMiC+e+QCzFQOvo9q95VY5YCdZ5UZiB5PN5ahZiRreGvMezcTv
-         4UVg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAV4oc/HMF+tfcvCAGj3YQeDi8+7WIa9A455f9GvI7L9G6WPYKDj
-	FWyRWK3RQTvhuKTqxADKKy4wnU0BOu/O0y9kvri+SFDCPux1eyMPgB3Hm+jLKsT5HMmrsXLfXwP
-	8Q8a5mn35K9bOMTaqpt5ZBDsXFMkFJFn8Z5kkCZemipkZ0NkVwM2vFvk/wb2v45KJBA==
-X-Received: by 2002:a37:949:: with SMTP id 70mr4681372qkj.355.1552440431269;
-        Tue, 12 Mar 2019 18:27:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyPJLKSu6XCW9S/TCEkhiXkRNnuYwuKzaCo5Z82bM4xnj4LxR2o8T4fWqrbu/3JT3A0JYsL
-X-Received: by 2002:a37:949:: with SMTP id 70mr4681341qkj.355.1552440430559;
-        Tue, 12 Mar 2019 18:27:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552440430; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=NQfucrhbD0VzPNhfRkKgVrADDarqnaY6kdS2R65H4Ys=;
+        b=MBZw/2/e/nNRVISYKwYdzfUeYcs/vcLCEdrQYczXFKsCIf06cByEupjAorVcB22ThE
+         VLi515W4UPyUq/oMcbetuplaG5fCH8/toRCRNmwrG3/j0+yh36rLz5MvfmzmqIALj4DM
+         +5f2WZ1Qo6aAeDcPQJXml41RiJ4kwMiFu2DKAK01c3/2EoTZkZigvPTJmT8MefPyZk5q
+         KWOhHVp9NFvNiMSdfph4I/kMRR1OdHPup4W46EhpZxHkF4IDx3LKws3TP0OqwfnGQb3m
+         nv59Zt4FrQyCAxb406Mp2gu21r9eoxYX2sfGVzcD7GHDbndaC46gKHu6e6u/qVASlWFy
+         q3Ow==
+X-Gm-Message-State: APjAAAVQeaArIk2XtFPl4K8D/8kYuaIkDXHjhRV/KJk+HySxlvhwsCIL
+	7z7eA1z9bZ+afaqC7cjll3lmVRdntqcFqN+8pvfP9MBglVQXZw3+aEy3ghucfC98RLAdw+p6yw3
+	DFC2sW0SJ3tUhNN/mNLxUHD9KoHepj9Mn0Y7aZKlGonbOioJ0h+dINWUxLnr3JKvHG7wGkqOjc6
+	dAT1XPcjbVU3kE1Rm2Iu8QDexlrpIHyZirdmmT6o1fH59rD6FbipfvesSibzoBWVZldI8CbonU8
+	PUAi6jsQaRrT4xxa7yy2ltnIUrh1sUS8OeRh54feenREKTNj5dQG4fzEGxB4xIVCQ1jQokyw4Bi
+	yVk7/tXvqZievL60HKDVjjUmlohjAQsANUmPBnzVuqJyRWglmOMxmy7z9clnyoDmxNbXzHhVU4r
+	3
+X-Received: by 2002:a37:7e83:: with SMTP id z125mr23034108qkc.351.1552441353143;
+        Tue, 12 Mar 2019 18:42:33 -0700 (PDT)
+X-Received: by 2002:a37:7e83:: with SMTP id z125mr23034080qkc.351.1552441352350;
+        Tue, 12 Mar 2019 18:42:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552441352; cv=none;
         d=google.com; s=arc-20160816;
-        b=mcm1pds+xpqeIBC8ID++9dpn3oyy55SBE8caFz2xmP5/nZX7e/WjrHDUUdGrPHjblu
-         /YrlVRQNmFu58kdf7azc+MyaH+fpwjtj/R05grPdTPpuwV+opj4SR5sfXOmNDQY6NcGg
-         H7r8vef1Y4LuPBveI6r1H/4p1T6Rthk4sC44KDZPcnZgpidH3iKYH/jvf70lqaBlWF3N
-         3AhUfvkFs6Et/xlEEj4se6FmldhNHzL7oa9Nhdg1XvS0okxVsOY35Er2l4KLcJ7/KyzQ
-         Qk5R6akr1jaExIcd/b17gh4N0eyxITvE/NkcQmpS01A9arFTfsVNPRxmBw6QYhXCAQbE
-         flNA==
+        b=dVWJzvSQZLhiHTUeQs+Y1eq/ISlKO3AKDBlXWP0RB/otLUvNHixfrkX4fJtRfIUGcF
+         rW4FIwyFFOCS1UHCdYo3Gu922ChhwgTwb9JfRpjUNqjuuiXSUeKyerkuXWAMR+muoS4k
+         gIluA0HwXS9bSqaInB49u0tfVInR07p/Q7mBA0+ZBs+Xi2K/b3gmc44pBdBHO/sdJXlp
+         9Ie284fMzrTWWWn1HyfZSk090khzmMg82nyGCQou6nBDllw6iOufwFKPmRZIRp+x8FNz
+         ZtwJPxYrDvUy9iEDCXy3+0THsQ6rzxsk8n5T2UmlwK1SIypVa8ULl4lDZQ55UPqaMO1g
+         Q9RA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=um0r7NxHpZAEIj2XWQs5JYojdIIDlGSLJxxWq2fz7/Q=;
-        b=obEXtHFCB9SM/hxoZvCUdeaFG7qYiwQuLOpL+FUb2tiHexfBzosi0nvtO98HqDFcRE
-         kNGOK4deVSbh0y9pyxp8fDDA8nIUN2mvnzSYk2ah1+2tv9vQEAiQdcZmLZ2hO+3+XGJC
-         fXoBt/KmCg6lzXGVd5Lee3KXyE9P00lYy3MUKWwmiHIJ0IUN0lzVd0U5idvKtnlgp9Ly
-         enQLTtR9pnxGGskfQ8fhwYIZpFA8yqVD6ivsEw2SjLXhmnl9WCILT+Fi2Ox39mEKVr/k
-         vSIQ1c01c5aKkR6L9hfkwH91Ub8O+o6+GX26hnpIcrwoxsf2c/mtXsQNlY2JkxbeU5i1
-         uWaw==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=NQfucrhbD0VzPNhfRkKgVrADDarqnaY6kdS2R65H4Ys=;
+        b=y7T5yYiqADxUNO2Q2bGSy3RzGOq85Kn9Vpw+FdmXXiLCr1li8zFronvB78dEUOrCvq
+         BssO8d8gaJiX4mXjPfCSBeQmktDJDQehVHqq2oZ7O+oqJiliUZwkfWvygFg+GGIrfX/B
+         QPY+KTZJ8U2HsBSHuNGi63urTCLf5TulsH81Gd20i4TA4RlaH1m8SxpBvRI3c/BEKicD
+         1mqDa3C0iN+T9eawvw6IgaaT4iHu09HyoVpn4wv/GlDff6GZWMOJEdCcXNj7WgRM8qSb
+         GrW2I8aKbk+wI2Hv6O/4Fi/zU2+AOFxyNKIuTg5RF8KyMt79N4ZYgWefm9XxUzGLDON1
+         XwTA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z48si393021qvc.138.2019.03.12.18.27.10
+       dkim=pass header.i=@lca.pw header.s=google header.b=e7XyM4kB;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v143sor5539547qka.108.2019.03.12.18.42.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 18:27:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Tue, 12 Mar 2019 18:42:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id C87C17FD59;
-	Wed, 13 Mar 2019 01:27:09 +0000 (UTC)
-Received: from redhat.com (ovpn-116-53.phx2.redhat.com [10.3.116.53])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 76E8F6031F;
-	Wed, 13 Mar 2019 01:27:08 +0000 (UTC)
-Date: Tue, 12 Mar 2019 21:27:06 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Felix Kuehling <Felix.Kuehling@amd.com>,
-	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Jason Gunthorpe <jgg@mellanox.com>,
-	Dan Williams <dan.j.williams@intel.com>
-Subject: Re: [PATCH 00/10] HMM updates for 5.1
-Message-ID: <20190313012706.GB3402@redhat.com>
-References: <20190129165428.3931-1-jglisse@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190129165428.3931-1-jglisse@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Wed, 13 Mar 2019 01:27:09 +0000 (UTC)
+       dkim=pass header.i=@lca.pw header.s=google header.b=e7XyM4kB;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=from:to:cc:subject:date:message-id;
+        bh=NQfucrhbD0VzPNhfRkKgVrADDarqnaY6kdS2R65H4Ys=;
+        b=e7XyM4kBeSQFwVYWCx0/Yxi0Qx9ADcd3TwYCdYNRuNf4al9WnSxZAeYjZmNPaWxyIs
+         VklR/LEo84lmUJia9s7w5DrGdLEj87JIckavIKkKWVWYSt9UNH808J3ffoqwtRkv7Oz+
+         RZFUe1YXjz+HvfvVk7+ztrqd1/2HkC03kOUJw9t5KpLZyCqBysEdOV/8Hs6k+e53j0ah
+         ajHGF4iWjvHYXnnv3jAqn+LTemgh8BV34HyFwH23ao/qh8oHehgXhJro34Gc/uY8kWhZ
+         Qfog2rea4i0y8vTER1HoCgAB7WhHgnO43D8lhVoOi+0DgNU0Chk4IVgKZk947gvy3rRz
+         tR+w==
+X-Google-Smtp-Source: APXvYqxYSU6Hctdcn1af2We1tjwMEFTeS7kbgBVB6LLHwgPjs07KCSeVn3dtDT4JtYQzYlmbGQD9zQ==
+X-Received: by 2002:a37:c9d9:: with SMTP id m86mr11303831qkl.174.1552441352093;
+        Tue, 12 Mar 2019 18:42:32 -0700 (PDT)
+Received: from ovpn-121-103.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id s187sm4894678qkh.76.2019.03.12.18.42.31
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Mar 2019 18:42:31 -0700 (PDT)
+From: Qian Cai <cai@lca.pw>
+To: akpm@linux-foundation.org
+Cc: osalvador@suse.de,
+	mhocko@kernel.org,
+	vbabka@suse.cz,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Qian Cai <cai@lca.pw>
+Subject: [PATCH] mm/hotplug: fix offline undo_isolate_page_range()
+Date: Tue, 12 Mar 2019 21:42:16 -0400
+Message-Id: <20190313014216.36782-1-cai@lca.pw>
+X-Mailer: git-send-email 2.17.2 (Apple Git-113)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew you will not be pushing this patchset in 5.1 ?
+The commit f1dd2cd13c4b ("mm, memory_hotplug: do not associate hotadded
+memory to zones until online") introduced move_pfn_range_to_zone() which
+calls memmap_init_zone() during onlining a memory block.
+memmap_init_zone() will reset pagetype flags and makes migrate type to
+be MOVABLE.
 
-Cheers,
-Jérôme
+However, in __offline_pages(), it also call undo_isolate_page_range()
+after offline_isolated_pages() to do the same thing. Due to
+the commit 2ce13640b3f4 ("mm: __first_valid_page skip over offline
+pages") changed __first_valid_page() to skip offline pages,
+undo_isolate_page_range() here just waste CPU cycles looping around the
+offlining PFN range while doing nothing, because __first_valid_page()
+will return NULL as offline_isolated_pages() has already marked all
+memory sections within the pfn range as offline via
+offline_mem_sections().
+
+Also, after calling the "useless" undo_isolate_page_range() here, it
+reaches the point of no returning by notifying MEM_OFFLINE. Those pages
+will be marked as MIGRATE_MOVABLE again once onlining. The only thing
+left to do is to decrease the number of isolated pageblocks zone
+counter which would make some paths of the page allocation slower that
+the above commit introduced. Fix an incorrect comment along the way.
+
+Fixes: 2ce13640b3f4 ("mm: __first_valid_page skip over offline pages")
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
+ mm/memory_hotplug.c | 18 ++++++++++++++++--
+ mm/sparse.c         |  2 +-
+ 2 files changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index cd23c081924d..260a8e943483 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1661,8 +1661,22 @@ static int __ref __offline_pages(unsigned long start_pfn,
+ 	/* Ok, all of our target is isolated.
+ 	   We cannot do rollback at this point. */
+ 	offline_isolated_pages(start_pfn, end_pfn);
+-	/* reset pagetype flags and makes migrate type to be MOVABLE */
+-	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
++
++	/*
++	 * Onlining will reset pagetype flags and makes migrate type
++	 * MOVABLE, so just need to decrease the number of isolated
++	 * pageblocks zone counter here.
++	 */
++	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
++		int i;
++
++		for (i = 0; i < pageblock_nr_pages; i++)
++			if (pfn_valid_within(pfn + i)) {
++				zone->nr_isolate_pageblock--;
++				break;
++			}
++	}
++
+ 	/* removal success */
+ 	adjust_managed_page_count(pfn_to_page(start_pfn), -offlined_pages);
+ 	zone->present_pages -= offlined_pages;
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 69904aa6165b..56e057c432f9 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -567,7 +567,7 @@ void online_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-/* Mark all memory sections within the pfn range as online */
++/* Mark all memory sections within the pfn range as offline */
+ void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
+ {
+ 	unsigned long pfn;
+-- 
+2.17.2 (Apple Git-113)
 
