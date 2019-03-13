@@ -2,213 +2,207 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C8E8DC10F03
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 18:39:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 97727C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 18:40:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 820F92075C
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 18:39:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 820F92075C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 4ABEA2075C
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 18:40:03 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="BbmaOVrT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4ABEA2075C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 24E1E8E0003; Wed, 13 Mar 2019 14:39:57 -0400 (EDT)
+	id E0E258E0004; Wed, 13 Mar 2019 14:40:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1FDF78E0001; Wed, 13 Mar 2019 14:39:57 -0400 (EDT)
+	id DBDD88E0001; Wed, 13 Mar 2019 14:40:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 116B08E0003; Wed, 13 Mar 2019 14:39:57 -0400 (EDT)
+	id C86D38E0004; Wed, 13 Mar 2019 14:40:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DA3068E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 14:39:56 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id d49so2815617qtd.15
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 11:39:56 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 853038E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 14:40:02 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id d10so3135511pgv.23
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 11:40:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=ZohGR4V8wSpVzmC739+QOkXi1t3IjdSONDFbUF9hSUk=;
-        b=YAOLuHjKdfUsCqTMVmMDt4X2PNeJ3d9I1Hv8XCfjfp7i+UK9Dl9O5vJ3jfZCV1+i1o
-         Rb4y65US4Qypc/z6qtgzpjJ2oMJ5nUs1SFUhGAQbEq/lE4J6NPNDAmB8/ZZNPli8Nm4w
-         qS7rHP6RVgpouCudGofV39CDXNqwJhlxXGAAD2/k8e4WxZZuWXvQ0FP/TP5EStNtziXC
-         h1xKoruiMKWGl3VFCUIJY2derdA+qyOBVHTmI6T8kHOmzhVqhkp7UufTFx+YWh0/lu1v
-         pw3J1Z/C1eH66N8gNeVuaXBEhbtUBwfjBhM993i1/d07Slf9DOeA4WIS90DTsmiBthjo
-         1DEg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVyeeMul5mPfDwe6aqIOjemqF2Vij/vk6OGLku21XFH67cA6KEK
-	nZlNzTsVpPeWSIkQ93Cqzfn5bT0zADcZYjo7KSy7K7XFdoAp3NSzMPy6EsIYwotyagWZtMyMGDq
-	monjW0Cd2yfNSyJyadB8dT55q/F+YesgXklipB8G3kmVk3rLRJYDeQLeKgYQf3xfM8A==
-X-Received: by 2002:ac8:4a13:: with SMTP id x19mr16316331qtq.306.1552502396628;
-        Wed, 13 Mar 2019 11:39:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzDTiD+LpaIp7/UIHXat/J96d2zesVx9o9cGRX3SSSgfFr6+AM+5RjyY1DeISL3Aj2kI6d0
-X-Received: by 2002:ac8:4a13:: with SMTP id x19mr16316293qtq.306.1552502395722;
-        Wed, 13 Mar 2019 11:39:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552502395; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=lGCmHLKJA9/EYdLy/6HPhjPsvA0XaSLq0sCYMk41rjQ=;
+        b=fukiQJ0fpbSRU4oRMbJi3XJctI4K0sDffHXqe1GMEqSnxMQcZPIPHso3+MV6TZBrU8
+         +HobKztU2sp7uyqiNiQDtjJhpbwr40U5GGfi8nPxdjJwXy+1WnGeLATAMIy3M6XvkXua
+         AUYXY+YIhzduOOc4hNDbhpH3OSE3yIw2ltGDuNhD2lIb1MF3hu8SpnhXa16CX4At5Aru
+         +Kj9MpfrjZWRNdxewBRXSH0Hxs25J2g3WOGIKc6wCN7Quzh6fvkh0JW7WUG4xNKGibym
+         195LdN1L3hVEeFc23cCJDLCTR409FFegvAOjOtywgPQaN651xDHsaPsbMixwlyZEpJ+g
+         iiaQ==
+X-Gm-Message-State: APjAAAWeFnoc3EP1aCS9ZjLQmiTA8XQ5IFH03Nk7k+7TgECinKf7KROM
+	jHClLchGLDBjwiFmJqqdX2njvssDLyzF/+AOnibDbcGyCF5MAsQ73eRO61QEcEAVxpKM02kPX4k
+	kH9w/LJLNCfhgquhWbc4cIbC5OIzPILW2j65P2MApxl5HmZHXL6P8s0gaHW7QybougyYn8grJvg
+	0ELJw0Qbe+bccLETEQRl6q5eF5BIUlr1THycpSCtlGykZdyVDAbwET7H0ewjYi5cYcpglV4k/qA
+	zg1SCKewmBRpNJFIyvB88Jo4d6AkBZlMiw0Go9KzcJrdiwzuBGeplKSVHMqz69MnGcjvvQa3Urd
+	iWxng7CPmMP5aRBG7AgtC45TKUIqCbY5mArL9CD62ouydfx2Em1LzJQYI38Z+YPCRQffcm/yYQz
+	O
+X-Received: by 2002:a17:902:f01:: with SMTP id 1mr46196079ply.41.1552502402080;
+        Wed, 13 Mar 2019 11:40:02 -0700 (PDT)
+X-Received: by 2002:a17:902:f01:: with SMTP id 1mr46196016ply.41.1552502400903;
+        Wed, 13 Mar 2019 11:40:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552502400; cv=none;
         d=google.com; s=arc-20160816;
-        b=tGHlTJ1TteZmZzxduTDdqXHUXBuNB6V4IAq6TC/lZFo9+e9bbf0eKLl2dL5rV2Ldyu
-         tB+S2n8YXqcGBb9PuC1CXAQYKlZevg6UU1LG2rYlmuGJKgK9oQiNj/+z76G726iuqAZA
-         CSg2vGZIuiSn7nxHSNixtrf+X9EZLu0sZox6cbxSzoVRZvmlfx/TJYd/0fX7MTcGQIAA
-         j9mC7QRdSMIUmxCMGrtjDI2TaaIE4XVSrsvXc6nR2L9Z5pWiznKh/Gafy2UDfQ/z5CS5
-         dYmmizDPd5S1AYEbC9MHU96N2GCVWTlC0KrrNgkdKWPwoFD4j+iAQcSK1i1RpV2uNms7
-         obLQ==
+        b=MGMs3echh21kX25P115JheHC4Gt+8DBXubKZYGfs27RCOjy01mumlvP0OLWbRozXz7
+         8yR2E84ww+zZo7Zq1c/Y3ORN+oQcwqWM77Wxw9RIzwVw5mFhCt+/gMWKG/kVi72e52uG
+         o88U3zVW7IALGJN+z5/aTrsVFBVJ3FaLEfRnJb2hu37zJClRpitD7JrIVeHF9hd0jUjw
+         eH4W+9eTzs+XKWNIhMdh4HX3qokKAo4lNxP4JCKpXvufzkc27bjeRYDPjwbBxAkomyj+
+         EAs2+B22e+dtWzWXex+gyUXMXU6JmpXSiv+FlKt+rDzu+xqh9pKs+flNYVbytPjRDzZz
+         bmzg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=ZohGR4V8wSpVzmC739+QOkXi1t3IjdSONDFbUF9hSUk=;
-        b=sY9UxZ3ptJM3v1ACJcU7VHd++P4qhf+V2O01wGJwt1vrtW2iphPGDF4fUt506mU7cT
-         eYlAkyy3rJZU4eO3VM8yrVJ4IirhJhrmJl+dyG5j4FwL4+XJeNdamP5w7+7kwEFOeqs4
-         DkVIAtQi/P2s5GF9IQWaF+eoTWvM74/nIr5+Vjewou2Fs/TPQl/5mhQ3zIa6uN2y5UjL
-         bz8q/4oH7WezrNO3vaMjdIuLRAN2zYgtQMQ3U0PSS5dqCuk55h86iF6S6nkWwF7Droyr
-         GTzcj+eXFx/GY89dTV8y5cfrxz1gKQbAqZUhe/2Bkb3+ykQ3YEDbPrxDJ2IljsPXJgZm
-         nibA==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=lGCmHLKJA9/EYdLy/6HPhjPsvA0XaSLq0sCYMk41rjQ=;
+        b=1CfjiQhdz6hmL4oKolA+0ub3bXr9EB2thWAhXylD3Abrm0ZG2oZHV3wteUDcgEwjLX
+         XRxDjducs0uQi+5PBXos8S1RkChGIsRFkCxrtbAC2ODQrofasSJomwXOUHbq1Ep1xyKC
+         2b+wKm2iW+DHHhDtSDQY5UNgWDE5p3Rvqx0WxvDIm/J9ne5uRg4c6P3XOeFGANDMlBmH
+         +MU4Gv60qwVLJ77qPFBK+PcuJk+hKMHvZCgQeokoHRu6zySA9JNcar/mL1ChCFnziFxS
+         mEH0jygeGpFhsTz2H2tWvq78s9d/YfUZAjmq6pQnSY4p/mYfnuDjZ7Dtk3P/FW6ufV1l
+         lGww==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t25si520349qtt.104.2019.03.13.11.39.55
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BbmaOVrT;
+       spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d8sor19310323pgc.51.2019.03.13.11.40.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Mar 2019 11:39:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Wed, 13 Mar 2019 11:40:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id AAFB3C065871;
-	Wed, 13 Mar 2019 18:39:54 +0000 (UTC)
-Received: from redhat.com (ovpn-125-95.rdu2.redhat.com [10.10.125.95])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id C9CF060F87;
-	Wed, 13 Mar 2019 18:39:53 +0000 (UTC)
-Date: Wed, 13 Mar 2019 14:39:50 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dan Williams <dan.j.williams@intel.com>, Linux MM <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>
-Subject: Re: [PATCH 09/10] mm/hmm: allow to mirror vma of a file on a DAX
- backed filesystem
-Message-ID: <20190313183950.GB4651@redhat.com>
-References: <20190307094654.35391e0066396b204d133927@linux-foundation.org>
- <20190307185623.GD3835@redhat.com>
- <CAPcyv4gkxmmkB0nofVOvkmV7HcuBDb+1VLR9CSsp+m-QLX_mxA@mail.gmail.com>
- <20190312152551.GA3233@redhat.com>
- <CAPcyv4iYzTVpP+4iezH1BekawwPwJYiMvk2GZDzfzFLUnO+RgA@mail.gmail.com>
- <20190312190606.GA15675@redhat.com>
- <CAPcyv4g-z8nkM1B65oR-3PT_RFQbmQMsM-J-P0-nzyvvJ8gVog@mail.gmail.com>
- <20190312145214.9c8f0381cf2ff2fc2904e2d8@linux-foundation.org>
- <20190313001018.GA3312@redhat.com>
- <20190313090604.968100351b19338cacbfa3bc@linux-foundation.org>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BbmaOVrT;
+       spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=lGCmHLKJA9/EYdLy/6HPhjPsvA0XaSLq0sCYMk41rjQ=;
+        b=BbmaOVrTTrfPLRHgBCJK3fvZxYO5/ln++Ubzs451/+vYsxNPdWwBbSHUAv/FxKjuFD
+         Mf+xGTJBljqOzIsg8dAa9TKqpwh+H9DRemPztnU5TnsNKAzMzvFkodrueROckXzhzK1o
+         3I0SjuMQMX54hGSu9vG52ZWNFs9dyKGdAewCsDpK+NGOlCIvkGQBqPTCkWFGhLtr9oQf
+         IDU6EZ5XyvVpGezq8qb6dA3DlgAHHVZems5b6lDtfub+q/2uJCpBRVWzzXMWiGFOx9up
+         Y2VDMo4J6umdKSt14jrMvHkdLLMaHxOqFxj/0OAFT8srX5agSdjiugfRlcmwJNK9yNDM
+         xV2w==
+X-Google-Smtp-Source: APXvYqzdI6qgHAAwU5a2Vf/gu7NwWbBAvf44GvpOocbzEDCRQK42dGNNnvbR4MBLHpoDMPFq7Zhgxg==
+X-Received: by 2002:a63:204d:: with SMTP id r13mr15642250pgm.63.1552502400062;
+        Wed, 13 Mar 2019 11:40:00 -0700 (PDT)
+Received: from castle.hsd1.ca.comcast.net ([2603:3024:1704:3e00::d657])
+        by smtp.gmail.com with ESMTPSA id i13sm15792562pgq.17.2019.03.13.11.39.58
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 13 Mar 2019 11:39:58 -0700 (PDT)
+From: Roman Gushchin <guroan@gmail.com>
+X-Google-Original-From: Roman Gushchin <guro@fb.com>
+To: linux-mm@kvack.org,
+	kernel-team@fb.com
+Cc: linux-kernel@vger.kernel.org,
+	Tejun Heo <tj@kernel.org>,
+	Rik van Riel <riel@surriel.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Roman Gushchin <guro@fb.com>
+Subject: [PATCH v3 0/6] mm: reduce the memory footprint of dying memory cgroups
+Date: Wed, 13 Mar 2019 11:39:47 -0700
+Message-Id: <20190313183953.17854-1-guro@fb.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190313090604.968100351b19338cacbfa3bc@linux-foundation.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Wed, 13 Mar 2019 18:39:54 +0000 (UTC)
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 13, 2019 at 09:06:04AM -0700, Andrew Morton wrote:
-> On Tue, 12 Mar 2019 20:10:19 -0400 Jerome Glisse <jglisse@redhat.com> wrote:
-> 
-> > > You're correct.  We chose to go this way because the HMM code is so
-> > > large and all-over-the-place that developing it in a standalone tree
-> > > seemed impractical - better to feed it into mainline piecewise.
-> > > 
-> > > This decision very much assumed that HMM users would definitely be
-> > > merged, and that it would happen soon.  I was skeptical for a long time
-> > > and was eventually persuaded by quite a few conversations with various
-> > > architecture and driver maintainers indicating that these HMM users
-> > > would be forthcoming.
-> > > 
-> > > In retrospect, the arrival of HMM clients took quite a lot longer than
-> > > was anticipated and I'm not sure that all of the anticipated usage
-> > > sites will actually be using it.  I wish I'd kept records of
-> > > who-said-what, but I didn't and the info is now all rather dissipated.
-> > > 
-> > > So the plan didn't really work out as hoped.  Lesson learned, I would
-> > > now very much prefer that new HMM feature work's changelogs include
-> > > links to the driver patchsets which will be using those features and
-> > > acks and review input from the developers of those driver patchsets.
-> > 
-> > This is what i am doing now and this patchset falls into that. I did
-> > post the ODP and nouveau bits to use the 2 new functions (dma map and
-> > unmap). I expect to merge both ODP and nouveau bits for that during
-> > the next merge window.
-> > 
-> > Also with 5.1 everything that is upstream is use by nouveau at least.
-> > They are posted patches to use HMM for AMD, Intel, Radeon, ODP, PPC.
-> > Some are going through several revisions so i do not know exactly when
-> > each will make it upstream but i keep working on all this.
-> > 
-> > So the guideline we agree on:
-> >     - no new infrastructure without user
-> >     - device driver maintainer for which new infrastructure is done
-> >       must either sign off or review of explicitly say that they want
-> >       the feature I do not expect all driver maintainer will have
-> >       the bandwidth to do proper review of the mm part of the infra-
-> >       structure and it would not be fair to ask that from them. They
-> >       can still provide feedback on the API expose to the device
-> >       driver.
-> 
-> The patchset in -mm ("HMM updates for 5.1") has review from Ralph
-> Campbell @ nvidia.  Are there any other maintainers who we should have
-> feedback from?
+A cgroup can remain in the dying state for a long time, being pinned in the
+memory by any kernel object. It can be pinned by a page, shared with other
+cgroup (e.g. mlocked by a process in the other cgroup). It can be pinned
+by a vfs cache object, etc.
 
-John Hubbard also give his review on couple of them iirc.
+Mostly because of percpu data, the size of a memcg structure in the kernel
+memory is quite large. Depending on the machine size and the kernel config,
+it can easily reach hundreds of kilobytes per cgroup.
 
-> 
-> >     - driver bits must be posted at the same time as the new infra-
-> >       structure even if they target the next release cycle to avoid
-> >       inter-tree dependency
-> >     - driver bits must be merge as soon as possible
-> 
-> Are there links to driver patchsets which we can add to the changelogs?
-> 
+Depending on the memory pressure and the reclaim approach (which is a separate
+topic), it looks like several hundreds (if not single thousands) of dying
+cgroups is a typical number. On a moderately sized machine the overall memory
+footprint is measured in hundreds of megabytes.
 
-Issue with that is that i often post the infrastructure bit first and
-then the driver bit so i have email circular dependency :) I can alway
-post driver bits first and then add links to driver bits. Or i can
-reply after posting so that i can cross link both.
+So if we can't completely get rid of dying cgroups, let's make them smaller.
+This patchset aims to reduce the size of a dying memory cgroup by the premature
+release of percpu data during the cgroup removal, and use of atomic counterparts
+instead. Currently it covers per-memcg vmstat_percpu, per-memcg per-node
+lruvec_stat_cpu. The same approach can be further applied to other percpu data.
 
-Or i can post the driver bit on mm the first time around and mark them
-as "not for Andrew" or any tag that make it clear that those patch will
-be merge through the appropriate driver tree.
+Results on my test machine (32 CPUs, singe node):
 
-In any case for this patchset there is:
+  With the patchset:              Originally:
 
-https://patchwork.kernel.org/patch/10786625/
+  nr_dying_descendants 0
+  Slab:              66640 kB	  Slab:              67644 kB
+  Percpu:             6912 kB	  Percpu:             6912 kB
 
-Also this patchset refactor some of the hmm internal for better API so
-it is getting use by nouveau too which is already upstream.
+  nr_dying_descendants 1000
+  Slab:              85912 kB	  Slab:              84704 kB
+  Percpu:            26880 kB	  Percpu:            64128 kB
+
+So one dying cgroup went from 75 kB to 39 kB, which is almost twice smaller.
+The difference will be even bigger on a bigger machine
+(especially, with NUMA).
+
+To test the patchset, I used the following script:
+  CG=/sys/fs/cgroup/percpu_test/
+
+  mkdir ${CG}
+  echo "+memory" > ${CG}/cgroup.subtree_control
+
+  cat ${CG}/cgroup.stat | grep nr_dying_descendants
+  cat /proc/meminfo | grep -e Percpu -e Slab
+
+  for i in `seq 1 1000`; do
+      mkdir ${CG}/${i}
+      echo $$ > ${CG}/${i}/cgroup.procs
+      dd if=/dev/urandom of=/tmp/test-${i} count=1 2> /dev/null
+      echo $$ > /sys/fs/cgroup/cgroup.procs
+      rmdir ${CG}/${i}
+  done
+
+  cat /sys/fs/cgroup/cgroup.stat | grep nr_dying_descendants
+  cat /proc/meminfo | grep -e Percpu -e Slab
+
+  rmdir ${CG}
+
+v3:
+  - replaced get_cpu_mask() with cpumask_of() (by Johannes)
+
+v2:
+  - several renamings suggested by Johannes Weiner
+  - added a patch, which merges cpu offlining and percpu flush code
 
 
-> > Thing we do not agree on:
-> >     - If driver bits miss for any reason the +1 target directly
-> >       revert the new infra-structure. I think it should not be black
-> >       and white and the reasons why the driver bit missed the merge
-> >       window should be taken into account. If the feature is still
-> >       wanted and the driver bits missed the window for simple reasons
-> >       then it means that we push everything by 2 release ie the
-> >       revert is done in +1 then we reupload the infra-structure in
-> >       +2 and finaly repush the driver bit in +3 so we loose 1 cycle.
-> >       Hence why i would rather that the revert would only happen if
-> >       it is clear that the infrastructure is not ready or can not
-> >       be use in timely (over couple kernel release) fashion by any
-> >       drivers.
-> 
-> I agree that this should be more a philosophy than a set of hard rules.
-> 
+Roman Gushchin (6):
+  mm: prepare to premature release of memcg->vmstats_percpu
+  mm: prepare to premature release of per-node lruvec_stat_cpu
+  mm: release memcg percpu data prematurely
+  mm: release per-node memcg percpu data prematurely
+  mm: flush memcg percpu stats and events before releasing
+  mm: refactor memcg_hotplug_cpu_dead() to use
+    memcg_flush_offline_percpu()
+
+ include/linux/memcontrol.h |  66 ++++++++++----
+ mm/memcontrol.c            | 179 ++++++++++++++++++++++++++++---------
+ 2 files changed, 186 insertions(+), 59 deletions(-)
+
+-- 
+2.20.1
 
