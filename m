@@ -2,155 +2,145 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 64B36C4360F
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 15:47:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 20CEFC4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:00:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2348920854
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 15:47:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2348920854
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id CE45920643
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 16:00:23 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="dGdqiWPo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CE45920643
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7FCEF8E0004; Wed, 13 Mar 2019 11:47:15 -0400 (EDT)
+	id 66C358E0003; Wed, 13 Mar 2019 12:00:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7AB0A8E0001; Wed, 13 Mar 2019 11:47:15 -0400 (EDT)
+	id 5F2C48E0001; Wed, 13 Mar 2019 12:00:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 69A0F8E0004; Wed, 13 Mar 2019 11:47:15 -0400 (EDT)
+	id 4BB5E8E0003; Wed, 13 Mar 2019 12:00:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FA3A8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 11:47:15 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id p4so1135610edd.0
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 08:47:15 -0700 (PDT)
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E2258E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:00:23 -0400 (EDT)
+Received: by mail-yw1-f71.google.com with SMTP id f67so3015732ywa.6
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 09:00:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=J+p2LYO7feD6XW0EZkueZAMT9ZK7thvtMViqoazXSC8=;
-        b=Gb6SH6ztyhjLm5eyCJ6jFLgc7I6olrncU4OZpQ9Jy2XRbVcvPWHw7zZD0FdRUGIUS7
-         Xdxnhs23LstAcszj1xoKnSjSDhcIBZC9ICSPTf01Qz76P3sQHR8PiWdJGHgnRuuch9l0
-         SQnau3TwNp6umm5Z+ULDFo7cQe5hAIrMisjZvnsSx+bB2Cx+qGW1FAVk9F+/uKjNSvAh
-         Ygf2kixLvd5Z5gK0d4fvch9MKibtZmocpmoSLyqFK/ZBxI3NTta7PkZ9i1g1fmSNVpf4
-         KVn51ObV6hOcKIXWtiPdKP5QJ3A3vsPmejFpoX/YldXeDOgmjKlcCgqQF8fVdytI6oYu
-         B8mQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: APjAAAVuyaavMjg3Uxc7kvk0H3+0BvnJgKX4qqjrPKaJQnWfPyb2076j
-	cLndYTBeQ3l2cHvvgerWhzxWDw0YeROsJDri5/TPOIIA61fJcLwrtpP3VGhGndFVp2NpirjpLJq
-	A0JgXGUoA99KUYAXdY5x8Y0Y6XDjuYwNVNfXJpqI004c/ooONdRVHGbtDFzdOiV2LBg==
-X-Received: by 2002:a17:906:5245:: with SMTP id y5mr10662555ejm.151.1552492034525;
-        Wed, 13 Mar 2019 08:47:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz1W05D0yAZirPHS4vP2a0MQjxmcqkKDXwxCVuWYUUgoMvNRyBiAaeyZgpdgCBQRANrFvqR
-X-Received: by 2002:a17:906:5245:: with SMTP id y5mr10662505ejm.151.1552492033594;
-        Wed, 13 Mar 2019 08:47:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552492033; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=Kfs3heF+8ue5fPhJOE/1L32aZGxH5YHBEa9Vc48MxT0=;
+        b=MDNVHlH8kToQNxd9Iz2Kydc6VOsePKyPuykOfxFIw7wiXrVeTe2pqxU52QHFmEVxGs
+         3NW42iIIoGkvApaFfIG55XcfK3oRo3vmPpWbeyzuZrfgzcvgTyYxFMvzlkDIWhsICiRn
+         WFpUTrcv8OAlH8AajV/mUF4vEoE/JGINGCA2ocYeoyz2RzpwbpAA5kqeh9wCaZ6PfDL9
+         cF4aZBZhKwwVFKuSBH9MpWYfUh2xjIJdtQW8TIDFVkbaCZRJYZqXwxvJm1wwWD/bod8W
+         HxqcFgsxp5LpfNKcRW04qnZdrIf7Jyl88t2ZakkJ79ZbqoiYCjrxGgCj+IFrCFZdIVql
+         O2xg==
+X-Gm-Message-State: APjAAAV/kseySK2RePeUZK1ahpqMPHr6SafTVdOno5YConPhrdJaZLvp
+	6HLPjGeEaFjZThq2t43Qi16sTarEmTmACWLwWPDahv+8TkPZZeorvgEmZAVQbpy4M/aan3vfuNG
+	4mZpr53NfI+kDDh4PPLxbfzyJ2bimfbEWEDp3DTTSAcH2VV5nMA9wqCYKcT9kkPbzD/q34NzYFT
+	GZiHWyq4xkdXcrxAq7L7EqjGaTUIKzz+QiJwewqxUvGJ2O6LC95GyS9y5MGWGEcIB4HSTxi7SrQ
+	KJEKRJt1LqyigYxQ4PKSjLOk2sLcviQlfGN8aTHIDldBxTD4/wnYIZ+zqTCpzYaulk5USQp+Cvt
+	djCD4lWwUNcgJ1z5Tr9zE/Qv4edxn3bytpbE+UbUBon8ZV+lmNlQozS06gImDwG0J19VyiSdrRI
+	t
+X-Received: by 2002:a5b:51:: with SMTP id e17mr5848959ybp.64.1552492822777;
+        Wed, 13 Mar 2019 09:00:22 -0700 (PDT)
+X-Received: by 2002:a5b:51:: with SMTP id e17mr5848871ybp.64.1552492822033;
+        Wed, 13 Mar 2019 09:00:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552492822; cv=none;
         d=google.com; s=arc-20160816;
-        b=CwPQ5+NtcjAP9/cnS40LTFFWLACvMmbjUJsB1jXnfb6hJR8iTbFJaNMdh9mIHWHCKC
-         GYwHotAtWfS/Te0hC/QkenQp/M97vHmADRJ8SzyRjee3PPYXPAEF/N5pTgXfeO72/4yy
-         y7nvJSE9L2PCaX0GnqIfTjj2QB60DfLC7bZy142/z7p9+sTiX2jxk5oVUZCPYTIu0l5h
-         wNazWBh5HgfyathMkkcgfaazAkvUExzU9jR7OVhSJXjXeQZ29kkXAO7wvWRehzl2ABT5
-         lJgTE89SrixIayDnISsjgzphxTXQ3HWQuNv6fvk0GblsmVFU9ZoMtDWpd9Yx1t7DRIqU
-         yO7g==
+        b=uIf95T4uvZsLtrChGCNbI2RXu1IKUdmV4OnjKnLvo0/wX4zE9vLAEZLznEW1rigw4z
+         egY6Nn57GTzMuw1qFcWM1i/K2+zywTg/V4A08Csz7AdyvcvOJszkRku8W7mvSIEcegZp
+         66LfBIwwstu0PAKJtXO9D9sWApp/GaXWvYZwq+4sEfBsdA03GydZEVgmzjhoTvoPMZ0F
+         NvfZmu0WtBTRt69yroIrWKrnvPETEk5SQRwEdenDeId8J0qDuJ/zCfdoC/veA5xJtLnO
+         KnifJBHV1pceJ1T7v7uM3ia9TW1YJn7GhVPZ6Zyy0iBR14UJPTNiI0dYINGki9ya1vZK
+         ZC4g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=J+p2LYO7feD6XW0EZkueZAMT9ZK7thvtMViqoazXSC8=;
-        b=MhS7VZCTBqyuy8JyLKZxHLRs3jCTkoi9JhPkSaIkaxGCkNdFP+bHre67gO2RPopbRx
-         Zu9a8fcJFOAEkxAUk2tG01Ro1oPbPEx+1MLWR+Rtu07jVJE+1I+9tB7/InuXw29+fuI7
-         cBk2qazgJInCdtOZNIY4JLoGvwcjTig+2MsAKWvoyy2ZgevBaIgxYIgYVcQAgZQwZG6d
-         mv5bq/mcnPWEf+va08X5JyL7OZCDtZrANEXyuSbnNvnwpZCOI6/rMxK37fNgtFbkUji4
-         Rbm8wMnbGmyG0NF+Ka9cR6GwW9wmL2lEfh2nvu5pR+Ej0dLAEfCTd+yEt4X0exReCu3g
-         CyQQ==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=Kfs3heF+8ue5fPhJOE/1L32aZGxH5YHBEa9Vc48MxT0=;
+        b=zH4mOHbtORXzPPZTjAPE3U8G7gnT2RvXzNE7KwI2qjowIQc0aVgcMVlsuVcRAqdlAW
+         Lv4vB8gA8rLw1eQ2vBw61EdolcVUB+9MAOrFPqJO9UP0GOrlYXYNXxoamL7fJTlIJ/lD
+         Xtt4kN6iDuKC7aMcjvGzpsBD96bcF/YiOP2X9qCcozu3YqJ11CG9sakm/SgWT/XVgLq/
+         BA/Go0brfkLvAvolaaw+Xju120tYwN65YqWvyCwfDdilic/bioZ1uQ5rZObdqobnebdm
+         JaDD9BcuastBrA3/1ZQhglnitOFh/UA2TC+cA5uyc2zRpl2x47Qq72TgqofEGNPigH+X
+         upJw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d46si853836ede.307.2019.03.13.08.47.13
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=dGdqiWPo;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d191sor520717ywa.55.2019.03.13.09.00.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Mar 2019 08:47:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 13 Mar 2019 09:00:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 01D71B117;
-	Wed, 13 Mar 2019 15:47:13 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 425C31E3FE8; Wed, 13 Mar 2019 16:47:12 +0100 (CET)
-Date: Wed, 13 Mar 2019 16:47:12 +0100
-From: Jan Kara <jack@suse.cz>
-To: Kees Cook <keescook@chromium.org>
-Cc: Jan Kara <jack@suse.cz>,
-	syzbot <syzbot+2c49971e251e36216d1f@syzkaller.appspotmail.com>,
-	Amir Goldstein <amir73il@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>, cai@lca.pw,
-	Chris von Recklinghausen <crecklin@redhat.com>,
-	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
-	syzkaller-bugs <syzkaller-bugs@googlegroups.com>
-Subject: Re: WARNING: bad usercopy in fanotify_read
-Message-ID: <20190313154712.GJ9108@quack2.suse.cz>
-References: <00000000000016f7d40583d79bd9@google.com>
- <CAGXu5jKjWwYk5N3mOH1A8fXX_0BT3r1At_3MzN9M+Ckg5irKXg@mail.gmail.com>
- <20190313143503.GD9108@quack2.suse.cz>
- <CAGXu5j+_Ao_CU8DG9nrTbx5ioDkJUFw0cGcLBMWnvNLe_eFJ4A@mail.gmail.com>
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=dGdqiWPo;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=Kfs3heF+8ue5fPhJOE/1L32aZGxH5YHBEa9Vc48MxT0=;
+        b=dGdqiWPo1BOx1Hrm9Yb+fmpMIctPhEyDjRuPEMfrsn/Kt3uPznTjItkUMy2bpQMkQq
+         XOYyDXCPqUUbQyfrVo9hxOy8cYORZfSPejYoVDe4rwugqGjQrmP7bE6g+d4055mdv94g
+         f8F56Qk5Irl6ERWKfsSoNNUIZ90EecAB46rjEJFZ6Zs/jfURwKv0AmY+pVvS8fwmIcRK
+         I5RYS3nVJO4MTfBMA2OoQpzpmlWz3gRLoT0hp6pdkH6T0vjyZJRkCaaq+o5Kk3mLCC+X
+         jHtDw6/k3XpwqdP0ueQ4wM2KfvFTVxbuxDX4IWvI6ywSfu9pTCyuImllQMhznFZh41Jj
+         iecQ==
+X-Google-Smtp-Source: APXvYqxxouOQGLIOlx87tzAbVKhhhLdCSYZWRYS4+anzMp8teZfEjVRDQ/PJhjsFB5CB1/xBLaz/JQ==
+X-Received: by 2002:a81:9ad1:: with SMTP id r200mr12040290ywg.287.1552492819181;
+        Wed, 13 Mar 2019 09:00:19 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:200::2:9a85])
+        by smtp.gmail.com with ESMTPSA id q1sm5606033ywe.14.2019.03.13.09.00.18
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 13 Mar 2019 09:00:18 -0700 (PDT)
+Date: Wed, 13 Mar 2019 12:00:17 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Roman Gushchin <guroan@gmail.com>
+Cc: linux-mm@kvack.org, kernel-team@fb.com, linux-kernel@vger.kernel.org,
+	Tejun Heo <tj@kernel.org>, Rik van Riel <riel@surriel.com>,
+	Michal Hocko <mhocko@kernel.org>, Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH v2 5/6] mm: flush memcg percpu stats and events before
+ releasing
+Message-ID: <20190313160017.GA31891@cmpxchg.org>
+References: <20190312223404.28665-1-guro@fb.com>
+ <20190312223404.28665-6-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAGXu5j+_Ao_CU8DG9nrTbx5ioDkJUFw0cGcLBMWnvNLe_eFJ4A@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190312223404.28665-6-guro@fb.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 13-03-19 08:35:33, Kees Cook wrote:
-> On Wed, Mar 13, 2019 at 7:35 AM Jan Kara <jack@suse.cz> wrote:
-> > On Tue 12-03-19 23:26:22, Kees Cook wrote:
-> > > On Mon, Mar 11, 2019 at 1:42 PM syzbot
-> > > <syzbot+2c49971e251e36216d1f@syzkaller.appspotmail.com> wrote:
-> > > > C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=17ee410b200000
-> > > > [...]
-> > > > ------------[ cut here ]------------
-> > > > Bad or missing usercopy whitelist? Kernel memory exposure attempt detected
-> > > > from SLAB object 'fanotify_event' (offset 40, size 8)!
-> > > > [...]
-> > > >   copy_to_user include/linux/uaccess.h:151 [inline]
-> > > >   copy_fid_to_user fs/notify/fanotify/fanotify_user.c:236 [inline]
-> > > >   copy_event_to_user fs/notify/fanotify/fanotify_user.c:294 [inline]
-> > >
-> > > Looks like this is the fh/ext_fh union in struct fanotify_fid, field
-> > > "fid" in struct fanotify_event. Given that "fid" is itself in a union
-> > > against a struct path, I think instead of a whitelist using
-> > > KMEM_CACHE_USERCOPY(), this should just use a bounce buffer to avoid
-> > > leaving a whitelist open for path or ext_fh exposure.
-> >
-> > Do you mean to protect it from a situation when some other code (i.e. not
-> > copy_fid_to_user()) would be tricked into copying ext_fh containing slab
-> > pointer to userspace?
+On Tue, Mar 12, 2019 at 03:34:02PM -0700, Roman Gushchin wrote:
+> Flush percpu stats and events data to corresponding before releasing
+> percpu memory.
 > 
-> Yes. That's the design around the usercopy hardening. The
-> "whitelisting" is either via code (with a bounce buffer, so only the
-> specific "expected" code path can copy it), with a
-> kmem_create_usercopy() range marking (generally best for areas that
-> are not unions or when bounce buffers would be too big/slow), or with
-> implicit whitelisting (via a constant copy size that cannot change at
-> run-time, like: copy_to_user(dst, src, 6)).
+> Although per-cpu stats are never exactly precise, dropping them on
+> floor regularly may lead to an accumulation of an error. So, it's
+> safer to flush them before releasing.
 > 
-> In this case, since there are multiple unions in place and
-> FANOTIFY_INLINE_FH_LEN is small, it seemed best to go with a bounce
-> buffer.
+> To minimize the number of atomic updates, let's sum all stats/events
+> on all cpus locally, and then make a single update per entry.
+> 
+> Signed-off-by: Roman Gushchin <guro@fb.com>
 
-OK, makes sense. I'll replace tha patch using kmem_create_usercopy() in my
-tree with a variant you've suggested.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Do you mind merging 6/6 into this one? That would make it easier to
+verify that the code added in this patch and the code removed in 6/6
+are indeed functionally equivalent.
 
