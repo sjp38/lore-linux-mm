@@ -2,188 +2,119 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 77FD3C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 01:27:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5BAE9C4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 01:27:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2CB182171F
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 01:27:04 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="RWdnpec1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2CB182171F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 26121214AE
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 01:27:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 26121214AE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A35628E0003; Tue, 12 Mar 2019 21:27:03 -0400 (EDT)
+	id C7DA98E0004; Tue, 12 Mar 2019 21:27:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9B9A48E0002; Tue, 12 Mar 2019 21:27:03 -0400 (EDT)
+	id C042A8E0002; Tue, 12 Mar 2019 21:27:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 864CA8E0003; Tue, 12 Mar 2019 21:27:03 -0400 (EDT)
+	id A57688E0004; Tue, 12 Mar 2019 21:27:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E2DC8E0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 21:27:03 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id y1so411615pgo.0
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 18:27:03 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F5A68E0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2019 21:27:11 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id b3so181527qkd.21
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2019 18:27:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=DcQ2WocT+J2kTJpFnS9iX9mF0/3egjHnKwIWN+woEMI=;
-        b=HMeAH1zLGGYIhXNW3z+QRLtTOZbJcrH+YAwAu1DsIU9DM7a3uXuLle0UxLEUPHoPnT
-         foc+K2c0aNsgLWvZHJ3hljLM2pyxKhNdunT2EdwMcczLB70XUwGznN+zlnoIKH+huX1e
-         8xmZcPW5tcKrFUQOPq4IBzGvBNOCS+LmoZfMRiaEogaEXjNvS+bi9i4fNfGr3Hb6FKWO
-         m96dKo1KtE02LY4cud9vtoVgoNk6a0Sub5AUTjnzEDsH7IwEigIJHvWHlqyp/aJUVaJi
-         oNhUvKajjGMwuJ6sGmaoJkZneq0Dr5zd5NQocuww7m4HtXOETTZ3uGAip9gt/FX71v4b
-         Akcg==
-X-Gm-Message-State: APjAAAUUpT/Jwv5z7k6R3T4vr7VyNiF+ArbkrBVFpFb/tMfDR63aSwSY
-	yH/3ku8EfXIQq8D3AT/BtiORX1MBN+ap1//XIYyLvD/vAz7VPjiOR55pykRyOV3w88oXoBdYYus
-	w8VVNCE6xxFFhiMIxrEfcue5hoe2iUxc8oSEaLD7o/M+f+c3VBzD0CSKaNpe/uBMj9/udWpXhlw
-	e6Hd/4iYKaAGsQvO5lq9qsKorDrQeRN/0FC0OCPEaBB5yG2Hq+kABX26RSXrRQfZbifVgRnU6hY
-	Q4ZhE9Xw9ofpK265TWkF0U2Z7ZHhtJbhg1HofhXv81t6aVPFeSDCQp8RVjpmTsbX4ErMQRW9XRY
-	2QA8JkFQzOe9bwNOipnBJiXrzo/CxrV9rsEjUJt1HQuqgGtpjwHtsBU0NClTZRAh3GSHYSGSrEe
-	j
-X-Received: by 2002:a62:6d81:: with SMTP id i123mr41224550pfc.235.1552440422673;
-        Tue, 12 Mar 2019 18:27:02 -0700 (PDT)
-X-Received: by 2002:a62:6d81:: with SMTP id i123mr41224495pfc.235.1552440421652;
-        Tue, 12 Mar 2019 18:27:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552440421; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=um0r7NxHpZAEIj2XWQs5JYojdIIDlGSLJxxWq2fz7/Q=;
+        b=V+E2SWoDg2cWn1FpL9JjYJ+SsSEwJh4yg7zk9ibE4/rIR1VbY00SBgEQxkoB2PHahd
+         lezC7bDEDoIAyPoOdXZ/nfhF3KEX5nMBJ/dNlXpFykP/22JpBfrbnWwQ/ZaRyFuJ3qen
+         ++j11xO8dVaIKl99DXskXtlzqpV9PdjCFHRjh9Ah1icGesHmMy093H1zbufzMMwJGN18
+         vBTH2NKi1buUwyWspv1dzTmSRdQBvSUCxw+OwZm/Ky8h5iubQiILOSBQf7hlI+ker3Xa
+         0MFikyPfeGDQYZhmtbbMiC+e+QCzFQOvo9q95VY5YCdZ5UZiB5PN5ahZiRreGvMezcTv
+         4UVg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAV4oc/HMF+tfcvCAGj3YQeDi8+7WIa9A455f9GvI7L9G6WPYKDj
+	FWyRWK3RQTvhuKTqxADKKy4wnU0BOu/O0y9kvri+SFDCPux1eyMPgB3Hm+jLKsT5HMmrsXLfXwP
+	8Q8a5mn35K9bOMTaqpt5ZBDsXFMkFJFn8Z5kkCZemipkZ0NkVwM2vFvk/wb2v45KJBA==
+X-Received: by 2002:a37:949:: with SMTP id 70mr4681372qkj.355.1552440431269;
+        Tue, 12 Mar 2019 18:27:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyPJLKSu6XCW9S/TCEkhiXkRNnuYwuKzaCo5Z82bM4xnj4LxR2o8T4fWqrbu/3JT3A0JYsL
+X-Received: by 2002:a37:949:: with SMTP id 70mr4681341qkj.355.1552440430559;
+        Tue, 12 Mar 2019 18:27:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552440430; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZViH/qks15iv5jZvJ35CKPh9g25E3+jirz0hkyPzcumszemcRyBcVtls0LUKdoZ/bx
-         pG7y8/d0fJgOCYAGz5TICBEm1I8t98tFkYCZi/3ij5NJLWQISTEsTdM4JOKyXfKjzi8R
-         7USncfSjH3jpH43RPbOzIIZqx5Ro+of+ulREbmEyO4ay2LysGhAWyWXPTzc1qMzql3rd
-         +DEAkon76GsmwxSiMtBxTG91FkCxR3nj58MpOAHi0ndK0MjeZr2z2/sSE/dibt98b6P4
-         8pPdv7nqBwbukcAfRYEUnkhYLoFDeBdBO+PVPfxkb8biDMLN1pdLlCQqiohWJnGifChU
-         58Lg==
+        b=mcm1pds+xpqeIBC8ID++9dpn3oyy55SBE8caFz2xmP5/nZX7e/WjrHDUUdGrPHjblu
+         /YrlVRQNmFu58kdf7azc+MyaH+fpwjtj/R05grPdTPpuwV+opj4SR5sfXOmNDQY6NcGg
+         H7r8vef1Y4LuPBveI6r1H/4p1T6Rthk4sC44KDZPcnZgpidH3iKYH/jvf70lqaBlWF3N
+         3AhUfvkFs6Et/xlEEj4se6FmldhNHzL7oa9Nhdg1XvS0okxVsOY35Er2l4KLcJ7/KyzQ
+         Qk5R6akr1jaExIcd/b17gh4N0eyxITvE/NkcQmpS01A9arFTfsVNPRxmBw6QYhXCAQbE
+         flNA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=DcQ2WocT+J2kTJpFnS9iX9mF0/3egjHnKwIWN+woEMI=;
-        b=fieXKdmzqNE96dGBY/csd/qsXmiu3aQR8poADC9wjyYUspenzI3w4EjPsa2AOLIp8l
-         AHi+RkoVJXTBwIB9ue25ipU4Rvp5PtE14BoqSj/QdeLHJah6pEsE6POjxLnpA2qPY9MK
-         s0G5+h1Fa7Z9Bj7FvTmxRuyczxeXzil6CYl7LqSrKFZszi29rla0g/fNEa2Ni0iAjgfD
-         8c03XpR07rIopbOzRhVC1sgX12AmskEU3HnUMBmu8hRADDuBGUms/t+GtAHAYToMezLx
-         N5qwYTZkSJ7MyYRQ5ZhNsK2L9AMr+0b2Bq7ZnfM7scVr+JpOspsW9olylMXVv9zKHuiH
-         ok9g==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=um0r7NxHpZAEIj2XWQs5JYojdIIDlGSLJxxWq2fz7/Q=;
+        b=obEXtHFCB9SM/hxoZvCUdeaFG7qYiwQuLOpL+FUb2tiHexfBzosi0nvtO98HqDFcRE
+         kNGOK4deVSbh0y9pyxp8fDDA8nIUN2mvnzSYk2ah1+2tv9vQEAiQdcZmLZ2hO+3+XGJC
+         fXoBt/KmCg6lzXGVd5Lee3KXyE9P00lYy3MUKWwmiHIJ0IUN0lzVd0U5idvKtnlgp9Ly
+         enQLTtR9pnxGGskfQ8fhwYIZpFA8yqVD6ivsEw2SjLXhmnl9WCILT+Fi2Ox39mEKVr/k
+         vSIQ1c01c5aKkR6L9hfkwH91Ub8O+o6+GX26hnpIcrwoxsf2c/mtXsQNlY2JkxbeU5i1
+         uWaw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RWdnpec1;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y67sor15758053pgy.46.2019.03.12.18.27.01
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z48si393021qvc.138.2019.03.12.18.27.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Mar 2019 18:27:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RWdnpec1;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id;
-        bh=DcQ2WocT+J2kTJpFnS9iX9mF0/3egjHnKwIWN+woEMI=;
-        b=RWdnpec1bY1T5V836zaR6TgkI1WeiFH0PKCrCAZA81LICH6qrojkvo5ailcHkjppKa
-         EbrgRn6hLo2I0Ct7Rz1icyXHB30ql+RvPS0ZRHWMQU3KqjVtaEvYXkNLgqptlGyT8Xp1
-         PmjZdXOh8L70FrqRHskqFgqnnrs1pw7UJ4VrKaP0h2VSL2fEmqUGsHniBk0/mK6mQ7lp
-         52ohzP1cnC5q7+x2HhYteeymEEF+JQ8zMpf7PiC5EBZBAnL1+aJeTHfNhFRO7fvCOs/d
-         7ZsBGLfKsZjk8HoNMNwewTbiEUTLrWjsK1AczpPKxxyBwivq7nBDUoSS8c+A73Oakv4h
-         W8KQ==
-X-Google-Smtp-Source: APXvYqxUzSFC6XYHDs2GtK2JSRs06AFphXvchGSeeCQb540evYiOQyr3e+S+H13eBU3IDoMf/2c+jQ==
-X-Received: by 2002:a63:5317:: with SMTP id h23mr13303091pgb.437.1552440421102;
-        Tue, 12 Mar 2019 18:27:01 -0700 (PDT)
-Received: from localhost.localdomain ([203.100.54.194])
-        by smtp.gmail.com with ESMTPSA id c13sm27539995pfm.34.2019.03.12.18.26.58
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Mar 2019 18:27:00 -0700 (PDT)
-From: Yafang Shao <laoar.shao@gmail.com>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org,
-	linux-mm@kvack.org,
-	shaoyafang@didiglobal.com,
-	Yafang Shao <laoar.shao@gmail.com>
-Subject: [PATCH v2] mm: compaction: some tracepoints should be defined only when CONFIG_COMPACTION is set
-Date: Wed, 13 Mar 2019 09:26:43 +0800
-Message-Id: <1552440403-11780-1-git-send-email-laoar.shao@gmail.com>
-X-Mailer: git-send-email 1.8.3.1
+        Tue, 12 Mar 2019 18:27:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id C87C17FD59;
+	Wed, 13 Mar 2019 01:27:09 +0000 (UTC)
+Received: from redhat.com (ovpn-116-53.phx2.redhat.com [10.3.116.53])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 76E8F6031F;
+	Wed, 13 Mar 2019 01:27:08 +0000 (UTC)
+Date: Tue, 12 Mar 2019 21:27:06 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Felix Kuehling <Felix.Kuehling@amd.com>,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	Dan Williams <dan.j.williams@intel.com>
+Subject: Re: [PATCH 00/10] HMM updates for 5.1
+Message-ID: <20190313012706.GB3402@redhat.com>
+References: <20190129165428.3931-1-jglisse@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190129165428.3931-1-jglisse@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Wed, 13 Mar 2019 01:27:09 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Only mm_compaction_isolate_{free, migrate}pages may be used when
-CONFIG_COMPACTION is not set.
-All others are used only when CONFIG_COMPACTION is set.
+Andrew you will not be pushing this patchset in 5.1 ?
 
-After this change, if CONFIG_COMPACTION is not set, the tracepoints
-that only work when CONFIG_COMPACTION is set will not be exposed to
-the usespace.
-Without this change, they will always be expose in debugfs no matter
-CONFIG_COMPACTION is set or not.
-That is an improvement.
-
-Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
----
- include/trace/events/compaction.h | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
-
-diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
-index 6074eff..3e42078 100644
---- a/include/trace/events/compaction.h
-+++ b/include/trace/events/compaction.h
-@@ -64,6 +64,7 @@
- 	TP_ARGS(start_pfn, end_pfn, nr_scanned, nr_taken)
- );
- 
-+#ifdef CONFIG_COMPACTION
- TRACE_EVENT(mm_compaction_migratepages,
- 
- 	TP_PROTO(unsigned long nr_all,
-@@ -132,7 +133,6 @@
- 		__entry->sync ? "sync" : "async")
- );
- 
--#ifdef CONFIG_COMPACTION
- TRACE_EVENT(mm_compaction_end,
- 	TP_PROTO(unsigned long zone_start, unsigned long migrate_pfn,
- 		unsigned long free_pfn, unsigned long zone_end, bool sync,
-@@ -166,7 +166,6 @@
- 		__entry->sync ? "sync" : "async",
- 		__print_symbolic(__entry->status, COMPACTION_STATUS))
- );
--#endif
- 
- TRACE_EVENT(mm_compaction_try_to_compact_pages,
- 
-@@ -195,7 +194,6 @@
- 		__entry->prio)
- );
- 
--#ifdef CONFIG_COMPACTION
- DECLARE_EVENT_CLASS(mm_compaction_suitable_template,
- 
- 	TP_PROTO(struct zone *zone,
-@@ -296,7 +294,6 @@
- 
- 	TP_ARGS(zone, order)
- );
--#endif
- 
- TRACE_EVENT(mm_compaction_kcompactd_sleep,
- 
-@@ -352,6 +349,7 @@
- 
- 	TP_ARGS(nid, order, classzone_idx)
- );
-+#endif
- 
- #endif /* _TRACE_COMPACTION_H */
- 
--- 
-1.8.3.1
+Cheers,
+Jérôme
 
