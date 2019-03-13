@@ -2,181 +2,115 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4DD4EC4360F
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 18:52:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 93EB7C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 19:00:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DEE7520854
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 18:52:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DEE7520854
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 5659B2075C
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 19:00:48 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="ZmD0i5tI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5659B2075C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 52C718E0003; Wed, 13 Mar 2019 14:52:40 -0400 (EDT)
+	id E27108E0003; Wed, 13 Mar 2019 15:00:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4DAAE8E0001; Wed, 13 Mar 2019 14:52:40 -0400 (EDT)
+	id DFC398E0001; Wed, 13 Mar 2019 15:00:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3CB928E0003; Wed, 13 Mar 2019 14:52:40 -0400 (EDT)
+	id CECF48E0003; Wed, 13 Mar 2019 15:00:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F39C8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 14:52:40 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id o135so2414821qke.11
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 11:52:40 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B4BBF8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 15:00:47 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id b1so2857854qtk.11
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:00:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=M+JZ8TeFWmIFE2e1xRH/xC27DrG2i8KzHZ+5mJ5JOr4=;
-        b=E9TTpIEdzZwIxwbBY6Wbd5wFs18xyj3iW/Bjcb5RHDj96SC4Dm2F1VE/apLTiF1Jco
-         X4q2PhLwvd0eLydZkEoqqxgmrw0t3fcu7cEZW4sWYKK6pKStnPUypzMVX+pk1fMDNbgm
-         NFQYzxsugz3tprfIP6rnPGCNqo3z5RPurNWzZATZEJvFcPn3dj8EtHI5/kMIYw1o3UTX
-         yAn+Wv5DMXLk5Q9c1L8q4mAKczYYknKDFHS+I1ZAL40qIGduRBaVH70wwYPt33y7Lwj5
-         UR7XgdjZ520mXMUTiX9QnU433Js3mXbt5rSLgEzB471tyk73kRTGpJjI5/U9pV4rZeKF
-         ag/w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWD4rrXd7+lm0Ql73ExgO0/6GiBGx5SMvZlRjHGBUomuf3vDRU7
-	K1kJzdNO7uJXJJQlkxzL05yNOWoO4QJw3XgUhV7hUAybdUcFEdbw8XvX/aHIaEX+CSgRD1TAPen
-	KjRfTuijpKUT1b7EWNjaiH3OywLmwUubCPeIFd/L1c7STKykIbYAZxq4xkqCETG++Bw==
-X-Received: by 2002:aed:3781:: with SMTP id j1mr1957795qtb.380.1552503159335;
-        Wed, 13 Mar 2019 11:52:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy2/uNhvxJ86lRLnK0kaqHYNHOhUbML0Xnr4qhrpBrCpx/4G8tcap+6tBo3AcEvQD+HKBi0
-X-Received: by 2002:aed:3781:: with SMTP id j1mr1957725qtb.380.1552503158208;
-        Wed, 13 Mar 2019 11:52:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552503158; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version
+         :feedback-id;
+        bh=4v128Tp+ktDAhV/qENqEBuzjLJBLhHo3lzR/qUMTRlo=;
+        b=W+yFZRk4dC/qTFdrcEsgcjNM6j6BEKwjNbGoHlGhsqorO8WgUMKx41QHvFFm84l5c8
+         czp5RILEMz+tJbdDMcosvRLK/XrU26rNoM41wn1D6wk3wfSKrI3+iqzLbv2lhfSe4GzS
+         +gUYV+L+sSzHpkN2zgqlXGITxYXWLqq0DO6svJ7RUACGVWgquZwOoUj9V0ATkE31UOpB
+         l+anTAoOVqng5e3djOkN796oddSrdgCPL8CSMZvb4HBxoAcwbpVZ/3vcP2S7sWozDYa+
+         LxrDkOfETQ12hTerIhfYwxnaMgI7zOMa2nL1bHui7W5MJTDUvDTy1Ozt2848xzV3h/lw
+         G+9w==
+X-Gm-Message-State: APjAAAUnJASD+xdP3SlUadM5WlyMhU6RcZulfST2lQbpg2RhPU1A2s6e
+	F9zwMgcuZPVZGk+NydVNZu6U2PzW7kBMvEwvXe3Tfri9S/5il/vTdqLQSSp/+kIBdFXycF3ykKe
+	KCmlGu0uzJtdZySp5iGxYDNzvu8RTB7hmS4x8rMQ6LVKDTCWp+tCQ5m1ig+5GMes=
+X-Received: by 2002:a0c:ba95:: with SMTP id x21mr35150568qvf.65.1552503647219;
+        Wed, 13 Mar 2019 12:00:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzl8Gli6Pzy6MCNezcRP6F79mXF5paLOuZ9d9bMHAQM6n3qh8Zn6oD9Boj9vBoTOEwP1486
+X-Received: by 2002:a0c:ba95:: with SMTP id x21mr35150513qvf.65.1552503646276;
+        Wed, 13 Mar 2019 12:00:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552503646; cv=none;
         d=google.com; s=arc-20160816;
-        b=r7Lxyt38LqNBX9q2Zf9bcoO5/mhRH7QEvkKaJemzc2Q8KbBOQ8XIXdQzZGI0WEiv4E
-         rD5OuN4b9L9NettHsd6yHEn1R6lRRsr/3ea+EU9fEAQQne0+g1Sou+A3H7NzI4Gu3q8o
-         J6yztU5/XfF6qWVTCO3IDmZysjI6ceNyOjFF/7ogOlB9ZxhwPP9wAJDFHnn5sqbZu9ZB
-         kSf3V4mjOzt7IWm4tiW7ALgR6SALziKYJaCA69O8F57oiq5loFuP4YoIawVv5DruRT8b
-         MEwr7lUvndFuc2BS9WkdMfXcXjuvTQxnvUmi8RtvUTueT8aKSR7cY6KxV4ilBHNsLr9Q
-         DTrw==
+        b=Z/ej4+T5XUHylsidbQTeat28WxhgMLeuYx2o9ZmAZSnk9cNEl1w4Hi9gN0x6y06856
+         ZH8qhnPAOUqNZpe76blDe3EzNrEVmRWnUO7vSVXnhzYMM5FqftaOPoLOSo9pfDppEHq9
+         lggYfGogTcQELROayXDeDYw3EhM/lI7/4VKgkQteLJg8hySdXOW5GICKrW6t5oqqWNX7
+         F5YbDDoYSyT7LrJvsNMGfItG0am0aM/vZmj9+L+FEvroIu9bGuauEjGjz4xgDLfIZjWB
+         pwDh5NMSfRnYJ/11gmMgAF7du7bU59Sa+hWs9AzPMw/z8jK6fhYnqIwSobc/KU66RjOY
+         zvyg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=M+JZ8TeFWmIFE2e1xRH/xC27DrG2i8KzHZ+5mJ5JOr4=;
-        b=EkjR+nTQIvfQFV4AZXL0PhlNcgoi3BjHOe0IIs53QXWtYSCsgZ87Pxo3ylDRvx1M6e
-         91YyeVbbOBv/WXUI9pe2Ho6xFcPHExYDGh1+FLgaS5Az7p4xaCo5Ia2XgV5kpzoMz5cV
-         4KpUQhyETjk2ySp3R3DW3EwDtVKEqVuZr4aeNTvF9QPeXf8IQHNmzp+gQirKKAihB3fP
-         6I9fIwH7pRpJOgb+eaEjmZUSxn/yXhDMdpQWm+BAF04o4FvKOvt4e1Xz2JHfpNN+Qvtr
-         buwUpysEvPKEc63zzSz0qepw1wcirwwStD4c3Tes8DegNLxpKAF9KD46xcO6D+VKxf5U
-         Eu6g==
+        h=feedback-id:mime-version:user-agent:references:message-id
+         :in-reply-to:subject:cc:to:from:date:dkim-signature;
+        bh=4v128Tp+ktDAhV/qENqEBuzjLJBLhHo3lzR/qUMTRlo=;
+        b=QiCRjtEzXgg9Tw7ZBHbSPNC+oN5cbM/c1PmWNy/JfXFpXAg2/7lNpY//Yo/aeG9mms
+         OWle0w/R4QLUF8T0jxTISeTrFyU70ADj5E2p3U1znptVlb5A4nOZ9eExtjdhkTYvdlNQ
+         pVpVzcU4rMbrgiIPLb2cIHOVXR94xj0mnYK97jmpPo/rx+PKBg3KjmIxlKvRO2QkXQNK
+         dudArJ4fHNk5qEF/SU4GQp/TCoOlhHBaDwjDsMGDimkmHhYXJUq8Hv9uM0q5jGf5/1HW
+         eH1Jn7cscasPqvCmupVqf7VhPWNGNDyWTOR0SjnF1y5iO9j4lM7HFXKovP4iAWHaFjxB
+         lI3w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h46si3263079qth.279.2019.03.13.11.52.38
+       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=ZmD0i5tI;
+       spf=pass (google.com: domain of 01000169786da62d-7d0ce9cc-5f3d-4ef5-b357-447d25db000d-000000@amazonses.com designates 54.240.9.36 as permitted sender) smtp.mailfrom=01000169786da62d-7d0ce9cc-5f3d-4ef5-b357-447d25db000d-000000@amazonses.com
+Received: from a9-36.smtp-out.amazonses.com (a9-36.smtp-out.amazonses.com. [54.240.9.36])
+        by mx.google.com with ESMTPS id v18si7356703qto.367.2019.03.13.12.00.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Mar 2019 11:52:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 13 Mar 2019 12:00:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 01000169786da62d-7d0ce9cc-5f3d-4ef5-b357-447d25db000d-000000@amazonses.com designates 54.240.9.36 as permitted sender) client-ip=54.240.9.36;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id A5726307E042;
-	Wed, 13 Mar 2019 18:52:36 +0000 (UTC)
-Received: from sky.random (ovpn-121-1.rdu2.redhat.com [10.10.121.1])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id C6BA46058F;
-	Wed, 13 Mar 2019 18:52:31 +0000 (UTC)
-Date: Wed, 13 Mar 2019 14:52:30 -0400
-From: Andrea Arcangeli <aarcange@redhat.com>
-To: Paolo Bonzini <pbonzini@redhat.com>
-Cc: Peter Xu <peterx@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>,
-	linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>,
-	Luis Chamberlain <mcgrof@kernel.org>,
-	Maxime Coquelin <maxime.coquelin@redhat.com>, kvm@vger.kernel.org,
-	Jerome Glisse <jglisse@redhat.com>,
-	Pavel Emelyanov <xemul@virtuozzo.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Martin Cracauer <cracauer@cons.org>,
-	Denis Plotnikov <dplotnikov@virtuozzo.com>, linux-mm@kvack.org,
-	Marty McFadden <mcfadden8@llnl.gov>,
-	Maya Gokhale <gokhale2@llnl.gov>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	linux-fsdevel@vger.kernel.org,
-	"Dr . David Alan Gilbert" <dgilbert@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/3] userfaultfd: allow to forbid unprivileged users
-Message-ID: <20190313185230.GH25147@redhat.com>
-References: <20190311093701.15734-1-peterx@redhat.com>
- <58e63635-fc1b-cb53-a4d1-237e6b8b7236@oracle.com>
- <20190313060023.GD2433@xz-x1>
- <3714d120-64e3-702e-6eef-4ef253bdb66d@redhat.com>
+       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=ZmD0i5tI;
+       spf=pass (google.com: domain of 01000169786da62d-7d0ce9cc-5f3d-4ef5-b357-447d25db000d-000000@amazonses.com designates 54.240.9.36 as permitted sender) smtp.mailfrom=01000169786da62d-7d0ce9cc-5f3d-4ef5-b357-447d25db000d-000000@amazonses.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1552503645;
+	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
+	bh=4v128Tp+ktDAhV/qENqEBuzjLJBLhHo3lzR/qUMTRlo=;
+	b=ZmD0i5tISekKUpnLkeNXCwQ1vVW9A7rfgy7qPJEel3WTfKVZneko1zLlsUmEzIf6
+	Iji8YMMlaXnXNCYUCef5IJ3dXQYwvXe6ar3OadtxVKNs4wZB8jq0IB7Zbnf50XRxQ+e
+	IGGR0HjL/4p/d/Yj8HIE+SxmH9YUxasmkaJnv7lk=
+Date: Wed, 13 Mar 2019 19:00:45 +0000
+From: Christopher Lameter <cl@linux.com>
+X-X-Sender: cl@nuc-kabylake
+To: "Tobin C. Harding" <tobin@kernel.org>
+cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, 
+    Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, 
+    Joonsoo Kim <iamjoonsoo.kim@lge.com>, Matthew Wilcox <willy@infradead.org>, 
+    linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH v2 1/5] slub: Add comments to endif pre-processor
+ macros
+In-Reply-To: <20190313052030.13392-2-tobin@kernel.org>
+Message-ID: <01000169786da62d-7d0ce9cc-5f3d-4ef5-b357-447d25db000d-000000@email.amazonses.com>
+References: <20190313052030.13392-1-tobin@kernel.org> <20190313052030.13392-2-tobin@kernel.org>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3714d120-64e3-702e-6eef-4ef253bdb66d@redhat.com>
-User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Wed, 13 Mar 2019 18:52:37 +0000 (UTC)
+Content-Type: text/plain; charset=US-ASCII
+X-SES-Outgoing: 2019.03.13-54.240.9.36
+Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
 
-On Wed, Mar 13, 2019 at 09:22:31AM +0100, Paolo Bonzini wrote:
-> On 13/03/19 07:00, Peter Xu wrote:
-> >> However, I can imagine more special cases being added for other users.  And,
-> >> once you have more than one special case then you may want to combine them.
-> >> For example, kvm and hugetlbfs together.
-> > It looks fine to me if we're using MMF_USERFAULTFD_ALLOW flag upon
-> > mm_struct, since that seems to be a very general flag that can be used
-> > by anything we want to grant privilege for, not only KVM?
-> 
-> Perhaps you can remove the fork() limitation, and add a new suboption to
-> prctl(PR_SET_MM) that sets/resets MMF_USERFAULTFD_ALLOW.  If somebody
-> wants to forbid unprivileged userfaultfd and use KVM, they'll have to
-> use libvirt or some other privileged management tool.
-> 
-> We could also add support for this prctl to systemd, and then one could
-> do "systemd-run -pAllowUserfaultfd=yes COMMAND".
+Acked-by: Christoph Lameter <cl@linux.com>
 
-systemd can already implement -pAllowUserfaultfd=no with seccomp if it
-wants. It can also implement -yes if by default turns off userfaultfd
-like firejail -seccomp would do.
-
-If the end goal is to implement the filtering with an userland policy
-instead of a kernel policy, seccomp enabled for all services sounds
-reasonable. It's very unlikely you'll block only userfaultfd, firejail
--seccomp by default blocks dozen of syscalls that are unnecessary
-99.9% of the time.
-
-This is not about implementing an userland flexible policy, it's just
-a simple kernel policy, to use until userland disables the kernel
-policy to takeover with seccomp across the board.
-
-I wouldn't like this too be too complicated because this is already
-theoretically overlapping 100% with seccomp.
-
-hugetlbfs is more complicated to detect, because even if you inherit
-it from fork(), the services that mounts the fs may be in a different
-container than the one that Oracle that uses userfaultfd later on down
-the road from a different context. And I don't think it would be ok to
-allow running userfaultfd just because you can open a file in an
-hugetlbfs file system. With /dev/kvm it's a bit different, that's
-chmod o-r by default.. no luser should be able to open it.
-
-Unless somebody suggests a consistent way to make hugetlbfs "just
-work" (like we could achieve clean with CRIU and KVM), I think Oracle
-will need a one liner change in the Oracle setup to echo into that
-file in addition of running the hugetlbfs mount.
-
-Note that DPDK host bridge process will also need a one liner change
-to do a dummy open/close of /dev/kvm to unblock the syscall.
-
-Thanks,
-Andrea
 
