@@ -2,188 +2,146 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4AD03C10F03
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 19:11:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4E84CC4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 19:12:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F3C302184E
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 19:11:51 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="dnGvUOBy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F3C302184E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 0F6A7213A2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 19:12:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F6A7213A2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9638C8E000D; Wed, 13 Mar 2019 15:11:51 -0400 (EDT)
+	id BADCC8E000E; Wed, 13 Mar 2019 15:12:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8EB8B8E0001; Wed, 13 Mar 2019 15:11:51 -0400 (EDT)
+	id B35008E0001; Wed, 13 Mar 2019 15:12:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 78E4E8E000D; Wed, 13 Mar 2019 15:11:51 -0400 (EDT)
+	id 9FD558E000E; Wed, 13 Mar 2019 15:12:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EF4D8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 15:11:51 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id p9so3209308pfn.9
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:11:51 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 75A4D8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 15:12:31 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id d49so2928052qtd.15
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 12:12:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=IiJQCRYaGRhFgOIweSzPyVuWURp6thxugB4m+P+RWZ4=;
-        b=VilmGwqDpUQlQWishgb3IlLqX5JNRB1/lV1IpU0Wqq+k7h3CdinaxpaT/lo9TEWLE9
-         d9022CGkRVsplPgWk/dQTAL2Lfa0xDAZ1DmXgNw9yl3tKHsyR9L4j9SnK8UmWfvHNA3z
-         Detc+NL7KPIolbK63GaRiT6rp1RIwjW7WWKAbXH9SLktaSg/2aCP7e36TC8jjAluzP/O
-         xrZu/eIrHtfRCpDGm+kmCR81a5KWfsL61MbbiViONwFEE/mLNg3rRtWOjOz63UXyhAMc
-         /YFr3RvlBRYXVDtbuc8I9x/bcuGw6NsC26RqNkC2YFQh2u1uEd0I+ey9AVa/8l3Xx7hD
-         OE8A==
-X-Gm-Message-State: APjAAAUaQ/piTJuku8AbKTRSG1LSmfUckVGJfvnU9TIM+sn3Wh/Qk1nH
-	L7Zzxkv3w0cn7u1kjwGfCBP3aEXjgEmBTnmWJxSoARN2BGn7ZfES0EA1TpKJ7YEy1HzjwWNm8el
-	NHVMOesU/uabHPj2JuAWPgXRwpp1giOeZWsrqysadzU9ppDrw64hnnTgEzQAKmXqdMA==
-X-Received: by 2002:a62:4299:: with SMTP id h25mr45225931pfd.165.1552504310816;
-        Wed, 13 Mar 2019 12:11:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwUMV4PvX/h0DW+X7YMkFn8q25a1kjWLyq2/8/45C92Lx+Bwct/uPR8zhjRope43EW9KzyK
-X-Received: by 2002:a62:4299:: with SMTP id h25mr45225878pfd.165.1552504310136;
-        Wed, 13 Mar 2019 12:11:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552504310; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:message-id:in-reply-to:references:subject:mime-version
+         :content-transfer-encoding:thread-topic:thread-index;
+        bh=JgTTL+MI+yOUzbfDM5lYSh2GyUh1ZZe2m/ktqPI/bUg=;
+        b=RSc6Ug36FBdsdKDHhoD0T6iTkquJlixcmsXJGiH+fC87u7RPRlyul1IUErcHkjZ694
+         3Scx0+qPQ7NmGICISkETGbOlTwq/jKB3kEvxjBwY+TmeUZmBdpmoJWXYWCNAPmxDSTHn
+         8K04lsaG6x99XJGtU+hmPwaBA2EsuVbXXj3oYBqhfzxdK+SKGn8rJiSQTsm7QV/4Ajkv
+         Tvj+J9L0uD2GyBCB3LiGwOLbjFzSDcz1tQ72RnnC5VMt2yZordWZWEHwtc8y37Imn8eo
+         gvrxd1xHppAcpKDiLMU274I5/L/qOB86f8mWmEAGu7m1BzwOWt7lERKga6HTF8AfkjzD
+         LLnw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of pbonzini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=pbonzini@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAU3sOQi+axCgG35DpH7AJsFRniPE+XSum90filLmO2jGg/aZ7e7
+	caU842tFQ/VSvCTHOUkw9oB1bqmVcfwTUlzji2tl4d9A/8HTYg/efRJ9lBJF0bqNvT7DQU9obBl
+	+5RvL6bios5sqysdZTHbM/KNMb2fXIvYczZM28obZRuQaJU0tE/ZyFNR/14uB/ZyWyQ==
+X-Received: by 2002:ac8:2447:: with SMTP id d7mr235820qtd.162.1552504351264;
+        Wed, 13 Mar 2019 12:12:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzHP61BDmsnAOnKNqxGA3yuSe/1DhFJj7XA1mO2I6EyHXfyvrgA9UYv7dzvOScSE4Q8TZ4L
+X-Received: by 2002:ac8:2447:: with SMTP id d7mr235774qtd.162.1552504350628;
+        Wed, 13 Mar 2019 12:12:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552504350; cv=none;
         d=google.com; s=arc-20160816;
-        b=O+6AlNqTvDwNBnspJLKSsKFVDDHx+pH2f9ezqL9OSPzBzRHrUOHRJUJwtLfqiazi2Z
-         GBFwsAXqBWGJtNg6DaLeXkivfwYmnseZHMCIX62LCkGpaj+x/a1XlOvRSWQrSBRCw3uX
-         070ZSg0NmcbtOsQqkqldfCqmZ3X84qM7JSYusXIr6sogX5b12oFLHV0uYMq3h0hpoO9J
-         1nrn9Uig2tluKeunWKixDNv597hroVGdJfgZjrKhppydnPIiuCpYAcd5Vp9ILTZ5Oc7f
-         k6I9W5M5ozGsPMqAqHmw0yJBK9BtgtnyJCEWcid06qT/IHiOckmmjZ3SgqGOLoGtb07Q
-         JA+g==
+        b=s+n2yJArRcwTJLbhNvRAMy3tMQgjHe0ftzhueM+lzhlLryx2fo8nvTnwhJDt7n1J+p
+         OtMv8aK55S9I2OWZ16FKECgnDw/UHfnHMebUpEkw+VEj7cTfeZbvhjxq1lWaxp8u1Vsr
+         EwJTEwJK0at311dvYgz+TDY9DtLIOpEiJOblnyCVRLxGUybshGi5Wb2NZdfegR72Mzvt
+         FJ5D7KxrMGxdmL1q73R25JTBWonKlE3a5Nd8wQHDsFKhjAM4gSsWODqC6PcHMuqrqHXG
+         ytF3FkJRks8AXLLf064+gsJyRq3BIZQ2eSKyJxz07Lft/rV8J7svKWw09y3i7ATghm+J
+         Gmgg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=IiJQCRYaGRhFgOIweSzPyVuWURp6thxugB4m+P+RWZ4=;
-        b=GQjRuRZ9z1Ff1sVlMxpmeKZBKLq6HF3koNPrUkD668kvnMXKi1JaME3MHjFNaz1DyE
-         Uowl9PahQ0JU3/T6nTVesK0O9AWTUDMUYqWeWfxM5cw4JQkxe5WDNhkCgAAqROLLtZAA
-         GErQ+N9Zdb0V6NH/Eu8Ze8KXgO1WpR9NYwTDSfFkRv/mcisktaudNm5/bKucEEKBDzKe
-         4FfrTnvQ+IAp3vyYEfml8qx0G36ya+L5JroP4n9kgq11efj2OdfTjbxwKyLttJWiXuBO
-         tKaT2H8w3mTfXs+MkwTazYglSPjbuHCyPVMWQfw5gCh5442vIQPzclLT37FetLWXtjUv
-         9iVA==
+        h=thread-index:thread-topic:content-transfer-encoding:mime-version
+         :subject:references:in-reply-to:message-id:cc:to:from:date;
+        bh=JgTTL+MI+yOUzbfDM5lYSh2GyUh1ZZe2m/ktqPI/bUg=;
+        b=iieRkUHhItZpkhKWn7LEaR4mXj9yiqkXW4bp8JQvnhOzADEbIBl64+IX3HpfFumOOw
+         7QyNyB+O163jHxjyU/Ecse6B/+SZJKiyLFKrVbXSkNFw3CBcpc4NalOaBmX/nHPLmnkN
+         /Hpcwk2hVOH7LtgcB2j1MC+bzRXa/2v8OZAXXNDEwrg7uTkUPezbeBYgY9PXb8UaH2Ut
+         Ylzd2x156qLccw1HKl2zMDlx9TYK1XDfrRFTlhZYERnxtj967OJr1itzYTH3/OStW4/L
+         eYoU458eK8GJp24mPaJeb2VmgrQkrRSkQ6xGhBtnqU7E2yKmpuR9EmQ8SMY6Qc3yrliD
+         eW2A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=dnGvUOBy;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id a20si10569919pgw.64.2019.03.13.12.11.50
+       spf=pass (google.com: domain of pbonzini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=pbonzini@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y53si843661qth.156.2019.03.13.12.12.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Mar 2019 12:11:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Wed, 13 Mar 2019 12:12:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pbonzini@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=dnGvUOBy;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+       spf=pass (google.com: domain of pbonzini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=pbonzini@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 4EA13213A2;
-	Wed, 13 Mar 2019 19:11:47 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1552504309;
-	bh=3GT+9B2z4QYam/gzFSmgOQrgzOiFBtJq+nV5XdgLzmA=;
-	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=dnGvUOByVOhcs8WnogHwEIO8jEfui3jB1HBcbLEZoEKJYPXtDT9VBQ5HSiZAQbcN5
-	 GNcQChQRz3kVoyGObhcRuPo9zc5iHsF5KvxXZg57eJ9d8HNgSDD84gkTbNk75qsVJF
-	 +C4lo+hdL2vr8Y0uoT91T2BmARBsWtXeShc8u3LY=
-From: Sasha Levin <sashal@kernel.org>
-To: linux-kernel@vger.kernel.org,
-	stable@vger.kernel.org
-Cc: Andrey Konovalov <andreyknvl@google.com>,
-	Alexander Potapenko <glider@google.com>,
-	Andrey Ryabinin <aryabinin@virtuozzo.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Sasha Levin <sashal@kernel.org>,
-	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.20 39/60] kasan, slab: make freelist stored without tags
-Date: Wed, 13 Mar 2019 15:10:00 -0400
-Message-Id: <20190313191021.158171-39-sashal@kernel.org>
-X-Mailer: git-send-email 2.19.1
-In-Reply-To: <20190313191021.158171-1-sashal@kernel.org>
-References: <20190313191021.158171-1-sashal@kernel.org>
+	by mx1.redhat.com (Postfix) with ESMTPS id A331F3006030;
+	Wed, 13 Mar 2019 19:12:29 +0000 (UTC)
+Received: from colo-mx.corp.redhat.com (colo-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.20])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 694536591E;
+	Wed, 13 Mar 2019 19:12:29 +0000 (UTC)
+Received: from zmail18.collab.prod.int.phx2.redhat.com (zmail18.collab.prod.int.phx2.redhat.com [10.5.83.21])
+	by colo-mx.corp.redhat.com (Postfix) with ESMTP id 09413181A136;
+	Wed, 13 Mar 2019 19:12:29 +0000 (UTC)
+Date: Wed, 13 Mar 2019 15:12:28 -0400 (EDT)
+From: Paolo Bonzini <pbonzini@redhat.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Peter Xu <peterx@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, 
+	linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, 
+	Luis Chamberlain <mcgrof@kernel.org>, 
+	Maxime Coquelin <maxime.coquelin@redhat.com>, kvm@vger.kernel.org, 
+	Jerome Glisse <jglisse@redhat.com>, 
+	Pavel Emelyanov <xemul@virtuozzo.com>, 
+	Johannes Weiner <hannes@cmpxchg.org>, 
+	Martin Cracauer <cracauer@cons.org>, 
+	Denis Plotnikov <dplotnikov@virtuozzo.com>, linux-mm@kvack.org, 
+	Marty McFadden <mcfadden8@llnl.gov>, 
+	Maya Gokhale <gokhale2@llnl.gov>, 
+	Mike Rapoport <rppt@linux.vnet.ibm.com>, 
+	Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>, 
+	"Kirill A . Shutemov" <kirill@shutemov.name>, 
+	linux-fsdevel@vger.kernel.org, 
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>, 
+	Andrew Morton <akpm@linux-foundation.org>
+Message-ID: <1934896481.7779933.1552504348591.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20190313185230.GH25147@redhat.com>
+References: <20190311093701.15734-1-peterx@redhat.com> <58e63635-fc1b-cb53-a4d1-237e6b8b7236@oracle.com> <20190313060023.GD2433@xz-x1> <3714d120-64e3-702e-6eef-4ef253bdb66d@redhat.com> <20190313185230.GH25147@redhat.com>
+Subject: Re: [PATCH 0/3] userfaultfd: allow to forbid unprivileged users
 MIME-Version: 1.0
-X-Patchwork-Hint: Ignore
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [93.56.166.5, 10.4.196.11, 10.5.101.130, 10.4.195.27]
+Thread-Topic: userfaultfd: allow to forbid unprivileged users
+Thread-Index: 6Xwu07wo6ALzDU1D4rR00nCA3NmgqQ==
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Wed, 13 Mar 2019 19:12:29 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Andrey Konovalov <andreyknvl@google.com>
 
-[ Upstream commit 51dedad06b5f6c3eea7ec1069631b1ef7796912a ]
+> On Wed, Mar 13, 2019 at 09:22:31AM +0100, Paolo Bonzini wrote:
+> Unless somebody suggests a consistent way to make hugetlbfs "just
+> work" (like we could achieve clean with CRIU and KVM), I think Oracle
+> will need a one liner change in the Oracle setup to echo into that
+> file in addition of running the hugetlbfs mount.
 
-Similarly to "kasan, slub: move kasan_poison_slab hook before
-page_address", move kasan_poison_slab() before alloc_slabmgmt(), which
-calls page_address(), to make page_address() return value to be
-non-tagged.  This, combined with calling kasan_reset_tag() for off-slab
-slab management object, leads to freelist being stored non-tagged.
+Hi Andrea, can you explain more in detail the risks of enabling
+userfaultfd for unprivileged users?
 
-Link: http://lkml.kernel.org/r/dfb53b44a4d00de3879a05a9f04c1f55e584f7a1.1550602886.git.andreyknvl@google.com
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-Tested-by: Qian Cai <cai@lca.pw>
-Cc: Alexander Potapenko <glider@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>
-Cc: Evgeniy Stepanov <eugenis@google.com>
-Cc: Kostya Serebryany <kcc@google.com>
-Cc: Vincenzo Frascino <vincenzo.frascino@arm.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: Sasha Levin <sashal@kernel.org>
----
- mm/slab.c | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+Paolo
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 05f21f736be8..b85524f2ab35 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2381,6 +2381,7 @@ static void *alloc_slabmgmt(struct kmem_cache *cachep,
- 		/* Slab management obj is off-slab. */
- 		freelist = kmem_cache_alloc_node(cachep->freelist_cache,
- 					      local_flags, nodeid);
-+		freelist = kasan_reset_tag(freelist);
- 		if (!freelist)
- 			return NULL;
- 	} else {
-@@ -2694,6 +2695,13 @@ static struct page *cache_grow_begin(struct kmem_cache *cachep,
- 
- 	offset *= cachep->colour_off;
- 
-+	/*
-+	 * Call kasan_poison_slab() before calling alloc_slabmgmt(), so
-+	 * page_address() in the latter returns a non-tagged pointer,
-+	 * as it should be for slab pages.
-+	 */
-+	kasan_poison_slab(page);
-+
- 	/* Get slab management. */
- 	freelist = alloc_slabmgmt(cachep, page, offset,
- 			local_flags & ~GFP_CONSTRAINT_MASK, page_node);
-@@ -2702,7 +2710,6 @@ static struct page *cache_grow_begin(struct kmem_cache *cachep,
- 
- 	slab_map_pages(cachep, page, freelist);
- 
--	kasan_poison_slab(page);
- 	cache_init_objs(cachep, page);
- 
- 	if (gfpflags_allow_blocking(local_flags))
--- 
-2.19.1
+> Note that DPDK host bridge process will also need a one liner change
+> to do a dummy open/close of /dev/kvm to unblock the syscall.
+> 
+> Thanks,
+> Andrea
+> 
 
