@@ -2,119 +2,103 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 87925C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 09:19:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D0A20C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 09:58:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 13C922171F
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 09:19:07 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Bq7+4Znd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 13C922171F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 8B2D12087C
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 09:58:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8B2D12087C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 529EB8E0003; Wed, 13 Mar 2019 05:19:07 -0400 (EDT)
+	id E81848E0003; Wed, 13 Mar 2019 05:58:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4B3248E0001; Wed, 13 Mar 2019 05:19:07 -0400 (EDT)
+	id E32138E0001; Wed, 13 Mar 2019 05:58:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 37ACE8E0003; Wed, 13 Mar 2019 05:19:07 -0400 (EDT)
+	id D21178E0003; Wed, 13 Mar 2019 05:58:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AE068E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 05:19:07 -0400 (EDT)
-Received: by mail-it1-f198.google.com with SMTP id z131so954598itb.2
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 02:19:07 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 788BB8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 05:58:37 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id k6so686359edq.3
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 02:58:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=KzxQSaJbsqgdV04fsK2ylmeyEWpxrxzz2n7IfMtSZqI=;
-        b=bi3LZKLIlzbDPptIJu5hUzazcz7TQB1uzil3iy8QHOV5H8eQNz0vmsG38TdXjSeMRn
-         rtDjBJujpjyr3NgcZF+RLrt3+5Yt5BBfigdzuTxaAIlwlWb6z2fUGZr6zYlS29G/d9+i
-         r/dr9xVKU/KGrBSZFASNVwSCJDTglPS7BqEm1zWCQX9SP73k5iw53a0cMMBgXd1Rsjpr
-         tuSdEXJzZncBXxJlOq6J2+87b8zV5BDDZdbwLG1MWpvfn6nGmujzzaq39mmckSKX7W3l
-         ijnN+UgLfC3o96z5MKP5zhSkk3Req+BUcLIVJDf2nLy1y8jm96ZdVLwb5ToyfVFtTr0F
-         FQ4g==
-X-Gm-Message-State: APjAAAUK+ufrdcE8YxSZSzmg4GT9T+Q/stu7XN5sFN2BL4EDxa90v7qO
-	r6aMOqJOszqnnGK7pAmDMoi4q3pfSXJQ/rg8VdjJXUSLEmbFUIwBMBLL2jOnjmnwJh2dGWXy0nR
-	36QRHBBnb+1hTcpLvqNp9C7SZ25F9jWw9NwiB3O4DxM5o8cnGO1xsm6SGRkr8WChkwA==
-X-Received: by 2002:a05:660c:12c2:: with SMTP id k2mr1027379itd.17.1552468746777;
-        Wed, 13 Mar 2019 02:19:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzQdPYQnlgjl7ietGK/75hnAq7c065QgHJ6x0kgH1DNbLxyQLLnR96JzPQCcjksW1l5PE0x
-X-Received: by 2002:a05:660c:12c2:: with SMTP id k2mr1027359itd.17.1552468745781;
-        Wed, 13 Mar 2019 02:19:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552468745; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=yqKaVHBwD3P5KNO+JV43iFleGVoTdaDnvO1Yqf4vQmA=;
+        b=EdzCO8EEXMvNHkFdIVKqRsjlyzzUJyrX7tsDdhJO/pPXZ9TaGct8d8o70XZzachMTN
+         9q8D2CzWYP6JNEyRqGdpHg4BVNtVPI+ozWfb+9EFHFZmrZr3G+n+ARB/br7sGJyzkivG
+         cjUbmJWk8Vifz9yHhlz1/3CqCP0IJ0NUtRn56ka1qOVelgJVZEl5Us1yg5IXg3uq2d28
+         RtGWoOoivdcdbvnmEq9qBE783l2EPfEskj2mYp78vEyLMEBHyYlxXMcywIM+C/YUT3em
+         jBTzqE97XgfvNfQf+l0xrzguMOXO6vGkjQHSKFsd/becxaaWCm28HOG4p2vxBs775c5N
+         Lg/A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Gm-Message-State: APjAAAWQJ4ETPtHHj1hZp6TkmcltoR7hxpL6/IOLtvhHrpiwLYspNQ/2
+	m8t8KzA+vrGBvonG1G56ymqFlYdcABwu4dcr0x4WeimOaN/l2qqGWwrf+qEGo4Z7Qo0/DJ5w6am
+	WSe9e/17MYtbaUAGK5N2VZE9hhzHCwrIK/8dOqb7caYO2hfT1LbEDDLNzYRxHz/eJ0w==
+X-Received: by 2002:a50:c9c7:: with SMTP id c7mr7278252edi.72.1552471117052;
+        Wed, 13 Mar 2019 02:58:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw9yaoNediiqOVPIFv12uCUJUWZqiW6UyayZSEdTA8y7kcQVG+b3CTxso+U/m3E278/qPz/
+X-Received: by 2002:a50:c9c7:: with SMTP id c7mr7278195edi.72.1552471115991;
+        Wed, 13 Mar 2019 02:58:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552471115; cv=none;
         d=google.com; s=arc-20160816;
-        b=xG8vWmFi5lDKt7DTPYTLbdhC5Z0kuWWx/F7LFIdlv8z63E3O50WQCf6/fi0wSCF9PS
-         q69y0KURL0bV7jeh5dmmq8lyxA5O6uItw8uv0HavJqQs0DQK/bjlrESHw/zzD3xBsZKp
-         apzhDB8/e/0Ze5e4ZiDbI9KySbISmD5yMYsn5q7LMMbg3L55E0rk5Elnm32QRkJONXP0
-         Ftd63vkViQGofUOwvT2vvssgcUAxuCi8guilILTinVZKl/sxn/EI8buf1OoQRmmyApG4
-         HJksu1u0fIAG0jjIIKR1Wi9ZOVlbBda9/35zCVDYi/QJ6ffrJp2ip9GsYwpF3sCtPwom
-         6F8g==
+        b=k1d65L6oX5BB7T5Edx+vMFfsA6TRSRQYs2P7UFa+rllTWk19dOWroP6LzF0/jtA6i2
+         Sc0b1KAp2t9QUPCOr5RMiQIPKq2AUaWRy8IwNKlMqNJflBJu7VYI1XzaaIEaua8xXzqv
+         bmZ8zcbxYvsF9q4LLJdBi9EuGFGvJbSpF9FkUQHYixFrfLtK+m4vml67/EOM2jNjtU20
+         YaDvCV4+QjfNScWPWwshc8A19xCnvVU9upQPRlp5UmofZ1PaxQPKW6ww01+jIyqpCfux
+         qSYZwNLU5mmmvy/q9OPPNWujaLdGGfw/RpnhEmZOKBGUn/lEBB6q0n5Hde8Xc62t6zE5
+         5K1A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=KzxQSaJbsqgdV04fsK2ylmeyEWpxrxzz2n7IfMtSZqI=;
-        b=qiRU3nYrRqG1z2uozP02fyRH+n7Rnk7dyRpzs+3Q/gKinh3+5Bf8v6C7cKXyKOjAdC
-         AJE0JsWo6xzHTE8y8GaFfo7P4MEqyjYuiccX0Dp5nLXkrUe7t81ZlL9MYeiJxjnQYr02
-         0rxXZP1+u+MPazQvpGFgDl+KrGRBv4DQtqCOqwzt+o/BTaNeErQhx/wEX8CWyZWqRfTv
-         L0p9/axA3x5kHMeM5WJo+bsnSOoCJtX62qIP9gGD8y75wMWm3cyXTPT37mmNRgTl44jo
-         b1+Z9MmVFeqGrpyl+aM4rCa3BhTVxlAMP5LqcHxL5lTP/4oDcN45fYdtSoZqIoZOmfQk
-         6a3Q==
+         :message-id:subject:cc:to:from:date;
+        bh=yqKaVHBwD3P5KNO+JV43iFleGVoTdaDnvO1Yqf4vQmA=;
+        b=i5jTlP3jEz1PSUkHIgtOe5Tqce0SCg3ouYyAmZDg4XSgdJkOf2sj90n1Bv59iHVi4z
+         sPKaLvaBH+wrROdS96Z7oAdaLTLh4+CHQJ3WngBzerDLtm6sHfL9S0kxSaqNt9Ict3s+
+         NEqqG9szG8lJZwthG6EjfsvgDTT7VyCbX+D+yFqysGCjVkOYJVui0ZyLo8tDunON3693
+         ldZSBPYpAc378NcbfDUsjKTACkXy39Q/ZYd9dK0Q7Cln3T5MVN3p+d5rD8BrVNXGnRQf
+         RL4lZAsTMgXik7QnO4hYtDoaunr3T3w0pEmyRg0Hk1z50fhOxubPvrek+9dw4Yj4s0LW
+         /LYA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=Bq7+4Znd;
-       spf=temperror (google.com: error in processing during lookup of peterz@infradead.org: DNS error) smtp.mailfrom=peterz@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id c27si4334023jaf.121.2019.03.13.02.19.00
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l1si543754edi.296.2019.03.13.02.58.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 13 Mar 2019 02:19:00 -0700 (PDT)
-Received-SPF: temperror (google.com: error in processing during lookup of peterz@infradead.org: DNS error) client-ip=2001:8b0:10b:1231::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Mar 2019 02:58:35 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=Bq7+4Znd;
-       spf=temperror (google.com: error in processing during lookup of peterz@infradead.org: DNS error) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
-	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=KzxQSaJbsqgdV04fsK2ylmeyEWpxrxzz2n7IfMtSZqI=; b=Bq7+4Zndp7tTjNamrCv1IFoTS
-	sY2LOFDg0fpvuUMjw6ms0dt7lKbF3tt1fjChxjzHCVmXCEElHpFsnz5bTt2+FyQSLIxPNEYbe5cbR
-	VBz8e5t1nIQkUiBz7ILKnAPB2bywmeBCdpRU4a5IWO7Fjti9gQcPVbFH/zGhglDag2ZoozU+TJa8P
-	dBjyy+DYaa1tVGqAfSgvE6wIFgJE+3mwHI/sf7TY9eApm28xIB3yPbF3TyLmj+UUsxtZlhtcuo4vl
-	T6UEQ6z4YJJvgyC9zQbENyHWLpN1NA1hZzksIxUyHNOcMa9GwAqu0aGBtFb9mmWHNnClTjOUcUn1M
-	vM2173Qag==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1h402D-0007do-9r; Wed, 13 Mar 2019 09:18:49 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 1C2252028B0F8; Wed, 13 Mar 2019 10:18:45 +0100 (CET)
-Date: Wed, 13 Mar 2019 10:18:44 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Qian Cai <cai@lca.pw>, Jason Gunthorpe <jgg@mellanox.com>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH] mm/debug: add a cast to u64 for atomic64_read()
-Message-ID: <20190313091844.GA24390@hirez.programming.kicks-ass.net>
-References: <20190310183051.87303-1-cai@lca.pw>
- <20190311035815.kq7ftc6vphy6vwen@linux-r8p5>
- <20190311122100.GF22862@mellanox.com>
- <1552312822.7087.11.camel@lca.pw>
- <CAK8P3a0QB7+oPz4sfbW_g2EGZZmC=LMEnkMNLCW_FD=fEZoQPA@mail.gmail.com>
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 148B8AF42;
+	Wed, 13 Mar 2019 09:58:35 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id 5C8701E3FE8; Wed, 13 Mar 2019 10:58:34 +0100 (CET)
+Date: Wed, 13 Mar 2019 10:58:34 +0100
+From: Jan Kara <jack@suse.cz>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: dan.j.williams@intel.com, Ross Zwisler <zwisler@kernel.org>,
+	Jan Kara <jack@suse.cz>, akpm@linux-foundation.org,
+	linux-nvdimm@lists.01.org, linux-mm@kvack.org,
+	linuxppc-dev@lists.ozlabs.org, linux-fsdevel@vger.kernel.org,
+	Alexander Viro <viro@zeniv.linux.org.uk>
+Subject: Re: [PATCH v2] fs/dax: deposit pagetable even when installing zero
+ page
+Message-ID: <20190313095834.GF32521@quack2.suse.cz>
+References: <20190309120721.21416-1-aneesh.kumar@linux.ibm.com>
+ <8736nrnzxm.fsf@linux.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAK8P3a0QB7+oPz4sfbW_g2EGZZmC=LMEnkMNLCW_FD=fEZoQPA@mail.gmail.com>
+In-Reply-To: <8736nrnzxm.fsf@linux.ibm.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -122,50 +106,119 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 11, 2019 at 03:20:04PM +0100, Arnd Bergmann wrote:
-> On Mon, Mar 11, 2019 at 3:00 PM Qian Cai <cai@lca.pw> wrote:
+On Wed 13-03-19 10:17:17, Aneesh Kumar K.V wrote:
+> 
+> Hi Dan/Andrew/Jan,
+> 
+> "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> writes:
+> 
+> > Architectures like ppc64 use the deposited page table to store hardware
+> > page table slot information. Make sure we deposit a page table when
+> > using zero page at the pmd level for hash.
 > >
-> > On Mon, 2019-03-11 at 12:21 +0000, Jason Gunthorpe wrote:
-> > > On Sun, Mar 10, 2019 at 08:58:15PM -0700, Davidlohr Bueso wrote:
-> > > > On Sun, 10 Mar 2019, Qian Cai wrote:
-> > >
-> > > Not saying this patch shouldn't go ahead..
-> > >
-> > > But is there a special reason the atomic64*'s on ppc don't use the u64
-> > > type like other archs? Seems like a better thing to fix than adding
-> > > casts all over the place.
-
-s64 if anything, atomic stuff is signed (although since we have -fwrapv
-it doesn't matter one whit).
-
-> > A bit of history here,
+> > Without this we hit
 > >
-> > https://patchwork.kernel.org/patch/7344011/#15495901
+> > Unable to handle kernel paging request for data at address 0x00000000
+> > Faulting instruction address: 0xc000000000082a74
+> > Oops: Kernel access of bad area, sig: 11 [#1]
+> > ....
+> >
+> > NIP [c000000000082a74] __hash_page_thp+0x224/0x5b0
+> > LR [c0000000000829a4] __hash_page_thp+0x154/0x5b0
+> > Call Trace:
+> >  hash_page_mm+0x43c/0x740
+> >  do_hash_page+0x2c/0x3c
+> >  copy_from_iter_flushcache+0xa4/0x4a0
+> >  pmem_copy_from_iter+0x2c/0x50 [nd_pmem]
+> >  dax_copy_from_iter+0x40/0x70
+> >  dax_iomap_actor+0x134/0x360
+> >  iomap_apply+0xfc/0x1b0
+> >  dax_iomap_rw+0xac/0x130
+> >  ext4_file_write_iter+0x254/0x460 [ext4]
+> >  __vfs_write+0x120/0x1e0
+> >  vfs_write+0xd8/0x220
+> >  SyS_write+0x6c/0x110
+> >  system_call+0x3c/0x130
+> >
+> > Fixes: b5beae5e224f ("powerpc/pseries: Add driver for PAPR SCM regions")
+> > Reviewed-by: Jan Kara <jack@suse.cz>
+> > Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
 > 
-> Ah, I had already forgotten about that discussion.
+> Any suggestion on which tree this patch should got to? Also since this
+> fix a kernel crash, we may want to get this to 5.1?
+
+I think this should go through Dan's tree...
+
+								Honza
+
+> > ---
+> > Changes from v1:
+> > * Add reviewed-by:
+> > * Add Fixes:
+> >
+> >  fs/dax.c | 15 +++++++++++++++
+> >  1 file changed, 15 insertions(+)
+> >
+> > diff --git a/fs/dax.c b/fs/dax.c
+> > index 6959837cc465..01bfb2ac34f9 100644
+> > --- a/fs/dax.c
+> > +++ b/fs/dax.c
+> > @@ -33,6 +33,7 @@
+> >  #include <linux/sizes.h>
+> >  #include <linux/mmu_notifier.h>
+> >  #include <linux/iomap.h>
+> > +#include <asm/pgalloc.h>
+> >  #include "internal.h"
+> >  
+> >  #define CREATE_TRACE_POINTS
+> > @@ -1410,7 +1411,9 @@ static vm_fault_t dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
+> >  {
+> >  	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
+> >  	unsigned long pmd_addr = vmf->address & PMD_MASK;
+> > +	struct vm_area_struct *vma = vmf->vma;
+> >  	struct inode *inode = mapping->host;
+> > +	pgtable_t pgtable = NULL;
+> >  	struct page *zero_page;
+> >  	spinlock_t *ptl;
+> >  	pmd_t pmd_entry;
+> > @@ -1425,12 +1428,22 @@ static vm_fault_t dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
+> >  	*entry = dax_insert_entry(xas, mapping, vmf, *entry, pfn,
+> >  			DAX_PMD | DAX_ZERO_PAGE, false);
+> >  
+> > +	if (arch_needs_pgtable_deposit()) {
+> > +		pgtable = pte_alloc_one(vma->vm_mm);
+> > +		if (!pgtable)
+> > +			return VM_FAULT_OOM;
+> > +	}
+> > +
+> >  	ptl = pmd_lock(vmf->vma->vm_mm, vmf->pmd);
+> >  	if (!pmd_none(*(vmf->pmd))) {
+> >  		spin_unlock(ptl);
+> >  		goto fallback;
+> >  	}
+> >  
+> > +	if (pgtable) {
+> > +		pgtable_trans_huge_deposit(vma->vm_mm, vmf->pmd, pgtable);
+> > +		mm_inc_nr_ptes(vma->vm_mm);
+> > +	}
+> >  	pmd_entry = mk_pmd(zero_page, vmf->vma->vm_page_prot);
+> >  	pmd_entry = pmd_mkhuge(pmd_entry);
+> >  	set_pmd_at(vmf->vma->vm_mm, pmd_addr, vmf->pmd, pmd_entry);
+> > @@ -1439,6 +1452,8 @@ static vm_fault_t dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
+> >  	return VM_FAULT_NOPAGE;
+> >  
+> >  fallback:
+> > +	if (pgtable)
+> > +		pte_free(vma->vm_mm, pgtable);
+> >  	trace_dax_pmd_load_hole_fallback(inode, vmf, zero_page, *entry);
+> >  	return VM_FAULT_FALLBACK;
+> >  }
+> > -- 
+> > 2.20.1
 > 
-> At least the atomic_long part we discussed there has been resolved now
-> as part of commit b5d47ef9ea5c ("locking/atomics: Switch to generated
-> atomic-long").
+> -aneesh
 > 
-> Adding Mark Rutland to Cc, maybe he has some ideas of how to use
-> the infrastructure he added to use consistent types for atomic64()
-> on the remaining 64-bit architectures.
-
-A quick count shows there's only 5 definitions of atomic64_t in the
-tree, it would be trivial to align them on type.
-
-$ git grep "} atomic64_t"
-arch/arc/include/asm/atomic.h:} atomic64_t;
-arch/arm/include/asm/atomic.h:} atomic64_t;
-arch/x86/include/asm/atomic64_32.h:} atomic64_t;
-include/asm-generic/atomic64.h:} atomic64_t;
-include/linux/types.h:} atomic64_t;
-
-Note that the one used in _most_ cases, is the one from linux/types.h,
-and that is using 'long'. The others, all typically on ILP32 platforms,
-obviously must use long long.
-
-I have no objection to changing the types.h one to long long or all of
-them to s64. It really shouldn't matter at all.
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
