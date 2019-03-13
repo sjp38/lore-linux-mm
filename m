@@ -3,122 +3,154 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D3889C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 14:58:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6DB7AC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 15:10:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8D3492147C
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 14:58:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8D3492147C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arndb.de
+	by mail.kernel.org (Postfix) with ESMTP id F3FD020854
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 15:10:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F3FD020854
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 390EC8E0004; Wed, 13 Mar 2019 10:58:02 -0400 (EDT)
+	id 9502E8E0003; Wed, 13 Mar 2019 11:10:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2EF558E0001; Wed, 13 Mar 2019 10:58:02 -0400 (EDT)
+	id 900328E0001; Wed, 13 Mar 2019 11:10:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 191D88E0004; Wed, 13 Mar 2019 10:58:02 -0400 (EDT)
+	id 7EEF98E0003; Wed, 13 Mar 2019 11:10:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E6D4B8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 10:58:01 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id g17so2071811qte.17
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 07:58:01 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 54B788E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 11:10:24 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id x63so1817027qka.5
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 08:10:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :references:in-reply-to:from:date:message-id:subject:to:cc;
-        bh=FQNhrABgTfNbI3LjNPG9bpOQrem4pejdVK1i3DBdroE=;
-        b=qGbuDQ17JkiQvvTbac9t00lb7X2d7hlxcpYpx57DKkJTmoBPtquHj0Pv/CE+jpP14H
-         Y6/pwCnkl0HnW3Hlf3Wb9KUm+oDWg+dEPxQGLwzifiSENTgjydtxEr7nSWQyh9VDTKiP
-         iaGXFr6O2tSUrYtjkM7r3jViTRk95AfmLnHN74etd7OU8Cz+akufMegNN5HJQOZlZiO3
-         N3vAguTZX6qi41gCYWobSMULGgJZk6J3zst4ignXaRBs794R6cThd8Cr84qt/+qcvyK4
-         c0V++pxBGx+1xhNdidjNVjIvbaBPFeQ4SVHddwLFb0TUuRsrl8CazEpvYIH4n2kTYa5C
-         rAEg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
-X-Gm-Message-State: APjAAAUGIBss6bTIg2H0YNhTRbwz9R/7eq1uSCMhA7QZMT9fhd+Vanjm
-	TJ6ZWxRw3/Ra7LQxeQmkivX6lAd6wnLubRkyqXdYgUEclqTp/EB64Ki73QbmlTF6wpMUqi3+EWO
-	o7k469/87xap/44uMVaswgfxfaOODZVQq7JFsX/7b2s4bSf5EYlsthV6jKuG6OmANx62IGgUPgd
-	HnUnF+fMmZqGTHj/PJ8qxzHobXh35RF4NiIcH7d2Qy9Mzp+5mnTJHypk/SzLbX1My+yHNmmsK8/
-	gjuDc/jvZOXzjajtMAhaOesKp4Dg5rK8XGNTdyAfYnFc8mIjn3+t7Zr9mvAWcxXpGiCPP1vLYFY
-	KbOwXEFRHGC7XcsnN0WQRd0sm7Ocls8nU60Clwk0GunJmM4fdFCHplhOxmxwFsi6WycG9wkNIQ=
-	=
-X-Received: by 2002:a0c:80c4:: with SMTP id 62mr7184243qvb.140.1552489081769;
-        Wed, 13 Mar 2019 07:58:01 -0700 (PDT)
-X-Received: by 2002:a0c:80c4:: with SMTP id 62mr7184202qvb.140.1552489081128;
-        Wed, 13 Mar 2019 07:58:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552489081; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:user-agent:mime-version:content-language
+         :content-transfer-encoding:message-id;
+        bh=kgrcCrL1qyCk7yaM57a+vs74Do/VkxYPAMutHJfimF8=;
+        b=TNNwdXPCynZQbqps2DJmmoSjwHzQOAHOnAnd7Gq1FUw8Zs3WdHUTTY+OLClZGalBj9
+         zTf8zB05dSdxey7t4aHxwLFECF2IOTRgfmUlOH1idn/GPF1Jya+ephMQn04uFHLPakVQ
+         6uM89w/m/XvTCx+8SrNqSVDrYGz+lSq3nCPKYOk+uS43sksqP8gx1vKn8z+SZohO+Bxd
+         sqypAaou/0sohfGrjCUwaIMYT/WFn+VWcfGwxyY21ua8wFV8mZVloRZkEeF3TNyaD1x/
+         AzxQZOclR0JrKJBL4ganXfWL/bI22pTnTkwzDnMzJeNkKAQH2ozHDa2o+zat24nCy5se
+         xlBA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAV97jhV+2TxoDHW6/XV0RwNpX8t60XJruAkRhvSzdTlE7+/rghn
+	RXS3HNOJSQalaMC3Xet6RK+IdDbnqdU8Q5PsjrSDQon4pUxuWBFe8rrBl03opFlmrU2pUaa3LXr
+	hKgGkhi21RqyoF4ezBh9G2zcja3yQqXw1eBEXDc969qni2s0faK1HwL3nm2wxY9HIhg==
+X-Received: by 2002:aed:3868:: with SMTP id j95mr35501119qte.35.1552489824092;
+        Wed, 13 Mar 2019 08:10:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxwLa5CgCBjKKUxe+kTN8iCU1jsyF24GOx4zeb573VZh4Oi5CRanJ/KZtsgf2MFgc8BdXR/
+X-Received: by 2002:aed:3868:: with SMTP id j95mr35501050qte.35.1552489823106;
+        Wed, 13 Mar 2019 08:10:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552489823; cv=none;
         d=google.com; s=arc-20160816;
-        b=0BtinLfj26FNBfDcpv0vW6ExyoT+Y0y32l5yyWbnBghKnTs7HsHdastUgJe1DFdQPg
-         t6ArTqwyG08YU7A/8t7esTVwqvw472AD5e/IF0xv/6QsNma6LPEaHIkB3ggaVOE0rewi
-         jwj1lUAXlctpZLRkU2F5KDI04f2NGAFzfKxcqrwIBu6VPPs/37YZg2zaxkTQ2CKXuHz7
-         C/v4xAs0G1UcWK5iFTbDj0+5tq/EbcJGkM+NYHFuv+fl31aQOwuqn1o9PZGB9x2lKVcv
-         p6aTWCDxjOIkZ73pD+URHkE3nSHjimLtniH3GI8c7j+PGrKTn8zVTLlw0tQCTKIdXnF/
-         Qrpw==
+        b=Z8YyEKOFK3D0PeMO7bEOL7zdfR+JmECxb8Lw0hSNoNtsEE+fqbL5BnrE4et6XGmDey
+         k0C9DFHgGHeaMY+yFcAyP5EJanO/bujnPL258XUnD5VGx+h4OLhRCZu3pFNFIutfjDbb
+         y0lCUg5jJSvDxVcq2Lh2ki7Ey5m7jUZPitlsYR+l/VQNsI5NpWQQdd+5ongA88LlEDxG
+         VbdioXUpKFBO3aC4va+gpqmFKT/2O/2en3j633f/lngSGcvH3ufjLhwyDjhHi2ek5xDD
+         u3C5YmnYzwnS+mBmU2VD2xmngghvwYrIslM1X0WmXRD8bv+2SRkzxZoOpoCDlOuzNrGT
+         3WiQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version;
-        bh=FQNhrABgTfNbI3LjNPG9bpOQrem4pejdVK1i3DBdroE=;
-        b=C9t3nyRgyG+diCXs0yK1iM665RTeKlWHVwt2Fc5Ibhcul42fc/rU1Pt0aod6unr9vc
-         k0FbDGzbi5jr/bv+dRYo3GbcB2Nd8moiLqXR+cAzpEbo+YdrhNsT7rtcnRJpZBx5dN6v
-         zUn993h7jrl8aUCmLKcD//ZuLf3vKLHY4DsgaYwSojaiUSpXQ0iea8fE4uoS1peE4wSK
-         ww0ijrLldKsm6dRJTMpSmfGci1nWxCbhmM5LsneO0kk0/n8f048fYUkmwFDF4cZJa5h1
-         2gAU4l3CMAlzmFWZQQqbnaRxYjy8BDh7/FFewHQuFMVn6vSqA29Z6zPZ7T4uPklmOSHd
-         A/Zg==
+        h=message-id:content-transfer-encoding:content-language:mime-version
+         :user-agent:date:subject:cc:to:from;
+        bh=kgrcCrL1qyCk7yaM57a+vs74Do/VkxYPAMutHJfimF8=;
+        b=hwtnEHPqn2Whtzlj9wsYV0xXsCTfa5ane9H4oFA7dQGg5/NysAIYUYXe8OaAkxKfUD
+         bt4nbsCJSFSbRV0sPAhM2fedb+APLHFKpw0/jSUX25sGVTubHTT936kzGJHYVlYTLxP4
+         Rd/XaMtWAI8y1cTczbRJNAADsRYDgFlBG7/NeUrV0uaZBGGHiTXynwDqEd273u3moPtu
+         28X/Pi4+SpCJ6lBLUP5sQg6ZufczyC9VswYPk+OJ8NG0OBATtAWY9vM5xt6zpzLX6oLb
+         Tb8QQjoJYwbGVA8incFxgE9N3YVDSzC9yAI2x9KjH1hCAPxyukkZZwtWfOT/gmPYtvZg
+         9d7Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j50sor14617497qtk.15.2019.03.13.07.58.00
+       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id j2si4365062qkg.114.2019.03.13.08.10.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Mar 2019 07:58:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Mar 2019 08:10:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of arndbergmann@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=arndbergmann@gmail.com
-X-Google-Smtp-Source: APXvYqxAwi30bfPTT3u25hrNOi9+bcXAk5HJ1yq3tsV9ZE74+fJ6CPVYNafDodO0LougzCN+mHiKI0mjqaB91VUJc9g=
-X-Received: by 2002:ac8:237b:: with SMTP id b56mr34620996qtb.343.1552489080454;
- Wed, 13 Mar 2019 07:58:00 -0700 (PDT)
+       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2DF9LkV038515
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 11:10:22 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2r747w03v3-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 11:10:22 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.ibm.com>;
+	Wed, 13 Mar 2019 15:10:20 -0000
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
+	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 13 Mar 2019 15:10:17 -0000
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x2DFAGEO30474482
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 13 Mar 2019 15:10:16 GMT
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id B6755A4060;
+	Wed, 13 Mar 2019 15:10:16 +0000 (GMT)
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id A5FAEA405F;
+	Wed, 13 Mar 2019 15:10:15 +0000 (GMT)
+Received: from [9.145.161.27] (unknown [9.145.161.27])
+	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Wed, 13 Mar 2019 15:10:15 +0000 (GMT)
+From: Laurent Dufour <ldufour@linux.ibm.com>
+To: lsf-pc@lists.linux-foundation.org, Linux-MM <linux-mm@kvack.org>,
+        linux-kernel@vger.kernel.org
+Cc: Matthew Wilcox <willy@infradead.org>
+Subject: [LSF/MM TOPIC] Using XArray to manage the VMA
+Date: Wed, 13 Mar 2019 16:10:14 +0100
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
+ Gecko/20100101 Thunderbird/60.5.3
 MIME-Version: 1.0
-References: <20190310183051.87303-1-cai@lca.pw> <20190311035815.kq7ftc6vphy6vwen@linux-r8p5>
- <20190311122100.GF22862@mellanox.com> <1552312822.7087.11.camel@lca.pw>
- <CAK8P3a0QB7+oPz4sfbW_g2EGZZmC=LMEnkMNLCW_FD=fEZoQPA@mail.gmail.com>
- <20190313091844.GA24390@hirez.programming.kicks-ass.net> <20190313143552.GA39315@lakrids.cambridge.arm.com>
-In-Reply-To: <20190313143552.GA39315@lakrids.cambridge.arm.com>
-From: Arnd Bergmann <arnd@arndb.de>
-Date: Wed, 13 Mar 2019 15:57:42 +0100
-Message-ID: <CAK8P3a3V+1sQJfTAipYyOeV5b379eYZXasRFjWnf9oKPtCTviQ@mail.gmail.com>
-Subject: Re: [PATCH] mm/debug: add a cast to u64 for atomic64_read()
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Qian Cai <cai@lca.pw>, Jason Gunthorpe <jgg@mellanox.com>, 
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-TM-AS-GCONF: 00
+x-cbid: 19031315-0016-0000-0000-000002616D08
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19031315-0017-0000-0000-000032BC1AEA
+Message-Id: <7da20892-f92a-68d8-4804-c72c1cb0d090@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-13_09:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=824 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1903130109
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.135722, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 13, 2019 at 3:36 PM Mark Rutland <mark.rutland@arm.com> wrote:
-> On Wed, Mar 13, 2019 at 10:18:44AM +0100, Peter Zijlstra wrote:
-> > On Mon, Mar 11, 2019 at 03:20:04PM +0100, Arnd Bergmann wrote:
-> > > On Mon, Mar 11, 2019 at 3:00 PM Qian Cai <cai@lca.pw> wrote:
->
-> I think that using s64 consistently (with any necessary alignment
-> annotation) makes the most sense. That's unambigious, and what the
-> common headers now use.
->
-> Now that the scripted atomics are merged, I'd like to move arches over
-> to arch_atomic_*(), so the argument and return types will become s64
-> everywhere.
+If this is not too late and if there is still place available, I would 
+like to attend the MM track and propose a topic about using the XArray 
+to replace the VMA's RB tree and list.
 
-Yes, that sounds like the easiest way, especially if we don't touch the
-internal implementation but simply rename all the symbols provided
-by the architectures. Is that what you had in mind, or would you go
-beyond the minimum changes here?
+Using the XArray in place of the VMA's tree and list seems to be a first 
+step to the long way of removing/replacing the mmap_sem.
+However, there are still corner cases to address like the VMA splitting 
+and merging which may raise some issue. Using the XArray's specifying 
+locking would not be enough to handle the memory management, and 
+additional fine grain locking like a per VMA one could be studied, 
+leading to further discussion about the merging of the VMA.
 
-        Arnd
+In addition, here are some topics I'm interested in:
+- Test cases to choose for demonstrating mm features or fixing mm bugs 
+proposed by Balbir Singh
+- mm documentation proposed by Mike Rapoport
+
+Laurent.
 
