@@ -2,274 +2,181 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4F1B8C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 18:40:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4DD4EC4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 18:52:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ECDCD213A2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 18:40:18 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="hjlmlrqo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ECDCD213A2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id DEE7520854
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 18:52:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DEE7520854
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AB4478E000A; Wed, 13 Mar 2019 14:40:11 -0400 (EDT)
+	id 52C718E0003; Wed, 13 Mar 2019 14:52:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A63F88E0001; Wed, 13 Mar 2019 14:40:11 -0400 (EDT)
+	id 4DAAE8E0001; Wed, 13 Mar 2019 14:52:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 908B98E000A; Wed, 13 Mar 2019 14:40:11 -0400 (EDT)
+	id 3CB928E0003; Wed, 13 Mar 2019 14:52:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 441D48E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 14:40:11 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id c15so3101440pfn.11
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 11:40:11 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F39C8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 14:52:40 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id o135so2414821qke.11
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 11:52:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=oYZ0d7IIZA63OVMPtucchTyEwGwVOr51nS/0GcejUsI=;
-        b=b38nbgbfxXaOSr/JVFPfgw2IOUzZ62yrrE4jj/0k/3MYWYymL1DvRB/czyOJUAo4Sh
-         UJBZR1oK6psCfhy4p8tOogxY3BchcakeGjzpPDmCG5AphKGFLonRRSzosNgsCbpY6rk3
-         bRi2oEqKV3yOjrX9LCXzGUU7ZYhipuDXnoKcnga34mHcPerraRrM9IokJWfVKcttARup
-         zQPXdQInoWPEclXe/vazpvVBWfRqeid9efzKEXk9afihRHzSDD/zyb1JoX1GKDSzcek0
-         L/uDgDH/kK3rH5fG7UNXlEtqmXyYJ4FOCgkQD+hv2vc907mbOxzY5ZV5mYIAwzDmdexK
-         e5XA==
-X-Gm-Message-State: APjAAAXRC4TBkkxDyiTmKqdPAv4FEwFwCaay55IP39cizaPS13BICzbM
-	jLOzJ39UHKHQLMVKRRVCndztLasyK0Fdr2D1yiRqMwcQw3P27GUcmGKboMmD76WIPZ63KIru1qy
-	kET0zIUPkmgpl0/9kW6ZN7pd2B7skKkpJn6tPqK8UtJJbKyWz+WMu8J17jRlp1Fi6UKStX3+Do7
-	hO0QhD6pd0xOOHRyAVnmwd///zxY1xyQohXkq3pxnma9AU09BP1JNs1jX2eNHA1/VqndiMIq/p7
-	Zoz4oH0g7ktwxuMI7/0nxmIas1d+qmen8XaTcAyzv6a38TQodX0f0n8ioU3a9NK8Ge0DJddrqz2
-	n2O9RxlkDv9hi+oa6PGhIZv0S0pBFanS5LPsKyPFku4vvKbz+UDGc8k+ALA8Su0Xf5huJWGmsml
-	U
-X-Received: by 2002:a17:902:8ec1:: with SMTP id x1mr47664438plo.52.1552502410948;
-        Wed, 13 Mar 2019 11:40:10 -0700 (PDT)
-X-Received: by 2002:a17:902:8ec1:: with SMTP id x1mr47664346plo.52.1552502409493;
-        Wed, 13 Mar 2019 11:40:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552502409; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=M+JZ8TeFWmIFE2e1xRH/xC27DrG2i8KzHZ+5mJ5JOr4=;
+        b=E9TTpIEdzZwIxwbBY6Wbd5wFs18xyj3iW/Bjcb5RHDj96SC4Dm2F1VE/apLTiF1Jco
+         X4q2PhLwvd0eLydZkEoqqxgmrw0t3fcu7cEZW4sWYKK6pKStnPUypzMVX+pk1fMDNbgm
+         NFQYzxsugz3tprfIP6rnPGCNqo3z5RPurNWzZATZEJvFcPn3dj8EtHI5/kMIYw1o3UTX
+         yAn+Wv5DMXLk5Q9c1L8q4mAKczYYknKDFHS+I1ZAL40qIGduRBaVH70wwYPt33y7Lwj5
+         UR7XgdjZ520mXMUTiX9QnU433Js3mXbt5rSLgEzB471tyk73kRTGpJjI5/U9pV4rZeKF
+         ag/w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWD4rrXd7+lm0Ql73ExgO0/6GiBGx5SMvZlRjHGBUomuf3vDRU7
+	K1kJzdNO7uJXJJQlkxzL05yNOWoO4QJw3XgUhV7hUAybdUcFEdbw8XvX/aHIaEX+CSgRD1TAPen
+	KjRfTuijpKUT1b7EWNjaiH3OywLmwUubCPeIFd/L1c7STKykIbYAZxq4xkqCETG++Bw==
+X-Received: by 2002:aed:3781:: with SMTP id j1mr1957795qtb.380.1552503159335;
+        Wed, 13 Mar 2019 11:52:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy2/uNhvxJ86lRLnK0kaqHYNHOhUbML0Xnr4qhrpBrCpx/4G8tcap+6tBo3AcEvQD+HKBi0
+X-Received: by 2002:aed:3781:: with SMTP id j1mr1957725qtb.380.1552503158208;
+        Wed, 13 Mar 2019 11:52:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552503158; cv=none;
         d=google.com; s=arc-20160816;
-        b=xiZME+vqJRMokHqbNNlyaIcDPJhB8tUXHm/9r8SdbU+QSg/r1ZWjR3yYOWgqo11USs
-         xgkH1T4x+fmTTQyCCsoO9cUvQCqXlvUnuo8R0jobBWj9M0kXHKLzV44nH9UoWmtk6gTS
-         v3EpbHeRoDncym87K/bDFe9v886fAjqUFG8GMeS6q9BaEf2ZENWyaCsK7KD3jPTGnpaB
-         nxahuwx7OIvMOGdBCZEqRz+NEG4LgodHegX+it4MGuv1ZCD6G7WGkElkm/L8z8X5UmwB
-         drvQwa7N1pMxYoVj4Adbi+oqYpG82J6H/VEk3oxwCf2dn6/joa4tsJ8LxGpQg55s09Mg
-         7goA==
+        b=r7Lxyt38LqNBX9q2Zf9bcoO5/mhRH7QEvkKaJemzc2Q8KbBOQ8XIXdQzZGI0WEiv4E
+         rD5OuN4b9L9NettHsd6yHEn1R6lRRsr/3ea+EU9fEAQQne0+g1Sou+A3H7NzI4Gu3q8o
+         J6yztU5/XfF6qWVTCO3IDmZysjI6ceNyOjFF/7ogOlB9ZxhwPP9wAJDFHnn5sqbZu9ZB
+         kSf3V4mjOzt7IWm4tiW7ALgR6SALziKYJaCA69O8F57oiq5loFuP4YoIawVv5DruRT8b
+         MEwr7lUvndFuc2BS9WkdMfXcXjuvTQxnvUmi8RtvUTueT8aKSR7cY6KxV4ilBHNsLr9Q
+         DTrw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=oYZ0d7IIZA63OVMPtucchTyEwGwVOr51nS/0GcejUsI=;
-        b=fzWPnzwRuDCf4sss39BZtcDUurPqAKGThQuiNKOpjZOmfccJcJtqwcpOwHgaHxYdCM
-         KNsQj1pX7iD/mbmQjBAryNaKPguae8CPTpDPC8GFNCHINTWl2TUuzbf7CZreQYxhE4G+
-         86gsPtecxbsBB6NBOshH9GOjj1d1kWvyQUi1y19ei6P7HFU93almQPH8aUQlr68sF0tM
-         /ffbMe+Fl6eCOMFp5tidTWqi+x+ncgTgiks6x+5nEwD1n4EDguWicpRzRrmOgceDrmq1
-         rYusN3ZUWIu6UiZpk4+KqEuZTpvY8VCCrthIpWvMv9ptH3gCzIjpNOLzHVwcIDhlXaRq
-         ignQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=M+JZ8TeFWmIFE2e1xRH/xC27DrG2i8KzHZ+5mJ5JOr4=;
+        b=EkjR+nTQIvfQFV4AZXL0PhlNcgoi3BjHOe0IIs53QXWtYSCsgZ87Pxo3ylDRvx1M6e
+         91YyeVbbOBv/WXUI9pe2Ho6xFcPHExYDGh1+FLgaS5Az7p4xaCo5Ia2XgV5kpzoMz5cV
+         4KpUQhyETjk2ySp3R3DW3EwDtVKEqVuZr4aeNTvF9QPeXf8IQHNmzp+gQirKKAihB3fP
+         6I9fIwH7pRpJOgb+eaEjmZUSxn/yXhDMdpQWm+BAF04o4FvKOvt4e1Xz2JHfpNN+Qvtr
+         buwUpysEvPKEc63zzSz0qepw1wcirwwStD4c3Tes8DegNLxpKAF9KD46xcO6D+VKxf5U
+         Eu6g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=hjlmlrqo;
-       spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z4sor2436157plk.2.2019.03.13.11.40.09
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id h46si3263079qth.279.2019.03.13.11.52.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Mar 2019 11:40:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Mar 2019 11:52:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=hjlmlrqo;
-       spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=oYZ0d7IIZA63OVMPtucchTyEwGwVOr51nS/0GcejUsI=;
-        b=hjlmlrqoyNqh8ZMDotoW00L/DiwAFvmdzuVBO5qEwnjoMnFwBtqz2v/L+DOuv1yKgE
-         iFkL77zGQSG/AZc4wPNOQjIbqLrrRer/ITKaec1ZWBYULuL6i8fvKraEMqTdq1EMsv8o
-         AgEdc2tWHxo31TIgegeSeM41gD89bZ7OO0hFTWtANImVHQnQsv00bzuBSO/ER/bycJeG
-         ONJlxbJ8bQJwg2DEvUCj8jaI2x5boilM8pqZ2jIfebSy4iE4PwulXoZ7Hnt0r1zGorY4
-         BXUk1VJpzHHRIOLVSc1IxnGoKFjConEDOx+EayzAIzbbZPedYCaEE3HhZNC/mu7TT5QH
-         Yjpw==
-X-Google-Smtp-Source: APXvYqwURWhkADd+qAQLVQN9HsSZU8WAqPGG3lUQMz73aqvzLNksvY2rMWiMAIlB7c+cWIpmfqzD0A==
-X-Received: by 2002:a17:902:1621:: with SMTP id g30mr47029359plg.116.1552502408883;
-        Wed, 13 Mar 2019 11:40:08 -0700 (PDT)
-Received: from castle.hsd1.ca.comcast.net ([2603:3024:1704:3e00::d657])
-        by smtp.gmail.com with ESMTPSA id i13sm15792562pgq.17.2019.03.13.11.40.07
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 13 Mar 2019 11:40:07 -0700 (PDT)
-From: Roman Gushchin <guroan@gmail.com>
-X-Google-Original-From: Roman Gushchin <guro@fb.com>
-To: linux-mm@kvack.org,
-	kernel-team@fb.com
-Cc: linux-kernel@vger.kernel.org,
-	Tejun Heo <tj@kernel.org>,
-	Rik van Riel <riel@surriel.com>,
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id A5726307E042;
+	Wed, 13 Mar 2019 18:52:36 +0000 (UTC)
+Received: from sky.random (ovpn-121-1.rdu2.redhat.com [10.10.121.1])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id C6BA46058F;
+	Wed, 13 Mar 2019 18:52:31 +0000 (UTC)
+Date: Wed, 13 Mar 2019 14:52:30 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+To: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Peter Xu <peterx@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>,
+	linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>,
+	Luis Chamberlain <mcgrof@kernel.org>,
+	Maxime Coquelin <maxime.coquelin@redhat.com>, kvm@vger.kernel.org,
+	Jerome Glisse <jglisse@redhat.com>,
+	Pavel Emelyanov <xemul@virtuozzo.com>,
 	Johannes Weiner <hannes@cmpxchg.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Roman Gushchin <guro@fb.com>
-Subject: [PATCH v3 6/6] mm: refactor memcg_hotplug_cpu_dead() to use memcg_flush_offline_percpu()
-Date: Wed, 13 Mar 2019 11:39:53 -0700
-Message-Id: <20190313183953.17854-7-guro@fb.com>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190313183953.17854-1-guro@fb.com>
-References: <20190313183953.17854-1-guro@fb.com>
+	Martin Cracauer <cracauer@cons.org>,
+	Denis Plotnikov <dplotnikov@virtuozzo.com>, linux-mm@kvack.org,
+	Marty McFadden <mcfadden8@llnl.gov>,
+	Maya Gokhale <gokhale2@llnl.gov>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	linux-fsdevel@vger.kernel.org,
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/3] userfaultfd: allow to forbid unprivileged users
+Message-ID: <20190313185230.GH25147@redhat.com>
+References: <20190311093701.15734-1-peterx@redhat.com>
+ <58e63635-fc1b-cb53-a4d1-237e6b8b7236@oracle.com>
+ <20190313060023.GD2433@xz-x1>
+ <3714d120-64e3-702e-6eef-4ef253bdb66d@redhat.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3714d120-64e3-702e-6eef-4ef253bdb66d@redhat.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Wed, 13 Mar 2019 18:52:37 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-It's possible to remove a big chunk of the redundant code by making
-memcg_flush_offline_percpu() to take cpumask as an argument and flush
-percpu data on all cpus belonging to the mask instead of all possible cpus.
+Hello,
 
-Then memcg_hotplug_cpu_dead() can call it with a single CPU bit set.
+On Wed, Mar 13, 2019 at 09:22:31AM +0100, Paolo Bonzini wrote:
+> On 13/03/19 07:00, Peter Xu wrote:
+> >> However, I can imagine more special cases being added for other users.  And,
+> >> once you have more than one special case then you may want to combine them.
+> >> For example, kvm and hugetlbfs together.
+> > It looks fine to me if we're using MMF_USERFAULTFD_ALLOW flag upon
+> > mm_struct, since that seems to be a very general flag that can be used
+> > by anything we want to grant privilege for, not only KVM?
+> 
+> Perhaps you can remove the fork() limitation, and add a new suboption to
+> prctl(PR_SET_MM) that sets/resets MMF_USERFAULTFD_ALLOW.  If somebody
+> wants to forbid unprivileged userfaultfd and use KVM, they'll have to
+> use libvirt or some other privileged management tool.
+> 
+> We could also add support for this prctl to systemd, and then one could
+> do "systemd-run -pAllowUserfaultfd=yes COMMAND".
 
-This approach allows to remove all duplicated code, but safe the
-performance optimization made in memcg_flush_offline_percpu():
-only one atomic operation per data entry.
+systemd can already implement -pAllowUserfaultfd=no with seccomp if it
+wants. It can also implement -yes if by default turns off userfaultfd
+like firejail -seccomp would do.
 
-for_each_data_entry()
-	for_each_cpu(cpu. cpumask)
-		sum_events()
-	flush()
+If the end goal is to implement the filtering with an userland policy
+instead of a kernel policy, seccomp enabled for all services sounds
+reasonable. It's very unlikely you'll block only userfaultfd, firejail
+-seccomp by default blocks dozen of syscalls that are unnecessary
+99.9% of the time.
 
-Otherwise it would be one atomic operation per data entry per cpu:
-for_each_cpu(cpu)
-	for_each_data_entry()
-		flush()
+This is not about implementing an userland flexible policy, it's just
+a simple kernel policy, to use until userland disables the kernel
+policy to takeover with seccomp across the board.
 
-Signed-off-by: Roman Gushchin <guro@fb.com>
----
- mm/memcontrol.c | 61 ++++++++-----------------------------------------
- 1 file changed, 9 insertions(+), 52 deletions(-)
+I wouldn't like this too be too complicated because this is already
+theoretically overlapping 100% with seccomp.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 0f18bf2afea8..5b6a2ea66774 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2122,11 +2122,12 @@ static void drain_all_stock(struct mem_cgroup *root_memcg)
- /*
-  * Flush all per-cpu stats and events into atomics.
-  * Try to minimize the number of atomic writes by gathering data from
-- * all cpus locally, and then make one atomic update.
-+ * all cpus in cpumask locally, and then make one atomic update.
-  * No locking is required, because no one has an access to
-  * the offlined percpu data.
-  */
--static void memcg_flush_offline_percpu(struct mem_cgroup *memcg)
-+static void memcg_flush_offline_percpu(struct mem_cgroup *memcg,
-+				       const struct cpumask *cpumask)
- {
- 	struct memcg_vmstats_percpu __percpu *vmstats_percpu;
- 	struct lruvec_stat __percpu *lruvec_stat_cpu;
-@@ -2140,7 +2141,7 @@ static void memcg_flush_offline_percpu(struct mem_cgroup *memcg)
- 		int nid;
- 
- 		x = 0;
--		for_each_possible_cpu(cpu)
-+		for_each_cpu(cpu, cpumask)
- 			x += per_cpu(vmstats_percpu->stat[i], cpu);
- 		if (x)
- 			atomic_long_add(x, &memcg->vmstats[i]);
-@@ -2153,7 +2154,7 @@ static void memcg_flush_offline_percpu(struct mem_cgroup *memcg)
- 			lruvec_stat_cpu = pn->lruvec_stat_cpu_offlined;
- 
- 			x = 0;
--			for_each_possible_cpu(cpu)
-+			for_each_cpu(cpu, cpumask)
- 				x += per_cpu(lruvec_stat_cpu->count[i], cpu);
- 			if (x)
- 				atomic_long_add(x, &pn->lruvec_stat[i]);
-@@ -2162,7 +2163,7 @@ static void memcg_flush_offline_percpu(struct mem_cgroup *memcg)
- 
- 	for (i = 0; i < NR_VM_EVENT_ITEMS; i++) {
- 		x = 0;
--		for_each_possible_cpu(cpu)
-+		for_each_cpu(cpu, cpumask)
- 			x += per_cpu(vmstats_percpu->events[i], cpu);
- 		if (x)
- 			atomic_long_add(x, &memcg->vmevents[i]);
-@@ -2171,8 +2172,6 @@ static void memcg_flush_offline_percpu(struct mem_cgroup *memcg)
- 
- static int memcg_hotplug_cpu_dead(unsigned int cpu)
- {
--	struct memcg_vmstats_percpu __percpu *vmstats_percpu;
--	struct lruvec_stat __percpu *lruvec_stat_cpu;
- 	struct memcg_stock_pcp *stock;
- 	struct mem_cgroup *memcg;
- 
-@@ -2180,50 +2179,8 @@ static int memcg_hotplug_cpu_dead(unsigned int cpu)
- 	drain_stock(stock);
- 
- 	rcu_read_lock();
--	for_each_mem_cgroup(memcg) {
--		int i;
--
--		vmstats_percpu = (struct memcg_vmstats_percpu __percpu *)
--			rcu_dereference(memcg->vmstats_percpu);
--
--		for (i = 0; i < MEMCG_NR_STAT; i++) {
--			int nid;
--			long x;
--
--			if (vmstats_percpu) {
--				x = this_cpu_xchg(vmstats_percpu->stat[i], 0);
--				if (x)
--					atomic_long_add(x, &memcg->vmstats[i]);
--			}
--
--			if (i >= NR_VM_NODE_STAT_ITEMS)
--				continue;
--
--			for_each_node(nid) {
--				struct mem_cgroup_per_node *pn;
--
--				pn = mem_cgroup_nodeinfo(memcg, nid);
--
--				lruvec_stat_cpu = (struct lruvec_stat __percpu*)
--					rcu_dereference(pn->lruvec_stat_cpu);
--				if (!lruvec_stat_cpu)
--					continue;
--				x = this_cpu_xchg(lruvec_stat_cpu->count[i], 0);
--				if (x)
--					atomic_long_add(x, &pn->lruvec_stat[i]);
--			}
--		}
--
--		for (i = 0; i < NR_VM_EVENT_ITEMS; i++) {
--			long x;
--
--			if (vmstats_percpu) {
--				x = this_cpu_xchg(vmstats_percpu->events[i], 0);
--				if (x)
--					atomic_long_add(x, &memcg->vmevents[i]);
--			}
--		}
--	}
-+	for_each_mem_cgroup(memcg)
-+		memcg_flush_offline_percpu(memcg, cpumask_of(cpu));
- 	rcu_read_unlock();
- 
- 	return 0;
-@@ -4668,7 +4625,7 @@ static void percpu_rcu_free(struct rcu_head *rcu)
- 	struct mem_cgroup *memcg = container_of(rcu, struct mem_cgroup, rcu);
- 	int node;
- 
--	memcg_flush_offline_percpu(memcg);
-+	memcg_flush_offline_percpu(memcg, cpu_possible_mask);
- 
- 	for_each_node(node) {
- 		struct mem_cgroup_per_node *pn = memcg->nodeinfo[node];
--- 
-2.20.1
+hugetlbfs is more complicated to detect, because even if you inherit
+it from fork(), the services that mounts the fs may be in a different
+container than the one that Oracle that uses userfaultfd later on down
+the road from a different context. And I don't think it would be ok to
+allow running userfaultfd just because you can open a file in an
+hugetlbfs file system. With /dev/kvm it's a bit different, that's
+chmod o-r by default.. no luser should be able to open it.
+
+Unless somebody suggests a consistent way to make hugetlbfs "just
+work" (like we could achieve clean with CRIU and KVM), I think Oracle
+will need a one liner change in the Oracle setup to echo into that
+file in addition of running the hugetlbfs mount.
+
+Note that DPDK host bridge process will also need a one liner change
+to do a dummy open/close of /dev/kvm to unblock the syscall.
+
+Thanks,
+Andrea
 
