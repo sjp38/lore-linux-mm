@@ -2,121 +2,197 @@ Return-Path: <SRS0=KVn2=RQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D700C10F03
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 21:06:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9E56EC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 21:09:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 404342070D
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 21:06:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 404342070D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=stgolabs.net
+	by mail.kernel.org (Postfix) with ESMTP id 55D802070D
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Mar 2019 21:09:59 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="FuKlcEr+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55D802070D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9F4838E000B; Wed, 13 Mar 2019 17:06:12 -0400 (EDT)
+	id ED2938E000C; Wed, 13 Mar 2019 17:09:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9A2338E0001; Wed, 13 Mar 2019 17:06:12 -0400 (EDT)
+	id E82D78E0001; Wed, 13 Mar 2019 17:09:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 893328E000B; Wed, 13 Mar 2019 17:06:12 -0400 (EDT)
+	id D99368E000C; Wed, 13 Mar 2019 17:09:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 438BF8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 17:06:12 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id t4so1325079eds.1
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 14:06:12 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BA1558E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 17:09:58 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id b188so2816079qkg.15
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 14:09:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:mail-followup-to:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=3VovhBSTW3HniGg4Z2OKgLJaVgk+mldhh4mTxqeNiiA=;
-        b=KJVtSn6KRolPSHzhRgh1WpWt1l/xllm9YibQroB0yHd/eR4LXGnhTpG83MbSl7nbCv
-         nBY1K8JZDbbJ0OIzZ7pFK635kN18dC6yog8mTgrTC0iK9u56Tn2+Ii8oDeEd+NX/n7TK
-         xYobdBPQH5FKMP0YGuqeqskUpLZHulG5ZlL0RyMXE+FeSNnhEIkeNSUPBBIGC9bDKop2
-         TwhubTaCbCVixpmGeZQnrQtkywhx+vXphjHYkyM9XlGPiD+cCcXzX9jCeEZEFrdL5f+8
-         sIcIwZAEz6spLADw56gcCjFcGz8DQM/30+5bXJHskfXxQYL/1ZZw2Z6+PnvIJA3a7tMo
-         URHQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=dave@stgolabs.net
-X-Gm-Message-State: APjAAAX7ler526Wy6A54P6DaEcoLxtDxa6QP65bxIEF5kY2qrBMdcaxD
-	nWaxlP2qsXES/MZAWuv2/umlXOZCPSv9uSQ5kR6UHXz8Iz+FALdw/BzKuVB6NsBi26zm5Gamzxa
-	q9PnaCNdusGgO93Yt2bneCVq68zPm8Jw6ejhiD2O2VvRMImf8rNgA3+p58NoK6Ag=
-X-Received: by 2002:a17:906:32ca:: with SMTP id k10mr11852156ejk.115.1552511171757;
-        Wed, 13 Mar 2019 14:06:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxHpbFymB37sYEn9Irl1QZJ/lwe6oKT8iCgRYOcrXmZMEGIVs0agkAcQNDFh9klzhtg4lU6
-X-Received: by 2002:a17:906:32ca:: with SMTP id k10mr11852127ejk.115.1552511170778;
-        Wed, 13 Mar 2019 14:06:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552511170; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=yntyjzFMcFh+bacgvW8ewUIkqWqdqwu7OHwrppRgspA=;
+        b=BAEoGyLQKTLUIO9aAcF+YOfmjWBKYPKfoIoMslX9Eora03RgmaZViFrcoDVF4GhH/f
+         lEYAmfRMtoaufN+99/awDKxzWmVTUuv7z89jtSJtrhwtlcrQ4Epklx+cjzedQD2jzQdp
+         agmfXQA8Ksi1Gm3y6xO+vBKuL+cHMSJ8pAvazn5s0DuvO8FkbX/XDfxGKpjt8f5jQKuz
+         aSkB4JYV02pIUT+/VRal3q38Glc6tOqPs2rE2/AGHxRkU46oGP4fLUeVR3Byp5n3ukRJ
+         657my6Dlehq+tqwm8lZH0TJuhgWBmhm8DWSK7AIdufo2ybVtpf1Tudn2pMnvV5vIT0rR
+         a86Q==
+X-Gm-Message-State: APjAAAXn47kLRIxy1prcqSggKhVuwMLM17WcLHZYDHMyKuXSy2UKpTc8
+	tRl8UPsZtNeTau9w/fECteVsnI9RZSzXjHxZN09nczRegWhuZUZTzDVJ7vw6DwZYgy2lJfO4VSz
+	3huJ7qzDhNJMrXPf77dGi0dRAjJFeQK0aQHbEHZ0Cwb0Y+S0INREGVW9QzZtWejRtWFEJ/9vjiV
+	gnmzU7iSEe7jPTzueurLoebNl/M6/Uz+L/YW4BFtkBg8ldQ0m+ix32Nxgb9oHRgXY1SPQMnFnZA
+	xn8dPu5rcTsleot4xOH6ZBDbrAtru3x9i9YEq5ieZFIlyIjvxB8klpDfj+kTvN3nRuCi86780KS
+	XCqGWXRstbdUNl0D9eY4ypbW9SIcXe8R473jpWmxKn8koViLKdrj7LAH3SGSM9kXB3QjudoMmxT
+	I
+X-Received: by 2002:ac8:2847:: with SMTP id 7mr35596746qtr.335.1552511398312;
+        Wed, 13 Mar 2019 14:09:58 -0700 (PDT)
+X-Received: by 2002:ac8:2847:: with SMTP id 7mr35596699qtr.335.1552511397538;
+        Wed, 13 Mar 2019 14:09:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552511397; cv=none;
         d=google.com; s=arc-20160816;
-        b=bqeSPp28mNizeI336okxX+gkpjLCogFtW3s6J8cpRYqTeelNCYc9hc4y7hRJSwhMAO
-         FNefKr4DWzn6Mgqz8GgR96zBzNbhIFf4ZQ3+5zrOgjO/2r9Ixlp2YmOCisAtcbohZZ3K
-         aX+I44ya6cZ4pwuG5DAp843aRE1Fd9yvLC5rr8J5I9Sf1YCMKAFNjMnPU6Y+KaJxnIDs
-         n+spd55pys45MqOHXgRsMNhrDNyogncaxV9q/CYTbgAbzOv0sfqqtYGSdU4pHg+4Guq9
-         gYhWhC/TJKaa7fy9wPfFDW9snwgCMxCdjeKWZGMzdx80/tLKWnAO+xvlkXrpugjFmMv8
-         ym2w==
+        b=PB9zrPNCoPPkTWw1iJaX7ZwBq0CJHE/c4pV1vugCPOP3E9L+lkMLmjnIKo7l5Qa5YT
+         UGBJLwIZM/0v5mThvyMITaY2ESLTgKSGEfX7KfgY2NPhWBqXh2gcvWmqEFCojAKckwRP
+         L5asnsG+41WQqtq/aeqSYdprOdAOo2gN1WeYL8iieycz+ncUPAKNXP/Q8A4eeKfqZJGc
+         NI06cZQYI1elsyAWkaNxm7LxHCTF/WnnEu9if4kAMs/ICLBkzdEBzjzVn6+kNpYhRrgj
+         7bUH7jIlmzBMM1/g8lRLZzUc6IEBJJU1c72yt3W3g5qb+imsHSxnmvC8fWn3VDzq33DV
+         MAcQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :mail-followup-to:message-id:subject:cc:to:from:date;
-        bh=3VovhBSTW3HniGg4Z2OKgLJaVgk+mldhh4mTxqeNiiA=;
-        b=XSoVXNVx63CJwJYQiHq6NsxCQdOxUuX96LlubTgcnAXOibqBa8tQp7N1D+NLNAtP7L
-         bZSpg/IsWn7jRZ2Npma2QPf1QHszdMs/dXPA3l0+wxtOWmT1j7dXTCwpyYDR6ZoeQpKu
-         6DfxX189xAyU85HLPqzTMvEI8zwA2i2Ijj07DAB5XAEml8evSrT76CerEmHiMAm1xcnQ
-         BEsojuaeltZP0Hreyt5roW4Og01KGcMSjpnJ/LpJGinjGOQjmr71dtluo+glrPwHGa1v
-         d9Nj2uJDdNkBcesE4IuBBPrJdjMaTB4ialfncfESbvxx9V5ZNqvS4ec9xxXR0ONfxcFS
-         CnyA==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=yntyjzFMcFh+bacgvW8ewUIkqWqdqwu7OHwrppRgspA=;
+        b=p51x6XOoJjrRqODrLAIQLMNE6MIKoSdJuTf6kUol6uHslGzzXkYS7T494v/n6z+iOQ
+         oQMkIVyorSpCfJ6N0lvSAxz01ftS3zwTIahs+JsFmt8XFXSWNtmQVkFWN8rnnFc6oVez
+         3glgwyltBIs9q2SWFrEVi6OzKlVNzMnaZKg4Bg8blEbNzFUvLidHvQ591HCrFBHlGDTp
+         /s1Xd+YRCUIznxUJ46oXq0QIhaEw9PB18+U+DlWCui+bZ1Ir3A2LL1urd+M/H4Gj6kBq
+         itQjkoFlXeTDcJ8yMB/zlgWgmRtHeVWiq4T8P4rE8BinuzDJJHieGCXwNbHVcG4MmbyG
+         a2ag==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=dave@stgolabs.net
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w27si998357ejb.220.2019.03.13.14.06.10
+       dkim=pass header.i=@lca.pw header.s=google header.b=FuKlcEr+;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d3sor14105799qvc.35.2019.03.13.14.09.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Mar 2019 14:06:10 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 13 Mar 2019 14:09:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=dave@stgolabs.net
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id D7F88AB71;
-	Wed, 13 Mar 2019 21:06:09 +0000 (UTC)
-Date: Wed, 13 Mar 2019 14:06:03 -0700
-From: Davidlohr Bueso <dave@stgolabs.net>
-To: Laurent Dufour <ldufour@linux.ibm.com>
-Cc: lsf-pc@lists.linux-foundation.org, Linux-MM <linux-mm@kvack.org>,
-	linux-kernel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>
-Subject: Re: [LSF/MM TOPIC] Using XArray to manage the VMA
-Message-ID: <20190313210603.fguuxu3otj5epk3q@linux-r8p5>
-Mail-Followup-To: Laurent Dufour <ldufour@linux.ibm.com>,
-	lsf-pc@lists.linux-foundation.org, Linux-MM <linux-mm@kvack.org>,
-	linux-kernel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>
-References: <7da20892-f92a-68d8-4804-c72c1cb0d090@linux.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <7da20892-f92a-68d8-4804-c72c1cb0d090@linux.ibm.com>
-User-Agent: NeoMutt/20180323
+       dkim=pass header.i=@lca.pw header.s=google header.b=FuKlcEr+;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=from:to:cc:subject:date:message-id;
+        bh=yntyjzFMcFh+bacgvW8ewUIkqWqdqwu7OHwrppRgspA=;
+        b=FuKlcEr+VJzGaq58c78qb6CXUp6wn4LjnxWHjBA3UeCUhcmCH8GBz+PM9Cn6v3qDz6
+         sHLwNji6BXocYx5PWJOAOS14pyrVEMW0g2dxZ7gQEGT+PxeTMtvh8mxAFmObxt3GgGr2
+         Yr0qh9L3RkzHgin7wxxZ1k7b5h2IW4BMPUw/plGF5u1wx4YPMKtowpUhGJ5pwxDhK2gR
+         0yROEK+C02n/nrK2NIL/EiYkynHX8uwfFPH0brSlQ6vMe0TSCIpRsBzZMBJHp2aJHyI8
+         /zPOPRdykBBXE50ynBbl26ifDajWmdrMz1JKSJPCT+zFc4vQ66fv8l+Q3QyXRC4/m5XY
+         DQ+w==
+X-Google-Smtp-Source: APXvYqzmqivJugqv3R7qcZOh+9VRMCcmrhHWNgZ1gdV6C9cKprn+dRNFjSCNIZiiWsANa/GfBjWa8Q==
+X-Received: by 2002:a0c:9dda:: with SMTP id p26mr36410060qvf.134.1552511397101;
+        Wed, 13 Mar 2019 14:09:57 -0700 (PDT)
+Received: from ovpn-121-103.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id r58sm8780766qtr.24.2019.03.13.14.09.56
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Mar 2019 14:09:56 -0700 (PDT)
+From: Qian Cai <cai@lca.pw>
+To: akpm@linux-foundation.org
+Cc: mhocko@kernel.org,
+	osalvador@suse.de,
+	anshuman.khandual@arm.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Qian Cai <cai@lca.pw>
+Subject: [PATCH] mm/hotplug: fix notification in offline error path
+Date: Wed, 13 Mar 2019 17:09:39 -0400
+Message-Id: <20190313210939.49628-1-cai@lca.pw>
+X-Mailer: git-send-email 2.17.2 (Apple Git-113)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 13 Mar 2019, Laurent Dufour wrote:
+When start_isolate_page_range() returned -EBUSY in __offline_pages(), it
+calls memory_notify(MEM_CANCEL_OFFLINE, &arg) with an uninitialized
+"arg". As the result, it triggers warnings below. Also, it is only
+necessary to notify MEM_CANCEL_OFFLINE after MEM_GOING_OFFLINE.
 
->If this is not too late and if there is still place available, I would 
->like to attend the MM track and propose a topic about using the XArray 
->to replace the VMA's RB tree and list.
->
->Using the XArray in place of the VMA's tree and list seems to be a 
->first step to the long way of removing/replacing the mmap_sem.
+page:ffffea0001200000 count:1 mapcount:0 mapping:0000000000000000
+index:0x0
+flags: 0x3fffe000001000(reserved)
+raw: 003fffe000001000 ffffea0001200008 ffffea0001200008 0000000000000000
+raw: 0000000000000000 0000000000000000 00000001ffffffff 0000000000000000
+page dumped because: unmovable page
+WARNING: CPU: 25 PID: 1665 at mm/kasan/common.c:665
+kasan_mem_notifier+0x34/0x23b
+CPU: 25 PID: 1665 Comm: bash Tainted: G        W         5.0.0+ #94
+Hardware name: HP ProLiant DL180 Gen9/ProLiant DL180 Gen9, BIOS U20
+10/25/2017
+RIP: 0010:kasan_mem_notifier+0x34/0x23b
+RSP: 0018:ffff8883ec737890 EFLAGS: 00010206
+RAX: 0000000000000246 RBX: ff10f0f4435f1000 RCX: f887a7a21af88000
+RDX: dffffc0000000000 RSI: 0000000000000020 RDI: ffff8881f221af88
+RBP: ffff8883ec737898 R08: ffff888000000000 R09: ffffffffb0bddcd0
+R10: ffffed103e857088 R11: ffff8881f42b8443 R12: dffffc0000000000
+R13: 00000000fffffff9 R14: dffffc0000000000 R15: 0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 0000560fbd31d730 CR3: 00000004049c6003 CR4: 00000000001606a0
+Call Trace:
+ notifier_call_chain+0xbf/0x130
+ __blocking_notifier_call_chain+0x76/0xc0
+ blocking_notifier_call_chain+0x16/0x20
+ memory_notify+0x1b/0x20
+ __offline_pages+0x3e2/0x1210
+ offline_pages+0x11/0x20
+ memory_block_action+0x144/0x300
+ memory_subsys_offline+0xe5/0x170
+ device_offline+0x13f/0x1e0
+ state_store+0xeb/0x110
+ dev_attr_store+0x3f/0x70
+ sysfs_kf_write+0x104/0x150
+ kernfs_fop_write+0x25c/0x410
+ __vfs_write+0x66/0x120
+ vfs_write+0x15a/0x4f0
+ ksys_write+0xd2/0x1b0
+ __x64_sys_write+0x73/0xb0
+ do_syscall_64+0xeb/0xb78
+ entry_SYSCALL_64_after_hwframe+0x44/0xa9
+RIP: 0033:0x7f14f75cc3b8
+RSP: 002b:00007ffe84d01d68 EFLAGS: 00000246 ORIG_RAX: 0000000000000001
+RAX: ffffffffffffffda RBX: 0000000000000008 RCX: 00007f14f75cc3b8
+RDX: 0000000000000008 RSI: 0000563f8e433d70 RDI: 0000000000000001
+RBP: 0000563f8e433d70 R08: 000000000000000a R09: 00007ffe84d018f0
+R10: 000000000000000a R11: 0000000000000246 R12: 00007f14f789e780
+R13: 0000000000000008 R14: 00007f14f7899740 R15: 0000000000000008
 
-So threaded (not as in threads of execution) rbtrees are another
-alternative to deal with the two data structure approach we currently
-have. Having O(1) rb_prev/next() calls allows us to basically get rid of
-the vma list at the cost of an extra check for each node we visit on
-the way down when inserting.
+Fixes: 7960509329c2 ("mm, memory_hotplug: print reason for the offlining failure")
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
+ mm/memory_hotplug.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Thanks,
-Davidlohr
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 8ffe844766da..1559c1605072 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1703,12 +1703,12 @@ static int __ref __offline_pages(unsigned long start_pfn,
+ 
+ failed_removal_isolated:
+ 	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
++	memory_notify(MEM_CANCEL_OFFLINE, &arg);
+ failed_removal:
+ 	pr_debug("memory offlining [mem %#010llx-%#010llx] failed due to %s\n",
+ 		 (unsigned long long) start_pfn << PAGE_SHIFT,
+ 		 ((unsigned long long) end_pfn << PAGE_SHIFT) - 1,
+ 		 reason);
+-	memory_notify(MEM_CANCEL_OFFLINE, &arg);
+ 	/* pushback to free area */
+ 	mem_hotplug_done();
+ 	return ret;
+-- 
+2.17.2 (Apple Git-113)
 
