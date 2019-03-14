@@ -2,276 +2,160 @@ Return-Path: <SRS0=RO59=RR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 374EEC10F06
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 16:51:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 926C8C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 16:52:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DA11B2087C
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 16:51:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DA11B2087C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 506F72087C
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 16:52:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 506F72087C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6B5308E0003; Thu, 14 Mar 2019 12:51:48 -0400 (EDT)
+	id 022D88E0004; Thu, 14 Mar 2019 12:52:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 63A1C8E0001; Thu, 14 Mar 2019 12:51:48 -0400 (EDT)
+	id EED538E0001; Thu, 14 Mar 2019 12:52:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4B5468E0003; Thu, 14 Mar 2019 12:51:48 -0400 (EDT)
+	id DB5508E0004; Thu, 14 Mar 2019 12:52:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F20AE8E0001
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 12:51:47 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id i13so6817364pgb.14
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 09:51:47 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CD728E0001
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 12:52:26 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id x21so2312022edr.17
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 09:52:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language;
-        bh=GsbHtlhGmIgMYq4d2M43o76vP7EcmZeniXcU5YHghnM=;
-        b=fWMy6f93AvrOWrFUTTF9+jewLaigLjK8mPY/HVwategQZiAHlN+OLqlWxsZu28gt+D
-         VyWNNdtBBXKF5ZESsElBrPlalhxTf/sLwkYaX8e0xyjQBCvdaL3wgLOk+IWqzALMM+ws
-         ITLvI4A4SEH3Yq055KtC8rNQFG95/9FlWXvx6oPSYzOabfReq4+uUDPo995M7WvPpOn3
-         QRtYrAIuFnOJrW6KxhYMLGuL13RbTBri2GtS3r8OgewvGLB7ZF5ESg4GzersSR2vAF2i
-         P+RsKAQTNvob4hPXXVksLzcKbsdG92ZIiceU5GIfEPk6Zay1bd80f09HRtQraxKNijqn
-         5c0A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVu4CxQaM8WwejWurT561OxPOcGRcVleeeSYKql7NhUksF5dgHi
-	+jLe72oRFAnIk2h5zeGFDDqV1XEeYOrtOjJJjtdh1dYxXTYOFFrWcLTG0Ayc3uyh949jhcUYNh1
-	3f4z8MYeznz8ex6GvFgw21n/gTtBpPQXxi05uJ46tGAdnh6xNw/iAWTNDdwwIn31CtA==
-X-Received: by 2002:a63:6949:: with SMTP id e70mr45515679pgc.89.1552582307679;
-        Thu, 14 Mar 2019 09:51:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzCUX/LW8NhYMFNtpMTxKAz2CRbYgNC6Mz78VVDfktr5b8omZ9MO802UcJNLBpsckdVhKYo
-X-Received: by 2002:a63:6949:: with SMTP id e70mr45515618pgc.89.1552582306532;
-        Thu, 14 Mar 2019 09:51:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552582306; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date
+         :message-id:from:to:cc:subject:in-reply-to:references:user-agent
+         :mime-version;
+        bh=eGFRzave+QEluTw8Vx/SddCMYoI0PlYsomLh293OiLc=;
+        b=OaJnt69BvF92LtrL+TvEBX6TLaXDqQ1L/ZNtiKavf9mVizzwNgTuHom/kZsE6SPNWk
+         JMW06ZvDXkf2mBu6YAWKTOSr1oD/v4D+YDNzbUN+vRLelYUq+/pQ8EJ4D3QWnJHtrQ3C
+         wqrHhTDoKUt8QXiO6RFpK2Jd07hu2BlQIaSdrS9OYzEs5ThBVXzbdlbh/lTYEaK3pA8H
+         Cl/fOMGbFh6fIfwKWCjPiz+PG/dneO2ujWwKppG8iQJ8Bi/68kubGOlRu/mWFovZ9Ls/
+         PBPV2D6UNHph80TbvETKlRXhQCj6EG1xyJSsikau4VSMcUhHJNZxUciOLEiQ2WoP43rh
+         i3vA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of tiwai@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=tiwai@suse.de
+X-Gm-Message-State: APjAAAXb7rWCKCOr6kxZJfsKHW92J2xH0+828pgBZgByelmf/TRrUiz5
+	9l93qTPNnKGMG6wEu0NwRh9/T7HgwZT+KxzN5WlPNM39j4GqCMvU+BTyHhD6NIc+VgjqRNXJzt/
+	TDt5H2DmGV7f9XuNxZDxGOoKlwV4OGTuIx3tI26ts7c+JToFfTX6LgNRQaYaGFDmygQ==
+X-Received: by 2002:a05:6402:1807:: with SMTP id g7mr12219521edy.184.1552582346041;
+        Thu, 14 Mar 2019 09:52:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz50VuKUSqmIXteOxO04B5LK9Rk05sDxsIL4O4GuNbEfDQLBo8Ql7qmWyUDRlMRY0iwvrpE
+X-Received: by 2002:a05:6402:1807:: with SMTP id g7mr12219464edy.184.1552582345035;
+        Thu, 14 Mar 2019 09:52:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552582345; cv=none;
         d=google.com; s=arc-20160816;
-        b=Wu/CPydCaxdTToRdUX8Xn0kuZmNavPmwLwPVjfrm3chAnZjbfG1i5iAn2RZ0lweEft
-         HRyKz1IHFiFT+8PZF1L79zlTXCaoiBiFLrHtoLG6M8dYkhIBxQbOZhfe9AUykvPISNoZ
-         3ihHWv1T5VE/9+mcWzBe/mLOwiCECBlZTtYTAuFnLxb1QDlU2IZE52A+IwSTJ0OL25jC
-         F9tmVv9ZYGHPpwb2Lf0EJUQZmn7NKao9x79BJwJeYdgPh4P6NsgeqiZZx3NLKU44t+q+
-         W6RoxN6Esm/8GM9jZuHegFp1cVJTQKpvckbLNT3U/5OvegOojurp8YGXXLUUTBznJIk1
-         89sw==
+        b=tN+poUpVYT39+SyL3jTYEY+xQVLHpaio8z3EzUJc0epTLGokdqxf1G1/NU0XWVuPNN
+         QOS2G8oU5BtCMQXC97r2VQfxF1Hu2UrLcTNQtVFCqqPnrRCB0r4d2efZBokM5PyTORYc
+         i+KTCWwq5bQre0s00pteCV/YBck6cK8GG5nfrcK4U6WetVJEZd6h48P+F7neQri927K1
+         F+huMMrWa67hHX/5uWTZeFqKrg3UAl2vBxYwRvQ2uLgZdqCvFAF5nkvkXzjAWLZDGUpI
+         T7+m0V9ews9c3zOPKzL4YXAvIHB3PY1VQF0hfW/SEhGWIoaIA34NoKX0JqsU+py/ryRO
+         3m6Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:in-reply-to:mime-version:user-agent:date
-         :message-id:autocrypt:openpgp:from:references:cc:to:subject;
-        bh=GsbHtlhGmIgMYq4d2M43o76vP7EcmZeniXcU5YHghnM=;
-        b=uU/3Panzfw6ji7n1pwfG299qC64txxbdor4fbR8sW6ZSXi67EUyW/RZA92tpm0o3vi
-         sqje0jnE/sdIGBpYjJ3BGmftMGQi7XAnsPrgA3f6stMJW6fkiTFdKSSBJonx+d8cW7iA
-         YwzjtYlMgiZXRzSdKL19HPfsYF6dgqumv2nwoHG05zBcz7c415cY3BiNTrUDkOFhv/wP
-         WFqVbOjz25uco3CPHIQ0rpWmFYQpcvHJ1pOHeExta7z0GkZIar2IGjVKwxU1y/otknM6
-         wbyu90SqUiHHtaW0IF6cAC8NT61c1Xe/TIBtJbQCNV74TZ2Q9SKSf5pDexWBxfLWjY7/
-         vo1A==
+        h=mime-version:user-agent:references:in-reply-to:subject:cc:to:from
+         :message-id:date;
+        bh=eGFRzave+QEluTw8Vx/SddCMYoI0PlYsomLh293OiLc=;
+        b=MlqDX7RhIWTH/pmaPhhsiUALj1NM4wILppMBRWZWm3YmCcZ81X6LUA5aeZb/qakWPi
+         AEWgJychE4rzG6sA/NzTCkjbBSFGewfFfLnLcKbu94CCZoPl6pBg2mLQCsHmhlqixWc4
+         cYBixNA+1fm5Y71Zu2a+xU3in2rqv3fwG8fvjbV/NU552PX9pqrG9ZjVhmmJDb8XfxLB
+         UFllxZbz460U6aO19hXbGwVQnd9MIyyZeEXO95qI/51J/zrNltX3PTYXfLieYZvHeU+0
+         ZmLuWqNiEhaG3e0kjewdEtoWAJrF4iWD2/MXD0j+Ftc4846mknLYYTkv/k/nZELMOzdC
+         /ojw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id v7si8215432pgq.125.2019.03.14.09.51.46
+       spf=pass (google.com: domain of tiwai@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=tiwai@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 41si433153edr.20.2019.03.14.09.52.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Mar 2019 09:51:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        Thu, 14 Mar 2019 09:52:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of tiwai@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga004.jf.intel.com ([10.7.209.38])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Mar 2019 09:51:45 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,478,1544515200"; 
-   d="scan'208";a="282689880"
-Received: from unknown (HELO [10.7.201.133]) ([10.7.201.133])
-  by orsmga004.jf.intel.com with ESMTP; 14 Mar 2019 09:51:43 -0700
-Subject: Re: Kernel bug with MPX?
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Richard Biener <rguenther@suse.de>, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
- the arch/x86 maintainers <x86@kernel.org>
-References: <alpine.LSU.2.20.1903060944550.7898@zhemvz.fhfr.qr>
- <ba1d2d3c-e616-611d-3cff-acf6b8aaeb66@intel.com>
- <20190308071249.GJ30234@dhcp22.suse.cz>
- <20190308073949.GA5232@dhcp22.suse.cz>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <ec2110b1-abae-4df5-fcd7-244620634a00@intel.com>
-Date: Thu, 14 Mar 2019 09:51:42 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
-MIME-Version: 1.0
-In-Reply-To: <20190308073949.GA5232@dhcp22.suse.cz>
-Content-Type: multipart/mixed;
- boundary="------------4B1430DFFB257B969B0701CD"
-Content-Language: en-US
+       spf=pass (google.com: domain of tiwai@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=tiwai@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 8628AAFF0;
+	Thu, 14 Mar 2019 16:52:24 +0000 (UTC)
+Date: Thu, 14 Mar 2019 17:52:24 +0100
+Message-ID: <s5h5zslqtyv.wl-tiwai@suse.de>
+From: Takashi Iwai <tiwai@suse.de>
+To: Michal Hocko <mhocko@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>,
+	linux-mm@kvack.org,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH v2] mm, page_alloc: disallow __GFP_COMP in alloc_pages_exact()
+In-Reply-To: <20190314132933.GL7473@dhcp22.suse.cz>
+References: <20190314093944.19406-1-vbabka@suse.cz>
+	<20190314094249.19606-1-vbabka@suse.cz>
+	<20190314101526.GH7473@dhcp22.suse.cz>
+	<1dc997a3-7573-7bd5-9ce6-3bfbf77d1194@suse.cz>
+	<20190314113626.GJ7473@dhcp22.suse.cz>
+	<s5hd0mtsm84.wl-tiwai@suse.de>
+	<20190314120939.GK7473@dhcp22.suse.cz>
+	<s5ha7hxsikl.wl-tiwai@suse.de>
+	<20190314132933.GL7473@dhcp22.suse.cz>
+User-Agent: Wanderlust/2.15.9 (Almost Unreal) SEMI/1.14.6 (Maruoka)
+ FLIM/1.14.9 (=?UTF-8?B?R29qxY0=?=) APEL/10.8 Emacs/25.3
+ (x86_64-suse-linux-gnu) MULE/6.0 (HANACHIRUSATO)
+MIME-Version: 1.0 (generated by SEMI 1.14.6 - "Maruoka")
+Content-Type: text/plain; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------4B1430DFFB257B969B0701CD
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-
-For those just joining the thread now, here's the background:
-
-> https://lkml.kernel.org/r/alpine.LSU.2.20.1903060944550.7898@zhemvz.fhfr.qr
-
-Turning on a bunch of kernel debugging found the culprit:
-
->         /*
->          * mpx unmap needs to be called with mmap_sem held for write.
->          * It is safe to call it before unmap_region().
->          */
->         arch_unmap(mm, vma, start, end);
+On Thu, 14 Mar 2019 14:29:33 +0100,
+Michal Hocko wrote:
 > 
->         if (downgrade)
->                 downgrade_write(&mm->mmap_sem);
+> On Thu 14-03-19 14:15:38, Takashi Iwai wrote:
+> > On Thu, 14 Mar 2019 13:09:39 +0100,
+> > Michal Hocko wrote:
+> > > 
+> > > On Thu 14-03-19 12:56:43, Takashi Iwai wrote:
+> > > > On Thu, 14 Mar 2019 12:36:26 +0100,
+> > > > Michal Hocko wrote:
+> > > > > 
+> > > > > On Thu 14-03-19 11:30:03, Vlastimil Babka wrote:
+> [...]
+> > > > > > I initially went with 2 as well, as you can see from v1 :) but then I looked at
+> > > > > > the commit [2] mentioned in [1] and I think ALSA legitimaly uses __GFP_COMP so
+> > > > > > that the pages are then mapped to userspace. Breaking that didn't seem good.
+> > > > > 
+> > > > > It used the flag legitimately before because they were allocating
+> > > > > compound pages but now they don't so this is just a conversion bug.
+> > > > 
+> > > > We still use __GFP_COMP for allocation of the sound buffers that are
+> > > > also mmapped to user-space.  The mentioned commit above [2] was
+> > > > reverted later.
+> > > 
+> > > Yes, I understand that part. __GFP_COMP makes sense on a comound page.
+> > > But if you are using alloc_pages_exact then the flag doesn't make sense
+> > > because split out should already do what you want. Unless I am missing
+> > > something.
+> > 
+> > The __GFP_COMP was taken as a sort of workaround for the problem wrt
+> > mmap I already forgot.  If it can be eliminated, it's all good.
 > 
->         unmap_region(mm, vma, prev, start, end);
+> Without __GFP_COMP you would get tail pages which are not setup properly
+> AFAIU. With alloc_pages_exact you should get an "array" of head pages
+> which are properly reference counted. But I might misunderstood the
+> original problem which __GFP_COMP tried to solve.
 
-arch_unmap() can, in some cases, free 'prev'.  unmap_region() uses
-'prev' to calculate the page table ranges that it frees.  It's probably
-working on incorrect or garbage ranges at times.
+I only vaguely remember that it was about a Bad Page error for the
+reserved pages, but forgot the all details, sorry.
 
-I have some patches to really fix this by pre-calculating the
-page-table-free ranges before arch_unmap().  They're not *too* bad, but
-they do involve mucking with mm/mmap.c a bit to pass some new parameters
-around.
-
-The other option would be to just use this opportunity to start removing
-MPX and apply the attached patch so this is no longer able to be triggered.
-
-I'm inclined to opt for the patch to addle MPX rather than trying to fix
-it for real.
-
---------------4B1430DFFB257B969B0701CD
-Content-Type: text/x-patch;
- name="mpx-remove-apis.patch"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: attachment;
- filename="mpx-remove-apis.patch"
+Hugh, could you confirm whether we still need __GFP_COMP in the sound
+buffer allocations?  FWIW, it's the change introduced by the ancient
+commit f3d48f0373c1.
 
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+thanks,
 
-MPX is being removed from the kernel due to a lack of support
-in the toolchain going forward (gcc).
-
-The first thing we need to do is remove the userspace-visible
-ABIs so that applications will stop using it.  The most visible
-one are the enable/disable prctl()s.  Remove them first.
-
-This is the most minimal and least invasive patch needed to
-start removing MPX.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
----
-
- b/include/uapi/linux/prctl.h |    2 +-
- b/kernel/sys.c               |   16 ++--------------
- 2 files changed, 3 insertions(+), 15 deletions(-)
-
-diff -puN include/uapi/linux/prctl.h~mpx-remove-apis include/uapi/linux/p=
-rctl.h
---- a/include/uapi/linux/prctl.h~mpx-remove-apis	2019-01-04 14:40:06.8535=
-14089 -0800
-+++ b/include/uapi/linux/prctl.h	2019-01-04 14:40:06.860514089 -0800
-@@ -181,7 +181,7 @@ struct prctl_mm_map {
- #define PR_GET_THP_DISABLE	42
-=20
- /*
-- * Tell the kernel to start/stop helping userspace manage bounds tables.=
-
-+ * No longer implemented, but left here to ensure the numbers stay reser=
-ved:
-  */
- #define PR_MPX_ENABLE_MANAGEMENT  43
- #define PR_MPX_DISABLE_MANAGEMENT 44
-diff -puN kernel/sys.c~mpx-remove-apis kernel/sys.c
---- a/kernel/sys.c~mpx-remove-apis	2019-01-04 14:40:06.857514089 -0800
-+++ b/kernel/sys.c	2019-01-04 14:40:06.860514089 -0800
-@@ -103,12 +103,6 @@
- #ifndef SET_TSC_CTL
- # define SET_TSC_CTL(a)		(-EINVAL)
- #endif
--#ifndef MPX_ENABLE_MANAGEMENT
--# define MPX_ENABLE_MANAGEMENT()	(-EINVAL)
--#endif
--#ifndef MPX_DISABLE_MANAGEMENT
--# define MPX_DISABLE_MANAGEMENT()	(-EINVAL)
--#endif
- #ifndef GET_FP_MODE
- # define GET_FP_MODE(a)		(-EINVAL)
- #endif
-@@ -2448,15 +2442,9 @@ SYSCALL_DEFINE5(prctl, int, option, unsi
- 		up_write(&me->mm->mmap_sem);
- 		break;
- 	case PR_MPX_ENABLE_MANAGEMENT:
--		if (arg2 || arg3 || arg4 || arg5)
--			return -EINVAL;
--		error =3D MPX_ENABLE_MANAGEMENT();
--		break;
- 	case PR_MPX_DISABLE_MANAGEMENT:
--		if (arg2 || arg3 || arg4 || arg5)
--			return -EINVAL;
--		error =3D MPX_DISABLE_MANAGEMENT();
--		break;
-+		/* No longer implemented: */
-+		return -EINVAL;
- 	case PR_SET_FP_MODE:
- 		error =3D SET_FP_MODE(me, arg2);
- 		break;
-_
-
---------------4B1430DFFB257B969B0701CD--
+Takashi
 
