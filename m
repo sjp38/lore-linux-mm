@@ -2,173 +2,180 @@ Return-Path: <SRS0=RO59=RR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 05A8BC10F06
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 12:57:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 82E92C10F06
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 13:15:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 965F020854
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 12:57:23 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="KtuqdYkv"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 965F020854
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id 3F1F920449
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 13:15:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3F1F920449
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EA0E18E0003; Thu, 14 Mar 2019 08:57:22 -0400 (EDT)
+	id B61C28E0004; Thu, 14 Mar 2019 09:15:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E28808E0001; Thu, 14 Mar 2019 08:57:22 -0400 (EDT)
+	id B0F268E0001; Thu, 14 Mar 2019 09:15:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CCAD08E0003; Thu, 14 Mar 2019 08:57:22 -0400 (EDT)
+	id 9B25A8E0004; Thu, 14 Mar 2019 09:15:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A49CA8E0001
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 08:57:22 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id o135so4571420qke.11
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 05:57:22 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4035F8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 09:15:41 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id k21so2398877eds.19
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 06:15:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=bX/rd3bmqqBCTFhzbUqNph1QeoI3wmJKqgdu6nyWf0w=;
-        b=ihHvL3Q0AJQfHAJhdrcdZ9xHAf+l1diHjWZJv5uR601fQzK0C3PCqcUiDHO7CkVhyO
-         eZjeGa4i8OpqELXnNMj9Xqd3XGUh3eVkj0Hu1NDyBZJ3UN2T2go9o1gwm3+gGRmj5Uvw
-         J4QW5nsT7YCbdZh/Ws9nwePMv5jYeHCvVS6mG4WiGiZ+lyniD3AqVzj1sR5kN4zhrIU3
-         MtGAyj7xoWWySxVCNMiby4509dZC18Ti2bc0o9lNprmu/3yrnd3q6jWC5wHeNpiktOXK
-         U4VocsNuYFqRdPdobyXv8gd8Em6zlBO3FUjx38ZKm2Fa4hjhHfNEtSbnVFGeve78aKMn
-         cvRQ==
-X-Gm-Message-State: APjAAAXDXztq9Ya4o9Yiico8BoEEChLx9rI2yU2pHM3i6849RRsBwyJm
-	VXCmi92+lLokrrs2mUikXqb9bRCAgaOGr3uGv/T9XMEKb8o5XSp8CsKVbt6NBrC6uPo9zAdxmOS
-	noo1rCff4Hrv8lBBLglbF7cV274W6QELCyE2kp5nZHHtT40uZ7YqwaKR+no/T+bUMV98vszK2MX
-	pZaXQWC0k2x7w1zxDzNF1uGCSG4ukgABWXJAcDzXBwd8QSTa0tkLdhrwRJQ+xrCi6C6WpAVN7M8
-	t0YSUyZpmBP6WRZEl4kuKCK5ngGg/x7qWF+kuhnGZcRC6AeVZ89DnbX38p7uMqOs9zhzGh8ltVR
-	yz/ZIUN5F/TR3HnZqvRjDM4qsRzAStfpiSC53ZYV+79l29kP97Mx60Tz0MMe70FVA4KkfEqGBCA
-	q
-X-Received: by 2002:a37:c99c:: with SMTP id m28mr16426101qkl.3.1552568242339;
-        Thu, 14 Mar 2019 05:57:22 -0700 (PDT)
-X-Received: by 2002:a37:c99c:: with SMTP id m28mr16426053qkl.3.1552568241581;
-        Thu, 14 Mar 2019 05:57:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552568241; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date
+         :message-id:from:to:cc:subject:in-reply-to:references:user-agent
+         :mime-version;
+        bh=tBirDlz+euTlAGrV6LDAWbYktkTvbewJc0zl7XwnoV8=;
+        b=FReYugIWCU5Vfnpjp1ncge1iV3zEIt+UPayDuevHYUmgk6dd8TUfhaacm0rm7KFE9/
+         nIUb6G4x5yCP6X6o/KQRSWBTt4rHTbz337saqTD/Fb0G0rOo2FDJp9t3KLDv64UZFocN
+         1E8xx37tfwfsnbKDrGxjVS4llAAWYlpQphknwzAoYvzRugfDwhqw5/RxLjJ9sHxRpO4Y
+         kMRA3Nat0GDS5Z1pY19LpLqbMDWMIPmUbXieQPjbBmQ0V6aelw769dmmqG29pmA3fQSu
+         k3sOTc5ebNQvTNay223RUDoCgjuN9yytPuHLi8xNuR9uoB3D4sBNP9W1uZWxRva9Em3X
+         eOAA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of tiwai@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=tiwai@suse.de
+X-Gm-Message-State: APjAAAXh+hJWxX+2HZmpHy7we6H+cVhQlffdyzjTWLTFsSKJefgdoBpM
+	KjyLqBFVIlyxv3vYqP0J4Nugy0q5KUmxJ4vIOCUURFB1AqMWRSCE3bxYsrbSfGuhn8DtTcbsze3
+	CNlmn48ZsZvBS0vX3sBx9Y6f6BRn1GqmqcYPl2x1OO331NCfp81vULVbDdwva4tlmfA==
+X-Received: by 2002:a50:c352:: with SMTP id q18mr11527599edb.175.1552569340820;
+        Thu, 14 Mar 2019 06:15:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwYAaWHaBJBQ9IyEBePOTtiSS4kgTG/V2NNDtaH/2P5KBsnIKCOLyxZExaBu7m/7e4k8srQ
+X-Received: by 2002:a50:c352:: with SMTP id q18mr11527534edb.175.1552569339534;
+        Thu, 14 Mar 2019 06:15:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552569339; cv=none;
         d=google.com; s=arc-20160816;
-        b=jIWPpckwPcFLJbYvdcYcqhgHKauruVqHavieDo8vrTy6SUYJKZa+hLr2CRRWvs/ycd
-         D3L2df0mA+b3e3JkwHZTK2bs498lRl+x6X4XMGbLh7FTyiIo9BtjbC5ObjQ/uHtebwfb
-         dh+M7IL+6RslrTwpsPRX20fJ/K2jtiQj84e+xihrTdscY4DyE2l0KIJNN18x3xlcv2KD
-         /ojQTToFs6Y52yxQg7wV8WM6B7j+zxVWR2yx9rIj0iOfS3vrCig2QM5fYVesP/kKUjLg
-         HTj+u7dvtxErLIfsTB+Q6S5raVB5aVu0i+yy2YhGtCL5uc25xKQ6aUpnp+NdbFFc0sJ0
-         386w==
+        b=ZY//V6ZLDK2ilOPWHP3ATFyLCTlSlAzxTMEtTW9cB7WJlQ5YY2zfBjKCDnTKuPu/2I
+         Gl3GH0HTLFktLKPRyvujxGpXbytHGTFU0J4KIIi6J1EjEiwPwgZlZ6G+vlr0IyusNVCo
+         9aWQ9CjZuSTqIzVKFLS22EOQeu5WU8iF6qZtxyD0AWuELCTcas/jkmwKjEwDJhcXakkv
+         od8Fs3UO8w5DuUaLll+YchKlCy5TDIimVg7pGjS8bTryz2UqPBJs4FZ5iV2YDuMUgCgz
+         uhhaF9O3cA3bkMbKB6THuyctIdcxfJ6856+fC39xzPnI7JiTtT5fdwI+W7l6ctZF+Y7H
+         eD0A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=bX/rd3bmqqBCTFhzbUqNph1QeoI3wmJKqgdu6nyWf0w=;
-        b=v4WaoCUOHg+mLSSBoAsNhBfTDflV4o49p31HfdshHd9zyh8VLXMY+DAqB2ocFP3jmj
-         rWPd0o8/x5p0CIXuR3az4B9MPu6xZlTwqFFLqueIGWDtGLuGipX0KwV+VYB4WgDdD780
-         xx3ZFyDMB2vrLRynCs1UG+Exvb0prkjlDzZ3cw9ycaRnduJ7h6m03bN58lj0EDm24ouv
-         1Apn01x5wmi2wvasjSMFXadXhACiCvJO0TRiOAUDj2ufcm2HuHfGovNYCpMpj+y9Jv7h
-         e+SsBqD23vOEq7VjHbI3HV+npl7Fd7vKRsP/y2RNJZd+CBLzwNoG+5qk0jp9MDK6M2SN
-         m/Iw==
+        h=mime-version:user-agent:references:in-reply-to:subject:cc:to:from
+         :message-id:date;
+        bh=tBirDlz+euTlAGrV6LDAWbYktkTvbewJc0zl7XwnoV8=;
+        b=jaBzkcK05qtH7YF/gfNs3QL8YpUxIFpqSHga20DYHDTy/t+SRgTCmAWvt532fFXeZ0
+         CtwybvidfWU9dotHqkVBXdW9hQQnBD1MxZoPt+SgAHiuRDIf3STROWBv0qEVxoCGr5rG
+         pdlsC+6hKJjECuqkm3oqUTRqrj6FEBriCtz+a/hlSzQKZlAjLxcWnyVctrrgzksRtvpi
+         xYfoheTocsEP1GV6LHhqPSOMSDd+0dQvFK/xqGQFuyDe5PTtNDT6fXh94v8S+1i579M7
+         OlFC66DxeVxRh7ic6EKOSblOyfjSAG9sq087b8xIfar0S2qNLaqz9o0b/bWkTiZzoQ4M
+         T/Uw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=KtuqdYkv;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g20sor15795623qtr.72.2019.03.14.05.57.21
+       spf=pass (google.com: domain of tiwai@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=tiwai@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u6si1086147ejm.142.2019.03.14.06.15.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 14 Mar 2019 05:57:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Mar 2019 06:15:39 -0700 (PDT)
+Received-SPF: pass (google.com: domain of tiwai@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=KtuqdYkv;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=bX/rd3bmqqBCTFhzbUqNph1QeoI3wmJKqgdu6nyWf0w=;
-        b=KtuqdYkv5zyaq6xbbGZTBGQxAmKAEAyqM639VsOxYdzF6+qFgXAeCSsJ3lsWNdwBKa
-         Dlb/U3NBUn5PVjvmmOuA41fVskx9ykiRUHXzXhldeQkhA2U0UR2M2Pi39UIIbJouLHBx
-         dbrmPwgrTISjAqzk03zyrwSm3D9kAf0Kv92fVum/v9jerCBbbOoqlhrENhOvWoYGxg+A
-         jsoTmfUgPkx0kEb1NfTJteG0904Bc6SCzF7gT4BYs4gImC6XMpq9AIDsZzhhey2L64Vo
-         VSJ+wZnnALkE7SNdc0nuf/9i2YgPi2lWMZ+kCq2O3VdX9lFgJYf92zkS/VYCAIcMuNVB
-         pi1g==
-X-Google-Smtp-Source: APXvYqytd9p0uuBZA+SHiOfiS+QNDImQNuNaDK+xWX3URuepKNRKJc6m8GyKCufcLMESAHwzO4Z/Zw==
-X-Received: by 2002:aed:3608:: with SMTP id e8mr39101742qtb.31.1552568241012;
-        Thu, 14 Mar 2019 05:57:21 -0700 (PDT)
-Received: from ziepe.ca ([24.137.65.181])
-        by smtp.gmail.com with ESMTPSA id 59sm6692195qtg.26.2019.03.14.05.57.20
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 14 Mar 2019 05:57:20 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1h4PvC-0003Fv-Vi; Thu, 14 Mar 2019 09:57:18 -0300
-Date: Thu, 14 Mar 2019 09:57:18 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Jan Kara <jack@suse.cz>
-Cc: Christopher Lameter <cl@linux.com>, Jerome Glisse <jglisse@redhat.com>,
-	john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm@kvack.org, Al Viro <viro@zeniv.linux.org.uk>,
-	Christian Benvenuti <benve@cisco.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Chinner <david@fromorbit.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>,
-	Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Mike Marciniszyn <mike.marciniszyn@intel.com>,
-	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
-	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [PATCH v3 0/1] mm: introduce put_user_page*(), placeholder
- versions
-Message-ID: <20190314125718.GO20037@ziepe.ca>
-References: <20190306235455.26348-1-jhubbard@nvidia.com>
- <010001695b4631cd-f4b8fcbf-a760-4267-afce-fb7969e3ff87-000000@email.amazonses.com>
- <20190308190704.GC5618@redhat.com>
- <01000169703e5495-2815ba73-34e8-45d5-b970-45784f653a34-000000@email.amazonses.com>
- <20190312153528.GB3233@redhat.com>
- <01000169787c61d0-cbc5486e-960a-492f-9ac9-9f6a466efeed-000000@email.amazonses.com>
- <20190314090345.GB16658@quack2.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190314090345.GB16658@quack2.suse.cz>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+       spf=pass (google.com: domain of tiwai@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=tiwai@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id F3CA7AE4B;
+	Thu, 14 Mar 2019 13:15:38 +0000 (UTC)
+Date: Thu, 14 Mar 2019 14:15:38 +0100
+Message-ID: <s5ha7hxsikl.wl-tiwai@suse.de>
+From: Takashi Iwai <tiwai@suse.de>
+To: Michal Hocko <mhocko@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>,
+	linux-mm@kvack.org,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH v2] mm, page_alloc: disallow __GFP_COMP in alloc_pages_exact()
+In-Reply-To: <20190314120939.GK7473@dhcp22.suse.cz>
+References: <20190314093944.19406-1-vbabka@suse.cz>
+	<20190314094249.19606-1-vbabka@suse.cz>
+	<20190314101526.GH7473@dhcp22.suse.cz>
+	<1dc997a3-7573-7bd5-9ce6-3bfbf77d1194@suse.cz>
+	<20190314113626.GJ7473@dhcp22.suse.cz>
+	<s5hd0mtsm84.wl-tiwai@suse.de>
+	<20190314120939.GK7473@dhcp22.suse.cz>
+User-Agent: Wanderlust/2.15.9 (Almost Unreal) SEMI/1.14.6 (Maruoka)
+ FLIM/1.14.9 (=?UTF-8?B?R29qxY0=?=) APEL/10.8 Emacs/25.3
+ (x86_64-suse-linux-gnu) MULE/6.0 (HANACHIRUSATO)
+MIME-Version: 1.0 (generated by SEMI 1.14.6 - "Maruoka")
+Content-Type: text/plain; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 14, 2019 at 10:03:45AM +0100, Jan Kara wrote:
-> On Wed 13-03-19 19:16:51, Christopher Lameter wrote:
-> > On Tue, 12 Mar 2019, Jerome Glisse wrote:
-> > 
-> > > > > This has been discuss extensively already. GUP usage is now widespread in
-> > > > > multiple drivers, removing that would regress userspace ie break existing
-> > > > > application. We all know what the rules for that is.
-> > 
-> > You are still misstating the issue. In RDMA land GUP is widely used for
-> > anonyous memory and memory based filesystems. *Not* for real filesystems.
+On Thu, 14 Mar 2019 13:09:39 +0100,
+Michal Hocko wrote:
 > 
-> Maybe in your RDMA land. But there are apparently other users which do use
-> mmap of a file on normal filesystem (e.g. ext4) as a buffer for DMA
-> (Infiniband does not prohibit this if nothing else, video capture devices
-> also use very similar pattern of gup-ing pages and using them as video
-> buffers). And these users are reporting occasional kernel crashes. That's
-> how this whole effort started. Sadly the DMA to file mmap is working good
-> enough that people started using it so at this point we cannot just tell:
-> Sorry it was a mistake to allow this, just rewrite your applications.
+> On Thu 14-03-19 12:56:43, Takashi Iwai wrote:
+> > On Thu, 14 Mar 2019 12:36:26 +0100,
+> > Michal Hocko wrote:
+> > > 
+> > > On Thu 14-03-19 11:30:03, Vlastimil Babka wrote:
+> > > > On 3/14/19 11:15 AM, Michal Hocko wrote:
+> > > > > On Thu 14-03-19 10:42:49, Vlastimil Babka wrote:
+> > > > >> alloc_pages_exact*() allocates a page of sufficient order and then splits it
+> > > > >> to return only the number of pages requested. That makes it incompatible with
+> > > > >> __GFP_COMP, because compound pages cannot be split.
+> > > > >> 
+> > > > >> As shown by [1] things may silently work until the requested size (possibly
+> > > > >> depending on user) stops being power of two. Then for CONFIG_DEBUG_VM, BUG_ON()
+> > > > >> triggers in split_page(). Without CONFIG_DEBUG_VM, consequences are unclear.
+> > > > >> 
+> > > > >> There are several options here, none of them great:
+> > > > >> 
+> > > > >> 1) Don't do the spliting when __GFP_COMP is passed, and return the whole
+> > > > >> compound page. However if caller then returns it via free_pages_exact(),
+> > > > >> that will be unexpected and the freeing actions there will be wrong.
+> > > > >> 
+> > > > >> 2) Warn and remove __GFP_COMP from the flags. But the caller wanted it, so
+> > > > >> things may break later somewhere.
+> > > > >> 
+> > > > >> 3) Warn and return NULL. However NULL may be unexpected, especially for
+> > > > >> small sizes.
+> > > > >> 
+> > > > >> This patch picks option 3, as it's best defined.
+> > > > > 
+> > > > > The question is whether callers of alloc_pages_exact do have any
+> > > > > fallback because if they don't then this is forcing an always fail path
+> > > > > and I strongly suspect this is not really what users want. I would
+> > > > > rather go with 2) because "callers wanted it" is much less probable than
+> > > > > "caller is simply confused and more gfp flags is surely better than
+> > > > > fewer".
+> > > > 
+> > > > I initially went with 2 as well, as you can see from v1 :) but then I looked at
+> > > > the commit [2] mentioned in [1] and I think ALSA legitimaly uses __GFP_COMP so
+> > > > that the pages are then mapped to userspace. Breaking that didn't seem good.
+> > > 
+> > > It used the flag legitimately before because they were allocating
+> > > compound pages but now they don't so this is just a conversion bug.
+> > 
+> > We still use __GFP_COMP for allocation of the sound buffers that are
+> > also mmapped to user-space.  The mentioned commit above [2] was
+> > reverted later.
+> 
+> Yes, I understand that part. __GFP_COMP makes sense on a comound page.
+> But if you are using alloc_pages_exact then the flag doesn't make sense
+> because split out should already do what you want. Unless I am missing
+> something.
 
-This is where we are in RDMA too.. People are trying it and the ones
-that do enough load testing find their kernel OOPs
+The __GFP_COMP was taken as a sort of workaround for the problem wrt
+mmap I already forgot.  If it can be eliminated, it's all good.
 
-So it is not clear at all if this has graduated to a real use, or just
-an experiment. Perhaps there are some system configurations that don't
-trigger crashes..
+> > But honestly speaking, I'm not sure whether we still need the compound
+> > pages.  The change was introduced long time ago (commit f3d48f0373c1
+> > in 2005).  Is it superfluous nowadays...?
+> 
+> AFAIU alloc_pages_exact should do do what you need.
 
-Jason
+OK, I'll try whether it works with alloc_pages_exact() and dropping
+__GFP_COMP.
+
+
+Thanks!
+
+Takashi
 
