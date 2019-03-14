@@ -2,358 +2,163 @@ Return-Path: <SRS0=RO59=RR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AE1F8C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 13:52:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DBB86C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 13:56:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5BCE02184C
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 13:52:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5BCE02184C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
+	by mail.kernel.org (Postfix) with ESMTP id 963682184C
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 13:56:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 963682184C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EC7B98E0003; Thu, 14 Mar 2019 09:52:53 -0400 (EDT)
+	id 306C48E0003; Thu, 14 Mar 2019 09:56:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E9F858E0001; Thu, 14 Mar 2019 09:52:53 -0400 (EDT)
+	id 2B54A8E0001; Thu, 14 Mar 2019 09:56:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D68DF8E0003; Thu, 14 Mar 2019 09:52:53 -0400 (EDT)
+	id 1A55D8E0003; Thu, 14 Mar 2019 09:56:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 79B908E0001
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 09:52:53 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id t4so2298969eds.1
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 06:52:53 -0700 (PDT)
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E8AE18E0001
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 09:56:00 -0400 (EDT)
+Received: by mail-it1-f200.google.com with SMTP id 190so4656932itv.3
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 06:56:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=9s60Wk9wneRYIxD8j7SkO36X5RJVNwkj0p0Ufv88kow=;
-        b=p2lve0JBQcIYZXGlsGsv4GknmbDZaCWOuVQwIO6mk/nNK5riHpcR3T9qKtFAXci1lg
-         PCtxr/5xIIz06S81tQDE+0Sxt9uvjmnMU7PBn2o6Wp+iRU0oq6+BFC41Stqum7uGWtUi
-         gbwuL57CJthv7dp+lG+wJ0x/yRs6ieuNk0kvPvnxOCWlK07SeRScXfgLuuSle1niC/1H
-         TzlhbXmUZpEyK8YBLH9DJJyti6TzawXfpuX3rChpE2gBseEGgLwwBX16nn/3iwkhfGFY
-         ePqX1HF/JVmVdilBj8BxxvDgh23PJIBuMdrLlV6X21thvInAwPuaZtIdXEYYjaOl7aAI
-         o5Rg==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Gm-Message-State: APjAAAVmUlmCshzE/ccX4kIFffBe70cuigsR6R8TeZUIsSoOCG/IVL2m
-	YuG+2dD21roe1NNAX47ChrUtDmn/xbt3d2IPtd8JIwzqwrVEo96ZfoJVmP8sOJmt6jTP2IgOTjD
-	f/IjdV1sKld5Nh7ICyVmU67Z2k6zUXIB1RM4anQueJh7ZMGBomm0KDLD0/tWlVQs=
-X-Received: by 2002:a17:906:32ca:: with SMTP id k10mr14218255ejk.115.1552571573029;
-        Thu, 14 Mar 2019 06:52:53 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxvfPUZPUIWVFpW1Vk8FYEt0HvDv9ZutA5tH9+D+r6RdjqsZzxPMEjsVrmVzz0D+lqFm/TP
-X-Received: by 2002:a17:906:32ca:: with SMTP id k10mr14218187ejk.115.1552571571641;
-        Thu, 14 Mar 2019 06:52:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552571571; cv=none;
+         :content-language:content-transfer-encoding;
+        bh=BRj+g5un19Xq209f35ZfyID+NwddZdoqJTeWHtbHKk8=;
+        b=hAXfU1T2Wz4zY4psOulOFaxGSRWy+44HC7qb+WNkR1boXGP+66w8YIZLqU7gzKHSW4
+         VZnT+i7rAJpJX0QvaKN8PqecVBEbYpRBtHk5bc0JgcYcHHPe4/RIDlbjn22fMPGxxG+l
+         qSAhiaZdacg0PEgos7Z3XSN1GUHB+pK52uIZceZDNp2p5PMYlfqx8mXkDrUF4EY/g0nf
+         B8vTwebKFOugMKUwxShAlqF0dkrhPCFIRsq5yM5bCrdC9KxoY2rtQOBKDFI1knD04V7U
+         YQnsQjvCgEFmT1pNLrcFYm8F/1DoZd/2CxMeE7S05uor5RPZS6en6JR5sjzQrNhqL8Mp
+         AMyA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+X-Gm-Message-State: APjAAAV270KKLaQuK8URj6jiPEb6DRpX3f4u52y+Ub1+2N8UR5pQI9XQ
+	aMeSG9NgkdinVJPuXqK/sZ7uYd3e0iiC4NF3FsbPZWZBqnfYFG9es9G2oYZfr8U8widvMfZZgPk
+	MPi71v/3pXxd3KI9/kPYEKGNv3IufTkBqg2D7aroXOvOH89OtiKl0eIPo9aA66LI1GQ==
+X-Received: by 2002:a24:360d:: with SMTP id l13mr1951169itl.83.1552571760716;
+        Thu, 14 Mar 2019 06:56:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxq6VNSqx1CV56Il+Xk+NlWULD6FhtBnDWGPFHV2KV6v/B1ozU0RHYcz3BtiTmE58/QyeDU
+X-Received: by 2002:a24:360d:: with SMTP id l13mr1951113itl.83.1552571759596;
+        Thu, 14 Mar 2019 06:55:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552571759; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZTGUt2wlnVm59oR/ynYTKrTCKuhdYqLHfREjlK6E76vvi/Q4H/4+Uu2zBYalP2e84B
-         CZ832EZyrdS4bjcJpLzQX1klOqs2FNhbg5u6TjmwM+BPdEAxoIYGpwHeh9cAoyrhhmJa
-         rZkHVRSa5CkJg6bY6voyZ6YtpS+8jbCbccNJtNd3ZW7LSdO2ycu4FT792lm/JJATV++T
-         QVuhYz/aZK4xybuOrH76849xTnv4pytVSnL74mX2nT9pBCv0J4/CIvYeOKZZls/3uLLL
-         uffSo+u3BxsaLK1ZpzfmoXkEJrk8PCTv6MuqpM82AIJM/9VYXR6K0IoHBR4GucMxtc6h
-         mLcg==
+        b=l3xHLrQSychTMtSLyS8f5VlesffkezRExmM90eB7qZkZvy/gAfI69hoDkOK3Ucbftk
+         w6T0gmsyXO3ZktZko+RTEIZadi0j83QTVcAIGq9r15EgLa29GQDMPi56D7ox9QZB3abX
+         5M72eS3FTSc5gQ2y2E7wBlwQ8BpGZY91E1iFF7WI00cDLg8oqMY/mfSdJW/66byJT2f1
+         ZYQey68Jz9pENlg1O0RDSFCjOQ4K8yUFboFQ6+jGiucaDtHwxfRSXtY+H1iYTZdqPf0/
+         0wcLkhTxdxVh7FDvMX1hSzFstAqfOC1u4pcw6v6e+6uuiKSF/Zqd+/Ka55mHQ2rL1S1O
+         VoXA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:to:subject;
-        bh=9s60Wk9wneRYIxD8j7SkO36X5RJVNwkj0p0Ufv88kow=;
-        b=jV0l3GUsFFLQIVDzgKSsczkE9VH8LX3cWVq7yKbwmjdjFGX9J3RyNIkiG53iyX8QYq
-         dWMRZltPJKquDvRvRPn7Kaqtqu2AHw/J6ut2R3yu5gl4ZNVFakWoQxJ6/90yYd9HMvba
-         C2Wc3G/YdLhdOomsZYn75c1G15qfFtZyDr7DLgGwsuzSWDh8RX+wOiSJFXdVzb/Oebwu
-         lAzkftV7pSJVNDzUCFzd3+vXoISfx7MGZAl+YKsr0LUn26uKnoYrEMZCctnM074snjU/
-         wpMhyF2ci/CyaE390Vw7MZLHlkdT78qWn1IHFBTbhz8MlMvlmp4cvFmx2HhGMDvWAcag
-         LoRw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=BRj+g5un19Xq209f35ZfyID+NwddZdoqJTeWHtbHKk8=;
+        b=r0o3fDVGW3nLYy8ilmycvo4nNJcVS0t2Ppa1o5raVRjADeKeWpkSrKUJDTDRDBLUec
+         v4hJn7yBTGKfvGWue99BvAr+tsAEJO/KgKYP36YvysojSnrtoFwAMPhq6KxTM0YZtkq1
+         U3ewkR+eR8tZiBWwVxTy/CrEb4qhTkWqPOstFqdupXDdlD8xkC8r58S//tAgMG1UcRom
+         /TG3nUzTuJ1gZWvyOBJehWznGySjln0Q9vmwj4/06lcXZ9RV7CXCfeSQoHNcdsOY+Xuq
+         +5byIofaVJzkO3GzLr/w0VNkh/bnxHabKyN2j0sgh+7n6jq/I4e6ZOEKJiMkIpV7ts5z
+         u7DA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-Received: from relay3-d.mail.gandi.net (relay3-d.mail.gandi.net. [217.70.183.195])
-        by mx.google.com with ESMTPS id m10si1997521edp.421.2019.03.14.06.52.51
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id j11si6931105ioa.83.2019.03.14.06.55.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 14 Mar 2019 06:52:51 -0700 (PDT)
-Received-SPF: neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.195;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Mar 2019 06:55:59 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Originating-IP: 81.250.144.103
-Received: from [10.30.1.20] (lneuilly-657-1-5-103.w81-250.abo.wanadoo.fr [81.250.144.103])
-	(Authenticated sender: alex@ghiti.fr)
-	by relay3-d.mail.gandi.net (Postfix) with ESMTPSA id D087E60011;
-	Thu, 14 Mar 2019 13:52:41 +0000 (UTC)
-Subject: Re: [PATCH v6 4/4] hugetlb: allow to free gigantic pages regardless
- of the configuration
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
- Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>,
- Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
- <will.deacon@arm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>,
- Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
- "David S . Miller" <davem@davemloft.net>,
- Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
- Borislav Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>,
- x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>,
- Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
- Mike Kravetz <mike.kravetz@oracle.com>,
- linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
- linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
- linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org
-References: <20190307132015.26970-1-alex@ghiti.fr>
- <20190307132015.26970-5-alex@ghiti.fr> <87va0movdh.fsf@linux.ibm.com>
- <e39f5b5b-efa1-c7b1-c1d8-89155b926027@ghiti.fr>
- <972208b7-5c05-cc05-efbf-0d48bff4cf77@linux.ibm.com>
-From: Alexandre Ghiti <alex@ghiti.fr>
-Message-ID: <b6259684-ddc0-ade4-1881-016b5e7fff66@ghiti.fr>
-Date: Thu, 14 Mar 2019 14:52:41 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.5.2
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from fsav107.sakura.ne.jp (fsav107.sakura.ne.jp [27.133.134.234])
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x2EDtdqf062838;
+	Thu, 14 Mar 2019 22:55:39 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Received: from www262.sakura.ne.jp (202.181.97.72)
+ by fsav107.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav107.sakura.ne.jp);
+ Thu, 14 Mar 2019 22:55:39 +0900 (JST)
+X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav107.sakura.ne.jp)
+Received: from [192.168.1.8] (softbank126126163036.bbtec.net [126.126.163.36])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x2EDtYnn062822
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
+	Thu, 14 Mar 2019 22:55:39 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Subject: Re: [PATCH] mm,oom: Teach lockdep about oom_lock.
+To: Michal Hocko <mhocko@kernel.org>, Peter Zijlstra <peterz@infradead.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
+References: <1552040522-9085-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20190308110325.GF5232@dhcp22.suse.cz>
+ <0ada8109-19a7-6d9c-8420-45f32811c6aa@i-love.sakura.ne.jp>
+ <20190308115413.GI5232@dhcp22.suse.cz> <20190308115802.GJ5232@dhcp22.suse.cz>
+ <20190308150105.GZ32494@hirez.programming.kicks-ass.net>
+ <20190308151327.GU5232@dhcp22.suse.cz>
+ <dd3c9f12-84e9-7cf8-1d24-02a9cfbcd509@i-love.sakura.ne.jp>
+ <20190311103012.GB5232@dhcp22.suse.cz>
+ <d9b49a08-5d5a-ec4a-7cb7-c268999a9906@i-love.sakura.ne.jp>
+ <20190312153140.GU5721@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <195f38a9-5409-180c-2ccc-807942ab1994@i-love.sakura.ne.jp>
+Date: Thu, 14 Mar 2019 22:55:34 +0900
+User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.3
 MIME-Version: 1.0
-In-Reply-To: <972208b7-5c05-cc05-efbf-0d48bff4cf77@linux.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: fr
+In-Reply-To: <20190312153140.GU5721@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On 2019/03/13 0:31, Michal Hocko wrote:
+>> @@ -1120,8 +1129,25 @@ void pagefault_out_of_memory(void)
+>>  	if (mem_cgroup_oom_synchronize(true))
+>>  		return;
+>>  
+>> -	if (!mutex_trylock(&oom_lock))
+>> +	if (!mutex_trylock(&oom_lock)) {
+>> +		/*
+>> +		 * This corresponds to prepare_alloc_pages(). Lockdep will
+>> +		 * complain if e.g. OOM notifier for global OOM by error
+>> +		 * triggered pagefault OOM path.
+>> +		 */
+>> +		oom_reclaim_acquire(GFP_KERNEL);
+>> +		oom_reclaim_release(GFP_KERNEL);
+>>  		return;
+>> +	}
+>> +	/*
+>> +	 * Teach lockdep to consider that current thread is not allowed to
+>> +	 * involve (even indirectly via dependency) __GFP_DIRECT_RECLAIM &&
+>> +	 * !__GFP_NORETRY allocation from this function, for such allocation
+>> +	 * will have to wait for completion of this function when
+>> +	 * __alloc_pages_may_oom() is called.
+>> +	 */
+>> +	oom_reclaim_release(GFP_KERNEL);
+>> +	oom_reclaim_acquire(GFP_KERNEL);
+> 
+> This part is not really clear to me. Why do you release&acquire when
+> mutex_trylock just acquire the lock? If this is really needed then this
+> should be put into the comment.
 
+I think there is a reason lockdep needs to distinguish trylock and lock.
+I don't know how lockdep utilizes "trylock or lock" information upon validation, but
+explicitly telling lockdep that "oom_lock acts as if held by lock" should not harm.
 
-On 03/14/2019 02:17 PM, Aneesh Kumar K.V wrote:
-> On 3/14/19 5:13 PM, Alexandre Ghiti wrote:
->> On 03/14/2019 06:52 AM, Aneesh Kumar K.V wrote:
->>> Alexandre Ghiti <alex@ghiti.fr> writes:
->>>
->>>> On systems without CONTIG_ALLOC activated but that support gigantic 
->>>> pages,
->>>> boottime reserved gigantic pages can not be freed at all. This patch
->>>> simply enables the possibility to hand back those pages to memory
->>>> allocator.
->>>>
->>>> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
->>>> Acked-by: David S. Miller <davem@davemloft.net> [sparc]
->>>> ---
->>>>   arch/arm64/Kconfig                           |  2 +-
->>>>   arch/arm64/include/asm/hugetlb.h             |  4 --
->>>>   arch/powerpc/include/asm/book3s/64/hugetlb.h |  7 ---
->>>>   arch/powerpc/platforms/Kconfig.cputype       |  2 +-
->>>>   arch/s390/Kconfig                            |  2 +-
->>>>   arch/s390/include/asm/hugetlb.h              |  3 --
->>>>   arch/sh/Kconfig                              |  2 +-
->>>>   arch/sparc/Kconfig                           |  2 +-
->>>>   arch/x86/Kconfig                             |  2 +-
->>>>   arch/x86/include/asm/hugetlb.h               |  4 --
->>>>   include/linux/gfp.h                          |  2 +-
->>>>   mm/hugetlb.c                                 | 57 
->>>> ++++++++++++--------
->>>>   mm/page_alloc.c                              |  4 +-
->>>>   13 files changed, 44 insertions(+), 49 deletions(-)
->>>>
->>>> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
->>>> index 091a513b93e9..af687eff884a 100644
->>>> --- a/arch/arm64/Kconfig
->>>> +++ b/arch/arm64/Kconfig
->>>> @@ -18,7 +18,7 @@ config ARM64
->>>>       select ARCH_HAS_FAST_MULTIPLIER
->>>>       select ARCH_HAS_FORTIFY_SOURCE
->>>>       select ARCH_HAS_GCOV_PROFILE_ALL
->>>> -    select ARCH_HAS_GIGANTIC_PAGE if CONTIG_ALLOC
->>>> +    select ARCH_HAS_GIGANTIC_PAGE
->>>>       select ARCH_HAS_KCOV
->>>>       select ARCH_HAS_MEMBARRIER_SYNC_CORE
->>>>       select ARCH_HAS_PTE_SPECIAL
->>>> diff --git a/arch/arm64/include/asm/hugetlb.h 
->>>> b/arch/arm64/include/asm/hugetlb.h
->>>> index fb6609875455..59893e766824 100644
->>>> --- a/arch/arm64/include/asm/hugetlb.h
->>>> +++ b/arch/arm64/include/asm/hugetlb.h
->>>> @@ -65,8 +65,4 @@ extern void set_huge_swap_pte_at(struct mm_struct 
->>>> *mm, unsigned long addr,
->>>>   #include <asm-generic/hugetlb.h>
->>>> -#ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
->>>> -static inline bool gigantic_page_supported(void) { return true; }
->>>> -#endif
->>>> -
->>>>   #endif /* __ASM_HUGETLB_H */
->>>> diff --git a/arch/powerpc/include/asm/book3s/64/hugetlb.h 
->>>> b/arch/powerpc/include/asm/book3s/64/hugetlb.h
->>>> index 5b0177733994..d04a0bcc2f1c 100644
->>>> --- a/arch/powerpc/include/asm/book3s/64/hugetlb.h
->>>> +++ b/arch/powerpc/include/asm/book3s/64/hugetlb.h
->>>> @@ -32,13 +32,6 @@ static inline int hstate_get_psize(struct hstate 
->>>> *hstate)
->>>>       }
->>>>   }
->>>> -#ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
->>>> -static inline bool gigantic_page_supported(void)
->>>> -{
->>>> -    return true;
->>>> -}
->>>> -#endif
->>>> -
->>>>   /* hugepd entry valid bit */
->>>>   #define HUGEPD_VAL_BITS        (0x8000000000000000UL)
->>> As explained in https://patchwork.ozlabs.org/patch/1047003/
->>> architectures like ppc64 have a hypervisor assisted mechanism to 
->>> indicate
->>> where to find gigantic huge pages(16G pages). At this point, we 
->>> don't use this
->>> reserved pages for anything other than hugetlb backing and hence there
->>> is no runtime free of this pages needed ( Also we don't do
->>> runtime allocation of them).
->>>
->>> I guess you can still achieve what you want to do in this patch by
->>> keeping gigantic_page_supported()?
->>>
->>> NOTE: We should rename gigantic_page_supported to be more specific to
->>> support for runtime_alloc/free of gigantic pages
->>>
->>> -aneesh
->>>
->> Thanks for noticing Aneesh.
->>
->> I can't find a better solution than bringing back 
->> gigantic_page_supported check,
->> since it is must be done at runtime in your case.
->> I'm not sure of one thing though: you say that freeing boottime 
->> gigantic pages
->> is not needed, but is it forbidden ? Just to know where the check and 
->> what its
->> new name should be.
+#define mutex_acquire(l, s, t, i)               lock_acquire_exclusive(l, s, t, NULL, i)
+#define lock_acquire_exclusive(l, s, t, n, i)           lock_acquire(l, s, t, 0, 1, n, i)
+void lock_acquire(struct lockdep_map *lock, unsigned int subclass, int trylock, int read, int check, struct lockdep_map *nest_lock, unsigned long ip);
 
-You did not answer this question: is freeing boottime gigantic pages 
-"forbidden" or just
-not needed ?
-
-
->> Is something like that (on top of this series) ok for you (and 
->> everyone else) before
->> I send a v7:
->>
->> diff --git a/arch/powerpc/include/asm/book3s/64/hugetlb.h 
->> b/arch/powerpc/include/asm/book3s/64/hugetlb.h
->> index d04a0bc..d121559 100644
->> --- a/arch/powerpc/include/asm/book3s/64/hugetlb.h
->> +++ b/arch/powerpc/include/asm/book3s/64/hugetlb.h
->> @@ -35,4 +35,20 @@ static inline int hstate_get_psize(struct hstate 
->> *hstate)
->>   /* hugepd entry valid bit */
->>   #define HUGEPD_VAL_BITS                (0x8000000000000000UL)
->>
->> +#ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
->> +#define __HAVE_ARCH_GIGANTIC_PAGE_SUPPORTED
->> +static inline bool gigantic_page_supported(void)
->> +{
->> +       /*
->> +        * We used gigantic page reservation with hypervisor assist 
->> in some case.
->> +        * We cannot use runtime allocation of gigantic pages in 
->> those platforms
->> +        * This is hash translation mode LPARs.
->> +        */
->> +       if (firmware_has_feature(FW_FEATURE_LPAR) && !radix_enabled())
->> +               return false;
->> +
->> +       return true;
->> +}
->> +#endif
->> +
->>   #endif
->> diff --git a/include/asm-generic/hugetlb.h 
->> b/include/asm-generic/hugetlb.h
->> index 71d7b77..7d12e73 100644
->> --- a/include/asm-generic/hugetlb.h
->> +++ b/include/asm-generic/hugetlb.h
->> @@ -126,4 +126,18 @@ static inline pte_t huge_ptep_get(pte_t *ptep)
->>   }
->>   #endif
->>
->> +#ifndef __HAVE_ARCH_GIGANTIC_PAGE_SUPPORTED
->> +#ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
->
->
-> The pattern i like is
->
-> #ifndef gigantic_page_supported
-> #define gigantic_page_supported gigantic_page_supported
->
-> static inline bool gigantic_page_supported(void)
-> {
->         return true;
-> }
->
-> #endif
->
-> instead of _HAVE_ARCH_GIGANTIC_PAGE_SUPPORTED.
->
-
-I see, that avoids a new define. However, it is not consistent with the 
-rest of function definitions
-in generic hugetlb.h. What do you think ? Should I follow the same 
-format ? Or use yours ?
-
->
->> +static inline bool gigantic_page_supported(void)
->> +{
->> +        return true;
->> +}
->> +#else
->> +static inline bool gigantic_page_supported(void)
->> +{
->> +        return false;
->> +}
->> +#endif /* CONFIG_ARCH_HAS_GIGANTIC_PAGE */
->> +#endif /* __HAVE_ARCH_GIGANTIC_PAGE_SUPPORTED */
->> +
->>   #endif /* _ASM_GENERIC_HUGETLB_H */
->> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->> index 9fc96ef..cfbbafe 100644
->> --- a/mm/hugetlb.c
->> +++ b/mm/hugetlb.c
->> @@ -2425,6 +2425,11 @@ static ssize_t 
->> __nr_hugepages_store_common(bool obey_mempolicy,
->>          int err;
->>          NODEMASK_ALLOC(nodemask_t, nodes_allowed, GFP_KERNEL | 
->> __GFP_NORETRY);
->>
->> +       if (hstate_is_gigantic(h) && !gigantic_page_supported()) {
->> +               err = -EINVAL;
->> +               goto out;
->> +       }
->
->
-> you should restore other users of gigantic_page_supported() not just 
-> this. That will just make your earlier patch as removing 
-> gigantic_page_supported from every architecture other than ppc64 and 
-> have a generic version as above.
->
->
-
-I'll restore the check in update_and_free_page too depending on your 
-answer to the above question,
-since adding this check back would not allow to free boottime gigantic 
-pages.
-
->> +
->>          if (nid == NUMA_NO_NODE) {
->>                  /*
->>                   * global hstate attribute
->> @@ -2446,6 +2451,7 @@ static ssize_t __nr_hugepages_store_common(bool 
->> obey_mempolicy,
->>
->>          err = set_max_huge_pages(h, count, nodes_allowed);
->>
->> +out:
->>          if (nodes_allowed != &node_states[N_MEMORY])
->>                  NODEMASK_FREE(nodes_allowed);
->>
->>
->>
->>
->
-> -aneesh.
->
+> 
+>>  	out_of_memory(&oc);
+>>  	mutex_unlock(&oom_lock);
+>>  }
+> 
 
