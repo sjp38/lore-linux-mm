@@ -2,157 +2,200 @@ Return-Path: <SRS0=RO59=RR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DCA44C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 02:53:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 57AB4C10F03
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 03:19:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8B4AC217F5
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 02:53:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8B4AC217F5
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
+	by mail.kernel.org (Postfix) with ESMTP id 076FA20854
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 03:19:34 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="bMYCIroi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 076FA20854
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E6E088E0003; Wed, 13 Mar 2019 22:53:32 -0400 (EDT)
+	id 8DB588E0003; Wed, 13 Mar 2019 23:19:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DD0048E0001; Wed, 13 Mar 2019 22:53:32 -0400 (EDT)
+	id 88A318E0001; Wed, 13 Mar 2019 23:19:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C981C8E0003; Wed, 13 Mar 2019 22:53:32 -0400 (EDT)
+	id 7793D8E0003; Wed, 13 Mar 2019 23:19:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 812378E0001
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 22:53:32 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id 73so4546134pga.18
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 19:53:32 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 381C98E0001
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2019 23:19:34 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id e5so4616691pgc.16
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 20:19:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:message-id:mime-version;
-        bh=0xB4e1lfqpstrykhi2eHtig57G+/kVYcEgrsv936XPA=;
-        b=EUC5HlgIjNKX8EgOpaSvXDUgbRWPUrO2XFZelnWZENxgnwdDBT64oWmd+/Z3RpqPXi
-         NNX5uCPKLD9y3ZcnvVmHxmppiq4AUpfVfAqVhy4FnN+9TPRgcKGfVjWXCkokO1CL7Gcv
-         5epDYRVyoGL0kL/V5XqZtB1SUDEZveWLwAqQOhq2E/S0yACBUEAPajM5vs+M9BtWVwaq
-         Mps6QnX83qPEyjVPFdKMyCtv4Kt6rzfq70VdjacgEMcWyLWEQS1EjSNDrE0+rGQkWKBn
-         /fSS2EfCiCWrdRrnNHJqA8XaFbzrmIu2X74hOtdspGui9W/R7+1t35+kMEd3hDzPuC1T
-         MnPw==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-X-Gm-Message-State: APjAAAVKEW4ScXyr4rczZC3fBudDPPJEpngUp1pa3qmXi+a5CuXfW0RM
-	ZbQtfEvDXp7BVhZoWJeiWbKzzyUfaJqYeDwiRBe6OeP/hSB499m2b+yLSma15v0O/70u98xs4WF
-	ZXVzN9+fyRzUJKpR88J9n4qK18Ja0BekuD+MShcbWWoKUR9zxOUxFS1PGrM8Y6HM=
-X-Received: by 2002:a63:544f:: with SMTP id e15mr3363789pgm.344.1552532012091;
-        Wed, 13 Mar 2019 19:53:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzjGNHMmbAGA4+OE0wGm1KsbDXv1tmW+bIBANINuNIDRdYkYssxjd+ga2ksXTS9XnjdqKDT
-X-Received: by 2002:a63:544f:: with SMTP id e15mr3363746pgm.344.1552532010947;
-        Wed, 13 Mar 2019 19:53:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552532010; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=8/FESUTll/7HXtBTMTTiOUp3okh43kK5SAPTWHHLwRg=;
+        b=ZC5MBQlMvaGGgVmYUatD2s2j7m+PguhZNUAb82R/tGjatncTnJ/s3r+lfg4h4T0j7L
+         8/CeY35tdAUDbbft4criMdd/k+P3O540O2zowTdICF5kM5IpyLuybD7SKyF0uL3lWXc2
+         k3rPsEgr1zMpLMSF5rdwmaOxKSY6rQQV5s3SVROic83adwHOG3s1LHDJ3yRR7Nv5o0+P
+         X/WGc/de+NirbLjOGi7XCeaJDPZXVUvTtbxk28MNUyJk3V8zK5Ll4IZxddgTcs1ejQi5
+         y4RcjwZkdtTPX/wYqXQxzrV8myxmFCTZLK4N54BBr6OVlGDfD6eHh/ntt10eppFyMSLn
+         hP3g==
+X-Gm-Message-State: APjAAAXCSu/HBfcyBMRLadwavNkOlgWZss99saeRnhUpAg1Bfn8a+G8v
+	Ixg1HFVv0EUFgHrueelJFANd78v70xJLkCAPuWoEbZoEh/YL8lcM3x0klrbWL6wF/kpMpUH7nS9
+	3hFZpnSHDdtIZFgzPn0I0lgCFLRlnHexedg5DCbFdmC1LM2KsmFo+D99FT/ISxVe9nQ==
+X-Received: by 2002:a17:902:8f81:: with SMTP id z1mr50068471plo.265.1552533573692;
+        Wed, 13 Mar 2019 20:19:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyNJ8bxeGNniP/5/HhJ4RSEGW/lq33Ehj099+dzryHB6M5Wm+kWar1Plq2iAJmqee2fYSDF
+X-Received: by 2002:a17:902:8f81:: with SMTP id z1mr50068400plo.265.1552533572442;
+        Wed, 13 Mar 2019 20:19:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552533572; cv=none;
         d=google.com; s=arc-20160816;
-        b=yoo5bXlNgwFbDsztkkUTnVUD2mfO0BfXBweG5VV7XrYmq14aiR32QkJ5/eL1jIC5M4
-         bZ2Twh02Zd/fTS2yuASxmihvUQgKSqhs6/jeaWBHx3cJvRNtqTngYUFpZKiaXUi9nosg
-         mQDmjnum04RJ2QAtRE8pyKOttJ2NTBsR1jMyJORg+R/WWwvY30ycwwIhgMpZ1IaNMWeV
-         Ksbk4nfTeFWuKGphW7tCtx+du+cXAze2Thb/fh/DwAb57GQG4w0oGyfzbR4dSuLjspvE
-         x20hOO9r8nhPGorPVHl7PVQWWenWuHWtpPgQgNNnJOUNWVPpJGxjTiK84URqvF+sZl2d
-         U3hw==
+        b=BAR/vGcxk7h0Dx8E7uWg1rtVtYE6kNUh8AZpPaRxE3UbH3Xnh9KSgKHF2z3F51X6bm
+         rGfkMYHtTj/o+sX+O9Xx5oaIAl4PMsDz2SWVi8N9GRy09oSzfstDi+reg8b8q1HFXKA8
+         n5ISwVmfrKB64qPzG7kDLiIvy0KXzjh3fXbC9P/fe001GMlGje7UdXS3bbFtW8vmTlVH
+         EAZolkFPKEjZYBeWhjXNjYz1yK49PORUZNFJYUDuG61+YpNKT3fvAXFLADM5dL3zAJn8
+         ViDNGO7AMyMQZxqUnAh+8CV5A8KHSvX/c6uiVwMnMROgVWwf2k1ahVSSzDFAPx3+o6Bx
+         s2TQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=0xB4e1lfqpstrykhi2eHtig57G+/kVYcEgrsv936XPA=;
-        b=lHaePM5nHZj1U+Weusc9SlW8ZRug16Tx/Ia8GWhPqWtrDJQr+2p4J6PkMDwLTnukoQ
-         eKxSLwKfRFO2ngKs/51IGsyfRidich6T9nPdu4FbNfLDH+Q4DHGwTAuMLJe04dO5bI4B
-         QPRUB3CQWiHmwFG0id08nbG7+XTIOaS4sRhmIZFPPPaTCRO7bCgA7poKzF4TDWe4CVdR
-         B01Fc8oPorjQ9it0HjZRsjRgLNkCO2kqms2V2RN+ZGzOhoW10IgyzymnC32xAi3EfjuB
-         ob+SEU5rDro4tm+ok3/xpy9VQXpz1YW6FHBrerzOQ8RTCm+CQybP4DOWN8kuM4sSN4Ev
-         seYQ==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=8/FESUTll/7HXtBTMTTiOUp3okh43kK5SAPTWHHLwRg=;
+        b=BKOiYRrHrMmhnj0OMJzveIWPTHMjnkmSEX9inN0+pHkt7aThPU6vFmo2U1ogZXxb+c
+         5ASqBSjFkohMNUJv7jsAVgwnSJ3ZkeBYaKk7+Bv+8aiybrP4MNd30yaQvZ2I51Ae3nKQ
+         /NTSizcGq4lSwl8I79Fmbr1zXqfJWwnJxCCFjqwQ1l8euE9CdO4r6qbkVGukAf3M+onV
+         8dYCcen0+2pNNkj2Uu+rRQnkr97zAc1YBsCn3faw01O9umm6w7qsrfv2KOsm2n9Pf+xs
+         sf4p+78wZFKzStYQ2CsZixwGBMsgNqkVlvwAYjOb4bHz2IersumdYF0yUW2kr9Z45G6e
+         0aQg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
-        by mx.google.com with ESMTPS id ck9si13396559plb.196.2019.03.13.19.53.30
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=bMYCIroi;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id b9si1506277pgw.308.2019.03.13.20.19.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 13 Mar 2019 19:53:30 -0700 (PDT)
-Received-SPF: neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) client-ip=203.11.71.1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Mar 2019 20:19:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
-	(No client certificate requested)
-	by mail.ozlabs.org (Postfix) with ESMTPSA id 44KYDf4Y26z9s70;
-	Thu, 14 Mar 2019 13:53:21 +1100 (AEDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-To: Alexandre Ghiti <alex@ghiti.fr>, Andrew Morton
- <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Catalin
- Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>,
- Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras
- <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko
- Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato
- <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, "David S .
- Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo
- Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H . Peter
- Anvin" <hpa@zytor.com>, x86@kernel.org, Dave Hansen
- <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Peter
- Zijlstra <peterz@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>,
- linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
- linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
- linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org,
- "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: Alexandre Ghiti <alex@ghiti.fr>
-Subject: Re: [PATCH v6 4/4] hugetlb: allow to free gigantic pages regardless of the configuration
-In-Reply-To: <20190307132015.26970-5-alex@ghiti.fr>
-References: <20190307132015.26970-1-alex@ghiti.fr> <20190307132015.26970-5-alex@ghiti.fr>
-Date: Thu, 14 Mar 2019 13:53:21 +1100
-Message-ID: <87va0m9nfi.fsf@concordia.ellerman.id.au>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=bMYCIroi;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c89c8450000>; Wed, 13 Mar 2019 20:19:33 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Wed, 13 Mar 2019 20:19:31 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Wed, 13 Mar 2019 20:19:31 -0700
+Received: from [10.2.175.16] (10.124.1.5) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 14 Mar
+ 2019 03:19:31 +0000
+Subject: Re: [PATCH v3 1/1] mm: introduce put_user_page*(), placeholder
+ versions
+To: Ira Weiny <ira.weiny@intel.com>
+CC: <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>,
+	<linux-mm@kvack.org>, Al Viro <viro@zeniv.linux.org.uk>, Christian Benvenuti
+	<benve@cisco.com>, Christoph Hellwig <hch@infradead.org>, Christopher Lameter
+	<cl@linux.com>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner
+	<david@fromorbit.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>,
+	Doug Ledford <dledford@redhat.com>, Jan Kara <jack@suse.cz>, Jason Gunthorpe
+	<jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>, Matthew Wilcox
+	<willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Mike Rapoport
+	<rppt@linux.ibm.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Ralph
+ Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>, LKML
+	<linux-kernel@vger.kernel.org>, <linux-fsdevel@vger.kernel.org>
+References: <20190306235455.26348-1-jhubbard@nvidia.com>
+ <20190306235455.26348-2-jhubbard@nvidia.com>
+ <20190312153033.GG1119@iweiny-DESK2.sc.intel.com>
+ <c9c80511-0805-a877-af6f-b769c6dcb111@nvidia.com>
+ <20190313144941.GA23350@iweiny-DESK2.sc.intel.com>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <c29ddfcc-ce1d-f4bd-7e0d-905b6f92ecc7@nvidia.com>
+Date: Wed, 13 Mar 2019 20:19:08 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.3
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20190313144941.GA23350@iweiny-DESK2.sc.intel.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1552533573; bh=8/FESUTll/7HXtBTMTTiOUp3okh43kK5SAPTWHHLwRg=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=bMYCIroiLhtLgP5RD406L4RZ9r+wOTIToldbo1EQJPFCYWmUfroe4suZ8m8ZDjJ8l
+	 VM21eJpIEFgno268ZPf359z+FDlWnEPginnpJomfLAtcu3GXvZlEkc0/ArWh91XvUs
+	 CRtEw+YPsXaorRoLfYMwizU/eZgKRRjFcVefqF8p98v0mWlXbXTRG3cDqYFJe3MaTZ
+	 eRogMcX3yIHOwOPTW0rrOEv+87wsuLkV3o/IrZ1s9EqPFjf21c+4R8GfVU9O0LEisw
+	 Q1W1wYAS6UWtj2f/ceWun2FGe8t4WK5H3QQrAoyrhTwfh4V9+oUeWSvJklWMdKIelY
+	 5tc/s+hECaeUw==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[ Cc += Aneesh ]
+On 3/13/19 7:49 AM, Ira Weiny wrote:
+> On Tue, Mar 12, 2019 at 05:38:55PM -0700, John Hubbard wrote:
+>> On 3/12/19 8:30 AM, Ira Weiny wrote:
+>>> On Wed, Mar 06, 2019 at 03:54:55PM -0800, john.hubbard@gmail.com wrote:
+>>>> From: John Hubbard <jhubbard@nvidia.com>
+>>>>
+>>>> Introduces put_user_page(), which simply calls put_page().
+>>>> This provides a way to update all get_user_pages*() callers,
+>>>> so that they call put_user_page(), instead of put_page().
+>>>
+>>> So I've been running with these patches for a while but today while ramping up
+>>> my testing I hit the following:
+>>>
+>>> [ 1355.557819] ------------[ cut here ]------------
+>>> [ 1355.563436] get_user_pages pin count overflowed
+>>
+>> Hi Ira,
+>>
+>> Thanks for reporting this. That overflow, at face value, means that we've
+>> used more than the 22 bits worth of gup pin counts, so about 4 million pins
+>> of the same page...
+> 
+> This is my bug in the patches I'm playing with.  Somehow I'm causing more puts
+> than gets...  I'm not sure how but this is for sure my problem.
+> 
+> Backing off to your patch set the numbers are good.
 
-Alexandre Ghiti <alex@ghiti.fr> writes:
-> diff --git a/arch/powerpc/include/asm/book3s/64/hugetlb.h b/arch/powerpc/include/asm/book3s/64/hugetlb.h
-> index 5b0177733994..d04a0bcc2f1c 100644
-> --- a/arch/powerpc/include/asm/book3s/64/hugetlb.h
-> +++ b/arch/powerpc/include/asm/book3s/64/hugetlb.h
-> @@ -32,13 +32,6 @@ static inline int hstate_get_psize(struct hstate *hstate)
->  	}
->  }
->  
-> -#ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
-> -static inline bool gigantic_page_supported(void)
-> -{
-> -	return true;
-> -}
-> -#endif
+Now that's a welcome bit of good news!
 
-This is going to clash with:
+> 
+> Sorry for the noise.
+> 
+> With the testing I've done today I feel comfortable adding
+> 
+> Tested-by: Ira Weiny <ira.weiny@intel.com>
+> 
+> For the main GUP and InfiniBand patches.
+> 
+> Ira
+> 
 
-  https://patchwork.ozlabs.org/patch/1047003/
+OK, I'll add your tested-by tag to patches 1, 2, 4, 5 (the numbering refers
+to the "RFC v2: mm: gup/dma tracking" posting [1]) in my repo [2], and they'll 
+show up in the next posting. (Patch 3 is already upstream, and patch 6 is
+documentation that needs to be rewritten entirely.)
 
-Which does:
+[1] https://lore.kernel.org/r/20190204052135.25784-1-jhubbard@nvidia.com
 
-@@ -35,6 +35,13 @@  static inline int hstate_get_psize(struct hstate *hstate)
- #ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
- static inline bool gigantic_page_supported(void)
- {
-+	/*
-+	 * We used gigantic page reservation with hypervisor assist in some case.
-+	 * We cannot use runtime allocation of gigantic pages in those platforms
-+	 * This is hash translation mode LPARs.
-+	 */
-+	if (firmware_has_feature(FW_FEATURE_LPAR) && !radix_enabled())
-+		return false;
- 	return true;
- }
- #endif
+[2] https://github.com/johnhubbard/linux/tree/gup_dma_core
 
-
-Not sure how to resolve it.
-
-cheers
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
