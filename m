@@ -2,155 +2,172 @@ Return-Path: <SRS0=RO59=RR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 97625C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 20:13:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D5231C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 20:26:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5AB5B217F5
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 20:13:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5AB5B217F5
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 804632077B
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 20:26:06 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="WvTI0PsX"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 804632077B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D6F346B0003; Thu, 14 Mar 2019 16:13:28 -0400 (EDT)
+	id 17BE66B0003; Thu, 14 Mar 2019 16:26:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CF3EF6B0005; Thu, 14 Mar 2019 16:13:28 -0400 (EDT)
+	id 12AAF6B0005; Thu, 14 Mar 2019 16:26:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B94EC6B0006; Thu, 14 Mar 2019 16:13:28 -0400 (EDT)
+	id 019B56B0006; Thu, 14 Mar 2019 16:26:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 59CD66B0003
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 16:13:28 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id x13so2871500edq.11
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 13:13:28 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id A08166B0003
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 16:26:05 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id t4so2750705eds.1
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 13:26:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date
-         :message-id:from:to:cc:subject:in-reply-to:references:user-agent
-         :mime-version;
-        bh=prHkqXO6YuA2dxZR74X4p5uwdoPRogtn2QFUAoTfEbY=;
-        b=FwQxPSkhvKMNV4OhBJAYJ0qBjtMT0NigMm7pl/Ls0gcB/xrTfgpQI+NXiYiccsZ/44
-         prQkrplmGjF4qq6uCN4HfV5CUkhyFbVmVWKgnqic9xEk+xA53x641kAKjJor/9lXJ2Ny
-         wXstN+ioC9is+aObBNlsB82HjZmhnsqEG7Yi12d3LsBQXuScCEqXJXDBHmHULPmN45gG
-         y8Lkwip8fs1wKgXgeGjUSjUV8ij6QlWYI3F5/GqfC5jRMEuCpfUX4XgqkJxvWRQnNWXS
-         3jW2xb98FHSWSWq5M6rbGp00tSfccH5m1LYmVlA0CGH/Vn6+YPgNqV8UmFXGlUJV3Npz
-         8KIw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of tiwai@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=tiwai@suse.de
-X-Gm-Message-State: APjAAAWSHRbA3NgsliFvdf5xwXAnFaYtm0FVVf8/btXmiPkfjKFB2j/Z
-	qDEYDKgaeLgELhu67Xc5nPtaN4wOyg7/cDQKeyZw5Xz8znLIzaZIP3pFjXieP6Z1YHjSMvQITb4
-	5VtYzutp5+k7BWS7swYdJLJWNuXm1/SlYjQ2uWRRliEnj/8HG3gBsVICD8j3xkpxmow==
-X-Received: by 2002:a05:6402:78b:: with SMTP id d11mr161063edy.172.1552594407948;
-        Thu, 14 Mar 2019 13:13:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzNtVb2oqVEmXnyV0WnEoKk2UYQmg7qu8YZ0ECI+c9ksNvhmqZhyFQItebkU2hcfTUTWaHU
-X-Received: by 2002:a05:6402:78b:: with SMTP id d11mr161022edy.172.1552594406957;
-        Thu, 14 Mar 2019 13:13:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552594406; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=0MnBDGPgz9vC3/2m+t5FiE97iY9+rd0eyr2X/THTWCU=;
+        b=EqSfPEk5lJtBM0Mnwc0TcoSZMAafjF7ztmqw0y6FSK8OKLFl9ANG96vIZIlictC98Q
+         LQBl+AWhzgUbdNxYBipOIcStF3EJSmcRBf0yRVNEEUeolZf5hwaWB0uj62r/MguKg7bO
+         Oov+OcTLSR63kD27MgMonhtwIN5bafGYPIbhLIKIgoAuFukiMTIcV4Oa1uXOv1xJ6h/g
+         iXN/mrOhoEuLmjcQn6E5DFsPRx4enBvgNtAmImepXgQROXmeWnk5bjxhtae36CnpwILk
+         NXV9MENEx52GvlgHXgqbug7YZxsnSEgarBK6q1Xu8YXMK7pTfuL7EyZK2QTo0ev7W5DR
+         zwKA==
+X-Gm-Message-State: APjAAAWXxMCPa66VplHyVu+enu9EaLvKmKXchJmOgoCKrz/pp5LmIc+V
+	DqtMMRJ7IASZGRHtoyuwTGSuC5TT7TIYjY8u2NDsTuosODYC7V06cjIwVskRr3Ba+/eJBhilfaU
+	4JMEv64nTO3ctYYQ6VH/vsJQoi3qWfRE/hhVeAShFHudtF6Zih4EEQBlbSP2sdYL1Eg==
+X-Received: by 2002:a17:906:7c49:: with SMTP id g9mr34276590ejp.31.1552595165127;
+        Thu, 14 Mar 2019 13:26:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy3rvcz86W52S7+HEI96M97dEiwpIlwwf8RVb6tsOp0TtZBv/nMn9xyQucm70VCddgENxEn
+X-Received: by 2002:a17:906:7c49:: with SMTP id g9mr34276541ejp.31.1552595164177;
+        Thu, 14 Mar 2019 13:26:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552595164; cv=none;
         d=google.com; s=arc-20160816;
-        b=U7G7xF2lhhkfvKmgSXnJ1PHaQB9et9KmhzPVL/YE3kuQThzGAdul0gcu7k9Te5UdLR
-         eFSjAysFsdqIbnRQ/ZWTn6vImBGi2/AMf9Q7a5ZNUPgpMNH4/arSvTmSXsILYE4f+q9h
-         RiUrms0IT6RH/aPXX9fpj/zhR6vdHK5DClkwxZy6VkvqWeKv09ZLSoGHoE6ybbAAP74Q
-         q/rHlhOUzRB3DAreAbN+JNAgjQPIc3QhAPzZNKDJn9uIhnxcOS/pVwa9TDksfZDamI7U
-         vdbY///Iphxig0pPfG2xfDfgl1TQDGoD6p7kOGW7ncufXxAH2hgeG2o//3gHN2iroZi+
-         7D/w==
+        b=COEL1YHKInnyha2pb420+6dyJ7oXLBhVhGWCgRkb2gTN7e1vKOg0CxOpAo42vcjtjL
+         ApFLOP/JwofRr68/cv0tVo2C3O2eI3lucYGJ3dKjJhQhrb7jESs74lCB7g0E9ASs2vaQ
+         X2N7U7qonvsZgUsrfqZADJeZuz0gTBHzgH/eKs577U/SLE68vZJ/wY7lKS0ly/Ozs1kU
+         +hzsflbblb5+FmaWbEOLVlUDTyNh75IykVd/n5jwMm/q2pcWUCOcLWiYPdmn/GP/eGBF
+         6k+pryHENnovJ2q3QpgBk8oT8Gqv9qQ4YpVF+qaEx/7tkH5T/aQlCgZOj8CM4TrkYz23
+         IgCg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:in-reply-to:subject:cc:to:from
-         :message-id:date;
-        bh=prHkqXO6YuA2dxZR74X4p5uwdoPRogtn2QFUAoTfEbY=;
-        b=hBgCnpcKWgLRea0IVy0D9ZrxjGEmQ6zl8WPUCiu07m1TqVA1fjHp5W480xSvG/64xU
-         Iu37q0i6ZyyL4jDB9cvV9YD/8xlZBkVPQes1BNSpdzM2i2PBnnUDC+i3zMLP+f3rdMtP
-         FQn+mvaANwCpvGoBeovSxL+ZCXA+60IeE3ARXqqYdf3M4TyZoWNn/Y5Wvge0eNqMeiB7
-         REUZUKsNYL2i4tVe0fOI5xrjtZzUfY8w4TaouKgkz88Osj5Hbj3nNVRtMfpcNL6DNYRr
-         peufP75X38rJLzrg9Fn6+9b8PWC/NtQg4AvJAy6JvmIT/884P/QYpfWsm54Bp3u0uCQn
-         f14w==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=0MnBDGPgz9vC3/2m+t5FiE97iY9+rd0eyr2X/THTWCU=;
+        b=E9nftc6lWsgPlbO98C2TxLtefCCKk5747TYr6ciQMCNiDFMCmzUa8RckTeeoo1YisL
+         pIUxYJNqTmytpo+RCICV8O0CnHwSTz3BK4MMR/fwT+KzIOqhBhswmwwQzdZAhAVtwRK4
+         UNDyDGbzfSx9uZ72GL0CTWDK8w6s2KW+YFTK4V/3NDfUBZvD5DsLB+rpQRY4zmYZVqI5
+         Ih0YCy83VIu/7VLuataWZbG8OpJXunQOS7q57PxCxOp9nNKUKPNJqLNx8Ge91gyh74Pe
+         y2KTPn1to/yzo04sLkr+9hSgnGmCsW/mZYie+084cxe8iCKUUYCYqoDF7otfpISjgzQD
+         dRZg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of tiwai@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=tiwai@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h38si32144ede.377.2019.03.14.13.13.26
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=WvTI0PsX;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id a21si43527edv.292.2019.03.14.13.26.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Mar 2019 13:13:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of tiwai@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 14 Mar 2019 13:26:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of tiwai@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=tiwai@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 28CE6AD2C;
-	Thu, 14 Mar 2019 20:13:26 +0000 (UTC)
-Date: Thu, 14 Mar 2019 21:13:25 +0100
-Message-ID: <s5hk1h15i56.wl-tiwai@suse.de>
-From: Takashi Iwai <tiwai@suse.de>
-To: Hugh Dickins <hughd@google.com>
-Cc: Michal Hocko <mhocko@suse.com>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	linux-mm@kvack.org,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH v2] mm, page_alloc: disallow __GFP_COMP in alloc_pages_exact()
-In-Reply-To: <alpine.LSU.2.11.1903141103590.2119@eggly.anvils>
-References: <20190314093944.19406-1-vbabka@suse.cz>
-	<20190314094249.19606-1-vbabka@suse.cz>
-	<20190314101526.GH7473@dhcp22.suse.cz>
-	<1dc997a3-7573-7bd5-9ce6-3bfbf77d1194@suse.cz>
-	<20190314113626.GJ7473@dhcp22.suse.cz>
-	<s5hd0mtsm84.wl-tiwai@suse.de>
-	<20190314120939.GK7473@dhcp22.suse.cz>
-	<s5ha7hxsikl.wl-tiwai@suse.de>
-	<20190314132933.GL7473@dhcp22.suse.cz>
-	<s5h5zslqtyv.wl-tiwai@suse.de>
-	<alpine.LSU.2.11.1903141021550.1591@eggly.anvils>
-	<s5hpnqt5ob2.wl-tiwai@suse.de>
-	<alpine.LSU.2.11.1903141103590.2119@eggly.anvils>
-User-Agent: Wanderlust/2.15.9 (Almost Unreal) SEMI/1.14.6 (Maruoka)
- FLIM/1.14.9 (=?UTF-8?B?R29qxY0=?=) APEL/10.8 Emacs/25.3
- (x86_64-suse-linux-gnu) MULE/6.0 (HANACHIRUSATO)
-MIME-Version: 1.0 (generated by SEMI 1.14.6 - "Maruoka")
-Content-Type: text/plain; charset=US-ASCII
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=WvTI0PsX;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x2EKIvGm101964;
+	Thu, 14 Mar 2019 20:25:46 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
+ mime-version : subject : from : in-reply-to : date : cc :
+ content-transfer-encoding : message-id : references : to;
+ s=corp-2018-07-02; bh=0MnBDGPgz9vC3/2m+t5FiE97iY9+rd0eyr2X/THTWCU=;
+ b=WvTI0PsXF4pULFJO5AY+OrP4f7TWyMnozUbMBxSfn6wfEWfF6wEqMQcqlL6c463M/0i9
+ a2oY4r4pgF125PMmmlYfCXVRqvV2n5qWJGbuPkI+KekW5jfqrn2+MlnrruNQt3BkmPaV
+ Zn4ZPJh0zdhuUnmG/i+c+BWOO3r81X5UpAhfRfA3qvLvslvwmyvvoYQX/0QHB7hnn256
+ moME0tX1Rmh0fnJyqTXdjG9UpF1+x9r2PddyLbTsR/MXhoud9d66SsJ/MOlvJbNfmI36
+ ZkdJ9MdXp82PlvkwgllK5JH0Ym+XB3IDSXpoNELeqkTy/+omWXJ4iJaPPkDcCW/3YKGZ Ag== 
+Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
+	by aserp2130.oracle.com with ESMTP id 2r430f3sm8-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 14 Mar 2019 20:25:46 +0000
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x2EKPeKs006903
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 14 Mar 2019 20:25:40 GMT
+Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x2EKPb9Z032336;
+	Thu, 14 Mar 2019 20:25:37 GMT
+Received: from [192.168.0.110] (/73.243.10.6)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Thu, 14 Mar 2019 20:25:37 +0000
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.2\))
+Subject: Re: [PATCH v3 0/1] mm: introduce put_user_page*(), placeholder
+ versions
+From: William Kucharski <william.kucharski@oracle.com>
+In-Reply-To: <20190314133038.GJ16658@quack2.suse.cz>
+Date: Thu, 14 Mar 2019 14:25:35 -0600
+Cc: Jason Gunthorpe <jgg@ziepe.ca>, Christopher Lameter <cl@linux.com>,
+        Jerome Glisse <jglisse@redhat.com>, john.hubbard@gmail.com,
+        Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+        Al Viro <viro@zeniv.linux.org.uk>,
+        Christian Benvenuti <benve@cisco.com>,
+        Christoph Hellwig <hch@infradead.org>,
+        Dan Williams <dan.j.williams@intel.com>,
+        Dave Chinner <david@fromorbit.com>,
+        Dennis Dalessandro <dennis.dalessandro@intel.com>,
+        Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
+        Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>,
+        Mike Rapoport <rppt@linux.ibm.com>,
+        Mike Marciniszyn <mike.marciniszyn@intel.com>,
+        Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
+        LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
+        John Hubbard <jhubbard@nvidia.com>
+Content-Transfer-Encoding: 7bit
+Message-Id: <3AF66C8F-F4BC-4413-A01C-3C90A3C27B28@oracle.com>
+References: <20190306235455.26348-1-jhubbard@nvidia.com>
+ <010001695b4631cd-f4b8fcbf-a760-4267-afce-fb7969e3ff87-000000@email.amazonses.com>
+ <20190308190704.GC5618@redhat.com>
+ <01000169703e5495-2815ba73-34e8-45d5-b970-45784f653a34-000000@email.amazonses.com>
+ <20190312153528.GB3233@redhat.com>
+ <01000169787c61d0-cbc5486e-960a-492f-9ac9-9f6a466efeed-000000@email.amazonses.com>
+ <20190314090345.GB16658@quack2.suse.cz> <20190314125718.GO20037@ziepe.ca>
+ <20190314133038.GJ16658@quack2.suse.cz>
+To: Jan Kara <jack@suse.cz>
+X-Mailer: Apple Mail (2.3445.104.2)
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9195 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=629 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1903140140
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Mar 2019 19:15:22 +0100,
-Hugh Dickins wrote:
+
+
+> On Mar 14, 2019, at 7:30 AM, Jan Kara <jack@suse.cz> wrote:
 > 
-> On Thu, 14 Mar 2019, Takashi Iwai wrote:
-> > On Thu, 14 Mar 2019 18:37:06 +0100,Hugh Dickins wrote:
-> > > On Thu, 14 Mar 2019, Takashi Iwai wrote:
-> > > > 
-> > > > Hugh, could you confirm whether we still need __GFP_COMP in the sound
-> > > > buffer allocations?  FWIW, it's the change introduced by the ancient
-> > > > commit f3d48f0373c1.
-> > > 
-> > > I'm not confident in finding all "the sound buffer allocations".
-> > > Where you're using alloc_pages_exact() for them, you do not need
-> > > __GFP_COMP, and should not pass it.
-> > 
-> > It was my fault attempt to convert to alloc_pages_exact() and hitting
-> > the incompatibility with __GFP_COMP, so it was reverted in the end.
-> > 
-> > > But if there are other places
-> > > where you use one of those page allocators with an "order" argument
-> > > non-zero, and map that buffer into userspace (without any split_page()),
-> > > there you would still need the __GFP_COMP - zap_pte_range() and others
-> > > do the wrong thing on tail ptes if the non-zero-order page has neither
-> > > been set up as compound nor split into zero-order pages.
-> > 
-> > Hm, what if we allocate the whole pages via alloc_pages_exact() (but
-> > without __GFP_COMP)?  Can we mmap them properly to user-space like
-> > before, or it won't work as-is?
-> 
-> Yes, you can map the alloc_pages_exact() pages to user-space as
-> before, whether or not it ended up using a whole non-zero-order page:
-> alloc_pages_exact() does a split_page(), so the subpages end up all just
-> ordinary order-zero pages (and need to be freed individually, which
-> free_pages_exact() does for you).
+> Well I have some crash reports couple years old and they are not from QA
+> departments. So I'm pretty confident there are real users that use this in
+> production... and just reboot their machine in case it crashes.
 
-Great, thanks for clarification!
+Do you know what the use case in those crashes actually was?
 
+I'm curious to know they were actually cases of say DMA from a video
+capture card or if the uses posited to date are simply theoretical.
 
-Takashi
+It's always good to know who might be doing this and why if for no other
+reason than as something to keep in mind when designing future interfaces.
 
