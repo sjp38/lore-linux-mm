@@ -2,136 +2,165 @@ Return-Path: <SRS0=RO59=RR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BC474C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 16:01:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AC655C10F06
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 16:03:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 74D072184E
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 16:01:00 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="GD8Z4IVc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 74D072184E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 6A561218A3
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 16:03:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A561218A3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 15D008E0003; Thu, 14 Mar 2019 12:01:00 -0400 (EDT)
+	id 180268E0003; Thu, 14 Mar 2019 12:03:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0E4148E0001; Thu, 14 Mar 2019 12:01:00 -0400 (EDT)
+	id 12FB38E0001; Thu, 14 Mar 2019 12:03:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EC8038E0003; Thu, 14 Mar 2019 12:00:59 -0400 (EDT)
+	id 045C08E0003; Thu, 14 Mar 2019 12:03:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AA66D8E0001
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 12:00:59 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id w4so6656695pgl.19
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 09:00:59 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D5FD98E0001
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 12:03:05 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id b188so5146638qkg.15
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 09:03:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=0BRZmjWpl5Sc1xK8Fz95Tal8y+zU630oI+RCC6+Hs4Q=;
-        b=L46pnxMri6mVjHoT+GlDcY6lT4knfbCfntuJoL+k7Aw1znYlyJA78GcUq87wG1Zr47
-         reoERY3AnXr56v1yLDprMJiZFbjAqRGSYlF6C4OOo0D9D7yjIf6GpJXi17P/xFqkLvma
-         d0OIfWKvXwBByjMbxTRunbm87LSFW6Mda62FRCPJc+locUtG33CQomactBRSo2DLr1DZ
-         nI9gYRXaiNGALbK+yayw+JqiHZxV+yReA3PFuMY+8zTbzqVmqiTtay7WT/8d019LMaLi
-         o6xRz0p3S/eREfVytPeqRJ8guD6b3TRRmiQZon2xxh3Y0rIH00kR39NxTMP/fIL2sdUQ
-         1dfA==
-X-Gm-Message-State: APjAAAUgHjs2HcLUQR4p08IAluTSINlzaEBrEz/6+cLY1wP53Gfn+JBY
-	BPrp/TsvMZE7eoIYNEJ+HRnzsCl364U0J8pKCZpITaPm7Z6wwqOUxU9/4dfmtu8RI3TDwhaWizF
-	uYJuap48KEXMeAZKhiUZRww0TM9Y34aHuvUe0L586FYr8wzjtiLm7SVBRLxOgmHxCIA==
-X-Received: by 2002:a62:484:: with SMTP id 126mr49654940pfe.91.1552579259404;
-        Thu, 14 Mar 2019 09:00:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwDvfV964EDUFCYrfVb8xXACoJLLaOTk83mXvksT8NCl2q3hkmKLOIoFTFnZGYUABjVdgLT
-X-Received: by 2002:a62:484:: with SMTP id 126mr49654857pfe.91.1552579258566;
-        Thu, 14 Mar 2019 09:00:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552579258; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=UKaz6a+wdgUSTWiGbc13c0jwiZBe2ENhLLqdxIE+5Lw=;
+        b=YjYWv/akkNujetsFD7ETYV/LCtA+UaZp2fH6PBcmI0o88i2bj3WuQ6ipyjIaKnyI0+
+         qLI+sBoP5lBiVydcyhzI+NB74XzP8jon0t6M4yIKFY5zNw1WE2621MdPHPkcMA+4oNHd
+         WI0kCSWYT2bCFhchuWBzr+hWO2SmScEMnLDAsjUe0aRXammprHnt6YH6wsImOXsMhn4P
+         EVp4wG3CzyDa+jZPTsE7wVe8baITLugqxgcl01HA8W9XEW3v2fm8BnaVhzcPA5alQB0z
+         EqvO8e3Frj4D54tVJw8gLstrVGKnO9rgw2hqCL3admeBBuMoEH7G40FRa4EVWbtGxEe9
+         I4JQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWfNHUUgLPY2rnmW2XAUcrl56AZdHNjZXXocVuv9SjqwCAnyKAk
+	F3LRiU5v0SWIULoTergVgN/44XmKmPnv+Sah5qMValtU34WFO4MHewDy6eRiXrvHcwi492o+9wh
+	XH0FyGkYpNU5ON83mGwLDqY2W2QXNDux5o17BnNvbWyAr9ySlWgOZPMPNyr8OROrwaw==
+X-Received: by 2002:ac8:2269:: with SMTP id p38mr24962158qtp.340.1552579385646;
+        Thu, 14 Mar 2019 09:03:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxrHC6WQvGhBH5y1tjRrMPKKk0ZgXOmvs0AofMiVuMAdcvPPBI8f9jo2f5momQnkVXXZhlY
+X-Received: by 2002:ac8:2269:: with SMTP id p38mr24962079qtp.340.1552579384592;
+        Thu, 14 Mar 2019 09:03:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552579384; cv=none;
         d=google.com; s=arc-20160816;
-        b=so9MKxlez/VDOQfi1lTkjKyvg92fCVJ9QlFN02+XJvlr9KMf+Rsjwi3BagGb6XuK7m
-         IDNTvGruwIuo0kqgxFFQniJ5HWC56m1Oc7jmp3D3qI39U1ujkIz3ReGHLDxT/OTOmPmo
-         l7GKyxXGV6tzOXx6g7OlIZL5pYQ7icH8ceMSvbtXGr/mbA6/vFc6V2H5GWjCyw+C4qJe
-         nsPCvyYtNi1TnO4KUKHEt8hArNkBUndDKPZvmemrZPcYWARCDBfyq+0PygeZqBpdbsYO
-         fmLbMiFdOSON/glXpgrcP7vUo1qiTjQ5fAmCSfc25mG+Hf5YJevRTvn8p+RgZPoFZ4hT
-         kUvg==
+        b=FOCcwIxEIWFUnrDwTt/raTr3I7ucz5cSkp0tM1cpSGn6FeUKqVjcB+2uv6tnvmr+3/
+         JshTrZr4xxpk5nPEyNueW8wILgw/foxe5MSsDJEumtTyEHP7nuaKox1YMDqnDOLnGJK/
+         +gvLPrQaygA2SxhU2TELjaKn4GRe0vmGFEckULO2ounTCES1lP71QC3PwtlWH+aZQ1DB
+         FhnH117fq29iMPxm7GWGwKAA1JRlr90VFKrwJyfUqQudBVmpGexi5aHBjVZjHlOYNcYs
+         /DrAGbskuKjH2xjPW2zKz+1ItksPKGDEP1AhX6CWU110uVLNQlvYaPr6vTT29x1gY/BA
+         uVAw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=0BRZmjWpl5Sc1xK8Fz95Tal8y+zU630oI+RCC6+Hs4Q=;
-        b=udllYnmAzj77tGh++Uy85udurxAitnkBcFI5Rxkn5w7sH9pb5SMGhScCpqHHAfyRue
-         TkioMkNRo1lhrhnMQdSHYAI/5JNes3vCKkO6GnMPRuRstsf76AQ+ATO1hqLGYCmFy8MW
-         S6ht95D/THF0qBuUqL6DXQTawi1zjhxP8qtWmpz9SkZiq9ivvY8SuALYoprgVu7TDjJW
-         CGObTK++zQz8TQJq7823zyxfzVNcS9qB3cmt2i+OUEZTOy65rhlpp58jiwZQ1O89gc0F
-         3wSH/HfLobqHB2DKCCPxDxIY/N7Cg7wlGnz5qPNi5V0zZLEFJV71FYV6BG9O9IarMxSS
-         Miwg==
+        h=message-id:date:subject:cc:to:from;
+        bh=UKaz6a+wdgUSTWiGbc13c0jwiZBe2ENhLLqdxIE+5Lw=;
+        b=ehIrtqTDBxZHg5Kxy1gMbgaKlTYG2ropRblBQzvS+rO+Az0mVo3zz3aKX3nD4D6rXA
+         nst9qMCDHqVdWFo14YTzjO9yW6BR85Na8CeXkdfMC9rNbKsZ2vglM5AZhNvIxYnxNKkw
+         O0owREMaBg1EIYEI1ej/FhMkXTakasjVpVXFMpPO+4QYyjo/EY99u8224nzgczvCq4yc
+         zqlSAkK56j6fdU1bQk+bt6dtVi/zaq1oMJdD+2FPJhbKthUyUr4naXvf8MkO6EaQnNjs
+         g8IoJUQviHgHK5UwxNX3/m3Suk47I+UI4SBH1ClrjgcmqHoYdjpO7X3EdHatLCCBBkoW
+         y4iA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=GD8Z4IVc;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id d11si13778828pls.255.2019.03.14.09.00.58
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x14si5451156qtf.207.2019.03.14.09.03.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 14 Mar 2019 09:00:58 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Mar 2019 09:03:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=GD8Z4IVc;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=0BRZmjWpl5Sc1xK8Fz95Tal8y+zU630oI+RCC6+Hs4Q=; b=GD8Z4IVcQkEnA7tmQZRmDMsZD
-	acod4OPFsUrsOfuR1FLKJ7jA6erX0GyfzkAUFalRqQTr0Wc3TKoZdJNJn8bnGOw1Tuwdk0yZnf64/
-	pHdMOlRrDmx/7IEqQ2GJCttrttVDEbZnPlnVXa/Qa5+V4mhw8zHKfWPeKpTViw6WFl+GFz/H2TmaG
-	4qFtmgaq3A/Nx1q4BNCMbmX10cEE5rq+9ERqls/hf1LDnS18ontilivt/3dX71VKoTcfON3Jd9RIv
-	iAQfJKRmrX3ZqBsjJswgiXTngc2vG+33cgA8AIHPVWsNtlDueAJM3S6t3N16/Dfynz5q0V1zwwby5
-	vq3znBuDQ==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1h4Smr-0005gI-10; Thu, 14 Mar 2019 16:00:53 +0000
-Date: Thu, 14 Mar 2019 09:00:52 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org,
-	linux-kernel@vger.kernel.org,
-	William Kucharski <william.kucharski@oracle.com>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linux Memory Management List <linux-mm@kvack.org>
-Subject: Re: mm/memory.c:3968:21: sparse: incorrect type in assignment
- (different base types)
-Message-ID: <20190314160052.GM19508@bombadil.infradead.org>
-References: <201903140301.VeDCo2VR%lkp@intel.com>
- <CAFqt6zaA1t1+vPL8hk7Rm6B4ZqG6maK+Z1HAkL0aF93=q4MeOQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAFqt6zaA1t1+vPL8hk7Rm6B4ZqG6maK+Z1HAkL0aF93=q4MeOQ@mail.gmail.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id B4C513082E05;
+	Thu, 14 Mar 2019 16:03:03 +0000 (UTC)
+Received: from t460s.redhat.com (ovpn-117-188.ams2.redhat.com [10.36.117.188])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 0F7356BF91;
+	Thu, 14 Mar 2019 16:02:56 +0000 (UTC)
+From: David Hildenbrand <david@redhat.com>
+To: xen-devel@lists.xenproject.org
+Cc: linux-kernel@vger.kernel.org,
+	Boris Ostrovsky <boris.ostrovsky@oracle.com>,
+	Juergen Gross <jgross@suse.com>,
+	Stefano Stabellini <sstabellini@kernel.org>,
+	Julien Grall <julien.grall@arm.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Nadav Amit <namit@vmware.com>,
+	Andrew Cooper <andrew.cooper3@citrix.com>,
+	akpm@linux-foundation.org,
+	linux-mm@kvack.org,
+	Oscar Salvador <osalvador@suse.de>,
+	Jan Beulich <JBeulich@suse.com>,
+	David Hildenbrand <david@redhat.com>
+Subject: [PATCH v2] xen/balloon: Fix mapping PG_offline pages to user space
+Date: Thu, 14 Mar 2019 17:02:56 +0100
+Message-Id: <20190314160256.21713-1-david@redhat.com>
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Thu, 14 Mar 2019 16:03:03 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 14, 2019 at 03:10:19PM +0530, Souptick Joarder wrote:
-> > >> mm/memory.c:3968:21: sparse: incorrect type in assignment (different base types) @@    expected restricted vm_fault_t [usertype] ret @@    got e] ret @@
-> >    mm/memory.c:3968:21:    expected restricted vm_fault_t [usertype] ret
-> >    mm/memory.c:3968:21:    got int
-> 
-> Looking into https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-> hugetlb_fault() is converted to return vm_fault_t. Not sure, why sparse is
-> still throwing warnings.
+The XEN balloon driver - in contrast to other balloon drivers - allows
+to map some inflated pages to user space. Such pages are allocated via
+alloc_xenballooned_pages() and freed via free_xenballooned_pages().
+The pfn space of these allocated pages is used to map other things
+by the hypervisor using hypercalls.
 
-Because there are two definitions of hugetlb_fault():
+Pages marked with PG_offline must never be mapped to user space (as
+this page type uses the mapcount field of struct pages).
 
-$ git grep -wn hugetlb_fault
-include/linux/hugetlb.h:108:vm_fault_t hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-include/linux/hugetlb.h:206:#define hugetlb_fault(mm, vma, addr, flags) ({ BUG(); 0; })
+So what we can do is, clear/set PG_offline when allocating/freeing an
+inflated pages. This way, most inflated pages can be excluded by
+dumping tools and the "reused for other purpose" balloon pages are
+correctly not marked as PG_offline.
 
+Fixes: 77c4adf6a6df (xen/balloon: mark inflated pages PG_offline)
+Reported-by: Julien Grall <julien.grall@arm.com>
+Tested-by: Julien Grall <julien.grall@arm.com>
+Signed-off-by: David Hildenbrand <david@redhat.com>
+---
+
+v1 -> v2:
+- Readd the braces dropped by accident :)
+
+
+ drivers/xen/balloon.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+index 39b229f9e256..d37dd5bb7a8f 100644
+--- a/drivers/xen/balloon.c
++++ b/drivers/xen/balloon.c
+@@ -604,6 +604,7 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
+ 	while (pgno < nr_pages) {
+ 		page = balloon_retrieve(true);
+ 		if (page) {
++			__ClearPageOffline(page);
+ 			pages[pgno++] = page;
+ #ifdef CONFIG_XEN_HAVE_PVMMU
+ 			/*
+@@ -645,8 +646,10 @@ void free_xenballooned_pages(int nr_pages, struct page **pages)
+ 	mutex_lock(&balloon_mutex);
+ 
+ 	for (i = 0; i < nr_pages; i++) {
+-		if (pages[i])
++		if (pages[i]) {
++			__SetPageOffline(pages[i]);
+ 			balloon_append(pages[i]);
++		}
+ 	}
+ 
+ 	balloon_stats.target_unpopulated -= nr_pages;
+-- 
+2.17.2
 
