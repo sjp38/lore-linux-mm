@@ -2,197 +2,183 @@ Return-Path: <SRS0=RO59=RR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D2F0C10F06
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 10:58:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 684B1C10F06
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 11:06:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F3FB221852
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 10:58:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F3FB221852
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 2665E2063F
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 11:06:52 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="qg0Upq0j"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2665E2063F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7D20E8E0003; Thu, 14 Mar 2019 06:58:35 -0400 (EDT)
+	id B01478E0003; Thu, 14 Mar 2019 07:06:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 780F38E0001; Thu, 14 Mar 2019 06:58:35 -0400 (EDT)
+	id AB0448E0001; Thu, 14 Mar 2019 07:06:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 623538E0003; Thu, 14 Mar 2019 06:58:35 -0400 (EDT)
+	id 9521B8E0003; Thu, 14 Mar 2019 07:06:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 38CD68E0001
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 06:58:35 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id k21so4320090qkg.19
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 03:58:35 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5481C8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 07:06:51 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id w16so5831507pfn.3
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 04:06:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=902DZIGiIkSM7EjsXXCg0cFpDuaDx3Ri4K2Fc9ZZpME=;
-        b=Ossd9+ouJi8bFuTW8K7ZAguX2SwzKEdRI+t5tX7vSvsqeKY0w+aA5kIK1O09aoC2YA
-         FZDidfg5sTQW+7GQeHg9vumytPgOiY86r+pQ9Okjc3YVbaaV0BdGwkIRN1NmssrAkSl2
-         jSLhHJjJ/t+V+b6UDOGmWSX2wteQpLQ6Y4dzfFRp7VeBCSGJxGrpg/C+XUfJPsQ89F1h
-         bsviuIXqSzpdLLLDbGiKfpsuAgntjFaSQjYdcahBhjRHnf3rU6cL1hRMVQoiqCg+n35F
-         NTXhT3aXuwzk4a7Nj+jugIIpjV6rfcy2/kPlCyjpJ3J+JvPGHDJau3WucL+shUT6dkcK
-         SqAQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of pbonzini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=pbonzini@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXni0HWXz4fdyfUyi5VZGfPyvLhhnIupVr7RXLVM0Q4bvZcEw3Q
-	LoXfeMZ1TNNMlIX5xgfcwKBUe9+xiYrrDkHA+3sjLlhHtXpDCxEfszLUifkc/o9W0wgQx5pvgV6
-	nwCLWAzjXSS/gr+GjiNpaVDL5+qNZYmNii/Qct9o1ymL/m6rd+ST1gi3RUkvVEZ7hrA==
-X-Received: by 2002:ac8:1be6:: with SMTP id m35mr15328516qtk.258.1552561115035;
-        Thu, 14 Mar 2019 03:58:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzpQ0RKDk0SUZLzZKZR41Dgn/ahuAv1ZeTHIibJfvZBV2kkDAS3EoFdqDA54O/WNE+heLx2
-X-Received: by 2002:ac8:1be6:: with SMTP id m35mr15328486qtk.258.1552561114347;
-        Thu, 14 Mar 2019 03:58:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552561114; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:subject:date:message-id;
+        bh=dDpta30jYLNKF7mHLIZXQMhcyv7dkmDy6qiilMUlgNY=;
+        b=sXQ9JBZiYL4oZXH3+wPIYkEBKzxT4CYnRu+5ojt0+Z4qRg7XlY4EuIOPQ9z1EuGI2c
+         YjMIOB6k2lW8gyjP016deiznX2sxGRT0YlNp6M+Rkxuji4fcI8BnvCpbHQXhfOho0hMp
+         oWV8zMfcJ0gT3/XcYxPVCYT/hVhESqW2ks6Uipx0qGqjENF93SMF2hk/rpkZjpKKzvfj
+         DFWMML9Tm1bppuZfZivqTZCPeWT4gwY5zUoSVcabeW96977N0VLBD2uUl+8GAGA7LPwm
+         3tN2bbN5Dqs7FlYuGE6FBeWW8IPosxgBp9ndxxxve8nBML3RLQ0ukhM+mHPo28gB8O7d
+         R3Sw==
+X-Gm-Message-State: APjAAAUfRawA0tpsPFpjF8dG8hvLs2300NTdc5DAmnibyG1HjNOSocJm
+	tdrnM3xft1rlZF9MIxC7fcnHH/kt6sOiziDEbL6y4kLI6z+vtmiPCcDkmrCVaXh4h3Lm0f0lmXx
+	+GPk2rJ1H3Hdjzmh7qDLn2aAerDDqa3KLhxM3MOwxN8tZaL7o348kUbak5vy6Brqu/3wyrL2rDZ
+	MvLxcN4LCf1WqvXg5SKQeGRnXL6FQJTHo9YSAZ7M50SoN08p3ko+yh44c/QuF36WuJxjPJn+oNv
+	8HzqWT8jcwoyyq6jPZkA+OKu5eRmKE31RvQrLBOjNdkLJkM2/kfIEgP8Ghdb4cHQkmwwzgn9wJ/
+	bvDa1bu6/Yfv4wk1avpETaUgqNHq35NNeTIfse9Z8RDCjQGd+A4a73kupBQUg+gQ8ev6EEcZonF
+	M
+X-Received: by 2002:a62:9419:: with SMTP id m25mr139842pfe.68.1552561610946;
+        Thu, 14 Mar 2019 04:06:50 -0700 (PDT)
+X-Received: by 2002:a62:9419:: with SMTP id m25mr139617pfe.68.1552561608125;
+        Thu, 14 Mar 2019 04:06:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552561608; cv=none;
         d=google.com; s=arc-20160816;
-        b=peO6LP4/hARyDzOk8mfq3nDwyYSXCFDx3JqeXc/Ws8QE5fItLyoWTe7c8yaY9IO/Ud
-         y60yRKq6qsAZlfJBl/CSq7IaO1W9Kv/QeSq/tpM1ve9SlZXhIxLuJuY2HOgRZjOa3T/1
-         XLYkvAsxqFeKCeOqvJ1JFXOPAUKWQyNG/5dvTctnp+q4k2HrVBKtJT3er0cTbG6AHxLm
-         16jM26wiLgWgEy6+wgeeOt25z8falPniRU1Ovb72UVP085PyNg1Ubr+l0SdU10xWRs/A
-         JQI+1X3E3D77u7/u+JWh7AjLGs/1rZsUKcN6EqBVLUx+gmKXPG+pk+WYznMHsHphrIuJ
-         ZwzA==
+        b=yY8BdhXsTQnA4olHmzTKGNouG0eY60f9CxOb2zv5QQ1A5HYznBCBB6Q1apTlhawSqt
+         95oL+0KVKuxC7x1Sib9n6l0LfFZBIo7kHIpTWv4raJMRcf955jMtbXhM2jUFLpPg/ylS
+         /XWvv3lZBZ+m7o2NYmE6DPxXDGKqlCeI+bwY+c0YzeGWMR/LrDP+HgLyOWo3n9BMVgm4
+         N3HQ7VlVCtxt8fmnMPnqU/PZkyLe1xPMoPaV8xtgnWlaF+Wr9TzB0rkNd1MspTdjux11
+         UHBubKt9jo871+pgHIV5+E62PROLSj0CxrO1ZJ37ihWf7T0dKfmjo/nmUUSUOtRi+o9t
+         7bEg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=902DZIGiIkSM7EjsXXCg0cFpDuaDx3Ri4K2Fc9ZZpME=;
-        b=Uk13dkPFBfYuSq4WbtC9AsYlcdjt2haqZUH84ISJCYWnEl7YTnKSN+wAWt/EBf+enD
-         NKvHtSaRU2qNV9LzS5g2FhfrkvpM/FDoVVVqdplQQrdYk2EOinRMSGGddHOZ4wgWrdas
-         EtfM/nkcFSlkgDUo4BfcwMRpUPELtM+XMqBhEuay+H2lNhH5KEh4Po+mjYLSTQ6vuTev
-         E98pdfIqW6hHnNII7waerr9D4zfY7eyxhl1L7kgTJ7huk8/vqDPKeCZCyL9wdauLAABN
-         VopKuVblmLgmA/YjEMbRgpD47gM+BspHJRECZKkbCwaymqEVaH3aEfIR2fPhd/L+CSUu
-         nV0A==
+        h=message-id:date:subject:to:from:dkim-signature;
+        bh=dDpta30jYLNKF7mHLIZXQMhcyv7dkmDy6qiilMUlgNY=;
+        b=07Uqq7+TFi+f7ppu3NdBoM8JItVuIfAbQ9KzudnsofDsq2ZeVC38xSjrLcbjsVIXS6
+         V85UhGWDd+rsiQ3RpD6R6RWlGtTkUrguGRWhiOJv/OZA+FeoJaPbackN3BKd+U9oV1xK
+         APSYXokZnNpFVb/KrCJcfT5RpcmOUF7qcyWeuabz+mWU5kFoxdJsays+bj/SLs6LDtGq
+         Uat8taEJf2nO+E6TdnavxO2KVInMt5MFDJxpFl8FjbLs5AhQ0MlGjqyfUriw/Orvjt1S
+         21XIkjiaJe0pnuiV/nigcerMZceWwCtaHiBjj+DCOGUNe9FfOZE8z7GjA6U1wcq6hpCH
+         1v+Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of pbonzini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=pbonzini@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s5si5808692qvo.159.2019.03.14.03.58.34
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qg0Upq0j;
+       spf=pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=huangzhaoyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f4sor22859372pgs.80.2019.03.14.04.06.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Mar 2019 03:58:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pbonzini@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Thu, 14 Mar 2019 04:06:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of pbonzini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=pbonzini@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id AD936C0B6175;
-	Thu, 14 Mar 2019 10:58:32 +0000 (UTC)
-Received: from [10.36.112.69] (ovpn-112-69.ams2.redhat.com [10.36.112.69])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id E2C6D68D9F;
-	Thu, 14 Mar 2019 10:58:17 +0000 (UTC)
-Subject: Re: [PATCH 0/3] userfaultfd: allow to forbid unprivileged users
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Peter Xu <peterx@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>,
- linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>,
- Luis Chamberlain <mcgrof@kernel.org>,
- Maxime Coquelin <maxime.coquelin@redhat.com>, kvm@vger.kernel.org,
- Jerome Glisse <jglisse@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>,
- Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>,
- Denis Plotnikov <dplotnikov@virtuozzo.com>, linux-mm@kvack.org,
- Marty McFadden <mcfadden8@llnl.gov>, Maya Gokhale <gokhale2@llnl.gov>,
- Mike Rapoport <rppt@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>,
- Mel Gorman <mgorman@suse.de>, "Kirill A . Shutemov" <kirill@shutemov.name>,
- linux-fsdevel@vger.kernel.org, "Dr . David Alan Gilbert"
- <dgilbert@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-References: <20190311093701.15734-1-peterx@redhat.com>
- <58e63635-fc1b-cb53-a4d1-237e6b8b7236@oracle.com>
- <20190313060023.GD2433@xz-x1>
- <3714d120-64e3-702e-6eef-4ef253bdb66d@redhat.com>
- <20190313185230.GH25147@redhat.com>
- <1934896481.7779933.1552504348591.JavaMail.zimbra@redhat.com>
- <20190313234458.GJ25147@redhat.com>
-From: Paolo Bonzini <pbonzini@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=pbonzini@redhat.com; prefer-encrypt=mutual; keydata=
- mQHhBFRCcBIBDqDGsz4K0zZun3jh+U6Z9wNGLKQ0kSFyjN38gMqU1SfP+TUNQepFHb/Gc0E2
- CxXPkIBTvYY+ZPkoTh5xF9oS1jqI8iRLzouzF8yXs3QjQIZ2SfuCxSVwlV65jotcjD2FTN04
- hVopm9llFijNZpVIOGUTqzM4U55sdsCcZUluWM6x4HSOdw5F5Utxfp1wOjD/v92Lrax0hjiX
- DResHSt48q+8FrZzY+AUbkUS+Jm34qjswdrgsC5uxeVcLkBgWLmov2kMaMROT0YmFY6A3m1S
- P/kXmHDXxhe23gKb3dgwxUTpENDBGcfEzrzilWueOeUWiOcWuFOed/C3SyijBx3Av/lbCsHU
- Vx6pMycNTdzU1BuAroB+Y3mNEuW56Yd44jlInzG2UOwt9XjjdKkJZ1g0P9dwptwLEgTEd3Fo
- UdhAQyRXGYO8oROiuh+RZ1lXp6AQ4ZjoyH8WLfTLf5g1EKCTc4C1sy1vQSdzIRu3rBIjAvnC
- tGZADei1IExLqB3uzXKzZ1BZ+Z8hnt2og9hb7H0y8diYfEk2w3R7wEr+Ehk5NQsT2MPI2QBd
- wEv1/Aj1DgUHZAHzG1QN9S8wNWQ6K9DqHZTBnI1hUlkp22zCSHK/6FwUCuYp1zcAEQEAAbQj
- UGFvbG8gQm9uemluaSA8cGJvbnppbmlAcmVkaGF0LmNvbT6JAg0EEwECACMFAlRCcBICGwMH
- CwkIBwMCAQYVCAIJCgsEFgIDAQIeAQIXgAAKCRB+FRAMzTZpsbceDp9IIN6BIA0Ol7MoB15E
- 11kRz/ewzryFY54tQlMnd4xxfH8MTQ/mm9I482YoSwPMdcWFAKnUX6Yo30tbLiNB8hzaHeRj
- jx12K+ptqYbg+cevgOtbLAlL9kNgLLcsGqC2829jBCUTVeMSZDrzS97ole/YEez2qFpPnTV0
- VrRWClWVfYh+JfzpXmgyhbkuwUxNFk421s4Ajp3d8nPPFUGgBG5HOxzkAm7xb1cjAuJ+oi/K
- CHfkuN+fLZl/u3E/fw7vvOESApLU5o0icVXeakfSz0LsygEnekDbxPnE5af/9FEkXJD5EoYG
- SEahaEtgNrR4qsyxyAGYgZlS70vkSSYJ+iT2rrwEiDlo31MzRo6Ba2FfHBSJ7lcYdPT7bbk9
- AO3hlNMhNdUhoQv7M5HsnqZ6unvSHOKmReNaS9egAGdRN0/GPDWr9wroyJ65ZNQsHl9nXBqE
- AukZNr5oJO5vxrYiAuuTSd6UI/xFkjtkzltG3mw5ao2bBpk/V/YuePrJsnPFHG7NhizrxttB
- nTuOSCMo45pfHQ+XYd5K1+Cv/NzZFNWscm5htJ0HznY+oOsZvHTyGz3v91pn51dkRYN0otqr
- bQ4tlFFuVjArBZcapSIe6NV8C4cEiSS5AQ0EVEJxcwEIAK+nUrsUz3aP2aBjIrX3a1+C+39R
- nctpNIPcJjFJ/8WafRiwcEuLjbvJ/4kyM6K7pWUIQftl1P8Woxwb5nqL7zEFHh5I+hKS3haO
- 5pgco//V0tWBGMKinjqntpd4U4Dl299dMBZ4rRbPvmI8rr63sCENxTnHhTECyHdGFpqSzWzy
- 97rH68uqMpxbUeggVwYkYihZNd8xt1+lf7GWYNEO/QV8ar/qbRPG6PEfiPPHQd/sldGYavmd
- //o6TQLSJsvJyJDt7KxulnNT8Q2X/OdEuVQsRT5glLaSAeVAABcLAEnNgmCIGkX7TnQF8a6w
- gHGrZIR9ZCoKvDxAr7RP6mPeS9sAEQEAAYkDEgQYAQIACQUCVEJxcwIbAgEpCRB+FRAMzTZp
- scBdIAQZAQIABgUCVEJxcwAKCRC/+9JfeMeug/SlCACl7QjRnwHo/VzENWD9G2VpUOd9eRnS
- DZGQmPo6Mp3Wy8vL7snGFBfRseT9BevXBSkxvtOnUUV2YbyLmolAODqUGzUI8ViF339poOYN
- i6Ffek0E19IMQ5+CilqJJ2d5ZvRfaq70LA/Ly9jmIwwX4auvXrWl99/2wCkqnWZI+PAepkcX
- JRD4KY2fsvRi64/aoQmcxTiyyR7q3/52Sqd4EdMfj0niYJV0Xb9nt8G57Dp9v3Ox5JeWZKXS
- krFqy1qyEIypIrqcMbtXM7LSmiQ8aJRM4ZHYbvgjChJKR4PsKNQZQlMWGUJO4nVFSkrixc9R
- Z49uIqQK3b3ENB1QkcdMg9cxsB0Onih8zR+Wp1uDZXnz1ekto+EivLQLqvTjCCwLxxJafwKI
- bqhQ+hGR9jF34EFur5eWt9jJGloEPVv0GgQflQaE+rRGe+3f5ZDgRe5Y/EJVNhBhKcafcbP8
- MzmLRh3UDnYDwaeguYmxuSlMdjFL96YfhRBXs8tUw6SO9jtCgBvoOIBDCxxAJjShY4KIvEpK
- b2hSNr8KxzelKKlSXMtB1bbHbQxiQcerAipYiChUHq1raFc3V0eOyCXK205rLtknJHhM5pfG
- 6taABGAMvJgm/MrVILIxvBuERj1FRgcgoXtiBmLEJSb7akcrRlqe3MoPTntSTNvNzAJmfWhd
- SvP0G1WDLolqvX0OtKMppI91AWVu72f1kolJg43wbaKpRJg1GMkKEI3H+jrrlTBrNl/8e20m
- TElPRDKzPiowmXeZqFSS1A6Azv0TJoo9as+lWF+P4zCXt40+Zhh5hdHO38EV7vFAVG3iuay6
- 7ToF8Uy7tgc3mdH98WQSmHcn/H5PFYk3xTP3KHB7b0FZPdFPQXBZb9+tJeZBi9gMqcjMch+Y
- R8dmTcQRQX14bm5nXlBF7VpSOPZMR392LY7wzAvRdhz7aeIUkdO7VelaspFk2nT7wOj1Y6uL
- nRxQlLkBDQRUQnHuAQgAx4dxXO6/Zun0eVYOnr5GRl76+2UrAAemVv9Yfn2PbDIbxXqLff7o
- yVJIkw4WdhQIIvvtu5zH24iYjmdfbg8iWpP7NqxUQRUZJEWbx2CRwkMHtOmzQiQ2tSLjKh/c
- HeyFH68xjeLcinR7jXMrHQK+UCEw6jqi1oeZzGvfmxarUmS0uRuffAb589AJW50kkQK9VD/9
- QC2FJISSUDnRC0PawGSZDXhmvITJMdD4TjYrePYhSY4uuIV02v028TVAaYbIhxvDY0hUQE4r
- 8ZbGRLn52bEzaIPgl1p/adKfeOUeMReg/CkyzQpmyB1TSk8lDMxQzCYHXAzwnGi8WU9iuE1P
- 0wARAQABiQHzBBgBAgAJBQJUQnHuAhsMAAoJEH4VEAzNNmmxp1EOoJy0uZggJm7gZKeJ7iUp
- eX4eqUtqelUw6gU2daz2hE/jsxsTbC/w5piHmk1H1VWDKEM4bQBTuiJ0bfo55SWsUNN+c9hh
- IX+Y8LEe22izK3w7mRpvGcg+/ZRG4DEMHLP6JVsv5GMpoYwYOmHnplOzCXHvmdlW0i6SrMsB
- Dl9rw4AtIa6bRwWLim1lQ6EM3PWifPrWSUPrPcw4OLSwFk0CPqC4HYv/7ZnASVkR5EERFF3+
- 6iaaVi5OgBd81F1TCvCX2BEyIDRZLJNvX3TOd5FEN+lIrl26xecz876SvcOb5SL5SKg9/rCB
- ufdPSjojkGFWGziHiFaYhbuI2E+NfWLJtd+ZvWAAV+O0d8vFFSvriy9enJ8kxJwhC0ECbSKF
- Y+W1eTIhMD3aeAKY90drozWEyHhENf4l/V+Ja5vOnW+gCDQkGt2Y1lJAPPSIqZKvHzGShdh8
- DduC0U3xYkfbGAUvbxeepjgzp0uEnBXfPTy09JGpgWbg0w91GyfT/ujKaGd4vxG2Ei+MMNDm
- S1SMx7wu0evvQ5kT9NPzyq8R2GIhVSiAd2jioGuTjX6AZCFv3ToO53DliFMkVTecLptsXaes
- uUHgL9dKIfvpm+rNXRn9wAwGjk0X/A==
-Message-ID: <298b9469-abd2-b02b-5c71-529b8976a46c@redhat.com>
-Date: Thu, 14 Mar 2019 11:58:15 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
-MIME-Version: 1.0
-In-Reply-To: <20190313234458.GJ25147@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Thu, 14 Mar 2019 10:58:33 +0000 (UTC)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qg0Upq0j;
+       spf=pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=huangzhaoyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:subject:date:message-id;
+        bh=dDpta30jYLNKF7mHLIZXQMhcyv7dkmDy6qiilMUlgNY=;
+        b=qg0Upq0jLvULMOwFu0QqrcExCbpgeGAFck4cpAGMfSMae4olbUVvqFGX5H6rszL0GD
+         Eazcbr7+WWVwiMyzT4KGFo6wy/qGb0u9hRkoQ8AHdtafW5yAo5C3pBPvPdQM6kvECJrp
+         ihbUYEWyUyWywmlbPwPcbWFv134JPlxjhB6sdEW1QRKxESzUuIiPkdoaf1yJEdKjgdo7
+         nHqcLC+biYyG7xdFsW2DiApSE8lFh/Lzk3+H8EENXT4Xp3PKSWwAzHv3fTOw9effgiKV
+         jEoPbz7kXu0+19S+GVOO0SugxanKeeF4putCQGQLQwZ04L4kHYnaEt+8rut9NQEFNKQ3
+         oslQ==
+X-Google-Smtp-Source: APXvYqy4RS+bxR506y0XuvByBPnIl58NXLP8IhUhzOa/Zpg3bff6IB+yfFHI8pYokkVNxk/1Z81FKw==
+X-Received: by 2002:a65:4549:: with SMTP id x9mr45326928pgr.3.1552561607767;
+        Thu, 14 Mar 2019 04:06:47 -0700 (PDT)
+Received: from bj03382pcu.spreadtrum.com ([117.18.48.82])
+        by smtp.gmail.com with ESMTPSA id g12sm14364692pfd.72.2019.03.14.04.06.44
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 14 Mar 2019 04:06:47 -0700 (PDT)
+From: Zhaoyang Huang <huangzhaoyang@gmail.com>
+To: Chintan Pandya <cpandya@codeaurora.org>,
+	David Rientjes <rientjes@google.com>,
+	Joe Perches <joe@perches.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH] driver : staging : ion: optimization for decreasing memory fragmentaion
+Date: Thu, 14 Mar 2019 19:06:39 +0800
+Message-Id: <1552561599-23662-1-git-send-email-huangzhaoyang@gmail.com>
+X-Mailer: git-send-email 1.7.9.5
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 14/03/19 00:44, Andrea Arcangeli wrote:
-> Then I thought we can add a tristate so an open of /dev/kvm would also
-> allow the syscall to make things more user friendly because
-> unprivileged containers ideally should have writable mounts done with
-> nodev and no matter the privilege they shouldn't ever get an hold on
-> the KVM driver (and those who do, like kubevirt, will then just work).
+From: Zhaoyang Huang <zhaoyang.huang@unisoc.com>
 
-I wouldn't even bother with the KVM special case.  Containers can use
-seccomp if they want a fine-grained policy.
+Two action for this patch:
+1. set a batch size for system heap's shrinker, which can have it buffer
+reasonable page blocks in pool for future allocation.
+2. reverse the order sequence when free page blocks, the purpose is also
+to have system heap keep as more big blocks as it can.
 
-(Actually I wouldn't bother with the knob at all; the attack surface of
-userfaultfd is infinitesimal compared to the BPF JIT...).
+By testing on an android system with 2G RAM, the changes with setting
+batch = 48MB can help reduce the fragmentation obviously and improve
+big block allocation speed for 15%.
 
-Paolo
+Signed-off-by: Zhaoyang Huang <zhaoyang.huang@unisoc.com>
+---
+ drivers/staging/android/ion/ion_heap.c        | 12 +++++++++++-
+ drivers/staging/android/ion/ion_system_heap.c |  2 +-
+ 2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/staging/android/ion/ion_heap.c b/drivers/staging/android/ion/ion_heap.c
+index 31db510..9e9caf2 100644
+--- a/drivers/staging/android/ion/ion_heap.c
++++ b/drivers/staging/android/ion/ion_heap.c
+@@ -16,6 +16,8 @@
+ #include <linux/vmalloc.h>
+ #include "ion.h"
+ 
++unsigned long ion_heap_batch = 0;
++
+ void *ion_heap_map_kernel(struct ion_heap *heap,
+ 			  struct ion_buffer *buffer)
+ {
+@@ -303,7 +305,15 @@ int ion_heap_init_shrinker(struct ion_heap *heap)
+ 	heap->shrinker.count_objects = ion_heap_shrink_count;
+ 	heap->shrinker.scan_objects = ion_heap_shrink_scan;
+ 	heap->shrinker.seeks = DEFAULT_SEEKS;
+-	heap->shrinker.batch = 0;
++	heap->shrinker.batch = ion_heap_batch;
+ 
+ 	return register_shrinker(&heap->shrinker);
+ }
++
++static int __init ion_system_heap_batch_init(char *arg)
++{
++	 ion_heap_batch = memparse(arg, NULL);
++
++	return 0;
++}
++early_param("ion_batch", ion_system_heap_batch_init);
+diff --git a/drivers/staging/android/ion/ion_system_heap.c b/drivers/staging/android/ion/ion_system_heap.c
+index 701eb9f..d249f8d 100644
+--- a/drivers/staging/android/ion/ion_system_heap.c
++++ b/drivers/staging/android/ion/ion_system_heap.c
+@@ -182,7 +182,7 @@ static int ion_system_heap_shrink(struct ion_heap *heap, gfp_t gfp_mask,
+ 	if (!nr_to_scan)
+ 		only_scan = 1;
+ 
+-	for (i = 0; i < NUM_ORDERS; i++) {
++	for (i = NUM_ORDERS - 1; i >= 0; i--) {
+ 		pool = sys_heap->pools[i];
+ 
+ 		if (only_scan) {
+-- 
+1.9.1
 
