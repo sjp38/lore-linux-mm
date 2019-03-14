@@ -2,261 +2,155 @@ Return-Path: <SRS0=RO59=RR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 82781C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 19:55:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 97625C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 20:13:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 17AD12186A
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 19:55:00 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="UNqkYigR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 17AD12186A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 5AB5B217F5
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 20:13:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5AB5B217F5
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7858C6B0003; Thu, 14 Mar 2019 15:55:00 -0400 (EDT)
+	id D6F346B0003; Thu, 14 Mar 2019 16:13:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 70DA36B0005; Thu, 14 Mar 2019 15:55:00 -0400 (EDT)
+	id CF3EF6B0005; Thu, 14 Mar 2019 16:13:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5AE776B0006; Thu, 14 Mar 2019 15:55:00 -0400 (EDT)
+	id B94EC6B0006; Thu, 14 Mar 2019 16:13:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 125E36B0003
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 15:55:00 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id e5so7381933pgc.16
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 12:55:00 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 59CD66B0003
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 16:13:28 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id x13so2871500edq.11
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 13:13:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:subject:message-id
-         :references:mime-version:content-disposition:in-reply-to:user-agent;
-        bh=vZNuEUuNICS2Gm4IYHhAJQIWK7u5E9v+XO+j854JpXQ=;
-        b=TKovtaLp/vSHKuAev0+u1Bozp4W2YHXkRdBS8gocFTyNF6ZBcJkKCurFp2NzzNud4B
-         sXER0JvCw/vpRotVcyEOWj2iyr1AIqRIoo+0BrtKSzIHRlmnGbhyW4fuAThzNiKJ4fgw
-         XHYPW2nQwyFEWa5kPXmadhJEtjTlY14QAWeoJKMlApT3wogBROIYyoynHT26Zs4G4Nwt
-         pE/jDsxk9FAltR6VKB0Rf42fxFJzY2APQjuqNt+TQRtwCo5FxRnGwY14woQ8fcYidU49
-         VsjY3+ZwNuPRvieMQ1xPwRV/BoOjaIBySnofEByzVQMJ2hxuPpZLhSkxKqHq/6BxwQ4y
-         sU+g==
-X-Gm-Message-State: APjAAAWk+AND/kStlpNqHn5llbQO4MYiPbHRwgcHEAnqRAqr41A8hRWJ
-	MijhoYOmX0LfSffppeCIn5BUo+QMuk5X8NpOHQsxPOfAgUk+heFaffLIa2F+40rwLbntGoIcQhL
-	8dq+S2QOQPwmnqCSaKu59nL4iTpBPKDB/qMFSakl0VpdFMtQlA2PRT/xVOYFEOz4PEg==
-X-Received: by 2002:a62:b618:: with SMTP id j24mr50516pff.120.1552593299725;
-        Thu, 14 Mar 2019 12:54:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy46aXbmdtUtEWayca5IEx1Bl2GniIkTVWfFIoDjNgwsdyr4+e++J8hiW401eUhsJDDPmDL
-X-Received: by 2002:a62:b618:: with SMTP id j24mr50439pff.120.1552593298377;
-        Thu, 14 Mar 2019 12:54:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552593298; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date
+         :message-id:from:to:cc:subject:in-reply-to:references:user-agent
+         :mime-version;
+        bh=prHkqXO6YuA2dxZR74X4p5uwdoPRogtn2QFUAoTfEbY=;
+        b=FwQxPSkhvKMNV4OhBJAYJ0qBjtMT0NigMm7pl/Ls0gcB/xrTfgpQI+NXiYiccsZ/44
+         prQkrplmGjF4qq6uCN4HfV5CUkhyFbVmVWKgnqic9xEk+xA53x641kAKjJor/9lXJ2Ny
+         wXstN+ioC9is+aObBNlsB82HjZmhnsqEG7Yi12d3LsBQXuScCEqXJXDBHmHULPmN45gG
+         y8Lkwip8fs1wKgXgeGjUSjUV8ij6QlWYI3F5/GqfC5jRMEuCpfUX4XgqkJxvWRQnNWXS
+         3jW2xb98FHSWSWq5M6rbGp00tSfccH5m1LYmVlA0CGH/Vn6+YPgNqV8UmFXGlUJV3Npz
+         8KIw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of tiwai@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=tiwai@suse.de
+X-Gm-Message-State: APjAAAWSHRbA3NgsliFvdf5xwXAnFaYtm0FVVf8/btXmiPkfjKFB2j/Z
+	qDEYDKgaeLgELhu67Xc5nPtaN4wOyg7/cDQKeyZw5Xz8znLIzaZIP3pFjXieP6Z1YHjSMvQITb4
+	5VtYzutp5+k7BWS7swYdJLJWNuXm1/SlYjQ2uWRRliEnj/8HG3gBsVICD8j3xkpxmow==
+X-Received: by 2002:a05:6402:78b:: with SMTP id d11mr161063edy.172.1552594407948;
+        Thu, 14 Mar 2019 13:13:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzNtVb2oqVEmXnyV0WnEoKk2UYQmg7qu8YZ0ECI+c9ksNvhmqZhyFQItebkU2hcfTUTWaHU
+X-Received: by 2002:a05:6402:78b:: with SMTP id d11mr161022edy.172.1552594406957;
+        Thu, 14 Mar 2019 13:13:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552594406; cv=none;
         d=google.com; s=arc-20160816;
-        b=drKxZ6hvesnw3QTj/lIfgVz0vswGFLcGFE9IYjF9pja28lw78urV15i+O7i5T6/AHV
-         13kumelg5zQp1tEU0u8hifpHPhO3nzsCvRztpeAJeTiWni1QjjthCGGpm8ymnvFUrtjG
-         dwKTo6ZwlQe3122C2zNtqOp+AU/vFI+7AkuGoUFU//+4PQKaRaMxTGIOXRfGw8DbBnIT
-         qDXeCxz8q4kKu6tn3yi+0KmoQHPwyrhyUhfXWDGk52Y3UsV12hPFABdrN3n2dblTKJRr
-         P7LVp1ujtxdT5cVboCO7zGikRupUj9BlgH8kX3EsQOc1zMJ2yFpUkdqvqx0F/E3khhdj
-         SyzA==
+        b=U7G7xF2lhhkfvKmgSXnJ1PHaQB9et9KmhzPVL/YE3kuQThzGAdul0gcu7k9Te5UdLR
+         eFSjAysFsdqIbnRQ/ZWTn6vImBGi2/AMf9Q7a5ZNUPgpMNH4/arSvTmSXsILYE4f+q9h
+         RiUrms0IT6RH/aPXX9fpj/zhR6vdHK5DClkwxZy6VkvqWeKv09ZLSoGHoE6ybbAAP74Q
+         q/rHlhOUzRB3DAreAbN+JNAgjQPIc3QhAPzZNKDJn9uIhnxcOS/pVwa9TDksfZDamI7U
+         vdbY///Iphxig0pPfG2xfDfgl1TQDGoD6p7kOGW7ncufXxAH2hgeG2o//3gHN2iroZi+
+         7D/w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:to:from:date:dkim-signature;
-        bh=vZNuEUuNICS2Gm4IYHhAJQIWK7u5E9v+XO+j854JpXQ=;
-        b=ES79puCHCQ5w/QL9Ty2Te9dwrjUhyWzM6crIMrmVhsSU+r4y0I3XjndKWD7506GuuD
-         CW8c9LAg8dcXfDXrUye+A/hdIZeS4nnIH3fHdLaYge99zCLvHNXRFtccl9Y8O2t2sE4R
-         ttee0BlhfChHB/HAoR0qgHSivOZtsr3l/vmYCy3fJvwrD74K2wOz7M06N90ErRBNxoCx
-         moZ4HViwJ2wWansfX9ClEB6cBsUaxaHlCaDb6ZM0rXYd6uLZnAXmfToFAgkRm1VXr9jL
-         0Amqt7YEdFmLeOqRhxdxGsLgBSByAKH+6fAkbYkjxVU4CJFAPw6vEl6M1M1m3+h89jVz
-         sPpg==
+        h=mime-version:user-agent:references:in-reply-to:subject:cc:to:from
+         :message-id:date;
+        bh=prHkqXO6YuA2dxZR74X4p5uwdoPRogtn2QFUAoTfEbY=;
+        b=hBgCnpcKWgLRea0IVy0D9ZrxjGEmQ6zl8WPUCiu07m1TqVA1fjHp5W480xSvG/64xU
+         Iu37q0i6ZyyL4jDB9cvV9YD/8xlZBkVPQes1BNSpdzM2i2PBnnUDC+i3zMLP+f3rdMtP
+         FQn+mvaANwCpvGoBeovSxL+ZCXA+60IeE3ARXqqYdf3M4TyZoWNn/Y5Wvge0eNqMeiB7
+         REUZUKsNYL2i4tVe0fOI5xrjtZzUfY8w4TaouKgkz88Osj5Hbj3nNVRtMfpcNL6DNYRr
+         peufP75X38rJLzrg9Fn6+9b8PWC/NtQg4AvJAy6JvmIT/884P/QYpfWsm54Bp3u0uCQn
+         f14w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=UNqkYigR;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id q14si14166850pls.204.2019.03.14.12.54.53
+       spf=pass (google.com: domain of tiwai@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=tiwai@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h38si32144ede.377.2019.03.14.13.13.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 14 Mar 2019 12:54:53 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Mar 2019 13:13:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of tiwai@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=UNqkYigR;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:To:From:Date:Sender:Reply-To:Cc:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=vZNuEUuNICS2Gm4IYHhAJQIWK7u5E9v+XO+j854JpXQ=; b=UNqkYigR6BhjUG18MHwP8Tf6F
-	kU2VG2qa/+SyesqtMr0xGQB9u41ygBqO1zPVYNUekOxhl7+cEZ4EPgqAb9qWM0mwCbW4vRMWaCetP
-	Vy80rI9ig35YtSHbGSHQJ5wLoHJvHbmleSYfKl/3hxhbtgSfiyWIjW6t0DCCUpmMJqdOBMCZZD+tD
-	tJCxidpOD6jf7AD2XcjSpwOVU/Cvlwf0huU6pooNakTf6Z5MwM+xgWv+zHfhuWWU1nSpiDOv5ieR4
-	Ejjj5NbCQLJKZuN7Qzy6ziYntoQWEk/WFym0+SDPzrILELTVNW/DGBkS/6LFTM7yPtOs72coSyjnO
-	Xt/JQKlLg==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1h4WRI-0003kC-9H; Thu, 14 Mar 2019 19:54:52 +0000
-Date: Thu, 14 Mar 2019 12:54:52 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Laurent Dufour <ldufour@linux.ibm.com>,
-	lsf-pc@lists.linux-foundation.org, Linux-MM <linux-mm@kvack.org>,
-	linux-kernel@vger.kernel.org
-Subject: Re: [LSF/MM TOPIC] Using XArray to manage the VMA
-Message-ID: <20190314195452.GN19508@bombadil.infradead.org>
-References: <7da20892-f92a-68d8-4804-c72c1cb0d090@linux.ibm.com>
- <20190313210603.fguuxu3otj5epk3q@linux-r8p5>
- <20190314023910.GL19508@bombadil.infradead.org>
- <20190314164343.owsgnldxk7qr363q@linux-r8p5>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190314164343.owsgnldxk7qr363q@linux-r8p5>
-User-Agent: Mutt/1.9.2 (2017-12-15)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000013, version=1.2.4
+       spf=pass (google.com: domain of tiwai@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=tiwai@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 28CE6AD2C;
+	Thu, 14 Mar 2019 20:13:26 +0000 (UTC)
+Date: Thu, 14 Mar 2019 21:13:25 +0100
+Message-ID: <s5hk1h15i56.wl-tiwai@suse.de>
+From: Takashi Iwai <tiwai@suse.de>
+To: Hugh Dickins <hughd@google.com>
+Cc: Michal Hocko <mhocko@suse.com>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	linux-mm@kvack.org,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH v2] mm, page_alloc: disallow __GFP_COMP in alloc_pages_exact()
+In-Reply-To: <alpine.LSU.2.11.1903141103590.2119@eggly.anvils>
+References: <20190314093944.19406-1-vbabka@suse.cz>
+	<20190314094249.19606-1-vbabka@suse.cz>
+	<20190314101526.GH7473@dhcp22.suse.cz>
+	<1dc997a3-7573-7bd5-9ce6-3bfbf77d1194@suse.cz>
+	<20190314113626.GJ7473@dhcp22.suse.cz>
+	<s5hd0mtsm84.wl-tiwai@suse.de>
+	<20190314120939.GK7473@dhcp22.suse.cz>
+	<s5ha7hxsikl.wl-tiwai@suse.de>
+	<20190314132933.GL7473@dhcp22.suse.cz>
+	<s5h5zslqtyv.wl-tiwai@suse.de>
+	<alpine.LSU.2.11.1903141021550.1591@eggly.anvils>
+	<s5hpnqt5ob2.wl-tiwai@suse.de>
+	<alpine.LSU.2.11.1903141103590.2119@eggly.anvils>
+User-Agent: Wanderlust/2.15.9 (Almost Unreal) SEMI/1.14.6 (Maruoka)
+ FLIM/1.14.9 (=?UTF-8?B?R29qxY0=?=) APEL/10.8 Emacs/25.3
+ (x86_64-suse-linux-gnu) MULE/6.0 (HANACHIRUSATO)
+MIME-Version: 1.0 (generated by SEMI 1.14.6 - "Maruoka")
+Content-Type: text/plain; charset=US-ASCII
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 14, 2019 at 09:43:43AM -0700, Davidlohr Bueso wrote:
-> On Wed, 13 Mar 2019, Matthew Wilcox wrote:
+On Thu, 14 Mar 2019 19:15:22 +0100,
+Hugh Dickins wrote:
 > 
-> > It's probably worth listing the advantages of the Maple Tree over the
-> > rbtree.
-> 
-> I'm not familiar with maple trees, are they referred to by another name?
-> (is this some sort of B-tree?). Google just shows me real trees.
-
-It is a B-tree variant which supports ranges as a first-class citizen
-(single elements are ranges of length 1).  It optimises for ranges which
-are adjacent to each other, and does not support overlapping ranges.
-It supports RCU lookup and embeds a spinlock which must be held for
-modification.  There's a lot of detail I can go into, but let's leave
-it at that for an introduction.
-
-> > - Shallower tree.  A 1000-entry rbtree is 10 levels deep.  A 1000-entry
-> >   Maple Tree is 5 levels deep (I did a more detailed analysis in an
-> >   earlier email thread with Laurent and I can present it if needed).
-> 
-> I'd be interested in reading on that.
-
-(see the last two paragraphs of the mail for that analysis)
-
-> > - O(1) prev/next
-> > - Lookups under the RCU lock
+> On Thu, 14 Mar 2019, Takashi Iwai wrote:
+> > On Thu, 14 Mar 2019 18:37:06 +0100,Hugh Dickins wrote:
+> > > On Thu, 14 Mar 2019, Takashi Iwai wrote:
+> > > > 
+> > > > Hugh, could you confirm whether we still need __GFP_COMP in the sound
+> > > > buffer allocations?  FWIW, it's the change introduced by the ancient
+> > > > commit f3d48f0373c1.
+> > > 
+> > > I'm not confident in finding all "the sound buffer allocations".
+> > > Where you're using alloc_pages_exact() for them, you do not need
+> > > __GFP_COMP, and should not pass it.
 > > 
-> > There're some second-order effects too; by using externally allocated
-> > nodes, we avoid disturbing other VMAs when inserting/deleting, and we
-> > avoid bouncing cachelines around (eg the VMA which happens to end up
-> > at the head of the tree is accessed by every lookup in the tree because
-> > it's on the way to every other node).
+> > It was my fault attempt to convert to alloc_pages_exact() and hitting
+> > the incompatibility with __GFP_COMP, so it was reverted in the end.
+> > 
+> > > But if there are other places
+> > > where you use one of those page allocators with an "order" argument
+> > > non-zero, and map that buffer into userspace (without any split_page()),
+> > > there you would still need the __GFP_COMP - zap_pte_range() and others
+> > > do the wrong thing on tail ptes if the non-zero-order page has neither
+> > > been set up as compound nor split into zero-order pages.
+> > 
+> > Hm, what if we allocate the whole pages via alloc_pages_exact() (but
+> > without __GFP_COMP)?  Can we mmap them properly to user-space like
+> > before, or it won't work as-is?
 > 
-> How would maple trees deal with the augmented vma tree (vma gaps) trick
-> we use to optimize get_unmapped_area?
+> Yes, you can map the alloc_pages_exact() pages to user-space as
+> before, whether or not it ended up using a whole non-zero-order page:
+> alloc_pages_exact() does a split_page(), so the subpages end up all just
+> ordinary order-zero pages (and need to be freed individually, which
+> free_pages_exact() does for you).
 
-The fundamental unit of the Maple Tree is a 128-byte node.  A leaf node
-is laid out like this:
-
-struct maple_range_64 {
-        struct maple_node *parent;
-        void __rcu *slot[8];
-        u64 pivot[7];
-};
-
-The pivots are stored in ascending order; if the search index is less
-than pivot[i], then the value (ie the vma pointer) you are searching
-for is stored in slot[i].
-
-Non-leaf nodes (for trees which support range allocations) are laid out
-like this:
-
-struct maple_arange_64 {
-        struct maple_node *parent;
-	u64 gaps[5];
-        void __rcu *slot[5];
-        u64 pivot[4];
-};
-
-gaps[i] stores the largest run of NULL pointers in the subtree rooted at
-slot[i].  When searching for an empty range of at least N, you can skip
-any subtree which has gaps[i] < N.
-
-Here's a simple case:
-
-$ ldd `which cat`
-	linux-vdso.so.1 (0x00007ffc867fc000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f2c8cc6e000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f2c8ce69000)
-
-'cat /proc/self/maps | wc' gives me 25 mappings.  They look like this:
-
-$ cat /proc/self/maps |cut -f 1 -d ' '
-55c414785000-55c414787000
-55c414787000-55c41478c000
-55c41478c000-55c41478e000
-55c41478f000-55c414790000
-55c414790000-55c414791000
-55c4159dd000-55c4159fe000
-7fa5f6527000-7fa5f680c000
-7fa5f680c000-7fa5f682e000
-7fa5f682e000-7fa5f6976000
-7fa5f6976000-7fa5f69c2000
-7fa5f69c2000-7fa5f69c3000
-7fa5f69c3000-7fa5f69c7000
-7fa5f69c7000-7fa5f69c9000
-7fa5f69c9000-7fa5f69cd000
-7fa5f69cd000-7fa5f69cf000
-7fa5f69d9000-7fa5f69fb000
-7fa5f69fb000-7fa5f69fc000
-7fa5f69fc000-7fa5f6a1a000
-7fa5f6a1a000-7fa5f6a22000
-7fa5f6a22000-7fa5f6a23000
-7fa5f6a23000-7fa5f6a24000
-7fa5f6a24000-7fa5f6a25000
-7ffe54a3c000-7ffe54a5d000
-7ffe54a7b000-7ffe54a7e000
-7ffe54a7e000-7ffe54a80000
-
-We'd represent this in the Maple Tree as:
-
-0-55c414785000 -> NULL
-55c414785000-55c414787000 -> vma
-55c414787000-55c41478c000 -> vma
-...
-55c414790000-55c414791000 -> vma
-55c414791000-7fa5f6527000 -> NULL
-7fa5f6527000-7fa5f680c000 -> vma
-...
-7fa5f69cd000-7fa5f69cf000 -> vma
-7fa5f69cf000-7fa5f69d9000 -> NULL
-7fa5f69d9000-7fa5f69fb000 -> vma
-...
-7fa5f6a24000-7fa5f6a25000 -> vma
-7fa5f6a25000-7ffe54a3c000 -> NULL
-7ffe54a3c000-7ffe54a5d000 -> vma
-7ffe54a5d000-7ffe54a7b000 -> NULL
-7ffe54a7b000-7ffe54a7e000 -> vma
-7ffe54a7e000-7ffe54a80000 -> vma
-7ffe54a80000-ffffffffffff -> NULL
-
-so the maple tree stores 6 ranges that point to NULL in addition to the
-25 that're stored by the rbtree.  Because they're allocated sequentially,
-there won't be any wastage in the maple tree caused by items shifting
-around.  That means we'll get 8 per leaf node, so just 4 leaf nodes
-needed to store 31 ranges, all stored in a single root node.  That means
-to get from root to an arbitrary VMA is just 3 pointer dereferences,
-versus 3.96 pointer dereferences for an optimally balanced rbtree.
+Great, thanks for clarification!
 
 
-For a process with 1000 VMAs, we'll have approximately 167 leaf nodes
-(assuming approximately 6 of the 8 pointers are used per node) arranged
-into a tree of height 5, with about 44 non-leaf nodes needed to manage
-those 166 leaf-nodes.  That'll be 6 pointers to follow per walk of the
-tree (if it were optimally arranged, it'd be 125 leaf nodes plus 25 +
-5 + 1 non-leaf nodes and 5 pointers to follow, but it's unrealistic to
-assume it'll be optimally arranged, and this neglects the NULL ranges
-which will also need to be stored).
-
-The rbtree has a 1/1000 chance of 1 pointer dereference, a 2/1000 chance
-of 2 pointers, 4/1000 chance of 3 pointers, 8/1000 4 pointers, 16/1000 5
-pointers, 32/1000 6 pointers, 64/1000 7 pointers, 128/1000 8 pointers,
-256/1000 9 pointers, 489/1000 10 pointers.  Amortised, that's 8.987
-pointers to look up a random VMA (assuming the rbtree is fully balanced;
-I haven't checked how unbalanced the rbtree can actually become).
+Takashi
 
