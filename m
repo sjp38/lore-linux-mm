@@ -2,200 +2,195 @@ Return-Path: <SRS0=RO59=RR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A5BBDC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 06:29:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2B900C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 06:33:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6055A217F5
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 06:29:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6055A217F5
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ah.jp.nec.com
+	by mail.kernel.org (Postfix) with ESMTP id C035B217F5
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 06:33:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C035B217F5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F2C7B8E0003; Thu, 14 Mar 2019 02:29:23 -0400 (EDT)
+	id 3DEA08E0003; Thu, 14 Mar 2019 02:33:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EDC178E0001; Thu, 14 Mar 2019 02:29:23 -0400 (EDT)
+	id 366838E0001; Thu, 14 Mar 2019 02:33:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D7CD58E0003; Thu, 14 Mar 2019 02:29:23 -0400 (EDT)
+	id 209268E0003; Thu, 14 Mar 2019 02:33:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9379F8E0001
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 02:29:23 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id y1so5142996pgo.0
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 23:29:23 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B88248E0001
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 02:33:41 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id k6so1962433edq.3
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 23:33:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=QTzmYsYJSsYLbGgfQo9XgVcfbuQfyumfqHV9pmR1hk8=;
-        b=LyIMPyLspubA17se1U5eIvPgmVWtnrc/noF4c+28UtNTnNQnOJoHAlwSo8htKvVF4b
-         Me0goeYwD79yke8c1QfohnECAa0+gF3FK/tk1drR/3Ccw7+7xb0owqDVIZh8umtUMdsH
-         D8e9Ra+JgL4UXRQg8NOt2TWoM7fpGzuXwFe8oKceZBaJ5S07NqorUCQkqnGaHt8Si6vp
-         9jLstFAQFy8fLATegW/O2lY2CyN1in75iHAzNwXPz9T2IhrY3laN3z11VhIKs/gRn7/T
-         k3B1UPUl/74oR63m6x6SH6mCdImcmEtwQHbmFDq4bjRwFhXszaqzZk1NJAr2z4/KLGD7
-         xFgw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.162 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
-X-Gm-Message-State: APjAAAWsy6OnW6HTligQuUod2/vumV30ec85jMJk5boKrKaxyCqcOR/E
-	TXawB4vu43JMcihp0/DoPb3KIzsXhISpg1zzfCNxvKKsfBRS8B3WozTQFAPsoJdgXMngWxhBm45
-	kUV3hnTp2+8cXqzTS6y8IzrR5O7U0JpEFNOMFEVlgfnpQBkRKi3HWHGxK0kMFKj15Lg==
-X-Received: by 2002:a63:d256:: with SMTP id t22mr8771686pgi.108.1552544963176;
-        Wed, 13 Mar 2019 23:29:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxZeglxrKsXcUzPW+S/2LdMFl1a0HNBf0W27YHvtYSbwvrj8q4S5SQJwLM0Ek4kaibjrvSc
-X-Received: by 2002:a63:d256:: with SMTP id t22mr8771642pgi.108.1552544962234;
-        Wed, 13 Mar 2019 23:29:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552544962; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Qe9VFjC4IRHNa/xDlUnLdZ94eHMt/k16Oh+sKcVA+KI=;
+        b=Pn1HimrlVaMo+zqCpBMRmhbaTrieYTkFjgColXC4rcX+4MkqvgllDC9XMdi0xv2Jc6
+         GUfWeWC5NCzlRuIiiWjXwXOVdS+tNXzGBlQXDaEvCxg8ytz6ziD6jsoyYuzGFHzzDfzC
+         +TCuYKBlu/cnad7S9ESSyjkexjUpnQs9YOq8PLKKjCEqlRl5UdB3tCgm0YJ32GJ9WN5b
+         NTv6IPaIF9ID0ygDCZkJ/jVkf3q7WgNl0nHXd1Oom5a/7vkuTDNuHpiKSUZreRlM29VE
+         zjG7rz3uA60P6k1nG72alljPwjhqlANzBh0TRRantx3FVqWePMYVlcSH5o+890LtO2zP
+         vuig==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAX2mXFk+1qOqTY+nd7do2ZT8EnEAL0vIHhk22nT34XDpPcbsjpA
+	ur5hMGpeUMr++6BBLt4ckFwUiQhJIluO4mlo/s1M77X7nIVFoT2AvlVA6WfAAO6bsAB9AV1PdMz
+	uTllkNdqtRLHMdzvVzy0Dvzk1h1EaPxEER4wD0lIg1vxrfmSKbs8DXebNCT7IAkk=
+X-Received: by 2002:a50:d94f:: with SMTP id u15mr9884265edj.256.1552545221266;
+        Wed, 13 Mar 2019 23:33:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwWClvbeb78sTdyLiSUxrBMJW2kd/eIwyatwmh85M852/FOnYe1+nZsNagzxLNBl2XgM88c
+X-Received: by 2002:a50:d94f:: with SMTP id u15mr9884226edj.256.1552545220422;
+        Wed, 13 Mar 2019 23:33:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552545220; cv=none;
         d=google.com; s=arc-20160816;
-        b=ylLazJE/PEFbP+dRmDrb1MQItJqncCJFNe1lHg5iMjqEsS1wf5S0FwWjYy278d2IiI
-         Otm5HeJxzhiN6oPrJXZfVAu2/Wq7+mzlCKTUrMEncizbqjp2TtazPPspbn9BNh/9MPXR
-         jyDhAMSReBn35O3Y9kopGPipIrH9nSAJF7MCQdIBa2alqU+q2c4tCe7hcnfxUtavAY6q
-         PPwvcmt5uWStmcUSYRWlFU/dG8E7lzsInVLUhEc3jaV+3nq1x5eINkAMYfAUgdmYr7uT
-         ZZ8W5+MSkdwbeRjlgY6SbRfd4hVye01B207MG6fhW7NLVuDmmuX7+wwuCY75ROE/ulwe
-         xteQ==
+        b=h9e9w++LpFlQmQZIwb5oPjfmI7IZnuVbHNkdX6EZnMklkQLA+htRwiO60AqGhtCBCB
+         iOJrh+So7yiLQEG2M0zGPo0q2o1x27zD3fR1F5Tmhqlxfq8RdUOa82p4wws2KL4a/zPy
+         uhB2otxdyLy86f5MJd9EgDVvd1PkF/VTLo95Cb5NAm07ugApf4YrTTzwVv6tymf1fnTY
+         29pDC83K6AeIaGoL0LwUCjmNsAgF32Zo+FDICbAm6H3b0AGlp8Cat26sga45Xfkxq3oZ
+         Kd7LdAxncVEbEfrGgzR8UmRgA2GQOblpWDo3E6DHHYXGWYZMhAoL/SmNyeai9QITpxnQ
+         qp4w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from;
-        bh=QTzmYsYJSsYLbGgfQo9XgVcfbuQfyumfqHV9pmR1hk8=;
-        b=nCX1kyz0lx0Y1QhIE90qw0iowPIRQxFOeNoqbeggwbQNIGk5SxP2NEVMNdA48xRfkW
-         WaLizdFs1OgRNuFK3uUvkdh70D7Y+8YIQPXDMnPO4/snPu67FCMOxZFUiYeT+4jI0Adz
-         tPpXuPrwcN+eMDqPrSGc9snoKBdIW1whu27k/aJbAEihcOpam5Nr9UAzrwGwqvqOf9QU
-         Uex+FJbuXhITN1F0kbYJ7yrWNEJAxrrziMqkfPhNzgDnU+NPQb9l9C08qcqQ24dzvige
-         +ZEQ+7xR7EFMUASmKkHl7yC3rSezBaaAzTGPyDON0xYP7Ubkz5s+TzM72yshynXuserf
-         NCkQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=Qe9VFjC4IRHNa/xDlUnLdZ94eHMt/k16Oh+sKcVA+KI=;
+        b=ZOtH2lWljfHohfrs5OB9xgOVk3+kjZeTpD4DSDg4CsjaozIp6Wd9NVxshoNDm9YbSO
+         awNvfWZqr8xLZgGdPXjXr4T+cJpEKQ9Fdr6oImjl21BfK5PG8IqmdgRlDlgJ94OXcw6J
+         sjGNs2eGwHLblb0tOntuk0AJXIF5jGph5doThJatBR/pmlWTd5EBXGO0lIQ7lwmvvW0c
+         BrmpskR7bl8uZh+THjb7Tz1r51rKWShR0UzqPA4no8Y2RkxdGbYaXd++ZFIrxwpcRMPc
+         UYtH894VyR99/PwOjr6W397QgbKvXfYEm9s8NuPMWetTXd5OJcYNxNzclOSMycc3JjJA
+         TPXA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.162 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
-Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
-        by mx.google.com with ESMTPS id j13si12639893pgb.37.2019.03.13.23.29.21
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t15si346788edc.157.2019.03.13.23.33.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Mar 2019 23:29:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.162 as permitted sender) client-ip=114.179.232.162;
+        Wed, 13 Mar 2019 23:33:40 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.162 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
-Received: from mailgate01.nec.co.jp ([114.179.233.122])
-	by tyo162.gate.nec.co.jp (8.15.1/8.15.1) with ESMTPS id x2E6T99R025732
-	(version=TLSv1.2 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
-	Thu, 14 Mar 2019 15:29:09 +0900
-Received: from mailsv02.nec.co.jp (mailgate-v.nec.co.jp [10.204.236.94])
-	by mailgate01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x2E6T9W4029992;
-	Thu, 14 Mar 2019 15:29:09 +0900
-Received: from mail02.kamome.nec.co.jp (mail02.kamome.nec.co.jp [10.25.43.5])
-	by mailsv02.nec.co.jp (8.15.1/8.15.1) with ESMTP id x2E6SqEo006613;
-	Thu, 14 Mar 2019 15:29:09 +0900
-Received: from bpxc99gp.gisp.nec.co.jp ([10.38.151.150] [10.38.151.150]) by mail03.kamome.nec.co.jp with ESMTP id BT-MMP-3338476; Thu, 14 Mar 2019 15:27:57 +0900
-Received: from BPXM23GP.gisp.nec.co.jp ([10.38.151.215]) by
- BPXC22GP.gisp.nec.co.jp ([10.38.151.150]) with mapi id 14.03.0319.002; Thu,
- 14 Mar 2019 15:27:56 +0900
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-To: zhong jiang <zhongjiang@huawei.com>
-CC: Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@kernel.org>,
-        Vlastimil Babka <vbabka@suse.cz>,
-        "linux-arm-kernel@lists.infradead.org"
- <linux-arm-kernel@lists.infradead.org>,
-        Linux Memory Management List <linux-mm@kvack.org>,
-        LKML <linux-kernel@vger.kernel.org>
-Subject: Re: [Qestion] Hit a WARN_ON_ONCE in try_to_unmap_one when runing
- syzkaller
-Thread-Topic: [Qestion] Hit a WARN_ON_ONCE in try_to_unmap_one when runing
- syzkaller
-Thread-Index: AQHU2O0je1X84FRQ5UO03r19PzuDFKYKFWaA
-Date: Thu, 14 Mar 2019 06:27:55 +0000
-Message-ID: <20190314062757.GA27899@hori.linux.bs1.fc.nec.co.jp>
-References: <5C87D848.7030802@huawei.com>
-In-Reply-To: <5C87D848.7030802@huawei.com>
-Accept-Language: en-US, ja-JP
-Content-Language: ja-JP
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-originating-ip: [10.34.125.96]
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <4B7AEFEF8D2342479BEA063B334FC83A@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id E335BAD84;
+	Thu, 14 Mar 2019 06:33:39 +0000 (UTC)
+Date: Thu, 14 Mar 2019 07:33:38 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Qian Cai <cai@lca.pw>
+Cc: akpm@linux-foundation.org, osalvador@suse.de, anshuman.khandual@arm.com,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm/hotplug: fix notification in offline error path
+Message-ID: <20190314063338.GB7473@dhcp22.suse.cz>
+References: <20190313210939.49628-1-cai@lca.pw>
 MIME-Version: 1.0
-X-TM-AS-MML: disable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190313210939.49628-1-cai@lca.pw>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed 13-03-19 17:09:39, Qian Cai wrote:
+> When start_isolate_page_range() returned -EBUSY in __offline_pages(), it
+> calls memory_notify(MEM_CANCEL_OFFLINE, &arg) with an uninitialized
+> "arg". As the result, it triggers warnings below. Also, it is only
+> necessary to notify MEM_CANCEL_OFFLINE after MEM_GOING_OFFLINE.
+> 
+> page:ffffea0001200000 count:1 mapcount:0 mapping:0000000000000000
+> index:0x0
+> flags: 0x3fffe000001000(reserved)
+> raw: 003fffe000001000 ffffea0001200008 ffffea0001200008 0000000000000000
+> raw: 0000000000000000 0000000000000000 00000001ffffffff 0000000000000000
+> page dumped because: unmovable page
+> WARNING: CPU: 25 PID: 1665 at mm/kasan/common.c:665
+> kasan_mem_notifier+0x34/0x23b
+> CPU: 25 PID: 1665 Comm: bash Tainted: G        W         5.0.0+ #94
+> Hardware name: HP ProLiant DL180 Gen9/ProLiant DL180 Gen9, BIOS U20
+> 10/25/2017
+> RIP: 0010:kasan_mem_notifier+0x34/0x23b
+> RSP: 0018:ffff8883ec737890 EFLAGS: 00010206
+> RAX: 0000000000000246 RBX: ff10f0f4435f1000 RCX: f887a7a21af88000
+> RDX: dffffc0000000000 RSI: 0000000000000020 RDI: ffff8881f221af88
+> RBP: ffff8883ec737898 R08: ffff888000000000 R09: ffffffffb0bddcd0
+> R10: ffffed103e857088 R11: ffff8881f42b8443 R12: dffffc0000000000
+> R13: 00000000fffffff9 R14: dffffc0000000000 R15: 0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 0000560fbd31d730 CR3: 00000004049c6003 CR4: 00000000001606a0
+> Call Trace:
+>  notifier_call_chain+0xbf/0x130
+>  __blocking_notifier_call_chain+0x76/0xc0
+>  blocking_notifier_call_chain+0x16/0x20
+>  memory_notify+0x1b/0x20
+>  __offline_pages+0x3e2/0x1210
+>  offline_pages+0x11/0x20
+>  memory_block_action+0x144/0x300
+>  memory_subsys_offline+0xe5/0x170
+>  device_offline+0x13f/0x1e0
+>  state_store+0xeb/0x110
+>  dev_attr_store+0x3f/0x70
+>  sysfs_kf_write+0x104/0x150
+>  kernfs_fop_write+0x25c/0x410
+>  __vfs_write+0x66/0x120
+>  vfs_write+0x15a/0x4f0
+>  ksys_write+0xd2/0x1b0
+>  __x64_sys_write+0x73/0xb0
+>  do_syscall_64+0xeb/0xb78
+>  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+> RIP: 0033:0x7f14f75cc3b8
+> RSP: 002b:00007ffe84d01d68 EFLAGS: 00000246 ORIG_RAX: 0000000000000001
+> RAX: ffffffffffffffda RBX: 0000000000000008 RCX: 00007f14f75cc3b8
+> RDX: 0000000000000008 RSI: 0000563f8e433d70 RDI: 0000000000000001
+> RBP: 0000563f8e433d70 R08: 000000000000000a R09: 00007ffe84d018f0
+> R10: 000000000000000a R11: 0000000000000246 R12: 00007f14f789e780
+> R13: 0000000000000008 R14: 00007f14f7899740 R15: 0000000000000008
+> 
+> Fixes: 7960509329c2 ("mm, memory_hotplug: print reason for the offlining failure")
 
-On Wed, Mar 13, 2019 at 12:03:20AM +0800, zhong jiang wrote:
-...
->=20
-> Minchan has changed the conditon check from  BUG_ON  to WARN_ON_ONCE in t=
-ry_to_unmap_one.
-> However,  It is still an abnormal condition when PageSwapBacked is not eq=
-ual to PageSwapCache.
->=20
-> But Is there any case it will meet the conditon in the mainline.
->=20
-> It is assumed that PageSwapBacked(page) is true in the anonymous page,   =
-This is to say,  PageSwapcache
-> is false. however,  That is impossible because we will update the pte for=
- hwpoison entry.
->=20
-> Because page is locked ,  Its page flags should not be changed except for=
- PageSwapBacked
+Cc: stable # 5.0
 
-try_to_unmap_one() from hwpoison_user_mappings() could reach the
-WARN_ON_ONCE() only if TTU_IGNORE_HWPOISON is set, because PageHWPoison()
-is set at the beginning of memory_failure().
+> Signed-off-by: Qian Cai <cai@lca.pw>
 
-Clearing TTU_IGNORE_HWPOISON might happen on the following two paths:
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-  static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
-                                    int flags, struct page **hpagep)
-  {
-      ...
- =20
-      if (PageSwapCache(p)) {
-              pr_err("Memory failure: %#lx: keeping poisoned page in swap c=
-ache\n",
-                      pfn);
-              ttu |=3D TTU_IGNORE_HWPOISON;
-      }
-      ...
+Thanks!
 
-      mapping =3D page_mapping(hpage);                                     =
-                                     =20
-      if (!(flags & MF_MUST_KILL) && !PageDirty(hpage) && mapping &&       =
-                                   =20
-          mapping_cap_writeback_dirty(mapping)) {                          =
-                                   =20
-              if (page_mkclean(hpage)) {                                   =
-                                   =20
-                      SetPageDirty(hpage);                                 =
-                                   =20
-              } else {                                                     =
-                                   =20
-                      kill =3D 0;                                          =
-                                     =20
-                      ttu |=3D TTU_IGNORE_HWPOISON;                        =
-                                     =20
-                      pr_info("Memory failure: %#lx: corrupted page was cle=
-an: dropped without side effects\n",
-                              pfn);                                        =
-                                   =20
-              }                                                            =
-                                   =20
-      }                                                                    =
-                                   =20
-      ...
+> ---
+>  mm/memory_hotplug.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 8ffe844766da..1559c1605072 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1703,12 +1703,12 @@ static int __ref __offline_pages(unsigned long start_pfn,
+>  
+>  failed_removal_isolated:
+>  	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
+> +	memory_notify(MEM_CANCEL_OFFLINE, &arg);
+>  failed_removal:
+>  	pr_debug("memory offlining [mem %#010llx-%#010llx] failed due to %s\n",
+>  		 (unsigned long long) start_pfn << PAGE_SHIFT,
+>  		 ((unsigned long long) end_pfn << PAGE_SHIFT) - 1,
+>  		 reason);
+> -	memory_notify(MEM_CANCEL_OFFLINE, &arg);
+>  	/* pushback to free area */
+>  	mem_hotplug_done();
+>  	return ret;
+> -- 
+> 2.17.2 (Apple Git-113)
 
-      unmap_success =3D try_to_unmap(hpage, ttu);
-      ...
-
-So either of the above "ttu |=3D TTU_IGNORE_HWPOISON" should be executed.
-I'm not sure which one, but both paths show printk messages, so if you
-could have kernel message log, that might help ...
-
-Thanks,
-Naoya Horiguchi=
+-- 
+Michal Hocko
+SUSE Labs
 
