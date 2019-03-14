@@ -2,163 +2,325 @@ Return-Path: <SRS0=RO59=RR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DBB86C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 13:56:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 733AAC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 14:07:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 963682184C
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 13:56:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 963682184C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
+	by mail.kernel.org (Postfix) with ESMTP id ECCD92070D
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 14:07:16 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="kcH9UPV3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ECCD92070D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 306C48E0003; Thu, 14 Mar 2019 09:56:01 -0400 (EDT)
+	id 4D1508E0003; Thu, 14 Mar 2019 10:07:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2B54A8E0001; Thu, 14 Mar 2019 09:56:01 -0400 (EDT)
+	id 457608E0001; Thu, 14 Mar 2019 10:07:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1A55D8E0003; Thu, 14 Mar 2019 09:56:01 -0400 (EDT)
+	id 2F9488E0003; Thu, 14 Mar 2019 10:07:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E8AE18E0001
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 09:56:00 -0400 (EDT)
-Received: by mail-it1-f200.google.com with SMTP id 190so4656932itv.3
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 06:56:00 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BFFB8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 10:07:16 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id 77so2925789qkd.9
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 07:07:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=BRj+g5un19Xq209f35ZfyID+NwddZdoqJTeWHtbHKk8=;
-        b=hAXfU1T2Wz4zY4psOulOFaxGSRWy+44HC7qb+WNkR1boXGP+66w8YIZLqU7gzKHSW4
-         VZnT+i7rAJpJX0QvaKN8PqecVBEbYpRBtHk5bc0JgcYcHHPe4/RIDlbjn22fMPGxxG+l
-         qSAhiaZdacg0PEgos7Z3XSN1GUHB+pK52uIZceZDNp2p5PMYlfqx8mXkDrUF4EY/g0nf
-         B8vTwebKFOugMKUwxShAlqF0dkrhPCFIRsq5yM5bCrdC9KxoY2rtQOBKDFI1knD04V7U
-         YQnsQjvCgEFmT1pNLrcFYm8F/1DoZd/2CxMeE7S05uor5RPZS6en6JR5sjzQrNhqL8Mp
-         AMyA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-X-Gm-Message-State: APjAAAV270KKLaQuK8URj6jiPEb6DRpX3f4u52y+Ub1+2N8UR5pQI9XQ
-	aMeSG9NgkdinVJPuXqK/sZ7uYd3e0iiC4NF3FsbPZWZBqnfYFG9es9G2oYZfr8U8widvMfZZgPk
-	MPi71v/3pXxd3KI9/kPYEKGNv3IufTkBqg2D7aroXOvOH89OtiKl0eIPo9aA66LI1GQ==
-X-Received: by 2002:a24:360d:: with SMTP id l13mr1951169itl.83.1552571760716;
-        Thu, 14 Mar 2019 06:56:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxq6VNSqx1CV56Il+Xk+NlWULD6FhtBnDWGPFHV2KV6v/B1ozU0RHYcz3BtiTmE58/QyeDU
-X-Received: by 2002:a24:360d:: with SMTP id l13mr1951113itl.83.1552571759596;
-        Thu, 14 Mar 2019 06:55:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552571759; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=5iJnHF8Pb0pzI2sh2ryvQW8OFemSrBwyS9FuB9ORbTA=;
+        b=RKPJZI84Ev/FrR1fk0c5W2ZEXH9Dhe+bZRYlMZQtGfjjb9vT4bhOENe6UYCsx7Ae/a
+         dJ0d5BQxmwAfUT15BIpE9K0UTs6pMMHOppAxhmJ3LvvmCPWv4RYJ7vh5zfx0+5mpPYyA
+         db0Q11mFUW+YOeVQkmdz9gOm2M3gcGAfiFtMI3SH8XJpbzHVKc3pJFtFUfbKlRtMe0N8
+         MAx8zY6NH0UHdaHt5UdxwGPUSwpSqK7GxFxu2VU3/UuNdZDaGGwRKykJqIeB2dCNeeyN
+         pnCuIE5eM00wbXsi77X22i+vhumlf2PprytJWxvT9EWoV7meBV3+D9cVELj3LmnZheA2
+         m0Ug==
+X-Gm-Message-State: APjAAAX62NlD4U3038haWYL2Ww+drLNJN/utqxj66mPqn2txeieesyL7
+	2mOQBI5diwMZ+ogXjS7PKlqtu5b0hyDNp2eXoh6x4q5P6wjgUjK6lJJDjsu35FQ4+KkpL/o+neC
+	0OWa00NODPj0DiyxLjdNGe8T6uHxcviMdaX9AGauo9Mii07P0WDh0cT8iZOWwhU70A12hKOsb+9
+	KazmSRriJILb8EvH2mCPeo6xzZab5k5rE0x/453GYt7dbf1sH0aRYazyXoZs4/X7uSBcvv+IN8t
+	wPpsWLB1In9ZaS22sPawecuZEhwwJHrYUShrvdqqDQY2WBxCyPEUW2R768ybWUrMLfJWMePNQwX
+	nyY9VjfUFB+9OWp+ghYZtS0+OqAvvVa3AneDLEULsXiRSRB94WAMmpHSX+Uzlg3uemevKIjtLKs
+	X
+X-Received: by 2002:a0c:c30e:: with SMTP id f14mr6550526qvi.195.1552572435747;
+        Thu, 14 Mar 2019 07:07:15 -0700 (PDT)
+X-Received: by 2002:a0c:c30e:: with SMTP id f14mr6550425qvi.195.1552572434342;
+        Thu, 14 Mar 2019 07:07:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552572434; cv=none;
         d=google.com; s=arc-20160816;
-        b=l3xHLrQSychTMtSLyS8f5VlesffkezRExmM90eB7qZkZvy/gAfI69hoDkOK3Ucbftk
-         w6T0gmsyXO3ZktZko+RTEIZadi0j83QTVcAIGq9r15EgLa29GQDMPi56D7ox9QZB3abX
-         5M72eS3FTSc5gQ2y2E7wBlwQ8BpGZY91E1iFF7WI00cDLg8oqMY/mfSdJW/66byJT2f1
-         ZYQey68Jz9pENlg1O0RDSFCjOQ4K8yUFboFQ6+jGiucaDtHwxfRSXtY+H1iYTZdqPf0/
-         0wcLkhTxdxVh7FDvMX1hSzFstAqfOC1u4pcw6v6e+6uuiKSF/Zqd+/Ka55mHQ2rL1S1O
-         VoXA==
+        b=Wl6t78P7Qrnpv0XyPKONnf36pm8JSu/3PPajkSTKUdi3PainUxl1LFsVYZvj9zt7Lu
+         6d498cKlAobyRd0LzATx6rHYbL3iks7yTjuIWg5CdXZuCAZurErp4pQWM6tmPzAJ8lF2
+         Sp7mSS1OYQsGLsMHOA3G/R56XcQLqF3shFtmk+x2qNuXfciBya7I3ry1Hn5OHrqP5dmF
+         X/XXkfJcgnSt2SzcfH/K1NBI6hk7JoX/DE6GG0cPDyjWJbCa59q8nlN9d3G0gfGSCd+g
+         bQWVjV2xPtQBNXNz1BVbLVEZqpEMYp60Jd+k2FzHrzZwsIwYBPUIUZbJPNgza7hKLcWM
+         bdZQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=BRj+g5un19Xq209f35ZfyID+NwddZdoqJTeWHtbHKk8=;
-        b=r0o3fDVGW3nLYy8ilmycvo4nNJcVS0t2Ppa1o5raVRjADeKeWpkSrKUJDTDRDBLUec
-         v4hJn7yBTGKfvGWue99BvAr+tsAEJO/KgKYP36YvysojSnrtoFwAMPhq6KxTM0YZtkq1
-         U3ewkR+eR8tZiBWwVxTy/CrEb4qhTkWqPOstFqdupXDdlD8xkC8r58S//tAgMG1UcRom
-         /TG3nUzTuJ1gZWvyOBJehWznGySjln0Q9vmwj4/06lcXZ9RV7CXCfeSQoHNcdsOY+Xuq
-         +5byIofaVJzkO3GzLr/w0VNkh/bnxHabKyN2j0sgh+7n6jq/I4e6ZOEKJiMkIpV7ts5z
-         u7DA==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=5iJnHF8Pb0pzI2sh2ryvQW8OFemSrBwyS9FuB9ORbTA=;
+        b=dEpximRd04kmFirrXfVfmDf/RnBUvyxi9KwBsIRzhENMrmNohIPhNo3aR1JNbg91BF
+         Y9L3R0FkkIJo/MZgddPSqSp2SkbgiEyvp3vf94yKq+YAzRXCFzhCVYWdhyYYT5LDkgcM
+         n09yP9j+tJq0dMkXWiodaUtIkGmgGSt09kuPs6aeAWC07jl+r2fcGDU2J9q0kUbiO4+v
+         e//99NBlomh+psbTb3OqMTUZp85ElGbkWxk85xCS/XVZuHQ5OXOomiNzGgazLfBmpqqb
+         mrvxbdnWoy1IrP2pzfmOK2rTNkXb3/tjQzCPwBg/MgGXY/F7U7SFOwXEugYqeZPcHx6Z
+         sx9Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id j11si6931105ioa.83.2019.03.14.06.55.58
+       dkim=pass header.i=@lca.pw header.s=google header.b=kcH9UPV3;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h11sor9474713qta.48.2019.03.14.07.07.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Mar 2019 06:55:59 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
+        (Google Transport Security);
+        Thu, 14 Mar 2019 07:07:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from fsav107.sakura.ne.jp (fsav107.sakura.ne.jp [27.133.134.234])
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x2EDtdqf062838;
-	Thu, 14 Mar 2019 22:55:39 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Received: from www262.sakura.ne.jp (202.181.97.72)
- by fsav107.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav107.sakura.ne.jp);
- Thu, 14 Mar 2019 22:55:39 +0900 (JST)
-X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav107.sakura.ne.jp)
-Received: from [192.168.1.8] (softbank126126163036.bbtec.net [126.126.163.36])
-	(authenticated bits=0)
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x2EDtYnn062822
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
-	Thu, 14 Mar 2019 22:55:39 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Subject: Re: [PATCH] mm,oom: Teach lockdep about oom_lock.
-To: Michal Hocko <mhocko@kernel.org>, Peter Zijlstra <peterz@infradead.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org
-References: <1552040522-9085-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20190308110325.GF5232@dhcp22.suse.cz>
- <0ada8109-19a7-6d9c-8420-45f32811c6aa@i-love.sakura.ne.jp>
- <20190308115413.GI5232@dhcp22.suse.cz> <20190308115802.GJ5232@dhcp22.suse.cz>
- <20190308150105.GZ32494@hirez.programming.kicks-ass.net>
- <20190308151327.GU5232@dhcp22.suse.cz>
- <dd3c9f12-84e9-7cf8-1d24-02a9cfbcd509@i-love.sakura.ne.jp>
- <20190311103012.GB5232@dhcp22.suse.cz>
- <d9b49a08-5d5a-ec4a-7cb7-c268999a9906@i-love.sakura.ne.jp>
- <20190312153140.GU5721@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <195f38a9-5409-180c-2ccc-807942ab1994@i-love.sakura.ne.jp>
-Date: Thu, 14 Mar 2019 22:55:34 +0900
-User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.3
-MIME-Version: 1.0
-In-Reply-To: <20190312153140.GU5721@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@lca.pw header.s=google header.b=kcH9UPV3;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=from:to:cc:subject:date:message-id;
+        bh=5iJnHF8Pb0pzI2sh2ryvQW8OFemSrBwyS9FuB9ORbTA=;
+        b=kcH9UPV3qou2OsNGhvYwYsqaZdVn8ZaikfS6iaTqLzE0q2hhSoNgjcAjr2KfWgohlD
+         a1WQnLT80jqeV3EAEsvKk7lJTIwHH5GcatsSOLa8zCn5eIIYSp6D/4a6aar8uGg52B64
+         +EDjdlN4mABlJImSorOS7PsU7faoekQuXvuxVjqhm1UDbNOrGgyf1mS46ZqCGDPSVw2M
+         omBvHGtgV1cMlZPqQ0ao/QX1QeZZo4N3b0AHmAPGXeRhlRiXqR9CADxLodahwfWiV3DV
+         7BtaUPZnnJDeT8neEZTp2eRVeIuIJJ96NmAbLq4XPVayngQHwZfaI+at//OAv7PIUUQv
+         6Ktw==
+X-Google-Smtp-Source: APXvYqwY1Ga7bUmn9ECzxYvaz4veSE3FmtrAZb/U7jldjkgjIw0VhM+ZRUdEBMPadnA+jQFidgIjJw==
+X-Received: by 2002:aed:3608:: with SMTP id e8mr39425056qtb.31.1552572433845;
+        Thu, 14 Mar 2019 07:07:13 -0700 (PDT)
+Received: from ovpn-121-103.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id c2sm11636828qtc.41.2019.03.14.07.07.12
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Mar 2019 07:07:13 -0700 (PDT)
+From: Qian Cai <cai@lca.pw>
+To: akpm@linux-foundation.org
+Cc: mhocko@kernel.org,
+	osalvador@suse.de,
+	vbabka@suse.cz,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Qian Cai <cai@lca.pw>
+Subject: [PATCH v3] mm/hotplug: fix offline undo_isolate_page_range()
+Date: Thu, 14 Mar 2019 10:06:54 -0400
+Message-Id: <20190314140654.58883-1-cai@lca.pw>
+X-Mailer: git-send-email 2.17.2 (Apple Git-113)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019/03/13 0:31, Michal Hocko wrote:
->> @@ -1120,8 +1129,25 @@ void pagefault_out_of_memory(void)
->>  	if (mem_cgroup_oom_synchronize(true))
->>  		return;
->>  
->> -	if (!mutex_trylock(&oom_lock))
->> +	if (!mutex_trylock(&oom_lock)) {
->> +		/*
->> +		 * This corresponds to prepare_alloc_pages(). Lockdep will
->> +		 * complain if e.g. OOM notifier for global OOM by error
->> +		 * triggered pagefault OOM path.
->> +		 */
->> +		oom_reclaim_acquire(GFP_KERNEL);
->> +		oom_reclaim_release(GFP_KERNEL);
->>  		return;
->> +	}
->> +	/*
->> +	 * Teach lockdep to consider that current thread is not allowed to
->> +	 * involve (even indirectly via dependency) __GFP_DIRECT_RECLAIM &&
->> +	 * !__GFP_NORETRY allocation from this function, for such allocation
->> +	 * will have to wait for completion of this function when
->> +	 * __alloc_pages_may_oom() is called.
->> +	 */
->> +	oom_reclaim_release(GFP_KERNEL);
->> +	oom_reclaim_acquire(GFP_KERNEL);
-> 
-> This part is not really clear to me. Why do you release&acquire when
-> mutex_trylock just acquire the lock? If this is really needed then this
-> should be put into the comment.
+The commit f1dd2cd13c4b ("mm, memory_hotplug: do not associate hotadded
+memory to zones until online") introduced move_pfn_range_to_zone() which
+calls memmap_init_zone() during onlining a memory block.
+memmap_init_zone() will reset pagetype flags and makes migrate type to
+be MOVABLE.
 
-I think there is a reason lockdep needs to distinguish trylock and lock.
-I don't know how lockdep utilizes "trylock or lock" information upon validation, but
-explicitly telling lockdep that "oom_lock acts as if held by lock" should not harm.
+However, in __offline_pages(), it also call undo_isolate_page_range()
+after offline_isolated_pages() to do the same thing. Due to
+the commit 2ce13640b3f4 ("mm: __first_valid_page skip over offline
+pages") changed __first_valid_page() to skip offline pages,
+undo_isolate_page_range() here just waste CPU cycles looping around the
+offlining PFN range while doing nothing, because __first_valid_page()
+will return NULL as offline_isolated_pages() has already marked all
+memory sections within the pfn range as offline via
+offline_mem_sections().
 
-#define mutex_acquire(l, s, t, i)               lock_acquire_exclusive(l, s, t, NULL, i)
-#define lock_acquire_exclusive(l, s, t, n, i)           lock_acquire(l, s, t, 0, 1, n, i)
-void lock_acquire(struct lockdep_map *lock, unsigned int subclass, int trylock, int read, int check, struct lockdep_map *nest_lock, unsigned long ip);
+Also, after calling the "useless" undo_isolate_page_range() here, it
+reaches the point of no returning by notifying MEM_OFFLINE. Those pages
+will be marked as MIGRATE_MOVABLE again once onlining. The only thing
+left to do is to decrease the number of isolated pageblocks zone
+counter which would make some paths of the page allocation slower that
+the above commit introduced.
 
-> 
->>  	out_of_memory(&oc);
->>  	mutex_unlock(&oom_lock);
->>  }
-> 
+Even if alloc_contig_range() can be used to isolate 16GB-hugetlb pages
+on ppc64, an "int" should still be enough to represent the number of
+pageblocks there. Fix an incorrect comment along the way.
+
+Fixes: 2ce13640b3f4 ("mm: __first_valid_page skip over offline pages")
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
+
+v3: Reconstruct the kernel-doc comments.
+    Use a more meaningful variable name per Oscar.
+    Update the commit log a bit.
+v2: Return the nubmer of isolated pageblocks in start_isolate_page_range() per
+    Oscar; take the zone lock when undoing zone->nr_isolate_pageblock per
+    Michal.
+
+ include/linux/page-isolation.h |  4 ----
+ mm/memory_hotplug.c            | 17 +++++++++++++----
+ mm/page_alloc.c                |  2 +-
+ mm/page_isolation.c            | 35 +++++++++++++++++++++-------------
+ mm/sparse.c                    |  2 +-
+ 5 files changed, 37 insertions(+), 23 deletions(-)
+
+diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
+index 4eb26d278046..5b24d56b2296 100644
+--- a/include/linux/page-isolation.h
++++ b/include/linux/page-isolation.h
+@@ -47,10 +47,6 @@ int move_freepages_block(struct zone *zone, struct page *page,
+  * For isolating all pages in the range finally, the caller have to
+  * free all pages in the range. test_page_isolated() can be used for
+  * test it.
+- *
+- * The following flags are allowed (they can be combined in a bit mask)
+- * SKIP_HWPOISON - ignore hwpoison pages
+- * REPORT_FAILURE - report details about the failure to isolate the range
+  */
+ int
+ start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index d63c5a2959cf..cd1a8c4c6183 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1580,7 +1580,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
+ {
+ 	unsigned long pfn, nr_pages;
+ 	long offlined_pages;
+-	int ret, node;
++	int ret, node, nr_isolate_pageblock;
+ 	unsigned long flags;
+ 	unsigned long valid_start, valid_end;
+ 	struct zone *zone;
+@@ -1606,10 +1606,11 @@ static int __ref __offline_pages(unsigned long start_pfn,
+ 	ret = start_isolate_page_range(start_pfn, end_pfn,
+ 				       MIGRATE_MOVABLE,
+ 				       SKIP_HWPOISON | REPORT_FAILURE);
+-	if (ret) {
++	if (ret < 0) {
+ 		reason = "failure to isolate range";
+ 		goto failed_removal;
+ 	}
++	nr_isolate_pageblock = ret;
+ 
+ 	arg.start_pfn = start_pfn;
+ 	arg.nr_pages = nr_pages;
+@@ -1661,8 +1662,16 @@ static int __ref __offline_pages(unsigned long start_pfn,
+ 	/* Ok, all of our target is isolated.
+ 	   We cannot do rollback at this point. */
+ 	offline_isolated_pages(start_pfn, end_pfn);
+-	/* reset pagetype flags and makes migrate type to be MOVABLE */
+-	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
++
++	/*
++	 * Onlining will reset pagetype flags and makes migrate type
++	 * MOVABLE, so just need to decrease the number of isolated
++	 * pageblocks zone counter here.
++	 */
++	spin_lock_irqsave(&zone->lock, flags);
++	zone->nr_isolate_pageblock -= nr_isolate_pageblock;
++	spin_unlock_irqrestore(&zone->lock, flags);
++
+ 	/* removal success */
+ 	adjust_managed_page_count(pfn_to_page(start_pfn), -offlined_pages);
+ 	zone->present_pages -= offlined_pages;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 03fcf73d47da..d96ca5bc555b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -8233,7 +8233,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+ 
+ 	ret = start_isolate_page_range(pfn_max_align_down(start),
+ 				       pfn_max_align_up(end), migratetype, 0);
+-	if (ret)
++	if (ret < 0)
+ 		return ret;
+ 
+ 	/*
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index e8baab91b1d1..dd7c002cd5ae 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -162,19 +162,22 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
+ }
+ 
+ /*
+- * start_isolate_page_range() -- make page-allocation-type of range of pages
+- * to be MIGRATE_ISOLATE.
+- * @start_pfn: The lower PFN of the range to be isolated.
+- * @end_pfn: The upper PFN of the range to be isolated.
+- * @migratetype: migrate type to set in error recovery.
++ * start_isolate_page_range() - make page-allocation-type of range of pages to
++ * be MIGRATE_ISOLATE.
++ * @start_pfn:		The lower PFN of the range to be isolated.
++ * @end_pfn:		The upper PFN of the range to be isolated.
++ *			start_pfn/end_pfn must be aligned to pageblock_order.
++ * @migratetype:	migrate type to set in error recovery.
++ * @flags:		The following flags are allowed (they can be combined in
++ *			a bit mask)
++ *			SKIP_HWPOISON - ignore hwpoison pages
++ *			REPORT_FAILURE - report details about the failure to
++ *			isolate the range
+  *
+  * Making page-allocation-type to be MIGRATE_ISOLATE means free pages in
+  * the range will never be allocated. Any free pages and pages freed in the
+  * future will not be allocated again.
+  *
+- * start_pfn/end_pfn must be aligned to pageblock_order.
+- * Return 0 on success and -EBUSY if any part of range cannot be isolated.
+- *
+  * There is no high level synchronization mechanism that prevents two threads
+  * from trying to isolate overlapping ranges.  If this happens, one thread
+  * will notice pageblocks in the overlapping range already set to isolate.
+@@ -182,6 +185,9 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
+  * returns an error.  We then clean up by restoring the migration type on
+  * pageblocks we may have modified and return -EBUSY to caller.  This
+  * prevents two threads from simultaneously working on overlapping ranges.
++ *
++ * Return: the number of isolated pageblocks on success and -EBUSY if any part
++ * of range cannot be isolated.
+  */
+ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
+ 			     unsigned migratetype, int flags)
+@@ -189,6 +195,7 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
+ 	unsigned long pfn;
+ 	unsigned long undo_pfn;
+ 	struct page *page;
++	int nr_isolate_pageblock = 0;
+ 
+ 	BUG_ON(!IS_ALIGNED(start_pfn, pageblock_nr_pages));
+ 	BUG_ON(!IS_ALIGNED(end_pfn, pageblock_nr_pages));
+@@ -197,13 +204,15 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
+ 	     pfn < end_pfn;
+ 	     pfn += pageblock_nr_pages) {
+ 		page = __first_valid_page(pfn, pageblock_nr_pages);
+-		if (page &&
+-		    set_migratetype_isolate(page, migratetype, flags)) {
+-			undo_pfn = pfn;
+-			goto undo;
++		if (page) {
++			if (set_migratetype_isolate(page, migratetype, flags)) {
++				undo_pfn = pfn;
++				goto undo;
++			}
++			nr_isolate_pageblock++;
+ 		}
+ 	}
+-	return 0;
++	return nr_isolate_pageblock;
+ undo:
+ 	for (pfn = start_pfn;
+ 	     pfn < undo_pfn;
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 69904aa6165b..56e057c432f9 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -567,7 +567,7 @@ void online_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-/* Mark all memory sections within the pfn range as online */
++/* Mark all memory sections within the pfn range as offline */
+ void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
+ {
+ 	unsigned long pfn;
+-- 
+2.17.2 (Apple Git-113)
 
