@@ -6,92 +6,85 @@ X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A7BB4C10F06
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 14:15:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DB784C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 14:15:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5958121852
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 14:15:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5958121852
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 9AA962184E
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 14:15:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9AA962184E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E3D298E0003; Thu, 14 Mar 2019 10:15:02 -0400 (EDT)
+	id 3B5BB8E0004; Thu, 14 Mar 2019 10:15:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DC48F8E0001; Thu, 14 Mar 2019 10:15:02 -0400 (EDT)
+	id 33CA28E0001; Thu, 14 Mar 2019 10:15:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C419B8E0003; Thu, 14 Mar 2019 10:15:02 -0400 (EDT)
+	id 1DFC78E0004; Thu, 14 Mar 2019 10:15:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DBBF8E0001
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 10:15:02 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id l87so4797735qki.10
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 07:15:02 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B97558E0001
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 10:15:34 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id e46so2483935ede.9
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 07:15:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=1vC8HoJlVyZDAZLP9I99+6VUfshmbbjIDK8nwBClymw=;
-        b=kOGFXy0RO3ajqTHTjW6v79G7G2UZrh6VKCK5K1WTWY81GHyxVpgKqUI5aPDu+mqP2Y
-         NKVvP/cm8W0bNuLO4lX0Qi948GVV8Q8nkekuRUkby8Xm7atxFgIw0KhWRyvcjGcRQK1Z
-         BXmV17tHEV3l1ZBn+Kv9RU+XEIBmIA8LV7z1Y/zlZbMshxQESNpOEfJ6c11cZ024sss4
-         gOKZstAZKxaxaLg686SGwoNLpZDujaXu9A1iX+KsoXUIGaU50wnFWg6r+9XRhC/AUqWX
-         qbwIodennk14+6qXwmNQr+ghRhMBKrjFDcvHiyHeaA/HuBeyui5fQTDXEw9gdy2vGXkG
-         Xfcg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXBijErqW7n4xecn6Qhrv4Gjq4ulq1z9Vpb1W+fIeZdNnmLk8Nj
-	kIIxhEP1np+xsmZbbvSpjuZbXAXsizzreXgG/y06X6Rojx1fn2rR5IzJCT14ONQjlSQ0YmuA3d7
-	/oE6hmYXnrStNb1rmKgWQf0k/cnhNroCsC56OIkWn3u/3B/Oat/mqnkujH+9CmV6zJQ==
-X-Received: by 2002:ac8:5543:: with SMTP id o3mr3912444qtr.111.1552572902412;
-        Thu, 14 Mar 2019 07:15:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwPsLxSTQws9oqH8cauReMpn0UpkyOvmsWKKMDwafYpWZI1r7dCFO+JgIF/Mtrm+uZHBdCg
-X-Received: by 2002:ac8:5543:: with SMTP id o3mr3912393qtr.111.1552572901680;
-        Thu, 14 Mar 2019 07:15:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552572901; cv=none;
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=kONhBAPY44HqBxJX5W9yE4oQc9yjrV4GJBwWJtM75jA=;
+        b=uP88xcRm6dx58nPmqfxUfnT0jpxA/IzTZgG5PexfIetc7m2KmlTaJI19U/EnCTFGxx
+         jEIvACCaI/JyS3PsfJVmAApSXAHOckm53xBpUi+FPLhlIrj7yZa2HEwyuffmlD7GVO40
+         Uja0lwnhN/5+0mYWE2DtM7tqn7dtQgf3x+6h91X6266VAxCu8hmyWITb/aTeS6lZdKTy
+         sak9H5FEKLefFtMupzmJRIwzZGGrflm6l7Pfvrz9rEg94HiKmQe+o/RlpX+EunFrxstR
+         qp7TmhwSzsrQS3HlazLtnAkQyXVQFuKIRKGEVCHrY6DOSTZlUoWUFAKjUltYhk20nMlL
+         bItw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+X-Gm-Message-State: APjAAAU5IYA/QXeG2xT6eFn6oAJjmnONWLKgr6VuSIkd4qFg38QlJPve
+	FBzs3oATyDFPQ+TpuEZV2AkiCvfNVlW4M6DlSwCMAQjWeRkWXnsOUvrEKSJNhZ4vhonxaT9uzi4
+	q+HXfQJGMwyYPd/EpO8kcjqyk24dlfsmTIof9KrDjptMki2GQJfoFohx+uWcbTF8bDg==
+X-Received: by 2002:a50:bd8b:: with SMTP id y11mr11996378edh.26.1552572934330;
+        Thu, 14 Mar 2019 07:15:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzVnNRQbUsnYSr0aShfBAU3EcsHwTjLNCHK+IM7n0Kr3rKzfZy3+1Oj3lrLgHJIFIPI/4M1
+X-Received: by 2002:a50:bd8b:: with SMTP id y11mr11996334edh.26.1552572933524;
+        Thu, 14 Mar 2019 07:15:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552572933; cv=none;
         d=google.com; s=arc-20160816;
-        b=q8U8w7d+0SJVNTKojutsG0EsJJBNkNfFTq7kit/eX8qc1++NtsanxHNKYwthj8kiX6
-         WOxqgvC5f92k5t7l8RQrnAcvfJArqBnGMHJCn6aRGIDTQy+mJoD2tLCgCxMxF5uh2Yhz
-         LyKVexd1JETnz1HUaVcGMVU1lo/eqcGyy7Yjvk3K9wVpIPvUmlFizrYkYCNLXJKpH6R2
-         IHFCZsZVPxPA4Pi4HuR6GEsrjJFp4m8NvxQdKW79H7uz4pre+LiqXdJeY47AeRuGQxPE
-         v+rZ8NG4+JtnqGoU1EcJOm49k+cGyRVTViC2Z5tbsamJEpC1F0IsTL3z66EfbripjbEF
-         JlEw==
+        b=CxxSg+oMI5nqhmu8Hzu9xWsb/DcOSXjoM9+5fSQx0Xa25SK+EZrg0pLdbpmoufQRfW
+         NcZqJ7pCePDv+a1rID13ldA/9x0OWqpKMjPM+NNdorUuvPJdcJHm3WhVyRRg8kAwLBgm
+         tEs9QlYH9k8VosAcOtYcavZSthJMcL5Igf2NDqA73pUk6Cc6H59CkQW6jRQzL9s8//tp
+         zfYEoZLvUSJu3drFFPh0na9FcuMCYf+74rwPBgPe3dx/tX4AjNXlTTEyf2+m/RqYEdud
+         zaX5ouV9wUHsT52/XCn5yFbrx04oGJb/8zThowyN3zwt4ouZ9EvCAuWeDhEfKs/NiFqI
+         DaHA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=1vC8HoJlVyZDAZLP9I99+6VUfshmbbjIDK8nwBClymw=;
-        b=gUTgdzBMZFV6kuJz25rBt/hIXwmilcTjsTa0ezGV7dy6AzhxW6dwf1oe0bLTmKEWHn
-         wbxwE4PxX4zjywMQKsYkUpVcUEr0ZSf2igOb5kF03cek5RROSa0igsGl4nfncqD2f8dw
-         HEkqqqRdTlgCsqVorucN/L6qjWw4CbZg0jQH3LgQ1l5af+UXcSOQoW8HKfbJ7yOgONQB
-         G3sSy70Uch5Z5FvKayxE7B6eoPeclEScEEWdArQTtPHfJqJjNOF6ckFifjaijCoUTaN1
-         YUIZP6vfw16z1+7QibDfuR+1uIX1aAmyf0a7QBWjZjKw84SbAwye9vvhB74XzHVEh13I
-         KBNA==
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=kONhBAPY44HqBxJX5W9yE4oQc9yjrV4GJBwWJtM75jA=;
+        b=ZfkVd2dxNf/Ye/6mDqsupRtOnHO4DygNrZeulAv+47Up3GmndzGXC3eoy79RXh8ybk
+         tw7UDSjMRS/M2v3ugmj24eqLWK54/79W7CL4lsE+tH6VGPqKNJpZtjtbmS2a1fvgMdCY
+         l5TNISBMf/QMZ5KYi66++9d8ioYT41Gg2G7ztbx8Ke74KBlmhQNd8v2MXhF+fjm/CYUU
+         OCvUm3KkwRQSsewG9nxbem73mGRu9C+nUGvx2XwZO2s6zoD0idfxVnC8JmkyRUlCdkcF
+         iLK7aB4DVd8huGg1vsw446oHfvpkFov+RGPWMmQ4h7EJZhN+0/xJdaCQaRD9TxUpfG5B
+         Wpuw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z11si1116387qkz.141.2019.03.14.07.15.01
+       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f5si1929643edw.438.2019.03.14.07.15.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Mar 2019 07:15:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 14 Mar 2019 07:15:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id ABDBA3003099;
-	Thu, 14 Mar 2019 14:15:00 +0000 (UTC)
-Received: from [10.36.117.188] (ovpn-117-188.ams2.redhat.com [10.36.117.188])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 5BAFF19C65;
-	Thu, 14 Mar 2019 14:14:57 +0000 (UTC)
+       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id B1255AF68;
+	Thu, 14 Mar 2019 14:15:32 +0000 (UTC)
 Subject: Re: [Xen-devel] xen: Can't insert balloon page into VM userspace (WAS
  Re: [linux-linus bisection] complete test-arm64-arm64-xl-xsm)
-To: Julien Grall <julien.grall@arm.com>, Juergen Gross <jgross@suse.com>,
- Boris Ostrovsky <boris.ostrovsky@oracle.com>,
+To: Julien Grall <julien.grall@arm.com>, David Hildenbrand
+ <david@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>,
  Andrew Cooper <andrew.cooper3@citrix.com>,
  Matthew Wilcox <willy@infradead.org>
 Cc: k.khlebnikov@samsung.com, Stefano Stabellini <sstabellini@kernel.org>,
@@ -113,77 +106,63 @@ References: <E1h3Uiq-0002L6-Ij@osstest.test-lab.xenproject.org>
  <6f8aca6c-355b-7862-75aa-68fe566f76fb@redhat.com>
  <ec71c03e-987d-2b73-9fe6-2604a3c32017@suse.com>
  <cb525882-b52f-c142-8a6a-e5cb491e05d0@arm.com>
-From: David Hildenbrand <david@redhat.com>
+From: Juergen Gross <jgross@suse.com>
 Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <f02aa953-d5d1-4e78-160f-9bca1516379f@redhat.com>
-Date: Thu, 14 Mar 2019 15:14:56 +0100
+Autocrypt: addr=jgross@suse.com; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <d3e87824-b3a2-ed8a-d2ca-1a9fd439a204@suse.com>
+Date: Thu, 14 Mar 2019 15:15:31 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+ Thunderbird/60.5.1
 MIME-Version: 1.0
 In-Reply-To: <cb525882-b52f-c142-8a6a-e5cb491e05d0@arm.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Thu, 14 Mar 2019 14:15:00 +0000 (UTC)
+Content-Language: de-DE
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 14.03.19 15:12, Julien Grall wrote:
+On 14/03/2019 15:12, Julien Grall wrote:
 > Hi,
 > 
 > On 3/14/19 8:37 AM, Juergen Gross wrote:
 >> On 12/03/2019 20:46, David Hildenbrand wrote:
 >>> On 12.03.19 19:23, David Hildenbrand wrote:
 >>>
->>> I guess something like this could do the trick if I understood it correctly:
+>>> I guess something like this could do the trick if I understood it
+>>> correctly:
 >>>
 >>> diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
 >>> index 39b229f9e256..d37dd5bb7a8f 100644
@@ -191,26 +170,26 @@ On 14.03.19 15:12, Julien Grall wrote:
 >>> +++ b/drivers/xen/balloon.c
 >>> @@ -604,6 +604,7 @@ int alloc_xenballooned_pages(int nr_pages, struct
 >>> page **pages)
->>>          while (pgno < nr_pages) {
->>>                  page = balloon_retrieve(true);
->>>                  if (page) {
->>> +                       __ClearPageOffline(page);
->>>                          pages[pgno++] = page;
->>>   #ifdef CONFIG_XEN_HAVE_PVMMU
->>>                          /*
+>>>          while (pgno < nr_pages) {
+>>>                  page = balloon_retrieve(true);
+>>>                  if (page) {
+>>> +                       __ClearPageOffline(page);
+>>>                          pages[pgno++] = page;
+>>>   #ifdef CONFIG_XEN_HAVE_PVMMU
+>>>                          /*
 >>> @@ -645,8 +646,10 @@ void free_xenballooned_pages(int nr_pages, struct
 >>> page **pages)
->>>          mutex_lock(&balloon_mutex);
+>>>          mutex_lock(&balloon_mutex);
 >>>
->>>          for (i = 0; i < nr_pages; i++) {
->>> -               if (pages[i])
->>> +               if (pages[i]) {
->>> +                       __SetPageOffline(pages[i]);
->>>                          balloon_append(pages[i]);
->>> +               }
->>>          }
+>>>          for (i = 0; i < nr_pages; i++) {
+>>> -               if (pages[i])
+>>> +               if (pages[i]) {
+>>> +                       __SetPageOffline(pages[i]);
+>>>                          balloon_append(pages[i]);
+>>> +               }
+>>>          }
 >>>
->>>          balloon_stats.target_unpopulated -= nr_pages;
+>>>          balloon_stats.target_unpopulated -= nr_pages;
 >>>
 >>>
 >>> At least this way, the pages allocated (and thus eventually mapped to
@@ -223,21 +202,11 @@ On 14.03.19 15:12, Julien Grall wrote:
 >> plenty of unpopulated pages for grant memory not suffering from
 >> missing "offline" bit.
 > 
-> Sure. I managed to get the console working with the patch suggested by 
+> Sure. I managed to get the console working with the patch suggested by
 > David. Feel free to add my tested-by if when you resend it as is.
-> 
 
-Thanks, I will send as proper patch later!
-
-Cheers!
-
-> Cheers,
-> 
+David, could you please send a proper patch with your Sob?
 
 
--- 
-
-Thanks,
-
-David / dhildenb
+Juergen
 
