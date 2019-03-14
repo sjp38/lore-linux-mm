@@ -2,897 +2,176 @@ Return-Path: <SRS0=RO59=RR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 94F2AC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 16:14:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6CE85C4360F
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 16:16:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 361D72184E
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 16:14:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 361D72184E
+	by mail.kernel.org (Postfix) with ESMTP id 2AAC42184C
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 16:16:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2AAC42184C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C4D558E0004; Thu, 14 Mar 2019 12:14:04 -0400 (EDT)
+	id B89598E0004; Thu, 14 Mar 2019 12:16:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BFC7E8E0001; Thu, 14 Mar 2019 12:14:04 -0400 (EDT)
+	id B10D48E0001; Thu, 14 Mar 2019 12:16:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AC5568E0004; Thu, 14 Mar 2019 12:14:04 -0400 (EDT)
+	id 9D8F98E0004; Thu, 14 Mar 2019 12:16:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 865548E0001
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 12:14:04 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id l87so5145089qki.10
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 09:14:04 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7ABD58E0001
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 12:16:40 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id x18so5128996qkf.8
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 09:16:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:organization
-         :subject:from:to:cc:date:message-id:in-reply-to:references
-         :user-agent:mime-version:content-transfer-encoding;
-        bh=XLsSteebUz7thY2JUbvIHpt8F3bEVVUZ35+6o/Ku/Nk=;
-        b=kS35LXIogkKijnQlm4HS70UUVpxzM1jPB2PRDNGMRD56U2+IgcWEKip6/GWUWmCkfu
-         LlFvv7jpVoWe061iuBA8TOh05+Aw9Vvqe9XnHmeVaFHNPnjVJaFAwgfYvQiV+dFGEA4d
-         ktuOst1HVEnYyWHdy8T4AhUiFBPMHqp/vNj8L3qroATUnQwv4DyNSlZHIVxmYVv5amVn
-         GuCsLeN8/2+7ULyzqA0zJgb/efX39M6hAZhHbBg6hn/xIdCNAId8QG6YKtfc2nl1S5xH
-         sWmJwnxQzfWffAWovXIyBNJ/9OXtXsZPL5YLZxn7S6IJpS3YnzaOyaJW6eZvW24tAMK0
-         0gMw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dhowells@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXaQtX+PjbWNdpFMgNxIG/67cZEAaoirPrjsIOIdUSuwctkhE1r
-	1rFyoG5r+5WCfb0KJvd3ywtqFyWYMJ8tle+ubJRP4MOSrClNh0G7AYt7OZWs7Cj5ZpVSxcZTEUi
-	sK1d02HSWmqCjqIGCizht5vDFMwOjpMUGmRkh7v90CflcOIRXTtE7UVsCG3VZYc16Xg==
-X-Received: by 2002:a0c:9e2d:: with SMTP id p45mr39220642qve.28.1552580044089;
-        Thu, 14 Mar 2019 09:14:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxVubDDeww3GNegpSt0MaaBHO8dcDLgQ+ahRxniTh9s0dXCeLd0sXJ0TvuFIMPuDY+359zd
-X-Received: by 2002:a0c:9e2d:: with SMTP id p45mr39220539qve.28.1552580042310;
-        Thu, 14 Mar 2019 09:14:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552580042; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=krRP3KY1fGKj7cf+zc7TftkVbuz3X/Fy/C3+kHv3U/A=;
+        b=CFtBvOO+y4BJ4oX7Gd55dzYC+b0CnmzSv1LVeLCAm1MJdl42Zw+3YqkawzhF2NIA4Y
+         RQvJoDigqMtwK0D8hwjHGtv4SRgbVmrBvsJy9I2Q9w9fIVN2WelUVRzpG76u5s3PHM4Z
+         9F/ixErGpnetPKHrs1YcYXqah0asMJ8/nfZl85LwgETlc8/Sr/jMWcYyJ58bLo86I/w3
+         euDfK7onBL17ScyluYzICzkbK0v3vTSIpRYM2BtrpUquWUyPZFeAiIcG0GNQDIen1Pwv
+         Rg92PNNt4DkrnjuJMszuK8uflEMnAG5RJsBjdKLVY2x8/YXp8FbNZqlbi55K1fYl9wIN
+         C6+w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXSnGbneaS2h2rnAtLBhvVt5DTfXdMDq2KrKWllq5ShmTx+Y4f2
+	NLgkcbQjC2N91dL4INSpxB4hKq5jJ9ohM0xfze7gtXUpRMm7lxLiWJMBYCyQjGbZLTPxZfv2UVZ
+	PBzB5Y9c6bX8JauCJ2xgQP8oLgN2s//Jx8qOPd6JBQmdth3Kzve6j+6Zfa0b3RFsTDQ==
+X-Received: by 2002:ac8:1c2c:: with SMTP id a41mr15891126qtk.292.1552580200296;
+        Thu, 14 Mar 2019 09:16:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwD2JUXoUpiFYOcV8Fr2PdOQ3gMmtp3rfy71AWCcqQ2P8XmXmgufFAmT7f0H87gphZFMGt0
+X-Received: by 2002:ac8:1c2c:: with SMTP id a41mr15891066qtk.292.1552580199522;
+        Thu, 14 Mar 2019 09:16:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552580199; cv=none;
         d=google.com; s=arc-20160816;
-        b=dhjHk+a41JsriUfdFKlhAj/U9eRFjPrlA52J6IXZw6Y155Wwa+BbL6n3ckW4HKMrlK
-         9/0wEjVFffJ/LYYczU7XwNyW1AVpQxOjdydEgjDJah6rpZFfWLXR6G5g/K9SmSKFXfqN
-         V2nvAyIZEG0Lsnz6yPvGZyimjLGmZH5GlNRNfC0lCKCTE1J8r2pOm3EmQePmJLjZx8vd
-         F1MBlTLz/jqk72IloHg2Nh8Do7iSXLaT3llg5uHnRJ3BcsuFRzjrEzvVgsW+PMJVf6IY
-         Q/ioCQZFavjO0jf6kFIf6d8S5Yljxd7N0o4nKZSnpi54nMXNDn1W6tOi3u1//R1K+7hk
-         vrVw==
+        b=tnNthMi0FZwAoS4y2p47G4FElk2RAxwaJSPFvpKnnA7KmiTlvFU3OcgQRBCXbiSExU
+         LhEAv1Rn2G6pAfNp9nTDHwr0XDkdin6a/oTKQPv2vWuLaIKeqzRVlKPufGlkVmHqBonQ
+         eE23FD8HgkQ90pIo71PO207gfbA4+JIKaG09LX9UZrnrz+DZ/QSI/rFf9omsmkKDze2Q
+         QBI+/VlWA2X6bZvWOsOTxIQMWRkR4Dg6wmBbxmCGmPX+VVN//L6O/6vPJCNR5HwzrIXE
+         mmS6Zzy43VBM7UmyAt51zhiTPaHksVKUaOu4rzwmUQX5n+BVltaznOObZkJUuWfpSUJL
+         /4ww==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:message-id:date:cc:to:from:subject:organization;
-        bh=XLsSteebUz7thY2JUbvIHpt8F3bEVVUZ35+6o/Ku/Nk=;
-        b=hDJrPffZL+krMsUL2WGM7++1zP/xVii4zio+8EG4iHZyNhVjKmGYgkL97ghfkiTyxs
-         SDPXOPQLPF9f0XUzvEV0aEyeGCiTqdmCLXuoeKsOPagIDC1LulyIjJvkSNvX5qqfY5yW
-         es7FWG0LnqAEDd4av6k5aTczolhdRGwfv9PtJw1WoU7Cs3a18XdL0P6efye1EY3jcnWp
-         S8PpxG5Xkl5w1rkt7aNpBGGMxKx5hA9O9g8l+jAiA2VNy+KVD4WcHXLa4MninHXhBoDp
-         rgL1PT1osVmpZi4Dgdcdi5PDm6qwiBJMIE5f8ldzAHskn1DRpcfT+tUnE9coQTM5Os/M
-         +rdg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=krRP3KY1fGKj7cf+zc7TftkVbuz3X/Fy/C3+kHv3U/A=;
+        b=j2TTFpPpKGErftIPmXQfEQpRiGZMzfuMppYolFQNfnJQlrSC2w9bv2wKXCTG9wxrvM
+         MVUoEpcuzthpJPSnDl5BWOSP4WFp63vWTVgmaisHDR8iEcAMKjod2AXKL77Ljm9184VL
+         7ctAtiAEpDeTSz6kedilSvUjCa1dTl6pIi+fRT+51QLcsuCgCP7SVJOcF5xnQPJlKKMt
+         nRhHzyza+yKwqcuHkweW7AYA+YFQipJRrS0GGwv20lJ1Bdfmb5NCpf1vHTn9CUXB53xX
+         fbC6mS+KxTlF8XFyq8K9yAl2PYLa7N2QHKjIuN08APp4xUAkTgizNZktUfW//u5DPOzJ
+         wykA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dhowells@redhat.com;
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z43si1333804qve.155.2019.03.14.09.14.02
+        by mx.google.com with ESMTPS id 6si915194qtp.312.2019.03.14.09.16.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Mar 2019 09:14:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 14 Mar 2019 09:16:39 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dhowells@redhat.com;
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 840F35944A;
-	Thu, 14 Mar 2019 16:14:01 +0000 (UTC)
-Received: from warthog.procyon.org.uk (ovpn-121-148.rdu2.redhat.com [10.10.121.148])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 207D7282E8;
-	Thu, 14 Mar 2019 16:13:59 +0000 (UTC)
-Organization: Red Hat UK Ltd. Registered Address: Red Hat UK Ltd, Amberley
- Place, 107-111 Peascod Street, Windsor, Berkshire, SI4 1TE, United
- Kingdom.
- Registered in England and Wales under Company Registration No. 3798903
-Subject: [PATCH 38/38] tmpfs, devtmpfs, ramfs, rootfs: Convert to fs_context
-From: David Howells <dhowells@redhat.com>
-To: viro@zeniv.linux.org.uk
-Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, dhowells@redhat.com,
- linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
-Date: Thu, 14 Mar 2019 16:13:59 +0000
-Message-ID: <155258003937.13720.18351716241563842940.stgit@warthog.procyon.org.uk>
-In-Reply-To: <155257972443.13720.11743171471060355965.stgit@warthog.procyon.org.uk>
-References: <155257972443.13720.11743171471060355965.stgit@warthog.procyon.org.uk>
-User-Agent: StGit/unknown-version
+	by mx1.redhat.com (Postfix) with ESMTPS id 7F86F8553B;
+	Thu, 14 Mar 2019 16:16:38 +0000 (UTC)
+Received: from sky.random (ovpn-121-1.rdu2.redhat.com [10.10.121.1])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 375A117CEB;
+	Thu, 14 Mar 2019 16:16:34 +0000 (UTC)
+Date: Thu, 14 Mar 2019 12:16:30 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+To: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Peter Xu <peterx@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>,
+	linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>,
+	Luis Chamberlain <mcgrof@kernel.org>,
+	Maxime Coquelin <maxime.coquelin@redhat.com>, kvm@vger.kernel.org,
+	Jerome Glisse <jglisse@redhat.com>,
+	Pavel Emelyanov <xemul@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Martin Cracauer <cracauer@cons.org>,
+	Denis Plotnikov <dplotnikov@virtuozzo.com>, linux-mm@kvack.org,
+	Marty McFadden <mcfadden8@llnl.gov>,
+	Maya Gokhale <gokhale2@llnl.gov>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	linux-fsdevel@vger.kernel.org,
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/3] userfaultfd: allow to forbid unprivileged users
+Message-ID: <20190314161630.GS25147@redhat.com>
+References: <20190311093701.15734-1-peterx@redhat.com>
+ <58e63635-fc1b-cb53-a4d1-237e6b8b7236@oracle.com>
+ <20190313060023.GD2433@xz-x1>
+ <3714d120-64e3-702e-6eef-4ef253bdb66d@redhat.com>
+ <20190313185230.GH25147@redhat.com>
+ <1934896481.7779933.1552504348591.JavaMail.zimbra@redhat.com>
+ <20190313234458.GJ25147@redhat.com>
+ <298b9469-abd2-b02b-5c71-529b8976a46c@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Thu, 14 Mar 2019 16:14:01 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <298b9469-abd2-b02b-5c71-529b8976a46c@redhat.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Thu, 14 Mar 2019 16:16:38 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Convert tmpfs to fs_context as the mpol= option can be properly handled.
-The issue is that it can contain embedded commas, so it can't be trivially
-split up using strsep() to break on commas in generic_parse_monolithic().
-Instead, tmpfs must supply its own generic parser.
+On Thu, Mar 14, 2019 at 11:58:15AM +0100, Paolo Bonzini wrote:
+> On 14/03/19 00:44, Andrea Arcangeli wrote:
+> > Then I thought we can add a tristate so an open of /dev/kvm would also
+> > allow the syscall to make things more user friendly because
+> > unprivileged containers ideally should have writable mounts done with
+> > nodev and no matter the privilege they shouldn't ever get an hold on
+> > the KVM driver (and those who do, like kubevirt, will then just work).
+> 
+> I wouldn't even bother with the KVM special case.  Containers can use
+> seccomp if they want a fine-grained policy.
 
-However, if tmpfs changes, then devtmpfs and rootfs, which are wrappers around
-tmpfs or ramfs, must change too - and thus so must ramfs, so convert these
-also.
+We can have a single boolean 0|1 and stick to a simpler sysctl and no
+gid and if you want to use userfaultfd you need to enable it for all
+users. I agree seccomp already provides more than enough granularity
+to do more finegrined choices.
 
-Signed-off-by: David Howells <dhowells@redhat.com>
-cc: Hugh Dickins <hughd@google.com>
-cc: linux-mm@kvack.org
----
+So this will be for who's paranoid and prefers to disable userfaultfd
+as a whole as an hardening feature like the bpf sysctl allows: it will
+allow to block uffd syscall without having to rebuild the kernel with
+CONFIG_USERFAULTFD=n in environments where seccomp cannot be easily
+enabled (i.e. without requiring userland changes).
 
- drivers/base/devtmpfs.c  |   16 +-
- fs/ramfs/inode.c         |  104 +++++++-----
- include/linux/ramfs.h    |    6 -
- include/linux/shmem_fs.h |    4 
- init/do_mounts.c         |   12 +
- mm/shmem.c               |  396 ++++++++++++++++++++++++++++++----------------
- 6 files changed, 341 insertions(+), 197 deletions(-)
+That's very fine with me, but then it wasn't me complaining in the
+first place. Kees?
 
-diff --git a/drivers/base/devtmpfs.c b/drivers/base/devtmpfs.c
-index 0dbc43068eeb..1f50c844c2ab 100644
---- a/drivers/base/devtmpfs.c
-+++ b/drivers/base/devtmpfs.c
-@@ -56,19 +56,15 @@ static int __init mount_param(char *str)
- }
- __setup("devtmpfs.mount=", mount_param);
- 
--static struct dentry *dev_mount(struct file_system_type *fs_type, int flags,
--		      const char *dev_name, void *data)
--{
-+static struct file_system_type dev_fs_type = {
-+	.name = "devtmpfs",
- #ifdef CONFIG_TMPFS
--	return mount_single(fs_type, flags, data, shmem_fill_super);
-+	.init_fs_context = shmem_init_fs_context,
-+	.parameters	= &shmem_fs_parameters,
- #else
--	return mount_single(fs_type, flags, data, ramfs_fill_super);
-+	.init_fs_context = ramfs_init_fs_context,
-+	.parameters	= &ramfs_fs_parameters,
- #endif
--}
--
--static struct file_system_type dev_fs_type = {
--	.name = "devtmpfs",
--	.mount = dev_mount,
- 	.kill_sb = kill_litter_super,
- };
- 
-diff --git a/fs/ramfs/inode.c b/fs/ramfs/inode.c
-index 11201b2d06b9..01170dd6c95f 100644
---- a/fs/ramfs/inode.c
-+++ b/fs/ramfs/inode.c
-@@ -36,6 +36,8 @@
- #include <linux/magic.h>
- #include <linux/slab.h>
- #include <linux/uaccess.h>
-+#include <linux/fs_context.h>
-+#include <linux/fs_parser.h>
- #include "internal.h"
- 
- struct ramfs_mount_opts {
-@@ -175,62 +177,52 @@ static const struct super_operations ramfs_ops = {
- 	.show_options	= ramfs_show_options,
- };
- 
--enum {
-+enum ramfs_param {
- 	Opt_mode,
--	Opt_err
- };
- 
--static const match_table_t tokens = {
--	{Opt_mode, "mode=%o"},
--	{Opt_err, NULL}
-+static const struct fs_parameter_spec ramfs_param_specs[] = {
-+	fsparam_u32oct("mode",	Opt_mode),
-+	{}
- };
- 
--static int ramfs_parse_options(char *data, struct ramfs_mount_opts *opts)
-+const struct fs_parameter_description ramfs_fs_parameters = {
-+	.name		= "ramfs",
-+	.specs		= ramfs_param_specs,
-+};
-+
-+static int ramfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
- {
--	substring_t args[MAX_OPT_ARGS];
--	int option;
--	int token;
--	char *p;
--
--	opts->mode = RAMFS_DEFAULT_MODE;
--
--	while ((p = strsep(&data, ",")) != NULL) {
--		if (!*p)
--			continue;
--
--		token = match_token(p, tokens, args);
--		switch (token) {
--		case Opt_mode:
--			if (match_octal(&args[0], &option))
--				return -EINVAL;
--			opts->mode = option & S_IALLUGO;
--			break;
-+	struct fs_parse_result result;
-+	struct ramfs_fs_info *fsi = fc->s_fs_info;
-+	int opt;
-+
-+	opt = fs_parse(fc, &ramfs_fs_parameters, param, &result);
-+	if (opt < 0) {
- 		/*
- 		 * We might like to report bad mount options here;
- 		 * but traditionally ramfs has ignored all mount options,
- 		 * and as it is used as a !CONFIG_SHMEM simple substitute
- 		 * for tmpfs, better continue to ignore other mount options.
- 		 */
--		}
-+		if (opt == -ENOPARAM)
-+			opt = 0;
-+		return opt;
-+	}
-+
-+	switch (opt) {
-+	case Opt_mode:
-+		fsi->mount_opts.mode = result.uint_32 & S_IALLUGO;
-+		break;
- 	}
- 
- 	return 0;
- }
- 
--int ramfs_fill_super(struct super_block *sb, void *data, int silent)
-+static int ramfs_fill_super(struct super_block *sb, struct fs_context *fc)
- {
--	struct ramfs_fs_info *fsi;
-+	struct ramfs_fs_info *fsi = sb->s_fs_info;
- 	struct inode *inode;
--	int err;
--
--	fsi = kzalloc(sizeof(struct ramfs_fs_info), GFP_KERNEL);
--	sb->s_fs_info = fsi;
--	if (!fsi)
--		return -ENOMEM;
--
--	err = ramfs_parse_options(data, &fsi->mount_opts);
--	if (err)
--		return err;
- 
- 	sb->s_maxbytes		= MAX_LFS_FILESIZE;
- 	sb->s_blocksize		= PAGE_SIZE;
-@@ -247,10 +239,39 @@ int ramfs_fill_super(struct super_block *sb, void *data, int silent)
- 	return 0;
- }
- 
--struct dentry *ramfs_mount(struct file_system_type *fs_type,
--	int flags, const char *dev_name, void *data)
-+static int ramfs_get_tree(struct fs_context *fc)
- {
--	return mount_nodev(fs_type, flags, data, ramfs_fill_super);
-+	enum vfs_get_super_keying keying = vfs_get_independent_super;
-+
-+	if (strcmp(fc->fs_type->name, "devtmpfs") == 0)
-+		keying = vfs_get_single_super;
-+
-+	return vfs_get_super(fc, keying, ramfs_fill_super);
-+}
-+
-+static void ramfs_free_fc(struct fs_context *fc)
-+{
-+	kfree(fc->s_fs_info);
-+}
-+
-+static const struct fs_context_operations ramfs_context_ops = {
-+	.free		= ramfs_free_fc,
-+	.parse_param	= ramfs_parse_param,
-+	.get_tree	= ramfs_get_tree,
-+};
-+
-+int ramfs_init_fs_context(struct fs_context *fc)
-+{
-+	struct ramfs_fs_info *fsi;
-+
-+	fsi = kzalloc(sizeof(*fsi), GFP_KERNEL);
-+	if (!fsi)
-+		return -ENOMEM;
-+
-+	fsi->mount_opts.mode = RAMFS_DEFAULT_MODE;
-+	fc->s_fs_info = fsi;
-+	fc->ops = &ramfs_context_ops;
-+	return 0;
- }
- 
- static void ramfs_kill_sb(struct super_block *sb)
-@@ -261,7 +282,8 @@ static void ramfs_kill_sb(struct super_block *sb)
- 
- static struct file_system_type ramfs_fs_type = {
- 	.name		= "ramfs",
--	.mount		= ramfs_mount,
-+	.init_fs_context = ramfs_init_fs_context,
-+	.parameters	= &ramfs_fs_parameters,
- 	.kill_sb	= ramfs_kill_sb,
- 	.fs_flags	= FS_USERNS_MOUNT,
- };
-diff --git a/include/linux/ramfs.h b/include/linux/ramfs.h
-index 5ef7d54caac2..94b407424cb7 100644
---- a/include/linux/ramfs.h
-+++ b/include/linux/ramfs.h
-@@ -4,8 +4,7 @@
- 
- struct inode *ramfs_get_inode(struct super_block *sb, const struct inode *dir,
- 	 umode_t mode, dev_t dev);
--extern struct dentry *ramfs_mount(struct file_system_type *fs_type,
--	 int flags, const char *dev_name, void *data);
-+extern int ramfs_init_fs_context(struct fs_context *fc);
- 
- #ifdef CONFIG_MMU
- static inline int
-@@ -17,10 +16,9 @@ ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
- extern int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize);
- #endif
- 
-+extern const struct fs_parameter_description ramfs_fs_parameters;
- extern const struct file_operations ramfs_file_operations;
- extern const struct vm_operations_struct generic_file_vm_ops;
- extern int __init init_ramfs_fs(void);
- 
--int ramfs_fill_super(struct super_block *sb, void *data, int silent);
--
- #endif
-diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-index f3fb1edb3526..3f73c00081e8 100644
---- a/include/linux/shmem_fs.h
-+++ b/include/linux/shmem_fs.h
-@@ -48,8 +48,10 @@ static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
- /*
-  * Functions in mm/shmem.c called directly from elsewhere:
-  */
-+extern const struct fs_parameter_description shmem_fs_parameters;
-+
- extern int shmem_init(void);
--extern int shmem_fill_super(struct super_block *sb, void *data, int silent);
-+extern int shmem_init_fs_context(struct fs_context *fc);
- extern struct file *shmem_file_setup(const char *name,
- 					loff_t size, unsigned long flags);
- extern struct file *shmem_kernel_file_setup(const char *name, loff_t size,
-diff --git a/init/do_mounts.c b/init/do_mounts.c
-index f8c230c77035..8242abd47e3f 100644
---- a/init/do_mounts.c
-+++ b/init/do_mounts.c
-@@ -626,24 +626,22 @@ void __init prepare_namespace(void)
- }
- 
- static bool is_tmpfs;
--static struct dentry *rootfs_mount(struct file_system_type *fs_type,
--	int flags, const char *dev_name, void *data)
-+static int rootfs_init_fs_context(struct fs_context *fc)
- {
- 	static unsigned long once;
--	void *fill = ramfs_fill_super;
- 
- 	if (test_and_set_bit(0, &once))
--		return ERR_PTR(-ENODEV);
-+		return -ENODEV;
- 
- 	if (IS_ENABLED(CONFIG_TMPFS) && is_tmpfs)
--		fill = shmem_fill_super;
-+		return shmem_init_fs_context(fc);
- 
--	return mount_nodev(fs_type, flags, data, fill);
-+	return ramfs_init_fs_context(fc);
- }
- 
- static struct file_system_type rootfs_fs_type = {
- 	.name		= "rootfs",
--	.mount		= rootfs_mount,
-+	.init_fs_context = rootfs_init_fs_context,
- 	.kill_sb	= kill_litter_super,
- };
- 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index b3db3779a30a..5f45a710ee04 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -37,6 +37,8 @@
- #include <linux/khugepaged.h>
- #include <linux/hugetlb.h>
- #include <linux/frontswap.h>
-+#include <linux/fs_context.h>
-+#include <linux/fs_parser.h>
- 
- #include <asm/tlbflush.h> /* for arch/microblaze update_mmu_cache() */
- 
-@@ -85,6 +87,17 @@ static struct vfsmount *shm_mnt;
- 
- #include "internal.h"
- 
-+struct shmem_fs_context {
-+	unsigned long	changes;
-+	unsigned long	max_blocks;	/* How many blocks are allowed */
-+	unsigned long	max_inodes;	/* How many inodes are allowed */
-+	kuid_t		uid;
-+	kgid_t		gid;
-+	int		huge;
-+	umode_t		mode;
-+	struct mempolicy *mpol;		/* default memory policy for mappings */
-+};
-+
- #define BLOCKS_PER_PAGE  (PAGE_SIZE/512)
- #define VM_ACCT(size)    (PAGE_ALIGN(size) >> PAGE_SHIFT)
- 
-@@ -3351,16 +3364,13 @@ static const struct export_operations shmem_export_ops = {
- 	.fh_to_dentry	= shmem_fh_to_dentry,
- };
- 
--static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
--			       bool remount)
-+static int shmem_parse_monolithic(struct fs_context *fc, void *data)
- {
--	char *this_char, *value, *rest;
--	struct mempolicy *mpol = NULL;
--	uid_t uid;
--	gid_t gid;
-+	char *options = data, *key;
-+	int ret = 0;
- 
- 	while (options != NULL) {
--		this_char = options;
-+		key = options;
- 		for (;;) {
- 			/*
- 			 * NUL-terminate this option: unfortunately,
-@@ -3376,139 +3386,219 @@ static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
- 				break;
- 			}
- 		}
--		if (!*this_char)
--			continue;
--		if ((value = strchr(this_char,'=')) != NULL) {
--			*value++ = 0;
--		} else {
--			pr_err("tmpfs: No value for mount option '%s'\n",
--			       this_char);
--			goto error;
--		}
- 
--		if (!strcmp(this_char,"size")) {
--			unsigned long long size;
--			size = memparse(value,&rest);
--			if (*rest == '%') {
--				size <<= PAGE_SHIFT;
--				size *= totalram_pages();
--				do_div(size, 100);
--				rest++;
-+		if (*key) {
-+			size_t v_len = 0;
-+			char *value = strchr(key, '=');
-+
-+			if (value) {
-+				if (value == key)
-+					continue;
-+				*value++ = 0;
-+				v_len = strlen(value);
- 			}
--			if (*rest)
--				goto bad_val;
--			sbinfo->max_blocks =
--				DIV_ROUND_UP(size, PAGE_SIZE);
--		} else if (!strcmp(this_char,"nr_blocks")) {
--			sbinfo->max_blocks = memparse(value, &rest);
--			if (*rest)
--				goto bad_val;
--		} else if (!strcmp(this_char,"nr_inodes")) {
--			sbinfo->max_inodes = memparse(value, &rest);
--			if (*rest)
--				goto bad_val;
--		} else if (!strcmp(this_char,"mode")) {
--			if (remount)
--				continue;
--			sbinfo->mode = simple_strtoul(value, &rest, 8) & 07777;
--			if (*rest)
--				goto bad_val;
--		} else if (!strcmp(this_char,"uid")) {
--			if (remount)
--				continue;
--			uid = simple_strtoul(value, &rest, 0);
--			if (*rest)
--				goto bad_val;
--			sbinfo->uid = make_kuid(current_user_ns(), uid);
--			if (!uid_valid(sbinfo->uid))
--				goto bad_val;
--		} else if (!strcmp(this_char,"gid")) {
--			if (remount)
--				continue;
--			gid = simple_strtoul(value, &rest, 0);
--			if (*rest)
--				goto bad_val;
--			sbinfo->gid = make_kgid(current_user_ns(), gid);
--			if (!gid_valid(sbinfo->gid))
--				goto bad_val;
-+			ret = vfs_parse_fs_string(fc, key, value, v_len);
-+			if (ret < 0)
-+				break;
-+		}
-+	}
-+
-+	return ret;
-+}
-+
-+enum shmem_param {
-+	Opt_gid,
-+	Opt_huge,
-+	Opt_mode,
-+	Opt_mpol,
-+	Opt_nr_blocks,
-+	Opt_nr_inodes,
-+	Opt_size,
-+	Opt_uid,
-+};
-+
-+static const struct fs_parameter_spec shmem_param_specs[] = {
-+	fsparam_u32   ("gid",		Opt_gid),
-+	fsparam_enum  ("huge",		Opt_huge),
-+	fsparam_u32oct("mode",		Opt_mode),
-+	fsparam_string("mpol",		Opt_mpol),
-+	fsparam_string("nr_blocks",	Opt_nr_blocks),
-+	fsparam_string("nr_inodes",	Opt_nr_inodes),
-+	fsparam_string("size",		Opt_size),
-+	fsparam_u32   ("uid",		Opt_uid),
-+	{}
-+};
-+
-+static const struct fs_parameter_enum shmem_param_enums[] = {
-+	{ Opt_huge,	"never",	SHMEM_HUGE_NEVER },
-+	{ Opt_huge,	"always",	SHMEM_HUGE_ALWAYS },
-+	{ Opt_huge,	"within_size",	SHMEM_HUGE_WITHIN_SIZE },
-+	{ Opt_huge,	"advise",	SHMEM_HUGE_ADVISE },
-+	{ Opt_huge,	"deny",		SHMEM_HUGE_DENY },
-+	{ Opt_huge,	"force",	SHMEM_HUGE_FORCE },
-+	{}
-+};
-+
-+const struct fs_parameter_description shmem_fs_parameters = {
-+	.name		= "shmem",
-+	.specs		= shmem_param_specs,
-+	.enums		= shmem_param_enums,
-+};
-+
-+static void shmem_apply_options(struct shmem_sb_info *sbinfo,
-+				struct fs_context *fc,
-+				unsigned long inodes_in_use)
-+{
-+	struct shmem_fs_context *ctx = fc->fs_private;
-+	struct mempolicy *old = NULL;
-+
-+	if (test_bit(Opt_nr_blocks, &ctx->changes))
-+		sbinfo->max_blocks = ctx->max_blocks;
-+	if (test_bit(Opt_nr_inodes, &ctx->changes)) {
-+		sbinfo->max_inodes = ctx->max_inodes;
-+		sbinfo->free_inodes = ctx->max_inodes - inodes_in_use;
-+	}
-+	if (test_bit(Opt_huge, &ctx->changes))
-+		sbinfo->huge = ctx->huge;
-+	if (test_bit(Opt_mpol, &ctx->changes)) {
-+		old = sbinfo->mpol;
-+		sbinfo->mpol = ctx->mpol;
-+	}
-+
-+	if (fc->purpose != FS_CONTEXT_FOR_RECONFIGURE) {
-+		if (test_bit(Opt_uid, &ctx->changes))
-+			sbinfo->uid = ctx->uid;
-+		if (test_bit(Opt_gid, &ctx->changes))
-+			sbinfo->gid = ctx->gid;
-+		if (test_bit(Opt_mode, &ctx->changes))
-+			sbinfo->mode = ctx->mode;
-+	}
-+
-+	mpol_put(old);
-+}
-+
-+static int shmem_parse_param(struct fs_context *fc, struct fs_parameter *param)
-+{
-+	struct shmem_fs_context *ctx = fc->fs_private;
-+	struct fs_parse_result result;
-+	unsigned long long size;
-+	struct mempolicy *mpol;
-+	char *rest;
-+	int opt;
-+
-+	opt = fs_parse(fc, &shmem_fs_parameters, param, &result);
-+	if (opt < 0)
-+		return opt;
-+
-+	switch (opt) {
-+	case Opt_size:
-+		rest = param->string;
-+		size = memparse(param->string, &rest);
-+		if (*rest == '%') {
-+			size <<= PAGE_SHIFT;
-+			size *= totalram_pages();
-+			do_div(size, 100);
-+			rest++;
-+		}
-+		if (*rest)
-+			return invalf(fc, "shmem: Invalid size");
-+		ctx->max_blocks = DIV_ROUND_UP(size, PAGE_SIZE);
-+		break;
-+
-+	case Opt_nr_blocks:
-+		rest = param->string;
-+		ctx->max_blocks = memparse(param->string, &rest);
-+		if (*rest)
-+			return invalf(fc, "shmem: Invalid nr_blocks");
-+		break;
-+	case Opt_nr_inodes:
-+		rest = param->string;
-+		ctx->max_inodes = memparse(param->string, &rest);
-+		if (*rest)
-+			return invalf(fc, "shmem: Invalid nr_inodes");
-+		break;
-+	case Opt_mode:
-+		ctx->mode = result.uint_32 & 07777;
-+		break;
-+	case Opt_uid:
-+		ctx->uid = make_kuid(current_user_ns(), result.uint_32);
-+		if (!uid_valid(ctx->uid))
-+			return invalf(fc, "shmem: Invalid uid");
-+		break;
-+
-+	case Opt_gid:
-+		ctx->gid = make_kgid(current_user_ns(), result.uint_32);
-+		if (!gid_valid(ctx->gid))
-+			return invalf(fc, "shmem: Invalid gid");
-+		break;
-+
-+	case Opt_huge:
- #ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
--		} else if (!strcmp(this_char, "huge")) {
--			int huge;
--			huge = shmem_parse_huge(value);
--			if (huge < 0)
--				goto bad_val;
--			if (!has_transparent_hugepage() &&
--					huge != SHMEM_HUGE_NEVER)
--				goto bad_val;
--			sbinfo->huge = huge;
-+		if (!has_transparent_hugepage() &&
-+		    result.uint_32 != SHMEM_HUGE_NEVER)
-+			return invalf(fc, "shmem: Huge pages disabled");
-+
-+		ctx->huge = result.uint_32;
-+		break;
-+#else
-+		return invalf(fc, "shmem: huge= option disabled");
- #endif
-+
-+	case Opt_mpol:
- #ifdef CONFIG_NUMA
--		} else if (!strcmp(this_char,"mpol")) {
--			mpol_put(mpol);
--			mpol = NULL;
--			if (mpol_parse_str(value, &mpol))
--				goto bad_val;
-+		if (mpol_parse_str(param->string, &mpol))
-+			return invalf(fc, "shmem: Invalid mpol=");
-+		mpol_put(ctx->mpol);
-+		ctx->mpol = mpol;
- #endif
--		} else {
--			pr_err("tmpfs: Bad mount option %s\n", this_char);
--			goto error;
--		}
-+		break;
- 	}
--	sbinfo->mpol = mpol;
--	return 0;
--
--bad_val:
--	pr_err("tmpfs: Bad value '%s' for mount option '%s'\n",
--	       value, this_char);
--error:
--	mpol_put(mpol);
--	return 1;
- 
-+	__set_bit(opt, &ctx->changes);
-+	return 0;
- }
- 
--static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
-+/*
-+ * Reconfigure a shmem filesystem.
-+ *
-+ * Note that we disallow change from limited->unlimited blocks/inodes while any
-+ * are in use; but we must separately disallow unlimited->limited, because in
-+ * that case we have no record of how much is already in use.
-+ */
-+static int shmem_reconfigure(struct fs_context *fc)
- {
-+	struct shmem_fs_context *ctx = fc->fs_private;
-+	struct super_block *sb = fc->root->d_sb;
- 	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
--	struct shmem_sb_info config = *sbinfo;
--	unsigned long inodes;
--	int error = -EINVAL;
--
--	config.mpol = NULL;
--	if (shmem_parse_options(data, &config, true))
--		return error;
-+	unsigned long inodes_in_use;
- 
- 	spin_lock(&sbinfo->stat_lock);
--	inodes = sbinfo->max_inodes - sbinfo->free_inodes;
--	if (percpu_counter_compare(&sbinfo->used_blocks, config.max_blocks) > 0)
--		goto out;
--	if (config.max_inodes < inodes)
--		goto out;
--	/*
--	 * Those tests disallow limited->unlimited while any are in use;
--	 * but we must separately disallow unlimited->limited, because
--	 * in that case we have no record of how much is already in use.
--	 */
--	if (config.max_blocks && !sbinfo->max_blocks)
--		goto out;
--	if (config.max_inodes && !sbinfo->max_inodes)
--		goto out;
--
--	error = 0;
--	sbinfo->huge = config.huge;
--	sbinfo->max_blocks  = config.max_blocks;
--	sbinfo->max_inodes  = config.max_inodes;
--	sbinfo->free_inodes = config.max_inodes - inodes;
-+	if (test_bit(Opt_nr_blocks, &ctx->changes)) {
-+		if (ctx->max_blocks && !sbinfo->max_blocks) {
-+			spin_unlock(&sbinfo->stat_lock);
-+			return invalf(fc, "shmem: Can't retroactively limit nr_blocks");
-+		}
-+		if (percpu_counter_compare(&sbinfo->used_blocks, ctx->max_blocks) > 0) {
-+			spin_unlock(&sbinfo->stat_lock);
-+			return invalf(fc, "shmem: Too few blocks for current use");
-+		}
-+	}
- 
--	/*
--	 * Preserve previous mempolicy unless mpol remount option was specified.
--	 */
--	if (config.mpol) {
--		mpol_put(sbinfo->mpol);
--		sbinfo->mpol = config.mpol;	/* transfers initial ref */
-+	inodes_in_use = sbinfo->max_inodes - sbinfo->free_inodes;
-+	if (test_bit(Opt_nr_inodes, &ctx->changes)) {
-+		if (ctx->max_inodes && !sbinfo->max_inodes) {
-+			spin_unlock(&sbinfo->stat_lock);
-+			return invalf(fc, "shmem: Can't retroactively limit nr_inodes");
-+		}
-+		if (ctx->max_inodes < inodes_in_use) {
-+			spin_unlock(&sbinfo->stat_lock);
-+			return invalf(fc, "shmem: Too few inodes for current use");
-+		}
- 	}
--out:
-+
-+	shmem_apply_options(sbinfo, fc, inodes_in_use);
- 	spin_unlock(&sbinfo->stat_lock);
--	return error;
-+	return 0;
- }
- 
- static int shmem_show_options(struct seq_file *seq, struct dentry *root)
-@@ -3549,7 +3639,7 @@ static void shmem_put_super(struct super_block *sb)
- 	sb->s_fs_info = NULL;
- }
- 
--int shmem_fill_super(struct super_block *sb, void *data, int silent)
-+static int shmem_fill_super(struct super_block *sb, struct fs_context *fc)
- {
- 	struct inode *inode;
- 	struct shmem_sb_info *sbinfo;
-@@ -3575,10 +3665,7 @@ int shmem_fill_super(struct super_block *sb, void *data, int silent)
- 	if (!(sb->s_flags & SB_KERNMOUNT)) {
- 		sbinfo->max_blocks = shmem_default_max_blocks();
- 		sbinfo->max_inodes = shmem_default_max_inodes();
--		if (shmem_parse_options(data, sbinfo, false)) {
--			err = -EINVAL;
--			goto failed;
--		}
-+		shmem_apply_options(sbinfo, fc, 0);
- 	} else {
- 		sb->s_flags |= SB_NOUSER;
- 	}
-@@ -3624,6 +3711,36 @@ int shmem_fill_super(struct super_block *sb, void *data, int silent)
- 	return err;
- }
- 
-+static int shmem_get_tree(struct fs_context *fc)
-+{
-+	enum vfs_get_super_keying keying = vfs_get_independent_super;
-+
-+	if (strcmp(fc->fs_type->name, "devtmpfs") == 0)
-+		keying = vfs_get_single_super;
-+
-+	return vfs_get_super(fc, keying, shmem_fill_super);
-+}
-+
-+static void shmem_free_fc(struct fs_context *fc)
-+{
-+	struct shmem_fs_context *ctx = fc->fs_private;
-+
-+	if (ctx) {
-+		mpol_put(ctx->mpol);
-+		kfree(ctx);
-+	}
-+}
-+
-+static const struct fs_context_operations shmem_fs_context_ops = {
-+	.free			= shmem_free_fc,
-+	.get_tree		= shmem_get_tree,
-+#ifdef CONFIG_TMPFS
-+	.parse_monolithic	= shmem_parse_monolithic,
-+	.parse_param		= shmem_parse_param,
-+	.reconfigure		= shmem_reconfigure,
-+#endif
-+};
-+
- static struct kmem_cache *shmem_inode_cachep;
- 
- static struct inode *shmem_alloc_inode(struct super_block *sb)
-@@ -3741,7 +3858,6 @@ static const struct super_operations shmem_ops = {
- 	.destroy_inode	= shmem_destroy_inode,
- #ifdef CONFIG_TMPFS
- 	.statfs		= shmem_statfs,
--	.remount_fs	= shmem_remount_fs,
- 	.show_options	= shmem_show_options,
- #endif
- 	.evict_inode	= shmem_evict_inode,
-@@ -3762,16 +3878,26 @@ static const struct vm_operations_struct shmem_vm_ops = {
- #endif
- };
- 
--static struct dentry *shmem_mount(struct file_system_type *fs_type,
--	int flags, const char *dev_name, void *data)
-+int shmem_init_fs_context(struct fs_context *fc)
- {
--	return mount_nodev(fs_type, flags, data, shmem_fill_super);
-+	struct shmem_fs_context *ctx;
-+
-+	ctx = kzalloc(sizeof(struct shmem_fs_context), GFP_KERNEL);
-+	if (!ctx)
-+		return -ENOMEM;
-+
-+	fc->fs_private = ctx;
-+	fc->ops = &shmem_fs_context_ops;
-+	return 0;
- }
- 
- static struct file_system_type shmem_fs_type = {
- 	.owner		= THIS_MODULE,
- 	.name		= "tmpfs",
--	.mount		= shmem_mount,
-+	.init_fs_context = shmem_init_fs_context,
-+#ifdef CONFIG_TMPFS
-+	.parameters	= &shmem_fs_parameters,
-+#endif
- 	.kill_sb	= kill_litter_super,
- 	.fs_flags	= FS_USERNS_MOUNT,
- };
-@@ -3916,7 +4042,8 @@ bool shmem_huge_enabled(struct vm_area_struct *vma)
- 
- static struct file_system_type shmem_fs_type = {
- 	.name		= "tmpfs",
--	.mount		= ramfs_mount,
-+	.init_fs_context = ramfs_init_fs_context,
-+	.parameters	= &ramfs_fs_parameters,
- 	.kill_sb	= kill_litter_super,
- 	.fs_flags	= FS_USERNS_MOUNT,
- };
-@@ -4117,3 +4244,4 @@ struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
- #endif
- }
- EXPORT_SYMBOL_GPL(shmem_read_mapping_page_gfp);
-+
+If the above is ok, we can implement it as a static key, not that the
+syscall itself is particularly performance critical but it'll be
+simple enough as a boolean (only the ioctl are performance critical
+but those are unaffected).
+
+The blog post about UAF is not particularly interesting in my view,
+unless both of the following points are true 1) it can be also proven
+that the very same two UAF bugs, cannot be exploited by other means
+(as far as I can tell it can be exploited by other means regardless of
+userfaultfd) and 2) the slab randomization was actually enabled (99%
+of the time in all POC all randomization features like kalsr are
+incidentally disabled first to facilitate publishing papers and blog
+posts, but those are really the features intended to reduce the
+reproduciblity of exploits against UAF bugs, not disabling userfaultfd
+which only provides a minor advantage, and unlike in PoC environments,
+we enable those slab randomization in production 100% of the time
+whenever they're available in the kernel).
+
+Thanks,
+Andrea
 
