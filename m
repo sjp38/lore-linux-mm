@@ -2,197 +2,224 @@ Return-Path: <SRS0=RO59=RR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 110EEC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 04:02:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BC136C10F06
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 05:32:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9060D20854
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 04:02:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4F7FC2186A
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 05:32:10 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="eU7vf8X9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9060D20854
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="nXFyTnSv"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4F7FC2186A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E61968E0003; Thu, 14 Mar 2019 00:02:25 -0400 (EDT)
+	id 9B2428E0003; Thu, 14 Mar 2019 01:32:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E10238E0001; Thu, 14 Mar 2019 00:02:25 -0400 (EDT)
+	id 93A248E0001; Thu, 14 Mar 2019 01:32:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CFF868E0003; Thu, 14 Mar 2019 00:02:25 -0400 (EDT)
+	id 802558E0003; Thu, 14 Mar 2019 01:32:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BD0C8E0001
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 00:02:25 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id n205so1808195oif.18
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 21:02:25 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 538758E0001
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 01:32:09 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id i21so4300776qtq.6
+        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 22:32:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=qs7tp1/zBqGtB73b9T3ZkeYLG/1DJ1WgPchIkfxvgMI=;
-        b=dIo2OmfCevSGpmAkJzW5ISygFE4U2hX3IhQCR/Tw9rYp4rymYrBrE7u9FJCRlSTx0N
-         JcXXB7qI+AR6ozj0MagxYCOzsvUPWyheAYyDBCsagvduHtDfzTgjYpkrsQ77KeenE8k4
-         iIkSHAm9OzTqSQj9VlZ5ebitlLQo9iFBGYQZSoh6twrCcTJk10V8hLeIrpoYL4tMz5ly
-         J77+1U/xCMUEE4nVbXQLTeUCKkMt6oaGNtR6nx/vHBfaTM/uiv3kjQ0zEH7CIPlfibSk
-         +tmeLaRSrKcod/KuZOOhwfBqGT0LKOMqGhgEL7YtBnbsPk/u0l5RquOy+u3j0l2CXhia
-         m+dw==
-X-Gm-Message-State: APjAAAUEzC7hDzJmDO8yf16VgphxEqbWN2f1vsq3hkbXugvuwYnyQ2j1
-	WY/uqiHwiYEABIGvqTMB7XVvfnb0/IcZDQ3l48yKdILDDzzwgE5g7YnfwW4jjvQ3K7USHZl8B2h
-	XiZFM7K4k5NK02gZLlkiTfV79nOK5hhr4am+LDeIY9D22bgeXRBTBbVAGt0vfKhkdYvfTua5ATN
-	Gb8VduJcf1ZATIepZSFPKBrZiPhIPtrftccqsFE/rFQDfldlTrjKUaeiT2c65WeGA+Bf4b9cKrw
-	8XzOZz6UAQ/mcxDSZc8lwct+OjbhOUUAIFTuvGeIGcsOYzT04d7fRHWjJqQTx5O1Tof+TBLnfsR
-	URNLd/ovjdU1c1tWIXGEAp3KjjqIYD3bFT8Zft2vvoX518c7NnHuyNRI/+G5qB9pKxM6sUUhkCb
-	L
-X-Received: by 2002:a9d:480c:: with SMTP id c12mr13464068otf.290.1552536145195;
-        Wed, 13 Mar 2019 21:02:25 -0700 (PDT)
-X-Received: by 2002:a9d:480c:: with SMTP id c12mr13464041otf.290.1552536144371;
-        Wed, 13 Mar 2019 21:02:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552536144; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=0As+3Iv3Sxmfep8uKsH5/xjkJPw9kSFzNL2pVLlfV7o=;
+        b=YGpQZxFXtNS7ihpqQP44kTlfR4Y4ZILqJ4kKA/1fdsCwSKod7idx5SMkfgsaTudZLU
+         Aa2yfb5fTiPphK/5dKh9RavC0No1I34uRNh+gj+w6gFeijfrhX1Elo8QsoucFPHHOdXv
+         9ICrCLtpxEulGXM9vJemTtsQ/Xy2vdNJe5BrzV7fCYIgnd4Czu/e4xwLfhoRFdYXyxQ1
+         zTjQHl8/3dDhPRs35iwjBG0GqeZp4Bhd6FLjMp0eKV7nOjeoEIUhgumQO7n8wwF3r8oX
+         bEgDrsBLSsCNoelwSZCmUDEklTiIaE3QjVih/b4ck7RaJ26Bx8gfQbY1CzxTpZPqIxnx
+         z1nA==
+X-Gm-Message-State: APjAAAXOJ2dpu1LnwyKYncvbNqU77u499e4KvuWqMH6X25zwtb+C0x8D
+	UjYAU6abz/VM61bNuyXVyLodZjH5CP8ZY73g8b5PFjSoBWxBIWNN2+c5j4KhBdJfBReledr8u1/
+	qWJp2jW+XaFfAdfRd7c3147qMxvHVYrOMr7lfvRqfbLV03r/r8fmg5Ur0lgRZ3Tc=
+X-Received: by 2002:ac8:96c:: with SMTP id z41mr36908117qth.305.1552541529058;
+        Wed, 13 Mar 2019 22:32:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzTZTnWzq2VF3oSXEOY0wWmdQ48MS0iFAecC7BGG2kKj6Tl5UajGGqdZFKi1IbM1I57YkHV
+X-Received: by 2002:ac8:96c:: with SMTP id z41mr36908076qth.305.1552541528062;
+        Wed, 13 Mar 2019 22:32:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552541528; cv=none;
         d=google.com; s=arc-20160816;
-        b=iWReRFfpngJPfEoReqk9cf1VBawScZlETv1OY+t3WT2PGCBfTBQyMIW6jJzjjEOayl
-         u/kIRfqDmJK+GlKlrLjy1IhfO4GtVvH4VQx4zygwamA45Tvm2/j24yh9QlIO8txJP6zs
-         lL6Kw/04nkCqfJ7Rgwjeleif3g3E5AlxCNaXZaD+5oC+vzWMy13RstMzx6mwFmThybDy
-         cJBcsKhVyShCjf83UWvfSv1tPbeeJ5TnZz1B/f5OHmX5YTlWPskI8RSsZ5RuKiQRFrzQ
-         lDr4L6Vb63yG5CB+UenMsrdLrKVC/dbEgiR6sv87vX3OOfUq/o2LpPCYSoM7qc49HRwK
-         Mhcw==
+        b=zeBKSbjQVThYbE/2jPcvHDFH4nszDTimGJPXtwZeKBu+ZaHF2NuoGQm0S05e6YNsdf
+         +qmzj7TliuHCQa8SQLPjk29XoAbkew20TcUOFKFfN4fMfGhvmGslCay83rbuVDoYGwHn
+         6wGPMP1EEPBnTaUHiNMXhn99cM3ecXBowKc/UxUvhjO6My6sh2zuq8M8P3hAOwbSF7+W
+         m+OzxmWc/+lfitmKyQM2rjt0XpHnmerW2uBGIAooeUSEZfvHpabcuUQDcu7EOJ4LzOkL
+         0KeYWOeFJrj9XKj8OwpPB91qOtUCxVmjkA5B5xXfJfreo3b4ywghTvfl9ZbomgVQe9uA
+         +qiw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=qs7tp1/zBqGtB73b9T3ZkeYLG/1DJ1WgPchIkfxvgMI=;
-        b=zxMWdIrzOqbceAK1S7VaIfay9V0I8FUeJZcPsjU6pH43vUxv0S9WU7pSvEzVeP7j8b
-         VQM5qkWHpEN4jGtBI3M+lTN1OUjnGqMp9SLrDc0Ej5m+J/jY9CpBL/h3OQwmTUmCe8L/
-         fE15hMkgBkd8GQlQJVnIa3N2ERxOaaPDiwcpEbFq7+fG5om8g9Xw2ekuLojyNRQULsl9
-         kATXK2+WlX/kfjBXUbtH/8yc/IEHCHDJ4kCgXG2mAbuMpmjuOomYBjRdss0CqRUen+rP
-         7KiPj0REwh+u4Px7KHhzWoJpT3QTlV/7NiGb7mP6n+N5DSSfqT8aTHsqE0IUVzBgcrQb
-         AgKg==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=0As+3Iv3Sxmfep8uKsH5/xjkJPw9kSFzNL2pVLlfV7o=;
+        b=cE0kt2p3CK1TmysT6oylNOZPImgJJfeHqMgkUtkPkNaR01mLapqRgfjkJnu9eKxOUV
+         AhcMLroj0ccZh+6llkfBFzohLI+hhTixAtbMnHhSox6l4Ccx7UZo3DI2dukRqRgbrQZW
+         hw2eoNkYgHZInMiGGu0nOzrEd939ANez9hA2x86jIGG35wO/N0tEaaS2VxQr98TEam3b
+         3gOyWD4qIcwWeDvjifw580wa3w1Rf1zg2OV9qHXNztlHi2nLp/yFpTxiqPzaqYY0XkJX
+         mNsK8wePGcDLm/Um2v8h0ipl5HBw22bmomIRT5dk5x0TLftiyeN4JhHXKEDyzn9vCEhN
+         YXNg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=eU7vf8X9;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m25sor1821478otl.59.2019.03.13.21.02.24
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=nXFyTnSv;
+       spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) smtp.mailfrom=tobin@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from out2-smtp.messagingengine.com (out2-smtp.messagingengine.com. [66.111.4.26])
+        by mx.google.com with ESMTPS id k46si1208609qvf.84.2019.03.13.22.32.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Mar 2019 21:02:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Mar 2019 22:32:07 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) client-ip=66.111.4.26;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=eU7vf8X9;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=qs7tp1/zBqGtB73b9T3ZkeYLG/1DJ1WgPchIkfxvgMI=;
-        b=eU7vf8X9XCVloH4yFRSwPMJOtpSR/fMmFkniq4uHcPXAlIReWXJh0Z+q64meRuGP3M
-         skI5X4A5JF/zw1rhA6o7JcFS6QQUIjOyw87HiIPJuTeV3ZFCWkuVzjiunjbGmnKIH8PP
-         d0GUJS45X4BfE3LGcOkOgmFPbVoD1RlmOP/s4Iba+KMHCV7RQOG8tt5WRNcYCxFV8yGB
-         uQgbxTR+iAgUImDt6CTAyz2+XDvw6vYu7YGLKi1XurFi/KZX9rHUjIia18cI51xDn6FC
-         vI2KT31oSMg20EO444p+DGxfHVR1APWOjIF4q0elCkXZ/5bHEVX7dTtHnmLFxCnjmC/E
-         9rXA==
-X-Google-Smtp-Source: APXvYqzxaRxDED7CM3oENetDG2md4WXlntPbG0NSGcR0/oaZGUe6x6pBOyPAF61pD1lSSIn/hEMAOHQHBo57G6q1bYU=
-X-Received: by 2002:a9d:77d1:: with SMTP id w17mr28800858otl.353.1552536143794;
- Wed, 13 Mar 2019 21:02:23 -0700 (PDT)
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=nXFyTnSv;
+       spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) smtp.mailfrom=tobin@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
+	by mailout.nyi.internal (Postfix) with ESMTP id A6DAC213BD;
+	Thu, 14 Mar 2019 01:32:07 -0400 (EDT)
+Received: from mailfrontend1 ([10.202.2.162])
+  by compute3.internal (MEProxy); Thu, 14 Mar 2019 01:32:07 -0400
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-transfer-encoding:date:from
+	:message-id:mime-version:subject:to:x-me-proxy:x-me-proxy
+	:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=0As+3Iv3Sxmfep8uK
+	sH5/xjkJPw9kSFzNL2pVLlfV7o=; b=nXFyTnSvQ0TXZ5esZxcjU2Z6vcxxfwqmZ
+	e4QC8rQzhDCWT/uGYUgxLo6y3GTtFjjfIX6REQiGEwetHoG7K6qpJy1yQZhimGet
+	mZO2iZOBRIS+PPIJRbT3m6YK8hFi+CJpaeUcylBhAwk/6rnso8WU1BItuOQ1e6O+
+	9u+TU1WG8GYWePLEVSkHO0yaPn+ZThhTTymCL4XaNdJPXo2c+aJbV4oga2ob1U2q
+	SfDI7JCRjkWv5mITQHY1+6r4543vxEfIpu9ezTDGcqISFFP3sAHfTjkNsSNqFwZG
+	Yx3+KWjweqOMK4G+cfiRZnG+1+xrV0/SG013bqPbQuMtUVk0sRYrQ==
+X-ME-Sender: <xms:VOeJXHEmVIIZEg4WNbm1bwpqsXP7F_zvMVSMBPANGfqoBUhfCZ6C0Q>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedutddrhedugdekgecutefuodetggdotefrodftvf
+    curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
+    uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenuc
+    fjughrpefhvffufffkofgggfestdekredtredttdenucfhrhhomhepfdfvohgsihhnucev
+    rdcujfgrrhguihhnghdfuceothhosghinheskhgvrhhnvghlrdhorhhgqeenucffohhmrg
+    hinhepghhithhhuhgsrdgtohhmnecukfhppeduvdegrdduieelrddvfedrudekgeenucfr
+    rghrrghmpehmrghilhhfrhhomhepthhosghinheskhgvrhhnvghlrdhorhhgnecuvehluh
+    hsthgvrhfuihiivgeptd
+X-ME-Proxy: <xmx:VOeJXN7bV-NvEfa9PkjGrsxsR6vy6e2L8bCLt8lp-0_uOs1oQnYvhQ>
+    <xmx:VOeJXEn0Js7yIQgnKaP9ROa3OkngZgF7A6j-8irY3qWjKcVGHw4asw>
+    <xmx:VOeJXDzavEaLvm7GKBafZ9D1vpwCUH1yhpFVCR2OPo0DVHAU6wUCtA>
+    <xmx:V-eJXGbXgXRLTn8NSz_s3BVNmYx-JZLhuYN3xvjddjiZfER7ZEhEXg>
+Received: from eros.localdomain (124-169-23-184.dyn.iinet.net.au [124.169.23.184])
+	by mail.messagingengine.com (Postfix) with ESMTPA id 811BCE415C;
+	Thu, 14 Mar 2019 01:32:00 -0400 (EDT)
+From: "Tobin C. Harding" <tobin@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Tobin C. Harding" <tobin@kernel.org>,
+	Roman Gushchin <guro@fb.com>,
+	Christoph Lameter <cl@linux.com>,
+	Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH v3 0/7] mm: Use slab_list list_head instead of lru
+Date: Thu, 14 Mar 2019 16:31:28 +1100
+Message-Id: <20190314053135.1541-1-tobin@kernel.org>
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-References: <20190228083522.8189-1-aneesh.kumar@linux.ibm.com>
- <20190228083522.8189-2-aneesh.kumar@linux.ibm.com> <CAOSf1CHjkyX2NTex7dc1AEHXSDcWA_UGYX8NoSyHpb5s_RkwXQ@mail.gmail.com>
- <CAPcyv4jhEvijybSVsy+wmvgqfvyxfePQ3PUqy1hhmVmPtJTyqQ@mail.gmail.com>
- <87k1hc8iqa.fsf@linux.ibm.com> <CAPcyv4ir4irASBQrZD_a6kMkEUt=XPUCuKajF75O7wDCgeG=7Q@mail.gmail.com>
- <871s3aqfup.fsf@linux.ibm.com>
-In-Reply-To: <871s3aqfup.fsf@linux.ibm.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 13 Mar 2019 21:02:11 -0700
-Message-ID: <CAPcyv4i0SahDP=_ZQV3RG_b5pMkjn-9Cjy7OpY2sm1PxLdO8jA@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm/dax: Don't enable huge dax mapping by default
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
-	Michael Ellerman <mpe@ellerman.id.au>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-	Ross Zwisler <zwisler@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, 
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 13, 2019 at 8:45 PM Aneesh Kumar K.V
-<aneesh.kumar@linux.ibm.com> wrote:
-[..]
-> >> Now w.r.t to failures, can device-dax do an opportunistic huge page
-> >> usage?
-> >
-> > device-dax explicitly disclaims the ability to do opportunistic mappings.
-> >
-> >> I haven't looked at the device-dax details fully yet. Do we make the
-> >> assumption of the mapping page size as a format w.r.t device-dax? Is that
-> >> derived from nd_pfn->align value?
-> >
-> > Correct.
-> >
-> >>
-> >> Here is what I am working on:
-> >> 1) If the platform doesn't support huge page and if the device superblock
-> >> indicated that it was created with huge page support, we fail the device
-> >> init.
-> >
-> > Ok.
-> >
-> >> 2) Now if we are creating a new namespace without huge page support in
-> >> the platform, then we force the align details to PAGE_SIZE. In such a
-> >> configuration when handling dax fault even with THP enabled during
-> >> the build, we should not try to use hugepage. This I think we can
-> >> achieve by using TRANSPARENT_HUGEPAEG_DAX_FLAG.
-> >
-> > How is this dynamic property communicated to the guest?
->
-> via device tree on powerpc. We have a device tree node indicating
-> supported page sizes.
+Currently the slab allocators (ab)use the struct page 'lru' list_head.
+We have a list head for slab allocators to use, 'slab_list'.
 
-Ah, ok, yeah let's plumb that straight to the device-dax driver and
-leave out the interaction / interpretation of the thp-enabled flags.
+During v2 it was noted by Christoph that the SLOB allocator was reaching
+into a list_head, this version adds 2 patches to the front of the set to
+fix that.
 
->
-> >
-> >>
-> >> Also even if the user decided to not use THP, by
-> >> echo "never" > transparent_hugepage/enabled , we should continue to map
-> >> dax fault using huge page on platforms that can support huge pages.
-> >>
-> >> This still doesn't cover the details of a device-dax created with
-> >> PAGE_SIZE align later booted with a kernel that can do hugepage dax.How
-> >> should we handle that? That makes me think, this should be a VMA flag
-> >> which got derived from device config? May be use VM_HUGEPAGE to indicate
-> >> if device should use a hugepage mapping or not?
-> >
-> > device-dax configured with PAGE_SIZE always gets PAGE_SIZE mappings.
->
-> Now what will be page size used for mapping vmemmap?
+Clean up all three allocators by using the 'slab_list' list_head instead
+of overloading the 'lru' list_head.
 
-That's up to the architecture's vmemmap_populate() implementation.
+Patch 1 - Adds a function to rotate a list to a specified entry.
 
-> Architectures
-> possibly will use PMD_SIZE mapping if supported for vmemmap. Now a
-> device-dax with struct page in the device will have pfn reserve area aligned
-> to PAGE_SIZE with the above example? We can't map that using
-> PMD_SIZE page size?
+Patch 2 - Removes the code that reaches into list_head and instead uses
+	  the list_head API including the newly defined function.
 
-IIUC, that's a different alignment. Currently that's handled by
-padding the reservation area up to a section (128MB on x86) boundary,
-but I'm working on patches to allow sub-section sized ranges to be
-mapped.
+Patches 3-7 are unchanged from v3
 
-Now, that said, I expect there may be bugs lurking in the
-implementation if PAGE_SIZE changes from one boot to the next simply
-because I've never tested that.
+Patch 3 (v2: patch 4) - Changes the SLOB allocator to use slab_list
+      	     	      	instead of lru.
 
-I think this also indicates that the section padding logic can't be
-removed until all arch vmemmap_populate() implementations understand
-the sub-section case.
+Patch 4 (v2: patch 1) - Makes no code changes, adds comments to #endif
+      	     	      	statements.
+
+Patch 5 (v2: patch 2) - Use slab_list instead of lru for SLUB allocator.
+
+Patch 6 (v2: patch 3) - Use slab_list instead of lru for SLAB allocator.
+
+Patch 7 (v2: patch 5) - Removes the now stale comment in the page struct
+      	     	      	definition.
+
+During v2 development patches were checked to see if the object file
+before and after was identical.  Clearly this will no longer be possible
+for mm/slob.o, however this work is still of use to validate the
+change from lru -> slab_list.
+
+Patch 1 was tested with a module (creates and populates a list then
+calls list_rotate_to_front() and verifies new order):
+
+      https://github.com/tcharding/ktest/tree/master/list_head
+
+Patch 2 was tested with another module that does some basic slab
+allocation and freeing to a newly created slab cache:
+
+	https://github.com/tcharding/ktest/tree/master/slab
+
+Tested on a kernel with this in the config:
+
+	CONFIG_SLOB=y
+	CONFIG_SLAB_MERGE_DEFAULT=y
+
+
+Changes since v2:
+
+ - Add list_rotate_to_front().
+ - Fix slob to use list_head API.
+ - Re-order patches to put the list.h changes up front.
+ - Add acks from Christoph.
+
+Changes since v1:
+
+ - Verify object files are the same before and after the patch set is
+   applied (suggested by Matthew).
+ - Add extra explanation to the commit logs explaining why these changes
+   are safe to make (suggested by Roman).
+ - Remove stale comment (thanks Willy).
+
+thanks,
+Tobin.
+
+
+Tobin C. Harding (7):
+  list: Add function list_rotate_to_front()
+  slob: Respect list_head abstraction layer
+  slob: Use slab_list instead of lru
+  slub: Add comments to endif pre-processor macros
+  slub: Use slab_list instead of lru
+  slab: Use slab_list instead of lru
+  mm: Remove stale comment from page struct
+
+ include/linux/list.h     | 18 ++++++++++++
+ include/linux/mm_types.h |  2 +-
+ mm/slab.c                | 49 ++++++++++++++++----------------
+ mm/slob.c                | 32 +++++++++++++--------
+ mm/slub.c                | 60 ++++++++++++++++++++--------------------
+ 5 files changed, 94 insertions(+), 67 deletions(-)
+
+-- 
+2.21.0
 
