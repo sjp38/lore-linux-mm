@@ -4,135 +4,109 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D5231C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 20:26:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F0C19C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 20:37:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 804632077B
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 20:26:06 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 997822186A
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 20:37:09 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="WvTI0PsX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 804632077B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="jpTdb9Oc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 997822186A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 17BE66B0003; Thu, 14 Mar 2019 16:26:06 -0400 (EDT)
+	id 346946B0003; Thu, 14 Mar 2019 16:37:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 12AAF6B0005; Thu, 14 Mar 2019 16:26:06 -0400 (EDT)
+	id 31E536B0005; Thu, 14 Mar 2019 16:37:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 019B56B0006; Thu, 14 Mar 2019 16:26:05 -0400 (EDT)
+	id 234766B0006; Thu, 14 Mar 2019 16:37:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A08166B0003
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 16:26:05 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id t4so2750705eds.1
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 13:26:05 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D79D16B0003
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 16:37:08 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id c15so7540365pfn.11
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 13:37:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=0MnBDGPgz9vC3/2m+t5FiE97iY9+rd0eyr2X/THTWCU=;
-        b=EqSfPEk5lJtBM0Mnwc0TcoSZMAafjF7ztmqw0y6FSK8OKLFl9ANG96vIZIlictC98Q
-         LQBl+AWhzgUbdNxYBipOIcStF3EJSmcRBf0yRVNEEUeolZf5hwaWB0uj62r/MguKg7bO
-         Oov+OcTLSR63kD27MgMonhtwIN5bafGYPIbhLIKIgoAuFukiMTIcV4Oa1uXOv1xJ6h/g
-         iXN/mrOhoEuLmjcQn6E5DFsPRx4enBvgNtAmImepXgQROXmeWnk5bjxhtae36CnpwILk
-         NXV9MENEx52GvlgHXgqbug7YZxsnSEgarBK6q1Xu8YXMK7pTfuL7EyZK2QTo0ev7W5DR
-         zwKA==
-X-Gm-Message-State: APjAAAWXxMCPa66VplHyVu+enu9EaLvKmKXchJmOgoCKrz/pp5LmIc+V
-	DqtMMRJ7IASZGRHtoyuwTGSuC5TT7TIYjY8u2NDsTuosODYC7V06cjIwVskRr3Ba+/eJBhilfaU
-	4JMEv64nTO3ctYYQ6VH/vsJQoi3qWfRE/hhVeAShFHudtF6Zih4EEQBlbSP2sdYL1Eg==
-X-Received: by 2002:a17:906:7c49:: with SMTP id g9mr34276590ejp.31.1552595165127;
-        Thu, 14 Mar 2019 13:26:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy3rvcz86W52S7+HEI96M97dEiwpIlwwf8RVb6tsOp0TtZBv/nMn9xyQucm70VCddgENxEn
-X-Received: by 2002:a17:906:7c49:: with SMTP id g9mr34276541ejp.31.1552595164177;
-        Thu, 14 Mar 2019 13:26:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552595164; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=DgWsHZ14WtEAfPFOWW1z2Gf+RMCUzw4CBvC7Or4dKYg=;
+        b=D5zWmDANr0vaYohAOOp03P9sMtWKL+xpjv7AdB662Sj93scjc2Xpdoz/y44BWEUqZi
+         Qo7Ahr/wWlIXfgv6dP4ve4s27w/PkSAnggTUiuLQoPF6fYSP3MzNP4pW7o2v6pPz0OTA
+         I0xpINdgtFT2Yh2tTiXueVV4ksxA4og4fD2EbphyCGhmwK7eKoV/P8u+ERIJR4qlLYTF
+         1AgxuttKkC48m3GZJ2GYogpMGCQchDbsFmZO7GRSvaiHaaZJ/3+C/1vg8Yb9co9QtFQN
+         WzTF383/zx6yQTGAPmi7h+25kcHbSsplRCA+Qv/Iz5up5zNMn0Rz93K40ee4J7y5qjqr
+         Stlg==
+X-Gm-Message-State: APjAAAVy+Di1+hd03nTQvRwlhh9vO7T9+B8pUlYcZ9UY/R8vA/9w2N1a
+	6rt5/Sxc4I2ZA/CeLTMJ9/75o8T4gAD5d4u1B9H+zBhM3WXU1LSjfBVXnMsctbRzQdeC6l1GRCm
+	eVGWwksBKW990jzEv7xU06gUW+AwdR2/3QgAhgehYSluswD446Gm75gLgKQg5eHCAjw==
+X-Received: by 2002:aa7:86c6:: with SMTP id h6mr196423pfo.236.1552595828544;
+        Thu, 14 Mar 2019 13:37:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz/Y8PLJTisp7gBIkAUs8rNd0X0m7ecYimvALgKeJBjdyF2Q1UDQukq7wAgEjZJ8aO+orEJ
+X-Received: by 2002:aa7:86c6:: with SMTP id h6mr196343pfo.236.1552595827415;
+        Thu, 14 Mar 2019 13:37:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552595827; cv=none;
         d=google.com; s=arc-20160816;
-        b=COEL1YHKInnyha2pb420+6dyJ7oXLBhVhGWCgRkb2gTN7e1vKOg0CxOpAo42vcjtjL
-         ApFLOP/JwofRr68/cv0tVo2C3O2eI3lucYGJ3dKjJhQhrb7jESs74lCB7g0E9ASs2vaQ
-         X2N7U7qonvsZgUsrfqZADJeZuz0gTBHzgH/eKs577U/SLE68vZJ/wY7lKS0ly/Ozs1kU
-         +hzsflbblb5+FmaWbEOLVlUDTyNh75IykVd/n5jwMm/q2pcWUCOcLWiYPdmn/GP/eGBF
-         6k+pryHENnovJ2q3QpgBk8oT8Gqv9qQ4YpVF+qaEx/7tkH5T/aQlCgZOj8CM4TrkYz23
-         IgCg==
+        b=f8Hcz2O/acMlWsA5rZh1JXgvZhKt8tyr92e5QjFeSNhka1ulj5dHyZ7wsVvj/nY7eh
+         X6bIXBKS28NhFWLzpfeFs2i6zUOvpBw+vE2rQiSNdAdpEbxge72Ls1Qiv0rAbM1U22GR
+         3/MESc00WxlptviHmwaqH/R2pN075oYu92ttcz3Y4qYbfoX9wzJrmu+Zi8KzKog72JZy
+         H5AK6tIcHqAkQx6uJuB+a4HFsdCaJk4raHoY7gv6ROCrjAmFiz8vKascHbyBZaDhPK75
+         /OK9YMA10B8VJiNUCep23NSuqngld5UE2cIMVLXt62xsILdV5eX+QbpOBmsn9CYSZpyd
+         Sy0A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=0MnBDGPgz9vC3/2m+t5FiE97iY9+rd0eyr2X/THTWCU=;
-        b=E9nftc6lWsgPlbO98C2TxLtefCCKk5747TYr6ciQMCNiDFMCmzUa8RckTeeoo1YisL
-         pIUxYJNqTmytpo+RCICV8O0CnHwSTz3BK4MMR/fwT+KzIOqhBhswmwwQzdZAhAVtwRK4
-         UNDyDGbzfSx9uZ72GL0CTWDK8w6s2KW+YFTK4V/3NDfUBZvD5DsLB+rpQRY4zmYZVqI5
-         Ih0YCy83VIu/7VLuataWZbG8OpJXunQOS7q57PxCxOp9nNKUKPNJqLNx8Ge91gyh74Pe
-         y2KTPn1to/yzo04sLkr+9hSgnGmCsW/mZYie+084cxe8iCKUUYCYqoDF7otfpISjgzQD
-         dRZg==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=DgWsHZ14WtEAfPFOWW1z2Gf+RMCUzw4CBvC7Or4dKYg=;
+        b=ATVzW/SOH70ZFrqsLnFvpgDJod9HXZLOcPqwa/Bb/cixLJUPhyAQHHB7yJT3+Jsgb7
+         22pnXOx/5WSLc5ewlJm87I0ZMFUyjpQr0AkQoP+VBXDU/v8zdRTiYAu2AI545IOOE2jl
+         LFLF/GJLAMh4EmKYvJKyp95ykC623CxxtFuny/VivZH4IVln+odh8hpoKsLq/4lm03Za
+         BMmck5Nh4fsIcKNKuvcFRtXz0GvYDmNTOl4Cca46Vzx3pWxyYPN+SYAn5tPbImtfgHuF
+         sHXhlW26d943+a0yid+/W1OeFc/GISUAD7f/TYu1uoaCSziJVul4A3vrqYJu3jM5maWS
+         GPiQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=WvTI0PsX;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id a21si43527edv.292.2019.03.14.13.26.03
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=jpTdb9Oc;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id r82si37492pfa.140.2019.03.14.13.37.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Mar 2019 13:26:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Thu, 14 Mar 2019 13:37:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=WvTI0PsX;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x2EKIvGm101964;
-	Thu, 14 Mar 2019 20:25:46 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
- mime-version : subject : from : in-reply-to : date : cc :
- content-transfer-encoding : message-id : references : to;
- s=corp-2018-07-02; bh=0MnBDGPgz9vC3/2m+t5FiE97iY9+rd0eyr2X/THTWCU=;
- b=WvTI0PsXF4pULFJO5AY+OrP4f7TWyMnozUbMBxSfn6wfEWfF6wEqMQcqlL6c463M/0i9
- a2oY4r4pgF125PMmmlYfCXVRqvV2n5qWJGbuPkI+KekW5jfqrn2+MlnrruNQt3BkmPaV
- Zn4ZPJh0zdhuUnmG/i+c+BWOO3r81X5UpAhfRfA3qvLvslvwmyvvoYQX/0QHB7hnn256
- moME0tX1Rmh0fnJyqTXdjG9UpF1+x9r2PddyLbTsR/MXhoud9d66SsJ/MOlvJbNfmI36
- ZkdJ9MdXp82PlvkwgllK5JH0Ym+XB3IDSXpoNELeqkTy/+omWXJ4iJaPPkDcCW/3YKGZ Ag== 
-Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
-	by aserp2130.oracle.com with ESMTP id 2r430f3sm8-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 14 Mar 2019 20:25:46 +0000
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x2EKPeKs006903
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 14 Mar 2019 20:25:40 GMT
-Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x2EKPb9Z032336;
-	Thu, 14 Mar 2019 20:25:37 GMT
-Received: from [192.168.0.110] (/73.243.10.6)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 14 Mar 2019 20:25:37 +0000
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.2\))
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=jpTdb9Oc;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c8abb740000>; Thu, 14 Mar 2019 13:37:08 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Thu, 14 Mar 2019 13:37:06 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Thu, 14 Mar 2019 13:37:06 -0700
+Received: from ngvpn01-165-234.dyn.scz.us.nvidia.com (10.124.1.5) by
+ HQMAIL101.nvidia.com (172.20.187.10) with Microsoft SMTP Server (TLS) id
+ 15.0.1473.3; Thu, 14 Mar 2019 20:37:06 +0000
 Subject: Re: [PATCH v3 0/1] mm: introduce put_user_page*(), placeholder
  versions
-From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <20190314133038.GJ16658@quack2.suse.cz>
-Date: Thu, 14 Mar 2019 14:25:35 -0600
-Cc: Jason Gunthorpe <jgg@ziepe.ca>, Christopher Lameter <cl@linux.com>,
-        Jerome Glisse <jglisse@redhat.com>, john.hubbard@gmail.com,
-        Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-        Al Viro <viro@zeniv.linux.org.uk>,
-        Christian Benvenuti <benve@cisco.com>,
-        Christoph Hellwig <hch@infradead.org>,
-        Dan Williams <dan.j.williams@intel.com>,
-        Dave Chinner <david@fromorbit.com>,
-        Dennis Dalessandro <dennis.dalessandro@intel.com>,
-        Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
-        Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>,
-        Mike Rapoport <rppt@linux.ibm.com>,
-        Mike Marciniszyn <mike.marciniszyn@intel.com>,
-        Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
-        LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
-        John Hubbard <jhubbard@nvidia.com>
-Content-Transfer-Encoding: 7bit
-Message-Id: <3AF66C8F-F4BC-4413-A01C-3C90A3C27B28@oracle.com>
+To: William Kucharski <william.kucharski@oracle.com>, Jan Kara <jack@suse.cz>
+CC: Jason Gunthorpe <jgg@ziepe.ca>, Christopher Lameter <cl@linux.com>, Jerome
+ Glisse <jglisse@redhat.com>, <john.hubbard@gmail.com>, Andrew Morton
+	<akpm@linux-foundation.org>, <linux-mm@kvack.org>, Al Viro
+	<viro@zeniv.linux.org.uk>, Christian Benvenuti <benve@cisco.com>, Christoph
+ Hellwig <hch@infradead.org>, Dan Williams <dan.j.williams@intel.com>, Dave
+ Chinner <david@fromorbit.com>, Dennis Dalessandro
+	<dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, Ira Weiny
+	<ira.weiny@intel.com>, Matthew Wilcox <willy@infradead.org>, Michal Hocko
+	<mhocko@kernel.org>, Mike Rapoport <rppt@linux.ibm.com>, Mike Marciniszyn
+	<mike.marciniszyn@intel.com>, Ralph Campbell <rcampbell@nvidia.com>, Tom
+ Talpey <tom@talpey.com>, LKML <linux-kernel@vger.kernel.org>,
+	<linux-fsdevel@vger.kernel.org>
 References: <20190306235455.26348-1-jhubbard@nvidia.com>
  <010001695b4631cd-f4b8fcbf-a760-4267-afce-fb7969e3ff87-000000@email.amazonses.com>
  <20190308190704.GC5618@redhat.com>
@@ -141,33 +115,78 @@ References: <20190306235455.26348-1-jhubbard@nvidia.com>
  <01000169787c61d0-cbc5486e-960a-492f-9ac9-9f6a466efeed-000000@email.amazonses.com>
  <20190314090345.GB16658@quack2.suse.cz> <20190314125718.GO20037@ziepe.ca>
  <20190314133038.GJ16658@quack2.suse.cz>
-To: Jan Kara <jack@suse.cz>
-X-Mailer: Apple Mail (2.3445.104.2)
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9195 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=629 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1903140140
+ <3AF66C8F-F4BC-4413-A01C-3C90A3C27B28@oracle.com>
+From: John Hubbard <jhubbard@nvidia.com>
+X-Nvconfidentiality: public
+Message-ID: <b3090734-7250-8ee6-8c15-661ad8177c11@nvidia.com>
+Date: Thu, 14 Mar 2019 13:37:05 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
+ Gecko/20100101 Thunderbird/60.5.3
+MIME-Version: 1.0
+In-Reply-To: <3AF66C8F-F4BC-4413-A01C-3C90A3C27B28@oracle.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL108.nvidia.com (172.18.146.13) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1552595828; bh=DgWsHZ14WtEAfPFOWW1z2Gf+RMCUzw4CBvC7Or4dKYg=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=jpTdb9OciKuyWNtxC/d1OlI3Sd/Cq6Uwi8BEbaAuli5lMpDCFIslwzEtCyWQ5s9pP
+	 yag3egLlxKb8JoNaDiA5B3fNolLhyACXMoRdr/CfWKdrXNxpa1KELCWTkXhllRS3o9
+	 Lt9cApp1NapXxvVHOb6o60T2AYiZinJGfejLmjcPv3B6e36Z5tlCoo7ZbWLmC+NUHP
+	 7PEcdjTc7yLcVPTB6YbHvX1zefygfGRi2pRuVIqA5zS5SAugjNEAnWO/Tdr3cprYNO
+	 SPIs3ifMB1H8GsXj+PnE3iEybhHN0PyHvCO/gOJBJgw3mRMbFwMwfyPs1FOj56faEv
+	 OFY3y4rNhAhLw==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-> On Mar 14, 2019, at 7:30 AM, Jan Kara <jack@suse.cz> wrote:
+On 3/14/19 1:25 PM, William Kucharski wrote:
 > 
-> Well I have some crash reports couple years old and they are not from QA
-> departments. So I'm pretty confident there are real users that use this in
-> production... and just reboot their machine in case it crashes.
+> 
+>> On Mar 14, 2019, at 7:30 AM, Jan Kara <jack@suse.cz> wrote:
+>>
+>> Well I have some crash reports couple years old and they are not from QA
+>> departments. So I'm pretty confident there are real users that use this in
+>> production... and just reboot their machine in case it crashes.
+> 
+> Do you know what the use case in those crashes actually was?
+> 
+> I'm curious to know they were actually cases of say DMA from a video
+> capture card or if the uses posited to date are simply theoretical.
 
-Do you know what the use case in those crashes actually was?
 
-I'm curious to know they were actually cases of say DMA from a video
-capture card or if the uses posited to date are simply theoretical.
+It's not merely theoretical. In addition to Jan's bug reports, I've
+personally investigated a bug that involved an GPU (acting basically as
+an AI accelerator in this case) that was doing DMA to memory that turned
+out to be file backed.
 
-It's always good to know who might be doing this and why if for no other
-reason than as something to keep in mind when designing future interfaces.
+The backtrace for that is in the commit description.
+
+As others have mentioned, this works well enough to lure people into
+using it, but then fails when you load down a powerful system (and put
+it under memory pressure).
+
+I think that as systems get larger, and more highly threaded, we might
+see more such failures--maybe even in the Direct IO case someday,
+although so far that race window is so small that that one truly is
+still theoretical (or, we just haven't been in communication with
+anyone who hit it).
+
+thanks,
+-- 
+John Hubbard
+NVIDIA
+
+> 
+> It's always good to know who might be doing this and why if for no other
+> reason than as something to keep in mind when designing future interfaces.
+> 
 
