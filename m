@@ -2,180 +2,134 @@ Return-Path: <SRS0=RO59=RR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 08662C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 07:54:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DB790C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 07:55:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B5DFD2087C
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 07:54:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B5DFD2087C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id 9EE7F21852
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 07:55:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9EE7F21852
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 502438E0003; Thu, 14 Mar 2019 03:54:22 -0400 (EDT)
+	id 417B48E0004; Thu, 14 Mar 2019 03:55:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4B0F08E0001; Thu, 14 Mar 2019 03:54:22 -0400 (EDT)
+	id 3CB3C8E0001; Thu, 14 Mar 2019 03:55:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 39F7D8E0003; Thu, 14 Mar 2019 03:54:22 -0400 (EDT)
+	id 2B43D8E0004; Thu, 14 Mar 2019 03:55:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F3BB98E0001
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 03:54:21 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id n84so2027722oia.14
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 00:54:21 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DBC7D8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 03:55:27 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id t4so1883508eds.1
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 00:55:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :date:from:user-agent:mime-version:to:cc:subject:references
-         :in-reply-to:content-transfer-encoding;
-        bh=ZvARq4cooloLaUlA1LL1tH8m0FIn496kVGJBlnp8BCg=;
-        b=rNvHadQFkNCANtRgTTlrRFdqeU8Z62hWWQevR6L51iGUlfSFDhSVNapnwR5Wcthk8v
-         7sUtXLcwCLGAP6WlDgb7nNuIHZKkwWnlxNzx4RRFLb3mM7wITP46uZpRRujDK6TzJrfY
-         1pDnGcbuM/Cru2p63dsDxyvb2erIgDwy9NcaMbZEhaiDZVyFr3w/mK8nrOo7c4e3SRCh
-         wQGuwCuIkrnQzckMuJbWUyVEMBqzUfP04SGds5iJkyIwYbc4NQSSFwun6XsynHJolB2V
-         c+foFbZQLYWBi+cj0pPAXPRPhkycqTPwb73OTwNT7Px4ANEojWithPgzNcpkEC39CmGC
-         OokA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-X-Gm-Message-State: APjAAAUCpJOJlK6mPxAjXK0wXh4mXPfoTVEGKiL9XU1mE7kQHqZA6W7h
-	i/59Zn6EBYjwvgFAP3BlZ/yDPmL3eS9oLHbx5d+9TLbavvYwML16UaKqlcjPdkittDfJPndVpJO
-	rAYC5AMP5codj+jyXcfadKNzWErIPTJBrFO0hhF1pYilkzD2/oJKg1I5e24/EI9N9Kw==
-X-Received: by 2002:aca:d4d6:: with SMTP id l205mr1306629oig.73.1552550061598;
-        Thu, 14 Mar 2019 00:54:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzR3MM/szNmfYjJ6C2+/gwkIavNCwvfa1SYSTYbnDKh13NKo0C3y/yYf/J/Ho/ap2VWIwYe
-X-Received: by 2002:aca:d4d6:: with SMTP id l205mr1306583oig.73.1552550060685;
-        Thu, 14 Mar 2019 00:54:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552550060; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=8w4ZeMk108gOJGm+HmzmcSQyt39pPVrRoNa0Lp1u6Co=;
+        b=EM7vbyO9l3d+J3SnBiVFakMmidGELAMkZMwgXPfkEjeX8UbEfXm9Jak+mrfiPkCU9A
+         /U8E91G8fXjI2vjrJ1sq7EiFgip2DJz1csjt4qWm0kjrnszbPDXNpS1ZVNbxB1ofwZLf
+         jKtjylAhRVG2NjNcGacr5QljWD+/Flpco6/q5azEUt6Pwh3lzm0Kv2RXT2YY228oxVii
+         g15m3XdBIdMN/dBilRz10oLV8jwnj0zdWsok8re1QV9v89Uin5w6hSJWY7vF/fmK/dKU
+         lRfaR6LdzFu5nKKvH9p/KdvLM2d9oiQkbBbIYMWv01M1hT2OGP48T8w0+W4owi4+mg0L
+         olaQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAUyxp7NhU7UB6GJ9VfGqwpIh5aWjCJHOLzm7/KJOmcAJbVs0Ekl
+	Wm49J7QNQlcl8oG/qyFmPha5UrXNtIJDu0c2E4aFmFzUGRdJ+rJSBj5Gu0dZbOCDm0xH1zHWhPM
+	kfKf+CB3pRsD8K97wuPFGkcOwgNNuIfJJhalPDE6nNVspqiJIEwOGIIwb07RuXEXQdw==
+X-Received: by 2002:a17:906:4dcf:: with SMTP id f15mr18123570ejw.32.1552550127427;
+        Thu, 14 Mar 2019 00:55:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw/TRo+yiE/Iv4wHdw1hDtK8TmU7rKI5gqCd3+RSN7b3HvI8wxZZcyIpHT4DxKXuB2t159n
+X-Received: by 2002:a17:906:4dcf:: with SMTP id f15mr18123538ejw.32.1552550126635;
+        Thu, 14 Mar 2019 00:55:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552550126; cv=none;
         d=google.com; s=arc-20160816;
-        b=Hz9NXLEnsmb+ifTKx4q+mSBQa0Ls0M7HEQ8FwdmqADtWudFrm8FizV5Un9cUy7tDht
-         jxsrWnWBDv4dAZEcPh1AIzKCahAT/E9igXL/Gf28WXFAhr1fy09otTbv5X2tb1nMZOt2
-         Ub4MVDJ0ISYTKDVZX7Na5LuOiAWbb4JiEkGj7yBWaGAmei5iZwKfPpfeZyYOUkFjtC1s
-         gN6Wcw+w1+Ey4kw6R2LMOfZ1UEXkbnVEBJLoRR8yi7/ZTBrekPPNtbi1DO/5n3Plgjsr
-         PNh1MeIP2NASW50YM8V1GO6nxvfUm44wKLFSkCt9RDCKtcPwXM+Tj/qBfm/0SjjUiS2C
-         mz4g==
+        b=1D6WsXbC2IIW+AhBaXk18kwkGjQ9rHuT5098sIVUA2yxa/zrAqjtbwg6Z/6Qt3eexw
+         xMgTX9G79EbKgtNc7mhRrJHY1OwwBS4wUB1QIAaUAR2Edtdq8V8UP2VV3Ebeu7j+CdS5
+         jlhBrsKC8BpiEULv0nnOj5Kk3qk5ylf0pbohKJSYkAMxjDZzWFUwDugwmYoG+afBbm2z
+         U2xgKQkEzBWDs3pj2YGCSZnQBZEbrgeJ7l4AoLTwCJX9gmt+szoD3k2ePAPeWtcgJQzT
+         DNbbOzZpk7AAT+0QUQeGyWnVPy1rOMGtJ56Brvm/TlE/lwhau5FLFZIgMJYun8MP2bu0
+         m6+w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:references:subject:cc:to
-         :mime-version:user-agent:from:date:message-id;
-        bh=ZvARq4cooloLaUlA1LL1tH8m0FIn496kVGJBlnp8BCg=;
-        b=NJyc3DzWQ48WuMlZrQBJ+6uAeit9H84B7znCG0f7covCP5FoO8rYfv2S93FzFkSGaD
-         x5GuYLCtw36Wa4UKJE0Cly/5ip2glD2LuUj5smtQa4tuBBCtmvrNKi2yj/TfCQ6h9xmf
-         U7VFsFEY6klYe7qJlVL0c2BK8HAwvPt6WzyFJdnzsJJwapfEV1sNo5okDpDZwkQ7KlH/
-         rIvkGTEbM7drhX2PsZIiwZtovgnEXALKJjDklxlO1lemdNEGfFVaBZHuA0VNjyU3u5Zr
-         QmTqF4rjDyeSPjLCBPA026Nlk7wo/6nWqwfo9dVE+po1haGF/nh+lmYCYICsHkiAz+gx
-         jnMQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=8w4ZeMk108gOJGm+HmzmcSQyt39pPVrRoNa0Lp1u6Co=;
+        b=EvKKMqo+9/vgNfgcNqSF+hdhAqfowvt7IbBzWipAJNF4jigwlYbajggaHlsJycO9xb
+         U3UfKE43Lenz6JMNab8j2FtrO7KL7TUqXbqNpia78igZ0uDEG/w2xsF73pbN53lG47t7
+         7z6J9zUNwFzBnzQbVKP87HzGLW9wEUL+19Vk3s/aeb1Qtj1T4ZurmZ6QecJN5HV9gcDb
+         jmdFnyt6pwlLCT1G5/HvS+LEe/omlidjVxHIQTs0AWzVlOruMjzWyi2ZzLC+4DAgFNCM
+         otSqOn4HMyCgdpjNY/zRrDZdUTSwYvFiCbep4W1NjGlHSooNog8KnGVuZsZ+QawFhyTT
+         QJyQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
-        by mx.google.com with ESMTPS id p83si5820315oih.196.2019.03.14.00.54.20
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Mar 2019 00:54:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from suse.de (nat.nue.novell.com. [195.135.221.2])
+        by mx.google.com with ESMTP id w4si1645689edh.436.2019.03.14.00.55.26
+        for <linux-mm@kvack.org>;
+        Thu, 14 Mar 2019 00:55:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) client-ip=195.135.221.2;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from DGGEMS408-HUB.china.huawei.com (unknown [172.30.72.59])
-	by Forcepoint Email with ESMTP id 0EBDC5ABE2909F18C4D8;
-	Thu, 14 Mar 2019 15:54:15 +0800 (CST)
-Received: from [127.0.0.1] (10.177.29.68) by DGGEMS408-HUB.china.huawei.com
- (10.3.19.208) with Microsoft SMTP Server id 14.3.408.0; Thu, 14 Mar 2019
- 15:54:10 +0800
-Message-ID: <5C8A08A1.3090403@huawei.com>
-Date: Thu, 14 Mar 2019 15:54:09 +0800
-From: zhong jiang <zhongjiang@huawei.com>
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20120428 Thunderbird/12.0.1
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: by suse.de (Postfix, from userid 1000)
+	id 56248456D; Thu, 14 Mar 2019 08:55:25 +0100 (CET)
+Date: Thu, 14 Mar 2019 08:55:25 +0100
+From: Oscar Salvador <osalvador@suse.de>
+To: Qian Cai <cai@lca.pw>
+Cc: akpm@linux-foundation.org, mhocko@kernel.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm: fix a wrong flag in set_migratetype_isolate()
+Message-ID: <20190314075521.mp6k63bpwprqhtmh@d104.suse.de>
+References: <20190313212507.49852-1-cai@lca.pw>
 MIME-Version: 1.0
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-CC: Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@kernel.org>,
-	Vlastimil Babka <vbabka@suse.cz>, "linux-arm-kernel@lists.infradead.org"
-	<linux-arm-kernel@lists.infradead.org>, Linux Memory Management List
-	<linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins
-	<hughd@google.com>
-Subject: Re: [Qestion] Hit a WARN_ON_ONCE in try_to_unmap_one when runing
- syzkaller
-References: <5C87D848.7030802@huawei.com> <20190314062757.GA27899@hori.linux.bs1.fc.nec.co.jp>
-In-Reply-To: <20190314062757.GA27899@hori.linux.bs1.fc.nec.co.jp>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.177.29.68]
-X-CFilter-Loop: Reflected
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190313212507.49852-1-cai@lca.pw>
+User-Agent: NeoMutt/20170421 (1.8.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019/3/14 14:27, Naoya Horiguchi wrote:
-> Hi,
->
-> On Wed, Mar 13, 2019 at 12:03:20AM +0800, zhong jiang wrote:
-> ...
->> Minchan has changed the conditon check from  BUG_ON  to WARN_ON_ONCE in try_to_unmap_one.
->> However,  It is still an abnormal condition when PageSwapBacked is not equal to PageSwapCache.
->>
->> But Is there any case it will meet the conditon in the mainline.
->>
->> It is assumed that PageSwapBacked(page) is true in the anonymous page,   This is to say,  PageSwapcache
->> is false. however,  That is impossible because we will update the pte for hwpoison entry.
->>
->> Because page is locked ,  Its page flags should not be changed except for PageSwapBacked
-> try_to_unmap_one() from hwpoison_user_mappings() could reach the
-> WARN_ON_ONCE() only if TTU_IGNORE_HWPOISON is set, because PageHWPoison()
-> is set at the beginning of memory_failure().
->
-> Clearing TTU_IGNORE_HWPOISON might happen on the following two paths:
->
->   static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
->                                     int flags, struct page **hpagep)
->   {
->       ...
->   
->       if (PageSwapCache(p)) {
->               pr_err("Memory failure: %#lx: keeping poisoned page in swap cache\n",
->                       pfn);
->               ttu |= TTU_IGNORE_HWPOISON;
->       }
->       ...
->
->       mapping = page_mapping(hpage);                                                                           
->       if (!(flags & MF_MUST_KILL) && !PageDirty(hpage) && mapping &&                                           
->           mapping_cap_writeback_dirty(mapping)) {                                                              
->               if (page_mkclean(hpage)) {                                                                       
->                       SetPageDirty(hpage);                                                                     
->               } else {                                                                                         
->                       kill = 0;                                                                                
->                       ttu |= TTU_IGNORE_HWPOISON;                                                              
->                       pr_info("Memory failure: %#lx: corrupted page was clean: dropped without side effects\n",
->                               pfn);                                                                            
->               }                                                                                                
->       }                                                                                                        
->       ...
->
->       unmap_success = try_to_unmap(hpage, ttu);
->       ...
->
-> So either of the above "ttu |= TTU_IGNORE_HWPOISON" should be executed.
-> I'm not sure which one, but both paths show printk messages, so if you
-> could have kernel message log, that might help ...
-Thank you for your response.
+On Wed, Mar 13, 2019 at 05:25:07PM -0400, Qian Cai wrote:
+> Due to has_unmovable_pages() takes an incorrect irqsave flag instead of
+> the isolation flag in set_migratetype_isolate(), it causes issues with
+> HWPOSION and error reporting where dump_page() is not called when there
+> is an unmoveable page.
+> 
+> Fixes: d381c54760dc ("mm: only report isolation failures when offlining memory")
+> Signed-off-by: Qian Cai <cai@lca.pw>
 
-Unfortunately, I lost the printk log. I was looking for it before and support us for further analysis.
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
 
-It's very weird to get there. Assume that TTU_IGNORE_HWPOSISON is set. There is the two case.
+> ---
+>  mm/page_isolation.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+> index bf67b63227ca..0f5c92fdc7f1 100644
+> --- a/mm/page_isolation.c
+> +++ b/mm/page_isolation.c
+> @@ -59,7 +59,8 @@ static int set_migratetype_isolate(struct page *page, int migratetype, int isol_
+>  	 * FIXME: Now, memory hotplug doesn't call shrink_slab() by itself.
+>  	 * We just check MOVABLE pages.
+>  	 */
+> -	if (!has_unmovable_pages(zone, page, arg.pages_found, migratetype, flags))
+> +	if (!has_unmovable_pages(zone, page, arg.pages_found, migratetype,
+> +				 isol_flags))
+>  		ret = 0;
+>  
+>  	/*
+> -- 
+> 2.17.2 (Apple Git-113)
+> 
 
-First, PageSwapCache is set and page has been locked. Theoretically WARN_ON_ONCE should not be triggered.
-Second, We should assume the page belongs to file page.:-(
-
-I will go on reproducing the issue and get the printk message log.
-
-Thanks
-zhong jiang
-> Thanks,
-> Naoya Horiguchi
->
-> .
->
-
+-- 
+Oscar Salvador
+SUSE L3
 
