@@ -2,154 +2,124 @@ Return-Path: <SRS0=RO59=RR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E211EC4360F
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 15:40:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A567EC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 15:49:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AA6CD217F5
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 15:40:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AA6CD217F5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 66F8A20811
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 15:49:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66F8A20811
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2F1C98E0003; Thu, 14 Mar 2019 11:40:33 -0400 (EDT)
+	id 07B338E0003; Thu, 14 Mar 2019 11:49:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2C8068E0001; Thu, 14 Mar 2019 11:40:33 -0400 (EDT)
+	id 0288A8E0001; Thu, 14 Mar 2019 11:49:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1B87F8E0003; Thu, 14 Mar 2019 11:40:33 -0400 (EDT)
+	id E83B78E0003; Thu, 14 Mar 2019 11:49:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E55E18E0001
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 11:40:32 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id y6so5108541qke.1
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 08:40:32 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A96E48E0001
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 11:49:12 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id x98so236222ede.18
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 08:49:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=6k8y5owJlIgtXJ/xW4k/7iaMZhqHe82u6BLdUz4Kcic=;
-        b=tiOpdqxm+B4xPs3mAmkCorAz/tAv9a8GeakVTeTQbpujPdpjXtyC+3mgnArSoLrw5O
-         4Zhd+ZlqfFPfMPM2P9XGO1Udz6jflHsWO9awYsd0lvq5B+rnTbl+NwDwJDuPdAnf7Izm
-         O/ZSnAXmxFh6rzEE6fimZa2jXutD/8PikJlo5Q8LxBR3qEWv3ggN1y1EQ48aS5KZZ3Z2
-         2yHK5YkIlT0uqoWRSpTj1wGzTNqrI/uQu1NWFxu5TEp3zNg+x98MDzEyi4g5+rXgBSEL
-         Ea6rJVFWB082xK0vkp0WWUifICU+Ast39gil9Pb5fcTw1aAC5p2/xvAexS2zqypMi0bg
-         MfCw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUPJnSiEH1El/gueqdGxrRzOFeEPzdPt54Pdo+qrf2kOSmbuEyQ
-	Vb+s0c28ShjsyhCEs10zahmFqK8LSEAeb2Yp310t5bzBHX2qe8jgKRPkMifFkel88mBTx9UleOe
-	4Wz9o9r6mK0aEhtQWUQ7Y8XVns+qXdh4vt2kf/sbsE9gooY/Uy/+IuoRjnM8Qx8dG+Q==
-X-Received: by 2002:a05:620a:1013:: with SMTP id z19mr9914384qkj.342.1552578032739;
-        Thu, 14 Mar 2019 08:40:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy0NRV+k6igYzDzgSF4jyRZQLLlDay6ls4SIm2LGJmWQ1vWCUYASvUiS+Zl9qEE9rkJTD0M
-X-Received: by 2002:a05:620a:1013:: with SMTP id z19mr9914302qkj.342.1552578031484;
-        Thu, 14 Mar 2019 08:40:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552578031; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=UmwXuI0Tu6eH1ES7L3coBYvPrhIxuARhUcCL5HJ3a0s=;
+        b=Nv9iQg4k7VYwMYceyiJH5Caf3mOBOI2SIcITob/mRZ2Pz5YqFK1SiwgzgntmWxZw+8
+         uvCmqzvzp9IUuT0zobsV7b25jgcdcJlI9lADpZJ0dx8QjqxUGtz3YATdyeTCISSSMMWp
+         IkURQBZlnD+nXYYFxQPtRSL0BxJq6KA8TKKCfVyDnpZHQZ21T2TiuBqqGFkLzYs7mRVd
+         FB+Js0/74grpeUs32aObW70SzLxkl/EDdDpy+rJYpOPISKW0fE+p9QhRmbcF321WTwXS
+         j0fNoIQ8OCghQ/hvUp/AllQvuFIrZ5CT4HumI1Z5lBkdqec5zCQNclqWufB5Rs9Rjjyy
+         8l5g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAVM/62e0IIaBH13lYdsro4J2dK0Y7GyenWbHeehq5IZJH4nwrjk
+	20lMS1VMSg/9E8DjU6FKORmMWPxy04jLZcxDXc9VjDdggwIgXJFYpTUb/ZpU8HDpdtrttwNmPTZ
+	y9rf/z4AII9hpGbPl1+DEseDes/STv4Tu1/EMof1qAN07Y+sjEJjrFCVpZiJECACB/g==
+X-Received: by 2002:a17:906:33c7:: with SMTP id w7mr2379635eja.191.1552578552246;
+        Thu, 14 Mar 2019 08:49:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwEUzeeE7MtdcRMwrTZozs3WStE7ROqFOrgcWGUx5djlYfQjZbIzxNHIcbq26Y/I7Njfa5x
+X-Received: by 2002:a17:906:33c7:: with SMTP id w7mr2379589eja.191.1552578551372;
+        Thu, 14 Mar 2019 08:49:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552578551; cv=none;
         d=google.com; s=arc-20160816;
-        b=S3WP2XyDlHwSR6KeWRg63bN/Uow9ZAnEd06hq2nZuXQUzk7rbJujbNKpwzeFf3NJCi
-         eAYt8DqQJ/U6GNbaO2Qg4ytdM7/kb7aVOj3TxijvClHfSdUvI/1Joy4zh/o2q2ModC8q
-         kMk+g22qxzMhxNcud1yaloOR0wGfsy0odRzKLuUT5L1be75GO2pma2awJlxvh3UCwrFz
-         nwmTHkr7KhScI30EwMOIl9cvHZ6Qgo5xJ7ENBwoBVN+HVHwTZ+BJY+22baakWnpcxfqP
-         n2QqEeeObv18m25g+CClloJjUGgmYR5NiFolN50Kmx7ibDIdCItQye3KIDvGqP05kce8
-         sElg==
+        b=XCtQxNmG+3Mp24/GWlqrbgjzTU2ozT27VedDcAjFtW7VomRuUSPJuwQ9ghOMvZ06bR
+         0GZ48j/dTXCfzEwDAE4RsGj15Q7H/RW7GI5EF7TCdIogYRUSWU8MaAdoKZ+pmYodQBDz
+         ReFXvbjkEps3woPq4bPpM0XJoWqysjKXQ6b/AAW1P3l97nSifafLqHQ8V2wSOE7+SOz3
+         zG9gbx/VTtbkjyp00fcJ+YD49k3JrRdwhDn0WHQ4usILVozOh7cnDx+rUVaGu17418TL
+         PLNqLm0WDNGaruZnmPAwZXnTZHyL1w3dZ/t+w3kDxNsY5ew0agaeeOos5RFulBHwSEal
+         oD9A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=6k8y5owJlIgtXJ/xW4k/7iaMZhqHe82u6BLdUz4Kcic=;
-        b=KjUiIPqbSyaMUpjhQ4G15V9AwGuKSoh81oY25z4M+EeWzGtXHeFLpmFGKecMUrpDHz
-         jgiiMs/RqrEZq43jaIKG4GxUgZ9CqJUrfi9agR1iKqOVyyYT8o7WupLq5ObCQ1Og+0tp
-         hRcKojS6rzb3MmCRpVyEX9eKpEwW2NlsVrIRNJQfd+RNN8Q2m66veoJQ0ge96lPGjjNb
-         U0vGSWexavApSQu2UstMQCBL6GQZ3YKSRyWbv+kw2GQuVW30by2f3bAUOfjqYu9B2IFo
-         +fMLlx2N1qt33TBA45tBySzcSvryPb164jN6ACZ8RcKXbog4OBrxSI7bSnVIkEwviZH1
-         haBw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=UmwXuI0Tu6eH1ES7L3coBYvPrhIxuARhUcCL5HJ3a0s=;
+        b=FlZJ3re/uZUNLkoEVGltZc7DhfqgMYVBbu6LwlZFGU84sv3lnO2GwE3gQvxfyDvzrF
+         k9dyFjvHBXB5ZfRtTVTB+vAXLlC/+2SSupPgZ4RBnfOKb/9WBAHl3PLEHVHHmFoQ4t/w
+         TxTFxWjW7b911dbaKr2og0rA60VS4I23CC3+XXlefEhpaFuqL0KqqscK5YnhbFX0pMQl
+         gfIQZczWegxCsRrSRs0IYNLIZEzdQVxvGJUNuXh4XBDqMHggMiXR0EM18P3TyLZ0Wl9T
+         p89KVQhDL5XyuqBsNOuu28e/nQWkm/KSZoiR7oLanouDLo3GGryenITspoMh7YnCOmVn
+         SIZA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e91si1669465qtb.96.2019.03.14.08.40.31
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Mar 2019 08:40:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from suse.de (nat.nue.novell.com. [195.135.221.2])
+        by mx.google.com with ESMTP id g17si143359edm.298.2019.03.14.08.49.11
+        for <linux-mm@kvack.org>;
+        Thu, 14 Mar 2019 08:49:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) client-ip=195.135.221.2;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 5BD0880F6B;
-	Thu, 14 Mar 2019 15:40:30 +0000 (UTC)
-Received: from t460s.redhat.com (ovpn-117-188.ams2.redhat.com [10.36.117.188])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id D93A15D75C;
-	Thu, 14 Mar 2019 15:40:25 +0000 (UTC)
-From: David Hildenbrand <david@redhat.com>
-To: xen-devel@lists.xenproject.org
-Cc: linux-kernel@vger.kernel.org,
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: by suse.de (Postfix, from userid 1000)
+	id 66755457F; Thu, 14 Mar 2019 16:49:10 +0100 (CET)
+Date: Thu, 14 Mar 2019 16:49:10 +0100
+From: Oscar Salvador <osalvador@suse.de>
+To: David Hildenbrand <david@redhat.com>
+Cc: xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org,
 	Boris Ostrovsky <boris.ostrovsky@oracle.com>,
 	Juergen Gross <jgross@suse.com>,
 	Stefano Stabellini <sstabellini@kernel.org>,
 	Julien Grall <julien.grall@arm.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Nadav Amit <namit@vmware.com>,
+	Matthew Wilcox <willy@infradead.org>, Nadav Amit <namit@vmware.com>,
 	Andrew Cooper <andrew.cooper3@citrix.com>,
-	akpm@linux-foundation.org,
-	linux-mm@kvack.org,
-	David Hildenbrand <david@redhat.com>
-Subject: [PATCH v1] xen/balloon: Fix mapping PG_offline pages to user space
-Date: Thu, 14 Mar 2019 16:40:25 +0100
-Message-Id: <20190314154025.21128-1-david@redhat.com>
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Thu, 14 Mar 2019 15:40:30 +0000 (UTC)
+	akpm@linux-foundation.org, linux-mm@kvack.org
+Subject: Re: [PATCH v1] xen/balloon: Fix mapping PG_offline pages to user
+ space
+Message-ID: <20190314154907.wcwh5ricj6v7p23v@d104.suse.de>
+References: <20190314154025.21128-1-david@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190314154025.21128-1-david@redhat.com>
+User-Agent: NeoMutt/20170421 (1.8.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The XEN balloon driver - in contrast to other balloon drivers - allows
-to map some inflated pages to user space. Such pages are allocated via
-alloc_xenballooned_pages() and freed via free_xenballooned_pages().
-The pfn space of these allocated pages is used to map other things
-by the hypervisor using hypercalls.
+On Thu, Mar 14, 2019 at 04:40:25PM +0100, David Hildenbrand wrote:
+> @@ -646,6 +647,7 @@ void free_xenballooned_pages(int nr_pages, struct page **pages)
+>  
+>  	for (i = 0; i < nr_pages; i++) {
+>  		if (pages[i])
+> +			__SetPageOffline(pages[i]);
+>  			balloon_append(pages[i]);
 
-Pages marked with PG_offline must never be mapped to user space (as
-this page type uses the mapcount field of struct pages).
+didn't you forget {} there? ;-)
 
-So what we can do is, clear/set PG_offline when allocating/freeing an
-inflated pages. This way, most inflated pages can be excluded by
-dumping tools and the "reused for other purpose" balloon pages are
-correctly not marked as PG_offline.
+>  	}
+>  
+> -- 
+> 2.17.2
+> 
 
-Fixes: 77c4adf6a6df (xen/balloon: mark inflated pages PG_offline)
-Reported-by: Julien Grall <julien.grall@arm.com>
-Tested-by: Julien Grall <julien.grall@arm.com>
-Signed-off-by: David Hildenbrand <david@redhat.com>
----
- drivers/xen/balloon.c | 2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
-index 39b229f9e256..751d32f41f26 100644
---- a/drivers/xen/balloon.c
-+++ b/drivers/xen/balloon.c
-@@ -604,6 +604,7 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
- 	while (pgno < nr_pages) {
- 		page = balloon_retrieve(true);
- 		if (page) {
-+			__ClearPageOffline(page);
- 			pages[pgno++] = page;
- #ifdef CONFIG_XEN_HAVE_PVMMU
- 			/*
-@@ -646,6 +647,7 @@ void free_xenballooned_pages(int nr_pages, struct page **pages)
- 
- 	for (i = 0; i < nr_pages; i++) {
- 		if (pages[i])
-+			__SetPageOffline(pages[i]);
- 			balloon_append(pages[i]);
- 	}
- 
 -- 
-2.17.2
+Oscar Salvador
+SUSE L3
 
