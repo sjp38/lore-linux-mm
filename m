@@ -3,154 +3,132 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6927BC4360F
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 08:25:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8F4F6C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 08:30:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 28808217F5
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 08:25:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 28808217F5
+	by mail.kernel.org (Postfix) with ESMTP id 4F5C22184C
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 08:30:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4F5C22184C
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BA3FF8E0003; Thu, 14 Mar 2019 04:25:31 -0400 (EDT)
+	id CFBB88E0003; Thu, 14 Mar 2019 04:30:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B292F8E0001; Thu, 14 Mar 2019 04:25:31 -0400 (EDT)
+	id CAB518E0001; Thu, 14 Mar 2019 04:30:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9CAFB8E0003; Thu, 14 Mar 2019 04:25:31 -0400 (EDT)
+	id B9ADF8E0003; Thu, 14 Mar 2019 04:30:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 39BDE8E0001
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 04:25:31 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id f15so2052721edt.7
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 01:25:31 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 75F748E0001
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 04:30:44 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id t4so1922397eds.1
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 01:30:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=yeEaIpoUjOwkAcixjiXgOfDHUz1W2PfPaUhl1MZWbg4=;
-        b=pOJFS8+O84bQ/+imo8ZEoXOANv9smpBYhpgqh94WNHdY+6+XRGayFiuQOlOV9jWqx8
-         bzksv7dHWMD64knAjx3hgg/BB4oTZ09MXkc9+BHfFPS0EUlMXF/IprIZIWzRSz91fESt
-         88cXMWVePTXbYY0w4piFgV5I4zCrC+bn4cWCXBnwJg2crSzE5Qf8sfLgh6TvjibYBsw3
-         GOTZvCfQvnzWaL2zKxR+wWsgt6Cq7vAlj2nalu+aQRhrxE6YHYQva7ltYREMyddoHVad
-         sq8yiyi1aQDOGVejWb0cVDejaQlgnmL1Mzi9tPFAM3hg25mf/Q4p6jWH6Kg+hD8ZCPJx
-         CErw==
+        bh=FJBXiu24THUCeR7dgdwrm4o+o3aw5Az5+ZxavG0s5XQ=;
+        b=iMeR5aM2wUG/cnQ2CtCf7XvSDzVVv3P1LX77ZeAgz95wlk+A+3GpFLCOh4hW98W5xR
+         Hitsh9r0tBXzmlHnonUQhVSLZjg2kodnt1AYkBSbOkTVZDnq1utRw2z6P6OZWZZtkTOc
+         Ljfj4wZvEwp0up6WixCvTy4NjmnfTJ19Eh8U31ZVw75fNxZthaI1u65J3Fm7cxUKdzjc
+         Iz9A7upLf1WlDCrH+Y9VK+cDbl/4qOXw66YiJtypDyzjAYHuPej4MQifjbqazXeiXA40
+         phNmgcp0aMJyZn2cQZF90AjGxaI0yCm7xfUBygBEvSTW/TIevNb97fC0gSAWk6V/5iCK
+         4toQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAUKJUvWCYGxRVcxMn9KTFkm06UccSCB15d+533547o5thCHYn8a
-	pedUKbat162//TbDMLgz+x04OyJbEs1ypgps2TzJ3qkrRvdVNKQvGXvI108WKNhrcmzcA7XaL2J
-	gtktGjFboFvwOnchHU1ZJpLArmsCr0YizKFJ812qfg7GtnJr+Nqguk5RtRPH6pjXa3Q==
-X-Received: by 2002:a50:9268:: with SMTP id j37mr10692483eda.170.1552551930782;
-        Thu, 14 Mar 2019 01:25:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwbufaYHuqmyFFD2P0i2a3cTz9yFKx3GVfGOcwo+hZi32yu5OV9av/Dzz3nZ7xnWa0VPHAB
-X-Received: by 2002:a50:9268:: with SMTP id j37mr10692439eda.170.1552551929951;
-        Thu, 14 Mar 2019 01:25:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552551929; cv=none;
+X-Gm-Message-State: APjAAAUeMS3RhB/0bmKTM8JpMGAOCd4wNbs2nOsEyiBEIjqvnu9InQ+e
+	tzTlpbCIp7W+aOXP5l1RJKAcT1KlnSwnWhOmXE/RzM6yJdyvFdw4+kSfSk08DtvSS2hDx8huE5/
+	SbU2nDmp1tVrvLBS2/ut94/0Z0FgMTO6qQ92fNdI1u5uqWOdg5xIkh6U28zCvOFhuTA==
+X-Received: by 2002:aa7:c153:: with SMTP id r19mr10604010edp.139.1552552244057;
+        Thu, 14 Mar 2019 01:30:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzKJuGnb/x9NW+xEPGQieiehPtlzhgdPYpCpCKN9nWmnOPC3jscBF2Ot15PQJyspWW5rFGO
+X-Received: by 2002:aa7:c153:: with SMTP id r19mr10603969edp.139.1552552243306;
+        Thu, 14 Mar 2019 01:30:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552552243; cv=none;
         d=google.com; s=arc-20160816;
-        b=P2/tk78GAw4GwdHj6XIKrq6bwL3BtfhX3c4V2RwecDk6YeXuplggQwf18dONLtZECq
-         Lt+CsCyDxtU6NN/px6ePmCfxu7k6h0VlBAR3QnR5NpxbWOvrpOhbu4tCvfR75Z+dsrLf
-         MGa4v14/AI5FrONZzktp7nAYR44wr2DhJdlhbGO6//RZ1wkw/t8Ccnqox0QEFA/3Pp35
-         xK+N60TGD2fzLCh3IB+0frka4rd/BxUbbsB9DG4iWdKYMqyNrFgCO7rHNUHo9IzCldsh
-         SrreKTQ6mhOorEOdhGalObD64ags7cVBSD2KoZmve2plDq5uTw+5WT5EB3tsYnN2KeTs
-         bl/g==
+        b=zwXotwQC2co6S89uVVARKVYYWNb9agIaUpAyiu19/JoEwIz9nGHvl18gj8rSA5cado
+         hrBQ+qObzggWatM/3xyeQgZ5XHuUNlzErBRNGHRV3OfdR8zgDxhrsFoPoeBiM+YaAgRI
+         xKuMo/3EQKlfFnCER/APb6ytulCoT+kPYZ/HKbnA7mH366VgkgEHz/U350BHQUhPLrSB
+         rFnhJPSlAyRvUcI8/SeKU5fiE6iX1ax49Xi4JPjAotHeS/H/yAq8EMj1mu77YLNDr48E
+         4yDlPIo3Otv7fv+ZN7UgQtvTdZHaAJCwZW6kBBTKyJY9Oc4fXJdOIQJRZiP1xGuBVzf9
+         LwXg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=yeEaIpoUjOwkAcixjiXgOfDHUz1W2PfPaUhl1MZWbg4=;
-        b=J4UJsDBZsZArUm+yQocDqQHK2mY9MPcJXwkq/864xBzDElp+0W5qlmzdfb3Ix6fpe8
-         yj2fiKeBqx2wPYtxg8zwcepKAoE7roLi0bCkX9CSM14VdpaSM7PKyEReu9KWrcZqO4qG
-         BNtkWVJEHp6qPE4Caq8A4Qq0HPeiyXJ6wYJTVUXvCwfiML6Vkz9p6Xn40ehM4tSgzRlt
-         SyOl3P36nWK/RR4zLU3mFFZFWvWMdYFR76MkyLmMaJX/daM89RrOxHzSkdpYB3EfXJIV
-         cpmfb/S3oWOUVeyHnMWqgGvrv1v4GdAnMTbE/Bkr/CJYL2vZ+ArRYSg7W8tQSTGRtSLT
-         E2Xw==
+        bh=FJBXiu24THUCeR7dgdwrm4o+o3aw5Az5+ZxavG0s5XQ=;
+        b=hulldDzK4vjU6HEHpmj99JAw9KfFFro5XsKTvXA85ZomtSwTwy04QHsPHP6OQhL2lI
+         bsBXNkaKtP38axr/xq7cEME7jR1Smd+zDK6mEdzb7TVN/nAf9bu10EvN+vOwbXClcb12
+         JWTjcm6qfC+yOuuNi0HwCgMyAJyGpuqavFgIhKt2rGetMyaRKHUkmUFLvNrMBrZSgt/G
+         8lb/oshjix6D887BLSwXIU3DCyQbSbgvfUH7XddU8ZbJw4pCknga4SMRkIwKrE4U2F8c
+         bTNajNwLs/rFO9xPAPRmJk69N1og6PXQtKuxEaEyzJkeBZQIJzc3KUV098qof/V0qxNt
+         AbkQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g6si1618073edm.219.2019.03.14.01.25.28
+        by mx.google.com with ESMTPS id i4si398550ede.331.2019.03.14.01.30.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Mar 2019 01:25:28 -0700 (PDT)
+        Thu, 14 Mar 2019 01:30:43 -0700 (PDT)
 Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 36A06ACE3;
-	Thu, 14 Mar 2019 08:25:28 +0000 (UTC)
-Subject: Re: [RESEND PATCH] mm/compaction: fix an undefined behaviour
-To: Qian Cai <cai@lca.pw>, akpm@linux-foundation.org
-Cc: mgorman@techsingularity.net, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-References: <20190313180616.47908-1-cai@lca.pw>
+	by mx1.suse.de (Postfix) with ESMTP id D52EEAD4E;
+	Thu, 14 Mar 2019 08:30:42 +0000 (UTC)
+Subject: Re: [PATCH] mm: compaction: show gfp flag names in
+ try_to_compact_pages tracepoint
+To: Yafang Shao <laoar.shao@gmail.com>, mhocko@suse.com, jrdr.linux@gmail.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, shaoyafang@didiglobal.com
+References: <1551501538-4092-1-git-send-email-laoar.shao@gmail.com>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <433eedda-bba6-798d-31e8-d603fa33a20d@suse.cz>
-Date: Thu, 14 Mar 2019 09:25:27 +0100
+Message-ID: <75d7cff9-add2-20f4-ae3e-2d99048c6614@suse.cz>
+Date: Thu, 14 Mar 2019 09:30:42 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.5.2
 MIME-Version: 1.0
-In-Reply-To: <20190313180616.47908-1-cai@lca.pw>
+In-Reply-To: <1551501538-4092-1-git-send-email-laoar.shao@gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000036, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/13/19 7:06 PM, Qian Cai wrote:
-> In a low-memory situation, cc->fast_search_fail can keep increasing as
-> it is unable to find an available page to isolate in
-> fast_isolate_freepages(). As the result, it could trigger an error
-> below, so just compare with the maximum bits can be shifted first.
+On 3/2/19 5:38 AM, Yafang Shao wrote:
+> show the gfp flag names instead of the gfp_mask could make the trace
+> more convenient.
 > 
-> UBSAN: Undefined behaviour in mm/compaction.c:1160:30
-> shift exponent 64 is too large for 64-bit type 'unsigned long'
-> CPU: 131 PID: 1308 Comm: kcompactd1 Kdump: loaded Tainted: G
-> W    L    5.0.0+ #17
-> Call trace:
->  dump_backtrace+0x0/0x450
->  show_stack+0x20/0x2c
->  dump_stack+0xc8/0x14c
->  __ubsan_handle_shift_out_of_bounds+0x7e8/0x8c4
->  compaction_alloc+0x2344/0x2484
->  unmap_and_move+0xdc/0x1dbc
->  migrate_pages+0x274/0x1310
->  compact_zone+0x26ec/0x43bc
->  kcompactd+0x15b8/0x1a24
->  kthread+0x374/0x390
->  ret_from_fork+0x10/0x18
-> 
-> Fixes: 70b44595eafe ("mm, compaction: use free lists to quickly locate a migration source")
-> Acked-by: Mel Gorman <mgorman@techsingularity.net>
-> Signed-off-by: Qian Cai <cai@lca.pw>
+> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
 
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 > ---
+>  include/trace/events/compaction.h | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
 > 
-> Resend because Andrew's email was bounced back at some point.
-> 
->  mm/compaction.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index f171a83707ce..6aebf1eb8d98 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -1157,7 +1157,9 @@ static bool suitable_migration_target(struct compact_control *cc,
->  static inline unsigned int
->  freelist_scan_limit(struct compact_control *cc)
->  {
-> -	return (COMPACT_CLUSTER_MAX >> cc->fast_search_fail) + 1;
-> +	return (COMPACT_CLUSTER_MAX >>
-> +		min((unsigned short)(BITS_PER_LONG - 1), cc->fast_search_fail))
-> +		+ 1;
->  }
+> diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
+> index 6074eff..e66afb818 100644
+> --- a/include/trace/events/compaction.h
+> +++ b/include/trace/events/compaction.h
+> @@ -189,9 +189,9 @@
+>  		__entry->prio = prio;
+>  	),
 >  
->  /*
+> -	TP_printk("order=%d gfp_mask=0x%x priority=%d",
+> +	TP_printk("order=%d gfp_mask=%s priority=%d",
+>  		__entry->order,
+> -		__entry->gfp_mask,
+> +		show_gfp_flags(__entry->gfp_mask),
+>  		__entry->prio)
+>  );
+>  
 > 
 
