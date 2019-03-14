@@ -2,207 +2,273 @@ Return-Path: <SRS0=RO59=RR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DF2FDC10F06
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 10:42:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D290EC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 10:44:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8B8D12184E
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 10:42:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8B8D12184E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 7722C21855
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 10:44:23 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="cd/lj9oL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7722C21855
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F0BCC8E0003; Thu, 14 Mar 2019 06:42:25 -0400 (EDT)
+	id 126198E0003; Thu, 14 Mar 2019 06:44:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EBAD58E0001; Thu, 14 Mar 2019 06:42:25 -0400 (EDT)
+	id 0D59A8E0001; Thu, 14 Mar 2019 06:44:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DAA968E0003; Thu, 14 Mar 2019 06:42:25 -0400 (EDT)
+	id F2D5E8E0003; Thu, 14 Mar 2019 06:44:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BB3F28E0001
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 06:42:25 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id l87so4284284qki.10
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 03:42:25 -0700 (PDT)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CC0E18E0001
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 06:44:22 -0400 (EDT)
+Received: by mail-it1-f199.google.com with SMTP id i4so4313328itb.1
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 03:44:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to;
-        bh=DKfElOakWQ9jAytxopIGDRsc9fgHNgyH9+OuJWYXtqQ=;
-        b=nmlNOLkLStKk4mNJI+7rTZtRrvgO/RA5he+Z0wpYrFX1XRMiKIIEQ5sIUYLWnBs55A
-         l8z5L+Vg+dAm5HXKU/TASez72SNVAwWnJRXpBFC4qTiCVyexo0dq9c58WeivvcIjknMr
-         ADd4KqSUTlfTUI/NQ6AHhhUzRqsbwd5SVXPrqL+rVQZX3fONx0JNbw/cTlQAAve0CBKK
-         XNQwyuoEGCJWE5fSDusaC8xxpnjga+8TkDx9Fxb/ZBpzIXXs04YVkZ3HwOu0UjPkUHA/
-         boARZmUU/gWkjr2xhzZ0NGwJivtJF3W4S8sdDwcKYvpIn7I5g8vvCdEEW+/hIAfawzK0
-         Tvdw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVXmlh/CLT9QcULudkcWPBPjevQrZsaETHtRWf8uGVCwzQ5oU41
-	B/+aRbTIZDg0Uc+Xv42q3RBTNUCFMO5Nk+BX5Uy1IfynOF/1cqcZAhogsGsCi1gEdzcVd+ImdF1
-	rOjaKrepBC/UMMxdAjjcbLmfVVFkgYxFldxakkFnk3/hEDR8gAX9tNsR3O4JK4J2ChVKfBpquRn
-	RAPcfZ2LwxtcYltLuZo5UUNM4GnbP5ymF+umrh1yiSYTcUS/36ec+GCEqlgx9GbAUdwofNeV11Y
-	m87GUCAXw+k4Jm9/GVEQdxItYXkZ5JGhuG1VQHZYzYLWsBDwRbw1QmAmZVu4dEGXiSwA3ILp0Fh
-	vzwOXcAryLueGRyyD+AjvJwmqU8gX8yf4i1pemCG/q9rsiYj2ki+d5z0RVXZFtrfWCNqdZHbtuX
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=qd8n3KqbDahoPwCZIcSO29r3/qbS//0/Sc4AHCuc2OA=;
+        b=i3dBsi4IhL7IxIftFtMt1w6g6u5GiBpVwR0AkZ+80sBPclm/0PYilAm533pR6mqTmM
+         iGTjjvs97lGnTE5FvhRw5wlntLoQZ9j9MvRlxQKDsyXIX4bUOWODGdT6YioqVtQotHLW
+         JUG5/G0KrwTEK4TmNaDPqSuvaxRGEopzTRAeUFVg5MDT1XrCEcT2OoKAD33O+GDrKtF9
+         YhcsDeVBBnLsYpdwq4BM+iV2qa99iUjKzz/Hqa08BmmVAm0HQ2GtrnsoE8hgFHpOGFEe
+         yA4fnKUO217xfP751UQeBVwsPRvUQzqfxgC+Y5tQI4kslwv7/ceDvSMsKX/xK6mKGH7A
+         R1Vw==
+X-Gm-Message-State: APjAAAXf2sDA2K2WI6+G8jnuJRl52i+l5nzc4342BG3Rm/3V1Imur4xJ
+	CBry//n4Kts92M6I5ai8sZlOiecz04ScPy4dzJTlDxDI2iFPnsK/8qUlfekNczCIJCqrAVdVDY6
+	Z7jTkdOhd0GipV97j46KPAE0m41TxyuTAQIwV0DLWwnzzysWVZ9OAYbTgMNsGvPqT4IuycV3Wb0
+	3SG3BJB/xYypOdg3Cxu16Syp63RibN3ronIoLzP9kQ0SuUXM/0p113+tVrFso8s2EC4nSVCkFF4
+	9GMrfPkXRUgUaUbi9ZHqohvr9XCfW2/l28rbVW4JLRL2py3Vjwa717W/lnUkXn7yT1kPw/v71az
+	JtRQdT1DAIc9rnkumrgOfi8uDAkIDlw4JFBHlCd63fs8PT/jgI2kOQKoQjZbjB9vBWm3jotDARG
 	p
-X-Received: by 2002:a37:6882:: with SMTP id d124mr35617291qkc.225.1552560145534;
-        Thu, 14 Mar 2019 03:42:25 -0700 (PDT)
-X-Received: by 2002:a37:6882:: with SMTP id d124mr35617247qkc.225.1552560144649;
-        Thu, 14 Mar 2019 03:42:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552560144; cv=none;
+X-Received: by 2002:a02:1783:: with SMTP id 125mr11693177jah.31.1552560262567;
+        Thu, 14 Mar 2019 03:44:22 -0700 (PDT)
+X-Received: by 2002:a02:1783:: with SMTP id 125mr11693130jah.31.1552560261177;
+        Thu, 14 Mar 2019 03:44:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552560261; cv=none;
         d=google.com; s=arc-20160816;
-        b=P7/jqDnNsB+0ufiak4TnQTRvnwIGF1nvCioHn0LqlNLCerPHqH47VyDCXqbnAH8ed7
-         IUrvkg9fAjJLS8mf2WWAJo3R7rIQIB2ECuuVS3rsqMG6EDVuyc87iUPLfuBA7Ncuvnw7
-         KC0mGNi1+rRwHOVQt5GwycebryUuZ+IN2DYqbVNU7V7XLnwRonnsE9JNV5xOUh8MVkVf
-         bLdOUwxPdI4N9BrbOHW+Ey/rVRDh/qVEOnmmLD1GpJ68iqaKhKjBzbLmS31rgaT/qeZ+
-         czxudXIeMfKx0OMosbfrX5NWnQN3Sx5PBzAXuUUc9AImfG3fYxtiMg973pkABbIGJO1z
-         FN4Q==
+        b=sjAdD4jJnhaMdtuDgM3WHAdN5AgU9EONjR8eiamPieVWXKi5wh7a3Bn2RU4acfKQzw
+         p5VaV8ZmT0vD7C5cRvPsryu9mO30PRPyyWQ0AwAOJGLFMw6KReSbRo7QsuITkqSqyIA0
+         edwdjGePOuilYBVBocMeKLjTSam6w4XuoECzaScZcudxiPchQ/tFcjgiVpktYKHGbdjQ
+         XkZU1CEgvjeGJaPTVLAyEJFcHHpXiigtmm9k+3SZImJcT9DQAOYXSKsg1U0gMn+kbYK8
+         2WpHExOJtFHNN4VAXyUZ63ZNq47sp4o6/PvNBUbAwmSro+ytHZ0aqOS5MWmWtqG+064+
+         UebA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date;
-        bh=DKfElOakWQ9jAytxopIGDRsc9fgHNgyH9+OuJWYXtqQ=;
-        b=SJCzaxMdQxyp96AylfxXYSbPAQ6LBJI2B099+BKXTH6IHxr2d8gnC6SNGr0ef1+Pht
-         XwD9SSy3UNDnlWJFK7JTI3Ne4W+ga0BAhiIXLNdWTkwzoN/A9JA7bcqNmhiRcJUGWAmq
-         sDBB3GV2+p1tGW3La6DnxnLN2WDl1YVryJCx/KjX44jpJJnz77mQSz7cq/lCUJlj708c
-         hOrN1ylzlVj+/iRWjvxczwlJGih3uhtg4VVfUYmZQpWNkH//i6A3lHAQrP9ITASe+mVj
-         c+SuB7bxZSfuX5wtsrlsHdxMArJvdFQPOHmSxs1Of7evHAfBzVGsiAjUX+o4szNdP+M4
-         xYPg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=qd8n3KqbDahoPwCZIcSO29r3/qbS//0/Sc4AHCuc2OA=;
+        b=H5VZWcBK/Tz45741jc21zPwMDnnOXI0CCKvnSQXssViXNXY5XakTK127Fnjha+8ZJu
+         yBtI9s3Mges2cF2ti3i7D8/dvqkB/0HUGDQWtrAvV0JWo4ar89HjLB4Rx3+WcNO3X8Ec
+         ZEc1vi07AaoJZbqfqNEPyictds3ghJnEkaj/gUhE+9A+7OvfGvebdmd4vgFssyr6uzA2
+         jd4kd6I7ECn5QRFunytoM5FzQm2GxDYHRogOyHOsCGNsqC9kbz33COUM02ADiRH9JmrL
+         baf76l4PPE7WgGaLnSFVjYqypl9kRhlEVy8OQUYTPW5K1Mxw/R5EhMuaDMHk1O8F+Hsl
+         tmSQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="cd/lj9oL";
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w19sor15648201qvf.30.2019.03.14.03.42.24
+        by mx.google.com with SMTPS id b102sor2638299itd.30.2019.03.14.03.44.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 14 Mar 2019 03:42:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 14 Mar 2019 03:44:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqzuTvhcTxdCy53aCMd03OXLipoCFuWa4Hom4hJY3Wk5ndn5Kuk15zvRYVXjblKQ47jdYUY9BA==
-X-Received: by 2002:ad4:4304:: with SMTP id c4mr3312316qvs.41.1552560144409;
-        Thu, 14 Mar 2019 03:42:24 -0700 (PDT)
-Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
-        by smtp.gmail.com with ESMTPSA id i8sm4095314qtr.19.2019.03.14.03.42.22
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 14 Mar 2019 03:42:23 -0700 (PDT)
-Date: Thu, 14 Mar 2019 06:42:21 -0400
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: James Bottomley <James.Bottomley@hansenpartnership.com>
-Cc: Christoph Hellwig <hch@infradead.org>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Jason Wang <jasowang@redhat.com>,
-	David Miller <davem@davemloft.net>, kvm@vger.kernel.org,
-	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
-	linux-kernel@vger.kernel.org, peterx@redhat.com, linux-mm@kvack.org,
-	linux-arm-kernel@lists.infradead.org, linux-parisc@vger.kernel.org
-Subject: Re: [RFC PATCH V2 0/5] vhost: accelerate metadata access through
- vmap()
-Message-ID: <20190314064004-mutt-send-email-mst@kernel.org>
-References: <20190311.111413.1140896328197448401.davem@davemloft.net>
- <6b6dcc4a-2f08-ba67-0423-35787f3b966c@redhat.com>
- <20190311235140-mutt-send-email-mst@kernel.org>
- <76c353ed-d6de-99a9-76f9-f258074c1462@redhat.com>
- <20190312075033-mutt-send-email-mst@kernel.org>
- <1552405610.3083.17.camel@HansenPartnership.com>
- <20190312200450.GA25147@redhat.com>
- <1552424017.14432.11.camel@HansenPartnership.com>
- <20190313160529.GB15134@infradead.org>
- <1552495028.3022.37.camel@HansenPartnership.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="cd/lj9oL";
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=qd8n3KqbDahoPwCZIcSO29r3/qbS//0/Sc4AHCuc2OA=;
+        b=cd/lj9oLnlnFZtNouHHalTbuFniLYV5Qji+yNGwBxL7Qa2yMXRBYYpJtbMf1TLG1aO
+         IwS13cvtko4rV1IjGpftQ0GkqOHurddGkGrpSzWMTuRg9YqOsEDpE0H0YNtg8t4v26Zv
+         mPJwZ2xRjLUj73DaX0T84XAhQ4fVGOSwpgKvPobeLnV4WG3r0YAoZGASKJicfSaIF3Gi
+         9eL5XjQsLUjEihVdVkyx+UEi2qwn1MgGLKwLpOQwPNFZAhcprFHNB62Xw3vxwqjpxAbF
+         hP1aI61EdhP3zQ7JuMNTjfpKHXt538V9jppV2VY3wl0Gd6P1ftrt0X22PcRymRU2M8SJ
+         X8Ig==
+X-Google-Smtp-Source: APXvYqwTZ2icNGbQbSX9V2gpjOJMOh3gHL8RUUHTBbZgmkW7UUxUjnRP77DQXawmmoMxdJ/jxOWWhU4yRpZ6YrbHsdc=
+X-Received: by 2002:a24:b34f:: with SMTP id z15mr1543254iti.97.1552560260894;
+ Thu, 14 Mar 2019 03:44:20 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1552495028.3022.37.camel@HansenPartnership.com>
+References: <1551421452-5385-1-git-send-email-laoar.shao@gmail.com>
+ <1551421452-5385-2-git-send-email-laoar.shao@gmail.com> <20190314101915.GI7473@dhcp22.suse.cz>
+In-Reply-To: <20190314101915.GI7473@dhcp22.suse.cz>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Thu, 14 Mar 2019 18:43:44 +0800
+Message-ID: <CALOAHbAuGLe_Cw+xChmM3=cuhdis3=LwaT1yRoH72zmg+uhUTw@mail.gmail.com>
+Subject: Re: [PATCH] mm: vmscan: drop may_writepage and classzone_idx from
+ direct reclaim begin template
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Souptick Joarder <jrdr.linux@gmail.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
+	LKML <linux-kernel@vger.kernel.org>, shaoyafang@didiglobal.com
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 13, 2019 at 09:37:08AM -0700, James Bottomley wrote:
-> On Wed, 2019-03-13 at 09:05 -0700, Christoph Hellwig wrote:
-> > On Tue, Mar 12, 2019 at 01:53:37PM -0700, James Bottomley wrote:
-> > > I've got to say: optimize what?  What code do we ever have in the
-> > > kernel that kmap's a page and then doesn't do anything with it? You
-> > > can
-> > > guarantee that on kunmap the page is either referenced (needs
-> > > invalidating) or updated (needs flushing). The in-kernel use of
-> > > kmap is
-> > > always
-> > > 
-> > > kmap
-> > > do something with the mapped page
-> > > kunmap
-> > > 
-> > > In a very short interval.  It seems just a simplification to make
-> > > kunmap do the flush if needed rather than try to have the users
-> > > remember.  The thing which makes this really simple is that on most
-> > > architectures flush and invalidate is the same operation.  If you
-> > > really want to optimize you can use the referenced and dirty bits
-> > > on the kmapped pte to tell you what operation to do, but if your
-> > > flush is your invalidate, you simply assume the data needs flushing
-> > > on kunmap without checking anything.
-> > 
-> > I agree that this would be a good way to simplify the API.   Now
-> > we'd just need volunteers to implement this for all architectures
-> > that need cache flushing and then remove the explicit flushing in
-> > the callers..
-> 
-> Well, it's already done on parisc ...  I can help with this if we agree
-> it's the best way forward.  It's really only architectures that
-> implement flush_dcache_page that would need modifying.
-> 
-> It may also improve performance because some kmap/use/flush/kunmap
-> sequences have flush_dcache_page() instead of
-> flush_kernel_dcache_page() and the former is hugely expensive and
-> usually unnecessary because GUP already flushed all the user aliases.
-> 
-> In the interests of full disclosure the reason we do it for parisc is
-> because our later machines have problems even with clean aliases.  So
-> on most VIPT systems, doing kmap/read/kunmap creates a fairly harmless
-> clean alias.  Technically it should be invalidated, because if you
-> remap the same page to the same colour you get cached stale data, but
-> in practice the data is expired from the cache long before that
-> happens, so the problem is almost never seen if the flush is forgotten.
->  Our problem is on the P9xxx processor: they have a L1/L2 VIPT L3 PIPT
-> cache.  As the L1/L2 caches expire clean data, they place the expiring
-> contents into L3, but because L3 is PIPT, the stale alias suddenly
-> becomes the default for any read of they physical page because any
-> update which dirtied the cache line often gets written to main memory
-> and placed into the L3 as clean *before* the clean alias in L1/L2 gets
-> expired, so the older clean alias replaces it.
-> 
-> Our only recourse is to kill all aliases with prejudice before the
-> kernel loses ownership.
-> 
-> > > > Which means after we fix vhost to add the flush_dcache_page after
-> > > > kunmap, Parisc will get a double hit (but it also means Parisc
-> > > > was the only one of those archs needed explicit cache flushes,
-> > > > where vhost worked correctly so far.. so it kinds of proofs your
-> > > > point of giving up being the safe choice).
-> > > 
-> > > What double hit?  If there's no cache to flush then cache flush is
-> > > a no-op.  It's also a highly piplineable no-op because the CPU has
-> > > the L1 cache within easy reach.  The only event when flush takes a
-> > > large amount time is if we actually have dirty data to write back
-> > > to main memory.
-> > 
-> > I've heard people complaining that on some microarchitectures even
-> > no-op cache flushes are relatively expensive.  Don't ask me why,
-> > but if we can easily avoid double flushes we should do that.
-> 
-> It's still not entirely free for us.  Our internal cache line is around
-> 32 bytes (some have 16 and some have 64) but that means we need 128
-> flushes for a page ... we definitely can't pipeline them all.  So I
-> agree duplicate flush elimination would be a small improvement.
-> 
-> James
+On Thu, Mar 14, 2019 at 6:19 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Fri 01-03-19 14:24:12, Yafang Shao wrote:
+> > There are three tracepoints using this template, which are
+> > mm_vmscan_direct_reclaim_begin,
+> > mm_vmscan_memcg_reclaim_begin,
+> > mm_vmscan_memcg_softlimit_reclaim_begin.
+> >
+> > Regarding mm_vmscan_direct_reclaim_begin,
+> > sc.may_writepage is !laptop_mode, that's a static setting, and
+> > reclaim_idx is derived from gfp_mask which is already show in this
+> > tracepoint.
+> >
+> > Regarding mm_vmscan_memcg_reclaim_begin,
+> > may_writepage is !laptop_mode too, and reclaim_idx is (MAX_NR_ZONES-1),
+> > which are both static value.
+> >
+> > mm_vmscan_memcg_softlimit_reclaim_begin is the same with
+> > mm_vmscan_memcg_reclaim_begin.
+> >
+> > So we can drop them all.
+>
+> I agree. Although classzone_idx is PITA to calculate nothing really
+> prevents us to have a tool to do that. may_writepage is not all that
+> useful anymore.
+>
+> > Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+>
+> From a quick glance this looks ok. I haven't really checked deeply or
+> tried to compile it but the change makes sense.
+>
 
-I suspect we'll keep the copyXuser path around for 32 bit anyway -
-right Jason?
-So we can also keep using that on parisc...
+Thanks for your quick response!
+This patch works fine, I have verified it.
 
--- 
-MST
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> > ---
+> >  include/trace/events/vmscan.h | 26 ++++++++++----------------
+> >  mm/vmscan.c                   | 14 +++-----------
+> >  2 files changed, 13 insertions(+), 27 deletions(-)
+> >
+> > diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+> > index a1cb913..153d90c 100644
+> > --- a/include/trace/events/vmscan.h
+> > +++ b/include/trace/events/vmscan.h
+> > @@ -105,51 +105,45 @@
+> >
+> >  DECLARE_EVENT_CLASS(mm_vmscan_direct_reclaim_begin_template,
+> >
+> > -     TP_PROTO(int order, int may_writepage, gfp_t gfp_flags, int classzone_idx),
+> > +     TP_PROTO(int order, gfp_t gfp_flags),
+> >
+> > -     TP_ARGS(order, may_writepage, gfp_flags, classzone_idx),
+> > +     TP_ARGS(order, gfp_flags),
+> >
+> >       TP_STRUCT__entry(
+> >               __field(        int,    order           )
+> > -             __field(        int,    may_writepage   )
+> >               __field(        gfp_t,  gfp_flags       )
+> > -             __field(        int,    classzone_idx   )
+> >       ),
+> >
+> >       TP_fast_assign(
+> >               __entry->order          = order;
+> > -             __entry->may_writepage  = may_writepage;
+> >               __entry->gfp_flags      = gfp_flags;
+> > -             __entry->classzone_idx  = classzone_idx;
+> >       ),
+> >
+> > -     TP_printk("order=%d may_writepage=%d gfp_flags=%s classzone_idx=%d",
+> > +     TP_printk("order=%d gfp_flags=%s",
+> >               __entry->order,
+> > -             __entry->may_writepage,
+> > -             show_gfp_flags(__entry->gfp_flags),
+> > -             __entry->classzone_idx)
+> > +             show_gfp_flags(__entry->gfp_flags))
+> >  );
+> >
+> >  DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_direct_reclaim_begin,
+> >
+> > -     TP_PROTO(int order, int may_writepage, gfp_t gfp_flags, int classzone_idx),
+> > +     TP_PROTO(int order, gfp_t gfp_flags),
+> >
+> > -     TP_ARGS(order, may_writepage, gfp_flags, classzone_idx)
+> > +     TP_ARGS(order, gfp_flags)
+> >  );
+> >
+> >  #ifdef CONFIG_MEMCG
+> >  DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_reclaim_begin,
+> >
+> > -     TP_PROTO(int order, int may_writepage, gfp_t gfp_flags, int classzone_idx),
+> > +     TP_PROTO(int order, gfp_t gfp_flags),
+> >
+> > -     TP_ARGS(order, may_writepage, gfp_flags, classzone_idx)
+> > +     TP_ARGS(order, gfp_flags)
+> >  );
+> >
+> >  DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_softlimit_reclaim_begin,
+> >
+> > -     TP_PROTO(int order, int may_writepage, gfp_t gfp_flags, int classzone_idx),
+> > +     TP_PROTO(int order, gfp_t gfp_flags),
+> >
+> > -     TP_ARGS(order, may_writepage, gfp_flags, classzone_idx)
+> > +     TP_ARGS(order, gfp_flags)
+> >  );
+> >  #endif /* CONFIG_MEMCG */
+> >
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index ac4806f..cdc0305 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -3304,10 +3304,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+> >       if (throttle_direct_reclaim(sc.gfp_mask, zonelist, nodemask))
+> >               return 1;
+> >
+> > -     trace_mm_vmscan_direct_reclaim_begin(order,
+> > -                             sc.may_writepage,
+> > -                             sc.gfp_mask,
+> > -                             sc.reclaim_idx);
+> > +     trace_mm_vmscan_direct_reclaim_begin(order, sc.gfp_mask);
+> >
+> >       nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
+> >
+> > @@ -3338,9 +3335,7 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
+> >                       (GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
+> >
+> >       trace_mm_vmscan_memcg_softlimit_reclaim_begin(sc.order,
+> > -                                                   sc.may_writepage,
+> > -                                                   sc.gfp_mask,
+> > -                                                   sc.reclaim_idx);
+> > +                                                   sc.gfp_mask);
+> >
+> >       /*
+> >        * NOTE: Although we can get the priority field, using it
+> > @@ -3389,10 +3384,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+> >
+> >       zonelist = &NODE_DATA(nid)->node_zonelists[ZONELIST_FALLBACK];
+> >
+> > -     trace_mm_vmscan_memcg_reclaim_begin(0,
+> > -                                         sc.may_writepage,
+> > -                                         sc.gfp_mask,
+> > -                                         sc.reclaim_idx);
+> > +     trace_mm_vmscan_memcg_reclaim_begin(0, sc.gfp_mask);
+> >
+> >       psi_memstall_enter(&pflags);
+> >       noreclaim_flag = memalloc_noreclaim_save();
+> > --
+> > 1.8.3.1
+> >
+>
+> --
+> Michal Hocko
+> SUSE Labs
 
