@@ -6,84 +6,91 @@ X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2B57EC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 14:12:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A7BB4C10F06
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 14:15:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DBFF62184E
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 14:12:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DBFF62184E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 5958121852
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 14:15:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5958121852
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7D6DB8E0003; Thu, 14 Mar 2019 10:12:52 -0400 (EDT)
+	id E3D298E0003; Thu, 14 Mar 2019 10:15:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7852B8E0001; Thu, 14 Mar 2019 10:12:52 -0400 (EDT)
+	id DC48F8E0001; Thu, 14 Mar 2019 10:15:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 69DED8E0003; Thu, 14 Mar 2019 10:12:52 -0400 (EDT)
+	id C419B8E0003; Thu, 14 Mar 2019 10:15:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 11A038E0001
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 10:12:52 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id i59so2454367edi.15
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 07:12:52 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DBBF8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 10:15:02 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id l87so4797735qki.10
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 07:15:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=5lvB8izfEMoAkCDQAuLlEU4fXWY647iGWhNKwihE/TU=;
-        b=PmdQRwFZ+VQGgxT//JD2ogKPe3+WNuaNkJqHbhoXikFqy2a+x9dB0ygdyrYUnTO1j5
-         FjW3hicF1G9dRqJU0LHvX+k3Fs6sE8f3tlFVaeNVVJKiKcd5t4kkvndx4wkY9l1f3rc5
-         D82sFqju7NV3imCuzqfI8wPSRhpSmW/svY/xUNpOS+9c7eqioMpaByYokWU4i6uDKSwd
-         vkMU9JaQH6UNJ9veByc+3fkgLkBZCNBmx1+nGC7HnxTPUUR9CL9agRnum4lby3qzrrLs
-         4c2x2599qSXqN2ab2gfbErFa+krCgt2QIh0HhKKNcrzKrTXcKFam5Aw5j9TH8H9cU+TH
-         KuRQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of julien.grall@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=julien.grall@arm.com
-X-Gm-Message-State: APjAAAWLMV/U1SddLsxWadu0jRte9pOmB0NTm2fTMcXsV3U7n3XNkzO6
-	0gum3We2pJJ0uk/hKgO5bQbYiB7pQ+3f1L6niAhfWffWgI+/mxTyTqBuFpJ0AFi4cU835HSN0FL
-	yuFYLbIIsa7FtaM0vO1WiIMaZsyedHdqFn5/MnXCh26WJt/WWOJUzqxtN3g3W+GuZ8g==
-X-Received: by 2002:a17:906:f28d:: with SMTP id gu13mr23398378ejb.104.1552572771575;
-        Thu, 14 Mar 2019 07:12:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzrC/UUPPM13ynFmc7gBAWeSJouokUSZG3Wb0L7TqT/8RO1UGKcczFDks5hVteD0IbDqf43
-X-Received: by 2002:a17:906:f28d:: with SMTP id gu13mr23398315ejb.104.1552572770453;
-        Thu, 14 Mar 2019 07:12:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552572770; cv=none;
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=1vC8HoJlVyZDAZLP9I99+6VUfshmbbjIDK8nwBClymw=;
+        b=kOGFXy0RO3ajqTHTjW6v79G7G2UZrh6VKCK5K1WTWY81GHyxVpgKqUI5aPDu+mqP2Y
+         NKVvP/cm8W0bNuLO4lX0Qi948GVV8Q8nkekuRUkby8Xm7atxFgIw0KhWRyvcjGcRQK1Z
+         BXmV17tHEV3l1ZBn+Kv9RU+XEIBmIA8LV7z1Y/zlZbMshxQESNpOEfJ6c11cZ024sss4
+         gOKZstAZKxaxaLg686SGwoNLpZDujaXu9A1iX+KsoXUIGaU50wnFWg6r+9XRhC/AUqWX
+         qbwIodennk14+6qXwmNQr+ghRhMBKrjFDcvHiyHeaA/HuBeyui5fQTDXEw9gdy2vGXkG
+         Xfcg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXBijErqW7n4xecn6Qhrv4Gjq4ulq1z9Vpb1W+fIeZdNnmLk8Nj
+	kIIxhEP1np+xsmZbbvSpjuZbXAXsizzreXgG/y06X6Rojx1fn2rR5IzJCT14ONQjlSQ0YmuA3d7
+	/oE6hmYXnrStNb1rmKgWQf0k/cnhNroCsC56OIkWn3u/3B/Oat/mqnkujH+9CmV6zJQ==
+X-Received: by 2002:ac8:5543:: with SMTP id o3mr3912444qtr.111.1552572902412;
+        Thu, 14 Mar 2019 07:15:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwPsLxSTQws9oqH8cauReMpn0UpkyOvmsWKKMDwafYpWZI1r7dCFO+JgIF/Mtrm+uZHBdCg
+X-Received: by 2002:ac8:5543:: with SMTP id o3mr3912393qtr.111.1552572901680;
+        Thu, 14 Mar 2019 07:15:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552572901; cv=none;
         d=google.com; s=arc-20160816;
-        b=LHWtQWwPFm2hdCDuthnNdpxmMAeT12nB8WjPInwWJqSoI96WhmxRRLZqzIqFktK5lN
-         /ViC4l5D9HEsovQ2TmDHZvADm/LuWMR/9NlQbQISO3U83YRfE30bjg0zF8tmvV2xRW5r
-         Xcn9PYUcZcqTBbEWVbNAuVO10Sq/7ZKxQ3KaJFNjErbtEcViAEsGH4X74AYgfYDA8d0A
-         QqO0GQKQMLXbE2T0B3nCNvv4P4jPCAygkHVNLRm74qBMqcEfMAWFSZ2dDUipy/TiacrP
-         kR34O3pif/9ueF6wFJzLwdjKKyIqbdmOy8MSCgPuXpliS0dFcv5U0ZuZVRx7QWXiN1Ds
-         /gWA==
+        b=q8U8w7d+0SJVNTKojutsG0EsJJBNkNfFTq7kit/eX8qc1++NtsanxHNKYwthj8kiX6
+         WOxqgvC5f92k5t7l8RQrnAcvfJArqBnGMHJCn6aRGIDTQy+mJoD2tLCgCxMxF5uh2Yhz
+         LyKVexd1JETnz1HUaVcGMVU1lo/eqcGyy7Yjvk3K9wVpIPvUmlFizrYkYCNLXJKpH6R2
+         IHFCZsZVPxPA4Pi4HuR6GEsrjJFp4m8NvxQdKW79H7uz4pre+LiqXdJeY47AeRuGQxPE
+         v+rZ8NG4+JtnqGoU1EcJOm49k+cGyRVTViC2Z5tbsamJEpC1F0IsTL3z66EfbripjbEF
+         JlEw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=5lvB8izfEMoAkCDQAuLlEU4fXWY647iGWhNKwihE/TU=;
-        b=LTO/RRs4m5vZ9WBQAbCVY0g6RxIecsR63DM4y86Jsak5TWJsCCl+YM2UGijU8NW5cp
-         PVGjT6G16L0xHL7977pVB0Nd5L+K0DR8xTn3o/E7tjfVxJBtuHuajlbG+7cVolYZV/tE
-         0MIERITTCcz0TK84Jc1JNSKpaf1uFfNtQ2lnVmxWb4ktNVkVVNwvzJFBzF3KQpgB5KHz
-         XK0goIeOHj3e9olRxg/aJKSenDOOBZHo39hzvw1ISjczBRtwDiyXqLx7wRCfRYkDAC8a
-         2Kgcu9TtNN82e2bsRcBpvOTQW8hDixc4a2fSWph7aP6hH4lOv38NSg/H95fPEAiflFhO
-         tfkQ==
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=1vC8HoJlVyZDAZLP9I99+6VUfshmbbjIDK8nwBClymw=;
+        b=gUTgdzBMZFV6kuJz25rBt/hIXwmilcTjsTa0ezGV7dy6AzhxW6dwf1oe0bLTmKEWHn
+         wbxwE4PxX4zjywMQKsYkUpVcUEr0ZSf2igOb5kF03cek5RROSa0igsGl4nfncqD2f8dw
+         HEkqqqRdTlgCsqVorucN/L6qjWw4CbZg0jQH3LgQ1l5af+UXcSOQoW8HKfbJ7yOgONQB
+         G3sSy70Uch5Z5FvKayxE7B6eoPeclEScEEWdArQTtPHfJqJjNOF6ckFifjaijCoUTaN1
+         YUIZP6vfw16z1+7QibDfuR+1uIX1aAmyf0a7QBWjZjKw84SbAwye9vvhB74XzHVEh13I
+         KBNA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of julien.grall@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=julien.grall@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id b42si2005994edd.223.2019.03.14.07.12.50
-        for <linux-mm@kvack.org>;
-        Thu, 14 Mar 2019 07:12:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of julien.grall@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z11si1116387qkz.141.2019.03.14.07.15.01
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Mar 2019 07:15:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of julien.grall@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=julien.grall@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 4017E80D;
-	Thu, 14 Mar 2019 07:12:49 -0700 (PDT)
-Received: from [10.37.12.84] (unknown [10.37.12.84])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id CAC713F59C;
-	Thu, 14 Mar 2019 07:12:45 -0700 (PDT)
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id ABDBA3003099;
+	Thu, 14 Mar 2019 14:15:00 +0000 (UTC)
+Received: from [10.36.117.188] (ovpn-117-188.ams2.redhat.com [10.36.117.188])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 5BAFF19C65;
+	Thu, 14 Mar 2019 14:14:57 +0000 (UTC)
 Subject: Re: [Xen-devel] xen: Can't insert balloon page into VM userspace (WAS
  Re: [linux-linus bisection] complete test-arm64-arm64-xl-xsm)
-To: Juergen Gross <jgross@suse.com>, David Hildenbrand <david@redhat.com>,
+To: Julien Grall <julien.grall@arm.com>, Juergen Gross <jgross@suse.com>,
  Boris Ostrovsky <boris.ostrovsky@oracle.com>,
  Andrew Cooper <andrew.cooper3@citrix.com>,
  Matthew Wilcox <willy@infradead.org>
@@ -105,73 +112,132 @@ References: <E1h3Uiq-0002L6-Ij@osstest.test-lab.xenproject.org>
  <9a40e1ff-7605-e822-a1d2-502a12d0fba7@redhat.com>
  <6f8aca6c-355b-7862-75aa-68fe566f76fb@redhat.com>
  <ec71c03e-987d-2b73-9fe6-2604a3c32017@suse.com>
-From: Julien Grall <julien.grall@arm.com>
-Message-ID: <cb525882-b52f-c142-8a6a-e5cb491e05d0@arm.com>
-Date: Thu, 14 Mar 2019 14:12:43 +0000
+ <cb525882-b52f-c142-8a6a-e5cb491e05d0@arm.com>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <f02aa953-d5d1-4e78-160f-9bca1516379f@redhat.com>
+Date: Thu, 14 Mar 2019 15:14:56 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <ec71c03e-987d-2b73-9fe6-2604a3c32017@suse.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <cb525882-b52f-c142-8a6a-e5cb491e05d0@arm.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Thu, 14 Mar 2019 14:15:00 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On 3/14/19 8:37 AM, Juergen Gross wrote:
-> On 12/03/2019 20:46, David Hildenbrand wrote:
->> On 12.03.19 19:23, David Hildenbrand wrote:
->>
->> I guess something like this could do the trick if I understood it correctly:
->>
->> diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
->> index 39b229f9e256..d37dd5bb7a8f 100644
->> --- a/drivers/xen/balloon.c
->> +++ b/drivers/xen/balloon.c
->> @@ -604,6 +604,7 @@ int alloc_xenballooned_pages(int nr_pages, struct
->> page **pages)
->>          while (pgno < nr_pages) {
->>                  page = balloon_retrieve(true);
->>                  if (page) {
->> +                       __ClearPageOffline(page);
->>                          pages[pgno++] = page;
->>   #ifdef CONFIG_XEN_HAVE_PVMMU
->>                          /*
->> @@ -645,8 +646,10 @@ void free_xenballooned_pages(int nr_pages, struct
->> page **pages)
->>          mutex_lock(&balloon_mutex);
->>
->>          for (i = 0; i < nr_pages; i++) {
->> -               if (pages[i])
->> +               if (pages[i]) {
->> +                       __SetPageOffline(pages[i]);
->>                          balloon_append(pages[i]);
->> +               }
->>          }
->>
->>          balloon_stats.target_unpopulated -= nr_pages;
->>
->>
->> At least this way, the pages allocated (and thus eventually mapped to
->> user space) would not be marked, but the other ones would remain marked
->> and could be excluded by makedumptool.
->>
+On 14.03.19 15:12, Julien Grall wrote:
+> Hi,
 > 
-> I think this patch should do the trick. Julien, could you give it a
-> try? On x86 I can't reproduce your problem easily as dom0 is PV with
-> plenty of unpopulated pages for grant memory not suffering from
-> missing "offline" bit.
+> On 3/14/19 8:37 AM, Juergen Gross wrote:
+>> On 12/03/2019 20:46, David Hildenbrand wrote:
+>>> On 12.03.19 19:23, David Hildenbrand wrote:
+>>>
+>>> I guess something like this could do the trick if I understood it correctly:
+>>>
+>>> diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+>>> index 39b229f9e256..d37dd5bb7a8f 100644
+>>> --- a/drivers/xen/balloon.c
+>>> +++ b/drivers/xen/balloon.c
+>>> @@ -604,6 +604,7 @@ int alloc_xenballooned_pages(int nr_pages, struct
+>>> page **pages)
+>>>          while (pgno < nr_pages) {
+>>>                  page = balloon_retrieve(true);
+>>>                  if (page) {
+>>> +                       __ClearPageOffline(page);
+>>>                          pages[pgno++] = page;
+>>>   #ifdef CONFIG_XEN_HAVE_PVMMU
+>>>                          /*
+>>> @@ -645,8 +646,10 @@ void free_xenballooned_pages(int nr_pages, struct
+>>> page **pages)
+>>>          mutex_lock(&balloon_mutex);
+>>>
+>>>          for (i = 0; i < nr_pages; i++) {
+>>> -               if (pages[i])
+>>> +               if (pages[i]) {
+>>> +                       __SetPageOffline(pages[i]);
+>>>                          balloon_append(pages[i]);
+>>> +               }
+>>>          }
+>>>
+>>>          balloon_stats.target_unpopulated -= nr_pages;
+>>>
+>>>
+>>> At least this way, the pages allocated (and thus eventually mapped to
+>>> user space) would not be marked, but the other ones would remain marked
+>>> and could be excluded by makedumptool.
+>>>
+>>
+>> I think this patch should do the trick. Julien, could you give it a
+>> try? On x86 I can't reproduce your problem easily as dom0 is PV with
+>> plenty of unpopulated pages for grant memory not suffering from
+>> missing "offline" bit.
+> 
+> Sure. I managed to get the console working with the patch suggested by 
+> David. Feel free to add my tested-by if when you resend it as is.
+> 
 
-Sure. I managed to get the console working with the patch suggested by 
-David. Feel free to add my tested-by if when you resend it as is.
+Thanks, I will send as proper patch later!
 
-Cheers,
+Cheers!
+
+> Cheers,
+> 
+
 
 -- 
-Julien Grall
+
+Thanks,
+
+David / dhildenb
 
