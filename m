@@ -2,195 +2,175 @@ Return-Path: <SRS0=RO59=RR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2B900C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 06:33:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 31FE3C4360F
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 07:35:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C035B217F5
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 06:33:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C035B217F5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id AFBD2217F5
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 07:35:06 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="kssB68xQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AFBD2217F5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3DEA08E0003; Thu, 14 Mar 2019 02:33:42 -0400 (EDT)
+	id 22AEB8E0003; Thu, 14 Mar 2019 03:35:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 366838E0001; Thu, 14 Mar 2019 02:33:42 -0400 (EDT)
+	id 1DA2F8E0001; Thu, 14 Mar 2019 03:35:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 209268E0003; Thu, 14 Mar 2019 02:33:42 -0400 (EDT)
+	id 07AD28E0003; Thu, 14 Mar 2019 03:35:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B88248E0001
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 02:33:41 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id k6so1962433edq.3
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2019 23:33:41 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C18508E0001
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 03:35:05 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id g24so1972076otq.22
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 00:35:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Qe9VFjC4IRHNa/xDlUnLdZ94eHMt/k16Oh+sKcVA+KI=;
-        b=Pn1HimrlVaMo+zqCpBMRmhbaTrieYTkFjgColXC4rcX+4MkqvgllDC9XMdi0xv2Jc6
-         GUfWeWC5NCzlRuIiiWjXwXOVdS+tNXzGBlQXDaEvCxg8ytz6ziD6jsoyYuzGFHzzDfzC
-         +TCuYKBlu/cnad7S9ESSyjkexjUpnQs9YOq8PLKKjCEqlRl5UdB3tCgm0YJ32GJ9WN5b
-         NTv6IPaIF9ID0ygDCZkJ/jVkf3q7WgNl0nHXd1Oom5a/7vkuTDNuHpiKSUZreRlM29VE
-         zjG7rz3uA60P6k1nG72alljPwjhqlANzBh0TRRantx3FVqWePMYVlcSH5o+890LtO2zP
-         vuig==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAX2mXFk+1qOqTY+nd7do2ZT8EnEAL0vIHhk22nT34XDpPcbsjpA
-	ur5hMGpeUMr++6BBLt4ckFwUiQhJIluO4mlo/s1M77X7nIVFoT2AvlVA6WfAAO6bsAB9AV1PdMz
-	uTllkNdqtRLHMdzvVzy0Dvzk1h1EaPxEER4wD0lIg1vxrfmSKbs8DXebNCT7IAkk=
-X-Received: by 2002:a50:d94f:: with SMTP id u15mr9884265edj.256.1552545221266;
-        Wed, 13 Mar 2019 23:33:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwWClvbeb78sTdyLiSUxrBMJW2kd/eIwyatwmh85M852/FOnYe1+nZsNagzxLNBl2XgM88c
-X-Received: by 2002:a50:d94f:: with SMTP id u15mr9884226edj.256.1552545220422;
-        Wed, 13 Mar 2019 23:33:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552545220; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=c6RmvMGqPWAWxUd3O1lkOdkloNoA8pecp9+CaPLqXag=;
+        b=iwnGOcHqQ6I+hnxlV7Nh5A+Y0dXZaZcYqwGD1IfKlidv0g/+Yrf2kHRYUAZkt77XsN
+         esV6m4ZmiJM15euECJI29rmPma2Cm3Os2/qd1ZSYfHX+0lN+ybAfnLmT9Q/uVkU5kE9s
+         gVTQ9omVBYdhKKlFqdX5516eNsCg7hvx+O8ByxffCiXHJ5uqvmJ6RRPcv6C0uxYaP0Ce
+         dJSnbg33qwON9VLq1M9b3TH7E4maTkvV1u5CWKi/m0fklm8U62nBDTojsP10NS+zOoIc
+         UUSkiuY8TVApWaygR+ltovGrHQKp032sX9SumsXUNBwg+7J1Df3LTPxuYsO9YzV+86l+
+         3ZpA==
+X-Gm-Message-State: APjAAAXZMWKKm8i9wuhTpOmYk+kRP16vi9yKrI3qJqHNeEBsy9cEb26T
+	y5Vi2KTmk1YPn88Hc7wSKTU2fj1jN7PyX6LEZ9XsiCv7VqSODg/+wK3yrvru9zmpNF+ZRvH6h5F
+	yA04ekuSktMrSFkzp04oD2zZ9H2lGuNZzZXkzcYc1NYuxW/C4Mrh90DrhQxuirggEYQ==
+X-Received: by 2002:aca:ac45:: with SMTP id v66mr1157515oie.134.1552548905216;
+        Thu, 14 Mar 2019 00:35:05 -0700 (PDT)
+X-Received: by 2002:aca:ac45:: with SMTP id v66mr1157483oie.134.1552548904253;
+        Thu, 14 Mar 2019 00:35:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552548904; cv=none;
         d=google.com; s=arc-20160816;
-        b=h9e9w++LpFlQmQZIwb5oPjfmI7IZnuVbHNkdX6EZnMklkQLA+htRwiO60AqGhtCBCB
-         iOJrh+So7yiLQEG2M0zGPo0q2o1x27zD3fR1F5Tmhqlxfq8RdUOa82p4wws2KL4a/zPy
-         uhB2otxdyLy86f5MJd9EgDVvd1PkF/VTLo95Cb5NAm07ugApf4YrTTzwVv6tymf1fnTY
-         29pDC83K6AeIaGoL0LwUCjmNsAgF32Zo+FDICbAm6H3b0AGlp8Cat26sga45Xfkxq3oZ
-         Kd7LdAxncVEbEfrGgzR8UmRgA2GQOblpWDo3E6DHHYXGWYZMhAoL/SmNyeai9QITpxnQ
-         qp4w==
+        b=fRrkW1sp6JEKOqP5nzvdI744V3hOVeEBZ+uVy+2XseV+NBbwCTA4xxkfgwhjCQ59KX
+         MCEf+pVPzjSeMSuh4L+VgQqcozG3J6F40W8mgOwCcdS8JE/CrGZWEKus+DVB/ZXqDKWH
+         vxMY/L4ULIj5Lb68HtjnAJiextMsgVjGkH8PW/evcUpgjGqj6oA562aUXTSSNGpu83fJ
+         enSxL0Q2046W/b+ZU6ktbZ2Ly/7z9WNYZiXCEcWU948fN0WX83EmSJXF0qhhZFMZq3HX
+         T23NUVYH507AMR8DV026C9V2FAndll2m3R7HUv/uAr3qVRqY9rI1Rr4yu9QBqeFQmwfp
+         U8Ag==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Qe9VFjC4IRHNa/xDlUnLdZ94eHMt/k16Oh+sKcVA+KI=;
-        b=ZOtH2lWljfHohfrs5OB9xgOVk3+kjZeTpD4DSDg4CsjaozIp6Wd9NVxshoNDm9YbSO
-         awNvfWZqr8xLZgGdPXjXr4T+cJpEKQ9Fdr6oImjl21BfK5PG8IqmdgRlDlgJ94OXcw6J
-         sjGNs2eGwHLblb0tOntuk0AJXIF5jGph5doThJatBR/pmlWTd5EBXGO0lIQ7lwmvvW0c
-         BrmpskR7bl8uZh+THjb7Tz1r51rKWShR0UzqPA4no8Y2RkxdGbYaXd++ZFIrxwpcRMPc
-         UYtH894VyR99/PwOjr6W397QgbKvXfYEm9s8NuPMWetTXd5OJcYNxNzclOSMycc3JjJA
-         TPXA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=c6RmvMGqPWAWxUd3O1lkOdkloNoA8pecp9+CaPLqXag=;
+        b=GUY180kBYzHK3MrYC0AtldPoyIuU3D3h/b3ckd+28oVzPsgJp30/rU9mKsB+p252uz
+         /Px8GxESAzwhi7YibFK8EGUGl88oHeaI5CQg4ehJNBhtdZgDPBHghGzNspYyroQ8Ykbe
+         KGrbdYk0vNZYfMJgGJunDhjTRtY6iJHCI+s0KiM4F7SnBRPYi/F8AzfwwRjNrYYx/hdB
+         4TTLnkX/QP01oXOGAkkCD36Z3n7vipTssYgbzpGU/aSU5fxcorXDvW6e38GSeahG8SVW
+         /SBdFLwXungPNF0awolFOU5o/dIiUxRIVL/KaqwXu0bSfOaX3AGS1iLMnVvm2a5siDmx
+         dZJg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t15si346788edc.157.2019.03.13.23.33.40
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=kssB68xQ;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id w206sor7247545oie.95.2019.03.14.00.35.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Mar 2019 23:33:40 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Thu, 14 Mar 2019 00:35:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id E335BAD84;
-	Thu, 14 Mar 2019 06:33:39 +0000 (UTC)
-Date: Thu, 14 Mar 2019 07:33:38 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Qian Cai <cai@lca.pw>
-Cc: akpm@linux-foundation.org, osalvador@suse.de, anshuman.khandual@arm.com,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm/hotplug: fix notification in offline error path
-Message-ID: <20190314063338.GB7473@dhcp22.suse.cz>
-References: <20190313210939.49628-1-cai@lca.pw>
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=kssB68xQ;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=c6RmvMGqPWAWxUd3O1lkOdkloNoA8pecp9+CaPLqXag=;
+        b=kssB68xQ1NRnPFJX7FNmHSCO0La+HESbz0naLhdMQgqa2T91H8PZ6rk//dWr+ohXFP
+         Ek43ukZuCzm9YPJwZzGEENEWatpw5bjF62IulpyZjsfDt02VbOheXpfduaiEC5EbJV5I
+         rHs11SzGS2bgT239gHPOyDUO/Ae+rPYSJThmQrt+aYyTrVfa0nRqOl/VbHNB6rdoLosz
+         vdiSuq3dsQzb7uOV+aPjHXeEPfMXdYZb0fIeTOvkMdkp2k7tnNq/0HyOFNJwfOPkrfpL
+         acEUhrsNuz5JxjYBhCZ9UjMrpeMFjMRAA7hvqiUn2eFIicjPlDVDaaT3Fyd3Vn8+u6Vu
+         lW1A==
+X-Google-Smtp-Source: APXvYqzW8opUf5S7WggMvLFZBVB0rJpKfbciKvNt8CS8zIEq1WM2fTdHY8kO3eJCil2s20yvq7+Em+TzkbT6FUoFMXU=
+X-Received: by 2002:aca:54d8:: with SMTP id i207mr1259635oib.0.1552548903501;
+ Thu, 14 Mar 2019 00:35:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190313210939.49628-1-cai@lca.pw>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <CAPcyv4hwHpX-MkUEqxwdTj7wCCZCN4RV-L4jsnuwLGyL_UEG4A@mail.gmail.com>
+ <20190311150947.GD19508@bombadil.infradead.org> <CAPcyv4jG5r2LOesxSx+Mdf+L_gQWqnhk+gKZyKAAPTHy1Drvqw@mail.gmail.com>
+ <20190312043754.GD23020@dastard>
+In-Reply-To: <20190312043754.GD23020@dastard>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 14 Mar 2019 00:34:51 -0700
+Message-ID: <CAPcyv4i+z0RT7rTw+4w-h8dOyscVk1g3F+cu2pKHqqJjTgU++A@mail.gmail.com>
+Subject: Re: Hang / zombie process from Xarray page-fault conversion (bisected)
+To: Dave Chinner <david@fromorbit.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Linux MM <linux-mm@kvack.org>, 
+	linux-nvdimm <linux-nvdimm@lists.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, 
+	"Barror, Robert" <robert.barror@intel.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 13-03-19 17:09:39, Qian Cai wrote:
-> When start_isolate_page_range() returned -EBUSY in __offline_pages(), it
-> calls memory_notify(MEM_CANCEL_OFFLINE, &arg) with an uninitialized
-> "arg". As the result, it triggers warnings below. Also, it is only
-> necessary to notify MEM_CANCEL_OFFLINE after MEM_GOING_OFFLINE.
-> 
-> page:ffffea0001200000 count:1 mapcount:0 mapping:0000000000000000
-> index:0x0
-> flags: 0x3fffe000001000(reserved)
-> raw: 003fffe000001000 ffffea0001200008 ffffea0001200008 0000000000000000
-> raw: 0000000000000000 0000000000000000 00000001ffffffff 0000000000000000
-> page dumped because: unmovable page
-> WARNING: CPU: 25 PID: 1665 at mm/kasan/common.c:665
-> kasan_mem_notifier+0x34/0x23b
-> CPU: 25 PID: 1665 Comm: bash Tainted: G        W         5.0.0+ #94
-> Hardware name: HP ProLiant DL180 Gen9/ProLiant DL180 Gen9, BIOS U20
-> 10/25/2017
-> RIP: 0010:kasan_mem_notifier+0x34/0x23b
-> RSP: 0018:ffff8883ec737890 EFLAGS: 00010206
-> RAX: 0000000000000246 RBX: ff10f0f4435f1000 RCX: f887a7a21af88000
-> RDX: dffffc0000000000 RSI: 0000000000000020 RDI: ffff8881f221af88
-> RBP: ffff8883ec737898 R08: ffff888000000000 R09: ffffffffb0bddcd0
-> R10: ffffed103e857088 R11: ffff8881f42b8443 R12: dffffc0000000000
-> R13: 00000000fffffff9 R14: dffffc0000000000 R15: 0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 0000560fbd31d730 CR3: 00000004049c6003 CR4: 00000000001606a0
-> Call Trace:
->  notifier_call_chain+0xbf/0x130
->  __blocking_notifier_call_chain+0x76/0xc0
->  blocking_notifier_call_chain+0x16/0x20
->  memory_notify+0x1b/0x20
->  __offline_pages+0x3e2/0x1210
->  offline_pages+0x11/0x20
->  memory_block_action+0x144/0x300
->  memory_subsys_offline+0xe5/0x170
->  device_offline+0x13f/0x1e0
->  state_store+0xeb/0x110
->  dev_attr_store+0x3f/0x70
->  sysfs_kf_write+0x104/0x150
->  kernfs_fop_write+0x25c/0x410
->  __vfs_write+0x66/0x120
->  vfs_write+0x15a/0x4f0
->  ksys_write+0xd2/0x1b0
->  __x64_sys_write+0x73/0xb0
->  do_syscall_64+0xeb/0xb78
->  entry_SYSCALL_64_after_hwframe+0x44/0xa9
-> RIP: 0033:0x7f14f75cc3b8
-> RSP: 002b:00007ffe84d01d68 EFLAGS: 00000246 ORIG_RAX: 0000000000000001
-> RAX: ffffffffffffffda RBX: 0000000000000008 RCX: 00007f14f75cc3b8
-> RDX: 0000000000000008 RSI: 0000563f8e433d70 RDI: 0000000000000001
-> RBP: 0000563f8e433d70 R08: 000000000000000a R09: 00007ffe84d018f0
-> R10: 000000000000000a R11: 0000000000000246 R12: 00007f14f789e780
-> R13: 0000000000000008 R14: 00007f14f7899740 R15: 0000000000000008
-> 
-> Fixes: 7960509329c2 ("mm, memory_hotplug: print reason for the offlining failure")
+On Mon, Mar 11, 2019 at 9:38 PM Dave Chinner <david@fromorbit.com> wrote:
+>
+> On Mon, Mar 11, 2019 at 08:35:05PM -0700, Dan Williams wrote:
+> > On Mon, Mar 11, 2019 at 8:10 AM Matthew Wilcox <willy@infradead.org> wrote:
+> > >
+> > > On Thu, Mar 07, 2019 at 10:16:17PM -0800, Dan Williams wrote:
+> > > > Hi Willy,
+> > > >
+> > > > We're seeing a case where RocksDB hangs and becomes defunct when
+> > > > trying to kill the process. v4.19 succeeds and v4.20 fails. Robert was
+> > > > able to bisect this to commit b15cd800682f "dax: Convert page fault
+> > > > handlers to XArray".
+> > > >
+> > > > I see some direct usage of xa_index and wonder if there are some more
+> > > > pmd fixups to do?
+> > > >
+> > > > Other thoughts?
+> > >
+> > > I don't see why killing a process would have much to do with PMD
+> > > misalignment.  The symptoms (hanging on a signal) smell much more like
+> > > leaving a locked entry in the tree.  Is this easy to reproduce?  Can you
+> > > get /proc/$pid/stack for a hung task?
+> >
+> > It's fairly easy to reproduce, I'll see if I can package up all the
+> > dependencies into something that fails in a VM.
+> >
+> > It's limited to xfs, no failure on ext4 to date.
+> >
+> > The hung process appears to be:
+> >
+> >      kworker/53:1-xfs-sync/pmem0
+>
+> That's completely internal to XFS. Every 30s the work is triggered
+> and it either does a log flush (if the fs is active) or it syncs the
+> superblock to clean the log and idle the filesystem. It has nothing
+> to do with user processes, and I don't see why killing a process has
+> any effect on what it does...
+>
+> > ...and then the rest of the database processes grind to a halt from there.
+> >
+> > Robert was kind enough to capture /proc/$pid/stack, but nothing interesting:
+> >
+> > [<0>] worker_thread+0xb2/0x380
+> > [<0>] kthread+0x112/0x130
+> > [<0>] ret_from_fork+0x1f/0x40
+> > [<0>] 0xffffffffffffffff
+>
+> Much more useful would be:
+>
+> # echo w > /proc/sysrq-trigger
+>
+> And post the entire output of dmesg.
 
-Cc: stable # 5.0
+Here it is:
 
-> Signed-off-by: Qian Cai <cai@lca.pw>
+https://gist.github.com/djbw/ca7117023305f325aca6f8ef30e11556
 
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-Thanks!
-
-> ---
->  mm/memory_hotplug.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 8ffe844766da..1559c1605072 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1703,12 +1703,12 @@ static int __ref __offline_pages(unsigned long start_pfn,
->  
->  failed_removal_isolated:
->  	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
-> +	memory_notify(MEM_CANCEL_OFFLINE, &arg);
->  failed_removal:
->  	pr_debug("memory offlining [mem %#010llx-%#010llx] failed due to %s\n",
->  		 (unsigned long long) start_pfn << PAGE_SHIFT,
->  		 ((unsigned long long) end_pfn << PAGE_SHIFT) - 1,
->  		 reason);
-> -	memory_notify(MEM_CANCEL_OFFLINE, &arg);
->  	/* pushback to free area */
->  	mem_hotplug_done();
->  	return ret;
-> -- 
-> 2.17.2 (Apple Git-113)
-
--- 
-Michal Hocko
-SUSE Labs
+There are some process stuck indefinitely waiting to acquire an Xarray
+entry lock.
 
