@@ -5,102 +5,102 @@ X-Spam-Level:
 X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CE26CC10F0B
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 19:52:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0E3F7C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 19:52:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 81D3F21901
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 19:52:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B1E032063F
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 19:52:14 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="qeml8KMl"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 81D3F21901
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="RV+qphgR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B1E032063F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 263916B02B5; Fri, 15 Mar 2019 15:52:11 -0400 (EDT)
+	id 632AB6B02B7; Fri, 15 Mar 2019 15:52:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 23A806B02B6; Fri, 15 Mar 2019 15:52:11 -0400 (EDT)
+	id 60ED26B02B8; Fri, 15 Mar 2019 15:52:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1508F6B02B7; Fri, 15 Mar 2019 15:52:11 -0400 (EDT)
+	id 4F8636B02B9; Fri, 15 Mar 2019 15:52:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D570B6B02B5
-	for <linux-mm@kvack.org>; Fri, 15 Mar 2019 15:52:10 -0400 (EDT)
-Received: by mail-oi1-f198.google.com with SMTP id c203so2694817oib.20
-        for <linux-mm@kvack.org>; Fri, 15 Mar 2019 12:52:10 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AB556B02B7
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2019 15:52:14 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id p17so7804791ios.8
+        for <linux-mm@kvack.org>; Fri, 15 Mar 2019 12:52:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
          :mime-version:references:subject:from:to:cc;
-        bh=o99IPl+uG2EzV+A51yAxAJoGFkhXN8vGRgmKAMdYgSA=;
-        b=LmjCIuSYvQXDgkCArSRZR8oe5ZGe9crCxZqGm4CYJSq36DScto8sAs7oAvwY21a/lN
-         j9KxbiY4G515BzomSyuJ7XiJB2S8wqkowVFONNXtUzg5IN5AyiaOStC7jRmSRp2dGqEF
-         9fJKj/rUZG6vFhbkOi+l87AFBdper9tQQQT3v7UKNbQmpae4FNAgAIZYwbNBuFBH+U/2
-         TSzcoaGKw/WR2k2p/uU2+txY5qn+stBQaMPxHBe/MiZ9a/8UdW+9Bh0fEnbW8SlLh/5o
-         qKem/t5+fxuMhZ3j7SECQ3pura3zwM4PVaDtd2AQoIPG+iSr1OavJJV+BbvHa5PuBznz
-         yhUg==
-X-Gm-Message-State: APjAAAVVjHtQ7MVI+C3yQjybfd8gT0n3rQbMxLx3vo1H4x5yYaPiq1OH
-	4PC8IubyjcDrz7jbzH0DCM1d0CZywaczRlISPx7QMd2oNxG3nGd/ODs/fhJkR2B3v0WX84E6t3Q
-	JX8m4q86HCIv+UB2Lv6pc9sYwyf6toHm6skeO0yR7+VOkGl4dlN/AoVpr2PTiBP1jnw==
-X-Received: by 2002:a9d:6515:: with SMTP id i21mr3368544otl.325.1552679530427;
-        Fri, 15 Mar 2019 12:52:10 -0700 (PDT)
-X-Received: by 2002:a9d:6515:: with SMTP id i21mr3368510otl.325.1552679529653;
-        Fri, 15 Mar 2019 12:52:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552679529; cv=none;
+        bh=qCZblj86ukutCUgaNEezPPnSo6jFx7c0S/27D3+g5SQ=;
+        b=piESSDh+R/WP+h/D0brrqnL3yx5WykDSupILKnFtYVsF0865UfLS4dTUstB7YNgYRC
+         vZqtXlvylyH0W5EIXEkhQlWLcettajMqEsDuemeAfcbiWsveb/HDBmEJE1ue4ybz7f4F
+         q6thJ7wKzT4veRgNa+cK8iarvMpc46Nr7lHeeIEPp0n9ICRjio6qjTIjLNAeg0ZhXdSx
+         Egr/ldiQMLJ1cBxdZfDvU1I4u4zAU4MRanon7V3fWgFls+VkOPC/2fxHzeX5o7CrmlfS
+         LLLXtRM/3FbYhq9U6jKv+q+oXseIG4jwfc8t6COi+tkNXVdP6Ep2kP9XvmtMnlcvhPUx
+         ddJA==
+X-Gm-Message-State: APjAAAVVMTS9biWiCutGm6AH8elTIq6nm1MEYeBAVmJM53dwtoqcqwes
+	fPzR6XBDqVupPtojJGBh276GGfmd80EXJzKnv0qc7Y/AiK5Bopu1Vtc+iZuRwWaPF8NrkyIeBiu
+	kTU4v4sUoK9HCeIb/RuAHmj68koUw1AlJ7WJ/tR2n5JXTcPTK3vKJ3Xp2SEBhZxzTdg==
+X-Received: by 2002:a24:62c2:: with SMTP id d185mr3259622itc.45.1552679533935;
+        Fri, 15 Mar 2019 12:52:13 -0700 (PDT)
+X-Received: by 2002:a24:62c2:: with SMTP id d185mr3259580itc.45.1552679533045;
+        Fri, 15 Mar 2019 12:52:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552679533; cv=none;
         d=google.com; s=arc-20160816;
-        b=MGtOB1Lr9yEo7N9K0T2ElQkVjQ3tG+n5GD5/78Q42q91P8vRDu0uX1sdUrVlBPdFiO
-         fq2bWZS7wjQyzvaT1TxQh9F5izSngSpC8ZXRGXFr4AoiH1gAb651SMlqYU6ZAonvOvp9
-         I0lJSPlavzo9Rsr6JHnNO5UgYXMRZocp2hqj9c3BcBMgO6GaqOg7ysJ4ZktYI0cfWOiA
-         ZJstYdwRjjEfgow5UqG1AJf0Q40ldn8Nwij/ZC+AbM9weeldTLaPy0+H5ft91QP4Wc6E
-         4h3ZQWGVtwqDux1pxWUqkSmKBFkOARYph0Zgh5nOjV7Np399D9Aj68msg+Hip9pTdnf5
-         hULQ==
+        b=qUa6CRi7k4W8gBVsQ9cT2V5bYFf4OiJ/oyajBVgiuoilu+30VUxG4Bb8v4teG4CX8I
+         mqg/jqPCohIRugMS+IKyVjt5ebFtO3jyL/dM0IkwDdu7+hdXIpYHrdSIc4aAn8raWdtf
+         8SZcfWWEkOKpYfLr0x3/8ObgDpgsE7MYytCucuT6+48MYD2MopEIvFAsH74wCI3yhPDp
+         zhnXNstiPQQtn+9o2JwGMsV4BIskZNLlaEMXl1/mRGVP7/yXYLh5KJVaL9u/brCRlePB
+         x6s2GOZs8iBwRj6I17A9ey2Tbvl+caQN6wmZsN3lk36CuUwBdUDUxsjncSCRkD+gan+i
+         SGWA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
          :date:dkim-signature;
-        bh=o99IPl+uG2EzV+A51yAxAJoGFkhXN8vGRgmKAMdYgSA=;
-        b=TVdCXdBgMqMo9+nESj7n+NWCl2E9Emhc7ypK1DduvDO5U+usD/2zacTlny6PoPpY1x
-         ljSweOtbJHLtGc/VZQRhSZAQkxij9KwP8b7L8GRX99vUU/Upmk04PfzreVteVfGs3hsh
-         PEQ5vvpLbYPe+owx0A71VPtxLA3irWI/q+MrrLzxBOJpy5ePkJCH0KQPfTVZutVvd+1x
-         6ustZV+E//mCCpSzLYJg6RsXYiJ/IHWVlIJxWOFzyZ1dO5pxgNwQbSc3RewNIhTEWBHm
-         //VNmhCGzgg4kIkY3atZ1InauyoNvxeDcr1tVGHRT8avTUl0n/VShG/5GZ2ZvaYpNHoE
-         oyxg==
+        bh=qCZblj86ukutCUgaNEezPPnSo6jFx7c0S/27D3+g5SQ=;
+        b=huQZlewdsJ0sDCJioQjVSl+HgTRGjUlhjzqRhmgMGpAKIQCwK3eOsXOUWoOf6aFiT0
+         lvqhBS1t/rjbJEbeHBugWlSsI4DX+c79nsPZomgMNGWYePQK2xQVNG+wpL5lFHljpoNj
+         FGnee6GLey4PXLK77eMx095TBESR3OsusI1ybYWNNhA7df+uzE+0RFOD7o5VT3t/ztCz
+         coT1d0pnuZdZdZrwpp++lH/m+qScyj2HBFxox333E8xGvj/PUkPIDcYbYVQ8WWjGN7ek
+         DWZx++8gjbpJi7E1h/XKf6ZeOded9v+Ez+J2VERuvV5kgaHN+fuAEichuyZAHORbvXwF
+         t7Dw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=qeml8KMl;
-       spf=pass (google.com: domain of 3aqkmxaokcigmzp3qawz7xs00sxq.o0yxuz69-yyw7mow.03s@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3aQKMXAoKCIgmzp3qAwz7xs00sxq.o0yxuz69-yyw7mow.03s@flex--andreyknvl.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=RV+qphgR;
+       spf=pass (google.com: domain of 3bakmxaokcisp2s6tdz2a0v33v0t.r310x29c-11zaprz.36v@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3bAKMXAoKCIsp2s6tDz2A0v33v0t.r310x29C-11zAprz.36v@flex--andreyknvl.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id b204sor1762046oii.147.2019.03.15.12.52.09
+        by mx.google.com with SMTPS id t17sor5408728itb.14.2019.03.15.12.52.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 15 Mar 2019 12:52:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3aqkmxaokcigmzp3qawz7xs00sxq.o0yxuz69-yyw7mow.03s@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Fri, 15 Mar 2019 12:52:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3bakmxaokcisp2s6tdz2a0v33v0t.r310x29c-11zaprz.36v@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=qeml8KMl;
-       spf=pass (google.com: domain of 3aqkmxaokcigmzp3qawz7xs00sxq.o0yxuz69-yyw7mow.03s@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3aQKMXAoKCIgmzp3qAwz7xs00sxq.o0yxuz69-yyw7mow.03s@flex--andreyknvl.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=RV+qphgR;
+       spf=pass (google.com: domain of 3bakmxaokcisp2s6tdz2a0v33v0t.r310x29c-11zaprz.36v@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3bAKMXAoKCIsp2s6tDz2A0v33v0t.r310x29C-11zAprz.36v@flex--andreyknvl.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=date:in-reply-to:message-id:mime-version:references:subject:from:to
          :cc;
-        bh=o99IPl+uG2EzV+A51yAxAJoGFkhXN8vGRgmKAMdYgSA=;
-        b=qeml8KMlP7rmAvIxGUwmqXR6s58tv3WFmWASkki2NWsIADrbc1k8lfVc0+MTWbLpzs
-         TVLOcfO6bk+g3/mT4x135nyZgaRh/a1cI0EJSPVigzGsRAp8PAEjxUHPFZAzqhmXZx4l
-         8Q3KL5oxK5OHSh9sOaBJzftYgvN7gNgSHSwrNoWatq8tKEtYq3SVrekzbwazA+QWLKeH
-         U6r1Zznc3OnEUZ0dR61U5DX56ScUlBeamodtGHalBVARU3JboxCMy3bCQIt/yf/PIiTQ
-         7ti2uUkzpKUEL7B+2/dvfA9GvioOMJDdEfC7KsiAuJ+0KTfpgnd+IOQxpTKu3Bl4+qOo
-         qSqQ==
-X-Google-Smtp-Source: APXvYqxLoKEgsAEPjIF9NsjndQ5gVGqmokYLJoZMnp0FGqwROodj4iKJAPngQ8EF97Yh5xKIjIbFflxcHuXMaJlJ
-X-Received: by 2002:aca:2409:: with SMTP id n9mr3111631oic.19.1552679529309;
- Fri, 15 Mar 2019 12:52:09 -0700 (PDT)
-Date: Fri, 15 Mar 2019 20:51:32 +0100
+        bh=qCZblj86ukutCUgaNEezPPnSo6jFx7c0S/27D3+g5SQ=;
+        b=RV+qphgRwIM0BlYxCZg0JlfEjDx5G2b5L8ZyFpBg6xhggSYfsl1Fqr2nkYw/1uo2gs
+         3X2mnJn0InykZb95Oc3LklEnd5abQO0mxyfCWv4ktefYvvvkA3igSCrt3kfSvFnDcJd2
+         yiTPCyZxoNT8Y3VZrTwxne1jWphT3yMFgfIrreIXZfWc85uza+QqmGRI+KRoFp3SruIJ
+         AoO+ZWZNEwD/TFL+4c5NovYe7UTZj9KfYqP4IK256g8ihlekEEHLF6pJB9120lvwCNGI
+         YKyN4okwCGSEeBvRd5Hm2UUrZHroN4fPZmCKFLzy7try938Sv18vPjuWwinYuq9JIjNh
+         YyTA==
+X-Google-Smtp-Source: APXvYqzF9kP75AZrtaf7n0FWkgnfxl6FIrePx6iNETztWTIe/Q/kL5cqZ/6EOdqOX8uD9nyrlgZxURKjMjdTQ+yZ
+X-Received: by 2002:a24:508e:: with SMTP id m136mr2945070itb.34.1552679532548;
+ Fri, 15 Mar 2019 12:52:12 -0700 (PDT)
+Date: Fri, 15 Mar 2019 20:51:33 +0100
 In-Reply-To: <cover.1552679409.git.andreyknvl@google.com>
-Message-Id: <56d3373c1c5007d776fcd5de4523f4b9da341fb6.1552679409.git.andreyknvl@google.com>
+Message-Id: <c4d65de9867cb3349af6800242da0de751260c6c.1552679409.git.andreyknvl@google.com>
 Mime-Version: 1.0
 References: <cover.1552679409.git.andreyknvl@google.com>
 X-Mailer: git-send-email 2.21.0.360.g471c308f928-goog
-Subject: [PATCH v11 08/14] net, arm64: untag user pointers in tcp_zerocopy_receive
+Subject: [PATCH v11 09/14] kernel, arm64: untag user pointers in prctl_set_mm*
 From: Andrey Konovalov <andreyknvl@google.com>
 To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, 
 	Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
@@ -134,29 +134,48 @@ This patch is a part of a series that extends arm64 kernel ABI to allow to
 pass tagged user pointers (with the top byte set to something else other
 than 0x00) as syscall arguments.
 
-tcp_zerocopy_receive() uses provided user pointers for vma lookups, which
-can only by done with untagged pointers.
+prctl_set_mm() and prctl_set_mm_map() use provided user pointers for vma
+lookups, which can only by done with untagged pointers.
 
-Untag user pointers in this function.
+Untag user pointers in these functions.
 
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- net/ipv4/tcp.c | 2 ++
- 1 file changed, 2 insertions(+)
+ kernel/sys.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
 
-diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
-index 6baa6dc1b13b..89db3b4fc753 100644
---- a/net/ipv4/tcp.c
-+++ b/net/ipv4/tcp.c
-@@ -1758,6 +1758,8 @@ static int tcp_zerocopy_receive(struct sock *sk,
- 	int inq;
- 	int ret;
+diff --git a/kernel/sys.c b/kernel/sys.c
+index 12df0e5434b8..8e56d87cc6db 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -1993,6 +1993,18 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
+ 	if (copy_from_user(&prctl_map, addr, sizeof(prctl_map)))
+ 		return -EFAULT;
  
-+	address = untagged_addr(address);
++	prctl_map->start_code	= untagged_addr(prctl_map.start_code);
++	prctl_map->end_code	= untagged_addr(prctl_map.end_code);
++	prctl_map->start_data	= untagged_addr(prctl_map.start_data);
++	prctl_map->end_data	= untagged_addr(prctl_map.end_data);
++	prctl_map->start_brk	= untagged_addr(prctl_map.start_brk);
++	prctl_map->brk		= untagged_addr(prctl_map.brk);
++	prctl_map->start_stack	= untagged_addr(prctl_map.start_stack);
++	prctl_map->arg_start	= untagged_addr(prctl_map.arg_start);
++	prctl_map->arg_end	= untagged_addr(prctl_map.arg_end);
++	prctl_map->env_start	= untagged_addr(prctl_map.env_start);
++	prctl_map->env_end	= untagged_addr(prctl_map.env_end);
 +
- 	if (address & (PAGE_SIZE - 1) || address != zc->address)
+ 	error = validate_prctl_map(&prctl_map);
+ 	if (error)
+ 		return error;
+@@ -2106,6 +2118,8 @@ static int prctl_set_mm(int opt, unsigned long addr,
+ 			      opt != PR_SET_MM_MAP_SIZE)))
  		return -EINVAL;
  
++	addr = untagged_addr(addr);
++
+ #ifdef CONFIG_CHECKPOINT_RESTORE
+ 	if (opt == PR_SET_MM_MAP || opt == PR_SET_MM_MAP_SIZE)
+ 		return prctl_set_mm_map(opt, (const void __user *)addr, arg4);
 -- 
 2.21.0.360.g471c308f928-goog
 
