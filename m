@@ -2,189 +2,205 @@ Return-Path: <SRS0=L2Uh=RS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DD34CC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 02:54:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6ECA0C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 02:57:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9B7092186A
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 02:54:52 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="yI4EShvC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9B7092186A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
+	by mail.kernel.org (Postfix) with ESMTP id 361E521872
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 02:57:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 361E521872
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 33E306B000D; Thu, 14 Mar 2019 22:54:52 -0400 (EDT)
+	id B032C6B0010; Thu, 14 Mar 2019 22:57:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2C54F6B000E; Thu, 14 Mar 2019 22:54:52 -0400 (EDT)
+	id AB2566B0266; Thu, 14 Mar 2019 22:57:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 165456B0010; Thu, 14 Mar 2019 22:54:52 -0400 (EDT)
+	id 9528E6B0269; Thu, 14 Mar 2019 22:57:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D9F926B000D
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 22:54:51 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id k21so6593801qkg.19
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 19:54:51 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 651F36B0010
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 22:57:57 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id d49so7416289qtd.15
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 19:57:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=HUgh40+C8/2OCmX/UW2ZUro8RAG3vLQ9m//fEUxwous=;
-        b=QjbdTl43f6/bdJzk72TcnpYUx3q7F/QSatrwBtyRh2G6uTUhuoGwrnWVR6P89taIlQ
-         nQcZY9+38vwN0PyG8OhRJ8vlZSllA2ndN0q+8rzw5OzQVohIk0uTJ2MPiLHtZ1C3XTd+
-         gMrQCrWWN3bn2/Ey3iUGY1noBDkAuBUhsmgqyjkeFbHLa4dAtWJOOnNb3PSfkLaHEdr/
-         VO78at9SAToJqa+5wppBFsDSqj6qPOz2teJaLPWQnIJjYvnNPGbI5KjOKlcZ5vrUtMbf
-         l8FTUrk1nlK1+BLCxp/syNDfhSb3M1RRGncLUzQMCT1CWeKrd1kB3OsCBf46CHQH+Cg2
-         aQsg==
-X-Gm-Message-State: APjAAAU8fK/ofLY+hHuK3yCa7bAw1d1wWXmrOM/pC68vZvbDshwQAn5l
-	wVK4rdzrQQ1LImzkcmJOAPJFmYhCcwK17clxUpC3H0z+1pLSXrcD5GhOuhtlBpOwTIw3ezHKbtp
-	JeRhF3gr6aI1W/qma9jaWs10BKSJp6hBA5Z0IZ/KGslAzgMkj+1y0+tPN60j2BH7LNA==
-X-Received: by 2002:a0c:d1f4:: with SMTP id k49mr867257qvh.164.1552618491608;
-        Thu, 14 Mar 2019 19:54:51 -0700 (PDT)
-X-Received: by 2002:a0c:d1f4:: with SMTP id k49mr867217qvh.164.1552618490668;
-        Thu, 14 Mar 2019 19:54:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552618490; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:from:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding:message-id;
+        bh=MVyI1nzjyZLc2etSwJmdxENyFL0872dP1+6QIuperfI=;
+        b=RsImbKCVyV7nCI/N7yMy46u+M7uHxOkHtzKrVYPhk6ctSTNRqwfecTu8Mx1/dUqS6d
+         uLQONrvTZfLDaEpOxKpcJ/r0g9xVHPem7q5M4H6NaA5SLhFTZmWq7abuBPs4jzcfwu+4
+         FPmz/12v9MUj6okEWGgqFmoE8zJH6HwSj4ddPFi2NcrcG1Evp949fY3uX65U4ua7Pr9Q
+         pC1qT2mfMiJQXpxT3ZaQVO1zkcSD6ZOyMqA/azKn/ZkYKkYduFntEJlqBnYMSwI6UurE
+         WqMyoDLhwfoXH6zmlobG9N+mzj37AauOUmRcbJQHiB5ps4A0ioG5CCI491O47xCzOsmH
+         tamA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAWyEK1URGJc7xF8vnMK87ZW6S+T59NmADjswbIOKtoQbfrv3uk5
+	u7iQbJdvkCT27q4yD6mVFDgpfIThLK1Ob8yzsPzs6KsMpLpPcU2MtYdTyzRwaklLCGV8eJGuOcC
+	OHhS0yZHmdsbIL65VgnmmMhMFY3ahjelkNRZV5i92bLYmHukaC2zvI65Z3+nNxSqfoQ==
+X-Received: by 2002:ac8:5286:: with SMTP id s6mr1093419qtn.118.1552618677132;
+        Thu, 14 Mar 2019 19:57:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzTBI7n4iyMTi0jDNt2T+CjTvNM5jc9ReFCvjLEhuiA9j6TjTSrLcfDiLbDtuudJKCVUw1x
+X-Received: by 2002:ac8:5286:: with SMTP id s6mr1093391qtn.118.1552618676376;
+        Thu, 14 Mar 2019 19:57:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552618676; cv=none;
         d=google.com; s=arc-20160816;
-        b=JOSgdfHDoJzVAYrmJ4G6IHenzefZG1EE91/Q+pfwtZXWvUrowNv+3KVsYsLjrR5tUq
-         Vfz66ODaGxZRsagwXYplLamub87ywf6aybXBSXnDi9tPeBNIKJct+Ow7GEpIxA55Fe8B
-         6jXEehO22lL4EJQiisuLtw2cQ78voyEs+sImA0NMH7YCryx/mASBTVPDcrhpXVZZrnlL
-         QlwX9eMu5Z6ei0JlkfUuhvRxTtDrVTNV+rrDKq91tf9ESbPJ5M5dv5X3Yo+YSipfYM+r
-         8Rtdft60l03c5do+cbn2iztnPSIUQgG9+kMmeyiyLFSwvR/5MW76kRQKTQmPovKIMYG7
-         57fw==
+        b=sSsmqla093JICTT1NEH4JA700N8HLtbMbb1vNUTv08KgxqGe+m45rLJhkYaO9B+slj
+         9n1PFDhewohaVosy24KDrfd6e0oPjKshckLBrbTwQT5ci92BnGupS8W4yMnhrcLjpsRm
+         C1AsBvA7zv0xbVFHyApFHeaSXJOLZ/XPPGvR+z3JGURWW7GZI7iILmY907sKKzKB84x+
+         xmfaw5QIow0wKqpZhQ3YBPdUHAcOjzVxB7Wz3N1VYhd2F+dLpEmMMXVNVXMAxxFVXphw
+         55fnfrPpYd4MDLDVShaEbyPxKAjGPqwnOM6DAUVc5x8Sgd6XCXz6254buhJvAGtbBmD5
+         NXTQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=HUgh40+C8/2OCmX/UW2ZUro8RAG3vLQ9m//fEUxwous=;
-        b=038humvFst24O+qORhYPd86QJuZ6cDC7tLd6ViuM+iiu6L/lriJ9lBojtYB+Gd/UJl
-         pkjD+JCKJeDWTGuubKcS0RZvdIwQr7yCIT5KufQy381m+hmI9zy6LIl0/ze8rh55BB5X
-         sge2h6lciuXlt0x2Y/iN93mAwakKb4BERTIxhLB9x2hvPex+SK7ewOTa1xY1n4PVoHIh
-         E6hqIN5CI68ytWg+QgsNvZxFhhGnMUB4VerEjBHpkIUnau00KRzkBrXRfqFepxM2arEs
-         eJYpceyKE+IPIwqp3okc5PC0RSdKHffVhODPL+5+MZ3EYez/897rkgSkfkoQhiyHhv84
-         RfUQ==
+        h=message-id:content-transfer-encoding:content-language:in-reply-to
+         :mime-version:user-agent:date:from:references:to:subject;
+        bh=MVyI1nzjyZLc2etSwJmdxENyFL0872dP1+6QIuperfI=;
+        b=KZeWxcSLRHRB5HZ8U4tz254fZwJWx99y3uof0SvH4awaBNye6ALg8u1BZwTWP+TfCu
+         72kUym3IZw3eeifY62t944HxgyF41RvOZp8KYe7SuUL9EadI2X/338EZ5x4xGFbP16Yj
+         CeVoZObASrTit9eNOFMCDrUKGrQZF5Ldj/0/nl4dJYAOFF2/SDhB0ciY7GfbsqVrQEIf
+         u+qEeVhjkpCNP/sTnt9JubJewcBu95BFW0OdUtI31Kzx4ZBaLK9qkOAql/cbyrGipBsi
+         m6tLgyByA0ofSnmZgh00s5NqDPUUH3KatW6l9NiHF1yIkIlduiPS5r4K3lHLF72/BHeg
+         XXzw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=yI4EShvC;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b21sor866921qta.61.2019.03.14.19.54.50
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id e18si485349qkg.244.2019.03.14.19.57.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 14 Mar 2019 19:54:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Mar 2019 19:57:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=yI4EShvC;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=joelfernandes.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=HUgh40+C8/2OCmX/UW2ZUro8RAG3vLQ9m//fEUxwous=;
-        b=yI4EShvCw/j4gXJcpUISzIi8Bw5cyKpRaLwfltUsa6vojDsQPaxDnRHeimDILntWAj
-         YMRMNndwkBlmTVzNFtYnRPkbZSdm/oMuzz6LM5ALkQPzKZtYlYTfQ3qAtr2sAaUmXu8H
-         TZybdGHGjVN1QkU953zx10q6o0GqeocdPA9Go=
-X-Google-Smtp-Source: APXvYqwmSeslzsMFyhE1hdB2M/6gE5HGS+bSWP4pkJjMaob6xQq6c98ZXFsBaiV/FMTpT0VUQjZmSA==
-X-Received: by 2002:ac8:7606:: with SMTP id t6mr1020145qtq.243.1552618490194;
-        Thu, 14 Mar 2019 19:54:50 -0700 (PDT)
-Received: from localhost ([2620:0:1004:1100:cca9:fccc:8667:9bdc])
-        by smtp.gmail.com with ESMTPSA id 50sm413653qtr.96.2019.03.14.19.54.48
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 14 Mar 2019 19:54:48 -0700 (PDT)
-Date: Thu, 14 Mar 2019 22:54:48 -0400
-From: Joel Fernandes <joel@joelfernandes.org>
-To: Sultan Alsawaf <sultan@kerneltoast.com>
-Cc: Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>,
-	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
-	Christian Brauner <christian@brauner.io>,
-	Ingo Molnar <mingo@redhat.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>,
-	linux-mm <linux-mm@kvack.org>,
-	kernel-team <kernel-team@android.com>,
-	Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
-Message-ID: <20190315025448.GA3378@google.com>
-References: <20190311174320.GC5721@dhcp22.suse.cz>
- <20190311175800.GA5522@sultan-box.localdomain>
- <CAJuCfpHTjXejo+u--3MLZZj7kWQVbptyya4yp1GLE3hB=BBX7w@mail.gmail.com>
- <20190311204626.GA3119@sultan-box.localdomain>
- <CAJuCfpGpBxofTT-ANEEY+dFCSdwkQswox3s8Uk9Eq0BnK9i0iA@mail.gmail.com>
- <20190312080532.GE5721@dhcp22.suse.cz>
- <20190312163741.GA2762@sultan-box.localdomain>
- <CAEe=Sxn_uayj48wo7oqf8mNZ7QAGJUQVmkPcHcuEGjA_Z8ELeQ@mail.gmail.com>
- <CAEXW_YQMnbN+e-janGbZc5MH6MwdUdXNfonpLUu5O2nsSkJyeg@mail.gmail.com>
- <20190314204911.GA875@sultan-box.localdomain>
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2F2sRqC092087
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 22:57:55 -0400
+Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2r824rku2c-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 22:57:55 -0400
+Received: from localhost
+	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Fri, 15 Mar 2019 02:57:55 -0000
+Received: from b01cxnp23032.gho.pok.ibm.com (9.57.198.27)
+	by e17.ny.us.ibm.com (146.89.104.204) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Fri, 15 Mar 2019 02:57:48 -0000
+Received: from b01ledav005.gho.pok.ibm.com (b01ledav005.gho.pok.ibm.com [9.57.199.110])
+	by b01cxnp23032.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x2F2vkTu24313968
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 15 Mar 2019 02:57:46 GMT
+Received: from b01ledav005.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id E663AAE060;
+	Fri, 15 Mar 2019 02:57:45 +0000 (GMT)
+Received: from b01ledav005.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 019C2AE05C;
+	Fri, 15 Mar 2019 02:57:36 +0000 (GMT)
+Received: from [9.85.75.142] (unknown [9.85.75.142])
+	by b01ledav005.gho.pok.ibm.com (Postfix) with ESMTP;
+	Fri, 15 Mar 2019 02:57:36 +0000 (GMT)
+Subject: Re: [PATCH v6 4/4] hugetlb: allow to free gigantic pages regardless
+ of the configuration
+To: Alexandre Ghiti <alex@ghiti.fr>,
+        Andrew Morton
+ <akpm@linux-foundation.org>,
+        Vlastimil Babka <vbabka@suse.cz>,
+        Catalin Marinas <catalin.marinas@arm.com>,
+        Will Deacon
+ <will.deacon@arm.com>,
+        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+        Paul Mackerras <paulus@samba.org>,
+        Michael Ellerman <mpe@ellerman.id.au>,
+        Martin Schwidefsky <schwidefsky@de.ibm.com>,
+        Heiko Carstens <heiko.carstens@de.ibm.com>,
+        Yoshinori Sato <ysato@users.sourceforge.jp>,
+        Rich Felker <dalias@libc.org>,
+        "David S . Miller" <davem@davemloft.net>,
+        Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+        Borislav Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>,
+        x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>,
+        Andy Lutomirski <luto@kernel.org>,
+        Peter Zijlstra <peterz@infradead.org>,
+        Mike Kravetz <mike.kravetz@oracle.com>,
+        linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+        linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
+        linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
+        linux-mm@kvack.org
+References: <20190307132015.26970-1-alex@ghiti.fr>
+ <20190307132015.26970-5-alex@ghiti.fr> <87va0movdh.fsf@linux.ibm.com>
+ <e39f5b5b-efa1-c7b1-c1d8-89155b926027@ghiti.fr>
+ <972208b7-5c05-cc05-efbf-0d48bff4cf77@linux.ibm.com>
+ <b6259684-ddc0-ade4-1881-016b5e7fff66@ghiti.fr>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Date: Fri, 15 Mar 2019 08:27:35 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190314204911.GA875@sultan-box.localdomain>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <b6259684-ddc0-ade4-1881-016b5e7fff66@ghiti.fr>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-TM-AS-GCONF: 00
+x-cbid: 19031502-0040-0000-0000-000004D269EF
+X-IBM-SpamModules-Scores: 
+X-IBM-SpamModules-Versions: BY=3.00010760; HX=3.00000242; KW=3.00000007;
+ PH=3.00000004; SC=3.00000281; SDB=6.01174508; UDB=6.00606765; IPR=6.00955172;
+ MB=3.00025982; MTD=3.00000008; XFM=3.00000015; UTC=2019-03-15 02:57:54
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19031502-0041-0000-0000-000008DD80A3
+Message-Id: <a96fefc5-c7dc-a335-8d87-603a0be03ac6@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-15_02:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1903150020
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 14, 2019 at 01:49:11PM -0700, Sultan Alsawaf wrote:
-> On Thu, Mar 14, 2019 at 10:47:17AM -0700, Joel Fernandes wrote:
-> > About the 100ms latency, I wonder whether it is that high because of
-> > the way Android's lmkd is observing that a process has died. There is
-> > a gap between when a process memory is freed and when it disappears
-> > from the process-table.  Once a process is SIGKILLed, it becomes a
-> > zombie. Its memory is freed instantly during the SIGKILL delivery (I
-> > traced this so that's how I know), but until it is reaped by its
-> > parent thread, it will still exist in /proc/<pid> . So if testing the
-> > existence of /proc/<pid> is how Android is observing that the process
-> > died, then there can be a large latency where it takes a very long
-> > time for the parent to actually reap the child way after its memory
-> > was long freed. A quicker way to know if a process's memory is freed
-> > before it is reaped could be to read back /proc/<pid>/maps in
-> > userspace of the victim <pid>, and that file will be empty for zombie
-> > processes. So then one does not need wait for the parent to reap it. I
-> > wonder how much of that 100ms you mentioned is actually the "Waiting
-> > while Parent is reaping the child", than "memory freeing time". So
-> > yeah for this second problem, the procfds work will help.
-> >
-> > By the way another approach that can provide a quick and asynchronous
-> > notification of when the process memory is freed, is to monitor
-> > sched_process_exit trace event using eBPF. You can tell eBPF the PID
-> > that you want to monitor before the SIGKILL. As soon as the process
-> > dies and its memory is freed, the eBPF program can send a notification
-> > to user space (using the perf_events polling infra). The
-> > sched_process_exit fires just after the mmput() happens so it is quite
-> > close to when the memory is reclaimed. This also doesn't need any
-> > kernel changes. I could come up with a prototype for this and
-> > benchmark it on Android, if you want. Just let me know.
+On 3/14/19 7:22 PM, Alexandre Ghiti wrote:
 > 
-> Perhaps I'm missing something, but if you want to know when a process has died
-> after sending a SIGKILL to it, then why not just make the SIGKILL optionally
-> block until the process has died completely? It'd be rather trivial to just
-> store a pointer to an onstack completion inside the victim process' task_struct,
-> and then complete it in free_task().
+> 
+> On 03/14/2019 02:17 PM, Aneesh Kumar K.V wrote:
+>> On 3/14/19 5:13 PM, Alexandre Ghiti wrote:
+>>> On 03/14/2019 06:52 AM, Aneesh Kumar K.V wrote:
+>>>> Alexandre Ghiti <alex@ghiti.fr> writes:
+>>>>
+>>
+>>> Thanks for noticing Aneesh.
+>>>
+>>> I can't find a better solution than bringing back 
+>>> gigantic_page_supported check,
+>>> since it is must be done at runtime in your case.
+>>> I'm not sure of one thing though: you say that freeing boottime 
+>>> gigantic pages
+>>> is not needed, but is it forbidden ? Just to know where the check and 
+>>> what its
+>>> new name should be.
+> 
+> You did not answer this question: is freeing boottime gigantic pages 
+> "forbidden" or just
+> not needed ?
 
-I'm not sure if that makes much semantic sense for how the signal handling is
-supposed to work. Imagine a parent sends SIGKILL to its child, and then does
-a wait(2). Because the SIGKILL blocks in your idea, then the wait cannot
-execute, and because the wait cannot execute, the zombie task will not get
-reaped and so the SIGKILL senders never gets unblocked and the whole thing
-just gets locked up. No? I don't know it just feels incorrect.
+IMHO if we don't allow runtime allocation of gigantic hugepage, we 
+should not allow runtime free of gigantic hugepage. Now w.r.t ppc64, 
+hypervisor pass hints about the gignatic hugepages via device tree 
+nodes. Early in boot we mark these pages as reserved and during hugetlb 
+init we use these reserved pages for backing hugetlb fs.
 
-Further, in your idea adding stuff to task_struct will simply bloat it - when
-this task can easily be handled using eBPF without making any kernel changes.
-Either by probing sched_process_free or sched_process_exit tracepoints.
-Scheduler maintainers generally frown on adding stuff to task_struct
-pointlessly there's a good reason since bloating it effects the performance
-etc, and something like this would probably never be ifdef'd out behind a
-CONFIG.
+Now "forbidden" is not the exact reason. We don't have code to put it 
+back in the reserved list. Hence I would say "not supported".
 
-thanks,
-
- - Joel
+-aneesh
 
