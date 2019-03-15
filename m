@@ -2,120 +2,148 @@ Return-Path: <SRS0=L2Uh=RS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EA4B8C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 16:02:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9A7DFC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 16:10:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 995FF21871
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 16:02:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 995FF21871
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 4C163218AC
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 16:10:02 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="hKHmU445"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4C163218AC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 30F916B028B; Fri, 15 Mar 2019 12:02:28 -0400 (EDT)
+	id BE65B6B028C; Fri, 15 Mar 2019 12:10:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2BE996B028C; Fri, 15 Mar 2019 12:02:28 -0400 (EDT)
+	id B6BC56B028E; Fri, 15 Mar 2019 12:10:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1D6276B028D; Fri, 15 Mar 2019 12:02:28 -0400 (EDT)
+	id A35256B028F; Fri, 15 Mar 2019 12:10:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CBF096B028B
-	for <linux-mm@kvack.org>; Fri, 15 Mar 2019 12:02:27 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id d5so4044772edl.22
-        for <linux-mm@kvack.org>; Fri, 15 Mar 2019 09:02:27 -0700 (PDT)
+Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 627236B028C
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2019 12:10:01 -0400 (EDT)
+Received: by mail-vk1-f199.google.com with SMTP id k129so3619749vke.3
+        for <linux-mm@kvack.org>; Fri, 15 Mar 2019 09:10:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:mime-version:content-disposition:user-agent;
-        bh=KeK2qaiwed6RFlNvBsOf0J+3gjNgBakJVUpnigEi2BU=;
-        b=WO4NqhxS9nQFMdachDbam82UCg1ZPE0ZlvNv5hPKxhXJ7vJWBnz+kkbhWQEkm0NjBK
-         0M6LGnpoO7rDPoOAoOfUkciSbBP5egeiftMC5ERXiwOBWaZVRvw8hGBI/SZOcvU7s08/
-         7vO7Y2gUCZp2NAVTIRD5o/041+Ym9aLdARzJr5bM0v7hSAjUixldWlV2fdAUcZaxdPc6
-         p3n3Y2zyd5tRV1HUHNYN6AzxTplwI2qemc6vxc0jZ6S3pjJuC9WuTc5oNqVD4jBer60a
-         UCVLp9SHY3d+jKePDt9hrl66ZsTz8cghmDJ7L8LR6M3PSB6jM9zpIdw+f+DZTS1u4H/q
-         iaNg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of metan@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=metan@suse.de
-X-Gm-Message-State: APjAAAW/OPrx7M72bsawdO6Hpo3KvMn/8k17BOf+cep7HRSKtUOmduLb
-	dAH7hPTjAK6cn/Y6Jwe8EL3n00JU2WjZ7nKtKJ8iOq5lfpyBHCxXApE5xhCkppyVF+zoaVjKer9
-	HaAnAYcWXjw43DzuJK3mau415AbshQJWpuXm54TFyG/6T1s9YnZSYerS9acmki6M=
-X-Received: by 2002:a50:b493:: with SMTP id w19mr3460336edd.11.1552665747273;
-        Fri, 15 Mar 2019 09:02:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwpe+5DQDZ85eDDgDsWgs1kq/PrHMRKbWiF3aKAV6GFr6a3rh0pMXvXUmbUjazmvYOAN42s
-X-Received: by 2002:a50:b493:: with SMTP id w19mr3460274edd.11.1552665746211;
-        Fri, 15 Mar 2019 09:02:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552665746; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=kE5A+CZCQ970cuz5dKKKfTnoUsaz55mW0Rz8hAw/vKE=;
+        b=Ioh9MqqU3zcsnJmaMZxwuZBZny5tQlwwopaeAsWYyEC/oHO06w2ZbIjZVEk5jZx/R+
+         QRMCL4aZXHZSFGLKnkVUCYV24xL0AqcYqjSZmjCqs+c7PIbxEgP4tQb9+KHjUsXn2ApI
+         ciKlXIv0C88/lmCqD4XhibdTxGhmoyczTiqjIn7aBVQKBUzOroT3oS0u41k/fuLlTtp7
+         Z3xU8SNXssRDj92q8u56bF5E7F7tF8SaHU91xtWEr+1TJdFOboIUz09X1Si/iJU9WJpH
+         cSk+u1p5bpI8spuJzR8iMuFHuJO8e5DiiVIAXydoGC5AEzhFELCzg6iq3tXB+b0pbmQ2
+         JsRg==
+X-Gm-Message-State: APjAAAW1keBkdnSdsBjVUfLZIeagsIwuvUHixqoVQEgmm8s5Jhe+Tmgk
+	lDyR5z5MQAWxbYtEiXy6+W9mmvFgKq/wpJXrxLqeZAoP3Mk0qqUPIFxVQWtQVxfgWKNJLhr/Hf9
+	GhuCDbCQNyGiZUS6KefmRwhRBKMckuqOoDQAPTj6D75XdTcT5m4bZOeZdQZm+/xDLNw==
+X-Received: by 2002:a1f:804c:: with SMTP id b73mr2480185vkd.90.1552666201099;
+        Fri, 15 Mar 2019 09:10:01 -0700 (PDT)
+X-Received: by 2002:a1f:804c:: with SMTP id b73mr2480127vkd.90.1552666200037;
+        Fri, 15 Mar 2019 09:10:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552666200; cv=none;
         d=google.com; s=arc-20160816;
-        b=lt/bavlbmv/PON8Fmc27noA1QPtK3KjjqBZTDARULeLevglv+HS/esovi1Y8P5pa/4
-         0TCOAFrgPq3Y0En1r3+NdkMbsnabxaYzYdjhftlIwg8kKi18bOopK0wAFduSeHTpyWou
-         Hs0+Ub+akuK5CKqxJ9w8NC3XrnwMQeZIXjKeInX4vRqjder7ClA0qm+goIgpAKY/JT0g
-         K7mXF/Rp+17bkc5hEvsLeL5Hs6JFF/ZOhTEilCW87mtBswsYbr/pUquUMY+na5FmxH61
-         JTAedTcEr/Luvm7QezKbS5fxtZSqxwd1qRfacjeWyNsoPMgBSv5sP1vrqi9Q+Z06pSjT
-         IRLA==
+        b=x7yI0ug/ZbxI1Feez0nNmY3a38XhK5fsjzpXCbwoLCSKXXDZEiESM0YyPXp1IuDOTo
+         7pQVCJ+qE4dKMZZAvKtlbzuUOv1BT9zT0XM1KGYz59QG3D/awtDIj+fSheJoOAQXDGJ+
+         JsCqhZs0qo0EZdtXXFtbR/r/YIL6nVAL7+ocvjEcxx9/JxmyGeUwK1sxdmMJnNFho/eC
+         T615wWPojHnJ0t+mlr9pLerVH79DkKaQODMXDgoqvu4TCqX+l93IslEFz/S7UhG+I+MF
+         fFFH7UBHcl6g4BkqTDWO0uRIdcjT1IstN2zgVEjD9Pdfuu4YEX0lfT04O3xNhBGV8uyw
+         R35Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:message-id:subject:cc
-         :to:from:date;
-        bh=KeK2qaiwed6RFlNvBsOf0J+3gjNgBakJVUpnigEi2BU=;
-        b=hEkshqz2wA1s0HzjPG87FaciJzBldeA2GPSXUcvL6WtGVSNX8ri8jI9EXu/X9wJNfS
-         sE8X64xwoLrSDZ4hMS2IJ5keBiFqjGay9rsi4AYy5RT3A9TF7wjDOxkT0UUhjEj2xa9J
-         amgYciEtb6Zg+QtoxIOpDXsUALIzyHkGdu7DzX8k+8BQjS93TkLdIhFNSgJ5NOyxzPfK
-         2Ca2iKpoNvzFXItQwIiP2A16kNQeG/fOrxN1XD9D4u233uO7bLdcEXrujeFyz3BQeJdA
-         T30LQZ+FvfgdxNGCYtNAov9WrmwzahMupFGCk6M7EFERZahoFmkFc88hbkYEARV9sfMx
-         9/KQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=kE5A+CZCQ970cuz5dKKKfTnoUsaz55mW0Rz8hAw/vKE=;
+        b=Xpr+uq+j40ht6CBKRADQCTcGVbzjhjV4dAcGI+VlWFNZKUloAqbnQrWpOnWgn7gye9
+         Tqy19cQZqqeOgXViZTQ5yIkPhZxRePku5VorDGZ587oNeT5ZFiRXBOn3j6sdoCYpTEWv
+         I7NIfiN2h423NMUkRymwGFBjG0u8sPxMVJtVDE6EQQzROO6bGF+McK9bBI/EqZ1f9ARq
+         rXVl75Csm6XIkDA2Igv4pLyfyYrL/dhPX3dneEuJp449CrwD2D/r2mbkhFh+s5W0ZDc+
+         +vZL2vuIQPdOSlnjR6amw12XnpsXytsREA97LJ21EBwOqHdn/6OpqTipRl60L07jT1Wj
+         9ySQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of metan@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=metan@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gy20si917380ejb.211.2019.03.15.09.02.25
+       dkim=pass header.i=@chromium.org header.s=google header.b=hKHmU445;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 61sor31994uay.34.2019.03.15.09.09.59
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Fri, 15 Mar 2019 09:10:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@chromium.org header.s=google header.b=hKHmU445;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=kE5A+CZCQ970cuz5dKKKfTnoUsaz55mW0Rz8hAw/vKE=;
+        b=hKHmU445IW/COhLh4C9icWVxuotJ3n1hCtm7Gll2wbtPW4oq5SvQlNfsGLiOslggPx
+         rRw566RrEYUaSv3edGRRW9MQlE5W4+P4BUQWyE/f7O72f0uo/ZBhU4H5d4B68siXDRbD
+         lEjpw9QGwmZcXVVIIqjXAyY0txLfCl7Z36WBI=
+X-Google-Smtp-Source: APXvYqxFuHXBvFC0qIvj5hBc8qd7ToueMYbKIMgXvMlTC9fX1XTEu1srPRBVdxKBgGK8T4eofMcK8w==
+X-Received: by 2002:ab0:4a8d:: with SMTP id s13mr106994uae.122.1552666198447;
+        Fri, 15 Mar 2019 09:09:58 -0700 (PDT)
+Received: from mail-vs1-f52.google.com (mail-vs1-f52.google.com. [209.85.217.52])
+        by smtp.gmail.com with ESMTPSA id j28sm484466vsl.10.2019.03.15.09.09.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Mar 2019 09:02:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of metan@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
-Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of metan@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=metan@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 73F9EADBD;
-	Fri, 15 Mar 2019 16:02:25 +0000 (UTC)
-Date: Fri, 15 Mar 2019 17:01:42 +0100
-From: Cyril Hrubis <chrubis@suse.cz>
-To: linux-mm@kvack.org, linux-api@vger.kernel.org
-Cc: ltp@lists.linux.it, Vlastimil Babka <vbabka@suse.cz>
-Subject: mbind() fails to fail with EIO
-Message-ID: <20190315160142.GA8921@rei>
+        Fri, 15 Mar 2019 09:09:57 -0700 (PDT)
+Received: by mail-vs1-f52.google.com with SMTP id b8so5692991vsq.11
+        for <linux-mm@kvack.org>; Fri, 15 Mar 2019 09:09:57 -0700 (PDT)
+X-Received: by 2002:a67:fa45:: with SMTP id j5mr2431791vsq.48.1552666196638;
+ Fri, 15 Mar 2019 09:09:56 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <20190311093701.15734-1-peterx@redhat.com> <58e63635-fc1b-cb53-a4d1-237e6b8b7236@oracle.com>
+ <20190313060023.GD2433@xz-x1> <3714d120-64e3-702e-6eef-4ef253bdb66d@redhat.com>
+ <20190313185230.GH25147@redhat.com> <1934896481.7779933.1552504348591.JavaMail.zimbra@redhat.com>
+ <20190313234458.GJ25147@redhat.com> <298b9469-abd2-b02b-5c71-529b8976a46c@redhat.com>
+ <20190314161630.GS25147@redhat.com>
+In-Reply-To: <20190314161630.GS25147@redhat.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Fri, 15 Mar 2019 09:09:45 -0700
+X-Gmail-Original-Message-ID: <CAGXu5j+WwcYTavVRp2M1AashdCwf2YX=RmUtO_5bHXPK9iZhGQ@mail.gmail.com>
+Message-ID: <CAGXu5j+WwcYTavVRp2M1AashdCwf2YX=RmUtO_5bHXPK9iZhGQ@mail.gmail.com>
+Subject: Re: [PATCH 0/3] userfaultfd: allow to forbid unprivileged users
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>, Peter Xu <peterx@redhat.com>, 
+	Mike Kravetz <mike.kravetz@oracle.com>, LKML <linux-kernel@vger.kernel.org>, 
+	Hugh Dickins <hughd@google.com>, Luis Chamberlain <mcgrof@kernel.org>, 
+	Maxime Coquelin <maxime.coquelin@redhat.com>, KVM <kvm@vger.kernel.org>, 
+	Jerome Glisse <jglisse@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, 
+	Johannes Weiner <hannes@cmpxchg.org>, Martin Cracauer <cracauer@cons.org>, 
+	Denis Plotnikov <dplotnikov@virtuozzo.com>, Linux-MM <linux-mm@kvack.org>, 
+	Marty McFadden <mcfadden8@llnl.gov>, Maya Gokhale <gokhale2@llnl.gov>, 
+	Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, 
+	"Kirill A . Shutemov" <kirill@shutemov.name>, 
+	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, 
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
-I've started to write tests for mbind() and found out that mbind() does
-not work as described in manual page in a case that page has been
-faulted on different node that we are asking it to bind to. Looks like
-this is working fine on older kernels. On my testing machine with 3.0
-mbind() fails correctly with EIO but succeeds unexpectedly on newer
-kernels such as 4.12.
+On Thu, Mar 14, 2019 at 9:16 AM Andrea Arcangeli <aarcange@redhat.com> wrote:
+> So this will be for who's paranoid and prefers to disable userfaultfd
+> as a whole as an hardening feature like the bpf sysctl allows: it will
+> allow to block uffd syscall without having to rebuild the kernel with
+> CONFIG_USERFAULTFD=n in environments where seccomp cannot be easily
+> enabled (i.e. without requiring userland changes).
+>
+> That's very fine with me, but then it wasn't me complaining in the
+> first place. Kees?
 
-What the test does is:
-
-* mmap() private mapping
-* fault it
-* find out on which node it is faulted on
-* mbind() it to a different node with MPOL_BIND and MPOL_MF_STRICT and
-  expects to get EIO
-
-The test code can be seen and compiled from:
-
-https://github.com/metan-ucw/ltp/blob/master/testcases/kernel/syscalls/mbind/mbind02.c
+I'm fine with a boolean. I just wanted to find a way to disable at
+runtime (so distro users had it available to them).
 
 -- 
-Cyril Hrubis
-chrubis@suse.cz
+Kees Cook
 
