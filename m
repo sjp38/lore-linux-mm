@@ -1,185 +1,177 @@
-Return-Path: <SRS0=RO59=RR=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=L2Uh=RS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BA9A8C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 21:49:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E0C3DC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 02:26:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5E1A32087C
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Mar 2019 21:49:03 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="M0OtEsjL"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E1A32087C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
+	by mail.kernel.org (Postfix) with ESMTP id 711ED21872
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 02:26:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 711ED21872
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 53D6F6B0007; Thu, 14 Mar 2019 17:49:01 -0400 (EDT)
+	id B8EE96B0003; Thu, 14 Mar 2019 22:26:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3B6A06B0008; Thu, 14 Mar 2019 17:49:01 -0400 (EDT)
+	id B3FA06B0006; Thu, 14 Mar 2019 22:26:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1B6CF6B000A; Thu, 14 Mar 2019 17:49:01 -0400 (EDT)
+	id A0A846B0007; Thu, 14 Mar 2019 22:26:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DF1346B0007
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 17:49:00 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id z34so1699159qtz.14
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 14:49:00 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CC596B0003
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2019 22:26:09 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id p127so8440509pga.20
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2019 19:26:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=c4IczZcemQJBUyUO4U++jGJlzY5GklZ2NZ3zCflWwn8=;
-        b=EOlGPm8yXfjXgVaCfnmUB4j2eGQauvbJ9Kw7JDq2ujxMNow2BshU9h5FqkM8kyU8QF
-         iJKDHbFohOmZXe5jyBBOEFqvlxu7MGCD06BvVwHqYEOHySzq82mHVopfGT+5XsQTbLmN
-         30O9SLO3O3rfovULZa5WF/LpkMvL38OqeSMuv+L50UcfmK3EBV1Ozs8a3iYCph7Ip1cG
-         M3vqa+3Qm/VVEk4Jxv8i92Dg8/ZkzYkjpp2hmSP+1xERVyS8+CaIHLWWh1S24JZjiCwD
-         dyu5D8lr0xTXpQFwEKbHWptHyvDq/5doGqyzWcmSzK32U4eF9sdclxulS7bZycKOXrHh
-         Byiw==
-X-Gm-Message-State: APjAAAW7WmL9l1s4wEN2Fjcb7NyjBH/YM4/hhY8lH5nbs9wKhqfZ8+l8
-	Xclu71cP2o5K3ofLiWSU28zdzfilXdmHTZmtWkQj3ateUbggVr4iG5tfVwBjN4RqZhgC33TNz9A
-	F20B/LZrvzow6rDnQZewJA0iXb/VCZzl2aD6JFagIjP2SKLY8bz3Vdzv0cvZBiobW3g==
-X-Received: by 2002:a37:4d57:: with SMTP id a84mr383660qkb.35.1552600140696;
-        Thu, 14 Mar 2019 14:49:00 -0700 (PDT)
-X-Received: by 2002:a37:4d57:: with SMTP id a84mr383631qkb.35.1552600139891;
-        Thu, 14 Mar 2019 14:48:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552600139; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=YS382tGniaGcjmaQdqN3HKhX1MB59AhnY2x7pzaOUT4=;
+        b=MfEQyXGjjsmUzssC6jPONIehCC4cUusETw9qPch8IXC4wWD9epKAF+VfJRbqLv1iU7
+         ktfMf8y8BxNzYNeCkTvGYw0ZQ2AqSoWVNvMSRiH3ub8IOxsgbNFG8urBOYYNN0lAKy3h
+         p9cl25PMr8bIP/JFKRmmdQB4fuWmUjyw6xiZd+mKX7CaAt9o945On6zLqOpIuOQdSfMX
+         KIjcbgY5il7Xg7sKpWIi8sfqRpsvrpAmIevABKo+kn4NjQLAODc3CiFmhJMJUyoU29jk
+         isA4NGvlrJFusejMt3T+RtyYzbhF+Qb1Klc8idqwkWms+VZnkFf3JswLi0AtY80D9uv6
+         ASkA==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 150.101.137.133 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAVG/xm41N4MZtc0lOIMdphBIlyJMBR+LfdHYHp/dOAoFGIgAJCd
+	QrcwyGytMAa/U1AOgGzahcK+t8Cp5IyRae8sPZJaq92FkzAMFe+9BHWZxuBQIjD2VmRMjco7Buc
+	YsAPxXWJwiqN/kkAnpLF6Zzw2dedImCSrC9pqmPhDmyMCg+PF/0F4BS1hEYymFIU=
+X-Received: by 2002:a63:43:: with SMTP id 64mr1100709pga.64.1552616769041;
+        Thu, 14 Mar 2019 19:26:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyM8fSmOJG4ihTTTatflAQEtgPkivangY5naqBAD0IIoVusbtM65euDy3MfVey0tbpOF7IO
+X-Received: by 2002:a63:43:: with SMTP id 64mr1100630pga.64.1552616767529;
+        Thu, 14 Mar 2019 19:26:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552616767; cv=none;
         d=google.com; s=arc-20160816;
-        b=F6rW/uQxhzLVGObWF8FkHrEf0IQRY0MdzUVuzkTIt8FlijxzCAXtGc7sxIZojLe7sC
-         9QMBwpdHtScpQbMRWEySBdB91F9KHHL2iaGXax/8CXX9oHhpiSugurjPGXYg0tohAwgd
-         7I16e9iJVTgvHh+V8pR9yzZ/o01Byh6ZsH9c4QRannPiIlXu6ethXnyqUbxW0MYY1Had
-         84bHpshacP+mfWYuPBuIeZ+5JjUn2E871KNf9R66tyakPFVoGs67Ime6cLfTVGqAjjcO
-         x6jFHPpkvKP5iPvaMEL3QGayhughUMDfrWl7yM3fXVOSvaF6PDtPpuaFDHXAWYppqh3Q
-         6pyQ==
+        b=ypzNbvTc6z9PvJWsxH57KUYliEraAvUF1OdXCUgVX7AzLDkJqcLrd/y6FVj75sKBCF
+         nmLSPEeUFAx5MwjfYYV2iG0GLsXLaNBg6gKS9qKJAikDmplCssnnxb7sM0XL9nA70EZl
+         qC6J+9fQ6K5MwBjc0pSz27CRXcAs22rXwPgWmzm4KwcavCYKkasB0W3f+qYDvwjs+UD9
+         VSk4jrJ3xpmitQtCYDhysIOUrx+/zuxbXZCE7RPfttpXt/+9UXl7pRNZxxTdXYsaZ271
+         i5ZJ42oUAoxUvNDBsRQZ5f9H0yJtoJov7VMatjVyR6hZpyQbvzzBb2yunCNV7Qvd2OQG
+         mlGA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=c4IczZcemQJBUyUO4U++jGJlzY5GklZ2NZ3zCflWwn8=;
-        b=qzp4MLEMxItmYQrZMX+8mEybOODOVff89/N8xGT3uTjsjZTeHaRz/CIKfTqDZ9jGf6
-         HaD4UlnV+a0YGjJZhJs1+LK6LvgODcL3nmNQUN0JHPjMExVyzOR4pvKveTnlgmfcxrpd
-         0aMAO39hLW4cUyJ7P/aU0bkhb+pcIfQib3a99b2ke1xIZkDERAtnaD1Lx6Wl0f6rDs6k
-         MU/teVWNAUHCYqOL3fm+8WgD+dJQW+8OG0YgF4IjFd9b3NoSWG8fLzowRBc+sY/cO36Z
-         i8Rbz63l/RP4NqWf1v03BV7vGHIsDNaESfGkqkNmt0VZMQ2UcKjpwHWRSlFWg8oHpdDh
-         YF5g==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=YS382tGniaGcjmaQdqN3HKhX1MB59AhnY2x7pzaOUT4=;
+        b=yCQZt/Lw08mTL/iaks+S4PI8XZyiFyzisy6md7i/SBEuyk2uHaCarHCqg80TvLxtaB
+         JkQ8f88J5XIeTPoPASmYV9Oq74CV7gdpSSpgrbZkaniQQIqfStSnwBis9ojfsOQjNIQu
+         HT0uegFi9MS6UM5Eb7XKGUw5TCjF1Bv4QlfrcUX0dS9jK2wVHE66gGrFHHHDs2VOEuxM
+         4h+Ik7YyotiWOFS3y/h8ZmBlrGhsMJFnzTPsHbPtOxO/YTSkAm8yBlQ1cbDoLp6/TddO
+         8E56KThvjWRrVdeDxN/ZbqO/FVxyrb/WhNxyNNixnUwJ0vJT7DfzS7HxE+Conzx9H8fZ
+         0FJA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=M0OtEsjL;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h125sor124515qkc.37.2019.03.14.14.48.59
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 14 Mar 2019 14:48:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=neutral (google.com: 150.101.137.133 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from ipmail01.adl2.internode.on.net (ipmail01.adl2.internode.on.net. [150.101.137.133])
+        by mx.google.com with ESMTP id o14si653657pgv.310.2019.03.14.19.26.06
+        for <linux-mm@kvack.org>;
+        Thu, 14 Mar 2019 19:26:07 -0700 (PDT)
+Received-SPF: neutral (google.com: 150.101.137.133 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=150.101.137.133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=M0OtEsjL;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=joelfernandes.org; s=google;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=c4IczZcemQJBUyUO4U++jGJlzY5GklZ2NZ3zCflWwn8=;
-        b=M0OtEsjLT3o1G8Q3cafkdUpSCoPUJkTZfiitOqIY/qB0DzM1YqY3uqhLBbfA9+V0Oa
-         EN/oUeiAwOzo95ZkqAk9F9sAPhvGCeZSf2mLcS/e3Ycm7ncrL5R/vin/2ADy6Dd53hCM
-         xxmbtuIFYjnvYBEdGJrtGL6CVVbx1a/UH0lXc=
-X-Google-Smtp-Source: APXvYqxzcuUnWSzeDwWPdHSSmi1kpNflcGQvZsrcJZqSXfwdL86aFq6BWRW0Kgb3udVE8q2hNgpkyQ==
-X-Received: by 2002:ae9:f101:: with SMTP id k1mr387571qkg.111.1552600139578;
-        Thu, 14 Mar 2019 14:48:59 -0700 (PDT)
-Received: from joelaf.cam.corp.google.com ([2620:0:1004:1100:cca9:fccc:8667:9bdc])
-        by smtp.gmail.com with ESMTPSA id o19sm96827qkl.65.2019.03.14.14.48.58
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Mar 2019 14:48:58 -0700 (PDT)
-From: "Joel Fernandes (Google)" <joel@joelfernandes.org>
-To: linux-kernel@vger.kernel.org,
-	mtk.manpages@gmail.com
-Cc: "Joel Fernandes (Google)" <joel@joelfernandes.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Andy Lutomirski <luto@kernel.org>,
-	dancol@google.com,
-	Jann Horn <jannh@google.com>,
-	John Stultz <john.stultz@linaro.org>,
-	kernel-team@android.com,
-	linux-api@vger.kernel.org,
-	linux-man@vger.kernel.org,
-	linux-mm@kvack.org,
-	Matthew Wilcox <willy@infradead.org>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Shuah Khan <shuah@kernel.org>,
-	Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: [PATCH -manpage 2/2] memfd_create.2: Update manpage with new memfd F_SEAL_FUTURE_WRITE seal
-Date: Thu, 14 Mar 2019 17:48:44 -0400
-Message-Id: <20190314214844.207430-3-joel@joelfernandes.org>
-X-Mailer: git-send-email 2.21.0.360.g471c308f928-goog
-In-Reply-To: <20190314214844.207430-1-joel@joelfernandes.org>
-References: <20190314214844.207430-1-joel@joelfernandes.org>
+       spf=neutral (google.com: 150.101.137.133 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from ppp59-167-129-252.static.internode.on.net (HELO dastard) ([59.167.129.252])
+  by ipmail01.adl2.internode.on.net with ESMTP; 15 Mar 2019 12:56:05 +1030
+Received: from dave by dastard with local (Exim 4.80)
+	(envelope-from <david@fromorbit.com>)
+	id 1h4cXs-0004x7-6R; Fri, 15 Mar 2019 13:26:04 +1100
+Date: Fri, 15 Mar 2019 13:26:04 +1100
+From: Dave Chinner <david@fromorbit.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Linux MM <linux-mm@kvack.org>,
+	linux-nvdimm <linux-nvdimm@lists.01.org>,
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
+	"Barror, Robert" <robert.barror@intel.com>
+Subject: Re: Hang / zombie process from Xarray page-fault conversion
+ (bisected)
+Message-ID: <20190315022604.GO26298@dastard>
+References: <CAPcyv4hwHpX-MkUEqxwdTj7wCCZCN4RV-L4jsnuwLGyL_UEG4A@mail.gmail.com>
+ <20190311150947.GD19508@bombadil.infradead.org>
+ <CAPcyv4jG5r2LOesxSx+Mdf+L_gQWqnhk+gKZyKAAPTHy1Drvqw@mail.gmail.com>
+ <20190312043754.GD23020@dastard>
+ <CAPcyv4i+z0RT7rTw+4w-h8dOyscVk1g3F+cu2pKHqqJjTgU++A@mail.gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4i+z0RT7rTw+4w-h8dOyscVk1g3F+cu2pKHqqJjTgU++A@mail.gmail.com>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-More details of the seal can be found in the LKML patch:
-https://lore.kernel.org/lkml/20181120052137.74317-1-joel@joelfernandes.org/T/#t
+On Thu, Mar 14, 2019 at 12:34:51AM -0700, Dan Williams wrote:
+> On Mon, Mar 11, 2019 at 9:38 PM Dave Chinner <david@fromorbit.com> wrote:
+> >
+> > On Mon, Mar 11, 2019 at 08:35:05PM -0700, Dan Williams wrote:
+> > > On Mon, Mar 11, 2019 at 8:10 AM Matthew Wilcox <willy@infradead.org> wrote:
+> > > >
+> > > > On Thu, Mar 07, 2019 at 10:16:17PM -0800, Dan Williams wrote:
+> > > > > Hi Willy,
+> > > > >
+> > > > > We're seeing a case where RocksDB hangs and becomes defunct when
+> > > > > trying to kill the process. v4.19 succeeds and v4.20 fails. Robert was
+> > > > > able to bisect this to commit b15cd800682f "dax: Convert page fault
+> > > > > handlers to XArray".
+> > > > >
+> > > > > I see some direct usage of xa_index and wonder if there are some more
+> > > > > pmd fixups to do?
+> > > > >
+> > > > > Other thoughts?
+> > > >
+> > > > I don't see why killing a process would have much to do with PMD
+> > > > misalignment.  The symptoms (hanging on a signal) smell much more like
+> > > > leaving a locked entry in the tree.  Is this easy to reproduce?  Can you
+> > > > get /proc/$pid/stack for a hung task?
+> > >
+> > > It's fairly easy to reproduce, I'll see if I can package up all the
+> > > dependencies into something that fails in a VM.
+> > >
+> > > It's limited to xfs, no failure on ext4 to date.
+> > >
+> > > The hung process appears to be:
+> > >
+> > >      kworker/53:1-xfs-sync/pmem0
+> >
+> > That's completely internal to XFS. Every 30s the work is triggered
+> > and it either does a log flush (if the fs is active) or it syncs the
+> > superblock to clean the log and idle the filesystem. It has nothing
+> > to do with user processes, and I don't see why killing a process has
+> > any effect on what it does...
+> >
+> > > ...and then the rest of the database processes grind to a halt from there.
+> > >
+> > > Robert was kind enough to capture /proc/$pid/stack, but nothing interesting:
+> > >
+> > > [<0>] worker_thread+0xb2/0x380
+> > > [<0>] kthread+0x112/0x130
+> > > [<0>] ret_from_fork+0x1f/0x40
+> > > [<0>] 0xffffffffffffffff
+> >
+> > Much more useful would be:
+> >
+> > # echo w > /proc/sysrq-trigger
+> >
+> > And post the entire output of dmesg.
+> 
+> Here it is:
+> 
+> https://gist.github.com/djbw/ca7117023305f325aca6f8ef30e11556
 
-Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
----
- man2/memfd_create.2 | 15 ++++++++++++++-
- 1 file changed, 14 insertions(+), 1 deletion(-)
+Which tells us nothing. :(
 
-diff --git a/man2/memfd_create.2 b/man2/memfd_create.2
-index 15b1362f5525..3b7f032407ed 100644
---- a/man2/memfd_create.2
-+++ b/man2/memfd_create.2
-@@ -280,7 +280,15 @@ in order to restrict further modifications on the file.
- (If placing the seal
- .BR F_SEAL_WRITE ,
- then it will be necessary to first unmap the shared writable mapping
--created in the previous step.)
-+created in the previous step. Otherwise, behavior similar to
-+.BR F_SEAL_WRITE
-+can be achieved, by using
-+.BR F_SEAL_FUTURE_WRITE
-+which will prevent future writes via
-+.BR mmap (2)
-+and
-+.BR write (2)
-+from succeeding, while keeping existing shared writable mappings).
- .IP 4.
- A second process obtains a file descriptor for the
- .BR tmpfs (5)
-@@ -425,6 +433,7 @@ main(int argc, char *argv[])
-         fprintf(stderr, "\et\etg \- F_SEAL_GROW\en");
-         fprintf(stderr, "\et\ets \- F_SEAL_SHRINK\en");
-         fprintf(stderr, "\et\etw \- F_SEAL_WRITE\en");
-+        fprintf(stderr, "\et\etW \- F_SEAL_FUTURE_WRITE\en");
-         fprintf(stderr, "\et\etS \- F_SEAL_SEAL\en");
-         exit(EXIT_FAILURE);
-     }
-@@ -463,6 +472,8 @@ main(int argc, char *argv[])
-             seals |= F_SEAL_SHRINK;
-         if (strchr(seals_arg, \(aqw\(aq) != NULL)
-             seals |= F_SEAL_WRITE;
-+        if (strchr(seals_arg, \(aqW\(aq) != NULL)
-+            seals |= F_SEAL_FUTURE_WRITE;
-         if (strchr(seals_arg, \(aqS\(aq) != NULL)
-             seals |= F_SEAL_SEAL;
- 
-@@ -518,6 +529,8 @@ main(int argc, char *argv[])
-         printf(" GROW");
-     if (seals & F_SEAL_WRITE)
-         printf(" WRITE");
-+    if (seals & F_SEAL_FUTURE_WRITE)
-+        printf(" FUTURE_WRITE");
-     if (seals & F_SEAL_SHRINK)
-         printf(" SHRINK");
-     printf("\en");
+I think a bisect is in order...
+
+Cheers,
+
+Dave.
 -- 
-2.21.0.360.g471c308f928-goog
+Dave Chinner
+david@fromorbit.com
 
