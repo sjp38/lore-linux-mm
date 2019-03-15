@@ -2,196 +2,151 @@ Return-Path: <SRS0=L2Uh=RS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9CCA6C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 21:34:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C350BC10F00
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 21:39:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2B417206DF
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 21:34:25 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="fnb8QccZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2B417206DF
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id 865EB218A1
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 21:39:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 865EB218A1
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9438D6B02C9; Fri, 15 Mar 2019 17:34:24 -0400 (EDT)
+	id 016C06B02CB; Fri, 15 Mar 2019 17:39:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 922896B02CA; Fri, 15 Mar 2019 17:34:24 -0400 (EDT)
+	id EE1146B02CC; Fri, 15 Mar 2019 17:39:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 82EEA6B02CB; Fri, 15 Mar 2019 17:34:24 -0400 (EDT)
+	id DABAC6B02CD; Fri, 15 Mar 2019 17:39:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 55D0A6B02C9
-	for <linux-mm@kvack.org>; Fri, 15 Mar 2019 17:34:24 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id i3so9928125qtc.7
-        for <linux-mm@kvack.org>; Fri, 15 Mar 2019 14:34:24 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B5DA36B02CB
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2019 17:39:49 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id l87so8966929qki.10
+        for <linux-mm@kvack.org>; Fri, 15 Mar 2019 14:39:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=kZVcwvAiuP5NbAXO+8otQq6PR1UUHjavABGz9JhZQ+Q=;
-        b=dKJFZnWV0mQrTEk2F8Nllv6emoRnmg4dJD4OkdIPmVW5xEtQn0XwvG3G3oUcEErKyR
-         ILftawGQ0Ul5iDofxDycw28GYUuPxqf2V9YzKdw77uVp02Zjlccw5U74lRW/BCNaCdGn
-         RCHXW9OqzEe5iMoEdo8l3J22SYH8cmvuOA6DXlFGwab6HhezldEXHkaC6z3XM7Ckrp1q
-         myH46tYBDSMjesCNBJF2yDIZK4nNgnM6jO+OZSspx8Sk2rXMUcUmdfUZCl4ZReZkXwWK
-         jyDgTTbcny/9tt8/28saFt1wLTmT4KbA3RKz3zhcnd1j3zupSPQgBnor1RhlYtSM/Mcl
-         H3Rw==
-X-Gm-Message-State: APjAAAVLiHxtxjv5X56/NIMOppnr1OvIw6SbbRMIgjIyK+NKhlNWYPC0
-	5ma3p8znwgWLa2TAtMz4/L/VWp4tuyUPY0GWWXYYgjfSgll1Z3Obe7Iuy5qF3ssFYMSNH2CpvhL
-	houy7mclEgz0ymqrHPXtNXDbXRp92XHRtlK3WJiUHl1PoPh3O3DQuy750AC+kGVLUJg==
-X-Received: by 2002:a0c:a485:: with SMTP id x5mr4197931qvx.206.1552685663902;
-        Fri, 15 Mar 2019 14:34:23 -0700 (PDT)
-X-Received: by 2002:a0c:a485:: with SMTP id x5mr4197877qvx.206.1552685662685;
-        Fri, 15 Mar 2019 14:34:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552685662; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=swqwZha9BXWgetb1NNjrOQQKfGmgkrLsd+O2BNX0Vag=;
+        b=Bp5w31C6siyaQYGfsO3dS8+r82f2cq7+HfiZfuyxsXVaTDZpHGJ5QY+vTEs95dvWer
+         t0QyTbVTLUdWIBPRhESvDDRcDotgpPn1eSkNIgk9ndS4SYtXFiOvHLOk5nAdPlxvl9hP
+         ckH5tgwS2UkTHbVraOUHDdrM2gW1xhpdhNkwFoI7AL8Du64z270Rrv/lAQgpXCnIdJdf
+         LNbCbQ82xmbRvSlnTpVK2mD21juIn/NyYg7aklM08T1+/mjG1eIwko/7RfwYs8hBbJPn
+         uEqBqaEQIVP+E81+npw1n16Jf1IvuYB+VHNM8ubBYk0cDssmD2xIYLawfS6tV7Yde5Dn
+         7INg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAX/1hWeVaX5cfGuaZqeYZP9UqsieRSRKmw8MXPDewJG9pp16zgI
+	6zyxE4sw4lZJiegMxMW1xd2gJSPMxGWGJw6WRo+YbdYZN2hBXqExAlXzz5NjFB53ep9ha1TZ/z5
+	g2S//QPig2v7Dr9WV8Uk2qtDEqkFaS/wk+KQzk7qyG8zcQoM4I/eFsVgIjyYA6Q7Fqg==
+X-Received: by 2002:a37:c0d4:: with SMTP id v81mr4722108qkv.336.1552685989531;
+        Fri, 15 Mar 2019 14:39:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzHPFmYaWU7/p7VjlXvNWcGBfVqVeBtYPrlV8XA1mvtEEdUfgZWyPsz9wgbdYiqEiz+bntL
+X-Received: by 2002:a37:c0d4:: with SMTP id v81mr4722077qkv.336.1552685988733;
+        Fri, 15 Mar 2019 14:39:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552685988; cv=none;
         d=google.com; s=arc-20160816;
-        b=mI9z4skrTxhEf84Kbntz0hWlgrqVs8WFO+K7hA+rNHkmbV7y86f3NIQUmGz6wQK/pu
-         eReQwVOkcMo7XkrcVXOp7K3lhnLGcN8bXfvm2P1PN2kFeZEBJnoU2oamGvHX1agZ5AtD
-         kndtLINdqtP2osg42FMeS1uLgFvjcfM4+7nPMm4WiMNHy6FKcVqggKNiz1m+en+Q90hN
-         dpXA7b9HWyan609zwks5njETYWgq8EMI8uqSq2jRYDirgTC/FaQXseAb/7l+296qQ+uD
-         gQmQhPl48nwoU/gQtfT7UtathnGfV0YjeiEYeTptFowRQz4dIoGWZ6HW3NXt6Uw2tUdn
-         hbvQ==
+        b=ScYetbrSkQ7l/ApP+HZgPc1JRNJ/SJmQON7GrSkJ/gozR6o/cbB6eLd9AT8JevdhRh
+         EPap2rwEvv/z5nC7hes8t11AlSzxCWh7HeGyoKO/AhfWdsgFFY4m0/vCeZ6z9pNTivyx
+         izaxpU++queJ7mMbVgV/YGeTU4Z/Is3YwEoYxDoCaS3xBtd/PAfIC+F8sU9tGZqOX7yr
+         4uImgR0qPK0Uc4cCPIC4Ldid5uuwp+USVxENnD5zlstr08lMBSjCvIsiGgIbp9TyW+ds
+         Rf7WrQ7Db7PiIBwd25lmvWdwAsHiFpurLDq142SZfyUuDZsNcHPQ5BZDfo03afpafnkM
+         uPOQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=kZVcwvAiuP5NbAXO+8otQq6PR1UUHjavABGz9JhZQ+Q=;
-        b=pvrPouWfwt4lrNGxzizzNXuc5xHcrI2AgZwtPpAOrdqCSLiKeTIOHdXwPGLsoFbnW5
-         Bv6UhRZkBXv0p6pOI/DmXxVJiktEk0hIcCA8WY7GFEVlfSouSINZm7UqLAbZMH1i5RZw
-         h8T87H0QDPKxmmE4Qp8yMusdP0RlVNn2K6EaCBEmqrctmeCYzIPKj0uJJZmuUms+GxGi
-         e3Gbsy4s/1ZfeFP53+frqLVYpkLeyj07Z9EN/8KZbQteVMOnAB6HgX1P6Vamlqj82+wP
-         8iYX2Q3gQeOvmAxdGA4iTKjC3UXqULFT7MspOG75D7HmQR8gnSq9rntvY8ItbHUmOaOJ
-         DKww==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=swqwZha9BXWgetb1NNjrOQQKfGmgkrLsd+O2BNX0Vag=;
+        b=GYWDBw8r+B5ZmNfj/doddJqni9Itw8nklH3lLMG3MW1kUo5nLxXTdyQp2Fkuk6wCSG
+         JYD7zpEHjuQudIN+mlIn19PQc4cH5ALQoEqW3WsPnM4wlHu8laTmAVrvadJjUY+UwdHv
+         Hw834G03F9U1ZwjBwlIRQQiv+6Ajn0eIqKqgx89VT1IgpcF6sLkDoGHbftzzwmqWxx5B
+         lDdYB0P5lskOWR8Lo8zwrvSnSUD54DQjAJkrBswmhPZF6f9Jw49Bmu+pb7XJyX/sTGSJ
+         o60QOBwFweDbEyrGuScbR7BQprcQDtUcluc+qQNRv3OEvjqo3g6ydZK/bJutxQWqR6Hx
+         JqYA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=fnb8QccZ;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w20sor2844838qtn.46.2019.03.15.14.34.22
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z2si1911987qti.353.2019.03.15.14.39.48
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 15 Mar 2019 14:34:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=fnb8QccZ;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=kZVcwvAiuP5NbAXO+8otQq6PR1UUHjavABGz9JhZQ+Q=;
-        b=fnb8QccZ91NMe+mEY1W/a7C5EToIwhFmfZZl100rVIrxaSrX1d8Powes9KMsPkcmCa
-         BEb3nD2/pVPvPtpqh/w1V8oUAn5P5yvxIGbviAbAERnNt6MqtBqpG2Pie77DVOolo9bc
-         BKKgHWUf4Skbp1b5lR6yLITewQJNcsA5eJe753EYHKpriN2CrGcP+arrGS1ss8S1WN0y
-         VDXinZ3BVmNlqQTZIqcjC8oFUhdBkcy4aRzTssMKVRP0i1wze/LVi8CUEI0Q7B8u0OjV
-         Jaz3eznDjAVI/Z6fRgrdn/jU7Bit2MYJahBySXDBWJAhQx5Su9+xkF1sb6AsqcyIgpJS
-         UqKA==
-X-Google-Smtp-Source: APXvYqzGiDRKrRGonijEmawyAbfyIR3ZQLdfwrTYV4Ya0ee3MZn0pQvXNFGAlQvK3A7SJuUkd68wSg==
-X-Received: by 2002:ac8:5295:: with SMTP id s21mr4630664qtn.322.1552685662295;
-        Fri, 15 Mar 2019 14:34:22 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id e22sm2202530qte.42.2019.03.15.14.34.20
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Mar 2019 14:34:21 -0700 (PDT)
-Message-ID: <1552685660.26196.3.camel@lca.pw>
-Subject: Re: kernel BUG at include/linux/mm.h:1020!
-From: Qian Cai <cai@lca.pw>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>, Mikhail Gavrilov
-	 <mikhail.v.gavrilov@gmail.com>
-Cc: linux-mm@kvack.org, mgorman@techsingularity.net, vbabka@suse.cz
-Date: Fri, 15 Mar 2019 17:34:20 -0400
-In-Reply-To: <20190315205826.fgbelqkyuuayevun@ca-dmjordan1.us.oracle.com>
-References: 
-	<CABXGCsM-SgUCAKA3=WpL7oWZ0Xq8A1Wf-Eh6MO0seee+TviDWQ@mail.gmail.com>
-	 <20190315205826.fgbelqkyuuayevun@ca-dmjordan1.us.oracle.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Fri, 15 Mar 2019 14:39:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id D20D93082B40;
+	Fri, 15 Mar 2019 21:39:47 +0000 (UTC)
+Received: from sky.random (ovpn-121-1.rdu2.redhat.com [10.10.121.1])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id A36055D6A6;
+	Fri, 15 Mar 2019 21:39:45 +0000 (UTC)
+Date: Fri, 15 Mar 2019 17:39:44 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+To: zhong jiang <zhongjiang@huawei.com>
+Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>, Peter Xu <peterx@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	syzbot <syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com>,
+	Michal Hocko <mhocko@kernel.org>, cgroups@vger.kernel.org,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
+	syzkaller-bugs <syzkaller-bugs@googlegroups.com>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	David Rientjes <rientjes@google.com>,
+	Hugh Dickins <hughd@google.com>,
+	Matthew Wilcox <willy@infradead.org>, Mel Gorman <mgorman@suse.de>,
+	Vlastimil Babka <vbabka@suse.cz>
+Subject: Re: KASAN: use-after-free Read in get_mem_cgroup_from_mm
+Message-ID: <20190315213944.GD9967@redhat.com>
+References: <00000000000006457e057c341ff8@google.com>
+ <5C7BFE94.6070500@huawei.com>
+ <CACT4Y+Z+CH0UTdSz-w_woMPrBwg-GuobV1Su4qd9ReffTkyfVg@mail.gmail.com>
+ <5C7D2F82.40907@huawei.com>
+ <CACT4Y+agwaszODNGJHCqn4fSk4Le9exn3Cau0nornJ0RaTpDJw@mail.gmail.com>
+ <5C7D4500.3070607@huawei.com>
+ <CACT4Y+b6y_3gTpR8LvNREHOV0TP7jB=Zp1L03dzpaz_SaeESng@mail.gmail.com>
+ <5C7E1A38.2060906@huawei.com>
+ <20190306020540.GA23850@redhat.com>
+ <5C821550.50506@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5C821550.50506@huawei.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Fri, 15 Mar 2019 21:39:48 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2019-03-15 at 16:58 -0400, Daniel Jordan wrote:
-> On Tue, Mar 12, 2019 at 10:55:27PM +0500, Mikhail Gavrilov wrote:
-> > Hi folks.
-> > I am observed kernel panic after updated to git commit 610cd4eadec4.
-> > I am did not make git bisect because this crashes occurs spontaneously
-> > and I not have exactly instruction how reproduce it.
-> > 
-> > Hope backtrace below could help understand how fix it:
-> > 
-> > page:ffffef46607ce000 is uninitialized and poisoned
-> > raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff ffffffffffffffff
-> > raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff ffffffffffffffff
-> > page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
-> > ------------[ cut here ]------------
-> > kernel BUG at include/linux/mm.h:1020!
-> > invalid opcode: 0000 [#1] SMP NOPTI
-> > CPU: 1 PID: 118 Comm: kswapd0 Tainted: G         C
-> > 5.1.0-0.rc0.git4.1.fc31.x86_64 #1
-> > Hardware name: System manufacturer System Product Name/ROG STRIX
-> > X470-I GAMING, BIOS 1201 12/07/2018
-> > RIP: 0010:__reset_isolation_pfn+0x244/0x2b0
+On Fri, Mar 08, 2019 at 03:10:08PM +0800, zhong jiang wrote:
+> I can reproduce the issue in arm64 qemu machine.  The issue will leave after applying the
+> patch.
 > 
-> This is new code, from e332f741a8dd1 ("mm, compaction: be selective about what
-> pageblocks to clear skip hints"), so I added some folks.
-> 
-> Can you show
-> $LINUX/scripts/faddr2line path/to/vmlinux __reset_isolation_pfn+0x244
-> ?
+> Tested-by: zhong jiang <zhongjiang@huawei.com>
 
-Yes, looks like another instance of page flag corruption. I have been chasing
-this thing for a while.
+Thanks a lot for the quick testing!
 
-https://lore.kernel.org/linux-mm/604a92ae-cbbb-7c34-f9aa-f7c08925bedf@lca.pw/
+> Meanwhile,  I just has a little doubt whether it is necessary to use RCU to free the task struct or not.
+> I think that mm->owner alway be NULL after failing to create to process. Because we call mm_clear_owner.
 
-Basically, linux-next is easier to reproduce than the mainline.
-
-LTP oom* tests and stress-ng has been useful to reproduce so far.
-
-# stress-ng --sequential 64 --class vm −−aggressive -t 60 --times
-
-I did manage to reproduce the memory corruption in arm64 on the mainline too
-(originally only x64). Still that BUG_ON(!PageBuddy(page)).
-
-[51720.012258] kernel BUG at mm/page_alloc.c:3124!
-[51720.040287] CPU: 194 PID: 1311 Comm: kcompactd1 Kdump: loaded Tainted:
-G        W    L    5.0.0+ #13
-[51720.049411] Hardware name: HPE Apollo 70             /C01_APACHE_MB         ,
-BIOS L50_5.13_1.0.6 07/10/2018
-[51720.059232] pstate: 90400089 (NzcV daIf +PAN -UAO)
-[51720.064038] pc : __isolate_free_page+0x7bc/0x804
-[51720.068659] lr : compaction_alloc+0x948/0x2490
-[51720.073094] sp : edff8009836576c0
-[51720.076400] x29: edff800983657740 x28: efff100000000000 
-[51720.081705] x27: ffff80977c3b8f10 x26: 0000000000000009 
-[51720.087010] x25: ffff80977c3b90b8 x24: ffff80977c3b8f20 
-[51720.092314] x23: 0000000000000800 x22: ffff80977c3b8f40 
-[51720.097619] x21: 00000000000000ff x20: 00000000000000ff 
-[51720.102923] x19: ffff80977c3b8f10 x18: efff100000000000 
-[51720.108227] x17: ffff1000115c02b8 x16: 0000000000918000 
-[51720.113532] x15: 0000000000912000 x14: efff100000000000 
-[51720.118838] x13: 00000000000000ff x12: 00000000000000ff 
-[51720.124141] x11: 00000000000000ff x10: 00000000000000ff 
-[51720.129447] x9 : 00000000f0000000 x8 : 0000000070000000 
-[51720.134753] x7 : 0000000000000000 x6 : ffff1000105f5620 
-[51720.140058] x5 : 0000000000000000 x4 : 0000000000000080 
-[51720.145364] x3 : ffff80977c3b90c0 x2 : 0000000000000000 
-[51720.150669] x1 : 0000000000000009 x0 : ffff1000132fe200 
-[51720.155976] Process kcompactd1 (pid: 1311, stack limit = 0x00000000c41b1162)
-[51720.163015] Call trace:
-[51720.165457]  __isolate_free_page+0x7bc/0x804
-[51720.169721]  compaction_alloc+0x948/0x2490
-[51720.173821]  unmap_and_move+0xdc/0x1dbc
-[51720.177649]  migrate_pages+0x274/0x1310
-[51720.181476]  compact_zone+0x26f8/0x43c8
-[51720.185304]  kcompactd+0x15b8/0x1a24
-[51720.188874]  kthread+0x374/0x390
-[51720.192100]  ret_from_fork+0x10/0x18
-[51720.195669] Code: 94176b90 17fffebb d0016e20 91080000 (d4210000)
+I wish it was enough, but the problem is that the other CPU may be in
+the middle of get_mem_cgroup_from_mm() while this runs, and it would
+dereference mm->owner while it is been freed without the call_rcu
+affter we clear mm->owner. What prevents this race is the
+rcu_read_lock() in get_mem_cgroup_from_mm() and the corresponding
+call_rcu to free the task struct in the fork failure path (again only
+if CONFIG_MEMCG=y is defined). Considering you can reproduce this tiny
+race on arm64 qemu (perhaps tcg JIT timing variantions helps?), you
+might also in theory be able to still reproduce the race condition if
+you remove the call_rcu from delayed_free_task and you replace it with
+free_task.
 
