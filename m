@@ -2,100 +2,130 @@ Return-Path: <SRS0=L2Uh=RS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 79989C10F00
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 12:47:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 49DFDC4360F
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 13:36:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 33EF220854
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 12:47:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 33EF220854
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id CA1FB21019
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Mar 2019 13:36:15 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="DypriJsH"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA1FB21019
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C07966B027F; Fri, 15 Mar 2019 08:47:38 -0400 (EDT)
+	id 2BC676B0281; Fri, 15 Mar 2019 09:36:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B8E9D6B0280; Fri, 15 Mar 2019 08:47:38 -0400 (EDT)
+	id 269F46B0282; Fri, 15 Mar 2019 09:36:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A58526B0281; Fri, 15 Mar 2019 08:47:38 -0400 (EDT)
+	id 134926B0283; Fri, 15 Mar 2019 09:36:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 47F2A6B027F
-	for <linux-mm@kvack.org>; Fri, 15 Mar 2019 08:47:38 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id t4so3687294eds.1
-        for <linux-mm@kvack.org>; Fri, 15 Mar 2019 05:47:38 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DCC266B0281
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2019 09:36:14 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id 43so8593599qtz.8
+        for <linux-mm@kvack.org>; Fri, 15 Mar 2019 06:36:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=eZBtUAJr3wktdAqHIEK90tllrFtORHScIG821hL0ZGc=;
-        b=CGMxXgJUrrHZmcs5LVKnOnv12DNYuUqV97PopjrxyEUDhQHcS4xeqbJk3iEhGMFwZX
-         Ot0zzupciQJc3FIpQ7guZ41J9TBSu3V2pMZnNKyOmEEOXxBrT0HsQD029r2hIi0FkSAz
-         GUEmnBQHWyMZDx+OBX+HDuVZ1/QbjnRnFrQcHb65etavcgrLO4uu0NN0SbwCxQpMAHP5
-         L4ku373DNbiNvUKTqVF/Xwk76xBgvlFGxeIbPceZUB5g1SIMx5ku2imDtGEV0p1iNvtt
-         JQqKSdl05zJ2TrXIUVAJYLanGiN8gUj/aDlK6dDnIGXlUoN5Ysdmy6ekZg3L3u0UTOdp
-         e6Uw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVDRMk+ysAgpv1yTACMRN05ZsFX4NtQ5KJSRIisaPtOwYqzbn26
-	09fg9eAWY0IOllprx9y9ynRq0XcsY+E+WNpvi7Td8LlbBTGUtcolk92L35weK/5vw0wM9GeOSf8
-	e8lLhTZSRMNhFcUIXE3l2jQysw6ESce/DXtKh9yqTvZ/sXmponUd7MSJM9fgjy2s=
-X-Received: by 2002:aa7:da09:: with SMTP id r9mr2731026eds.7.1552654057854;
-        Fri, 15 Mar 2019 05:47:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzbytQxGQgisu1hywDxqw414YJpSb+xMlItU9btfcEwhXM3FWP5/GLzCQjjIXdUFsieJKyg
-X-Received: by 2002:aa7:da09:: with SMTP id r9mr2730963eds.7.1552654056481;
-        Fri, 15 Mar 2019 05:47:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552654056; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=VKfVpaxZoxyBURh7QyO3ZULqx69a8OaThEQCt8FoTew=;
+        b=rAC98oITMZeOxf7pAl+RFS8XOiZTUaJjjmoB/kQYGrP9kfqnKWPHWObd83eLqFzrxB
+         r5JAXIx5XbRrxKf7/JlLAsAQPJZ8lNeCmSEBTb/3K5CZcAKQm+Thk9lVixEPiJ6xSud+
+         6lGQ3Ls02G+5wq808RafLA7+hVNmoH8Qq4HDfqw2mYn+uQlJilFz6EBHMhdhEHjzK4V5
+         Tbh7g+hBDAhRWRAQr8ZIXd+sqNLWpou2k+2N0ETFCtF2I5fOicqEFew4on0OP350Mk7D
+         6yI2zxrZghm0LN+cDM6sZGB8AgPUPR98gNlnoRdqqTEfsS0I9dRkZ0RCf2uWKjQeUfWP
+         +JAQ==
+X-Gm-Message-State: APjAAAX7+lrwkmeUtclXjuGlxDHoWgjTEmSmQ2N3CUpD1vgLK7NA3nfh
+	mUEeEuZECyABfDuFxAIh1wBY1qCc6nCElWeFcAjn3foFUH1qNvtfQWntoNgxCfsgjlx9iIc+/sE
+	shTkWXMDvqfJbXr4zlCAYLSwc8NPei0ZAmjRbayVMtkQQKPlWrCR1UW/19xbndT/8nQ==
+X-Received: by 2002:a0c:f604:: with SMTP id r4mr2535962qvm.55.1552656974316;
+        Fri, 15 Mar 2019 06:36:14 -0700 (PDT)
+X-Received: by 2002:a0c:f604:: with SMTP id r4mr2535873qvm.55.1552656972933;
+        Fri, 15 Mar 2019 06:36:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552656972; cv=none;
         d=google.com; s=arc-20160816;
-        b=F4mXBvXOSdAk3JjJiOZY6oi1UJqUmJCdLzIhZIGJVaMVjgJYsu0LpMl0GV212GQFFj
-         8PJ1BWK0hwNhZ12pjmVZo1aIuBY+TgA/GCm+vTRqExVV1Q6oDkH2ond4TWMt+s+RsUj2
-         vLvF8N/K7bDdxOmqIzMAHbxLWSQdP3YxP3D9b/36CNS7rraoXmqF8fK/vfsTLQywlUOs
-         8t0aYUOVTLNw1tFoRu/hsQ9DxuS6TmyqF/cxayBPp/U1VMDrHHgj0Nn0fOy3mtdtoJ+O
-         X9PAoVD0ecV8Qdh3Ow2/0ZYY+kxo4z4BNwyVniAM/aegfAnf8DX2GBch/FyU4p3AeHcg
-         gGxg==
+        b=n1/DwecbeLmZvqFQpAfNtBhgrR+mdZYX12bLGS7ja4Ccyus4T5iSpR7jXUzuO0HRZr
+         A5XyTXKe3fNkaTyRvbEbHv7EHkyTXsAzLJBoLt8ePVRMAaWW98qjo8zddjJPrsnY0a9t
+         xuU4MqQqIXx3bzwqh52Bb3cN60VftvclhWR51Nr2ve5Qs/O3H5TQjn5BPJ5DBlbkjEja
+         Xdr9PVdrp7KCvWWbA9eoHwXGQ0TpmZ7BlCQM7ZospY/ah/R77jsthnNjKLvpeJKjrjpM
+         9Gzli6p6vWX3/a1XiVTAXKT4/OWOZpVYd9GhfatkGY1dzz1qWR4T+ZwRjKuiCfQ7GtyS
+         oHQg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=eZBtUAJr3wktdAqHIEK90tllrFtORHScIG821hL0ZGc=;
-        b=Algx/O+Sz7F6rxI8PFemg+lPeLsDtk1ytqvHBHGewLfN4TCTmhlf8uxtHQ5yFUbV/C
-         TR81mxOM2FDmBl5TSrGBxM6NQY4HZeVCWJfaoIdUe7Wmq1lFcXTEaqCd/KfozotpHm9j
-         Ryl+Zi0raIBy/av82NKPEBPgpi8nr4NSmhTRYqrMLZmKAPrn2oBBwybz5eOw1nSYaVSP
-         rcfsdA7XcS2wXk7wsZRxhr/J64tR6hgh5n1VMOB1MRdPUL2hQAlM9L/2KOVNYSasB49U
-         R2hF03vItABU+Cyw/5lqYodLiSeeyqEmPiBRw8nA4LwJEAYt1JHkHHy6ZhBp9IDJS1h2
-         WRGA==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=VKfVpaxZoxyBURh7QyO3ZULqx69a8OaThEQCt8FoTew=;
+        b=00ddRGGNMMtG6wE4mwNGFoVO1eDGhirdmnMlWjRa+0nipXSO5HDq/TC9SlqK7I2Ea6
+         0n+PyJ7T4bTNV2E+/KxxjTd6dqBJRE4hid5tDHZ9GqFsxaQLgzjpLGZHDzWroSOACa57
+         yZv5Szq5kEtix2x/xAg5WZvNvJ/HWMlHvwO6bnyR3RjoJEmDxylUYdQ4jHU9MbR/IChO
+         Y+UuPtWVh/r6fXjW3wcUrl2RPJA4MvGCrpAVM4iAgDaP3vwIxHmY77oBPrf1L2ITWe/0
+         gDYqwD323FiFhbWTi9NZo3c1i9wa4h1ivU10G2o4PWoOKI73C4ctef+6COOGTbZPH3iE
+         Bbhw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j8si787639ejd.249.2019.03.15.05.47.36
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=DypriJsH;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l8sor2104703qve.69.2019.03.15.06.36.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Mar 2019 05:47:36 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Fri, 15 Mar 2019 06:36:12 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id C9C45AFCC;
-	Fri, 15 Mar 2019 12:47:35 +0000 (UTC)
-Date: Fri, 15 Mar 2019 13:47:33 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Oscar Salvador <osalvador@suse.de>
-Cc: akpm@linux-foundation.org, anshuman.khandual@arm.com,
-	william.kucharski@oracle.com, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>,
-	Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: Fix __dump_page when mapping->host is not set
-Message-ID: <20190315124733.GE15672@dhcp22.suse.cz>
-References: <20190315121826.23609-1-osalvador@suse.de>
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=DypriJsH;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=joelfernandes.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=VKfVpaxZoxyBURh7QyO3ZULqx69a8OaThEQCt8FoTew=;
+        b=DypriJsHzRFZ8FHMG3w+iXrHK4g88dJrwe9SlU6tuDtj36SzuZ8nyphK4opqxcD2rC
+         iXyUj2WTVz6Sg5zw3n6zHK2edM7QYZygthWj5HMZuuylhy4TGmwP62F4wIa8AVE8np70
+         CJFmX1ZOs7jXHhVBGCEG2BTyDzdL+xy1R3gOU=
+X-Google-Smtp-Source: APXvYqwDKGSWS1TnWrym7jTm0Yjc6txyLmC1XATdlVnftbixDMdIVIiWhjfELCUcRhoCb9+SznndkQ==
+X-Received: by 2002:a0c:be8f:: with SMTP id n15mr2508855qvi.203.1552656972351;
+        Fri, 15 Mar 2019 06:36:12 -0700 (PDT)
+Received: from localhost ([2620:0:1004:1100:cca9:fccc:8667:9bdc])
+        by smtp.gmail.com with ESMTPSA id c12sm1119065qkb.86.2019.03.15.06.36.11
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 15 Mar 2019 06:36:11 -0700 (PDT)
+Date: Fri, 15 Mar 2019 09:36:10 -0400
+From: Joel Fernandes <joel@joelfernandes.org>
+To: Daniel Colascione <dancol@google.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>,
+	Sultan Alsawaf <sultan@kerneltoast.com>,
+	Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>,
+	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
+	Christian Brauner <christian@brauner.io>,
+	Ingo Molnar <mingo@redhat.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	LKML <linux-kernel@vger.kernel.org>,
+	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>,
+	linux-mm <linux-mm@kvack.org>,
+	kernel-team <kernel-team@android.com>
+Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
+Message-ID: <20190315133610.GC3378@google.com>
+References: <CAJuCfpHTjXejo+u--3MLZZj7kWQVbptyya4yp1GLE3hB=BBX7w@mail.gmail.com>
+ <20190311204626.GA3119@sultan-box.localdomain>
+ <CAJuCfpGpBxofTT-ANEEY+dFCSdwkQswox3s8Uk9Eq0BnK9i0iA@mail.gmail.com>
+ <20190312080532.GE5721@dhcp22.suse.cz>
+ <20190312163741.GA2762@sultan-box.localdomain>
+ <CAEe=Sxn_uayj48wo7oqf8mNZ7QAGJUQVmkPcHcuEGjA_Z8ELeQ@mail.gmail.com>
+ <CAEXW_YQMnbN+e-janGbZc5MH6MwdUdXNfonpLUu5O2nsSkJyeg@mail.gmail.com>
+ <20190314204911.GA875@sultan-box.localdomain>
+ <20190314231641.5a37932b@oasis.local.home>
+ <CAKOZuetZHJzmQy3n001x4+rmWoWHEgUv2Zvow9W5+xvukxp1JQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190315121826.23609-1-osalvador@suse.de>
+In-Reply-To: <CAKOZuetZHJzmQy3n001x4+rmWoWHEgUv2Zvow9W5+xvukxp1JQ@mail.gmail.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -103,87 +133,84 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[Cc Jack and Hugh - the full patch is http://lkml.kernel.org/r/20190315121826.23609-1-osalvador@suse.de]
-
-On Fri 15-03-19 13:18:26, Oscar Salvador wrote:
-> While debugging something, I added a dump_page() into do_swap_page(),
-> and I got the splat from below.
-> The issue happens when dereferencing mapping->host in __dump_page():
+On Thu, Mar 14, 2019 at 09:36:43PM -0700, Daniel Colascione wrote:
+[snip] 
+> > If you can solve this with an ebpf program, I
+> > strongly suggest you do that instead.
 > 
-> ...
-> else if (mapping) {
-> 	pr_warn("%ps ", mapping->a_ops);
-> 	if (mapping->host->i_dentry.first) {
-> 		struct dentry *dentry;
-> 		dentry = container_of(mapping->host->i_dentry.first, struct dentry, d_u.d_alias);
-> 		pr_warn("name:\"%pd\" ", dentry);
-> 	}
-> }
-> ...
+> Regarding process death notification: I will absolutely not support
+> putting aBPF and perf trace events on the critical path of core system
+> memory management functionality. Tracing and monitoring facilities are
+> great for learning about the system, but they were never intended to
+> be load-bearing. The proposed eBPF process-monitoring approach is just
+> a variant of the netlink proposal we discussed previously on the pidfd
+> threads; it has all of its drawbacks. We really need a core system
+> call  --- really, we've needed robust process management since the
+> creation of unix --- and I'm glad that we're finally getting it.
+> Adding new system calls is not expensive; going to great lengths to
+> avoid adding one is like calling a helicopter to avoid crossing the
+> street. I don't think we should present an abuse of the debugging and
+> performance monitoring infrastructure as an alternative to a robust
+> and desperately-needed bit of core functionality that's neither hard
+> to add nor complex to implement nor expensive to use.
+
+The eBPF-based solution to this would be just as simple while avoiding any
+kernel changes. I don't know why you think it is not load-bearing. However, I
+agree the proc/pidfd approach is better and can be simpler for some users who
+don't want to deal with eBPF - especially since something like this has many
+usecases. I was just suggesting the eBPF solution as a better alternative to
+the task_struct surgery idea from Sultan since that sounded to me quite
+hackish (that could just be my opinion).
+
+> Regarding the proposal for a new kernel-side lmkd: when possible, the
+> kernel should provide mechanism, not policy. Putting the low memory
+> killer back into the kernel after we've spent significant effort
+> making it possible for userspace to do that job. Compared to kernel
+> code, more easily understood, more easily debuggable, more easily
+> updated, and much safer. If we *can* move something out of the kernel,
+> we should. This patch moves us in exactly the wrong direction. Yes, we
+> need *something* that sits synchronously astride the page allocation
+> path and does *something* to stop a busy beaver allocator that eats
+> all the available memory before lmkd, even mlocked and realtime, can
+> respond. The OOM killer is adequate for this very rare case.
 > 
-> Swap address space does not contain an inode information, and so mapping->host
-> equals NULL.
+> With respect to kill timing: Tim is right about the need for two
+> levels of policy: first, a high-level process prioritization and
+> memory-demand balancing scheme (which is what OOM score adjustment
+> code in ActivityManager amounts to); and second, a low-level
+> process-killing methodology that maximizes sustainable memory reclaim
+> and minimizes unwanted side effects while killing those processes that
+> should be dead. Both of these policies belong in userspace --- because
+> they *can* be in userspace --- and userspace needs only a few tools,
+> most of which already exist, to do a perfectly adequate job.
 > 
-> Although the dump_page() call was added artificially into do_swap_page(),
-> I am not sure if we can hit this from any other path, so it looks worth
-> fixing it.
-
-It is certainly worth fixing. We cannot assume anything about the
-calling context for __dump_page
-
-> We can easily do that by cheking mapping->host first.
-[...]
-
-The splat is still surprising to me because I thought that all file
-backed mappings have a host. Swap file/partition certainly has a
-mapping but swapcache mapping is special because the underlying swap
-storage is hidden in the swap_info_struct. I am wondering whether we
-should do that special casing for PageSwapCache in __dump_page rather
-than hid the mapping details instead
-
-
-diff --git a/mm/debug.c b/mm/debug.c
-index 1611cf00a137..499c26d5ebe5 100644
---- a/mm/debug.c
-+++ b/mm/debug.c
-@@ -78,6 +78,9 @@ void __dump_page(struct page *page, const char *reason)
- 	else if (PageKsm(page))
- 		pr_warn("ksm ");
- 	else if (mapping) {
-+		if (PageSwapCache(page))
-+			mapping = page_swap_info(page)->swap_file->f_mapping;
-+
- 		pr_warn("%ps ", mapping->a_ops);
- 		if (mapping->host->i_dentry.first) {
- 			struct dentry *dentry;
-
-But I am not really sure this will work for all swap cases.
-
-Thanks for reporting this Oscar!
-
-> Fixes: 1c6fb1d89e73c ("mm: print more information about mapping in __dump_page")
-> Signed-off-by: Oscar Salvador <osalvador@suse.de>
-> ---
->  mm/debug.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+> We do want killed processes to die promptly. That's why I support
+> boosting a process's priority somehow when lmkd is about to kill it.
+> The precise way in which we do that --- involving not only actual
+> priority, but scheduler knobs, cgroup assignment, core affinity, and
+> so on --- is a complex topic best left to userspace. lmkd already has
+> all the knobs it needs to implement whatever priority boosting policy
+> it wants.
 > 
-> diff --git a/mm/debug.c b/mm/debug.c
-> index c0b31b6c3877..7759f12a8fbb 100644
-> --- a/mm/debug.c
-> +++ b/mm/debug.c
-> @@ -79,7 +79,7 @@ void __dump_page(struct page *page, const char *reason)
->  		pr_warn("ksm ");
->  	else if (mapping) {
->  		pr_warn("%ps ", mapping->a_ops);
-> -		if (mapping->host->i_dentry.first) {
-> +		if (mapping->host && mapping->host->i_dentry.first) {
->  			struct dentry *dentry;
->  			dentry = container_of(mapping->host->i_dentry.first, struct dentry, d_u.d_alias);
->  			pr_warn("name:\"%pd\" ", dentry);
-> -- 
-> 2.13.7
+> Hell, once we add a pidfd_wait --- which I plan to work on, assuming
+> nobody beats me to it, after pidfd_send_signal lands --- you can
+> imagine a general-purpose priority inheritance mechanism expediting
+> process death when a high-priority process waits on a pidfd_wait
+> handle for a condemned process. You know you're on the right track
+> design-wise when you start seeing this kind of elegant constructive
+> interference between seemingly-unrelated features. What we don't need
+> is some kind of blocking SIGKILL alternative or backdoor event
+> delivery system.
+> 
+> We definitely don't want to have to wait for a process's parent to
+> reap it. Instead, we want to wait for it to become a zombie. That's
+> why I designed my original exithand patch to fire death notification
+> upon transition to the zombie state, not upon process table removal,
+> and I expect pidfd_wait (or whatever we call it) to act the same way.
 
--- 
-Michal Hocko
-SUSE Labs
+Agreed. Looking forward to the patches. :)
+
+thanks,
+
+ - Joel
 
