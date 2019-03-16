@@ -2,168 +2,149 @@ Return-Path: <SRS0=HgWV=RT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1224EC10F03
-	for <linux-mm@archiver.kernel.org>; Sat, 16 Mar 2019 08:34:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5E54EC4360F
+	for <linux-mm@archiver.kernel.org>; Sat, 16 Mar 2019 09:39:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BD11F218FC
-	for <linux-mm@archiver.kernel.org>; Sat, 16 Mar 2019 08:34:38 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BD11F218FC
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id E93B2218E0
+	for <linux-mm@archiver.kernel.org>; Sat, 16 Mar 2019 09:39:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E93B2218E0
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 54D936B02D1; Sat, 16 Mar 2019 04:34:38 -0400 (EDT)
+	id 5D80A6B02D3; Sat, 16 Mar 2019 05:39:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4D5CD6B02D2; Sat, 16 Mar 2019 04:34:38 -0400 (EDT)
+	id 587E66B02D4; Sat, 16 Mar 2019 05:39:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 39EAC6B02D3; Sat, 16 Mar 2019 04:34:38 -0400 (EDT)
+	id 44FB96B02D5; Sat, 16 Mar 2019 05:39:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D2D3B6B02D1
-	for <linux-mm@kvack.org>; Sat, 16 Mar 2019 04:34:37 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id d5so4812723edl.22
-        for <linux-mm@kvack.org>; Sat, 16 Mar 2019 01:34:37 -0700 (PDT)
+Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 14E1B6B02D3
+	for <linux-mm@kvack.org>; Sat, 16 Mar 2019 05:39:05 -0400 (EDT)
+Received: by mail-vk1-f198.google.com with SMTP id x207so4544661vke.11
+        for <linux-mm@kvack.org>; Sat, 16 Mar 2019 02:39:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=ITA6CL5hCZRyW7s8fFzIfwI8ElWa95Hy9WtyMFBGPMo=;
-        b=IJ2fLWf6mg8po5LkF3hJIxJtW5bwzht8K8zlXmb6AwV1lo+V5wQnzdjmnGsBQDtDWO
-         MqiHFWdqvjhK3xULx4yGwtqj/P/Sa/Vuuhg2ED02Ni6ABnX6Ia/a3izum9YODIGV+XI9
-         epube3GuG8t2l81qaz5g5Jvn4Yl3F0OGLqIdhUd+T4qP7iWIVBBUvTyb/wiIIf9msLAG
-         RyRr9gAF6Ua9r8PifnwWaEx6inKYfwRdJVZEHe57V5J7Zg/RaKQ576LJS5PxGTraBPFo
-         kMhr0ijkpuDfpLEMyL5dLfselAVbdbr+Zg/e1hDI/a7wqavjisRRHWHIARWIZlt2sAFs
-         J52Q==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXQBXeECeL4QYDKg6/OrNri07Kk+E/c1SRdh0ovaK+wDfnCeRsx
-	4OCf62GIqaaHgE/KFX+AqMrBxkjbdaT9XfpUbFEvr1uIzMPS++JhPcqB3xOeCbGhDUXkLbmDdEA
-	YOfoNY5THIco0uD1yOsD6DK9Lv0HLbu+vCvlqKO7god68YV8+4Ln0bKh2aQ80hW0=
-X-Received: by 2002:a17:906:54d:: with SMTP id k13mr4678227eja.207.1552725277396;
-        Sat, 16 Mar 2019 01:34:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxV58h1umkF2FDUoveZo5qDiW4Zbat5JhBqycGeh2oI8I1pEWuDUAE0RsMY5tJBkBhVJPGV
-X-Received: by 2002:a17:906:54d:: with SMTP id k13mr4678190eja.207.1552725276451;
-        Sat, 16 Mar 2019 01:34:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552725276; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :date:from:user-agent:mime-version:to:cc:subject:references
+         :in-reply-to:content-transfer-encoding;
+        bh=7lAviSext5DtrcF4EmR7x+P2EdaHXO7hfOqI+dkx7mI=;
+        b=eiVSITKJ17m5VhXXOly3isAL+e0qCIM5NK6NlLKA0UdPIUfylMYPYqU3pnmKTDoPrR
+         Q2APIj1HK9ooSaNcWeFZyeUpUXsaZNKZF4m0kWAEbUTKcuD2IN7as5+50wPDPUxCUZT6
+         Aw+DHabpDfJ6YxJENVVqu7d1D6WamLzsD4Z7rdfRd2FaTmNb4Hxued1fOzWHcMRnsq1r
+         Pfl9H/6B9Vbsjz6XZY/B5OfMvnLOUzwK1ejjLGGE1eCldDwivhxdlm3Vaap5Mrrq0rmn
+         MsafcCFdtUJN/Ahc6m/+fw/TWsW7G8ooyF3yBelU1PabrFXzof/7SnrD+r7GG1yheb2t
+         SApg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
+X-Gm-Message-State: APjAAAUZA172viWSUfHaAM5TGenKB2njOqz/hWnanf6GrEWP1O91YVD0
+	I6W0lou4+YeeqcjaDfCoHVDADSa4+Ly+gT9bhh1KGrwJSWtH8DXKcP7PE6FqALjmXJ6qNwMovxg
+	1cFuoarEbyHoH7/5vD0vdCZBGn535hAUmnH9xB56+VWZ2EIjhsIXhBholzwcT9Lm3jw==
+X-Received: by 2002:ab0:4a1:: with SMTP id 30mr1973709uaw.86.1552729144692;
+        Sat, 16 Mar 2019 02:39:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyJK4ZJcHvxS6xIqEvPpiJuC9fpYM+5XRQN6cF8OQgmnNO8oOgnTnc+qT3ghy38Gke8F/rR
+X-Received: by 2002:ab0:4a1:: with SMTP id 30mr1973679uaw.86.1552729143768;
+        Sat, 16 Mar 2019 02:39:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552729143; cv=none;
         d=google.com; s=arc-20160816;
-        b=vEF740xFNCHAu7LmcpU7m9It9DDoW0qkN7huu0AuICgCp7nECaWVSWCDX/6cV/cITe
-         jyumpD31h8yrXXHKZGuRF8MuSc8T0KhjSdZFyrz+y+Bexwe3oUelp8yUuItG5poMxTiX
-         ZRYECCdZVc11yctGRwPEgyLMc/EeURrtZioS2E+K24QsNB4BfqQFwj4vkvdW1631hhz/
-         D1q0W5FbyvzgRhAseCkZqyDIBlJD+8FCw3MIPj42EpRzgslE4Od7jfNN/niKHJLwwc5D
-         eBwVHt1t3k/OyADVXHz5zwq++UmmKFwn30aTxxrV72dZM2t9PdZjNl3fUhanRup2YCDv
-         PsYA==
+        b=hIq4KCXurueYPa801eUmcpISn4Et26hd1NlpbaGZQ4BqyiWFsay692ta6efbutb+vk
+         YOCjWpt4xg6ZpHJxJtFnosTlSA2HeTpmLVIxo84ONv0bau3APKoPTfQFtYBVvX74uW44
+         ylo1uDnBakxJR3t1cKL25uiqUteJaFRdf6k+h1wmvNu4Q2TNg4HjKux1LU5lPl+cA6o1
+         aMxJfh+1wgeSJqc/abKUS49H/tdC7qvmSC2p6Eik+yvuCnkPZA+NMjC7X7sqlGmOWfTx
+         GlS+aP+Xt9eWjTKqVi+FtayJpZcx4vQe7RwScgH+4zb3ZRvBWfCMgfsKyUK2fjtWUc3D
+         ahAA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=ITA6CL5hCZRyW7s8fFzIfwI8ElWa95Hy9WtyMFBGPMo=;
-        b=M4uLkUFZKlnhCHrBaO2TSLDOC2vQ5hiXVC+6AtbPhChRJbkcX49L95M5z2KGjjw4rL
-         0tHe48nunSKa4P9Pmdyr4DPBgYdDw986Z85vhNt0Xj9K+FJAms/vdtWCDNsqQx1vaUCc
-         jSlI7yMWURNQqi5030ySMcoOQ+hEz3D88P8qEgQvyZ6srPWoSkmOpsv3FiFXJ+8sSjzd
-         g0Vv2jfvQcQM9FhdxUYKRWCsq6HLV9RZsn0YskVEZdQKOvcTYe2tn6wqTRFePvUqO4Ur
-         Tx1XzIKZKwPzjB0JTkHadoO7GW6tVm+BAxCaZJD2ghLvl9n++uWepSrkWqhdTtqVcJ3q
-         v5+A==
+        h=content-transfer-encoding:in-reply-to:references:subject:cc:to
+         :mime-version:user-agent:from:date:message-id;
+        bh=7lAviSext5DtrcF4EmR7x+P2EdaHXO7hfOqI+dkx7mI=;
+        b=mztYQMr9CMZw7DZJdiwbQc6w66jT/DM6yi485wVy07gIFVWQocsXSV+BzAezdtaRSv
+         Iik6t747HyvP5J6ec5zS7KV4IasX99o0UEKIO+edI6T6Id9EekoVG1e0Xw1aSY1HcT6d
+         9FxNqnUwNoD2bkLjME15+rfxySkK2612xSyOSYUlr3onCufmNWeEBfyv0iNv2xGT1VYd
+         GvZrK/QUQbYayY33WTmiU6qTOlj3mA1wNsSyoJl766IoYvVmZBmpp18parFFGM5w92nN
+         HvYY1ed+B7E30TSXtgHd+5h0Gxrboipj+7g3/itjIhYcBS5JzC+59lmO3omsO9M/Btdb
+         ayng==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j27si1775455eda.283.2019.03.16.01.34.36
+       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
+Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id v6si148848uac.17.2019.03.16.02.39.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 16 Mar 2019 01:34:36 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Sat, 16 Mar 2019 02:39:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.191 as permitted sender) client-ip=45.249.212.191;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id B8205ACD7;
-	Sat, 16 Mar 2019 08:34:35 +0000 (UTC)
-Date: Sat, 16 Mar 2019 09:34:34 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Oscar Salvador <osalvador@suse.de>, akpm@linux-foundation.org,
-	anshuman.khandual@arm.com, william.kucharski@oracle.com,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mm: Fix __dump_page when mapping->host is not set
-Message-ID: <20190316083434.GI15672@dhcp22.suse.cz>
-References: <20190315121826.23609-1-osalvador@suse.de>
- <20190315124733.GE15672@dhcp22.suse.cz>
- <20190315143304.pkuvj4qwtlzgm7iq@d104.suse.de>
- <alpine.LSU.2.11.1903150952270.2934@eggly.anvils>
+       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
+Received: from DGGEMS405-HUB.china.huawei.com (unknown [172.30.72.58])
+	by Forcepoint Email with ESMTP id 2CADE823164DF3D7D755;
+	Sat, 16 Mar 2019 17:38:59 +0800 (CST)
+Received: from [127.0.0.1] (10.177.29.68) by DGGEMS405-HUB.china.huawei.com
+ (10.3.19.205) with Microsoft SMTP Server id 14.3.408.0; Sat, 16 Mar 2019
+ 17:38:55 +0800
+Message-ID: <5C8CC42E.1090208@huawei.com>
+Date: Sat, 16 Mar 2019 17:38:54 +0800
+From: zhong jiang <zhongjiang@huawei.com>
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20120428 Thunderbird/12.0.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1903150952270.2934@eggly.anvils>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+To: Andrea Arcangeli <aarcange@redhat.com>
+CC: Mike Rapoport <rppt@linux.vnet.ibm.com>, Peter Xu <peterx@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov
+	<dvyukov@google.com>, syzbot
+	<syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com>, Michal Hocko
+	<mhocko@kernel.org>, <cgroups@vger.kernel.org>, Johannes Weiner
+	<hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM
+	<linux-mm@kvack.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>, David Rientjes
+	<rientjes@google.com>, Hugh Dickins <hughd@google.com>, Matthew Wilcox
+	<willy@infradead.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka
+	<vbabka@suse.cz>
+Subject: Re: KASAN: use-after-free Read in get_mem_cgroup_from_mm
+References: <00000000000006457e057c341ff8@google.com> <5C7BFE94.6070500@huawei.com> <CACT4Y+Z+CH0UTdSz-w_woMPrBwg-GuobV1Su4qd9ReffTkyfVg@mail.gmail.com> <5C7D2F82.40907@huawei.com> <CACT4Y+agwaszODNGJHCqn4fSk4Le9exn3Cau0nornJ0RaTpDJw@mail.gmail.com> <5C7D4500.3070607@huawei.com> <CACT4Y+b6y_3gTpR8LvNREHOV0TP7jB=Zp1L03dzpaz_SaeESng@mail.gmail.com> <5C7E1A38.2060906@huawei.com> <20190306020540.GA23850@redhat.com> <5C821550.50506@huawei.com> <20190315213944.GD9967@redhat.com>
+In-Reply-To: <20190315213944.GD9967@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.177.29.68]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[my mbox didn't get synced completely so our emails "crossed"]
+On 2019/3/16 5:39, Andrea Arcangeli wrote:
+> On Fri, Mar 08, 2019 at 03:10:08PM +0800, zhong jiang wrote:
+>> I can reproduce the issue in arm64 qemu machine.  The issue will leave after applying the
+>> patch.
+>>
+>> Tested-by: zhong jiang <zhongjiang@huawei.com>
+> Thanks a lot for the quick testing!
+>
+>> Meanwhile,  I just has a little doubt whether it is necessary to use RCU to free the task struct or not.
+>> I think that mm->owner alway be NULL after failing to create to process. Because we call mm_clear_owner.
+> I wish it was enough, but the problem is that the other CPU may be in
+> the middle of get_mem_cgroup_from_mm() while this runs, and it would
+> dereference mm->owner while it is been freed without the call_rcu
+> affter we clear mm->owner. What prevents this race is the
+As you had said, It would dereference mm->owner after we clear mm->owner.
 
-On Fri 15-03-19 10:21:18, Hugh Dickins wrote:
-> On Fri, 15 Mar 2019, Oscar Salvador wrote:
-> > On Fri, Mar 15, 2019 at 01:47:33PM +0100, Michal Hocko wrote:
-> > > diff --git a/mm/debug.c b/mm/debug.c
-> > > index 1611cf00a137..499c26d5ebe5 100644
-> > > --- a/mm/debug.c
-> > > +++ b/mm/debug.c
-> > > @@ -78,6 +78,9 @@ void __dump_page(struct page *page, const char *reason)
-> > >  	else if (PageKsm(page))
-> > >  		pr_warn("ksm ");
-> > >  	else if (mapping) {
-> > > +		if (PageSwapCache(page))
-> > > +			mapping = page_swap_info(page)->swap_file->f_mapping;
-> > > +
-> > >  		pr_warn("%ps ", mapping->a_ops);
-> > >  		if (mapping->host->i_dentry.first) {
-> > >  			struct dentry *dentry;
-> > 
-> > This looks like a much nicer fix, indeed.
-> > I gave it a spin and it works.
-> > 
-> > Since the mapping is set during the swapon, I would assume that this should
-> > always work for swap.
-> > Although I am not sure if once you start playing with e.g zswap the picture can
-> > change.
-> > 
-> > Let us wait for Hugh and Jan.
-> > 
-> > Thanks Michal
-> 
-> Sorry, I don't agree that Michal's more sophisticated patch is nicer:
-> the appropriate patch was your original, just checking for NULL.
-> 
-> Though, would I be too snarky to suggest that your patch description
-> would be better at 2 lines than 90?  Swap mapping->host is NULL,
-> so of course __dump_page() needs to be careful about that.
-> 
-> I was a little disturbed to see __dump_page() now getting into dentries,
-> but admit that it can sometimes be very helpful to see the name of the
-> file involved; so if that is not in danger of breaking anything, okay.
-> 
-> It is very often useful to see if a page is PageSwapCache (typically
-> because that should account for 1 of its refcount); I cannot think of
-> a time when it's been useful to know the name of the underlying swap
-> device (if that's indeed what f_mapping leads to: it's new to me).
-> And if you need swp_type and swp_offset, they're in the raw output.
-> 
-> The cleverer __dump_page() tries to get, the more likely that it will
-> itself crash just when you need it most. Please just keep it simple.
+But after we clear mm->owner,  mm->owner should be NULL.  Is it right?
 
-OK, fair enough. If we ever have anybody suggesting to follow the swap
-lead then we can add it. I do not have a good use case for that right
-now. Let's go with Oscar's original patch. Thanks!
+And mem_cgroup_from_task will check the parameter. 
+you mean that it is possible after checking the parameter to  clear the owner .
+and the NULL pointer will trigger. :-(
 
-Acked-by: Michal Hocko <mhocko@suse.com>
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+zhong jiang
+> rcu_read_lock() in get_mem_cgroup_from_mm() and the corresponding
+> call_rcu to free the task struct in the fork failure path (again only
+> if CONFIG_MEMCG=y is defined). Considering you can reproduce this tiny
+> race on arm64 qemu (perhaps tcg JIT timing variantions helps?), you
+> might also in theory be able to still reproduce the race condition if
+> you remove the call_rcu from delayed_free_task and you replace it with
+> free_task.
+>
+> .
+>
+
 
