@@ -2,138 +2,145 @@ Return-Path: <SRS0=HgWV=RT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 56096C43381
-	for <linux-mm@archiver.kernel.org>; Sat, 16 Mar 2019 03:04:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 80973C4360F
+	for <linux-mm@archiver.kernel.org>; Sat, 16 Mar 2019 08:23:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E36D420645
-	for <linux-mm@archiver.kernel.org>; Sat, 16 Mar 2019 03:04:18 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="wjZA7/iC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E36D420645
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 26563218D0
+	for <linux-mm@archiver.kernel.org>; Sat, 16 Mar 2019 08:23:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 26563218D0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 44AB46B02CD; Fri, 15 Mar 2019 23:04:18 -0400 (EDT)
+	id 840606B02CF; Sat, 16 Mar 2019 04:23:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3D1EE6B02CE; Fri, 15 Mar 2019 23:04:18 -0400 (EDT)
+	id 7ECB96B02D0; Sat, 16 Mar 2019 04:23:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 272896B02CF; Fri, 15 Mar 2019 23:04:18 -0400 (EDT)
+	id 6DB946B02D1; Sat, 16 Mar 2019 04:23:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D82246B02CD
-	for <linux-mm@kvack.org>; Fri, 15 Mar 2019 23:04:17 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id o67so12411062pfa.20
-        for <linux-mm@kvack.org>; Fri, 15 Mar 2019 20:04:17 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 182AF6B02CF
+	for <linux-mm@kvack.org>; Sat, 16 Mar 2019 04:23:58 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id p4so4847824edd.0
+        for <linux-mm@kvack.org>; Sat, 16 Mar 2019 01:23:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=EGYYLBmFVTvG2g6ZUAcnNQTSk4rLA2Fs2LqO0pKWWPc=;
-        b=sNMgpmuwuoywyHqTUg2s9cl3UKzasn5AyjqfMwVZ9Xt44MRYTHHtZvEKT20SQCpC9C
-         hOU93K1LiC7eSzggDsXwUu4JhlVQb2GiqCYBHvRgfnfX4Kl6OAtsPrOxQUCTU5zPCzZR
-         tljwoj17aSjSqO6HPaKynOhfCfTHfT3pAsm9cP2aFycAfvjWo/kfjCrd5xICTYGmfYuE
-         1hc0hhT7b6hPBuqqoxBlIVLSkIob0HkyQL1s3pQCM/6nhEOLpUufKbx+FEWecES5kkT3
-         TrHukaStrn8aHNlOZY5WeUprLMhuX2jtfUT6IaONAkA7pgBhW675ZV1GBrTO08+udtWR
-         ZnDA==
-X-Gm-Message-State: APjAAAV2Aoi7FiEpHJLEbwSVG8k55sARQByplVVY1hdKHRxugD3Sdqzl
-	3UvSObRp4YODDGpmKMUDjZ5HEZEJGxyJD8dhb8QCKwSVebPdofUMpVLO5Txz9bDO1mnBhCDy6gk
-	QnhMPDtwSl2Sa47E81C7RwtDbeO8rsRDFbTKn/EjInuFOgHd5Zp+rXrAEJ7InJxAz1Q==
-X-Received: by 2002:a63:d256:: with SMTP id t22mr6812410pgi.108.1552705457463;
-        Fri, 15 Mar 2019 20:04:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzNWRHn5DnHNbrdyfAcdCPFn0koEDpDJwLzA9v8RrCI2GTfadBwo4nx36Hs8tMujt1hSekn
-X-Received: by 2002:a63:d256:: with SMTP id t22mr6812340pgi.108.1552705456256;
-        Fri, 15 Mar 2019 20:04:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552705456; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=i2kcYL2mo3eoiQe4HbkfAUlUJ5Ud0yU1T8CG2rspfHw=;
+        b=e0yszZw/EMFhudL2Ef2hRuqIK2UX0IlTDeefL0zpQcyIQZJH5w2xZRjOhhP6U2rW4T
+         E6lAWKDVUTF5pdwZ9i0fZrG40yGuaYRfxNEpWYCeqVnGck9qtCAGwC0i5WERjhrzKScN
+         OyJu9th+twBm+qzfeCpxAqwYvwvx41hvQqg2TQxqzYytsITOI3vX40y0LJ5CRNpneIOQ
+         yI2VsOKCrCyH4lAMJd81Pp8UFVIR7YAd4u4TAZ6ps9GmB1e4Omo6hKI0sCCbNSWZTm/v
+         TjxvNn6ALLq9Xjy/NfrkxGaTg2U8jxu8ZMsmCGKPp4zxeh2otmHuhRKTbQV0kMOhBF72
+         zmAQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAX+APaslgMwsc4M+VLx8w4YwDnC3Bo7UOz6tcuETYCkU/dk9VRu
+	/NiQjFgAh4iKl5WBhFppTOPwq/RxE8Jb2Xy1x2e+0P5/p/lousV0ghh2QaJE2Rhk6Xw9rMht2Gm
+	gKX11GUKwWAA+N1ii7wz+iT2vlkn1rwspQLEQxKKjzphMrAlR7AiDNz6TPLg1cWI=
+X-Received: by 2002:a17:906:c9d5:: with SMTP id hk21mr4771852ejb.122.1552724637607;
+        Sat, 16 Mar 2019 01:23:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyIuk53K/Fl5tUMSO5aNyZWtXnIzpsyoKDXDVzFlhUIHZsxpiSnLuHkw99n1kQP4sHhYkSA
+X-Received: by 2002:a17:906:c9d5:: with SMTP id hk21mr4771821ejb.122.1552724636650;
+        Sat, 16 Mar 2019 01:23:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552724636; cv=none;
         d=google.com; s=arc-20160816;
-        b=TRZZhfj4B12s3XDafyaXWozDNSkv6CFoA0nZg6r727cUp+BORb+OrW9lHRRLJsPLwk
-         ik0vJKf0gxP/UA9LzV3eiMTDtvr0II9EYG5dvizkwcDEM8b1Og7hzgADf6CE3YBOwTYS
-         4Ke3n5Mf9CQVcgedLdW1FpkG/tVuLJRrILBO+4gvVqwhJ61LNrvi7khJMrFk+baj6SjB
-         65paD38klIHIOB55DYtRPhvQzDTEMJYeMlc5nBdpr1QFCRuEQ3LS8ctw0Z2AQMnFKRLV
-         Vm03/iUoakV3LF4qif8pna0/IjU/90p8EYI8NH/ctOX1twXtgi4yCfLz6cT0mbWL11kv
-         Oh9A==
+        b=PT4Nwpn+2d6dRIiA33PS5D9vqxB1Mj9cOS39PmnTLcqPMSpaKwL6MKYah6q5/RmOi4
+         1+twKbnBzM5ijveKaOkf0qVw8Ot9EjOzTq88zL6fIpLomztoFI90aGQWj2KNmN7rkVv3
+         Zut8hqfcN/Sq4cSKPxRZOF0UCDqVo1uuEyCQXMdUrgapl8AI/Klad9Vv2j4KSBwFzuwr
+         w/VknXqM06ABE5T81b/JuG2js3fWQ+ZRA3z0EO8+oJqbZl9+i7hn3rFKbxXXonm0nKOc
+         op8PoY6i9UsS7/lA894Tk8IkgvFP5OQrclcLBdsZqbW+DCYTTrmYQhPmQOtf0Es7oQuG
+         D8UA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=EGYYLBmFVTvG2g6ZUAcnNQTSk4rLA2Fs2LqO0pKWWPc=;
-        b=YsBxS+JHnojj/1GL2naSO0Dwe2wapajnPP51OsUHfu93keLZ3tweUszBPc7uAkgJcW
-         eSwrHfVOHexughM033Mxun0XQ9tcE62NUvqPe2mLG8uUquvZWJJ058g2JkXcjYZ7q1y5
-         voqZAiHcU3aSSky5hd1Dza3DETyVx/WUUFAwDlwTYJ02fvQ/QgpmD9CZFGxf9yEWuY1J
-         pCIZ0t/dZgJ3NSqeADMIgSpdwwlHBlav7/UeMo6YiPAhOeV4X2XWCIPCXhIWq8tpuBkQ
-         wk7mm3WVM0k0b+1sjDJYXt2yI4bzQDG2GVQ3Gcq4FNUxarsZGEOAw/sUmFrYRrTBNXOi
-         9Ing==
+         :message-id:subject:cc:to:from:date;
+        bh=i2kcYL2mo3eoiQe4HbkfAUlUJ5Ud0yU1T8CG2rspfHw=;
+        b=kBHu9Y9riMiFEDtHDgXOaHkYrD//FZ5cG+Rk57MZQYxzth0HSQmwZpTARDP+Nn9NTb
+         +pZoaUCPzSxobRb80mwD7VpDsUcv2+5IFN8s08+GJJcGFTI/oMN2nJn5U/Td3s5dRxCb
+         qpp2oBZX0mgEbBCbQOwzQkyzBw8Nn7/c4FHf5J1NsOH1LePs3goUbBK5PqpC5LBPcnS2
+         QEdHoiSFPJQwgQa47tAt2WuKTHsWcgQ6GZsHlSdGJxAt3qWCVxrdBXFYUp8IclZOYOFY
+         pLY2fCLAFZMPt2M8idVDY7Ywzjqt4ktWn6IO689xBNXcFyJkz5Ro7rnTmdbXnpkymdMB
+         I+vw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="wjZA7/iC";
-       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id p2si3362334pls.167.2019.03.15.20.04.16
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w16si465364eje.64.2019.03.16.01.23.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Mar 2019 20:04:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Sat, 16 Mar 2019 01:23:56 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="wjZA7/iC";
-       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
-Received: from localhost (unknown [104.153.224.167])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 8D52F218D0;
-	Sat, 16 Mar 2019 03:04:14 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1552705455;
-	bh=kHlO8sPVt6f18EIgoXLMolRqSxQ+DkKueBe7dfzK99Q=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=wjZA7/iCaiuQmLw9ClUnEIwhUPErtyXOYPsGpY5fT0XZjzyTHlVkTKEyznEKE43yP
-	 3tkcMKukhVnLgQ30r2m4U79QF5N+JaijdkMloCoQbU04jFc/I6ERWwbBXTaB/qqcE6
-	 EuiBabJUSXi5fV4YyOuEao/7D2g6/x2K4DJFgzh8=
-Date: Fri, 15 Mar 2019 20:04:07 -0700
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-To: Keith Busch <kbusch@kernel.org>
-Cc: Keith Busch <keith.busch@intel.com>, linux-kernel@vger.kernel.org,
-	linux-acpi@vger.kernel.org, linux-mm@kvack.org,
-	linux-api@vger.kernel.org, Rafael Wysocki <rafael@kernel.org>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Jonathan Cameron <jonathan.cameron@huawei.com>,
-	Brice Goglin <Brice.Goglin@inria.fr>
-Subject: Re: [PATCHv8 00/10] Heterogenous memory node attributes
-Message-ID: <20190316030407.GA1607@kroah.com>
-References: <20190311205606.11228-1-keith.busch@intel.com>
- <20190315175049.GA18389@localhost.localdomain>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id A4B91AD3B;
+	Sat, 16 Mar 2019 08:23:55 +0000 (UTC)
+Date: Sat, 16 Mar 2019 09:23:54 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Oscar Salvador <osalvador@suse.de>
+Cc: akpm@linux-foundation.org, anshuman.khandual@arm.com,
+	william.kucharski@oracle.com, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>,
+	Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: Fix __dump_page when mapping->host is not set
+Message-ID: <20190316082354.GF15672@dhcp22.suse.cz>
+References: <20190315121826.23609-1-osalvador@suse.de>
+ <20190315124733.GE15672@dhcp22.suse.cz>
+ <20190315143304.pkuvj4qwtlzgm7iq@d104.suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190315175049.GA18389@localhost.localdomain>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <20190315143304.pkuvj4qwtlzgm7iq@d104.suse.de>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 15, 2019 at 11:50:57AM -0600, Keith Busch wrote:
-> Hi Greg,
+On Fri 15-03-19 15:33:07, Oscar Salvador wrote:
+> On Fri, Mar 15, 2019 at 01:47:33PM +0100, Michal Hocko wrote:
+> > diff --git a/mm/debug.c b/mm/debug.c
+> > index 1611cf00a137..499c26d5ebe5 100644
+> > --- a/mm/debug.c
+> > +++ b/mm/debug.c
+> > @@ -78,6 +78,9 @@ void __dump_page(struct page *page, const char *reason)
+> >  	else if (PageKsm(page))
+> >  		pr_warn("ksm ");
+> >  	else if (mapping) {
+> > +		if (PageSwapCache(page))
+> > +			mapping = page_swap_info(page)->swap_file->f_mapping;
+> > +
+> >  		pr_warn("%ps ", mapping->a_ops);
+> >  		if (mapping->host->i_dentry.first) {
+> >  			struct dentry *dentry;
 > 
-> Just wanted to check with you on how we may proceed with this series.
-> The main feature is exporting new sysfs attributes through driver core,
-> so I think it makes most sense to go through you unless you'd prefer
-> this go through a different route.
+> This looks like a much nicer fix, indeed.
+
+If we go this way then we should swap the order and print the mapping
+before we alter it.
+
+> I gave it a spin and it works.
+
+Thanks for testing!
+
+> Since the mapping is set during the swapon, I would assume that this should
+> always work for swap.
+> Although I am not sure if once you start playing with e.g zswap the picture can
+> change.
 > 
-> The proposed interface has been pretty stable for a while now, and we've
-> received reviews, acks and tests on all patches. Please let me know if
-> there is anything else you'd like to see from this series, or if you
-> just need more time to get around to this.
+> Let us wait for Hugh and Jan.
 
-I can't do anything with patches until after -rc1 is out, sorry.  Once
-that happens I'll work to dig through my pending queue and will review
-these then.
-
-thanks,
-
-greg k-h
+Yes, I really cannot tell this is really safe. Maybe we want to do the
+check for host anyway. Just to be sure.
+-- 
+Michal Hocko
+SUSE Labs
 
