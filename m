@@ -2,252 +2,207 @@ Return-Path: <SRS0=9bJk=RU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4662BC43381
-	for <linux-mm@archiver.kernel.org>; Sun, 17 Mar 2019 15:40:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CD6A6C43381
+	for <linux-mm@archiver.kernel.org>; Sun, 17 Mar 2019 16:29:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DC1A92087C
-	for <linux-mm@archiver.kernel.org>; Sun, 17 Mar 2019 15:40:34 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="cK+2LvO7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC1A92087C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 657562087C
+	for <linux-mm@archiver.kernel.org>; Sun, 17 Mar 2019 16:29:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 657562087C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 738746B02EF; Sun, 17 Mar 2019 11:40:34 -0400 (EDT)
+	id C926D6B02F1; Sun, 17 Mar 2019 12:29:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6E7716B02F0; Sun, 17 Mar 2019 11:40:34 -0400 (EDT)
+	id C66846B02F2; Sun, 17 Mar 2019 12:29:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5FD396B02F1; Sun, 17 Mar 2019 11:40:34 -0400 (EDT)
+	id B556D6B02F3; Sun, 17 Mar 2019 12:29:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ua1-f72.google.com (mail-ua1-f72.google.com [209.85.222.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 330B96B02EF
-	for <linux-mm@kvack.org>; Sun, 17 Mar 2019 11:40:34 -0400 (EDT)
-Received: by mail-ua1-f72.google.com with SMTP id r12so982088uao.3
-        for <linux-mm@kvack.org>; Sun, 17 Mar 2019 08:40:34 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F9186B02F1
+	for <linux-mm@kvack.org>; Sun, 17 Mar 2019 12:29:02 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id x21so5569545edr.17
+        for <linux-mm@kvack.org>; Sun, 17 Mar 2019 09:29:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=uRH84zMSNkoWRWrJsHwt4NmuXl/D8tIAUOCC/ZExN6o=;
-        b=p8erHoCBs+mMGUVFurzp9SPCCvPk5j9OQWewqfM3L0gfJWnm6XhJMnxrYveNpKw8g+
-         JioBrbYYibUjfwCerwMgGxI7dwXXFUv9hGmCu/wFi/JhSuC3PQgq7omla7cSVeic/oOQ
-         AwVSaZ7vaCmQB5ZK8J3FC/akUiuJk2OuhNSzVoX/d38TUwq0itBhumeCH/c7CoIo5u5w
-         BIrmoxd9l4FZ0e6nfDltBn9zyGAff6dpnvnBdyrWknu2YNuJpM4MEuxQ6l2G+U9D7k//
-         Hh+KkkRgsLywC8ingY+NNFd2O5gWwmq58gtRdsQkfNarlIx8S4lXwa97ZH8zonkaPwPF
-         T3Hw==
-X-Gm-Message-State: APjAAAVS8v0LR/WB/VcEjyt9cx/M9WukJFG8H6dIR6CZZ5qF12wPlh1h
-	FEHsKW3Ia3IfKK3hPaELMFpBmt6dWNXNiT9RdBZ3bR8EAVVEp7k0bM7bbzKzr8zyDf3tUhVGCV2
-	meVPybgZDcNzRWssEjzPw82ZF8sT7ld6Ubag9lvFUwUcxGKMFyFpBIOI6gRjSN8qYUQ==
-X-Received: by 2002:a67:bd05:: with SMTP id y5mr6786775vsq.88.1552837233768;
-        Sun, 17 Mar 2019 08:40:33 -0700 (PDT)
-X-Received: by 2002:a67:bd05:: with SMTP id y5mr6786743vsq.88.1552837232523;
-        Sun, 17 Mar 2019 08:40:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552837232; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=xCNRn2CIAnTHo9UxBJEx7xAGfNa9hKnwX3RpbP1l3F0=;
+        b=Zf6L9ecfSZyfa04LiAqCJ53VkNcD/ogwA7sji2o7xpWvqsJ/UMHCwDPzgzjXQEenhN
+         szeJ6Wu2Baq1BZmgFZLTH0bQDlTPpAuSj+pBwGuedl0TFJiMnZzbPi09nETBX4A0Ac+W
+         9EJ82/WMZ3QcV4hKZEZRGM2jU9Bh34J6txXmRTBcNrAQTf/RP84MkROTGJVU3XrdEWC3
+         5NP9e46kUnDbbdODz4sqf+HSx13F4epS1FgEtLMuFZgCOIlLmECQtZA6uB16sCmHE7fR
+         CsXEbS5Jxj1HbeD8yCsVpiCC6xQ7WKpiJHJBnA6dOnIUzinUFK3wppG5sFtrjqhC4T5g
+         s6ZQ==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Gm-Message-State: APjAAAXkVP1KWNoibL9JRjFSzQq4CNiMW88oALAZN6/UF0MJGGbVKkGH
+	safvrCJE3dbpuklasDnhyAjFoUghmiGcW+OsiJYF0wXi6SgBvobsex/L6gBZDZltFq8tdo6+KTk
+	K2pjj4zMa6YbmMvTnSZWWyq6tLJOumdDxOfk+f3zqL/s7vYC0JEDDvmSE5+Cvc34=
+X-Received: by 2002:a50:b673:: with SMTP id c48mr9654267ede.138.1552840141817;
+        Sun, 17 Mar 2019 09:29:01 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwgMc7A+1yslKIWyEXS9S60uh3rNycN/LqURoTIDrJolbdvRTeucmLwCNnuchtKlZ2o18+A
+X-Received: by 2002:a50:b673:: with SMTP id c48mr9654208ede.138.1552840140471;
+        Sun, 17 Mar 2019 09:29:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552840140; cv=none;
         d=google.com; s=arc-20160816;
-        b=cMJjkRENIwOmLh53XpheJe2UQqDZ+VnMx0SAws1Q3EjF/rmhGMmI/lVtnThEfmBOk/
-         yAWXiXk9GPGQ0coOHwhL6kaxZbD/31BuWJet/noPSpRTeiiPRpTtNC5IYkIhMqJsdxL6
-         ihr87bFFjE9fNZaam2gdNKoybx0lALADOn7Bqii3h/e96yyEUwCUvCn+6jPDbpef3Fki
-         TyUIArJ6i8cOMdp0rEQFSym9+VdphjxH9QS3DHPx5PrZkMYqmQylkHXeBz+K5Oho43fD
-         y2XRcqmPEcqrem+m4T800NI1Tfunkc7NDxGRISLwCNw6ph0/kZoj0wMRwFuThU9iC4yX
-         SGZw==
+        b=LkB09G3JvblpGJXeM0sEyW9Tulw0n6Ms7OveDXC3qZiJ1CBYiuCWqFIm4fOa2v0bbH
+         KY6/UeuOa/sVBc6+yCpqYS4w6Rdv7LFC3zitUSICJ7CnsY8cVz2bg3CL0JYPQ1DjUYAV
+         pB88YDz4pqZEkF3QNfA1+sFSpbzju75LnD+3//joHjkI6O1R306b0jPaxrPhdVhysHTr
+         JW6CrWSPdlhKxayKNPn0RhjUV06ykt49A5nRLagf8LXYVNIipa5uZPeKgkuALBC0zvWc
+         yX1QSRZkhicPlLtVtrRPoLvUZCtFNNRuqX6HET8KZ55/hH1bFNIyUjdb/Wvcyxpd4c/2
+         3B9Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=uRH84zMSNkoWRWrJsHwt4NmuXl/D8tIAUOCC/ZExN6o=;
-        b=FhVGP25FdPmmxZmi/zuIiAfsjiuBpeWiUA6f0ljTScr+Y8sDMBykM8T4L1jJqsL7UG
-         mkZKp+uQ1AcYWJMhPWwBuXY5GY/yXuqPexCuiveZWknI5+L7dQZXC05HvwZ/Nahc+smf
-         4AlQNURXXp1E8gNgb/qIDbV4RHzDfK3NB18v1aPlqcjAnhlX1bp1eCDWMXC4e3cTA0IL
-         Xh48CLSPzHpCk4gPlBXO0GwxGTlZHrBp9wcxI/d1PvAxAUPcJtYQmGLE+j78T+aZFFaJ
-         O4urgMprbhsogIc5b4dRaTxHRIf8V6nF9h/9yZIxUTHwVgTY3p5ObvpgAUkDzBlgZ+4N
-         gjnw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=xCNRn2CIAnTHo9UxBJEx7xAGfNa9hKnwX3RpbP1l3F0=;
+        b=gr4ddRwCPIg5pMZb7XO8BP4km3wwBybCRv3o6JSVe8AbJ0rlCeaLW9ygldWq3qD8iU
+         VqkNNuLqdwiObDeyTBXnOuc5wiHufSh4+V6VndMEbrJqtulWCrRaxSyCHFARgaGc5cao
+         Q0pd/2mF8LcTGANbFPnTTqZxz9aTIx7eBODMuxJJZxpsEz1TnSbUHRfA7mwiGM5lkOUf
+         LFgKc4MZxyGrf8/xJ7RBPFObL3rhBE/KFUivTO4zf7BClQKHeHlaP5WaOC9t9/H9ggov
+         i2UlBNnauemF536hZ/LDg0m7f6t4UJwmikreOsOWLy4ziyDAmXCSC0HEjefrl8BCmb/p
+         znJw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=cK+2LvO7;
-       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w5sor2809125uap.24.2019.03.17.08.40.32
+       spf=neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from relay5-d.mail.gandi.net (relay5-d.mail.gandi.net. [217.70.183.197])
+        by mx.google.com with ESMTPS id i14si2005351ejy.50.2019.03.17.09.29.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 17 Mar 2019 08:40:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sun, 17 Mar 2019 09:29:00 -0700 (PDT)
+Received-SPF: neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.197;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=cK+2LvO7;
-       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=uRH84zMSNkoWRWrJsHwt4NmuXl/D8tIAUOCC/ZExN6o=;
-        b=cK+2LvO7twyFsrNnxVjFaFldfCp/e/oZKDKV7f/QBYI9+2PX+odMRXjA0vHXW6qNrO
-         bEHQTtPQ2Nt3fFPk/6j3D35NFl/ayQUt+PxL7EQG3Q43NSkk/pybdMLbdhsJMNKFHAxJ
-         9hqbuOBX9aQa+HYrVGnSk7Zb37OsVCoa8f4Qh29ghIJoD8AvykGdvTYgAzvS9U60/bLr
-         xggdP/UoYsK8LdgGWkiAfyfH+wlVseBOzovFs0GFdhrI4uFXs47g8qX/rylR5AMzXmAt
-         6o7VQUw0/OrVaOBATJHx/WQylAoJrCHKoar6bFX592oosCxS5u9SbUo04NvRGqWM4/xJ
-         kyLQ==
-X-Google-Smtp-Source: APXvYqznPrTprUd4vtYgtSsglVWkUYBvIC664Q/bRR+gyFyh6GLEUuY1hF4T1ruacnpcVu2iEPiDHkuULWfydtWhXYs=
-X-Received: by 2002:ab0:660c:: with SMTP id r12mr4264496uam.139.1552837231701;
- Sun, 17 Mar 2019 08:40:31 -0700 (PDT)
+       spf=neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Originating-IP: 79.86.19.127
+Received: from alex.numericable.fr (127.19.86.79.rev.sfr.net [79.86.19.127])
+	(Authenticated sender: alex@ghiti.fr)
+	by relay5-d.mail.gandi.net (Postfix) with ESMTPSA id 811461C0004;
+	Sun, 17 Mar 2019 16:28:50 +0000 (UTC)
+From: Alexandre Ghiti <alex@ghiti.fr>
+To: aneesh.kumar@linux.ibm.com,
+	mpe@ellerman.id.au,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Paul Mackerras <paulus@samba.org>,
+	Martin Schwidefsky <schwidefsky@de.ibm.com>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Rich Felker <dalias@libc.org>,
+	"David S . Miller" <davem@davemloft.net>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>,
+	Borislav Petkov <bp@alien8.de>,
+	"H . Peter Anvin" <hpa@zytor.com>,
+	x86@kernel.org,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Andy Lutomirski <luto@kernel.org>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	linux-arm-kernel@lists.infradead.org,
+	linux-kernel@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org,
+	linux-s390@vger.kernel.org,
+	linux-sh@vger.kernel.org,
+	sparclinux@vger.kernel.org,
+	linux-mm@kvack.org
+Cc: Alexandre Ghiti <alex@ghiti.fr>
+Subject: [PATCH v7 0/4] Fix free/allocation of runtime gigantic pages
+Date: Sun, 17 Mar 2019 12:28:43 -0400
+Message-Id: <20190317162847.14107-1-alex@ghiti.fr>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-References: <CAKOZuetZHJzmQy3n001x4+rmWoWHEgUv2Zvow9W5+xvukxp1JQ@mail.gmail.com>
- <20190315180306.sq3z645p3hygrmt2@brauner.io> <20190315181324.GA248160@google.com>
- <20190315182426.sujcqbzhzw4llmsa@brauner.io> <20190315184903.GB248160@google.com>
- <CAJuCfpGp_9fE9MPGVCWjnTaeBE0K_Q22LS1pBqhp7zW2M=dbGw@mail.gmail.com>
- <CAKOZueuauUXRyrvhzBD0op6W4TAnydSx92bvrPN2VRWERX8iQg@mail.gmail.com>
- <20190316185726.jc53aqq5ph65ojpk@brauner.io> <CAJuCfpF-uYpUZ1RO99i2qEw5Ou4nSimSkiQvnNQ_rv8ogHKRfw@mail.gmail.com>
- <20190317015306.GA167393@google.com> <20190317114238.ab6tvvovpkpozld5@brauner.io>
-In-Reply-To: <20190317114238.ab6tvvovpkpozld5@brauner.io>
-From: Daniel Colascione <dancol@google.com>
-Date: Sun, 17 Mar 2019 08:40:19 -0700
-Message-ID: <CAKOZuetZPhqQqSgZpyY0cLgy0jroLJRx-B93rkQzcOByL8ih_Q@mail.gmail.com>
-Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
-To: Christian Brauner <christian@brauner.io>
-Cc: Joel Fernandes <joel@joelfernandes.org>, Suren Baghdasaryan <surenb@google.com>, 
-	Steven Rostedt <rostedt@goodmis.org>, Sultan Alsawaf <sultan@kerneltoast.com>, 
-	Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, =?UTF-8?B?QXJ2ZSBIasO4bm5ldsOlZw==?= <arve@android.com>, 
-	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>, Ingo Molnar <mingo@redhat.com>, 
-	Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, 
-	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>, linux-mm <linux-mm@kvack.org>, 
-	kernel-team <kernel-team@android.com>, Oleg Nesterov <oleg@redhat.com>, 
-	Andy Lutomirski <luto@amacapital.net>, "Serge E. Hallyn" <serge@hallyn.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Mar 17, 2019 at 4:42 AM Christian Brauner <christian@brauner.io> wrote:
->
-> On Sat, Mar 16, 2019 at 09:53:06PM -0400, Joel Fernandes wrote:
-> > On Sat, Mar 16, 2019 at 12:37:18PM -0700, Suren Baghdasaryan wrote:
-> > > On Sat, Mar 16, 2019 at 11:57 AM Christian Brauner <christian@brauner.io> wrote:
-> > > >
-> > > > On Sat, Mar 16, 2019 at 11:00:10AM -0700, Daniel Colascione wrote:
-> > > > > On Sat, Mar 16, 2019 at 10:31 AM Suren Baghdasaryan <surenb@google.com> wrote:
-> > > > > >
-> > > > > > On Fri, Mar 15, 2019 at 11:49 AM Joel Fernandes <joel@joelfernandes.org> wrote:
-> > > > > > >
-> > > > > > > On Fri, Mar 15, 2019 at 07:24:28PM +0100, Christian Brauner wrote:
-> > > > > > > [..]
-> > > > > > > > > why do we want to add a new syscall (pidfd_wait) though? Why not just use
-> > > > > > > > > standard poll/epoll interface on the proc fd like Daniel was suggesting.
-> > > > > > > > > AFAIK, once the proc file is opened, the struct pid is essentially pinned
-> > > > > > > > > even though the proc number may be reused. Then the caller can just poll.
-> > > > > > > > > We can add a waitqueue to struct pid, and wake up any waiters on process
-> > > > > > > > > death (A quick look shows task_struct can be mapped to its struct pid) and
-> > > > > > > > > also possibly optimize it using Steve's TIF flag idea. No new syscall is
-> > > > > > > > > needed then, let me know if I missed something?
-> > > > > > > >
-> > > > > > > > Huh, I thought that Daniel was against the poll/epoll solution?
-> > > > > > >
-> > > > > > > Hmm, going through earlier threads, I believe so now. Here was Daniel's
-> > > > > > > reasoning about avoiding a notification about process death through proc
-> > > > > > > directory fd: http://lkml.iu.edu/hypermail/linux/kernel/1811.0/00232.html
-> > > > > > >
-> > > > > > > May be a dedicated syscall for this would be cleaner after all.
-> > > > > >
-> > > > > > Ah, I wish I've seen that discussion before...
-> > > > > > syscall makes sense and it can be non-blocking and we can use
-> > > > > > select/poll/epoll if we use eventfd.
-> > > > >
-> > > > > Thanks for taking a look.
-> > > > >
-> > > > > > I would strongly advocate for
-> > > > > > non-blocking version or at least to have a non-blocking option.
-> > > > >
-> > > > > Waiting for FD readiness is *already* blocking or non-blocking
-> > > > > according to the caller's desire --- users can pass options they want
-> > > > > to poll(2) or whatever. There's no need for any kind of special
-> > > > > configuration knob or non-blocking option. We already *have* a
-> > > > > non-blocking option that works universally for everything.
-> > > > >
-> > > > > As I mentioned in the linked thread, waiting for process exit should
-> > > > > work just like waiting for bytes to appear on a pipe. Process exit
-> > > > > status is just another blob of bytes that a process might receive. A
-> > > > > process exit handle ought to be just another information source. The
-> > > > > reason the unix process API is so awful is that for whatever reason
-> > > > > the original designers treated processes as some kind of special kind
-> > > > > of resource instead of fitting them into the otherwise general-purpose
-> > > > > unix data-handling API. Let's not repeat that mistake.
-> > > > >
-> > > > > > Something like this:
-> > > > > >
-> > > > > > evfd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
-> > > > > > // register eventfd to receive death notification
-> > > > > > pidfd_wait(pid_to_kill, evfd);
-> > > > > > // kill the process
-> > > > > > pidfd_send_signal(pid_to_kill, ...)
-> > > > > > // tend to other things
-> > > > >
-> > > > > Now you've lost me. pidfd_wait should return a *new* FD, not wire up
-> > > > > an eventfd.
-> > > > >
-> > >
-> > > Ok, I probably misunderstood your post linked by Joel. I though your
-> > > original proposal was based on being able to poll a file under
-> > > /proc/pid and then you changed your mind to have a separate syscall
-> > > which I assumed would be a blocking one to wait for process exit.
-> > > Maybe you can describe the new interface you are thinking about in
-> > > terms of userspace usage like I did above? Several lines of code would
-> > > explain more than paragraphs of text.
-> >
-> > Hey, Thanks Suren for the eventfd idea. I agree with Daniel on this. The idea
-> > from Daniel here is to wait for process death and exit events by just
-> > referring to a stable fd, independent of whatever is going on in /proc.
-> >
-> > What is needed is something like this (in highly pseudo-code form):
-> >
-> > pidfd = opendir("/proc/<pid>",..);
-> > wait_fd = pidfd_wait(pidfd);
-> > read or poll wait_fd (non-blocking or blocking whichever)
-> >
-> > wait_fd will block until the task has either died or reaped. In both these
-> > cases, it can return a suitable string such as "dead" or "reaped" although an
-> > integer with some predefined meaning is also Ok.
+his series fixes sh and sparc that did not advertise their gigantic page
+support and then were not able to allocate and free those pages at runtime.
+It renames MEMORY_ISOLATION && COMPACTION || CMA condition into the more
+accurate CONTIG_ALLOC, since it allows the definition of alloc_contig_range
+function.
+Finally, it then fixes the wrong definition of ARCH_HAS_GIGANTIC_PAGE config
+that, without MEMORY_ISOLATION && COMPACTION || CMA defined, did not allow
+architectures to free boottime allocated gigantic pages although unrelated.
 
-I want to return a siginfo_t: we already use this structure in other
-contexts to report exit status.
+Changes in v7:
+  I thought gigantic page support was settled at compile time, but Aneesh
+  and Michael have just come up with a patch proving me wrong for
+  powerpc: https://patchwork.ozlabs.org/patch/1047003/. So this version:
+  - reintroduces gigantic_page_supported renamed into
+    gigantic_page_runtime_supported
+  - reintroduces gigantic page page support corresponding checks (not
+    everywhere though: set_max_huge_pages check was redundant with
+    __nr_hugepages_store_common)
+  - introduces the possibility for arch to override this function
+    by using asm-generic/hugetlb.h current semantics although Aneesh
+    proposed something else.
 
-> > What that guarantees is, even if the task's PID has been reused, or the task
-> > has already died or already died + reaped, all of these events cannot race
-> > with the code above and the information passed to the user is race-free and
-> > stable / guaranteed.
-> >
-> > An eventfd seems to not fit well, because AFAICS passing the raw PID to
-> > eventfd as in your example would still race since the PID could have been
-> > reused by another process by the time the eventfd is created.
-> >
-> > Also Andy's idea in [1] seems to use poll flags to communicate various tihngs
-> > which is still not as explicit about the PID's status so that's a poor API
-> > choice compared to the explicit syscall.
-> >
-> > I am planning to work on a prototype patch based on Daniel's idea and post something
-> > soon (chatted with Daniel about it and will reference him in the posting as
-> > well), during this posting I will also summarize all the previous discussions
-> > and come up with some tests as well.  I hope to have something soon.
+Changes in v6:
+- Remove unnecessary goto since the fallthrough path does the same and is
+  the 'normal' behaviour, as suggested by Dave Hensen
+- Be more explicit in comment in set_max_huge_page: we return an error
+  if alloc_contig_range is not defined and the user tries to allocate a
+  gigantic page (we keep the same behaviour as before this patch), but we
+  now let her free boottime gigantic page, as suggested by Dave Hensen
+- Add Acked-by, thanks. 
 
-Thanks.
+Changes in v5:
+- Fix bug in previous version thanks to Mike Kravetz
+- Fix block comments that did not respect coding style thanks to Dave Hensen
+- Define ARCH_HAS_GIGANTIC_PAGE only for sparc64 as advised by David Miller
+- Factorize "def_bool" and "depends on" thanks to Vlastimil Babka
 
-> Having pidfd_wait() return another fd will make the syscall harder to
-> swallow for a lot of people I reckon.
-> What exactly prevents us from making the pidfd itself readable/pollable
-> for the exit staus? They are "special" fds anyway. I would really like
-> to avoid polluting the api with multiple different types of fds if possible.
+Changes in v4 as suggested by Dave Hensen:
+- Split previous version into small patches
+- Do not compile alloc_gigantic** functions for architectures that do not
+  support those pages
+- Define correct ARCH_HAS_GIGANTIC_PAGE in all arch that support them to avoid
+  useless runtime check
+- Add comment in set_max_huge_pages to explain that freeing is possible even
+  without CONTIG_ALLOC defined
+- Remove gigantic_page_supported function across all archs
 
-If pidfds had been their own file type, I'd agree with you. But pidfds
-are directories, which means that we're beholden to make them behave
-like directories normally do. I'd rather introduce another FD than
-heavily overload the semantics of a directory FD in one particular
-context. In no other circumstances are directory FDs also weird
-IO-data sources. Our providing a facility to get a new FD to which we
-*can* give pipe-like behavior does no harm and *usage* cleaner and
-easier to reason about.
+Changes in v3 as suggested by Vlastimil Babka and Dave Hansen:
+- config definition was wrong and is now in mm/Kconfig
+- COMPACTION_CORE was renamed in CONTIG_ALLOC
+
+Changes in v2 as suggested by Vlastimil Babka:
+- Get rid of ARCH_HAS_GIGANTIC_PAGE
+- Get rid of architecture specific gigantic_page_supported
+- Factorize CMA or (MEMORY_ISOLATION && COMPACTION) into COMPACTION_CORE 
+
+Alexandre Ghiti (4):
+  sh: Advertise gigantic page support
+  sparc: Advertise gigantic page support
+  mm: Simplify MEMORY_ISOLATION && COMPACTION || CMA into CONTIG_ALLOC
+  hugetlb: allow to free gigantic pages regardless of the configuration
+
+ arch/arm64/Kconfig                           |  2 +-
+ arch/arm64/include/asm/hugetlb.h             |  4 --
+ arch/powerpc/include/asm/book3s/64/hugetlb.h |  7 ---
+ arch/powerpc/platforms/Kconfig.cputype       |  2 +-
+ arch/s390/Kconfig                            |  2 +-
+ arch/s390/include/asm/hugetlb.h              |  3 --
+ arch/sh/Kconfig                              |  1 +
+ arch/sparc/Kconfig                           |  1 +
+ arch/x86/Kconfig                             |  2 +-
+ arch/x86/include/asm/hugetlb.h               |  4 --
+ arch/x86/mm/hugetlbpage.c                    |  2 +-
+ include/asm-generic/hugetlb.h                | 14 +++++
+ include/linux/gfp.h                          |  4 +-
+ mm/Kconfig                                   |  3 ++
+ mm/hugetlb.c                                 | 54 ++++++++++++++------
+ mm/page_alloc.c                              |  7 ++-
+ 16 files changed, 67 insertions(+), 45 deletions(-)
+
+-- 
+2.20.1
 
