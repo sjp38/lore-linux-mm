@@ -2,170 +2,280 @@ Return-Path: <SRS0=xdO8=RV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-13.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 282D4C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 16:21:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D8D5CC4360F
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 16:35:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D586A20863
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 16:21:33 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="MWC4/3S+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D586A20863
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 89331205C9
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 16:35:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 89331205C9
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6167D6B0003; Mon, 18 Mar 2019 12:21:33 -0400 (EDT)
+	id 0DC996B0003; Mon, 18 Mar 2019 12:35:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5C3BE6B0006; Mon, 18 Mar 2019 12:21:33 -0400 (EDT)
+	id 064126B0006; Mon, 18 Mar 2019 12:35:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4B4476B0007; Mon, 18 Mar 2019 12:21:33 -0400 (EDT)
+	id E6CE96B0007; Mon, 18 Mar 2019 12:35:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0713C6B0003
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 12:21:33 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id e5so19596898pfi.23
-        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 09:21:32 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 906586B0003
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 12:35:56 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id n125so2635582wmn.1
+        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 09:35:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:mime-version:content-disposition:user-agent;
-        bh=CgwRVS2Q+Iae+lbffdt/SU+OjpN+MyifpJVYq7Y3K8k=;
-        b=dNiZLauXz+hfYpLxfbEWLqOypJzW73bTiK273WDHu5xYwunz6IkozDKYUY85c+xTxp
-         uqY8mYYIKr0BU05Mu/Pp4TpUeusDpc04t9b2fYd00dMcthGnRHihbne9Ap3vlkuGonrz
-         DF5NYjl+PTZFUY8zUqxWsFSI6SQ0ZZgcDGESvAaBIL1ZmfCe5AA4U0jnlwCpqxvCEu9m
-         WgCo3FdtbfSbCeQrFMc+SYi70HR+TOqcAWThPAimXTNDUINJd/htIWKAQj42HHG5KAVZ
-         VQ52jd7nU6/0lsex/ruGEGSJVy/XN2ntMCJdZECEO1vXZNzg/vjHVwg3+PqNEv4B8B+H
-         A7rg==
-X-Gm-Message-State: APjAAAWrWqwQm8lMYXtvVFiz0t0Pq7V26MiK7y5Z/MCU8VgPzmD+k82i
-	D9j1k1D0BFFV5ZN5K9XN1sKv/QIc5jCiEFcnfC0aiiGoIjD6oucant7Y3DVF9JURDoMj9i3HGY9
-	NDc39NxHz0BuKDw3J9SSwtylpztxxfrcG38AWQvNiW622mS0SSO0tFXxK8AP3ECEtLg==
-X-Received: by 2002:a63:91c1:: with SMTP id l184mr208477pge.46.1552926092670;
-        Mon, 18 Mar 2019 09:21:32 -0700 (PDT)
-X-Received: by 2002:a63:91c1:: with SMTP id l184mr208402pge.46.1552926091607;
-        Mon, 18 Mar 2019 09:21:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552926091; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=Ok73Cd0+1oOdATm9yISCwTjN9oEDZNi1QdCRZyqCgiw=;
+        b=kK7YGEIOQgQllwfQwp/b15Vr1WL+PTIRD3bVvw83WO7Oy9khBAVBX/4L0RbIp1Sf/S
+         Wkklg4B6K0sGBOJUhNO8JIa241zi5uNLuEvoOW9eWssTIfAB9L64m0h1ESJM7ZpDuEJ9
+         Q0Y6rYDc7H8nacSVJxEb04AyaDOy3gBdOCYjKOnxsLvMCdaXGKzbm7t12sQ/Jnyjyn3f
+         29GIwPoHob4H/lYaEsByuxY9rYHlHYqU6FVe6X0/6UseA39vTxHDeZ06oahThr6sjQym
+         fB8MN6IfkwBbNme0kKxllo1f6V8CsQpC9/mir+9j7QxS4P8LOUYrGGqAv44xeQ3Sl+va
+         m0vA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+X-Gm-Message-State: APjAAAUi1kVCSWVONDHQQfL5rL/QG6MWUOcAP6hbw5NMEbYk6DZa6CjZ
+	9oFUV5kj8tZyJJ3TIJd5d2EHOjGEitsQjwwfocFlIq9ArxIi7IiBQpMUsLFdoHIyFoXTAL0r4xJ
+	SPWPnAhAY+LuoZ7ekY1fmUzSVMT2IG7bPFP/BYorfuzrBJiBS7s1Wsyl56hCS2oOnTQ==
+X-Received: by 2002:a1c:234d:: with SMTP id j74mr11077774wmj.130.1552926955881;
+        Mon, 18 Mar 2019 09:35:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz1/uYhDutaRUGBDGWrr8KBfuBRnrQcQ6qS529Q8pFVwf02IabtKC9KW1qmqJq4BEwTuJHi
+X-Received: by 2002:a1c:234d:: with SMTP id j74mr11077670wmj.130.1552926953966;
+        Mon, 18 Mar 2019 09:35:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552926953; cv=none;
         d=google.com; s=arc-20160816;
-        b=LJGDlR0MYMseQ18lyyzfEGoto590aqjA5U4Q0QMlvZE/0XzeamLhdcdWSg0fUy4f/G
-         zEK+GBa81HimcCHvGRn8LQ8G1PYl4IhrEZYnFR44TWlnBoQ62o28r6l/NF+MhyB388Wp
-         IHNKkiPyMxEDRt5tztHraxZuzshW86jd0Wrx8H1u/NOMgJ6kd4i0irndjmB29a0oPupv
-         49jL94rsbJzBRj7IQ+Wg46WZMyygeCpNpASJLwAcTyEV6XrMvi3OSg7Wwt5Z5jMYAhWK
-         g/P17dCXuoVH3Gy0v/IK+r87A6wTlj+Z4qQK2IYrGFubGtipSbY0RVUaoHVBWA7tpto5
-         vhgg==
+        b=s60GfCOjudoT+cye91IrpLJV884g6IJN5qf5l/WMfPRtCEQccmuDSK2B9GQVKaqpc/
+         mrRTYmz8U9XT8+ug115U1NH7PZYNGTntgEhHrHYNxQQD7+ep/KRByI7wEHHUEWxSr2ik
+         kYgAej2QgCHQW14owknTWmwp7yyNw4OYtLB7iw/uHxsjsGGqI8DY4gNemTpoP+MSZx6c
+         KToshm8xrJ0CG3xcLRNtlc/uKwkeheuxedRc4RDpjZqUfkfrTLz9rR6YL65oF7NCIn51
+         RQC1HMx6syzYaXeVof/XxZYvQxHOI9TIFk80r5+KxhndEkzYN8rZuQVIMj+rI6IVyO49
+         3QaQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=CgwRVS2Q+Iae+lbffdt/SU+OjpN+MyifpJVYq7Y3K8k=;
-        b=DIAEhJc3qnJbRE++ol31pdqDFjnuTbXrVRmGec0AbxzwEIBiVA6cmt7yBoxNAQ50zG
-         0VzGIy3rceJY/SVKJ05UIYDFNlNutdEfcMf6Ooev+rXNPogba+jhgYCUSU3h5xFX/irk
-         myRHLGtTRCuEMX/iesCiL2dx5w7fetNAparzxXW/uXfyZCjEbUWPLUGDW5GYqqMqSM2R
-         zqRs+xIvdvcxRCy9oYh+uCZj3YCjaBS681f8Vlgz/1+/kzDmVNjP532Ybw8XfYguo68f
-         7hG8qrRHo630qbB4Lmvxbcc+bzKgu3ItUNQ0ZdFTiSCm1FlA6S2TzS9pz8FgA3lyQuh5
-         90SQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=Ok73Cd0+1oOdATm9yISCwTjN9oEDZNi1QdCRZyqCgiw=;
+        b=B55UXRw/69EdSbb1Z+I7ARZ6r/wseARYwD4P0XvkMpprT0THfGMhUmh9oLgfEGWYlB
+         G4A+OPRwllx2Ndg8m5VKOZ9ShLIFw+LBPrIiccBjyDV8WHxLasMp5XtUop02MVymLiNE
+         5bXQMWGlfURIwvd8NZeVck3Mq8f94yOwPWp34V0qyKbYSsdxrmCot9m67emvOoocGZQH
+         jeob3SQVEBAUwxI8+/CzP4yjYQXo2DTwf0EleG1g4EiW/aGlr/dGkHAU1mR5GcinqYDL
+         +Q+E0RqAsf1rGGyYscchUhlQ/dYpsIEChe0RNrhvBsPlkOr4D5AIGC7G3pTj+sji/Sxm
+         zNwA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="MWC4/3S+";
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d8sor15655766pgc.51.2019.03.18.09.21.31
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 18 Mar 2019 09:21:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 66si6666132wmd.127.2019.03.18.09.35.53
+        for <linux-mm@kvack.org>;
+        Mon, 18 Mar 2019 09:35:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="MWC4/3S+";
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
-         :user-agent;
-        bh=CgwRVS2Q+Iae+lbffdt/SU+OjpN+MyifpJVYq7Y3K8k=;
-        b=MWC4/3S+X+/VHhs7voniM9phy/o7yqCWtKuyosSnpIUCAAnZP/Mn/DsNv3XRJweEef
-         jZRIeMihSOp1ASm83jxCAnAw3ViWzpZEBFUOSHzcpfJkGeBaG6F/TBcR6Kz4BH0AIqBf
-         Gzh9PBQPZ8pr/EcJVjRnUxjFWMrNxn3irZNRu3wMiyf1wognYBMph+ebK+gbMx7LhXoJ
-         oV0M9D36FS81wHAnGWahxYbcx4RxJ7lvr83vXwqLdwO4IYJZouer23ny/kJ1LkOP6sHP
-         AVVxXnLoumIaK6WbT6AKyhnGkge0WKU7awH8NUq8MTaMAlpkjQHFIeNFGlDycX5EI5GY
-         xXFA==
-X-Google-Smtp-Source: APXvYqyw1Bx/onz96XVk/VzfT2P30uQI4lOEdkGn1FqYErJitQaCHsJU2FF6AK2yAnsDrfL2aeQc4A==
-X-Received: by 2002:a65:52c9:: with SMTP id z9mr5436469pgp.227.1552926091321;
-        Mon, 18 Mar 2019 09:21:31 -0700 (PDT)
-Received: from jordon-HP-15-Notebook-PC ([106.51.18.188])
-        by smtp.gmail.com with ESMTPSA id h184sm24617707pfc.78.2019.03.18.09.21.29
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 18 Mar 2019 09:21:30 -0700 (PDT)
-Date: Mon, 18 Mar 2019 21:56:05 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-To: akpm@linux-foundation.org, mike.kravetz@oracle.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, willy@infradead.org
-Subject: [PATCH] include/linux/hugetlb.h: Convert to use vm_fault_t
-Message-ID: <20190318162604.GA31553@jordon-HP-15-Notebook-PC>
+       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id AB48D1650;
+	Mon, 18 Mar 2019 09:35:52 -0700 (PDT)
+Received: from e119884-lin.cambridge.arm.com (e119884-lin.cambridge.arm.com [10.1.196.72])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 85D5F3F614;
+	Mon, 18 Mar 2019 09:35:46 -0700 (PDT)
+From: Vincenzo Frascino <vincenzo.frascino@arm.com>
+To: linux-arm-kernel@lists.infradead.org,
+	linux-doc@vger.kernel.org,
+	linux-mm@kvack.org,
+	linux-arch@vger.kernel.org,
+	linux-kselftest@vger.kernel.org,
+	linux-kernel@vger.kernel.org
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>,
+	Alexei Starovoitov <ast@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Arnaldo Carvalho de Melo <acme@kernel.org>,
+	Branislav Rankov <Branislav.Rankov@arm.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Chintan Pandya <cpandya@codeaurora.org>,
+	Daniel Borkmann <daniel@iogearbox.net>,
+	Dave Martin <Dave.Martin@arm.com>,
+	"David S. Miller" <davem@davemloft.net>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Eric Dumazet <edumazet@google.com>,
+	Evgeniy Stepanov <eugenis@google.com>,
+	Graeme Barnes <Graeme.Barnes@arm.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Ingo Molnar <mingo@kernel.org>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Kate Stewart <kstewart@linuxfoundation.org>,
+	Kees Cook <keescook@chromium.org>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+	Kostya Serebryany <kcc@google.com>,
+	Lee Smith <Lee.Smith@arm.com>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Shuah Khan <shuah@kernel.org>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
+	Will Deacon <will.deacon@arm.com>
+Subject: [PATCH v2 0/4] arm64 relaxed ABI
+Date: Mon, 18 Mar 2019 16:35:29 +0000
+Message-Id: <20190318163533.26838-1-vincenzo.frascino@arm.com>
+X-Mailer: git-send-email 2.21.0
+In-Reply-To: <cover.1552679409.git.andreyknvl@google.com>
+References: <cover.1552679409.git.andreyknvl@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-User-Agent: Mutt/1.5.21 (2010-09-15)
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-kbuild produces the below warning ->
+On arm64 the TCR_EL1.TBI0 bit has been always enabled in the Linux
+kernel hence the userspace (EL0) is allowed to set a non-zero value
+in the top byte but the resulting pointers are not allowed at the
+user-kernel syscall ABI boundary.
 
-tree: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-head:   5453a3df2a5eb49bc24615d4cf0d66b2aae05e5f
-commit 3d3539018d2c ("mm: create the new vm_fault_t type")
-reproduce:
-        # apt-get install sparse
-        git checkout 3d3539018d2cbd12e5af4a132636ee7fd8d43ef0
-        make ARCH=x86_64 allmodconfig
-        make C=1 CF='-fdiagnostic-prefix -D__CHECK_ENDIAN__'
+This patchset proposes a relaxation of the ABI and a mechanism to
+advertise it to the userspace via an AT_FLAGS.
 
->> mm/memory.c:3968:21: sparse: incorrect type in assignment (different
->> base types) @@    expected restricted vm_fault_t [usertype] ret @@
->> got e] ret @@
-   mm/memory.c:3968:21:    expected restricted vm_fault_t [usertype] ret
-   mm/memory.c:3968:21:    got int
+The rationale behind the choice of AT_FLAGS is that the Unix System V
+ABI defines AT_FLAGS as "flags", leaving some degree of freedom in
+interpretation.
+There are two previous attempts of using AT_FLAGS in the Linux Kernel
+for different reasons: the first was more generic and was used to expose
+the support for the GNU STACK NX feature [1] and the second was done for
+the MIPS architecture and was used to expose the support of "MIPS ABI
+Extension for IEEE Std 754 Non-Compliant Interlinking" [2].
+Both the changes are currently _not_ merged in mainline.
+The only architecture that reserves some of the bits in AT_FLAGS is
+currently MIPS, which introduced the concept of platform specific ABI
+(psABI) reserving the top-byte [3].
 
-This patch will convert to return vm_fault_t type for hugetlb_fault()
-when CONFIG_HUGETLB_PAGE =n.
+When ARM64_AT_FLAGS_SYSCALL_TBI is set the kernel is advertising
+to the userspace that a relaxed ABI is supported hence this type
+of pointers are now allowed to be passed to the syscalls when they are
+in memory ranges obtained by anonymous mmap() or brk().
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
----
- include/linux/hugetlb.h | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+The userspace _must_ verify that the flag is set before passing tagged
+pointers to the syscalls allowed by this relaxation.
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 087fd5f4..0ee502a 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -203,7 +203,6 @@ static inline void hugetlb_show_meminfo(void)
- #define pud_huge(x)	0
- #define is_hugepage_only_range(mm, addr, len)	0
- #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
--#define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
- #define hugetlb_mcopy_atomic_pte(dst_mm, dst_pte, dst_vma, dst_addr, \
- 				src_addr, pagep)	({ BUG(); 0; })
- #define huge_pte_offset(mm, address, sz)	0
-@@ -234,6 +233,13 @@ static inline void __unmap_hugepage_range(struct mmu_gather *tlb,
- {
- 	BUG();
- }
-+static inline vm_fault_t hugetlb_fault(struct mm_struct *mm,
-+				struct vm_area_struct *vma, unsigned long address,
-+				unsigned int flags)
-+{
-+	BUG();
-+	return 0;
-+}
- 
- #endif /* !CONFIG_HUGETLB_PAGE */
- /*
+More in general, exposing the ARM64_AT_FLAGS_SYSCALL_TBI flag and mandating
+to the software to check that the feature is present, before using the
+associated functionality, it provides a degree of control on the decision
+of disabling such a feature in future without consequently breaking the
+userspace.
+
+The change required a modification of the elf common code, because in Linux
+the AT_FLAGS are currently set to zero by default by the kernel.
+
+The newly added flag has been verified on arm64 using the code below.
+#include <stdio.h>
+#include <stdbool.h>
+#include <sys/auxv.h>
+
+#define ARM64_AT_FLAGS_SYSCALL_TBI     (1 << 0)
+
+bool arm64_syscall_tbi_is_present(void)
+{
+        unsigned long at_flags = getauxval(AT_FLAGS);
+        if (at_flags & ARM64_AT_FLAGS_SYSCALL_TBI)
+                return true;
+
+        return false;
+}
+
+void main()
+{
+        if (arm64_syscall_tbi_is_present())
+                printf("ARM64_AT_FLAGS_SYSCALL_TBI is present\n");
+}
+
+This patchset should be merged together with [4].
+
+[1] https://patchwork.ozlabs.org/patch/579578/
+[2] https://lore.kernel.org/patchwork/cover/618280/
+[3] ftp://www.linux-mips.org/pub/linux/mips/doc/ABI/psABI_mips3.0.pdf
+[4] https://patchwork.kernel.org/cover/10674351/
+
+ABI References:
+---------------
+Sco SysV ABI: http://www.sco.com/developers/gabi/2003-12-17/contents.html
+PowerPC AUXV: http://openpowerfoundation.org/wp-content/uploads/resources/leabi/content/dbdoclet.50655242_98651.html
+AMD64 ABI: https://www.cs.tufts.edu/comp/40-2012f/readings/amd64-abi.pdf
+x86 ABI: https://www.uclibc.org/docs/psABI-i386.pdf
+MIPS ABI: ftp://www.linux-mips.org/pub/linux/mips/doc/ABI/psABI_mips3.0.pdf
+ARM ABI: http://infocenter.arm.com/help/topic/com.arm.doc.ihi0044f/IHI0044F_aaelf.pdf
+SPARC ABI: http://math-atlas.sourceforge.net/devel/assembly/abi_sysV_sparc.pdf
+
+CC: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Alexei Starovoitov <ast@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrey Konovalov <andreyknvl@google.com>
+Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
+Cc: Branislav Rankov <Branislav.Rankov@arm.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Chintan Pandya <cpandya@codeaurora.org>
+Cc: Daniel Borkmann <daniel@iogearbox.net>
+Cc: Dave Martin <Dave.Martin@arm.com>
+Cc: "David S. Miller" <davem@davemloft.net>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Eric Dumazet <edumazet@google.com>
+Cc: Evgeniy Stepanov <eugenis@google.com>
+Cc: Graeme Barnes <Graeme.Barnes@arm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Jacob Bramley <Jacob.Bramley@arm.com>
+Cc: Kate Stewart <kstewart@linuxfoundation.org>
+Cc: Kees Cook <keescook@chromium.org>
+Cc: Kevin Brodsky <kevin.brodsky@arm.com>
+Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Kostya Serebryany <kcc@google.com>
+Cc: Lee Smith <Lee.Smith@arm.com>
+Cc: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+Cc: Mark Rutland <mark.rutland@arm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>
+Cc: Robin Murphy <robin.murphy@arm.com>
+Cc: Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>
+Cc: Shuah Khan <shuah@kernel.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>
+Cc: Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>
+Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
+
+Changes:
+--------
+v2:
+  - Rebased on 5.1-rc1
+  - Addressed review comments
+  - Modified tagged-pointers.txt to be compliant with the
+    new ABI relaxation
+
+Vincenzo Frascino (4):
+  elf: Make AT_FLAGS arch configurable
+  arm64: Define Documentation/arm64/elf_at_flags.txt
+  arm64: Relax Documentation/arm64/tagged-pointers.txt
+  arm64: elf: Advertise relaxed ABI
+
+ Documentation/arm64/elf_at_flags.txt    | 133 ++++++++++++++++++++++++
+ Documentation/arm64/tagged-pointers.txt |  23 ++--
+ arch/arm64/include/asm/atflags.h        |   7 ++
+ arch/arm64/include/asm/elf.h            |   5 +
+ arch/arm64/include/uapi/asm/atflags.h   |   8 ++
+ fs/binfmt_elf.c                         |   6 +-
+ fs/binfmt_elf_fdpic.c                   |   6 +-
+ fs/compat_binfmt_elf.c                  |   5 +
+ 8 files changed, 184 insertions(+), 9 deletions(-)
+ create mode 100644 Documentation/arm64/elf_at_flags.txt
+ create mode 100644 arch/arm64/include/asm/atflags.h
+ create mode 100644 arch/arm64/include/uapi/asm/atflags.h
+
 -- 
-1.9.1
+2.21.0
 
