@@ -2,96 +2,115 @@ Return-Path: <SRS0=xdO8=RV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5249CC43381
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 09:33:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 460B9C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 09:43:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 04C9A2175B
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 09:33:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 04C9A2175B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id C4E992083D
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 09:43:12 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=eInfochipsIndia.onmicrosoft.com header.i=@eInfochipsIndia.onmicrosoft.com header.b="NUefAe0j"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4E992083D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=einfochips.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 723BC6B0003; Mon, 18 Mar 2019 05:33:25 -0400 (EDT)
+	id 2FF5E6B0007; Mon, 18 Mar 2019 05:43:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6AD1F6B0006; Mon, 18 Mar 2019 05:33:25 -0400 (EDT)
+	id 287206B0008; Mon, 18 Mar 2019 05:43:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 59C6B6B0007; Mon, 18 Mar 2019 05:33:25 -0400 (EDT)
+	id 0DCFC6B000A; Mon, 18 Mar 2019 05:43:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DC6C56B0003
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 05:33:24 -0400 (EDT)
-Received: by mail-lf1-f71.google.com with SMTP id g19so1491403lfb.11
-        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 02:33:24 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B672D6B0007
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 05:43:11 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id p127so18043535pga.20
+        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 02:43:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=ptwxEo0Z5+QHHMSgaXZET7bq/uN1WA+n1cncfO/jtg0=;
-        b=K0dqweU93hj7G7gNP3zSuGbohQ9+1OC6tHGkaBXIvbvoN5Nv+1pKwHukE0A0lEVZ09
-         V7q+8CpIMPwu+64WmjwQxUDyt+8lO+68V7ZWUdTxoDmdKrDcPBCuqSGxlTqFO5EB0czO
-         29/ysozYo5qJWHW+iV1BBHDpoK93mjZrlIDtwId7fYnSrCtRcBroFBo0FAtOzbkEjuFk
-         jI7EJxCN+TQgvY4PpvERrmiyZwp5+Ea1ekgQOy60UAiFasC2eWHOtGNm/c/LpsSTS930
-         XTXpDec9dEqvUV4sE0LLFWQv9GuDH2rCQsE6LSl62byZA45Buo2DvmLIo1aMQt3J1wFf
-         F7YA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAUe/CgtpxgIk3knS/rUT5Wui+BcXv7GNwkyxDHwEpcpxSq8/HfR
-	4HWeg0/v1nY1pJ0myZ8V1k/RfsTvY8k86gUthTi4ypbLDQx5UzaeHDdZo1aj3yaU6/AQIEn5cMG
-	FtG9446y7YHyNCX6cpnprYC4ZCqrD29yYi4W+ZJvuwKL1dPGxLZ7qo5n05RQKPyAuOw==
-X-Received: by 2002:ac2:5204:: with SMTP id a4mr7049988lfl.149.1552901604262;
-        Mon, 18 Mar 2019 02:33:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx5Bg5nsfHUkXRWT4s99VYChONE6OZ66bI1haxD9jWX1SMvc0WMLMZrXGm6umAn6OsjkJQA
-X-Received: by 2002:ac2:5204:: with SMTP id a4mr7049959lfl.149.1552901603181;
-        Mon, 18 Mar 2019 02:33:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552901603; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-transfer-encoding:mime-version;
+        bh=fLpoGd/9J1BXkIwPzl0F60fCH9yJiaJoywJBV2fSvoc=;
+        b=b3eb2mux98Ai2lcnNiYn7lMPzVJWoK76l42HaHZfpmu//KTN9hJMjYRjhT+WO9xboN
+         DTtlLbgxyeoPS9yrPPKkOUE6kmPc/pArnWgvkYiLiM6cXAJZoamigbdsoKSyNvOFWru7
+         5s4gg4tjTLYb1L/SAJPl3rBnqCkBFbmVwbPrARWUfauY/d6Js1wNKgPeRF0e7gXpXQsx
+         Hd8pzfUQ5A6yrd4fw1ulwTDyVdHWHc/mtcm9O526akSTUp5B1X14UfcFQWsQEV0o4OUy
+         6/q/exnEveDp+QLXAvWIwMFfDUrtgryk37O/G8q/VxeWGEzrl1f92u7e3gsCKiNE8gAe
+         D9UA==
+X-Gm-Message-State: APjAAAWfVQPT+3fC4DeQiC/kDkcvwkUA8YBYDLmOjfcfyXoWZvXDwYx8
+	YY8af7J06P+hNO3LN3sg7hs64YiKID6rtWNekBCP5DJ8y1EazTOjhh4IRz8FpSYsmjbRVJQxWHB
+	CefR+yusWqQXvd0x2umZq44PrAAw/PCJrvXwOLScVVXI3PMAzzIhItWy9Cvy7qvcaug==
+X-Received: by 2002:a17:902:1008:: with SMTP id b8mr18431794pla.120.1552902191172;
+        Mon, 18 Mar 2019 02:43:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyMgm27vuNDNsRi7T9oW6UokvD1y1am9MtqE6P3LIT7C1NZ1gAyZBuWVWe6BhDp//WGlzLF
+X-Received: by 2002:a17:902:1008:: with SMTP id b8mr18431725pla.120.1552902190104;
+        Mon, 18 Mar 2019 02:43:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552902190; cv=none;
         d=google.com; s=arc-20160816;
-        b=lZR3++TXpFr2lCcYiKBi2TmeHqIfbJzxnJH+AGvbEqJLYToJBfMYt9J7EYX6zAck/7
-         0rGFObVZr6PN+QGsajLe1o3Wxg+rTX8y8HVpIYCxlTvGfv3PXLp2vzfOZG9UWwksOUB1
-         WCc+DXX6BtOfT9hGfZwov+1/sMKn+kkuxhsirGL/QAJmtQ8HrgKh49SIZ2qXwgnug4xh
-         ATuXhvkWWshhmQg63TvnIXlc3aM/kwWA50HK49n5UuTfQVRozXh+g+NY5dpVm9Xt5cZb
-         Ryc04HSRvPQVEf87HM5g0hy+eZTohC1MYqDBnhzdwTE6qMSFFDiYJMXNebRZfPVwUzqc
-         MYmA==
+        b=iM7bT5hf8wVtSAjhtHW4cII1gpIlG8slge1k/AYbnYBuHyQjyIMFs2F8SzWHf+H2TV
+         S95nKdtiRnXY+xI1heHHLLHSd4vFIkei/2vvBHBhKfEC7Rbz3I37I0FRvdaFLrB9O5T7
+         oXKKF7dADoFy/0q/nD8WIh98sHofVNFod6k5QANLlaOLXqMnhqHF/Hyx1sgwm5mzzLSH
+         vKqe8dzNFIRH6dvFOpCd0rRI8VQ4Z9SqLHHy1cN1yqZb7MSDkRy4qwvdnL4FJvUGo46P
+         DluDCjrTQcquJ3rqWgGlvNSzKcR3v32L854trsfSY7i8y6s6FPWn+L2Zo/9v6jCX11Pq
+         XEHg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=ptwxEo0Z5+QHHMSgaXZET7bq/uN1WA+n1cncfO/jtg0=;
-        b=GCfkmjKjJa9qrLD4OLmYNaU1UHLMPanlVKSFoCWSePttYJFDtQjmrbc/spasGVafoT
-         PAZSxtfVMex2CA+9lKw2sbCraYeyOQvG46BrXaGlaV6uQVbuGSufFPI0EddRZuyly/IQ
-         Oywld889J12I2POCvwyfYa/OiBT9jQsos6aaVqcBSbDxG5Z1vj+sTtKdUDyIKRLRC8rx
-         Rf2dG5vbOj6h6jE7q7TXQUnMAsHbT8UG4jklMtXrSbL3tuhg4JxsPSy2/IIst3MqnfDq
-         FK3Z37KgFHnwreJmm1f3Hj5XkjOOCSSp5ZLH/tHbUhJJ9L1MXTE8L+YdufECEX1QnXS5
-         GrHg==
+        h=mime-version:content-transfer-encoding:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=fLpoGd/9J1BXkIwPzl0F60fCH9yJiaJoywJBV2fSvoc=;
+        b=H2Nkj7AQxZaGDpb7BGhib1ljcZOHSTv/OmaMeIRDNT/xZtK1nqydya7RVNhxEk4Vi0
+         v/AYLG34ULYB6p2cO47bN4xuJTXGFEbseTGEQj6ISJh7cwBH+/ULZRBH4fyPNSralSZJ
+         6rTWr8egTctan3/f01SMcO6l8hRCsaO7MGH+W600DQknoZad8tuh1LC6vN0mrspA4gVS
+         AI3k0/XHXJ0ZDLHnRjnancF9PYIcmMSXn7Kfh9w2wwmTyhpiaDs/cnwM20tPzFO2qJpY
+         /P+D7S+RO6WsgGPm7M/ecYtqUe1MyxnAKyZWEg4SR1mdTJ3bkcUeN6ibr/82ikIaRr9M
+         NZxA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id x17si6320805ljh.59.2019.03.18.02.33.22
+       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=NUefAe0j;
+       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.132.83 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
+Received: from APC01-PU1-obe.outbound.protection.outlook.com (mail-eopbgr1320083.outbound.protection.outlook.com. [40.107.132.83])
+        by mx.google.com with ESMTPS id g1si8263425pgq.227.2019.03.18.02.43.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Mar 2019 02:33:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 18 Mar 2019 02:43:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.132.83 as permitted sender) client-ip=40.107.132.83;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.169]
-	by relay.sw.ru with esmtp (Exim 4.91)
-	(envelope-from <ktkhai@virtuozzo.com>)
-	id 1h5odw-00056m-6P; Mon, 18 Mar 2019 12:33:16 +0300
+       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=NUefAe0j;
+       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.132.83 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=eInfochipsIndia.onmicrosoft.com; s=selector1-einfochips-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=fLpoGd/9J1BXkIwPzl0F60fCH9yJiaJoywJBV2fSvoc=;
+ b=NUefAe0jeBbxwagqbGmLHbKmeNE9w1KaOMhcelsFVgev89jtJMzY83YqzQirTz0GECRZNnOU0RZOHv43Ooxrk6zjRROIs+r2Q33/sehfe4CvtC57RS29ENigS6pajPjptavchH/l96h83vgDjc8mdnGTvpLZM51Gb9LefSeRKks=
+Received: from SG2PR02MB3098.apcprd02.prod.outlook.com (20.177.88.78) by
+ SG2PR02MB3608.apcprd02.prod.outlook.com (20.177.170.141) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1709.14; Mon, 18 Mar 2019 09:43:04 +0000
+Received: from SG2PR02MB3098.apcprd02.prod.outlook.com
+ ([fe80::f432:20e4:2d22:e60b]) by SG2PR02MB3098.apcprd02.prod.outlook.com
+ ([fe80::f432:20e4:2d22:e60b%4]) with mapi id 15.20.1709.015; Mon, 18 Mar 2019
+ 09:43:04 +0000
+From: Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>, Vlastimil Babka <vbabka@suse.cz>,
+	Michal Hocko <mhocko@kernel.org>, "aneesh.kumar@linux.ibm.com"
+	<aneesh.kumar@linux.ibm.com>
+CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"minchan@kernel.org" <minchan@kernel.org>, "linux-mm@kvack.org"
+	<linux-mm@kvack.org>, "khandual@linux.vnet.ibm.com"
+	<khandual@linux.vnet.ibm.com>, "hillf.zj@alibaba-inc.com"
+	<hillf.zj@alibaba-inc.com>
 Subject: Re: [External] Re: vmscan: Reclaim unevictable pages
-To: Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>,
- Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>,
- "aneesh.kumar@linux.ibm.com" <aneesh.kumar@linux.ibm.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- "minchan@kernel.org" <minchan@kernel.org>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>,
- "hillf.zj@alibaba-inc.com" <hillf.zj@alibaba-inc.com>
-References: <SG2PR02MB3098A05E09B0D3F3CB1C3B9BE84B0@SG2PR02MB3098.apcprd02.prod.outlook.com>
+Thread-Topic: [External] Re: vmscan: Reclaim unevictable pages
+Thread-Index: AQHU3WaYCAMWaFadm0e/0+hd2XPYGaYRGYZ/gAAG5oCAAAD82g==
+Date: Mon, 18 Mar 2019 09:43:04 +0000
+Message-ID:
+ <SG2PR02MB3098EEAF291BFD72F4163936E8470@SG2PR02MB3098.apcprd02.prod.outlook.com>
+References:
+ <SG2PR02MB3098A05E09B0D3F3CB1C3B9BE84B0@SG2PR02MB3098.apcprd02.prod.outlook.com>
  <SG2PR02MB309806967AE91179CAFEC34BE84B0@SG2PR02MB3098.apcprd02.prod.outlook.com>
  <SG2PR02MB3098B751EC6B8E32806A42FBE84B0@SG2PR02MB3098.apcprd02.prod.outlook.com>
  <20190314084120.GF7473@dhcp22.suse.cz>
@@ -102,173 +121,325 @@ References: <SG2PR02MB3098A05E09B0D3F3CB1C3B9BE84B0@SG2PR02MB3098.apcprd02.prod.
  <SG2PR02MB3098AB587F4BFCD6B9D042FDE8440@SG2PR02MB3098.apcprd02.prod.outlook.com>
  <SG2PR02MB3098E6F2C4BAEB56AE071EDCE8440@SG2PR02MB3098.apcprd02.prod.outlook.com>
  <0b86dbca-cbc9-3b43-e3b9-8876bcc24f22@suse.cz>
- <SG2PR02MB309841EA4764E675D4649139E8470@SG2PR02MB3098.apcprd02.prod.outlook.com>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <56862fc0-3e4b-8d1e-ae15-0df32bf5e4c0@virtuozzo.com>
-Date: Mon, 18 Mar 2019 12:33:15 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+ <SG2PR02MB309841EA4764E675D4649139E8470@SG2PR02MB3098.apcprd02.prod.outlook.com>,<56862fc0-3e4b-8d1e-ae15-0df32bf5e4c0@virtuozzo.com>
+In-Reply-To: <56862fc0-3e4b-8d1e-ae15-0df32bf5e4c0@virtuozzo.com>
+Accept-Language: en-GB, en-US
+Content-Language: en-GB
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=pankaj.suryawanshi@einfochips.com; 
+x-originating-ip: [14.98.130.2]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 2f924ac6-db8f-48bc-b334-08d6ab861e6a
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(7168020)(4627221)(201703031133081)(201702281549075)(8990200)(5600127)(711020)(4605104)(2017052603328)(7153060)(7193020);SRVR:SG2PR02MB3608;
+x-ms-traffictypediagnostic: SG2PR02MB3608:|SG2PR02MB3608:
+x-ms-exchange-purlcount: 1
+x-microsoft-antispam-prvs:
+ <SG2PR02MB360808C2E3A957348B762E2EE8470@SG2PR02MB3608.apcprd02.prod.outlook.com>
+x-forefront-prvs: 098076C36C
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(39840400004)(376002)(136003)(346002)(366004)(396003)(54534003)(199004)(189003)(256004)(5024004)(14444005)(4326008)(26005)(102836004)(78486014)(55236004)(6506007)(478600001)(53546011)(186003)(99286004)(25786009)(2906002)(33656002)(7696005)(14454004)(81156014)(81166006)(68736007)(316002)(105586002)(8936002)(93886005)(7736002)(305945005)(8676002)(74316002)(76176011)(106356001)(229853002)(55016002)(6436002)(9686003)(6306002)(53936002)(97736004)(54906003)(110136005)(3846002)(966005)(6246003)(71190400001)(71200400001)(446003)(486006)(5660300002)(44832011)(2501003)(52536014)(66574012)(11346002)(476003)(86362001)(6116002)(66066001);DIR:OUT;SFP:1101;SCL:1;SRVR:SG2PR02MB3608;H:SG2PR02MB3098.apcprd02.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: einfochips.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ iWgcn1uVKIbEp4RPLYmBxc+6EG3OicqwxcCsZ16YRcWQ4TMI7nqLisz9lQTJk3YMikLr3uYqQ5iBp5/5X2lH/li4L5qfsnqH7CWDgC+1xa+tqaZJAm9pgiBTlslOUn6hfTwuTx40sIA8jJJhPMfuJH+cErHt4CmaMmeD7nVlmSmbG2zvIiVQxzWY3h0+lqelyFWwsp/yqWltHIsVyJ8mf1IHaSYs3WHn7VlDco1k+IALxhWPF0OKCFVf8u/Y/VEoJVuQvmSWL6r7gX44hKSBwHU4+OxYRaB528Zp7g/GugqYmbHsdnaYlfkhYa1/Y62ZePtFd0NfTDCDU8Qrx9HLDqOhO5kyI9RsKxzS+BwbixidWzYEjgdSfmmOwavkvXg1exjdd99TggS723Q4PZOEvVzyhzvLoh1oGhBHLdTdjyo=
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <SG2PR02MB309841EA4764E675D4649139E8470@SG2PR02MB3098.apcprd02.prod.outlook.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
-Content-Transfer-Encoding: base64
+X-OriginatorOrg: einfochips.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 2f924ac6-db8f-48bc-b334-08d6ab861e6a
+X-MS-Exchange-CrossTenant-originalarrivaltime: 18 Mar 2019 09:43:04.2089
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 0adb040b-ca22-4ca6-9447-ab7b049a22ff
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: SG2PR02MB3608
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-SGksIFBhbmthaiwNCg0KT24gMTguMDMuMjAxOSAxMjowOSwgUGFua2FqIFN1cnlhd2Fuc2hp
-IHdyb3RlOg0KPiANCj4gSGVsbG8NCj4gDQo+IHNocmlua19wYWdlX2xpc3QoKSByZXR1cm5z
-ICwgbnVtYmVyIG9mIHBhZ2VzIHJlY2xhaW1lZCwgd2hlbiBwYWdlcyBpcyB1bmV2aWN0YWJs
-ZSBpdCByZXR1cm5zIFZNX0JVR19PTl9QQUdFKFBhZ2VMUlUocGFnZSkgfHwgUGFnZVVuZXZp
-Y2F0YmxlKHBhZ2UpLHBhZ2UpOw0KDQp0aGUgZ2VuZXJhbCBpZGVhIGlzIHNocmlua19wYWdl
-X2xpc3QoKSBjYW4ndCBpdGVyYXRlIFBhZ2VVbmV2aWN0YWJsZSgpIHBhZ2VzLg0KUGFnZVVu
-ZXZpY3RhYmxlKCkgcGFnZXMgYXJlIG5ldmVyIGJlaW5nIGFkZGVkIHRvIGxpc3RzLCB3aGlj
-aCBzaHJpbmtfcGFnZV9saXN0KCkNCnVzZXMgZm9yIGl0ZXJhdGlvbi4gQWxzbywgYSBwYWdl
-IGNhbid0IGJlIG1hcmtlZCBhcyBQYWdlVW5ldmljdGFibGUoKSwgd2hlbg0KaXQncyBhdHRh
-Y2hlZCB0byBhIHNocmlua2FibGUgbGlzdC4NCg0KU28sIHRoZSBwcm9ibGVtIHNob3VsZCBi
-ZSBzb21ld2hlcmUgb3V0c2lkZSBzaHJpbmtfcGFnZV9saXN0KCkuDQoNCkkgd29uJ3Qgc3Vn
-Z2VzdCB5b3Ugc29tZXRoaW5nIGFib3V0IENNQSwgc2luY2UgSSBoYXZlbid0IGRpdmVkIGlu
-IHRoYXQgY29kZS4NCg0KPiBXZSBjYW4gYWRkIHRoZSB1bmV2aWN0YWJsZSBwYWdlcyBpbiBy
-ZWNsYWltIGxpc3QgaW4gc2hyaW5rX3BhZ2VfbGlzdCgpLCByZXR1cm4gdG90YWwgbnVtYmVy
-IG9mIHJlY2xhaW0gcGFnZXMgaW5jbHVkaW5nIHVuZXZpY3RhYmxlIHBhZ2VzLCBsZXQgdGhl
-IGNhbGxlciBoYW5kbGUgdW5ldmljdGFibGUgcGFnZXMuDQo+IA0KPiBJIHRoaW5rIHRoZSBw
-cm9ibGVtIGlzIHNocmlua19wYWdlX2xpc3QgaXMgYXdrYXJkLiBJZiBwYWdlIGlzIHVuZXZp
-Y3RhYmxlIGl0IGdvdG8gYWN0aXZhdGVfbG9ja2VkLT5rZWVwX2xvY2tlZC0+a2VlcCBsYWJs
-ZXMsIGtlZXAgbGFibGUgbGlzdF9hZGQgdGhlIHVuZXZpY3RhYmxlIHBhZ2VzIGFuZCB0aHJv
-dyB0aGUgVk1fQlVHIGluc3RlYWQgb2YgcGFzc2luZyBpdCB0byBjYWxsZXIgd2hpbGUgaXQg
-cmVsaWVzIG9uIGNhbGxlciBmb3Igbm9uLXJlY2xhaW1lZC1ub24tdW5ldmljdGFibGUgIHBh
-Z2UncyBwdXRiYWNrLg0KPiBJIHRoaW5rIHdlIGNhbiBtYWtlIGl0IGNvbnNpc3RlbnQgc28g
-dGhhdCBzaHJpbmtfcGFnZV9saXN0IGNvdWxkIHJldHVybiBub24tcmVjbGFpbWVkIHBhZ2Vz
-IHZpYSBwYWdlX2xpc3QgYW5kIGNhbGxlciBjYW4gaGFuZGxlIGl0LiBBcyBhbiBhZHZhbmNl
-LCBpdCBjb3VsZCB0cnkgdG8gbWlncmF0ZSBtbG9ja2VkIHBhZ2VzIHdpdGhvdXQgcmV0cmlh
-bC4NCj4gDQo+IA0KPiBCZWxvdyBpcyB0aGUgaXNzdWUgb2YgQ01BX0FMTE9DIG9mIGxhcmdl
-IHNpemUgYnVmZmVyIDogKEtlcm5lbCB2ZXJzaW9uIC0gNC4xNC42NSAoT24gQW5kcm9pZCBw
-aWUgW0FSTV0pKS4NCj4gDQo+IFugoCAyNC43MTg3OTJdIHBhZ2UgZHVtcGVkIGJlY2F1c2U6
-IFZNX0JVR19PTl9QQUdFKFBhZ2VMUlUocGFnZSkgfHwgUGFnZVVuZXZpY3RhYmxlKHBhZ2Up
-KQ0KPiBboKAgMjQuNzI2OTQ5XSBwYWdlLT5tZW1fY2dyb3VwOmJkMDA4YzAwDQo+IFugoCAy
-NC43MzA2OTNdIC0tLS0tLS0tLS0tLVsgY3V0IGhlcmUgXS0tLS0tLS0tLS0tLQ0KPiBboKAg
-MjQuNzM1MzA0XSBrZXJuZWwgQlVHIGF0IG1tL3Ztc2Nhbi5jOjEzNTAhDQo+IFugoCAyNC43
-Mzk0NzhdIEludGVybmFsIGVycm9yOiBPb3BzIC0gQlVHOiAwIFsjMV0gUFJFRU1QVCBTTVAg
-QVJNDQo+IA0KPiANCj4gQmVsb3cgaXMgdGhlIHBhdGNoIHdoaWNoIHNvbHZlZCB0aGlzIGlz
-c3VlIDoNCj4gDQo+IGRpZmYgLS1naXQgYS9tbS92bXNjYW4uYyBiL21tL3Ztc2Nhbi5jDQo+
-IGluZGV4IGJlNTZlMmUuLjEyYWMzNTMgMTAwNjQ0DQo+IC0tLSBhL21tL3Ztc2Nhbi5jDQo+
-ICsrKyBiL21tL3Ztc2Nhbi5jDQo+IEBAIC05OTgsNyArOTk4LDcgQEAgc3RhdGljIHVuc2ln
-bmVkIGxvbmcgc2hyaW5rX3BhZ2VfbGlzdChzdHJ1Y3QgbGlzdF9oZWFkICpwYWdlX2xpc3Qs
-DQo+IKCgoKCgoKCgoKCgoKCgoCBzYy0+bnJfc2Nhbm5lZCsrOw0KPiCgDQo+IKCgoKCgoKCg
-oKCgoKCgoCBpZiAodW5saWtlbHkoIXBhZ2VfZXZpY3RhYmxlKHBhZ2UpKSkNCj4gLaCgoKCg
-oKCgoKCgoKCgoKCgoKCgoKAgZ290byBhY3RpdmF0ZV9sb2NrZWQ7DQo+ICugoKCgoKCgoKCg
-oKCgoKCgoKCgoKAgZ290byBjdWxsX21sb2NrZWQ7DQo+IKANCj4goKCgoKCgoKCgoKCgoKCg
-IGlmICghc2MtPm1heV91bm1hcCAmJiBwYWdlX21hcHBlZChwYWdlKSkNCj4goKCgoKCgoKCg
-oKCgoKCgoKCgoKCgoKAgZ290byBrZWVwX2xvY2tlZDsNCj4gQEAgLTEzMzEsNyArMTMzMSwx
-MiBAQCBzdGF0aWMgdW5zaWduZWQgbG9uZyBzaHJpbmtfcGFnZV9saXN0KHN0cnVjdCBsaXN0
-X2hlYWQgKnBhZ2VfbGlzdCwNCj4goKCgoKCgoKCgoKCgoKCgIH0gZWxzZQ0KPiCgoKCgoKCg
-oKCgoKCgoKCgoKCgoKCgoCBsaXN0X2FkZCgmcGFnZS0+bHJ1LCAmZnJlZV9wYWdlcyk7DQo+
-IKCgoKCgoKCgoKCgoKCgoCBjb250aW51ZTsNCj4gLQ0KPiArY3VsbF9tbG9ja2VkOg0KPiAr
-oKCgoKCgoKCgoKCgoKCgIGlmIChQYWdlU3dhcENhY2hlKHBhZ2UpKQ0KPiAroKCgoKCgoKCg
-oKCgoKCgoKCgoKCgoKAgdHJ5X3RvX2ZyZWVfc3dhcChwYWdlKTsNCj4gK6CgoKCgoKCgoKCg
-oKCgoCB1bmxvY2tfcGFnZShwYWdlKTsNCj4gK6CgoKCgoKCgoKCgoKCgoCBsaXN0X2FkZCgm
-cGFnZS0+bHJ1LCAmcmV0X3BhZ2VzKTsNCj4gK6CgoKCgoKCgoKCgoKCgoCBjb250aW51ZTsN
-Cj4goGFjdGl2YXRlX2xvY2tlZDoNCj4goKCgoKCgoKCgoKCgoKCgIC8qIE5vdCBhIGNhbmRp
-ZGF0ZSBmb3Igc3dhcHBpbmcsIHNvIHJlY2xhaW0gc3dhcCBzcGFjZS4gKi8NCj4goKCgoKCg
-oKCgoKCgoKCgIGlmIChQYWdlU3dhcENhY2hlKHBhZ2UpICYmIChtZW1fY2dyb3VwX3N3YXBf
-ZnVsbChwYWdlKSB8fA0KPiANCj4gDQo+IA0KPiANCj4gSXQgZml4ZXMgdGhlIGJlbG93IGlz
-c3VlLg0KPiANCj4gMS4gTGFyZ2Ugc2l6ZSBidWZmZXIgYWxsb2NhdGlvbiB1c2luZyBjbWFf
-YWxsb2Mgc3VjY2Vzc2Z1bCB3aXRoIHVuZXZpY3RhYmxlIHBhZ2VzLg0KPiANCj4gY21hX2Fs
-bG9jIG9mIGN1cnJlbnQga2VybmVsIHdpbGwgZmFpbCBkdWUgdG8gdW5ldmljdGFibGUgcGFn
-ZQ0KPiANCj4gUGxlYXNlIGxldCBtZSBrbm93IGlmIGFueXRoaW5nIGkgYW0gbWlzc2luZy4N
-Cj4gDQo+IFJlZ2FyZHMsDQo+IFBhbmthag0KPiAgIA0KPiBGcm9tOiBWbGFzdGltaWwgQmFi
-a2EgPHZiYWJrYUBzdXNlLmN6Pg0KPiBTZW50OiAxOCBNYXJjaCAyMDE5IDE0OjEyOjUwDQo+
-IFRvOiBQYW5rYWogU3VyeWF3YW5zaGk7IEtpcmlsbCBUa2hhaTsgTWljaGFsIEhvY2tvOyBh
-bmVlc2gua3VtYXJAbGludXguaWJtLmNvbQ0KPiBDYzogbGludXgta2VybmVsQHZnZXIua2Vy
-bmVsLm9yZzsgbWluY2hhbkBrZXJuZWwub3JnOyBsaW51eC1tbUBrdmFjay5vcmc7IGtoYW5k
-dWFsQGxpbnV4LnZuZXQuaWJtLmNvbTsgaGlsbGYuempAYWxpYmFiYS1pbmMuY29tDQo+IFN1
-YmplY3Q6IFJlOiBbRXh0ZXJuYWxdIFJlOiB2bXNjYW46IFJlY2xhaW0gdW5ldmljdGFibGUg
-cGFnZXMNCj4goCANCj4gDQo+IE9uIDMvMTUvMTkgMTE6MTEgQU0sIFBhbmthaiBTdXJ5YXdh
-bnNoaSB3cm90ZToNCj4+DQo+PiBbIGNjIEFuZWVzaCBrdW1hciwgQW5zaHVtYW4sIEhpbGxm
-LCBWbGFzdGltaWxdDQo+IA0KPiBDYW4geW91IHNlbmQgYSBwcm9wZXIgcGF0Y2ggd2l0aCBj
-aGFuZ2Vsb2cgZXhwbGFpbmluZyB0aGUgY2hhbmdlPyBJDQo+IGRvbid0IGtub3cgdGhlIGNv
-bnRleHQgb2YgdGhpcyB0aHJlYWQuDQo+IA0KPj4gRnJvbTogUGFua2FqIFN1cnlhd2Fuc2hp
-DQo+PiBTZW50OiAxNSBNYXJjaCAyMDE5IDExOjM1OjA1DQo+PiBUbzogS2lyaWxsIFRraGFp
-OyBNaWNoYWwgSG9ja28NCj4+IENjOiBsaW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3JnOyBt
-aW5jaGFuQGtlcm5lbC5vcmc7IGxpbnV4LW1tQGt2YWNrLm9yZw0KPj4gU3ViamVjdDogUmU6
-IFJlOiBbRXh0ZXJuYWxdIFJlOiB2bXNjYW46IFJlY2xhaW0gdW5ldmljdGFibGUgcGFnZXMN
-Cj4+DQo+Pg0KPj4NCj4+IFsgY2MgbGludXgtbW0gXQ0KPj4NCj4+DQo+PiBGcm9tOiBQYW5r
-YWogU3VyeWF3YW5zaGkNCj4+IFNlbnQ6IDE0IE1hcmNoIDIwMTkgMTk6MTQ6NDANCj4+IFRv
-OiBLaXJpbGwgVGtoYWk7IE1pY2hhbCBIb2Nrbw0KPj4gQ2M6IGxpbnV4LWtlcm5lbEB2Z2Vy
-Lmtlcm5lbC5vcmc7IG1pbmNoYW5Aa2VybmVsLm9yZw0KPj4gU3ViamVjdDogUmU6IFJlOiBb
-RXh0ZXJuYWxdIFJlOiB2bXNjYW46IFJlY2xhaW0gdW5ldmljdGFibGUgcGFnZXMNCj4+DQo+
-Pg0KPj4NCj4+IEhlbGxvICwNCj4+DQo+PiBQbGVhc2UgaWdub3JlIHRoZSBjdXJseSBicmFj
-ZXMsIHRoZXkgYXJlIGp1c3QgZm9yIGRlYnVnZ2luZy4NCj4+DQo+PiBCZWxvdyBpcyB0aGUg
-dXBkYXRlZCBwYXRjaC4NCj4+DQo+Pg0KPj4gZGlmZiAtLWdpdCBhL21tL3Ztc2Nhbi5jIGIv
-bW0vdm1zY2FuLmMNCj4+IGluZGV4IGJlNTZlMmUuLjEyYWMzNTMgMTAwNjQ0DQo+PiAtLS0g
-YS9tbS92bXNjYW4uYw0KPj4gKysrIGIvbW0vdm1zY2FuLmMNCj4+IEBAIC05OTgsNyArOTk4
-LDcgQEAgc3RhdGljIHVuc2lnbmVkIGxvbmcgc2hyaW5rX3BhZ2VfbGlzdChzdHJ1Y3QgbGlz
-dF9oZWFkICpwYWdlX2xpc3QsDQo+PiCgoKCgoKCgoKCgoKCgoKCgIHNjLT5ucl9zY2FubmVk
-Kys7DQo+Pg0KPj4goKCgoKCgoKCgoKCgoKCgoCBpZiAodW5saWtlbHkoIXBhZ2VfZXZpY3Rh
-YmxlKHBhZ2UpKSkNCj4+IC2goKCgoKCgoKCgoKCgoKCgoKCgoKCgIGdvdG8gYWN0aXZhdGVf
-bG9ja2VkOw0KPj4gK6CgoKCgoKCgoKCgoKCgoKCgoKCgoCBnb3RvIGN1bGxfbWxvY2tlZDsN
-Cj4+DQo+PiCgoKCgoKCgoKCgoKCgoKCgIGlmICghc2MtPm1heV91bm1hcCAmJiBwYWdlX21h
-cHBlZChwYWdlKSkNCj4+IKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoCBnb3RvIGtlZXBfbG9j
-a2VkOw0KPj4gQEAgLTEzMzEsNyArMTMzMSwxMiBAQCBzdGF0aWMgdW5zaWduZWQgbG9uZyBz
-aHJpbmtfcGFnZV9saXN0KHN0cnVjdCBsaXN0X2hlYWQgKnBhZ2VfbGlzdCwNCj4+IKCgoKCg
-oKCgoKCgoKCgoKAgfSBlbHNlDQo+PiCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKAgbGlzdF9h
-ZGQoJnBhZ2UtPmxydSwgJmZyZWVfcGFnZXMpOw0KPj4goKCgoKCgoKCgoKCgoKCgoCBjb250
-aW51ZTsNCj4+IC0NCj4+ICtjdWxsX21sb2NrZWQ6DQo+PiAroKCgoKCgoKCgoKCgoKCgIGlm
-IChQYWdlU3dhcENhY2hlKHBhZ2UpKQ0KPj4gK6CgoKCgoKCgoKCgoKCgoKCgoKCgoKCgIHRy
-eV90b19mcmVlX3N3YXAocGFnZSk7DQo+PiAroKCgoKCgoKCgoKCgoKCgIHVubG9ja19wYWdl
-KHBhZ2UpOw0KPj4gK6CgoKCgoKCgoKCgoKCgoCBsaXN0X2FkZCgmcGFnZS0+bHJ1LCAmcmV0
-X3BhZ2VzKTsNCj4+ICugoKCgoKCgoKCgoKCgoKAgY29udGludWU7DQo+PiCgIGFjdGl2YXRl
-X2xvY2tlZDoNCj4+IKCgoKCgoKCgoKCgoKCgoKAgLyogTm90IGEgY2FuZGlkYXRlIGZvciBz
-d2FwcGluZywgc28gcmVjbGFpbSBzd2FwIHNwYWNlLiAqLw0KPj4goKCgoKCgoKCgoKCgoKCg
-oCBpZiAoUGFnZVN3YXBDYWNoZShwYWdlKSAmJiAobWVtX2Nncm91cF9zd2FwX2Z1bGwocGFn
-ZSkgfHwNCj4+DQo+Pg0KPj4NCj4+IFJlZ2FyZHMsDQo+PiBQYW5rYWoNCj4+DQo+Pg0KPj4g
-RnJvbTogS2lyaWxsIFRraGFpIDxrdGtoYWlAdmlydHVvenpvLmNvbT4NCj4+IFNlbnQ6IDE0
-IE1hcmNoIDIwMTkgMTQ6NTU6MzQNCj4+IFRvOiBQYW5rYWogU3VyeWF3YW5zaGk7IE1pY2hh
-bCBIb2Nrbw0KPj4gQ2M6IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7IG1pbmNoYW5A
-a2VybmVsLm9yZw0KPj4gU3ViamVjdDogUmU6IFJlOiBbRXh0ZXJuYWxdIFJlOiB2bXNjYW46
-IFJlY2xhaW0gdW5ldmljdGFibGUgcGFnZXMNCj4+DQo+Pg0KPj4gT24gMTQuMDMuMjAxOSAx
-MTo1MiwgUGFua2FqIFN1cnlhd2Fuc2hpIHdyb3RlOg0KPj4+DQo+Pj4gSSBhbSB1c2luZyBr
-ZXJuZWwgdmVyc2lvbiA0LjE0LjY1IChvbiBBbmRyb2lkIHBpZSBbQVJNXSkuDQo+Pj4NCj4+
-PiBObyBhZGRpdGlvbmFsIHBhdGNoZXMgYXBwbGllZCBvbiB0b3Agb2YgdmFuaWxsYS4oQ29y
-ZSBNTSkuDQo+Pj4NCj4+PiBJZqAgSSBjaGFuZ2UgaW4gdGhlIHZtc2Nhbi5jIGFzIGJlbG93
-IHBhdGNoLCBpdCB3aWxsIHdvcmsuDQo+Pg0KPj4gU29ycnksIGJ1dCA0LjE0LjY1IGRvZXMg
-bm90IGhhdmUgYnJhY2VzIGFyb3VuZCB0cnlsb2NrX3BhZ2UoKSwNCj4+IGxpa2UgaW4geW91
-ciBwYXRjaCBiZWxvdy4NCj4+DQo+PiBTZWWgoKCgICBodHRwczovL2dpdC5rZXJuZWwub3Jn
-L3B1Yi9zY20vbGludXgva2VybmVsL2dpdC9zdGFibGUvbGludXguZ2l0L3RyZWUvbW0vdm1z
-Y2FuLmM/aD12NC4xNC42NQ0KPj4NCj4+IFsuLi5dDQo+Pg0KPj4+PiBkaWZmIC0tZ2l0IGEv
-bW0vdm1zY2FuLmMgYi9tbS92bXNjYW4uYw0KPj4+PiBpbmRleCBiZTU2ZTJlLi4yZTUxZWRj
-IDEwMDY0NA0KPj4+PiAtLS0gYS9tbS92bXNjYW4uYw0KPj4+PiArKysgYi9tbS92bXNjYW4u
-Yw0KPj4+PiBAQCAtOTkwLDE1ICs5OTAsMTcgQEAgc3RhdGljIHVuc2lnbmVkIGxvbmcgc2hy
-aW5rX3BhZ2VfbGlzdChzdHJ1Y3QgbGlzdF9oZWFkICpwYWdlX2xpc3QsDQo+Pj4+IKCgoKCg
-oKCgoKCgoKCgoKCgIHBhZ2UgPSBscnVfdG9fcGFnZShwYWdlX2xpc3QpOw0KPj4+PiCgoKCg
-oKCgoKCgoKCgoKCgoCBsaXN0X2RlbCgmcGFnZS0+bHJ1KTsNCj4+Pj4NCj4+Pj4goKCgoKCg
-oKCgoKCgoKCgoCBpZiAoIXRyeWxvY2tfcGFnZShwYWdlKSkgew0KPj4+PiCgoKCgoKCgoKCg
-oKCgoKCgoKCgoKCgoKCgIGdvdG8ga2VlcDsNCj4+Pj4goKCgoKCgoKCgoKCgoKCgoCB9DQo+
-Pg0KPj4gKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioq
-KioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioq
-KioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioq
-KiBlSW5mb2NoaXBzIEJ1c2luZXNzIERpc2NsYWltZXI6IFRoaXMgZS1tYWlsIG1lc3NhZ2Ug
-YW5kIGFsbCBhdHRhY2htZW50cyB0cmFuc21pdHRlZCB3aXRoIGl0IGFyZSBpbnRlbmRlZCAg
-c29sZWx5IGZvciB0aGUgdXNlIG9mIHRoZSBhZGRyZXNzZWUgYW5kIG1heSBjb250YWluIGxl
-Z2FsbHkgcHJpdmlsZWdlZCBhbmQgY29uZmlkZW50aWFsIGluZm9ybWF0aW9uLiBJZiB0aGUg
-cmVhZGVyIG9mIHRoaXMgbWVzc2FnZSBpcyBub3QgdGhlIGludGVuZGVkIHJlY2lwaWVudCwg
-b3IgYW4gZW1wbG95ZWUgb3IgYWdlbnQgcmVzcG9uc2libGUgZm9yIGRlbGl2ZXJpbmcgdGhp
-cyBtZXNzYWdlIHRvIHRoZSBpbnRlbmRlZCByZWNpcGllbnQsIHlvdSAgYXJlIGhlcmVieSBu
-b3RpZmllZCB0aGF0IGFueSBkaXNzZW1pbmF0aW9uLCBkaXN0cmlidXRpb24sIGNvcHlpbmcs
-IG9yIG90aGVyIHVzZSBvZiB0aGlzIG1lc3NhZ2Ugb3IgaXRzIGF0dGFjaG1lbnRzIGlzIHN0
-cmljdGx5IHByb2hpYml0ZWQuIElmIHlvdSBoYXZlIHJlY2VpdmVkIHRoaXMgbWVzc2FnZSBp
-biBlcnJvciwgcGxlYXNlIG5vdGlmeSB0aGUgc2VuZGVyIGltbWVkaWF0ZWx5IGJ5IHJlcGx5
-aW5nIHRvIHRoaXMgbWVzc2FnZSBhbmQgcGxlYXNlICBkZWxldGUgaXQgZnJvbSB5b3VyIGNv
-bXB1dGVyLiBBbnkgdmlld3MgZXhwcmVzc2VkIGluIHRoaXMgbWVzc2FnZSBhcmUgdGhvc2Ug
-b2YgdGhlIGluZGl2aWR1YWwgc2VuZGVyIHVubGVzcyBvdGhlcndpc2Ugc3RhdGVkLiBDb21w
-YW55IGhhcyB0YWtlbiBlbm91Z2ggcHJlY2F1dGlvbnMgdG8gcHJldmVudCB0aGUgc3ByZWFk
-IG9mIHZpcnVzZXMuIEhvd2V2ZXIgdGhlIGNvbXBhbnkgYWNjZXB0cyBubyBsaWFiaWxpdHkg
-Zm9yIGFueSBkYW1hZ2UgY2F1c2VkICBieSBhbnkgdmlydXMgdHJhbnNtaXR0ZWQgYnkgdGhp
-cyBlbWFpbC4gKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioq
-KioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioq
-KioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioq
-KioqKg0KPj4NCj4gDQo+ICAgICANCj4gDQo=
+Hi Kirill Tkhai,
+
+Please see mm/vmscan.c in which it first added to list and than throw the e=
+rror :
+---------------------------------------------------------------------------=
+-----------------------
+keep:
+                list_add(&page->lru, &ret_pages);
+                VM_BUG_ON_PAGE(PageLRU(page) || PageUnevictable(page), page=
+);
+---------------------------------------------------------------------------=
+------------------------
+
+Before throwing error, pages are added to list, this is under iteration of =
+shrink_page_list().
+
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Sent: 18 March 2019 15:03:15
+To: Pankaj Suryawanshi; Vlastimil Babka; Michal Hocko; aneesh.kumar@linux.i=
+bm.com
+Cc: linux-kernel@vger.kernel.org; minchan@kernel.org; linux-mm@kvack.org; k=
+handual@linux.vnet.ibm.com; hillf.zj@alibaba-inc.com
+Subject: Re: [External] Re: vmscan: Reclaim unevictable pages
+=A0=20
+
+Hi, Pankaj,
+
+On 18.03.2019 12:09, Pankaj Suryawanshi wrote:
+>=20
+> Hello
+>=20
+> shrink_page_list() returns , number of pages reclaimed, when pages is une=
+victable it returns VM_BUG_ON_PAGE(PageLRU(page) || PageUnevicatble(page),p=
+age);
+
+the general idea is shrink_page_list() can't iterate PageUnevictable() page=
+s.
+PageUnevictable() pages are never being added to lists, which shrink_page_l=
+ist()
+uses for iteration. Also, a page can't be marked as PageUnevictable(), when
+it's attached to a shrinkable list.
+
+So, the problem should be somewhere outside shrink_page_list().
+
+I won't suggest you something about CMA, since I haven't dived in that code=
+.
+
+> We can add the unevictable pages in reclaim list in shrink_page_list(), r=
+eturn total number of reclaim pages including unevictable pages, let the ca=
+ller handle unevictable pages.
+>=20
+> I think the problem is shrink_page_list is awkard. If page is unevictable=
+ it goto activate_locked->keep_locked->keep lables, keep lable list_add the=
+ unevictable pages and throw the VM_BUG instead of passing it to caller whi=
+le it relies on caller for non-reclaimed-non-unevictable=A0  page's putback=
+.
+> I think we can make it consistent so that shrink_page_list could return n=
+on-reclaimed pages via page_list and caller can handle it. As an advance, i=
+t could try to migrate mlocked pages without retrial.
+>=20
+>=20
+> Below is the issue of CMA_ALLOC of large size buffer : (Kernel version - =
+4.14.65 (On Android pie [ARM])).
+>=20
+> [=A0=A0 24.718792] page dumped because: VM_BUG_ON_PAGE(PageLRU(page) || P=
+ageUnevictable(page))
+> [=A0=A0 24.726949] page->mem_cgroup:bd008c00
+> [=A0=A0 24.730693] ------------[ cut here ]------------
+> [=A0=A0 24.735304] kernel BUG at mm/vmscan.c:1350!
+> [=A0=A0 24.739478] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP ARM
+>=20
+>=20
+> Below is the patch which solved this issue :
+>=20
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index be56e2e..12ac353 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -998,7 +998,7 @@ static unsigned long shrink_page_list(struct list_hea=
+d *page_list,
+> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 sc->nr_scanned++;
+> =A0
+> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 if (unlikely(!page_evictabl=
+e(page)))
+> -=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 goto =
+activate_locked;
+> +=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 goto cul=
+l_mlocked;
+> =A0
+> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 if (!sc->may_unmap && page_=
+mapped(page))
+> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 got=
+o keep_locked;
+> @@ -1331,7 +1331,12 @@ static unsigned long shrink_page_list(struct list_=
+head *page_list,
+> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 } else
+> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 lis=
+t_add(&page->lru, &free_pages);
+> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 continue;
+> -
+> +cull_mlocked:
+> +=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 if (PageSwapCache(page))
+> +=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 tr=
+y_to_free_swap(page);
+> +=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 unlock_page(page);
+> +=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 list_add(&page->lru, &ret_=
+pages);
+> +=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 continue;
+> =A0activate_locked:
+> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 /* Not a candidate for swap=
+ping, so reclaim swap space. */
+> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 if (PageSwapCache(page) && =
+(mem_cgroup_swap_full(page) ||
+>=20
+>=20
+>=20
+>=20
+> It fixes the below issue.
+>=20
+> 1. Large size buffer allocation using cma_alloc successful with unevictab=
+le pages.
+>=20
+> cma_alloc of current kernel will fail due to unevictable page
+>=20
+> Please let me know if anything i am missing.
+>=20
+> Regards,
+> Pankaj
+>=A0=A0=20
+> From: Vlastimil Babka <vbabka@suse.cz>
+> Sent: 18 March 2019 14:12:50
+> To: Pankaj Suryawanshi; Kirill Tkhai; Michal Hocko; aneesh.kumar@linux.ib=
+m.com
+> Cc: linux-kernel@vger.kernel.org; minchan@kernel.org; linux-mm@kvack.org;=
+ khandual@linux.vnet.ibm.com; hillf.zj@alibaba-inc.com
+> Subject: Re: [External] Re: vmscan: Reclaim unevictable pages
+> =A0=20
+>=20
+> On 3/15/19 11:11 AM, Pankaj Suryawanshi wrote:
+>>
+>> [ cc Aneesh kumar, Anshuman, Hillf, Vlastimil]
+>=20
+> Can you send a proper patch with changelog explaining the change? I
+> don't know the context of this thread.
+>=20
+>> From: Pankaj Suryawanshi
+>> Sent: 15 March 2019 11:35:05
+>> To: Kirill Tkhai; Michal Hocko
+>> Cc: linux-kernel@vger.kernel.org; minchan@kernel.org; linux-mm@kvack.org
+>> Subject: Re: Re: [External] Re: vmscan: Reclaim unevictable pages
+>>
+>>
+>>
+>> [ cc linux-mm ]
+>>
+>>
+>> From: Pankaj Suryawanshi
+>> Sent: 14 March 2019 19:14:40
+>> To: Kirill Tkhai; Michal Hocko
+>> Cc: linux-kernel@vger.kernel.org; minchan@kernel.org
+>> Subject: Re: Re: [External] Re: vmscan: Reclaim unevictable pages
+>>
+>>
+>>
+>> Hello ,
+>>
+>> Please ignore the curly braces, they are just for debugging.
+>>
+>> Below is the updated patch.
+>>
+>>
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index be56e2e..12ac353 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -998,7 +998,7 @@ static unsigned long shrink_page_list(struct list_he=
+ad *page_list,
+>> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 sc->nr_scanned++;
+>>
+>> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 if (unlikely(!page_evic=
+table(page)))
+>> -=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 goto=
+ activate_locked;
+>> +=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 goto cu=
+ll_mlocked;
+>>
+>> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 if (!sc->may_unmap && p=
+age_mapped(page))
+>> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
+ goto keep_locked;
+>> @@ -1331,7 +1331,12 @@ static unsigned long shrink_page_list(struct list=
+_head *page_list,
+>> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 } else
+>> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
+ list_add(&page->lru, &free_pages);
+>> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 continue;
+>> -
+>> +cull_mlocked:
+>> +=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 if (PageSwapCache(page))
+>> +=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 t=
+ry_to_free_swap(page);
+>> +=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 unlock_page(page);
+>> +=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 list_add(&page->lru, &ret=
+_pages);
+>> +=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 continue;
+>> =A0 activate_locked:
+>> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 /* Not a candidate for =
+swapping, so reclaim swap space. */
+>> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 if (PageSwapCache(page)=
+ && (mem_cgroup_swap_full(page) ||
+>>
+>>
+>>
+>> Regards,
+>> Pankaj
+>>
+>>
+>> From: Kirill Tkhai <ktkhai@virtuozzo.com>
+>> Sent: 14 March 2019 14:55:34
+>> To: Pankaj Suryawanshi; Michal Hocko
+>> Cc: linux-kernel@vger.kernel.org; minchan@kernel.org
+>> Subject: Re: Re: [External] Re: vmscan: Reclaim unevictable pages
+>>
+>>
+>> On 14.03.2019 11:52, Pankaj Suryawanshi wrote:
+>>>
+>>> I am using kernel version 4.14.65 (on Android pie [ARM]).
+>>>
+>>> No additional patches applied on top of vanilla.(Core MM).
+>>>
+>>> If=A0 I change in the vmscan.c as below patch, it will work.
+>>
+>> Sorry, but 4.14.65 does not have braces around trylock_page(),
+>> like in your patch below.
+>>
+>> See=A0=A0=A0=A0=A0  https://git.kernel.org/pub/scm/linux/kernel/git/stab=
+le/linux.git/tree/mm/vmscan.c?h=3Dv4.14.65
+>>
+>> [...]
+>>
+>>>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>>>> index be56e2e..2e51edc 100644
+>>>> --- a/mm/vmscan.c
+>>>> +++ b/mm/vmscan.c
+>>>> @@ -990,15 +990,17 @@ static unsigned long shrink_page_list(struct lis=
+t_head *page_list,
+>>>> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 page =3D lru_to_pa=
+ge(page_list);
+>>>> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 list_del(&page->lr=
+u);
+>>>>
+>>>> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 if (!trylock_page(pag=
+e)) {
+>>>> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
+=A0=A0 goto keep;
+>>>> =A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 }
+>>
+>> ************************************************************************=
+***************************************************************************=
+********** eInfochips Business Disclaimer: This e-mail message and all atta=
+chments transmitted with it are  intended=A0 solely for the use of the addr=
+essee and may contain legally privileged and confidential information. If t=
+he reader of this message is not the intended recipient, or an employee or =
+agent responsible for delivering this message to the intended recipient,  y=
+ou=A0 are hereby notified that any dissemination, distribution, copying, or=
+ other use of this message or its attachments is strictly prohibited. If yo=
+u have received this message in error, please notify the sender immediately=
+ by replying to this message and  please=A0 delete it from your computer. A=
+ny views expressed in this message are those of the individual sender unles=
+s otherwise stated. Company has taken enough precautions to prevent the spr=
+ead of viruses. However the company accepts no liability for any damage  ca=
+used=A0 by any virus transmitted by this email. ***************************=
+***************************************************************************=
+*******************************************************
+>>
+>=20
+>=A0=A0=A0=A0=20
+>=20
+    =
 
