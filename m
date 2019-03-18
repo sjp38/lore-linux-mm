@@ -2,193 +2,156 @@ Return-Path: <SRS0=xdO8=RV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E3D41C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 17:35:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 44E08C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 17:40:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 93C4D20854
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 17:35:29 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="uyrIqaY7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 93C4D20854
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 0F7562070D
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 17:40:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F7562070D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 25AB96B0003; Mon, 18 Mar 2019 13:35:29 -0400 (EDT)
+	id A6F4F6B0006; Mon, 18 Mar 2019 13:40:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1E48D6B0006; Mon, 18 Mar 2019 13:35:29 -0400 (EDT)
+	id A1ED76B0008; Mon, 18 Mar 2019 13:40:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 089846B0007; Mon, 18 Mar 2019 13:35:29 -0400 (EDT)
+	id 90D9C6B000A; Mon, 18 Mar 2019 13:40:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D281D6B0003
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 13:35:28 -0400 (EDT)
-Received: by mail-it1-f200.google.com with SMTP id r136so15189149ith.3
-        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 10:35:28 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 714C56B0006
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 13:40:09 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id l203so23295319ywb.11
+        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 10:40:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=PrCO2lU0ZipPiiy31J0umfmtEn4o5iLh0G0tXGxKdqM=;
-        b=V6hH4xb9igaeREu4XdJry8frPGCUytIIPp86u2/44/cMEvqOWhY5lgT/ZCUqp+h4YI
-         T//eGp2m4iW/mvnESgU7neRUa6iNi8TZmx8bYWK2iEb/+z2M8kjJndhNtLnxPRYB/Ur6
-         bzRLriCsmZSzjzgHcg8NZzsMWmR2j9x1RLpDTKX5PsiJyGuPfTPwrGOD/Cd5AH6MFr8y
-         YfrCzEGAtUGaqfPTVcBi1vcWFxzNLDGPSVDb48cqW/5fg2cHDt4m2w3wLL1bAbI5j0s7
-         PLJUjE90x8mA8Nn1QXJu9RhTqeNAZqNQPGnah8kHVv+TNk5n79H/8uyjpdxb2cZWuM2M
-         FNxQ==
-X-Gm-Message-State: APjAAAX6mY8lWUN1pZ3fAnsxT2lbgXQNl8qlVWAu1ogNbuXzyXfEdWFY
-	i87a+w2sHh6jvSp1CTY4/tek8Cu0kPB5Vcodyqr2gUI9DUU5SHapbRAHwpQBy7E6iVfWLstqRT+
-	XPB4j6VAy2kEarBienM8j5Bq/JikgvKrjSKqRJf01wkeMlR1r1TDSxuUS/+Mkllfk9Q==
-X-Received: by 2002:a24:39d8:: with SMTP id l207mr9244ita.59.1552930528580;
-        Mon, 18 Mar 2019 10:35:28 -0700 (PDT)
-X-Received: by 2002:a24:39d8:: with SMTP id l207mr9210ita.59.1552930527643;
-        Mon, 18 Mar 2019 10:35:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552930527; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=X2g+VepdiRAOMeU7MHERJDBcxJ1Pw1UOaJtbtsqlPFg=;
+        b=hvk8kPFxRUgpmJt+aR1FIHqfT5y1E6ClIWYPLA7i0SzQ/SrEYzpvgv9IURMrGhab4/
+         fQK4dZhzwg1D5WGIgVX8751YYATrQfod2JK0dIwP/32pTx3C/SHcG68bCQfUhAnUYooA
+         cFTXntInPSbQryc0n7RbjbBQLyqFihc/f5gxsMg5WvgUQ7p+9mpwZQEXUqVQGxD17JWa
+         k106ufWFBhv6kDAAZQfJDe+wKEgOtGGxAkWVRDmUdxMhWOJHPocsw80GzXgKywsW3T9u
+         rmngVQ0C7USHuNJ+7qrGkUG+VfguvfmBb4U9okoXO32QZDjLjEvaiIfDj1+Lgm3AW98p
+         SorA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWmzCk100WbSoQp+z/LDPjU0SP8S9eVjqVhKAobU+nCA+94utq2
+	0b8jHMT3nBJwipFSXnQog+NnCV9OE4kuB/69IkR5t+64frqh1SzTmuFnJ0qTlhPrCsu4HGtBSZl
+	ElFg786CxY4OaR7nkemjY1pBNtd5tGXTl2Vt3Yy35NcGWHUGcJFYMJuBhOKlZGTc=
+X-Received: by 2002:a0d:eaca:: with SMTP id t193mr15301565ywe.29.1552930809210;
+        Mon, 18 Mar 2019 10:40:09 -0700 (PDT)
+X-Received: by 2002:a0d:eaca:: with SMTP id t193mr15301513ywe.29.1552930808372;
+        Mon, 18 Mar 2019 10:40:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552930808; cv=none;
         d=google.com; s=arc-20160816;
-        b=BywBb1c3g6oObBqgyE32pun4RauZ/L6J9wl2Z1oeaS+Rg6f3njoVqjTIDOPNRUAww9
-         Ssnt3ncYQ1XXG43LA4h8gI7krqqg7TmOkIC/+fuP5hG5Ht5wJsNBtpFN6LShLHRFnW/2
-         KB9hHaZtWHkfprUWWh61TEsKR2UbGMY+xm1ytq5y1u3h6+NtZBWJqNQT9tWCoitqW3g7
-         OyC5n7e24M4kfEQxN2VSI+4LaAX+4OTzOBzfSyxpyL9/cMgvJ3BqTELBiO2kQFUWmo3p
-         EZwTIC4HnCxTFccQDRv0+BMqHFLPxuriku/uUSI/4YteSyUnzVul9sctey87P1GSb1+N
-         cz9A==
+        b=p6vNlm0rlB1HiCa8br/kOC70kAZIKdJ1lnzIhqjVLrc/nYxFEXpJMXoNL+LefkbcYp
+         iLmLyuJreQqdoCyQj8DK9sQ1qlxmfRq+3ke4j2R+dHvPQjq5L9Yf540+p/XNNMaBstvj
+         fPPvNyOu3SpR6W3FVXxYmh6Qrc6/5amy6VhB1SmF7wzYPqR7KxleyX++6/Jx4DxZVvxb
+         TRU8elRZlhL/xhV5LMTmIEE5dEVgFl5fexhPJa7+nePePsVRFN4gK7OT4JB0E/1Nfdkj
+         /6DLAhU2C+X5H8nS2W+8lJl3ruGWeiDq5iBr6hdwC7zll3vYuq0xTdDtCz22wqNsouPf
+         o2tQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=PrCO2lU0ZipPiiy31J0umfmtEn4o5iLh0G0tXGxKdqM=;
-        b=am75+R0B52VWZlm3mqs7trSXm+T+G53He4BcOvrEWHHyUABRQS7m4VaBZ0iz2GtcpE
-         BmBOvuYxO/yqwfxFnWXXm1aInQCX0clgn3vM3ZJvM+5wvb/F8m6D3bNo6Jp2jTNYu5rf
-         3P2BZzBGhmBI5jpiLfJ0X1LMU9qCwNNRhnoDRbMfz4wptCLHFmeKzAfSd2SJHI7m7MvR
-         lEQQNSR/WsCFD8y1eAuRdsDQ5as/6Js8wzgUECO48sj5rI8aXjL7JpzUPaPRFMwNAUd6
-         physnYqi0geRWQjvviuNw8Ysq4WBDO9w6nVh3SylDoWsK5kfZyc34tMwD69bSL43fNnJ
-         4RTQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=X2g+VepdiRAOMeU7MHERJDBcxJ1Pw1UOaJtbtsqlPFg=;
+        b=a7LGyVn4aP3cUyi3Fi/PTFSdTOKffLii5sY5JrVKD37hWkcFlOXQr1rCTXllNiRLIS
+         rDZvcl4izVUKmKOUJCLO3Pp8BOH09MZb017g05HCd2McY8XAXeQS8XiVeg4Z/RwZjZJB
+         n2W1tcd4LTJQagbVO0wSatvzDex+97SNP7vncYKrWnt7HXIQnKbaK4Ie2S0c76ITSza9
+         JCIU7LMCqXeB6nDx3br2CswelNjtwqat3kU7hYW4TofABwXCaUwrrS0H9yhqCQEwA3or
+         xZjZK+VaiklvRrflm0tgUDbTV+y9T89qKye06wqi/h0ghtw/AdTNSYe4YkVQYVgIZpY8
+         ncNA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=uyrIqaY7;
-       spf=pass (google.com: domain of edumazet@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=edumazet@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i5sor16852900iti.30.2019.03.18.10.35.27
+        by mx.google.com with SMTPS id j188sor1707532ywf.153.2019.03.18.10.40.08
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 18 Mar 2019 10:35:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of edumazet@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 18 Mar 2019 10:40:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=uyrIqaY7;
-       spf=pass (google.com: domain of edumazet@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=edumazet@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=PrCO2lU0ZipPiiy31J0umfmtEn4o5iLh0G0tXGxKdqM=;
-        b=uyrIqaY7oC9B9nG/UxXrp2razNOLtRgLgzTki3DkPSo3hKZBihhOVs5XMPl0tSTbG9
-         8BkxMAekwOpEr5c18J94vX/PHkd/cR8S37JaGiHv2rHoQtCm8VN0JQT4bVDxL4DnFuaf
-         TBpB7mtD1xZMSM6CEOwzN6ylMmjBtpj/81knOnGPRXtUhR49sy3r7rujNqeJpemmcNe/
-         yahcAmwycILMB5vkZoN8PLSOFNCEEoAnrHt4dlbEmOy7anc6ZJcANenVW5WZHg63bVhQ
-         EDhXKW0Z+zXP/J6GAQ7GCYiiP+UrBe+V732dR9WdPtz9JuQLQBUDqkDSRPo5Tqt0+iTo
-         c1OQ==
-X-Google-Smtp-Source: APXvYqw7xww6FQki8SuPZw8IxP5jWoWikBVhp58R4A7DMUEMPaLunFv8UC7JQGZkd4Yza/sj1u2HgqSyKYRRdWhydLY=
-X-Received: by 2002:a05:660c:842:: with SMTP id f2mr25940itl.142.1552930526937;
- Mon, 18 Mar 2019 10:35:26 -0700 (PDT)
+       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Google-Smtp-Source: APXvYqwNX9FSn0lknNGVqi3elbetV5UsK+cFr8UxcQF8U5+ujKMXdu3GxTZr1+lI8HOxhcSk9HftSg==
+X-Received: by 2002:a81:3d17:: with SMTP id k23mr15108355ywa.266.1552930808046;
+        Mon, 18 Mar 2019 10:40:08 -0700 (PDT)
+Received: from dennisz-mbp.dhcp.thefacebook.com ([2620:10d:c091:200::3:734b])
+        by smtp.gmail.com with ESMTPSA id 136sm305236ywl.109.2019.03.18.10.40.06
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Mar 2019 10:40:06 -0700 (PDT)
+Date: Mon, 18 Mar 2019 13:40:04 -0400
+From: Dennis Zhou <dennis@kernel.org>
+To: Matteo Croce <mcroce@redhat.com>
+Cc: linux-mm@kvack.org, Dennis Zhou <dennis@kernel.org>,
+	Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] percpu: stop printing kernel addresses
+Message-ID: <20190318174004.GA60491@dennisz-mbp.dhcp.thefacebook.com>
+References: <20190318013236.31755-1-mcroce@redhat.com>
 MIME-Version: 1.0
-References: <cover.1552929301.git.andreyknvl@google.com> <80e79c47dc7c5ee3572034a1d69bb724fbed2ecb.1552929301.git.andreyknvl@google.com>
-In-Reply-To: <80e79c47dc7c5ee3572034a1d69bb724fbed2ecb.1552929301.git.andreyknvl@google.com>
-From: Eric Dumazet <edumazet@google.com>
-Date: Mon, 18 Mar 2019 10:35:14 -0700
-Message-ID: <CANn89iJ4SeccE79gKiv5RFqaouFV8shFA+0dCS8+2D_1aRq_Kw@mail.gmail.com>
-Subject: Re: [PATCH v12 08/13] net, arm64: untag user pointers in tcp_zerocopy_receive
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, 
-	Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
-	Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, 
-	Shuah Khan <shuah@kernel.org>, Vincenzo Frascino <vincenzo.frascino@arm.com>, 
-	"David S. Miller" <davem@davemloft.net>, Alexei Starovoitov <ast@kernel.org>, 
-	Daniel Borkmann <daniel@iogearbox.net>, Steven Rostedt <rostedt@goodmis.org>, 
-	Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, 
-	Arnaldo Carvalho de Melo <acme@kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, 
-	"open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
-	linux-arch <linux-arch@vger.kernel.org>, netdev <netdev@vger.kernel.org>, 
-	bpf <bpf@vger.kernel.org>, 
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
-	Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, 
-	Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>, 
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>, 
-	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190318013236.31755-1-mcroce@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 18, 2019 at 10:18 AM Andrey Konovalov <andreyknvl@google.com> wrote:
->
-> This patch is a part of a series that extends arm64 kernel ABI to allow to
-> pass tagged user pointers (with the top byte set to something else other
-> than 0x00) as syscall arguments.
->
-> tcp_zerocopy_receive() uses provided user pointers for vma lookups, which
-> can only by done with untagged pointers.
->
-> Untag user pointers in this function.
->
-> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+Hi Matteo,
+
+On Mon, Mar 18, 2019 at 02:32:36AM +0100, Matteo Croce wrote:
+> Since commit ad67b74d2469d9b8 ("printk: hash addresses printed with %p"),
+> at boot "____ptrval____" is printed instead of actual addresses:
+> 
+>     percpu: Embedded 38 pages/cpu @(____ptrval____) s124376 r0 d31272 u524288
+> 
+> Instead of changing the print to "%px", and leaking kernel addresses,
+> just remove the print completely, cfr. e.g. commit 071929dbdd865f77
+> ("arm64: Stop printing the virtual memory layout").
+> 
+> Signed-off-by: Matteo Croce <mcroce@redhat.com>
 > ---
->  net/ipv4/tcp.c | 9 +++++++--
->  1 file changed, 7 insertions(+), 2 deletions(-)
->
-> diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
-> index 6baa6dc1b13b..e76beb5ff1ff 100644
-> --- a/net/ipv4/tcp.c
-> +++ b/net/ipv4/tcp.c
-> @@ -1749,7 +1749,7 @@ EXPORT_SYMBOL(tcp_mmap);
->  static int tcp_zerocopy_receive(struct sock *sk,
->                                 struct tcp_zerocopy_receive *zc)
->  {
-> -       unsigned long address = (unsigned long)zc->address;
-> +       unsigned long address;
->         const skb_frag_t *frags = NULL;
->         u32 length = 0, seq, offset;
->         struct vm_area_struct *vma;
-> @@ -1758,7 +1758,12 @@ static int tcp_zerocopy_receive(struct sock *sk,
->         int inq;
->         int ret;
->
-> -       if (address & (PAGE_SIZE - 1) || address != zc->address)
-> +       address = (unsigned long)untagged_addr(zc->address);
-> +
-> +       /* The second test in this if detects if the u64->unsigned long
-> +        * conversion had any truncated bits.
-> +        */
-> +       if (address & (PAGE_SIZE - 1) || address != untagged_addr(zc->address))
->                 return -EINVAL;
->
->         if (sk->sk_state == TCP_LISTEN)
+>  mm/percpu.c | 8 ++++----
+>  1 file changed, 4 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/percpu.c b/mm/percpu.c
+> index 2e6fc8d552c9..68dd2e7e73b5 100644
+> --- a/mm/percpu.c
+> +++ b/mm/percpu.c
+> @@ -2567,8 +2567,8 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+>  		ai->groups[group].base_offset = areas[group] - base;
+>  	}
+>  
+> -	pr_info("Embedded %zu pages/cpu @%p s%zu r%zu d%zu u%zu\n",
+> -		PFN_DOWN(size_sum), base, ai->static_size, ai->reserved_size,
+> +	pr_info("Embedded %zu pages/cpu s%zu r%zu d%zu u%zu\n",
+> +		PFN_DOWN(size_sum), ai->static_size, ai->reserved_size,
+>  		ai->dyn_size, ai->unit_size);
+>  
+>  	rc = pcpu_setup_first_chunk(ai, base);
+> @@ -2692,8 +2692,8 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
+>  	}
+>  
+>  	/* we're ready, commit */
+> -	pr_info("%d %s pages/cpu @%p s%zu r%zu d%zu\n",
+> -		unit_pages, psize_str, vm.addr, ai->static_size,
+> +	pr_info("%d %s pages/cpu s%zu r%zu d%zu\n",
+> +		unit_pages, psize_str, ai->static_size,
+>  		ai->reserved_size, ai->dyn_size);
+>  
+>  	rc = pcpu_setup_first_chunk(ai, vm.addr);
+> -- 
+> 2.20.1
+> 
 
+I've applied this to for-5.1-fixes.
 
-This is quite ugly, the comment does not really help nor belong to this patch.
-
-What about using  untagged_addr()  only once ?
-
-diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
-index 6baa6dc1b13b0b94b1da238668b93e167cf444fe..855a1f68c1ea9b0d07a92bd7f5e7c24840a99d3d
-100644
---- a/net/ipv4/tcp.c
-+++ b/net/ipv4/tcp.c
-@@ -1761,6 +1761,8 @@ static int tcp_zerocopy_receive(struct sock *sk,
-        if (address & (PAGE_SIZE - 1) || address != zc->address)
-                return -EINVAL;
-
-+       address = untagged_addr(address);
-+
-        if (sk->sk_state == TCP_LISTEN)
-                return -ENOTCONN;
+Thanks,
+Dennis
 
