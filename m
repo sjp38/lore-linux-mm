@@ -2,85 +2,85 @@ Return-Path: <SRS0=xdO8=RV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D8D5CC4360F
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 16:35:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C52B7C10F00
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 16:36:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 89331205C9
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 16:35:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 89331205C9
+	by mail.kernel.org (Postfix) with ESMTP id 82EA72133F
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 16:36:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 82EA72133F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0DC996B0003; Mon, 18 Mar 2019 12:35:57 -0400 (EDT)
+	id 373B46B0006; Mon, 18 Mar 2019 12:36:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 064126B0006; Mon, 18 Mar 2019 12:35:57 -0400 (EDT)
+	id 321A16B0007; Mon, 18 Mar 2019 12:36:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E6CE96B0007; Mon, 18 Mar 2019 12:35:56 -0400 (EDT)
+	id 1E8576B0008; Mon, 18 Mar 2019 12:36:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 906586B0003
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 12:35:56 -0400 (EDT)
-Received: by mail-wm1-f70.google.com with SMTP id n125so2635582wmn.1
-        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 09:35:56 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id BEC936B0006
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 12:36:01 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id t190so3441228wmt.8
+        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 09:36:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=Ok73Cd0+1oOdATm9yISCwTjN9oEDZNi1QdCRZyqCgiw=;
-        b=kK7YGEIOQgQllwfQwp/b15Vr1WL+PTIRD3bVvw83WO7Oy9khBAVBX/4L0RbIp1Sf/S
-         Wkklg4B6K0sGBOJUhNO8JIa241zi5uNLuEvoOW9eWssTIfAB9L64m0h1ESJM7ZpDuEJ9
-         Q0Y6rYDc7H8nacSVJxEb04AyaDOy3gBdOCYjKOnxsLvMCdaXGKzbm7t12sQ/Jnyjyn3f
-         29GIwPoHob4H/lYaEsByuxY9rYHlHYqU6FVe6X0/6UseA39vTxHDeZ06oahThr6sjQym
-         fB8MN6IfkwBbNme0kKxllo1f6V8CsQpC9/mir+9j7QxS4P8LOUYrGGqAv44xeQ3Sl+va
-         m0vA==
+        bh=W7fYsGKRBlmTW3CD7cbX3LbedsaSpni9GuqLbWnL0zM=;
+        b=kp/V4dr/OiD58aROKoDzSuW/0rAxB/5Ra8V1hl6PFJerVf6xm0xylOql1jf6Wie0cL
+         1YWBpXpdWyrECu9VdC1asD+nNOyk9oafgUzR3GCcJVO5KD9Crp6D+ZqZaTlRxcxGlQyw
+         NLJf5Q1XkDo9gkAoa6rdpvWA9ODFRyuKiQrCPlzIG0LNf3HnIV6IlTzybkFqjeRO7fmM
+         oGpH6zxrRHnk0jq6/eaFaRi3ENdCYSS81lRaUChWA6d3GpntAF7VUtQKtxpLXF8LKugW
+         LTFXnq6RKIU6dj1uAAJE61oh44/rdmD5s5efSDwZx3plQhRP6uYxlwDeOcdC9g8t2stx
+         /WLQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
-X-Gm-Message-State: APjAAAUi1kVCSWVONDHQQfL5rL/QG6MWUOcAP6hbw5NMEbYk6DZa6CjZ
-	9oFUV5kj8tZyJJ3TIJd5d2EHOjGEitsQjwwfocFlIq9ArxIi7IiBQpMUsLFdoHIyFoXTAL0r4xJ
-	SPWPnAhAY+LuoZ7ekY1fmUzSVMT2IG7bPFP/BYorfuzrBJiBS7s1Wsyl56hCS2oOnTQ==
-X-Received: by 2002:a1c:234d:: with SMTP id j74mr11077774wmj.130.1552926955881;
-        Mon, 18 Mar 2019 09:35:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz1/uYhDutaRUGBDGWrr8KBfuBRnrQcQ6qS529Q8pFVwf02IabtKC9KW1qmqJq4BEwTuJHi
-X-Received: by 2002:a1c:234d:: with SMTP id j74mr11077670wmj.130.1552926953966;
-        Mon, 18 Mar 2019 09:35:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552926953; cv=none;
+X-Gm-Message-State: APjAAAUqCpS97ZrvQULEg42klt6bgUYu22Bg2UGjvQi4Ju9nM31mQiFj
+	xb2VCRrqLCS4YpKNH35siH/1iXynfqCzsvCv/w1AuHRG6fc08LYJ2KpN9fxkPjkiDm9AI6CK4tk
+	S9f0M52vM4YMGr/Bh6hP6q2lXJAM/YWDO3zyB3M8QnqbNu+gk8h2bDbbcLJ5GfYPu9Q==
+X-Received: by 2002:a5d:4710:: with SMTP id y16mr4492405wrq.176.1552926961207;
+        Mon, 18 Mar 2019 09:36:01 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwD/iPhfC1aLLwNsKyX96aiVPG5ixxS5wd8RskceyZNJMHXxvGjjNsXgBTSDISgiKS+4gb0
+X-Received: by 2002:a5d:4710:: with SMTP id y16mr4492357wrq.176.1552926960367;
+        Mon, 18 Mar 2019 09:36:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552926960; cv=none;
         d=google.com; s=arc-20160816;
-        b=s60GfCOjudoT+cye91IrpLJV884g6IJN5qf5l/WMfPRtCEQccmuDSK2B9GQVKaqpc/
-         mrRTYmz8U9XT8+ug115U1NH7PZYNGTntgEhHrHYNxQQD7+ep/KRByI7wEHHUEWxSr2ik
-         kYgAej2QgCHQW14owknTWmwp7yyNw4OYtLB7iw/uHxsjsGGqI8DY4gNemTpoP+MSZx6c
-         KToshm8xrJ0CG3xcLRNtlc/uKwkeheuxedRc4RDpjZqUfkfrTLz9rR6YL65oF7NCIn51
-         RQC1HMx6syzYaXeVof/XxZYvQxHOI9TIFk80r5+KxhndEkzYN8rZuQVIMj+rI6IVyO49
-         3QaQ==
+        b=YpOWwV/qXH1shSYZJiBAwlU5BMU59E0ojpRqHXfGxG+UYaZzEIXto+1OeNzCdaVtWA
+         BwJaJ6ckSzy92fkspCiTVGEITGg30wZ7ZcuFR3hPySU5c1lEHmD8GMuSIuVt42KBL4DG
+         aQyfP+8csdNvqAfSVe8OP0n0Lva6t+s7b+CFRpluRXqs94spzS0INLAhMZSUh1cWLFPV
+         t1zaYrINE62c+zPW1JTDVR8zn3H+2h4GWL4ax2cr9GlrV2K1TLPdGtRPw/bffUr3ZyBW
+         BIpnYVEOgicj8/CpuhvFsa4f7Es6G9l+ua3Iis96iNcd90/wasmdj+rrDnJhWetQu1kA
+         33+A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=Ok73Cd0+1oOdATm9yISCwTjN9oEDZNi1QdCRZyqCgiw=;
-        b=B55UXRw/69EdSbb1Z+I7ARZ6r/wseARYwD4P0XvkMpprT0THfGMhUmh9oLgfEGWYlB
-         G4A+OPRwllx2Ndg8m5VKOZ9ShLIFw+LBPrIiccBjyDV8WHxLasMp5XtUop02MVymLiNE
-         5bXQMWGlfURIwvd8NZeVck3Mq8f94yOwPWp34V0qyKbYSsdxrmCot9m67emvOoocGZQH
-         jeob3SQVEBAUwxI8+/CzP4yjYQXo2DTwf0EleG1g4EiW/aGlr/dGkHAU1mR5GcinqYDL
-         +Q+E0RqAsf1rGGyYscchUhlQ/dYpsIEChe0RNrhvBsPlkOr4D5AIGC7G3pTj+sji/Sxm
-         zNwA==
+        bh=W7fYsGKRBlmTW3CD7cbX3LbedsaSpni9GuqLbWnL0zM=;
+        b=lAvTPw45Jh2FKG55CgAxbeNwEhMD85MFTcfDMBQjB7JDSevk/XDVkEwKPEBFXAVWSS
+         yTaGi/zlrj3VM6P6Pko2gX2ClZcetnSanOugagEUqZcQYV8pWJOgOP2f7yM102dMzAj4
+         Sw79FD2/f171tC05EFElRM6NehABAR4GpCdlXKxJeM4y6SZn1xPjGJgApLMt4VAtqDEg
+         3AcjPt54+ev8n9lt0IK77HXN9oh1WF3PK54+V2u/H8TXJuZkI3mDZymGBABQ0et1szX8
+         QQvB+4cLjgYsz/Mx35eTXEvgtr4VlqQxqM0IE6zZicY2VUpFMDInzwiaP7hPm6vscSHP
+         Nghg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 66si6666132wmd.127.2019.03.18.09.35.53
+        by mx.google.com with ESMTP id v184si6390929wma.96.2019.03.18.09.35.59
         for <linux-mm@kvack.org>;
-        Mon, 18 Mar 2019 09:35:53 -0700 (PDT)
+        Mon, 18 Mar 2019 09:36:00 -0700 (PDT)
 Received-SPF: pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id AB48D1650;
-	Mon, 18 Mar 2019 09:35:52 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 20D71165C;
+	Mon, 18 Mar 2019 09:35:59 -0700 (PDT)
 Received: from e119884-lin.cambridge.arm.com (e119884-lin.cambridge.arm.com [10.1.196.72])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 85D5F3F614;
-	Mon, 18 Mar 2019 09:35:46 -0700 (PDT)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id ED7E23F614;
+	Mon, 18 Mar 2019 09:35:52 -0700 (PDT)
 From: Vincenzo Frascino <vincenzo.frascino@arm.com>
 To: linux-arm-kernel@lists.infradead.org,
 	linux-doc@vger.kernel.org,
@@ -122,12 +122,13 @@ Cc: Alexander Viro <viro@zeniv.linux.org.uk>,
 	Steven Rostedt <rostedt@goodmis.org>,
 	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
 	Will Deacon <will.deacon@arm.com>
-Subject: [PATCH v2 0/4] arm64 relaxed ABI
-Date: Mon, 18 Mar 2019 16:35:29 +0000
-Message-Id: <20190318163533.26838-1-vincenzo.frascino@arm.com>
+Subject: [PATCH v2 1/4] elf: Make AT_FLAGS arch configurable
+Date: Mon, 18 Mar 2019 16:35:30 +0000
+Message-Id: <20190318163533.26838-2-vincenzo.frascino@arm.com>
 X-Mailer: git-send-email 2.21.0
-In-Reply-To: <cover.1552679409.git.andreyknvl@google.com>
+In-Reply-To: <20190318163533.26838-1-vincenzo.frascino@arm.com>
 References: <cover.1552679409.git.andreyknvl@google.com>
+ <20190318163533.26838-1-vincenzo.frascino@arm.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -136,146 +137,88 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On arm64 the TCR_EL1.TBI0 bit has been always enabled in the Linux
-kernel hence the userspace (EL0) is allowed to set a non-zero value
-in the top byte but the resulting pointers are not allowed at the
-user-kernel syscall ABI boundary.
+Currently, the AT_FLAGS in the elf auxiliary vector are set to 0
+by default by the kernel.
+Some architectures might need to expose to the userspace a non-zero
+value to advertise some platform specific ABI functionalities.
 
-This patchset proposes a relaxation of the ABI and a mechanism to
-advertise it to the userspace via an AT_FLAGS.
+Make AT_FLAGS configurable by the architectures that require it.
 
-The rationale behind the choice of AT_FLAGS is that the Unix System V
-ABI defines AT_FLAGS as "flags", leaving some degree of freedom in
-interpretation.
-There are two previous attempts of using AT_FLAGS in the Linux Kernel
-for different reasons: the first was more generic and was used to expose
-the support for the GNU STACK NX feature [1] and the second was done for
-the MIPS architecture and was used to expose the support of "MIPS ABI
-Extension for IEEE Std 754 Non-Compliant Interlinking" [2].
-Both the changes are currently _not_ merged in mainline.
-The only architecture that reserves some of the bits in AT_FLAGS is
-currently MIPS, which introduced the concept of platform specific ABI
-(psABI) reserving the top-byte [3].
-
-When ARM64_AT_FLAGS_SYSCALL_TBI is set the kernel is advertising
-to the userspace that a relaxed ABI is supported hence this type
-of pointers are now allowed to be passed to the syscalls when they are
-in memory ranges obtained by anonymous mmap() or brk().
-
-The userspace _must_ verify that the flag is set before passing tagged
-pointers to the syscalls allowed by this relaxation.
-
-More in general, exposing the ARM64_AT_FLAGS_SYSCALL_TBI flag and mandating
-to the software to check that the feature is present, before using the
-associated functionality, it provides a degree of control on the decision
-of disabling such a feature in future without consequently breaking the
-userspace.
-
-The change required a modification of the elf common code, because in Linux
-the AT_FLAGS are currently set to zero by default by the kernel.
-
-The newly added flag has been verified on arm64 using the code below.
-#include <stdio.h>
-#include <stdbool.h>
-#include <sys/auxv.h>
-
-#define ARM64_AT_FLAGS_SYSCALL_TBI     (1 << 0)
-
-bool arm64_syscall_tbi_is_present(void)
-{
-        unsigned long at_flags = getauxval(AT_FLAGS);
-        if (at_flags & ARM64_AT_FLAGS_SYSCALL_TBI)
-                return true;
-
-        return false;
-}
-
-void main()
-{
-        if (arm64_syscall_tbi_is_present())
-                printf("ARM64_AT_FLAGS_SYSCALL_TBI is present\n");
-}
-
-This patchset should be merged together with [4].
-
-[1] https://patchwork.ozlabs.org/patch/579578/
-[2] https://lore.kernel.org/patchwork/cover/618280/
-[3] ftp://www.linux-mips.org/pub/linux/mips/doc/ABI/psABI_mips3.0.pdf
-[4] https://patchwork.kernel.org/cover/10674351/
-
-ABI References:
----------------
-Sco SysV ABI: http://www.sco.com/developers/gabi/2003-12-17/contents.html
-PowerPC AUXV: http://openpowerfoundation.org/wp-content/uploads/resources/leabi/content/dbdoclet.50655242_98651.html
-AMD64 ABI: https://www.cs.tufts.edu/comp/40-2012f/readings/amd64-abi.pdf
-x86 ABI: https://www.uclibc.org/docs/psABI-i386.pdf
-MIPS ABI: ftp://www.linux-mips.org/pub/linux/mips/doc/ABI/psABI_mips3.0.pdf
-ARM ABI: http://infocenter.arm.com/help/topic/com.arm.doc.ihi0044f/IHI0044F_aaelf.pdf
-SPARC ABI: http://math-atlas.sourceforge.net/devel/assembly/abi_sysV_sparc.pdf
-
-CC: Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: Alexei Starovoitov <ast@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrey Konovalov <andreyknvl@google.com>
-Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
-Cc: Branislav Rankov <Branislav.Rankov@arm.com>
 Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Chintan Pandya <cpandya@codeaurora.org>
-Cc: Daniel Borkmann <daniel@iogearbox.net>
-Cc: Dave Martin <Dave.Martin@arm.com>
-Cc: "David S. Miller" <davem@davemloft.net>
-Cc: Dmitry Vyukov <dvyukov@google.com>
-Cc: Eric Dumazet <edumazet@google.com>
-Cc: Evgeniy Stepanov <eugenis@google.com>
-Cc: Graeme Barnes <Graeme.Barnes@arm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: Jacob Bramley <Jacob.Bramley@arm.com>
-Cc: Kate Stewart <kstewart@linuxfoundation.org>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Kevin Brodsky <kevin.brodsky@arm.com>
-Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Kostya Serebryany <kcc@google.com>
-Cc: Lee Smith <Lee.Smith@arm.com>
-Cc: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Cc: Mark Rutland <mark.rutland@arm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>
-Cc: Robin Murphy <robin.murphy@arm.com>
-Cc: Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>
-Cc: Shuah Khan <shuah@kernel.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>
-Cc: Szabolcs Nagy <Szabolcs.Nagy@arm.com>
 Cc: Will Deacon <will.deacon@arm.com>
+CC: Andrey Konovalov <andreyknvl@google.com>
+CC: Alexander Viro <viro@zeniv.linux.org.uk>
 Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
+---
+ fs/binfmt_elf.c        | 6 +++++-
+ fs/binfmt_elf_fdpic.c  | 6 +++++-
+ fs/compat_binfmt_elf.c | 5 +++++
+ 3 files changed, 15 insertions(+), 2 deletions(-)
 
-Changes:
---------
-v2:
-  - Rebased on 5.1-rc1
-  - Addressed review comments
-  - Modified tagged-pointers.txt to be compliant with the
-    new ABI relaxation
-
-Vincenzo Frascino (4):
-  elf: Make AT_FLAGS arch configurable
-  arm64: Define Documentation/arm64/elf_at_flags.txt
-  arm64: Relax Documentation/arm64/tagged-pointers.txt
-  arm64: elf: Advertise relaxed ABI
-
- Documentation/arm64/elf_at_flags.txt    | 133 ++++++++++++++++++++++++
- Documentation/arm64/tagged-pointers.txt |  23 ++--
- arch/arm64/include/asm/atflags.h        |   7 ++
- arch/arm64/include/asm/elf.h            |   5 +
- arch/arm64/include/uapi/asm/atflags.h   |   8 ++
- fs/binfmt_elf.c                         |   6 +-
- fs/binfmt_elf_fdpic.c                   |   6 +-
- fs/compat_binfmt_elf.c                  |   5 +
- 8 files changed, 184 insertions(+), 9 deletions(-)
- create mode 100644 Documentation/arm64/elf_at_flags.txt
- create mode 100644 arch/arm64/include/asm/atflags.h
- create mode 100644 arch/arm64/include/uapi/asm/atflags.h
-
+diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
+index 7d09d125f148..f699a9ef5112 100644
+--- a/fs/binfmt_elf.c
++++ b/fs/binfmt_elf.c
+@@ -84,6 +84,10 @@ static int elf_core_dump(struct coredump_params *cprm);
+ #define ELF_CORE_EFLAGS	0
+ #endif
+ 
++#ifndef ELF_AT_FLAGS
++#define ELF_AT_FLAGS	0
++#endif
++
+ #define ELF_PAGESTART(_v) ((_v) & ~(unsigned long)(ELF_MIN_ALIGN-1))
+ #define ELF_PAGEOFFSET(_v) ((_v) & (ELF_MIN_ALIGN-1))
+ #define ELF_PAGEALIGN(_v) (((_v) + ELF_MIN_ALIGN - 1) & ~(ELF_MIN_ALIGN - 1))
+@@ -249,7 +253,7 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
+ 	NEW_AUX_ENT(AT_PHENT, sizeof(struct elf_phdr));
+ 	NEW_AUX_ENT(AT_PHNUM, exec->e_phnum);
+ 	NEW_AUX_ENT(AT_BASE, interp_load_addr);
+-	NEW_AUX_ENT(AT_FLAGS, 0);
++	NEW_AUX_ENT(AT_FLAGS, ELF_AT_FLAGS);
+ 	NEW_AUX_ENT(AT_ENTRY, exec->e_entry);
+ 	NEW_AUX_ENT(AT_UID, from_kuid_munged(cred->user_ns, cred->uid));
+ 	NEW_AUX_ENT(AT_EUID, from_kuid_munged(cred->user_ns, cred->euid));
+diff --git a/fs/binfmt_elf_fdpic.c b/fs/binfmt_elf_fdpic.c
+index b53bb3729ac1..cf1e680a6b88 100644
+--- a/fs/binfmt_elf_fdpic.c
++++ b/fs/binfmt_elf_fdpic.c
+@@ -82,6 +82,10 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *,
+ static int elf_fdpic_core_dump(struct coredump_params *cprm);
+ #endif
+ 
++#ifndef ELF_AT_FLAGS
++#define ELF_AT_FLAGS	0
++#endif
++
+ static struct linux_binfmt elf_fdpic_format = {
+ 	.module		= THIS_MODULE,
+ 	.load_binary	= load_elf_fdpic_binary,
+@@ -651,7 +655,7 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
+ 	NEW_AUX_ENT(AT_PHENT,	sizeof(struct elf_phdr));
+ 	NEW_AUX_ENT(AT_PHNUM,	exec_params->hdr.e_phnum);
+ 	NEW_AUX_ENT(AT_BASE,	interp_params->elfhdr_addr);
+-	NEW_AUX_ENT(AT_FLAGS,	0);
++	NEW_AUX_ENT(AT_FLAGS,	ELF_AT_FLAGS);
+ 	NEW_AUX_ENT(AT_ENTRY,	exec_params->entry_addr);
+ 	NEW_AUX_ENT(AT_UID,	(elf_addr_t) from_kuid_munged(cred->user_ns, cred->uid));
+ 	NEW_AUX_ENT(AT_EUID,	(elf_addr_t) from_kuid_munged(cred->user_ns, cred->euid));
+diff --git a/fs/compat_binfmt_elf.c b/fs/compat_binfmt_elf.c
+index 15f6e96b3bd9..a21cf99701ae 100644
+--- a/fs/compat_binfmt_elf.c
++++ b/fs/compat_binfmt_elf.c
+@@ -79,6 +79,11 @@
+ #define	ELF_HWCAP2		COMPAT_ELF_HWCAP2
+ #endif
+ 
++#ifdef	COMPAT_ELF_AT_FLAGS
++#undef	ELF_AT_FLAGS
++#define	ELF_AT_FLAGS		COMPAT_ELF_AT_FLAGS
++#endif
++
+ #ifdef	COMPAT_ARCH_DLINFO
+ #undef	ARCH_DLINFO
+ #define	ARCH_DLINFO		COMPAT_ARCH_DLINFO
 -- 
 2.21.0
 
