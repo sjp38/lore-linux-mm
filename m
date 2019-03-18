@@ -2,176 +2,380 @@ Return-Path: <SRS0=xdO8=RV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4AD30C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 06:23:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CD5A6C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 07:01:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DAC8A2077B
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 06:23:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DAC8A2077B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id 7986E2077B
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 07:01:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7986E2077B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2AC4F6B0003; Mon, 18 Mar 2019 02:23:44 -0400 (EDT)
+	id 131186B0003; Mon, 18 Mar 2019 03:01:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2329B6B0006; Mon, 18 Mar 2019 02:23:44 -0400 (EDT)
+	id 0BC376B0006; Mon, 18 Mar 2019 03:01:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0FAEC6B0007; Mon, 18 Mar 2019 02:23:44 -0400 (EDT)
+	id EC4D06B0007; Mon, 18 Mar 2019 03:01:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f200.google.com (mail-vk1-f200.google.com [209.85.221.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D3C556B0003
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 02:23:43 -0400 (EDT)
-Received: by mail-vk1-f200.google.com with SMTP id v123so7098873vkv.17
-        for <linux-mm@kvack.org>; Sun, 17 Mar 2019 23:23:43 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 90C856B0003
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 03:01:00 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id x21so6133319edr.17
+        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 00:01:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :date:from:user-agent:mime-version:to:cc:subject:references
-         :in-reply-to:content-transfer-encoding;
-        bh=ZB9nJsDpKa1+tc/kynrz0Fmj61kcN4tZlEWpMXssfxY=;
-        b=sfIPb4wisHQEy5F3bbbNExh+uiU65icbeya0s26/6Nm08WBVhxqH5Qc0N0Jksk+vTy
-         w3tHTcms/apoQvVFhHNdIwXhJan6hwUqwpc660EXhoOwHYZPXjp1Fvja0G/6qMAXgkkz
-         NZZxKDQJaZJiFCi1TVHzkFumU+JtokluuK4px2B6GyBDs7GEIXZw5+NSAeAkQDwuEg9X
-         JLPjdGX4HhggTcKtdLST6REjZtgNF8D+hDx2MAORzFv7aiyvir9VB8m1BLScou2Wz7Tz
-         TPjweh/NeuTiovIzjGM/dV1NuuidtYJ3QtcJ0NU5WwKfkFeUW2NJ0Q55/K0d+pLSbWyY
-         N+kA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-X-Gm-Message-State: APjAAAU+akx0+nz/taS0uvd5aE+fH9qzXzP1KilVKKQve3KSHXWY17H4
-	OPVqY174ws5UaTtRA6FP/fX44OmPGDJzMzlb83MJPB6GsW3X4RqZ68MzXqkxs0KjL8USilStSm1
-	UY/NXt0vxK89sryXnhrByYt1q52GXOoPILz4w6KcfoCyGS3xa8TFzoqOJlFD0lmoBHQ==
-X-Received: by 2002:a67:eac9:: with SMTP id s9mr8502778vso.128.1552890223522;
-        Sun, 17 Mar 2019 23:23:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxMWE6XIPzuhys0Xis5tVhYyROChmTJkXyWyz/zR1fyaWkD3PoG5FHYVLWRLLtm03YM+hMZ
-X-Received: by 2002:a67:eac9:: with SMTP id s9mr8502761vso.128.1552890222539;
-        Sun, 17 Mar 2019 23:23:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552890222; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=9bE65Gw/wkI4iYUVfMmi7sThJo4Meh1Gf1hnq1+L99U=;
+        b=R/M83eJRpFFiSri0O+lLPV1+gP22PMNFHgfuyVVucF3xgMWHYqi2Av5y7tFQYv0sNk
+         WQ9GffCndrwPYgwQ+//kLcdSJ0wA0Dvdhmn8UzWV0m9sPvQpzyoby1ikjLKbSpaJy6xY
+         5yYZWqGMQOOh6QiKTs+EsSk8/ZOaKQxEU8cXUYvLpGr73ixslrcnvFNua91IR54K0YqX
+         kpY4RfajvJNDL4uwhMUpeam4WtnMGUciXAfVEftcNpL2T/zAsWwhUqegedhY7z8INK7N
+         9wgwjLTmZgax+9bIsKaj7HdoBmPtS6LrX/y8eTe8XD1zPwxnKMyk1DaXvQ1lEKS91fEo
+         gZBg==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Gm-Message-State: APjAAAW+aOXgrZ3JxMnUksRPt/ocnHvIL49Wl0riNpkBeH4nSrtfBb9U
+	JinNgEWrlpnMWP+2jcGgSrV5s6MqNcBpS79MbIjW8W3jTalVYpHbFvrmvdVpunD6x8lbU9xOjwM
+	zV9x+C5VcqTfc3d3+TRGYKVdKJdKQODCxstmsHOnL+eOh5U1PWYOVLm2D6ND9QjI=
+X-Received: by 2002:a17:906:60d7:: with SMTP id f23mr9964466ejk.177.1552892460086;
+        Mon, 18 Mar 2019 00:01:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy4YsP8KzLTwf43aNR63BRHSr/g/aXGukT+lboOArWPdtSNxoDR/P7Pd6gVvfpYBd37LBXO
+X-Received: by 2002:a17:906:60d7:: with SMTP id f23mr9964399ejk.177.1552892458639;
+        Mon, 18 Mar 2019 00:00:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552892458; cv=none;
         d=google.com; s=arc-20160816;
-        b=ALhgvcRBz1TotiYQPpc1AKY8JuQWLdU1IMrY7P6JEKEw9iZwHbVpicU/aOBtFtq+KV
-         iWEDWpg3r5OMtVklZh1fouJ0s5gUp/SVcZHcDJPDd26pTLIeua5Zvr86qFoXvhvgINfN
-         aiZUcZxN6e3r1kMJx/V63M6+ahuXIdGQQRBICdMKXxIHpj0JyY6A5zcIVp+yYbB+d8yy
-         EzD38pGnlW3tEXBkTE0oQ1CDJSk6Z0maSghW7z/RsuY4z0pmaCchBp3sGBrSfACcyMcI
-         OKeRnnsThhsunsQ1Hw9SCammTr6yKuE5TbVib+CkK1xVP9WC/gRUf9J7/t3nu/mIPS6P
-         W23w==
+        b=Ib9RifbEX4jOk2lSR8qBunhFJ0o5FDbLe+Fq2vjyr1o1XFDYdf15S3nBBEc0Sy1N7b
+         Nlf6j2x6b4OG/t8CbLbH4qTL5EP7JXzgOhH9ORnpN0pChnqhYYTpGWqQnXPA9ExUj651
+         Jg1iVEyOi5CAi+O3SC4RrNWZyphDfVtBf3D0XciIk4V7QjsR6eu29KS1owSwS9hWVeXx
+         18wtIxJNyoQ8K3luJMAQ37GUsMrdpASMr5Ws7W9ZaMiKzyzkXvh08k6TJ1YEVCbGCrG2
+         gS/B4ke+ZT91S5Ux/RZ/ppViEXbhMTC1yACFTEySZKOC8N9KsVK2iEa4zUnyQ9Q9wlRq
+         ZFeQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:references:subject:cc:to
-         :mime-version:user-agent:from:date:message-id;
-        bh=ZB9nJsDpKa1+tc/kynrz0Fmj61kcN4tZlEWpMXssfxY=;
-        b=Sy4+cDNq9dDXbwY4ZxTDZwtN9kQSLHU40ytRIuLQwoTjS5VqBGsRQN8kAZ3NdgwLdh
-         OorXK93LBvo9vLWKShl6dRl9ypPVj7PiqdvhVAeI/mu1QVAqy8XOfBNPKuF8AGSxw+4b
-         IvkxRFtKhBr315/e9jZoysxKNgsBz34MhhCe/m2oVpICQc0/U5IFXj6IwiFCJtwPpFm6
-         xGAgK5piyFPJ1+DD2IwzQaApxr2EZ+j5F65u3tan/1Ps1FvhMR29fbDDbPW6rxGEiJU9
-         gN5+AwE+QJLLBfgO8tMmWTsDGu/iMqBRHUIjP2EBwbiwQhSA4NtlP6ifSNtt1g13HERl
-         Pm0Q==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:to:subject;
+        bh=9bE65Gw/wkI4iYUVfMmi7sThJo4Meh1Gf1hnq1+L99U=;
+        b=Xk1DfygjK/pyKxRlCvRopV5Z2zVHMjjvboIr+e3I2UagIb6yGmkg1k3CYu22APRK+u
+         NOHUDtWR0OOyuFaqyuJ3Tz4fooJV330hS3jUP6bDtxwYdKoGTskjXXfAWIbz9htkBCiF
+         gFWsDbgQYos8rzo72tqiuDk1/yvLJnm+Js0f/Wo2maeXtRlwlIBDUFQTSa0ds9zLUrh8
+         zYGukkwb3Bp3EjlHGNAG01AFSoZCyDvjb4H+DwPOqo5vxS1vMYtkWpJwHXIDbx01bI+O
+         EYZyTTObpKTBC/W8BQWlTwpNrEFmnvelgG03iAbcL54f7EZ8AqU5ym7X0g/rq3i1KaOa
+         xltg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
-        by mx.google.com with ESMTPS id r184si1824791vsc.92.2019.03.17.23.23.41
+       spf=neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from relay5-d.mail.gandi.net (relay5-d.mail.gandi.net. [217.70.183.197])
+        by mx.google.com with ESMTPS id b37si863545ede.406.2019.03.18.00.00.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 17 Mar 2019 23:23:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 18 Mar 2019 00:00:58 -0700 (PDT)
+Received-SPF: neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.197;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from DGGEMS411-HUB.china.huawei.com (unknown [172.30.72.60])
-	by Forcepoint Email with ESMTP id CD773565038434D6CCAB;
-	Mon, 18 Mar 2019 14:23:36 +0800 (CST)
-Received: from [127.0.0.1] (10.177.29.68) by DGGEMS411-HUB.china.huawei.com
- (10.3.19.211) with Microsoft SMTP Server id 14.3.408.0; Mon, 18 Mar 2019
- 14:23:34 +0800
-Message-ID: <5C8F3965.2050202@huawei.com>
-Date: Mon, 18 Mar 2019 14:23:33 +0800
-From: zhong jiang <zhongjiang@huawei.com>
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20120428 Thunderbird/12.0.1
+       spf=neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Originating-IP: 79.86.19.127
+Received: from [192.168.0.11] (127.19.86.79.rev.sfr.net [79.86.19.127])
+	(Authenticated sender: alex@ghiti.fr)
+	by relay5-d.mail.gandi.net (Postfix) with ESMTPSA id 59B641C0007;
+	Mon, 18 Mar 2019 07:00:48 +0000 (UTC)
+Subject: Re: [PATCH v7 4/4] hugetlb: allow to free gigantic pages regardless
+ of the configuration
+To: christophe leroy <christophe.leroy@c-s.fr>, aneesh.kumar@linux.ibm.com,
+ mpe@ellerman.id.au, Andrew Morton <akpm@linux-foundation.org>,
+ Vlastimil Babka <vbabka@suse.cz>, Catalin Marinas <catalin.marinas@arm.com>,
+ Will Deacon <will.deacon@arm.com>,
+ Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Paul Mackerras <paulus@samba.org>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>,
+ Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
+ "David S . Miller" <davem@davemloft.net>,
+ Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+ Borislav Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>,
+ x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>,
+ Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
+ Mike Kravetz <mike.kravetz@oracle.com>,
+ linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+ linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
+ linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org
+References: <20190317162847.14107-1-alex@ghiti.fr>
+ <20190317162847.14107-5-alex@ghiti.fr>
+ <f434892d-80b2-f09d-31d6-754a1be0b97a@c-s.fr>
+From: Alex Ghiti <alex@ghiti.fr>
+Message-ID: <525d6c00-012f-c6dd-abf0-fa5e1ffc12be@ghiti.fr>
+Date: Mon, 18 Mar 2019 03:00:47 -0400
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-To: Andrea Arcangeli <aarcange@redhat.com>
-CC: Mike Rapoport <rppt@linux.vnet.ibm.com>, Peter Xu <peterx@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov
-	<dvyukov@google.com>, syzbot
-	<syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com>, Michal Hocko
-	<mhocko@kernel.org>, <cgroups@vger.kernel.org>, Johannes Weiner
-	<hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM
-	<linux-mm@kvack.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>, David Rientjes
-	<rientjes@google.com>, Hugh Dickins <hughd@google.com>, Matthew Wilcox
-	<willy@infradead.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka
-	<vbabka@suse.cz>
-Subject: Re: KASAN: use-after-free Read in get_mem_cgroup_from_mm
-References: <CACT4Y+Z+CH0UTdSz-w_woMPrBwg-GuobV1Su4qd9ReffTkyfVg@mail.gmail.com> <5C7D2F82.40907@huawei.com> <CACT4Y+agwaszODNGJHCqn4fSk4Le9exn3Cau0nornJ0RaTpDJw@mail.gmail.com> <5C7D4500.3070607@huawei.com> <CACT4Y+b6y_3gTpR8LvNREHOV0TP7jB=Zp1L03dzpaz_SaeESng@mail.gmail.com> <5C7E1A38.2060906@huawei.com> <20190306020540.GA23850@redhat.com> <5C821550.50506@huawei.com> <20190315213944.GD9967@redhat.com> <5C8CC42E.1090208@huawei.com> <20190316194222.GA29767@redhat.com>
-In-Reply-To: <20190316194222.GA29767@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.177.29.68]
-X-CFilter-Loop: Reflected
+In-Reply-To: <f434892d-80b2-f09d-31d6-754a1be0b97a@c-s.fr>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: sv-FI
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019/3/17 3:42, Andrea Arcangeli wrote:
-> On Sat, Mar 16, 2019 at 05:38:54PM +0800, zhong jiang wrote:
->> On 2019/3/16 5:39, Andrea Arcangeli wrote:
->>> On Fri, Mar 08, 2019 at 03:10:08PM +0800, zhong jiang wrote:
->>>> I can reproduce the issue in arm64 qemu machine.  The issue will leave after applying the
->>>> patch.
->>>>
->>>> Tested-by: zhong jiang <zhongjiang@huawei.com>
->>> Thanks a lot for the quick testing!
->>>
->>>> Meanwhile,  I just has a little doubt whether it is necessary to use RCU to free the task struct or not.
->>>> I think that mm->owner alway be NULL after failing to create to process. Because we call mm_clear_owner.
->>> I wish it was enough, but the problem is that the other CPU may be in
->>> the middle of get_mem_cgroup_from_mm() while this runs, and it would
->>> dereference mm->owner while it is been freed without the call_rcu
->>> affter we clear mm->owner. What prevents this race is the
->> As you had said, It would dereference mm->owner after we clear mm->owner.
+On 3/17/19 2:31 PM, christophe leroy wrote:
+>
+>
+> Le 17/03/2019 à 17:28, Alexandre Ghiti a écrit :
+>> On systems without CONTIG_ALLOC activated but that support gigantic 
+>> pages,
+>> boottime reserved gigantic pages can not be freed at all. This patch
+>> simply enables the possibility to hand back those pages to memory
+>> allocator.
 >>
->> But after we clear mm->owner,  mm->owner should be NULL.  Is it right?
+>> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
+>> Acked-by: David S. Miller <davem@davemloft.net> [sparc]
+>> ---
+>>   arch/arm64/Kconfig                           |  2 +-
+>>   arch/arm64/include/asm/hugetlb.h             |  4 --
+>>   arch/powerpc/include/asm/book3s/64/hugetlb.h |  7 ---
+>>   arch/powerpc/platforms/Kconfig.cputype       |  2 +-
+>>   arch/s390/Kconfig                            |  2 +-
+>>   arch/s390/include/asm/hugetlb.h              |  3 --
+>>   arch/sh/Kconfig                              |  2 +-
+>>   arch/sparc/Kconfig                           |  2 +-
+>>   arch/x86/Kconfig                             |  2 +-
+>>   arch/x86/include/asm/hugetlb.h               |  4 --
+>>   include/asm-generic/hugetlb.h                | 14 +++++
+>>   include/linux/gfp.h                          |  2 +-
+>>   mm/hugetlb.c                                 | 54 ++++++++++++++------
+>>   mm/page_alloc.c                              |  4 +-
+>>   14 files changed, 61 insertions(+), 43 deletions(-)
 >>
->> And mem_cgroup_from_task will check the parameter. 
->> you mean that it is possible after checking the parameter to  clear the owner .
->> and the NULL pointer will trigger. :-(
-> Dereference mm->owner didn't mean reading the value of the mm->owner
-> pointer, it really means to dereference the value of the pointer. It's
-> like below:
 >
-> get_mem_cgroup_from_mm()		failing fork()
-> ----					---
-> task = mm->owner
-> 					mm->owner = NULL;
-> 					free(mm->owner)
-> *task /* use after free */
+> [...]
 >
-> We didn't set mm->owner to NULL before, so the window for the race was
-> larger, but setting mm->owner to NULL only hides the problem and it
-> can still happen (albeit with a smaller window).
+>> diff --git a/include/asm-generic/hugetlb.h 
+>> b/include/asm-generic/hugetlb.h
+>> index 71d7b77eea50..aaf14974ee5f 100644
+>> --- a/include/asm-generic/hugetlb.h
+>> +++ b/include/asm-generic/hugetlb.h
+>> @@ -126,4 +126,18 @@ static inline pte_t huge_ptep_get(pte_t *ptep)
+>>   }
+>>   #endif
+>>   +#ifndef __HAVE_ARCH_GIGANTIC_PAGE_RUNTIME_SUPPORTED
+>> +#ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
+>> +static inline bool gigantic_page_runtime_supported(void)
+>> +{
+>> +    return true;
+>> +}
+>> +#else
+>> +static inline bool gigantic_page_runtime_supported(void)
+>> +{
+>> +    return false;
+>> +}
+>> +#endif /* CONFIG_ARCH_HAS_GIGANTIC_PAGE */
 >
-> If get_mem_cgroup_from_mm() can see at any time mm->owner not NULL,
-> then the free of the task struct must be delayed until after
-> rcu_read_unlock has returned in get_mem_cgroup_from_mm(). This is
-> the standard RCU model, the freeing must be delayed until after the
-> next quiescent point.
-
-Thank you for your explaination patiently.  The patch should go to upstream too.  I think you
-should send a formal patch to the mainline.  Maybe other people suffer from
-the issue.  :-)
-
-Thanks,
-zhong jiang
-> BTW, both mm_update_next_owner() and mm_clear_owner() should have used
-> WRITE_ONCE when they write to mm->owner, I can update that too but
-> it's just to not to make assumptions that gcc does the right thing
-> (and we still rely on gcc to do the right thing in other places) so
-> that is just an orthogonal cleanup.
+> What about the following instead:
 >
-> Thanks,
-> Andrea
->
-> .
+> static inline bool gigantic_page_runtime_supported(void)
+> {
+>     return IS_ENABLED(CONFIG_ARCH_HAS_GIGANTIC_PAGE);
+> }
 >
 
+Totally, it already was like that in v2 or v3...
+
+
+>
+>> +#endif /* __HAVE_ARCH_GIGANTIC_PAGE_RUNTIME_SUPPORTED */
+>> +
+>>   #endif /* _ASM_GENERIC_HUGETLB_H */
+>> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+>> index 1f1ad9aeebb9..58ea44bf75de 100644
+>> --- a/include/linux/gfp.h
+>> +++ b/include/linux/gfp.h
+>> @@ -589,8 +589,8 @@ static inline bool pm_suspended_storage(void)
+>>   /* The below functions must be run on a range from a single zone. */
+>>   extern int alloc_contig_range(unsigned long start, unsigned long end,
+>>                     unsigned migratetype, gfp_t gfp_mask);
+>> -extern void free_contig_range(unsigned long pfn, unsigned nr_pages);
+>>   #endif
+>> +extern void free_contig_range(unsigned long pfn, unsigned int 
+>> nr_pages);
+>
+> 'extern' is unneeded and should be avoided (iaw checkpatch)
+>
+
+Ok, I did fix a checkpatch warning here, but did not notice the 'extern' 
+one.
+
+
+Thanks for your time,
+
+
+Alex
+
+
+> Christophe
+>
+>>     #ifdef CONFIG_CMA
+>>   /* CMA stuff */
+>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>> index afef61656c1e..4e55aa38704f 100644
+>> --- a/mm/hugetlb.c
+>> +++ b/mm/hugetlb.c
+>> @@ -1058,6 +1058,7 @@ static void free_gigantic_page(struct page 
+>> *page, unsigned int order)
+>>       free_contig_range(page_to_pfn(page), 1 << order);
+>>   }
+>>   +#ifdef CONFIG_CONTIG_ALLOC
+>>   static int __alloc_gigantic_page(unsigned long start_pfn,
+>>                   unsigned long nr_pages, gfp_t gfp_mask)
+>>   {
+>> @@ -1142,11 +1143,20 @@ static struct page 
+>> *alloc_gigantic_page(struct hstate *h, gfp_t gfp_mask,
+>>     static void prep_new_huge_page(struct hstate *h, struct page 
+>> *page, int nid);
+>>   static void prep_compound_gigantic_page(struct page *page, unsigned 
+>> int order);
+>> +#else /* !CONFIG_CONTIG_ALLOC */
+>> +static struct page *alloc_gigantic_page(struct hstate *h, gfp_t 
+>> gfp_mask,
+>> +                    int nid, nodemask_t *nodemask)
+>> +{
+>> +    return NULL;
+>> +}
+>> +#endif /* CONFIG_CONTIG_ALLOC */
+>>     #else /* !CONFIG_ARCH_HAS_GIGANTIC_PAGE */
+>> -static inline bool gigantic_page_supported(void) { return false; }
+>>   static struct page *alloc_gigantic_page(struct hstate *h, gfp_t 
+>> gfp_mask,
+>> -        int nid, nodemask_t *nodemask) { return NULL; }
+>> +                    int nid, nodemask_t *nodemask)
+>> +{
+>> +    return NULL;
+>> +}
+>>   static inline void free_gigantic_page(struct page *page, unsigned 
+>> int order) { }
+>>   static inline void destroy_compound_gigantic_page(struct page *page,
+>>                           unsigned int order) { }
+>> @@ -1156,7 +1166,7 @@ static void update_and_free_page(struct hstate 
+>> *h, struct page *page)
+>>   {
+>>       int i;
+>>   -    if (hstate_is_gigantic(h) && !gigantic_page_supported())
+>> +    if (hstate_is_gigantic(h) && !gigantic_page_runtime_supported())
+>>           return;
+>>         h->nr_huge_pages--;
+>> @@ -2276,13 +2286,27 @@ static int adjust_pool_surplus(struct hstate 
+>> *h, nodemask_t *nodes_allowed,
+>>   }
+>>     #define persistent_huge_pages(h) (h->nr_huge_pages - 
+>> h->surplus_huge_pages)
+>> -static unsigned long set_max_huge_pages(struct hstate *h, unsigned 
+>> long count,
+>> -                        nodemask_t *nodes_allowed)
+>> +static int set_max_huge_pages(struct hstate *h, unsigned long count,
+>> +                  nodemask_t *nodes_allowed)
+>>   {
+>>       unsigned long min_count, ret;
+>>   -    if (hstate_is_gigantic(h) && !gigantic_page_supported())
+>> -        return h->max_huge_pages;
+>> +    spin_lock(&hugetlb_lock);
+>> +
+>> +    /*
+>> +     * Gigantic pages runtime allocation depend on the capability 
+>> for large
+>> +     * page range allocation.
+>> +     * If the system does not provide this feature, return an error 
+>> when
+>> +     * the user tries to allocate gigantic pages but let the user 
+>> free the
+>> +     * boottime allocated gigantic pages.
+>> +     */
+>> +    if (hstate_is_gigantic(h) && !IS_ENABLED(CONFIG_CONTIG_ALLOC)) {
+>> +        if (count > persistent_huge_pages(h)) {
+>> +            spin_unlock(&hugetlb_lock);
+>> +            return -EINVAL;
+>> +        }
+>> +        /* Fall through to decrease pool */
+>> +    }
+>>         /*
+>>        * Increase the pool size
+>> @@ -2295,7 +2319,6 @@ static unsigned long set_max_huge_pages(struct 
+>> hstate *h, unsigned long count,
+>>        * pool might be one hugepage larger than it needs to be, but
+>>        * within all the constraints specified by the sysctls.
+>>        */
+>> -    spin_lock(&hugetlb_lock);
+>>       while (h->surplus_huge_pages && count > 
+>> persistent_huge_pages(h)) {
+>>           if (!adjust_pool_surplus(h, nodes_allowed, -1))
+>>               break;
+>> @@ -2350,9 +2373,10 @@ static unsigned long set_max_huge_pages(struct 
+>> hstate *h, unsigned long count,
+>>               break;
+>>       }
+>>   out:
+>> -    ret = persistent_huge_pages(h);
+>> +    h->max_huge_pages = persistent_huge_pages(h);
+>>       spin_unlock(&hugetlb_lock);
+>> -    return ret;
+>> +
+>> +    return 0;
+>>   }
+>>     #define HSTATE_ATTR_RO(_name) \
+>> @@ -2404,7 +2428,7 @@ static ssize_t __nr_hugepages_store_common(bool 
+>> obey_mempolicy,
+>>       int err;
+>>       NODEMASK_ALLOC(nodemask_t, nodes_allowed, GFP_KERNEL | 
+>> __GFP_NORETRY);
+>>   -    if (hstate_is_gigantic(h) && !gigantic_page_supported()) {
+>> +    if (hstate_is_gigantic(h) && !gigantic_page_runtime_supported()) {
+>>           err = -EINVAL;
+>>           goto out;
+>>       }
+>> @@ -2428,15 +2452,13 @@ static ssize_t 
+>> __nr_hugepages_store_common(bool obey_mempolicy,
+>>       } else
+>>           nodes_allowed = &node_states[N_MEMORY];
+>>   -    h->max_huge_pages = set_max_huge_pages(h, count, nodes_allowed);
+>> +    err = set_max_huge_pages(h, count, nodes_allowed);
+>>   +out:
+>>       if (nodes_allowed != &node_states[N_MEMORY])
+>>           NODEMASK_FREE(nodes_allowed);
+>>   -    return len;
+>> -out:
+>> -    NODEMASK_FREE(nodes_allowed);
+>> -    return err;
+>> +    return err ? err : len;
+>>   }
+>>     static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index ac9c45ffb344..a4547d90fa7a 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -8234,8 +8234,9 @@ int alloc_contig_range(unsigned long start, 
+>> unsigned long end,
+>>                   pfn_max_align_up(end), migratetype);
+>>       return ret;
+>>   }
+>> +#endif /* CONFIG_CONTIG_ALLOC */
+>>   -void free_contig_range(unsigned long pfn, unsigned nr_pages)
+>> +void free_contig_range(unsigned long pfn, unsigned int nr_pages)
+>>   {
+>>       unsigned int count = 0;
+>>   @@ -8247,7 +8248,6 @@ void free_contig_range(unsigned long pfn, 
+>> unsigned nr_pages)
+>>       }
+>>       WARN(count != 0, "%d pages are still in use!\n", count);
+>>   }
+>> -#endif
+>>     #ifdef CONFIG_MEMORY_HOTPLUG
+>>   /*
+>>
+>
+> ---
+> L'absence de virus dans ce courrier électronique a été vérifiée par le 
+> logiciel antivirus Avast.
+> https://www.avast.com/antivirus
+>
 
