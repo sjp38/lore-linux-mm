@@ -2,193 +2,203 @@ Return-Path: <SRS0=xdO8=RV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 75421C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 11:28:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C9FDEC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 11:33:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 95F4220857
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 11:27:59 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="key not found in DNS" (0-bit key) header.d=szeredi.hu header.i=@szeredi.hu header.b="EMLYXOkv"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 95F4220857
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=szeredi.hu
+	by mail.kernel.org (Postfix) with ESMTP id 894A820863
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 11:33:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 894A820863
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E44F96B0003; Mon, 18 Mar 2019 07:27:58 -0400 (EDT)
+	id 233426B0003; Mon, 18 Mar 2019 07:33:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DCD7C6B0006; Mon, 18 Mar 2019 07:27:58 -0400 (EDT)
+	id 1E0D46B0006; Mon, 18 Mar 2019 07:33:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C6E666B0007; Mon, 18 Mar 2019 07:27:58 -0400 (EDT)
+	id 0F9396B0007; Mon, 18 Mar 2019 07:33:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A24056B0003
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 07:27:58 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id w11so13216390iom.20
-        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 04:27:58 -0700 (PDT)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AF61E6B0003
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 07:33:26 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id x15so3386774wmc.1
+        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 04:33:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=LAxJSbEYYlHpAgb4zWs+vz96bKyE9c3o0yiZpnj27Cw=;
-        b=e5UAa7NyPaR/CEP4VYREv/OxjHbBcQSv0zsYeODpwh+u4IDRPrdSUtYLYCGIECOPGc
-         Vx6fzRIh/4mAwZowqr8MRvMCBO854m0Cy82c+tzJVfrhlmsJ8xQtQ/xu6lwVyFYv0+iR
-         a7tuQhEIPSXisvGQZ84JPyOGPzjQD5Z32ORtBKMIpJaIK0nWiXm8nbPAUbYxlrUuba3M
-         3eQwh//rXsCAikLZVHHMJ/vGcizWxUa4+2UU6kW+mbml5LNzKr34vV0HsE0PaARErhZk
-         bJd5r0KJu48MbRM3C0cllGTAKZIm5qOgqGj8YY69KXaW1Dei0a5Lo7VQIq7iBEviC7JT
-         b3gA==
-X-Gm-Message-State: APjAAAX+2LEuZBX/k4s4st2DmRNHlIDdGNO4xJVee1t5inNj3dMHTCOT
-	m94EYqi9Q2RLfBYGWKa1NM9wgkc2GgRF8QxY0oSMcrRAeBMSIGZnqj5N1Uo9cDPt3D+iXN5tkx5
-	jeTmPtqBosoOccOszEqovYh97iNqEgnyjeHEqRDQJKhU0UIYn2boQWbC1ydCkkd8MFg==
-X-Received: by 2002:a02:2a83:: with SMTP id w125mr10735430jaw.44.1552908478406;
-        Mon, 18 Mar 2019 04:27:58 -0700 (PDT)
-X-Received: by 2002:a02:2a83:: with SMTP id w125mr10735399jaw.44.1552908477426;
-        Mon, 18 Mar 2019 04:27:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552908477; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=bxcVp1aXU07AX4ga6Cz1gLFYwiqZzn/6kcogjfOgwOs=;
+        b=k6VF8KOfyfD9XHssTbzUPsY8sYoJg0P/jXU8gVTb5kRgmQRDiwhVaT840UrRezvSiU
+         HMtTtYfCy9UwssN2rmZt0kMT0TtsJ8uaaJtLreS/IygXmXiqKgPbV1UbrPITs/OJo+La
+         LR6GpbyfgKOYAdZyK3CCpRuMujZ9vX+GXCkFSkfi2CtXr1QnM1No1YhM4rb8oEWTImIi
+         uiTKgu/ta+2U6fzyfKhhwuz1lv7VhN+fQhDPfoyq91j/cpQtHP0GCxTug0RTK252eEpP
+         xM6bxv6olHd9eTbjAM1NBGZ+aCBkGwv0Xro17dVMjYTR16EqWXLwUMzgAERTp3t8sDIe
+         drCQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=kevin.brodsky@arm.com
+X-Gm-Message-State: APjAAAUFIbFPynhZzFVc1i7ji23vXuh0lGq4adzsdrN39jK0+TNq0WAF
+	TIKH9daY/r7lpRC+TqOohv0Gcn/dN5PW1iMV0L1fK8I/kUK05/azGKKC3LGqwJUXSW2feWt3m3K
+	zXr2GGGCEJOcxOZJw/V17XexnwuYTvi0H34dvLrgYMe/9XVX1USsQ+HaxKUlWvxXT7w==
+X-Received: by 2002:a1c:700a:: with SMTP id l10mr11499796wmc.13.1552908806167;
+        Mon, 18 Mar 2019 04:33:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyI2j0i7Kae6qec1sbxHfMSKnQxpIv1aAnz7c9S9SG7XJAnYR0F93IL0/cEsgzFJznn+zoR
+X-Received: by 2002:a1c:700a:: with SMTP id l10mr11499744wmc.13.1552908805234;
+        Mon, 18 Mar 2019 04:33:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552908805; cv=none;
         d=google.com; s=arc-20160816;
-        b=E5pf5XXiaNp4/9lr4FhZ8BYr3xEXrhARbjjcGy0U+Cv5bAjvFun0ORvZCsxeuJWybP
-         81yQeKMDTYMsdsllRJf1eprQGr7Sv3B5TstLxSm079cRCwTAtBKBxJNofwTqQF8eu8uU
-         te57AJkgvAImFSFLoQQUF1oIwxbEPgHTJwu8Pk+oW5uLa8qLxLFoqkb3ySw8OxIq7BzY
-         lrncVpBqpG+kWpgltPSxpoQhwb5R3KmYKaS90l1npbXwPUrTdKUP8J2d7uuRF+ibaoQ7
-         bqoNvSW96N4yYsmq0j+HtkGofyLohKCNBVRdvUCsKnMVEpcBh8ONzxf+xOEJbqFEzX2n
-         xo6Q==
+        b=lSYamjQq/X2wcuBxvKyObuO9F75m1O7ebaCSp9SDFJbvYOYZFzdu45oXKaMOBsgXuV
+         yWgX64YPOTzFs5FOcMInZr+M6uyKzws6y+XuYICUJBXMOpNFgKIbiCP5RGaUgc1WMqvk
+         GLGmr4snahq8NtwLcDI6q9lKbYq9a8+6K0fnKAqFl6WIpSM8mYFCYNJTYePH+7xJsGJj
+         d/dyIXTfBkIuZw4sKWcnZo8/Tr3NK+lUCUB6HlThZ0zoEt/2wu0F1TzhqC7ebiOO+Jr1
+         GFPDgFz2pv6KMasSqdKvc5Nso8TARPzFpQpR0yfXtPz5c6l9hT+KT3YvFh4zaqit5Gvp
+         yhLQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=LAxJSbEYYlHpAgb4zWs+vz96bKyE9c3o0yiZpnj27Cw=;
-        b=yEaDcxv/AImfORMEvqF2kyPlwfqJ+Cb7lVSXlfUobFEpKT5vdbeanU2nN+5/4omqZ/
-         c/x/mUkkd4hXG2WkTsw00ZI0RP7T2mDSzAJikOFT5sV4lZK6oj8KrS2RCnhv9kqPasxT
-         VrXBBkT0iZUClbZWYVMM8MBibqfYqKlfj0y9Y+19DkU2+GQYaSbP56ZwZyrRcshp/MtZ
-         43dyR62nRK6r2THXpCpQ/1Z34KvAnGrsOF6ORSaHJTXxGnmdEG/qVXvbA9ARnb4qeYwU
-         BI0kpD8mNGgqZG2ha4TYQokydvwpGfmAOM9HNO2xMT8ST5ErDylHMYcey7hffdKzsc8u
-         3Vhw==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=bxcVp1aXU07AX4ga6Cz1gLFYwiqZzn/6kcogjfOgwOs=;
+        b=RQ3HBjCsFf/R0eV69XjhmNdplWOvovqLMr9R58EcD7cyiQSqlztgUQZOtthdlVpGyz
+         lzpB4MDpVi+Qa5vrSQjO10lInvjQVSSxW/eUweXjjZ6QpDLCcnbx/jASObE2NKirxF3d
+         20jEq/KWoI+FOkrKk0cGgs2fcEdPTNnw/5/eL6p5JQ1zCXBv+vgIQJmmb0hcLXOf0oeZ
+         UdCgiSYLVjROBHSyADst2+d4kObevcvbFxcvIjgEkEP5g9xOVtYTy/x8B6H6gliKoEfR
+         UorQ0BW1SUvFalrU9Y4+MtkkN8cwBuK2wFVS86+vMPpNPX9IiAfPt242ntZZXmYITjyh
+         XxgA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=temperror (no key for signature) header.i=@szeredi.hu header.s=google header.b=EMLYXOkv;
-       spf=pass (google.com: domain of miklos@szeredi.hu designates 209.85.220.65 as permitted sender) smtp.mailfrom=miklos@szeredi.hu
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r12sor5061685ioo.40.2019.03.18.04.27.56
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 18 Mar 2019 04:27:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of miklos@szeredi.hu designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=kevin.brodsky@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id t203si6144660wmt.39.2019.03.18.04.33.24
+        for <linux-mm@kvack.org>;
+        Mon, 18 Mar 2019 04:33:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=temperror (no key for signature) header.i=@szeredi.hu header.s=google header.b=EMLYXOkv;
-       spf=pass (google.com: domain of miklos@szeredi.hu designates 209.85.220.65 as permitted sender) smtp.mailfrom=miklos@szeredi.hu
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=szeredi.hu; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=LAxJSbEYYlHpAgb4zWs+vz96bKyE9c3o0yiZpnj27Cw=;
-        b=EMLYXOkvvmG9owzeZS/RXXNtDUTeqNA8MQZiipMBgyPYwozQ4owKeLGfmsNFccAZQD
-         oWhLjK1AHPsP9XfbZIL/OQsZ0nsuFJi2KhnD+z2ftGwXnhvXleij0TZ4HvgO5WpR77il
-         cJcmPlQVzwFjBrGOmjpfSezu5sEXA/nKR5qY4=
-X-Google-Smtp-Source: APXvYqx0GnOKrX1DNAveg7cQ7kmElxvpIATuPFGMCFVAOC5LsaYKhw9k80oddoZyuMGX2mLCllvs//8mt7PRzJexfWw=
-X-Received: by 2002:a5d:8248:: with SMTP id n8mr10767189ioo.246.1552908476414;
- Mon, 18 Mar 2019 04:27:56 -0700 (PDT)
+       spf=pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=kevin.brodsky@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id DDA741650;
+	Mon, 18 Mar 2019 04:33:23 -0700 (PDT)
+Received: from [10.1.199.35] (e107154-lin.cambridge.arm.com [10.1.199.35])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 973303F614;
+	Mon, 18 Mar 2019 04:33:17 -0700 (PDT)
+Subject: Re: [PATCH v11 03/14] lib, arm64: untag user pointers in strn*_user
+To: Andrey Konovalov <andreyknvl@google.com>,
+ Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
+ <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
+ Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>,
+ Kate Stewart <kstewart@linuxfoundation.org>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>,
+ "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+ Shuah Khan <shuah@kernel.org>, Vincenzo Frascino
+ <vincenzo.frascino@arm.com>, Eric Dumazet <edumazet@google.com>,
+ "David S. Miller" <davem@davemloft.net>, Alexei Starovoitov
+ <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>,
+ Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>,
+ Peter Zijlstra <peterz@infradead.org>,
+ Arnaldo Carvalho de Melo <acme@kernel.org>,
+ linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org,
+ linux-mm@kvack.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org,
+ bpf@vger.kernel.org, linux-kselftest@vger.kernel.org,
+ linux-kernel@vger.kernel.org
+Cc: Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>,
+ Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>,
+ Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+ Jacob Bramley <Jacob.Bramley@arm.com>,
+ Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+ Chintan Pandya <cpandya@codeaurora.org>,
+ Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+ Dave Martin <Dave.Martin@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+References: <cover.1552679409.git.andreyknvl@google.com>
+ <f7fa36ec55ed4b45f61d841f9b726772a04cc0a5.1552679409.git.andreyknvl@google.com>
+From: Kevin Brodsky <kevin.brodsky@arm.com>
+Message-ID: <5de82e7d-6091-e694-8397-fbcfd59f9d0b@arm.com>
+Date: Mon, 18 Mar 2019 11:33:14 +0000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-References: <87o998m0a7.fsf@vostro.rath.org> <CAJfpegtQic0v+9G7ODXEzgUPAGOz+3Ay28uxqbafZGMJdqL-zQ@mail.gmail.com>
- <87ef9omb5f.fsf@vostro.rath.org> <CAJfpegu_qxcaQToDpSmcW_ncLb_mBX6f75RTEn6zbsihqcg=Rw@mail.gmail.com>
- <87ef9nighv.fsf@thinkpad.rath.org> <CAJfpegtiXDgSBWN8MRubpAdJFxy95X21nO_yycCZhpvKLVePRA@mail.gmail.com>
- <87zhs7fbkg.fsf@thinkpad.rath.org> <8736ovcn9q.fsf@vostro.rath.org>
- <CAJfpegvjntcpwDYf3z_3Z1D5Aq=isB3ByP3_QSoG6zx-sxB84w@mail.gmail.com>
- <877ee4vgr4.fsf@vostro.rath.org> <878sy3h7gr.fsf@vostro.rath.org>
- <CAJfpeguCJnGrzCtHREq9d5uV-=g9JBmrX_c===giZB7FxWCcgw@mail.gmail.com>
- <CAJfpegu-QU-A0HORYjcrx3fM5FKGUop0x6k10A526ZV=p0CEuw@mail.gmail.com>
- <87bm2ymgnt.fsf@vostro.rath.org> <CAJfpegu+_Qc1LRJgBAU=4jHPkUGPdYnJBxvSvQ6Lx+1_Dj2R=g@mail.gmail.com>
- <87woliwcov.fsf@vostro.rath.org>
-In-Reply-To: <87woliwcov.fsf@vostro.rath.org>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Mon, 18 Mar 2019 12:27:45 +0100
-Message-ID: <CAJfpegvRxANs08i+ZjNjzeNd1LUccgj6=khitowD8eurcfs_NQ@mail.gmail.com>
-Subject: Re: [fuse-devel] fuse: trying to steal weird page
-To: Nikolaus Rath <Nikolaus@rath.org>
-Cc: linux-mm@kvack.org
-Content-Type: multipart/mixed; boundary="0000000000001b50d805845cae76"
+In-Reply-To: <f7fa36ec55ed4b45f61d841f9b726772a04cc0a5.1552679409.git.andreyknvl@google.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-GB
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---0000000000001b50d805845cae76
-Content-Type: text/plain; charset="UTF-8"
-
-On Fri, Mar 1, 2019 at 9:40 PM Nikolaus Rath <Nikolaus@rath.org> wrote:
+On 15/03/2019 19:51, Andrey Konovalov wrote:
+> This patch is a part of a series that extends arm64 kernel ABI to allow to
+> pass tagged user pointers (with the top byte set to something else other
+> than 0x00) as syscall arguments.
 >
-> On Feb 26 2019, Miklos Szeredi <miklos@szeredi.hu> wrote:
-> > On Tue, Feb 26, 2019 at 9:35 PM Nikolaus Rath <Nikolaus@rath.org> wrote:
-> >>
-> >> [ Moving fuse-devel and linux-fsdevel to Bcc ]
-> >>
-> >> Hello linux-mm people,
-> >>
-> >> I am posting this here as advised by Miklos (see below). In short, I
-> >> have a workload that reliably produces kernel messages of the form:
-> >>
-> >> [ 2562.773181] fuse: trying to steal weird page
-> >> [ 2562.773187] page=<something> index=<something> flags=17ffffc00000ad, count=1, mapcount=0, mapping= (null)
-> >>
-> >> What are the implications of this message? Is something activelly going
-> >> wrong (aka do I need to worry about data integrity)?
-> >
-> > Fuse is careful and basically just falls back on page copy, so it
-> > definitely shouldn't affect data integrity.
-> >
-> > The more interesting question is: how can page_cache_pipe_buf_steal()
-> > return a dirty page?  The logic in remove_mapping() should prevent
-> > that, but something is apparently slipping through...
-> >
-> >>
-> >> Is there something I can do to help debugging (and hopefully fixing)
-> >> this?
-> >>
-> >> This is with kernel 4.18 (from Ubuntu cosmic).
-> >
-> > One thought: have you tried reproducing with a recent vanilla
-> > (non-ubuntu) kernel?
+> strncpy_from_user and strnlen_user accept user addresses as arguments, and
+> do not go through the same path as copy_from_user and others, so here we
+> need to handle the case of tagged user addresses separately.
 >
-> Yes, I can reproduce with e.g. 5.0.0-050000rc8 (from
-> https://kernel.ubuntu.com/~kernel-ppa/mainline/v5.0-rc8/). However, here
-> the flag value is different:
+> Untag user pointers passed to these functions.
 >
-> [  278.183571] fuse: trying to steal weird page
-> [  278.183576]   page=000000000aab208c index=14944 flags=17ffffc0000097, count=1, mapcount=0, mapping=          (null)
+> Note, that this patch only temporarily untags the pointers to perform
+> validity checks, but then uses them as is to perform user memory accesses.
+
+Thank you for this new version, looks good to me.
+
+To give a bit of context to the readers, I asked Andrey to make this change, because 
+it makes a difference with hardware memory tagging. Indeed, in that situation, it is 
+always preferable to access the memory using the user-provided tag, so that tag 
+checking can take place; if there is a mismatch, a tag fault will occur (which is 
+handled in a way similar to a page fault). It is also preferable not to assume that 
+an untagged user pointer (tag 0x0) bypasses tag checks.
+
+Kevin
+
 >
-> (but still the same across all messages observed with this kernel so
-> far).
-
-Ah, so it's just the PG_waiters flag that is triggering the "weird
-page" message.   And it looks like it's okay if PG_waiters remains
-set, at least that's what I infer from the comments in
-wake_up_page_bit().  Patch attached.
-
-I'm not sure about the Ubuntu one, you should try filing a bug report
-with them, I think.
-
-Thanks,
-Miklos
-
---0000000000001b50d805845cae76
-Content-Type: text/x-patch; charset="US-ASCII"; 
-	name="fuse-allow-pg_waiters-in-stolen-patch.patch"
-Content-Disposition: attachment; 
-	filename="fuse-allow-pg_waiters-in-stolen-patch.patch"
-Content-Transfer-Encoding: base64
-Content-ID: <f_jte9hekp0>
-X-Attachment-Id: f_jte9hekp0
-
-ZGlmZiAtLWdpdCBhL2ZzL2Z1c2UvZGV2LmMgYi9mcy9mdXNlL2Rldi5jCmluZGV4IDhhNjNlNTI3
-ODVlOS4uNzY5NjA1Y2RmMmJkIDEwMDY0NAotLS0gYS9mcy9mdXNlL2Rldi5jCisrKyBiL2ZzL2Z1
-c2UvZGV2LmMKQEAgLTkwNSw2ICs5MDUsNyBAQCBzdGF0aWMgaW50IGZ1c2VfY2hlY2tfcGFnZShz
-dHJ1Y3QgcGFnZSAqcGFnZSkKIAkgICAgICAgMSA8PCBQR191cHRvZGF0ZSB8CiAJICAgICAgIDEg
-PDwgUEdfbHJ1IHwKIAkgICAgICAgMSA8PCBQR19hY3RpdmUgfAorCSAgICAgICAxIDw8IFBHX3dh
-aXRlcnMgfAogCSAgICAgICAxIDw8IFBHX3JlY2xhaW0pKSkgewogCQlwcmludGsoS0VSTl9XQVJO
-SU5HICJmdXNlOiB0cnlpbmcgdG8gc3RlYWwgd2VpcmQgcGFnZVxuIik7CiAJCXByaW50ayhLRVJO
-X1dBUk5JTkcgIiAgcGFnZT0lcCBpbmRleD0lbGkgZmxhZ3M9JTA4bHgsIGNvdW50PSVpLCBtYXBj
-b3VudD0laSwgbWFwcGluZz0lcFxuIiwgcGFnZSwgcGFnZS0+aW5kZXgsIHBhZ2UtPmZsYWdzLCBw
-YWdlX2NvdW50KHBhZ2UpLCBwYWdlX21hcGNvdW50KHBhZ2UpLCBwYWdlLT5tYXBwaW5nKTsK
---0000000000001b50d805845cae76--
+> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> ---
+>   lib/strncpy_from_user.c | 3 ++-
+>   lib/strnlen_user.c      | 3 ++-
+>   2 files changed, 4 insertions(+), 2 deletions(-)
+>
+> diff --git a/lib/strncpy_from_user.c b/lib/strncpy_from_user.c
+> index 58eacd41526c..6209bb9507c7 100644
+> --- a/lib/strncpy_from_user.c
+> +++ b/lib/strncpy_from_user.c
+> @@ -6,6 +6,7 @@
+>   #include <linux/uaccess.h>
+>   #include <linux/kernel.h>
+>   #include <linux/errno.h>
+> +#include <linux/mm.h>
+>   
+>   #include <asm/byteorder.h>
+>   #include <asm/word-at-a-time.h>
+> @@ -107,7 +108,7 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
+>   		return 0;
+>   
+>   	max_addr = user_addr_max();
+> -	src_addr = (unsigned long)src;
+> +	src_addr = (unsigned long)untagged_addr(src);
+>   	if (likely(src_addr < max_addr)) {
+>   		unsigned long max = max_addr - src_addr;
+>   		long retval;
+> diff --git a/lib/strnlen_user.c b/lib/strnlen_user.c
+> index 1c1a1b0e38a5..8ca3d2ac32ec 100644
+> --- a/lib/strnlen_user.c
+> +++ b/lib/strnlen_user.c
+> @@ -2,6 +2,7 @@
+>   #include <linux/kernel.h>
+>   #include <linux/export.h>
+>   #include <linux/uaccess.h>
+> +#include <linux/mm.h>
+>   
+>   #include <asm/word-at-a-time.h>
+>   
+> @@ -109,7 +110,7 @@ long strnlen_user(const char __user *str, long count)
+>   		return 0;
+>   
+>   	max_addr = user_addr_max();
+> -	src_addr = (unsigned long)str;
+> +	src_addr = (unsigned long)untagged_addr(str);
+>   	if (likely(src_addr < max_addr)) {
+>   		unsigned long max = max_addr - src_addr;
+>   		long retval;
 
