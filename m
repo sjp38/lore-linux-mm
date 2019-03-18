@@ -1,296 +1,243 @@
-Return-Path: <SRS0=9bJk=RU=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=xdO8=RV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 44F41C43381
-	for <linux-mm@archiver.kernel.org>; Sun, 17 Mar 2019 22:02:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E535CC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 00:03:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B3C792087C
-	for <linux-mm@archiver.kernel.org>; Sun, 17 Mar 2019 22:02:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 728552086A
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 00:03:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="nAff1p/8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3C792087C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="WTfjylv7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 728552086A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2982A6B0003; Sun, 17 Mar 2019 18:02:49 -0400 (EDT)
+	id D5F476B0003; Sun, 17 Mar 2019 20:03:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 248A96B0006; Sun, 17 Mar 2019 18:02:49 -0400 (EDT)
+	id D0EC96B0006; Sun, 17 Mar 2019 20:03:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 15DFC6B0007; Sun, 17 Mar 2019 18:02:49 -0400 (EDT)
+	id BD66D6B0007; Sun, 17 Mar 2019 20:03:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E26F86B0003
-	for <linux-mm@kvack.org>; Sun, 17 Mar 2019 18:02:48 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id e1so11945776iod.23
-        for <linux-mm@kvack.org>; Sun, 17 Mar 2019 15:02:48 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E1856B0003
+	for <linux-mm@kvack.org>; Sun, 17 Mar 2019 20:03:27 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id 77so11529889qkd.9
+        for <linux-mm@kvack.org>; Sun, 17 Mar 2019 17:03:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=zmtbWFurYhH43n2p5GNI3DQ7e38T/cz1DYXzLxyj87A=;
-        b=HPPgFpdfMA9+M2DvbuQXBlxlUew5/T6l36cVwzHxC62xm4xNQc4w4ymy2PXPzQ+Tjc
-         qH8NUzGbemIn3lPm1pRgkNtwILylAQZuZVBUDl4WwDKT3A4vlUHVso9+nHr/boWAaNC4
-         /OFH5nYym1ky28gX55MtmFQXEjWgCoiVYSkBxEJkynFb/Iw3w6wfRTEt0ILXuBcWHK3G
-         k9UbN0VERNeWOAvIJhWU5PLNNJUFVIZ/9oM/ZAN+D7EafQEWbbs1vtRdtzA2VDbGHnSo
-         Lumz0mbPe1e/6ai+GVUsgwC7rRU26PON8tH0I/hj8VdwHrCWY85KFOACbTUskjmrKJPU
-         gcVg==
-X-Gm-Message-State: APjAAAUj9Gyaidvb0CkuMklRI5Fi3OrGVD7wGBSMfym7+IwJQhQqUAtz
-	TJuo12qA/dxQ7vBPd2uVRRecx1LRS0E4r/grSBtOKcGG/oY03/H3XQ/E9VM7D5qpd4KsAOA5djY
-	lmOXrr93Am5cGwFybwZgfP9R92QBzKZOC10OtMrBPn4RQF4uYqjxEKQ+frd5lxfmagA==
-X-Received: by 2002:a05:660c:985:: with SMTP id z5mr8172250itj.39.1552860168583;
-        Sun, 17 Mar 2019 15:02:48 -0700 (PDT)
-X-Received: by 2002:a05:660c:985:: with SMTP id z5mr8172190itj.39.1552860167285;
-        Sun, 17 Mar 2019 15:02:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552860167; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=5brKLR3Vqjme6TUXB85RDO3aHvQ61CuyZtJW5QH7Sh8=;
+        b=OTeFq/PB9mRGMpBqxcvr+jRi43yh26yGmQAgk9Zn8yF0ocr8LoCSj8wFxLC7Ezolwl
+         RIYWc+/BAqChNT6ksa/FB/s1CospQ+q2SpV7+jiXcFqHzDlvzOSGfr+oqSrNhovgd8eH
+         Q4u+v8iOjUEXpzpRWl8o/JlkxvbNorKQV+qum00OVwEPMLv/Tk/y2rgirhjhWE+WpQY5
+         /diL4VhxoNYsnMUHJqAXPV+BeJZkCnTbgY9uSj4mFOGWkcLch9NwbCl/xx/VXHTeanmb
+         /6UPLubUDflYgIrsQvbEnBdKjRQE9JKxLv2IlBkGKp92X+Nn1zp3Nto8WoY9D5aMrskr
+         6j6w==
+X-Gm-Message-State: APjAAAUQAz1BCLlWiwtN3lBSNZwfhbYuxqQGOJFMrTjWiOSHQdWDYx0W
+	hYB2eEYfL/u/IMTApvlG0Bod6fefT37xYDf/AD7RsjcesZoyaPwS7GTYjlRLiPDyMNe6NJoBpi5
+	QigbbgPcnuUlBxwe6Rm5h1E2rzUOxoJaJVwB8BDO3KTLs7DVBS91kctzbsjN35r0=
+X-Received: by 2002:ac8:2246:: with SMTP id p6mr8383261qtp.225.1552867407327;
+        Sun, 17 Mar 2019 17:03:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwaFNrArquHMjGE8iIvUmAPoiXAfbL3+h02EJz8ZqhruOreBxI1qfgN9PrhEeNOe0l5BA1S
+X-Received: by 2002:ac8:2246:: with SMTP id p6mr8383206qtp.225.1552867406097;
+        Sun, 17 Mar 2019 17:03:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552867406; cv=none;
         d=google.com; s=arc-20160816;
-        b=jXPUhQyu416jRVLhdhrwB3dsnAQOv2yl//knc7S+j16+VVDftEKWcg9HhcF4XdE/pt
-         5/l/76Vmvum27c1tHATJ2K4hoHZX+SjiCWsA/iX+eLUPJFjmfY+ZicngA90hyEioUWy5
-         FfrVrRjq2T5nvr2XelIcpvsVP5f18WUThlGN1KGQ3R7rXHdcL+tbrioFIdLn1yq9iHvS
-         zgZ5ceyBVaYaiN53JDrVh7refPz6itPVWXaW5eIRkKUNPDbRkxKgyypqnwTgKCYA6/cI
-         wBEOU+uF9YLwc1txa2lpYVdV1kUXXgv2Ns1u9af/DwtnB2p+fiVuiwnktgLtu2M5BsDx
-         W9dA==
+        b=HnbXEXgImroDGfBmVVbdUk8FIXTtwSMcFxkChfq5sPbqPo6wxrOfaY8/ZppOWsKKu8
+         JdaMgZ45LEiBLkSrTotPH4icF35gKWUKsI5I3zddlzjPAV7/Jvp0CALeQKDZyKKGjC5h
+         amN0p7JQ4mjBtjHrjI06dPLw77nRyjffMr0R6a/TTJKrVr22vk4GSn7/MQaIWsLwjDvX
+         mSmamCqzOz6TE2TAfXsLirw40xZtc3nCHZjS7Bpi7IW8irSzePX3HlJKqrXJN/x1cNuu
+         Pi1Q2PIEW1reggF2m2fSmi6HbETV9rZ7LA5djO81H49S6fas82MUKVPOiMX8QuAbxR3X
+         ixtw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=zmtbWFurYhH43n2p5GNI3DQ7e38T/cz1DYXzLxyj87A=;
-        b=xT5K309T8afXFMkKf/tPNbMojQ2ja2OU+U7VeM7ySHWwWG5Py1A+vrFPH6DSOuicGD
-         sVP4UqH0Q7qV5o/wquJx3eBM7t4xqlaXhOl1Mam8t4/zuqDPqdDj4GHe6QeOmV8NLoIB
-         krltR11XnDM0hEhPtr8z0zsMeqLB1AlmJ82ld1pdGBjOd3r4MAkrBwV4OcbdgyrvSGPZ
-         zvH2X9uLdn+tbkr1IdOYyLhHp4B5NVdBDOR/6DLAx/6JJUmfLIhK8xiXHRDI5lKZsmyl
-         yG5dR4VIukL7Pk2+/Fptoms5sSXBbtYVdA4zNAJ5UyP+NHfY3gejhIcb9IsaUhT7xte4
-         TJMQ==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=5brKLR3Vqjme6TUXB85RDO3aHvQ61CuyZtJW5QH7Sh8=;
+        b=GziOqmYQYHd/P5B+8gSOuDz0+l9aAmlfnQNQ0lqns0WfPXjSCUJH/v4PjgqJFlmLzq
+         qgtzqmO8ucahM2wvP0D+RTBjdzjKzSrQiHYg2v0UEP5zdrYqbC98CVSDHKxSS9KNdS0J
+         /V71rjn2MyXo/MmIX1zB7QF9zEGLvykgY84Smhg6A6Pq2DSSqMftRvf7bVeax6lD0V0D
+         PRDoaXNqaFISMe3kW20eMUQ/xixJpS2XIzAyUZrxkkUGy/0fJ4QIcFXZD4v8RMNubsu5
+         oIxPkwsjlMesDWk72IAFvPshshbkQ/v93Z6sxtL/nrHslQyU7KJwT6yZoVaYb1eUUuGz
+         URIQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="nAff1p/8";
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a15sor4305013ios.142.2019.03.17.15.02.47
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=WTfjylv7;
+       spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) smtp.mailfrom=tobin@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from out2-smtp.messagingengine.com (out2-smtp.messagingengine.com. [66.111.4.26])
+        by mx.google.com with ESMTPS id f43si678384qtf.106.2019.03.17.17.03.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 17 Mar 2019 15:02:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 17 Mar 2019 17:03:26 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) client-ip=66.111.4.26;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="nAff1p/8";
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=zmtbWFurYhH43n2p5GNI3DQ7e38T/cz1DYXzLxyj87A=;
-        b=nAff1p/83XDR7mjZ9jFPA1k+ttO7Bdli0J98NebhJlY0lG8mNmfgXbdOzW2fqBe1GL
-         MR3iqxOS1ibrWHicsh27On740Y15WEMEn9nr2MEPVYGNudgkloNnaDa3oDbw8sP0cos4
-         Hrrqla8HfgVBd800+xJWhtwiYBz5wjE+0hIJQB7LKGWHZsWjNRB7h3Wp5j3enbiU5hoy
-         SI6XHwpzccnnmiFIRK6qIRafe5KXzv/EV9jiOCJUJaKjnErg4fJ+JK6aBCO25XaXrvnF
-         QzkzXKQ+iFow6WoAt7cXf+AUpBf0jemzTa6rzqeP4m6ryQoMqMIeQWNUk1KRMIC82U2t
-         kUQQ==
-X-Google-Smtp-Source: APXvYqzelkRjKLoTEnqJF5g7dyKF9X1Y95XqUlgM03xN3JrsA94QJKi/GL1d6zXqBXlyqHbC4dNSeB7vTuVZTPHUyZs=
-X-Received: by 2002:a6b:720c:: with SMTP id n12mr4691658ioc.110.1552860166831;
- Sun, 17 Mar 2019 15:02:46 -0700 (PDT)
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=WTfjylv7;
+       spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) smtp.mailfrom=tobin@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
+	by mailout.nyi.internal (Postfix) with ESMTP id 27FD4216AC;
+	Sun, 17 Mar 2019 20:03:25 -0400 (EDT)
+Received: from mailfrontend1 ([10.202.2.162])
+  by compute3.internal (MEProxy); Sun, 17 Mar 2019 20:03:25 -0400
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-transfer-encoding:date:from
+	:message-id:mime-version:subject:to:x-me-proxy:x-me-proxy
+	:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=5brKLR3Vqjme6TUXB
+	85RDO3aHvQ61CuyZtJW5QH7Sh8=; b=WTfjylv7dQbdHZaxnCl+sVfRIFJLgtpdB
+	g7Gvae1lFf0sn/qpVQepvSt6gOTZXgrSX0QBVmxL0zbQJALcUULaESbRyxL/PlUT
+	hwqMMOKnfVDFF+hDUd9koBdGoktCUonpvYcaGeT9OV41R+ybXOkvYUQw/qVMlBup
+	5K/7kcuXAPRv9sYpwAqRK+AtvmW/k36wJG3TOOtxRaO6Wruob6QRA/PUV6rBDchH
+	mRR0i2lAAQiCYAVgbhbXXZQP1YQrLta7pH3tuv2UGFGW9fHA5be0FcNMrlkPHGS4
+	9yz1KE8KC+Uzo/g7uK/yX5Cvo+ri8ze1c2uwrJQeSIwgHd3y2qaLA==
+X-ME-Sender: <xms:S-COXIBG4-FoeBZJIYbV6ft70L6fa_HEQnjYrAouruQn6M1AbTF7XA>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedutddriedtgddukecutefuodetggdotefrodftvf
+    curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
+    uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenuc
+    fjughrpefhvffufffkofgggfestdekredtredttdenucfhrhhomhepfdfvohgsihhnucev
+    rdcujfgrrhguihhnghdfuceothhosghinheskhgvrhhnvghlrdhorhhgqeenucffohhmrg
+    hinhepghhithhhuhgsrdgtohhmnecukfhppeduudekrddvuddurdduleelrdduvdeinecu
+    rfgrrhgrmhepmhgrihhlfhhrohhmpehtohgsihhnsehkvghrnhgvlhdrohhrghenucevlh
+    hushhtvghrufhiiigvpedt
+X-ME-Proxy: <xmx:S-COXGTug3YYoAo23RV0-UY7FRUcWENAXlSIRzppFKhwe3JbI59erg>
+    <xmx:S-COXPKNKw083_oexn695NxClsC_FhavvLan_mr9m4u3DqIVQ2qTbg>
+    <xmx:S-COXKdxUqnxwME43loun2Tem7aoyffTbHuVHjsbJpxPXYZvTRvOJA>
+    <xmx:TeCOXLEXr4LgR0DvVUPeJwkJ11t9N7zEagsF9PmgDPtwaqcJ3YSlKA>
+Received: from eros.localdomain (ppp118-211-199-126.bras1.syd2.internode.on.net [118.211.199.126])
+	by mail.messagingengine.com (Postfix) with ESMTPA id 86676E4684;
+	Sun, 17 Mar 2019 20:03:20 -0400 (EDT)
+From: "Tobin C. Harding" <tobin@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Tobin C. Harding" <tobin@kernel.org>,
+	Roman Gushchin <guro@fb.com>,
+	Christoph Lameter <cl@linux.com>,
+	Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH v4 0/7] mm: Use slab_list list_head instead of lru
+Date: Mon, 18 Mar 2019 11:02:27 +1100
+Message-Id: <20190318000234.22049-1-tobin@kernel.org>
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-References: <20190315182426.sujcqbzhzw4llmsa@brauner.io> <20190315184903.GB248160@google.com>
- <CAJuCfpGp_9fE9MPGVCWjnTaeBE0K_Q22LS1pBqhp7zW2M=dbGw@mail.gmail.com>
- <CAKOZueuauUXRyrvhzBD0op6W4TAnydSx92bvrPN2VRWERX8iQg@mail.gmail.com>
- <20190316185726.jc53aqq5ph65ojpk@brauner.io> <CAJuCfpF-uYpUZ1RO99i2qEw5Ou4nSimSkiQvnNQ_rv8ogHKRfw@mail.gmail.com>
- <20190317015306.GA167393@google.com> <20190317114238.ab6tvvovpkpozld5@brauner.io>
- <20190317163505.GA9904@mail.hallyn.com> <CAKOZuet+HCZoOgJBAUrcm8nxC-bQ00W7w+=k2SOh+dfXffMU4w@mail.gmail.com>
- <20190317171652.GA10567@mail.hallyn.com>
-In-Reply-To: <20190317171652.GA10567@mail.hallyn.com>
-From: Suren Baghdasaryan <surenb@google.com>
-Date: Sun, 17 Mar 2019 15:02:35 -0700
-Message-ID: <CAJuCfpF8m5kTMXu=G4qBcvSbrpFH91GmS43VHuphEa3hDxOq+Q@mail.gmail.com>
-Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
-To: "Serge E. Hallyn" <serge@hallyn.com>
-Cc: Daniel Colascione <dancol@google.com>, Christian Brauner <christian@brauner.io>, 
-	Joel Fernandes <joel@joelfernandes.org>, Steven Rostedt <rostedt@goodmis.org>, 
-	Sultan Alsawaf <sultan@kerneltoast.com>, Tim Murray <timmurray@google.com>, 
-	Michal Hocko <mhocko@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
-	=?UTF-8?B?QXJ2ZSBIasO4bm5ldsOlZw==?= <arve@android.com>, 
-	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>, Ingo Molnar <mingo@redhat.com>, 
-	Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, 
-	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>, linux-mm <linux-mm@kvack.org>, 
-	kernel-team <kernel-team@android.com>, Oleg Nesterov <oleg@redhat.com>, 
-	Andy Lutomirski <luto@amacapital.net>
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Mar 17, 2019 at 10:16 AM Serge E. Hallyn <serge@hallyn.com> wrote:
->
-> On Sun, Mar 17, 2019 at 10:11:10AM -0700, Daniel Colascione wrote:
-> > On Sun, Mar 17, 2019 at 9:35 AM Serge E. Hallyn <serge@hallyn.com> wrote:
-> > >
-> > > On Sun, Mar 17, 2019 at 12:42:40PM +0100, Christian Brauner wrote:
-> > > > On Sat, Mar 16, 2019 at 09:53:06PM -0400, Joel Fernandes wrote:
-> > > > > On Sat, Mar 16, 2019 at 12:37:18PM -0700, Suren Baghdasaryan wrote:
-> > > > > > On Sat, Mar 16, 2019 at 11:57 AM Christian Brauner <christian@brauner.io> wrote:
-> > > > > > >
-> > > > > > > On Sat, Mar 16, 2019 at 11:00:10AM -0700, Daniel Colascione wrote:
-> > > > > > > > On Sat, Mar 16, 2019 at 10:31 AM Suren Baghdasaryan <surenb@google.com> wrote:
-> > > > > > > > >
-> > > > > > > > > On Fri, Mar 15, 2019 at 11:49 AM Joel Fernandes <joel@joelfernandes.org> wrote:
-> > > > > > > > > >
-> > > > > > > > > > On Fri, Mar 15, 2019 at 07:24:28PM +0100, Christian Brauner wrote:
-> > > > > > > > > > [..]
-> > > > > > > > > > > > why do we want to add a new syscall (pidfd_wait) though? Why not just use
-> > > > > > > > > > > > standard poll/epoll interface on the proc fd like Daniel was suggesting.
-> > > > > > > > > > > > AFAIK, once the proc file is opened, the struct pid is essentially pinned
-> > > > > > > > > > > > even though the proc number may be reused. Then the caller can just poll.
-> > > > > > > > > > > > We can add a waitqueue to struct pid, and wake up any waiters on process
-> > > > > > > > > > > > death (A quick look shows task_struct can be mapped to its struct pid) and
-> > > > > > > > > > > > also possibly optimize it using Steve's TIF flag idea. No new syscall is
-> > > > > > > > > > > > needed then, let me know if I missed something?
-> > > > > > > > > > >
-> > > > > > > > > > > Huh, I thought that Daniel was against the poll/epoll solution?
-> > > > > > > > > >
-> > > > > > > > > > Hmm, going through earlier threads, I believe so now. Here was Daniel's
-> > > > > > > > > > reasoning about avoiding a notification about process death through proc
-> > > > > > > > > > directory fd: http://lkml.iu.edu/hypermail/linux/kernel/1811.0/00232.html
-> > > > > > > > > >
-> > > > > > > > > > May be a dedicated syscall for this would be cleaner after all.
-> > > > > > > > >
-> > > > > > > > > Ah, I wish I've seen that discussion before...
-> > > > > > > > > syscall makes sense and it can be non-blocking and we can use
-> > > > > > > > > select/poll/epoll if we use eventfd.
-> > > > > > > >
-> > > > > > > > Thanks for taking a look.
-> > > > > > > >
-> > > > > > > > > I would strongly advocate for
-> > > > > > > > > non-blocking version or at least to have a non-blocking option.
-> > > > > > > >
-> > > > > > > > Waiting for FD readiness is *already* blocking or non-blocking
-> > > > > > > > according to the caller's desire --- users can pass options they want
-> > > > > > > > to poll(2) or whatever. There's no need for any kind of special
-> > > > > > > > configuration knob or non-blocking option. We already *have* a
-> > > > > > > > non-blocking option that works universally for everything.
-> > > > > > > >
-> > > > > > > > As I mentioned in the linked thread, waiting for process exit should
-> > > > > > > > work just like waiting for bytes to appear on a pipe. Process exit
-> > > > > > > > status is just another blob of bytes that a process might receive. A
-> > > > > > > > process exit handle ought to be just another information source. The
-> > > > > > > > reason the unix process API is so awful is that for whatever reason
-> > > > > > > > the original designers treated processes as some kind of special kind
-> > > > > > > > of resource instead of fitting them into the otherwise general-purpose
-> > > > > > > > unix data-handling API. Let's not repeat that mistake.
-> > > > > > > >
-> > > > > > > > > Something like this:
-> > > > > > > > >
-> > > > > > > > > evfd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
-> > > > > > > > > // register eventfd to receive death notification
-> > > > > > > > > pidfd_wait(pid_to_kill, evfd);
-> > > > > > > > > // kill the process
-> > > > > > > > > pidfd_send_signal(pid_to_kill, ...)
-> > > > > > > > > // tend to other things
-> > > > > > > >
-> > > > > > > > Now you've lost me. pidfd_wait should return a *new* FD, not wire up
-> > > > > > > > an eventfd.
-> > > > > > > >
-> > > > > >
-> > > > > > Ok, I probably misunderstood your post linked by Joel. I though your
-> > > > > > original proposal was based on being able to poll a file under
-> > > > > > /proc/pid and then you changed your mind to have a separate syscall
-> > > > > > which I assumed would be a blocking one to wait for process exit.
-> > > > > > Maybe you can describe the new interface you are thinking about in
-> > > > > > terms of userspace usage like I did above? Several lines of code would
-> > > > > > explain more than paragraphs of text.
-> > > > >
-> > > > > Hey, Thanks Suren for the eventfd idea. I agree with Daniel on this. The idea
-> > > > > from Daniel here is to wait for process death and exit events by just
-> > > > > referring to a stable fd, independent of whatever is going on in /proc.
-> > > > >
-> > > > > What is needed is something like this (in highly pseudo-code form):
-> > > > >
-> > > > > pidfd = opendir("/proc/<pid>",..);
-> > > > > wait_fd = pidfd_wait(pidfd);
-> > > > > read or poll wait_fd (non-blocking or blocking whichever)
-> > > > >
+Hi,
 
-Thanks for the explanation Joel. Now I understand the proposal. Will
-think about it some more and looking forward for the implementation
-patch.
+v4 fixes patch 3 (change _all_ instances of ->lru to ->slab_list) as
+noticed by Roman.  Built, booted, and tested with the test modules
+mentioned below.
 
-> > > > > wait_fd will block until the task has either died or reaped. In both these
-> > > > > cases, it can return a suitable string such as "dead" or "reaped" although an
-> > > > > integer with some predefined meaning is also Ok.
-> > > > >
-> > > > > What that guarantees is, even if the task's PID has been reused, or the task
-> > > > > has already died or already died + reaped, all of these events cannot race
-> > > > > with the code above and the information passed to the user is race-free and
-> > > > > stable / guaranteed.
-> > > > >
-> > > > > An eventfd seems to not fit well, because AFAICS passing the raw PID to
-> > > > > eventfd as in your example would still race since the PID could have been
-> > > > > reused by another process by the time the eventfd is created.
-> > > > > Also Andy's idea in [1] seems to use poll flags to communicate various tihngs
-> > > > > which is still not as explicit about the PID's status so that's a poor API
-> > > > > choice compared to the explicit syscall.
-> > > > >
-> > > > > I am planning to work on a prototype patch based on Daniel's idea and post something
-> > > > > soon (chatted with Daniel about it and will reference him in the posting as
-> > > > > well), during this posting I will also summarize all the previous discussions
-> > > > > and come up with some tests as well.  I hope to have something soon.
-> > > >
-> > > > Having pidfd_wait() return another fd will make the syscall harder to
-> > > > swallow for a lot of people I reckon.
-> > > > What exactly prevents us from making the pidfd itself readable/pollable
-> > > > for the exit staus? They are "special" fds anyway. I would really like
-> > > > to avoid polluting the api with multiple different types of fds if possible.
-> > > >
-> > > > ret = pidfd_wait(pidfd);
-> > > > read or poll pidfd
-> > >
-> > > I'm not quite clear on what the two steps are doing here.  Is pidfd_wait()
-> > > doing a waitpid(2), and the read gets exit status info?
-> >
-> > pidfd_wait on an open pidfd returns a "wait handle" FD. The wait
->
-> That is what you are proposing.  I'm not sure that's what Christian
-> was proposing.  'ret' is ambiguous there.  Christian?
->
-> > handle works just like a pipe: you can select/epoll/whatever for
-> > readability. read(2) on the wait handle (which blocks unless you set
-> > O_NONBLOCK, just like a pipe) completes with a siginfo_t when the
-> > process to which the wait handle is attached exits. Roughly,
-> >
-> > int kill_and_wait_for_exit(int pidfd) {
-> >   int wait_handle = pidfd_wait(pidfd);
-> >   pidfd_send_signal(pidfd, ...);
-> >   siginfo_t exit_info;
-> >   read(wait_handle, &exit_info, sizeof(exit_info)); // Blocks because
-> > we haven't configured non-blocking behavior, just like a pipe.
-> >   close(wait_handle);
-> >   return exit_info.si_status;
-> > }
-> >
-> > >
-> > > > (Note that I'm traveling so my responses might be delayed quite a bit.)
-> > > > (Ccing a few people that might have an opinion here.)
-> > > >
-> > > > Christian
-> > >
-> > > On its own, what you (Christian) show seems nicer.  But think about a main event
-> > > loop (like in lxc), where we just loop over epoll_wait() on various descriptors.
-> > > If we want to wait for any of several types of events - maybe a signalfd, socket
-> > > traffic, or a process death - it would be nice if we can treat them all the same
-> > > way, without having to setup a separate thread to watch the pidfd and send
-> > > data over another fd.  Is there a nice way we can provide that with what you've
-> > > got above?
-> >
-> > Nobody is proposing any kind of mechanism that would require a
-> > separate thread. What I'm proposing works with poll and read and
-> > should be trivial to integrate into any existing event loop: from the
-> > perspective of the event loop, it looks just like a pipe.
->
-> (yes, I understood your proposal)
->
-> -serge
+Roman,
+
+I kept your reviewed-by tag on patch 3 since functionally its the same
+patch (and the additional changes were pointed out by you :).  Thanks.
+
+
+From v3 ...
+
+Currently the slab allocators (ab)use the struct page 'lru' list_head.
+We have a list head for slab allocators to use, 'slab_list'.
+
+During v2 it was noted by Christoph that the SLOB allocator was reaching
+into a list_head, this version adds 2 patches to the front of the set to
+fix that.
+
+Clean up all three allocators by using the 'slab_list' list_head instead
+of overloading the 'lru' list_head.
+
+Patch 1 - Adds a function to rotate a list to a specified entry.
+
+Patch 2 - Removes the code that reaches into list_head and instead uses
+	  the list_head API including the newly defined function.
+
+Patches 3-7 are unchanged from v3
+
+Patch 3 (v2: patch 4) - Changes the SLOB allocator to use slab_list
+      	     	      	instead of lru.
+
+Patch 4 (v2: patch 1) - Makes no code changes, adds comments to #endif
+      	     	      	statements.
+
+Patch 5 (v2: patch 2) - Use slab_list instead of lru for SLUB allocator.
+
+Patch 6 (v2: patch 3) - Use slab_list instead of lru for SLAB allocator.
+
+Patch 7 (v2: patch 5) - Removes the now stale comment in the page struct
+      	     	      	definition.
+
+During v2 development patches were checked to see if the object file
+before and after was identical.  Clearly this will no longer be possible
+for mm/slob.o, however this work is still of use to validate the
+change from lru -> slab_list.
+
+Patch 1 was tested with a module (creates and populates a list then
+calls list_rotate_to_front() and verifies new order):
+
+      https://github.com/tcharding/ktest/tree/master/list_head
+
+Patch 2 was tested with another module that does some basic slab
+allocation and freeing to a newly created slab cache:
+
+	https://github.com/tcharding/ktest/tree/master/slab
+
+Tested on a kernel with this in the config:
+
+	CONFIG_SLOB=y
+	CONFIG_SLAB_MERGE_DEFAULT=y
+
+Changes since v3:
+
+ - Change all ->lru to ->slab_list in slob (thanks Roman).
+
+Changes since v2:
+
+ - Add list_rotate_to_front().
+ - Fix slob to use list_head API.
+ - Re-order patches to put the list.h changes up front.
+ - Add acks from Christoph.
+
+Changes since v1:
+
+ - Verify object files are the same before and after the patch set is
+   applied (suggested by Matthew).
+ - Add extra explanation to the commit logs explaining why these changes
+   are safe to make (suggested by Roman).
+ - Remove stale comment (thanks Willy).
+
+
+thanks,
+Tobin.
+
+
+Tobin C. Harding (7):
+  list: Add function list_rotate_to_front()
+  slob: Respect list_head abstraction layer
+  slob: Use slab_list instead of lru
+  slub: Add comments to endif pre-processor macros
+  slub: Use slab_list instead of lru
+  slab: Use slab_list instead of lru
+  mm: Remove stale comment from page struct
+
+ include/linux/list.h     | 18 ++++++++++++
+ include/linux/mm_types.h |  2 +-
+ mm/slab.c                | 49 ++++++++++++++++----------------
+ mm/slob.c                | 32 +++++++++++++--------
+ mm/slub.c                | 60 ++++++++++++++++++++--------------------
+ 5 files changed, 94 insertions(+), 67 deletions(-)
+
+-- 
+2.21.0
 
