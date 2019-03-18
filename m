@@ -2,165 +2,143 @@ Return-Path: <SRS0=xdO8=RV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 48859C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 00:03:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0447CC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 00:16:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E730E20872
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 00:03:54 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A2CB22085A
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 00:16:41 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="KOAmRspW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E730E20872
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="KJ4n1fsC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A2CB22085A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 945DB6B000D; Sun, 17 Mar 2019 20:03:54 -0400 (EDT)
+	id 4F1286B0003; Sun, 17 Mar 2019 20:16:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8A21D6B000E; Sun, 17 Mar 2019 20:03:54 -0400 (EDT)
+	id 479156B0006; Sun, 17 Mar 2019 20:16:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 791A86B0010; Sun, 17 Mar 2019 20:03:54 -0400 (EDT)
+	id 31BA86B0007; Sun, 17 Mar 2019 20:16:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D6166B000D
-	for <linux-mm@kvack.org>; Sun, 17 Mar 2019 20:03:54 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id w134so13311371qka.6
-        for <linux-mm@kvack.org>; Sun, 17 Mar 2019 17:03:54 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F76B6B0003
+	for <linux-mm@kvack.org>; Sun, 17 Mar 2019 20:16:41 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id k5so12417200ioh.13
+        for <linux-mm@kvack.org>; Sun, 17 Mar 2019 17:16:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
+        h=x-gm-message-state:dkim-signature:to:cc:from:subject:message-id
+         :date:user-agent:mime-version:content-language
          :content-transfer-encoding;
-        bh=BFIyNbFQfvFKfyZUHijpqSaVm8ggK3M3/XYK2FaoXEA=;
-        b=Y4sWNjiQ6/YPhGdRbiq2WYTantuYYpvbQ7iUOggZ2AG/0jRLX61TXkXwfPzgpRPPoG
-         lMlM/31+p5B6GgLTf5NNpssId115TEnV65JO3I9qJZR5D99IrZ3fuUr8rL27Ytj/cILj
-         VEn5MpVptZ9lP5A5Lpy5YhMdiFcWEtQj/l41q8/W4/CTGYNM2KFseShJFQ9n5UtitYWb
-         y0U796fcbo6VCI+35alJy3zWyBCzrGbivb4h2dESkYk4QrIiOQOiBGXNRFLyjfD97viA
-         cwfA8yAHZQp7BsFtrAm88vBs667OVe/kySVmM4Z7vv+J/9Jw2bDJbn7gxugCzirRPU0L
-         3Rzw==
-X-Gm-Message-State: APjAAAWcRmTHhOA3B7OkHrHSkz5sSgBNNqrDTVjHjEPCW8T+tw0FEcn9
-	gee2IDEtSmktDe3ZqSraMdoerjrR7k59Z8KTXyiZlldzmACIqKHoX9LZaSw76cRiTfZifmyQbvE
-	EtqjM9Tqy7o/VRghySSrVOrXM3AZOxeIOxfSlspIVerynOfCuKV29LltThssl+uk=
-X-Received: by 2002:a37:a14:: with SMTP id 20mr489050qkk.265.1552867434095;
-        Sun, 17 Mar 2019 17:03:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyDhXFjA6dIqDzcAxP3ErwuZ7Zdueyg8uLkGPD1gXyHHbWiDztSnChqkmGDPJ/wpbHepXfI
-X-Received: by 2002:a37:a14:: with SMTP id 20mr489008qkk.265.1552867433155;
-        Sun, 17 Mar 2019 17:03:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552867433; cv=none;
+        bh=PNC+yOc9qLOR+abq/u69TbFgVOPDMoWfP8uSYfFe5f4=;
+        b=YI8t2XgaIEVLx/SdGg8wACY/FBHSWaKr5+kRH9VhNjE9wGHxV657Detl1/0fGtBr7a
+         8zPaLScYxrSqHjxVbTaMxLbmVcJkFQwlC46JVgHaTH5lwnxMPX6wmMo748jOLqeeG/F5
+         tweJnPnVN3nq3fZSkWAKt0xD7sDEE5MN4AnaZ6girFXZPMWxdDj/dHZlBPlk3uNjoJng
+         OexVgUx8HzQQAGklqmxRIzmOdiUX+8sAAdPbvOIKL3t6tZytR+1Int5v1BvvuJ/+tl4S
+         xjWh5fdreGmxt31T+0TZpQLHspPKX48/BiJpNtu7JIsUtRF4lKK0qYYH0banw5+l6WE7
+         elsw==
+X-Gm-Message-State: APjAAAWnrJg8b3+D0kzHoc0pmFjoh7GIfS2A7l8VFZ7JCV1neP+bIIWC
+	veiGKJ9xnWkehd5SxwG2N9g5qNaB1xJM5pV0/lFonT5w5kjTVNQd9IyOUDyz/n2qjdxAdkSboXj
+	Vi+G7sT0H9D8+QfCCmyRwPMMVjL6VLswVPQGHY9SQOrautymITHF7rdmjjnzlKMRVmQ==
+X-Received: by 2002:a24:a50c:: with SMTP id k12mr2254137itf.6.1552868200758;
+        Sun, 17 Mar 2019 17:16:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzL32Nj8ehKYuIuP/q+ZlMGfDbeGAgHK6JiQ5UvO40EPS9h+swM4emV8/WS6zaEmctXJ3V9
+X-Received: by 2002:a24:a50c:: with SMTP id k12mr2254103itf.6.1552868199817;
+        Sun, 17 Mar 2019 17:16:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552868199; cv=none;
         d=google.com; s=arc-20160816;
-        b=iEnOytBJ4bcffd5c4Tmwxm9+VcA3cqSb89nkyrJcjAH2kahQCJd69gyz+iiD0joBkn
-         JohAEiXt44PLoCqgX00yK5UWqftqaNa2f0tvofhcqnSAxTvJ9WMZFrdzH3kdCdfVfAuQ
-         FDjvWV6jDkyPBcXk0+Wtf1/AY/kgvd+JSr28KiZknjDlBHVndYnLVQuYnXEJ7ADAQ5fk
-         Czew0y5wtkCObhkVx4oL37wdcJxZL45kwN9RL0XCe4WfvtsWUi/v9qHV7M6NU+cLIoF/
-         njVt/S/R6uy83kJji2Ux4pTo5fgQ7HwqvNQjr+ShsD52EE+7VTcU7OHBmQE/1pCNUUpD
-         a+wQ==
+        b=L3Fib2yf/Ll5IDuejxbbFVNbgrSH6lki/+44SYCi7BVzxssmayUdx51m28u4b6gcyQ
+         /jDw+3bMcYI1gV0RpzBdoDFpeZmbFMNAAzMHLqbAYfRFgd+QkA1YSvFwu6AC33eMT7NJ
+         g6Nbcy1hNJew3h0sLKOeFyWx5YQ6Z7Ejj/eKwlbtX1iQKyiHs7GGQpYAcuyemMw5ShCR
+         ammnV+oonEAxHOMlkVUQyVl3CfB8ct+r22fHMPdMx4jKYGZ9W8ftCZBc5PWCo7vnweWZ
+         Hygt/fqRMOOzPoFh1X+PrwZSzNM77ANBVgrahVCYThU7QR0oCdPOyD/4h5pxmA7k9zkn
+         D67Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=BFIyNbFQfvFKfyZUHijpqSaVm8ggK3M3/XYK2FaoXEA=;
-        b=N8rUH3/P5NB7vrXRFnTs87fNlPr/Xa5MHZBJGxEbObbOW1q5itj3hRbgnr+tnDhNSs
-         fenwdIFXtQGYFTStvUm7bIz+Ly361WIcp+KepzbORkoFpuQu83kU4jN9ObiKzD7B6gLd
-         PW3mN1mKOgEw31oYm2cmeqNgHex7AKoiJv48NatPzBTe7FGdDw5C03d7mQWwSZB9m3se
-         lLlX+0vj8+ju/X9yfQ4m1pfiqStrymlwSn1E1k32gjIExCI8QVRgEU8OUv1uXesDrbsD
-         CcaRX6MVbaI6Im8hpoG9JgxypZGuBF5Bz/lTHuwqmHa5QXXTNva3SaMjX+t+KJ/5fa8a
-         5iAQ==
+        h=content-transfer-encoding:content-language:mime-version:user-agent
+         :date:message-id:subject:from:cc:to:dkim-signature;
+        bh=PNC+yOc9qLOR+abq/u69TbFgVOPDMoWfP8uSYfFe5f4=;
+        b=1KvcDXKWtERRAk0h/u6LkPCPiXjmWAje14oEpHFKomoLOSN++cbgUsR2s20bJmaQ9k
+         sjQkLDWpMkM3R4paAM78HWRnx0dXQSQDTFH67OOsUzw7IRIQpfuTLLkHPDYM972Q6Q0e
+         HrQSJVP6aBTpCttap6gI0yKpmmhe1n5410YE3ZaWcD8tTkbP07lqGvZFRanh3lVKjx++
+         CxjXGTi60lY/ttQ61wNk7+oFalWnbvXj4D900RXIbwxa7MtxocnD8vXki9iKiA8mZmuW
+         k5ep7jceB8o03xX1eincWE76J5d9OHypgpAV0kzM6vfcZgvUGSz6JvfjKHa14chPOf33
+         M5Nw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=KOAmRspW;
-       spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) smtp.mailfrom=tobin@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from out2-smtp.messagingengine.com (out2-smtp.messagingengine.com. [66.111.4.26])
-        by mx.google.com with ESMTPS id q70si3941399qka.246.2019.03.17.17.03.53
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=KJ4n1fsC;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id v193si4553586itv.111.2019.03.17.17.16.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 17 Mar 2019 17:03:53 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) client-ip=66.111.4.26;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sun, 17 Mar 2019 17:16:39 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=KOAmRspW;
-       spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) smtp.mailfrom=tobin@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.nyi.internal (Postfix) with ESMTP id D72E2210A8;
-	Sun, 17 Mar 2019 20:03:52 -0400 (EDT)
-Received: from mailfrontend1 ([10.202.2.162])
-  by compute3.internal (MEProxy); Sun, 17 Mar 2019 20:03:52 -0400
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
-	messagingengine.com; h=cc:content-transfer-encoding:date:from
-	:in-reply-to:message-id:mime-version:references:subject:to
-	:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=BFIyNbFQfvFKfyZUHijpqSaVm8ggK3M3/XYK2FaoXEA=; b=KOAmRspW
-	zBQVWYQ7vICgKRiQqNhAMtncIDQke6ig3Hz+sdddxUlCSTlcQT1rCLx5IszqwTh7
-	JebvNswcv0GRgndUA3DVZVYb84T+t/L2RHTx+BGPq+Hydz1wdannzgYxtSLOSQJ0
-	hwp/WX4SJWXnGVtZnVFeVJxsoEHjYOH8WnLLcm4vqnRCSzg2BFzJiU5D5WaPjqwv
-	QNezb8UZvFW2/fvKBcqWtiuUOkm1Zu0XqKTAVALxQYKfBYmpseslQb6wMpaeSAAs
-	Y59viX8Gu+BcUOaar/P+dMz5U3L1T5bzMsEvdWPDKkpj9HEeFzMMqoLmp5Oi12Qk
-	q4QxuDgpnAzhqQ==
-X-ME-Sender: <xms:aOCOXIXGvKZG3G-RbHqHN8nBpLKDwPqsvEyrGhwu2jLjgD85evxSXw>
-X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedutddriedtgddukecutefuodetggdotefrodftvf
-    curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
-    uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenuc
-    fjughrpefhvffufffkofgjfhgggfestdekredtredttdenucfhrhhomhepfdfvohgsihhn
-    ucevrdcujfgrrhguihhnghdfuceothhosghinheskhgvrhhnvghlrdhorhhgqeenucfkph
-    epuddukedrvdduuddrudelledruddvieenucfrrghrrghmpehmrghilhhfrhhomhepthho
-    sghinheskhgvrhhnvghlrdhorhhgnecuvehluhhsthgvrhfuihiivgepie
-X-ME-Proxy: <xmx:aOCOXA36fJJx7e90odDYP9HIN0QWUFw-YLuyfuFIpXqZsltBtilWbw>
-    <xmx:aOCOXHYShTMv6GNSSXvbkyutxBMU5Z9ZVZXDL5HeQSrCYSFXh2qTRQ>
-    <xmx:aOCOXLrpBeY-uqgrwaqgcPSTVSuEIzjvqA3avHlPWubb-u5ls6kgaA>
-    <xmx:aOCOXHw4MVrmOtdaJtn_tlSWzXbeYCU4HcsdLd05aKKvc0qSpombCw>
-Received: from eros.localdomain (ppp118-211-199-126.bras1.syd2.internode.on.net [118.211.199.126])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 70051E4684;
-	Sun, 17 Mar 2019 20:03:49 -0400 (EDT)
-From: "Tobin C. Harding" <tobin@kernel.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Tobin C. Harding" <tobin@kernel.org>,
-	Roman Gushchin <guro@fb.com>,
-	Christoph Lameter <cl@linux.com>,
-	Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH v4 7/7] mm: Remove stale comment from page struct
-Date: Mon, 18 Mar 2019 11:02:34 +1100
-Message-Id: <20190318000234.22049-8-tobin@kernel.org>
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190318000234.22049-1-tobin@kernel.org>
-References: <20190318000234.22049-1-tobin@kernel.org>
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=KJ4n1fsC;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=Content-Transfer-Encoding:Content-Type:
+	MIME-Version:Date:Message-ID:Subject:From:Cc:To:Sender:Reply-To:Content-ID:
+	Content-Description:Resent-Date:Resent-From:Resent-Sender:Resent-To:Resent-Cc
+	:Resent-Message-ID:In-Reply-To:References:List-Id:List-Help:List-Unsubscribe:
+	List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=PNC+yOc9qLOR+abq/u69TbFgVOPDMoWfP8uSYfFe5f4=; b=KJ4n1fsCdjTUR/uoQWKyabs8Qa
+	phJbX/V/Emq7X6qBpclFx5gSE1lpIYY3TVVeyOdN5xC/qvEjxexpveFXqbPg7bZ3psI+01XFVjZa1
+	Wh03Y7EW/3BzM3I6uOD/2gmyDS3YccPDGK0qdMcg6SSv4s6IxUeJuS4dxukanp1TFfXHc32QCsQNR
+	ainDgqos5S+ekUe6Bx5IKbJsmxtud/bBoyhoKjxbgbuhjHLU7rtsLoM3kasC688EYbYsJ5wYfnkdK
+	b60QmcZL0/RjKUcI7Tr4eAYY8aV69dlYd4m21WZyW92gMka0oOF3mv2VpAwqJotBNLkGElatye5DN
+	n29vj33w==;
+Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=midway.dunlab)
+	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1h5fx7-00061D-BU; Mon, 18 Mar 2019 00:16:29 +0000
+To: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+ "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+From: Randy Dunlap <rdunlap@infradead.org>
+Subject: [PATCH] list.h: fix list_is_first() kernel-doc
+Message-ID: <ddce8b80-9a8a-d52d-3546-87b2211c089a@infradead.org>
+Date: Sun, 17 Mar 2019 17:16:26 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We now use the slab_list list_head instead of the lru list_head.  This
-comment has become stale.
+From: Randy Dunlap <rdunlap@infradead.org>
 
-Remove stale comment from page struct slab_list list_head.
+Fix typo of kernel-doc parameter notation (there should be
+no space between '@' and the parameter name).
 
-Acked-by: Christoph Lameter <cl@linux.com>
-Signed-off-by: Tobin C. Harding <tobin@kernel.org>
+Also fixes bogus kernel-doc notation output formatting.
+
+Fixes: 70b44595eafe9 ("mm, compaction: use free lists to quickly locate a migration source")
+
+Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>
 ---
- include/linux/mm_types.h | 2 +-
+ include/linux/list.h |    2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 7eade9132f02..63a34e3d7c29 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -103,7 +103,7 @@ struct page {
- 		};
- 		struct {	/* slab, slob and slub */
- 			union {
--				struct list_head slab_list;	/* uses lru */
-+				struct list_head slab_list;
- 				struct {	/* Partial pages */
- 					struct page *next;
- #ifdef CONFIG_64BIT
--- 
-2.21.0
+--- lnx-51-rc1.orig/include/linux/list.h
++++ lnx-51-rc1/include/linux/list.h
+@@ -207,7 +207,7 @@ static inline void list_bulk_move_tail(s
+ }
+ 
+ /**
+- * list_is_first -- tests whether @ list is the first entry in list @head
++ * list_is_first -- tests whether @list is the first entry in list @head
+  * @list: the entry to test
+  * @head: the head of the list
+  */
+
 
