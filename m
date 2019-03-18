@@ -2,101 +2,105 @@ Return-Path: <SRS0=xdO8=RV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-18.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,
-	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5D4F4C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 17:17:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 79322C10F00
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 17:17:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 003B620863
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 17:17:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 398C020989
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 17:17:56 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="r7BuUjT8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 003B620863
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ZCnCpHap"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 398C020989
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6FC396B0003; Mon, 18 Mar 2019 13:17:51 -0400 (EDT)
+	id D196C6B0006; Mon, 18 Mar 2019 13:17:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6875B6B0006; Mon, 18 Mar 2019 13:17:51 -0400 (EDT)
+	id CA1166B0007; Mon, 18 Mar 2019 13:17:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 54F5B6B0007; Mon, 18 Mar 2019 13:17:51 -0400 (EDT)
+	id B6AFF6B0008; Mon, 18 Mar 2019 13:17:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F8F06B0003
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 13:17:51 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id d49so4349479qtk.8
-        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 10:17:51 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 980D96B0006
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 13:17:55 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id b16so9927325iot.5
+        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 10:17:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
-         :subject:from:to:cc;
-        bh=hkZRyLCyEaEj0h1/8UX44FTe5HP+CD8YXp42TcJT5X4=;
-        b=pwELSv0UnH4Xt+beJN0KXewQXQE6/K2p9Snw1CMw5Wjw5EvpifpQ3e4qGu7zF5VR6E
-         tCMu/1hLwnSICHDFprJn7rBwsDFdt/18IjQFsqy3zx/5s1yqcGZDl/SCZNqNItF5VDjM
-         glJyTheuy8/PeQq/msYgMgvXwLd9LIuWQmuyhmhp0cVxinU00l5UkT9PVyNAXp9kwCX7
-         59ymksqiyncexYaigpaTQpH4k6Kdwfdh1n8SR/N227QdMwaRISky2wHQDYAPvK0jH8Pi
-         mjouWSXQwzTYb85L+Tu60BbVyOdw3RobMl/LThOqZgY48TKpLAYK7LHn/KTlJrjyfUiP
-         7CMQ==
-X-Gm-Message-State: APjAAAUYr/iTQuc+ZixOLfAHNHMZ75GPQAK2mc52esvDLPcwrG5Dd/L1
-	GC2u+NO52oLTBwpwZOvrgaAh6NN2/QKevwErixDjazoMZyqGaGL5E/lYhnTYeSWVT9YYEllD6u9
-	ZFO94oRPYV8AGypYQrcb4fKFSWhwhWdWvValbkCkqssYDcEXNBDkoZD918mV6qR/zrQ==
-X-Received: by 2002:ac8:f6e:: with SMTP id l43mr7586002qtk.322.1552929470881;
-        Mon, 18 Mar 2019 10:17:50 -0700 (PDT)
-X-Received: by 2002:ac8:f6e:: with SMTP id l43mr7585919qtk.322.1552929469556;
-        Mon, 18 Mar 2019 10:17:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552929469; cv=none;
+        h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
+         :mime-version:references:subject:from:to:cc;
+        bh=20ADMBvUHCnrZbwN97RAJ/EQy38heFRI/sJcSeCbm08=;
+        b=KIo8oWJiDv9v/E/mPPwhZiRciLiKrIvC/baZmziEPvDMghQVROFiYmnjov3Bxb3Azo
+         uRy+BJS/aJO8H7UHgoIEjNNyudZ2OmehEZvSlfulLjUeXgG0JgwjDRlVDR5Bp0BlC13h
+         9t9QZf4H6FWSROqIXMK8C2KcGfYogMrpzBVXMjYOubF5JVaYXW1BxBUSF5KqMA/dMWdg
+         UzmV7MRF7woh9rQbEaQP8pubhY4JGrCKOEC22YNrUi9wHRKYdphpyFidINmJHKpmVIo4
+         yQOz6vP5JchAjCl66oF/nn55QnyDyk2i/KmG8YDcwJ3GKZl0YVcHfDQhXB95xB8Q+hxo
+         F/GA==
+X-Gm-Message-State: APjAAAXKZ8caTS/NCf+HCyJS6xk+1VIUdvHwD1HLImIORrtw01CUCZ8p
+	LIpjvZToVxOmQ6aip15yqu9AGal4ttiJrA66/wjXGm3l6beOJc2oZbFGqAkYe9UIN3dpW7wFRhY
+	YoLnPGGvofqKm+pzEbFeui06bc6FURDXxl9/mP+oQUaGpekS8jLP2pnP26+opqgDk8w==
+X-Received: by 2002:a24:7fc2:: with SMTP id r185mr10597274itc.137.1552929475284;
+        Mon, 18 Mar 2019 10:17:55 -0700 (PDT)
+X-Received: by 2002:a24:7fc2:: with SMTP id r185mr10597168itc.137.1552929472525;
+        Mon, 18 Mar 2019 10:17:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552929472; cv=none;
         d=google.com; s=arc-20160816;
-        b=cVe4LuPHmzhav0M/texaoibA87mKfFplQ/jBWnTwDwQxnk/DdvT/+W38FKiXsmtn8e
-         ByxZ/NdZ84mukE/o/U1EnDvKRmwjA/Zh3oJlfad4TYe/wVNyBbBi9bfGFBSTYC/0GiQ/
-         l90yMCZ1CvnrkMgfb5Ruj5V3oc/u60j5JrM+DNYt0mRVgQ2n0QBTV/zhBmJ7lDE/tShW
-         gU8FKneVuYPwzA1idZPd1qbIQcpFsV0Y5Ia3819cVUBAbPHDco684OmHgB4UNhZQKiPn
-         IcWvh9W7JSEDbnKWS1EjTlvDOVKGtctT0vm3kgApv0mTQUJqP720I0THwoTLL6VusdnC
-         mXbA==
+        b=E9YwMHUMSISAecvEsan8bxPAWQQ6QJqb40mnXdSEPjP/1xxAC9lh/9xSimkPw4V+lD
+         p80Agq3YStiiJOYC7DRwnZlB7GPISRW3gS4GFeiZTyqb8+whY7VcqDbN5xSL/rykIjQ8
+         yWAA6GaibDo72aysyJ1tRXHWWrzYRe1YDbk5SnFhbfQl5IkCOXEbjwkMSeuoo6ws0yTX
+         wmaQUuntqTPJHlLrQSM4Ac0LhtLn+pQHNDHqXmnnKj1y/76KgVwbcgFLrh7G8ClOgnKi
+         Rg6YRNkCX8VvqOjsgcT3/mYsuGlOMO54Xs/bH69DDFsS2KJatJcLHYkPl/n9PPsgJPDK
+         UdMw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
-        bh=hkZRyLCyEaEj0h1/8UX44FTe5HP+CD8YXp42TcJT5X4=;
-        b=ofKs4606kqDiWg+afvIrvWYP0YHy03XjwIsQHVm6lkC3II4jt6xRFk/Gh4v5VilIXj
-         Oy5cus3sJLLE8FiAAOfcxmBNPmW5aZ3GZpIOjQorHg5Jamm8lJ+5CmDJ6ytbyoOXoraz
-         +ZHuWhwtN2JqFt9x3xJTZdoJe7PFhWwdGuP/ferPwrM8j7FtCs04Ngxt6QOH6Ksdcb9X
-         URw34Umt5nn3s03JG916Di6TTdikfZWaHZN8XVtx5rEFuOUOK5dbd+fE08AQYyLvFWhu
-         odZqGNUlnIwWunGnOdMLBqWjWgD+upHtkxnHyAp8f8d/W2xptsO6+7OeY8YNYkwgOLxN
-         ymFQ==
+        h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
+         :date:dkim-signature;
+        bh=20ADMBvUHCnrZbwN97RAJ/EQy38heFRI/sJcSeCbm08=;
+        b=tTVqcx8tttLBaQqbcwgNYwwoTgE/bBTACWCuLBV7z4rj+e+Fvz9UXgiqOdSl02u7Me
+         0sziZGMCa9evMBZIoMIupHS5rKETg0fQfI0idEbpsMwO4pCHpLY/+/noyAP3uWvQwHXl
+         XR3YjxMqs9Mv/a6WQc51sSCbcmzKkrolaVim83n0xxyM/kizH98A+FO1F3bAYyzn6EjN
+         0e0bMb4NOZktCxwwDZ0vxJCMtysQ4pETMIIJL4uo86bld7/Cor1OvhhG9SyaVnXjOxyU
+         XfF5l9Lp+tuHcQtHPEyjC42cqSauUi+Ets+kYbWSEMYe3J33fxUWdcRyTO3rp9pHN2Et
+         cw5Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=r7BuUjT8;
-       spf=pass (google.com: domain of 3vnkpxaokcisp2s6tdz2a0v33v0t.r310x29c-11zaprz.36v@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3vNKPXAoKCIsp2s6tDz2A0v33v0t.r310x29C-11zAprz.36v@flex--andreyknvl.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=ZCnCpHap;
+       spf=pass (google.com: domain of 3wnkpxaokci8t6waxh36e4z77z4x.v75416dg-553etv3.7az@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3wNKPXAoKCI8t6wAxH36E4z77z4x.v75416DG-553Etv3.7Az@flex--andreyknvl.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id d22sor12622519qto.42.2019.03.18.10.17.49
+        by mx.google.com with SMTPS id h12sor16672098itb.29.2019.03.18.10.17.52
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 18 Mar 2019 10:17:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3vnkpxaokcisp2s6tdz2a0v33v0t.r310x29c-11zaprz.36v@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Mon, 18 Mar 2019 10:17:52 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3wnkpxaokci8t6waxh36e4z77z4x.v75416dg-553etv3.7az@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=r7BuUjT8;
-       spf=pass (google.com: domain of 3vnkpxaokcisp2s6tdz2a0v33v0t.r310x29c-11zaprz.36v@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3vNKPXAoKCIsp2s6tDz2A0v33v0t.r310x29C-11zAprz.36v@flex--andreyknvl.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=ZCnCpHap;
+       spf=pass (google.com: domain of 3wnkpxaokci8t6waxh36e4z77z4x.v75416dg-553etv3.7az@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3wNKPXAoKCI8t6wAxH36E4z77z4x.v75416DG-553Etv3.7Az@flex--andreyknvl.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
-        h=date:message-id:mime-version:subject:from:to:cc;
-        bh=hkZRyLCyEaEj0h1/8UX44FTe5HP+CD8YXp42TcJT5X4=;
-        b=r7BuUjT872vqMsVH/wkX0rjSoIhlckZYzTG8nkCBzc21HrrSP19mTaFG7c/ZUIfgAD
-         lzqbtolzZhCEXgEjV5Dc9Xqs/UljOaAvtRhFVaA0zAgNWOvDVrOZTK86tNsjly501M+i
-         AYUz5hIxJkGAK0BJCTA9Td2ckq1vEAjsrtDJj2d9NzWPTchq1PPgOx/JRG7fniXo3qP0
-         xXd+E9EBHtRgO2gNveThVNHJyyTj8PAxfe+1vn5XX4QV2ryXVMc7CcdeCwHwF1bZ7hSF
-         6ayQgkhu3GgiLEigUaW9xs5aq5tzxIZ+FvU/WGxFOfLlXMKdaCJOzaCW9E06Em0uNsw4
-         0W3A==
-X-Google-Smtp-Source: APXvYqzkeAXzAy3oNYG2BR4miR/Z8Fu9oC+SjuURt/xYQhyeLrh/e+rUUiZ2TAsT5ZCM3sbUSVpsZp73cydX3AZ1
-X-Received: by 2002:ac8:21f2:: with SMTP id 47mr10992908qtz.9.1552929468913;
- Mon, 18 Mar 2019 10:17:48 -0700 (PDT)
-Date: Mon, 18 Mar 2019 18:17:32 +0100
-Message-Id: <cover.1552929301.git.andreyknvl@google.com>
+        h=date:in-reply-to:message-id:mime-version:references:subject:from:to
+         :cc;
+        bh=20ADMBvUHCnrZbwN97RAJ/EQy38heFRI/sJcSeCbm08=;
+        b=ZCnCpHapZTf/qLS1N3vuiLVDpuei/65u8OAdfxmbj9C6UycfT7l0asJ7ukPP0vA4Qi
+         HwZtqNnAkTEZNxdFQ6ErXg2Ws9tH+1NRLw2LH+z6sEsmpFcEdBiI9Wc+uKPOo3gmlZBe
+         qurf9ufUqK/sY8KXNWAv2He9kNybaZ4j8MY9rM8iGvsQzRNy7m2xQuCJRiBD6UV/MuZG
+         ZknYNqa6eOMfTCYDnGvBMcFPTyz86UhzqH2sZgKXS34VV/J9Ek9ZWHRf9Zq9g9xbx/V/
+         tDLUy208+7acHrCH16I/7nTUTuPpcoiSwjw+gJftawG7U+l13wzbQ4qY22WWvgzkuT8P
+         l0fg==
+X-Google-Smtp-Source: APXvYqyopOaWYQMzQnTkhFFHOoZPkt1VBsocl/ck7RQXsYYUFcmBQwiieFFWtWCSqUlJhczEtHKAp8R/wIOv7CVC
+X-Received: by 2002:a24:4503:: with SMTP id y3mr10296221ita.32.1552929472134;
+ Mon, 18 Mar 2019 10:17:52 -0700 (PDT)
+Date: Mon, 18 Mar 2019 18:17:33 +0100
+In-Reply-To: <cover.1552929301.git.andreyknvl@google.com>
+Message-Id: <bee403f76b40f37c6790d144a4142f293e0a7d9f.1552929301.git.andreyknvl@google.com>
 Mime-Version: 1.0
+References: <cover.1552929301.git.andreyknvl@google.com>
 X-Mailer: git-send-email 2.21.0.225.g810b269d1ac-goog
-Subject: [PATCH v12 00/13] arm64: untag user pointers passed to the kernel
+Subject: [PATCH v12 01/13] uaccess: add untagged_addr definition for other arches
 From: Andrey Konovalov <andreyknvl@google.com>
 To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, 
 	Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
@@ -126,237 +130,34 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-=== Overview
+To allow arm64 syscalls to accept tagged pointers from userspace, we must
+untag them when they are passed to the kernel. Since untagging is done in
+generic parts of the kernel, the untagged_addr macro needs to be defined
+for all architectures.
 
-arm64 has a feature called Top Byte Ignore, which allows to embed pointer
-tags into the top byte of each pointer. Userspace programs (such as
-HWASan, a memory debugging tool [1]) might use this feature and pass
-tagged user pointers to the kernel through syscalls or other interfaces.
+Define it as a noop for architectures other than arm64.
 
-Right now the kernel is already able to handle user faults with tagged
-pointers, due to these patches:
-
-1. 81cddd65 ("arm64: traps: fix userspace cache maintenance emulation on a
-             tagged pointer")
-2. 7dcd9dd8 ("arm64: hw_breakpoint: fix watchpoint matching for tagged
-	      pointers")
-3. 276e9327 ("arm64: entry: improve data abort handling of tagged
-	      pointers")
-
-This patchset extends tagged pointer support to syscall arguments.
-
-As per the proposed ABI change [3], tagged pointers are only allowed to be
-passed to syscalls when they point to memory ranges obtained by anonymous
-mmap() or sbrk() (see the patchset [3] for more details).
-
-For non-memory syscalls this is done by untaging user pointers when the
-kernel performs pointer checking to find out whether the pointer comes
-from userspace (most notably in access_ok). The untagging is done only
-when the pointer is being checked, the tag is preserved as the pointer
-makes its way through the kernel and stays tagged when the kernel
-dereferences the pointer when perfoming user memory accesses.
-
-Memory syscalls (mmap, mprotect, etc.) don't do user memory accesses but
-rather deal with memory ranges, and untagged pointers are better suited to
-describe memory ranges internally. Thus for memory syscalls we untag
-pointers completely when they enter the kernel.
-
-=== Other approaches
-
-One of the alternative approaches to untagging that was considered is to
-completely strip the pointer tag as the pointer enters the kernel with
-some kind of a syscall wrapper, but that won't work with the countless
-number of different ioctl calls. With this approach we would need a custom
-wrapper for each ioctl variation, which doesn't seem practical.
-
-An alternative approach to untagging pointers in memory syscalls prologues
-is to inspead allow tagged pointers to be passed to find_vma() (and other
-vma related functions) and untag them there. Unfortunately, a lot of
-find_vma() callers then compare or subtract the returned vma start and end
-fields against the pointer that was being searched. Thus this approach
-would still require changing all find_vma() callers.
-
-=== Testing
-
-The following testing approaches has been taken to find potential issues
-with user pointer untagging:
-
-1. Static testing (with sparse [2] and separately with a custom static
-   analyzer based on Clang) to track casts of __user pointers to integer
-   types to find places where untagging needs to be done.
-
-2. Static testing with grep to find parts of the kernel that call
-   find_vma() (and other similar functions) or directly compare against
-   vm_start/vm_end fields of vma.
-
-3. Static testing with grep to find parts of the kernel that compare
-   user pointers with TASK_SIZE or other similar consts and macros.
-
-4. Dynamic testing: adding BUG_ON(has_tag(addr)) to find_vma() and running
-   a modified syzkaller version that passes tagged pointers to the kernel.
-
-Based on the results of the testing the requried patches have been added
-to the patchset.
-
-=== Notes
-
-This patchset is meant to be merged together with "arm64 relaxed ABI" [3].
-
-This patchset is a prerequisite for ARM's memory tagging hardware feature
-support [4].
-
-This patchset has been merged into the Pixel 2 kernel tree and is now
-being used to enable testing of Pixel 2 phones with HWASan.
-
-Thanks!
-
-[1] http://clang.llvm.org/docs/HardwareAssistedAddressSanitizerDesign.html
-
-[2] https://github.com/lucvoo/sparse-dev/commit/5f960cb10f56ec2017c128ef9d16060e0145f292
-
-[3] https://lkml.org/lkml/2019/3/18/819
-
-[4] https://community.arm.com/processors/b/blog/posts/arm-a-profile-architecture-2018-developments-armv85a
-
-Changes in v12:
-- Changed untagging in tcp_zerocopy_receive() to also untag zc->address.
-- Fixed untagging in prctl_set_mm* to only untag pointers for vma lookups
-  and validity checks, but leave them as is for actual user space accesses.
-- Updated the link to the v2 of the "arm64 relaxed ABI" patchset [3].
-- Dropped the documentation patch, as the "arm64 relaxed ABI" patchset [3]
-  handles that.
-
-Changes in v11:
-- Added "uprobes, arm64: untag user pointers in find_active_uprobe" patch.
-- Added "bpf, arm64: untag user pointers in stack_map_get_build_id_offset"
-  patch.
-- Fixed "tracing, arm64: untag user pointers in seq_print_user_ip" to
-  correctly perform subtration with a tagged addr.
-- Moved untagged_addr() from SYSCALL_DEFINE3(mprotect) and
-  SYSCALL_DEFINE4(pkey_mprotect) to do_mprotect_pkey().
-- Moved untagged_addr() definition for other arches from
-  include/linux/memory.h to include/linux/mm.h.
-- Changed untagging in strn*_user() to perform userspace accesses through
-  tagged pointers.
-- Updated the documentation to mention that passing tagged pointers to
-  memory syscalls is allowed.
-- Updated the test to use malloc'ed memory instead of stack memory.
-
-Changes in v10:
-- Added "mm, arm64: untag user pointers passed to memory syscalls" back.
-- New patch "fs, arm64: untag user pointers in fs/userfaultfd.c".
-- New patch "net, arm64: untag user pointers in tcp_zerocopy_receive".
-- New patch "kernel, arm64: untag user pointers in prctl_set_mm*".
-- New patch "tracing, arm64: untag user pointers in seq_print_user_ip".
-
-Changes in v9:
-- Rebased onto 4.20-rc6.
-- Used u64 instead of __u64 in type casts in the untagged_addr macro for
-  arm64.
-- Added braces around (addr) in the untagged_addr macro for other arches.
-
-Changes in v8:
-- Rebased onto 65102238 (4.20-rc1).
-- Added a note to the cover letter on why syscall wrappers/shims that untag
-  user pointers won't work.
-- Added a note to the cover letter that this patchset has been merged into
-  the Pixel 2 kernel tree.
-- Documentation fixes, in particular added a list of syscalls that don't
-  support tagged user pointers.
-
-Changes in v7:
-- Rebased onto 17b57b18 (4.19-rc6).
-- Dropped the "arm64: untag user address in __do_user_fault" patch, since
-  the existing patches already handle user faults properly.
-- Dropped the "usb, arm64: untag user addresses in devio" patch, since the
-  passed pointer must come from a vma and therefore be untagged.
-- Dropped the "arm64: annotate user pointers casts detected by sparse"
-  patch (see the discussion to the replies of the v6 of this patchset).
-- Added more context to the cover letter.
-- Updated Documentation/arm64/tagged-pointers.txt.
-
-Changes in v6:
-- Added annotations for user pointer casts found by sparse.
-- Rebased onto 050cdc6c (4.19-rc1+).
-
-Changes in v5:
-- Added 3 new patches that add untagging to places found with static
-  analysis.
-- Rebased onto 44c929e1 (4.18-rc8).
-
-Changes in v4:
-- Added a selftest for checking that passing tagged pointers to the
-  kernel succeeds.
-- Rebased onto 81e97f013 (4.18-rc1+).
-
-Changes in v3:
-- Rebased onto e5c51f30 (4.17-rc6+).
-- Added linux-arch@ to the list of recipients.
-
-Changes in v2:
-- Rebased onto 2d618bdf (4.17-rc3+).
-- Removed excessive untagging in gup.c.
-- Removed untagging pointers returned from __uaccess_mask_ptr.
-
-Changes in v1:
-- Rebased onto 4.17-rc1.
-
-Changes in RFC v2:
-- Added "#ifndef untagged_addr..." fallback in linux/uaccess.h instead of
-  defining it for each arch individually.
-- Updated Documentation/arm64/tagged-pointers.txt.
-- Dropped "mm, arm64: untag user addresses in memory syscalls".
-- Rebased onto 3eb2ce82 (4.16-rc7).
-
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+---
+ include/linux/mm.h | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-Andrey Konovalov (13):
-  uaccess: add untagged_addr definition for other arches
-  arm64: untag user pointers in access_ok and __uaccess_mask_ptr
-  lib, arm64: untag user pointers in strn*_user
-  mm, arm64: untag user pointers passed to memory syscalls
-  mm, arm64: untag user pointers in mm/gup.c
-  fs, arm64: untag user pointers in copy_mount_options
-  fs, arm64: untag user pointers in fs/userfaultfd.c
-  net, arm64: untag user pointers in tcp_zerocopy_receive
-  kernel, arm64: untag user pointers in prctl_set_mm*
-  tracing, arm64: untag user pointers in seq_print_user_ip
-  uprobes, arm64: untag user pointers in find_active_uprobe
-  bpf, arm64: untag user pointers in stack_map_get_build_id_offset
-  selftests, arm64: add a selftest for passing tagged pointers to kernel
-
- arch/arm64/include/asm/uaccess.h              | 10 +++--
- fs/namespace.c                                |  2 +-
- fs/userfaultfd.c                              |  5 +++
- include/linux/mm.h                            |  4 ++
- ipc/shm.c                                     |  2 +
- kernel/bpf/stackmap.c                         |  6 ++-
- kernel/events/uprobes.c                       |  2 +
- kernel/sys.c                                  | 44 +++++++++++++------
- kernel/trace/trace_output.c                   |  5 ++-
- lib/strncpy_from_user.c                       |  3 +-
- lib/strnlen_user.c                            |  3 +-
- mm/gup.c                                      |  4 ++
- mm/madvise.c                                  |  2 +
- mm/mempolicy.c                                |  5 +++
- mm/migrate.c                                  |  1 +
- mm/mincore.c                                  |  2 +
- mm/mlock.c                                    |  5 +++
- mm/mmap.c                                     |  7 +++
- mm/mprotect.c                                 |  1 +
- mm/mremap.c                                   |  2 +
- mm/msync.c                                    |  2 +
- net/ipv4/tcp.c                                |  9 +++-
- tools/testing/selftests/arm64/.gitignore      |  1 +
- tools/testing/selftests/arm64/Makefile        | 11 +++++
- .../testing/selftests/arm64/run_tags_test.sh  | 12 +++++
- tools/testing/selftests/arm64/tags_test.c     | 21 +++++++++
- 26 files changed, 144 insertions(+), 27 deletions(-)
- create mode 100644 tools/testing/selftests/arm64/.gitignore
- create mode 100644 tools/testing/selftests/arm64/Makefile
- create mode 100755 tools/testing/selftests/arm64/run_tags_test.sh
- create mode 100644 tools/testing/selftests/arm64/tags_test.c
-
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 76769749b5a5..4d674518d392 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -99,6 +99,10 @@ extern int mmap_rnd_compat_bits __read_mostly;
+ #include <asm/pgtable.h>
+ #include <asm/processor.h>
+ 
++#ifndef untagged_addr
++#define untagged_addr(addr) (addr)
++#endif
++
+ #ifndef __pa_symbol
+ #define __pa_symbol(x)  __pa(RELOC_HIDE((unsigned long)(x), 0))
+ #endif
 -- 
 2.21.0.225.g810b269d1ac-goog
 
