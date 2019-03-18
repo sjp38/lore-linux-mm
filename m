@@ -2,124 +2,152 @@ Return-Path: <SRS0=xdO8=RV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 211DCC10F00
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 14:29:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0CA3CC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 14:45:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DFE402085A
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 14:29:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DFE402085A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id B3B0820850
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 14:45:06 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="eUd7YMW/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3B0820850
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 77A8B6B0005; Mon, 18 Mar 2019 10:29:19 -0400 (EDT)
+	id 3C4466B0005; Mon, 18 Mar 2019 10:45:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 72BA96B0006; Mon, 18 Mar 2019 10:29:19 -0400 (EDT)
+	id 3732A6B0006; Mon, 18 Mar 2019 10:45:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5F3CA6B0007; Mon, 18 Mar 2019 10:29:19 -0400 (EDT)
+	id 262C56B0007; Mon, 18 Mar 2019 10:45:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 086C36B0005
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 10:29:19 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id z98so4797813ede.3
-        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 07:29:18 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EBE356B0005
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 10:45:05 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id y129so22759368ywd.1
+        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 07:45:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=MVtYnd4dn5ajxYSbLicJB7zk2YmGKH1F75DdfqHKHyc=;
-        b=Q4LjpEg8/CP60E+C1c1jutwBH9XR6/67h3dzPNNOMBAHQLdIqixoVA1SnHacl52VY7
-         yUfVZ+xJ6kibciUq+UD94QR5AyXEiODXnVYel46g9BnCUASh43KeUt11iUk6icZ93BL/
-         Zit3YH0gdTTOWiaRz7yyo9uGcUVl6llPOpd4oYfxSKtsxzSRnIHJZFKs2LYM1J2M6Vj8
-         Oo+L/H7K4yLAhkaaJF5OodgR/JnRBJXytppYAWudzwglAQS/YmdYcffYWREMXoSdAg8M
-         TYnOZj71AOE4p6WomCXl/XVpX+X2rZlUiMesS1kNLX3zCpG/kwhIZLAVJoSB3M4pfbzC
-         HIag==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWgiOHjkLIjGMh45fOm+tZJuJbZw+fwpBXpMWH5i6mM62FsStmD
-	MzPjgZme+RzezhhAJAeENG6UP+G278FEv9z4P1CrYRkojIHwEoZJz9rG248IBx4MIdqU+JWWXzQ
-	BtOIaZfWnbfoHvrofK+RhGYHMAknqASvF6Cm73SK3j/vTOPC69iOXcV26Ggj+JOk=
-X-Received: by 2002:a17:906:3fd1:: with SMTP id k17mr11169523ejj.87.1552919358525;
-        Mon, 18 Mar 2019 07:29:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw3gY5CdcOntmNVPOzxC2kS3kY5reTxrROzMvoZ9rDkVrMFHHSH9ALnt9sADiJQz1tecYeJ
-X-Received: by 2002:a17:906:3fd1:: with SMTP id k17mr11169480ejj.87.1552919357601;
-        Mon, 18 Mar 2019 07:29:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552919357; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=/+Gencg0JswbAigLpd/T2ItS1NnphPhR+c6rD3BwH/4=;
+        b=VQSdfM4vDUj7ckc7QvJjQDbL0Ol9n0rTfxBxPWe1YGk2ATU+WU/XsTqd6F9+clvnO7
+         2t8nmEBZOR8V8E2PKw727+Obgx7LXLjgWRF9jUOfjxjvgUhIoULbceHleEpZVDJWcsUd
+         F/4sV2Z3y9HX2khQliQ45lllBgvrZC7OQh9Xb9brYjxR2QMxJP06U5VjFaQSAxYcq4sX
+         +KNHekyA9zXCyo1Wm/+8LEixYmP4qzn115rxyWg39l1xWL9IhHpcNfaJHUAD6ZJx+0Gs
+         Xj0B1O3BJYWc0XYp0Z9pke4qIn8t/raBtjj5st99kQ0wi6iCtVYSBNU65RNy3TrJ7mmY
+         OPCw==
+X-Gm-Message-State: APjAAAVdF9irokOivrGusIUuUmfRwN7kl4QRfg6RB6kYVCQEelHdR+O1
+	oFPhCnANI900nMSLO9htZX985qnozsqP2me2iqwUl1/9N9lOKxKvxkUt2t69M3bY5K1DxpeT6Ps
+	M8n+sowPtIjD6ai3JwsG+O3Nr3nhZV6gGf+p5ggq0i8IXeLGhc8JH9HynV4EwnRQQMQ==
+X-Received: by 2002:a25:1341:: with SMTP id 62mr14516701ybt.402.1552920305653;
+        Mon, 18 Mar 2019 07:45:05 -0700 (PDT)
+X-Received: by 2002:a25:1341:: with SMTP id 62mr14516644ybt.402.1552920304923;
+        Mon, 18 Mar 2019 07:45:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552920304; cv=none;
         d=google.com; s=arc-20160816;
-        b=T0GSVXdyqPFNE4EH6WQltM+HEfQTV8BSA8zlQC4BpIk1EomAYAx0gyDh7ADU9EAQye
-         HYoZ0souc5Ob9hqbSGNJDSm5eRw6BYihVlGD9Iw+Z1kXQqtCUv1BPqpNhjgmMcEeu47o
-         y+dJ+6BwIEMDNps9jeDxzg9exKFQKxp4e6lRm5M1rz/QIDG2iaqe95LRw+XpZPH4aGkv
-         2vT6mGZZAtF/vM1hL9nasEMDNr5/pOHXFbqHFvH8Fp7SMwsByr6AEGAvYjfOLraOu/Ix
-         aSQgN06GrK1uOSP0eJpoXWSAN1p/f7ixtFIvYpT4Z0l6iPrssOCfU0FVnEmhB1D4n3Q6
-         RzLw==
+        b=VW0oqvwEIF042ESBTw4cBKM/O8qBXvcc9o/EKm59quTlyCfikZsUiWYaBNJM0doj4i
+         c+B9vjdckwGOPmijxKlpLF+OWFU3Q8xYKMz8DltJTq9rvoRB2I/9vochUmY9e2qrsa6T
+         PKalABbXkBdYdnokg92UonrR+odQtVCGOA2n9dpsXg/Qb5MRbeAEs66YHhfj/t/gTwYJ
+         GOS4JWxvQD8meDg/KuIF25RTAANtaBzZmKOR+aWzChpGM8sASTlVCL/GNHEZTZJCAAbU
+         qkJBN5g24npUF+yx8INOVBPgStnd05+Rm22ElC8XL44xFobHKnH7Ub9PIe+H4iCv2Gcd
+         GuWg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=MVtYnd4dn5ajxYSbLicJB7zk2YmGKH1F75DdfqHKHyc=;
-        b=GrZTEH9HI7aOiPc37lLMTft+C+7W0lUkBfWL5A3IFSuq9wdb0I7zLd33pgkrGNmpeX
-         5hCHR+omloy5yBhjzPYiaZ/JQRNeMLnjW7/mExVrn4UuqAH0glJwdadb2MPA3VG65Tak
-         t78fmRY9Wu9AcmyG2kBq1VPA45W1YErVjdvY35wIbvdevZ59QEoPMJU3JeySmxTwJP7i
-         Lv6COcrDYLlzzjb1Hv6a+qv0E92sgNWuSMbcfUD8xF1t6ZzrVYNG09t7AI+P6OMrshbB
-         E1Z0SHPr9nHps5L3Y39Ds/XbqdyuSubVyaHttoJqyl5uZ7CcDJ79A/BHi1mD/onX3eA+
-         phqg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=/+Gencg0JswbAigLpd/T2ItS1NnphPhR+c6rD3BwH/4=;
+        b=SwpwrydFETaR8GlI3IKPPdpxFXpXIOzXrbBwecmACNGsF/agL8Yo7X7adfqVvLfocT
+         rHVY5nWeNgWb805kStxIRpehl88OinSjjdL9f4WXnfi0AQVhJ06Eb2MTDLQ/DorGc0Bu
+         +g38gQMtigzIAOwZk4U2gUJMZTgxA7MDKTkCAjNfRWXJwfUUaWBXC/z3xhCEkPO/JMFs
+         XB65OcJX+sA3K7sFe0XULP7UZT1NOkh0BF8TCQTouZDz0KrWVZiTtoiImz8+iFfxjVZT
+         7QahMwZll5WwFt8VzLdEoxrDcIE/5mRMtQ6J//PHzd8M7CSmBjUU+Dv2BWIFZZ520/R7
+         Cm2Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i3si2841367ejh.147.2019.03.18.07.29.17
+       dkim=pass header.i=@google.com header.s=20161025 header.b="eUd7YMW/";
+       spf=pass (google.com: domain of edumazet@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=edumazet@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q202sor559964ywg.190.2019.03.18.07.45.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Mar 2019 07:29:17 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Mon, 18 Mar 2019 07:45:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of edumazet@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id A70D1ACC5;
-	Mon, 18 Mar 2019 14:29:16 +0000 (UTC)
-Date: Mon, 18 Mar 2019 15:29:16 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"minchan@kernel.org" <minchan@kernel.org>,
-	Kirill Tkhai <ktkhai@virtuozzo.com>
-Subject: Re: [External] Re: mm/cma.c: High latency for cma allocation
-Message-ID: <20190318142916.GK8924@dhcp22.suse.cz>
-References: <SG2PR02MB3098E44824F5AA69BC04F935E8470@SG2PR02MB3098.apcprd02.prod.outlook.com>
- <20190318130757.GG8924@dhcp22.suse.cz>
- <SG2PR02MB309886996889791555D5B53EE8470@SG2PR02MB3098.apcprd02.prod.outlook.com>
- <20190318134242.GI8924@dhcp22.suse.cz>
- <SG2PR02MB30986F43403B92F31499E42AE8470@SG2PR02MB3098.apcprd02.prod.outlook.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b="eUd7YMW/";
+       spf=pass (google.com: domain of edumazet@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=edumazet@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=/+Gencg0JswbAigLpd/T2ItS1NnphPhR+c6rD3BwH/4=;
+        b=eUd7YMW/iwbeqVYkUaaw/cUWk71SOkrkn+hXu01mjWUDyol7Y3918h8Me2N/Lmwg82
+         BACBnVwkosRYGgNkB+MEv3CCkEWOrHu3xf7N5dwYHmmMELnYsQNqsOaeyK88/Ckff/ef
+         kh+B6RhAXAgdrluebHSVHeJbDqxICihTurm6Izpbs8uJk/KpMx9fOP+CQm89PWz1so10
+         k5Hy+rI3GiWNLVnAFbpLH1eywVv8873JwRYu/a9tdS5LPAoqYign21IdkWCo14GRLZpi
+         +1s6lB6RpgPoZI0uN8BuvtNMRbB8sYv/Hh/TeFFlme7Oddb+rSFYGGHMaF7cYJURP6Fs
+         tbhg==
+X-Google-Smtp-Source: APXvYqy/LrBuUxgMYxjRei67FuMQP0H17hpJ7z4CK4VwoXLf7Je3qt70qo9gwTM2VSIhDx1PncSnTBxTzploGurMk0s=
+X-Received: by 2002:a81:2843:: with SMTP id o64mr13821364ywo.441.1552920303807;
+ Mon, 18 Mar 2019 07:45:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <SG2PR02MB30986F43403B92F31499E42AE8470@SG2PR02MB3098.apcprd02.prod.outlook.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <cover.1552679409.git.andreyknvl@google.com> <56d3373c1c5007d776fcd5de4523f4b9da341fb6.1552679409.git.andreyknvl@google.com>
+ <04c5b2de-7fde-7625-9d42-228160879ea0@gmail.com> <CAAeHK+xXLypBpF1EE73KuzQAo0E6Y=apS46wo+swo2AB6cy3YA@mail.gmail.com>
+ <CAAeHK+yxcG=KBjG0A5BicBA7Zwu6LR6t=g5b-9EAPXA8_Dfm2g@mail.gmail.com>
+In-Reply-To: <CAAeHK+yxcG=KBjG0A5BicBA7Zwu6LR6t=g5b-9EAPXA8_Dfm2g@mail.gmail.com>
+From: Eric Dumazet <edumazet@google.com>
+Date: Mon, 18 Mar 2019 07:44:52 -0700
+Message-ID: <CANn89iJfjhNcDS_eHg-OUiGui-hyRL5iWQuu_U+BW_N9iSNbeA@mail.gmail.com>
+Subject: Re: [PATCH v11 08/14] net, arm64: untag user pointers in tcp_zerocopy_receive
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Catalin Marinas <catalin.marinas@arm.com>, 
+	Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, 
+	Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, 
+	Kate Stewart <kstewart@linuxfoundation.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, 
+	Shuah Khan <shuah@kernel.org>, Vincenzo Frascino <vincenzo.frascino@arm.com>, 
+	"David S. Miller" <davem@davemloft.net>, Alexei Starovoitov <ast@kernel.org>, 
+	Daniel Borkmann <daniel@iogearbox.net>, Steven Rostedt <rostedt@goodmis.org>, 
+	Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, 
+	Arnaldo Carvalho de Melo <acme@kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, 
+	"open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, 
+	netdev <netdev@vger.kernel.org>, bpf <bpf@vger.kernel.org>, 
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, 
+	Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>, 
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>, 
+	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 18-03-19 14:02:09, Pankaj Suryawanshi wrote:
->> > I have the system(vanilla kernel) with 2GB of RAM, reserved 1GB for CMA. No swap or zram.
->> > Sorry, I don't have information where the time is spent.
->> > time is calculated in between cma_alloc call.
->> > I have just cma_alloc trace information/function graph.
-> 
->> Then please collect that data because it is really hard to judge
->> anything from the numbers you have provided.
+On Mon, Mar 18, 2019 at 6:17 AM Andrey Konovalov <andreyknvl@google.com> wrote:
 >
-> Any pointers from which i can get this details ?
 
-I would start by enabling built in tracepoints for the migration or use
-a system wide perf monitoring with call graph data.
--- 
-Michal Hocko
-SUSE Labs
+> Looking at the code, what's the point of this address != zc->address
+> check? Should I just remove it?
+
+No you must not remove it.
+
+The test detects if a u64 ->unsigned long  conversion might have truncated bits.
+
+Quite surprisingly some people still use 32bit kernels.
+
+The ABI is 64bit only, because we did not want to have yet another compat layer.
+
+struct tcp_zerocopy_receive {
+    __u64 address; /* in: address of mapping */
+    __u32 length; /* in/out: number of bytes to map/mapped */
+    __u32 recv_skip_hint; /* out: amount of bytes to skip */
+};
 
