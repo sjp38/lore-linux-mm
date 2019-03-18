@@ -4,83 +4,83 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C52B7C10F00
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 16:36:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6EFC5C10F00
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 16:36:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 82EA72133F
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 16:36:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 82EA72133F
+	by mail.kernel.org (Postfix) with ESMTP id 29D0D2133F
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 16:36:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 29D0D2133F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 373B46B0006; Mon, 18 Mar 2019 12:36:02 -0400 (EDT)
+	id BFF916B0007; Mon, 18 Mar 2019 12:36:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 321A16B0007; Mon, 18 Mar 2019 12:36:02 -0400 (EDT)
+	id BAC966B0008; Mon, 18 Mar 2019 12:36:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1E8576B0008; Mon, 18 Mar 2019 12:36:02 -0400 (EDT)
+	id A9B036B000A; Mon, 18 Mar 2019 12:36:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BEC936B0006
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 12:36:01 -0400 (EDT)
-Received: by mail-wm1-f70.google.com with SMTP id t190so3441228wmt.8
-        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 09:36:01 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 541E56B0007
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 12:36:08 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id l20so4532634wrf.23
+        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 09:36:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=W7fYsGKRBlmTW3CD7cbX3LbedsaSpni9GuqLbWnL0zM=;
-        b=kp/V4dr/OiD58aROKoDzSuW/0rAxB/5Ra8V1hl6PFJerVf6xm0xylOql1jf6Wie0cL
-         1YWBpXpdWyrECu9VdC1asD+nNOyk9oafgUzR3GCcJVO5KD9Crp6D+ZqZaTlRxcxGlQyw
-         NLJf5Q1XkDo9gkAoa6rdpvWA9ODFRyuKiQrCPlzIG0LNf3HnIV6IlTzybkFqjeRO7fmM
-         oGpH6zxrRHnk0jq6/eaFaRi3ENdCYSS81lRaUChWA6d3GpntAF7VUtQKtxpLXF8LKugW
-         LTFXnq6RKIU6dj1uAAJE61oh44/rdmD5s5efSDwZx3plQhRP6uYxlwDeOcdC9g8t2stx
-         /WLQ==
+        bh=OisYVOBbP2Vpq4E/v0HrS0vXKqDoNwWJhpOlxjcmyYc=;
+        b=r7617mWwPlaKRPXCI1JlQ0IW8+on3LvpaY5EBveJs8IAhrl4jGUa6+naSpvD9o8NaG
+         wUzbib14e1MktU8CYKyW0uq6BQUxAri9+CSNSnPir6M9yeH00HklKXVj304eCpEtIZFa
+         lZg3QmpVxY9gUR+FOfJ7QV9/IqI+kJe6HqQUvN+7X8ph5zvMGRSEwOAXeV6tMhMLe107
+         AXj3/g4iDLbGdH/C7ouufRVT3Ma3V/3PTl7MSdcvSHHZQh7vLK4mNMInUANQ3HX8Qdzx
+         MFokr/oNdXMS2rSUg5LJO1cpyn/cWszO/M9Z6LfCCxcwqnW+g/HmeijNJR0GZrg8AmMK
+         zujw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
-X-Gm-Message-State: APjAAAUqCpS97ZrvQULEg42klt6bgUYu22Bg2UGjvQi4Ju9nM31mQiFj
-	xb2VCRrqLCS4YpKNH35siH/1iXynfqCzsvCv/w1AuHRG6fc08LYJ2KpN9fxkPjkiDm9AI6CK4tk
-	S9f0M52vM4YMGr/Bh6hP6q2lXJAM/YWDO3zyB3M8QnqbNu+gk8h2bDbbcLJ5GfYPu9Q==
-X-Received: by 2002:a5d:4710:: with SMTP id y16mr4492405wrq.176.1552926961207;
-        Mon, 18 Mar 2019 09:36:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwD/iPhfC1aLLwNsKyX96aiVPG5ixxS5wd8RskceyZNJMHXxvGjjNsXgBTSDISgiKS+4gb0
-X-Received: by 2002:a5d:4710:: with SMTP id y16mr4492357wrq.176.1552926960367;
-        Mon, 18 Mar 2019 09:36:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552926960; cv=none;
+X-Gm-Message-State: APjAAAVBy1zpnlxsAWwS5VuejIKuOIkTRT1Yo3G9oq8UeJfA+NGzKNXt
+	DTns+1gVhUjL6aeCazmrxt1/7nZ7vipmbRKI9CfEWi5lptHcu6RrxZTNJAy95LR5zGErzIw3ciV
+	P0Saj08HwoAz6jTzm9F5s185D9zGi4MkuSRYMIT1MuxWZjk7wviNFwEh7uNofUEZLUw==
+X-Received: by 2002:a5d:458d:: with SMTP id p13mr3563358wrq.224.1552926967763;
+        Mon, 18 Mar 2019 09:36:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwlYMKY060xx5Y309sszHS0wVtFWDpuOBM7myvCetgClR1/Re5mk4fVx4IDW3nCnX9XqAPY
+X-Received: by 2002:a5d:458d:: with SMTP id p13mr3563282wrq.224.1552926966656;
+        Mon, 18 Mar 2019 09:36:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552926966; cv=none;
         d=google.com; s=arc-20160816;
-        b=YpOWwV/qXH1shSYZJiBAwlU5BMU59E0ojpRqHXfGxG+UYaZzEIXto+1OeNzCdaVtWA
-         BwJaJ6ckSzy92fkspCiTVGEITGg30wZ7ZcuFR3hPySU5c1lEHmD8GMuSIuVt42KBL4DG
-         aQyfP+8csdNvqAfSVe8OP0n0Lva6t+s7b+CFRpluRXqs94spzS0INLAhMZSUh1cWLFPV
-         t1zaYrINE62c+zPW1JTDVR8zn3H+2h4GWL4ax2cr9GlrV2K1TLPdGtRPw/bffUr3ZyBW
-         BIpnYVEOgicj8/CpuhvFsa4f7Es6G9l+ua3Iis96iNcd90/wasmdj+rrDnJhWetQu1kA
-         33+A==
+        b=VXCKbHknfBHjNo6XwTCvNzHPOx1k0b2iLmqSt06gTZ152lcnNkZ9KyZqW7hnRsY6cW
+         v0s8cmPIloM0rBN2nvmD9tAAG3Ja6mor0R5xIc0Bx0FlFuZk1cyJpwffXX05/y/aYrUl
+         Q+gWD+eYOWiQF84Js6WpiMl2Zn7upC6TN6TerdGEOWYP447M/k9qSesqC3Rl8YQAj2oJ
+         1INrIn0qVAjbZSPD4MhSi0RcNNY7R2TWNhoPUAbkiQKHwMoN8qUVU1wvLC9vjpZLCb0m
+         UaKG9v6/ANc03FhzjvKZIS/WZ+ka1hg+Hr36+yY8hIWjpWx8EJFdrP0M70yqNR9ALvAl
+         mGbw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=W7fYsGKRBlmTW3CD7cbX3LbedsaSpni9GuqLbWnL0zM=;
-        b=lAvTPw45Jh2FKG55CgAxbeNwEhMD85MFTcfDMBQjB7JDSevk/XDVkEwKPEBFXAVWSS
-         yTaGi/zlrj3VM6P6Pko2gX2ClZcetnSanOugagEUqZcQYV8pWJOgOP2f7yM102dMzAj4
-         Sw79FD2/f171tC05EFElRM6NehABAR4GpCdlXKxJeM4y6SZn1xPjGJgApLMt4VAtqDEg
-         3AcjPt54+ev8n9lt0IK77HXN9oh1WF3PK54+V2u/H8TXJuZkI3mDZymGBABQ0et1szX8
-         QQvB+4cLjgYsz/Mx35eTXEvgtr4VlqQxqM0IE6zZicY2VUpFMDInzwiaP7hPm6vscSHP
-         Nghg==
+        bh=OisYVOBbP2Vpq4E/v0HrS0vXKqDoNwWJhpOlxjcmyYc=;
+        b=B6NFvqnwYQxHsFYQDd5rO1SCIBRWwq7MZ6mREegy/ah4+PqOcEIFV1dg+z1nJtirQ3
+         KFUSc1B/nqocZuALdlOmDj2V3449gJXWlNTOZsLuB2e9p6kh1PmWVw5CvH4qw6ZdYNn5
+         m7fIjrwOLR+1XGKKVOyJLXDdELPWnbFtuIkbf1WFTocPA37BaD/F0hDLjLKxjpWbzjZw
+         VO7GPcECsdHUT7+9jquZVPXQ1EE+4i6yU1G6dS7GNqekXXGvdqaRC4hS3A5El952AHQx
+         2U/bz01TcHwxsORcxRysOYyv8K43MAKRXfkcBhVprH/vqVHi4QTorDXZAqvDTchvDcQc
+         /KXg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id v184si6390929wma.96.2019.03.18.09.35.59
+        by mx.google.com with ESMTP id r6si891432wmf.99.2019.03.18.09.36.06
         for <linux-mm@kvack.org>;
-        Mon, 18 Mar 2019 09:36:00 -0700 (PDT)
+        Mon, 18 Mar 2019 09:36:06 -0700 (PDT)
 Received-SPF: pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 20D71165C;
-	Mon, 18 Mar 2019 09:35:59 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 87E5A1682;
+	Mon, 18 Mar 2019 09:36:05 -0700 (PDT)
 Received: from e119884-lin.cambridge.arm.com (e119884-lin.cambridge.arm.com [10.1.196.72])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id ED7E23F614;
-	Mon, 18 Mar 2019 09:35:52 -0700 (PDT)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 63E6A3F614;
+	Mon, 18 Mar 2019 09:35:59 -0700 (PDT)
 From: Vincenzo Frascino <vincenzo.frascino@arm.com>
 To: linux-arm-kernel@lists.infradead.org,
 	linux-doc@vger.kernel.org,
@@ -122,9 +122,9 @@ Cc: Alexander Viro <viro@zeniv.linux.org.uk>,
 	Steven Rostedt <rostedt@goodmis.org>,
 	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
 	Will Deacon <will.deacon@arm.com>
-Subject: [PATCH v2 1/4] elf: Make AT_FLAGS arch configurable
-Date: Mon, 18 Mar 2019 16:35:30 +0000
-Message-Id: <20190318163533.26838-2-vincenzo.frascino@arm.com>
+Subject: [PATCH v2 2/4] arm64: Define Documentation/arm64/elf_at_flags.txt
+Date: Mon, 18 Mar 2019 16:35:31 +0000
+Message-Id: <20190318163533.26838-3-vincenzo.frascino@arm.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190318163533.26838-1-vincenzo.frascino@arm.com>
 References: <cover.1552679409.git.andreyknvl@google.com>
@@ -137,88 +137,171 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Currently, the AT_FLAGS in the elf auxiliary vector are set to 0
-by default by the kernel.
-Some architectures might need to expose to the userspace a non-zero
-value to advertise some platform specific ABI functionalities.
+On arm64 the TCR_EL1.TBI0 bit has been always enabled hence
+the userspace (EL0) is allowed to set a non-zero value in the
+top byte but the resulting pointers are not allowed at the
+user-kernel syscall ABI boundary.
 
-Make AT_FLAGS configurable by the architectures that require it.
+With the relaxed ABI proposed through this document, it is now possible
+to pass tagged pointers to the syscalls, when these pointers are in
+memory ranges obtained by an anonymous (MAP_ANONYMOUS) mmap() or brk().
+
+This change in the ABI requires a mechanism to inform the userspace
+that such an option is available.
+
+Specify and document the way in which AT_FLAGS can be used to advertise
+this feature to the userspace.
 
 Cc: Catalin Marinas <catalin.marinas@arm.com>
 Cc: Will Deacon <will.deacon@arm.com>
 CC: Andrey Konovalov <andreyknvl@google.com>
-CC: Alexander Viro <viro@zeniv.linux.org.uk>
 Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
----
- fs/binfmt_elf.c        | 6 +++++-
- fs/binfmt_elf_fdpic.c  | 6 +++++-
- fs/compat_binfmt_elf.c | 5 +++++
- 3 files changed, 15 insertions(+), 2 deletions(-)
 
-diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
-index 7d09d125f148..f699a9ef5112 100644
---- a/fs/binfmt_elf.c
-+++ b/fs/binfmt_elf.c
-@@ -84,6 +84,10 @@ static int elf_core_dump(struct coredump_params *cprm);
- #define ELF_CORE_EFLAGS	0
- #endif
- 
-+#ifndef ELF_AT_FLAGS
-+#define ELF_AT_FLAGS	0
-+#endif
+Squash with "arm64: Define Documentation/arm64/elf_at_flags.txt"
+---
+ Documentation/arm64/elf_at_flags.txt | 133 +++++++++++++++++++++++++++
+ 1 file changed, 133 insertions(+)
+ create mode 100644 Documentation/arm64/elf_at_flags.txt
+
+diff --git a/Documentation/arm64/elf_at_flags.txt b/Documentation/arm64/elf_at_flags.txt
+new file mode 100644
+index 000000000000..9b3494207c14
+--- /dev/null
++++ b/Documentation/arm64/elf_at_flags.txt
+@@ -0,0 +1,133 @@
++ARM64 ELF AT_FLAGS
++==================
 +
- #define ELF_PAGESTART(_v) ((_v) & ~(unsigned long)(ELF_MIN_ALIGN-1))
- #define ELF_PAGEOFFSET(_v) ((_v) & (ELF_MIN_ALIGN-1))
- #define ELF_PAGEALIGN(_v) (((_v) + ELF_MIN_ALIGN - 1) & ~(ELF_MIN_ALIGN - 1))
-@@ -249,7 +253,7 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
- 	NEW_AUX_ENT(AT_PHENT, sizeof(struct elf_phdr));
- 	NEW_AUX_ENT(AT_PHNUM, exec->e_phnum);
- 	NEW_AUX_ENT(AT_BASE, interp_load_addr);
--	NEW_AUX_ENT(AT_FLAGS, 0);
-+	NEW_AUX_ENT(AT_FLAGS, ELF_AT_FLAGS);
- 	NEW_AUX_ENT(AT_ENTRY, exec->e_entry);
- 	NEW_AUX_ENT(AT_UID, from_kuid_munged(cred->user_ns, cred->uid));
- 	NEW_AUX_ENT(AT_EUID, from_kuid_munged(cred->user_ns, cred->euid));
-diff --git a/fs/binfmt_elf_fdpic.c b/fs/binfmt_elf_fdpic.c
-index b53bb3729ac1..cf1e680a6b88 100644
---- a/fs/binfmt_elf_fdpic.c
-+++ b/fs/binfmt_elf_fdpic.c
-@@ -82,6 +82,10 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *,
- static int elf_fdpic_core_dump(struct coredump_params *cprm);
- #endif
- 
-+#ifndef ELF_AT_FLAGS
-+#define ELF_AT_FLAGS	0
-+#endif
++This document describes the usage and semantics of AT_FLAGS on arm64.
 +
- static struct linux_binfmt elf_fdpic_format = {
- 	.module		= THIS_MODULE,
- 	.load_binary	= load_elf_fdpic_binary,
-@@ -651,7 +655,7 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
- 	NEW_AUX_ENT(AT_PHENT,	sizeof(struct elf_phdr));
- 	NEW_AUX_ENT(AT_PHNUM,	exec_params->hdr.e_phnum);
- 	NEW_AUX_ENT(AT_BASE,	interp_params->elfhdr_addr);
--	NEW_AUX_ENT(AT_FLAGS,	0);
-+	NEW_AUX_ENT(AT_FLAGS,	ELF_AT_FLAGS);
- 	NEW_AUX_ENT(AT_ENTRY,	exec_params->entry_addr);
- 	NEW_AUX_ENT(AT_UID,	(elf_addr_t) from_kuid_munged(cred->user_ns, cred->uid));
- 	NEW_AUX_ENT(AT_EUID,	(elf_addr_t) from_kuid_munged(cred->user_ns, cred->euid));
-diff --git a/fs/compat_binfmt_elf.c b/fs/compat_binfmt_elf.c
-index 15f6e96b3bd9..a21cf99701ae 100644
---- a/fs/compat_binfmt_elf.c
-+++ b/fs/compat_binfmt_elf.c
-@@ -79,6 +79,11 @@
- #define	ELF_HWCAP2		COMPAT_ELF_HWCAP2
- #endif
- 
-+#ifdef	COMPAT_ELF_AT_FLAGS
-+#undef	ELF_AT_FLAGS
-+#define	ELF_AT_FLAGS		COMPAT_ELF_AT_FLAGS
-+#endif
++1. Introduction
++---------------
 +
- #ifdef	COMPAT_ARCH_DLINFO
- #undef	ARCH_DLINFO
- #define	ARCH_DLINFO		COMPAT_ARCH_DLINFO
++AT_FLAGS is part of the Auxiliary Vector, contains the flags and it
++is set to zero by the kernel on arm64 unless one or more of the
++features detailed in paragraph 2 are present.
++
++The auxiliary vector can be accessed by the userspace using the
++getauxval() API provided by the C library.
++getauxval() returns an unsigned long and when a flag is present in
++the AT_FLAGS, the corresponding bit in the returned value is set to 1.
++
++The AT_FLAGS with a "defined semantics" on arm64 are exposed to the
++userspace via user API (uapi/asm/atflags.h).
++The AT_FLAGS bits with "undefined semantics" are set to zero by default.
++This means that the AT_FLAGS bits to which this document does not assign
++an explicit meaning are to be intended reserved for future use.
++The kernel will populate all such bits with zero until meanings are
++assigned to them. If and when meanings are assigned, it is guaranteed
++that they will not impact the functional operation of existing userspace
++software. Userspace software should ignore any AT_FLAGS bit whose meaning
++is not defined when the software is written.
++
++The userspace software can test for features by acquiring the AT_FLAGS
++entry of the auxiliary vector, and testing whether a relevant flag
++is set.
++
++Example of a userspace test function:
++
++bool feature_x_is_present(void)
++{
++	unsigned long at_flags = getauxval(AT_FLAGS);
++	if (at_flags & FEATURE_X)
++		return true;
++
++	return false;
++}
++
++Where the software relies on a feature advertised by AT_FLAGS, it
++must check that the feature is present before attempting to
++use it.
++
++2. Features exposed via AT_FLAGS
++--------------------------------
++
++bit[0]: ARM64_AT_FLAGS_SYSCALL_TBI
++
++    On arm64 the TCR_EL1.TBI0 bit has been always enabled on the arm64
++    kernel, hence the userspace (EL0) is allowed to set a non-zero value
++    in the top byte but the resulting pointers are not allowed at the
++    user-kernel syscall ABI boundary.
++    When bit[0] is set to 1 the kernel is advertising to the userspace
++    that a relaxed ABI is supported hence this type of pointers are now
++    allowed to be passed to the syscalls, when these pointers are in
++    memory ranges privately owned by a process and obtained by the
++    process in accordance with the definition of "valid tagged pointer"
++    in paragraph 3.
++    In these cases the tag is preserved as the pointer goes through the
++    kernel. Only when the kernel needs to check if a pointer is coming
++    from userspace an untag operation is required.
++
++3. ARM64_AT_FLAGS_SYSCALL_TBI
++-----------------------------
++
++From the kernel syscall interface prospective, we define, for the purposes
++of this document, a "valid tagged pointer" as a pointer that either it has
++a zero value set in the top byte or it has a non-zero value, it is in memory
++ranges privately owned by a userspace process and it is obtained in one of
++the following ways:
++  - mmap() done by the process itself, where either:
++    * flags = MAP_PRIVATE | MAP_ANONYMOUS
++    * flags = MAP_PRIVATE and the file descriptor refers to a regular
++      file or "/dev/zero"
++  - a mapping below sbrk(0) done by the process itself
++  - any memory mapped by the kernel in the process's address space during
++    creation and following the restrictions presented above (i.e. data, bss,
++    stack).
++
++When the ARM64_AT_FLAGS_SYSCALL_TBI flag is set by the kernel, the following
++behaviours are guaranteed by the ABI:
++
++  - Every current or newly introduced syscall can accept any valid tagged
++    pointers.
++
++  - If a non valid tagged pointer is passed to a syscall then the behaviour
++    is undefined.
++
++  - Every valid tagged pointer is expected to work as an untagged one.
++
++  - The kernel preserves any valid tagged pointers and returns them to the
++    userspace unchanged in all the cases except the ones documented in the
++    "Preserving tags" paragraph of tagged-pointers.txt.
++
++A definition of the meaning of tagged pointers on arm64 can be found in:
++Documentation/arm64/tagged-pointers.txt.
++
++Example of correct usage (pseudo-code) for a userspace application:
++
++bool arm64_syscall_tbi_is_present(void)
++{
++	unsigned long at_flags = getauxval(AT_FLAGS);
++	if (at_flags & ARM64_AT_FLAGS_SYSCALL_TBI)
++			return true;
++
++	return false;
++}
++
++void main(void)
++{
++	char *addr = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE,
++			  MAP_ANONYMOUS, -1, 0);
++
++	int fd = open("test.txt", O_WRONLY);
++
++	/* Check if the relaxed ABI is supported */
++	if (arm64_syscall_tbi_is_present()) {
++		/* Add a tag to the pointer */
++		addr = tag_pointer(addr);
++	}
++
++	strcpy("Hello World\n", addr);
++
++	/* Write to a file */
++	write(fd, addr, sizeof(addr));
++
++	close(fd);
++}
++
 -- 
 2.21.0
 
