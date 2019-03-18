@@ -2,203 +2,183 @@ Return-Path: <SRS0=xdO8=RV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+X-Spam-Status: No, score=-5.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C9FDEC43381
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 11:33:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C9773C10F00
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 11:47:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 894A820863
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 11:33:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 894A820863
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 847F920854
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Mar 2019 11:47:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 847F920854
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 233426B0003; Mon, 18 Mar 2019 07:33:27 -0400 (EDT)
+	id 18EDF6B0003; Mon, 18 Mar 2019 07:47:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1E0D46B0006; Mon, 18 Mar 2019 07:33:27 -0400 (EDT)
+	id 115526B0006; Mon, 18 Mar 2019 07:47:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0F9396B0007; Mon, 18 Mar 2019 07:33:27 -0400 (EDT)
+	id F1D5C6B0007; Mon, 18 Mar 2019 07:47:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AF61E6B0003
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 07:33:26 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id x15so3386774wmc.1
-        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 04:33:26 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 96A0E6B0003
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 07:47:06 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id t13so6888070edw.13
+        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 04:47:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=bxcVp1aXU07AX4ga6Cz1gLFYwiqZzn/6kcogjfOgwOs=;
-        b=k6VF8KOfyfD9XHssTbzUPsY8sYoJg0P/jXU8gVTb5kRgmQRDiwhVaT840UrRezvSiU
-         HMtTtYfCy9UwssN2rmZt0kMT0TtsJ8uaaJtLreS/IygXmXiqKgPbV1UbrPITs/OJo+La
-         LR6GpbyfgKOYAdZyK3CCpRuMujZ9vX+GXCkFSkfi2CtXr1QnM1No1YhM4rb8oEWTImIi
-         uiTKgu/ta+2U6fzyfKhhwuz1lv7VhN+fQhDPfoyq91j/cpQtHP0GCxTug0RTK252eEpP
-         xM6bxv6olHd9eTbjAM1NBGZ+aCBkGwv0Xro17dVMjYTR16EqWXLwUMzgAERTp3t8sDIe
-         drCQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=kevin.brodsky@arm.com
-X-Gm-Message-State: APjAAAUFIbFPynhZzFVc1i7ji23vXuh0lGq4adzsdrN39jK0+TNq0WAF
-	TIKH9daY/r7lpRC+TqOohv0Gcn/dN5PW1iMV0L1fK8I/kUK05/azGKKC3LGqwJUXSW2feWt3m3K
-	zXr2GGGCEJOcxOZJw/V17XexnwuYTvi0H34dvLrgYMe/9XVX1USsQ+HaxKUlWvxXT7w==
-X-Received: by 2002:a1c:700a:: with SMTP id l10mr11499796wmc.13.1552908806167;
-        Mon, 18 Mar 2019 04:33:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyI2j0i7Kae6qec1sbxHfMSKnQxpIv1aAnz7c9S9SG7XJAnYR0F93IL0/cEsgzFJznn+zoR
-X-Received: by 2002:a1c:700a:: with SMTP id l10mr11499744wmc.13.1552908805234;
-        Mon, 18 Mar 2019 04:33:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552908805; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=HetCr8fuQXMNywUFSY0yEq92JOKQSRHRdp7nZi0Qayw=;
+        b=NXqEEJRbR5vZCr5i630yppsYkS3DIe3NLgwkVJiZp4HkpNlbwDzZH5T9HxC/bVGkcu
+         ifvTKGe/kUTBe8tSYSMW5urt1l8Y3qJNKOVYqQZRGofOoHrNIUzEoG9tF7bOQooiKegK
+         em2Dlle6WimtyGc2ITMazzSBXXOgABzwvGidHvNkbYkEGMt7MXCq/lGOZ+UgoI7jGYuk
+         AGH6TidvZLn9P9+4YfpRW78ELxnI7LdfqzwsBHv5R+4yl7fmU8JGTDgBJKztPNwSvd0X
+         lIm7zoSWz1RgXlfhpsydJY2SAPjiYD+5CPObDfIEbiqqGxUsdgtrq9ds3hrnpHa2/Cqm
+         OBpg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWQcYuurFrhWzaB97XzGYoU1SY8x/dQCl4lRo9f+LJuln3aA62v
+	SRKoN+2PSryX4I7UVqFYGyHCpS8HgLL9OpYJdHE327pl94fe+ZfgwPagVJQMElnMOMZ3Idp9fM8
+	t+hCoGIiE6wyGXzPh5GcyPqoVScQtGx9dqgAbCJ+DDwXtP8IpClfk6p7GX4RUILs=
+X-Received: by 2002:a50:b3ad:: with SMTP id s42mr12865237edd.142.1552909626175;
+        Mon, 18 Mar 2019 04:47:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxJc2CELzNzNXsn/I84PCaIsLhB2TueClxhaTLeDld8uT43WtSjoDEe7puSNghdaVIw4fUi
+X-Received: by 2002:a50:b3ad:: with SMTP id s42mr12865188edd.142.1552909625269;
+        Mon, 18 Mar 2019 04:47:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552909625; cv=none;
         d=google.com; s=arc-20160816;
-        b=lSYamjQq/X2wcuBxvKyObuO9F75m1O7ebaCSp9SDFJbvYOYZFzdu45oXKaMOBsgXuV
-         yWgX64YPOTzFs5FOcMInZr+M6uyKzws6y+XuYICUJBXMOpNFgKIbiCP5RGaUgc1WMqvk
-         GLGmr4snahq8NtwLcDI6q9lKbYq9a8+6K0fnKAqFl6WIpSM8mYFCYNJTYePH+7xJsGJj
-         d/dyIXTfBkIuZw4sKWcnZo8/Tr3NK+lUCUB6HlThZ0zoEt/2wu0F1TzhqC7ebiOO+Jr1
-         GFPDgFz2pv6KMasSqdKvc5Nso8TARPzFpQpR0yfXtPz5c6l9hT+KT3YvFh4zaqit5Gvp
-         yhLQ==
+        b=C7V+c0VtA3wE2BNapvAYCHI4xiMKpCPO/UCUSYdyzv23B4Xdz4rQ5JFLk9dQu3RETQ
+         HZO3OjbPOL+D5EYutE9OgSkhkAM1qg1IiYnWRNnXXUZHUIjw2S21sXsGdb9Vo8fTmfXo
+         IRafWDlxeQ6gF1KsQyCxiSoLnEcXkcRtL/sbORQhCecy0xlfafrtHqkt7LYOj2PFLzp/
+         kPQYIp1zMkjBO0/7/xD4CDrrOn1O6nGjrugpGmCr13Gq7KLQ3z6q0lvxITIdsvQlKBC4
+         5nneVYRHaNifShEpvdJY81p6ob7+/tPPQXG4z/dteEhSzwpHiyznmoicNaEBrRJKsdiv
+         aK9Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=bxcVp1aXU07AX4ga6Cz1gLFYwiqZzn/6kcogjfOgwOs=;
-        b=RQ3HBjCsFf/R0eV69XjhmNdplWOvovqLMr9R58EcD7cyiQSqlztgUQZOtthdlVpGyz
-         lzpB4MDpVi+Qa5vrSQjO10lInvjQVSSxW/eUweXjjZ6QpDLCcnbx/jASObE2NKirxF3d
-         20jEq/KWoI+FOkrKk0cGgs2fcEdPTNnw/5/eL6p5JQ1zCXBv+vgIQJmmb0hcLXOf0oeZ
-         UdCgiSYLVjROBHSyADst2+d4kObevcvbFxcvIjgEkEP5g9xOVtYTy/x8B6H6gliKoEfR
-         UorQ0BW1SUvFalrU9Y4+MtkkN8cwBuK2wFVS86+vMPpNPX9IiAfPt242ntZZXmYITjyh
-         XxgA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=HetCr8fuQXMNywUFSY0yEq92JOKQSRHRdp7nZi0Qayw=;
+        b=Nt/3InpmCvmyEj22Uveo7LKXhq7LZCdp9k1B/A90bbSy6rjdaSujrod1XWihbXdD7v
+         IDvUE34Hx3ZmtyniX3BkeiKF1kz2EgNjpcrp5I9y/5mhyNVs8VxMNU3AZ1FaP42tQzip
+         eTRjRw3+gE8opc7N4U7bYtLI92606DGgsxDW1o3w5dts5/snLT6BtqSK3u3iSxieo/4b
+         dN9434JP3RCORf3AtQN+urS/4DJYnOAYKpxRpKDfg14l1OSs2y30ds63D05Q4HIGbWaV
+         Em/i9JLfwPQx2xqrAA8M1Dv3c2qSYnGbxQyBlVDIq+Tu+DkGACSx2lruu27MDUBhEMvW
+         AeBA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=kevin.brodsky@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id t203si6144660wmt.39.2019.03.18.04.33.24
-        for <linux-mm@kvack.org>;
-        Mon, 18 Mar 2019 04:33:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h13si1198642eda.215.2019.03.18.04.47.05
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Mar 2019 04:47:05 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=kevin.brodsky@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id DDA741650;
-	Mon, 18 Mar 2019 04:33:23 -0700 (PDT)
-Received: from [10.1.199.35] (e107154-lin.cambridge.arm.com [10.1.199.35])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 973303F614;
-	Mon, 18 Mar 2019 04:33:17 -0700 (PDT)
-Subject: Re: [PATCH v11 03/14] lib, arm64: untag user pointers in strn*_user
-To: Andrey Konovalov <andreyknvl@google.com>,
- Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
- <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
- Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>,
- Kate Stewart <kstewart@linuxfoundation.org>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>,
- "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
- Shuah Khan <shuah@kernel.org>, Vincenzo Frascino
- <vincenzo.frascino@arm.com>, Eric Dumazet <edumazet@google.com>,
- "David S. Miller" <davem@davemloft.net>, Alexei Starovoitov
- <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>,
- Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>,
- Peter Zijlstra <peterz@infradead.org>,
- Arnaldo Carvalho de Melo <acme@kernel.org>,
- linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org,
- linux-mm@kvack.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org,
- bpf@vger.kernel.org, linux-kselftest@vger.kernel.org,
- linux-kernel@vger.kernel.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>,
- Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>,
- Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
- Jacob Bramley <Jacob.Bramley@arm.com>,
- Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
- Chintan Pandya <cpandya@codeaurora.org>,
- Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
- Dave Martin <Dave.Martin@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-References: <cover.1552679409.git.andreyknvl@google.com>
- <f7fa36ec55ed4b45f61d841f9b726772a04cc0a5.1552679409.git.andreyknvl@google.com>
-From: Kevin Brodsky <kevin.brodsky@arm.com>
-Message-ID: <5de82e7d-6091-e694-8397-fbcfd59f9d0b@arm.com>
-Date: Mon, 18 Mar 2019 11:33:14 +0000
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 614FCAECD;
+	Mon, 18 Mar 2019 11:47:04 +0000 (UTC)
+Date: Mon, 18 Mar 2019 12:47:03 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Richard Biener <rguenther@suse.de>, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+	the arch/x86 maintainers <x86@kernel.org>
+Subject: Re: Kernel bug with MPX?
+Message-ID: <20190318114703.GE8924@dhcp22.suse.cz>
+References: <alpine.LSU.2.20.1903060944550.7898@zhemvz.fhfr.qr>
+ <ba1d2d3c-e616-611d-3cff-acf6b8aaeb66@intel.com>
+ <20190308071249.GJ30234@dhcp22.suse.cz>
+ <20190308073949.GA5232@dhcp22.suse.cz>
+ <ec2110b1-abae-4df5-fcd7-244620634a00@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <f7fa36ec55ed4b45f61d841f9b726772a04cc0a5.1552679409.git.andreyknvl@google.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-GB
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <ec2110b1-abae-4df5-fcd7-244620634a00@intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 15/03/2019 19:51, Andrey Konovalov wrote:
-> This patch is a part of a series that extends arm64 kernel ABI to allow to
-> pass tagged user pointers (with the top byte set to something else other
-> than 0x00) as syscall arguments.
->
-> strncpy_from_user and strnlen_user accept user addresses as arguments, and
-> do not go through the same path as copy_from_user and others, so here we
-> need to handle the case of tagged user addresses separately.
->
-> Untag user pointers passed to these functions.
->
-> Note, that this patch only temporarily untags the pointers to perform
-> validity checks, but then uses them as is to perform user memory accesses.
+On Thu 14-03-19 09:51:42, Dave Hansen wrote:
+[...]
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+> 
+> MPX is being removed from the kernel due to a lack of support
+> in the toolchain going forward (gcc).
+> 
+> The first thing we need to do is remove the userspace-visible
+> ABIs so that applications will stop using it.  The most visible
+> one are the enable/disable prctl()s.  Remove them first.
+> 
+> This is the most minimal and least invasive patch needed to
+> start removing MPX.
 
-Thank you for this new version, looks good to me.
-
-To give a bit of context to the readers, I asked Andrey to make this change, because 
-it makes a difference with hardware memory tagging. Indeed, in that situation, it is 
-always preferable to access the memory using the user-provided tag, so that tag 
-checking can take place; if there is a mismatch, a tag fault will occur (which is 
-handled in a way similar to a page fault). It is also preferable not to assume that 
-an untagged user pointer (tag 0x0) bypasses tag checks.
-
-Kevin
-
->
-> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+Is this something we _want_ to push to stable trees?
+> 
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 > ---
->   lib/strncpy_from_user.c | 3 ++-
->   lib/strnlen_user.c      | 3 ++-
->   2 files changed, 4 insertions(+), 2 deletions(-)
->
-> diff --git a/lib/strncpy_from_user.c b/lib/strncpy_from_user.c
-> index 58eacd41526c..6209bb9507c7 100644
-> --- a/lib/strncpy_from_user.c
-> +++ b/lib/strncpy_from_user.c
-> @@ -6,6 +6,7 @@
->   #include <linux/uaccess.h>
->   #include <linux/kernel.h>
->   #include <linux/errno.h>
-> +#include <linux/mm.h>
->   
->   #include <asm/byteorder.h>
->   #include <asm/word-at-a-time.h>
-> @@ -107,7 +108,7 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
->   		return 0;
->   
->   	max_addr = user_addr_max();
-> -	src_addr = (unsigned long)src;
-> +	src_addr = (unsigned long)untagged_addr(src);
->   	if (likely(src_addr < max_addr)) {
->   		unsigned long max = max_addr - src_addr;
->   		long retval;
-> diff --git a/lib/strnlen_user.c b/lib/strnlen_user.c
-> index 1c1a1b0e38a5..8ca3d2ac32ec 100644
-> --- a/lib/strnlen_user.c
-> +++ b/lib/strnlen_user.c
-> @@ -2,6 +2,7 @@
->   #include <linux/kernel.h>
->   #include <linux/export.h>
->   #include <linux/uaccess.h>
-> +#include <linux/mm.h>
->   
->   #include <asm/word-at-a-time.h>
->   
-> @@ -109,7 +110,7 @@ long strnlen_user(const char __user *str, long count)
->   		return 0;
->   
->   	max_addr = user_addr_max();
-> -	src_addr = (unsigned long)str;
-> +	src_addr = (unsigned long)untagged_addr(str);
->   	if (likely(src_addr < max_addr)) {
->   		unsigned long max = max_addr - src_addr;
->   		long retval;
+> 
+>  b/include/uapi/linux/prctl.h |    2 +-
+>  b/kernel/sys.c               |   16 ++--------------
+>  2 files changed, 3 insertions(+), 15 deletions(-)
+> 
+> diff -puN include/uapi/linux/prctl.h~mpx-remove-apis include/uapi/linux/prctl.h
+> --- a/include/uapi/linux/prctl.h~mpx-remove-apis	2019-01-04 14:40:06.853514089 -0800
+> +++ b/include/uapi/linux/prctl.h	2019-01-04 14:40:06.860514089 -0800
+> @@ -181,7 +181,7 @@ struct prctl_mm_map {
+>  #define PR_GET_THP_DISABLE	42
+>  
+>  /*
+> - * Tell the kernel to start/stop helping userspace manage bounds tables.
+> + * No longer implemented, but left here to ensure the numbers stay reserved:
+>   */
+>  #define PR_MPX_ENABLE_MANAGEMENT  43
+>  #define PR_MPX_DISABLE_MANAGEMENT 44
+> diff -puN kernel/sys.c~mpx-remove-apis kernel/sys.c
+> --- a/kernel/sys.c~mpx-remove-apis	2019-01-04 14:40:06.857514089 -0800
+> +++ b/kernel/sys.c	2019-01-04 14:40:06.860514089 -0800
+> @@ -103,12 +103,6 @@
+>  #ifndef SET_TSC_CTL
+>  # define SET_TSC_CTL(a)		(-EINVAL)
+>  #endif
+> -#ifndef MPX_ENABLE_MANAGEMENT
+> -# define MPX_ENABLE_MANAGEMENT()	(-EINVAL)
+> -#endif
+> -#ifndef MPX_DISABLE_MANAGEMENT
+> -# define MPX_DISABLE_MANAGEMENT()	(-EINVAL)
+> -#endif
+>  #ifndef GET_FP_MODE
+>  # define GET_FP_MODE(a)		(-EINVAL)
+>  #endif
+> @@ -2448,15 +2442,9 @@ SYSCALL_DEFINE5(prctl, int, option, unsi
+>  		up_write(&me->mm->mmap_sem);
+>  		break;
+>  	case PR_MPX_ENABLE_MANAGEMENT:
+> -		if (arg2 || arg3 || arg4 || arg5)
+> -			return -EINVAL;
+> -		error = MPX_ENABLE_MANAGEMENT();
+> -		break;
+>  	case PR_MPX_DISABLE_MANAGEMENT:
+> -		if (arg2 || arg3 || arg4 || arg5)
+> -			return -EINVAL;
+> -		error = MPX_DISABLE_MANAGEMENT();
+> -		break;
+> +		/* No longer implemented: */
+> +		return -EINVAL;
+>  	case PR_SET_FP_MODE:
+>  		error = SET_FP_MODE(me, arg2);
+>  		break;
+> _
+
+
+-- 
+Michal Hocko
+SUSE Labs
 
