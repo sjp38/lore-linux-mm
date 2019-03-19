@@ -1,227 +1,231 @@
 Return-Path: <SRS0=zC3H=RW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: *
-X-Spam-Status: No, score=1.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Level: 
+X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C4D87C10F03
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 22:51:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D69B7C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 23:10:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4D3DD2075C
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 22:51:55 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7B6582175B
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 23:10:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="udGtqzg6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D3DD2075C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=brauner.io header.i=@brauner.io header.b="M+ReO8ag"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B6582175B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=brauner.io
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B43EC6B0005; Tue, 19 Mar 2019 18:51:54 -0400 (EDT)
+	id 1216C6B0003; Tue, 19 Mar 2019 19:10:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AF2F26B0006; Tue, 19 Mar 2019 18:51:54 -0400 (EDT)
+	id 0D2E06B0006; Tue, 19 Mar 2019 19:10:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9E1806B0007; Tue, 19 Mar 2019 18:51:54 -0400 (EDT)
+	id F2AD16B0007; Tue, 19 Mar 2019 19:10:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 568236B0005
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 18:51:54 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id u8so430249pfm.6
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 15:51:54 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CF0056B0003
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 19:10:29 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id x18so19064930qkf.8
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 16:10:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=yAp+q49agDeOxIr3K1jrtyVFou1CeqqLCoEHJhnF1yg=;
-        b=ibypbaUWJxcNLddV26qZY56AXGy/10iKTs99AS6l6D/xlc/06x8V8F8w/qwkfRbZfw
-         sQnk/GsikqWxN1pJbwEcJyx34ewq2pseO0RX0prIaa85eC8ClVUdfc0rvhHNpuQJP+Wo
-         QplrOQ8faCKMZL4kTxW58sHAi1K45+C3QScLcInVYei5JBk/AgZmxGFmu055/trk6hqt
-         zNPj5II+LS0QZhktSEokdBuupCHPprNb2qTrndpjCT9PkpcdQ2VbgTBjlx1MP5RYEmJ/
-         ETWUHuySHyLNv0aQt+f7YNX+bH6g+Q1Nm45XAghfhNTJDNYMIlqPgEtdFenwaHnKRFFE
-         GdIA==
-X-Gm-Message-State: APjAAAXOZHRdddtElF6p+/N1sxyQ0BDvMO76yvvun2h4JF7BCS7l41kM
-	TNY1RtAeHFQ+vWkun9vdx4nvDWnm+LIqVMs13qowsPGL2bJPdxY40H68OT5YJYUOcqDaJtrfgyp
-	KzuT9WhrmqtuZsn+IPELRDdyHy3C9hFjXuFDBnBFOkZ9uu8rNpfhDcpMb8rOL2Qk=
-X-Received: by 2002:a17:902:b708:: with SMTP id d8mr4400615pls.322.1553035913913;
-        Tue, 19 Mar 2019 15:51:53 -0700 (PDT)
-X-Received: by 2002:a17:902:b708:: with SMTP id d8mr4400546pls.322.1553035912634;
-        Tue, 19 Mar 2019 15:51:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553035912; cv=none;
+        bh=6FWypQkapP8gnmtBtLQAKuuE6zk0IbVIm8LRbFhdYXc=;
+        b=mBc3LdjqP3nIn4xiZqxszjv9LQf/Em63IOxh2SaWnTH2tJ+gfoZlB4TqOBAKJ3vjDo
+         y+hLVAs9u1oKiJXD7pfRXDLVO6hGWAMQB6bYxCb1yJ9jaYqaotSP/G6amTJqHIdbz/JZ
+         E70xI/LCnvHemDNG06Klfyn5DPleUapu99JeQ5UD6SG+zvoehguhI4mCHNRNSby7R6Q0
+         k0g0tmPBekvFFLgGlWZam7YkG0+xPeTRsE5YIWFzYsV08Lu1kjfGPmKWJbrXJTjA2K0L
+         5ojNQhwZ4UD+lTYNp0SnWqr8EDwdGI1TpAdzi2dn7L/mNXZkgGoMDiL8c7s9AW/aIBOt
+         9mlA==
+X-Gm-Message-State: APjAAAVml6H36A1YvcU1KE+QKNxT4cVzhHGMguA6NsQ5B89IR+XO4cQ5
+	T7vk/tuRakGUHhnhtkjlBBQ+PTUryDP+gM/WJMrDlzi2xafS4jsWzayifIBxy2a36hoXUfPkfEu
+	/QdN/hOAKk1AZhzmBKVB/sViAkOvyuSlN7mtbJo28zMq1pgW0+kzVhe1NlvJpi+XpNA==
+X-Received: by 2002:ac8:263d:: with SMTP id u58mr4183346qtu.295.1553037029505;
+        Tue, 19 Mar 2019 16:10:29 -0700 (PDT)
+X-Received: by 2002:ac8:263d:: with SMTP id u58mr4183282qtu.295.1553037028429;
+        Tue, 19 Mar 2019 16:10:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553037028; cv=none;
         d=google.com; s=arc-20160816;
-        b=Bk5oRal8YecBhcGZ/Lql8FXW9iaUHDXql6tboFvd/vioYbarQG+1B2PFgEcn9Nutxj
-         NrW8k3VGWX0ypTOuAGRJXGqe3aGFvExfA3JdMmiFc1IcpIG6wHWwICAHuty36p7khU9V
-         2qq1q5GTjKwOaPre6LuaGSxIWw6iuOT0+E/RoDK7+WaXJ492+49DRYhsb1JmCuTf72EG
-         NOxMnYU5o+se4LG4OoYngSb+cQvcnT5VegByY6mVSi7zF3ftgD4e59bt2K78OtGda3+g
-         ofQfIMuFPaXNK4fDQRJEgaS6FSBdKaVb3BKKaF4F7o7yqw74pUfUzyT9quE7t4R0pyyI
-         J3bg==
+        b=w8in3XvXy9kwU+PSgIa7J4R4KyFfzW8dPJnZoJ5UwV/ywS9fICjBbA7hYsKsMOCbip
+         KW51MAAiPoUMn0eQFI1qZd0DWlk7xXhTQCglVddkGwyKb1EXsFxPWonNfcmt2ZS3fNM9
+         Mbv0sPOQHFSId+vP1g9G43Rq6NU0LwYuUpcoxEcWQPxgwr3xJ7AswkZmArJo1t+1WCpG
+         4h0A4MMUCAtv0tg1aeLS0kEJu+1LZ4WQoUYbpULF49cPEF9n++aGMC/RHIua1/u1Ucnx
+         pcMCMeVJD3CU/eo/myHRk3E3JINsfZ6iHAsj/9vboBsrBEGsi9MDKhnAgGLkj6qJG0n2
+         3pSQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=yAp+q49agDeOxIr3K1jrtyVFou1CeqqLCoEHJhnF1yg=;
-        b=I29z8MlS4y0yz9p9H7kMfUy3m3tPvstWHIPRrHzUXxL6wLYyyMbwGs1d9LMGze9x4Z
-         mntvEifAVyrj2OUz+Wa3ssm82P5+NRg/Lc42FAMCO+z+PWukckY9/DCL5ykVQ4RabHGm
-         +NpBxOKSd5CvgI5CFES8RH/t124j5SjJXrNRp2a5MyCltiPzMyY77vgOjTvxtGoXCUO6
-         /2bSwKEy5fU+4Km9fggn4eC7+2vHD+OSu9Zk18euKBlKdig/m5VpjlwtWrKtkC6bbU8W
-         zIabxw2bXPnS2yY9h4ogCNHWlNvYsuMTCIlxWNcGCZJnljwclsz0LBgxnyF3bewteTOU
-         Ln8Q==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=6FWypQkapP8gnmtBtLQAKuuE6zk0IbVIm8LRbFhdYXc=;
+        b=dqign5YUVQrTbPBFyp/SxTm5aSwVb5rBq1kBiZsi2WeaClvyxDQ5NFdWjCo0uOwDos
+         aDSJWJadHtrVQLge3E5QMWAGJ/ZnZGNgdBHedWoct7EQn96/gWtdxFErJUALOCfUIwae
+         b4/8g3qbBeVfJVopwRlCLq6AWRUnqtxv0WOttMWYHHfYn2XCqBAzBbKZERQUH7eoEbnj
+         9OI6wvXDhCmSeEtRg/nZ9tSNnuKGiXUQWkN+L+O3esVEilJiVU0DVn9vlg9q9Lt+4vyn
+         kHpVAoNW2moASTxDr1hz0eZViE15e7gq7LcKA2riUmXxgBZD3r+lW5/a64l57P3gDDRT
+         D/UA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=udGtqzg6;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       dkim=pass header.i=@brauner.io header.s=google header.b=M+ReO8ag;
+       spf=pass (google.com: domain of christian@brauner.io designates 209.85.220.65 as permitted sender) smtp.mailfrom=christian@brauner.io
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h7sor491426plb.46.2019.03.19.15.51.52
+        by mx.google.com with SMTPS id f12sor695182qte.43.2019.03.19.16.10.28
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 19 Mar 2019 15:51:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 19 Mar 2019 16:10:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of christian@brauner.io designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=udGtqzg6;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       dkim=pass header.i=@brauner.io header.s=google header.b=M+ReO8ag;
+       spf=pass (google.com: domain of christian@brauner.io designates 209.85.220.65 as permitted sender) smtp.mailfrom=christian@brauner.io
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+        d=brauner.io; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=yAp+q49agDeOxIr3K1jrtyVFou1CeqqLCoEHJhnF1yg=;
-        b=udGtqzg6Pe5kqOYN7GgQkm+Qaycc3mRpNgQ9FbYKZnQEXNG9W19HZsAoiNJ7Iow3Av
-         608Sk43rqb8eo0zB5PRDYeaC3NpHccL/cZeXxuc8F0f9rnDs6KAVNJZWY0mpjB5tB0X5
-         ye/zPST7ir902ux1ERoubm4t4b13T+fHN4hJepx19epv6YQG6M989fVCLSlPmib+7Lt5
-         bSDvqtK7f5Wqxw+WNVOyVkZ3W0Z6QOmt0w5svukcQ0nDZ/lLKz0DH/G6PAmPQq2E0KIK
-         YbRroR0swYibF7GHXcvWY3/jL/n4AEWqSkNFUq3wzwTvRY6dl1J5vkbDiW4T2aXprONQ
-         tVkw==
-X-Google-Smtp-Source: APXvYqxpBYZHXxI5ZiAmYBj4YPdhgYj3d3yenCYxuh9NFKurrYb21G7Nc9d0OjGpLdE+ntSPhjFEJQ==
-X-Received: by 2002:a17:902:ea8c:: with SMTP id cv12mr4814581plb.123.1553035911561;
-        Tue, 19 Mar 2019 15:51:51 -0700 (PDT)
-Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id z15sm82620pgc.25.2019.03.19.15.51.46
+        bh=6FWypQkapP8gnmtBtLQAKuuE6zk0IbVIm8LRbFhdYXc=;
+        b=M+ReO8agDfxcUZE1BC6jIroXPpA/3rFDw7WL2eBF6QPi8+fe4q1yfE3cc0ZNNln0tP
+         3Dutwt74X0Mb9BEPu7GbrMZZWOuKVdH78KU+HAbkslsG02wo4iK6ObbXFZIoJvse5hPt
+         +mNSLNRsZHvFLQ4ytrymOevkVA91aSIXV02lVyagkwxkXhUuYamp7vkRAOrO2Z+riYjx
+         7iDcO0ceMht3+Sfv53hEyNRAiX3hMmxRqjcgVLTi/UdEAQ7Fpt8Na61DjVKqaRKcg0ZT
+         c6uHvd7we28+D1ALMCmPsoULQb1zPqsGc8VZi23DjfCjNIdsYvHONVsI2or/qGNiNMh1
+         BQEw==
+X-Google-Smtp-Source: APXvYqxwNsa8SsSdl8LqERXal6FHQWmFo7gdTiOZy3amFeU+WySgqgoRQgKFw4lJtMZx/FhDpN1fcQ==
+X-Received: by 2002:ac8:2850:: with SMTP id 16mr4256446qtr.84.1553037028006;
+        Tue, 19 Mar 2019 16:10:28 -0700 (PDT)
+Received: from brauner.io ([38.127.230.10])
+        by smtp.gmail.com with ESMTPSA id j10sm59557qth.14.2019.03.19.16.10.24
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 19 Mar 2019 15:51:50 -0700 (PDT)
-Date: Wed, 20 Mar 2019 07:51:44 +0900
-From: Minchan Kim <minchan@kernel.org>
-To: Suren Baghdasaryan <surenb@google.com>
-Cc: gregkh@linuxfoundation.org, tj@kernel.org, lizefan@huawei.com,
-	hannes@cmpxchg.org, axboe@kernel.dk, dennis@kernel.org,
-	dennisszhou@gmail.com, mingo@redhat.com, peterz@infradead.org,
-	akpm@linux-foundation.org, corbet@lwn.net, cgroups@vger.kernel.org,
-	linux-mm@kvack.org, linux-doc@vger.kernel.org,
-	linux-kernel@vger.kernel.org, kernel-team@android.com
-Subject: Re: [PATCH v5 0/7] psi: pressure stall monitors v5
-Message-ID: <20190319225144.GA80186@google.com>
-References: <20190308184311.144521-1-surenb@google.com>
+        Tue, 19 Mar 2019 16:10:27 -0700 (PDT)
+Date: Wed, 20 Mar 2019 00:10:23 +0100
+From: Christian Brauner <christian@brauner.io>
+To: Daniel Colascione <dancol@google.com>
+Cc: Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Sultan Alsawaf <sultan@kerneltoast.com>,
+	Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Arve =?utf-8?B?SGrDuG5uZXbDpWc=?= <arve@android.com>,
+	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
+	Ingo Molnar <mingo@redhat.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	LKML <linux-kernel@vger.kernel.org>,
+	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>,
+	linux-mm <linux-mm@kvack.org>,
+	kernel-team <kernel-team@android.com>,
+	Oleg Nesterov <oleg@redhat.com>,
+	Andy Lutomirski <luto@amacapital.net>,
+	"Serge E. Hallyn" <serge@hallyn.com>,
+	Kees Cook <keescook@chromium.org>
+Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
+Message-ID: <20190319231020.tdcttojlbmx57gke@brauner.io>
+References: <CAKOZueuauUXRyrvhzBD0op6W4TAnydSx92bvrPN2VRWERX8iQg@mail.gmail.com>
+ <20190316185726.jc53aqq5ph65ojpk@brauner.io>
+ <CAJuCfpF-uYpUZ1RO99i2qEw5Ou4nSimSkiQvnNQ_rv8ogHKRfw@mail.gmail.com>
+ <20190317015306.GA167393@google.com>
+ <20190317114238.ab6tvvovpkpozld5@brauner.io>
+ <CAKOZuetZPhqQqSgZpyY0cLgy0jroLJRx-B93rkQzcOByL8ih_Q@mail.gmail.com>
+ <20190318002949.mqknisgt7cmjmt7n@brauner.io>
+ <20190318235052.GA65315@google.com>
+ <20190319221415.baov7x6zoz7hvsno@brauner.io>
+ <CAKOZuessqcjrZ4rfGLgrnOhrLnsVYiVJzOj4Aa=o3ZuZ013d0g@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190308184311.144521-1-surenb@google.com>
-User-Agent: Mutt/1.10.1+60 (6df12dc1) (2018-08-07)
+In-Reply-To: <CAKOZuessqcjrZ4rfGLgrnOhrLnsVYiVJzOj4Aa=o3ZuZ013d0g@mail.gmail.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 08, 2019 at 10:43:04AM -0800, Suren Baghdasaryan wrote:
-> This is respin of:
->   https://lwn.net/ml/linux-kernel/20190206023446.177362-1-surenb%40google.com/
+On Tue, Mar 19, 2019 at 03:48:32PM -0700, Daniel Colascione wrote:
+> On Tue, Mar 19, 2019 at 3:14 PM Christian Brauner <christian@brauner.io> wrote:
+> > So I dislike the idea of allocating new inodes from the procfs super
+> > block. I would like to avoid pinning the whole pidfd concept exclusively
+> > to proc. The idea is that the pidfd API will be useable through procfs
+> > via open("/proc/<pid>") because that is what users expect and really
+> > wanted to have for a long time. So it makes sense to have this working.
+> > But it should really be useable without it. That's why translate_pid()
+> > and pidfd_clone() are on the table.  What I'm saying is, once the pidfd
+> > api is "complete" you should be able to set CONFIG_PROCFS=N - even
+> > though that's crazy - and still be able to use pidfds. This is also a
+> > point akpm asked about when I did the pidfd_send_signal work.
 > 
-> Android is adopting psi to detect and remedy memory pressure that
-> results in stuttering and decreased responsiveness on mobile devices.
-> 
-> Psi gives us the stall information, but because we're dealing with
-> latencies in the millisecond range, periodically reading the pressure
-> files to detect stalls in a timely fashion is not feasible. Psi also
-> doesn't aggregate its averages at a high-enough frequency right now.
-> 
-> This patch series extends the psi interface such that users can
-> configure sensitive latency thresholds and use poll() and friends to
-> be notified when these are breached.
-> 
-> As high-frequency aggregation is costly, it implements an aggregation
-> method that is optimized for fast, short-interval averaging, and makes
-> the aggregation frequency adaptive, such that high-frequency updates
-> only happen while monitored stall events are actively occurring.
-> 
-> With these patches applied, Android can monitor for, and ward off,
-> mounting memory shortages before they cause problems for the user.
-> For example, using memory stall monitors in userspace low memory
-> killer daemon (lmkd) we can detect mounting pressure and kill less
-> important processes before device becomes visibly sluggish. In our
-> memory stress testing psi memory monitors produce roughly 10x less
-> false positives compared to vmpressure signals. Having ability to
-> specify multiple triggers for the same psi metric allows other parts
-> of Android framework to monitor memory state of the device and act
-> accordingly.
-> 
-> The new interface is straight-forward. The user opens one of the
-> pressure files for writing and writes a trigger description into the
-> file descriptor that defines the stall state - some or full, and the
-> maximum stall time over a given window of time. E.g.:
-> 
->         /* Signal when stall time exceeds 100ms of a 1s window */
->         char trigger[] = "full 100000 1000000"
->         fd = open("/proc/pressure/memory")
->         write(fd, trigger, sizeof(trigger))
->         while (poll() >= 0) {
->                 ...
->         };
->         close(fd);
-> 
-> When the monitored stall state is entered, psi adapts its aggregation
-> frequency according to what the configured time window requires in
-> order to emit event signals in a timely fashion. Once the stalling
-> subsides, aggregation reverts back to normal.
-> 
-> The trigger is associated with the open file descriptor. To stop
-> monitoring, the user only needs to close the file descriptor and the
-> trigger is discarded.
-> 
-> Patches 1-6 prepare the psi code for polling support. Patch 7 implements
-> the adaptive polling logic, the pressure growth detection optimized for
-> short intervals, and hooks up write() and poll() on the pressure files.
-> 
-> The patches were developed in collaboration with Johannes Weiner.
-> 
-> The patches are based on 5.0-rc8 (Merge tag 'drm-next-2019-03-06').
-> 
-> Suren Baghdasaryan (7):
->   psi: introduce state_mask to represent stalled psi states
->   psi: make psi_enable static
->   psi: rename psi fields in preparation for psi trigger addition
->   psi: split update_stats into parts
->   psi: track changed states
->   refactor header includes to allow kthread.h inclusion in psi_types.h
->   psi: introduce psi monitor
-> 
->  Documentation/accounting/psi.txt | 107 ++++++
->  include/linux/kthread.h          |   3 +-
->  include/linux/psi.h              |   8 +
->  include/linux/psi_types.h        | 105 +++++-
->  include/linux/sched.h            |   1 -
->  kernel/cgroup/cgroup.c           |  71 +++-
->  kernel/kthread.c                 |   1 +
->  kernel/sched/psi.c               | 613 ++++++++++++++++++++++++++++---
->  8 files changed, 833 insertions(+), 76 deletions(-)
-> 
-> Changes in v5:
-> - Fixed sparse: error: incompatible types in comparison expression, as per
->  Andrew
-> - Changed psi_enable to static, as per Andrew
-> - Refactored headers to be able to include kthread.h into psi_types.h
-> without creating a circular inclusion, as per Johannes
-> - Split psi monitor from aggregator, used RT worker for psi monitoring to
-> prevent it being starved by other RT threads and memory pressure events
-> being delayed or lost, as per Minchan and Android Performance Team
-> - Fixed blockable memory allocation under rcu_read_lock inside
-> psi_trigger_poll by using refcounting, as per Eva Huang and Minchan
-> - Misc cleanup and improvements, as per Johannes
-> 
-> Notes:
-> 0001-psi-introduce-state_mask-to-represent-stalled-psi-st.patch is unchanged
-> from the previous version and provided for completeness.
+> I agree that you shouldn't need CONFIG_PROCFS=Y to use pidfds. One
+> crazy idea that I was discussing with Joel the other day is to just
+> make CONFIG_PROCFS=Y mandatory and provide a new get_procfs_root()
+> system call that returned, out of thin air and independent of the
+> mount table, a procfs root directory file descriptor for the caller's
+> PID namspace and suitable for use with openat(2).
 
-Please fix kbuild test bot's warning in 6/7
-Other than that, for all patches,
+Even if this works I'm pretty sure that Al and a lot of others will not
+be happy about this. A syscall to get an fd to /proc? That's not going
+to happen and I don't see the need for a separate syscall just for that.
+(I do see the point of making CONFIG_PROCFS=y the default btw.)
 
-Acked-by: Minchan Kim <minchan@kernel.org>
+Inode allocation from the procfs mount for the file descriptors Joel
+wants is not correct. Their not really procfs file descriptors so this
+is a nack. We can't just hook into proc that way.
+
+> 
+> C'mon: /proc is used by everyone today and almost every program breaks
+> if it's not around. The string "/proc" is already de facto kernel ABI.
+> Let's just drop the pretense of /proc being optional and bake it into
+> the kernel proper, then give programs a way to get to /proc that isn't
+> tied to any particular mount configuration. This way, we don't need a
+> translate_pid(), since callers can just use procfs to do the same
+> thing. (That is, if I understand correctly what translate_pid does.)
+
+I'm not sure what you think translate_pid() is doing since you're not
+saying what you think it does.
+Examples from the old patchset:
+translate_pid(pid, ns, -1)      - get pid in our pid namespace
+translate_pid(pid, -1, ns)      - get pid in other pid namespace
+translate_pid(1, ns, -1)        - get pid of init task for namespace
+translate_pid(pid, -1, ns) > 0  - is pid is reachable from ns?
+translate_pid(1, ns1, ns2) > 0  - is ns1 inside ns2?
+translate_pid(1, ns1, ns2) == 0 - is ns1 outside ns2?
+translate_pid(1, ns1, ns2) == 1 - is ns1 equal ns2?
+
+Allowing this syscall to yield pidfds as proper regular file fds and
+also taking pidfds as argument is an excellent way to kill a few
+problems at once:
+- cheap pid namespace introspection
+- creates a bridge between the "old" pid-based api and the "new" pidfd api
+- allows us to get proper non-directory file descriptors for any pids we
+  like
+
+The additional advantage is that people are already happy to add this
+syscall so simply extending it and routing it through the pidfd tree or
+Eric's tree is reasonable. (It should probably grow a flag argument. I
+need to start prototyping this.)
+
+> 
+> We still need a pidfd_clone() for atomicity reasons, but that's a
+> separate story. My goal is to be able to write a library that
+
+Yes, on my todo list and I have a ported patch based on prior working
+rotting somehwere on my git server.
+
+> transparently creates and manages a helper child process even in a
+> "hostile" process environment in which some other uncoordinated thread
+> is constantly doing a waitpid(-1) (e.g., the JVM).
+> 
+> > So instead of going throught proc we should probably do what David has
+> > been doing in the mount API and come to rely on anone_inode. So
+> > something like:
+> >
+> > fd = anon_inode_getfd("pidfd", &pidfd_fops, file_priv_data, flags);
+> >
+> > and stash information such as pid namespace etc. in a pidfd struct or
+> > something that we then can stash file->private_data of the new file.
+> > This also lets us avoid all this open coding done here.
+> > Another advantage is that anon_inodes is its own kernel-internal
+> > filesystem.
+> 
+> Sure. That works too.
+
+Great.
 
