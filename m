@@ -7,100 +7,100 @@ X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 471ABC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 23:56:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BCFCFC4360F
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 23:56:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DA6802175B
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 23:56:31 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 71ACC217F4
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 23:56:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="s39qkpCi"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DA6802175B
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="kkRScrd3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 71ACC217F4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 82DE96B0006; Tue, 19 Mar 2019 19:56:31 -0400 (EDT)
+	id AEC236B0007; Tue, 19 Mar 2019 19:56:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7B1DE6B0007; Tue, 19 Mar 2019 19:56:31 -0400 (EDT)
+	id A9A2A6B0008; Tue, 19 Mar 2019 19:56:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 67DCE6B0008; Tue, 19 Mar 2019 19:56:31 -0400 (EDT)
+	id 9888A6B000A; Tue, 19 Mar 2019 19:56:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F2F96B0006
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 19:56:31 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id k5so401947ioh.13
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 16:56:31 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 718576B0007
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 19:56:33 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id c25so620382qtj.13
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 16:56:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
          :mime-version:references:subject:from:to:cc;
-        bh=BhrmowS2eMjbffJ9OB92bQfOOAToNjJ94P17cQjPdo8=;
-        b=czxUHut575MMexrNKiIeeh4GmekW+TCcs+0lYsvy6rHCRx/qSjlzcjprund7iz82y7
-         7jaTtfbfXTsXPhgv0mKKRxnvuKeftkrSPXHjmlZ3RHtrombdVVcmnOTwSv3/7vyGvi0w
-         WD1HATaEZYLEutiORYo5I1pnRcrxi16ZYaSXmdjrG36ynhAiE+SUB+eZRtImXL2VTg+b
-         vgdfY/4clhFp0U7UfMk1nqWiIItbRi+Ieq0nCOkmaOBFfZregqqWdrFljc0DYq8mvGtI
-         6tezs1aZT9iXKi/2OYM7/UvAFIv3mxIxaMB9JRvXLKRufHjZAXBa+3ni3QZ0LHBVGY4G
-         T9tg==
-X-Gm-Message-State: APjAAAX1dXIxL24YmCeyMGLgry2rEPD4CUyo8zzHUPu3CVPeuu3/tdu6
-	U4AuuaNGGb608t6GeDgyDcmBI5a7pJczcRtOcgV6Pr5ppxqOMtich5XSOlY2G4DtroXOVoHVMMe
-	BMa8Nlr3GWZr1cVGxISEVnJwYwFFMa9hnr1kU/izSj9VgXcZmugZX7T8k4WEOYHLR2g==
-X-Received: by 2002:a02:94a1:: with SMTP id x30mr3159488jah.82.1553039790933;
-        Tue, 19 Mar 2019 16:56:30 -0700 (PDT)
-X-Received: by 2002:a02:94a1:: with SMTP id x30mr3159468jah.82.1553039789979;
-        Tue, 19 Mar 2019 16:56:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553039789; cv=none;
+        bh=Hcsw4jWN1hMUQas5fk8qH4/pHraV7uLJWBMnp4emY1w=;
+        b=PdkvHkLM2Uizgr5/P81RYkG6YWnevxFm4mu0qn+Fyw/LXPLt0slrtfgNdVQ/8jWCvO
+         B6QiB0XsCZd7PIMFmcPHZzrPijMIV8N+TR+HYcXOnSK5QGI2pXib58PI4r+rrTIM1Zhm
+         7jhM8ako5sg6IOYLRikHiOeEvxoOn+1pMuwSdmRF7FgtzsMkkWKtJyRCDzGGfxxX3GRX
+         kzDhcDjIDcEc+cJjXmoQZz6bA2TbN+vo7oHt69KWBDsNcHoGCSoxu/d1UKjJrxT/z0C9
+         eI1wws3yr40zzQgkk28VZWJsAJOfoYarYiLl+FiJpE8sox70B4nWS1MsiGCRxitRWIea
+         CIsg==
+X-Gm-Message-State: APjAAAVlG+PGGy96YfQNIHxXAE9F0pAV2W8Vj0o2ncBAKOEtXHdu28KG
+	iFf1QkDhVJ/cqZUz6bvLy4ZsRBZ8jzMHv9FmkwefjqixzSrIVFyeq9VLUuIHsmXqT3dCdhSVEfN
+	07k40SooDY0uS4zKQEMfUB0nTdPe/K2VEf4pnpvuL25xRjztl0YbFo3xD/EVa8cjUcw==
+X-Received: by 2002:ac8:1187:: with SMTP id d7mr2745214qtj.241.1553039793220;
+        Tue, 19 Mar 2019 16:56:33 -0700 (PDT)
+X-Received: by 2002:ac8:1187:: with SMTP id d7mr2745199qtj.241.1553039792600;
+        Tue, 19 Mar 2019 16:56:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553039792; cv=none;
         d=google.com; s=arc-20160816;
-        b=KFp/ntYGp+PAHSJW4gh4pJchtxSUSsn6aieb4XyxMC2PhPyC+yufZNES1f3d1+J1jl
-         Xeu5OKBGanNf1J0/j5SfH8vIbWk6usEw1DDx90U79YoLhj5GejU8lNqRG7caqzR4XURm
-         YQVmEPzfGUXqC3qvMYUdabnjdY9RMwqItga7SPa+u/TGy7Lh8f/swB14EhhakkxiOQtk
-         XzSRiNk5BhSt1aaVXRdIsTiFoOZJH7S0WAQht214TBQuJ3WWQI/lLSf6fCow0j6X+0C9
-         Y/+zxwCQOZTdRURtm1ZpuPFZud8t7uhCp6EIy61SNI3SpDwVq78EzKWW1xvHSvndpi6+
-         p1kg==
+        b=evt+j/Yp4+A+Rm3KZjwjjkYFXhrG1QscrKmnOirEEMj8nO2bLK/cBvC+0GZpBEWf5e
+         SgT8SS0hKWLGJ37mqV3V0/NRtx7OLdvvwSNbsPlz5VVwJd6azqtpbfDccybNYQ1pk+Xq
+         NYjBjtSOdbmMeTSYdC9WSQVgGl5GwVWM86HTMU7GUlF4XKJDU+c6/d3QRKC5oqY33zE0
+         JMXOHLO5LSdplmafonGHCMZuRz/yJP1PSPELzEX9m0LyhZdBjY1QmaO+G2/vLUVwMeWj
+         +Tqnq7BKbJ3Iio2ptyRgVadYcJIP8asYeQiaicELlvJIk3Ku86786+sph4CkN+53uMS/
+         GfIw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
          :date:dkim-signature;
-        bh=BhrmowS2eMjbffJ9OB92bQfOOAToNjJ94P17cQjPdo8=;
-        b=JZxX/nZUkhFl6IOrRw/GAbTK7RLAPn7DD5vnZsOl0tvC8bJw8WSPzbZw0bGCzZi82w
-         aSNzHOBqnbovO4IS3SJb2lkxzB8+fs+i94iYvdFTTuNPPWBG9mG6GqmUqd6qPMoqj3s6
-         DywWCfyyZTCqQ6OvmP/D2RsB0kCF1r1sBm1RKXliIcIfWkrSmoxZmoCUFKEg4Ib4s6ce
-         Lm0hOL+ePOXKqa4jaohx+KilFTbtUg1Bn39M4AAevffLZA5pM8wllIDKoUR+CivyL1rP
-         lwftgN3Tbmt85yvh9IJNTl6ebt7d9fmi+KcxUQ8OBS3dHT54Mz5RMWgU2oOSRwn/oKN+
-         QDnw==
+        bh=Hcsw4jWN1hMUQas5fk8qH4/pHraV7uLJWBMnp4emY1w=;
+        b=q1X3BI9O39L4TrcFk/KBWOnDNpnp4rxVkO++SUoUlQtLhF13iy1xoDOWy4rLbskp9N
+         5LMH23afvdizEMiQL0wPI3DH8n00ufQ1w6fpF5h7Q8OTVCHD3V2yyfCUm2sl0UfKZh8c
+         faoOQAusnFtDTYeb4QK4Jv4n0TDKoGgU6b5fgyQstUR8b1gff873HaS7Mdgv0TOs/oR7
+         CM5KVEMvVePdlM+VLNIqKmGNg1nd5iGKGHk0fUq7mpjuexzaJnZnhiEvTMPLTlCNUeZ0
+         o7fg6ltjoi7QpJd+JlSYKiAGirleRwCpkiceXFFu4+REdSTZXLp6+XMfVvoIAzjZfC6S
+         J6Vw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=s39qkpCi;
-       spf=pass (google.com: domain of 3rygrxaykcoauwtgpdiqqing.eqonkpwz-oomxcem.qti@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3rYGRXAYKCOAUWTGPDIQQING.EQONKPWZ-OOMXCEM.QTI@flex--surenb.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=kkRScrd3;
+       spf=pass (google.com: domain of 3sigrxaykcomxzwjsglttlqj.htrqnszc-rrpafhp.twl@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3sIGRXAYKCOMXZWJSGLTTLQJ.HTRQNSZc-RRPaFHP.TWL@flex--surenb.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id w194sor590197ita.22.2019.03.19.16.56.29
+        by mx.google.com with SMTPS id o55sor790241qto.65.2019.03.19.16.56.32
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 19 Mar 2019 16:56:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3rygrxaykcoauwtgpdiqqing.eqonkpwz-oomxcem.qti@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Tue, 19 Mar 2019 16:56:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3sigrxaykcomxzwjsglttlqj.htrqnszc-rrpafhp.twl@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=s39qkpCi;
-       spf=pass (google.com: domain of 3rygrxaykcoauwtgpdiqqing.eqonkpwz-oomxcem.qti@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3rYGRXAYKCOAUWTGPDIQQING.EQONKPWZ-OOMXCEM.QTI@flex--surenb.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=kkRScrd3;
+       spf=pass (google.com: domain of 3sigrxaykcomxzwjsglttlqj.htrqnszc-rrpafhp.twl@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3sIGRXAYKCOMXZWJSGLTTLQJ.HTRQNSZc-RRPaFHP.TWL@flex--surenb.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=date:in-reply-to:message-id:mime-version:references:subject:from:to
          :cc;
-        bh=BhrmowS2eMjbffJ9OB92bQfOOAToNjJ94P17cQjPdo8=;
-        b=s39qkpCiLoow4b9/kgH0brUOsB6xmuRjJsD/eb1HqzNYh9jtmiyICnlIREYYOCKL88
-         kXqqEiT1p592C2CJ41x570vo4IJQ+qIpXP1mS4NZTtgimX1bxdcuhLtuhXWjoT7rB8Dn
-         cCHD7VVysNVpuZas/uyx34+spsa3iuS9UElEGU+wOJpvGuxLM1+50lBJdu72gwMh/7wj
-         CCzhl3Pdf2CzqMNOj5pObXsCmj1nUNiS+EioFVGTxI0M1+2nuPhekgCPfSV6zecvX9yc
-         rPXVPjJj0/fg2QH1UnaNfhmCPCuO7XIQEvbgcqFXz50DTetnIuZxNs6cQ/pmXD0+ZpAY
-         nC8Q==
-X-Google-Smtp-Source: APXvYqwLqcno9l8VDu4DML9YRADDsLxnjwNMeFZHijkxLWCWDs6v5BpwRuxZ0pdSzUMSpS6IEHp6v20vj2U=
-X-Received: by 2002:a24:6545:: with SMTP id u66mr3145504itb.36.1553039789710;
- Tue, 19 Mar 2019 16:56:29 -0700 (PDT)
-Date: Tue, 19 Mar 2019 16:56:13 -0700
+        bh=Hcsw4jWN1hMUQas5fk8qH4/pHraV7uLJWBMnp4emY1w=;
+        b=kkRScrd31+enlreI5z0oUEdvclr3JCffoxWlBxgdfvsiHG+l1qdm7rpPzTM74AffEB
+         LfPQCYRFRkk5MVQ3Sswlo00GL73nAMZLv5CUblp9iwglJ0iHORdkEQbjcmg+RAyhtDSK
+         O9SwD0WRSCDe+dqmFFjegvme5136ckLAkDUHKL6mVSMZP0sNbLYuvx8Ezdf706E/KfDY
+         9fBeMjXuR3YFS9h86rSzKNERDrjqmseba0FXjHr885Gzr4DFfIZy5quXrHuTBM0lthvA
+         9RXHgsNWSfaXr1nwN76MY2akaLAzeMLaPr9LrKq+sgEJNGwUCyr6TQwEqhNFsTdPpUau
+         OdXQ==
+X-Google-Smtp-Source: APXvYqwR1TAk3oGEqI2JtJ8ECEcet2nolarI6UbO1myJOnWcfePT76GDZJa39xicW9tBqtTiou2qy4qktOo=
+X-Received: by 2002:ac8:2e7a:: with SMTP id s55mr13937762qta.34.1553039792366;
+ Tue, 19 Mar 2019 16:56:32 -0700 (PDT)
+Date: Tue, 19 Mar 2019 16:56:14 -0700
 In-Reply-To: <20190319235619.260832-1-surenb@google.com>
-Message-Id: <20190319235619.260832-2-surenb@google.com>
+Message-Id: <20190319235619.260832-3-surenb@google.com>
 Mime-Version: 1.0
 References: <20190319235619.260832-1-surenb@google.com>
 X-Mailer: git-send-email 2.21.0.225.g810b269d1ac-goog
-Subject: [PATCH v6 1/7] psi: introduce state_mask to represent stalled psi states
+Subject: [PATCH v6 2/7] psi: make psi_enable static
 From: Suren Baghdasaryan <surenb@google.com>
 To: gregkh@linuxfoundation.org
 Cc: tj@kernel.org, lizefan@huawei.com, hannes@cmpxchg.org, axboe@kernel.dk, 
@@ -108,7 +108,7 @@ Cc: tj@kernel.org, lizefan@huawei.com, hannes@cmpxchg.org, axboe@kernel.dk,
 	peterz@infradead.org, akpm@linux-foundation.org, corbet@lwn.net, 
 	cgroups@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, 
 	linux-kernel@vger.kernel.org, kernel-team@android.com, 
-	Suren Baghdasaryan <surenb@google.com>, Stephen Rothwell <sfr@canb.auug.org.au>
+	Suren Baghdasaryan <surenb@google.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -116,163 +116,30 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The psi monitoring patches will need to determine the same states as
-record_times().  To avoid calculating them twice, maintain a state mask
-that can be consulted cheaply.  Do this in a separate patch to keep the
-churn in the main feature patch at a minimum.
+psi_enable is not used outside of psi.c, make it static.
 
-This adds 4-byte state_mask member into psi_group_cpu struct which results
-in its first cacheline-aligned part becoming 52 bytes long.  Add explicit
-values to enumeration element counters that affect psi_group_cpu struct
-size.
-
-Link: http://lkml.kernel.org/r/20190124211518.244221-4-surenb@google.com
+Suggested-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Suren Baghdasaryan <surenb@google.com>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Dennis Zhou <dennis@kernel.org>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Jens Axboe <axboe@kernel.dk>
-Cc: Li Zefan <lizefan@huawei.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Tejun Heo <tj@kernel.org>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
 ---
- include/linux/psi_types.h |  9 ++++++---
- kernel/sched/psi.c        | 29 +++++++++++++++++++----------
- 2 files changed, 25 insertions(+), 13 deletions(-)
+ kernel/sched/psi.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/psi_types.h b/include/linux/psi_types.h
-index 2cf422db5d18..762c6bb16f3c 100644
---- a/include/linux/psi_types.h
-+++ b/include/linux/psi_types.h
-@@ -11,7 +11,7 @@ enum psi_task_count {
- 	NR_IOWAIT,
- 	NR_MEMSTALL,
- 	NR_RUNNING,
--	NR_PSI_TASK_COUNTS,
-+	NR_PSI_TASK_COUNTS = 3,
- };
- 
- /* Task state bitmasks */
-@@ -24,7 +24,7 @@ enum psi_res {
- 	PSI_IO,
- 	PSI_MEM,
- 	PSI_CPU,
--	NR_PSI_RESOURCES,
-+	NR_PSI_RESOURCES = 3,
- };
- 
- /*
-@@ -41,7 +41,7 @@ enum psi_states {
- 	PSI_CPU_SOME,
- 	/* Only per-CPU, to weigh the CPU in the global average: */
- 	PSI_NONIDLE,
--	NR_PSI_STATES,
-+	NR_PSI_STATES = 6,
- };
- 
- struct psi_group_cpu {
-@@ -53,6 +53,9 @@ struct psi_group_cpu {
- 	/* States of the tasks belonging to this group */
- 	unsigned int tasks[NR_PSI_TASK_COUNTS];
- 
-+	/* Aggregate pressure state derived from the tasks */
-+	u32 state_mask;
-+
- 	/* Period time sampling buckets for each state of interest (ns) */
- 	u32 times[NR_PSI_STATES];
- 
 diff --git a/kernel/sched/psi.c b/kernel/sched/psi.c
-index 0e97ca9306ef..22c1505ad290 100644
+index 22c1505ad290..281702de9772 100644
 --- a/kernel/sched/psi.c
 +++ b/kernel/sched/psi.c
-@@ -213,17 +213,17 @@ static bool test_state(unsigned int *tasks, enum psi_states state)
- static void get_recent_times(struct psi_group *group, int cpu, u32 *times)
+@@ -140,9 +140,9 @@ static int psi_bug __read_mostly;
+ DEFINE_STATIC_KEY_FALSE(psi_disabled);
+ 
+ #ifdef CONFIG_PSI_DEFAULT_DISABLED
+-bool psi_enable;
++static bool psi_enable;
+ #else
+-bool psi_enable = true;
++static bool psi_enable = true;
+ #endif
+ static int __init setup_psi(char *str)
  {
- 	struct psi_group_cpu *groupc = per_cpu_ptr(group->pcpu, cpu);
--	unsigned int tasks[NR_PSI_TASK_COUNTS];
- 	u64 now, state_start;
-+	enum psi_states s;
- 	unsigned int seq;
--	int s;
-+	u32 state_mask;
- 
- 	/* Snapshot a coherent view of the CPU state */
- 	do {
- 		seq = read_seqcount_begin(&groupc->seq);
- 		now = cpu_clock(cpu);
- 		memcpy(times, groupc->times, sizeof(groupc->times));
--		memcpy(tasks, groupc->tasks, sizeof(groupc->tasks));
-+		state_mask = groupc->state_mask;
- 		state_start = groupc->state_start;
- 	} while (read_seqcount_retry(&groupc->seq, seq));
- 
-@@ -239,7 +239,7 @@ static void get_recent_times(struct psi_group *group, int cpu, u32 *times)
- 		 * (u32) and our reported pressure close to what's
- 		 * actually happening.
- 		 */
--		if (test_state(tasks, s))
-+		if (state_mask & (1 << s))
- 			times[s] += now - state_start;
- 
- 		delta = times[s] - groupc->times_prev[s];
-@@ -407,15 +407,15 @@ static void record_times(struct psi_group_cpu *groupc, int cpu,
- 	delta = now - groupc->state_start;
- 	groupc->state_start = now;
- 
--	if (test_state(groupc->tasks, PSI_IO_SOME)) {
-+	if (groupc->state_mask & (1 << PSI_IO_SOME)) {
- 		groupc->times[PSI_IO_SOME] += delta;
--		if (test_state(groupc->tasks, PSI_IO_FULL))
-+		if (groupc->state_mask & (1 << PSI_IO_FULL))
- 			groupc->times[PSI_IO_FULL] += delta;
- 	}
- 
--	if (test_state(groupc->tasks, PSI_MEM_SOME)) {
-+	if (groupc->state_mask & (1 << PSI_MEM_SOME)) {
- 		groupc->times[PSI_MEM_SOME] += delta;
--		if (test_state(groupc->tasks, PSI_MEM_FULL))
-+		if (groupc->state_mask & (1 << PSI_MEM_FULL))
- 			groupc->times[PSI_MEM_FULL] += delta;
- 		else if (memstall_tick) {
- 			u32 sample;
-@@ -436,10 +436,10 @@ static void record_times(struct psi_group_cpu *groupc, int cpu,
- 		}
- 	}
- 
--	if (test_state(groupc->tasks, PSI_CPU_SOME))
-+	if (groupc->state_mask & (1 << PSI_CPU_SOME))
- 		groupc->times[PSI_CPU_SOME] += delta;
- 
--	if (test_state(groupc->tasks, PSI_NONIDLE))
-+	if (groupc->state_mask & (1 << PSI_NONIDLE))
- 		groupc->times[PSI_NONIDLE] += delta;
- }
- 
-@@ -448,6 +448,8 @@ static void psi_group_change(struct psi_group *group, int cpu,
- {
- 	struct psi_group_cpu *groupc;
- 	unsigned int t, m;
-+	enum psi_states s;
-+	u32 state_mask = 0;
- 
- 	groupc = per_cpu_ptr(group->pcpu, cpu);
- 
-@@ -480,6 +482,13 @@ static void psi_group_change(struct psi_group *group, int cpu,
- 		if (set & (1 << t))
- 			groupc->tasks[t]++;
- 
-+	/* Calculate state mask representing active states */
-+	for (s = 0; s < NR_PSI_STATES; s++) {
-+		if (test_state(groupc->tasks, s))
-+			state_mask |= (1 << s);
-+	}
-+	groupc->state_mask = state_mask;
-+
- 	write_seqcount_end(&groupc->seq);
- }
- 
 -- 
 2.21.0.225.g810b269d1ac-goog
 
