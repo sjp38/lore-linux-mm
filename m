@@ -2,169 +2,155 @@ Return-Path: <SRS0=zC3H=RW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 662A8C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 17:51:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 91FC8C10F03
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 17:56:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 13B4D2133D
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 17:51:14 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="GrdKyJkS"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 13B4D2133D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 5E44220651
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 17:56:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E44220651
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A74086B0007; Tue, 19 Mar 2019 13:51:13 -0400 (EDT)
+	id F04D06B0007; Tue, 19 Mar 2019 13:56:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A241F6B0008; Tue, 19 Mar 2019 13:51:13 -0400 (EDT)
+	id EB34C6B0008; Tue, 19 Mar 2019 13:56:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 912FE6B000A; Tue, 19 Mar 2019 13:51:13 -0400 (EDT)
+	id DA2D26B000A; Tue, 19 Mar 2019 13:56:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 396F16B0007
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 13:51:13 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id o12so7865426edv.21
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 10:51:13 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 946996B0007
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 13:56:41 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id j10so23577540pfn.13
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 10:56:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=ZO+ZwteIH+GN4tz9mx+I/xS7VS60SBHJoatRPiKCAhA=;
-        b=s/szhBiW8XRfMh9JZpr61GIRs7ldOKS1aObH9qRUa8dpaXNMYfHRxUrM9sXb1tC9mq
-         db4Y0YXy99EhvEkiwDHYSTXQ764J7Pm8S77uWIHbIqHhqv1+HC9tzGv3+3CrtDP9T636
-         nA1RLTu16TbsuqzAEiVTP7147zaSmkI33m3OGdXyXWunI/gko7H85vi1f1itXHNH8xMg
-         7Y7kmZEAS3v46ByvWow6n7xSkijFMvnNVJ36Q2h0AuM7+mpbnj7+aVX+1uCdvIWcmjx8
-         0wdFH2t70g4wwoiDXVKhDXj7+GqqZ2uootNzR6LaSY7Cnt01bGja/TVYvK2H3NXf72/C
-         j9+A==
-X-Gm-Message-State: APjAAAUbQi7JfFpniSKS8ht+AZUgdWQkSRY/5skCc0cz10+N0KMtBImM
-	xVoVVISYwC1F0O7o0CwXdrZFBPmBb+3TA4pwMi+lwEZF3BjDMLxSXl209kOfFevKZhrF95SX4ss
-	wFP+h57IhvgjCXZGGDKbYG9BhUkoXqN11ir0c01bUBjj65EwUwI0j/YlhucyyqDb8HQ==
-X-Received: by 2002:a17:906:5246:: with SMTP id y6mr1784125ejm.228.1553017872772;
-        Tue, 19 Mar 2019 10:51:12 -0700 (PDT)
-X-Received: by 2002:a17:906:5246:: with SMTP id y6mr1784088ejm.228.1553017871651;
-        Tue, 19 Mar 2019 10:51:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553017871; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=kmxyYlZJqPyamFHRGr02XpQzqXeTOd4bJ0ZuHzeOYSQ=;
+        b=XwwI0Jl6YHnuUwmq5iw9ZhXps7u4Fs2zgqWNIHgRHCtG7t8A/vqkAFMyg3QIfvSZt3
+         4e1ziRlff22HVrA/MmtfykmF+H/jiGVUOAYHKmONKM7A6nOvnuE/nNqIpIUlqUVy3Pk4
+         QC+p4bUNxmFxz+daUndwGLECwgb13hQuMzVIW9aUm3C08raXzFE73ZOES9K5oXzLCF7g
+         HPzQ3/IVRcHg8H9MQ3Ry64JqJCRegQnd3gMH5LF8QSgbgXhgc5DWKBAbgo5LvHqiBl/F
+         d/NxlgKUbWUffIm+8ZjmmvjUiJwdkZ8XHmfA8ESemLE2sKH9LspqCtyOu0l2fzsP43bQ
+         ko7A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+X-Gm-Message-State: APjAAAUiIeDTrs2wFHz+Z8mDuNSc7E2QP9vEUCguxiVH77UK7rxJZAq4
+	yiJaSBn7YCRJXCLqepNaqnENKH+C8/t37ap0VhySSv5PAU/e93Yi/I+D/QjnwGK4eZOmdmg7hgY
+	Tdo/48zwMHoCEAEBSz88Xo49U5cpbKU82DfW0+tUBr1bCh/8IXBE48ZVo6EwfKoQgpg==
+X-Received: by 2002:a62:1e06:: with SMTP id e6mr25861664pfe.168.1553018201229;
+        Tue, 19 Mar 2019 10:56:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyYhRbxn3YV6DjFEQrQDeuEaNA/iwrqxkVfwMW5lbyp8poEVYsUxdbMeVzVN1bQ7Z4hkCE9
+X-Received: by 2002:a62:1e06:: with SMTP id e6mr25861607pfe.168.1553018200175;
+        Tue, 19 Mar 2019 10:56:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553018200; cv=none;
         d=google.com; s=arc-20160816;
-        b=rkVjnWF/8ZJ7qUbnQBsoloX95an6Y/3/OixGgPehlTUP5xXRHZ7S1y52dK/z5/tMlU
-         P3I9ISCcM6dZNOpC+/ga/xbUiGFFj4AMF8BW5kEgoMIssWllS19oWC5J5S0da34YuS5y
-         DBCIu5hMkTKzMEWLk+xE5PSyUk3IBvOl2QvC6US4qckvktnQGena0/+7ml4B1mm6xZgQ
-         mTccyS1Gn+tlG8GxSzo/OPO7DNjlALvNFWTDW9LnAe+d8wfEqW8xoZxOQTR+MN07WhC5
-         hwyxInG6AvDZubHbqC7GXVWQGyB3yb7LdbKLW+HJtMu0YHQ9Hxfj/aPXxE0ZtkNMm/8V
-         g7xw==
+        b=B3MtYlO9SYkirsYZ797aJ+kJfI8alfmcernyuH/9Q8potqRlgD/CgjziU2xsfB1ahI
+         qFtJsKaJkXi2PJXG7I8iql5weULW1oUCVVAn+8DQtxTao5IxTQoP2/qDBTmFj6Um981J
+         9C9bWpGYeQ0EWr2GQ1mL9DWGIDJtvlTDKFlFsl0mdkROyELsfGSCksgK4n9VF3p4svxM
+         /am7XFuKr6Nh0ZgOXZeLFXwFVFZa64rbJ0ZtVUcnrH1XYZlXS2/YKSsftTpXASbOwdIo
+         f7VrxTitiQk+YzSA3CoOF13o6hG1wRgFCWsjf0rqOTKwSXcbQ1jEjbPMdkGviDbFtBZ+
+         X9gg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=ZO+ZwteIH+GN4tz9mx+I/xS7VS60SBHJoatRPiKCAhA=;
-        b=IUxJAaMkR8T1LB52ak/lo1LPgsOjckAySVeeDwOQwZSSplRP1OBhVqfZpD06FLERv1
-         V56fkyBz4u751qr5mVciDADpimy21eXN6eXRrwmDODFYjH4pTVw3Dua4lU8EaaoR5kWr
-         AB5rHIb06bbFQYSl+EtAcvnVX/5DODqGCkvu6VkMjeeqx53KEgkGJ3gDCo/Q9RC3oS1B
-         QuUutuH3s8r0ebntzUVv+a02HyMgzeSq26YcDi5XDUYVtEBCCj+7XxXWlQlZMVszn379
-         9yVujF2CuQZolLAwGnJt20WAqMK1h3egz/lz7RQhjvADwYz18ouNuTDe722/CpLHQ6Tb
-         fpRg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date;
+        bh=kmxyYlZJqPyamFHRGr02XpQzqXeTOd4bJ0ZuHzeOYSQ=;
+        b=QiydxmKQyoLrjU7ip8YZ8+LHdcN9fN22Fcus9lwfn5ZCI1jkTA2Yh1kfw+5ylnf1TX
+         Mvpgo/vnuazJvhPwyhZ9hbbcKcRsrwKrgFj/IcfvYg+yeNdaGL+5L4PtfrT9poA0X/vH
+         +BDqxkxcrwx4+27ITeBmUufyYgqiEJUFdX1v/PrRc4hYPGqKW3apcBJMhAu5QKE1QVBN
+         SWqUeAIRhRFgqArP09kHmyADauuzsAQCOs7iTJ3Bfrhj9Y8SNdyWvbjD6nJkabwd78go
+         8ZZl2wt8aq1Mjfx5pMpKhZFyT+uB2/WpKMVzvPa/iOXH58ji5S6v9r0C6iLUWhADBtt9
+         MSbw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=GrdKyJkS;
-       spf=pass (google.com: domain of luc.vanoostenryck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=luc.vanoostenryck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z43sor4915702edc.27.2019.03.19.10.51.11
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id l187si12448110pfc.43.2019.03.19.10.56.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Mar 2019 10:51:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luc.vanoostenryck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=GrdKyJkS;
-       spf=pass (google.com: domain of luc.vanoostenryck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=luc.vanoostenryck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=ZO+ZwteIH+GN4tz9mx+I/xS7VS60SBHJoatRPiKCAhA=;
-        b=GrdKyJkS7Z5/5sccKgmn0an8u7nSZHCACOQalJ/giU9wpaS71yxBZRuuBXHlhzTJxp
-         T4diMEqn6dyMshOWc+OhBeGNJnMvAuepPJcMSrvJunb6TpERV8LO3lgaVevg8eXGGYpb
-         XhgsWytdhZNzhMlCFuLuYxk+wdYROA4KF6yLJSg3b/rfUNxBfA40PN2qdc6tt8qy/SwV
-         Uwrly9tQIXh9fmf7VGjZOn0mEC0PKSgcybsoYr+aV8w5oPsRXJnw5bEaziruHnwhbtF8
-         k4G64WavznRIIe4xRxGANlWjPAET1pPC1BCHuCe/b6tpBhDVoSqu2GhqATzguXbtdG71
-         ZG0A==
-X-Google-Smtp-Source: APXvYqzKWM8caSHFb5XhB9hERoHdRy158DJujuJrWp2otQRhqD/H1tqDYwsgJ3+6lDuuTHqmKTXGwg==
-X-Received: by 2002:aa7:dd0e:: with SMTP id i14mr1409148edv.172.1553017871345;
-        Tue, 19 Mar 2019 10:51:11 -0700 (PDT)
-Received: from ltop.local ([2a02:a03f:4049:a600:52:6fcd:af3b:582e])
-        by smtp.gmail.com with ESMTPSA id w8sm3238240ejj.27.2019.03.19.10.51.09
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Mar 2019 10:51:10 -0700 (PDT)
-Date: Tue, 19 Mar 2019 18:51:08 +0100
-From: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Souptick Joarder <jrdr.linux@gmail.com>, akpm@linux-foundation.org,
-	mike.kravetz@oracle.com, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, linux-sparse@vger.kernel.org
-Subject: Re: [PATCH] include/linux/hugetlb.h: Convert to use vm_fault_t
-Message-ID: <20190319175107.oxwjf72hpcqqmo3l@ltop.local>
-References: <20190318162604.GA31553@jordon-HP-15-Notebook-PC>
- <20190319032022.GR19508@bombadil.infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190319032022.GR19508@bombadil.infradead.org>
-User-Agent: NeoMutt/20180716
+        Tue, 19 Mar 2019 10:56:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id C383B3A59;
+	Tue, 19 Mar 2019 17:56:38 +0000 (UTC)
+Date: Tue, 19 Mar 2019 10:56:37 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Nicolas Boichat <drinkcat@chromium.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will.deacon@arm.com>,
+ Robin Murphy <robin.murphy@arm.com>, Christoph Lameter <cl@linux.com>,
+ Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
+ Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.com>, Mel
+ Gorman <mgorman@techsingularity.net>, Levin Alexander
+ <Alexander.Levin@microsoft.com>, Huaisheng Ye <yehs1@lenovo.com>, Mike
+ Rapoport <rppt@linux.vnet.ibm.com>, linux-arm Mailing List
+ <linux-arm-kernel@lists.infradead.org>, iommu@lists.linux-foundation.org,
+ lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Yong Wu
+ <yong.wu@mediatek.com>, Matthias Brugger <matthias.bgg@gmail.com>, Tomasz
+ Figa <tfiga@google.com>, Yingjoe Chen <yingjoe.chen@mediatek.com>,
+ hch@infradead.org, Matthew Wilcox <willy@infradead.org>, Hsin-Yi Wang
+ <hsinyi@chromium.org>, stable@vger.kernel.org, Joerg Roedel
+ <joro@8bytes.org>
+Subject: Re: [PATCH v6 0/3] iommu/io-pgtable-arm-v7s: Use DMA32 zone for
+ page tables
+Message-Id: <20190319105637.4949b00b854e955d61c0359d@linux-foundation.org>
+In-Reply-To: <CANMq1KBKF9aRj+8t+AQusNLOF5jrHJ4qY5C00AKXkO6e-8wKuQ@mail.gmail.com>
+References: <20181210011504.122604-1-drinkcat@chromium.org>
+	<CANMq1KAmFKpcxi49wJyfP4N01A80B2d-2RGY2Wrwg0BvaFxAxg@mail.gmail.com>
+	<20190111102155.in5rctq5krs4ewfi@8bytes.org>
+	<CANMq1KCq7wEYXKLZGCZczZ_yQrmK=MkHbUXESKhHnx5G_CMNVg@mail.gmail.com>
+	<789fb2e6-0d80-b6de-adf3-57180a50ec3e@suse.cz>
+	<CANMq1KCfhWdWtXP_PRd_LEEcWV8SQg=hOy4V7_grqtL873uUCg@mail.gmail.com>
+	<CANMq1KBKF9aRj+8t+AQusNLOF5jrHJ4qY5C00AKXkO6e-8wKuQ@mail.gmail.com>
+X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 18, 2019 at 08:20:22PM -0700, Matthew Wilcox wrote:
-> On Mon, Mar 18, 2019 at 09:56:05PM +0530, Souptick Joarder wrote:
-> > >> mm/memory.c:3968:21: sparse: incorrect type in assignment (different
-> > >> base types) @@    expected restricted vm_fault_t [usertype] ret @@
-> > >> got e] ret @@
-> >    mm/memory.c:3968:21:    expected restricted vm_fault_t [usertype] ret
-> >    mm/memory.c:3968:21:    got int
-> 
-> I think this may be a sparse bug.
-> 
-> Compare:
-> 
-> +++ b/mm/memory.c
-> @@ -3964,6 +3964,9 @@ vm_fault_t handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
->         if (flags & FAULT_FLAG_USER)
->                 mem_cgroup_enter_user_fault();
->  
-> +       ret = 0;
-> +       ret = ({ BUG(); 0; });
-> +       ret = 1;
->         if (unlikely(is_vm_hugetlb_page(vma)))
->                 ret = hugetlb_fault(vma->vm_mm, vma, address, flags);
->         else
-> 
-> ../mm/memory.c:3968:13: sparse: warning: incorrect type in assignment (different base types)
-> ../mm/memory.c:3968:13: sparse:    expected restricted vm_fault_t [assigned] [usertype] ret
-> ../mm/memory.c:3968:13: sparse:    got int
-> ../mm/memory.c:3969:13: sparse: warning: incorrect type in assignment (different base types)
-> ../mm/memory.c:3969:13: sparse:    expected restricted vm_fault_t [assigned] [usertype] ret
-> ../mm/memory.c:3969:13: sparse:    got int
-> 
-> vm_fault_t is __bitwise:
-> 
-> include/linux/mm_types.h:typedef __bitwise unsigned int vm_fault_t;
-> 
-> so simply assigning 0 to ret should work (and does on line 3967), but
-> sparse doesn't seem to like it as part of a ({ .. }) expression.
+On Tue, 19 Mar 2019 15:41:43 +0800 Nicolas Boichat <drinkcat@chromium.org> wrote:
 
-This is the expected behaviour. The constant 0 is magic regarding
-bitwise types but ({ ...; 0; }) is not, it is just an ordinary expression
-of type 'int'.
+> On Mon, Feb 25, 2019 at 8:23 AM Nicolas Boichat <drinkcat@chromium.org> wrote:
+> >
+> > On Thu, Feb 14, 2019 at 1:12 AM Vlastimil Babka <vbabka@suse.cz> wrote:
+> > >
+> > > On 1/22/19 11:51 PM, Nicolas Boichat wrote:
+> > > > Hi Andrew,
+> > > >
+> > > > On Fri, Jan 11, 2019 at 6:21 PM Joerg Roedel <joro@8bytes.org> wrote:
+> > > >>
+> > > >> On Wed, Jan 02, 2019 at 01:51:45PM +0800, Nicolas Boichat wrote:
+> > > >> > Does anyone have any further comment on this series? If not, which
+> > > >> > maintainer is going to pick this up? I assume Andrew Morton?
+> > > >>
+> > > >> Probably, yes. I don't like to carry the mm-changes in iommu-tree, so
+> > > >> this should go through mm.
+> > > >
+> > > > Gentle ping on this series, it seems like it's better if it goes
+> > > > through your tree.
+> > > >
+> > > > Series still applies cleanly on linux-next, but I'm happy to resend if
+> > > > that helps.
+> > >
+> > > Ping, Andrew?
+> >
+> > Another gentle ping, I still don't see these patches in mmot[ms]. Thanks.
+> 
+> Andrew: AFAICT this still applies cleanly on linux-next/master, so I
+> don't plan to resend... is there any other issues with this series?
+> 
+> This is a regression, so it'd be nice to have it fixed in mainline, eventually.
 
-So, IMHO, Souptick's patch is the right thing to do.
+Sorry, seeing "iommu" and "arm" made these escape my gimlet eye.
 
-
-Best regards,
--- Luc Van Oostenryck
+I'm only seeing acks on [1/3].  What's the review status of [2/3] and [3/3]?
 
