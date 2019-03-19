@@ -2,135 +2,166 @@ Return-Path: <SRS0=zC3H=RW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,T_HK_NAME_DR,USER_AGENT_MUTT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3BC66C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 18:13:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3D726C4360F
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 18:28:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E7C9C2082F
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 18:13:01 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="A46Bnkdt"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E7C9C2082F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	by mail.kernel.org (Postfix) with ESMTP id CF2402082F
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 18:28:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF2402082F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 99FCE6B0007; Tue, 19 Mar 2019 14:13:01 -0400 (EDT)
+	id 32A0C6B0005; Tue, 19 Mar 2019 14:28:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 94E446B000C; Tue, 19 Mar 2019 14:13:01 -0400 (EDT)
+	id 2D7176B0006; Tue, 19 Mar 2019 14:28:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 83C136B000D; Tue, 19 Mar 2019 14:13:01 -0400 (EDT)
+	id 17A4C6B0007; Tue, 19 Mar 2019 14:28:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 585B56B0007
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 14:13:01 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id z123so18512944qka.20
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 11:13:01 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E00CE6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 14:28:45 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id l10so16249178qkj.22
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 11:28:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=DxlNuZ7/tO+3WRXUygFzfItTwCwspPcK4riHH/qCBnA=;
-        b=AkPArLEZVOss3UG6grlGSOrm/fJc+T6d8ZYwmyrklojao/nNYESMKhz/iT9WSQLbd6
-         UZowFc8z5B3MZKOpS1n8VMmUEjLnT2kj8WiiZVDpUU36rM6xjZb4vnu0jyquIXNpwkWe
-         d1qfhJ98s9pj0sSKBuVdEFjciVjCXHHh5zQyGdqzRUTyriQPS/OOh3vZ2TAiBKjH0bZ0
-         eH8ozZZwgDBlGJgP8zuoawLjKyqkYLbzyRIFOIuUJht1b5U1WAPCFADftOn/6fymAux4
-         QdZ3W17/Vv2qFsDUyk/Uyd9pOn9vxOpP2G7VlttT50eOBh+whPpQ/XvK/b/mIANhIuS8
-         sgjA==
-X-Gm-Message-State: APjAAAWjpcy1q2rKiF72gAaRqZS+OCF/KngGj8/WLK8/tfp1rl7aoeq9
-	c1yC19VTauDoZFOV0uQcB8sbXxI+q0niC2xqKOVZOlv3HupBH3l9p5HgI06mfE9ZGCOlvJIRXA5
-	rflYifaazccoQ0B9NhP+Qru2F7Af/uNJ26CCDOex5ykAkznisXeh0wXYeFSWGlGY=
-X-Received: by 2002:aed:3f51:: with SMTP id q17mr2063974qtf.346.1553019181013;
-        Tue, 19 Mar 2019 11:13:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyftW72Edg/vzcqZ0ZSdeBzpN+Pwy8pgefRGvvLsABMq3cq/K9OOYxHhoXip2pCrLFnTjxr
-X-Received: by 2002:aed:3f51:: with SMTP id q17mr2063888qtf.346.1553019179936;
-        Tue, 19 Mar 2019 11:12:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553019179; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=30apmnEQmfNZjkyK96GSJdVik20/1QA65Tr6Etwrt5A=;
+        b=jO1xsjiTebMsspZFAJCCe535ixST/R8r7ElAhWKZT/pmUsSqixYHYtnZHDiuY9Wtr6
+         wxgfMt4mI4FsfWjRW+/BVibjwHPpmCSjmXUlb6CqFURkKhanQEhlETqZwi84W+Uclm5U
+         ZdziPdN+YFswpqsbyTEMS4i3ETHpa4zZfqpWttSHJVFP3fStfUNxR17nevlJ8Isb0R6i
+         wcxOPJzKeNBXkUMq5PUzEmStq2v39X4SnUC/Uz1ylE2zJxOS+tAFZ+Rrn9gAAd3gB3jn
+         c9eU6nKcrUrdSE9jXfO9jYRwWGu9BW1lq5uoyTS9uBy3aw8n2wQ+1/rx56EC0NQMuQ40
+         PsCA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dgilbert@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dgilbert@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVu/jGtRUi4vR73e8Sqa0JjRMf10HOaxJ+wikEF2DZfiMY2S7g7
+	3/pzxmaXSaxgtv41Go0gePkOQrTGfQ/JKGA3u/4a1GLAoRaWq3s+/8pw3t2XNoBlL97XyO+QXI9
+	58lf4LdkgwMBW6npUA2GP9CVdiIItsbWZ2kAs08ooTfImoQUsqgA7StnmmT/gsq/LJg==
+X-Received: by 2002:ac8:6a10:: with SMTP id t16mr3156722qtr.242.1553020125597;
+        Tue, 19 Mar 2019 11:28:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyD5wnjw2A1VHpwkfao6xrAgErgehaCore/b0UmOl6LQCedKNfUH6ubcmbvpBPrdWr/N0GH
+X-Received: by 2002:ac8:6a10:: with SMTP id t16mr3156668qtr.242.1553020124773;
+        Tue, 19 Mar 2019 11:28:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553020124; cv=none;
         d=google.com; s=arc-20160816;
-        b=lwD2WFgHAiYzHtSjTHO6mFo0IF0eGaqjxZ3oC8yvm0uLJpwDVPj8m42oWZ698amRIG
-         Co8pmd4eKSdJc56CJ7nSWPw9AV10g16o/jEPTPtTRoSRCUDPAkSga2Pcw60r+0Z0vZIY
-         HCMoOpjkdhRJ8T/+oTVRU/6HB3GiAitxOCrnJqrXsTA1mPNqcwnk+jUTYEXDeXmaLeiE
-         Iguq8f/aYxxva/WqDp7M255oE1RpvVoon7iOKI1IJMZjNHg3SUFBXyDiI1BthvkRlFsw
-         xk1HsLZ7xjnqb8D1TS5d6c+/0Y4sZlyKF34mIcZCTibz14WDY4msC6AZYCx0Rw2ZQXZ+
-         ywoA==
+        b=vT60WtUrU1/dJeyBlzO4lXxQ22v8A5Gp5Abiijb8fcxGtlZbtLf3yOiaFQVRPSPq6w
+         3qUYsOATBDtEMRI749mFCFW4Ymvtmnm/Shpw8j17hMYPWbKolPklRfB4DdCpqPzWgQUI
+         FdVX9J5EsqC66V8R5BVfYjYeYXzcSE3thVLnX9umLZyM/2Xi241WLrD+u6CDtHTlF0Ix
+         gTnf/rUy5DkHhRMTKJxP6Cn7hWbUvRIcTyvsa1eEsqDntmxHo8FSSRpdjETFzkiZOfKo
+         lL35cGsxskUqZT7ugBMzmwreP2RBCmjKCrrL6VCrRa/i768qoCQ9iczoap3rNSYN4l4D
+         pX3g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=DxlNuZ7/tO+3WRXUygFzfItTwCwspPcK4riHH/qCBnA=;
-        b=ErETprzcznDYhocP8iENp3SBSvhn2Lh2tBnEKsnJDG0lB9Bv4/dBjPl2mmZHGTuXjw
-         X/25YNC3kYMFxTHl2/EAxrdV4/odOIeYk79J2PIPf7WysSr9SgD+qIQX5GE+YJ/QbiFw
-         InndL6x4M2yj4pjD8wH1lEvfozQ3SBs//qruDYHCxPJ3erQ7l+2OBcLC9s9CJkJr5rAD
-         tgRT2NExweftvRf/BG703YdrKtPHvUrE72coTxubdgwvRPd4Asuwb5V14Pc3/FOzeGXf
-         d3kQBK4paO2i4dMq4MzWRmLJ6roi2nQ6+eVBIr5XCjvXG5MoJW3pmVwKfqEXrkFqPZEI
-         FACQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=30apmnEQmfNZjkyK96GSJdVik20/1QA65Tr6Etwrt5A=;
+        b=usEoBF70HYL3RMGhBPGYxe6hHbrJjjFJutBx6vMEhYn5pch4PpOw6W3izBNJQ9COM1
+         wT42IWcPWMBILzsQ4MGwqdKTQEajK4QGqLEjEWDVvXEfNu8gd4Vwi8weZmJHfiHNSckl
+         avQcuDtHmIqf5G2HQiQU1GUI52CUhKaF5e/z3rK5W91vDzAvPnNLaFNgaHy92yEogPTa
+         0jnNKd/quxJs21VXjj9q5LfyEFbA+/8fsU5fo+ZT4Exfb4kI09jH5fD6zI0RVYSQXk4R
+         +Mgv3885KF35YPw24VsdvaI8ZU8hyzKYsIEQhG1qRtKTWWNTrdKR3T3OfGl6B24F99kA
+         DARg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=A46Bnkdt;
-       spf=pass (google.com: domain of 01000169972802f7-2d72ffed-b3a6-4829-8d50-cd92cda6d267-000000@amazonses.com designates 54.240.9.33 as permitted sender) smtp.mailfrom=01000169972802f7-2d72ffed-b3a6-4829-8d50-cd92cda6d267-000000@amazonses.com
-Received: from a9-33.smtp-out.amazonses.com (a9-33.smtp-out.amazonses.com. [54.240.9.33])
-        by mx.google.com with ESMTPS id h20si1077159qtb.135.2019.03.19.11.12.59
+       spf=pass (google.com: domain of dgilbert@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dgilbert@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t7si3512395qtd.292.2019.03.19.11.28.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 19 Mar 2019 11:12:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 01000169972802f7-2d72ffed-b3a6-4829-8d50-cd92cda6d267-000000@amazonses.com designates 54.240.9.33 as permitted sender) client-ip=54.240.9.33;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Mar 2019 11:28:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dgilbert@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=A46Bnkdt;
-       spf=pass (google.com: domain of 01000169972802f7-2d72ffed-b3a6-4829-8d50-cd92cda6d267-000000@amazonses.com designates 54.240.9.33 as permitted sender) smtp.mailfrom=01000169972802f7-2d72ffed-b3a6-4829-8d50-cd92cda6d267-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1553019179;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=DxlNuZ7/tO+3WRXUygFzfItTwCwspPcK4riHH/qCBnA=;
-	b=A46Bnkdtdmw1ltMn1xLWyOXdgUOYb46BJPcX5+Lnzpmzl+iw9iK/mKzOHnS8xekb
-	qBAEqY11UPz3FmTGgPlmBnorObUj0CYngAdR9vWBQXlH8VXWmrWwAeWnVOeVTghalEr
-	9vsI/0OE7Avr1S5KOrpOHx1UWnZ43Cx2VxgtmDxI=
-Date: Tue, 19 Mar 2019 18:12:59 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
-To: john.hubbard@gmail.com
-cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, 
-    Al Viro <viro@zeniv.linux.org.uk>, Christian Benvenuti <benve@cisco.com>, 
-    Christoph Hellwig <hch@infradead.org>, 
-    Dan Williams <dan.j.williams@intel.com>, 
-    Dave Chinner <david@fromorbit.com>, 
-    Dennis Dalessandro <dennis.dalessandro@intel.com>, 
-    Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>, 
-    Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>, 
-    Jerome Glisse <jglisse@redhat.com>, Matthew Wilcox <willy@infradead.org>, 
-    Michal Hocko <mhocko@kernel.org>, Mike Rapoport <rppt@linux.ibm.com>, 
-    Mike Marciniszyn <mike.marciniszyn@intel.com>, 
-    Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>, 
-    LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, 
-    John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [PATCH v4 0/1] mm: introduce put_user_page*(), placeholder
- versions
-In-Reply-To: <20190308213633.28978-1-jhubbard@nvidia.com>
-Message-ID: <01000169972802f7-2d72ffed-b3a6-4829-8d50-cd92cda6d267-000000@email.amazonses.com>
-References: <20190308213633.28978-1-jhubbard@nvidia.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       spf=pass (google.com: domain of dgilbert@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dgilbert@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 11AFA81F31;
+	Tue, 19 Mar 2019 18:28:43 +0000 (UTC)
+Received: from work-vm (ovpn-117-168.ams2.redhat.com [10.36.117.168])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 1867F611CD;
+	Tue, 19 Mar 2019 18:28:25 +0000 (UTC)
+Date: Tue, 19 Mar 2019 18:28:23 +0000
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Xu <peterx@redhat.com>, linux-kernel@vger.kernel.org,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	Hugh Dickins <hughd@google.com>,
+	Luis Chamberlain <mcgrof@kernel.org>,
+	Maxime Coquelin <maxime.coquelin@redhat.com>,
+	Maya Gokhale <gokhale2@llnl.gov>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Pavel Emelyanov <xemul@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Martin Cracauer <cracauer@cons.org>,
+	Denis Plotnikov <dplotnikov@virtuozzo.com>, linux-mm@kvack.org,
+	Marty McFadden <mcfadden8@llnl.gov>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	linux-api@vger.kernel.org, linux-fsdevel@vger.kernel.org
+Subject: Re: [PATCH v2 1/1] userfaultfd/sysctl: add
+ vm.unprivileged_userfaultfd
+Message-ID: <20190319182822.GK2727@work-vm>
+References: <20190319030722.12441-1-peterx@redhat.com>
+ <20190319030722.12441-2-peterx@redhat.com>
+ <20190319110236.b6169d6b469a587a852c7e09@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.03.19-54.240.9.33
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190319110236.b6169d6b469a587a852c7e09@linux-foundation.org>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Tue, 19 Mar 2019 18:28:44 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 8 Mar 2019, john.hubbard@gmail.com wrote:
+* Andrew Morton (akpm@linux-foundation.org) wrote:
+> On Tue, 19 Mar 2019 11:07:22 +0800 Peter Xu <peterx@redhat.com> wrote:
+> 
+> > Add a global sysctl knob "vm.unprivileged_userfaultfd" to control
+> > whether userfaultfd is allowed by unprivileged users.  When this is
+> > set to zero, only privileged users (root user, or users with the
+> > CAP_SYS_PTRACE capability) will be able to use the userfaultfd
+> > syscalls.
+> 
+> Please send along a full description of why you believe Linux needs
+> this feature, for me to add to the changelog.  What is the benefit to
+> our users?  How will it be used?
+> 
+> etcetera.  As it was presented I'm seeing no justification for adding
+> the patch!
 
-> We seem to have pretty solid consensus on the concept and details of the
-> put_user_pages() approach. Or at least, if we don't, someone please speak
-> up now. Christopher Lameter, especially, since you had some concerns
-> recently.
+How about:
 
-My concerns do not affect this patchset which just marks the get/put for
-the pagecache. The problem was that the description was making claims that
-were a bit misleading and seemed to prescribe a solution.
+---
+Userfaultfd can be misued to make it easier to exploit existing use-after-free
+(and similar) bugs that might otherwise only make a short window
+or race condition available.  By using userfaultfd to stall a kernel
+thread, a malicious program can keep some state, that it wrote, stable
+for an extended period, which it can then access using an existing
+exploit.   While it doesn't cause the exploit itself, and while it's not
+the only thing that can stall a kernel thread when accessing a memory location,
+it's one of the few that never needs priviledge.
 
-So lets get this merged. Whatever the solution will be, we will need this
-markup.
+Add a flag, allowing userfaultfd to be restricted, so that in general 
+it won't be useable by arbitrary user programs, but in environments that
+require userfaultfd it can be turned back on.
+
+---
+
+Dave
+
+--
+Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
 
