@@ -2,187 +2,186 @@ Return-Path: <SRS0=zC3H=RW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CAA54C10F03
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 14:15:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CE881C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 14:26:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 87AF72147C
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 14:15:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 87AF72147C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 8EB592146E
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 14:26:46 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="gLcmBEUP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8EB592146E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2FDF16B0006; Tue, 19 Mar 2019 10:15:40 -0400 (EDT)
+	id 2A6D16B0003; Tue, 19 Mar 2019 10:26:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 287B76B0007; Tue, 19 Mar 2019 10:15:40 -0400 (EDT)
+	id 256676B0006; Tue, 19 Mar 2019 10:26:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1527B6B0008; Tue, 19 Mar 2019 10:15:40 -0400 (EDT)
+	id 11EB36B0007; Tue, 19 Mar 2019 10:26:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D825C6B0006
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 10:15:39 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id e1so19623200qth.23
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 07:15:39 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BAABE6B0003
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 10:26:45 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id z1so23057629pfz.8
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 07:26:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=wzdN7tRU7DE0EBzzQ2RWw2BpkLeoMJcbGycnoWwYw28=;
-        b=eM1Fb+1qtGhPF6NogRFYlJOQ/o2iMDb60bsm5Qxu16CqJNfYDeRZGWgRixkaLzGa3H
-         i8DnEaYP367Z8AuCJr5Summe0IEFm+o/VoCjSg3bV1B46paC1cgoiiarns2l8cV3aBu/
-         ItNOqnAxPSIEtoCoj2eHytYDtejwN9jQhOwzwMhm5pvu9DUCeiYO7OxTYHI+mFZ1Cs+n
-         fkKNQPcq1zgKJuHciMj2hLtXQjpi2Hw+aElfwd2ebOi3yt/Xa5WE1NRem+g2ckgAyrZS
-         xCsMBV4ejTi3e2JwAjrt6qIyt936PTzRScEi/P9cFAYc42IIcP5tbhALGOFDaNFgE6bc
-         jclg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWU29gbH91WptdxwOgJ2ES8LGie6AR1MeKcrQr2DxNCk9zVcegG
-	rr1zq75gfUnX1GAwpNPzFgo2i77qRSfyLWkD9fdMd82khdC9N6GEbBh9yjBEa8FmB8S11Z3I2XC
-	TQOzgSLOK8Y3r3wEXgCP1YF3fV1rSDosPK9HduD93bSYR/MvzoK0d75Qg3uPxHloiNw==
-X-Received: by 2002:ac8:7513:: with SMTP id u19mr2245156qtq.202.1553004939662;
-        Tue, 19 Mar 2019 07:15:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwXIW8dWQe+a5hza3lh1uThKA4Nd9EaV6AYumOzXThDxrcXmtu2vSCpGmSUhOR8UrMavNey
-X-Received: by 2002:ac8:7513:: with SMTP id u19mr2245092qtq.202.1553004938903;
-        Tue, 19 Mar 2019 07:15:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553004938; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=cVUGITg2L4pgVSKVd9xmSsgzIKi2mYC0AanLNtYTWB4=;
+        b=iZQGZ3Q2ncFK2Ja3NIo2kOwmtG0bfPjwF1NHkLtr5O+7X3v5H2ZJIWaJaGFF0maRDn
+         mfGNclohXrlpON/U7RlLU70Cfmol7TK5oo+8MKM3AR7VrIiO4uofiyDGtoCtt8RWwwM7
+         UIkwJlzjLOxTTWUVp+Jjrd/n7FRBaJIEfQfQVhe9DB3v1uT5FPdMxNIDMkD0qRHVvJri
+         u0hOp2S4fVibUcqyF+cLKqWAkxq6Q5k+EuwTZgw6N3INEh8SIoW7SnwchnjpNvBu3r2m
+         7KJ2xTDs1iP1dOZt+B+PLfmwiTJK9ilJmBp3lbkNmPelU0RDXIvVzdQvQwp2S+AY91fn
+         HKGQ==
+X-Gm-Message-State: APjAAAUn+OJGfeg3TG7a2Xsgf1EKyv/yLF7DVzmf9m4Cm6fUqSGpmcft
+	M5vVMEmNStsytu9dxsQBd13dSIbtO967nOwK2ByJww+1iCPPElWTRsxLMnLnp095lORPlX85+AF
+	NuFqnxOfCgJKz12d0TfbApi7XtCymKHXTMwLQ3KB1svpZYyHP2FPdBCHgB9tstwL1aA==
+X-Received: by 2002:a63:cc0e:: with SMTP id x14mr2127411pgf.159.1553005605311;
+        Tue, 19 Mar 2019 07:26:45 -0700 (PDT)
+X-Received: by 2002:a63:cc0e:: with SMTP id x14mr2127329pgf.159.1553005604302;
+        Tue, 19 Mar 2019 07:26:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553005604; cv=none;
         d=google.com; s=arc-20160816;
-        b=uLqQq+KEnNJnzY7auX/LgvZviib//q6K0HyD9rUdKlYTc5V4pHcK6ESRTXhGcF2lwc
-         FjnhrmJqvqlK/+Nbobsw2NGXjamNe2U9L1GHh00yCRVbjUPtErqnL0cBGg+QPAzUggEk
-         mtqcCWWIOukFrh+pNW+9VZLy0Y4jVrG5avxtk6FESpLbd2fV8Itm7bmt71puo656LynJ
-         DIdqJyu1v/Yn8pDY9HJMHlWtgOGhMb9lPG/+pwPNxu915E79jAUM4qqRaZeQKiUJ+8ya
-         ur79Q/RsrD7SdiWjKbiMjM2TTl7dI2O3fuiL3TCMoIow+XhTX2WTw30yxUlEnSCweCm9
-         bKBg==
+        b=cJEpEsh24/Rb/enFXV3Oo1gQ6nmgoGR/6B9c65eJHdkvd3wv3HSsCiVQMbLWw//PsE
+         8Yj1YJgqAv/C9tDXg3FoD69yh666CVf9ZLWNbdsS+l+sdk2mViDf4ylsBphwlnUqx4Zh
+         roRXkOV9uLNb5jVTJOwfTDndi8AsK6u1OCjz/kTTLHJpRV9eT5UEJXRzG/0PMw1A1CzR
+         HiHxtVNJTCp2zqkV7/zBKBNntIj5CJ4CxGcoW1u003eSrhX2ebJ82EeIdbZOgixR2MBy
+         hwooTnhVCg4vqC/WZihBTkc6t4Mj17Qrdx4OPCktYYOHJDJI6pBuHQIrsYUU5x3LmMyB
+         x8Gg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=wzdN7tRU7DE0EBzzQ2RWw2BpkLeoMJcbGycnoWwYw28=;
-        b=mT7ziuaq+ygtQv4WnsoNE3xqOb0Wty+58X6d1DhBC6UAf3G134WYb7GVXX/1vScEZJ
-         lohbGGRtzE7GJM+MyZxbQMq3eHq1WdA8GJ4VaT6rSPBFMANX9zoWrz0VOpealVi4ZzZC
-         MhnlP3QTV5DhGoL4H6SASlv7hvU/+Nrp3JHSDlqoCAynExUlZSrSz0NfxPAI9T7idVM4
-         g3ri/nREuz8Iq/5ifV5K79FsfYqdeNXpp+ZhAoRX0hbEFHBrpHTNsW4/mKll46r9MnPL
-         tdGQA1HDnD0kD5nlIyhiv6ZKK3c5Ax3vbAZQCEWEJGuYBePPUP5f4AWwjpKMxY6pySGR
-         fCIQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=cVUGITg2L4pgVSKVd9xmSsgzIKi2mYC0AanLNtYTWB4=;
+        b=z9Qc3Lzuoke85o+XwNDUshNyLEhENmzGvefz4qTzAmiFCzWgV+f+CTcN7fXcKshByp
+         +eEOwKLY2Z2Mywi+iJY1wzdD3C/zZ3vHS8SCKQPrw1qlXeeuUFLilDuChBRkMTzvMrTl
+         lpOMzcYUmd+4ZiFYIxcSsYB7X4t5Qc83qMUWS25KbqYDI4sUQjnZxJs9CQS0WDEt5YrW
+         0XxK0RFG+8cnVdwohWBAsKx83oNLVobCphaj7bVFefS2TPjyFGF9HYcw8RqeWBGynBB1
+         Pxe0ZKWxoUdQj28RAyPO4Xcz+ZbtkniPWBqNylSVwjnlQdYq89pEdeLmxzMUjRrsx+xN
+         ne4A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y44si3788761qvf.189.2019.03.19.07.15.38
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=gLcmBEUP;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f129sor3314330pfb.54.2019.03.19.07.26.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Mar 2019 07:15:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Tue, 19 Mar 2019 07:26:44 -0700 (PDT)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 866CC40F44;
-	Tue, 19 Mar 2019 14:15:37 +0000 (UTC)
-Received: from redhat.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 3A17218BBA;
-	Tue, 19 Mar 2019 14:15:35 +0000 (UTC)
-Date: Tue, 19 Mar 2019 10:15:33 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm@kvack.org, Al Viro <viro@zeniv.linux.org.uk>,
-	Christian Benvenuti <benve@cisco.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Christopher Lameter <cl@linux.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Chinner <david@fromorbit.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>,
-	Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
-	Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
-	Matthew Wilcox <willy@infradead.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Mike Marciniszyn <mike.marciniszyn@intel.com>,
-	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
-	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [PATCH v4 1/1] mm: introduce put_user_page*(), placeholder
- versions
-Message-ID: <20190319141533.GB3879@redhat.com>
-References: <20190308213633.28978-1-jhubbard@nvidia.com>
- <20190308213633.28978-2-jhubbard@nvidia.com>
- <20190319120417.yzormwjhaeuu7jpp@kshutemo-mobl1>
- <20190319134724.GB3437@redhat.com>
- <20190319140623.tblqyb4dcjabjn3o@kshutemo-mobl1>
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=gLcmBEUP;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=cVUGITg2L4pgVSKVd9xmSsgzIKi2mYC0AanLNtYTWB4=;
+        b=gLcmBEUPq6+FhjVTCB/1mMjLAAaIogaKjVkouQC7kbP5RvveutFYJUHjoHKZmggPwA
+         zb1N/JuLPnPyZItndAUwOZ1k/TDGDR4gQfIGkx8vSsRrs5I0FQ/1AB3f3aMGcrJQyrPZ
+         QxiZnAr9fOzrJBhmnF5E0Ravo8aZqcFbSfreCI3iqaV9hEbQApw+llyW+kI/uPfyXYHJ
+         1kdp8KOFjox8c4sOp7pFLbUNd6mNWU6E/lFxu1aIq+FBjbmpJilyVJeGcOQVlndmUsaP
+         xSVRvSEwuk21SVwIGxV8QqORybOzDbmRLbooX7aq2ROTcHmGmHOqAX0DXt78Plf82G06
+         CncQ==
+X-Google-Smtp-Source: APXvYqzHw7YWMJoXHoNZzDdyBDej4OrPTq0rRPnimLby0KkdWRMw7rd+8qTBc8Dl9vyNVoT2Bz+dqg==
+X-Received: by 2002:aa7:8a92:: with SMTP id a18mr2256393pfc.218.1553005603844;
+        Tue, 19 Mar 2019 07:26:43 -0700 (PDT)
+Received: from kshutemo-mobl1.localdomain ([192.55.54.44])
+        by smtp.gmail.com with ESMTPSA id k74sm31022831pfb.172.2019.03.19.07.26.42
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Mar 2019 07:26:43 -0700 (PDT)
+Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
+	id 8921E3011DA; Tue, 19 Mar 2019 17:26:39 +0300 (+03)
+Date: Tue, 19 Mar 2019 17:26:39 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Oscar Salvador <osalvador@suse.de>
+Cc: Yang Shi <shy828301@gmail.com>, Cyril Hrubis <chrubis@suse.cz>,
+	Linux MM <linux-mm@kvack.org>, linux-api@vger.kernel.org,
+	ltp@lists.linux.it, Vlastimil Babka <vbabka@suse.cz>,
+	kirill.shutemov@linux.intel.com
+Subject: Re: mbind() fails to fail with EIO
+Message-ID: <20190319142639.wbind5smqcji264l@kshutemo-mobl1>
+References: <20190315160142.GA8921@rei>
+ <CAHbLzkqvQ2SW4soYHOOhWG0ShkdUhaiNK0_y+ULaYYHo62O0fQ@mail.gmail.com>
+ <20190319132729.s42t3evt6d65sz6f@d104.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190319140623.tblqyb4dcjabjn3o@kshutemo-mobl1>
-User-Agent: Mutt/1.10.0 (2018-05-17)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Tue, 19 Mar 2019 14:15:38 +0000 (UTC)
+In-Reply-To: <20190319132729.s42t3evt6d65sz6f@d104.suse.de>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 19, 2019 at 05:06:23PM +0300, Kirill A. Shutemov wrote:
-> On Tue, Mar 19, 2019 at 09:47:24AM -0400, Jerome Glisse wrote:
-> > On Tue, Mar 19, 2019 at 03:04:17PM +0300, Kirill A. Shutemov wrote:
-> > > On Fri, Mar 08, 2019 at 01:36:33PM -0800, john.hubbard@gmail.com wrote:
-> > > > From: John Hubbard <jhubbard@nvidia.com>
-> > 
-> > [...]
-> > 
-> > > > diff --git a/mm/gup.c b/mm/gup.c
-> > > > index f84e22685aaa..37085b8163b1 100644
-> > > > --- a/mm/gup.c
-> > > > +++ b/mm/gup.c
-> > > > @@ -28,6 +28,88 @@ struct follow_page_context {
-> > > >  	unsigned int page_mask;
-> > > >  };
-> > > >  
-> > > > +typedef int (*set_dirty_func_t)(struct page *page);
-> > > > +
-> > > > +static void __put_user_pages_dirty(struct page **pages,
-> > > > +				   unsigned long npages,
-> > > > +				   set_dirty_func_t sdf)
-> > > > +{
-> > > > +	unsigned long index;
-> > > > +
-> > > > +	for (index = 0; index < npages; index++) {
-> > > > +		struct page *page = compound_head(pages[index]);
-> > > > +
-> > > > +		if (!PageDirty(page))
-> > > > +			sdf(page);
-> > > 
-> > > How is this safe? What prevents the page to be cleared under you?
-> > > 
-> > > If it's safe to race clear_page_dirty*() it has to be stated explicitly
-> > > with a reason why. It's not very clear to me as it is.
-> > 
-> > The PageDirty() optimization above is fine to race with clear the
-> > page flag as it means it is racing after a page_mkclean() and the
-> > GUP user is done with the page so page is about to be write back
-> > ie if (!PageDirty(page)) see the page as dirty and skip the sdf()
-> > call while a split second after TestClearPageDirty() happens then
-> > it means the racing clear is about to write back the page so all
-> > is fine (the page was dirty and it is being clear for write back).
-> > 
-> > If it does call the sdf() while racing with write back then we
-> > just redirtied the page just like clear_page_dirty_for_io() would
-> > do if page_mkclean() failed so nothing harmful will come of that
-> > neither. Page stays dirty despite write back it just means that
-> > the page might be write back twice in a row.
+On Tue, Mar 19, 2019 at 02:27:33PM +0100, Oscar Salvador wrote:
+> +CC Kirill
 > 
-> Fair enough. Should we get it into a comment here?
+> On Mon, Mar 18, 2019 at 11:12:19AM -0700, Yang Shi wrote:
+> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> > index abe7a67..6ba45aa 100644
+> > --- a/mm/mempolicy.c
+> > +++ b/mm/mempolicy.c
+> > @@ -521,11 +521,14 @@ static int queue_pages_pte_range(pmd_t *pmd,
+> > unsigned long addr,
+> >                         continue;
+> >                 if (!queue_pages_required(page, qp))
+> >                         continue;
+> > -               migrate_page_add(page, qp->pagelist, flags);
+> > +               if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+> > +                       migrate_page_add(page, qp->pagelist, flags);
+> > +               else
+> > +                       break;
+> >         }
+> >         pte_unmap_unlock(pte - 1, ptl);
+> >         cond_resched();
+> > -       return 0;
+> > +       return addr != end ? -EIO : 0;
+> >  }
+> > 
+> >  static int queue_pages_hugetlb(pte_t *pte, unsigned long hmask,
+> 
+> This alone is not going to help.
+> 
+> The problem is that we do skip the vma early in queue_pages_test_walk() in
+> case MPOL_MF_MOVE and MPOL_MF_MOVE_ALL are not set.
+> 
+> walk_page_range
+>  walk_page_test
+>   queue_pages_test_walk
+> 
+> 	...
+>  	...
+> 	/* queue pages from current vma */
+> 	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+> 		return 0;
+> 	return 1;
+> 
+> So, we skip the vma and keep going.
+> 
+> Before ("77bf45e78050: mempolicy: do not try to queue pages from !vma_migratable()"),
+> queue_pages_test_walk() would not have skipped the vma in case we had MPOL_MF_STRICT
+> or MPOL_MF_MOVE | MPOL_MF_MOVE_ALL.
+> 
+> I did not give it a lot of thought, but it seems to me that we might need to reach
+> queue_pages_to_pte_range() in order to see whether the page is in the required node
+> or not by calling queue_pages_required(), and if it is not, check for
+> MPOL_MF_MOVE | MPOL_MF_MOVE_ALL like the above patch does, so we would be able to
+> return -EIO.
+> That would imply that we would need to re-add MPOL_MF_STRICT in queue_pages_test_walk().
 
-Yes definitly also i just sent an email with an alternative that is
-slightly better from my POV as it simplify my life for other things :)
+That's all sounds reasonable.
 
-Cheers,
-Jérôme
+We only need to make sure the bug fixed by 77bf45e78050 will not be
+re-introduced.
+
+-- 
+ Kirill A. Shutemov
 
