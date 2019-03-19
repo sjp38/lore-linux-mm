@@ -2,350 +2,474 @@ Return-Path: <SRS0=zC3H=RW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.4 required=3.0 tests=DATE_IN_PAST_06_12,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 367FBC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 22:12:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C56E8C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 22:14:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D182F2175B
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 22:12:31 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D182F2175B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 6223A2175B
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 22:14:24 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=brauner.io header.i=@brauner.io header.b="CNofqyQR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6223A2175B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=brauner.io
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6CB426B0005; Tue, 19 Mar 2019 18:12:31 -0400 (EDT)
+	id 0D7A76B0005; Tue, 19 Mar 2019 18:14:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 67B586B0006; Tue, 19 Mar 2019 18:12:31 -0400 (EDT)
+	id 060B66B0006; Tue, 19 Mar 2019 18:14:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5435F6B0007; Tue, 19 Mar 2019 18:12:31 -0400 (EDT)
+	id E1CAF6B0007; Tue, 19 Mar 2019 18:14:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AA486B0005
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 18:12:31 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id j184so500029pgd.7
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 15:12:31 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B3DD56B0005
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 18:14:23 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id z34so375764qtz.14
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 15:14:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=BQidobWBe+c9x9WY4pB2y8pL2fYKqqjM+P4XFplU32g=;
-        b=jZwOuIBU78M7yS2LbemQPP8yf/tGygv/ffIpXLQXPCtg9yJY3SAVSB0Y9xJwu1bH9k
-         xTBQAkcWG6vB0wQt7jrYmzJMX8yXXtTn+Qd/2QKQUXyNZFymPBol5mQcVa+hmhltfimw
-         MZQxBSStIqVUdekuhs/Y6qBOkfmYtPF6wwu3WzjoKFYrQLpXvcGZUYBj15PMcAcS1XDS
-         DIwfKuhGPYhAyFhVI4GZBAiyh5bZSpsYBAEAeC463u9DqaLiVEOUiHvpDXm3w+oCxqH4
-         jXs9zemCkug74VkOtwTaApszI2nFoLvGN9QW7gHgEuH2j4TAfufqA4QGG3JIAwLkKNCp
-         VV1A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVP25PkXwNl4pEKl6FDO5m0huu+PIH6ulv9v26Qk/OQ2dTI/qnR
-	Ou0Wea/JU6MMA71A5y0jqTd8dyfQpDsAeJFjojC97ZDGbeUBi908fApWYQFdqjNzFg7WynzFpWk
-	FiHfJvUydnda1Qc+/111ty2VTvzhnneYny2ECqIXd5gGRFqslringpkwVXO97gpN+Rw==
-X-Received: by 2002:a63:c149:: with SMTP id p9mr4106552pgi.362.1553033550712;
-        Tue, 19 Mar 2019 15:12:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxybd6+smnYWjIga55YJ8BxkBzlwxXBEMHuh2Vo/824Zy0us/Q1zX9ewnY191+9QyMlMvVN
-X-Received: by 2002:a63:c149:: with SMTP id p9mr4106448pgi.362.1553033549228;
-        Tue, 19 Mar 2019 15:12:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553033549; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=Zgq2ou6kKDEdR81YiXwzSXiQtxUhVhVAeYwGNp74yyc=;
+        b=Tp/oa5Xnl3aauKs/6UOzhLdmnzJfjqcdSIDqa1yTqhLGvpHEVF7nknm/7r1UvtGECt
+         kQOKnqpM5pWUpEE8mqUqnTNn1V4t77JE5+qlVjC8ydoLPInIiS3K61kIwtolHrQtFjR2
+         qTvONk10O7XIZCfwDjvshio6NwXe94diUaNoQKNDM4CYAMDhvonXhGdIFRo1iVyl1Wc2
+         sTyNUXcGyBo42iC4XuXT0QzGPL2LxbNMEgNrfuzbWD+xYDDiEM8kcGa4N1x/8f57hHVo
+         WicGRuFaQDoZA12y6Qgq12Kuvf8yzXX7XfxKdD6ZE5lVNBKd5LgtYGDiZuzTsx1RSESF
+         l+3Q==
+X-Gm-Message-State: APjAAAWagGq0ZRP5OkJ06YzIIQgrX0GmMMRmvhVFqUfhShWHgVo3O2wM
+	pfgnWaztyD3ukOn1Vsnm0nziw+/TXC0wXFfVXCwe1cX21vfB1h3mXKgD3545K9NX6MaMkDUBLdb
+	pzX86vmHVycAWVBR2zp0PPHxC6Dto17jrIecF+WKtcEk+ruZbS6BJWSwkqH8W6zN5/Q==
+X-Received: by 2002:ae9:edc8:: with SMTP id c191mr3854701qkg.155.1553033663366;
+        Tue, 19 Mar 2019 15:14:23 -0700 (PDT)
+X-Received: by 2002:ae9:edc8:: with SMTP id c191mr3854624qkg.155.1553033662018;
+        Tue, 19 Mar 2019 15:14:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553033662; cv=none;
         d=google.com; s=arc-20160816;
-        b=san6/2C0Vr9IFzNvMbTZT2t55vpSia4+Zub8JOAuPdPg5EfvOBeELICDW8oviH1EUD
-         geeMjX4SiiEVmsGRnMCoApOZbU5MyhnY+64V73KugatAwwPo/1AnR8xYYbohD0C9fDHd
-         pnDz8iERlSu7q4zDS2DhSCv3ihVGzJj0Pw+1whz4bUadq37WJk2XTbMSWpmcHx+sn0o+
-         McNW0c/f9k489+0qQepZshMTMREKKovIfthJRQAuaQTeXpzDss1QTEqLK2E4PKcxti1w
-         m4NgURt81jCDFPoz+dvgUq6ZyEDEmmZd1QKL1DKDHgHysZjNbhzMzkwi0flD5+47b3Q1
-         WKhw==
+        b=ya+btyX5ofluNHV+00EOZ4JFni1zYoNQLOIMW183QhzEC0jmHFhdTG4afF3RZdMv0x
+         oFE9FVzgPzypAZplQtn+WdeHCYeuL7hL6jgq21oaid1iaPM4Ob1AsdiNBfhjaqQQSqd6
+         ovJ/Q7kXrHht8KlRxnwM/Ksw3LUb54OpwwRvdS4YsU40qVfB/TNv6H815OLSo4VgTyiJ
+         vvT+348+hrGtvaPsJz8pvDyASgqy0d8dwmW/auph50E7t94TWtrRvhWVHgK6S03hGZn3
+         ndXy+5gIJW7zcJrpJ7ah4p+GDIjyAbKUwEQ3GaKGuf5wZG1VJ8TsXnw0VyGJE+A/942M
+         m1LA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=BQidobWBe+c9x9WY4pB2y8pL2fYKqqjM+P4XFplU32g=;
-        b=oSu9p4CbJjlF2wfr0Q0RKA++RslU9TUcoZnJoEeDoivBjP+6b841B17NZN9dX/91Kl
-         JHRPhLubdjbhjC04QXXpMFSLks1RZVTyyq2bx81MFtNoMa8NaIOaUMClt7QEBpLDnQCY
-         5wqKEVCnm8t/DfdhePff7K4y2KQjEC2OPTnbcuGRI+lAydZ8tG40N6EI78zVIZzT40U1
-         wveHX8debfkdBZ8Xqh7sjBlx3peO+sUK4UpLdUaFvXkArRZnf5tgvGDKcD2LxPt1Ayu9
-         9VamCDQxlfuevRd8UQ3VbZrm1Cmp4pG+FylR2A4rYpS4+LVr31Y+oOOvtUYm3haUPf7v
-         1YMw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=Zgq2ou6kKDEdR81YiXwzSXiQtxUhVhVAeYwGNp74yyc=;
+        b=MWIA+mfBMKcyypVyd2NsLnNY/z/MPAr8xAazXXhNUkSVe1QItJC8QykQmZnIl53+jD
+         05fOBlB6Njde7ezT+XL8aACk68pCRiEgDeWLK9y8ILcidlr6V9765FM2cBDpyACprG1e
+         7rLiA6fseAkuA3sTUIjrB+TNnZFSm5dbzk/bhV6cq2aYx7p4+ZXeBJQZNa+GZSNSYVk6
+         CXm0hfkLGhqjR9npPFhvBG/2U8me41811xdFUi18bETwLc1orNuztMHM93Sd6ync4uqJ
+         KyQUtXmV1i5oR8oYim8rCIN5M2QWntNl+zxu/sqssdz6c3NIhQjhGrH4L4SBCHbyH2My
+         A8ug==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id j5si160372plk.387.2019.03.19.15.12.29
+       dkim=pass header.i=@brauner.io header.s=google header.b=CNofqyQR;
+       spf=pass (google.com: domain of christian@brauner.io designates 209.85.220.65 as permitted sender) smtp.mailfrom=christian@brauner.io
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x26sor498070qtm.8.2019.03.19.15.14.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Mar 2019 15:12:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+        (Google Transport Security);
+        Tue, 19 Mar 2019 15:14:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of christian@brauner.io designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga006.jf.intel.com ([10.7.209.51])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 19 Mar 2019 15:12:03 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,246,1549958400"; 
-   d="scan'208";a="128417216"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga006.jf.intel.com with ESMTP; 19 Mar 2019 15:12:02 -0700
-Date: Tue, 19 Mar 2019 07:10:43 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, linux-mm <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [PATCH 07/10] mm/hmm: add an helper function that fault pages
- and map them to a device
-Message-ID: <20190319141043.GI7485@iweiny-DESK2.sc.intel.com>
-References: <20190129165428.3931-1-jglisse@redhat.com>
- <20190129165428.3931-8-jglisse@redhat.com>
- <CAA9_cmcN+8B_tyrxRy5MMr-AybcaDEEWB4J8dstY6h0cmFxi3g@mail.gmail.com>
- <20190318204134.GD6786@redhat.com>
- <CAPcyv4he6v5JQMucezZV4J3i+Ea-i7AsaGpCOnc4f-stCrhGag@mail.gmail.com>
- <20190318221515.GA6664@redhat.com>
- <CAPcyv4gYUfEDSsGa_e1v8hqHyyvX8pEc75=G33aaQ6EWG3pSZA@mail.gmail.com>
- <20190319133004.GA3437@redhat.com>
- <20190319084457.GD7485@iweiny-DESK2.sc.intel.com>
- <20190319171043.GB3656@redhat.com>
+       dkim=pass header.i=@brauner.io header.s=google header.b=CNofqyQR;
+       spf=pass (google.com: domain of christian@brauner.io designates 209.85.220.65 as permitted sender) smtp.mailfrom=christian@brauner.io
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=brauner.io; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=Zgq2ou6kKDEdR81YiXwzSXiQtxUhVhVAeYwGNp74yyc=;
+        b=CNofqyQR09fs4ZqNo5ZpC9ByznbyLfCU1396+/T5vFexflRZZxUVzdDOxLiMhBNcJh
+         DoD/tUvpXqKMqcJ8RkW9oP0Vaa4dsN9gR7KI9uqrl2S1WzillT+GCWo2JJSvYHPrIhGw
+         TaZ7UnRJmXLOUwZa3QgaCXUla2s6wb+9zwdck82R5uTnW+vH6Xfvfo0NcUsiJf3NhcSN
+         bp19dQSZq8fGkrFsqdnVbIe7tcksUn8CCf0qaDJopovsBSmhLqMM2KeKjxdDtgLVJw0q
+         kOjB9x6rhUfQvudybBe4g59uclYO/cvp1vXBCHpVyt9WETyGCyS0eEkJlQ/SbIsJx32a
+         oDvg==
+X-Google-Smtp-Source: APXvYqxIg2NzKN9Ww8BQRAwM23pm6lHl3tOL60nhyqlPEuxV9GfjkibOA7mkBUweGT2TBfjsVzMk8Q==
+X-Received: by 2002:aed:20e4:: with SMTP id 91mr3885805qtb.362.1553033661511;
+        Tue, 19 Mar 2019 15:14:21 -0700 (PDT)
+Received: from brauner.io ([38.127.230.10])
+        by smtp.gmail.com with ESMTPSA id z140sm150198qka.81.2019.03.19.15.14.18
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 19 Mar 2019 15:14:20 -0700 (PDT)
+Date: Tue, 19 Mar 2019 23:14:17 +0100
+From: Christian Brauner <christian@brauner.io>
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: Daniel Colascione <dancol@google.com>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Sultan Alsawaf <sultan@kerneltoast.com>,
+	Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Arve =?utf-8?B?SGrDuG5uZXbDpWc=?= <arve@android.com>,
+	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
+	Ingo Molnar <mingo@redhat.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	LKML <linux-kernel@vger.kernel.org>,
+	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>,
+	linux-mm <linux-mm@kvack.org>,
+	kernel-team <kernel-team@android.com>,
+	Oleg Nesterov <oleg@redhat.com>,
+	Andy Lutomirski <luto@amacapital.net>,
+	"Serge E. Hallyn" <serge@hallyn.com>, keescook@chromium.org
+Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
+Message-ID: <20190319221415.baov7x6zoz7hvsno@brauner.io>
+References: <20190315184903.GB248160@google.com>
+ <CAJuCfpGp_9fE9MPGVCWjnTaeBE0K_Q22LS1pBqhp7zW2M=dbGw@mail.gmail.com>
+ <CAKOZueuauUXRyrvhzBD0op6W4TAnydSx92bvrPN2VRWERX8iQg@mail.gmail.com>
+ <20190316185726.jc53aqq5ph65ojpk@brauner.io>
+ <CAJuCfpF-uYpUZ1RO99i2qEw5Ou4nSimSkiQvnNQ_rv8ogHKRfw@mail.gmail.com>
+ <20190317015306.GA167393@google.com>
+ <20190317114238.ab6tvvovpkpozld5@brauner.io>
+ <CAKOZuetZPhqQqSgZpyY0cLgy0jroLJRx-B93rkQzcOByL8ih_Q@mail.gmail.com>
+ <20190318002949.mqknisgt7cmjmt7n@brauner.io>
+ <20190318235052.GA65315@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190319171043.GB3656@redhat.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+In-Reply-To: <20190318235052.GA65315@google.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 19, 2019 at 01:10:43PM -0400, Jerome Glisse wrote:
-> On Tue, Mar 19, 2019 at 01:44:57AM -0700, Ira Weiny wrote:
-> > On Tue, Mar 19, 2019 at 09:30:05AM -0400, Jerome Glisse wrote:
-> > > On Mon, Mar 18, 2019 at 08:29:45PM -0700, Dan Williams wrote:
-> > > > On Mon, Mar 18, 2019 at 3:15 PM Jerome Glisse <jglisse@redhat.com> wrote:
-> > > > >
-> > > > > On Mon, Mar 18, 2019 at 02:30:15PM -0700, Dan Williams wrote:
-> > > > > > On Mon, Mar 18, 2019 at 1:41 PM Jerome Glisse <jglisse@redhat.com> wrote:
+On Mon, Mar 18, 2019 at 07:50:52PM -0400, Joel Fernandes wrote:
+> On Mon, Mar 18, 2019 at 01:29:51AM +0100, Christian Brauner wrote:
+> > On Sun, Mar 17, 2019 at 08:40:19AM -0700, Daniel Colascione wrote:
+> > > On Sun, Mar 17, 2019 at 4:42 AM Christian Brauner <christian@brauner.io> wrote:
+> > > >
+> > > > On Sat, Mar 16, 2019 at 09:53:06PM -0400, Joel Fernandes wrote:
+> > > > > On Sat, Mar 16, 2019 at 12:37:18PM -0700, Suren Baghdasaryan wrote:
+> > > > > > On Sat, Mar 16, 2019 at 11:57 AM Christian Brauner <christian@brauner.io> wrote:
 > > > > > > >
-> > > > > > > On Mon, Mar 18, 2019 at 01:21:00PM -0700, Dan Williams wrote:
-> > > > > > > > On Tue, Jan 29, 2019 at 8:55 AM <jglisse@redhat.com> wrote:
+> > > > > > > On Sat, Mar 16, 2019 at 11:00:10AM -0700, Daniel Colascione wrote:
+> > > > > > > > On Sat, Mar 16, 2019 at 10:31 AM Suren Baghdasaryan <surenb@google.com> wrote:
 > > > > > > > > >
-> > > > > > > > > From: Jérôme Glisse <jglisse@redhat.com>
+> > > > > > > > > On Fri, Mar 15, 2019 at 11:49 AM Joel Fernandes <joel@joelfernandes.org> wrote:
+> > > > > > > > > >
+> > > > > > > > > > On Fri, Mar 15, 2019 at 07:24:28PM +0100, Christian Brauner wrote:
+> > > > > > > > > > [..]
+> > > > > > > > > > > > why do we want to add a new syscall (pidfd_wait) though? Why not just use
+> > > > > > > > > > > > standard poll/epoll interface on the proc fd like Daniel was suggesting.
+> > > > > > > > > > > > AFAIK, once the proc file is opened, the struct pid is essentially pinned
+> > > > > > > > > > > > even though the proc number may be reused. Then the caller can just poll.
+> > > > > > > > > > > > We can add a waitqueue to struct pid, and wake up any waiters on process
+> > > > > > > > > > > > death (A quick look shows task_struct can be mapped to its struct pid) and
+> > > > > > > > > > > > also possibly optimize it using Steve's TIF flag idea. No new syscall is
+> > > > > > > > > > > > needed then, let me know if I missed something?
+> > > > > > > > > > >
+> > > > > > > > > > > Huh, I thought that Daniel was against the poll/epoll solution?
+> > > > > > > > > >
+> > > > > > > > > > Hmm, going through earlier threads, I believe so now. Here was Daniel's
+> > > > > > > > > > reasoning about avoiding a notification about process death through proc
+> > > > > > > > > > directory fd: http://lkml.iu.edu/hypermail/linux/kernel/1811.0/00232.html
+> > > > > > > > > >
+> > > > > > > > > > May be a dedicated syscall for this would be cleaner after all.
 > > > > > > > > >
-
-[snip]
-
+> > > > > > > > > Ah, I wish I've seen that discussion before...
+> > > > > > > > > syscall makes sense and it can be non-blocking and we can use
+> > > > > > > > > select/poll/epoll if we use eventfd.
+> > > > > > > >
+> > > > > > > > Thanks for taking a look.
+> > > > > > > >
+> > > > > > > > > I would strongly advocate for
+> > > > > > > > > non-blocking version or at least to have a non-blocking option.
+> > > > > > > >
+> > > > > > > > Waiting for FD readiness is *already* blocking or non-blocking
+> > > > > > > > according to the caller's desire --- users can pass options they want
+> > > > > > > > to poll(2) or whatever. There's no need for any kind of special
+> > > > > > > > configuration knob or non-blocking option. We already *have* a
+> > > > > > > > non-blocking option that works universally for everything.
+> > > > > > > >
+> > > > > > > > As I mentioned in the linked thread, waiting for process exit should
+> > > > > > > > work just like waiting for bytes to appear on a pipe. Process exit
+> > > > > > > > status is just another blob of bytes that a process might receive. A
+> > > > > > > > process exit handle ought to be just another information source. The
+> > > > > > > > reason the unix process API is so awful is that for whatever reason
+> > > > > > > > the original designers treated processes as some kind of special kind
+> > > > > > > > of resource instead of fitting them into the otherwise general-purpose
+> > > > > > > > unix data-handling API. Let's not repeat that mistake.
+> > > > > > > >
+> > > > > > > > > Something like this:
+> > > > > > > > >
+> > > > > > > > > evfd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+> > > > > > > > > // register eventfd to receive death notification
+> > > > > > > > > pidfd_wait(pid_to_kill, evfd);
+> > > > > > > > > // kill the process
+> > > > > > > > > pidfd_send_signal(pid_to_kill, ...)
+> > > > > > > > > // tend to other things
+> > > > > > > >
+> > > > > > > > Now you've lost me. pidfd_wait should return a *new* FD, not wire up
+> > > > > > > > an eventfd.
+> > > > > > > >
+> > > > > >
+> > > > > > Ok, I probably misunderstood your post linked by Joel. I though your
+> > > > > > original proposal was based on being able to poll a file under
+> > > > > > /proc/pid and then you changed your mind to have a separate syscall
+> > > > > > which I assumed would be a blocking one to wait for process exit.
+> > > > > > Maybe you can describe the new interface you are thinking about in
+> > > > > > terms of userspace usage like I did above? Several lines of code would
+> > > > > > explain more than paragraphs of text.
 > > > > >
-> > > > > The API is not temporary it will stay the same ie the device driver
-> > > > > using HMM would not need further modification. Only the inner working
-> > > > > of HMM would be ported over to use improved common GUP. But GUP has
-> > > > > few shortcoming today that would be a regression for HMM:
-> > > > >     - huge page handling (ie dma mapping huge page not 4k chunk of
-> > > > >       huge page)
-> > 
-> > Agreed.
-> > 
-> > > > >     - not incrementing page refcount for HMM (other user like user-
-> > > > >       faultd also want a GUP without FOLL_GET because they abide by
-> > > > >       mmu notifier)
-> > > > >     - support for device memory without leaking it ie restrict such
-> > > > >       memory to caller that can handle it properly and are fully
-> > > > >       aware of the gotcha that comes with it
-> > > > >     ...
-> > > > 
-> > > > ...but this is backwards because the end state is 2 driver interfaces
-> > > > for dealing with page mappings instead of one. My primary critique of
-> > > > HMM is that it creates a parallel universe of HMM apis rather than
-> > > > evolving the existing core apis.
+> > > > > Hey, Thanks Suren for the eventfd idea. I agree with Daniel on this. The idea
+> > > > > from Daniel here is to wait for process death and exit events by just
+> > > > > referring to a stable fd, independent of whatever is going on in /proc.
+> > > > >
+> > > > > What is needed is something like this (in highly pseudo-code form):
+> > > > >
+> > > > > pidfd = opendir("/proc/<pid>",..);
+> > > > > wait_fd = pidfd_wait(pidfd);
+> > > > > read or poll wait_fd (non-blocking or blocking whichever)
+> > > > >
+> > > > > wait_fd will block until the task has either died or reaped. In both these
+> > > > > cases, it can return a suitable string such as "dead" or "reaped" although an
+> > > > > integer with some predefined meaning is also Ok.
 > > > 
-> > > Just to make it clear here is pseudo code:
-> > >     gup_range_dma_map() {...}
+> > > I want to return a siginfo_t: we already use this structure in other
+> > > contexts to report exit status.
 > > > 
-> > >     hmm_range_dma_map() {
-> > >         hmm_specific_prep_step();
-> > >         gup_range_dma_map();
+> 
+> Fine with me. I did a prototype (code is below) as a string but I can change
+> that to siginfo_t in the future.
+> 
+> > > > Having pidfd_wait() return another fd will make the syscall harder to
+> > > > swallow for a lot of people I reckon.
+> > > > What exactly prevents us from making the pidfd itself readable/pollable
+> > > > for the exit staus? They are "special" fds anyway. I would really like
+> > > > to avoid polluting the api with multiple different types of fds if possible.
+> > > 
+> > > If pidfds had been their own file type, I'd agree with you. But pidfds
+> > > are directories, which means that we're beholden to make them behave
+> > > like directories normally do. I'd rather introduce another FD than
+> > > heavily overload the semantics of a directory FD in one particular
+> > > context. In no other circumstances are directory FDs also weird
+> > > IO-data sources. Our providing a facility to get a new FD to which we
+> > > *can* give pipe-like behavior does no harm and *usage* cleaner and
+> > > easier to reason about.
 > > 
-> > Does this GUP use FOLL_GET and then a put after the mmu_notifier is setup?
-> 
-> No it avoids incrementing page refcount all together and use mmu notifier
-> synchronization to garantee that it is fine to do so. Hence we need a way
-> to do GUP without incrementing the page refcount (ie no FOLL_GET but still
-> returning page).
-
-Isn't this follow_page?  I'll admit it may be broken and I'll further admit
-that fixing it may have unintended consequences on drivers using GUP but some
-of the code in this series looks a lot like the code there.
-
-> 
+> > I have two things I'm currently working on:
+> > - hijacking translate_pid()
+> > - pidfd_clone() essentially
 > > 
-> > >         hmm_specific_post_step();
-> > >     }
-> > > 
-> > > Like i said HMM do have the synchronization with mmu notifier to take
-> > > care of and other user of GUP and dma map pattern do not care about
-> > > that. Hence why not everything can be share between device driver that
-> > > can not do mmu notifier and other.
-> > > 
-> > > Is that not acceptable to you ? Should every driver duplicate the code
-> > > HMM factorize ?
-> > > 
-> > 
-> > In the final API you envision will drivers be able to call gup_range_dma_map()
-> > _or_ hmm_range_dma_map()?
-> > 
-> > If so, at that time how will drivers know which to call and parameters control
-> > those calls?
+> > My first goal is to talk to Eric about taking the translate_pid()
+> > syscall that has been sitting in his tree and expanding it.
+> > translate_pid() currently allows you to either get an fd for the pid
+> > namespace a pid resides in or the pid number of a given process in
+> > another pid namespace relative to a passed in pid namespace fd.
 > 
-> Device that can do invalidation at anytime and thus that can support
-> mmu notifier will use HMM and thus the HMM version of it and they will
-> always stick with the HMM version.
-> 
-> Device that can not do invalidation at anytime and thus require pin
-> will use the GUP version and always the GUP version.
-> 
-> What the HMM version does is extra synchronization with mmu notifier
-> to ensure that not incrementing page refcount is fine. You can think
-> of HMM mirror as an helper than handle mmu notifier common device
-> driver pattern.
+> That's good to know. More comments below:
 
-ok sounds fair.
+Sorry for the delay I'm still traveling. I'll be back on a fully
+functional schedule starting Monday.
 
 > 
-> > 
-> > > 
-> > > > > So before converting HMM to use common GUP code under-neath those GUP
-> > > > > shortcoming (from HMM POV) need to be addressed and at the same time
-> > > > > the common dma map pattern can be added as an extra GUP helper.
-> > > > 
-> > > > If the HMM special cases are not being absorbed into the core-mm over
-> > > > time then I think this is going in the wrong direction. Specifically a
-> > > > direction that increases the long term maintenance burden over time as
-> > > > HMM drivers stay needlessly separated.
-> > > 
-> > > HMM is core mm and other thing like GUP do not need to absord all of HMM
-> > > as it would be forcing down on them mmu notifier and those other user can
-> > > not leverage mmu notifier. So forcing down something that is useless on
-> > > other is pointless, don't you agree ?
-> > > 
-> > > > 
-> > > > > The issue is that some of the above changes need to be done carefully
-> > > > > to not impact existing GUP users. So i rather clear some of my plate
-> > > > > before starting chewing on this carefully.
-> > > > 
-> > > > I urge you to put this kind of consideration first and not "merge
-> > > > first, ask hard questions later".
-> > > 
-> > > There is no hard question here. GUP does not handle THP optimization and
-> > > other thing HMM and ODP has. Adding this to GUP need to be done carefully
-> > > to not break existing GUP user. So i taking a small step approach since
-> > > when that is a bad thing. First merge HMM and ODP together then push down
-> > > common thing into GUP. It is a lot safer than a huge jump.
-> > 
-> > FWIW I think it is fine to have a new interface which allows new features
-> > during a transition is a good thing.  But if that comes at the price of leaving
-> > the old "deficient" interface sitting around that presents confusion for driver
-> > writers and we get users calling GUP when perhaps they should be calling HMM.
+> > I would
+> > like to make it possible for this syscall to also give us back pidfds.
+> > One question I'm currently struggling with is exactly what you said
+> > above: what type of file descriptor these are going to give back to us.
+> > It seems that a regular file instead of directory would make the most
+> > sense and would lead to a nicer API and I'm very much leaning towards
+> > that.
 > 
-> This is not the intention here, i am converting device driver that can use
-> HMM to HMM. Those device driver do not need GUP in the sense that they do
-> not need the page refcount increment and this is the short path the HMM does
-> provide today. Now i want to convert all device that can follow that to use
-> HMM (i posted patchset for amdgpu, radeon, nouveau, i915 and odp rdma for
-> that already).
+> How about something like the following? We can plumb the new file as a pseudo
+> file that is invisible and linked to the fd. This is extremely rough (does
+> not do error handling, synchronizatoin etc) but just wanted to share the idea
+> of what the "frontend" could look like. It is also missing all the actual pid
+> status messages. It just takes care of the creating new fd from the pidfd
+> part and providing file read ops returning the "status" string.  It is also
+> written in signal.c and should likely go into proc fs files under fs.
+> Appreciate any suggestions (a test program did prove it works).
 > 
-> Device driver that can not do mmu notifier will never use HMM and stick to
-> the GUP/dma map pattern. But i want to share the same underlying code for
-> both API latter on.
+> Also, I was able to translate a pidfd to a pid_namespace by referring to some
+> existing code but perhaps you may be able to suggest something better for
+> such translation..
 
-Great!  We agree on something!  :-D
+Yeah, there's better ways but I think there's another issue. See below.
 
 > 
-> So i do not see how it would confuse anyone. I am probably bad at expressing
-> intent but HMM is not for all device driver it is only for device driver that
-> would be able to do mmu notifier but instead of doing mmu notifier directly
-> and duplicating common code they can use HMM which has all the common code
-> they would need.
-
-I guess I see HMM being bigger than that _eventually_.  I see it being a "one
-stop shop" for devices to get pages from the system...  But I think what you
-have limited it to is good for now.
-
-Basic pseudocode:
-
-hmm_get_pages()
-	if (!mmu_capability)
-		do_gup_stuff
-	else
-		do_hmm_stuff
-
-	return pages;
-
+> ---8<-----------------------
 > 
-> > 
-> > I think having GPL exports helps to ensure we can later merge these to make it
-> > clear to driver writers what the right thing to do is.
+> From: Joel Fernandes <joelaf@google.com>
+> Subject: [PATCH] Partial skeleton prototype of pidfd_wait frontend
 > 
-> I am fine with GPL export but i stress agains this does not help in the GPU
-> world we had tons of GPL driver that are not upstream. GPL was not the issue.
-> So i fail to see how GPL helps device driver writer in anyway.
-
-GPL to ensure we can change the interfaces of HMM at will and have a good
-chance of getting all the drivers in tree fixed.  There are a couple of patches
-in this series which change the interface of exported symbols.  I think this is
-fine but it shows we are not ready to export this interface to out of tree users.
-
+> Signed-off-by: Joel Fernandes <joelaf@google.com>
+> ---
+>  arch/x86/entry/syscalls/syscall_32.tbl |  1 +
+>  arch/x86/entry/syscalls/syscall_64.tbl |  1 +
+>  include/linux/syscalls.h               |  1 +
+>  include/uapi/asm-generic/unistd.h      |  4 +-
+>  kernel/signal.c                        | 62 ++++++++++++++++++++++++++
+>  kernel/sys_ni.c                        |  3 ++
+>  6 files changed, 71 insertions(+), 1 deletion(-)
 > 
-> > > 
-> > > > 
-> > > > > Also doing this patch first and then the GUP thing solve the first user
-> > > > > problem you have been asking for. With that code in first the first user
-> > > > > of the GUP convertion will be all the devices that use those two HMM
-> > > > > functions. In turn the first user of that code is the ODP RDMA patch i
-> > > > > already posted. Second will be nouveau once i tackle out some nouveau
-> > > > > changes. I expect amdgpu to come close third as a user and other device
-> > > > > driver who are working on HMM integration to come shortly after.
-> > > > 
-> > > > I appreciate that it has users, but the point of having users is so that
-> > > > the code review can actually be fruitful to see if the infrastructure makes
-> > > > sense, and in this case it seems to be duplicating an existing common
-> > > > pattern in the kernel.
-> > > 
-> > > It is not duplicating anything i am removing code at the end if you include
-> >            ^^^^^^^^^^^^^
-> > 
-> > The duplication is in how drivers indicate to the core that a set of pages is
-> > being used by the hardware the driver is controlling, what the rules for those
-> > pages are and how the use by that hardware is going to be coordinated with the
-> > other hardware vying for those pages.  There are differences, true, but
-> > fundamentally it would be nice for drivers to not have to care about the
-> > details.
-> > 
-> > Maybe that is a dream we will never realize but if there are going to be
-> > different ways for drivers to "get pages" then we need to make it clear what it
-> > means when those pages come to the driver and how they can be used safely.
+> diff --git a/arch/x86/entry/syscalls/syscall_32.tbl b/arch/x86/entry/syscalls/syscall_32.tbl
+> index 1f9607ed087c..2a63f1896b63 100644
+> --- a/arch/x86/entry/syscalls/syscall_32.tbl
+> +++ b/arch/x86/entry/syscalls/syscall_32.tbl
+> @@ -433,3 +433,4 @@
+>  425	i386	io_uring_setup		sys_io_uring_setup		__ia32_sys_io_uring_setup
+>  426	i386	io_uring_enter		sys_io_uring_enter		__ia32_sys_io_uring_enter
+>  427	i386	io_uring_register	sys_io_uring_register		__ia32_sys_io_uring_register
+> +428	i386	pidfd_wait		sys_pidfd_wait			__ia32_sys_pidfd_wait
+> diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
+> index 92ee0b4378d4..cf2e08a8053b 100644
+> --- a/arch/x86/entry/syscalls/syscall_64.tbl
+> +++ b/arch/x86/entry/syscalls/syscall_64.tbl
+> @@ -349,6 +349,7 @@
+>  425	common	io_uring_setup		__x64_sys_io_uring_setup
+>  426	common	io_uring_enter		__x64_sys_io_uring_enter
+>  427	common	io_uring_register	__x64_sys_io_uring_register
+> +428	common	pidfd_wait		__x64_sys_pidfd_wait
+>  
+>  #
+>  # x32-specific system call numbers start at 512 to avoid cache impact
+> diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+> index e446806a561f..62160970ed3f 100644
+> --- a/include/linux/syscalls.h
+> +++ b/include/linux/syscalls.h
+> @@ -988,6 +988,7 @@ asmlinkage long sys_rseq(struct rseq __user *rseq, uint32_t rseq_len,
+>  asmlinkage long sys_pidfd_send_signal(int pidfd, int sig,
+>  				       siginfo_t __user *info,
+>  				       unsigned int flags);
+> +asmlinkage long sys_pidfd_wait(int pidfd);
+>  
+>  /*
+>   * Architecture-specific system calls
+> diff --git a/include/uapi/asm-generic/unistd.h b/include/uapi/asm-generic/unistd.h
+> index dee7292e1df6..137aa8662230 100644
+> --- a/include/uapi/asm-generic/unistd.h
+> +++ b/include/uapi/asm-generic/unistd.h
+> @@ -832,9 +832,11 @@ __SYSCALL(__NR_io_uring_setup, sys_io_uring_setup)
+>  __SYSCALL(__NR_io_uring_enter, sys_io_uring_enter)
+>  #define __NR_io_uring_register 427
+>  __SYSCALL(__NR_io_uring_register, sys_io_uring_register)
+> +#define __NR_pidfd_wait 428
+> +__SYSCALL(__NR_pidfd_wait, sys_pidfd_wait)
+>  
+>  #undef __NR_syscalls
+> -#define __NR_syscalls 428
+> +#define __NR_syscalls 429
+>  
+>  /*
+>   * 32 bit systems traditionally used different
+> diff --git a/kernel/signal.c b/kernel/signal.c
+> index b7953934aa99..ebb550b87044 100644
+> --- a/kernel/signal.c
+> +++ b/kernel/signal.c
+> @@ -3550,6 +3550,68 @@ static int copy_siginfo_from_user_any(kernel_siginfo_t *kinfo, siginfo_t *info)
+>  	return copy_siginfo_from_user(kinfo, info);
+>  }
+>  
+> +static ssize_t pidfd_wait_read_iter(struct kiocb *iocb, struct iov_iter *to)
+> +{
+> +	/*
+> +	 * This is just a test string, it will contain the actual
+> +	 * status of the pidfd in the future.
+> +	 */
+> +	char buf[] = "status";
+> +
+> +	return copy_to_iter(buf, strlen(buf)+1, to);
+> +}
+> +
+> +static const struct file_operations pidfd_wait_file_ops = {
+> +	.read_iter	= pidfd_wait_read_iter,
+> +};
+> +
+> +static struct inode *pidfd_wait_get_inode(struct super_block *sb)
+> +{
+> +	struct inode *inode = new_inode(sb);
+> +
+> +	inode->i_ino = get_next_ino();
+> +	inode_init_owner(inode, NULL, S_IFREG);
+> +
+> +	inode->i_op		= &simple_dir_inode_operations;
+> +	inode->i_fop		= &pidfd_wait_file_ops;
+> +
+> +	return inode;
+> +}
+> +
+> +SYSCALL_DEFINE1(pidfd_wait, int, pidfd)
+> +{
+> +	struct fd f;
+> +	struct inode *inode;
+> +	struct file *file;
+> +	int new_fd;
+> +	struct pid_namespace *pid_ns;
+> +	struct super_block *sb;
+> +	struct vfsmount *mnt;
+> +
+> +	f = fdget_raw(pidfd);
+> +	if (!f.file)
+> +		return -EBADF;
+> +
+> +	sb = file_inode(f.file)->i_sb;
+> +	pid_ns = sb->s_fs_info;
+> +
+> +	inode = pidfd_wait_get_inode(sb);
+> +
+> +	mnt = pid_ns->proc_mnt;
+> +
+> +	file = alloc_file_pseudo(inode, mnt, "pidfd_wait", O_RDONLY,
+> +			&pidfd_wait_file_ops);
+
+So I dislike the idea of allocating new inodes from the procfs super
+block. I would like to avoid pinning the whole pidfd concept exclusively
+to proc. The idea is that the pidfd API will be useable through procfs
+via open("/proc/<pid>") because that is what users expect and really
+wanted to have for a long time. So it makes sense to have this working.
+But it should really be useable without it. That's why translate_pid()
+and pidfd_clone() are on the table.  What I'm saying is, once the pidfd
+api is "complete" you should be able to set CONFIG_PROCFS=N - even
+though that's crazy - and still be able to use pidfds. This is also a
+point akpm asked about when I did the pidfd_send_signal work.
+
+So instead of going throught proc we should probably do what David has
+been doing in the mount API and come to rely on anone_inode. So
+something like:
+
+fd = anon_inode_getfd("pidfd", &pidfd_fops, file_priv_data, flags);
+
+and stash information such as pid namespace etc. in a pidfd struct or
+something that we then can stash file->private_data of the new file.
+This also lets us avoid all this open coding done here.
+Another advantage is that anon_inodes is its own kernel-internal
+filesystem.
+
+Christian
+
+> +
+> +	file->f_mode |= FMODE_PREAD;
+> +
+> +	new_fd = get_unused_fd_flags(0);
+> +	fd_install(new_fd, file);
+> +
+> +	fdput(f);
+> +
+> +	return new_fd;
+> +}
+> +
+>  /**
+>   * sys_pidfd_send_signal - send a signal to a process through a task file
+>   *                          descriptor
+> diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
+> index d21f4befaea4..f52c4d864038 100644
+> --- a/kernel/sys_ni.c
+> +++ b/kernel/sys_ni.c
+> @@ -450,3 +450,6 @@ COND_SYSCALL(setuid16);
+>  
+>  /* restartable sequence */
+>  COND_SYSCALL(rseq);
+> +
+> +/* pidfd */
+> +COND_SYSCALL(pidfd_wait);
+> -- 
+> 2.21.0.225.g810b269d1ac-goog
 > 
-> This is exactly what HMM mirror is. Device driver do not have to care about
-> mm gory details or about mmu notifier subtilities, HMM provide an abstracted
-> API easy to understand for device driver and takes care of the sublte details.
-
-If the device supports MMU notification.  ;-)
-
-> 
-> Please read the HMM documentation and provide feedback if that is not clear.
-
-FWIW I also want to be clear that having some common code to handle MMU
-notification would be great.  I've had to fix mmu_notification code in the past
-because mmu notification code can be tricky.  So I'm not against HMM helping
-out there.  But I also don't want to leave drivers which don't do MMU
-notification with a broken GUP interface.
-
-Ira
-
-> 
-> Cheers,
-> Jérôme
 
