@@ -2,446 +2,198 @@ Return-Path: <SRS0=zC3H=RW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 76B22C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 16:04:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B37B2C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 16:15:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2695C206B7
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 16:04:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2695C206B7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 54A6E20857
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 16:15:03 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="qxq7DiID"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 54A6E20857
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AF2506B0003; Tue, 19 Mar 2019 12:04:25 -0400 (EDT)
+	id 82D066B0003; Tue, 19 Mar 2019 12:15:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AA2636B0006; Tue, 19 Mar 2019 12:04:25 -0400 (EDT)
+	id 7DB556B0006; Tue, 19 Mar 2019 12:15:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 969836B0007; Tue, 19 Mar 2019 12:04:25 -0400 (EDT)
+	id 6A7156B0007; Tue, 19 Mar 2019 12:15:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B3F76B0003
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 12:04:25 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id 77so16253190qkd.9
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 09:04:25 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FA616B0003
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 12:15:02 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id 73so22728826pga.18
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 09:15:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:references:organization:message-id:date:user-agent
-         :mime-version:in-reply-to;
-        bh=m4h3Ks/alLuiyZa5RZDI2rTXK/RVdcHXqGrbVw34L3U=;
-        b=rVoqfxJ5A8Z4DpgPkUtOTgDC5DTsWwYxVN53V14pXRVUyTj4zbzTClXAVRLgZRq7Ib
-         61Tsdjl+s4fN4rc6d45JR9Z90dqB74Q+F4ZXDKdLD0jITcaKvaYo6H613ZibjdIUofUR
-         tztJ9npweeok7D1akA4ZGk+xJx7fL//jN6YdpUpIOUBODBt1mnJUA8yEYRtSARdmSWDv
-         XDK+u4ZKZxui+ao5fZD6co6Lsdopn3QVOyZEVshbBMJx0l0X+d67TiSQdbENduvnvruW
-         QTPFrzO2QbM5kaSXjccpufpVtBe2CFvYmsH4pRPr64H1z9kmSBKl+T55yeO/i1GhKRXJ
-         ha/A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXU5K9hWhsQYwhwX4q0Bx+Gq/SGxK5FdlmZG0qh4zuOT5S9+yOF
-	Y/qge4doMyaVjKVhDyXm3Ix4Y1im8qoX7IH616HvjDu8i6/+dREJuZSrdhmXd2pIzo9xy4PziNe
-	XQWO5mw0yUJJnJTjxIJ+6L8CmthJ2A4sVMJ2w9dYrbl3HOM4KeAH+KwFerlufzxMvIQ==
-X-Received: by 2002:ac8:3554:: with SMTP id z20mr2634033qtb.150.1553011464933;
-        Tue, 19 Mar 2019 09:04:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyIVeZw4LVVzSpA5JBApaNW0lr3KGJZmZpIWmCi5eEk5IM4PUFJmCixV5QEanOpK4AQ86F0
-X-Received: by 2002:ac8:3554:: with SMTP id z20mr2633896qtb.150.1553011463430;
-        Tue, 19 Mar 2019 09:04:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553011463; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=PQgiC0kZ9u3Fy9QCp4MSDtSraYleFQhb/2xaBu2ZSrg=;
+        b=KwR1mb6SQzarU5U25f2RMiw2tfQ38I2Y/Irs29lPFUhL3ZkamnpRfUqpLnoiOc6GTd
+         GSz8an1hNScuRDXKuzs2B0eUMUDR5b6214BZ/FRnHHUEB+PFO5iGWNkAcZooNilUgWX+
+         iNogunHsV4rqWUJ80RdmqJRyvRPFcPIFko27rQCNkHWzi2ADxz8uUMvlVFYyBZDhCc5o
+         PZ95c+XhF774DVusYDtLyy2Lh/UDp6N45UlaPQCMzroxHJyaUxmQimdV6eCTg2zksaHb
+         XJVikbMhv8alyjRi6vAyLf8JqzzuOKXr2JdC+JQAq9+QOLvM8UxyvX0VRrMxx9P5b4Fr
+         w7ww==
+X-Gm-Message-State: APjAAAXDMKUjPWcNU/NgaZ8268MAidkQw4a7RCPE1lj8kR+1JBjTF/h4
+	6bwhOOZXf8YT82cEiFB2YBRaRo7hKYub/8vNb6wwmRq1kpchV/bJLUg/UnSU/nZ9Bq9wvlBuRQw
+	qEDp7UQXgELPFNpzn2DGpDUt7JodawzmSdXLTtlkbQGLfK3ejVKagW/d2UsWJ5KmO2A==
+X-Received: by 2002:a63:6c43:: with SMTP id h64mr2467372pgc.22.1553012101625;
+        Tue, 19 Mar 2019 09:15:01 -0700 (PDT)
+X-Received: by 2002:a63:6c43:: with SMTP id h64mr2467195pgc.22.1553012099435;
+        Tue, 19 Mar 2019 09:14:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553012099; cv=none;
         d=google.com; s=arc-20160816;
-        b=z+awAe+LNUGcOW8lUip2spdwn7Qm6OOlW9vabe8RHLSIpfdSYuj2TpFu7zu6iMvhMZ
-         sq7PZvVqls4qz306sdRd6x7r4nhSY5uwOimg8FnMKDZqe+QANw/Cf+sun5MXsHv/pe14
-         lmglymTn6qbGWaXijS/r/icTaV8l8kzN+YjJTKJHkdqCHkS8Eb794zYSDnKsUZx9Y2DT
-         ly160T2xdXmxvPPmch7UXPSWck7UM4NMb7wxVTrDb8Y4X4W58VVeV3g/jDK++b4/r0X3
-         BVptfpop/rnkGTFrRPj0TtO+CKTryRwNQxE2z/deJ218shCMVkhc8LqrBMkJM3GiQ01H
-         LUpw==
+        b=aA6JyBy1N11+18ygKQlCs33RpdtNFbyrCtNgV+cc0yvj6l2iGPpVpuaV3jktlY/KnK
+         tSnaqILSeCYVMhrwz5cFgREmJP1dPLaUhg0+KUoVtHELRXicDU62UxAub2Iu0H0lspye
+         H5of7e9C3mVrMJnYl/qamEdsQsVLLZtaPxJLw/XvT2SIbjfUnar83IUtFZuoPb4z1w0h
+         z1WsE2kYtLFjv4gIg3d62Cc3k+ABYTEXAorryEL/JADk/ZNn0kVCOQFI7iEwGHi/6Ios
+         5LTJxnWZ5m1xhzvqkeDiqcLfr5u7BkAyZYnGiE01EbRs2uMJUH8UfHK6QSlfl5RCtuxF
+         +SJg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:mime-version:user-agent:date:message-id:organization
-         :references:subject:cc:to:from;
-        bh=m4h3Ks/alLuiyZa5RZDI2rTXK/RVdcHXqGrbVw34L3U=;
-        b=emORwU4nTngL45PvWqb1s5hodX8mAbasluB49mswR3w75hpwuMO7no0IpCvQgu6cFS
-         MxCsHkVhdQiDXafqr2Jj//QcaQ8zOrR9yZgFPtRKRXE6u2LFpUxWuwzQMcWiG/RyKCYh
-         HEJPO/b6o1i2mqd5SrjWQMKT9ZNBbdHC1lvOX2kSjI9Sf5hSs7o8L4L9Q6ceeD1wfwWO
-         VdWWeKhTS7HptkoP9pWJqixJWF5HJTBG+CK/lhshAiA1kbPczY6v2L6qlFEtFLukUZRU
-         wMNCiR6ixXfo1FKkt+dL/5gyAPQcQHbupgR3i8c85ZOJkd0y7+xNZWXV2BE3Buf6I2og
-         EWFA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=PQgiC0kZ9u3Fy9QCp4MSDtSraYleFQhb/2xaBu2ZSrg=;
+        b=leCS30sYv5vrjd3LmXI4v7qTK40vlYFmN7cmtV9sJpE4DTwcwGfbrM2fNuX5VEED4k
+         +Spb9zudvNRPfcEFC8Tl6UqOm+H6NkTVYCtwSreMUjpjnfr4J2ot/FxPnNY12LO1JJpD
+         Zzn+Rjvt4xh3OzwtwD3SHfFgBvQVnfpW2rFbpWg7cLksX7wXddqJrFLZSt2YRkQmQW2f
+         fnTC5H8BGvSbr1G9IWy2FBtmalBy8yawCVcJoIkt1c/5C8+MnFu/5KrZBIf2LpLq0pxE
+         RzEAPSRVHhxVVtz+5HpDB7eNw5QmiRgpJ4tpLFJNdzc5tSHw5gKLqdZBZqXhZ74kstLL
+         v1Ag==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f186si774587qkj.215.2019.03.19.09.04.23
+       dkim=pass header.i=@google.com header.s=20161025 header.b=qxq7DiID;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l75sor20555171pfj.31.2019.03.19.09.14.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Mar 2019 09:04:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Tue, 19 Mar 2019 09:14:59 -0700 (PDT)
+Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 5308F88ABB;
-	Tue, 19 Mar 2019 16:04:22 +0000 (UTC)
-Received: from [10.18.17.32] (dhcp-17-32.bos.redhat.com [10.18.17.32])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 59E455ED4B;
-	Tue, 19 Mar 2019 16:04:14 +0000 (UTC)
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-To: David Hildenbrand <david@redhat.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, kvm list <kvm@vger.kernel.org>,
- LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
- Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com,
- pagupta@redhat.com, wei.w.wang@intel.com,
- Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
- dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
- dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>,
- Alexander Duyck <alexander.duyck@gmail.com>
-Subject: Re: [RFC][Patch v9 0/6] KVM: Guest Free Page Hinting
-References: <20190306155048.12868-1-nitesh@redhat.com>
- <20190306110501-mutt-send-email-mst@kernel.org>
- <bd029eb2-501a-8d2d-5f75-5d2b229c7e75@redhat.com>
- <20190306130955-mutt-send-email-mst@kernel.org>
- <ce55943e-87b6-c102-9827-2cfd45b7192c@redhat.com>
- <CAKgT0UcGCFNQRZFmp8oMkG+wKzRtwN292vtFWgyLsdyRnO04gQ@mail.gmail.com>
- <ed9f7c2e-a7e3-a990-bcc3-459e4f2b4a44@redhat.com>
- <4bd54f8b-3e9a-3493-40be-668962282431@redhat.com>
-Organization: Red Hat Inc,
-Message-ID: <6d744ed6-9c1c-b29f-aa32-d38387187b74@redhat.com>
-Date: Tue, 19 Mar 2019 12:04:10 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       dkim=pass header.i=@google.com header.s=20161025 header.b=qxq7DiID;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=PQgiC0kZ9u3Fy9QCp4MSDtSraYleFQhb/2xaBu2ZSrg=;
+        b=qxq7DiIDvuLMVQ34GJzbbwphhe3KaybKNLLIgWZcGxMMwPerSCP8RL7QKUW6OtyBKf
+         93s0/L1vzqFcVzh/gw7Cxoq5tPb1/WaJXpXJp3yNxXHHX+7WMTlqOagmGKRDtUxEMSKg
+         5DS0enSD5PzEjo4jy+UcwIsjiJOFl6BnvOboDUvPFYRjHX6Bkquppw7J1+eqRrui0XyJ
+         5KwS2/Yj9IcZSKFd33h7Wg5DbPnCVWpSh5pGJ75s8D7bMH8YcmfdqR842AAg13swxCOv
+         Kk2MxlHMbY3GoTWt8xmPsHQ5oVfatT1NEXrOp0w5gHtoFSTLFLhBqpyqHShIAnZJ8YpW
+         APtQ==
+X-Google-Smtp-Source: APXvYqx361ALMb6OFk9w1BYTE4ilOTi6pgHPRxfVkFU9fEbW6rIBYMGJVoPW0XyRhBBEcWy7HAhjNpDB7rRiY+mc1bo=
+X-Received: by 2002:aa7:8b12:: with SMTP id f18mr3253945pfd.240.1553012098901;
+ Tue, 19 Mar 2019 09:14:58 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <4bd54f8b-3e9a-3493-40be-668962282431@redhat.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="bngpZeDFBG5YQlJZHTX7GAJbxAZIgGJpz"
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Tue, 19 Mar 2019 16:04:22 +0000 (UTC)
+References: <cover.1552929301.git.andreyknvl@google.com> <80e79c47dc7c5ee3572034a1d69bb724fbed2ecb.1552929301.git.andreyknvl@google.com>
+ <CANn89iJ4SeccE79gKiv5RFqaouFV8shFA+0dCS8+2D_1aRq_Kw@mail.gmail.com>
+In-Reply-To: <CANn89iJ4SeccE79gKiv5RFqaouFV8shFA+0dCS8+2D_1aRq_Kw@mail.gmail.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Tue, 19 Mar 2019 17:14:47 +0100
+Message-ID: <CAAeHK+xi4-6pgDYG8ypM8NsbhgncpsxgJeEXL1-BpkARXONvEQ@mail.gmail.com>
+Subject: Re: [PATCH v12 08/13] net, arm64: untag user pointers in tcp_zerocopy_receive
+To: Eric Dumazet <edumazet@google.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
+	Kees Cook <keescook@chromium.org>, Kate Stewart <kstewart@linuxfoundation.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, 
+	Shuah Khan <shuah@kernel.org>, Vincenzo Frascino <vincenzo.frascino@arm.com>, 
+	"David S. Miller" <davem@davemloft.net>, Alexei Starovoitov <ast@kernel.org>, 
+	Daniel Borkmann <daniel@iogearbox.net>, Steven Rostedt <rostedt@goodmis.org>, 
+	Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, 
+	Arnaldo Carvalho de Melo <acme@kernel.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, 
+	"open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
+	linux-arch <linux-arch@vger.kernel.org>, netdev <netdev@vger.kernel.org>, 
+	bpf <bpf@vger.kernel.org>, 
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, 
+	Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>, 
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>, 
+	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---bngpZeDFBG5YQlJZHTX7GAJbxAZIgGJpz
-Content-Type: multipart/mixed; boundary="xij0SfXTxv9ESuRQf6kkiHtCdknUHZkAF";
- protected-headers="v1"
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-To: David Hildenbrand <david@redhat.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, kvm list <kvm@vger.kernel.org>,
- LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
- Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com,
- pagupta@redhat.com, wei.w.wang@intel.com,
- Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
- dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
- dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>,
- Alexander Duyck <alexander.duyck@gmail.com>
-Message-ID: <6d744ed6-9c1c-b29f-aa32-d38387187b74@redhat.com>
-Subject: Re: [RFC][Patch v9 0/6] KVM: Guest Free Page Hinting
-
---xij0SfXTxv9ESuRQf6kkiHtCdknUHZkAF
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-On 3/19/19 9:33 AM, David Hildenbrand wrote:
-> On 18.03.19 16:57, Nitesh Narayan Lal wrote:
->> On 3/14/19 12:58 PM, Alexander Duyck wrote:
->>> On Thu, Mar 14, 2019 at 9:43 AM Nitesh Narayan Lal <nitesh@redhat.com=
-> wrote:
->>>> On 3/6/19 1:12 PM, Michael S. Tsirkin wrote:
->>>>> On Wed, Mar 06, 2019 at 01:07:50PM -0500, Nitesh Narayan Lal wrote:=
-
->>>>>> On 3/6/19 11:09 AM, Michael S. Tsirkin wrote:
->>>>>>> On Wed, Mar 06, 2019 at 10:50:42AM -0500, Nitesh Narayan Lal wrot=
-e:
->>>>>>>> The following patch-set proposes an efficient mechanism for hand=
-ing freed memory between the guest and the host. It enables the guests wi=
-th no page cache to rapidly free and reclaims memory to and from the host=
- respectively.
->>>>>>>>
->>>>>>>> Benefit:
->>>>>>>> With this patch-series, in our test-case, executed on a single s=
-ystem and single NUMA node with 15GB memory, we were able to successfully=
- launch 5 guests(each with 5 GB memory) when page hinting was enabled and=
- 3 without it. (Detailed explanation of the test procedure is provided at=
- the bottom under Test - 1).
->>>>>>>>
->>>>>>>> Changelog in v9:
->>>>>>>>    * Guest free page hinting hook is now invoked after a page ha=
-s been merged in the buddy.
->>>>>>>>         * Free pages only with order FREE_PAGE_HINTING_MIN_ORDER=
-(currently defined as MAX_ORDER - 1) are captured.
->>>>>>>>    * Removed kthread which was earlier used to perform the scann=
-ing, isolation & reporting of free pages.
->>>>>>>>    * Pages, captured in the per cpu array are sorted based on th=
-e zone numbers. This is to avoid redundancy of acquiring zone locks.
->>>>>>>>         * Dynamically allocated space is used to hold the isolat=
-ed guest free pages.
->>>>>>>>         * All the pages are reported asynchronously to the host =
-via virtio driver.
->>>>>>>>         * Pages are returned back to the guest buddy free list o=
-nly when the host response is received.
->>>>>>>>
->>>>>>>> Pending items:
->>>>>>>>         * Make sure that the guest free page hinting's current i=
-mplementation doesn't break hugepages or device assigned guests.
->>>>>>>>    * Follow up on VIRTIO_BALLOON_F_PAGE_POISON's device side sup=
-port. (It is currently missing)
->>>>>>>>         * Compare reporting free pages via vring with vhost.
->>>>>>>>         * Decide between MADV_DONTNEED and MADV_FREE.
->>>>>>>>    * Analyze overall performance impact due to guest free page h=
-inting.
->>>>>>>>    * Come up with proper/traceable error-message/logs.
->>>>>>>>
->>>>>>>> Tests:
->>>>>>>> 1. Use-case - Number of guests we can launch
->>>>>>>>
->>>>>>>>    NUMA Nodes =3D 1 with 15 GB memory
->>>>>>>>    Guest Memory =3D 5 GB
->>>>>>>>    Number of cores in guest =3D 1
->>>>>>>>    Workload =3D test allocation program allocates 4GB memory, to=
-uches it via memset and exits.
->>>>>>>>    Procedure =3D
->>>>>>>>    The first guest is launched and once its console is up, the t=
-est allocation program is executed with 4 GB memory request (Due to this =
-the guest occupies almost 4-5 GB of memory in the host in a system withou=
-t page hinting). Once this program exits at that time another guest is la=
-unched in the host and the same process is followed. We continue launchin=
-g the guests until a guest gets killed due to low memory condition in the=
- host.
->>>>>>>>
->>>>>>>>    Results:
->>>>>>>>    Without hinting =3D 3
->>>>>>>>    With hinting =3D 5
->>>>>>>>
->>>>>>>> 2. Hackbench
->>>>>>>>    Guest Memory =3D 5 GB
->>>>>>>>    Number of cores =3D 4
->>>>>>>>    Number of tasks         Time with Hinting       Time without =
-Hinting
->>>>>>>>    4000                    19.540                  17.818
->>>>>>>>
->>>>>>> How about memhog btw?
->>>>>>> Alex reported:
->>>>>>>
->>>>>>>     My testing up till now has consisted of setting up 4 8GB VMs =
-on a system
->>>>>>>     with 32GB of memory and 4GB of swap. To stress the memory on =
-the system I
->>>>>>>     would run "memhog 8G" sequentially on each of the guests and =
-observe how
->>>>>>>     long it took to complete the run. The observed behavior is th=
-at on the
->>>>>>>     systems with these patches applied in both the guest and on t=
-he host I was
->>>>>>>     able to complete the test with a time of 5 to 7 seconds per g=
-uest. On a
->>>>>>>     system without these patches the time ranged from 7 to 49 sec=
-onds per
->>>>>>>     guest. I am assuming the variability is due to time being spe=
-nt writing
->>>>>>>     pages out to disk in order to free up space for the guest.
->>>>>>>
->>>>>> Here are the results:
->>>>>>
->>>>>> Procedure: 3 Guests of size 5GB is launched on a single NUMA node =
-with
->>>>>> total memory of 15GB and no swap. In each of the guest, memhog is =
-run
->>>>>> with 5GB. Post-execution of memhog, Host memory usage is monitored=
- by
->>>>>> using Free command.
->>>>>>
->>>>>> Without Hinting:
->>>>>>                  Time of execution    Host used memory
->>>>>> Guest 1:        45 seconds            5.4 GB
->>>>>> Guest 2:        45 seconds            10 GB
->>>>>> Guest 3:        1  minute               15 GB
->>>>>>
->>>>>> With Hinting:
->>>>>>                 Time of execution     Host used memory
->>>>>> Guest 1:        49 seconds            2.4 GB
->>>>>> Guest 2:        40 seconds            4.3 GB
->>>>>> Guest 3:        50 seconds            6.3 GB
->>>>> OK so no improvement. OTOH Alex's patches cut time down to 5-7 seco=
-nds
->>>>> which seems better. Want to try testing Alex's patches for comparis=
-on?
->>>>>
->>>> I realized that the last time I reported the memhog numbers, I didn'=
-t
->>>> enable the swap due to which the actual benefits of the series were =
-not
->>>> shown.
->>>> I have re-run the test by including some of the changes suggested by=
-
->>>> Alexander and David:
->>>>     * Reduced the size of the per-cpu array to 32 and minimum hintin=
-g
->>>> threshold to 16.
->>>>     * Reported length of isolated pages along with start pfn, instea=
-d of
->>>> the order from the guest.
->>>>     * Used the reported length to madvise the entire length of addre=
-ss
->>>> instead of a single 4K page.
->>>>     * Replaced MADV_DONTNEED with MADV_FREE.
->>>>
->>>> Setup for the test:
->>>> NUMA node:1
->>>> Memory: 15GB
->>>> Swap: 4GB
->>>> Guest memory: 6GB
->>>> Number of core: 1
->>>>
->>>> Process: A guest is launched and memhog is run with 6GB. As its
->>>> execution is over next guest is launched. Everytime memhog execution=
-
->>>> time is monitored.
->>>> Results:
->>>>     Without Hinting:
->>>>                  Time of execution
->>>>     Guest1:    22s
->>>>     Guest2:    24s
->>>>     Guest3: 1m29s
->>>>
->>>>     With Hinting:
->>>>                 Time of execution
->>>>     Guest1:    24s
->>>>     Guest2:    25s
->>>>     Guest3:    28s
->>>>
->>>> When hinting is enabled swap space is not used until memhog with 6GB=
- is
->>>> ran in 6th guest.
->>> So one change you may want to make to your test setup would be to
->>> launch the tests sequentially after all the guests all up, instead of=
-
->>> combining the test and guest bring-up. In addition you could run
->>> through the guests more than once to determine a more-or-less steady
->>> state in terms of the performance as you move between the guests afte=
-r
->>> they have hit the point of having to either swap or pull MADV_FREE
->>> pages.
->> I tried running memhog as you suggested, here are the results:
->> Setup for the test:
->> NUMA node:1
->> Memory: 15GB
->> Swap: 4GB
->> Guest memory: 6GB
->> Number of core: 1
->>
->> Process: 3 guests are launched and memhog is run with 6GB. Results are=
-
->> monitored after 1st-time execution of memhog. Memhog is launched
->> sequentially in each of the guests and time is observed after the
->> execution of all 3 memhog is over.
->>
->> Results:
->> Without Hinting
->> =C2=A0=C2=A0=C2=A0 Time of Execution=C2=A0=C2=A0=C2=A0
->> 1.=C2=A0=C2=A0=C2=A0 6m48s=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=
-=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0
->> 2.=C2=A0=C2=A0=C2=A0 6m9s=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=C2=
-=A0=C2=A0 =C2=A0=C2=A0=C2=A0
->>
->> With Hinting
->> Array size:16 Minimum Threshold:8
->> 1.=C2=A0=C2=A0=C2=A0 2m57s=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=
-=C2=A0=C2=A0
->> 2.=C2=A0=C2=A0=C2=A0 2m20s=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=
-=C2=A0=C2=A0
->>
->> The memhog execution time in the case of hinting is still not that low=
-
->> as we would have expected. This is due to the usage of swap space.
->> Although wrt to non-hinting when swap used space is around 3.5G, with
->> hinting it remains to around 1.1-1.5G.
->> I did try using a zone free page barrier which prevented hinting when
->> free pages of order HINTING_ORDER goes below 256. This further brings
->> down the swap usage to 100-150 MB. The tricky part of this approach is=
-
->> to configure this barrier condition for different guests.
->>
->> Array size:16 Minimum Threshold:8
->> 1.=C2=A0=C2=A0=C2=A0 1m16s=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0
->> 2.=C2=A0=C2=A0=C2=A0 1m41s
->>
->> Note: Memhog time does seem to vary a little bit on every boot with or=
-
->> without hinting.
->>
-> I don't quite understand yet why "hinting more pages" (no free page
-> barrier) should result in a higher swap usage in the hypervisor
-> (1.1-1.5GB vs. 100-150 MB). If we are "hinting more pages" I would have=
-
-> guessed that runtime could get slower, but not that we need more swap.
+On Mon, Mar 18, 2019 at 6:35 PM Eric Dumazet <edumazet@google.com> wrote:
 >
-> One theory:
+> On Mon, Mar 18, 2019 at 10:18 AM Andrey Konovalov <andreyknvl@google.com> wrote:
+> >
+> > This patch is a part of a series that extends arm64 kernel ABI to allow to
+> > pass tagged user pointers (with the top byte set to something else other
+> > than 0x00) as syscall arguments.
+> >
+> > tcp_zerocopy_receive() uses provided user pointers for vma lookups, which
+> > can only by done with untagged pointers.
+> >
+> > Untag user pointers in this function.
+> >
+> > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> > ---
+> >  net/ipv4/tcp.c | 9 +++++++--
+> >  1 file changed, 7 insertions(+), 2 deletions(-)
+> >
+> > diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
+> > index 6baa6dc1b13b..e76beb5ff1ff 100644
+> > --- a/net/ipv4/tcp.c
+> > +++ b/net/ipv4/tcp.c
+> > @@ -1749,7 +1749,7 @@ EXPORT_SYMBOL(tcp_mmap);
+> >  static int tcp_zerocopy_receive(struct sock *sk,
+> >                                 struct tcp_zerocopy_receive *zc)
+> >  {
+> > -       unsigned long address = (unsigned long)zc->address;
+> > +       unsigned long address;
+> >         const skb_frag_t *frags = NULL;
+> >         u32 length = 0, seq, offset;
+> >         struct vm_area_struct *vma;
+> > @@ -1758,7 +1758,12 @@ static int tcp_zerocopy_receive(struct sock *sk,
+> >         int inq;
+> >         int ret;
+> >
+> > -       if (address & (PAGE_SIZE - 1) || address != zc->address)
+> > +       address = (unsigned long)untagged_addr(zc->address);
+> > +
+> > +       /* The second test in this if detects if the u64->unsigned long
+> > +        * conversion had any truncated bits.
+> > +        */
+> > +       if (address & (PAGE_SIZE - 1) || address != untagged_addr(zc->address))
+> >                 return -EINVAL;
+> >
+> >         if (sk->sk_state == TCP_LISTEN)
 >
-> If you hint all MAX_ORDER - 1 pages, at one point it could be that all
-> "remaining" free pages are currently isolated to be hinted. As MM needs=
-
-> more pages for a process, it will fallback to using "MAX_ORDER - 2"
-> pages and so on. These pages, when they are freed, you won't hint
-> anymore unless they get merged. But after all they won't get merged
-> because they can't be merged (otherwise they wouldn't be "MAX_ORDER - 2=
-"
-> after all right from the beginning).
 >
-> Try hinting a smaller granularity to see if this could actually be the =
-case.
-So I have two questions in my mind after looking at the results now:
-1. Why swap is coming into the picture when hinting is enabled?
-2. Same to what you have raised.
-For the 1st question, I think the answer is: (correct me if I am wrong.)
-Memhog while writing the memory does free memory but the pages it frees
-are of a lower order which doesn't merge until the memhog write
-completes. After which we do get the MAX_ORDER - 1 page from the buddy
-resulting in hinting.
-As all 3 memhog are running parallelly we don't get free memory until
-one of them completes.
-This does explain that when 3 guests each of 6GB on a 15GB host tries to
-run memhog with 6GB parallelly, swap comes into the picture even if
-hinting is enabled.
+> This is quite ugly, the comment does not really help nor belong to this patch.
+>
+> What about using  untagged_addr()  only once ?
+>
+> diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
+> index 6baa6dc1b13b0b94b1da238668b93e167cf444fe..855a1f68c1ea9b0d07a92bd7f5e7c24840a99d3d
+> 100644
+> --- a/net/ipv4/tcp.c
+> +++ b/net/ipv4/tcp.c
+> @@ -1761,6 +1761,8 @@ static int tcp_zerocopy_receive(struct sock *sk,
+>         if (address & (PAGE_SIZE - 1) || address != zc->address)
+>                 return -EINVAL;
+>
+> +       address = untagged_addr(address);
+> +
+>         if (sk->sk_state == TCP_LISTEN)
+>                 return -ENOTCONN;
 
-This doesn't explain why putting a barrier or avoid hinting reduced the
-swap usage. It seems I possibly had a wrong impression of the delaying
-hinting idea which we discussed.
-As I was observing the value of the swap at the end of the memhog
-execution which is logically incorrect. I will re-run the test and
-observe the highest swap usage during the entire execution of memhog for
-hinting vs non-hinting.
-
---=20
-Regards
-Nitesh
-
-
---xij0SfXTxv9ESuRQf6kkiHtCdknUHZkAF--
-
---bngpZeDFBG5YQlJZHTX7GAJbxAZIgGJpz
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIzBAEBCAAdFiEEkXcoRVGaqvbHPuAGo4ZA3AYyozkFAlyREvoACgkQo4ZA3AYy
-ozlSfw/9HNw3Q/Q9wJpjHLWrTP3mtx0SuGZdxt+Tr988Du34jyOROvZ1zm0FVJVO
-6HqPDbLOFugIdjQd/flBTHHRcR0kkXb0k1vpcY/9Yx9Eqn9wmnQhWzRPHOCqfJbF
-fldrUZDlPRYVK+pPZdutyuH8F+CDbgf5r8R5s7WbkyKF58Phw39iQWkV9o5i1KZT
-ui+WitolochhPzmt1eOXf0SuyGBnCfzZV0cxZEFJtI38+tM9IOigBsJmhJnm4nnK
-9xBwM4PDKSlHAJ/VAFpDb/WO2cH718mjW3GxcBnS46ibLjOz9DI8Zx7o4CxK40QT
-t+XSoUsvXu1fc4QAjXB+VCEb27CZXCfGo6I1Cf60OC/gMVaYBKgaHrLG0LuTJc2A
-Su4231D+lpgE2iF1uJulht3yS+hgpo90nj8fWStLgLViLZFQB0gYw02+iES+YMza
-qQaXqcremlHbIGZk1rFvg8hfZlMX0dpI2GODwaJ3VEiI560zJt+Wqp0WVJUF7SXF
-0Y/ntuW0vYZRjjqPr35w0GIwIuyTRvKn67vmi7emo6SUqgT8Wsft8EtapA7fQzlr
-y2UXEKNGBwQjU1lqB05C2Pxy/IBFMiTVh8dRqsGKIlrHM+BAMAVw5mOssgwHqFua
-4hIVjJfbI2T4nI5Owz97wtEmDe+W3k8fWKF1ozyoMJRTgwosAZs=
-=Y1Dd
------END PGP SIGNATURE-----
-
---bngpZeDFBG5YQlJZHTX7GAJbxAZIgGJpz--
+Looks good, will do it like this in the next version. Thanks!
 
