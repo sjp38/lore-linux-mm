@@ -2,166 +2,134 @@ Return-Path: <SRS0=zC3H=RW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,T_HK_NAME_DR,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3D726C4360F
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 18:28:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E516C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 18:32:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CF2402082F
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 18:28:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF2402082F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id D02B62082F
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 18:32:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D02B62082F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 32A0C6B0005; Tue, 19 Mar 2019 14:28:46 -0400 (EDT)
+	id 7B94F6B0005; Tue, 19 Mar 2019 14:32:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2D7176B0006; Tue, 19 Mar 2019 14:28:46 -0400 (EDT)
+	id 768B66B0006; Tue, 19 Mar 2019 14:32:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 17A4C6B0007; Tue, 19 Mar 2019 14:28:46 -0400 (EDT)
+	id 631106B0007; Tue, 19 Mar 2019 14:32:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E00CE6B0005
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 14:28:45 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id l10so16249178qkj.22
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 11:28:45 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 21B5C6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 14:32:16 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id 73so23068055pga.18
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 11:32:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=30apmnEQmfNZjkyK96GSJdVik20/1QA65Tr6Etwrt5A=;
-        b=jO1xsjiTebMsspZFAJCCe535ixST/R8r7ElAhWKZT/pmUsSqixYHYtnZHDiuY9Wtr6
-         wxgfMt4mI4FsfWjRW+/BVibjwHPpmCSjmXUlb6CqFURkKhanQEhlETqZwi84W+Uclm5U
-         ZdziPdN+YFswpqsbyTEMS4i3ETHpa4zZfqpWttSHJVFP3fStfUNxR17nevlJ8Isb0R6i
-         wcxOPJzKeNBXkUMq5PUzEmStq2v39X4SnUC/Uz1ylE2zJxOS+tAFZ+Rrn9gAAd3gB3jn
-         c9eU6nKcrUrdSE9jXfO9jYRwWGu9BW1lq5uoyTS9uBy3aw8n2wQ+1/rx56EC0NQMuQ40
-         PsCA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dgilbert@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dgilbert@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVu/jGtRUi4vR73e8Sqa0JjRMf10HOaxJ+wikEF2DZfiMY2S7g7
-	3/pzxmaXSaxgtv41Go0gePkOQrTGfQ/JKGA3u/4a1GLAoRaWq3s+/8pw3t2XNoBlL97XyO+QXI9
-	58lf4LdkgwMBW6npUA2GP9CVdiIItsbWZ2kAs08ooTfImoQUsqgA7StnmmT/gsq/LJg==
-X-Received: by 2002:ac8:6a10:: with SMTP id t16mr3156722qtr.242.1553020125597;
-        Tue, 19 Mar 2019 11:28:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyD5wnjw2A1VHpwkfao6xrAgErgehaCore/b0UmOl6LQCedKNfUH6ubcmbvpBPrdWr/N0GH
-X-Received: by 2002:ac8:6a10:: with SMTP id t16mr3156668qtr.242.1553020124773;
-        Tue, 19 Mar 2019 11:28:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553020124; cv=none;
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=2XGLLkxwE3qQ26cujfwCvyOVvmwUuuoqk/lAaFyDmeI=;
+        b=FMIqdyMMQXzFbM9rDmqK5T59Tj2i7G3BgFe+tziUMTKKtYXfiu+U+CNWzGhIBCmvtQ
+         BnsuNRPwI77HrytYwcF2Ld61FSBsK24RDOhZzsw9juisq6cpEwM0jsV8qHp0thoATmLo
+         l+QCPZ2HLndSL7/jz5thrt5SWl1hdknXvhQkDcSC5vhQOc292yIAwDknhscv8Jx/LyIM
+         q0wd6YwDWn/c6ioJG8SLt5CMxMSBsjj5yzBHd0rhQWBX06iYbAeihWCVeUhFeJJu2o7C
+         ds/bN4uHLT0sLiUHlCTC/bI1wZ2EONeomF212EkxVRQQdGZttIJejOpp1UaqkuBxTim3
+         CaCQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+X-Gm-Message-State: APjAAAVmH8gCweSAfEEkPB53DGGjL9ZncL19fzJdwDHoFgRI6y7x7uFB
+	xwd7dXfAfWcZ1CQMogs+l+TEbVR2Bi7NeX2gIJGpGr78Kkut8JInvhRhC5VZxPV0Bg7XvPl2nRA
+	9x0kIGo3bXd7lgoKAyxXh2539ZhB2kJEYYE3LQJWLXQqKXYjONsCJ9MmoaOoGPKvABg==
+X-Received: by 2002:a62:449b:: with SMTP id m27mr3344699pfi.79.1553020335720;
+        Tue, 19 Mar 2019 11:32:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxOLjcL7fkw8ShDJdhNo1A9OGx/4RMEg2sLDeFirKfLWRgAabbwNLQq0LdRiibbElyayfSO
+X-Received: by 2002:a62:449b:: with SMTP id m27mr3344639pfi.79.1553020334909;
+        Tue, 19 Mar 2019 11:32:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553020334; cv=none;
         d=google.com; s=arc-20160816;
-        b=vT60WtUrU1/dJeyBlzO4lXxQ22v8A5Gp5Abiijb8fcxGtlZbtLf3yOiaFQVRPSPq6w
-         3qUYsOATBDtEMRI749mFCFW4Ymvtmnm/Shpw8j17hMYPWbKolPklRfB4DdCpqPzWgQUI
-         FdVX9J5EsqC66V8R5BVfYjYeYXzcSE3thVLnX9umLZyM/2Xi241WLrD+u6CDtHTlF0Ix
-         gTnf/rUy5DkHhRMTKJxP6Cn7hWbUvRIcTyvsa1eEsqDntmxHo8FSSRpdjETFzkiZOfKo
-         lL35cGsxskUqZT7ugBMzmwreP2RBCmjKCrrL6VCrRa/i768qoCQ9iczoap3rNSYN4l4D
-         pX3g==
+        b=BNeijKtL/KoVmPGXRquRxBV5cGZby/ji2nVsLQ2/+BMOIW0F6IYrrdOEvWLfqPJvCU
+         wGKAVLq86orydGvIhu77huYzzMmfpCGq9dGKybYKFnk8D6WTeNOjrGMGieczPjdOEdPu
+         887vJ96mh+duik+S0GL3CWEoPLP1jkPs1wEzDaeCEWUhLbWRjqo35eUv4R7zSgn75C+/
+         uZjjm6ne9cv7kqWT+kxJxC7bVX0GlTi+l5sTy5C7QlukbrcT0R8/6XeXbEIsygAkHI6d
+         13mE8gdbltUAE0ld30ZNvyhiuv7NmfgHZ5S6/uVj6mas4SR79waDYlpfEcr8wZstDWXu
+         +P/Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
+        h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date;
-        bh=30apmnEQmfNZjkyK96GSJdVik20/1QA65Tr6Etwrt5A=;
-        b=usEoBF70HYL3RMGhBPGYxe6hHbrJjjFJutBx6vMEhYn5pch4PpOw6W3izBNJQ9COM1
-         wT42IWcPWMBILzsQ4MGwqdKTQEajK4QGqLEjEWDVvXEfNu8gd4Vwi8weZmJHfiHNSckl
-         avQcuDtHmIqf5G2HQiQU1GUI52CUhKaF5e/z3rK5W91vDzAvPnNLaFNgaHy92yEogPTa
-         0jnNKd/quxJs21VXjj9q5LfyEFbA+/8fsU5fo+ZT4Exfb4kI09jH5fD6zI0RVYSQXk4R
-         +Mgv3885KF35YPw24VsdvaI8ZU8hyzKYsIEQhG1qRtKTWWNTrdKR3T3OfGl6B24F99kA
-         DARg==
+        bh=2XGLLkxwE3qQ26cujfwCvyOVvmwUuuoqk/lAaFyDmeI=;
+        b=eAz9iZ86eAEO+iLfZgOEWdI/HtsWWbv2Jhx43ER4ce7J76rLc80/05HpGNKQYvIGUR
+         1Ko4hdEYJnLeFlQDdnCpc2Z1bJ3OQE6Xz0fg/n9lsaLVb2WPGewMAvnHbWuxzJjTuDKk
+         CnMnpLzi1b2xTPRFuOyzD8Whc3/vYmOrcApstsi8uamw77NO1j23hZlifXu8hpASC6XJ
+         +PUsTS13WVzIa3yxSa8B58V2t1KzfWL+odueiJ0mIQsR6kXLWQERantTuqGb9oU9oR64
+         +qmrbW59AigzJwB8bcIr+xY5RqL6hNw9CUnCbnh3ZGWU+tAorOOGlYGcgBBEdOTDLbE4
+         cJHQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dgilbert@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dgilbert@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t7si3512395qtd.292.2019.03.19.11.28.44
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id x9si12405641pll.228.2019.03.19.11.32.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Mar 2019 11:28:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dgilbert@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Tue, 19 Mar 2019 11:32:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dgilbert@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dgilbert@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 11AFA81F31;
-	Tue, 19 Mar 2019 18:28:43 +0000 (UTC)
-Received: from work-vm (ovpn-117-168.ams2.redhat.com [10.36.117.168])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 1867F611CD;
-	Tue, 19 Mar 2019 18:28:25 +0000 (UTC)
-Date: Tue, 19 Mar 2019 18:28:23 +0000
-From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Xu <peterx@redhat.com>, linux-kernel@vger.kernel.org,
-	Paolo Bonzini <pbonzini@redhat.com>,
-	Hugh Dickins <hughd@google.com>,
-	Luis Chamberlain <mcgrof@kernel.org>,
-	Maxime Coquelin <maxime.coquelin@redhat.com>,
-	Maya Gokhale <gokhale2@llnl.gov>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Pavel Emelyanov <xemul@virtuozzo.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Martin Cracauer <cracauer@cons.org>,
-	Denis Plotnikov <dplotnikov@virtuozzo.com>, linux-mm@kvack.org,
-	Marty McFadden <mcfadden8@llnl.gov>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	linux-api@vger.kernel.org, linux-fsdevel@vger.kernel.org
-Subject: Re: [PATCH v2 1/1] userfaultfd/sysctl: add
- vm.unprivileged_userfaultfd
-Message-ID: <20190319182822.GK2727@work-vm>
-References: <20190319030722.12441-1-peterx@redhat.com>
- <20190319030722.12441-2-peterx@redhat.com>
- <20190319110236.b6169d6b469a587a852c7e09@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190319110236.b6169d6b469a587a852c7e09@linux-foundation.org>
-User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Tue, 19 Mar 2019 18:28:44 +0000 (UTC)
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 32ECF3BCF;
+	Tue, 19 Mar 2019 18:32:13 +0000 (UTC)
+Date: Tue, 19 Mar 2019 11:32:12 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
+ <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy
+ <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart
+ <kstewart@linuxfoundation.org>, Greg Kroah-Hartman
+ <gregkh@linuxfoundation.org>, Ingo Molnar <mingo@kernel.org>,
+ "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Shuah Khan
+ <shuah@kernel.org>, Vincenzo Frascino <vincenzo.frascino@arm.com>, Eric
+ Dumazet <edumazet@google.com>, "David S. Miller" <davem@davemloft.net>,
+ Alexei Starovoitov <ast@kernel.org>, Daniel Borkmann
+ <daniel@iogearbox.net>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar
+ <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Arnaldo Carvalho
+ de Melo <acme@kernel.org>, linux-arm-kernel@lists.infradead.org,
+ linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org,
+ netdev@vger.kernel.org, bpf@vger.kernel.org,
+ linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, Dmitry
+ Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy
+ Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana
+ Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley
+ <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+ Chintan Pandya <cpandya@codeaurora.org>, Luc Van Oostenryck
+ <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>, Kevin
+ Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Subject: Re: [PATCH v12 00/13] arm64: untag user pointers passed to the
+ kernel
+Message-Id: <20190319113212.ca1d56301112454dfb5a39ba@linux-foundation.org>
+In-Reply-To: <cover.1552929301.git.andreyknvl@google.com>
+References: <cover.1552929301.git.andreyknvl@google.com>
+X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Andrew Morton (akpm@linux-foundation.org) wrote:
-> On Tue, 19 Mar 2019 11:07:22 +0800 Peter Xu <peterx@redhat.com> wrote:
+On Mon, 18 Mar 2019 18:17:32 +0100 Andrey Konovalov <andreyknvl@google.com> wrote:
+
+> === Notes
 > 
-> > Add a global sysctl knob "vm.unprivileged_userfaultfd" to control
-> > whether userfaultfd is allowed by unprivileged users.  When this is
-> > set to zero, only privileged users (root user, or users with the
-> > CAP_SYS_PTRACE capability) will be able to use the userfaultfd
-> > syscalls.
-> 
-> Please send along a full description of why you believe Linux needs
-> this feature, for me to add to the changelog.  What is the benefit to
-> our users?  How will it be used?
-> 
-> etcetera.  As it was presented I'm seeing no justification for adding
-> the patch!
+> This patchset is meant to be merged together with "arm64 relaxed ABI" [3].
 
-How about:
+What does this mean, precisely?  That neither series is useful without
+the other?  That either patchset will break things without the other?
 
----
-Userfaultfd can be misued to make it easier to exploit existing use-after-free
-(and similar) bugs that might otherwise only make a short window
-or race condition available.  By using userfaultfd to stall a kernel
-thread, a malicious program can keep some state, that it wrote, stable
-for an extended period, which it can then access using an existing
-exploit.   While it doesn't cause the exploit itself, and while it's not
-the only thing that can stall a kernel thread when accessing a memory location,
-it's one of the few that never needs priviledge.
+Only a small fraction of these patches carry evidence of having been
+reviewed.  Fixable?
 
-Add a flag, allowing userfaultfd to be restricted, so that in general 
-it won't be useable by arbitrary user programs, but in environments that
-require userfaultfd it can be turned back on.
+Which maintainer tree would be appropriate for carrying these patches?
 
----
-
-Dave
-
---
-Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
 
