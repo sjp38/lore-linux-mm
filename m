@@ -2,183 +2,171 @@ Return-Path: <SRS0=zC3H=RW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0F573C10F03
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 19:13:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 384AAC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 19:14:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B12E120651
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 19:13:54 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C7FBB213F2
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 19:14:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="tA1aPkae"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B12E120651
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="lGKqWcLG"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C7FBB213F2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6116C6B0005; Tue, 19 Mar 2019 15:13:54 -0400 (EDT)
+	id 610886B0006; Tue, 19 Mar 2019 15:14:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5C02B6B0006; Tue, 19 Mar 2019 15:13:54 -0400 (EDT)
+	id 5BFAD6B0007; Tue, 19 Mar 2019 15:14:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 488E46B0007; Tue, 19 Mar 2019 15:13:54 -0400 (EDT)
+	id 4AEFD6B0008; Tue, 19 Mar 2019 15:14:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 199FB6B0005
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 15:13:54 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id d198so2447624oih.6
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 12:13:54 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 23ED96B0006
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 15:14:55 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id y64so10896845qka.3
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 12:14:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=Hb0TMUCfZsXrifishUIJPpzzpWyGqqsjDKL3oDA7RZw=;
-        b=uZqjhXvOaUoymLBRam3jBq+bfNsiQvXEWIujIZX5B9wdXVdPP3lmkROBU8uceDLfp2
-         e+jC4bcUn6fp1cTI4RDNAKJplM+IXmQRiNkkF5hzbMjU+oErSVmabuYvmQUbpBE2sx0Z
-         +bUwrAvsaqAVvNI1YKvFonRYFBK3GZf0dpsAMrnpoedcOySPUTqcoib0G8Rdkm3O331g
-         29oXHHqHGyV1+4EUtVuFid+s+YdqjxqKusxmQz3nQDfpUiDoFJewiJnXp+ROUbg9LQbD
-         IqOtkq3E3YL6QhQ9XSekGGOMSRbDT0CtHXYUMlyDRYy1fIdH/AKNQpMiOuGQJV8YYdOw
-         KjWw==
-X-Gm-Message-State: APjAAAW0XqseMNYgMCqBfC8ryW14RcgCtvowVKuc3NGn6ij7gQjAksmF
-	dPt//Qv9ljEuO/QJWJJLfWDdR8nj5veshVLqJ5wnK2fjcceoO4jMv4CfEXsTOCOW+pVg88wyzgo
-	Sw9iWdvJXixNyR5USG06apMn6eg4hvo+fuM41VwPpH8F2F1f/KiJOQaZ/j+INxTsKdw==
-X-Received: by 2002:aca:cf10:: with SMTP id f16mr2603344oig.42.1553022833541;
-        Tue, 19 Mar 2019 12:13:53 -0700 (PDT)
-X-Received: by 2002:aca:cf10:: with SMTP id f16mr2603289oig.42.1553022832607;
-        Tue, 19 Mar 2019 12:13:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553022832; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:mime-version:content-transfer-encoding;
+        bh=eJlA5b/2FGId2EKihm7V3BwbEtF4wJiWzxoeFUYWeqo=;
+        b=nD/jNm8edBmFL8FXUrup0RVo7CJ2d6LTyAk1EG4dJ4gyEDv3LlZa4XgNvZSWF7fvxc
+         NItHgoeIIDGD8kEehST/iq04lgTV8BDIg2UAbwgH5ZlBJRc7htzkdpwSLA/zlEYbHmOE
+         g+yUAxC00gmQbJmj4wOLv4NsFu7C3TqhAZX95iq2eS+bk9v0L5BlvOrROVsDfvCcGA3P
+         XH1uEyJfTv45YgwGikyOiAFBrvKIqrveQnP3D3KE/lz3EQq5VZjC5q7PYKwrEmqHBST3
+         z5RRSFrtqmdjNumlkeGWs7hZO1iDeqvigQG39MwmC43LakFyNzWNgWxGayVFsaa8ar7C
+         8Cpg==
+X-Gm-Message-State: APjAAAU4uqceriMVaFVXr9mbfcIu5/6GZ3vdY/6328NEY4mZipLvogzt
+	j4J0NT3+HI13t8eGbDodEh7KcnTJkA2AeiGekR8kYsmuQzcodZ/sKUCJTq8UDiuAswJYnQMyL0m
+	mSIsXZxXF228lyN6lz+2q12GE0lOyaJm4ajiVE6/lxOHOijseJehOtI/L2tkaT4Ocyg==
+X-Received: by 2002:a37:47cb:: with SMTP id u194mr3157860qka.296.1553022894918;
+        Tue, 19 Mar 2019 12:14:54 -0700 (PDT)
+X-Received: by 2002:a37:47cb:: with SMTP id u194mr3157806qka.296.1553022894043;
+        Tue, 19 Mar 2019 12:14:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553022894; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ca+PCms6fYKnWy9Fb41or/rm9W401DIreXm/c9f12+YAAs9JcIm99iB20gC1Ie/TD3
-         LYJTDOJbzlfsn9iKPhUihQ+Ni6unC0M/HHV8KVu3XefJ7fCSBcbot6m6Vs+oza4On4CO
-         +z6r1vAJkoOo8u2U8MU1MPKqZahyBY9NANBiuZ8oUm9FfSqf+S1Kp5aVglTDFkZOaDVH
-         NEqpq2kOGkNRcN+i0qq1B+Yy//e0fjzVOfUcKdr/EAuQXO0+rjxrq4DDkh1fBuof6g3d
-         ENFtosJ8BY6YiDEWUP/+HLBSqFmtXPh74OLOPcBWUdOHlZDkxG58KDgoJa0CJI1XSfFD
-         sV6g==
+        b=RAv4niI+pdLXVSN7mSEnP54Er3N2eQIPxUDITfV8Jx5LKnGW/XI/RCij+efhyYN2b/
+         NsctZCZTZTFnmvMMSyB96ZkHSrcGuFAratybje6x0YitDG0aAlEFU2mWInrUP7tKcXuW
+         5/Y+PhN+qngVIBrS4J0jELAyKs1atPQvzFtYXn3snR4dpUE6z+sPHbRQA0cQKhP/lhMp
+         JUeNNvRFnWg1IUCdH8uDyIWiHY3bHgQmRGcYxnBL0m+si1YhyluioKj1IL8YvgD/yMfL
+         7fTThKFltRQ7QUo4zawfcv3pGVXFQ06AyfW0mPqQjLCoWe2xaXl9bMqXkIuN25S/mAL5
+         PZcA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=Hb0TMUCfZsXrifishUIJPpzzpWyGqqsjDKL3oDA7RZw=;
-        b=jvMlX78GmTkhQqbosh7vCk49ng69b5qN2+y/GFV7SGEcgPfRCL3GtbL5GBHzHHfguU
-         WREBz94kc4lNuKXVPiEv+N3kaGVoeTnLWUAYhgpXouGOgMKbYEk3lOYakVP3AQbrfpES
-         7ZHcEidzeO0I55YhqKwcVzH5zJoC/okYXgdzufY5Rw14ZdtF5L+HFiPdi18zDqhsZi+C
-         fkP4/jZ8s//nsbFAfsaciWkQzkwgp5W+3Ssb9b9ydfLMVPIHuba/7rx1fjuRcQ4Yj+Pa
-         25HcDgFbKOkZX1Vl7V1FonpfgIIHr8rbku9Asmcx0sXdtqJ14rTwCKyxMFIwunIb55Dt
-         J36Q==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id:dkim-signature;
+        bh=eJlA5b/2FGId2EKihm7V3BwbEtF4wJiWzxoeFUYWeqo=;
+        b=iY4evkbau73vPnly/KGhRJFLYngrTfbDdpMM3N8bRt6lUjOcOwSnfm2tNlI2s2O/1q
+         AXEWBMvc+NdoSwz1/Sm8+MbWV87ujwWTJyN6FYYpaWZ4tIzmVI7xGUwoXapLXTkHpw1n
+         VMxwIARE3KdS0B34i7xOFVF+JWv3T5yGP/EGhYTGBf014hKjEUWm3Z6z2A6gFBpNsm5h
+         IFJOrUlKn1wffYZxYy/7RTdD0Tq+yBKlkIslWaKBB26RcJB52wzAuEZ3Gg7bgj3K6vaP
+         htG7WJ9KzTN11VFmy+yFtsJWWGPgUcglpAIkgBEvOWODuJZVAz+KZc7pwxglyCwaW1Gd
+         3Zvw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=tA1aPkae;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@lca.pw header.s=google header.b=lGKqWcLG;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o132sor7426300oih.30.2019.03.19.12.13.52
+        by mx.google.com with SMTPS id i21sor7538420qkg.146.2019.03.19.12.14.53
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 19 Mar 2019 12:13:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 19 Mar 2019 12:14:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=tA1aPkae;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@lca.pw header.s=google header.b=lGKqWcLG;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=Hb0TMUCfZsXrifishUIJPpzzpWyGqqsjDKL3oDA7RZw=;
-        b=tA1aPkae+04SdhT1KymIG25CYueUBn6ZMXHtyA4R1DHsZP6v9/xxFKjK1f0XAOpgR0
-         PIpE9/8sIwPD7EAGecSssTxUVLZjsiDikt8ZhTDFkXe3s9F9gctBxbdG84RNHu7YA6L3
-         h/aHxnW6Fhp7ZmkQnRHrbYe+SmlrTcopjpXUdlhiUzROfFa293lEHe/jsqatKAOXYNGy
-         hyEP8vO/QCb9zZjMmwqpnuuPUjj1lV5AOmG6CtpDH8vNv3HYhOKtIr8qkS+YqVLn6Zkc
-         79zphgtqqD6Uqq3xhnozpHm1IP6m1Tp++4jKCdB6lPk2sn1nA7cEjCsGufszuq41Fhl7
-         6SVQ==
-X-Google-Smtp-Source: APXvYqzBxrNYRkRQzrHdBRUCSknsQ4I3vdghzH5Ms1E3iCffjEZnyjCciVZjxajeGDVJPFSdiQT6m/kbQDpxrRvkk9c=
-X-Received: by 2002:aca:f581:: with SMTP id t123mr2816773oih.0.1553022831762;
- Tue, 19 Mar 2019 12:13:51 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190313012706.GB3402@redhat.com> <20190313091004.b748502871ba0aa839b924e9@linux-foundation.org>
- <20190318170404.GA6786@redhat.com> <20190319094007.a47ce9222b5faacec3e96da4@linux-foundation.org>
- <20190319165802.GA3656@redhat.com> <20190319101249.d2076f4bacbef948055ae758@linux-foundation.org>
- <20190319171847.GC3656@redhat.com> <CAPcyv4iesGET_PV-QcdBbxJGgmJ_HhoGczyvb=0+SnLkFDhRuQ@mail.gmail.com>
- <20190319174552.GA3769@redhat.com> <CAPcyv4hFPOO0-=v3ZCNFA=LgE_QCvyFXGqF24Crveoj_NTbq0Q@mail.gmail.com>
- <20190319190528.GA4012@redhat.com>
-In-Reply-To: <20190319190528.GA4012@redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 19 Mar 2019 12:13:40 -0700
-Message-ID: <CAPcyv4hg5Y_NC1iu56zcznYkCRnwg+_7bGFr==7=AC6ii=O=Ng@mail.gmail.com>
-Subject: Re: [PATCH 00/10] HMM updates for 5.1
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Felix Kuehling <Felix.Kuehling@amd.com>, 
-	=?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>, 
-	Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, 
-	Jason Gunthorpe <jgg@mellanox.com>, Alex Deucher <alexander.deucher@amd.com>
+        d=lca.pw; s=google;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=eJlA5b/2FGId2EKihm7V3BwbEtF4wJiWzxoeFUYWeqo=;
+        b=lGKqWcLGRtp3qWcnzReq25nzeoNdSEmapSwYOBALcym3L+zl4EYeSe8YMrWcs4/PlS
+         c303CI00oi13rKLIH2Hj+igOhXyvveKDeoO7aA4UIiaDbtFdFtPODi1XGt4LcB2Pocg/
+         g6CDsxmoeQAIB2V49nrOXFqtbZk/pN8Nh34aSscPthMdPjvityOc3Sd6zhpUl/3/V1Ta
+         abF/099QqfJifuyzgyxP0rEVwrJYM7K/seF9lIl7JvF8kI24YUU9mGO7BEIOI5pkjcf8
+         0O+55CTptGEVwe0TWatr/i2VB3WIkAKJakO7AFfhb3n7bPtlml9qCBl4evPwR1Bf2akl
+         3Ugw==
+X-Google-Smtp-Source: APXvYqzguXsFfyYxgrWZahIw5uDi6s5sQkU4StEbwPpFZK2MITAf35CmaCqnvh7dn181oz6UMunRDg==
+X-Received: by 2002:a37:bbc3:: with SMTP id l186mr3060376qkf.239.1553022893629;
+        Tue, 19 Mar 2019 12:14:53 -0700 (PDT)
+Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id t35sm5513775qtc.10.2019.03.19.12.14.52
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Mar 2019 12:14:53 -0700 (PDT)
+Message-ID: <1553022891.26196.7.camel@lca.pw>
+Subject: Re: kernel BUG at include/linux/mm.h:1020!
+From: Qian Cai <cai@lca.pw>
+To: Mel Gorman <mgorman@techsingularity.net>, Daniel Jordan
+	 <daniel.m.jordan@oracle.com>
+Cc: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>, linux-mm@kvack.org, 
+	vbabka@suse.cz
+Date: Tue, 19 Mar 2019 15:14:51 -0400
+In-Reply-To: <20190317152204.GD3189@techsingularity.net>
+References: 
+	<CABXGCsM-SgUCAKA3=WpL7oWZ0Xq8A1Wf-Eh6MO0seee+TviDWQ@mail.gmail.com>
+	 <20190315205826.fgbelqkyuuayevun@ca-dmjordan1.us.oracle.com>
+	 <20190317152204.GD3189@techsingularity.net>
 Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 19, 2019 at 12:05 PM Jerome Glisse <jglisse@redhat.com> wrote:
->
-> On Tue, Mar 19, 2019 at 11:42:00AM -0700, Dan Williams wrote:
-> > On Tue, Mar 19, 2019 at 10:45 AM Jerome Glisse <jglisse@redhat.com> wrote:
-> > >
-> > > On Tue, Mar 19, 2019 at 10:33:57AM -0700, Dan Williams wrote:
-> > > > On Tue, Mar 19, 2019 at 10:19 AM Jerome Glisse <jglisse@redhat.com> wrote:
-> > > > >
-> > > > > On Tue, Mar 19, 2019 at 10:12:49AM -0700, Andrew Morton wrote:
-> > > > > > On Tue, 19 Mar 2019 12:58:02 -0400 Jerome Glisse <jglisse@redhat.com> wrote:
-> > > > [..]
-> > > > > > Also, the discussion regarding [07/10] is substantial and is ongoing so
-> > > > > > please let's push along wth that.
-> > > > >
-> > > > > I can move it as last patch in the serie but it is needed for ODP RDMA
-> > > > > convertion too. Otherwise i will just move that code into the ODP RDMA
-> > > > > code and will have to move it again into HMM code once i am done with
-> > > > > the nouveau changes and in the meantime i expect other driver will want
-> > > > > to use this 2 helpers too.
-> > > >
-> > > > I still hold out hope that we can find a way to have productive
-> > > > discussions about the implementation of this infrastructure.
-> > > > Threatening to move the code elsewhere to bypass the feedback is not
-> > > > productive.
-> > >
-> > > I am not threatening anything that code is in ODP _today_ with that
-> > > patchset i was factering it out so that i could also use it in nouveau.
-> > > nouveau is built in such way that right now i can not use it directly.
-> > > But i wanted to factor out now in hope that i can get the nouveau
-> > > changes in 5.2 and then convert nouveau in 5.3.
-> > >
-> > > So when i said that code will be in ODP it just means that instead of
-> > > removing it from ODP i will keep it there and it will just delay more
-> > > code sharing for everyone.
-> >
-> > The point I'm trying to make is that the code sharing for everyone is
-> > moving the implementation closer to canonical kernel code and use
-> > existing infrastructure. For example, I look at 'struct hmm_range' and
-> > see nothing hmm specific in it. I think we can make that generic and
-> > not build up more apis and data structures in the "hmm" namespace.
->
-> Right now i am trying to unify driver for device that have can support
-> the mmu notifier approach through HMM. Unify to a superset of driver
-> that can not abide by mmu notifier is on my todo list like i said but
-> it comes after. I do not want to make the big jump in just one go. So
-> i doing thing under HMM and thus in HMM namespace, but once i tackle
-> the larger set i will move to generic namespace what make sense.
->
-> This exact approach did happen several time already in the kernel. In
-> the GPU sub-system we did it several time. First do something for couple
-> devices that are very similar then grow to a bigger set of devices and
-> generalise along the way.
->
-> So i do not see what is the problem of me repeating that same pattern
-> here again. Do something for a smaller set before tackling it on for
-> a bigger set.
+On Sun, 2019-03-17 at 15:22 +0000, Mel Gorman wrote:
+> On Fri, Mar 15, 2019 at 04:58:27PM -0400, Daniel Jordan wrote:
+> > On Tue, Mar 12, 2019 at 10:55:27PM +0500, Mikhail Gavrilov wrote:
+> > > Hi folks.
+> > > I am observed kernel panic after updated to git commit 610cd4eadec4.
+> > > I am did not make git bisect because this crashes occurs spontaneously
+> > > and I not have exactly instruction how reproduce it.
+> > > 
+> > > Hope backtrace below could help understand how fix it:
+> > > 
+> > > page:ffffef46607ce000 is uninitialized and poisoned
+> > > raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff ffffffffffffffff
+> > > raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff ffffffffffffffff
+> > > page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
+> > > ------------[ cut here ]------------
+> > > kernel BUG at include/linux/mm.h:1020!
+> > > invalid opcode: 0000 [#1] SMP NOPTI
+> > > CPU: 1 PID: 118 Comm: kswapd0 Tainted: G         C
+> > > 5.1.0-0.rc0.git4.1.fc31.x86_64 #1
+> > > Hardware name: System manufacturer System Product Name/ROG STRIX
+> > > X470-I GAMING, BIOS 1201 12/07/2018
+> > > RIP: 0010:__reset_isolation_pfn+0x244/0x2b0
+> > 
+> > This is new code, from e332f741a8dd1 ("mm, compaction: be selective about
+> > what
+> > pageblocks to clear skip hints"), so I added some folks.
+> > 
+> 
+> I'm travelling at the moment and only online intermittently but I think
+> it's worth noting that the check being tripped is during a call to
+> page_zone() that also happened before the patch was merged too. I don't
+> think it's a new check as such. I haven't been able to isolate a source
+> of corruption in the series yet and suspected in at least one case that
+> there is another source of corruption that is causing unrelated
+> subsystems to trip over.
+> 
 
-All of that is fine, but when I asked about the ultimate trajectory
-that replaces hmm_range_dma_map() with an updated / HMM-aware GUP
-implementation, the response was that hmm_range_dma_map() is here to
-stay. The issue is not with forking off a small side effort, it's the
-plan to absorb that capability into a common implementation across
-non-HMM drivers where possible.
+So reverting this patch on the top of the mainline fixed the memory corruption
+for me or at least make it way much harder to reproduce.
+
+dbe2d4e4f12e ("mm, compaction: round-robin the order while searching the free
+lists for a target")
+
+This is easy to reproduce on both KVM and bare-metal using the reproducer.
+
+# swapoff -a
+# i=0; while :; do i=$((i+1)); echo $i | tee /tmp/log ;
+/opt/ltp/testcases/bin/oom01; sleep 5; done
+
+The memory corruption always happen within 300 tries. With the above patch
+reverted, both the mainline and linux-next survives with 1k+ attempts so far.
 
