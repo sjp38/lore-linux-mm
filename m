@@ -2,206 +2,184 @@ Return-Path: <SRS0=zC3H=RW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E8D79C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 19:02:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 26243C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 19:05:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9BFC320693
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 19:02:36 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="cEUH3Lqw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9BFC320693
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id D45E92083D
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 19:05:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D45E92083D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 384CE6B0005; Tue, 19 Mar 2019 15:02:36 -0400 (EDT)
+	id 860C66B0005; Tue, 19 Mar 2019 15:05:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 331636B0006; Tue, 19 Mar 2019 15:02:36 -0400 (EDT)
+	id 810B36B0006; Tue, 19 Mar 2019 15:05:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1D2336B0007; Tue, 19 Mar 2019 15:02:36 -0400 (EDT)
+	id 6D9C66B0007; Tue, 19 Mar 2019 15:05:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C2AEF6B0005
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 15:02:35 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id 134so23705930pfx.21
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 12:02:35 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 499106B0005
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 15:05:33 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id k29so18667271qkl.14
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 12:05:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=NZoJbC8WOTr0NdLPHDxUPPIt9/DJYfgztYt8n26Np0U=;
-        b=JK++3nWthgG+EU73Qb8DYcWvF/2tFUyzHAq8H8tdj8lfRa200xCDtK56VEQW0dRv1q
-         n1i4iPbcq75IuDigjobbOlAI4Jt1szgH6O4x3zYgf/gOy3nhv0DBy6J4xnQxg4L5dp0X
-         lqNvDDwQfyRUKo0nzOaMbK8RN5Lf23vJZb9tzJ5rp1aU+TD9wp1lekvpoXQf92oOBhZV
-         77Fkl7bMRPEWNQ+tC8UwZ1R2TJeiBGz8MKkh0uUc1l09wnf+wCjQMsQc8huHOIdLG/Fv
-         OvD6RFNHGF/USEfTaC2eki7n8RmqkXjDolZ2R7/dZq8tzLn8XlATCpAsYGROM0FJ/TfY
-         8hbQ==
-X-Gm-Message-State: APjAAAV/ChWn2NkXHA+Usu6PobnTyJ0r3K9WsmK4LZ++ONZyU6QfHn8c
-	2lJI2PVLZvNobzqcsMLjr2sQwuGx1BxnytmJEwS4gvugGjwY617TKdALrxS5OxcUny5FLm69/te
-	exraJgZP5kXVE8nkdAJhNs5gyc83iBJTbjXVToWm58PLMBgLY+kNkpSfrIJPzH8U5FQ==
-X-Received: by 2002:a65:4147:: with SMTP id x7mr3252044pgp.54.1553022155283;
-        Tue, 19 Mar 2019 12:02:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqykDPGmwwYbCyW3lqC5G8OGsG3cu64n8vQH8qUrwLH00Rb141BJs8mfB5T1Ae6CzTuYYEcN
-X-Received: by 2002:a65:4147:: with SMTP id x7mr3251879pgp.54.1553022153568;
-        Tue, 19 Mar 2019 12:02:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553022153; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=OycpD+CPZT8XAlpeEa4gvrliRdgrsjfw2e+kvwQcboI=;
+        b=FXiVlMrwBiiQDIOYiMCvV785CrhbPe4OgK/OGC9/zb5Bm5wcoyqbV8+Rr6OkvnMBBg
+         7JkpmTcahJnKnfQ86hyVeRV7Pdh0M1IhNcg06Q2HXM4yKuHruO7PdaHKxb3BlyANZR4N
+         bZD+KDKh+wAAluU4uGiXeQsal88a177LiNpzyzHkpKIcuX7KKY4jPYOOxkpgPtxym8cM
+         XeWdeubBKeosmZ7CY/lL709LHxOK80uL2ugpt4ZdyVicbfuEjU3GMw4bqLH2mVrPyK5p
+         m+JVTwip92BbB5laKkf9dKwPT3UCInz24QkSJdmPnh78U9DM5QNk0OjFqoWO7issM6o9
+         m6cQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUVj/U2kd1CSciL+phqf11xR3loPj6Dm+MFQ0ikykdM8O6F4cHf
+	YHnMJbCjG0zv5jFxrdDMdyj0Qmv33j4NKoCEN47pR+QuDENSMXglaPUI4K/m2jy/+O55hm3pb6j
+	/5iIOppoq+eEyWz5/wpFOzXVq4BdOk07b7GtEfL5MaLhVl/Lu+VtgCfP1Yf47bFEd8w==
+X-Received: by 2002:ac8:5493:: with SMTP id h19mr3293358qtq.23.1553022333000;
+        Tue, 19 Mar 2019 12:05:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyP+dF2X0HMLffyhkViTt+esSS32MslaUBzg54G8r/Q94z2SUH2WXOKTnGXwtqA9okfK4NF
+X-Received: by 2002:ac8:5493:: with SMTP id h19mr3293292qtq.23.1553022332052;
+        Tue, 19 Mar 2019 12:05:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553022332; cv=none;
         d=google.com; s=arc-20160816;
-        b=NBF8JzolkVMHJPM0RWFNhE86y1nCe3++1ha8gfmCII+43czWPnEYMWzuKQoX41+aCm
-         q63VEB6gY9WCDNoal5OPFhx1Ga8u5wPb1LoxVNXNAwwLXVgEnlF0qY3Uua694FFSNGoa
-         4qSBB0MRELWbh781HUpH7oLikURflNAnjONHJ/dqBo7GZxP+dDGLFcp8kpV+1eIXe5eV
-         JdR01VEeZvwBt1N0CQdFDFNWQhAztiyKRRpQBRL/6WbEcPg1kSyr619lzSGD3v8BaxZI
-         Ua7JQ4fubs5RQl1OVSxv5iyhcSGu5M6cF/whTg9QcuUtHLps/gFSox3K8lZ1o8CT5d7/
-         KJ+g==
+        b=UPcGlfgICRRY/cs3eIbsNy8qWaJgDpi6mMyhh5wQE9Oocaw5tZKGcKGW597xqskb1d
+         UJltSHC5gqDEKHS1US3qVShSJy6lCPQrcQJT4+4WGsmoNPdel5xq03KH4PdRMn8mUYmY
+         cDJxtZBZ+pLyBIBFlUPkJ0FFjag3vRnyCH+GDYs5GTpcSW2VXuLD4d+91MRf7UBbdHGc
+         lm51EcUVYEA6+qv4lgvVKGRYYNAePPvaz2GstVlwaI5+RYS5RSKecsXNk8rrAlMnzpSv
+         XhaeKhuIy4p3DtLS1dyM64BC88JzLBByrIzXSuPnjrnz9423upFVki0KMncICuMOCQjb
+         2ytw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=NZoJbC8WOTr0NdLPHDxUPPIt9/DJYfgztYt8n26Np0U=;
-        b=FNfw6j4vhhk+/KjnS8HNbRbh/ITVY0soLUHan5fDPD6Hxw7ukfj9/TnzY3Tt/l8oXw
-         R414+L1ICJYDJLXimldsWMUYGAElYS2MNs0vq9FYIY1IQHThTqQDQfwDucp02BFexzBQ
-         +kM2tz25wNTOoJgT2BfTMnuIU2NQ5dldeQDdqnk5OxY86nq+N+kJrslPt83YDGmFaSDA
-         fMiCIgAgi7z8N4gYZsmgbkQKoRiDDnPDhAGs9gXgCdDY+RAEpgF/aSfcGhDcgSkofKdK
-         ErhRrFCswZaqanRz+0tg6PL6KV4GAq6KDdOpRBI0Ew8EejA3oHa2LvrfpmSx1C1y+CEF
-         8DWw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=OycpD+CPZT8XAlpeEa4gvrliRdgrsjfw2e+kvwQcboI=;
+        b=WZN3xzCT0fuTR5EBz/4i/zZxOdxss8DelLGyTXD2114L4U6FFoGorQC82ZbSLfniDX
+         f4dMtmRMx60G/YeRfKuohv1vYVann3v/Kw3c15BWU2ngr0J3ws8TdnUKAWKRyDf1dh1g
+         w5Th03UyzGzpv93Ext9Zbiufo0IDaNfsYydfL52sH/EA7yUPQ+Uq0DI66dFSCjlQDlPB
+         sFsMH7eE/wdZ9ZDMHYgc+LevJNiPM/aWhfwMfDm0JRY+iyqslZjVu8ut8Z5voK5Rk4+j
+         s3mo5pnhT+2T9UVmpuFNWt/Po/c9K+Cn5+q8OpxVxYcKj9TjlrmPVL64ny8fvR8gqxGM
+         NJmA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=cEUH3Lqw;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id j134si12523214pgc.42.2019.03.19.12.02.33
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d9si1733008qvj.212.2019.03.19.12.05.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Mar 2019 12:02:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        Tue, 19 Mar 2019 12:05:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=cEUH3Lqw;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5c913cb90000>; Tue, 19 Mar 2019 12:02:18 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
-  Tue, 19 Mar 2019 12:02:33 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Tue, 19 Mar 2019 12:02:33 -0700
-Received: from [10.110.48.28] (10.124.1.5) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Tue, 19 Mar
- 2019 19:02:32 +0000
-Subject: Re: [PATCH v4 1/1] mm: introduce put_user_page*(), placeholder
- versions
-To: Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>
-CC: Jerome Glisse <jglisse@redhat.com>, <john.hubbard@gmail.com>, Andrew
- Morton <akpm@linux-foundation.org>, <linux-mm@kvack.org>, Al Viro
-	<viro@zeniv.linux.org.uk>, Christian Benvenuti <benve@cisco.com>, Christoph
- Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, Dan Williams
-	<dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dennis
- Dalessandro <dennis.dalessandro@intel.com>, Doug Ledford
-	<dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>, Jason Gunthorpe
-	<jgg@ziepe.ca>, Matthew Wilcox <willy@infradead.org>, Michal Hocko
-	<mhocko@kernel.org>, Mike Rapoport <rppt@linux.ibm.com>, Mike Marciniszyn
-	<mike.marciniszyn@intel.com>, Ralph Campbell <rcampbell@nvidia.com>, Tom
- Talpey <tom@talpey.com>, LKML <linux-kernel@vger.kernel.org>,
-	<linux-fsdevel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
-References: <20190308213633.28978-1-jhubbard@nvidia.com>
- <20190308213633.28978-2-jhubbard@nvidia.com>
- <20190319120417.yzormwjhaeuu7jpp@kshutemo-mobl1>
- <20190319134724.GB3437@redhat.com> <20190319141416.GA3879@redhat.com>
- <20190319142918.6a5vom55aeojapjp@kshutemo-mobl1>
- <20190319153644.GB26099@quack2.suse.cz>
-From: John Hubbard <jhubbard@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <99882bf1-1db8-fd2c-cc72-2a6ea8ea4f89@nvidia.com>
-Date: Tue, 19 Mar 2019 12:02:32 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.3
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 3CA4B308622A;
+	Tue, 19 Mar 2019 19:05:31 +0000 (UTC)
+Received: from redhat.com (unknown [10.20.6.236])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 322C26295D;
+	Tue, 19 Mar 2019 19:05:30 +0000 (UTC)
+Date: Tue, 19 Mar 2019 15:05:28 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Linux MM <linux-mm@kvack.org>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	Alex Deucher <alexander.deucher@amd.com>
+Subject: Re: [PATCH 00/10] HMM updates for 5.1
+Message-ID: <20190319190528.GA4012@redhat.com>
+References: <20190313012706.GB3402@redhat.com>
+ <20190313091004.b748502871ba0aa839b924e9@linux-foundation.org>
+ <20190318170404.GA6786@redhat.com>
+ <20190319094007.a47ce9222b5faacec3e96da4@linux-foundation.org>
+ <20190319165802.GA3656@redhat.com>
+ <20190319101249.d2076f4bacbef948055ae758@linux-foundation.org>
+ <20190319171847.GC3656@redhat.com>
+ <CAPcyv4iesGET_PV-QcdBbxJGgmJ_HhoGczyvb=0+SnLkFDhRuQ@mail.gmail.com>
+ <20190319174552.GA3769@redhat.com>
+ <CAPcyv4hFPOO0-=v3ZCNFA=LgE_QCvyFXGqF24Crveoj_NTbq0Q@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20190319153644.GB26099@quack2.suse.cz>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL101.nvidia.com (172.20.187.10) To
- HQMAIL101.nvidia.com (172.20.187.10)
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US-large
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1553022138; bh=NZoJbC8WOTr0NdLPHDxUPPIt9/DJYfgztYt8n26Np0U=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=cEUH3Lqw9UBui8Fl9HmBEvNVfx73iPEdZqVl+LLKqXgHVwB0VcSbDy385l75xJqu5
-	 331YZ/UQtFcSBuZnrKiQz6kQOIs07Y/L9OVI0ot2hjFtbEzxLPlHH6RHrAxg5oRzHy
-	 7jnl03iZU4oMHJiDR4HmuuR04+8nBrMtK1y4qb3b38mhnm4ZNsfBH9v88Pw5q+3XHh
-	 1L4YW/u593GRa+5uQQo71uYfBXVoLojpt+lxUXMJKnsIY9pWVT/vLyfF57No+6qBeJ
-	 RUvCPIT0OiytlsDBsz/EGmWiyI2RDo/55GN4obyJ++mj4Ll3E8oWcXLEgy2jbDWpZd
-	 8AHmcW7zcs33g==
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAPcyv4hFPOO0-=v3ZCNFA=LgE_QCvyFXGqF24Crveoj_NTbq0Q@mail.gmail.com>
+User-Agent: Mutt/1.10.0 (2018-05-17)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Tue, 19 Mar 2019 19:05:31 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/19/19 8:36 AM, Jan Kara wrote:
-> On Tue 19-03-19 17:29:18, Kirill A. Shutemov wrote:
->> On Tue, Mar 19, 2019 at 10:14:16AM -0400, Jerome Glisse wrote:
->>> On Tue, Mar 19, 2019 at 09:47:24AM -0400, Jerome Glisse wrote:
->>>> On Tue, Mar 19, 2019 at 03:04:17PM +0300, Kirill A. Shutemov wrote:
->>>>> On Fri, Mar 08, 2019 at 01:36:33PM -0800, john.hubbard@gmail.com wrote:
->>>>>> From: John Hubbard <jhubbard@nvidia.com>
->>>> [...]
->>> Forgot to mention one thing, we had a discussion with Andrea and Jan
->>> about set_page_dirty() and Andrea had the good idea of maybe doing
->>> the set_page_dirty() at GUP time (when GUP with write) not when the
->>> GUP user calls put_page(). We can do that by setting the dirty bit
->>> in the pte for instance. They are few bonus of doing things that way:
->>>     - amortize the cost of calling set_page_dirty() (ie one call for
->>>       GUP and page_mkclean()
->>>     - it is always safe to do so at GUP time (ie the pte has write
->>>       permission and thus the page is in correct state)
->>>     - safe from truncate race
->>>     - no need to ever lock the page
->>>
->>> Extra bonus from my point of view, it simplify thing for my generic
->>> page protection patchset (KSM for file back page).
->>>
->>> So maybe we should explore that ? It would also be a lot less code.
->>
->> Yes, please. It sounds more sensible to me to dirty the page on get, not
->> on put.
+On Tue, Mar 19, 2019 at 11:42:00AM -0700, Dan Williams wrote:
+> On Tue, Mar 19, 2019 at 10:45 AM Jerome Glisse <jglisse@redhat.com> wrote:
+> >
+> > On Tue, Mar 19, 2019 at 10:33:57AM -0700, Dan Williams wrote:
+> > > On Tue, Mar 19, 2019 at 10:19 AM Jerome Glisse <jglisse@redhat.com> wrote:
+> > > >
+> > > > On Tue, Mar 19, 2019 at 10:12:49AM -0700, Andrew Morton wrote:
+> > > > > On Tue, 19 Mar 2019 12:58:02 -0400 Jerome Glisse <jglisse@redhat.com> wrote:
+> > > [..]
+> > > > > Also, the discussion regarding [07/10] is substantial and is ongoing so
+> > > > > please let's push along wth that.
+> > > >
+> > > > I can move it as last patch in the serie but it is needed for ODP RDMA
+> > > > convertion too. Otherwise i will just move that code into the ODP RDMA
+> > > > code and will have to move it again into HMM code once i am done with
+> > > > the nouveau changes and in the meantime i expect other driver will want
+> > > > to use this 2 helpers too.
+> > >
+> > > I still hold out hope that we can find a way to have productive
+> > > discussions about the implementation of this infrastructure.
+> > > Threatening to move the code elsewhere to bypass the feedback is not
+> > > productive.
+> >
+> > I am not threatening anything that code is in ODP _today_ with that
+> > patchset i was factering it out so that i could also use it in nouveau.
+> > nouveau is built in such way that right now i can not use it directly.
+> > But i wanted to factor out now in hope that i can get the nouveau
+> > changes in 5.2 and then convert nouveau in 5.3.
+> >
+> > So when i said that code will be in ODP it just means that instead of
+> > removing it from ODP i will keep it there and it will just delay more
+> > code sharing for everyone.
 > 
-> I fully agree this is a desirable final state of affairs. And with changes
-> to how we treat pinned pages during writeback there won't have to be any
-> explicit dirtying at all in the end because the page is guaranteed to be
-> dirty after a write page fault and pin would make sure it stays dirty until
-> unpinned. However initially I want the helpers to be as close to code they
-> are replacing as possible. Because it will be hard to catch all the bugs
-> due to driver conversions even in that situation. So I still think that
-> these helpers as they are a good first step. Then we need to convert
-> GUP users to use them and then it is much easier to modify the behavior
-> since it is no longer opencoded in two hudred or how many places...
-> 
-> 								Honza
+> The point I'm trying to make is that the code sharing for everyone is
+> moving the implementation closer to canonical kernel code and use
+> existing infrastructure. For example, I look at 'struct hmm_range' and
+> see nothing hmm specific in it. I think we can make that generic and
+> not build up more apis and data structures in the "hmm" namespace.
 
-In fact, we had this very same question come up last month [1]: I was also
-wondering if we should just jump directly to the final step, and not
-do the dirtying call, but it is true that during the conversion process,
-(which effectively wraps put_page(), without changing anything else),
-it's safer to avoid changing things. 
+Right now i am trying to unify driver for device that have can support
+the mmu notifier approach through HMM. Unify to a superset of driver
+that can not abide by mmu notifier is on my todo list like i said but
+it comes after. I do not want to make the big jump in just one go. So
+i doing thing under HMM and thus in HMM namespace, but once i tackle
+the larger set i will move to generic namespace what make sense.
 
-The whole system is fragile because it's running something that has some 
-latent bugs in this area, so probably best to do it the way Jan says, and 
-avoid causing any new instances of reproducing this problem, even though 
-there is a bit more churn involved.
+This exact approach did happen several time already in the kernel. In
+the GPU sub-system we did it several time. First do something for couple
+devices that are very similar then grow to a bigger set of devices and
+generalise along the way.
 
+So i do not see what is the problem of me repeating that same pattern
+here again. Do something for a smaller set before tackling it on for
+a bigger set.
 
-[1] https://lore.kernel.org/r/20190205112107.GB3872@quack2.suse.cz
-
-thanks,
--- 
-John Hubbard
-NVIDIA
+Cheers,
+Jérôme
 
