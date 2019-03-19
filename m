@@ -2,168 +2,144 @@ Return-Path: <SRS0=zC3H=RW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 41694C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 08:46:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 38B73C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 09:27:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E750B20854
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 08:45:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E28F820854
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 09:27:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="i/r1cUhP"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E750B20854
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="NlnQ0maU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E28F820854
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 813746B0008; Tue, 19 Mar 2019 04:45:59 -0400 (EDT)
+	id 9A17D6B0005; Tue, 19 Mar 2019 05:27:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7C4266B000A; Tue, 19 Mar 2019 04:45:59 -0400 (EDT)
+	id 951556B0006; Tue, 19 Mar 2019 05:27:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6D9B16B000C; Tue, 19 Mar 2019 04:45:59 -0400 (EDT)
+	id 868746B0007; Tue, 19 Mar 2019 05:27:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 265ED6B0008
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 04:45:59 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id v6so16153295pgo.22
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 01:45:59 -0700 (PDT)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DA3C6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 05:27:57 -0400 (EDT)
+Received: by mail-it1-f199.google.com with SMTP id i4so16876462itb.1
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 02:27:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=9EbD8SYVxjECn/vPlG55W0WV+leCz2o3Rm26sNUa/m0=;
-        b=CSThbgOgYdu916tGoTqYsqQEYe9gyaYme3V/k1ZeHnF2Q2EkMGDiUtf+w92QM9VLmn
-         QZR6lUyulImh4g+3+3uAkXqWZGsdogQi249KfQSZ7UaXfT5NmCaXPvYp9WO4mgj3VqfV
-         Dk65dgkOdpcsZ+YJgllJ94k6lBNXQh95RK8VB+Z/DtA0TKw3GizYAkMqD8Pf7TL5LiOz
-         XKoqXUHx0h22xCqQmU6odX08HXwKXYeY3T5YbgghLWDdpfc6fpa8/HcIuszTzowFPowd
-         Bhl/tWFr1tkXQfwZ4yFD7ey56FH/YpWD+hkMO75g25FeyUQe1ZiNAVGWZPu0oh0COsSm
-         RXjw==
-X-Gm-Message-State: APjAAAXzug3atTJ2n4G+FeZo3VC+SfSBMqo12QQtTCZQXIHeGkfWAc7o
-	7FgtWoDAVK8zNdQs36AdAI2wRY9Xi3pmRDGe/Iva9i0an1pVzv6U11OOJo+b3+Zj6xuPOkoc0Nf
-	6HVQwFpFsX51au4ESyRo2wDMglBcvVslt6BVaQG24F0jLJxf3sYfLxlD/00XsbhgWIw==
-X-Received: by 2002:a65:5c07:: with SMTP id u7mr755924pgr.320.1552985158809;
-        Tue, 19 Mar 2019 01:45:58 -0700 (PDT)
-X-Received: by 2002:a65:5c07:: with SMTP id u7mr755872pgr.320.1552985157908;
-        Tue, 19 Mar 2019 01:45:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552985157; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=EOsSTBRP/BshLjDVZ1hXKQzf74hkqz+KxF8DK7oDS3c=;
+        b=rPcDrsuRB5ZlOvGUUQ1vMv9xO8PwEnrOPNrojNVu5ttg8FaIAXWitvGRI1WItV/4xS
+         1A66+tPA7iQgQjuKajL+uPneaa/qoHaAOXxXZxjcm59feoQh0RpT278zqtdwIQ26W7jI
+         qSYU7dNF9u+FMOnmGlrug7V6R7MrxqzzEdA79h51v6hfQ0oDEQQ2edBiUHFycHo4cPa/
+         2D94RT+BY32jBzt4i0HzPXg7P5MtiouQrvTQIdlhh9m8u9OM1nEdl+1yqig8uH7MSwlw
+         XVzwZPBudnKCH+MKwMJgySPy4NykLH3RXjaKxRlJyJN4rqwLKfQwwPOcpL1bCGaOdlei
+         pXtg==
+X-Gm-Message-State: APjAAAV09tmbFsUZCxWmWEpKTLXf/ICplRy+D8jv2CtR4JyHhOlueUpz
+	GT5rAG0kYRZI/QTmULCn25oDQWUmY2IbOX2/+1DuMAeTa5yCEN3+zz+nlhABEbwlamz05Hi8kcH
+	855TyisbS1l4G1p6KyWS6Zid81nJoObSUFpM6k2SVqOeKoSCcH/N2fj2intkxNpOfRQ==
+X-Received: by 2002:a02:4c0c:: with SMTP id a12mr753566jab.126.1552987677082;
+        Tue, 19 Mar 2019 02:27:57 -0700 (PDT)
+X-Received: by 2002:a02:4c0c:: with SMTP id a12mr753538jab.126.1552987676235;
+        Tue, 19 Mar 2019 02:27:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552987676; cv=none;
         d=google.com; s=arc-20160816;
-        b=gZCT7o+GQXcZR/J7ysb+5e9SAOZghMr4bPNO0IsO9B2lkMHlHGBCtBAmB19b3Njenx
-         NwwUgN6LsEC51KR1YPrVziJjkqYOe+2tqO/kHCtNChBxIOb7N+2Uyw6UhctXXZ9RKzIF
-         NZnLRxMwvWRdcODa2PUqCU8YMdlTZDDYb/eIhRSuuY89BaYfC8cZ6td4dV6DDmfbMzyx
-         N//mBIpBQqLpU3aKuehU6A6eJiyPHwLOzazDdVgMciRmYqZyXHi9zOnfyWyUJsEJr16y
-         m1COCsoPFsbPPERCbnvFcfITQ4RK05HjbxIliNi5ZaQ231cvEwO/JDzV9gwGayKCm6tH
-         iWcQ==
+        b=q6R7YllKInkb44tE5QYezUly2CSMYsrnos06xZetlyZ1NGAEjhLu/+gMAXlCMRMl48
+         BxJlmXFvgZv3CSi0paZ4uIJzgaTx2qX/LpoEw+sW3OBFYUgLrg3n7abqKQsH9nvKIpHM
+         lpymDEmfZTeUV2aTjSq/EjDsWybd1STUPd5EfE1EZqGH3e5B9pDAz3FDeSOBmfApwW/k
+         pt5fKS5aHNmowbenNMC5033IwKU2QXeZQZmKE/9Uud2gM6m40i9INsGymmdy0h9XQpyL
+         CUIfV3nDBWUSEwveps6w1YaNW4pgwc6xK1HMlww4QhemW8gz1gF8GQCIRK/7IQjyfqtC
+         y+3Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=9EbD8SYVxjECn/vPlG55W0WV+leCz2o3Rm26sNUa/m0=;
-        b=bhFjuydNiF/BFsXV9wcSOBZQ3iFNIAfjASSrLQUdQXPC3yr717mwW5MX9Pvr8jf4Ua
-         7jFy94/8DbPMaJ1/yz5feScSjYnE8zq6o5nbKMK58I3yHLQg1uS+DlKbna8oDf2DHMWm
-         wnmejUcwNrkmLrm7lKFHNDb6+QRYmAntVdb5cJbQbZ//KRPDl69ALmCPmFdaLVYjzdpu
-         6I/ESLXRFkBFGPvi43h6uNDhRG9ZCIzA2m/mAOxNescBPOSyrr6DuVGc/ZiJwgXlTzVn
-         IFFVN1v+OmuQkakNSJOvg6xE1cAc5vbhh1Oc+rFsCJoeW3H3CJJWuezKeoeQXLYEIJ2t
-         MCqQ==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=EOsSTBRP/BshLjDVZ1hXKQzf74hkqz+KxF8DK7oDS3c=;
+        b=XL+MW4sWII6xxRyxJgp7n7nr93lfdMfL2JGBsKWB9f5e4r7ihqBI50VumEHLgr1MLm
+         sHsBChL3qmArOxAiA/m+CuoNhVYk36HzJsLOzvkAxrzAxOaOeLVQCiqUqjiujOoX9Quf
+         6rloAQfxBTInbKmD8Ith7ehGZabGYo+dw+ntemjfL/9joJKxcwKtQ/74TGFHHcuirqAc
+         UHutejy/Rg7uX5krvcZ0aSkXcpv6NKTBKmG/l9zpwjknJvcAEcYxWmUsAZGwetEuU1V2
+         tsSSjsXpXDX+wbZKN2ZY3L2jYHCDECdnZUZuzQCMf80zb7GDDnofMyAXsSqDOvYmSbai
+         WvzA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b="i/r1cUhP";
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=NlnQ0maU;
+       spf=pass (google.com: domain of zbestahu@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=zbestahu@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d18sor11260642pgp.85.2019.03.19.01.45.57
+        by mx.google.com with SMTPS id y20sor5791083iol.11.2019.03.19.02.27.56
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 19 Mar 2019 01:45:57 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
+        Tue, 19 Mar 2019 02:27:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of zbestahu@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b="i/r1cUhP";
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=NlnQ0maU;
+       spf=pass (google.com: domain of zbestahu@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=zbestahu@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=9EbD8SYVxjECn/vPlG55W0WV+leCz2o3Rm26sNUa/m0=;
-        b=i/r1cUhPRgQn1TvYQEiXrqgh3TqKtnExJ7Csss+9t3U5oHRGWOWorMHyNJ0mv6o17/
-         r0kBjBkC+wxMN+/U134w9yMkr9FmkZLdoq+SFXznsBdbhF6pxKgjIq8cYjUX/2jCj2PS
-         aZOVNK4sm/Z9ETX2HU5BMqYgkqmLaVnY+4c1EA6C6YL1d+JeCiEXqzGQuHZN3g8WLDFg
-         6NuNZcy4iSP4XGwYSkT2q334oHOo84TssZh/OuxbzHMirQJO4vAn5BSHiUMfdvnB7u8S
-         AInMGO8+zERbsleDu7bn0YZ0mKTXrpN/wmkzygZX87h7ZOMghyGQHXg/McJFzkFWtG53
-         bABw==
-X-Google-Smtp-Source: APXvYqwiA2BHLCgWmJ884rWZbGyqkGXOibn/Ce1JhESraItT0qgQ8oKmy0iHV7/kJJaGpHuFU6ZCgg==
-X-Received: by 2002:a63:fc60:: with SMTP id r32mr752860pgk.345.1552985157566;
-        Tue, 19 Mar 2019 01:45:57 -0700 (PDT)
-Received: from kshutemo-mobl1.localdomain ([134.134.139.83])
-        by smtp.gmail.com with ESMTPSA id x19sm16938831pfm.108.2019.03.19.01.45.56
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id;
+        bh=EOsSTBRP/BshLjDVZ1hXKQzf74hkqz+KxF8DK7oDS3c=;
+        b=NlnQ0maUX/zcIaP00WrgXKa6TeYY5kwU6SeREdwWgiTRpqplfXKyQEdRNdD6euJwmq
+         HWCa2DAgXaRZ/qO75/JOz614V/F5JFEYlkYKEdHbZ2GkBNt/1a3v7PSMyB6MeOi0XMQd
+         DLIbcumJ7GGB5YlcJ4Tot4kJJE8sUPCsTBedmpnwBMd+cwuD+XOKxB8kWoSgVlxyEXsE
+         kJtXn4RTMfm5D8qArD9k75aEJtDcPge4hUw3aAX4MX2cHzNoKfvo+XXC8zIKlZbKwcjp
+         uxxO/CP04U4U+dUNFQhGJtXoQeoo6f2k44pHjcA2fcWwsZsHxE0cepw0yLo2+9uu/LXh
+         sqgQ==
+X-Google-Smtp-Source: APXvYqzZCcDn3wQPMJQjzN2dd77J1WuJd0znBkD/vrveAlx8QXcOEyqcigqs2eABgYisnwexCodo7Q==
+X-Received: by 2002:a6b:6d15:: with SMTP id a21mr674374iod.235.1552987676045;
+        Tue, 19 Mar 2019 02:27:56 -0700 (PDT)
+Received: from huyue2.ccdomain.com ([218.189.10.173])
+        by smtp.gmail.com with ESMTPSA id 127sm1122362itl.25.2019.03.19.02.27.52
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Mar 2019 01:45:56 -0700 (PDT)
-Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
-	id 29011300B98; Tue, 19 Mar 2019 11:45:53 +0300 (+03)
-Date: Tue, 19 Mar 2019 11:45:53 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	Takashi Iwai <tiwai@suse.de>, Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v3] mm, page_alloc: disallow __GFP_COMP in
- alloc_pages_exact()
-Message-ID: <20190319084553.2ogwmrafjkjfcylh@kshutemo-mobl1>
-References: <20190314093944.19406-1-vbabka@suse.cz>
- <20190314094249.19606-1-vbabka@suse.cz>
- <0c6393eb-b28d-4607-c386-862a71f09de6@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0c6393eb-b28d-4607-c386-862a71f09de6@suse.cz>
-User-Agent: NeoMutt/20180716
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+        Tue, 19 Mar 2019 02:27:55 -0700 (PDT)
+From: Yue Hu <zbestahu@gmail.com>
+To: akpm@linux-foundation.org,
+	mhocko@suse.com,
+	joe@perches.com,
+	rientjes@google.com
+Cc: linux-mm@kvack.org,
+	huyue2@yulong.com,
+	dongjian@yulong.com
+Subject: [PATCH] mm/cma_debug.c: fix the break condition in cma_maxchunk_get()
+Date: Tue, 19 Mar 2019 17:27:34 +0800
+Message-Id: <20190319092734.276-1-zbestahu@gmail.com>
+X-Mailer: git-send-email 2.17.1.windows.2
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000880, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 18, 2019 at 01:21:59PM +0100, Vlastimil Babka wrote:
-> OK here's a new version that changes the patch to remove __GFP_COMP per
-> the v2 discussion, and also fixes the bug Kirill spotted (thanks!).
-> 
-> ----8<----
-> From 1fbc84c208573b885f51818ed823f89b3aa1e0ae Mon Sep 17 00:00:00 2001
-> From: Vlastimil Babka <vbabka@suse.cz>
-> Date: Thu, 14 Mar 2019 10:19:30 +0100
-> Subject: [PATCH v3] mm, page_alloc: disallow __GFP_COMP in alloc_pages_exact()
-> 
-> alloc_pages_exact*() allocates a page of sufficient order and then splits it
-> to return only the number of pages requested. That makes it incompatible with
-> __GFP_COMP, because compound pages cannot be split.
-> 
-> As shown by [1] things may silently work until the requested size (possibly
-> depending on user) stops being power of two. Then for CONFIG_DEBUG_VM, BUG_ON()
-> triggers in split_page(). Without CONFIG_DEBUG_VM, consequences are unclear.
-> 
-> There are several options here, none of them great:
-> 
-> 1) Don't do the spliting when __GFP_COMP is passed, and return the whole
-> compound page. However if caller then returns it via free_pages_exact(),
-> that will be unexpected and the freeing actions there will be wrong.
-> 
-> 2) Warn and remove __GFP_COMP from the flags. But the caller may have really
-> wanted it, so things may break later somewhere.
-> 
-> 3) Warn and return NULL. However NULL may be unexpected, especially for
-> small sizes.
-> 
-> This patch picks option 2, because as Michal Hocko put it: "callers wanted it"
-> is much less probable than "caller is simply confused and more gfp flags is
-> surely better than fewer".
-> 
-> [1] https://lore.kernel.org/lkml/20181126002805.GI18977@shao2-debian/T/#u
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+From: Yue Hu <huyue2@yulong.com>
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+If not find zero bit in find_next_zero_bit(), it will return the
+size parameter passed in, so the start bit should be compared with
+bitmap_maxno rather than cma->count. Although getting maxchunk is
+working fine due to zero value of order_per_bit currently, the
+operation will be stuck if order_per_bit is set as non-zero.
 
+Signed-off-by: Yue Hu <huyue2@yulong.com>
+---
+ mm/cma_debug.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/cma_debug.c b/mm/cma_debug.c
+index f234672..3b69248 100644
+--- a/mm/cma_debug.c
++++ b/mm/cma_debug.c
+@@ -58,7 +58,7 @@ static int cma_maxchunk_get(void *data, u64 *val)
+ 	mutex_lock(&cma->lock);
+ 	for (;;) {
+ 		start = find_next_zero_bit(cma->bitmap, bitmap_maxno, end);
+-		if (start >= cma->count)
++		if (start >= bitmap_maxno)
+ 			break;
+ 		end = find_next_bit(cma->bitmap, bitmap_maxno, start);
+ 		maxchunk = max(end - start, maxchunk);
 -- 
- Kirill A. Shutemov
+1.9.1
 
