@@ -7,100 +7,100 @@ X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 44A02C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 23:56:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A6C2DC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 23:56:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EB6EB217F5
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 23:56:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5971C2183E
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 23:56:44 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Z6b442+6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EB6EB217F5
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Q8ffQgdK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5971C2183E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0FE9D6B000A; Tue, 19 Mar 2019 19:56:39 -0400 (EDT)
+	id 088776B000C; Tue, 19 Mar 2019 19:56:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0B0E96B000C; Tue, 19 Mar 2019 19:56:39 -0400 (EDT)
+	id 038136B000D; Tue, 19 Mar 2019 19:56:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EBE736B000D; Tue, 19 Mar 2019 19:56:38 -0400 (EDT)
+	id E42726B000E; Tue, 19 Mar 2019 19:56:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B54516B000A
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 19:56:38 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id i21so653531ywe.15
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 16:56:38 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C5C9B6B000C
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 19:56:43 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id 23so19215596qkl.16
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 16:56:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
          :mime-version:references:subject:from:to:cc;
-        bh=dn6PEiCR+dScVGu5EewnvuQCwpS0GucFANxBNtI0jyg=;
-        b=faJJ7Y0Qm8q4Ztw1LgniVeBCPkziMYHM2ZbZma1FhPgx1KKeEHVwvoBeYABPZLyKXt
-         yHsXY3GamoJAwPHFyHxmg7wAxBbYhJUtbVJdRETWzC3s4F7Qyvc+2YyNGTDtp0GTmoXo
-         Ja6TLVHgVytA93T4ff8kBdwnhPGGlbhQgVGe5pIr4Lx6q5kU42dDoYxZqn1mLfBeo3vc
-         K9psVRUOIah81rAYfrNvg2M8zCh6qhM/QQ+giPWR40dM+1kaj3SkEpgf3D0ggGQImjyo
-         +0YkUathPbmGvybESsA0N0qh2f72cKlHa9ZAHtK530lCll1cwtlbu9xF0KchLbBZO5RC
-         f7ag==
-X-Gm-Message-State: APjAAAUdIeBXqtli3frGNZkwYo86gNvBfo+X7cysdo9zORi1mbsugigy
-	vi8P397nmvtBO6nOMSj8FF2IwMKEYr1tTnktsoXA+oaatN9DMbRBhsVrOCWtrX+ioaFfmaRyo59
-	5Ul4qOAIeunSYXRaFs/4AEyLI4JehX2JkIw/BnzN/y7x+r7tZzee3BbBLUqKV9IS/3g==
-X-Received: by 2002:a5b:70f:: with SMTP id g15mr4298312ybq.382.1553039798417;
-        Tue, 19 Mar 2019 16:56:38 -0700 (PDT)
-X-Received: by 2002:a5b:70f:: with SMTP id g15mr4298290ybq.382.1553039797596;
-        Tue, 19 Mar 2019 16:56:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553039797; cv=none;
+        bh=/1f+k74gk1272nyZAYvhUzZCD+eEvuFJDJVbOJgy+wk=;
+        b=iTqCTR7aV+hUM4woDLn0KOK43ZKLmQF7A3dL21wF5s1MBiiC4Sfl9bH3S8ouNYJcS9
+         LoWMxmMKtupMd3QQ9qrtdvmrwIE39hopLJrlT7uZrmBRhEu9meuFAGdk96JI+fBAGbH/
+         IqJ2yNZ/kC3b8KJfI2obU3yrZVGE7BxTyUM0mkoEO3OYzgu+w1+KznO8Rum+xpe6ctKg
+         4JIS4ZGouJmOvyCHEQ/5TMwcrOfiWuxESBZv4cvVGv0r/Ml3vwiBw69/K0L8WKP2kWFb
+         idateBei4mTZrAqPE0PAcmTK99oJtE8tnAA1Qrrc7scVFU4W1W+J3CKHJfSG9tG2YKtO
+         39ow==
+X-Gm-Message-State: APjAAAW6LTup5Pz3GyKK9My2AYbYy3oVAKCTvCvq9SeR3fIPZ9/RjZXi
+	p7LqtM6FraWpD2GrPeKuuMiC6Untx/kvd96HQ6ofsOrH3GFRJaYOJZsmKQQhJZh+ljzATbG3Yjr
+	k8cwFGkTTGfvuzar3zR+ehIInC7bc6YlktD2nWBetA7+ZMPFj3QjvHmQiuKbI3wQOeg==
+X-Received: by 2002:ae9:f00b:: with SMTP id l11mr4167593qkg.84.1553039803535;
+        Tue, 19 Mar 2019 16:56:43 -0700 (PDT)
+X-Received: by 2002:ae9:f00b:: with SMTP id l11mr4167466qkg.84.1553039800410;
+        Tue, 19 Mar 2019 16:56:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553039800; cv=none;
         d=google.com; s=arc-20160816;
-        b=bXDJZwS8frApcJ9mIKnaosjflmD2YPPzC83ZFXhmYNa/biI8XO/pVNvQfQcQar8db1
-         zVCDa6fVBdg6AVS6T6qwJGh8g/bk5aUqP6ov2uZi77mI6OhrIOml4wp4B0nV3um2Mb8p
-         Y2uKozy2+6eBVI34lIPUIoiEWXxtpJckwgFX2f6GuFaTdNS4nHI1N6OxuZQBEmG3CsJC
-         R0rngupHlOWp4lXE3g+d/n0BtFI61jaIojCSweNFG8m6hdMZd66o5D3fqtrTlC3znFD4
-         cPIKVoIoRGlctBqEZKHp7/dRzSCEG0ceACwcjApkz2fQG5Sb/RAkCl57iY8Fyj+BilkX
-         qocA==
+        b=qhKnVwgzMoO2x1tueHE4Qlc0/DgeNc9aV67Ic9H61YlpinY7Xrc5fgN9j9/WG9+eRU
+         S72JCAfYSC3Fh0uIFlPsmx+Hwr9YnZFzF9yspem7oziW6cKl3AgjpLmQloNbR0MVDvm2
+         dDs+Vx418P742CzFqxdaSxemV5colH1PjOnAlB3202qjREOywzAkAZg1oGY9rFzbTuvg
+         ITriYsyPYhe5c+1T3qG9NT04Gz+msxiE2nSOvneof7wBP7ICzSp/23vmSuVhTuMvopsT
+         Uknxt2WIuUQ372I9cB3gwfjUJtjtZQ0vXlyGKWSxhCU4Gz7MIC49XQAuC46aLWCC9j6t
+         B+rA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
          :date:dkim-signature;
-        bh=dn6PEiCR+dScVGu5EewnvuQCwpS0GucFANxBNtI0jyg=;
-        b=dATSj3/EfnqEhi4owONDFk7yYoRXWyLb2DonmSGjKFAojZl+dUrXnkt/6NCmJvXQSS
-         RJxk0+2JU+f50IdDhLRXfzrfIxq0pBFsNyTSoRvEl9iPH3ULrPtK5X9XCBkYpKbomYhX
-         cjipkoZ9AzA0VBR5ItCvINa0ZSB+sH376O0dh6csJT1eXMmvv99k2AX7NuggNOYB+bdT
-         RO+72vYpIavSUOmD2TBOKaoI6M6FotaEZG+wRG1CU8fhV7HImMim7Dy+wKw3Mok6OQdR
-         UWtepChJu9kLP88dUtCrYNciDo1xLP6ZIWJWwzxQsQYfqLUIAN1GceLlRZE8eZUzN6qE
-         llPQ==
+        bh=/1f+k74gk1272nyZAYvhUzZCD+eEvuFJDJVbOJgy+wk=;
+        b=LgaDSB5aGf5QQQqmvIonrY/fiGk4ssYnsosx1RYcdjhxFRA19eUh4lvPhKs5yERabZ
+         Lma24cqDAcs3z5L6M/zHN4krtIIaHRd2Mop8Or3s5LK+KOPcStvFCoiVpv+iOZG+KHnv
+         mOulNejnXoyBtjN6Np4qrfw7ggur3LwDA7CNmnR61jYwnRrjpy3bKgRsrJMSEEj83oQo
+         VQ26dGXYC1+kfD4P5UHpVLGZ+4lIccYVQnq/CXXVjM7e15EYIQpefHxxTP1fuA1k+ZJW
+         TKM4tuxf8A34b2mNXBZ/u2ZeOZPrB2ZEnBgs5h/dGv3olUZjHXIjP2P4ywalOqme6Htf
+         tRmw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=Z6b442+6;
-       spf=pass (google.com: domain of 3tygrxaykcogceboxlqyyqvo.mywvsxeh-wwufkmu.ybq@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3tYGRXAYKCOgcebOXLQYYQVO.MYWVSXeh-WWUfKMU.YbQ@flex--surenb.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Q8ffQgdK;
+       spf=pass (google.com: domain of 3uigrxaykcosfheraotbbtyr.pbzyvahk-zzxinpx.bet@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3uIGRXAYKCOsfheRaOTbbTYR.PbZYVahk-ZZXiNPX.beT@flex--surenb.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id c83sor118540ybb.66.2019.03.19.16.56.37
+        by mx.google.com with SMTPS id q11sor850611qtq.28.2019.03.19.16.56.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 19 Mar 2019 16:56:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3tygrxaykcogceboxlqyyqvo.mywvsxeh-wwufkmu.ybq@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Tue, 19 Mar 2019 16:56:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3uigrxaykcosfheraotbbtyr.pbzyvahk-zzxinpx.bet@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=Z6b442+6;
-       spf=pass (google.com: domain of 3tygrxaykcogceboxlqyyqvo.mywvsxeh-wwufkmu.ybq@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3tYGRXAYKCOgcebOXLQYYQVO.MYWVSXeh-WWUfKMU.YbQ@flex--surenb.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Q8ffQgdK;
+       spf=pass (google.com: domain of 3uigrxaykcosfheraotbbtyr.pbzyvahk-zzxinpx.bet@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3uIGRXAYKCOsfheRaOTbbTYR.PbZYVahk-ZZXiNPX.beT@flex--surenb.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=date:in-reply-to:message-id:mime-version:references:subject:from:to
          :cc;
-        bh=dn6PEiCR+dScVGu5EewnvuQCwpS0GucFANxBNtI0jyg=;
-        b=Z6b442+6DNI/wL3Sl+GmBfCDemyRgLchS2XX8vUdUBCLvLTr6SRAXAFrKle3CWKt83
-         v/Lyw5vroFag4ZNItRCs1E2AW0rTWPfFeUTPo1GonT4xq3BSGy7UAoDlpLr8wfzd4dEk
-         cAQsQM3nDSIJoKigdyekrTeWCnEDlgdImc40cSqjYKkcrN0irpacS5iuUwz+nNKTfCj6
-         gN9agbjk3JafwYtdbZcJrSQ9KVE5u5RPfTsRdqFUk6odVENAIbN2URKCX146f8h3tIki
-         tQqvJcideceDh5tkn6j7mXS/7dCIydNbwoCEy1XZmg00rksFqoQLHtmFE2PGru24T2ue
-         Q36A==
-X-Google-Smtp-Source: APXvYqzqRXV9Su0O8ijkHzVc98Uu6jekXyU8mHEz8z0Z4ekoSX8Xd/HdmZXF1XnScGWT74vxfZWql8OgG4g=
-X-Received: by 2002:a25:ae96:: with SMTP id b22mr1664495ybj.94.1553039797316;
- Tue, 19 Mar 2019 16:56:37 -0700 (PDT)
-Date: Tue, 19 Mar 2019 16:56:16 -0700
+        bh=/1f+k74gk1272nyZAYvhUzZCD+eEvuFJDJVbOJgy+wk=;
+        b=Q8ffQgdK/wkTC+TdacBpBr7s7ZA+ibEdwudd2fRpPvrcaC/Z4LqJTNqtLCyv8fay3Q
+         chiHW354Gbcen71ue0RFArhXaTYhUvFlgw847q/e4JvbmuxVF1URZSS4uI5/2AOq95Tg
+         EUZGBIm5ffQd2Ig8HQTcV4Ga4AwlViHgtFeDDiCPhfHDPO06IXDNPK9KlA6EzFdtzCZw
+         XIpSvnBo/nnTQIl706MCfwLeDFb6UkMXt7TLQ9AlMLikpSRMRfuJ/IfBREdiXgcI3pzN
+         Tqwh1wtk3Mfv6veI944tZm831+Y/Nmg0Yiy3lc4aslJlMD8H+RAAp6Z3buACiQNjY+Pi
+         ZHIg==
+X-Google-Smtp-Source: APXvYqw+3rmGmXN+0NOE9KYUNNYevZu09CHWRK5dGTsF91CDis8OUSyXsZ9D4hzjIdVioTkn+fpmgfJUK48=
+X-Received: by 2002:ac8:1410:: with SMTP id k16mr13547779qtj.58.1553039800238;
+ Tue, 19 Mar 2019 16:56:40 -0700 (PDT)
+Date: Tue, 19 Mar 2019 16:56:17 -0700
 In-Reply-To: <20190319235619.260832-1-surenb@google.com>
-Message-Id: <20190319235619.260832-5-surenb@google.com>
+Message-Id: <20190319235619.260832-6-surenb@google.com>
 Mime-Version: 1.0
 References: <20190319235619.260832-1-surenb@google.com>
 X-Mailer: git-send-email 2.21.0.225.g810b269d1ac-goog
-Subject: [PATCH v6 4/7] psi: split update_stats into parts
+Subject: [PATCH v6 5/7] psi: track changed states
 From: Suren Baghdasaryan <surenb@google.com>
 To: gregkh@linuxfoundation.org
 Cc: tj@kernel.org, lizefan@huawei.com, hannes@cmpxchg.org, axboe@kernel.dk, 
@@ -116,143 +116,109 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Split update_stats into collect_percpu_times and update_averages for
-collect_percpu_times to be reused later inside psi monitor.
+Introduce changed_states parameter into collect_percpu_times to track
+the states changed since the last update.
 
 Signed-off-by: Suren Baghdasaryan <surenb@google.com>
 ---
- kernel/sched/psi.c | 57 +++++++++++++++++++++++++++-------------------
- 1 file changed, 34 insertions(+), 23 deletions(-)
+ kernel/sched/psi.c | 24 ++++++++++++++++++------
+ 1 file changed, 18 insertions(+), 6 deletions(-)
 
 diff --git a/kernel/sched/psi.c b/kernel/sched/psi.c
-index 4fb4d9913bc8..ace5ed97b186 100644
+index ace5ed97b186..1b99eeffaa25 100644
 --- a/kernel/sched/psi.c
 +++ b/kernel/sched/psi.c
-@@ -269,17 +269,13 @@ static void calc_avgs(unsigned long avg[3], int missed_periods,
+@@ -210,7 +210,8 @@ static bool test_state(unsigned int *tasks, enum psi_states state)
+ 	}
+ }
+ 
+-static void get_recent_times(struct psi_group *group, int cpu, u32 *times)
++static void get_recent_times(struct psi_group *group, int cpu, u32 *times,
++			     u32 *pchanged_states)
+ {
+ 	struct psi_group_cpu *groupc = per_cpu_ptr(group->pcpu, cpu);
+ 	u64 now, state_start;
+@@ -218,6 +219,8 @@ static void get_recent_times(struct psi_group *group, int cpu, u32 *times)
+ 	unsigned int seq;
+ 	u32 state_mask;
+ 
++	*pchanged_states = 0;
++
+ 	/* Snapshot a coherent view of the CPU state */
+ 	do {
+ 		seq = read_seqcount_begin(&groupc->seq);
+@@ -246,6 +249,8 @@ static void get_recent_times(struct psi_group *group, int cpu, u32 *times)
+ 		groupc->times_prev[s] = times[s];
+ 
+ 		times[s] = delta;
++		if (delta)
++			*pchanged_states |= (1 << s);
+ 	}
+ }
+ 
+@@ -269,10 +274,11 @@ static void calc_avgs(unsigned long avg[3], int missed_periods,
  	avg[2] = calc_load(avg[2], EXP_300s, pct);
  }
  
--static bool update_stats(struct psi_group *group)
-+static bool collect_percpu_times(struct psi_group *group)
+-static bool collect_percpu_times(struct psi_group *group)
++static void collect_percpu_times(struct psi_group *group, u32 *pchanged_states)
  {
  	u64 deltas[NR_PSI_STATES - 1] = { 0, };
--	unsigned long missed_periods = 0;
  	unsigned long nonidle_total = 0;
--	u64 now, expires, period;
++	u32 changed_states = 0;
  	int cpu;
  	int s;
  
--	mutex_lock(&group->avgs_lock);
--
- 	/*
- 	 * Collect the per-cpu time buckets and average them into a
- 	 * single time sample that is normalized to wallclock time.
-@@ -317,11 +313,18 @@ static bool update_stats(struct psi_group *group)
+@@ -287,8 +293,11 @@ static bool collect_percpu_times(struct psi_group *group)
+ 	for_each_possible_cpu(cpu) {
+ 		u32 times[NR_PSI_STATES];
+ 		u32 nonidle;
++		u32 cpu_changed_states;
+ 
+-		get_recent_times(group, cpu, times);
++		get_recent_times(group, cpu, times,
++				&cpu_changed_states);
++		changed_states |= cpu_changed_states;
+ 
+ 		nonidle = nsecs_to_jiffies(times[PSI_NONIDLE]);
+ 		nonidle_total += nonidle;
+@@ -313,7 +322,8 @@ static bool collect_percpu_times(struct psi_group *group)
  	for (s = 0; s < NR_PSI_STATES - 1; s++)
  		group->total[s] += div_u64(deltas[s], max(nonidle_total, 1UL));
  
-+	return nonidle_total;
-+}
-+
-+static u64 update_averages(struct psi_group *group, u64 now)
-+{
-+	unsigned long missed_periods = 0;
-+	u64 expires, period;
-+	u64 avg_next_update;
-+	int s;
-+
- 	/* avgX= */
--	now = sched_clock();
- 	expires = group->avg_next_update;
--	if (now < expires)
--		goto out;
- 	if (now - expires >= psi_period)
- 		missed_periods = div_u64(now - expires, psi_period);
- 
-@@ -332,7 +335,7 @@ static bool update_stats(struct psi_group *group)
- 	 * But the deltas we sample out of the per-cpu buckets above
- 	 * are based on the actual time elapsing between clock ticks.
- 	 */
--	group->avg_next_update = expires + ((1 + missed_periods) * psi_period);
-+	avg_next_update = expires + ((1 + missed_periods) * psi_period);
- 	period = now - (group->avg_last_update + (missed_periods * psi_period));
- 	group->avg_last_update = now;
- 
-@@ -362,9 +365,8 @@ static bool update_stats(struct psi_group *group)
- 		group->avg_total[s] += sample;
- 		calc_avgs(group->avg[s], missed_periods, sample, period);
- 	}
--out:
--	mutex_unlock(&group->avgs_lock);
 -	return nonidle_total;
-+
-+	return avg_next_update;
++	if (pchanged_states)
++		*pchanged_states = changed_states;
  }
  
- static void psi_avgs_work(struct work_struct *work)
-@@ -372,10 +374,16 @@ static void psi_avgs_work(struct work_struct *work)
+ static u64 update_averages(struct psi_group *group, u64 now)
+@@ -373,6 +383,7 @@ static void psi_avgs_work(struct work_struct *work)
+ {
  	struct delayed_work *dwork;
  	struct psi_group *group;
++	u32 changed_states;
  	bool nonidle;
-+	u64 now;
+ 	u64 now;
  
- 	dwork = to_delayed_work(work);
- 	group = container_of(dwork, struct psi_group, avgs_work);
+@@ -383,7 +394,8 @@ static void psi_avgs_work(struct work_struct *work)
  
-+	mutex_lock(&group->avgs_lock);
-+
-+	now = sched_clock();
-+
-+	nonidle = collect_percpu_times(group);
+ 	now = sched_clock();
+ 
+-	nonidle = collect_percpu_times(group);
++	collect_percpu_times(group, &changed_states);
++	nonidle = changed_states & (1 << PSI_NONIDLE);
  	/*
  	 * If there is task activity, periodically fold the per-cpu
  	 * times and feed samples into the running averages. If things
-@@ -383,19 +391,15 @@ static void psi_avgs_work(struct work_struct *work)
- 	 * Once restarted, we'll catch up the running averages in one
- 	 * go - see calc_avgs() and missed_periods.
- 	 */
--
--	nonidle = update_stats(group);
-+	if (now >= group->avg_next_update)
-+		group->avg_next_update = update_averages(group, now);
- 
- 	if (nonidle) {
--		unsigned long delay = 0;
--		u64 now;
--
--		now = sched_clock();
--		if (group->avg_next_update > now)
--			delay = nsecs_to_jiffies(
--					group->avg_next_update - now) + 1;
--		schedule_delayed_work(dwork, delay);
-+		schedule_delayed_work(dwork, nsecs_to_jiffies(
-+				group->avg_next_update - now) + 1);
- 	}
-+
-+	mutex_unlock(&group->avgs_lock);
- }
- 
- static void record_times(struct psi_group_cpu *groupc, int cpu,
-@@ -707,11 +711,18 @@ void cgroup_move_task(struct task_struct *task, struct css_set *to)
- int psi_show(struct seq_file *m, struct psi_group *group, enum psi_res res)
- {
- 	int full;
-+	u64 now;
- 
- 	if (static_branch_likely(&psi_disabled))
- 		return -EOPNOTSUPP;
- 
--	update_stats(group);
-+	/* Update averages before reporting them */
-+	mutex_lock(&group->avgs_lock);
-+	now = sched_clock();
-+	collect_percpu_times(group);
-+	if (now >= group->avg_next_update)
-+		group->avg_next_update = update_averages(group, now);
-+	mutex_unlock(&group->avgs_lock);
- 
- 	for (full = 0; full < 2 - (res == PSI_CPU); full++) {
- 		unsigned long avg[3];
+@@ -719,7 +731,7 @@ int psi_show(struct seq_file *m, struct psi_group *group, enum psi_res res)
+ 	/* Update averages before reporting them */
+ 	mutex_lock(&group->avgs_lock);
+ 	now = sched_clock();
+-	collect_percpu_times(group);
++	collect_percpu_times(group, NULL);
+ 	if (now >= group->avg_next_update)
+ 		group->avg_next_update = update_averages(group, now);
+ 	mutex_unlock(&group->avgs_lock);
 -- 
 2.21.0.225.g810b269d1ac-goog
 
