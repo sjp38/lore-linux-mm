@@ -3,142 +3,164 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 95AC0C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 23:13:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 09DDEC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 23:27:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 39E2B20857
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 23:13:38 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AD9BA2085A
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 23:27:01 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="JrlqfrSs"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 39E2B20857
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="kC+fcX/d"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AD9BA2085A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DA35E6B0003; Tue, 19 Mar 2019 19:13:37 -0400 (EDT)
+	id 1DA926B0003; Tue, 19 Mar 2019 19:27:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D52846B0006; Tue, 19 Mar 2019 19:13:37 -0400 (EDT)
+	id 188806B0006; Tue, 19 Mar 2019 19:27:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C41DB6B0007; Tue, 19 Mar 2019 19:13:37 -0400 (EDT)
+	id 029786B0007; Tue, 19 Mar 2019 19:27:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DC146B0003
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 19:13:37 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id o9so198765edh.10
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 16:13:37 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D1E5C6B0003
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 19:27:00 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id b1so558730qtk.11
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 16:27:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=g8NtRy0L24nPh/xKsGU99NSGXQph+aEcmS1z6d1TxzA=;
-        b=d3QIq0AkLTYMLDP0+vvWuwA+/T6HE3L4OPNe7WQOSHruwbEFs2p6jYARXwdbOYMkby
-         qix3r1lK9sFKm4igLUn8/L1Ew9PW8zakR5Tsktw/oW0sBvm1oqgCUnUlGLdg6eV909f3
-         Tn/zZCGo1zidA/xAKdSeBFoRDdHS0mV2NVU0tPsfXJuDOY69jXStGm5nluscfy50/JbV
-         k1ZLu1Txr3lrlA7LeOC4c9ZYGH838Da/HYHIhaqj9cNT8l6bX5QZaro4tyxxytYXPclW
-         kIMXyT/UzAGE4M5d8dePACEnXVmzjc4bgzpXhIYlpIxiXUyDKwrWraYgax/OGMncq5Ca
-         Lm/w==
-X-Gm-Message-State: APjAAAUAGnptBBcpLVh6OyAT5uhh1oVNHhKur8qSVTW8W/4AlQrHBu+k
-	qRhfdYcQQ9oLGZ2EQEOA7bpXDHY+LHJOj+JymoQS+uzGMK3J65jO97L4Ti5+V5EEEaX7sTO2RBp
-	iduKtJXYzlv+1PNRFHzQ3YcbhKuxCMzW48NbIMJCvWDM1nCoEVPAn7p16/lSzPtRGrQ==
-X-Received: by 2002:a50:bdc2:: with SMTP id z2mr17664255edh.157.1553037216915;
-        Tue, 19 Mar 2019 16:13:36 -0700 (PDT)
-X-Received: by 2002:a50:bdc2:: with SMTP id z2mr17664223edh.157.1553037215953;
-        Tue, 19 Mar 2019 16:13:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553037215; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=p0h+sIgjeUxau/Nsm0Ajru2ZRtZp01Kp4DUd8gtQGj8=;
+        b=P9+Xo6VG+dWrVgS5nxbE5AeFinjoFwDW8pfTtZL9unK/yCWUX7OLKXM3RiOzmJNoLT
+         +raapdfV27frdc9vmAuO+uNytoHqrrBQYnVTBJs+TbQRm3JkyCHyYsVAULOPEQjsiZwW
+         eTbjwyqGCjlo/0cQG8Ku+WO8Bxdc9aNXFTyHiqrh5XAKcks4mGTV8L/HjdDM3ZTGTJ/t
+         tNwf0ZZJIQsx7HLVNtRB9isgfJkwTDtc80c8ynIQQsgOIvdNfdoY9aHRC1ZqImbd+Ulk
+         cAs00Aqu0X5sxuPPbY45knJu7/Y13gyUISMN9pscDwf86KnhbfsJShxCJKOlVDdjKLOn
+         JPlw==
+X-Gm-Message-State: APjAAAV7cbA/yhfzeNgMWUggVDfGfiKKIG4aCyuzNRqaDdxwXxhaPVwm
+	WLNlwEp1YkF295PsHIQxJIRWAytcjCtKeB1nKg4JTzNjIhC8OU/hQ6DPov6GXNC1R5CzoOzOZkT
+	sZE/kgB4lDFv7v8RBIufWB6wH9TkOjukoBcQNJ8lsE6dPEcHuPpegIZeKET4tyPN/rg==
+X-Received: by 2002:ac8:30bc:: with SMTP id v57mr4308818qta.26.1553038020600;
+        Tue, 19 Mar 2019 16:27:00 -0700 (PDT)
+X-Received: by 2002:ac8:30bc:: with SMTP id v57mr4308787qta.26.1553038019846;
+        Tue, 19 Mar 2019 16:26:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553038019; cv=none;
         d=google.com; s=arc-20160816;
-        b=frw2M6fD5OFWf3wdO/9EEySlpowQLOMZqecnTysasdSiOlM9GkwcG+/eLk+4NRCHpR
-         q6z2vC4YjglMKRpNJ1wI6nu8SfwzVOkWyIZlNnDAZGFe0vJiLo2Ny6vq19F2ucWb5Xt4
-         GRl9sD7ob67xknhYORhImVEdoTn9IU11dClzPBq3oTuJpTYyQv8/dfGmjkP405HwF5YS
-         QW246gi/nGlTHppC0qCO7V3sJiweFZR1g89BD2DRFYSgQoxrH18lbHvjqJQkPFRNiMOi
-         f7iQGGzneHjqki5hZR02C4qp+TgTrfb1d0JG5acx0bUaF2awrDCn+UpmLsmLx9fDiGYU
-         utyA==
+        b=M101gun+0eV8QbEtyiaMHWmLel5PKaFausPffrxly6AF/4nft503z0UJ3Fr8C+XUuL
+         wJ159Dmnb38B9t1POxtjOSkgK0B5anxgVRFWwnb8g2+Y+1mRvOBj5s/QMrDheK7XM7sw
+         v5OyGzipag9f3Dmt1Y3gsMCrCS7OKmFqilzfBlcAPHKUmVjhN201PxU9oZrfsjaE5pLe
+         ttFZnb1LLf2kFcUqSvtRSVZyGejcD64ngLGyvxAUEA845NiQPq9MvCgbany8Z+wpSouV
+         JLZqUrTDy5/oPxwBAApwTNGBnDYrWj641jAnwL4+adX2TQUXMKwjy5l86A+PEUqjVZwH
+         M+ZQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=g8NtRy0L24nPh/xKsGU99NSGXQph+aEcmS1z6d1TxzA=;
-        b=aND8FQLvkPyZnyI0wdJgR1yOBC73v5hmKa2fS7URdvSYud3w/3jeJ0/jyaoGdUIdQU
-         NjWVY4Coe48KUwBkXZ77a4FDPng62hwQMSd9loKQYbgDt3G5sWpnxGsvVP6fC/dZOryu
-         PhE9geJuy4XlPRFpLpZptXB4jdMzI6X6EPAFh58LmWsQnacU4bBLX+jr4DwIcnu/pIKg
-         cZ+MhxIqGh7e7GdN0czFMvuppfsTjdVHDmDF9fen9+h/g2Z3B7X4CgIwUsBXmUKOaC0W
-         hSjNWLhrBEjGEWOclfD7cUXkap7yESD55Z0KlLfj8afy13SRuty2GkkLhzuYMzGkbDw/
-         sWag==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=p0h+sIgjeUxau/Nsm0Ajru2ZRtZp01Kp4DUd8gtQGj8=;
+        b=e5sJD2RUVe7+LX6L5vSKLupJEbVKpDGrrFHSUGjaCkM5P8lYtVokJXrUOZ0S7GNb3I
+         G14ffIb/y0l9ERcLocmRuuoOBdMoSBONzulh5/OMuw/jKStl7nXQxHW6u7j3XlFSp05O
+         CONw5eq2maGI+7xqrZKIsjM3zLlzJh2RDhs7Sm5+9TrKy7j2ct3XJ62bneZ8a2T1KPVt
+         BtBtUrXS5FB+oYYlPATmWvE2uc3m8G1hKNRQWHusVKVZ9yjwZO/iYV4qbZYY1ff+AHYb
+         Z7dI0xGIJZAeizhTM7J2T0TG/SgbbzFwPx1MARbM6sodP2zjXDWJAs6F2mPTbIP1R6Vw
+         YuKg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=JrlqfrSs;
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w19sor73419ejv.42.2019.03.19.16.13.35
+       dkim=pass header.i=@lca.pw header.s=google header.b="kC+fcX/d";
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 5sor691105qtt.46.2019.03.19.16.26.59
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 19 Mar 2019 16:13:35 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 19 Mar 2019 16:26:59 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=JrlqfrSs;
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+       dkim=pass header.i=@lca.pw header.s=google header.b="kC+fcX/d";
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) smtp.mailfrom=cai@lca.pw
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=soleen.com; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=g8NtRy0L24nPh/xKsGU99NSGXQph+aEcmS1z6d1TxzA=;
-        b=JrlqfrSshPWbtCUAUrRPqA2ImpfYXOgaC+IfRIDpdWuoWxlni7qxnHcDgFcNJlKp4C
-         B/qYJsX/rNCYLQHnuELxcJcVMnrYBSIMTH25LH1NpUdG8mxpF8tITdCEvLIUu+q8v+Z0
-         eQt+WbkPhaVIOARG31FKiWt+ZHh163cMVDolAD9WO0+IDp4YDx91+kMy4eHsFYIgmqPH
-         9AONJaF94Df/w/GtVfU1jaoJ8Mr+po8Z49RLXxNbJ7eaOeeObo/0YRRrrdh/WHL9sei3
-         LCWSE80Beg1Xsc8Q+SrAKzBOVJDQq7fTCWPEC7qgR98LgViSp/o6pqfWThRkCzWRTXDy
-         M1fw==
-X-Google-Smtp-Source: APXvYqzZ82VDtyWc+s831sp5Opp21O7qaftXQYQcET3CRx3ckdDa7bJqqHsj12xMmz5eNzcD6Ac2O+c3jBuue51JOiQ=
-X-Received: by 2002:a17:906:288d:: with SMTP id o13mr15627170ejd.66.1553037215643;
- Tue, 19 Mar 2019 16:13:35 -0700 (PDT)
-MIME-Version: 1.0
+        d=lca.pw; s=google;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=p0h+sIgjeUxau/Nsm0Ajru2ZRtZp01Kp4DUd8gtQGj8=;
+        b=kC+fcX/dw30pY8bLnJjAX+Gr5hLkcCzKimVaPwGYz5jY4a0orPi09KJKsN2pa9sVlx
+         RymJ4U6b2Vsejh5i+riCMNXQCihb85eSreELm1GSe9URyrzftdOwyp3XR+xlb+pUFVp5
+         8wlIhpUm1rRfz7t/3Qc8Agh2D9nhBlRT1HC6XwA7ZgoQkeiMpRDjURcBnk0Cfmn2Gmtx
+         5+hWORxQlmP7ob4K4rvfoVvR5Pu0DF1sze5LZ5cSIdMC0Oqe0e0UGu1cMH5dH0gzvV/0
+         qzXruuremf8gQ9K0sRsXp5CwbpYAbEn6L7b1O4oIqOPehYLJpfF1A4cteK4h/E9Xxk/q
+         ZGyA==
+X-Google-Smtp-Source: APXvYqysFsl4AJeqVYo7Rkwd/feXF7JhwIOa1yuC8FnWDM/F4Wm/7dDfGwuNzML7hAiYvOOIkK6s2g==
+X-Received: by 2002:ac8:3a63:: with SMTP id w90mr3355888qte.233.1553038019515;
+        Tue, 19 Mar 2019 16:26:59 -0700 (PDT)
+Received: from ovpn-120-94.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id n1sm299145qkd.28.2019.03.19.16.26.58
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Mar 2019 16:26:58 -0700 (PDT)
+Subject: Re: kernel BUG at include/linux/mm.h:1020!
+To: Pavel Tatashin <pasha.tatashin@soleen.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>,
+ Daniel Jordan <daniel.m.jordan@oracle.com>,
+ Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>,
+ linux-mm <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>
 References: <CABXGCsM-SgUCAKA3=WpL7oWZ0Xq8A1Wf-Eh6MO0seee+TviDWQ@mail.gmail.com>
  <20190315205826.fgbelqkyuuayevun@ca-dmjordan1.us.oracle.com>
  <20190317152204.GD3189@techsingularity.net> <1553022891.26196.7.camel@lca.pw>
- <CA+CK2bDhB8ts0rEc46vVT-mR8Avx=DZAdyMTzxqOD99MP7dOEQ@mail.gmail.com> <1553024101.26196.8.camel@lca.pw>
-In-Reply-To: <1553024101.26196.8.camel@lca.pw>
-From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Date: Tue, 19 Mar 2019 19:13:24 -0400
-Message-ID: <CA+CK2bA6J_BT9C=-ohezTj4L9TV61GCi9MsKbhGO4ZtEBvdkeA@mail.gmail.com>
-Subject: Re: kernel BUG at include/linux/mm.h:1020!
-To: Qian Cai <cai@lca.pw>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Daniel Jordan <daniel.m.jordan@oracle.com>, 
-	Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>, linux-mm <linux-mm@kvack.org>, 
-	Vlastimil Babka <vbabka@suse.cz>
-Content-Type: text/plain; charset="UTF-8"
+ <CA+CK2bDhB8ts0rEc46vVT-mR8Avx=DZAdyMTzxqOD99MP7dOEQ@mail.gmail.com>
+ <1553024101.26196.8.camel@lca.pw>
+ <CA+CK2bA6J_BT9C=-ohezTj4L9TV61GCi9MsKbhGO4ZtEBvdkeA@mail.gmail.com>
+From: Qian Cai <cai@lca.pw>
+Message-ID: <15f16d2a-bf90-ede3-0803-821da3699b27@lca.pw>
+Date: Tue, 19 Mar 2019 19:26:57 -0400
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
+ Gecko/20100101 Thunderbird/60.3.3
+MIME-Version: 1.0
+In-Reply-To: <CA+CK2bA6J_BT9C=-ohezTj4L9TV61GCi9MsKbhGO4ZtEBvdkeA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Thank you Qian, do you happen to have qemu arguments that you used?
 
-Thank you,
-Pasha
 
-On Tue, Mar 19, 2019 at 3:35 PM Qian Cai <cai@lca.pw> wrote:
->
-> On Tue, 2019-03-19 at 15:27 -0400, Pavel Tatashin wrote:
-> > > So reverting this patch on the top of the mainline fixed the memory
-> > > corruption
-> > > for me or at least make it way much harder to reproduce.
-> > >
-> > > dbe2d4e4f12e ("mm, compaction: round-robin the order while searching the
-> > > free
-> > > lists for a target")
-> > >
-> > > This is easy to reproduce on both KVM and bare-metal using the reproducer.
-> > >
-> > > # swapoff -a
-> > > # i=0; while :; do i=$((i+1)); echo $i | tee /tmp/log ;
-> > > /opt/ltp/testcases/bin/oom01; sleep 5; done
-> > >
-> > > The memory corruption always happen within 300 tries. With the above patch
-> > > reverted, both the mainline and linux-next survives with 1k+ attempts so
-> > > far.
-> >
-> > Could you please share copy of your config.
->
-> https://git.sr.ht/~cai/linux-debug/tree/master/config
+On 3/19/19 7:13 PM, Pavel Tatashin wrote:
+> Thank you Qian, do you happen to have qemu arguments that you used?
+
+No, the KVM guest was running in openstack.
+
+# lscpu
+Architecture:        x86_64
+CPU op-mode(s):      32-bit, 64-bit
+Byte Order:          Little Endian
+CPU(s):              24
+On-line CPU(s) list: 0-23
+Thread(s) per core:  1
+Core(s) per socket:  1
+Socket(s):           24
+NUMA node(s):        1
+Vendor ID:           GenuineIntel
+CPU family:          6
+Model:               79
+Model name:          Intel(R) Xeon(R) CPU E5-2690 v4 @ 2.60GHz
+Stepping:            1
+CPU MHz:             2599.996
+BogoMIPS:            5199.99
+Virtualization:      VT-x
+Hypervisor vendor:   KVM
+Virtualization type: full
+L1d cache:           32K
+L1i cache:           32K
+L2 cache:            4096K
+L3 cache:            16384K
+NUMA node0 CPU(s):   0-23
+
+# free -mt
+              total        used        free      shared  buff/cache   available
+Mem:          41214       36331        4745           0         137        4499
+Swap:             0           0           0
+Total:        41214       36331        4745
 
