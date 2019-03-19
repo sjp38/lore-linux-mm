@@ -2,173 +2,233 @@ Return-Path: <SRS0=zC3H=RW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-4.4 required=3.0 tests=DATE_IN_PAST_06_12,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2D159C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 16:58:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 83A52C4360F
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 17:04:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DCA6820835
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 16:58:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DCA6820835
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 3FEBB2083D
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 17:04:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FEBB2083D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6CFB96B0005; Tue, 19 Mar 2019 12:58:08 -0400 (EDT)
+	id D0E126B0005; Tue, 19 Mar 2019 13:04:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 680646B0006; Tue, 19 Mar 2019 12:58:08 -0400 (EDT)
+	id CBC0E6B0006; Tue, 19 Mar 2019 13:04:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 596626B0007; Tue, 19 Mar 2019 12:58:08 -0400 (EDT)
+	id B85146B0007; Tue, 19 Mar 2019 13:04:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3352E6B0005
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 12:58:08 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id l10so15983959qkj.22
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 09:58:08 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 76DB36B0005
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 13:04:46 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id g125so18444113pfb.1
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 10:04:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=LZfncOVwix9I7pRiQp/6Ng39qDrEW6CYLgJ/btXoJY8=;
-        b=iGhlQpZAe7vzwAu2rit4UZVn9YA8+edJv6TXBrad64WN6hotTZsEHsfl+n+FWg2eS/
-         i3B/IIjFQO1KWbBHWftmOngTsTEcmR9UKRHHUcDlM2I769qBcNrbWjV09Tg6UdtRsq4r
-         Z4sCLFC+Wz1GTHLs21XznWQ4wlZ9UNt5sv5r8zRdJmogiOD5pX1kc/rczxCBCnbGE7YV
-         Mpxqz1cpBGncAR85yR4+bHllrUGm6sKxZM3OUCUZClemU9xpf8UAMo6PDUoR71xkdRRu
-         NHEuyu79s02rJFf9aHlajbWVzqw/hbkuqQFnSajXJ4SfeuPxl/szoYjWyL9E7wTlKjwu
-         0wew==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXFQIFpHWgbqtIfbRr/kZzB6w5dXcGmByEgb0ygGxmAnPcRCNZ+
-	v4L3LT1J2Q5aRf1/4/sG5FEwTrtoikFcyYF5DWFZonRV6hfjHlhZPYcrDXoJbzmFsIc5xcoRiQj
-	6olq057LJSNCeu4vnKA6TNdUqAFf/8VRgbUgBFt0Weun0KpDjtbXA/1MRZWMO6f7iVg==
-X-Received: by 2002:ac8:65c3:: with SMTP id t3mr3213152qto.12.1553014687960;
-        Tue, 19 Mar 2019 09:58:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqznEGZ9Wb1pRh3yLVYaPeCig8jFDNyvx9J7NiulFKO21D4loFQcYITBDLcHaPFixA6anCsO
-X-Received: by 2002:ac8:65c3:: with SMTP id t3mr3213095qto.12.1553014687042;
-        Tue, 19 Mar 2019 09:58:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553014687; cv=none;
+         :in-reply-to:user-agent;
+        bh=bsZP3h1adyrfUPfmpmQrE+G/rqgrTmJHiFRgkwy52OU=;
+        b=JpYxXjZhNLDuJ9u76vHA2BWMfjxCW+Cdq2w71UzNitVJ9tpzTas4FgkZjxitizq1qj
+         iq0PeNnqHDjoAAfdsaD4ja0v8HUY3tArKRiLlQr5pdhx7pEXy6aTBl/a6flip5NYDTcL
+         5JTF/E4pbgBEc24EwhOdJlsLoM6uo0nmi8NkOJAa1DFnpvJhWLQmBy6Wnj72rSekEWoX
+         JV0sHvSCxFaH3R/l+xo+TtaN4rXnYYAYTo2/l/6EU4GLUvWFbyjtCSBuUZJLuhC7spR6
+         uxcUPsNmWdknVdccr6faiPTkMm9yqBLntSn1E5/m9k5aPML6KwvDwbeHIo1P+RBMckka
+         Oj6A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUmYyCQgNdIw1/8XrXuSSQQzRBIhpRzfLeP9c9hdGWoMGcrsOcM
+	1rK0WY7UyXJMVuNuqVOncW4q1Z6Zv6ZgjbXhX3HClcI45pEJUiFPgTAC7Idv+fTlFRzRzrPi5UB
+	vl23IrNZu4h4gWB10lRCTNHtLo38bax7tUYgTyHd4BQA9yZkckqiPkz2+IZj2DB/HZw==
+X-Received: by 2002:a62:29c5:: with SMTP id p188mr2887510pfp.203.1553015086020;
+        Tue, 19 Mar 2019 10:04:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzjQ4lOvvqfmDImz2lXE3R47bMhhJhbKQKCot7PmECOFZ0Y6cQhb8j6W97eRuCsfkC9f4Z7
+X-Received: by 2002:a62:29c5:: with SMTP id p188mr2887419pfp.203.1553015084888;
+        Tue, 19 Mar 2019 10:04:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553015084; cv=none;
         d=google.com; s=arc-20160816;
-        b=cWjbqR8n7WicFynGaLgAmViXV3r017H9P4PxZbqcrQmN8A0yzVBQVgdcgKUSGtOTyU
-         wA47F98kywHjTOy5MLqfcuyx0d5BBA3wAYr3ZF8oAN8gq0v6E5N/L/ApAwch5QQqfupB
-         UKPzUBUNpDNdYG3RSF5KlkZmZSfME+xT5PDV4XWjj99g03YOwgOmOht7fGxsnnq6y6zV
-         fdrTRdD2eTctHj8AVNrF6ocYIV9ZGFhkoV/NkIgKhgYyZTM8D5j+tJdNGZITq+pcPUKo
-         uXdaUJeyth+zsst43k6HzxagMoNEOnSwILxzHHvmRMv1BaBacJJjlLFiR/KSN5T21L3j
-         MpVA==
+        b=TEj8K2vrnUb+GKeAKSFG8SfVM1lxUt5oXbY2bDPwmoSFWFqBKjJUdo1vWar4dNlhuf
+         ysaczCZSLnJ7iYE5GPZCiqxGa2lXtPFn+NBJurJMID4I7kpbQM3A537E39f9EEscCavw
+         8MmPYroWwh/DO74quqKDV1J34T1F2iDrJ3RqXb6YRkmxKzXNMW/W3j3cvjB4NBLdUXRp
+         rsNBXSL4lwhGXyyjaYKk0pYPpMHUN5A+B/UrrK0gbLeNEwwG13dm2cSvyK7ZRsm126VO
+         S+jr6Pb7gMTNSKbjzWL7pPFL8nlVegS7Gfqdx9ZdJ8GdVlTFGWbNQJ9q6bk2UaaQmgG8
+         SCig==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=LZfncOVwix9I7pRiQp/6Ng39qDrEW6CYLgJ/btXoJY8=;
-        b=cHiiGKuVAtb5GV4p37W9s6K/cFHec9LAKkHOtXN2IzARgkvrgUR1a/Sgeg9BTwcVsr
-         /0dwOvzigXbJD3iw1IjBuCK/dvBEj/cZ3w2h7qQiT8tsAFCdpQHX9KPF3KnXkIAGhJOd
-         X7bVVp+DUlja9JNStKLXzt+cGYVQbPaINVeYiXPC+NwQxx651dJKaZkOxHqSbABN6INn
-         jSWH5xEjf5XOiEaAdlgYMWG4uYL6SLEw/wixV2377KvfHCqrErWanXo/6BZmqLOUdCa3
-         gXAtk5QF1KgpfV1leZpz9JsYuTKdERZS9vN0iZbPwE2MHXLfaHcqYTJaBiayon6H2YnE
-         0wkg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=bsZP3h1adyrfUPfmpmQrE+G/rqgrTmJHiFRgkwy52OU=;
+        b=akOtw3MkVVXqwHUsuyOfUWiO+1ZBs+CkcTGPZI5f1bLuLu5t0seGik80WcHXhXwRbx
+         zhM7tOFih4t3NikRFpcwPFVr+8Umbz5GdAHvwvL8qFhz8Jj24FZ6xnlG0MLtAOIq8XHP
+         TWWhUp6nBI2EJAoesV4tJgvRl/iBrL5iPD0JeFJZM46hRs9GBbOGESZVEpEfu+jk7qP9
+         pVrMKOnsxkoBXt04oa/wgOV0I2DnT9AXhHmU+347gv5iLnsM9vSE5rdfxaVxnNtInrf7
+         2uNCFz1uzL5+UIyHp5WPJGRG4GYsYBcCog/kZsC9hE/d/Z40YGdnh+rHZ7cxWzdnf2ja
+         3idw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y1si8036678qvf.173.2019.03.19.09.58.06
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id n11si11414793pgp.260.2019.03.19.10.04.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Mar 2019 09:58:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Tue, 19 Mar 2019 10:04:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 0F9E870D63;
-	Tue, 19 Mar 2019 16:58:06 +0000 (UTC)
-Received: from redhat.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id AD11060856;
-	Tue, 19 Mar 2019 16:58:04 +0000 (UTC)
-Date: Tue, 19 Mar 2019 12:58:02 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Jason Gunthorpe <jgg@mellanox.com>,
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from orsmga005.jf.intel.com ([10.7.209.41])
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 19 Mar 2019 10:04:44 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,245,1549958400"; 
+   d="scan'208";a="308543962"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga005.jf.intel.com with ESMTP; 19 Mar 2019 10:04:42 -0700
+Date: Tue, 19 Mar 2019 02:03:23 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Jan Kara <jack@suse.cz>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>,
+	Jerome Glisse <jglisse@redhat.com>, john.hubbard@gmail.com,
+	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	Al Viro <viro@zeniv.linux.org.uk>,
+	Christian Benvenuti <benve@cisco.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	Christopher Lameter <cl@linux.com>,
 	Dan Williams <dan.j.williams@intel.com>,
-	Alex Deucher <alexander.deucher@amd.com>
-Subject: Re: [PATCH 00/10] HMM updates for 5.1
-Message-ID: <20190319165802.GA3656@redhat.com>
-References: <20190129165428.3931-1-jglisse@redhat.com>
- <20190313012706.GB3402@redhat.com>
- <20190313091004.b748502871ba0aa839b924e9@linux-foundation.org>
- <20190318170404.GA6786@redhat.com>
- <20190319094007.a47ce9222b5faacec3e96da4@linux-foundation.org>
+	Dave Chinner <david@fromorbit.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>,
+	Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>,
+	Matthew Wilcox <willy@infradead.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
+	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
+	John Hubbard <jhubbard@nvidia.com>,
+	Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH v4 1/1] mm: introduce put_user_page*(), placeholder
+ versions
+Message-ID: <20190319090322.GE7485@iweiny-DESK2.sc.intel.com>
+References: <20190308213633.28978-1-jhubbard@nvidia.com>
+ <20190308213633.28978-2-jhubbard@nvidia.com>
+ <20190319120417.yzormwjhaeuu7jpp@kshutemo-mobl1>
+ <20190319134724.GB3437@redhat.com>
+ <20190319141416.GA3879@redhat.com>
+ <20190319142918.6a5vom55aeojapjp@kshutemo-mobl1>
+ <20190319153644.GB26099@quack2.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190319094007.a47ce9222b5faacec3e96da4@linux-foundation.org>
-User-Agent: Mutt/1.10.0 (2018-05-17)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Tue, 19 Mar 2019 16:58:06 +0000 (UTC)
+In-Reply-To: <20190319153644.GB26099@quack2.suse.cz>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 19, 2019 at 09:40:07AM -0700, Andrew Morton wrote:
-> On Mon, 18 Mar 2019 13:04:04 -0400 Jerome Glisse <jglisse@redhat.com> wrote:
-> 
-> > On Wed, Mar 13, 2019 at 09:10:04AM -0700, Andrew Morton wrote:
-> > > On Tue, 12 Mar 2019 21:27:06 -0400 Jerome Glisse <jglisse@redhat.com> wrote:
+On Tue, Mar 19, 2019 at 04:36:44PM +0100, Jan Kara wrote:
+> On Tue 19-03-19 17:29:18, Kirill A. Shutemov wrote:
+> > On Tue, Mar 19, 2019 at 10:14:16AM -0400, Jerome Glisse wrote:
+> > > On Tue, Mar 19, 2019 at 09:47:24AM -0400, Jerome Glisse wrote:
+> > > > On Tue, Mar 19, 2019 at 03:04:17PM +0300, Kirill A. Shutemov wrote:
+> > > > > On Fri, Mar 08, 2019 at 01:36:33PM -0800, john.hubbard@gmail.com wrote:
+> > > > > > From: John Hubbard <jhubbard@nvidia.com>
+> > > > 
+> > > > [...]
+> > > > 
+> > > > > > diff --git a/mm/gup.c b/mm/gup.c
+> > > > > > index f84e22685aaa..37085b8163b1 100644
+> > > > > > --- a/mm/gup.c
+> > > > > > +++ b/mm/gup.c
+> > > > > > @@ -28,6 +28,88 @@ struct follow_page_context {
+> > > > > >  	unsigned int page_mask;
+> > > > > >  };
+> > > > > >  
+> > > > > > +typedef int (*set_dirty_func_t)(struct page *page);
+> > > > > > +
+> > > > > > +static void __put_user_pages_dirty(struct page **pages,
+> > > > > > +				   unsigned long npages,
+> > > > > > +				   set_dirty_func_t sdf)
+> > > > > > +{
+> > > > > > +	unsigned long index;
+> > > > > > +
+> > > > > > +	for (index = 0; index < npages; index++) {
+> > > > > > +		struct page *page = compound_head(pages[index]);
+> > > > > > +
+> > > > > > +		if (!PageDirty(page))
+> > > > > > +			sdf(page);
+> > > > > 
+> > > > > How is this safe? What prevents the page to be cleared under you?
+> > > > > 
+> > > > > If it's safe to race clear_page_dirty*() it has to be stated explicitly
+> > > > > with a reason why. It's not very clear to me as it is.
+> > > > 
+> > > > The PageDirty() optimization above is fine to race with clear the
+> > > > page flag as it means it is racing after a page_mkclean() and the
+> > > > GUP user is done with the page so page is about to be write back
+> > > > ie if (!PageDirty(page)) see the page as dirty and skip the sdf()
+> > > > call while a split second after TestClearPageDirty() happens then
+> > > > it means the racing clear is about to write back the page so all
+> > > > is fine (the page was dirty and it is being clear for write back).
+> > > > 
+> > > > If it does call the sdf() while racing with write back then we
+> > > > just redirtied the page just like clear_page_dirty_for_io() would
+> > > > do if page_mkclean() failed so nothing harmful will come of that
+> > > > neither. Page stays dirty despite write back it just means that
+> > > > the page might be write back twice in a row.
 > > > 
-> > > > Andrew you will not be pushing this patchset in 5.1 ?
+> > > Forgot to mention one thing, we had a discussion with Andrea and Jan
+> > > about set_page_dirty() and Andrea had the good idea of maybe doing
+> > > the set_page_dirty() at GUP time (when GUP with write) not when the
+> > > GUP user calls put_page(). We can do that by setting the dirty bit
+> > > in the pte for instance. They are few bonus of doing things that way:
+> > >     - amortize the cost of calling set_page_dirty() (ie one call for
+> > >       GUP and page_mkclean()
+> > >     - it is always safe to do so at GUP time (ie the pte has write
+> > >       permission and thus the page is in correct state)
+> > >     - safe from truncate race
+> > >     - no need to ever lock the page
 > > > 
-> > > I'd like to.  It sounds like we're converging on a plan.
+> > > Extra bonus from my point of view, it simplify thing for my generic
+> > > page protection patchset (KSM for file back page).
 > > > 
-> > > It would be good to hear more from the driver developers who will be
-> > > consuming these new features - links to patchsets, review feedback,
-> > > etc.  Which individuals should we be asking?  Felix, Christian and
-> > > Jason, perhaps?
-> > > 
+> > > So maybe we should explore that ? It would also be a lot less code.
 > > 
-> > So i am guessing you will not send this to Linus ?
+> > Yes, please. It sounds more sensible to me to dirty the page on get, not
+> > on put.
 > 
-> I was waiting to see how the discussion proceeds.  Was also expecting
-> various changelog updates (at least) - more acks from driver
-> developers, additional pointers to client driver patchsets, description
-> of their readiness, etc.
+> I fully agree this is a desirable final state of affairs.
 
-nouveau will benefit from this patchset and is already upstream in 5.1
-so i am not sure what kind of pointer i can give for that, it is already
-there. amdgpu will also benefit from it and is queue up AFAICT. ODP RDMA
-is the third driver and i gave link to the patch that also use the 2
-new functions that this patchset introduce. Do you want more ?
+I'm glad to see this presented because it has crossed my mind more than once
+that effectively a GUP pinned page should be considered "dirty" at all times
+until the pin is removed.  This is especially true in the RDMA case.
 
-I guess i will repost with updated ack as Felix, Jason and few others
-told me they were fine with it.
+> And with changes
+> to how we treat pinned pages during writeback there won't have to be any
+> explicit dirtying at all in the end because the page is guaranteed to be
+> dirty after a write page fault and pin would make sure it stays dirty until
+> unpinned. However initially I want the helpers to be as close to code they
+> are replacing as possible. Because it will be hard to catch all the bugs
+> due to driver conversions even in that situation. So I still think that
+> these helpers as they are a good first step. Then we need to convert
+> GUP users to use them and then it is much easier to modify the behavior
+> since it is no longer opencoded in two hudred or how many places...
+
+Agreed.  I continue to test with these patches and RDMA and have not seen any
+problems thus far.
+
+Ira
 
 > 
-> Today I discover that Alex has cherrypicked "mm/hmm: use reference
-> counting for HMM struct" into a tree which is fed into linux-next which
-> rather messes things up from my end and makes it hard to feed a
-> (possibly modified version of) that into Linus.
-
-:( i did not know the tree they pull that in was fed into next. I will
-discourage them from doing so going forward.
-
-> So I think I'll throw up my hands, drop them all and shall await
-> developments :(
-
-What more do you want to see ? I can repost with the ack already given
-and the improve commit wording on some of the patch. But from user point
-of view nouveau is already upstream, ODP RDMA depends on this patchset
-and is posted and i have given link to it. amdgpu is queue up. What more
-do i need ?
-
-Cheers,
-Jérôme
+> 								Honza
+> 
+> -- 
+> Jan Kara <jack@suse.com>
+> SUSE Labs, CR
 
