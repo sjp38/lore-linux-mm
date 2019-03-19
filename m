@@ -2,288 +2,197 @@ Return-Path: <SRS0=zC3H=RW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D1E96C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 21:11:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B23CCC10F03
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 21:23:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7C81F2175B
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 21:11:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7C81F2175B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 6A2942175B
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 21:23:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A2942175B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C9CE76B0006; Tue, 19 Mar 2019 17:11:30 -0400 (EDT)
+	id D0B146B0005; Tue, 19 Mar 2019 17:23:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C28C96B000A; Tue, 19 Mar 2019 17:11:30 -0400 (EDT)
+	id C920D6B0006; Tue, 19 Mar 2019 17:23:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A4FCB6B0006; Tue, 19 Mar 2019 17:11:30 -0400 (EDT)
+	id B336A6B0007; Tue, 19 Mar 2019 17:23:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A7476B0008
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 17:11:30 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id p5so110503edh.2
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 14:11:30 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 712016B0005
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 17:23:54 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id o67so205527pfa.20
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 14:23:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=V09LDBdRnWephqxFwrgzBDXM8cLyI7pzM1TQj9PFlJE=;
-        b=dH/2whE+cL6KidVbqKA4skPDqN+8li4USCw7Jmu5RUePm1hFoLxuFHs1aUSZHWahhY
-         dClVeWoQstvXkEOkpveiFNdwcEf40X7ZsVXghaMbxqLEbuBCMVFcXFD6MwIc0kHRWBQk
-         1nsxiwzV9RvzTdSkPQM2uHNLClmiyvgPsCgY17cdu9M8Pk3WVEg76fYZRLZkZlDMvDNg
-         51gyUGSy/UrvpZG/nliBq8CMOkqoSJ/O9VnQogApjQL3dX3/rAAq1sCRv7F/t+UBKbC7
-         ME2e2xyIui0StvJfjPl1WRsH/jp9F/vXNO9uwQyFSDeLo2E02uRi3Wt4mzEwWyk+cwLQ
-         TnIg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAVpSfUnyfpxXBVT/vtI5pqbDfPaMt0xfsNCtklfCEnNeGURT/ut
-	oXMTn1A/dNoDlmwFdpVBzoX0qJLoFk0NzZBQthCOGqxyElzPKpZfyO/x9oRQbGS1kxPb/vrbtlD
-	he1R4zsqMyKe2qI4BexkDhRaIeYd2D0bYpqC/+oxhf9osHlgBu2Nj+vg1aPlb4b33uw==
-X-Received: by 2002:aa7:da09:: with SMTP id r9mr18079073eds.7.1553029889730;
-        Tue, 19 Mar 2019 14:11:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxsyfSOD5BZIOYk/EzcycR01W750G2iTFVPbhPFH+2JUo4P21iSR3TMP+ePr3GUsAKzO/6+
-X-Received: by 2002:aa7:da09:: with SMTP id r9mr18079038eds.7.1553029888556;
-        Tue, 19 Mar 2019 14:11:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553029888; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=lMT8Mu84Fop6jiESGOrwJHIxx685RNT4YA1Ft7JSxZA=;
+        b=svY0doK+jZu5CoPQTIobTV8LwO+OJi9bpVFGtuMJhget87ajdeZnpTMWyzTra1+1QB
+         w3DTQsyHkMoENX2hT1OsE7deevkWA5m4TOa8rSaF2Nio54CFtVNyGASBRFhGJM3s0XoF
+         wkLDstO/OQSj1YRaTaRbRkdUGynU54f6EElbhtUxZ/XZsirvi1awFRxNm+oOfAllwZmu
+         3Yl9mcFlfOV9/9GawpVDhYR/7ZC70ihrTM6HEH8nzL/tSivIxeaGvUs3StdoiQhcUKIt
+         ye+pcDIwAx8ild2MxRe59ci87dtgiSYAHAp858RtmurgOgmCFSnsm71tqTegOErbeP+F
+         Si4A==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 150.101.137.141 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAU1z6FXNCzBfn7IEJ6ekyMW0qZs3mRjF/7rcM3rGylHjmHun4bf
+	4eb5zbhdY8iAuBdoxA1h/1SY2QglqiHJcaTU7AxncNTE99+G8qmgrO1Q5pE/F6Qg6eWukTijV6b
+	Dsa5EuvfOlww1usrRqLrotLxOJD4S8Qqga6icRj/LQBCUdIMwic0TfCtDOtFZReU=
+X-Received: by 2002:a63:5515:: with SMTP id j21mr3905481pgb.244.1553030634026;
+        Tue, 19 Mar 2019 14:23:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwgJOetJ+36qRa5zFy1wDpo8iKtXmSnqtxltlL8Gp6MgjJVz2iVlFpG1D1EKi84UL7KuIsc
+X-Received: by 2002:a63:5515:: with SMTP id j21mr3905419pgb.244.1553030632749;
+        Tue, 19 Mar 2019 14:23:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553030632; cv=none;
         d=google.com; s=arc-20160816;
-        b=E8/hazH6pmS4fvaVTKqFaMXMAzMKzOWo/MWE5BACIymEYzMuMYx4uNWDKjlTOoG4/p
-         56Ov6ijPYp9oEXkdeW7Tgunv+DGTLzK3aYPo5pRw6x6XFGwfJNheRZIxijRRTtdyGDzq
-         x05tUmsPwdOibQhoiTRGU1pp7sbHJBZVPro08WDFtGKhYB9UrhXR3os5vB+ZUOQVBI4a
-         5FYgDgTcGY6BOhjriu6CkRSddMtKSIxaWS0kp1lt5TgsFh6fyoZgb5PBTjHOSfnmkF3F
-         8FyG/kKGQ9ymzVYAEgvcGibsmgeFpW+VtSn1Vbyw21ortSUJl8YWv6Rnoffdz5dd3nwY
-         ivew==
+        b=ZzhTIx+7RH4zoA4y+aTsg9rT+srXZZSEodbFZkEYqC5br6UOxq7p2Ed7uOscujT21C
+         BgV3ae8QAgduXY69y++dYYYrC5s2q+JXjMI9ScP48xd9kEYmjxYYSj1uFteOdmbSbpQx
+         +ZNaCMcUPTeVA2OCRDcH7Y8SopV0GEl4+WexNSiFOUfdb4b+fZJkaTOXYBkzJsMnnFEK
+         Y89p8UQbTYQgqynjpO+6cCP7/JkdEbrCS+gO8TvJD3KzwD8hFfr40FTmyvuMAHi4Y7Oq
+         I3NUn6n//X6viIULXzKFPxjGd1ud18LAKSlLkA7Gz8bylDr4eqjny9MVa3ei93F7lP7a
+         AgGg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=V09LDBdRnWephqxFwrgzBDXM8cLyI7pzM1TQj9PFlJE=;
-        b=x466Q5bT3LADTnJSz2xkUu7F6D67biUwdG4UAg6ends/s2BNAx2+rw/GKocevF15sK
-         ks0zlTmuCMMX1zJL9fAUqCaVapoR2IGYVy3d+OL9+qCTpFuOMhN4QwqgEmiFDkksbqrP
-         w9F14uvbpXDzzrAMy8A3ClW2MNvlPNQCdHJLuAiceL/gc9Wq1KKPelut4bVe94/p+p9Q
-         Um7GCd801uRoXMivy/CycOdqr+X8KbLgcp0rBa+4vEkQNEaOesd6Ot1b5DWFx6KuNp8A
-         1eQQd+rVkgBai3YAdwqq2Hoc/sJ2hpozqiGr+6eq166Ma2ZZWNg5ky2b24Vv/yir9VdH
-         c1bQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=lMT8Mu84Fop6jiESGOrwJHIxx685RNT4YA1Ft7JSxZA=;
+        b=IebCUcWsU1Fe1JG2w6jW3cEhBUuG/yHDr4Bc2CQ4ThkKXnO6sKnWiZH9fBuxxvzP9G
+         9a4/wwjvaBXwjmN7AhFJ2QcBHEQ7lTveKEsdsDVQxEWsc9cOIJe5p6iNifvNYBre9KhF
+         in3aJWOy794HgYa5gaI8Rw4uxc237nJv0wnKJKEf3wg9pQQBqAVLYxL2vyTNpUuU45+p
+         oHctozsMi0fHBZyLAyf4SezDvxYDkqNYAG+qnzx6eBhXtK778peHdgKYFdUa9wvtDSUy
+         aqX7KkKo9D5xYQ3pRihlJaQZYAAh6QAUI5BamIgKbuLe/KicQD94hMc+F29qp3gHcvyY
+         ukIQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p6si1741394ejf.184.2019.03.19.14.11.28
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Mar 2019 14:11:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=neutral (google.com: 150.101.137.141 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from ipmail03.adl2.internode.on.net (ipmail03.adl2.internode.on.net. [150.101.137.141])
+        by mx.google.com with ESMTP id q20si106277plr.136.2019.03.19.14.23.51
+        for <linux-mm@kvack.org>;
+        Tue, 19 Mar 2019 14:23:52 -0700 (PDT)
+Received-SPF: neutral (google.com: 150.101.137.141 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=150.101.137.141;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 96511B604;
-	Tue, 19 Mar 2019 21:11:27 +0000 (UTC)
-From: Vlastimil Babka <vbabka@suse.cz>
-To: linux-mm@kvack.org
-Cc: Christoph Lameter <cl@linux.com>,
-	Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Ming Lei <ming.lei@redhat.com>,
-	Dave Chinner <david@fromorbit.com>,
+       spf=neutral (google.com: 150.101.137.141 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from ppp59-167-129-252.static.internode.on.net (HELO dastard) ([59.167.129.252])
+  by ipmail03.adl2.internode.on.net with ESMTP; 20 Mar 2019 07:53:49 +1030
+Received: from dave by dastard with local (Exim 4.80)
+	(envelope-from <david@fromorbit.com>)
+	id 1h6MD4-0003Pg-M8; Wed, 20 Mar 2019 08:23:46 +1100
+Date: Wed, 20 Mar 2019 08:23:46 +1100
+From: Dave Chinner <david@fromorbit.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, john.hubbard@gmail.com,
+	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	Al Viro <viro@zeniv.linux.org.uk>,
+	Christian Benvenuti <benve@cisco.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	Christopher Lameter <cl@linux.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>,
+	Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
+	Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
 	Matthew Wilcox <willy@infradead.org>,
-	"Darrick J . Wong" <darrick.wong@oracle.com>,
-	Christoph Hellwig <hch@lst.de>,
 	Michal Hocko <mhocko@kernel.org>,
-	linux-kernel@vger.kernel.org,
-	linux-xfs@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org,
-	linux-block@vger.kernel.org,
-	Vlastimil Babka <vbabka@suse.cz>
-Subject: [RFC 1/2] mm, sl[aou]b: guarantee natural alignment for kmalloc(power-of-two)
-Date: Tue, 19 Mar 2019 22:11:07 +0100
-Message-Id: <20190319211108.15495-2-vbabka@suse.cz>
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190319211108.15495-1-vbabka@suse.cz>
-References: <20190319211108.15495-1-vbabka@suse.cz>
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
+	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
+	John Hubbard <jhubbard@nvidia.com>,
+	Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH v4 1/1] mm: introduce put_user_page*(), placeholder
+ versions
+Message-ID: <20190319212346.GA26298@dastard>
+References: <20190308213633.28978-1-jhubbard@nvidia.com>
+ <20190308213633.28978-2-jhubbard@nvidia.com>
+ <20190319120417.yzormwjhaeuu7jpp@kshutemo-mobl1>
+ <20190319134724.GB3437@redhat.com>
+ <20190319141416.GA3879@redhat.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190319141416.GA3879@redhat.com>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In most configurations, kmalloc() happens to return naturally aligned blocks
-for power of two sizes. That means some kmalloc() users might implicitly rely
-on that alignment, until stuff breaks when the kernel is built with e.g.
-CONFIG_SLUB_DEBUG or CONFIG_SLOB, and blocks stop being aligned. Then
-developers have to devise workaround such as own kmem caches with specified
-alignment, which is not always practical, as recently evidenced in [1].
+On Tue, Mar 19, 2019 at 10:14:16AM -0400, Jerome Glisse wrote:
+> On Tue, Mar 19, 2019 at 09:47:24AM -0400, Jerome Glisse wrote:
+> > On Tue, Mar 19, 2019 at 03:04:17PM +0300, Kirill A. Shutemov wrote:
+> > > On Fri, Mar 08, 2019 at 01:36:33PM -0800, john.hubbard@gmail.com wrote:
+> > > > From: John Hubbard <jhubbard@nvidia.com>
+> > 
+> > [...]
+> > 
+> > > > diff --git a/mm/gup.c b/mm/gup.c
+> > > > index f84e22685aaa..37085b8163b1 100644
+> > > > --- a/mm/gup.c
+> > > > +++ b/mm/gup.c
+> > > > @@ -28,6 +28,88 @@ struct follow_page_context {
+> > > >  	unsigned int page_mask;
+> > > >  };
+> > > >  
+> > > > +typedef int (*set_dirty_func_t)(struct page *page);
+> > > > +
+> > > > +static void __put_user_pages_dirty(struct page **pages,
+> > > > +				   unsigned long npages,
+> > > > +				   set_dirty_func_t sdf)
+> > > > +{
+> > > > +	unsigned long index;
+> > > > +
+> > > > +	for (index = 0; index < npages; index++) {
+> > > > +		struct page *page = compound_head(pages[index]);
+> > > > +
+> > > > +		if (!PageDirty(page))
+> > > > +			sdf(page);
+> > > 
+> > > How is this safe? What prevents the page to be cleared under you?
+> > > 
+> > > If it's safe to race clear_page_dirty*() it has to be stated explicitly
+> > > with a reason why. It's not very clear to me as it is.
+> > 
+> > The PageDirty() optimization above is fine to race with clear the
+> > page flag as it means it is racing after a page_mkclean() and the
+> > GUP user is done with the page so page is about to be write back
+> > ie if (!PageDirty(page)) see the page as dirty and skip the sdf()
+> > call while a split second after TestClearPageDirty() happens then
+> > it means the racing clear is about to write back the page so all
+> > is fine (the page was dirty and it is being clear for write back).
+> > 
+> > If it does call the sdf() while racing with write back then we
+> > just redirtied the page just like clear_page_dirty_for_io() would
+> > do if page_mkclean() failed so nothing harmful will come of that
+> > neither. Page stays dirty despite write back it just means that
+> > the page might be write back twice in a row.
+> 
+> Forgot to mention one thing, we had a discussion with Andrea and Jan
+> about set_page_dirty() and Andrea had the good idea of maybe doing
+> the set_page_dirty() at GUP time (when GUP with write) not when the
+> GUP user calls put_page(). We can do that by setting the dirty bit
+> in the pte for instance. They are few bonus of doing things that way:
+>     - amortize the cost of calling set_page_dirty() (ie one call for
+>       GUP and page_mkclean()
+>     - it is always safe to do so at GUP time (ie the pte has write
+>       permission and thus the page is in correct state)
+>     - safe from truncate race
+>     - no need to ever lock the page
 
-Ideally we should provide to mm users what they need without difficult
-workarounds or own reimplementations, so let's make the kmalloc() alignment
-explicit and guaranteed for power-of-two sizes under all configurations.
-What this means for the three available allocators?
+I seem to have missed this conversation, so please excuse me for
+asking a stupid question: if it's a file backed page, what prevents
+background writeback from cleaning the dirty page ~30s into a long
+term pin? i.e. I don't see anything in this proposal that prevents
+the page from being cleaned by writeback and putting us straight
+back into the situation where a long term RDMA is writing to a clean
+page....
 
-* SLAB happens to be OK even before the patch. The implicit alignment could be
-  compromised with CONFIG_DEBUG_SLAB due to redzoning, however SLAB disables
-  red zoning for caches with alignment larger than unsigned long long.
-  Practically on at least x86 this includes kmalloc caches as they use cache
-  line alignment which is larger than that. Still, this patch ensures alignment
-  on all arches and cache sizes.
+Cheers,
 
-* SLUB is implicitly OK unless red zoning is enabled through CONFIG_SLUB_DEBUG
-  or boot parameter. With this patch, explicit alignment guarantees it with red
-  zoning as well. This will result in more memory being wasted, but that should
-  be acceptable in a debugging scenario.
-
-* SLOB has no implicit alignment so this patch adds it explicitly for
-  kmalloc(). The downside is increased fragmentation, which is hopefully
-  acceptable for this relatively rarely used allocator.
-
-[1] https://lore.kernel.org/linux-fsdevel/20190225040904.5557-1-ming.lei@redhat.com/T/#u
-
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- mm/slab_common.c | 11 ++++++++++-
- mm/slob.c        | 42 +++++++++++++++++++++++++++++++-----------
- 2 files changed, 41 insertions(+), 12 deletions(-)
-
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 03eeb8b7b4b1..e591d5688558 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -968,10 +968,19 @@ void __init create_boot_cache(struct kmem_cache *s, const char *name,
- 		unsigned int useroffset, unsigned int usersize)
- {
- 	int err;
-+	unsigned int align = ARCH_KMALLOC_MINALIGN;
- 
- 	s->name = name;
- 	s->size = s->object_size = size;
--	s->align = calculate_alignment(flags, ARCH_KMALLOC_MINALIGN, size);
-+
-+	/*
-+	 * For power of two sizes, guarantee natural alignment for kmalloc
-+	 * caches, regardless of SL*B debugging options.
-+	 */
-+	if (is_power_of_2(size))
-+		align = max(align, size);
-+	s->align = calculate_alignment(flags, align, size);
-+
- 	s->useroffset = useroffset;
- 	s->usersize = usersize;
- 
-diff --git a/mm/slob.c b/mm/slob.c
-index 307c2c9feb44..e100fa09493f 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -215,7 +215,8 @@ static void slob_free_pages(void *b, int order)
- /*
-  * Allocate a slob block within a given slob_page sp.
-  */
--static void *slob_page_alloc(struct page *sp, size_t size, int align)
-+static void *slob_page_alloc(struct page *sp, size_t size, int align,
-+							int align_offset)
- {
- 	slob_t *prev, *cur, *aligned = NULL;
- 	int delta = 0, units = SLOB_UNITS(size);
-@@ -223,8 +224,17 @@ static void *slob_page_alloc(struct page *sp, size_t size, int align)
- 	for (prev = NULL, cur = sp->freelist; ; prev = cur, cur = slob_next(cur)) {
- 		slobidx_t avail = slob_units(cur);
- 
-+		/*
-+		 * 'aligned' will hold the address of the slob block so that the
-+		 * address 'aligned'+'align_offset' is aligned according to the
-+		 * 'align' parameter. This is for kmalloc() which prepends the
-+		 * allocated block with its size, so that the block itself is
-+		 * aligned when needed.
-+		 */
- 		if (align) {
--			aligned = (slob_t *)ALIGN((unsigned long)cur, align);
-+			aligned = (slob_t *)
-+				(ALIGN((unsigned long)cur + align_offset, align)
-+				 - align_offset);
- 			delta = aligned - cur;
- 		}
- 		if (avail >= units + delta) { /* room enough? */
-@@ -266,7 +276,8 @@ static void *slob_page_alloc(struct page *sp, size_t size, int align)
- /*
-  * slob_alloc: entry point into the slob allocator.
-  */
--static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
-+static void *slob_alloc(size_t size, gfp_t gfp, int align, int node,
-+							int align_offset)
- {
- 	struct page *sp;
- 	struct list_head *prev;
-@@ -298,7 +309,7 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
- 
- 		/* Attempt to alloc */
- 		prev = sp->lru.prev;
--		b = slob_page_alloc(sp, size, align);
-+		b = slob_page_alloc(sp, size, align, align_offset);
- 		if (!b)
- 			continue;
- 
-@@ -326,7 +337,7 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
- 		INIT_LIST_HEAD(&sp->lru);
- 		set_slob(b, SLOB_UNITS(PAGE_SIZE), b + SLOB_UNITS(PAGE_SIZE));
- 		set_slob_page_free(sp, slob_list);
--		b = slob_page_alloc(sp, size, align);
-+		b = slob_page_alloc(sp, size, align, align_offset);
- 		BUG_ON(!b);
- 		spin_unlock_irqrestore(&slob_lock, flags);
- 	}
-@@ -428,7 +439,7 @@ static __always_inline void *
- __do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
- {
- 	unsigned int *m;
--	int align = max_t(size_t, ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
-+	int minalign = max_t(size_t, ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
- 	void *ret;
- 
- 	gfp &= gfp_allowed_mask;
-@@ -436,19 +447,28 @@ __do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
- 	fs_reclaim_acquire(gfp);
- 	fs_reclaim_release(gfp);
- 
--	if (size < PAGE_SIZE - align) {
-+	if (size < PAGE_SIZE - minalign) {
-+		int align = minalign;
-+
-+		/*
-+		 * For power of two sizes, guarantee natural alignment for
-+		 * kmalloc()'d objects.
-+		 */
-+		if (is_power_of_2(size))
-+			align = max(minalign, (int) size);
-+
- 		if (!size)
- 			return ZERO_SIZE_PTR;
- 
--		m = slob_alloc(size + align, gfp, align, node);
-+		m = slob_alloc(size + minalign, gfp, align, node, minalign);
- 
- 		if (!m)
- 			return NULL;
- 		*m = size;
--		ret = (void *)m + align;
-+		ret = (void *)m + minalign;
- 
- 		trace_kmalloc_node(caller, ret,
--				   size, size + align, gfp, node);
-+				   size, size + minalign, gfp, node);
- 	} else {
- 		unsigned int order = get_order(size);
- 
-@@ -544,7 +564,7 @@ static void *slob_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
- 	fs_reclaim_release(flags);
- 
- 	if (c->size < PAGE_SIZE) {
--		b = slob_alloc(c->size, flags, c->align, node);
-+		b = slob_alloc(c->size, flags, c->align, node, 0);
- 		trace_kmem_cache_alloc_node(_RET_IP_, b, c->object_size,
- 					    SLOB_UNITS(c->size) * SLOB_UNIT,
- 					    flags, node);
+Dave.
 -- 
-2.21.0
+Dave Chinner
+david@fromorbit.com
 
