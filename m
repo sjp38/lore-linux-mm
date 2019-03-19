@@ -2,118 +2,158 @@ Return-Path: <SRS0=zC3H=RW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0C222C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 13:00:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7BE26C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 13:27:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9D75E2146E
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 13:00:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D75E2146E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 3C433206BA
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 13:27:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C433206BA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F1ED06B0005; Tue, 19 Mar 2019 09:00:47 -0400 (EDT)
+	id CBF176B0003; Tue, 19 Mar 2019 09:27:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ECB366B0006; Tue, 19 Mar 2019 09:00:47 -0400 (EDT)
+	id C6DC26B0006; Tue, 19 Mar 2019 09:27:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DBA6D6B0007; Tue, 19 Mar 2019 09:00:47 -0400 (EDT)
+	id B5D1F6B0007; Tue, 19 Mar 2019 09:27:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CA816B0005
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 09:00:47 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id o27so8159441edc.14
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 06:00:47 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E6636B0003
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 09:27:37 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id o9so8145218edh.10
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 06:27:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=WTpD4Rjkiz4VWEZvoYQaOav34nY+rRzhR8yPpNRPNCg=;
-        b=Hi/Cij9JOWE4VAwK7k6Fjhjmcy5FsCs2vQJDKMG6Sm4OCsrLtmtMg+LMd0CrvLKLPQ
-         8y7BXfXfCR1R+kAr3l8f9ntY3ge7HmbN5EkRn+Np/EMD0wswbTd1F/0OZQ6XooLVbp9n
-         CbH2myiXcbW9HB1sm3itl6Zsi2aamVGub5XwNt7UAje9E/O1CWWFdbX9/8krQP2u1L37
-         dzoFzkPcHPbGS/axFHLc931lmLsf7z5AlDhnuAe1kqlWk4eM3Y/NxBTKAF0ufEgddCBI
-         dVa1aO+hR1Aa2RKAiIWuQurOu/3mBK5iBtpYcG5UYIzSPIvB43RRLBMjCnm0Razon/BP
-         rgig==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of metan@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=metan@suse.de
-X-Gm-Message-State: APjAAAX8J3vgRfE8vfiBhOyQb636SGRFS9HhivXNZC6O+4zNRW3r6VYb
-	zF+dbMxrql69ChjN4hu2z9pYFlEKvrJcxec6p1YBlvrnx58G9DjZq1gUK+aWg7R4W6+Vv+UqQUi
-	VLC5pKGye66RBRICuasUz5dXQMsx9U4/IDfoWXH39UglBnSYK1f39dbvMG4pgTJ8=
-X-Received: by 2002:aa7:c419:: with SMTP id j25mr16552646edq.195.1553000447213;
-        Tue, 19 Mar 2019 06:00:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyP7mIzSI2x5i1+7bDRsn+A/hvT4nmaBifl7mH2Leb7wTkPSIOjVgl2Q60X1MYwti0bZPrS
-X-Received: by 2002:aa7:c419:: with SMTP id j25mr16552605edq.195.1553000446255;
-        Tue, 19 Mar 2019 06:00:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553000446; cv=none;
+        bh=DZsqno0zV+2IhWSck9i1ORZwdbnkP/TTOB3fzHLxxmg=;
+        b=uX/6bKhaX4KAS6OAbhOsgfvR9lzWvg3pzfz4qrLJfjnCgTaXLZ+i/ml0KIlY+4i1kE
+         8eosK6boGPZGjtUopZZRqdF8m1coZeMxjhHyqfkVTNOcZ/4It/6472T7w6qRp+1rGSQi
+         TFxbmcX5OJ3QeiT3EXn8CUtIgZi7UAkf5SKnQjSs24+WLvo1xdnCcZo5xbF05Hg7gZ00
+         9BMIx6A60vRKORi7mbu7+ykEwv2GGB1KvjpNOAn4ptAGMPhPgqBRiq+e35KShPb6+uot
+         vGFQ1+tKEwlz1588Qdah3a8jRdRhkkh7V7tcrNd4roaFSgFsg2ERKz9qOjQAm1gk71hg
+         8mzA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAUM+s3pVVIV4xk0q2RwsDrGRnK4hr2MtQ0gb1v5CHnjXLaX+Sdr
+	O6XWd4DHWDGolLMuyBHXLCb5JqptnGTpwhPNJV+egXJd+96pAhprY/A9/FH1sD0p4UMEOadmnuu
+	Gli66QRg3PHcd8LVJIFkuni7Gmso74HjWXLkAw25oMvQOF+rcZhAWZeflKfUD3bAP9Q==
+X-Received: by 2002:a17:906:2a98:: with SMTP id l24mr9532025eje.25.1553002056877;
+        Tue, 19 Mar 2019 06:27:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyCzAqKpQWBtDVfUeY2GNSeAbwzS5iuvkO60TdAOZVsamzj5Q9+H5LBTf/evg8dKe9E0lcF
+X-Received: by 2002:a17:906:2a98:: with SMTP id l24mr9531983eje.25.1553002055768;
+        Tue, 19 Mar 2019 06:27:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553002055; cv=none;
         d=google.com; s=arc-20160816;
-        b=M99eSXC+c9Uci49MSo+mpMATHL5Xry4y96OR/aAEFHIx6oEIAj1axnq1cWTty52UL9
-         Bi5QQmoOVbtLO1w6CYQ14wxtDUlOWH5poQUcGtG2gmZCu8k2y2DEGWLFmvr75gWAqWH7
-         98fah9q3OKgvLyLtrIIOEXS1qTRktOJnS6OGbE3DkUYYOOKPOoLY7lH7qQetnJIn3t9Z
-         VRne64FAKjEbumjW0u0i/7oDmrSBlkx//ZjScgtn2hKmE/GFgyuyb76LBNOvJb1LtCin
-         cLQvijztNqP3yFGAh84PYE6j4XPTw37eBzw0y24JMUdPTEOIbhT3PT7Td/p/9zsp3UXy
-         8yFA==
+        b=qaXKead9na/CKmadAT/D1mqra69QNahCw8o6rE0Nv1kzfiLdEIb2En3lKOaQO21Df/
+         bIKc1DWtaMW+9bB/3Ys8bYw9QM1XzAip1B/3YHohbzPqb0rxaQZRAgz2MhxmeNXLd6XT
+         +lIC2c5Km8LJ2zNi+/I2weNvM7hWaIPZL9r6Iu/ufCkkmQD7TcwyCtXdT3Jg/ullFskv
+         Udn4JuEFxGZib+mqYNgqxYzFNRx71LVs673uNpuOXIQWZCh6Sfr5S9KoNK9Ettjmq6+X
+         uIDQaLsx8NyHNTQ/1dxzaFTWhtQQlVleThVNHzp4LWUkz0flAFcLmzyH7LLZ/xIVBFTu
+         8RWw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=WTpD4Rjkiz4VWEZvoYQaOav34nY+rRzhR8yPpNRPNCg=;
-        b=mtHoypmEHlYN5qudA7xQMJaPq8q5KIlzhAlxuoHEq4u11aGPo37eOPzYHwm23uZm1m
-         5FtF0UshI9ZxjCGU1vBlmyqn4XqPh67gSfFtJ5Jtjb4+WCOPGAxQayjMALK//la0lHWe
-         xYyU5mHh8j8d2W3tLysEAvES5tg/QKU6OHzu+p7bSjdpwke9oWm9CujU3oso9H6TSsmS
-         UnFoY8Nuv3Nos4pi1Uz8+3mGefZVTPQVTuYAfUMcr89cNpN5zBxJolOoQY4R9zF4DmpU
-         /2kYniiy79qD3DzQkJ8KXWcS8TpeVFqdIspbbE0yDNEhG6Ag6tq89zq85zhNuiyCzDA2
-         gKOQ==
+        bh=DZsqno0zV+2IhWSck9i1ORZwdbnkP/TTOB3fzHLxxmg=;
+        b=lIKvjVl0dd1DTtgzPDTT8NRD2QPrIbc4OAx2/p43fSmDhmkIrx2QPFTf85U+Yyb6IP
+         6v91lGWCHbv3BSzrCY8H6AeeBiiacCmHoas1853v0gBuJZdCiYbmPrDxJkQ7oJJdarlE
+         pxaaTxM3t9DDjhNg3YDDEkAGoptc+3WaHoveaUqz3+Ls83whyBbhAe2zE/ULeXUMrevW
+         HXRul2CaR+oRwzIUw1CSVY+a8b56sVF1xKdpZkGxlRXmBCpDtqjuKaQ5ORk03GZhm/zX
+         gGubqPMCWVng1yuaiYFdeljSsVGEyCh+WWHYVrysmXMgJ7NRFpd+4lWE1cbZwKCirrCj
+         opvg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of metan@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=metan@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o4si2344301eda.121.2019.03.19.06.00.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Mar 2019 06:00:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of metan@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from suse.de (nat.nue.novell.com. [195.135.221.2])
+        by mx.google.com with ESMTP id a6si3939305edn.261.2019.03.19.06.27.35
+        for <linux-mm@kvack.org>;
+        Tue, 19 Mar 2019 06:27:35 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) client-ip=195.135.221.2;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of metan@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=metan@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id DCC40AD0A;
-	Tue, 19 Mar 2019 13:00:44 +0000 (UTC)
-Date: Tue, 19 Mar 2019 13:59:59 +0100
-From: Cyril Hrubis <chrubis@suse.cz>
-To: Qian Cai <cai@lca.pw>
-Cc: linux-mm@kvack.org, linux-api@vger.kernel.org, ltp@lists.linux.it,
-	Vlastimil Babka <vbabka@suse.cz>
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: by suse.de (Postfix, from userid 1000)
+	id B5EE14601; Tue, 19 Mar 2019 14:27:33 +0100 (CET)
+Date: Tue, 19 Mar 2019 14:27:33 +0100
+From: Oscar Salvador <osalvador@suse.de>
+To: Yang Shi <shy828301@gmail.com>
+Cc: Cyril Hrubis <chrubis@suse.cz>, Linux MM <linux-mm@kvack.org>,
+	linux-api@vger.kernel.org, ltp@lists.linux.it,
+	Vlastimil Babka <vbabka@suse.cz>, kirill.shutemov@linux.intel.com
 Subject: Re: mbind() fails to fail with EIO
-Message-ID: <20190319125958.GF6204@rei>
+Message-ID: <20190319132729.s42t3evt6d65sz6f@d104.suse.de>
 References: <20190315160142.GA8921@rei>
- <1552925316.26196.5.camel@lca.pw>
+ <CAHbLzkqvQ2SW4soYHOOhWG0ShkdUhaiNK0_y+ULaYYHo62O0fQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1552925316.26196.5.camel@lca.pw>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <CAHbLzkqvQ2SW4soYHOOhWG0ShkdUhaiNK0_y+ULaYYHo62O0fQ@mail.gmail.com>
+User-Agent: NeoMutt/20170421 (1.8.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
-> I am too lazy to checkout the repository and compile the whole thing
-> just to be able to reproduce. If you can make it a standalone program
-> without LTP markups, I'd be happy to take a look.
++CC Kirill
 
-Sigh, I've spend last few years so working on the testsuite so that you
-can compile and run a single test from the checked out repository, we
-even have howto for that in the README.md.
+On Mon, Mar 18, 2019 at 11:12:19AM -0700, Yang Shi wrote:
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index abe7a67..6ba45aa 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -521,11 +521,14 @@ static int queue_pages_pte_range(pmd_t *pmd,
+> unsigned long addr,
+>                         continue;
+>                 if (!queue_pages_required(page, qp))
+>                         continue;
+> -               migrate_page_add(page, qp->pagelist, flags);
+> +               if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+> +                       migrate_page_add(page, qp->pagelist, flags);
+> +               else
+> +                       break;
+>         }
+>         pte_unmap_unlock(pte - 1, ptl);
+>         cond_resched();
+> -       return 0;
+> +       return addr != end ? -EIO : 0;
+>  }
+> 
+>  static int queue_pages_hugetlb(pte_t *pte, unsigned long hmask,
 
-https://github.com/linux-test-project/ltp/#quick-guide-to-running-the-tests
+This alone is not going to help.
 
-It shuld be really easy, so can you please give it a try?
+The problem is that we do skip the vma early in queue_pages_test_walk() in
+case MPOL_MF_MOVE and MPOL_MF_MOVE_ALL are not set.
+
+walk_page_range
+ walk_page_test
+  queue_pages_test_walk
+
+	...
+ 	...
+	/* queue pages from current vma */
+	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+		return 0;
+	return 1;
+
+So, we skip the vma and keep going.
+
+Before ("77bf45e78050: mempolicy: do not try to queue pages from !vma_migratable()"),
+queue_pages_test_walk() would not have skipped the vma in case we had MPOL_MF_STRICT
+or MPOL_MF_MOVE | MPOL_MF_MOVE_ALL.
+
+I did not give it a lot of thought, but it seems to me that we might need to reach
+queue_pages_to_pte_range() in order to see whether the page is in the required node
+or not by calling queue_pages_required(), and if it is not, check for
+MPOL_MF_MOVE | MPOL_MF_MOVE_ALL like the above patch does, so we would be able to
+return -EIO.
+That would imply that we would need to re-add MPOL_MF_STRICT in queue_pages_test_walk().
 
 -- 
-Cyril Hrubis
-chrubis@suse.cz
+Oscar Salvador
+SUSE L3
 
