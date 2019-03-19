@@ -2,173 +2,163 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-4.7 required=3.0 tests=DATE_IN_PAST_12_24,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E07EC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 06:08:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B1241C10F05
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 06:09:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AEAB520830
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 06:08:51 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="eygfbDeU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AEAB520830
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 6C4DB2184D
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 06:09:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6C4DB2184D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 22FCB6B0003; Wed, 20 Mar 2019 02:08:51 -0400 (EDT)
+	id 0A8936B0006; Wed, 20 Mar 2019 02:09:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1DEFF6B0006; Wed, 20 Mar 2019 02:08:51 -0400 (EDT)
+	id 057B36B0007; Wed, 20 Mar 2019 02:09:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0CD9E6B0007; Wed, 20 Mar 2019 02:08:51 -0400 (EDT)
+	id E62846B0008; Wed, 20 Mar 2019 02:09:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BE9026B0003
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 02:08:50 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id p127so1637980pga.20
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 23:08:50 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C66DF6B0006
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 02:09:12 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id h51so1316292qte.22
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 23:09:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=NeLnaQy2JXvCqMZeoRJcNJrR7ttFYPoxWQX2uzdExW4=;
-        b=XU59eznf2tOiwnEGcpt7Pl06E8vzbvfgoNCwR1xGi4puwmNH/F20RahMldqhLYdp0Y
-         xOAvDLOvMCCtwf981R7vi7vDivfHNOILWTMh4yho1Q+cVtflrCpC/wYN5xihfECHRb0O
-         rnbBIraekX4JI4ZBCgEUVBf6sc69WHfqeCkp4+ZxDSBk7IJKCbXqrLOISYabOzitnNt+
-         haixeK5d5I8LARJDue42NrGeR64VU5mthFMuq5Lv0ULesTrb4LW7Nmpn/TRJ4P9lrv6M
-         mDeQ0pkPFFcBCrPvYU8R+mMPwmAk2STuRwKmd5TMBYqxiFnmf+LbF7RNI/zv8RRFaNv6
-         uvsA==
-X-Gm-Message-State: APjAAAXJTm4kuAzyTvUAfGpGsZHbz3yb2PO1i2rbmxxWD27OgfaqF6h2
-	fLRP8MjT147oo3L0mvnGT2kqAXKTIQOH+k6tom6/xjH7f0/OmghDvyqPchexUGASS/iMWjRnxCj
-	t3wHc8hnBLWUiNRxuBh0duhLQyH8V64MZw2yrOoIGXC8qhKYYepEGnFM+/8i+HuNXaQ==
-X-Received: by 2002:a63:b242:: with SMTP id t2mr5711632pgo.451.1553062130210;
-        Tue, 19 Mar 2019 23:08:50 -0700 (PDT)
-X-Received: by 2002:a63:b242:: with SMTP id t2mr5711545pgo.451.1553062128922;
-        Tue, 19 Mar 2019 23:08:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553062128; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=aCmAr6euZN4AX+hXU5UkOblwfcl12csePzwJvFQgccg=;
+        b=mNFZVDhtk2sZzbWIBHVF6BehlfpmcIK0VIRSvI0qQv4/F+vf0o0Gl9wu8MLOSVlOpG
+         BpBShaCVqyQ8wH0uxvmGQkY+yGIZ5zv1Ys2SsEqpdnNkbWgWqrRnJIUkDjo8eU/o7T24
+         XCd4/qWnN5uF/1qXUaIu4Xbp8fVgUa2vtWc/HlRrVMydfUPYDNWPFvE6e+hFlFtmx02O
+         RFE8rkqr6eCGqnHckSHJ2EojKti/PMh3QJE0Oh27qiSQA9A8kOM6VBW32Y+TvuAzq+UI
+         DzvwbR2Hdp3fzjtvHvS3BtFqleNNOEJBUJFtyO1C2/+7yOIovmoTfTSO/ynTU/zxEHDC
+         ST1g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVMvCs5Jr6IOdo6PFWjhoWCK2UWw/fhgBuVsW9bSNgQy66GkfpC
+	0zng++jlnszhma1jjsv98RNPMZLO9CrqwyTVzgxYX+e4yQDqLX//si59VIdNcgNp0L9/+b1yFK7
+	jCCDu6JcEwJHggBh4ESv66F7ZlYHa2rjjN0GlFPQaLzEJM9zlHrQr6o1glor5zUN4IQ==
+X-Received: by 2002:a0c:e74b:: with SMTP id g11mr5114540qvn.183.1553062152512;
+        Tue, 19 Mar 2019 23:09:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy88VpeLTk0kXsB1w0uZ3+tZVHDW0aU2Uqjr53+IQirqXXhNs9f1izLi4S8IA8MWpN9oQ49
+X-Received: by 2002:a0c:e74b:: with SMTP id g11mr5114482qvn.183.1553062151422;
+        Tue, 19 Mar 2019 23:09:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553062151; cv=none;
         d=google.com; s=arc-20160816;
-        b=Vi5IIsZQcQhoQTJt8FvXbaay1y2diVEK+wtngOrOvy/4JBhALw11uGd+uFh1a/Hc5y
-         hRNabh4MHFbSMkvhxgJsBx2pSTOcWvVEnS5VnjoeFtexblQaAfXQ5nFBeLEsuDuHekw+
-         MPCwV1m6yHM1SLbcYCFe6T61mGyND4dDSRTZkWECRFfHZxTYH3ZLu7CRMAtg+UFKO9au
-         WnBETAhU0PCuH/8XzdqybhF8ZzyIPj2ORLPymsU5XCOL5c1PDjGZohtoPtufMXqYFhcG
-         eW5kwlChKn0CqL2iprcG+IRUJeBGKsPNVrJkyZ7STV7fJ74gfQRiDAxInMZgWmxGGrV0
-         sKsA==
+        b=05exDyXcULFPHlIU3Yht+drsta3n5pAiFkIEAFpIf3kUgGYOveTc3hAy+RWvpJ5lIB
+         iFAtQ5fA/PsGj4qzL3Skwvy/b1S8DTLVPQ/770ArDv4WQLI5j8vaYS+/iCeDfU2mbETL
+         ybCw8Z0pOXyjmKaKj5H3RhsFPWRUTE60G/zRJMJmK4vJtL+DuUONJZQ3y8q3eybPSLSa
+         xWWsw9Q7ql2WzB1KSlk0r6pV3osasU94DIHWgTK5NeKGbStd8VL1we6SOCILJK7OAX1Y
+         n45vAPmc2+rBmaLTT5TI9l/0U+EeGXP1ZHE/WKSUOpYQ5UPNOUBwPhamKljbFzLOAV/9
+         QOxQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=NeLnaQy2JXvCqMZeoRJcNJrR7ttFYPoxWQX2uzdExW4=;
-        b=zty1003HxetUdem/br4pIcoTwTN88zkCSB2sjVxwCKOXU9kj1Bma4Ca8v982eJ2kl1
-         SX9dDP/Ch7biGAPtZd5o2VR8dzkJ15MEbx5hJXge9bqA+04Lx+/CxwuTC3AB9vJ2O1u8
-         GXAN2zAn5sH03K/PuaFmlEgOcl7W+BwBgzKo1J1r6IPecfqX/RFTjwKo6QkRmy/BN03b
-         rNYDAtL23mYwsCdwS6m0+P1/MIqNPbqwnQdfiOMIaH0sQa73T6SLuAimy9GImCcdofh7
-         dygtFb6wuOIhbXVc7wIZ7mfuPbTwx8bOp5eSaQyLKlmk65Al24E6W+mNOucIRqowU+uu
-         +//Q==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=aCmAr6euZN4AX+hXU5UkOblwfcl12csePzwJvFQgccg=;
+        b=EjayDj0H2L8hIfr38FV7OEmr/D5pu+QJhqgOAVlQoe7CQjfZZpLttjckZmdlQoxuJw
+         D60VYoHAJmXvo40pmvVAVu01QpWY7uC6T3mrNuGzfFP228eJbF1zB/Ke0rkkOup+X3bH
+         Hqng4SklaC5k/SMEVi1XqXIhDCxsLeCO8Vj9ZN1TjBgmvY8FJbmgqgUDu+xYheLjHhCH
+         pab9VactlPwXIm95O5QZx+5PuQzyI83ww/FJ7HsYqQyy+JzmFgsjszmoF8TMgqC7EZuN
+         Bo0rFYs2e7md5XRR8hFve3b87KXEdBIXBlCv3RoyvijL6atXmuISdlDeCvuveUra6Z3E
+         UHxw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=eygfbDeU;
-       spf=pass (google.com: domain of zbestahu@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=zbestahu@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o19sor929647pfa.65.2019.03.19.23.08.48
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c18si488514qve.186.2019.03.19.23.09.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Mar 2019 23:08:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of zbestahu@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=eygfbDeU;
-       spf=pass (google.com: domain of zbestahu@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=zbestahu@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id;
-        bh=NeLnaQy2JXvCqMZeoRJcNJrR7ttFYPoxWQX2uzdExW4=;
-        b=eygfbDeUqjrVv93ZqpsbFLv5H0WAw5ab5CSFC7satP+JzsSPngeEplvd0xt/n45Lhe
-         A/9j/V0u5oIOZXshtdvNF4/1/cNGYOng4To1CobxnQysXkNBOlhi2syU2O7Z0Sm2gveB
-         kPS5Rm+9dSnBBYP1Jsbj6rTlEGGpUxdFdLDHRePXiekWAzfEeLKRCaH2g8tDQPt5rbYC
-         M2qofZpZGhihAZR4k/hc1Hi+K2B1DtmvvA2mXnEtiWVPxBIZp56nqqYzX1ai0OIxO5dg
-         owbYCpGikaVfP8LoAM1EiXy3zm5tZUug6oK1VJjGe1hLuaNldoAhduC8iQ/LOAYX67Rz
-         u/eA==
-X-Google-Smtp-Source: APXvYqyK2CZlv053DCsaW8OksVtrufjjLQDzme1i1iZALAmVJkyBIlX7c210R99n7nCj7ZQOaeXniw==
-X-Received: by 2002:a62:6f06:: with SMTP id k6mr5959747pfc.257.1553062128515;
-        Tue, 19 Mar 2019 23:08:48 -0700 (PDT)
-Received: from huyue2.ccdomain.com ([218.189.10.173])
-        by smtp.gmail.com with ESMTPSA id j24sm946371pgl.58.2019.03.19.23.08.45
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Mar 2019 23:08:47 -0700 (PDT)
-From: Yue Hu <zbestahu@gmail.com>
-To: akpm@linux-foundation.org,
-	iamjoonsoo.kim@lge.com,
-	mingo@kernel.org,
-	vbabka@suse.cz,
-	rppt@linux.vnet.ibm.com,
-	rdunlap@infradead.org
-Cc: linux-mm@kvack.org,
-	huyue2@yulong.com
-Subject: [PATCH] mm/cma: fix the bitmap status to show failed allocation reason
-Date: Wed, 20 Mar 2019 14:08:29 +0800
-Message-Id: <20190320060829.9144-1-zbestahu@gmail.com>
-X-Mailer: git-send-email 2.17.1.windows.2
+        Tue, 19 Mar 2019 23:09:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id DB45883F40;
+	Wed, 20 Mar 2019 06:09:09 +0000 (UTC)
+Received: from sky.random (ovpn-120-78.rdu2.redhat.com [10.10.120.78])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 8C5652E02F;
+	Wed, 20 Mar 2019 06:09:03 +0000 (UTC)
+Date: Tue, 19 Mar 2019 14:07:29 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Peter Xu <peterx@redhat.com>, linux-kernel@vger.kernel.org,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	Hugh Dickins <hughd@google.com>,
+	Luis Chamberlain <mcgrof@kernel.org>,
+	Maxime Coquelin <maxime.coquelin@redhat.com>,
+	Maya Gokhale <gokhale2@llnl.gov>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Pavel Emelyanov <xemul@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Martin Cracauer <cracauer@cons.org>,
+	Denis Plotnikov <dplotnikov@virtuozzo.com>, linux-mm@kvack.org,
+	Marty McFadden <mcfadden8@llnl.gov>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	linux-api@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 1/1] userfaultfd/sysctl: add
+ vm.unprivileged_userfaultfd
+Message-ID: <20190319180729.GA27618@redhat.com>
+References: <20190319030722.12441-1-peterx@redhat.com>
+ <20190319030722.12441-2-peterx@redhat.com>
+ <20190319071104.GA6392@rapoport-lnx>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190319071104.GA6392@rapoport-lnx>
+User-Agent: Mutt/1.11.4 (2019-03-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Wed, 20 Mar 2019 06:09:10 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Yue Hu <huyue2@yulong.com>
+Hello,
 
-Currently one bit in cma bitmap represents number of pages rather than
-one page, cma->count means cma size in pages. So to find available pages
-via find_next_zero_bit()/find_next_bit() we should use cma size not in
-pages but in bits although current free pages number is correct due to
-zero value of order_per_bit. Once order_per_bit is changed the bitmap
-status will be incorrect.
+On Tue, Mar 19, 2019 at 09:11:04AM +0200, Mike Rapoport wrote:
+> Hi Peter,
+> 
+> On Tue, Mar 19, 2019 at 11:07:22AM +0800, Peter Xu wrote:
+> > Add a global sysctl knob "vm.unprivileged_userfaultfd" to control
+> > whether userfaultfd is allowed by unprivileged users.  When this is
+> > set to zero, only privileged users (root user, or users with the
+> > CAP_SYS_PTRACE capability) will be able to use the userfaultfd
+> > syscalls.
+> > 
+> > Suggested-by: Andrea Arcangeli <aarcange@redhat.com>
+> > Suggested-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> > Signed-off-by: Peter Xu <peterx@redhat.com>
+> 
+> Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
+> 
+> Just one minor note below
 
-Signed-off-by: Yue Hu <huyue2@yulong.com>
----
- mm/cma.c | 19 +++++++++++--------
- 1 file changed, 11 insertions(+), 8 deletions(-)
+This looks fine with me too.
 
-diff --git a/mm/cma.c b/mm/cma.c
-index 5809bbe..6a7aa05 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -367,23 +367,26 @@ int __init cma_declare_contiguous(phys_addr_t base,
- #ifdef CONFIG_CMA_DEBUG
- static void cma_debug_show_areas(struct cma *cma)
- {
--	unsigned long next_zero_bit, next_set_bit;
-+	unsigned long next_zero_bit, next_set_bit, nr_zero;
- 	unsigned long start = 0;
--	unsigned int nr_zero, nr_total = 0;
-+	unsigned long nr_part, nr_total = 0;
-+	unsigned long nbits = cma_bitmap_maxno(cma);
- 
- 	mutex_lock(&cma->lock);
- 	pr_info("number of available pages: ");
- 	for (;;) {
--		next_zero_bit = find_next_zero_bit(cma->bitmap, cma->count, start);
--		if (next_zero_bit >= cma->count)
-+		next_zero_bit = find_next_zero_bit(cma->bitmap, nbits, start);
-+		if (next_zero_bit >= nbits)
- 			break;
--		next_set_bit = find_next_bit(cma->bitmap, cma->count, next_zero_bit);
-+		next_set_bit = find_next_bit(cma->bitmap, nbits, next_zero_bit);
- 		nr_zero = next_set_bit - next_zero_bit;
--		pr_cont("%s%u@%lu", nr_total ? "+" : "", nr_zero, next_zero_bit);
--		nr_total += nr_zero;
-+		nr_part = nr_zero << cma->order_per_bit;
-+		pr_cont("%s%lu@%lu", nr_total ? "+" : "", nr_part,
-+			next_zero_bit);
-+		nr_total += nr_part;
- 		start = next_zero_bit + nr_zero;
- 	}
--	pr_cont("=> %u free of %lu total pages\n", nr_total, cma->count);
-+	pr_cont("=> %lu free of %lu total pages\n", nr_total, cma->count);
- 	mutex_unlock(&cma->lock);
- }
- #else
--- 
-1.9.1
+> > +	if (!sysctl_unprivileged_userfaultfd && !capable(CAP_SYS_PTRACE))
+> > +		return -EPERM;
+
+The only difference between the bpf sysctl and the userfaultfd sysctl
+this way is that the bpf sysctl adds the CAP_SYS_ADMIN capability
+requirement, while userfaultfd adds the CAP_SYS_PTRACE requirement,
+because the userfaultfd monitor is more likely to need CAP_SYS_PTRACE
+already if it's doing other kind of tracking on processes runtime, in
+addition of userfaultfd. In other words both syscalls works only for
+root, when the two sysctl are opt-in set to 1.
+
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
 
