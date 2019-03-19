@@ -2,150 +2,217 @@ Return-Path: <SRS0=zC3H=RW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DE637C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 03:20:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C95DCC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 03:30:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7F9E520854
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 03:20:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 797FB217F9
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 03:30:00 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="diKdXIom"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F9E520854
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="UjehdbZT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 797FB217F9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 13E866B0007; Mon, 18 Mar 2019 23:20:27 -0400 (EDT)
+	id E08FF6B0007; Mon, 18 Mar 2019 23:29:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0C8526B0008; Mon, 18 Mar 2019 23:20:27 -0400 (EDT)
+	id DB88F6B0008; Mon, 18 Mar 2019 23:29:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EABCD6B000A; Mon, 18 Mar 2019 23:20:26 -0400 (EDT)
+	id CA84A6B000A; Mon, 18 Mar 2019 23:29:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A5B486B0007
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 23:20:26 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id o4so20949471pgl.6
-        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 20:20:26 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 951606B0007
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2019 23:29:59 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id 94so5620139otm.7
+        for <linux-mm@kvack.org>; Mon, 18 Mar 2019 20:29:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=/V7IAbYs1Yh2i9HUpcwUEqrMPRSzKDvNnL8WwA2sS9Q=;
-        b=ZxJXu7BgBnMA9H5uJaLjbrzkXCNq58T6Wcz/XWGNek0xmcv2oijp0BW4wfqrAjNn9Z
-         lhel7+tSlv3aoOqwdLn+ozmlXc+DadkElN+L8NDTrYt/7JcIAbAlEVERwdRMsFOQ5Ff0
-         pXVIm//jfFfofKBtetU8IWtlkacxaT1hAveQX03z15/+CdZtqC+Lm6VQkynxh9ZVlf/7
-         vPx8xYe2cXlzN3zHC0wiKWDk6z5pZ1nDhd81Ff5RgcihMLtK+F2V0zotrHug7HG9+JA0
-         r+i0IV0ScWN1bV+7cRcO50WSpsKO8k/r7ukqcwiF2YfGK3mbl+VD8+0KM3OApdpaNs6/
-         5j0Q==
-X-Gm-Message-State: APjAAAWljiKgQNbK6It4GZaBM63XhfxaYke8TLE9lLaWILIM8cuwm/o3
-	jXV6hYGg/eH2swsHms3LH113A9eacQ1nyokTUJen3oRjkuBRou1L32TijwTE5C8ohT0HtzkgmsX
-	z12HVtqyo/CBumoCp60xhr2fMGFHTPGGvQa6aH03cLE3hUkH8HYS3/cz6kFLAebQx5w==
-X-Received: by 2002:aa7:8102:: with SMTP id b2mr19158815pfi.69.1552965626255;
-        Mon, 18 Mar 2019 20:20:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyNQVXZ20WE5S50EKuE9jM1cvbu4PZTjw+586ssjpaYdtqqhWYBkXoVG/art7FXJBvOPj4i
-X-Received: by 2002:aa7:8102:: with SMTP id b2mr19158753pfi.69.1552965625258;
-        Mon, 18 Mar 2019 20:20:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1552965625; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=txmZrEKmzGMSjGC1V04Mt624MxMvgtvYkFZlSdbNCFc=;
+        b=WWeXU7XzMjgIPOw79Fn/KvI4A1ek0jwpuQSsOiAI06x9WUwwCb7neecscMOtwRIWqN
+         CqX+K71AqHIVZFqAWcvDYNlcgLXgLEPaKuyd59utDOGYis7F9RCJb+ob2Ox9/ZXoaVG2
+         5ACMonuTS/7Pa9mWyygd1lUcJgabgYIPq1qXVHKAU2gFoQVYs1u4niocM4mPbWUiyS70
+         gyP5dkwFrGAItNyrAN+joXzx8J6y1HUB5oCleerRrC1b7KLvLL8fAiFSN/mODqHufhMj
+         hU93FPgU2hKpDPEVRf/P8cPVoQiQ7a+5ygnrtq4PyNDsXkOYPBGvDdi3UvKfiM81a5t3
+         eDHA==
+X-Gm-Message-State: APjAAAWg8rHpZ1Du7fbFjIWl8rd08HSbL4e8sES2x0kEjXrwOcRf2V8c
+	lTBn78ky3AHTGiX40Jh9XwHG40VDH1An2Ldkql/ni7ngXwe+y0iiawzD0zyPox1mKyytgBiJ19G
+	sEno+fwDjwG1L3TeLVUue0Ma3Fu1UCYdTOaOTMMgmEXMD5Fi55itjWIZmjJQ8f0q3HQ==
+X-Received: by 2002:aca:5956:: with SMTP id n83mr356373oib.2.1552966199179;
+        Mon, 18 Mar 2019 20:29:59 -0700 (PDT)
+X-Received: by 2002:aca:5956:: with SMTP id n83mr356352oib.2.1552966198235;
+        Mon, 18 Mar 2019 20:29:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1552966198; cv=none;
         d=google.com; s=arc-20160816;
-        b=rPpMcJNXhNiPRbYRSISRzauDKLIZ1Lr3MgZCAgyjNdmoowb+kNNp41N9ZbMKsStHek
-         EHgCxitVL0uUUmwK7jxuxj58VOCdEGLaPh0tUfM5/cvXAwVNB1LpdHXkZ3W5vYj+rr7Q
-         zdUI4keQCmrnrzVO16qzTHNMBXuMV51mcxktbop1K8gsqItAbaSp+nX2BarI4x2tt/pb
-         el363INKMAZ/NED4ah4ttyGoeDHjsK6xlihKpk8xtrTiqAyfac3EpqBKJferiehN23Xh
-         gzCVtQ34SnNXecY8sM/pAXPzvwnhr+o8o5cn/G5TThLol9tg3CXq4UTxztlMfImIs6U4
-         MwSA==
+        b=DQzK8nVCN9VWnELjlD1h9yPW7MlVLPiYaAu7kvYY0lhdMkDy5j0BgpwXQxog+Y72Fw
+         gHw4PnlGpgQYrKUeKUbKDSSf/uNkZbo7qCksrW1Tj8ig+dXCeBufclgcBiFZJGAOePVt
+         k0ynrtiWSRkK0nWcqApejJf8I4u4au6A/PRFCPaBBA5B7tUc9EB9zB++1iGv4lcnTHZ5
+         Ts2WT+vftlUUe4rc0MeXqVVn/nCejWmGUXnX2Lw0elDovpxxr75Uz5MinFETi52ybXDi
+         bt1JIeBaSWqCBLunNaVQeM08WtQmQnQnjvalWCca3NEtB11x+EszvI7FCNGmpuPgPUkJ
+         BKKg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=/V7IAbYs1Yh2i9HUpcwUEqrMPRSzKDvNnL8WwA2sS9Q=;
-        b=w3UyVHild1hwbKgBe0DCbtrI8gJ+gww4BXRGTJVtMfiGjk7J5rTONOv6hN3LjwrvOG
-         BQoRjqMlory8KpoJpPcRU520t8yhl217Gran4xra34YIE+Wu40ySO/5HSTL1Tg/3ZmK3
-         HMMW9jP6H7vXaAHm0cJuhEfcpS98niNphTR1o7txfmOoIUUfEz2zlqfxWs7QbfIWJOjo
-         ESr5QYXkdMC9QWJ2AEpwJJoGi2Sdq13YgZvaryc85r/K906IZsDrG4Mvi1oOvnY+ozbS
-         q8LdBarXMFd3S8z6avcX8Wkii6LJ7JXgzKzp8en0VuiBPuVNxfXiOq+vgTgd50JCgrfs
-         ccsA==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=txmZrEKmzGMSjGC1V04Mt624MxMvgtvYkFZlSdbNCFc=;
+        b=qgPx7OYCET3bzEkL/WAJRji02C/QEF5SjgTCyuj/RSEVtOoiipdhw+MzrgVXE1tahz
+         V1lHM7Anw4ym3OVN2bgGLTqFqTfCrH6XvTZIWftLOXByspmAWTshHHU5hlnwPjWud04E
+         foAGB2I4W1MolUzNzcSb0ZP/yMtDkGjGnoeCngIk0K9ACVuXLABEfFUZGhilYhGFFqPm
+         bmB+eOFH0RJLz1+1uiphAPy6vX+hVSqhpTpW0vCQvoy2PSqa+usemmXQ+yHxlqM7TNkl
+         dedAzWhrwAVJy3k6iN6VUZftwpTuql42xG5WM78z7t4Jvtf2m0+jCWCxSOVvnFgmkzrr
+         RF2g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=diKdXIom;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id g9si11452798plm.157.2019.03.18.20.20.25
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=UjehdbZT;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f30sor6113473otb.65.2019.03.18.20.29.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 18 Mar 2019 20:20:25 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Mon, 18 Mar 2019 20:29:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=diKdXIom;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=/V7IAbYs1Yh2i9HUpcwUEqrMPRSzKDvNnL8WwA2sS9Q=; b=diKdXIomRcK/MjVVBMPSDUVLJ
-	fiYD8KISs+PEOWjhv83leujDYK1nIwnSyVaBlyK2CygG8WPFIHbRLRCI4ndQCjHltj5CsZsoPopoU
-	4h7b/QRN5XCnpV8KNWlbWxg0L03iKUpPF0IUBYYjafdz5wThvBcAJJ2eQqsPrAXnPrQyw4yZ3v4e4
-	j5NoSpiptMa9XuC7oDtIoOFObHYak88+nfPqekzX8gVdegCD64PQkbaCg55yVPpbBt3Uz+1FagmQQ
-	rKhLkgFrcoeQXZkX1SoxE4bxKW6Q+PRmmiOa15oPKR1nmFAWwuBilHV5MEsRkWUuhCAv5T1corBb8
-	WLTTiWKKQ==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1h65Ic-00074L-LW; Tue, 19 Mar 2019 03:20:22 +0000
-Date: Mon, 18 Mar 2019 20:20:22 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: akpm@linux-foundation.org, mike.kravetz@oracle.com, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, linux-sparse@vger.kernel.org
-Subject: Re: [PATCH] include/linux/hugetlb.h: Convert to use vm_fault_t
-Message-ID: <20190319032022.GR19508@bombadil.infradead.org>
-References: <20190318162604.GA31553@jordon-HP-15-Notebook-PC>
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=UjehdbZT;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=txmZrEKmzGMSjGC1V04Mt624MxMvgtvYkFZlSdbNCFc=;
+        b=UjehdbZTqHsd6eUSShf/976IcF1OhUsgu5lop0jcaJfnII6/dl1RYIsvl59X7stv+2
+         /9nPv6e6OYzyF/e5FkVCe7/Kvk912z/JjQMjtsEYcHTjE52Yxww+5Zc1VVp7U38Flc+o
+         yN056nezNPrw4O77mYs9Fn9VjC4/+luVFp27QHQFlRhFB0ksZi75wxQf5RyNeEEuPDee
+         HImoVm2delD701NXXBoqe8OoKaQtY6rF+Ixq+REQTTRALYP0selkjAhn+IckwUr/iARt
+         OQOlowfSfuFGHojRs4FG4wMM/CjSW5JEkemIR/cRcMOaGLVeGDoM34nRM7+cSmTMm3id
+         y0Mw==
+X-Google-Smtp-Source: APXvYqzZPHgxoSDAubD81CyXLt6mCVhGS8OC9h9xp71JYmT206e9H7rWna7EmHBWwHb7pPdnKSfT8nJYDQQzXV/P+64=
+X-Received: by 2002:a9d:2c23:: with SMTP id f32mr160656otb.353.1552966197263;
+ Mon, 18 Mar 2019 20:29:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190318162604.GA31553@jordon-HP-15-Notebook-PC>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+References: <20190129165428.3931-1-jglisse@redhat.com> <20190129165428.3931-8-jglisse@redhat.com>
+ <CAA9_cmcN+8B_tyrxRy5MMr-AybcaDEEWB4J8dstY6h0cmFxi3g@mail.gmail.com>
+ <20190318204134.GD6786@redhat.com> <CAPcyv4he6v5JQMucezZV4J3i+Ea-i7AsaGpCOnc4f-stCrhGag@mail.gmail.com>
+ <20190318221515.GA6664@redhat.com>
+In-Reply-To: <20190318221515.GA6664@redhat.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 18 Mar 2019 20:29:45 -0700
+Message-ID: <CAPcyv4gYUfEDSsGa_e1v8hqHyyvX8pEc75=G33aaQ6EWG3pSZA@mail.gmail.com>
+Subject: Re: [PATCH 07/10] mm/hmm: add an helper function that fault pages and
+ map them to a device
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: linux-mm <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 18, 2019 at 09:56:05PM +0530, Souptick Joarder wrote:
-> >> mm/memory.c:3968:21: sparse: incorrect type in assignment (different
-> >> base types) @@    expected restricted vm_fault_t [usertype] ret @@
-> >> got e] ret @@
->    mm/memory.c:3968:21:    expected restricted vm_fault_t [usertype] ret
->    mm/memory.c:3968:21:    got int
+On Mon, Mar 18, 2019 at 3:15 PM Jerome Glisse <jglisse@redhat.com> wrote:
+>
+> On Mon, Mar 18, 2019 at 02:30:15PM -0700, Dan Williams wrote:
+> > On Mon, Mar 18, 2019 at 1:41 PM Jerome Glisse <jglisse@redhat.com> wrot=
+e:
+> > >
+> > > On Mon, Mar 18, 2019 at 01:21:00PM -0700, Dan Williams wrote:
+> > > > On Tue, Jan 29, 2019 at 8:55 AM <jglisse@redhat.com> wrote:
+> > > > >
+> > > > > From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> > > > >
+> > > > > This is a all in one helper that fault pages in a range and map t=
+hem to
+> > > > > a device so that every single device driver do not have to re-imp=
+lement
+> > > > > this common pattern.
+> > > >
+> > > > Ok, correct me if I am wrong but these seem effectively be the typi=
+cal
+> > > > "get_user_pages() + dma_map_page()" pattern that non-HMM drivers wo=
+uld
+> > > > follow. Could we just teach get_user_pages() to take an HMM shortcu=
+t
+> > > > based on the range?
+> > > >
+> > > > I'm interested in being able to share code across drivers and not h=
+ave
+> > > > to worry about the HMM special case at the api level.
+> > > >
+> > > > And to be clear this isn't an anti-HMM critique this is a "yes, let=
+'s
+> > > > do this, but how about a more fundamental change".
+> > >
+> > > It is a yes and no, HMM have the synchronization with mmu notifier
+> > > which is not common to all device driver ie you have device driver
+> > > that do not synchronize with mmu notifier and use GUP. For instance
+> > > see the range->valid test in below code this is HMM specific and it
+> > > would not apply to GUP user.
+> > >
+> > > Nonetheless i want to remove more HMM code and grow GUP to do some
+> > > of this too so that HMM and non HMM driver can share the common part
+> > > (under GUP). But right now updating GUP is a too big endeavor.
+> >
+> > I'm open to that argument, but that statement then seems to indicate
+> > that these apis are indeed temporary. If the end game is common api
+> > between HMM and non-HMM drivers then I think these should at least
+> > come with /* TODO: */ comments about what might change in the future,
+> > and then should be EXPORT_SYMBOL_GPL since they're already planning to
+> > be deprecated. They are a point in time export for a work-in-progress
+> > interface.
+>
+> The API is not temporary it will stay the same ie the device driver
+> using HMM would not need further modification. Only the inner working
+> of HMM would be ported over to use improved common GUP. But GUP has
+> few shortcoming today that would be a regression for HMM:
+>     - huge page handling (ie dma mapping huge page not 4k chunk of
+>       huge page)
+>     - not incrementing page refcount for HMM (other user like user-
+>       faultd also want a GUP without FOLL_GET because they abide by
+>       mmu notifier)
+>     - support for device memory without leaking it ie restrict such
+>       memory to caller that can handle it properly and are fully
+>       aware of the gotcha that comes with it
+>     ...
 
-I think this may be a sparse bug.
+...but this is backwards because the end state is 2 driver interfaces
+for dealing with page mappings instead of one. My primary critique of
+HMM is that it creates a parallel universe of HMM apis rather than
+evolving the existing core apis.
 
-Compare:
+> So before converting HMM to use common GUP code under-neath those GUP
+> shortcoming (from HMM POV) need to be addressed and at the same time
+> the common dma map pattern can be added as an extra GUP helper.
 
-+++ b/mm/memory.c
-@@ -3964,6 +3964,9 @@ vm_fault_t handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
-        if (flags & FAULT_FLAG_USER)
-                mem_cgroup_enter_user_fault();
- 
-+       ret = 0;
-+       ret = ({ BUG(); 0; });
-+       ret = 1;
-        if (unlikely(is_vm_hugetlb_page(vma)))
-                ret = hugetlb_fault(vma->vm_mm, vma, address, flags);
-        else
+If the HMM special cases are not being absorbed into the core-mm over
+time then I think this is going in the wrong direction. Specifically a
+direction that increases the long term maintenance burden over time as
+HMM drivers stay needlessly separated.
 
-../mm/memory.c:3968:13: sparse: warning: incorrect type in assignment (different base types)
-../mm/memory.c:3968:13: sparse:    expected restricted vm_fault_t [assigned] [usertype] ret
-../mm/memory.c:3968:13: sparse:    got int
-../mm/memory.c:3969:13: sparse: warning: incorrect type in assignment (different base types)
-../mm/memory.c:3969:13: sparse:    expected restricted vm_fault_t [assigned] [usertype] ret
-../mm/memory.c:3969:13: sparse:    got int
+> The issue is that some of the above changes need to be done carefully
+> to not impact existing GUP users. So i rather clear some of my plate
+> before starting chewing on this carefully.
 
-vm_fault_t is __bitwise:
+I urge you to put this kind of consideration first and not "merge
+first, ask hard questions later".
 
-include/linux/mm_types.h:typedef __bitwise unsigned int vm_fault_t;
+> Also doing this patch first and then the GUP thing solve the first user
+> problem you have been asking for. With that code in first the first user
+> of the GUP convertion will be all the devices that use those two HMM
+> functions. In turn the first user of that code is the ODP RDMA patch
+> i already posted. Second will be nouveau once i tackle out some nouveau
+> changes. I expect amdgpu to come close third as a user and other device
+> driver who are working on HMM integration to come shortly after.
 
-so simply assigning 0 to ret should work (and does on line 3967), but
-sparse doesn't seem to like it as part of a ({ .. }) expression.
+I appreciate that it has users, but the point of having users is so
+that the code review can actually be fruitful to see if the
+infrastructure makes sense, and in this case it seems to be
+duplicating an existing common pattern in the kernel.
 
