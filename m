@@ -2,106 +2,94 @@ Return-Path: <SRS0=zC3H=RW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_PASS,USER_AGENT_NEOMUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E3847C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 14:06:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DCE8DC10F03
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 14:14:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 742672075E
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 14:06:36 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="PzB1zI90"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 742672075E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	by mail.kernel.org (Postfix) with ESMTP id A410D2133D
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 14:14:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A410D2133D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C57CF6B0003; Tue, 19 Mar 2019 10:06:35 -0400 (EDT)
+	id 485366B0003; Tue, 19 Mar 2019 10:14:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B663D6B0006; Tue, 19 Mar 2019 10:06:35 -0400 (EDT)
+	id 410316B0006; Tue, 19 Mar 2019 10:14:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B18766B0007; Tue, 19 Mar 2019 10:06:34 -0400 (EDT)
+	id 2D7416B0007; Tue, 19 Mar 2019 10:14:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 24EBF6B0003
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 10:06:31 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id h15so22946094pfj.22
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 07:06:31 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ECDF56B0003
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 10:14:22 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id i3so19687394qtc.7
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 07:14:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=bHQ3oqYGOw6mAzwKVyAQ07+Fulp0qnOCWUl38WK1ISQ=;
-        b=sR1G+ncIffDgicSHKoUrkzqnAiKxglskYnBrevYztmWa1H5n4PEZjzQtXglCTp33jU
-         48H9Kkgjro+6yAd+ZU48pJZsyommPBJOPX7lyVvvLN0gbLdThAS2nH6SnRcSPG57898+
-         lTmJWKu92/eARQhEBMxGqsyqr0bLLtU4sh/DfqhROvaSYSdN7w/7x3nLBcw6i1h6bzOe
-         +ozAIgxs3z35Epu1Lml5/zpBgs8hBaHKU8tEJ4GrYESViZAwVmuxtX4BMSeBLZO3J6vk
-         p/MMZRUnauXt+BcC+Sr4Yz3FBtmy410S9Yk8AkzGUuM7k/3WFa/aeSv/Vx7O5F3+Mllb
-         E7wg==
-X-Gm-Message-State: APjAAAUqYpL60pMC4dlrpUlG1B82aOAJC+f8Jx4GNW3dDnx9VuH6g7Dl
-	O2nfozu8NU2IIE8fVj60QX+FSi+evORhh4G/rGFwRaPCYMC1p0C9UaVDijfx64rDhxiELPKt3yD
-	f15qwNsyN0vSUJEqAYhigHxPQDDI4nfIYMLt1Y8n9GGTTecS573Y24Qt1Zt5DvXIhGw==
-X-Received: by 2002:aa7:8b0c:: with SMTP id f12mr2141646pfd.154.1553004390360;
-        Tue, 19 Mar 2019 07:06:30 -0700 (PDT)
-X-Received: by 2002:aa7:8b0c:: with SMTP id f12mr2141572pfd.154.1553004389388;
-        Tue, 19 Mar 2019 07:06:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553004389; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=/lDSC81tTcGdITMSNYnGT4dXbgHL2JbGloBPv6Ppys8=;
+        b=hIa8EuXf5BmvEGcxCShp6VlD88PQR9Z7NkTlVaTJ4Xxtw750JaSSnz/TT3jeF9oKP9
+         EinxaPCzqwzt3l6pNoDU9vE8sa1xjFU6s8yKWj4UJA1ZXJMarfotnBleGZwngF2KdY2Q
+         PukzSeCnE5V0+b88paVhrSqNzwtSiiq/xsdtTefv4NrhrSEfrYCnKxJvXq3+OLSkb+WF
+         wOmonamgxRysjegSAeLF3ISvqAXRZr0z9S8Wu8+EpOtC2BUSym9ImCwHCLcDg1ZgSdF1
+         hG1qjKxych0cpxLXjnrKbU3CMkYOmozzEMn4l09NM0BJ+fxTrdAW1kevpIiKRClheFML
+         Beqg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVfHYdRmzrqZlNNNyPTEBmdO0ReXz6u1+U7Gydvhc70IWjPRHrm
+	ipMghRItNdZJ54b5mx3uR8zLGP7gvzjLdfxuKWyPdZ3JOGh++yh9S7QrCtOkgAw26nZGx9iZb4s
+	UV5VuKgc4ixkARNrgz+euTf/A17monHZf13KxxHilRbqR4oRbOJxE1QCEOWYwj3SHBQ==
+X-Received: by 2002:a0c:c950:: with SMTP id v16mr2030893qvj.204.1553004862706;
+        Tue, 19 Mar 2019 07:14:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwcgQLAiIDMx5kwAeAmNvwaVKmQW6QL55bh9PPkN5ONnAY6/FX0hTygtdRuMNOj83trIi+j
+X-Received: by 2002:a0c:c950:: with SMTP id v16mr2030795qvj.204.1553004861420;
+        Tue, 19 Mar 2019 07:14:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553004861; cv=none;
         d=google.com; s=arc-20160816;
-        b=So9cUrOKJDbbD/7sCKCy3suHRzvjPcyL4o4slKWHp8oL85gphhiNUGcUntqAyGsqC9
-         Br5wjBqR1MKzk6vp5NPIM0LmPuDWCcHiqpYwdEvXokAfxYIBFTJYNZgRTA/g8l6AbWmg
-         Mbp/U5r9Nu2aGtP98sfj7kRhOFtQ0ZpeA43+nh0zb2J+GPgmetLialzRfUyhsmhvpLc9
-         tDUOrAbyoBfLgew3x4NujLjnmY6VabA+ut4wlXTcVjJSI0PbCerdPPLB8lQ0EtSZV/HK
-         zn2VZp+r4bkSEra0suASpnkplp/kVolT1YU9tx5ZCSF7dy3TMHJy23GqoifxVhfynax/
-         IelQ==
+        b=ZO36YfzfQFHxqsUJZjJAU8iy0XajR41OuijSS4BrgF+9LqNskKfCNRTrHK5Brjw1nu
+         fLOpl0qVldALsdYvWZrSLPINgizDoJ4OUGRgvAKc9PutpiJaU+RNVI9ve74L6KRhaHuM
+         KUMeFuRYHoLI+oSbuKI64xWgF/7AgVj1Kj70gfI++W18LVgDn2suiF5eHvPk0U0nKT5S
+         2hUDWKmxaWP0NMjBaOjBxUHAsn62KjyHyF+9DRiGSk+01TWw86336Zwe+fCOSGJPxUnH
+         hh1l0ARWiL5eB7eSrs34J/42+SUBEAozapB3UFpRXmjeDypjmoXPwIa7l75zjVvp1vah
+         cQZA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=bHQ3oqYGOw6mAzwKVyAQ07+Fulp0qnOCWUl38WK1ISQ=;
-        b=QAlSIcV53z3XsJK6rjOz0tQ4jo46WFIM5U7AkneovAHAhbh60hqWSe6x33mZGNtnxP
-         MWmjbFIvusx4bqzuWwFBWNQv+lcO5QkLuNUJYIEEddePFFeoqN6R2pRXjdIR4cNxt6np
-         P3KELOBFr1GN8VXnkjzzrq3Px2DWbGZPtqUgs4rFSU90R+54NKWXi2uXaZYstcclRJtS
-         gvUUDyqBVW6ylrSBtXwdPQln/vQZKc9kAHGwglV1ajTz7v8DQrpBzggvN2XEFs5ZAS9y
-         9zWrMgGeCfH3vcSlq1K7CCLmnV+3Bie6pnfTASn/mWCknqwEXdi9BTjnFFOyGRXIXE1+
-         OV6A==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=/lDSC81tTcGdITMSNYnGT4dXbgHL2JbGloBPv6Ppys8=;
+        b=A7hfy5YAp9+jVshRvS6hO7HDsQoDbWN1P2cOfUsBchZPoE0iEFhEMO1e1bZkG8by9j
+         Oe9qwVN6P1s0dis0uDrX0IEkuxKnuyRHKNAxLBFBEYZgOKVAxBDtfnO57gq40mjZ39ie
+         GllhcqAwtdeyBNMTSsqGdpIVUolN01jZIyumYKzmE+aU6KerQGWrNkyA/LDGcc9hYDdX
+         m9xKPck2mSLa84i1CzQANJFbq2Gia4VjSKNlxUEGF21nm8qNQyRdhmkG20w8FMQ0cU/Z
+         u/yGQOTR3gN7fw6TIPj9UCYS293bZUh4kKnFhTXKRpz+wKuIlpEiKfmw0Nk+23Z4r31L
+         AlSg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=PzB1zI90;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f129sor3246165pfb.54.2019.03.19.07.06.29
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o47si6469641qve.201.2019.03.19.07.14.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Mar 2019 07:06:29 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=PzB1zI90;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=bHQ3oqYGOw6mAzwKVyAQ07+Fulp0qnOCWUl38WK1ISQ=;
-        b=PzB1zI909lcNM/YzJY+3015iZEf+PdrS5ILcrKJDxpepK1ilmkl1iWSwgLK9C9jRuP
-         lOEn9+woDg4FXKUQhKzz/YbTR2wcU50xlTG0nyqh871ae8/mVgJytd0beXkNQGM25ylV
-         4GGYBZBaJR8lMwmEtIcAJJO9itvYqUjKu3NxBvPkUB5Q8GIBEjNFXzZT1WpC0wRkTDfl
-         CxRBSP5n0HBYvdzdccyKtIPhgKLJO3xKcRA+RTAnqWh4X4jvFP+lveusANkgpepxgHQR
-         nJ5g3BPEaN47OoRHxLAgMTIoYTj3tCqRpGmQkPlsmlxULX/JK45v3358CtvVxYqpfyJ4
-         EWKg==
-X-Google-Smtp-Source: APXvYqzh/5+h50GyWZg4rnMdZOduspnjHPSIFlsjDZ11nKe18mb/ykay6zBdJhPiKKsk14fO52eTkw==
-X-Received: by 2002:aa7:8d17:: with SMTP id j23mr2201765pfe.62.1553004388699;
-        Tue, 19 Mar 2019 07:06:28 -0700 (PDT)
-Received: from kshutemo-mobl1.localdomain ([134.134.139.83])
-        by smtp.gmail.com with ESMTPSA id l5sm24631404pfi.97.2019.03.19.07.06.27
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Mar 2019 07:06:28 -0700 (PDT)
-Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
-	id C7BBB3011DA; Tue, 19 Mar 2019 17:06:23 +0300 (+03)
-Date: Tue, 19 Mar 2019 17:06:23 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Jerome Glisse <jglisse@redhat.com>
+        Tue, 19 Mar 2019 07:14:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 52ADC3082B42;
+	Tue, 19 Mar 2019 14:14:20 +0000 (UTC)
+Received: from redhat.com (unknown [10.20.6.236])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 21C83611C2;
+	Tue, 19 Mar 2019 14:14:18 +0000 (UTC)
+Date: Tue, 19 Mar 2019 10:14:16 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
 Cc: john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>,
 	linux-mm@kvack.org, Al Viro <viro@zeniv.linux.org.uk>,
 	Christian Benvenuti <benve@cisco.com>,
@@ -118,19 +106,23 @@ Cc: john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>,
 	Mike Marciniszyn <mike.marciniszyn@intel.com>,
 	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
 	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>
+	John Hubbard <jhubbard@nvidia.com>,
+	Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [PATCH v4 1/1] mm: introduce put_user_page*(), placeholder
  versions
-Message-ID: <20190319140623.tblqyb4dcjabjn3o@kshutemo-mobl1>
+Message-ID: <20190319141416.GA3879@redhat.com>
 References: <20190308213633.28978-1-jhubbard@nvidia.com>
  <20190308213633.28978-2-jhubbard@nvidia.com>
  <20190319120417.yzormwjhaeuu7jpp@kshutemo-mobl1>
  <20190319134724.GB3437@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
 In-Reply-To: <20190319134724.GB3437@redhat.com>
-User-Agent: NeoMutt/20180716
+User-Agent: Mutt/1.10.0 (2018-05-17)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Tue, 19 Mar 2019 14:14:20 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -185,26 +177,23 @@ On Tue, Mar 19, 2019 at 09:47:24AM -0400, Jerome Glisse wrote:
 > neither. Page stays dirty despite write back it just means that
 > the page might be write back twice in a row.
 
-Fair enough. Should we get it into a comment here?
+Forgot to mention one thing, we had a discussion with Andrea and Jan
+about set_page_dirty() and Andrea had the good idea of maybe doing
+the set_page_dirty() at GUP time (when GUP with write) not when the
+GUP user calls put_page(). We can do that by setting the dirty bit
+in the pte for instance. They are few bonus of doing things that way:
+    - amortize the cost of calling set_page_dirty() (ie one call for
+      GUP and page_mkclean()
+    - it is always safe to do so at GUP time (ie the pte has write
+      permission and thus the page is in correct state)
+    - safe from truncate race
+    - no need to ever lock the page
 
-> > > +void put_user_pages(struct page **pages, unsigned long npages)
-> > > +{
-> > > +	unsigned long index;
-> > > +
-> > > +	for (index = 0; index < npages; index++)
-> > > +		put_user_page(pages[index]);
-> > 
-> > I believe there's an room for improvement for compound pages.
-> > 
-> > If there's multiple consequential pages in the array that belong to the
-> > same compound page we can get away with a single atomic operation to
-> > handle them all.
-> 
-> Yes maybe just add a comment with that for now and leave this kind of
-> optimization to latter ?
+Extra bonus from my point of view, it simplify thing for my generic
+page protection patchset (KSM for file back page).
 
-Sounds good to me.
+So maybe we should explore that ? It would also be a lot less code.
 
--- 
- Kirill A. Shutemov
+Cheers,
+Jérôme
 
