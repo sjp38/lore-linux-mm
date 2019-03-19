@@ -2,231 +2,211 @@ Return-Path: <SRS0=zC3H=RW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6013DC10F03
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 20:25:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 852D6C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 20:43:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0CC0D2146E
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 20:25:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0CC0D2146E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 1933E2146E
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 20:43:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1933E2146E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=talpey.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B0F0B6B0005; Tue, 19 Mar 2019 16:25:34 -0400 (EDT)
+	id 49A7E6B0007; Tue, 19 Mar 2019 16:43:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ABEB36B0006; Tue, 19 Mar 2019 16:25:34 -0400 (EDT)
+	id 449806B0008; Tue, 19 Mar 2019 16:43:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9AED76B0007; Tue, 19 Mar 2019 16:25:34 -0400 (EDT)
+	id 311186B000A; Tue, 19 Mar 2019 16:43:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 77B486B0005
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 16:25:34 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id g17so70109qte.17
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 13:25:34 -0700 (PDT)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 057FF6B0007
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 16:43:48 -0400 (EDT)
+Received: by mail-yw1-f70.google.com with SMTP id c74so28858668ywc.9
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 13:43:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=kVZTSiCZrMnsVG3bFJuYrHjhlVxyh/bswzqv/LDk2UQ=;
-        b=p4TEk/YbvKN5Q7Lf86+43EgFMd1l2wo+nlS5Pz6IPkZktzZsv5HFDoSCyuA3OtLYdf
-         o01wx2URoE5Nh2QhFZtIZ60L4vryGo0w6wEsxp0VhvtqVKB3aMOy3WnaKheGRahuic/7
-         TXDIIM1RHhJDOIpVWbDaRQxCkjZhnqJvaY7mSkpWMGnaGbAIRrVRbjgQd+P+p265LjXJ
-         AxuLCcvJO14vY1auoHxDa3GvHLf3cOCUaDnFQPfDrWXqKKHFC3LNjYu5Rq78NUiTyLBb
-         xTsN1msTMrOyHXmvJi5u9lgF8UlLJ4Q7F9IC4+ltDn3nhOAzKH/iu+1YHDUOGkbC4Yyb
-         VrOw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUyg8tPElSw8ObBMnO+ssBmaj6AFu3qZKm+Tx7ALGftKdc1Dh6V
-	YAyX03zoCPe8ZInOkuL8+kuxZAw9MqVkF8mdAvstEQGb5KpeyeAu9bfDS3uo0y3eFmfhhaZWfsF
-	ntZ+cp+pN12x9OEshfdRENohVUbkYblUqy2VbHjx2PkTYodmZD7nAEWNDFx2lF1fOCw==
-X-Received: by 2002:a0c:ae1a:: with SMTP id y26mr3457165qvc.234.1553027134010;
-        Tue, 19 Mar 2019 13:25:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzbKt7qvd9tb0rrH/hDjJgTV7nvYCFBmVHrecZPaU4fbHE8yXMooQlTNLjryV4tbInplpvc
-X-Received: by 2002:a0c:ae1a:: with SMTP id y26mr3457096qvc.234.1553027132909;
-        Tue, 19 Mar 2019 13:25:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553027132; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=u4qLXRcCaqq3XD8ChuyO2Uqs5602EE6/MUhQ+Z8Yqtg=;
+        b=SsBA8RsdNyCD6ZkVJoSKoEThxOfcJjqPmxDZUJdBCs7rdcKvCqQNH+msKq+d7aVzZK
+         4UFAJQgSCgd9g+PfhiTHnp1elisZsE25lu1HnBobi6MrH6ux9Q7QeeBOdMLnGjdUGu+e
+         pIqiz5w4aqIobJLq+XNCsp6S4CsfAg/QSiYq5FcOPW81VTdT96v7O561UkONvrMPvssK
+         XMCmKcpAFjdKR5h7ZFEON4Yk4bN+FRKpU/fbU7Lp4XcK6+kSGndcdNcnf5A6zvcd8JZn
+         4hX8b6fwpNqlARQcn1EJAPLFmRSVCbLZEE8xnWeN0DGtCfhnIQGot7x4iA7MuhjJ6qFF
+         Y1hQ==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 68.178.252.102 is neither permitted nor denied by best guess record for domain of tom@talpey.com) smtp.mailfrom=tom@talpey.com
+X-Gm-Message-State: APjAAAXIEj/+uNPN2i7kqsK+x5uKthC3LAFhn4971vVqEBcFTaj1dY67
+	hAcZpJF0Hx5cDtKGr1wWFbhPnPwRvdZFXY0kbtwEEQRnn9W+p4TaCPzznNpwj2+If201lb8NqC7
+	bri8kyEoRwOKY29D3U+QnWfDt82Fm6xOIUi9z+xrCc5wKdhdou9ZlNsyH63MqdbA=
+X-Received: by 2002:a25:b1a1:: with SMTP id h33mr3809606ybj.270.1553028227597;
+        Tue, 19 Mar 2019 13:43:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyLYqcGWAIaqpzNeFbNPZBX85mGsYURPGE8oYUKhb2nCFgwd6JIfC8r+9bSH37J5uD6BRSz
+X-Received: by 2002:a25:b1a1:: with SMTP id h33mr3809559ybj.270.1553028226687;
+        Tue, 19 Mar 2019 13:43:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553028226; cv=none;
         d=google.com; s=arc-20160816;
-        b=0DlOmA7zDJW2NQiZJPqfVUeUjQCqLc3DYcIVfcvAhdiUL9xL56Ub4muhxyVf3tCMIB
-         NECgptnJVmg1QzRltiiij5nfq1blhCt5EjD1psoOzlkPrgyoLr2SasLLFThXAMO1SnVR
-         kOVqLbqbvP5D/QyXuRy0JTYbrENNm2pFRH77qtchMYsz9ocsSP9pb+8GwE+cc1f0WT8/
-         LCLGmu2/m6LQULW+DND3PVd1Xcmfka0ENDQSj3aWKHbawWuZeD20Y1NifU9oLzhYVUmG
-         5MQrsiuXtjKZWrkHnWj3MpBMoo4oDRnG9mcwbUgCMLSEibTwcW7CT8QU4lZ47fXLtt8+
-         VGsA==
+        b=fIK4KTZD24fDDKD/hhrAevwtbqTN0gAo8HWyjpYMi3oqtiAK2274rk55gCWGTaCLp9
+         RGmlTW3UnvmHmOtYYL71k6YZmaw5l792JROzWqIKLFQAqvseHAdVltP0F1Vzxkir62LJ
+         6ctaj6b5NDo1cwMxagoYaos848Bhxh/VBSHU1mMouskGvIkgSGZdnSRJ1zhr8YC1nDn2
+         wqKxeHM2lqGIyyACLvm9sfCEQhYKZFB8XEjCDcHqCuE9oi74dXcHtrNgPg7ObztjuQsA
+         c2685CHFjQvE0Rqty3lAsIVhGYGfzN9DEwetzQEFpZl8hOUaAPd74/GxQvCuefHEm/wG
+         DRfA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=kVZTSiCZrMnsVG3bFJuYrHjhlVxyh/bswzqv/LDk2UQ=;
-        b=Zu1eehQnDafz7l5l8uz/ZBEJ2tc1wDJ4JLo5PXTOWy5pegQKOXu8ka2+EU0zi96wtJ
-         1CbcZtWriZmG7NBZNz/PABKoVNZ9X6PU/23beVupAdV+FQfi+I/yJ3D5RR5AFKSUenec
-         i78UDQ+VpimuytwOX6n1sr4VIc7wsboexbQ8uoVKtfehLuYC5vUriN86AP1EpsD5wV9S
-         GYMm/nquivwO7njblVOur5KJqTwHr/oGKXtBSpMrjtCkgAMgH7U/pUfDmTQs35QvvIkK
-         seXMiJbGspPIo1bfM3l9Fmi5ZhB3Da5B0DIePE28nXE2hTqwbraUVG4flWz5MNRoO4yN
-         2R1w==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=u4qLXRcCaqq3XD8ChuyO2Uqs5602EE6/MUhQ+Z8Yqtg=;
+        b=lg6mJknqrkGpIJQp7FmKFBqrz9Jyx2sXJrBs+I2lfY6+eXiiPc3Mpjpr+z8QAnZJoh
+         lTILXykMx+9QHgGEZ4NFLFOf8ybHZ08MohC2OPzMBL3T5j0snfFbF097cNb5iSomJI2e
+         M8HcfIiJ/71sGYyor0fK2bLTR6vNyUBVqt8xN/nZMAUA5bHyjp0+wSf9ie+Fg2YGQONV
+         uzIh7PxXejaxwJedxeStktolESROEvg1XjWy2imopDbzIiNG8sGbtpMbttsxL3QYozO1
+         5pcrAfLemZCpWZ8UTIea6e2cTym3Q2a9rQIcivQvzoKpfoFLy+BK2mkvHP6ojrNde6SH
+         fTLg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o13si16499qtm.11.2019.03.19.13.25.32
+       spf=neutral (google.com: 68.178.252.102 is neither permitted nor denied by best guess record for domain of tom@talpey.com) smtp.mailfrom=tom@talpey.com
+Received: from p3plsmtpa11-01.prod.phx3.secureserver.net (p3plsmtpa11-01.prod.phx3.secureserver.net. [68.178.252.102])
+        by mx.google.com with ESMTPS id i6si28435ybk.165.2019.03.19.13.43.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Mar 2019 13:25:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Tue, 19 Mar 2019 13:43:46 -0700 (PDT)
+Received-SPF: neutral (google.com: 68.178.252.102 is neither permitted nor denied by best guess record for domain of tom@talpey.com) client-ip=68.178.252.102;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 0578881F18;
-	Tue, 19 Mar 2019 20:25:32 +0000 (UTC)
-Received: from redhat.com (ovpn-120-246.rdu2.redhat.com [10.10.120.246])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 9B87F19C59;
-	Tue, 19 Mar 2019 20:25:30 +0000 (UTC)
-Date: Tue, 19 Mar 2019 16:25:28 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Linux MM <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Jason Gunthorpe <jgg@mellanox.com>,
-	Alex Deucher <alexander.deucher@amd.com>
-Subject: Re: [PATCH 00/10] HMM updates for 5.1
-Message-ID: <20190319202527.GA3096@redhat.com>
-References: <20190319094007.a47ce9222b5faacec3e96da4@linux-foundation.org>
- <20190319165802.GA3656@redhat.com>
- <20190319101249.d2076f4bacbef948055ae758@linux-foundation.org>
- <20190319171847.GC3656@redhat.com>
- <CAPcyv4iesGET_PV-QcdBbxJGgmJ_HhoGczyvb=0+SnLkFDhRuQ@mail.gmail.com>
- <20190319174552.GA3769@redhat.com>
- <CAPcyv4hFPOO0-=v3ZCNFA=LgE_QCvyFXGqF24Crveoj_NTbq0Q@mail.gmail.com>
- <20190319190528.GA4012@redhat.com>
- <CAPcyv4hg5Y_NC1iu56zcznYkCRnwg+_7bGFr==7=AC6ii=O=Ng@mail.gmail.com>
- <20190319191849.GA4310@redhat.com>
+       spf=neutral (google.com: 68.178.252.102 is neither permitted nor denied by best guess record for domain of tom@talpey.com) smtp.mailfrom=tom@talpey.com
+Received: from [10.10.38.206] ([139.138.146.66])
+	by :SMTPAUTH: with ESMTPSA
+	id 6LaKhOUO4K1jK6LaKhFqDp; Tue, 19 Mar 2019 13:43:46 -0700
+Subject: Re: [PATCH v4 1/1] mm: introduce put_user_page*(), placeholder
+ versions
+To: Ira Weiny <ira.weiny@intel.com>, Jan Kara <jack@suse.cz>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>,
+ Jerome Glisse <jglisse@redhat.com>, john.hubbard@gmail.com,
+ Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+ Al Viro <viro@zeniv.linux.org.uk>, Christian Benvenuti <benve@cisco.com>,
+ Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>,
+ Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>,
+ Dennis Dalessandro <dennis.dalessandro@intel.com>,
+ Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>,
+ Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>,
+ Mike Rapoport <rppt@linux.ibm.com>,
+ Mike Marciniszyn <mike.marciniszyn@intel.com>,
+ Ralph Campbell <rcampbell@nvidia.com>, LKML <linux-kernel@vger.kernel.org>,
+ linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>,
+ Andrea Arcangeli <aarcange@redhat.com>
+References: <20190308213633.28978-1-jhubbard@nvidia.com>
+ <20190308213633.28978-2-jhubbard@nvidia.com>
+ <20190319120417.yzormwjhaeuu7jpp@kshutemo-mobl1>
+ <20190319134724.GB3437@redhat.com> <20190319141416.GA3879@redhat.com>
+ <20190319142918.6a5vom55aeojapjp@kshutemo-mobl1>
+ <20190319153644.GB26099@quack2.suse.cz>
+ <20190319090322.GE7485@iweiny-DESK2.sc.intel.com>
+From: Tom Talpey <tom@talpey.com>
+Message-ID: <f9195df4-66ca-95f6-874e-d19cd775794d@talpey.com>
+Date: Tue, 19 Mar 2019 15:43:44 -0500
+User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.3
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190319191849.GA4310@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Tue, 19 Mar 2019 20:25:32 +0000 (UTC)
+In-Reply-To: <20190319090322.GE7485@iweiny-DESK2.sc.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-CMAE-Envelope: MS4wfN68ogHI//w010AOOp/HiIKMI+WedmJjAfCUDtxFhhDVGnjPk04WBXY2mLLWMKbpDReApTSBOCQizPAeuLqpYMbwcbWkdCv0lExYdkQDqOgifQ1qlW81
+ eUAFG+FD7SEdo0ezn5Tu+wBkJdLBZ5+6oUIhCUnhEDCHPYua5JMWgzd3pgerrhRgr9EMHq74vwzcr2HhGrdhj+alNY3YKk3JEGq2VfUIqCsybjvNmj1Tc8V0
+ bTQLXZTtHQGzuY+EKmgTSSGcvmr77Cm2vbGY6JS0ezq3fwtYtHMHjOhkwhDaYFfqXNbdkDxeqlrIMi/ANE95sVSnhvosYwZIvzA6rmfgVLpPk/7aVr4eI7dp
+ eMdSB2AZyUs064blgdnsUFcBU/JjxfQLkYvtEoJv1GEzxdnccd5Nkw//roQAG5GLEvFQ47pv16cEIVT0AO2IoOriZjpLkLOav1tNInyTwF6SfyKRxcoVanm5
+ Dp6l/ldmndbSQ+9j60cRk46Pe4R6nMQodYQpycFFLOg5hz13Y4aHT7wbHYQpWcdpL0DiJp2KXWZQJMbfEhvGzpLS9EdsrjRrelNCOiwvck7ZLp6nLamI4Gge
+ hh4ATvQ3Su6XlUfHNMFIYy1M9MiqrkCFoy+bvsl05dCIyuiW6u7tvkSPVoearPn6QB5TKdq4eqRzx8Br3yQ5Qb02SUiDuf+eStUeL77EwlBpQdhacDgV/wmn
+ oComaDWsXh/deXq+4YMXFVIdDssWLqVkEwb//dTjelTadR3jEVhg99VvK3uW21t37iCwfC7oPfIvsCeRZza7ltQlgnQqqrijMJxISVg7/cOdfLC9likn+n6B
+ OblLK/zKLJCXVSM6a03oyWXPDXfqD8pBGqJABh9Ps/X5Gun8efR3ulUTARJSMG4yW6DGFGsHfT0PcoCcZw7CUE4EMlGkyP916b0Ppu4z
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 19, 2019 at 03:18:49PM -0400, Jerome Glisse wrote:
-> On Tue, Mar 19, 2019 at 12:13:40PM -0700, Dan Williams wrote:
-> > On Tue, Mar 19, 2019 at 12:05 PM Jerome Glisse <jglisse@redhat.com> wrote:
-> > >
-> > > On Tue, Mar 19, 2019 at 11:42:00AM -0700, Dan Williams wrote:
-> > > > On Tue, Mar 19, 2019 at 10:45 AM Jerome Glisse <jglisse@redhat.com> wrote:
-> > > > >
-> > > > > On Tue, Mar 19, 2019 at 10:33:57AM -0700, Dan Williams wrote:
-> > > > > > On Tue, Mar 19, 2019 at 10:19 AM Jerome Glisse <jglisse@redhat.com> wrote:
-> > > > > > >
-> > > > > > > On Tue, Mar 19, 2019 at 10:12:49AM -0700, Andrew Morton wrote:
-> > > > > > > > On Tue, 19 Mar 2019 12:58:02 -0400 Jerome Glisse <jglisse@redhat.com> wrote:
-> > > > > > [..]
-> > > > > > > > Also, the discussion regarding [07/10] is substantial and is ongoing so
-> > > > > > > > please let's push along wth that.
-> > > > > > >
-> > > > > > > I can move it as last patch in the serie but it is needed for ODP RDMA
-> > > > > > > convertion too. Otherwise i will just move that code into the ODP RDMA
-> > > > > > > code and will have to move it again into HMM code once i am done with
-> > > > > > > the nouveau changes and in the meantime i expect other driver will want
-> > > > > > > to use this 2 helpers too.
-> > > > > >
-> > > > > > I still hold out hope that we can find a way to have productive
-> > > > > > discussions about the implementation of this infrastructure.
-> > > > > > Threatening to move the code elsewhere to bypass the feedback is not
-> > > > > > productive.
-> > > > >
-> > > > > I am not threatening anything that code is in ODP _today_ with that
-> > > > > patchset i was factering it out so that i could also use it in nouveau.
-> > > > > nouveau is built in such way that right now i can not use it directly.
-> > > > > But i wanted to factor out now in hope that i can get the nouveau
-> > > > > changes in 5.2 and then convert nouveau in 5.3.
-> > > > >
-> > > > > So when i said that code will be in ODP it just means that instead of
-> > > > > removing it from ODP i will keep it there and it will just delay more
-> > > > > code sharing for everyone.
-> > > >
-> > > > The point I'm trying to make is that the code sharing for everyone is
-> > > > moving the implementation closer to canonical kernel code and use
-> > > > existing infrastructure. For example, I look at 'struct hmm_range' and
-> > > > see nothing hmm specific in it. I think we can make that generic and
-> > > > not build up more apis and data structures in the "hmm" namespace.
-> > >
-> > > Right now i am trying to unify driver for device that have can support
-> > > the mmu notifier approach through HMM. Unify to a superset of driver
-> > > that can not abide by mmu notifier is on my todo list like i said but
-> > > it comes after. I do not want to make the big jump in just one go. So
-> > > i doing thing under HMM and thus in HMM namespace, but once i tackle
-> > > the larger set i will move to generic namespace what make sense.
-> > >
-> > > This exact approach did happen several time already in the kernel. In
-> > > the GPU sub-system we did it several time. First do something for couple
-> > > devices that are very similar then grow to a bigger set of devices and
-> > > generalise along the way.
-> > >
-> > > So i do not see what is the problem of me repeating that same pattern
-> > > here again. Do something for a smaller set before tackling it on for
-> > > a bigger set.
-> > 
-> > All of that is fine, but when I asked about the ultimate trajectory
-> > that replaces hmm_range_dma_map() with an updated / HMM-aware GUP
-> > implementation, the response was that hmm_range_dma_map() is here to
-> > stay. The issue is not with forking off a small side effort, it's the
-> > plan to absorb that capability into a common implementation across
-> > non-HMM drivers where possible.
+On 3/19/2019 4:03 AM, Ira Weiny wrote:
+> On Tue, Mar 19, 2019 at 04:36:44PM +0100, Jan Kara wrote:
+>> On Tue 19-03-19 17:29:18, Kirill A. Shutemov wrote:
+>>> On Tue, Mar 19, 2019 at 10:14:16AM -0400, Jerome Glisse wrote:
+>>>> On Tue, Mar 19, 2019 at 09:47:24AM -0400, Jerome Glisse wrote:
+>>>>> On Tue, Mar 19, 2019 at 03:04:17PM +0300, Kirill A. Shutemov wrote:
+>>>>>> On Fri, Mar 08, 2019 at 01:36:33PM -0800, john.hubbard@gmail.com wrote:
+>>>>>>> From: John Hubbard <jhubbard@nvidia.com>
+>>>>>
+>>>>> [...]
+>>>>>
+>>>>>>> diff --git a/mm/gup.c b/mm/gup.c
+>>>>>>> index f84e22685aaa..37085b8163b1 100644
+>>>>>>> --- a/mm/gup.c
+>>>>>>> +++ b/mm/gup.c
+>>>>>>> @@ -28,6 +28,88 @@ struct follow_page_context {
+>>>>>>>   	unsigned int page_mask;
+>>>>>>>   };
+>>>>>>>   
+>>>>>>> +typedef int (*set_dirty_func_t)(struct page *page);
+>>>>>>> +
+>>>>>>> +static void __put_user_pages_dirty(struct page **pages,
+>>>>>>> +				   unsigned long npages,
+>>>>>>> +				   set_dirty_func_t sdf)
+>>>>>>> +{
+>>>>>>> +	unsigned long index;
+>>>>>>> +
+>>>>>>> +	for (index = 0; index < npages; index++) {
+>>>>>>> +		struct page *page = compound_head(pages[index]);
+>>>>>>> +
+>>>>>>> +		if (!PageDirty(page))
+>>>>>>> +			sdf(page);
+>>>>>>
+>>>>>> How is this safe? What prevents the page to be cleared under you?
+>>>>>>
+>>>>>> If it's safe to race clear_page_dirty*() it has to be stated explicitly
+>>>>>> with a reason why. It's not very clear to me as it is.
+>>>>>
+>>>>> The PageDirty() optimization above is fine to race with clear the
+>>>>> page flag as it means it is racing after a page_mkclean() and the
+>>>>> GUP user is done with the page so page is about to be write back
+>>>>> ie if (!PageDirty(page)) see the page as dirty and skip the sdf()
+>>>>> call while a split second after TestClearPageDirty() happens then
+>>>>> it means the racing clear is about to write back the page so all
+>>>>> is fine (the page was dirty and it is being clear for write back).
+>>>>>
+>>>>> If it does call the sdf() while racing with write back then we
+>>>>> just redirtied the page just like clear_page_dirty_for_io() would
+>>>>> do if page_mkclean() failed so nothing harmful will come of that
+>>>>> neither. Page stays dirty despite write back it just means that
+>>>>> the page might be write back twice in a row.
+>>>>
+>>>> Forgot to mention one thing, we had a discussion with Andrea and Jan
+>>>> about set_page_dirty() and Andrea had the good idea of maybe doing
+>>>> the set_page_dirty() at GUP time (when GUP with write) not when the
+>>>> GUP user calls put_page(). We can do that by setting the dirty bit
+>>>> in the pte for instance. They are few bonus of doing things that way:
+>>>>      - amortize the cost of calling set_page_dirty() (ie one call for
+>>>>        GUP and page_mkclean()
+>>>>      - it is always safe to do so at GUP time (ie the pte has write
+>>>>        permission and thus the page is in correct state)
+>>>>      - safe from truncate race
+>>>>      - no need to ever lock the page
+>>>>
+>>>> Extra bonus from my point of view, it simplify thing for my generic
+>>>> page protection patchset (KSM for file back page).
+>>>>
+>>>> So maybe we should explore that ? It would also be a lot less code.
+>>>
+>>> Yes, please. It sounds more sensible to me to dirty the page on get, not
+>>> on put.
+>>
+>> I fully agree this is a desirable final state of affairs.
 > 
-> hmm_range_dma_map() is a superset of gup_range_dma_map() because on
-> top of gup_range_dma_map() the hmm version deals with mmu notifier.
-> 
-> But everything that is not mmu notifier related can be share through
-> gup_range_dma_map() so plan is to end up with:
->     hmm_range_dma_map(hmm_struct) {
->         hmm_mmu_notifier_specific_prep_step();
->         gup_range_dma_map(hmm_struct->common_base_struct);
->         hmm_mmu_notifier_specific_post_step();
->     }
-> 
-> ie share as much as possible. Does that not make sense ? To get
-> there i will need to do non trivial addition to GUP and so i went
-> first to get HMM bits working and then work on common gup API.
-> 
+> I'm glad to see this presented because it has crossed my mind more than once
+> that effectively a GUP pinned page should be considered "dirty" at all times
+> until the pin is removed.  This is especially true in the RDMA case.
 
-And more to the hmm_range struct:
+But, what if the RDMA registration is readonly? That's not uncommon, and
+marking dirty unconditonally would add needless overhead to such pages.
 
-struct hmm_range {
-    struct vm_area_struct *vma;       // Common
-    struct list_head      list;       // HMM specific this is only useful
-                                      // to track valid range if a mmu
-                                      // notifier happens while we do
-                                      // lookup the CPU page table
-    unsigned long         start;      // Common
-    unsigned long         end;        // Common
-    uint64_t              *pfns;      // Common
-    const uint64_t        *flags;     // Some flags would be HMM specific
-    const uint64_t        *values;    // HMM specific
-    uint8_t               pfn_shift;  // Common
-    bool                  valid;      // HMM specific
-};
-
-So it is not all common they are thing that just do not make sense out
-side a HMM capable driver.
-
-Cheers,
-Jérôme
+Tom.
 
