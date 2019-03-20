@@ -2,197 +2,163 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 21B68C4360F
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 18:17:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 22F0BC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 18:20:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B6DA6218A3
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 18:17:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B6DA6218A3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id D1E0E218C3
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 18:20:37 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="ZRFeFu8F"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D1E0E218C3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1C1306B0003; Wed, 20 Mar 2019 14:17:05 -0400 (EDT)
+	id 763176B0003; Wed, 20 Mar 2019 14:20:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1713E6B0006; Wed, 20 Mar 2019 14:17:05 -0400 (EDT)
+	id 73AA76B0006; Wed, 20 Mar 2019 14:20:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0868C6B0007; Wed, 20 Mar 2019 14:17:05 -0400 (EDT)
+	id 62A106B0007; Wed, 20 Mar 2019 14:20:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A94526B0003
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 14:17:04 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id x13so1254929edq.11
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 11:17:04 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 34F216B0003
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 14:20:37 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id l10so19475682qkj.22
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 11:20:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=XYBNTBcnzuZ2Pwh1EIdzzhez3Gfk9u6OWDYBlheg+Zw=;
-        b=ZbcU7QucR8t0PV/dvBhVClvz/NMfOX3oS+LAiSJT8b6O73lJyWxUyHJ7imEj8DUpQ3
-         E7PVUagBiU/OvD+vZx8nCesfktafn3buM5j2M+PuufSkP236TjbQ0/Jts/o4++Tje2bb
-         LmnBJFzIIj/wDrVEU1jPM5ePL5xCch2dLoqwV2THJ5SrAYNeQUJXYQEUYo8p2RLkEzoV
-         f4Du54CAUUsV+Oayaik5QYnKIW/rBSb7x5KewU+CPXwjE8ZXpWrdPmfwnRk4GL16Y38F
-         qE7/mSZdw3wJUTKMjp6dDvu8eIEQIgRj2ExSK74MxXqGp0G8TDgQEJzUVAV4VpSJKXrD
-         w6Jw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAVTpb99u7CEEYNYepc17lMNhPAJcDGM5t75omAu/0OpuiPMcOfw
-	FI51wNd7I4SKmghV+Gl7RkUCemnchyzp59NoJm3iIIyhKhXjgmLLyx8S0PoC4N9YJMvGocueHOx
-	Lu3VqaPv5VKkVMO1FN3gWQbQgwZwJ46n3qsHfRAGQAQrRpoLOLH3OUh/vVmkPn26YDQ==
-X-Received: by 2002:a17:906:1d41:: with SMTP id o1mr17514357ejh.72.1553105824080;
-        Wed, 20 Mar 2019 11:17:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzcrfkyn69jyqmfavhHSqKsVw3BTvpUMNWFOMI/bypKy+0B6IwJ5psfmHdeWRIldvHeesjP
-X-Received: by 2002:a17:906:1d41:: with SMTP id o1mr17514321ejh.72.1553105823056;
-        Wed, 20 Mar 2019 11:17:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553105823; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version
+         :feedback-id;
+        bh=K1oZPjp4GkcjqhAlXwpdoC8QkuglFFzbfMFyEVG/ri8=;
+        b=FepNv3kk5YXY3AIoI0xmkqTpYu/wsNG4B7Uj0JzzFVdqgEB4wF73Arv0Rkdf18q2EW
+         E0Ya2lt8Utf4HyexRbeo0L7jCis8/ASG3QJ20moBr7ne9ogKZ9XoKAFPb8CxmtQ0e2Xu
+         TtMd+9FLxeID+FDNi/tN5iZGyrZZ7sTO/pHHhhhh9tSq3LELUfjkLkhVUUXj93KV87Jz
+         ndLzWivmujl2Uha4a5CDZNYdQqDJ5mvM8muCb/833YVhnnQ3kkC3fryWAGcuCDtd4Lpp
+         9qBKKy95gHQRch44vxRpFC5Txrm2ub608bYo47ZI371zFZ8vsXp1iRd6uTXXC7k8NOPD
+         FXbw==
+X-Gm-Message-State: APjAAAVUA1pAOqaPYr0eBnWA3BAmvFdI0Djt2E1grezM18R/UG/RWR+1
+	45fe4wq8AfXdRrD9wSs5pBYUO6LgAZM4AtfhYkqKy0O0JsG/Pz0KDcaZ83/Y39eC0u4RCO5zPhk
+	ac8DCp2+/e9xpIkuH/+ZC7c+yiQc1a92e/p1aQR7lPO9yaa0OYtYrUdm7cmhyIVI=
+X-Received: by 2002:a0c:83a5:: with SMTP id k34mr7775602qva.17.1553106036947;
+        Wed, 20 Mar 2019 11:20:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyOerWSPlq95i64/j0OT9PNzl60DNkvqL61K9YLOsFiuqvkZjNKVvI73lWUEoCiaC5flIjk
+X-Received: by 2002:a0c:83a5:: with SMTP id k34mr7775564qva.17.1553106036256;
+        Wed, 20 Mar 2019 11:20:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553106036; cv=none;
         d=google.com; s=arc-20160816;
-        b=Qd+hJLon3EVqiinMI32MqkzGPGIedpsAqI4C02CqeSvCLRCDuujGb0pUp+7NrcQpyj
-         mCUE9VJWIzBNiiZSYy27x8ed4Y0kNZzz3AA9sW6ZuWPWAHNPBC6PaXPeLGlrBXYOwZUI
-         QyIW2xkgCHLs/yMIsjQaWJqX/EHm9h1SxZjDtAly35T8veWG9KwABbdnFJY/W/G32+0E
-         NSZMY+nNuvrHCCOUSgY8ADiGAYd+LEetYOLZZIGqV3oKB5BnO69cAT2V/fpOc2BqFs9V
-         g4iNWYGGqX7EmFrXL2Wu5d3pMucjALCihEEslAw6b1ybUBoepW+Dg2lX6pn390qyrE6W
-         LiZw==
+        b=amGRM05FGm3p7zPBdSM/T+Us0TKJ1ygJ5vJRQbnZBal3d/i3prKrqEWXyoXTxcQkij
+         4YIOW89A26i2s+d5bZbMQDppOqacT5nbiH3nSI+p7mkRA2K9MVRj+13bxDcOhgdPz2hX
+         jkE4v0H5O/C2WbzJVtms8f9ytvvQvNlqsc3mHmQvvFDOGn16Deky5C90umG8CmR0nk4e
+         VDN4Erf7jCbz7+KhiHfkeahAW+I8WiJ6FJ0shrPOkL/fwSz67hu9G+5j2gpiiPNCepmp
+         OUzgD+2tBALF0ZlAujS9Fbm9EemrWbArS770Bl4X1hklAQ/nQwujNbObf6gQFZbqF0pG
+         Xsog==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=XYBNTBcnzuZ2Pwh1EIdzzhez3Gfk9u6OWDYBlheg+Zw=;
-        b=JUfwF6cQ2Msj5iyFHXSWFvqhABTlQGJQkBI65QdEHihp6KsYrF8NVeMNmZmj+fLi4x
-         rB9GpMWdX8YoOUlm5l56qSK0JdXmyihO5p8O9Km3hGZlB9OB55QtESjbmuIruM9XgL9s
-         1g2Xw0AMziqrW5b/AJzBB7IEysY0xaGs4Jr9iRPzEY8E4U5sVs/ExiDZ4CxQPckApWxa
-         Wvv6/WROsy1NaDJLy59Y9f3S6AHfb2xsa2iJ4tPdrN0SwqrSNmulM/kYL7cU+6RD5JqQ
-         c+LzfgXz4FxlQptlautWWkUh8PAEq/fwZpYs9HfzoWowQ9Y7Aj9LgqsrESrVqCHoFYPz
-         jh8w==
+        h=feedback-id:mime-version:user-agent:references:message-id
+         :in-reply-to:subject:cc:to:from:date:dkim-signature;
+        bh=K1oZPjp4GkcjqhAlXwpdoC8QkuglFFzbfMFyEVG/ri8=;
+        b=MmTGIirxz4zxJrnzyaBV0yOCy8MNeQBYgcADGWifeVtVZ8qiGkCsUXY4CludS8haxZ
+         7eTL8IOqAdn20rMIQWLJKihw7IIejGAZJ0FAiF3UqJu/tIX940rWNiRgSbRQUtt7Zits
+         Zd8bMfWRGCt5l7BY+oOnkl+h4+RPz2YvHkk7LZoSewp5P9VQ6J/jqYZf6dAirPUrQrvn
+         Mv/NsQjzrgFDKo2o3onmvZSZp9nh2h9EJuK1n6FGQmcMyrAAVkIr5Ti5gP6d3YOSaJat
+         Nc23u2i1JXSodCd72XYaXsb6djYU47zHvuEYgekef1Iq6ch79CPxyoE8NG20tk+sjKFQ
+         grxg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id v15si1062422edr.91.2019.03.20.11.17.02
-        for <linux-mm@kvack.org>;
-        Wed, 20 Mar 2019 11:17:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=ZRFeFu8F;
+       spf=pass (google.com: domain of 010001699c5563f8-36c6909f-ed43-4839-82da-b5f9f21594b8-000000@amazonses.com designates 54.240.9.37 as permitted sender) smtp.mailfrom=010001699c5563f8-36c6909f-ed43-4839-82da-b5f9f21594b8-000000@amazonses.com
+Received: from a9-37.smtp-out.amazonses.com (a9-37.smtp-out.amazonses.com. [54.240.9.37])
+        by mx.google.com with ESMTPS id k96si1574211qte.147.2019.03.20.11.20.36
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 20 Mar 2019 11:20:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 010001699c5563f8-36c6909f-ed43-4839-82da-b5f9f21594b8-000000@amazonses.com designates 54.240.9.37 as permitted sender) client-ip=54.240.9.37;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id AE9A8A78;
-	Wed, 20 Mar 2019 11:17:01 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id E1F723F59C;
-	Wed, 20 Mar 2019 11:16:59 -0700 (PDT)
-Date: Wed, 20 Mar 2019 18:16:57 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Qian Cai <cai@lca.pw>, akpm@linux-foundation.org, paulus@ozlabs.org,
-	benh@kernel.crashing.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, kvm-ppc@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org
-Subject: Re: [PATCH v2] kmemleak: skip scanning holes in the .bss section
-Message-ID: <20190320181656.GB38229@arrakis.emea.arm.com>
-References: <20190313145717.46369-1-cai@lca.pw>
- <20190319115747.GB59586@arrakis.emea.arm.com>
- <87lg19y9dp.fsf@concordia.ellerman.id.au>
+       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=ZRFeFu8F;
+       spf=pass (google.com: domain of 010001699c5563f8-36c6909f-ed43-4839-82da-b5f9f21594b8-000000@amazonses.com designates 54.240.9.37 as permitted sender) smtp.mailfrom=010001699c5563f8-36c6909f-ed43-4839-82da-b5f9f21594b8-000000@amazonses.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1553106035;
+	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
+	bh=K1oZPjp4GkcjqhAlXwpdoC8QkuglFFzbfMFyEVG/ri8=;
+	b=ZRFeFu8FwB5PFoGiDISVj+TujSsdT5LxaFcBw24dBiAw3s8dX/ozHAP1goU14WUg
+	89KwN2HZZEh3k+MaWDIK1WvM+y2GhhhEygM0P19pgj3L/y0/W4HuxQZDM2NFI52YXiI
+	kp0kPy8HrfMfhkCmTppF60aC/AJ380WhvTMj0UOo=
+Date: Wed, 20 Mar 2019 18:20:35 +0000
+From: Christopher Lameter <cl@linux.com>
+X-X-Sender: cl@nuc-kabylake
+To: Vlastimil Babka <vbabka@suse.cz>
+cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, 
+    David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, 
+    Ming Lei <ming.lei@redhat.com>, Dave Chinner <david@fromorbit.com>, 
+    Matthew Wilcox <willy@infradead.org>, 
+    "Darrick J . Wong" <darrick.wong@oracle.com>, 
+    Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@kernel.org>, 
+    linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, 
+    linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org
+Subject: Re: [RFC 0/2] guarantee natural alignment for kmalloc()
+In-Reply-To: <5d7fee9c-1a80-6ac9-ac1d-b1ce05ed27a8@suse.cz>
+Message-ID: <010001699c5563f8-36c6909f-ed43-4839-82da-b5f9f21594b8-000000@email.amazonses.com>
+References: <20190319211108.15495-1-vbabka@suse.cz> <01000169988d4e34-b4178f68-c390-472b-b62f-a57a4f459a76-000000@email.amazonses.com> <5d7fee9c-1a80-6ac9-ac1d-b1ce05ed27a8@suse.cz>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87lg19y9dp.fsf@concordia.ellerman.id.au>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset=US-ASCII
+X-SES-Outgoing: 2019.03.20-54.240.9.37
+Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 21, 2019 at 12:15:46AM +1100, Michael Ellerman wrote:
-> Catalin Marinas <catalin.marinas@arm.com> writes:
-> > On Wed, Mar 13, 2019 at 10:57:17AM -0400, Qian Cai wrote:
-> >> @@ -1531,7 +1547,14 @@ static void kmemleak_scan(void)
-> >>  
-> >>  	/* data/bss scanning */
-> >>  	scan_large_block(_sdata, _edata);
-> >> -	scan_large_block(__bss_start, __bss_stop);
-> >> +
-> >> +	if (bss_hole_start) {
-> >> +		scan_large_block(__bss_start, bss_hole_start);
-> >> +		scan_large_block(bss_hole_stop, __bss_stop);
-> >> +	} else {
-> >> +		scan_large_block(__bss_start, __bss_stop);
-> >> +	}
-> >> +
-> >>  	scan_large_block(__start_ro_after_init, __end_ro_after_init);
-> >
-> > I'm not a fan of this approach but I couldn't come up with anything
-> > better. I was hoping we could check for PageReserved() in scan_block()
-> > but on arm64 it ends up not scanning the .bss at all.
-> >
-> > Until another user appears, I'm ok with this patch.
-> >
-> > Acked-by: Catalin Marinas <catalin.marinas@arm.com>
-> 
-> I actually would like to rework this kvm_tmp thing to not be in bss at
-> all. It's a bit of a hack and is incompatible with strict RWX.
-> 
-> If we size it a bit more conservatively we can hopefully just reserve
-> some space in the text section for it.
-> 
-> I'm not going to have time to work on that immediately though, so if
-> people want this fixed now then this patch could go in as a temporary
-> solution.
+On Wed, 20 Mar 2019, Vlastimil Babka wrote:
 
-I think I have a simpler idea. Kmemleak allows punching holes in
-allocated objects, so just turn the data/bss sections into dedicated
-kmemleak objects. This happens when kmemleak is initialised, before the
-initcalls are invoked. The kvm_free_tmp() would just free the
-corresponding part of the bss.
+> > This means that the alignments are no longer uniform for all kmalloc
+> > caches and we get back to code making all sorts of assumptions about
+> > kmalloc alignments.
+>
+> Natural alignment to size is rather well defined, no? Would anyone ever
+> assume a larger one, for what reason?
+> It's now where some make assumptions (even unknowingly) for natural
+> There are two 'odd' sizes 96 and 192, which will keep cacheline size
+> alignment, would anyone really expect more than 64 bytes?
 
-Patch below, only tested briefly on arm64. Qian, could you give it a try
-on powerpc? Thanks.
+I think one would expect one set of alighment for any kmalloc object.
 
---------8<------------------------------
-diff --git a/arch/powerpc/kernel/kvm.c b/arch/powerpc/kernel/kvm.c
-index 683b5b3805bd..c4b8cb3c298d 100644
---- a/arch/powerpc/kernel/kvm.c
-+++ b/arch/powerpc/kernel/kvm.c
-@@ -712,6 +712,8 @@ static void kvm_use_magic_page(void)
- 
- static __init void kvm_free_tmp(void)
- {
-+	kmemleak_free_part(&kvm_tmp[kvm_tmp_index],
-+			   ARRAY_SIZE(kvm_tmp) - kvm_tmp_index);
- 	free_reserved_area(&kvm_tmp[kvm_tmp_index],
- 			   &kvm_tmp[ARRAY_SIZE(kvm_tmp)], -1, NULL);
- }
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 707fa5579f66..0f6adcbfc2c7 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -1529,11 +1529,6 @@ static void kmemleak_scan(void)
- 	}
- 	rcu_read_unlock();
- 
--	/* data/bss scanning */
--	scan_large_block(_sdata, _edata);
--	scan_large_block(__bss_start, __bss_stop);
--	scan_large_block(__start_ro_after_init, __end_ro_after_init);
--
- #ifdef CONFIG_SMP
- 	/* per-cpu sections scanning */
- 	for_each_possible_cpu(i)
-@@ -2071,6 +2066,15 @@ void __init kmemleak_init(void)
- 	}
- 	local_irq_restore(flags);
- 
-+	/* register the data/bss sections */
-+	create_object((unsigned long)_sdata, _edata - _sdata,
-+		      KMEMLEAK_GREY, GFP_ATOMIC);
-+	create_object((unsigned long)__bss_start, __bss_stop - __bss_start,
-+		      KMEMLEAK_GREY, GFP_ATOMIC);
-+	create_object((unsigned long)__start_ro_after_init,
-+		      __end_ro_after_init - __start_ro_after_init,
-+		      KMEMLEAK_GREY, GFP_ATOMIC);
-+
- 	/*
- 	 * This is the point where tracking allocations is safe. Automatic
- 	 * scanning is started during the late initcall. Add the early logged
+> > Currently all kmalloc objects are aligned to KMALLOC_MIN_ALIGN. That will
+> > no longer be the case and alignments will become inconsistent.
+>
+> KMALLOC_MIN_ALIGN is still the minimum, but in practice it's larger
+> which is not a problem.
+
+"In practice" refers to the current way that slab allocators arrange
+objects within the page. They are free to do otherwise if new ideas come
+up for object arrangements etc.
+
+The slab allocators already may have to store data in addition to the user
+accessible part (f.e. for RCU or ctor). The "natural alighnment" of a
+power of 2 cache is no longer as you expect for these cases. Debugging is
+not the only case where we extend the object.
+
+> Also let me stress again that nothing really changes except for SLOB,
+> and SLUB with debug options. The natural alignment for power-of-two
+> sizes already happens as SLAB and SLUB both allocate objects starting on
+> the page boundary. So people make assumptions based on that, and then
+> break with SLOB, or SLUB with debug. This patch just prevents that
+> breakage by guaranteeing those natural assumptions at all times.
+
+As explained before there is nothing "natural" here. Doing so restricts
+future features and creates a mess within the allocator of exceptions for
+debuggin etc etc (see what happened to SLAB). "Natural" is just a
+simplistic thought of a user how he would arrange power of 2 objects.
+These assumption should not be made but specified explicitly.
+
+> > I think its valuable that alignment requirements need to be explicitly
+> > requested.
+>
+> That's still possible for named caches created by kmem_cache_create().
+
+So lets leave it as it is now then.
 
