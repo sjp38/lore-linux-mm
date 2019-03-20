@@ -2,172 +2,154 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B006AC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 18:59:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CF575C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 19:01:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 691DC20850
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 18:59:12 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="mRIf6w3Q"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 691DC20850
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 9671F20850
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 19:01:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9671F20850
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 019D06B0003; Wed, 20 Mar 2019 14:59:12 -0400 (EDT)
+	id 45F166B0003; Wed, 20 Mar 2019 15:01:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F0B786B0006; Wed, 20 Mar 2019 14:59:11 -0400 (EDT)
+	id 3E5A46B0006; Wed, 20 Mar 2019 15:01:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E23CC6B0007; Wed, 20 Mar 2019 14:59:11 -0400 (EDT)
+	id 287866B0007; Wed, 20 Mar 2019 15:01:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FEB66B0003
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 14:59:11 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id m17so3537233pgk.3
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 11:59:11 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 02BF86B0003
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 15:01:25 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id v2so3099232qkf.21
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 12:01:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=ZsMIk5N/e1lX2C2dObjWfHVYZX/KpN3z9XU57acVrEM=;
-        b=RtmV0Q/nTR16/2NmlLb8ciY4HHWgW2O85Ev2+XEM6QIACZqW0r+aqiHZi8rFWzhfQT
-         XcmrNJBgfiY7K9i3GKbQVlHgeHW2Dj2ml4IWPVzFYGl2LNRCY0Gtyjl2pGK9/RweGgsO
-         zfFQSFNgqQuXws0B27+VoRcsQo1Kvh1M3GoVO+l0wXtXu8AdzJ2gbiJ51JCxjgOMJhZR
-         OpPhH1PQDaUQha6ScDSdB0gDF/IgZ/xdWQnWKM7//j1EI41kEns3sWi0KhDyWnSrfvBp
-         flfZr9ZsSHrbRyT7zfulZe6UCO5E4H/LeYU448uqvOwCE+8+sQb/ynq1BQRjivvgMqi+
-         ENFw==
-X-Gm-Message-State: APjAAAWPj9B2Zksi8bvY7ZWfI92DzPFW+mTzL47oFPvDhEH6N9R7pOYx
-	RQD11ictvaQ1qTB6W05rZKxAToEO/gLgp+lkImM59FBCUlXrCWQjVOkotqfiCMweAS90R1ailJc
-	R4ztcbtYFGSZJzqXN7BKQkfOo5DNo0eIndQW4u9k79IdFsPSk8Bd+KVr0qv8mcg4bzQ==
-X-Received: by 2002:a65:6091:: with SMTP id t17mr7644854pgu.328.1553108351313;
-        Wed, 20 Mar 2019 11:59:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzgMyjp11NJyx9T+x4mQYVvl6NBTMEAFlq2he+0ywldsRcpqD/M87K97QDuWd64u7Fg2Rep
-X-Received: by 2002:a65:6091:: with SMTP id t17mr7644799pgu.328.1553108350459;
-        Wed, 20 Mar 2019 11:59:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553108350; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=aRCR+a3ksABse4inSLhWXoW+DTZZJel0b5kXwJ9saVg=;
+        b=tIaH8NfbDg44ktXzo61FtGOYPEKHk4rz3nVkcFncsHCrIr2mJyL34+JpY8QSyuNXGS
+         24EdaZr7Ul06HhD0+DVqUW8EdPBJB937fdUcPD6X7TvzyeQK1O0t8Q7FAtdrQsKQ0ech
+         6kdmTynslObZvyzTY7VdmmWIp0yoVJCcPNhbCX+P1F/w27XPDNZmJ8GyyovpR+xzUIRC
+         23kSKf5XIS2pVet0LuLZF5BQW+hHOsy1KdnAlObQ2q5ucg4+bk/+K2giF9sVPTGr1YOg
+         uVG7tisRey08znTufPdL00jnTqNTOrNsfPhjqHvvozrgFolPREoEeMGCZToys9KSQ1/N
+         jY4Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWD0JnxmRLLjKoXfLdcWqcKdqxAOosolmOKae5JdYXjISIPYMD9
+	dfZ+YgtE+KnzHxYhXLUTqd9lYeZe5ubBrd+yrFxcVp1bgCXzxdGACAUX7f7sfiJk1e4eLjI96YW
+	BIseRuUEB0paLwoEI1MSWf5+Y7k2KVDjmcsq5eOh7bl7ltJ0ZHga0hx9PfRQHOWn3uQ==
+X-Received: by 2002:a0c:c3c7:: with SMTP id p7mr7948154qvi.162.1553108484784;
+        Wed, 20 Mar 2019 12:01:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwNRx+lIzCcrnJ4sBP7Kshe5q7Ei5Hmy3reDgOurU67br7Sd479DuNe2ihogYBKo8SSt8aT
+X-Received: by 2002:a0c:c3c7:: with SMTP id p7mr7948114qvi.162.1553108484187;
+        Wed, 20 Mar 2019 12:01:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553108484; cv=none;
         d=google.com; s=arc-20160816;
-        b=vztbfKAKlYm10XgjYRwoN9XcFbeG0NFDsdsdQJ1cMSatgHMVTqBoh/06iVIXtUHwSj
-         se1J/jY/LTEUG3VBr4Q/tcnsOXnOPemcQVrXPuAodekIrvAr0xF5Qg03bJEQPAIESNXZ
-         D4mgSBYmTje+gnyFDjdL6LhqXMNysTikRlV+nwEzTuNULK5E5otGJ6iOLgecqQrBQgC7
-         DUORTn3yXhCmwfFLHvSySYkzGP1Xk1Nf95YQxIkA13sYNj853z0vi59L5hAWhcjzmKMp
-         aQDFNDEyUrfOcPIHkxpXDcSoqjNPt8eNbXKc5feT/0/JH+P9XYbgYPAtqrLXPBHNchPP
-         ejRw==
+        b=oylypnB1/2wdkk2oeACp1/At+4vsVQ55n0KOmnQYxY743GDb5JSg8HLADSyXifhXxH
+         Wn2Bl/ZMd8CzudGKVekU673RscSAiMl6DIqqPyxTWpghWWl26m0umcGbRlk+3Tmv4K/R
+         qAs9jNEjj0psNGY4eK7ny7Be36zTH8PkDnrFnT5rlHNmij9qDBqZgAHyZBiaO8BZjB8Z
+         eqmj5/wEcDFNFkGiuObaaIfWmHVCBEK20uawB9gI6wUGIpwS+3zFAkNdhXJKL9tq0KqE
+         DA0iknqYnYkJ8uxg7ta4YwVD1PoIcbYz+i/SAO7vstdlutcp5ReXDbucHjDObivhBCuk
+         Pddg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=ZsMIk5N/e1lX2C2dObjWfHVYZX/KpN3z9XU57acVrEM=;
-        b=0usYmHsnd9wzGaF6wISZBQfQo8jEcPLdAsjY8HpVflwRO8VG+95pQutYSe4ln5mKnH
-         aUtQDTDpLOj9dtUl+N3xY53MEd7KYH5b3DiBK2uHEwR4+5JrXfSJeVBRf3xp5EcobGfN
-         EIEZF7bI3yK5xOLrVWesXEC7CHOojrQXqUeLYH9ZgqPlW2hQ+hMiBxNk6oWcY8Z+UBrq
-         tsuixaE0KkyWdBiKiNtCSlPeFeBnNGNFZ7izSu7PFN16KNDl5VqkLPv2hKCDavWt8vaH
-         zSo2u1lrMo2v5jCarPW6A+0AyWDg4mFljlE2uSOFitgPA/WzCVCacGqgGRtkC1J/0Y/u
-         Hc+w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=aRCR+a3ksABse4inSLhWXoW+DTZZJel0b5kXwJ9saVg=;
+        b=R/RNKl63QbPucqiWJNqrbEsovh/obChIsLemE0N0mObDV28EoXMOZ0gLM2FmDFVpV7
+         ZJ0PfgLy910ZnnucSJj3weTMf4O492NbCfmKavyWLkXE3OwKzbT6PVVxv9/QQwVxkSBa
+         3Voq+aCsKR5Ehto4Oxy6JNszsBmP/DS5THoaftDd4pwQ2owOa14WGAHO+FAnJnhpZXth
+         +lpNmad/2ESFPeenLPJspVmuyWWqiTE9g8Cn2FZV5EAwrUyoXO2k/0OEMacp4o6Q+A8A
+         EFh5RGI5d37M2LtIbBxu/3FKuDr7EPj2T2XvvinRGmfmPKBj+EnI2KZqElJiZxXBEgaE
+         mycA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=mRIf6w3Q;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id y144si1428321pfc.225.2019.03.20.11.59.10
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e65si383516qtb.267.2019.03.20.12.01.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Mar 2019 11:59:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Wed, 20 Mar 2019 12:01:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=mRIf6w3Q;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wm1-f41.google.com (mail-wm1-f41.google.com [209.85.128.41])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id B9C922190B
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 18:59:09 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1553108350;
-	bh=jp8AbSaqwT21JnyYDjKNO3C8evoJ6yy8quSVRfFSrac=;
-	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=mRIf6w3QFh3e9I8TEAE+h2PxblsGDwAvz/vvD8Akc66cH92WI1V37lsdfwOx4+xnd
-	 JLwYPXQAmxsZPJPnkaIC9PuN/GyDZDVoR3K3um+rtpcmpAB1nH7GpqTGRQs+2gFosD
-	 MPn8HQc+0pW04uhAeiyRhhiaezb/4rABISJifUvM=
-Received: by mail-wm1-f41.google.com with SMTP id n19so338876wmi.1
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 11:59:09 -0700 (PDT)
-X-Received: by 2002:a1c:9a41:: with SMTP id c62mr9266896wme.108.1553108348098;
- Wed, 20 Mar 2019 11:59:08 -0700 (PDT)
+	by mx1.redhat.com (Postfix) with ESMTPS id B337C307B48B;
+	Wed, 20 Mar 2019 19:01:22 +0000 (UTC)
+Received: from sky.random (ovpn-120-78.rdu2.redhat.com [10.10.120.78])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 1864460852;
+	Wed, 20 Mar 2019 19:01:13 +0000 (UTC)
+Date: Wed, 20 Mar 2019 15:01:12 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+To: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Xu <peterx@redhat.com>,
+	linux-kernel@vger.kernel.org, Paolo Bonzini <pbonzini@redhat.com>,
+	Hugh Dickins <hughd@google.com>,
+	Luis Chamberlain <mcgrof@kernel.org>,
+	Maxime Coquelin <maxime.coquelin@redhat.com>,
+	Maya Gokhale <gokhale2@llnl.gov>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Pavel Emelyanov <xemul@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Martin Cracauer <cracauer@cons.org>,
+	Denis Plotnikov <dplotnikov@virtuozzo.com>, linux-mm@kvack.org,
+	Marty McFadden <mcfadden8@llnl.gov>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Kees Cook <keescook@chromium.org>, Mel Gorman <mgorman@suse.de>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	linux-api@vger.kernel.org, linux-fsdevel@vger.kernel.org
+Subject: Re: [PATCH v2 1/1] userfaultfd/sysctl: add
+ vm.unprivileged_userfaultfd
+Message-ID: <20190320190112.GD23793@redhat.com>
+References: <20190319030722.12441-1-peterx@redhat.com>
+ <20190319030722.12441-2-peterx@redhat.com>
+ <20190319110236.b6169d6b469a587a852c7e09@linux-foundation.org>
+ <20190319182822.GK2727@work-vm>
 MIME-Version: 1.0
-References: <20190319221415.baov7x6zoz7hvsno@brauner.io> <CAKOZuessqcjrZ4rfGLgrnOhrLnsVYiVJzOj4Aa=o3ZuZ013d0g@mail.gmail.com>
- <20190319231020.tdcttojlbmx57gke@brauner.io> <20190320015249.GC129907@google.com>
- <CAKOZuetJzg_EiyuK7Pa13X3LKuBbreg7zJ5g4uQv_uV4wpmZjg@mail.gmail.com>
- <20190320035953.mnhax3vd47ya4zzm@brauner.io> <CAKOZuet3-VhmC3oHtEbPPvdiar_k_QXTf0TkgmH9LiwmW-_oNA@mail.gmail.com>
- <4A06C5BB-9171-4E70-BE31-9574B4083A9F@joelfernandes.org> <20190320182649.spryp5uaeiaxijum@brauner.io>
- <CAKOZuevHbQtrq+Nb-jw1L7O72BmAzcXmbUnfnseeXZjX4PE4tg@mail.gmail.com> <20190320185156.7bq775vvtsxqlzfn@brauner.io>
-In-Reply-To: <20190320185156.7bq775vvtsxqlzfn@brauner.io>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Wed, 20 Mar 2019 11:58:57 -0700
-X-Gmail-Original-Message-ID: <CALCETrXO=V=+qEdLDVPf8eCgLZiB9bOTrUfe0V-U-tUZoeoRDA@mail.gmail.com>
-Message-ID: <CALCETrXO=V=+qEdLDVPf8eCgLZiB9bOTrUfe0V-U-tUZoeoRDA@mail.gmail.com>
-Subject: Re: pidfd design
-To: Christian Brauner <christian@brauner.io>
-Cc: Daniel Colascione <dancol@google.com>, Joel Fernandes <joel@joelfernandes.org>, 
-	Suren Baghdasaryan <surenb@google.com>, Steven Rostedt <rostedt@goodmis.org>, 
-	Sultan Alsawaf <sultan@kerneltoast.com>, Tim Murray <timmurray@google.com>, 
-	Michal Hocko <mhocko@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
-	=?UTF-8?B?QXJ2ZSBIasO4bm5ldsOlZw==?= <arve@android.com>, 
-	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>, Ingo Molnar <mingo@redhat.com>, 
-	Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, 
-	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>, linux-mm <linux-mm@kvack.org>, 
-	kernel-team <kernel-team@android.com>, Oleg Nesterov <oleg@redhat.com>, 
-	"Serge E. Hallyn" <serge@hallyn.com>, Kees Cook <keescook@chromium.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190319182822.GK2727@work-vm>
+User-Agent: Mutt/1.11.4 (2019-03-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Wed, 20 Mar 2019 19:01:23 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 20, 2019 at 11:52 AM Christian Brauner <christian@brauner.io> wrote:
->
-> You're misunderstanding. Again, I said in my previous mails it should
-> accept pidfds optionally as arguments, yes. But I don't want it to
-> return the status fds that you previously wanted pidfd_wait() to return.
-> I really want to see Joel's pidfd_wait() patchset and have more people
-> review the actual code.
+Hello,
 
-Just to make sure that no one is forgetting a material security consideration:
+On Tue, Mar 19, 2019 at 06:28:23PM +0000, Dr. David Alan Gilbert wrote:
+> ---
+> Userfaultfd can be misued to make it easier to exploit existing use-after-free
+> (and similar) bugs that might otherwise only make a short window
+> or race condition available.  By using userfaultfd to stall a kernel
+> thread, a malicious program can keep some state, that it wrote, stable
+> for an extended period, which it can then access using an existing
+> exploit.   While it doesn't cause the exploit itself, and while it's not
+> the only thing that can stall a kernel thread when accessing a memory location,
+> it's one of the few that never needs priviledge.
+> 
+> Add a flag, allowing userfaultfd to be restricted, so that in general 
+> it won't be useable by arbitrary user programs, but in environments that
+> require userfaultfd it can be turned back on.
 
-$ ls /proc/self
-attr             exe        mountinfo      projid_map    status
-autogroup        fd         mounts         root          syscall
-auxv             fdinfo     mountstats     sched         task
-cgroup           gid_map    net            schedstat     timers
-clear_refs       io         ns             sessionid     timerslack_ns
-cmdline          latency    numa_maps      setgroups     uid_map
-comm             limits     oom_adj        smaps         wchan
-coredump_filter  loginuid   oom_score      smaps_rollup
-cpuset           map_files  oom_score_adj  stack
-cwd              maps       pagemap        stat
-environ          mem        personality    statm
+The default in the patch leaves userfaultfd enabled to all users, so
+it may be clearer to reverse the last sentence to "in hardened
+environments it allows to restrict userfaultfd to privileged processes.".
 
-A bunch of this stuff makes sense to make accessible through a syscall
-interface that we expect to be used even in sandboxes.  But a bunch of
-it does not.  For example, *_map, mounts, mountstats, and net are all
-namespace-wide things that certain policies expect to be unavailable.
-stack, for example, is a potential attack surface.  Etc.
-
-As it stands, if you create a fresh userns and mountns and try to
-mount /proc, there are some really awful and hideous rules that are
-checked for security reasons.  All these new APIs either need to
-return something more restrictive than a proc dirfd or they need to
-follow the same rules.  And I'm afraid that the latter may be a
-nonstarter if you expect these APIs to be used in libraries.
-
-Yes, this is unfortunate, but it is indeed the current situation.  I
-suppose that we could return magic restricted dirfds, or we could
-return things that aren't dirfds and all and have some API that gives
-you the dirfd associated with a procfd but only if you can see
-/proc/PID.
-
---Andy
+We can also make example that 'While this is not a kernel issue, in
+practice unless you also "chmod u-s /usr/bin/fusermount" there's no
+tangible benefit in removing privileges for userfaultfd, other than
+probabilistic ones by decreasig the attack surface of the kernel, but
+that would be better be achieved through SECCOMP and not globally.'.
 
