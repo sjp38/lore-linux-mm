@@ -2,203 +2,210 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-13.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 84780C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 09:59:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C1D6BC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 10:13:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3040D2184E
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 09:59:23 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="JYDMbaf0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3040D2184E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 803CA2175B
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 10:13:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 803CA2175B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CCFB26B0003; Wed, 20 Mar 2019 05:59:22 -0400 (EDT)
+	id 0B76E6B0003; Wed, 20 Mar 2019 06:13:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C7EE36B0006; Wed, 20 Mar 2019 05:59:22 -0400 (EDT)
+	id 067B66B0006; Wed, 20 Mar 2019 06:13:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B6CFE6B0007; Wed, 20 Mar 2019 05:59:22 -0400 (EDT)
+	id E987B6B0007; Wed, 20 Mar 2019 06:13:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A5986B0003
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 05:59:22 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id c2so1510922ioh.11
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 02:59:22 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C97266B0003
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 06:13:23 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id d131so7181568qkc.18
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 03:13:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=s2voj6kjaLi6fKovfCR/88xY1mnaSXnV0VQQW9aYLas=;
-        b=tyE/L7CZBP20KKibLvaMm5R/uaOqI+DDcY/PFFFUmeY5gkdkStZcL8PcJkJV9tCJr4
-         JOrfTcwQInDWP1pLKsN803S5uhRx6dho0Y4Rm0CIMBmgr3mDRi5ATxWs0rc4dd0+HQDq
-         I1zaWfhmRd8UV0niouCROSkuyjZbAtlStRs0iRBjGDLmDhW6mFXo6cE8YD4K7a0hoNR7
-         3O+Y57oNxjeIYahboDlsmjDw9POx5fFzRwSH2jax602yPl65/ECkzUProghswKnlAucM
-         sI2Y2EqxW+x13z5/I/QnF3sYPcEBjLxtv5G0drj5A074STONxGcESE3AxPQ32rU7oaT9
-         PWNg==
-X-Gm-Message-State: APjAAAWs60THhgdCmYjVKqmDP3WgJziojnFSSKn3oV1bFQeua4yS4Dhg
-	R0BMcteK/epCKp64kBaEfodwZ4AKVPUWKWOQQruqZAmidh3e8erFMIfojOu1BEVOXvgkjgnwyS9
-	e2k45AETssYuwDroqe6aRBntaeu8NB/PSaJfyXMOR8vlRf5RmiX/N8gNDTKS/LnEoTA==
-X-Received: by 2002:a02:a399:: with SMTP id y25mr4637073jak.58.1553075962409;
-        Wed, 20 Mar 2019 02:59:22 -0700 (PDT)
-X-Received: by 2002:a02:a399:: with SMTP id y25mr4637050jak.58.1553075961703;
-        Wed, 20 Mar 2019 02:59:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553075961; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=uP6lLr9iJ298pqfpF2PkO31qT9njcHSUGQ4R0G0+01I=;
+        b=m5oikYoUIihukrMfW00SSrkaQGAPoIP0KDYAAML74IVuGaZXGjrwPFq1zZAD5ptwsC
+         rcjOmWZPLyEs7nAfEnzrcNqmooJnwu9aErtIvyOSN9W3Zsfih/k2hFhGmT8/1cvBXUqr
+         M5ath8bcb0Gq9tn804N7zplcf1YGFYY010egShtY/u8fUK6ihyfIe+CUefnLz1a4tuGE
+         BryG8UR1BW2ftFgtx5wPf6lGva7UvNZnJn6VA67whmvlCZzrmTlwThV3+LyPg809aXpt
+         /YtvPgJNbS3PyOSNb9pqOiDmCcijkdT95+kc0edxl61EbOu5BvwS0ERQU7o8kbYIauPy
+         fU3A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXALdJrZxvvXzELdT9LxSSXe7HV6XkHWytvHR5C4TtEqwU9Xku5
+	eyCJJq7L30jBhAftiLaRTrytd04i/wfujHVuNB+pQnpx74p4CsSPYvvFBQH1DlnBu0lxyjd9iJw
+	LYyC/BzHlksDgdUydwe4UV7QSjulo3FhwOnINcZlktzlTnRssQENfS+347Xc89MLeNg==
+X-Received: by 2002:a37:4ec2:: with SMTP id c185mr6042687qkb.244.1553076803554;
+        Wed, 20 Mar 2019 03:13:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxVwzXhnat4KLe3hqiUds425ZdmU/0eZU5a7qGghgIggmqfkvdsMVG74CXwKbeJVEB86jIe
+X-Received: by 2002:a37:4ec2:: with SMTP id c185mr6042642qkb.244.1553076802865;
+        Wed, 20 Mar 2019 03:13:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553076802; cv=none;
         d=google.com; s=arc-20160816;
-        b=Xwu7lwAXcJttxt0cfaNdqlcy75bRA//EgYzpX0PsFZK6L/S1MTiZEhoABAeZ4ejpfN
-         iqZvqQcXbC1qww1mw8SDihInKN/DMX2SPu7mOseEi04CKxVzHsfhUyQalwTnzIK80MWk
-         dCP1gfbCZwX3r5luz9zkEqd9bLEUYwoFVWECpUggKU+nFJoPLgE2QliZVC6dP1ZsbXIx
-         sZijyMl3FeS2hVGEfD17MXd5xuuc0Q5AmNL/JRBjndCijGRRWq0ALlgdLRQ92HMVyGMe
-         JNOIHbi08scou6hv0okMyIwZJim4rutoNcIIHsdLR2baX5pKiwTNu/DeAVaBibqKKuOK
-         g2Vg==
+        b=rd2TQCPRHQpgXRY263FVkV0jsPQszclMW5UZLUOp6eUv17AgqMmFFPwIqvaf/TQoTa
+         nOk81Dg7i4+zKY5a0S78KnkKr3QWSpw+FPcxOtD6xcU0G0aRX9DI6ehtqp5gtwM8atux
+         kuMjaN6jep70x9Keu0LtxeD9cX4I7zqi40dZzvg9kYOSK8yxLySxc6A4Z38/6XesRqga
+         q8KS+WLxD1z7N0moRC53Zj010w5+AYin5nkNjd14R2QC+Ju0xehWudCkL1nm//66gVvO
+         /giMaXajog7fP5TLZfFNDiyEQboqZBDhnskm4Kp0xrfc/J4XHd/jqdM+evUKqwXd4CNQ
+         aKhw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=s2voj6kjaLi6fKovfCR/88xY1mnaSXnV0VQQW9aYLas=;
-        b=z/HlepqhGbwNCN5/eCgW5mjIeFt44L70KNvoWQooA+NDO0aW5b4A2xUWnLzAghibmG
-         Vr2T89UFso5JJ0UkmC2LOc9yHOIrwIguGgd+WyovNTzuqzDOAuh5KQSAvkxlCtS5AbyJ
-         +R/iyUeMXKAdPHr6NC01fvAPtgKdMah6IOjYD+J8gF2pkdigKKugSpaqMdYfy7Vq2One
-         3mOjp0dM5BHCWSGTkS+t8+pDe1bDOVvYHMlCNWjSmewzbzGqtLnlAIdccEDeNqUAzNW/
-         38wldStav7LGoYcp+B+cickAMo/dcoF4KWHvOGcyGhSNOWbbWMbBRhazlxG+c9Rqqixc
-         Au4g==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=uP6lLr9iJ298pqfpF2PkO31qT9njcHSUGQ4R0G0+01I=;
+        b=ptjeZRiV10UHN1Hz5p3WHLS6xpdDK2RJvEaK5+MtqHlO8PSDAO7AUFq80V94XDD7b9
+         1hACG1SbTHfURiHpEStJitb4gI7fkZAEWTkBzZmgGCa1u8ECYaq1sFxacT4xrWf7L+t5
+         rQVuvxqNBb4zqOEs79NJR/MW6ax4fXRwDg3xLNTzxDEevky/e+JQWGRwIP3MxZtIu3PO
+         mAcpFj9sny/mfmiBrSmxXpJSCkjgV810lWx3xfVcDnzZtQdrF8hPa181xP2cuN1y9n8x
+         cTTT/DbCsnGLsZY/Z2seyBiJxLbs2XOtQ5yt/wRESPGH950xJY5FB47aSGcSR5kwMDE4
+         Bkcg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=JYDMbaf0;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o9sor4543573jam.6.2019.03.20.02.59.21
+       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e7si87709qkb.189.2019.03.20.03.13.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Mar 2019 02:59:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Mar 2019 03:13:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=JYDMbaf0;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=s2voj6kjaLi6fKovfCR/88xY1mnaSXnV0VQQW9aYLas=;
-        b=JYDMbaf0YUF3eOTaoaFwUe3CxvxxMo7gejjtbDw95GMO9vUIsR2u4jhbxb/8nQ0fy6
-         m6wn+rcYWlW6YHJoSOyz7Uu9aTKGqXNqqFU4zf7N1SmOgxrDGfHoQ6UR6uU9EEU8EeyG
-         zFbxfCNX6lr3uAZ8X4mfsdaj1z7cTD2wl+WP/5kWf5g5c7IUOHtTCuUbNRj+rAgCHXWI
-         /lR62pUrei+SwFhBxmHZG6HNaaCZVtlq3bQf6Mk7Zf1QoT+1TxUFo90O2RLX3kVXUzEA
-         b6phamX/1j02VTV4LGuMZQQuc35jaIE34WG6kQOYNEXk1R88iO+L6KAWgq9xE8c9KTjn
-         qCwQ==
-X-Google-Smtp-Source: APXvYqyq3qgpYQBtHCrpio74vOfqV9roX8R/fvAEM9gdqE0d/5SmhT4xZ4ZXx0J15TTgRIGJ9xKgFwo+wZYUVtGwSbc=
-X-Received: by 2002:a02:84ab:: with SMTP id f40mr4094497jai.72.1553075961022;
- Wed, 20 Mar 2019 02:59:21 -0700 (PDT)
+       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id CDF302D7E0;
+	Wed, 20 Mar 2019 10:13:21 +0000 (UTC)
+Received: from localhost (ovpn-12-38.pek2.redhat.com [10.72.12.38])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 243D35D71C;
+	Wed, 20 Mar 2019 10:13:20 +0000 (UTC)
+Date: Wed, 20 Mar 2019 18:13:18 +0800
+From: Baoquan He <bhe@redhat.com>
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org,
+	pasha.tatashin@oracle.com, mhocko@suse.com, rppt@linux.vnet.ibm.com,
+	richard.weiyang@gmail.com, linux-mm@kvack.org
+Subject: Re: [PATCH 2/3] mm/sparse: Optimize sparse_add_one_section()
+Message-ID: <20190320101318.GP18740@MiWiFi-R3L-srv>
+References: <20190320073540.12866-1-bhe@redhat.com>
+ <20190320073540.12866-2-bhe@redhat.com>
+ <20190320075649.GC13626@rapoport-lnx>
 MIME-Version: 1.0
-References: <000000000000db3d130584506672@google.com> <d9e4e36d-1e7a-caaf-f96e-b05592405b5f@virtuozzo.com>
-In-Reply-To: <d9e4e36d-1e7a-caaf-f96e-b05592405b5f@virtuozzo.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 20 Mar 2019 10:59:09 +0100
-Message-ID: <CACT4Y+Zj=35t2djhKoq+e1SH3Zu3389Pns7xX6MiMWZ=PFpShA@mail.gmail.com>
-Subject: Re: kernel panic: corrupted stack end in wb_workfn
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: syzbot <syzbot+ec1b7575afef85a0e5ca@syzkaller.appspotmail.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, Qian Cai <cai@lca.pw>, 
-	David Miller <davem@davemloft.net>, guro@fb.com, Johannes Weiner <hannes@cmpxchg.org>, 
-	Josef Bacik <jbacik@fb.com>, Kirill Tkhai <ktkhai@virtuozzo.com>, 
-	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
-	linux-sctp@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, 
-	Michal Hocko <mhocko@suse.com>, netdev <netdev@vger.kernel.org>, 
-	Neil Horman <nhorman@tuxdriver.com>, Shakeel Butt <shakeelb@google.com>, 
-	syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Al Viro <viro@zeniv.linux.org.uk>, 
-	Vladislav Yasevich <vyasevich@gmail.com>, Matthew Wilcox <willy@infradead.org>, 
-	Xin Long <lucien.xin@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190320075649.GC13626@rapoport-lnx>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Wed, 20 Mar 2019 10:13:22 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 20, 2019 at 10:56 AM Andrey Ryabinin
-<aryabinin@virtuozzo.com> wrote:
->
-> On 3/17/19 11:49 PM, syzbot wrote:
-> > syzbot has bisected this bug to:
-> >
-> > commit c981f254cc82f50f8cb864ce6432097b23195b9c
-> > Author: Al Viro <viro@zeniv.linux.org.uk>
-> > Date:   Sun Jan 7 18:19:09 2018 +0000
-> >
-> >     sctp: use vmemdup_user() rather than badly open-coding memdup_user()
-> >
-> > bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=137bcecf200000
-> > start commit:   c981f254 sctp: use vmemdup_user() rather than badly open-c..
-> > git tree:       upstream
-> > final crash:    https://syzkaller.appspot.com/x/report.txt?x=10fbcecf200000
-> > console output: https://syzkaller.appspot.com/x/log.txt?x=177bcecf200000
-> > kernel config:  https://syzkaller.appspot.com/x/.config?x=5e7dc790609552d7
-> > dashboard link: https://syzkaller.appspot.com/bug?extid=ec1b7575afef85a0e5ca
-> > syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=16a9a84b400000
-> > C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=17199bb3400000
-> >
-> > Reported-by: syzbot+ec1b7575afef85a0e5ca@syzkaller.appspotmail.com
-> > Fixes: c981f254 ("sctp: use vmemdup_user() rather than badly open-coding memdup_user()")
->
-> From bisection log:
->
->         testing release v4.17
->         testing commit 29dcea88779c856c7dc92040a0c01233263101d4 with gcc (GCC) 8.1.0
->         run #0: crashed: kernel panic: corrupted stack end in wb_workfn
->         run #1: crashed: kernel panic: corrupted stack end in worker_thread
->         run #2: crashed: kernel panic: Out of memory and no killable processes...
->         run #3: crashed: kernel panic: corrupted stack end in wb_workfn
->         run #4: crashed: kernel panic: corrupted stack end in wb_workfn
->         run #5: crashed: kernel panic: corrupted stack end in wb_workfn
->         run #6: crashed: kernel panic: corrupted stack end in wb_workfn
->         run #7: crashed: kernel panic: corrupted stack end in wb_workfn
->         run #8: crashed: kernel panic: Out of memory and no killable processes...
->         run #9: crashed: kernel panic: corrupted stack end in wb_workfn
->         testing release v4.16
->         testing commit 0adb32858b0bddf4ada5f364a84ed60b196dbcda with gcc (GCC) 8.1.0
->         run #0: OK
->         run #1: OK
->         run #2: OK
->         run #3: OK
->         run #4: OK
->         run #5: crashed: kernel panic: Out of memory and no killable processes...
->         run #6: OK
->         run #7: crashed: kernel panic: Out of memory and no killable processes...
->         run #8: OK
->         run #9: OK
->         testing release v4.15
->         testing commit d8a5b80568a9cb66810e75b182018e9edb68e8ff with gcc (GCC) 8.1.0
->         all runs: OK
->         # git bisect start v4.16 v4.15
->
-> Why bisect started between 4.16 4.15 instead of 4.17 4.16?
+Hi Mike,
 
-Because 4.16 was still crashing and 4.15 was not crashing. 4.15..4.16
-looks like the right range, no?
+On 03/20/19 at 09:56am, Mike Rapoport wrote:
+ > @@ -697,16 +697,17 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
+> >  	ret = sparse_index_init(section_nr, nid);
+> >  	if (ret < 0 && ret != -EEXIST)
+> >  		return ret;
+> > -	ret = 0;
+> > -	memmap = kmalloc_section_memmap(section_nr, nid, altmap);
+> > -	if (!memmap)
+> > -		return -ENOMEM;
+> > +
+> >  	usemap = __kmalloc_section_usemap();
+> > -	if (!usemap) {
+> > -		__kfree_section_memmap(memmap, altmap);
+> > +	if (!usemap)
+> > +		return -ENOMEM;
+> > +	memmap = kmalloc_section_memmap(section_nr, nid, altmap);
+> > +	if (!memmap) {
+> > +		kfree(usemap);
+> 
+> If you are anyway changing this why not to switch to goto's for error
+> handling?
 
+I update code change as below, could you check if it's OK to you?
 
->         testing commit c14376de3a1befa70d9811ca2872d47367b48767 with gcc (GCC) 8.1.0
->         run #0: crashed: kernel panic: Out of memory and no killable processes...
->         run #1: crashed: kernel panic: Out of memory and no killable processes...
->         run #2: crashed: kernel panic: Out of memory and no killable processes...
->         run #3: crashed: kernel panic: Out of memory and no killable processes...
->         run #4: OK
->         run #5: OK
->         run #6: crashed: WARNING: ODEBUG bug in netdev_freemem
->         run #7: crashed: no output from test machine
->         run #8: OK
->         run #9: OK
->         # git bisect bad c14376de3a1befa70d9811ca2872d47367b48767
->
-> Why c14376de3a1befa70d9811ca2872d47367b48767 is bad? There was no stack corruption.
-> It looks like the syzbot were bisecting a different bug - "kernel panic: Out of memory and no killable processes..."
-> And bisection for that bug seems to be correct. kvmalloc() in vmemdup_user() may eat up all memory unlike kmalloc which is limited by KMALLOC_MAX_SIZE (4MB usually).
+Thanks
+Baoquan
 
-Please see https://github.com/google/syzkaller/blob/master/docs/syzbot.md#bisection
-for answer.
+From 39b679b6f34f6acbc05351be8569d23bae3c0458 Mon Sep 17 00:00:00 2001
+From: Baoquan He <bhe@redhat.com>
+Date: Fri, 15 Mar 2019 16:03:52 +0800
+Subject: [PATCH] mm/sparse: Optimize sparse_add_one_section()
+
+Reorder the allocation of usemap and memmap since usemap allocation
+is much smaller and simpler. Otherwise hard work is done to make
+memmap ready, then have to rollback just because of usemap allocation
+failure.
+
+Meanwhile update the error handler to cover usemap allocation failure
+too.
+
+Signed-off-by: Baoquan He <bhe@redhat.com>
+---
+ mm/sparse.c | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/mm/sparse.c b/mm/sparse.c
+index a99e0b253927..0e842b924be6 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -699,20 +699,21 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
+ 	ret = sparse_index_init(section_nr, nid);
+ 	if (ret < 0 && ret != -EEXIST)
+ 		return ret;
+-	ret = 0;
+-	memmap = kmalloc_section_memmap(section_nr, nid, altmap);
+-	if (!memmap)
+-		return -ENOMEM;
++
+ 	usemap = __kmalloc_section_usemap();
+-	if (!usemap) {
+-		__kfree_section_memmap(memmap, altmap);
++	if (!usemap)
+ 		return -ENOMEM;
++	memmap = kmalloc_section_memmap(section_nr, nid, altmap);
++	if (!memmap) {
++		ret = -ENOMEM;
++		goto out2;
+ 	}
+ 
++	ret = 0;
+ 	ms = __pfn_to_section(start_pfn);
+ 	if (ms->section_mem_map & SECTION_MARKED_PRESENT) {
+ 		ret = -EEXIST;
+-		goto out;
++		goto out2;
+ 	}
+ 
+ 	/*
+@@ -724,11 +725,11 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
+ 	section_mark_present(ms);
+ 	sparse_init_one_section(ms, section_nr, memmap, usemap);
+ 
++	return ret;
+ out:
+-	if (ret < 0) {
+-		kfree(usemap);
+-		__kfree_section_memmap(memmap, altmap);
+-	}
++	__kfree_section_memmap(memmap, altmap);
++out2:
++	kfree(usemap);
+ 	return ret;
+ }
+ 
+-- 
+2.17.2
 
