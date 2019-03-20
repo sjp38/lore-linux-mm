@@ -2,139 +2,132 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 73090C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 19:53:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 46939C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 20:04:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3EF9E2083D
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 19:53:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3EF9E2083D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 0795521841
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 20:04:35 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="HPpQBz/C"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0795521841
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CE65B6B0007; Wed, 20 Mar 2019 15:53:25 -0400 (EDT)
+	id 7D2F96B000A; Wed, 20 Mar 2019 16:04:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C48176B0008; Wed, 20 Mar 2019 15:53:25 -0400 (EDT)
+	id 782186B000C; Wed, 20 Mar 2019 16:04:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AE98C6B000A; Wed, 20 Mar 2019 15:53:25 -0400 (EDT)
+	id 64A4B6B000D; Wed, 20 Mar 2019 16:04:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EB706B0007
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 15:53:25 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id d5so1333289edl.22
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 12:53:25 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 43EE36B000A
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 16:04:35 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id x12so3722294qtk.2
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 13:04:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=J0gFMNuQOIttPlDvgfSbIkR76jb+uXV7WTyeLdLEtjc=;
-        b=TtowfaUmNDYaFzgsFbtvQghkjfpyZeEw26teWwjwkh28pWgQ5FurN5PNCalFfSBEf8
-         rkz9ElXyMGjZYvTjZfjb2sy4Jl36c4fY2AeDjDLlTSozs6ARy+XN1Q42MAxLKt2rP+yD
-         VOBQt4qyPvRMm0Kkwn/wwvqh8RAR20dKJBuOGqgA3BsbLDyoAjl46utqde+5sF3VMFp8
-         WCrnD+yXiJDy9FKXXjhUf+N0TI8o5N9WcHiWpvqaSHJUZE3Loa+Oez37BM2QsyzYFsMH
-         E70SiRUDV2E70OiIoR08F1sAlc8Ars/xb2wqx/eyC6YGoZQl62uVnU+m0i0jrJL8gvW+
-         Q67g==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWXTvjWPIMj54ngauqIScK1b5CMh5znKoErF8xXxD6ISgoChj1n
-	nkbHq2elxYyByr6GYGJlXTHq75IegM7ubj1yBsvhN43OChqrHmmnFyY+iX7+GQesQDirBsDPeiv
-	Y9lb+BrVAtBnWGXoMSrZxSUlXYThBb7xMnxP+DiiZhZi5jBxC4+kZulxWPSinoAY=
-X-Received: by 2002:a17:906:41b:: with SMTP id d27mr35348eja.69.1553111604882;
-        Wed, 20 Mar 2019 12:53:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzr2gab+Pxc/gtar7ZRJfAp1kwFab4XXTpgPCiQH7m04mG0ytX3N53ReDoUT8+3yC9E4wWJ
-X-Received: by 2002:a17:906:41b:: with SMTP id d27mr35312eja.69.1553111603930;
-        Wed, 20 Mar 2019 12:53:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553111603; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:mime-version:content-transfer-encoding;
+        bh=Vo6r5RiuoHQQbBcC9iguZtdqZ6ajLyJa96gCdeOiWbE=;
+        b=mEKsWwP/kPKAeENRh8cPcz4fpAVW2AP9tdE/iuRJvKpn6SwJrCZ948HPL6aZ1a+qBu
+         X67KqDnEaSmOCTBTIOUOsAvR50valxIAikxAiqAg3vJGNnEthnx9igRkxtLkyTISHxwt
+         QwRDZgvMj3uGMsMUShWmgzYnGkYU9AlQjfo0sSwO4ouqwd4i7xOjnyorvYiQ0t+680aq
+         Pg/CUX+Q/Aw7BC2W46ioI4WoDHdMF644yRpfUB9mX8tAqywEuybZh5O8rYyPZeJWgSxb
+         kW4ZEdvIB9u5IiaCnCzmKwV3V/r13wpE44wgAgMDbW/KEa8xUo2UegyduNdHqKOAv6jt
+         duvA==
+X-Gm-Message-State: APjAAAXv59eZpj4gA+CbQM/rAdaF+sHl/mlHsuwYkYqPo9iRB8M2fkzr
+	FgPCAolpph8a/dUUbnC42MHfqTWvHA3eBzVbPzzKKy1Hb0JziIJg5xBCoj+GrGE8jr2L0cB2JPW
+	yMWmoUQz4oBXOhuABgkKsX248fE3YWvcw0HjP/2fZQu0tu2FclD4j1BiDBw0+fYvjsQ==
+X-Received: by 2002:ac8:54c:: with SMTP id c12mr8486454qth.327.1553112275046;
+        Wed, 20 Mar 2019 13:04:35 -0700 (PDT)
+X-Received: by 2002:ac8:54c:: with SMTP id c12mr8486409qth.327.1553112274405;
+        Wed, 20 Mar 2019 13:04:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553112274; cv=none;
         d=google.com; s=arc-20160816;
-        b=eXX6yM6Y7mTWxV0V4Tbv9ehWM+Dp0z9zxUjJF0z2SlsL2hK6EnF+BVKDNBCfLl0IOI
-         OlmatweEzIiqL5kURT1pZEhi8y/xUOOOgypB+vL+eJF3lvWBO7A2ztAoRu9/iM/2m3Xy
-         VRedYv+myNXcQXnYGC9TQFp+MawLeHO07WMdasE7XZ8prq+dVGHlmzGKSmTPqexdpkyf
-         7sa6UfCkSECcK4Dz5KGFUrkLWrxlxTUJ162gQwq0xg8hcDv7wzQb6SlNZ5jV3iufKWIz
-         F1JgoKSx112hRYeiOlGeVouKR2OM0gvqmQsvitRdlBu26gy1q1a0ZMb3xsCkLf3SC9pg
-         ZGwA==
+        b=HpdxSbikVsCi4KWQvVikdKBa2NkSmF7RMLUO0AIg66LeGYP+QRe0iP8h0tlIzIlQF8
+         q2g8x2QLdBTKIdseHUoH007zDgk5cYQlvxZUPR84eTiuSfKPTxXIV4JAGiusUUEAoaSB
+         THvsI3yUJVjRlPdf9oWcqu0hv58WYOhf6bLdSoFYMdSLtfUKUi+TY7OPDvr1WcOsC1b0
+         8ZUfVuBHdlckTAqa0iVR+Dy5BP+jrrTOlaYFgeuYPyKz+AuKvmH5vvKBe6YQXUASN67E
+         8Pp8im1qTwDsEZDdy0O1JE4fsywy67XNmEj9Ld2xJAvPxt/ahzbsCQpAqhpqDCjdO/Yr
+         HVmA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=J0gFMNuQOIttPlDvgfSbIkR76jb+uXV7WTyeLdLEtjc=;
-        b=ljX1y1hyoyRzJwqdfveKmczyr2/tTQP3lfs4vd53NsEUbiX7iENKaqAFf9IAwbVoQJ
-         20ecGdwaiNAuWaFi57+XDAzHyJOgsFadP4fOU23ZUw0s9/wZbbegwsRM2gcv+Gz0P8cq
-         sr5bcvGHO5ij9hJCc2829w5A8itOAQDd7nvJh9JCWZGZT/OLbfxZIARr0o4ky6VGweXk
-         vvVap1XQo9JVEo/suI7lRInftnytG+W4rZ2F3x/kaK3MVeQcRnzjqWWslX9Bl3ydmz6a
-         ac42y/cgNDBcaoadJsOo3pkeatuRFsCCFRcSNioaPy4kLD0DvV7C6rsdvnaKeOV/zJrV
-         I0UQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id:dkim-signature;
+        bh=Vo6r5RiuoHQQbBcC9iguZtdqZ6ajLyJa96gCdeOiWbE=;
+        b=A+YEK+nIExZYU5z6nwhOYBZas60r6uum7nidJfUeNa3yJzaIxqwehBEtCpcVYnp34q
+         hEO/X4i1QlFaP3mr0YV8qgL4Vvqc6znpwb46TJPl6KVpbJ9mXA7MQopwNTXUEHiyOL2a
+         170TBWtxx1PfKlUpojTFSLoJUV+N1nxCINwxqIeHSXJQrmXIDtbrvmzilhhPLiWNIMgX
+         lAjLxFPZs2WtLy+DvvER8MXsoU0dnPz89FEW8TFgQqfGKvBZYA9kRXiULhQgJ36eaA3F
+         SuYE7Fap9M1X1PVU9fTf7f85n1pomO4xWEYZ9oLqAaxUyHzWtTEEQdam5Mg1LgMST0eX
+         brtQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m8si928348ejk.24.2019.03.20.12.53.23
+       dkim=pass header.i=@lca.pw header.s=google header.b="HPpQBz/C";
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w138sor2235485qka.131.2019.03.20.13.04.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Mar 2019 12:53:23 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 20 Mar 2019 13:04:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 2C219AEF5;
-	Wed, 20 Mar 2019 19:53:23 +0000 (UTC)
-Date: Wed, 20 Mar 2019 20:53:21 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Baoquan He <bhe@redhat.com>, linux-kernel@vger.kernel.org,
-	osalvador@suse.de, david@redhat.com, richard.weiyang@gmail.com,
-	rppt@linux.ibm.com, linux-mm@kvack.org
-Subject: Re: [PATCH] mm, memory_hotplug: Fix the wrong usage of N_HIGH_MEMORY
-Message-ID: <20190320195321.GE8696@dhcp22.suse.cz>
-References: <20190320080732.14933-1-bhe@redhat.com>
- <20190320121209.5cd30d7b15f299df7d97d51e@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190320121209.5cd30d7b15f299df7d97d51e@linux-foundation.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       dkim=pass header.i=@lca.pw header.s=google header.b="HPpQBz/C";
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=Vo6r5RiuoHQQbBcC9iguZtdqZ6ajLyJa96gCdeOiWbE=;
+        b=HPpQBz/CvqsFaa0YHkIdIWC9iwfw02s4wfgNx/cLGOHj1a5FGWAnDDpEotjpjx0NSL
+         F0gyFf/ieAD253cjGeiAI+MkOvyvKxGe61VtSSWQyyRJBaP7ihSFnE/JoVW2e+vyFmJ/
+         oOS7inR6aNpv0mA8RAyeReJDsdd38nUMURgiM9zWeRT4BPqOg5Djdld7zvw2Y8Eov+n7
+         /YZmRaOdN3FdNQJFu/QU8RFIhdswP6VC6E+Es8DpHWFEFDgpkO5rN/P+p1FBRmPnU30m
+         WYfL0DDwwyVAavff0M6gTimy98fqUaF3Rinq/8q+m+aNdLDaewlmpV8kawsjV23Vwx7s
+         G2Fg==
+X-Google-Smtp-Source: APXvYqyNcoCpTrG/QlxBIiS3xOXvYOWD0i6x08P3+8eR8pgFrkDCEqYQr79GX02pD2JjjO+rwwfWzA==
+X-Received: by 2002:a37:4d52:: with SMTP id a79mr8186639qkb.75.1553112274192;
+        Wed, 20 Mar 2019 13:04:34 -0700 (PDT)
+Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id h24sm2225964qte.50.2019.03.20.13.04.32
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Mar 2019 13:04:33 -0700 (PDT)
+Message-ID: <1553112272.26196.9.camel@lca.pw>
+Subject: Re: [PATCH v2] kmemleak: skip scanning holes in the .bss section
+From: Qian Cai <cai@lca.pw>
+To: Catalin Marinas <catalin.marinas@arm.com>, Michael Ellerman
+	 <mpe@ellerman.id.au>
+Cc: akpm@linux-foundation.org, paulus@ozlabs.org, benh@kernel.crashing.org, 
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm-ppc@vger.kernel.org, 
+	linuxppc-dev@lists.ozlabs.org
+Date: Wed, 20 Mar 2019 16:04:32 -0400
+In-Reply-To: <20190320181656.GB38229@arrakis.emea.arm.com>
+References: <20190313145717.46369-1-cai@lca.pw>
+	 <20190319115747.GB59586@arrakis.emea.arm.com>
+	 <87lg19y9dp.fsf@concordia.ellerman.id.au>
+	 <20190320181656.GB38229@arrakis.emea.arm.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 20-03-19 12:12:09, Andrew Morton wrote:
-> On Wed, 20 Mar 2019 16:07:32 +0800 Baoquan He <bhe@redhat.com> wrote:
+On Wed, 2019-03-20 at 18:16 +0000, Catalin Marinas wrote:
+> I think I have a simpler idea. Kmemleak allows punching holes in
+> allocated objects, so just turn the data/bss sections into dedicated
+> kmemleak objects. This happens when kmemleak is initialised, before the
+> initcalls are invoked. The kvm_free_tmp() would just free the
+> corresponding part of the bss.
 > 
-> > In function node_states_check_changes_online(), N_HIGH_MEMORY is used
-> > to substitute ZONE_HIGHMEM directly. This is not right. N_HIGH_MEMORY
-> > always has value '3' if CONFIG_HIGHMEM=y, while ZONE_HIGHMEM's value
-> > is not. It depends on whether CONFIG_ZONE_DMA/CONFIG_ZONE_DMA32 are
-> > enabled. Obviously it's not true for CONFIG_ZONE_DMA32 on 32bit system,
-> > and CONFIG_ZONE_DMA is also optional.
-> > 
-> > Replace it with ZONE_HIGHMEM.
-> > 
-> > Fixes: 8efe33f40f3e ("mm/memory_hotplug.c: simplify node_states_check_changes_online")
-> 
-> What are the runtime effects of this change?
+> Patch below, only tested briefly on arm64. Qian, could you give it a try
+> on powerpc? Thanks.
 
-There shouldn't be none. The code is just messy. The newer changelog
-should make it more clear I believe.
-
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
-> > @@ -712,7 +712,7 @@ static void node_states_check_changes_online(unsigned long nr_pages,
-> >  	if (zone_idx(zone) <= ZONE_NORMAL && !node_state(nid, N_NORMAL_MEMORY))
-> >  		arg->status_change_nid_normal = nid;
-> >  #ifdef CONFIG_HIGHMEM
-> > -	if (zone_idx(zone) <= N_HIGH_MEMORY && !node_state(nid, N_HIGH_MEMORY))
-> > +	if (zone_idx(zone) <= ZONE_HIGHMEM && !node_state(nid, N_HIGH_MEMORY))
-> >  		arg->status_change_nid_high = nid;
-> >  #endif
-> >  }
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+It works great so far!
 
