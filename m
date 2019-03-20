@@ -2,147 +2,131 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 86827C10F05
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 21:04:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 54D32C10F05
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 21:48:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3FF2B218CD
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 21:04:07 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="iNfJLn1V"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FF2B218CD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	by mail.kernel.org (Postfix) with ESMTP id EE9E5218C3
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 21:48:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EE9E5218C3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E82B36B0003; Wed, 20 Mar 2019 17:04:06 -0400 (EDT)
+	id 27A696B0003; Wed, 20 Mar 2019 17:48:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E0BD16B0006; Wed, 20 Mar 2019 17:04:06 -0400 (EDT)
+	id 204376B0006; Wed, 20 Mar 2019 17:48:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CABBE6B0007; Wed, 20 Mar 2019 17:04:06 -0400 (EDT)
+	id 0CE176B0007; Wed, 20 Mar 2019 17:48:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B3E66B0003
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 17:04:06 -0400 (EDT)
-Received: by mail-yw1-f69.google.com with SMTP id o66so4995827ywc.3
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 14:04:06 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B24F06B0003
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 17:48:09 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id m32so1469147edd.9
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 14:48:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=c7mFoY9c1LOx2DLi8HmPtRRejYVacIC2KISLRsK7znE=;
-        b=Gz3dw5xmS6DzXQbQ3VWqxrstjGxmOjL7JLQqD+plyjlpuv4LRKAS3qLruKJm0ds+JN
-         4yLi+Ps/eY35lkaU+VT2fSYYD2OB+9mi4tT8XdqrwaW6yMGKihTSrFSnFYyayaPMqllU
-         DEVBDDNMXpbMB65c57PGVm21VFB6mwIhQklzKOAfzATIyic6yEGUI/sNhH3yGDVz6+RR
-         w1AX2Mp62Rx4tVDe4O86lK8Qkl8ZdLyptaPKzVsdxJ+OpdJ+vNFY0DOsymqTEz2ozqVM
-         k+8IgbVOtl1QHNHDEDN2dZiapeY6tO643T/RVxL/+ScFyLTiTtUcEERXFi0j/PQvedHi
-         aihw==
-X-Gm-Message-State: APjAAAXMlmJBb2hyT7cDXu8wJxrvVScblq8yrDSqcxRTaQ8PIG6XWqxo
-	UYpVufpcNUKZ3HuTwaAUoMXkADcTX+8Tjw6RVqcE+TYWaYPkg6agq+ljF88RH6KeEpyfOj9YDyW
-	l7XvG5pr/KTFvcIZ8AdLmeGxPowWOTiWXc/1P83v96AtUUFQ7q11YWgyatsPbcnrbNA==
-X-Received: by 2002:a0d:d246:: with SMTP id u67mr197699ywd.162.1553115846403;
-        Wed, 20 Mar 2019 14:04:06 -0700 (PDT)
-X-Received: by 2002:a0d:d246:: with SMTP id u67mr197625ywd.162.1553115845599;
-        Wed, 20 Mar 2019 14:04:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553115845; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=ti9ripvN2rhcF9NSGZusPod+XiKR1FLqC84BWaRifHI=;
+        b=i0UTs0XtNwdTFvh184DrPj1TCVoDiGOrnkStVEkdQzfh7CBA1ortFd/6HaA4vEFaBe
+         XKYWwu4C9EfkLo0QaEhs7NJAlx8NiRfjTEb/DjBe/5BM6zrnbjp2Bp4JhZuVqNvvvNrE
+         JFlix9iN/OkuaxAYusRsBDcFyxrqSi08W1TQ3cngpXji9Zdr1bHRlbRXLdN08qQF7/XP
+         Chbu+q2E+0ykTxp/5TZ1ivOM57YM2cIB1pp6/yryN02OXcXa1gGwVco7gH+wFBiSXw8P
+         0ErH7Nov7y+ehq6PXNcZfyQSBOFmboqeGFpKObhhhvUpWr8dcFSYxD/L2exHn/1llV8f
+         f6VA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAVuzk3k2nl75ntpZhVWgQ3X3KAH46bYaMO2lcLaEoSue04i0Bep
+	Xc6ZR5KPy8jHC4s1rfgKt/rTf6SxaImwH4+qRqo6qpPiyvBvN/ftDI2h8UHvyuM3YVN/xYzYV8e
+	y3Odb8733P5K0ER1q+KIJoqPyIRDZpeQM8efIFoDwZ3X9vH3hhXrccqPCLu9ThaZVkA==
+X-Received: by 2002:a50:aeec:: with SMTP id f41mr128618edd.279.1553118489212;
+        Wed, 20 Mar 2019 14:48:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwb8bNMc72rd1FVkCPZuKCOgGdc6OGFc78s4Aft59CFw1wM5CdYJXnFxV/J/3ti5Gd8LklP
+X-Received: by 2002:a50:aeec:: with SMTP id f41mr128558edd.279.1553118487911;
+        Wed, 20 Mar 2019 14:48:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553118487; cv=none;
         d=google.com; s=arc-20160816;
-        b=nz6OpYIaYiFS4AEzCPKtq2RsxPphhOiG2acNKfSBPSfyZm63k+dhyqv9wKwnYqh8xY
-         y83ZZMH4o65pYP8ivESae9q/xeb60kWx0HD59uAYlV6MeZLzUjGnwFfbruQg+QVMODxc
-         OY9eWCPh5VandfZlH+exABnacUoR/TyEcJP+WMucr2Xs18r6RkfCv34Tl9dB85M8/LAv
-         Xpp8YuZrRC0GdPIVuZGM+S3eY+CnUtb75W04CSvkaCOaYiJdVq4oe1RKqv0i7gyXnmD1
-         vBe9Q5lMw6pgmuP2iQ6fK2YvKgmA6ZTOXatVLflfintx6EMiAj+lpp5XSx6zE5Gdp/es
-         vvow==
+        b=yP/ThDp8e/IMin3RTO0M5Dsyvq6ur0qrKrDFJFQtaLo0rSOSUsIRd9nHchnj1LB0qA
+         lMiPyqf1eLQmieJZDrJYFKiQsIM7s4YkB+fuK3Dc3tgQoOwX/PfvV+VoneGDhqv/dmZG
+         pE23spEiWv0clgvfMjSRgw/twR0Zl4hD93MoZDTUxU8XzHKBL8mo1KbOQUNye3t9dSzz
+         2JgQ8jr24sG1rlTzb2a0WxNAmMF3Eqpezxru+mAUuFMz+gYqY12nvV7KFvn4HJEkS+Hf
+         6D318JCHmVVfC3C0cVC+e+VABJQbpG5xNesIhsDsyfRDM6i0Qih9I6MFc2rcijKAB2Lp
+         fLPw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=c7mFoY9c1LOx2DLi8HmPtRRejYVacIC2KISLRsK7znE=;
-        b=C/TxqsEGZEtthvQ51agxAT52Ep7VSE92060Ok8n4di3pRYJAQ9HZqQqxqJFtcqtNMG
-         E5Xg9+y+2Q+IPB0dDktJJIeJniPsxSpNLcULxHM7VvJWxXvtyuWZhtSExcBjFZsN4lYc
-         C1ZfEliAMrGQrqTssQ52wvqylEk6D/PbAMO8DUXI2nlhlap3o6W1rD/g5olImhaKwmkn
-         26bvG8HpaCIdoWFiSydt2DGuseB92+iyICEvTpqcDZ5+Ji2lo4+FFGzEOIS3j/vUcqB1
-         zh0IcyFq55XadwYPdRGMlaHDx4yWPaX/GuKddoE9G3FrPG+d+EUclRj8Qz6gPWEP5wMD
-         G9nQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=ti9ripvN2rhcF9NSGZusPod+XiKR1FLqC84BWaRifHI=;
+        b=MMXcx3x+ddprBfHTIYCmVensIX5ziyy096durJ3U1dMgHmb8LtCwXiyspbbUi7wMOj
+         T1zJmsk5eYBK6512GDZKHq4amdqHpKY4KVCeaMezizFgzxSgZIR2jf5tqpFwgZx+QP0p
+         IQqdGuX6YVxLLHQCqnMxPQLI9DEUwLf+gFVGMOWehC/aZ6UHLicB6AQ8Vjy5epeqdxBf
+         hpg4X2Eglzo/7oorQwld7Hxp+hwt6gb8cv5ZDF55Hf8utP/e03kq5e0Y77u9+dkquTV9
+         jprO+YZu9fZpNcfLvLiDMxpVAClcFIln6pxtRxxnnLqecxr17ngXPNvSwQafU1g++trZ
+         DMcg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=iNfJLn1V;
-       spf=temperror (google.com: error in processing during lookup of hannes@cmpxchg.org: DNS error) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x2sor1531186ybb.49.2019.03.20.14.04.05
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d14si1246714ede.302.2019.03.20.14.48.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Mar 2019 14:04:05 -0700 (PDT)
-Received-SPF: temperror (google.com: error in processing during lookup of hannes@cmpxchg.org: DNS error) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Mar 2019 14:48:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=iNfJLn1V;
-       spf=temperror (google.com: error in processing during lookup of hannes@cmpxchg.org: DNS error) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=c7mFoY9c1LOx2DLi8HmPtRRejYVacIC2KISLRsK7znE=;
-        b=iNfJLn1VEvAICGg6+J8aTGo2WHwUAblrU8TC4P4d/YRBZXKDhFuHuWPyZ+0OcodA2R
-         g7V3avx9WoHGDQcWiV6r3LM0LpMba9yJ3IUAj0x5QC+zKlzOmO4kgXtaoS+5XNfH35f6
-         y3Q95eLIBZnLlHIgU2hmV3Z3aaaWgB2xG+sNBTD2NsA89KSRqyVkPML3RtWfJhtmFNdq
-         uyW97pDsEiNY89ljQeenu9r/FX9qo6fKteLpOe4Ty8207DbRYrXxQ18O75u7haf4V8Sk
-         XGHF1f5dd/S4jj+izKUS5beIisOqtB2HANTsNRLdkYtB97haZMPGFXeQ0p9W+YOT5XOm
-         1Frw==
-X-Google-Smtp-Source: APXvYqyTEHhGxdOJ0WUla4LiMKIGI1B1SD0+iCGoWa94KCfF7DznKo6uv1EmkH63I8BFjx4vQCSD9w==
-X-Received: by 2002:a25:d601:: with SMTP id n1mr28266ybg.342.1553115845368;
-        Wed, 20 Mar 2019 14:04:05 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:200::2:b52c])
-        by smtp.gmail.com with ESMTPSA id 79sm1444881ywr.110.2019.03.20.14.04.04
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 20 Mar 2019 14:04:04 -0700 (PDT)
-Date: Wed, 20 Mar 2019 17:04:03 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Suren Baghdasaryan <surenb@google.com>
-Cc: gregkh@linuxfoundation.org, tj@kernel.org, lizefan@huawei.com,
-	axboe@kernel.dk, dennis@kernel.org, dennisszhou@gmail.com,
-	mingo@redhat.com, peterz@infradead.org, akpm@linux-foundation.org,
-	corbet@lwn.net, cgroups@vger.kernel.org, linux-mm@kvack.org,
-	linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org,
-	kernel-team@android.com
-Subject: Re: [PATCH v6 6/7] refactor header includes to allow kthread.h
- inclusion in psi_types.h
-Message-ID: <20190320210403.GE19382@cmpxchg.org>
-References: <20190319235619.260832-1-surenb@google.com>
- <20190319235619.260832-7-surenb@google.com>
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id B61CEAFBD;
+	Wed, 20 Mar 2019 21:48:06 +0000 (UTC)
+Subject: Re: [RFC 0/2] guarantee natural alignment for kmalloc()
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Christopher Lameter <cl@linux.com>, linux-mm@kvack.org,
+ Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
+ Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ming Lei <ming.lei@redhat.com>,
+ Dave Chinner <david@fromorbit.com>,
+ "Darrick J . Wong" <darrick.wong@oracle.com>, Christoph Hellwig
+ <hch@lst.de>, Michal Hocko <mhocko@kernel.org>,
+ linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org,
+ linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org
+References: <20190319211108.15495-1-vbabka@suse.cz>
+ <01000169988d4e34-b4178f68-c390-472b-b62f-a57a4f459a76-000000@email.amazonses.com>
+ <5d7fee9c-1a80-6ac9-ac1d-b1ce05ed27a8@suse.cz>
+ <20190320185347.GZ19508@bombadil.infradead.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <b5290e04-6f29-c237-78a7-511821183efe@suse.cz>
+Date: Wed, 20 Mar 2019 22:48:03 +0100
+User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190319235619.260832-7-surenb@google.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <20190320185347.GZ19508@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 19, 2019 at 04:56:18PM -0700, Suren Baghdasaryan wrote:
-> kthread.h can't be included in psi_types.h because it creates a circular
-> inclusion with kthread.h eventually including psi_types.h and complaining
-> on kthread structures not being defined because they are defined further
-> in the kthread.h. Resolve this by removing psi_types.h inclusion from the
-> headers included from kthread.h.
+
+On 3/20/2019 7:53 PM, Matthew Wilcox wrote:
+> On Wed, Mar 20, 2019 at 09:48:47AM +0100, Vlastimil Babka wrote:
+>> Natural alignment to size is rather well defined, no? Would anyone ever
+>> assume a larger one, for what reason?
+>> It's now where some make assumptions (even unknowingly) for natural
+>> There are two 'odd' sizes 96 and 192, which will keep cacheline size
+>> alignment, would anyone really expect more than 64 bytes?
 > 
-> Signed-off-by: Suren Baghdasaryan <surenb@google.com>
+> Presumably 96 will keep being aligned to 32 bytes, as aligning 96 to 64
+> just results in 128-byte allocations.
 
-> @@ -26,7 +26,6 @@
->  #include <linux/latencytop.h>
->  #include <linux/sched/prio.h>
->  #include <linux/signal_types.h>
-> -#include <linux/psi_types.h>
->  #include <linux/mm_types_task.h>
->  #include <linux/task_io_accounting.h>
->  #include <linux/rseq.h>
+Well, looks like that's what happens. This is with SLAB, but the alignment
+calculations should be common: 
 
-Ah yes, earlier versions of the psi patches had a psi_task struct or
-something embedded in task_struct. It's all just simple C types now.
-
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+slabinfo - version: 2.1
+# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables <limit> <batchcount> <sharedfactor> : slabdata <active_slabs> <num_slabs> <sharedavail>
+kmalloc-96          2611   4896    128   32    1 : tunables  120   60    8 : slabdata    153    153      0
+kmalloc-128         4798   5536    128   32    1 : tunables  120   60    8 : slabdata    173    173      0
 
