@@ -4,108 +4,109 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AD31DC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 13:57:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0F08CC4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 13:59:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 587002184E
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 13:57:15 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B3E2E2184D
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 13:59:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="bXNPB7zv"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 587002184E
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="N342nwjK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3E2E2184D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E40006B0003; Wed, 20 Mar 2019 09:57:14 -0400 (EDT)
+	id 516A16B0003; Wed, 20 Mar 2019 09:59:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DC6526B0006; Wed, 20 Mar 2019 09:57:14 -0400 (EDT)
+	id 49DBA6B0006; Wed, 20 Mar 2019 09:59:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C8D326B0007; Wed, 20 Mar 2019 09:57:14 -0400 (EDT)
+	id 38BB66B0007; Wed, 20 Mar 2019 09:59:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A49436B0003
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 09:57:14 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id 186so2111784iox.15
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 06:57:14 -0700 (PDT)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 109416B0003
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 09:59:32 -0400 (EDT)
+Received: by mail-it1-f199.google.com with SMTP id h82so880378ita.7
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 06:59:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=CvlQrhVNZGltu5KQzuGmLoTLALk87KzB9BrSGatvLTs=;
-        b=IhukflzhvwmeSLEOYHygnZzneyz+6F0aqDRWLoS0BWpHOhRrWdhVaGzfXFBDm1uAxT
-         4zTaLV5mXhE+3ulgdX7sDLpu8VqhjKHProXCyQZ7CAiRIeQz3FnrqcPAPb9Zi2UjZVLR
-         ryhRKi6k7/HPDCbALWE12P2NXWeSredKhMYGBgxIFQbFSz3cCnxy2alAACjBRvVkEERK
-         aSKCSny3Xb9lGdhYx1TfpWmgtuPnuB+7RFNKdY2f+2wDFZSLGem12vzDS6EeXAZvw30s
-         dCVy4tj0Phm8bUDXx8z9/dK3r6lSTr5wfHizQ/BhQCb+aaiXeqF1EqEuViNGNmEadFi+
-         LEcw==
-X-Gm-Message-State: APjAAAWZmocS2gAF50AqsjQDcnU2uBcq/jtetCGD2nE3bLvqOHjUJoNO
-	jdFsS5LdFhuW+Yng1PHHy+9KBMzlgqUalG75OFGPxPtz+4to5ZXrH9tG1tuYaIMNaie4iXDWi/I
-	Xle3uFxJLXtetWrcLDTK0xQtv7/MBguRh/vqFV1oFSB/pyx2adVuhOQ/lDKb1h40t2Q==
-X-Received: by 2002:a6b:d304:: with SMTP id s4mr4869720iob.228.1553090234394;
-        Wed, 20 Mar 2019 06:57:14 -0700 (PDT)
-X-Received: by 2002:a6b:d304:: with SMTP id s4mr4869692iob.228.1553090233656;
-        Wed, 20 Mar 2019 06:57:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553090233; cv=none;
+        bh=RmyQwrFyANnSrcI13I0okPnI4JkfyNY2bxu3oBrzm78=;
+        b=kVbj/zZtrecxDJk9M3TX8wiJZtOlfPMoB1N+yolIhVQvyqHSaIDiV1bZzPRfkKnX0w
+         r6YR/r1gvEb3fnQA2ZnZV1ggohZLwCyJHIZOANfeXapHln0DccfOMms+r74Oqtj6Bh7i
+         GFL00/8NbD7T32ThZ/qXSdjsXX7mUwYpX9SEYvk3kGEu6ODhQ+KYPGFQLqbHbW/trSvm
+         UOn4Rj6VhRleA+5LPXHjPyYeWxjqkzajwN10Th/0Dx8jWPokyjnRdkqjO3Kp3mIYFKn3
+         YYXsXJTUI3nJNg6KVtkA2pOQM6fHYgRG91aFATsTnyiUDKgo8/El7BNHNM7wsDakDfyr
+         5EPQ==
+X-Gm-Message-State: APjAAAXP4UgUh8cH+xGn4zHtvPyeohWqybMsPGKA62RB+05UHSZHoGfG
+	Hvzr3nrUngv6iVaI0NJqE6dZR04p5F7ptrzFRIXm9PAE6h4jL38b/HdFdghx5TQ0xOdTFdZFc0r
+	KK1Pba0PYucLEEtmq1Tn/67g0OiDYT+NOkZ2pMQfvc2pQkFKBzMGX+BZAe1XzzkBzPQ==
+X-Received: by 2002:a5d:9b01:: with SMTP id y1mr5273527ion.167.1553090371880;
+        Wed, 20 Mar 2019 06:59:31 -0700 (PDT)
+X-Received: by 2002:a5d:9b01:: with SMTP id y1mr5273500ion.167.1553090371245;
+        Wed, 20 Mar 2019 06:59:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553090371; cv=none;
         d=google.com; s=arc-20160816;
-        b=TSwk21gwQH0MULHm0Yn5HiUanGA0MacT15H6ZpoB69nGo5KcTuwUlITlWrT/1A7JZx
-         q6+HAbrbKF88vld8kvGC8d+0CPxmDSWE8U1sHDtoWkpskX78U2WIg0IKlDToJdQcKj3F
-         a8SFg70teMmZAdZqCb2azsu8nEncTzc78nEgAI3zO+1+0FFCf4nSr8kSCpK07kUAVXWn
-         t/aWyrrT3Q7C6iufF6ODMuK4QF/4bcL/EBp53MqGT2hR3Jovd02fjynHGu6xPehmAb6e
-         DodNBe81iccMcdvyOndFbTRuA2FtPep1QnZbScfnP54vXA7wNZTN6MWKnZ/JNTMkEEA0
-         ScHQ==
+        b=itax8VX4uMxEJ2Obdkyo6MVvvo7quhpwkCbq3mvXoU87ngjvzKFthpU38P52PICBi8
+         50QRo19jVvtAvgSx8qrNriyG8zz+yciFeT8IXhh/pVstgiJfxLAr7gb8NbLZGI5kQDwq
+         qMc7oxLEBH4H1X8SkA8WMc+p/l6hPQuZAfWHKng+HkYsR3gnKDwL+A/QdRU8UDMgDgO4
+         p7mq76GeE3xXbdxIdCVbITh/E2zMXwFtO0DlwHz07dNxn+AnYDXGwM64nPhBWC3m7jtz
+         JtUF+/jZ2BA3HZCCCFZoMgoKm1DaNnAUeTbu3XxV2HuUAFgx/Y0naSLXGn+7chaa8GqQ
+         oqng==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=CvlQrhVNZGltu5KQzuGmLoTLALk87KzB9BrSGatvLTs=;
-        b=eIgg8NI5mdnRDtNZdNojz1mLhL80l5Ttr2dyY95ryI38ya6IBqSioL2Vzg2EWKkB6M
-         t1E7x4tkBiWkgFQGuCQ6wX7+5FCT8nGO1nWHPyGpm5cRbQ3eYgmwRJvKlXdjUNuQT2kV
-         FOShl6UQM/yUrCDd6UbW/2Tmj7GHnbpP+qwtvABheWbF7pDIcoiu5SmIxFHYYLXq88Tc
-         6lLMFDA4ujaDQeJ4/WioLYWrFUaePL6a4RYKPoZClX3S8ddDskbAbOpuFJ9RDVC4R4mm
-         vH0C33Sie/i/IxvrULAITqQ/FpLXstcm0VVoAt8lh3Zr1KfQRpRlbpezjgVb1PuCOVjj
-         qyYg==
+        bh=RmyQwrFyANnSrcI13I0okPnI4JkfyNY2bxu3oBrzm78=;
+        b=mX/P+rt7IBUWB3NwdXPlHIKQWWa1MgBAjQTwDy8KZOy3+jHYwA/f2mn6rym5G7VFKA
+         iiXcK8AXfx1nVSLflIiraJBsv4OmM/3dRsiG7HjJZvV6y1pk6GpjjHCDrvap0xXz9aAD
+         Ovj0NwVM8ixwsfTMSp35ANIoSiBuiqMrEZJMSC6UTK/A83cXRIV64qMDHn4BNkmjhLVI
+         WfolGsDjHDK5gLoxzXS10Kl76UcTzULY4o7m6H7PCZyK+Io20MZYW9c/mueOtznhJBoK
+         l/gM3X9DQ+9lYPT1T3l0wJ6ozTjzVmLLVoSFzNMTCYkX+ieEueEKPuRBLnt+sRNeLVzZ
+         5cdQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=bXNPB7zv;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=N342nwjK;
        spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i71sor3964688iti.25.2019.03.20.06.57.13
+        by mx.google.com with SMTPS id 7sor4184680itl.35.2019.03.20.06.59.31
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Mar 2019 06:57:13 -0700 (PDT)
+        Wed, 20 Mar 2019 06:59:31 -0700 (PDT)
 Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=bXNPB7zv;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=N342nwjK;
        spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=CvlQrhVNZGltu5KQzuGmLoTLALk87KzB9BrSGatvLTs=;
-        b=bXNPB7zvPkRgcOAPSdlMSVdFMXKiD4p7E6PFK0UazdmwlGIGsVM969QA2CwMUo9N/n
-         obbqOhB4/UpqWlegShtLyImJKsquRqfqgO39N7IbLXzxPbDy8K2PHAEsF0DUssKOXnBv
-         sIxvubYhUf3W0NnOugvcVe0dFeNe1YUUwBj9/Yk8QATccjDtqjdO7mswCld32ebhE9Qp
-         jjUFJ9PKczP385NR7ngZkXQ8DDGhEY5BMwvCP1GiWitdUjoOsduwk70+ykWyV2D5RmjK
-         46vSp82W0e+1OlkPxUcisjVLwQd47j0ICHede79NSGhjSLBJoDTCC8SEqY0VVOqMJYGm
-         29Nw==
-X-Google-Smtp-Source: APXvYqxdt1A/jMZrV2buAz0e10n701wfuyKaiMQX4b+XZS0YUErmcrU9kOjXrZFjlWOddN3qBDNvx1aBg+c6+Gk2/38=
-X-Received: by 2002:a24:3b01:: with SMTP id c1mr4319010ita.144.1553090233000;
- Wed, 20 Mar 2019 06:57:13 -0700 (PDT)
+        bh=RmyQwrFyANnSrcI13I0okPnI4JkfyNY2bxu3oBrzm78=;
+        b=N342nwjKC9kyYqwey8dFejLjpIkuXozr0myM+P8RkqmPaV7dCdfBDx2pJgzdacZXYh
+         sdRgK9YZNmvOf0NM8s5KID3i1mF06uQS/AZ/mijuKM0nDEc39KKyK2nHX7eo0QhLu20N
+         N0LtP3Ph+8fa3PcMZ+s3o8yZnOf03A0ZHVSy1XkYyvnsQLNhqCE7ue0fbROaiFJ4tEpM
+         Zdqwkxs4WvURgbd+NdTmakQwU/g3XSnti2C1Vrz8RL1uoPz0qxBId4DyRRcyokopoAVY
+         Lyy+dmy6ZHP7719ZexaUn+i9Lc3QUi+utZIWGGhoEPdPrb2usUFyYbs5oqgq3dFtokXz
+         vkHA==
+X-Google-Smtp-Source: APXvYqzmn4bsPUjYN021O9lPARoRSqq2hf2Uw0i66O47FvP6bUygASSf2713Fh5nTZ9abgbg96YVy3cVWltNfiB6YZA=
+X-Received: by 2002:a24:3281:: with SMTP id j123mr1444952ita.166.1553090370724;
+ Wed, 20 Mar 2019 06:59:30 -0700 (PDT)
 MIME-Version: 1.0
 References: <000000000000db3d130584506672@google.com> <d9e4e36d-1e7a-caaf-f96e-b05592405b5f@virtuozzo.com>
  <CACT4Y+Zj=35t2djhKoq+e1SH3Zu3389Pns7xX6MiMWZ=PFpShA@mail.gmail.com>
  <426293c3-bf63-88ad-06fb-83927ab0d7c0@I-love.SAKURA.ne.jp>
- <CACT4Y+Zh8eA50egLquE4LPffTCmF+30QR0pKTpuz_FpzsXVmZg@mail.gmail.com> <315c8ff3-fd03-f2ca-c546-ca7dc5c14669@virtuozzo.com>
-In-Reply-To: <315c8ff3-fd03-f2ca-c546-ca7dc5c14669@virtuozzo.com>
+ <CACT4Y+Zh8eA50egLquE4LPffTCmF+30QR0pKTpuz_FpzsXVmZg@mail.gmail.com>
+ <CACT4Y+Z2FL=t8cHceXMGvG2QfChKdJYprVvBonu9X+jJaL0HMQ@mail.gmail.com> <a06830e7-e396-6dd5-d9d5-2a7b1df9efc1@i-love.sakura.ne.jp>
+In-Reply-To: <a06830e7-e396-6dd5-d9d5-2a7b1df9efc1@i-love.sakura.ne.jp>
 From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 20 Mar 2019 14:57:01 +0100
-Message-ID: <CACT4Y+axojyHxk5K34YuLUyj+NJ05+FC3n8ozseHC91B1qn5ZQ@mail.gmail.com>
+Date: Wed, 20 Mar 2019 14:59:19 +0100
+Message-ID: <CACT4Y+b-VNeKwgP9-x2YZJ08v0f=2C2SujVkgEmcQ+B-ZmmCLQ@mail.gmail.com>
 Subject: Re: kernel panic: corrupted stack end in wb_workfn
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, 
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, 
 	syzbot <syzbot+ec1b7575afef85a0e5ca@syzkaller.appspotmail.com>, 
 	Andrew Morton <akpm@linux-foundation.org>, Qian Cai <cai@lca.pw>, 
 	David Miller <davem@davemloft.net>, guro@fb.com, Johannes Weiner <hannes@cmpxchg.org>, 
@@ -124,99 +125,42 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 20, 2019 at 2:33 PM Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+On Wed, Mar 20, 2019 at 11:59 AM Tetsuo Handa
+<penguin-kernel@i-love.sakura.ne.jp> wrote:
 >
+> On 2019/03/20 19:42, Dmitry Vyukov wrote:
+> >> I mean, yes, I agree, kernel bug bisection won't be perfect. But do
+> >> you see anything actionable here?
 >
+> Allow users to manually tell bisection range when
+> automatic bisection found a wrong commit.
 >
-> On 3/20/19 1:38 PM, Dmitry Vyukov wrote:
-> > On Wed, Mar 20, 2019 at 11:24 AM Tetsuo Handa
-> > <penguin-kernel@i-love.sakura.ne.jp> wrote:
-> >>
-> >> On 2019/03/20 18:59, Dmitry Vyukov wrote:
-> >>>> From bisection log:
-> >>>>
-> >>>>         testing release v4.17
-> >>>>         testing commit 29dcea88779c856c7dc92040a0c01233263101d4 with gcc (GCC) 8.1.0
-> >>>>         run #0: crashed: kernel panic: corrupted stack end in wb_workfn
-> >>>>         run #1: crashed: kernel panic: corrupted stack end in worker_thread
-> >>>>         run #2: crashed: kernel panic: Out of memory and no killable processes...
-> >>>>         run #3: crashed: kernel panic: corrupted stack end in wb_workfn
-> >>>>         run #4: crashed: kernel panic: corrupted stack end in wb_workfn
-> >>>>         run #5: crashed: kernel panic: corrupted stack end in wb_workfn
-> >>>>         run #6: crashed: kernel panic: corrupted stack end in wb_workfn
-> >>>>         run #7: crashed: kernel panic: corrupted stack end in wb_workfn
-> >>>>         run #8: crashed: kernel panic: Out of memory and no killable processes...
-> >>>>         run #9: crashed: kernel panic: corrupted stack end in wb_workfn
-> >>>>         testing release v4.16
-> >>>>         testing commit 0adb32858b0bddf4ada5f364a84ed60b196dbcda with gcc (GCC) 8.1.0
-> >>>>         run #0: OK
-> >>>>         run #1: OK
-> >>>>         run #2: OK
-> >>>>         run #3: OK
-> >>>>         run #4: OK
-> >>>>         run #5: crashed: kernel panic: Out of memory and no killable processes...
-> >>>>         run #6: OK
-> >>>>         run #7: crashed: kernel panic: Out of memory and no killable processes...
-> >>>>         run #8: OK
-> >>>>         run #9: OK
-> >>>>         testing release v4.15
-> >>>>         testing commit d8a5b80568a9cb66810e75b182018e9edb68e8ff with gcc (GCC) 8.1.0
-> >>>>         all runs: OK
-> >>>>         # git bisect start v4.16 v4.15
-> >>>>
-> >>>> Why bisect started between 4.16 4.15 instead of 4.17 4.16?
-> >>>
-> >>> Because 4.16 was still crashing and 4.15 was not crashing. 4.15..4.16
-> >>> looks like the right range, no?
-> >>
-> >> No, syzbot should bisect between 4.16 and 4.17 regarding this bug, for
-> >> "Stack corruption" can't manifest as "Out of memory and no killable processes".
-> >>
-> >> "kernel panic: Out of memory and no killable processes..." is completely
-> >> unrelated to "kernel panic: corrupted stack end in wb_workfn".
+> Also, allow users to specify reproducer program
+> when automatic bisection found a wrong commit.
+>
+> Yes, this is anti automation. But since automation can't become perfect,
+> I'm suggesting manual adjustment. Even if we involve manual adjustment,
+> the syzbot's plenty CPU resources for building/testing kernels is highly
+> appreciated (compared to doing manual bisection by building/testing kernels
+> on personal PC environments).
+
+FTR: provided an extended answer here:
+https://groups.google.com/d/msg/syzkaller-bugs/1BSkmb_fawo/DOcDxv_KAgAJ
+
+
+> > I see the larger long term bisection quality improvement (for syzbot
+> > and for everybody else) in doing some actual testing for each kernel
+> > commit before it's being merged into any kernel tree, so that we have
+> > less of these a single program triggers 3 different bugs, stray
+> > unrelated bugs, broken release boots, etc. I don't see how reliable
+> > bisection is possible without that.
 > >
-> >
-> > Do you think this predicate is possible to code?
 >
-> Something like bellow probably would work better than current behavior.
->
-> For starters, is_duplicates() might just compare 'crash' title with 'target_crash' title and its duplicates titles.
+> syzbot currently cannot test kernels with custom patches (unless "#syz test:" requests).
+> Are you saying that syzbot will become be able to test kernels with custom patches?
 
-Lots of bugs (half?) manifest differently. On top of this, titles
-change as we go back in history. On top of this, if we see a different
-bug, it does not mean that the original bug is also not there.
-This will sure solve some subset of cases better then the current
-logic. But I feel that that subset is smaller then what the current
-logic solves.
-
-> syzbot has some knowledge about duplicates with different crash titles when people use "syz dup" command.
-
-This is very limited set of info. And in the end I think we've seen
-all bug types being duped on all other bugs types pair-wise, and at
-the same time we've seen all bug types being not dups to all other bug
-types. So I don't see where this gets us.
-And again as we go back in history all these titles change.
-
-> Also it might be worth to experiment with using neural networks to identify duplicates.
->
->
-> target_crash = 'kernel panic: corrupted stack end in wb_workfn'
-> test commit:
->         bad = false;
->         skip = true;
->         foreach run:
->                 run_started, crashed, crash := run_repro();
->
->                 //kernel built, booted, reproducer launched successfully
->                 if (run_started)
->                         skip = false;
->                 if (crashed && is_duplicates(crash, target_crash))
->                         bad = true;
->
->         if (skip)
->                 git bisect skip;
->         else if (bad)
->                 git bisect bad;
->         else
->                 git bisect good;
+I mean if we start improving kernel quality over time so that we have
+less of these a single program triggers 3 different bugs, stray
+unrelated bugs, broken release boots, etc, it will improve bisection
+quality for everybody (beside being hugely useful in itself).
 
