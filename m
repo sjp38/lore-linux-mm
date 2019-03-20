@@ -2,286 +2,268 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 33448C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 04:00:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9E023C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 04:33:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CDBC6204FD
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 04:00:00 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=brauner.io header.i=@brauner.io header.b="TxoOuXhB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CDBC6204FD
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=brauner.io
+	by mail.kernel.org (Postfix) with ESMTP id 3DDC92175B
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 04:33:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3DDC92175B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 683016B026B; Wed, 20 Mar 2019 00:00:00 -0400 (EDT)
+	id CAC3D6B0003; Wed, 20 Mar 2019 00:33:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 659816B026C; Wed, 20 Mar 2019 00:00:00 -0400 (EDT)
+	id C5BC76B0006; Wed, 20 Mar 2019 00:33:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5476B6B026D; Wed, 20 Mar 2019 00:00:00 -0400 (EDT)
+	id B4B736B0007; Wed, 20 Mar 2019 00:33:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 26DD46B026B
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 00:00:00 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id t13so19850402qkm.2
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 21:00:00 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BDC16B0003
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 00:33:29 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id z123so19872966qka.20
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 21:33:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=0k0N07/xnhJHi88frcmOSoHhbMjls/ZerpoxQrxBm4o=;
-        b=hCj6+o4t2nZHfhKzNOQZCKMzx4mVFPOH+2bf0UdJ5PeEt6+KOd3NU/HbVusOZiCv8Y
-         6hinE65KIBs8SHt8o5IIULoTbGtzKrzx4YeXNQ8Vx/ScpG+uxgLC9SAgrLi6CeJ9LKnT
-         L3NjneaooLYkUZUCMX0L8EZWIOB2tUvpv7bcn/obPwSKwDagBwglmWAO6n1KXn6SKDNF
-         6fhWd7EjAdAZa4NqX0F4x2GpoXqgZxBBekq7siHaGgcs1nLtKCxqqpdyOeISJ2tJQrS3
-         K5/UfFidtofh3/FmevmGkqLXbyxJ4RjwcQ9993gZ4if9CXiQBWAyYJc4J29kptPmPi3t
-         bBoQ==
-X-Gm-Message-State: APjAAAXT27k9HwxYtGIjyQAmEjDZPM9Vsm4DILfBUQL6LOsQDe5XWNhr
-	+BKWdOo3l/BzUBgANMmKkOJeF4rYb1gT5ElIKRMZF13FGvKsx78vuEZkpdFf0YEEpFjrtFDuyoS
-	bVtIdJKe/W6fdVYF21jvDn5XaG13bdZF0Va64HaW/DBsz8fwyR8It1IwyaibqZ7epiA==
-X-Received: by 2002:a0c:9068:: with SMTP id o95mr4607343qvo.177.1553054399848;
-        Tue, 19 Mar 2019 20:59:59 -0700 (PDT)
-X-Received: by 2002:a0c:9068:: with SMTP id o95mr4607315qvo.177.1553054398845;
-        Tue, 19 Mar 2019 20:59:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553054398; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=1JIHwc8CE0LMo3o6GEKfFP4MbkQC2X9rETKpJRbgjYU=;
+        b=A9BfPtC5qYZDWLA5HZRnbGiJFQ6viJ5Hz6Hleb/fntxmScDaUAtRQXZEwieDLFfkVu
+         QUKSDfh3w+mjBvajW4MWyX2mH2veSbEQF0ZVYa1eF+gNL5Te3hkayTQz7Xt1N1ZbTbTI
+         8lX7sweAXpeFRmNatKA+JoiD9IaCbW+vKpZNJT+zyKQAx6y4TAyt6cSj29c0f2fJww84
+         EAqhkwvusNpKeEhFfccOyD/AH0I3nGoYsxdhzQTTg0UVfDuyktvKb5I112bgABjTNOvl
+         vOUZgphUv0/Kc22AaTSX11opWWXcLAGDVPjoq6Yhv3DUaISgpodApRXQ/XWwcHfv7T7G
+         ZfPA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVDloIiZYS3S13rpNrVQuFkOcg8RRzcnUSm47lrWRU4QBgq1VW9
+	qwM5E4UDpSLpdmmHq/iGgbsq0sgKjpMQfbWWQizmYH1Bmh+x7wFmTJbsYKt3HmSeS/8kYzKvjIi
+	38Pnm89Xg0vVsB3WUgAlF434Hm15FuK7hZXRHxY/fFGkRKGPVoPBe8E/eOZYv45cITQ==
+X-Received: by 2002:ac8:2df8:: with SMTP id q53mr5121290qta.132.1553056409303;
+        Tue, 19 Mar 2019 21:33:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzxXR6Ezr6N88uxQo8hTfR2Gh0jqN30ystQ7uZ7S8kXc9D4DeXa4qGV+sC8hNHy7ZFDhBJ9
+X-Received: by 2002:ac8:2df8:: with SMTP id q53mr5121235qta.132.1553056408141;
+        Tue, 19 Mar 2019 21:33:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553056408; cv=none;
         d=google.com; s=arc-20160816;
-        b=Pkht1uZCoMmo7HlkZUUVarmpDYLZnW8s47XCBejwkWz+lD6Po688D1NdoUuXf3xOgY
-         O3cEmig/zgcqDoj4ZdT7j9JhtDgQSfNbEDMZjOzECAFPvzvQgsEULQzMlS+bqOMssBZ5
-         Xx3b0DMkA8LxTezlqWQs9l9RlUdyiTwf/JlUUwkMQQ4i0hO1FZPj2eSdHNMSbhHPifbM
-         ZulD3pqsaV1upRlCIpCDAw/D9Y68ujvhCW2FYUANuP8fg3DzWIXQe4x2Ed31wZcYZIn7
-         jC6WFWYpPQeeL2xYHFQOTAQ5mo3f9AdUdYGB/knERo7uj/nKlOlDxdPjklCK0/yoZMxU
-         N1zQ==
+        b=bduftvX+OgPJKY/wkKX6xw2xw0uNEa8QAEYfXK8QFHKl5FLWzfNdeNj5/QV6tD6BwO
+         raKrZXGkupyN4lfjeULh2xdQZhohCDwxLXO8jqiOcHFUNmcsgd4h1cSBaAijavwqBvYx
+         Q89tROqnx+w1u/IQJ8ZJ3IBlKurlvjI0EhVCXrVitbVpM3y6afu+vjpHfrZMjWeIgaeK
+         JzT68NWpX9igK8ckZJXcuM9L7J4yXupLjcHMLBQd/GoUwAGQ+KdbYPeY/23uf7uw+Zic
+         LTaXwCexZNAVrKP3lGMe7ukQPwIAQ9wWQzySCHHuUqETiECTAoD55GtuUp9VnPjlFfBi
+         1VJA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=0k0N07/xnhJHi88frcmOSoHhbMjls/ZerpoxQrxBm4o=;
-        b=ZqIsdXPD3llVVJ2AMQfEAQEQITMBp0yOKgAU6xROalQU9Hbs8VPKWeiZFbmshBy89n
-         sNORMm8gdoeXVaLaB+D0XcqmU47NieU294EAmdE1VYZ6j9NgBQ9E+PzzauotiJIVqxDL
-         R+5gHShlYhb/2RlOGIUrF9CSmR83SH7upGMht8NAXHGaIFuGCspkZujtElmn1vfwBv3g
-         XjhkOGwmUeCKXI7PZjAACvGXClcDFXGHVwtO73w6QXwbqe+nRfHXd5th+w3spsODMsYo
-         KMh/XSNcPsrRrGa9Ysgd4/Vdg+8HqfKJtAJ3S+G6onZKIomBeWgdv3M4mVi1Duic4aaO
-         PJ2Q==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=1JIHwc8CE0LMo3o6GEKfFP4MbkQC2X9rETKpJRbgjYU=;
+        b=p3OqzJG7kMXUZNyQSxWqgzKfvbGms3sSPTimeQB0CrGEDj5a552EPneuKDAUyxS1hp
+         riYPyhasJLEvuGcWceeBgq8bNhKBvztg72unUX05PIM7OSJ3owTxbxfqdsMIT/PcAx9a
+         r6a1aMnzseLP1jiMLZFRUJ2sddnv1kvHmL4nY2W8/s66qndMGEZJQif6IyHHNaijlrzn
+         HvJFkuRkEuBnVFeG2PwYIorH6buzT+Rg4bwVrqYAS/BYpVABkOsK9ZGAUgDNZvrwfg+P
+         HVIGdLUaSO8isTdOhov5uq0aCD4ZCMPJ4mxgd3mL9mRiSKO24hrQOglnr1B0y6LTK0x2
+         X5YQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@brauner.io header.s=google header.b=TxoOuXhB;
-       spf=pass (google.com: domain of christian@brauner.io designates 209.85.220.65 as permitted sender) smtp.mailfrom=christian@brauner.io
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h19sor895321qve.33.2019.03.19.20.59.58
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g10si378941qvn.144.2019.03.19.21.33.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Mar 2019 20:59:58 -0700 (PDT)
-Received-SPF: pass (google.com: domain of christian@brauner.io designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Mar 2019 21:33:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@brauner.io header.s=google header.b=TxoOuXhB;
-       spf=pass (google.com: domain of christian@brauner.io designates 209.85.220.65 as permitted sender) smtp.mailfrom=christian@brauner.io
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=brauner.io; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=0k0N07/xnhJHi88frcmOSoHhbMjls/ZerpoxQrxBm4o=;
-        b=TxoOuXhBmzxTHJ27kgV8HMgFJ2eoNVm/M/ymHkgZ4ZjoCucr/H5s2QrDxWN1CG5DD1
-         1IBDo+672dAUrvuIVjYkZmeVXnUQCUJh/2+l6h99yGdfxuVy7XxcejEjz0aRIWodrHuF
-         exF+FgmNdDEW1gwnGULHxG7Osb5DP+m2J3PTW/nmKvwtgBBU3XrD7VDMn8MCle42Vjt+
-         ikzSOC+dXSZFEJMDfe5CeW/b0JtDnjSk+gJoLLg9i2YvqvSI6Ewvj7PxY3xZmjnL8Epa
-         PXKKrcPl1Z4iZ5sNCfin5KZ+WKrtCETq0xBdnfWock8EiixxXMuNAYYfbuQW7eVSXH6F
-         OzXw==
-X-Google-Smtp-Source: APXvYqwaTpxDJza9kXs1yBDpg8F43lpDkr3+IbnSxmkrRpvN0iF8IHEYUr5bpVBjV8VqoV0YzbTTNQ==
-X-Received: by 2002:a0c:b92c:: with SMTP id u44mr4707269qvf.222.1553054398368;
-        Tue, 19 Mar 2019 20:59:58 -0700 (PDT)
-Received: from brauner.io ([50.238.205.70])
-        by smtp.gmail.com with ESMTPSA id i68sm491021qkc.63.2019.03.19.20.59.55
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 19 Mar 2019 20:59:57 -0700 (PDT)
-Date: Wed, 20 Mar 2019 04:59:54 +0100
-From: Christian Brauner <christian@brauner.io>
-To: Daniel Colascione <dancol@google.com>
-Cc: Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Sultan Alsawaf <sultan@kerneltoast.com>,
-	Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Arve =?utf-8?B?SGrDuG5uZXbDpWc=?= <arve@android.com>,
-	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
-	Ingo Molnar <mingo@redhat.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>,
-	linux-mm <linux-mm@kvack.org>,
-	kernel-team <kernel-team@android.com>,
-	Oleg Nesterov <oleg@redhat.com>,
-	Andy Lutomirski <luto@amacapital.net>,
-	"Serge E. Hallyn" <serge@hallyn.com>,
-	Kees Cook <keescook@chromium.org>
-Subject: Re: pidfd design
-Message-ID: <20190320035953.mnhax3vd47ya4zzm@brauner.io>
-References: <20190317015306.GA167393@google.com>
- <20190317114238.ab6tvvovpkpozld5@brauner.io>
- <CAKOZuetZPhqQqSgZpyY0cLgy0jroLJRx-B93rkQzcOByL8ih_Q@mail.gmail.com>
- <20190318002949.mqknisgt7cmjmt7n@brauner.io>
- <20190318235052.GA65315@google.com>
- <20190319221415.baov7x6zoz7hvsno@brauner.io>
- <CAKOZuessqcjrZ4rfGLgrnOhrLnsVYiVJzOj4Aa=o3ZuZ013d0g@mail.gmail.com>
- <20190319231020.tdcttojlbmx57gke@brauner.io>
- <20190320015249.GC129907@google.com>
- <CAKOZuetJzg_EiyuK7Pa13X3LKuBbreg7zJ5g4uQv_uV4wpmZjg@mail.gmail.com>
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id B620F81E09;
+	Wed, 20 Mar 2019 04:33:26 +0000 (UTC)
+Received: from redhat.com (ovpn-120-246.rdu2.redhat.com [10.10.120.246])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 1E74018EC9;
+	Wed, 20 Mar 2019 04:33:22 +0000 (UTC)
+Date: Wed, 20 Mar 2019 00:33:20 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Dave Chinner <david@fromorbit.com>,
+	"Kirill A. Shutemov" <kirill@shutemov.name>, john.hubbard@gmail.com,
+	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	Al Viro <viro@zeniv.linux.org.uk>,
+	Christian Benvenuti <benve@cisco.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	Christopher Lameter <cl@linux.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>,
+	Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
+	Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
+	Matthew Wilcox <willy@infradead.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
+	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
+	Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH v4 1/1] mm: introduce put_user_page*(), placeholder
+ versions
+Message-ID: <20190320043319.GA7431@redhat.com>
+References: <20190308213633.28978-1-jhubbard@nvidia.com>
+ <20190308213633.28978-2-jhubbard@nvidia.com>
+ <20190319120417.yzormwjhaeuu7jpp@kshutemo-mobl1>
+ <20190319134724.GB3437@redhat.com>
+ <20190319141416.GA3879@redhat.com>
+ <20190319212346.GA26298@dastard>
+ <20190319220654.GC3096@redhat.com>
+ <20190319235752.GB26298@dastard>
+ <20190320000838.GA6364@redhat.com>
+ <c854b2d6-5ec1-a8b5-e366-fbefdd9fdd10@nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <CAKOZuetJzg_EiyuK7Pa13X3LKuBbreg7zJ5g4uQv_uV4wpmZjg@mail.gmail.com>
-User-Agent: NeoMutt/20180716
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <c854b2d6-5ec1-a8b5-e366-fbefdd9fdd10@nvidia.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Wed, 20 Mar 2019 04:33:27 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 19, 2019 at 07:42:52PM -0700, Daniel Colascione wrote:
-> On Tue, Mar 19, 2019 at 6:52 PM Joel Fernandes <joel@joelfernandes.org> wrote:
-> >
-> > On Wed, Mar 20, 2019 at 12:10:23AM +0100, Christian Brauner wrote:
-> > > On Tue, Mar 19, 2019 at 03:48:32PM -0700, Daniel Colascione wrote:
-> > > > On Tue, Mar 19, 2019 at 3:14 PM Christian Brauner <christian@brauner.io> wrote:
-> > > > > So I dislike the idea of allocating new inodes from the procfs super
-> > > > > block. I would like to avoid pinning the whole pidfd concept exclusively
-> > > > > to proc. The idea is that the pidfd API will be useable through procfs
-> > > > > via open("/proc/<pid>") because that is what users expect and really
-> > > > > wanted to have for a long time. So it makes sense to have this working.
-> > > > > But it should really be useable without it. That's why translate_pid()
-> > > > > and pidfd_clone() are on the table.  What I'm saying is, once the pidfd
-> > > > > api is "complete" you should be able to set CONFIG_PROCFS=N - even
-> > > > > though that's crazy - and still be able to use pidfds. This is also a
-> > > > > point akpm asked about when I did the pidfd_send_signal work.
-> > > >
-> > > > I agree that you shouldn't need CONFIG_PROCFS=Y to use pidfds. One
-> > > > crazy idea that I was discussing with Joel the other day is to just
-> > > > make CONFIG_PROCFS=Y mandatory and provide a new get_procfs_root()
-> > > > system call that returned, out of thin air and independent of the
-> > > > mount table, a procfs root directory file descriptor for the caller's
-> > > > PID namspace and suitable for use with openat(2).
-> > >
-> > > Even if this works I'm pretty sure that Al and a lot of others will not
-> > > be happy about this. A syscall to get an fd to /proc?
+On Tue, Mar 19, 2019 at 06:43:45PM -0700, John Hubbard wrote:
+> On 3/19/19 5:08 PM, Jerome Glisse wrote:
+> > On Wed, Mar 20, 2019 at 10:57:52AM +1100, Dave Chinner wrote:
+> >> On Tue, Mar 19, 2019 at 06:06:55PM -0400, Jerome Glisse wrote:
+> >>> On Wed, Mar 20, 2019 at 08:23:46AM +1100, Dave Chinner wrote:
+> >>>> On Tue, Mar 19, 2019 at 10:14:16AM -0400, Jerome Glisse wrote:
+> >>>>> On Tue, Mar 19, 2019 at 09:47:24AM -0400, Jerome Glisse wrote:
+> >>>>>> On Tue, Mar 19, 2019 at 03:04:17PM +0300, Kirill A. Shutemov wrote:
+> >>>>>>> On Fri, Mar 08, 2019 at 01:36:33PM -0800, john.hubbard@gmail.com wrote:
+> >>>>>>>> From: John Hubbard <jhubbard@nvidia.com>
+> >>>>>> [...]
+> >>>>> Forgot to mention one thing, we had a discussion with Andrea and Jan
+> >>>>> about set_page_dirty() and Andrea had the good idea of maybe doing
+> >>>>> the set_page_dirty() at GUP time (when GUP with write) not when the
+> >>>>> GUP user calls put_page(). We can do that by setting the dirty bit
+> >>>>> in the pte for instance. They are few bonus of doing things that way:
+> >>>>>     - amortize the cost of calling set_page_dirty() (ie one call for
+> >>>>>       GUP and page_mkclean()
+> >>>>>     - it is always safe to do so at GUP time (ie the pte has write
+> >>>>>       permission and thus the page is in correct state)
+> >>>>>     - safe from truncate race
+> >>>>>     - no need to ever lock the page
+> >>>>
+> >>>> I seem to have missed this conversation, so please excuse me for
+> >>>
+> >>> The set_page_dirty() at GUP was in a private discussion (it started
+> >>> on another topic and drifted away to set_page_dirty()).
+> >>>
+> >>>> asking a stupid question: if it's a file backed page, what prevents
+> >>>> background writeback from cleaning the dirty page ~30s into a long
+> >>>> term pin? i.e. I don't see anything in this proposal that prevents
+> >>>> the page from being cleaned by writeback and putting us straight
+> >>>> back into the situation where a long term RDMA is writing to a clean
+> >>>> page....
+> >>>
+> >>> So this patchset does not solve this issue.
+> >>
+> >> OK, so it just kicks the can further down the road.
+> >>
+> >>>     [3..N] decide what to do for GUPed page, so far the plans seems
+> >>>          to be to keep the page always dirty and never allow page
+> >>>          write back to restore the page in a clean state. This does
+> >>>          disable thing like COW and other fs feature but at least
+> >>>          it seems to be the best thing we can do.
+> >>
+> >> So the plan for GUP vs writeback so far is "break fsync()"? :)
+> >>
+> >> We might need to work on that a bit more...
+> > 
+> > Sorry forgot to say that we still do write back using a bounce page
+> > so that at least we write something to disk that is just a snapshot
+> > of the GUPed page everytime writeback kicks in (so either through
+> > radix tree dirty page write back or fsync or any other sync events).
+> > So many little details that i forgot the big chunk :)
+> > 
+> > Cheers,
+> > Jérôme
+> > 
 > 
-> Why not? procfs provides access to a lot of core kernel functionality.
-> Why should you need a mountpoint to get to it?
+> Dave, Jan, Jerome,
 > 
-> > That's not going
-> > > to happen and I don't see the need for a separate syscall just for that.
+> Bounce pages for periodic data integrity still seem viable. But for the
+> question of things like fsync or truncate, I think we were zeroing in
+> on file leases as a nice building block.
 > 
-> We need a system call for the same reason we need a getrandom(2): you
-> have to bootstrap somehow when you're in a minimal environment.
+> Can we revive the file lease discussion? By going all the way out to user
+> space and requiring file leases to be coordinated at a high level in the
+> software call chain, it seems like we could routinely avoid some of the
+> worst conflicts that the kernel code has to resolve.
 > 
-> > > (I do see the point of making CONFIG_PROCFS=y the default btw.)
+> For example:
 > 
-> I'm not proposing that we make CONFIG_PROCFS=y the default. I'm
-> proposing that we *hardwire* it as the default and just declare that
-> it's not possible to build a Linux kernel that doesn't include procfs.
-> Why do we even have that button?
+> Process A
+> =========
+>     gets a lease on file_a that allows gup 
+>         usage on a range within file_a
 > 
-> > I think his point here was that he wanted a handle to procfs no matter where
-> > it was mounted and then can later use openat on that. Agreed that it may be
-> > unnecessary unless there is a usecase for it, and especially if the /proc
-> > directory being the defacto mountpoint for procfs is a universal convention.
+>     sets up writable DMA:
+>         get_user_pages() on the file_a range
+>         start DMA (independent hardware ops)
+>             hw is reading and writing to range
 > 
-> If it's a universal convention and, in practice, everyone needs proc
-> mounted anyway, so what's the harm in hardwiring CONFIG_PROCFS=y? If
-> we advertise /proc as not merely some kind of optional debug interface
-> but *the* way certain kernel features are exposed --- and there's
-> nothing wrong with that --- then we should give programs access to
-> these core kernel features in a way that doesn't depend on userspace
-> kernel configuration, and you do that by either providing a
-> procfs-root-getting system call or just hardwiring the "/proc/" prefix
-> into VFS.
+>                                                     Process B
+>                                                     =========
+>                                                     truncate(file_a)
+>                                                        ...
+>                                                        __break_lease()
+>     
+>     handle SIGIO from __break_lease
+>          if unhandled, process gets killed
+>          and put_user_pages should get called
+>          at some point here
 > 
-> > > Inode allocation from the procfs mount for the file descriptors Joel
-> > > wants is not correct. Their not really procfs file descriptors so this
-> > > is a nack. We can't just hook into proc that way.
-> >
-> > I was not particular about using procfs mount for the FDs but that's the only
-> > way I knew how to do it until you pointed out anon_inode (my grep skills
-> > missed that), so thank you!
-> >
-> > > > C'mon: /proc is used by everyone today and almost every program breaks
-> > > > if it's not around. The string "/proc" is already de facto kernel ABI.
-> > > > Let's just drop the pretense of /proc being optional and bake it into
-> > > > the kernel proper, then give programs a way to get to /proc that isn't
-> > > > tied to any particular mount configuration. This way, we don't need a
-> > > > translate_pid(), since callers can just use procfs to do the same
-> > > > thing. (That is, if I understand correctly what translate_pid does.)
-> > >
-> > > I'm not sure what you think translate_pid() is doing since you're not
-> > > saying what you think it does.
-> > > Examples from the old patchset:
-> > > translate_pid(pid, ns, -1)      - get pid in our pid namespace
-> 
-> Ah, it's a bit different from what I had in mind. It's fair to want to
-> translate PIDs between namespaces, but the only way to make the
-> translate_pid under discussion robust is to have it accept and produce
-> pidfds. (At that point, you might as well call it translate_pidfd.) We
-> should not be adding new APIs to the kernel that accept numeric PIDs:
+> ...and so this way, user space gets to decide the proper behavior,
+> instead of leaving the kernel in the dark with an impossible decision
+> (kill process A? Block process B? User space knows the preference,
+> per app, but kernel does not.)
 
-The traditional pid-based api is not going away. There are users that
-have the requirement to translate pids between namespaces and also doing
-introspection on these namespaces independent of pidfds. We will not
-restrict the usefulness of this syscall by making it only work with
-pidfds.
+There is no need to kill anything here ... if truncate happens then
+the GUP user is just GUPing page that do not correspond to anything
+anymore. This is the current behavior and it is what GUP always has
+been. By the time you get the page from GUP there is no garantee that
+they correspond to anything.
 
-> it's not possible to use these APIs correctly except under very
-> limited circumstances --- mostly, talking about init or a parent
+If a device really want to mirror process address faithfully then the
+hardware need to make little effort either have something like ATS/
+PASID or be able to abide mmu notifier.
 
-The pid-based api is one of the most widely used apis of the kernel and
-people have been using it quite successfully for a long time. Yes, it's
-rac, but it's here to stay.
+If we start blocking existing syscall just because someone is doing a
+GUP we are opening a pandora box. It is not just truncate, it is a
+whole range of syscall that deals with either file or virtual address.
 
-> talking about its child.
-> 
-> Really, we need a few related operations, and we shouldn't necessarily
-> mingle them.
+The semantic of GUP is really the semantic of direct I/O and the
+virtual address you are direct I/O-ing to/from and the rule there is:
+do not do anything stupid to those virtual addresses while you are
+doing direct I/O with them (no munmap, mremap, madvise, truncate, ...).
 
-Yes, we've established that previously.
 
-> 
-> 1) Given a numeric PID, give me a pidfd: that works today: you just
-> open /proc/<pid>
+Same logic apply to file, when two process do thing to same file there
+the kernel never get in the way of one process doing something the
+other process did not expect. For instance one process mmaping the file
+the other process truncating the file, if the first process try to access
+the file through the mmap after the truncation it will get a sigbus.
 
-Agreed.
+So i believe best we could do is send a SIGBUS to the process that has
+GUPed a range of a file that is being truncated this would match what
+we do for CPU acces. There is no reason access through GUP should be
+handled any differently.
 
-> 
-> 2) Given a pidfd, give me a numeric PID: that works today: you just
-> openat(pidfd, "stat", O_RDONLY) and read the first token (which is
-> always the numeric PID).
-
-Agreed.
-
-> 
-> 3) Given a pidfd, send a signal: that's what pidfd_send_signal does,
-> and it's a good start on the rest of these operations.
-
-Agreed.
-
-> 5) Given a pidfd in NS1, get a pidfd in NS2. That's what translate_pid
-> is for. My preferred signature for this routine is translate_pid(int
-> pidfd, int nsfd) -> pidfd. We don't need two namespace arguments. Why
-> not? Because the pidfd *already* names a single process, uniquely!
-
-Given that people are interested in pids we can't just always return a
-pidfd. That would mean a user would need to do get the pidfd read from
-<pidfd>/stat and then close the pidfd. If you do that for a 100 pids or
-more you end up allocating and closing file descriptors constantly for
-no reason. We can't just debate pids away. So it will also need to be
-able to yield pids e.g. through a flag argument.
-
-> 
-> 6) Make a new process and atomically give me a pidfd for it. We need a
-> new kind of clone(2) for that. People have been proposing some kind of
-> FD-based fork/spawn/etc. thing for ages, and we can finally provide
-> it. Yay.
-
-Agreed.
+Cheers,
+Jérôme
 
