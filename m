@@ -2,197 +2,212 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 72431C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 08:09:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 343FBC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 08:16:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 29CB92146E
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 08:09:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 29CB92146E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id E50C82184D
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 08:16:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E50C82184D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B74C16B0006; Wed, 20 Mar 2019 04:09:26 -0400 (EDT)
+	id 83B106B0003; Wed, 20 Mar 2019 04:16:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AFE036B0007; Wed, 20 Mar 2019 04:09:26 -0400 (EDT)
+	id 7C55E6B0006; Wed, 20 Mar 2019 04:16:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9C6636B0008; Wed, 20 Mar 2019 04:09:26 -0400 (EDT)
+	id 68BF76B0007; Wed, 20 Mar 2019 04:16:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5901E6B0006
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 04:09:26 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id v3so1960676pgk.9
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 01:09:26 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 170B96B0003
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 04:16:49 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id l19so582197edr.12
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 01:16:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:mime-version:message-id;
-        bh=vXOhmctW8NRvIiQbWlUNeY5u33WXV4I4+p64PjC/ZKY=;
-        b=L0xwmVw/Vp3EdJCuhuadZlfg3PLaJuO3ok+7e/oaO84WRztnTS+whfvk4+Ehcbmk8M
-         NtP8kDtMWHN++SYjb2UkcGdc6S34F82oA0aDUr4F9hVGu1kmUFgkqtm7zBfGyemFgtcy
-         OrQEXNlqk0AnRoXInaYwt0vM0jUNJZ/XqLZKHGxKrLNh1DlE/tibDEbjJmXk212Gv2wr
-         5OhgwH4I73XUh4sAFVzJXqhEuuu3ceeWNvC3NcUX8NWqF9dUZI7VkHqgxf3fD4O8iJsJ
-         QXDhZvgP1Q/mYaQ7mbXJdXFA3mx0j0yYob+DJmmNHOIVXyWMDQTGKkHSuwhey1bQ2iVe
-         VKGQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAXxquMZJKFLLhaXIGEsbkXelJ0vew3ylJrH4lS4N2PGVkMMt0L9
-	OALp62YxiDnuRRiqbq2cznYrXTm8SQg8bNtH0nQL1t1C/TYApG3VM1hn5azEDpNuZQ5FZhbn8Zv
-	BTlVyOcFwP8PU8i8Q/aDoKTBIYQ5PtWJcBbPZi5rhuoG7bMXsnrGmNwZk7IUVRD8ZLw==
-X-Received: by 2002:a17:902:2f:: with SMTP id 44mr6641799pla.139.1553069366012;
-        Wed, 20 Mar 2019 01:09:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxI6JMMws4zyUCa9nJZDIrdJdwtc6XAgh73EINAWaJPhO3iH5s0iWK/MqVvE0JKTHE4DT+2
-X-Received: by 2002:a17:902:2f:: with SMTP id 44mr6641748pla.139.1553069365241;
-        Wed, 20 Mar 2019 01:09:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553069365; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=gMOuqOcjvcH0Tt3eGgc58YsblYaSfwnwK1xt4I6S798=;
+        b=VCibttsP1+ZWIStIVVXrusDxQv7HU7HvLLAddgByf53xBWBr4UMJfW+1TfMhL5CcBT
+         ne/QJcHYEqwBzm9RGK+P/oPn51TyC1wdG4Y/XmFelPveCCjSGOfPV2NzY6MVf3HTsDOK
+         dy7Ado688ADOaCm1WjsOGG50PgvL8usFdhmUactr48HZU2hCy13JbUJ8N16NMqBd0X9n
+         mzfuGeLJyEqxib1CTLstSWZzo4YNojoPeVgTvHd+CeC9XJCemFFptVCX7JwyMhg5anu7
+         XrayvRtz1yw8v382mxvLyzEAVNcTNrvLbMSvZGmkghVnn7c6qGIsIcGZHXq0pTYinJHQ
+         xtTA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAW33l2sOabCfVXtS3cqtOpr7XJP8bxuRRFsp78i/CGiKXQgt5eG
+	08E/saPpaUHQaHqvxAMMXTvvIHcUAISzwOje+SQ7Ajx7rjbL94/Zz+JDgvd80LlQtPEqJO6PuE/
+	PM969yC8J/naBk+BeFr7+u28whYKFvLdho/wgdVb7dlvlvW8z0aOOgoRaaTb8Qhrl7w==
+X-Received: by 2002:a17:906:54d:: with SMTP id k13mr16198496eja.207.1553069808633;
+        Wed, 20 Mar 2019 01:16:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx74f1GZTXggBPnZoUQMbXKAXuw3ogrvi9ykw7mjoEAoXmDSs0oDa9XePnHN/QYhiLc8r4R
+X-Received: by 2002:a17:906:54d:: with SMTP id k13mr16198464eja.207.1553069807696;
+        Wed, 20 Mar 2019 01:16:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553069807; cv=none;
         d=google.com; s=arc-20160816;
-        b=EGQd3EG5Uwr/HHiwbhxs+dzLgC5rxdZO1kAwntZcED1jfb5bKGAs9w9APK9SI9hB2e
-         fc+JJ8RpdtngahuP5crz8Z+KYdQZsVLXcluQNG1ZAbrHazbZd8I/YWKVHa5ecI92Dlku
-         XbPRIxy6Wl2h1ShTCFyJhfiUNiDu1lwB62wRz59lrhvuMfXGuF6OYvsdNb9p4tYVHqPf
-         hm4twJPKQSVqwf+Ne18RclGPJut6nEZYdziTyCPNM8VYDlLz/O0UqHJ7MSD32+STsAQy
-         T2XIyDiszYdTnAUXnn0gJyN3BzzIP5nkIdYrJCyPGw2t+qrj32TVJfjIeHaj40kNzSFO
-         7imw==
+        b=S5ewMiJ/gz4+rUHR7hZqPaV0HR/AHTZ5fkwwcOD4yjecaFz96kTAFOpfz+x8n97hCk
+         4cI/lvV2/+agOuOrEBPloJ0NNJ78UAKP3KY0m/plCa7heWXC9V9pbVqSSY5jo7evjgsU
+         dQCHA45zm4zplo0Y1BLzaVW/8HTafPj0zXzmA2CkkTeyblKiji/JTlsNnTgKCjOXU9xX
+         6RC9jmLOV1rG+4I1ErrxW6lahBzQHPD1KH0E1I712cyycEzVYez+TrZXgPewAzy0tGxM
+         Z6u/Yelapvrr+lIFVk9f/zGzIOtriT2dwcM4wPIzqB8HR5XqXLpi5vSP5RLy4s1KjB15
+         BJOQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=vXOhmctW8NRvIiQbWlUNeY5u33WXV4I4+p64PjC/ZKY=;
-        b=aSPFx5423DUz3Kjx+TUN3WK4Uf29PYBet+yZisplUI8u/j3j66y/kUfrpKaHXpAZqz
-         1Cud0YS8DhKOqoGEAxPr/BUeZqhD69VZXUwLEoNi51MbTcQynkhOmqTIsEKCklYHmHyV
-         RQwvgdoIio+y8QakFGRoz3qR9QPFPQKyg6kYZoYzjKNQYNQUsACg0sog5CyZdojlqtat
-         aqRoQccfEhHE+CMHWcjt8f5cwr001/Y+G2L/evSFtOcji2bt3irrlBTLiU8oKGrhFz2t
-         LXPFiPTHtizG67NQ/8n/+v1rGpOKIZ9jVDKzafaDpK6lqdXfTQEbsjLbK/9TpbzG57Bb
-         94Gw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=gMOuqOcjvcH0Tt3eGgc58YsblYaSfwnwK1xt4I6S798=;
+        b=z0WngHfCYriGZUnv4I6gA71A7z/RidP6+PjlLnfQ0QpmR6KZGtjdS39jy3OQRFcKbo
+         LcYrcD/cJ/dIuwAHCSi0YiBIsuIQR97ubnnuvkVMku2V9JtB5hjmXDc5hK8do62VzeCv
+         3nFFMl4xc7UD3abdUKm79UKsSEPIT3DDt+1pFnb1fyeI8vRcZC+tNx0ZgEcfLtwIi54k
+         +5Vbm9ZDVv/hY9RM5Uo0cCnO5u0/wfx2kFypr0ABfd570+LH5mIpuMERr1PFcyd9e5BU
+         lIWKTDyES5P1HCdwF9Vk77Eba8W2lL7gh4HkUvdvIwHDUNjuoqw9pO742YTrlGz7+k0i
+         5hSQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id o188si1143121pga.297.2019.03.20.01.09.25
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Mar 2019 01:09:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from suse.de (charybdis-ext.suse.de. [195.135.221.2])
+        by mx.google.com with ESMTP id d31si552553ede.313.2019.03.20.01.16.47
+        for <linux-mm@kvack.org>;
+        Wed, 20 Mar 2019 01:16:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) client-ip=195.135.221.2;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2K85wHu126441
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 04:09:24 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2rbfykncub-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 04:09:24 -0400
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Wed, 20 Mar 2019 08:09:17 -0000
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 20 Mar 2019 08:09:14 -0000
-Received: from d06av24.portsmouth.uk.ibm.com (d06av24.portsmouth.uk.ibm.com [9.149.105.60])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x2K89H8X49676504
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 20 Mar 2019 08:09:17 GMT
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 4F9D14204D;
-	Wed, 20 Mar 2019 08:09:17 +0000 (GMT)
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id AB6D34203F;
-	Wed, 20 Mar 2019 08:09:15 +0000 (GMT)
-Received: from skywalker.linux.ibm.com (unknown [9.124.31.96])
-	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Wed, 20 Mar 2019 08:09:15 +0000 (GMT)
-X-Mailer: emacs 26.1 (via feedmail 11-beta-1 I)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>,
-        Michael Ellerman <mpe@ellerman.id.au>,
-        Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-        Linux MM <linux-mm@kvack.org>, Ross Zwisler <zwisler@kernel.org>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
-        "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH 2/2] mm/dax: Don't enable huge dax mapping by default
-In-Reply-To: <87bm267ywc.fsf@linux.ibm.com>
-References: <20190228083522.8189-1-aneesh.kumar@linux.ibm.com> <20190228083522.8189-2-aneesh.kumar@linux.ibm.com> <CAOSf1CHjkyX2NTex7dc1AEHXSDcWA_UGYX8NoSyHpb5s_RkwXQ@mail.gmail.com> <CAPcyv4jhEvijybSVsy+wmvgqfvyxfePQ3PUqy1hhmVmPtJTyqQ@mail.gmail.com> <87k1hc8iqa.fsf@linux.ibm.com> <CAPcyv4ir4irASBQrZD_a6kMkEUt=XPUCuKajF75O7wDCgeG=7Q@mail.gmail.com> <871s3aqfup.fsf@linux.ibm.com> <CAPcyv4i0SahDP=_ZQV3RG_b5pMkjn-9Cjy7OpY2sm1PxLdO8jA@mail.gmail.com> <87bm267ywc.fsf@linux.ibm.com>
-Date: Wed, 20 Mar 2019 13:39:14 +0530
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: by suse.de (Postfix, from userid 1000)
+	id 83BD2461B; Wed, 20 Mar 2019 09:16:46 +0100 (CET)
+Date: Wed, 20 Mar 2019 09:16:46 +0100
+From: Oscar Salvador <osalvador@suse.de>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: chrubis@suse.cz, vbabka@suse.cz, kirill@shutemov.name,
+	akpm@linux-foundation.org, stable@vger.kernel.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm: mempolicy: make mbind() return -EIO when
+ MPOL_MF_STRICT is specified
+Message-ID: <20190320081643.3c4m5tec5vx653sn@d104.suse.de>
+References: <1553020556-38583-1-git-send-email-yang.shi@linux.alibaba.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-X-TM-AS-GCONF: 00
-x-cbid: 19032008-0008-0000-0000-000002CF7022
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19032008-0009-0000-0000-0000223B8633
-Message-Id: <878sxa7ys5.fsf@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-20_06:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1903200068
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1553020556-38583-1-git-send-email-yang.shi@linux.alibaba.com>
+User-Agent: NeoMutt/20170421 (1.8.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com> writes:
+On Wed, Mar 20, 2019 at 02:35:56AM +0800, Yang Shi wrote:
+> Fixes: 6f4576e3687b ("mempolicy: apply page table walker on queue_pages_range()")
+> Reported-by: Cyril Hrubis <chrubis@suse.cz>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: stable@vger.kernel.org
+> Suggested-by: Kirill A. Shutemov <kirill@shutemov.name>
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> Signed-off-by: Oscar Salvador <osalvador@suse.de>
 
-> Dan Williams <dan.j.williams@intel.com> writes:
->
->>
->>> Now what will be page size used for mapping vmemmap?
->>
->> That's up to the architecture's vmemmap_populate() implementation.
->>
->>> Architectures
->>> possibly will use PMD_SIZE mapping if supported for vmemmap. Now a
->>> device-dax with struct page in the device will have pfn reserve area aligned
->>> to PAGE_SIZE with the above example? We can't map that using
->>> PMD_SIZE page size?
->>
->> IIUC, that's a different alignment. Currently that's handled by
->> padding the reservation area up to a section (128MB on x86) boundary,
->> but I'm working on patches to allow sub-section sized ranges to be
->> mapped.
->
-> I am missing something w.r.t code. The below code align that using nd_pfn->align
->
-> 	if (nd_pfn->mode == PFN_MODE_PMEM) {
-> 		unsigned long memmap_size;
->
-> 		/*
-> 		 * vmemmap_populate_hugepages() allocates the memmap array in
-> 		 * HPAGE_SIZE chunks.
-> 		 */
-> 		memmap_size = ALIGN(64 * npfns, HPAGE_SIZE);
-> 		offset = ALIGN(start + SZ_8K + memmap_size + dax_label_reserve,
-> 				nd_pfn->align) - start;
->       }
->
-> IIUC that is finding the offset where to put vmemmap start. And that has
-> to be aligned to the page size with which we may end up mapping vmemmap
-> area right?
->
-> Yes we find the npfns by aligning up using PAGES_PER_SECTION. But that
-> is to compute howmany pfns we should map for this pfn dev right?
-> 	
+Hi Yang, thanks for the patch.
 
-Also i guess those 4K assumptions there is wrong?
+Some observations below.
 
-modified   drivers/nvdimm/pfn_devs.c
-@@ -783,7 +783,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
- 		return -ENXIO;
- 	}
+>  	}
+>  	page = pmd_page(*pmd);
+> @@ -473,8 +480,15 @@ static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
+>  	ret = 1;
+>  	flags = qp->flags;
+>  	/* go to thp migration */
+> -	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+> +	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
+> +		if (!vma_migratable(walk->vma)) {
+> +			ret = -EIO;
+> +			goto unlock;
+> +		}
+> +
+>  		migrate_page_add(page, qp->pagelist, flags);
+> +	} else
+> +		ret = -EIO;
+
+	if (!(flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) ||
+       	        !vma_migratable(walk->vma)) {
+               	ret = -EIO;
+                goto unlock;
+        }
+
+	migrate_page_add(page, qp->pagelist, flags); 
+unlock:
+        spin_unlock(ptl);
+out:
+        return ret;
+
+seems more clean to me?
+
+
+>  unlock:
+>  	spin_unlock(ptl);
+>  out:
+> @@ -499,8 +513,10 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+>  	ptl = pmd_trans_huge_lock(pmd, vma);
+>  	if (ptl) {
+>  		ret = queue_pages_pmd(pmd, ptl, addr, end, walk);
+> -		if (ret)
+> +		if (ret > 0)
+>  			return 0;
+> +		else if (ret < 0)
+> +			return ret;
+
+I would go with the following, but that's a matter of taste I guess.
+
+if (ret < 0)
+	return ret;
+else
+	return 0;
+
+>  	}
+>  
+>  	if (pmd_trans_unstable(pmd))
+> @@ -521,11 +537,16 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+>  			continue;
+>  		if (!queue_pages_required(page, qp))
+>  			continue;
+> -		migrate_page_add(page, qp->pagelist, flags);
+> +		if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
+> +			if (!vma_migratable(vma))
+> +				break;
+> +			migrate_page_add(page, qp->pagelist, flags);
+> +		} else
+> +			break;
+
+I might be missing something, but AFAICS neither vma nor flags is going to change
+while we are in queue_pages_pte_range(), so, could not we move the check just
+above the loop?
+In that way, 1) we only perform the check once and 2) if we enter the loop
+we know that we are going to do some work, so, something like:
+
+index af171ccb56a2..7c0e44389826 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -487,6 +487,9 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+        if (pmd_trans_unstable(pmd))
+                return 0;
  
--	npfns = (size - offset - start_pad - end_trunc) / SZ_4K;
-+	npfns = (size - offset - start_pad - end_trunc) / PAGE_SIZE;
- 	pfn_sb->mode = cpu_to_le32(nd_pfn->mode);
- 	pfn_sb->dataoff = cpu_to_le64(offset);
- 	pfn_sb->npfns = cpu_to_le64(npfns);
++       if (!(flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) || !vma_migratable(vma))
++               return -EIO;
++
+        pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
+        for (; addr != end; pte++, addr += PAGE_SIZE) {
+                if (!pte_present(*pte))
 
 
--aneesh
+>  	}
+>  	pte_unmap_unlock(pte - 1, ptl);
+>  	cond_resched();
+> -	return 0;
+> +	return addr != end ? -EIO : 0;
+
+If we can do the above, we can leave the return value as it was.
+
+-- 
+Oscar Salvador
+SUSE L3
 
