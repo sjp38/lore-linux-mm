@@ -1,220 +1,176 @@
-Return-Path: <SRS0=zC3H=RW=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AE5FFC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 23:57:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9B385C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 00:02:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 651E3217F4
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Mar 2019 23:57:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 651E3217F4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id 44D4B217F4
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 00:02:58 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="JLB0DUS0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 44D4B217F4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F090C6B0003; Tue, 19 Mar 2019 19:57:58 -0400 (EDT)
+	id D55DE6B0003; Tue, 19 Mar 2019 20:02:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E68E96B0006; Tue, 19 Mar 2019 19:57:58 -0400 (EDT)
+	id D04816B0007; Tue, 19 Mar 2019 20:02:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CE3836B0007; Tue, 19 Mar 2019 19:57:58 -0400 (EDT)
+	id BB3E76B0003; Tue, 19 Mar 2019 20:02:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 877686B0003
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 19:57:58 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id f1so727625pgv.12
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 16:57:58 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 76C916B0003
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 20:02:57 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id z1so595481pfz.8
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 17:02:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=sRQ41Mh0o0QUIvWAPG1HS8cc+I3ZQ4LgOEFU3XDcYys=;
-        b=GRTja2wUA6twlpRfkgQh72pWviO7uu8I7rEiyVd3iL58ije/GSKca4UwP2MERRySqS
-         ECYNG4o2O7RK+LwJZSaTYuPcK7p+PrH/VasTfPXH7wAU+Hcw+1eEUnYU55PAnKl9u1db
-         3GNeCHH2TDwbjlKOfPHjjti9th2u0nvlPPHbJ/XLI8KbpbTJvqFR31xbW6oxWtu09++T
-         c1yFISD+ohhQfxPrufA/+XXYN0XBGks+jHldFwtiV1PekTl81MKxD20MJHYkDNnm0qBM
-         pJ4ZYpDTxWQYR2W1a35zZHHjbS1C8Yw8qiQqywucYdNsCy0IEEyzsRpirUbYzoTDd7rs
-         9v6g==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 150.101.137.145 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: APjAAAUCdhIHz/ZKBjgd11t1yslVocRJp7VUfl5SJuPwbMbidkUrCtSp
-	EC6GsnWa4mvjATaYjbmu3EU8Rbob7A7xlTnI0Bu/EH9yeOhUdWs+qi3FZiLU/6gp+/Zmm3e9/ej
-	D2buSzfChG0tSIDpjfWoiwISBOoG5fm6M+coZEbv1lT7u1e8Wfkdjqr4vjW3Im0U=
-X-Received: by 2002:a65:64d5:: with SMTP id t21mr4717313pgv.266.1553039878212;
-        Tue, 19 Mar 2019 16:57:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxCXJqZNzxk6ACjnGlXcQlcJKuTAYZPuqdrIDZhp9RfrGokdkMwCi8EbMTbOIykcSCO7xOL
-X-Received: by 2002:a65:64d5:: with SMTP id t21mr4717268pgv.266.1553039876978;
-        Tue, 19 Mar 2019 16:57:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553039876; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version;
+        bh=8Uu1TNoF40X1KnQ+5j4CLL3Vv773lLmVGEnNhVJUE1s=;
+        b=bcQZgp/22DfP5iL2IsFsb7C0VQMVBj9BkXk1NSQaDz4GtNjz41SDrKGoFs1ZiJfdjF
+         51qPxw7az21JwZwefI6I6VWfdVIpjzsuvjC944KeQhPXd8I9OtDZDv4Mn9hurmfC3cPv
+         vWLsuPk6CT5/XEivnvlZIDPUJhlOaZ+RFchV7h7YSXAeZl/B1Xy9MSE7p19DLNJn5T6x
+         2miZjol5G6zwThO4k21rtPXkI3XPewwEcaJ6+8dN/SkAdmLFTQh4W30IZqFeXZwstkgK
+         LaltZzTsVrhOnC4tgHSRRK+kKFAiCXBFOpuPqt4fIkBKCcOUxNwkKNOYivSENEuXcRbf
+         MWug==
+X-Gm-Message-State: APjAAAXMQusPrNfR5xl1JmJZXhI485VGvFZDzv7wxoIkc3/5uZXynjpg
+	AUP1Cmz4AOdsvYlTypsM5YsmYgGZbjxDoumgQ7qvaTm0H2F9wBpGVYgzX4pGsRMi0sRbdl6vYJx
+	5jvbQspqaZ0QA2Ca4wlhrjFSOdrG0/O26JkPYglGnzva129PY3Q3wyHo9arwQR9NbpA==
+X-Received: by 2002:a62:4299:: with SMTP id h25mr4599520pfd.165.1553040177076;
+        Tue, 19 Mar 2019 17:02:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxF2HSQOi+ZRdxbl5wpbwnc+zZ3/KorhYicpjDhBelt1RF0JLLcGoaDqAJRwcEZuQjUiQSZ
+X-Received: by 2002:a62:4299:: with SMTP id h25mr4599450pfd.165.1553040176164;
+        Tue, 19 Mar 2019 17:02:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553040176; cv=none;
         d=google.com; s=arc-20160816;
-        b=X0kuOt+xmrGCK22Ax2LfRGNNeq5hOGSwsPlXaKWn7qLscLGyp6fR8ZpVlSInacSwJb
-         bYG6f4K+c+xgo4Fgfp14Q2mYuW2XiOmc3cduHGHixccpvkKndiQqO1/q3E9Om8lSbeW1
-         DJO3E9Auo3i6SNSGbJgEHW4zQPCMQATucrDIae4msFepE0Q7t6UHRbZSdHtamIICKeid
-         N0tyU3jJGATFFy7JUrIB/dLMDdun5nO3jlKFLVhd4owG07Yvh8wDRGHScAixLdT44JF5
-         mNsXAsKhGb95WJd9wjMVhvDz+PL88BzI5fEH0KDB1hNtL2rtlxPWGmF4uFqtzbl5WUXv
-         dK2Q==
+        b=IK+L8evNRRzVnBZQ9XM+ECghE3NxGZtJBgAka6ob0D+ztZXaEPGpr2cpIFYtKZJeMW
+         sKmJI8Qsl+vT7mSYm2otJCnJEXWIYnMtW04qocEOtd2iFwk5/9+fd/1xzqurjyrK7GWu
+         KLt5hW//nHSIR2nnyYlQL99XPzms/ve1uOIH6+IqhA8Sslk5iyKM49Vq4opV+2oAImco
+         HQV0UK4MR1JM8olpOiGg7+TeC03hXj1riFPo5RjPEs2LaaXtWnjBw6Sbi9WRX9aeeF5q
+         cCAevsPJ5409fQpaFlCBs2PW31MrKyY1f5y/xbeiQjYdzqgKolYFwF1QZ0SetQ/vXuUs
+         rDtg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=sRQ41Mh0o0QUIvWAPG1HS8cc+I3ZQ4LgOEFU3XDcYys=;
-        b=Run4c1N4P23UCQzRvkO3MS/zmkOkGyv7gofIZQGur7LHQ9v/78IlDXhzIKp2M9wLYA
-         6rmbiaNk0ltXForbQ1ranZmMUt8JIbJZh2fUfTtNdttOHhwvfe1OKElOhRlKA6LXCcbu
-         ILXmNoU/9dgH9x1d4hr9YTNQrkHRyNLzGFo6gj2UQ2Cr4hTTwlnpbh6AkgOOftDJJFiZ
-         7geZYzVmF7VHEu1IzbUGc9SK3C/bA0K1iS38mBpjNFMkR6gKOX9FTf5an6bqzpyEMQI5
-         y/W2SMV9ZZz6XWV14evNLGyBMoGYCJtL5nvIAj+oBq+psqvk2GtjtRHDYHfJGInJblIE
-         +0KA==
+        h=mime-version:references:in-reply-to:message-id:subject:cc:to:from
+         :date:dkim-signature;
+        bh=8Uu1TNoF40X1KnQ+5j4CLL3Vv773lLmVGEnNhVJUE1s=;
+        b=l+z4Ef6R8ZdIs1W5QKGiiBDwENHsnwckGKgQu2St9FpoEP+EpuTKDtvDP9mJDCdofO
+         /Jw/Oin8/SxRaAI0GTMU2ySnqDpxB96SptDHEuwXPKS/HudJPKnC6iu4roCE6RJ+4B/Q
+         DWMtLRMHm3QnuwDq8obBwyeVM4HysALSl7J9grNyNXoBK8G2wNz9UqQklP9/NM2YYIi0
+         93QlAYcS8ku6HH2n8nPzuv/0ilXWYOK66ieBxl+wPsb6J9Sw6bdFzkAkbm40nXDQS+Pi
+         l/iU8t9MWFyErxeWwsmtYakHmo3NmBDphlZLIxTYro2otdukAUQdyDOGMTwklTTs7heq
+         UWeA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 150.101.137.145 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id x22si373877plr.111.2019.03.19.16.57.55
-        for <linux-mm@kvack.org>;
-        Tue, 19 Mar 2019 16:57:56 -0700 (PDT)
-Received-SPF: neutral (google.com: 150.101.137.145 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=150.101.137.145;
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=JLB0DUS0;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
+        by mx.google.com with ESMTPS id r10si365873plo.268.2019.03.19.17.02.55
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 19 Mar 2019 17:02:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) client-ip=203.11.71.1;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 150.101.137.145 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from ppp59-167-129-252.static.internode.on.net (HELO dastard) ([59.167.129.252])
-  by ipmail06.adl6.internode.on.net with ESMTP; 20 Mar 2019 10:27:53 +1030
-Received: from dave by dastard with local (Exim 4.80)
-	(envelope-from <david@fromorbit.com>)
-	id 1h6OcC-0003YB-LF; Wed, 20 Mar 2019 10:57:52 +1100
-Date: Wed, 20 Mar 2019 10:57:52 +1100
-From: Dave Chinner <david@fromorbit.com>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, john.hubbard@gmail.com,
-	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	Al Viro <viro@zeniv.linux.org.uk>,
-	Christian Benvenuti <benve@cisco.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Christopher Lameter <cl@linux.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>,
-	Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
-	Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
-	Matthew Wilcox <willy@infradead.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Mike Marciniszyn <mike.marciniszyn@intel.com>,
-	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
-	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>,
-	Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH v4 1/1] mm: introduce put_user_page*(), placeholder
- versions
-Message-ID: <20190319235752.GB26298@dastard>
-References: <20190308213633.28978-1-jhubbard@nvidia.com>
- <20190308213633.28978-2-jhubbard@nvidia.com>
- <20190319120417.yzormwjhaeuu7jpp@kshutemo-mobl1>
- <20190319134724.GB3437@redhat.com>
- <20190319141416.GA3879@redhat.com>
- <20190319212346.GA26298@dastard>
- <20190319220654.GC3096@redhat.com>
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=JLB0DUS0;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
+	(No client certificate requested)
+	by mail.ozlabs.org (Postfix) with ESMTPSA id 44P9956DWbz9sNH;
+	Wed, 20 Mar 2019 11:02:49 +1100 (AEDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
+	s=201702; t=1553040173;
+	bh=jehP9+YT/rAivcVGOfJHVCT+k92Lsz+iBSFzJvUFN/Q=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=JLB0DUS0XtDVE1T2hGU9fOTTCcPEXNuudOsbOY2P9sBGeACPjFJRvurNz1hv4BTSL
+	 Uj82m2Jd+FuuKJMmj+QHXF1gWDmATsDVYcAtzs+qR0XwLQ7PLGXIaxqNn1NGnLhGtU
+	 SWFMStDnDHgKbyDYvxMsk4xN9fvPXeGjjhHh/2qb6EX9OAlunS/yB0Gj0yKZNiS7eB
+	 Ji6GENiI1GQiY99aHr8fMba7nmuJJS69cm3KIQr06PwOXRP3jgZXXu/iizdctQzwjW
+	 CfvEvUzSKGAY8LL3tviwU3qjkIRgkE3bl942ktLdOx4jUYd1r5auLSOEIDwr1nWqfA
+	 yXNHtkm/V8GwA==
+Date: Wed, 20 Mar 2019 11:02:49 +1100
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+To: Suren Baghdasaryan <surenb@google.com>
+Cc: gregkh@linuxfoundation.org, tj@kernel.org, lizefan@huawei.com,
+ hannes@cmpxchg.org, axboe@kernel.dk, dennis@kernel.org,
+ dennisszhou@gmail.com, mingo@redhat.com, peterz@infradead.org,
+ akpm@linux-foundation.org, corbet@lwn.net, cgroups@vger.kernel.org,
+ linux-mm@kvack.org, linux-doc@vger.kernel.org,
+ linux-kernel@vger.kernel.org, kernel-team@android.com
+Subject: Re: [PATCH v6 1/7] psi: introduce state_mask to represent stalled
+ psi states
+Message-ID: <20190320110249.652ec153@canb.auug.org.au>
+In-Reply-To: <20190319235619.260832-2-surenb@google.com>
+References: <20190319235619.260832-1-surenb@google.com>
+	<20190319235619.260832-2-surenb@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190319220654.GC3096@redhat.com>
-User-Agent: Mutt/1.5.21 (2010-09-15)
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_/gcf3x9pNF4bWcL9pBwUmVyY"; protocol="application/pgp-signature"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 19, 2019 at 06:06:55PM -0400, Jerome Glisse wrote:
-> On Wed, Mar 20, 2019 at 08:23:46AM +1100, Dave Chinner wrote:
-> > On Tue, Mar 19, 2019 at 10:14:16AM -0400, Jerome Glisse wrote:
-> > > On Tue, Mar 19, 2019 at 09:47:24AM -0400, Jerome Glisse wrote:
-> > > > On Tue, Mar 19, 2019 at 03:04:17PM +0300, Kirill A. Shutemov wrote:
-> > > > > On Fri, Mar 08, 2019 at 01:36:33PM -0800, john.hubbard@gmail.com wrote:
-> > > > > > From: John Hubbard <jhubbard@nvidia.com>
-> > > > 
-> > > > [...]
-> > > > 
-> > > > > > diff --git a/mm/gup.c b/mm/gup.c
-> > > > > > index f84e22685aaa..37085b8163b1 100644
-> > > > > > --- a/mm/gup.c
-> > > > > > +++ b/mm/gup.c
-> > > > > > @@ -28,6 +28,88 @@ struct follow_page_context {
-> > > > > >  	unsigned int page_mask;
-> > > > > >  };
-> > > > > >  
-> > > > > > +typedef int (*set_dirty_func_t)(struct page *page);
-> > > > > > +
-> > > > > > +static void __put_user_pages_dirty(struct page **pages,
-> > > > > > +				   unsigned long npages,
-> > > > > > +				   set_dirty_func_t sdf)
-> > > > > > +{
-> > > > > > +	unsigned long index;
-> > > > > > +
-> > > > > > +	for (index = 0; index < npages; index++) {
-> > > > > > +		struct page *page = compound_head(pages[index]);
-> > > > > > +
-> > > > > > +		if (!PageDirty(page))
-> > > > > > +			sdf(page);
-> > > > > 
-> > > > > How is this safe? What prevents the page to be cleared under you?
-> > > > > 
-> > > > > If it's safe to race clear_page_dirty*() it has to be stated explicitly
-> > > > > with a reason why. It's not very clear to me as it is.
-> > > > 
-> > > > The PageDirty() optimization above is fine to race with clear the
-> > > > page flag as it means it is racing after a page_mkclean() and the
-> > > > GUP user is done with the page so page is about to be write back
-> > > > ie if (!PageDirty(page)) see the page as dirty and skip the sdf()
-> > > > call while a split second after TestClearPageDirty() happens then
-> > > > it means the racing clear is about to write back the page so all
-> > > > is fine (the page was dirty and it is being clear for write back).
-> > > > 
-> > > > If it does call the sdf() while racing with write back then we
-> > > > just redirtied the page just like clear_page_dirty_for_io() would
-> > > > do if page_mkclean() failed so nothing harmful will come of that
-> > > > neither. Page stays dirty despite write back it just means that
-> > > > the page might be write back twice in a row.
-> > > 
-> > > Forgot to mention one thing, we had a discussion with Andrea and Jan
-> > > about set_page_dirty() and Andrea had the good idea of maybe doing
-> > > the set_page_dirty() at GUP time (when GUP with write) not when the
-> > > GUP user calls put_page(). We can do that by setting the dirty bit
-> > > in the pte for instance. They are few bonus of doing things that way:
-> > >     - amortize the cost of calling set_page_dirty() (ie one call for
-> > >       GUP and page_mkclean()
-> > >     - it is always safe to do so at GUP time (ie the pte has write
-> > >       permission and thus the page is in correct state)
-> > >     - safe from truncate race
-> > >     - no need to ever lock the page
-> > 
-> > I seem to have missed this conversation, so please excuse me for
-> 
-> The set_page_dirty() at GUP was in a private discussion (it started
-> on another topic and drifted away to set_page_dirty()).
-> 
-> > asking a stupid question: if it's a file backed page, what prevents
-> > background writeback from cleaning the dirty page ~30s into a long
-> > term pin? i.e. I don't see anything in this proposal that prevents
-> > the page from being cleaned by writeback and putting us straight
-> > back into the situation where a long term RDMA is writing to a clean
-> > page....
-> 
-> So this patchset does not solve this issue.
+--Sig_/gcf3x9pNF4bWcL9pBwUmVyY
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-OK, so it just kicks the can further down the road.
+Hi Suren,
 
->     [3..N] decide what to do for GUPed page, so far the plans seems
->          to be to keep the page always dirty and never allow page
->          write back to restore the page in a clean state. This does
->          disable thing like COW and other fs feature but at least
->          it seems to be the best thing we can do.
+On Tue, 19 Mar 2019 16:56:13 -0700 Suren Baghdasaryan <surenb@google.com> w=
+rote:
+>
+> The psi monitoring patches will need to determine the same states as
+> record_times().  To avoid calculating them twice, maintain a state mask
+> that can be consulted cheaply.  Do this in a separate patch to keep the
+> churn in the main feature patch at a minimum.
+>=20
+> This adds 4-byte state_mask member into psi_group_cpu struct which results
+> in its first cacheline-aligned part becoming 52 bytes long.  Add explicit
+> values to enumeration element counters that affect psi_group_cpu struct
+> size.
+>=20
+> Link: http://lkml.kernel.org/r/20190124211518.244221-4-surenb@google.com
+> Signed-off-by: Suren Baghdasaryan <surenb@google.com>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Dennis Zhou <dennis@kernel.org>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: Jens Axboe <axboe@kernel.dk>
+> Cc: Li Zefan <lizefan@huawei.com>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Tejun Heo <tj@kernel.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
 
-So the plan for GUP vs writeback so far is "break fsync()"? :)
+This last SOB line should not be here ... it is only there on the
+original patch because I import Andrew's quilt series into linux-next.
 
-We might need to work on that a bit more...
-
+--=20
 Cheers,
+Stephen Rothwell
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+--Sig_/gcf3x9pNF4bWcL9pBwUmVyY
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAlyRgykACgkQAVBC80lX
+0GzGdwgAkeERrC49NHtT6/Phx/CoT0fGnk18tNUFLom+rq3rOBQK2wx1PjucbibK
+vXCE9EjVXmM1DNhVakECzW140fJtlo/sepGVTJhmSOUsMbOF1OI5PrAvszpgSjSU
+5UF7ikasO20gSNsechnFvkJo4NA5zx/se85Mr62VKU8UgfAUcY3DQwATE6EJiQOY
+vuaHEsGdYYpgctzrz9buJn2eXKSqatWwteCeyQj2UDsfXz63CCJxlQrO4p96B//c
+wjfoSNMnOa25s418YxLiRmLA/9Upk9CMWPzQ7J6v3/TVGUNLvjZPRd1qBUE2za6g
+xvo9LR9TcLA3X/p682Ykd4lk+ccBZA==
+=KZbq
+-----END PGP SIGNATURE-----
+
+--Sig_/gcf3x9pNF4bWcL9pBwUmVyY--
 
