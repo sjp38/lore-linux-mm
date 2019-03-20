@@ -2,114 +2,118 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
-	autolearn=ham autolearn_force=no version=3.4.0
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2AB63C4360F
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 00:49:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 45575C4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 00:53:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DBD98217F4
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 00:49:18 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EAD2720835
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 00:53:54 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="uQAnIj3z"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DBD98217F4
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="JOGPfuVp"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EAD2720835
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7B2F06B0006; Tue, 19 Mar 2019 20:49:18 -0400 (EDT)
+	id 898706B0003; Tue, 19 Mar 2019 20:53:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7617B6B0007; Tue, 19 Mar 2019 20:49:18 -0400 (EDT)
+	id 8485A6B0006; Tue, 19 Mar 2019 20:53:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6775D6B0008; Tue, 19 Mar 2019 20:49:18 -0400 (EDT)
+	id 75F726B0007; Tue, 19 Mar 2019 20:53:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 284D86B0006
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 20:49:18 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id p127so845968pga.20
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 17:49:18 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 346116B0003
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 20:53:54 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id h15so858867pgi.19
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 17:53:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :in-reply-to:message-id:references:user-agent:mime-version;
-        bh=woHC6P4IWHeqMPl0bBWCL/dn49O6TQqdOp+Q3BiQuPY=;
-        b=CROvxL9ufh5u76GnqXwUL8fcr66Xc1JgdeFZSbI/M3jj/+EMsSPwjamU5YsqopLVKQ
-         FncNcHaOkeTHZVRD8TjNSV6niautEsrnbF/S4udnoFIQK9Cl8IuuxVsrRid8hHTNW3hZ
-         qzLjy/jREsnO9Z5/fIaam342ddijzN/xzWGdU07YLOl4NlNVoG8I/a61E9lGqykZPIZq
-         o9v843Ab9iZP/HdOZzH3ZDqgiQUgyON+cD/W+MhVrUWYYt6wgSzMpFdy7fc2aGaRkFop
-         3paQucTJqz1Mkw3ZIvllNfQwXaPy4NbkxCUxCGUI3Bi/qK5+0LNzQo/jNWCPmM6Sm+Lq
-         A+Kw==
-X-Gm-Message-State: APjAAAXx563e7W64GTWyD0GLMnMXVooNOAxVCrZGgPKO3Lw0C9btRX6K
-	iYUuKbTEnHOJe7+vu5YQmC4lCD5iEo+sUW68bMh+qAaRS09U9j3nPqzSe6c+kgU2MGIN0Wt9sSl
-	aKPIHZmxt5La5o3vA9Oc4Hh8UcMmqKURkMcdZ9XrDrJQU8+cWl0HtDSIMpJ4ZPxaz5w==
-X-Received: by 2002:a65:4bcc:: with SMTP id p12mr4611998pgr.187.1553042957740;
-        Tue, 19 Mar 2019 17:49:17 -0700 (PDT)
-X-Received: by 2002:a65:4bcc:: with SMTP id p12mr4611951pgr.187.1553042956849;
-        Tue, 19 Mar 2019 17:49:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553042956; cv=none;
+        bh=dpCddqCmlhGyWyhS7C7r0+CGxfO81qERzU0CKME3BPQ=;
+        b=c9ZyS6KRquAo6GsM3SKiYqUlliQeYdZbtGXNhZww12pVoCpPUgkgMHhRIAU1QgjAIV
+         iOcD9FSs2wJdgO5HMEEPy2fffaq12cdlYerP94SUNUb+l6O8drp1SO5GfdYtLwpSeGVT
+         xSeZQRO2ULjllHOhPPZT3uIi0TX2rnuWdYy2nKLp36sO0yDYqaVBMrmGGVZAvIKR7Ixt
+         TC1Plki1X9bAJxHzOazCBXAZiAzPCyWysIoxp97xuhTWXRyVxC/mYPYmYC69LjZXnRzw
+         fJKPZ+a+BhdK0o2q1YMIZRoYlviexprSzawj3RJzp3faXQt8m3LkFUDLjAPjuU9mrvB2
+         H+nw==
+X-Gm-Message-State: APjAAAVoubGqmMj1D2+znll/eK2cEPK6gApjpIKLJ52wGktWJcAdpsD6
+	8M8YX56qLZv2grJCpe8OTPkkEJWsfU7Dg1Sw6mvtIEoyIZS5Yf0dLG5piF5ZRBAqH5tuC0+xzzL
+	PT+KqHMNJUBVnaT7YaUT9ksg0h7FxB6UK3YnPmmxEtuODpRowBiz8+f0371xfivyXdQ==
+X-Received: by 2002:a63:618d:: with SMTP id v135mr4615804pgb.2.1553043233869;
+        Tue, 19 Mar 2019 17:53:53 -0700 (PDT)
+X-Received: by 2002:a63:618d:: with SMTP id v135mr4615765pgb.2.1553043233022;
+        Tue, 19 Mar 2019 17:53:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553043233; cv=none;
         d=google.com; s=arc-20160816;
-        b=IDEplxeqx37fKddDHxNUANtl2AIOr9plLkcPyPCH1CX71xMpOTXD0ZvttqvFtV5xqw
-         0Yq/Y6tXDq6bVA01eUp+fWQhOQLSyxc+GSPNI6/BWvgcUBSrpLosWX3zwJdrKQidcZ7P
-         asNqM2V3Cvkz9SsUNJQOy7q70MTZxSyXdC5pssBiVrCSExZBXHR2/+lWBYPT+idCtyw9
-         Zee8JUsOOgxumQAc8F8UyBBLeWTJfgVxV1wUS9ApKiPzbFulNd5tlS8xof0Ze/8Cu8Js
-         3zVyUoZoWoN7xKUplcmyhyEZuW9/yg95YszkNaz3/4TbubmsjuXjUF8S/LjpWSRCX4+O
-         Er7A==
+        b=HKNvOIz1QKDp+GW99xy0d/09E0VvRywmhzYVCrcShain2/wNszLCqYNrDdlhwwIQxJ
+         /9nc776FQcA/qgSvOeEBaB5vYhsHY3nZ+4yGCTda8YC1+5Wlw/6jq7021oNE6kTFbTe8
+         wV8L7SYjTERilxsRAoCV4+5EfZzP2sl3Ta++2uMsMmUAxAYAMjv4hHH9hgMkPeaakVne
+         SzUpXQM/UuHyLoHTB8dOG2xjV6/eIVGknfiLYjDRhZgGtqHWWkM1isQvEZJqJuw3uzjp
+         HzfBZiCVTzuoGVd++H9OIxsE5oCoQIy6dYCh0AqbdXqA+mO8rUWAUJ9HoP6u9iRpuD4F
+         rjOg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:user-agent:references:message-id:in-reply-to:subject
          :cc:to:from:date:dkim-signature;
-        bh=woHC6P4IWHeqMPl0bBWCL/dn49O6TQqdOp+Q3BiQuPY=;
-        b=WyEwVa9Uda9qAn8+6vZesu3XoWyAZNuSGEPFkN1ocYT7L7/iEIBgLbEIcMwuwga7Gq
-         y5yrOYpIIcfy05DetadlKvl7J1q3o02V8s5hnfLrwB7Xsp3/2BSz389xpK3j8g2vsZjE
-         f+kVpcs81hZ5BqbMJHemYj6fz+4Sb3TZvfNsyXS2xlWfL23UQIQ2D4vVgsGx5x5dwIiw
-         onZM9y+u1n0u28e+1YVovtWq2q9VSRK34x4CPM8tz6iExVlLr5uAokT/xPdzBFqgxWFR
-         kGy7SJUZbkvni3s05NM0tpPkqd9ofYBg1ET2p2YiuB8U4p5GkguP00JAxQNCvruM9YDM
-         HyaA==
+        bh=dpCddqCmlhGyWyhS7C7r0+CGxfO81qERzU0CKME3BPQ=;
+        b=AaN4Ri/8cTmXb+w6777FlM9e82uHl3OTqf+MAJb3uNdX7Y3Aes7xhaAOKW9c7XNKJ/
+         JyrRS322KLIzOBv+JwuNQwrzgUFVBWi2oZNAcxX4yJXFDplfdDVfKg39+d3I293i+OGP
+         FJHDQM6FJoY62P/dVrIqnCCwY7Q4uTx4RN9+NSEu6wTgyjuTQ+5IG5wABRsH+3ZKMzKD
+         DLpMDNhH2IBsz6V9s28WPS0MRb+ED1V/moBZCChmekHrkeiNWGH2DrSeJygVPbUWtZ4d
+         ll+5NC9byW+iCQEZyz1cH+Q6aQUYscemF5Jd5yn7DONWGWu6aZh+Qmg5REXpMVTw8wQG
+         ZJgQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=uQAnIj3z;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=JOGPfuVp;
        spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w7sor811460plz.53.2019.03.19.17.49.16
+        by mx.google.com with SMTPS id d14sor423494pgg.50.2019.03.19.17.53.52
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 19 Mar 2019 17:49:16 -0700 (PDT)
+        Tue, 19 Mar 2019 17:53:53 -0700 (PDT)
 Received-SPF: pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=uQAnIj3z;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=JOGPfuVp;
        spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=date:from:to:cc:subject:in-reply-to:message-id:references
          :user-agent:mime-version;
-        bh=woHC6P4IWHeqMPl0bBWCL/dn49O6TQqdOp+Q3BiQuPY=;
-        b=uQAnIj3za4wrrwn7MJzIR0I98MQQmbfVD3GTktU1sIuzy5cmsKWcdvzDQC4X6+rvH8
-         w6u3rtLEP3oq281/rdAsfnHNFTiEDCD5Sq/aJeDMIBS8t3a6+grQhuDmmBMk4JHa3+/k
-         vq109n8sn+nAr2NyC3hsMZ+mU8VNNF7BEmW4jvJ89MlAHHM46CkcB5DqEGtK12AxOjVO
-         4K0U+0pKhoX0dyV4I9HW97CCS2DdyN6mtY+USRwB529UqmXR3VHrgbratA6CuBBPSImx
-         GSfAWkTfQlWwzTArpKAOkbTyMSllPqqThJxy7nPNbDUOsu4BQtT9rDdopXMu1e/mjCSK
-         mYYw==
-X-Google-Smtp-Source: APXvYqzU9Et7B/EaHRkr6v8Rip9mhd6P1ZraR9Jxn1pAooOpa+WFbT96w8mMoXRsA/HzvaCyFOLoog==
-X-Received: by 2002:a17:902:ea8c:: with SMTP id cv12mr5255204plb.123.1553042956167;
-        Tue, 19 Mar 2019 17:49:16 -0700 (PDT)
+        bh=dpCddqCmlhGyWyhS7C7r0+CGxfO81qERzU0CKME3BPQ=;
+        b=JOGPfuVp00PibJiY1lX80qZBVdsO5epnmcGnA4moddPxIant5w0zqj+2ybWCeSXZJ6
+         0jCUUUZi3eW295+Sh5BtwmBYtxZ8as2yWJ1lkSvD0V3FIbVGUGdUrmSjsbBioGRy0SwT
+         a6/EuOxh+DliX9Tz6xEanzUqCSWW7m3i9fUPPukpY/7muVzgmv6BgnLjRc6WRx+ZVNVu
+         5Q9Su7CxEkc2/o/UE8OBtbyS5pL0hkBNHWmIRuiVmKFJd+gJGHZ6Za0G/O91bmw5R6TB
+         Hn6dGyy6zJ76TZOcvfzWJ/3x+kcF43IgpGFCCVrJI7LZneZuaWvgCS4EJjgCpeSIhYcA
+         CJjg==
+X-Google-Smtp-Source: APXvYqzmJ7dvx65HjZAxLlw7ltFKPcvUh2AmbHzeB3QMbmXSc2V8s1/umdgGWpPJmU3/OFGevH9fwA==
+X-Received: by 2002:a63:e002:: with SMTP id e2mr5015037pgh.300.1553043232442;
+        Tue, 19 Mar 2019 17:53:52 -0700 (PDT)
 Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
-        by smtp.gmail.com with ESMTPSA id e1sm297905pfn.73.2019.03.19.17.49.15
+        by smtp.gmail.com with ESMTPSA id i126sm316612pfc.101.2019.03.19.17.53.51
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 19 Mar 2019 17:49:15 -0700 (PDT)
-Date: Tue, 19 Mar 2019 17:49:14 -0700 (PDT)
+        Tue, 19 Mar 2019 17:53:51 -0700 (PDT)
+Date: Tue, 19 Mar 2019 17:53:51 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
 X-X-Sender: rientjes@chino.kir.corp.google.com
-To: Yang Shi <yang.shi@linux.alibaba.com>
-cc: chrubis@suse.cz, vbabka@suse.cz, kirill@shutemov.name, osalvador@suse.de, 
-    akpm@linux-foundation.org, stable@vger.kernel.org, linux-mm@kvack.org, 
-    linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm: mempolicy: make mbind() return -EIO when MPOL_MF_STRICT
- is specified
-In-Reply-To: <1553020556-38583-1-git-send-email-yang.shi@linux.alibaba.com>
-Message-ID: <alpine.DEB.2.21.1903191748090.18028@chino.kir.corp.google.com>
-References: <1553020556-38583-1-git-send-email-yang.shi@linux.alibaba.com>
+To: Christopher Lameter <cl@linux.com>
+cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, 
+    Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, 
+    Ming Lei <ming.lei@redhat.com>, Dave Chinner <david@fromorbit.com>, 
+    Matthew Wilcox <willy@infradead.org>, 
+    "Darrick J . Wong" <darrick.wong@oracle.com>, 
+    Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@kernel.org>, 
+    linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, 
+    linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org
+Subject: Re: [RFC 0/2] guarantee natural alignment for kmalloc()
+In-Reply-To: <01000169988d4e34-b4178f68-c390-472b-b62f-a57a4f459a76-000000@email.amazonses.com>
+Message-ID: <alpine.DEB.2.21.1903191751560.18028@chino.kir.corp.google.com>
+References: <20190319211108.15495-1-vbabka@suse.cz> <01000169988d4e34-b4178f68-c390-472b-b62f-a57a4f459a76-000000@email.amazonses.com>
 User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -119,34 +123,31 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 20 Mar 2019, Yang Shi wrote:
+On Wed, 20 Mar 2019, Christopher Lameter wrote:
 
-> When MPOL_MF_STRICT was specified and an existing page was already
-> on a node that does not follow the policy, mbind() should return -EIO.
-> But commit 6f4576e3687b ("mempolicy: apply page table walker on
-> queue_pages_range()") broke the rule.
+> > The recent thread [1] inspired me to look into guaranteeing alignment for
+> > kmalloc() for power-of-two sizes. Turns out it's not difficult and in most
+> > configuration nothing really changes as it happens implicitly. More details in
+> > the first patch. If we agree we want to do this, I will see where to update
+> > documentation and perhaps if there are any workarounds in the tree that can be
+> > converted to plain kmalloc() afterwards.
 > 
-> And, commit c8633798497c ("mm: mempolicy: mbind and migrate_pages
-> support thp migration") didn't return the correct value for THP mbind()
-> too.
+> This means that the alignments are no longer uniform for all kmalloc
+> caches and we get back to code making all sorts of assumptions about
+> kmalloc alignments.
 > 
-> If MPOL_MF_STRICT is set, ignore vma_migratable() to make sure it reaches
-> queue_pages_to_pte_range() or queue_pages_pmd() to check if an existing
-> page was already on a node that does not follow the policy.  And,
-> non-migratable vma may be used, return -EIO too if MPOL_MF_MOVE or
-> MPOL_MF_MOVE_ALL was specified.
+> Currently all kmalloc objects are aligned to KMALLOC_MIN_ALIGN. That will
+> no longer be the case and alignments will become inconsistent.
 > 
-> Tested with https://github.com/metan-ucw/ltp/blob/master/testcases/kernel/syscalls/mbind/mbind02.c
+> I think its valuable that alignment requirements need to be explicitly
+> requested.
 > 
-> Fixes: 6f4576e3687b ("mempolicy: apply page table walker on queue_pages_range()")
-> Reported-by: Cyril Hrubis <chrubis@suse.cz>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: stable@vger.kernel.org
-> Suggested-by: Kirill A. Shutemov <kirill@shutemov.name>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> Lets add an array of power of two aligned kmalloc caches if that is really
+> necessary. Add some GFP_XXX flag to kmalloc to make it ^2 aligned maybe?
+> 
 
-Acked-by: David Rientjes <rientjes@google.com>
-
-Thanks.  I think this needs stable for 4.0+, can you confirm?
+No objection, but I think the GFP flags should remain what they are for: 
+to Get Free Pages.  If we are to add additional flags to specify 
+characteristics of slab objects, can we add a kmalloc_flags() variant that 
+will take a new set of flags?  SLAB_OBJ_ALIGN_POW2?
 
