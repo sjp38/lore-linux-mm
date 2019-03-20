@@ -2,276 +2,186 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.4 required=3.0 tests=DATE_IN_PAST_06_12,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 855DFC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 17:10:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7AB13C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 17:28:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1C79820850
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 17:10:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C79820850
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 1E83321841
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 17:28:15 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="Ty928puG"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E83321841
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AA0636B0003; Wed, 20 Mar 2019 13:10:19 -0400 (EDT)
+	id 9F8FF6B0007; Wed, 20 Mar 2019 13:28:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A53BD6B0006; Wed, 20 Mar 2019 13:10:19 -0400 (EDT)
+	id 9A9416B0008; Wed, 20 Mar 2019 13:28:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8F1DE6B0007; Wed, 20 Mar 2019 13:10:19 -0400 (EDT)
+	id 8990E6B000A; Wed, 20 Mar 2019 13:28:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 49BD96B0003
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 13:10:19 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id o24so3272520pgh.5
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 10:10:19 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6515B6B0007
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 13:28:15 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id x12so3201567qtk.2
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 10:28:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=HhK2wCwN7s2Qoqt+ZGuQdOzobibM7vW+iAf6Iyn8VEc=;
-        b=KTWGJYbU+PzxwghktR0G2y8Rm9sPbH3+lMJBkH6gmJuVZo1rDw8MsxODCHMIKtXYtI
-         m4Ma4Sbdp6/UXdgilLbVeF3Km0Mz4NU6Y1VpCQbt+JkjR3LYML+9I7uvgBPIq//2E1iE
-         rVs6/cQgXtBt98hBO/vxIUGYZgZ3dj+4DbhVUu01FtzhMfeMw5xDKO2aqjdSRr6zZPQP
-         EcK6k4zgpR7wiJt4uAEpjvCiPCy3xjXdlKS2sddJ9JGEKsG9TrgphfdN0nW7CE9K4Q34
-         Zb0GufCGYRfzyICt4powsGsIBUXMP/+dS057vFlpSCy0MIbw29l77rOa5lAt0BytaFpC
-         uoFA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUbDcIWEDIbFywDsm+Kwc2Mdh7g8v9AWB6GWMErcfCIzTbJSwN+
-	oUqBxmnkVa/ClDNMxy3NHqdyZ7PVc2WjzIwe7Phm8+pPJ/JA3Y9h16hKB7VFzCi8KQGoFO6pHuV
-	nVO4rSTGcRGEqqueoZ5JjxVlP14D+DW9gh97zbtVfTM9AJ4vJknfyRPW4C/ne/MWLwA==
-X-Received: by 2002:a17:902:9a98:: with SMTP id w24mr9161408plp.247.1553101818899;
-        Wed, 20 Mar 2019 10:10:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyBpccFQWIABp3Hb5wwE/loeqK325DWG3vfok+fPK9AGh+OwGibmt0Vj1oiiSIljXS67zYH
-X-Received: by 2002:a17:902:9a98:: with SMTP id w24mr9161317plp.247.1553101817713;
-        Wed, 20 Mar 2019 10:10:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553101817; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=tSWuSdEcPYnHEfL0STXoy4MtzUjvAM2sSMLxODD5rr4=;
+        b=FyTZBX66ZASkm8AEuG6NKuuWjtsUmEEFnETbjJFMmtvHQu8HURbblwMdiJSZIcNczb
+         c/3yNG/X8MoSPtZANO2tzPs3avjSCZ3VYZWKKuUmgSBAN0fzskTnlIO5Q5XAzvKx8I3G
+         LZ0Wr/3idZItQpbPgsZZNAzqPTSxs3jN0SMOj0aeyBtvqFzFuqrD4y/mbH8FWRhBv7Fa
+         160QolESEcLDdfYbUuh1wQXZ4BELJgnh932PZrPxvnQ5TglLM+WzAexKRt/QsTdOMuhk
+         W0tDy8XPuO4cBCienVpIZP1WXV+tYE35YnU6ddUrSa+U0N5eIPfRWC5bn4yAIq9ar5gR
+         ALZQ==
+X-Gm-Message-State: APjAAAXOCcvyothK8P3ksvOiF4GLdp7ZbILxqNK+yWc0vZtWB/bmSn2W
+	VM14RBMy3wcXSNg7aCX1WMh+Klzp/J0ATIRzhAMKCeUDTWKHFdS5mppS4kxwjTpgZEqday5RoWu
+	LI2c4z1Rrdi9RpkC7dongb5Q7ZdsuBHB5tl6W3LCP3dlRc3CVJWIIHIFxnuy7e2sBdQ==
+X-Received: by 2002:a37:c384:: with SMTP id r4mr7339252qkl.306.1553102895117;
+        Wed, 20 Mar 2019 10:28:15 -0700 (PDT)
+X-Received: by 2002:a37:c384:: with SMTP id r4mr7339212qkl.306.1553102894362;
+        Wed, 20 Mar 2019 10:28:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553102894; cv=none;
         d=google.com; s=arc-20160816;
-        b=uIM1yPuRSDKs+o+TuXVMspp6E1KThbj4m1vHpEI6oEMzrFsShC+LJFhv1c92xc+++N
-         k0PB/r3ayC/Sfv/LWTFwyIhwbqyha+/eZ2VAx18gUuLmys6sH1BWBTTW0Xb9PVCoU32U
-         sIQv5x6e++HcQooElEzDtvuckMQ672TOKPLctBK/u78tN1xuI/m+fWN88719JbhBbwvr
-         qwLjivZ1Bpby88r0v4H05DUtYmxa2uGQBKA7UmdbFQXH4zsoS2d+EFIU+HocMS+w3l/l
-         ypv57bMZr+Dk+nF1MypahtfTAqb3GVXMz3BJMSaOb6Gj2yMyeq+1rCMn2rNBnL9WLm4Y
-         56mA==
+        b=UyD0epHZAPQPwnW2F70qEd8JDaKDtrJg+N+tuEktR7R0h2i/5rTi9rbZo6YePAytBt
+         9xHQQ4yFihnrY2s7niXD6/jj63rZGTDr8V2VCKDwCIlyoMNpsBvTegAYEY+IEewDO6Zh
+         JvIP6myYaPi2Cd8UUChogkENaKyCPK4+dZoMuO+VqrMcAYXc5zBsJhtIF0gXrvIO9+EW
+         BMBS/KClWcZnkmQlANoHEBiOe5oDngo/EZB7ZZLchE0xAck1cCV6IXRj39kaTD6cavSs
+         zORRgXNRZsgW0/Uey2+swQwnebBpN+IZoGbbAZVmkJ7ds/VYrl4/6Tu753cOORql/4aB
+         XTJg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=HhK2wCwN7s2Qoqt+ZGuQdOzobibM7vW+iAf6Iyn8VEc=;
-        b=S0An/p717z9RARwwwjU6y1QfMquxqH6IS9eAPlxCCk26EZmPoqTI6o1e6Si15D3oDn
-         Ko18reatoqM5BxVHcB8jqEhYMem2RYr1wulAsRADEg4a5xFzMf+slnjF/d9+8aeTcXMW
-         FcOfPF9+AT5t3LBJVPgtwuQOFrZA1iekrhZcOXz1RJy9FrM4/nf8jLUPFRlNblKsvptv
-         gVIHGzfEDEKrI45mXSk6527dn05LAnAQHSakchZGhqzKQuH4c5pq42okrcL/y2iorjhG
-         kdl7iibz+papwgGnpk00RZibcm9ihKkz9PQXGLTw0LdoDRdpTkEl1JuZhns/LYTQl709
-         2CEQ==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=tSWuSdEcPYnHEfL0STXoy4MtzUjvAM2sSMLxODD5rr4=;
+        b=ph2E8X/nJB0X//5qnXXPUqj3JLyM7y5Cz81gzZ9svgFwHGjDildlLNL6/BZNEo3bVz
+         kJ30haaq5Ta2ijQe5MnhD7ixsI2QW5KbDhWCq3Nk6OwSiSDTEaCRhjAoYPcxo2Fttzyl
+         lUNDM5hSageavRDj4HihNtMHlu/RTl7A2ce17s0sif9hv5RTslSPXtSzl5r2Bdjfjh2p
+         mTvS/WPhu9xOH24DV5mWO5zGZqdK+WmIiBI7qqjoN9PNWFQmN0b0KecOvjMblZx7maEb
+         uqiitsCyt1mG7Ys3W5+e3c6jUUUC9IzdZBv2Ba4BwkhP6010jo0t6mlKXhRdiqFGlsbq
+         lC4g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id g8si2045728pgq.159.2019.03.20.10.10.17
+       dkim=pass header.i=@lca.pw header.s=google header.b=Ty928puG;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t14sor2062170qki.69.2019.03.20.10.28.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Mar 2019 10:10:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+        (Google Transport Security);
+        Wed, 20 Mar 2019 10:28:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from fmsmga005.fm.intel.com ([10.253.24.32])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 20 Mar 2019 10:10:16 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,249,1549958400"; 
-   d="scan'208";a="330381110"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by fmsmga005.fm.intel.com with ESMTP; 20 Mar 2019 10:10:15 -0700
-Date: Wed, 20 Mar 2019 02:08:57 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: John Hubbard <jhubbard@nvidia.com>, Dave Chinner <david@fromorbit.com>,
-	"Kirill A. Shutemov" <kirill@shutemov.name>, john.hubbard@gmail.com,
-	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	Al Viro <viro@zeniv.linux.org.uk>,
-	Christian Benvenuti <benve@cisco.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Christopher Lameter <cl@linux.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>,
-	Doug Ledford <dledford@redhat.com>, Jan Kara <jack@suse.cz>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Matthew Wilcox <willy@infradead.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Mike Marciniszyn <mike.marciniszyn@intel.com>,
-	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
-	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
-	Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH v4 1/1] mm: introduce put_user_page*(), placeholder
- versions
-Message-ID: <20190320090857.GB13193@iweiny-DESK2.sc.intel.com>
-References: <20190308213633.28978-2-jhubbard@nvidia.com>
- <20190319120417.yzormwjhaeuu7jpp@kshutemo-mobl1>
- <20190319134724.GB3437@redhat.com>
- <20190319141416.GA3879@redhat.com>
- <20190319212346.GA26298@dastard>
- <20190319220654.GC3096@redhat.com>
- <20190319235752.GB26298@dastard>
- <20190320000838.GA6364@redhat.com>
- <c854b2d6-5ec1-a8b5-e366-fbefdd9fdd10@nvidia.com>
- <20190320043319.GA7431@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190320043319.GA7431@redhat.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+       dkim=pass header.i=@lca.pw header.s=google header.b=Ty928puG;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=from:to:cc:subject:date:message-id;
+        bh=tSWuSdEcPYnHEfL0STXoy4MtzUjvAM2sSMLxODD5rr4=;
+        b=Ty928puG0UE0fSO6SynDB4Fhl8Euko9ZNiFE5tZwWj6E351Z380XM6ZjlnTP/pvLHw
+         /6XrcBKqvWxbQZ8YAka/vwBF1gfAUxrUO2jr2bSO2IANkjd51hlZt6jPOMOB/Sbl+eP2
+         Xma+BCYo+vsrOzxK5jTSEE1HPtQ1VUquZJbMpu4ZJNEUlRVujl/aFWuYLOCf8rgx7lHG
+         g5qAVfljauvNsd6mhBgtTcXBwOSv9tAJXzmiDUGgX7PuA4jsXIrjtfJtrtZVCgc8SmEq
+         KE08m/Vo6MLvrXtunm7SExLxA+fRWRhs9YimaOfGbp6Zt4lAZBUFxBQqadT5aVHnNQMK
+         J9tw==
+X-Google-Smtp-Source: APXvYqzheRklgsnMnTk39gR30DOhmUawStPG7DBb0YaR6Dg6rFjs7Gthgo8LLCFuzhjs7G5S/2dM3Q==
+X-Received: by 2002:a37:b386:: with SMTP id c128mr7311385qkf.330.1553102894068;
+        Wed, 20 Mar 2019 10:28:14 -0700 (PDT)
+Received: from ovpn-120-94.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id f189sm1447324qkb.79.2019.03.20.10.28.13
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Mar 2019 10:28:13 -0700 (PDT)
+From: Qian Cai <cai@lca.pw>
+To: akpm@linux-foundation.org
+Cc: mgorman@techsingularity.net,
+	daniel.m.jordan@oracle.com,
+	mikhail.v.gavrilov@gmail.com,
+	vbabka@suse.cz,
+	pasha.tatashin@soleen.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Qian Cai <cai@lca.pw>
+Subject: [PATCH] mm/compaction: abort search if isolation fails
+Date: Wed, 20 Mar 2019 13:27:52 -0400
+Message-Id: <20190320172752.51406-1-cai@lca.pw>
+X-Mailer: git-send-email 2.17.2 (Apple Git-113)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 20, 2019 at 12:33:20AM -0400, Jerome Glisse wrote:
-> On Tue, Mar 19, 2019 at 06:43:45PM -0700, John Hubbard wrote:
-> > On 3/19/19 5:08 PM, Jerome Glisse wrote:
-> > > On Wed, Mar 20, 2019 at 10:57:52AM +1100, Dave Chinner wrote:
-> > >> On Tue, Mar 19, 2019 at 06:06:55PM -0400, Jerome Glisse wrote:
-> > >>> On Wed, Mar 20, 2019 at 08:23:46AM +1100, Dave Chinner wrote:
-> > >>>> On Tue, Mar 19, 2019 at 10:14:16AM -0400, Jerome Glisse wrote:
-> > >>>>> On Tue, Mar 19, 2019 at 09:47:24AM -0400, Jerome Glisse wrote:
-> > >>>>>> On Tue, Mar 19, 2019 at 03:04:17PM +0300, Kirill A. Shutemov wrote:
-> > >>>>>>> On Fri, Mar 08, 2019 at 01:36:33PM -0800, john.hubbard@gmail.com wrote:
-> > >>>>>>>> From: John Hubbard <jhubbard@nvidia.com>
-> > >>>>>> [...]
-> > >>>>> Forgot to mention one thing, we had a discussion with Andrea and Jan
-> > >>>>> about set_page_dirty() and Andrea had the good idea of maybe doing
-> > >>>>> the set_page_dirty() at GUP time (when GUP with write) not when the
-> > >>>>> GUP user calls put_page(). We can do that by setting the dirty bit
-> > >>>>> in the pte for instance. They are few bonus of doing things that way:
-> > >>>>>     - amortize the cost of calling set_page_dirty() (ie one call for
-> > >>>>>       GUP and page_mkclean()
-> > >>>>>     - it is always safe to do so at GUP time (ie the pte has write
-> > >>>>>       permission and thus the page is in correct state)
-> > >>>>>     - safe from truncate race
-> > >>>>>     - no need to ever lock the page
-> > >>>>
-> > >>>> I seem to have missed this conversation, so please excuse me for
-> > >>>
-> > >>> The set_page_dirty() at GUP was in a private discussion (it started
-> > >>> on another topic and drifted away to set_page_dirty()).
-> > >>>
-> > >>>> asking a stupid question: if it's a file backed page, what prevents
-> > >>>> background writeback from cleaning the dirty page ~30s into a long
-> > >>>> term pin? i.e. I don't see anything in this proposal that prevents
-> > >>>> the page from being cleaned by writeback and putting us straight
-> > >>>> back into the situation where a long term RDMA is writing to a clean
-> > >>>> page....
-> > >>>
-> > >>> So this patchset does not solve this issue.
-> > >>
-> > >> OK, so it just kicks the can further down the road.
-> > >>
-> > >>>     [3..N] decide what to do for GUPed page, so far the plans seems
-> > >>>          to be to keep the page always dirty and never allow page
-> > >>>          write back to restore the page in a clean state. This does
-> > >>>          disable thing like COW and other fs feature but at least
-> > >>>          it seems to be the best thing we can do.
-> > >>
-> > >> So the plan for GUP vs writeback so far is "break fsync()"? :)
-> > >>
-> > >> We might need to work on that a bit more...
-> > > 
-> > > Sorry forgot to say that we still do write back using a bounce page
-> > > so that at least we write something to disk that is just a snapshot
-> > > of the GUPed page everytime writeback kicks in (so either through
-> > > radix tree dirty page write back or fsync or any other sync events).
-> > > So many little details that i forgot the big chunk :)
-> > > 
-> > > Cheers,
-> > > Jérôme
-> > > 
-> > 
-> > Dave, Jan, Jerome,
-> > 
-> > Bounce pages for periodic data integrity still seem viable. But for the
-> > question of things like fsync or truncate, I think we were zeroing in
-> > on file leases as a nice building block.
-> > 
-> > Can we revive the file lease discussion? By going all the way out to user
-> > space and requiring file leases to be coordinated at a high level in the
-> > software call chain, it seems like we could routinely avoid some of the
-> > worst conflicts that the kernel code has to resolve.
-> > 
-> > For example:
-> > 
-> > Process A
-> > =========
-> >     gets a lease on file_a that allows gup 
-> >         usage on a range within file_a
-> > 
-> >     sets up writable DMA:
-> >         get_user_pages() on the file_a range
-> >         start DMA (independent hardware ops)
-> >             hw is reading and writing to range
-> > 
-> >                                                     Process B
-> >                                                     =========
-> >                                                     truncate(file_a)
-> >                                                        ...
-> >                                                        __break_lease()
-> >     
-> >     handle SIGIO from __break_lease
-> >          if unhandled, process gets killed
-> >          and put_user_pages should get called
-> >          at some point here
-> > 
-> > ...and so this way, user space gets to decide the proper behavior,
-> > instead of leaving the kernel in the dark with an impossible decision
-> > (kill process A? Block process B? User space knows the preference,
-> > per app, but kernel does not.)
-> 
-> There is no need to kill anything here ... if truncate happens then
-> the GUP user is just GUPing page that do not correspond to anything
-> anymore. This is the current behavior and it is what GUP always has
-> been. By the time you get the page from GUP there is no garantee that
-> they correspond to anything.
-> 
-> If a device really want to mirror process address faithfully then the
-> hardware need to make little effort either have something like ATS/
-> PASID or be able to abide mmu notifier.
-> 
-> If we start blocking existing syscall just because someone is doing a
-> GUP we are opening a pandora box. It is not just truncate, it is a
-> whole range of syscall that deals with either file or virtual address.
-> 
-> The semantic of GUP is really the semantic of direct I/O and the
-> virtual address you are direct I/O-ing to/from and the rule there is:
-> do not do anything stupid to those virtual addresses while you are
-> doing direct I/O with them (no munmap, mremap, madvise, truncate, ...).
-> 
-> 
-> Same logic apply to file, when two process do thing to same file there
-> the kernel never get in the way of one process doing something the
-> other process did not expect. For instance one process mmaping the file
-> the other process truncating the file, if the first process try to access
-> the file through the mmap after the truncation it will get a sigbus.
-> 
-> So i believe best we could do is send a SIGBUS to the process that has
-> GUPed a range of a file that is being truncated this would match what
-> we do for CPU acces. There is no reason access through GUP should be
-> handled any differently.
+Running LTP oom01 in a tight loop or memory stress testing put the
+system in a low-memory situation could triggers random memory
+corruption like page flag corruption below due to in
+fast_isolate_freepages(), if isolation fails, next_search_order() does
+not abort the search immediately could lead to improper accesses.
 
-I agree in sending SIGBUS but the fact is most "Process A"'s will not be
-handling SIGBUS and will then result in that process dying.
+UBSAN: Undefined behaviour in ./include/linux/mm.h:1195:50
+index 7 is out of range for type 'zone [5]'
+Call Trace:
+ dump_stack+0x62/0x9a
+ ubsan_epilogue+0xd/0x7f
+ __ubsan_handle_out_of_bounds+0x14d/0x192
+ __isolate_free_page+0x52c/0x600
+ compaction_alloc+0x886/0x25f0
+ unmap_and_move+0x37/0x1e70
+ migrate_pages+0x2ca/0xb20
+ compact_zone+0x19cb/0x3620
+ kcompactd_do_work+0x2df/0x680
+ kcompactd+0x1d8/0x6c0
+ kthread+0x32c/0x3f0
+ ret_from_fork+0x35/0x40
+------------[ cut here ]------------
+kernel BUG at mm/page_alloc.c:3124!
+invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN PTI
+RIP: 0010:__isolate_free_page+0x464/0x600
+RSP: 0000:ffff888b9e1af848 EFLAGS: 00010007
+RAX: 0000000030000000 RBX: ffff888c39fcf0f8 RCX: 0000000000000000
+RDX: 1ffff111873f9e25 RSI: 0000000000000004 RDI: ffffed1173c35ef6
+RBP: ffff888b9e1af898 R08: fffffbfff4fc2461 R09: fffffbfff4fc2460
+R10: fffffbfff4fc2460 R11: ffffffffa7e12303 R12: 0000000000000008
+R13: dffffc0000000000 R14: 0000000000000000 R15: 0000000000000007
+FS:  0000000000000000(0000) GS:ffff888ba8e80000(0000)
+knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 00007fc7abc00000 CR3: 0000000752416004 CR4: 00000000001606a0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+Call Trace:
+ compaction_alloc+0x886/0x25f0
+ unmap_and_move+0x37/0x1e70
+ migrate_pages+0x2ca/0xb20
+ compact_zone+0x19cb/0x3620
+ kcompactd_do_work+0x2df/0x680
+ kcompactd+0x1d8/0x6c0
+ kthread+0x32c/0x3f0
+ ret_from_fork+0x35/0x40
 
-Ira
+Fixes: dbe2d4e4f12e ("mm, compaction: round-robin the order while searching the free lists for a target")
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
+ mm/compaction.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
->
-> Cheers,
-> Jérôme
-> 
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 6aebf1eb8d98..41cec13c4c9c 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1245,6 +1245,10 @@ fast_isolate_around(struct compact_control *cc, unsigned long pfn, unsigned long
+ /* Search orders in round-robin fashion */
+ static int next_search_order(struct compact_control *cc, int order)
+ {
++	/* If isolation fails, abort the search. */
++	if (order == -1)
++		return -1;
++
+ 	order--;
+ 	if (order < 0)
+ 		order = cc->order - 1;
+-- 
+2.17.2 (Apple Git-113)
 
