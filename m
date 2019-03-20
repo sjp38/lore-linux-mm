@@ -2,132 +2,172 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6EF18C4360F
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 18:53:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B006AC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 18:59:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 18EF72146E
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 18:53:52 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 691DC20850
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 18:59:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="E4Zgc0H9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 18EF72146E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="mRIf6w3Q"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 691DC20850
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C2C7D6B0003; Wed, 20 Mar 2019 14:53:51 -0400 (EDT)
+	id 019D06B0003; Wed, 20 Mar 2019 14:59:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BB4106B0007; Wed, 20 Mar 2019 14:53:51 -0400 (EDT)
+	id F0B786B0006; Wed, 20 Mar 2019 14:59:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A2E7D6B0008; Wed, 20 Mar 2019 14:53:51 -0400 (EDT)
+	id E23CC6B0007; Wed, 20 Mar 2019 14:59:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 64E0E6B0003
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 14:53:51 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id y2so3359505pfl.16
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 11:53:51 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FEB66B0003
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 14:59:11 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id m17so3537233pgk.3
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 11:59:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=19J+W7mnzMxofEiVeKGPeMBVF0b3b1HaVTXfNyGBA6g=;
-        b=tapPrGgVPNl1NJGJTg06Mt3K5tjrFmBJviWv9X23ZU8ZIPbmTrCVA9O2sbjNTuVga4
-         kIjSCZCcTaKwwQ51CD6jmW1lYfgxW0SVPCHcb8RS/hMlEUlQYnWzHOj06+WQ+MUwRZC0
-         V//dzjgIV716lnBHsU8+BOmSRC3X8+6rRWw+GPPIC+OA2//C7qu+TVml07ENaXq+P7p5
-         VP6MHrM6JbCmeEErTKS1eYIAXvX7AkX/RWCMLo60SnGCwh9BQGwH9u5fdgjxOkGmR1kI
-         pOTMzBSFFgfObJsSOdsdymzAI8y86irus9GPCyaeZFpRi/Ldxv+O2d97pPFL3V8Q1HdH
-         Gi3g==
-X-Gm-Message-State: APjAAAWK8owwz7hulubq3J37K2T6WYGbsAS7yDbNnWOHuSk1KwNjG95y
-	I8KD1pgzDveh82r8H1FQ56Awc8q5H8Da1jXUEZ7hGFrAB6rG8UPKTNVrTSesUw9tkRvkd87ebjB
-	GjLbL73eygNIu9hWtyx2jgDFt1O9zJJKkebfGvt5FDXo1qQJAc4LXe3dc7aJBWsCnMA==
-X-Received: by 2002:a17:902:7e46:: with SMTP id a6mr9567342pln.150.1553108031048;
-        Wed, 20 Mar 2019 11:53:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw7Bq0XJ16dS30fpohQ2bCauJBsyFYrN7Jd+diiB3AKT3ZJEY6apPncUfSvidE95Szjz7i9
-X-Received: by 2002:a17:902:7e46:: with SMTP id a6mr9567311pln.150.1553108030383;
-        Wed, 20 Mar 2019 11:53:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553108030; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=ZsMIk5N/e1lX2C2dObjWfHVYZX/KpN3z9XU57acVrEM=;
+        b=RtmV0Q/nTR16/2NmlLb8ciY4HHWgW2O85Ev2+XEM6QIACZqW0r+aqiHZi8rFWzhfQT
+         XcmrNJBgfiY7K9i3GKbQVlHgeHW2Dj2ml4IWPVzFYGl2LNRCY0Gtyjl2pGK9/RweGgsO
+         zfFQSFNgqQuXws0B27+VoRcsQo1Kvh1M3GoVO+l0wXtXu8AdzJ2gbiJ51JCxjgOMJhZR
+         OpPhH1PQDaUQha6ScDSdB0gDF/IgZ/xdWQnWKM7//j1EI41kEns3sWi0KhDyWnSrfvBp
+         flfZr9ZsSHrbRyT7zfulZe6UCO5E4H/LeYU448uqvOwCE+8+sQb/ynq1BQRjivvgMqi+
+         ENFw==
+X-Gm-Message-State: APjAAAWPj9B2Zksi8bvY7ZWfI92DzPFW+mTzL47oFPvDhEH6N9R7pOYx
+	RQD11ictvaQ1qTB6W05rZKxAToEO/gLgp+lkImM59FBCUlXrCWQjVOkotqfiCMweAS90R1ailJc
+	R4ztcbtYFGSZJzqXN7BKQkfOo5DNo0eIndQW4u9k79IdFsPSk8Bd+KVr0qv8mcg4bzQ==
+X-Received: by 2002:a65:6091:: with SMTP id t17mr7644854pgu.328.1553108351313;
+        Wed, 20 Mar 2019 11:59:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzgMyjp11NJyx9T+x4mQYVvl6NBTMEAFlq2he+0ywldsRcpqD/M87K97QDuWd64u7Fg2Rep
+X-Received: by 2002:a65:6091:: with SMTP id t17mr7644799pgu.328.1553108350459;
+        Wed, 20 Mar 2019 11:59:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553108350; cv=none;
         d=google.com; s=arc-20160816;
-        b=aEoBlO7uaq5ISh+iAcYZuPIMrP9Liw1VV0RkLVVj9N9AHB2+meBGimYJ+vL+boCOhK
-         I/+s960C39+RSNvfS3cE+AyfUCKU0hexiCY4+9/VQUEKptobGzR3S0loA6lDGc27wnd2
-         /UsbpoOz0Qa4v1MgQG/f8o0BcvI3LHFQjy5k03Kbi39yfQOtLd0ZA3V7XsKVVdTT/4Bv
-         WIxLWDlvBRPFr3WFxxSFqwoiJczuawVfBD30SjA/zJNgYX+JW4gYQu2zoPBVxSnmFHpX
-         kgsc8qY1lS5+LRclIN8mkSQEKCZ9hQqjCcNm7OSdLMdk5W2UjbUuEItnWT1IWJ8gEuJo
-         rb3w==
+        b=vztbfKAKlYm10XgjYRwoN9XcFbeG0NFDsdsdQJ1cMSatgHMVTqBoh/06iVIXtUHwSj
+         se1J/jY/LTEUG3VBr4Q/tcnsOXnOPemcQVrXPuAodekIrvAr0xF5Qg03bJEQPAIESNXZ
+         D4mgSBYmTje+gnyFDjdL6LhqXMNysTikRlV+nwEzTuNULK5E5otGJ6iOLgecqQrBQgC7
+         DUORTn3yXhCmwfFLHvSySYkzGP1Xk1Nf95YQxIkA13sYNj853z0vi59L5hAWhcjzmKMp
+         aQDFNDEyUrfOcPIHkxpXDcSoqjNPt8eNbXKc5feT/0/JH+P9XYbgYPAtqrLXPBHNchPP
+         ejRw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=19J+W7mnzMxofEiVeKGPeMBVF0b3b1HaVTXfNyGBA6g=;
-        b=CPUhWs7gpuPCUsXvVvRSgEr4qofq9UO1rRi4yvQAccPYSQJZqWR/uAf3BteBsZssHa
-         PFrIA9Li/5Lld3LM8XU74Y3l3fc8KL1CRifS2t+DNTBnogfVlfR6QnGi7GVJPejUdbPf
-         RCsfc8uDbV03qUdhkRfQcqDnqIMjOpwQqNnCFGZXvUAWfIh4emw6fJOVxMR5mjRHM789
-         5LlLafyidaV5LaOPlB+67q6KC4uPUw5LxjCBC2++x0e3gLQISbjHNkAojg1RG1R6H+On
-         c4edi/QnV+shBSVpzg0meViWHszYjIhNjliuvJz7/FR5j8zB86rx/rcriN7BdDiOxfin
-         VvIg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=ZsMIk5N/e1lX2C2dObjWfHVYZX/KpN3z9XU57acVrEM=;
+        b=0usYmHsnd9wzGaF6wISZBQfQo8jEcPLdAsjY8HpVflwRO8VG+95pQutYSe4ln5mKnH
+         aUtQDTDpLOj9dtUl+N3xY53MEd7KYH5b3DiBK2uHEwR4+5JrXfSJeVBRf3xp5EcobGfN
+         EIEZF7bI3yK5xOLrVWesXEC7CHOojrQXqUeLYH9ZgqPlW2hQ+hMiBxNk6oWcY8Z+UBrq
+         tsuixaE0KkyWdBiKiNtCSlPeFeBnNGNFZ7izSu7PFN16KNDl5VqkLPv2hKCDavWt8vaH
+         zSo2u1lrMo2v5jCarPW6A+0AyWDg4mFljlE2uSOFitgPA/WzCVCacGqgGRtkC1J/0Y/u
+         Hc+w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=E4Zgc0H9;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 136si2240943pfc.170.2019.03.20.11.53.49
+       dkim=pass header.i=@kernel.org header.s=default header.b=mRIf6w3Q;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id y144si1428321pfc.225.2019.03.20.11.59.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 20 Mar 2019 11:53:49 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Mar 2019 11:59:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=E4Zgc0H9;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=19J+W7mnzMxofEiVeKGPeMBVF0b3b1HaVTXfNyGBA6g=; b=E4Zgc0H9T3r8B3MviIDF03WoP
-	/HtoUhhrOcbhOuSMgLsAiKywl8ntQbDZot9vppf3j1ZhHpVBs8dBIQ+oWlbfzGvq5ObJh4Zm9ITRK
-	vBPhCnuJwODhSL3923phSEgySz2SifsDpBDvrPjW7w+MfMhUJaeEZRRYe8BlvgkZSoP2j+rNaios8
-	3nZY5KR49A3NzOIBdLirAG6u0jdT3wQ7vhHSsb0x3QE2zJrLQ4MHfWLLdwqszN8zzsZKoufs611n+
-	KwwrABaK4gxbwmNaB1W67rg3wMhahYvPxzOj4YmP7rhOMbilxpFfL5OSCcgC31pQSYkueD/rH6MIa
-	meexl8+1A==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1h6gLT-0000z4-IC; Wed, 20 Mar 2019 18:53:47 +0000
-Date: Wed, 20 Mar 2019 11:53:47 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Christopher Lameter <cl@linux.com>, linux-mm@kvack.org,
-	Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Ming Lei <ming.lei@redhat.com>, Dave Chinner <david@fromorbit.com>,
-	"Darrick J . Wong" <darrick.wong@oracle.com>,
-	Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@kernel.org>,
-	linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org
-Subject: Re: [RFC 0/2] guarantee natural alignment for kmalloc()
-Message-ID: <20190320185347.GZ19508@bombadil.infradead.org>
-References: <20190319211108.15495-1-vbabka@suse.cz>
- <01000169988d4e34-b4178f68-c390-472b-b62f-a57a4f459a76-000000@email.amazonses.com>
- <5d7fee9c-1a80-6ac9-ac1d-b1ce05ed27a8@suse.cz>
+       dkim=pass header.i=@kernel.org header.s=default header.b=mRIf6w3Q;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-wm1-f41.google.com (mail-wm1-f41.google.com [209.85.128.41])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id B9C922190B
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 18:59:09 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1553108350;
+	bh=jp8AbSaqwT21JnyYDjKNO3C8evoJ6yy8quSVRfFSrac=;
+	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
+	b=mRIf6w3QFh3e9I8TEAE+h2PxblsGDwAvz/vvD8Akc66cH92WI1V37lsdfwOx4+xnd
+	 JLwYPXQAmxsZPJPnkaIC9PuN/GyDZDVoR3K3um+rtpcmpAB1nH7GpqTGRQs+2gFosD
+	 MPn8HQc+0pW04uhAeiyRhhiaezb/4rABISJifUvM=
+Received: by mail-wm1-f41.google.com with SMTP id n19so338876wmi.1
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 11:59:09 -0700 (PDT)
+X-Received: by 2002:a1c:9a41:: with SMTP id c62mr9266896wme.108.1553108348098;
+ Wed, 20 Mar 2019 11:59:08 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5d7fee9c-1a80-6ac9-ac1d-b1ce05ed27a8@suse.cz>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+References: <20190319221415.baov7x6zoz7hvsno@brauner.io> <CAKOZuessqcjrZ4rfGLgrnOhrLnsVYiVJzOj4Aa=o3ZuZ013d0g@mail.gmail.com>
+ <20190319231020.tdcttojlbmx57gke@brauner.io> <20190320015249.GC129907@google.com>
+ <CAKOZuetJzg_EiyuK7Pa13X3LKuBbreg7zJ5g4uQv_uV4wpmZjg@mail.gmail.com>
+ <20190320035953.mnhax3vd47ya4zzm@brauner.io> <CAKOZuet3-VhmC3oHtEbPPvdiar_k_QXTf0TkgmH9LiwmW-_oNA@mail.gmail.com>
+ <4A06C5BB-9171-4E70-BE31-9574B4083A9F@joelfernandes.org> <20190320182649.spryp5uaeiaxijum@brauner.io>
+ <CAKOZuevHbQtrq+Nb-jw1L7O72BmAzcXmbUnfnseeXZjX4PE4tg@mail.gmail.com> <20190320185156.7bq775vvtsxqlzfn@brauner.io>
+In-Reply-To: <20190320185156.7bq775vvtsxqlzfn@brauner.io>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Wed, 20 Mar 2019 11:58:57 -0700
+X-Gmail-Original-Message-ID: <CALCETrXO=V=+qEdLDVPf8eCgLZiB9bOTrUfe0V-U-tUZoeoRDA@mail.gmail.com>
+Message-ID: <CALCETrXO=V=+qEdLDVPf8eCgLZiB9bOTrUfe0V-U-tUZoeoRDA@mail.gmail.com>
+Subject: Re: pidfd design
+To: Christian Brauner <christian@brauner.io>
+Cc: Daniel Colascione <dancol@google.com>, Joel Fernandes <joel@joelfernandes.org>, 
+	Suren Baghdasaryan <surenb@google.com>, Steven Rostedt <rostedt@goodmis.org>, 
+	Sultan Alsawaf <sultan@kerneltoast.com>, Tim Murray <timmurray@google.com>, 
+	Michal Hocko <mhocko@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
+	=?UTF-8?B?QXJ2ZSBIasO4bm5ldsOlZw==?= <arve@android.com>, 
+	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>, Ingo Molnar <mingo@redhat.com>, 
+	Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, 
+	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>, linux-mm <linux-mm@kvack.org>, 
+	kernel-team <kernel-team@android.com>, Oleg Nesterov <oleg@redhat.com>, 
+	"Serge E. Hallyn" <serge@hallyn.com>, Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 20, 2019 at 09:48:47AM +0100, Vlastimil Babka wrote:
-> Natural alignment to size is rather well defined, no? Would anyone ever
-> assume a larger one, for what reason?
-> It's now where some make assumptions (even unknowingly) for natural
-> There are two 'odd' sizes 96 and 192, which will keep cacheline size
-> alignment, would anyone really expect more than 64 bytes?
+On Wed, Mar 20, 2019 at 11:52 AM Christian Brauner <christian@brauner.io> wrote:
+>
+> You're misunderstanding. Again, I said in my previous mails it should
+> accept pidfds optionally as arguments, yes. But I don't want it to
+> return the status fds that you previously wanted pidfd_wait() to return.
+> I really want to see Joel's pidfd_wait() patchset and have more people
+> review the actual code.
 
-Presumably 96 will keep being aligned to 32 bytes, as aligning 96 to 64
-just results in 128-byte allocations.
+Just to make sure that no one is forgetting a material security consideration:
+
+$ ls /proc/self
+attr             exe        mountinfo      projid_map    status
+autogroup        fd         mounts         root          syscall
+auxv             fdinfo     mountstats     sched         task
+cgroup           gid_map    net            schedstat     timers
+clear_refs       io         ns             sessionid     timerslack_ns
+cmdline          latency    numa_maps      setgroups     uid_map
+comm             limits     oom_adj        smaps         wchan
+coredump_filter  loginuid   oom_score      smaps_rollup
+cpuset           map_files  oom_score_adj  stack
+cwd              maps       pagemap        stat
+environ          mem        personality    statm
+
+A bunch of this stuff makes sense to make accessible through a syscall
+interface that we expect to be used even in sandboxes.  But a bunch of
+it does not.  For example, *_map, mounts, mountstats, and net are all
+namespace-wide things that certain policies expect to be unavailable.
+stack, for example, is a potential attack surface.  Etc.
+
+As it stands, if you create a fresh userns and mountns and try to
+mount /proc, there are some really awful and hideous rules that are
+checked for security reasons.  All these new APIs either need to
+return something more restrictive than a proc dirfd or they need to
+follow the same rules.  And I'm afraid that the latter may be a
+nonstarter if you expect these APIs to be used in libraries.
+
+Yes, this is unfortunate, but it is indeed the current situation.  I
+suppose that we could return magic restricted dirfds, or we could
+return things that aren't dirfds and all and have some API that gives
+you the dirfd associated with a procfd but only if you can see
+/proc/PID.
+
+--Andy
 
