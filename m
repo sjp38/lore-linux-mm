@@ -2,152 +2,131 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 45575C4360F
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 00:53:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 48C23C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 01:01:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EAD2720835
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 00:53:54 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D69FB2175B
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 01:01:08 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="JOGPfuVp"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EAD2720835
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="YjBUampI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D69FB2175B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 898706B0003; Tue, 19 Mar 2019 20:53:54 -0400 (EDT)
+	id 5FE156B0003; Tue, 19 Mar 2019 21:01:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8485A6B0006; Tue, 19 Mar 2019 20:53:54 -0400 (EDT)
+	id 584356B0006; Tue, 19 Mar 2019 21:01:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 75F726B0007; Tue, 19 Mar 2019 20:53:54 -0400 (EDT)
+	id 425846B0007; Tue, 19 Mar 2019 21:01:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 346116B0003
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 20:53:54 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id h15so858867pgi.19
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 17:53:54 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 172066B0003
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 21:01:08 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id n64so19512821qkb.0
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 18:01:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version;
-        bh=dpCddqCmlhGyWyhS7C7r0+CGxfO81qERzU0CKME3BPQ=;
-        b=c9ZyS6KRquAo6GsM3SKiYqUlliQeYdZbtGXNhZww12pVoCpPUgkgMHhRIAU1QgjAIV
-         iOcD9FSs2wJdgO5HMEEPy2fffaq12cdlYerP94SUNUb+l6O8drp1SO5GfdYtLwpSeGVT
-         xSeZQRO2ULjllHOhPPZT3uIi0TX2rnuWdYy2nKLp36sO0yDYqaVBMrmGGVZAvIKR7Ixt
-         TC1Plki1X9bAJxHzOazCBXAZiAzPCyWysIoxp97xuhTWXRyVxC/mYPYmYC69LjZXnRzw
-         fJKPZ+a+BhdK0o2q1YMIZRoYlviexprSzawj3RJzp3faXQt8m3LkFUDLjAPjuU9mrvB2
-         H+nw==
-X-Gm-Message-State: APjAAAVoubGqmMj1D2+znll/eK2cEPK6gApjpIKLJ52wGktWJcAdpsD6
-	8M8YX56qLZv2grJCpe8OTPkkEJWsfU7Dg1Sw6mvtIEoyIZS5Yf0dLG5piF5ZRBAqH5tuC0+xzzL
-	PT+KqHMNJUBVnaT7YaUT9ksg0h7FxB6UK3YnPmmxEtuODpRowBiz8+f0371xfivyXdQ==
-X-Received: by 2002:a63:618d:: with SMTP id v135mr4615804pgb.2.1553043233869;
-        Tue, 19 Mar 2019 17:53:53 -0700 (PDT)
-X-Received: by 2002:a63:618d:: with SMTP id v135mr4615765pgb.2.1553043233022;
-        Tue, 19 Mar 2019 17:53:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553043233; cv=none;
+         :in-reply-to:message-id:references:user-agent:mime-version
+         :feedback-id;
+        bh=Qm0r/S4Ne4XTZAHDLismxE9m3x/wdarSZ1AUHvBMnnQ=;
+        b=tJAbf4/dkPoedOrH/lCMyqDsbzNRCcKaLTckO77giS4eiYsJLWrBl1JtUMPQVbgCX5
+         km9cwi4PrR4Vhestjh5Xs+smaFR6yaV7PGvg/zIgghthtk4iTiVbD3TQr+Vt37fS+2L4
+         ZEbHWQq5wXiriqVBfDMO0WEwtz1otfsYi0nzq3Dfviw1Shy/iFrFx+bhk5xeGtddwBbW
+         9xglYUSoQT7NtdQdwMXJ1EGH1dgXXUneMoaVLArf/OZULmbwuuDvWV1mV2JzBntdBwa0
+         sG/iRGizq717um1QuWxHXDZU+vFCaGG4Qi2IO08mhjMAqdTk6uA6BJsDVF3Vb9cqgsb9
+         i5mQ==
+X-Gm-Message-State: APjAAAULNDTI00574yyiMEEz3buc8+gl4BsOJlEmLiU/gChIZh3VISor
+	ghd5j53kLD/esCtzO4i0xk5smE4dn39XHAiNFR76otYjjGVD7gZpNhU4PgtfRNAZpxvu8SfWbVY
+	sV7tFdRBgQRnpvLDXw13Vx5uzDdYrAw5FlE+E5AMpJA5e5WQyiOI+ZIrNozzgHYk=
+X-Received: by 2002:aed:23b4:: with SMTP id j49mr4721247qtc.175.1553043667807;
+        Tue, 19 Mar 2019 18:01:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxgHtGGvyid1LOFtgTkp6nKKhQ7nnFDCgvtMTKk5nQqDwQux87BeVSMNI6SQJF2+4Ja8U/N
+X-Received: by 2002:aed:23b4:: with SMTP id j49mr4721189qtc.175.1553043667057;
+        Tue, 19 Mar 2019 18:01:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553043667; cv=none;
         d=google.com; s=arc-20160816;
-        b=HKNvOIz1QKDp+GW99xy0d/09E0VvRywmhzYVCrcShain2/wNszLCqYNrDdlhwwIQxJ
-         /9nc776FQcA/qgSvOeEBaB5vYhsHY3nZ+4yGCTda8YC1+5Wlw/6jq7021oNE6kTFbTe8
-         wV8L7SYjTERilxsRAoCV4+5EfZzP2sl3Ta++2uMsMmUAxAYAMjv4hHH9hgMkPeaakVne
-         SzUpXQM/UuHyLoHTB8dOG2xjV6/eIVGknfiLYjDRhZgGtqHWWkM1isQvEZJqJuw3uzjp
-         HzfBZiCVTzuoGVd++H9OIxsE5oCoQIy6dYCh0AqbdXqA+mO8rUWAUJ9HoP6u9iRpuD4F
-         rjOg==
+        b=w4bG4tuBPzHJWr7/wytamF6O86MNtDi6/OsZf2ODRsXx99SnUkSBNk5lCu5GcU+Ogw
+         XQ7aZhnTAvSCqzx63q57cBffmSwNJoeyuRMtiTvwM5Fk3s0tmKm9ISj0kZXSgwp/birv
+         +bdgSSTlAKW8hUOG19Yxk8f0DuYEr0wwBBZBqRtb8unaqxmvVequZwkdWbTi2nnpImtf
+         55vLUsmnxs8fr/FLFFdaXgp3J112GkFUnH6paEah4ZmZYqYPLSAklfV7KeISLLAdaXUK
+         /papMPMUsf65QPKcdr7OU0bDCYJIpCNVWoJYQKCh0sj1QAvlTHqZTmBgT1f+Q1RJDuzX
+         LKNw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date:dkim-signature;
-        bh=dpCddqCmlhGyWyhS7C7r0+CGxfO81qERzU0CKME3BPQ=;
-        b=AaN4Ri/8cTmXb+w6777FlM9e82uHl3OTqf+MAJb3uNdX7Y3Aes7xhaAOKW9c7XNKJ/
-         JyrRS322KLIzOBv+JwuNQwrzgUFVBWi2oZNAcxX4yJXFDplfdDVfKg39+d3I293i+OGP
-         FJHDQM6FJoY62P/dVrIqnCCwY7Q4uTx4RN9+NSEu6wTgyjuTQ+5IG5wABRsH+3ZKMzKD
-         DLpMDNhH2IBsz6V9s28WPS0MRb+ED1V/moBZCChmekHrkeiNWGH2DrSeJygVPbUWtZ4d
-         ll+5NC9byW+iCQEZyz1cH+Q6aQUYscemF5Jd5yn7DONWGWu6aZh+Qmg5REXpMVTw8wQG
-         ZJgQ==
+        h=feedback-id:mime-version:user-agent:references:message-id
+         :in-reply-to:subject:cc:to:from:date:dkim-signature;
+        bh=Qm0r/S4Ne4XTZAHDLismxE9m3x/wdarSZ1AUHvBMnnQ=;
+        b=Kf3JratzLa6SO4zM5iqARa2DFg3hq9aRekUxP2wUG0ew/LE0Rxczr5RSvGRzMeLaVb
+         JYLWWK8hllNsu1zc96o9w0IkFQiedHSGF4BwX0Ksi3GwoEMb3uf+WCdi7psp67EgvDF7
+         EyauMgsR2d7F7LxRbzy37pmUDe4C/SRwFQXHvnMnjkAOtV+l2enj/kIepkPKrZI8krB2
+         STSwQ8hBAA5TaccR09gHUvddf2b4laYN6P9JX6fs3I7SU6OxnlGAIAQTJXA74vfHKj2V
+         5+Az0L58SbEeb0HRtRDAUULnfiv/iJ3EQMGSi5Jmj25EqYcsjhDwXghQtYQ1FJF+C0IJ
+         Aaug==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=JOGPfuVp;
-       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d14sor423494pgg.50.2019.03.19.17.53.52
+       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=YjBUampI;
+       spf=pass (google.com: domain of 01000169989db656-8868a4b2-a8eb-4666-872f-2ed9885c99e6-000000@amazonses.com designates 54.240.9.92 as permitted sender) smtp.mailfrom=01000169989db656-8868a4b2-a8eb-4666-872f-2ed9885c99e6-000000@amazonses.com
+Received: from a9-92.smtp-out.amazonses.com (a9-92.smtp-out.amazonses.com. [54.240.9.92])
+        by mx.google.com with ESMTPS id t25si332290qtb.354.2019.03.19.18.01.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Mar 2019 17:53:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 19 Mar 2019 18:01:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 01000169989db656-8868a4b2-a8eb-4666-872f-2ed9885c99e6-000000@amazonses.com designates 54.240.9.92 as permitted sender) client-ip=54.240.9.92;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=JOGPfuVp;
-       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:from:to:cc:subject:in-reply-to:message-id:references
-         :user-agent:mime-version;
-        bh=dpCddqCmlhGyWyhS7C7r0+CGxfO81qERzU0CKME3BPQ=;
-        b=JOGPfuVp00PibJiY1lX80qZBVdsO5epnmcGnA4moddPxIant5w0zqj+2ybWCeSXZJ6
-         0jCUUUZi3eW295+Sh5BtwmBYtxZ8as2yWJ1lkSvD0V3FIbVGUGdUrmSjsbBioGRy0SwT
-         a6/EuOxh+DliX9Tz6xEanzUqCSWW7m3i9fUPPukpY/7muVzgmv6BgnLjRc6WRx+ZVNVu
-         5Q9Su7CxEkc2/o/UE8OBtbyS5pL0hkBNHWmIRuiVmKFJd+gJGHZ6Za0G/O91bmw5R6TB
-         Hn6dGyy6zJ76TZOcvfzWJ/3x+kcF43IgpGFCCVrJI7LZneZuaWvgCS4EJjgCpeSIhYcA
-         CJjg==
-X-Google-Smtp-Source: APXvYqzmJ7dvx65HjZAxLlw7ltFKPcvUh2AmbHzeB3QMbmXSc2V8s1/umdgGWpPJmU3/OFGevH9fwA==
-X-Received: by 2002:a63:e002:: with SMTP id e2mr5015037pgh.300.1553043232442;
-        Tue, 19 Mar 2019 17:53:52 -0700 (PDT)
-Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
-        by smtp.gmail.com with ESMTPSA id i126sm316612pfc.101.2019.03.19.17.53.51
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 19 Mar 2019 17:53:51 -0700 (PDT)
-Date: Tue, 19 Mar 2019 17:53:51 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-X-X-Sender: rientjes@chino.kir.corp.google.com
-To: Christopher Lameter <cl@linux.com>
-cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, 
-    Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, 
-    Ming Lei <ming.lei@redhat.com>, Dave Chinner <david@fromorbit.com>, 
-    Matthew Wilcox <willy@infradead.org>, 
-    "Darrick J . Wong" <darrick.wong@oracle.com>, 
-    Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@kernel.org>, 
-    linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, 
-    linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org
-Subject: Re: [RFC 0/2] guarantee natural alignment for kmalloc()
-In-Reply-To: <01000169988d4e34-b4178f68-c390-472b-b62f-a57a4f459a76-000000@email.amazonses.com>
-Message-ID: <alpine.DEB.2.21.1903191751560.18028@chino.kir.corp.google.com>
-References: <20190319211108.15495-1-vbabka@suse.cz> <01000169988d4e34-b4178f68-c390-472b-b62f-a57a4f459a76-000000@email.amazonses.com>
+       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=YjBUampI;
+       spf=pass (google.com: domain of 01000169989db656-8868a4b2-a8eb-4666-872f-2ed9885c99e6-000000@amazonses.com designates 54.240.9.92 as permitted sender) smtp.mailfrom=01000169989db656-8868a4b2-a8eb-4666-872f-2ed9885c99e6-000000@amazonses.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1553043666;
+	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
+	bh=Qm0r/S4Ne4XTZAHDLismxE9m3x/wdarSZ1AUHvBMnnQ=;
+	b=YjBUampIgq93H7NdpjoHwlbka+MNSa7HfbivjdfJz2BjHertUJNb19GG8bNMjG+N
+	iF35ywDLZrnkqgecUxB12DQFn/81gops112YhDaaLzDBYIwTlS8+I+gs1fhkLMhugh0
+	f8t9ZHIseriw4WNyToiVQfCpkHirywg0aSE2ezwA=
+Date: Wed, 20 Mar 2019 01:01:06 +0000
+From: Christopher Lameter <cl@linux.com>
+X-X-Sender: cl@nuc-kabylake
+To: Dave Chinner <david@fromorbit.com>
+cc: Jerome Glisse <jglisse@redhat.com>, 
+    "Kirill A. Shutemov" <kirill@shutemov.name>, john.hubbard@gmail.com, 
+    Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, 
+    Al Viro <viro@zeniv.linux.org.uk>, Christian Benvenuti <benve@cisco.com>, 
+    Christoph Hellwig <hch@infradead.org>, 
+    Dan Williams <dan.j.williams@intel.com>, 
+    Dennis Dalessandro <dennis.dalessandro@intel.com>, 
+    Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>, 
+    Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>, 
+    Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, 
+    Mike Rapoport <rppt@linux.ibm.com>, 
+    Mike Marciniszyn <mike.marciniszyn@intel.com>, 
+    Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>, 
+    LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, 
+    John Hubbard <jhubbard@nvidia.com>, Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH v4 1/1] mm: introduce put_user_page*(), placeholder
+ versions
+In-Reply-To: <20190319235752.GB26298@dastard>
+Message-ID: <01000169989db656-8868a4b2-a8eb-4666-872f-2ed9885c99e6-000000@email.amazonses.com>
+References: <20190308213633.28978-1-jhubbard@nvidia.com> <20190308213633.28978-2-jhubbard@nvidia.com> <20190319120417.yzormwjhaeuu7jpp@kshutemo-mobl1> <20190319134724.GB3437@redhat.com> <20190319141416.GA3879@redhat.com> <20190319212346.GA26298@dastard>
+ <20190319220654.GC3096@redhat.com> <20190319235752.GB26298@dastard>
 User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
+X-SES-Outgoing: 2019.03.20-54.240.9.92
+Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 20 Mar 2019, Christopher Lameter wrote:
+On Wed, 20 Mar 2019, Dave Chinner wrote:
 
-> > The recent thread [1] inspired me to look into guaranteeing alignment for
-> > kmalloc() for power-of-two sizes. Turns out it's not difficult and in most
-> > configuration nothing really changes as it happens implicitly. More details in
-> > the first patch. If we agree we want to do this, I will see where to update
-> > documentation and perhaps if there are any workarounds in the tree that can be
-> > converted to plain kmalloc() afterwards.
-> 
-> This means that the alignments are no longer uniform for all kmalloc
-> caches and we get back to code making all sorts of assumptions about
-> kmalloc alignments.
-> 
-> Currently all kmalloc objects are aligned to KMALLOC_MIN_ALIGN. That will
-> no longer be the case and alignments will become inconsistent.
-> 
-> I think its valuable that alignment requirements need to be explicitly
-> requested.
-> 
-> Lets add an array of power of two aligned kmalloc caches if that is really
-> necessary. Add some GFP_XXX flag to kmalloc to make it ^2 aligned maybe?
-> 
+> So the plan for GUP vs writeback so far is "break fsync()"? :)
 
-No objection, but I think the GFP flags should remain what they are for: 
-to Get Free Pages.  If we are to add additional flags to specify 
-characteristics of slab objects, can we add a kmalloc_flags() variant that 
-will take a new set of flags?  SLAB_OBJ_ALIGN_POW2?
+Well if its an anonymous page and not a file backed page then the
+semantics are preserved. Disallow GUP long term pinning (marking stuff like in this
+patchset may make that possible) and its clean.
 
