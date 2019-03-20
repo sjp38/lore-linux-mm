@@ -2,123 +2,119 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=FROM_LOCAL_HEX,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0D8F1C10F03
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 00:44:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A4BFC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 00:49:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B6C44217F9
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 00:44:27 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="PlP4+RjH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B6C44217F9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	by mail.kernel.org (Postfix) with ESMTP id 3660A20835
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 00:49:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3660A20835
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6F2E76B0003; Tue, 19 Mar 2019 20:44:27 -0400 (EDT)
+	id B5AB56B0003; Tue, 19 Mar 2019 20:49:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6A2E66B0006; Tue, 19 Mar 2019 20:44:27 -0400 (EDT)
+	id B0B906B0006; Tue, 19 Mar 2019 20:49:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5B7BC6B0007; Tue, 19 Mar 2019 20:44:27 -0400 (EDT)
+	id A48506B0007; Tue, 19 Mar 2019 20:49:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C6506B0003
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 20:44:27 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id s87so15299836qks.23
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 17:44:27 -0700 (PDT)
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D5BD6B0003
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 20:49:01 -0400 (EDT)
+Received: by mail-it1-f197.google.com with SMTP id r136so704622ith.3
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 17:49:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=l7GGzMPK2ZJjVEBw3exJiICCgYRKwnNAiKS5bg6nqGs=;
-        b=gWj+7S6N9KiTVG7mGFTbMHqYBEvqX06euJrON9Hds2xg0LqdC+xWJFePNnkKLt6oG9
-         E/xDXpK7HDodxdC83iSsweLqE3n3VgZZ4vtpACMUsVyDa1KBa4HJ2TjhlKCYYerS1oBd
-         hwTDi/Cto4zEOrK8Obg5+ug9kqscqY4y+SvfC2Qje/ksBF52AgMlrK3U9aLSziohLNgW
-         UCmmJmxDd5HJ+ZZUDIdskC2qc+jIcVEZBwm+5GAR087UCy2vvvr2Pr33dEU7nBQmv/jA
-         wJlFAdvHMvFbs6fpD5GzrSpzwAZwCa9Vz5UlXlMmmyWShBoMhvTn0VbmoRqKhDjZIs8g
-         F9jA==
-X-Gm-Message-State: APjAAAWtBAAPcZobGQJzcTG64owACDcLt73y0AK8VsEe0Zq5KF0AMXjl
-	N4eL5zaqgnwF09FxFeacxhbi42/nLZt9jQ4OSEVTGs2M1uWn64wtYK0wQH1EreLDAK0pwn9Qr7Q
-	GK3SUwQnVLzNbRLAp/LctsaGgSJcBoDU9jgrxH0zhQWwvMVJiEpgmqpAjcHovEVM=
-X-Received: by 2002:a37:6812:: with SMTP id d18mr4434809qkc.28.1553042667015;
-        Tue, 19 Mar 2019 17:44:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwLVv9K8NY1NpceIZqx2+SuYWdwohFGg+H9o/uOthPID02mmXffuLhFprhuY4W6o/rYnUMK
-X-Received: by 2002:a37:6812:: with SMTP id d18mr4434779qkc.28.1553042666390;
-        Tue, 19 Mar 2019 17:44:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553042666; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :date:in-reply-to:message-id:subject:from:to;
+        bh=34TooLQdVcI8lagfhQc4CIT5WCnP1wTTjoUvFK/95jI=;
+        b=VFkXWxBREwOxwwVX979tP80yf5aPrZEBRVM1XUwfYpCf/48iFvLDzejx/26ZveGvtZ
+         QxmmNEh8QCG2Q5tw5dczsT+7buG7rvZJRorhYqIxb47M4sku0zOSy/yJSLLidv/KuirL
+         Ai1oe7ScADBGSa2bdB7JEDNdFZu/nHdr7q5PrzeYpNolsDwh8+reAWp5voGjJwXrsQNK
+         0viW/SmlRYd27yNoNX3n2tFoaZYwe8vHbgAx4vK0KCE1vWbPDqmwQc/s64CoOMF1ahxD
+         jO/WSTMU7dZTDkzaSc0Iqxf2AtncEkzVO1wUkgsqXaZ647QPAu16Hqdw7QNKb6sDItzM
+         rHRA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3_i2rxakbaek39avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3_I2RXAkbAEk39Avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Gm-Message-State: APjAAAWK35g/Uctm2u+ZaVYhjkPFa2suXkZo93NqZ79ic6eRNDUweDCi
+	RFaV3wQ8NUBEmcyf+Tf8rkvqIzLruLh5PY444GvPO90p/NEL7MvAJLlkNRKrK27EU/HN1ZDDa/S
+	Lc9mVdgAUsnvkOG8mSYTSSYu4ZJ0sac4/mN+EX6PzkZQo8uvjB87/GFdlfwDsRGI=
+X-Received: by 2002:a24:1153:: with SMTP id 80mr3177359itf.69.1553042941282;
+        Tue, 19 Mar 2019 17:49:01 -0700 (PDT)
+X-Received: by 2002:a24:1153:: with SMTP id 80mr3177341itf.69.1553042940603;
+        Tue, 19 Mar 2019 17:49:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553042940; cv=none;
         d=google.com; s=arc-20160816;
-        b=qgBwoJrd8K2YHRU4AgVuHsOHEsLxX1NdL2mdNImNGDuCXDjbPFOJrk7drkT4hhMcc1
-         9ztTsH272LhGLMfj4J/agYbfyFesnU46NF3/4KgleNYoun0d00HSBbHeMx9D9XYuLuLb
-         fTgRQ6+svqd01KP9PqoIxap21S7ZVYrRqOzYxG4aC6GMXiW6oV8BFa3qdRzqBggBcLuU
-         3a2iy1f/TrIL6DAUl9GuCUDsNlyXro8nD/TBIn8lGkogf0G372FFLRrZtiF3tOtxpUR7
-         nfEEnki0+8/NUl/dg4TpiIdi/CoKDb1HA1OgNSXYFK7pgTP8SWwAR7t5QNhcnSvJ5k54
-         Qosw==
+        b=Tl4WXrKoPcoSMjBldeNwDj31LKhpC0qOCyxe3gqNbkYrCeuRnSe6amLE6H8Bbc/WBK
+         +LT32w7++xCrUofJkN1Af/T8uyqDaPMOqegoodD1B0pb734mb9VusTeSjvfdzE6oC1Vk
+         kIzS728ZFq5+dgK0qw3zUcQuZ2C6H7JpxMHKwtQuxqbjb1FcIBIpZ95IEEi7wv/Jz4SR
+         TpdBLEc7oEZoUxoZDRc5Zqu1Ef+MIJ/KkSLDzJGEqCTihT247eSsdQde1TYWB6qTOEvW
+         XqFHNgV9FpEJdvMat83dSiHw7Z4zK9oP3MoU4TKmJhvhZ/fP+s/EdSZbU4CurvcyT0Jd
+         VI7A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=l7GGzMPK2ZJjVEBw3exJiICCgYRKwnNAiKS5bg6nqGs=;
-        b=vKO9OLbh0niC3mra6N8K7dr8MJvSRshYetSAE8P1+fFqvPxAgWQPrSDoyrJYwA33rs
-         X+Y4mfWRNM9DiuEnRHHs3HxwvIghCf7Ok37LuqOtHLwrE2bf+pXgxoo0mL2UKDWRi+GC
-         cvTMTWaPe8V5reJQwZ+eI0YfCm3syxSBidvXroF5omZCYQTGe1WQDpsuz5rcCuSwnW8B
-         N3Vij9rewMU+k7pwLpNKfPGgjgbr2inOcCXPpbDGZKQkl4r0f/yd07cVBCJNUVUamJ0C
-         qTfpTcPC6Ru5Qw3SuQjYsIslpBWzgZGyU3RordQwp/czidhBpfwlNz7k8CCbFb6nBSBa
-         SGjw==
+        h=to:from:subject:message-id:in-reply-to:date:mime-version;
+        bh=34TooLQdVcI8lagfhQc4CIT5WCnP1wTTjoUvFK/95jI=;
+        b=r8NA7ys3fLSe6NyoCMWK974n5moaCjfEiIOSSiV84S92F0px1lfdXGHKTo+JSkA/p4
+         OzEoxrtKB634o7GB2T5h0yCc45mklgKo8KdwbXOCaG6PAZ0fGF+1g5wHEE31t41X2I7M
+         V18wUpwWxwrVPEvrxKp+U6B/ayFmLGEdnn4tCTW0hTbvb3jQWWUnKJjdoezZ5VfkD89R
+         wmWE8wn4Lf6DVxs+ViAX8xjfL3binIU2VXqY2HB9pewk1qKjcqTh7CjCxNlPuxYGZnWC
+         T5faNZNV856SgqYEy2dPZq9hy0owgWDJBk065lBrr0GfdfLldZMMPBR4rl5Rm3wkgiBv
+         36ug==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=PlP4+RjH;
-       spf=pass (google.com: domain of 01000169988e707d-e6a091d6-b04f-4774-89b0-61f985885ac8-000000@amazonses.com designates 54.240.9.46 as permitted sender) smtp.mailfrom=01000169988e707d-e6a091d6-b04f-4774-89b0-61f985885ac8-000000@amazonses.com
-Received: from a9-46.smtp-out.amazonses.com (a9-46.smtp-out.amazonses.com. [54.240.9.46])
-        by mx.google.com with ESMTPS id y143si250611qka.178.2019.03.19.17.44.26
+       spf=pass (google.com: domain of 3_i2rxakbaek39avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3_I2RXAkbAEk39Avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id a17sor796457itk.9.2019.03.19.17.49.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 19 Mar 2019 17:44:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 01000169988e707d-e6a091d6-b04f-4774-89b0-61f985885ac8-000000@amazonses.com designates 54.240.9.46 as permitted sender) client-ip=54.240.9.46;
+        (Google Transport Security);
+        Tue, 19 Mar 2019 17:49:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3_i2rxakbaek39avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=PlP4+RjH;
-       spf=pass (google.com: domain of 01000169988e707d-e6a091d6-b04f-4774-89b0-61f985885ac8-000000@amazonses.com designates 54.240.9.46 as permitted sender) smtp.mailfrom=01000169988e707d-e6a091d6-b04f-4774-89b0-61f985885ac8-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1553042665;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=l7GGzMPK2ZJjVEBw3exJiICCgYRKwnNAiKS5bg6nqGs=;
-	b=PlP4+RjHhS99d2viVKcqtgP13+3ae9Tceh7+ncOi1pmU/SV90eao0W6UVO4C/ysv
-	bNKfYHD0TzHglvVEcijO11H/eX6miTYFt0JcCQdbZNOfnu9WN5xAD9dT4X/tJTX14dv
-	btQifloIUFWP1UlOx8StJAo3W4BZdudfSoVgoHeA=
-Date: Wed, 20 Mar 2019 00:44:25 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
-To: Vlastimil Babka <vbabka@suse.cz>
-cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, 
-    David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, 
-    Ming Lei <ming.lei@redhat.com>, Dave Chinner <david@fromorbit.com>, 
-    Matthew Wilcox <willy@infradead.org>, 
-    "Darrick J . Wong" <darrick.wong@oracle.com>, 
-    Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@kernel.org>, 
-    linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, 
-    linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org
-Subject: Re: [RFC 2/2] mm, sl[aou]b: test whether kmalloc() alignment works
- as expected
-In-Reply-To: <20190319211108.15495-3-vbabka@suse.cz>
-Message-ID: <01000169988e707d-e6a091d6-b04f-4774-89b0-61f985885ac8-000000@email.amazonses.com>
-References: <20190319211108.15495-1-vbabka@suse.cz> <20190319211108.15495-3-vbabka@suse.cz>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       spf=pass (google.com: domain of 3_i2rxakbaek39avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3_I2RXAkbAEk39Avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Google-Smtp-Source: APXvYqx7zS+H4Jedbpdn1TRb3cKYCoifugmmZXSC2gmMDFAPET4Z0ljW/5N29EtJlpPvU8a6P85Fgix8M3QmQ/HQEE8qv2MLrnXP
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.03.20-54.240.9.46
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+X-Received: by 2002:a24:220a:: with SMTP id o10mr3308113ito.22.1553042940333;
+ Tue, 19 Mar 2019 17:49:00 -0700 (PDT)
+Date: Tue, 19 Mar 2019 17:49:00 -0700
+In-Reply-To: <000000000000f7cb53057b7ee3cb@google.com>
+X-Google-Appengine-App-Id: s~syzkaller
+X-Google-Appengine-App-Id-Alias: syzkaller
+Message-ID: <000000000000c7bd5c05847bfcab@google.com>
+Subject: Re: WARNING: bad usercopy in corrupted (2)
+From: syzbot <syzbot+d89b30c46434c433dbf8@syzkaller.appspotmail.com>
+To: crecklin@redhat.com, davem@davemloft.net, dvyukov@google.com, 
+	keescook@chromium.org, kuznet@ms2.inr.ac.ru, linux-kernel@vger.kernel.org, 
+	linux-mm@kvack.org, linux-net@vger.kernel.org, netdev@vger.kernel.org, 
+	sbrivio@redhat.com, sd@queasysnail.net, syzkaller-bugs@googlegroups.com, 
+	willy@infradead.org, yoshfuji@linux-ipv6.org
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.004660, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 19 Mar 2019, Vlastimil Babka wrote:
+syzbot has bisected this bug to:
 
-> Quick and dirty init test that kmalloc() alignment works as expected for
-> power-of-two sizes after the previous patch.
+commit b8a51b38e4d4dec3e379d52c0fe1a66827f7cf1e
+Author: Stefano Brivio <sbrivio@redhat.com>
+Date:   Thu Nov 8 11:19:23 2018 +0000
 
-There is already an allocator testing function in mm/slub.c. Can you
-generalize it or portions and put the into mm/slab_common.c?
+     fou, fou6: ICMP error handlers for FoU and GUE
+
+bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=14a57f83200000
+start commit:   b8a51b38 fou, fou6: ICMP error handlers for FoU and GUE
+git tree:       net-next
+console output: https://syzkaller.appspot.com/x/log.txt?x=12a57f83200000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=c36a72af2123e78a
+dashboard link: https://syzkaller.appspot.com/bug?extid=d89b30c46434c433dbf8
+syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=170f6a47400000
+C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=12e1df7b400000
+
+Reported-by: syzbot+d89b30c46434c433dbf8@syzkaller.appspotmail.com
+Fixes: b8a51b38 ("fou, fou6: ICMP error handlers for FoU and GUE")
 
