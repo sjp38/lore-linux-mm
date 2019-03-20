@@ -2,483 +2,299 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5E68AC10F03
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 02:10:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4FE86C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 02:43:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0D5562184E
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 02:10:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D5562184E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id E90B4217F4
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 02:43:07 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Ha7+7dfB"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E90B4217F4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B1AE46B0288; Tue, 19 Mar 2019 22:10:48 -0400 (EDT)
+	id 7CC756B0272; Tue, 19 Mar 2019 22:43:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AA3B06B028A; Tue, 19 Mar 2019 22:10:48 -0400 (EDT)
+	id 77C726B0274; Tue, 19 Mar 2019 22:43:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 91CD46B028B; Tue, 19 Mar 2019 22:10:48 -0400 (EDT)
+	id 66BD16B0275; Tue, 19 Mar 2019 22:43:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A6676B0288
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 22:10:48 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id x12so934124qtk.2
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 19:10:48 -0700 (PDT)
+Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B6816B0272
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 22:43:07 -0400 (EDT)
+Received: by mail-vk1-f199.google.com with SMTP id s143so451822vke.7
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 19:43:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=MIozerEVlbsC7Eks2DH/IrUUfmnGE+cAmIg6z0gEZVg=;
-        b=c8nuffO/+XOyaQZ3yws3sI1qVfKMFL9hg3kbTNWToibGbuKoVENgvHzCwbgNUSGKIM
-         AKrzrezBEmvPslIKt+qf2jN4QgnBFmxCVVzKCS6bc8PYd5Aw6TYLSHA2O1NQrtw3NAn+
-         msi1MPITPhKHByur3ePuSykm4IQDez6/Zo9MVLuU1dpvxp909e+abadO5nk6vmlvnpKy
-         ccMKD4DzHDv1WBPEYfKS5DEEZdgpFK9FPh3eMKFaEY7naBt42zFmpdUp6baWwWsLfpTZ
-         6IMkSQ4wY5Aqhrwr9c98xLk74cKu/NOWa2POC60VpEu8wvQKRea3A/TXg1m3QoqiQZbq
-         ZpGg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWj3yYGzS5gMVYy+WKPosP2+AwSoG2ojp6rZYrot9efmWCn24I2
-	ScQ1JU3Y4EagcKsIMAhBd3v9olNs7D2F3glyO2LavlZyFZ8U73VoSsK1/uc8X7wq5S/RRxtNT+c
-	gZKaFG23H5puxcXTYEsJ/U8ZAvEVUOWWt2ZLLFWQcLEX2hW6ZC/dQi2cyhjalgfTccg==
-X-Received: by 2002:a0c:87d9:: with SMTP id 25mr4444458qvk.219.1553047848182;
-        Tue, 19 Mar 2019 19:10:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwaDN986vv6NeXmB++csbovv1THwb25UIaeRtX7bfplTmQod5bO1biYUXQOJZzbK9HBoBe3
-X-Received: by 2002:a0c:87d9:: with SMTP id 25mr4444415qvk.219.1553047847093;
-        Tue, 19 Mar 2019 19:10:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553047847; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=/GdIaxrDbIreBUUmi7IU7TIF4PHYyYqZ/fe4ms0j5RA=;
+        b=Uij9RuLd1ezx6WoS7PSRSPrw53Tt711OoHvs4GqynsM5E9EfEG+ojeaKMZ+b9KTgTa
+         LntQN8FVq7rLU5fzIK3IaKX+AkpxAM6FzBnhz9HzKw0JmxnhkPtkPh8pGQ4UzKjOvL/O
+         mUsUEsxhG0qEfn0juKdeIJQXkA5gWFHyMw4H83dROehCtpcY1Ntk4VzranG40mPKi0uI
+         MoXaO3IfQsRDlPi5oWe+gURy7aLt8s6Chov5xwXxHqreZ6ueY8ryhMA0AonzStP0CgcP
+         eukCfxjOy9mgCDcMaKu71JUGzChSet+PLxHDsVrS/r5qU5MmsGIiYq7YCKAbEGEMxAE0
+         llsw==
+X-Gm-Message-State: APjAAAX6SCsoRp41+GSmwcGrLb+seKOESI6ODgbJuq+Aa61RPMO9+ykH
+	LYln9MYJ4jRlegqH76t5HJLTCD95mu4Ldq/Wv5xJkzLvIYMebdyC+yGslHu66oAM5jFGimHmGxD
+	8/93S6DSRYeLMBvrBghaihYr8wMQSjlnSUCvVWFLAMGCGsxRBGYJm/OYyPbYxCw7UqA==
+X-Received: by 2002:a67:ecc7:: with SMTP id i7mr3554918vsp.182.1553049786784;
+        Tue, 19 Mar 2019 19:43:06 -0700 (PDT)
+X-Received: by 2002:a67:ecc7:: with SMTP id i7mr3554874vsp.182.1553049785392;
+        Tue, 19 Mar 2019 19:43:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553049785; cv=none;
         d=google.com; s=arc-20160816;
-        b=txn0WP0lPsFoWEDrrWhN90Wz985TtO3VRbMDHmQnduguW3tRlKOPGi207OC+Q+NK1k
-         hcUY5WHCYtULanxViC2Pu4ydQr8vnZqmLyH6oqVrGWz2GaMRPjGT+w1I67pOZkK78Snw
-         ng/lsDJ6y8ikwYIHDTeVNeEF3jbta22wnn1r3ksxSHNbXDT1DuhT7vlnumFBuaw3CAaC
-         UcEbpjKeXM82LwqTj8dSYQEyviPqV1rg6PIdbzpnx4AhQS6Y7+9Ul+spoN5jEwZE+GCW
-         OZD9P5usJq5aupxzpidP+TYDLeMsRGkGvCXZywbAirzXWazFfMSRBQk/oGE3uOlCuIKT
-         0Amw==
+        b=bdMs8gaDFnHL5Uaooa0A336ugpJRGT5fIXDgZ+5UbZek1ykX3Ne3ho1ORj1RgnUGeO
+         sFUXwz2L4SFQ7xq9bbQ6uyBGcgwekn4K7Qujw38bWMqNAoBIiSqVouLJ957NlWx0xmff
+         710LRRooSYJ5agJGAfJb2V/HGnxea51MKRI1j/KZpbz6C/q9qA3ZB6J59NAZ6VJcKdvt
+         QXKBT/B6x6jLoNObzBDFD8fhQHv2ZHojkj7JvdEfS91wmrTKm8H20+Zq82UEXrkvMeh3
+         Jn6grNnOo5V57VdlWspk6ZLj3Jd7Ec+JrdrKZXq8YPXRqpvOHdDdunOHMH3CEpq3QZvv
+         emKw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=MIozerEVlbsC7Eks2DH/IrUUfmnGE+cAmIg6z0gEZVg=;
-        b=cpVoT7C6UHeL4ztC/wQV/zh/KWyKOGg8ak0FC5d+sRtc5dUEjzkCfuiJs8UtO5FcOn
-         cxN/wvIzxnPmdb/MY9tWKWXp99wTI0+CqtnQrD9VG9XuFcb0hEBhhYq8PTPSIBLxuDDK
-         r4dThXQMAvs1neYmM0yFeO/0wZnSYE89HuYX4VRfr9pc6xCznzpJ+mzoJPVFvHZHvcVF
-         VWNhu2iRxRefdFcdftxllCDTeibyjS2ubovI4niZFCk2wJQNu4V+ce3KP7xSmhFQoJZT
-         nMrdm6cIPFK2m6coLZWlgqYhAsbmyp/k8SUzCPA/bQzQfY3Tf6NyHKgXOS7m5ZHscAbc
-         8OcQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=/GdIaxrDbIreBUUmi7IU7TIF4PHYyYqZ/fe4ms0j5RA=;
+        b=yOSwlbwAsu7CcoROeJ2nQedn5f9JPy4A0gyjgwOXVZtAu6yuvX/AjXYsBBRdmQXrsE
+         b/ZCXNr7iPJhGlM9cbB7PPV3AiLoQiEFMDstbN2LvedVweHO0vW9424qph9ATq/c1SJO
+         kMMx/jUdrmuXVD3zLKY2JSedJszZDv9pCXGja7w5YFV+cbqK/07sOsjw29g2J/30LNhP
+         SDbtI3/GgklEMEEa4wZmW6fE4ibF3e6VJ310w3t8k3M7h8Yy1LiWZrQ7p/F3PKnxx6fR
+         p1TsrTLUYQyweMSky8ASkJR/y+wDIYegeOhyosulrwKd8ITUk9xjIhqPo9RwtHTK93Qz
+         +iBA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l24si345455qkg.256.2019.03.19.19.10.46
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Ha7+7dfB;
+       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i10sor569529vsf.36.2019.03.19.19.43.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Mar 2019 19:10:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Tue, 19 Mar 2019 19:43:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 2880FC1306F8;
-	Wed, 20 Mar 2019 02:10:46 +0000 (UTC)
-Received: from xz-x1.nay.redhat.com (dhcp-14-116.nay.redhat.com [10.66.14.116])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 32D1F60634;
-	Wed, 20 Mar 2019 02:10:39 +0000 (UTC)
-From: Peter Xu <peterx@redhat.com>
-To: linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Cc: David Hildenbrand <david@redhat.com>,
-	Hugh Dickins <hughd@google.com>,
-	Maya Gokhale <gokhale2@llnl.gov>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Pavel Emelyanov <xemul@virtuozzo.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	peterx@redhat.com,
-	Martin Cracauer <cracauer@cons.org>,
-	Shaohua Li <shli@fb.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Denis Plotnikov <dplotnikov@virtuozzo.com>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Marty McFadden <mcfadden8@llnl.gov>,
-	Mel Gorman <mgorman@suse.de>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: [PATCH v3 28/28] userfaultfd: selftests: add write-protect test
-Date: Wed, 20 Mar 2019 10:06:42 +0800
-Message-Id: <20190320020642.4000-29-peterx@redhat.com>
-In-Reply-To: <20190320020642.4000-1-peterx@redhat.com>
-References: <20190320020642.4000-1-peterx@redhat.com>
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Wed, 20 Mar 2019 02:10:46 +0000 (UTC)
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Ha7+7dfB;
+       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=/GdIaxrDbIreBUUmi7IU7TIF4PHYyYqZ/fe4ms0j5RA=;
+        b=Ha7+7dfBDVj7lKo/5Cr6U2tQeL9pTHppyYpO4eBhiv0OhFCMOtfv54j2zlBiwWmBy+
+         HSHtqHGHQ6rXemvE4t5dmV8D8z+4LJmxv6qGt9fNBmyrl7h8zjewQk8fDbngmjhyREM0
+         ZMdWeKm4f3vebH/T0+yNHSCWLmqtIyMCtpw9DUqqaMcg6oDsm/4mtrtldS8VDd+JtbsG
+         2RaQcgqY5mgQdbk731bme86k6lOr9BPviOng1CR8g6nPo0BuxGX1cdsGVyTrwhexeX5P
+         Jjx0ovcpWmtswmV7E+Uzzyq4CCDVugU4gBsP0SGg6dVbQnU5e3q7U0xuDBapiEsEynOo
+         Ct2A==
+X-Google-Smtp-Source: APXvYqzyld3p7SL6ZsmbvkXdsMSkQXC12CwuoYbEKaoviwLywlutcW7KVldzJ4mcqT9gc+GBItRcysZ7W5JFnnME5GI=
+X-Received: by 2002:a67:fa8c:: with SMTP id f12mr3425725vsq.171.1553049784600;
+ Tue, 19 Mar 2019 19:43:04 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190316185726.jc53aqq5ph65ojpk@brauner.io> <CAJuCfpF-uYpUZ1RO99i2qEw5Ou4nSimSkiQvnNQ_rv8ogHKRfw@mail.gmail.com>
+ <20190317015306.GA167393@google.com> <20190317114238.ab6tvvovpkpozld5@brauner.io>
+ <CAKOZuetZPhqQqSgZpyY0cLgy0jroLJRx-B93rkQzcOByL8ih_Q@mail.gmail.com>
+ <20190318002949.mqknisgt7cmjmt7n@brauner.io> <20190318235052.GA65315@google.com>
+ <20190319221415.baov7x6zoz7hvsno@brauner.io> <CAKOZuessqcjrZ4rfGLgrnOhrLnsVYiVJzOj4Aa=o3ZuZ013d0g@mail.gmail.com>
+ <20190319231020.tdcttojlbmx57gke@brauner.io> <20190320015249.GC129907@google.com>
+In-Reply-To: <20190320015249.GC129907@google.com>
+From: Daniel Colascione <dancol@google.com>
+Date: Tue, 19 Mar 2019 19:42:52 -0700
+Message-ID: <CAKOZuetJzg_EiyuK7Pa13X3LKuBbreg7zJ5g4uQv_uV4wpmZjg@mail.gmail.com>
+Subject: pidfd design
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: Christian Brauner <christian@brauner.io>, Suren Baghdasaryan <surenb@google.com>, 
+	Steven Rostedt <rostedt@goodmis.org>, Sultan Alsawaf <sultan@kerneltoast.com>, 
+	Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, =?UTF-8?B?QXJ2ZSBIasO4bm5ldsOlZw==?= <arve@android.com>, 
+	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>, Ingo Molnar <mingo@redhat.com>, 
+	Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, 
+	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>, linux-mm <linux-mm@kvack.org>, 
+	kernel-team <kernel-team@android.com>, Oleg Nesterov <oleg@redhat.com>, 
+	Andy Lutomirski <luto@amacapital.net>, "Serge E. Hallyn" <serge@hallyn.com>, 
+	Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch adds uffd tests for write protection.
+On Tue, Mar 19, 2019 at 6:52 PM Joel Fernandes <joel@joelfernandes.org> wrote:
+>
+> On Wed, Mar 20, 2019 at 12:10:23AM +0100, Christian Brauner wrote:
+> > On Tue, Mar 19, 2019 at 03:48:32PM -0700, Daniel Colascione wrote:
+> > > On Tue, Mar 19, 2019 at 3:14 PM Christian Brauner <christian@brauner.io> wrote:
+> > > > So I dislike the idea of allocating new inodes from the procfs super
+> > > > block. I would like to avoid pinning the whole pidfd concept exclusively
+> > > > to proc. The idea is that the pidfd API will be useable through procfs
+> > > > via open("/proc/<pid>") because that is what users expect and really
+> > > > wanted to have for a long time. So it makes sense to have this working.
+> > > > But it should really be useable without it. That's why translate_pid()
+> > > > and pidfd_clone() are on the table.  What I'm saying is, once the pidfd
+> > > > api is "complete" you should be able to set CONFIG_PROCFS=N - even
+> > > > though that's crazy - and still be able to use pidfds. This is also a
+> > > > point akpm asked about when I did the pidfd_send_signal work.
+> > >
+> > > I agree that you shouldn't need CONFIG_PROCFS=Y to use pidfds. One
+> > > crazy idea that I was discussing with Joel the other day is to just
+> > > make CONFIG_PROCFS=Y mandatory and provide a new get_procfs_root()
+> > > system call that returned, out of thin air and independent of the
+> > > mount table, a procfs root directory file descriptor for the caller's
+> > > PID namspace and suitable for use with openat(2).
+> >
+> > Even if this works I'm pretty sure that Al and a lot of others will not
+> > be happy about this. A syscall to get an fd to /proc?
 
-Instead of introducing new tests for it, let's simply squashing uffd-wp
-tests into existing uffd-missing test cases.  Changes are:
+Why not? procfs provides access to a lot of core kernel functionality.
+Why should you need a mountpoint to get to it?
 
-(1) Bouncing tests
+> That's not going
+> > to happen and I don't see the need for a separate syscall just for that.
 
-  We do the write-protection in two ways during the bouncing test:
+We need a system call for the same reason we need a getrandom(2): you
+have to bootstrap somehow when you're in a minimal environment.
 
-  - By using UFFDIO_COPY_MODE_WP when resolving MISSING pages: then
-    we'll make sure for each bounce process every single page will be
-    at least fault twice: once for MISSING, once for WP.
+> > (I do see the point of making CONFIG_PROCFS=y the default btw.)
 
-  - By direct call UFFDIO_WRITEPROTECT on existing faulted memories:
-    To further torture the explicit page protection procedures of
-    uffd-wp, we split each bounce procedure into two halves (in the
-    background thread): the first half will be MISSING+WP for each
-    page as explained above.  After the first half, we write protect
-    the faulted region in the background thread to make sure at least
-    half of the pages will be write protected again which is the first
-    half to test the new UFFDIO_WRITEPROTECT call.  Then we continue
-    with the 2nd half, which will contain both MISSING and WP faulting
-    tests for the 2nd half and WP-only faults from the 1st half.
+I'm not proposing that we make CONFIG_PROCFS=y the default. I'm
+proposing that we *hardwire* it as the default and just declare that
+it's not possible to build a Linux kernel that doesn't include procfs.
+Why do we even have that button?
 
-(2) Event/Signal test
+> I think his point here was that he wanted a handle to procfs no matter where
+> it was mounted and then can later use openat on that. Agreed that it may be
+> unnecessary unless there is a usecase for it, and especially if the /proc
+> directory being the defacto mountpoint for procfs is a universal convention.
 
-  Mostly previous tests but will do MISSING+WP for each page.  For
-  sigbus-mode test we'll need to provide standalone path to handle the
-  write protection faults.
+If it's a universal convention and, in practice, everyone needs proc
+mounted anyway, so what's the harm in hardwiring CONFIG_PROCFS=y? If
+we advertise /proc as not merely some kind of optional debug interface
+but *the* way certain kernel features are exposed --- and there's
+nothing wrong with that --- then we should give programs access to
+these core kernel features in a way that doesn't depend on userspace
+kernel configuration, and you do that by either providing a
+procfs-root-getting system call or just hardwiring the "/proc/" prefix
+into VFS.
 
-For all tests, do statistics as well for uffd-wp pages.
+> > Inode allocation from the procfs mount for the file descriptors Joel
+> > wants is not correct. Their not really procfs file descriptors so this
+> > is a nack. We can't just hook into proc that way.
+>
+> I was not particular about using procfs mount for the FDs but that's the only
+> way I knew how to do it until you pointed out anon_inode (my grep skills
+> missed that), so thank you!
+>
+> > > C'mon: /proc is used by everyone today and almost every program breaks
+> > > if it's not around. The string "/proc" is already de facto kernel ABI.
+> > > Let's just drop the pretense of /proc being optional and bake it into
+> > > the kernel proper, then give programs a way to get to /proc that isn't
+> > > tied to any particular mount configuration. This way, we don't need a
+> > > translate_pid(), since callers can just use procfs to do the same
+> > > thing. (That is, if I understand correctly what translate_pid does.)
+> >
+> > I'm not sure what you think translate_pid() is doing since you're not
+> > saying what you think it does.
+> > Examples from the old patchset:
+> > translate_pid(pid, ns, -1)      - get pid in our pid namespace
 
-Signed-off-by: Peter Xu <peterx@redhat.com>
----
- tools/testing/selftests/vm/userfaultfd.c | 157 +++++++++++++++++++----
- 1 file changed, 133 insertions(+), 24 deletions(-)
+Ah, it's a bit different from what I had in mind. It's fair to want to
+translate PIDs between namespaces, but the only way to make the
+translate_pid under discussion robust is to have it accept and produce
+pidfds. (At that point, you might as well call it translate_pidfd.) We
+should not be adding new APIs to the kernel that accept numeric PIDs:
+it's not possible to use these APIs correctly except under very
+limited circumstances --- mostly, talking about init or a parent
+talking about its child.
 
-diff --git a/tools/testing/selftests/vm/userfaultfd.c b/tools/testing/selftests/vm/userfaultfd.c
-index e5d12c209e09..bf1e10db72f5 100644
---- a/tools/testing/selftests/vm/userfaultfd.c
-+++ b/tools/testing/selftests/vm/userfaultfd.c
-@@ -56,6 +56,7 @@
- #include <linux/userfaultfd.h>
- #include <setjmp.h>
- #include <stdbool.h>
-+#include <assert.h>
- 
- #include "../kselftest.h"
- 
-@@ -78,6 +79,8 @@ static int test_type;
- #define ALARM_INTERVAL_SECS 10
- static volatile bool test_uffdio_copy_eexist = true;
- static volatile bool test_uffdio_zeropage_eexist = true;
-+/* Whether to test uffd write-protection */
-+static bool test_uffdio_wp = false;
- 
- static bool map_shared;
- static int huge_fd;
-@@ -92,6 +95,7 @@ pthread_attr_t attr;
- struct uffd_stats {
- 	int cpu;
- 	unsigned long missing_faults;
-+	unsigned long wp_faults;
- };
- 
- /* pthread_mutex_t starts at page offset 0 */
-@@ -141,9 +145,29 @@ static void uffd_stats_reset(struct uffd_stats *uffd_stats,
- 	for (i = 0; i < n_cpus; i++) {
- 		uffd_stats[i].cpu = i;
- 		uffd_stats[i].missing_faults = 0;
-+		uffd_stats[i].wp_faults = 0;
- 	}
- }
- 
-+static void uffd_stats_report(struct uffd_stats *stats, int n_cpus)
-+{
-+	int i;
-+	unsigned long long miss_total = 0, wp_total = 0;
-+
-+	for (i = 0; i < n_cpus; i++) {
-+		miss_total += stats[i].missing_faults;
-+		wp_total += stats[i].wp_faults;
-+	}
-+
-+	printf("userfaults: %llu missing (", miss_total);
-+	for (i = 0; i < n_cpus; i++)
-+		printf("%lu+", stats[i].missing_faults);
-+	printf("\b), %llu wp (", wp_total);
-+	for (i = 0; i < n_cpus; i++)
-+		printf("%lu+", stats[i].wp_faults);
-+	printf("\b)\n");
-+}
-+
- static int anon_release_pages(char *rel_area)
- {
- 	int ret = 0;
-@@ -264,10 +288,15 @@ struct uffd_test_ops {
- 	void (*alias_mapping)(__u64 *start, size_t len, unsigned long offset);
- };
- 
--#define ANON_EXPECTED_IOCTLS		((1 << _UFFDIO_WAKE) | \
-+#define SHMEM_EXPECTED_IOCTLS		((1 << _UFFDIO_WAKE) | \
- 					 (1 << _UFFDIO_COPY) | \
- 					 (1 << _UFFDIO_ZEROPAGE))
- 
-+#define ANON_EXPECTED_IOCTLS		((1 << _UFFDIO_WAKE) | \
-+					 (1 << _UFFDIO_COPY) | \
-+					 (1 << _UFFDIO_ZEROPAGE) | \
-+					 (1 << _UFFDIO_WRITEPROTECT))
-+
- static struct uffd_test_ops anon_uffd_test_ops = {
- 	.expected_ioctls = ANON_EXPECTED_IOCTLS,
- 	.allocate_area	= anon_allocate_area,
-@@ -276,7 +305,7 @@ static struct uffd_test_ops anon_uffd_test_ops = {
- };
- 
- static struct uffd_test_ops shmem_uffd_test_ops = {
--	.expected_ioctls = ANON_EXPECTED_IOCTLS,
-+	.expected_ioctls = SHMEM_EXPECTED_IOCTLS,
- 	.allocate_area	= shmem_allocate_area,
- 	.release_pages	= shmem_release_pages,
- 	.alias_mapping = noop_alias_mapping,
-@@ -300,6 +329,21 @@ static int my_bcmp(char *str1, char *str2, size_t n)
- 	return 0;
- }
- 
-+static void wp_range(int ufd, __u64 start, __u64 len, bool wp)
-+{
-+	struct uffdio_writeprotect prms = { 0 };
-+
-+	/* Write protection page faults */
-+	prms.range.start = start;
-+	prms.range.len = len;
-+	/* Undo write-protect, do wakeup after that */
-+	prms.mode = wp ? UFFDIO_WRITEPROTECT_MODE_WP : 0;
-+
-+	if (ioctl(ufd, UFFDIO_WRITEPROTECT, &prms))
-+		fprintf(stderr, "clear WP failed for address 0x%Lx\n",
-+			start), exit(1);
-+}
-+
- static void *locking_thread(void *arg)
- {
- 	unsigned long cpu = (unsigned long) arg;
-@@ -438,7 +482,10 @@ static int __copy_page(int ufd, unsigned long offset, bool retry)
- 	uffdio_copy.dst = (unsigned long) area_dst + offset;
- 	uffdio_copy.src = (unsigned long) area_src + offset;
- 	uffdio_copy.len = page_size;
--	uffdio_copy.mode = 0;
-+	if (test_uffdio_wp)
-+		uffdio_copy.mode = UFFDIO_COPY_MODE_WP;
-+	else
-+		uffdio_copy.mode = 0;
- 	uffdio_copy.copy = 0;
- 	if (ioctl(ufd, UFFDIO_COPY, &uffdio_copy)) {
- 		/* real retval in ufdio_copy.copy */
-@@ -495,15 +542,21 @@ static void uffd_handle_page_fault(struct uffd_msg *msg,
- 		fprintf(stderr, "unexpected msg event %u\n",
- 			msg->event), exit(1);
- 
--	if (bounces & BOUNCE_VERIFY &&
--	    msg->arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WRITE)
--		fprintf(stderr, "unexpected write fault\n"), exit(1);
-+	if (msg->arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WP) {
-+		wp_range(uffd, msg->arg.pagefault.address, page_size, false);
-+		stats->wp_faults++;
-+	} else {
-+		/* Missing page faults */
-+		if (bounces & BOUNCE_VERIFY &&
-+		    msg->arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WRITE)
-+			fprintf(stderr, "unexpected write fault\n"), exit(1);
- 
--	offset = (char *)(unsigned long)msg->arg.pagefault.address - area_dst;
--	offset &= ~(page_size-1);
-+		offset = (char *)(unsigned long)msg->arg.pagefault.address - area_dst;
-+		offset &= ~(page_size-1);
- 
--	if (copy_page(uffd, offset))
--		stats->missing_faults++;
-+		if (copy_page(uffd, offset))
-+			stats->missing_faults++;
-+	}
- }
- 
- static void *uffd_poll_thread(void *arg)
-@@ -589,11 +642,30 @@ static void *uffd_read_thread(void *arg)
- static void *background_thread(void *arg)
- {
- 	unsigned long cpu = (unsigned long) arg;
--	unsigned long page_nr;
-+	unsigned long page_nr, start_nr, mid_nr, end_nr;
-+
-+	start_nr = cpu * nr_pages_per_cpu;
-+	end_nr = (cpu+1) * nr_pages_per_cpu;
-+	mid_nr = (start_nr + end_nr) / 2;
-+
-+	/* Copy the first half of the pages */
-+	for (page_nr = start_nr; page_nr < mid_nr; page_nr++)
-+		copy_page_retry(uffd, page_nr * page_size);
- 
--	for (page_nr = cpu * nr_pages_per_cpu;
--	     page_nr < (cpu+1) * nr_pages_per_cpu;
--	     page_nr++)
-+	/*
-+	 * If we need to test uffd-wp, set it up now.  Then we'll have
-+	 * at least the first half of the pages mapped already which
-+	 * can be write-protected for testing
-+	 */
-+	if (test_uffdio_wp)
-+		wp_range(uffd, (unsigned long)area_dst + start_nr * page_size,
-+			nr_pages_per_cpu * page_size, true);
-+
-+	/*
-+	 * Continue the 2nd half of the page copying, handling write
-+	 * protection faults if any
-+	 */
-+	for (page_nr = mid_nr; page_nr < end_nr; page_nr++)
- 		copy_page_retry(uffd, page_nr * page_size);
- 
- 	return NULL;
-@@ -755,17 +827,31 @@ static int faulting_process(int signal_test)
- 	}
- 
- 	for (nr = 0; nr < split_nr_pages; nr++) {
-+		int steps = 1;
-+		unsigned long offset = nr * page_size;
-+
- 		if (signal_test) {
- 			if (sigsetjmp(*sigbuf, 1) != 0) {
--				if (nr == lastnr) {
-+				if (steps == 1 && nr == lastnr) {
- 					fprintf(stderr, "Signal repeated\n");
- 					return 1;
- 				}
- 
- 				lastnr = nr;
- 				if (signal_test == 1) {
--					if (copy_page(uffd, nr * page_size))
--						signalled++;
-+					if (steps == 1) {
-+						/* This is a MISSING request */
-+						steps++;
-+						if (copy_page(uffd, offset))
-+							signalled++;
-+					} else {
-+						/* This is a WP request */
-+						assert(steps == 2);
-+						wp_range(uffd,
-+							 (__u64)area_dst +
-+							 offset,
-+							 page_size, false);
-+					}
- 				} else {
- 					signalled++;
- 					continue;
-@@ -778,8 +864,13 @@ static int faulting_process(int signal_test)
- 			fprintf(stderr,
- 				"nr %lu memory corruption %Lu %Lu\n",
- 				nr, count,
--				count_verify[nr]), exit(1);
--		}
-+				count_verify[nr]);
-+	        }
-+		/*
-+		 * Trigger write protection if there is by writting
-+		 * the same value back.
-+		 */
-+		*area_count(area_dst, nr) = count;
- 	}
- 
- 	if (signal_test)
-@@ -801,6 +892,11 @@ static int faulting_process(int signal_test)
- 				nr, count,
- 				count_verify[nr]), exit(1);
- 		}
-+		/*
-+		 * Trigger write protection if there is by writting
-+		 * the same value back.
-+		 */
-+		*area_count(area_dst, nr) = count;
- 	}
- 
- 	if (uffd_test_ops->release_pages(area_dst))
-@@ -904,6 +1000,8 @@ static int userfaultfd_zeropage_test(void)
- 	uffdio_register.range.start = (unsigned long) area_dst;
- 	uffdio_register.range.len = nr_pages * page_size;
- 	uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
-+	if (test_uffdio_wp)
-+		uffdio_register.mode |= UFFDIO_REGISTER_MODE_WP;
- 	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
- 		fprintf(stderr, "register failure\n"), exit(1);
- 
-@@ -949,6 +1047,8 @@ static int userfaultfd_events_test(void)
- 	uffdio_register.range.start = (unsigned long) area_dst;
- 	uffdio_register.range.len = nr_pages * page_size;
- 	uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
-+	if (test_uffdio_wp)
-+		uffdio_register.mode |= UFFDIO_REGISTER_MODE_WP;
- 	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
- 		fprintf(stderr, "register failure\n"), exit(1);
- 
-@@ -979,7 +1079,8 @@ static int userfaultfd_events_test(void)
- 		return 1;
- 
- 	close(uffd);
--	printf("userfaults: %ld\n", stats.missing_faults);
-+
-+	uffd_stats_report(&stats, 1);
- 
- 	return stats.missing_faults != nr_pages;
- }
-@@ -1009,6 +1110,8 @@ static int userfaultfd_sig_test(void)
- 	uffdio_register.range.start = (unsigned long) area_dst;
- 	uffdio_register.range.len = nr_pages * page_size;
- 	uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
-+	if (test_uffdio_wp)
-+		uffdio_register.mode |= UFFDIO_REGISTER_MODE_WP;
- 	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
- 		fprintf(stderr, "register failure\n"), exit(1);
- 
-@@ -1141,6 +1244,8 @@ static int userfaultfd_stress(void)
- 		uffdio_register.range.start = (unsigned long) area_dst;
- 		uffdio_register.range.len = nr_pages * page_size;
- 		uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
-+		if (test_uffdio_wp)
-+			uffdio_register.mode |= UFFDIO_REGISTER_MODE_WP;
- 		if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register)) {
- 			fprintf(stderr, "register failure\n");
- 			return 1;
-@@ -1195,6 +1300,11 @@ static int userfaultfd_stress(void)
- 		if (stress(uffd_stats))
- 			return 1;
- 
-+		/* Clear all the write protections if there is any */
-+		if (test_uffdio_wp)
-+			wp_range(uffd, (unsigned long)area_dst,
-+				 nr_pages * page_size, false);
-+
- 		/* unregister */
- 		if (ioctl(uffd, UFFDIO_UNREGISTER, &uffdio_register.range)) {
- 			fprintf(stderr, "unregister failure\n");
-@@ -1233,10 +1343,7 @@ static int userfaultfd_stress(void)
- 		area_src_alias = area_dst_alias;
- 		area_dst_alias = tmp_area;
- 
--		printf("userfaults:");
--		for (cpu = 0; cpu < nr_cpus; cpu++)
--			printf(" %lu", uffd_stats[cpu].missing_faults);
--		printf("\n");
-+		uffd_stats_report(uffd_stats, nr_cpus);
- 	}
- 
- 	if (err)
-@@ -1276,6 +1383,8 @@ static void set_test_type(const char *type)
- 	if (!strcmp(type, "anon")) {
- 		test_type = TEST_ANON;
- 		uffd_test_ops = &anon_uffd_test_ops;
-+		/* Only enable write-protect test for anonymous test */
-+		test_uffdio_wp = true;
- 	} else if (!strcmp(type, "hugetlb")) {
- 		test_type = TEST_HUGETLB;
- 		uffd_test_ops = &hugetlb_uffd_test_ops;
--- 
-2.17.1
+Really, we need a few related operations, and we shouldn't necessarily
+mingle them.
+
+1) Given a numeric PID, give me a pidfd: that works today: you just
+open /proc/<pid>
+
+2) Given a pidfd, give me a numeric PID: that works today: you just
+openat(pidfd, "stat", O_RDONLY) and read the first token (which is
+always the numeric PID).
+
+3) Given a pidfd, send a signal: that's what pidfd_send_signal does,
+and it's a good start on the rest of these operations.
+
+4) Given a pidfd, wait for the named process to exit: that's what my
+original exithand thing did, and that's what Joel's helpfully agreed
+to start hacking on.
+
+5) Given a pidfd in NS1, get a pidfd in NS2. That's what translate_pid
+is for. My preferred signature for this routine is translate_pid(int
+pidfd, int nsfd) -> pidfd. We don't need two namespace arguments. Why
+not? Because the pidfd *already* names a single process, uniquely!
+
+6) Make a new process and atomically give me a pidfd for it. We need a
+new kind of clone(2) for that. People have been proposing some kind of
+FD-based fork/spawn/etc. thing for ages, and we can finally provide
+it. Yay.
+
+7) Retrieve miscellaneous information about a process identified by a
+pidfd: openat(2) handles this case today.
+
+This is a decent framework for a good general-purpose process API that
+builds on the one the kernel already provides. With this API, people
+should never have to touch the old unix process API except to talk to
+humans and other legacy systems. It's a big project, but worthwhile,
+and we can do it piecemeal.
+
+Christian, what worries me is that you want to make this project 10x
+harder, both in technical and lkml-political terms, by making it work
+without CONFIG_PROCFS=y. Without procfs, all the operations above that
+involve the word "openat" or "/proc" break, which means that our
+general-purpose process API needs to provide its own equivalents to
+these operations, and on top of these, its own non-procfs pidfd FD
+type --- let's call it pidfd_2. (Let's call a directory FD on
+/proc/<pid> a pidfd_1.) Under this scheme, we have to have all
+operations that accept a pidfd_1 (like pidfd_send_signal) and have
+them accept pidfd_2 file descriptors as well in general fashion. (The
+difference between pidfd_1 and pidfd_2 is visible to users who can
+call fstat and look at st_dev.) We'd also need an API to translate a
+pidfd_2 to a pidfd_1 so you could call openat on it to look at
+/proc/<pid> data files, to support operation #7 above.  The
+alternative to provide #7 is some kind of new general-purpose
+process-information-retrieval interface that mirrors the functionality
+/proc/<pid> already provides --- e.g., getting the smaps list for a
+process.
+
+To sum it up, we can
+
+A) declare that pidfds don't work without CONFIG_PROCFS=y,
+B) hardwire CONFIG_PROCFS=y in all configurations, or
+C) support both procfs-based pidfd_1 FDs and non-procfs pidfd_2 FDs.
+
+Option C seems like pointless complexity to me, as I described above.
+Option C means that we have to duplicate a lot of existing and
+perfectly good functionality.
+
+Option A is fine by me, since I think CONFIG_PROCFS=n is just a
+bonkers and broken configuration that's barely even Linux.
+
+From a design perspective, I prefer option B: it turns a de-facto
+guaranteed /proc ABI into a de-jure guaranteed ABI, and that's just
+more straightforward for everyone --- especially since it reduces the
+complexity of the Linux core by deleting all the !CONFIG_PROCFS code
+paths. My point about the procfs system call is that *if* we go with
+option B and make procfs mandatory, we're essentially stating that
+certain kernel functionality is always available, and because (as a
+general rule) kernel functionality that's always available should be
+available to every process, we should provide a way to *use* this
+always-present kernel functionality that doesn't depend on the mount
+table --- thus my proposed get_procfs_root(2).
+
+We don't have to decide between A and B right now. We can continue
+develop pidfd development under the assumption we're going with option
+A, and when option B seems like a good idea, we can just switch with
+minimal hassle. On the other hand, if we did implement option C and,
+later, it became apparently that option B was right after all, all the
+work needed for option C would have been a waste.
 
