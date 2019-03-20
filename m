@@ -2,146 +2,152 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B1FBEC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 09:40:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 36E2EC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 09:40:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6A9892175B
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 09:40:13 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E79A521850
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 09:40:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="UbmkUVhQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A9892175B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="agGczCTy"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E79A521850
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E3DEA6B0003; Wed, 20 Mar 2019 05:40:12 -0400 (EDT)
+	id 9A9776B0006; Wed, 20 Mar 2019 05:40:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DED786B0006; Wed, 20 Mar 2019 05:40:12 -0400 (EDT)
+	id 959E76B0007; Wed, 20 Mar 2019 05:40:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CDB7E6B0007; Wed, 20 Mar 2019 05:40:12 -0400 (EDT)
+	id 8497D6B0008; Wed, 20 Mar 2019 05:40:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A6CDA6B0003
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 05:40:12 -0400 (EDT)
-Received: by mail-it1-f198.google.com with SMTP id e63so1745749ita.1
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 02:40:12 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 459DE6B0006
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 05:40:36 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id a72so2003922pfj.19
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 02:40:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=OiJTbM/+OvQR660JbWl6+zVuyfxyoOgolYDHrTppv9o=;
-        b=qsYc5D5Gx31VkRRmnafEKf+Yfs/liUDDW7hqnejpcaQVcegrrxrDGSs/MbAYzGqkOC
-         JBsNCqBGnhMfl5a6FfDfpYEmBlXKoJkpAgK8esWjM24fxUO7gUKyeGxe//X+8/yn72xY
-         rJdqeXtO5ucW6niwsnthNelsnIcDu5h3ondLOszLyISuIMi3UuxPGv68bMLtlKr7HAmN
-         mQqrg2jNI9WX2tzlxB4YqvRNcAOMoKteGXFwKxg17AuQi3g44rh+pTHUGb8hyJb2uaZz
-         ptthJwffpZYKJktB4VDHk+hnL63FQJViV8RLhNqftLvsHJqaFXokoZBoLMYCOSndK/9O
-         IotQ==
-X-Gm-Message-State: APjAAAUeMLZZkjWBIk885PGanydJmkW8fDQM9uIF7uRnA48eHa2D9jI2
-	k+G9gzAUnYBnq/+17t977RJPypMPDQq444fGOxwr1QOK68DVMdeSSjDPaD0bKP9bfDQkPYnmy6Q
-	49RauEa4R+99m4NJkMSqkbVRA6vhectGT/7nOY1xSVDI1lb+Yd3NEADksV7Gybw4qYg==
-X-Received: by 2002:a24:5382:: with SMTP id n124mr4191956itb.4.1553074812318;
-        Wed, 20 Mar 2019 02:40:12 -0700 (PDT)
-X-Received: by 2002:a24:5382:: with SMTP id n124mr4191927itb.4.1553074811591;
-        Wed, 20 Mar 2019 02:40:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553074811; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=2ilZdXEgKQl8eu/If6oZwzfIDgI9nzN5u6h3xxR7k4I=;
+        b=XLBqDhOt6NYJWWK2a9LtP0XrAQ/dgd70UvPAG8gOj918asiHj34WSuJFyfBtmvkjOa
+         sUT13TPBcZ4zM4wiydFkGsLtyKoGx2ypgNVA53cgH7y2timp66+gzQIgSXrB4WFag1b2
+         9/CpD2fNlKDTMDeqzJxTkNO2T262joD9o2QehfCMDY0IcP6OK0FJ7ua7d8v5uc1o9l4L
+         813fy/tZl8Urz0T7VKpEg5WA8Je5m5VKkOoGgVzvcFnutsDoUVPbuov659IkAl1hGeKW
+         vLYYqjevtnvovvOTCNqq4qLo7LZOmq8d16BuSUV6TXmOfpM8462mIqJrlAqUMs3YiavI
+         HlOA==
+X-Gm-Message-State: APjAAAWcqAyRKLw6iPYXFIL+XdhhXHpfQAbuTLNqYlNcIzEab98yMGt6
+	2a8PnQVwWwuNUnXhhOCtwKFgDAgchEW4CcxITVIt6JpsL8ydfUMgsYhSej6Zchp3vfpdx3KSjOl
+	wXpGVmisM+EqERN3Q93t/11jorzCsa2vRM3fp4p5mrZRL6ok4PTHOgW7NBjaBtvBb0g==
+X-Received: by 2002:a62:69c3:: with SMTP id e186mr6520309pfc.169.1553074835890;
+        Wed, 20 Mar 2019 02:40:35 -0700 (PDT)
+X-Received: by 2002:a62:69c3:: with SMTP id e186mr6520255pfc.169.1553074835052;
+        Wed, 20 Mar 2019 02:40:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553074835; cv=none;
         d=google.com; s=arc-20160816;
-        b=YJUXZdj5NtxhhLHz3gT3YAu+HENK9ZprjF4nUqwXzAIIcgOfhiq4q/KeRM90UYuacr
-         G+EPS0hhEhsbsFZPFA200Q88pWzNamWXv3X5f6LYE5cXFRGw4VvvfM6u0B3EtZC7Qutd
-         /4WKZQfqVHcSjNcfBWJrAmgsV1UP9DdsvRxKWm8d1wjx84aihe3OY3XzMLKBBQh9ybre
-         iHut0SlF/Ch/x1WqxnUnZlCRt1kB6azWTXFSvGC9HOlc0NVkWcQ3b7LfQpwR6JE4QIqu
-         4TqLKHeGQbXwI8/1miEG1Boi1cxwq0As4m2ayy7X7M1XFvszDz5tHCshqqBE+mx9KK6A
-         7e+Q==
+        b=0zdvEqj/zEK5DFWNn+TK7ELu2Vu+JVDuOgmwK+Yckphl+g3+ACP9xNzIyGzkA6aW/o
+         YOnSgPGp/FkcPvMowstE+2VfAahPeepOEeAulUKGdahcm9ByBEYGiYyy0zjqZi2cZscE
+         mIT0fzPXaQJDtdFoUCsYL0BdtWUSczlHM3XeuEJuOk3e8Ev/e+rKf2IdB0HjnDIWCdI2
+         n8d/MkpTyWR/BOO/iirTK6pdleoa1xO97BPmrZJgqrjVZZzeCJKrSnBQKR/jM/mQlwXy
+         01/7MHnJ2FODBiO8PqK//lH+4JE3qpdGJQugc6Dr6Fi1D4+JTMZ7dBFHpvh5ZkWu1MFk
+         zgsw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=OiJTbM/+OvQR660JbWl6+zVuyfxyoOgolYDHrTppv9o=;
-        b=pdFaLMcJK+Cy6+EvSCnsQx1DiMx4Uygh9LOwCM88aO8fDt7P43L0C9/gqmJ1HAOo1b
-         dT+0KM5Q9DXN979SLbsX+wdjHhigqCdY98WfsrpQwoB+DeAlz8iDmwFhb8VUlh6FUe/N
-         aOEny5iBdpMGmXjT+7u/qsWmMz3DgK3AJHv/ylQQAK79ZiR/4TBUGf9jCriwGPxnRUpJ
-         JoVuERvlXwy17G5XLoiTNSqPjFnJoXh5Zos9ZgegwxrtkVCTNv+G8JkAhfSAFqqbYa/C
-         1SFGgbIe/VlVOvhugFFxnd5G25LYtwA+x3KhR7KH5eYDDloNaIUDdFHnGLPLt4K0F9+u
-         Ny9g==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=2ilZdXEgKQl8eu/If6oZwzfIDgI9nzN5u6h3xxR7k4I=;
+        b=d7myxeRK8x1eRd2nT15M5VgBT4fYVi6lHgkNIO9q2yzy+G0w3oZLJllow6Q+RH04MF
+         slsmkrrEAtrxv20j+22sf8ldBPDYT3JNZb+8yW5Ij9vyn/KREsSAIe9P2/NUZYvCBZoA
+         BBi06yROm1iV0++aKa2ZfD05584o/lerYpvUctnOKQ1VvW1wy6axkUL4w99cFhDJctn5
+         jvIkzKtjZAZeJLswsDjF4BsNOk0Qfe0h6uyuHpNrVpFT+Vu/c1pVHVoboKS+lzR17pVi
+         PnVR3dVVEBOXbLnq19RhDE5rBr/OmBP/bI7CcwTivdGrdAUhW9tAt4mGxg6Xu6b9jVkr
+         KJ+g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=UbmkUVhQ;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=agGczCTy;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c3sor2812535ita.15.2019.03.20.02.40.11
+        by mx.google.com with SMTPS id e15sor1586834pgh.79.2019.03.20.02.40.34
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Mar 2019 02:40:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 20 Mar 2019 02:40:35 -0700 (PDT)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=UbmkUVhQ;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=agGczCTy;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=OiJTbM/+OvQR660JbWl6+zVuyfxyoOgolYDHrTppv9o=;
-        b=UbmkUVhQ6gqRKw15CYlRVu/W4JQgjq0CvncfH5C4DWuhC3EqeR0RaRxF5yfkGexfa1
-         Mht8+edc7MKM8X+UomJlChY9JyDYqK0gn50DGg4XkRREhhKYShGssew6ccaX74Z2Q6ph
-         EODVRAEjPF4hueSKa+rsMnG8lx7HMZ9qzr73+6uyZfbQHmLqAs6Wla5/gs0vRZSQXDLD
-         wQbv5czx8u+7ltp0yCTFMU0MwH6Ft4FQMlO1apyrGGpvzmiLEFZ3f2OHAoo33tQzd5gW
-         8nzBVcBNlNrCKiJ77Q9EJDOBHOyJ94rx8J1SE5DtPtnXZhZ32wTrPEbbQefiTldH8kIN
-         acFA==
-X-Google-Smtp-Source: APXvYqzS7Q49tQ/6IJEY6eYWMi5dAcdCwJpyJ5vkanjlZIIbSt6Hovwuy+RiHNXZtgd+VUix3Y4Z6127Wx3Hjbo7jHM=
-X-Received: by 2002:a24:9a86:: with SMTP id l128mr4297591ite.12.1553074810833;
- Wed, 20 Mar 2019 02:40:10 -0700 (PDT)
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=2ilZdXEgKQl8eu/If6oZwzfIDgI9nzN5u6h3xxR7k4I=;
+        b=agGczCTyVX3YbxtbNXvXDU8mq3XwNWH9k0ijzWdCgnWmZ24E6MXUuKm4fIV2Q58fjO
+         rOmnT42x6IFqOMRyniVzVvrcvEdFZuh29FVdN73buc2fLd6c9XSGSU4ekUwdIRP9w0jI
+         TnG1CjqVJaKfsNBHua+/pXoacxpFw/skgnhdL+ii6OjDFsLZhdTCVeT8jAXx0g6s32ff
+         uOpFM8zsMkWdQ3UMLwxog6cqiiP4a9Wn8JCr/Sm942GLxVQsp/kAULxiT5dKNnnH46Xj
+         PRBqmL8qznxMJI3VqLWDQ45wB8rzfg+CagDnTAavLEuE4SvWjzHy/VzxJQpLMF3zACQ4
+         92wA==
+X-Google-Smtp-Source: APXvYqyRZpQfbFJVEpRMID17XPrBgMkhW+bQ+/Tdq95pUIU9dvdMgO/DYyin4FL9ZRNXRc0CEIUHAw==
+X-Received: by 2002:a63:5515:: with SMTP id j21mr6551236pgb.244.1553074834713;
+        Wed, 20 Mar 2019 02:40:34 -0700 (PDT)
+Received: from kshutemo-mobl1.localdomain ([134.134.139.82])
+        by smtp.gmail.com with ESMTPSA id 10sm2608365pft.83.2019.03.20.02.40.33
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Mar 2019 02:40:34 -0700 (PDT)
+Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
+	id 47B4C3011DB; Wed, 20 Mar 2019 12:40:29 +0300 (+03)
+Date: Wed, 20 Mar 2019 12:40:29 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, john.hubbard@gmail.com,
+	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	Al Viro <viro@zeniv.linux.org.uk>,
+	Christian Benvenuti <benve@cisco.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	Christopher Lameter <cl@linux.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dave Chinner <david@fromorbit.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>,
+	Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
+	Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
+	Matthew Wilcox <willy@infradead.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
+	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org
+Subject: Re: [PATCH v4 1/1] mm: introduce put_user_page*(), placeholder
+ versions
+Message-ID: <20190320094029.ifweqx4wowyyr3wi@kshutemo-mobl1>
+References: <20190308213633.28978-1-jhubbard@nvidia.com>
+ <20190308213633.28978-2-jhubbard@nvidia.com>
+ <20190319120417.yzormwjhaeuu7jpp@kshutemo-mobl1>
+ <20190319134724.GB3437@redhat.com>
+ <bf443287-2461-ea2d-5a15-251190782ab7@nvidia.com>
 MIME-Version: 1.0
-References: <000000000000f7cb53057b7ee3cb@google.com> <000000000000c7bd5c05847bfcab@google.com>
-In-Reply-To: <000000000000c7bd5c05847bfcab@google.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 20 Mar 2019 10:39:59 +0100
-Message-ID: <CACT4Y+a=9DQhgq243k9c6SPiyAhDQG5y2GqT4Da_P97t5n4Brw@mail.gmail.com>
-Subject: Re: WARNING: bad usercopy in corrupted (2)
-To: syzbot <syzbot+d89b30c46434c433dbf8@syzkaller.appspotmail.com>
-Cc: Chris von Recklinghausen <crecklin@redhat.com>, David Miller <davem@davemloft.net>, 
-	Kees Cook <keescook@chromium.org>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, 
-	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
-	linux-net@vger.kernel.org, netdev <netdev@vger.kernel.org>, 
-	Stefano Brivio <sbrivio@redhat.com>, Sabrina Dubroca <sd@queasysnail.net>, 
-	syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Matthew Wilcox <willy@infradead.org>, 
-	Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <bf443287-2461-ea2d-5a15-251190782ab7@nvidia.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 20, 2019 at 1:49 AM syzbot
-<syzbot+d89b30c46434c433dbf8@syzkaller.appspotmail.com> wrote:
->
-> syzbot has bisected this bug to:
->
-> commit b8a51b38e4d4dec3e379d52c0fe1a66827f7cf1e
-> Author: Stefano Brivio <sbrivio@redhat.com>
-> Date:   Thu Nov 8 11:19:23 2018 +0000
->
->      fou, fou6: ICMP error handlers for FoU and GUE
->
-> bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=14a57f83200000
-> start commit:   b8a51b38 fou, fou6: ICMP error handlers for FoU and GUE
-> git tree:       net-next
-> console output: https://syzkaller.appspot.com/x/log.txt?x=12a57f83200000
-> kernel config:  https://syzkaller.appspot.com/x/.config?x=c36a72af2123e78a
-> dashboard link: https://syzkaller.appspot.com/bug?extid=d89b30c46434c433dbf8
-> syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=170f6a47400000
-> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=12e1df7b400000
->
-> Reported-by: syzbot+d89b30c46434c433dbf8@syzkaller.appspotmail.com
-> Fixes: b8a51b38 ("fou, fou6: ICMP error handlers for FoU and GUE")
+On Tue, Mar 19, 2019 at 12:24:00PM -0700, John Hubbard wrote:
+> So, I could be persuaded either way. But given the lack of an visible perf
+> effects, and given that this could will get removed anyway because we'll
+> likely end up with set_page_dirty() called at GUP time instead...it seems
+> like it's probably OK to just leave it as is.
 
-That commit caused lots of crashes that look completely differently.
-Now all that is fixed. The last crash for this bugs happened 2+ months
-ago. So let's just do:
+Apart from ugly code generated, other argument might be Spectre-like
+attacks on these call. I would rather avoid indirect function calls
+whenever possible. And I don't think opencodded versions of these
+functions would look much worse.
 
-#syz fix: fou: Prevent unbounded recursion in GUE error handler also
-with UDP-Lite
+-- 
+ Kirill A. Shutemov
 
