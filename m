@@ -2,202 +2,155 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4B5CFC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 21:50:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EFE03C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 21:58:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E6B40218B0
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 21:50:39 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="pDRQWSwd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E6B40218B0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id AD9CD218AE
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 21:58:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AD9CD218AE
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7F8216B0003; Wed, 20 Mar 2019 17:50:39 -0400 (EDT)
+	id 4E69D6B0003; Wed, 20 Mar 2019 17:58:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7A6EE6B0006; Wed, 20 Mar 2019 17:50:39 -0400 (EDT)
+	id 494AB6B0006; Wed, 20 Mar 2019 17:58:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 695846B0007; Wed, 20 Mar 2019 17:50:39 -0400 (EDT)
+	id 3AA526B0007; Wed, 20 Mar 2019 17:58:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 12D416B0003
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 17:50:39 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id n9so1591954wra.19
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 14:50:39 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ECE836B0003
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 17:58:28 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id v3so3929059pgk.9
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 14:58:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=QuzZpU3JLNjrV9G28aYFCK9t3tn4MzRm3nE3ai0SkRE=;
-        b=tS4ivhVjduIAqn5WxdBlxCF9dpqRjJkuGH4bvkpitx0Q3d3oQQb6YlRDtVkV9Rhehy
-         /SFpFeM9dUY7Er1OksU9gpw5mPaBmh0h5FYBkbF+gZIb1FK3Zt623X/cRLPGFzVaJLAj
-         3yZglMpTfgz/sOZorJ/aJdQqq6yzFhloesYAWvlGWNVQSx1X0ibUib1rIWj5oAuNrEfR
-         4p9RxYV/FddKXECohlsNGcHErqJFhfyksOvc1FZ4HVLFcBDaPmo86Xhw7LLr2efgEaMw
-         tf+nPyuWz6ow2sXPfvLOtjRkyWrzYMmHNlK4HmoytMmcPaQiem4Z+ZYQGDv9atBRP2SZ
-         FxPA==
-X-Gm-Message-State: APjAAAWRGqRJiqLPPVc1PCEfLjYdc3Eui/XuxM2RAXBlesyeVbFDoPd7
-	j/5HZB9gXEn/mDPwb5A/2BmflFs5/3/tOZJzx9sVb9XM9sp6rAm7maOEvWoQKvWQuSS5Ty4MmEJ
-	xlRIGLvCith/c9f/zDv4sC4ZOndND+tjA0MIHC4tw1Au0Y3blOIN5+1RZf4HT2Ar1Uw==
-X-Received: by 2002:a1c:4b03:: with SMTP id y3mr288541wma.75.1553118638547;
-        Wed, 20 Mar 2019 14:50:38 -0700 (PDT)
-X-Received: by 2002:a1c:4b03:: with SMTP id y3mr288503wma.75.1553118637466;
-        Wed, 20 Mar 2019 14:50:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553118637; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=tLoGy0H8ICUu31snVAZ25iYHnHzblRMqhkpdGHi2Eo4=;
+        b=NjCzLUVnGoo83ZuExe0qifP+Xl7g+38a8GVbePvagxkxJDDsy1tisw7xB1d9c5gqjx
+         X+iV70pQPnR6bQsDWkUVtTLCYCF1GSVdXbjyjsorAVofMrWLvVH28mxVAtAASJrCrKiW
+         9Y6lpn3iRlElgEjlp0hMi0WnHYuGnHt1SIX+64T9o38AlrDaz39IMbHkuepLjK1hPGTZ
+         syNTPCIhF7nGTabkaNaF98Z7lsLZ+VSwrBkP5sRv/SLZhDg9FeDxXJwwCeyd/rQvdsyO
+         D9A8QXpYjp8dlRJjEblmEvVsocAakDJ+WsXRimQIL2mKPln+fZFWXtYVQs3XcdY4aQHA
+         22og==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+X-Gm-Message-State: APjAAAWa/pednmel9CtnN64y+PxvmZgyjXf6esAjq8uRQ/piCZY2UGL7
+	EZCPXfLA5RoGjWTGihU09C6b7EoH6jntF88LtNiWfdY7bXf0z7vdWXA5z3mZndNYEn1jnwzvu//
+	0EysnWTyHlUFhXvWH4UP6xh7lN+zCJybrVEB04/F//2Wgr9/vFqF6bb3gWZy0ayORng==
+X-Received: by 2002:a63:6fc4:: with SMTP id k187mr223978pgc.312.1553119108440;
+        Wed, 20 Mar 2019 14:58:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyo4c7rPsYZuQ5MNMtkbDhKdl1F1EuL7PugdMkmF5GpOs7srUlZQlQHzyCg5Rv2AnT9Fwo6
+X-Received: by 2002:a63:6fc4:: with SMTP id k187mr223940pgc.312.1553119107632;
+        Wed, 20 Mar 2019 14:58:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553119107; cv=none;
         d=google.com; s=arc-20160816;
-        b=vaokp6TvqN8KDsYCfEwsB+7t5JqNuncb5FbMrCGTJ828rdvaDnXUVR4ofna+LFuCx8
-         evFxxiFTp17CGGeYjN2F87BRbjr7flcGCty+GMonL07EQz12YEFZxu6oGyeqNEr9hE+K
-         WO9FWpDBc0FhaM1dN9LhUrByA5UJUvRsn4iCbqPhwKcepivrVK6xm/IcfFoZ02KBHExR
-         eJX4cks+gDr1dOhYZO5OzaxWICm4tMVVh/kQk1HrwMeru2o8lWe1Cns2HKKkdBI9aBCe
-         xJujYQzelxRhrh/zK5Bb7KNZbW+5c0/tSdzOVPvS2Jy9yVRc8t0Gw9jP3dvjBEbwj8Pq
-         YsaA==
+        b=PIzPmYnDM0kt4Ws3PppJIpjt1p3XsSLPvEniHeSDgTmj/cH9wlUbHuUNjQ3KtG9AjX
+         0QFfWyAbAclnchkyqCjhF3j+tk/wIrCfBp2JmyYUzWFHfRamIdDBQTrTB/gfeDVKRKiy
+         0/hZGFITh7ZetbYntNAXn1+pRSd1n0ucH8JifA8CuDAeuymciKb2oYuEiKHOrjc9MpqR
+         edEL8djcQtWweoOSuHY6LB/PtT9h9Q4EYF7WxAWW25PZlo88YEtFInAtMvbzlRwiPqB7
+         Xdkj/UT5RNdUG9Vri2bCwpgUdEpwauxz1MplrX1DeBUwBPsC1cvZ/p08OJ3hmpUCE3MT
+         kKmw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=QuzZpU3JLNjrV9G28aYFCK9t3tn4MzRm3nE3ai0SkRE=;
-        b=i5P/LHw7dqxKp52YUDWvfA9tdQ7mB077M+sMte9/H16xVPj/XYx9mishX58fWj0Lvm
-         Li7gdxmd18nJvsR6N5x5UUGk8mL1ze+M5PhOXW5k697X3FNvKf2ngaZve3+Cgm2kKnMN
-         UM+KftaVLAqJHpW/K1RxYiZ/gWK2ocUHy35XnRDT6ePrRmq5VumAdN8EsZcMFuyonTQv
-         ZMDVdpFH0tWa0+1sF/67m0IVmvfQGiWaiTzugz447A5gj3UfKgNlDj5+8/LpnEGbGyEK
-         xfrDxwdhpj0izsWBDsWsdZes7uggdDCJgYRyB1uzt/yismo2bYdsDAfWbK6M5yFTOqqv
-         YvIA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date;
+        bh=tLoGy0H8ICUu31snVAZ25iYHnHzblRMqhkpdGHi2Eo4=;
+        b=VG/RWwKgwIFhecUzWrHH+w/gqCSv3klUp694/MwN7aDKJCr0Qch7r9ji1Yv/rYWmqf
+         ZouvBTfOHDtgmVcJrNKj4m5NyfEzmvDYHx1ER12G6m81ymLiov70DPrG4vOq6kEE/zf+
+         G1I4/LrJKn2b1sLg+uz2oVDNqq1ekC1NF6bb1VMyxWCUo8rnAMsQNldC3OiBA39OBfVq
+         ToOZJnsyDJbzy7umo8KsAEU1SfHHs/bIdlvgmhUppBBxhxvhVB7BWFTnRzANTbyMesqp
+         pL0H0FMnkMicIvV7lTmlddQ4siLUILOG8QhErBcmLfQJ4f77j9Y/N/kvUl6NBibKPARO
+         /Thg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pDRQWSwd;
-       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a2sor2590843wrm.50.2019.03.20.14.50.37
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id z3si2645541pgr.90.2019.03.20.14.58.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Mar 2019 14:50:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Mar 2019 14:58:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pDRQWSwd;
-       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=QuzZpU3JLNjrV9G28aYFCK9t3tn4MzRm3nE3ai0SkRE=;
-        b=pDRQWSwdYu7PLk1ciUtfmWOKhFKJ31iOGsFfaMXiR/wG0h/ZV9ODplbEfrdZ3NGCxz
-         eNN8+kkRv0Y6TvZjNH2h5sDGeObfnctxhX0q0ohJt+TSQbHWANMQhH73wNLYVdtKtekF
-         h7hUvY4jZX73nNvF3rnjMsBHg6Z/u7HzYUEuY79svajtAonTaCK6CP6+NhWau/4YyQd2
-         v5JLuiQ0gsX85TDMbctW3cCqfN1yUqbElCdJ5V2ocpnO3WdNBXt3AMf9zsWkjqNS1ELl
-         tw3GYJ4CTetDUGE3DqBr6y4cv52wW6mXbJmnu2E8sEOvuwUpoidMkjTqLHCxBOSEjwzZ
-         tZuA==
-X-Google-Smtp-Source: APXvYqyFC7QsNmy8nMn6o1RgJ1n6+91m1OKGY9zvoohXvUDmb0nE4MPkSUishqRl3c4CeorOr+OBu6EBwVYZ+Sk50Ak=
-X-Received: by 2002:a5d:4a43:: with SMTP id v3mr284719wrs.126.1553118636839;
- Wed, 20 Mar 2019 14:50:36 -0700 (PDT)
-MIME-Version: 1.0
-References: <CABXGCsM-SgUCAKA3=WpL7oWZ0Xq8A1Wf-Eh6MO0seee+TviDWQ@mail.gmail.com>
- <20190315205826.fgbelqkyuuayevun@ca-dmjordan1.us.oracle.com>
-In-Reply-To: <20190315205826.fgbelqkyuuayevun@ca-dmjordan1.us.oracle.com>
-From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Date: Thu, 21 Mar 2019 02:50:25 +0500
-Message-ID: <CABXGCsMcXb_W-w0AA4ZFJ5aKNvSMwFn8oAMaFV7AMHgsH_UB7g@mail.gmail.com>
-Subject: Re: kernel BUG at include/linux/mm.h:1020!
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: linux-mm@kvack.org, mgorman@techsingularity.net, cai@lca.pw, 
-	vbabka@suse.cz
-Content-Type: text/plain; charset="UTF-8"
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 24B566DB7;
+	Wed, 20 Mar 2019 21:58:27 +0000 (UTC)
+Date: Wed, 20 Mar 2019 14:58:26 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Qian Cai <cai@lca.pw>
+Cc: mgorman@techsingularity.net, vbabka@suse.cz, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+Subject: Re: [RESEND#2 PATCH] mm/compaction: fix an undefined behaviour
+Message-Id: <20190320145826.9c647fe53bd999bbd2ee188d@linux-foundation.org>
+In-Reply-To: <20190320203338.53367-1-cai@lca.pw>
+References: <20190320203338.53367-1-cai@lca.pw>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 16 Mar 2019 at 01:59, Daniel Jordan <daniel.m.jordan@oracle.com> wrote:
->
-> This is new code, from e332f741a8dd1 ("mm, compaction: be selective about what
-> pageblocks to clear skip hints"), so I added some folks.
->
-> Can you show
-> $LINUX/scripts/faddr2line path/to/vmlinux __reset_isolation_pfn+0x244
-> ?
+On Wed, 20 Mar 2019 16:33:38 -0400 Qian Cai <cai@lca.pw> wrote:
 
-$ /usr/src/kernels/`uname -r`/scripts/faddr2line
-/lib/debug/lib/modules/`uname -r`/vmlinux __reset_isolation_pfn+0x244
-__reset_isolation_pfn+0x244/0x2b0:
-page_to_nid at include/linux/mm.h:1021
-(inlined by) page_zone at include/linux/mm.h:1163
-(inlined by) __reset_isolation_pfn at mm/compaction.c:250
+> In a low-memory situation, cc->fast_search_fail can keep increasing as
+> it is unable to find an available page to isolate in
+> fast_isolate_freepages(). As the result, it could trigger an error
+> below, so just compare with the maximum bits can be shifted first.
+> 
+> UBSAN: Undefined behaviour in mm/compaction.c:1160:30
+> shift exponent 64 is too large for 64-bit type 'unsigned long'
+> CPU: 131 PID: 1308 Comm: kcompactd1 Kdump: loaded Tainted: G
+> W    L    5.0.0+ #17
+> Call trace:
+>  dump_backtrace+0x0/0x450
+>  show_stack+0x20/0x2c
+>  dump_stack+0xc8/0x14c
+>  __ubsan_handle_shift_out_of_bounds+0x7e8/0x8c4
+>  compaction_alloc+0x2344/0x2484
+>  unmap_and_move+0xdc/0x1dbc
+>  migrate_pages+0x274/0x1310
+>  compact_zone+0x26ec/0x43bc
+>  kcompactd+0x15b8/0x1a24
+>  kthread+0x374/0x390
+>  ret_from_fork+0x10/0x18
+> 
+> Fixes: 70b44595eafe ("mm, compaction: use free lists to quickly locate a migration source")
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> Acked-by: Mel Gorman <mgorman@techsingularity.net>
+> Signed-off-by: Qian Cai <cai@lca.pw>
+> ---
+>  mm/compaction.c | 4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index e1a08fc92353..0d1156578114 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -1157,7 +1157,9 @@ static bool suitable_migration_target(struct compact_control *cc,
+>  static inline unsigned int
+>  freelist_scan_limit(struct compact_control *cc)
+>  {
+> -	return (COMPACT_CLUSTER_MAX >> cc->fast_search_fail) + 1;
+> +	return (COMPACT_CLUSTER_MAX >>
+> +		min((unsigned short)(BITS_PER_LONG - 1), cc->fast_search_fail))
+> +		+ 1;
+>  }
 
-It was not easy, but I completed just now kernel bisecting and see
-that you right.
-First bad commit is e332f741a8dd1
+That's rather an eyesore.  How about
 
-$ git bisect log
-git bisect start
-# good: [cd2a3bf02625ffad02a6b9f7df758ee36cf12769] Merge tag
-'leds-for-5.1-rc1' of
-git://git.kernel.org/pub/scm/linux/kernel/git/j.anaszewski/linux-leds
-git bisect good cd2a3bf02625ffad02a6b9f7df758ee36cf12769
-# bad: [610cd4eadec4f97acd25d3108b0e50d1362b3319] Merge branch
-'x86-uv-for-linus' of
-git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip
-git bisect bad 610cd4eadec4f97acd25d3108b0e50d1362b3319
-# good: [203b6609e0ede49eb0b97008b1150c69e9d2ffd3] Merge branch
-'perf-core-for-linus' of
-git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip
-git bisect good 203b6609e0ede49eb0b97008b1150c69e9d2ffd3
-# bad: [da2577fe63f865cd9dc785a42c29c0071f567a35] Merge tag
-'sound-5.1-rc1' of
-git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound
-git bisect bad da2577fe63f865cd9dc785a42c29c0071f567a35
-# good: [fb686ad25be0343a9dab23acff674d0cb84bb516] Merge tag
-'armsoc-defconfig' of
-git://git.kernel.org/pub/scm/linux/kernel/git/soc/soc
-git bisect good fb686ad25be0343a9dab23acff674d0cb84bb516
-# good: [70395a96bd882d8dba669f99b5cec0008690accd] Merge tag
-'asoc-v5.1-2' of
-https://git.kernel.org/pub/scm/linux/kernel/git/broonie/sound into
-for-next
-git bisect good 70395a96bd882d8dba669f99b5cec0008690accd
-# bad: [8dcd175bc3d50b78413c56d5b17d4bddd77412ef] Merge branch 'akpm'
-(patches from Andrew)
-git bisect bad 8dcd175bc3d50b78413c56d5b17d4bddd77412ef
-# bad: [7f18825174203526a47c127c12a50f897ee0b511] powerpc/mm/iommu:
-allow large IOMMU page size only for hugetlb backing
-git bisect bad 7f18825174203526a47c127c12a50f897ee0b511
-# good: [566e54e113eb2b669f9300db2c2df400cbb06646] mm, compaction:
-remove last_migrated_pfn from compact_control
-git bisect good 566e54e113eb2b669f9300db2c2df400cbb06646
-# bad: [d9f7979c92f7b34469c1ca5d1f3add6681fd567c] mm: no need to check
-return value of debugfs_create functions
-git bisect bad d9f7979c92f7b34469c1ca5d1f3add6681fd567c
-# good: [cb810ad294d3c3a454e51b12fbb483bbb7096b98] mm, compaction:
-rework compact_should_abort as compact_check_resched
-git bisect good cb810ad294d3c3a454e51b12fbb483bbb7096b98
-# bad: [147e1a97c4a0bdd43f55a582a9416bb9092563a9] fs: kernfs: add poll
-file operation
-git bisect bad 147e1a97c4a0bdd43f55a582a9416bb9092563a9
-# good: [dbe2d4e4f12e07c6a2215e3603a5f77056323081] mm, compaction:
-round-robin the order while searching the free lists for a target
-git bisect good dbe2d4e4f12e07c6a2215e3603a5f77056323081
-# bad: [e332f741a8dd1ec9a6dc8aa997296ecbfe64323e] mm, compaction: be
-selective about what pageblocks to clear skip hints
-git bisect bad e332f741a8dd1ec9a6dc8aa997296ecbfe64323e
-# good: [4fca9730c51d51f643f2a3f8f10ebd718349c80f] mm, compaction:
-sample pageblocks for free pages
-git bisect good 4fca9730c51d51f643f2a3f8f10ebd718349c80f
-# first bad commit: [e332f741a8dd1ec9a6dc8aa997296ecbfe64323e] mm,
-compaction: be selective about what pageblocks to clear skip hints
+static inline unsigned int
+freelist_scan_limit(struct compact_control *cc)
+{
+	unsigned short shift = BITS_PER_LONG - 1;
 
-Also I see that two patches already proposed for fixing this issue.
-[1] https://patchwork.kernel.org/patch/10862267/
-[2] https://patchwork.kernel.org/patch/10862519/
-
-If I understand correctly, it is enough to apply only the second patch [2].
-
-
-
---
-Best Regards,
-Mike Gavrilov.
+	return (COMPACT_CLUSTER_MAX >> min(shift, cc->fast_search_fail)) + 1;
+}
 
