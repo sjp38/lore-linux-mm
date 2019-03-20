@@ -2,150 +2,136 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E653DC10F05
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 07:07:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A2FA3C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 07:35:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AFD6E2146E
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 07:07:34 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AFD6E2146E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 4E4672184D
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 07:35:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E4672184D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4EA826B0003; Wed, 20 Mar 2019 03:07:34 -0400 (EDT)
+	id B8CD06B0003; Wed, 20 Mar 2019 03:35:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 473626B0006; Wed, 20 Mar 2019 03:07:34 -0400 (EDT)
+	id B3C7A6B0006; Wed, 20 Mar 2019 03:35:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 33D9C6B0007; Wed, 20 Mar 2019 03:07:34 -0400 (EDT)
+	id A2A526B0007; Wed, 20 Mar 2019 03:35:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CE90A6B0003
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 03:07:33 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id w6so236602edq.20
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 00:07:33 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 888D16B0003
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 03:35:56 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id y64so12390583qka.3
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 00:35:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=tK+8m/zJDr3FNW2MfmcJWV5ERxN2mtwyNsp24jf939A=;
-        b=SMWr546eM9QsbY6zApTlUF62D6cUtdzFJOFyzr5c8TW27RixCU0/CMFMlOywmoYbwR
-         CxKDQo6cBLyZL7dLa4i2GQKCcHHo5aE5hQasljT1W1G1CDARDffKELVNAk8A3fP9ckFL
-         JZJ167u2X7bytMx9e3q/XGiG9pKdeICdeblrJpYH0tRpifbMpTCkvVGoAsUkziKZCUo2
-         zRCtGJjR1WVOyaNOyNl9X5pdtAj2Nkxp0nNIX0U8hnrfqScfRyI2NM2rryDu8yWWDyD/
-         cxpxN4zBef74vyqtQa5qq7sOP57WrsTBNFmPUpjlQv5MrZbSDEOX+sIqEitnQunaBnWb
-         Q47w==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWf7CmxmAYd4VMFrYmzn99eMiXWVCG2Nw1iXe1AmwR+kL3hed7S
-	j5ulQhFL0x9/cKKVjXX04xT1CCZldj0LtvzNblJ80UfWmcjCKhrQl3sNP1Bf8367CJu0YIeiTC/
-	r/ZTRVegw1DGRCBb2BQaAJt/XhWP8prBtVVEju0ALu1rQPJfUu3NjPl+A8zpyeWE=
-X-Received: by 2002:a17:906:905:: with SMTP id i5mr16525150ejd.23.1553065653403;
-        Wed, 20 Mar 2019 00:07:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy2PufRTpK4pybK+zQOkLJj3J5CIPzQvZKxCDGRvJk5de860h2sbQXXCN3YJk23O0JPWQBy
-X-Received: by 2002:a17:906:905:: with SMTP id i5mr16525115ejd.23.1553065652669;
-        Wed, 20 Mar 2019 00:07:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553065652; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=tuB9PNNGBdrtgxjPzbnq4e1RMAH2qhJJfR1+/49znvY=;
+        b=M/u0GM0gbAntpgadqaY9fa+nDAgkCphpAzk/wp3ZSmTfSw8mlDwWrxcWsK/9zhyTTx
+         9huhufV4VEgV/omL343FWUSTFVKzwv2GiDKwUdVWEXPSUqAZmnHfh2aCU8qen5nY6rEB
+         UDaxV41DI+lm/0/a2CxYX/Y6KnqkaCYzW1DjLGyHJpbaPz984UhO3i2/hf8EHNyKLT7K
+         TqX+aVDvSiIO1xxDegFjrZtNLROP2Orj95nYEjLnuMCraaIEFl/qwenQBllVlwyar6Px
+         LpJMclbNW12pXhcDH28jnrmfk1UpJb0ZRHh/U6qNi+XFKCE+x1fgesUdZygtOSnJVT2i
+         T/TA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAW5xuDstOTJGuzJ1JYui70/V3BTmWcaAnEs6fLrjbEwsx4GFBCb
+	qqVQe2LipddxDjPZsVLzPqxSizjHxgPjPWO7e5HrGMrzR3/SMGh6iWNsc9IUKrw5zDXpICa9QU1
+	bwDU1fQhrRonZ/w1ogiEpP2cYsFzmI9/o69ox9jH4bMe81qwRYWo6Ezz3QganA8xZvg==
+X-Received: by 2002:ac8:2f6f:: with SMTP id k44mr5539313qta.230.1553067356238;
+        Wed, 20 Mar 2019 00:35:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwhtDhr/7Yk1HoLYUhVjM3pjonHo5MqO1ixvJNReGM7ebpyM+gmbdKcpod+IRnLeWLz6rDg
+X-Received: by 2002:ac8:2f6f:: with SMTP id k44mr5539274qta.230.1553067355232;
+        Wed, 20 Mar 2019 00:35:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553067355; cv=none;
         d=google.com; s=arc-20160816;
-        b=DS2O58Bgaz3IjbOKfR29i9Tj3GzWm++ieF9ilWtN6NaEsBEhR/8HEI2GVJsbvVXtu8
-         i0tr63sX50cmu0iXeBYMvZndU1OmWO9cjyzv9esnk4MUbQvR1B5IHVkK8bnkGOpzVECH
-         rki6uCuLZkrSWpU7QGDsMOaZeYJPyKjfbHUPVkewvHVzVo7Q1XYd0E2iMO5xk+uloCJN
-         gp+hwfI6xbZEjLOYbQrPEl6igUW/h6qQXHI/kmWTlNJlfnb4l2k8i7cBtkdIxTP+ObOJ
-         1A5Iy+FjZKroiJnYiqlq3eeh42qXaAmM2JPdzF2ATqlE85NlpEEUv5Z2tSOIjAqX9uhW
-         wEXA==
+        b=F0uNXbtZIZ4nymhlF9WJX9Zpf0yXrO2zl36o0dpyOyVVfQY5luf0kpR3Fxh3pazQlU
+         VttgRaEpA0lKmlZrHntC1dTt0OFLdQzR/xj3TF98aS1T0UsP4+08AlFkiNj3dU7iotO8
+         tdLTIPXqP8CBXO0BScyr9thK+gz+8WOI+kj0n0x3dWh9c1fTPbIVu3V1XJXkdZCg5K75
+         zGRo+GznLiWIp6Js6kHXY7lS1RfmuJJMUjDoE1FNEYB6DySB1iF2cH9rjA8vvnSD76Iq
+         MoIjcDCedLVmXkOUGHwS2nJlLoONbkZA14FJLKFCMEdfcW6DGEcDmIhG38nL3npRDUzv
+         N5xw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=tK+8m/zJDr3FNW2MfmcJWV5ERxN2mtwyNsp24jf939A=;
-        b=SBwuuEUweSbyDZ6GenyMXQyiowKf0lH8KsQSZCiKAu1c3IvBERZazajzM6+Z6eAPMo
-         sr0cCJt+jVsdkmGDw4YvhEXlPueL2VwGUJgroTGwnGgSigN1Scyda1s4SYD4q4926y7i
-         upVynsbtMlmfJrObOrzp5FkHJSU2JEiGy6nke4TspEQkVGWzSGA33L4TZu+U/N63W1xh
-         vO8T9/lCHURGmZl1yfiXvqUwyJBt6yoniV0G3YUjJynNAqat7fzpOPKq69Ua2y+WIECk
-         aMpANvGIFhHnpblBdH/W+w7jpVppZ0oLk+tUtBuh7lwLqlb5YRMaHjZ+y6/XHBxAkg6R
-         EyQQ==
+        h=message-id:date:subject:cc:to:from;
+        bh=tuB9PNNGBdrtgxjPzbnq4e1RMAH2qhJJfR1+/49znvY=;
+        b=GJ2lJWQ9N06UF66bJaaegU33afLu8xXax9jdTrG0/jsiimLjQZHzXtniP4joKZEaT4
+         6xN7WPGPMACXdPEyzM1HHDXG6wl2TaO2y19rLn3BTdifJHydoP7P0pxfUCAgwZ8rh3n0
+         wLlVgaz071lge2vnAahDvZkH0cURXa47P3sL3m0UBM576BF3+iQved8aSNAocn2WvOiw
+         c2VnFRWeRDEv9FZf6qan8HGjEOpI9E4PCrYXZ7wPFM6q9XKSgjS5Z8NOcoCffvNN6tpd
+         0tCk88kXCIE1YeMFiq/iyEt5I7sjUJuflcnqNjp+gTywPNpPPo+GCsJjIyk96lFxZKk6
+         sHuQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x12si502853edx.409.2019.03.20.00.07.32
+       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 60si768341qtb.367.2019.03.20.00.35.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Mar 2019 00:07:32 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Wed, 20 Mar 2019 00:35:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 349ABAE16;
-	Wed, 20 Mar 2019 07:07:32 +0000 (UTC)
-Date: Wed, 20 Mar 2019 08:07:31 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Nicolas Boichat <drinkcat@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mm-commits@vger.kernel.org,
-	Yong Wu <yong.wu@mediatek.com>,
-	Yingjoe Chen <yingjoe.chen@mediatek.com>,
-	Huaisheng Ye <yehs1@lenovo.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Will Deacon <will.deacon@arm.com>, Vlastimil Babka <vbabka@suse.cz>,
-	Tomasz Figa <tfiga@google.com>, stable@vger.kernel.org,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	David Rientjes <rientjes@google.com>,
-	Pekka Enberg <penberg@kernel.org>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	Matthias Brugger <matthias.bgg@gmail.com>,
-	Joerg Roedel <joro@8bytes.org>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Hsin-Yi Wang <hsinyi@chromium.org>, hch@infradead.org,
-	Christoph Lameter <cl@linux.com>,
-	Levin Alexander <Alexander.Levin@microsoft.com>, linux-mm@kvack.org
-Subject: Re: + mm-add-sys-kernel-slab-cache-cache_dma32.patch added to -mm
- tree
-Message-ID: <20190320070731.GE30433@dhcp22.suse.cz>
-References: <20190319183751.rWqkf%akpm@linux-foundation.org>
- <20190319191721.GC30433@dhcp22.suse.cz>
- <CANMq1KAoya365L9+iGD7Uu34r_9zbbRjSHjB7L_8vi=avTtLnQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CANMq1KAoya365L9+iGD7Uu34r_9zbbRjSHjB7L_8vi=avTtLnQ@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 4948F58E45;
+	Wed, 20 Mar 2019 07:35:54 +0000 (UTC)
+Received: from MiWiFi-R3L-srv.redhat.com (ovpn-12-38.pek2.redhat.com [10.72.12.38])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id AD6D96B499;
+	Wed, 20 Mar 2019 07:35:47 +0000 (UTC)
+From: Baoquan He <bhe@redhat.com>
+To: linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org,
+	pasha.tatashin@oracle.com,
+	mhocko@suse.com,
+	rppt@linux.vnet.ibm.com,
+	richard.weiyang@gmail.com,
+	linux-mm@kvack.org,
+	Baoquan He <bhe@redhat.com>
+Subject: [PATCH 1/3] mm/sparse: Clean up the obsolete code comment
+Date: Wed, 20 Mar 2019 15:35:38 +0800
+Message-Id: <20190320073540.12866-1-bhe@redhat.com>
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Wed, 20 Mar 2019 07:35:54 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 20-03-19 08:17:52, Nicolas Boichat wrote:
-> On Wed, Mar 20, 2019 at 3:18 AM Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > On Tue 19-03-19 11:37:51, Andrew Morton wrote:
-> > > From: Nicolas Boichat <drinkcat@chromium.org>
-> > > Subject: mm: add /sys/kernel/slab/cache/cache_dma32
-> > >
-> > > A previous patch in this series adds support for SLAB_CACHE_DMA32 kmem
-> > > caches.  This adds the corresponding /sys/kernel/slab/cache/cache_dma32
-> > > entries, and fixes slabinfo tool.
-> >
-> > I believe I have asked and didn't get a satisfactory answer before IIRC. Who
-> > is going to consume this information?
-> 
-> No answer from me, but as a reminder, I added this note on the patch
-> (https://patchwork.kernel.org/patch/10720491/):
-> """
-> There were different opinions on whether this sysfs entry should
-> be added, so I'll leave it up to the mm/slub maintainers to decide
-> whether they want to pick this up, or drop it.
-> """
+The code comment above sparse_add_one_section() is obsolete and
+incorrect, clean it up and write new one.
 
-We have a terrible track rescord of exporting data to userspace that
-kick back much later. So I am really convinced that adding new user
-visible data should be justified by a useful usecase. Exporting just
-because we can is a terrible justification if you ask me.
+Signed-off-by: Baoquan He <bhe@redhat.com>
+---
+ mm/sparse.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 77a0554fa5bd..0a0f82c5d969 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -674,9 +674,12 @@ static void free_map_bootmem(struct page *memmap)
+ #endif /* CONFIG_SPARSEMEM_VMEMMAP */
+ 
+ /*
+- * returns the number of sections whose mem_maps were properly
+- * set.  If this is <=0, then that means that the passed-in
+- * map was not consumed and must be freed.
++ * sparse_add_one_section - add a memory section
++ * @nid:	The node to add section on
++ * @start_pfn:	start pfn of the memory range
++ * @altmap:	device page map
++ *
++ * Return 0 on success and an appropriate error code otherwise.
+  */
+ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
+ 				     struct vmem_altmap *altmap)
 -- 
-Michal Hocko
-SUSE Labs
+2.17.2
 
