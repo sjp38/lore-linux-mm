@@ -2,114 +2,104 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C4A54C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 11:53:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 99487C4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 12:20:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8997721850
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 11:53:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8997721850
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 3B0142075C
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 12:20:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B0142075C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 045C56B0007; Wed, 20 Mar 2019 07:53:39 -0400 (EDT)
+	id A6E6D6B0003; Wed, 20 Mar 2019 08:20:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F101D6B0008; Wed, 20 Mar 2019 07:53:38 -0400 (EDT)
+	id 9F38B6B0006; Wed, 20 Mar 2019 08:20:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DB3B16B000A; Wed, 20 Mar 2019 07:53:38 -0400 (EDT)
+	id 8951B6B0007; Wed, 20 Mar 2019 08:20:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B4F306B0007
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 07:53:38 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id n13so2107721qtn.6
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 04:53:38 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E0426B0003
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 08:20:18 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id o27so825008edc.14
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 05:20:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=BjRVWAY7Yzmi3WdvkMtCHL9KfX1Ez4HAedyVKzdyNF8=;
-        b=kGe50SBe5BynBpxyVY2GJqhU9bdKT2b2gJEuvp+Jpt3gkFlcQ7FOMYi/t+UFkJy2QN
-         mt/unLSLKBHjEpyhfJTe7bKjacKudCkNk1jxEp0CrOtuBVFWVTUhv/O7NPDfnHD6c5sb
-         bKPLKLiMYhB6ieQ0Wvy4wRxPA9ig7mRouGUIQcZZvM+RpdadaU4WdUYLH/17UAP39wH4
-         HCJuPUzZ3Iu7xdCm/U2b9a0kaMoaJYnd49Q1EVwPbeH9QsAkX0AgGu4A4VovhtnGucUF
-         aiGtaqCbwoPdIEzKYBiXpvyvrnW7264IdmI4kOokR/jAMja3YNHVdo0/0PlYZqmBTLw5
-         Gg4A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAW2banzeSKc4LwkPaB9zrlxUnTO8ThUN7NVUZQe1pO/a6SeReYT
-	Thd0wpNdmdZr0qlLwReJlV2PTkAHtH/obvjhsT4KSqQpznVvQmcZ2MsoPDG6JI2ATgLPQHy7Kfx
-	1UrlwMM3WUu8djENzu0b7FF70uShBaIoMj76Wsr0oDj0DFLQdVXCTpNmI8J76uEtKgw==
-X-Received: by 2002:ac8:28f4:: with SMTP id j49mr6446118qtj.310.1553082818509;
-        Wed, 20 Mar 2019 04:53:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwGcV8bawRTz3p6yXfvdL+XLJOIEmx+Llw9XENcktqMJegWDX5p6Ri5DUCu+FWiLObjcb4g
-X-Received: by 2002:ac8:28f4:: with SMTP id j49mr6446073qtj.310.1553082817783;
-        Wed, 20 Mar 2019 04:53:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553082817; cv=none;
+        bh=dXFvDyITa9NwkF6sB26uyWuSNb1aa4yRdxMiNFZX7Ec=;
+        b=i3rvtV2t7j0aOld6xNnP8RuEIXDRf9mHZdQ6cSf29+NL6l57bGM9z+9zT4TL56iwg0
+         mKefoSTbX7a2HiZz3f/+3S4+OIDyZ5pzezH0gk/jGYEyKiCXjORUsjSajHy9mpRKc4J0
+         b4mF/qsD78YXmGCxa4B6qyjtX5czUp13EN5MEJ3KT6xTracA3M154R19aDGjgnWAWeCr
+         vvbHnWGjlFaN+RjJuyaqXCsps24wxXT0NVRdVXezwwVhiFsGKHJfRgX4lSBtAemqrb17
+         FMlt7aYegjzFyYnBbT/lnl/oVGEQukjEAxIVWc69jcO0qHa9hgQFzr4IZ5sQxZOlzHbI
+         aptA==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAULP73guAoZj/mqH0kIKEhvJPU/ZiWMEqzxHRTv9u8MuWETwc0D
+	zM7flJrbzEXx+giONPDosxPXqKkNMeBMz0V2EP1u8qEK48NADtwAfcIq1ybsQz13ecB4ipYdjps
+	MXZEkoQLvGXFPxjYG0JIRPWY4TMAJ/X7+ftHGNscc4P0I8+6L27VGcEXQOB93XNE=
+X-Received: by 2002:a50:f39a:: with SMTP id g26mr20478577edm.151.1553084417717;
+        Wed, 20 Mar 2019 05:20:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwMDOjt3XJNyMK1qmXXrLcN6Rq/1YSB/trj2ZlKPdjGqRdRIPbt6F/qyqk31pi/St6yz0rC
+X-Received: by 2002:a50:f39a:: with SMTP id g26mr20478520edm.151.1553084416566;
+        Wed, 20 Mar 2019 05:20:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553084416; cv=none;
         d=google.com; s=arc-20160816;
-        b=nhr4x7QP924zlpG0WBgoVSnEafd33XqQZX75Dt9YowE3B0G0smMqEdlljZYXVQUND/
-         GQnuHzt7GSgCc2vZ4vAhl42TyuE4J5Ki7d/3FDj5KNMcbAETllLAPWc/Oo3kvb9JTFKq
-         4oDC4DiZjoteyPF67CZPC1ZcQoF5cz3J+F243ijxQp/z5VagblNcYZSHTJ3DyIhDohkE
-         D85YK9swkQWhCsGm081GTGM9jIZ9rhuwpyOhLq2hHq29bysBnJ6U/blG6eFp/tcjqZan
-         aESwvO9KWIWRuoh/6KejVqU1aKqx9xRSeQTSpzmShMGGcUTOuonjeVqasmSukWD8GrOD
-         iEtA==
+        b=YNQRanUOXBaj82jz5Ry0xSOjQqnSgwQIMOkduXkwXhDmDzajQhcdtduNw4Gvbomu4L
+         2ujOkjB8RsqNpMyPLa0sWdBfd8/CjaubES30XYRULGcEfXQg5JYed8lwYx11c3uPcdyi
+         olJe/BnWF/GxSrGtR9As4vILqYuKZTiFHDi5aosBd60YafOtmOfKquCjEQg/c7gOfrlI
+         NjZbR9orBrrJVFtdALPL/M+yVG1HvlU2oTpguuWdKvULNlM6s32/u/+bz/PWintyMZNl
+         gpaxjEIqRD3RGJA1LzIol7z0WbSqc2MIPTcxW5Koj/kcfIJTw0SE4LrCsj1nqDPwL9li
+         2pdA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=BjRVWAY7Yzmi3WdvkMtCHL9KfX1Ez4HAedyVKzdyNF8=;
-        b=wA0e4c9hj+Z7V00tmZMD6oyT2Ve8mY9t0duDJe8IImyNr2tioo99iu2+rmy2ySXWej
-         WI3UAQC1enD5Yqp98x8MXD7YnCwU+KAUA8aijesOtWFJ8lachIrl6XScqjXZLnmuViKU
-         9dvt0AoJ1WQP8kBZQp4SS/l88puVut1nX4QX/4a3CtLTDsMgI6T1TeSNLy28MG8xeLHl
-         DzqsXkUpr8LSU+xSc2dmFxf3IM4wf9km65AVArfVeEc4GqJsS8kRiC5DSNl3hnC0gS+r
-         6GZB2hV0yM/taZ/JnM8J9AoaQ2iIu0hVWHYAgG7LOZD+IoCy5Fxbv8pWxJgfCYlZ5NlC
-         XPzw==
+        bh=dXFvDyITa9NwkF6sB26uyWuSNb1aa4yRdxMiNFZX7Ec=;
+        b=tYOuJUjT9mrvOKuEIYg0ePWvqLKxlAVV1vrlLAPMeloslnNiNBKYXGDgc8bKJds8En
+         Yt0UiugHFOuphwqwyXBjlEJBHmyHRwBDSU0SY9KjumhLNHm0uIRZusuNQmw4autZJugN
+         /n+8nLwNCj4PAK9qwsyGgKfyn2VIWJHTPYU3nkSvmR0Q4SixHx9zs1X0N57EvOfN/Y7G
+         Ypj6iNMB77XzXP9YOTMjZVqFCsPhV0XjQyPuNXTkLEMsyEAdmCuhzKg2pgTYgYxZTwwD
+         RidcbPmuQJiTm99PE6912IqCsrL2jr1qgCq49ipOGW3QIHPLuu8as7Zd/rXPWZNISyj7
+         x/TA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h65si970604qkc.258.2019.03.20.04.53.37
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Mar 2019 04:53:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from suse.de (nat.nue.novell.com. [2620:113:80c0:5::2222])
+        by mx.google.com with ESMTP id j3si569980eja.2.2019.03.20.05.20.16
+        for <linux-mm@kvack.org>;
+        Wed, 20 Mar 2019 05:20:16 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) client-ip=2620:113:80c0:5::2222;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id D47D03084259;
-	Wed, 20 Mar 2019 11:53:36 +0000 (UTC)
-Received: from localhost (ovpn-12-38.pek2.redhat.com [10.72.12.38])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 1BE516014E;
-	Wed, 20 Mar 2019 11:53:35 +0000 (UTC)
-Date: Wed, 20 Mar 2019 19:53:33 +0800
-From: Baoquan He <bhe@redhat.com>
+       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: by suse.de (Postfix, from userid 1000)
+	id 6683C4622; Wed, 20 Mar 2019 13:20:15 +0100 (CET)
+Date: Wed, 20 Mar 2019 13:20:15 +0100
+From: Oscar Salvador <osalvador@suse.de>
 To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org,
-	pasha.tatashin@oracle.com, mhocko@suse.com, rppt@linux.vnet.ibm.com,
-	richard.weiyang@gmail.com, linux-mm@kvack.org
+Cc: Baoquan He <bhe@redhat.com>, linux-kernel@vger.kernel.org,
+	akpm@linux-foundation.org, pasha.tatashin@oracle.com,
+	mhocko@suse.com, rppt@linux.vnet.ibm.com, richard.weiyang@gmail.com,
+	linux-mm@kvack.org
 Subject: Re: [PATCH 1/3] mm/sparse: Clean up the obsolete code comment
-Message-ID: <20190320115333.GR18740@MiWiFi-R3L-srv>
+Message-ID: <20190320122011.stuoqugpjdt3d7cd@d104.suse.de>
 References: <20190320073540.12866-1-bhe@redhat.com>
  <20190320111959.GV19508@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 In-Reply-To: <20190320111959.GV19508@bombadil.infradead.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Wed, 20 Mar 2019 11:53:37 +0000 (UTC)
+User-Agent: NeoMutt/20170421 (1.8.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 03/20/19 at 04:19am, Matthew Wilcox wrote:
+On Wed, Mar 20, 2019 at 04:19:59AM -0700, Matthew Wilcox wrote:
 > On Wed, Mar 20, 2019 at 03:35:38PM +0800, Baoquan He wrote:
 > >  /*
 > > - * returns the number of sections whose mem_maps were properly
@@ -138,6 +128,14 @@ On 03/20/19 at 04:19am, Matthew Wilcox wrote:
 > $ errno EBUSY
 > EBUSY 16 Device or resource busy
 
-OK, will update per your comments. Thanks.
-> 
+We return -EEXIST in case the section we are trying to add is already
+there, and that error is being caught by __add_pages(), which ignores the
+error in case is -EXIST and keeps going with further sections.
+
+Sure we can change that for -EBUSY, but I think -EEXIST makes more sense,
+plus that kind of error is never handed back to userspace.
+
+-- 
+Oscar Salvador
+SUSE L3
 
