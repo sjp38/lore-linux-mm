@@ -2,499 +2,266 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 206BAC10F05
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 06:48:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3BD7AC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 07:02:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AC40A2184D
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 06:48:33 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CDE1E2146E
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 07:02:47 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=eInfochipsIndia.onmicrosoft.com header.i=@eInfochipsIndia.onmicrosoft.com header.b="lIXiSAAc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC40A2184D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=einfochips.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="fyxNliQL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CDE1E2146E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2D9066B0003; Wed, 20 Mar 2019 02:48:33 -0400 (EDT)
+	id 674886B0003; Wed, 20 Mar 2019 03:02:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 25D9E6B0006; Wed, 20 Mar 2019 02:48:33 -0400 (EDT)
+	id 624EE6B0006; Wed, 20 Mar 2019 03:02:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 101666B0007; Wed, 20 Mar 2019 02:48:33 -0400 (EDT)
+	id 4EC8B6B0007; Wed, 20 Mar 2019 03:02:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BAFEA6B0003
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 02:48:32 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id b11so1588497pfo.15
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 23:48:32 -0700 (PDT)
+Received: from mail-ua1-f69.google.com (mail-ua1-f69.google.com [209.85.222.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 243CA6B0003
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 03:02:47 -0400 (EDT)
+Received: by mail-ua1-f69.google.com with SMTP id g4so127170uak.17
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 00:02:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-transfer-encoding:mime-version;
-        bh=pVJTyAUdYpW1rV9Zr3u1YGhOj2yB6ZXF0806FKC8c8E=;
-        b=EKASTmhufuRNDvXWLXsKg7qRUJh/A/uXt65GrYqmDCau+Dnqz7U/gWqeW1DJMzogeD
-         MK15g002gNrd6BECfmrRebaW/1fG81yTxbTWC1dXtX1ZTSJPM2uR9T47rF5IeUp/EP7q
-         dnhZIvfk6cLjAj26OPX7gd/1UfY2nDff+lINcM0Lesm04bca50BDTyX8F47l/Kgm8mNu
-         XzymkcTjpwG5YFdYl+9GgC8NQyy8hnl66OY8S/h87oQONrIIholE4HMxOf8G0t46Ca/P
-         0zMOntd7YODfIv1FWRyKpWNi4kfYkNcQE1XTr9eQ7Q9scsY3wCFRjQNgkRCXYQrAZE/u
-         ZcRA==
-X-Gm-Message-State: APjAAAVTGLav5+zJ3KnmVZ2TfQz7pjS8+I4x16MYZoLYfnOESMj0BaHI
-	B1aDxJcogIzSEGTY2IU9gHxkXmUDgWrkOnyTnZLsUI9qOC7FR2Dm7NurCrys/V5sZYGc0zMdJRY
-	NlcnwSQsmsvHPOStHuxVhBOdtKvQ9DlCSHu9eYiYXKpdxCrQBnMMYjlI7s9E5CE4Kug==
-X-Received: by 2002:a63:460a:: with SMTP id t10mr5682859pga.354.1553064512291;
-        Tue, 19 Mar 2019 23:48:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwthC2IfgYvg9Rz52ZAYEXplm8J73QWlpxzgsxYMxdy93n6mvJV1UMuJ0OtVE3jl2B3QqQF
-X-Received: by 2002:a63:460a:: with SMTP id t10mr5682788pga.354.1553064511066;
-        Tue, 19 Mar 2019 23:48:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553064511; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=vAzgUFOLVUeLsi0TJbcZmkaGpPUw2R62FsElDTLduRg=;
+        b=ZSv12dJYXx0xeP7YVvjKzddv/Sx1K9o6RFeHkT0Ixd1xegRspzpGGy0xNhzaK7/Dfe
+         l7jlBMWztiTm8X3LcSUcWnMlKdkzOkUfieU7bG23vzFmn22vSWyPKMDj97uwNEpQpBM3
+         l3pPMUCenNO7dCjhio5j5ckx4KHs7QBT5pzckBJtxC6HY3lQw/uUgW+h6ohOJyBK1Z3e
+         BIxNvygH5OpWWJ+/3YCQIrmm5Hw8wFU172PgobNpkCg0V+a79akl2rMU8lo+lzuZTQfQ
+         FBOP0KUEVqgFlM9fDXWGpMiI8Rmf5sJ86wWppOJZJMxzAusMkv/F5K1a7MUfUFf17MF+
+         qZSQ==
+X-Gm-Message-State: APjAAAWJ+7bIwOCaILB3auE8SPNb0CC5CSQUiJX+txxQ0dqQPa6lIssq
+	PbXX36tMqHNFBDYuuwx+M0hXqytKsTYOvl/GZQSdpV3dw/kcetfHA4MMTzI/h2bxCFI4oDKxK2C
+	KcjYbgCd+5mab/pZGaUPuHi2bwY75281iZzK8fh6JHKoaYaHSHKWdxyLI6mt68RkT8A==
+X-Received: by 2002:ab0:73d3:: with SMTP id m19mr3566247uaq.46.1553065366700;
+        Wed, 20 Mar 2019 00:02:46 -0700 (PDT)
+X-Received: by 2002:ab0:73d3:: with SMTP id m19mr3566193uaq.46.1553065365297;
+        Wed, 20 Mar 2019 00:02:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553065365; cv=none;
         d=google.com; s=arc-20160816;
-        b=Hs6eVY90O/MR544/vrPImbg/USAzP5V9IS5sg6PGpOXEDxIbY8a8QpIs5qHiY8m2lw
-         2Ra/a6e7FlDZMEYYcszYW8xCuHZ9KWaCQbO9XGX6bl/oia0qLA9KFE9se0CSXUDwMtx3
-         0Wpt9no6llDjTSPKqPotXYXqf1yEIkcGuaPmbd+ZZNLAd23O/jSXJFtvZzJfL3OxU7E6
-         oGSMEea9rWCWVwsQSWlUAcrlEiWduxzYqRGWSlJlMfOy33sYAkmrRoxujJ2cAsG34yHd
-         FCtPg2N/+7uvq7FTSusjyoMVZJn/Vqm5K25WN6Xnz3qxOmEGi5UWHVSltZ7WTp5Hfpf4
-         870Q==
+        b=WcZKIWBeUC2zNFcYIT9p7jx+DtiP7GT/8eaQwnMnypCltpyY+Dz244zlPemQzb70h/
+         vErrRLbb2Aj1lTE6gjb+UDnHXHzdXz6suKL6tfJu9M3zQxtS7pBZo3ie6cM+V7LSzKc6
+         Wd2GpxP8U9JZ2D7EpB7okHK+0B5h1WvgX7RMbls9YQJn1EkPeATjP4ofLESJtwo+hdoP
+         Vp1r2sMS8NwNbrWcoEeU3qMAqgAeXBvhOWcaox6FiKsr1INJthh/sF2hxUW6w0Wt2WmD
+         gzwlNtIN7ZewlyjdqqTGqn6xZegwqKp8A7919XENldg8SAO74Q1dauNWtPfq4zwDudLg
+         1jZQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=pVJTyAUdYpW1rV9Zr3u1YGhOj2yB6ZXF0806FKC8c8E=;
-        b=V/do+6iQkJyU0yu+XqgVgAbjWJitRpJh+iw0P3897IFv850dWPUcpb1lO82fRUk2pU
-         zeN4GFqdV84TcK+BLtQl9eR7cSIYAfP6OHerdpci3ZrjWsoS7lIp/kdbkoH05GFjgrm4
-         FMZw4otog517/OWvdzXH5MqA10yl++6LIxpHkVyvYFnD3OeWTDcBU+MddyLphXkWZUaE
-         59nt4QckKae6RseVJANE2gm4MKm1PXkWHf67xylv5iQqGGzzRBdrTpzKK7KF1CtdyB9X
-         IIKOGuZJWqX9Cmtg2XLZVBSIhcX+/vsNQejw3v4ok73LjfR7ZeVYEthRryDig1rsq6kn
-         e8KA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=vAzgUFOLVUeLsi0TJbcZmkaGpPUw2R62FsElDTLduRg=;
+        b=pk0a/h13JwWYY3mT6D5Wu+iEEerkgVV1GXgLiitIsh+IoIenAZM+F08eSgQaEztGyg
+         8y8ikcL8eKE1GZkBpAM2yyd3m/4PWlppmHXvYIvj9QDOKvk7LQBGLasr9eJ2ura7zE/2
+         23x0oz/GprNof4RvMSF9FAT1nklXEcRps8fkURChWnAafsfgh7AdJBM3K4dBzLydDyF/
+         oISXZ88nuPVsme9i5onJaBg+d/p3lyf7bGLX5Q+E6I0qcUFRYbi9lZp19Fg8i7Cteusw
+         yJMzkjLLLJdcO2MtwsMGwLem4jeVm2v6Q4s6j/g/wWl7VbMUQu+vSGwl5vSWIKv1E7Bw
+         /M4A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=lIXiSAAc;
-       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.131.54 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
-Received: from APC01-SG2-obe.outbound.protection.outlook.com (mail-eopbgr1310054.outbound.protection.outlook.com. [40.107.131.54])
-        by mx.google.com with ESMTPS id r26si996446pgv.127.2019.03.19.23.48.30
+       dkim=pass header.i=@google.com header.s=20161025 header.b=fyxNliQL;
+       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 128sor828624vsr.75.2019.03.20.00.02.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 19 Mar 2019 23:48:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.131.54 as permitted sender) client-ip=40.107.131.54;
+        (Google Transport Security);
+        Wed, 20 Mar 2019 00:02:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=lIXiSAAc;
-       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.131.54 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=fyxNliQL;
+       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=eInfochipsIndia.onmicrosoft.com; s=selector1-einfochips-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=pVJTyAUdYpW1rV9Zr3u1YGhOj2yB6ZXF0806FKC8c8E=;
- b=lIXiSAAc/ZNRJcphW/W3cgL/1awBNa5DJ3EHviWWpXCATr01A/mY7+IfEaUb19QFy8FIwwPXrrLcnnO8BVBo+pOjwJLznMNAZsOMVgNRopugNyN2bjjj+p+twidTMAKwUKkqDia6aIxxf1fTJNxAstIxhMYN3o/0rFY9R1DGP44=
-Received: from SG2PR02MB3098.apcprd02.prod.outlook.com (20.177.88.78) by
- SG2PR02MB2812.apcprd02.prod.outlook.com (20.177.86.138) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1709.14; Wed, 20 Mar 2019 06:48:28 +0000
-Received: from SG2PR02MB3098.apcprd02.prod.outlook.com
- ([fe80::f432:20e4:2d22:e60b]) by SG2PR02MB3098.apcprd02.prod.outlook.com
- ([fe80::f432:20e4:2d22:e60b%4]) with mapi id 15.20.1709.015; Wed, 20 Mar 2019
- 06:48:28 +0000
-From: Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>, Vlastimil Babka <vbabka@suse.cz>,
-	Michal Hocko <mhocko@kernel.org>, "aneesh.kumar@linux.ibm.com"
-	<aneesh.kumar@linux.ibm.com>
-CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"minchan@kernel.org" <minchan@kernel.org>, "linux-mm@kvack.org"
-	<linux-mm@kvack.org>, "khandual@linux.vnet.ibm.com"
-	<khandual@linux.vnet.ibm.com>
-Subject: Re: [External] Re: vmscan: Reclaim unevictable pages
-Thread-Topic: [External] Re: vmscan: Reclaim unevictable pages
-Thread-Index:
- AQHU3WaYCAMWaFadm0e/0+hd2XPYGaYRGYZ/gAAG5oCAAAD82oAAAx4AgAABDq2AAAzwgIAC47DN
-Date: Wed, 20 Mar 2019 06:48:27 +0000
-Message-ID:
- <SG2PR02MB309864258DBE630AD3AD2E10E8410@SG2PR02MB3098.apcprd02.prod.outlook.com>
-References:
- <SG2PR02MB3098A05E09B0D3F3CB1C3B9BE84B0@SG2PR02MB3098.apcprd02.prod.outlook.com>
- <20190314084120.GF7473@dhcp22.suse.cz>
- <SG2PR02MB309894F6D7DF9148846088F3E84B0@SG2PR02MB3098.apcprd02.prod.outlook.com>
- <226a92b9-94c5-b859-c54b-3aacad3089cc@virtuozzo.com>
- <SG2PR02MB3098299456FB6AE2FD822C4CE84B0@SG2PR02MB3098.apcprd02.prod.outlook.com>
- <SG2PR02MB30988333AD658F8124070ABEE84B0@SG2PR02MB3098.apcprd02.prod.outlook.com>
- <SG2PR02MB3098AB587F4BFCD6B9D042FDE8440@SG2PR02MB3098.apcprd02.prod.outlook.com>
- <SG2PR02MB3098E6F2C4BAEB56AE071EDCE8440@SG2PR02MB3098.apcprd02.prod.outlook.com>
- <0b86dbca-cbc9-3b43-e3b9-8876bcc24f22@suse.cz>
- <SG2PR02MB309841EA4764E675D4649139E8470@SG2PR02MB3098.apcprd02.prod.outlook.com>
- <56862fc0-3e4b-8d1e-ae15-0df32bf5e4c0@virtuozzo.com>
- <SG2PR02MB3098EEAF291BFD72F4163936E8470@SG2PR02MB3098.apcprd02.prod.outlook.com>
- <4c05dda3-9fdf-e357-75ed-6ee3f25c9e52@virtuozzo.com>
- <SG2PR02MB309869FC3A436C71B50FA57BE8470@SG2PR02MB3098.apcprd02.prod.outlook.com>,<09b6ee71-0007-7f1d-ac80-7e05421e4ec6@virtuozzo.com>
-In-Reply-To: <09b6ee71-0007-7f1d-ac80-7e05421e4ec6@virtuozzo.com>
-Accept-Language: en-GB, en-US
-Content-Language: en-GB
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=pankaj.suryawanshi@einfochips.com; 
-x-originating-ip: [14.98.130.2]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: a56f1753-4002-4087-33db-08d6ad000ee8
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(7168020)(4627221)(201703031133081)(201702281549075)(8990200)(5600127)(711020)(4605104)(2017052603328)(7153060)(7193020);SRVR:SG2PR02MB2812;
-x-ms-traffictypediagnostic: SG2PR02MB2812:|SG2PR02MB2812:
-x-ms-exchange-purlcount: 2
-x-microsoft-antispam-prvs:
- <SG2PR02MB28123E5AA8AE1525A7A75F7EE8410@SG2PR02MB2812.apcprd02.prod.outlook.com>
-x-forefront-prvs: 098291215C
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(396003)(39850400004)(366004)(376002)(346002)(136003)(54534003)(189003)(199004)(76176011)(11346002)(2501003)(86362001)(110136005)(93886005)(446003)(81156014)(486006)(6246003)(99286004)(7696005)(53546011)(476003)(54906003)(44832011)(8936002)(6506007)(53936002)(8676002)(74316002)(7736002)(68736007)(478600001)(26005)(2906002)(186003)(102836004)(55236004)(305945005)(6306002)(9686003)(6436002)(81166006)(55016002)(966005)(14454004)(316002)(256004)(105586002)(4326008)(5024004)(97736004)(14444005)(66574012)(5660300002)(52536014)(30864003)(25786009)(33656002)(71200400001)(71190400001)(78486014)(6116002)(66066001)(106356001)(3846002)(229853002)(586874002);DIR:OUT;SFP:1101;SCL:1;SRVR:SG2PR02MB2812;H:SG2PR02MB3098.apcprd02.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: einfochips.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- /cEmGy6OmJUgXcQSWyDX3UUmb93rK2JR/w91DiiK1EysBR90Eti9b8LHb38RDRSpwXcSN4onXQemMi58I+pGfjGW0ZIhaZXorFWng5b8bZ6lcF2eLYamuGtYcflMrZIl2NL04acxVqv31tk2wtAx7ux3U0iBv+IzlqQfluFHTkyoq0u/8/IgVJ48euYGwnG0BrNqUSRwAM0wWoiMgoW4xubwKUyDROd9RWVYAdHrndnz1GVpSLbLbjyHYSjq0gBAQw5Kb682fmiOaoQTJHvi2KxlOREfKYaCVeV202Q5k8+xRG2HoNhx0znpjQytuj0pyE1WT/XbEloCHKY5hL0aVsgx46RlKPa2Fn9Te9ptk5GYBsBJrW+FerFDyOJNp8JPet++dJltm20+3r2+x4DkXYjdnAInU5lLaurXDY0ChOM=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=vAzgUFOLVUeLsi0TJbcZmkaGpPUw2R62FsElDTLduRg=;
+        b=fyxNliQLxp3Nr34uwJ2T0LBfNXf/FWsZRLtPUpf+gLP4CDIaMf5qf1W36ZYWbO2C33
+         2etZxVpe3HnaDRa1e5pv3Me+oaEURa0DpWaIL3ydJucWIfG/26rm7z5vo3vBaAbu2Nj9
+         rSNae+6Gngf0K77jG+TV67FSIYgmU4nBDRzDfj7QjIQB1cIRAnp1rri0n6MzrQwajZiO
+         Zlw8DfIOkLzg4JI/aJRQ1fp4FKqHjiA3zIT8Rrejt4j39rEFiaBgdgCU0+Oeak9dZf7O
+         Ac5aDBa/YQ7zcQ5p5K0xiYfd6QBzXq/GNp3/iskdV2TC5FadutJqkgMCYTOAkXsppc0r
+         dXJA==
+X-Google-Smtp-Source: APXvYqzIYHl+ptUak8CWPxjPoPTrYJ56qLmPvgdqKaTs+cSZSkAKhJI29hST9o5aSTA58IUca80tbr+Y92AC22AkhTQ=
+X-Received: by 2002:a67:e446:: with SMTP id n6mr3837465vsm.183.1553065364333;
+ Wed, 20 Mar 2019 00:02:44 -0700 (PDT)
 MIME-Version: 1.0
-X-OriginatorOrg: einfochips.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: a56f1753-4002-4087-33db-08d6ad000ee8
-X-MS-Exchange-CrossTenant-originalarrivaltime: 20 Mar 2019 06:48:27.8966
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 0adb040b-ca22-4ca6-9447-ab7b049a22ff
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: SG2PR02MB2812
+References: <20190317015306.GA167393@google.com> <20190317114238.ab6tvvovpkpozld5@brauner.io>
+ <CAKOZuetZPhqQqSgZpyY0cLgy0jroLJRx-B93rkQzcOByL8ih_Q@mail.gmail.com>
+ <20190318002949.mqknisgt7cmjmt7n@brauner.io> <20190318235052.GA65315@google.com>
+ <20190319221415.baov7x6zoz7hvsno@brauner.io> <CAKOZuessqcjrZ4rfGLgrnOhrLnsVYiVJzOj4Aa=o3ZuZ013d0g@mail.gmail.com>
+ <20190319231020.tdcttojlbmx57gke@brauner.io> <20190320015249.GC129907@google.com>
+ <CAKOZuetJzg_EiyuK7Pa13X3LKuBbreg7zJ5g4uQv_uV4wpmZjg@mail.gmail.com> <20190320035953.mnhax3vd47ya4zzm@brauner.io>
+In-Reply-To: <20190320035953.mnhax3vd47ya4zzm@brauner.io>
+From: Daniel Colascione <dancol@google.com>
+Date: Wed, 20 Mar 2019 00:02:32 -0700
+Message-ID: <CAKOZuet3-VhmC3oHtEbPPvdiar_k_QXTf0TkgmH9LiwmW-_oNA@mail.gmail.com>
+Subject: Re: pidfd design
+To: Christian Brauner <christian@brauner.io>
+Cc: Joel Fernandes <joel@joelfernandes.org>, Suren Baghdasaryan <surenb@google.com>, 
+	Steven Rostedt <rostedt@goodmis.org>, Sultan Alsawaf <sultan@kerneltoast.com>, 
+	Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, =?UTF-8?B?QXJ2ZSBIasO4bm5ldsOlZw==?= <arve@android.com>, 
+	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>, Ingo Molnar <mingo@redhat.com>, 
+	Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, 
+	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>, linux-mm <linux-mm@kvack.org>, 
+	kernel-team <kernel-team@android.com>, Oleg Nesterov <oleg@redhat.com>, 
+	Andy Lutomirski <luto@amacapital.net>, "Serge E. Hallyn" <serge@hallyn.com>, 
+	Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-________________________________________
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Sent: 18 March 2019 16:08
-To: Pankaj Suryawanshi; Vlastimil Babka; Michal Hocko; aneesh.kumar@linux.i=
-bm.com
-Cc: linux-kernel@vger.kernel.org; minchan@kernel.org; linux-mm@kvack.org; k=
-handual@linux.vnet.ibm.com
-Subject: Re: [External] Re: vmscan: Reclaim unevictable pages
-
-On 18.03.2019 12:59, Pankaj Suryawanshi wrote:
+On Tue, Mar 19, 2019 at 8:59 PM Christian Brauner <christian@brauner.io> wrote:
 >
-> From: Kirill Tkhai <ktkhai@virtuozzo.com>
-> Sent: 18 March 2019 15:17:56
-> To: Pankaj Suryawanshi; Vlastimil Babka; Michal Hocko; aneesh.kumar@linux=
-.ibm.com
-> Cc: linux-kernel@vger.kernel.org; minchan@kernel.org; linux-mm@kvack.org;=
- khandual@linux.vnet.ibm.com; hillf.zj@alibaba-inc.com
-> Subject: Re: [External] Re: vmscan: Reclaim unevictable pages
+> On Tue, Mar 19, 2019 at 07:42:52PM -0700, Daniel Colascione wrote:
+> > On Tue, Mar 19, 2019 at 6:52 PM Joel Fernandes <joel@joelfernandes.org> wrote:
+> > >
+> > > On Wed, Mar 20, 2019 at 12:10:23AM +0100, Christian Brauner wrote:
+> > > > On Tue, Mar 19, 2019 at 03:48:32PM -0700, Daniel Colascione wrote:
+> > > > > On Tue, Mar 19, 2019 at 3:14 PM Christian Brauner <christian@brauner.io> wrote:
+> > > > > > So I dislike the idea of allocating new inodes from the procfs super
+> > > > > > block. I would like to avoid pinning the whole pidfd concept exclusively
+> > > > > > to proc. The idea is that the pidfd API will be useable through procfs
+> > > > > > via open("/proc/<pid>") because that is what users expect and really
+> > > > > > wanted to have for a long time. So it makes sense to have this working.
+> > > > > > But it should really be useable without it. That's why translate_pid()
+> > > > > > and pidfd_clone() are on the table.  What I'm saying is, once the pidfd
+> > > > > > api is "complete" you should be able to set CONFIG_PROCFS=N - even
+> > > > > > though that's crazy - and still be able to use pidfds. This is also a
+> > > > > > point akpm asked about when I did the pidfd_send_signal work.
+> > > > >
+> > > > > I agree that you shouldn't need CONFIG_PROCFS=Y to use pidfds. One
+> > > > > crazy idea that I was discussing with Joel the other day is to just
+> > > > > make CONFIG_PROCFS=Y mandatory and provide a new get_procfs_root()
+> > > > > system call that returned, out of thin air and independent of the
+> > > > > mount table, a procfs root directory file descriptor for the caller's
+> > > > > PID namspace and suitable for use with openat(2).
+> > > >
+> > > > Even if this works I'm pretty sure that Al and a lot of others will not
+> > > > be happy about this. A syscall to get an fd to /proc?
+> >
+> > Why not? procfs provides access to a lot of core kernel functionality.
+> > Why should you need a mountpoint to get to it?
+> >
+> > > That's not going
+> > > > to happen and I don't see the need for a separate syscall just for that.
+> >
+> > We need a system call for the same reason we need a getrandom(2): you
+> > have to bootstrap somehow when you're in a minimal environment.
+> >
+> > > > (I do see the point of making CONFIG_PROCFS=y the default btw.)
+> >
+> > I'm not proposing that we make CONFIG_PROCFS=y the default. I'm
+> > proposing that we *hardwire* it as the default and just declare that
+> > it's not possible to build a Linux kernel that doesn't include procfs.
+> > Why do we even have that button?
+> >
+> > > I think his point here was that he wanted a handle to procfs no matter where
+> > > it was mounted and then can later use openat on that. Agreed that it may be
+> > > unnecessary unless there is a usecase for it, and especially if the /proc
+> > > directory being the defacto mountpoint for procfs is a universal convention.
+> >
+> > If it's a universal convention and, in practice, everyone needs proc
+> > mounted anyway, so what's the harm in hardwiring CONFIG_PROCFS=y? If
+> > we advertise /proc as not merely some kind of optional debug interface
+> > but *the* way certain kernel features are exposed --- and there's
+> > nothing wrong with that --- then we should give programs access to
+> > these core kernel features in a way that doesn't depend on userspace
+> > kernel configuration, and you do that by either providing a
+> > procfs-root-getting system call or just hardwiring the "/proc/" prefix
+> > into VFS.
+> >
+> > > > Inode allocation from the procfs mount for the file descriptors Joel
+> > > > wants is not correct. Their not really procfs file descriptors so this
+> > > > is a nack. We can't just hook into proc that way.
+> > >
+> > > I was not particular about using procfs mount for the FDs but that's the only
+> > > way I knew how to do it until you pointed out anon_inode (my grep skills
+> > > missed that), so thank you!
+> > >
+> > > > > C'mon: /proc is used by everyone today and almost every program breaks
+> > > > > if it's not around. The string "/proc" is already de facto kernel ABI.
+> > > > > Let's just drop the pretense of /proc being optional and bake it into
+> > > > > the kernel proper, then give programs a way to get to /proc that isn't
+> > > > > tied to any particular mount configuration. This way, we don't need a
+> > > > > translate_pid(), since callers can just use procfs to do the same
+> > > > > thing. (That is, if I understand correctly what translate_pid does.)
+> > > >
+> > > > I'm not sure what you think translate_pid() is doing since you're not
+> > > > saying what you think it does.
+> > > > Examples from the old patchset:
+> > > > translate_pid(pid, ns, -1)      - get pid in our pid namespace
+> >
+> > Ah, it's a bit different from what I had in mind. It's fair to want to
+> > translate PIDs between namespaces, but the only way to make the
+> > translate_pid under discussion robust is to have it accept and produce
+> > pidfds. (At that point, you might as well call it translate_pidfd.) We
+> > should not be adding new APIs to the kernel that accept numeric PIDs:
+>
+> The traditional pid-based api is not going away. There are users that
+> have the requirement to translate pids between namespaces and also doing
+> introspection on these namespaces independent of pidfds. We will not
+> restrict the usefulness of this syscall by making it only work with
+> pidfds.
+>
+> > it's not possible to use these APIs correctly except under very
+> > limited circumstances --- mostly, talking about init or a parent
+>
+> The pid-based api is one of the most widely used apis of the kernel and
+> people have been using it quite successfully for a long time. Yes, it's
+> rac, but it's here to stay.
+>
+> > talking about its child.
+> >
+> > Really, we need a few related operations, and we shouldn't necessarily
+> > mingle them.
+>
+> Yes, we've established that previously.
+>
+> >
+> > 1) Given a numeric PID, give me a pidfd: that works today: you just
+> > open /proc/<pid>
+>
+> Agreed.
+>
+> >
+> > 2) Given a pidfd, give me a numeric PID: that works today: you just
+> > openat(pidfd, "stat", O_RDONLY) and read the first token (which is
+> > always the numeric PID).
+>
+> Agreed.
+>
+> >
+> > 3) Given a pidfd, send a signal: that's what pidfd_send_signal does,
+> > and it's a good start on the rest of these operations.
+>
+> Agreed.
+>
+> > 5) Given a pidfd in NS1, get a pidfd in NS2. That's what translate_pid
+> > is for. My preferred signature for this routine is translate_pid(int
+> > pidfd, int nsfd) -> pidfd. We don't need two namespace arguments. Why
+> > not? Because the pidfd *already* names a single process, uniquely!
+>
+> Given that people are interested in pids we can't just always return a
+> pidfd. That would mean a user would need to do get the pidfd read from
+> <pidfd>/stat and then close the pidfd. If you do that for a 100 pids or
+> more you end up allocating and closing file descriptors constantly for
+> no reason. We can't just debate pids away. So it will also need to be
+> able to yield pids e.g. through a flag argument.
 
-Also, please, avoid irritating quoting like below ^^^. They just distract a=
-ttention.
-
-> On 18.03.2019 12:43, Pankaj Suryawanshi wrote:
->> Hi Kirill Tkhai,
->>
->
-> Please, do not top posting:  https://kernelnewbies.org/mailinglistguideli=
-nes
->
-> Okay.
->
-> mailinglistguidelines - Linux Kernel Newbies
-> kernelnewbies.org
-> Set of FAQs for kernelnewbies mailing list. If you are new to this list p=
-lease read this page before you go on your quest for squeezing all the know=
-ledge from fellow members.
-
-And this spew ^^^.
-
->> Please see mm/vmscan.c in which it first added to list and than throw th=
-e error :
->> ------------------------------------------------------------------------=
---------------------------
->> keep:
->>                  list_add(&page->lru, &ret_pages);
->>                  VM_BUG_ON_PAGE(PageLRU(page) || PageUnevictable(page), =
-page);
->> ------------------------------------------------------------------------=
----------------------------
->>
->> Before throwing error, pages are added to list, this is under iteration =
-of shrink_page_list().
->
-> I say about about the list, which is passed to shrink_page_list() as firs=
-t argument.
-> Did you mean candidate list which is passed to shrink_page_list().
->
-> shrink_inactive_list()
-> {
->         isolate_lru_pages(&page_list); // <-- you can't obtain unevictabl=
-e pages here.
->         shrink_page_list(&page_list);
-> }
->
-> below is the overview of flow of calls for your information.
->
-> cma_alloc() ->
-> alloc_contig_range() ->
-> start_isolate_page_range() ->
-> __alloc_contig_migrate_range() ->
-> isolate_migratepages_range() ->
-> reclaim_clean_pages_from_list() ->
-> shrink_page_list()
-
-Hm, isolate_migratepages_range() can take unevictable pages,
-but then with your patch we just skip them in shrink_page_list().
-Without your patch we bump into bug on.
-
-I don't see any other issue/effect if i apply this patch.
-
-These both look incorrect for me. Let's wait someone who familiar
-with this logic.
-
->> From: Kirill Tkhai <ktkhai@virtuozzo.com>
->> Sent: 18 March 2019 15:03:15
->> To: Pankaj Suryawanshi; Vlastimil Babka; Michal Hocko; aneesh.kumar@linu=
-x.ibm.com
->> Cc: linux-kernel@vger.kernel.org; minchan@kernel.org; linux-mm@kvack.org=
-; khandual@linux.vnet.ibm.com; hillf.zj@alibaba-inc.com
->> Subject: Re: [External] Re: vmscan: Reclaim unevictable pages
->>
->>
->> Hi, Pankaj,
->>
->> On 18.03.2019 12:09, Pankaj Suryawanshi wrote:
->>>
->>> Hello
->>>
->>> shrink_page_list() returns , number of pages reclaimed, when pages is u=
-nevictable it returns VM_BUG_ON_PAGE(PageLRU(page) || PageUnevicatble(page)=
-,page);
->>
->> the general idea is shrink_page_list() can't iterate PageUnevictable() p=
-ages.
->> PageUnevictable() pages are never being added to lists, which shrink_pag=
-e_list()
->> uses for iteration. Also, a page can't be marked as PageUnevictable(), w=
-hen
->> it's attached to a shrinkable list.
->>
->> So, the problem should be somewhere outside shrink_page_list().
->>
->> I won't suggest you something about CMA, since I haven't dived in that c=
-ode.
->>
->>> We can add the unevictable pages in reclaim list in shrink_page_list(),=
- return total number of reclaim pages including unevictable pages, let the =
-caller handle unevictable pages.
->>>
->>> I think the problem is shrink_page_list is awkard. If page is unevictab=
-le it goto activate_locked->keep_locked->keep lables, keep lable list_add t=
-he unevictable pages and throw the VM_BUG instead of passing it to caller w=
-hile it relies on caller for non-reclaimed-non-unevictable    page's putbac=
-k.
->>> I think we can make it consistent so that shrink_page_list could return=
- non-reclaimed pages via page_list and caller can handle it. As an advance,=
- it could try to migrate mlocked pages without retrial.
->>>
->>>
->>> Below is the issue of CMA_ALLOC of large size buffer : (Kernel version =
-- 4.14.65 (On Android pie [ARM])).
->>>
->>> [=A0=A0 24.718792] page dumped because: VM_BUG_ON_PAGE(PageLRU(page) ||=
- PageUnevictable(page))
->>> [=A0=A0 24.726949] page->mem_cgroup:bd008c00
->>> [=A0=A0 24.730693] ------------[ cut here ]------------
->>> [=A0=A0 24.735304] kernel BUG at mm/vmscan.c:1350!
->>> [=A0=A0 24.739478] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP ARM
->>>
->>>
->>> Below is the patch which solved this issue :
->>>
->>> diff --git a/mm/vmscan.c b/mm/vmscan.c
->>> index be56e2e..12ac353 100644
->>> --- a/mm/vmscan.c
->>> +++ b/mm/vmscan.c
->>> @@ -998,7 +998,7 @@ static unsigned long shrink_page_list(struct list_h=
-ead *page_list,
->>>                 sc->nr_scanned++;
->>>
->>>                 if (unlikely(!page_evictable(page)))
->>> -                       goto activate_locked;
->>> +                      goto cull_mlocked;
->>>
->>>                 if (!sc->may_unmap && page_mapped(page))
->>>                         goto keep_locked;
->>> @@ -1331,7 +1331,12 @@ static unsigned long shrink_page_list(struct lis=
-t_head *page_list,
->>>                 } else
->>>                         list_add(&page->lru, &free_pages);
->>>                 continue;
->>> -
->>> +cull_mlocked:
->>> +                if (PageSwapCache(page))
->>> +                        try_to_free_swap(page);
->>> +                unlock_page(page);
->>> +                list_add(&page->lru, &ret_pages);
->>> +                continue;
->>>  activate_locked:
->>>                 /* Not a candidate for swapping, so reclaim swap space.=
- */
->>>                 if (PageSwapCache(page) && (mem_cgroup_swap_full(page) =
-||
->>>
->>>
->>>
->>>
->>> It fixes the below issue.
->>>
->>> 1. Large size buffer allocation using cma_alloc successful with unevict=
-able pages.
->>>
->>> cma_alloc of current kernel will fail due to unevictable page
->>>
->>> Please let me know if anything i am missing.
->>>
->>> Regards,
->>> Pankaj
->>>
->>> From: Vlastimil Babka <vbabka@suse.cz>
->>> Sent: 18 March 2019 14:12:50
->>> To: Pankaj Suryawanshi; Kirill Tkhai; Michal Hocko; aneesh.kumar@linux.=
-ibm.com
->>> Cc: linux-kernel@vger.kernel.org; minchan@kernel.org; linux-mm@kvack.or=
-g; khandual@linux.vnet.ibm.com; hillf.zj@alibaba-inc.com
->>> Subject: Re: [External] Re: vmscan: Reclaim unevictable pages
->>>
->>>
->>> On 3/15/19 11:11 AM, Pankaj Suryawanshi wrote:
->>>>
->>>> [ cc Aneesh kumar, Anshuman, Hillf, Vlastimil]
->>>
->>> Can you send a proper patch with changelog explaining the change? I
->>> don't know the context of this thread.
->>>
->>>> From: Pankaj Suryawanshi
->>>> Sent: 15 March 2019 11:35:05
->>>> To: Kirill Tkhai; Michal Hocko
->>>> Cc: linux-kernel@vger.kernel.org; minchan@kernel.org; linux-mm@kvack.o=
-rg
->>>> Subject: Re: Re: [External] Re: vmscan: Reclaim unevictable pages
->>>>
->>>>
->>>>
->>>> [ cc linux-mm ]
->>>>
->>>>
->>>> From: Pankaj Suryawanshi
->>>> Sent: 14 March 2019 19:14:40
->>>> To: Kirill Tkhai; Michal Hocko
->>>> Cc: linux-kernel@vger.kernel.org; minchan@kernel.org
->>>> Subject: Re: Re: [External] Re: vmscan: Reclaim unevictable pages
->>>>
->>>>
->>>>
->>>> Hello ,
->>>>
->>>> Please ignore the curly braces, they are just for debugging.
->>>>
->>>> Below is the updated patch.
->>>>
->>>>
->>>> diff --git a/mm/vmscan.c b/mm/vmscan.c
->>>> index be56e2e..12ac353 100644
->>>> --- a/mm/vmscan.c
->>>> +++ b/mm/vmscan.c
->>>> @@ -998,7 +998,7 @@ static unsigned long shrink_page_list(struct list_=
-head *page_list,
->>>>                  sc->nr_scanned++;
->>>>
->>>>                  if (unlikely(!page_evictable(page)))
->>>> -                       goto activate_locked;
->>>> +                      goto cull_mlocked;
->>>>
->>>>                  if (!sc->may_unmap && page_mapped(page))
->>>>                          goto keep_locked;
->>>> @@ -1331,7 +1331,12 @@ static unsigned long shrink_page_list(struct li=
-st_head *page_list,
->>>>                  } else
->>>>                          list_add(&page->lru, &free_pages);
->>>>                  continue;
->>>> -
->>>> +cull_mlocked:
->>>> +                if (PageSwapCache(page))
->>>> +                        try_to_free_swap(page);
->>>> +                unlock_page(page);
->>>> +                list_add(&page->lru, &ret_pages);
->>>> +                continue;
->>>>   activate_locked:
->>>>                  /* Not a candidate for swapping, so reclaim swap spac=
-e. */
->>>>                  if (PageSwapCache(page) && (mem_cgroup_swap_full(page=
-) ||
->>>>
->>>>
->>>>
->>>> Regards,
->>>> Pankaj
->>>>
->>>>
->>>> From: Kirill Tkhai <ktkhai@virtuozzo.com>
->>>> Sent: 14 March 2019 14:55:34
->>>> To: Pankaj Suryawanshi; Michal Hocko
->>>> Cc: linux-kernel@vger.kernel.org; minchan@kernel.org
->>>> Subject: Re: Re: [External] Re: vmscan: Reclaim unevictable pages
->>>>
->>>>
->>>> On 14.03.2019 11:52, Pankaj Suryawanshi wrote:
->>>>>
->>>>> I am using kernel version 4.14.65 (on Android pie [ARM]).
->>>>>
->>>>> No additional patches applied on top of vanilla.(Core MM).
->>>>>
->>>>> If  I change in the vmscan.c as below patch, it will work.
->>>>
->>>> Sorry, but 4.14.65 does not have braces around trylock_page(),
->>>> like in your patch below.
->>>>
->>>> See        https://git.kernel.org/pub/scm/linux/kernel/git/stable/linu=
-x.git/tree/mm/vmscan.c?h=3Dv4.14.65
->>>>
->>>> [...]
->>>>
->>>>>> diff --git a/mm/vmscan.c b/mm/vmscan.c
->>>>>> index be56e2e..2e51edc 100644
->>>>>> --- a/mm/vmscan.c
->>>>>> +++ b/mm/vmscan.c
->>>>>> @@ -990,15 +990,17 @@ static unsigned long shrink_page_list(struct l=
-ist_head *page_list,
->>>>>>                   page =3D lru_to_page(page_list);
->>>>>>                   list_del(&page->lru);
->>>>>>
->>>>>>                  if (!trylock_page(page)) {
->>>>>>                           goto keep;
->>>>>>                  }
->>>>
->>>> **********************************************************************=
-***************************************************************************=
-************ eInfochips Business Disclaimer: This e-mail message and all at=
-tachments transmitted with it are   intended  solely for the use of the add=
-ressee and may contain legally privileged and confidential information. If =
-the reader of this message is not the intended recipient, or an employee or=
- agent responsible for delivering this message to the intended recipient,  =
- you  are hereby notified that any dissemination, distribution, copying, or=
- other use of this message or its attachments is strictly prohibited. If yo=
-u have received this message in error, please notify the sender immediately=
- by replying to this message and   please  delete it from your computer. An=
-y views expressed in this message are those of the individual sender unless=
- otherwise stated. Company has taken enough precautions to prevent the spre=
-ad of viruses. However the company accepts no liability for any damage   ca=
-used  by any virus transmitted by this email. *****************************=
-***************************************************************************=
-*****************************************************
->>>>
->>>
->>>
->>>
->>
->>
->
->
+Sure, but that's still not a reason that we should care about pidfds
+working separately from procfs.
 
