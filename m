@@ -2,169 +2,155 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 441F7C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 14:55:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5B783C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 14:59:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EFBC12146E
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 14:55:39 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="FE175wIn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EFBC12146E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 244032146E
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 14:59:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 244032146E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A405A6B0006; Wed, 20 Mar 2019 10:55:39 -0400 (EDT)
+	id B4E9B6B0007; Wed, 20 Mar 2019 10:59:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9EF336B0007; Wed, 20 Mar 2019 10:55:39 -0400 (EDT)
+	id AD7C56B000A; Wed, 20 Mar 2019 10:59:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 904E56B0008; Wed, 20 Mar 2019 10:55:39 -0400 (EDT)
+	id 979B36B000C; Wed, 20 Mar 2019 10:59:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C5BE6B0006
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 10:55:39 -0400 (EDT)
-Received: by mail-yw1-f69.google.com with SMTP id p1so3432257ywm.6
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 07:55:39 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BDEA6B0007
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 10:59:15 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id w134so21052011qka.6
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 07:59:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=vyTalyJPAp/99xZSU46vuHhBhzH/5qMxRbhLufZJza8=;
-        b=WpripNtxe+9xYbYcz2y0sNhUgd3hWwB67Dzt2IQAVCC1Lh3nByU9/QiT3PTgMDlDN7
-         Fyiv5OTXUgmgq7xFx4FpFUIUD3qcTOUJiFgS/M9BAXSzEur+DiejFbMWthBvuAkVtN2w
-         +5nUAzjv4HyD8Lzv7tkyLQNQmV8eAgdOQPAqzw1zyDRA91pGl57oWJdRtOXmkG59+4EF
-         UmkwF8pd6WmW5Eub8hc9wm8h4gQaCfncv7LT2oMIPxz1Pq9lt8Pv7FtP8YYwAdXzkDew
-         Ji8/tHd4jpg5uvBNAmQb1vuKamf++O6EbdgiHwqhPVsKKiS+lxWz9DTdWIdU9myXeH+W
-         dADA==
-X-Gm-Message-State: APjAAAXAkH7yw77+4pSJiWXUuZP0oZrcjpf8UN/em4Aq7cuadUi0DSFY
-	azd3RPxKPLL7lpCZsHzNImLqZa3pXjiKpPWprmL+yfFnRM1y2jki/cQiXv/ZyOSJoz0YWJtI/nx
-	smAiCt8tjOk0Cbk0bU9wSejXizLbUIC9kARxvD8yvRKrzaR0dcjlgsMe+XJMygCMDng==
-X-Received: by 2002:a25:5782:: with SMTP id l124mr7473680ybb.114.1553093739208;
-        Wed, 20 Mar 2019 07:55:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyZUVbJy71pEbJSFBMpsku/D8awdc3CurIqeK671YN68ziDIxAkYdC2+gTxeiOuVnFGzjIm
-X-Received: by 2002:a25:5782:: with SMTP id l124mr7473639ybb.114.1553093738596;
-        Wed, 20 Mar 2019 07:55:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553093738; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=8+NFEdA7eV6jKlnhbgsAvv8kVflCeDHgDx4zrDqFGI0=;
+        b=FNZ10qu4bbW+KJ4Q6t39y3YM0YvdsUbtGxBisTokaQt7i4mcnUFoaLmzyho5ZhMqXd
+         A12Nkap2FL2L1RARsuZT/YYbfrvX6KOS4tqo9xxQFvop43wwHmCz9vnOz8ZL5BhydU2d
+         iEbRn/CGad5Dt1MemYZpRCUwn7sfbsEUi4PYFrnT4zJiX6JsydLpCJ8lnqrKMld0+HSA
+         P2RNKa67gG1UxrP/nC6uLkccAGPWr+j8nCyNw7/q7NWU8IQi+OC3nnTkKFj3zz2bskc6
+         BU0SoziIrkc0tuwrzrjoT2fKFyqNBmo+gmsCgpREI0PR7Q2Rvcu6vM8NxQY1qV/rrUT+
+         fzww==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWRWxJnXjH6yELf7glOc7lu0CFpkw6RRHSLOqdCRL33VliMI7pk
+	qpoKeG8/qx1GzfpLxFQvW1ostoS9SxfqW3mZTI+Y//Bkt6Hi+KUGy6tM8HACWe35YvABEUGwVVM
+	eCVYNtrA5+S1KWYp/Qm/z9GgoxeAxxmChI9iLKHf6fqEdEn0N3/r3ampb/cwHIrzpng==
+X-Received: by 2002:a0c:b00c:: with SMTP id k12mr7116951qvc.118.1553093955219;
+        Wed, 20 Mar 2019 07:59:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwRTgJPBF2kUdZlp7EtYbGRtkjuxzLlrY/tqScc/wu55uAZTSOaO/oAtixAeZ/hcvaq56tK
+X-Received: by 2002:a0c:b00c:: with SMTP id k12mr7116916qvc.118.1553093954695;
+        Wed, 20 Mar 2019 07:59:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553093954; cv=none;
         d=google.com; s=arc-20160816;
-        b=oTHklRfhol5lRJc3Hwa/wfWXwIbzs0j6TUcvb2XYhGy7M74ziUJTS4m9b7Vfk9a/PD
-         mxcJuvAymiSSgPOuZZd7aix9pLMnAC8cpaTENHwQ2kpsYmqxpMvupPXackLbftoTYT5g
-         G4fWB4pkszRihj6pux0omb+EWegRCg/5fsYJaWqe3kBA7NAiHaJTTyNPZsVsGoatjAFn
-         3e1X5k70yH2hbR22A4btCiMQ7JYlyZWzVQbJa4Y+Z/+8cMK6w00HdSLXJI+0o4o0aL7k
-         VCNKr2ZY9dGww7yOGGU+WZB5UJVijv3C5n30xRTQxJhQES7DNZ36NakGpCRLwsRqQ/7s
-         uvMg==
+        b=XsOnYEXr5e1ctEevnXHqVtTfR6s/f6093RDQYUKqFYD0SXK4KsA+1QsSluAYVfHpLC
+         yCc0Grmw78rVyx05688eXlutZ2UczhxOrWspI8dkCd9p5R8Crgciq/gDGW8H7k40/PpV
+         7V+X7xQobDyRKd39cs36eIal1/SV1doOJ0EulewTVRS/xT8A0AIrJ80dcbyKc9je2C1P
+         NCe5OUzu+lRDlXvlLzF2VylHpsctSNBsquKPUy+cs/uvQp7ZCq5hD94ReyZBzoU1uBEI
+         rrx9nWtEcajYuYVGPoVn95V1RkGx4VcMZpG32uGYxlwCW1YrjREJbUpA45OJNZVSZiSU
+         CxmQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=vyTalyJPAp/99xZSU46vuHhBhzH/5qMxRbhLufZJza8=;
-        b=pAAsK4xWhfEF00uJtIghel0PrhEQfl48WVbSUXEpFPvKzrsr6IlUXPfs6udmuo5lgI
-         hbAm4zA8mJ00u0cy5HSQ/myMqOGP2kryUfRezK6thSwoXwImxCX7ZbBVRn/7E/lj7QX3
-         Phl/cmDiYLJNkw07Kp3CgEBaZN25pobvvwOU+1NsKOC5B0CSgSa43Lr9VxYykj1MUydZ
-         j59TV9v8vq5OkSJu3qCCnYuscR89sJDNju6z88JAPMDufQ4mLQcTrTNdzxOONoWO0SYP
-         HwP2H46NweTWAXw5nSWeqSr0YHVwoV0mZIa2phNphYqp8V/h4P0DPXcKsTn2AxMdvZB/
-         Qczg==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=8+NFEdA7eV6jKlnhbgsAvv8kVflCeDHgDx4zrDqFGI0=;
+        b=ruy8Pe05KWnAwz24bL+xbdGAY3ZX0ckwAcZf9220cSDzw6UAITwFd5ft+5B5xghrBz
+         q9lwVvYOI1FmLfnRe5hnDjuvRAtazFG3wTlA1zK4aCQEaW851UrMB71/jdsHkI3ywSt4
+         hpthUBcMrR1B02JHLcYNZFf9+B1Kc38xyoUpd5vqaPy0ncrszyatCCCtloC106OLel30
+         5OyvmxBoApt+7CFzzWD0967DvIjquTRFbHRqLsvrs8daAoLSl/QNSXrYC8cAW1BmSVhX
+         IdcFsTD/aAkQGg6mxOmN64EbKmmHtBMWAbmCoSC9lwV4H3EPYwP5mZXPd7EOmTFWF2D3
+         lT4Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=FE175wIn;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id v64si1348407ywb.297.2019.03.20.07.55.38
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l3si150920qvc.210.2019.03.20.07.59.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Mar 2019 07:55:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        Wed, 20 Mar 2019 07:59:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=FE175wIn;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x2KEhaFt051492;
-	Wed, 20 Mar 2019 14:55:24 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
- mime-version : subject : from : in-reply-to : date : cc :
- content-transfer-encoding : message-id : references : to;
- s=corp-2018-07-02; bh=vyTalyJPAp/99xZSU46vuHhBhzH/5qMxRbhLufZJza8=;
- b=FE175wIndmjYqE9O1h9gs5/x/125rxIpTQyFuF9GQH3a6Qt22P3l4AlfYcZkplEIkwNy
- gL7VbxXqStMmQzDd7xdU1b0A57BVB8eoyezOVk6OCl1t5a1UMdVoKFq4Vw0/CxJ6C1ni
- hmF07JbaCWoErWy1V+EBBGOgYuvfftQ/Hclxb2Zh2YcX3qht8+vjjFLgvQpBSmpNyZeV
- FgHRKu1XeXc2w2qeNDJlMGA6OfsAYO+/xVIdbTPWmIgQ6xIjue2c/pJSTFqvDG7ArIP8
- poCyhKg1J2b1Do1V6MWmoC7XL59Xaz+0GVdd/oY+2XtrqWGOcat534VBi/iLvPAvW5y6 dQ== 
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by userp2130.oracle.com with ESMTP id 2r8rjuubhn-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 20 Mar 2019 14:55:24 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x2KEtMju002103
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 20 Mar 2019 14:55:23 GMT
-Received: from abhmp0022.oracle.com (abhmp0022.oracle.com [141.146.116.28])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x2KEtKfb010967;
-	Wed, 20 Mar 2019 14:55:20 GMT
-Received: from [192.168.0.110] (/73.243.10.6)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 20 Mar 2019 07:55:20 -0700
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.8\))
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 6EB206698A;
+	Wed, 20 Mar 2019 14:59:13 +0000 (UTC)
+Received: from redhat.com (ovpn-123-180.rdu2.redhat.com [10.10.123.180])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 6C80A6CE59;
+	Wed, 20 Mar 2019 14:59:04 +0000 (UTC)
+Date: Wed, 20 Mar 2019 10:59:02 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: William Kucharski <william.kucharski@oracle.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, Dave Chinner <david@fromorbit.com>,
+	"Kirill A. Shutemov" <kirill@shutemov.name>, john.hubbard@gmail.com,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linux MM <linux-mm@kvack.org>, Al Viro <viro@zeniv.linux.org.uk>,
+	Christian Benvenuti <benve@cisco.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	Christopher Lameter <cl@linux.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>,
+	Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
+	Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
+	Matthew Wilcox <willy@infradead.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
+	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
+	Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [PATCH v4 1/1] mm: introduce put_user_page*(), placeholder
  versions
-From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <20190320043319.GA7431@redhat.com>
-Date: Wed, 20 Mar 2019 08:55:17 -0600
-Cc: John Hubbard <jhubbard@nvidia.com>, Dave Chinner <david@fromorbit.com>,
-        "Kirill A. Shutemov" <kirill@shutemov.name>, john.hubbard@gmail.com,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Linux MM <linux-mm@kvack.org>, Al Viro <viro@zeniv.linux.org.uk>,
-        Christian Benvenuti <benve@cisco.com>,
-        Christoph Hellwig <hch@infradead.org>,
-        Christopher Lameter <cl@linux.com>,
-        Dan Williams <dan.j.williams@intel.com>,
-        Dennis Dalessandro <dennis.dalessandro@intel.com>,
-        Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
-        Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
-        Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>,
-        Mike Rapoport <rppt@linux.ibm.com>,
-        Mike Marciniszyn <mike.marciniszyn@intel.com>,
-        Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
-        LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
-        Andrea Arcangeli <aarcange@redhat.com>
-Content-Transfer-Encoding: 7bit
-Message-Id: <BFC3CDEE-4349-44C1-BE11-7C168BC578E1@oracle.com>
-References: <20190308213633.28978-1-jhubbard@nvidia.com>
- <20190308213633.28978-2-jhubbard@nvidia.com>
- <20190319120417.yzormwjhaeuu7jpp@kshutemo-mobl1>
- <20190319134724.GB3437@redhat.com> <20190319141416.GA3879@redhat.com>
- <20190319212346.GA26298@dastard> <20190319220654.GC3096@redhat.com>
- <20190319235752.GB26298@dastard> <20190320000838.GA6364@redhat.com>
+Message-ID: <20190320145901.GA3216@redhat.com>
+References: <20190319120417.yzormwjhaeuu7jpp@kshutemo-mobl1>
+ <20190319134724.GB3437@redhat.com>
+ <20190319141416.GA3879@redhat.com>
+ <20190319212346.GA26298@dastard>
+ <20190319220654.GC3096@redhat.com>
+ <20190319235752.GB26298@dastard>
+ <20190320000838.GA6364@redhat.com>
  <c854b2d6-5ec1-a8b5-e366-fbefdd9fdd10@nvidia.com>
  <20190320043319.GA7431@redhat.com>
-To: Jerome Glisse <jglisse@redhat.com>
-X-Mailer: Apple Mail (2.3445.104.8)
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9200 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=913 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1903200113
+ <BFC3CDEE-4349-44C1-BE11-7C168BC578E1@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <BFC3CDEE-4349-44C1-BE11-7C168BC578E1@oracle.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Wed, 20 Mar 2019 14:59:13 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-> On Mar 19, 2019, at 10:33 PM, Jerome Glisse <jglisse@redhat.com> wrote:
+On Wed, Mar 20, 2019 at 08:55:17AM -0600, William Kucharski wrote:
 > 
-> So i believe best we could do is send a SIGBUS to the process that has
-> GUPed a range of a file that is being truncated this would match what
-> we do for CPU acces. There is no reason access through GUP should be
-> handled any differently.
+> 
+> > On Mar 19, 2019, at 10:33 PM, Jerome Glisse <jglisse@redhat.com> wrote:
+> > 
+> > So i believe best we could do is send a SIGBUS to the process that has
+> > GUPed a range of a file that is being truncated this would match what
+> > we do for CPU acces. There is no reason access through GUP should be
+> > handled any differently.
+> 
+> This should be done lazily, as there's no need to send the SIGBUS unless
+> the GUPed page is actually accessed post-truncate.
 
-This should be done lazily, as there's no need to send the SIGBUS unless
-the GUPed page is actually accessed post-truncate.
+Issue is that unlike CPU access we might not be able to detect device
+access and thus it is not something we can do lazily for everyone.
+
+Cheers,
+Jérôme
 
