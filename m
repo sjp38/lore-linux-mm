@@ -2,152 +2,185 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 36E2EC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 09:40:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D8D8AC10F05
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 09:56:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E79A521850
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 09:40:36 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="agGczCTy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E79A521850
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	by mail.kernel.org (Postfix) with ESMTP id 6B53F2186A
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 09:56:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6B53F2186A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9A9776B0006; Wed, 20 Mar 2019 05:40:36 -0400 (EDT)
+	id D6D636B0003; Wed, 20 Mar 2019 05:56:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 959E76B0007; Wed, 20 Mar 2019 05:40:36 -0400 (EDT)
+	id CF6A76B0006; Wed, 20 Mar 2019 05:56:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8497D6B0008; Wed, 20 Mar 2019 05:40:36 -0400 (EDT)
+	id BE8246B0007; Wed, 20 Mar 2019 05:56:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 459DE6B0006
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 05:40:36 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id a72so2003922pfj.19
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 02:40:36 -0700 (PDT)
+Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C2D86B0003
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 05:56:52 -0400 (EDT)
+Received: by mail-lf1-f72.google.com with SMTP id p13so337768lfc.4
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 02:56:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=2ilZdXEgKQl8eu/If6oZwzfIDgI9nzN5u6h3xxR7k4I=;
-        b=XLBqDhOt6NYJWWK2a9LtP0XrAQ/dgd70UvPAG8gOj918asiHj34WSuJFyfBtmvkjOa
-         sUT13TPBcZ4zM4wiydFkGsLtyKoGx2ypgNVA53cgH7y2timp66+gzQIgSXrB4WFag1b2
-         9/CpD2fNlKDTMDeqzJxTkNO2T262joD9o2QehfCMDY0IcP6OK0FJ7ua7d8v5uc1o9l4L
-         813fy/tZl8Urz0T7VKpEg5WA8Je5m5VKkOoGgVzvcFnutsDoUVPbuov659IkAl1hGeKW
-         vLYYqjevtnvovvOTCNqq4qLo7LZOmq8d16BuSUV6TXmOfpM8462mIqJrlAqUMs3YiavI
-         HlOA==
-X-Gm-Message-State: APjAAAWcqAyRKLw6iPYXFIL+XdhhXHpfQAbuTLNqYlNcIzEab98yMGt6
-	2a8PnQVwWwuNUnXhhOCtwKFgDAgchEW4CcxITVIt6JpsL8ydfUMgsYhSej6Zchp3vfpdx3KSjOl
-	wXpGVmisM+EqERN3Q93t/11jorzCsa2vRM3fp4p5mrZRL6ok4PTHOgW7NBjaBtvBb0g==
-X-Received: by 2002:a62:69c3:: with SMTP id e186mr6520309pfc.169.1553074835890;
-        Wed, 20 Mar 2019 02:40:35 -0700 (PDT)
-X-Received: by 2002:a62:69c3:: with SMTP id e186mr6520255pfc.169.1553074835052;
-        Wed, 20 Mar 2019 02:40:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553074835; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:from:cc:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=+7rzd8TIkczZq2kBjY7Bs6oUvOtuK6x6OhyPFei2NIo=;
+        b=O/VgZZydpITLWNKD0Z8CDmyaCCHU4OsUZkFXyv6HG2rq5MqJgWziE2sWvYcHWrAoDp
+         SZpjEGvyRXzjO2QdK8GpTsZm3Vj65vOQpclFuo0PqQ4M6tBBf9bAp0oQcVtgoMaOovmT
+         aovz/koFOXv/ZRUWCpcvVy1MfOITIFSdurX8LGb4z1XsIDNw5AyBj2p9isOaMf/71gyo
+         9DTBlgxXry/un+jVyqSsdAelKY0c32p3uJM96Ys3Av3tRBHqhF06CkaoW1h/qaeIN1JO
+         5WU4sW5zhN5sRrsi7w1+Mql1RPAeUE/UuEWO4/t3/ZnA9b0N6E4aZyhAiVjBMaUCqiEI
+         NYeA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAXkrj2GgkAR7RZvQOLzf715Xf0yXmcFSBt7JfHYNlXKVhTwGP+a
+	amq6UJLXO3bTsn0ULw+rYJWGqS/Z2SKLSqEt9dzRMbf5ohQvpYL9Y+yHRvC7XJ2n/fdzt771oGi
+	i6yoI5xkbSrj2pI3YSIUOEKq0opyDpT07S4onIs8Xe0U7024NcGULCgYwNP4dnGP66A==
+X-Received: by 2002:a2e:9d53:: with SMTP id y19mr15881591ljj.37.1553075811773;
+        Wed, 20 Mar 2019 02:56:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy+nOQEglFxuoneH0jnYmWSRpVt+KOeWY7URK5u3DVmjrysgDBl/P7tC8vkVfjvbNTv93v8
+X-Received: by 2002:a2e:9d53:: with SMTP id y19mr15881544ljj.37.1553075810726;
+        Wed, 20 Mar 2019 02:56:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553075810; cv=none;
         d=google.com; s=arc-20160816;
-        b=0zdvEqj/zEK5DFWNn+TK7ELu2Vu+JVDuOgmwK+Yckphl+g3+ACP9xNzIyGzkA6aW/o
-         YOnSgPGp/FkcPvMowstE+2VfAahPeepOEeAulUKGdahcm9ByBEYGiYyy0zjqZi2cZscE
-         mIT0fzPXaQJDtdFoUCsYL0BdtWUSczlHM3XeuEJuOk3e8Ev/e+rKf2IdB0HjnDIWCdI2
-         n8d/MkpTyWR/BOO/iirTK6pdleoa1xO97BPmrZJgqrjVZZzeCJKrSnBQKR/jM/mQlwXy
-         01/7MHnJ2FODBiO8PqK//lH+4JE3qpdGJQugc6Dr6Fi1D4+JTMZ7dBFHpvh5ZkWu1MFk
-         zgsw==
+        b=y2UlAxFy/r3I8QtFbvCcf7F6+P/UcivC87WI2YdsxxGUHIZwJzJ0VXA9w9obJklNSd
+         9t+Oy15Yyuha/uT4HJxJfnV3qA4JgI8ycQgTa7EA3aTlqdSs8um7o9x35qqHSjXIOsG7
+         tjAG+4Hoidorib5x79s4ANonPdWj4N7XQFw/dF3zd+TRn2OdatbK8L/jG9vchgDFIwWI
+         74WchnWYsDa6Ixh6YdMxQ9o84z54JGA0qpM/e5zAX0y5FHPUrbf6GUi7Md/ZO+u9oUUu
+         j5E13waPu8uVdaO13PKvgeVPKqqU6Mv+Bb9n+9DxIJEWyLiTARcPUoD0/eOplIXj6h7D
+         XcOQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=2ilZdXEgKQl8eu/If6oZwzfIDgI9nzN5u6h3xxR7k4I=;
-        b=d7myxeRK8x1eRd2nT15M5VgBT4fYVi6lHgkNIO9q2yzy+G0w3oZLJllow6Q+RH04MF
-         slsmkrrEAtrxv20j+22sf8ldBPDYT3JNZb+8yW5Ij9vyn/KREsSAIe9P2/NUZYvCBZoA
-         BBi06yROm1iV0++aKa2ZfD05584o/lerYpvUctnOKQ1VvW1wy6axkUL4w99cFhDJctn5
-         jvIkzKtjZAZeJLswsDjF4BsNOk0Qfe0h6uyuHpNrVpFT+Vu/c1pVHVoboKS+lzR17pVi
-         PnVR3dVVEBOXbLnq19RhDE5rBr/OmBP/bI7CcwTivdGrdAUhW9tAt4mGxg6Xu6b9jVkr
-         KJ+g==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:cc:from:references:to:subject;
+        bh=+7rzd8TIkczZq2kBjY7Bs6oUvOtuK6x6OhyPFei2NIo=;
+        b=LyBktvd1OhD7Z3JoHClmTxvtWwrtQJoj2tJ3+z2ama7txnZKrPy7DUY2MBNA/hvBl5
+         vkY7M5BvEJTYVohW7rR68x9PQo3voDTt6FKckehEkrinXTc41wZsgiUvTV6fLSehI6fW
+         x7I5x15iAvrB/hsnbHSQfnJ1EeaxMWpcEifo7/xBr782Xlzwl2jvHJ2IjTJdbNQnaYq0
+         4BO09Bwl29HSb9XYIhMUlC7P8tMUzoJDKj5LAxux4AgnCMyMiAD1tL4tExtAB8D4NE+a
+         0J/M0I6sL3BoFWbVickjFYl0by3wtn2lRbfOaAnYz5JPv9N4c1/KlAotpLrQg8zTSYJn
+         xmoA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=agGczCTy;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e15sor1586834pgh.79.2019.03.20.02.40.34
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id 22si1101870lfy.134.2019.03.20.02.56.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Mar 2019 02:40:35 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=agGczCTy;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=2ilZdXEgKQl8eu/If6oZwzfIDgI9nzN5u6h3xxR7k4I=;
-        b=agGczCTyVX3YbxtbNXvXDU8mq3XwNWH9k0ijzWdCgnWmZ24E6MXUuKm4fIV2Q58fjO
-         rOmnT42x6IFqOMRyniVzVvrcvEdFZuh29FVdN73buc2fLd6c9XSGSU4ekUwdIRP9w0jI
-         TnG1CjqVJaKfsNBHua+/pXoacxpFw/skgnhdL+ii6OjDFsLZhdTCVeT8jAXx0g6s32ff
-         uOpFM8zsMkWdQ3UMLwxog6cqiiP4a9Wn8JCr/Sm942GLxVQsp/kAULxiT5dKNnnH46Xj
-         PRBqmL8qznxMJI3VqLWDQ45wB8rzfg+CagDnTAavLEuE4SvWjzHy/VzxJQpLMF3zACQ4
-         92wA==
-X-Google-Smtp-Source: APXvYqyRZpQfbFJVEpRMID17XPrBgMkhW+bQ+/Tdq95pUIU9dvdMgO/DYyin4FL9ZRNXRc0CEIUHAw==
-X-Received: by 2002:a63:5515:: with SMTP id j21mr6551236pgb.244.1553074834713;
-        Wed, 20 Mar 2019 02:40:34 -0700 (PDT)
-Received: from kshutemo-mobl1.localdomain ([134.134.139.82])
-        by smtp.gmail.com with ESMTPSA id 10sm2608365pft.83.2019.03.20.02.40.33
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Mar 2019 02:40:34 -0700 (PDT)
-Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
-	id 47B4C3011DB; Wed, 20 Mar 2019 12:40:29 +0300 (+03)
-Date: Wed, 20 Mar 2019 12:40:29 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, john.hubbard@gmail.com,
-	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	Al Viro <viro@zeniv.linux.org.uk>,
-	Christian Benvenuti <benve@cisco.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Christopher Lameter <cl@linux.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Chinner <david@fromorbit.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>,
-	Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
-	Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
-	Matthew Wilcox <willy@infradead.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Mike Marciniszyn <mike.marciniszyn@intel.com>,
-	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
-	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org
-Subject: Re: [PATCH v4 1/1] mm: introduce put_user_page*(), placeholder
- versions
-Message-ID: <20190320094029.ifweqx4wowyyr3wi@kshutemo-mobl1>
-References: <20190308213633.28978-1-jhubbard@nvidia.com>
- <20190308213633.28978-2-jhubbard@nvidia.com>
- <20190319120417.yzormwjhaeuu7jpp@kshutemo-mobl1>
- <20190319134724.GB3437@redhat.com>
- <bf443287-2461-ea2d-5a15-251190782ab7@nvidia.com>
+        Wed, 20 Mar 2019 02:56:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.12]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <aryabinin@virtuozzo.com>)
+	id 1h6XxM-0007BT-M9; Wed, 20 Mar 2019 12:56:20 +0300
+Subject: Re: kernel panic: corrupted stack end in wb_workfn
+To: syzbot <syzbot+ec1b7575afef85a0e5ca@syzkaller.appspotmail.com>,
+ akpm@linux-foundation.org, cai@lca.pw, davem@davemloft.net,
+ dvyukov@google.com, guro@fb.com, hannes@cmpxchg.org, jbacik@fb.com,
+ ktkhai@virtuozzo.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ linux-sctp@vger.kernel.org, mgorman@techsingularity.net, mhocko@suse.com,
+ netdev@vger.kernel.org, nhorman@tuxdriver.com, shakeelb@google.com,
+ syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk,
+ vyasevich@gmail.com, willy@infradead.org
+References: <000000000000db3d130584506672@google.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Xin Long <lucien.xin@gmail.com>
+Message-ID: <d9e4e36d-1e7a-caaf-f96e-b05592405b5f@virtuozzo.com>
+Date: Wed, 20 Mar 2019 12:56:50 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.3
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <bf443287-2461-ea2d-5a15-251190782ab7@nvidia.com>
-User-Agent: NeoMutt/20180716
+In-Reply-To: <000000000000db3d130584506672@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 19, 2019 at 12:24:00PM -0700, John Hubbard wrote:
-> So, I could be persuaded either way. But given the lack of an visible perf
-> effects, and given that this could will get removed anyway because we'll
-> likely end up with set_page_dirty() called at GUP time instead...it seems
-> like it's probably OK to just leave it as is.
 
-Apart from ugly code generated, other argument might be Spectre-like
-attacks on these call. I would rather avoid indirect function calls
-whenever possible. And I don't think opencodded versions of these
-functions would look much worse.
 
--- 
- Kirill A. Shutemov
+On 3/17/19 11:49 PM, syzbot wrote:
+> syzbot has bisected this bug to:
+> 
+> commit c981f254cc82f50f8cb864ce6432097b23195b9c
+> Author: Al Viro <viro@zeniv.linux.org.uk>
+> Date:   Sun Jan 7 18:19:09 2018 +0000
+> 
+>     sctp: use vmemdup_user() rather than badly open-coding memdup_user()
+> 
+> bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=137bcecf200000
+> start commit:   c981f254 sctp: use vmemdup_user() rather than badly open-c..
+> git tree:       upstream
+> final crash:    https://syzkaller.appspot.com/x/report.txt?x=10fbcecf200000
+> console output: https://syzkaller.appspot.com/x/log.txt?x=177bcecf200000
+> kernel config:  https://syzkaller.appspot.com/x/.config?x=5e7dc790609552d7
+> dashboard link: https://syzkaller.appspot.com/bug?extid=ec1b7575afef85a0e5ca
+> syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=16a9a84b400000
+> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=17199bb3400000
+> 
+> Reported-by: syzbot+ec1b7575afef85a0e5ca@syzkaller.appspotmail.com
+> Fixes: c981f254 ("sctp: use vmemdup_user() rather than badly open-coding memdup_user()")
+
+From bisection log:
+
+	testing release v4.17
+	testing commit 29dcea88779c856c7dc92040a0c01233263101d4 with gcc (GCC) 8.1.0
+	run #0: crashed: kernel panic: corrupted stack end in wb_workfn
+	run #1: crashed: kernel panic: corrupted stack end in worker_thread
+	run #2: crashed: kernel panic: Out of memory and no killable processes...
+	run #3: crashed: kernel panic: corrupted stack end in wb_workfn
+	run #4: crashed: kernel panic: corrupted stack end in wb_workfn
+	run #5: crashed: kernel panic: corrupted stack end in wb_workfn
+	run #6: crashed: kernel panic: corrupted stack end in wb_workfn
+	run #7: crashed: kernel panic: corrupted stack end in wb_workfn
+	run #8: crashed: kernel panic: Out of memory and no killable processes...
+	run #9: crashed: kernel panic: corrupted stack end in wb_workfn
+	testing release v4.16
+	testing commit 0adb32858b0bddf4ada5f364a84ed60b196dbcda with gcc (GCC) 8.1.0
+	run #0: OK
+	run #1: OK
+	run #2: OK
+	run #3: OK
+	run #4: OK
+	run #5: crashed: kernel panic: Out of memory and no killable processes...
+	run #6: OK
+	run #7: crashed: kernel panic: Out of memory and no killable processes...
+	run #8: OK
+	run #9: OK
+	testing release v4.15
+	testing commit d8a5b80568a9cb66810e75b182018e9edb68e8ff with gcc (GCC) 8.1.0
+	all runs: OK
+	# git bisect start v4.16 v4.15
+
+Why bisect started between 4.16 4.15 instead of 4.17 4.16?
+
+
+	testing commit c14376de3a1befa70d9811ca2872d47367b48767 with gcc (GCC) 8.1.0
+	run #0: crashed: kernel panic: Out of memory and no killable processes...
+	run #1: crashed: kernel panic: Out of memory and no killable processes...
+	run #2: crashed: kernel panic: Out of memory and no killable processes...
+	run #3: crashed: kernel panic: Out of memory and no killable processes...
+	run #4: OK
+	run #5: OK
+	run #6: crashed: WARNING: ODEBUG bug in netdev_freemem
+	run #7: crashed: no output from test machine
+	run #8: OK
+	run #9: OK
+	# git bisect bad c14376de3a1befa70d9811ca2872d47367b48767
+
+Why c14376de3a1befa70d9811ca2872d47367b48767 is bad? There was no stack corruption.
+It looks like the syzbot were bisecting a different bug - "kernel panic: Out of memory and no killable processes..."
+And bisection for that bug seems to be correct. kvmalloc() in vmemdup_user() may eat up all memory unlike kmalloc which is limited by KMALLOC_MAX_SIZE (4MB usually).
 
