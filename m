@@ -2,215 +2,153 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AE7B5C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 06:12:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F821C4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 06:14:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5C68D2184D
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 06:12:03 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="gU1537TU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5C68D2184D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id D6FC52184D
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 06:14:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D6FC52184D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=jonmasters.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EFD346B0003; Wed, 20 Mar 2019 02:12:02 -0400 (EDT)
+	id 894FA6B0003; Wed, 20 Mar 2019 02:14:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EACD36B0007; Wed, 20 Mar 2019 02:12:02 -0400 (EDT)
+	id 81CCD6B0007; Wed, 20 Mar 2019 02:14:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D77AD6B0008; Wed, 20 Mar 2019 02:12:02 -0400 (EDT)
+	id 6E5F36B0008; Wed, 20 Mar 2019 02:14:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 833286B0003
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 02:12:02 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id d5so469623edl.22
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 23:12:02 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DD196B0003
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 02:14:13 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id b1so1365547qtk.11
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 23:14:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=4pdlG2bv9u4nYOvNAww82/yTZQGVLCVPxU/0vGtTzfY=;
-        b=TJYrSHTOiLzOR8CtB1rkECAd6yCjICSbP3kAcNTQ6s942CjManQQB7IDuslawFPLLU
-         CE5YB6L5/q2n1M661O+4bm+Hbk3txNs0x/STRtkdaa7InjSHyuo7kHL9Af0BZ4/+MV4t
-         RtrjXYy69VMI8B6PqVqSGFEgzseAyNunNnATdwTGLsewTkq1s9OFiPNedJ7m2BSMveOG
-         d0EkUIshvgMiR1lrxKgMx66FHuGgfpvjvxO/KAWP4dTNgkvKAfzZaU9/7UxQp1H9M7/8
-         g7mtTqTy0mVKHwwzi2MgOTA1NmpM21HHZ6mNHSEcOnNvimGPVwUkC9xnCOWdWSL07BHX
-         sHGQ==
-X-Gm-Message-State: APjAAAUHxkbk0P/fO2Oi3CjR/yP5MEdAFwa7blO3udELZ5EoNh//FhlC
-	RmW6j8a5lJfKsuKKVqdK6uMDCN9QzKVdc9J2HkQLpWLuvTG5Ul0vnnyCYh9B2122+/G8euHEGJ8
-	AG6hW4mFoNnRhGCVP2SliGpyDFZDOHa6KO0zb5/Y+3q63tPPm+HCMkVOkMlYj2PLt5w==
-X-Received: by 2002:a17:906:7621:: with SMTP id c1mr16329452ejn.47.1553062322070;
-        Tue, 19 Mar 2019 23:12:02 -0700 (PDT)
-X-Received: by 2002:a17:906:7621:: with SMTP id c1mr16329415ejn.47.1553062320908;
-        Tue, 19 Mar 2019 23:12:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553062320; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding:subject;
+        bh=UwM2hoiQE1eVOFl1C3NwC7C32T3sgwZHVAJ+JA79c44=;
+        b=KaiusY+6NrZEHcUQduoguDu8s+jo0eKQjZI3xjV6qYB6KOfF4733rvYElBKOE4I7uy
+         pJzKtGTujnmcq1V2ATsIURtiTNYD/quL6nz/+KEpNvYNXIkDEOi6LJMvbhLZsaxiI9uN
+         WKUTlJByvz8tXMWqOCBdz72u1oVCunhMfTEe+c+ZFRwtVlTUETEzs5dUHQ0lubMeJx9A
+         ZTl+OoUBoBS6kX89odijpca+CoNii2OIV9OELrEUmGpqX3DMgfZ/sR3dibu6avRQWtvo
+         XV0J7PF01QicahYFjjh5ko9tvOVPCh3Rt7W5u9zic9R6y3QZTQOebNvnpiayCh86Gdp/
+         Kjag==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of jcm@jonmasters.org designates 173.255.233.168 as permitted sender) smtp.mailfrom=jcm@jonmasters.org
+X-Gm-Message-State: APjAAAV8v9QojYhau9xVX4aM5lL9Bq6cakauYoM3dUXxF8iQnqstU5r5
+	FsNOB4WGsgWwe9CkEVx9op86IdkQajvfdE5J8uVBlcYK7mlc4HfJOuaIKD17Qb3n+q/sGE/ZB9r
+	rthS5RtghxxzTMslDK9U7E5qdyFSjtMx887YJN3eKM9uP9OYlnyTHXOwWOjODFSFnUg==
+X-Received: by 2002:a37:9bd4:: with SMTP id d203mr5193129qke.58.1553062453080;
+        Tue, 19 Mar 2019 23:14:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwIZop24+hSnfdyvF0BOKgeytxAVM+GAsBrCSua0cFOJs8ArOxEG2y6/vH0Ajy5lMBvu5hC
+X-Received: by 2002:a37:9bd4:: with SMTP id d203mr5193093qke.58.1553062452286;
+        Tue, 19 Mar 2019 23:14:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553062452; cv=none;
         d=google.com; s=arc-20160816;
-        b=xsMPtxJ1+/djajgl9Gze+pgnPrN11JlbOw0kRcmSzQMaN0MglCGIbPb44vC6tzfr0P
-         ivT59sXi+0iDo2d/DZuQcyHKGqb3btHVfpg7x9XKMvYAqco6Xc2R7+M5ZuwaZWJhhm6U
-         fDiRbRqCr1h2b+vTQTD4YF+x90nJS5ZG/N9GZosxu+vCgwh7mPt5kU7qStPkgS95Oypt
-         uvZCpkx1+U6cx25avdbJ69i4qOjP6ZYRCc8oj7j/aQv+yATSqB4ap5oOxppUkZReKrne
-         n4gBKzC5lwMPgMWlJcLsBLlVZzO58Q7hdoNf221pvavI4A0/+Z4BFTNRrN68rtAj8Bo/
-         xREA==
+        b=xSCbF3oKkiuFi3yC75jQCX2XpSwyywLSL+tX4402gDE/qe9R+ewEbwmR2yX0n6CWtJ
+         d7nFKOZcQcvzxqyEvXA1XAmfIB/vtEp2Q3eOAkg+ADbtunU1Ze8jjoeNcSxseTWJcBPu
+         m9WQgBrLgUHNfTyjEw9F8DcDFmGj+1jKEO6TE+z2woQw9rkOcMy6hSC7EU3kw20mGb7s
+         HtHIVImRHyAeF0+6ZUNcN4OzEaiZRmMCCoRMq8dVpJauwu2f7XngfmbgR+83XcyLOR5D
+         fPUk3WNTP4s8l3DNinR2/mg7IKvQct9sOd005+9L7s1QuN/vsItvszd0K3qrPlJ8XLO8
+         1zKA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=4pdlG2bv9u4nYOvNAww82/yTZQGVLCVPxU/0vGtTzfY=;
-        b=iQqKM1CDK0rd+6J5h5NzPLAolEtqmGfupeUj0olYIIAE64dGQcGArgwxSew8wXGeUN
-         +WWtCXg0EO70VNQnYyX780p4fiae0ae8R5vothkmtCdo3/tZdh1rUfjYP6f17FX18A22
-         ERRaBEdAjYTRHxYpYW6f9NWJQIEF7FpbSeMZ98gadw36LX1eM2BoFA0zdx/GERwEx6u7
-         Z9BvRi+psVhWz8fiPS7wgRI0XEl6yQAqHDalBLkVc72VhtHTpFiUUD4n9D9EytIvKtS4
-         ytXDN9wFfPrB+RvTZ4BaxycLboPFMie8ONIvFAEshNrspK0CTiHfLSkCQr4LlkogGDBu
-         EJ9g==
+        h=subject:content-transfer-encoding:content-language:in-reply-to
+         :mime-version:user-agent:date:message-id:from:references:cc:to;
+        bh=UwM2hoiQE1eVOFl1C3NwC7C32T3sgwZHVAJ+JA79c44=;
+        b=zFndcn2pP3sCgq2cAHNHOqxLKHb6rnSjOtOTnQFIVXH5VZb78EyDKBcsuU3sPqMHQ6
+         6GdE320SK1uLTM9FAogSw1AjAWrVvQMGCSsajRlaTl/ayMJYqRT2VXSwbbuivuZaUfdb
+         wB8av1zm6mby3J3v1Z0bAiUSOp2GD3u4Urdj8+lKEqMRwS3n8KVk96DPzSsfO1OqGzMz
+         XJLb9F8XP7mJ9Wryz6IeW+BV0mum69sHUE3+Hpuinf7SPL+8IiLx8M3BKMHTF6R3SeV/
+         vE2/9l9SaPJ9TYTDrEpHnI5ewMinzcHuz5PJJFMu9tGXQ/bPiOTsWf+XkEBmzI0MPEWm
+         Kf0Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=gU1537TU;
-       spf=pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=huangzhaoyang@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x18sor243268eji.26.2019.03.19.23.12.00
+       spf=pass (google.com: best guess record for domain of jcm@jonmasters.org designates 173.255.233.168 as permitted sender) smtp.mailfrom=jcm@jonmasters.org
+Received: from edison.jonmasters.org (edison.jonmasters.org. [173.255.233.168])
+        by mx.google.com with ESMTPS id y80si609729qka.106.2019.03.19.23.14.12
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Mar 2019 23:12:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 19 Mar 2019 23:14:12 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of jcm@jonmasters.org designates 173.255.233.168 as permitted sender) client-ip=173.255.233.168;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=gU1537TU;
-       spf=pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=huangzhaoyang@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=4pdlG2bv9u4nYOvNAww82/yTZQGVLCVPxU/0vGtTzfY=;
-        b=gU1537TUVu0o6jkweFiV2wl7WckWWr8pX4dWC1xPJY7esUNmzZgZzdQLVjY6C0Ym1X
-         PsRi1lQqwkloaITQdnENmfgt9GmqfKRFDczzaeeI8iMXodJ4NTcIngHasnMpa1VBHnQU
-         VDwYSCkbIiut4IzAUnQrwa0XwQtI/krkYb65uYcTJRIlQHrc8WBlG7zeThAa1JpZ2Y5X
-         ao2DT3HSfD+ExBw9gEPZldC1ZRqwjVAaOQYNQY2UlrYu1D+mhBtuN/WAgg5kV+NZHHYD
-         WPRko/Z0qSdPtqzLu0h2P903DRuwoTCBxuxRA8yNagv8B7jzhZGR1veI2GZGW80AMSme
-         Np3g==
-X-Google-Smtp-Source: APXvYqz4ubpGAUQW5X716FmcRb3LnIsD2xYaEgIzH6WD93F84jZXHe35n3xS1tcNjCPAMDJ7M8Qv3X2wcVNl8mLjy68=
-X-Received: by 2002:a17:906:60d7:: with SMTP id f23mr15946849ejk.177.1553062320583;
- Tue, 19 Mar 2019 23:12:00 -0700 (PDT)
+       spf=pass (google.com: best guess record for domain of jcm@jonmasters.org designates 173.255.233.168 as permitted sender) smtp.mailfrom=jcm@jonmasters.org
+Received: from [74.203.127.5] (helo=tonnant.bos.jonmasters.org)
+	by edison.jonmasters.org with esmtpsa (TLS1.0:RSA_AES_128_CBC_SHA1:16)
+	(Exim 4.71)
+	(envelope-from <jcm@jonmasters.org>)
+	id 1h6UUM-0001Kh-Bd; Wed, 20 Mar 2019 06:14:10 +0000
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: Sasha Levin <sashal@kernel.org>, Amir Goldstein <amir73il@gmail.com>,
+ Steve French <smfrench@gmail.com>, lsf-pc@lists.linux-foundation.org,
+ linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm
+ <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+ "Luis R. Rodriguez" <mcgrof@kernel.org>
+References: <20190212170012.GF69686@sasha-vm>
+ <CAH2r5mviqHxaXg5mtVe30s2OTiPW2ZYa9+wPajjzz3VOarAUfw@mail.gmail.com>
+ <CAOQ4uxjMYWJPF8wFF_7J7yy7KCdGd8mZChfQc5GzNDcfqA7UAA@mail.gmail.com>
+ <20190213073707.GA2875@kroah.com>
+ <CAOQ4uxgQGCSbhppBfhHQmDDXS3TGmgB4m=Vp3nyyWTFiyv6z6g@mail.gmail.com>
+ <20190213091803.GA2308@kroah.com> <20190213192512.GH69686@sasha-vm>
+ <20190213195232.GA10047@kroah.com>
+ <79d10599-70d2-7d06-1cee-6e52d36233bf@jonmasters.org>
+ <20190320050659.GA16580@kroah.com>
+From: Jon Masters <jcm@jonmasters.org>
+Message-ID: <134e0fe1-e468-5243-90b5-ccb81d63e9a1@jonmasters.org>
+Date: Wed, 20 Mar 2019 02:14:09 -0400
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-References: <1552561599-23662-1-git-send-email-huangzhaoyang@gmail.com> <alpine.DEB.2.21.1903191809420.18028@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.21.1903191809420.18028@chino.kir.corp.google.com>
-From: Zhaoyang Huang <huangzhaoyang@gmail.com>
-Date: Wed, 20 Mar 2019 14:11:49 +0800
-Message-ID: <CAGWkznH3Be5MSJi7_=Eoauf1=yZHaCTR4HL-gQH7_TORNEtzeQ@mail.gmail.com>
-Subject: Re: [PATCH] driver : staging : ion: optimization for decreasing
- memory fragmentaion
-To: David Rientjes <rientjes@google.com>
-Cc: Chintan Pandya <cpandya@codeaurora.org>, Joe Perches <joe@perches.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
-	"open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190320050659.GA16580@kroah.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-SA-Exim-Connect-IP: 74.203.127.5
+X-SA-Exim-Mail-From: jcm@jonmasters.org
+Subject: Re: [LSF/MM TOPIC] FS, MM, and stable trees
+X-SA-Exim-Version: 4.2.1 (built Sun, 08 Nov 2009 07:31:22 +0000)
+X-SA-Exim-Scanned: Yes (on edison.jonmasters.org)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 20, 2019 at 9:10 AM David Rientjes <rientjes@google.com> wrote:
->
-> On Thu, 14 Mar 2019, Zhaoyang Huang wrote:
->
-> > From: Zhaoyang Huang <zhaoyang.huang@unisoc.com>
-> >
-> > Two action for this patch:
-> > 1. set a batch size for system heap's shrinker, which can have it buffer
-> > reasonable page blocks in pool for future allocation.
-> > 2. reverse the order sequence when free page blocks, the purpose is also
-> > to have system heap keep as more big blocks as it can.
-> >
-> > By testing on an android system with 2G RAM, the changes with setting
-> > batch = 48MB can help reduce the fragmentation obviously and improve
-> > big block allocation speed for 15%.
-> >
-> > Signed-off-by: Zhaoyang Huang <zhaoyang.huang@unisoc.com>
-> > ---
-> >  drivers/staging/android/ion/ion_heap.c        | 12 +++++++++++-
-> >  drivers/staging/android/ion/ion_system_heap.c |  2 +-
-> >  2 files changed, 12 insertions(+), 2 deletions(-)
-> >
-> > diff --git a/drivers/staging/android/ion/ion_heap.c b/drivers/staging/android/ion/ion_heap.c
-> > index 31db510..9e9caf2 100644
-> > --- a/drivers/staging/android/ion/ion_heap.c
-> > +++ b/drivers/staging/android/ion/ion_heap.c
-> > @@ -16,6 +16,8 @@
-> >  #include <linux/vmalloc.h>
-> >  #include "ion.h"
-> >
-> > +unsigned long ion_heap_batch = 0;
->
-> static?
-ok
->
-> > +
-> >  void *ion_heap_map_kernel(struct ion_heap *heap,
-> >                         struct ion_buffer *buffer)
-> >  {
-> > @@ -303,7 +305,15 @@ int ion_heap_init_shrinker(struct ion_heap *heap)
-> >       heap->shrinker.count_objects = ion_heap_shrink_count;
-> >       heap->shrinker.scan_objects = ion_heap_shrink_scan;
-> >       heap->shrinker.seeks = DEFAULT_SEEKS;
-> > -     heap->shrinker.batch = 0;
-> > +     heap->shrinker.batch = ion_heap_batch;
-> >
-> >       return register_shrinker(&heap->shrinker);
-> >  }
-> > +
-> > +static int __init ion_system_heap_batch_init(char *arg)
-> > +{
-> > +      ion_heap_batch = memparse(arg, NULL);
-> > +
->
-> No bounds checking?  What are the legitimate upper and lower bounds here?
-Actruly, ion_heap_batch will work during shrink_slab, which shown bellow.
-We can find that it is hard that to set batch_size as a constant value
-as total ram size is different to each system. Furthermore, it is also
-no need to set a percentage thing, "total_scan >= freeable" will work
-as another threshold of slab size.
-...
-while (total_scan >= batch_size ||
-       total_scan >= freeable) {
-    unsigned long nr_to_scan = min(batch_size, total_scan);
-    ret = shrinker->scan_objects(shrinker, shrinkctl);
-...
-shrinkctl->nr_to_scan = nr_to_scan;
-shrinkctl->nr_scanned = nr_to_scan;
-ret = shrinker->scan_objects(shrinker, shrinkctl);
->
-> > +     return 0;
-> > +}
-> > +early_param("ion_batch", ion_system_heap_batch_init);
-> > diff --git a/drivers/staging/android/ion/ion_system_heap.c b/drivers/staging/android/ion/ion_system_heap.c
-> > index 701eb9f..d249f8d 100644
-> > --- a/drivers/staging/android/ion/ion_system_heap.c
-> > +++ b/drivers/staging/android/ion/ion_system_heap.c
-> > @@ -182,7 +182,7 @@ static int ion_system_heap_shrink(struct ion_heap *heap, gfp_t gfp_mask,
-> >       if (!nr_to_scan)
-> >               only_scan = 1;
-> >
-> > -     for (i = 0; i < NUM_ORDERS; i++) {
-> > +     for (i = NUM_ORDERS - 1; i >= 0; i--) {
-> >               pool = sys_heap->pools[i];
-> >
-> >               if (only_scan) {
->
-> Can we get a Documentation update on how we can use ion_batch and what the
-> appropriate settings are (and in what circumstances)?
-ok, I will explain it here firstly.
-ion_heap_batch will work as the batch_size during shink_slab, which
-help the heap buffer some of the page blocks for further allocation.
-My test is based on a android system with 2G RAM. We find that
-multimedia related cases is the chief consumer of the ion system heap
-and cause memory fragmentation after a period of running. By
-configuring ion_heap_batch as 48M(3 x camera peak consuming value) and
-revert the shrink order, we can almost eliminate such scenario during
-the test and improve the allocating speed up to 15%.
-For common policy, the batch size should depend on the practical
-scenario. The peak value can be got via sysfs or kernel log.
+On 3/20/19 1:06 AM, Greg KH wrote:
+> On Tue, Mar 19, 2019 at 11:46:09PM -0400, Jon Masters wrote:
+>> On 2/13/19 2:52 PM, Greg KH wrote:
+>>> On Wed, Feb 13, 2019 at 02:25:12PM -0500, Sasha Levin wrote:
+>>
+>>>> So really, it sounds like a low hanging fruit: we don't really need to
+>>>> write much more testing code code nor do we have to refactor existing
+>>>> test suites. We just need to make sure the right tests are running on
+>>>> stable kernels. I really want to clarify what each subsystem sees as
+>>>> "sufficient" (and have that documented somewhere).
+>>>
+>>> kernel.ci and 0-day and Linaro are starting to add the fs and mm tests
+>>> to their test suites to address these issues (I think 0-day already has
+>>> many of them).  So this is happening, but not quite obvious.  I know I
+>>> keep asking Linaro about this :(
+>>
+>> We're working on investments for LDCG[0] in 2019 that include kernel CI
+>> changes for server use cases. Please keep us informed of what you folks
+>> ultimately want to see, and I'll pass on to the steering committee too.
+>>
+>> Ultimately I've been pushing for a kernel 0-day project for Arm. That's
+>> probably going to require a lot of duplicated effort since the original
+>> 0-day project isn't open, but creating an open one could help everyone.
+> 
+> Why are you trying to duplicate it on your own?  That's what kernel.ci
+> should be doing, please join in and invest in that instead.  It's an
+> open source project with its own governance and needs sponsors, why
+> waste time and money doing it all on your own?
+
+To clarify, I'm pushing for investment in kernel.ci to achieve that goal
+that it could provide the same 0-day capability for Arm and others.
+It'll ultimately result in duplicated effort vs if 0-day were open.
+
+Jon.
 
