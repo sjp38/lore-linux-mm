@@ -2,133 +2,183 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A0DE7C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 20:57:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EF574C4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 20:57:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 590CC218B0
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 20:57:29 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A227E218B0
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 20:57:38 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="n/tRt296"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 590CC218B0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="hQHtw54b"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A227E218B0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0F52D6B0003; Wed, 20 Mar 2019 16:57:29 -0400 (EDT)
+	id 4C50D6B0006; Wed, 20 Mar 2019 16:57:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0A41A6B0006; Wed, 20 Mar 2019 16:57:29 -0400 (EDT)
+	id 473326B0007; Wed, 20 Mar 2019 16:57:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ED3D16B0007; Wed, 20 Mar 2019 16:57:28 -0400 (EDT)
+	id 362E86B0008; Wed, 20 Mar 2019 16:57:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BF68A6B0003
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 16:57:28 -0400 (EDT)
-Received: by mail-yw1-f70.google.com with SMTP id b6so4874440ywd.23
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 13:57:28 -0700 (PDT)
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 053186B0006
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 16:57:38 -0400 (EDT)
+Received: by mail-oi1-f198.google.com with SMTP id q82so1767908oia.9
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 13:57:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=7TKyPat2diHfhv30jcYBziI63YFmk+7ZB7yCGURrsOk=;
-        b=GRqSo7nZ6hJm8TyhATTLyy7oM4Iz81PF4e7MAvRuBHfRubXgUMi4usElpRW6Bo5rn5
-         5w1K4SH3Vgi2/KfOTlS1IOWzPd7e2URPzzC9xs6fyMT+p7KWyqW7LHwsSq9ZCIgiWHTQ
-         8Ks/rlGarjpVrGDbopO2UfLl5rQs5D8jgxY4wOScxFJXns4KA5YCT1danLxlpLyzLXYZ
-         KwNPrsHHnRYtYEKrg3bzfh9KV+z0HhcooXrSQtV6KxxkJ651nBe/1k12dzTJ8Vf/I2qW
-         ByP7jItZOiByfrjAIA7qi60qNhcpiiAXTYoZrBIhCmzcvYrwlLFNKFXQAkMMPxmDzjVq
-         ou9A==
-X-Gm-Message-State: APjAAAWKoES4/QQurZBMzPdDWa+pNZKpAdZ8d7pF0ZRIxaLZx4hCJuM9
-	BbvPb75iaCymYyVpnM03hZuxtCltVYN+wedV28Oemhe06OOjQGsEx/0dGjCCoYKXLOkhc1mqI4r
-	F1PkpD9rtntET85kqK/nFD97aY1AJvgykqYFuWm34ltaVVCW/oZiVc6KjHio73VJcsQ==
-X-Received: by 2002:a25:7c06:: with SMTP id x6mr8693465ybc.387.1553115448574;
-        Wed, 20 Mar 2019 13:57:28 -0700 (PDT)
-X-Received: by 2002:a25:7c06:: with SMTP id x6mr8693431ybc.387.1553115447848;
-        Wed, 20 Mar 2019 13:57:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553115447; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=Ij6DJHAqfryzjiSG/jxMhd1XKTG9GJ9L0fy61wU1Z5Q=;
+        b=WMKV+oT9PnKz7z7h9qD/YBMvrpvpSkU37f36klJYVtq6oCDa9rOft1wwlJMmlCWecl
+         z0ZUHHOh8owZx6HdPy66OfmzqMSefSMIYD0FNfKgcFTmo8bRsRgX/l2UnIXcu4ihv2v+
+         FPCjGDyBHC/QbXjpAh2zS4HAn/hua30d0Y+HGtUYS8gKCMdqkRGBXmyST5DeBFO48hYH
+         s5C2bWT9xFlr0kT6s3Jy9MiHBMwAewjgjv69ja9dj7CKQ/wUD/W6T5VFsCeXR0UaGxZd
+         IWIjS1fMta9uv4mGw3cSS0CHdTA/+FtbuCrYJJweuBFIbjzt2ebssGrwuXzoAlGep570
+         HV2A==
+X-Gm-Message-State: APjAAAUZoHxaUEQ08vSx4fieeYjSFuWgm7iZq41XFEjr68ZdeGKjx1A/
+	GCIxx0Pj9zSdMG3dkadRvIJ/5jYG+cxQxVW4dc/IabM6Nz2Y5b0V/WiCqLLQ8/N4voqYx8of3ZQ
+	qBicwtzyMH6TQip/lEZ7w9PAoNKrLPtr+d0vnyaQO1D4g1RH4dWEwjtz+CZcKNmlR4A==
+X-Received: by 2002:aca:4c48:: with SMTP id z69mr6632799oia.147.1553115457690;
+        Wed, 20 Mar 2019 13:57:37 -0700 (PDT)
+X-Received: by 2002:aca:4c48:: with SMTP id z69mr6632727oia.147.1553115456089;
+        Wed, 20 Mar 2019 13:57:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553115456; cv=none;
         d=google.com; s=arc-20160816;
-        b=nKe0rV7m5rt7swRir35xWwLb2HvtevoJuQwwdlcKz00hcxJf2AFNng+7koPQ3R9pzG
-         gRSJF+wVnOAIkp7yjGba8k0tGgZG5eU4rkT95lMUEbwQT+/WiCqgepZjtyy30Uhs5EQ5
-         2eELijQs3uyRJNlA+GV0seJuSix0AugI5wkoJ+w8KaGEldCndConGEpfEkGGm+gbZu70
-         a5DdYuQloVKlayZTBlkIlQYRZlqhUSQgC6hxtulTy00wvEgiXZKg+BOEzjFoLwIy1Lgc
-         d/4Me/mNgLAn+oCNL4TCR1OuwuPR32cSY6FJKbaec23r/s10TNGCAwYfv+WTJbCCp7Et
-         TRaA==
+        b=yJkVh6519MQKAzHIJdGkGxepHsgsyCcX1pKnnrSh3k6b4SiulqqNIn1WR1rNtoG4AQ
+         FY5yBnky+6BuD0dBdMKpt8znxzrum1sd7zMeqh3h17VlZuyiJqlD1CPp1okOP0/QAQfM
+         4ltEHhmMPuLRP9YRThQej5vmh70gHu++qmTHWXyICx5eOp5rz5TffsZtrrc60IrKnUd4
+         zXXH4aDXiuUHHkwhYYjV5sfPwk/YA0dRUqyvQLYBcoDng27CG3Hb2HBajUlNjz6V0jLV
+         ZZyvzWDp0pc+T5Mcl9ufFJSo8I85k4qX8HmfGfXSGPiccvYz/mtnv+8qaIcTK+TTaLO7
+         AaFg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=7TKyPat2diHfhv30jcYBziI63YFmk+7ZB7yCGURrsOk=;
-        b=dEJjExPoWc9b9/rSMwVUC44yc8GvB4myK6p7sZPRrqWYQJSXQOg2i4JKo2DekMeukd
-         86f5mvr7xQudEiY6+dywSebZFFaqVGnS3/Wze01XJNQs3YkCct0rPOOq6HfrgU/MzxpE
-         Ps3hwjArPR1YD18Kv2va7HYznZ1caugsfopIAyrtfeKHvc1pOsvKv9vIuNcqTm6PEKoe
-         fg5tR7YUW00gT+IVtISnGwBmhQX8UvwotpCeOvrPDeeJbesDZt3B6lqL/E41Og8hJJ8N
-         F2zO3CuzYdWqi8nV63QF0aUc1Gd0AgNBoFsrtf15+DMW0HxoQ3aSyOAFgqqBYedrS5Rs
-         dOjQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=Ij6DJHAqfryzjiSG/jxMhd1XKTG9GJ9L0fy61wU1Z5Q=;
+        b=KPWLKfneLVxXhuma47wnxPNqc+41sdu+kCv0m9vW5GmyN0gIj7F9COYh6E+ifINGaW
+         1pR5bpkmPpL/AT1w+km6cRZXQPogeDEcFxAvqLu0sGml7SuXMqnsVbBK10equh9rIndG
+         EUfvrDCjc/Tc05Usdho+rZPR+qv73Zq4l/XoMmwWCadVPV57aPWR5bolnQhMW2rgMcrZ
+         r9zDo4diWJms8JrC7EWRx58zmr+ULYbnQLeoFtpGzaR8Sj7IwimJ3bFpBm5AydOMmPEK
+         hwxkYWedHozIW8Vi7YhifplWg86x5tlReUBUJbA66cqOjyK6FlZ99ZMuifv+SSZGjIqH
+         6J4w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b="n/tRt296";
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=hQHtw54b;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 130sor1055443ywm.161.2019.03.20.13.57.27
+        by mx.google.com with SMTPS id g7sor2278186otj.16.2019.03.20.13.57.35
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Mar 2019 13:57:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 20 Mar 2019 13:57:35 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b="n/tRt296";
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=hQHtw54b;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=7TKyPat2diHfhv30jcYBziI63YFmk+7ZB7yCGURrsOk=;
-        b=n/tRt29629ySiX3AtuVlLNum1FJJFphZldMMdvbBJx3fBa56guOATGv7CDMkOuBIjc
-         lzEk19RcZMpmyKktO8DEh7EwfhTBzl7o9eU0Dnrr5jS4Aaxpqsgj8GpD9CobgAurX7Lm
-         jTxmvqZHeXYvEMnn0BCfStSfCjOKIrILFOF43AXJGjAl3Tx/DKnYj2mDeAG4or7XFeZx
-         ToNeHbOIFyEwmFGYilxIy66E3+V0mVcRKqxsVdDKARJBx8Lv5Pno2YySaSBM8WEB6JSY
-         Zey6IfsC58wGD+Wb1AoP1n+c6OLPw6xLrTGc2fFbfv5kfQaLcwxo95kPNMrGXjaf287S
-         FLhg==
-X-Google-Smtp-Source: APXvYqwOKUtGkLTUXQ0H0uuntHFrKcjih1M7U3TDMxpi3QF4joDAtykhux/4NWNJEPzjdQNr2cYchQ==
-X-Received: by 2002:a81:5d8b:: with SMTP id r133mr110177ywb.361.1553115447491;
-        Wed, 20 Mar 2019 13:57:27 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:200::2:b52c])
-        by smtp.gmail.com with ESMTPSA id x12sm1578123ywj.76.2019.03.20.13.57.26
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 20 Mar 2019 13:57:26 -0700 (PDT)
-Date: Wed, 20 Mar 2019 16:57:25 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Suren Baghdasaryan <surenb@google.com>
-Cc: gregkh@linuxfoundation.org, tj@kernel.org, lizefan@huawei.com,
-	axboe@kernel.dk, dennis@kernel.org, dennisszhou@gmail.com,
-	mingo@redhat.com, peterz@infradead.org, akpm@linux-foundation.org,
-	corbet@lwn.net, cgroups@vger.kernel.org, linux-mm@kvack.org,
-	linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org,
-	kernel-team@android.com
-Subject: Re: [PATCH v6 3/7] psi: rename psi fields in preparation for psi
- trigger addition
-Message-ID: <20190320205725.GB19382@cmpxchg.org>
-References: <20190319235619.260832-1-surenb@google.com>
- <20190319235619.260832-4-surenb@google.com>
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=Ij6DJHAqfryzjiSG/jxMhd1XKTG9GJ9L0fy61wU1Z5Q=;
+        b=hQHtw54bMsNq0UWUzqZi4Xepmmij8Jy+KDZGJeywwLNrPiqUxNyKDH9xKURLPj0fcE
+         kgWIoCRrhrHXSjdOwmwJflndw0Hkzfn+dxWAhGaTjcdCUmKbGDvtLdps5Q5aNmZbyXWA
+         3qpCDijWEutH+VhB1H3M03XG0EqvBDiHqQf8KpW7PktJ/3m/DRFeEcos1F+gSTr3sIrB
+         Ad673In69dbKt/dX6+IzUFlmsJQdelglLg+znKplUjCEwy5y+QlPtMSJmrjZ01yzykjv
+         KzrcWmFeOoSmQMh+oZa/9G1ooH7YeUyBLCBcskKekprWtQU1d7nwTXUeH25dBf7R+wDa
+         oxlQ==
+X-Google-Smtp-Source: APXvYqxcZXKMA+p2n96n1FFTaOSelIGH59iBkrJ6znV79aqILXhBWYIui9s4FGcIsTHT0hrIr2022s1bnFyAt264+ko=
+X-Received: by 2002:a9d:4d0b:: with SMTP id n11mr63266otf.98.1553115455713;
+ Wed, 20 Mar 2019 13:57:35 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190319235619.260832-4-surenb@google.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000002, version=1.2.4
+References: <20190228083522.8189-1-aneesh.kumar@linux.ibm.com>
+ <20190228083522.8189-2-aneesh.kumar@linux.ibm.com> <CAOSf1CHjkyX2NTex7dc1AEHXSDcWA_UGYX8NoSyHpb5s_RkwXQ@mail.gmail.com>
+ <CAPcyv4jhEvijybSVsy+wmvgqfvyxfePQ3PUqy1hhmVmPtJTyqQ@mail.gmail.com>
+ <87k1hc8iqa.fsf@linux.ibm.com> <CAPcyv4ir4irASBQrZD_a6kMkEUt=XPUCuKajF75O7wDCgeG=7Q@mail.gmail.com>
+ <871s3aqfup.fsf@linux.ibm.com> <CAPcyv4i0SahDP=_ZQV3RG_b5pMkjn-9Cjy7OpY2sm1PxLdO8jA@mail.gmail.com>
+ <87bm267ywc.fsf@linux.ibm.com> <878sxa7ys5.fsf@linux.ibm.com> <CAPcyv4iuAPg3HWh5e8-Ud3oCrvp5AoFmjOzf4bbA+VLgR7NLFg@mail.gmail.com>
+In-Reply-To: <CAPcyv4iuAPg3HWh5e8-Ud3oCrvp5AoFmjOzf4bbA+VLgR7NLFg@mail.gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 20 Mar 2019 13:57:25 -0700
+Message-ID: <CAPcyv4hMzVuOYzy2tTq-my8Z1y+X6Ug-fyObpKTxVU44p5rBZw@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm/dax: Don't enable huge dax mapping by default
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	Michael Ellerman <mpe@ellerman.id.au>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
+	Ross Zwisler <zwisler@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, 
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 19, 2019 at 04:56:15PM -0700, Suren Baghdasaryan wrote:
-> Renaming psi_group structure member fields used for calculating psi totals
-> and averages for clear distinction between them and trigger-related fields
-> that will be added next.
-> 
-> Signed-off-by: Suren Baghdasaryan <surenb@google.com>
+On Wed, Mar 20, 2019 at 8:34 AM Dan Williams <dan.j.williams@intel.com> wrote:
+>
+> On Wed, Mar 20, 2019 at 1:09 AM Aneesh Kumar K.V
+> <aneesh.kumar@linux.ibm.com> wrote:
+> >
+> > Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com> writes:
+> >
+> > > Dan Williams <dan.j.williams@intel.com> writes:
+> > >
+> > >>
+> > >>> Now what will be page size used for mapping vmemmap?
+> > >>
+> > >> That's up to the architecture's vmemmap_populate() implementation.
+> > >>
+> > >>> Architectures
+> > >>> possibly will use PMD_SIZE mapping if supported for vmemmap. Now a
+> > >>> device-dax with struct page in the device will have pfn reserve area aligned
+> > >>> to PAGE_SIZE with the above example? We can't map that using
+> > >>> PMD_SIZE page size?
+> > >>
+> > >> IIUC, that's a different alignment. Currently that's handled by
+> > >> padding the reservation area up to a section (128MB on x86) boundary,
+> > >> but I'm working on patches to allow sub-section sized ranges to be
+> > >> mapped.
+> > >
+> > > I am missing something w.r.t code. The below code align that using nd_pfn->align
+> > >
+> > >       if (nd_pfn->mode == PFN_MODE_PMEM) {
+> > >               unsigned long memmap_size;
+> > >
+> > >               /*
+> > >                * vmemmap_populate_hugepages() allocates the memmap array in
+> > >                * HPAGE_SIZE chunks.
+> > >                */
+> > >               memmap_size = ALIGN(64 * npfns, HPAGE_SIZE);
+> > >               offset = ALIGN(start + SZ_8K + memmap_size + dax_label_reserve,
+> > >                               nd_pfn->align) - start;
+> > >       }
+> > >
+> > > IIUC that is finding the offset where to put vmemmap start. And that has
+> > > to be aligned to the page size with which we may end up mapping vmemmap
+> > > area right?
+>
+> Right, that's the physical offset of where the vmemmap ends, and the
+> memory to be mapped begins.
+>
+> > > Yes we find the npfns by aligning up using PAGES_PER_SECTION. But that
+> > > is to compute howmany pfns we should map for this pfn dev right?
+> > >
+> >
+> > Also i guess those 4K assumptions there is wrong?
+>
+> Yes, I think to support non-4K-PAGE_SIZE systems the 'pfn' metadata
+> needs to be revved and the PAGE_SIZE needs to be recorded in the
+> info-block.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+How often does a system change page-size. Is it fixed or do
+environment change it from one boot to the next? I'm thinking through
+the behavior of what do when the recorded PAGE_SIZE in the info-block
+does not match the current system page size. The simplest option is to
+just fail the device and require it to be reconfigured. Is that
+acceptable?
 
