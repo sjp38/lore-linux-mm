@@ -2,244 +2,276 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-13.5 required=3.0
-	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.4 required=3.0 tests=DATE_IN_PAST_06_12,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 846BFC10F0D
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 15:44:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 855DFC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 17:10:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 404152186A
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 15:44:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 404152186A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 1C79820850
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 17:10:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C79820850
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D032E6B0284; Wed, 20 Mar 2019 11:44:26 -0400 (EDT)
+	id AA0636B0003; Wed, 20 Mar 2019 13:10:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CB2DD6B0286; Wed, 20 Mar 2019 11:44:26 -0400 (EDT)
+	id A53BD6B0006; Wed, 20 Mar 2019 13:10:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BC7336B0287; Wed, 20 Mar 2019 11:44:26 -0400 (EDT)
+	id 8F1DE6B0007; Wed, 20 Mar 2019 13:10:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 998C36B0284
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 11:44:26 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id z34so2842374qtz.14
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 08:44:26 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 49BD96B0003
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 13:10:19 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id o24so3272520pgh.5
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 10:10:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=1opcehXOxSH7wA8Eu0VjLYRNvluZS+Y89WP40BM0xbA=;
-        b=XdtIC/fUVLhvJupOnW24Tvh7yCzSzK24nfneaFDU2csMrYl1nGNEjz6ODzVSmtKclS
-         8NCCSN0eGcvMch80tlI1iAd7H7/DyuyAjSVXB/1ulSz6fqz3Zncq1odjNlsGelImN2QM
-         UgjDtN5WBmxQjk3mddM1iSGkF7QR6FFmTmDEoLz6JfREsUl2DKlHEf3K9YWcU1QC6WFC
-         OG9+df9rto4jhjp9aDz1BnZfZ9RGyQRNp3Yg8zb7yfg/xjSkFnjV32luVFPcTWgtMWUi
-         9rtVZm9/vQBcicEZA5QgorqL4JpTVuWraSMjI4s8PajNjabTKITO1nndAaMgfgwdkkEv
-         x/KQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aquini@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUPHydW2dwDt9C/ssKqOzCvj4dGlCUzhLabHxwegOctJWWIwGB4
-	0e/KRO9lJnqyN1fiP57TeQXK2Z3nyDrB6ujzzUL4Td6aAW9PIkEuXv9PXoPsdk/p72VnXhWRT+Z
-	lgV1bf1RjmeInwAN4lG/U9sZY+Kseuvjq0pUB0wznqJhjeHzDkoNNY+bRjotE8CA0Vw==
-X-Received: by 2002:a05:620a:3dd:: with SMTP id r29mr7320380qkm.157.1553096666386;
-        Wed, 20 Mar 2019 08:44:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxM8tEl02A8D0i9vvBAAihXU2aS3csmJVeSLAZ5jFlIsziwbjK5plRmbM8TTjyHmNwOfLr2
-X-Received: by 2002:a05:620a:3dd:: with SMTP id r29mr7320315qkm.157.1553096665620;
-        Wed, 20 Mar 2019 08:44:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553096665; cv=none;
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=HhK2wCwN7s2Qoqt+ZGuQdOzobibM7vW+iAf6Iyn8VEc=;
+        b=KTWGJYbU+PzxwghktR0G2y8Rm9sPbH3+lMJBkH6gmJuVZo1rDw8MsxODCHMIKtXYtI
+         m4Ma4Sbdp6/UXdgilLbVeF3Km0Mz4NU6Y1VpCQbt+JkjR3LYML+9I7uvgBPIq//2E1iE
+         rVs6/cQgXtBt98hBO/vxIUGYZgZ3dj+4DbhVUu01FtzhMfeMw5xDKO2aqjdSRr6zZPQP
+         EcK6k4zgpR7wiJt4uAEpjvCiPCy3xjXdlKS2sddJ9JGEKsG9TrgphfdN0nW7CE9K4Q34
+         Zb0GufCGYRfzyICt4powsGsIBUXMP/+dS057vFlpSCy0MIbw29l77rOa5lAt0BytaFpC
+         uoFA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUbDcIWEDIbFywDsm+Kwc2Mdh7g8v9AWB6GWMErcfCIzTbJSwN+
+	oUqBxmnkVa/ClDNMxy3NHqdyZ7PVc2WjzIwe7Phm8+pPJ/JA3Y9h16hKB7VFzCi8KQGoFO6pHuV
+	nVO4rSTGcRGEqqueoZ5JjxVlP14D+DW9gh97zbtVfTM9AJ4vJknfyRPW4C/ne/MWLwA==
+X-Received: by 2002:a17:902:9a98:: with SMTP id w24mr9161408plp.247.1553101818899;
+        Wed, 20 Mar 2019 10:10:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyBpccFQWIABp3Hb5wwE/loeqK325DWG3vfok+fPK9AGh+OwGibmt0Vj1oiiSIljXS67zYH
+X-Received: by 2002:a17:902:9a98:: with SMTP id w24mr9161317plp.247.1553101817713;
+        Wed, 20 Mar 2019 10:10:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553101817; cv=none;
         d=google.com; s=arc-20160816;
-        b=QHCh3ShHE98DQ9ICSFByrZnQhLjRZkQJcOHmUWGLJy8pwVulnOkoP1jvs9PEEMoCh2
-         DWhQDB0tpNuwrSLeRu+IU2hU8DAcufagCnA2n3z0OduOhtm2dS0KErGQzpQYurvF4IS8
-         EcQVcQ45J5sxIE3xI0SxIo7rOEKaGUVzmeHNAs89d4py9IuUelZZOhf88b/vbJDZUpDe
-         fisNsdvq/hKkXHCR9nSv7Sgcsh+4hUmqUtoMs3xu361gBCTvD+iEmQmRbRqQhvFI6A0c
-         i1gWq3iBdnaJFp/cuCQ6cRNcAsIbOQLZ7pmAqg+KY+SMA6h2+iKV4GmpZUxwinVCw+S0
-         FdoQ==
+        b=uIM1yPuRSDKs+o+TuXVMspp6E1KThbj4m1vHpEI6oEMzrFsShC+LJFhv1c92xc+++N
+         k0PB/r3ayC/Sfv/LWTFwyIhwbqyha+/eZ2VAx18gUuLmys6sH1BWBTTW0Xb9PVCoU32U
+         sIQv5x6e++HcQooElEzDtvuckMQ672TOKPLctBK/u78tN1xuI/m+fWN88719JbhBbwvr
+         qwLjivZ1Bpby88r0v4H05DUtYmxa2uGQBKA7UmdbFQXH4zsoS2d+EFIU+HocMS+w3l/l
+         ypv57bMZr+Dk+nF1MypahtfTAqb3GVXMz3BJMSaOb6Gj2yMyeq+1rCMn2rNBnL9WLm4Y
+         56mA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=1opcehXOxSH7wA8Eu0VjLYRNvluZS+Y89WP40BM0xbA=;
-        b=F5VoxWEq/XqySMiNeum56PSVYvlGzHmzn+KG6L7GxrQjjjHu/uRYUs0l3EFDIsn2qA
-         ApISBTROGOYdsb4aGPCp3WvZtUcDPA1bKEA/C51AOd4xrlkefy1hkdEeEM+FokAsSNd2
-         RgGRnRDtuVf5htZqJG32G+1bvsMVlkCitRqG5gcWhQGMkLbg+Tsk8n3rYWiXk15iO4vW
-         3JKP2sW8Orj7m6lBM2I7YO1vqOmNQ64BKb4+i764nnAU/a4rihQprHRZuvllq10cBZ2z
-         U46S0sForWnynjhoeNaTzK3en8GHzLzlbm2PadlqC2RhKxTq3dBAJYsor2wHwtdEXhto
-         huFA==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=HhK2wCwN7s2Qoqt+ZGuQdOzobibM7vW+iAf6Iyn8VEc=;
+        b=S0An/p717z9RARwwwjU6y1QfMquxqH6IS9eAPlxCCk26EZmPoqTI6o1e6Si15D3oDn
+         Ko18reatoqM5BxVHcB8jqEhYMem2RYr1wulAsRADEg4a5xFzMf+slnjF/d9+8aeTcXMW
+         FcOfPF9+AT5t3LBJVPgtwuQOFrZA1iekrhZcOXz1RJy9FrM4/nf8jLUPFRlNblKsvptv
+         gVIHGzfEDEKrI45mXSk6527dn05LAnAQHSakchZGhqzKQuH4c5pq42okrcL/y2iorjhG
+         kdl7iibz+papwgGnpk00RZibcm9ihKkz9PQXGLTw0LdoDRdpTkEl1JuZhns/LYTQl709
+         2CEQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aquini@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e11si1283143qkg.52.2019.03.20.08.44.25
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id g8si2045728pgq.159.2019.03.20.10.10.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Mar 2019 08:44:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Wed, 20 Mar 2019 10:10:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aquini@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id AA7F1C13071D;
-	Wed, 20 Mar 2019 15:44:24 +0000 (UTC)
-Received: from x230.aquini.net (dhcp-17-61.bos.redhat.com [10.18.17.61])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id B2F9E5D73F;
-	Wed, 20 Mar 2019 15:44:23 +0000 (UTC)
-Date: Wed, 20 Mar 2019 11:44:20 -0400
-From: Rafael Aquini <aquini@redhat.com>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: chrubis@suse.cz, vbabka@suse.cz, kirill@shutemov.name,
-	osalvador@suse.de, akpm@linux-foundation.org,
-	stable@vger.kernel.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm: mempolicy: make mbind() return -EIO when
- MPOL_MF_STRICT is specified
-Message-ID: <20190320154420.GE23194@x230.aquini.net>
-References: <1553020556-38583-1-git-send-email-yang.shi@linux.alibaba.com>
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from fmsmga005.fm.intel.com ([10.253.24.32])
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 20 Mar 2019 10:10:16 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,249,1549958400"; 
+   d="scan'208";a="330381110"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by fmsmga005.fm.intel.com with ESMTP; 20 Mar 2019 10:10:15 -0700
+Date: Wed, 20 Mar 2019 02:08:57 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, Dave Chinner <david@fromorbit.com>,
+	"Kirill A. Shutemov" <kirill@shutemov.name>, john.hubbard@gmail.com,
+	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	Al Viro <viro@zeniv.linux.org.uk>,
+	Christian Benvenuti <benve@cisco.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	Christopher Lameter <cl@linux.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>,
+	Doug Ledford <dledford@redhat.com>, Jan Kara <jack@suse.cz>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Matthew Wilcox <willy@infradead.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
+	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
+	Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH v4 1/1] mm: introduce put_user_page*(), placeholder
+ versions
+Message-ID: <20190320090857.GB13193@iweiny-DESK2.sc.intel.com>
+References: <20190308213633.28978-2-jhubbard@nvidia.com>
+ <20190319120417.yzormwjhaeuu7jpp@kshutemo-mobl1>
+ <20190319134724.GB3437@redhat.com>
+ <20190319141416.GA3879@redhat.com>
+ <20190319212346.GA26298@dastard>
+ <20190319220654.GC3096@redhat.com>
+ <20190319235752.GB26298@dastard>
+ <20190320000838.GA6364@redhat.com>
+ <c854b2d6-5ec1-a8b5-e366-fbefdd9fdd10@nvidia.com>
+ <20190320043319.GA7431@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1553020556-38583-1-git-send-email-yang.shi@linux.alibaba.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Wed, 20 Mar 2019 15:44:24 +0000 (UTC)
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190320043319.GA7431@redhat.com>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 20, 2019 at 02:35:56AM +0800, Yang Shi wrote:
-> When MPOL_MF_STRICT was specified and an existing page was already
-> on a node that does not follow the policy, mbind() should return -EIO.
-> But commit 6f4576e3687b ("mempolicy: apply page table walker on
-> queue_pages_range()") broke the rule.
+On Wed, Mar 20, 2019 at 12:33:20AM -0400, Jerome Glisse wrote:
+> On Tue, Mar 19, 2019 at 06:43:45PM -0700, John Hubbard wrote:
+> > On 3/19/19 5:08 PM, Jerome Glisse wrote:
+> > > On Wed, Mar 20, 2019 at 10:57:52AM +1100, Dave Chinner wrote:
+> > >> On Tue, Mar 19, 2019 at 06:06:55PM -0400, Jerome Glisse wrote:
+> > >>> On Wed, Mar 20, 2019 at 08:23:46AM +1100, Dave Chinner wrote:
+> > >>>> On Tue, Mar 19, 2019 at 10:14:16AM -0400, Jerome Glisse wrote:
+> > >>>>> On Tue, Mar 19, 2019 at 09:47:24AM -0400, Jerome Glisse wrote:
+> > >>>>>> On Tue, Mar 19, 2019 at 03:04:17PM +0300, Kirill A. Shutemov wrote:
+> > >>>>>>> On Fri, Mar 08, 2019 at 01:36:33PM -0800, john.hubbard@gmail.com wrote:
+> > >>>>>>>> From: John Hubbard <jhubbard@nvidia.com>
+> > >>>>>> [...]
+> > >>>>> Forgot to mention one thing, we had a discussion with Andrea and Jan
+> > >>>>> about set_page_dirty() and Andrea had the good idea of maybe doing
+> > >>>>> the set_page_dirty() at GUP time (when GUP with write) not when the
+> > >>>>> GUP user calls put_page(). We can do that by setting the dirty bit
+> > >>>>> in the pte for instance. They are few bonus of doing things that way:
+> > >>>>>     - amortize the cost of calling set_page_dirty() (ie one call for
+> > >>>>>       GUP and page_mkclean()
+> > >>>>>     - it is always safe to do so at GUP time (ie the pte has write
+> > >>>>>       permission and thus the page is in correct state)
+> > >>>>>     - safe from truncate race
+> > >>>>>     - no need to ever lock the page
+> > >>>>
+> > >>>> I seem to have missed this conversation, so please excuse me for
+> > >>>
+> > >>> The set_page_dirty() at GUP was in a private discussion (it started
+> > >>> on another topic and drifted away to set_page_dirty()).
+> > >>>
+> > >>>> asking a stupid question: if it's a file backed page, what prevents
+> > >>>> background writeback from cleaning the dirty page ~30s into a long
+> > >>>> term pin? i.e. I don't see anything in this proposal that prevents
+> > >>>> the page from being cleaned by writeback and putting us straight
+> > >>>> back into the situation where a long term RDMA is writing to a clean
+> > >>>> page....
+> > >>>
+> > >>> So this patchset does not solve this issue.
+> > >>
+> > >> OK, so it just kicks the can further down the road.
+> > >>
+> > >>>     [3..N] decide what to do for GUPed page, so far the plans seems
+> > >>>          to be to keep the page always dirty and never allow page
+> > >>>          write back to restore the page in a clean state. This does
+> > >>>          disable thing like COW and other fs feature but at least
+> > >>>          it seems to be the best thing we can do.
+> > >>
+> > >> So the plan for GUP vs writeback so far is "break fsync()"? :)
+> > >>
+> > >> We might need to work on that a bit more...
+> > > 
+> > > Sorry forgot to say that we still do write back using a bounce page
+> > > so that at least we write something to disk that is just a snapshot
+> > > of the GUPed page everytime writeback kicks in (so either through
+> > > radix tree dirty page write back or fsync or any other sync events).
+> > > So many little details that i forgot the big chunk :)
+> > > 
+> > > Cheers,
+> > > Jérôme
+> > > 
+> > 
+> > Dave, Jan, Jerome,
+> > 
+> > Bounce pages for periodic data integrity still seem viable. But for the
+> > question of things like fsync or truncate, I think we were zeroing in
+> > on file leases as a nice building block.
+> > 
+> > Can we revive the file lease discussion? By going all the way out to user
+> > space and requiring file leases to be coordinated at a high level in the
+> > software call chain, it seems like we could routinely avoid some of the
+> > worst conflicts that the kernel code has to resolve.
+> > 
+> > For example:
+> > 
+> > Process A
+> > =========
+> >     gets a lease on file_a that allows gup 
+> >         usage on a range within file_a
+> > 
+> >     sets up writable DMA:
+> >         get_user_pages() on the file_a range
+> >         start DMA (independent hardware ops)
+> >             hw is reading and writing to range
+> > 
+> >                                                     Process B
+> >                                                     =========
+> >                                                     truncate(file_a)
+> >                                                        ...
+> >                                                        __break_lease()
+> >     
+> >     handle SIGIO from __break_lease
+> >          if unhandled, process gets killed
+> >          and put_user_pages should get called
+> >          at some point here
+> > 
+> > ...and so this way, user space gets to decide the proper behavior,
+> > instead of leaving the kernel in the dark with an impossible decision
+> > (kill process A? Block process B? User space knows the preference,
+> > per app, but kernel does not.)
 > 
-> And, commit c8633798497c ("mm: mempolicy: mbind and migrate_pages
-> support thp migration") didn't return the correct value for THP mbind()
-> too.
+> There is no need to kill anything here ... if truncate happens then
+> the GUP user is just GUPing page that do not correspond to anything
+> anymore. This is the current behavior and it is what GUP always has
+> been. By the time you get the page from GUP there is no garantee that
+> they correspond to anything.
 > 
-> If MPOL_MF_STRICT is set, ignore vma_migratable() to make sure it reaches
-> queue_pages_to_pte_range() or queue_pages_pmd() to check if an existing
-> page was already on a node that does not follow the policy.  And,
-> non-migratable vma may be used, return -EIO too if MPOL_MF_MOVE or
-> MPOL_MF_MOVE_ALL was specified.
+> If a device really want to mirror process address faithfully then the
+> hardware need to make little effort either have something like ATS/
+> PASID or be able to abide mmu notifier.
 > 
-> Tested with https://github.com/metan-ucw/ltp/blob/master/testcases/kernel/syscalls/mbind/mbind02.c
+> If we start blocking existing syscall just because someone is doing a
+> GUP we are opening a pandora box. It is not just truncate, it is a
+> whole range of syscall that deals with either file or virtual address.
 > 
-> Fixes: 6f4576e3687b ("mempolicy: apply page table walker on queue_pages_range()")
-> Reported-by: Cyril Hrubis <chrubis@suse.cz>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: stable@vger.kernel.org
-> Suggested-by: Kirill A. Shutemov <kirill@shutemov.name>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> Signed-off-by: Oscar Salvador <osalvador@suse.de>
-> ---
->  mm/mempolicy.c | 40 +++++++++++++++++++++++++++++++++-------
->  1 file changed, 33 insertions(+), 7 deletions(-)
+> The semantic of GUP is really the semantic of direct I/O and the
+> virtual address you are direct I/O-ing to/from and the rule there is:
+> do not do anything stupid to those virtual addresses while you are
+> doing direct I/O with them (no munmap, mremap, madvise, truncate, ...).
 > 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index abe7a67..401c817 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -447,6 +447,13 @@ static inline bool queue_pages_required(struct page *page,
->  	return node_isset(nid, *qp->nmask) == !(flags & MPOL_MF_INVERT);
->  }
->  
-> +/*
-> + * The queue_pages_pmd() may have three kind of return value.
-> + * 1 - pages are placed on he right node or queued successfully.
-> + * 0 - THP get split.
-> + * -EIO - is migration entry or MPOL_MF_STRICT was specified and an existing
-> + *        page was already on a node that does not follow the policy.
-> + */
->  static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
->  				unsigned long end, struct mm_walk *walk)
->  {
-> @@ -456,7 +463,7 @@ static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
->  	unsigned long flags;
->  
->  	if (unlikely(is_pmd_migration_entry(*pmd))) {
-> -		ret = 1;
-> +		ret = -EIO;
->  		goto unlock;
->  	}
->  	page = pmd_page(*pmd);
-> @@ -473,8 +480,15 @@ static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
->  	ret = 1;
->  	flags = qp->flags;
->  	/* go to thp migration */
-> -	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
-> +	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
-> +		if (!vma_migratable(walk->vma)) {
-> +			ret = -EIO;
-> +			goto unlock;
-> +		}
-> +
->  		migrate_page_add(page, qp->pagelist, flags);
-> +	} else
-> +		ret = -EIO;
->  unlock:
->  	spin_unlock(ptl);
->  out:
-> @@ -499,8 +513,10 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
->  	ptl = pmd_trans_huge_lock(pmd, vma);
->  	if (ptl) {
->  		ret = queue_pages_pmd(pmd, ptl, addr, end, walk);
-> -		if (ret)
-> +		if (ret > 0)
->  			return 0;
-> +		else if (ret < 0)
-> +			return ret;
->  	}
->  
->  	if (pmd_trans_unstable(pmd))
-> @@ -521,11 +537,16 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
->  			continue;
->  		if (!queue_pages_required(page, qp))
->  			continue;
-> -		migrate_page_add(page, qp->pagelist, flags);
-> +		if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
-> +			if (!vma_migratable(vma))
-> +				break;
-> +			migrate_page_add(page, qp->pagelist, flags);
-> +		} else
-> +			break;
->  	}
->  	pte_unmap_unlock(pte - 1, ptl);
->  	cond_resched();
-> -	return 0;
-> +	return addr != end ? -EIO : 0;
->  }
->  
->  static int queue_pages_hugetlb(pte_t *pte, unsigned long hmask,
-> @@ -595,7 +616,12 @@ static int queue_pages_test_walk(unsigned long start, unsigned long end,
->  	unsigned long endvma = vma->vm_end;
->  	unsigned long flags = qp->flags;
->  
-> -	if (!vma_migratable(vma))
-> +	/*
-> +	 * Need check MPOL_MF_STRICT to return -EIO if possible
-> +	 * regardless of vma_migratable
-> +	 */ 
-> +	if (!vma_migratable(vma) &&
-> +	    !(flags & MPOL_MF_STRICT))
->  		return 1;
->  
->  	if (endvma > end)
-> @@ -622,7 +648,7 @@ static int queue_pages_test_walk(unsigned long start, unsigned long end,
->  	}
->  
->  	/* queue pages from current vma */
-> -	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
-> +	if (flags & MPOL_MF_VALID)
->  		return 0;
->  	return 1;
->  }
-> -- 
-> 1.8.3.1
 > 
-Acked-by: Rafael Aquini <aquini@redhat.com>
+> Same logic apply to file, when two process do thing to same file there
+> the kernel never get in the way of one process doing something the
+> other process did not expect. For instance one process mmaping the file
+> the other process truncating the file, if the first process try to access
+> the file through the mmap after the truncation it will get a sigbus.
+> 
+> So i believe best we could do is send a SIGBUS to the process that has
+> GUPed a range of a file that is being truncated this would match what
+> we do for CPU acces. There is no reason access through GUP should be
+> handled any differently.
+
+I agree in sending SIGBUS but the fact is most "Process A"'s will not be
+handling SIGBUS and will then result in that process dying.
+
+Ira
+
+>
+> Cheers,
+> Jérôme
+> 
 
