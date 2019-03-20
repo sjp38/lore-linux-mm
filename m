@@ -2,185 +2,203 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+X-Spam-Status: No, score=-13.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D8D8AC10F05
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 09:56:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 84780C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 09:59:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6B53F2186A
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 09:56:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6B53F2186A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id 3040D2184E
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 09:59:23 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="JYDMbaf0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3040D2184E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D6D636B0003; Wed, 20 Mar 2019 05:56:52 -0400 (EDT)
+	id CCFB26B0003; Wed, 20 Mar 2019 05:59:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CF6A76B0006; Wed, 20 Mar 2019 05:56:52 -0400 (EDT)
+	id C7EE36B0006; Wed, 20 Mar 2019 05:59:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BE8246B0007; Wed, 20 Mar 2019 05:56:52 -0400 (EDT)
+	id B6CFE6B0007; Wed, 20 Mar 2019 05:59:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C2D86B0003
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 05:56:52 -0400 (EDT)
-Received: by mail-lf1-f72.google.com with SMTP id p13so337768lfc.4
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 02:56:52 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A5986B0003
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 05:59:22 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id c2so1510922ioh.11
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 02:59:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
-         :references:from:cc:message-id:date:user-agent:mime-version
-         :in-reply-to:content-language:content-transfer-encoding;
-        bh=+7rzd8TIkczZq2kBjY7Bs6oUvOtuK6x6OhyPFei2NIo=;
-        b=O/VgZZydpITLWNKD0Z8CDmyaCCHU4OsUZkFXyv6HG2rq5MqJgWziE2sWvYcHWrAoDp
-         SZpjEGvyRXzjO2QdK8GpTsZm3Vj65vOQpclFuo0PqQ4M6tBBf9bAp0oQcVtgoMaOovmT
-         aovz/koFOXv/ZRUWCpcvVy1MfOITIFSdurX8LGb4z1XsIDNw5AyBj2p9isOaMf/71gyo
-         9DTBlgxXry/un+jVyqSsdAelKY0c32p3uJM96Ys3Av3tRBHqhF06CkaoW1h/qaeIN1JO
-         5WU4sW5zhN5sRrsi7w1+Mql1RPAeUE/UuEWO4/t3/ZnA9b0N6E4aZyhAiVjBMaUCqiEI
-         NYeA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAXkrj2GgkAR7RZvQOLzf715Xf0yXmcFSBt7JfHYNlXKVhTwGP+a
-	amq6UJLXO3bTsn0ULw+rYJWGqS/Z2SKLSqEt9dzRMbf5ohQvpYL9Y+yHRvC7XJ2n/fdzt771oGi
-	i6yoI5xkbSrj2pI3YSIUOEKq0opyDpT07S4onIs8Xe0U7024NcGULCgYwNP4dnGP66A==
-X-Received: by 2002:a2e:9d53:: with SMTP id y19mr15881591ljj.37.1553075811773;
-        Wed, 20 Mar 2019 02:56:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy+nOQEglFxuoneH0jnYmWSRpVt+KOeWY7URK5u3DVmjrysgDBl/P7tC8vkVfjvbNTv93v8
-X-Received: by 2002:a2e:9d53:: with SMTP id y19mr15881544ljj.37.1553075810726;
-        Wed, 20 Mar 2019 02:56:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553075810; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=s2voj6kjaLi6fKovfCR/88xY1mnaSXnV0VQQW9aYLas=;
+        b=tyE/L7CZBP20KKibLvaMm5R/uaOqI+DDcY/PFFFUmeY5gkdkStZcL8PcJkJV9tCJr4
+         JOrfTcwQInDWP1pLKsN803S5uhRx6dho0Y4Rm0CIMBmgr3mDRi5ATxWs0rc4dd0+HQDq
+         I1zaWfhmRd8UV0niouCROSkuyjZbAtlStRs0iRBjGDLmDhW6mFXo6cE8YD4K7a0hoNR7
+         3O+Y57oNxjeIYahboDlsmjDw9POx5fFzRwSH2jax602yPl65/ECkzUProghswKnlAucM
+         sI2Y2EqxW+x13z5/I/QnF3sYPcEBjLxtv5G0drj5A074STONxGcESE3AxPQ32rU7oaT9
+         PWNg==
+X-Gm-Message-State: APjAAAWs60THhgdCmYjVKqmDP3WgJziojnFSSKn3oV1bFQeua4yS4Dhg
+	R0BMcteK/epCKp64kBaEfodwZ4AKVPUWKWOQQruqZAmidh3e8erFMIfojOu1BEVOXvgkjgnwyS9
+	e2k45AETssYuwDroqe6aRBntaeu8NB/PSaJfyXMOR8vlRf5RmiX/N8gNDTKS/LnEoTA==
+X-Received: by 2002:a02:a399:: with SMTP id y25mr4637073jak.58.1553075962409;
+        Wed, 20 Mar 2019 02:59:22 -0700 (PDT)
+X-Received: by 2002:a02:a399:: with SMTP id y25mr4637050jak.58.1553075961703;
+        Wed, 20 Mar 2019 02:59:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553075961; cv=none;
         d=google.com; s=arc-20160816;
-        b=y2UlAxFy/r3I8QtFbvCcf7F6+P/UcivC87WI2YdsxxGUHIZwJzJ0VXA9w9obJklNSd
-         9t+Oy15Yyuha/uT4HJxJfnV3qA4JgI8ycQgTa7EA3aTlqdSs8um7o9x35qqHSjXIOsG7
-         tjAG+4Hoidorib5x79s4ANonPdWj4N7XQFw/dF3zd+TRn2OdatbK8L/jG9vchgDFIwWI
-         74WchnWYsDa6Ixh6YdMxQ9o84z54JGA0qpM/e5zAX0y5FHPUrbf6GUi7Md/ZO+u9oUUu
-         j5E13waPu8uVdaO13PKvgeVPKqqU6Mv+Bb9n+9DxIJEWyLiTARcPUoD0/eOplIXj6h7D
-         XcOQ==
+        b=Xwu7lwAXcJttxt0cfaNdqlcy75bRA//EgYzpX0PsFZK6L/S1MTiZEhoABAeZ4ejpfN
+         iqZvqQcXbC1qww1mw8SDihInKN/DMX2SPu7mOseEi04CKxVzHsfhUyQalwTnzIK80MWk
+         dCP1gfbCZwX3r5luz9zkEqd9bLEUYwoFVWECpUggKU+nFJoPLgE2QliZVC6dP1ZsbXIx
+         sZijyMl3FeS2hVGEfD17MXd5xuuc0Q5AmNL/JRBjndCijGRRWq0ALlgdLRQ92HMVyGMe
+         JNOIHbi08scou6hv0okMyIwZJim4rutoNcIIHsdLR2baX5pKiwTNu/DeAVaBibqKKuOK
+         g2Vg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:cc:from:references:to:subject;
-        bh=+7rzd8TIkczZq2kBjY7Bs6oUvOtuK6x6OhyPFei2NIo=;
-        b=LyBktvd1OhD7Z3JoHClmTxvtWwrtQJoj2tJ3+z2ama7txnZKrPy7DUY2MBNA/hvBl5
-         vkY7M5BvEJTYVohW7rR68x9PQo3voDTt6FKckehEkrinXTc41wZsgiUvTV6fLSehI6fW
-         x7I5x15iAvrB/hsnbHSQfnJ1EeaxMWpcEifo7/xBr782Xlzwl2jvHJ2IjTJdbNQnaYq0
-         4BO09Bwl29HSb9XYIhMUlC7P8tMUzoJDKj5LAxux4AgnCMyMiAD1tL4tExtAB8D4NE+a
-         0J/M0I6sL3BoFWbVickjFYl0by3wtn2lRbfOaAnYz5JPv9N4c1/KlAotpLrQg8zTSYJn
-         xmoA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=s2voj6kjaLi6fKovfCR/88xY1mnaSXnV0VQQW9aYLas=;
+        b=z/HlepqhGbwNCN5/eCgW5mjIeFt44L70KNvoWQooA+NDO0aW5b4A2xUWnLzAghibmG
+         Vr2T89UFso5JJ0UkmC2LOc9yHOIrwIguGgd+WyovNTzuqzDOAuh5KQSAvkxlCtS5AbyJ
+         +R/iyUeMXKAdPHr6NC01fvAPtgKdMah6IOjYD+J8gF2pkdigKKugSpaqMdYfy7Vq2One
+         3mOjp0dM5BHCWSGTkS+t8+pDe1bDOVvYHMlCNWjSmewzbzGqtLnlAIdccEDeNqUAzNW/
+         38wldStav7LGoYcp+B+cickAMo/dcoF4KWHvOGcyGhSNOWbbWMbBRhazlxG+c9Rqqixc
+         Au4g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id 22si1101870lfy.134.2019.03.20.02.56.50
+       dkim=pass header.i=@google.com header.s=20161025 header.b=JYDMbaf0;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o9sor4543573jam.6.2019.03.20.02.59.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Mar 2019 02:56:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        (Google Transport Security);
+        Wed, 20 Mar 2019 02:59:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.12]
-	by relay.sw.ru with esmtp (Exim 4.91)
-	(envelope-from <aryabinin@virtuozzo.com>)
-	id 1h6XxM-0007BT-M9; Wed, 20 Mar 2019 12:56:20 +0300
-Subject: Re: kernel panic: corrupted stack end in wb_workfn
-To: syzbot <syzbot+ec1b7575afef85a0e5ca@syzkaller.appspotmail.com>,
- akpm@linux-foundation.org, cai@lca.pw, davem@davemloft.net,
- dvyukov@google.com, guro@fb.com, hannes@cmpxchg.org, jbacik@fb.com,
- ktkhai@virtuozzo.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- linux-sctp@vger.kernel.org, mgorman@techsingularity.net, mhocko@suse.com,
- netdev@vger.kernel.org, nhorman@tuxdriver.com, shakeelb@google.com,
- syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk,
- vyasevich@gmail.com, willy@infradead.org
-References: <000000000000db3d130584506672@google.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Xin Long <lucien.xin@gmail.com>
-Message-ID: <d9e4e36d-1e7a-caaf-f96e-b05592405b5f@virtuozzo.com>
-Date: Wed, 20 Mar 2019 12:56:50 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.3
+       dkim=pass header.i=@google.com header.s=20161025 header.b=JYDMbaf0;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=s2voj6kjaLi6fKovfCR/88xY1mnaSXnV0VQQW9aYLas=;
+        b=JYDMbaf0YUF3eOTaoaFwUe3CxvxxMo7gejjtbDw95GMO9vUIsR2u4jhbxb/8nQ0fy6
+         m6wn+rcYWlW6YHJoSOyz7Uu9aTKGqXNqqFU4zf7N1SmOgxrDGfHoQ6UR6uU9EEU8EeyG
+         zFbxfCNX6lr3uAZ8X4mfsdaj1z7cTD2wl+WP/5kWf5g5c7IUOHtTCuUbNRj+rAgCHXWI
+         /lR62pUrei+SwFhBxmHZG6HNaaCZVtlq3bQf6Mk7Zf1QoT+1TxUFo90O2RLX3kVXUzEA
+         b6phamX/1j02VTV4LGuMZQQuc35jaIE34WG6kQOYNEXk1R88iO+L6KAWgq9xE8c9KTjn
+         qCwQ==
+X-Google-Smtp-Source: APXvYqyq3qgpYQBtHCrpio74vOfqV9roX8R/fvAEM9gdqE0d/5SmhT4xZ4ZXx0J15TTgRIGJ9xKgFwo+wZYUVtGwSbc=
+X-Received: by 2002:a02:84ab:: with SMTP id f40mr4094497jai.72.1553075961022;
+ Wed, 20 Mar 2019 02:59:21 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <000000000000db3d130584506672@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+References: <000000000000db3d130584506672@google.com> <d9e4e36d-1e7a-caaf-f96e-b05592405b5f@virtuozzo.com>
+In-Reply-To: <d9e4e36d-1e7a-caaf-f96e-b05592405b5f@virtuozzo.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Wed, 20 Mar 2019 10:59:09 +0100
+Message-ID: <CACT4Y+Zj=35t2djhKoq+e1SH3Zu3389Pns7xX6MiMWZ=PFpShA@mail.gmail.com>
+Subject: Re: kernel panic: corrupted stack end in wb_workfn
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: syzbot <syzbot+ec1b7575afef85a0e5ca@syzkaller.appspotmail.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, Qian Cai <cai@lca.pw>, 
+	David Miller <davem@davemloft.net>, guro@fb.com, Johannes Weiner <hannes@cmpxchg.org>, 
+	Josef Bacik <jbacik@fb.com>, Kirill Tkhai <ktkhai@virtuozzo.com>, 
+	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
+	linux-sctp@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, 
+	Michal Hocko <mhocko@suse.com>, netdev <netdev@vger.kernel.org>, 
+	Neil Horman <nhorman@tuxdriver.com>, Shakeel Butt <shakeelb@google.com>, 
+	syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Al Viro <viro@zeniv.linux.org.uk>, 
+	Vladislav Yasevich <vyasevich@gmail.com>, Matthew Wilcox <willy@infradead.org>, 
+	Xin Long <lucien.xin@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed, Mar 20, 2019 at 10:56 AM Andrey Ryabinin
+<aryabinin@virtuozzo.com> wrote:
+>
+> On 3/17/19 11:49 PM, syzbot wrote:
+> > syzbot has bisected this bug to:
+> >
+> > commit c981f254cc82f50f8cb864ce6432097b23195b9c
+> > Author: Al Viro <viro@zeniv.linux.org.uk>
+> > Date:   Sun Jan 7 18:19:09 2018 +0000
+> >
+> >     sctp: use vmemdup_user() rather than badly open-coding memdup_user()
+> >
+> > bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=137bcecf200000
+> > start commit:   c981f254 sctp: use vmemdup_user() rather than badly open-c..
+> > git tree:       upstream
+> > final crash:    https://syzkaller.appspot.com/x/report.txt?x=10fbcecf200000
+> > console output: https://syzkaller.appspot.com/x/log.txt?x=177bcecf200000
+> > kernel config:  https://syzkaller.appspot.com/x/.config?x=5e7dc790609552d7
+> > dashboard link: https://syzkaller.appspot.com/bug?extid=ec1b7575afef85a0e5ca
+> > syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=16a9a84b400000
+> > C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=17199bb3400000
+> >
+> > Reported-by: syzbot+ec1b7575afef85a0e5ca@syzkaller.appspotmail.com
+> > Fixes: c981f254 ("sctp: use vmemdup_user() rather than badly open-coding memdup_user()")
+>
+> From bisection log:
+>
+>         testing release v4.17
+>         testing commit 29dcea88779c856c7dc92040a0c01233263101d4 with gcc (GCC) 8.1.0
+>         run #0: crashed: kernel panic: corrupted stack end in wb_workfn
+>         run #1: crashed: kernel panic: corrupted stack end in worker_thread
+>         run #2: crashed: kernel panic: Out of memory and no killable processes...
+>         run #3: crashed: kernel panic: corrupted stack end in wb_workfn
+>         run #4: crashed: kernel panic: corrupted stack end in wb_workfn
+>         run #5: crashed: kernel panic: corrupted stack end in wb_workfn
+>         run #6: crashed: kernel panic: corrupted stack end in wb_workfn
+>         run #7: crashed: kernel panic: corrupted stack end in wb_workfn
+>         run #8: crashed: kernel panic: Out of memory and no killable processes...
+>         run #9: crashed: kernel panic: corrupted stack end in wb_workfn
+>         testing release v4.16
+>         testing commit 0adb32858b0bddf4ada5f364a84ed60b196dbcda with gcc (GCC) 8.1.0
+>         run #0: OK
+>         run #1: OK
+>         run #2: OK
+>         run #3: OK
+>         run #4: OK
+>         run #5: crashed: kernel panic: Out of memory and no killable processes...
+>         run #6: OK
+>         run #7: crashed: kernel panic: Out of memory and no killable processes...
+>         run #8: OK
+>         run #9: OK
+>         testing release v4.15
+>         testing commit d8a5b80568a9cb66810e75b182018e9edb68e8ff with gcc (GCC) 8.1.0
+>         all runs: OK
+>         # git bisect start v4.16 v4.15
+>
+> Why bisect started between 4.16 4.15 instead of 4.17 4.16?
+
+Because 4.16 was still crashing and 4.15 was not crashing. 4.15..4.16
+looks like the right range, no?
 
 
-On 3/17/19 11:49 PM, syzbot wrote:
-> syzbot has bisected this bug to:
-> 
-> commit c981f254cc82f50f8cb864ce6432097b23195b9c
-> Author: Al Viro <viro@zeniv.linux.org.uk>
-> Date:   Sun Jan 7 18:19:09 2018 +0000
-> 
->     sctp: use vmemdup_user() rather than badly open-coding memdup_user()
-> 
-> bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=137bcecf200000
-> start commit:   c981f254 sctp: use vmemdup_user() rather than badly open-c..
-> git tree:       upstream
-> final crash:    https://syzkaller.appspot.com/x/report.txt?x=10fbcecf200000
-> console output: https://syzkaller.appspot.com/x/log.txt?x=177bcecf200000
-> kernel config:  https://syzkaller.appspot.com/x/.config?x=5e7dc790609552d7
-> dashboard link: https://syzkaller.appspot.com/bug?extid=ec1b7575afef85a0e5ca
-> syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=16a9a84b400000
-> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=17199bb3400000
-> 
-> Reported-by: syzbot+ec1b7575afef85a0e5ca@syzkaller.appspotmail.com
-> Fixes: c981f254 ("sctp: use vmemdup_user() rather than badly open-coding memdup_user()")
+>         testing commit c14376de3a1befa70d9811ca2872d47367b48767 with gcc (GCC) 8.1.0
+>         run #0: crashed: kernel panic: Out of memory and no killable processes...
+>         run #1: crashed: kernel panic: Out of memory and no killable processes...
+>         run #2: crashed: kernel panic: Out of memory and no killable processes...
+>         run #3: crashed: kernel panic: Out of memory and no killable processes...
+>         run #4: OK
+>         run #5: OK
+>         run #6: crashed: WARNING: ODEBUG bug in netdev_freemem
+>         run #7: crashed: no output from test machine
+>         run #8: OK
+>         run #9: OK
+>         # git bisect bad c14376de3a1befa70d9811ca2872d47367b48767
+>
+> Why c14376de3a1befa70d9811ca2872d47367b48767 is bad? There was no stack corruption.
+> It looks like the syzbot were bisecting a different bug - "kernel panic: Out of memory and no killable processes..."
+> And bisection for that bug seems to be correct. kvmalloc() in vmemdup_user() may eat up all memory unlike kmalloc which is limited by KMALLOC_MAX_SIZE (4MB usually).
 
-From bisection log:
-
-	testing release v4.17
-	testing commit 29dcea88779c856c7dc92040a0c01233263101d4 with gcc (GCC) 8.1.0
-	run #0: crashed: kernel panic: corrupted stack end in wb_workfn
-	run #1: crashed: kernel panic: corrupted stack end in worker_thread
-	run #2: crashed: kernel panic: Out of memory and no killable processes...
-	run #3: crashed: kernel panic: corrupted stack end in wb_workfn
-	run #4: crashed: kernel panic: corrupted stack end in wb_workfn
-	run #5: crashed: kernel panic: corrupted stack end in wb_workfn
-	run #6: crashed: kernel panic: corrupted stack end in wb_workfn
-	run #7: crashed: kernel panic: corrupted stack end in wb_workfn
-	run #8: crashed: kernel panic: Out of memory and no killable processes...
-	run #9: crashed: kernel panic: corrupted stack end in wb_workfn
-	testing release v4.16
-	testing commit 0adb32858b0bddf4ada5f364a84ed60b196dbcda with gcc (GCC) 8.1.0
-	run #0: OK
-	run #1: OK
-	run #2: OK
-	run #3: OK
-	run #4: OK
-	run #5: crashed: kernel panic: Out of memory and no killable processes...
-	run #6: OK
-	run #7: crashed: kernel panic: Out of memory and no killable processes...
-	run #8: OK
-	run #9: OK
-	testing release v4.15
-	testing commit d8a5b80568a9cb66810e75b182018e9edb68e8ff with gcc (GCC) 8.1.0
-	all runs: OK
-	# git bisect start v4.16 v4.15
-
-Why bisect started between 4.16 4.15 instead of 4.17 4.16?
-
-
-	testing commit c14376de3a1befa70d9811ca2872d47367b48767 with gcc (GCC) 8.1.0
-	run #0: crashed: kernel panic: Out of memory and no killable processes...
-	run #1: crashed: kernel panic: Out of memory and no killable processes...
-	run #2: crashed: kernel panic: Out of memory and no killable processes...
-	run #3: crashed: kernel panic: Out of memory and no killable processes...
-	run #4: OK
-	run #5: OK
-	run #6: crashed: WARNING: ODEBUG bug in netdev_freemem
-	run #7: crashed: no output from test machine
-	run #8: OK
-	run #9: OK
-	# git bisect bad c14376de3a1befa70d9811ca2872d47367b48767
-
-Why c14376de3a1befa70d9811ca2872d47367b48767 is bad? There was no stack corruption.
-It looks like the syzbot were bisecting a different bug - "kernel panic: Out of memory and no killable processes..."
-And bisection for that bug seems to be correct. kvmalloc() in vmemdup_user() may eat up all memory unlike kmalloc which is limited by KMALLOC_MAX_SIZE (4MB usually).
+Please see https://github.com/google/syzkaller/blob/master/docs/syzbot.md#bisection
+for answer.
 
