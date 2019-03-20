@@ -2,118 +2,90 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D2CCEC10F05
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 12:37:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7D551C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 12:37:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8EB362184E
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 12:37:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8EB362184E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 3A50E213F2
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 12:37:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3A50E213F2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 138B66B0003; Wed, 20 Mar 2019 08:37:11 -0400 (EDT)
+	id E2E176B0006; Wed, 20 Mar 2019 08:37:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 098206B0006; Wed, 20 Mar 2019 08:37:11 -0400 (EDT)
+	id DB60F6B0007; Wed, 20 Mar 2019 08:37:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E2C646B0007; Wed, 20 Mar 2019 08:37:10 -0400 (EDT)
+	id CA5976B0008; Wed, 20 Mar 2019 08:37:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F7216B0003
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 08:37:10 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id h15so2382100pfj.22
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 05:37:10 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 78D4B6B0006
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 08:37:49 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id h27so846133eda.8
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 05:37:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=SABs/0AeBYS/+bUfulEB6XWTskl33r0TyHFFO9l5Juo=;
-        b=SOZcY6EoG0gznNF4ji4zEP20/tGy3aumqQPS+AnsvmOoJf9udTWDKlJF0ENApp7WGm
-         xp1zwEZDB5thgOZw68ASGdNrPDPPsf4myPbj65SR6bKwywXJtcKotRGQ17RIBKSR9lgn
-         evkQYTrTbg4FReU5eRC+DTiioKdvQErd6rhoF5muLzUTT+zN2WceO3TYIP0nOc1ysPs6
-         aMrepF2BLmLZVUkNMmK2lqISZBgVqepbK+Gye1KlIygHrhKWB+yEp/QoBsDqpn51vWfk
-         08WKCCdHXLXYgFC/IWZF9fhv9RZDVa5DC80nq58+xnzE6jHDnaJOIFuIGDfiNweAaz6L
-         k5Gw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAXUuTIaZvRAAN6BsCHU0dFw2vCLOrOUqGEZYbugZwuGhKSC2ypg
-	y/XBvBa+bI2UDpwQU9z27jU8rqNbvQyIJDY/K/0hnPC9jBXaZvWgMf1n9EvV5RqaLp3OI4c+wIH
-	LqpzdQwSxb3SIoXK5f0GzTumfxXPEQsObgS27fyWxNsS+cdRav7yL1iAOg1dyGtqYjg==
-X-Received: by 2002:a17:902:6b03:: with SMTP id o3mr7745555plk.126.1553085430228;
-        Wed, 20 Mar 2019 05:37:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyIsqHny610OEfmxPPlSYACBaFdiXJ+aCGMb6iGemzYqtCnXdedK9s/C/WcK1Mk6qoSSDF0
-X-Received: by 2002:a17:902:6b03:: with SMTP id o3mr7745491plk.126.1553085429566;
-        Wed, 20 Mar 2019 05:37:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553085429; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=xyJwayRb68V6HNNjxxEp1T8lIGN5MRbXxNPLvt0ylio=;
+        b=B9TG/TvTCTNy+jIhVGLUtnv7Uf3mbjLVuqU+wxkVXiFpIsYA9+AyBehnZNLVM1ju+5
+         p8gYl6RDxth3padPTr1f2+zO5RrJsGnp0ShIeqamCXEGdrMZikb96F5fzlc7Vsch8Nyc
+         ppSqUC+TlAWJAQTOyShzkiXY1LxJHsApYXV+hRXbB+zMHGxV4js1Z+j92SefzoBrrkuI
+         V0jq5Vq89tK28boc17cXe3c+MHbTYsW7nvlMf2KMY8iS8JGhYplSMfbEWWAx5iiirt4D
+         9KEujlpYxqaeeqrYvv0S4Fqs2Glz657i02mxyC6pWBEnIKFN2d4zYF7wRq8++wLvN+6t
+         FHww==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAXrIGHBgbJUy7mN4sj1lE0R+12p1/TtUpC7zoHLQqxScOF622AX
+	ZzssjfplYIkaaFW53Se5Iy67wFaQxOpCzzhYQYZvG6WmA5/9Ieka2cToEbBx2x1lDo2WJ6E3GZL
+	cDOw0qtsK3Wa4kJvqCnLMioT+GB8igXmbPPxjxo6xMC+xJBfBxu13jgWkURQdCgY=
+X-Received: by 2002:a17:906:1c98:: with SMTP id g24mr10251032ejh.178.1553085469063;
+        Wed, 20 Mar 2019 05:37:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqygtefLFvmDKGpUqG2Qhuj4Q+e0lz2nY+EoH2Gt9Yw3d04AD/GDmDTQeYXaKRFinpVPHwPL
+X-Received: by 2002:a17:906:1c98:: with SMTP id g24mr10251009ejh.178.1553085468290;
+        Wed, 20 Mar 2019 05:37:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553085468; cv=none;
         d=google.com; s=arc-20160816;
-        b=KhwtdIgS2QQGMeuVA0+SS3lO5MR09QUzBQ3KLii50x6I6ne/DzlHrUVIXTzx2jF2Sw
-         2BgtQA0RJ3xsGI29FO2sT3L+RPzVb8aO0C9VeBJK1CAg/QQLNVIoo0x5Sq3DxlCJELCS
-         KNFXTIyeP/Xyti6fnQZjP1KxZel6WTvkk50T2v/kk+5qdk2UE7B/v3j5uumGh8fK4VxG
-         K/HYRLx9fW1PnhaykG6YbBUbGqV761yRwQcw8BTKra2Xzc7bQll48mEhgTXKw1PaY64P
-         YhZE2UV5QPCDzZ7JcoVCjdNiVF1jwBjMo40QLqk9RAykowO/xoMAmBDqGyXmScUNwRw2
-         xFAQ==
+        b=h+ysTH58Fjo4INWV6uxR35Hc9M9+aWbua2WpBzicaaHjdr25P9+pf4+MNwSxuITR5c
+         bFCc0PWpY8gvJ+3jj7Bt1CWnkcrQdA1EJIW/49baawuGI+Jg36Aq93c+Y/7dER1DZEA2
+         K1c7gmpIyp9zlgFNYGzFklkEqssT1m6irHQ+UmrROJwOqO0dkwa8AlLjI9p0zTtY/vFS
+         nYn+2Iq4NWDY1rs7I6PX19xHI10xO/6/t+X3r5kNGQSAm4NNECy7+EgVudA9OU1qmjCt
+         r25+TJKWynNUFgaOidecOpncb/zslZjSO/8JtOl4NxJ3tzWhR7qoka+MkCNvHDIZWDq9
+         R7SA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=SABs/0AeBYS/+bUfulEB6XWTskl33r0TyHFFO9l5Juo=;
-        b=lAd1b3Nc0KIFCT4SLFEjTKN5pouml3mbC4ec2019a+iieNJO2XzRSfP5w5t8QGghNm
-         FPM96jmUYw+rE3nTHWcBUZrc8yfOrTu4kqU8gMHqRST/MwOxmlApVjLSTUbNsCcwyZwk
-         /jv1axEwBhRhIogdkvUGUHxDRBBHpQdHYEliZGzbfngjxqElippO/G74g7Wt14bmBqAt
-         HvwcfKBSL7jjyF/RQwUZurw9yR12Ioe1rq58c93cLUC7+skIwPBOU5acA+6f3VrFEXrd
-         klrqOTgWg9AYDUEfW9ZEqvMNXeIrewOAH0hPCLAwXW2JHJ3f8orq5K9ICtSkRM8TGzvY
-         TxKA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=xyJwayRb68V6HNNjxxEp1T8lIGN5MRbXxNPLvt0ylio=;
+        b=LXk6jvZ6Yn/u/pckJfyDQIVuus4dHV+h+TJxP6aBZCT4CQfoS9ZaxC4WZJwoJ7+ngB
+         kQv6wtPUZwTbmYwAqAXN6L86ktiz64T9rCgfvZDMqX/Ef2Sw//VBMQiwS+I3ZTg2bq2R
+         19jT8ic9HT02BMZYlIfPi4QTB5tzzJq7hlZOM0EqvPAbnYDZ82MAnrjE/uyEOosxPLG4
+         bk22Q0SC/PJ6/VK3NEh4ACeXrTOjiEE/xtnBwuPN9ALuJw1EYXNttJmNLOAn2uysACTd
+         Y7SZ56fk4NEsplt91N6Vzx+VtNSPAiZtEPPKxE5HBK+duCwjpdZF8f0GGE0u06hGIk6V
+         KYHQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id e190si1607293pfc.63.2019.03.20.05.37.09
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Mar 2019 05:37:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from suse.de (nat.nue.novell.com. [2620:113:80c0:5::2222])
+        by mx.google.com with ESMTP id 58si808486eds.7.2019.03.20.05.37.48
+        for <linux-mm@kvack.org>;
+        Wed, 20 Mar 2019 05:37:48 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) client-ip=2620:113:80c0:5::2222;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2KCJXvS022376
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 08:37:08 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2rbkxcp9gg-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 08:37:08 -0400
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Wed, 20 Mar 2019 12:37:00 -0000
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 20 Mar 2019 12:36:57 -0000
-Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x2KCb17843581486
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 20 Mar 2019 12:37:01 GMT
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 368A4A4055;
-	Wed, 20 Mar 2019 12:37:01 +0000 (GMT)
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 66C66A404D;
-	Wed, 20 Mar 2019 12:37:00 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.84])
-	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Wed, 20 Mar 2019 12:37:00 +0000 (GMT)
-Date: Wed, 20 Mar 2019 14:36:58 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
+       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: by suse.de (Postfix, from userid 1000)
+	id 9F981462C; Wed, 20 Mar 2019 13:37:47 +0100 (CET)
+Date: Wed, 20 Mar 2019 13:37:47 +0100
+From: Oscar Salvador <osalvador@suse.de>
 To: Matthew Wilcox <willy@infradead.org>
-Cc: Oscar Salvador <osalvador@suse.de>, Baoquan He <bhe@redhat.com>,
-        linux-kernel@vger.kernel.org, akpm@linux-foundation.org,
-        pasha.tatashin@oracle.com, mhocko@suse.com, rppt@linux.vnet.ibm.com,
-        richard.weiyang@gmail.com, linux-mm@kvack.org
+Cc: Baoquan He <bhe@redhat.com>, linux-kernel@vger.kernel.org,
+	akpm@linux-foundation.org, pasha.tatashin@oracle.com,
+	mhocko@suse.com, rppt@linux.vnet.ibm.com, richard.weiyang@gmail.com,
+	linux-mm@kvack.org
 Subject: Re: [PATCH 1/3] mm/sparse: Clean up the obsolete code comment
+Message-ID: <20190320123747.vzreusrqx74zkdfm@d104.suse.de>
 References: <20190320073540.12866-1-bhe@redhat.com>
  <20190320111959.GV19508@bombadil.infradead.org>
  <20190320122011.stuoqugpjdt3d7cd@d104.suse.de>
@@ -122,19 +94,7 @@ MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 In-Reply-To: <20190320122243.GX19508@bombadil.infradead.org>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19032012-0008-0000-0000-000002CF88EF
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19032012-0009-0000-0000-0000223BA054
-Message-Id: <20190320123658.GF13626@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-20_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=845 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1903200097
+User-Agent: NeoMutt/20170421 (1.8.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -182,10 +142,15 @@ On Wed, Mar 20, 2019 at 05:22:43AM -0700, Matthew Wilcox wrote:
 > Not returned to userspace today.  It's also bad precedent for other parts
 > of the kernel where errnos do get returned to userspace.
 
-There are more than a thousand -EEXIST in the kernel, I really doubt all of
-them mean "File exists" ;-)
+Yes, I get your point, but I do not really see -EBUSY fitting here.
+Actually, we do have the same kind of situation when dealing with resources.
+We return -EEXIST in register_memory_resource() in case the resource we are
+trying to add conflicts with another one.
+
+I think that -EEXIST is more intuitive in that code path, but I am not going to
+insist.
 
 -- 
-Sincerely yours,
-Mike.
+Oscar Salvador
+SUSE L3
 
