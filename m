@@ -2,205 +2,163 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-13.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A15F5C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 19:41:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D432BC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 19:52:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5995021873
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 19:41:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1ED222083D
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 19:52:22 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="OA+7LFBa"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5995021873
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (1024-bit key) header.d=virtuozzo.com header.i=@virtuozzo.com header.b="NB70ZACo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1ED222083D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C544C6B0003; Wed, 20 Mar 2019 15:40:59 -0400 (EDT)
+	id A00AC6B0003; Wed, 20 Mar 2019 15:52:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C05166B0006; Wed, 20 Mar 2019 15:40:59 -0400 (EDT)
+	id 9B3EF6B0006; Wed, 20 Mar 2019 15:52:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AF4476B0007; Wed, 20 Mar 2019 15:40:59 -0400 (EDT)
+	id 8A0E76B0007; Wed, 20 Mar 2019 15:52:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ua1-f72.google.com (mail-ua1-f72.google.com [209.85.222.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C6316B0003
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 15:40:59 -0400 (EDT)
-Received: by mail-ua1-f72.google.com with SMTP id m3so303728uao.22
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 12:40:59 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 495806B0003
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 15:52:21 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id f1so3649218pgv.12
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 12:52:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=SvArG4neodJjg81/l1ml2GxK3X5tveRM+mJKV/2MOkc=;
-        b=Z5DU2hpDtJGKbosHuID2nZCAsqFEywO381lyjN18+e2469a6asrvZ2K6Ct5hiA9grO
-         cfUMvyroZL+O+KlCkKp5xea3PxzCfHGSi+P3aqkB7jw1jzWiew7RgJ2n89+4ZJOs+MLd
-         yDH1k3NS+SBZxw0tbEl7Fp8Y1qjBRj1pS90QaeL9xUcikoeoaXsdVCCLnUyrVINVq37I
-         TkP/5d5MqRW7l7/Jutj2uz+4ZH7ZYNmNFVv1TebFqpmclevebqgKahU2cxQkqw2G7jOt
-         b1TaDtFqULJjefZsof+FFcqkTGa5tUber0BQ1wG5QWzP6VIKtECZLQsHQdKrv/kZiWt0
-         OG+w==
-X-Gm-Message-State: APjAAAV4R+kYW5lJjDJRP2WD6F8/gxAxahaKFZ93DfBrgsSX5QsOimvg
-	q5jDm2ZkPBeCvH9LghgXlfzHVclSvYTytBCmFR8Fh/DGXS22ziljlvZ0EOESkBMzlFjFaZBPXLz
-	p/QJWshLLoadsBmIDUBedb5NW6y+7ldfZw1aEV5mZFM770RRpuTc8qmeuKJtUalGFog==
-X-Received: by 2002:ab0:2b16:: with SMTP id e22mr5299762uar.113.1553110859213;
-        Wed, 20 Mar 2019 12:40:59 -0700 (PDT)
-X-Received: by 2002:ab0:2b16:: with SMTP id e22mr5299725uar.113.1553110858436;
-        Wed, 20 Mar 2019 12:40:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553110858; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=QHgOg6cGsv9xd65uVTjBVNHAbSXgzLyqtKjVx6L0PNA=;
+        b=RMGAMEJYkhaGg/5HEgotNbWy4riQeRnxhEJIPHilzqnZyCT+r+3SmBZOo+Q4aogaIf
+         9ljv7QE59EcNaXHg54YG5EpesxwUPpfspT1nWRoblHHBmzoE+t6yrFYJ7vt63oLnvCZb
+         CCCSDz/Hpxte2Y3D+h1nxXMM0GB0N6U2zp13PuUKhU+9/NczRB8FWfCtC/MlEQHCwVDW
+         m+pwJIWKAVfNkE2wYrLc1UsuY6HjzDj77nMMR5LBzq+QSmsdFFpUAA33XMquN7yyMx1d
+         0Dne3itbAcb76azk5qthkFI96m+nwhUOFep+zTR89lzyi1eZbpPGALh/45B0ixhFb1/Y
+         9ENg==
+X-Gm-Message-State: APjAAAVCh6kSQ7uRDcdk3EEa4WomNqjwMuT4ZK7UfOqvouWjNiMKzmdj
+	HZNWD1KcL5LxWNh4LzE6qlBtKuLoZxqzvmpk7jW1GwBWRjbT7rYVIuhfVv6d80zaZ9tzSyDLlaC
+	Yr5N4e5Ehqv5ai6mg9t6P6UYXso6XL09sd0jVCuv7nvga3F2zwiWKciPo1Dg5xvcuUQ==
+X-Received: by 2002:a65:5a81:: with SMTP id c1mr8967503pgt.217.1553111540916;
+        Wed, 20 Mar 2019 12:52:20 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxjFTYT6V1hWN5LVs3ap0HEU8W6Dy8L2F/7+JGEgAUcciw5BPaQv8LSMdksrIPbYQDCUBJh
+X-Received: by 2002:a65:5a81:: with SMTP id c1mr8967454pgt.217.1553111540039;
+        Wed, 20 Mar 2019 12:52:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553111540; cv=none;
         d=google.com; s=arc-20160816;
-        b=LbQmmI5QZsI/coBj4zDi+cZvU8xZA/K1wpaGj4evMTrR65eA068OqWLlsgYUZF+rOg
-         Y22ByxqCXFjFRhF6Sf+a+TftHCn0FHLPau+7RQa4C2e8f/22IJH8UsK7OaHw/cohcQPT
-         CHCFOb5VTMfremUzOzuj3fr3yDq5zDTTk7awFPV8kKtihhD+sW8gvN15rjvgRqZjyooT
-         Y4Nd53uWUSHXVzS6AVPPy0ZSNOWQ6RbkUYa3dcNOVAY9Snd7OaXUyIMmjLq5YmtQBuYT
-         pjQdDZSzpgxefADnBUHIRsGZ+l3nA/HgonMvQCIXKLVtTQIQftRiegUrJxuVes5jk2DF
-         1x4Q==
+        b=MAopsKqnw99CfKwMaivntEEC7ekagKZRjl4sby+flaJLI7cCYVHr0jP3Lrn5mRJrPB
+         cLYXWI1/tfXKpTQFlqJWx3DZmQryO1dOO1KiHekOpTJv+qcIGxvUgUO4G1iIxsYYfBfq
+         SqT4cgzI5qS7gHUYZRgIUtsJ5Vif1lH9eCgjNGuRDPh+bkn4fExYg6nMMRrNlgKjIFM8
+         EBHj2lj5alCfbMjr3lxxX+/9Fc/BU0Gmz3AUePur9JURt2YS1HKlB9rKiVGeh2RNxPnu
+         ZrQ5xqnJCeuFSWAPxrmasLojbV+hCeKe8USR7Do2Qk5LjiXFbSjasdItigh+OL2T5ZYK
+         0oTg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=SvArG4neodJjg81/l1ml2GxK3X5tveRM+mJKV/2MOkc=;
-        b=EWVm68XwklqX0epoknEV/o7tOURr+vRglI2juQGG6rBE9+r9xODYFYFpklpxjbTPao
-         y+rpuRqncFqsGd28i1vUUAzF2XuazMUpsCB9I+wkYvypA06AqTcx25pK9NuvWJD0oVwY
-         Mph8u9QFVPWOt29OQkoI0u78AKJNmNRBzBWs+STJnk2TB3R4n58pdfvdru7EZ0TaVAnO
-         zzbsUKCF6sYVPKstuCPY3batWk6dkzU+vVMnw3YXxdg584VClhiVgFHA3JR3cg1ZiqVF
-         OvrCDwrQ9Lpd/tMS2ZQVtRxGZrw6yIJFMkpOvoGag+o9fnOC8Q9NRja58eJzgAug68ns
-         sBWA==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=QHgOg6cGsv9xd65uVTjBVNHAbSXgzLyqtKjVx6L0PNA=;
+        b=aEk4ScL9rBMeuhNVLLSBrQtGQPTxjZpzLiVWu0A6RWJMQAQZd5ZHkOsxOsMPMHq86S
+         cLD0UriGS4Mqv1joTBrgOJG6m/PGt4v5M6z0d82bSBiy2GU9yI3Sb41hXwAZRAffRQYW
+         NudQZn6N3+to+4qqDRCDIB/WvVF/ZIUil8donIZAVkgShOAOrsRevqtwKv6bEkyhY1M5
+         SJztax2EZHKcT1pOaOHdRh3qSCioemVbul/oeIZE3xK7mOVcFQ75JVxQQD2GWwophyZf
+         GtuZOOYA1oRkT8HW1Q0a5OIKsYYzum+KQtcXOlaFRTxi8x3lDUK7cqVNxQQvGLjpkIfT
+         CXtg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=OA+7LFBa;
-       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=dancol@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id v72sor1655816vkv.54.2019.03.20.12.40.58
+       dkim=pass header.i=@virtuozzo.com header.s=selector1 header.b=NB70ZACo;
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 40.107.15.113 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-eopbgr150113.outbound.protection.outlook.com. [40.107.15.113])
+        by mx.google.com with ESMTPS id d4si2284152pgq.543.2019.03.20.12.52.19
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Mar 2019 12:40:58 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dancol@google.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 20 Mar 2019 12:52:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 40.107.15.113 as permitted sender) client-ip=40.107.15.113;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=OA+7LFBa;
-       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=dancol@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=SvArG4neodJjg81/l1ml2GxK3X5tveRM+mJKV/2MOkc=;
-        b=OA+7LFBabangtz/p7+isIh2AehX9or2nW+UiM+LmdDlGICer9Hr1pT/Zb2fX8f3yMo
-         Quw+a/ByrKDYjBc3YXralGnDlUQtfNB3wN7yg6F3ic3z6H3YGtA7R8K0chdALunMX9Qe
-         UIJDpnYnbayASP16vApGjx5myPEIQ4is88+Xz/plHQ+eHIEbSsl/KbFDuL4WSq9RpzFy
-         FF/8m0BmrpWsKv062B1wnLIgrP5QZZhOWK+wFYM9lQJTSIAMfHm7aLSdNtyQT7mo9hXW
-         G3qrzq2ZPU6pWNiZ7h/DXjc/toE6jVACJlnlKa8+x+85gT7CQIHeOQTzbMX/isOSzhla
-         KkCw==
-X-Google-Smtp-Source: APXvYqwQ/dXvHEzlTvHvnz0gIwhtnnrUl00BFG1RsZB1vcXIy6qMCGsim0ImV8HN8YylcuX03YXGxlwWccPGAKlG94o=
-X-Received: by 2002:a1f:82ce:: with SMTP id e197mr5989535vkd.89.1553110857728;
- Wed, 20 Mar 2019 12:40:57 -0700 (PDT)
+       dkim=pass header.i=@virtuozzo.com header.s=selector1 header.b=NB70ZACo;
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 40.107.15.113 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=virtuozzo.com;
+ s=selector1;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=QHgOg6cGsv9xd65uVTjBVNHAbSXgzLyqtKjVx6L0PNA=;
+ b=NB70ZAConJfzBYK2A6y3FVXPFsfFfnq3MeEX739YKfLdGqN/IAoPgpqH3nJmRZg6awnTn/+tAzfi6tEUqUnRwSOgaBaTFv2EufWw/gKzCIFOQwlyXkxzykLQCr2FLf7aDeqz2AQqKe0fZrH/vWLbflxT6L8+QWhlrc093QkowoE=
+Received: from DB7PR08MB3771.eurprd08.prod.outlook.com (20.178.47.26) by
+ DB7PR08MB3753.eurprd08.prod.outlook.com (20.178.45.211) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1709.14; Wed, 20 Mar 2019 19:52:14 +0000
+Received: from DB7PR08MB3771.eurprd08.prod.outlook.com
+ ([fe80::61ed:e02d:9ab5:27df]) by DB7PR08MB3771.eurprd08.prod.outlook.com
+ ([fe80::61ed:e02d:9ab5:27df%4]) with mapi id 15.20.1709.015; Wed, 20 Mar 2019
+ 19:52:14 +0000
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+CC: "vdavydov.dev@gmail.com" <vdavydov.dev@gmail.com>, "bigeasy@linutronix.de"
+	<bigeasy@linutronix.de>, "adobriyan@gmail.com" <adobriyan@gmail.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: Re: [PATCH] mm/list_lru: Simplify __list_lru_walk_one()
+Thread-Topic: [PATCH] mm/list_lru: Simplify __list_lru_walk_one()
+Thread-Index: AQHU3w7Lo6KraWJUnkilY0x3WJKyDKYU3h+AgAAQjIA=
+Date: Wed, 20 Mar 2019 19:52:13 +0000
+Message-ID: <9654f80e-ac2b-9d85-fe93-f42cdc2f6011@virtuozzo.com>
+References:
+ <155308075272.10600.3895589023886665456.stgit@localhost.localdomain>
+ <20190320115251.026f65e83ebde2b8ebf51134@linux-foundation.org>
+In-Reply-To: <20190320115251.026f65e83ebde2b8ebf51134@linux-foundation.org>
+Accept-Language: ru-RU, en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: HE1PR0902CA0059.eurprd09.prod.outlook.com
+ (2603:10a6:7:15::48) To DB7PR08MB3771.eurprd08.prod.outlook.com
+ (2603:10a6:10:7c::26)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=ktkhai@virtuozzo.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [128.69.201.161]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 8da589af-ccaa-434b-e81b-08d6ad6d8c3a
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(7168020)(4627221)(201703031133081)(201702281549075)(8990200)(5600127)(711020)(4605104)(2017052603328)(7153060)(7193020);SRVR:DB7PR08MB3753;
+x-ms-traffictypediagnostic: DB7PR08MB3753:
+x-microsoft-antispam-prvs:
+ <DB7PR08MB3753E70B1AC82C03E934EC1BCD410@DB7PR08MB3753.eurprd08.prod.outlook.com>
+x-forefront-prvs: 098291215C
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10019020)(39850400004)(366004)(346002)(396003)(136003)(376002)(189003)(199004)(102836004)(4326008)(55236004)(6506007)(446003)(99286004)(14454004)(5660300002)(229853002)(8936002)(71200400001)(2616005)(71190400001)(486006)(53546011)(14444005)(52116002)(53936002)(4744005)(26005)(6512007)(6916009)(256004)(6436002)(25786009)(186003)(478600001)(76176011)(6486002)(476003)(11346002)(7736002)(86362001)(3846002)(386003)(6116002)(8676002)(6246003)(54906003)(81166006)(97736004)(2906002)(31696002)(316002)(81156014)(305945005)(106356001)(105586002)(66066001)(68736007)(31686004)(36756003);DIR:OUT;SFP:1102;SCL:1;SRVR:DB7PR08MB3753;H:DB7PR08MB3771.eurprd08.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: virtuozzo.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ RhGzIRYVFdk9AjUcVhcsKY+9Q1fnaf6SPIlqy/JhYl9Le06xetl6t3JZTOuPEV8CaG11RlCEdew01oKPy7IptvVEAnf6ZWtztfMGSO051yefJ5xXznyKFCdrqzNOodTIkgEks44VYDU31vyC3aeVGj9ihlWn8pje2VGXwv01LTEepFJUvKHLC9LhpVmxN0WBl+koLIwcMa1+m329k/3a2QJZdYwPthaFKt2dNdUMC1aOjr6pd2GTwxZyaO2GpA3HMSQeZ4izMafsXBwWT3iMkHwRgWevYN1IOmIAKEdo2ghdOID5zeKJKgp20cY+psDMtV4vXD9RmEOPolToPO68ZkFcgSHKY8iMr6EAQQi7dQyzf1/8SdZ2K3iv1VjV2u3pbAQ9huJZL5p1vh5rsc6PlcvoUrRDaEwwXcPK1WZKBIw=
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <EC1F5FFA01BF7A40A432C62085C271BD@eurprd08.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-References: <20190319231020.tdcttojlbmx57gke@brauner.io> <20190320015249.GC129907@google.com>
- <CAKOZuetJzg_EiyuK7Pa13X3LKuBbreg7zJ5g4uQv_uV4wpmZjg@mail.gmail.com>
- <20190320035953.mnhax3vd47ya4zzm@brauner.io> <CAKOZuet3-VhmC3oHtEbPPvdiar_k_QXTf0TkgmH9LiwmW-_oNA@mail.gmail.com>
- <4A06C5BB-9171-4E70-BE31-9574B4083A9F@joelfernandes.org> <20190320182649.spryp5uaeiaxijum@brauner.io>
- <CAKOZuevHbQtrq+Nb-jw1L7O72BmAzcXmbUnfnseeXZjX4PE4tg@mail.gmail.com>
- <20190320185156.7bq775vvtsxqlzfn@brauner.io> <CALCETrXO=V=+qEdLDVPf8eCgLZiB9bOTrUfe0V-U-tUZoeoRDA@mail.gmail.com>
- <20190320191412.5ykyast3rgotz3nu@brauner.io>
-In-Reply-To: <20190320191412.5ykyast3rgotz3nu@brauner.io>
-From: Daniel Colascione <dancol@google.com>
-Date: Wed, 20 Mar 2019 12:40:46 -0700
-Message-ID: <CAKOZuesRwQ4=Svu1KgHWY=HZSS8mF8uFmuzuVOSH0QpJoy7a5w@mail.gmail.com>
-Subject: Re: pidfd design
-To: Christian Brauner <christian@brauner.io>
-Cc: Andy Lutomirski <luto@kernel.org>, Joel Fernandes <joel@joelfernandes.org>, 
-	Suren Baghdasaryan <surenb@google.com>, Steven Rostedt <rostedt@goodmis.org>, 
-	Sultan Alsawaf <sultan@kerneltoast.com>, Tim Murray <timmurray@google.com>, 
-	Michal Hocko <mhocko@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
-	=?UTF-8?B?QXJ2ZSBIasO4bm5ldsOlZw==?= <arve@android.com>, 
-	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>, Ingo Molnar <mingo@redhat.com>, 
-	Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, 
-	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>, linux-mm <linux-mm@kvack.org>, 
-	kernel-team <kernel-team@android.com>, Oleg Nesterov <oleg@redhat.com>, 
-	"Serge E. Hallyn" <serge@hallyn.com>, Kees Cook <keescook@chromium.org>
-Content-Type: text/plain; charset="UTF-8"
+X-OriginatorOrg: virtuozzo.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 8da589af-ccaa-434b-e81b-08d6ad6d8c3a
+X-MS-Exchange-CrossTenant-originalarrivaltime: 20 Mar 2019 19:52:13.8857
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 0bc7f26d-0264-416e-a6fc-8352af79c58f
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: DB7PR08MB3753
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 20, 2019 at 12:14 PM Christian Brauner <christian@brauner.io> wrote:
->
-> On Wed, Mar 20, 2019 at 11:58:57AM -0700, Andy Lutomirski wrote:
-> > On Wed, Mar 20, 2019 at 11:52 AM Christian Brauner <christian@brauner.io> wrote:
-> > >
-> > > You're misunderstanding. Again, I said in my previous mails it should
-> > > accept pidfds optionally as arguments, yes. But I don't want it to
-> > > return the status fds that you previously wanted pidfd_wait() to return.
-> > > I really want to see Joel's pidfd_wait() patchset and have more people
-> > > review the actual code.
-> >
-> > Just to make sure that no one is forgetting a material security consideration:
->
-> Andy, thanks for commenting!
->
-> >
-> > $ ls /proc/self
-> > attr             exe        mountinfo      projid_map    status
-> > autogroup        fd         mounts         root          syscall
-> > auxv             fdinfo     mountstats     sched         task
-> > cgroup           gid_map    net            schedstat     timers
-> > clear_refs       io         ns             sessionid     timerslack_ns
-> > cmdline          latency    numa_maps      setgroups     uid_map
-> > comm             limits     oom_adj        smaps         wchan
-> > coredump_filter  loginuid   oom_score      smaps_rollup
-> > cpuset           map_files  oom_score_adj  stack
-> > cwd              maps       pagemap        stat
-> > environ          mem        personality    statm
-> >
-> > A bunch of this stuff makes sense to make accessible through a syscall
-> > interface that we expect to be used even in sandboxes.  But a bunch of
-> > it does not.  For example, *_map, mounts, mountstats, and net are all
-> > namespace-wide things that certain policies expect to be unavailable.
-> > stack, for example, is a potential attack surface.  Etc.
-
-If you can access these files sources via open(2) on /proc/<pid>, you
-should be able to access them via a pidfd. If you can't, you
-shouldn't. Which /proc? The one you'd get by mounting procfs. I don't
-see how pidfd makes any material changes to anyone's security. As far
-as I'm concerned, if a sandbox can't mount /proc at all, it's just a
-broken and unsupported configuration.
-
-An actual threat model and real thought paid to access capabilities
-would help. Almost everything around the interaction of Linux kernel
-namespaces and security feels like a jumble of ad-hoc patches added as
-afterthoughts in response to random objections.
-
->> All these new APIs either need to
-> > return something more restrictive than a proc dirfd or they need to
-> > follow the same rules.
-
-What's wrong with the latter?
-
-> > And I'm afraid that the latter may be a
-> > nonstarter if you expect these APIs to be used in libraries.
-
-What's special about libraries? How is a library any worse-off using
-openat(2) on a pidfd than it would be just opening the file called
-"/proc/$apid"?
-
-> > Yes, this is unfortunate, but it is indeed the current situation.  I
-> > suppose that we could return magic restricted dirfds, or we could
-> > return things that aren't dirfds and all and have some API that gives
-> > you the dirfd associated with a procfd but only if you can see
-> > /proc/PID.
->
-> What would be your opinion to having a
-> /proc/<pid>/handle
-> file instead of having a dirfd. Essentially, what I initially proposed
-> at LPC. The change on what we currently have in master would be:
-> https://gist.github.com/brauner/59eec91550c5624c9999eaebd95a70df
-
-And how do you propose, given one of these handle objects, getting a
-process's current priority, or its current oom score, or its list of
-memory maps? As I mentioned in my original email, and which nobody has
-addressed, if you don't use a dirfd as your process handle or you
-don't provide an easy way to get one of these proc directory FDs, you
-need to duplicate a lot of metadata access interfaces.
+T24gMjAuMDMuMjAxOSAyMTo1MiwgQW5kcmV3IE1vcnRvbiB3cm90ZToNCj4gT24gV2VkLCAyMCBN
+YXIgMjAxOSAxNDoxOToyNyArMDMwMCBLaXJpbGwgVGtoYWkgPGt0a2hhaUB2aXJ0dW96em8uY29t
+PiB3cm90ZToNCj4gDQo+PiAxKVNwaW5sb2NrIG11c3QgYmUgbG9ja2VkIGluIGFueSBjYXNlLCBz
+byBhc3NlcnRfc3Bpbl9sb2NrZWQoKQ0KPj4gICBhcmUgbW92ZWQgYWJvdmUgdGhlIHN3aXRjaDsN
+Cj4gDQo+IFRoaXMgaXNuJ3QgdHJ1ZS4gIFdoZW4gdGhlIC0+aXNvbGF0ZSgpIGhhbmRsZXIgeGZz
+X2J1ZnRhcmdfd2FpdF9yZWxlKCkNCj4gKGF0IGxlYXN0KSByZXR1cm5zIExSVV9TS0lQLCB0aGUg
+bG9jayBpcyBub3QgaGVsZC4NCg0KT2gsIEkgbWlzc2VkIHRoYXQgOigNClRoYW5rcyBmb3IgcG9p
+bnRpbmcuDQoNCktpcmlsbA0K
 
