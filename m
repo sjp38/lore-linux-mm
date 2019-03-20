@@ -2,119 +2,151 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.7 required=3.0 tests=FROM_LOCAL_HEX,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
+X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A4BFC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 00:49:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2AB63C4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 00:49:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3660A20835
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 00:49:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3660A20835
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
+	by mail.kernel.org (Postfix) with ESMTP id DBD98217F4
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 00:49:18 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="uQAnIj3z"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DBD98217F4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B5AB56B0003; Tue, 19 Mar 2019 20:49:01 -0400 (EDT)
+	id 7B2F06B0006; Tue, 19 Mar 2019 20:49:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B0B906B0006; Tue, 19 Mar 2019 20:49:01 -0400 (EDT)
+	id 7617B6B0007; Tue, 19 Mar 2019 20:49:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A48506B0007; Tue, 19 Mar 2019 20:49:01 -0400 (EDT)
+	id 6775D6B0008; Tue, 19 Mar 2019 20:49:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D5BD6B0003
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 20:49:01 -0400 (EDT)
-Received: by mail-it1-f197.google.com with SMTP id r136so704622ith.3
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 17:49:01 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 284D86B0006
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 20:49:18 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id p127so845968pga.20
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 17:49:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :date:in-reply-to:message-id:subject:from:to;
-        bh=34TooLQdVcI8lagfhQc4CIT5WCnP1wTTjoUvFK/95jI=;
-        b=VFkXWxBREwOxwwVX979tP80yf5aPrZEBRVM1XUwfYpCf/48iFvLDzejx/26ZveGvtZ
-         QxmmNEh8QCG2Q5tw5dczsT+7buG7rvZJRorhYqIxb47M4sku0zOSy/yJSLLidv/KuirL
-         Ai1oe7ScADBGSa2bdB7JEDNdFZu/nHdr7q5PrzeYpNolsDwh8+reAWp5voGjJwXrsQNK
-         0viW/SmlRYd27yNoNX3n2tFoaZYwe8vHbgAx4vK0KCE1vWbPDqmwQc/s64CoOMF1ahxD
-         jO/WSTMU7dZTDkzaSc0Iqxf2AtncEkzVO1wUkgsqXaZ647QPAu16Hqdw7QNKb6sDItzM
-         rHRA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3_i2rxakbaek39avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3_I2RXAkbAEk39Avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Gm-Message-State: APjAAAWK35g/Uctm2u+ZaVYhjkPFa2suXkZo93NqZ79ic6eRNDUweDCi
-	RFaV3wQ8NUBEmcyf+Tf8rkvqIzLruLh5PY444GvPO90p/NEL7MvAJLlkNRKrK27EU/HN1ZDDa/S
-	Lc9mVdgAUsnvkOG8mSYTSSYu4ZJ0sac4/mN+EX6PzkZQo8uvjB87/GFdlfwDsRGI=
-X-Received: by 2002:a24:1153:: with SMTP id 80mr3177359itf.69.1553042941282;
-        Tue, 19 Mar 2019 17:49:01 -0700 (PDT)
-X-Received: by 2002:a24:1153:: with SMTP id 80mr3177341itf.69.1553042940603;
-        Tue, 19 Mar 2019 17:49:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553042940; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version;
+        bh=woHC6P4IWHeqMPl0bBWCL/dn49O6TQqdOp+Q3BiQuPY=;
+        b=CROvxL9ufh5u76GnqXwUL8fcr66Xc1JgdeFZSbI/M3jj/+EMsSPwjamU5YsqopLVKQ
+         FncNcHaOkeTHZVRD8TjNSV6niautEsrnbF/S4udnoFIQK9Cl8IuuxVsrRid8hHTNW3hZ
+         qzLjy/jREsnO9Z5/fIaam342ddijzN/xzWGdU07YLOl4NlNVoG8I/a61E9lGqykZPIZq
+         o9v843Ab9iZP/HdOZzH3ZDqgiQUgyON+cD/W+MhVrUWYYt6wgSzMpFdy7fc2aGaRkFop
+         3paQucTJqz1Mkw3ZIvllNfQwXaPy4NbkxCUxCGUI3Bi/qK5+0LNzQo/jNWCPmM6Sm+Lq
+         A+Kw==
+X-Gm-Message-State: APjAAAXx563e7W64GTWyD0GLMnMXVooNOAxVCrZGgPKO3Lw0C9btRX6K
+	iYUuKbTEnHOJe7+vu5YQmC4lCD5iEo+sUW68bMh+qAaRS09U9j3nPqzSe6c+kgU2MGIN0Wt9sSl
+	aKPIHZmxt5La5o3vA9Oc4Hh8UcMmqKURkMcdZ9XrDrJQU8+cWl0HtDSIMpJ4ZPxaz5w==
+X-Received: by 2002:a65:4bcc:: with SMTP id p12mr4611998pgr.187.1553042957740;
+        Tue, 19 Mar 2019 17:49:17 -0700 (PDT)
+X-Received: by 2002:a65:4bcc:: with SMTP id p12mr4611951pgr.187.1553042956849;
+        Tue, 19 Mar 2019 17:49:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553042956; cv=none;
         d=google.com; s=arc-20160816;
-        b=Tl4WXrKoPcoSMjBldeNwDj31LKhpC0qOCyxe3gqNbkYrCeuRnSe6amLE6H8Bbc/WBK
-         +LT32w7++xCrUofJkN1Af/T8uyqDaPMOqegoodD1B0pb734mb9VusTeSjvfdzE6oC1Vk
-         kIzS728ZFq5+dgK0qw3zUcQuZ2C6H7JpxMHKwtQuxqbjb1FcIBIpZ95IEEi7wv/Jz4SR
-         TpdBLEc7oEZoUxoZDRc5Zqu1Ef+MIJ/KkSLDzJGEqCTihT247eSsdQde1TYWB6qTOEvW
-         XqFHNgV9FpEJdvMat83dSiHw7Z4zK9oP3MoU4TKmJhvhZ/fP+s/EdSZbU4CurvcyT0Jd
-         VI7A==
+        b=IDEplxeqx37fKddDHxNUANtl2AIOr9plLkcPyPCH1CX71xMpOTXD0ZvttqvFtV5xqw
+         0Yq/Y6tXDq6bVA01eUp+fWQhOQLSyxc+GSPNI6/BWvgcUBSrpLosWX3zwJdrKQidcZ7P
+         asNqM2V3Cvkz9SsUNJQOy7q70MTZxSyXdC5pssBiVrCSExZBXHR2/+lWBYPT+idCtyw9
+         Zee8JUsOOgxumQAc8F8UyBBLeWTJfgVxV1wUS9ApKiPzbFulNd5tlS8xof0Ze/8Cu8Js
+         3zVyUoZoWoN7xKUplcmyhyEZuW9/yg95YszkNaz3/4TbubmsjuXjUF8S/LjpWSRCX4+O
+         Er7A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:from:subject:message-id:in-reply-to:date:mime-version;
-        bh=34TooLQdVcI8lagfhQc4CIT5WCnP1wTTjoUvFK/95jI=;
-        b=r8NA7ys3fLSe6NyoCMWK974n5moaCjfEiIOSSiV84S92F0px1lfdXGHKTo+JSkA/p4
-         OzEoxrtKB634o7GB2T5h0yCc45mklgKo8KdwbXOCaG6PAZ0fGF+1g5wHEE31t41X2I7M
-         V18wUpwWxwrVPEvrxKp+U6B/ayFmLGEdnn4tCTW0hTbvb3jQWWUnKJjdoezZ5VfkD89R
-         wmWE8wn4Lf6DVxs+ViAX8xjfL3binIU2VXqY2HB9pewk1qKjcqTh7CjCxNlPuxYGZnWC
-         T5faNZNV856SgqYEy2dPZq9hy0owgWDJBk065lBrr0GfdfLldZMMPBR4rl5Rm3wkgiBv
-         36ug==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date:dkim-signature;
+        bh=woHC6P4IWHeqMPl0bBWCL/dn49O6TQqdOp+Q3BiQuPY=;
+        b=WyEwVa9Uda9qAn8+6vZesu3XoWyAZNuSGEPFkN1ocYT7L7/iEIBgLbEIcMwuwga7Gq
+         y5yrOYpIIcfy05DetadlKvl7J1q3o02V8s5hnfLrwB7Xsp3/2BSz389xpK3j8g2vsZjE
+         f+kVpcs81hZ5BqbMJHemYj6fz+4Sb3TZvfNsyXS2xlWfL23UQIQ2D4vVgsGx5x5dwIiw
+         onZM9y+u1n0u28e+1YVovtWq2q9VSRK34x4CPM8tz6iExVlLr5uAokT/xPdzBFqgxWFR
+         kGy7SJUZbkvni3s05NM0tpPkqd9ofYBg1ET2p2YiuB8U4p5GkguP00JAxQNCvruM9YDM
+         HyaA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of 3_i2rxakbaek39avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3_I2RXAkbAEk39Avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id a17sor796457itk.9.2019.03.19.17.49.00
+       dkim=pass header.i=@google.com header.s=20161025 header.b=uQAnIj3z;
+       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w7sor811460plz.53.2019.03.19.17.49.16
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 19 Mar 2019 17:49:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3_i2rxakbaek39avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
+        Tue, 19 Mar 2019 17:49:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of 3_i2rxakbaek39avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3_I2RXAkbAEk39Avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Google-Smtp-Source: APXvYqx7zS+H4Jedbpdn1TRb3cKYCoifugmmZXSC2gmMDFAPET4Z0ljW/5N29EtJlpPvU8a6P85Fgix8M3QmQ/HQEE8qv2MLrnXP
+       dkim=pass header.i=@google.com header.s=20161025 header.b=uQAnIj3z;
+       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:in-reply-to:message-id:references
+         :user-agent:mime-version;
+        bh=woHC6P4IWHeqMPl0bBWCL/dn49O6TQqdOp+Q3BiQuPY=;
+        b=uQAnIj3za4wrrwn7MJzIR0I98MQQmbfVD3GTktU1sIuzy5cmsKWcdvzDQC4X6+rvH8
+         w6u3rtLEP3oq281/rdAsfnHNFTiEDCD5Sq/aJeDMIBS8t3a6+grQhuDmmBMk4JHa3+/k
+         vq109n8sn+nAr2NyC3hsMZ+mU8VNNF7BEmW4jvJ89MlAHHM46CkcB5DqEGtK12AxOjVO
+         4K0U+0pKhoX0dyV4I9HW97CCS2DdyN6mtY+USRwB529UqmXR3VHrgbratA6CuBBPSImx
+         GSfAWkTfQlWwzTArpKAOkbTyMSllPqqThJxy7nPNbDUOsu4BQtT9rDdopXMu1e/mjCSK
+         mYYw==
+X-Google-Smtp-Source: APXvYqzU9Et7B/EaHRkr6v8Rip9mhd6P1ZraR9Jxn1pAooOpa+WFbT96w8mMoXRsA/HzvaCyFOLoog==
+X-Received: by 2002:a17:902:ea8c:: with SMTP id cv12mr5255204plb.123.1553042956167;
+        Tue, 19 Mar 2019 17:49:16 -0700 (PDT)
+Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
+        by smtp.gmail.com with ESMTPSA id e1sm297905pfn.73.2019.03.19.17.49.15
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 19 Mar 2019 17:49:15 -0700 (PDT)
+Date: Tue, 19 Mar 2019 17:49:14 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+X-X-Sender: rientjes@chino.kir.corp.google.com
+To: Yang Shi <yang.shi@linux.alibaba.com>
+cc: chrubis@suse.cz, vbabka@suse.cz, kirill@shutemov.name, osalvador@suse.de, 
+    akpm@linux-foundation.org, stable@vger.kernel.org, linux-mm@kvack.org, 
+    linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm: mempolicy: make mbind() return -EIO when MPOL_MF_STRICT
+ is specified
+In-Reply-To: <1553020556-38583-1-git-send-email-yang.shi@linux.alibaba.com>
+Message-ID: <alpine.DEB.2.21.1903191748090.18028@chino.kir.corp.google.com>
+References: <1553020556-38583-1-git-send-email-yang.shi@linux.alibaba.com>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-X-Received: by 2002:a24:220a:: with SMTP id o10mr3308113ito.22.1553042940333;
- Tue, 19 Mar 2019 17:49:00 -0700 (PDT)
-Date: Tue, 19 Mar 2019 17:49:00 -0700
-In-Reply-To: <000000000000f7cb53057b7ee3cb@google.com>
-X-Google-Appengine-App-Id: s~syzkaller
-X-Google-Appengine-App-Id-Alias: syzkaller
-Message-ID: <000000000000c7bd5c05847bfcab@google.com>
-Subject: Re: WARNING: bad usercopy in corrupted (2)
-From: syzbot <syzbot+d89b30c46434c433dbf8@syzkaller.appspotmail.com>
-To: crecklin@redhat.com, davem@davemloft.net, dvyukov@google.com, 
-	keescook@chromium.org, kuznet@ms2.inr.ac.ru, linux-kernel@vger.kernel.org, 
-	linux-mm@kvack.org, linux-net@vger.kernel.org, netdev@vger.kernel.org, 
-	sbrivio@redhat.com, sd@queasysnail.net, syzkaller-bugs@googlegroups.com, 
-	willy@infradead.org, yoshfuji@linux-ipv6.org
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.004660, version=1.2.4
+Content-Type: text/plain; charset=US-ASCII
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-syzbot has bisected this bug to:
+On Wed, 20 Mar 2019, Yang Shi wrote:
 
-commit b8a51b38e4d4dec3e379d52c0fe1a66827f7cf1e
-Author: Stefano Brivio <sbrivio@redhat.com>
-Date:   Thu Nov 8 11:19:23 2018 +0000
+> When MPOL_MF_STRICT was specified and an existing page was already
+> on a node that does not follow the policy, mbind() should return -EIO.
+> But commit 6f4576e3687b ("mempolicy: apply page table walker on
+> queue_pages_range()") broke the rule.
+> 
+> And, commit c8633798497c ("mm: mempolicy: mbind and migrate_pages
+> support thp migration") didn't return the correct value for THP mbind()
+> too.
+> 
+> If MPOL_MF_STRICT is set, ignore vma_migratable() to make sure it reaches
+> queue_pages_to_pte_range() or queue_pages_pmd() to check if an existing
+> page was already on a node that does not follow the policy.  And,
+> non-migratable vma may be used, return -EIO too if MPOL_MF_MOVE or
+> MPOL_MF_MOVE_ALL was specified.
+> 
+> Tested with https://github.com/metan-ucw/ltp/blob/master/testcases/kernel/syscalls/mbind/mbind02.c
+> 
+> Fixes: 6f4576e3687b ("mempolicy: apply page table walker on queue_pages_range()")
+> Reported-by: Cyril Hrubis <chrubis@suse.cz>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: stable@vger.kernel.org
+> Suggested-by: Kirill A. Shutemov <kirill@shutemov.name>
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> Signed-off-by: Oscar Salvador <osalvador@suse.de>
 
-     fou, fou6: ICMP error handlers for FoU and GUE
+Acked-by: David Rientjes <rientjes@google.com>
 
-bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=14a57f83200000
-start commit:   b8a51b38 fou, fou6: ICMP error handlers for FoU and GUE
-git tree:       net-next
-console output: https://syzkaller.appspot.com/x/log.txt?x=12a57f83200000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=c36a72af2123e78a
-dashboard link: https://syzkaller.appspot.com/bug?extid=d89b30c46434c433dbf8
-syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=170f6a47400000
-C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=12e1df7b400000
-
-Reported-by: syzbot+d89b30c46434c433dbf8@syzkaller.appspotmail.com
-Fixes: b8a51b38 ("fou, fou6: ICMP error handlers for FoU and GUE")
+Thanks.  I think this needs stable for 4.0+, can you confirm?
 
