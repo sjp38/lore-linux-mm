@@ -2,131 +2,202 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 54D32C10F05
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 21:48:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4B5CFC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 21:50:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EE9E5218C3
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 21:48:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EE9E5218C3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id E6B40218B0
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 21:50:39 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="pDRQWSwd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E6B40218B0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 27A696B0003; Wed, 20 Mar 2019 17:48:10 -0400 (EDT)
+	id 7F8216B0003; Wed, 20 Mar 2019 17:50:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 204376B0006; Wed, 20 Mar 2019 17:48:10 -0400 (EDT)
+	id 7A6EE6B0006; Wed, 20 Mar 2019 17:50:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0CE176B0007; Wed, 20 Mar 2019 17:48:10 -0400 (EDT)
+	id 695846B0007; Wed, 20 Mar 2019 17:50:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B24F06B0003
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 17:48:09 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id m32so1469147edd.9
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 14:48:09 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 12D416B0003
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 17:50:39 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id n9so1591954wra.19
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 14:50:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=ti9ripvN2rhcF9NSGZusPod+XiKR1FLqC84BWaRifHI=;
-        b=i0UTs0XtNwdTFvh184DrPj1TCVoDiGOrnkStVEkdQzfh7CBA1ortFd/6HaA4vEFaBe
-         XKYWwu4C9EfkLo0QaEhs7NJAlx8NiRfjTEb/DjBe/5BM6zrnbjp2Bp4JhZuVqNvvvNrE
-         JFlix9iN/OkuaxAYusRsBDcFyxrqSi08W1TQ3cngpXji9Zdr1bHRlbRXLdN08qQF7/XP
-         Chbu+q2E+0ykTxp/5TZ1ivOM57YM2cIB1pp6/yryN02OXcXa1gGwVco7gH+wFBiSXw8P
-         0ErH7Nov7y+ehq6PXNcZfyQSBOFmboqeGFpKObhhhvUpWr8dcFSYxD/L2exHn/1llV8f
-         f6VA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAVuzk3k2nl75ntpZhVWgQ3X3KAH46bYaMO2lcLaEoSue04i0Bep
-	Xc6ZR5KPy8jHC4s1rfgKt/rTf6SxaImwH4+qRqo6qpPiyvBvN/ftDI2h8UHvyuM3YVN/xYzYV8e
-	y3Odb8733P5K0ER1q+KIJoqPyIRDZpeQM8efIFoDwZ3X9vH3hhXrccqPCLu9ThaZVkA==
-X-Received: by 2002:a50:aeec:: with SMTP id f41mr128618edd.279.1553118489212;
-        Wed, 20 Mar 2019 14:48:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwb8bNMc72rd1FVkCPZuKCOgGdc6OGFc78s4Aft59CFw1wM5CdYJXnFxV/J/3ti5Gd8LklP
-X-Received: by 2002:a50:aeec:: with SMTP id f41mr128558edd.279.1553118487911;
-        Wed, 20 Mar 2019 14:48:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553118487; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=QuzZpU3JLNjrV9G28aYFCK9t3tn4MzRm3nE3ai0SkRE=;
+        b=tS4ivhVjduIAqn5WxdBlxCF9dpqRjJkuGH4bvkpitx0Q3d3oQQb6YlRDtVkV9Rhehy
+         /SFpFeM9dUY7Er1OksU9gpw5mPaBmh0h5FYBkbF+gZIb1FK3Zt623X/cRLPGFzVaJLAj
+         3yZglMpTfgz/sOZorJ/aJdQqq6yzFhloesYAWvlGWNVQSx1X0ibUib1rIWj5oAuNrEfR
+         4p9RxYV/FddKXECohlsNGcHErqJFhfyksOvc1FZ4HVLFcBDaPmo86Xhw7LLr2efgEaMw
+         tf+nPyuWz6ow2sXPfvLOtjRkyWrzYMmHNlK4HmoytMmcPaQiem4Z+ZYQGDv9atBRP2SZ
+         FxPA==
+X-Gm-Message-State: APjAAAWRGqRJiqLPPVc1PCEfLjYdc3Eui/XuxM2RAXBlesyeVbFDoPd7
+	j/5HZB9gXEn/mDPwb5A/2BmflFs5/3/tOZJzx9sVb9XM9sp6rAm7maOEvWoQKvWQuSS5Ty4MmEJ
+	xlRIGLvCith/c9f/zDv4sC4ZOndND+tjA0MIHC4tw1Au0Y3blOIN5+1RZf4HT2Ar1Uw==
+X-Received: by 2002:a1c:4b03:: with SMTP id y3mr288541wma.75.1553118638547;
+        Wed, 20 Mar 2019 14:50:38 -0700 (PDT)
+X-Received: by 2002:a1c:4b03:: with SMTP id y3mr288503wma.75.1553118637466;
+        Wed, 20 Mar 2019 14:50:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553118637; cv=none;
         d=google.com; s=arc-20160816;
-        b=yP/ThDp8e/IMin3RTO0M5Dsyvq6ur0qrKrDFJFQtaLo0rSOSUsIRd9nHchnj1LB0qA
-         lMiPyqf1eLQmieJZDrJYFKiQsIM7s4YkB+fuK3Dc3tgQoOwX/PfvV+VoneGDhqv/dmZG
-         pE23spEiWv0clgvfMjSRgw/twR0Zl4hD93MoZDTUxU8XzHKBL8mo1KbOQUNye3t9dSzz
-         2JgQ8jr24sG1rlTzb2a0WxNAmMF3Eqpezxru+mAUuFMz+gYqY12nvV7KFvn4HJEkS+Hf
-         6D318JCHmVVfC3C0cVC+e+VABJQbpG5xNesIhsDsyfRDM6i0Qih9I6MFc2rcijKAB2Lp
-         fLPw==
+        b=vaokp6TvqN8KDsYCfEwsB+7t5JqNuncb5FbMrCGTJ828rdvaDnXUVR4ofna+LFuCx8
+         evFxxiFTp17CGGeYjN2F87BRbjr7flcGCty+GMonL07EQz12YEFZxu6oGyeqNEr9hE+K
+         WO9FWpDBc0FhaM1dN9LhUrByA5UJUvRsn4iCbqPhwKcepivrVK6xm/IcfFoZ02KBHExR
+         eJX4cks+gDr1dOhYZO5OzaxWICm4tMVVh/kQk1HrwMeru2o8lWe1Cns2HKKkdBI9aBCe
+         xJujYQzelxRhrh/zK5Bb7KNZbW+5c0/tSdzOVPvS2Jy9yVRc8t0Gw9jP3dvjBEbwj8Pq
+         YsaA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=ti9ripvN2rhcF9NSGZusPod+XiKR1FLqC84BWaRifHI=;
-        b=MMXcx3x+ddprBfHTIYCmVensIX5ziyy096durJ3U1dMgHmb8LtCwXiyspbbUi7wMOj
-         T1zJmsk5eYBK6512GDZKHq4amdqHpKY4KVCeaMezizFgzxSgZIR2jf5tqpFwgZx+QP0p
-         IQqdGuX6YVxLLHQCqnMxPQLI9DEUwLf+gFVGMOWehC/aZ6UHLicB6AQ8Vjy5epeqdxBf
-         hpg4X2Eglzo/7oorQwld7Hxp+hwt6gb8cv5ZDF55Hf8utP/e03kq5e0Y77u9+dkquTV9
-         jprO+YZu9fZpNcfLvLiDMxpVAClcFIln6pxtRxxnnLqecxr17ngXPNvSwQafU1g++trZ
-         DMcg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=QuzZpU3JLNjrV9G28aYFCK9t3tn4MzRm3nE3ai0SkRE=;
+        b=i5P/LHw7dqxKp52YUDWvfA9tdQ7mB077M+sMte9/H16xVPj/XYx9mishX58fWj0Lvm
+         Li7gdxmd18nJvsR6N5x5UUGk8mL1ze+M5PhOXW5k697X3FNvKf2ngaZve3+Cgm2kKnMN
+         UM+KftaVLAqJHpW/K1RxYiZ/gWK2ocUHy35XnRDT6ePrRmq5VumAdN8EsZcMFuyonTQv
+         ZMDVdpFH0tWa0+1sF/67m0IVmvfQGiWaiTzugz447A5gj3UfKgNlDj5+8/LpnEGbGyEK
+         xfrDxwdhpj0izsWBDsWsdZes7uggdDCJgYRyB1uzt/yismo2bYdsDAfWbK6M5yFTOqqv
+         YvIA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d14si1246714ede.302.2019.03.20.14.48.07
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pDRQWSwd;
+       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a2sor2590843wrm.50.2019.03.20.14.50.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Mar 2019 14:48:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 20 Mar 2019 14:50:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id B61CEAFBD;
-	Wed, 20 Mar 2019 21:48:06 +0000 (UTC)
-Subject: Re: [RFC 0/2] guarantee natural alignment for kmalloc()
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Christopher Lameter <cl@linux.com>, linux-mm@kvack.org,
- Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
- Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ming Lei <ming.lei@redhat.com>,
- Dave Chinner <david@fromorbit.com>,
- "Darrick J . Wong" <darrick.wong@oracle.com>, Christoph Hellwig
- <hch@lst.de>, Michal Hocko <mhocko@kernel.org>,
- linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org,
- linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org
-References: <20190319211108.15495-1-vbabka@suse.cz>
- <01000169988d4e34-b4178f68-c390-472b-b62f-a57a4f459a76-000000@email.amazonses.com>
- <5d7fee9c-1a80-6ac9-ac1d-b1ce05ed27a8@suse.cz>
- <20190320185347.GZ19508@bombadil.infradead.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <b5290e04-6f29-c237-78a7-511821183efe@suse.cz>
-Date: Wed, 20 Mar 2019 22:48:03 +0100
-User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pDRQWSwd;
+       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=QuzZpU3JLNjrV9G28aYFCK9t3tn4MzRm3nE3ai0SkRE=;
+        b=pDRQWSwdYu7PLk1ciUtfmWOKhFKJ31iOGsFfaMXiR/wG0h/ZV9ODplbEfrdZ3NGCxz
+         eNN8+kkRv0Y6TvZjNH2h5sDGeObfnctxhX0q0ohJt+TSQbHWANMQhH73wNLYVdtKtekF
+         h7hUvY4jZX73nNvF3rnjMsBHg6Z/u7HzYUEuY79svajtAonTaCK6CP6+NhWau/4YyQd2
+         v5JLuiQ0gsX85TDMbctW3cCqfN1yUqbElCdJ5V2ocpnO3WdNBXt3AMf9zsWkjqNS1ELl
+         tw3GYJ4CTetDUGE3DqBr6y4cv52wW6mXbJmnu2E8sEOvuwUpoidMkjTqLHCxBOSEjwzZ
+         tZuA==
+X-Google-Smtp-Source: APXvYqyFC7QsNmy8nMn6o1RgJ1n6+91m1OKGY9zvoohXvUDmb0nE4MPkSUishqRl3c4CeorOr+OBu6EBwVYZ+Sk50Ak=
+X-Received: by 2002:a5d:4a43:: with SMTP id v3mr284719wrs.126.1553118636839;
+ Wed, 20 Mar 2019 14:50:36 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190320185347.GZ19508@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <CABXGCsM-SgUCAKA3=WpL7oWZ0Xq8A1Wf-Eh6MO0seee+TviDWQ@mail.gmail.com>
+ <20190315205826.fgbelqkyuuayevun@ca-dmjordan1.us.oracle.com>
+In-Reply-To: <20190315205826.fgbelqkyuuayevun@ca-dmjordan1.us.oracle.com>
+From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Date: Thu, 21 Mar 2019 02:50:25 +0500
+Message-ID: <CABXGCsMcXb_W-w0AA4ZFJ5aKNvSMwFn8oAMaFV7AMHgsH_UB7g@mail.gmail.com>
+Subject: Re: kernel BUG at include/linux/mm.h:1020!
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: linux-mm@kvack.org, mgorman@techsingularity.net, cai@lca.pw, 
+	vbabka@suse.cz
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Sat, 16 Mar 2019 at 01:59, Daniel Jordan <daniel.m.jordan@oracle.com> wrote:
+>
+> This is new code, from e332f741a8dd1 ("mm, compaction: be selective about what
+> pageblocks to clear skip hints"), so I added some folks.
+>
+> Can you show
+> $LINUX/scripts/faddr2line path/to/vmlinux __reset_isolation_pfn+0x244
+> ?
 
-On 3/20/2019 7:53 PM, Matthew Wilcox wrote:
-> On Wed, Mar 20, 2019 at 09:48:47AM +0100, Vlastimil Babka wrote:
->> Natural alignment to size is rather well defined, no? Would anyone ever
->> assume a larger one, for what reason?
->> It's now where some make assumptions (even unknowingly) for natural
->> There are two 'odd' sizes 96 and 192, which will keep cacheline size
->> alignment, would anyone really expect more than 64 bytes?
-> 
-> Presumably 96 will keep being aligned to 32 bytes, as aligning 96 to 64
-> just results in 128-byte allocations.
+$ /usr/src/kernels/`uname -r`/scripts/faddr2line
+/lib/debug/lib/modules/`uname -r`/vmlinux __reset_isolation_pfn+0x244
+__reset_isolation_pfn+0x244/0x2b0:
+page_to_nid at include/linux/mm.h:1021
+(inlined by) page_zone at include/linux/mm.h:1163
+(inlined by) __reset_isolation_pfn at mm/compaction.c:250
 
-Well, looks like that's what happens. This is with SLAB, but the alignment
-calculations should be common: 
+It was not easy, but I completed just now kernel bisecting and see
+that you right.
+First bad commit is e332f741a8dd1
 
-slabinfo - version: 2.1
-# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables <limit> <batchcount> <sharedfactor> : slabdata <active_slabs> <num_slabs> <sharedavail>
-kmalloc-96          2611   4896    128   32    1 : tunables  120   60    8 : slabdata    153    153      0
-kmalloc-128         4798   5536    128   32    1 : tunables  120   60    8 : slabdata    173    173      0
+$ git bisect log
+git bisect start
+# good: [cd2a3bf02625ffad02a6b9f7df758ee36cf12769] Merge tag
+'leds-for-5.1-rc1' of
+git://git.kernel.org/pub/scm/linux/kernel/git/j.anaszewski/linux-leds
+git bisect good cd2a3bf02625ffad02a6b9f7df758ee36cf12769
+# bad: [610cd4eadec4f97acd25d3108b0e50d1362b3319] Merge branch
+'x86-uv-for-linus' of
+git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip
+git bisect bad 610cd4eadec4f97acd25d3108b0e50d1362b3319
+# good: [203b6609e0ede49eb0b97008b1150c69e9d2ffd3] Merge branch
+'perf-core-for-linus' of
+git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip
+git bisect good 203b6609e0ede49eb0b97008b1150c69e9d2ffd3
+# bad: [da2577fe63f865cd9dc785a42c29c0071f567a35] Merge tag
+'sound-5.1-rc1' of
+git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound
+git bisect bad da2577fe63f865cd9dc785a42c29c0071f567a35
+# good: [fb686ad25be0343a9dab23acff674d0cb84bb516] Merge tag
+'armsoc-defconfig' of
+git://git.kernel.org/pub/scm/linux/kernel/git/soc/soc
+git bisect good fb686ad25be0343a9dab23acff674d0cb84bb516
+# good: [70395a96bd882d8dba669f99b5cec0008690accd] Merge tag
+'asoc-v5.1-2' of
+https://git.kernel.org/pub/scm/linux/kernel/git/broonie/sound into
+for-next
+git bisect good 70395a96bd882d8dba669f99b5cec0008690accd
+# bad: [8dcd175bc3d50b78413c56d5b17d4bddd77412ef] Merge branch 'akpm'
+(patches from Andrew)
+git bisect bad 8dcd175bc3d50b78413c56d5b17d4bddd77412ef
+# bad: [7f18825174203526a47c127c12a50f897ee0b511] powerpc/mm/iommu:
+allow large IOMMU page size only for hugetlb backing
+git bisect bad 7f18825174203526a47c127c12a50f897ee0b511
+# good: [566e54e113eb2b669f9300db2c2df400cbb06646] mm, compaction:
+remove last_migrated_pfn from compact_control
+git bisect good 566e54e113eb2b669f9300db2c2df400cbb06646
+# bad: [d9f7979c92f7b34469c1ca5d1f3add6681fd567c] mm: no need to check
+return value of debugfs_create functions
+git bisect bad d9f7979c92f7b34469c1ca5d1f3add6681fd567c
+# good: [cb810ad294d3c3a454e51b12fbb483bbb7096b98] mm, compaction:
+rework compact_should_abort as compact_check_resched
+git bisect good cb810ad294d3c3a454e51b12fbb483bbb7096b98
+# bad: [147e1a97c4a0bdd43f55a582a9416bb9092563a9] fs: kernfs: add poll
+file operation
+git bisect bad 147e1a97c4a0bdd43f55a582a9416bb9092563a9
+# good: [dbe2d4e4f12e07c6a2215e3603a5f77056323081] mm, compaction:
+round-robin the order while searching the free lists for a target
+git bisect good dbe2d4e4f12e07c6a2215e3603a5f77056323081
+# bad: [e332f741a8dd1ec9a6dc8aa997296ecbfe64323e] mm, compaction: be
+selective about what pageblocks to clear skip hints
+git bisect bad e332f741a8dd1ec9a6dc8aa997296ecbfe64323e
+# good: [4fca9730c51d51f643f2a3f8f10ebd718349c80f] mm, compaction:
+sample pageblocks for free pages
+git bisect good 4fca9730c51d51f643f2a3f8f10ebd718349c80f
+# first bad commit: [e332f741a8dd1ec9a6dc8aa997296ecbfe64323e] mm,
+compaction: be selective about what pageblocks to clear skip hints
+
+Also I see that two patches already proposed for fixing this issue.
+[1] https://patchwork.kernel.org/patch/10862267/
+[2] https://patchwork.kernel.org/patch/10862519/
+
+If I understand correctly, it is enough to apply only the second patch [2].
+
+
+
+--
+Best Regards,
+Mike Gavrilov.
 
