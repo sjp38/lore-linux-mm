@@ -3,75 +3,75 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 34D35C10F03
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 02:07:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C6D76C4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 02:07:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DB2D3217F4
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 02:07:34 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB2D3217F4
+	by mail.kernel.org (Postfix) with ESMTP id 90FBE217F4
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 02:07:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 90FBE217F4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 85E1E6B000C; Tue, 19 Mar 2019 22:07:34 -0400 (EDT)
+	id 3A2BB6B000D; Tue, 19 Mar 2019 22:07:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 80DB16B000D; Tue, 19 Mar 2019 22:07:34 -0400 (EDT)
+	id 351AE6B000E; Tue, 19 Mar 2019 22:07:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6FD806B000E; Tue, 19 Mar 2019 22:07:34 -0400 (EDT)
+	id 2411C6B0010; Tue, 19 Mar 2019 22:07:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 516A56B000C
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 22:07:34 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id 75so14388899qki.13
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 19:07:34 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 059616B000D
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2019 22:07:45 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id f89so925458qtb.4
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2019 19:07:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=EMuqhh7UDP9mueKADKHGwGeKC3lB3y4BVPe1BKF6cgY=;
-        b=r0yowNc1r/6lk4R9pCGRUXEimtlLXGdlVgJ+PB+FHLtvmjfzFD2YlNDQ68FXvauRUo
-         rUTESVvyCYy9eQb1PMbcURPDXCzIF4umAJOuQCuGA1TLsF/kcReRAnsj12rXfk1DFeus
-         Os0pfO84VQcQAqi9G8kpimDE6V/w6JVxgt7nNP9SHnyBBhqpq+l49lCuKO3w2xNSiwoB
-         GFALukBRJVNswIzLJg2zwq88gR/KD1D+LM3g5j4GlmhfAR2X3ZfYVr98BUz8ykIKdAsq
-         obiHMkBVYBMsKCspSOIbweH5SQrbU3jrRUAakmxtEenfU2R1/by9lQBVQ3PrBbCK2Cw+
-         PR6Q==
+        bh=e0fxVMddmA9GXiTtSfkbRCEUFj7blRCWENdC7N/YeF0=;
+        b=VRPrboQ5g1/Bg8DD/GTUy8MgkI4N8Z90W1gF2gLT6VruO6JBl6mW7HJDpqlE2cgJNZ
+         fE3XpV62EzvZy/0q2mlrm3/HBY8zrrn8oTs7IPCc44xC8twnuIDFYc0h3V7a+rYIL2Pt
+         ySEgzZRLWi4DXmMBGePQ5JUVE1R96AlHArZZ5ngImq1qDOa5H8S4CDdGRBsf/gG0HQei
+         2VADCmyKGptIboSPhPxxCXlsdbr6PZYEEAwyX+WiKzFoUONBwnnp56UTi4XwIBPCUQe0
+         /0qXukq08gJgxZgvetZja8iJNOINMtviJEe0zbILMzvb7Xb1dsdNFtZkIC/gsEVjJ4se
+         aj3A==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWzIFIzVQctXK8IKcNOIkd5ZBt5Ue/Co4n2oxQ1J8VCa2o6h89C
-	XUN3pToHu9bT13amRNhfqIp6E/s1NnFBjdxH3J13dIolbHzSDhq/Gs0vouyWEo83mlfoO/d1KpA
-	lhZeIl1GHbt59F0wyqpJLh60e/PkBfJf0GRGL96wpTBHJsUJrogQ4IP6vxNLiY8+ksw==
-X-Received: by 2002:aed:3e8e:: with SMTP id n14mr4966042qtf.390.1553047654126;
-        Tue, 19 Mar 2019 19:07:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxV01AhwzNypmXTPZvJl7OrwDZF6m9i8KxNkBrw+87HZHnaUb8PehbToxGF03JC4mX05q7V
-X-Received: by 2002:aed:3e8e:: with SMTP id n14mr4965995qtf.390.1553047653107;
-        Tue, 19 Mar 2019 19:07:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553047653; cv=none;
+X-Gm-Message-State: APjAAAVEm7JaNpqBcxuznI9HUcjXuvRC6us2tBX+Tk8z23MUWAIa1G3V
+	IWwSapj8ZgJTaBSfSj8LOpIlXiQJNyAYU3MW9YaydWBWAnRAiyAL7uFSGS3lEfDi+wJW9G4mM8s
+	YPbO5U08iP06QrasXI55rnmIHpiihjm4ordwCZrqcd5HNs+3XIgOfdcNuke7jcmawsA==
+X-Received: by 2002:a37:a390:: with SMTP id m138mr4392184qke.72.1553047664812;
+        Tue, 19 Mar 2019 19:07:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwbIYfh+P8hCcfjYcY3pSWrvMsTj7e0WzG1k27zz4YXZQB/UHYFu3SLugfYYv4wpRTYqB+0
+X-Received: by 2002:a37:a390:: with SMTP id m138mr4392153qke.72.1553047664182;
+        Tue, 19 Mar 2019 19:07:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553047664; cv=none;
         d=google.com; s=arc-20160816;
-        b=bXKUKrFW4EUZUSb/Xk/lghTk4b5zPRoSvAkjbwXfakNQX9IA8TT6CM1pLFlQrquok7
-         e3KVd2GQpHNiZ93Gp1TSePTTUtN3Njm0Z50ANKBs3jDiMxKWG+LXmUP+ojFYfKsMi/Ob
-         /UGdsASFIAeAgDyQXMR/INQdKEdL8FLWtNOzXwOR/447H4yYCxhHz9xw9Co+foJE0YOm
-         FWqIR+O+WG+yICBPOodS69qHq4HWHfbQzrqfeK4TCIzIy6/Kgfj5VM+wFIvlNcTyrKfh
-         c+LUoJBsgHoTaAaihEgxq+r9uqEoTS5YE3Oz/9aXcG6AS5MbUjOw00ppWbBSy11YAPGM
-         59VQ==
+        b=HesJaUVrsek7MNAmadahD36AxH79meFBk3NGL51VXdg6yu3lZxDHIjvsCXc2liAPTs
+         C5BeNJ/eEEMBVJPd5zFWTc5kk/y0BxtWGnBKdgEIC+yj8tWH0JNuR66mXurN2/wwb9Rv
+         FdFFYGbCIgZoQGPYPbPJSD8xoGk6QBskaAZFeVH2xyCd+hOXx1CQZ8kCnYwpMZzN4WCe
+         7NhynWITNB1xH1vGOqoTbW66A50auxa+IdQ1yPcfRuWNaePXivr+HlYWhV3+Ok3QQzrv
+         nL+2AjEC/cK03q8WnQ+vxSiyyerbjrbF4jDqkrO4dCx8F8Br9zwpgpdKDwu7WrrC7Wse
+         XQeQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=EMuqhh7UDP9mueKADKHGwGeKC3lB3y4BVPe1BKF6cgY=;
-        b=ru2sZXWbcYmF4hqA4ueiiTpgUrXLC/VFjIsRmJT5JYq9XU2TPAOgefgWf5of6MoANq
-         b9SR5yj5MLQpSVBBW82KlLp2xDHHif2D3k1X/ifWyk4LkISjdgCPngkl7ffeAea0jA3J
-         Iw9frWe4wnOAoge01LVTrtLKbH9q7A6T9aHjYIaGgUQx+ykKylDV4blRIjaABkdA6Skx
-         JRfQQ/pn8RbUJMOHwBQPibGSqXK/avnxdG3CsmPS+Mf9iFddSn8eEq0Dn/y7vdAGo4RS
-         rDCbDD5agFZzc1LSYI4jIGSfpCgVI33pvGTAQfJwGHgPPvHXdesfCvEGNMGSTrO+C1TX
-         L7DA==
+        bh=e0fxVMddmA9GXiTtSfkbRCEUFj7blRCWENdC7N/YeF0=;
+        b=Qs8YQMsqx6iGivonCvfjNoQRmE+CAB0xTeA9hl3Gf8H22FCjTRg6IUQm10sy2wQYH6
+         H+GedH5zgZAgHJ7bJS8awDf5e0zRDfeyD2B50QoFvXBph4lJh6A0srpii8OOLSKm+vQE
+         ol7lpc15md8bF0+XmoQJHrEfvsBkQ13LmjE+ZUaRcw+2H0GON37Kg2awGdH/yBIlV9Fl
+         rnyaFXeDQLlUMu4ij8/1/BkRO070bXazKsyUip+aZdKnycuzc9ZfcDXMMBNnsOj3S64e
+         F67UCjt7+v+UQAOjLCIqcTVkB+NIorZChWkh1FXfoCdWeGM5DTnVTH/mRTBHbQPgbdLv
+         dp9w==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g22si411607qtb.326.2019.03.19.19.07.33
+        by mx.google.com with ESMTPS id f50si448830qte.34.2019.03.19.19.07.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Mar 2019 19:07:33 -0700 (PDT)
+        Tue, 19 Mar 2019 19:07:44 -0700 (PDT)
 Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
@@ -79,11 +79,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 445743087938;
-	Wed, 20 Mar 2019 02:07:32 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 43696859FE;
+	Wed, 20 Mar 2019 02:07:43 +0000 (UTC)
 Received: from xz-x1.nay.redhat.com (dhcp-14-116.nay.redhat.com [10.66.14.116])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 88B24601A4;
-	Wed, 20 Mar 2019 02:07:24 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id BD7476014E;
+	Wed, 20 Mar 2019 02:07:32 +0000 (UTC)
 From: Peter Xu <peterx@redhat.com>
 To: linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
@@ -103,90 +103,70 @@ Cc: David Hildenbrand <david@redhat.com>,
 	Marty McFadden <mcfadden8@llnl.gov>,
 	Mel Gorman <mgorman@suse.de>,
 	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: [PATCH v3 05/28] mm: gup: allow VM_FAULT_RETRY for multiple times
-Date: Wed, 20 Mar 2019 10:06:19 +0800
-Message-Id: <20190320020642.4000-6-peterx@redhat.com>
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>,
+	Pavel Emelyanov <xemul@parallels.com>,
+	Rik van Riel <riel@redhat.com>
+Subject: [PATCH v3 06/28] userfaultfd: wp: add helper for writeprotect check
+Date: Wed, 20 Mar 2019 10:06:20 +0800
+Message-Id: <20190320020642.4000-7-peterx@redhat.com>
 In-Reply-To: <20190320020642.4000-1-peterx@redhat.com>
 References: <20190320020642.4000-1-peterx@redhat.com>
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Wed, 20 Mar 2019 02:07:32 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Wed, 20 Mar 2019 02:07:43 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is the gup counterpart of the change that allows the VM_FAULT_RETRY
-to happen for more than once.
+From: Shaohua Li <shli@fb.com>
 
+add helper for writeprotect check. Will use it later.
+
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Pavel Emelyanov <xemul@parallels.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Kirill A. Shutemov <kirill@shutemov.name>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Shaohua Li <shli@fb.com>
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Reviewed-by: Jerome Glisse <jglisse@redhat.com>
+Reviewed-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 Signed-off-by: Peter Xu <peterx@redhat.com>
 ---
- mm/gup.c     | 17 +++++++++++++----
- mm/hugetlb.c |  6 ++++--
- 2 files changed, 17 insertions(+), 6 deletions(-)
+ include/linux/userfaultfd_k.h | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
-diff --git a/mm/gup.c b/mm/gup.c
-index 9bb3bed68ee3..f56dee055f26 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -528,7 +528,10 @@ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
- 	if (*flags & FOLL_NOWAIT)
- 		fault_flags |= FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT;
- 	if (*flags & FOLL_TRIED) {
--		VM_WARN_ON_ONCE(fault_flags & FAULT_FLAG_ALLOW_RETRY);
-+		/*
-+		 * Note: FAULT_FLAG_ALLOW_RETRY and FAULT_FLAG_TRIED
-+		 * can co-exist
-+		 */
- 		fault_flags |= FAULT_FLAG_TRIED;
- 	}
+diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
+index 37c9eba75c98..38f748e7186e 100644
+--- a/include/linux/userfaultfd_k.h
++++ b/include/linux/userfaultfd_k.h
+@@ -50,6 +50,11 @@ static inline bool userfaultfd_missing(struct vm_area_struct *vma)
+ 	return vma->vm_flags & VM_UFFD_MISSING;
+ }
  
-@@ -943,17 +946,23 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
- 		/* VM_FAULT_RETRY triggered, so seek to the faulting offset */
- 		pages += ret;
- 		start += ret << PAGE_SHIFT;
-+		lock_dropped = true;
++static inline bool userfaultfd_wp(struct vm_area_struct *vma)
++{
++	return vma->vm_flags & VM_UFFD_WP;
++}
++
+ static inline bool userfaultfd_armed(struct vm_area_struct *vma)
+ {
+ 	return vma->vm_flags & (VM_UFFD_MISSING | VM_UFFD_WP);
+@@ -94,6 +99,11 @@ static inline bool userfaultfd_missing(struct vm_area_struct *vma)
+ 	return false;
+ }
  
-+retry:
- 		/*
- 		 * Repeat on the address that fired VM_FAULT_RETRY
--		 * without FAULT_FLAG_ALLOW_RETRY but with
-+		 * with both FAULT_FLAG_ALLOW_RETRY and
- 		 * FAULT_FLAG_TRIED.
- 		 */
- 		*locked = 1;
--		lock_dropped = true;
- 		down_read(&mm->mmap_sem);
- 		ret = __get_user_pages(tsk, mm, start, 1, flags | FOLL_TRIED,
--				       pages, NULL, NULL);
-+				       pages, NULL, locked);
-+		if (!*locked) {
-+			/* Continue to retry until we succeeded */
-+			BUG_ON(ret != 0);
-+			goto retry;
-+		}
- 		if (ret != 1) {
- 			BUG_ON(ret > 1);
- 			if (!pages_done)
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 52296ce4025a..040779a7b906 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -4267,8 +4267,10 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 				fault_flags |= FAULT_FLAG_ALLOW_RETRY |
- 					FAULT_FLAG_RETRY_NOWAIT;
- 			if (flags & FOLL_TRIED) {
--				VM_WARN_ON_ONCE(fault_flags &
--						FAULT_FLAG_ALLOW_RETRY);
-+				/*
-+				 * Note: FAULT_FLAG_ALLOW_RETRY and
-+				 * FAULT_FLAG_TRIED can co-exist
-+				 */
- 				fault_flags |= FAULT_FLAG_TRIED;
- 			}
- 			ret = hugetlb_fault(mm, vma, vaddr, fault_flags);
++static inline bool userfaultfd_wp(struct vm_area_struct *vma)
++{
++	return false;
++}
++
+ static inline bool userfaultfd_armed(struct vm_area_struct *vma)
+ {
+ 	return false;
 -- 
 2.17.1
 
