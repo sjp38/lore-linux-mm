@@ -6,99 +6,99 @@ X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A547C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 21:01:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 86827C10F05
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 21:04:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 28BDB218B0
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 21:01:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3FF2B218CD
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 21:04:07 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="JEjXZibp"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 28BDB218B0
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="iNfJLn1V"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FF2B218CD
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A8C4F6B0003; Wed, 20 Mar 2019 17:01:19 -0400 (EDT)
+	id E82B36B0003; Wed, 20 Mar 2019 17:04:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A3C576B0006; Wed, 20 Mar 2019 17:01:19 -0400 (EDT)
+	id E0BD16B0006; Wed, 20 Mar 2019 17:04:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 954866B0007; Wed, 20 Mar 2019 17:01:19 -0400 (EDT)
+	id CABBE6B0007; Wed, 20 Mar 2019 17:04:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D5FF6B0003
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 17:01:19 -0400 (EDT)
-Received: by mail-yw1-f70.google.com with SMTP id y129so4956485ywd.1
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 14:01:19 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B3E66B0003
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 17:04:06 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id o66so4995827ywc.3
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 14:04:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=Ac3c8BuwXRGufN3K90gjwkHmlf5WusrlHW6NBm1q4lU=;
-        b=uQpNnYX6UJixFRx/mjvKY11RaqkZmyLXIuRBIJbF86ctSflyjHsegF85nstvCXRMgW
-         BOLOTTgxvKiZlQRoiljArl/QV8v4SYLPgO20vUoJOZFQ9OJ1mTf59CGy/rHzmzSEpRxl
-         TlQhKki1K7ctQebXjXd3Ts1jJcbVnngq4tTAd07TC2naJVDx8Hq+JmximAXU2TiohJ6a
-         kqEX5Q58ngwSg+CLHqPi8pgYnp7VMoQF8SnJ4aX+ARzxuRjzIsAw50fpBM59Qc2A7Fql
-         BFuj/ylXlKriH7Pf2HTJTcKadkD/88v9omEFaQViewF9d16BMlROcG5X77N72fqgG/4X
-         MVQQ==
-X-Gm-Message-State: APjAAAXryXEl1NFbiEVErqm58BkwQlrBswaTLOUdfgr3vJqrTWPfNmyy
-	G2GtHwnIGqOZbb3fwgAmTeCIfTS95EojlPFxEzJlGz96nUV/JGQr1FAoWrWeFbSTSjlQHwnMYTs
-	tiDz4KlQEv5KNHAVXFX07XxKx3ZHLAcCpAG6g+sn11apiYOzAX9SYVMJZ9QVHN9uw2w==
-X-Received: by 2002:a5b:603:: with SMTP id d3mr8759951ybq.299.1553115679238;
-        Wed, 20 Mar 2019 14:01:19 -0700 (PDT)
-X-Received: by 2002:a5b:603:: with SMTP id d3mr8759858ybq.299.1553115678229;
-        Wed, 20 Mar 2019 14:01:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553115678; cv=none;
+        bh=c7mFoY9c1LOx2DLi8HmPtRRejYVacIC2KISLRsK7znE=;
+        b=Gz3dw5xmS6DzXQbQ3VWqxrstjGxmOjL7JLQqD+plyjlpuv4LRKAS3qLruKJm0ds+JN
+         4yLi+Ps/eY35lkaU+VT2fSYYD2OB+9mi4tT8XdqrwaW6yMGKihTSrFSnFYyayaPMqllU
+         DEVBDDNMXpbMB65c57PGVm21VFB6mwIhQklzKOAfzATIyic6yEGUI/sNhH3yGDVz6+RR
+         w1AX2Mp62Rx4tVDe4O86lK8Qkl8ZdLyptaPKzVsdxJ+OpdJ+vNFY0DOsymqTEz2ozqVM
+         k+8IgbVOtl1QHNHDEDN2dZiapeY6tO643T/RVxL/+ScFyLTiTtUcEERXFi0j/PQvedHi
+         aihw==
+X-Gm-Message-State: APjAAAXMlmJBb2hyT7cDXu8wJxrvVScblq8yrDSqcxRTaQ8PIG6XWqxo
+	UYpVufpcNUKZ3HuTwaAUoMXkADcTX+8Tjw6RVqcE+TYWaYPkg6agq+ljF88RH6KeEpyfOj9YDyW
+	l7XvG5pr/KTFvcIZ8AdLmeGxPowWOTiWXc/1P83v96AtUUFQ7q11YWgyatsPbcnrbNA==
+X-Received: by 2002:a0d:d246:: with SMTP id u67mr197699ywd.162.1553115846403;
+        Wed, 20 Mar 2019 14:04:06 -0700 (PDT)
+X-Received: by 2002:a0d:d246:: with SMTP id u67mr197625ywd.162.1553115845599;
+        Wed, 20 Mar 2019 14:04:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553115845; cv=none;
         d=google.com; s=arc-20160816;
-        b=1FaZqz1WPhmDhHt53MM5J2qzm5TmHsKF93Z1c6ezrVG+IiaZZcEeZavOSjFxdC9LVI
-         jRNh878m9pPGVGHGms6spXfKaewqBGqSujuZyUJDesv4Lwt16ODjO3RyoRjr80I4At7f
-         wN036KggXY1GKXYmbHPzBtycLX3Vrf4xbrJmyv4M+Wpz/SG/JmBC04SOSuVkqH/yWKk9
-         nGfuCoBB9w0SLCecgRsTmT90AUGsr0HDVOyWI6fgEqJ6yIwqNbsxN0kYCMSH94rk1hx7
-         BipujrhW1WDitLgsD8cFIIb17vF6fLGSMJKD2QigkM6AkUrbZNq3Ow7SqQhL76MYGxu8
-         04BQ==
+        b=nz6OpYIaYiFS4AEzCPKtq2RsxPphhOiG2acNKfSBPSfyZm63k+dhyqv9wKwnYqh8xY
+         y83ZZMH4o65pYP8ivESae9q/xeb60kWx0HD59uAYlV6MeZLzUjGnwFfbruQg+QVMODxc
+         OY9eWCPh5VandfZlH+exABnacUoR/TyEcJP+WMucr2Xs18r6RkfCv34Tl9dB85M8/LAv
+         Xpp8YuZrRC0GdPIVuZGM+S3eY+CnUtb75W04CSvkaCOaYiJdVq4oe1RKqv0i7gyXnmD1
+         vBe9Q5lMw6pgmuP2iQ6fK2YvKgmA6ZTOXatVLflfintx6EMiAj+lpp5XSx6zE5Gdp/es
+         vvow==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=Ac3c8BuwXRGufN3K90gjwkHmlf5WusrlHW6NBm1q4lU=;
-        b=YyCn9ahzCotjsnhHrqf9pI1ZMB9NGpKmEQxiVIWuSl8iIUJzs6YsuTcqDzD6UPqpgO
-         EzyH9O17yBqSO7bxQI27zuwY3duB3gV2IfJAZZ0/m4x1jJDkXcdH1CmCSVfCHLCvHOD5
-         rELIOzaVIExY46DCNxZDZg3JIHWG/UCt912FNu5aTFAI15uJ42gLhYWyuMs5NXDo88gE
-         k33dzGbq/OePzAUVNGT8Mj/OsmalpRctcZkmrGAwlcHer5C7UeuCJ6+ruK/PR517BJn4
-         7L+cxvLb5qeLA6994kbf3iOoNmtDjWvxSfQjSAjVDzDjvzCFksRkWx1OMapFad8NuL7W
-         v/FA==
+        bh=c7mFoY9c1LOx2DLi8HmPtRRejYVacIC2KISLRsK7znE=;
+        b=C/TxqsEGZEtthvQ51agxAT52Ep7VSE92060Ok8n4di3pRYJAQ9HZqQqxqJFtcqtNMG
+         E5Xg9+y+2Q+IPB0dDktJJIeJniPsxSpNLcULxHM7VvJWxXvtyuWZhtSExcBjFZsN4lYc
+         C1ZfEliAMrGQrqTssQ52wvqylEk6D/PbAMO8DUXI2nlhlap3o6W1rD/g5olImhaKwmkn
+         26bvG8HpaCIdoWFiSydt2DGuseB92+iyICEvTpqcDZ5+Ji2lo4+FFGzEOIS3j/vUcqB1
+         zh0IcyFq55XadwYPdRGMlaHDx4yWPaX/GuKddoE9G3FrPG+d+EUclRj8Qz6gPWEP5wMD
+         G9nQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=JEjXZibp;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=iNfJLn1V;
+       spf=temperror (google.com: error in processing during lookup of hannes@cmpxchg.org: DNS error) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x1sor977475ywf.114.2019.03.20.14.01.17
+        by mx.google.com with SMTPS id x2sor1531186ybb.49.2019.03.20.14.04.05
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Mar 2019 14:01:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 20 Mar 2019 14:04:05 -0700 (PDT)
+Received-SPF: temperror (google.com: error in processing during lookup of hannes@cmpxchg.org: DNS error) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=JEjXZibp;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=iNfJLn1V;
+       spf=temperror (google.com: error in processing during lookup of hannes@cmpxchg.org: DNS error) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=Ac3c8BuwXRGufN3K90gjwkHmlf5WusrlHW6NBm1q4lU=;
-        b=JEjXZibp3H4f5ucHf9/nYNdp/ytl0tGHWy0AKX8AmsOYBRlU8V7e7ASVsOt5LncbG1
-         gCS3JBKOn47BLQ8g8YjIgv5iVaKorzkc91V8QDkcVsYe9/uFey0bvFZJ40zD0zOsl8II
-         nHTxk66AWJwMWj4oEKBm1cbfvp6BYEg7JuMVewxzaYlEdBuWcOECG93P/lHKqFr/4AtI
-         Ay0134rkQc9XtvkOKQ5mUy2sa9+TvRSVaXpfbxTCCpsuq4KZKEtKZF+CElW2vAYDxjNZ
-         iH6/4zmve2aF6+bRlPsYN4X24H06xqEBtv9npU1i8LLPi3xQMpqTA2LPRN+hWfZwilZn
-         FBVg==
-X-Google-Smtp-Source: APXvYqwtzykOHbzXPKJJWcXH+CWrw+RxKVwf2qkPOM6F/W9FMVFsz+4hKQS1ImujNybU7Y3XRpcA9g==
-X-Received: by 2002:a81:430a:: with SMTP id q10mr156204ywa.508.1553115677811;
-        Wed, 20 Mar 2019 14:01:17 -0700 (PDT)
+        bh=c7mFoY9c1LOx2DLi8HmPtRRejYVacIC2KISLRsK7znE=;
+        b=iNfJLn1VEvAICGg6+J8aTGo2WHwUAblrU8TC4P4d/YRBZXKDhFuHuWPyZ+0OcodA2R
+         g7V3avx9WoHGDQcWiV6r3LM0LpMba9yJ3IUAj0x5QC+zKlzOmO4kgXtaoS+5XNfH35f6
+         y3Q95eLIBZnLlHIgU2hmV3Z3aaaWgB2xG+sNBTD2NsA89KSRqyVkPML3RtWfJhtmFNdq
+         uyW97pDsEiNY89ljQeenu9r/FX9qo6fKteLpOe4Ty8207DbRYrXxQ18O75u7haf4V8Sk
+         XGHF1f5dd/S4jj+izKUS5beIisOqtB2HANTsNRLdkYtB97haZMPGFXeQ0p9W+YOT5XOm
+         1Frw==
+X-Google-Smtp-Source: APXvYqyTEHhGxdOJ0WUla4LiMKIGI1B1SD0+iCGoWa94KCfF7DznKo6uv1EmkH63I8BFjx4vQCSD9w==
+X-Received: by 2002:a25:d601:: with SMTP id n1mr28266ybg.342.1553115845368;
+        Wed, 20 Mar 2019 14:04:05 -0700 (PDT)
 Received: from localhost ([2620:10d:c091:200::2:b52c])
-        by smtp.gmail.com with ESMTPSA id 207sm1091449yws.38.2019.03.20.14.01.16
+        by smtp.gmail.com with ESMTPSA id 79sm1444881ywr.110.2019.03.20.14.04.04
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 20 Mar 2019 14:01:17 -0700 (PDT)
-Date: Wed, 20 Mar 2019 17:01:15 -0400
+        Wed, 20 Mar 2019 14:04:04 -0700 (PDT)
+Date: Wed, 20 Mar 2019 17:04:03 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
 To: Suren Baghdasaryan <surenb@google.com>
 Cc: gregkh@linuxfoundation.org, tj@kernel.org, lizefan@huawei.com,
@@ -107,14 +107,15 @@ Cc: gregkh@linuxfoundation.org, tj@kernel.org, lizefan@huawei.com,
 	corbet@lwn.net, cgroups@vger.kernel.org, linux-mm@kvack.org,
 	linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org,
 	kernel-team@android.com
-Subject: Re: [PATCH v6 5/7] psi: track changed states
-Message-ID: <20190320210115.GD19382@cmpxchg.org>
+Subject: Re: [PATCH v6 6/7] refactor header includes to allow kthread.h
+ inclusion in psi_types.h
+Message-ID: <20190320210403.GE19382@cmpxchg.org>
 References: <20190319235619.260832-1-surenb@google.com>
- <20190319235619.260832-6-surenb@google.com>
+ <20190319235619.260832-7-surenb@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190319235619.260832-6-surenb@google.com>
+In-Reply-To: <20190319235619.260832-7-surenb@google.com>
 User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -122,14 +123,26 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 19, 2019 at 04:56:17PM -0700, Suren Baghdasaryan wrote:
-> Introduce changed_states parameter into collect_percpu_times to track
-> the states changed since the last update.
+On Tue, Mar 19, 2019 at 04:56:18PM -0700, Suren Baghdasaryan wrote:
+> kthread.h can't be included in psi_types.h because it creates a circular
+> inclusion with kthread.h eventually including psi_types.h and complaining
+> on kthread structures not being defined because they are defined further
+> in the kthread.h. Resolve this by removing psi_types.h inclusion from the
+> headers included from kthread.h.
 > 
 > Signed-off-by: Suren Baghdasaryan <surenb@google.com>
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> @@ -26,7 +26,6 @@
+>  #include <linux/latencytop.h>
+>  #include <linux/sched/prio.h>
+>  #include <linux/signal_types.h>
+> -#include <linux/psi_types.h>
+>  #include <linux/mm_types_task.h>
+>  #include <linux/task_io_accounting.h>
+>  #include <linux/rseq.h>
 
-This will be needed to detect whether polled states activated in the
-monitor patch.
+Ah yes, earlier versions of the psi patches had a psi_task struct or
+something embedded in task_struct. It's all just simple C types now.
+
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
