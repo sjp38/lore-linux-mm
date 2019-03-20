@@ -2,174 +2,244 @@ Return-Path: <SRS0=h9qD=RX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-13.5 required=3.0
+	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 88544C10F05
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 15:34:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 846BFC10F0D
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 15:44:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 392DE2183E
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 15:34:34 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="S1BTeZ60"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 392DE2183E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 404152186A
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 15:44:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 404152186A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C467E6B0282; Wed, 20 Mar 2019 11:34:33 -0400 (EDT)
+	id D032E6B0284; Wed, 20 Mar 2019 11:44:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BF8F56B0284; Wed, 20 Mar 2019 11:34:33 -0400 (EDT)
+	id CB2DD6B0286; Wed, 20 Mar 2019 11:44:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AC1206B0285; Wed, 20 Mar 2019 11:34:33 -0400 (EDT)
+	id BC7336B0287; Wed, 20 Mar 2019 11:44:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 783226B0282
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 11:34:33 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id e12so1391495otl.9
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 08:34:33 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 998C36B0284
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 11:44:26 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id z34so2842374qtz.14
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 08:44:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=uNIyVUbxeFEDoIbxgtBJkCNkY0r/4CBODhtc3HnZvfo=;
-        b=AukWpX7Gtnzx4wbBUBcu/FJPgS7fNWaNUqSFYKCXmiKYhzpJz6WilY5BX4A0n/KNGM
-         Qa0zOryVvphOlCFo61qzbg5JJtpOtMRHh2drfkJLE9cU3vKfHbufH7+oMGqxM+8cKPnu
-         AvfYF8s5sNP96xwSq+yEsgMgGjYommMRJ3mKSiUvvO8iJ0ZZ2Xzpm0UZgnuC4N4MWkh+
-         FFBRtq6NTiK7iUp7shPsxLOptT9azEOmIu19nJwjk4rU9ylZ/K78q/qBb/HhfkBa9lZ4
-         yf8Gspkwv2aJ0zFJTrx+R58oj9YiL0CSIh/YZM3T5sL6Vkz+ewgfWiZO7VcqdcIyXkwJ
-         mshQ==
-X-Gm-Message-State: APjAAAUy2QLNUQVvxzjyuVQTnGnD4jKhkkdCW79AesDmJc6PWs79bOwG
-	iV32LNiKKsj9eL5WZNmCsMGjS0sjYvNIJjR2+XXKvRflhUPs+K/m0GYOfVeF3NLI6V8SxAW+iAE
-	bMWh6SM24zen0gHP0OAwcGlMGQo7feBLr2GueV9JX7QorlePWiBBYk6qJRHbNDXQ6tA==
-X-Received: by 2002:a9d:6e88:: with SMTP id a8mr6408123otr.117.1553096073035;
-        Wed, 20 Mar 2019 08:34:33 -0700 (PDT)
-X-Received: by 2002:a9d:6e88:: with SMTP id a8mr6408042otr.117.1553096072136;
-        Wed, 20 Mar 2019 08:34:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553096072; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=1opcehXOxSH7wA8Eu0VjLYRNvluZS+Y89WP40BM0xbA=;
+        b=XdtIC/fUVLhvJupOnW24Tvh7yCzSzK24nfneaFDU2csMrYl1nGNEjz6ODzVSmtKclS
+         8NCCSN0eGcvMch80tlI1iAd7H7/DyuyAjSVXB/1ulSz6fqz3Zncq1odjNlsGelImN2QM
+         UgjDtN5WBmxQjk3mddM1iSGkF7QR6FFmTmDEoLz6JfREsUl2DKlHEf3K9YWcU1QC6WFC
+         OG9+df9rto4jhjp9aDz1BnZfZ9RGyQRNp3Yg8zb7yfg/xjSkFnjV32luVFPcTWgtMWUi
+         9rtVZm9/vQBcicEZA5QgorqL4JpTVuWraSMjI4s8PajNjabTKITO1nndAaMgfgwdkkEv
+         x/KQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aquini@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUPHydW2dwDt9C/ssKqOzCvj4dGlCUzhLabHxwegOctJWWIwGB4
+	0e/KRO9lJnqyN1fiP57TeQXK2Z3nyDrB6ujzzUL4Td6aAW9PIkEuXv9PXoPsdk/p72VnXhWRT+Z
+	lgV1bf1RjmeInwAN4lG/U9sZY+Kseuvjq0pUB0wznqJhjeHzDkoNNY+bRjotE8CA0Vw==
+X-Received: by 2002:a05:620a:3dd:: with SMTP id r29mr7320380qkm.157.1553096666386;
+        Wed, 20 Mar 2019 08:44:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxM8tEl02A8D0i9vvBAAihXU2aS3csmJVeSLAZ5jFlIsziwbjK5plRmbM8TTjyHmNwOfLr2
+X-Received: by 2002:a05:620a:3dd:: with SMTP id r29mr7320315qkm.157.1553096665620;
+        Wed, 20 Mar 2019 08:44:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553096665; cv=none;
         d=google.com; s=arc-20160816;
-        b=n0VVRGtAwDVgmpiosJN/Ikfn/AP3HbeiluBO2cBpN129Fj0vJm88rcWAqIElvIBW5d
-         l9GMQvuw7Z0kE9KtPdmcHgOOL9c6tXvdQ706rkHg0TBJvu5swbg9iQiG3a3DyEysgg6V
-         i7oQw5jHFSD5IMYS/tHiho2o0bwNMPGkr/XEydaopiaLHiY2gx+nsotmOPgMhMArLn9C
-         Fo1jXpZhi6ZCF7JhqsvsV7VPtdqZSTBf64Hp9eWGD8epICVvdkoHTZhUZ6ucgSjd32gl
-         EKDQd79Hxty1NC2l+0Czw7pG1PXVIqisCz1AII3Xcv9OnqdzUCvB9SlRjrlVNRjiWTO9
-         HU/g==
+        b=QHCh3ShHE98DQ9ICSFByrZnQhLjRZkQJcOHmUWGLJy8pwVulnOkoP1jvs9PEEMoCh2
+         DWhQDB0tpNuwrSLeRu+IU2hU8DAcufagCnA2n3z0OduOhtm2dS0KErGQzpQYurvF4IS8
+         EcQVcQ45J5sxIE3xI0SxIo7rOEKaGUVzmeHNAs89d4py9IuUelZZOhf88b/vbJDZUpDe
+         fisNsdvq/hKkXHCR9nSv7Sgcsh+4hUmqUtoMs3xu361gBCTvD+iEmQmRbRqQhvFI6A0c
+         i1gWq3iBdnaJFp/cuCQ6cRNcAsIbOQLZ7pmAqg+KY+SMA6h2+iKV4GmpZUxwinVCw+S0
+         FdoQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=uNIyVUbxeFEDoIbxgtBJkCNkY0r/4CBODhtc3HnZvfo=;
-        b=OmiwPevc4irAhXiE9wf8zVI+2kV5CLCEHD9R+ho5sLOoJ/8AjUr9mN9Whqh3VOotMD
-         lcJendiOV6VAGawvpRRThSemjOJMBi50C055Xys1fZWEV3xAsNmU+dtqPO+N1NxkaTIa
-         Et8AivnC9HcoRcVdilrBW9RsByNXRRlisbmATccHcBCirsgJn7yPpq/YePIGryPDM83X
-         B5EGkLLVHV8CDNvsXRqJJmqvRHdvKJcJy8U5i3KL1klKR8P8+SXjQ0EYZheKHAT7agFb
-         Ha+2f6AdUmUl0WyAsuWX4avc8XQoTDt1kZFAsOQftaOjffwPontc7bG6GGSgyBgOtsO0
-         WoWg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=1opcehXOxSH7wA8Eu0VjLYRNvluZS+Y89WP40BM0xbA=;
+        b=F5VoxWEq/XqySMiNeum56PSVYvlGzHmzn+KG6L7GxrQjjjHu/uRYUs0l3EFDIsn2qA
+         ApISBTROGOYdsb4aGPCp3WvZtUcDPA1bKEA/C51AOd4xrlkefy1hkdEeEM+FokAsSNd2
+         RgGRnRDtuVf5htZqJG32G+1bvsMVlkCitRqG5gcWhQGMkLbg+Tsk8n3rYWiXk15iO4vW
+         3JKP2sW8Orj7m6lBM2I7YO1vqOmNQ64BKb4+i764nnAU/a4rihQprHRZuvllq10cBZ2z
+         U46S0sForWnynjhoeNaTzK3en8GHzLzlbm2PadlqC2RhKxTq3dBAJYsor2wHwtdEXhto
+         huFA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=S1BTeZ60;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z16sor1711854oth.36.2019.03.20.08.34.32
+       spf=pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aquini@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e11si1283143qkg.52.2019.03.20.08.44.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Mar 2019 08:34:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Mar 2019 08:44:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=S1BTeZ60;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=uNIyVUbxeFEDoIbxgtBJkCNkY0r/4CBODhtc3HnZvfo=;
-        b=S1BTeZ60qB8Kcw6wQHVvBU2Cw4rNly7jAnT1sv/cmmSV2k4deA9yMb7w1j6/m2Q7eN
-         I0qQK4ihRRtoLqjMr9JBlDJxL03hrUvIAZ4zrfaYSZwb9Rz9vc0AqJaovdTBauLDCGg2
-         5ak3wWitVxY9gkpb4x+iB0EYEiq5A8H80kh1YPOC6PxGa9koz5UavcxbNY+BLgYvx3Dh
-         J6CAW3BvJDoHbLCvHJV56Y1nul+KP6YMIlIA2Wo3Ei5mh1A0af24SEv5q1xMa9+k6XxD
-         mjNrgoBWeZEj3sPoSMDW+6K9ngq6F4U19oVo6Hc1SCLZkYrHIijoo2AnD4h8DCLqdEFt
-         xSiw==
-X-Google-Smtp-Source: APXvYqxh599eRoi9kopKodFa8svBbY69SGQsc6Ak3KgIjjSVU6tD1uVGa0VbJ5R8O2CduKZXexy6I0CD6Z58iDK2Ytg=
-X-Received: by 2002:a9d:224a:: with SMTP id o68mr6279518ota.214.1553096071716;
- Wed, 20 Mar 2019 08:34:31 -0700 (PDT)
+       spf=pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aquini@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id AA7F1C13071D;
+	Wed, 20 Mar 2019 15:44:24 +0000 (UTC)
+Received: from x230.aquini.net (dhcp-17-61.bos.redhat.com [10.18.17.61])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id B2F9E5D73F;
+	Wed, 20 Mar 2019 15:44:23 +0000 (UTC)
+Date: Wed, 20 Mar 2019 11:44:20 -0400
+From: Rafael Aquini <aquini@redhat.com>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: chrubis@suse.cz, vbabka@suse.cz, kirill@shutemov.name,
+	osalvador@suse.de, akpm@linux-foundation.org,
+	stable@vger.kernel.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm: mempolicy: make mbind() return -EIO when
+ MPOL_MF_STRICT is specified
+Message-ID: <20190320154420.GE23194@x230.aquini.net>
+References: <1553020556-38583-1-git-send-email-yang.shi@linux.alibaba.com>
 MIME-Version: 1.0
-References: <20190228083522.8189-1-aneesh.kumar@linux.ibm.com>
- <20190228083522.8189-2-aneesh.kumar@linux.ibm.com> <CAOSf1CHjkyX2NTex7dc1AEHXSDcWA_UGYX8NoSyHpb5s_RkwXQ@mail.gmail.com>
- <CAPcyv4jhEvijybSVsy+wmvgqfvyxfePQ3PUqy1hhmVmPtJTyqQ@mail.gmail.com>
- <87k1hc8iqa.fsf@linux.ibm.com> <CAPcyv4ir4irASBQrZD_a6kMkEUt=XPUCuKajF75O7wDCgeG=7Q@mail.gmail.com>
- <871s3aqfup.fsf@linux.ibm.com> <CAPcyv4i0SahDP=_ZQV3RG_b5pMkjn-9Cjy7OpY2sm1PxLdO8jA@mail.gmail.com>
- <87bm267ywc.fsf@linux.ibm.com> <878sxa7ys5.fsf@linux.ibm.com>
-In-Reply-To: <878sxa7ys5.fsf@linux.ibm.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 20 Mar 2019 08:34:20 -0700
-Message-ID: <CAPcyv4iuAPg3HWh5e8-Ud3oCrvp5AoFmjOzf4bbA+VLgR7NLFg@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm/dax: Don't enable huge dax mapping by default
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
-	Michael Ellerman <mpe@ellerman.id.au>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-	Ross Zwisler <zwisler@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, 
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1553020556-38583-1-git-send-email-yang.shi@linux.alibaba.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Wed, 20 Mar 2019 15:44:24 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 20, 2019 at 1:09 AM Aneesh Kumar K.V
-<aneesh.kumar@linux.ibm.com> wrote:
->
-> Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com> writes:
->
-> > Dan Williams <dan.j.williams@intel.com> writes:
-> >
-> >>
-> >>> Now what will be page size used for mapping vmemmap?
-> >>
-> >> That's up to the architecture's vmemmap_populate() implementation.
-> >>
-> >>> Architectures
-> >>> possibly will use PMD_SIZE mapping if supported for vmemmap. Now a
-> >>> device-dax with struct page in the device will have pfn reserve area aligned
-> >>> to PAGE_SIZE with the above example? We can't map that using
-> >>> PMD_SIZE page size?
-> >>
-> >> IIUC, that's a different alignment. Currently that's handled by
-> >> padding the reservation area up to a section (128MB on x86) boundary,
-> >> but I'm working on patches to allow sub-section sized ranges to be
-> >> mapped.
-> >
-> > I am missing something w.r.t code. The below code align that using nd_pfn->align
-> >
-> >       if (nd_pfn->mode == PFN_MODE_PMEM) {
-> >               unsigned long memmap_size;
-> >
-> >               /*
-> >                * vmemmap_populate_hugepages() allocates the memmap array in
-> >                * HPAGE_SIZE chunks.
-> >                */
-> >               memmap_size = ALIGN(64 * npfns, HPAGE_SIZE);
-> >               offset = ALIGN(start + SZ_8K + memmap_size + dax_label_reserve,
-> >                               nd_pfn->align) - start;
-> >       }
-> >
-> > IIUC that is finding the offset where to put vmemmap start. And that has
-> > to be aligned to the page size with which we may end up mapping vmemmap
-> > area right?
-
-Right, that's the physical offset of where the vmemmap ends, and the
-memory to be mapped begins.
-
-> > Yes we find the npfns by aligning up using PAGES_PER_SECTION. But that
-> > is to compute howmany pfns we should map for this pfn dev right?
-> >
->
-> Also i guess those 4K assumptions there is wrong?
-
-Yes, I think to support non-4K-PAGE_SIZE systems the 'pfn' metadata
-needs to be revved and the PAGE_SIZE needs to be recorded in the
-info-block.
+On Wed, Mar 20, 2019 at 02:35:56AM +0800, Yang Shi wrote:
+> When MPOL_MF_STRICT was specified and an existing page was already
+> on a node that does not follow the policy, mbind() should return -EIO.
+> But commit 6f4576e3687b ("mempolicy: apply page table walker on
+> queue_pages_range()") broke the rule.
+> 
+> And, commit c8633798497c ("mm: mempolicy: mbind and migrate_pages
+> support thp migration") didn't return the correct value for THP mbind()
+> too.
+> 
+> If MPOL_MF_STRICT is set, ignore vma_migratable() to make sure it reaches
+> queue_pages_to_pte_range() or queue_pages_pmd() to check if an existing
+> page was already on a node that does not follow the policy.  And,
+> non-migratable vma may be used, return -EIO too if MPOL_MF_MOVE or
+> MPOL_MF_MOVE_ALL was specified.
+> 
+> Tested with https://github.com/metan-ucw/ltp/blob/master/testcases/kernel/syscalls/mbind/mbind02.c
+> 
+> Fixes: 6f4576e3687b ("mempolicy: apply page table walker on queue_pages_range()")
+> Reported-by: Cyril Hrubis <chrubis@suse.cz>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: stable@vger.kernel.org
+> Suggested-by: Kirill A. Shutemov <kirill@shutemov.name>
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> ---
+>  mm/mempolicy.c | 40 +++++++++++++++++++++++++++++++++-------
+>  1 file changed, 33 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index abe7a67..401c817 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -447,6 +447,13 @@ static inline bool queue_pages_required(struct page *page,
+>  	return node_isset(nid, *qp->nmask) == !(flags & MPOL_MF_INVERT);
+>  }
+>  
+> +/*
+> + * The queue_pages_pmd() may have three kind of return value.
+> + * 1 - pages are placed on he right node or queued successfully.
+> + * 0 - THP get split.
+> + * -EIO - is migration entry or MPOL_MF_STRICT was specified and an existing
+> + *        page was already on a node that does not follow the policy.
+> + */
+>  static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
+>  				unsigned long end, struct mm_walk *walk)
+>  {
+> @@ -456,7 +463,7 @@ static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
+>  	unsigned long flags;
+>  
+>  	if (unlikely(is_pmd_migration_entry(*pmd))) {
+> -		ret = 1;
+> +		ret = -EIO;
+>  		goto unlock;
+>  	}
+>  	page = pmd_page(*pmd);
+> @@ -473,8 +480,15 @@ static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
+>  	ret = 1;
+>  	flags = qp->flags;
+>  	/* go to thp migration */
+> -	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+> +	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
+> +		if (!vma_migratable(walk->vma)) {
+> +			ret = -EIO;
+> +			goto unlock;
+> +		}
+> +
+>  		migrate_page_add(page, qp->pagelist, flags);
+> +	} else
+> +		ret = -EIO;
+>  unlock:
+>  	spin_unlock(ptl);
+>  out:
+> @@ -499,8 +513,10 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+>  	ptl = pmd_trans_huge_lock(pmd, vma);
+>  	if (ptl) {
+>  		ret = queue_pages_pmd(pmd, ptl, addr, end, walk);
+> -		if (ret)
+> +		if (ret > 0)
+>  			return 0;
+> +		else if (ret < 0)
+> +			return ret;
+>  	}
+>  
+>  	if (pmd_trans_unstable(pmd))
+> @@ -521,11 +537,16 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+>  			continue;
+>  		if (!queue_pages_required(page, qp))
+>  			continue;
+> -		migrate_page_add(page, qp->pagelist, flags);
+> +		if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
+> +			if (!vma_migratable(vma))
+> +				break;
+> +			migrate_page_add(page, qp->pagelist, flags);
+> +		} else
+> +			break;
+>  	}
+>  	pte_unmap_unlock(pte - 1, ptl);
+>  	cond_resched();
+> -	return 0;
+> +	return addr != end ? -EIO : 0;
+>  }
+>  
+>  static int queue_pages_hugetlb(pte_t *pte, unsigned long hmask,
+> @@ -595,7 +616,12 @@ static int queue_pages_test_walk(unsigned long start, unsigned long end,
+>  	unsigned long endvma = vma->vm_end;
+>  	unsigned long flags = qp->flags;
+>  
+> -	if (!vma_migratable(vma))
+> +	/*
+> +	 * Need check MPOL_MF_STRICT to return -EIO if possible
+> +	 * regardless of vma_migratable
+> +	 */ 
+> +	if (!vma_migratable(vma) &&
+> +	    !(flags & MPOL_MF_STRICT))
+>  		return 1;
+>  
+>  	if (endvma > end)
+> @@ -622,7 +648,7 @@ static int queue_pages_test_walk(unsigned long start, unsigned long end,
+>  	}
+>  
+>  	/* queue pages from current vma */
+> -	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+> +	if (flags & MPOL_MF_VALID)
+>  		return 0;
+>  	return 1;
+>  }
+> -- 
+> 1.8.3.1
+> 
+Acked-by: Rafael Aquini <aquini@redhat.com>
 
