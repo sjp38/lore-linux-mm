@@ -4,188 +4,202 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 60F09C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 07:57:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B12F1C4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 07:58:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1D0D62146E
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 07:57:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1D0D62146E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 6AA72218D4
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Mar 2019 07:58:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6AA72218D4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C69446B0006; Wed, 20 Mar 2019 03:57:01 -0400 (EDT)
+	id 0F6D56B0007; Wed, 20 Mar 2019 03:58:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C3D8D6B0007; Wed, 20 Mar 2019 03:57:01 -0400 (EDT)
+	id 07E406B0008; Wed, 20 Mar 2019 03:58:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B2DDE6B0008; Wed, 20 Mar 2019 03:57:01 -0400 (EDT)
+	id E60606B000A; Wed, 20 Mar 2019 03:58:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F2956B0006
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 03:57:01 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id p127so1901200pga.20
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 00:57:01 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BB70F6B0007
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 03:58:03 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id n13so1582295qtn.6
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 00:58:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=TSu//6i+HT3W1SaVXmcGjSdGj5ZslETnp7PAL37lvY0=;
-        b=qDCN4JT14QTeuw/4bA0GBQQgUjdBJlBWJ196N+dL+ScEqFdyprgXSPOcUbSG8Oty1B
-         iWOLdXLdCFAILA/8DMktLwy0HOxpcWVD0KqkHXePveP/6Ang2grXk4pEoI7lNcdNh5zf
-         s83ZQMgaFdpGzEmocyJGr2rjjz4tE3/hd175Mu5dRiaXhtjYBH65BU+E0z8KuG7KKwIa
-         Q1XFgKrKayhUm6Wm+EgCwzwQbI6py18a2rRuByTQMK3fTDsOGfZ9/VgHQcMtpN5FCbrc
-         oejR7inwSzOMFwIesQ08DbgmWKd3qXUtgREbKLKrqUMDk8gD5VykN4UYo9QwjiCZRSmQ
-         i3qA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAWCqtFBjL40JzSpzxcN7Ge9LBxDuJ5IRNvVXHHNcCfialVcQ6wU
-	AsvT8j3w5AzmY9xO34kTMXcjqBFoYJOK/rEOF1FzxMIke9/oU2glA6R5bhmEl3mDAWeKk6S9paK
-	9lzuCOGrNmQB1Vk1XlhBoPWFmJqp8IyEI4+ZhIDfB8SwhU8sCzYgo5HTpc5ftTzTD/Q==
-X-Received: by 2002:a63:1d20:: with SMTP id d32mr940312pgd.49.1553068620996;
-        Wed, 20 Mar 2019 00:57:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyRlU7/0yUTYRnjRcF3athI2MCxcd03B+GWJXEtdt/jdk98YPxJ+8NgD5s1n6WcGg3ldy4Q
-X-Received: by 2002:a63:1d20:: with SMTP id d32mr940277pgd.49.1553068620211;
-        Wed, 20 Mar 2019 00:57:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553068620; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=aE+38KfGc5qk2HKsb2RamJkVjg1qYYeZB6p5zW8nMwI=;
+        b=iW7nA3hej05nfK9bHHO1HpgNiM0XDR/NCiQMbE8h9q27XcDDxWt0PGUlz716we0GZ9
+         eQWCYWGalwe70vTEKFq/G2USQPYoR/4iRM+LSWSB/yoZQSKa1lY/ywXlGnaTCq1kLG6/
+         Fmn/nGdnEkaSj7niN94+GpO6sxwiJGj9jj5nzKP3kcaWrrdFux/wVJbMCI0bcdsRBoL4
+         aGXybpYuA0nbGJ3LE3f6X1DleM5HYpgx5ke8GOOuq1fGtJZXOisPvDSZRnSNRv+GRPTl
+         QU+IQ/JzdU37LO/9hpXUmtJqgCvPW6iP9RECV12iQWUR0G4FVw8IS8pp0o8PAvu42XIu
+         +LeA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUzMbmKK7ns8iiTMEjVqtj4H3wtUNCqy7sYpmB1si3OUJfyxpgW
+	GA31fqAz+KDQjywZhSOF27sS6ktpx+K6t716yODo9RcOgwKCz8UHOuvIcw302z11VDmeOLpuH8q
+	OLsO28PGdJDyS3sce+GbbqXuadgRnlPDhHk51/uE/tbNFyJzP8HN7/fOXnHOfxvkHsA==
+X-Received: by 2002:ac8:2f1b:: with SMTP id j27mr1352580qta.263.1553068683546;
+        Wed, 20 Mar 2019 00:58:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyqGHV774GldBO1lytyB1bEzF1JwShR+fSb6qp3a4q410sV8AMy+6/XfafSNgRGgYg6gqvf
+X-Received: by 2002:ac8:2f1b:: with SMTP id j27mr1352558qta.263.1553068682874;
+        Wed, 20 Mar 2019 00:58:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553068682; cv=none;
         d=google.com; s=arc-20160816;
-        b=As16BQ8IOqiAo9T6Dh/yYI8rFvx3yMkJUserdhK9BDyLpM3CRmfCJ5dBFPDoJR2IzN
-         B/ulgzg10T4j8L7hnIPkkfjc+kWPL8HV0aNCDrFpm7zxwLKL/uB9CVCkjD8M7xDnCh4a
-         RYlh73ongt8rsXCPXKm3A/2axKiL+ruff/Mfc1D/VIlwNnHLpcYND47x0rCh95G1GpLP
-         8KaJRdgkVMD37QEuo5OLBsfX1XvGGP5P4ITnorcPnxHW3i130V/ETXOkCAtBh/YVK0+o
-         0LC7RXOZRcjT8PpcnLfVz/2D+eLgep7uMn9wTYDyFPPXnOykiP3ubvo4pOe8pN919CP9
-         hW9Q==
+        b=ZmOkVZXtllblJDZWkj4kmRG36DSZBLo6zw8saMFFg4Vl3TRRxPanrEA+rdHNp2m0bN
+         gK/q9+1vK4Lwjos7A0yuTMiUio5ewBGVItlQvB6us7Q7/8PXqEsJUNqkAm6vm+X6IMiI
+         w5TJeA53rnISNKu6VEDnOCzi2rm8Opi3cXBq/Zu262jW3v9/tTeVKN+E49yDvy5IDo2+
+         +4XlSaj9e0kVvoJWw/3fCEQOieZLtzvnQgh0VFc6QflZEC2ahEEn+TQpB+OoHNUmqBz7
+         IsZJu8r7pCcBxvGhDd8194Dpo0lsepw00KI0RZFSqpRcEmY596e2y/p7zN+4VPsllMSI
+         bioA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=TSu//6i+HT3W1SaVXmcGjSdGj5ZslETnp7PAL37lvY0=;
-        b=mkiYIw3SbfZ9gT+NGXmeOgzfTA3DnBRlELVgNupY8Dbgpl/gcHVOe2TScAo8V5ASio
-         /J8g/Ks995CWdf5lR2FWkm5FUrTsgngdEerV6lzYSh+OBdSIrWmvE036Kk5WFQD0XLzR
-         M7iNYxwYyI42GZBV0h0QTHfUtkO8FAELdy3T3VmlE+N2fi8LZPPJtOdHv8duhXNQDDow
-         PGgYhBObwC5AHd8lik47rwSIKUwZmooSWW16YfVUldjLZj5QzyuNXWJkfJ2XRC85pxz2
-         2QYEQ/11Lze7wXOKqLMmZp1ooAoVaiY6dirDMFRSeinr7+wGoEoB3CPSref11OS+7yMR
-         wA2Q==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=aE+38KfGc5qk2HKsb2RamJkVjg1qYYeZB6p5zW8nMwI=;
+        b=zEJttk9iNAgPZIUYEtLuJiKhEW9jfXIMQyUHlzovJsfFyIqo7s3Jna2qDml8KdQMHQ
+         sY6lS5ogAhLwtExI+F3ccX0/QB98EwYFefTO/GL0OqOtoPmD0KraMROKTD297TfO2oma
+         VhsNruPmbmEeOdT8pwtGewPaSpPKqBBMOy7ljxmz/l3UcF+iBDvJKFXc64+i4JsNHQda
+         edgVqiuDplT8HI5q2IURjNGsydOIUsdTlYthPJuBxN6Jnlghwzm56tnz83B15a3ELdpI
+         hogWoMPpd3ON9Lyb/OlC3Hk3J4sZwu5ZSCm/f6NZceH7rU0go6mpbZt38mevKsdqQflF
+         eatQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id d19si1115492pgk.115.2019.03.20.00.57.00
+       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w21si802433qth.249.2019.03.20.00.58.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Mar 2019 00:57:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Wed, 20 Mar 2019 00:58:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2K7rlpW098525
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 03:56:59 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2rbentfwf9-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2019 03:56:59 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Wed, 20 Mar 2019 07:56:51 -0000
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 20 Mar 2019 07:56:48 -0000
-Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x2K7uqJg61276284
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 20 Mar 2019 07:56:53 GMT
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id BB97BA4057;
-	Wed, 20 Mar 2019 07:56:52 +0000 (GMT)
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 1790EA4051;
-	Wed, 20 Mar 2019 07:56:52 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.84])
-	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Wed, 20 Mar 2019 07:56:51 +0000 (GMT)
-Date: Wed, 20 Mar 2019 09:56:50 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Baoquan He <bhe@redhat.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org,
-        pasha.tatashin@oracle.com, mhocko@suse.com, rppt@linux.vnet.ibm.com,
-        richard.weiyang@gmail.com, linux-mm@kvack.org
-Subject: Re: [PATCH 2/3] mm/sparse: Optimize sparse_add_one_section()
-References: <20190320073540.12866-1-bhe@redhat.com>
- <20190320073540.12866-2-bhe@redhat.com>
+       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id F400130820DD;
+	Wed, 20 Mar 2019 07:58:01 +0000 (UTC)
+Received: from localhost (ovpn-12-38.pek2.redhat.com [10.72.12.38])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 5F4FD6058F;
+	Wed, 20 Mar 2019 07:58:01 +0000 (UTC)
+Date: Wed, 20 Mar 2019 15:57:59 +0800
+From: Baoquan He <bhe@redhat.com>
+To: linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, osalvador@suse.de, mhocko@suse.com,
+	rppt@linux.vnet.ibm.com, richard.weiyang@gmail.com,
+	linux-mm@kvack.org
+Subject: Re: [PATCH] mm/sparse: Rename function related to section memmap
+ allocation/free
+Message-ID: <20190320075759.GJ18740@MiWiFi-R3L-srv>
+References: <20190320075301.13994-1-bhe@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190320073540.12866-2-bhe@redhat.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19032007-4275-0000-0000-0000031D2343
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19032007-4276-0000-0000-0000382BA629
-Message-Id: <20190320075649.GC13626@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-20_05:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1903200067
+In-Reply-To: <20190320075301.13994-1-bhe@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Wed, 20 Mar 2019 07:58:02 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 20, 2019 at 03:35:39PM +0800, Baoquan He wrote:
-> Reorder the allocation of usemap and memmap since usemap allocation
-> is much smaller and simpler. Otherwise hard work is done to make
-> memmap ready, then have to rollback just because of usemap allocation
-> failure.
+On 03/20/19 at 03:53pm, Baoquan He wrote:
+> These functions are used allocate/free section memmap, have nothing
+> to do with kmalloc/free during the handling. Rename them to remove
+> the confusion.
+
+Sorry, wrong git operation caused this one sent. I intended to send out
+other single patch.
+
+Please ignore this one. It has been included in previous patchset.
+
+
 > 
 > Signed-off-by: Baoquan He <bhe@redhat.com>
 > ---
->  mm/sparse.c | 13 +++++++------
->  1 file changed, 7 insertions(+), 6 deletions(-)
+>  mm/sparse.c | 18 +++++++++---------
+>  1 file changed, 9 insertions(+), 9 deletions(-)
 > 
 > diff --git a/mm/sparse.c b/mm/sparse.c
-> index 0a0f82c5d969..054b99f74181 100644
+> index 054b99f74181..374206212d01 100644
 > --- a/mm/sparse.c
 > +++ b/mm/sparse.c
-> @@ -697,16 +697,17 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
->  	ret = sparse_index_init(section_nr, nid);
->  	if (ret < 0 && ret != -EEXIST)
->  		return ret;
-> -	ret = 0;
-> -	memmap = kmalloc_section_memmap(section_nr, nid, altmap);
-> -	if (!memmap)
-> -		return -ENOMEM;
-> +
+> @@ -579,13 +579,13 @@ void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
+>  #endif
+>  
+>  #ifdef CONFIG_SPARSEMEM_VMEMMAP
+> -static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
+> +static inline struct page *alloc_section_memmap(unsigned long pnum, int nid,
+>  		struct vmem_altmap *altmap)
+>  {
+>  	/* This will make the necessary allocations eventually. */
+>  	return sparse_mem_map_populate(pnum, nid, altmap);
+>  }
+> -static void __kfree_section_memmap(struct page *memmap,
+> +static void __free_section_memmap(struct page *memmap,
+>  		struct vmem_altmap *altmap)
+>  {
+>  	unsigned long start = (unsigned long)memmap;
+> @@ -603,7 +603,7 @@ static void free_map_bootmem(struct page *memmap)
+>  }
+>  #endif /* CONFIG_MEMORY_HOTREMOVE */
+>  #else
+> -static struct page *__kmalloc_section_memmap(void)
+> +static struct page *__alloc_section_memmap(void)
+>  {
+>  	struct page *page, *ret;
+>  	unsigned long memmap_size = sizeof(struct page) * PAGES_PER_SECTION;
+> @@ -624,13 +624,13 @@ static struct page *__kmalloc_section_memmap(void)
+>  	return ret;
+>  }
+>  
+> -static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
+> +static inline struct page *alloc_section_memmap(unsigned long pnum, int nid,
+>  		struct vmem_altmap *altmap)
+>  {
+> -	return __kmalloc_section_memmap();
+> +	return __alloc_section_memmap();
+>  }
+>  
+> -static void __kfree_section_memmap(struct page *memmap,
+> +static void __free_section_memmap(struct page *memmap,
+>  		struct vmem_altmap *altmap)
+>  {
+>  	if (is_vmalloc_addr(memmap))
+> @@ -701,7 +701,7 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
 >  	usemap = __kmalloc_section_usemap();
-> -	if (!usemap) {
-> -		__kfree_section_memmap(memmap, altmap);
-> +	if (!usemap)
-> +		return -ENOMEM;
-> +	memmap = kmalloc_section_memmap(section_nr, nid, altmap);
-> +	if (!memmap) {
-> +		kfree(usemap);
-
-If you are anyway changing this why not to switch to goto's for error
-handling?
-
+>  	if (!usemap)
 >  		return -ENOMEM;
+> -	memmap = kmalloc_section_memmap(section_nr, nid, altmap);
+> +	memmap = alloc_section_memmap(section_nr, nid, altmap);
+>  	if (!memmap) {
+>  		kfree(usemap);
+>  		return -ENOMEM;
+> @@ -726,7 +726,7 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
+>  out:
+>  	if (ret < 0) {
+>  		kfree(usemap);
+> -		__kfree_section_memmap(memmap, altmap);
+> +		__free_section_memmap(memmap, altmap);
 >  	}
-> 
-> +	ret = 0;
->  	ms = __pfn_to_section(start_pfn);
->  	if (ms->section_mem_map & SECTION_MARKED_PRESENT) {
->  		ret = -EEXIST;
+>  	return ret;
+>  }
+> @@ -777,7 +777,7 @@ static void free_section_usemap(struct page *memmap, unsigned long *usemap,
+>  	if (PageSlab(usemap_page) || PageCompound(usemap_page)) {
+>  		kfree(usemap);
+>  		if (memmap)
+> -			__kfree_section_memmap(memmap, altmap);
+> +			__free_section_memmap(memmap, altmap);
+>  		return;
+>  	}
+>  
 > -- 
 > 2.17.2
 > 
-
--- 
-Sincerely yours,
-Mike.
 
