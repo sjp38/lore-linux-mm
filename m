@@ -3,84 +3,84 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 79058C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 14:20:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 14E32C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 14:21:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2D340218FF
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 14:20:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D340218FF
+	by mail.kernel.org (Postfix) with ESMTP id C5F5721916
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 14:21:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C5F5721916
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DC65C6B026E; Thu, 21 Mar 2019 10:20:49 -0400 (EDT)
+	id DC4656B026F; Thu, 21 Mar 2019 10:20:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D74FE6B026F; Thu, 21 Mar 2019 10:20:49 -0400 (EDT)
+	id D9C3F6B0270; Thu, 21 Mar 2019 10:20:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C62CD6B0270; Thu, 21 Mar 2019 10:20:49 -0400 (EDT)
+	id C64766B0271; Thu, 21 Mar 2019 10:20:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 743E26B026E
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 10:20:49 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id t13so2305839edw.13
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 07:20:49 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7226B6B026F
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 10:20:53 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id o27so2279478edc.14
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 07:20:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=NXbLxkVEjkUC98nDqbwMu9XwBnfr8Fy+W9xUz87hsi8=;
-        b=nC4ayWdsfWt4QYRwGB90LCN64ylmeuFsPHTgnpHN0o+WAkp6hxuY8A9xj00TQr0lfm
-         4RL2ARhX42qbMAuMp2GrdyEK2oNw8DvFtvXj94OZv6t8g9pM1nERWsg+ghdjtFRbzgYH
-         4Q+kNnBIu+DF1Yx/0KPobjp1tsTB8BTXIM2Tof23TE19x79Jkq6VfszJpGT0JA06KQUp
-         svEm3C6O7BISk+Z9Aa6U3YVMMX6ppi7skQAh25R8yCYudWsxNB0BGM0oNIxfTFwGxZd/
-         8MR3FoLAitP4LkWID0Rh1xBcBJSjQh+mSqfixZgY0RSBYpmTb0oFpljjkJL1Uy6Ugnlo
-         hbnQ==
+        bh=iuMdLE8+u1uoSAbvOzwF5G8gMH8Pp5jo2G4hJiPSSFc=;
+        b=UFwiCOndqDPPd2lFamNyB7ERUtGe93gubWyAWZgHLxZfepp621ShO8boJd0cpkHsoY
+         vqmF+3o/5Fhw6jGylP3wcxc2nWG6yMKWl0TbChgvUwcbfdtsAIb+lUKfh4kUzChjug4E
+         dhOMPI/AzEaAfETOUsVDC4BPwpYZgb6kvfUVjRL3VT+BtLtSgUz9Ma5Tew3T8hmsaw5G
+         U+0c71wz5n12dOgbXMXgGHd/E2U4LWTrWWZqkBj7eDMzdaEBRN3r9x5K98OYb5CXELhz
+         q9oqJlmQ0FRjOqKgQeSKRMg1jZ1/dWFKqvXu9ezQAU5kLUqXWUE4MnI7MQGupgEWEPki
+         500g==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAVp3QZ22/TDKENPDu3mxPBMixYo5PqOEGbBuYY3IDAR2BabK0nE
-	mAbnicss/6Zr8BLNFXhGWpd3Eg173B32fFx/SiKh6kHoMPlupnWY6iKIP0Ti+iZHNo5obRMMuZJ
-	uu8u3N2uN+ZropQ1oNoj7F3QdmXhzHNf3OuSCplY8vjSYLLEqY+x6GHb2sMtsRV41Lg==
-X-Received: by 2002:a50:eb0c:: with SMTP id y12mr2533240edp.237.1553178049011;
-        Thu, 21 Mar 2019 07:20:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxySE6hr8eYm10y6ahBOgpEXpDaj8n3iKGmeR51mfeUxvO/oD4dBSbKLJ50qjaZ8O61dWRs
-X-Received: by 2002:a50:eb0c:: with SMTP id y12mr2533194edp.237.1553178048129;
-        Thu, 21 Mar 2019 07:20:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553178048; cv=none;
+X-Gm-Message-State: APjAAAV70qaCNJpviEistMNBKssjJZcFTX2HtlThwkcteCRWxsvAFiQ7
+	WZhaWetzcQ9sbPGZvWSlEErquaLdkiWtkTnmuIuBGi8LgxwV2CsFAQTwT+B+xANK5QyAQ79bkbL
+	LHLBQbzJEFblxnsYYx3k10HMlFNWzgWFLmzRrMVHQPnm4BlUUl0t9b+2OSjdl26gFqQ==
+X-Received: by 2002:a17:906:1d0f:: with SMTP id n15mr2519233ejh.102.1553178052986;
+        Thu, 21 Mar 2019 07:20:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz6lZdAZvmcrlQm8c2K5Ooh1tG3DK0lTs3Tc12SCSoCN4C8QEefrRESC5Sz3hlwh3kmcRnH
+X-Received: by 2002:a17:906:1d0f:: with SMTP id n15mr2519173ejh.102.1553178051843;
+        Thu, 21 Mar 2019 07:20:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553178051; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ay5aqmhG2BtQFNEcLwTQnWgoYtG1w7nyQD0IdcftJS3aURhWQbp82r4ewLkgOdlKqM
-         9rn1oHjqMI7/KHtc7A3VjNu82EbAEl4CHdqsr3sbJ5GxnQFWGTafvOuxRAMUxdzqDUlC
-         sQ77KDJ5/ybKOIi83qNSYO81vm5xFBGUa1piSuXjjZdDye/RdLsEewPCaYb/isc03N3w
-         K0VEZ0xReB4IwPl8NYkBAWokDYFKXF7VbSB5drQ8KRB8NJ2S/VTGcawtN9jPOM1bCzqA
-         uFizYl9k0SHI5Rtr206eh5Yn61H59WBkByw4LhxwMN6c6ycRk7s61zR7wgvfrOhW4vYc
-         GHmg==
+        b=wpNUrkbFQpvWUIpBWx6SsnmypmcE5z/YRxaosWLdMC0AI1DlruMixEurFMES++KlTt
+         gkPzxLJexZDMluvj7vomunt39wCHv9YmuTzBS0VAIP62/0pi6MRsnYyV05PFXN9Osen6
+         zh03F9MmQNhw0xat3t+3VHU7Xlyy8RdC1JaM5fV0dga2XN5PybOzdQckwuU8/8FX0aRd
+         B746LUWYe6G5RWIPKYUXy8G8EdPGDkFp78JMbaiB1k1kjMkiPPTIBVYGRdqsvCmdZBQj
+         OAQjOVrSWYSRNoFr1a79bE/JLqtvzXB3CLhWWbgVn1p10qhWNxMQ1SJ5fEbqkrhMp8Lm
+         cgHQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=NXbLxkVEjkUC98nDqbwMu9XwBnfr8Fy+W9xUz87hsi8=;
-        b=hVkrZ/mNvNsKEJHbqC+gUmzh8+oxScB+5WJtU0AKhBSMgTp5QBcS8ODCMPTu6u9Lzz
-         83RvXVgNbu5ZHGYhxUumIJ/ySnhGu8+w/AsHHfURdiDUpwRsHZBx0rITV3DaW042uR7a
-         YJpHcANcKbR2ckOuhHgwrm4FeFsWna/hF7XfEczBrejJ8XN9TvcDszH4EzHCFm3p3vnQ
-         zVxQ7nsphp9aH5mnlcU0duvbVYyaiGTwuVfqG+NnzaRTgJI2MLRuTmpiVC2XE4tRfZI2
-         mYeRIySaQBo11AevCG5zKAthJmrPaLbkcQr3tGz5z2FFWHojnf/6Zd/uW8VKqyLjwZfs
-         +UqQ==
+        bh=iuMdLE8+u1uoSAbvOzwF5G8gMH8Pp5jo2G4hJiPSSFc=;
+        b=Rr1KqYaGDO647Q+fEuGzKDIxgdRs7/aV5MpMk71fmvNtIgyT2x46O/BvOOwaVGdK+v
+         iWXVBeCEQzshoAX+K7h2k+ceXM5YJjmfDn708fR815MdGOrHDF4wyDZUDTQL1UODXkaa
+         6+X0dPV7Y2jT+HC7Nw2SU2AKa2cK4sQzlkXAaBU0Etdy+pQ66e+FQ8mRyWzxiuErBEKp
+         4TifvcrR+uuPZ8IVEQEczs4TnhmmyvBkJhnFNgrRtXc6NklEUbLQXjYWJq7g6fv5BbPD
+         KEIZrDujNB+osPmjoGGNyZSuu+IxDBdtAObGMxeWjgWX/IyPRUawTikK8dWN8y00ft27
+         fwvg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 90si1175545edq.392.2019.03.21.07.20.47
+        by mx.google.com with ESMTP id e14si2086882edb.137.2019.03.21.07.20.51
         for <linux-mm@kvack.org>;
-        Thu, 21 Mar 2019 07:20:48 -0700 (PDT)
+        Thu, 21 Mar 2019 07:20:51 -0700 (PDT)
 Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 45F781A25;
-	Thu, 21 Mar 2019 07:20:47 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id C04AB80D;
+	Thu, 21 Mar 2019 07:20:50 -0700 (PDT)
 Received: from e112269-lin.arm.com (e112269-lin.cambridge.arm.com [10.1.196.69])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 0B5563F575;
-	Thu, 21 Mar 2019 07:20:43 -0700 (PDT)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 8596F3F575;
+	Thu, 21 Mar 2019 07:20:47 -0700 (PDT)
 From: Steven Price <steven.price@arm.com>
 To: linux-mm@kvack.org
 Cc: Steven Price <steven.price@arm.com>,
@@ -102,9 +102,9 @@ Cc: Steven Price <steven.price@arm.com>,
 	linux-kernel@vger.kernel.org,
 	Mark Rutland <Mark.Rutland@arm.com>,
 	"Liang, Kan" <kan.liang@linux.intel.com>
-Subject: [PATCH v5 11/19] mm: pagewalk: Allow walking without vma
-Date: Thu, 21 Mar 2019 14:19:45 +0000
-Message-Id: <20190321141953.31960-12-steven.price@arm.com>
+Subject: [PATCH v5 12/19] mm: pagewalk: Add test_p?d callbacks
+Date: Thu, 21 Mar 2019 14:19:46 +0000
+Message-Id: <20190321141953.31960-13-steven.price@arm.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190321141953.31960-1-steven.price@arm.com>
 References: <20190321141953.31960-1-steven.price@arm.com>
@@ -116,78 +116,95 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Since 48684a65b4e3: "mm: pagewalk: fix misbehavior of walk_page_range
-for vma(VM_PFNMAP)", page_table_walk() will report any kernel area as
-a hole, because it lacks a vma.
-
-This means each arch has re-implemented page table walking when needed,
-for example in the per-arch ptdump walker.
-
-Remove the requirement to have a vma except when trying to split huge
-pages.
+It is useful to be able to skip parts of the page table tree even when
+walking without VMAs. Add test_p?d callbacks similar to test_walk but
+which are called just before a table at that level is walked. If the
+callback returns non-zero then the entire table is skipped.
 
 Signed-off-by: Steven Price <steven.price@arm.com>
 ---
- mm/pagewalk.c | 25 +++++++++++++++++--------
- 1 file changed, 17 insertions(+), 8 deletions(-)
+ include/linux/mm.h | 11 +++++++++++
+ mm/pagewalk.c      | 24 ++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)
 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 2983f2396a72..49a04cc9ee84 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1382,6 +1382,11 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+  *             value means "do page table walk over the current vma,"
+  *             and a negative one means "abort current page table walk
+  *             right now." 1 means "skip the current vma."
++ * @test_pmd:  similar to test_walk(), but called for every pmd.
++ * @test_pud:  similar to test_walk(), but called for every pud.
++ * @test_p4d:  similar to test_walk(), but called for every p4d.
++ *             Returning 0 means walk this part of the page tables,
++ *             returning 1 means to skip this range.
+  * @mm:        mm_struct representing the target process of page table walk
+  * @vma:       vma currently walked (NULL if walking outside vmas)
+  * @private:   private data for callbacks' usage
+@@ -1406,6 +1411,12 @@ struct mm_walk {
+ 			     struct mm_walk *walk);
+ 	int (*test_walk)(unsigned long addr, unsigned long next,
+ 			struct mm_walk *walk);
++	int (*test_pmd)(unsigned long addr, unsigned long next,
++			pmd_t *pmd_start, struct mm_walk *walk);
++	int (*test_pud)(unsigned long addr, unsigned long next,
++			pud_t *pud_start, struct mm_walk *walk);
++	int (*test_p4d)(unsigned long addr, unsigned long next,
++			p4d_t *p4d_start, struct mm_walk *walk);
+ 	struct mm_struct *mm;
+ 	struct vm_area_struct *vma;
+ 	void *private;
 diff --git a/mm/pagewalk.c b/mm/pagewalk.c
-index 98373a9f88b8..dac0c848b458 100644
+index dac0c848b458..231655db1295 100644
 --- a/mm/pagewalk.c
 +++ b/mm/pagewalk.c
-@@ -36,7 +36,7 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
+@@ -32,6 +32,14 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
+ 	unsigned long next;
+ 	int err = 0;
+ 
++	if (walk->test_pmd) {
++		err = walk->test_pmd(addr, end, pmd_offset(pud, 0), walk);
++		if (err < 0)
++			return err;
++		if (err > 0)
++			return 0;
++	}
++
+ 	pmd = pmd_offset(pud, addr);
  	do {
  again:
- 		next = pmd_addr_end(addr, end);
--		if (pmd_none(*pmd) || !walk->vma) {
-+		if (pmd_none(*pmd)) {
- 			if (walk->pte_hole)
- 				err = walk->pte_hole(addr, next, walk);
- 			if (err)
-@@ -59,9 +59,14 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
- 		if (!walk->pte_entry)
- 			continue;
+@@ -82,6 +90,14 @@ static int walk_pud_range(p4d_t *p4d, unsigned long addr, unsigned long end,
+ 	unsigned long next;
+ 	int err = 0;
  
--		split_huge_pmd(walk->vma, pmd, addr);
--		if (pmd_trans_unstable(pmd))
--			goto again;
-+		if (walk->vma) {
-+			split_huge_pmd(walk->vma, pmd, addr);
-+			if (pmd_trans_unstable(pmd))
-+				goto again;
-+		} else if (pmd_large(*pmd)) {
-+			continue;
-+		}
++	if (walk->test_pud) {
++		err = walk->test_pud(addr, end, pud_offset(p4d, 0), walk);
++		if (err < 0)
++			return err;
++		if (err > 0)
++			return 0;
++	}
 +
- 		err = walk_pte_range(pmd, addr, next, walk);
- 		if (err)
- 			break;
-@@ -81,7 +86,7 @@ static int walk_pud_range(p4d_t *p4d, unsigned long addr, unsigned long end,
+ 	pud = pud_offset(p4d, addr);
  	do {
   again:
- 		next = pud_addr_end(addr, end);
--		if (pud_none(*pud) || !walk->vma) {
-+		if (pud_none(*pud)) {
- 			if (walk->pte_hole)
- 				err = walk->pte_hole(addr, next, walk);
- 			if (err)
-@@ -95,9 +100,13 @@ static int walk_pud_range(p4d_t *p4d, unsigned long addr, unsigned long end,
- 				break;
- 		}
+@@ -124,6 +140,14 @@ static int walk_p4d_range(pgd_t *pgd, unsigned long addr, unsigned long end,
+ 	unsigned long next;
+ 	int err = 0;
  
--		split_huge_pud(walk->vma, pud, addr);
--		if (pud_none(*pud))
--			goto again;
-+		if (walk->vma) {
-+			split_huge_pud(walk->vma, pud, addr);
-+			if (pud_none(*pud))
-+				goto again;
-+		} else if (pud_large(*pud)) {
-+			continue;
-+		}
- 
- 		if (walk->pmd_entry || walk->pte_entry)
- 			err = walk_pmd_range(pud, addr, next, walk);
++	if (walk->test_p4d) {
++		err = walk->test_p4d(addr, end, p4d_offset(pgd, 0), walk);
++		if (err < 0)
++			return err;
++		if (err > 0)
++			return 0;
++	}
++
+ 	p4d = p4d_offset(pgd, addr);
+ 	do {
+ 		next = p4d_addr_end(addr, end);
 -- 
 2.20.1
 
