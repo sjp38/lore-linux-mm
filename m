@@ -2,143 +2,143 @@ Return-Path: <SRS0=0MJS=RY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D1AD6C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 10:35:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 98783C10F00
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 10:37:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 939E72190A
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 10:35:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 939E72190A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 5F00D2190A
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 10:37:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5F00D2190A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 260D46B0007; Thu, 21 Mar 2019 06:35:25 -0400 (EDT)
+	id 03C196B000A; Thu, 21 Mar 2019 06:37:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1E89F6B0008; Thu, 21 Mar 2019 06:35:25 -0400 (EDT)
+	id F2F406B000C; Thu, 21 Mar 2019 06:37:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 08AEF6B000A; Thu, 21 Mar 2019 06:35:25 -0400 (EDT)
+	id E1D166B000D; Thu, 21 Mar 2019 06:37:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AB3E26B0007
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 06:35:24 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id x29so2031323edb.17
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 03:35:24 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E3F06B000A
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 06:37:02 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id n12so2054553edo.5
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 03:37:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=fzOsMeHaWBsruDsnLAEQHTdUyCuvA4uT0hMcHvsGVYw=;
-        b=nyQIpjtpxsBuKFl3gtvXZSQQHgNzZnlM0KYiXDKgFJ9/M4Vq8/JiRLsDe0lg1WoqXj
-         9i42viBG67yzClWbp72h72w2nnMp4F6v5mv0UfIr6fNbDp3Utc5aYfihP6U+h4nnUNXG
-         J25KV379xw48sUI7Sf1PNxbrWsEsAt05ecrDZZCnKd7YyjcxQl/11TL0L7DRr57aHAK1
-         BqAeAKXzIGGztsStTuI7MJAW+O9SqnBQMjDHxJcu7Ltg7RPfi4YLgnkFWoI9lKRu51Ak
-         8AkeQO/gTRczvNaJvTJyerXtPXEk1f/v9rG8QtfDXAV16b+rojHji+xZZfoywVgftBfx
-         wzDA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVnhey0SKjOdB4RP8dMCO1esyT4oo/qI0L2NHc0qAEnI6Tm83Jw
-	un13AliWHtWRY01c54gls38atc+b/W335dqFQOmvKDTovTAS4Opct3NClENY7iqW5rAzqi3nWNi
-	YkblqAHfnSeXUf03Z8MPlHWXK+2pFA9teySKloNwoB9Evn12g4gnSpRLhs2xHBYY=
-X-Received: by 2002:a17:906:289b:: with SMTP id o27mr1866753ejd.161.1553164524288;
-        Thu, 21 Mar 2019 03:35:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyHO0sPbUmiOkbas1uWFIu1Fmbfo0otGey+OA8owXH5VyJ4TugZ1p2i4GB2I8S6Mc+KKg73
-X-Received: by 2002:a17:906:289b:: with SMTP id o27mr1866721ejd.161.1553164523541;
-        Thu, 21 Mar 2019 03:35:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553164523; cv=none;
+        bh=QhSmSIO6EYWF56DvokCYTYbiXi2ADK9Xknx0az/3VRQ=;
+        b=ZPrg6Qs3w0Q1In9tXcqBfIqCLfSASCq+Q+PXw+WfxC0pI8zZrgxWKdDUy178zu+2Dz
+         AEdl2+ca9CvRRT8tJf0nqtfU9fGmtru7O/5JcrHAxmvc/4/ooe19af2ciSBZtWl4F1ml
+         Zpkl0iJuV9eM5Rlan/Bl8bceNZaV9XLu4yi83eVHIg4wEWAsybIyLFkuKHYGcr21d45h
+         5+tMSVYkdnbEqUkXl5R+qc/GfEfZX4NzMJtLok/ppxkdxVT/3XMDylBnKet3CZU6HBFN
+         GvCbkRrcrEDzzzrDPX3pAOmlfing3+jHr1k/2QzP+7a0r1PXQ0+QqGXdtXmfxDjdy1ir
+         vRig==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAUhKoy4ItqJAtak3IDJZIw9iq4Xp8fEWGie/g2cAXo4YWsMSpY6
+	awYJqvRZ1ojAe/65whn6pTrzJ4OZdaaGTFAc5us4Nb83g+jBxI/BBBxLTZGkkoCjPb3kuyzikrI
+	XghKsVDkOP/7vuG3zwqbclNWOTOMtav4bj3ScPeM9O3yWy0fkBPyFo8utTmb86tfiHg==
+X-Received: by 2002:a50:ca8d:: with SMTP id x13mr2022138edh.56.1553164622156;
+        Thu, 21 Mar 2019 03:37:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxfj0gVI+4LPSM+O+Rqxs7XTdNQivf6PE68aInmW0bPYncD8MdODvBqD7kGvTEu+lBR6R1O
+X-Received: by 2002:a50:ca8d:: with SMTP id x13mr2022097edh.56.1553164621259;
+        Thu, 21 Mar 2019 03:37:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553164621; cv=none;
         d=google.com; s=arc-20160816;
-        b=hhDMQ+fL3k17P5iqr8sg0zRMywk8BD7FyqWSDd0l/QYSays9qk0CFbNUXa70sYNNIZ
-         TLoRITzJHd5ayajIxWwRR4Ixhc8kNZ+uKPGVP7ICHRVuDMNv3xyNsMoYNdGpMsEMlG0G
-         wdz2oDI4Rsahfubv8aIfcsHhNn+7YfeSPLqLPiPLa8vS8L9KxcflZ+SsPEJoTWYVgcag
-         9//ut1SC9iTq0mY/OgNvhjkmp3I0r7yCnjmYN2bnxfQtTopnY0y0W9ysQMl1Ss7Rt7Mg
-         IUUhLHNvoKdaHho+//E3iU2vS3sgYC4oh5q3LRq3Oqy7sX8xrvywYgd9WJe0Jwpc5jNI
-         ZyzQ==
+        b=HV7pA/521eXcaAjDa5QylXqlRYNTArliWKOuQjBYIgGhG9vy0Oa6yCxoDDzGmHGS56
+         NQgmKl/JHT7R3cUFk/a3pfPf9FdLZawvHUMyI1JZJgmf5X47FrWrTvVESHAyBr0rsrDz
+         YJ35xa1XAHgYaFYTes4MbeWun6+Zd/J4vSahcvmTR+AntSsniMoUTUBBr0pTzpl6K8jy
+         cfF1c6c9RhViaUKRNcD42F2+UvtmByqR5Etag5Ydbr0b0buMZ0MIxcNN5Vt4rWcor+x3
+         bNqG1yMS7DVxdBNN3jmcm1EuaDdRBXYpZsg6L2aODkp5PnLJ+is2+0Xo5a0+zdxCRs+C
+         AZyw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=fzOsMeHaWBsruDsnLAEQHTdUyCuvA4uT0hMcHvsGVYw=;
-        b=dlfU/dEAGgVhlu0vHMJNyz+/Ten/DD7SFB6gmAWSySN3s8cCIBXNMgKZLOlyNHVSEd
-         BkqzbrRJhIkIlr7mUJsYCyX1X0lexEshqMgl99UeyYkfiATxuRnzZfMYrG7dXYmQM2It
-         cXqiZxpQxgkdDZsDrtsJe+V1c5iqqZwSf4I8hgz7Cl2BHdek7u/+CZA8fwoHWtJJLwM7
-         JusClMi8HAt99cRrxvDJ7P9r0gCnJPdo70p9ds7mfWcOR78HJMDNJjtrokZ64sXuv8Ng
-         NubwqwQ6QWkN3CsIy2xcQphtmbMT40c0p1IAFKqJGkVFjfg9LtqFvClwhGtJMxD5oF0L
-         a2ug==
+        bh=QhSmSIO6EYWF56DvokCYTYbiXi2ADK9Xknx0az/3VRQ=;
+        b=aBL1Q4/2FKoDpt9Cr3S2Ff7xbBmXBqKBQT3SUE3O9N60Us1ZQws+WEhClUrHL31o1k
+         oPYxd7Z9KVbcXp5/cY/mG3hA58orPO+q78Knpg576EjQefh03kdiVjwmWBrreb5LdM8s
+         U9L+EK8J//jaxPOuWlEip5xwC2ZFIPKJaJjo8EiLwFiShWCe1XyZVeJBUru/6nIBKMFJ
+         HZFVd/lX2u+PTbXvJjg03Go/js4oeWTLqKm1guVrjWcHWqgxPlG0aWUZRp2V6/rqk31W
+         xGVCU/pcbEEErDYXsGCr3KdKSeN52ymZmUj01ODBOPBvPCfyRwQgSYD6NKRMpgK+gXly
+         EnbQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m17si1559449ejb.31.2019.03.21.03.35.23
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Mar 2019 03:35:23 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from suse.de (nat.nue.novell.com. [195.135.221.2])
+        by mx.google.com with ESMTP id c2si1536286edi.165.2019.03.21.03.37.01
+        for <linux-mm@kvack.org>;
+        Thu, 21 Mar 2019 03:37:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) client-ip=195.135.221.2;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id B8482ADFF;
-	Thu, 21 Mar 2019 10:35:22 +0000 (UTC)
-Date: Thu, 21 Mar 2019 11:35:21 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: William Kucharski <william.kucharski@oracle.com>
-Cc: Baoquan He <bhe@redhat.com>, Matthew Wilcox <willy@infradead.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Oscar Salvador <osalvador@suse.de>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Pavel Tatashin <pasha.tatashin@oracle.com>, rppt@linux.vnet.ibm.com,
-	richard.weiyang@gmail.com, linux-mm@kvack.org
-Subject: Re: [PATCH 1/3] mm/sparse: Clean up the obsolete code comment
-Message-ID: <20190321103521.GO8696@dhcp22.suse.cz>
-References: <20190320073540.12866-1-bhe@redhat.com>
- <20190320111959.GV19508@bombadil.infradead.org>
- <20190320122011.stuoqugpjdt3d7cd@d104.suse.de>
- <20190320122243.GX19508@bombadil.infradead.org>
- <20190320123658.GF13626@rapoport-lnx>
- <20190320125843.GY19508@bombadil.infradead.org>
- <20190321064029.GW18740@MiWiFi-R3L-srv>
- <20190321092138.GY18740@MiWiFi-R3L-srv>
- <3FFF0A5F-AD27-4F31-8ECF-3B72135CF560@oracle.com>
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: by suse.de (Postfix, from userid 1000)
+	id 9825D464D; Thu, 21 Mar 2019 11:37:00 +0100 (CET)
+Date: Thu, 21 Mar 2019 11:37:00 +0100
+From: Oscar Salvador <osalvador@suse.de>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, logang@deltatee.com,
+	hannes@cmpxchg.org, mhocko@suse.com, akpm@linux-foundation.org,
+	richard.weiyang@gmail.com, rientjes@google.com,
+	zi.yan@cs.rutgers.edu
+Subject: Re: [RFC] mm/hotplug: Make get_nid_for_pfn() work with
+ HAVE_ARCH_PFN_VALID
+Message-ID: <20190321103657.22ivyuyq3k7zhy5n@d104.suse.de>
+References: <1553155700-3414-1-git-send-email-anshuman.khandual@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <3FFF0A5F-AD27-4F31-8ECF-3B72135CF560@oracle.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <1553155700-3414-1-git-send-email-anshuman.khandual@arm.com>
+User-Agent: NeoMutt/20170421 (1.8.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 21-03-19 04:24:35, William Kucharski wrote:
+On Thu, Mar 21, 2019 at 01:38:20PM +0530, Anshuman Khandual wrote:
+> Memory hot remove uses get_nid_for_pfn() while tearing down linked sysfs
+> entries between memory block and node. It first checks pfn validity with
+> pfn_valid_within() before fetching nid. With CONFIG_HOLES_IN_ZONE config
+> (arm64 has this enabled) pfn_valid_within() calls pfn_valid().
 > 
+> pfn_valid() is an arch implementation on arm64 (CONFIG_HAVE_ARCH_PFN_VALID)
+> which scans all mapped memblock regions with memblock_is_map_memory(). This
+> creates a problem in memory hot remove path which has already removed given
+> memory range from memory block with memblock_[remove|free] before arriving
+> at unregister_mem_sect_under_nodes().
 > 
-> > On Mar 21, 2019, at 3:21 AM, Baoquan He <bhe@redhat.com> wrote:
+> During runtime memory hot remove get_nid_for_pfn() needs to validate that
+> given pfn has a struct page mapping so that it can fetch required nid. This
+> can be achieved just by looking into it's section mapping information. This
+> adds a new helper pfn_section_valid() for this purpose. Its same as generic
+> pfn_valid().
 > 
-> It appears as is so often the case that the usage has far outpaced the
-> documentation and -EEXIST may be the proper code to return.
+> This maintains existing behaviour for deferred struct page init case.
 > 
-> The correct answer here may be to modify the documentation to note the
-> additional semantic, though if the usage is solely within the kernel it
-> may be sufficient to explain its use in the header comment for the
-> routine (in this case sparse_add_one_section()).
+> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
 
-Is this really worth? It is a well known problem that errno codes are
-far from sufficient to describe error codes we need. Yet we are stuck
-with them more or less. I really do not see any point changing this
-particular path, nor spend a lot of time whether one inappropriate
-code is any better than another one. The code works as intended AFAICS.
+I did not look really close to the patch, but I was dealing with
+unregister_mem_sect_under_nodes() some time ago [1].
 
-I would stick with all good rule of thumb. It works, do not touch it too
-much.
+The thing is, I think we can just make it less complex.
+Jonathan tried it out that patch on arm64 back then, and it worked correctly
+for him, and it did for me too on x86_64.
 
-I am sorry to be snarky but hasn't this generated way much more email
-traffic than it really deserves? A simply and trivial clean up in the
-beginning that was it, right?
+I am not sure if I overlooked a corner case during the creation of the patch,
+that could lead to problems.
+But if not, we can get away with that, and we would not need to worry
+about get_nid_for_pfn on hot-remove path.
+
+I plan to revisit the patch in some days, but first I wanted to sort out
+the vmemmap stuff, which I am preparing a new version of it.
+
+[1] https://patchwork.kernel.org/patch/10700795/
+
 -- 
-Michal Hocko
-SUSE Labs
+Oscar Salvador
+SUSE L3
 
