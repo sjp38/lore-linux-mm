@@ -2,227 +2,143 @@ Return-Path: <SRS0=0MJS=RY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3F79AC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 21:20:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 468EAC10F00
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 21:44:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B4AAD218D4
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 21:20:55 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 01D0821916
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 21:44:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="CvHMCAHb"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B4AAD218D4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="qZRSNs7d"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 01D0821916
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4BD8C6B0003; Thu, 21 Mar 2019 17:20:55 -0400 (EDT)
+	id 918E36B0003; Thu, 21 Mar 2019 17:44:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 447396B0006; Thu, 21 Mar 2019 17:20:55 -0400 (EDT)
+	id 8C9FF6B0006; Thu, 21 Mar 2019 17:44:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2EAD76B0007; Thu, 21 Mar 2019 17:20:55 -0400 (EDT)
+	id 7B84F6B0007; Thu, 21 Mar 2019 17:44:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D9A9F6B0003
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 17:20:54 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id v3so95441pgk.9
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 14:20:54 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 373BF6B0003
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 17:44:05 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id o24so151801pgh.5
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 14:44:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
-         :references:mime-version:dkim-signature;
-        bh=P6nweyKjbPNRrHuFN0rcQFMXBtF9NIHBGG9PP2cx3gU=;
-        b=JYit7/PCqjRFeNsCiYTfqE4PYqovXZypsjRy/OvZIv2GMxDjwTIKUnCjDmKIvMOcyZ
-         SM/PLRVeHSzQY1LaTwsloLnO0V7aP+mArXCtyBdhh8zZlDT+43OkxSmAsMiJ2QxBKYg4
-         CgdUdYXKkm0yUDJHRC2i+IS8F4SO1wh79p/5qZ313HCFCfeE4tydekLRa8mLIBtTGHYe
-         pxUCwRri32OXqlj4+rFZfuaSRDTGA7WvsRWum91YLFUsrwa4SbBMq76knmPv6gMe/4SA
-         pzrkNp/6bGmZyGmsOZ2EjA3hb9YdtgZvQY6yB6OPNrCq8C2UOQN/elMSSGMfyGatMj0i
-         WH1Q==
-X-Gm-Message-State: APjAAAXc5PrvdMQv3qNR+5N+LswZTWzw7GIL8qf2Nf9/REBe9ZBpm2IC
-	M7XCllc/DOq8aQhMC4N9ohgaKbzuhP+o73RtRQkL3IMV8n6LID3ay9XSzpZ66QB/Vi3Al4ZsQnd
-	cplLOZ5gflau/yieUNcZuI7XvaKJEsLej0DkI//T603PxJT7cJDGOsMYo2JfHh5grjA==
-X-Received: by 2002:a63:d848:: with SMTP id k8mr4379488pgj.396.1553203254343;
-        Thu, 21 Mar 2019 14:20:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzPSC5/Lfeh227XCUffvFJPft+LKUVOvhsgcYdyOkxnDFpF7JB+r3PDm06iNtq+W4u4daiR
-X-Received: by 2002:a63:d848:: with SMTP id k8mr4379421pgj.396.1553203253483;
-        Thu, 21 Mar 2019 14:20:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553203253; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=i7m++E+Xib+uDsp7WuM+xF5x1nfGX9p80KlO1ZOhiz8=;
+        b=DdSpafFxJr+IYOsX6JkvcPfUatqotX4s1brIccRY9ZtSk7NMA3ldEQQsutKTdWKB/D
+         iMwXOnw6RWkLr1Q9YlO0QbI1c9c0Poi4NmtYpVjpGjt4BMU5xr54tK0xQpqD1CICD1f/
+         Gj64TI3XkRp1TpNIPw+yGHdj/fl+adOBSCLx8IQFb9I5HF/FREYeTKOVnOPbhkasssBa
+         rv2kDAZtAlqHv+EuPbPfnDWS1aluEysjdHLSXDCl9ILBBKbCeTYZYPhxV6vo/YcGe7Ui
+         59HWjtCHjaBa+NYkHfPl8J8UG4AvuC1MQfatFb79Ik95V3gYk+Yxl9jJsMb4cwCd8sYv
+         UBHQ==
+X-Gm-Message-State: APjAAAU+bOGT61p2Hr4Doc6S4F+bMKVbeR2ISB5u7gToQxTMqgMiffMo
+	LZMyO3K8yE2mRWNQBBukLNScJhh7Vk0LiEfjyRPfvTClR8Io27SdtrBCLQ9+tCiKFfUYX6BE9tW
+	rCt2FVlTIlfjeRk4v9l3BIW7d5gvGaXE28ra6fRQkhNGWmvTSl9sRydq+9/I+Kdf9jw==
+X-Received: by 2002:a62:b508:: with SMTP id y8mr5629478pfe.140.1553204644890;
+        Thu, 21 Mar 2019 14:44:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwkCdSCq4L2JJOqQOwChMr/LSyxffZSR+sf6vb+QgOlE7zj3grNcexx/iaEW163dLLhZUUL
+X-Received: by 2002:a62:b508:: with SMTP id y8mr5629404pfe.140.1553204643789;
+        Thu, 21 Mar 2019 14:44:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553204643; cv=none;
         d=google.com; s=arc-20160816;
-        b=KMESPh2ybNAZuUT1tECvp/1md3JY7wqF4/hAkgr69XVTvvSlzIsY60jAbiY0wcmwUA
-         oRHhjbK1iAB6EcbA/0+3XKL+Ylx/JbBN1/KwzDahEukuI5FXjbZO7LvlWvXAdhcoz+jQ
-         1f4TsNOFb6bU1hKmQbUha8X/33lTTG0Odb0i8JxU5Q227JXyOPC5zrZvitV8pTA+t3MM
-         KSsYKpGn5L4Ar64a9cxGEkHxkmTi6ouR0C8ExTqN//r2wjO8dCmvsb+2cKP8ySzXzOav
-         h31Dl1WIo7VJOiIMnyqt5DUM9o5PDqbBeTO1PJICYBKSjfRwU3rxZENzIfg7BwvTmNel
-         /7xw==
+        b=WpvW9ZtjgSlfXGae3Y3ooqkvIAFcDi5R/R4u9ZIrJjXwKZ6Ydu1fL207fiPVW7D/GZ
+         c6G2LVpNaMuN5JwraVy2+1b0d3o584lSnoYQtZ92cJU3VudpLe7l70iosYuJwbThTIhJ
+         kLXdxbiNca6FDl0ctc2o3S453FLCufjRjUkoSuz/l3Zvm/PLcAWiZ1rkCqwIJz6nokzY
+         Jftw27g40uV72KTgjWcuf4CYBkgIeEq/oaZtH8IdA5CvZjb+8Hfc/bFLHvjjRIXJAgnQ
+         lrOylniS9Y4hWbhBKsOZmhD5PmMwTNjqiBAy5zi9vhZK5uQ05m4S80Xlks7TAuLu1Mpm
+         WbAw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:mime-version:references:in-reply-to:message-id:date
-         :subject:cc:to:from;
-        bh=P6nweyKjbPNRrHuFN0rcQFMXBtF9NIHBGG9PP2cx3gU=;
-        b=x0LFMIow3cjHEt+qnBRoWN1ROkoeq1la/eWYjZdYvzG0xiOxw3AaJzOtQA4PB/EDB/
-         MoQ2EWNGHZ8gBGV3/tcykGQRMv9680lgwzlSp/mm7xuA94QH4IfDp0CHkmzqe8Tytbyf
-         f4u/cAdChBvkH1OpQHMmXf8wonRNnQRU12Um1sosLhsX4oUoM8oSvCXbKiMvQKthdohs
-         /+FzYxMR5HCi+zY+Be0EQDGfJwkJ0Lw+aiXUkpDxNiPqESxNXsw5/8d5IV5FhHzUIVHG
-         3qKAvEJjUIDRBvIu5L+C9k9X7fPVzBLHYY2bqTWpmI/ujSyHz/p282s+spoeEFLWjFbw
-         V9Tw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=i7m++E+Xib+uDsp7WuM+xF5x1nfGX9p80KlO1ZOhiz8=;
+        b=y+OfcWSCtpGZc/u6LgyuMqY9SY/K/6v6HDROFFHwiPqnRJlrmlSJo4GEkX35ZoaCLy
+         BAPLuRW36H47mZK2krJ5BxoQii+1hK0VxfKx29BZ3H6cJ3rZByPpwSJSCDoEzzcCvdf7
+         4cW2D6lKB53+bsFB9r78y6sKQtV8Bk6Em6tJV7LkT2z1SDvdXiYQlVk+u8LU+gcatj0S
+         quUX0sDEC8FSUYmqAH8e9QxktzYiQ0HBdHap5D2VdOiPMOphGYZIDHBRoOhaMKXkl1xd
+         2+Bz8a927RHgKneSE6F0SBWeJmDTFZwXnYqtJSBXad7RTIBKWUIKclFr84cYbo8bMFYu
+         tmkw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=CvHMCAHb;
-       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id 3si5702711plf.250.2019.03.21.14.20.53
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=qZRSNs7d;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id k1si5292336pls.208.2019.03.21.14.44.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Mar 2019 14:20:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ziy@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 21 Mar 2019 14:44:03 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=CvHMCAHb;
-       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5c9400330001>; Thu, 21 Mar 2019 14:20:51 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Thu, 21 Mar 2019 14:20:52 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Thu, 21 Mar 2019 14:20:52 -0700
-Received: from [10.2.161.82] (172.20.13.39) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 21 Mar
- 2019 21:20:52 +0000
-From: Zi Yan <ziy@nvidia.com>
-To: Keith Busch <keith.busch@intel.com>
-CC: <linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>,
-	<linux-nvdimm@lists.01.org>, Dave Hansen <dave.hansen@intel.com>, Dan
- Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov"
-	<kirill@shutemov.name>, John Hubbard <jhubbard@nvidia.com>, Michal Hocko
-	<mhocko@suse.com>, David Nellans <dnellans@nvidia.com>
-Subject: Re: [PATCH 0/5] Page demotion for memory reclaim
-Date: Thu, 21 Mar 2019 14:20:51 -0700
-X-Mailer: MailMate (1.12.4r5614)
-Message-ID: <5B5EFBC2-2979-4B9F-A43A-1A14F16ACCE1@nvidia.com>
-In-Reply-To: <20190321200157.29678-1-keith.busch@intel.com>
-References: <20190321200157.29678-1-keith.busch@intel.com>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=qZRSNs7d;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=i7m++E+Xib+uDsp7WuM+xF5x1nfGX9p80KlO1ZOhiz8=; b=qZRSNs7dCUzn/FgvE+RBp5GcE
+	PyFCIgy9sr+dhqNHb55IbM6O7+1jai0tmbHue06hJi1edHn1UxaaRKm4DFMYlL8CpYyYeysf5KeUn
+	B4vUDi80+/c0e370T4+Ulq24ijI2SUc4O+ZJDXmVnL60LUBPr+8tKW4pgkUbMv2pF1nHIBgDJkeel
+	+x2ngxtknSWuHspHItqADpzmtfxqjHz6LByUJd4+/TRSpI5BKRQHS3eHFhQ/rPj1nL3/+wjOUUG3S
+	e7i8rOk++iorCbY3nYIjGRlsHLrYTPoOtmvHjWT7xQXsJpOa3PUK8lw23o+BU6XEzyeijCOp9NV+u
+	jxcQYknxQ==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1h75Tm-0002fY-4W; Thu, 21 Mar 2019 21:44:02 +0000
+Date: Thu, 21 Mar 2019 14:44:01 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Martin Blumenstingl <martin.blumenstingl@googlemail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org,
+	mhocko@suse.com, rppt@linux.ibm.com,
+	linux-amlogic@lists.infradead.org, liang.yang@amlogic.com,
+	linux@armlinux.org.uk, linux-mtd@lists.infradead.org
+Subject: Re: 32-bit Amlogic (ARM) SoC: kernel BUG in kfree()
+Message-ID: <20190321214401.GC19508@bombadil.infradead.org>
+References: <CAFBinCBOX8HyY-UocsVQvsnTr4XWXyE9oU+f2xhO1=JU0i_9ow@mail.gmail.com>
 MIME-Version: 1.0
-X-Originating-IP: [172.20.13.39]
-X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
- HQMAIL101.nvidia.com (172.20.187.10)
-Content-Type: multipart/signed;
-	boundary="=_MailMate_64525BCB-86AC-4202-8D74-2FF72494C4AB_=";
-	micalg=pgp-sha1; protocol="application/pgp-signature"
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1553203251; bh=P6nweyKjbPNRrHuFN0rcQFMXBtF9NIHBGG9PP2cx3gU=;
-	h=X-PGP-Universal:From:To:CC:Subject:Date:X-Mailer:Message-ID:
-	 In-Reply-To:References:MIME-Version:X-Originating-IP:
-	 X-ClientProxiedBy:Content-Type;
-	b=CvHMCAHb62LnWhXYaTKpIzZ/8/u5hF9yqCeAjmJyfMMVl7GIJFMWQFiBM6fNonSzy
-	 x0EZcfLfo9VxMuTzYfXd//0+SQKpUHOPNN5y4VnGtpMkG+VIxCLfUpsSnFgo2WS43W
-	 NIG+SX1L/NPoMoKZKMybvacOhDPrC6VmTMnyDYeaFG7/Svs4gvnbPTksyuLJdyvOti
-	 l/UPviM7V/RLqaPtk0vN58Ck2XWrtqNmqIBCl/3A9U/oEG2OprSTnOn5Y4UlXakkqq
-	 1HrfxlQaUWJknjTmA67/CYma9htlCXfc/H/Lp1ggGJavdjx3ko/Wq7/IpPHR3SISF+
-	 ISTSP1ebZpdIA==
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAFBinCBOX8HyY-UocsVQvsnTr4XWXyE9oU+f2xhO1=JU0i_9ow@mail.gmail.com>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=_MailMate_64525BCB-86AC-4202-8D74-2FF72494C4AB_=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+On Thu, Mar 21, 2019 at 09:17:34PM +0100, Martin Blumenstingl wrote:
+> Hello,
+> 
+> I am experiencing the following crash:
+>   ------------[ cut here ]------------
+>   kernel BUG at mm/slub.c:3950!
 
-On 21 Mar 2019, at 13:01, Keith Busch wrote:
+        if (unlikely(!PageSlab(page))) {
+                BUG_ON(!PageCompound(page));
 
-> The kernel has recently added support for using persistent memory as
-> normal RAM:
->
->   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/co=
-mmit/?id=3Dc221c0b0308fd01d9fb33a16f64d2fd95f8830a4
->
-> The persistent memory is hot added to nodes separate from other memory
-> types, which makes it convenient to make node based memory policies.
->
-> When persistent memory provides a larger and cheaper address space, but=
+You called kfree() on the address of a page which wasn't allocated by slab.
 
-> with slower access characteristics than system RAM, we'd like the kerne=
-l
-> to make use of these memory-only nodes as a migration tier for pages
-> that would normally be discared during memory reclaim. This is faster
-> than doing IO for swap or page cache, and makes better utilization of
-> available physical address space.
->
-> The feature is not enabled by default. The user must opt-in to kernel
-> managed page migration by defining the demotion path. In the future,
-> we may want to have the kernel automatically create this based on
-> heterogeneous memory attributes and CPU locality.
->
+> I have traced this crash to the kfree() in meson_nfc_read_buf().
+> my observation is as follows:
+> - meson_nfc_read_buf() is called 7 times without any crash, the
+> kzalloc() call returns 0xe9e6c600 (virtual address) / 0x29e6c600
+> (physical address)
+> - the eight time meson_nfc_read_buf() is called kzalloc() call returns
+> 0xee39a38b (virtual address) / 0x2e39a38b (physical address) and the
+> final kfree() crashes
+> - changing the size in the kzalloc() call from PER_INFO_BYTE (= 8) to
+> PAGE_SIZE works around that crash
 
-Cc more people here.
-
-Thank you for the patchset. This is definitely useful when we have larger=
- PMEM
-backing existing DRAM. I have several questions:
-
-1. The name of =E2=80=9Cpage demotion=E2=80=9D seems confusing to me, sin=
-ce I thought it was about large pages
-demote to small pages as opposite to promoting small pages to THPs. Am I =
-the only
-one here?
-
-2. For the demotion path, a common case would be from high-performance me=
-mory, like HBM
-or Multi-Channel DRAM, to DRAM, then to PMEM, and finally to disks, right=
-? More general
-case for demotion path would be derived from the memory performance descr=
-iption from HMAT[1],
-right? Do you have any algorithm to form such a path from HMAT?
-
-3. Do you have a plan for promoting pages from lower-level memory to high=
-er-level memory,
-like from PMEM to DRAM? Will this one-way demotion make all pages sink to=
- PMEM and disk?
-
-4. In your patch 3, you created a new method migrate_demote_mapping() to =
-migrate pages to
-other memory node, is there any problem of reusing existing migrate_pages=
-() interface?
-
-5. In addition, you only migrate base pages, is there any performance con=
-cern on migrating THPs?
-Is it too costly to migrate THPs?
-
-Thanks.
-
-
-[1] https://lwn.net/Articles/724562/
-
---
-Best Regards,
-Yan Zi
-
---=_MailMate_64525BCB-86AC-4202-8D74-2FF72494C4AB_=
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQJDBAEBAgAtFiEEh7yFAW3gwjwQ4C9anbJR82th+ooFAlyUADMPHHppeUBudmlk
-aWEuY29tAAoJEJ2yUfNrYfqKSFgQALRovEKyG0/MfQCHU7h0VuN+Y1Ed/08d75x8
-EToYq9az+/ecbuxikO5CcMDAa7Llw6BpMkeRaldPARrXIPj3tXeJeHgwLFO6C1Wg
-CC4oSM2XsZYoZ1JDwXeTDKIcO1OWCnANPHh3IbjdfcOKF8Z465sxaC70U9OCbzEb
-K/Tky+mUMBqokj40A7cTq72FLcOTcrXpyXMJqoWrl188E4bTiQs87FzSaN2wIKNr
-XP4MJCJR5cWcS0B1rLKfBTP/gZCWmOO6vCO9uxi/IH4QddfC8u8zZsIqzDQ3hc45
-37iYKoWMxSpqeynoz0elvjFYQB5QaXEsmzKXrpDbuiHyaaB25QPl0KbbVTllQJdH
-7DNe/zE2gS5MQl16r3DkHDssAZPu48vTgQNlVciDmzeEB4KURuZf/ItrGGXGfdDN
-3xScDxR4+fAJ3GzDRyG9M/CwsxbCgHl3fA60/ohO/Yyg0q1E42DWyMTammRikR7z
-4xI+r/jBXQMoiDrZ8DpU44QzRyWQugCJV2sX7BqtHpSxiMwlY7VR6g9PNn5bfHi9
-9hlI0k3xlEhLvF8voePfAY4iKhSpT5tNkNiwCJwikGByT+IJEAZW3+ESAYmv5U69
-dEZBjMSUbPS2uEVTEByjWw40FbuLWUh+7U3wloXwvKpfqQJby1RBl5gEKKIi8xBu
-PZ6qi/3K
-=WKXP
------END PGP SIGNATURE-----
-
---=_MailMate_64525BCB-86AC-4202-8D74-2FF72494C4AB_=--
+I suspect you're doing something which corrupts memory.  Overrunning
+the end of your allocation or something similar.  Have you tried KASAN
+or even the various slab debugging (eg redzones)?
 
