@@ -2,198 +2,207 @@ Return-Path: <SRS0=0MJS=RY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 47A79C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 23:02:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A6C99C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 23:25:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E10C3218D3
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 23:02:21 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="DH0vdrW5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E10C3218D3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 0D21C21902
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 23:25:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D21C21902
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7D0346B0003; Thu, 21 Mar 2019 19:02:21 -0400 (EDT)
+	id 9220E6B0003; Thu, 21 Mar 2019 19:25:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7801B6B0006; Thu, 21 Mar 2019 19:02:21 -0400 (EDT)
+	id 8D0BC6B0006; Thu, 21 Mar 2019 19:25:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 646376B0007; Thu, 21 Mar 2019 19:02:21 -0400 (EDT)
+	id 7E5BB6B0007; Thu, 21 Mar 2019 19:25:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 44B086B0003
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 19:02:21 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id z34so511220qtz.14
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 16:02:21 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D7686B0003
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 19:25:32 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id v3so355769pgk.9
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 16:25:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=jr0o9aAH8U2i6K1qdS9XGG6vuPudU722Wp+0qgcH1UY=;
-        b=pr7hVfxlFnosaMquAXvMaH1RsIdUozp/3KTHtDpoxAXDXL43iwKpUEzdJZvUtvQSMb
-         qqFvSBV5uygdEln/dzWGKJIHhQdejCBS242IQX3HOj3oUtlcS1MeKr048Gl9kFgpHjU0
-         hclpEdXhIcLadXT7jODjgjK+K5tXsHQkmmhJeXwyc19t1VG6GCMFJpibR+zDFCnkBCvT
-         5n2uUmZmk16L7A4KaH/WgPKLWZGn0Wc6gLImRRBb8ZmJ+p1qgiW/57LMYptTyRt9mMYA
-         5Fjj4SOpt8Fm8o47QsRrSkKa9WWr9YocM10GtuTSti3PTW8rl4raUEZ21whHK+VsYmRj
-         9wDw==
-X-Gm-Message-State: APjAAAV6Fd0HO6A4mRaG8XKwE0xT2olfnW+HdOzZ7fl+xX2X61Fp4m7U
-	ufyo9WA1NfciF0GhTcfcVv2UQXHeXn8sOx0Qw/7uUWmSXCQwDD6GxmYJYPqbqYXZu02jfIhA5iR
-	yvj4iLncb8XZRYHUFMFZGZIy/99frQ2blzlEUdfx9JRM1XiZBQ2fX1sItROr3uF+MPw==
-X-Received: by 2002:a37:69c3:: with SMTP id e186mr1372499qkc.308.1553209340990;
-        Thu, 21 Mar 2019 16:02:20 -0700 (PDT)
-X-Received: by 2002:a37:69c3:: with SMTP id e186mr1372427qkc.308.1553209340060;
-        Thu, 21 Mar 2019 16:02:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553209340; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=DC1C3MF319z3zNQMotYrUbRtBdypZGE9iml4I4ItdfI=;
+        b=QochKgo0qRaXMDDGB3GZqqelzWK/GjZBvrhopgXrjgKqvz9VJzoArOO3ZaikE1OPw+
+         RtcNuCH3zuRuH+6/HF4KcFEG2oSM5ydGijMP9lgNs9yLnpMMWvJZ3Y1jFBqhKfp+g94z
+         t7nLmJK6W6GNBad1LIuHgkBfMdaGP//o7AAZl9+GX/iTl2ezYdheL2YP0m+J/YOrWPir
+         VFmBMCeI6HjSFaJ1g11lyHd5NTeIM/UlE+9n6JjfTLTRCu3hlvg2nE25alJ4r9X0FDlD
+         FbKQI8tcKlFqmh2J0/SuIsXXFNdBLgoJMTpW9Ex4ATNcZAxCZE+VQyJfv+j7Ra1p86Yj
+         JXhA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.132 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAV1ucLRnXZzD8zfVHd8nUhHvR1KhPXkHqdR7jrK+L8BfAqC9/TS
+	dj5PhS/lOOs6Ymhdwj2BljfaEkV/9mM+1NohnxJcwql4fsfCIWpiDWkVmUebA5r41R97BETLY77
+	fQuVdvRmVQfp8TdOrPQoxtNufEElvrGqcBxALpCmndBjATNjd/vQyE5k+NGDSpBc81Q==
+X-Received: by 2002:a63:4616:: with SMTP id t22mr5180016pga.217.1553210731792;
+        Thu, 21 Mar 2019 16:25:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwRyoc3h6yReI1vV+upIBghZsGGGbsBK2AFUunDP5Lg5e8CgK7dIubKlcrupzWqvEnslLms
+X-Received: by 2002:a63:4616:: with SMTP id t22mr5179949pga.217.1553210730657;
+        Thu, 21 Mar 2019 16:25:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553210730; cv=none;
         d=google.com; s=arc-20160816;
-        b=SkMSA+BMjdwb9E34tihs2/8k90qhZPoqq32mBEBvDQMtAGlCz+j2AriZNueBehe4xw
-         g5v/KU9TUNJCSVo9HbeSceLG7lUhLtBn7QQ5NtzJWOf8MHrebdAjMZfUueI5uNuh0UbT
-         7qwG5alkt2r4zZ7Md+eJI94bovtIIIx/2tMZdl64VIZ0Qi8vOIKt6uYaJeRNzNxdm6mj
-         hVGAyi6Dz9XTkYUZHRVuwyCtKTfUrYauFkGIxU/jo7RbukUPMUVuMzwmcP+awHbsgc+o
-         wu3ZHjL+h1Rymv8XCs1j+gS88Oo4wYaJna3NV2bhTY61/A5oMmXorJcxYOkbI6i3PyYC
-         aOrQ==
+        b=EGevQAoyQ+aafHCGAKzl6o/N7S6drPebrF5f+TRLXbPQvTaQt/nkrM7l9NEf6PuJxG
+         3mWXgGTiGnlHlooYAkn9/or3DZb6XCV1Df9GKn6nMnD2VgL0Pkquk+UKNRq71dmDdDVY
+         nHumgfAQbB2aCQW+czjdnooWQpA+iNfJMAbKqjonyE/gXYMdkEv8/TQFEBkj8gjK3Yi3
+         2BLp6NqUZCFfkTTblSPwbBrIK5M5KcRdpAilw8Y6RqgyTkVzsO1laooKbyp1ovpIB7pZ
+         QdVg7A/kaZKZhgPOJSj6vsP4H04GWy58OW8WfI0a142veGrpX43Le0+W1TEWIeA2hx5u
+         fD3A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=jr0o9aAH8U2i6K1qdS9XGG6vuPudU722Wp+0qgcH1UY=;
-        b=x8akw+83V1lfjuMPP791CmItIehoXBtGqvScU6+wkNqjttLoZL4ox+A1uOaXBSJAbZ
-         YNyVRmSqdcR4PPIe8SM7suHJ64C6//De5ZGd5TPYklt64aW6YsWu4GrXP9EtkdWLzha8
-         dpwyPUUPprJtuffpBMeYT69P7CGxJRFVnrjqehZYUGLb0Uf0iungAqXjtV+QbJZ4q0Fy
-         EZMmEeAmy9DSFlwpE4TUE2TceeqF9iUv0MknWS/nQR36L7NhuLPN/POgDtoLK8Ursl/X
-         IZHe6fjE//vy/BbFDOXChsZkWMX1lRBvD9EdT9K3n0U/Hd263INudLgqkL268c+qXfpm
-         gBjw==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=DC1C3MF319z3zNQMotYrUbRtBdypZGE9iml4I4ItdfI=;
+        b=HMuVLngwuov4d/nsnwFybOYNBjc1G/rP/Sqc4sUxJFcSv+Ik5OUjfXBItLnRYsey1S
+         iyYGV1yqrknDhvc+DkJMaW+MG1krgr9s7MdI/oKI5aH41+gQfnwdQH23r5V4Ut4ZT58i
+         2vv/E49VfrF4kyfk7xIoNMjOkYXuXvYHRxS+2pvx/pQrHaTTqF01TkvFlf0W5BmMfSiA
+         ngGgEwJ0acpkrNUd1fgkuTKd0FbtvCdoC5dpVVwPgUw2Y3OyHN2fykOk2cY888ZbZkdG
+         o3tL2cbLRzEe/jTHzwgJeJw3slju0076wSQleYDap4uOIymVSog7d2SQ/SUUwEDvCDax
+         VSiQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=DH0vdrW5;
-       spf=pass (google.com: domain of shy828301@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shy828301@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p36sor7359736qvc.71.2019.03.21.16.02.20
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.132 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id s19si5518576plq.253.2019.03.21.16.25.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 21 Mar 2019 16:02:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of shy828301@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Mar 2019 16:25:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.132 as permitted sender) client-ip=115.124.30.132;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=DH0vdrW5;
-       spf=pass (google.com: domain of shy828301@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shy828301@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=jr0o9aAH8U2i6K1qdS9XGG6vuPudU722Wp+0qgcH1UY=;
-        b=DH0vdrW5HrWLC2m5DWcl3u7lzhGbcHNbP5YBsYeIODLg2teReTwDMbqQrWQthtoDKc
-         XtyNGw98Bbu0m0uKzfH/bJAd7ONWR/ITjtyU3P5v7Lscw3cyGdhNQgIKrPe25WDzTmYj
-         IehzBxhSRxRtSwVAZYasYBxbHn5VjtWXuUVR6S8SwxxtnBqEDplp30k4y4vAPfktIpC6
-         8Iypy3RyHoF5soUPEx6P6iVi1iy1YdQjJO3em1xqQo0pk9QkNQ/Vt3tSWv3eMm6exLWv
-         c+4Q4Fwcv1qIqinza5RcQ6/3Cfocpm/n37fjEQSicvvMLSY/q2R0Sb+9jq2c6e/gMf9c
-         IlrQ==
-X-Google-Smtp-Source: APXvYqxHxi89Srq1zwUqJV8b9yrJ78B4HghLbO4qcrhP/PA7s1rCJ8Lw7BQMe1FVovIdbxt6bxn1cWSIq7iH0hV7Bjg=
-X-Received: by 2002:a0c:ea4f:: with SMTP id u15mr5454069qvp.133.1553209339794;
- Thu, 21 Mar 2019 16:02:19 -0700 (PDT)
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.132 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R171e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04446;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=6;SR=0;TI=SMTPD_---0TNJJX9z_1553210725;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TNJJX9z_1553210725)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Fri, 22 Mar 2019 07:25:27 +0800
+Subject: Re: [RFC PATCH] mm: mempolicy: remove MPOL_MF_LAZY
+To: Michal Hocko <mhocko@kernel.org>
+Cc: mgorman@techsingularity.net, vbabka@suse.cz, akpm@linux-foundation.org,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <1553041659-46787-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190321145745.GS8696@dhcp22.suse.cz>
+ <75059b39-dbc4-3649-3e6b-7bdf282e3f53@linux.alibaba.com>
+ <20190321165112.GU8696@dhcp22.suse.cz>
+ <60ef6b4a-4f24-567f-af2f-50d97a2672d6@linux.alibaba.com>
+ <20190321194539.GY8696@dhcp22.suse.cz>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <2cbd2f5c-4cb9-457a-6a0a-8ae99ca5eb6e@linux.alibaba.com>
+Date: Thu, 21 Mar 2019 16:25:24 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-References: <20190321200157.29678-1-keith.busch@intel.com> <5B5EFBC2-2979-4B9F-A43A-1A14F16ACCE1@nvidia.com>
- <20190321223706.GA29817@localhost.localdomain>
-In-Reply-To: <20190321223706.GA29817@localhost.localdomain>
-From: Yang Shi <shy828301@gmail.com>
-Date: Thu, 21 Mar 2019 16:02:07 -0700
-Message-ID: <CAHbLzkrLyG-j8kRrrQ==4Y4LDDLubvXMF88muyzXWAQWKw1ZSw@mail.gmail.com>
-Subject: Re: [PATCH 0/5] Page demotion for memory reclaim
-To: Keith Busch <keith.busch@intel.com>
-Cc: Zi Yan <ziy@nvidia.com>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-	linux-nvdimm@lists.01.org, Dave Hansen <dave.hansen@intel.com>, 
-	Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, 
-	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>, 
-	David Nellans <dnellans@nvidia.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20190321194539.GY8696@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 21, 2019 at 3:36 PM Keith Busch <keith.busch@intel.com> wrote:
->
-> On Thu, Mar 21, 2019 at 02:20:51PM -0700, Zi Yan wrote:
-> > 1. The name of =E2=80=9Cpage demotion=E2=80=9D seems confusing to me, s=
-ince I thought it was about large pages
-> > demote to small pages as opposite to promoting small pages to THPs. Am =
-I the only
-> > one here?
->
-> If you have a THP, we'll skip the page migration and fall through to
-> split_huge_page_to_list(), then the smaller pages can be considered,
-> migrated and reclaimed individually. Not that we couldn't try to migrate
-> a THP directly. It was just simpler implementation for this first attempt=
-.
->
-> > 2. For the demotion path, a common case would be from high-performance =
-memory, like HBM
-> > or Multi-Channel DRAM, to DRAM, then to PMEM, and finally to disks, rig=
-ht? More general
-> > case for demotion path would be derived from the memory performance des=
-cription from HMAT[1],
-> > right? Do you have any algorithm to form such a path from HMAT?
->
-> Yes, I have a PoC for the kernel setting up a demotion path based on
-> HMAT properties here:
->
->   https://git.kernel.org/pub/scm/linux/kernel/git/kbusch/linux.git/commit=
-/?h=3Dmm-migrate&id=3D4d007659e1dd1b0dad49514348be4441fbe7cadb
->
-> The above is just from an experimental branch.
->
-> > 3. Do you have a plan for promoting pages from lower-level memory to hi=
-gher-level memory,
-> > like from PMEM to DRAM? Will this one-way demotion make all pages sink =
-to PMEM and disk?
->
-> Promoting previously demoted pages would require the application do
-> something to make that happen if you turn demotion on with this series.
-> Kernel auto-promotion is still being investigated, and it's a little
-> trickier than reclaim.
 
-Just FYI. I'm currently working on a patchset which tries to promotes
-page from second tier memory (i.e. PMEM) to DRAM via NUMA balancing.
-But, NUMA balancing can't deal with unmapped page cache, they have to
-be promoted from different path, i.e. mark_page_accessed().
 
-And, I do agree with Keith, promotion is definitely trickier than
-reclaim since kernel can't recognize "hot" pages accurately. NUMA
-balancing is still corse-grained and inaccurate, but it is simple. If
-we would like to implement more sophisticated algorithm, in-kernel
-implementation might be not a good idea.
+On 3/21/19 12:45 PM, Michal Hocko wrote:
+> On Thu 21-03-19 10:25:08, Yang Shi wrote:
+>>
+>> On 3/21/19 9:51 AM, Michal Hocko wrote:
+>>> On Thu 21-03-19 09:21:39, Yang Shi wrote:
+>>>> On 3/21/19 7:57 AM, Michal Hocko wrote:
+>>>>> On Wed 20-03-19 08:27:39, Yang Shi wrote:
+>>>>>> MPOL_MF_LAZY was added by commit b24f53a0bea3 ("mm: mempolicy: Add
+>>>>>> MPOL_MF_LAZY"), then it was disabled by commit a720094ded8c ("mm:
+>>>>>> mempolicy: Hide MPOL_NOOP and MPOL_MF_LAZY from userspace for now")
+>>>>>> right away in 2012.  So, it is never ever exported to userspace.
+>>>>>>
+>>>>>> And, it looks nobody is interested in revisiting it since it was
+>>>>>> disabled 7 years ago.  So, it sounds pointless to still keep it around.
+>>>>> The above changelog owes us a lot of explanation about why this is
+>>>>> safe and backward compatible. I am also not sure you can change
+>>>>> MPOL_MF_INTERNAL because somebody still might use the flag from
+>>>>> userspace and we want to guarantee it will have the exact same semantic.
+>>>> Since MPOL_MF_LAZY is never exported to userspace (Mel helped to confirm
+>>>> this in the other thread), so I'm supposed it should be safe and backward
+>>>> compatible to userspace.
+>>> You didn't get my point. The flag is exported to the userspace and
+>>> nothing in the syscall entry path checks and masks it. So we really have
+>>> to preserve the semantic of the flag bit for ever.
+>> Thanks, I see you point. Yes, it is exported to userspace in some sense
+>> since it is in uapi header. But, it is never documented and MPOL_MF_VALID
+>> excludes it. mbind() does check and mask it. It would return -EINVAL if
+>> MPOL_MF_LAZY or any other undefined/invalid flag is set. See the below code
+>> snippet from do_mbind():
+>>
+>> ...
+>> #define MPOL_MF_VALID    (MPOL_MF_STRICT   |     \
+>>               MPOL_MF_MOVE     |     \
+>>               MPOL_MF_MOVE_ALL)
+>>
+>> if (flags & ~(unsigned long)MPOL_MF_VALID)
+>>          return -EINVAL;
+>>
+>> So, I don't think any application would really use the flag for mbind()
+>> unless it is aimed to test the -EINVAL. If just test program, it should be
+>> not considered as a regression.
+> I have overlook that MPOL_MF_VALID doesn't include MPOL_MF_LAZY. Anyway,
+> my argument still holds that the bit has to be reserved for ever because
+> it used to be valid at some point of time and not returning EINVAL could
+> imply you are running on the kernel which supports the flag.
+
+I'd say it is not valid since very beginning. MPOL_MF_LAZY was added by 
+commit b24f53a0bea3 ("mm: mempolicy: Add
+MPOL_MF_LAZY"), then it was hidden by commit a720094ded8c ("mm:
+mempolicy: Hide MPOL_NOOP and MPOL_MF_LAZY from userspace for now"). 
+And, git describe --contains shows:
+
+US-143344MP:linux yang.s$ git describe --contains b24f53a0bea3
+v3.8-rc1~92^2~27
+US-143344MP:linux yang.s$ git describe --contains a720094ded8c
+v3.8-rc1~92^2~25
+
+This is why I thought it is never ever exported to userspace.
+
+>   
+>>>> I'm also not sure if anyone use MPOL_MF_INTERNAL or not and how they use it
+>>>> in their applications, but how about keeping it unchanged?
+>>> You really have to. Because it is an offset of other MPLO flags for
+>>> internal usage.
+>>>
+>>> That being said. Considering that we really have to preserve
+>>> MPOL_MF_LAZY value (we cannot even rename it because it is in uapi
+>>> headers and we do not want to break compilation). What is the point of
+>>> this change? Why is it an improvement? Yes, nobody is probably using
+>>> this because this is not respected in anything but the preferred mem
+>>> policy. At least that is the case from my quick glance. I might be still
+>>> wrong as it is quite easy to overlook all the consequences. So the risk
+>>> is non trivial while the benefit is not really clear to me. If you see
+>>> one, _document_ it. "Mel said it is not in use" is not a justification,
+>>> with all due respect.
+>> As I elaborated above, mbind() syscall does check it and treat it as an
+>> invalid flag. MPOL_PREFERRED doesn't use it either, but just use MPOL_F_MOF
+>> directly.
+> As Mel already pointed out. This doesn't really sound like a sound
+> argument. Say we would remove those few lines of code and preserve the
+> flag for future reservation of the flag bit. I would bet my head that it
+> will not be long before somebody just goes and clean it up and remove
+> because the flag is unused. So you would have to put a note explaining
+> why this has to be preserved. Maybe the current code is better to
+> document that. It would be much more sound to remove the code if it was
+> causing a measurable overhead or a maintenance burden. Is any of that
+> the case?
+
+As what I found out, I just thought it may be dead code, if so why not 
+remove it otherwise we may have to keep maintaining the unused code.
 
 Thanks,
 Yang
 
->
-> If it sinks to disk, though, the next access behavior is the same as
-> before, without this series.
->
-> > 4. In your patch 3, you created a new method migrate_demote_mapping() t=
-o migrate pages to
-> > other memory node, is there any problem of reusing existing migrate_pag=
-es() interface?
->
-> Yes, we may not want to migrate everything in the shrink_page_list()
-> pages. We might want to keep a page, so we have to do those checks first.=
- At
-> the point we know we want to attempt migration, the page is already
-> locked and not in a list, so it is just easier to directly invoke the
-> new __unmap_and_move_locked() that migrate_pages() eventually also calls.
->
-> > 5. In addition, you only migrate base pages, is there any performance c=
-oncern on migrating THPs?
-> > Is it too costly to migrate THPs?
->
-> It was just easier to consider single pages first, so we let a THP split
-> if possible. I'm not sure of the cost in migrating THPs directly.
 >
 
