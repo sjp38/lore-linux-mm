@@ -3,75 +3,75 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AE5ADC10F00
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 21:45:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3867BC10F00
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 21:45:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 65D7B2192B
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 21:45:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 65D7B2192B
+	by mail.kernel.org (Postfix) with ESMTP id E1FC021934
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 21:45:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E1FC021934
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E22696B0008; Thu, 21 Mar 2019 17:45:42 -0400 (EDT)
+	id 0BA5F6B000A; Thu, 21 Mar 2019 17:45:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DD3E06B000A; Thu, 21 Mar 2019 17:45:42 -0400 (EDT)
+	id F0CCF6B000C; Thu, 21 Mar 2019 17:45:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CEC156B000C; Thu, 21 Mar 2019 17:45:42 -0400 (EDT)
+	id DFA936B000D; Thu, 21 Mar 2019 17:45:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A73166B0008
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 17:45:42 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id z34so316807qtz.14
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 14:45:42 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C17586B000A
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 17:45:45 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id o135so131060qke.11
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 14:45:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=8zoApZhZWyc/zQDL8lsZCo2bpvcOvtsmY8WXGjwqfxs=;
-        b=TKrQUXEpZh7QfjUSaxsmtscQpy7A9HzncR+WceBFuVHAZSK7gO0LRzvVpULdChix6L
-         VJoD8SvF7JoyUWSgH+uLVYRiOhhQ1U11jFwUWIPT0OrTHKs5hC4b+5xryCj6H0qACJaa
-         1bz3l6tBRNUENF69aHgzvwizujpaGU3XivpClFD76ZASg2Fq2gv3708LxIp/TI12yv4Y
-         gtIhK1cDeuQjVHegAiOtEOAS8NnMK6FmM7gcpOPxeMLXSRgeyRw+k+wTiDfzzRIWEY4n
-         EfYoaZyC6hEkmv3Hcu7rqW/1p3isRuWMCBMGL+v12kOVPPR4IutFcDvB9STm5YsRG5zs
-         OP0A==
+        bh=Y4YszG8UJ+yJH47v3WLGgBXhW0qq+XiWeAF5pYJLxlk=;
+        b=ttcU/tjW2TIcXBoYBFJjgMEiQpyL4DHPMDLE0/5PXzp8jQw9xZ6HMfsKqS/qeM2Wok
+         PWi7v8QOMui42n2ZmBjBuqND6se+9lgiiudlnr7D/ojmnfcam/KT1+oGWe6TL59dmHME
+         yccryhvoxtBpGAwCr2gktscSgnFn+tyloha+853fil4N9u7A7v0QVaB9X7e+dzkgpxV4
+         uIJeaNGr1n1jR97V/Sr1V0H3aXZGgHBCUvd1Lq5mVBEbCblK0kCgkledEcfCB0dKywoY
+         QYGlK9fu6593MrQxvixZP6juOFyrMpbW5bvgSvHVS2ofwHsSc8b0dzcvenvAQ908ZKSb
+         qg1g==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAX7EOtArnqZzj+EKkI5O/rozvciFGFFrN6t3th8XtBfr0PZDCwQ
-	37mUzkr16pbvOlM0Oz8cXKo0kriuRhItk6JeAxufxeR7PiI1LBi8J+HvRC6RMee+nEQOzmO6tzH
-	BnGlH+8glFEt2hpK2wvvGOpTcivV2XzGKlkzuknD/h82e6enfbpYTnVvFDcgjuAxxIg==
-X-Received: by 2002:ac8:30a1:: with SMTP id v30mr5044957qta.176.1553204742412;
-        Thu, 21 Mar 2019 14:45:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzbrIhp6N3aqrv1cuQtei2AqDKdsSOU3XuhDFw0kch2I/Kh8sp7cvF9wD5R0sbu/bWSF8lJ
-X-Received: by 2002:ac8:30a1:: with SMTP id v30mr5044914qta.176.1553204741759;
-        Thu, 21 Mar 2019 14:45:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553204741; cv=none;
+X-Gm-Message-State: APjAAAWcUGfBy909blCfaweMr3sVfUmvp/A0L9q+IDnO0mz66jZKJS2y
+	H+hvvx7ZNQO5mJhSH1ubeO2pPpRrA2D23d/32goXAYywygIP+Dt3ujeR9UCPC3wGymfqURF9rXd
+	bzlNhrCHsmcn2pMoeSTmhDbnbEtSAotLJE9RQVWBfHsXqB9Coz/TO5MkUh91YzLSuaw==
+X-Received: by 2002:a0c:8a54:: with SMTP id 20mr5166163qvu.167.1553204745560;
+        Thu, 21 Mar 2019 14:45:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz7Ew3SsQeSmQqu9GdkfzgKJVqV5KK+3mWkLRnwiFmDcA5/8YkHIs7du8wHWmSAqACBhEFK
+X-Received: by 2002:a0c:8a54:: with SMTP id 20mr5166107qvu.167.1553204744630;
+        Thu, 21 Mar 2019 14:45:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553204744; cv=none;
         d=google.com; s=arc-20160816;
-        b=S0S63kfm9NmBN/lacqBoLn8WLrrRjrPqk0chvsahovMMrxMLYttrAyXnJBZNGnbgHS
-         lBGDYtUJONPA/H4TO9+u2v5zQS5KjOO1roKFr2Au5Qallg1D4sNWVqahNBQGOH+gvcIF
-         nZMSSDACk9wPgzQqkGca87FtU9kR0cKNZLmy6OGO9ILBy3+Ki82vxJVnvQSlEcau1KhW
-         NQLd0pIqMgMd6ui/n2Zfox7Fkk8BszHPaU3cGb8ITKGpaAfnuzXkFIDdzZcnNeH1cGiY
-         7OC/20XFATWF8+RImwS1UrG3e+OHwEJOuQ0xOVAoDgEAts+gXwENiYMyqnhaFRtwojfR
-         NyLw==
+        b=J/Vr6CECM1iXYO3Azvc64OP3G6aKlG8Lk4Kg1t1yee1qL1DNUHSD8Hsa0vXV0cQsxY
+         wJ5jiIr4IRZG8iiK3AzcZnDXWj46J+cm5wJI5EYD1aBqD9G8feRo1gRwPcHUgNTP09AL
+         g4kp+6f3+SISxFoAoD6W75hcfChdFcCd6+jdcLvXqgG3YownA+BWaqY0VmkevWGq87jc
+         IdunuUs4+r5KLnw46SKFYl5CtxyccfxagJlurXWD/aMbEDI/aK+SiBsBdgYkCJ5LTLu9
+         fZPza4+0971sJgBnYxak426+wxENkgFeoqQYfoOsLd1zEZuLXGV9eJ+PIa5lSZYaRmFz
+         Gu/w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=8zoApZhZWyc/zQDL8lsZCo2bpvcOvtsmY8WXGjwqfxs=;
-        b=PYNCjK+xNcnxMVbnt3DnBvy5U1SKBiY/iN3mqNRhWnzDM0d6ROUsNutr9XtMmlxBJg
-         NS4/RgVcAfa1BctTmYCRJ9xC+JPv8p/d2x50ALjCPPMuZ9SDJLAKYv4W+2D2t7dIwxXU
-         8kjXYfoVg14YE2Oau6Hdq1FJj1xEplIgslQqcdH6nVkT/jtczrCcLR8eO/xKglHSLo0M
-         9tu8Yi3m4bcwOL2T04WJXkCk5OLCWMK62HHd1PofvqBbl4fN7Xq8loPqbzl19zwebqtO
-         Te98zMSZdcAplev44wcZXiHnHfSqMWMNI1Xr1kRoaXqYM1rUS986J2dURc50e/0lKQvs
-         U+xQ==
+        bh=Y4YszG8UJ+yJH47v3WLGgBXhW0qq+XiWeAF5pYJLxlk=;
+        b=xGAjAJ7mvs+cqiiB1b2qC9XWvslInSeqjhTacI2C7ARZdAsHEa+e6oExhOEynY8QOs
+         V1Nfoaktk7YWlgH3aQyqE1AVoLEcpvEJS+mtAPsV8YgG65sbqYOWLNszCJT36w1NlRdo
+         R/dFfnkZ3PTZ8o/bKLanHyKKoIt7T7F/mkNLe40OTVQM6L5iquJgGFI+klRWKAePQUk3
+         /TVAbeQqWZLD2QnkCww3Z2K/fpupUgllcMhM+HsBvQ+oVorwgkc19IGS6cNcsE+I2wfJ
+         LYZ44N40eF103sS23CHPIaxmAhWfl79LwwTumSsM0+5tJZK0UlhvWNdArnMCfT5R7D17
+         bD/w==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 33si3896408qtu.222.2019.03.21.14.45.41
+        by mx.google.com with ESMTPS id j1si1257243qte.42.2019.03.21.14.45.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Mar 2019 14:45:41 -0700 (PDT)
+        Thu, 21 Mar 2019 14:45:44 -0700 (PDT)
 Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
@@ -79,11 +79,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id D480C30821A3;
-	Thu, 21 Mar 2019 21:45:40 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id BC171C00735D;
+	Thu, 21 Mar 2019 21:45:43 +0000 (UTC)
 Received: from llong.com (dhcp-17-47.bos.redhat.com [10.18.17.47])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 47A2A5C66D;
-	Thu, 21 Mar 2019 21:45:39 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 013D75C659;
+	Thu, 21 Mar 2019 21:45:40 +0000 (UTC)
 From: Waiman Long <longman@redhat.com>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Christoph Lameter <cl@linux.com>,
@@ -99,105 +99,61 @@ Cc: linux-kernel@vger.kernel.org,
 	"Peter Zijlstra (Intel)" <peterz@infradead.org>,
 	Oleg Nesterov <oleg@redhat.com>,
 	Waiman Long <longman@redhat.com>
-Subject: [PATCH 3/4] signal: Add free_uid_to_q()
-Date: Thu, 21 Mar 2019 17:45:11 -0400
-Message-Id: <20190321214512.11524-4-longman@redhat.com>
+Subject: [PATCH 4/4] mm: Do periodic rescheduling when freeing objects in kmem_free_up_q()
+Date: Thu, 21 Mar 2019 17:45:12 -0400
+Message-Id: <20190321214512.11524-5-longman@redhat.com>
 In-Reply-To: <20190321214512.11524-1-longman@redhat.com>
 References: <20190321214512.11524-1-longman@redhat.com>
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Thu, 21 Mar 2019 21:45:41 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Thu, 21 Mar 2019 21:45:43 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Add a new free_uid_to_q() function to put the user structure on
-freeing queue instead of freeing it directly. That new function is then
-called from __sigqueue_free() with a free_q parameter.
+If the freeing queue has many objects, freeing all of them consecutively
+may cause soft lockup especially on a debug kernel. So kmem_free_up_q()
+is modified to call cond_resched() if running in the process context.
 
 Signed-off-by: Waiman Long <longman@redhat.com>
 ---
- include/linux/sched/user.h |  3 +++
- kernel/signal.c            |  2 +-
- kernel/user.c              | 17 +++++++++++++----
- 3 files changed, 17 insertions(+), 5 deletions(-)
+ mm/slab_common.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/sched/user.h b/include/linux/sched/user.h
-index c7b5f86b91a1..77f28d5cb940 100644
---- a/include/linux/sched/user.h
-+++ b/include/linux/sched/user.h
-@@ -63,6 +63,9 @@ static inline struct user_struct *get_uid(struct user_struct *u)
- 	refcount_inc(&u->__count);
- 	return u;
- }
-+
-+struct kmem_free_q_head;
- extern void free_uid(struct user_struct *);
-+extern void free_uid_to_q(struct user_struct *u, struct kmem_free_q_head *q);
- 
- #endif /* _LINUX_SCHED_USER_H */
-diff --git a/kernel/signal.c b/kernel/signal.c
-index 04fb202c16bd..2ecb23b540eb 100644
---- a/kernel/signal.c
-+++ b/kernel/signal.c
-@@ -440,7 +440,7 @@ static void __sigqueue_free(struct sigqueue *q, struct kmem_free_q_head *free_q)
- 	if (q->flags & SIGQUEUE_PREALLOC)
- 		return;
- 	atomic_dec(&q->user->sigpending);
--	free_uid(q->user);
-+	free_uid_to_q(q->user, free_q);
- 	if (free_q)
- 		kmem_free_q_add(free_q, sigqueue_cachep, q);
- 	else
-diff --git a/kernel/user.c b/kernel/user.c
-index 0df9b1640b2a..d92629bae546 100644
---- a/kernel/user.c
-+++ b/kernel/user.c
-@@ -135,14 +135,18 @@ static struct user_struct *uid_hash_find(kuid_t uid, struct hlist_head *hashent)
-  * IRQ state (as stored in flags) is restored and uidhash_lock released
-  * upon function exit.
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index dba20b4208f1..633a1d0f6d20 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -1622,11 +1622,14 @@ EXPORT_SYMBOL_GPL(kmem_free_q_add);
+  * kmem_free_up_q - free all the objects in the freeing queue
+  * @head: freeing queue head
+  *
+- * Free all the objects in the freeing queue.
++ * Free all the objects in the freeing queue. The caller cannot hold any
++ * non-sleeping locks.
   */
--static void free_user(struct user_struct *up, unsigned long flags)
-+static void free_user(struct user_struct *up, unsigned long flags,
-+		      struct kmem_free_q_head *free_q)
- 	__releases(&uidhash_lock)
+ void kmem_free_up_q(struct kmem_free_q_head *head)
  {
- 	uid_hash_remove(up);
- 	spin_unlock_irqrestore(&uidhash_lock, flags);
- 	key_put(up->uid_keyring);
- 	key_put(up->session_keyring);
--	kmem_cache_free(uid_cachep, up);
-+	if (free_q)
-+		kmem_free_q_add(free_q, uid_cachep, up);
-+	else
-+		kmem_cache_free(uid_cachep, up);
+ 	struct kmem_free_q_node *node, *next;
++	bool do_resched = !in_irq();
++	int cnt = 0;
+ 
+ 	for (node = head->first; node; node = next) {
+ 		next = node->next;
+@@ -1634,6 +1637,12 @@ void kmem_free_up_q(struct kmem_free_q_head *head)
+ 			kmem_cache_free(node->cachep, node);
+ 		else
+ 			kfree(node);
++		/*
++		 * Call cond_resched() every 256 objects freed when in
++		 * process context.
++		 */
++		if (do_resched && !(++cnt & 0xff))
++			cond_resched();
+ 	}
  }
- 
- /*
-@@ -162,7 +166,7 @@ struct user_struct *find_user(kuid_t uid)
- 	return ret;
- }
- 
--void free_uid(struct user_struct *up)
-+void free_uid_to_q(struct user_struct *up, struct kmem_free_q_head *free_q)
- {
- 	unsigned long flags;
- 
-@@ -170,7 +174,12 @@ void free_uid(struct user_struct *up)
- 		return;
- 
- 	if (refcount_dec_and_lock_irqsave(&up->__count, &uidhash_lock, &flags))
--		free_user(up, flags);
-+		free_user(up, flags, free_q);
-+}
-+
-+void free_uid(struct user_struct *up)
-+{
-+	free_uid_to_q(up, NULL);
- }
- 
- struct user_struct *alloc_uid(kuid_t uid)
+ EXPORT_SYMBOL_GPL(kmem_free_up_q);
 -- 
 2.18.1
 
