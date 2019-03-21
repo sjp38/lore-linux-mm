@@ -6,69 +6,69 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B9F02C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 20:03:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 48F4DC4360F
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 20:03:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 75810218B0
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 20:03:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 75810218B0
+	by mail.kernel.org (Postfix) with ESMTP id 08F5B2175B
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 20:03:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 08F5B2175B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 833D86B0006; Thu, 21 Mar 2019 16:02:59 -0400 (EDT)
+	id 490F16B000D; Thu, 21 Mar 2019 16:03:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7BBFE6B0007; Thu, 21 Mar 2019 16:02:59 -0400 (EDT)
+	id 32AF36B0010; Thu, 21 Mar 2019 16:03:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 60D066B0008; Thu, 21 Mar 2019 16:02:59 -0400 (EDT)
+	id F38796B000D; Thu, 21 Mar 2019 16:03:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2653C6B0006
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 16:02:59 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id h69so1011305pfd.21
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 13:02:59 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B7FCF6B0007
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 16:03:00 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id z14so1763845pgv.0
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 13:03:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=ZXflYn009/8re0hSvilHhjOsKnJ5N944EbzSGROrxW8=;
-        b=XSVJ7LFUKYA/yWGO5bWWZYRyKej3dmSsHN1haKTbbjpU3BcgefJbn9pQ2udl5XzZ+l
-         10IVmAqWC0tks0xXm8Nf93A2qRxlQqnhkp6YxXJUNRREFoaL8z2BB8kZMP/DJLPUICLT
-         GTplQZOGPhB/q5nxle2zkP0YvMhRKlOSxMukGpJY3oH2RZZ+Fa0g1hi2xn5KpsjqmZZi
-         g6v53ZWMODwmQlI8PIp5VO79zN2k3gqtbqrJqtP+xXsG2MWO6cwiQCRJK+mWH6ZGmBhI
-         Eutqs+/k13fD2Y9EH4+v+hBA6WQd3fjaw7UoT83pxci/s1LHUULBYmVsm0rCLR4BieJa
-         3uUA==
+        bh=gmhbQpGGOf5KS7QcODtDEeapu1XYScq6rBODur+OmoM=;
+        b=uUMs2B4/cDoby+ZupTROjDhUDFXuP8vISOZM/t+NIT33NEWvxWXBGneN56BYHuwkVG
+         zTuvpLHsPDIDojsdLTu82epwtyjPaxxhc7e4g1PQhiU6x7to7q3dD+qPdwdAppcf5sBR
+         m53TqksLg1PzkokniwPI9qDcQakMNFx1IGsB4zTwSISuGK4VLhRkmGkJffKDSFlXAyQa
+         jIQ1izM9/vvQ297liQF3IAJswHN9/4qTn41RlIjvurP6/7JwSgYINIBccl1x/LnNyTlO
+         zx/Wm1lrgSTjfJFZA1ylPBhV/fUl19+dlfjjsqNTXS6Z8dxvtSjHjNhKkZqDBz63m6YL
+         vGJg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXv3hdko6JLVZ+j+W/bZpLoRWGl9xsE3gZzTF8YeNu/x/rfWIFs
-	bmC5YLmLcovkQDFsNTF7f0PI0C3hzxZqrE/HCwU83TAXKBSNzSHU9k/y9WmZQxGc0CmHBAnULT4
-	YHLj25AZSkJJFKBO8gWsRRjqBHCxPxrpfHGSAd/Rlv+sr9MBJ5cgb4dVfI5oMhJcjBQ==
-X-Received: by 2002:a17:902:848e:: with SMTP id c14mr5398989plo.339.1553198578677;
-        Thu, 21 Mar 2019 13:02:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzPTkoq4Hw5/6XvqxuGt43MX/ISDDB/hFtQ3QTTgWMOHj8vYISeE1IiDSBBt7e+WzC00Ms0
-X-Received: by 2002:a17:902:848e:: with SMTP id c14mr5398857plo.339.1553198577161;
+X-Gm-Message-State: APjAAAWJk5jvybW/hMA90IbwLqSdfDOixQGJ/0r/B7oZFuOayJQwN2jI
+	wQm9nCTXDDyEX2zJk+dL+uGroNg0C4HMysj1QeUehEhqDlKtU57hqKmWshN2zcE+FYYitclr2+s
+	34vwUG+pLbvIKy5nmma2ZwGCZstUOcrgCUGImmO7Gg7BbYRMsvFdwN0bJbXq5dBlZ+g==
+X-Received: by 2002:a17:902:d24:: with SMTP id 33mr5392012plu.246.1553198579227;
+        Thu, 21 Mar 2019 13:02:59 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzKFAI6GsuS1bcrFFlzrrHgG0GxEGUUf462weOn1rqOA0FWnFN3Hi2u2E1uGgnvpyAdCHO4
+X-Received: by 2002:a17:902:d24:: with SMTP id 33mr5391885plu.246.1553198577720;
         Thu, 21 Mar 2019 13:02:57 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1553198577; cv=none;
         d=google.com; s=arc-20160816;
-        b=U9WasszvzveInC8tWnM4aNxXC16PQSPbvoEVMm5HUMqGLEPAvR6fQTTQMr5FLN9Tsu
-         /Jj2Tz/ufaQBcf1OWS1yFxeXw9pEiInhN7yemKMsrqY9rZelOFb4k1vFm2MjxVImVIQE
-         pKPerpjKGhCsC5txgV1ym5cOlZGnpuFkoKeY6mHK1K970PexZrZZ2qBhNM0S4DYp9Io6
-         DzgmiNuxSNq7GNbL8r4zkDfC9EKYx0uVgwYHrtkDeZUTONIdrXPtHryM7PuAscUhIf3j
-         oTL5037eM2EpCnRZmKUsUAPVuWz+d3t8bFn9YKeZFgbgd2mt8KKCwZcJGwyffDVmHRJO
-         DUXw==
+        b=09p6GImtIgYGv/1iR1saT1px6IAtQe06LxkUcmsf9ARibOn6+QaSWhBWTvxUsByfL8
+         CshdkGSkVwn+p8By8cZaniGK4pewj3JvZPibtVKINPdAhQrGUsLJHAg+RQKGOnDQ/n+r
+         5y6xbI3T7zRrQD7UGU7c+zV8BlPm/pg22nIKpYGmcw2mAr9j8NI8/iQ8zbvuKOWi2ULR
+         MQCS+tBUA6Y+7MLP4B13iRyKgrlZIGOJZEGDUoidvBIAW/P6AvDGICCX7zuqgF+p7ZON
+         ZRo3lQFTKFrED8E6YEG0V8oQ06ioeIj3uirinrS60qUBkjIHA8AK5GZaA+v9nzsEFz96
+         OwLQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=ZXflYn009/8re0hSvilHhjOsKnJ5N944EbzSGROrxW8=;
-        b=zZDdSLi35a3M/pAK0S89ua2foos9naayPSrEy1ceNp+xosaFQ/45RKXR5Z3OPDd+MO
-         6h0ceKhhbXI3MaxonFFZJ0v1c40eiysBJfrMGWBCKWGQEAZKbJ7mGD1Br2csEyR4J2C3
-         in3Hn4xLsPeO5eu3/21VwMnzl7K8uifnWuB7BQR/VGTQewu/GLE+VJ0w4bLkI3L4Va36
-         +u5maIS/uF7x7kQiyRcKAhzLSjhpatKfa1dFjWUY6Zu0rKfALFE4gMSDVQnZmAaHobHQ
-         TME8WbSzGp7CsR7ZbRC6U3gR5sOqWugEK8bVP1uQ/gvG2aAhGP8gUG/wt0IkkYu23zml
-         lxtg==
+        bh=gmhbQpGGOf5KS7QcODtDEeapu1XYScq6rBODur+OmoM=;
+        b=XO8y8SYIK9G61HKMGNSpcNnYk1vGL3qAHs/ik8aBL7V8vjXUQRi94ZtybgAWAxRTOC
+         AYN1MM3j9t1va/5GUd58ukWj3LXaCulz5RBptOv5MvjAGts7UIFq2/hgMSzFdMc1KlXy
+         8DMx7LYM3P2mWZhKOFvXeoMKVEqcBVxZgjvNGJe7fvkCdtueSpiQktj9ZLrkZPx6Ig4f
+         o1BmRk3qFy3CUGXgaavWqL5MC/Vxk0qVAYUeRScfv0ERkGiMItomyhHZVhOfv5Wp4qt+
+         C61u3icyF58WnZb9X891nOaqlLWUPp47VinkecHncXMffPythVQsSy2v4G1GLrB4hPOT
+         4tpQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id r25si4703408pfd.91.2019.03.21.13.02.56
+        by mx.google.com with ESMTPS id r25si4703408pfd.91.2019.03.21.13.02.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 21 Mar 2019 13:02:57 -0700 (PDT)
@@ -79,10 +79,10 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga005.jf.intel.com ([10.7.209.41])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 21 Mar 2019 13:02:56 -0700
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 21 Mar 2019 13:02:57 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,254,1549958400"; 
-   d="scan'208";a="309246233"
+   d="scan'208";a="309246237"
 Received: from unknown (HELO localhost.lm.intel.com) ([10.232.112.69])
   by orsmga005.jf.intel.com with ESMTP; 21 Mar 2019 13:02:56 -0700
 From: Keith Busch <keith.busch@intel.com>
@@ -92,9 +92,9 @@ To: linux-kernel@vger.kernel.org,
 Cc: Dave Hansen <dave.hansen@intel.com>,
 	Dan Williams <dan.j.williams@intel.com>,
 	Keith Busch <keith.busch@intel.com>
-Subject: [PATCH 1/5] node: Define and export memory migration path
-Date: Thu, 21 Mar 2019 14:01:53 -0600
-Message-Id: <20190321200157.29678-2-keith.busch@intel.com>
+Subject: [PATCH 2/5] mm: Split handling old page for migration
+Date: Thu, 21 Mar 2019 14:01:54 -0600
+Message-Id: <20190321200157.29678-3-keith.busch@intel.com>
 X-Mailer: git-send-email 2.13.6
 In-Reply-To: <20190321200157.29678-1-keith.busch@intel.com>
 References: <20190321200157.29678-1-keith.busch@intel.com>
@@ -104,168 +104,191 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Prepare for the kernel to auto-migrate pages to other memory nodes with a
-user defined node migration table. A user may create a single target for
-each NUMA node to enable the kernel to do NUMA page migrations instead
-of simply reclaiming colder pages. A node with no target is a "terminal
-node", so reclaim acts normally there.  The migration target does not
-fundamentally _need_ to be a single node, but this implementation starts
-there to limit complexity.
+Refactor unmap_and_move() handling for the new page into a separate
+function from locking and preparing the old page.
 
-If you consider the migration path as a graph, cycles (loops) in the graph
-are disallowed.  This avoids wasting resources by constantly migrating
-(A->B, B->A, A->B ...).  The expectation is that cycles will never be
-allowed.
+No functional change here: this is just making it easier to reuse this
+part of the page migration from contexts that already locked the old page.
 
 Signed-off-by: Keith Busch <keith.busch@intel.com>
 ---
- Documentation/ABI/stable/sysfs-devices-node | 11 ++++-
- drivers/base/node.c                         | 73 +++++++++++++++++++++++++++++
- include/linux/node.h                        |  6 +++
- 3 files changed, 89 insertions(+), 1 deletion(-)
+ mm/migrate.c | 115 +++++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 61 insertions(+), 54 deletions(-)
 
-diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
-index 3e90e1f3bf0a..7439e1845e5d 100644
---- a/Documentation/ABI/stable/sysfs-devices-node
-+++ b/Documentation/ABI/stable/sysfs-devices-node
-@@ -90,4 +90,13 @@ Date:		December 2009
- Contact:	Lee Schermerhorn <lee.schermerhorn@hp.com>
- Description:
- 		The node's huge page size control/query attributes.
--		See Documentation/admin-guide/mm/hugetlbpage.rst
-\ No newline at end of file
-+		See Documentation/admin-guide/mm/hugetlbpage.rst
-+
-+What:		/sys/devices/system/node/nodeX/migration_path
-+Data		March 2019
-+Contact:	Linux Memory Management list <linux-mm@kvack.org>
-+Description:
-+		Defines which node the kernel should attempt to migrate this
-+		node's pages to when this node requires memory reclaim. A
-+		negative value means this is a terminal node and memory can not
-+		be reclaimed through kernel managed migration.
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 86d6cd92ce3d..20a90905555f 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -59,6 +59,10 @@ static inline ssize_t node_read_cpulist(struct device *dev,
- static DEVICE_ATTR(cpumap,  S_IRUGO, node_read_cpumask, NULL);
- static DEVICE_ATTR(cpulist, S_IRUGO, node_read_cpulist, NULL);
- 
-+#define TERMINAL_NODE -1
-+static int node_migration[MAX_NUMNODES] = {[0 ...  MAX_NUMNODES - 1] = TERMINAL_NODE};
-+static DEFINE_SPINLOCK(node_migration_lock);
-+
- #define K(x) ((x) << (PAGE_SHIFT - 10))
- static ssize_t node_read_meminfo(struct device *dev,
- 			struct device_attribute *attr, char *buf)
-@@ -233,6 +237,74 @@ static ssize_t node_read_distance(struct device *dev,
- }
- static DEVICE_ATTR(distance, S_IRUGO, node_read_distance, NULL);
- 
-+static ssize_t migration_path_show(struct device *dev,
-+				   struct device_attribute *attr,
-+				   char *buf)
-+{
-+	return sprintf(buf, "%d\n", node_migration[dev->id]);
-+}
-+
-+static ssize_t migration_path_store(struct device *dev,
-+				    struct device_attribute *attr,
-+				    const char *buf, size_t count)
-+{
-+	int i, err, nid = dev->id;
-+	nodemask_t visited = NODE_MASK_NONE;
-+	long next;
-+
-+	err = kstrtol(buf, 0, &next);
-+	if (err)
-+		return -EINVAL;
-+
-+	if (next < 0) {
-+		spin_lock(&node_migration_lock);
-+		WRITE_ONCE(node_migration[nid], TERMINAL_NODE);
-+		spin_unlock(&node_migration_lock);
-+		return count;
-+	}
-+	if (next > MAX_NUMNODES || !node_online(next))
-+		return -EINVAL;
-+
-+	/*
-+	 * Follow the entire migration path from 'nid' through the point where
-+	 * we hit a TERMINAL_NODE.
-+	 *
-+	 * Don't allow looped migration cycles in the path.
-+	 */
-+	node_set(nid, visited);
-+	spin_lock(&node_migration_lock);
-+	for (i = next; node_migration[i] != TERMINAL_NODE;
-+	     i = node_migration[i]) {
-+		/* Fail if we have visited this node already */
-+		if (node_test_and_set(i, visited)) {
-+			spin_unlock(&node_migration_lock);
-+			return -EINVAL;
-+		}
-+	}
-+	WRITE_ONCE(node_migration[nid], next);
-+	spin_unlock(&node_migration_lock);
-+
-+	return count;
-+}
-+static DEVICE_ATTR_RW(migration_path);
-+
-+/**
-+ * next_migration_node() - Get the next node in the migration path
-+ * @current_node: The starting node to lookup the next node
-+ *
-+ * @returns: node id for next memory node in the migration path hierarchy from
-+ * 	     @current_node; -1 if @current_node is terminal or its migration
-+ * 	     node is not online.
-+ */
-+int next_migration_node(int current_node)
-+{
-+	int nid = READ_ONCE(node_migration[current_node]);
-+
-+	if (nid >= 0 && node_online(nid))
-+		return nid;
-+	return TERMINAL_NODE;
-+}
-+
- static struct attribute *node_dev_attrs[] = {
- 	&dev_attr_cpumap.attr,
- 	&dev_attr_cpulist.attr,
-@@ -240,6 +312,7 @@ static struct attribute *node_dev_attrs[] = {
- 	&dev_attr_numastat.attr,
- 	&dev_attr_distance.attr,
- 	&dev_attr_vmstat.attr,
-+	&dev_attr_migration_path.attr,
- 	NULL
- };
- ATTRIBUTE_GROUPS(node_dev);
-diff --git a/include/linux/node.h b/include/linux/node.h
-index 257bb3d6d014..af46c7a8b94f 100644
---- a/include/linux/node.h
-+++ b/include/linux/node.h
-@@ -67,6 +67,7 @@ static inline int register_one_node(int nid)
- 	return error;
+diff --git a/mm/migrate.c b/mm/migrate.c
+index ac6f4939bb59..705b320d4b35 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1000,57 +1000,14 @@ static int move_to_new_page(struct page *newpage, struct page *page,
+ 	return rc;
  }
  
-+extern int next_migration_node(int current_node);
- extern void unregister_one_node(int nid);
- extern int register_cpu_under_node(unsigned int cpu, unsigned int nid);
- extern int unregister_cpu_under_node(unsigned int cpu, unsigned int nid);
-@@ -115,6 +116,11 @@ static inline void register_hugetlbfs_with_node(node_registration_func_t reg,
- 						node_registration_func_t unreg)
+-static int __unmap_and_move(struct page *page, struct page *newpage,
+-				int force, enum migrate_mode mode)
++static int __unmap_and_move_locked(struct page *page, struct page *newpage,
++				   enum migrate_mode mode)
  {
- }
-+
-+static inline int next_migration_node(int current_node)
-+{
-+	return -1;
-+}
- #endif
+ 	int rc = -EAGAIN;
+ 	int page_was_mapped = 0;
+ 	struct anon_vma *anon_vma = NULL;
+ 	bool is_lru = !__PageMovable(page);
  
- #define to_node(device) container_of(device, struct node, dev)
+-	if (!trylock_page(page)) {
+-		if (!force || mode == MIGRATE_ASYNC)
+-			goto out;
+-
+-		/*
+-		 * It's not safe for direct compaction to call lock_page.
+-		 * For example, during page readahead pages are added locked
+-		 * to the LRU. Later, when the IO completes the pages are
+-		 * marked uptodate and unlocked. However, the queueing
+-		 * could be merging multiple pages for one bio (e.g.
+-		 * mpage_readpages). If an allocation happens for the
+-		 * second or third page, the process can end up locking
+-		 * the same page twice and deadlocking. Rather than
+-		 * trying to be clever about what pages can be locked,
+-		 * avoid the use of lock_page for direct compaction
+-		 * altogether.
+-		 */
+-		if (current->flags & PF_MEMALLOC)
+-			goto out;
+-
+-		lock_page(page);
+-	}
+-
+-	if (PageWriteback(page)) {
+-		/*
+-		 * Only in the case of a full synchronous migration is it
+-		 * necessary to wait for PageWriteback. In the async case,
+-		 * the retry loop is too short and in the sync-light case,
+-		 * the overhead of stalling is too much
+-		 */
+-		switch (mode) {
+-		case MIGRATE_SYNC:
+-		case MIGRATE_SYNC_NO_COPY:
+-			break;
+-		default:
+-			rc = -EBUSY;
+-			goto out_unlock;
+-		}
+-		if (!force)
+-			goto out_unlock;
+-		wait_on_page_writeback(page);
+-	}
+-
+ 	/*
+ 	 * By try_to_unmap(), page->mapcount goes down to 0 here. In this case,
+ 	 * we cannot notice that anon_vma is freed while we migrates a page.
+@@ -1077,11 +1034,11 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+ 	 * This is much like races on refcount of oldpage: just don't BUG().
+ 	 */
+ 	if (unlikely(!trylock_page(newpage)))
+-		goto out_unlock;
++		goto out;
+ 
+ 	if (unlikely(!is_lru)) {
+ 		rc = move_to_new_page(newpage, page, mode);
+-		goto out_unlock_both;
++		goto out_unlock;
+ 	}
+ 
+ 	/*
+@@ -1100,7 +1057,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+ 		VM_BUG_ON_PAGE(PageAnon(page), page);
+ 		if (page_has_private(page)) {
+ 			try_to_free_buffers(page);
+-			goto out_unlock_both;
++			goto out_unlock;
+ 		}
+ 	} else if (page_mapped(page)) {
+ 		/* Establish migration ptes */
+@@ -1110,22 +1067,19 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+ 			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
+ 		page_was_mapped = 1;
+ 	}
+-
+ 	if (!page_mapped(page))
+ 		rc = move_to_new_page(newpage, page, mode);
+ 
+ 	if (page_was_mapped)
+ 		remove_migration_ptes(page,
+ 			rc == MIGRATEPAGE_SUCCESS ? newpage : page, false);
+-
+-out_unlock_both:
+-	unlock_page(newpage);
+ out_unlock:
++	unlock_page(newpage);
+ 	/* Drop an anon_vma reference if we took one */
++out:
+ 	if (anon_vma)
+ 		put_anon_vma(anon_vma);
+-	unlock_page(page);
+-out:
++
+ 	/*
+ 	 * If migration is successful, decrease refcount of the newpage
+ 	 * which will not free the page because new page owner increased
+@@ -1141,7 +1095,60 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+ 		else
+ 			putback_lru_page(newpage);
+ 	}
++	return rc;
++}
++
++static int __unmap_and_move(struct page *page, struct page *newpage,
++				int force, enum migrate_mode mode)
++{
++	int rc = -EAGAIN;
++
++	if (!trylock_page(page)) {
++		if (!force || mode == MIGRATE_ASYNC)
++			goto out;
++
++		/*
++		 * It's not safe for direct compaction to call lock_page.
++		 * For example, during page readahead pages are added locked
++		 * to the LRU. Later, when the IO completes the pages are
++		 * marked uptodate and unlocked. However, the queueing
++		 * could be merging multiple pages for one bio (e.g.
++		 * mpage_readpages). If an allocation happens for the
++		 * second or third page, the process can end up locking
++		 * the same page twice and deadlocking. Rather than
++		 * trying to be clever about what pages can be locked,
++		 * avoid the use of lock_page for direct compaction
++		 * altogether.
++		 */
++		if (current->flags & PF_MEMALLOC)
++			goto out;
++
++		lock_page(page);
++	}
+ 
++	if (PageWriteback(page)) {
++		/*
++		 * Only in the case of a full synchronous migration is it
++		 * necessary to wait for PageWriteback. In the async case,
++		 * the retry loop is too short and in the sync-light case,
++		 * the overhead of stalling is too much
++		 */
++		switch (mode) {
++		case MIGRATE_SYNC:
++		case MIGRATE_SYNC_NO_COPY:
++			break;
++		default:
++			rc = -EBUSY;
++			goto out_unlock;
++		}
++		if (!force)
++			goto out_unlock;
++		wait_on_page_writeback(page);
++	}
++	rc = __unmap_and_move_locked(page, newpage, mode);
++out_unlock:
++	unlock_page(page);
++out:
+ 	return rc;
+ }
+ 
 -- 
 2.14.4
 
