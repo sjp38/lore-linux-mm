@@ -2,76 +2,77 @@ Return-Path: <SRS0=0MJS=RY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
+	UNWANTED_LANGUAGE_BODY,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 14B71C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 20:03:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1AE7BC4360F
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 20:03:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C8A892175B
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 20:03:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C8A892175B
+	by mail.kernel.org (Postfix) with ESMTP id DA8212175B
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 20:03:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DA8212175B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E7E736B0010; Thu, 21 Mar 2019 16:03:01 -0400 (EDT)
+	id 1969D6B0008; Thu, 21 Mar 2019 16:03:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C9ECE6B0008; Thu, 21 Mar 2019 16:03:01 -0400 (EDT)
+	id E7A766B0007; Thu, 21 Mar 2019 16:03:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 76EF56B0008; Thu, 21 Mar 2019 16:03:01 -0400 (EDT)
+	id AA12C6B000C; Thu, 21 Mar 2019 16:03:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C26CC6B0008
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 16:03:00 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id j10so6477341pff.5
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 080136B0007
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 16:03:01 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id v3so6452858pgk.9
         for <linux-mm@kvack.org>; Thu, 21 Mar 2019 13:03:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=Of1nlBcwSQDxF7g8uZVRddiVCwLGPv/XHyS3dYVKxIk=;
-        b=SuNvraQra0owJG8q8S5mHH9W0eBJKHhM52XPTfOGN7CRxoc8tSgpeVQBKGWszNgajT
-         RooL97dSVVNErm83vLPhmnkG05dkumAD/5SmmwHbom7mLsoNbd6Yk+0IhdGOzj5xDn25
-         C8DuOOWxzsE7D6DWnOf5o0dTkPPli3DwOSTbxQQJpAjWitSLf/P0TYoflEkumcEG2E/L
-         R4r1tQ9eifIGVccUMjRxbvIOim9ACrx85Vx8BJXDl1z51j39yc4dEeapY6suv5Uid9a1
-         DPDAwYYnvZclZl1y3GUHRYMChFS9vvf63CL6wZFMVc/bXFiU1xndi9bTjIoMke0rLzik
-         rMXw==
+        bh=+jDHrInzqAkEuroi35KDeQz8ygOnozOul64UgglecQs=;
+        b=p2q4hVJCPG27gIBmTUQGvU0hdXzDKDewmAPvcrav+JXWMk1gCx6L9AyU5QbgBDSaCm
+         CPJZuEE3xUsswDpCZfb0fjMuP6l/ShHZ6rcF6keUYO1TKpHqwJFKxKecj+37XPZyazrV
+         s9DpVJIS65zKPQI8JyycSQLF5eSn/EFt1TPWD0oDKvCbVvS0/YtKq/D+60dxGeIFHrci
+         mPb2kZ2Ipq9cm2fBkrPFNSOXHJTpgwqEygbcuUxjEZcFz6ueqUMQMh+Y9v0k2pLUblZM
+         PBgeavVv5CshhiBv2/PPdXMnpRKjHy5W97AA7x0DtjiTZy2kcNFdbehwfhgpw9XseK/x
+         Gahw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUYBdcfG6nmvZHw/+V8j/RuDAWTO4Ude3fZa/3942P1tj9nCmM9
-	5CPcx0U71jWC1PY8F4HgifvqPlRGO39nFx6BkLbFAWonwD2FdZVY/6Tr0MWB+6dp6d3s2TGhMv4
-	UCaRF/s6s9RqhmosmRbbZnfWg/eK3+g6XqVV7hCsD3PC+fs4yQKTf9QGqu7yPEfbkAg==
-X-Received: by 2002:a17:902:2ac3:: with SMTP id j61mr5428506plb.112.1553198579531;
+X-Gm-Message-State: APjAAAXg2lh2aqYp/V2Q2XwZDL+3JF00ptdg8naOU5/+3M/Htvu8fwkx
+	qWjTArJY0rzy1AYX3koHiQTqDS8HB1YIARsU+cjZ9zNcmm1FIwyJs6vHEZNEMktdPW2Djw642GY
+	Jy4Ug1WxcKyqsTLSpI9dv/4bZuaWrq2QQaUgpvmxqSo9Gh7+MTNzTU5g82IwkjelIwg==
+X-Received: by 2002:a62:1249:: with SMTP id a70mr5181240pfj.160.1553198580640;
+        Thu, 21 Mar 2019 13:03:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzbduOdmCnUo3PAoxsUYOXWXOclHVugZFMyTW+e2YndqO4EtuI0N642gfwyQlUIdPcVKRB5
+X-Received: by 2002:a62:1249:: with SMTP id a70mr5181182pfj.160.1553198579844;
         Thu, 21 Mar 2019 13:02:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzQDNvH7MvJHTuqBpSSF+VOMaS2qWW9zFO8AzwmGHwY4zosZpBRaUQI6mA/o6C33bsIKFoo
-X-Received: by 2002:a17:902:2ac3:: with SMTP id j61mr5428431plb.112.1553198578451;
-        Thu, 21 Mar 2019 13:02:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553198578; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1553198579; cv=none;
         d=google.com; s=arc-20160816;
-        b=wQbxBlac9FO7qBnAnP1YqLKHbL7yz/D7N1XeDG0O3hHDedJB9gZUtGE8I/YbFDBqlz
-         e/T2VaPxl0dgsospVZoJbBAg2EV3/yMKNQ8kOvG8VgA90zHTAq1REyjN8HffjlnbbjSE
-         4k/cUcIsWC0hbXoEZMYRPiCYqoKKWY/NGfFSdZgIYeqDEo+oQPcJPquiNeZmV+iBOmP4
-         vdQ0NkxHKDpRntu+V5J8E8sste27Ic8SP9X8yWQDKLeit5aRW1ipTuVWptr7Pp6TcuQB
-         jkWrEUySZiIpUmwYhGECYsrUKWWLqAJrHtKoSPkvGEGC4rsIkfGWAcGyQMef2mL4j0Lk
-         ysJw==
+        b=lROQEgeN/C/Td0VpFG7iHWDDOyL29F8BHshBy51ULpEX8uOZbPXIKjJe5Zghjoqiwj
+         Q4Qzdn0Adf6VxdCrfMhehBNAQcFxFZV9WI9Ui3TF4bBIHz0I0H5stQk2V3r2x6NI60Wl
+         I85YM8d+hotshRiDLKed1vdqI8JqWikE0a4G2wz2HRT+Nrl4PAhDWCNRooMhSsatlSvG
+         5p3hXjZs1E9rKKgMZj/tfsXFRecVA2dr98xavGlUtjPcs9Dvj2fvgij6WItHO/GGkYEZ
+         oWN66AG6/JmtZKQj26rJRf/ZlURp9xLKYMS/+Wa5SFu6L24xFk3SdWJHXTBd8q4w6aPe
+         pfmQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=Of1nlBcwSQDxF7g8uZVRddiVCwLGPv/XHyS3dYVKxIk=;
-        b=xQsz6Ny9zefVdsafmssWBn3z6FPJ25huUp/rjqxenwssYwB9Pkynf46jl76N1fITzp
-         Ag5XXyydHgWmjQVcLw1kK5pQ4HGTBAxaPtFsIchVrO9wFVzdwWc5wEyQlswPuU6cftPa
-         5hKaahwGxun4mToV6ohpOsTgyxWPwD6Uza+gESmYUgUH1EWtZ6n3ohKKzmrtFNwFU23f
-         PbSbrepNi7rZAA6rYW+pwtVlmq1janq0UjT9nERVNM5aLy0jIfxPR5YlOAMR/jYqQ0yn
-         sIVJZYQ1jQos0UwoAdDTU42Pfy7ZUlcVFyovQVUxjAfU1a84dABqnGQJjYkWsgecpKif
-         wy1w==
+        bh=+jDHrInzqAkEuroi35KDeQz8ygOnozOul64UgglecQs=;
+        b=pi7RT5Itc5tVRikvs0zw0l4MpG9GjgQAlBIreAoky62Ugx+RKbF/f8PygOLZTYD9oS
+         2rFv/KhfDWJx9fNBC0HixvczVHZmvLtKR2sc9wnm/5+4T5va8YQExjt+YlnqY3177buW
+         zQhLh8422wF6jX1rrHZX1wi9J4e3AnxEGQRBL9W2V6bghrRmAvl65XFWhgIXdErIiQlj
+         GM66386duAKUwR0xECOkEjW7Pc1jOvsuwiHzTETHGCWJjtr2ZTxJeF6AhHC6l1elVHSs
+         0M35AoiOM+TS2ncfHKA80uMidXyqcV0RBvOpXo12dij3QCKUFfzM8Jpwbg2cGYQRm+yL
+         IkXQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id r25si4703408pfd.91.2019.03.21.13.02.58
+        by mx.google.com with ESMTPS id r25si4703408pfd.91.2019.03.21.13.02.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Mar 2019 13:02:58 -0700 (PDT)
+        Thu, 21 Mar 2019 13:02:59 -0700 (PDT)
 Received-SPF: pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
@@ -79,12 +80,12 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga005.jf.intel.com ([10.7.209.41])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 21 Mar 2019 13:02:57 -0700
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 21 Mar 2019 13:02:59 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,254,1549958400"; 
-   d="scan'208";a="309246241"
+   d="scan'208";a="309246248"
 Received: from unknown (HELO localhost.lm.intel.com) ([10.232.112.69])
-  by orsmga005.jf.intel.com with ESMTP; 21 Mar 2019 13:02:57 -0700
+  by orsmga005.jf.intel.com with ESMTP; 21 Mar 2019 13:02:58 -0700
 From: Keith Busch <keith.busch@intel.com>
 To: linux-kernel@vger.kernel.org,
 	linux-mm@kvack.org,
@@ -92,9 +93,9 @@ To: linux-kernel@vger.kernel.org,
 Cc: Dave Hansen <dave.hansen@intel.com>,
 	Dan Williams <dan.j.williams@intel.com>,
 	Keith Busch <keith.busch@intel.com>
-Subject: [PATCH 3/5] mm: Attempt to migrate page in lieu of discard
-Date: Thu, 21 Mar 2019 14:01:55 -0600
-Message-Id: <20190321200157.29678-4-keith.busch@intel.com>
+Subject: [PATCH 5/5] mm/migrate: Add page movement trace event
+Date: Thu, 21 Mar 2019 14:01:57 -0600
+Message-Id: <20190321200157.29678-6-keith.busch@intel.com>
 X-Mailer: git-send-email 2.13.6
 In-Reply-To: <20190321200157.29678-1-keith.busch@intel.com>
 References: <20190321200157.29678-1-keith.busch@intel.com>
@@ -104,168 +105,71 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-If a memory node has a preferred migration path to demote cold pages,
-attempt to move those inactive pages to that migration node before
-reclaiming. This will better utilize available memory, provide a faster
-tier than swapping or discarding, and allow such pages to be reused
-immediately without IO to retrieve the data.
-
-Some places we would like to see this used:
-
- 1. Persistent memory being as a slower, cheaper DRAM replacement
- 2. Remote memory-only "expansion" NUMA nodes
- 3. Resolving memory imbalances where one NUMA node is seeing more
-    allocation activity than another.  This helps keep more recent
-    allocations closer to the CPUs on the node doing the allocating.
+Trace the source and destination node of a page migration to help debug
+memory usage.
 
 Signed-off-by: Keith Busch <keith.busch@intel.com>
 ---
- include/linux/migrate.h        |  6 ++++++
- include/trace/events/migrate.h |  3 ++-
- mm/debug.c                     |  1 +
- mm/migrate.c                   | 45 ++++++++++++++++++++++++++++++++++++++++++
- mm/vmscan.c                    | 15 ++++++++++++++
- 5 files changed, 69 insertions(+), 1 deletion(-)
+ include/trace/events/migrate.h | 26 ++++++++++++++++++++++++++
+ mm/migrate.c                   |  1 +
+ 2 files changed, 27 insertions(+)
 
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index e13d9bf2f9a5..a004cb1b2dbb 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -25,6 +25,7 @@ enum migrate_reason {
- 	MR_MEMPOLICY_MBIND,
- 	MR_NUMA_MISPLACED,
- 	MR_CONTIG_RANGE,
-+	MR_DEMOTION,
- 	MR_TYPES
- };
- 
-@@ -79,6 +80,7 @@ extern int migrate_huge_page_move_mapping(struct address_space *mapping,
- extern int migrate_page_move_mapping(struct address_space *mapping,
- 		struct page *newpage, struct page *page, enum migrate_mode mode,
- 		int extra_count);
-+extern bool migrate_demote_mapping(struct page *page);
- #else
- 
- static inline void putback_movable_pages(struct list_head *l) {}
-@@ -105,6 +107,10 @@ static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
- 	return -ENOSYS;
- }
- 
-+static inline bool migrate_demote_mapping(struct page *page)
-+{
-+	return false;
-+}
- #endif /* CONFIG_MIGRATION */
- 
- #ifdef CONFIG_COMPACTION
 diff --git a/include/trace/events/migrate.h b/include/trace/events/migrate.h
-index 705b33d1e395..d25de0cc8714 100644
+index d25de0cc8714..3d4b7131e547 100644
 --- a/include/trace/events/migrate.h
 +++ b/include/trace/events/migrate.h
-@@ -20,7 +20,8 @@
- 	EM( MR_SYSCALL,		"syscall_or_cpuset")		\
- 	EM( MR_MEMPOLICY_MBIND,	"mempolicy_mbind")		\
- 	EM( MR_NUMA_MISPLACED,	"numa_misplaced")		\
--	EMe(MR_CONTIG_RANGE,	"contig_range")
-+	EM(MR_CONTIG_RANGE,	"contig_range")			\
-+	EMe(MR_DEMOTION,	"demotion")
+@@ -6,6 +6,7 @@
+ #define _TRACE_MIGRATE_H
  
- /*
-  * First define the enums in the above macros to be exported to userspace
-diff --git a/mm/debug.c b/mm/debug.c
-index c0b31b6c3877..53d499f65199 100644
---- a/mm/debug.c
-+++ b/mm/debug.c
-@@ -25,6 +25,7 @@ const char *migrate_reason_names[MR_TYPES] = {
- 	"mempolicy_mbind",
- 	"numa_misplaced",
- 	"cma",
-+	"demotion",
- };
+ #include <linux/tracepoint.h>
++#include <trace/events/mmflags.h>
  
- const struct trace_print_flags pageflag_names[] = {
+ #define MIGRATE_MODE						\
+ 	EM( MIGRATE_ASYNC,	"MIGRATE_ASYNC")		\
+@@ -71,6 +72,31 @@ TRACE_EVENT(mm_migrate_pages,
+ 		__print_symbolic(__entry->mode, MIGRATE_MODE),
+ 		__print_symbolic(__entry->reason, MIGRATE_REASON))
+ );
++
++TRACE_EVENT(mm_migrate_move_page,
++
++	TP_PROTO(struct page *from, struct page *to, int status),
++
++	TP_ARGS(from, to, status),
++
++	TP_STRUCT__entry(
++		__field(struct page *, from)
++		__field(struct page *, to)
++		__field(int, status)
++	),
++
++	TP_fast_assign(
++		__entry->from = from;
++		__entry->to = to;
++		__entry->status = status;
++	),
++
++	TP_printk("node from=%d to=%d status=%d flags=%s refs=%d",
++		page_to_nid(__entry->from), page_to_nid(__entry->to),
++		__entry->status,
++		show_page_flags(__entry->from->flags & ((1UL << NR_PAGEFLAGS) - 1)),
++		page_ref_count(__entry->from))
++);
+ #endif /* _TRACE_MIGRATE_H */
+ 
+ /* This part must be outside protection */
 diff --git a/mm/migrate.c b/mm/migrate.c
-index 705b320d4b35..83fad87361bf 100644
+index 83fad87361bf..d97433da12c0 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
-@@ -1152,6 +1152,51 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+@@ -997,6 +997,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
+ 			page->mapping = NULL;
+ 	}
+ out:
++	trace_mm_migrate_move_page(page, newpage, rc);
  	return rc;
  }
  
-+/**
-+ * migrate_demote_mapping() - Migrate this page and its mappings to its
-+ * 			      demotion node.
-+ * @page: An isolated, non-compound page that should move to
-+ * 	  its current node's migration path.
-+ *
-+ * @returns: True if migrate demotion was successful, false otherwise
-+ */
-+bool migrate_demote_mapping(struct page *page)
-+{
-+	int rc, next_nid = next_migration_node(page_to_nid(page));
-+	struct page *newpage;
-+
-+	/*
-+	 * The flags are set to allocate only on the desired node in the
-+	 * migration path, and to fail fast if not immediately available. We
-+	 * are already in the memory reclaim path, we don't want heroic
-+	 * efforts to get a page.
-+	 */
-+	gfp_t mask = GFP_NOWAIT	| __GFP_NOWARN | __GFP_NORETRY |
-+		     __GFP_NOMEMALLOC | __GFP_THISNODE;
-+
-+	VM_BUG_ON_PAGE(PageCompound(page), page);
-+	VM_BUG_ON_PAGE(PageLRU(page), page);
-+
-+	if (next_nid < 0)
-+		return false;
-+
-+	newpage = alloc_pages_node(next_nid, mask, 0);
-+	if (!newpage)
-+		return false;
-+
-+	/*
-+	 * MIGRATE_ASYNC is the most light weight and never blocks.
-+	 */
-+	rc = __unmap_and_move_locked(page, newpage, MIGRATE_ASYNC);
-+	if (rc != MIGRATEPAGE_SUCCESS) {
-+		__free_pages(newpage, 0);
-+		return false;
-+	}
-+
-+	set_page_owner_migrate_reason(newpage, MR_DEMOTION);
-+	return true;
-+}
-+
- /*
-  * gcc 4.7 and 4.8 on arm get an ICEs when inlining unmap_and_move().  Work
-  * around it.
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a5ad0b35ab8e..0a95804e946a 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1261,6 +1261,21 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			; /* try to reclaim the page below */
- 		}
- 
-+		if (!PageCompound(page)) {
-+			if (migrate_demote_mapping(page)) {
-+                                unlock_page(page);
-+                                if (likely(put_page_testzero(page)))
-+                                        goto free_it;
-+
-+                                /*
-+				 * Speculative reference will free this page,
-+				 * so leave it off the LRU.
-+				 */
-+                                nr_reclaimed++;
-+                                continue;
-+                        }
-+		}
-+
- 		/*
- 		 * Anonymous process memory has backing store?
- 		 * Try to allocate it some swap space here.
 -- 
 2.14.4
 
