@@ -3,84 +3,84 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 359BFC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 14:21:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 116F5C10F00
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 14:21:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E6A5F21916
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 14:21:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E6A5F21916
+	by mail.kernel.org (Postfix) with ESMTP id D058A21916
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 14:21:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D058A21916
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B7A126B0270; Thu, 21 Mar 2019 10:20:57 -0400 (EDT)
+	id 5864D6B0272; Thu, 21 Mar 2019 10:21:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B2BD86B0271; Thu, 21 Mar 2019 10:20:57 -0400 (EDT)
+	id 536DE6B0273; Thu, 21 Mar 2019 10:21:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9F19B6B0272; Thu, 21 Mar 2019 10:20:57 -0400 (EDT)
+	id 4260F6B0274; Thu, 21 Mar 2019 10:21:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 543466B0270
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 10:20:57 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id n12so2298499edo.5
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 07:20:57 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E1A276B0272
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 10:20:59 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id i59so2280297edi.15
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 07:20:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=Z5ii9WWPo9WVfhue9NtkIQuQCcbK0pxcqGqIbiUCEeU=;
-        b=b/pkVHE/A2DoH+jshInyt1vnK2rgs3ieEcRtIuoB5ZV+V/qOrgx2ECz2c8Xjg9Iw/C
-         6tpNj400fK8H5gV0uR16DPqY3N8YLZ7Htw3Gn7hDKkpDEEJ5MfdmoWgMVR/nMzbarv/N
-         SinIdIy+jjQkqifVld117M1ZxDCoFAIBRpLN4VC6WF1/r57W7VUV7vpk2ihB1g6RLe/8
-         Rop5ULkfVrHOOexqoHu3hCaZvQHGWQ6lyMumR/HCc5C+BLopTblvAxvcm4A3Ewv1hwAq
-         vtWqSkJtzHwyFdzgNbSbKxA74lWM0Qh/lpKbbacfEzR2Sa4sWnrTnn8BL4nv2liaTNSC
-         95gw==
+        bh=VefPUADSnZrha76TxVHSwbw6LrT1e+Tmwp23y0+XUXU=;
+        b=mJZKSYTPIFqZmbE+Mf6mcB8AzturfbjbCmJoL05yeoH6BkGnnR9dh5c2Wffh2rYG3R
+         7p0RoOyqZnsB7JS2TNDs/uUTbzabwN5bNEhOxNZsm2t5/qzI/IrGs7sfU50Fxj59BzMW
+         VgEv5TQK77NpcpNbYfxxReHJ6obu4NnY3VNYyU5QlkirqsjG3bU5VTQFl7btAqlD3bYy
+         wHf081b4wLJy1GG3xhDx4iWTt/R7dr6qRpyTt+3me8kW0/pcc/8qtFd9kEpup3Wu5lk4
+         1/GOapmTAHNDPMDMEV4r/nmkPvrIYKWOIiGbE25F9M/D1dS4AAAhrfosxa/kJv6zta3V
+         YQYw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAVpmjYD1Gfghi/MxM9i6wmWtOe3FXGU18pYSQRkPek0I0Io9ltq
-	UtzqcwcCGd5783UAfCdOFZnQ+biuJtL4zZdTujSj51jBJjkNoTcvKhSwQjcgbUNSioAkmWWBN+S
-	cC8vlDc96UONhjUPykTTvziliNT/rcMtMqR6+E6KIzvaHAPcgcRemhkivb0pcsHDAXg==
-X-Received: by 2002:a50:ba8c:: with SMTP id x12mr2744411ede.230.1553178056862;
-        Thu, 21 Mar 2019 07:20:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqykLvvcgP+znzUc7XxjvWbX3sGceMG4bxaEsv2IRqhNM+0a0kHWzEApbZjyFzWDnfyDX0/A
-X-Received: by 2002:a50:ba8c:: with SMTP id x12mr2744336ede.230.1553178055374;
-        Thu, 21 Mar 2019 07:20:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553178055; cv=none;
+X-Gm-Message-State: APjAAAWshK7XZIrtfezkzFJMP0rVbse7O8uxhYtESVNGwOZj3hyOzbmO
+	t128beuCkWDTDU9eBt8ZzUjNQt0d67HVk0/RpxyRuhJDLY9BpKkKwzCQ81JLh1Fn11L8M+ln7qZ
+	GgZ9Xdvh05pcmGxdEgteQyCa4uSa3eBMXnOBBsMNn/Hg+0XRXsExUnClvO6xLiJELRg==
+X-Received: by 2002:a50:9826:: with SMTP id g35mr2550262edb.247.1553178059457;
+        Thu, 21 Mar 2019 07:20:59 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxuABwLTsCotftEhoeI/JfPtb2aUBDHrWPEYAqSOZEiMnc8/LuhPixOkJ8rayptZNLmWSv/
+X-Received: by 2002:a50:9826:: with SMTP id g35mr2550221edb.247.1553178058654;
+        Thu, 21 Mar 2019 07:20:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553178058; cv=none;
         d=google.com; s=arc-20160816;
-        b=t+b/7udIWvq19dwa2UdYQFPAUy1GFxIPSaMJk4oITdiWKgP3wa6PtJAXUzD9fovdND
-         tUJVzGuPweNybDVls4hqjVgfhjcaq5DaA1lU5Q11PNCcpkFgn7VbMhmp8K7hw9rX5BdN
-         CIzblCjQPievn9EtajIXQ+/iDhpMzOYMO2dFt/D+1TZkHHPFGJTOp6jg2sjlyu3Wn9aw
-         /plqul3T9wy/dRqhlNhXsrhKSGik1U2fyN6Nz/rbk5FyzudoN+gynyADKgmboUldIg+r
-         Y/qyR77zCIJvKV35v1pnMghbexOslYUqnzYoOT5HWkb3GM5DhM89HxjsVhpKC2UqB1qp
-         VGtQ==
+        b=ZxSscDdfCD91r8xoPjoMb9M33s3Go9ofHarG/A83ndz5JC6QU7wKoLd75YVYAYw6Dw
+         01eF9D38KpigYH1X9Y0N81U0vvu0gSNOEHcHxUYxeIJFT+lyH0oSyPB7o43i1Se3HQAW
+         A8X0HdL/WziY4oQ64rlDfu6nksX/XDfd/Zgrn72Cw2Dh4BkK2+pftnieLc9CpvCkv2uT
+         F2WvFDGgVXurzsIU9r1u5AiQR7isBxY5802pZA9ZD7pDY7z0XFR2Cpdd6qSvelK86J0P
+         rRNrpoH8GKIjRpqQ0mhwT2vxOPvP29JsC77HcWSMkUSHfdmYZ0byHio9rcd70CLGy7Mi
+         fCDg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=Z5ii9WWPo9WVfhue9NtkIQuQCcbK0pxcqGqIbiUCEeU=;
-        b=XI3m1Hk3VF4Dge5hN0AH6aHuGEauTmxzoGm+MIpCWTlF+A+WWp89dD0m3gIcy66Mya
-         7i6A3iJpkbKWqxbORZqCbpFBdui0vLjvNKPhjNLvXkWmAtaYVbuWzjB99aYyOsBReTUo
-         DGU0EdDfa2cJJvoCaCoJyn87/dZ4ope/d84tAiuVnW9+N+5RPsFKEHVl1f57C1lsBdcw
-         tGz7DLHW5iFIk/q2/Z2uqB6VvbLSAVdZbIuwoHx1fU/13RtQkiYfIK8C/7EQOr3oQtpW
-         yA+gf6196ClJzdE60OfaH5ihzQMWEkRWnqXXYB7IHz50IvOZRtl13I8uk8ybvKlkmM4+
-         lGQw==
+        bh=VefPUADSnZrha76TxVHSwbw6LrT1e+Tmwp23y0+XUXU=;
+        b=Kzbpby2gy8U2BRnze4eiSlgNp+0aISwdg8h/D2o7OOj0ZX4waUj+ECbgByz5+9wdTf
+         CnKNmwl3BFevg+tQWvzvAdxRDI4E8IV9IyetFU9iLhHtRM8WlitDANGIXpC3gvafIoau
+         Tc3o20hhm6dbtYGp9Gy0qMoSXNbgretNB8wJwWGWqcnd+INGDqkxKDQx1TgjEnkcYreQ
+         ikrRLY3rAYd/+b5DiCXmrPHgKIQfbpDNdd0p+t0BeM3aWMgXdvasYi1jC+kXMdHmfA7I
+         dOyu7/TX45DrX9+HfdWZiXlQ91wSRubqEDSM7axLKt18tKx4T5UZjjnz3HajMZCkPWZY
+         bnDg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id g21si1324884eda.45.2019.03.21.07.20.54
+        by mx.google.com with ESMTP id f10si108898edf.247.2019.03.21.07.20.58
         for <linux-mm@kvack.org>;
-        Thu, 21 Mar 2019 07:20:55 -0700 (PDT)
+        Thu, 21 Mar 2019 07:20:58 -0700 (PDT)
 Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 463FE1AC1;
-	Thu, 21 Mar 2019 07:20:54 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id C274880D;
+	Thu, 21 Mar 2019 07:20:57 -0700 (PDT)
 Received: from e112269-lin.arm.com (e112269-lin.cambridge.arm.com [10.1.196.69])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 0BBD83F575;
-	Thu, 21 Mar 2019 07:20:50 -0700 (PDT)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 85B413F575;
+	Thu, 21 Mar 2019 07:20:54 -0700 (PDT)
 From: Steven Price <steven.price@arm.com>
 To: linux-mm@kvack.org
 Cc: Steven Price <steven.price@arm.com>,
@@ -102,9 +102,9 @@ Cc: Steven Price <steven.price@arm.com>,
 	linux-kernel@vger.kernel.org,
 	Mark Rutland <Mark.Rutland@arm.com>,
 	"Liang, Kan" <kan.liang@linux.intel.com>
-Subject: [PATCH v5 13/19] arm64: mm: Convert mm/dump.c to use walk_page_range()
-Date: Thu, 21 Mar 2019 14:19:47 +0000
-Message-Id: <20190321141953.31960-14-steven.price@arm.com>
+Subject: [PATCH v5 14/19] x86: mm: Don't display pages which aren't present in debugfs
+Date: Thu, 21 Mar 2019 14:19:48 +0000
+Message-Id: <20190321141953.31960-15-steven.price@arm.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190321141953.31960-1-steven.price@arm.com>
 References: <20190321141953.31960-1-steven.price@arm.com>
@@ -116,171 +116,42 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Now walk_page_range() can walk kernel page tables, we can switch the
-arm64 ptdump code over to using it, simplifying the code.
+For the /sys/kernel/debug/page_tables/ files, rather than outputing a
+mostly empty line when a block of memory isn't present just skip the
+line. This keeps the output shorter and will help with a future change
+switching to using the generic page walk code as we no longer care about
+the 'level' that the page table holes are at.
 
 Signed-off-by: Steven Price <steven.price@arm.com>
 ---
- arch/arm64/mm/dump.c | 117 ++++++++++++++++++++++---------------------
- 1 file changed, 59 insertions(+), 58 deletions(-)
+ arch/x86/mm/dump_pagetables.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
-diff --git a/arch/arm64/mm/dump.c b/arch/arm64/mm/dump.c
-index 14fe23cd5932..ea20c1213498 100644
---- a/arch/arm64/mm/dump.c
-+++ b/arch/arm64/mm/dump.c
-@@ -72,7 +72,7 @@ struct pg_state {
- 	struct seq_file *seq;
- 	const struct addr_marker *marker;
- 	unsigned long start_address;
--	unsigned level;
-+	int level;
- 	u64 current_prot;
- 	bool check_wx;
- 	unsigned long wx_pages;
-@@ -234,11 +234,14 @@ static void note_prot_wx(struct pg_state *st, unsigned long addr)
- 	st->wx_pages += (addr - st->start_address) / PAGE_SIZE;
- }
+diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
+index ca270fb00805..e2b53db92c34 100644
+--- a/arch/x86/mm/dump_pagetables.c
++++ b/arch/x86/mm/dump_pagetables.c
+@@ -304,8 +304,8 @@ static void note_page(struct seq_file *m, struct pg_state *st,
+ 		/*
+ 		 * Now print the actual finished series
+ 		 */
+-		if (!st->marker->max_lines ||
+-		    st->lines < st->marker->max_lines) {
++		if ((cur & _PAGE_PRESENT) && (!st->marker->max_lines ||
++		    st->lines < st->marker->max_lines)) {
+ 			pt_dump_seq_printf(m, st->to_dmesg,
+ 					   "0x%0*lx-0x%0*lx   ",
+ 					   width, st->start_address,
+@@ -321,7 +321,8 @@ static void note_page(struct seq_file *m, struct pg_state *st,
+ 			printk_prot(m, st->current_prot, st->level,
+ 				    st->to_dmesg);
+ 		}
+-		st->lines++;
++		if (cur & _PAGE_PRESENT)
++			st->lines++;
  
--static void note_page(struct pg_state *st, unsigned long addr, unsigned level,
-+static void note_page(struct pg_state *st, unsigned long addr, int level,
- 				u64 val)
- {
- 	static const char units[] = "KMGTPE";
--	u64 prot = val & pg_level[level].mask;
-+	u64 prot = 0;
-+
-+	if (level >= 0)
-+		prot = val & pg_level[level].mask;
- 
- 	if (!st->level) {
- 		st->level = level;
-@@ -286,73 +289,71 @@ static void note_page(struct pg_state *st, unsigned long addr, unsigned level,
- 
- }
- 
--static void walk_pte(struct pg_state *st, pmd_t *pmdp, unsigned long start,
--		     unsigned long end)
-+static int pud_entry(pud_t *pud, unsigned long addr,
-+		unsigned long next, struct mm_walk *walk)
- {
--	unsigned long addr = start;
--	pte_t *ptep = pte_offset_kernel(pmdp, start);
-+	struct pg_state *st = walk->private;
-+	pud_t val = READ_ONCE(*pud);
-+
-+	if (pud_table(val))
-+		return 0;
-+
-+	note_page(st, addr, 2, pud_val(val));
- 
--	do {
--		note_page(st, addr, 4, READ_ONCE(pte_val(*ptep)));
--	} while (ptep++, addr += PAGE_SIZE, addr != end);
-+	return 0;
- }
- 
--static void walk_pmd(struct pg_state *st, pud_t *pudp, unsigned long start,
--		     unsigned long end)
-+static int pmd_entry(pmd_t *pmd, unsigned long addr,
-+		unsigned long next, struct mm_walk *walk)
- {
--	unsigned long next, addr = start;
--	pmd_t *pmdp = pmd_offset(pudp, start);
--
--	do {
--		pmd_t pmd = READ_ONCE(*pmdp);
--		next = pmd_addr_end(addr, end);
--
--		if (pmd_none(pmd) || pmd_sect(pmd)) {
--			note_page(st, addr, 3, pmd_val(pmd));
--		} else {
--			BUG_ON(pmd_bad(pmd));
--			walk_pte(st, pmdp, addr, next);
--		}
--	} while (pmdp++, addr = next, addr != end);
-+	struct pg_state *st = walk->private;
-+	pmd_t val = READ_ONCE(*pmd);
-+
-+	if (pmd_table(val))
-+		return 0;
-+
-+	note_page(st, addr, 3, pmd_val(val));
-+
-+	return 0;
- }
- 
--static void walk_pud(struct pg_state *st, pgd_t *pgdp, unsigned long start,
--		     unsigned long end)
-+static int pte_entry(pte_t *pte, unsigned long addr,
-+		unsigned long next, struct mm_walk *walk)
- {
--	unsigned long next, addr = start;
--	pud_t *pudp = pud_offset(pgdp, start);
--
--	do {
--		pud_t pud = READ_ONCE(*pudp);
--		next = pud_addr_end(addr, end);
--
--		if (pud_none(pud) || pud_sect(pud)) {
--			note_page(st, addr, 2, pud_val(pud));
--		} else {
--			BUG_ON(pud_bad(pud));
--			walk_pmd(st, pudp, addr, next);
--		}
--	} while (pudp++, addr = next, addr != end);
-+	struct pg_state *st = walk->private;
-+	pte_t val = READ_ONCE(*pte);
-+
-+	note_page(st, addr, 4, pte_val(val));
-+
-+	return 0;
-+}
-+
-+static int pte_hole(unsigned long addr, unsigned long next,
-+		struct mm_walk *walk)
-+{
-+	struct pg_state *st = walk->private;
-+
-+	note_page(st, addr, -1, 0);
-+
-+	return 0;
- }
- 
- static void walk_pgd(struct pg_state *st, struct mm_struct *mm,
--		     unsigned long start)
-+		unsigned long start)
- {
--	unsigned long end = (start < TASK_SIZE_64) ? TASK_SIZE_64 : 0;
--	unsigned long next, addr = start;
--	pgd_t *pgdp = pgd_offset(mm, start);
--
--	do {
--		pgd_t pgd = READ_ONCE(*pgdp);
--		next = pgd_addr_end(addr, end);
--
--		if (pgd_none(pgd)) {
--			note_page(st, addr, 1, pgd_val(pgd));
--		} else {
--			BUG_ON(pgd_bad(pgd));
--			walk_pud(st, pgdp, addr, next);
--		}
--	} while (pgdp++, addr = next, addr != end);
-+	struct mm_walk walk = {
-+		.mm = mm,
-+		.private = st,
-+		.pud_entry = pud_entry,
-+		.pmd_entry = pmd_entry,
-+		.pte_entry = pte_entry,
-+		.pte_hole = pte_hole
-+	};
-+	down_read(&mm->mmap_sem);
-+	walk_page_range(start, start | (((unsigned long)PTRS_PER_PGD <<
-+					 PGDIR_SHIFT) - 1),
-+			&walk);
-+	up_read(&mm->mmap_sem);
- }
- 
- void ptdump_walk_pgd(struct seq_file *m, struct ptdump_info *info)
+ 		/*
+ 		 * We print markers for special areas of address space,
 -- 
 2.20.1
 
