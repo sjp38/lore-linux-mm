@@ -2,102 +2,102 @@ Return-Path: <SRS0=0MJS=RY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C9FB6C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 19:24:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 76A33C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 19:45:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 884BB218FD
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 19:24:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 884BB218FD
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
+	by mail.kernel.org (Postfix) with ESMTP id 25448218D4
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 19:45:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 25448218D4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 25A4A6B0003; Thu, 21 Mar 2019 15:24:07 -0400 (EDT)
+	id AFD686B0003; Thu, 21 Mar 2019 15:45:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 20B446B0006; Thu, 21 Mar 2019 15:24:07 -0400 (EDT)
+	id AADB86B0006; Thu, 21 Mar 2019 15:45:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 121BA6B0007; Thu, 21 Mar 2019 15:24:07 -0400 (EDT)
+	id 94FBD6B0007; Thu, 21 Mar 2019 15:45:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AF9476B0003
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 15:24:06 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id z98so7575ede.3
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 12:24:06 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 36A906B0003
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 15:45:43 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id o9so20327edh.10
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 12:45:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=8weNsJTuKZGAdIoMI50Jpf+7Hpo+FzCe3w4h6hu+9b8=;
-        b=OPqL6aLs1pqtZZlAMhvpw8yZHRouj1tzcjCQ5224K3eskUFUi9YlYsEasTN2zdP/sG
-         JexxugNtrbxOA9R6sgOp4TXjzgNoIUSFUGqFGIUQ7omK3xul89Wpri4kMhSsEaRddAMn
-         7p6j4knClsKsrK/c0uSD/M/IFY2Gc1ea1t/BS9H7xMoDbnouT+yyeUvkVMyyIT/2556w
-         Jy57Q1TUcLLVpU28qCYdKpuu3VuEaLgIGoYgOiq02R4GGtifsWRtR9FXOj9v3l+DVHe6
-         IPxU1QShj0kOQalO//ue/EBeLoHiXWLwxuti0Phci+eoORyHv5O1Xk4mHcNWE2OhS3ga
-         jwMA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: APjAAAU4PEpoYhAeDR1p8rztStZIFiFOUKrxmRDP/rsLwtLiNnSkeOov
-	dP3e/A1jDgfWlalZwkKGgqm9i9G0EMbgdBQ59h/SnVbyMRg/Jqb9JANTMw5f5eNnJTaDESUdUwS
-	AcUyWQT+Dky+Mf0ftGsxl5LNlebKL7p1UpV+PHWwh6Xxl9VwDrE6PnDQbwFQVqCto/w==
-X-Received: by 2002:a50:a547:: with SMTP id z7mr3501747edb.58.1553196246268;
-        Thu, 21 Mar 2019 12:24:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwDmrW7p9054oXDwf5gWpmu4jYM8APhcAinJJPROXWWX2fn4WlK7nELZcO732W0iZvhW5Qb
-X-Received: by 2002:a50:a547:: with SMTP id z7mr3501699edb.58.1553196245155;
-        Thu, 21 Mar 2019 12:24:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553196245; cv=none;
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=1Wt/aVh2Pkmw5m0alBsyWYs2SHGD24MhweUKR3+0YPM=;
+        b=trA68qJ8xCMGLXmF4MQX8Zb25FU2AANo6aBTkdW3247umHI8Gko8QYfY9Uir0CcHdg
+         NVFNlWHLhbfYFPEK82uRnu/FvWmyEzkoXVMiXdWY05vNzk2Qh3vveScKQY74zK7wWhKV
+         z/+yc1C3JzhZvyZVZGH/3vsHHyaWuT444H2cBu37uDrGBYeZLBPmtcefsXLaS7Uzo1F1
+         Y2kEHX2QYZ/0Y8iASdrCX+3fTZrKcADJMQvlhbng2Ri/LY9WGeIv8qGgECckP/v/7udJ
+         A7RpyWmsJ2xODPB9M+BdKEGfjJEaMviP3VkFlhFOjVliuYkG/6JyLW+G5fVMdNTYfH9J
+         i9Pg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAVU0lUK8kc8ORwKhMlmzH0K9cNmZxDdT0fm9euETD/6qw5olfrk
+	1NpUILUF2z6qejO6wyQuZc6lL37ESQVs5wuaDmWIIWPWqJ9lCBIVKGlMAD4CFeokHVD/FoemKXA
+	tWFYyg4cZxDtOVc32NFmshvRqOjDJJUfPcO7VP6NN+Gx+xbiPAWXOkRjLGf4eaSU=
+X-Received: by 2002:a50:b641:: with SMTP id c1mr3562147ede.155.1553197542757;
+        Thu, 21 Mar 2019 12:45:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxJoRFkTmDB/QoLN5p5O85QHgl2Ref0TpnsS07Y7LKC9kjyZC/l6fMP/wG5YrQ1skbxvEoG
+X-Received: by 2002:a50:b641:: with SMTP id c1mr3562115ede.155.1553197541723;
+        Thu, 21 Mar 2019 12:45:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553197541; cv=none;
         d=google.com; s=arc-20160816;
-        b=QF1eIfi8tVMhV653A/Z8MO0/TRw7W4lX0OIWPlMXllj9pzS3sRcpVPjlE+M+m9We/8
-         TS7kOPmVQIp0+QmlTPRK4UE7ttZ5MMRbNmnj4wOjiD7px1U9t57CJ89ljOLs6deYfkJr
-         8MC2eaTyZNNOUbRIT5CP40vbflI53MizjF6TQbr/cb4QIaUjta6cdwQYzqXTZGHzsoO/
-         tzbw28PoZP0vbaYi8JUiXRqjjbVsQ3V4DMkP/q6wND47OOgH0zQcxQ1DNDfL/TDC5TVI
-         2t1+RQjbwQNnwZIOQoXmTPFJkVb4tP05D+D2vamyegADQBrIbwFRJfdjGnCkYEXlX58w
-         T+xQ==
+        b=sI9TAtlB7pZn5mQdZ6e9hjHAcBZOlpBKTJ5x5Gmw5hvvXBAmxDyrj8jdnBW788MMrC
+         6jgnu5DkThG/IrZ20C2JCM9hDClwf0qI09pz+WPB3OXsqPrOb0eotp2Sc58bV1+5lpzl
+         6K1Mo34EmhuPBMlVE1kSxj8LuvyDOLdakS5kHLayfFZRUqPaPIz9PcUX2THHrtlEwNH2
+         KL4Nu/TqfcVwA9T4ckhiAa9Fz6s428AedUmt9TtgNS7jx0OBNq8gTiZruNbEp/01+Lwe
+         uFb38u68enUmNnz9AyvvizycbjfIuFaHwiCHGjPt81NyW4nRtOWGKnlT++vNQP0+5lVE
+         XUbg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=8weNsJTuKZGAdIoMI50Jpf+7Hpo+FzCe3w4h6hu+9b8=;
-        b=PP11WYjxDBbzLwnVp7SorIsqnuUTpGS9hJupPr6tBAhCDabc92jDPOrZ2XPYdS9Lag
-         e3l69EoXzr4ysCJxnw1Ooz3xifoC62bn7aK54KLhDtFXdr9LAxdBCKT5+GnPMcVeLpd/
-         qrf94j+mWYZhCFFV3ns3eHaZd98H7nFTv36+ZzXt2TC6U/e462RMg368gGKpw/PJ2lVn
-         YkMmyMoC+RRP2+4GODdkzp8qCQGxgCBO7LyQZ7Y4U6j+M5ggTpa5ebt3s7Yad16Yu44H
-         mBjXw1+Oo3eAmqPQo9wnt+/jA3C+XyLz+OOcfp+tLJBicW6SZVC6XMo8P3MdFps2jmRd
-         umYw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=1Wt/aVh2Pkmw5m0alBsyWYs2SHGD24MhweUKR3+0YPM=;
+        b=MrTtmjLypG43NIXo4Nk8Zfw7Pp0AvPcxaWrLOVJSTbSLe36h+3ifXgQzcK3Aww4E22
+         HSiV+aJIYfSBlAG4wD1bDPq8ipnCtAuueoXY8omwfhWOhe9X9A453nTXTIqgEwCcUi29
+         fWB69WcZ1mwTZSSBT4leVb3oMBTvX0z5Wx4jqb7ug7EvZUgFPfZla6/rrr8U/wb071+c
+         nXUxX80SCJPHfm7AxBiz8uWfV0OuQW5ILlnqNLAY5ne1MjtNqg/a/ttK2PXqkeC0YWTG
+         dZlQvwiJgHr68MBZfvxBE32foylyUEjm29lZc6d3g5pnsG7xT2hMoCpTOc1yCneBzwcf
+         I6uw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
-        by mx.google.com with ESMTPS id v21si2374982edm.85.2019.03.21.12.24.04
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j9si1955482ejf.283.2019.03.21.12.45.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Mar 2019 12:24:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) client-ip=46.22.139.17;
+        Thu, 21 Mar 2019 12:45:41 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id B4BDF1C2B69
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 19:24:04 +0000 (GMT)
-Received: (qmail 27968 invoked from network); 21 Mar 2019 19:24:04 -0000
-Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
-  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 21 Mar 2019 19:24:04 -0000
-Date: Thu, 21 Mar 2019 19:24:03 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 0AC07AF46;
+	Thu, 21 Mar 2019 19:45:41 +0000 (UTC)
+Date: Thu, 21 Mar 2019 20:45:39 +0100
+From: Michal Hocko <mhocko@kernel.org>
 To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: Michal Hocko <mhocko@kernel.org>, vbabka@suse.cz,
-	akpm@linux-foundation.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
+Cc: mgorman@techsingularity.net, vbabka@suse.cz, akpm@linux-foundation.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Subject: Re: [RFC PATCH] mm: mempolicy: remove MPOL_MF_LAZY
-Message-ID: <20190321192403.GF3189@techsingularity.net>
+Message-ID: <20190321194539.GY8696@dhcp22.suse.cz>
 References: <1553041659-46787-1-git-send-email-yang.shi@linux.alibaba.com>
  <20190321145745.GS8696@dhcp22.suse.cz>
  <75059b39-dbc4-3649-3e6b-7bdf282e3f53@linux.alibaba.com>
  <20190321165112.GU8696@dhcp22.suse.cz>
  <60ef6b4a-4f24-567f-af2f-50d97a2672d6@linux.alibaba.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
 In-Reply-To: <60ef6b4a-4f24-567f-af2f-50d97a2672d6@linux.alibaba.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -106,7 +106,7 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 21, 2019 at 10:25:08AM -0700, Yang Shi wrote:
+On Thu 21-03-19 10:25:08, Yang Shi wrote:
 > 
 > 
 > On 3/21/19 9:51 AM, Michal Hocko wrote:
@@ -138,17 +138,54 @@ On Thu, Mar 21, 2019 at 10:25:08AM -0700, Yang Shi wrote:
 > MPOL_MF_LAZY or any other undefined/invalid flag is set. See the below code
 > snippet from do_mbind():
 > 
+> ...
+> #define MPOL_MF_VALID    (MPOL_MF_STRICT   |     \
+>              MPOL_MF_MOVE     |     \
+>              MPOL_MF_MOVE_ALL)
+> 
+> if (flags & ~(unsigned long)MPOL_MF_VALID)
+>         return -EINVAL;
+> 
+> So, I don't think any application would really use the flag for mbind()
+> unless it is aimed to test the -EINVAL. If just test program, it should be
+> not considered as a regression.
 
-That does not explain the motivation behind removing it or what we gain.
-Yes, it's undocumented and it's unlikely that anyone will. Any potential
-semantics are almost meaningless with mbind but there are two
-possibilities. One, mbind is relaxed to allow migration within allowed
-nodes and two, interleave could initially interleave but allow migration
-to local node to get a mix of average performance at init and local
-performance over time. No one tried taking that option so far but it
-appears harmless to leave it alone too.
+I have overlook that MPOL_MF_VALID doesn't include MPOL_MF_LAZY. Anyway,
+my argument still holds that the bit has to be reserved for ever because
+it used to be valid at some point of time and not returning EINVAL could
+imply you are running on the kernel which supports the flag.
+ 
+> > > I'm also not sure if anyone use MPOL_MF_INTERNAL or not and how they use it
+> > > in their applications, but how about keeping it unchanged?
+> > You really have to. Because it is an offset of other MPLO flags for
+> > internal usage.
+> > 
+> > That being said. Considering that we really have to preserve
+> > MPOL_MF_LAZY value (we cannot even rename it because it is in uapi
+> > headers and we do not want to break compilation). What is the point of
+> > this change? Why is it an improvement? Yes, nobody is probably using
+> > this because this is not respected in anything but the preferred mem
+> > policy. At least that is the case from my quick glance. I might be still
+> > wrong as it is quite easy to overlook all the consequences. So the risk
+> > is non trivial while the benefit is not really clear to me. If you see
+> > one, _document_ it. "Mel said it is not in use" is not a justification,
+> > with all due respect.
+> 
+> As I elaborated above, mbind() syscall does check it and treat it as an
+> invalid flag. MPOL_PREFERRED doesn't use it either, but just use MPOL_F_MOF
+> directly.
+
+As Mel already pointed out. This doesn't really sound like a sound
+argument. Say we would remove those few lines of code and preserve the
+flag for future reservation of the flag bit. I would bet my head that it
+will not be long before somebody just goes and clean it up and remove
+because the flag is unused. So you would have to put a note explaining
+why this has to be preserved. Maybe the current code is better to
+document that. It would be much more sound to remove the code if it was
+causing a measurable overhead or a maintenance burden. Is any of that
+the case?
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
