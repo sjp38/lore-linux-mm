@@ -2,190 +2,216 @@ Return-Path: <SRS0=0MJS=RY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 76A33C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 19:45:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D9DBC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 19:51:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 25448218D4
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 19:45:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 25448218D4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 2CFEE218D4
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 19:51:22 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=vmware.com header.i=@vmware.com header.b="b59OvXVR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2CFEE218D4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AFD686B0003; Thu, 21 Mar 2019 15:45:43 -0400 (EDT)
+	id C31BB6B0003; Thu, 21 Mar 2019 15:51:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AADB86B0006; Thu, 21 Mar 2019 15:45:43 -0400 (EDT)
+	id C09116B0006; Thu, 21 Mar 2019 15:51:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 94FBD6B0007; Thu, 21 Mar 2019 15:45:43 -0400 (EDT)
+	id AD02C6B0007; Thu, 21 Mar 2019 15:51:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 36A906B0003
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 15:45:43 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id o9so20327edh.10
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 12:45:43 -0700 (PDT)
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 79B336B0003
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 15:51:21 -0400 (EDT)
+Received: by mail-oi1-f199.google.com with SMTP id s133so3053220oif.19
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 12:51:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=1Wt/aVh2Pkmw5m0alBsyWYs2SHGD24MhweUKR3+0YPM=;
-        b=trA68qJ8xCMGLXmF4MQX8Zb25FU2AANo6aBTkdW3247umHI8Gko8QYfY9Uir0CcHdg
-         NVFNlWHLhbfYFPEK82uRnu/FvWmyEzkoXVMiXdWY05vNzk2Qh3vveScKQY74zK7wWhKV
-         z/+yc1C3JzhZvyZVZGH/3vsHHyaWuT444H2cBu37uDrGBYeZLBPmtcefsXLaS7Uzo1F1
-         Y2kEHX2QYZ/0Y8iASdrCX+3fTZrKcADJMQvlhbng2Ri/LY9WGeIv8qGgECckP/v/7udJ
-         A7RpyWmsJ2xODPB9M+BdKEGfjJEaMviP3VkFlhFOjVliuYkG/6JyLW+G5fVMdNTYfH9J
-         i9Pg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVU0lUK8kc8ORwKhMlmzH0K9cNmZxDdT0fm9euETD/6qw5olfrk
-	1NpUILUF2z6qejO6wyQuZc6lL37ESQVs5wuaDmWIIWPWqJ9lCBIVKGlMAD4CFeokHVD/FoemKXA
-	tWFYyg4cZxDtOVc32NFmshvRqOjDJJUfPcO7VP6NN+Gx+xbiPAWXOkRjLGf4eaSU=
-X-Received: by 2002:a50:b641:: with SMTP id c1mr3562147ede.155.1553197542757;
-        Thu, 21 Mar 2019 12:45:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxJoRFkTmDB/QoLN5p5O85QHgl2Ref0TpnsS07Y7LKC9kjyZC/l6fMP/wG5YrQ1skbxvEoG
-X-Received: by 2002:a50:b641:: with SMTP id c1mr3562115ede.155.1553197541723;
-        Thu, 21 Mar 2019 12:45:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553197541; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=BGSiu13dUp7oajgpUiOR4JIxbz3D4JX/iGNMIe/jGhA=;
+        b=bsVbF/KKyuXAn6dV1w8MozL8rWpVl67QoHuoU1GemndNSw4IsDawsF+ZnyBfCxRSMM
+         eZ2lvsQWzOfQ41dAL3oEE81097QGPumb84xpM9RkAvPje6miyTWvcZaOjXoceEXHI8fz
+         QFZ0Jt3QDKwvs5gob2+xTdLRkuHEp5ZOA49eNqD3Z+8eZmS7i+UCgq14Hr3Api7kPEz4
+         hOj32qJseTJvCMxxyDM9MpxKKjfVnNgw8tJLVX8UvQwBs8qDim8ixH1FXT4L4Qzfc6+C
+         Ijrjo4cl+v4HHu+gN5f0zwg5QmbHnaRr++HtYRXAffSYRciGdgt4omi/1jHWV+WqsWvW
+         VfMA==
+X-Gm-Message-State: APjAAAXhAs3sSBULQA7Rt0h4WaOs7luYZ/fxx20Dv5GoGKOI8cBXcSy1
+	16Luk6rJydbLTh3/oFLAG4WBNkAwusVvEUHPfTZ3y9R2PX/92qjC8QAaOSGMQgGfag2q9f54iBc
+	jWBJBhabJfugDrAAZDeW4r1yPHXTjCaW2pOSKao2XwXjuJkjoIfuDFiNNYYjcVhdygA==
+X-Received: by 2002:aca:b408:: with SMTP id d8mr737552oif.15.1553197880958;
+        Thu, 21 Mar 2019 12:51:20 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwbSNbEZa3wdtgaGsOg0XVZNbH36YL/bLOQXZnlMvvFA0B1DlRkGaOoxm+zNUY3axTce7hp
+X-Received: by 2002:aca:b408:: with SMTP id d8mr737519oif.15.1553197880131;
+        Thu, 21 Mar 2019 12:51:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553197880; cv=none;
         d=google.com; s=arc-20160816;
-        b=sI9TAtlB7pZn5mQdZ6e9hjHAcBZOlpBKTJ5x5Gmw5hvvXBAmxDyrj8jdnBW788MMrC
-         6jgnu5DkThG/IrZ20C2JCM9hDClwf0qI09pz+WPB3OXsqPrOb0eotp2Sc58bV1+5lpzl
-         6K1Mo34EmhuPBMlVE1kSxj8LuvyDOLdakS5kHLayfFZRUqPaPIz9PcUX2THHrtlEwNH2
-         KL4Nu/TqfcVwA9T4ckhiAa9Fz6s428AedUmt9TtgNS7jx0OBNq8gTiZruNbEp/01+Lwe
-         uFb38u68enUmNnz9AyvvizycbjfIuFaHwiCHGjPt81NyW4nRtOWGKnlT++vNQP0+5lVE
-         XUbg==
+        b=GSbuw0tj3nXuYnvM7tU1RSxwrUkPo3C+fo2kL+XxNL90vZhuA8P+elAeIde4AXNHqJ
+         7+WYJU64RQIoRet1jPJ3yYMYQQ2HBaECi9FeHCB2DcVQim7b+01gPbAOQgfaOz7bEm7j
+         HoeOE8XPjnv5mfR7XrENRV4WCJFFUkHQ7/esmBDjF1uQGGuSlxjN8T2cgvYi5uHXnqJC
+         jKUPPtmSOioLiuswk3fmAG/FYmLijMHnhzzOTOvEYPPYCUhXTOACEgzGHdCtJm92a0oX
+         jjhzoY/r7s1Ky0HIiAwIHa0bbhh6hBV1FgqxRzbyJirV+k5pPmmzdctQm6Y8Z6WQTMUz
+         I4Pw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=1Wt/aVh2Pkmw5m0alBsyWYs2SHGD24MhweUKR3+0YPM=;
-        b=MrTtmjLypG43NIXo4Nk8Zfw7Pp0AvPcxaWrLOVJSTbSLe36h+3ifXgQzcK3Aww4E22
-         HSiV+aJIYfSBlAG4wD1bDPq8ipnCtAuueoXY8omwfhWOhe9X9A453nTXTIqgEwCcUi29
-         fWB69WcZ1mwTZSSBT4leVb3oMBTvX0z5Wx4jqb7ug7EvZUgFPfZla6/rrr8U/wb071+c
-         nXUxX80SCJPHfm7AxBiz8uWfV0OuQW5ILlnqNLAY5ne1MjtNqg/a/ttK2PXqkeC0YWTG
-         dZlQvwiJgHr68MBZfvxBE32foylyUEjm29lZc6d3g5pnsG7xT2hMoCpTOc1yCneBzwcf
-         I6uw==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=BGSiu13dUp7oajgpUiOR4JIxbz3D4JX/iGNMIe/jGhA=;
+        b=uGCvG+6tNXNy8CCkshzEi+Q9tDkI3h6dbDO0n7flpkE7L6kml7fOiK4SPIgwbgFG4J
+         m+QfC3OoUBaTyZkmZAV9yduMP1RjYTF1FoKoFhDNuy2BZ4w2ZeD+cFt1hvWBduf+Cbbn
+         qip1LP+CryYPEHgVgqxtMFaEd0kpEo9ldkyJrcoY6/9hhP9dvlM5W09YJEEPEus3OLeC
+         4QXptBPO/z77CI7wCT9l14HXdT3EBACaxF2ZOIm51kRSUl70nHx3yIsJxMtyLNuR6qPr
+         UMkee9yVcQ+Y4GkkmtcW83vvfeHnlxUugjrqGQLNcY9XMhV3bkulJeTKqbqVcJ6nkTUF
+         preA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j9si1955482ejf.283.2019.03.21.12.45.41
+       dkim=pass header.i=@vmware.com header.s=selector1 header.b=b59OvXVR;
+       spf=pass (google.com: domain of thellstrom@vmware.com designates 40.107.81.73 as permitted sender) smtp.mailfrom=thellstrom@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=vmware.com
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-eopbgr810073.outbound.protection.outlook.com. [40.107.81.73])
+        by mx.google.com with ESMTPS id p188si2286479oib.141.2019.03.21.12.51.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Mar 2019 12:45:41 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 21 Mar 2019 12:51:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of thellstrom@vmware.com designates 40.107.81.73 as permitted sender) client-ip=40.107.81.73;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 0AC07AF46;
-	Thu, 21 Mar 2019 19:45:41 +0000 (UTC)
-Date: Thu, 21 Mar 2019 20:45:39 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: mgorman@techsingularity.net, vbabka@suse.cz, akpm@linux-foundation.org,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [RFC PATCH] mm: mempolicy: remove MPOL_MF_LAZY
-Message-ID: <20190321194539.GY8696@dhcp22.suse.cz>
-References: <1553041659-46787-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190321145745.GS8696@dhcp22.suse.cz>
- <75059b39-dbc4-3649-3e6b-7bdf282e3f53@linux.alibaba.com>
- <20190321165112.GU8696@dhcp22.suse.cz>
- <60ef6b4a-4f24-567f-af2f-50d97a2672d6@linux.alibaba.com>
+       dkim=pass header.i=@vmware.com header.s=selector1 header.b=b59OvXVR;
+       spf=pass (google.com: domain of thellstrom@vmware.com designates 40.107.81.73 as permitted sender) smtp.mailfrom=thellstrom@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=vmware.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=vmware.com;
+ s=selector1;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=BGSiu13dUp7oajgpUiOR4JIxbz3D4JX/iGNMIe/jGhA=;
+ b=b59OvXVRtasUjSqq/cEckVy+hwd+K/cwR++vPFmO3f5UqvjlHEVmCOzZdxEJ4r0UnMLCxcOGTnrnq2+c9kIy/Fdej33pAlXI/2h35f0cyWV6jlBNkdjAqVLM00Bj93KdDryslFiOCD63lU6X5FZN7VfGCV8G1SWb5f4EtNfnZv0=
+Received: from MN2PR05MB6141.namprd05.prod.outlook.com (20.178.241.217) by
+ MN2PR05MB6143.namprd05.prod.outlook.com (20.178.244.96) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1750.10; Thu, 21 Mar 2019 19:51:17 +0000
+Received: from MN2PR05MB6141.namprd05.prod.outlook.com
+ ([fe80::91e:292d:e304:78ad]) by MN2PR05MB6141.namprd05.prod.outlook.com
+ ([fe80::91e:292d:e304:78ad%6]) with mapi id 15.20.1750.010; Thu, 21 Mar 2019
+ 19:51:17 +0000
+From: Thomas Hellstrom <thellstrom@vmware.com>
+To: "jglisse@redhat.com" <jglisse@redhat.com>
+CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"peterz@infradead.org" <peterz@infradead.org>, "willy@infradead.org"
+	<willy@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"jrdr.linux@gmail.com" <jrdr.linux@gmail.com>, "akpm@linux-foundation.org"
+	<akpm@linux-foundation.org>, "minchan@kernel.org" <minchan@kernel.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"will.deacon@arm.com" <will.deacon@arm.com>, Linux-graphics-maintainer
+	<Linux-graphics-maintainer@vmware.com>, "mhocko@suse.com" <mhocko@suse.com>,
+	"ying.huang@intel.com" <ying.huang@intel.com>, "riel@surriel.com"
+	<riel@surriel.com>
+Subject: Re: [RFC PATCH RESEND 0/3] mm modifications / helpers for emulated
+ GPU coherent memory
+Thread-Topic: [RFC PATCH RESEND 0/3] mm modifications / helpers for emulated
+ GPU coherent memory
+Thread-Index: AQHU3+ke+3ZNutXb50uqrjfFd5pvK6YWGQgAgABmCIA=
+Date: Thu, 21 Mar 2019 19:51:16 +0000
+Message-ID: <428b30355f4df864235428eaa24e207b8ba6c1ea.camel@vmware.com>
+References: <20190321132140.114878-1-thellstrom@vmware.com>
+	 <20190321134603.GB2904@redhat.com>
+In-Reply-To: <20190321134603.GB2904@redhat.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-originating-ip: [155.4.205.56]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 8a8754cd-8b66-40a1-b175-08d6ae369500
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600127)(711020)(4605104)(2017052603328)(7153060)(7193020);SRVR:MN2PR05MB6143;
+x-ms-traffictypediagnostic: MN2PR05MB6143:
+x-microsoft-antispam-prvs:
+ <MN2PR05MB6143837BC153C406DBF7CF46A1420@MN2PR05MB6143.namprd05.prod.outlook.com>
+x-forefront-prvs: 0983EAD6B2
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(39860400002)(366004)(136003)(346002)(376002)(396003)(199004)(189003)(2906002)(6916009)(6116002)(3846002)(53936002)(305945005)(71200400001)(71190400001)(68736007)(7736002)(486006)(6436002)(6486002)(6246003)(229853002)(446003)(11346002)(476003)(105586002)(4326008)(2616005)(6512007)(5660300002)(76176011)(5640700003)(6506007)(256004)(6346003)(14444005)(102836004)(97736004)(26005)(186003)(66066001)(316002)(2501003)(54906003)(118296001)(99286004)(81166006)(66574012)(81156014)(1730700003)(2351001)(8936002)(106356001)(8676002)(7416002)(86362001)(36756003)(25786009)(478600001)(14454004);DIR:OUT;SFP:1101;SCL:1;SRVR:MN2PR05MB6143;H:MN2PR05MB6141.namprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: vmware.com does not designate
+ permitted sender hosts)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=thellstrom@vmware.com; 
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ mZHUJ4vzaZMnBRJoCDjkg4MkWrFgME6qcSK0rfsdsQ07gX99Zi9sngaLZsOuWms3WEVRR99xKUlpFK6aFeXP04BEGCu8n+omni7G101w12Q5eLpVf6w8XQe7oVGjM1etJd8RvVIwuHEs2AVcwRac5bagp3oL4HJFNLZrcN/iHIdn5P3yABmnASU/Hg8NqZEIxwQi7w0O9xDdfIDo1sI2cJtO/g9liRKOq0pKDn9ZGhtclwlZbowOYOtfcE1ZuJEPstPrgGQlgdqMWRhlsKkHqeZ21qOuYDYaBypB74FI8zKgPx3yfM6rgMsIX8Stglz4XOWh0hktv+aJmiHrlGzicMc44veuiFX744FuVWZscBfFuTkCcY7VvKG0IKfm+lc4pSU1pb9MSJgOAmfLqmAcGXG+uZ1SpgEh93EJhpdoDtg=
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <C07325463B6F4E4E80E1572C9EDADB2A@namprd05.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <60ef6b4a-4f24-567f-af2f-50d97a2672d6@linux.alibaba.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-OriginatorOrg: vmware.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 8a8754cd-8b66-40a1-b175-08d6ae369500
+X-MS-Exchange-CrossTenant-originalarrivaltime: 21 Mar 2019 19:51:17.0391
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: MN2PR05MB6143
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 21-03-19 10:25:08, Yang Shi wrote:
-> 
-> 
-> On 3/21/19 9:51 AM, Michal Hocko wrote:
-> > On Thu 21-03-19 09:21:39, Yang Shi wrote:
-> > > 
-> > > On 3/21/19 7:57 AM, Michal Hocko wrote:
-> > > > On Wed 20-03-19 08:27:39, Yang Shi wrote:
-> > > > > MPOL_MF_LAZY was added by commit b24f53a0bea3 ("mm: mempolicy: Add
-> > > > > MPOL_MF_LAZY"), then it was disabled by commit a720094ded8c ("mm:
-> > > > > mempolicy: Hide MPOL_NOOP and MPOL_MF_LAZY from userspace for now")
-> > > > > right away in 2012.  So, it is never ever exported to userspace.
-> > > > > 
-> > > > > And, it looks nobody is interested in revisiting it since it was
-> > > > > disabled 7 years ago.  So, it sounds pointless to still keep it around.
-> > > > The above changelog owes us a lot of explanation about why this is
-> > > > safe and backward compatible. I am also not sure you can change
-> > > > MPOL_MF_INTERNAL because somebody still might use the flag from
-> > > > userspace and we want to guarantee it will have the exact same semantic.
-> > > Since MPOL_MF_LAZY is never exported to userspace (Mel helped to confirm
-> > > this in the other thread), so I'm supposed it should be safe and backward
-> > > compatible to userspace.
-> > You didn't get my point. The flag is exported to the userspace and
-> > nothing in the syscall entry path checks and masks it. So we really have
-> > to preserve the semantic of the flag bit for ever.
-> 
-> Thanks, I see you point. Yes, it is exported to userspace in some sense
-> since it is in uapi header. But, it is never documented and MPOL_MF_VALID
-> excludes it. mbind() does check and mask it. It would return -EINVAL if
-> MPOL_MF_LAZY or any other undefined/invalid flag is set. See the below code
-> snippet from do_mbind():
-> 
-> ...
-> #define MPOL_MF_VALID    (MPOL_MF_STRICT   |     \
->              MPOL_MF_MOVE     |     \
->              MPOL_MF_MOVE_ALL)
-> 
-> if (flags & ~(unsigned long)MPOL_MF_VALID)
->         return -EINVAL;
-> 
-> So, I don't think any application would really use the flag for mbind()
-> unless it is aimed to test the -EINVAL. If just test program, it should be
-> not considered as a regression.
-
-I have overlook that MPOL_MF_VALID doesn't include MPOL_MF_LAZY. Anyway,
-my argument still holds that the bit has to be reserved for ever because
-it used to be valid at some point of time and not returning EINVAL could
-imply you are running on the kernel which supports the flag.
- 
-> > > I'm also not sure if anyone use MPOL_MF_INTERNAL or not and how they use it
-> > > in their applications, but how about keeping it unchanged?
-> > You really have to. Because it is an offset of other MPLO flags for
-> > internal usage.
-> > 
-> > That being said. Considering that we really have to preserve
-> > MPOL_MF_LAZY value (we cannot even rename it because it is in uapi
-> > headers and we do not want to break compilation). What is the point of
-> > this change? Why is it an improvement? Yes, nobody is probably using
-> > this because this is not respected in anything but the preferred mem
-> > policy. At least that is the case from my quick glance. I might be still
-> > wrong as it is quite easy to overlook all the consequences. So the risk
-> > is non trivial while the benefit is not really clear to me. If you see
-> > one, _document_ it. "Mel said it is not in use" is not a justification,
-> > with all due respect.
-> 
-> As I elaborated above, mbind() syscall does check it and treat it as an
-> invalid flag. MPOL_PREFERRED doesn't use it either, but just use MPOL_F_MOF
-> directly.
-
-As Mel already pointed out. This doesn't really sound like a sound
-argument. Say we would remove those few lines of code and preserve the
-flag for future reservation of the flag bit. I would bet my head that it
-will not be long before somebody just goes and clean it up and remove
-because the flag is unused. So you would have to put a note explaining
-why this has to be preserved. Maybe the current code is better to
-document that. It would be much more sound to remove the code if it was
-causing a measurable overhead or a maintenance burden. Is any of that
-the case?
-
--- 
-Michal Hocko
-SUSE Labs
+SGksIErDqXLDtG1lLA0KDQpUaGFua3MgZm9yIGNvbW1lbnRpbmcuIEkgaGF2ZSBhIGNvdXBsZSBv
+ZiBxdWVzdGlvbnMgLyBjbGFyaWZpY2F0aW9ucw0KYmVsb3cuDQoNCk9uIFRodSwgMjAxOS0wMy0y
+MSBhdCAwOTo0NiAtMDQwMCwgSmVyb21lIEdsaXNzZSB3cm90ZToNCj4gT24gVGh1LCBNYXIgMjEs
+IDIwMTkgYXQgMDE6MjI6MjJQTSArMDAwMCwgVGhvbWFzIEhlbGxzdHJvbSB3cm90ZToNCj4gPiBS
+ZXNlbmRpbmcgc2luY2UgbGFzdCBzZXJpZXMgd2FzIHNlbnQgdGhyb3VnaCBhIG1pcy1jb25maWd1
+cmVkIFNNVFANCj4gPiBzZXJ2ZXIuDQo+ID4gDQo+ID4gSGksDQo+ID4gVGhpcyBpcyBhbiBlYXJs
+eSBSRkMgdG8gbWFrZSBzdXJlIEkgZG9uJ3QgZ28gdG9vIGZhciBpbiB0aGUgd3JvbmcNCj4gPiBk
+aXJlY3Rpb24uDQo+ID4gDQo+ID4gTm9uLWNvaGVyZW50IEdQVXMgdGhhdCBjYW4ndCBkaXJlY3Rs
+eSBzZWUgY29udGVudHMgaW4gQ1BVLXZpc2libGUNCj4gPiBtZW1vcnksDQo+ID4gbGlrZSBWTVdh
+cmUncyBTVkdBIGRldmljZSwgcnVuIGludG8gdHJvdWJsZSB3aGVuIHRyeWluZyB0bw0KPiA+IGlt
+cGxlbWVudA0KPiA+IGNvaGVyZW50IG1lbW9yeSByZXF1aXJlbWVudHMgb2YgbW9kZXJuIGdyYXBo
+aWNzIEFQSXMuIEV4YW1wbGVzIGFyZQ0KPiA+IFZ1bGthbiBhbmQgT3BlbkdMIDQuNCdzIEFSQl9i
+dWZmZXJfc3RvcmFnZS4NCj4gPiANCj4gPiBUbyByZW1lZHksIHdlIG5lZWQgdG8gZW11bGF0ZSBj
+b2hlcmVudCBtZW1vcnkuIFR5cGljYWxseSB3aGVuIGl0J3MNCj4gPiBkZXRlY3RlZA0KPiA+IHRo
+YXQgYSBidWZmZXIgb2JqZWN0IGlzIGFib3V0IHRvIGJlIGFjY2Vzc2VkIGJ5IHRoZSBHUFUsIHdl
+IG5lZWQgdG8NCj4gPiBnYXRoZXIgdGhlIHJhbmdlcyB0aGF0IGhhdmUgYmVlbiBkaXJ0aWVkIGJ5
+IHRoZSBDUFUgc2luY2UgdGhlIGxhc3QNCj4gPiBvcGVyYXRpb24sDQo+ID4gYXBwbHkgYW4gb3Bl
+cmF0aW9uIHRvIG1ha2UgdGhlIGNvbnRlbnQgdmlzaWJsZSB0byB0aGUgR1BVIGFuZCBjbGVhcg0K
+PiA+IHRoZQ0KPiA+IHRoZSBkaXJ0eSB0cmFja2luZy4NCj4gPiANCj4gPiBEZXBlbmRpbmcgb24g
+dGhlIHNpemUgb2YgdGhlIGJ1ZmZlciBvYmplY3QgYW5kIHRoZSBhY2Nlc3MgcGF0dGVybg0KPiA+
+IHRoZXJlIGFyZQ0KPiA+IHR3byBtYWpvciBwb3NzaWJpbGl0aWVzOg0KPiA+IA0KPiA+IDEpIFVz
+ZSBwYWdlX21rd3JpdGUoKSBhbmQgcGZuX21rd3JpdGUoKS4gKEdQVSBidWZmZXIgb2JqZWN0cyBh
+cmUNCj4gPiBiYWNrZWQNCj4gPiBlaXRoZXIgYnkgUENJIGRldmljZSBtZW1vcnkgb3IgYnkgZHJp
+dmVyLWFsbG9jZWQgcGFnZXMpLg0KPiA+IFRoZSBkaXJ0eS10cmFja2luZyBuZWVkcyB0byBiZSBy
+ZXNldCBieSB3cml0ZS1wcm90ZWN0aW5nIHRoZQ0KPiA+IGFmZmVjdGVkIHB0ZXMNCj4gPiBhbmQg
+Zmx1c2ggdGxiLiBUaGlzIGhhcyBhIGNvbXBsZXhpdHkgb2YgTyhudW1fZGlydHlfcGFnZXMpLCBi
+dXQgdGhlDQo+ID4gd3JpdGUgcGFnZS1mYXVsdCBpcyBvZiBjb3Vyc2UgY29zdGx5Lg0KPiA+IA0K
+PiA+IDIpIFVzZSBoYXJkd2FyZSBkaXJ0eS1mbGFncyBpbiB0aGUgcHRlcy4gVGhlIGRpcnR5LXRy
+YWNraW5nIG5lZWRzDQo+ID4gdG8gYmUgcmVzZXQNCj4gPiBieSBjbGVhcmluZyB0aGUgZGlydHkg
+Yml0cyBhbmQgZmx1c2ggdGxiLiBUaGlzIGhhcyBhIGNvbXBsZXhpdHkgb2YNCj4gPiBPKG51bV9i
+dWZmZXJfb2JqZWN0X3BhZ2VzKSBhbmQgZGlydHkgYml0cyBuZWVkIHRvIGJlIHNjYW5uZWQgaW4N
+Cj4gPiBmdWxsIGJlZm9yZQ0KPiA+IGVhY2ggZ3B1LWFjY2Vzcy4NCj4gPiANCj4gPiBTbyBpbiBw
+cmFjdGljZSB0aGUgdHdvIG1ldGhvZHMgbmVlZCB0byBiZSBpbnRlcmxlYXZlZCBmb3IgYmVzdA0K
+PiA+IHBlcmZvcm1hbmNlLg0KPiA+IA0KPiA+IFNvIHRvIGZhY2lsaXRhdGUgdGhpcywgSSBwcm9w
+b3NlIHR3byBuZXcgaGVscGVycywNCj4gPiBhcHBseV9hc193cnByb3RlY3QoKSBhbmQNCj4gPiBh
+cHBseV9hc19jbGVhbigpICgiYXMiIHN0YW5kcyBmb3IgYWRkcmVzcy1zcGFjZSkgYm90aCBpbnNw
+aXJlZCBieQ0KPiA+IHVubWFwX21hcHBpbmdfcmFuZ2UoKS4gVXNlcnMgb2YgdGhlc2UgaGVscGVy
+cyBhcmUgaW4gdGhlIG1ha2luZywNCj4gPiBidXQgbmVlZHMNCj4gPiBzb21lIGNsZWFuaW5nLXVw
+Lg0KPiANCj4gVG8gYmUgY2xlYXIgdGhpcyBzaG91bGQgX29ubHkgYmUgdXNlXyBmb3IgbW1hcCBv
+ZiBkZXZpY2UgZmlsZSA/IElmIHNvDQo+IHRoZSBBUEkgc2hvdWxkIHRyeSB0byBlbmZvcmNlIHRo
+YXQgYXMgbXVjaCBhcyBwb3NzaWJsZSBmb3IgaW5zdGFuY2UNCj4gYnkNCj4gbWFuZGF0aW5nIHRo
+ZSBmaWxlIGFzIGFyZ3VtZW50IHNvIHRoYXQgdGhlIGZ1bmN0aW9uIGNhbiBjaGVjayBpdCBpcw0K
+PiBvbmx5IHVzZSBpbiB0aGF0IGNhc2UuIEFsc28gYmlnIHNjYXJ5IGNvbW1lbnQgdG8gbWFrZSBz
+dXJlIG5vIG9uZQ0KPiBqdXN0DQo+IHN0YXJ0IHVzaW5nIHRob3NlIG91dHNpZGUgdGhpcyB2ZXJ5
+IGxpbWl0ZWQgZnJhbWUuDQoNCkZpbmUgd2l0aCBtZS4gUGVyaGFwcyB3ZSBjb3VsZCBCVUcoKSAv
+IFdBUk4oKSBvbiBjZXJ0YWluIFZNQSBmbGFncyANCmluc3RlYWQgb2YgbWFuZGF0aW5nIHRoZSBm
+aWxlIGFzIGFyZ3VtZW50LiBUaGF0IGNhbiBtYWtlIHN1cmUgd2UNCmRvbid0IGFjY2lkZW50bHkg
+aGl0IHBhZ2VzIHdlIHNob3VsZG4ndCBoaXQuDQoNCj4gDQo+ID4gVGhlcmUncyBhbHNvIGEgY2hh
+bmdlIHRvIHhfbWt3cml0ZSgpIHRvIGFsbG93IGRyb3BwaW5nIHRoZSBtbWFwX3NlbQ0KPiA+IHdo
+aWxlDQo+ID4gd2FpdGluZy4NCj4gDQo+IFRoaXMgd2lsbCBtb3N0IGxpa2VseSBjb25mbGljdCB3
+aXRoIHVzZXJmYXVsdGZkIHdyaXRlIHByb3RlY3Rpb24uIA0KDQpBcmUgeW91IHJlZmVycmluZyB0
+byB0aGUgeF9ta3dyaXRlKCkgdXNhZ2UgaXRzZWxmIG9yIHRoZSBtbWFwX3NlbQ0KZHJvcHBpbmcg
+ZmFjaWxpdGF0aW9uPw0KDQo+IE1heWJlDQo+IGJ1aWxkaW5nIHlvdXIgdGhpbmcgb24gdG9wIG9m
+IHRoYXQgd291bGQgYmUgYmV0dGVyLg0KPiANCj4gDQouLi4NCj4gDQo+IEkgd2lsbCB0YWtlIGEg
+Y3Vyc29yeSBsb29rIGF0IHRoZSBwYXRjaGVzLg0KPiANCg0KU29tZSBtb3JlIHF1ZXN0aW9ucyAv
+IGNsYXJpZmljYXRpb25zIG9uIHRob3NlIGFzIHdlbGwuDQoNCg0KPiBDaGVlcnMsDQo+IErDqXLD
+tG1lDQo=
 
