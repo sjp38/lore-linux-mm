@@ -6,87 +6,87 @@ X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A6E97C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 07:02:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C50FC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 07:42:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5FA99218D3
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 07:02:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5FA99218D3
+	by mail.kernel.org (Postfix) with ESMTP id C3CB9218D8
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 07:42:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C3CB9218D8
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 017536B0007; Thu, 21 Mar 2019 03:02:39 -0400 (EDT)
+	id 21C826B0003; Thu, 21 Mar 2019 03:42:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F087D6B0008; Thu, 21 Mar 2019 03:02:38 -0400 (EDT)
+	id 1A5C96B0006; Thu, 21 Mar 2019 03:42:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DF8166B000A; Thu, 21 Mar 2019 03:02:38 -0400 (EDT)
+	id 070186B0007; Thu, 21 Mar 2019 03:42:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 922FB6B0007
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 03:02:38 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id y17so263161edd.20
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 00:02:38 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A4EC46B0003
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 03:42:08 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id y17so294020edd.20
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 00:42:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=KsrmLqkQb7ku1m/cW3NOZB3Q3HsS8Mum+GwTOJ4Tli4=;
-        b=Jf0mWQqtNV6+1BKphHRKawzZ+UticYEBMzH8mAinkGFftVodEWY0rYcG8AzSWv2QD9
-         XRbBU9o/CfmWPVCOpiuF2wSuAYbRw8qUUGi8uwTkEvT1Zml55tlJNeHNTMInwiE0BO8z
-         t2u9g5m+b0Z89qb2jyNHgAJ7H+d1RIdt6UlfF0/gXnHVW8z8AIBjGEEQs3HiC1mdANdK
-         C2YzDNQ/r1tAUsr1i2oqAHg5UmAqulYVDQdGHk/4EylHz40h1z/jD6Jd3OpTEjf1MTg9
-         6WAz4Szf35tv2pdCylWoIbMjLrsbjQMQk51jc3n9DhrrbaoUp5fCNiE8IvDaETQXU9aU
-         +XLg==
+        bh=XUfB/fgCisDkoqkNaBUzTUlhIh1Txg/bNOdym6ASioY=;
+        b=RkZAK9OkiaCYRkw85Xo+ZCWsJgiBUwVR9uDJKvynVt2lwmGJvNvgLP8Yx7N6SufMwF
+         AXXcRui7n+jf89qOdMWahwyWy3/H7aaY1s1plVKERmpNxOa8SsVkGQG6LN1Ze9OaQxoE
+         mu3yHohzwKTgyJe8c+OUnj0UYcXMT0MrxqPAF3lp0Yd15X3ix06U/mrVnQ64zOKTsJsE
+         Tb/2SJ0cbHgZF3djQgyD9Z+lDQODtOaiRYOSkF2rR3ji/GDFt70VNZ8Cfb4ZPI7VCs+m
+         tpGfCNYYgduJZpP96pFPLyE8Nl/13h6lJ1/EPnwsEmZ1/yCBgATTznO4QvDmAD41rLfO
+         meIA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAXV6/4s32kPxCVIw3BcDw/rAVbpFyXjZKSDX2/M309PiEQILB3b
-	75aYhJ3LAn8A8u+4D+aFKtIX6WXPjJJABeWIe8oQZlETmKA/ZB1YkJb4yfvOFouEDe889TdJthC
-	BxBbMGIR0+Ky4bwDYWFHmF9goR38ZKwJZcYcQo4g60sqZTFwln1+lKtwUyX1x98qM2Q==
-X-Received: by 2002:a50:c251:: with SMTP id t17mr1422931edf.179.1553151758195;
-        Thu, 21 Mar 2019 00:02:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzgQQvnasOJ3RA7oeZPwAuvteTXdF0rP2JbbUGM64u3+j8aGjl5VItaZ++6WJ22u2KT7Hx4
-X-Received: by 2002:a50:c251:: with SMTP id t17mr1422827edf.179.1553151755995;
-        Thu, 21 Mar 2019 00:02:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553151755; cv=none;
+X-Gm-Message-State: APjAAAXRQ1ZSufMCpnqUdR9jBwfnJqbxRV9D97AYLA7NbiLauv5C4D8s
+	t/dxi/GxDcUkrLj5hns+88iVuZtaV31K+frRCg7BYxlbAluEKFB3TV2a+8utWKC+IC6z21iXClb
+	O2Iy4BhE4uvk6j21p8QAgOqwA/H97N2SsAre5zsyxGcklcnCqIMMeoPULPmTkKdAmBA==
+X-Received: by 2002:a50:94fa:: with SMTP id t55mr1469594eda.229.1553154128222;
+        Thu, 21 Mar 2019 00:42:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwTurtcmZJoJoDawDsG5Vp42bPxA7iMDedlDQAcJDraH9HNd67HdfzMnbZohmE25OAbXmyj
+X-Received: by 2002:a50:94fa:: with SMTP id t55mr1469543eda.229.1553154127013;
+        Thu, 21 Mar 2019 00:42:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553154127; cv=none;
         d=google.com; s=arc-20160816;
-        b=w2pMdZ9U62s/9Qz8d5EQdQgkGPZ8Xf9vQZ6MjwK3XIeNFzl5Brjzzhn2HPHMBoiY2d
-         FCkXm42Czqutkr7eWl5jJox9u5Gc2vgf9U1ehm9+ypsS97E88Wt8t/M7UomzlVo/sxls
-         7Uk562YRh8lEkwos+2EUzK4tX/yF9MEWsu4n6Q5qt0HwuSjf6BW+6j1kln4FQ4hjq+rH
-         tcaU0DixOUKPHpSpkfX/EDq7T+EY6LOWM1D+6Y42GmaIM5lTdhyRa9vtwiW9dYqweKYg
-         uunqkqHAnUF6wWjZTyl6CgV5cgtfwPH7+ElVDOUGYuka2Z0e6tbH3A/57DAdMNemqM0T
-         u0Hg==
+        b=N7GTD09ZMSoz42hl3ONvbYEigDmA21kmlU/HqRZ1xpOOMIsvXDMtLMxF9ZH18DQ7qv
+         v+WWoNk9t5YG07kfq8eNUM4Ho+XxzXYtoyaE3/WdYTPgCYgfIAy5zyNOrHxaXmbVtNtb
+         SolVHi1lpiGCfM41hX4A+JRWbdCya0xyXT1gJ6g5rZFSnqZROgYXc8SYuVM+PfbS3PIx
+         Y71meeZdK0+Snan0xyQt6kQcRFYu4o6EhEkby0RbJhmXd3jpaEbe/iWJ4D38+QqYsgFd
+         ic4KvLkCLTxJOvymtmvp0rS8dxNRqBD0fi+H0bjNM/nPwWcP70SnR54Vy1XQVeQgwG0M
+         Yq/Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
          :subject;
-        bh=KsrmLqkQb7ku1m/cW3NOZB3Q3HsS8Mum+GwTOJ4Tli4=;
-        b=RiioFQ2Tdc/PSurWAtOoMzvg/CzmYyWq1iU4wh+6B7dRrvgl70U1c+crR3V8oxR5mM
-         9QH39Tkr8jwNBVGkdzHxlFWO7VeZlTv/5pZi93iTjdHED96s+MwWwBLg0snhtqj9d/xV
-         RhXTp/ISPF+wmrcM3PHFBd+qAn9CkDaaE9GNk+lnT+7RuH7d5LftxKZSGw3ReABEEUj0
-         5L+V9PzqR5MNrZEEhUZx6uSF+pOmFXvGkL+E0cnzOJIXjgj1a0HcBEWmKOP2ghR+Z3ua
-         CHrWmEjHI9VvS7P9bOlG4V+4aGnFgc2RwQZYze99xJg1mBBDj9vfc8oYv6gRVv3BSL8e
-         uFyQ==
+        bh=XUfB/fgCisDkoqkNaBUzTUlhIh1Txg/bNOdym6ASioY=;
+        b=eK85r8XAsrHdZPCKfNr12+8qLFhdqyRcCl9ax1CH3lkO6le1kiWb2LjOl9YcYJpO0w
+         iaHN72bCPBRAMJLHUyBgy0Wf4ox4VlZA7m4VJsbX4qTKHAbTnSt+9G6AuGXDL07AtJsr
+         KubxcaMUYWL3+nw/YfxwsUC3FEaNbfnLCiYCJDrqjyrsVyXjAVdH19pT6dvFNY77aI8/
+         V/6tQQa9FD5Q2kb4/rjIcfIeBFGat08rjCOkSlLXcl/S1Jmx/X78dFp481GtgwcKMJEH
+         md+lLbesQP+2vHfz+j66ctYd8+LNlQTmVaRQhr00/VEsGTw9GbXitxTz65wKePCXLrQp
+         W/eQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w16si1383327eje.64.2019.03.21.00.02.35
+        by mx.google.com with ESMTPS id x1si80672ejs.138.2019.03.21.00.42.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Mar 2019 00:02:35 -0700 (PDT)
+        Thu, 21 Mar 2019 00:42:07 -0700 (PDT)
 Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 5A98CAEE5;
-	Thu, 21 Mar 2019 07:02:34 +0000 (UTC)
+	by mx1.suse.de (Postfix) with ESMTP id 22E5DAF6A;
+	Thu, 21 Mar 2019 07:42:05 +0000 (UTC)
 Subject: Re: [RFC 0/2] guarantee natural alignment for kmalloc()
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Christopher Lameter <cl@linux.com>, linux-mm@kvack.org,
- Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
- Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ming Lei <ming.lei@redhat.com>,
- Dave Chinner <david@fromorbit.com>,
+To: Christopher Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>,
+ David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+ Ming Lei <ming.lei@redhat.com>, Dave Chinner <david@fromorbit.com>,
+ Matthew Wilcox <willy@infradead.org>,
  "Darrick J . Wong" <darrick.wong@oracle.com>, Christoph Hellwig
  <hch@lst.de>, Michal Hocko <mhocko@kernel.org>,
  linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org,
@@ -94,9 +94,7 @@ Cc: Christopher Lameter <cl@linux.com>, linux-mm@kvack.org,
 References: <20190319211108.15495-1-vbabka@suse.cz>
  <01000169988d4e34-b4178f68-c390-472b-b62f-a57a4f459a76-000000@email.amazonses.com>
  <5d7fee9c-1a80-6ac9-ac1d-b1ce05ed27a8@suse.cz>
- <20190320185347.GZ19508@bombadil.infradead.org>
- <b5290e04-6f29-c237-78a7-511821183efe@suse.cz>
- <20190321022355.GA19508@bombadil.infradead.org>
+ <010001699c5563f8-36c6909f-ed43-4839-82da-b5f9f21594b8-000000@email.amazonses.com>
 From: Vlastimil Babka <vbabka@suse.cz>
 Openpgp: preference=signencrypt
 Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
@@ -159,57 +157,75 @@ Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
  5ZFJyfGsOiNUcMoO/17FO4EBxSDP3FDLllpuzlFD7SXkfJaMWYmXIlO0jLzdfwfcnDzBbPwO
  hBM8hvtsyq8lq8vJOxv6XD6xcTtj5Az8t2JjdUX6SF9hxJpwhBU0wrCoGDkWp4Bbv6jnF7zP
  Nzftr4l8RuJoywDIiJpdaNpSlXKpj/K6KrnyAI/joYc7
-Message-ID: <718a767c-5f0c-7435-3f9b-c63bcd5b488f@suse.cz>
-Date: Thu, 21 Mar 2019 08:02:32 +0100
+Message-ID: <4d2a55dc-b29f-1309-0a8e-83b057e186e6@suse.cz>
+Date: Thu, 21 Mar 2019 08:42:02 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.5.2
 MIME-Version: 1.0
-In-Reply-To: <20190321022355.GA19508@bombadil.infradead.org>
+In-Reply-To: <010001699c5563f8-36c6909f-ed43-4839-82da-b5f9f21594b8-000000@email.amazonses.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/21/19 3:23 AM, Matthew Wilcox wrote:
-> On Wed, Mar 20, 2019 at 10:48:03PM +0100, Vlastimil Babka wrote:
+On 3/20/19 7:20 PM, Christopher Lameter wrote:
+>>> Currently all kmalloc objects are aligned to KMALLOC_MIN_ALIGN. That will
+>>> no longer be the case and alignments will become inconsistent.
 >>
->> Well, looks like that's what happens. This is with SLAB, but the alignment
->> calculations should be common: 
+>> KMALLOC_MIN_ALIGN is still the minimum, but in practice it's larger
+>> which is not a problem.
+> 
+> "In practice" refers to the current way that slab allocators arrange
+> objects within the page. They are free to do otherwise if new ideas come
+> up for object arrangements etc.
+> 
+> The slab allocators already may have to store data in addition to the user
+> accessible part (f.e. for RCU or ctor). The "natural alighnment" of a
+> power of 2 cache is no longer as you expect for these cases. Debugging is
+> not the only case where we extend the object.
+
+For plain kmalloc() caches, RCU and ctors don't apply, right.
+
+>> Also let me stress again that nothing really changes except for SLOB,
+>> and SLUB with debug options. The natural alignment for power-of-two
+>> sizes already happens as SLAB and SLUB both allocate objects starting on
+>> the page boundary. So people make assumptions based on that, and then
+>> break with SLOB, or SLUB with debug. This patch just prevents that
+>> breakage by guaranteeing those natural assumptions at all times.
+> 
+> As explained before there is nothing "natural" here. Doing so restricts
+> future features
+
+Well, future features will have to deal with the existing named caches
+created with specific alignment.
+
+> and creates a mess within the allocator of exceptions for
+> debuggin etc etc (see what happened to SLAB).
+
+SLAB could be fixed, just nobody cares enough I guess. If I want to
+debug wrong SL*B usage I'll use SLUB.
+
+> "Natural" is just a
+> simplistic thought of a user how he would arrange power of 2 objects.
+> These assumption should not be made but specified explicitly.
+
+Patch 1 does this explicitly for plain kmalloc(). It's unrealistic to
+add 'align' parameter to plain kmalloc() as that would have to create
+caches on-demand for 'new' values of align parameter.
+
+>>> I think its valuable that alignment requirements need to be explicitly
+>>> requested.
 >>
->> slabinfo - version: 2.1
->> # name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables <limit> <batchcount> <sharedfactor> : slabdata <active_slabs> <num_slabs> <sharedavail>
->> kmalloc-96          2611   4896    128   32    1 : tunables  120   60    8 : slabdata    153    153      0
->> kmalloc-128         4798   5536    128   32    1 : tunables  120   60    8 : slabdata    173    173      0
+>> That's still possible for named caches created by kmem_cache_create().
 > 
-> Hmm.  On my laptop, I see:
-> 
-> kmalloc-96         28050  35364     96   42    1 : tunables    0    0    0 : slabdata    842    842      0
-> 
-> That'd take me from 842 * 4k pages to 1105 4k pages -- an extra megabyte of
-> memory.
-> 
-> This is running Debian's 4.19 kernel:
-> 
-> # CONFIG_SLAB is not set
-> CONFIG_SLUB=y
+> So lets leave it as it is now then.
 
-Ah, you're right. SLAB creates kmalloc caches with:
+That however doesn't work well for the xfs/IO case where block sizes are
+not known in advance:
 
-#ifndef ARCH_KMALLOC_FLAGS
-#define ARCH_KMALLOC_FLAGS SLAB_HWCACHE_ALIGN
-#endif
-
-create_kmalloc_caches(ARCH_KMALLOC_FLAGS);
-
-While SLUB just:
-
-create_kmalloc_caches(0);
-
-even though it uses SLAB_HWCACHE_ALIGN for kmem_cache_node and
-kmem_cache caches.
-
+https://lore.kernel.org/linux-fsdevel/20190225040904.5557-1-ming.lei@redhat.com/T/#ec3a292c358d05a6b29cc4a9ce3ae6b2faf31a23f
 
