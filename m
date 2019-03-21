@@ -2,174 +2,132 @@ Return-Path: <SRS0=0MJS=RY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C260C10F00
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 22:00:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8DF74C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 22:01:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D7292218D4
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 22:00:47 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="pSWHajQs"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D7292218D4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 45E4A21917
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 22:01:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 45E4A21917
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5D86C6B0003; Thu, 21 Mar 2019 18:00:47 -0400 (EDT)
+	id ED86B6B0006; Thu, 21 Mar 2019 18:01:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 587B56B0006; Thu, 21 Mar 2019 18:00:47 -0400 (EDT)
+	id EAF036B0007; Thu, 21 Mar 2019 18:01:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4771D6B0007; Thu, 21 Mar 2019 18:00:47 -0400 (EDT)
+	id D9FA56B0008; Thu, 21 Mar 2019 18:01:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 03F3B6B0003
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 18:00:47 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id n10so147341pgp.21
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 15:00:46 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 981676B0006
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 18:01:09 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id m17so187105pgk.3
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 15:01:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=JVdztBDJcSey0QI9UZ8uSOMuJf9GvmkjJ47WwH+ajqs=;
-        b=ALsdsH1oTD/JXECaQA4yDX9u0eGd53n93VeHXmq95jnVquRssaTaU3FbXUpGX58S8R
-         w/8eAVihH0MTX/3sqW8BeTW15jyiymfVR4ki0HKGsOlp7lNbK9HRW81QmH/VvFiaFJm1
-         DObm2UD7AJHy6Phjlj2cAlPC4rN8STI9YvXV5IH+xiE+WvFxoXMnMu+WM2TK344BPJc1
-         t7Bf6O1etTRRIL2O38pdspvX0pD41pM4B7nGTkDnkesO22hNpeqOT9smfC37QO8bUzPK
-         08Z/xULNdHqBy4nu0R6IFS3sDfz3iWM+d6C1fl58aSu/wIxqWU/+LxRTsPLBF/Lbtl1n
-         jWoQ==
-X-Gm-Message-State: APjAAAVQxOW1EmNdRw4WxncTnOwwHY6TuB6bP5wvR67xa2sSAL+MvjcH
-	CpBlrKEBvF+cKGTQdKI6M0B04TempW6SAsWYdIhF+MlWA8cVOXEWH7nh23/U+wt5LqP2OYdvmwD
-	Hhn0fZL3mMexlkGNHtuXoSkDUPzWwQj4/u6NDJ/PmK+ahvsdpm48enDxrh+45yygwTQ==
-X-Received: by 2002:a62:41cc:: with SMTP id g73mr5518183pfd.145.1553205646582;
-        Thu, 21 Mar 2019 15:00:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwa60zyD+APgPgddL9C4j4snCXw7E3sZjYpH9PWExLO8I58wagoOGX3hRexpSu88v3D0WM/
-X-Received: by 2002:a62:41cc:: with SMTP id g73mr5518117pfd.145.1553205645855;
-        Thu, 21 Mar 2019 15:00:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553205645; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=75wXbI6fqRaqYr1j6d3FptNQOdk6OKV3h4rajfKqpEk=;
+        b=PqYUn69G+Qxkg/WVaA9kiYFED27lHJ1M8hqaBKEwISGV4edIo2PYD8OHSmQeRl7m/E
+         ZDC1xTZCG5qrwRS2Wt9y+U3+D10KosSBZG72BE6fXg/WneuqTYs51wKmF0U/uzrSFGwc
+         1envETWbxLAnm/F/ujajVvLogqBB+4zOLXFMwswKKtq6wP4uV9IVR7sK6j6Lf7r571xy
+         vlRtjvyQb1H5W+tZ6ee1Mtv9HCRr1AZYTqiCBQroDiWUha0Ta+bH4EdEIjniLMhTyVDe
+         IDe2X9fkpMj1xPWDb5VDxxEmLRD+DStJzV1xmQFzxwdGED8sWCvTwYMPqNoMFVSH4kbI
+         Dq8g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+X-Gm-Message-State: APjAAAWXnW3vOJLhO1HRFfqmzd+c2TSxBW5FZjN3pRCgyyvc1h1tJLrh
+	kvLdDjCGm/HT1RzPwxM/KO2EMH28ThIU+4Chy4zTQnE1bZC8B5c9wwiN2mHuuO4rUkUn6Z8B+BC
+	fS+W5AH40gAHT2Hco4+lypKllmIfR/5j9fSxi5e0A4woHIDDkK54Pmd5HfoFxvap+vQ==
+X-Received: by 2002:a63:544f:: with SMTP id e15mr5628540pgm.344.1553205669299;
+        Thu, 21 Mar 2019 15:01:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxOZmMpfnbZ9QAlpLLLD5ebZhPyjja5v1d1Maqhm4mSHdcvLI4Pzc8EGnLH7NcmDKMzHzjG
+X-Received: by 2002:a63:544f:: with SMTP id e15mr5628464pgm.344.1553205668448;
+        Thu, 21 Mar 2019 15:01:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553205668; cv=none;
         d=google.com; s=arc-20160816;
-        b=HrO/7/nKjl6DNo4/N01ZYN72YErfFSWj5xh2FRtEKEbYjXuh9+8LAEGjqKWhhMgnGu
-         r9J7cQCvhFiwbzIsW6qi+73vdCPB4Ag/xPI4mpeanc3LIQqnPS9T40HFRXOtsLqgjn4L
-         vGQF6gdOy9/nlv6qvRCNBga8+O1w51KRcOc+wTI+sHb/LaSdswgIWV20hmHCUFf4tBd4
-         4y0crL3zI64bEoXcJnQ3ciXX20iGfPJPI2GpqUxTi9bAQW+ye2iRYyTidTokYZ5+amvI
-         ZNHum7Y69rN1GWCEZ8EJkMD3L0pHDEBngXLJfNm7PHzO9LPOi2JionPyiwvqAFC2DiWz
-         jUAw==
+        b=jQZPzBpD1qHYjRVA3t0s+yUcdq3KFuNK3v9H/TrCN7TcPdKXqruRwG7Rfc53JOojM7
+         ve6RhMFT2OR1XtruTBwXuSuXQXe4GMaDdNOIY54DGsgRR6RCNBh1Kq9ZLDRY/W4gzW79
+         kTaEbFkC+Yk8LKgLuKnVVhlHmwnHQe5nk/eeLzFNlKl0h8OetuxHv6OYRh+00kO5qbE4
+         r33OhPEZVeZQPaLCh65M5VNn+dEw1fnWr7CvhRcHWQwkTmpaeaLZNJ08EzSIUX5F2j8c
+         IaIgF5/K8XLxhfW+oOkkEvqlGJaBn/QwZiMjo/EX23XAH2Q7VnM+OcM8HwWA9/w4mVAz
+         K4ZQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=JVdztBDJcSey0QI9UZ8uSOMuJf9GvmkjJ47WwH+ajqs=;
-        b=GLGmpnOexnLsp0PFbxaJnGCQcpvyu7v0b475QEhtugaKl5/PEJh6n5fXIySTHV7ptm
-         QpdTXUvMk+Dau5c+MqvkiFvssCom6PXRA1Y6/d3h/hOwKCEqo1LW5EHMIpa8AnUnI6rg
-         x5F+BWm4cqyQFbPAIQ7iCgf7tV97v/W5UEuWXDIG2sMY4q0NRFOjheLSfW5+fHdOVNqX
-         gUYRLSn18KRqhZ50lr8Bh5ghQmYg1TGxmT/iF1Kv70US07oPF/K964TSoFmcVG3dJHx6
-         ng+ZOIVA/Gw8nOkUeQXjdWyy80Uyj7EFdLG/LbA+djdTO/NT4l15pfpub1YY/sfkHdUf
-         wbLw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date;
+        bh=75wXbI6fqRaqYr1j6d3FptNQOdk6OKV3h4rajfKqpEk=;
+        b=gz3jzoaTsymiHy0wznE623MZUY2Mtsejt7sajpNl4ESDWMHAE78haKALCd6D8XUfcf
+         xY/B0IiuW/83gz8sTxKQoAOgjxyKsuHxs/zWybggZN5bOuQvY3D5KGWehSKSX9gOGTKE
+         AvFV5bICN21BPjw+5O1qnzCJl482TY/nvhxs2VfTkImSlWxHXN1Szbyf6lbCw2ivVx2U
+         SaU8jNKwZZhNK0T3CPZ7k0etiNIl+e2A80XliyRsYQekPSrUUo+QxadBCfZD6QRJkEG1
+         lL3PyVRtUWP9H7QJw9rwnWzEe2HxgPtWmIEsEH5SIOosgbZhDv9dstqfN8G+YVJfQnF8
+         IDlw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=pSWHajQs;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id p6si5353319pgi.531.2019.03.21.15.00.45
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id t5si5004054pgu.517.2019.03.21.15.01.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 21 Mar 2019 15:00:45 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Mar 2019 15:01:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=pSWHajQs;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=JVdztBDJcSey0QI9UZ8uSOMuJf9GvmkjJ47WwH+ajqs=; b=pSWHajQsPC7Dnpe2r+iQ7C2or
-	UFxfv/su+iL/pKAP1gL41nDsBFsAb+DZM7b3AC8jaWN1Nbr6zTLE4rlY7vXWA6ShCSc+lKp24ZqUG
-	qhRw/NfaVJZq1G/CZ36bCkP/M+xVdDArAkWcgTFPjD32YIh0KrgZKLFiUJQHkaz2C83VSRMMOm2GV
-	D2jvftVr170zAbhGkv4lfpzXvHNnGDd0q40AKVeo7vgk2svIcocNRSlzTKx1GjXiti2EhTXA7ASG4
-	6fLbS8rQB6J+iUyMkw9PqSK7xGSs6ue2cucX/lcfS8l9qu+ffGrvUpFoYiWLToHMAzHZhgA5KgGNU
-	6C1Eh4s7w==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=worktop.programming.kicks-ass.net)
-	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1h75jr-0001Fe-Im; Thu, 21 Mar 2019 22:00:40 +0000
-Received: by worktop.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 737E7984EEA; Thu, 21 Mar 2019 23:00:35 +0100 (CET)
-Date: Thu, 21 Mar 2019 23:00:35 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, selinux@vger.kernel.org,
-	Paul Moore <paul@paul-moore.com>,
-	Stephen Smalley <sds@tycho.nsa.gov>,
-	Eric Paris <eparis@parisplace.org>, Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 4/4] mm: Do periodic rescheduling when freeing objects in
- kmem_free_up_q()
-Message-ID: <20190321220035.GF7905@worktop.programming.kicks-ass.net>
-References: <20190321214512.11524-1-longman@redhat.com>
- <20190321214512.11524-5-longman@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190321214512.11524-5-longman@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 9F11EEF1;
+	Thu, 21 Mar 2019 22:01:07 +0000 (UTC)
+Date: Thu, 21 Mar 2019 15:01:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
+Cc: Michal Hocko <mhocko@suse.com>, Matthew Wilcox <willy@infradead.org>,
+ linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Thomas Garnier
+ <thgarnie@google.com>, Oleksiy Avramchenko
+ <oleksiy.avramchenko@sonymobile.com>, Steven Rostedt <rostedt@goodmis.org>,
+ Joel Fernandes <joelaf@google.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Ingo Molnar <mingo@elte.hu>, Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCH v2 0/1] improve vmap allocation
+Message-Id: <20190321150106.198f70e1e949e2cb8cc06f1c@linux-foundation.org>
+In-Reply-To: <20190321190327.11813-1-urezki@gmail.com>
+References: <20190321190327.11813-1-urezki@gmail.com>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 21, 2019 at 05:45:12PM -0400, Waiman Long wrote:
-> If the freeing queue has many objects, freeing all of them consecutively
-> may cause soft lockup especially on a debug kernel. So kmem_free_up_q()
-> is modified to call cond_resched() if running in the process context.
-> 
-> Signed-off-by: Waiman Long <longman@redhat.com>
-> ---
->  mm/slab_common.c | 11 ++++++++++-
->  1 file changed, 10 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> index dba20b4208f1..633a1d0f6d20 100644
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -1622,11 +1622,14 @@ EXPORT_SYMBOL_GPL(kmem_free_q_add);
->   * kmem_free_up_q - free all the objects in the freeing queue
->   * @head: freeing queue head
->   *
-> - * Free all the objects in the freeing queue.
-> + * Free all the objects in the freeing queue. The caller cannot hold any
-> + * non-sleeping locks.
->   */
->  void kmem_free_up_q(struct kmem_free_q_head *head)
->  {
->  	struct kmem_free_q_node *node, *next;
-> +	bool do_resched = !in_irq();
-> +	int cnt = 0;
->  
->  	for (node = head->first; node; node = next) {
->  		next = node->next;
-> @@ -1634,6 +1637,12 @@ void kmem_free_up_q(struct kmem_free_q_head *head)
->  			kmem_cache_free(node->cachep, node);
->  		else
->  			kfree(node);
-> +		/*
-> +		 * Call cond_resched() every 256 objects freed when in
-> +		 * process context.
-> +		 */
-> +		if (do_resched && !(++cnt & 0xff))
-> +			cond_resched();
+On Thu, 21 Mar 2019 20:03:26 +0100 "Uladzislau Rezki (Sony)" <urezki@gmail.com> wrote:
 
-Why not just: cond_resched() ?
-
->  	}
->  }
->  EXPORT_SYMBOL_GPL(kmem_free_up_q);
-> -- 
-> 2.18.1
+> Hello.
 > 
+> This is the v2 of the https://lkml.org/lkml/2018/10/19/786 rework. Instead of
+> referring you to that link, i will go through it again describing the improved
+> allocation method and provide changes between v1 and v2 in the end.
+> 
+> ...
+>
+
+> Performance analysis
+> --------------------
+
+Impressive numbers.  But this is presumably a worst-case microbenchmark.
+
+Are you able to describe the benefits which are observed in some
+real-world workload which someone cares about?
+
+It's a lot of new code. I t looks decent and I'll toss it in there for
+further testing.  Hopefully someone will be able to find the time for a
+detailed review.
+
+Trivial point: the code uses "inline" a lot.  Nowadays gcc cheerfully
+ignores that and does its own thing.  You might want to look at the
+effects of simply deleting all that.  Is the generated code better or
+worse or the same?  If something really needs to be inlined then use
+__always_inline, preferably with a comment explaining why it is there.
 
