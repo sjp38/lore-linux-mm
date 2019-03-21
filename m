@@ -2,190 +2,138 @@ Return-Path: <SRS0=0MJS=RY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A53DEC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 14:57:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9B4EDC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 15:08:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5865420850
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 14:57:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5865420850
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 5AA3A218D4
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 15:08:32 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ZL/Jn5FC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5AA3A218D4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DF8506B0010; Thu, 21 Mar 2019 10:57:49 -0400 (EDT)
+	id EB2496B026A; Thu, 21 Mar 2019 11:08:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D7F5E6B0269; Thu, 21 Mar 2019 10:57:49 -0400 (EDT)
+	id E61FB6B026B; Thu, 21 Mar 2019 11:08:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C20BF6B026B; Thu, 21 Mar 2019 10:57:49 -0400 (EDT)
+	id D520E6B026D; Thu, 21 Mar 2019 11:08:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EF5B6B0010
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 10:57:49 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id l19so2302437edr.12
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 07:57:49 -0700 (PDT)
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 85F136B026A
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 11:08:31 -0400 (EDT)
+Received: by mail-wm1-f71.google.com with SMTP id i184so1423754wmi.9
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 08:08:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=i2uSTCGkfQuL3YOlx+NsfZROp2req3n+zLD2kKxzDZ8=;
-        b=HVC5/f7GRr49Isf3Ad16ZNsMkloBYLM4dJZ+lsWoo3kFlei12k48b56NpVvd8Z/Cr0
-         ADQHXNnE09vHVNSWPbkrbdyOF+bxzn/ngn1p/iJa15V3rwLkrx9s5SvPS09dPAiwo+gH
-         9aOmmJQbDwaVwK9Njm5FloHO+EaEbmZEz6TUtxHzSiAmtEKzDq/FsatmGYbQa5n6n+15
-         RvnisnyTOJwPfmTXS/RRn39MEGae3bBASmWUQtQ78b4DNor0p8f54HIhjW2jstFBqXeF
-         hfpeInQ+KVmXUsntmrzmYR0Dh5+4q2T/gRX1XCRUwwCN3eD2FKHE+KDjHogKC0GbdpnP
-         TsZQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWiwjn6EY4ycpSWazVZsmzSgNpCF/lraEftIaejItEnSuoWYJqA
-	IVLZ9jDKBiGvLWmsVDy8D3gkgQnUBaA4QcCvionT6342EAmJX697DxuVrxhH95Jq3s98f49HRLq
-	aPlF+z60rQM1EI8mYJTwWou8Rx51M4PO13eBqvk4lzSqSGZQm6KffZvDgvz4pmEo=
-X-Received: by 2002:aa7:dc5a:: with SMTP id g26mr2790595edu.273.1553180269005;
-        Thu, 21 Mar 2019 07:57:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxMYXtu6K9khMZVxXgFhQbPhtF/huU2F03bwG/Mh5paW0R3R05CYMhE8PygUKSl1neApZPI
-X-Received: by 2002:aa7:dc5a:: with SMTP id g26mr2790546edu.273.1553180267826;
-        Thu, 21 Mar 2019 07:57:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553180267; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=KWQHZNFAS4oVh7zkO+Q0eMShMF/EDig7QPA8voBrsjU=;
+        b=gPuXAT2Oq4bq3edwta/6IiWPVcosMgjKUde/mtxFTV25WYSue6J0rIBbmh/rFAX+N5
+         U0eG/Iaigx05osbr1jW58Gwc0Y8rz3ijw6baKfKgcQ5JxAhM5ow9kYMk8gXubW2U2bgg
+         GkB5/ySMCGbTdCwMZwNECXkH05r7EAcZJt0ixl5ZjVVJPiMZSsvlJW4Htu4sp7xbKN+2
+         7A+3ssiaySAHuiydntNoiKUtzkTh2cYood57saFgywhLZkVUGcOyuH+nxvRFbc9sM3Gl
+         hB4AxsgzhWVt/8wlaJ5VmHarfoBCvHlXSmMMGITFdQ0sRhWu773lc1M5lGpl4kscR4CA
+         6C3A==
+X-Gm-Message-State: APjAAAUqzTuHDhj1NSmKVLMR0kzK/uNAfpgQj9k/aWbC46DjK9Clvec4
+	4Gf/wVPbhRqFnso5P11S8ReS0sfJl1YhQ+u0W1OaCUtAkeayhAjKYiaC9y5/Kg+Fe6l6pZDM6Dl
+	H4iMEa/d9wsJyAphGW+GyhZFy+R/mc4yPuca5vMuVdJ1TPQRlmdMlMKArP7VPkXle1A==
+X-Received: by 2002:a5d:638d:: with SMTP id p13mr2884847wru.202.1553180911139;
+        Thu, 21 Mar 2019 08:08:31 -0700 (PDT)
+X-Received: by 2002:a5d:638d:: with SMTP id p13mr2884790wru.202.1553180910109;
+        Thu, 21 Mar 2019 08:08:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553180910; cv=none;
         d=google.com; s=arc-20160816;
-        b=g6O8yV8th4Pkaf7Ymb5iQWiETFIJtxYuQ+Jy5sNpssQVFt7STQI+vbvcMbyC2HL3HN
-         gOgtu4gZA6kk/ld/bXFryvjQjIRRAUsYYSelpy8Ke0/jOmsHjwd2kIyBelszk33/oog8
-         RkcU7qvMDrlsmHXu10UmQ3SCgKsM+INwog2QPC6Qb9EsgqGeNzTqtkiAgOj6ti54Gn9a
-         KYAa8VUkzrc1CeSnSnGCZGfB1g1fiz4eQyX8ShO15+5o9alJYcWrqMvHqkbqsYd3M5+i
-         opObkSnR9O7XpC/mIj11dL6lWkoGF/ZIWSF9qSVWoxWCNcmqAkzuImfp6N+NnVNUxO0I
-         ystg==
+        b=N9X6vNGsGTcSZPlXeTteYb6W8W9adKMyzrnY70XzrUEEi3HRF0ESaGBbANPFv5TQZ+
+         A08aWj65GEUJFFLXAYVqw+G35D2YCMVfh70kDTHlsKcIAUM63zuiWKnykxqNRCJzprEe
+         YAtjMPgNVL/UOeG/F7r4FL9A6qMYNNM7s9v6KJ/+K6hGdbDG2twXSCRf83AJypfwouCj
+         GOPE8qTrW2BCpIer+kXeWLEnvy2pVSp3OW++YiNnt/O9SC+9mmsuyAPJbAmUvRyfy5XP
+         qydsVsEbT/qJQRwGD+1AVsSyb8cmWmw8t7sRTmwwAP4nOwbtEP671eQjn3t362tdWWR9
+         nz+Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=i2uSTCGkfQuL3YOlx+NsfZROp2req3n+zLD2kKxzDZ8=;
-        b=W9eBHVgczyUhfwZwaf822uLa/N9Hh2j88OPjtuH/VSd41VEEo/jKsCL+ooxweg1aBh
-         fKesIc1un2u14VOh7KUEBFToAUgObv10emFD1AbFdUqNRyTj5tgLFNTOKklc9UaRYfq3
-         ipAy309vi7BLSFyQdWEP+J1QgYrhhWJ4khaqX8EeIhapdvuKon3V4bs+LNrfw9hkx1pV
-         rJSVv3DTAgw/Yz/rEI6f1UygbnReKNx/3Y4B5QsKdDuU7bouQ6mASX8vTC13jZVKhSou
-         rHdgDk2L1ZeIYbCJliAfNwywVvX5ojo7K6Al3464tkeqrgHpoNnblNEaRBHUXq8Mwg7S
-         4afQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=KWQHZNFAS4oVh7zkO+Q0eMShMF/EDig7QPA8voBrsjU=;
+        b=oI2/SHempaqqQHUULkMnLnLEIrUTUn2FTcO6hf9QNSH80G3cMu6Nq7+8kgd6MlCWNg
+         r5Int2U2bkW1KPEocL29V+ls5Es5GQNwErFubQL9DLJHDlLOLXvgvdCPFzZBEOpAdPKL
+         9Q9nLpr8QR+fRDRKUPwsGh62eDDbED5Z3eUFSee2s0jccvZYWUy/NPCAcqnQeQ4Gy+SL
+         s8uGiihwDKyc7P/Tp9YsaQbJuERmE9c7GhQpXVb6KcjYtx5RDEiWVEVszZ/+oi+2bMVB
+         09pkLEI6JX8jDUkL+3eEq6eJslA0Xd8x2z+dfwHfLCumwRJNU56Xg7gnZYwWBdOKUh2Q
+         Nn+A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y1si792435edp.441.2019.03.21.07.57.47
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="ZL/Jn5FC";
+       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z131sor3812782wmc.12.2019.03.21.08.08.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Mar 2019 07:57:47 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Thu, 21 Mar 2019 08:08:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id CD105ABDC;
-	Thu, 21 Mar 2019 14:57:46 +0000 (UTC)
-Date: Thu, 21 Mar 2019 15:57:45 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: mgorman@techsingularity.net, vbabka@suse.cz, akpm@linux-foundation.org,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [RFC PATCH] mm: mempolicy: remove MPOL_MF_LAZY
-Message-ID: <20190321145745.GS8696@dhcp22.suse.cz>
-References: <1553041659-46787-1-git-send-email-yang.shi@linux.alibaba.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="ZL/Jn5FC";
+       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=KWQHZNFAS4oVh7zkO+Q0eMShMF/EDig7QPA8voBrsjU=;
+        b=ZL/Jn5FCHb4RKYX/f6PAJxDfwS/tXCiVxEGm4bE97vPoaZ66lr9x2C67E+BID0f8e/
+         Iq77g2K4qiXZ3WCz3ebv0diLY2ZpXDYmErpdB0RK5OEWp2cQopwmBIMKfopojhg6y+Yh
+         V4NBlwOKhlI9c7y9xCC8N7pSoV9tBKqaKyQntoiPtr0x3DVt332CXsXrxHVckOZ2Lp8n
+         3WFeE1ldlfi1CQ4q34j8hw1UD7W/7Wu5hxqtjlTkYqYUYTEZbcgyf3Mih9ZnTGVLbNIA
+         l8iFrd2zATTeZX+jfI1QABv1PGCpnpFpqAYBsbLSuE3SQSylEuWBguGDveBLfvGKyMUd
+         KPDw==
+X-Google-Smtp-Source: APXvYqwrHtS3i74Pv80Ry9pMxvsUFJwu7IXZc7S2CATs3PtmgoUPV/5FkavUcfilFXOY69dh9j8PFgLhyw9qRoQ/e+o=
+X-Received: by 2002:a1c:e143:: with SMTP id y64mr2745363wmg.141.1553180909460;
+ Thu, 21 Mar 2019 08:08:29 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1553041659-46787-1-git-send-email-yang.shi@linux.alibaba.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+References: <CABXGCsM-SgUCAKA3=WpL7oWZ0Xq8A1Wf-Eh6MO0seee+TviDWQ@mail.gmail.com>
+ <20190315205826.fgbelqkyuuayevun@ca-dmjordan1.us.oracle.com>
+ <CABXGCsMcXb_W-w0AA4ZFJ5aKNvSMwFn8oAMaFV7AMHgsH_UB7g@mail.gmail.com>
+ <CABXGCsO+DoEu5KMW8bELCKahhfZ1XGJCMYJ3Nka8B0Xi0A=aKg@mail.gmail.com> <1553174486.26196.11.camel@lca.pw>
+In-Reply-To: <1553174486.26196.11.camel@lca.pw>
+From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Date: Thu, 21 Mar 2019 20:08:18 +0500
+Message-ID: <CABXGCsM9ouWB0hELst8Kb9dt2u6HKY-XR=H8=u-1BKugBop0Pg@mail.gmail.com>
+Subject: Re: kernel BUG at include/linux/mm.h:1020!
+To: Qian Cai <cai@lca.pw>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, linux-mm@kvack.org, 
+	mgorman@techsingularity.net, vbabka@suse.cz
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000002, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 20-03-19 08:27:39, Yang Shi wrote:
-> MPOL_MF_LAZY was added by commit b24f53a0bea3 ("mm: mempolicy: Add
-> MPOL_MF_LAZY"), then it was disabled by commit a720094ded8c ("mm:
-> mempolicy: Hide MPOL_NOOP and MPOL_MF_LAZY from userspace for now")
-> right away in 2012.  So, it is never ever exported to userspace.
-> 
-> And, it looks nobody is interested in revisiting it since it was
-> disabled 7 years ago.  So, it sounds pointless to still keep it around.
+On Thu, 21 Mar 2019 at 18:21, Qian Cai <cai@lca.pw> wrote:
+>
+> Does it come up with this page address every time?
+>
+> page:ffffcf49607ce000
 
-The above changelog owes us a lot of explanation about why this is
-safe and backward compatible. I am also not sure you can change
-MPOL_MF_INTERNAL because somebody still might use the flag from
-userspace and we want to guarantee it will have the exact same semantic.
+No it doesn't.
 
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> ---
-> Hi folks,
-> I'm not sure if you still would like to revisit it later. And, I may be
-> not the first one to try to remvoe it. IMHO, it sounds pointless to still
-> keep it around if nobody is interested in it.
-> 
->  include/uapi/linux/mempolicy.h |  3 +--
->  mm/mempolicy.c                 | 13 -------------
->  2 files changed, 1 insertion(+), 15 deletions(-)
-> 
-> diff --git a/include/uapi/linux/mempolicy.h b/include/uapi/linux/mempolicy.h
-> index 3354774..eb52a7a 100644
-> --- a/include/uapi/linux/mempolicy.h
-> +++ b/include/uapi/linux/mempolicy.h
-> @@ -45,8 +45,7 @@ enum {
->  #define MPOL_MF_MOVE	 (1<<1)	/* Move pages owned by this process to conform
->  				   to policy */
->  #define MPOL_MF_MOVE_ALL (1<<2)	/* Move every page to conform to policy */
-> -#define MPOL_MF_LAZY	 (1<<3)	/* Modifies '_MOVE:  lazy migrate on fault */
-> -#define MPOL_MF_INTERNAL (1<<4)	/* Internal flags start here */
-> +#define MPOL_MF_INTERNAL (1<<3)	/* Internal flags start here */
->  
->  #define MPOL_MF_VALID	(MPOL_MF_STRICT   | 	\
->  			 MPOL_MF_MOVE     | 	\
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index af171cc..67886f4 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -593,15 +593,6 @@ static int queue_pages_test_walk(unsigned long start, unsigned long end,
->  
->  	qp->prev = vma;
->  
-> -	if (flags & MPOL_MF_LAZY) {
-> -		/* Similar to task_numa_work, skip inaccessible VMAs */
-> -		if (!is_vm_hugetlb_page(vma) &&
-> -			(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)) &&
-> -			!(vma->vm_flags & VM_MIXEDMAP))
-> -			change_prot_numa(vma, start, endvma);
-> -		return 1;
-> -	}
-> -
->  	/* queue pages from current vma */
->  	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
->  		return 0;
-> @@ -1181,9 +1172,6 @@ static long do_mbind(unsigned long start, unsigned long len,
->  	if (IS_ERR(new))
->  		return PTR_ERR(new);
->  
-> -	if (flags & MPOL_MF_LAZY)
-> -		new->flags |= MPOL_F_MOF;
-> -
->  	/*
->  	 * If we are using the default policy then operation
->  	 * on discontinuous address spaces is okay after all
-> @@ -1226,7 +1214,6 @@ static long do_mbind(unsigned long start, unsigned long len,
->  		int nr_failed = 0;
->  
->  		if (!list_empty(&pagelist)) {
-> -			WARN_ON_ONCE(flags & MPOL_MF_LAZY);
->  			nr_failed = migrate_pages(&pagelist, new_page, NULL,
->  				start, MIGRATE_SYNC, MR_MEMPOLICY_MBIND);
->  			if (nr_failed)
-> -- 
-> 1.8.3.1
-> 
+$ journalctl | grep "page:"
+Mar 18 05:27:58 localhost.localdomain kernel: page:ffffdcd2607ce000 is
+uninitialized and poisoned
+Mar 20 22:29:19 localhost.localdomain kernel: page:ffffe4b7607ce000 is
+uninitialized and poisoned
+Mar 20 23:03:52 localhost.localdomain kernel: page:ffffd27aa07ce000 is
+uninitialized and poisoned
+Mar 21 09:29:29 localhost.localdomain kernel: page:ffffcf49607ce000 is
+uninitialized and poisoned
 
--- 
-Michal Hocko
-SUSE Labs
+
+--
+Best Regards,
+Mike Gavrilov.
 
