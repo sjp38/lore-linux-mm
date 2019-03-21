@@ -2,144 +2,121 @@ Return-Path: <SRS0=0MJS=RY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EEA53C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 18:57:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8CBD4C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 18:58:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9502420657
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 18:57:33 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4A8EA218FD
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 18:58:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="euQLU2Xc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9502420657
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="Uq2En9aN"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4A8EA218FD
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 024B66B0003; Thu, 21 Mar 2019 14:57:33 -0400 (EDT)
+	id F1B856B0006; Thu, 21 Mar 2019 14:58:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F17056B0006; Thu, 21 Mar 2019 14:57:32 -0400 (EDT)
+	id EC87D6B0007; Thu, 21 Mar 2019 14:58:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E2DCC6B0007; Thu, 21 Mar 2019 14:57:32 -0400 (EDT)
+	id DDED56B0008; Thu, 21 Mar 2019 14:58:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 960976B0003
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 14:57:32 -0400 (EDT)
-Received: by mail-wm1-f69.google.com with SMTP id t82so1622551wmg.8
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 11:57:32 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C4AA86B0006
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 14:58:16 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id b188so24959991qkg.15
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 11:58:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=k4/o12332QL7VyxmH7N//Xj1/7/p+fqipKwASTaeBR0=;
-        b=RHzvo+K4P/PtMMOOb24y5gpDFfIt28olViuj2X7Yrigf21HB6hp25TDJ/afrjE0DZE
-         ptjm8yXdqHDkDxFucz8yom//1XarG4cCGxMfezfa1CxiLUjD5Tjh0l67/MYvzoMaASPv
-         2OXpK/8RXvrM8m1w/Z0DdauAG90Fjgakm91DPtnZBttXGDW5BmUCjqwu9iVMJ5mQYURu
-         nckAKm8ZPbwy73WzzWgL9UsLnvxMOvZ+mes0v28H+gltuNqsV+HeXRDsVjvZHr2c8PH2
-         STF6klNlDNky/mir3khylVE9IkhMeVZqDpTnrSIW3tQ225jsH+WZfLMqBHgzwPGV7XAu
-         93qw==
-X-Gm-Message-State: APjAAAX2//qI/k57dJTV27I3Ihni9bEc7icZxRLTnUeWAklvAr9vf6fq
-	73EsrA+QbIsG95k1PWUMjhxT2vZHxPtSCffNcjOW8anXqcop6u5jy7sJ3cDzzrIQVS5BsajNNKe
-	Z9L54/eh3QqiVPsKtonvUvG9ZGhxMA5+Ksb2z+zSHSUQ+PNChSPczdm+hiMjtYO1KhQ==
-X-Received: by 2002:a5d:6a87:: with SMTP id s7mr3837081wru.81.1553194652013;
-        Thu, 21 Mar 2019 11:57:32 -0700 (PDT)
-X-Received: by 2002:a5d:6a87:: with SMTP id s7mr3837039wru.81.1553194650973;
-        Thu, 21 Mar 2019 11:57:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553194650; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:mime-version:content-transfer-encoding;
+        bh=CG4CAud2+aTXCfCWTJhAZytJ3xP0aOfC34x5T8Od304=;
+        b=HLd5XgGJrnYWkDA1GJIJCsZOeO3k35uemd2hHazsvwv38H06ewz8NFXi1UznqdkYtz
+         chgovQXwX55TC4fUygaw2CPehj4v+5d+XXkIY7wnK3GF73240Buw515t4Z4UvQizNgD0
+         uXWzzddDC0Ve9WpXKm3XlX5nDpTQ3lJrV6Fn8E1zD+ZVugyVl8e8xCcxg5uWFRzqTWA4
+         1PejaRj3YRFABImA9lR7Qqau52/BYaATCr3eIreKdmRthrinRrBDQo9WTKDONveCUvkY
+         OfV45Fz+s8gItPvs3WJSYrjPmS6vs47Y5qzUvXwnjc0LLd6p4sjdv37vTdOCnEby/O8s
+         h8hA==
+X-Gm-Message-State: APjAAAUaeZyehuWwxbrC39MOX69fIEcrxcgoaTZgwBlOSMdNKWxDLpeg
+	5wmPjMg/VRSFTczhpbLGFxs3wG/QTppvlZVUQKd1xh8AOzMmf3gv7P0ICnKrSJM3E2WBgEz+oKy
+	kXdeerXcmCD0wCO3N6MI85PBf7cSw8O0uxLNm8M3xh99wTZNHzOmVQH9IrUbuFhppkQ==
+X-Received: by 2002:a37:8505:: with SMTP id h5mr4248504qkd.66.1553194696518;
+        Thu, 21 Mar 2019 11:58:16 -0700 (PDT)
+X-Received: by 2002:a37:8505:: with SMTP id h5mr4248467qkd.66.1553194695772;
+        Thu, 21 Mar 2019 11:58:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553194695; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZfO4dmX6FN1BX8tKLmUFPEhoQ1ijZ+24zVp88NVjaZxqIftQmY71n9lm6DWO6pQSX9
-         NOMhPBrfWRFJsfRxDccGxjQsszd7aoIn6SzSAmOSqL3JAgKUnpKHlsE5fW0OhZu6vz1e
-         nvSFEo63fB+JkkNQownfDu2ITRUV4l5OYULoAGQdBOT8Pus0NX7MnsF5wCJoJ7OLzfHL
-         NXuUTu0FBb6HE4L3blt5dHK8jWhE2IvgrtA9gnTUycEHEhG1+57/e+8PXcFpIo5Ze9cy
-         i5d98fXAxH1iygtN2rfwheHHACJRvzLye+tS9F77VEzdaE021cObBZVCvXbh79JVjSqv
-         gXcQ==
+        b=tyqPxdKaN6l8yYQYx04F4MzdFlVzSPg4qMdE8HnqKGPWSJf9DKkegMZUMSK+7vKx3C
+         zJCMKyKbDzhr5T0L7af3dX4Ge/WT4Kgc28QHb5JZg9JtXptNrqKjmiJFvTAJeSEQIZUX
+         AtWod5FEH969pj2b4O/tLGUY2oNy+0OrpGr5GufcAErSpawl1wFDqW6n2+lVmbgnXMM2
+         Zt13uMcJlehmgbKvsMHg0O56Ry66BT9GFcuuJ1ls7QjX23Z/xvl0q/Ybx0qXCrjzfFyf
+         3agza8kCQImTU5YcrCEMHOUXkXKbFug+a5TykVYtktFU82JeN7G8RMybi2BoE2RMRuQb
+         zPNg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=k4/o12332QL7VyxmH7N//Xj1/7/p+fqipKwASTaeBR0=;
-        b=VzthVGLE/FHZh1teuTS+KGJG3ObjuX7GGWD2U0BI2cDNqiN1VXOGD3xxITTXPg4/o/
-         ttNmrCnugT+qwg60z/hbxG8ajmHMK4KcdRiM33JIeszCplyVZBjTtgM0Ucftj71ESFc6
-         ZdDulO02SVOYgANdpRAfqQlLU4Xv4RhIFqCqk3UpAbVnUdJS0C8zThD9joF3scl4DIT0
-         9NuzA1u3yICCeFIBiPQvysZivrOjF6112J+AT5mxuzJniypPy3OGzISCTvf7RBVKQ2Jj
-         NAjWKuJYpazgbZvanp4LdaEjmFeqofYNeAhtH1krEd5itrFqYAUa3iFxRKr7DyVtc9Ur
-         5nUw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id:dkim-signature;
+        bh=CG4CAud2+aTXCfCWTJhAZytJ3xP0aOfC34x5T8Od304=;
+        b=opkzNvNtZnPqK+f8BbyKqEwJK2BoBZCTLw58Z7d75sb94YxtTqBDd3Iudl+uVQChYK
+         XZj/l+1T2qTttM4gBOaEMfDHjyduy+CQ9fP8zWLFqc1XIp9Z8Ks+LzR7TePzsdG0M4bB
+         UkdY4CNCFu1v4RzuisjbeBGyyguQ0/XrFksxobsP9MyXcywn+c0MGgK4rsGm6W+c8DMZ
+         3uBMd0BYGpI9ruKI7FkpNIkGNKoHaKIqiSZEixsKugQCi/Px4F/nMYaOg6ykFOpWIue9
+         wJTdudHyqASxU6J3MSyQ87GnkC+AROXLnXQikz0fsPUOl5U9U1A/PLWeesEsxBaLHkF6
+         ugQQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=euQLU2Xc;
-       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t26sor4181859wmj.25.2019.03.21.11.57.30
+       dkim=pass header.i=@lca.pw header.s=google header.b=Uq2En9aN;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id v41sor6865980qvf.29.2019.03.21.11.58.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 21 Mar 2019 11:57:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 21 Mar 2019 11:58:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=euQLU2Xc;
-       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@lca.pw header.s=google header.b=Uq2En9aN;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) smtp.mailfrom=cai@lca.pw
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=k4/o12332QL7VyxmH7N//Xj1/7/p+fqipKwASTaeBR0=;
-        b=euQLU2XcKsvkOwUxPVT0Ai0NgLmj+t8HVKIgz1E3lfFw+qdqR4CAaPNHaoHtE2dBbf
-         U7CXv8hpMye2g0x8QbnKSa5JU72b7yoYCMDGlAd8T4asyqcqBBZJbpDSURzLhy9OCpXj
-         tMOMtOk4QZUZ1xYPde+BY5yKwhZ6vOM7gLOMOLpXtRlgc2LY9E4FBED5PcC44MQBoa2x
-         JOMqhnSbQGD+RqCFc60bLyGrbUeS1qiT6pRJi1b6mLaWzYjbHZkiZZgjd/MKK8tgeQb9
-         BOxftEUbAhp89fm/2LkAnEz+TjrihnQkKoSttiPeU0PxoM2kHlKuXdyYaF1fL7jir54s
-         0QwA==
-X-Google-Smtp-Source: APXvYqz/nFaRkE5KwQhK/5840K12O/IcX+w5EbmyDGpVH+EW7wBhWfcRRswUW45+PdVWTscXCUtrTQzfYH7nbXOj+2A=
-X-Received: by 2002:a1c:4e04:: with SMTP id g4mr441765wmh.127.1553194650179;
- Thu, 21 Mar 2019 11:57:30 -0700 (PDT)
-MIME-Version: 1.0
-References: <CABXGCsM-SgUCAKA3=WpL7oWZ0Xq8A1Wf-Eh6MO0seee+TviDWQ@mail.gmail.com>
- <20190315205826.fgbelqkyuuayevun@ca-dmjordan1.us.oracle.com>
- <CABXGCsMcXb_W-w0AA4ZFJ5aKNvSMwFn8oAMaFV7AMHgsH_UB7g@mail.gmail.com>
- <CABXGCsO+DoEu5KMW8bELCKahhfZ1XGJCMYJ3Nka8B0Xi0A=aKg@mail.gmail.com>
- <1553174486.26196.11.camel@lca.pw> <CABXGCsM9ouWB0hELst8Kb9dt2u6HKY-XR=H8=u-1BKugBop0Pg@mail.gmail.com>
- <1553183333.26196.15.camel@lca.pw>
-In-Reply-To: <1553183333.26196.15.camel@lca.pw>
-From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Date: Thu, 21 Mar 2019 23:57:19 +0500
-Message-ID: <CABXGCsMQ7x2XxJmmsZ_cdcvqsfjqOgYFu40gTAcVOZgf4x6rVQ@mail.gmail.com>
-Subject: Re: kernel BUG at include/linux/mm.h:1020!
-To: Qian Cai <cai@lca.pw>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, linux-mm@kvack.org, 
-	mgorman@techsingularity.net, vbabka@suse.cz
+        d=lca.pw; s=google;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=CG4CAud2+aTXCfCWTJhAZytJ3xP0aOfC34x5T8Od304=;
+        b=Uq2En9aNlKpOt5B6e9Ap87o1WMK/OCiAYbI2+xbqLPrDVLh+JhkJlg3zM5WdJeFOEi
+         ABZy80ig59bE2VYfDw76UUN0NO6Y26q3dJwFTFAy70oLaYHFIQC+o6RKhWHxQ5b13mcS
+         Sm2jIkL6BqPjHQJHaQeQeAT25qxXs/UesBfXq29nhY+HM4a6cyU4Mb3ATFZC0gZ35Fbp
+         wFGI76RYY08AGuFgmiBWNDRZbcn4hGW5KfoFr05YtY0B/DiQhyU5Aj6HhVBubM567bIO
+         +9MDU5OBiECu5cKzfS1Vz+AfQIGHSFyvT4WZeChlpdXAFiq9tzbnCUmv6M64xeytLIpG
+         GHOw==
+X-Google-Smtp-Source: APXvYqyjKgDQyyn3igIG/sOWBHH4PO2Wo1DUeqegL6zLBYMRMHB34H42LG5ITZQm0caACfNBtbZhvw==
+X-Received: by 2002:ad4:430c:: with SMTP id c12mr4508757qvs.109.1553194695549;
+        Thu, 21 Mar 2019 11:58:15 -0700 (PDT)
+Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id c41sm4220482qtc.75.2019.03.21.11.58.14
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Mar 2019 11:58:15 -0700 (PDT)
+Message-ID: <1553194694.26196.18.camel@lca.pw>
+Subject: Re: Fw: [Bug 202919] New: Bad page map in process syz-executor.5 
+ pte:9100000081 pmd:47c67067
+From: Qian Cai <cai@lca.pw>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: Mark Rutland <mark.rutland@arm.com>
+Date: Thu, 21 Mar 2019 14:58:14 -0400
+In-Reply-To: <20190320170151.2ed757a48e892ebc05922389@linux-foundation.org>
+References: <20190320170151.2ed757a48e892ebc05922389@linux-foundation.org>
 Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000073, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 Mar 2019 at 20:48, Qian Cai <cai@lca.pw> wrote:
-> OK, those pages look similar enough. If you add this to __init_single_page() in
-> mm/page_alloc.c :
->
-> if (page == (void *)0xffffdcd2607ce000 || page == (void *)0xffffe4b7607ce000 ||
-> page == (void *)0xffffd27aa07ce000 || page == (void *)0xffffcf49607ce000) {
->         printk("KK page = %px\n", page);
->         dump_stack();
-> }
->
-> to see where those pages have been initialized in the first place.
+On Wed, 2019-03-20 at 17:01 -0700, Andrew Morton wrote:
+> kcov_mmap()/kcov_fault_in_area() appear to have produced a pte which
+> confused _vm_normal_page().  Could someone please take a look?
 
-In the new kernel panics "page" also does not repeated.
-
-$ journalctl | grep "page:"
-Mar 21 20:46:56 localhost.localdomain kernel: page:fffffbbbe07ce000 is
-uninitialized and poisoned
-Mar 21 21:28:03 localhost.localdomain kernel: page:ffffdecc207ce000 is
-uninitialized and poisoned
-Mar 21 23:43:24 localhost.localdomain kernel: page:fffff91ce07ce000 is
-uninitialized and poisoned
-
-
---
-Best Regards,
-Mike Gavrilov.
+Tough without a reproducer.
 
