@@ -2,161 +2,148 @@ Return-Path: <SRS0=0MJS=RY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_NEOMUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CD0AFC10F00
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 09:21:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 79CA2C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 09:42:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6E6A4218D4
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 09:21:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6E6A4218D4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 3CD1520850
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 09:42:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3CD1520850
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CA7856B0003; Thu, 21 Mar 2019 05:21:47 -0400 (EDT)
+	id 064876B0003; Thu, 21 Mar 2019 05:42:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C571A6B0006; Thu, 21 Mar 2019 05:21:47 -0400 (EDT)
+	id F30AF6B0006; Thu, 21 Mar 2019 05:42:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B46606B0007; Thu, 21 Mar 2019 05:21:47 -0400 (EDT)
+	id DD2D96B0007; Thu, 21 Mar 2019 05:42:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 949616B0003
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 05:21:47 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id f89so5356736qtb.4
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 02:21:47 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 82DA96B0003
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 05:42:42 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id o9so1977944edh.10
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 02:42:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=AVT41CEyC25KmfkzIyCyWF8KIQqm++BNqyfkHFE/lJ8=;
-        b=dl+1JbUOkHyX+3i0YrejBo5e52TG1tTe34CXZ0cuQBA3bnLOyjTVEvXmqLGsoHQaVd
-         sgGAMsGD7C7gq7i8MmBku2yJfCMmKq0RiCc+WDBsgzYGCk1RJ4zRGW5OuziH51A2CwWe
-         6a1W1uToGfhcrresndeqWSSmbqA/2ASap+llD04hg17C/PUID+3HwIJBqPTbjMjEaeGw
-         gvrhpVVzYg3yiy2AM03Hxz7F4L9O4IV1f9U/PxA22ZvkoiB7XIkZ25oT3QiRlFZBSyzG
-         10eOw3PqiRxj2aVUo1mLQOk/IjiMqscj46COU7+WPe0YaeusNypNZ6ANfwx/pKVfYJr6
-         BRgQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUSVTgbsyvymOhOC59LaHj9MeVchqJeF1Z5pM245mO9HPqrNPyb
-	XSutSmoOnCkM9hcrPRhbSEi5Sg6qM24+iPZtAv2oc75BZf00d3I9bFjgXuehPihiGIVVRkF1Zuc
-	I3C5U7M81r5FrkuGmClQuAzLMdrVrD6s32XAJNhm4SbM6mvM+KM2BC+RjJKSVbtK76g==
-X-Received: by 2002:a37:e40f:: with SMTP id y15mr1808298qkf.230.1553160107325;
-        Thu, 21 Mar 2019 02:21:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxHWYBgjVHpsyM1Uy9cQ6gsFOsZUu+hgc4Ifu9+9+E8lfAvCpK3cxj/eMbSx120dVbo9RLm
-X-Received: by 2002:a37:e40f:: with SMTP id y15mr1808271qkf.230.1553160106666;
-        Thu, 21 Mar 2019 02:21:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553160106; cv=none;
+        bh=ygxDCCfe8fc+VcNrxPZyO4/ItFDOXjtDmIcbVUjZXhU=;
+        b=TgjlxH3TPgPi3eK2Qb6rhX0ayZYehhaQtu2zcBBkGE6HmajQjYpz4Z44EXiVB9ozM1
+         +Rskyunq3keKo5BcO68VwQyiBSPlhgbzU7mzRgkLO3QQ6bgYWoMIZejLXyh7Rv21basP
+         MEbblKm7AV5sMq3fILbWex2gPJFUlOXbRoiEdldEBZ2yc6OWkjs+RCQQjRo6YrWolRyO
+         lSe4IJbh9Nt0QGl6KWvg6iP2ySumVE46K1SknmJbK1Syqvm9u/1kzJCfVCSPs1xEJGvj
+         5hCXRGOLHCKC+5Ik4vLFLUVOvudsrv1yyreBQ6/5rfdoWFEr0dDpocKCB2EpRMlnIdoC
+         cKJw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAVhcGV2zX4YhDWt6Td94aJ/o7Cl4SEKKWDh9d5jRtixfubxy8Um
+	ROmH7XMK6PrAVZmLd2lM8Sdq5J2d178QaJvCfH/lQ5p/nwzq1TBLRl4Zj+RXWLJ6fatFoZpx6Lg
+	DTXAvsTv6If1s8GKqNsuGFTPh58CYAo1cO9uLV/YC/R9w57YtS90scre9nilYPGf9vQ==
+X-Received: by 2002:a50:bacc:: with SMTP id x70mr1787105ede.211.1553161362091;
+        Thu, 21 Mar 2019 02:42:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxyYmfSRHTl5wEpFp1hyhPoFWF7U11K/ICI6r5iycLAFn8v5r+hahTZrMLyzRbwlHM4RmOC
+X-Received: by 2002:a50:bacc:: with SMTP id x70mr1787059ede.211.1553161361173;
+        Thu, 21 Mar 2019 02:42:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553161361; cv=none;
         d=google.com; s=arc-20160816;
-        b=NBhoCF34XWOrciXBECcgkHVgBr60GJoJVUCOIMSA6tkO1ucuUzpwIVSsGGTPq8/yWf
-         CTgTfUDzioMvjzGFFkpQ3Anc+4TfbM74iyT7KslCqCdmeX3JIJjusUNZttULiNdbgHww
-         Ugs7EsQxhNu+2a27jTxiqEG96ahdb9yDPXjEvy9ItXkll3hwrrgGm66PlUVxsk0mmi5P
-         PUn2hbTZG4ix22lrF65jlAkfa0vIE2hmE4LwjWTaJ0XjTWl7Wo3q9RajOaOU9Hr/vEox
-         bmUwXHz+zjXLBclN4myYmz/YAPjpKr223iZUUGF6eDny64J1RFr3QKvVZe9vgl8DtRSg
-         Z0nA==
+        b=HlEy9xmfWRY4dB7uOWK5BjVIW8nZeVcOxYxIQ/IeAP6lNzTeediyPmDGthBPe/9Vb9
+         JBOdCMf2PgOhV+t1KrZX3LYWYeg/nIZK76UYO4GF0EOXXV9X7fQUAD/CCN1W9PKhf9h6
+         keNUIj3a0MkJ/CQXL0Vb9+gr7fIUVgSc7USRCqLQd1YXuT+FVBgwYJp3QOlELnoDSAUS
+         rlSucf0U90tK12OE4TEtY8RHDF4wHLae0Y9Xmg569N5h80P6UOu5qiBvonmnk/E7pJ/h
+         W5ebPcKWRKyQ7VegqZ+cUY4RZoTh/25XwrMovqn2iy8m38YodkaTeJmUURGpOQXbZJUG
+         dSNA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=AVT41CEyC25KmfkzIyCyWF8KIQqm++BNqyfkHFE/lJ8=;
-        b=KlIfGVByjqjmgSukJom2BBm5RsCWN9v2yU6rLCII8qGkSPq1bomM6N++MhVsRbAOzG
-         pnKGJMgcXHaZ6nPFsYXWUE7E8IAtRQ8PNY7Be2E0dJ86FHnK69wqBJUYDMBu1WCr3hRn
-         vt8frLU7IjUsu1Jhbyx7mwNwF7PgaR2xSIx5IxIEmjUmVn8xx4nxLPRyc5lxM4F2Id2r
-         zEB+rqwIDbHF7FZqmmIjL+Be3cv6Tsqd9msougCvDD1mX/pY+qH5jnd3d1WLMiVXC0W+
-         BR0bPFObpBagZDTQvmwoTN7zecXWtfvZssjGULcXtq0PaVAlhKLTrAge9hhF0z571wWV
-         dArA==
+        bh=ygxDCCfe8fc+VcNrxPZyO4/ItFDOXjtDmIcbVUjZXhU=;
+        b=ijrkVayfpgSfgufSVgWXfNRT7TV8rRlwRuyQBUUX/rXkTYWQZjK01h3z5oIYszO/vr
+         NP3gv1BYCxOHP84NMzSB74EpbLssqtM79N7NKilehev8SMS+RY5qwLvL1O2YSypgaBKw
+         CHxU+i2VyrM9MBxoB6p2elyZUInIUd0v/DrDzPJUmZwImP4kVYSDHYezHtMPhaVuKlNk
+         5d8EMz1f1OSxqe3M3GN/KcMRFEYP6vBORBjV5MFx3ObHhazK6PSUOK0oCsmLInj9+NNp
+         Yk0O2tyC1Q2/Y9H3Hw3FMu0scDgclmc8G7Yi17HwqVXgTRvGDeINzSTK5kNdidFGvhy8
+         uong==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k127si46958qkd.128.2019.03.21.02.21.46
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Mar 2019 02:21:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from suse.de (nat.nue.novell.com. [195.135.221.2])
+        by mx.google.com with ESMTP id w18si1507767ejf.297.2019.03.21.02.42.40
+        for <linux-mm@kvack.org>;
+        Thu, 21 Mar 2019 02:42:41 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) client-ip=195.135.221.2;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id AB603F74A8;
-	Thu, 21 Mar 2019 09:21:45 +0000 (UTC)
-Received: from localhost (ovpn-12-72.pek2.redhat.com [10.72.12.72])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id CD0F3600C1;
-	Thu, 21 Mar 2019 09:21:42 +0000 (UTC)
-Date: Thu, 21 Mar 2019 17:21:38 +0800
-From: Baoquan He <bhe@redhat.com>
-To: Matthew Wilcox <willy@infradead.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Oscar Salvador <osalvador@suse.de>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org,
-	pasha.tatashin@oracle.com, mhocko@suse.com, rppt@linux.vnet.ibm.com,
-	richard.weiyang@gmail.com, linux-mm@kvack.org
-Subject: Re: [PATCH 1/3] mm/sparse: Clean up the obsolete code comment
-Message-ID: <20190321092138.GY18740@MiWiFi-R3L-srv>
-References: <20190320073540.12866-1-bhe@redhat.com>
- <20190320111959.GV19508@bombadil.infradead.org>
- <20190320122011.stuoqugpjdt3d7cd@d104.suse.de>
- <20190320122243.GX19508@bombadil.infradead.org>
- <20190320123658.GF13626@rapoport-lnx>
- <20190320125843.GY19508@bombadil.infradead.org>
- <20190321064029.GW18740@MiWiFi-R3L-srv>
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: by suse.de (Postfix, from userid 1000)
+	id 462B4464A; Thu, 21 Mar 2019 10:42:40 +0100 (CET)
+Date: Thu, 21 Mar 2019 10:42:40 +0100
+From: Oscar Salvador <osalvador@suse.de>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	mike.kravetz@oracle.com, zi.yan@cs.rutgers.edu, mhocko@suse.com,
+	akpm@linux-foundation.org
+Subject: Re: [PATCH] mm/isolation: Remove redundant pfn_valid_within() in
+ __first_valid_page()
+Message-ID: <20190321094237.onu3kar2ez7xv5wj@d104.suse.de>
+References: <1553141595-26907-1-git-send-email-anshuman.khandual@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190321064029.GW18740@MiWiFi-R3L-srv>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Thu, 21 Mar 2019 09:21:45 +0000 (UTC)
+In-Reply-To: <1553141595-26907-1-git-send-email-anshuman.khandual@arm.com>
+User-Agent: NeoMutt/20170421 (1.8.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 03/21/19 at 02:40pm, Baoquan He wrote:
-> Hi all,
+On Thu, Mar 21, 2019 at 09:43:15AM +0530, Anshuman Khandual wrote:
+> pfn_valid_within() calls pfn_valid() when CONFIG_HOLES_IN_ZONE making it
+> redundant for both definitions (w/wo CONFIG_MEMORY_HOTPLUG) of the helper
+> pfn_to_online_page() which either calls pfn_valid() or pfn_valid_within().
+> pfn_valid_within() being 1 when !CONFIG_HOLES_IN_ZONE is irrelevant either
+> way. This does not change functionality.
 > 
-> On 03/20/19 at 05:58am, Matthew Wilcox wrote:
-> > On Wed, Mar 20, 2019 at 02:36:58PM +0200, Mike Rapoport wrote:
-> > > There are more than a thousand -EEXIST in the kernel, I really doubt all of
-> > > them mean "File exists" ;-)
-> > 
-> > And yet that's what the user will see if it's ever printed with perror()
-> > or similar.  We're pretty bad at choosing errnos; look how abused
-> > ENOSPC is:
-> 
-> When I tried to change -EEXIST to -EBUSY, seems the returned value will
-> return back over the whole path. And -EEXIST is checked explicitly
-> several times during the path. 
-> 
-> acpi_memory_enable_device -> __add_pages .. -> __add_section -> sparse_add_one_section
-> 
-> Only look into hotplug path triggered by ACPI event, there are also
-> device memory and ballon memory paths I haven't checked carefully
-> because not familiar with them.
-> 
-> So from the checking, I tend to agree with Oscar and Mike. There have
-> been so many places to use '-EEXIST' to indicate that stuffs checked have
-> been existing. We can't deny it's inconsistent with term explanation
-> text. While the defense is that -EEXIST is more precise to indicate a
-> static instance has been present when we want to create it, but -EBUSY
-> is a little blizarre. I would rather see -EBUSY is used on a device.
-> When want to stop it or destroy it, need check if it's busy or not.
-> 
-> #define EBUSY           16      /* Device or resource busy */
-> #define EEXIST          17      /* File exists */
-> 
-> Obviously saying resource busy or not, it violates semanics in any
-> language. So many people use EEXIST instead, isn't it the obsolete
+> Fixes: 2ce13640b3f4 ("mm: __first_valid_page skip over offline pages")
+> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
 
-Surely when we require a lock which is protecting resource, we can also
-return -EBUSY since someone is busy on this resource. For creating one
-instance, just check if the instance exists already, no matter what the
-code comment of the errno is saying, IMHO, it really should not be -EBUSY.
+About the "Fixes:" tag issue, I agree with Michal that the code is not
+really broken, but perhaps "suboptimal" depending on how much can affect
+performance on those systems where pfn_valid_within() is more complicated than
+simple returning true.
 
-Thanks
-Baoquan
+I see that on arm64, that calls memblock_is_map_memory()->memblock_search(),
+to trigger a search for the region containing the address, so I guess it
+is an expensive operation.
+
+Depending on how much time we can shave, it might be worth to have the tag
+Fixes, but the removal of the code is fine anyway, so:
+
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
+
+> ---
+>  mm/page_isolation.c | 2 --
+>  1 file changed, 2 deletions(-)
+> 
+> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+> index ce323e56b34d..d9b02bb13d60 100644
+> --- a/mm/page_isolation.c
+> +++ b/mm/page_isolation.c
+> @@ -150,8 +150,6 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
+>  	for (i = 0; i < nr_pages; i++) {
+>  		struct page *page;
+>  
+> -		if (!pfn_valid_within(pfn + i))
+> -			continue;
+>  		page = pfn_to_online_page(pfn + i);
+>  		if (!page)
+>  			continue;
+> -- 
+> 2.20.1
+> 
+
+-- 
+Oscar Salvador
+SUSE L3
 
