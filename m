@@ -2,92 +2,92 @@ Return-Path: <SRS0=0MJS=RY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DC91DC10F00
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 13:46:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AB97EC10F00
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 13:52:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A147921901
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 13:46:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A147921901
+	by mail.kernel.org (Postfix) with ESMTP id 5A926218E2
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 13:52:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5A926218E2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 418CC6B0006; Thu, 21 Mar 2019 09:46:10 -0400 (EDT)
+	id EC29A6B0005; Thu, 21 Mar 2019 09:52:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3F0776B0007; Thu, 21 Mar 2019 09:46:10 -0400 (EDT)
+	id E73886B0008; Thu, 21 Mar 2019 09:52:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 307546B0008; Thu, 21 Mar 2019 09:46:10 -0400 (EDT)
+	id D3BFF6B000A; Thu, 21 Mar 2019 09:52:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 11B5F6B0006
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 09:46:10 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id q21so5922188qtf.10
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 06:46:10 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ACAA16B0005
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 09:52:07 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id y64so16272835qka.3
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 06:52:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :content-transfer-encoding:in-reply-to:user-agent;
-        bh=i2Fq96/kzkzLHPA8FJ3ko9s5NVfH5SpQnfA7trhmckE=;
-        b=C68NYCApNaD60vrvNgklCX34ye13YhkAtNKayZc6rwl9CodVpNESYAtH5+uFnFr5nn
-         bQivsgN/zgM7BpmN52nHi2Qj9t7F7LEgUD9njFicgf+FHms5Wu6Ez1CK20soGtyW4CO4
-         5hu5v4WsdY7tzzikZbY3LKM3AMDfZhWrP0npn8xct/C5dka93gg57sOtpbjd604dMgDK
-         aaew24/+zdFO41ClDSZ627VG+8cuE05EH0R7Ea1JiJr92MsKpx6rfGpNhUhWqZGMMzT5
-         pd2XejVtR4wJixGoH09feQ8usBHy9PDAEufC4eFGKUQLXKrw8A14WiGkwrsVXu+IPieU
-         Oh5Q==
+        bh=v9cAia9zyHt3Xo/+tUI1gBrDWkNFrx1j07K0lf6crT0=;
+        b=dC9xgHnqJ+T4twrdu16CqNCASfwWFgpIVcjHprsIuxk8PWNaLTtCohIDzrHuBgtkIa
+         EjwsTVo+QEeTQqzB7j0XEBCVhGqt0gURiEZTN1z6somSl2PHVR/gkT0EUw1vfBRiNoDg
+         RcrDZCMvwKx37pqDtNyks60MDS0SLp9UOSQXRk+cbf6BzYueVTeNdsOSOkAdC/lavdFT
+         gzeshjw11RA2S8um/cNDg/Ska7mkbqTUFjI6on2/eApL5YL0OaYIMJf/DGM+5+cNx+nr
+         OFXYMKF3aJuzKcMP8Ew/NXIHjr0UpK09doiP8wZMpGlQi0iDcSX9d5EX7di+R0GxlJNQ
+         y8Dw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVSh2TrUQm45iB2YpfTBmPm2JARK6HcoYL+yH1f/PVgqazTWGfk
-	gXLVas7ee8baWSusGIWiTHfPgJ2AiBv/X2KA/A3dChQ9EcEE0+fpZ48qPDofGj+Cd2UbPfqKDio
-	7VfWrwk4aTbMO+nsHEIAViVTdfwmIjJiGr8ELy012oQ5XOSbtBpdolbDiCudQ7hKrOA==
-X-Received: by 2002:ac8:110d:: with SMTP id c13mr3078470qtj.234.1553175969763;
-        Thu, 21 Mar 2019 06:46:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw9QGKBDlKxftAJslrGjn8501VwCWYYehjh2tUWWkK9PKSb5YO+kXQaFgM0Rj8G8JRB/fa6
-X-Received: by 2002:ac8:110d:: with SMTP id c13mr3078400qtj.234.1553175968941;
-        Thu, 21 Mar 2019 06:46:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553175968; cv=none;
+X-Gm-Message-State: APjAAAUZjxnPVKE4mIhyc3D7OsgnAvLIRdLuCrFii58WdkpEHOHoolWn
+	xeGwnhPbasb9eZTWxdv1fYyx8KswX4fXLozHCGIYTM4tZsuPYTXT8XBSfurdDCQ2wFycR+eOqgJ
+	hn9eEPWRhFnKxexSE3/2uyjseB6u1IkM5D9+KixyOdeqIMJKRoeGayKpBbEH0u9Eoqg==
+X-Received: by 2002:a37:dd91:: with SMTP id u17mr2698268qku.264.1553176327408;
+        Thu, 21 Mar 2019 06:52:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxmtjbehk8/flE4i16DJtZ4PcISh6bl6t+78H8ToLBZPPTzdNo2C4Yx95T+8/igDuWURGgv
+X-Received: by 2002:a37:dd91:: with SMTP id u17mr2698220qku.264.1553176326661;
+        Thu, 21 Mar 2019 06:52:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553176326; cv=none;
         d=google.com; s=arc-20160816;
-        b=qNhltsQ0YGLqC61gRHfIucOnX3nBdHGazaYzNcSlQnKuk90SYheyRCAT1neIqI2lt+
-         QJzi8HzMin5W0gCB8fm66oM0QDTju8CsqZrfcZ6/+md1UZLH/v3Z3VUiqdfhijHSCgyg
-         MgFrZgNDEhHxZjlHLmsJfBVTVA1Lkznhfg0qEcMdQKM5D6tLd0aIVGQvYzDx4HadET0B
-         QQyNa7UicecVDSPGwBms3VaXtidR5wAn4qbLZp1yK3kIkbDphRFXqago5vB48S338Wwl
-         5tELxRC5zanuFPBrJ+Y9ZQBFk27dYsvMmknCyWN11dGpoKEFeE2vw5wEUZjbH86GEGVa
-         dWWw==
+        b=iAM2wSDZMPI9UmKWccLeXhs0/vEm7x8S5sEl21Gx1765IGQkb25ByazPvBCxJhkfi7
+         9Okz8largPEsLM1PGMgcmy20Qx6/+YCR/1sd7q5FnX/M3IlOrqV11lQGgujBGtj/UWfO
+         AdC0lClJm+kM4m+0Eeo9fGPxyGZCyWFi+CeD20hOLuxYEmveWaLaEIkF1uXDHmseCi8G
+         pAPJZxvTG9zoIpv8uTdzKUiJOj6W4dT5Md2uqL4kiXtmTijOv2DaRBw4/TN9PpTW5Mij
+         h/KyZif6XfGOUtBdlZpXldBelIkURKjsmzE2A4yOArU7XBREPlCFcUzw9KoX+6n0YwWW
+         9N4Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-transfer-encoding
          :content-disposition:mime-version:references:message-id:subject:cc
          :to:from:date;
-        bh=i2Fq96/kzkzLHPA8FJ3ko9s5NVfH5SpQnfA7trhmckE=;
-        b=Y5sD3ecRkiFHI35FQxtRR6OsEKKAqp1fT8yxnHWFPqvy534sv16EOlmgnWBpdL54ZU
-         kN/yFrt6nCFdo+IiVLDZoEMS5PuaUy5aoPWHiOZJXQzLfprBumz3bkmiHvYn9isyJsS2
-         9+kjmNlt+OQjag70HorNTHsRKMAFUAYNXiD49YKo0nVB2OzsRPumJH6jWkuX0HnSkEoK
-         +e4apgn62cbgoAz/LfOp6Gi1ZNP+qRonQlwem7Am0/utzFeYop7FwXJD+G4KBJdO69Zk
-         iSjctdu7M9HehY7PbVQYDCk9/z0rLSOQuI5RS4uHUv95t6B+Yc62BxQzOY+2PtSpkAep
-         pPIg==
+        bh=v9cAia9zyHt3Xo/+tUI1gBrDWkNFrx1j07K0lf6crT0=;
+        b=o68J87WVhyIzMonF97M4S6u3r8fswCT8fu6x3vr4xefuuMkvWztio4rXr/ftXUHxad
+         C7TdFJZWrL6DTfB9ku0OkMQgj+Tu1ihtDbx0+nhbLA8BICm+NMPPjPaC0VEqCn3m+Nil
+         mjFls/WGDbzW+siT6XygU9BKzBsWfQPrU+sRRMLC8wmz9IXWFUqPJ4QDnCSKpiNGIqsI
+         S/1UovDE6OIcip23iramUR7gbne0TEKKXxNa9wSa1ea5gg8Eg2JGVjrQj0u0KMiemBJs
+         7MMNsHXictb9badPJEUuOmApwEn2lmS3xDp4ISUyQc70e3VnvNaU1EY4hkWyc9lAk5yq
+         bzPA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v11si3029034qkl.268.2019.03.21.06.46.08
+        by mx.google.com with ESMTPS id c78si1647206qkj.39.2019.03.21.06.52.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Mar 2019 06:46:08 -0700 (PDT)
+        Thu, 21 Mar 2019 06:52:06 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id B454E1E308;
-	Thu, 21 Mar 2019 13:46:07 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id A80E588AA3;
+	Thu, 21 Mar 2019 13:52:05 +0000 (UTC)
 Received: from redhat.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 1087C600C0;
-	Thu, 21 Mar 2019 13:46:05 +0000 (UTC)
-Date: Thu, 21 Mar 2019 09:46:04 -0400
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 116B919C7F;
+	Thu, 21 Mar 2019 13:52:03 +0000 (UTC)
+Date: Thu, 21 Mar 2019 09:52:02 -0400
 From: Jerome Glisse <jglisse@redhat.com>
 To: Thomas Hellstrom <thellstrom@vmware.com>
 Cc: "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
@@ -101,79 +101,296 @@ Cc: "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
 	Souptick Joarder <jrdr.linux@gmail.com>,
 	"linux-mm@kvack.org" <linux-mm@kvack.org>,
 	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [RFC PATCH RESEND 0/3] mm modifications / helpers for emulated
- GPU coherent memory
-Message-ID: <20190321134603.GB2904@redhat.com>
+Subject: Re: [RFC PATCH RESEND 2/3] mm: Add an apply_to_pfn_range interface
+Message-ID: <20190321135202.GC2904@redhat.com>
 References: <20190321132140.114878-1-thellstrom@vmware.com>
+ <20190321132140.114878-3-thellstrom@vmware.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190321132140.114878-1-thellstrom@vmware.com>
+In-Reply-To: <20190321132140.114878-3-thellstrom@vmware.com>
 User-Agent: Mutt/1.10.0 (2018-05-17)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Thu, 21 Mar 2019 13:46:08 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Thu, 21 Mar 2019 13:52:05 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 21, 2019 at 01:22:22PM +0000, Thomas Hellstrom wrote:
-> Resending since last series was sent through a mis-configured SMTP server.
+On Thu, Mar 21, 2019 at 01:22:35PM +0000, Thomas Hellstrom wrote:
+> This is basically apply_to_page_range with added functionality:
+> Allocating missing parts of the page table becomes optional, which
+> means that the function can be guaranteed not to error if allocation
+> is disabled. Also passing of the closure struct and callback function
+> becomes different and more in line with how things are done elsewhere.
 > 
-> Hi,
-> This is an early RFC to make sure I don't go too far in the wrong direction.
-> 
-> Non-coherent GPUs that can't directly see contents in CPU-visible memory,
-> like VMWare's SVGA device, run into trouble when trying to implement
-> coherent memory requirements of modern graphics APIs. Examples are
-> Vulkan and OpenGL 4.4's ARB_buffer_storage.
-> 
-> To remedy, we need to emulate coherent memory. Typically when it's detected
-> that a buffer object is about to be accessed by the GPU, we need to
-> gather the ranges that have been dirtied by the CPU since the last operation,
-> apply an operation to make the content visible to the GPU and clear the
-> the dirty tracking.
-> 
-> Depending on the size of the buffer object and the access pattern there are
-> two major possibilities:
-> 
-> 1) Use page_mkwrite() and pfn_mkwrite(). (GPU buffer objects are backed
-> either by PCI device memory or by driver-alloced pages).
-> The dirty-tracking needs to be reset by write-protecting the affected ptes
-> and flush tlb. This has a complexity of O(num_dirty_pages), but the
-> write page-fault is of course costly.
-> 
-> 2) Use hardware dirty-flags in the ptes. The dirty-tracking needs to be reset
-> by clearing the dirty bits and flush tlb. This has a complexity of
-> O(num_buffer_object_pages) and dirty bits need to be scanned in full before
-> each gpu-access.
-> 
-> So in practice the two methods need to be interleaved for best performance.
-> 
-> So to facilitate this, I propose two new helpers, apply_as_wrprotect() and
-> apply_as_clean() ("as" stands for address-space) both inspired by
-> unmap_mapping_range(). Users of these helpers are in the making, but needs
-> some cleaning-up.
+> Finally we keep apply_to_page_range as a wrapper around apply_to_pfn_range
 
-To be clear this should _only be use_ for mmap of device file ? If so
-the API should try to enforce that as much as possible for instance by
-mandating the file as argument so that the function can check it is
-only use in that case. Also big scary comment to make sure no one just
-start using those outside this very limited frame.
+The apply_to_page_range() is dangerous API it does not follow other
+mm patterns like mmu notifier. It is suppose to be use in arch code
+or vmalloc or similar thing but not in regular driver code. I see
+it has crept out of this and is being use by few device driver. I am
+not sure we should encourage that.
 
 > 
-> There's also a change to x_mkwrite() to allow dropping the mmap_sem while
-> waiting.
-
-This will most likely conflict with userfaultfd write protection. Maybe
-building your thing on top of that would be better.
-
-https://lwn.net/Articles/783571/
-
-I will take a cursory look at the patches.
-
-Cheers,
-Jérôme
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Matthew Wilcox <willy@infradead.org>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Rik van Riel <riel@surriel.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Huang Ying <ying.huang@intel.com>
+> Cc: Souptick Joarder <jrdr.linux@gmail.com>
+> Cc: "Jérôme Glisse" <jglisse@redhat.com>
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org
+> Signed-off-by: Thomas Hellstrom <thellstrom@vmware.com>
+> ---
+>  include/linux/mm.h |  10 ++++
+>  mm/memory.c        | 121 +++++++++++++++++++++++++++++++++------------
+>  2 files changed, 99 insertions(+), 32 deletions(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 80bb6408fe73..b7dd4ddd6efb 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -2632,6 +2632,16 @@ typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
+>  extern int apply_to_page_range(struct mm_struct *mm, unsigned long address,
+>  			       unsigned long size, pte_fn_t fn, void *data);
+>  
+> +struct pfn_range_apply;
+> +typedef int (*pter_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
+> +			 struct pfn_range_apply *closure);
+> +struct pfn_range_apply {
+> +	struct mm_struct *mm;
+> +	pter_fn_t ptefn;
+> +	unsigned int alloc;
+> +};
+> +extern int apply_to_pfn_range(struct pfn_range_apply *closure,
+> +			      unsigned long address, unsigned long size);
+>  
+>  #ifdef CONFIG_PAGE_POISONING
+>  extern bool page_poisoning_enabled(void);
+> diff --git a/mm/memory.c b/mm/memory.c
+> index dcd80313cf10..0feb7191c2d2 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1938,18 +1938,17 @@ int vm_iomap_memory(struct vm_area_struct *vma, phys_addr_t start, unsigned long
+>  }
+>  EXPORT_SYMBOL(vm_iomap_memory);
+>  
+> -static int apply_to_pte_range(struct mm_struct *mm, pmd_t *pmd,
+> -				     unsigned long addr, unsigned long end,
+> -				     pte_fn_t fn, void *data)
+> +static int apply_to_pte_range(struct pfn_range_apply *closure, pmd_t *pmd,
+> +			      unsigned long addr, unsigned long end)
+>  {
+>  	pte_t *pte;
+>  	int err;
+>  	pgtable_t token;
+>  	spinlock_t *uninitialized_var(ptl);
+>  
+> -	pte = (mm == &init_mm) ?
+> +	pte = (closure->mm == &init_mm) ?
+>  		pte_alloc_kernel(pmd, addr) :
+> -		pte_alloc_map_lock(mm, pmd, addr, &ptl);
+> +		pte_alloc_map_lock(closure->mm, pmd, addr, &ptl);
+>  	if (!pte)
+>  		return -ENOMEM;
+>  
+> @@ -1960,86 +1959,103 @@ static int apply_to_pte_range(struct mm_struct *mm, pmd_t *pmd,
+>  	token = pmd_pgtable(*pmd);
+>  
+>  	do {
+> -		err = fn(pte++, token, addr, data);
+> +		err = closure->ptefn(pte++, token, addr, closure);
+>  		if (err)
+>  			break;
+>  	} while (addr += PAGE_SIZE, addr != end);
+>  
+>  	arch_leave_lazy_mmu_mode();
+>  
+> -	if (mm != &init_mm)
+> +	if (closure->mm != &init_mm)
+>  		pte_unmap_unlock(pte-1, ptl);
+>  	return err;
+>  }
+>  
+> -static int apply_to_pmd_range(struct mm_struct *mm, pud_t *pud,
+> -				     unsigned long addr, unsigned long end,
+> -				     pte_fn_t fn, void *data)
+> +static int apply_to_pmd_range(struct pfn_range_apply *closure, pud_t *pud,
+> +			      unsigned long addr, unsigned long end)
+>  {
+>  	pmd_t *pmd;
+>  	unsigned long next;
+> -	int err;
+> +	int err = 0;
+>  
+>  	BUG_ON(pud_huge(*pud));
+>  
+> -	pmd = pmd_alloc(mm, pud, addr);
+> +	pmd = pmd_alloc(closure->mm, pud, addr);
+>  	if (!pmd)
+>  		return -ENOMEM;
+> +
+>  	do {
+>  		next = pmd_addr_end(addr, end);
+> -		err = apply_to_pte_range(mm, pmd, addr, next, fn, data);
+> +		if (!closure->alloc && pmd_none_or_clear_bad(pmd))
+> +			continue;
+> +		err = apply_to_pte_range(closure, pmd, addr, next);
+>  		if (err)
+>  			break;
+>  	} while (pmd++, addr = next, addr != end);
+>  	return err;
+>  }
+>  
+> -static int apply_to_pud_range(struct mm_struct *mm, p4d_t *p4d,
+> -				     unsigned long addr, unsigned long end,
+> -				     pte_fn_t fn, void *data)
+> +static int apply_to_pud_range(struct pfn_range_apply *closure, p4d_t *p4d,
+> +			      unsigned long addr, unsigned long end)
+>  {
+>  	pud_t *pud;
+>  	unsigned long next;
+> -	int err;
+> +	int err = 0;
+>  
+> -	pud = pud_alloc(mm, p4d, addr);
+> +	pud = pud_alloc(closure->mm, p4d, addr);
+>  	if (!pud)
+>  		return -ENOMEM;
+> +
+>  	do {
+>  		next = pud_addr_end(addr, end);
+> -		err = apply_to_pmd_range(mm, pud, addr, next, fn, data);
+> +		if (!closure->alloc && pud_none_or_clear_bad(pud))
+> +			continue;
+> +		err = apply_to_pmd_range(closure, pud, addr, next);
+>  		if (err)
+>  			break;
+>  	} while (pud++, addr = next, addr != end);
+>  	return err;
+>  }
+>  
+> -static int apply_to_p4d_range(struct mm_struct *mm, pgd_t *pgd,
+> -				     unsigned long addr, unsigned long end,
+> -				     pte_fn_t fn, void *data)
+> +static int apply_to_p4d_range(struct pfn_range_apply *closure, pgd_t *pgd,
+> +			      unsigned long addr, unsigned long end)
+>  {
+>  	p4d_t *p4d;
+>  	unsigned long next;
+> -	int err;
+> +	int err = 0;
+>  
+> -	p4d = p4d_alloc(mm, pgd, addr);
+> +	p4d = p4d_alloc(closure->mm, pgd, addr);
+>  	if (!p4d)
+>  		return -ENOMEM;
+> +
+>  	do {
+>  		next = p4d_addr_end(addr, end);
+> -		err = apply_to_pud_range(mm, p4d, addr, next, fn, data);
+> +		if (!closure->alloc && p4d_none_or_clear_bad(p4d))
+> +			continue;
+> +		err = apply_to_pud_range(closure, p4d, addr, next);
+>  		if (err)
+>  			break;
+>  	} while (p4d++, addr = next, addr != end);
+>  	return err;
+>  }
+>  
+> -/*
+> - * Scan a region of virtual memory, filling in page tables as necessary
+> - * and calling a provided function on each leaf page table.
+> +/**
+> + * apply_to_pfn_range - Scan a region of virtual memory, calling a provided
+> + * function on each leaf page table entry
+> + * @closure: Details about how to scan and what function to apply
+> + * @addr: Start virtual address
+> + * @size: Size of the region
+> + *
+> + * If @closure->alloc is set to 1, the function will fill in the page table
+> + * as necessary. Otherwise it will skip non-present parts.
+> + *
+> + * Returns: Zero on success. If the provided function returns a non-zero status,
+> + * the page table walk will terminate and that status will be returned.
+> + * If @closure->alloc is set to 1, then this function may also return memory
+> + * allocation errors arising from allocating page table memory.
+>   */
+> -int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
+> -			unsigned long size, pte_fn_t fn, void *data)
+> +int apply_to_pfn_range(struct pfn_range_apply *closure,
+> +		       unsigned long addr, unsigned long size)
+>  {
+>  	pgd_t *pgd;
+>  	unsigned long next;
+> @@ -2049,16 +2065,57 @@ int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
+>  	if (WARN_ON(addr >= end))
+>  		return -EINVAL;
+>  
+> -	pgd = pgd_offset(mm, addr);
+> +	pgd = pgd_offset(closure->mm, addr);
+>  	do {
+>  		next = pgd_addr_end(addr, end);
+> -		err = apply_to_p4d_range(mm, pgd, addr, next, fn, data);
+> +		if (!closure->alloc && pgd_none_or_clear_bad(pgd))
+> +			continue;
+> +		err = apply_to_p4d_range(closure, pgd, addr, next);
+>  		if (err)
+>  			break;
+>  	} while (pgd++, addr = next, addr != end);
+>  
+>  	return err;
+>  }
+> +EXPORT_SYMBOL_GPL(apply_to_pfn_range);
+> +
+> +struct page_range_apply {
+> +	struct pfn_range_apply pter;
+> +	pte_fn_t fn;
+> +	void *data;
+> +};
+> +
+> +/*
+> + * Callback wrapper to enable use of apply_to_pfn_range for
+> + * the apply_to_page_range interface
+> + */
+> +static int apply_to_page_range_wrapper(pte_t *pte, pgtable_t token,
+> +				       unsigned long addr,
+> +				       struct pfn_range_apply *pter)
+> +{
+> +	struct page_range_apply *pra =
+> +		container_of(pter, typeof(*pra), pter);
+> +
+> +	return pra->fn(pte, token, addr, pra->data);
+> +}
+> +
+> +/*
+> + * Scan a region of virtual memory, filling in page tables as necessary
+> + * and calling a provided function on each leaf page table.
+> + */
+> +int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
+> +			unsigned long size, pte_fn_t fn, void *data)
+> +{
+> +	struct page_range_apply pra = {
+> +		.pter = {.mm = mm,
+> +			 .alloc = 1,
+> +			 .ptefn = apply_to_page_range_wrapper },
+> +		.fn = fn,
+> +		.data = data
+> +	};
+> +
+> +	return apply_to_pfn_range(&pra.pter, addr, size);
+> +}
+>  EXPORT_SYMBOL_GPL(apply_to_page_range);
+>  
+>  /*
+> -- 
+> 2.19.0.rc1
+> 
 
