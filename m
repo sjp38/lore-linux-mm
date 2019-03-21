@@ -3,187 +3,125 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 19792C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 04:06:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C2B7DC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 04:13:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AD8E3218A5
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 04:06:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AD8E3218A5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 8DC2E218AE
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 04:13:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8DC2E218AE
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E2EFD6B0003; Thu, 21 Mar 2019 00:06:34 -0400 (EDT)
+	id 2906B6B0003; Thu, 21 Mar 2019 00:13:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DDE6B6B0006; Thu, 21 Mar 2019 00:06:34 -0400 (EDT)
+	id 240CB6B0006; Thu, 21 Mar 2019 00:13:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CA6176B0007; Thu, 21 Mar 2019 00:06:34 -0400 (EDT)
+	id 12FA76B0007; Thu, 21 Mar 2019 00:13:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9ECF86B0003
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 00:06:34 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id k5so4823728qte.0
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 21:06:34 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CCEC46B0003
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 00:13:25 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id 41so1736928edr.19
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2019 21:13:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:mime-version:content-transfer-encoding:message-id;
-        bh=zlPJrPotk8G25zF2Q+KLe2ZN46tX2AVGOesmkXpdEPc=;
-        b=kNSr/zwScAGAcfPDxStLEblxWB72FhoFYmCiFjTopBCf72d2BWqZUzsH8/T7vENvEF
-         8jiYyvHiTpUnwPZqclklitjyXfhURp1c/HCUVRxgnOSbFBDGt5nLDMnQ6F1pRVnvHTxz
-         VVB6yUodeREOcw6dtYlkMrJW5ty7fsJZdVCTa4R30O5lzwPqVxYJpk3SCCaS9Zb11ckS
-         E7T5Q6YVz3H8yDLGyobpmNYEszJFeDRfP1nSeFSD8dx9IjNj82aDKPgyqG15mhHb4lIz
-         72X93cL3h8k1zUXdmZyiKvaWT3oJxlyhtwAClVdbbnbvNJXxYE8tZiO9wN94bCJ1Ytlq
-         IQCQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAUmp1rP4PRxmY/dyuzSTrvuAgOvSn+y52CSfjuqDHO1hbXvn/g1
-	oFLu8sOQlWaDQwuX5efjUH+/Hj9kht3npyEt2Dxd5LsziLAHCNN9k471/feJgQKQF40ydpm4YCa
-	CNP+/xk5CiSQE6o95VurKXjVsR7ln3d+orLn1MnrEimlk6p4MfqUSKo1t/zETUmEXZQ==
-X-Received: by 2002:a37:96c4:: with SMTP id y187mr973549qkd.149.1553141194368;
-        Wed, 20 Mar 2019 21:06:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwai1spazvnjChLQ3a7kvitJjQ6qYKAdCgp9pWdbLUI0LhzXorCkIjSBVX5NH/oeGEjnEjK
-X-Received: by 2002:a37:96c4:: with SMTP id y187mr973526qkd.149.1553141193606;
-        Wed, 20 Mar 2019 21:06:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553141193; cv=none;
+         :subject:date:message-id;
+        bh=K6PUpHTE48CIeYWZZRXfHlIr2vNmtA/KhvkC2I8/wHg=;
+        b=pB7ZDPGyjdzl72yFwhrdPiC8XrqgSrJju1g6wRSmmyQ1xZJbLeaOqWvShUwF5iMT6i
+         Nv0HabF2QnPL/NsvabdafRICwFDqiytCbnRnq7mMAj61Gvt34h6PXTtQTWhq9nsFHlNE
+         OH/TAhzcMazk1uQ19ec+c4ELEr4oKM4TKAYU5tTyxTmwlnA5Po/ZFxoBEu++hDuaehQ0
+         WGN+2X5CXTXIa3krlq0zk2TNg6Uus+5t1ArOJKnKOgXnz0UrXMCZyeOkKipxiRxlVOOU
+         QZRo399S21Yr6nEepQ9HpqDh8mBxnieAfZnZn0fY4nX404MAPrKgMTJhf4/M1F3QpaeR
+         3w1A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAXvyNykIjKfHtbfa6mVA2LDISl1g/keHkY4liGf23G2BF6oAvLF
+	zbgkp5UgyqlCdYyR7ZEiDfniZznxYxpXpx3Vh5OR9+It5XefK7PfKBCfj5a3rBhnIfzkI3QaDPC
+	Gr9H6vEywpVX2lbNS6SPqb0Z8v3120qLK/hZpF8KrCT1veBcPszo0xJ7ECKOSlnutvQ==
+X-Received: by 2002:aa7:c606:: with SMTP id h6mr995501edq.210.1553141605182;
+        Wed, 20 Mar 2019 21:13:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyhWeg3/P6u/Jtn0RbpHhcd2f/787scmLNjMxJsVVg+u9c10+xzlh63x+pmVQMsyltDNsml
+X-Received: by 2002:aa7:c606:: with SMTP id h6mr995469edq.210.1553141604427;
+        Wed, 20 Mar 2019 21:13:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553141604; cv=none;
         d=google.com; s=arc-20160816;
-        b=WlGkknXV8ymJcIKCfcqYHV66TwiNcEhoG4cUveQzbGL5iepGaqQYjkpBqNk2GWZ/xR
-         9Qw36VNUX5YA7G7mM+Lri6FRhwk+zVrqLh0yh60bMQzOQ/ZVsq8AYtmf/IPJ+Oj9XOu8
-         9qhqBm1jRprjp4UqvRouFXsZquW7vbAEtX6vMg5Gkn0vHeZDxSrJVxvEPvTCBPSPLQ0T
-         toICkACPzwr36jgd7348u6M5GL2FfDBISL8atS3ii+cBPoU2qzFP47WEfyl70qSXCWVw
-         ZGz7dJKzj0GaObPdFYuOMeEr2gFVAhxhsiaincTaEPeEl1/DYesNTv4AYPvzuuAGwS2n
-         9IeA==
+        b=DzPHV1zTOuiperfUMIMqyitrYpHeyuopT7Pn/H9F3cxdVPjoK0g2C0xdtPch7K4ZlN
+         +8sOBIFWWHuy53uIYXdWPYuj+3et0iGujvLEnj7+acJD9eLb+n7JtPOlkJKbs4Vb+k0W
+         98ipQr9SWmO9K/t2Qd4iA5FISGsVM1+CKQ+V6GiAB0Z+EVIqWa9yTUrJDB+yRpisQRiy
+         hfcB1QtMbmgq3+FoAVqSMqTfvm0pyTlSJ6L5Nd6vN0YPv2UPout2pzUUtEEEAYpYJrR9
+         MASOgo4oU7YhjBK0EI+/pydHWZCfnvQlzGAF7nJHI36E07RQIoLz+rbvsRaqASzbXYhi
+         uUtA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:content-transfer-encoding:mime-version:date:subject:cc
-         :to:from;
-        bh=zlPJrPotk8G25zF2Q+KLe2ZN46tX2AVGOesmkXpdEPc=;
-        b=hWzAVwWVa7ODYzKTqjApwYau8LNtE58XkYOUTi7+vbP3fqrV1UYvWvvh9941QNezJb
-         iX5noBExwp5YZ2nxEIxLu/31DFdsvpwRgbF7u9XFgVG2rEE9t5MGuwFXeTB+auM7Bw+H
-         teSFxKdBZkLxplmy1PXk7YlUwm4z1TFItSuaTc9WtIh4/UIdN+3etfT5o+Vd9dT0eFOG
-         U25lrLUKkjTrMKmJBAzBAKBWpiapm0/0QZb1TeOqAwkh0Z+Z6FJQW3CRGdMvuNDkuXa6
-         qPupf9nMOZc+bauNSalWuVgbTCMCfegyd1RNO0j2oD/+68Vb1CgkpN9Zy7LD01Hw4DeQ
-         /hSg==
+        h=message-id:date:subject:cc:to:from;
+        bh=K6PUpHTE48CIeYWZZRXfHlIr2vNmtA/KhvkC2I8/wHg=;
+        b=v8tfzvi4nzbEK1QRYkPFUxzDocxgM+tLwcyN3cshcv1XeQt2e+E1PuIzSEDmmvvZSz
+         SNy/WHOKydy2X3C0fM5SFJ3qF7INC5FlALD3zdaWeZ1phe7yYmF0Qk8mXBMI6+t9IaQE
+         wddRwJRfBD9/9vOEH9wxItoMxailEEOg+6nUZNTR1i4tZw6bc5R+F2FuWd89zT2cmADk
+         HP9ijbl2WVzyxSJTxlXAFMP4Sn/i2xf/M8GLK5wMDMeVcqxD1TaWJj4Wl/9+HCi5SOjR
+         ojUbEsX2htAwMJfVTGMJZY2Le6jUMGCGotoZSn62u5wbNkY2+rxKkZBfHuiOYNz3KXux
+         rf3g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id c32si1743941qvd.170.2019.03.20.21.06.33
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Mar 2019 21:06:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id d6si629541edi.114.2019.03.20.21.13.24
+        for <linux-mm@kvack.org>;
+        Wed, 20 Mar 2019 21:13:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2L3wXLW102897
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 00:06:33 -0400
-Received: from e32.co.us.ibm.com (e32.co.us.ibm.com [32.97.110.150])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2rbxdh2ucn-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 00:06:32 -0400
-Received: from localhost
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Thu, 21 Mar 2019 04:06:30 -0000
-Received: from b03cxnp08027.gho.boulder.ibm.com (9.17.130.19)
-	by e32.co.us.ibm.com (192.168.1.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 21 Mar 2019 04:06:27 -0000
-Received: from b03ledav003.gho.boulder.ibm.com (b03ledav003.gho.boulder.ibm.com [9.17.130.234])
-	by b03cxnp08027.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x2L46SUL35717156
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 21 Mar 2019 04:06:29 GMT
-Received: from b03ledav003.gho.boulder.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id CFC326A058;
-	Thu, 21 Mar 2019 04:06:28 +0000 (GMT)
-Received: from b03ledav003.gho.boulder.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id D343F6A04F;
-	Thu, 21 Mar 2019 04:06:25 +0000 (GMT)
-Received: from skywalker.ibmuc.com (unknown [9.85.92.127])
-	by b03ledav003.gho.boulder.ibm.com (Postfix) with ESMTP;
-	Thu, 21 Mar 2019 04:06:25 +0000 (GMT)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: akpm@linux-foundation.org, "Kirill A . Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-        "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [PATCH] mm: page_mkclean vs MADV_DONTNEED race
-Date: Thu, 21 Mar 2019 09:36:10 +0530
-X-Mailer: git-send-email 2.20.1
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-TM-AS-GCONF: 00
-x-cbid: 19032104-0004-0000-0000-000014F14CA2
-X-IBM-SpamModules-Scores: 
-X-IBM-SpamModules-Versions: BY=3.00010789; HX=3.00000242; KW=3.00000007;
- PH=3.00000004; SC=3.00000281; SDB=6.01177373; UDB=6.00615904; IPR=6.00958070;
- MB=3.00026084; MTD=3.00000008; XFM=3.00000015; UTC=2019-03-21 04:06:29
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19032104-0005-0000-0000-00008AF91221
-Message-Id: <20190321040610.14226-1-aneesh.kumar@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-21_03:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1903210026
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000004, version=1.2.4
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id E4B2B374;
+	Wed, 20 Mar 2019 21:13:22 -0700 (PDT)
+Received: from p8cg001049571a15.blr.arm.com (p8cg001049571a15.blr.arm.com [10.162.42.102])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 1B1FD3F71A;
+	Wed, 20 Mar 2019 21:13:19 -0700 (PDT)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+To: linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Cc: mike.kravetz@oracle.com,
+	zi.yan@cs.rutgers.edu,
+	osalvador@suse.de,
+	mhocko@suse.com,
+	akpm@linux-foundation.org
+Subject: [PATCH] mm/isolation: Remove redundant pfn_valid_within() in __first_valid_page()
+Date: Thu, 21 Mar 2019 09:43:15 +0530
+Message-Id: <1553141595-26907-1-git-send-email-anshuman.khandual@arm.com>
+X-Mailer: git-send-email 2.7.4
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-MADV_DONTNEED is handled with mmap_sem taken in read mode.
-We call page_mkclean without holding mmap_sem.
+pfn_valid_within() calls pfn_valid() when CONFIG_HOLES_IN_ZONE making it
+redundant for both definitions (w/wo CONFIG_MEMORY_HOTPLUG) of the helper
+pfn_to_online_page() which either calls pfn_valid() or pfn_valid_within().
+pfn_valid_within() being 1 when !CONFIG_HOLES_IN_ZONE is irrelevant either
+way. This does not change functionality.
 
-MADV_DONTNEED implies that pages in the region are unmapped and subsequent
-access to the pages in that range is handled as a new page fault.
-This implies that if we don't have parallel access to the region when
-MADV_DONTNEED is run we expect those range to be unallocated.
-
-w.r.t page_mkclean we need to make sure that we don't break the MADV_DONTNEED
-semantics. MADV_DONTNEED check for pmd_none without holding pmd_lock.
-This implies we skip the pmd if we temporarily mark pmd none. Avoid doing
-that while marking the page clean.
-
-Keep the sequence same for dax too even though we don't support MADV_DONTNEED
-for dax mapping
-
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+Fixes: 2ce13640b3f4 ("mm: __first_valid_page skip over offline pages")
+Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
 ---
- fs/dax.c  | 2 +-
- mm/rmap.c | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ mm/page_isolation.c | 2 --
+ 1 file changed, 2 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 01bfb2ac34f9..697bc2f59b90 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -814,7 +814,7 @@ static void dax_entry_mkclean(struct address_space *mapping, pgoff_t index,
- 				goto unlock_pmd;
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index ce323e56b34d..d9b02bb13d60 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -150,8 +150,6 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
+ 	for (i = 0; i < nr_pages; i++) {
+ 		struct page *page;
  
- 			flush_cache_page(vma, address, pfn);
--			pmd = pmdp_huge_clear_flush(vma, address, pmdp);
-+			pmd = pmdp_invalidate(vma, address, pmdp);
- 			pmd = pmd_wrprotect(pmd);
- 			pmd = pmd_mkclean(pmd);
- 			set_pmd_at(vma->vm_mm, address, pmdp, pmd);
-diff --git a/mm/rmap.c b/mm/rmap.c
-index b30c7c71d1d9..76c8dfd3ae1c 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -928,7 +928,7 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
- 				continue;
- 
- 			flush_cache_page(vma, address, page_to_pfn(page));
--			entry = pmdp_huge_clear_flush(vma, address, pmd);
-+			entry = pmdp_invalidate(vma, address, pmd);
- 			entry = pmd_wrprotect(entry);
- 			entry = pmd_mkclean(entry);
- 			set_pmd_at(vma->vm_mm, address, pmd, entry);
+-		if (!pfn_valid_within(pfn + i))
+-			continue;
+ 		page = pfn_to_online_page(pfn + i);
+ 		if (!page)
+ 			continue;
 -- 
 2.20.1
 
