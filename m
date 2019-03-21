@@ -3,242 +3,278 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 84CF7C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 17:25:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 70E17C10F00
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 17:52:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 43C8921900
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 17:25:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 43C8921900
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 02E532190A
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 17:52:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 02E532190A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CC43B6B0007; Thu, 21 Mar 2019 13:25:16 -0400 (EDT)
+	id 5FDDA6B0003; Thu, 21 Mar 2019 13:52:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C4CFB6B0008; Thu, 21 Mar 2019 13:25:16 -0400 (EDT)
+	id 5AA2B6B0006; Thu, 21 Mar 2019 13:52:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AEE316B000A; Thu, 21 Mar 2019 13:25:16 -0400 (EDT)
+	id 4833C6B0007; Thu, 21 Mar 2019 13:52:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6985A6B0007
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 13:25:16 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id f12so6116388pgs.2
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 10:25:16 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DF7056B0003
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 13:52:52 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id p5so2551557edh.2
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 10:52:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-transfer-encoding:content-language;
-        bh=H7gtcUyNyRf/ZDYz77uxy2MGCbJJn2bBBEbX7t0hDjQ=;
-        b=HjrxzIBA+JLo3AdF+zeB4PVoGe2tozxMP9W1/oro3fvBNdGuJf0vtgwMflSIgABYmB
-         ZJk2BYraHvjA86mlLKxl05g5+ukUlAjrHQ2Mx+PSc/jkLzmTsQpVkPKXRGIMn8nWxauu
-         jL8Bl5la7kYppBX+geDO8SvXzC1u6R0mdXXwYrm7/iQdcJYeejnDVR3RGYYz3SeGWED7
-         DWx03fsmUOKKr1a2sJv5QEg+Mmc2kt+VHUaWkh52B8njpn1iACXfmfS8l9Obwt78f8gJ
-         Q4sxLuL5WioYRqhyCEHY+atZXMLp7T22kuPhYz1ad5m2xFDZBRwMXhoiIrQk8RxIezv2
-         rBDQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.132 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAXJG5qO0aUikwSnocdd4np0sJrZoT5SQn00DJ8HKveUbrusNAPG
-	kqfM4icv2tjje4UBJod8yNingPCY0T49SCKm7zGR9ewyVT4gsK+1OYVNVzUPKlUE+/wdMrLMI0N
-	dmPs6+H9Kh73UAwIAx3m01AAIOUkBB/v3igyUAf/nEQFX6zinaFJqsJTWox//yoBJ6g==
-X-Received: by 2002:a17:902:121:: with SMTP id 30mr4714626plb.315.1553189116064;
-        Thu, 21 Mar 2019 10:25:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqziJDnAYKg5kO9DTteXF1kkMgnOBgzAgssq+mTdRiuWvE9ctBEszx4yN/C8z52qz7do/GHe
-X-Received: by 2002:a17:902:121:: with SMTP id 30mr4714558plb.315.1553189115081;
-        Thu, 21 Mar 2019 10:25:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553189115; cv=none;
+        bh=recM7Cb8jASqyijJ2x1szuM8Mzy7tJqe9u0bEF+/jI0=;
+        b=mq7jEDO/2nOaN45Z5wI+Lri1f6ToagpGBbmxCoCswgRQ8KPqmy1TRy5plrBov15p9B
+         S6EeFbbBM65zub6+R6y30unRN64dz7Fkgg4MZaYS/A6ePzvjat2ZglTLOWZWwVZCPqnK
+         tHTuSvVeh0Hew94LNKgXYBt7Rt8eI2Znb+CWw9ff6vYwOGti6/Br/Pc8nTlewWI3bPkO
+         VfXTR4/oCHmjVRtyJh5lK8z/rsxQU0Ni1AvIjFnPfqp8BEhDu/Ie7WbY4fOGkrGbwJKy
+         ojEZB40aLiUe2rM57pp2I5630h1nwyBQkSmMEuTlOzgRcS3cDq2ACjicSc1w+gsjyMNe
+         pzFw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=kevin.brodsky@arm.com
+X-Gm-Message-State: APjAAAVsNLTPxKk3FL0KM/5jTfwbX1jsuCTYh0qyUr1prm31LTYWJ6P6
+	G2RKFBxCkTt9vIPHjwdnbVheF4ZVQpOg9+PZGgfkQL2flsp6Ix/+Q7x8nNiVmkCesYNTpbDLn2T
+	pBM3pzFexm44agofD5xFUrU9DACPUapdFeFG8xu26755PSIMXSEvtxXfLNIbStlLwiw==
+X-Received: by 2002:a17:906:58b:: with SMTP id 11mr2992972ejn.211.1553190772411;
+        Thu, 21 Mar 2019 10:52:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzJCIOE2CxWCrH69KeM22saC2eM+fwc5+Erbw+IbSArKt06UuIJTS/di01iXxnNGIXybFYB
+X-Received: by 2002:a17:906:58b:: with SMTP id 11mr2992930ejn.211.1553190771126;
+        Thu, 21 Mar 2019 10:52:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553190771; cv=none;
         d=google.com; s=arc-20160816;
-        b=Kp+vbCnHCX1VjcJGrMXLp0IkOPiNhk2UOXujutzTrv1cTFrkEC3HquKIsM3ZP1i69+
-         1TWiDnfX6D8rVdT+QGihVxeATTL4boOfrbTzlYN1ABkmIVkA5bs8bgtxXgDV8qR7n//N
-         oj+iVZbGltZ5DqCryGiV6gC9+Ncfl8KIdq0aoEHCBM6AnXXxN/XyJEbLOlEMk9AbYCjk
-         V8YeVCHhgSIWKdbk7gsxw/jMeVx/b/y//UI3lD6jwPBceVtkZT7AMaw22ufVkqxqNdOL
-         21dnJi36OTmUG06oZ37LHlQz/IZduBRSjbBg+fd8yNUJAC83Vu5dNIjpf3+UTuXqvJnj
-         nWvQ==
+        b=r0QGPBkwqj2lUlLL+TYkcOJE9CCvAYVsCup9a6kF9vniEn6M0Xt3FMiYz8y8Hf28qy
+         JD4f1LXCBKd6yGX6lDmcspQBk0iTmg21Wl2rHvmYTjnl+ficN3Wupmn+J1aB1V0jlmYQ
+         yikAmYQK1HdYe4iPSaa5hORZ2Fg/Kp9p+PGy9hxL0CWihYCGmBxDfeGJczyKtl/C3+TP
+         z6PcesmRycs0f/HwnpjJP7QrzXuLMd5y4k+yT79YoybQJvMLJlDFBTvpPeCvJCx71ePG
+         Zdcznvp+fRQw5E46tzEC4ROLlmAZSpsBCt7yA3cRcjJGRimt7oVQqaDhA69uwYDHQkSX
+         cNbQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-language:content-transfer-encoding:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=H7gtcUyNyRf/ZDYz77uxy2MGCbJJn2bBBEbX7t0hDjQ=;
-        b=rF+2Isz0/li5PWv9D3kQdvpyntTY3KqGIU9v3U5jM7DlfaOjDF+kEbJ+A01fPRz74Y
-         m+zLlzL8nyuVNwB2dU77rv7rdSZQdz6kjma127qAaKOP1B/DEfG5L+osV86+KCZA4F79
-         zXzLUroDL3cYf0SgR6AKBk6ld5LW7OPJXB5mIFsSZXeSQRid365HdG6wgRzFQyE0ZMK+
-         XvHofCyK+MgEi3Y+GnQMgewhEZUc2WK12/Zt5Nx/Qq1dNe6WQgR14syNcnDWo1djvwiQ
-         tmIfz8odpQellHe7txEzYjgJfmTIN48p3Jrdz2eJ1mwxt5O9Wek6zcw/h/c+KvH0I0+1
-         5B4g==
+        bh=recM7Cb8jASqyijJ2x1szuM8Mzy7tJqe9u0bEF+/jI0=;
+        b=rLuaCDHd3fXJuSn/vjhCwBMp6sXeUQzEdo1ecQsQ8UGRgQ3n20oiPk9yKPJDyvtl+M
+         NlU8aePCuaweuATjyvStMMrr2YTwjDFvtZtkw2bNhyBKNcWf3kXO1rd0W0phZmvu76jy
+         UbwbRbiJHVlE6mT1ZPeoPCexJPgpALxzfxu/ct/cGxUyQmo05JsQWUDEO2Fy6osf9wfX
+         JYCC0qIBJYK7FkkrfC1mVqT9qwc9NSb9AKX0M91Gl5Cl4eWbuB5suBd49bPu8iAJLKpg
+         79AxD48xyHRlM326HTLqHkn/PrsUQMeXLWzxAmVHRuc6A8eZnTmDLaQyCRydmA6EkLTX
+         0GBA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.132 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
-        by mx.google.com with ESMTPS id 73si5195014pld.156.2019.03.21.10.25.14
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Mar 2019 10:25:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.132 as permitted sender) client-ip=115.124.30.132;
+       spf=pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=kevin.brodsky@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id e24si2184602eda.31.2019.03.21.10.52.50
+        for <linux-mm@kvack.org>;
+        Thu, 21 Mar 2019 10:52:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.132 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R151e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04452;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=6;SR=0;TI=SMTPD_---0TNITHgs_1553189110;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TNITHgs_1553189110)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Fri, 22 Mar 2019 01:25:12 +0800
-Subject: Re: [RFC PATCH] mm: mempolicy: remove MPOL_MF_LAZY
-To: Michal Hocko <mhocko@kernel.org>
-Cc: mgorman@techsingularity.net, vbabka@suse.cz, akpm@linux-foundation.org,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <1553041659-46787-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190321145745.GS8696@dhcp22.suse.cz>
- <75059b39-dbc4-3649-3e6b-7bdf282e3f53@linux.alibaba.com>
- <20190321165112.GU8696@dhcp22.suse.cz>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <60ef6b4a-4f24-567f-af2f-50d97a2672d6@linux.alibaba.com>
-Date: Thu, 21 Mar 2019 10:25:08 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       spf=pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=kevin.brodsky@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id D944B374;
+	Thu, 21 Mar 2019 10:52:49 -0700 (PDT)
+Received: from [10.1.199.35] (e107154-lin.cambridge.arm.com [10.1.199.35])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 0980C3F614;
+	Thu, 21 Mar 2019 10:52:39 -0700 (PDT)
+Subject: Re: [PATCH v13 10/20] kernel, arm64: untag user pointers in
+ prctl_set_mm*
+To: Andrey Konovalov <andreyknvl@google.com>,
+ Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
+ <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
+ Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>,
+ Kate Stewart <kstewart@linuxfoundation.org>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>,
+ "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+ Shuah Khan <shuah@kernel.org>, Vincenzo Frascino
+ <vincenzo.frascino@arm.com>, Eric Dumazet <edumazet@google.com>,
+ "David S. Miller" <davem@davemloft.net>, Alexei Starovoitov
+ <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>,
+ Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>,
+ Peter Zijlstra <peterz@infradead.org>,
+ Arnaldo Carvalho de Melo <acme@kernel.org>,
+ Alex Deucher <alexander.deucher@amd.com>,
+ =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>,
+ "David (ChunMing) Zhou" <David1.Zhou@amd.com>,
+ Yishai Hadas <yishaih@mellanox.com>,
+ Mauro Carvalho Chehab <mchehab@kernel.org>,
+ Jens Wiklander <jens.wiklander@linaro.org>,
+ Alex Williamson <alex.williamson@redhat.com>,
+ linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+ linux-arch@vger.kernel.org, netdev@vger.kernel.org, bpf@vger.kernel.org,
+ amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org,
+ linux-rdma@vger.kernel.org, linux-media@vger.kernel.org,
+ kvm@vger.kernel.org, linux-kselftest@vger.kernel.org,
+ linux-kernel@vger.kernel.org
+Cc: Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>,
+ Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>,
+ Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+ Jacob Bramley <Jacob.Bramley@arm.com>,
+ Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+ Chintan Pandya <cpandya@codeaurora.org>,
+ Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+ Dave Martin <Dave.Martin@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+References: <cover.1553093420.git.andreyknvl@google.com>
+ <76f96eb9162b3a7fa5949d71af38bf8fdf6924c4.1553093421.git.andreyknvl@google.com>
+From: Kevin Brodsky <kevin.brodsky@arm.com>
+Message-ID: <c5b9f421-0dd8-d56f-c591-0c841cbdfe3b@arm.com>
+Date: Thu, 21 Mar 2019 17:52:37 +0000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-In-Reply-To: <20190321165112.GU8696@dhcp22.suse.cz>
+In-Reply-To: <76f96eb9162b3a7fa5949d71af38bf8fdf6924c4.1553093421.git.andreyknvl@google.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Content-Language: en-GB
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 3/21/19 9:51 AM, Michal Hocko wrote:
-> On Thu 21-03-19 09:21:39, Yang Shi wrote:
->>
->> On 3/21/19 7:57 AM, Michal Hocko wrote:
->>> On Wed 20-03-19 08:27:39, Yang Shi wrote:
->>>> MPOL_MF_LAZY was added by commit b24f53a0bea3 ("mm: mempolicy: Add
->>>> MPOL_MF_LAZY"), then it was disabled by commit a720094ded8c ("mm:
->>>> mempolicy: Hide MPOL_NOOP and MPOL_MF_LAZY from userspace for now")
->>>> right away in 2012.  So, it is never ever exported to userspace.
->>>>
->>>> And, it looks nobody is interested in revisiting it since it was
->>>> disabled 7 years ago.  So, it sounds pointless to still keep it around.
->>> The above changelog owes us a lot of explanation about why this is
->>> safe and backward compatible. I am also not sure you can change
->>> MPOL_MF_INTERNAL because somebody still might use the flag from
->>> userspace and we want to guarantee it will have the exact same semantic.
->> Since MPOL_MF_LAZY is never exported to userspace (Mel helped to confirm
->> this in the other thread), so I'm supposed it should be safe and backward
->> compatible to userspace.
-> You didn't get my point. The flag is exported to the userspace and
-> nothing in the syscall entry path checks and masks it. So we really have
-> to preserve the semantic of the flag bit for ever.
-
-Thanks, I see you point. Yes, it is exported to userspace in some sense 
-since it is in uapi header. But, it is never documented and 
-MPOL_MF_VALID excludes it. mbind() does check and mask it. It would 
-return -EINVAL if MPOL_MF_LAZY or any other undefined/invalid flag is 
-set. See the below code snippet from do_mbind():
-
-...
-#define MPOL_MF_VALID    (MPOL_MF_STRICT   |     \
-              MPOL_MF_MOVE     |     \
-              MPOL_MF_MOVE_ALL)
-
-if (flags & ~(unsigned long)MPOL_MF_VALID)
-         return -EINVAL;
-
-So, I don't think any application would really use the flag for mbind() 
-unless it is aimed to test the -EINVAL. If just test program, it should 
-be not considered as a regression.
-
+On 20/03/2019 14:51, Andrey Konovalov wrote:
+> This patch is a part of a series that extends arm64 kernel ABI to allow to
+> pass tagged user pointers (with the top byte set to something else other
+> than 0x00) as syscall arguments.
 >
->> I'm also not sure if anyone use MPOL_MF_INTERNAL or not and how they use it
->> in their applications, but how about keeping it unchanged?
-> You really have to. Because it is an offset of other MPLO flags for
-> internal usage.
+> prctl_set_mm() and prctl_set_mm_map() use provided user pointers for vma
+> lookups and do some pointer comparisons to perform validation, which can
+> only by done with untagged pointers.
 >
-> That being said. Considering that we really have to preserve
-> MPOL_MF_LAZY value (we cannot even rename it because it is in uapi
-> headers and we do not want to break compilation). What is the point of
-> this change? Why is it an improvement? Yes, nobody is probably using
-> this because this is not respected in anything but the preferred mem
-> policy. At least that is the case from my quick glance. I might be still
-> wrong as it is quite easy to overlook all the consequences. So the risk
-> is non trivial while the benefit is not really clear to me. If you see
-> one, _document_ it. "Mel said it is not in use" is not a justification,
-> with all due respect.
-
-As I elaborated above, mbind() syscall does check it and treat it as an 
-invalid flag. MPOL_PREFERRED doesn't use it either, but just use 
-MPOL_F_MOF directly.
-
-Thanks,
-Yang
-
+> Untag user pointers in these functions for vma lookup and validity checks.
 >
->> Thanks,
->> Yang
->>
->>>> Cc: Mel Gorman <mgorman@techsingularity.net>
->>>> Cc: Michal Hocko <mhocko@suse.com>
->>>> Cc: Vlastimil Babka <vbabka@suse.cz>
->>>> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
->>>> ---
->>>> Hi folks,
->>>> I'm not sure if you still would like to revisit it later. And, I may be
->>>> not the first one to try to remvoe it. IMHO, it sounds pointless to still
->>>> keep it around if nobody is interested in it.
->>>>
->>>>    include/uapi/linux/mempolicy.h |  3 +--
->>>>    mm/mempolicy.c                 | 13 -------------
->>>>    2 files changed, 1 insertion(+), 15 deletions(-)
->>>>
->>>> diff --git a/include/uapi/linux/mempolicy.h b/include/uapi/linux/mempolicy.h
->>>> index 3354774..eb52a7a 100644
->>>> --- a/include/uapi/linux/mempolicy.h
->>>> +++ b/include/uapi/linux/mempolicy.h
->>>> @@ -45,8 +45,7 @@ enum {
->>>>    #define MPOL_MF_MOVE	 (1<<1)	/* Move pages owned by this process to conform
->>>>    				   to policy */
->>>>    #define MPOL_MF_MOVE_ALL (1<<2)	/* Move every page to conform to policy */
->>>> -#define MPOL_MF_LAZY	 (1<<3)	/* Modifies '_MOVE:  lazy migrate on fault */
->>>> -#define MPOL_MF_INTERNAL (1<<4)	/* Internal flags start here */
->>>> +#define MPOL_MF_INTERNAL (1<<3)	/* Internal flags start here */
->>>>    #define MPOL_MF_VALID	(MPOL_MF_STRICT   | 	\
->>>>    			 MPOL_MF_MOVE     | 	\
->>>> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
->>>> index af171cc..67886f4 100644
->>>> --- a/mm/mempolicy.c
->>>> +++ b/mm/mempolicy.c
->>>> @@ -593,15 +593,6 @@ static int queue_pages_test_walk(unsigned long start, unsigned long end,
->>>>    	qp->prev = vma;
->>>> -	if (flags & MPOL_MF_LAZY) {
->>>> -		/* Similar to task_numa_work, skip inaccessible VMAs */
->>>> -		if (!is_vm_hugetlb_page(vma) &&
->>>> -			(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)) &&
->>>> -			!(vma->vm_flags & VM_MIXEDMAP))
->>>> -			change_prot_numa(vma, start, endvma);
->>>> -		return 1;
->>>> -	}
->>>> -
->>>>    	/* queue pages from current vma */
->>>>    	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
->>>>    		return 0;
->>>> @@ -1181,9 +1172,6 @@ static long do_mbind(unsigned long start, unsigned long len,
->>>>    	if (IS_ERR(new))
->>>>    		return PTR_ERR(new);
->>>> -	if (flags & MPOL_MF_LAZY)
->>>> -		new->flags |= MPOL_F_MOF;
->>>> -
->>>>    	/*
->>>>    	 * If we are using the default policy then operation
->>>>    	 * on discontinuous address spaces is okay after all
->>>> @@ -1226,7 +1214,6 @@ static long do_mbind(unsigned long start, unsigned long len,
->>>>    		int nr_failed = 0;
->>>>    		if (!list_empty(&pagelist)) {
->>>> -			WARN_ON_ONCE(flags & MPOL_MF_LAZY);
->>>>    			nr_failed = migrate_pages(&pagelist, new_page, NULL,
->>>>    				start, MIGRATE_SYNC, MR_MEMPOLICY_MBIND);
->>>>    			if (nr_failed)
->>>> -- 
->>>> 1.8.3.1
->>>>
+> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> ---
+>   kernel/sys.c | 44 ++++++++++++++++++++++++++++++--------------
+>   1 file changed, 30 insertions(+), 14 deletions(-)
+>
+> diff --git a/kernel/sys.c b/kernel/sys.c
+> index 12df0e5434b8..fe26ccf3c9e6 100644
+> --- a/kernel/sys.c
+> +++ b/kernel/sys.c
+> @@ -1885,11 +1885,12 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
+>    * WARNING: we don't require any capability here so be very careful
+>    * in what is allowed for modification from userspace.
+>    */
+> -static int validate_prctl_map(struct prctl_mm_map *prctl_map)
+> +static int validate_prctl_map(struct prctl_mm_map *tagged_prctl_map)
+>   {
+>   	unsigned long mmap_max_addr = TASK_SIZE;
+>   	struct mm_struct *mm = current->mm;
+>   	int error = -EINVAL, i;
+> +	struct prctl_mm_map prctl_map;
+>   
+>   	static const unsigned char offsets[] = {
+>   		offsetof(struct prctl_mm_map, start_code),
+> @@ -1905,12 +1906,25 @@ static int validate_prctl_map(struct prctl_mm_map *prctl_map)
+>   		offsetof(struct prctl_mm_map, env_end),
+>   	};
+>   
+> +	memcpy(&prctl_map, tagged_prctl_map, sizeof(prctl_map));
+> +	prctl_map.start_code	= untagged_addr(prctl_map.start_code);
+> +	prctl_map.end_code	= untagged_addr(prctl_map.end_code);
+> +	prctl_map.start_data	= untagged_addr(prctl_map.start_data);
+> +	prctl_map.end_data	= untagged_addr(prctl_map.end_data);
+> +	prctl_map.start_brk	= untagged_addr(prctl_map.start_brk);
+> +	prctl_map.brk		= untagged_addr(prctl_map.brk);
+> +	prctl_map.start_stack	= untagged_addr(prctl_map.start_stack);
+> +	prctl_map.arg_start	= untagged_addr(prctl_map.arg_start);
+> +	prctl_map.arg_end	= untagged_addr(prctl_map.arg_end);
+> +	prctl_map.env_start	= untagged_addr(prctl_map.env_start);
+> +	prctl_map.env_end	= untagged_addr(prctl_map.env_end);
+> +
+>   	/*
+>   	 * Make sure the members are not somewhere outside
+>   	 * of allowed address space.
+>   	 */
+>   	for (i = 0; i < ARRAY_SIZE(offsets); i++) {
+> -		u64 val = *(u64 *)((char *)prctl_map + offsets[i]);
+> +		u64 val = *(u64 *)((char *)&prctl_map + offsets[i]);
+>   
+>   		if ((unsigned long)val >= mmap_max_addr ||
+>   		    (unsigned long)val < mmap_min_addr)
+> @@ -1921,8 +1935,8 @@ static int validate_prctl_map(struct prctl_mm_map *prctl_map)
+>   	 * Make sure the pairs are ordered.
+>   	 */
+>   #define __prctl_check_order(__m1, __op, __m2)				\
+> -	((unsigned long)prctl_map->__m1 __op				\
+> -	 (unsigned long)prctl_map->__m2) ? 0 : -EINVAL
+> +	((unsigned long)prctl_map.__m1 __op				\
+> +	 (unsigned long)prctl_map.__m2) ? 0 : -EINVAL
+>   	error  = __prctl_check_order(start_code, <, end_code);
+>   	error |= __prctl_check_order(start_data, <, end_data);
+>   	error |= __prctl_check_order(start_brk, <=, brk);
+> @@ -1937,23 +1951,24 @@ static int validate_prctl_map(struct prctl_mm_map *prctl_map)
+>   	/*
+>   	 * @brk should be after @end_data in traditional maps.
+>   	 */
+> -	if (prctl_map->start_brk <= prctl_map->end_data ||
+> -	    prctl_map->brk <= prctl_map->end_data)
+> +	if (prctl_map.start_brk <= prctl_map.end_data ||
+> +	    prctl_map.brk <= prctl_map.end_data)
+>   		goto out;
+>   
+>   	/*
+>   	 * Neither we should allow to override limits if they set.
+>   	 */
+> -	if (check_data_rlimit(rlimit(RLIMIT_DATA), prctl_map->brk,
+> -			      prctl_map->start_brk, prctl_map->end_data,
+> -			      prctl_map->start_data))
+> +	if (check_data_rlimit(rlimit(RLIMIT_DATA), prctl_map.brk,
+> +			      prctl_map.start_brk, prctl_map.end_data,
+> +			      prctl_map.start_data))
+>   			goto out;
+>   
+>   	/*
+>   	 * Someone is trying to cheat the auxv vector.
+>   	 */
+> -	if (prctl_map->auxv_size) {
+> -		if (!prctl_map->auxv || prctl_map->auxv_size > sizeof(mm->saved_auxv))
+> +	if (prctl_map.auxv_size) {
+> +		if (!prctl_map.auxv || prctl_map.auxv_size >
+> +						sizeof(mm->saved_auxv))
+>   			goto out;
+>   	}
+>   
+> @@ -1962,7 +1977,7 @@ static int validate_prctl_map(struct prctl_mm_map *prctl_map)
+>   	 * change /proc/pid/exe link: only local sys admin should
+>   	 * be allowed to.
+>   	 */
+> -	if (prctl_map->exe_fd != (u32)-1) {
+> +	if (prctl_map.exe_fd != (u32)-1) {
+>   		if (!ns_capable(current_user_ns(), CAP_SYS_ADMIN))
+>   			goto out;
+>   	}
+> @@ -2120,13 +2135,14 @@ static int prctl_set_mm(int opt, unsigned long addr,
+>   	if (opt == PR_SET_MM_AUXV)
+>   		return prctl_set_auxv(mm, addr, arg4);
+>   
+> -	if (addr >= TASK_SIZE || addr < mmap_min_addr)
+> +	if (untagged_addr(addr) >= TASK_SIZE ||
+> +			untagged_addr(addr) < mmap_min_addr)
+>   		return -EINVAL;
+>   
+>   	error = -EINVAL;
+>   
+>   	down_write(&mm->mmap_sem);
+> -	vma = find_vma(mm, addr);
+> +	vma = find_vma(mm, untagged_addr(addr));
+>   
+>   	prctl_map.start_code	= mm->start_code;
+>   	prctl_map.end_code	= mm->end_code;
+
+I think this new version is consistent w.r.t. tagged/untagged pointer usage. However, 
+I also note that a significant change has been introduced: it is now possible to set 
+MM fields to tagged addresses (tags are ignored by validate_prctl_map()). I am not 
+opposed to this as such, but have you considered the implications? Does it make sense 
+to have a tagged value for e.g. prctl_map.arg_start? Is the kernel able to handle 
+tagged values in those fields? I have the feeling that it's safer to discard tags for 
+now, and if necessary allow them to be preserved later on.
+
+Kevin
 
