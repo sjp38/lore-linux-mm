@@ -2,229 +2,142 @@ Return-Path: <SRS0=SIh7=RZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0D56AC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 08:56:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 752E1C4360F
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 09:23:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BA912218E2
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 08:56:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA912218E2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 35D302190A
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 09:23:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 35D302190A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5ED7F6B000A; Fri, 22 Mar 2019 04:56:27 -0400 (EDT)
+	id B05956B000E; Fri, 22 Mar 2019 05:23:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 59A406B000C; Fri, 22 Mar 2019 04:56:27 -0400 (EDT)
+	id AE6846B0266; Fri, 22 Mar 2019 05:23:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4B23B6B000D; Fri, 22 Mar 2019 04:56:27 -0400 (EDT)
+	id 9F2036B0010; Fri, 22 Mar 2019 05:23:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EBAC66B000A
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 04:56:26 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id d5so641149edl.22
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 01:56:26 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 45D136B000D
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 05:23:50 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id t4so695812eds.1
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 02:23:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=pWOC4AsGtk6wfgJPYZed3y8AfIymm1C5nJqx4I479ds=;
-        b=uFDf4mgOb3AiRUT4a4T+sHfDAP6XyTQza0oray1PxxPAEyooqDQyNit9F4uEP/Cmo9
-         NyI/HQX0W3NeM+dfPu+FoWqpZSNVzOM8zNWlOphIFi1z4qQVcqsCmtLpcZbqADzfHHrz
-         y5YsVUkM1TZvUhhvsUGFyPZh0ZzAaaO7DTUcnrRzQGGq6h2sErm/V94Qu4vV7TvpnNhj
-         JpMjKRCxdA/Zn8L3sFZJ00jqqM+DgnWtD30/RjFcnurOS0rijWQJcPRxLlU1nFVvKN0q
-         xOWz8ey9lKnkwZXTqMEdXFdKQlrQ7EGe3fiHfqkJiFrW7P55nb1sn5b/SUe/dXn4ziSs
-         7ARQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAVFzCTP71qvg4DJjIQMHe/fN4BnIJpwNt6fNGf5SktLlmdGIOc6
-	Cdo9Ms42uPMCtqLjPnHxEk/BZRaCsN0QL5wEiu1uZ0oNaDHuupJcpzINhBrOzUE56cnWPR8ZIFY
-	s3dtz2NsB3kn+W6NESIAHOUOBfB+dlkalgOwySaDahUgwL4/EYqRZ7gAFD412HgxasQ==
-X-Received: by 2002:a50:978e:: with SMTP id e14mr5285974edb.234.1553244986534;
-        Fri, 22 Mar 2019 01:56:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyyciHtpJnd+87EeTfpSYVPnVIVxf6Z11JbVhrtChXF7Po3uW5Ju6MLybBZ1mrzlJdCOYQz
-X-Received: by 2002:a50:978e:: with SMTP id e14mr5285935edb.234.1553244985560;
-        Fri, 22 Mar 2019 01:56:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553244985; cv=none;
+        bh=aTtjmdyx974LqwBl6IryqyAWveFeGrmq/p2jnURbpEg=;
+        b=JyKy3abGuuGGs8cyvDvbVcU77C79229QJ7a2bTmjY9lGUziJMMtd3lOk9PTe3O4xPk
+         okubPPQxmFc0wjB6cf4nBCY3oSrbovSSpK99eS1EpassPhvZ2nFJ8LceJsupYvUh9X+N
+         cty3evfRHMRd7CXENGilwQXyIZoh3OpMOIm8/g1+QWN1KJGEgLZvaLMgTXWLZFDr76gh
+         QySQEkGUDYk5a+7R4I/XPmFCXHR+gHGzcnYr1WvGTJxzw8dq/upsTsCYm2PI8j1yHQGQ
+         jHyagY5gSztzH0mC2+sDxaOKqRibAricQBHuzYt4XhVbCRkA2mb4LXEDf0FHMWY0CX8k
+         TMTw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWEPYTL5J08hOnfRTq5yNY8kTrn+WIocWuWsEBF8WSrSxzTnNVm
+	bdCVG8zN9w1gkdYeoQNQUHsxy5QIbepGW3A7JRSboDUyinka4NtHXzKFklqSunOpMDQFAQpsB6H
+	0AmAD3pavTnfwh7BQcPdve/4121Nny5uNrOxH7VBY6JQND5RTy2z39uSilvymCEU=
+X-Received: by 2002:a17:906:b291:: with SMTP id q17mr5003083ejz.56.1553246629723;
+        Fri, 22 Mar 2019 02:23:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwaDJtYncx9+bZBVWqQzfN8hcQ9b1rs8ZFLAvgEyPI1EYZJxaxJXa8TvNBx7kBbK2ltPD59
+X-Received: by 2002:a17:906:b291:: with SMTP id q17mr5003037ejz.56.1553246628794;
+        Fri, 22 Mar 2019 02:23:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553246628; cv=none;
         d=google.com; s=arc-20160816;
-        b=C9QJPhwjiwczWpWrlosC6w2Temv3Kq2/RclMRDpC7cxzhrSsMBV6WYbg4T7/uNhm3F
-         PENvtvHFrgN8Rv7EF4znRBLLjIinZtIAITA0KGxE1KFvHKZCpJTmSqzHWK5Wp8NO73K5
-         SKAo+okDn69lPd3M6t3fDiz4zQjXu7iXyMKkmCzdTB7vvHjxTzNbYM1rTd/uaZBb3xB1
-         jPFrvZWD4qd7Ta/Ezi0bmcSRTZ+snB71sjmQWjc0czzgJte5lr6QDzTwLz7LnB58n1RB
-         TMScVWwQnJbgztq5VqdWy1IafvAoqxaG696BHgOQ+UeE240+nP6z6Ak4zixc3ODB4w76
-         UdWA==
+        b=G26RBNfICxrbT6u3NMLeVWzi428KZpD8jOBJv/5qk1GUXTWum4pkenkMskgQYyzK8q
+         NGO0tAmj5MCMhyj43ju5Ke/+Whdk3OQe3fg8ZB9NeH3rInU3DiNjvHaX/bYJfM3JpdlU
+         sBLRtLBj/IvTQCCPXmZMR4BFxW29TQfGTMNyvTZclY/m9dBkqHdwvJ31vzgFM6PeAVZl
+         88gA8I9eDlN39mUz3ZFOM1Sey9xvhVTneU6EOqRWpJY3uAl3n9ESCEqImdjCenrrIvGd
+         v3eCl7hu5B+lsUtI+/uQm/gVLfId8VzJfYbrI4TdgY+oHmRDld+LH8L+PYqEwUFt+65F
+         MGUQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=pWOC4AsGtk6wfgJPYZed3y8AfIymm1C5nJqx4I479ds=;
-        b=S6Rne9DDyVxvOv0XreUCxiHAozkcJ5o1wlTLDxLjPMyNDZ7GzcsoDLn96ieoGTxwwD
-         LASuir5FRlE/EJTSGA0T0qTjdr/xRa+s62mHRQr8wc0iu9D/8e+dgEfrjGJOKxwp1kot
-         EfvtInjMEm1ivpIy2Wv9En01zCmn0t1dmAn+9lTpkPlTLgmsigZi8MrIn+nLLzAKE4IC
-         3fWMe8xJajbCjJ9fM1LxlXbZ8s+b0DJIuF/nfxD73mCUmod/XG/kpSGMEmzVU1J7H84m
-         TUbgvEsjMWwMms/WTix/bvS/YPi63dx6haSLwP9eHhpduNiCesyrxQImSS8tpPiYbC26
-         Ed4Q==
+        bh=aTtjmdyx974LqwBl6IryqyAWveFeGrmq/p2jnURbpEg=;
+        b=SxUeZbr2l7t6KyQGQbGVYsvSPK/z/Owz71EYV7C/La+Ds8X1igF/m9pY/aRp9ndlLN
+         it3IqQIwHTnCdN64pFETdbqpMLAQ3Lk8FTY0ASydY+1Inmm48CKolpEGvqVXjBiDEkxJ
+         Np+vavUwDa5I5tvgoFBN/Gf0NQH25OhXw3P0Yzz/Cqnn2gbqT8DBjHkhg4alJTp6xd3A
+         8aoMhGIGOeqSsdxRJLgCCGQ+nwgKOCEjjRxLPZJgD2dlQT/JiGq1GtJQd+ngCp48RPVq
+         afTro0PbP/VEX3BSO09Ax5m+09Rj8HP2IS6kdYoMOmGNfpTmHvbcsn9DLsUC5pefIR9d
+         R5EA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from suse.de (nat.nue.novell.com. [195.135.221.2])
-        by mx.google.com with ESMTP id b23si3048477ede.163.2019.03.22.01.56.25
-        for <linux-mm@kvack.org>;
-        Fri, 22 Mar 2019 01:56:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) client-ip=195.135.221.2;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 90si2144174edq.392.2019.03.22.02.23.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Mar 2019 02:23:48 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: by suse.de (Postfix, from userid 1000)
-	id EA6F9466D; Fri, 22 Mar 2019 09:56:24 +0100 (CET)
-Date: Fri, 22 Mar 2019 09:56:24 +0100
-From: Oscar Salvador <osalvador@suse.de>
-To: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Cc: linux-mm@kvack.org
-Subject: Re: kernel BUG at include/linux/mm.h:1020!
-Message-ID: <20190322085624.efa2pdu3shjkjkxh@d104.suse.de>
-References: <CABXGCsM-SgUCAKA3=WpL7oWZ0Xq8A1Wf-Eh6MO0seee+TviDWQ@mail.gmail.com>
- <20190322073902.agfaoha233vi5dhu@d104.suse.de>
- <CABXGCsPXEAfYq3y58hMnXuctUm1D3Md=BpSo=cq5dR9+3aFzOg@mail.gmail.com>
- <20190322085509.hzerxhk5cdewodl6@d104.suse.de>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 42A9CAFBE;
+	Fri, 22 Mar 2019 09:23:48 +0000 (UTC)
+Date: Fri, 22 Mar 2019 10:23:47 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	mike.kravetz@oracle.com, zi.yan@cs.rutgers.edu, osalvador@suse.de,
+	akpm@linux-foundation.org
+Subject: Re: [PATCH] mm/isolation: Remove redundant pfn_valid_within() in
+ __first_valid_page()
+Message-ID: <20190322092347.GA32508@dhcp22.suse.cz>
+References: <1553141595-26907-1-git-send-email-anshuman.khandual@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190322085509.hzerxhk5cdewodl6@d104.suse.de>
-User-Agent: NeoMutt/20170421 (1.8.2)
+In-Reply-To: <1553141595-26907-1-git-send-email-anshuman.khandual@arm.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 22, 2019 at 09:55:16AM +0100, Oscar Salvador wrote:
-> On Fri, Mar 22, 2019 at 12:54:01PM +0500, Mikhail Gavrilov wrote:
-> > On Fri, 22 Mar 2019 at 12:39, Oscar Salvador <osalvador@suse.de> wrote:
-> > >
-> > > do you happen to have your config at hand?
-> > > Could you share it please?
-> > >
-> > 
-> > https://pastebin.com/4idrLvJQ
+On Thu 21-03-19 09:43:15, Anshuman Khandual wrote:
+> pfn_valid_within() calls pfn_valid() when CONFIG_HOLES_IN_ZONE making it
+> redundant for both definitions (w/wo CONFIG_MEMORY_HOTPLUG) of the helper
+> pfn_to_online_page() which either calls pfn_valid() or pfn_valid_within().
+> pfn_valid_within() being 1 when !CONFIG_HOLES_IN_ZONE is irrelevant either
+> way. This does not change functionality.
 > 
-> Thanks, could you boot up with below patch and send back the log please?
+> Fixes: 2ce13640b3f4 ("mm: __first_valid_page skip over offline pages")
+> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
 
-I mean to send back the log once you trigger the issue again.
+Forgot about
+Acked-by: Michal Hocko <mhocko@suse.com>
 
+> ---
+>  mm/page_isolation.c | 2 --
+>  1 file changed, 2 deletions(-)
 > 
-> diff --git a/mm/debug.c b/mm/debug.c
-> index 1611cf00a137..31f71517b0fb 100644
-> --- a/mm/debug.c
-> +++ b/mm/debug.c
-> @@ -54,7 +54,12 @@ void __dump_page(struct page *page, const char *reason)
->  	 * dump_page() when detected.
->  	 */
->  	if (page_poisoned) {
-> -		pr_warn("page:%px is uninitialized and poisoned", page);
-> +		unsigned long pfn = page_to_pfn(page);
-> +		unsigned long section_nr = pfn_to_section_nr(pfn);
-> +		bool online = online_section(__nr_to_section(section_nr));
-> +
-> +		pr_warn("page:%px (pfn: %lx section: %ld online: %d)is uninitialized and poisoned",
-> +								page, pfn, section_nr, online);
->  		goto hex_only;
->  	}
+> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+> index ce323e56b34d..d9b02bb13d60 100644
+> --- a/mm/page_isolation.c
+> +++ b/mm/page_isolation.c
+> @@ -150,8 +150,6 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
+>  	for (i = 0; i < nr_pages; i++) {
+>  		struct page *page;
 >  
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 3eb01dedfb50..a7b54c5995a6 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1324,6 +1324,7 @@ void __meminit reserve_bootmem_region(phys_addr_t start, phys_addr_t end)
->  {
->  	unsigned long start_pfn = PFN_DOWN(start);
->  	unsigned long end_pfn = PFN_UP(end);
-> +	unsigned long __pfn = start_pfn;
->  
->  	for (; start_pfn < end_pfn; start_pfn++) {
->  		if (pfn_valid(start_pfn)) {
-> @@ -1342,6 +1343,7 @@ void __meminit reserve_bootmem_region(phys_addr_t start, phys_addr_t end)
->  			__SetPageReserved(page);
->  		}
->  	}
-> +	pr_info("%s: %lx - %lx init\n", __func__, __pfn, end_pfn - 1);
->  }
->  
->  static void __free_pages_ok(struct page *page, unsigned int order)
-> @@ -1617,6 +1619,7 @@ static unsigned long  __init deferred_init_pages(int nid, int zid,
->  	unsigned long nr_pgmask = pageblock_nr_pages - 1;
->  	unsigned long nr_pages = 0;
->  	struct page *page = NULL;
-> +	unsigned long start_pfn = pfn;
->  
->  	for (; pfn < end_pfn; pfn++) {
->  		if (!deferred_pfn_valid(nid, pfn, &nid_init_state)) {
-> @@ -1631,6 +1634,8 @@ static unsigned long  __init deferred_init_pages(int nid, int zid,
->  		__init_single_page(page, pfn, zid, nid);
->  		nr_pages++;
->  	}
-> +
-> +	pr_info("%s: pfn: %lx - %lx init\n", __func__, start_pfn, end_pfn - 1);
->  	return (nr_pages);
->  }
->  
-> @@ -5748,10 +5753,14 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->  		 * function.  They do not exist on hotplugged memory.
->  		 */
->  		if (context == MEMMAP_EARLY) {
-> -			if (!early_pfn_valid(pfn))
-> +			if (!early_pfn_valid(pfn)) {
-> +				pr_info("%s: skipping: %lx\n", __func__, pfn);
->  				continue;
-> -			if (!early_pfn_in_nid(pfn, nid))
-> +			}
-> +			if (!early_pfn_in_nid(pfn, nid)) {
-> +				pr_info("%s: skipping: %lx\n", __func__, pfn);
->  				continue;
-> +			}
->  			if (overlap_memmap_init(zone, &pfn))
->  				continue;
->  			if (defer_init(nid, pfn, end_pfn))
-> @@ -5780,6 +5789,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->  			cond_resched();
->  		}
->  	}
-> +	pr_info("%s: pfn: %lx - %lx init\n", __func__, start_pfn, end_pfn - 1);
->  }
->  
->  #ifdef CONFIG_ZONE_DEVICE
-> @@ -5852,6 +5862,7 @@ void __ref memmap_init_zone_device(struct zone *zone,
->  		}
->  	}
->  
-> +	pr_info("%s: %lx - %lx init\n", __func__, start_pfn, end_pfn - 1);
->  	pr_info("%s initialised, %lu pages in %ums\n", dev_name(pgmap->dev),
->  		size, jiffies_to_msecs(jiffies - start));
->  }
-> @@ -6651,6 +6662,8 @@ static void __init free_area_init_core(struct pglist_data *pgdat)
->  		setup_usemap(pgdat, zone, zone_start_pfn, size);
->  		init_currently_empty_zone(zone, zone_start_pfn, size);
->  		memmap_init(size, nid, j, zone_start_pfn);
-> +		pr_info("%s: zone: %s zone: %lx - %lx\n",
-> +			__func__, zone->name, zone_start_pfn, zone_end_pfn(zone));
->  	}
->  }
->  
-> @@ -6765,6 +6778,8 @@ static u64 zero_pfn_range(unsigned long spfn, unsigned long epfn)
->  		pgcnt++;
->  	}
->  
-> +	pr_info("%s: %lx - %lx zeroed\n", __func__, spfn, epfn - 1);
-> +
->  	return pgcnt;
->  }
-> 
+> -		if (!pfn_valid_within(pfn + i))
+> -			continue;
+>  		page = pfn_to_online_page(pfn + i);
+>  		if (!page)
+>  			continue;
 > -- 
-> Oscar Salvador
-> SUSE L3
+> 2.20.1
 > 
 
 -- 
-Oscar Salvador
-SUSE L3
+Michal Hocko
+SUSE Labs
 
