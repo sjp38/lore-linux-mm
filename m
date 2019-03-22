@@ -2,102 +2,140 @@ Return-Path: <SRS0=SIh7=RZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B26FEC4360F
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 12:02:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 288E7C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 12:04:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6C46521B18
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 12:02:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6C46521B18
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id D84BE2192D
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 12:04:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D84BE2192D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0CDBA6B0003; Fri, 22 Mar 2019 08:02:24 -0400 (EDT)
+	id 86A0C6B0003; Fri, 22 Mar 2019 08:04:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 051FD6B0005; Fri, 22 Mar 2019 08:02:23 -0400 (EDT)
+	id 7F15E6B0005; Fri, 22 Mar 2019 08:04:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E5EA56B0006; Fri, 22 Mar 2019 08:02:23 -0400 (EDT)
+	id 6B9B86B0006; Fri, 22 Mar 2019 08:04:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 946CE6B0003
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 08:02:23 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id x29so848114edb.17
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 05:02:23 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C8B06B0003
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 08:04:48 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id l19so857911edr.12
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 05:04:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=lIQpyYyIOVSAqJl++3meeft3S4WTNzE4O0rGeH1/48M=;
-        b=XomL/4uUti3vmsDA7h0AkyttZF3tcnXxNT5yTLnp2rBYANOnvzoHyMm9k7Yfgpldyz
-         Z9ofX3uu1FqaTPaYvYJSY9g0BLe3v8Pxedd2eoJvtqZZ2ngQDLSFq4Q5rL1Brl2oGZh8
-         LIGb5MUyfpxr3TTUkgKysrLfr5XU5j/ZdjlkCPcrFQYq80y6ueu8dVVTtBDocF7bzsb5
-         b7TaxzvHBojC7xpkcmRrbUo+iFN6zWr4lu37/Hvb5muriE6a1YRdlRmWN8EtELNBDHpW
-         owKjGU+0e5rnZf6v30L1O3T1q7ok3Nsog1SkIKJcvYi+r14paRpg2NIy6AQUgjX+VbBD
-         v95Q==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVolqMMhRkeoqrxUHAKVxm5JsmXxZYmoW+dNvx/tCzAb1eQX66W
-	QYjanHwKEp+HKHihk2r6M71h9RBk2y3Jo3QT+EHnnby6PREY6n4HrHXudM+co8Q35s1jQhuGquW
-	srWgAMic8FlcWaVlf+tfrbZP+qVI4d/y5Rqsq46Nz99iB3VzyI2rXKRqSM94r444=
-X-Received: by 2002:a50:86ad:: with SMTP id r42mr6343757eda.40.1553256143176;
-        Fri, 22 Mar 2019 05:02:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx5gCS74o/qaph5u4BbeF7Vc4S2Bc3XstLSr8aBZqSgOUwIJw6Gk8NHrMLXKJCCKRms0VtQ
-X-Received: by 2002:a50:86ad:: with SMTP id r42mr6343708eda.40.1553256142313;
-        Fri, 22 Mar 2019 05:02:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553256142; cv=none;
+        bh=I0K+IzYYrrOWQ3m2GnTDJ8trQi+motXSSkNAW3hne5s=;
+        b=kwUfFrSh+LEAcVchK2KI8KqPFYg84St/SsSBw1OtGJgAQfls5r1KkczYF7EAB/6Cj+
+         Ea/jhxdGzAaBYGej/F72JLcvgjj0CXNv8gdGmk7zamTCUwL6vExOSGrPJm6kyDqmboNW
+         3MZXb0eLMKwrdzlkeEbazUwfZ52//UhOOUDuS+lvMQWl3leuyqg9q/nmX6r4w4BocnPe
+         9rsRnMnyNwwjJyDHvQphqdArboNXlP2MvPzSuyAsbrP6WovQzD3UJTyNC+CePUMsaWI/
+         MeUquq1b/PbsJnjBu122zNvVIPJghJdNC79l/tObDla59gk1nCdvaSVS3dCL2fHXEFeG
+         S7DA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAXp/jPRo4a7Wim+yExgFzIFdV7Of52Tds0+EFvoV+dE8aB+n0kb
+	fdROeTGs6k9HK3NoTDgWgSEJ7HKpnMxQmRspFEf7wa030L0QeodwNmYuxueianMSSmgtpftyakR
+	XMiMFaSdt+8jj+1g5s9B4jLyik8+rky3P7ByIu485Bgtmg4+AI21rlBiW/YoHMwhhsw==
+X-Received: by 2002:a17:906:4017:: with SMTP id v23mr5396789ejj.40.1553256287635;
+        Fri, 22 Mar 2019 05:04:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwnvxlxSvu9HKccMOJNvbBAoz+Z3lQwnG1NNita3MzA9Fb6Egtn1duI5nnrw1ERRQKV5gLA
+X-Received: by 2002:a17:906:4017:: with SMTP id v23mr5396740ejj.40.1553256286698;
+        Fri, 22 Mar 2019 05:04:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553256286; cv=none;
         d=google.com; s=arc-20160816;
-        b=XuYoyUambBRt9D0C/b8d/rsQ/OSsgsq8rKeMyODOaALEiHfPoOOT+n3c7habc9p/Fu
-         BYHv2LRyyt18nFD70ahSK096JaK3sG9Vr8MFEEsSR9IsaHyKOPIjyqtHjtK0vvCyhXNs
-         wEY5tXQGcBsGteTWJC1Wa/zu2Uv36bOEt4WXzwtHXxOTHFMq4dbmf+jteGZMKYEB8+5h
-         7vSlC7Wrn89Xqm/3BMxRCC8jkB97YpBsIWXU3rXe5tLqhgo9FtCbHbRwyRMGECD8w/PI
-         aFAXoi1PHTFCjI0WQTZE9qEalANAY2Jq15rJn75ZBO0sqoYFucrl/DA1R6FOEXJc5IOG
-         IMMA==
+        b=xiyrj1wRi4KO3aGlSkLT4XJx8u0tpCq8dnRRuNS8NErI9sJK7mnqWsuj4YL3d9yzsx
+         XSBtCiQEG/xjdgVX/OK1i0tNJwnwW2aISDD2zcPOlT+tNNmf4iD4nqDKD8COsS5QXVev
+         5aUAWQcamR3nKXTuO/DzNu0WBzyPT+NpVZXceWI5F1idlLtyzIhsNR+4/l6YOQ6jULC8
+         dUJUY0dPVQf0eubhP2rLgJiQqqSV4UBarr29TttFn9UdAMTAVv2ukVZJ3f6Wp3fD9fml
+         TdwnfyK6F02Nth3BAx0Kzzip3C10lbRWT50ae9hTaqP8FDT13PUOs1obnguloZga3eS4
+         iTWQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=lIQpyYyIOVSAqJl++3meeft3S4WTNzE4O0rGeH1/48M=;
-        b=Ih7qV4liGoDVBM+nIX4TWiueuE6k5OoBzO4lDp+eBVn7tgj3DrV0wAxrvcKMqETiMl
-         KYbTUZsfVPd984EY+YlCuyPPXFZXGBOXUadpW84AvG+6bBUYRzzDYWWfyIlhJ2e3tU7d
-         8OxmMll+2wdvP3B5ygHTTuojxSwpM4T6y95kylMoyJjcjtYu3yv8lpHKGFD/AkRHjy+x
-         RCKDHXJjCfgHPJ2+iLE+3sm7jovcdc78J5OEtpIZh3QSbopkUMoT3XySDDKxNgk/OuRS
-         Abg4NOgB2LIXzV5J86bEbBn2XsskHvqnJ2cnyGxazimXNNFc+caIAfv5uDTp0mPwMj5H
-         ghUA==
+        bh=I0K+IzYYrrOWQ3m2GnTDJ8trQi+motXSSkNAW3hne5s=;
+        b=OTG+IuvErxOOlifVFzFiCTDkK/iq7ofnrEhJ14qUicfIODrvnc63JBYw+3E6zHFPOv
+         0vem83JgOZPdZvsRQJcfA0nhrysNB7msd0v/TqHUlJUdGB1/16rINSUyF/6d+Wed+1E4
+         m7fRV3HjHCAjZbNquElqPVLaWoaS7nnIP5X57aPE97+womQkKVJ1oNVszz2X4uhBHlJO
+         DdAOkP4Sm5yDJhk+J1VoYm1z//i0vzcA5NaaLR8Axf1L6khqcHyFLzV5X2BJjWww2p82
+         U8OENrZu7IsXtKOP0Tx19jLgEi8KLOAnJVuS0BivtfNMDS72VXcMPCVlO/0wOTF4FgWz
+         fm/w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gr15si1704747ejb.302.2019.03.22.05.02.21
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Mar 2019 05:02:22 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id p15si1550005eda.168.2019.03.22.05.04.46
+        for <linux-mm@kvack.org>;
+        Fri, 22 Mar 2019 05:04:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 37D71AF49;
-	Fri, 22 Mar 2019 12:02:21 +0000 (UTC)
-Date: Fri, 22 Mar 2019 13:02:19 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, logang@deltatee.com,
-	osalvador@suse.de, hannes@cmpxchg.org, akpm@linux-foundation.org,
-	richard.weiyang@gmail.com, rientjes@google.com,
-	zi.yan@cs.rutgers.edu
-Subject: Re: [RFC] mm/hotplug: Make get_nid_for_pfn() work with
- HAVE_ARCH_PFN_VALID
-Message-ID: <20190322120219.GI32418@dhcp22.suse.cz>
-References: <1553155700-3414-1-git-send-email-anshuman.khandual@arm.com>
- <20190321083639.GJ8696@dhcp22.suse.cz>
- <621cc94c-210d-6fd4-a2e1-b7cfce733cf3@arm.com>
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6BE39374;
+	Fri, 22 Mar 2019 05:04:45 -0700 (PDT)
+Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id AAD963F614;
+	Fri, 22 Mar 2019 05:04:37 -0700 (PDT)
+Date: Fri, 22 Mar 2019 12:04:35 +0000
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Kees Cook <keescook@chromium.org>,
+	Kate Stewart <kstewart@linuxfoundation.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Ingo Molnar <mingo@kernel.org>,
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+	Shuah Khan <shuah@kernel.org>,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Eric Dumazet <edumazet@google.com>,
+	"David S. Miller" <davem@davemloft.net>,
+	Alexei Starovoitov <ast@kernel.org>,
+	Daniel Borkmann <daniel@iogearbox.net>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Ingo Molnar <mingo@redhat.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Arnaldo Carvalho de Melo <acme@kernel.org>,
+	Alex Deucher <alexander.deucher@amd.com>,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	"David (ChunMing) Zhou" <David1.Zhou@amd.com>,
+	Yishai Hadas <yishaih@mellanox.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+	linux-arch@vger.kernel.org, netdev@vger.kernel.org,
+	bpf@vger.kernel.org, amd-gfx@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+	linux-media@vger.kernel.org, kvm@vger.kernel.org,
+	linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Kostya Serebryany <kcc@google.com>,
+	Evgeniy Stepanov <eugenis@google.com>,
+	Lee Smith <Lee.Smith@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Chintan Pandya <cpandya@codeaurora.org>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+	Dave Martin <Dave.Martin@arm.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Subject: Re: [PATCH v13 09/20] net, arm64: untag user pointers in
+ tcp_zerocopy_receive
+Message-ID: <20190322120434.GD13384@arrakis.emea.arm.com>
+References: <cover.1553093420.git.andreyknvl@google.com>
+ <2280b62096ce1fa5c9e9429d18f08f82f4be1b0b.1553093421.git.andreyknvl@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <621cc94c-210d-6fd4-a2e1-b7cfce733cf3@arm.com>
+In-Reply-To: <2280b62096ce1fa5c9e9429d18f08f82f4be1b0b.1553093421.git.andreyknvl@google.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -105,81 +143,43 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 22-03-19 11:49:30, Anshuman Khandual wrote:
+On Wed, Mar 20, 2019 at 03:51:23PM +0100, Andrey Konovalov wrote:
+> This patch is a part of a series that extends arm64 kernel ABI to allow to
+> pass tagged user pointers (with the top byte set to something else other
+> than 0x00) as syscall arguments.
 > 
+> tcp_zerocopy_receive() uses provided user pointers for vma lookups, which
+> can only by done with untagged pointers.
 > 
-> On 03/21/2019 02:06 PM, Michal Hocko wrote:
-> > On Thu 21-03-19 13:38:20, Anshuman Khandual wrote:
-> >> Memory hot remove uses get_nid_for_pfn() while tearing down linked sysfs
-> >> entries between memory block and node. It first checks pfn validity with
-> >> pfn_valid_within() before fetching nid. With CONFIG_HOLES_IN_ZONE config
-> >> (arm64 has this enabled) pfn_valid_within() calls pfn_valid().
-> >>
-> >> pfn_valid() is an arch implementation on arm64 (CONFIG_HAVE_ARCH_PFN_VALID)
-> >> which scans all mapped memblock regions with memblock_is_map_memory(). This
-> >> creates a problem in memory hot remove path which has already removed given
-> >> memory range from memory block with memblock_[remove|free] before arriving
-> >> at unregister_mem_sect_under_nodes().
-> > 
-> > Could you be more specific on what is the actual problem please? It
-> > would be also helpful to mention when is the memblock[remove|free]
-> > called actually.
+> Untag user pointers in this function.
 > 
-> The problem is in unregister_mem_sect_under_nodes() as it skips calling into both
-> instances of sysfs_remove_link() which removes node-memory block sysfs symlinks.
-> The node enumeration of the memory block still remains in sysfs even if the memory
-> block itself has been removed.
+> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> ---
+>  net/ipv4/tcp.c | 2 ++
+>  1 file changed, 2 insertions(+)
 > 
-> This happens because get_nid_for_pfn() returns -1 for a given pfn even if it has
-> a valid associated struct page to fetch the node ID from.
-> 
-> On arm64 (with CONFIG_HOLES_IN_ZONE)
-> 
-> get_nid_for_pfn() -> pfn_valid_within() -> pfn_valid -> memblock_is_map_memory()
-> 
-> At this point memblock for the range has been removed.
-> 
-> __remove_memory()
-> 	memblock_free()
-> 	memblock_remove()	--------> memblock has already been removed
-> 	arch_remove_memory()
-> 		__remove_pages()
-> 			__remove_section()
-> 				unregister_memory_section()
->  					remove_memory_section()
-> 						unregister_mem_sect_under_nodes()
-> 
-> There is a dependency on memblock (after it has been removed) through pfn_valid().
+> diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
+> index 6baa6dc1b13b..855a1f68c1ea 100644
+> --- a/net/ipv4/tcp.c
+> +++ b/net/ipv4/tcp.c
+> @@ -1761,6 +1761,8 @@ static int tcp_zerocopy_receive(struct sock *sk,
+>  	if (address & (PAGE_SIZE - 1) || address != zc->address)
+>  		return -EINVAL;
+>  
+> +	address = untagged_addr(address);
+> +
+>  	if (sk->sk_state == TCP_LISTEN)
+>  		return -ENOTCONN;
 
-Can we reorganize or rework the code that the memblock is removed later?
-I guess this is what Oscar was suggesting.
+I don't think we need this patch if we stick to Vincenzo's ABI
+restrictions. Can zc->address be an anonymous mmap()? My understanding
+of TCP_ZEROCOPY_RECEIVE is that this is an mmap() on a socket, so user
+should not tag such pointer.
 
-Or ...
+We want to allow tagged pointers to work transparently only for heap and
+stack, hence the restriction to anonymous mmap() and those addresses
+below sbrk(0).
 
-> >> During runtime memory hot remove get_nid_for_pfn() needs to validate that
-> >> given pfn has a struct page mapping so that it can fetch required nid. This
-> >> can be achieved just by looking into it's section mapping information. This
-> >> adds a new helper pfn_section_valid() for this purpose. Its same as generic
-> >> pfn_valid().
-> > 
-> > I have to say I do not like this. Having pfn_section_valid != pfn_valid_within
-> > is just confusing as hell. pfn_valid_within should return true whenever
-> > a struct page exists and it is sensible (same like pfn_valid). So it
-> > seems that this is something to be solved on that arch specific side of
-> > pfn_valid.
-> 
-> At present arm64's pfn_valid() implementation validates the pfn inside sparse
-> memory section mapping as well memblock. The memblock search excludes memory
-> with MEMBLOCK_NOMAP attribute. But in this particular instance during hotplug
-> only section mapping validation for the pfn is good enough.
-> 
-> IIUC the current arm64 pfn_valid() already extends the definition beyond the
-> availability of a valid struct page to operate on.
-
-is there any way to record that nomap information into the section
-instead. It looks rather weird that this information is spread into two
-data structures and it makes pfn_valid more expensive at the same time.
 -- 
-Michal Hocko
-SUSE Labs
+Catalin
 
