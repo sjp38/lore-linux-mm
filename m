@@ -2,289 +2,262 @@ Return-Path: <SRS0=SIh7=RZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIMWL_WL_MED,
-	DKIM_SIGNED,DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1EED0C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 18:15:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2A0F4C10F03
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 18:32:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BE3E8218FE
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 18:15:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C7FD42175B
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 18:32:26 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="Z0V8pFOB";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="dklixkX3"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BE3E8218FE
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="X9sR/kLV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C7FD42175B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5D2326B0005; Fri, 22 Mar 2019 14:15:32 -0400 (EDT)
+	id 689496B0005; Fri, 22 Mar 2019 14:32:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 582BF6B0006; Fri, 22 Mar 2019 14:15:32 -0400 (EDT)
+	id 63B6C6B0006; Fri, 22 Mar 2019 14:32:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4720E6B0007; Fri, 22 Mar 2019 14:15:32 -0400 (EDT)
+	id 552526B0007; Fri, 22 Mar 2019 14:32:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 274AC6B0005
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 14:15:32 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id b199so2397301iof.14
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 11:15:32 -0700 (PDT)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 234EB6B0005
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 14:32:26 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id b10so1599817oti.21
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 11:32:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=O0a8CzUlSMwq0DVSSZK9H7Q3Yu1lpslNBR2v6oFPAks=;
-        b=GM2lAfoED31fws0gMhvjG6xck5bysAJ4KR0rOh7muJyN1LEeKZK3BnxFGVjJmOaJJX
-         BU96GaKmuas8qDYmuC44VwTp02ze8pi6KfaFQVDI2/ZamrgMQjdoYyQkyjasd347dQwV
-         dhIBIL92LH/Kf35Vrvazd8TQC76s8rClkxjfbnf8ATPT8CdT7vpkGSSdoaRK6Ghpr31M
-         DjOgOZ5OvzBjjuZXrzULffUYhp+f7OjTDvWVCs8jg4Inzx0uBWvTQebFdy4skV1mI/Qa
-         qWpB6xdJQt76ojCg3DWAJAjhUU0r/YLpi3612xW0fsrDb4apQulmjsfTsyCrOq1wUsC2
-         NPqg==
-X-Gm-Message-State: APjAAAUGBHAju4PfPXx6f9jQ4xn7I9hTL61forqfVk12HtqSatjp80yE
-	fzo5asI5uSyEvczxByyBMyOh8tBvAKrlBOASWef2zSGEUG2uUgp4F8mdRTf+iVI62hl3T1CDvAr
-	ZqpoucSnsjtFQmTdmOqyJDd2nFd+UmmcBlLRhzOUtueRlyeu4IkGGOFvUdU5ckJ7BtQ==
-X-Received: by 2002:a02:c045:: with SMTP id u5mr8426462jam.95.1553278531913;
-        Fri, 22 Mar 2019 11:15:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxYoWGasYnR3RLe24n37O4Awp6Yvtx950ew918PGnLm+u/6++uqR/gJ8uLWOKzR4/PjTO79
-X-Received: by 2002:a02:c045:: with SMTP id u5mr8426413jam.95.1553278531098;
-        Fri, 22 Mar 2019 11:15:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553278531; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=CZvs5mYWn4e28+5uqtuggdqZURPu2axz//pTmg1YgmQ=;
+        b=VGp8Q3ByKRvU3Rfv+bIShOebNS8dLB7UJwtXxPpZycWhj4hBnjzVVp85iy6WYs98CA
+         ENePacHfqRRQ0lhF4GILBuPnkvlVPc6bzFU2qBmPONUfXtmyPFvkjQ+yc/yRo3cHuoGl
+         2PlcmHq8M8RmRTI+JGZTl1NDgDOsV7RtCNJjdRwMRhDnqJGeg0rHsluJ+Su6Y2/wC+g7
+         RL6GNvvhFkKNRsU4XGI9J+hbDcqkYMhDI2TFc9JD6bZT+H6HHjBlhempzUE1esAEgmE0
+         9yAuClBxzX61jABB9DlRwk+nf3tAx6jofGjDSIJUrv2DcWXdYTVD0oLliyotsi+SmRtQ
+         2Jvg==
+X-Gm-Message-State: APjAAAX4jPCzAX0q9GdbOS89alxNA0yzdKJ4ElVqNNp4JA06hT/mDLJN
+	+5VyPRQ3kPy+eveTpi6Cs62vWHiHUgVI0wCrE1wibNYsfFy0dA7Nl+KkNiZqnII/sVdT0B7jJ9R
+	wHB+8rVhu0dyzS/sYWVbltgS3wKm5HN5pjZYkFxBnC7ye6JpS1psRD6rs4SV7epFMeA==
+X-Received: by 2002:aca:3a57:: with SMTP id h84mr2728590oia.162.1553279545804;
+        Fri, 22 Mar 2019 11:32:25 -0700 (PDT)
+X-Received: by 2002:aca:3a57:: with SMTP id h84mr2728524oia.162.1553279544498;
+        Fri, 22 Mar 2019 11:32:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553279544; cv=none;
         d=google.com; s=arc-20160816;
-        b=Mw7zdQhe/NRwayT5N5qUVT8m2CwAHA99suXkEtmsl5JXNT6H4tr/Hlhco51CBFkkxi
-         JnlTSXcoygONKbGmzZMnMU2zeTwT1Yuk1o7ciqgVJfUBoipprdA4BCPmgFbvfbQJwqYt
-         tE5I4q/gtJwKZ+as0KUeeKy3JRRdkSbl9Ol5Yvm9aQkYU7K89qkENAwxw0Ztvj3XQqzb
-         CGo96p7MXVeGmhNAtX4q1X54te89Thsi7h5XMqreGaiDstYrWAXjCzzh1hARd5udKq3Q
-         effp3+P5HU6VqRtRf+6H/USh++jwd1gfbaTOzN80h6Q/m4r+AI6bamUpbhkRQRk4eKPQ
-         3TbA==
+        b=UoYszPSmPo+HscUFyrVOayIfqG4LgUkYNQjKvvkcXV6uh28S9K3n8JVj+JfV5bhtb7
+         +FE2XEFChT2/gVXGPpnd5RsOtjI96iSyQ+Y776rn9ZawHjKXZzKWA1YeAfuXPXExGlKG
+         aMHB6KVszz0KSF38TGcXmOiW7GuV8H4/ITQKJGDqAUJRawC8AyW74pzEHhZUeSYDbK5k
+         o19mUe5joHqA9P7NYC2V6TtTdBf6PClnZC4d9nkRMDF+m3wI1n2CtSCCkBrMzuIT+rtX
+         uVFMu7YPlvIDffvw6/SD2ssMi8hKN06Vee7Qs5w79opZdZap4VzSrRPYDkapwjhLm0oH
+         RmJw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=O0a8CzUlSMwq0DVSSZK9H7Q3Yu1lpslNBR2v6oFPAks=;
-        b=J9JjvR91tY5XHnaC+qB1tjkA/c7z8izTEL138d4fIfEMTuf7NHCBz8uOlAAD8t1p1H
-         tYW9XQybHk43/qnEAgfYe0TQgAIswm4EpXbzh90PnEp8lNMLR15+EVGBkUCgZli9iQoA
-         Ni3On9khG7yrJGqKpGWf1R8fMbksLJx4Wvtj1tkXPH0M+pdTikWDjRfb62eNBzK5oV7u
-         ERfOZuKmbknGNnTq5mKGkZwQ4smpePDN+jVzr0FVOg5FESsnRg/rzSHyOvdcdsgEea98
-         aFGwVHmYFOz0bpL7XpaMm2JzdZdcnYeWeoyCPuVP2WT3zFhfa/Yo7lt0/bELRYHcQiJW
-         5Ggw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=CZvs5mYWn4e28+5uqtuggdqZURPu2axz//pTmg1YgmQ=;
+        b=XuAclloBIrllYjUQe1vLqC4WE0fjhDdrBrULO04EUHJGp+TrVcbUPKSQB/N2JDW1ep
+         16jcabUaGeXPQUc2uqX1sByzrlMjtWoq/Riop7DTcNrYopS9mdlbCne0FjB8cS0SM35b
+         6/RLQql/4zMSmgJQadXCvLPfhfo5e7HjyQ/1gWm9g1MzwUMyYr5cMvhUci0nfnHY01qS
+         u3HZHzNFjbHkZddOAOAermdrBvjXP/fX6iRLa236h0T0qsZJf86AavM1fASleCpW8FY9
+         njtx7KQfek6NKkktH1LX1VWQBoqoe8nJvS79moF+U0JMFeto93p2ZhNCepjVDfwbH7CD
+         w1ng==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=Z0V8pFOB;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=dklixkX3;
-       spf=pass (google.com: domain of prvs=89845e868f=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=89845e868f=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id y12si3936697iop.149.2019.03.22.11.15.30
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b="X9sR/kLV";
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d131sor5188742oia.142.2019.03.22.11.32.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Mar 2019 11:15:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=89845e868f=guro@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+        (Google Transport Security);
+        Fri, 22 Mar 2019 11:32:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=Z0V8pFOB;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=dklixkX3;
-       spf=pass (google.com: domain of prvs=89845e868f=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=89845e868f=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0044010.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2MHxYpA017892;
-	Fri, 22 Mar 2019 11:15:24 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=O0a8CzUlSMwq0DVSSZK9H7Q3Yu1lpslNBR2v6oFPAks=;
- b=Z0V8pFOB8m5wMakM1E5LT3sshHbDqE2P8OZIbeeXY3NTnDs2FLgVkHQpSRSDv6ISOytM
- ga6D7s67irQR+KxkeY78v0usgSodSJDf+tD6wfIVwPF5SnuzBlBk7Q3e8gYbxA+l3ZaY
- HolUdoOLSldbrMNht7ZHhkShjr4PY5jF9KQ= 
-Received: from mail.thefacebook.com ([199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2rd45hg59t-2
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Fri, 22 Mar 2019 11:15:24 -0700
-Received: from prn-mbx07.TheFacebook.com (2620:10d:c081:6::21) by
- prn-hub01.TheFacebook.com (2620:10d:c081:35::125) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Fri, 22 Mar 2019 11:15:23 -0700
-Received: from prn-hub05.TheFacebook.com (2620:10d:c081:35::129) by
- prn-mbx07.TheFacebook.com (2620:10d:c081:6::21) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Fri, 22 Mar 2019 11:15:23 -0700
-Received: from NAM05-BY2-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.29) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Fri, 22 Mar 2019 11:15:22 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=O0a8CzUlSMwq0DVSSZK9H7Q3Yu1lpslNBR2v6oFPAks=;
- b=dklixkX3+jXqR6fJ25lwLu2UK22xmxGRoR0xo1Uu8SYwu/7BeFjIvrttJes73pRk738RjAxfPKjF2xmVw7GhWcdpp1Vr3JCVLU7JSSv93W20nX8ZKIgfD41Ekt5hOijB9s3Bvhxft0c9pPwFd9WzSb2cRfOvF9x6SwGzYoZE9MA=
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
- BYAPR15MB3080.namprd15.prod.outlook.com (20.178.239.18) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1730.15; Fri, 22 Mar 2019 18:15:21 +0000
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::790e:7294:b086:9ded]) by BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::790e:7294:b086:9ded%3]) with mapi id 15.20.1709.017; Fri, 22 Mar 2019
- 18:15:21 +0000
-From: Roman Gushchin <guro@fb.com>
-To: Greg Thelen <gthelen@google.com>
-CC: Andrew Morton <akpm@linux-foundation.org>,
-        Johannes Weiner
-	<hannes@cmpxchg.org>,
-        Michal Hocko <mhocko@kernel.org>,
-        Vladimir Davydov
-	<vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>,
-        "linux-mm@kvack.org"
-	<linux-mm@kvack.org>,
-        "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH] writeback: sum memcg dirty counters as needed
-Thread-Topic: [PATCH] writeback: sum memcg dirty counters as needed
-Thread-Index: AQHU1Qb/Wv6KWk71Ak24H1OecVDKlaYYDFmA
-Date: Fri, 22 Mar 2019 18:15:20 +0000
-Message-ID: <20190322181517.GA12378@tower.DHCP.thefacebook.com>
-References: <20190307165632.35810-1-gthelen@google.com>
-In-Reply-To: <20190307165632.35810-1-gthelen@google.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: BYAPR11CA0040.namprd11.prod.outlook.com
- (2603:10b6:a03:80::17) To BYAPR15MB2631.namprd15.prod.outlook.com
- (2603:10b6:a03:152::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::1:d234]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 80e70a92-90be-4304-4006-08d6aef25831
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600127)(711020)(4605104)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7153060)(7193020);SRVR:BYAPR15MB3080;
-x-ms-traffictypediagnostic: BYAPR15MB3080:
-x-microsoft-antispam-prvs: <BYAPR15MB3080FA634CE1B4393FE41544BE430@BYAPR15MB3080.namprd15.prod.outlook.com>
-x-forefront-prvs: 09840A4839
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(346002)(376002)(136003)(396003)(39860400002)(366004)(189003)(199004)(99286004)(5660300002)(186003)(53936002)(68736007)(81166006)(256004)(1076003)(2906002)(229853002)(8936002)(54906003)(105586002)(86362001)(14444005)(106356001)(81156014)(4326008)(8676002)(52116002)(76176011)(14454004)(71200400001)(9686003)(305945005)(486006)(6512007)(316002)(71190400001)(6506007)(386003)(6116002)(97736004)(6916009)(6436002)(7736002)(46003)(6246003)(478600001)(476003)(33656002)(446003)(25786009)(6486002)(102836004)(11346002)(14143004);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB3080;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: lqB4ST1t53ncLK3SaDVdUH4PvsU0qrsP6jfI5Hl9zjk0ztU/2Q2ZXIEbwTgGP50uj/W1TWuSinF82NgBnCsMLo0skGbJXzIoWOad8TEpwcjwDAjsVnEOWGimn7guBhmqU9Cg0miLGqvIqEL0hfyMJbSMArPAoFqUBQFYhwzKxMiL7vnwp/qpvkqIA+f4MrxJTHSBCYCdvG0RPjYafPvtmUWGExe6dyMWsLRRcBIlNIId6xiv3iIY4vSQqZL1eVn7RdfjKhPxR/v2G3CrnWCsRuSqmXvCvy/b6aScGVD9mr6BJgoVM8pu/gbSMY+qJR2IcziYrrKelGFcZwauyZO2GZOWrwjbr+MMC7wYt/5sQ+m0hk6n6JDGpTeRYdDpa6zv1G25FpSI5FPWZC11VdL2XRXVCGHMuugCQU+FgQEz7kY=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <D5E78308D7D15849AB79E1E40C462DEF@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b="X9sR/kLV";
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=CZvs5mYWn4e28+5uqtuggdqZURPu2axz//pTmg1YgmQ=;
+        b=X9sR/kLVxAcxdmZN0UHPrNa633koQxEqpcG4gb12JmwQY3vBk42a9KgW1LkdMtdgBG
+         eMoQOF6YmegccpR0Hhgp3eFAPD95IRdoXuDo8sAHmyxHI4Rog1V+a1tY1dKws79id/S4
+         p8kW+FyRvbTx5gSJSvS0W1v3zwdNXa1RRBQV0LDtTEymfbYstYB3XRhJhdJrGFSfxh0s
+         ehhv0LG572q2+yLHW64XnApRdbJ0hrb3XDZpR66bCEHVMCz0kodunpDBFpnX8+fdQ5aJ
+         Fc7mVerDbgMnaslHPTPPO4gzXV8T7TZJ9CoMobC4gnNrI42+F051nTe9j+5MgCsA+Z2S
+         wIpw==
+X-Google-Smtp-Source: APXvYqyaxjmVYHMVmLnKbIoKtJ57Ezo1AXsNqWoTxJs1xvATGCnbzouZ9oBArTEcuig8G7tdpluUOvbw8FvdPq1n7O0=
+X-Received: by 2002:aca:aa57:: with SMTP id t84mr2925042oie.149.1553279543830;
+ Fri, 22 Mar 2019 11:32:23 -0700 (PDT)
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 80e70a92-90be-4304-4006-08d6aef25831
-X-MS-Exchange-CrossTenant-originalarrivaltime: 22 Mar 2019 18:15:20.8307
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB3080
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-22_10:,,
- signatures=0
-X-Proofpoint-Spam-Reason: safe
-X-FB-Internal: Safe
+References: <155327387405.225273.9325594075351253804.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20190322180532.GM32418@dhcp22.suse.cz>
+In-Reply-To: <20190322180532.GM32418@dhcp22.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 22 Mar 2019 11:32:11 -0700
+Message-ID: <CAPcyv4gBGNP95APYaBcsocEa50tQj9b5h__83vgngjq3ouGX_Q@mail.gmail.com>
+Subject: Re: [PATCH v5 00/10] mm: Sub-section memory hotplug support
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	Logan Gunthorpe <logang@deltatee.com>, Toshi Kani <toshi.kani@hpe.com>, Jeff Moyer <jmoyer@redhat.com>, 
+	Vlastimil Babka <vbabka@suse.cz>, stable <stable@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
+	linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 07, 2019 at 08:56:32AM -0800, Greg Thelen wrote:
-> Since commit a983b5ebee57 ("mm: memcontrol: fix excessive complexity in
-> memory.stat reporting") memcg dirty and writeback counters are managed
-> as:
-> 1) per-memcg per-cpu values in range of [-32..32]
-> 2) per-memcg atomic counter
-> When a per-cpu counter cannot fit in [-32..32] it's flushed to the
-> atomic.  Stat readers only check the atomic.
-> Thus readers such as balance_dirty_pages() may see a nontrivial error
-> margin: 32 pages per cpu.
-> Assuming 100 cpus:
->    4k x86 page_size:  13 MiB error per memcg
->   64k ppc page_size: 200 MiB error per memcg
-> Considering that dirty+writeback are used together for some decisions
-> the errors double.
->=20
-> This inaccuracy can lead to undeserved oom kills.  One nasty case is
-> when all per-cpu counters hold positive values offsetting an atomic
-> negative value (i.e. per_cpu[*]=3D32, atomic=3Dn_cpu*-32).
-> balance_dirty_pages() only consults the atomic and does not consider
-> throttling the next n_cpu*32 dirty pages.  If the file_lru is in the
-> 13..200 MiB range then there's absolutely no dirty throttling, which
-> burdens vmscan with only dirty+writeback pages thus resorting to oom
-> kill.
->=20
-> It could be argued that tiny containers are not supported, but it's more
-> subtle.  It's the amount the space available for file lru that matters.
-> If a container has memory.max-200MiB of non reclaimable memory, then it
-> will also suffer such oom kills on a 100 cpu machine.
->=20
-> The following test reliably ooms without this patch.  This patch avoids
-> oom kills.
+On Fri, Mar 22, 2019 at 11:06 AM Michal Hocko <mhocko@kernel.org> wrote:
 >
-> ...
->=20
-> Make balance_dirty_pages() and wb_over_bg_thresh() work harder to
-> collect exact per memcg counters when a memcg is close to the
-> throttling/writeback threshold.  This avoids the aforementioned oom
-> kills.
->=20
-> This does not affect the overhead of memory.stat, which still reads the
-> single atomic counter.
->=20
-> Why not use percpu_counter?  memcg already handles cpus going offline,
-> so no need for that overhead from percpu_counter.  And the
-> percpu_counter spinlocks are more heavyweight than is required.
->=20
-> It probably also makes sense to include exact dirty and writeback
-> counters in memcg oom reports.  But that is saved for later.
->=20
-> Signed-off-by: Greg Thelen <gthelen@google.com>
-> ---
->  include/linux/memcontrol.h | 33 +++++++++++++++++++++++++--------
->  mm/memcontrol.c            | 26 ++++++++++++++++++++------
->  mm/page-writeback.c        | 27 +++++++++++++++++++++------
->  3 files changed, 66 insertions(+), 20 deletions(-)
->=20
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 83ae11cbd12c..6a133c90138c 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -573,6 +573,22 @@ static inline unsigned long memcg_page_state(struct =
-mem_cgroup *memcg,
->  	return x;
->  }
+> On Fri 22-03-19 09:57:54, Dan Williams wrote:
+> > Changes since v4 [1]:
+> > - Given v4 was from March of 2017 the bulk of the changes result from
+> >   rebasing the patch set from a v4.11-rc2 baseline to v5.1-rc1.
+> >
+> > - A unit test is added to ndctl to exercise the creation and dax
+> >   mounting of multiple independent namespaces in a single 128M section.
+> >
+> > [1]: https://lwn.net/Articles/717383/
+> >
+> > ---
+> >
+> > Quote patch7:
+> >
+> > "The libnvdimm sub-system has suffered a series of hacks and broken
+> >  workarounds for the memory-hotplug implementation's awkward
+> >  section-aligned (128MB) granularity. For example the following backtrace
+> >  is emitted when attempting arch_add_memory() with physical address
+> >  ranges that intersect 'System RAM' (RAM) with 'Persistent Memory' (PMEM)
+> >  within a given section:
+> >
+> >   WARNING: CPU: 0 PID: 558 at kernel/memremap.c:300 devm_memremap_pages+0x3b5/0x4c0
+> >   devm_memremap_pages attempted on mixed region [mem 0x200000000-0x2fbffffff flags 0x200]
+> >   [..]
+> >   Call Trace:
+> >     dump_stack+0x86/0xc3
+> >     __warn+0xcb/0xf0
+> >     warn_slowpath_fmt+0x5f/0x80
+> >     devm_memremap_pages+0x3b5/0x4c0
+> >     __wrap_devm_memremap_pages+0x58/0x70 [nfit_test_iomap]
+> >     pmem_attach_disk+0x19a/0x440 [nd_pmem]
+> >
+> >  Recently it was discovered that the problem goes beyond RAM vs PMEM
+> >  collisions as some platform produce PMEM vs PMEM collisions within a
+> >  given section. The libnvdimm workaround for that case revealed that the
+> >  libnvdimm section-alignment-padding implementation has been broken for a
+> >  long while. A fix for that long-standing breakage introduces as many
+> >  problems as it solves as it would require a backward-incompatible change
+> >  to the namespace metadata interpretation. Instead of that dubious route
+> >  [2], address the root problem in the memory-hotplug implementation."
+> >
+> > The approach is taken is to observe that each section already maintains
+> > an array of 'unsigned long' values to hold the pageblock_flags. A single
+> > additional 'unsigned long' is added to house a 'sub-section active'
+> > bitmask. Each bit tracks the mapped state of one sub-section's worth of
+> > capacity which is SECTION_SIZE / BITS_PER_LONG, or 2MB on x86-64.
+>
+> So the hotplugable unit is pageblock now, right?
 
-Hi Greg!
+No, with this patchset the hotplug unit is 2MB.
 
-Thank you for the patch, definitely a good problem to be fixed!
+> Why is this sufficient?
 
-> =20
-> +/* idx can be of type enum memcg_stat_item or node_stat_item */
-> +static inline unsigned long
-> +memcg_exact_page_state(struct mem_cgroup *memcg, int idx)
-> +{
-> +	long x =3D atomic_long_read(&memcg->stat[idx]);
-> +#ifdef CONFIG_SMP
+2MB is sufficient because it allows mapping a namespace at PMD
+granularity and there is no practical need to go smaller.
 
-I doubt that this #ifdef is correct without corresponding changes
-in __mod_memcg_state(). As now, we do use per-cpu buffer which spills
-to an atomic value event if !CONFIG_SMP. It's probably something
-that we want to change, but as now, #ifdef CONFIG_SMP should protect
-only "if (x < 0)" part.
+> What prevents new and creative HW to come up with alignements that do not fit there?
 
+There is a resource in hardware memory controllers called
+address-decode-registers that control the mapping granularity. The
+minimum granularity today is 64MB and the pressure as memory sizes
+increases is to make that granularity larger, not smaller. So the
+hardware pressure is going in the opposite direction of your concern,
+at least for persistent memory.
 
-> +	int cpu;
-> +
-> +	for_each_online_cpu(cpu)
-> +		x +=3D per_cpu_ptr(memcg->stat_cpu, cpu)->count[idx];
-> +	if (x < 0)
-> +		x =3D 0;
-> +#endif
-> +	return x;
-> +}
+User-defined memory namespaces have this problem, but 2MB is the
+default alignment and is sufficient for most uses.
 
-Also, isn't it worth it to generalize memcg_page_state() instead?
-By adding an bool exact argument? I believe dirty balance is not
-the only place, where we need a better accuracy.
+PCI Address BARs that are also mapped with devm_memremap_pages are
+aligned to their size and there is no expectation to support smaller
+than 2MB.
 
-Thanks!
+All that said, to support a smaller sub-section granularity, just add
+more bits to the section-active bitmask.
+
+> Do not get me wrong but the section
+> as a unit is deeply carved into the memory hotplug and removing all those
+> assumptions is a major undertaking
+
+Right, as stated in the cover letter, this does not remove all those
+assumptions, it only removes the ones that impact
+devm_memremap_pages(). Specifying that sub-section is only supported
+in the 'want_memblock=false' case to arch_add_memory().
+
+> and I would like to know that you are
+> not just shifting the problem to a smaller unit and a new/creative HW
+> will force us to go even more complicated.
+
+HW will not do this to us. It's software that has the problem.
+Namespace creation is unnecessarily constrained to 128MB alignment.
+
+I'm also open to exploring lifting the section alignment constraint
+for the 'want_memblock=true', but first things first.
+
+> What is the fundamental reason that pmem sections cannot be assigned
+> to a section aligned memory range? The physical address space is
+> quite large to impose 128MB sections IMHO. I thought this is merely a
+> configuration issue.
+
+1) it's not just hardware that imposes this, software wants to be able
+to avoid the constraint
+
+2) the flexibility of the memory controller initialization code is
+constrained by address-decode-registers. So while it is simple to say
+"just configure it to be aligned" it's not that easy in practice
+without throwing away usable memory capacity.
+
+> How often this really happens and how often it is unavoidable.
+
+Again, software can cause this problem at will. Multiple shipping
+systems expose this alignment problem in physical address space, for
+example: https://github.com/pmem/ndctl/issues/76
+
+> > The implication of allowing sections to be piecemeal mapped/unmapped is
+> > that the valid_section() helper is no longer authoritative to determine
+> > if a section is fully mapped. Instead pfn_valid() is updated to consult
+> > the section-active bitmask. Given that typical memory hotplug still has
+> > deep "section" dependencies the sub-section capability is limited to
+> > 'want_memblock=false' invocations of arch_add_memory(), effectively only
+> > devm_memremap_pages() users for now.
+>
+> Does this mean that pfn_valid is more expensive now? How much?
+
+Negligible, the information to determine whether the sub-section is
+valid for a given pfn is in the same cacheline as the section-valid
+flag.
+
+> Also what about the section life time?
+
+Section is live as long as any sub-section is active.
+
+> Who is removing section now?
+
+Last arch_remove_memory() that removes the last sub-section clears out
+the remaining sub-section active bits.
+
+> I will probably have much more question, but it's friday and I am mostly
+> offline already. I would just like to hear much more about the new
+> design and resulting assumptions.
+
+Happy to accommodate this discussion. The section alignment has been
+an absolute horror to contend with. So I have years worth of pain to
+share for as deep as you want to go on probing why this is needed.
 
