@@ -2,180 +2,219 @@ Return-Path: <SRS0=SIh7=RZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0AB45C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 08:27:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8E9A8C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 08:55:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B1AA1218D3
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 08:27:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B1AA1218D3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 2BEB5218D3
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 08:55:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2BEB5218D3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 516896B0003; Fri, 22 Mar 2019 04:27:47 -0400 (EDT)
+	id 85BE86B0007; Fri, 22 Mar 2019 04:55:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4C5BE6B0006; Fri, 22 Mar 2019 04:27:47 -0400 (EDT)
+	id 80B246B0008; Fri, 22 Mar 2019 04:55:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 38DCF6B0007; Fri, 22 Mar 2019 04:27:47 -0400 (EDT)
+	id 748BF6B000A; Fri, 22 Mar 2019 04:55:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 147AA6B0003
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 04:27:47 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id c67so1298128qkg.5
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 01:27:47 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 28C926B0007
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 04:55:20 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id w27so629184edb.13
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 01:55:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:mime-version:message-id;
-        bh=6PCprYjSQ8nK1qQbbDL5bDbJHXu2HcEcregW4qAnVmA=;
-        b=FHCXCbejZ2GmAp2p0eNV9BazxuYvFo5v9b1cYYhaAHjzz2SIaY6eQAYwB3qwb+o7l5
-         NBI4AV3HcjqKDa4ItTTSFfG7OVaQyUb4BZ7rszSu9LbcEOKzn0rHkevcyheoUiYAnYCR
-         cICYMHNfx/vzFQEU/+GD5sfDYalZEZQuuDAcD3D591y2AlYPfKTrkqJXyUVDTKRZL0/l
-         wS8dRu9K9gYMM66FPsTf5+xi71pD3d5Ppb6XoylBqMD+YXf1izUgNIxltADQZiYxP+Db
-         aqs5fbSjb1fNqgYWEkFQbyjJp/4btkraws+qS6p1jFZhy9VSlFIKTQXXcR4WLuvtb5fb
-         gHAg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAVTIiwuPP28xg392NyCyd29oOzFYJ8qMMk/9Ceg1HG3Ca9rr0ux
-	kFi7WaOTIlmrwb4AekaaJuNmPyy8uz8uNKhpUej+8rSVjFzc4BdHcGoeGmyPPLbZywqidPTngfQ
-	LU2X9yUHi4dT7duuCj/Vs4tlG+5n/5IRkpfS0fL638fOcqSFTs6NLCw4dQZBZUdbqYA==
-X-Received: by 2002:a0c:b00c:: with SMTP id k12mr6987995qvc.118.1553243266842;
-        Fri, 22 Mar 2019 01:27:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwT1M7QI0MQjePkdcXkRQ3DBdHtBEPkhIu6uAETMTq0uwAr/0R6l/rCOKl437iPXv4nlVRz
-X-Received: by 2002:a0c:b00c:: with SMTP id k12mr6987970qvc.118.1553243266165;
-        Fri, 22 Mar 2019 01:27:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553243266; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=UKhjsu1GC7Hfpr6GM2R7qDy0SIfSZHfKt+EU0rqx7DE=;
+        b=bmPuA9Qn9Mv9XmWiWwQWk/g/xyT5ilHRK+uHO+8BgCCZbL89YWCnHGjKa/lUzoKfgp
+         HCTa+vW13vI/N3tyrYDwRdSktKG+ZiyIGVUxMvroo44Fa2pgMcNAQ++0XPWOIwUECJXs
+         j/0Ub1jx0F6vepZ/AXhCUiBSJ/pldjIUt6KDfuqk9AHIKOvBFiVF4tlUVX0beBe1k0pq
+         hmiA3HdSJ/4aNoYv2B2yBF3neZPUGIa2yvATpYV+TXouZ+HQtc9pNSSY5G4mSGRmyiV3
+         BjfleNhdCykBnJ9TwpDqK2HaN8Acw1mB2lZ7tBlnF902DIVID/5DdwCj0tAGIc1Tmb5S
+         RgFg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAVPEZygWIF2tjDkmyIhl14ituTttE/OJfiG+H6avSO7iHctuIBI
+	v7OuH4rzaU36UDE2zKX2nTKTUGk9CImHk4yQBOMJecLzVArA4XZFUzaol38h21M9HthCb04bRHa
+	2CvdFPTtQ8AONgIlaigNpF+P3+YoXZktS60gepYt38YInJVPgqlaiocHZoKG8rFsdTA==
+X-Received: by 2002:a50:bacc:: with SMTP id x70mr5435283ede.211.1553244919694;
+        Fri, 22 Mar 2019 01:55:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwMGhDwt8SDpC54uhEbIaxkDirkpQRDVr3kKjLn7L3xsvzfSaATev7muORTHH4DMzFRFWX3
+X-Received: by 2002:a50:bacc:: with SMTP id x70mr5435240ede.211.1553244918638;
+        Fri, 22 Mar 2019 01:55:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553244918; cv=none;
         d=google.com; s=arc-20160816;
-        b=RBSp9OIzAdTylT2JadiOJwW2Smo9VstSr3C01GVdhyWmLPQhPa1k17iRr9Ebypnq5t
-         LOVaDtw8IwvJXUfGwUQhErL1bhtgzOGQVJsKstLyVUE8C+6LVQ4dcQ2HHT1yqKCJEpHJ
-         MprLDtfBlZGDMY9NfenBR+kZiIzBT9sNC05QmKJUFLGPodXyPfBwNMqjdfAynP9rSYpB
-         gEzYn2A5YqAmCEHfshL58jyBPrYQ0ZTy461mvKSp27vXhp1N/ozHbAfBaf3j9GGHvChE
-         YHpb88b0/48nsdlzJws8UoDNaMKN1M5wpESnWU6nyKSu2iFZjNJMER9p2UW1NTqYkqy/
-         8weg==
+        b=PieBF6P3OsP2erIRgdVuTMowIOZPDSX5TiBQZmNia7rLCXs3fe3n78FVQOZACCCOqi
+         48KASbJUesPDEASf+YZncfsXbLpgD1GQd9BnLZKz5Kx/WbOvHamLmkUgoxu7Ix76OJYE
+         JjrkL7kctD8gnNakhvfof/8W8xOlsNNEf9hkcrK9Eepioue+DRbtkN4vvOoOy5TGERnn
+         b3ROEmSnBJOYQ+APg3tXbHH4wngnzIzcXpJ+l1NJ1vCcwbvD0Rd+ku7DQSXmJiReH0I9
+         8YAX2anQEKonHDhn87KBlZlk+yvk2z/t1P2AhQrupyUxEBuIDFY/e/aMUAPcMJygy/kT
+         eGgQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=6PCprYjSQ8nK1qQbbDL5bDbJHXu2HcEcregW4qAnVmA=;
-        b=BJ1l//HGFIuBGXFrBgFyYIWnzpOjwKDvvAEi6IiipJiSy5DDwF3aorqVvaPYoKTGv8
-         EclJuvovSvXL5gPGQBprzOS038umfyaRwo+B0G8EMmEXN4jTdeJ3OzMfTEMsgwuOWrdq
-         yGPclsHt0xeGBJsA9YBKOJspApo5o6uuPWNviQgkx+G262RtpyOU2QpPW/N+CC1nCuY7
-         Q9o/VG04ZY0fZXtmgMunjs00oFmCkIhJbY9ZxIY/GHcgimkuRaFWruTaK4cgGz97epm3
-         ML4HKDDtAwh34Jgd9qOu5TMWATarPTM//+1SkSn7mddCBKFxhojEny2B1h4lOM8NY8lK
-         wVlg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=UKhjsu1GC7Hfpr6GM2R7qDy0SIfSZHfKt+EU0rqx7DE=;
+        b=cklgQbD8jHw8husHoXdov1NeDFZbsV2AbU4htTT5LZJbuij2fDF3puhDIHCbR0NySb
+         m+VJl362/ATLaOy7kkJjCA3k8uBUMQR/HBd9TjpRIiGjG/7NBHhmCo74rAAfFCYWWdRi
+         HME/peEdI1Cpha8WtoRdxb55rQaQQxUkPcaHqu2PoPvHJUGcauJQ0CYPFmGPQ9SpOCHy
+         k/fvA4HWoUXQ1x34vyoQdaP2lmdZzWv4QyCOoW/QdUVodKVcJQac8T6hOzPQj+fRSDSR
+         x0B6r5qk653lBNNA48E84ZMtvF8sXxJnXY0DpYexk5aUhpmGtmNC+QQdi8Uro6ESvbc9
+         7kTQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id z6si73258qke.0.2019.03.22.01.27.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Mar 2019 01:27:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from suse.de (nat.nue.novell.com. [195.135.221.2])
+        by mx.google.com with ESMTP id f25si1690254edt.335.2019.03.22.01.55.18
+        for <linux-mm@kvack.org>;
+        Fri, 22 Mar 2019 01:55:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) client-ip=195.135.221.2;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2M8RjX3024469
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 04:27:45 -0400
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2rct9ymc72-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 04:27:44 -0400
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Fri, 22 Mar 2019 08:23:47 -0000
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
-	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Fri, 22 Mar 2019 08:23:45 -0000
-Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x2M8NmVu41812204
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 22 Mar 2019 08:23:48 GMT
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 4D50911C04C;
-	Fri, 22 Mar 2019 08:23:48 +0000 (GMT)
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 73FDC11C04A;
-	Fri, 22 Mar 2019 08:23:46 +0000 (GMT)
-Received: from skywalker.linux.ibm.com (unknown [9.85.68.197])
-	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Fri, 22 Mar 2019 08:23:45 +0000 (GMT)
-X-Mailer: emacs 26.1 (via feedmail 11-beta-1 I)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A . Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>,
-        Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: page_mkclean vs MADV_DONTNEED race
-In-Reply-To: <20190321163147.cc2ff090a7388cdb7030eed0@linux-foundation.org>
-References: <20190321040610.14226-1-aneesh.kumar@linux.ibm.com> <20190321163147.cc2ff090a7388cdb7030eed0@linux-foundation.org>
-Date: Fri, 22 Mar 2019 13:53:42 +0530
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: by suse.de (Postfix, from userid 1000)
+	id 4EE60466B; Fri, 22 Mar 2019 09:55:16 +0100 (CET)
+Date: Fri, 22 Mar 2019 09:55:16 +0100
+From: Oscar Salvador <osalvador@suse.de>
+To: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Cc: linux-mm@kvack.org
+Subject: Re: kernel BUG at include/linux/mm.h:1020!
+Message-ID: <20190322085509.hzerxhk5cdewodl6@d104.suse.de>
+References: <CABXGCsM-SgUCAKA3=WpL7oWZ0Xq8A1Wf-Eh6MO0seee+TviDWQ@mail.gmail.com>
+ <20190322073902.agfaoha233vi5dhu@d104.suse.de>
+ <CABXGCsPXEAfYq3y58hMnXuctUm1D3Md=BpSo=cq5dR9+3aFzOg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-X-TM-AS-GCONF: 00
-x-cbid: 19032208-0012-0000-0000-00000305D4AD
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19032208-0013-0000-0000-0000213CEF9A
-Message-Id: <8736nf8ghd.fsf@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-22_05:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1903220065
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CABXGCsPXEAfYq3y58hMnXuctUm1D3Md=BpSo=cq5dR9+3aFzOg@mail.gmail.com>
+User-Agent: NeoMutt/20170421 (1.8.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton <akpm@linux-foundation.org> writes:
+On Fri, Mar 22, 2019 at 12:54:01PM +0500, Mikhail Gavrilov wrote:
+> On Fri, 22 Mar 2019 at 12:39, Oscar Salvador <osalvador@suse.de> wrote:
+> >
+> > do you happen to have your config at hand?
+> > Could you share it please?
+> >
+> 
+> https://pastebin.com/4idrLvJQ
 
-> On Thu, 21 Mar 2019 09:36:10 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> wrote:
->
->> MADV_DONTNEED is handled with mmap_sem taken in read mode.
->> We call page_mkclean without holding mmap_sem.
->> 
->> MADV_DONTNEED implies that pages in the region are unmapped and subsequent
->> access to the pages in that range is handled as a new page fault.
->> This implies that if we don't have parallel access to the region when
->> MADV_DONTNEED is run we expect those range to be unallocated.
->> 
->> w.r.t page_mkclean we need to make sure that we don't break the MADV_DONTNEED
->> semantics. MADV_DONTNEED check for pmd_none without holding pmd_lock.
->> This implies we skip the pmd if we temporarily mark pmd none. Avoid doing
->> that while marking the page clean.
->> 
->> Keep the sequence same for dax too even though we don't support MADV_DONTNEED
->> for dax mapping
->
-> What were the runtime effects of the bug?
+Thanks, could you boot up with below patch and send back the log please?
 
-The bug was noticed by code review and I didn't observe any failures
-w.r.t test run. This is similar to 
+diff --git a/mm/debug.c b/mm/debug.c
+index 1611cf00a137..31f71517b0fb 100644
+--- a/mm/debug.c
++++ b/mm/debug.c
+@@ -54,7 +54,12 @@ void __dump_page(struct page *page, const char *reason)
+ 	 * dump_page() when detected.
+ 	 */
+ 	if (page_poisoned) {
+-		pr_warn("page:%px is uninitialized and poisoned", page);
++		unsigned long pfn = page_to_pfn(page);
++		unsigned long section_nr = pfn_to_section_nr(pfn);
++		bool online = online_section(__nr_to_section(section_nr));
++
++		pr_warn("page:%px (pfn: %lx section: %ld online: %d)is uninitialized and poisoned",
++								page, pfn, section_nr, online);
+ 		goto hex_only;
+ 	}
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 3eb01dedfb50..a7b54c5995a6 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1324,6 +1324,7 @@ void __meminit reserve_bootmem_region(phys_addr_t start, phys_addr_t end)
+ {
+ 	unsigned long start_pfn = PFN_DOWN(start);
+ 	unsigned long end_pfn = PFN_UP(end);
++	unsigned long __pfn = start_pfn;
+ 
+ 	for (; start_pfn < end_pfn; start_pfn++) {
+ 		if (pfn_valid(start_pfn)) {
+@@ -1342,6 +1343,7 @@ void __meminit reserve_bootmem_region(phys_addr_t start, phys_addr_t end)
+ 			__SetPageReserved(page);
+ 		}
+ 	}
++	pr_info("%s: %lx - %lx init\n", __func__, __pfn, end_pfn - 1);
+ }
+ 
+ static void __free_pages_ok(struct page *page, unsigned int order)
+@@ -1617,6 +1619,7 @@ static unsigned long  __init deferred_init_pages(int nid, int zid,
+ 	unsigned long nr_pgmask = pageblock_nr_pages - 1;
+ 	unsigned long nr_pages = 0;
+ 	struct page *page = NULL;
++	unsigned long start_pfn = pfn;
+ 
+ 	for (; pfn < end_pfn; pfn++) {
+ 		if (!deferred_pfn_valid(nid, pfn, &nid_init_state)) {
+@@ -1631,6 +1634,8 @@ static unsigned long  __init deferred_init_pages(int nid, int zid,
+ 		__init_single_page(page, pfn, zid, nid);
+ 		nr_pages++;
+ 	}
++
++	pr_info("%s: pfn: %lx - %lx init\n", __func__, start_pfn, end_pfn - 1);
+ 	return (nr_pages);
+ }
+ 
+@@ -5748,10 +5753,14 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 		 * function.  They do not exist on hotplugged memory.
+ 		 */
+ 		if (context == MEMMAP_EARLY) {
+-			if (!early_pfn_valid(pfn))
++			if (!early_pfn_valid(pfn)) {
++				pr_info("%s: skipping: %lx\n", __func__, pfn);
+ 				continue;
+-			if (!early_pfn_in_nid(pfn, nid))
++			}
++			if (!early_pfn_in_nid(pfn, nid)) {
++				pr_info("%s: skipping: %lx\n", __func__, pfn);
+ 				continue;
++			}
+ 			if (overlap_memmap_init(zone, &pfn))
+ 				continue;
+ 			if (defer_init(nid, pfn, end_pfn))
+@@ -5780,6 +5789,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 			cond_resched();
+ 		}
+ 	}
++	pr_info("%s: pfn: %lx - %lx init\n", __func__, start_pfn, end_pfn - 1);
+ }
+ 
+ #ifdef CONFIG_ZONE_DEVICE
+@@ -5852,6 +5862,7 @@ void __ref memmap_init_zone_device(struct zone *zone,
+ 		}
+ 	}
+ 
++	pr_info("%s: %lx - %lx init\n", __func__, start_pfn, end_pfn - 1);
+ 	pr_info("%s initialised, %lu pages in %ums\n", dev_name(pgmap->dev),
+ 		size, jiffies_to_msecs(jiffies - start));
+ }
+@@ -6651,6 +6662,8 @@ static void __init free_area_init_core(struct pglist_data *pgdat)
+ 		setup_usemap(pgdat, zone, zone_start_pfn, size);
+ 		init_currently_empty_zone(zone, zone_start_pfn, size);
+ 		memmap_init(size, nid, j, zone_start_pfn);
++		pr_info("%s: zone: %s zone: %lx - %lx\n",
++			__func__, zone->name, zone_start_pfn, zone_end_pfn(zone));
+ 	}
+ }
+ 
+@@ -6765,6 +6778,8 @@ static u64 zero_pfn_range(unsigned long spfn, unsigned long epfn)
+ 		pgcnt++;
+ 	}
+ 
++	pr_info("%s: %lx - %lx zeroed\n", __func__, spfn, epfn - 1);
++
+ 	return pgcnt;
+ }
 
-commit 58ceeb6bec86d9140f9d91d71a710e963523d063
-Author: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Date:   Thu Apr 13 14:56:26 2017 -0700
-
-    thp: fix MADV_DONTNEED vs. MADV_FREE race
-    
-commit ced108037c2aa542b3ed8b7afd1576064ad1362a
-Author: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Date:   Thu Apr 13 14:56:20 2017 -0700
-
-    thp: fix MADV_DONTNEED vs. numa balancing race
-    
->
-> Did you consider a -stable backport?
-
-Considering nobody reported issues w.r.t MADV_DONTNEED I was not sure.
-
--aneesh
+-- 
+Oscar Salvador
+SUSE L3
 
