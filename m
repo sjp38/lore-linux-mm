@@ -7,100 +7,100 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0040FC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 22:13:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 863E5C10F03
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 22:14:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 93C9F21900
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 22:13:08 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3720421900
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 22:14:39 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="Zb9Bl7Bn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 93C9F21900
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="gXnr/LKc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3720421900
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EEBAA6B0005; Fri, 22 Mar 2019 18:13:07 -0400 (EDT)
+	id C9E886B0005; Fri, 22 Mar 2019 18:14:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E703F6B0006; Fri, 22 Mar 2019 18:13:07 -0400 (EDT)
+	id C4C7A6B0006; Fri, 22 Mar 2019 18:14:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D12466B0007; Fri, 22 Mar 2019 18:13:07 -0400 (EDT)
+	id AEF726B0007; Fri, 22 Mar 2019 18:14:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AC5556B0005
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 18:13:07 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id n15so2930625ioc.0
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 15:13:07 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D0F66B0005
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 18:14:38 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id k5so2910329ioh.13
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 15:14:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=VnWfr5Cz9g8Ts5McgdJK3bb2nMan4nq5nXqWONnMsfs=;
-        b=nR0SPk2KJHw++ud1lJKIBfxlB0c31aVsd2CnKGrHqfE78LryBHDTa+YG/tt5Reir5s
-         ZKSCmvExF3Tvza2VCuUjbJ3UCYQg6P2mbi/9Ds0+q8eSibMZFY6CfeF6vWrj+8Gfcbpa
-         6BVatf8GkHcIUptVuogvPoK/TOJMprRnsoNdB3EgCclH9bHg02PyDi7lAP+ta7fR/vJe
-         +2JcJNpV+01J/CZjmKwfsLdKNcP66bCOxf4oD1qxND0IRiJ7X20Q2cybk4RjbEkOk+AV
-         z1IygKJ+nJY8/sgjgnG48hpMLYNvYlu8UGnVkFgQdJe1uMCie2JPcwljmVISXPonwn/7
-         yxWQ==
-X-Gm-Message-State: APjAAAWWN3x/GQ6yb5ineIKNdEHwy8D7fXqAai4RmokDG1JPb7bTsxSB
-	20ENwjtYKB6dmQbNRMQzeMiY1lAg6Jwg4Vf7JNRujgPHx9Eee3RqCusc7d+JEiWHuTqwegg49JF
-	zRzYTJTW+q4n6HBbBL0U4YbzN6Mr88ih/hOIf0IbxaM7+9XpqJRcczIzo6zYGMGg=
-X-Received: by 2002:a02:b008:: with SMTP id p8mr7750063jah.90.1553292787479;
-        Fri, 22 Mar 2019 15:13:07 -0700 (PDT)
-X-Received: by 2002:a02:b008:: with SMTP id p8mr7750023jah.90.1553292786843;
-        Fri, 22 Mar 2019 15:13:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553292786; cv=none;
+        bh=wm2+IDsr0NmRaIQ9GIimbnBiutoAYhXqklaChAdkC0E=;
+        b=rGd+eLlmJ2Qn/JY5gZvuGgtQn6KGwrXJ3tVBTdKrz8GAvOfZUq713DqFmFVWPSgA0S
+         Rnnr7f77lSvcIDW37p/QxDwRJ7NCRqlvO38EwiFpi6qSfmIGQkecdO1G+sRVpG3NOVA1
+         R+Oq85HB2cYp4+E0Nmoeo2fywT2zVdumoSdjWk+PdCrKvgLQFs6IadU8d6BYdKYESpgu
+         YT1lFoFPOtfOdvjlb6s7zeOKfNFG/YbDNwbuPcKYiZADryLscUiGwCedfIlTMa7IN/Kt
+         Rrfzs2Ldl11L+z8/pebitgVjp4swaDy6VsazpTAmgzM7oUDpz5xcYWpNxgkqlQgaRZE/
+         ICcA==
+X-Gm-Message-State: APjAAAVL4hUsA0TENIrVStZCXvBSmX3QsOfzvBetQbu7qtVWUEy35lXr
+	nCCeU4E9sLbKSWSgoVXjOtKK5MtAJVHbEwDWfQCVPv64FoxUVKBLCeW9ehByUYlZ3wD+b2ev0B/
+	oIq7nZtxm/XbSmiFY5xQpvbcOa/JWhTlB1TFZUVeDfKS0YZLuV9hJrUip4SqpH+8=
+X-Received: by 2002:a5d:855a:: with SMTP id b26mr9069565ios.151.1553292878391;
+        Fri, 22 Mar 2019 15:14:38 -0700 (PDT)
+X-Received: by 2002:a5d:855a:: with SMTP id b26mr9069534ios.151.1553292877788;
+        Fri, 22 Mar 2019 15:14:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553292877; cv=none;
         d=google.com; s=arc-20160816;
-        b=l5rAaE4V0yhJJ8/wOPndE+hoOwgIQoRvmC0TOlzVmpFP72tdiQhxnpWIrNFIKzAQlW
-         dVaBz9qwSExihD7zpF45NlgVsNtS1VNQl0g7zz9kJs2K23MdsJanK3Ty1w7zkvKGMJrp
-         NMr3/pZwEl2GD6Fm6oEtFPbUE+yApRgfPHdcdIQ1Z1VHdLtiNuNZ8KVgMbi6RN9/VP8P
-         PBvpoBrw0tgIuXzryO6La3NGfnyTwHkrBMhzJ3DGMyI0EctyE2fcREoyZIZeZvO5tAYb
-         KU5ka5h23lAQWQ+E+naPh32mDOL28AJI84a5kLbn9od0Ia2tR9E30TGGYwcm3zUTFWPV
-         +2EQ==
+        b=HYRtAl/kPvC4RfRh7+DxqPglVR1NbWZ8zX4Dpb6/b2DWlXnyTym76JMzF6kIWQLBY0
+         n4VzfUwTev3ue7KZuHZki+mWWk82DTn+OfR+KfMIZChLLKh47dAtl6TK74n8//rWG4Tu
+         lonJiPUn6hM59QrBHRjq+pB+jxaBfuSHH2NTsLelyMxPu4T9shh2fyYLGTxqzE7jLRkK
+         9HTtOMAF4nlX0POwF+2hoCek6IAWdvmdIw4Ae3oNWtgwpuOJMPhqQx+oC4tkVKiMZLI1
+         6w347uo9WBISeeT+ADu1s5C2WWEkfctVzTrmfFylTjx7S7eXUevOYwh6fy4MDTlOAQp0
+         T9NQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=VnWfr5Cz9g8Ts5McgdJK3bb2nMan4nq5nXqWONnMsfs=;
-        b=VDgkBRUHdz6MdkhAcwrSKCV6CyGzGN2MgHP8k3TBEvpSFOZU6Q44iC6gb1rDX82R3B
-         0gvhQnBqZxlL9l0tpuLvppVX7b+RzimpQxsQ6WSWJJ2CnyS+X7G7daCY04YJNrwW72Bh
-         39DD2vcdoiPwvgc+tzRq21eMaesxdou2myPmdsNiZCchJoo/1jeLJkpPpftrZ7ZkhTwJ
-         MoGuIw0vfOS8WyCDsN6/E509OLckUINsuiI9yBDioVowP+ehfAt2e4ZzSaOttqQx66Nk
-         h0UyIpgjlKGL3Hx+1WuKxruQ/ZQLKKEZ1zl52G0cKDEBLd9nv5gbKxiPevncq6460mgw
-         IY7w==
+        bh=wm2+IDsr0NmRaIQ9GIimbnBiutoAYhXqklaChAdkC0E=;
+        b=oos3t1QQVpjhuTunNzl7v2w8saXze5nhyq0sqWhS0SvSdhyyLyMPUUDXOnyt2FKl+j
+         gohmqmB6XIg2SpmzBhgi3yaAR0+hYaC6h7EV5XZ97e1XKKINnp4d167AyUU2QYux2KEv
+         QSntXt7CHWKpy4URvD2/93eqp/LzPHxLlczkuuad+RY3s3e4XLioiY2doBbOK/F7lfv+
+         nvpRSV0QEOsuEoE6EtSDfD5ImXmxX9PGt9iNEkr9AmRrEac3VhTV4IGUUrhJwdHrWQEW
+         L0BZ7vZ6ALi7rCaDCV2n9D2zt6IVkj6IoaLiFyphgM8gl09M27/lu6/YxJ4UZpU6gMJf
+         cn1A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Zb9Bl7Bn;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b="gXnr/LKc";
        spf=pass (google.com: domain of dan.j.williams@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n129sor24246469jaa.12.2019.03.22.15.13.06
+        by mx.google.com with SMTPS id w194sor17533373ita.22.2019.03.22.15.14.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 22 Mar 2019 15:13:06 -0700 (PDT)
+        Fri, 22 Mar 2019 15:14:37 -0700 (PDT)
 Received-SPF: pass (google.com: domain of dan.j.williams@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Zb9Bl7Bn;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b="gXnr/LKc";
        spf=pass (google.com: domain of dan.j.williams@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=intel-com.20150623.gappssmtp.com; s=20150623;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=VnWfr5Cz9g8Ts5McgdJK3bb2nMan4nq5nXqWONnMsfs=;
-        b=Zb9Bl7Bn4sqZs4rM2mwfzJd7rKnn+/+6ONyGGwJqa1scMrXWXjmi9yoQBAbfMlLpgS
-         RGV1LtFJyFJAtRyqt7x4phr5CYLMLHxyjOqtaGBIgKlABbih3LbLp5n0OYCbWIHRLaHd
-         TTQ98w8krLJnK39QE8Dp0ik11E8+01Sgyn1wW72V9bUGSzJ08oA4QbCqRZA5AnJQLOtm
-         o3basMsLTQYqNorbmDjd4KoyjPrND/z4P2rEoZfVYQnDMfAEdcsp9b63663QinvyZoJp
-         HOu5mHwb07RCBU+1v7ChvrPznU5/HmjF8OEnSTsQgs+cld8MrdbVwNZKadLpnlT93nHs
-         Yb2w==
-X-Google-Smtp-Source: APXvYqwPCPjaWzKVXpURWg65K5fkBoLbrluPEoFqqgn2rT6o/InM1ko8UbBUfBaLU8H/oERd+79+VhkVDmrMWUaE2i4=
-X-Received: by 2002:a02:c007:: with SMTP id y7mr8517902jai.1.1553292786464;
- Fri, 22 Mar 2019 15:13:06 -0700 (PDT)
+        bh=wm2+IDsr0NmRaIQ9GIimbnBiutoAYhXqklaChAdkC0E=;
+        b=gXnr/LKcmO3n/AkDnk5tuJJz0sD52kdAC51zKOFpz9IFbfbYifTLF6ymlYbHKb1Fzf
+         5IK9kzfgRjlOjG8rPf/pLCcCoxWGCDHkfS90S+LKj3jcXm5xQYa13eJcPAUZ+hXohZjm
+         IBPo+8GJ+Rq8y+Q+kI7lVQj+zb+PR7I30rOlJksrdJy/Wp2dqUTjZA9F3vGG+ezwSQtN
+         Rd0g5Hf0LyHnnPkTMRnIAwxLFm25gMxn56/wKPSlCPteP5nwXO0eAhs4klJ0MxT6YP2e
+         dxwI2R6VEa8rmJFaL4xGk5paDuSdBggXv21lLkD4qtLHBeTsgNPI61yo109FsRi4r0QQ
+         8DwA==
+X-Google-Smtp-Source: APXvYqwIoaHTQX3ElVQKOchmDlJSSWqTKG84OsYpQvQY0PG83rmTkoixgVtLY+vkXQxXTMX8UIfgiVFJTO08ZCVWvdY=
+X-Received: by 2002:a24:411f:: with SMTP id x31mr3120456ita.169.1553292877426;
+ Fri, 22 Mar 2019 15:14:37 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190317183438.2057-1-ira.weiny@intel.com> <20190317183438.2057-5-ira.weiny@intel.com>
-In-Reply-To: <20190317183438.2057-5-ira.weiny@intel.com>
+References: <20190317183438.2057-1-ira.weiny@intel.com> <20190317183438.2057-6-ira.weiny@intel.com>
+In-Reply-To: <20190317183438.2057-6-ira.weiny@intel.com>
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 22 Mar 2019 15:12:55 -0700
-Message-ID: <CAA9_cmcx-Bqo=CFuSj7Xcap3e5uaAot2reL2T74C47Ut6_KtQw@mail.gmail.com>
-Subject: Re: [RESEND 4/7] mm/gup: Add FOLL_LONGTERM capability to GUP fast
+Date: Fri, 22 Mar 2019 15:14:26 -0700
+Message-ID: <CAA9_cmdQjMekSFU09gLc87-PVx2iHeeh2jC6KeFY1UeadpPh4A@mail.gmail.com>
+Subject: Re: [RESEND 5/7] IB/hfi1: Use the new FOLL_LONGTERM flag to get_user_pages_fast()
 To: ira.weiny@intel.com
 Cc: Andrew Morton <akpm@linux-foundation.org>, John Hubbard <jhubbard@nvidia.com>, 
 	Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, 
@@ -126,78 +126,40 @@ On Sun, Mar 17, 2019 at 7:36 PM <ira.weiny@intel.com> wrote:
 >
 > From: Ira Weiny <ira.weiny@intel.com>
 >
-> DAX pages were previously unprotected from longterm pins when users
-> called get_user_pages_fast().
->
-> Use the new FOLL_LONGTERM flag to check for DEVMAP pages and fall
-> back to regular GUP processing if a DEVMAP page is encountered.
+> Use the new FOLL_LONGTERM to get_user_pages_fast() to protect against
+> FS DAX pages being mapped.
 >
 > Signed-off-by: Ira Weiny <ira.weiny@intel.com>
 > ---
->  mm/gup.c | 29 +++++++++++++++++++++++++----
->  1 file changed, 25 insertions(+), 4 deletions(-)
+>  drivers/infiniband/hw/hfi1/user_pages.c | 6 ++++--
+>  1 file changed, 4 insertions(+), 2 deletions(-)
 >
-> diff --git a/mm/gup.c b/mm/gup.c
-> index 0684a9536207..173db0c44678 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -1600,6 +1600,9 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
->                         goto pte_unmap;
->
->                 if (pte_devmap(pte)) {
-> +                       if (unlikely(flags & FOLL_LONGTERM))
-> +                               goto pte_unmap;
-> +
->                         pgmap = get_dev_pagemap(pte_pfn(pte), pgmap);
->                         if (unlikely(!pgmap)) {
->                                 undo_dev_pagemap(nr, nr_start, pages);
-> @@ -1739,8 +1742,11 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
->         if (!pmd_access_permitted(orig, flags & FOLL_WRITE))
->                 return 0;
->
-> -       if (pmd_devmap(orig))
-> +       if (pmd_devmap(orig)) {
-> +               if (unlikely(flags & FOLL_LONGTERM))
-> +                       return 0;
->                 return __gup_device_huge_pmd(orig, pmdp, addr, end, pages, nr);
-> +       }
->
->         refs = 0;
->         page = pmd_page(orig) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
-> @@ -1777,8 +1783,11 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
->         if (!pud_access_permitted(orig, flags & FOLL_WRITE))
->                 return 0;
->
-> -       if (pud_devmap(orig))
-> +       if (pud_devmap(orig)) {
-> +               if (unlikely(flags & FOLL_LONGTERM))
-> +                       return 0;
->                 return __gup_device_huge_pud(orig, pudp, addr, end, pages, nr);
-> +       }
->
->         refs = 0;
->         page = pud_page(orig) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
-> @@ -2066,8 +2075,20 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
->                 start += nr << PAGE_SHIFT;
->                 pages += nr;
->
-> -               ret = get_user_pages_unlocked(start, nr_pages - nr, pages,
-> -                                             gup_flags);
-> +               if (gup_flags & FOLL_LONGTERM) {
-> +                       down_read(&current->mm->mmap_sem);
-> +                       ret = __gup_longterm_locked(current, current->mm,
-> +                                                   start, nr_pages - nr,
-> +                                                   pages, NULL, gup_flags);
-> +                       up_read(&current->mm->mmap_sem);
-> +               } else {
-> +                       /*
-> +                        * retain FAULT_FOLL_ALLOW_RETRY optimization if
-> +                        * possible
-> +                        */
-> +                       ret = get_user_pages_unlocked(start, nr_pages - nr,
-> +                                                     pages, gup_flags);
+> diff --git a/drivers/infiniband/hw/hfi1/user_pages.c b/drivers/infiniband/hw/hfi1/user_pages.c
+> index 78ccacaf97d0..6a7f9cd5a94e 100644
+> --- a/drivers/infiniband/hw/hfi1/user_pages.c
+> +++ b/drivers/infiniband/hw/hfi1/user_pages.c
+> @@ -104,9 +104,11 @@ int hfi1_acquire_user_pages(struct mm_struct *mm, unsigned long vaddr, size_t np
+>                             bool writable, struct page **pages)
+>  {
+>         int ret;
+> +       unsigned int gup_flags = writable ? FOLL_WRITE : 0;
 
-I couldn't immediately grok why this path needs to branch on
-FOLL_LONGTERM? Won't get_user_pages_unlocked(..., FOLL_LONGTERM) do
-the right thing?
+Maybe:
+
+    unsigned int gup_flags = FOLL_LONGTERM | (writable ? FOLL_WRITE : 0);
+
+?
+
+>
+> -       ret = get_user_pages_fast(vaddr, npages, writable ? FOLL_WRITE : 0,
+> -                                 pages);
+> +       gup_flags |= FOLL_LONGTERM;
+> +
+> +       ret = get_user_pages_fast(vaddr, npages, gup_flags, pages);
+>         if (ret < 0)
+>                 return ret;
+>
+> --
+> 2.20.1
+>
 
