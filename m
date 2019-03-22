@@ -6,433 +6,279 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D585BC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 17:11:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F9A4C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 17:11:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 83A0421900
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 17:11:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 83A0421900
+	by mail.kernel.org (Postfix) with ESMTP id D26C421900
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 17:11:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D26C421900
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 369A76B000E; Fri, 22 Mar 2019 13:11:12 -0400 (EDT)
+	id 899906B0010; Fri, 22 Mar 2019 13:11:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3186D6B0010; Fri, 22 Mar 2019 13:11:12 -0400 (EDT)
+	id 847CD6B0266; Fri, 22 Mar 2019 13:11:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2083D6B0266; Fri, 22 Mar 2019 13:11:12 -0400 (EDT)
+	id 7396C6B0269; Fri, 22 Mar 2019 13:11:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D261B6B000E
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 13:11:11 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id e5so2881353pfi.23
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 10:11:11 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 396B16B0010
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 13:11:17 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id g1so2107315pfo.2
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 10:11:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:from
          :to:cc:date:message-id:in-reply-to:references:user-agent
          :mime-version:content-transfer-encoding;
-        bh=hImD7Y00gaX81YIfSMmqjk6E4HgjxDbyb28VwVwb7xc=;
-        b=aGrzfsZ3XyR5nxzvMcJEKSXxUsLBT0lSJop0xl6BIVrEhudO67bLSyrpJoe9lh5jlL
-         /EaIKBMYz9MvnTJZ9ZAYEmmd6yQwiTtZW4BQRJxtVWs/mp/Gi3Xn59HQZA/WwDgki+8s
-         abj3J0lv8Nl7zjb0Q9cxBSUnw3dM3J23QCVFlG+/D4G1NJcbdMoviSJrcL5W/Q7MOJ/6
-         TXDGyRT1xtZmfEuWUl6PPdNbkJr59Bnxj7w4PRvaNfqhLwsMWWu06NvDKGoquE5QPyTd
-         sHRuDbdAlVdvXtPBnVrun7aPkrnU+FW4atY7qySpJxKSaSry+DOtCg8WCgkuqXILdQgS
-         GXDA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAURsI9Xs3TMtC6m0PQanYhXFhK5F6mINwiUF4S//CkxlXMISY92
-	Vk67iOhu++9OHIvgvcXnn23E6AeGQ61YP7eL4sAGMQQU10tg+sV2ODGBaVjUdORMcUCBMRympQ+
-	rhrM5p1b8Y3kSrlGZjMbfEy9CjVQ+cSFXqnEA8XIpQjkX6DtHc+gunO5Uvjxpuy1Otw==
-X-Received: by 2002:a17:902:5c5:: with SMTP id f63mr7726880plf.64.1553274671490;
-        Fri, 22 Mar 2019 10:11:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxBO3KLClO4F6Jp7OHqytRRg822Pn1FLZDL3chP0O9shPVu6160Cxh4zYOolFIz6Z4E05zV
-X-Received: by 2002:a17:902:5c5:: with SMTP id f63mr7726813plf.64.1553274670525;
-        Fri, 22 Mar 2019 10:11:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553274670; cv=none;
+        bh=bjCWBK7XWA7ZduHohUaiiF9VXYObt6QrOmEaCPsYtCg=;
+        b=ZIUouXRrUvSXqhRAZDluO8KnCH5m/IBvh2GFVptZ3HpTK3QREH14cEzM9ws3RY/lZc
+         6lVTbxzmd4W/+B6uYsN0YhEXRXA9YTRtG2Z76oB7S84nU/bRsun4j4tdfQmsIwrenlXH
+         nrzQ09NS6MZN+XqefiOw8uJsheIuzs8h/lGs7sDVgfJJ0qR4/hRdkWJMn8ehMOLHF8tb
+         KN/GCApYI4JLYHuYCxbL+wl/aL6A5Oi7YFNBs3QLGKHhf+nUj+1LGEUHPglAPs91IfLJ
+         vzo+IVAVJhRQ3/HGoum59062GMqzkStf7cmthf7iV/gywJY0w75Urw8yEbzdZlYZmoLk
+         2gtA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWd+F2NDsAZk0m97RWK+LqYbXP7QVKPQdQqSGXOWhaOIQ9qBYLR
+	hs8msRFGE1MocSvJQXQ/hUXQpSyGu9tt7FR9nOTBt3vMayfeR91uZNPnK+r4PIR98buwam5a2l2
+	2+d2pZJAjvyFr5ty+GIARC+j8cWHfprgV8M+7vtdYKj96B73yye2toz0n5u8YlKjPkw==
+X-Received: by 2002:a17:902:361:: with SMTP id 88mr10766903pld.78.1553274676895;
+        Fri, 22 Mar 2019 10:11:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqymI/q8UZ+uicFYHeKyhWktuC9Ye7s/PHzmOBKy58i3rq7mfXZ8s8YAcTA8YdgMD3hmLyzO
+X-Received: by 2002:a17:902:361:: with SMTP id 88mr10766841pld.78.1553274676067;
+        Fri, 22 Mar 2019 10:11:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553274676; cv=none;
         d=google.com; s=arc-20160816;
-        b=nC/KRnZRO3I235CqD//N2ZXDTnlG3PORXElw8jaZasU35BhUEK7P9OXWffJS08eTTt
-         OCQxz5mfT/q2WxzcYz2EpOthIMGpxrpXRMKvYEQPLVMns9kAFjSckp+VWP7ovVD+51dv
-         lu8YBnEvEg/0u37ZQEB494wHfkxD6+7WA3b+RICwcKk8hTd5z+L7024asK6ppg/bQRoI
-         r0peywzrSsqpKqJMu2GPeZVhYmZrfdGpKJZNR70AyhcKgrz7R39WG/BqTGVyKMJVOQZ3
-         t1Iy6SDJgIEvxQZVTd+K7wCLp3i+MNc9VSmZ3wk1A1EA8TMHUo4xOoG4W6KiQiBkITh8
-         2EdQ==
+        b=fpsO37A4XFtcW9nFSjAqvr7hSSRxSufCsuJtvpZ0ljLcsWE7ar//bGGIkRTQNWudFZ
+         ap3A0JwWesry+puIfhPrQJI+ShFibvvX5j55i7nSxOKuQHhHqubjVF5yqohfp8X1X1jC
+         0bEUI9DllMQlYSfHExXdXsadIQMzOVyJf5DxRg6wnCfieZ7Sywxlyess2rs9H22IBO1J
+         eToZB0S3pWl8Vfd4dgEwXb7UV8LDAqm4Dz7v8R+fkpK4BVoctzsy+1Z+uiVx/9eaWsGv
+         LZZYfPil4/AF/eTst0PDyB10RzSAyGVXiVNq9nfPVvVWJT64WbQgsAZsjcdlGasqs4Cq
+         PK6Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:message-id:date:cc:to:from:subject;
-        bh=hImD7Y00gaX81YIfSMmqjk6E4HgjxDbyb28VwVwb7xc=;
-        b=iWoLbSETuc+/zrMtb923gwmJBRSHhxNJT2zlMUojgk03yYRXIop2my4tEFWF09lkFF
-         KNUIfKpbIkfSLkem3w9N5shkMRbLlccIxiB88VicTDfGHrckJ7CAJ008rXPObNmzywZl
-         SampPhowvaDJ36YYyBwYQF+vzKdI2HkajM7x9wAChkmiA58rGnebRMAe3KVu22UtShxn
-         4lq3NyIMyBn7FsdxOoCxHlF/PTlH1Mzmk+ZuRXUJsSYW5+cMpecJjZ66XvAQjtSWBZ+K
-         ZPeLitSDW1J4sig2nXz2m6UOHydn3Bi7zjfVz8VGXTCVOObc1dW/G5ZwXlW1/DcPOIIm
-         zzxQ==
+        bh=bjCWBK7XWA7ZduHohUaiiF9VXYObt6QrOmEaCPsYtCg=;
+        b=NGeWCY/Yg6jBceA75HRIlFsgLXD1B6PDQPe8Q9aLUCXuYKRh1O04lxPyDbrz+Jsgjj
+         ps6wv9Em1FUo5OnwoaXs66H59grWmm3fxRsMccnclUGb/QNTvDSTAoMAUcVSI3G6+3fJ
+         otnz67qmdogSuOHbIcmR4Q/HsobCU5aQk24ylD4XqTTWEmNFnmJe3v8s+nqkqzad4Hxr
+         jtaOMHxf3+mLGeKCIsaB8WrWFw8hKm61PyUuQ/z2m9f5/IfQYvqNIlY27NwfAlnFUWkz
+         MJH48D98PMnE1jtz7TqYPXwHHzvq6RX6cfCy3hDitRXQJ2C06zr8P/QOq/83IlaMfPH4
+         iutg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id r3si6976449pgp.154.2019.03.22.10.11.10
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id i65si7045774pfj.105.2019.03.22.10.11.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Mar 2019 10:11:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+        Fri, 22 Mar 2019 10:11:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from fmsmga006.fm.intel.com ([10.253.24.20])
-  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Mar 2019 10:11:10 -0700
+Received: from fmsmga007.fm.intel.com ([10.253.24.52])
+  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Mar 2019 10:11:15 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,256,1549958400"; 
-   d="scan'208";a="329775834"
+   d="scan'208";a="136552998"
 Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
-  by fmsmga006.fm.intel.com with ESMTP; 22 Mar 2019 10:11:09 -0700
-Subject: [PATCH v5 07/10] mm/sparsemem: Support sub-section hotplug
+  by fmsmga007.fm.intel.com with ESMTP; 22 Mar 2019 10:11:14 -0700
+Subject: [PATCH v5 08/10] mm/devm_memremap_pages: Enable sub-section remap
 From: Dan Williams <dan.j.williams@intel.com>
 To: akpm@linux-foundation.org
-Cc: Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>,
+Cc: Michal Hocko <mhocko@suse.com>, Toshi Kani <toshi.kani@hpe.com>,
+ =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
  Logan Gunthorpe <logang@deltatee.com>, linux-mm@kvack.org,
  linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
-Date: Fri, 22 Mar 2019 09:58:30 -0700
-Message-ID: <155327391072.225273.15649820215289276904.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Fri, 22 Mar 2019 09:58:36 -0700
+Message-ID: <155327391603.225273.924677730380586912.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <155327387405.225273.9325594075351253804.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <155327387405.225273.9325594075351253804.stgit@dwillia2-desk3.amr.corp.intel.com>
 User-Agent: StGit/0.18-2-gc94f
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The libnvdimm sub-system has suffered a series of hacks and broken
-workarounds for the memory-hotplug implementation's awkward
-section-aligned (128MB) granularity. For example the following backtrace
-is emitted when attempting arch_add_memory() with physical address
-ranges that intersect 'System RAM' (RAM) with 'Persistent Memory' (PMEM)
-within a given section:
+Teach devm_memremap_pages() about the new sub-section capabilities of
+arch_{add,remove}_memory(). Effectively, just replace all usage of
+align_start, align_end, and align_size with res->start, res->end, and
+resource_size(res). The existing sanity check will still make sure that
+the two separate remap attempts do not collide within a sub-section (2MB
+on x86).
 
- WARNING: CPU: 0 PID: 558 at kernel/memremap.c:300 devm_memremap_pages+0x3b5/0x4c0
- devm_memremap_pages attempted on mixed region [mem 0x200000000-0x2fbffffff flags 0x200]
- [..]
- Call Trace:
-   dump_stack+0x86/0xc3
-   __warn+0xcb/0xf0
-   warn_slowpath_fmt+0x5f/0x80
-   devm_memremap_pages+0x3b5/0x4c0
-   __wrap_devm_memremap_pages+0x58/0x70 [nfit_test_iomap]
-   pmem_attach_disk+0x19a/0x440 [nd_pmem]
-
-Recently it was discovered that the problem goes beyond RAM vs PMEM
-collisions as some platform produce PMEM vs PMEM collisions within a
-given section. The libnvdimm workaround for that case revealed that the
-libnvdimm section-alignment-padding implementation has been broken for a
-long while. A fix for that long-standing breakage introduces as many
-problems as it solves as it would require a backward-incompatible change
-to the namespace metadata interpretation. Instead of that dubious route
-[1], address the root problem in the memory-hotplug implementation.
-
-[1]: https://lore.kernel.org/r/155000671719.348031.2347363160141119237.stgit@dwillia2-desk3.amr.corp.intel.com
 Cc: Michal Hocko <mhocko@suse.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Toshi Kani <toshi.kani@hpe.com>
+Cc: Jérôme Glisse <jglisse@redhat.com>
 Cc: Logan Gunthorpe <logang@deltatee.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- mm/sparse.c |  235 ++++++++++++++++++++++++++++++++++++++++-------------------
- 1 file changed, 158 insertions(+), 77 deletions(-)
+ kernel/memremap.c |   55 +++++++++++++++++++++--------------------------------
+ 1 file changed, 22 insertions(+), 33 deletions(-)
 
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 767713c88cf5..d41ad9643f86 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -83,8 +83,15 @@ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
- 	unsigned long root = SECTION_NR_TO_ROOT(section_nr);
- 	struct mem_section *section;
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index dda1367b385d..08344869e717 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -59,7 +59,7 @@ static unsigned long pfn_first(struct dev_pagemap *pgmap)
+ 	struct vmem_altmap *altmap = &pgmap->altmap;
+ 	unsigned long pfn;
  
-+	/*
-+	 * An existing section is possible in the sub-section hotplug
-+	 * case. First hot-add instantiates, follow-on hot-add reuses
-+	 * the existing section.
-+	 *
-+	 * The mem_hotplug_lock resolves the apparent race below.
-+	 */
- 	if (mem_section[root])
--		return -EEXIST;
-+		return 0;
+-	pfn = res->start >> PAGE_SHIFT;
++	pfn = PHYS_PFN(res->start);
+ 	if (pgmap->altmap_valid)
+ 		pfn += vmem_altmap_offset(altmap);
+ 	return pfn;
+@@ -87,7 +87,6 @@ static void devm_memremap_pages_release(void *data)
+ 	struct dev_pagemap *pgmap = data;
+ 	struct device *dev = pgmap->dev;
+ 	struct resource *res = &pgmap->res;
+-	resource_size_t align_start, align_size;
+ 	unsigned long pfn;
+ 	int nid;
  
- 	section = sparse_index_alloc(nid);
- 	if (!section)
-@@ -338,6 +345,15 @@ static void __meminit sparse_init_one_section(struct mem_section *ms,
- 		unsigned long pnum, struct page *mem_map,
- 		struct mem_section_usage *usage)
- {
-+	/*
-+	 * Given that SPARSEMEM_VMEMMAP=y supports sub-section hotplug,
-+	 * ->section_mem_map can not be guaranteed to point to a full
-+	 *  section's worth of memory.  The field is only valid / used
-+	 *  in the SPARSEMEM_VMEMMAP=n case.
-+	 */
-+	if (IS_ENABLED(CONFIG_SPARSEMEM_VMEMMAP))
-+		mem_map = NULL;
-+
- 	ms->section_mem_map &= ~SECTION_MAP_MASK;
- 	ms->section_mem_map |= sparse_encode_mem_map(mem_map, pnum) |
- 							SECTION_HAS_MEM_MAP;
-@@ -743,58 +759,164 @@ static void free_map_bootmem(struct page *memmap)
- #endif /* CONFIG_MEMORY_HOTREMOVE */
- #endif /* CONFIG_SPARSEMEM_VMEMMAP */
+@@ -96,25 +95,21 @@ static void devm_memremap_pages_release(void *data)
+ 		put_page(pfn_to_page(pfn));
  
--/*
-- * returns the number of sections whose mem_maps were properly
-- * set.  If this is <=0, then that means that the passed-in
-- * map was not consumed and must be freed.
-+#ifndef CONFIG_MEMORY_HOTREMOVE
-+static void free_map_bootmem(struct page *memmap)
-+{
-+}
-+#endif
-+
-+static bool is_early_section(struct mem_section *ms)
-+{
-+	struct page *usage_page;
-+
-+	usage_page = virt_to_page(ms->usage);
-+	if (PageSlab(usage_page) || PageCompound(usage_page))
-+		return false;
-+	else
-+		return true;
-+}
-+
-+static void section_deactivate(unsigned long pfn, unsigned long nr_pages,
-+		int nid, struct vmem_altmap *altmap)
-+{
-+	unsigned long mask = section_active_mask(pfn, nr_pages);
-+	struct mem_section *ms = __pfn_to_section(pfn);
-+	bool early_section = is_early_section(ms);
-+	struct page *memmap = NULL;
-+
-+	if (WARN(!ms->usage || (ms->usage->map_active & mask) != mask,
-+			"section already deactivated: active: %#lx mask: %#lx\n",
-+			ms->usage ? ms->usage->map_active : 0, mask))
-+		return;
-+
-+	if (WARN(!IS_ENABLED(CONFIG_SPARSEMEM_VMEMMAP)
-+				&& nr_pages < PAGES_PER_SECTION,
-+				"partial memory section removal not supported\n"))
-+		return;
-+
-+	/*
-+	 * There are 3 cases to handle across two configurations
-+	 * (SPARSEMEM_VMEMMAP={y,n}):
-+	 *
-+	 * 1/ deactivation of a partial hot-added section (only possible
-+	 * in the SPARSEMEM_VMEMMAP=y case).
-+	 *    a/ section was present at memory init
-+	 *    b/ section was hot-added post memory init
-+	 * 2/ deactivation of a complete hot-added section
-+	 * 3/ deactivation of a complete section from memory init
-+	 *
-+	 * For 1/, when map_active does not go to zero we will not be
-+	 * freeing the usage map, but still need to free the vmemmap
-+	 * range.
-+	 *
-+	 * For 2/ and 3/ the SPARSEMEM_VMEMMAP={y,n} cases are unified
-+	 */
-+	ms->usage->map_active ^= mask;
-+	if (ms->usage->map_active == 0) {
-+		unsigned long section_nr = pfn_to_section_nr(pfn);
-+
-+		if (!early_section) {
-+			kfree(ms->usage);
-+			ms->usage = NULL;
-+		}
-+		memmap = sparse_decode_mem_map(ms->section_mem_map, section_nr);
-+		ms->section_mem_map = sparse_encode_mem_map(NULL, section_nr);
-+	}
-+
-+	if (early_section && memmap)
-+		free_map_bootmem(memmap);
-+	else
-+		depopulate_section_memmap(pfn, nr_pages, altmap);
-+}
-+
-+static struct page * __meminit section_activate(int nid, unsigned long pfn,
-+		unsigned long nr_pages, struct vmem_altmap *altmap)
-+{
-+	unsigned long mask = section_active_mask(pfn, nr_pages);
-+	struct mem_section *ms = __pfn_to_section(pfn);
-+	struct mem_section_usage *usage = NULL;
-+	struct page *memmap;
-+	int rc = 0;
-+
-+	if (!ms->usage) {
-+		usage = kzalloc(mem_section_usage_size(), GFP_KERNEL);
-+		if (!usage)
-+			return ERR_PTR(-ENOMEM);
-+		ms->usage = usage;
-+	}
-+
-+	if (!mask)
-+		rc = -EINVAL;
-+	else if (mask & ms->usage->map_active)
-+		rc = -EEXIST;
-+	else
-+		ms->usage->map_active |= mask;
-+
-+	if (rc) {
-+		if (usage)
-+			ms->usage = NULL;
-+		kfree(usage);
-+		return ERR_PTR(rc);
-+	}
-+
-+	/*
-+	 * The early init code does not consider partially populated
-+	 * initial sections, it simply assumes that memory will never be
-+	 * referenced.  If we hot-add memory into such a section then we
-+	 * do not need to populate the memmap and can simply reuse what
-+	 * is already there.
-+	 */
-+	if (nr_pages < PAGES_PER_SECTION && is_early_section(ms))
-+		return pfn_to_page(pfn);
-+
-+	memmap = populate_section_memmap(pfn, nr_pages, nid, altmap);
-+	if (!memmap) {
-+		section_deactivate(pfn, nr_pages, nid, altmap);
-+		return ERR_PTR(-ENOMEM);
-+	}
-+
-+	return memmap;
-+}
-+
-+/**
-+ * sparse_add_section() - create a new memmap section, or populate an
-+ * existing one
-+ * @zone: host zone for the new memory mapping
-+ * @start_pfn: first pfn to add (section aligned if zone != ZONE_DEVICE)
-+ * @nr_pages: number of new pages to add
-+ *
-+ * returns the number of sections whose mem_maps were properly set.  If
-+ * this is <=0, then that means that the passed-in map was not consumed
-+ * and must be freed.
+ 	/* pages are dead and unused, undo the arch mapping */
+-	align_start = res->start & ~(PA_SECTION_SIZE - 1);
+-	align_size = ALIGN(res->start + resource_size(res), PA_SECTION_SIZE)
+-		- align_start;
+-
+-	nid = page_to_nid(pfn_to_page(align_start >> PAGE_SHIFT));
++	nid = page_to_nid(pfn_to_page(PHYS_PFN(res->start)));
+ 
+ 	mem_hotplug_begin();
+ 	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
+-		pfn = align_start >> PAGE_SHIFT;
++		pfn = PHYS_PFN(res->start);
+ 		__remove_pages(page_zone(pfn_to_page(pfn)), pfn,
+-				align_size >> PAGE_SHIFT, NULL);
++				PHYS_PFN(resource_size(res)), NULL);
+ 	} else {
+-		arch_remove_memory(nid, align_start, align_size,
++		arch_remove_memory(nid, res->start, resource_size(res),
+ 				pgmap->altmap_valid ? &pgmap->altmap : NULL);
+-		kasan_remove_zero_shadow(__va(align_start), align_size);
++		kasan_remove_zero_shadow(__va(res->start), resource_size(res));
+ 	}
+ 	mem_hotplug_done();
+ 
+-	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
++	untrack_pfn(NULL, PHYS_PFN(res->start), resource_size(res));
+ 	pgmap_array_delete(res);
+ 	dev_WARN_ONCE(dev, pgmap->altmap.alloc,
+ 		      "%s: failed to free all reserved pages\n", __func__);
+@@ -141,7 +136,6 @@ static void devm_memremap_pages_release(void *data)
   */
- int __meminit sparse_add_section(int nid, unsigned long start_pfn,
- 		unsigned long nr_pages, struct vmem_altmap *altmap)
+ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
  {
- 	unsigned long section_nr = pfn_to_section_nr(start_pfn);
--	struct mem_section_usage *usage;
--	struct mem_section *ms;
-+	struct mem_section *ms = __pfn_to_section(start_pfn);
- 	struct page *memmap;
- 	int ret;
+-	resource_size_t align_start, align_size, align_end;
+ 	struct vmem_altmap *altmap = pgmap->altmap_valid ?
+ 			&pgmap->altmap : NULL;
+ 	struct resource *res = &pgmap->res;
+@@ -152,26 +146,21 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+ 	if (!pgmap->ref || !pgmap->kill)
+ 		return ERR_PTR(-EINVAL);
  
--	/*
--	 * no locking for this, because it does its own
--	 * plus, it does a kmalloc
--	 */
- 	ret = sparse_index_init(section_nr, nid);
- 	if (ret < 0 && ret != -EEXIST)
- 		return ret;
--	ret = 0;
--	memmap = populate_section_memmap(start_pfn, PAGES_PER_SECTION, nid,
--			altmap);
--	if (!memmap)
--		return -ENOMEM;
--	usage = kzalloc(mem_section_usage_size(), GFP_KERNEL);
--	if (!usage) {
--		depopulate_section_memmap(start_pfn, PAGES_PER_SECTION, altmap);
--		return -ENOMEM;
--	}
+-	align_start = res->start & ~(PA_SECTION_SIZE - 1);
+-	align_size = ALIGN(res->start + resource_size(res), PA_SECTION_SIZE)
+-		- align_start;
+-	align_end = align_start + align_size - 1;
+-
+-	conflict_pgmap = get_dev_pagemap(PHYS_PFN(align_start), NULL);
++	conflict_pgmap = get_dev_pagemap(PHYS_PFN(res->start), NULL);
+ 	if (conflict_pgmap) {
+ 		dev_WARN(dev, "Conflicting mapping in same section\n");
+ 		put_dev_pagemap(conflict_pgmap);
+ 		return ERR_PTR(-ENOMEM);
+ 	}
  
--	ms = __pfn_to_section(start_pfn);
--	if (ms->section_mem_map & SECTION_MARKED_PRESENT) {
--		ret = -EEXIST;
--		goto out;
--	}
-+	memmap = section_activate(nid, start_pfn, nr_pages, altmap);
-+	if (IS_ERR(memmap))
-+		return PTR_ERR(memmap);
-+	ret = 0;
+-	conflict_pgmap = get_dev_pagemap(PHYS_PFN(align_end), NULL);
++	conflict_pgmap = get_dev_pagemap(PHYS_PFN(res->end), NULL);
+ 	if (conflict_pgmap) {
+ 		dev_WARN(dev, "Conflicting mapping in same section\n");
+ 		put_dev_pagemap(conflict_pgmap);
+ 		return ERR_PTR(-ENOMEM);
+ 	}
  
- 	/*
- 	 * Poison uninitialized struct pages in order to catch invalid flags
- 	 * combinations.
+-	is_ram = region_intersects(align_start, align_size,
++	is_ram = region_intersects(res->start, resource_size(res),
+ 		IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
+ 
+ 	if (is_ram != REGION_DISJOINT) {
+@@ -192,8 +181,8 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+ 	if (nid < 0)
+ 		nid = numa_mem_id();
+ 
+-	error = track_pfn_remap(NULL, &pgprot, PHYS_PFN(align_start), 0,
+-			align_size);
++	error = track_pfn_remap(NULL, &pgprot, PHYS_PFN(res->start), 0,
++			resource_size(res));
+ 	if (error)
+ 		goto err_pfn_remap;
+ 
+@@ -211,16 +200,16 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+ 	 * arch_add_memory().
  	 */
--	page_init_poison(memmap, sizeof(struct page) * PAGES_PER_SECTION);
-+	page_init_poison(pfn_to_page(start_pfn), sizeof(struct page) * nr_pages);
+ 	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
+-		error = add_pages(nid, align_start >> PAGE_SHIFT,
+-				align_size >> PAGE_SHIFT, NULL, false);
++		error = add_pages(nid, PHYS_PFN(res->start),
++				PHYS_PFN(resource_size(res)), NULL, false);
+ 	} else {
+-		error = kasan_add_zero_shadow(__va(align_start), align_size);
++		error = kasan_add_zero_shadow(__va(res->start), resource_size(res));
+ 		if (error) {
+ 			mem_hotplug_done();
+ 			goto err_kasan;
+ 		}
  
- 	section_mark_present(ms);
--	sparse_init_one_section(ms, section_nr, memmap, usage);
-+	sparse_init_one_section(ms, section_nr, memmap, ms->usage);
+-		error = arch_add_memory(nid, align_start, align_size, altmap,
++		error = arch_add_memory(nid, res->start, resource_size(res), altmap,
+ 				false);
+ 	}
  
--out:
--	if (ret < 0) {
--		kfree(usage);
--		depopulate_section_memmap(start_pfn, PAGES_PER_SECTION, altmap);
--	}
-+	if (ret < 0)
-+		section_deactivate(start_pfn, nr_pages, nid, altmap);
- 	return ret;
- }
+@@ -228,8 +217,8 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+ 		struct zone *zone;
  
-@@ -829,54 +951,13 @@ static inline void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
- }
- #endif
+ 		zone = &NODE_DATA(nid)->node_zones[ZONE_DEVICE];
+-		move_pfn_range_to_zone(zone, align_start >> PAGE_SHIFT,
+-				align_size >> PAGE_SHIFT, altmap);
++		move_pfn_range_to_zone(zone, PHYS_PFN(res->start),
++				PHYS_PFN(resource_size(res)), altmap);
+ 	}
  
--static void free_section_usage(struct page *memmap,
--		struct mem_section_usage *usage, unsigned long pfn,
--		unsigned long nr_pages, struct vmem_altmap *altmap)
--{
--	struct page *usage_page;
--
--	if (!usage)
--		return;
--
--	usage_page = virt_to_page(usage);
--	/*
--	 * Check to see if allocation came from hot-plug-add
--	 */
--	if (PageSlab(usage_page) || PageCompound(usage_page)) {
--		kfree(usage);
--		if (memmap)
--			depopulate_section_memmap(pfn, nr_pages, altmap);
--		return;
--	}
--
--	/*
--	 * The usemap came from bootmem. This is packed with other usemaps
--	 * on the section which has pgdat at boot time. Just keep it as is now.
--	 */
--
--	if (memmap)
--		free_map_bootmem(memmap);
--}
--
- void sparse_remove_section(struct zone *zone, struct mem_section *ms,
- 		unsigned long pfn, unsigned long nr_pages,
- 		unsigned long map_offset, struct vmem_altmap *altmap)
- {
--	struct page *memmap = NULL;
--	struct mem_section_usage *usage = NULL;
--
--	if (ms->section_mem_map) {
--		usage = ms->usage;
--		memmap = sparse_decode_mem_map(ms->section_mem_map,
--						__section_nr(ms));
--		ms->section_mem_map = 0;
--		ms->usage = NULL;
--	}
--
--	clear_hwpoisoned_pages(memmap + map_offset,
--			PAGES_PER_SECTION - map_offset);
--	free_section_usage(memmap, usage, section_nr_to_pfn(__section_nr(ms)),
--			PAGES_PER_SECTION, altmap);
-+	clear_hwpoisoned_pages(pfn_to_page(pfn) + map_offset,
-+			nr_pages - map_offset);
-+	section_deactivate(pfn, nr_pages, zone_to_nid(zone), altmap);
- }
- #endif /* CONFIG_MEMORY_HOTREMOVE */
- #endif /* CONFIG_MEMORY_HOTPLUG */
+ 	mem_hotplug_done();
+@@ -241,8 +230,8 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+ 	 * to allow us to do the work while not holding the hotplug lock.
+ 	 */
+ 	memmap_init_zone_device(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
+-				align_start >> PAGE_SHIFT,
+-				align_size >> PAGE_SHIFT, pgmap);
++				PHYS_PFN(res->start),
++				PHYS_PFN(resource_size(res)), pgmap);
+ 	percpu_ref_get_many(pgmap->ref, pfn_end(pgmap) - pfn_first(pgmap));
+ 
+ 	error = devm_add_action_or_reset(dev, devm_memremap_pages_release,
+@@ -253,9 +242,9 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+ 	return __va(res->start);
+ 
+  err_add_memory:
+-	kasan_remove_zero_shadow(__va(align_start), align_size);
++	kasan_remove_zero_shadow(__va(res->start), resource_size(res));
+  err_kasan:
+-	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
++	untrack_pfn(NULL, PHYS_PFN(res->start), resource_size(res));
+  err_pfn_remap:
+ 	pgmap_array_delete(res);
+  err_array:
 
