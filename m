@@ -2,192 +2,150 @@ Return-Path: <SRS0=SIh7=RZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_NEOMUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 10152C4360F
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 16:53:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D174C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 17:06:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 97E2B21916
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 16:53:13 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="enaEQ19J"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 97E2B21916
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 6451E2190A
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 17:06:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6451E2190A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F0E346B0003; Fri, 22 Mar 2019 12:53:12 -0400 (EDT)
+	id EDDD66B0003; Fri, 22 Mar 2019 13:05:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EBE376B0006; Fri, 22 Mar 2019 12:53:12 -0400 (EDT)
+	id EB5206B0006; Fri, 22 Mar 2019 13:05:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D87496B0007; Fri, 22 Mar 2019 12:53:12 -0400 (EDT)
+	id DA5F66B0007; Fri, 22 Mar 2019 13:05:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 70E8E6B0003
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 12:53:12 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id g26so821213ljd.20
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 09:53:12 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BFC76B0003
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 13:05:59 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id g83so2913173pfd.3
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 10:05:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=XyBDQoTOXxQCDWDmwY1KbYgiZRQtfW/ijDyUEUHzSXI=;
-        b=KFCeSW54TUUFp20GCE+2sMn8WJRsyR+TKX7tjunFC7TST8FH4bvRrAe6UeHIPydhVa
-         KygCWychsHUAZOsM3sDjqEo0D5oFDWnqTcyONhb5xU8YvLA02AfbKR+tY5uDmEkQQjyi
-         kIsaWSIs18iErQ5GvOYM2dNmexhXT38kzA2h5EHIZIbR2KXv6+1lWg1TaoAH+/8vT9yV
-         ucgBYh4H3hqMPl36DaZWKdfLDSuYEmTEDVxUjtjO8BEdpts0VR2vZ39DMFMiIDLoD/Vt
-         322wVolBAk9UBNxJLfOo4aNbsUAD7ZtwEI96EShXAcC2wik7NpXDVXzk5JPwiCB66M2/
-         OBaQ==
-X-Gm-Message-State: APjAAAWIWt9kM0KgP8kbnUG7MGubQMXJ9LPE/HJMOEEffjUus+iqhIu5
-	ujV/pVmi15wnaGmhNeKiAOGz3Y/jnFLAPaE5fDQefBHH//o8KmnIGpgB0Qh4CdkUnXzqadVHsN8
-	ExAqsbRDcJBruxEa7yIEfc0dwk3kx7jSKfq1Iv1XqNaEIehJlKQBqFWPfTpwLdEKTuw==
-X-Received: by 2002:ac2:53ab:: with SMTP id j11mr5536671lfh.49.1553273591464;
-        Fri, 22 Mar 2019 09:53:11 -0700 (PDT)
-X-Received: by 2002:ac2:53ab:: with SMTP id j11mr5536629lfh.49.1553273590265;
-        Fri, 22 Mar 2019 09:53:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553273590; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:organization:user-agent;
+        bh=Pt/TcMnbusJwjFDnWcO6rWzM3iTDc+cNsPzs+V9A+1U=;
+        b=hlohOL5nRImHY8LyOnEwuKGwI8PQWescWtk2N5cbb5dkcyGRr6nLEMbiYkW27vxu/G
+         cz8NN71uLIZz8KghIGiVOMJMdapR7BOX5zcyX66NKNulkhW0BjUqAl+vgqT55HYhlRkN
+         oSboFNePnzZgYZabzDFK/jqLfPHRimkIGi+4IW/kzaQtJB3972KF5SSDPpbkXUDJS27v
+         KnF4B8MMeYb7aJQRPo/NAAkFxQFLJpAqgF4Kgtav/BbFiqcSEKhzVQ5G4WQRN676XquG
+         X7UfNmfa5hRNWoZnU6dzcgdVhh+DCZp9b30g8pOLySjEiXyKXh3usGm8AYB1EeeUAQsc
+         nKdQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of andriy.shevchenko@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=andriy.shevchenko@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVixMChZ04aw3pbfIFTapY0uY7mVvOmcdlAaRW42qGCcfHdwSfl
+	QzTEq6k97WHZDYcOejtH2+H/NvW68et+Ptc98xHSKCvVLtHILZrk81YHiatpPbMNhehlkQxGvn1
+	w4/p+s2lcklTQDTkEwTA/xHV0Kd68A36YWIiHPb8C+/0JvuvM6q2tcLSlbQMr/c//Ww==
+X-Received: by 2002:a63:c505:: with SMTP id f5mr7121514pgd.87.1553274359213;
+        Fri, 22 Mar 2019 10:05:59 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz0QLwgsGbi1jEJjoRnSe++kANhv+NmB7y0YUUk31Toh2GOP3KXcKWyOq/AaQRRQj4+5Fog
+X-Received: by 2002:a63:c505:: with SMTP id f5mr7121464pgd.87.1553274358389;
+        Fri, 22 Mar 2019 10:05:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553274358; cv=none;
         d=google.com; s=arc-20160816;
-        b=Uwn5rz2jGME5l5Xs88TgmmayZZVUWMbOrWNpbt7Wg+WEc3OLG9txNTMxIsAaSSMby+
-         ynK3W666nLKMQ/szmA3uZIaEFRfNWIAq5FvzvCPntvSbn+U0jw5Afu9B5heFtbnUSu1n
-         yDmF2nkQHp2T+Eng8MMZc2mNYDJeojPNBrAXY9v4baEtmwPga6CCwfVIPZcpQGD4bMn4
-         F5s2BnKlg7iVOeSmNlGdnRRA2pK+Jg2XZeXXI2DKYn/sJwPvoEX+QcEIEO3d4vrGe57O
-         PzHYb3pbODUgtgYfhK97paAXJ3Z0Xc46z+I+wZbCfR4ZQJKpsIrAYOwgWcTKaItb/JJd
-         nboA==
+        b=gZc+FluZqQ83UNsN/e/xpF8a7MjizhdAE9s7eLyiPXVNSkXpLaThAW4JuizRJ93FFi
+         vLO6YEEzF8CRi8spbrK1UU/ss/XHfZ/xGEHfHrX2XQlElrtMZXjjgIfQmS84usd997PN
+         3rbOyO2/1Q+CFzRr+nRbRg7JJphe+bDJoGVmXlvfxxHyG3aoeQ+QeiN8da1YKsP9SdL6
+         VuQD5JL/fXRBAnm2pAW9+7hnR173gNGdNjS7EBX+iiVEyHX5vl/Bnlm+BEU1/K4ZwkyN
+         24uYjHS6Ik6zohABgzur5tlfWOtYYJdOo073s7NB4i7zfvp4gZh89azY3rg5e1jQWCdk
+         YSTQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:date:from:dkim-signature;
-        bh=XyBDQoTOXxQCDWDmwY1KbYgiZRQtfW/ijDyUEUHzSXI=;
-        b=Mfs36X9pxMoxa53UIQnDcivH12hwT2d/UWJwVYpfEqbQIhnz10GuIqQVDwvo2FQTrq
-         g2txnrxRdNmyt3CEznUszjaNgQSuzh2Zcj7sn1+QuVolVkVlORlAQLagd3WddhhdlbHj
-         Itt2BfN1UPz2EUjdhNEwXklaoUvZhVWQQOMzBW4RqHR3jNUxMGZs4sO6Lpcj76JoL6L6
-         nTYK3XnURgAkYxt0hhsKqj5f1hH2xOr7SNUOnVk4SXAAx3ooVoPViAPLoBq7CutbSYi9
-         80UbW/Mt4SDSk85cLVNuecgdsxChPZDfc3KYcmcEDePKekqn3yHWRFPpmlsOoA1urVRe
-         7e7w==
+        h=user-agent:organization:in-reply-to:content-disposition
+         :mime-version:references:message-id:subject:cc:to:from:date;
+        bh=Pt/TcMnbusJwjFDnWcO6rWzM3iTDc+cNsPzs+V9A+1U=;
+        b=GZNC0B68ya4+E0dzKVz8n9EJpQcJJRxfjkmHGzQJ7AtbI11t8ACbtcicsky89g7Wjz
+         Zu1JZ9ccWnYWWVTUznWBHk2r4LqpJsZhPF0o4IdbGqBPLk0rGCxgH5h5XTNrtL0Lj7g6
+         KsAO7xuZcsxiCzcuZdZRDIKLNiSZuKnKWedwLYVCPKxbA2zZtngfDN4K2rm4m1a4CjQf
+         TU04QZEUrmgnwtgEGj3uCDrH0IfRckKM32m6pPzV26nELIBPbv5ZNIh6G/QPeKnf/hQB
+         eA/pKfhaGK9I0Yp8hbGusO2qZkkSNWyEbsZKQNOBiE2JAlCUotUiRvlCEgJUfxMB88iE
+         vJSQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=enaEQ19J;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d20sor5592211lji.12.2019.03.22.09.53.09
+       spf=pass (google.com: best guess record for domain of andriy.shevchenko@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=andriy.shevchenko@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id 32si123651pgz.259.2019.03.22.10.05.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 22 Mar 2019 09:53:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Mar 2019 10:05:58 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of andriy.shevchenko@linux.intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=enaEQ19J;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:date:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=XyBDQoTOXxQCDWDmwY1KbYgiZRQtfW/ijDyUEUHzSXI=;
-        b=enaEQ19JDicle811gc6J7mwQDxxg8Y306l2M6YcqzVAbrMzYtAVurFVL8ELx+Sxj5n
-         w7OVkW/3HicXdvIj26acGF+mXKbUfc5l7JViKwayxVdNYUaW165C725wW45pv6Ijycms
-         9pF22OOkuKVMzzbMKWyOMS7ZUmFr+3SUx5Rgh2/DTGQg1vSj1GuNPpIxiTenorA01Z4N
-         QT8KgklKhRm852MXGGaQNHVClAkVU4UJTFArG5n7JpxZpZ5hwtRP5o5SDwTJ1RXW26sW
-         uQEIwNHOjnM1RqlH1BUCJh0S7qJNAz01e6V5eC+ECZt1HOt2DySyN74EafKnJ4HIesyA
-         XzqQ==
-X-Google-Smtp-Source: APXvYqysNmCALAhVcOSs1kkuBcI+Qk7HWnokHui3AM/LVQfdXORK6PFlkIEYPoPUiLC7w7yEQHlcwg==
-X-Received: by 2002:a2e:4715:: with SMTP id u21mr5779442lja.156.1553273589662;
-        Fri, 22 Mar 2019 09:53:09 -0700 (PDT)
-Received: from pc636 ([37.139.158.167])
-        by smtp.gmail.com with ESMTPSA id m10sm1356704lfp.10.2019.03.22.09.53.08
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 22 Mar 2019 09:53:08 -0700 (PDT)
-From: Uladzislau Rezki <urezki@gmail.com>
-X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
-Date: Fri, 22 Mar 2019 17:52:59 +0100
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Uladzislau Rezki (Sony)" <urezki@gmail.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org,
-	LKML <linux-kernel@vger.kernel.org>,
-	Thomas Garnier <thgarnie@google.com>,
-	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Joel Fernandes <joelaf@google.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
-	Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC PATCH v2 0/1] improve vmap allocation
-Message-ID: <20190322165259.uorw6ymewjybxwwx@pc636>
-References: <20190321190327.11813-1-urezki@gmail.com>
- <20190321150106.198f70e1e949e2cb8cc06f1c@linux-foundation.org>
+       spf=pass (google.com: best guess record for domain of andriy.shevchenko@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=andriy.shevchenko@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from fmsmga006.fm.intel.com ([10.253.24.20])
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Mar 2019 10:05:57 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,256,1549958400"; 
+   d="scan'208";a="329774387"
+Received: from smile.fi.intel.com (HELO smile) ([10.237.72.86])
+  by fmsmga006.fm.intel.com with ESMTP; 22 Mar 2019 10:05:52 -0700
+Received: from andy by smile with local (Exim 4.92)
+	(envelope-from <andriy.shevchenko@linux.intel.com>)
+	id 1h7Nc7-0004wO-0W; Fri, 22 Mar 2019 19:05:51 +0200
+Date: Fri, 22 Mar 2019 19:05:50 +0200
+From: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+To: Sakari Ailus <sakari.ailus@linux.intel.com>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>,
+	Petr Mladek <pmladek@suse.com>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	scsi <linux-scsi@vger.kernel.org>,
+	Linux PM list <linux-pm@vger.kernel.org>,
+	Linux MMC List <linux-mmc@vger.kernel.org>,
+	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
+	linux-um@lists.infradead.org,
+	linux-f2fs-devel@lists.sourceforge.net, linux-block@vger.kernel.org,
+	ACPI Devel Maling List <linux-acpi@vger.kernel.org>,
+	netdev <netdev@vger.kernel.org>,
+	linux-btrfs <linux-btrfs@vger.kernel.org>,
+	linux-pci <linux-pci@vger.kernel.org>,
+	sparclinux <sparclinux@vger.kernel.org>,
+	xen-devel@lists.xenproject.org,
+	ceph-devel <ceph-devel@vger.kernel.org>,
+	Linux MM <linux-mm@kvack.org>,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	Lars Ellenberg <drbd-dev@lists.linbit.com>
+Subject: Re: [PATCH 0/2] Remove support for deprecated %pf and %pF in vsprintf
+Message-ID: <20190322170550.GX9224@smile.fi.intel.com>
+References: <20190322132108.25501-1-sakari.ailus@linux.intel.com>
+ <CAMuHMdVmqqjVx7As9AAywYxYXG=grijF5rF77OBn6TUjM9+xKw@mail.gmail.com>
+ <20190322135350.2btpno7vspvewxvk@paasikivi.fi.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190321150106.198f70e1e949e2cb8cc06f1c@linux-foundation.org>
-User-Agent: NeoMutt/20170113 (1.7.2)
+In-Reply-To: <20190322135350.2btpno7vspvewxvk@paasikivi.fi.intel.com>
+Organization: Intel Finland Oy - BIC 0357606-4 - Westendinkatu 7, 02160 Espoo
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 21, 2019 at 03:01:06PM -0700, Andrew Morton wrote:
-> On Thu, 21 Mar 2019 20:03:26 +0100 "Uladzislau Rezki (Sony)" <urezki@gmail.com> wrote:
-> 
-> > Hello.
-> > 
-> > This is the v2 of the https://lkml.org/lkml/2018/10/19/786 rework. Instead of
-> > referring you to that link, i will go through it again describing the improved
-> > allocation method and provide changes between v1 and v2 in the end.
-> > 
-> > ...
-> >
-> 
-> > Performance analysis
-> > --------------------
-> 
-> Impressive numbers.  But this is presumably a worst-case microbenchmark.
-> 
-> Are you able to describe the benefits which are observed in some
-> real-world workload which someone cares about?
-> 
-We work with Android. Google uses its own tool called UiBench to measure
-performance of UI. It counts dropped or delayed frames, or as they call it,
-jank. Basically if we deliver 59(should be 60) frames per second then we
-get 1 junk/drop.
+On Fri, Mar 22, 2019 at 03:53:50PM +0200, Sakari Ailus wrote:
 
-I see that on our devices avg-jank is lower. In our case Android graphics
-pipeline uses vmalloc allocations which can lead to delays of UI content
-to GPU. But such behavior depends on your platform, parts of the system
-which make use of it and if they are critical to time or not.
+> Porting a patch
+> forward should have no issues either as checkpatch.pl has been complaining
+> of the use of %pf and %pF for a while now.
 
-Second example is indirect impact. During analysis of audio glitches
-in high-resolution audio the source of drops were long alloc_vmap_area()
-allocations.
+And that's exactly the reason why I think instead of removing warning on
+checkpatch, it makes sense to convert to an error for a while. People are
+tending read documentation on internet and thus might have outdated one. And
+yes, the compiler doesn't tell a thing about it.
 
-# Explanation is here
-ftp://vps418301.ovh.net/incoming/analysis_audio_glitches.txt
+P.S. Though, if majority of people will tell that I'm wrong, then it's okay to
+remove.
 
-# Audio 10 seconds sample is here.
-# The drop occurs at 00:09.295 you can hear it
-ftp://vps418301.ovh.net/incoming/tst_440_HZ_tmp_1.wav
+-- 
+With Best Regards,
+Andy Shevchenko
 
->
-> It's a lot of new code. I t looks decent and I'll toss it in there for
-> further testing.  Hopefully someone will be able to find the time for a
-> detailed review.
-> 
-Thank you :)
-
-> Trivial point: the code uses "inline" a lot.  Nowadays gcc cheerfully
-> ignores that and does its own thing.  You might want to look at the
-> effects of simply deleting all that.  Is the generated code better or
-> worse or the same?  If something really needs to be inlined then use
-> __always_inline, preferably with a comment explaining why it is there.
-> 
-When the main core functionalities are "inlined" i see the benefit. 
-At least, it is noticeable by the "test driver". But i agree that
-i should check one more time to see what can be excluded and used
-as a regular call. Thanks for the hint, it is worth to go with
-__always_inline instead.
-
---
-Vlad Rezki
 
