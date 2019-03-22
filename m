@@ -2,185 +2,191 @@ Return-Path: <SRS0=SIh7=RZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 35517C10F03
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 18:05:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D9758C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 18:12:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C68C7213F2
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 18:05:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C68C7213F2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 953282192B
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 18:12:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 953282192B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3DD526B0005; Fri, 22 Mar 2019 14:05:41 -0400 (EDT)
+	id 315C66B0005; Fri, 22 Mar 2019 14:12:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 38BB46B0006; Fri, 22 Mar 2019 14:05:41 -0400 (EDT)
+	id 2C6EC6B0006; Fri, 22 Mar 2019 14:12:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 27C626B0007; Fri, 22 Mar 2019 14:05:41 -0400 (EDT)
+	id 18F2C6B0007; Fri, 22 Mar 2019 14:12:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CED076B0005
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 14:05:40 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id c40so24616eda.10
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 11:05:40 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EB2606B0005
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 14:12:07 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id v2so2628693qkf.21
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 11:12:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=lu1IzUvdhspX21BWZpSuXBGZNxCoFHg73rHXc7qb11o=;
-        b=Ps1aabRalTPAbO5zuRk+NA4x6mRnipj+HevEnI7MW50mOidfgp990LLNszySkqS6eN
-         l2ziHuBv9Mv/op7fRL7F5SXGYtjPriBiDRRlOZLHxepDUCjm6VvXyeUgjJK5moVnVc9Z
-         EBIU/kjBM7okhp6NpvrGJAIAl1oQigTN2zZ9RgGeovUX3iS6ShgwqXvrEa8bLW22RdYI
-         gbFP0kny+JgUrqdv1W4sTBawmrLKmyk04ONJAp81bY93voHkvieeLIdRek6vZJ6/En4j
-         mqoO3Crk6b6ZxJBS75kPEFrYSm9MIfMPjfKHa+XFfU8tg7019cCUNYb3BKBztD5yHXdH
-         Pclw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUOjIdvWDkK1cVcLH03D/2id3efgamun0CcHMQCUy90Id/jq5zC
-	4YnAtvSS63TzLijWHSTC+cNoQvdtCvYQGuHYwfuv/oYRdYaY/LLjrXgPF/E/seJkGF57Fo5qB2T
-	cEVGbxHOTMp+8xwv4SjWkNm6VtQ90TI9IPf+/vouPdotaW/TXTPTmEChqX9PDXEo=
-X-Received: by 2002:aa7:cb57:: with SMTP id w23mr7237911edt.264.1553277940375;
-        Fri, 22 Mar 2019 11:05:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxzZiTDLq+aXFZ09ULetNwvSkExPbjkzPP2TSPM1K5i1jPCxjdi6nRjRXA+1ToSKy+ZfY1a
-X-Received: by 2002:aa7:cb57:: with SMTP id w23mr7237858edt.264.1553277939184;
-        Fri, 22 Mar 2019 11:05:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553277939; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-transfer-encoding
+         :content-language;
+        bh=XD8n6goMt4dC4wuvECdvOn68p+Ulc2miP63u9K7A82M=;
+        b=Y9fmafYPeDqKmqifKT7MN8aidc3Pd6riKYjK1bqgC1/sf/F6RQj+iB8GHT4d05sHAU
+         6A1jCDaZm3W4W9mAUW9J6oH+ZWR9pAGAIjeazW8wWqnsRTYxULILuBuDMcZpWUxQCDAj
+         DgiTZ1X3JWPoM7EZOZkPYWrXP35xes37OYwsWMdgabMaLCXW6I6pZ0H7wGGxoXHkDZhx
+         cZcuMF5JmpFyJt34stMJlO6Vl8hZynwNYmNc95rGhtR1dTncRTNG8gUowL5yxuly0t3i
+         RcoZYIe8ps1LZXrMNN+iQNg0t+PMUcR2AH4xws7BCh68VBOBYk1MoXTIuwQY/82keUkz
+         m6Lg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVOqWscOSV+izGT45LdrxWlItF7cF6G37VSNkhlJ37Qa4vmavWI
+	5gPnGaiMR5KUrvTgntp2uRC0x3XLS0vqKC55VXxtBNaIZvEq4J3/3Xp8m201NyS5t4McOQRiyBe
+	rUquRQ3sy6URCJmiIfMiHpKdxsHrKr3IYm0ylIOYPw3MeI6b9kUQ3h3pAFuehpv/zMA==
+X-Received: by 2002:a37:ae04:: with SMTP id x4mr8656174qke.339.1553278327646;
+        Fri, 22 Mar 2019 11:12:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwhXXF+FhG0YdoHYNMzCYUxSUefeVLy/iZ+uCF++2IRgeQiN7a96HEMcgUMig31Wvi0GHnb
+X-Received: by 2002:a37:ae04:: with SMTP id x4mr8656122qke.339.1553278327011;
+        Fri, 22 Mar 2019 11:12:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553278327; cv=none;
         d=google.com; s=arc-20160816;
-        b=c0mxGukgueZNFJZo7zHZpIFS5s5Om/J3Mktzbgkxv91zMCYA+4/+VZqW8tvJFxNbpH
-         hvHR8T3b5RFbujPWxHdm2dGoMG4jsP/0+1oqbnSlWkUuOak8+Q4zbFKE9s4/cVJOy85q
-         CxLBYILWCN2CczHejP/bjgEOjE6+HMCDa7W+DztfJnotcsOdOXK7iRk2BrruLlC77lof
-         mJm/gVmxA22r4ZeWUBahQrgplz4blTa+iKuJEDSO6y5sUEw+HDreBjG0DNbV800kFmOZ
-         YzZa7UkICwVfkEdhNGKsqjV1KKUmHLE1LCMTHQZyymDLhYdEdkNdj8j7GaBB/LxvI9dp
-         257w==
+        b=urePVoIh1rzKdnyFNl5t1JmeJdjND8n7Wiwx8xd/un33XS4ZjkIo9Ph/F5/8Xcel2m
+         0K1k2Tw8J+duSZe9sUx5vHyCG6rxs0b9KaFhgtg+IH9fIk9OTJWUwj5SV83vrgY4uRzc
+         hUBfoaRCJn4vzfqYHBns7tdZ7EU2abCmABhPt6fG7suCrCToJXFCZN8dJtvhaGCLp4vv
+         p8WOfl6U41EqCpWqqqSfMv47aQvQ0unE7fXHVHyooudL3A/3fnq0uxnROSgr6fyyuyzp
+         qH2S0gAOOX3Rog2Q8dBfSEz5s0olvQ3ZaiDIx5WtoFjghQKvHoU8SiRftPhLyqkiZdxr
+         P2YQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=lu1IzUvdhspX21BWZpSuXBGZNxCoFHg73rHXc7qb11o=;
-        b=d1pXXFpzJtUJbX4KzqyrfEeHv1vKKhN9QcShzl/Nxuh/fgjPspl9Xwc+6XKLkqbcSj
-         KY3bWHnZfAGRJi/kR7WjBAtdGgIBEowI3jcmVc4A0iRuDcMEJR3twfPFJ35vXQI3OGQG
-         H1JHU84QIPiNqvaRYhHY/BcJhvpefiaXPv+E0Mysjy9Q2NKIllL4cSiiPR8kZPYQ2vsp
-         yrxCV34RCL53BLQe7sxV0y1unjLg+oaYg8ACLtW0YMIdnAOd5VDF+Xy2PjJDRBS3HChK
-         3Y12XfKPbwGNGP8UcWfWB5zBDm1WSjZ429O79RIInaXkm/DDTpYzVh5dlA7RKutqIyX0
-         EdsA==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=XD8n6goMt4dC4wuvECdvOn68p+Ulc2miP63u9K7A82M=;
+        b=zF7YSbz6bASIwF/9wt9vsCeGynSdoVjN2lXnQboJ1ClusVvwKZWJEKygjLUAfnXwRV
+         wooerOHfKLtDmv7u4410d59rtj0hQnkR9qSEPZoge/dWv+GXlFID7h9LTUNX7Ht/muDd
+         hgR/vMWB8PRY50GqDz8XpbdxOMzt8meiMpAQ+q6AliQ0Meh6Z2AalQtv3adu/IZEM1Vi
+         GLmYnTn7o/33hd2N8a57c+/jhYhy54GKLgCb5KHWetpm+37Akyt5Tt6sfBNtVjxo9ScO
+         R1eaSuKA+7UioWFHFmXyznkWHbruQr0hnXunPyDFxJ4woRQ8vBuT/NQJyzFGGSziIsDy
+         MiMQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c3si3014830ejm.98.2019.03.22.11.05.38
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r25si2434869qvc.91.2019.03.22.11.12.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Mar 2019 11:05:39 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Fri, 22 Mar 2019 11:12:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 2F17FAEE3;
-	Fri, 22 Mar 2019 18:05:38 +0000 (UTC)
-Date: Fri, 22 Mar 2019 19:05:32 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Logan Gunthorpe <logang@deltatee.com>,
-	Toshi Kani <toshi.kani@hpe.com>, Jeff Moyer <jmoyer@redhat.com>,
-	Vlastimil Babka <vbabka@suse.cz>, stable@vger.kernel.org,
-	linux-mm@kvack.org, linux-nvdimm@lists.01.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v5 00/10] mm: Sub-section memory hotplug support
-Message-ID: <20190322180532.GM32418@dhcp22.suse.cz>
-References: <155327387405.225273.9325594075351253804.stgit@dwillia2-desk3.amr.corp.intel.com>
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id F30753084024;
+	Fri, 22 Mar 2019 18:12:05 +0000 (UTC)
+Received: from llong.remote.csb (dhcp-17-47.bos.redhat.com [10.18.17.47])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id AB6E560142;
+	Fri, 22 Mar 2019 18:12:01 +0000 (UTC)
+Subject: Re: [PATCH 2/4] signal: Make flush_sigqueue() use free_q to release
+ memory
+To: Christopher Lameter <cl@linux.com>
+Cc: Oleg Nesterov <oleg@redhat.com>, Matthew Wilcox <willy@infradead.org>,
+ Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg
+ <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
+ Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org, selinux@vger.kernel.org, Paul Moore
+ <paul@paul-moore.com>, Stephen Smalley <sds@tycho.nsa.gov>,
+ Eric Paris <eparis@parisplace.org>,
+ "Peter Zijlstra (Intel)" <peterz@infradead.org>
+References: <20190321214512.11524-1-longman@redhat.com>
+ <20190321214512.11524-3-longman@redhat.com>
+ <20190322015208.GD19508@bombadil.infradead.org>
+ <20190322111642.GA28876@redhat.com>
+ <d9e02cc4-3162-57b0-7924-9642aecb8f49@redhat.com>
+ <01000169a686689d-bc18fecd-95e1-4b3e-8cd5-dad1b1c570cc-000000@email.amazonses.com>
+From: Waiman Long <longman@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=longman@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ weim8xU=
+Organization: Red Hat
+Message-ID: <93523469-48b0-07c8-54fd-300678af3163@redhat.com>
+Date: Fri, 22 Mar 2019 14:12:01 -0400
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <155327387405.225273.9325594075351253804.stgit@dwillia2-desk3.amr.corp.intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <01000169a686689d-bc18fecd-95e1-4b3e-8cd5-dad1b1c570cc-000000@email.amazonses.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Fri, 22 Mar 2019 18:12:06 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 22-03-19 09:57:54, Dan Williams wrote:
-> Changes since v4 [1]:
-> - Given v4 was from March of 2017 the bulk of the changes result from
->   rebasing the patch set from a v4.11-rc2 baseline to v5.1-rc1.
-> 
-> - A unit test is added to ndctl to exercise the creation and dax
->   mounting of multiple independent namespaces in a single 128M section.
-> 
-> [1]: https://lwn.net/Articles/717383/
-> 
-> ---
-> 
-> Quote patch7:
-> 
-> "The libnvdimm sub-system has suffered a series of hacks and broken
->  workarounds for the memory-hotplug implementation's awkward
->  section-aligned (128MB) granularity. For example the following backtrace
->  is emitted when attempting arch_add_memory() with physical address
->  ranges that intersect 'System RAM' (RAM) with 'Persistent Memory' (PMEM)
->  within a given section:
->  
->   WARNING: CPU: 0 PID: 558 at kernel/memremap.c:300 devm_memremap_pages+0x3b5/0x4c0
->   devm_memremap_pages attempted on mixed region [mem 0x200000000-0x2fbffffff flags 0x200]
->   [..]
->   Call Trace:
->     dump_stack+0x86/0xc3
->     __warn+0xcb/0xf0
->     warn_slowpath_fmt+0x5f/0x80
->     devm_memremap_pages+0x3b5/0x4c0
->     __wrap_devm_memremap_pages+0x58/0x70 [nfit_test_iomap]
->     pmem_attach_disk+0x19a/0x440 [nd_pmem]
->  
->  Recently it was discovered that the problem goes beyond RAM vs PMEM
->  collisions as some platform produce PMEM vs PMEM collisions within a
->  given section. The libnvdimm workaround for that case revealed that the
->  libnvdimm section-alignment-padding implementation has been broken for a
->  long while. A fix for that long-standing breakage introduces as many
->  problems as it solves as it would require a backward-incompatible change
->  to the namespace metadata interpretation. Instead of that dubious route
->  [2], address the root problem in the memory-hotplug implementation."
-> 
-> The approach is taken is to observe that each section already maintains
-> an array of 'unsigned long' values to hold the pageblock_flags. A single
-> additional 'unsigned long' is added to house a 'sub-section active'
-> bitmask. Each bit tracks the mapped state of one sub-section's worth of
-> capacity which is SECTION_SIZE / BITS_PER_LONG, or 2MB on x86-64.
+On 03/22/2019 01:50 PM, Christopher Lameter wrote:
+> On Fri, 22 Mar 2019, Waiman Long wrote:
+>
+>> I am looking forward to it.
+> There is also alrady rcu being used in these paths. kfree_rcu() would n=
+ot
+> be enough? It is an estalished mechanism that is mature and well
+> understood.
+>
+In this case, the memory objects are from kmem caches, so they can't
+freed using kfree_rcu().
 
-So the hotplugable unit is pageblock now, right? Why is this
-sufficient? What prevents new and creative HW to come up with
-alignements that do not fit there? Do not get me wrong but the section
-as a unit is deeply carved into the memory hotplug and removing all those
-assumptions is a major undertaking and I would like to know that you are
-not just shifting the problem to a smaller unit and a new/creative HW
-will force us to go even more complicated.
+There are certainly overhead using the kfree_rcu(), or a
+kfree_rcu()-like mechanism. Also I think the actual freeing is done at
+SoftIRQ context which can be a problem if there are too many memory
+objects to free.
 
-What is the fundamental reason that pmem sections cannot be assigned
-to a section aligned memory range? The physical address space is
-quite large to impose 128MB sections IMHO. I thought this is merely a
-configuration issue. How often this really happens and how often it is
-unavoidable.
+I think what Oleg is trying to do is probably the most efficient way.
 
-> The implication of allowing sections to be piecemeal mapped/unmapped is
-> that the valid_section() helper is no longer authoritative to determine
-> if a section is fully mapped. Instead pfn_valid() is updated to consult
-> the section-active bitmask. Given that typical memory hotplug still has
-> deep "section" dependencies the sub-section capability is limited to
-> 'want_memblock=false' invocations of arch_add_memory(), effectively only
-> devm_memremap_pages() users for now.
+Cheers,
+Longman
 
-Does this mean that pfn_valid is more expensive now? How much? For any
-pfn? Also what about the section life time? Who is removing section now?
-
-I will probably have much more question, but it's friday and I am mostly
-offline already. I would just like to hear much more about the new
-design and resulting assumptions.
--- 
-Michal Hocko
-SUSE Labs
 
