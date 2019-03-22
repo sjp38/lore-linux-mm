@@ -1,294 +1,307 @@
-Return-Path: <SRS0=0MJS=RY=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=SIh7=RZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 09835C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 23:58:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 48297C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 00:12:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 96B0321902
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Mar 2019 23:58:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DC86721900
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 00:12:37 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="MPlhlOyy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 96B0321902
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="GRcJyQLa"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC86721900
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1B6DE6B0003; Thu, 21 Mar 2019 19:58:30 -0400 (EDT)
+	id 7C5186B0003; Thu, 21 Mar 2019 20:12:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 140786B0006; Thu, 21 Mar 2019 19:58:30 -0400 (EDT)
+	id 774DB6B0006; Thu, 21 Mar 2019 20:12:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 004F66B0007; Thu, 21 Mar 2019 19:58:29 -0400 (EDT)
+	id 664516B0007; Thu, 21 Mar 2019 20:12:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C708C6B0003
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 19:58:29 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id t13so444791qkm.2
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 16:58:29 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 280946B0003
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2019 20:12:37 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id d128so457452pgc.8
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2019 17:12:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=yDJgdezwv9pb242vYRRmjQ+71NeLZ6x0P4nCuwhNF0Y=;
-        b=VqH1p0LNXQMqR2tutIYXirKOlXwsypU9TIW0UqN3KPzULgY7byjR2p9/6tdmfoDYRU
-         +F7XT9Z/Wd516wr0zQiXUxnmA8S9f+uRKKt8Nao7nF1KJtCpESxyI6/Uxr6qmGC8Kb80
-         S2PN90z/hIGqFss8ET5ehP2wdWQBu4S9qWCm46an5SvkDSgEKlglLGfXUyQsIn8Nsh4F
-         36C4o57PI+ycTv80AqP4fCgSLs57JmSBUhG+rAM2LlCMD0anBG+fDQutUai+clGhVuMH
-         C4Uq/bCdOQE2x+rvddEeIyFldn2ZIUs9HiGlHvnb1K3Vz1uJr+Pbzkhw2EK7EYyjSrZ1
-         AZyQ==
-X-Gm-Message-State: APjAAAVg2AAYlExwjN2rHtHUNS8iC2EomdLKv66g+/kihnwEETqCQLtS
-	AzMaPKqzJu+o6timrkcg6P2rY3ijiNo1K37kFT4b4E0w0Bm5cPcLeH9pHbtVcvS5LwFOU85V7Mh
-	t7vFTYph1bItir4bJqs9jk4MsB/qVtJVFh6jRxncVrGJHvzgRNxsSuB8JT/mYOy38pQ==
-X-Received: by 2002:ae9:df41:: with SMTP id t62mr4970413qkf.150.1553212709481;
-        Thu, 21 Mar 2019 16:58:29 -0700 (PDT)
-X-Received: by 2002:ae9:df41:: with SMTP id t62mr4970376qkf.150.1553212708602;
-        Thu, 21 Mar 2019 16:58:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553212708; cv=none;
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+         :references:mime-version:dkim-signature;
+        bh=eAchGUtF0pobQH/wb60CG/gq9ayx2k/HN7Oh4t6Sgr0=;
+        b=LE3zOJX3Xcu2/U1i1QVGRjCsm/vRZSh9FeiRgeDSW6JmI4KrT42wckz7Qm2Q0xyw1t
+         cv+ivxkeh+VsovohTp9hKzZhyxyvkFz1LtYA5PCgZzAUB60LOu7wz38hINZZf2mN8GpE
+         twTBo/58QCr5MF9dSeJ7m9x0GhNHqysgpm97EUyXcDz4k6vRsUmv+kAuhMg7uwJRmp4t
+         8OxCaMLSzk2PJWXdhs7m8E5Z6dDf2VrJwCRLKsEa0jGtFBHOKUJJvrE4vSl67qO/I9eI
+         HqlebqXqxGJ0+E6qVVRCpH1RgH3l4UIxyE5ofzR4MgqxBvz3fLBYH+vNPrXAydu7r+Ds
+         HVDQ==
+X-Gm-Message-State: APjAAAVQ+WrPIlmGPcofCWhqPVh5jzHhqEdTEpk89hW1aqQeCJbQb4l1
+	joz4s5KNA1NnlVs8d88dLia/ZFjJ6OQyrUPBKmFDzlUcGSD8gJvTiAYkw1AYDOkbRW1ml7+aMQo
+	RmEcrCr4FF24ZCELcHMoopM9COF5CpIuNRnJbt7rmjawqdntCfIQj5F3wKeQzweEzLQ==
+X-Received: by 2002:a63:2403:: with SMTP id k3mr6008021pgk.200.1553213556610;
+        Thu, 21 Mar 2019 17:12:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw9gTSwfNIjpQvtnJ1U3Kh95YiU8qliks5NCTr3EBebqb6SHPVIB7oqKBNA8fCktGBfmZhx
+X-Received: by 2002:a63:2403:: with SMTP id k3mr6007945pgk.200.1553213555476;
+        Thu, 21 Mar 2019 17:12:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553213555; cv=none;
         d=google.com; s=arc-20160816;
-        b=wG5pPxjnLtQqSdo759H5tdo60vUviEnnXc7SKjMzWyduNlSSfLsNxdPdjIHPUKgrBq
-         rraWHDVNx1oxfW36vAlXY1sw6JnRV8LRDeraWRtqV5xWrtVvTWFzCs/dHcfWfhhDzDNJ
-         l4crHMc4bqn3o0hzxIgjmQNPXoVkPFrYFDoYgO9BnKim57M6fXBcpqUxZUUt7N8EO3uy
-         Vr3NhPh0+zri6BxvEPBlw5H3moNJ3b7V9WIGuv3pKflFRrRZsYMJZX0N7+o1VxJRsyXh
-         4ftaaWNsfvqitYAUZgPqJaQ95E7ZBXKiRKYVcsrWbDYFSER8N167TztACfERPb+s7HWO
-         JBRQ==
+        b=GFY5jnyue14cbSWSwKdoJslLNDUtO/Qr/uBKSTtfRvU6nm904iUB77ChYb5W4KsAJW
+         kENttXYbxIWifEF8fkwGJygF23jRRJhoQ1Osg9sgA70k9pVxXgdniUp+L6/Zo0iQIXor
+         F0zIYbPZ9Q1VyV10pJuonmdFY57NPJiID7dtQ7PDsBvq02AmI5xxsp7Pq7+G6lR18swy
+         qfipxJ89Yl7MGhiUUFaZ/yxKJAsDfWm0KMo/ILHeia7+8kZrRccQDFrOCkvRPF6gABzP
+         4EK54sFpoTrycUIxnultcTrJfRt6pkJfucuVPYl+7DhGt2s4WmfIBTZo9NCDEZTMxhyK
+         MiOw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=yDJgdezwv9pb242vYRRmjQ+71NeLZ6x0P4nCuwhNF0Y=;
-        b=JJrI1WzcjFOuTHCMl2fjuhDfXN7Vu8WHjopTrML2XbtczAVRv9rBo7OfqBQDEnZxSh
-         3a5Bow1vNq1es4dmYKeEwx39M1tjP7IOEP4PDbUHwtAqIjI9Vh5yprHd3ECntD8Ntzx4
-         qb1lazmDbU5ocStfQHXmEsufIOKbhb1lQpX0QYCWl8bHBWsrROQCDV3G9siREGrHdNsQ
-         SlmTatKE/S2zqqJOG+LP9d3YSmft/N9yXI+/LcSWt6HSu97P55ZKpYRCs2y+8T+zjgn3
-         kmrnyIHvIMFfnnXaekr592pfBFAoGDTiGUmP7RH2ZwIGWCiXxmETQwjJg2r/jM8MtBd+
-         H50w==
+        h=dkim-signature:mime-version:references:in-reply-to:message-id:date
+         :subject:cc:to:from;
+        bh=eAchGUtF0pobQH/wb60CG/gq9ayx2k/HN7Oh4t6Sgr0=;
+        b=K6ai0usTZuQRGN7qy4tNKr7zdU1DhdgdKmmeTW5D1zjWQgDFUPpP3ocRKzx+1+oa2i
+         DN6Mr5KHKsW8meixgBDCmJRThJHGZSzWpjOxRhT8dgGuNny4Le2PRRY5y4bKr872gMsB
+         IjmrRVKZxsT4MMIuFT76P86S/+lhnzw+8gme7RbCsJtXzo3JIObIKH0f+I8m62fpVN5v
+         SGMVdFPG3j7sk5M8Z566mx15JwYZiQfOwFnhhJdLgCuCBc+fdAnM36qogslFTMBnF7+/
+         +g58Yeett9DHqtbyKo8v5j1U5M3XWkIMzMC2p9IR3vSvoGNRvRfMGjhPcdibnShtmFiz
+         4Vuw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=MPlhlOyy;
-       spf=pass (google.com: domain of shy828301@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shy828301@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k42sor10808009qtk.11.2019.03.21.16.58.28
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=GRcJyQLa;
+       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id v18si5099627pfm.241.2019.03.21.17.12.35
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 21 Mar 2019 16:58:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of shy828301@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Mar 2019 17:12:35 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ziy@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=MPlhlOyy;
-       spf=pass (google.com: domain of shy828301@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shy828301@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=yDJgdezwv9pb242vYRRmjQ+71NeLZ6x0P4nCuwhNF0Y=;
-        b=MPlhlOyyK7u4fqsteq1DAEZTAYrFd+a2qBWI/pK5peJhhF2+Uul6P2iYAgx2H97Jeg
-         N+N8zwJdJISkaib/XjXsjMcwD/Gukrdo3YtTkWGAMsXbgPeDnlpRpX+MdbtoUS2NwBKo
-         2dBmLsN12RBI8cqFobRCfWG9GwF4uId38gnan/UP024I/cerlCxP2yZ16+bZDkO5KXGA
-         KIME3MjKWo8rP1/Xvf5pO8LzPByR3aIgLn8EGZT8MohLa9HfR+K672xPem2gHboejnNB
-         Mlv/pMyC8QTwfVEdPz0jXRvDV+oq4eVMwzJvDeQyUF8R+NvGSBm4O4IuSQsXUrlGZ7G1
-         qamQ==
-X-Google-Smtp-Source: APXvYqyg4mvl7a96NwP/BjBX/ejJizfb0+w4DB6UBlte5NkFd6Cn97Y9pIRsoiyE3EBPwp70t0jQVR6v1T0HOBVgfOA=
-X-Received: by 2002:ac8:2e99:: with SMTP id h25mr5780960qta.166.1553212708415;
- Thu, 21 Mar 2019 16:58:28 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190321200157.29678-1-keith.busch@intel.com> <20190321200157.29678-4-keith.busch@intel.com>
-In-Reply-To: <20190321200157.29678-4-keith.busch@intel.com>
-From: Yang Shi <shy828301@gmail.com>
-Date: Thu, 21 Mar 2019 16:58:16 -0700
-Message-ID: <CAHbLzkqGGJ7dFiZkR-=yvGEF0AM4JbBe6pxGFbSe9tSnC7wgzQ@mail.gmail.com>
-Subject: Re: [PATCH 3/5] mm: Attempt to migrate page in lieu of discard
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=GRcJyQLa;
+       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c9428750000>; Thu, 21 Mar 2019 17:12:37 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Thu, 21 Mar 2019 17:12:34 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Thu, 21 Mar 2019 17:12:34 -0700
+Received: from [10.2.161.82] (10.124.1.5) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 22 Mar
+ 2019 00:12:34 +0000
+From: Zi Yan <ziy@nvidia.com>
 To: Keith Busch <keith.busch@intel.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-	linux-nvdimm@lists.01.org, Dave Hansen <dave.hansen@intel.com>, 
-	Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset="UTF-8"
+CC: <linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>,
+	<linux-nvdimm@lists.01.org>, Dave Hansen <dave.hansen@intel.com>, Dan
+ Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov"
+	<kirill@shutemov.name>, John Hubbard <jhubbard@nvidia.com>, Michal Hocko
+	<mhocko@suse.com>, David Nellans <dnellans@nvidia.com>
+Subject: Re: [PATCH 0/5] Page demotion for memory reclaim
+Date: Thu, 21 Mar 2019 17:12:33 -0700
+X-Mailer: MailMate (1.12.4r5614)
+Message-ID: <F33CDC43-745B-4555-B8E0-D50D8024C727@nvidia.com>
+In-Reply-To: <20190321223706.GA29817@localhost.localdomain>
+References: <20190321200157.29678-1-keith.busch@intel.com>
+ <5B5EFBC2-2979-4B9F-A43A-1A14F16ACCE1@nvidia.com>
+ <20190321223706.GA29817@localhost.localdomain>
+MIME-Version: 1.0
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: multipart/signed;
+	boundary="=_MailMate_2FF9B97D-293E-453D-9986-85B2771222A1_=";
+	micalg=pgp-sha1; protocol="application/pgp-signature"
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1553213557; bh=eAchGUtF0pobQH/wb60CG/gq9ayx2k/HN7Oh4t6Sgr0=;
+	h=X-PGP-Universal:From:To:CC:Subject:Date:X-Mailer:Message-ID:
+	 In-Reply-To:References:MIME-Version:X-Originating-IP:
+	 X-ClientProxiedBy:Content-Type;
+	b=GRcJyQLa/v2YOAfChnXurfBveYWztijaEFDrB1as80C1C2jRslVVnBwX93wgrwOxm
+	 DBU3KJpDD2ybFSmpX2Rpd+2Tb+PUgERMhi7dC9VPa8oo2bbNTKW9lpDqCkHKYT1eUI
+	 +YmZsnaU64lg1q0OqHX+GooeJd5DEQ2w+Se1CrD9jh+SA1rqRLKPILb9R+vBph+rgk
+	 Y14SA7KEVRYzA7dfbgwbvhhKPIhEddN79RziFv+QEb6UGE8jupsUlZKbKs0oxbYFn0
+	 +KaZD9OYhHZVbYhtS/rVbhGW8rPvX7LqBFnP7meoDEzFHezGfa5oWJxsv+qvWD6Yao
+	 YddZcCNXVxZHw==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 21, 2019 at 1:03 PM Keith Busch <keith.busch@intel.com> wrote:
->
-> If a memory node has a preferred migration path to demote cold pages,
-> attempt to move those inactive pages to that migration node before
-> reclaiming. This will better utilize available memory, provide a faster
-> tier than swapping or discarding, and allow such pages to be reused
-> immediately without IO to retrieve the data.
->
-> Some places we would like to see this used:
->
->  1. Persistent memory being as a slower, cheaper DRAM replacement
->  2. Remote memory-only "expansion" NUMA nodes
->  3. Resolving memory imbalances where one NUMA node is seeing more
->     allocation activity than another.  This helps keep more recent
->     allocations closer to the CPUs on the node doing the allocating.
->
-> Signed-off-by: Keith Busch <keith.busch@intel.com>
-> ---
->  include/linux/migrate.h        |  6 ++++++
->  include/trace/events/migrate.h |  3 ++-
->  mm/debug.c                     |  1 +
->  mm/migrate.c                   | 45 ++++++++++++++++++++++++++++++++++++++++++
->  mm/vmscan.c                    | 15 ++++++++++++++
->  5 files changed, 69 insertions(+), 1 deletion(-)
->
-> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-> index e13d9bf2f9a5..a004cb1b2dbb 100644
-> --- a/include/linux/migrate.h
-> +++ b/include/linux/migrate.h
-> @@ -25,6 +25,7 @@ enum migrate_reason {
->         MR_MEMPOLICY_MBIND,
->         MR_NUMA_MISPLACED,
->         MR_CONTIG_RANGE,
-> +       MR_DEMOTION,
->         MR_TYPES
->  };
->
-> @@ -79,6 +80,7 @@ extern int migrate_huge_page_move_mapping(struct address_space *mapping,
->  extern int migrate_page_move_mapping(struct address_space *mapping,
->                 struct page *newpage, struct page *page, enum migrate_mode mode,
->                 int extra_count);
-> +extern bool migrate_demote_mapping(struct page *page);
->  #else
->
->  static inline void putback_movable_pages(struct list_head *l) {}
-> @@ -105,6 +107,10 @@ static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
->         return -ENOSYS;
->  }
->
-> +static inline bool migrate_demote_mapping(struct page *page)
-> +{
-> +       return false;
-> +}
->  #endif /* CONFIG_MIGRATION */
->
->  #ifdef CONFIG_COMPACTION
-> diff --git a/include/trace/events/migrate.h b/include/trace/events/migrate.h
-> index 705b33d1e395..d25de0cc8714 100644
-> --- a/include/trace/events/migrate.h
-> +++ b/include/trace/events/migrate.h
-> @@ -20,7 +20,8 @@
->         EM( MR_SYSCALL,         "syscall_or_cpuset")            \
->         EM( MR_MEMPOLICY_MBIND, "mempolicy_mbind")              \
->         EM( MR_NUMA_MISPLACED,  "numa_misplaced")               \
-> -       EMe(MR_CONTIG_RANGE,    "contig_range")
-> +       EM(MR_CONTIG_RANGE,     "contig_range")                 \
-> +       EMe(MR_DEMOTION,        "demotion")
->
->  /*
->   * First define the enums in the above macros to be exported to userspace
-> diff --git a/mm/debug.c b/mm/debug.c
-> index c0b31b6c3877..53d499f65199 100644
-> --- a/mm/debug.c
-> +++ b/mm/debug.c
-> @@ -25,6 +25,7 @@ const char *migrate_reason_names[MR_TYPES] = {
->         "mempolicy_mbind",
->         "numa_misplaced",
->         "cma",
-> +       "demotion",
->  };
->
->  const struct trace_print_flags pageflag_names[] = {
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 705b320d4b35..83fad87361bf 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -1152,6 +1152,51 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
->         return rc;
->  }
->
-> +/**
-> + * migrate_demote_mapping() - Migrate this page and its mappings to its
-> + *                           demotion node.
-> + * @page: An isolated, non-compound page that should move to
-> + *       its current node's migration path.
-> + *
-> + * @returns: True if migrate demotion was successful, false otherwise
-> + */
-> +bool migrate_demote_mapping(struct page *page)
-> +{
-> +       int rc, next_nid = next_migration_node(page_to_nid(page));
-> +       struct page *newpage;
-> +
-> +       /*
-> +        * The flags are set to allocate only on the desired node in the
-> +        * migration path, and to fail fast if not immediately available. We
-> +        * are already in the memory reclaim path, we don't want heroic
-> +        * efforts to get a page.
-> +        */
-> +       gfp_t mask = GFP_NOWAIT | __GFP_NOWARN | __GFP_NORETRY |
-> +                    __GFP_NOMEMALLOC | __GFP_THISNODE;
-> +
-> +       VM_BUG_ON_PAGE(PageCompound(page), page);
-> +       VM_BUG_ON_PAGE(PageLRU(page), page);
-> +
-> +       if (next_nid < 0)
-> +               return false;
-> +
-> +       newpage = alloc_pages_node(next_nid, mask, 0);
-> +       if (!newpage)
-> +               return false;
-> +
-> +       /*
-> +        * MIGRATE_ASYNC is the most light weight and never blocks.
-> +        */
-> +       rc = __unmap_and_move_locked(page, newpage, MIGRATE_ASYNC);
-> +       if (rc != MIGRATEPAGE_SUCCESS) {
-> +               __free_pages(newpage, 0);
-> +               return false;
-> +       }
-> +
-> +       set_page_owner_migrate_reason(newpage, MR_DEMOTION);
-> +       return true;
-> +}
-> +
->  /*
->   * gcc 4.7 and 4.8 on arm get an ICEs when inlining unmap_and_move().  Work
->   * around it.
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index a5ad0b35ab8e..0a95804e946a 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1261,6 +1261,21 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->                         ; /* try to reclaim the page below */
->                 }
->
-> +               if (!PageCompound(page)) {
-> +                       if (migrate_demote_mapping(page)) {
-> +                                unlock_page(page);
-> +                                if (likely(put_page_testzero(page)))
-> +                                        goto free_it;
-> +
-> +                                /*
-> +                                * Speculative reference will free this page,
-> +                                * so leave it off the LRU.
-> +                                */
-> +                                nr_reclaimed++;
-> +                                continue;
-> +                        }
-> +               }
+--=_MailMate_2FF9B97D-293E-453D-9986-85B2771222A1_=
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-It looks the reclaim path would fall through if the migration is
-failed. But, it looks, with patch #4, you may end up trying reclaim an
-anon page on swapless system if migration is failed?
-
-And, actually I have the same question with Yan Zi. Why not just put
-the demote candidate into a separate list, then migrate all the
-candidates in bulk with migrate_pages()?
-
-Thanks,
-Yang
-
-> +
->                 /*
->                  * Anonymous process memory has backing store?
->                  * Try to allocate it some swap space here.
-> --
-> 2.14.4
+<snip>
+>> 2. For the demotion path, a common case would be from high-performance=
+ memory, like HBM
+>> or Multi-Channel DRAM, to DRAM, then to PMEM, and finally to disks, ri=
+ght? More general
+>> case for demotion path would be derived from the memory performance de=
+scription from HMAT[1],
+>> right? Do you have any algorithm to form such a path from HMAT?
 >
+> Yes, I have a PoC for the kernel setting up a demotion path based on
+> HMAT properties here:
+>
+>   https://git.kernel.org/pub/scm/linux/kernel/git/kbusch/linux.git/comm=
+it/?h=3Dmm-migrate&id=3D4d007659e1dd1b0dad49514348be4441fbe7cadb
+>
+> The above is just from an experimental branch.
+
+Got it. Thanks.
+
+>
+>> 3. Do you have a plan for promoting pages from lower-level memory to h=
+igher-level memory,
+>> like from PMEM to DRAM? Will this one-way demotion make all pages sink=
+ to PMEM and disk?
+>
+> Promoting previously demoted pages would require the application do
+> something to make that happen if you turn demotion on with this series.=
+
+> Kernel auto-promotion is still being investigated, and it's a little
+> trickier than reclaim.
+>
+> If it sinks to disk, though, the next access behavior is the same as
+> before, without this series.
+
+This means, when demotion is on, the path for a page would be DRAM->PMEM-=
+>Disk->DRAM->PMEM->=E2=80=A6 .
+This could be a start point.
+
+I actually did something similar here for two-level heterogeneous memory =
+structure: https://github.com/ysarch-lab/nimble_page_management_asplos_20=
+19/blob/nimble_page_management_4_14_78/mm/memory_manage.c#L401.
+What I did basically was calling shrink_page_list() periodically, so page=
+s will be separated
+in active and inactive lists. Then, pages in the _inactive_ list of fast =
+memory (like DRAM)
+are migrated to slow memory (like PMEM) and pages in the _active_ list of=
+ slow memory are migrated
+to fast memory. It is kinda of abusing the existing page lists. :)
+
+My conclusion from that experiments is that you need high-throughput page=
+ migration mechanisms,
+like multi-threaded page migration, migrating a bunch of pages in a batch=
+ (https://github.com/ysarch-lab/nimble_page_management_asplos_2019/blob/n=
+imble_page_management_4_14_78/mm/copy_page.c), and
+a new mechanism called exchange pages (https://github.com/ysarch-lab/nimb=
+le_page_management_asplos_2019/blob/nimble_page_management_4_14_78/mm/exc=
+hange.c), so that using page migration to manage multi-level
+memory systems becomes useful. Otherwise, the overheads (TLB shootdown an=
+d other kernel activities
+in the page migration process) of page migration may kill the benefit. Be=
+cause the performance
+gap between DRAM and PMEM is supposed to be smaller than the one between =
+DRAM and disk,
+the benefit of putting data in DRAM might not compensate the cost of migr=
+ating cold pages from DRAM
+to PMEM. Namely, directly putting data in PMEM after DRAM is full might b=
+e better.
+
+
+>> 4. In your patch 3, you created a new method migrate_demote_mapping() =
+to migrate pages to
+>> other memory node, is there any problem of reusing existing migrate_pa=
+ges() interface?
+>
+> Yes, we may not want to migrate everything in the shrink_page_list()
+> pages. We might want to keep a page, so we have to do those checks firs=
+t. At
+> the point we know we want to attempt migration, the page is already
+> locked and not in a list, so it is just easier to directly invoke the
+> new __unmap_and_move_locked() that migrate_pages() eventually also call=
+s.
+
+Right, I understand that you want to only migrate small pages to begin wi=
+th. My question is
+why not using the existing migrate_pages() in your patch 3. Like:
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index a5ad0b35ab8e..0a0753af357f 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1261,6 +1261,20 @@ static unsigned long shrink_page_list(struct list_=
+head *page_list,
+                        ; /* try to reclaim the page below */
+                }
+
++               if (!PageCompound(page)) {
++                       int next_nid =3D next_migration_node(page);
++                       int err;
++
++                       if (next_nid !=3D TERMINAL_NODE) {
++                               LIST_HEAD(migrate_list);
++                               list_add(&migrate_list, &page->lru);
++                               err =3D migrate_pages(&migrate_list, allo=
+c_new_node_page, NULL,
++                                       next_nid, MIGRATE_ASYNC, MR_DEMOT=
+ION);
++                               if (err)
++                                       putback_movable_pages(&migrate_li=
+st);
++                       }
++               }
++
+                /*
+                 * Anonymous process memory has backing store?
+                 * Try to allocate it some swap space here.
+
+Because your new migrate_demote_mapping() basically does the same thing a=
+s the code above.
+If you are not OK with the gfp flags in alloc_new_node_page(), you can ju=
+st write your own
+alloc_new_node_page(). :)
+
+>
+>> 5. In addition, you only migrate base pages, is there any performance =
+concern on migrating THPs?
+>> Is it too costly to migrate THPs?
+>
+> It was just easier to consider single pages first, so we let a THP spli=
+t
+> if possible. I'm not sure of the cost in migrating THPs directly.
+
+AFAICT, when migrating the same amount of 2MB data, migrating a THP is mu=
+ch quick than migrating
+512 4KB pages. Because you save 511 TLB shootdowns in THP migration and c=
+opying 2MB contiguous data
+achieves higher throughput than copying individual 4KB pages. But it high=
+ly depends on whether
+any subpage in a THP is hotter than others, so migrating a THP as a whole=
+ might hurt performance
+sometimes. Just some of my observation in my own experiments.
+
+
+--
+Best Regards,
+Yan Zi
+
+--=_MailMate_2FF9B97D-293E-453D-9986-85B2771222A1_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQJDBAEBAgAtFiEEh7yFAW3gwjwQ4C9anbJR82th+ooFAlyUKHEPHHppeUBudmlk
+aWEuY29tAAoJEJ2yUfNrYfqKG6oP/3OQ573fMxvauLNuxYpady5bM1FB6ugGHtCW
+XEzJKifXTMVue0qe8Jctz+tHwzljpzuralc3brVasDu3CLBAOKbzHtWuOrEuqprm
+njE8WJEY/tcegYGuiYzIi+EIr7r0+hINCZiqbdQqxyXRKRahYNnoqVBG/riBusYT
+cFwjE6Rg6hadb3QimDz4zYfHIk9ztTc4HbNwLOOrm8VhzLTXOWyq2b+xfe8Ko2Oq
+BRtJcX49jIP3HMAo07YzSultExpHuYJnNTvNvAlkJVAMWAKM4HxRsNzBopRABgKg
+3bA78ay4WODc0rKiqfoGOq+L3zpB+Qwwdq/G6OOuRl+/Hlp2hXAh3zEUQu9q5m2B
+35cskVwYw1YG2zVJauI2MWRXbklFp8aMNJYn0jpF3U3xcTs+qVw5+Bo81sq1vFT6
+oOkqsiXKPxp8lIPYFpRJA45UHw1oAOEPNyD7gAsz7b+TKQ6x1/JaDpXh0sCzMyWl
+jyxexCon0SSLnOw5iRX6yyGVQsJkrp/5GqHtFwrTn+liXHl/p0Kisk1Em+y70dj5
+BTHIQ7BLSavWJ+s4BczEu6ur4mJUIcQhtSFFodKAqv6CN5NioBd8k2ZoXsLJ5NBi
+ufQd5XsFSNp8Zkv7GZk077NKRFhB5FsaHN4HzWsXwi0C0GbsidkPP61FGw/G2gQS
+MkLYyxFh
+=lbIR
+-----END PGP SIGNATURE-----
+
+--=_MailMate_2FF9B97D-293E-453D-9986-85B2771222A1_=--
 
