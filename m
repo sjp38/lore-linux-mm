@@ -4,103 +4,103 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 01DFDC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 22:06:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0040FC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 22:13:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A69632190A
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 22:06:07 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 93C9F21900
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 22:13:08 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="ETh0Q+H5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A69632190A
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="Zb9Bl7Bn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 93C9F21900
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 54E806B0005; Fri, 22 Mar 2019 18:06:07 -0400 (EDT)
+	id EEBAA6B0005; Fri, 22 Mar 2019 18:13:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4D63B6B0006; Fri, 22 Mar 2019 18:06:07 -0400 (EDT)
+	id E703F6B0006; Fri, 22 Mar 2019 18:13:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3772D6B0007; Fri, 22 Mar 2019 18:06:07 -0400 (EDT)
+	id D12466B0007; Fri, 22 Mar 2019 18:13:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1425A6B0005
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 18:06:07 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id p143so2881549iod.19
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 15:06:07 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id AC5556B0005
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 18:13:07 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id n15so2930625ioc.0
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 15:13:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=zPnyPNGnsO/md2Fj5yEAI9x91Hz7J9uO8l7Sk2KMvIo=;
-        b=fDcwzi9SgzPKrnwQ1p932LOlA8N9rwBr8jX0oXubcNi8bY9IJPNUYpHdbQLSR00ZWB
-         TFwFgBQlblRRvvhxyIK4RvLm4pSZT255eXKjlG4PRZtdVjKSxPzKM6lVfwwUKvItTzQE
-         54e+TOF7YUqmv1o9HwOQvNPHGBzQHOI0rpkWhIQCHwk9K8e8EReuZq6EWyg7dkcHL4Mp
-         xbYENeTInJcIg4yOavHjXCy6s8BWYI1rmVSWt/rOzr/3OX1rtJ0iU6gXzDkq2pEQKoss
-         bQpyLPeJSJsEbW62Uonp+VF3dVC5+gwsxCqk6wNqMSuIOuUjyXq9wJzfVkJuyR8NCgwE
-         cvFA==
-X-Gm-Message-State: APjAAAVMKh7dCD1RF85PdgjVoSjY0jbi0bPO836JY9FfDzj7zmkWaJRi
-	4w3U/4ZXOcdxnW2ZGofwiAiFEcNwEyb1nYcIws6ivmC2DNV9iwEPNaylrcQw9sIouc6E8qXxjZ/
-	XqjUvkbxMUngIYIvzQMC0GJKyFvBSehYQ2FdhXFlCx6hUT3rEUUylb+xsJB1uYHo=
-X-Received: by 2002:a02:6a2c:: with SMTP id l44mr6717882jac.63.1553292366828;
-        Fri, 22 Mar 2019 15:06:06 -0700 (PDT)
-X-Received: by 2002:a02:6a2c:: with SMTP id l44mr6717834jac.63.1553292365840;
-        Fri, 22 Mar 2019 15:06:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553292365; cv=none;
+        bh=VnWfr5Cz9g8Ts5McgdJK3bb2nMan4nq5nXqWONnMsfs=;
+        b=nR0SPk2KJHw++ud1lJKIBfxlB0c31aVsd2CnKGrHqfE78LryBHDTa+YG/tt5Reir5s
+         ZKSCmvExF3Tvza2VCuUjbJ3UCYQg6P2mbi/9Ds0+q8eSibMZFY6CfeF6vWrj+8Gfcbpa
+         6BVatf8GkHcIUptVuogvPoK/TOJMprRnsoNdB3EgCclH9bHg02PyDi7lAP+ta7fR/vJe
+         +2JcJNpV+01J/CZjmKwfsLdKNcP66bCOxf4oD1qxND0IRiJ7X20Q2cybk4RjbEkOk+AV
+         z1IygKJ+nJY8/sgjgnG48hpMLYNvYlu8UGnVkFgQdJe1uMCie2JPcwljmVISXPonwn/7
+         yxWQ==
+X-Gm-Message-State: APjAAAWWN3x/GQ6yb5ineIKNdEHwy8D7fXqAai4RmokDG1JPb7bTsxSB
+	20ENwjtYKB6dmQbNRMQzeMiY1lAg6Jwg4Vf7JNRujgPHx9Eee3RqCusc7d+JEiWHuTqwegg49JF
+	zRzYTJTW+q4n6HBbBL0U4YbzN6Mr88ih/hOIf0IbxaM7+9XpqJRcczIzo6zYGMGg=
+X-Received: by 2002:a02:b008:: with SMTP id p8mr7750063jah.90.1553292787479;
+        Fri, 22 Mar 2019 15:13:07 -0700 (PDT)
+X-Received: by 2002:a02:b008:: with SMTP id p8mr7750023jah.90.1553292786843;
+        Fri, 22 Mar 2019 15:13:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553292786; cv=none;
         d=google.com; s=arc-20160816;
-        b=0K/DmOaiDOGv7BCL3Xjn7wHs8VyO+i9vi81RUtkKHX/v9mFfZwEJ7QM8TVRi+dV8Ut
-         J5GGGfcKAu478G7LHk3dEoaJen9dlnTAAHRXscr1AaWN8mZuHMk4cFmyLcYpwC0UZ9au
-         1ALvaiFmU37xEb56uD/QdKxgy+DT7Ym80XTwrh+JXF9utU7myHvk0MbIB8tEt7n1eyRZ
-         aogo+MKK5NAXv0+ttTgs8FyTdCjqBPZK3zmRltp+1s3/K9U+QixTbw7xZ2syDjmdv28k
-         65qGnUTACY0RumPCZ+wWiQ5bhKWMe9L75N2tp3IcGxyXyCj2loXVzg2dBFY5TEdr4Vat
-         HGhA==
+        b=l5rAaE4V0yhJJ8/wOPndE+hoOwgIQoRvmC0TOlzVmpFP72tdiQhxnpWIrNFIKzAQlW
+         dVaBz9qwSExihD7zpF45NlgVsNtS1VNQl0g7zz9kJs2K23MdsJanK3Ty1w7zkvKGMJrp
+         NMr3/pZwEl2GD6Fm6oEtFPbUE+yApRgfPHdcdIQ1Z1VHdLtiNuNZ8KVgMbi6RN9/VP8P
+         PBvpoBrw0tgIuXzryO6La3NGfnyTwHkrBMhzJ3DGMyI0EctyE2fcREoyZIZeZvO5tAYb
+         KU5ka5h23lAQWQ+E+naPh32mDOL28AJI84a5kLbn9od0Ia2tR9E30TGGYwcm3zUTFWPV
+         +2EQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=zPnyPNGnsO/md2Fj5yEAI9x91Hz7J9uO8l7Sk2KMvIo=;
-        b=hLfEDVy0/RTLr5x8y7GJVwcwOBFnReaWz4Ur6esxukQITb+9iBvUdHdlYEzwoNzEtG
-         BAEGVCK3f32zw4eK3tl66bSij0rZqXl/UuYi831AIDhPIeiIi4HP3BUBJn/ISj1ZIDUb
-         YpiQlcx/9bjj5YGKENupIIQxzGdz5bVeNrFHr2189p9vJmMB4vuxMNXzztQqX8JccRGt
-         +fqr+JusTJ9wgm+klGjDhlGMg8aiYcOhPfvjJY9I0Be7D/eq0uOV5wZoDGh4pcVhFRec
-         QnTs+zrO0A9fSW95s9+Y8q4clwNlnvD1QAzFTkEBc3D4APMwAz/2GRMKuXTr155N+3qE
-         QHig==
+        bh=VnWfr5Cz9g8Ts5McgdJK3bb2nMan4nq5nXqWONnMsfs=;
+        b=VDgkBRUHdz6MdkhAcwrSKCV6CyGzGN2MgHP8k3TBEvpSFOZU6Q44iC6gb1rDX82R3B
+         0gvhQnBqZxlL9l0tpuLvppVX7b+RzimpQxsQ6WSWJJ2CnyS+X7G7daCY04YJNrwW72Bh
+         39DD2vcdoiPwvgc+tzRq21eMaesxdou2myPmdsNiZCchJoo/1jeLJkpPpftrZ7ZkhTwJ
+         MoGuIw0vfOS8WyCDsN6/E509OLckUINsuiI9yBDioVowP+ehfAt2e4ZzSaOttqQx66Nk
+         h0UyIpgjlKGL3Hx+1WuKxruQ/ZQLKKEZ1zl52G0cKDEBLd9nv5gbKxiPevncq6460mgw
+         IY7w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=ETh0Q+H5;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Zb9Bl7Bn;
        spf=pass (google.com: domain of dan.j.williams@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m11sor17816422itm.18.2019.03.22.15.06.05
+        by mx.google.com with SMTPS id n129sor24246469jaa.12.2019.03.22.15.13.06
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 22 Mar 2019 15:06:05 -0700 (PDT)
+        Fri, 22 Mar 2019 15:13:06 -0700 (PDT)
 Received-SPF: pass (google.com: domain of dan.j.williams@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=ETh0Q+H5;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Zb9Bl7Bn;
        spf=pass (google.com: domain of dan.j.williams@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=intel-com.20150623.gappssmtp.com; s=20150623;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=zPnyPNGnsO/md2Fj5yEAI9x91Hz7J9uO8l7Sk2KMvIo=;
-        b=ETh0Q+H5NErnf+anAIeNX89EpJjpuFOFrGA549zU6YNjyodAclghZqMAQhCYHmsdpr
-         VBr/q0cU6fGUQZpceBNwr0M+bLWwnpat9RsFa50fk6EH+Ej3wT3fiVBe0lVTwTugrloo
-         iFU6UFQ36JWbIMUYlh8YNEcsGoj838Wu1icdiWs1qphTBfThMQQSRXpaXXYbY3iRIz+R
-         okhh/FvQVRXB/Q8a7q6XyZrBKwLnS/7Qc7BIuqBvFeFzP4QdI3IylwYJd+W54gfYHbbY
-         V3ldQH0uIH3yxe3qtmId36/CRAoD48vcD7efQl3U/JsBsrDrQh+HlYfRz2uDtxUe2MaL
-         raAg==
-X-Google-Smtp-Source: APXvYqzvkOUTluGSKTjETBKJlQ9d9U0bafaXjVPDo287WeJSv03XpVRn3tgZfH8AGEVriQsCe7Tjp8XH5gu+GSmr/AQ=
-X-Received: by 2002:a24:298b:: with SMTP id p133mr3554913itp.43.1553292365179;
- Fri, 22 Mar 2019 15:06:05 -0700 (PDT)
+        bh=VnWfr5Cz9g8Ts5McgdJK3bb2nMan4nq5nXqWONnMsfs=;
+        b=Zb9Bl7Bn4sqZs4rM2mwfzJd7rKnn+/+6ONyGGwJqa1scMrXWXjmi9yoQBAbfMlLpgS
+         RGV1LtFJyFJAtRyqt7x4phr5CYLMLHxyjOqtaGBIgKlABbih3LbLp5n0OYCbWIHRLaHd
+         TTQ98w8krLJnK39QE8Dp0ik11E8+01Sgyn1wW72V9bUGSzJ08oA4QbCqRZA5AnJQLOtm
+         o3basMsLTQYqNorbmDjd4KoyjPrND/z4P2rEoZfVYQnDMfAEdcsp9b63663QinvyZoJp
+         HOu5mHwb07RCBU+1v7ChvrPznU5/HmjF8OEnSTsQgs+cld8MrdbVwNZKadLpnlT93nHs
+         Yb2w==
+X-Google-Smtp-Source: APXvYqwPCPjaWzKVXpURWg65K5fkBoLbrluPEoFqqgn2rT6o/InM1ko8UbBUfBaLU8H/oERd+79+VhkVDmrMWUaE2i4=
+X-Received: by 2002:a02:c007:: with SMTP id y7mr8517902jai.1.1553292786464;
+ Fri, 22 Mar 2019 15:13:06 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190317183438.2057-1-ira.weiny@intel.com> <20190317183438.2057-4-ira.weiny@intel.com>
-In-Reply-To: <20190317183438.2057-4-ira.weiny@intel.com>
+References: <20190317183438.2057-1-ira.weiny@intel.com> <20190317183438.2057-5-ira.weiny@intel.com>
+In-Reply-To: <20190317183438.2057-5-ira.weiny@intel.com>
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 22 Mar 2019 15:05:53 -0700
-Message-ID: <CAA9_cmd9gUWMbpkP_AuxZ08iqvZdxjbtDoR-FpSjAyhZJisRZA@mail.gmail.com>
-Subject: Re: [RESEND 3/7] mm/gup: Change GUP fast to use flags rather than a
- write 'bool'
+Date: Fri, 22 Mar 2019 15:12:55 -0700
+Message-ID: <CAA9_cmcx-Bqo=CFuSj7Xcap3e5uaAot2reL2T74C47Ut6_KtQw@mail.gmail.com>
+Subject: Re: [RESEND 4/7] mm/gup: Add FOLL_LONGTERM capability to GUP fast
 To: ira.weiny@intel.com
 Cc: Andrew Morton <akpm@linux-foundation.org>, John Hubbard <jhubbard@nvidia.com>, 
 	Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, 
@@ -126,114 +126,78 @@ On Sun, Mar 17, 2019 at 7:36 PM <ira.weiny@intel.com> wrote:
 >
 > From: Ira Weiny <ira.weiny@intel.com>
 >
-> To facilitate additional options to get_user_pages_fast() change the
-> singular write parameter to be gup_flags.
+> DAX pages were previously unprotected from longterm pins when users
+> called get_user_pages_fast().
 >
-> This patch does not change any functionality.  New functionality will
-> follow in subsequent patches.
->
-> Some of the get_user_pages_fast() call sites were unchanged because they
-> already passed FOLL_WRITE or 0 for the write parameter.
+> Use the new FOLL_LONGTERM flag to check for DEVMAP pages and fall
+> back to regular GUP processing if a DEVMAP page is encountered.
 >
 > Signed-off-by: Ira Weiny <ira.weiny@intel.com>
->
 > ---
-> Changes from V1:
->         Rebase to current merge tree
->         arch/powerpc/mm/mmu_context_iommu.c no longer calls gup_fast
->                 The gup_longterm was converted in patch 1
+>  mm/gup.c | 29 +++++++++++++++++++++++++----
+>  1 file changed, 25 insertions(+), 4 deletions(-)
 >
->  arch/mips/mm/gup.c                         | 11 ++++++-----
->  arch/powerpc/kvm/book3s_64_mmu_hv.c        |  4 ++--
->  arch/powerpc/kvm/e500_mmu.c                |  2 +-
->  arch/s390/kvm/interrupt.c                  |  2 +-
->  arch/s390/mm/gup.c                         | 12 ++++++------
->  arch/sh/mm/gup.c                           | 11 ++++++-----
->  arch/sparc/mm/gup.c                        |  9 +++++----
->  arch/x86/kvm/paging_tmpl.h                 |  2 +-
->  arch/x86/kvm/svm.c                         |  2 +-
->  drivers/fpga/dfl-afu-dma-region.c          |  2 +-
->  drivers/gpu/drm/via/via_dmablit.c          |  3 ++-
->  drivers/infiniband/hw/hfi1/user_pages.c    |  3 ++-
->  drivers/misc/genwqe/card_utils.c           |  2 +-
->  drivers/misc/vmw_vmci/vmci_host.c          |  2 +-
->  drivers/misc/vmw_vmci/vmci_queue_pair.c    |  6 ++++--
->  drivers/platform/goldfish/goldfish_pipe.c  |  3 ++-
->  drivers/rapidio/devices/rio_mport_cdev.c   |  4 +++-
->  drivers/sbus/char/oradax.c                 |  2 +-
->  drivers/scsi/st.c                          |  3 ++-
->  drivers/staging/gasket/gasket_page_table.c |  4 ++--
->  drivers/tee/tee_shm.c                      |  2 +-
->  drivers/vfio/vfio_iommu_spapr_tce.c        |  3 ++-
->  drivers/vhost/vhost.c                      |  2 +-
->  drivers/video/fbdev/pvr2fb.c               |  2 +-
->  drivers/virt/fsl_hypervisor.c              |  2 +-
->  drivers/xen/gntdev.c                       |  2 +-
->  fs/orangefs/orangefs-bufmap.c              |  2 +-
->  include/linux/mm.h                         |  4 ++--
->  kernel/futex.c                             |  2 +-
->  lib/iov_iter.c                             |  7 +++++--
->  mm/gup.c                                   | 10 +++++-----
->  mm/util.c                                  |  8 ++++----
->  net/ceph/pagevec.c                         |  2 +-
->  net/rds/info.c                             |  2 +-
->  net/rds/rdma.c                             |  3 ++-
->  35 files changed, 79 insertions(+), 63 deletions(-)
-
-
+> diff --git a/mm/gup.c b/mm/gup.c
+> index 0684a9536207..173db0c44678 100644
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -1600,6 +1600,9 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
+>                         goto pte_unmap;
 >
-> diff --git a/arch/mips/mm/gup.c b/arch/mips/mm/gup.c
-> index 0d14e0d8eacf..4c2b4483683c 100644
-> --- a/arch/mips/mm/gup.c
-> +++ b/arch/mips/mm/gup.c
-> @@ -235,7 +235,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
->   * get_user_pages_fast() - pin user pages in memory
->   * @start:     starting user address
->   * @nr_pages:  number of pages from start to pin
-> - * @write:     whether pages will be written to
-> + * @gup_flags: flags modifying pin behaviour
->   * @pages:     array that receives pointers to the pages pinned.
->   *             Should be at least nr_pages long.
->   *
-> @@ -247,8 +247,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
->   * requested. If nr_pages is 0 or negative, returns 0. If no pages
->   * were pinned, returns -errno.
->   */
-> -int get_user_pages_fast(unsigned long start, int nr_pages, int write,
-> -                       struct page **pages)
-> +int get_user_pages_fast(unsigned long start, int nr_pages,
-> +                       unsigned int gup_flags, struct page **pages)
+>                 if (pte_devmap(pte)) {
+> +                       if (unlikely(flags & FOLL_LONGTERM))
+> +                               goto pte_unmap;
+> +
+>                         pgmap = get_dev_pagemap(pte_pfn(pte), pgmap);
+>                         if (unlikely(!pgmap)) {
+>                                 undo_dev_pagemap(nr, nr_start, pages);
+> @@ -1739,8 +1742,11 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
+>         if (!pmd_access_permitted(orig, flags & FOLL_WRITE))
+>                 return 0;
+>
+> -       if (pmd_devmap(orig))
+> +       if (pmd_devmap(orig)) {
+> +               if (unlikely(flags & FOLL_LONGTERM))
+> +                       return 0;
+>                 return __gup_device_huge_pmd(orig, pmdp, addr, end, pages, nr);
+> +       }
+>
+>         refs = 0;
+>         page = pmd_page(orig) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
+> @@ -1777,8 +1783,11 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
+>         if (!pud_access_permitted(orig, flags & FOLL_WRITE))
+>                 return 0;
+>
+> -       if (pud_devmap(orig))
+> +       if (pud_devmap(orig)) {
+> +               if (unlikely(flags & FOLL_LONGTERM))
+> +                       return 0;
+>                 return __gup_device_huge_pud(orig, pudp, addr, end, pages, nr);
+> +       }
+>
+>         refs = 0;
+>         page = pud_page(orig) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
+> @@ -2066,8 +2075,20 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
+>                 start += nr << PAGE_SHIFT;
+>                 pages += nr;
+>
+> -               ret = get_user_pages_unlocked(start, nr_pages - nr, pages,
+> -                                             gup_flags);
+> +               if (gup_flags & FOLL_LONGTERM) {
+> +                       down_read(&current->mm->mmap_sem);
+> +                       ret = __gup_longterm_locked(current, current->mm,
+> +                                                   start, nr_pages - nr,
+> +                                                   pages, NULL, gup_flags);
+> +                       up_read(&current->mm->mmap_sem);
+> +               } else {
+> +                       /*
+> +                        * retain FAULT_FOLL_ALLOW_RETRY optimization if
+> +                        * possible
+> +                        */
+> +                       ret = get_user_pages_unlocked(start, nr_pages - nr,
+> +                                                     pages, gup_flags);
 
-This looks a tad scary given all related thrash especially when it's
-only 1 user that wants to do get_user_page_fast_longterm, right? Maybe
-something like the following. Note I explicitly moved the flags to the
-end so that someone half paying attention that calls
-__get_user_pages_fast will get a compile error if they specify the
-args in the same order.
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 76ba638ceda8..c6c743bc2c68 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1505,8 +1505,15 @@ static inline long
-get_user_pages_longterm(unsigned long start,
- }
- #endif /* CONFIG_FS_DAX */
-
--int get_user_pages_fast(unsigned long start, int nr_pages, int write,
--                       struct page **pages);
-+
-+int __get_user_pages_fast(unsigned long start, int nr_pages,
-+               struct page **pages, unsigned int gup_flags);
-+
-+static inline int get_user_pages_fast(unsigned long start, int
-nr_pages, int write,
-+                       struct page **pages)
-+{
-+       return __get_user_pages_fast(start, nr_pages, pages, write ?
-FOLL_WRITE);
-+}
-
- /* Container for pinned pfns / pages */
- struct frame_vector {
+I couldn't immediately grok why this path needs to branch on
+FOLL_LONGTERM? Won't get_user_pages_unlocked(..., FOLL_LONGTERM) do
+the right thing?
 
