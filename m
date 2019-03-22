@@ -2,135 +2,101 @@ Return-Path: <SRS0=SIh7=RZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 72843C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 10:48:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 568C8C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 11:15:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2E65F2190A
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 10:48:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E65F2190A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id A184B218A2
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 11:15:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A184B218A2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BD9116B0269; Fri, 22 Mar 2019 06:48:52 -0400 (EDT)
+	id 0EDA76B0005; Fri, 22 Mar 2019 07:15:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BAFC26B026A; Fri, 22 Mar 2019 06:48:52 -0400 (EDT)
+	id 09E626B0008; Fri, 22 Mar 2019 07:15:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AC66F6B026B; Fri, 22 Mar 2019 06:48:52 -0400 (EDT)
+	id EF5EB6B000A; Fri, 22 Mar 2019 07:15:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 535B46B0269
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 06:48:52 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id p4so789194edd.0
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 03:48:52 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B986F6B0005
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 07:15:31 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id w27so782532edb.13
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 04:15:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=+0wnXzeAJwW6uvDrnRfuljM8QnBbXgPjVPYb690Xkzg=;
-        b=Ayt0SeXQYhHo2GQ5pRimq17NJvz/vqwzoJ8m82vt0SJ68m8lxANOMoiKTsYh9y9VFi
-         iumoyRlvpo96+qXwHVeVOEN86mw+NGQEVWatgQ6zN8TQNnP2L8eO3PeNeKot2RJQHs2E
-         XBQGIIdxutlT/j7K0iRj8DCqId5jL5XETTYg+oyeGT1yXn6gXA69F8Y0Q1KjBUGW1+9g
-         9lMZ1VjCKOl01DVp+0jRZC4yqwEcNKLON+dZ3QAfrmGfJOLbMa8Fo4bkjgZkMyNTwACW
-         1kfjNNgnJl9IvFf5aaizNxfEOg5CS1mJLGKoiTUjoEmgxc4lQubsKOkmYsHVKcx3Yo4/
-         ZJww==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAWtS9aKl2mcP/AKfVOieGJb4+LqHsrRJRD3sKG3RjYsbXahc/KJ
-	ftxBULlpojDXNhe5l/aa9AT5BPQ88Ksf69qkSKQTWOeCoYep+tfBw2gCYvauu4F+051pzhpskLU
-	su6flOmxQWUlU59gxYP6BhsnlVnPHN/3yJU44MqXKvxHFUA1bVLsNt0YQIHcWWRt0bw==
-X-Received: by 2002:a50:d793:: with SMTP id w19mr5603225edi.99.1553251731873;
-        Fri, 22 Mar 2019 03:48:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxZHRBhAvEsAgSN8AtaY4+g6OLm2H6b4yN+dl6+W7H5dRXYS82FVZ+K7tV4GH1VT/C6cTVX
-X-Received: by 2002:a50:d793:: with SMTP id w19mr5603166edi.99.1553251730648;
-        Fri, 22 Mar 2019 03:48:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553251730; cv=none;
+        bh=CHzkP0Dpn4nGmuGDmZqzQ6Q+FhtuDdep+zRr8TbMsqs=;
+        b=cxxMMoI1lOHo085vL4fq0Gty3lXpF5uwFsXy/B7E4xDQLg2fY6IhiYuoebA8490ZKB
+         IgtMdf17EA2CBY0ntjevsGbL9I3yzDCMUx4HQErUVvt3c1Ml0+xMRFURGEj8bW2K9MRI
+         9eke6WiArSPz/ZwXGo+IbC6TLJE+RbEk9TIQlXEDC9yfuDy+WHR5Zft/hExgm4iaYRxU
+         XGn/o97RJpjUnsm0xO4elSJM64Yra/Btl5e0JvTbG7oRtB8Prv6esf9ZOf5C6s/nv7pN
+         6ceiOnNJRlX78QH42wnK681QF6sLFHjdCwyU08qbiYAJg4cKaWiJpejLE8u1Tqg4Ghes
+         n37A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAV/MjXF73eltxXrLlsPQf3xydH+1y4S68NmHpmW9ZzQd94WQ64C
+	kSGTCl9jZKFFJgS8S9D7hB8BhDrKZeA5kP7dEehrRp4Rbe0UqZ/7mDsx0oxFgQuViLJ9PEm+nZe
+	uQgcLeLuLpw5XNpZM0YD5xWfyN/OESc2Al2o7WDiLhAMScVn1RPGUC+4ldy3R7j6P9w==
+X-Received: by 2002:a17:906:3482:: with SMTP id g2mr5253617ejb.214.1553253331310;
+        Fri, 22 Mar 2019 04:15:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyZE7sJlbkONJ0VJ9ZWsTpTXxzHMHuHKuk9n2P/cHZoiYoaX+2sxpWfWpFAsikzJ6xL3qIj
+X-Received: by 2002:a17:906:3482:: with SMTP id g2mr5253554ejb.214.1553253330217;
+        Fri, 22 Mar 2019 04:15:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553253330; cv=none;
         d=google.com; s=arc-20160816;
-        b=WIskvHGPz27xbs7S/JRVFKjqZsoBiGmS08VPnNm95V0udIX/myWJIW91qd+ZudWz+w
-         hKwqRLk6Xw0nD0VdEuZFijc/nV6HHsNX66q/XajM466rqjgtvo5xX7I3azGani5SsB/d
-         cMi+klSPuW/qCO1F66AlS4b14SQ6UaUMtOg3FrLwAxfnZBNV/W+f+c5biPMNR76Ooyku
-         wAGGWkuToUa9V+6Wq2i77/X/TRf90iWJA5ypupJdM0M45JJdnvlwnmgDHxiZVaxLv7PL
-         Q7dSRm3zK1LVXh38uE781E6FhgReWPSi9nmsUM+4axJWiD+Bzf/fOi6WaXpULsXSec3e
-         IxqQ==
+        b=0rPl1589N28Hv7J4uWpDHxjIsfTdgm6ngD6sgvtL0JYhBIlHN8k6Hbf1C0KW7bo0CN
+         qthSuIcwzCO0C/SHt1oj8PaNnDOBNZeW96Qwh6qJc6igFdLgtrp0/Qh+cCGrZWap1kx2
+         nIQn05kExoqWo/NDd3WZnmhscJgWgGSIs53ZqS/3urCejESUhIphdodZb5R6xZ2kqQQe
+         6exUSNyzvnCa+E3jTRIIwNDE7F70LuGaXMKaAYIixO1y+nRAOlehmNa6H2+aor15TIGT
+         B4KtsfInAvXPlG6bWC18SMbWHZbfugHF87d5+txxUsBZoJ8lyVSF6HByPnPcnW1L4jiq
+         mz6Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=+0wnXzeAJwW6uvDrnRfuljM8QnBbXgPjVPYb690Xkzg=;
-        b=QSVSyIU3AqiOocwIP5JDB4ujeCryhB7wOltNZayGvDoM1XTwlyEyKf9V6A2WWbm6R8
-         2XModDy3/523n2FrSOFIPCS0hj0kDhvyOY/nStyW2JkQ5qrS8QwoUnCZlue4yNkfiukw
-         Gt3C5WhsGE1XXh1usByKAWrG4sSKfdzXmpUUw0JMNEQJM4QYZsFLl2k4ogSF/qA5W2hE
-         I0UU0v8C1ac4vYz7a09RoN5rqQ8O+lALL4C9mzZzQurFyWqZFf3SwueRG6sc9KyRD82L
-         AtLUYPZHIEdQRc5NZQ98iQIXqGEzBc9JoU62E5ixP4rGV1jGoiv87Vfh46hLG+fu2KCn
-         7a5A==
+        bh=CHzkP0Dpn4nGmuGDmZqzQ6Q+FhtuDdep+zRr8TbMsqs=;
+        b=CccD9j28aSQGHnR/+YK2nrgUU1gJVgQJBDCOf7siD3XeK40Vg1x92sX0oGjlMqAWrn
+         Da7u+vJGwYmrS9LRru0JOb1ivdFsHxcfKZfz8oBeTewj6jhJkByAqIy8H4O1iF3NKt5K
+         7cyzLwORB7sjDA5IUU1rMfUWsLew4ecenfJq7HbRMZ/wypTvQWUb2lov96deskh1bbDS
+         2gkPvH1yn2Kw3pFshxJTbZrJaiCsSklPYceubtdmBO9JU/FiQLT7M84t71tATAqyv+PN
+         n5AnQlIBy5H/yqMPN0hzEZ7Stmdh351xwPvdwJlQczR4SMGo0qfp8b3/RNlPCCwGw+F/
+         Cdmw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id t8si3343852eda.212.2019.03.22.03.48.50
-        for <linux-mm@kvack.org>;
-        Fri, 22 Mar 2019 03:48:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp16.blacknight.com (outbound-smtp16.blacknight.com. [46.22.139.233])
+        by mx.google.com with ESMTPS id t26si246516ejf.25.2019.03.22.04.15.29
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Mar 2019 04:15:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) client-ip=46.22.139.233;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 35A5C374;
-	Fri, 22 Mar 2019 03:48:49 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id E58943F575;
-	Fri, 22 Mar 2019 03:48:42 -0700 (PDT)
-Date: Fri, 22 Mar 2019 10:48:40 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Amit Daniel Kachhap <amit.kachhap@arm.com>
-Cc: Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	LAK <linux-arm-kernel@lists.infradead.org>,
-	linux-doc@vger.kernel.org, linux-mm@kvack.org,
-	linux-arch@vger.kernel.org, linux-kselftest@vger.kernel.org,
-	linux-kernel@vger.kernel.org,
-	Kate Stewart <kstewart@linuxfoundation.org>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Will Deacon <will.deacon@arm.com>,
-	Alexei Starovoitov <ast@kernel.org>,
-	Kostya Serebryany <kcc@google.com>,
-	Eric Dumazet <edumazet@google.com>,
-	Chintan Pandya <cpandya@codeaurora.org>,
-	Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Daniel Borkmann <daniel@iogearbox.net>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Kees Cook <keescook@chromium.org>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Arnaldo Carvalho de Melo <acme@kernel.org>,
-	Graeme Barnes <Graeme.Barnes@arm.com>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Branislav Rankov <Branislav.Rankov@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Robin Murphy <robin.murphy@arm.com>,
-	"David S. Miller" <davem@davemloft.net>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH v2 2/4] arm64: Define Documentation/arm64/elf_at_flags.txt
-Message-ID: <20190322104839.GA13384@arrakis.emea.arm.com>
-References: <cover.1552679409.git.andreyknvl@google.com>
- <20190318163533.26838-1-vincenzo.frascino@arm.com>
- <20190318163533.26838-3-vincenzo.frascino@arm.com>
- <CADGdYn7HYcj4vxw2bCS6McdNRmWu7o13=VAQra5A1Z18JNPMXQ@mail.gmail.com>
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp16.blacknight.com (Postfix) with ESMTPS id 967B61C2EBE
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 11:15:29 +0000 (GMT)
+Received: (qmail 14420 invoked from network); 22 Mar 2019 11:15:29 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 22 Mar 2019 11:15:29 -0000
+Date: Fri, 22 Mar 2019 11:15:27 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, cai@lca.pw,
+	linux-mm@kvack.org, vbabka@suse.cz
+Subject: Re: kernel BUG at include/linux/mm.h:1020!
+Message-ID: <20190322111527.GG3189@techsingularity.net>
+References: <CABXGCsM-SgUCAKA3=WpL7oWZ0Xq8A1Wf-Eh6MO0seee+TviDWQ@mail.gmail.com>
+ <20190315205826.fgbelqkyuuayevun@ca-dmjordan1.us.oracle.com>
+ <CABXGCsMcXb_W-w0AA4ZFJ5aKNvSMwFn8oAMaFV7AMHgsH_UB7g@mail.gmail.com>
+ <CABXGCsO+DoEu5KMW8bELCKahhfZ1XGJCMYJ3Nka8B0Xi0A=aKg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <CADGdYn7HYcj4vxw2bCS6McdNRmWu7o13=VAQra5A1Z18JNPMXQ@mail.gmail.com>
+In-Reply-To: <CABXGCsO+DoEu5KMW8bELCKahhfZ1XGJCMYJ3Nka8B0Xi0A=aKg@mail.gmail.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -138,51 +104,70 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 22, 2019 at 11:52:37AM +0530, Amit Daniel Kachhap wrote:
-> On Mon, Mar 18, 2019 at 10:06 PM Vincenzo Frascino
-> <vincenzo.frascino@arm.com> wrote:
-> > +Example of correct usage (pseudo-code) for a userspace application:
-> > +
-> > +bool arm64_syscall_tbi_is_present(void)
-> > +{
-> > +       unsigned long at_flags = getauxval(AT_FLAGS);
-> > +       if (at_flags & ARM64_AT_FLAGS_SYSCALL_TBI)
-> > +                       return true;
-> > +
-> > +       return false;
-> > +}
-> > +
-> > +void main(void)
-> > +{
-> > +       char *addr = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE,
-> > +                         MAP_ANONYMOUS, -1, 0);
-> > +
-> > +       int fd = open("test.txt", O_WRONLY);
-> > +
-> > +       /* Check if the relaxed ABI is supported */
-> > +       if (arm64_syscall_tbi_is_present()) {
-> > +               /* Add a tag to the pointer */
-> > +               addr = tag_pointer(addr);
-> > +       }
-> > +
-> > +       strcpy("Hello World\n", addr);
+On Thu, Mar 21, 2019 at 10:39:10AM +0500, Mikhail Gavrilov wrote:
+> > # first bad commit: [e332f741a8dd1ec9a6dc8aa997296ecbfe64323e] mm,
+> > compaction: be selective about what pageblocks to clear skip hints
+> >
+> > Also I see that two patches already proposed for fixing this issue.
+> > [1] https://patchwork.kernel.org/patch/10862267/
+> > [2] https://patchwork.kernel.org/patch/10862519/
+> >
+> > If I understand correctly, it is enough to apply only the second patch [2].
+> >
 > 
-> Nit: s/strcpy("Hello World\n", addr)/strcpy(addr, "Hello World\n")
+> I am right now tested the patch [1] and can said that unfortunately it
+> not fix my issue.
+> [1] https://patchwork.kernel.org/patch/10862519/
+> 
 
-Not exactly a nit ;).
+Build-tested only but can you try this?
 
-> > +
-> > +       /* Write to a file */
-> > +       write(fd, addr, sizeof(addr));
-
-I presume this was supposed to write "Hello World\n" to a file but
-sizeof(addr) is 1.
-
-Since we already support tagged pointers in user space (as long as they
-are not passed into the kernel), the above example could tag the pointer
-unconditionally and only clear it before write() if
-!arm64_syscall_tbi_is_present().
-
--- 
-Catalin
+diff --git a/mm/compaction.c b/mm/compaction.c
+index f171a83707ce..ba3afcc00d50 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -242,6 +242,7 @@ __reset_isolation_pfn(struct zone *zone, unsigned long pfn, bool check_source,
+ 							bool check_target)
+ {
+ 	struct page *page = pfn_to_online_page(pfn);
++	struct page *block_page;
+ 	struct page *end_page;
+ 	unsigned long block_pfn;
+ 
+@@ -267,20 +268,26 @@ __reset_isolation_pfn(struct zone *zone, unsigned long pfn, bool check_source,
+ 	    get_pageblock_migratetype(page) != MIGRATE_MOVABLE)
+ 		return false;
+ 
++	/* Ensure the start of the pageblock or zone is online and valid */
++	block_pfn = pageblock_start_pfn(pfn);
++	block_page = pfn_to_online_page(max(block_pfn, zone->zone_start_pfn));
++	if (block_page) {
++		page = block_page;
++		pfn = block_pfn;
++	}
++
++	/* Ensure the end of the pageblock or zone is online and valid */
++	block_pfn += pageblock_nr_pages;
++	block_pfn = min(block_pfn, zone_end_pfn(zone));
++	end_page = pfn_to_online_page(block_pfn);
++	if (!end_page)
++		return false;
++
+ 	/*
+ 	 * Only clear the hint if a sample indicates there is either a
+ 	 * free page or an LRU page in the block. One or other condition
+ 	 * is necessary for the block to be a migration source/target.
+ 	 */
+-	block_pfn = pageblock_start_pfn(pfn);
+-	pfn = max(block_pfn, zone->zone_start_pfn);
+-	page = pfn_to_page(pfn);
+-	if (zone != page_zone(page))
+-		return false;
+-	pfn = block_pfn + pageblock_nr_pages;
+-	pfn = min(pfn, zone_end_pfn(zone));
+-	end_page = pfn_to_page(pfn);
+-
+ 	do {
+ 		if (pfn_valid_within(pfn)) {
+ 			if (check_source && PageLRU(page)) {
 
