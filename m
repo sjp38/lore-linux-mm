@@ -2,127 +2,152 @@ Return-Path: <SRS0=SIh7=RZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B2E9C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 15:06:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3EDA1C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 15:16:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EC4B1218FE
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 15:06:49 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="t4bfZHjq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC4B1218FE
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
+	by mail.kernel.org (Postfix) with ESMTP id C095920830
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 15:16:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C095920830
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 682706B0003; Fri, 22 Mar 2019 11:06:49 -0400 (EDT)
+	id 56BC46B0003; Fri, 22 Mar 2019 11:16:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 60C326B0006; Fri, 22 Mar 2019 11:06:49 -0400 (EDT)
+	id 51A2E6B0006; Fri, 22 Mar 2019 11:16:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4AD086B0007; Fri, 22 Mar 2019 11:06:49 -0400 (EDT)
+	id 40A646B0007; Fri, 22 Mar 2019 11:16:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 043676B0003
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 11:06:49 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id n9so1151847wra.19
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 08:06:48 -0700 (PDT)
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C265A6B0003
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 11:16:50 -0400 (EDT)
+Received: by mail-lj1-f197.google.com with SMTP id t9so729015lji.0
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 08:16:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=mQ9n0LJWHq04GQyycgsbt63+kUhUfjFPp6Imgiozptc=;
-        b=YjS/Qng+zBC5G6khMzNmbMCnIlo+TAgHET+rW9j7clOV35qGIrcqtEr/WUjXU4Bg4a
-         uHzy3aUfeS2uj2VGpvw65aJAKn4pD6WIzX7Z9wbx8Lgwg9Gy6q++Q5jjAtpPyUrYFIqR
-         oXunBqTAO/w6kEjO2jI3zeqQ0mcORZ9ZewBXgW9CY/DM2WR1+9O5SAcbofNCSsPDHsVp
-         cQvivmNVONR0APDwu3Jc5kJXjRN4PWnTJ8a6HCLagXMgciwdPv1/ezvPmfguChaQ8h1z
-         PEH54ImAME4kGzuEqN0/sP1e/kaneoFXBJHkGvogYfdWNGGqfrIxC9O4liuD0PDC9pdq
-         /rig==
-X-Gm-Message-State: APjAAAXcEUwksUZvOTAhrm+LHlcLnmgyWEvKX4v+S81wmg9uB09+5uOp
-	hV54o2xbCw4Kk6yah4nYaDhJfaHEgOx6jG8eb+ujA8LCXTHjg0us65ZTatRhH9SHtFj4NwfiRvc
-	98QA282W0gh6Tm110fTFmOxEN6H6T9pcWPw1WgYgFEwff4OpmrheaG/6JQTUkceQ49g==
-X-Received: by 2002:a5d:4446:: with SMTP id x6mr2701059wrr.147.1553267208536;
-        Fri, 22 Mar 2019 08:06:48 -0700 (PDT)
-X-Received: by 2002:a5d:4446:: with SMTP id x6mr2701015wrr.147.1553267207922;
-        Fri, 22 Mar 2019 08:06:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553267207; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=ywL9z7ntA6u+x6YmbqlJFZmhar9s03dzPgwmh4x78os=;
+        b=syvrHSOgE2SIZpaYb5nQv9VflBCpN8AJdN9UIKMmZFtDn9zMJIpADh1Ib/NQ9JDMH7
+         uG0B9XHdjr5L4jGQuFGJPfG5VIqccEa+DsH1DFpKHXxLH+ZbO+huf8+DBm0ZCyd4sZg+
+         yHn819IMaWcMVDLy3ZpFOhXbCbcWyybWy54gElburTA7Q7IQG7NcscS+Keagg0hnBCu0
+         nU+yTpWC18SDYDKbONi/9wE3JyNaG98jjTu196iWzziYYM5NOkFmtExwWvC2DPHWKyHJ
+         WhfFqySrfvWT7QeUnS+yiRLdxZob+dsYwGjrYytcbAyoJQb+siJYpEvBipbWy9WKyUMW
+         +8nQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAUNXTMxukN/jNouF2028s428Mi7qS1bf3OQkWazwKWzO2YdFcuW
+	EYr56lV20nQb4fwgxclC2jnG0/w+SimxGBNYR6kFViT+xvXxy7mkdqD69fbfn+q5XNtDRyTZ234
+	qqN9go0o26ksgZT+6+s26RPCnBMgUm/DpDvTTXteyu4TJHpTNStsE81RGGYNO7iZq5A==
+X-Received: by 2002:a2e:9e9a:: with SMTP id f26mr5483747ljk.67.1553267810053;
+        Fri, 22 Mar 2019 08:16:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyhxqmp8vIivxiCZgX6MN2vhscDU5hU8FobhrtKhJVVNdpLWpdTtgIiPuI05Bbl1HGtdXvt
+X-Received: by 2002:a2e:9e9a:: with SMTP id f26mr5483705ljk.67.1553267809095;
+        Fri, 22 Mar 2019 08:16:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553267809; cv=none;
         d=google.com; s=arc-20160816;
-        b=C0PWobniNII8U/ujmzSf5TiQxputW7HUATGIYhRAod8y1ZSKQpHSi04mFeGHvpp+GE
-         07mugPdsFUwvq3IrW8Qj1JUJTjtlRGsMIICp4wr6H4th/TmcXt+DfAuuDQ2wVKTdD/57
-         e1a44R2rl8QxDAPIRaOJx3Dh+P0CpWygMKDB+3zY/6gm3cJqBYdSBADAO0uVTgyTWkIB
-         zEVxQkw4sttWxpyp2JjzAc4qB9VmDVTDvCMRFmPikH0VA7ycM45WPCdPa7M4Ks2xUg8X
-         YsMmgUylPsiXCj8G1rDfJVbJhopqL3z4ztA110SETyJEsilFO3I3419AQl3FisFLL4+A
-         aaPg==
+        b=EkxxHCJvaR8XAu4gwUhAva6WQq+VROJd5j1uNUg1woXftNoxzqGOTsB74Fmdc4mVID
+         ap5gkZCwByTreEE0QASwymNGogJ2uexVEPKLSTGvtFv12uqB4j3K39RMRgWj+/lUAnSy
+         z55UyN30oWYM/0D6jbxmUsy9mTpejx5+hhjzi6f4ZYS8OmKhx1hJP5DWGoGVgMJ+MfyS
+         kp1dEip/wfz5bmgIIB12++dWWTD69wN/IY0M0KHxNrCVPaa2+dRiNitaMThJyZ+8dqmL
+         6LFgMRTz8e7VpcVgJIjeyGF31H7yhspzTaLu7De8yp678lIM56XpgI62gwD7Oqy1bYdF
+         k/MA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=mQ9n0LJWHq04GQyycgsbt63+kUhUfjFPp6Imgiozptc=;
-        b=kxDe5e8kIXtHrmWDIwM6y3jcfsG3omVzPNO4+uMm4E1nwVK5tGhCNdAJ0wQ/0msq45
-         5bfSu3+s3HI8BtB7MgcqVwlnw5IT1TKZFbJgv0RicUCdL6Gy2EEFSlq55vGDi9lzTyPO
-         PEeZcEQQ787TLVLQaodjieGi/zOwRVHPAipCDoslZ6VRYO+hn69cn59FZF6yKWHNS/Il
-         rofDK2vnb+TEqlOMx16pP4Ng3Gg2NbhvKsqhiMFg/EssIT9lBPnLh1qi1MkuFC3o/bKY
-         3XLuhm6dJ5TKeymQvlvYigkWhLTViet2P/a4y/gcJP9FCDT8gLQ2M6kmFaWaOVet8fHP
-         Dpwg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=ywL9z7ntA6u+x6YmbqlJFZmhar9s03dzPgwmh4x78os=;
+        b=ad9p3yhILiTbjgHRagLSO5gmm6nBXzjy1nWKj3VEPLmZx3PEdnCxz0c1PolxA2Xmil
+         Ku94Y8LyQav6U32tAB7dJkTZBhF/gK4yeDfcVApcB5061P+9ZbhRwqrODM2NHiXkwRoI
+         o3Fksz4G/qCK1xkftdti8Sy7ptfupW0eH/KOXGqtb4UiuMX2bF22xAtUsMqvTPIoxS2Z
+         Yl2QMn/FB0gpMxf+rl7Ax/28Floh6XQfz+BkMOhfw2gaoc00ZcwJPCkgE7ox7BZN8PiE
+         GKsgQf8EEspdwWo28Zl9QVSxLSH7zwm1lzQ4HorftYI4nvyWVYFGOaibjBlcxar/TQ4v
+         Ag8w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=t4bfZHjq;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 189sor5464084wmc.9.2019.03.22.08.06.47
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id s25si5862105ljg.183.2019.03.22.08.16.48
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 22 Mar 2019 08:06:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Mar 2019 08:16:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=t4bfZHjq;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chrisdown.name; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=mQ9n0LJWHq04GQyycgsbt63+kUhUfjFPp6Imgiozptc=;
-        b=t4bfZHjqYlNcpYtbOTd0L2aL8YCrHmtR9jw4IXOpS4MH7a1j9hEA/EkLAVaIrYVSWW
-         iG+Ru2fd+5vRNzfAq1wUg4XcUy8wpr9g+pnjcj3GOM8Kg6cwiTXlHWm8+mVQ4jxWDwBT
-         mKqwDN8vorH0l/niQI2Vwwxw7HlAhsNq75efQ=
-X-Google-Smtp-Source: APXvYqwjcWjNHVr1ddFCyMelUwuxcf9h9A9xdWYy4x0PENAFJZinzN6+H78/cavWFkt7o9sovEYSlg==
-X-Received: by 2002:a1c:6588:: with SMTP id z130mr3498438wmb.39.1553267207534;
-        Fri, 22 Mar 2019 08:06:47 -0700 (PDT)
-Received: from localhost ([2620:10d:c092:200::1:a21b])
-        by smtp.gmail.com with ESMTPSA id g8sm19619754wro.77.2019.03.22.08.06.46
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 22 Mar 2019 08:06:46 -0700 (PDT)
-Date: Fri, 22 Mar 2019 15:06:45 +0000
-From: Chris Down <chris@chrisdown.name>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Kirill Tkhai <ktkhai@virtuozzo.com>,
-	Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>,
-	linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
-	linux-mm@kvack.org, kernel-team@fb.com
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.169]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <ktkhai@virtuozzo.com>)
+	id 1h7LuX-00037y-LP; Fri, 22 Mar 2019 18:16:45 +0300
 Subject: Re: [PATCH] fixup: vmscan: Fix build on !CONFIG_MEMCG from
  nr_deactivate changes
-Message-ID: <20190322150645.GC32163@chrisdown.name>
-References: <155290128498.31489.18250485448913338607.stgit@localhost.localdomain>
- <20190322150513.GA22021@chrisdown.name>
+To: Chris Down <chris@chrisdown.name>,
+ Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>,
+ linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org,
+ kernel-team@fb.com
+References: <20190322150513.GA22021@chrisdown.name>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <bf777760-083f-4297-9805-b355c65ab080@virtuozzo.com>
+Date: Fri, 22 Mar 2019 18:16:45 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
 In-Reply-To: <20190322150513.GA22021@chrisdown.name>
-User-Agent: Mutt/1.11.4 (2019-03-13)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.076362, version=1.2.4
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Chris Down writes:
->"mm: move nr_deactivate accounting to shrink_active_list()" uses the
->non-irqsaved version of count_memcg_events (__count_memcg_events), but
->we've only exported the irqsaving version of it to userspace, so the
->build breaks:
+On 22.03.2019 18:05, Chris Down wrote:
+> "mm: move nr_deactivate accounting to shrink_active_list()" uses the
+> non-irqsaved version of count_memcg_events (__count_memcg_events), but
+> we've only exported the irqsaving version of it to userspace, so the
+> build breaks:
+> 
+>     mm/vmscan.c: In function ‘shrink_active_list’:
+>     mm/vmscan.c:2101:2: error: implicit declaration of function ‘__count_memcg_events’; did you mean ‘count_memcg_events’? [-Werror=implicit-function-declaration]
+> 
+> This fixup makes it build with !CONFIG_MEMCG.
 
-Er, "with !CONFIG_MEMCG", not "to userspace". No idea where that came from...
+Yeah, thanks, Chris.
+
+> Signed-off-by: Chris Down <chris@chrisdown.name>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: linux-kernel@vger.kernel.org
+> Cc: cgroups@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: kernel-team@fb.com
+> ---
+>  include/linux/memcontrol.h | 6 ++++++
+>  1 file changed, 6 insertions(+)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 534267947664..b226c4bafc93 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -1147,6 +1147,12 @@ static inline void count_memcg_events(struct mem_cgroup *memcg,
+>  {
+>  }
+>  
+> +static inline void __count_memcg_events(struct mem_cgroup *memcg,
+> +					enum vm_event_item idx,
+> +					unsigned long count)
+> +{
+> +}
+> +
+>  static inline void count_memcg_page_event(struct page *page,
+>  					  int idx)
+>  {
+> 
 
