@@ -6,82 +6,82 @@ X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9F59CC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 16:00:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1D853C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 16:01:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5BC3621900
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 16:00:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5BC3621900
+	by mail.kernel.org (Postfix) with ESMTP id CDAC721900
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 16:01:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CDAC721900
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D61F76B0003; Fri, 22 Mar 2019 12:00:08 -0400 (EDT)
+	id 80A826B0006; Fri, 22 Mar 2019 12:01:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CE8E26B0006; Fri, 22 Mar 2019 12:00:08 -0400 (EDT)
+	id 7699A6B0007; Fri, 22 Mar 2019 12:01:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B8A936B0007; Fri, 22 Mar 2019 12:00:08 -0400 (EDT)
+	id 60BD36B0008; Fri, 22 Mar 2019 12:01:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 64EED6B0003
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 12:00:08 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id l19so1139763edr.12
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 09:00:08 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D6916B0006
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 12:01:11 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id s27so1133741eda.16
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 09:01:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=L+7vbqv/vYYbQSi5OAbJf+UfpvaXib6plNTlGaAQ3BM=;
-        b=PqR75iTsgBu/6pUFiPYlP5v0TENJVmnJaGwdQz/+r64/fTI4U2XAg65pr/08A9Mwdi
-         +0fISLhSbmn6UecaXrR1m4DTAcnDH/DwJDStJQThxk4MLzpNjTV0N88/FWFFUQhvaxkk
-         PiOrX+vuz+U025F7Phc4bZuR3A9STjRM5WZf2T447+glFL6gMorh57S30NvXeU6bICTQ
-         lr9cv1i3KoLgGWv7DgH1RmSac6X5CQNGD2rOH90GYrL6tdc2TAwab5C+sSDfnizhH2D+
-         1RuCxqwHg6aa6X8MJQs4P9RIy3MDab4Bkg+xtjGBmFYNBdUI2Q4hbTlr5QXM0th5M7Ht
-         LZfw==
+        bh=sZXQlk+DxBnMATLaN1dKjyebPt1qOGABypFk+3vFsYg=;
+        b=pXcifjFwPGeUy9TeQL6EB3ymJwcikjn+9bnqm20HJETZgj6tVAwvazIgU94K19LEZ/
+         h51s8NqvHhHaeY5R3kkqV7aAkm1AzkquWfJQ9HC6oeRaqnNxawmlhS2OvrQvW5keLnf3
+         Oc3BMr0b+rVID7XTqB/tGvmkbDmFhQMh3tpl3nuU9KNDKRQ08BHmeSL1YfBwOEKo812u
+         xSl/npbc2jidGTTjskBUQqaEvQAXwWKkcSj5LeutMwq8SOJG1DgbLAm0DD5UbvG1UbWv
+         5QWdlq/bdZCKj08//JBRPX/pPwlPwJ0x4hHHjstPXbLoZsXYBJTZBOl9iFn55fYmxfii
+         zcpg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAX/Xl+95gAvnDW1Pch+bnHJc9UqHqaoSMXiPYmk59x2jMiOnTVt
-	hcbVWpdSxbn3WPQc12pKCTW1xqx4snK60HPaO09hZ5KyZfFggBbZ9uKq9yetX+WL/ah78TMzVPe
-	oXNKwuIxVY+C1JUaVvt2gbsDF3YvfWOU7JhC56SvgPp8lum4pgIOZuVMqbNUaswdIrg==
-X-Received: by 2002:a50:b1fa:: with SMTP id n55mr6963250edd.34.1553270407985;
-        Fri, 22 Mar 2019 09:00:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz4s0B0qzPVDR/9V1HB+903Sfoh9y5qV4McaGCK1mxy5UYetyHQfhC0BNvAykqlzgxW8SKi
-X-Received: by 2002:a50:b1fa:: with SMTP id n55mr6963207edd.34.1553270407255;
-        Fri, 22 Mar 2019 09:00:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553270407; cv=none;
+X-Gm-Message-State: APjAAAUJp+F3w09XQ2JjbYRxeElerwOGhJ4EGw1u9L8NYnx7++3Zjjth
+	KomjRfrrMjVbSndFpTubp0SGjqWY++87O4UkPyYlRL49YPwDN0mqnDnErwpeeWhGUCo9I11s4bb
+	Qv0sDmSL1o83gBEK3jZ5dKn/5F98bAYF1zYIKyU+nrvaMGl7svV1Qaa9w+c+HleVxXQ==
+X-Received: by 2002:a50:b1d4:: with SMTP id n20mr6673408edd.108.1553270470636;
+        Fri, 22 Mar 2019 09:01:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyfdmaJbuG1eavfVhUC7e2MLh+1bn+3QzTKWe+St9oGCR3HmKrOyQ9K4lJNSNvebYBDxAM/
+X-Received: by 2002:a50:b1d4:: with SMTP id n20mr6673335edd.108.1553270469572;
+        Fri, 22 Mar 2019 09:01:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553270469; cv=none;
         d=google.com; s=arc-20160816;
-        b=AWEyFuGZR5Efl/rV2/FncQ6AA4xRcfEyOgywt1+3G08HiXOLoqh1h/5iL4CzIhGfTF
-         8qlfLRTj1tW/zKSAiCnTTjL9x8hNyiojRqK5CUSRgMkXvFs6RQMVWRXChhdppgAuUqRl
-         ATvEw31/AcHRwubJWeAjDuXzMdXiS71fil7QwtcIpoWVeuN0Q4UVk5n9xCg2BpRcbhpj
-         h788PPfYZn7prlT7ujbXTgceHx2goSGfYu4E6rLNbXTaDW9nDq08rAYnll8JEgaK0uBk
-         lm4PXH/vPrysdbe/TkONGBpf6uikqEWAnG4pJANS5FNj4ZS36NFSuDUHq5lOHlM7nlf2
-         wOIQ==
+        b=Cgcm7M0RmaNZ9O2sKEogJ+KDBvehCXpMru4ngkTbQ/cITm9YS2yY7l+FJP8hRtiOBB
+         FuWmxRQU/qaagvN0EOAeZe7cVQUjdbjRA0Ap9h4khWkdMXvBiHEApt5hxcv/UO9sqIhj
+         TDWaJoolC6+UzLJCFK9Kt8Z4ecBhFn7D+RZYh4XFiPSNNpUWduuqbL9tSQNx/3rleGjL
+         5i9ngg/V7pXEGsN2aiA9uiwAAbOLv5oxlZZhQAALjRZ46mJC3G+iIsWyMHvU8PobiPkO
+         Uf69gJ702ahVCIn1GbsqaYq4FgSBjXdZ6Ylg6oA4/wYFJYrEpFQk2E75f13zYsAgYJCt
+         EEfQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=L+7vbqv/vYYbQSi5OAbJf+UfpvaXib6plNTlGaAQ3BM=;
-        b=NJNrsOWJ50Jhvz9DpXsIWGVzmqPU3BZjGiQ3F4hCEwcDNpFeX7I3Sx8b/CRe5XdBoP
-         aYxjDsCqslC5JPvVEw2kbeBzMIcfpWArUuE9FVwaKz/J2mjGSE8ExGOcx2Iah76cbq6R
-         JvvEsZfvoHxVoqfFX6qKdnhIduj+5SJoB2sK0UaeTCAghrvkKDj+4KICP01fyq5O6kK4
-         ZBcMFBj7VuIrS/2r0KpT6isGAeOy7Tc6Ah1pZAFhZ+EPU8yUrLsypCGyEJiDU71SBeQp
-         p//cEGb/YvqxO+q1pBUETm7mIuvE+u223Wiu4i8rYYogkswnkbuFKv7RJ9+cny6wyHhV
-         WvCQ==
+        bh=sZXQlk+DxBnMATLaN1dKjyebPt1qOGABypFk+3vFsYg=;
+        b=yfAFUhy7IKQrRvQq3s//UrQhqwLznP/ri3wMYHaTaSK62aXMsvxkclUgk8B1Wl+vzz
+         P9kL3eb5YPOcrZ9hM5IkGuIlhRfQ0+qFDtwKw6vah5vNUAo14Pb2NwlaBDWTzwgQ9Iyo
+         g83SbFBDsaZb4CIhgmskLseFrH3TLsMhEMmCTUxK1jyBF2AlXBvJTjiODt/Pak9+n+1i
+         qxTsJcKhDhClsNDj/Na5x4t2mHn8XbsqswaDNQ85x0wCqa0szVHyp0tuahF4u4luPIb5
+         RW4IY8jmIIMO1sr+JXB+mFyVGOfBrm4hhwKqRvA/ubJ739IgjKXxRqanX3zYE0qP49CS
+         73Eg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id y22si679954edm.291.2019.03.22.09.00.06
+        by mx.google.com with ESMTP id a20si76726edd.353.2019.03.22.09.01.09
         for <linux-mm@kvack.org>;
-        Fri, 22 Mar 2019 09:00:07 -0700 (PDT)
+        Fri, 22 Mar 2019 09:01:09 -0700 (PDT)
 Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id BDC7CA78;
-	Fri, 22 Mar 2019 09:00:05 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 46CAB1650;
+	Fri, 22 Mar 2019 09:01:08 -0700 (PDT)
 Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id DBB853F59C;
-	Fri, 22 Mar 2019 08:59:57 -0700 (PDT)
-Date: Fri, 22 Mar 2019 15:59:55 +0000
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 6102C3F59C;
+	Fri, 22 Mar 2019 09:01:00 -0700 (PDT)
+Date: Fri, 22 Mar 2019 16:00:57 +0000
 From: Catalin Marinas <catalin.marinas@arm.com>
 To: Andrey Konovalov <andreyknvl@google.com>
 Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
@@ -127,15 +127,15 @@ Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
 	Dave Martin <Dave.Martin@arm.com>,
 	Kevin Brodsky <kevin.brodsky@arm.com>,
 	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v13 14/20] drm/amdgpu, arm64: untag user pointers in
- amdgpu_ttm_tt_get_user_pages
-Message-ID: <20190322155955.GT13384@arrakis.emea.arm.com>
+Subject: Re: [PATCH v13 15/20] drm/radeon, arm64: untag user pointers in
+ radeon_ttm_tt_pin_userptr
+Message-ID: <20190322160057.GU13384@arrakis.emea.arm.com>
 References: <cover.1553093420.git.andreyknvl@google.com>
- <017804b2198a906463d634f84777b6087c9b4a40.1553093421.git.andreyknvl@google.com>
+ <038360a0a9dc0abaaaf3ad84a2d07fd544abce1a.1553093421.git.andreyknvl@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <017804b2198a906463d634f84777b6087c9b4a40.1553093421.git.andreyknvl@google.com>
+In-Reply-To: <038360a0a9dc0abaaaf3ad84a2d07fd544abce1a.1553093421.git.andreyknvl@google.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -143,43 +143,40 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 20, 2019 at 03:51:28PM +0100, Andrey Konovalov wrote:
+On Wed, Mar 20, 2019 at 03:51:29PM +0100, Andrey Konovalov wrote:
 > This patch is a part of a series that extends arm64 kernel ABI to allow to
 > pass tagged user pointers (with the top byte set to something else other
 > than 0x00) as syscall arguments.
 > 
-> amdgpu_ttm_tt_get_user_pages() uses provided user pointers for vma
+> radeon_ttm_tt_pin_userptr() uses provided user pointers for vma
 > lookups, which can only by done with untagged pointers.
 > 
 > Untag user pointers in this function.
 > 
 > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 > ---
->  drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c | 5 +++--
+>  drivers/gpu/drm/radeon/radeon_ttm.c | 5 +++--
 >  1 file changed, 3 insertions(+), 2 deletions(-)
 > 
-> diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
-> index 73e71e61dc99..891b027fa33b 100644
-> --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
-> +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
-> @@ -751,10 +751,11 @@ int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages)
->  		 * check that we only use anonymous memory to prevent problems
->  		 * with writeback
->  		 */
+> diff --git a/drivers/gpu/drm/radeon/radeon_ttm.c b/drivers/gpu/drm/radeon/radeon_ttm.c
+> index 9920a6fc11bf..872a98796117 100644
+> --- a/drivers/gpu/drm/radeon/radeon_ttm.c
+> +++ b/drivers/gpu/drm/radeon/radeon_ttm.c
+> @@ -497,9 +497,10 @@ static int radeon_ttm_tt_pin_userptr(struct ttm_tt *ttm)
+>  	if (gtt->userflags & RADEON_GEM_USERPTR_ANONONLY) {
+>  		/* check that we only pin down anonymous memory
+>  		   to prevent problems with writeback */
 > -		unsigned long end = gtt->userptr + ttm->num_pages * PAGE_SIZE;
 > +		unsigned long userptr = untagged_addr(gtt->userptr);
 > +		unsigned long end = userptr + ttm->num_pages * PAGE_SIZE;
 >  		struct vm_area_struct *vma;
->  
-> -		vma = find_vma(mm, gtt->userptr);
-> +		vma = find_vma(mm, userptr);
->  		if (!vma || vma->vm_file || vma->vm_end < end) {
->  			up_read(&mm->mmap_sem);
+> -		vma = find_vma(gtt->usermm, gtt->userptr);
+> +		vma = find_vma(gtt->usermm, userptr);
+>  		if (!vma || vma->vm_file || vma->vm_end < end)
 >  			return -EPERM;
+>  	}
 
-I tried to track this down but I failed to see whether user could
-provide an tagged pointer here (under the restrictions as per Vincenzo's
-ABI document).
+Same comment as on the previous patch.
 
 -- 
 Catalin
