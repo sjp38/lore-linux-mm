@@ -2,172 +2,161 @@ Return-Path: <SRS0=SIh7=RZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 568C8C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 11:15:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9226BC10F03
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 11:16:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A184B218A2
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 11:15:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A184B218A2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
+	by mail.kernel.org (Postfix) with ESMTP id 59DEA218A2
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 11:16:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 59DEA218A2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0EDA76B0005; Fri, 22 Mar 2019 07:15:32 -0400 (EDT)
+	id F1E2B6B0005; Fri, 22 Mar 2019 07:16:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 09E626B0008; Fri, 22 Mar 2019 07:15:32 -0400 (EDT)
+	id ECC916B0008; Fri, 22 Mar 2019 07:16:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EF5EB6B000A; Fri, 22 Mar 2019 07:15:31 -0400 (EDT)
+	id DE42F6B000A; Fri, 22 Mar 2019 07:16:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B986F6B0005
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 07:15:31 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id w27so782532edb.13
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 04:15:31 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BF1536B0005
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 07:16:52 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id x12so1964851qtk.2
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 04:16:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=CHzkP0Dpn4nGmuGDmZqzQ6Q+FhtuDdep+zRr8TbMsqs=;
-        b=cxxMMoI1lOHo085vL4fq0Gty3lXpF5uwFsXy/B7E4xDQLg2fY6IhiYuoebA8490ZKB
-         IgtMdf17EA2CBY0ntjevsGbL9I3yzDCMUx4HQErUVvt3c1Ml0+xMRFURGEj8bW2K9MRI
-         9eke6WiArSPz/ZwXGo+IbC6TLJE+RbEk9TIQlXEDC9yfuDy+WHR5Zft/hExgm4iaYRxU
-         XGn/o97RJpjUnsm0xO4elSJM64Yra/Btl5e0JvTbG7oRtB8Prv6esf9ZOf5C6s/nv7pN
-         6ceiOnNJRlX78QH42wnK681QF6sLFHjdCwyU08qbiYAJg4cKaWiJpejLE8u1Tqg4Ghes
-         n37A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: APjAAAV/MjXF73eltxXrLlsPQf3xydH+1y4S68NmHpmW9ZzQd94WQ64C
-	kSGTCl9jZKFFJgS8S9D7hB8BhDrKZeA5kP7dEehrRp4Rbe0UqZ/7mDsx0oxFgQuViLJ9PEm+nZe
-	uQgcLeLuLpw5XNpZM0YD5xWfyN/OESc2Al2o7WDiLhAMScVn1RPGUC+4ldy3R7j6P9w==
-X-Received: by 2002:a17:906:3482:: with SMTP id g2mr5253617ejb.214.1553253331310;
-        Fri, 22 Mar 2019 04:15:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyZE7sJlbkONJ0VJ9ZWsTpTXxzHMHuHKuk9n2P/cHZoiYoaX+2sxpWfWpFAsikzJ6xL3qIj
-X-Received: by 2002:a17:906:3482:: with SMTP id g2mr5253554ejb.214.1553253330217;
-        Fri, 22 Mar 2019 04:15:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553253330; cv=none;
+        bh=ep08GtGtwgFzxgtaVrL5TR9YPTyDrVwTgR43/DxOErA=;
+        b=SPTRgRdcCExG19jmtlMcZ+WVtKf2UlJ5eQwamV2oS9Q/kNI6HVwVa9DIdjNnsvJYo6
+         7Z3ubacljwlEYk9FAbVMpiTjyLVh9F7/gRmh3BnaoOf9870WFimcisZBn7DwMwKLX62L
+         sy/Bvz1p+TkJmXPd4mQ3BJdOtf948rxx2kVoiISN48799Np+Svu3kT0KzweAm5p0+JWP
+         jpPDvCrgDyzmzw3bSGBYr/ESmHm2/+4IXUSo8aePlMJUP8XRXY3Kn3WDB1XiORWhz2bu
+         BKUaCBepfEf8W3WMl3nRkfcAQlk1HKAiNNx/O88NVUINbvUTHkZr8jdOhSHKWj1yGX8R
+         Ptyg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAU4TuO5O96oaCC0neKH1Fa5LoeSHFYEmevmPVDaZ2YEZqMbFumC
+	0MA/OtxKLaRiwxvh0deD3tEOevp7xVQJ3BI58gfvlsBpeqoMsADJhhm9027PS5UfySnJDFloSf7
+	4+DHsqjSb+Dt+7jOf3AJfGE/BOB/zvpmU3H14BOtPiMOqfpi1CdcXsUDuwnX+A+GXJA==
+X-Received: by 2002:a05:620a:144d:: with SMTP id i13mr1238352qkl.3.1553253412465;
+        Fri, 22 Mar 2019 04:16:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz64pW8jbodR3MSwbhfQD8+Zcjct4/sBodxjkVi4sQyzBuIMhMLBqXC2DjEB7UCakN7bv6i
+X-Received: by 2002:a05:620a:144d:: with SMTP id i13mr1238315qkl.3.1553253411784;
+        Fri, 22 Mar 2019 04:16:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553253411; cv=none;
         d=google.com; s=arc-20160816;
-        b=0rPl1589N28Hv7J4uWpDHxjIsfTdgm6ngD6sgvtL0JYhBIlHN8k6Hbf1C0KW7bo0CN
-         qthSuIcwzCO0C/SHt1oj8PaNnDOBNZeW96Qwh6qJc6igFdLgtrp0/Qh+cCGrZWap1kx2
-         nIQn05kExoqWo/NDd3WZnmhscJgWgGSIs53ZqS/3urCejESUhIphdodZb5R6xZ2kqQQe
-         6exUSNyzvnCa+E3jTRIIwNDE7F70LuGaXMKaAYIixO1y+nRAOlehmNa6H2+aor15TIGT
-         B4KtsfInAvXPlG6bWC18SMbWHZbfugHF87d5+txxUsBZoJ8lyVSF6HByPnPcnW1L4jiq
-         mz6Q==
+        b=G4Q+TaR7OljZqZrR1ACTt0l6h8FlA+8kz9OSeu4QKahJUoYVdC6aQxLkJsW4Cu58Qr
+         fGx+PoIlKjx56Axi4Od2nrxFr2X2aGjyTduyuaMzuam9f8lkpl4aC46xPIelTPgtUqDy
+         OHvtXM5O0sv+ZZ6fTpnFYlW5Kb+8geo1qqVW8zKqH+by+0d8bI38rNP+9D8z2UAY359Z
+         VRZjqLMmh+9s05odfzCD71k3KzWQVeBOmuzO8CgHfcnfAprkbbyroP4QLOlY55lKayl5
+         v/zXq0qDzx0lt+s5b3HG2fQtxQjtjVUJNFBqw/+sj6IVSEilaZwC+WdXrTeCtrzUaFMu
+         pa1g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=CHzkP0Dpn4nGmuGDmZqzQ6Q+FhtuDdep+zRr8TbMsqs=;
-        b=CccD9j28aSQGHnR/+YK2nrgUU1gJVgQJBDCOf7siD3XeK40Vg1x92sX0oGjlMqAWrn
-         Da7u+vJGwYmrS9LRru0JOb1ivdFsHxcfKZfz8oBeTewj6jhJkByAqIy8H4O1iF3NKt5K
-         7cyzLwORB7sjDA5IUU1rMfUWsLew4ecenfJq7HbRMZ/wypTvQWUb2lov96deskh1bbDS
-         2gkPvH1yn2Kw3pFshxJTbZrJaiCsSklPYceubtdmBO9JU/FiQLT7M84t71tATAqyv+PN
-         n5AnQlIBy5H/yqMPN0hzEZ7Stmdh351xwPvdwJlQczR4SMGo0qfp8b3/RNlPCCwGw+F/
-         Cdmw==
+        bh=ep08GtGtwgFzxgtaVrL5TR9YPTyDrVwTgR43/DxOErA=;
+        b=F/UcFArjYgcOqmAkp4Y930oEgezCzk23zo3sDPO0EGNstQCI+VjBce6k1Kll+io5Vw
+         zjmCbpJNdoPgA9gbNV0SMgkRXT3GhlwKyGuLqbsqRKVOcpCkr8wVP4wkLURhQvi5gb1o
+         YY5d9JUSSXuSEpyWLI/3Hq1CVkciQmpNzj9EshD1cceR5uwxxtsfb3JZa4vIb88VbI/F
+         hIZ5kHsIGvmCqmYlx8uMeupE6Q1GaI9cbbLgPsWrOdclZodm0YG5unM8NCwlY1OeRz1c
+         e/f/coAIqw/v2t23tXYfKmpAVFmaBpbKBZhk2xzrZqlL3Egn3LAukbE739GqAU/+0leh
+         LS6Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp16.blacknight.com (outbound-smtp16.blacknight.com. [46.22.139.233])
-        by mx.google.com with ESMTPS id t26si246516ejf.25.2019.03.22.04.15.29
+       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p67si4618041qkd.272.2019.03.22.04.16.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Mar 2019 04:15:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) client-ip=46.22.139.233;
+        Fri, 22 Mar 2019 04:16:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp16.blacknight.com (Postfix) with ESMTPS id 967B61C2EBE
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 11:15:29 +0000 (GMT)
-Received: (qmail 14420 invoked from network); 22 Mar 2019 11:15:29 -0000
-Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
-  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 22 Mar 2019 11:15:29 -0000
-Date: Fri, 22 Mar 2019 11:15:27 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-To: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, cai@lca.pw,
-	linux-mm@kvack.org, vbabka@suse.cz
-Subject: Re: kernel BUG at include/linux/mm.h:1020!
-Message-ID: <20190322111527.GG3189@techsingularity.net>
-References: <CABXGCsM-SgUCAKA3=WpL7oWZ0Xq8A1Wf-Eh6MO0seee+TviDWQ@mail.gmail.com>
- <20190315205826.fgbelqkyuuayevun@ca-dmjordan1.us.oracle.com>
- <CABXGCsMcXb_W-w0AA4ZFJ5aKNvSMwFn8oAMaFV7AMHgsH_UB7g@mail.gmail.com>
- <CABXGCsO+DoEu5KMW8bELCKahhfZ1XGJCMYJ3Nka8B0Xi0A=aKg@mail.gmail.com>
+       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id BEC5B3083363;
+	Fri, 22 Mar 2019 11:16:50 +0000 (UTC)
+Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.32])
+	by smtp.corp.redhat.com (Postfix) with SMTP id 41AA71A914;
+	Fri, 22 Mar 2019 11:16:45 +0000 (UTC)
+Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
+	oleg@redhat.com; Fri, 22 Mar 2019 12:16:48 +0100 (CET)
+Date: Fri, 22 Mar 2019 12:16:42 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Waiman Long <longman@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, selinux@vger.kernel.org,
+	Paul Moore <paul@paul-moore.com>,
+	Stephen Smalley <sds@tycho.nsa.gov>,
+	Eric Paris <eparis@parisplace.org>,
+	"Peter Zijlstra (Intel)" <peterz@infradead.org>
+Subject: Re: [PATCH 2/4] signal: Make flush_sigqueue() use free_q to release
+ memory
+Message-ID: <20190322111642.GA28876@redhat.com>
+References: <20190321214512.11524-1-longman@redhat.com>
+ <20190321214512.11524-3-longman@redhat.com>
+ <20190322015208.GD19508@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CABXGCsO+DoEu5KMW8bELCKahhfZ1XGJCMYJ3Nka8B0Xi0A=aKg@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190322015208.GD19508@bombadil.infradead.org>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Fri, 22 Mar 2019 11:16:51 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 21, 2019 at 10:39:10AM +0500, Mikhail Gavrilov wrote:
-> > # first bad commit: [e332f741a8dd1ec9a6dc8aa997296ecbfe64323e] mm,
-> > compaction: be selective about what pageblocks to clear skip hints
-> >
-> > Also I see that two patches already proposed for fixing this issue.
-> > [1] https://patchwork.kernel.org/patch/10862267/
-> > [2] https://patchwork.kernel.org/patch/10862519/
-> >
-> > If I understand correctly, it is enough to apply only the second patch [2].
-> >
-> 
-> I am right now tested the patch [1] and can said that unfortunately it
-> not fix my issue.
-> [1] https://patchwork.kernel.org/patch/10862519/
-> 
+On 03/21, Matthew Wilcox wrote:
+>
+> On Thu, Mar 21, 2019 at 05:45:10PM -0400, Waiman Long wrote:
+>
+> > To avoid this dire condition and reduce lock hold time of tasklist_lock,
+> > flush_sigqueue() is modified to pass in a freeing queue pointer so that
+> > the actual freeing of memory objects can be deferred until after the
+> > tasklist_lock is released and irq re-enabled.
+>
+> I think this is a really bad solution.  It looks kind of generic,
+> but isn't.  It's terribly inefficient, and all it's really doing is
+> deferring the debugging code until we've re-enabled interrupts.
 
-Build-tested only but can you try this?
+Agreed.
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index f171a83707ce..ba3afcc00d50 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -242,6 +242,7 @@ __reset_isolation_pfn(struct zone *zone, unsigned long pfn, bool check_source,
- 							bool check_target)
- {
- 	struct page *page = pfn_to_online_page(pfn);
-+	struct page *block_page;
- 	struct page *end_page;
- 	unsigned long block_pfn;
- 
-@@ -267,20 +268,26 @@ __reset_isolation_pfn(struct zone *zone, unsigned long pfn, bool check_source,
- 	    get_pageblock_migratetype(page) != MIGRATE_MOVABLE)
- 		return false;
- 
-+	/* Ensure the start of the pageblock or zone is online and valid */
-+	block_pfn = pageblock_start_pfn(pfn);
-+	block_page = pfn_to_online_page(max(block_pfn, zone->zone_start_pfn));
-+	if (block_page) {
-+		page = block_page;
-+		pfn = block_pfn;
-+	}
-+
-+	/* Ensure the end of the pageblock or zone is online and valid */
-+	block_pfn += pageblock_nr_pages;
-+	block_pfn = min(block_pfn, zone_end_pfn(zone));
-+	end_page = pfn_to_online_page(block_pfn);
-+	if (!end_page)
-+		return false;
-+
- 	/*
- 	 * Only clear the hint if a sample indicates there is either a
- 	 * free page or an LRU page in the block. One or other condition
- 	 * is necessary for the block to be a migration source/target.
- 	 */
--	block_pfn = pageblock_start_pfn(pfn);
--	pfn = max(block_pfn, zone->zone_start_pfn);
--	page = pfn_to_page(pfn);
--	if (zone != page_zone(page))
--		return false;
--	pfn = block_pfn + pageblock_nr_pages;
--	pfn = min(pfn, zone_end_pfn(zone));
--	end_page = pfn_to_page(pfn);
--
- 	do {
- 		if (pfn_valid_within(pfn)) {
- 			if (check_source && PageLRU(page)) {
+> We'd be much better off just having a list_head in the caller
+> and list_splice() the queue->list onto that caller.  Then call
+> __sigqueue_free() for each signal on the queue.
+
+This won't work, note the comment which explains the race with sigqueue_free().
+
+Let me think about it... at least we can do something like
+
+	close_the_race_with_sigqueue_free(struct sigpending *queue)
+	{
+		struct sigqueue *q, *t;
+
+		list_for_each_entry_safe(q, t, ...) {
+			if (q->flags & SIGQUEUE_PREALLOC)
+				list_del_init(&q->list);
+	}
+
+called with ->siglock held, tasklist_lock is not needed.
+
+After that flush_sigqueue() can be called lockless in release_task() release_task.
+
+I'll try to make the patch tomorrow.
+
+Oleg.
 
