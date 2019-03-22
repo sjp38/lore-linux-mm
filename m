@@ -2,142 +2,201 @@ Return-Path: <SRS0=SIh7=RZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6FA10C10F03
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 17:47:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C6D1AC4360F
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 17:47:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 35F5A206BA
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 17:47:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7B776206BA
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 17:47:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="C9e2KlVV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 35F5A206BA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="tMfQjo2J"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B776206BA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CC43C6B0005; Fri, 22 Mar 2019 13:47:19 -0400 (EDT)
+	id 2FF786B0006; Fri, 22 Mar 2019 13:47:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C74606B0006; Fri, 22 Mar 2019 13:47:19 -0400 (EDT)
+	id 2B1D66B0007; Fri, 22 Mar 2019 13:47:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B64C26B0007; Fri, 22 Mar 2019 13:47:19 -0400 (EDT)
+	id 1783B6B0008; Fri, 22 Mar 2019 13:47:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 89D3A6B0005
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 13:47:19 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id b3so3004113qtr.21
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 10:47:19 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D21996B0006
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 13:47:57 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id v16so2982948pfn.11
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 10:47:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=rFwzn/BBO25AP0s77MXmb0hXGtOvd/fOwhwfuRoZrBw=;
-        b=jkKCbqtYr4xblFl/b5Al+RFEQG5124DSe5QHb0UdWcXd8NdH3lxFHw+WdiuVHUthxh
-         QoIMny9fbceVySy3YHGEFMU5Z2xCe5uzI7MxwfHEAnAhfHqcxD43je07UXwLwCVpGl//
-         fkszfYE79/F6JvNWIIydI2PP3A+bwTZMREuRGzNwinGZ6Ol8VpqBL+ngmxdGSVK24taQ
-         NVtRtKW2vptoNuY/JN2jZB3gRgOjM/9ESG7VRwThx0Ys+itgv2opJ3v39BNgNeK204jx
-         VV0TWiLTYH3quxSVtASt0799XXOBB0Dl6wH59wxDBJSs56SXB1Y9cI90D7L+zPC/q4Ek
-         xtgQ==
-X-Gm-Message-State: APjAAAVLF7jGmhlcrhOughu1sreNH4gfk9ug/VOtTW6VA0MPQmfH6LNX
-	RRhp+mQqhlNiQj4ecVHxDX2jpHjC0B4h5R2g8lBiMtNbf09fNO+ESljLZV+WME0GXgUkaz2WDTD
-	2lUtqyUYThCsoc/5SDEXe+142D8xfHpao/N/jll37L1in05wlY+Vc0f2vm/pfBXQ=
-X-Received: by 2002:a0c:b597:: with SMTP id g23mr9087429qve.142.1553276839348;
-        Fri, 22 Mar 2019 10:47:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxByWAr+zXjHm/pBhuoGsLtfDcL2cCDXW3L47ZGSTaGlTHmp2PLyF01QB7QAEJs29UurUKE
-X-Received: by 2002:a0c:b597:: with SMTP id g23mr9087383qve.142.1553276838640;
-        Fri, 22 Mar 2019 10:47:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553276838; cv=none;
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=u0uNQgdU9iPi2AZeRa/JpiB2eMPriaZmBEZB7zw2ODY=;
+        b=sYbu+RyFB3jDqKXgWbjBMHsGSeXY0Bezz6XWW5Ko7xJkkI+ZmwoyGqW5PCkNk40du8
+         O3/elbU+5NH4uCB250YG4RDA6ryn0DRkuOUMdAVJFCC1nGum2Q0D04tySwRt3KP894lR
+         Q6P5eUKn9XBnMzdc3ZI0xgd/Y2aZgNXUd+TpuBLa/0dQty6QP7tssW12cCveS+sIbxBT
+         udiPfPjqVfXErYcj2KpWwDUoDSBpyU+3G80cQeilPT2sVFe023s4Ok7O+SMdbpICN5Ip
+         j2U3ve2P7aI9PGT4H3Kn3ceZKaX7XIitgtxVCsgflvGz8PA4SQ119letLLuXHe5YTb65
+         z6Sw==
+X-Gm-Message-State: APjAAAVAl72Qzc2k4rBIbDWqYzEDqZ7Nnhi0rY6gGUS0bs2v69Ko7efY
+	Mp9o/vKZ+KxePpjWCBgYoi1lRgE08/PtpDvemDINKv5YiUmXgXD/c0gcw3qg8Mv4X57IGQGcfNz
+	IGF3Ywk9J6/YAWqE8VxN3r5TRm/wYhzwyH6PBoLsbfaZ9CK78iQ9PSLQKxkleiES4yw==
+X-Received: by 2002:a17:902:469:: with SMTP id 96mr10545863ple.46.1553276877337;
+        Fri, 22 Mar 2019 10:47:57 -0700 (PDT)
+X-Received: by 2002:a17:902:469:: with SMTP id 96mr10545805ple.46.1553276876498;
+        Fri, 22 Mar 2019 10:47:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553276876; cv=none;
         d=google.com; s=arc-20160816;
-        b=rhWOvObH5huYjswLApOe/hdsbG+ELILRbKK/kt7DknB+F+QpoYZ9xJ8OWnYy2/0fZv
-         JJUlQKpUJO8q8BRNT3OfYqz+TJAk67GrhuqGploDOAdZ8B5Y1pApNarkON8MmbSX8obd
-         IuSkKJsH38kXoOglyfcZpw5TwMMHS3NCoGvSHOVaC6KB8DC+uX8ivLEzl0Nh8IckCk73
-         io3LUQp/KbcFtJ672yKDogSG8fE7/H0GB10baKlmu8KZIEXW2bxvyHFNM394bek/3Ox3
-         TD4kGj0B0IC7P/FyknbhMWhPidocuN1NB6ow2nYSzTt3ZHCoRh/OtDgp/gZDV5DYFs6p
-         en3A==
+        b=i2fuoOHv5kAbbbd/GoL9HBPNk2iUu0K+bbBC9Ip7aSF093iXakOlAP2jebqLSzqFPZ
+         s2WpwVYlpJp6FFDhHNeZ3UiP3oO03qYJyXmQvTSCdMAtD59lEuN9tRd0Tw1NANEvmVgy
+         RyXmM7NdsbdwVy9EB25exYPSaOqrSQ9aFJNmVAqKBYenwbh48T8sEKdVUqn5HzxT/iQ5
+         Za9sZZvNOdhCRc8BV7o/q3iV1RNo4sAIDv13mejfU3di7R48tblifzqSAJHh7POcEZ86
+         mIZOROI6ra6B2GWKhQE6yDqYtfOg0JugcHdYxM58g6NqjT/Gyjf0h8tr9fFZvNN3CCiS
+         F0rA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=rFwzn/BBO25AP0s77MXmb0hXGtOvd/fOwhwfuRoZrBw=;
-        b=kIt788htsvCkbYU8/UEPuFkEgP3yeESSnmUXEqZfqgoa4VE1xI2JQ9597wz7lGe4hg
-         ISXMQw6XLVqOavdCRbmPq/1CemRfBGv6r8N+F8P/EIqRzqhuovPkm02sbYgYwmXqX21e
-         6j+CdJQ39ueTIJugLplzYe4ISvFkzEoi3lG+Y/NRPKsy9Gvx6/E4akeO71xfspEsLG5L
-         f1XoVrkJajqj2lwCdmUOVWLlb2BVHpH9GokswgFMj8skHDDY9QrQ4jscMTTJ02PXCJWq
-         oKiJLAPoACqggvEs8i7NcQj+fb//GmLzbujdd6qJZzeMMYtgYNiSZ7cdNg+z2BxEv+RS
-         bO0g==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=u0uNQgdU9iPi2AZeRa/JpiB2eMPriaZmBEZB7zw2ODY=;
+        b=N2ycp0YEDZeAumltVpDbPMcTF+MLaFpyAb2sPzerqifMGtbhEMVTU/t/D+Crc1qqX+
+         C7R4X4vlP7neZcV87fLWh1CYtfRuj7ip4HAsXHAA50GY/rP3eW27nrUytRTIZPnA3AgO
+         tcTh3pP8lMs+7jl1MGK65PH0PZuRmAJrCrt3LNG1fjnfLlW7HTrUCC2kYIDhoKGVn9uH
+         mBfK21TAE5rEPBHby+pBe65d5o6y9gYS9dGwq2U4TpHsQ9BTGYjCy6enCU+HEm29BDbq
+         Ef/1AmFMYpqgpmtSEdz1Gp4MJkFENflE68UtnCaYcF2a0WdxtElHz3t5LfSyMH++u7ln
+         jC0g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=C9e2KlVV;
-       spf=pass (google.com: domain of 01000169a683a0ed-3fa1b014-8efa-4c8f-a7e1-958e9eccd693-000000@amazonses.com designates 54.240.9.37 as permitted sender) smtp.mailfrom=01000169a683a0ed-3fa1b014-8efa-4c8f-a7e1-958e9eccd693-000000@amazonses.com
-Received: from a9-37.smtp-out.amazonses.com (a9-37.smtp-out.amazonses.com. [54.240.9.37])
-        by mx.google.com with ESMTPS id d26si293307qkk.57.2019.03.22.10.47.18
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=tMfQjo2J;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s87sor2063386pfa.62.2019.03.22.10.47.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 22 Mar 2019 10:47:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 01000169a683a0ed-3fa1b014-8efa-4c8f-a7e1-958e9eccd693-000000@amazonses.com designates 54.240.9.37 as permitted sender) client-ip=54.240.9.37;
+        (Google Transport Security);
+        Fri, 22 Mar 2019 10:47:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=C9e2KlVV;
-       spf=pass (google.com: domain of 01000169a683a0ed-3fa1b014-8efa-4c8f-a7e1-958e9eccd693-000000@amazonses.com designates 54.240.9.37 as permitted sender) smtp.mailfrom=01000169a683a0ed-3fa1b014-8efa-4c8f-a7e1-958e9eccd693-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1553276838;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=rFwzn/BBO25AP0s77MXmb0hXGtOvd/fOwhwfuRoZrBw=;
-	b=C9e2KlVV2mDdwR48uPojXdogeRsWVjBuGjnXSR99D/1/hWBT97akhkkrahqu9rfV
-	nN5akCDSy2A3KAjstu1nDudPH1zBtFR02pVvL1AikDrtcJvXvztaWo8qYvkiIriJfTL
-	NBMJ+uk3vWOjFYWC7WnzRVoNt+tbkkEx+reCBk/c=
-Date: Fri, 22 Mar 2019 17:47:18 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
-To: Waiman Long <longman@redhat.com>
-cc: Andrew Morton <akpm@linux-foundation.org>, 
-    Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, 
-    Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, 
-    linux-mm@kvack.org, selinux@vger.kernel.org, 
-    Paul Moore <paul@paul-moore.com>, Stephen Smalley <sds@tycho.nsa.gov>, 
-    Eric Paris <eparis@parisplace.org>, 
-    "Peter Zijlstra (Intel)" <peterz@infradead.org>, 
-    Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 1/4] mm: Implement kmem objects freeing queue
-In-Reply-To: <20190321214512.11524-2-longman@redhat.com>
-Message-ID: <01000169a683a0ed-3fa1b014-8efa-4c8f-a7e1-958e9eccd693-000000@email.amazonses.com>
-References: <20190321214512.11524-1-longman@redhat.com> <20190321214512.11524-2-longman@redhat.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=tMfQjo2J;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=joelfernandes.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=u0uNQgdU9iPi2AZeRa/JpiB2eMPriaZmBEZB7zw2ODY=;
+        b=tMfQjo2J5b4Ie59iqxG7Mf0GQx3uzZheqE3eZnF37crg1+rgbgdWibKaxu3r3WfdRT
+         XGjkXUX6cBTlKx7N0Ufy5sh6pEf44WLxi5m0w9CkA3UCmWEaVCTx7E5YZPAgtobA8+Cu
+         VAz/NDQXr63ZnvFIo7ze0Xr9hu6RlOlayw3nU=
+X-Google-Smtp-Source: APXvYqwFhO2CTRE4uTw9aTfSTJFvnhmcTLTF00a8sW30riT/gKhZKqUJpKXl6lPXY7UzdTnG5BLlJw==
+X-Received: by 2002:a62:7049:: with SMTP id l70mr10513791pfc.78.1553276875878;
+        Fri, 22 Mar 2019 10:47:55 -0700 (PDT)
+Received: from localhost ([2620:15c:6:12:9c46:e0da:efbf:69cc])
+        by smtp.gmail.com with ESMTPSA id m79sm18890920pfi.60.2019.03.22.10.47.54
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 22 Mar 2019 10:47:54 -0700 (PDT)
+Date: Fri, 22 Mar 2019 13:47:53 -0400
+From: Joel Fernandes <joel@joelfernandes.org>
+To: Uladzislau Rezki <urezki@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>,
+	Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org,
+	LKML <linux-kernel@vger.kernel.org>,
+	Thomas Garnier <thgarnie@google.com>,
+	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
+	Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCH v2 0/1] improve vmap allocation
+Message-ID: <20190322174753.GA106077@google.com>
+References: <20190321190327.11813-1-urezki@gmail.com>
+ <20190321150106.198f70e1e949e2cb8cc06f1c@linux-foundation.org>
+ <20190322165259.uorw6ymewjybxwwx@pc636>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.03.22-54.240.9.37
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190322165259.uorw6ymewjybxwwx@pc636>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 Mar 2019, Waiman Long wrote:
+On Fri, Mar 22, 2019 at 05:52:59PM +0100, Uladzislau Rezki wrote:
+> On Thu, Mar 21, 2019 at 03:01:06PM -0700, Andrew Morton wrote:
+> > On Thu, 21 Mar 2019 20:03:26 +0100 "Uladzislau Rezki (Sony)" <urezki@gmail.com> wrote:
+> > 
+> > > Hello.
+> > > 
+> > > This is the v2 of the https://lkml.org/lkml/2018/10/19/786 rework. Instead of
+> > > referring you to that link, i will go through it again describing the improved
+> > > allocation method and provide changes between v1 and v2 in the end.
+> > > 
+> > > ...
+> > >
+> > 
+> > > Performance analysis
+> > > --------------------
+> > 
+> > Impressive numbers.  But this is presumably a worst-case microbenchmark.
+> > 
+> > Are you able to describe the benefits which are observed in some
+> > real-world workload which someone cares about?
+> > 
+> We work with Android. Google uses its own tool called UiBench to measure
+> performance of UI. It counts dropped or delayed frames, or as they call it,
+> jank. Basically if we deliver 59(should be 60) frames per second then we
+> get 1 junk/drop.
 
-> When releasing kernel data structures, freeing up the memory
-> occupied by those objects is usually the last step. To avoid races,
-> the release operation is commonly done with a lock held. However, the
-> freeing operations do not need to be under lock, but are in many cases.
->
-> In some complex cases where the locks protect many different memory
-> objects, that can be a problem especially if some memory debugging
-> features like KASAN are enabled. In those cases, freeing memory objects
-> under lock can greatly lengthen the lock hold time. This can even lead
-> to soft/hard lockups in some extreme cases.
->
-> To make it easer to defer freeing memory objects until after unlock,
-> a kernel memory freeing queue mechanism is now added. It is modelled
-> after the wake_q mechanism for waking up tasks without holding a lock.
+Agreed. Strictly speaking, "1 Jank" is not necessarily "1 frame drop". A
+delayed frame is also a Jank. Just because a frame is delayed does not mean
+it is dropped, there is double buffering etc to absorb delays.
 
-It is already pretty easy. You just store the pointer to the slab object
-in a local variable, finish all the unlocks and then free the objects.
-This is done in numerous places of the kernel.
+> I see that on our devices avg-jank is lower. In our case Android graphics
+> pipeline uses vmalloc allocations which can lead to delays of UI content
+> to GPU. But such behavior depends on your platform, parts of the system
+> which make use of it and if they are critical to time or not.
+> 
+> Second example is indirect impact. During analysis of audio glitches
+> in high-resolution audio the source of drops were long alloc_vmap_area()
+> allocations.
+> 
+> # Explanation is here
+> ftp://vps418301.ovh.net/incoming/analysis_audio_glitches.txt
+> 
+> # Audio 10 seconds sample is here.
+> # The drop occurs at 00:09.295 you can hear it
+> ftp://vps418301.ovh.net/incoming/tst_440_HZ_tmp_1.wav
 
-I fear that the automated mechanism will make the code more difficult to
-read and result in a loss of clarity of the sequencing of events in
-releasing locks and objects.
+Nice.
 
-Also there is already kfree_rcu which does a similar thing to what you are
-proposing here and is used in numerous places.
+> > It's a lot of new code. I t looks decent and I'll toss it in there for
+> > further testing.  Hopefully someone will be able to find the time for a
+> > detailed review.
+> > 
+> Thank you :)
+
+I can try to do a review fwiw. But I am severely buried right now. I did look
+at vmalloc code before for similar reasons (preempt off related delays
+causing jank / glitches etc). Any case, I'll take another look soon (in next
+1-2 weeks).
+
+> > Trivial point: the code uses "inline" a lot.  Nowadays gcc cheerfully
+> > ignores that and does its own thing.  You might want to look at the
+> > effects of simply deleting all that.  Is the generated code better or
+> > worse or the same?  If something really needs to be inlined then use
+> > __always_inline, preferably with a comment explaining why it is there.
+> > 
+> When the main core functionalities are "inlined" i see the benefit. 
+> At least, it is noticeable by the "test driver". But i agree that
+> i should check one more time to see what can be excluded and used
+> as a regular call. Thanks for the hint, it is worth to go with
+> __always_inline instead.
+
+I wonder how clang behaves as far as inline hints go. That is how Android
+images build their kernels.
+
+thanks,
+
+ - Joel
 
