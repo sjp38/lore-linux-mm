@@ -4,82 +4,82 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 94602C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 07:43:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9A980C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 07:44:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3B38D218FE
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 07:43:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B38D218FE
+	by mail.kernel.org (Postfix) with ESMTP id 4791A218FE
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 07:44:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4791A218FE
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CD81D6B0003; Fri, 22 Mar 2019 03:43:40 -0400 (EDT)
+	id E84886B0006; Fri, 22 Mar 2019 03:44:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C88066B0006; Fri, 22 Mar 2019 03:43:40 -0400 (EDT)
+	id E342D6B0007; Fri, 22 Mar 2019 03:44:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B50946B0007; Fri, 22 Mar 2019 03:43:40 -0400 (EDT)
+	id CFDE86B0008; Fri, 22 Mar 2019 03:44:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 589BF6B0003
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 03:43:40 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id o27so575298edc.14
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 00:43:40 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 82B016B0006
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 03:44:44 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id x29so570731edb.17
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 00:44:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=ybDGclxaljSScwU0omwGU4QDKMIsw3Rl4Ng/SK8EA6g=;
-        b=uGvuVXWRIAQgmnsRa9ny2OLXCHelF2gdcq2NZlIAJjN7+k03Y4mek01Z8sdI17gh6S
-         AxnnrpesRNsvMW+g0/iNbiBUMfsPUGADHHqwfyrSlARk18kq2lwvgPpS94Vou6rO217c
-         YDZDAqFP760lcnnjcUiSt05G7NJUkkx5XM0+p4x65GvFjH5dBv9MRMB3dA+PQF/ZAaBS
-         s2/eaPhmrkhMNWl1k8s98n/mLD6YkBo484V24EZ6bpa01z/eIUj73RCjnwPDoBD+pXEz
-         41lLSv4Bc5r3Kw8DXRUhlZYGD4Re3UYbJHF4Jgn7u7BWUfSQqoRDLNcf2+lLDEA4bzw3
-         n49A==
+        bh=Uz7p6g8xsr4/tuzcqVtmbZTVNIaPsr5ZFq4yt3MBowc=;
+        b=R+C22ii40rD/UA/GB2H3a1RcxaVi5JRL6/Ta6JtlNY7bSuJ28nSpWV2use0qhrqq/6
+         lHArlhBELf9t8FRKc1IZthxK/wWSBoPGll/EYbrou6l1rMtvusPXC9V1ocak6WD9SSTi
+         jCS+jy9hcK9qjyq30AGAYzg4DHZkLgXkI1F1C74MF3TreoFRcjFhD2EF82LB6cYoCq2C
+         0mQ9FAWdV01h0VbT9WcWOJye8dgsSvJfwH94ZX6peb95dM46PVs28v/2n0eQfeg1yutC
+         8NNZMJyReMPdf/ub1FDE9gKZdLSJYLu+1D2egwif2eHAIMdjwxKEZi7ZHARCrl+ZUnO+
+         xogQ==
 X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.178.232 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Gm-Message-State: APjAAAVRBxahuDaw85BE3l09WB991OGiUFiK5KF1ivcFVgiNLgnNLtxR
-	3S0cm6U+6K8dDsR2czNLKCBc6CJRkzR6xnvHEGFX2by4CTpBu8d+LUUl18lQwxeCR9stIISrOtH
-	T9gRkoWQR8LRZ+jeW7G7zO+jFv235XLoApj0D7Rdk7EI92a8EygloqnILyxE5wPo=
-X-Received: by 2002:a50:b615:: with SMTP id b21mr5095745ede.175.1553240619817;
-        Fri, 22 Mar 2019 00:43:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx3rFg+AO2e6D6R8NQ5KR+u8Ofq3RWtVgedPG1UDobavi1Csxk9Owo55N3m0tfnZOuBfNNb
-X-Received: by 2002:a50:b615:: with SMTP id b21mr5095699ede.175.1553240618765;
-        Fri, 22 Mar 2019 00:43:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553240618; cv=none;
+X-Gm-Message-State: APjAAAVM429fSE+pJuohdouDcn/1KU2F/dkb8QxJZ1uTissJueaYM9fJ
+	LL3TF55w+RfsQnb+z9z7KpAMMrBtzwqa+3YRhqTzeFMv9jdBUAvWCZgNB1Kdo+4wl21QekPv3Sm
+	dK11f7umFUFBzSOWMgAF8ZFFtZ1IBmGEyOj2xYb2Th8pDhdZM0+xkR+33RI67zoE=
+X-Received: by 2002:a17:906:6d8f:: with SMTP id h15mr4688273ejt.107.1553240684030;
+        Fri, 22 Mar 2019 00:44:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwHQu01vpk/ugAd1PtvK4cyASoEAFphxkXeJnFDqTY98vsJkRC9bCUtkNiKEW4mHSapO3UQ
+X-Received: by 2002:a17:906:6d8f:: with SMTP id h15mr4688245ejt.107.1553240683171;
+        Fri, 22 Mar 2019 00:44:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553240683; cv=none;
         d=google.com; s=arc-20160816;
-        b=qINyUefJGMbTgNyj2iFUPxfuNFswOOmHxZ9x5bQqb7WovnrxpYV9kOhnz3Zaj4C2da
-         XuIhukDCMYAbG6/YlvJPNjei9u+wn6JCYsWDhp9d02Hi9MpHrICE2OYb1xeUmxdxscop
-         Yl2Rn5/ZSYsdC+Icwes9D14KJgnervlWaha//Ex+3s86p4oP1b/451GlVpVtx+aaHNnv
-         Cno8+Q1GK1wO47MNCD42kmEi7qLqRiGdocfxScEQZY+Fe2vi65/RuSbkm1Xivez5GSAt
-         W1bH+xRPKJ/B2hvj1UtW2JHNIylYN/u1v+pHUSTz6AO7nTfRxq3BK+m+mprm10RfqyPC
-         0UMg==
+        b=N33l6Yf/IJggpWqn0DhxthzYt0MimeweIC5mGwUI3/C7sNSqqgMIeWVhttU/6Der+3
+         2yA1VBHRrrsd7yTFvsOqPgpIh6YoyRidTL/rUUyum3m6GlHArdG6s3SkP74Q7Td3loWh
+         DqHFSCI3JK3SkGpj9ivmVLh0ZbKQEHdwtDiMyNRkgPLaKb/SOW5NXWVqILwUc4NTdbJH
+         QCwalc/0xygBXZuPIh4kRqClVXjkqUfat7qR2a0Ol1+3kkWczfzdAVJuCePJjZAgZ7qT
+         nqR74PD5zVcj7Wpo56dY8QQPdp+dvbpKbo36X5QLCp1O/rE9XOZOuKoiXvaCJv0pdM8w
+         8ksQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=ybDGclxaljSScwU0omwGU4QDKMIsw3Rl4Ng/SK8EA6g=;
-        b=b+UZV4h/G4Y9Dd1/ykcluapmvHReWaFFNXzf6djMN/gltGRYFSB5MRqO1ZbhNa2Qug
-         EcfvTFm2gEy9qEODLydcgznQ+Y7dDEYl5cZtl/2IpUxCSJuFiybT73Pnoyc2kXbPekB+
-         cQ61FoT2DnI6YKW5YSr4Jz+wELYB3UVFtKEh606gIKo06OVNL4Wg6XEZE2dBaR6kzmFq
-         gSICD03IUbFS2dHAZZOSci9J5tn0Q6RMviztM2ODHc+NHExtsgX/KJll5p7YBbUOD//C
-         xAhQuI8XOtboFHruPnkUViuULGFV3XRqfBMlDb+DIfpVWjWHPlA21sYZdgPrcy6Bw2kD
-         vxrA==
+        bh=Uz7p6g8xsr4/tuzcqVtmbZTVNIaPsr5ZFq4yt3MBowc=;
+        b=RdeB/3khSkPPmH358ljo7gQ2lEUUS9ML9wJCyizPhVK6iwHFvwGCkBtXtu/Adrfaus
+         BnIN76QD68KPObebOESoEtUFkaALRhhJK2bjGPs/vHyPO7X0KvVKuCfk36qig2f8UbzZ
+         8N5H9pSCTaZtuMQLXNfUPwWVXj07VI85pZFhCT3fAPWqF69/2IHqzUKejs/6VzCQAXww
+         GnK43ibLlZLEcUS07v6MTRpEx2Z7TZxFFdE6WgU0x1m8cYL7jkn3hZ6HuVy4DHBs4zhz
+         BYLTB8iR9nkCvPq64/H6XrM89LhIs2dlieSQy27g2p5m+2kYUFYhWlujODm+GPrqI/71
+         ahbw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=neutral (google.com: 217.70.178.232 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
 Received: from relay12.mail.gandi.net (relay12.mail.gandi.net. [217.70.178.232])
-        by mx.google.com with ESMTPS id s1si839095edx.17.2019.03.22.00.43.38
+        by mx.google.com with ESMTPS id e47si2318365edd.164.2019.03.22.00.44.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 22 Mar 2019 00:43:38 -0700 (PDT)
+        Fri, 22 Mar 2019 00:44:43 -0700 (PDT)
 Received-SPF: neutral (google.com: 217.70.178.232 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.178.232;
 Authentication-Results: mx.google.com;
        spf=neutral (google.com: 217.70.178.232 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
 Received: from alex.numericable.fr (127.19.86.79.rev.sfr.net [79.86.19.127])
 	(Authenticated sender: alex@ghiti.fr)
-	by relay12.mail.gandi.net (Postfix) with ESMTPSA id D314820000B;
-	Fri, 22 Mar 2019 07:43:32 +0000 (UTC)
+	by relay12.mail.gandi.net (Postfix) with ESMTPSA id E7FFE20000D;
+	Fri, 22 Mar 2019 07:44:38 +0000 (UTC)
 From: Alexandre Ghiti <alex@ghiti.fr>
 To: Christoph Hellwig <hch@infradead.org>,
 	Russell King <linux@armlinux.org.uk>,
@@ -100,9 +100,9 @@ To: Christoph Hellwig <hch@infradead.org>,
 	linux-fsdevel@vger.kernel.org,
 	linux-mm@kvack.org
 Cc: Alexandre Ghiti <alex@ghiti.fr>
-Subject: [PATCH 1/4] arm64, mm: Move generic mmap layout functions to mm
-Date: Fri, 22 Mar 2019 03:42:22 -0400
-Message-Id: <20190322074225.22282-2-alex@ghiti.fr>
+Subject: [PATCH 2/4] arm: Use generic mmap top-down layout
+Date: Fri, 22 Mar 2019 03:42:23 -0400
+Message-Id: <20190322074225.22282-3-alex@ghiti.fr>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190322074225.22282-1-alex@ghiti.fr>
 References: <20190322074225.22282-1-alex@ghiti.fr>
@@ -114,57 +114,45 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-arm64 handles top-down mmap layout in a way that can be easily reused
-by other architectures, so make it available in mm.
+arm uses a top-down layout by default that fits the generic functions.
+At the same time, this commit allows to fix the following problems:
 
-This commit also takes the opportunity to:
-- make use of is_compat_task instead of specific arm64 test
-  test_thread_flag(TIF_32BIT), which allows more genericity and is
-  equivalent.
-- fix the case where stack randomization should not be taken into
-  account.
+- one uncovered and not fixed for arm here:
+https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1429066.html
 
-It then introduces a new define ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
-that can be defined by other architectures to benefit from those functions.
+- the use of TASK_SIZE instead of STACK_TOP in mmap_base which, when
+  address space of a task is 26 bits, would assign mmap base way too high.
 
-Suggested-by: Christoph Hellwig <hch@infradead.org>
 Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
 ---
- arch/arm64/include/asm/processor.h |  2 +-
- arch/arm64/mm/mmap.c               | 72 ----------------------
- fs/binfmt_elf.c                    | 20 ------
- include/linux/mm.h                 |  2 +
- kernel/sysctl.c                    |  6 +-
- mm/util.c                          | 99 +++++++++++++++++++++++++++++-
- 6 files changed, 105 insertions(+), 96 deletions(-)
+ arch/arm/include/asm/processor.h |  2 +-
+ arch/arm/mm/mmap.c               | 52 --------------------------------
+ 2 files changed, 1 insertion(+), 53 deletions(-)
 
-diff --git a/arch/arm64/include/asm/processor.h b/arch/arm64/include/asm/processor.h
-index 5d9ce62bdebd..2358707c31ff 100644
---- a/arch/arm64/include/asm/processor.h
-+++ b/arch/arm64/include/asm/processor.h
-@@ -274,7 +274,7 @@ static inline void spin_lock_prefetch(const void *ptr)
- 		     "nop") : : "p" (ptr));
- }
+diff --git a/arch/arm/include/asm/processor.h b/arch/arm/include/asm/processor.h
+index 57fe73ea0f72..03837d325a2f 100644
+--- a/arch/arm/include/asm/processor.h
++++ b/arch/arm/include/asm/processor.h
+@@ -143,7 +143,7 @@ static inline void prefetchw(const void *ptr)
+ #endif
+ #endif
  
 -#define HAVE_ARCH_PICK_MMAP_LAYOUT
 +#define ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
  
  #endif
  
-diff --git a/arch/arm64/mm/mmap.c b/arch/arm64/mm/mmap.c
-index 842c8a5fcd53..c74224421216 100644
---- a/arch/arm64/mm/mmap.c
-+++ b/arch/arm64/mm/mmap.c
-@@ -31,78 +31,6 @@
+diff --git a/arch/arm/mm/mmap.c b/arch/arm/mm/mmap.c
+index f866870db749..b8d912ac9e61 100644
+--- a/arch/arm/mm/mmap.c
++++ b/arch/arm/mm/mmap.c
+@@ -17,33 +17,6 @@
+ 	((((addr)+SHMLBA-1)&~(SHMLBA-1)) +	\
+ 	 (((pgoff)<<PAGE_SHIFT) & (SHMLBA-1)))
  
- #include <asm/cputype.h>
- 
--/*
-- * Leave enough space between the mmap area and the stack to honour ulimit in
-- * the face of randomisation.
-- */
--#define MIN_GAP (SZ_128M)
--#define MAX_GAP	(STACK_TOP/6*5)
+-/* gap between mmap and stack */
+-#define MIN_GAP (128*1024*1024UL)
+-#define MAX_GAP ((TASK_SIZE)/6*5)
 -
 -static int mmap_is_legacy(struct rlimit *rlim_stack)
 -{
@@ -177,40 +165,34 @@ index 842c8a5fcd53..c74224421216 100644
 -	return sysctl_legacy_va_layout;
 -}
 -
--unsigned long arch_mmap_rnd(void)
--{
--	unsigned long rnd;
--
--#ifdef CONFIG_COMPAT
--	if (test_thread_flag(TIF_32BIT))
--		rnd = get_random_long() & ((1UL << mmap_rnd_compat_bits) - 1);
--	else
--#endif
--		rnd = get_random_long() & ((1UL << mmap_rnd_bits) - 1);
--	return rnd << PAGE_SHIFT;
--}
--
 -static unsigned long mmap_base(unsigned long rnd, struct rlimit *rlim_stack)
 -{
 -	unsigned long gap = rlim_stack->rlim_cur;
--	unsigned long pad = (STACK_RND_MASK << PAGE_SHIFT) + stack_guard_gap;
--
--	/* Values close to RLIM_INFINITY can overflow. */
--	if (gap + pad > gap)
--		gap += pad;
 -
 -	if (gap < MIN_GAP)
 -		gap = MIN_GAP;
 -	else if (gap > MAX_GAP)
 -		gap = MAX_GAP;
 -
--	return PAGE_ALIGN(STACK_TOP - gap - rnd);
+-	return PAGE_ALIGN(TASK_SIZE - gap - rnd);
 -}
 -
--/*
-- * This function, called very early during the creation of a new process VM
-- * image, sets up which VM layout function to use:
-- */
+ /*
+  * We need to ensure that shared mappings are correctly aligned to
+  * avoid aliasing issues with VIPT caches.  We need to ensure that
+@@ -171,31 +144,6 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+ 	return addr;
+ }
+ 
+-unsigned long arch_mmap_rnd(void)
+-{
+-	unsigned long rnd;
+-
+-	rnd = get_random_long() & ((1UL << mmap_rnd_bits) - 1);
+-
+-	return rnd << PAGE_SHIFT;
+-}
+-
 -void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
 -{
 -	unsigned long random_factor = 0UL;
@@ -218,10 +200,6 @@ index 842c8a5fcd53..c74224421216 100644
 -	if (current->flags & PF_RANDOMIZE)
 -		random_factor = arch_mmap_rnd();
 -
--	/*
--	 * Fall back to the standard layout if the personality bit is set, or
--	 * if the expected stack growth is unlimited:
--	 */
 -	if (mmap_is_legacy(rlim_stack)) {
 -		mm->mmap_base = TASK_UNMAPPED_BASE + random_factor;
 -		mm->get_unmapped_area = arch_get_unmapped_area;
@@ -232,199 +210,8 @@ index 842c8a5fcd53..c74224421216 100644
 -}
 -
  /*
-  * You really shouldn't be using read() or write() on /dev/mem.  This might go
-  * away in the future.
-diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
-index 7d09d125f148..045f3b29d264 100644
---- a/fs/binfmt_elf.c
-+++ b/fs/binfmt_elf.c
-@@ -662,26 +662,6 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
-  * libraries.  There is no binary dependent code anywhere else.
-  */
- 
--#ifndef STACK_RND_MASK
--#define STACK_RND_MASK (0x7ff >> (PAGE_SHIFT - 12))	/* 8MB of VA */
--#endif
--
--static unsigned long randomize_stack_top(unsigned long stack_top)
--{
--	unsigned long random_variable = 0;
--
--	if (current->flags & PF_RANDOMIZE) {
--		random_variable = get_random_long();
--		random_variable &= STACK_RND_MASK;
--		random_variable <<= PAGE_SHIFT;
--	}
--#ifdef CONFIG_STACK_GROWSUP
--	return PAGE_ALIGN(stack_top) + random_variable;
--#else
--	return PAGE_ALIGN(stack_top) - random_variable;
--#endif
--}
--
- static int load_elf_binary(struct linux_binprm *bprm)
- {
- 	struct file *interpreter = NULL; /* to shut gcc up */
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 76769749b5a5..087824a5059f 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2312,6 +2312,8 @@ extern int install_special_mapping(struct mm_struct *mm,
- 				   unsigned long addr, unsigned long len,
- 				   unsigned long flags, struct page **pages);
- 
-+unsigned long randomize_stack_top(unsigned long stack_top);
-+
- extern unsigned long get_unmapped_area(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
- 
- extern unsigned long mmap_region(struct file *file, unsigned long addr,
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index e5da394d1ca3..ac388f8ccbe4 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -269,7 +269,8 @@ extern struct ctl_table epoll_table[];
- extern struct ctl_table firmware_config_table[];
- #endif
- 
--#ifdef HAVE_ARCH_PICK_MMAP_LAYOUT
-+#if defined(HAVE_ARCH_PICK_MMAP_LAYOUT) || \
-+	defined(ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT)
- int sysctl_legacy_va_layout;
- #endif
- 
-@@ -1564,7 +1565,8 @@ static struct ctl_table vm_table[] = {
- 		.proc_handler	= proc_dointvec,
- 		.extra1		= &zero,
- 	},
--#ifdef HAVE_ARCH_PICK_MMAP_LAYOUT
-+#if defined(HAVE_ARCH_PICK_MMAP_LAYOUT) || \
-+	defined(ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT)
- 	{
- 		.procname	= "legacy_va_layout",
- 		.data		= &sysctl_legacy_va_layout,
-diff --git a/mm/util.c b/mm/util.c
-index d559bde497a9..5a0d4b1e17d9 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -14,6 +14,13 @@
- #include <linux/hugetlb.h>
- #include <linux/vmalloc.h>
- #include <linux/userfaultfd_k.h>
-+#include <linux/elf.h>
-+#include <linux/elf-randomize.h>
-+#include <linux/personality.h>
-+#include <linux/random.h>
-+#include <linux/processor.h>
-+#include <linux/sizes.h>
-+#include <linux/compat.h>
- 
- #include <linux/uaccess.h>
- 
-@@ -291,13 +298,103 @@ int vma_is_stack_for_current(struct vm_area_struct *vma)
- 	return (vma->vm_start <= KSTK_ESP(t) && vma->vm_end >= KSTK_ESP(t));
- }
- 
--#if defined(CONFIG_MMU) && !defined(HAVE_ARCH_PICK_MMAP_LAYOUT)
-+#ifndef STACK_RND_MASK
-+#define STACK_RND_MASK (0x7ff >> (PAGE_SHIFT - 12))     /* 8MB of VA */
-+#endif
-+
-+unsigned long randomize_stack_top(unsigned long stack_top)
-+{
-+	unsigned long random_variable = 0;
-+
-+	if (current->flags & PF_RANDOMIZE) {
-+		random_variable = get_random_long();
-+		random_variable &= STACK_RND_MASK;
-+		random_variable <<= PAGE_SHIFT;
-+	}
-+#ifdef CONFIG_STACK_GROWSUP
-+	return PAGE_ALIGN(stack_top) + random_variable;
-+#else
-+	return PAGE_ALIGN(stack_top) - random_variable;
-+#endif
-+}
-+
-+#ifdef CONFIG_MMU
-+#ifdef ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
-+
-+#ifdef CONFIG_ARCH_HAS_ELF_RANDOMIZE
-+unsigned long arch_mmap_rnd(void)
-+{
-+	unsigned long rnd;
-+
-+#ifdef CONFIG_COMPAT
-+	if (is_compat_task())
-+		rnd = get_random_long() & ((1UL << mmap_rnd_compat_bits) - 1);
-+	else
-+#endif
-+		rnd = get_random_long() & ((1UL << mmap_rnd_bits) - 1);
-+
-+	return rnd << PAGE_SHIFT;
-+}
-+#endif
-+
-+static int mmap_is_legacy(struct rlimit *rlim_stack)
-+{
-+	if (current->personality & ADDR_COMPAT_LAYOUT)
-+		return 1;
-+
-+	if (rlim_stack->rlim_cur == RLIM_INFINITY)
-+		return 1;
-+
-+	return sysctl_legacy_va_layout;
-+}
-+
-+#define MIN_GAP		(SZ_128M)
-+#define MAX_GAP		(STACK_TOP / 6 * 5)
-+
-+static unsigned long mmap_base(unsigned long rnd, struct rlimit *rlim_stack)
-+{
-+	unsigned long gap = rlim_stack->rlim_cur;
-+	unsigned long pad = stack_guard_gap;
-+
-+	/* Account for stack randomization if necessary */
-+	if (current->flags & PF_RANDOMIZE)
-+		pad += (STACK_RND_MASK << PAGE_SHIFT);
-+
-+	/* Values close to RLIM_INFINITY can overflow. */
-+	if (gap + pad > gap)
-+		gap += pad;
-+
-+	if (gap < MIN_GAP)
-+		gap = MIN_GAP;
-+	else if (gap > MAX_GAP)
-+		gap = MAX_GAP;
-+
-+	return PAGE_ALIGN(STACK_TOP - gap - rnd);
-+}
-+
-+void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
-+{
-+	unsigned long random_factor = 0UL;
-+
-+	if (current->flags & PF_RANDOMIZE)
-+		random_factor = arch_mmap_rnd();
-+
-+	if (mmap_is_legacy(rlim_stack)) {
-+		mm->mmap_base = TASK_UNMAPPED_BASE + random_factor;
-+		mm->get_unmapped_area = arch_get_unmapped_area;
-+	} else {
-+		mm->mmap_base = mmap_base(random_factor, rlim_stack);
-+		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
-+	}
-+}
-+#elif !defined(HAVE_ARCH_PICK_MMAP_LAYOUT)
- void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
- {
- 	mm->mmap_base = TASK_UNMAPPED_BASE;
- 	mm->get_unmapped_area = arch_get_unmapped_area;
- }
- #endif
-+#endif /* CONFIG_MMU */
- 
- /*
-  * Like get_user_pages_fast() except its IRQ-safe in that it won't fall
+  * You really shouldn't be using read() or write() on /dev/mem.  This
+  * might go away in the future.
 -- 
 2.20.1
 
