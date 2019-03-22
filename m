@@ -2,157 +2,167 @@ Return-Path: <SRS0=SIh7=RZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D7339C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 13:43:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 21560C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 13:54:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 842C420835
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 13:43:05 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="OmPppWUY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 842C420835
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id D187B218A5
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 13:54:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D187B218A5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 142FE6B000D; Fri, 22 Mar 2019 09:43:05 -0400 (EDT)
+	id 447296B0003; Fri, 22 Mar 2019 09:54:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0F2526B000E; Fri, 22 Mar 2019 09:43:05 -0400 (EDT)
+	id 3F6DA6B0006; Fri, 22 Mar 2019 09:54:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 00AB06B0010; Fri, 22 Mar 2019 09:43:04 -0400 (EDT)
+	id 2BF1A6B0007; Fri, 22 Mar 2019 09:54:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D10C86B000D
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 09:43:04 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id i124so1851859qkf.14
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 06:43:04 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EA88B6B0003
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 09:53:59 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id j184so2246908pgd.7
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 06:53:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=kpn98ZLdpy7LXxen4zSCSbaN92zrBW9j9CjROHut6Aw=;
-        b=ltFhq6tOwXMC0HQn3PPy5yvGxYeD+sBUDZBG9hEvcfMin8oB10lFtI7ILA+O4k8+qD
-         WjvbehfIsONa2a6btm0Bt1lqq6+P+bS0R60E5FHR+zdOGxSJxDXxpMa/ez9rW6BdvHGc
-         JraJ1lzj5RM9pIY2gt57frJbvQAHm00Mnh8lqyT1PwQAsNdab3zdkJZwIcettC5ADlOn
-         WvmeQ3AY6iYW4rHWpZpYBUidzJVm6UOWJKIIe4U1bU2cQuq8lGLMRpxkVnFQD6wzIn0R
-         oq2w+gHWPN1vq6NnMVkJtcEhf8uYEi71iFG32Eu+dE8Szxsf/RCMtIFsMsJ5h1GnC8al
-         KMbQ==
-X-Gm-Message-State: APjAAAU38+qJhiA0iB77QcfBx4cVge05J3q9oydeBgZS0P86VRbozee3
-	N0SkGM/zPgOTr/xSfNuqcgpIMTdSLJ5HFHh61EkflsicQ5X8YzQnV1Bv4uRZ3+rYuMUpP6CM2J0
-	ig5WR9PBG37Ftuf4fKaKEVBaBDuoLiR242VhohLmuEuvBynr4F5zVF7oWBgP3sHGirw==
-X-Received: by 2002:a37:9e8a:: with SMTP id h132mr2088621qke.74.1553262184589;
-        Fri, 22 Mar 2019 06:43:04 -0700 (PDT)
-X-Received: by 2002:a37:9e8a:: with SMTP id h132mr2088586qke.74.1553262183941;
-        Fri, 22 Mar 2019 06:43:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553262183; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=xlY/ktt7mRUlRAE0U2eRLdDPwg8XEfpyxv/Oacs8Dac=;
+        b=m8NeHrJfdPimwnf2Jww2W1oWit278GAhxjskSuyaR9sTB73Qt5Kh5iGPFqhKiApDYZ
+         9dqYnz9fZ5CCR9u24sAOaBdM1QGY1JzoPncx5r+tAxb4LpqqS3xOS+tcT2ObsonNLNRt
+         YwrpCV3vM0oqmGWUei5wOKINSsFSNjTpG9GNi/0dlJJP80FUHBZQUezBJvhrAD84sSfp
+         q1j5Z4mxSIvI6pn8YuyUNK5DgEVZvfcHRivCBzgu2A4Ki6yBdY7Trj7e96rhbtXUxFQ/
+         Pq21BC5PG55bbLUPZU8+P0MdEy6xaXK14agN1jAs18nXqDhVJOc4zizYxvY+5+faz05h
+         osKA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of sakari.ailus@linux.intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=sakari.ailus@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWooadUKVUNktPSClB/chSzAVs+fX6TCmQajzwln/tqhfVLYQC6
+	8N5IlmrNO/RerYdGqnrJ0dAW3m2k8d4sU5cKA3Tr3YsTOl2c65VOVqBvCjKJoZFv5esoGP0Ffex
+	vPsn6nOPq/M54HuWBqvtLRQNeWuMdXHu3nwJGMcz2y+NxFI0ZC0uu3Vt9dB/ahrEG4w==
+X-Received: by 2002:aa7:91d7:: with SMTP id z23mr9473624pfa.137.1553262839431;
+        Fri, 22 Mar 2019 06:53:59 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxBS3lw4C4pH6NFBAcmODnizYkW5H4xpz1voIE4iMY+GSG8Ou0f8kOxKutSBnXwocTiQncY
+X-Received: by 2002:aa7:91d7:: with SMTP id z23mr9473556pfa.137.1553262838426;
+        Fri, 22 Mar 2019 06:53:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553262838; cv=none;
         d=google.com; s=arc-20160816;
-        b=cxCLfzlAJKqjLEvLHAmkYL8Sa5Xs588VE/74iP0Dg+e8w9EkMiAVFylRPBajuvs0wz
-         UOlVXjTMAPzJN3bjt0haQAqg1pnsF14SW7vsJV5sHA0ui+xO3duzwvw+TbNpNY+jS2bF
-         kAM11PuZiZC2x4ODkzhGT45FMAunU1IjeuTj0SbGEDyJHWzSLxeLQ8piySOZrVnygaJX
-         7KtWQrI8BvyosV91xKJkYMJ95gKP+O/RzC8osaPNI5Na+5OlxyAeRBumvSjxnj3vVq2l
-         FHvQNgdpZ86gvmxvJ5EC8PfElHwF6hOvwXBcYLk6nXlW7LlPLqktITsaVMnDj3IjJicA
-         hD/w==
+        b=yk+VmHxsjnUiX08f/M0d9RnFe2kEd7Axp/8l1ymzP7jfTS+EKohFT/AVxQ6/DQQrKU
+         g1j6MqItctLOPIP7BMuuoP6jjjuMZzVaAH6wZF0Y/AK7WOLae7kLNNdEx14mHm74trAd
+         3nQlii+oARg19y5Vb8bkhG6kKKOVzUqyQm+LrIh/1a4bJmpWLEzBVUFmURZs05tjGIPC
+         EnEl+VEk/sCRyig3Z6JsPXztjoLYmLjnREDAg4jH0XQp8vsNHReEB5uqwEoSsTLWeK5P
+         wckUcHcsWotFM6Qalck+4Ur6+CYaoyy1jOM9kd4JQDnigacWohJacd/akd70enD5GXS5
+         wZqg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=kpn98ZLdpy7LXxen4zSCSbaN92zrBW9j9CjROHut6Aw=;
-        b=idMRgHmMgZchnJVLUaVLducx19sFvPE9aAb4gf1UmjKTLQc2wtAftC1uJfOkXqGKJp
-         fqG0sULp4PExTkQ/UDvCryWz/yH0rDTtzRLt2sLCOYF67gi1szMUlcDRXPoE2C8thbcv
-         eKxY+TaYYKBDRuEhbQfsEmMpnaEmCUyNkDlDOkVuvGZ9id67zxm+CzfPdlT2ufCPjHWI
-         e4qspwrvH+ShSzz1Mt0UiJPh0BptjBdpWo1GQ4h4gw0jIslg9wAUayxER5JSi/gaoBhx
-         KJDhseHW5S3BMiPAj7sJRPUNDrD9LS8gLPf1xjaxwoS/IU4sxkMNdjMlB9NkyLGvi8tW
-         Gd+w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=xlY/ktt7mRUlRAE0U2eRLdDPwg8XEfpyxv/Oacs8Dac=;
+        b=IXtoMshVl6mIQIbfiqujxuBkKmggKycFEnyPAlktEU0UDp10kzdJI2VAR6q1cNNhxK
+         QezQlPOlBH7WkqpUkuY/j6XLBSSCmY7al2iI65pRVEv1m+RhQIZJozjmq+DvP/2pClUo
+         SR9/vN0s/dY3agX+X1f5z7Ybzjkv2l7lPcxTvbyyOL2K66z0hYL6/2VdsGosoG2MixSh
+         Uwh2+Ugphx9/SYL551+ndeHouThqkVx65SymaMJYrwblGOlXb+mjRDooeyZAwFWBVUNI
+         tl+xDDuFWATMTMo94VCxLADG7mADbRIQoFD8fTCTZc/vxBV8ozCWkMENWx8G+Kjr1R8i
+         dY5g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=OmPppWUY;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l23sor5586503qkg.56.2019.03.22.06.43.03
+       spf=pass (google.com: best guess record for domain of sakari.ailus@linux.intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=sakari.ailus@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id e36si2732361pgm.89.2019.03.22.06.53.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 22 Mar 2019 06:43:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=OmPppWUY;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=kpn98ZLdpy7LXxen4zSCSbaN92zrBW9j9CjROHut6Aw=;
-        b=OmPppWUY8JFDvHB9vahwRrRDeZStEza/JgZekd5pY5XSSd7+vgEjSgGza2HionvySM
-         8VUfYGqE4DQpeYTPzA9yLbDkey6ORavmSo/b4v89jMsTCXF9WnioS2ab/wNdYsz3R2mL
-         nylUxJEur+Zm/kn9rfueAcphad+V2xnBX/tSf56z3LSMMuyLtwHsU7Xzsuv96dW5aYiH
-         Oie8ffKMFyVSg9ew/ZNGxbKEHRJ/lNLAMfrGNgfh2+emw2ZQARvo2XzqWhsljK18eqiQ
-         fwFZyQ4x2Wm+TW5SaaUgF4WDQcxNV05XuGywe0jVNu5XCXHwXPg3vcEr7tIwXSz6j+EG
-         y9jw==
-X-Google-Smtp-Source: APXvYqwJX80vQ+ze1W/Y2wkiXmS5WBRnD0s33MQRrVtX67kH4hTohMtMiwGzCQHFbFk93RRhMJNpMA==
-X-Received: by 2002:ae9:ec19:: with SMTP id h25mr7812847qkg.122.1553262183647;
-        Fri, 22 Mar 2019 06:43:03 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id v24sm4568489qkj.40.2019.03.22.06.43.02
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Mar 2019 06:43:02 -0700 (PDT)
-Message-ID: <1553262181.26196.22.camel@lca.pw>
-Subject: Re: kernel BUG at include/linux/mm.h:1020!
-From: Qian Cai <cai@lca.pw>
-To: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, linux-mm@kvack.org, 
-	mgorman@techsingularity.net, vbabka@suse.cz
-Date: Fri, 22 Mar 2019 09:43:01 -0400
-In-Reply-To: <CABXGCsMKQfHjOekpbDgNWXNThdBy8UfxxEddEqPMMJZvmygGhQ@mail.gmail.com>
-References: 
-	<CABXGCsM-SgUCAKA3=WpL7oWZ0Xq8A1Wf-Eh6MO0seee+TviDWQ@mail.gmail.com>
-	 <20190315205826.fgbelqkyuuayevun@ca-dmjordan1.us.oracle.com>
-	 <CABXGCsMcXb_W-w0AA4ZFJ5aKNvSMwFn8oAMaFV7AMHgsH_UB7g@mail.gmail.com>
-	 <CABXGCsO+DoEu5KMW8bELCKahhfZ1XGJCMYJ3Nka8B0Xi0A=aKg@mail.gmail.com>
-	 <1553174486.26196.11.camel@lca.pw>
-	 <CABXGCsM9ouWB0hELst8Kb9dt2u6HKY-XR=H8=u-1BKugBop0Pg@mail.gmail.com>
-	 <1553183333.26196.15.camel@lca.pw>
-	 <CABXGCsMQ7x2XxJmmsZ_cdcvqsfjqOgYFu40gTAcVOZgf4x6rVQ@mail.gmail.com>
-	 <1553195694.26196.20.camel@lca.pw>
-	 <CABXGCsMKQfHjOekpbDgNWXNThdBy8UfxxEddEqPMMJZvmygGhQ@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000230, version=1.2.4
+        Fri, 22 Mar 2019 06:53:58 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of sakari.ailus@linux.intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: best guess record for domain of sakari.ailus@linux.intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=sakari.ailus@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from orsmga007.jf.intel.com ([10.7.209.58])
+  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Mar 2019 06:53:57 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,256,1549958400"; 
+   d="scan'208";a="124964705"
+Received: from paasikivi.fi.intel.com ([10.237.72.42])
+  by orsmga007.jf.intel.com with ESMTP; 22 Mar 2019 06:53:51 -0700
+Received: by paasikivi.fi.intel.com (Postfix, from userid 1000)
+	id C176C205C1; Fri, 22 Mar 2019 15:53:50 +0200 (EET)
+Date: Fri, 22 Mar 2019 15:53:50 +0200
+From: Sakari Ailus <sakari.ailus@linux.intel.com>
+To: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Petr Mladek <pmladek@suse.com>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	scsi <linux-scsi@vger.kernel.org>,
+	Linux PM list <linux-pm@vger.kernel.org>,
+	Linux MMC List <linux-mmc@vger.kernel.org>,
+	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
+	linux-um@lists.infradead.org,
+	linux-f2fs-devel@lists.sourceforge.net, linux-block@vger.kernel.org,
+	ACPI Devel Maling List <linux-acpi@vger.kernel.org>,
+	netdev <netdev@vger.kernel.org>,
+	linux-btrfs <linux-btrfs@vger.kernel.org>,
+	linux-pci <linux-pci@vger.kernel.org>,
+	sparclinux <sparclinux@vger.kernel.org>,
+	xen-devel@lists.xenproject.org,
+	ceph-devel <ceph-devel@vger.kernel.org>,
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
+	Linux MM <linux-mm@kvack.org>,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	Lars Ellenberg <drbd-dev@lists.linbit.com>
+Subject: Re: [PATCH 0/2] Remove support for deprecated %pf and %pF in vsprintf
+Message-ID: <20190322135350.2btpno7vspvewxvk@paasikivi.fi.intel.com>
+References: <20190322132108.25501-1-sakari.ailus@linux.intel.com>
+ <CAMuHMdVmqqjVx7As9AAywYxYXG=grijF5rF77OBn6TUjM9+xKw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAMuHMdVmqqjVx7As9AAywYxYXG=grijF5rF77OBn6TUjM9+xKw@mail.gmail.com>
+User-Agent: NeoMutt/20170113 (1.7.2)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2019-03-22 at 08:41 +0500, Mikhail Gavrilov wrote:
-> On Fri, 22 Mar 2019 at 00:14, Qian Cai <cai@lca.pw> wrote:
-> > 
-> > 
-> > That is OK. The above debug patch may still be useful to figure out where
-> > those
-> > pages come from (or you could add those 3 pages address to the patch as
-> > well).
-> > They may be initialized in a similar fashion or uninitialized to begin with.
-> 
-> Strange I modified patch for catch all 0xffffXXXXX07ce000 pages
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 03fcf73..8808e2a 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1273,6 +1273,10 @@ static void free_one_page(struct zone *zone,
->  static void __meminit __init_single_page(struct page *page, unsigned long
-> pfn,
->   unsigned long zone, int nid)
->  {
-> + if (0xffff00000fffffff & page == (void *)0xffff0000007ce000) {
-> + printk("KK page = %px\n", page);
-> + dump_stack();
-> + }
->   mm_zero_struct_page(page);
->   set_page_links(page, zone, nid, pfn);
->   init_page_count(page);
+Hi Geert,
 
-Those pages are not initialized at all which likely mean that memblock did not
-even allocate them at the first place, so Mel's patch might work.
+On Fri, Mar 22, 2019 at 02:37:18PM +0100, Geert Uytterhoeven wrote:
+> Hi Sakari,
+> 
+> On Fri, Mar 22, 2019 at 2:25 PM Sakari Ailus
+> <sakari.ailus@linux.intel.com> wrote:
+> > The printk family of functions supports %ps and %pS conversion specifiers
+> > to print function names. Yet the deprecated %pf and %pF conversion
+> > specifiers with equivalent functionality remain supported. A number of
+> > users of %pf and %pF remain.
+> >
+> > This patchsets converts the existing users of %pf and %pF to %ps and %pS,
+> > respectively, and removes support for the deprecated %pf and %pF.
+> >
+> > The patches apply cleanly both on 5.1-rc1 as well as on Linux-next. No new
+> > %pf or %pF users have been added in the meantime so the patch is
+> > sufficient as itself on linux-next, too.
+> 
+> Do you know in which commit they became deprecated, so the backporters
+> know how far this can be backported safely?
+
+That appears to be 04b8eb7a4ccd
+("symbol lookup: introduce dereference_symbol_descriptor()"), the same
+patch that made %p[fF] and %p[sS] functionally equivalent.
+
+But my personal opinion would be not to backport the patch for two reasons:
+the sheer number of files it touches (those format strings change for
+various reasons) and the meager benefits it has on older kernels as any
+backported patch using %s or %S still works as such. Porting a patch
+forward should have no issues either as checkpatch.pl has been complaining
+of the use of %pf and %pF for a while now.
+
+-- 
+Kind regards,
+
+Sakari Ailus
+sakari.ailus@linux.intel.com
 
