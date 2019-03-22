@@ -2,180 +2,164 @@ Return-Path: <SRS0=SIh7=RZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E1331C10F03
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 15:47:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8844BC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 15:47:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A84102183E
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 15:47:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A84102183E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 3CF332183E
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 15:47:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3CF332183E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arndb.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4DDC36B0003; Fri, 22 Mar 2019 11:47:11 -0400 (EDT)
+	id E7C8C6B0006; Fri, 22 Mar 2019 11:47:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4B63D6B0006; Fri, 22 Mar 2019 11:47:11 -0400 (EDT)
+	id E2A236B0007; Fri, 22 Mar 2019 11:47:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3A5CB6B0007; Fri, 22 Mar 2019 11:47:11 -0400 (EDT)
+	id D40766B0008; Fri, 22 Mar 2019 11:47:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DED056B0003
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 11:47:10 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id s27so1118501eda.16
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 08:47:10 -0700 (PDT)
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8280B6B0006
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 11:47:20 -0400 (EDT)
+Received: by mail-wm1-f71.google.com with SMTP id t190so707621wmt.8
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 08:47:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=OOIzFDQWSkkpyrTDZcT+Jg4W9GHz59SKHXuCylWd4PA=;
-        b=IaxM3O0DCJgac7b+qwwfpUy6IjV0a1rX1QZn6RmtcbGDc/cl2VZm6roqeqfyt5HA5y
-         9wgmgfWwdE8T3vRMwQ46HhceQIcE2O0rOzzmRJYunA0HRt5731T7DFqz3IqBsviW9c87
-         28S8d+4PlZrHTPO1sP95Oh1HFYDRxmYxGUQHK9nN89+DIot66I5AeYxD1LAjyuPGPvZC
-         2d0RUC2ePUtRdIJvbPHSfj2jG0Izu0/B0b9rpayKL/nT4r/hs3B0E/F2kHfDq3n7QdiG
-         s6h+bXjPCcb9v/K7y9fFUyyGnRew6TwsJ0Fgvre2buTNW5yeDIK82THoXO25aLRT3zRa
-         bxJg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAUpmUpw4WPvrprMbMIxU0yOfGN0+sp7P1zW95/Lp8dWGpdLn1a2
-	3GOSImti6VY4msaIjrZSQW4UoMTcWvcdyC1ZYbR/vRVTXUWyLuUF4PXuWYagzhpKsyeYE1bJ9wV
-	QmBeMyfS7bAhcJKzyMIwVwPmT910BpK8ayv78opHDDynD2AH8Lkzi3v81sDsi3EaoYg==
-X-Received: by 2002:a17:906:5212:: with SMTP id g18mr5854953ejm.149.1553269630487;
-        Fri, 22 Mar 2019 08:47:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzcgGEwIn5eaSeTyxWHm8SZajdxs8dMFm4h1cIeLJA3HrY7DVDEVe4mh7iXfB8SrguI2+Vx
-X-Received: by 2002:a17:906:5212:: with SMTP id g18mr5854917ejm.149.1553269629592;
-        Fri, 22 Mar 2019 08:47:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553269629; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=IhDNwIOxYiNuMhOLPEts3SuSbShNhJqvzKkXI4ciqCQ=;
+        b=iC6KAdOdh6OK05j33eI8/DNcp286XgiSZqzOpI4p1Xa+J5WI/xfzeHqFfnCuWTVd1S
+         W4CPPiVAKR2pIUiMRO0hO1cidL9pay/WOO9H7IbKYgWUE/ZxHoS4FeiBFx/LBAVjZWh5
+         mT6KF/EjSLhhlmgtabDe9FoTRv9N/vTDd8XxuwKn5GDyFO76wKltLr5sgJvtetg05eqU
+         jbmfiOJyzrk8mAPwpNDnxwDEe9pNLeCHz2QTiud64sNVVFvMHvjRNV5YT5X5TMJbFUOt
+         bMFHrAIDayxS6N86U9/HWZqWMt2Dyh4Ktixt4WtmseWduf5ErJJJ1dJhjeHB7Hk+CHbk
+         UrlA==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 212.227.17.13 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
+X-Gm-Message-State: APjAAAXpAoDDgsrgmdnHZWkg5Uj8Ihy1QRhYYsJzezxTRekzrGc7skai
+	nP2wVBIv1AyxEoCrIFeB/8bCXZEZSnLrFWQ7mFZ3wuKdBNvVgo3t5cTJLswVAk7sUskGSaWCFOs
+	G9YBUqSAA6wPeyMReUBFJRwOr0rhM1t5rTwWdXFXJjH4RjbUgNyH/R+vkhuC/aJw=
+X-Received: by 2002:a5d:4081:: with SMTP id o1mr6711810wrp.241.1553269640021;
+        Fri, 22 Mar 2019 08:47:20 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwo9c7lFHBf5g0MuBpfZIbC2NBGvYCdZPP/NY0vaDoNk6q8UfgUIJimIPzUy/7DL1eDizYT
+X-Received: by 2002:a5d:4081:: with SMTP id o1mr6711746wrp.241.1553269638956;
+        Fri, 22 Mar 2019 08:47:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553269638; cv=none;
         d=google.com; s=arc-20160816;
-        b=Zq0gK1vEq34cpECzlPgCwU6yEIuGh55VbjdYYxFzv+oq03icIjk0N0bXwfdS44IJHP
-         gnH+rTi2s33RhqceeMeo+3XIaZ6DnwIBeTso722vZoAAi9Lf1MEfi9b119qBRKpRAoW4
-         n5H9UGvjal+OkyzCxF7uEacHChvfRGBbEaklX040AKaK3OFTns0PmPyw3kDLrc1EVDo/
-         WI1tLtwPU0lfoDJUuHsROT7ohrVcd7t+6GFCdfXw6C7Pj9vCOHwRYqZnRjo1a200xy2X
-         HNagRknFnJD42lApCtx5fUf1lIjh2EU/tmkZq5Aq2z9auxubOiCDLv3Or/QMo4ycRhO7
-         lvSQ==
+        b=mrJCeMaFrvbFGL1K5rtHpJHMGBdOJLnjipihOCzJcMKqRZEz6bO6lQe6haqjUednCw
+         J74VcOPF/rm6cJw89guk7VD3TGoxCC00OVSm4dQ8b61qlX9KwhMBxxktaIArDTtXMLDK
+         81cg2slaEzpwrL838wbyd/UrmUPelfMc+WiLMDE6S2+UqdGh1OrhzzEF7w4y7QvJu87b
+         36EFcm0PIxNEy2ndOnAMxR7aPQpSH6bYJj2h+7NViUHiDjAlE4WaesBpCDksDbjjskEw
+         PhdOrujq2xeHXziFsTgSpxHmr7Chw5JJDQZgibFEiXl58EHu7LjKzNIRnvYMWkhVPXYK
+         bz2g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=OOIzFDQWSkkpyrTDZcT+Jg4W9GHz59SKHXuCylWd4PA=;
-        b=R1wUaHDr7uQMtbxpDXDj/vwsW6BvXzB51cmdgf7jQ+cJn0LuHqY6vGq0gJ7RQllmmP
-         VArgZ/xaUmUYUl5lX9tlw1pe7lciUTMkCCcFTEQhKwh0dTv5AIrbnYQ3x7JFtPxN8PrN
-         yjns2hZ4WNFSQTUghXkwcC4BA38J33TcQcUi4DfnRvVMPjYtu9zAnSIeWxuhkSVhTXrR
-         smsi6U46cP18kinyT15l62KVbrgVt+X3DG+EUTi8slJV5iEhG2AArm/ZoBc3ZnG8v0p+
-         qBUPUkQM3TVDExqzGH5WVmYHjlVEflmBaWR/bNzquOB0CQJ6l+0AldWCinNbca0/qrPq
-         vc3g==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=IhDNwIOxYiNuMhOLPEts3SuSbShNhJqvzKkXI4ciqCQ=;
+        b=Ipg3jSz/s3Y4Vyq0CKChCT41NmAkH9aNwd4eu16Lt6qosDCSXBWLRiIo4X5+7QVpU6
+         tnoICQfl0AtcQS09tcPZAWxt9SMY8bdhwuEOIfywF3JUVC0+jC0inr6Krep84aqRpAvk
+         RVARSRt7paUW2VbPcHKTt36Abpyi3H74d+WrRpoFlTfR9ApzkqT0XoQXdrSZiambGN9n
+         yeezU5IsKs+Qi3u4N9iJ7G8POvdo+Dy0sHzOlsvBcS/C9Fv+VfXWYRFq8shu2PYat5G0
+         NkKxJtXsvw0uFJYbGa8t+S07NiqcLhipNrzJap3hYAcYI1sZWcVsXMqDQk0GmuWp30Q1
+         pFbA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id c1si1039163edt.185.2019.03.22.08.47.09
-        for <linux-mm@kvack.org>;
-        Fri, 22 Mar 2019 08:47:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=neutral (google.com: 212.227.17.13 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.13])
+        by mx.google.com with ESMTPS id t8si5313360wmb.173.2019.03.22.08.47.18
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Mar 2019 08:47:18 -0700 (PDT)
+Received-SPF: neutral (google.com: 212.227.17.13 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) client-ip=212.227.17.13;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 5BA97A78;
-	Fri, 22 Mar 2019 08:47:08 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 9B2CB3F59C;
-	Fri, 22 Mar 2019 08:47:00 -0700 (PDT)
-Date: Fri, 22 Mar 2019 15:46:58 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Kees Cook <keescook@chromium.org>,
-	Kate Stewart <kstewart@linuxfoundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+       spf=neutral (google.com: 212.227.17.13 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
+Received: from wuerfel.lan ([149.172.19.189]) by mrelayeu.kundenserver.de
+ (mreue108 [212.227.15.145]) with ESMTPA (Nemesis) id
+ 1MPosX-1hKuvq2lZj-00Mtqj; Fri, 22 Mar 2019 16:47:13 +0100
+From: Arnd Bergmann <arnd@arndb.de>
+To: stable@vger.kernel.org,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Ingo Molnar <mingo@kernel.org>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-	Shuah Khan <shuah@kernel.org>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Eric Dumazet <edumazet@google.com>,
-	"David S. Miller" <davem@davemloft.net>,
-	Alexei Starovoitov <ast@kernel.org>,
-	Daniel Borkmann <daniel@iogearbox.net>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Ingo Molnar <mingo@redhat.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Arnaldo Carvalho de Melo <acme@kernel.org>,
-	Alex Deucher <alexander.deucher@amd.com>,
-	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
-	"David (ChunMing) Zhou" <David1.Zhou@amd.com>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	linux-arch@vger.kernel.org, netdev@vger.kernel.org,
-	bpf@vger.kernel.org, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Chintan Pandya <cpandya@codeaurora.org>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v13 12/20] uprobes, arm64: untag user pointers in
- find_active_uprobe
-Message-ID: <20190322154657.GR13384@arrakis.emea.arm.com>
-References: <cover.1553093420.git.andreyknvl@google.com>
- <88d5255400fc6536d6a6895dd2a3aef0f0ecc899.1553093421.git.andreyknvl@google.com>
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Andrey Ryabinin <aryabinin@virtuozzo.com>,
+	Kirill Tkhai <ktkhai@virtuozzo.com>,
+	Christian Borntraeger <borntraeger@de.ibm.com>,
+	Hugh Dickins <hughd@google.com>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>,
+	Vasily Averin <vvs@virtuozzo.com>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Arnd Bergmann <arnd@arndb.de>,
+	Matthew Wilcox <willy@infradead.org>,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [BACKPORT 4.4.y 12/25] mm/rmap: replace BUG_ON(anon_vma->degree) with VM_WARN_ON
+Date: Fri, 22 Mar 2019 16:44:03 +0100
+Message-Id: <20190322154425.3852517-13-arnd@arndb.de>
+X-Mailer: git-send-email 2.20.0
+In-Reply-To: <20190322154425.3852517-1-arnd@arndb.de>
+References: <20190322154425.3852517-1-arnd@arndb.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <88d5255400fc6536d6a6895dd2a3aef0f0ecc899.1553093421.git.andreyknvl@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: 8bit
+X-Provags-ID: V03:K1:x9JLVby8r9r7TUxGTqLadFU79q0Pp1coCzkDeRV4r6c3+Dj8drW
+ w3wZyzmVLkCOYTZj7d1rl88zJZduSJcyDx7T15j+BD/3ifn1JSCjet7XYnM20CaSy6N1FqD
+ 7oLYAODBmF5j39idn1uZOpAtb5Pka75NOa5OilzhmcKHyWFj6CykM7EbL/824ma//x/PSon
+ oX+qL1Ko/GgJFwkbg64yQ==
+X-UI-Out-Filterresults: notjunk:1;V03:K0:Tc+wj3NMZgw=:RU5Wsg8S3mds99gc6a+cXf
+ 24zk4q6XyhTdtuLlc4ogImJLY4QiG24v/yy09Tl/6LHmXdSKfSSz0YHGE29MfuqrdWegfJOkP
+ HARXOKftZgpOMl+c9zVYH0PEzaM8Tif2m3cTj4zkvf1Y2f8q2ma3eHQ+po2nSuoicrIhb9EJS
+ lp2Pe4Ws18R1OVojCdmuEoK4o8x/lOCAkOF4stpcg4PpCzti1AzmQ0ZB5dEcPdRAAhN19JqBv
+ 2qmULxrOYCuIWVcX5tLf5DMlamm5q1llRTPHC2dZkj1fL42dCF8D+NegqIH4gMhOZdqy3dW1l
+ KfFLyp6JOnY9vbztmz3bqyshvyqyogXFd8yivOCzuTmQkItbHHziDVXUR72l0yepI5FAHT4wE
+ clQHva8klOUopNyxz6rK45XmcYuZXe3BgbEfyVqT8H0F1z+0upYceQcNDsgGo/Pnk0L88JPj/
+ Q2M3FiuLkzN2pXg9ZshcAprVQytMU19AeN8vxAbJ0rbeESp42ZovYrdku5j+ozGN2tMGaGUXY
+ FOdw5kl+ItdZaAy1Bn1RgeiSc0nKsNTkaxQaYJyyOFfjJnJDqun+X2FYIxzQBKspWyKBjRYZn
+ qLA9ma6JXewR4OR+icxH2Dbq/A78inl8+s0rTxu7gP20oapeMz6R5ZkijTrjybWV8mDLCjzUL
+ EBDekinZo6eUHBS6RGHjAtXh0h5mDJ6BaWPIBuiDTr2iAAMkUf3mcAXwwLWLggKUf5zWJzuFQ
+ BEzDhhnnoHNiCvGc7jkiDMBXH3aSJW+lLtm8aA==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 20, 2019 at 03:51:26PM +0100, Andrey Konovalov wrote:
-> This patch is a part of a series that extends arm64 kernel ABI to allow to
-> pass tagged user pointers (with the top byte set to something else other
-> than 0x00) as syscall arguments.
-> 
-> find_active_uprobe() uses user pointers (obtained via
-> instruction_pointer(regs)) for vma lookups, which can only by done with
-> untagged pointers.
-> 
-> Untag user pointers in this function.
-> 
-> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> ---
->  kernel/events/uprobes.c | 2 ++
->  1 file changed, 2 insertions(+)
-> 
-> diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-> index c5cde87329c7..d3a2716a813a 100644
-> --- a/kernel/events/uprobes.c
-> +++ b/kernel/events/uprobes.c
-> @@ -1992,6 +1992,8 @@ static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
->  	struct uprobe *uprobe = NULL;
->  	struct vm_area_struct *vma;
->  
-> +	bp_vaddr = untagged_addr(bp_vaddr);
-> +
->  	down_read(&mm->mmap_sem);
->  	vma = find_vma(mm, bp_vaddr);
->  	if (vma && vma->vm_start <= bp_vaddr) {
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
-Similarly here, that's a breakpoint address, hence instruction pointer
-(PC) which is untagged.
+This check effectively catches anon vma hierarchy inconsistence and some
+vma corruptions.  It was effective for catching corner cases in anon vma
+reusing logic.  For now this code seems stable so check could be hidden
+under CONFIG_DEBUG_VM and replaced with WARN because it's not so fatal.
 
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Suggested-by: Vasily Averin <vvs@virtuozzo.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+(cherry picked from commit e4c5800a3991f0c6a766983535dfc10d51802cf6)
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+ mm/rmap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 488dda209431..cf733fab230f 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -408,7 +408,7 @@ void unlink_anon_vmas(struct vm_area_struct *vma)
+ 	list_for_each_entry_safe(avc, next, &vma->anon_vma_chain, same_vma) {
+ 		struct anon_vma *anon_vma = avc->anon_vma;
+ 
+-		BUG_ON(anon_vma->degree);
++		VM_WARN_ON(anon_vma->degree);
+ 		put_anon_vma(anon_vma);
+ 
+ 		list_del(&avc->same_vma);
 -- 
-Catalin
+2.20.0
 
