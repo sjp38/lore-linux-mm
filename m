@@ -2,164 +2,163 @@ Return-Path: <SRS0=SIh7=RZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BE138C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 14:40:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AC25EC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 15:05:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 78EB021904
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 14:40:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 78EB021904
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 6A2DC218B0
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Mar 2019 15:05:18 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="iyQnjGnG"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A2DC218B0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 13DCA6B0007; Fri, 22 Mar 2019 10:40:26 -0400 (EDT)
+	id E9C3E6B0003; Fri, 22 Mar 2019 11:05:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0C7EB6B0008; Fri, 22 Mar 2019 10:40:26 -0400 (EDT)
+	id E23756B0006; Fri, 22 Mar 2019 11:05:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E82F56B000A; Fri, 22 Mar 2019 10:40:25 -0400 (EDT)
+	id CC59A6B0007; Fri, 22 Mar 2019 11:05:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A78526B0007
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 10:40:25 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id n10so2339707pgp.21
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 07:40:25 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F9566B0003
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2019 11:05:17 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id n125so817036wmn.1
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 08:05:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=2wUU8qzDB4tO837W93j0Cn/SAdFYvDZS3PORjd6Bk/c=;
-        b=TdNPm1/nEtzCGLWi5gCAMxlYJm0aYwjXJ+skxF5ZrDFNu4MJzqOSZLRGiM3R5hH0Vd
-         JRuqx3Xnu+hzylCLFPd8ievfqy69rwXXvUry8dw3Q7xVKxAqSAQIId6rWNiafCJCK6gh
-         1FJDyJ+nNcGiAFQ9Jdn8fzcmskKMxsAjpTTdSGOxA3Y7k9zUGUNUHg8dVk6HFVMiRj3O
-         3lzQKFTHk1HUMm+EbrzgJVeHD5iHfywznhRL4UWK0OsZ05aakH5vLix6kvYjezDDnbOg
-         ntIjV9Hw+FNUDGqeMyTz5JQMhwE/2cfooLwt51hSMAhF6wL4MqU4ikThe0WGtuMLCNOW
-         6t1g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVSBZUkpQcqWWXRuNkaR+myuf5o7wiyq33LQe4PhA/N5cWTPbbg
-	VSSIwjalmy++xLbREzMZEC8c3SAXiFPcrKvet2bdM30PTFp8U1xPvQY+NQim4licnmtkyu7hQuC
-	GL4yi1V9X9kEJXovaHXs8MCQ1c0nV47XlrdXXb1tuWMVAVJMpOvPdO7+/43ZfQNtuqg==
-X-Received: by 2002:a17:902:142:: with SMTP id 60mr9869073plb.191.1553265625173;
-        Fri, 22 Mar 2019 07:40:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyWRMglRJODtqHaWtILSdM05rwKoqGYEWcT30KYcSp6cvCJxAnhSLKLhNfuu8eUYeIIYn6h
-X-Received: by 2002:a17:902:142:: with SMTP id 60mr9869011plb.191.1553265624478;
-        Fri, 22 Mar 2019 07:40:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553265624; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=la79GVMa47gWOb0qD5kRoQk6VC6UfGHw4stP89HbwZw=;
+        b=UlNuf75nxn+lDVwLQzWbS4IMcGM6lM31fzZs+Nr8Li5UBmcKxddTWdgCAWPijWN8Ln
+         UUKgGuh+gSBJfIAfuGIebgehr71iHg9+F1Czw0nKRy+zAY8ADWL7il4LcbBfjqBc7RlU
+         SCytlV0NKy+ZuxBHoZJryn3hZKTI9/7cC9kxb3gEgEuTOV/3bi07KpdylGz/yVEfDNMt
+         CqeDGOpeqXaT7/aeRTYQhzpSMBF1qB1ZAeiWIjybuRtp77xhQdS1P0nImUsy3AMx12Qn
+         MN/bQtDsAXEhS4Z8o0KRgtQDQk4mNwKC5aBgYHlLWI+0OX182mklCnmBiddU0hHfchgh
+         9AHQ==
+X-Gm-Message-State: APjAAAWJ3Ws0bpLew0Gkr9Tf0WRFpnpN5+h3L13WZn9ih2ndiwFkmvYL
+	A4pomfXBch8TgDjYGhZihhTfNuVEgzJVtTJ5EfFh0BRRJg6dIU/81J4OZlFVoJyn9HRytm7whBO
+	AJTZUg8fRj+TXwDCKik7yzRnn8um5PzZCi1L6N9hy1KfgFoMwbDokJkBRSHf31C9S3w==
+X-Received: by 2002:a1c:480b:: with SMTP id v11mr2621946wma.25.1553267116815;
+        Fri, 22 Mar 2019 08:05:16 -0700 (PDT)
+X-Received: by 2002:a1c:480b:: with SMTP id v11mr2621892wma.25.1553267115919;
+        Fri, 22 Mar 2019 08:05:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553267115; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZAMH4uTAyeiiuMiMS2OEraskdycqRdkepkqGhnSFX7oX0dluyd7UbuorrW/83x4WTo
-         kqdaf9GoabJJ/bMLkcyOuX/OsSVRiqrwtJC/ABztHbpXw5xosuIDfiON4Z3ZFeXcvhU+
-         rkjDlnFtevS0T2uCck3kWnJJ8CXZ/uKh0XziFFyzd+Kv6VRTgTu4MAuxbjfFZnAEaItr
-         hQ4NLvdmPEt0kEsdaCJNPh9xzSk98TvJreRaWSmbe4ICz3usMka/wnbKHk4zuu8Rvw6z
-         oGw0gYlJtR5L4PH2dCmu72RCfc1p7pOSfI66L1XNClFRRLaOAvEi0z6YUPf6JqnnWhWS
-         lLhw==
+        b=WF46pvcevrQ02D25y9LcNA0va+0oae/TuFRCb1pXBVocN/nPF+1QJOfuBytWBMcH9m
+         RX3F/Ihv0GlTV/dZ2ZZCrEI0jXNOCPtHqvc80ygTn9RBWeQLvH9ubGCkhcQtrE73rgyf
+         fbIkWNi43IC/D6RSgp4gq+knujB9ZOU7CitxtQ/dseDO1s4LWVUC87wXWBXUtXOGOIHC
+         AxLu/aufHneuZDY9J652Xeu3qW8tjuSqnwgBFgKtWIMdN+Y7q3dZBQfVMpBMPPpN0nBq
+         Z/NPnNrcuAIFzLydA5ctsAt9wCTGJM0IM842tTX6eOlf3D3V3IieucygZUdvbvpcZw98
+         9cqw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=2wUU8qzDB4tO837W93j0Cn/SAdFYvDZS3PORjd6Bk/c=;
-        b=qxzmChAmCdCTgeHoUh/C8Zp4xTWqg5Omp/XdtVCn8a2iwMpPaRzskCZC/qrxlCf12V
-         Haai2dnTUFEtbO8cl6E6hyJjv66r7SQcmqBKtGyqQkncpU+TvYA59+rTk1Q4QTDL0SF8
-         XazrGZ/h3bUqfLZUoViKpZlqWIuwhCZ4wj7k3tZ+teOBtZ35GRPJg2+ZLcF3qigwjHDV
-         4W65835C61rDrch2X48RKNpnheCDRbH5nfRqSWej3vdgPZ5JC3vs8JnTZcqPxBukSQv4
-         yatkDJkAYikprnF27HNk7VnlqBXu4Zz7GaB11uFEw59ZQvVbrERi+nzMIFjwn3RbO5K2
-         0KrA==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:message-id:subject:cc:to:from:date
+         :dkim-signature;
+        bh=la79GVMa47gWOb0qD5kRoQk6VC6UfGHw4stP89HbwZw=;
+        b=xoWM9IdKLbA6LVN1sxLyyK8VZIxE6Ji0bZFebCHpE1EO1+9eB6zCk1dhDYM1VbWmUu
+         BCYW9HWSvHkYilIBbRVNxjeYa83undUP+UUn7YZng6zcWMA7d9kLeMZUiHd03buGhGW4
+         wB/+7r/Wl5wdaqLD9xrSZNzebUDRtvj+EUTLAWgELYFMVt8PNrf8cmbHJei8eHOdt0di
+         ZiwmEB+/x14hN3q1bBMKLYvgyinq2o4nQhmvbkromIb1YoPvq5+ui1GZpDzogXFX0VoZ
+         fgmUmbYwHcv471X78n9fdUnzVKdtJ2VmnodieIrPeaKN7QvfMA+NwLzTMOEfDJGBwp9r
+         zYRg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id j16si6676210pfa.197.2019.03.22.07.40.24
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=iyQnjGnG;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y3sor5658942wmj.10.2019.03.22.08.05.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Mar 2019 07:40:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keith.busch@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
+        (Google Transport Security);
+        Fri, 22 Mar 2019 08:05:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from fmsmga004.fm.intel.com ([10.253.24.48])
-  by fmsmga101.fm.intel.com with ESMTP; 22 Mar 2019 07:40:20 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,256,1549958400"; 
-   d="scan'208";a="154819997"
-Received: from unknown (HELO localhost.localdomain) ([10.232.112.69])
-  by fmsmga004.fm.intel.com with ESMTP; 22 Mar 2019 07:40:19 -0700
-Date: Fri, 22 Mar 2019 08:41:21 -0600
-From: Keith Busch <keith.busch@intel.com>
-To: Zi Yan <ziy@nvidia.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	linux-nvdimm@lists.01.org, Dave Hansen <dave.hansen@intel.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	"Kirill A. Shutemov" <kirill@shutemov.name>,
-	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>,
-	David Nellans <dnellans@nvidia.com>
-Subject: Re: [PATCH 0/5] Page demotion for memory reclaim
-Message-ID: <20190322144120.GB29817@localhost.localdomain>
-References: <20190321200157.29678-1-keith.busch@intel.com>
- <5B5EFBC2-2979-4B9F-A43A-1A14F16ACCE1@nvidia.com>
- <20190321223706.GA29817@localhost.localdomain>
- <F33CDC43-745B-4555-B8E0-D50D8024C727@nvidia.com>
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=iyQnjGnG;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chrisdown.name; s=google;
+        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=la79GVMa47gWOb0qD5kRoQk6VC6UfGHw4stP89HbwZw=;
+        b=iyQnjGnG51BIfxJIICh18JKJdtzPSrWThifwALw2gWvK1/gNZEsTAKEvxsc3wzKXqK
+         tQ08PhWRYD6ROgWHR8CED2SyxdwNUvt1+EpYx+TraC3D3f4BUhopjef2d0iHHuR+fvRW
+         OK+Dxeh5EfJv5kyTXhWF0/qOB6NJxdNwXhYr8=
+X-Google-Smtp-Source: APXvYqxcd9chc48Z5gs026zGSni+ohQ1klMDVbYgMSEarwtJFSVYwpEsS7QdBncOnajxC7rDh/Irvg==
+X-Received: by 2002:a1c:4641:: with SMTP id t62mr3569438wma.53.1553267115327;
+        Fri, 22 Mar 2019 08:05:15 -0700 (PDT)
+Received: from localhost ([2620:10d:c092:200::1:a21b])
+        by smtp.gmail.com with ESMTPSA id y125sm4365149wmc.39.2019.03.22.08.05.14
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Fri, 22 Mar 2019 08:05:14 -0700 (PDT)
+Date: Fri, 22 Mar 2019 15:05:13 +0000
+From: Chris Down <chris@chrisdown.name>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Kirill Tkhai <ktkhai@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>,
+	linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
+	linux-mm@kvack.org, kernel-team@fb.com
+Subject: [PATCH] fixup: vmscan: Fix build on !CONFIG_MEMCG from nr_deactivate
+ changes
+Message-ID: <20190322150513.GA22021@chrisdown.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <F33CDC43-745B-4555-B8E0-D50D8024C727@nvidia.com>
-User-Agent: Mutt/1.9.1 (2017-09-22)
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <155290128498.31489.18250485448913338607.stgit@localhost.localdomain>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 21, 2019 at 05:12:33PM -0700, Zi Yan wrote:
-> > Yes, we may not want to migrate everything in the shrink_page_list()
-> > pages. We might want to keep a page, so we have to do those checks first. At
-> > the point we know we want to attempt migration, the page is already
-> > locked and not in a list, so it is just easier to directly invoke the
-> > new __unmap_and_move_locked() that migrate_pages() eventually also calls.
-> 
-> Right, I understand that you want to only migrate small pages to begin with. My question is
-> why not using the existing migrate_pages() in your patch 3. Like:
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index a5ad0b35ab8e..0a0753af357f 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1261,6 +1261,20 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->                         ; /* try to reclaim the page below */
->                 }
-> 
-> +               if (!PageCompound(page)) {
-> +                       int next_nid = next_migration_node(page);
-> +                       int err;
-> +
-> +                       if (next_nid != TERMINAL_NODE) {
-> +                               LIST_HEAD(migrate_list);
-> +                               list_add(&migrate_list, &page->lru);
-> +                               err = migrate_pages(&migrate_list, alloc_new_node_page, NULL,
-> +                                       next_nid, MIGRATE_ASYNC, MR_DEMOTION);
-> +                               if (err)
-> +                                       putback_movable_pages(&migrate_list);
-> +                       }
-> +               }
-> +
->                 /*
->                  * Anonymous process memory has backing store?
->                  * Try to allocate it some swap space here.
-> 
-> Because your new migrate_demote_mapping() basically does the same thing as the code above.
-> If you are not OK with the gfp flags in alloc_new_node_page(), you can just write your own
-> alloc_new_node_page(). :)
+"mm: move nr_deactivate accounting to shrink_active_list()" uses the
+non-irqsaved version of count_memcg_events (__count_memcg_events), but
+we've only exported the irqsaving version of it to userspace, so the
+build breaks:
 
-The page is already locked, you can't call migrate_pages()
-with locked pages. You'd have to surround migrate_pages with
-unlock_page/try_lock_page, and I thought that looked odd. Further,
-it changes the flow if the subsequent try lock fails, and I'm trying to
-be careful about not introducing different behavior if migration fails.
+    mm/vmscan.c: In function ‘shrink_active_list’:
+    mm/vmscan.c:2101:2: error: implicit declaration of function ‘__count_memcg_events’; did you mean ‘count_memcg_events’? [-Werror=implicit-function-declaration]
 
-Patch 2/5 is included here so we can reuse the necessary code from a
-locked page context.
+This fixup makes it build with !CONFIG_MEMCG.
+
+Signed-off-by: Chris Down <chris@chrisdown.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: linux-kernel@vger.kernel.org
+Cc: cgroups@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: kernel-team@fb.com
+---
+ include/linux/memcontrol.h | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 534267947664..b226c4bafc93 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -1147,6 +1147,12 @@ static inline void count_memcg_events(struct mem_cgroup *memcg,
+ {
+ }
+ 
++static inline void __count_memcg_events(struct mem_cgroup *memcg,
++					enum vm_event_item idx,
++					unsigned long count)
++{
++}
++
+ static inline void count_memcg_page_event(struct page *page,
+ 					  int idx)
+ {
+-- 
+2.21.0
 
