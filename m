@@ -2,163 +2,178 @@ Return-Path: <SRS0=0AWy=R2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C672C43381
-	for <linux-mm@archiver.kernel.org>; Sat, 23 Mar 2019 08:18:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9A863C10F05
+	for <linux-mm@archiver.kernel.org>; Sat, 23 Mar 2019 17:21:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4626E218E2
-	for <linux-mm@archiver.kernel.org>; Sat, 23 Mar 2019 08:18:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4626E218E2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
+	by mail.kernel.org (Postfix) with ESMTP id 428B7218A2
+	for <linux-mm@archiver.kernel.org>; Sat, 23 Mar 2019 17:21:44 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="0WytAG4W"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 428B7218A2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D08526B0005; Sat, 23 Mar 2019 04:18:08 -0400 (EDT)
+	id 94CF86B0003; Sat, 23 Mar 2019 13:21:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CDFDB6B0006; Sat, 23 Mar 2019 04:18:08 -0400 (EDT)
+	id 8FC7E6B0006; Sat, 23 Mar 2019 13:21:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BCE676B0007; Sat, 23 Mar 2019 04:18:08 -0400 (EDT)
+	id 7ED476B0007; Sat, 23 Mar 2019 13:21:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 64ACE6B0005
-	for <linux-mm@kvack.org>; Sat, 23 Mar 2019 04:18:08 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id x13so1855145edq.11
-        for <linux-mm@kvack.org>; Sat, 23 Mar 2019 01:18:08 -0700 (PDT)
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 538856B0003
+	for <linux-mm@kvack.org>; Sat, 23 Mar 2019 13:21:43 -0400 (EDT)
+Received: by mail-oi1-f198.google.com with SMTP id s65so2100491oie.7
+        for <linux-mm@kvack.org>; Sat, 23 Mar 2019 10:21:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=rmYWYh2u8sdH0+/BBr+kgYZSa7bB3woieUUd4MGeYmk=;
-        b=A1D2YOpYPPP9bWzLitVLBK/0bwe4NGZg2DD+E7DU+iC4bpBGxn/cZEXQ+rKnhvcsxB
-         6zQKgms6/NATRWSOwpyz+t0xiw9j5I2vS60mbyvEJLLeTpwZWd3mmnJRco2PKAfO2KDm
-         ZtejhXewP41QmVtB3+S/wiDzNhgm0fTeqlIiKCRdhUJ773ogF9M45U9skBQYZ1NZejvt
-         Rijz+Ud1ZBc8CEFz+VGUPTcAdpwp4nxlITLAZtmvSXv2m1WFulLoZ3I+09AkInnHBUzN
-         kyhdGQfOrrjNoPDpOu+8shx/MTaqKbUGwmYHFP1Au1fRx00BLlOjcbmUpToT+Z8e69ol
-         A8/Q==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.178.232 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Gm-Message-State: APjAAAXZ211555cp9aRQJXap0w6BNJIx90gKG9dBs3NBvr2ihO/Kinz1
-	U/DRb/t1csGscrRk83v2UXZ7s/gMu1fIWI84krnmtyzBoWueAYJzs30SfnnPPMKg5fYcZQ+pQ22
-	gUMXeHoJiDr8oWSzmUAghpTymX9Y8sTWF5vN6svay40R685MtNVQ1BggbXFJM1hA=
-X-Received: by 2002:a50:ca8d:: with SMTP id x13mr9244215edh.56.1553329087932;
-        Sat, 23 Mar 2019 01:18:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxcvDnK+Q6Y9FXdax237jW33nd242e1nC4b2fnLwJSAn9LxcsfR54on0ikUnpQF1QXO3RAA
-X-Received: by 2002:a50:ca8d:: with SMTP id x13mr9244160edh.56.1553329086879;
-        Sat, 23 Mar 2019 01:18:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553329086; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=eeq8w5UoZqtPwtYCuvSGobWdwSJ7TL9pAZbFIGCz8uc=;
+        b=JaDB6MWFY8Un1wztx5txV1FIvccvRbpG3tX3A8gIMFDn6ZLGcgWUSkmtlSp8gWZgAU
+         hTxaL7gLYmJ4yw45mjBNauQgKNKAEFZRTbG9qz5tvzjZ2BkSl3n9VPswqsP2B3/GdipT
+         vN0T7oaQRRNmeFD4g8HntpzB28CuFh4vEQutObZpsFkO3KZHTLC5/bklE/tho7CjPeqf
+         U19NvZWQ1rqVCOAopbSR4HnuQ8H9lIVl36hgax1BkLgH6vHN2YIUW43H+EQeYl1D8FZX
+         SeeoUFUPAU0PqZy+xTZz1VEsRBiJ+shTUrPLu6Gt/vdtpHPrf4YLJSZX5paG0r36VKlY
+         kh8Q==
+X-Gm-Message-State: APjAAAVNNd//wznZ9jWXPQTwoJTJLvdxipIkseWlgxiH3tjFBXzkJPV3
+	PROythVyNB4O3wSZHQLYJtk6EulCnYA7uxbqzowHWi/ILicuLniA4k6DT45dHhGhHFduXWcH1s6
+	UB9vS/Ktl3cZdgluy5zcXj8QibkLCoda2CFBS8jNkaCRl4e0H42Akb9E0X2+GJjaTCw==
+X-Received: by 2002:a9d:77da:: with SMTP id w26mr11283218otl.17.1553361702945;
+        Sat, 23 Mar 2019 10:21:42 -0700 (PDT)
+X-Received: by 2002:a9d:77da:: with SMTP id w26mr11283185otl.17.1553361702187;
+        Sat, 23 Mar 2019 10:21:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553361702; cv=none;
         d=google.com; s=arc-20160816;
-        b=mL8n9wkR7I24UUAV8W/bi4B/Chbwh9wAeBnIVE232l130c1lgD3Q1lXdSDZ2+ZnduH
-         MvWEd6/ZAzcVXPUUfJFvNlNQOH7XLoIxehomRwbKCfztxh3FPSYMhEzlfbFe9l7M+7XG
-         CmEz5prL+PkjyVEish+ZyO8Or8zOUhgCxqdYb57Zeh0UiYmRNKFzCBspZQLIbPkq6hHs
-         P2MVkKqwByzraHpBZx/S/tNPJX/A+1OH+Xho2syN6wXQIW9VZlEWvbXUbndARVCq9KjG
-         IGF+beCtfgf7jAwqrbQLvk7/ihjKHlMdufPvneaHDMkY+eazaMDTiMVnxI/e9JyduD5r
-         3VCA==
+        b=uAKqbES+v+F644aW9CJA2CpNIzqh45TO10v14bK/pIox8z4Lqrl14VYbPcqLksBnLv
+         U7eNQ5RnhTpRhZw7tatHcC+sSV2W/YEbBcruSOcyLLsiYy1fS4I7zGDMYM0VDyRnWzjZ
+         6JuTkYlQ03ZJkVbRNsLSisIyEGoqh19JNyV1n/W058k0OdgokNpYUm9IAm1Ck1xixUfT
+         Mphj4Zr5lB2kBDCl+EU3Fppv7DPcqQvQsF3OOC9kwyCaW9L9Hzq4e9Mqxyc2Ye9ncagj
+         z6rah/GGZNHwMWUfSCX/iR/Rq9LfKQB7eA4SgKvK6kTvomOCwTH45WbQ12jiCj34Shvn
+         /1PA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=rmYWYh2u8sdH0+/BBr+kgYZSa7bB3woieUUd4MGeYmk=;
-        b=jmNxvSCxOBZLkW7wnzqiwMtF+BIltVOhkLHAlSvK9SJxL8jp8Vd7+mpQxumoGaTrAj
-         QpNN66DrODDu9kvN+bdPtMeLwoTWt5mAgXjGwYv1rB7Oe6tbUsbeQfofW8furNcpV/KH
-         z/w6CP9My4fxLIw/QqaFCnUYxtmhGSUs3djm8yXoE3Qk4bbts2kdJUMbqbYwGg1p4yB1
-         T6gpe8hDoL3flDLt2C1CYxKMne7utkb2ilACPb39hJmlQ8OzD6cTVftgy4MbrXZabh/k
-         F4om64AbrQ0Yis9Ld4nW67ps3azSn4m+EwsL1aSdkblK9S3TzOgoXpMrISYw0hPXL5em
-         XlSQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=eeq8w5UoZqtPwtYCuvSGobWdwSJ7TL9pAZbFIGCz8uc=;
+        b=amGzDmm0gqMpETb3V7vxRRTdMKGwLsygleZedlpcwCwcorGOKWYYVWRu60zeLn7pWr
+         CsJ8UNZIJqbbMp1aTn2agLpZgVvAbKUNRqo7Xw8ijTSrruEq30hSjoUK/bACzZm8BRUd
+         YhBgYOhpaYkSRXGLl4OaH24C8xMLtilOi6DJBrS2ZU3MHLPxzSOFp5czh8MCb0t7YRUq
+         e/k9Sn1tucrG5n/SyCJDxFZU0oFgLwyHK6huhh4506kx2DMg1uaMYDWf0/v1hNk1fnrW
+         ZQ2lbKLaq/i4JJba5daq1FjX3njjPnWOUBt7pa6/NvkacDqYxVwSzNm9ju7vi46LbTnf
+         xCew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 217.70.178.232 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-Received: from relay12.mail.gandi.net (relay12.mail.gandi.net. [217.70.178.232])
-        by mx.google.com with ESMTPS id i14si332429ejy.50.2019.03.23.01.18.06
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=0WytAG4W;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g92sor5296528otg.28.2019.03.23.10.21.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 23 Mar 2019 01:18:06 -0700 (PDT)
-Received-SPF: neutral (google.com: 217.70.178.232 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.178.232;
+        (Google Transport Security);
+        Sat, 23 Mar 2019 10:21:41 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 217.70.178.232 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-Received: from [192.168.0.11] (127.19.86.79.rev.sfr.net [79.86.19.127])
-	(Authenticated sender: alex@ghiti.fr)
-	by relay12.mail.gandi.net (Postfix) with ESMTPSA id 9811C200009;
-	Sat, 23 Mar 2019 08:18:02 +0000 (UTC)
-Subject: Re: [PATCH 1/4] arm64, mm: Move generic mmap layout functions to mm
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Russell King <linux@armlinux.org.uk>,
- Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
- <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>,
- Paul Burton <paul.burton@mips.com>, James Hogan <jhogan@kernel.org>,
- Palmer Dabbelt <palmer@sifive.com>, Albert Ou <aou@eecs.berkeley.edu>,
- Alexander Viro <viro@zeniv.linux.org.uk>,
- Luis Chamberlain <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>,
- linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
- linux-mips@vger.kernel.org, linux-riscv@lists.infradead.org,
- linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-References: <20190322074225.22282-1-alex@ghiti.fr>
- <20190322074225.22282-2-alex@ghiti.fr> <20190322132127.GA18602@infradead.org>
-From: Alex Ghiti <alex@ghiti.fr>
-Message-ID: <72751399-3170-059b-b572-b9b9986ca0fd@ghiti.fr>
-Date: Sat, 23 Mar 2019 04:18:02 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=0WytAG4W;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=eeq8w5UoZqtPwtYCuvSGobWdwSJ7TL9pAZbFIGCz8uc=;
+        b=0WytAG4Wk5Oi/5ukZGTkMMCTVXUHPt5wKd8CN4IlVakyDUknYU9gO2o6YmgrDc0Gh2
+         tFh8Q2WR+/Zv1avHHPlkNOvZXziHzve4udgLrND2cPRcYjN5Bz77mTSPku6TGZkiOGiP
+         6fdnK7E5tPWQjgNTaaAo+qd9hXJnKNbTPXdb7niW9u0Gc66Qo8YQdrsyLvzTloD35bCz
+         Wojma7Mf9Ou1KeogCH0lqVyOvWMPNmzT4YVID4HGYCoU0GAWQVFHvTJlpRIBgyTyLaVh
+         ktFFHNrQzSkhMUkFxzcOpb3g3/7CWDRXpFfCSDA2Go9IS5uDo6mFzp+pn66Qv4in6Ums
+         Yg6A==
+X-Google-Smtp-Source: APXvYqxI/TyfpdbcSgqn9sKIr9VnkGP9ptLAdKMEHZOdln61IUI0xQz7xzNTofy2+O4N3EPhoLjKRqdzP1P/Ka5palk=
+X-Received: by 2002:a9d:6a4f:: with SMTP id h15mr1290088otn.353.1553361701390;
+ Sat, 23 Mar 2019 10:21:41 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190322132127.GA18602@infradead.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: sv-FI
+References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com> <1553316275-21985-2-git-send-email-yang.shi@linux.alibaba.com>
+In-Reply-To: <1553316275-21985-2-git-send-email-yang.shi@linux.alibaba.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Sat, 23 Mar 2019 10:21:30 -0700
+Message-ID: <CAPcyv4g5RoHhXhkKQaYkqYLN1y3KavbGeM1zVus-3fY5Q+JdxA@mail.gmail.com>
+Subject: Re: [PATCH 01/10] mm: control memory placement by nodemask for two
+ tier main memory
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, 
+	Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, 
+	Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, 
+	Keith Busch <keith.busch@intel.com>, Fengguang Wu <fengguang.wu@intel.com>, 
+	"Du, Fan" <fan.du@intel.com>, "Huang, Ying" <ying.huang@intel.com>, Linux MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/22/19 9:21 AM, Christoph Hellwig wrote:
->> It then introduces a new define ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
->> that can be defined by other architectures to benefit from those functions.
-> Can you make this a Kconfig option defined in arch/Kconfig or mm/Kconfig
-> and selected by the architectures?
-
-
-Yes, I will do.
-
-
->> -#ifndef STACK_RND_MASK
->> -#define STACK_RND_MASK (0x7ff >> (PAGE_SHIFT - 12))	/* 8MB of VA */
->> -#endif
->> -
->> -static unsigned long randomize_stack_top(unsigned long stack_top)
->> -{
->> -	unsigned long random_variable = 0;
->> -
->> -	if (current->flags & PF_RANDOMIZE) {
->> -		random_variable = get_random_long();
->> -		random_variable &= STACK_RND_MASK;
->> -		random_variable <<= PAGE_SHIFT;
->> -	}
->> -#ifdef CONFIG_STACK_GROWSUP
->> -	return PAGE_ALIGN(stack_top) + random_variable;
->> -#else
->> -	return PAGE_ALIGN(stack_top) - random_variable;
->> -#endif
->> -}
->> -
-> Maybe the move of this function can be split into another prep patch,
-> as it is only very lightly related?
+On Fri, Mar 22, 2019 at 9:45 PM Yang Shi <yang.shi@linux.alibaba.com> wrote:
 >
+> When running applications on the machine with NVDIMM as NUMA node, the
+> memory allocation may end up on NVDIMM node.  This may result in silent
+> performance degradation and regression due to the difference of hardware
+> property.
 >
+> DRAM first should be obeyed to prevent from surprising regression.  Any
+> non-DRAM nodes should be excluded from default allocation.  Use nodemask
+> to control the memory placement.  Introduce def_alloc_nodemask which has
+> DRAM nodes set only.  Any non-DRAM allocation should be specified by
+> NUMA policy explicitly.
+>
+> In the future we may be able to extract the memory charasteristics from
+> HMAT or other source to build up the default allocation nodemask.
+> However, just distinguish DRAM and PMEM (non-DRAM) nodes by SRAT flag
+> for the time being.
+>
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> ---
+>  arch/x86/mm/numa.c     |  1 +
+>  drivers/acpi/numa.c    |  8 ++++++++
+>  include/linux/mmzone.h |  3 +++
+>  mm/page_alloc.c        | 18 ++++++++++++++++--
+>  4 files changed, 28 insertions(+), 2 deletions(-)
+>
+> diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+> index dfb6c4d..d9e0ca4 100644
+> --- a/arch/x86/mm/numa.c
+> +++ b/arch/x86/mm/numa.c
+> @@ -626,6 +626,7 @@ static int __init numa_init(int (*init_func)(void))
+>         nodes_clear(numa_nodes_parsed);
+>         nodes_clear(node_possible_map);
+>         nodes_clear(node_online_map);
+> +       nodes_clear(def_alloc_nodemask);
+>         memset(&numa_meminfo, 0, sizeof(numa_meminfo));
+>         WARN_ON(memblock_set_node(0, ULLONG_MAX, &memblock.memory,
+>                                   MAX_NUMNODES));
+> diff --git a/drivers/acpi/numa.c b/drivers/acpi/numa.c
+> index 867f6e3..79dfedf 100644
+> --- a/drivers/acpi/numa.c
+> +++ b/drivers/acpi/numa.c
+> @@ -296,6 +296,14 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
+>                 goto out_err_bad_srat;
+>         }
+>
+> +       /*
+> +        * Non volatile memory is excluded from zonelist by default.
+> +        * Only regular DRAM nodes are set in default allocation node
+> +        * mask.
+> +        */
+> +       if (!(ma->flags & ACPI_SRAT_MEM_NON_VOLATILE))
+> +               node_set(node, def_alloc_nodemask);
 
-Ok, that makes sense.
+Hmm, no, I don't think we should do this. Especially considering
+current generation NVDIMMs are energy backed DRAM there is no
+performance difference that should be assumed by the non-volatile
+flag.
 
->> +#if defined(HAVE_ARCH_PICK_MMAP_LAYOUT) || \
->> +	defined(ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT)
-> Not sure if it is wrіtten down somehwere or just convention, but I
-> general see cpp defined statements aligned with spaces to the
-> one on the previous line.
-
-
-Ok, I will fix that.
-
-
-> Except for these nitpicks this looks very nice to me, thanks for doing
-> this work!
-
-
-Thanks :)
+Why isn't default SLIT distance sufficient for ensuring a DRAM-first
+default policy?
 
