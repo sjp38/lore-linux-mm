@@ -6,80 +6,80 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 83363C43381
-	for <linux-mm@archiver.kernel.org>; Sat, 23 Mar 2019 04:45:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B3081C43381
+	for <linux-mm@archiver.kernel.org>; Sat, 23 Mar 2019 04:45:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2D8DC218E2
-	for <linux-mm@archiver.kernel.org>; Sat, 23 Mar 2019 04:45:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D8DC218E2
+	by mail.kernel.org (Postfix) with ESMTP id 6D74D218E2
+	for <linux-mm@archiver.kernel.org>; Sat, 23 Mar 2019 04:45:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D74D218E2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 36A296B000E; Sat, 23 Mar 2019 00:45:11 -0400 (EDT)
+	id 0FB1E6B026B; Sat, 23 Mar 2019 00:45:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 340BB6B0010; Sat, 23 Mar 2019 00:45:11 -0400 (EDT)
+	id 0810C6B026C; Sat, 23 Mar 2019 00:45:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 121A96B0266; Sat, 23 Mar 2019 00:45:10 -0400 (EDT)
+	id E643E6B026D; Sat, 23 Mar 2019 00:45:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BC12E6B000E
-	for <linux-mm@kvack.org>; Sat, 23 Mar 2019 00:45:10 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id y2so4233340pfl.16
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 21:45:10 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A83F36B026B
+	for <linux-mm@kvack.org>; Sat, 23 Mar 2019 00:45:35 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id u2so3964658pgi.10
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 21:45:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=mRnqNBUA/+X55QouLJxhPr6tTyfUiX9z7wlgO1jXwO8=;
-        b=RxOaH9kw3emRkau5AWoQYox4IuH/lLaxlGXETJhGN2+SjKWcvUaSeCDxK7Sb1J4RDD
-         bIKCqJJZhfdGyTyk07ybmTsuC+tRYIpd6PRRSJTjFOR4Go1K1JNFMk/qbSVYRsfKKpuN
-         UcMyerEmmqS5Xcz1HO0TxozYsCQK3+YdbHhcO2PoeDptJ/IUK0seEESlMK6hjpAIymim
-         ysseO/RMCONXfu3HJPJooStgKWHNFGVZY4olSQxRk09YqTbt6yW+crwdx6qGBXYTENWZ
-         o4JhsDtT5TNgcZzEziHI3Cnwa7mQLMGhX2Ut8BiWZqp7stJiqbAsCTsdkaxqJSMmeRMx
-         JKyA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAWTmrtd1MkSFOeCwho8ttAkXkBRaqhKtQjWTXsRk08D6Pbwt8DF
-	xcdzD+oYtjblbmm87W9B9TrpS7PlHtyiB2m36Obx/KmfbBzzj12B4g2+dC/M7KaC7Pf7ACNr3+3
-	TlSMcqmTfoSfq7b5LUDt3zZBrX5VI0J2sV6pmmFRKg5CDGfz5AGGeR8bqyN+v/MHdtw==
-X-Received: by 2002:a17:902:d705:: with SMTP id w5mr13172402ply.243.1553316310405;
-        Fri, 22 Mar 2019 21:45:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxj1ZavJZzrZw0+DKfGF3fk7Xct7j2R9/YwqQGhWUL49+oVCiePxkL6Dw6hgabMXI5/yi2V
-X-Received: by 2002:a17:902:d705:: with SMTP id w5mr13172313ply.243.1553316308960;
-        Fri, 22 Mar 2019 21:45:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553316308; cv=none;
+        bh=s9/PKRRwNdObDLsxPq9IaWvFf+ZDklBgCSct6YIvkgc=;
+        b=ZE+fEhcSc3Iuo2mSoWY+7yuQ/b8Cup8wYfrG88qhY0PzeTWDENkdHgdGM4iOmzbdIG
+         UtH2Cja6/ADUmfQvS4WUIjLUf6gskzD0eSOgnhcZtGB28bShvff5OoZULVYLec5fHn3J
+         G0P6aZHhJRkGSTX/lQFVHL+jVeJ83yrqXzFH6Bi8jFEUvt38XXonU/8yJOYWNm0fWu+v
+         /7BjJi2zlGKmVxJ/SpwrCrlPFjmdfKT+Vs1ZrKPWmPfzDxGXB4JtjbO3tqlKyiWI4AN3
+         KOJUcw3TmdoDIzYu8K6/ITIxd/JIayIbwkGkucg9vOi9E8DyPHrmcUowNlDgdqfU8jOm
+         SD0g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAXz4VtNQhNWukIz9ed/yn3l9n9dXRPgJNV6p32hh/VV0VJ1RKEd
+	4MVZ292d7kqcuSSS+CbRDuzYcS8v9HRs452ueQMTmVuXzDd8204rS1/fPd89GhkD8WdFzvK2rJp
+	F+pUN1NpQxx15rdchbF4BtKaFApvn9sId7cFwGSGmMwIjTfXNq7mFhJBUaESPtO1IFQ==
+X-Received: by 2002:a17:902:b48c:: with SMTP id y12mr13048172plr.280.1553316335283;
+        Fri, 22 Mar 2019 21:45:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxmLvfudpEOwjDdElbJRxJSfTNY7WvYK/JVVdYNLBDglVbu7vpeaXUyZLmCjXi2SHMDxdiE
+X-Received: by 2002:a17:902:b48c:: with SMTP id y12mr13048106plr.280.1553316333891;
+        Fri, 22 Mar 2019 21:45:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553316333; cv=none;
         d=google.com; s=arc-20160816;
-        b=gYOETg0oyafrBsP6C8p1EOSJ0YE8voBSlO47sLl6RXhGWY5MAZHIt02uxZVYjDTbuG
-         R2GKlDu4eMRO7nbvU/rpQesURx15f1ww6BElWQuLcVY1IfBxRgUktI0lozc5BMMQfb7v
-         bnkxjQi5T/rghTEy5ohb1tkvThcn6NmLuZVmnWNtZzafgZRGuKWESXzOKRcpVp0+aUFL
-         Cz938xeCLpF1DZeSoOWN5Ve5shi75cD1l6OAK9/NYeAGfqpwTwnrI4JvL/+FE4dctYoH
-         14YtW4sxG+m6nEU8nD/+TNXiugUwKu/qFHAz4yskRmRoKKykhn1UB+uFUH9jOA7o+2B8
-         FuHw==
+        b=0O6TnFcbGKOYhh7nsrdctaWwItfBo+ICaxE3+EvWFphT0snxbBl/Dlbmn1gPcUnMPt
+         AVXchN0rpwnSjgLldWtwy/ZRPnhRB38bQe92sHYh22xOCMXFO0/OAjiB949aGP0LNhAM
+         cJPMEg8rwwGVu2yAhBZ5RWTQTRc7/IhMzanY6Pp9V1bUruAj59y4mwNZtFJo7PPH0dD7
+         MrU+X6LBGgpB7A+9mRxRF16uNslP4TT+ogSD7t4MKnjr8GNb/N3V3ISnY3zJhE0jBFpR
+         oD/82/Cp2nYkubFk4iVwN8egsGTz2ta1nBpaUCthiPWhIPGUGMtO8eGEbTsfRARInAmR
+         5/Lg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=mRnqNBUA/+X55QouLJxhPr6tTyfUiX9z7wlgO1jXwO8=;
-        b=YldVzOyNaJQbdFPuzY1T1SGcg5/EnwCgoErL883xrGGjx0RpUjBBNjDaer84VfLjDF
-         xlQACxPdMW2eEGMExESb5LNzZbUbFk49D/zZrSi2y/yIbz6lnE+G9MhyYjIPn7liip3/
-         siF/ElbRVZqiti/GEtwxXaxanOVQKLv5zEwmd9nHFH+uptRIhXMzgp3yC/FVf+7wqSOb
-         2XQjinAO0UTMgGo4+kdKJrC6cvWFGJy7JRP6F68RAR0/QqMjhb0ymKsM1fLjGE4CT8nd
-         6s3qGdqWxg9/vmqdxwsOapui2dOCD4IXsuNnPn37PB8d3yizGdy7xoiVzyMgEE94Hbb4
-         N8xg==
+        bh=s9/PKRRwNdObDLsxPq9IaWvFf+ZDklBgCSct6YIvkgc=;
+        b=HCsIfViK7Rjlp4RxFoUj4NBXHiVe4+Lt8vSCa9grD3v8tihElKS/0ikrAqljHWdC5w
+         iWlq0aX/AeXXqvopolLmkAlewUGCyGHC9sxbYMjiXLrrI1I0R3UzaASuroP9tarLqN3X
+         s7Ej2+olqUcFjLGBiEsXug94amFSQ92ilK4SJW/k4zhOiqkcmQvVgqIcjoBMD3wDbwtP
+         7NzApYvrXj7OlbAk467H4Hq4DYTIpJM27awRjHaFnrpW5RR6b3WTOpeE9APjai7iAmae
+         8KyvQfLusDj3XsaXcg1CJmObKsoBmqkT7pB7nUqnVqYmwNNcTQ8rWBD4jnA/lvGc/5JU
+         UMEA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
-        by mx.google.com with ESMTPS id h12si6714801plt.69.2019.03.22.21.45.07
+Received: from out30-43.freemail.mail.aliyun.com (out30-43.freemail.mail.aliyun.com. [115.124.30.43])
+        by mx.google.com with ESMTPS id m133si8321847pga.314.2019.03.22.21.45.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Mar 2019 21:45:08 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) client-ip=47.88.44.36;
+        Fri, 22 Mar 2019 21:45:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) client-ip=115.124.30.43;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R641e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04397;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=14;SR=0;TI=SMTPD_---0TNPuxAM_1553316293;
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R171e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07487;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=14;SR=0;TI=SMTPD_---0TNPuxAM_1553316293;
 Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TNPuxAM_1553316293)
           by smtp.aliyun-inc.com(127.0.0.1);
-          Sat, 23 Mar 2019 12:45:01 +0800
+          Sat, 23 Mar 2019 12:45:02 +0800
 From: Yang Shi <yang.shi@linux.alibaba.com>
 To: mhocko@suse.com,
 	mgorman@techsingularity.net,
@@ -95,9 +95,9 @@ To: mhocko@suse.com,
 Cc: yang.shi@linux.alibaba.com,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 02/10] mm: mempolicy: introduce MPOL_HYBRID policy
-Date: Sat, 23 Mar 2019 12:44:27 +0800
-Message-Id: <1553316275-21985-3-git-send-email-yang.shi@linux.alibaba.com>
+Subject: [PATCH 05/10] mm: page_alloc: make find_next_best_node could skip DRAM node
+Date: Sat, 23 Mar 2019 12:44:30 +0800
+Message-Id: <1553316275-21985-6-git-send-email-yang.shi@linux.alibaba.com>
 X-Mailer: git-send-email 1.8.3.1
 In-Reply-To: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
 References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
@@ -107,209 +107,98 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Introduce a new NUMA policy, MPOL_HYBRID.  It behaves like MPOL_BIND,
-but since we need migrate pages from non-DRAM node (i.e. PMEM node) to
-DRAM node on demand, MPOL_HYBRID would do page migration on numa fault,
-so it would have MPOL_F_MOF set by default.
-
-The NUMA balancing stuff will be enabled in the following patch.
+Need find the cloest non-DRAM node to demote DRAM pages.  Add
+"skip_ram_node" parameter to find_next_best_node() to skip DRAM node on
+demand.
 
 Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 ---
- include/uapi/linux/mempolicy.h |  1 +
- mm/mempolicy.c                 | 56 +++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 51 insertions(+), 6 deletions(-)
+ mm/internal.h   | 11 +++++++++++
+ mm/page_alloc.c | 15 +++++++++++----
+ 2 files changed, 22 insertions(+), 4 deletions(-)
 
-diff --git a/include/uapi/linux/mempolicy.h b/include/uapi/linux/mempolicy.h
-index 3354774..0fdc73d 100644
---- a/include/uapi/linux/mempolicy.h
-+++ b/include/uapi/linux/mempolicy.h
-@@ -22,6 +22,7 @@ enum {
- 	MPOL_BIND,
- 	MPOL_INTERLEAVE,
- 	MPOL_LOCAL,
-+	MPOL_HYBRID,
- 	MPOL_MAX,	/* always last member of enum */
- };
- 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index af171cc..7d0a432 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -31,6 +31,10 @@
-  *                but useful to set in a VMA when you have a non default
-  *                process policy.
-  *
-+ * hybrid         Only allocate memory on specific set of nodes. If the set of
-+ *                nodes include non-DRAM nodes, NUMA balancing would promote
-+ *                the page to DRAM node.
-+ *
-  * default        Allocate on the local node first, or when on a VMA
-  *                use the process policy. This is what Linux always did
-  *		  in a NUMA aware kernel and still does by, ahem, default.
-@@ -191,6 +195,17 @@ static int mpol_new_bind(struct mempolicy *pol, const nodemask_t *nodes)
- 	return 0;
+diff --git a/mm/internal.h b/mm/internal.h
+index 9eeaf2b..46ad0d8 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -292,6 +292,17 @@ static inline bool is_data_mapping(vm_flags_t flags)
+ 	return (flags & (VM_WRITE | VM_SHARED | VM_STACK)) == VM_WRITE;
  }
  
-+static int mpol_new_hybrid(struct mempolicy *pol, const nodemask_t *nodes)
++#ifdef CONFIG_NUMA
++extern int find_next_best_node(int node, nodemask_t *used_node_mask,
++			       bool skip_ram_node);
++#else
++static inline int find_next_best_node(int node, nodemask_t *used_node_mask,
++				      bool skip_ram_node)
 +{
-+	if (nodes_empty(*nodes))
-+		return -EINVAL;
-+
-+	/* Hybrid policy would promote pages in page fault */
-+	pol->flags |= MPOL_F_MOF;
-+	pol->v.nodes = *nodes;
 +	return 0;
 +}
++#endif
 +
- /*
-  * mpol_set_nodemask is called after mpol_new() to set up the nodemask, if
-  * any, for the new policy.  mpol_new() has already validated the nodes
-@@ -401,6 +416,10 @@ void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
- 		.create = mpol_new_bind,
- 		.rebind = mpol_rebind_nodemask,
- 	},
-+	[MPOL_HYBRID] = {
-+		.create = mpol_new_hybrid,
-+		.rebind = mpol_rebind_nodemask,
-+	},
- };
- 
- static void migrate_page_add(struct page *page, struct list_head *pagelist,
-@@ -782,6 +801,8 @@ static void get_policy_nodemask(struct mempolicy *p, nodemask_t *nodes)
- 		return;
- 
- 	switch (p->mode) {
-+	case MPOL_HYBRID:
-+		/* Fall through */
- 	case MPOL_BIND:
- 		/* Fall through */
- 	case MPOL_INTERLEAVE:
-@@ -1721,8 +1742,12 @@ static int apply_policy_zone(struct mempolicy *policy, enum zone_type zone)
-  */
- static nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
- {
--	/* Lower zones don't get a nodemask applied for MPOL_BIND */
--	if (unlikely(policy->mode == MPOL_BIND) &&
-+	/*
-+	 * Lower zones don't get a nodemask applied for MPOL_BIND
-+	 * or MPOL_HYBRID.
-+	 */
-+	if (unlikely((policy->mode == MPOL_BIND) ||
-+			(policy->mode == MPOL_HYBRID)) &&
- 			apply_policy_zone(policy, gfp_zone(gfp)) &&
- 			cpuset_nodemask_valid_mems_allowed(&policy->v.nodes))
- 		return &policy->v.nodes;
-@@ -1742,7 +1767,9 @@ static int policy_node(gfp_t gfp, struct mempolicy *policy,
- 		 * because we might easily break the expectation to stay on the
- 		 * requested node and not break the policy.
- 		 */
--		WARN_ON_ONCE(policy->mode == MPOL_BIND && (gfp & __GFP_THISNODE));
-+		WARN_ON_ONCE((policy->mode == MPOL_BIND ||
-+			     policy->mode == MPOL_HYBRID) &&
-+			     (gfp & __GFP_THISNODE));
- 	}
- 
- 	return nd;
-@@ -1786,6 +1813,8 @@ unsigned int mempolicy_slab_node(void)
- 	case MPOL_INTERLEAVE:
- 		return interleave_nodes(policy);
- 
-+	case MPOL_HYBRID:
-+		/* Fall through */
- 	case MPOL_BIND: {
- 		struct zoneref *z;
- 
-@@ -1856,7 +1885,8 @@ static inline unsigned interleave_nid(struct mempolicy *pol,
-  * @addr: address in @vma for shared policy lookup and interleave policy
-  * @gfp_flags: for requested zone
-  * @mpol: pointer to mempolicy pointer for reference counted mempolicy
-- * @nodemask: pointer to nodemask pointer for MPOL_BIND nodemask
-+ * @nodemask: pointer to nodemask pointer for MPOL_BIND or MPOL_HYBRID
-+ * nodemask
+ /* mm/util.c */
+ void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		struct vm_area_struct *prev, struct rb_node *rb_parent);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 68ad8c6..07d767b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5375,6 +5375,7 @@ int numa_zonelist_order_handler(struct ctl_table *table, int write,
+  * find_next_best_node - find the next node that should appear in a given node's fallback list
+  * @node: node whose fallback list we're appending
+  * @used_node_mask: nodemask_t of already used nodes
++ * @skip_ram_node: find next best non-DRAM node
   *
-  * Returns a nid suitable for a huge page allocation and a pointer
-  * to the struct mempolicy for conditional unref after allocation.
-@@ -1871,14 +1901,16 @@ int huge_node(struct vm_area_struct *vma, unsigned long addr, gfp_t gfp_flags,
- 	int nid;
+  * We use a number of factors to determine which is the next node that should
+  * appear on a given node's fallback list.  The node should not have appeared
+@@ -5386,7 +5387,8 @@ int numa_zonelist_order_handler(struct ctl_table *table, int write,
+  *
+  * Return: node id of the found node or %NUMA_NO_NODE if no node is found.
+  */
+-static int find_next_best_node(int node, nodemask_t *used_node_mask)
++int find_next_best_node(int node, nodemask_t *used_node_mask,
++			bool skip_ram_node)
+ {
+ 	int n, val;
+ 	int min_val = INT_MAX;
+@@ -5394,13 +5396,19 @@ static int find_next_best_node(int node, nodemask_t *used_node_mask)
+ 	const struct cpumask *tmp = cpumask_of_node(0);
  
- 	*mpol = get_vma_policy(vma, addr);
--	*nodemask = NULL;	/* assume !MPOL_BIND */
-+	/* assume !MPOL_BIND || !MPOL_HYBRID */
-+	*nodemask = NULL;
- 
- 	if (unlikely((*mpol)->mode == MPOL_INTERLEAVE)) {
- 		nid = interleave_nid(*mpol, vma, addr,
- 					huge_page_shift(hstate_vma(vma)));
- 	} else {
- 		nid = policy_node(gfp_flags, *mpol, numa_node_id());
--		if ((*mpol)->mode == MPOL_BIND)
-+		if ((*mpol)->mode == MPOL_BIND ||
-+		    (*mpol)->mode == MPOL_HYBRID)
- 			*nodemask = &(*mpol)->v.nodes;
+ 	/* Use the local node if we haven't already */
+-	if (!node_isset(node, *used_node_mask)) {
++	if (!node_isset(node, *used_node_mask) &&
++	    !skip_ram_node) {
+ 		node_set(node, *used_node_mask);
+ 		return node;
  	}
- 	return nid;
-@@ -1919,6 +1951,8 @@ bool init_nodemask_of_mempolicy(nodemask_t *mask)
- 		init_nodemask_of_node(mask, nid);
- 		break;
  
-+	case MPOL_HYBRID:
-+		/* Fall through */
- 	case MPOL_BIND:
- 		/* Fall through */
- 	case MPOL_INTERLEAVE:
-@@ -1966,6 +2000,7 @@ bool mempolicy_nodemask_intersects(struct task_struct *tsk,
- 		 * nodes in mask.
- 		 */
- 		break;
-+	case MPOL_HYBRID:
- 	case MPOL_BIND:
- 	case MPOL_INTERLEAVE:
- 		ret = nodes_intersects(mempolicy->v.nodes, *mask);
-@@ -2170,6 +2205,8 @@ bool __mpol_equal(struct mempolicy *a, struct mempolicy *b)
- 			return false;
+ 	for_each_node_state(n, N_MEMORY) {
  
- 	switch (a->mode) {
-+	case MPOL_HYBRID:
-+		/* Fall through */
- 	case MPOL_BIND:
- 		/* Fall through */
- 	case MPOL_INTERLEAVE:
-@@ -2325,6 +2362,9 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
- 			polnid = pol->v.preferred_node;
- 		break;
- 
-+	case MPOL_HYBRID:
-+		/* Fall through */
++		/* Find next best non-DRAM node */
++		if (skip_ram_node &&
++		    (node_isset(n, def_alloc_nodemask)))
++			continue;
 +
- 	case MPOL_BIND:
+ 		/* Don't want a node to appear more than once */
+ 		if (node_isset(n, *used_node_mask))
+ 			continue;
+@@ -5432,7 +5440,6 @@ static int find_next_best_node(int node, nodemask_t *used_node_mask)
+ 	return best_node;
+ }
  
+-
+ /*
+  * Build zonelists ordered by node and zones within node.
+  * This results in maximum locality--normal zone overflows into local
+@@ -5494,7 +5501,7 @@ static void build_zonelists(pg_data_t *pgdat)
+ 	nodes_clear(used_mask);
+ 
+ 	memset(node_order, 0, sizeof(node_order));
+-	while ((node = find_next_best_node(local_node, &used_mask)) >= 0) {
++	while ((node = find_next_best_node(local_node, &used_mask, false)) >= 0) {
  		/*
-@@ -2693,6 +2733,7 @@ void numa_default_policy(void)
- 	[MPOL_BIND]       = "bind",
- 	[MPOL_INTERLEAVE] = "interleave",
- 	[MPOL_LOCAL]      = "local",
-+	[MPOL_HYBRID]     = "hybrid",
- };
- 
- 
-@@ -2768,6 +2809,8 @@ int mpol_parse_str(char *str, struct mempolicy **mpol)
- 		if (!nodelist)
- 			err = 0;
- 		goto out;
-+	case MPOL_HYBRID:
-+		/* Fall through */
- 	case MPOL_BIND:
- 		/*
- 		 * Insist on a nodelist
-@@ -2856,6 +2899,7 @@ void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
- 		else
- 			node_set(pol->v.preferred_node, nodes);
- 		break;
-+	case MPOL_HYBRID:
- 	case MPOL_BIND:
- 	case MPOL_INTERLEAVE:
- 		nodes = pol->v.nodes;
+ 		 * We don't want to pressure a particular node.
+ 		 * So adding penalty to the first node in same
 -- 
 1.8.3.1
 
