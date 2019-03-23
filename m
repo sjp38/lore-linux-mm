@@ -4,82 +4,82 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 052F3C4360F
-	for <linux-mm@archiver.kernel.org>; Sat, 23 Mar 2019 04:45:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D421AC43381
+	for <linux-mm@archiver.kernel.org>; Sat, 23 Mar 2019 04:45:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B1F8221900
-	for <linux-mm@archiver.kernel.org>; Sat, 23 Mar 2019 04:45:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B1F8221900
+	by mail.kernel.org (Postfix) with ESMTP id 99442218E2
+	for <linux-mm@archiver.kernel.org>; Sat, 23 Mar 2019 04:45:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 99442218E2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0D07F6B0006; Sat, 23 Mar 2019 00:45:06 -0400 (EDT)
+	id 1C1216B0008; Sat, 23 Mar 2019 00:45:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 08B006B0007; Sat, 23 Mar 2019 00:45:06 -0400 (EDT)
+	id 05A8F6B000A; Sat, 23 Mar 2019 00:45:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EB0926B0008; Sat, 23 Mar 2019 00:45:05 -0400 (EDT)
+	id E62CD6B000C; Sat, 23 Mar 2019 00:45:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B349D6B0007
-	for <linux-mm@kvack.org>; Sat, 23 Mar 2019 00:45:05 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id g83so4272035pfd.3
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 21:45:05 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AE87F6B0008
+	for <linux-mm@kvack.org>; Sat, 23 Mar 2019 00:45:06 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id g83so4272065pfd.3
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 21:45:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=VeTrpkgTol96HI011wIp/gboY/0gXosEdyexTBsWDs4=;
-        b=ugXF9axIJ3BhFSmEWdxfQu549AaEp8I3tIFM5ETgnZfdvkweUZj7fyT5ZaHRZbgc9O
-         e/QnYVDb0StNLjWBHj3X92/6OX4rG1L4Rdgwb95ROjeXwcKxhtrxhBOtyVWRPnCnNLlT
-         60+g4yf91SEUIn+g6/IBHIaf/IiuU/Q/3+OhQOOjOO3nWxTnU6C5s3Lb5/iamutWbypU
-         r0kanqxtReHLjTwyW6mFVlgx9EwAIoEn4whkgU7hJYX106eIz6SIJg/WfktcF2T6/PbT
-         joYi4pX5HZDV9zZteJ0TtalDdYHk0+xo2NK25GWVgCrsc+lGHhWLBMtgdLK4oc36Oz0c
-         qpCQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAWpftZfzGj6y5zDDoWHa3wJjjznRZ9sfFfX3lSaO0CSRaBoToXy
-	jMPe9LJSgmpGa7k+AB4X1kPi3yvyLsD2SlBxCCew5A3Hzbbo2rHO2IG/igIdf/7HmVdWtQnDL2H
-	xMF9o3lee5IpPlKQ2PcU3SuqpoDcIobaiSWlmzuPRs6LvalyJm5rqId4yqdtUW6vV3w==
-X-Received: by 2002:a62:29c6:: with SMTP id p189mr13211652pfp.194.1553316305330;
+        bh=kdFWjbNMrgHE4IiWbQnApU5LlKLCfxjq39LREWERgU0=;
+        b=UPaVQtVF9tk21o26Jb7PMaPpXyUTGIxpfVDXu0mX8ckDEHLv4X6zBJFrPlsa+9dS4F
+         FsriMGuXeQEsSbRpwtiTK06KVwcnqeYCl/R7B74MBn04D9mUmo99MYHd7nH0SzBayK09
+         XUJvmREKbszJzi0GCksB+Xaa40fgW6RqEZFSHPwHD4Pr/bllUAR6uI/db8kM1F/VekJV
+         yOncF0Z3bogRpH90AoQHNFwhrSAW6hIF8BMQZwVzAwgQEn9fREstQMz5BJyLbhkO3fbp
+         nhHYIbVGrzLKFa0rtFau/wE7YxK43wpPNTVyVN24nfqP4u/ewPG1tbZ+BqBlEaPlxErk
+         nihA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAXGi7auXfCLsN8Xb9IUA2KQD82615zPcpyjYW3nitTBikkB/ZzR
+	JcDoHyv5jpu7knVHeIJ8pBxU5hZ8FSmDATuPMp01bzLHL2/2NAQGDdjJjCiIE7LLDhKle0JAf3R
+	kQdXowgvtFbzV+aA0dyuLmNTzRx5eNObx9HbACVZNiYLohiDRCr52SLS+V8n4D6+DZg==
+X-Received: by 2002:a17:902:203:: with SMTP id 3mr13429256plc.336.1553316306406;
+        Fri, 22 Mar 2019 21:45:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzVMhQEF+c7eLgO2II+Jax/YEyuN0+LhEmOXu+loSq1yT5eDsnEmLIYulTuErQmNjq2hpHh
+X-Received: by 2002:a17:902:203:: with SMTP id 3mr13429196plc.336.1553316305387;
         Fri, 22 Mar 2019 21:45:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwqQJVKhwG8CddfG0PSEgiGzyV9kduOGGBmoPagOKFzP+V93WAe2XPhL0DYPrVsC2Z3NeVV
-X-Received: by 2002:a62:29c6:: with SMTP id p189mr13211567pfp.194.1553316303876;
-        Fri, 22 Mar 2019 21:45:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553316303; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1553316305; cv=none;
         d=google.com; s=arc-20160816;
-        b=1AiprqyY2Fl8t+taNEbP4vI5me3DB9DFmxZMWNBhXr78ydc26RodfIyBHTZkkwcSLO
-         Mbft3d9Xn1pd4AXOVQsjfdjnHaBOFjw0VEQhKdkJETSaBllMb53tsvzLjjSotI8OASNR
-         BEWMwKnHS26vjt6CvxQ9LUVi2qHX9OVgfSFiRx6KTBkOqG+pBy5I2m/hh/4pJGpb7Txs
-         dB6QVFuFLBfOlgqSwzhSdygmpYqvwU0ysH2Is5XlItHIX3SwBCjrIV/uTpeOejgvxGm9
-         S6mv2QfSwoQa+qwF36NM4qW/yLDLencH+JYVJDzU9/MaBlGmRE6l+1/HM4SgVlqdSXa/
-         BvLQ==
+        b=qTSxjc7aSibVyZ6k0lsUDtV9OYz9ZeXOPYB5glhIAfzMjEqz1G0jw3Hyi2vmgGhY/+
+         fSBTX9dri+eBGYaH8JkJHpMJQkheElK8q8ODiFRxw74KZwmNEXbUvpPhQ/lm+962vPZx
+         ohH2iJQtL4ShadXx4PZfWqlJ+1m6giDZEOCgtrPIjHRif83KBlh5deyu8MfoaAU9nrXu
+         kU7nEQA8+faAuA81lMOIDEsElbK3XFYOgdns5eDLTJfg0hR1PAkfM7Av1M73noUBN39/
+         Wvb/uBvS1MOKrHgvzRxtotOUMsL7199MCy6v6tK3/VxAl6ckNgSTQyRAygB4Hjfy+O1C
+         OrlA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=VeTrpkgTol96HI011wIp/gboY/0gXosEdyexTBsWDs4=;
-        b=RS1smvu1A5tbrw5/V71m5z5l6lK0QcH1RNmqk34uDNCyG9jyCrVPk4+qvsxw4UZ4gg
-         jZqbwyc0caV52gf3iUtDMTFvkTMw1M8U4mgDsTP1NcuFQTULf1l5H698VBA2fhMzFd4G
-         it7SJBWVPvWzxv02NveRVJh1pejKEKbV8RLXYG4QxhRwmuPrGrytuyLM4JObmsNGMvbe
-         m/atdRY+CkWRsDM+ckwvfxCNXPUndse/5H1PDEpo0XtcCpdzM1MWL3oDWPV/k+SE3p6w
-         dKlHdm8Gcb9CmWwlaEi1EnKK4urq42K4BLSviHndf82437d853EGEXoqFEA2DMFxg4Ju
-         xzbw==
+        bh=kdFWjbNMrgHE4IiWbQnApU5LlKLCfxjq39LREWERgU0=;
+        b=uLmi+P5rHOzQmHvglU0bhLkGE3VaRLE/M+O6iGb/EVojZS9Qxh9iqf9PvCTrc2C6Xc
+         57DSmmgUi112kvVqAyDNJXstXJBpBhVvxq7TZwMGcYwZyzlA+vP6NYoF1wqyCja3Ujq4
+         bB2nKvhv2KJRWu7r4vMsWwJmk4UChGRxjOka5ZHoztSSVkcxsHBgx/9TDmFsagy208kC
+         l5aBvif6TzXs03disyMbtujZdNgnbDttE/gL+/VDRFsg47HKCnClZcK8zYk2glzEGzlP
+         /+jS/3HMa1SdP5WLzqO23yAx3TTi1LeOUZdABprK9aUGQspmat3GK0pp2Ku2J8Ya+2j/
+         PPOQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-56.freemail.mail.aliyun.com (out30-56.freemail.mail.aliyun.com. [115.124.30.56])
-        by mx.google.com with ESMTPS id w12si8053022pgr.104.2019.03.22.21.45.03
+Received: from out30-43.freemail.mail.aliyun.com (out30-43.freemail.mail.aliyun.com. [115.124.30.43])
+        by mx.google.com with ESMTPS id 186si8479616pfe.262.2019.03.22.21.45.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Mar 2019 21:45:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) client-ip=115.124.30.56;
+        Fri, 22 Mar 2019 21:45:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) client-ip=115.124.30.43;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R101e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04391;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=14;SR=0;TI=SMTPD_---0TNPuxAM_1553316293;
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R661e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e01424;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=14;SR=0;TI=SMTPD_---0TNPuxAM_1553316293;
 Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TNPuxAM_1553316293)
           by smtp.aliyun-inc.com(127.0.0.1);
-          Sat, 23 Mar 2019 12:45:01 +0800
+          Sat, 23 Mar 2019 12:45:02 +0800
 From: Yang Shi <yang.shi@linux.alibaba.com>
 To: mhocko@suse.com,
 	mgorman@techsingularity.net,
@@ -95,9 +95,9 @@ To: mhocko@suse.com,
 Cc: yang.shi@linux.alibaba.com,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 01/10] mm: control memory placement by nodemask for two tier main memory
-Date: Sat, 23 Mar 2019 12:44:26 +0800
-Message-Id: <1553316275-21985-2-git-send-email-yang.shi@linux.alibaba.com>
+Subject: [PATCH 03/10] mm: mempolicy: promote page to DRAM for MPOL_HYBRID
+Date: Sat, 23 Mar 2019 12:44:28 +0800
+Message-Id: <1553316275-21985-4-git-send-email-yang.shi@linux.alibaba.com>
 X-Mailer: git-send-email 1.8.3.1
 In-Reply-To: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
 References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
@@ -107,115 +107,56 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When running applications on the machine with NVDIMM as NUMA node, the
-memory allocation may end up on NVDIMM node.  This may result in silent
-performance degradation and regression due to the difference of hardware
-property.
+With MPOL_HYBRID the memory allocation may end up on non-DRAM node, this
+may be not optimal for performance.  Promote pages to DRAM with NUMA
+balancing for MPOL_HYBRID.
 
-DRAM first should be obeyed to prevent from surprising regression.  Any
-non-DRAM nodes should be excluded from default allocation.  Use nodemask
-to control the memory placement.  Introduce def_alloc_nodemask which has
-DRAM nodes set only.  Any non-DRAM allocation should be specified by
-NUMA policy explicitly.
-
-In the future we may be able to extract the memory charasteristics from
-HMAT or other source to build up the default allocation nodemask.
-However, just distinguish DRAM and PMEM (non-DRAM) nodes by SRAT flag
-for the time being.
+If DRAM nodes are specified, migrate to the specified nodes.  If no DRAM
+node is specified, migrate to the local DRAM node.
 
 Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 ---
- arch/x86/mm/numa.c     |  1 +
- drivers/acpi/numa.c    |  8 ++++++++
- include/linux/mmzone.h |  3 +++
- mm/page_alloc.c        | 18 ++++++++++++++++--
- 4 files changed, 28 insertions(+), 2 deletions(-)
+ mm/mempolicy.c | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index dfb6c4d..d9e0ca4 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -626,6 +626,7 @@ static int __init numa_init(int (*init_func)(void))
- 	nodes_clear(numa_nodes_parsed);
- 	nodes_clear(node_possible_map);
- 	nodes_clear(node_online_map);
-+	nodes_clear(def_alloc_nodemask);
- 	memset(&numa_meminfo, 0, sizeof(numa_meminfo));
- 	WARN_ON(memblock_set_node(0, ULLONG_MAX, &memblock.memory,
- 				  MAX_NUMNODES));
-diff --git a/drivers/acpi/numa.c b/drivers/acpi/numa.c
-index 867f6e3..79dfedf 100644
---- a/drivers/acpi/numa.c
-+++ b/drivers/acpi/numa.c
-@@ -296,6 +296,14 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
- 		goto out_err_bad_srat;
- 	}
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 7d0a432..87bc691 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -2339,6 +2339,7 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
+ 	struct zoneref *z;
+ 	int curnid = page_to_nid(page);
+ 	unsigned long pgoff;
++	nodemask_t nmask;
+ 	int thiscpu = raw_smp_processor_id();
+ 	int thisnid = cpu_to_node(thiscpu);
+ 	int polnid = NUMA_NO_NODE;
+@@ -2363,7 +2364,24 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
+ 		break;
  
-+	/*
-+	 * Non volatile memory is excluded from zonelist by default.
-+	 * Only regular DRAM nodes are set in default allocation node
-+	 * mask.
-+	 */
-+	if (!(ma->flags & ACPI_SRAT_MEM_NON_VOLATILE))
-+		node_set(node, def_alloc_nodemask);
+ 	case MPOL_HYBRID:
+-		/* Fall through */
++		if (node_isset(curnid, pol->v.nodes) &&
++		    node_isset(curnid, def_alloc_nodemask))
++			/* The page is already on DRAM node */
++			goto out;
 +
- 	node_set(node, numa_nodes_parsed);
- 
- 	pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]%s%s\n",
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index fba7741..063c3b4 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -927,6 +927,9 @@ extern int numa_zonelist_order_handler(struct ctl_table *, int,
- extern struct pglist_data *next_online_pgdat(struct pglist_data *pgdat);
- extern struct zone *next_zone(struct zone *zone);
- 
-+/* Regular DRAM nodes */
-+extern nodemask_t def_alloc_nodemask;
++		/*
++		 * Promote to the DRAM node specified by the policy, or
++		 * the local DRAM node if no DRAM node is specified.
++		 */
++		nodes_and(nmask, pol->v.nodes, def_alloc_nodemask);
 +
- /**
-  * for_each_online_pgdat - helper macro to iterate over all online nodes
-  * @pgdat - pointer to a pg_data_t variable
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 03fcf73..68ad8c6 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -134,6 +134,8 @@ struct pcpu_drain {
- int percpu_pagelist_fraction;
- gfp_t gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
- 
-+nodemask_t def_alloc_nodemask __read_mostly;
++		z = first_zones_zonelist(
++			node_zonelist(numa_node_id(), GFP_HIGHUSER),
++			gfp_zone(GFP_HIGHUSER),
++			nodes_empty(nmask) ? &def_alloc_nodemask : &nmask);
++		polnid = z->zone->node;
 +
- /*
-  * A cached value of the page's pageblock's migratetype, used when the page is
-  * put on a pcplist. Used to avoid the pageblock migratetype lookup when
-@@ -4524,12 +4526,24 @@ static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
- {
- 	ac->high_zoneidx = gfp_zone(gfp_mask);
- 	ac->zonelist = node_zonelist(preferred_nid, gfp_mask);
--	ac->nodemask = nodemask;
- 	ac->migratetype = gfpflags_to_migratetype(gfp_mask);
++		break;
  
-+	if (!nodemask) {
-+		/* Non-DRAM node is preferred node */
-+		if (!node_isset(preferred_nid, def_alloc_nodemask))
-+			/*
-+			 * With MPOL_PREFERRED policy, once PMEM is allowed,
-+			 * can falback to all memory nodes.
-+			 */
-+			ac->nodemask = &node_states[N_MEMORY];
-+		else
-+			ac->nodemask = &def_alloc_nodemask;
-+	} else
-+		ac->nodemask = nodemask;
-+
- 	if (cpusets_enabled()) {
- 		*alloc_mask |= __GFP_HARDWALL;
--		if (!ac->nodemask)
-+		if (nodes_equal(*ac->nodemask, def_alloc_nodemask))
- 			ac->nodemask = &cpuset_current_mems_allowed;
- 		else
- 			*alloc_flags |= ALLOC_CPUSET;
+ 	case MPOL_BIND:
+ 
 -- 
 1.8.3.1
 
