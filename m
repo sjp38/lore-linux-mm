@@ -6,77 +6,77 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B3081C43381
-	for <linux-mm@archiver.kernel.org>; Sat, 23 Mar 2019 04:45:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D8A4C10F05
+	for <linux-mm@archiver.kernel.org>; Sat, 23 Mar 2019 04:45:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6D74D218E2
-	for <linux-mm@archiver.kernel.org>; Sat, 23 Mar 2019 04:45:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D74D218E2
+	by mail.kernel.org (Postfix) with ESMTP id 069EF218E2
+	for <linux-mm@archiver.kernel.org>; Sat, 23 Mar 2019 04:45:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 069EF218E2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0FB1E6B026B; Sat, 23 Mar 2019 00:45:36 -0400 (EDT)
+	id 9FD496B026C; Sat, 23 Mar 2019 00:45:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0810C6B026C; Sat, 23 Mar 2019 00:45:36 -0400 (EDT)
+	id 934FE6B026E; Sat, 23 Mar 2019 00:45:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E643E6B026D; Sat, 23 Mar 2019 00:45:35 -0400 (EDT)
+	id 7AE936B026F; Sat, 23 Mar 2019 00:45:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A83F36B026B
-	for <linux-mm@kvack.org>; Sat, 23 Mar 2019 00:45:35 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id u2so3964658pgi.10
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 21:45:35 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DD266B026C
+	for <linux-mm@kvack.org>; Sat, 23 Mar 2019 00:45:38 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id a72so4229358pfj.19
+        for <linux-mm@kvack.org>; Fri, 22 Mar 2019 21:45:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=s9/PKRRwNdObDLsxPq9IaWvFf+ZDklBgCSct6YIvkgc=;
-        b=ZE+fEhcSc3Iuo2mSoWY+7yuQ/b8Cup8wYfrG88qhY0PzeTWDENkdHgdGM4iOmzbdIG
-         UtH2Cja6/ADUmfQvS4WUIjLUf6gskzD0eSOgnhcZtGB28bShvff5OoZULVYLec5fHn3J
-         G0P6aZHhJRkGSTX/lQFVHL+jVeJ83yrqXzFH6Bi8jFEUvt38XXonU/8yJOYWNm0fWu+v
-         /7BjJi2zlGKmVxJ/SpwrCrlPFjmdfKT+Vs1ZrKPWmPfzDxGXB4JtjbO3tqlKyiWI4AN3
-         KOJUcw3TmdoDIzYu8K6/ITIxd/JIayIbwkGkucg9vOi9E8DyPHrmcUowNlDgdqfU8jOm
-         SD0g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAXz4VtNQhNWukIz9ed/yn3l9n9dXRPgJNV6p32hh/VV0VJ1RKEd
-	4MVZ292d7kqcuSSS+CbRDuzYcS8v9HRs452ueQMTmVuXzDd8204rS1/fPd89GhkD8WdFzvK2rJp
-	F+pUN1NpQxx15rdchbF4BtKaFApvn9sId7cFwGSGmMwIjTfXNq7mFhJBUaESPtO1IFQ==
-X-Received: by 2002:a17:902:b48c:: with SMTP id y12mr13048172plr.280.1553316335283;
-        Fri, 22 Mar 2019 21:45:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxmLvfudpEOwjDdElbJRxJSfTNY7WvYK/JVVdYNLBDglVbu7vpeaXUyZLmCjXi2SHMDxdiE
-X-Received: by 2002:a17:902:b48c:: with SMTP id y12mr13048106plr.280.1553316333891;
-        Fri, 22 Mar 2019 21:45:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553316333; cv=none;
+        bh=Ipb+kryOclOsdI7bZtqHOlDm7ELTlnRdbAsmhRsy3rE=;
+        b=e1GEyIyjjHIGIji7el30kwr9m04ymlx0EhF95l65T4WBS+NBWecEv6WY5U8n2jaVDn
+         XKBLg714wmEmlK6vOI1YCn59G3Rcfv8ULMJUa0XJfphGVeGFiFTX3ZapB8tbHBbh5xUP
+         lw62GGOg4H4gpj+bncjbiHoKYLRoo9sR8wVjr2hKOMlfdRMekNbC2E0VOnz/xhl/SZ+q
+         yBFDEjZzt7bGUXVBRTltD2wq3YYT49hl/H42tCdeJovsmywWtAAj90rK+46EeUpr0UcF
+         JYVnt2DUNjB+H3xcpR24PiWetR6laMjLuTIjS9iDQJrtlEeviM1WckVx78X+qO9Xmab6
+         zYeg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAWVFw+Tz0imFzV4+SoX2jh3bnHZMifVYdDXCdGw1NeuKBvRhtCI
+	MdzOB9Fj7FbCiK+t4WFQ8+rfJs4z/+koHg8YemcKGiiKjTd4HcpHCVrNw8odXmD1X/RJvqLB9We
+	6Hr0QreuvBAuKEM4rE4r6e/0I06fStJZ2LAhLsjCrApyeftrnKuUqFtUVSe1jlIkcSA==
+X-Received: by 2002:a17:902:a413:: with SMTP id p19mr13386851plq.337.1553316337810;
+        Fri, 22 Mar 2019 21:45:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwJrHlQJkNwLjAH2jY6C2sv0VVICYermC2j2dzgNIuRRbMXJ+BlXtQQB3ccVCtqhkaAx2Ml
+X-Received: by 2002:a17:902:a413:: with SMTP id p19mr13386780plq.337.1553316336557;
+        Fri, 22 Mar 2019 21:45:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553316336; cv=none;
         d=google.com; s=arc-20160816;
-        b=0O6TnFcbGKOYhh7nsrdctaWwItfBo+ICaxE3+EvWFphT0snxbBl/Dlbmn1gPcUnMPt
-         AVXchN0rpwnSjgLldWtwy/ZRPnhRB38bQe92sHYh22xOCMXFO0/OAjiB949aGP0LNhAM
-         cJPMEg8rwwGVu2yAhBZ5RWTQTRc7/IhMzanY6Pp9V1bUruAj59y4mwNZtFJo7PPH0dD7
-         MrU+X6LBGgpB7A+9mRxRF16uNslP4TT+ogSD7t4MKnjr8GNb/N3V3ISnY3zJhE0jBFpR
-         oD/82/Cp2nYkubFk4iVwN8egsGTz2ta1nBpaUCthiPWhIPGUGMtO8eGEbTsfRARInAmR
-         5/Lg==
+        b=Q8z0exUcvzez9a34T9iUY6cyETNp8Rm5XzcaymZGNYZZkmRFPOa/HUWFgrryY2ZUSP
+         l072VbUfitj3AuSY+JRWoliYWc7JQvp+hiCU3U24I2GVNC2jk5lnnsrrgfTrO5r1D75C
+         /ZkIGuaqp0wdq5EuS5zvanlj+N1vZG85tDGJrlNu0bD4xYt9EN8mXoHzn4telKhAqj/6
+         Yy3ua7g4MytWhtI/gH6WmNDHT12vjCnDN1bq34Df4d1Fp8NVqOO2hdr6pvtGcd4aFoZY
+         g6JIdf1TtB06FNUIR+xX/J6xOFrAX9yRZsb5O6mjlpuzg/HKV9/bPillh+kPZjXEtOtI
+         FOhw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=s9/PKRRwNdObDLsxPq9IaWvFf+ZDklBgCSct6YIvkgc=;
-        b=HCsIfViK7Rjlp4RxFoUj4NBXHiVe4+Lt8vSCa9grD3v8tihElKS/0ikrAqljHWdC5w
-         iWlq0aX/AeXXqvopolLmkAlewUGCyGHC9sxbYMjiXLrrI1I0R3UzaASuroP9tarLqN3X
-         s7Ej2+olqUcFjLGBiEsXug94amFSQ92ilK4SJW/k4zhOiqkcmQvVgqIcjoBMD3wDbwtP
-         7NzApYvrXj7OlbAk467H4Hq4DYTIpJM27awRjHaFnrpW5RR6b3WTOpeE9APjai7iAmae
-         8KyvQfLusDj3XsaXcg1CJmObKsoBmqkT7pB7nUqnVqYmwNNcTQ8rWBD4jnA/lvGc/5JU
-         UMEA==
+        bh=Ipb+kryOclOsdI7bZtqHOlDm7ELTlnRdbAsmhRsy3rE=;
+        b=vOfISO+bnASQGNBd0wW2Tqby3bv5P+2GoRs6TK1FRvr5DjblQQV7KycILbAGixTv5T
+         VCvRjf0VajU5FTOE0fIYolR2x8hK3ctKLipIrBn93/xbmIkSPGE/4z4+NO6t9Uf6kbJR
+         03ALTEMgOT5WJEtWuiKoxRVjnU+YSRYSJha9uhaRQElrrHIdmAzg63nLhQVMe5JrJ8Py
+         7LzPwB1DV9eKzNxNU3f2qbkmZknc8PJy1/2t74NIroCe6U4QVj6eBZsTPwIpjYwWrO6m
+         EK2zARwMziU+aLGzimKxw6j98ZauDcYPYti+OLlf24lus3tp9RqH7LVXUppkZ7+XdHNw
+         MIzg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-43.freemail.mail.aliyun.com (out30-43.freemail.mail.aliyun.com. [115.124.30.43])
-        by mx.google.com with ESMTPS id m133si8321847pga.314.2019.03.22.21.45.33
+Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
+        by mx.google.com with ESMTPS id h35si9138722plb.180.2019.03.22.21.45.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Mar 2019 21:45:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) client-ip=115.124.30.43;
+        Fri, 22 Mar 2019 21:45:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) client-ip=115.124.30.131;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R171e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07487;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=14;SR=0;TI=SMTPD_---0TNPuxAM_1553316293;
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R181e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04389;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=14;SR=0;TI=SMTPD_---0TNPuxAM_1553316293;
 Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TNPuxAM_1553316293)
           by smtp.aliyun-inc.com(127.0.0.1);
           Sat, 23 Mar 2019 12:45:02 +0800
@@ -95,9 +95,9 @@ To: mhocko@suse.com,
 Cc: yang.shi@linux.alibaba.com,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 05/10] mm: page_alloc: make find_next_best_node could skip DRAM node
-Date: Sat, 23 Mar 2019 12:44:30 +0800
-Message-Id: <1553316275-21985-6-git-send-email-yang.shi@linux.alibaba.com>
+Subject: [PATCH 04/10] mm: numa: promote pages to DRAM when it is accessed twice
+Date: Sat, 23 Mar 2019 12:44:29 +0800
+Message-Id: <1553316275-21985-5-git-send-email-yang.shi@linux.alibaba.com>
 X-Mailer: git-send-email 1.8.3.1
 In-Reply-To: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
 References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
@@ -107,98 +107,116 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Need find the cloest non-DRAM node to demote DRAM pages.  Add
-"skip_ram_node" parameter to find_next_best_node() to skip DRAM node on
-demand.
+NUMA balancing would promote the pages to DRAM once it is accessed, but
+it might be just one off access.  To reduce migration thrashing and
+memory bandwidth pressure, introduce PG_promote flag to mark promote
+candidate.  The page will be promoted to DRAM when it is accessed twice.
+This might be a good way to filter out those one-off access pages.
+
+PG_promote flag will be inherited by tail pages when THP gets split.
+But, it will not be copied to the new page once the migration is done.
+
+This approach is not definitely the optimal one to distinguish the
+hot or cold pages.  It may need much more sophisticated algorithm to
+distinguish hot or cold pages accurately.  Kernel may be not the good
+place to implement such algorithm considering the complexity and potential
+overhead.  But, kernel may still need such capability.
+
+With NUMA balancing the whole workingset of the process may end up being
+promoted to DRAM finally.  It depends on the page reclaim to demote
+inactive pages to PMEM implemented by the following patch.
 
 Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 ---
- mm/internal.h   | 11 +++++++++++
- mm/page_alloc.c | 15 +++++++++++----
- 2 files changed, 22 insertions(+), 4 deletions(-)
+ include/linux/page-flags.h     |  4 ++++
+ include/trace/events/mmflags.h |  3 ++-
+ mm/huge_memory.c               | 10 ++++++++++
+ mm/memory.c                    |  8 ++++++++
+ 4 files changed, 24 insertions(+), 1 deletion(-)
 
-diff --git a/mm/internal.h b/mm/internal.h
-index 9eeaf2b..46ad0d8 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -292,6 +292,17 @@ static inline bool is_data_mapping(vm_flags_t flags)
- 	return (flags & (VM_WRITE | VM_SHARED | VM_STACK)) == VM_WRITE;
- }
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 9f8712a..2d53166 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -131,6 +131,7 @@ enum pageflags {
+ 	PG_young,
+ 	PG_idle,
+ #endif
++	PG_promote,		/* Promote candidate for NUMA balancing */
+ 	__NR_PAGEFLAGS,
  
-+#ifdef CONFIG_NUMA
-+extern int find_next_best_node(int node, nodemask_t *used_node_mask,
-+			       bool skip_ram_node);
-+#else
-+static inline int find_next_best_node(int node, nodemask_t *used_node_mask,
-+				      bool skip_ram_node)
-+{
-+	return 0;
-+}
-+#endif
+ 	/* Filesystems */
+@@ -348,6 +349,9 @@ static inline void page_init_poison(struct page *page, size_t size)
+ PAGEFLAG(OwnerPriv1, owner_priv_1, PF_ANY)
+ 	TESTCLEARFLAG(OwnerPriv1, owner_priv_1, PF_ANY)
+ 
++PAGEFLAG(Promote, promote, PF_ANY) __SETPAGEFLAG(Promote, promote, PF_ANY)
++	__CLEARPAGEFLAG(Promote, promote, PF_ANY)
 +
- /* mm/util.c */
- void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
- 		struct vm_area_struct *prev, struct rb_node *rb_parent);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 68ad8c6..07d767b 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5375,6 +5375,7 @@ int numa_zonelist_order_handler(struct ctl_table *table, int write,
-  * find_next_best_node - find the next node that should appear in a given node's fallback list
-  * @node: node whose fallback list we're appending
-  * @used_node_mask: nodemask_t of already used nodes
-+ * @skip_ram_node: find next best non-DRAM node
-  *
-  * We use a number of factors to determine which is the next node that should
-  * appear on a given node's fallback list.  The node should not have appeared
-@@ -5386,7 +5387,8 @@ int numa_zonelist_order_handler(struct ctl_table *table, int write,
-  *
-  * Return: node id of the found node or %NUMA_NO_NODE if no node is found.
-  */
--static int find_next_best_node(int node, nodemask_t *used_node_mask)
-+int find_next_best_node(int node, nodemask_t *used_node_mask,
-+			bool skip_ram_node)
- {
- 	int n, val;
- 	int min_val = INT_MAX;
-@@ -5394,13 +5396,19 @@ static int find_next_best_node(int node, nodemask_t *used_node_mask)
- 	const struct cpumask *tmp = cpumask_of_node(0);
- 
- 	/* Use the local node if we haven't already */
--	if (!node_isset(node, *used_node_mask)) {
-+	if (!node_isset(node, *used_node_mask) &&
-+	    !skip_ram_node) {
- 		node_set(node, *used_node_mask);
- 		return node;
+ /*
+  * Only test-and-set exist for PG_writeback.  The unconditional operators are
+  * risky: they bypass page accounting.
+diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
+index a1675d4..f13c2a1 100644
+--- a/include/trace/events/mmflags.h
++++ b/include/trace/events/mmflags.h
+@@ -100,7 +100,8 @@
+ 	{1UL << PG_mappedtodisk,	"mappedtodisk"	},		\
+ 	{1UL << PG_reclaim,		"reclaim"	},		\
+ 	{1UL << PG_swapbacked,		"swapbacked"	},		\
+-	{1UL << PG_unevictable,		"unevictable"	}		\
++	{1UL << PG_unevictable,		"unevictable"	},		\
++	{1UL << PG_promote,		"promote"	}		\
+ IF_HAVE_PG_MLOCK(PG_mlocked,		"mlocked"	)		\
+ IF_HAVE_PG_UNCACHED(PG_uncached,	"uncached"	)		\
+ IF_HAVE_PG_HWPOISON(PG_hwpoison,	"hwpoison"	)		\
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 404acdc..8268a3c 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1589,6 +1589,15 @@ vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
+ 					      haddr + HPAGE_PMD_SIZE);
  	}
  
- 	for_each_node_state(n, N_MEMORY) {
- 
-+		/* Find next best non-DRAM node */
-+		if (skip_ram_node &&
-+		    (node_isset(n, def_alloc_nodemask)))
-+			continue;
++	/* Promote page to DRAM when referenced twice */
++	if (!(node_isset(page_nid, def_alloc_nodemask)) &&
++	    !PagePromote(page)) {
++		SetPagePromote(page);
++		put_page(page);
++		page_nid = -1;
++		goto clear_pmdnuma;
++	}
 +
- 		/* Don't want a node to appear more than once */
- 		if (node_isset(n, *used_node_mask))
- 			continue;
-@@ -5432,7 +5440,6 @@ static int find_next_best_node(int node, nodemask_t *used_node_mask)
- 	return best_node;
- }
+ 	/*
+ 	 * Migrate the THP to the requested node, returns with page unlocked
+ 	 * and access rights restored.
+@@ -2396,6 +2405,7 @@ static void __split_huge_page_tail(struct page *head, int tail,
+ 			 (1L << PG_workingset) |
+ 			 (1L << PG_locked) |
+ 			 (1L << PG_unevictable) |
++			 (1L << PG_promote) |
+ 			 (1L << PG_dirty)));
  
--
- /*
-  * Build zonelists ordered by node and zones within node.
-  * This results in maximum locality--normal zone overflows into local
-@@ -5494,7 +5501,7 @@ static void build_zonelists(pg_data_t *pgdat)
- 	nodes_clear(used_mask);
+ 	/* ->mapping in first tail page is compound_mapcount */
+diff --git a/mm/memory.c b/mm/memory.c
+index 47fe250..2494c11 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3680,6 +3680,14 @@ static vm_fault_t do_numa_page(struct vm_fault *vmf)
+ 		goto out;
+ 	}
  
- 	memset(node_order, 0, sizeof(node_order));
--	while ((node = find_next_best_node(local_node, &used_mask)) >= 0) {
-+	while ((node = find_next_best_node(local_node, &used_mask, false)) >= 0) {
- 		/*
- 		 * We don't want to pressure a particular node.
- 		 * So adding penalty to the first node in same
++	/* Promote the non-DRAM page when it is referenced twice */
++	if (!(node_isset(page_nid, def_alloc_nodemask)) &&
++	    !PagePromote(page)) {
++		SetPagePromote(page);
++		put_page(page);
++		goto out;
++	}
++
+ 	/* Migrate to the requested node */
+ 	migrated = migrate_misplaced_page(page, vma, target_nid);
+ 	if (migrated) {
 -- 
 1.8.3.1
 
