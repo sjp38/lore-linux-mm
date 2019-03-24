@@ -2,122 +2,168 @@ Return-Path: <SRS0=4n/l=R3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.7 required=3.0 tests=FROM_LOCAL_HEX,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7E7AFC10F00
-	for <linux-mm@archiver.kernel.org>; Sun, 24 Mar 2019 18:51:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DD271C10F11
+	for <linux-mm@archiver.kernel.org>; Sun, 24 Mar 2019 21:10:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 43D48218D0
-	for <linux-mm@archiver.kernel.org>; Sun, 24 Mar 2019 18:51:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 43D48218D0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 7714420880
+	for <linux-mm@archiver.kernel.org>; Sun, 24 Mar 2019 21:10:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7714420880
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 13F6E6B0003; Sun, 24 Mar 2019 14:51:03 -0400 (EDT)
+	id F236C6B0003; Sun, 24 Mar 2019 17:10:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0ED796B0005; Sun, 24 Mar 2019 14:51:03 -0400 (EDT)
+	id ED2906B0005; Sun, 24 Mar 2019 17:10:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 029446B0007; Sun, 24 Mar 2019 14:51:02 -0400 (EDT)
+	id DE8686B0007; Sun, 24 Mar 2019 17:10:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DAE7D6B0003
-	for <linux-mm@kvack.org>; Sun, 24 Mar 2019 14:51:02 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id 186so6188539iox.15
-        for <linux-mm@kvack.org>; Sun, 24 Mar 2019 11:51:02 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A92536B0003
+	for <linux-mm@kvack.org>; Sun, 24 Mar 2019 17:10:19 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id g83so7753296pfd.3
+        for <linux-mm@kvack.org>; Sun, 24 Mar 2019 14:10:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :date:in-reply-to:message-id:subject:from:to;
-        bh=TaangaKNWHHNGJoroNhagOABp65E/ZLZreVI8iJPwSY=;
-        b=qVc5oTeKhvhdQ3LuBFLLCL9tmtzoxm3Y74kxH/ScgFdKq5DBXfvpZCb6xOFWGU9x1C
-         skjPSWGVXf97ft+a0NuAntrJjh+bKuDEpLxA3MLVe661XPKz/VT6L0WXPI7xABM1cWc0
-         oI8Ta8InnhOD+zpxx0Jt9TN5WlXNeGeqIZW7x5BIiAGjjLIhOvvgrk1/0EkQev/MxQkU
-         U3ulXf5c/w1rVQpErAb0fmtoSFWkuKKbLIbuyN87hD1sz49SfBFyixjgD3+GyYLsbM6y
-         x2g7Z15TFUcVbIKBl9qDpwqBy7RFHVHHsuZlhfwIUW/FTBby+hzMYhUnBLpQ3vM2XOTM
-         JTpg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3ldgxxakbaiiy45qgrrkxgvvoj.muumrk0ykxiutzktz.ius@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3ldGXXAkbAIIy45qgrrkxgvvoj.muumrk0ykxiutzktz.ius@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Gm-Message-State: APjAAAVK78lGzP+5D7WbwOSSZGgqNOCJ1JUoJmlfCbw5M3uDLBY4psqF
-	0qlBphAsT+0yxFwm5qaevNylx2PneKsiKQgUsxYY9S2rHpqjqCsG+mmkXUr0Zbi9kaGUbEWVMDX
-	bozZC5uPPkJOOljI39oislx9Iy8NngvTKhtTu6y80oazti1iLiBuFhBj4JQfb7sA=
-X-Received: by 2002:a24:d244:: with SMTP id z65mr5010736itf.76.1553453462247;
-        Sun, 24 Mar 2019 11:51:02 -0700 (PDT)
-X-Received: by 2002:a24:d244:: with SMTP id z65mr5010725itf.76.1553453461521;
-        Sun, 24 Mar 2019 11:51:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553453461; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=ZrajNULdIlZUieh1ZvljV4SK9KDMYoddYp/UioHM/7A=;
+        b=MG1oP1ORD2ugsABLkKG/Qa0ItsSdh2VMnRaSb4UF+OPgMBX0qjBz9bFMZh9zHDdN4z
+         fqwfJVf47pRx/+3jLCdMkuXaeemb7N/1SNP1U+IBR9cRHAAnvU+NP4HAw8AX8YrqANv9
+         pgT0JP+/oTpdPZT3ernFj3gg5aTrNfsrNH1xPwoE5sWOp3vNrXWxABTVGDQeB/ueUaqW
+         3rqqlxbShYYiTNC9UrgeeIL5rX+EgEW9ftSJk/QnBhPNnO6kWoVMvmwxgFU9y1lE80/S
+         5/wDew9zPKuhuc76MFre4xuk2TKlSIKGzIaThw+aoGj3js3VM5wLfdEy03EfgnVs4AoR
+         N0KA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of sakari.ailus@linux.intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=sakari.ailus@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXRSBVOu4ANwzpFJGwQ2AzT4SNNGv/kXMryKjTQbKYqq2CtHXH9
+	97eIm4Un3w9FU9ql5Jg/3+8xyjIElTfDTBSL+JvbwYLLRPhdb0+3SgX0PEFdUAxRmgtGJd6ogsT
+	mDj0sPqw9SeJYwjNU/QxoBJKdHhvazdfNOFsO3dRHUU3D/ZxVYhcDm0eXNDcKrGrdxg==
+X-Received: by 2002:a63:94:: with SMTP id 142mr20034920pga.277.1553461819300;
+        Sun, 24 Mar 2019 14:10:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxpH8ZmvCcy3dRO/Przre9OIk+to+7AkmAYrexPfJlDxVDwHNYDUOZNVCH0PaSwhQ/2Wf1T
+X-Received: by 2002:a63:94:: with SMTP id 142mr20034847pga.277.1553461818134;
+        Sun, 24 Mar 2019 14:10:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553461818; cv=none;
         d=google.com; s=arc-20160816;
-        b=G/ZuqXHR3xTEBKkAhjEgX0fXHZaDNEReAv1kiqcBBXnfzsLJjShlHqhAjX8+kSAjOv
-         dLWpAWGO7Ib6A5yif77sCi4Z5kr+73rDiSxZrdjDJl1lFK7FkoYhSR7jnj8bUp55vNls
-         4U6dJYO5lvtKhDeOi13auGwpdkki/HPp7VrvRMcLI8wfLoGWpH9kDe5deKSoazqIdbpv
-         OAIwrP9a5azQ+eLtYUy3uKV3RFRJIjoieZ9Jzrz4sRMcHLG3KVY/wDcSohsXLt8dxuPm
-         obkJ1WSmYnMkJ0z9Jka9dS6f+6ssyw5jYMZQsirxEHz/R4M4Z/205b8dqUtog4bl0NQW
-         De4w==
+        b=iDkjdE4CXIofiWIr4At7JYDl/mvG4P/xSrlmMiVpbuNhmh7mECpCBFQu2FBJM2Fxui
+         4xBlxikCVaTJny/TiBCmzb18w0SMaZBnf4s/CRvzvMuaFvh7QsUae2u+OtzmTBLZ5ipP
+         Z0s7vLI/xssRVuinv2vJpYuMUSENZCLr+4flUEcU0CV8l4GJqUV5Yr/RKhY561cYgmY8
+         LYB6fR/JvVYNtZgXo4yI9Iju8Yi07R/+civBbKNusIwKSd4RD2W81Yk+4fwBGVSUPNqr
+         2qrLwfCLyWJ0x4IIzc5TQCP0dIL+5koLWBnLVAmu/2Tkrq9lF4npFHKH0RnSEsk/Hgim
+         IDpQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:from:subject:message-id:in-reply-to:date:mime-version;
-        bh=TaangaKNWHHNGJoroNhagOABp65E/ZLZreVI8iJPwSY=;
-        b=Ow4IeCL2G5mLS9rE94GNnjHuRzSieGRGmcrDd89nYW2Nx6+dYccS7L5C+FtJmaGxnH
-         vcamQrA9k3cfa1G3BZepfbioW7Ife3j8X3hIHsAWUMaeEVAJqsBJNyeCjUMlo/fdMZbD
-         ChOCK6Tj96B2MbVYzfXDJXBN6LlM5HYOd0KuuPHx38VAmTw6SwAFIJ+6qts2Wa76mlgF
-         j4yaPhj/kJwPciHpoSIcEVuKYyitnNf3kXopT8ZXKMLPwDeuVxxncwCkHZjb6qnYibLY
-         NOh5FROFgiJuWh15m4ZOSDGmB/N2ILK+8SotWhVsVMLtF2uN92CXDlFPG3LdchpI2q6C
-         uKWw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=ZrajNULdIlZUieh1ZvljV4SK9KDMYoddYp/UioHM/7A=;
+        b=XHSi1fpS4ryLVBiBoauUWGrf7xVR8bsOsljrTzQNDF72sVDwjoIWqcS+RF2yqSv2jr
+         pHrIZdAjctumSKgo44fXIzyQxFlL0VFGyIqqq+MwjjPCkL9vho99HyyR3VoWuX+e1pZi
+         qyj6YamfF+xZ5r4p79z4ejPGk1+iRfQ2Goqpz7RAPcXKTDD91r0Bv+O3WpRogoFdiABS
+         WY5bP7IOO7obF6BHK2MwaQyDsZnrfI1Xhv1HdVvc2qMnRQXTiqM96116xnliiaDvFst6
+         cf4qFeXZWY7Ve4bqaJnj4yYLASVuYvKtBZB90MKsnBQ3YVg8lspZxajwwiFm1dbrPwmW
+         amfw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of 3ldgxxakbaiiy45qgrrkxgvvoj.muumrk0ykxiutzktz.ius@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3ldGXXAkbAIIy45qgrrkxgvvoj.muumrk0ykxiutzktz.ius@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id z15sor9271080iob.135.2019.03.24.11.51.01
+       spf=pass (google.com: best guess record for domain of sakari.ailus@linux.intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=sakari.ailus@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id k7si10817796pgi.451.2019.03.24.14.10.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 24 Mar 2019 11:51:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3ldgxxakbaiiy45qgrrkxgvvoj.muumrk0ykxiutzktz.ius@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 24 Mar 2019 14:10:17 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of sakari.ailus@linux.intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of 3ldgxxakbaiiy45qgrrkxgvvoj.muumrk0ykxiutzktz.ius@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3ldGXXAkbAIIy45qgrrkxgvvoj.muumrk0ykxiutzktz.ius@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Google-Smtp-Source: APXvYqzc9e/z98OxuXRxxQ50Lz2rJE46NLiCvVxUfI9UU2qdGoDiv0mpmd4hG8DBq3QJHc8JyrfvzfUlI2scySlli5ilYbQx95Sw
+       spf=pass (google.com: best guess record for domain of sakari.ailus@linux.intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=sakari.ailus@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from fmsmga005.fm.intel.com ([10.253.24.32])
+  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 24 Mar 2019 14:10:17 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,256,1549958400"; 
+   d="scan'208";a="331600917"
+Received: from pnass-mobl.ger.corp.intel.com (HELO mara.localdomain) ([10.249.136.221])
+  by fmsmga005.fm.intel.com with ESMTP; 24 Mar 2019 14:10:11 -0700
+Received: from sailus by mara.localdomain with local (Exim 4.89)
+	(envelope-from <sakari.ailus@linux.intel.com>)
+	id 1h8ANd-0000IX-8x; Sun, 24 Mar 2019 23:10:09 +0200
+Date: Sun, 24 Mar 2019 23:10:08 +0200
+From: Sakari Ailus <sakari.ailus@linux.intel.com>
+To: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>,
+	Petr Mladek <pmladek@suse.com>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	scsi <linux-scsi@vger.kernel.org>,
+	Linux PM list <linux-pm@vger.kernel.org>,
+	Linux MMC List <linux-mmc@vger.kernel.org>,
+	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
+	linux-um@lists.infradead.org,
+	linux-f2fs-devel@lists.sourceforge.net, linux-block@vger.kernel.org,
+	ACPI Devel Maling List <linux-acpi@vger.kernel.org>,
+	netdev <netdev@vger.kernel.org>,
+	linux-btrfs <linux-btrfs@vger.kernel.org>,
+	linux-pci <linux-pci@vger.kernel.org>,
+	sparclinux <sparclinux@vger.kernel.org>,
+	xen-devel@lists.xenproject.org,
+	ceph-devel <ceph-devel@vger.kernel.org>,
+	Linux MM <linux-mm@kvack.org>,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	Lars Ellenberg <drbd-dev@lists.linbit.com>
+Subject: Re: [PATCH 0/2] Remove support for deprecated %pf and %pF in vsprintf
+Message-ID: <20190324211008.lypghym3gqcp62th@mara.localdomain>
+References: <20190322132108.25501-1-sakari.ailus@linux.intel.com>
+ <CAMuHMdVmqqjVx7As9AAywYxYXG=grijF5rF77OBn6TUjM9+xKw@mail.gmail.com>
+ <20190322135350.2btpno7vspvewxvk@paasikivi.fi.intel.com>
+ <20190322170550.GX9224@smile.fi.intel.com>
 MIME-Version: 1.0
-X-Received: by 2002:a6b:d913:: with SMTP id r19mr6437307ioc.76.1553453461289;
- Sun, 24 Mar 2019 11:51:01 -0700 (PDT)
-Date: Sun, 24 Mar 2019 11:51:01 -0700
-In-Reply-To: <0000000000000e2b4e057c80822f@google.com>
-X-Google-Appengine-App-Id: s~syzkaller
-X-Google-Appengine-App-Id-Alias: syzkaller
-Message-ID: <000000000000bc42080584db9121@google.com>
-Subject: Re: general protection fault in freeary
-From: syzbot <syzbot+9d8b6fa6ee7636f350c1@syzkaller.appspotmail.com>
-To: akpm@linux-foundation.org, arnd@arndb.de, dave@stgolabs.net, 
-	dvyukov@google.com, ebiederm@xmission.com, gregkh@linuxfoundation.org, 
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux@dominikbrodowski.net, 
-	manfred@colorfullife.com, syzkaller-bugs@googlegroups.com
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000032, version=1.2.4
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190322170550.GX9224@smile.fi.intel.com>
+User-Agent: NeoMutt/20170113 (1.7.2)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-syzbot has bisected this bug to:
+Hi Andy,
 
-commit 86f690e8bfd124c38940e7ad58875ef383003348
-Author: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Date:   Thu Mar 29 12:15:13 2018 +0000
+On Fri, Mar 22, 2019 at 07:05:50PM +0200, Andy Shevchenko wrote:
+> On Fri, Mar 22, 2019 at 03:53:50PM +0200, Sakari Ailus wrote:
+> 
+> > Porting a patch
+> > forward should have no issues either as checkpatch.pl has been complaining
+> > of the use of %pf and %pF for a while now.
+> 
+> And that's exactly the reason why I think instead of removing warning on
+> checkpatch, it makes sense to convert to an error for a while. People are
+> tending read documentation on internet and thus might have outdated one. And
+> yes, the compiler doesn't tell a thing about it.
+> 
+> P.S. Though, if majority of people will tell that I'm wrong, then it's okay to
+> remove.
 
-     Merge tag 'stm-intel_th-for-greg-20180329' of  
-git://git.kernel.org/pub/scm/linux/kernel/git/ash/stm into char-misc-next
+I wonder if you wrote this before seeing my other patchset.
 
-bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=17d653a3200000
-start commit:   74c4a24d Add linux-next specific files for 20181207
-git tree:       linux-next
-final crash:    https://syzkaller.appspot.com/x/report.txt?x=143653a3200000
-console output: https://syzkaller.appspot.com/x/log.txt?x=103653a3200000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=6e9413388bf37bed
-dashboard link: https://syzkaller.appspot.com/bug?extid=9d8b6fa6ee7636f350c1
-syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=16e19da3400000
+For others as the background, it adds %pfw to print fwnode node names.
+Assuming this would be merged, %pfw could be in use relatively soon. With
+the current patchset, %pf prints nothing just as %pO ("F" missing).
 
-Reported-by: syzbot+9d8b6fa6ee7636f350c1@syzkaller.appspotmail.com
-Fixes: 86f690e8bfd1 ("Merge tag 'stm-intel_th-for-greg-20180329' of  
-git://git.kernel.org/pub/scm/linux/kernel/git/ash/stm into char-misc-next")
+What I think could be done is to warn of plain %pf (without following "w")
+in checkpatch.pl, and %pf that is not followed by "w" in the kernel.
+Although we didn't have such checks to begin with. The case is still a
+little bit different as %pf used to be a valid conversion specifier whereas
+%pO likely has never existed.
 
-For information about bisection process see: https://goo.gl/tpsmEJ#bisection
+So, how about adding such checks in the other set? I can retain %p[fF] check
+here, too, if you like.
+
+-- 
+Kind regards,
+
+Sakari Ailus
+sakari.ailus@linux.intel.com
 
