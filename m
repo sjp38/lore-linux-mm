@@ -1,144 +1,145 @@
-Return-Path: <SRS0=0AWy=R2=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=4n/l=R3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A8F1EC43381
-	for <linux-mm@archiver.kernel.org>; Sat, 23 Mar 2019 23:50:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BE1E6C43381
+	for <linux-mm@archiver.kernel.org>; Sun, 24 Mar 2019 02:06:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0E7AE2183E
-	for <linux-mm@archiver.kernel.org>; Sat, 23 Mar 2019 23:50:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5E4622171F
+	for <linux-mm@archiver.kernel.org>; Sun, 24 Mar 2019 02:06:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="aoPsBJ3H"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0E7AE2183E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="HRw4C/Dx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E4622171F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6F16D6B0003; Sat, 23 Mar 2019 19:50:19 -0400 (EDT)
+	id B94B96B0003; Sat, 23 Mar 2019 22:06:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6A18D6B0006; Sat, 23 Mar 2019 19:50:19 -0400 (EDT)
+	id B437A6B0006; Sat, 23 Mar 2019 22:06:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 569586B0007; Sat, 23 Mar 2019 19:50:19 -0400 (EDT)
+	id A58F66B0007; Sat, 23 Mar 2019 22:06:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 302C06B0003
-	for <linux-mm@kvack.org>; Sat, 23 Mar 2019 19:50:19 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id x18so5425576qkf.8
-        for <linux-mm@kvack.org>; Sat, 23 Mar 2019 16:50:19 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 638556B0003
+	for <linux-mm@kvack.org>; Sat, 23 Mar 2019 22:06:20 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id t5so6158113pfh.18
+        for <linux-mm@kvack.org>; Sat, 23 Mar 2019 19:06:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=KE7DlPfHZP9lYhu4pJMVJZKXfpGzerCGiEw6d7YHA7E=;
-        b=VFIw6FfaelzbaS03kFMQf7K0C99udNyaul+hKuMFqG5XoDgXEGhbSXso/x3ssFTjhS
-         mH23VU0ZbkekGEEvc8e2B8Ljb5Dw5+toJEWj843ZYjnJPFHpTPr9XA9ni1Mq74AtGGbE
-         bPhQl2PbWemA0x0fXybI6mA03V6o0kACg5mWkztHX7BW3FyeTDSSsF5uQ6ea7U1wcJxk
-         eyX0V89zOjKuCPQn75sh2xfqRpoLMV+mdWUVJzUzdYHop2yvtxjAhtApWhzBINl7bblK
-         NQWL4yr3dsS6iViBH9q/wa5KU74vNIv20kZ6T5ydgZf6mSqXKcuPT7dYhPiVLdo8Htza
-         J0Tg==
-X-Gm-Message-State: APjAAAUjeno/YP14gaRAAjaUymdac5fhsoslG1cFpDb3S+ty4NzPwCq4
-	yzWxb4vG8EHONVjMolA2SRyouUV7QKYbZo5oJaXSwmAvPFS0JeZC4BZwjZRebgy1fc9QDI2dbQf
-	dyepIasoXIJpkogBsdpCA8ykpKsCzgZyqF+pxhC22Bmm8aa1/NrKof23zqsYmfVMwrg==
-X-Received: by 2002:a0c:b6d1:: with SMTP id h17mr14594357qve.135.1553385018779;
-        Sat, 23 Mar 2019 16:50:18 -0700 (PDT)
-X-Received: by 2002:a0c:b6d1:: with SMTP id h17mr14594323qve.135.1553385017929;
-        Sat, 23 Mar 2019 16:50:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553385017; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=4kf7mevqAtByrMjmFQKxYOg7X2YM39ANcKP/M6abyes=;
+        b=Ma20e3rsyBest6jvKH9K06fUaugM37G7WIVyC4EG6Nli/qaueiKZVHw91stdws4pbU
+         TzCCsEiUiJqDhsikVZMJkktHPBf8KnBSXJHuusx40nYKEbigVvr7tBv/nGno4GL3K5jz
+         6SnnCjXJ99lrZxbp0GvDx0QT2s1BhGXuIbv6Qx1udMeokmKP1/xAC0eQpd4D7iBoegp8
+         fUGn7eilleo/s5SAFxzXbmhRI9B4FxybJap8WP1V6PvwdfPvFq21tNP9vgNpsrbwzjDh
+         Z1FUV/d/o3qQmr3mqMlhZ3QGpQD3rUZ+eX9lyER5u1SZHbJP6ltduhgx4yarsP+Dv0KC
+         pW0g==
+X-Gm-Message-State: APjAAAVEwAxzab1/9FfK6CPdgr1eqT3gB8uTJjbEo0AhHvfRes5A+RjO
+	dHkzORcpnPpKHkbU6DuMIpEBNFBpSHCadsnRCDFZXa0SNd+IMzxfx5k9Xqh66D39B3QpOhgVaGI
+	74SHcUucpwR/DQl1QooI51Adi9tkN8QXIDWEOQHdwIK2CexFSv6A6KJ7tOcrV0kJm4Q==
+X-Received: by 2002:a63:784e:: with SMTP id t75mr7497794pgc.326.1553393179809;
+        Sat, 23 Mar 2019 19:06:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyvqbomCW/gLB8YjyjldYA7zkDxot1uTPo4Wd/qPL5dfzJz8l+m1aVk3XFiJ0OnOEnPmlZ1
+X-Received: by 2002:a63:784e:: with SMTP id t75mr7497758pgc.326.1553393178971;
+        Sat, 23 Mar 2019 19:06:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553393178; cv=none;
         d=google.com; s=arc-20160816;
-        b=C4shXR901SKaln/wVaWY4538HOuu0VjLXaU6YSNh3X+STsxdPIsB2vTDPxwgydg6Uc
-         dYoNLFBqSCSkNegmz2SfQhHOC/L5mUZPqohU6qIPr57yFEE514cI/OyWBbt8YDi52c/z
-         OlwatD0nXd89CDkcxPy0ZUyDZJ+Pe3EIo3wfa7XyJttTUAiCboDA83SlWmKVv2BWEpGh
-         C1cNqzLYgap7SXGiovXvBSTj1XtUhKgMTpltbFn5olzpjSynZ+T/JoCtw5L4dWvQQBcj
-         JhpLoFqrU3BnTBKmaCVd6foWexPFz/K+GPGpPExiK7f1ykxSUfT6DLuopR5hwgO+tcxT
-         XsPA==
+        b=YM6RfqP9tnBYkLQlKl9COWzzbbGCByNYrfEV1z3YbBGqbO3+XreDh8ULK7ghDSTCdp
+         NNiPtQZuBoMz3218mDVd1+20JUAtcbVV7QrmS1t5sti/livPB5sxDFs1Sn1fmSbEH7xe
+         UaRfHYZAy+IkpRDy3uPL1BESDdEEut09WH/sbyiNNeDeiNz9S7z/YwMRu2mptt/ZAkab
+         sBSIySsj/rNBNTtVlCATb0ZoG5Rl5rG19Qk1jHVS1OB3h+bdAoL3YouZhmF1cWmBFfdY
+         p9qslIX8KqxorkpKWW+L4iiOsEKpKLs2uXon8a9bJ/fIQtNH3fSJoIcBQrNDOeywoq4f
+         E2AQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=KE7DlPfHZP9lYhu4pJMVJZKXfpGzerCGiEw6d7YHA7E=;
-        b=XbToAmAaLnIG/7vSFOlA3P5nwcV4OK7FJJIX1y66kqNWh77mrGsQpPgGHdRW8Y0Y9X
-         Si1YDZXiZPqTDRB9eVQX5+w/igOVkpUbqW4Jow+jY3drWvb8vHJUn4U2T/nlsNBrB4l9
-         e6rOkZz09HH47V57k4lf5Gd6lOXbPRvIwX1sucsMxOS/vcCWg9QODdLx0PicUcK+hurb
-         jrzulkLtL1w3nGd+GpRuQjQStShu0DNqQnKksxV2RN6+lIhPVtFGRAzUo9sLNQpU7vq5
-         f/9EKGSXJbMiasEra+W2pdw/KFrDFCyatpVfomizB7krfja2eW6LNEx4BwsBQxOBUb4o
-         Virw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=4kf7mevqAtByrMjmFQKxYOg7X2YM39ANcKP/M6abyes=;
+        b=Dd5fKisbYMTdQ+mtdYYBsoRODWAiJ7X7uCkK8kmf1UX4o9nG7ZIz1y5vl+IqW0Yajl
+         xh2GrdDuQiStlbbkVxzY41pi79Vd2WR3Mvgc6dT/McBXI5GBDD88ncpdPXfXeOEOYdI5
+         +MR+lMrRFbuAlJt84QOUwzbixre3hFh9AmdQSlYKh0ntxesadyAtj4xXSaoC36kLDJcY
+         NrajSo21gm3sZTg6ydkp3YcT7N7OcX1DF/vq5KuyxgDvCZGWFIFC8abqaOkWLohEfxF0
+         jcODgIHAukZlPAHqRfFbTtGALybB1eSY/sQYuRJCLvQYC5JQ8OcxDXt9l8E9h6IRdrZf
+         /T5Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=aoPsBJ3H;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w26sor1138206qkf.5.2019.03.23.16.50.17
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="HRw4C/Dx";
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id v5si7741502pgb.83.2019.03.23.19.06.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 23 Mar 2019 16:50:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sat, 23 Mar 2019 19:06:18 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=aoPsBJ3H;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=subject:to:cc:references:from:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=KE7DlPfHZP9lYhu4pJMVJZKXfpGzerCGiEw6d7YHA7E=;
-        b=aoPsBJ3HboqFKl1Zy4tfDYlTA9S+KQNIRne06mVr+NGg9mHym5dRM7LkrgKA/5mWaf
-         vFnyQNWp4bX63HRW1N5otL5ESU/7VEyxjgqI0vR7SkqMpB7Is1ezg2v76bswYN+2uWif
-         UQ2MZB8+M/Ci218KiHg9sUtU6ddYhJ7blFujuqqiCw/Fw/Qmq08TSx/aOFIzon64nJs4
-         h/27wi+HnFAI2SFlKOM02rOdQ9amtKXe62cASRGmcGqh6jt7CwLetWHl9HoCtJWq2Jtp
-         NCBtO7E0B4310Ueri2mmnmBWS1YHGncqEbmx8Ar9ibGgbzWl41nKxUkbsiTO8FXYdIc8
-         dilA==
-X-Google-Smtp-Source: APXvYqyzWi/tn/TA3xHiE+lN/n0tde7ctFZUYuPPXxfLZZMZH/ozzvjjfCd9vyw1Vwwm2qwgl3X4Mw==
-X-Received: by 2002:a37:c15:: with SMTP id 21mr13642963qkm.50.1553385017465;
-        Sat, 23 Mar 2019 16:50:17 -0700 (PDT)
-Received: from ovpn-120-94.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id a75sm6417706qkg.84.2019.03.23.16.50.16
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 23 Mar 2019 16:50:16 -0700 (PDT)
-Subject: Re: page cache: Store only head pages in i_pages
-To: Matthew Wilcox <willy@infradead.org>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="HRw4C/Dx";
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=4kf7mevqAtByrMjmFQKxYOg7X2YM39ANcKP/M6abyes=; b=HRw4C/DxBOK3bA/l5suL/42vI
+	I5xVf9LY+fSQOh1cA+5Rpv0CwEd+a3bEMD7OjhSwoE3l4WGRSLZ9rXssCmyGA+3shhI6/YH1H+4Ox
+	Vb8w7cxy7LWlmpT+terxhujY5rAd+B0T8qWS/G/ad/DU6ZW78kLxjl8cZGz5vk3L1OTJ3axyB9cRW
+	bFIcI2vt5w6HRZ7C9fED5twfLuDkBJt2Z/gZ2qyDIBt3YWYI6l1tPRTgxlYSnnC+A5iWNZCVyH+Ma
+	8lCbzXV6KLp2NRiilOJeG6EnjuTeYOE1B4thgnW5h0zVsxL8jNvOfmj8NV6+DJ6DI3Ifeln2O6hg1
+	D2ELQXSeg==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1h7sWd-00047X-01; Sun, 24 Mar 2019 02:06:15 +0000
+Date: Sat, 23 Mar 2019 19:06:14 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Qian Cai <cai@lca.pw>
 Cc: Huang Ying <ying.huang@intel.com>, linux-mm@kvack.org
+Subject: Re: page cache: Store only head pages in i_pages
+Message-ID: <20190324020614.GD10344@bombadil.infradead.org>
 References: <1553285568.26196.24.camel@lca.pw>
  <20190323033852.GC10344@bombadil.infradead.org>
-From: Qian Cai <cai@lca.pw>
-Message-ID: <f26c4cce-5f71-5235-8980-86d8fcd69ce6@lca.pw>
-Date: Sat, 23 Mar 2019 19:50:15 -0400
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
- Gecko/20100101 Thunderbird/60.3.3
+ <f26c4cce-5f71-5235-8980-86d8fcd69ce6@lca.pw>
 MIME-Version: 1.0
-In-Reply-To: <20190323033852.GC10344@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <f26c4cce-5f71-5235-8980-86d8fcd69ce6@lca.pw>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 3/22/19 11:38 PM, Matthew Wilcox wrote:
-> On Fri, Mar 22, 2019 at 04:12:48PM -0400, Qian Cai wrote:
->> FYI, every thing involve swapping seems triggered a panic now since this patch.
+On Sat, Mar 23, 2019 at 07:50:15PM -0400, Qian Cai wrote:
+> On 3/22/19 11:38 PM, Matthew Wilcox wrote:
+> > On Fri, Mar 22, 2019 at 04:12:48PM -0400, Qian Cai wrote:
+> >> FYI, every thing involve swapping seems triggered a panic now since this patch.
 > 
-> Thanks for the report!  Does this fix it?
-> 
-> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-> index 41858a3744b4..975aea9a49a5 100644
-> --- a/include/linux/pagemap.h
-> +++ b/include/linux/pagemap.h
-> @@ -335,6 +335,8 @@ static inline struct page *grab_cache_page_nowait(struct address_space *mapping,
->  static inline struct page *find_subpage(struct page *page, pgoff_t offset)
->  {
->  	VM_BUG_ON_PAGE(PageTail(page), page);
-> +	if (unlikely(PageSwapCache(page)))
-> +		return page;
->  	VM_BUG_ON_PAGE(page->index > offset, page);
->  	VM_BUG_ON_PAGE(page->index + compound_nr(page) <= offset, page);
->  	return page - page->index + offset;
+> Yes, it works.
 
-Yes, it works.
+Thanks for testing.  Kirill suggests this would be a better fix:
+
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index 41858a3744b4..9718393ae45b 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -334,10 +334,12 @@ static inline struct page *grab_cache_page_nowait(struct address_space *mapping,
+ 
+ static inline struct page *find_subpage(struct page *page, pgoff_t offset)
+ {
++	unsigned long index = page_index(page);
++
+ 	VM_BUG_ON_PAGE(PageTail(page), page);
+-	VM_BUG_ON_PAGE(page->index > offset, page);
+-	VM_BUG_ON_PAGE(page->index + compound_nr(page) <= offset, page);
+-	return page - page->index + offset;
++	VM_BUG_ON_PAGE(index > offset, page);
++	VM_BUG_ON_PAGE(index + compound_nr(page) <= offset, page);
++	return page - index + offset;
+ }
+ 
+ struct page *find_get_entry(struct address_space *mapping, pgoff_t offset);
 
