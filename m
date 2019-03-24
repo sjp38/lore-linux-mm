@@ -2,146 +2,146 @@ Return-Path: <SRS0=4n/l=R3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7DEE6C43381
-	for <linux-mm@archiver.kernel.org>; Sun, 24 Mar 2019 15:42:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 60D3EC43381
+	for <linux-mm@archiver.kernel.org>; Sun, 24 Mar 2019 18:49:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1C48C20830
-	for <linux-mm@archiver.kernel.org>; Sun, 24 Mar 2019 15:42:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 030D22147C
+	for <linux-mm@archiver.kernel.org>; Sun, 24 Mar 2019 18:49:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="ovmZ8RD3"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C48C20830
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Kpr2Pj89"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 030D22147C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C0BBC6B0003; Sun, 24 Mar 2019 11:42:26 -0400 (EDT)
+	id 66F7B6B0003; Sun, 24 Mar 2019 14:49:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BB9756B0006; Sun, 24 Mar 2019 11:42:26 -0400 (EDT)
+	id 61E0F6B0005; Sun, 24 Mar 2019 14:49:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AA8766B0007; Sun, 24 Mar 2019 11:42:26 -0400 (EDT)
+	id 534B36B0007; Sun, 24 Mar 2019 14:49:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 866476B0003
-	for <linux-mm@kvack.org>; Sun, 24 Mar 2019 11:42:26 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id v2so6522914qkf.21
-        for <linux-mm@kvack.org>; Sun, 24 Mar 2019 08:42:26 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 304A36B0003
+	for <linux-mm@kvack.org>; Sun, 24 Mar 2019 14:49:05 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id m8so6851716qka.10
+        for <linux-mm@kvack.org>; Sun, 24 Mar 2019 11:49:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=eR//r5COe0kfcFPHpHjuqOueAtDRvGp3dFXoKApE5Pw=;
-        b=rcDNkf1ADT5oNH0Baxhi+/azG42z/ulsX1lfU9i26jRYI+bJpa/Kg/dvAj2LqQDSqs
-         qQxJ7du1Auz1EYDCSGwrfw/RTng/gri708asoBdKgg+xrAg6i1plA7mptoJcLOctvssd
-         Peoy1jMJjQhUCKM6WjSJMXvhcTKGtjESGgnZCBt3V/ebJ6OVR/qysFfzz4Yzq2Zd+T25
-         axJ19k24MCwvxUvviWlDksQSW97lbkroLTs6gnsqd31GqNj5p/VWurseFN4MDgQII0ET
-         brMUZkmxZotj7ksguyN6seAA8hgJ29G8VqvGUldd0ITfEeUXrBXzs4RrcFsJzVC9l0wa
-         oCBA==
-X-Gm-Message-State: APjAAAXPnLqLome5reuIvqjJpaF6WhslGBwb4hgrKJE7rUBfYTSDf99H
-	H+daOkGd3MQ1SA7lYXouSfaVcyuvSGMFGjA3Vpo7ItVYAwv60qWhWIHid1Jy3Q1SmX4Z2jIrAEu
-	R8pNh5CeC6/idM7qd2KMLBp643JVUv7IyrfzSOnH+/h811A1OEBumGj92f3Aw3Seg7g==
-X-Received: by 2002:a37:e40e:: with SMTP id y14mr14977220qkf.232.1553442146201;
-        Sun, 24 Mar 2019 08:42:26 -0700 (PDT)
-X-Received: by 2002:a37:e40e:: with SMTP id y14mr14977182qkf.232.1553442145446;
-        Sun, 24 Mar 2019 08:42:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553442145; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=3E5PbD/R8KE0AK8IEXA0HiRaTNZrWClh6JLvVEMcjJA=;
+        b=NiY5fHCpRqgWz6ICmJ8mlA0yuF0MGD6xjxKd4aqdCB/SM0ApVfZYik/mGttcGN4ymF
+         BXNv/F5QInJs9hVDEhk2n83Ku0qVXMj7hjNBHQe5IIJ7wz5SZguKYQTKX6Amru+ekZ2D
+         5xDP5X7Pz+yMtQnNCe1E+2qJjYkbgCpFGtI6O0Unmm4m/Ejh6i6y/fhw787QtfHCtS88
+         9f+zH2bRg0DoRXQ14+y+npPxvIbwRizShEVk6Tk+9W46TpMF2YE9/enrkVkxvVsC1UDB
+         7yur/ftPwqBuM4sDVadjYJyVErJ2suu5DthtuljPegpNbZ/iQ3PgUMqMJj4veVS3zZsn
+         mWPg==
+X-Gm-Message-State: APjAAAVVdJJRnTEXHVehgGf2S/BABO1IsPYolEmYgSvjd/5YIbd3LDqv
+	TUy2GpgNCQqNsoxwtjX7ThpUtWPhtWac03xvuOdnNwfJpYBd6ZMLL2Dc3Vpgf34bPr9T4dNwtlP
+	mxk2mvhMQMQTSIou3/aGFD7oRS2exNBWDOhVv9hO+UfP/IDbUslcNp8Y6c9TmEYS9rQ==
+X-Received: by 2002:a05:620a:1372:: with SMTP id d18mr15276932qkl.310.1553453344792;
+        Sun, 24 Mar 2019 11:49:04 -0700 (PDT)
+X-Received: by 2002:a05:620a:1372:: with SMTP id d18mr15276908qkl.310.1553453344045;
+        Sun, 24 Mar 2019 11:49:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553453344; cv=none;
         d=google.com; s=arc-20160816;
-        b=rDXWLdTkfD+3euYrlQpFyBxqdYCD802iTrVi0TTgArBXOZ462vtQCvNKQ8ukM5EACa
-         GqVFFcHyPRgfURC1HswoBRZLwFQc7NWRq3SACq6yv2mgEcrscFHroMXHMTlCKQxAu8WU
-         TWhxfJI3dKnBkZ60a7O6yzy+A7zYTE+iV01l9+8sJmTTE5QCX0NUkQr8FDTtyoF46eDF
-         OqiWS4uB6PKIIbX4VLOdNCVa7MSVSptp5CumZnQbN6VNU8Lgu53eU/TBj/sVllO+5JYs
-         7rDsXJL/O+IfWKBPyk/PFLoYCRayX9Y1GKn2eb5FvDq4ZZBUK18rCaWZDahWdzGfKvB3
-         hmLg==
+        b=Kmiph53DfR//JRSk7Gt9C2JeSLdALyOHba/sGsaH64EdjQrX0FZuY6s0Kuc8prx3Ej
+         rZCRxL1TCMLbm/mB3iU8/1TQYn4WKUNL3w010k5wyp2VhrTR9o1QPgCP0zkNcDSW9xKn
+         p+JKS4s6YeYsFS0mQBIoqEU6+GiVFFgxTB9yRYhYLjyUVy8OSOUIFuI2QBXV/ofq7GMU
+         iKYmzKUviSz/tqHNIJ9HeSCQGgsYt2Fi59reApVH4i9QW/lUQZijLjeR1w50Nz3y2rKM
+         upQzkJBtXoMDIE4jaQjC/JI+i4A6sjCODtmmNkX4PSbdOdLJJn3ZrtSWdGu0ltV8rZvx
+         1zGg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=eR//r5COe0kfcFPHpHjuqOueAtDRvGp3dFXoKApE5Pw=;
-        b=sP1Fa8ZidvVjj/9QRlwH1P8irGpnt09Pa6ChmhczWeZUhJr7fmUvL69mPqzQegqN93
-         zhNciica9zjwbsrNzB2+xljZWhaJ/TL4o09fPsRpULJIKdwcyvZh2aLqVRkcX+Rljfs8
-         hTAobXEEwbBrTN7EJi8F8iYgTR6Md4Y/K4GkPaYJzRHeMZeCDxFYQzsctbJO2lu6q3IA
-         ty8pL+aJNd4yMbm+QywiB9HaQ6mwPH3oyPi8voFAXloehHJjqUFvIcDpD5oac9F0Ng8R
-         cuGtq3OKlXT6/6QShNNN6g+fKoGhceRXYwYeq1UY8EdzsOnVY7ngOhQ0ZqSlM16B/G2s
-         +jpQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=3E5PbD/R8KE0AK8IEXA0HiRaTNZrWClh6JLvVEMcjJA=;
+        b=PDAvwbAaCdkm0AkvC2BYB4z9P6QhFyIH4KKW3H50S7JWpkf1aLrSi+FA4Nt6H/yCJ1
+         RoeNeOHha3w4O+NQ+yMMfXXF0+0Nnz8Qdhn7zLtr5tGad8DwTglg16I6DepSRtXdOZ7K
+         FOwhstzVHPWc3RJu//8gVJ6blqU5RVFPHcC6h9pAHCkkqsm1ZVg6BurDjYvihUuxPu7E
+         cZCOkhS8ax8xP+gT1myX6iJXGAmE6II5I5MXIQH10QP5u2WpsRitcv60YLjq6LEupb32
+         YR/P6u85HbnvJDe23SSP0OE6Gld8sslDT6TQX1N90L2pDetIN2lBTk5reO5vCpgbg8wZ
+         SZ+g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=ovmZ8RD3;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) smtp.mailfrom=cai@lca.pw
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Kpr2Pj89;
+       spf=pass (google.com: domain of joelaf@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=joelaf@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id c5sor9376744qkb.109.2019.03.24.08.42.25
+        by mx.google.com with SMTPS id f54sor14624960qvf.35.2019.03.24.11.49.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 24 Mar 2019 08:42:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        Sun, 24 Mar 2019 11:49:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joelaf@google.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=ovmZ8RD3;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) smtp.mailfrom=cai@lca.pw
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Kpr2Pj89;
+       spf=pass (google.com: domain of joelaf@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=joelaf@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=subject:to:cc:references:from:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=eR//r5COe0kfcFPHpHjuqOueAtDRvGp3dFXoKApE5Pw=;
-        b=ovmZ8RD3v9Ry7SDtrBdbiROVF51TT+ZhuuqPSfUko+qQs3gCZoPA5EtpYw/gAEDxG5
-         yesIuHpFfgwpRB08wAJ8ELtRBfBcjo6IvvAbn1Uvr979IqhdxZak7O9pvHbfx3Jo2yTo
-         6zT28EqqgpFOW/H/EkpG9vzXAAMqB1JGhJgFMP2iTGYQ19b3QOpQSaizp6DhXT22mwGK
-         kwQcOjDcdhxEbE3hHdntGU7OPz1yqut//wJOcYV5mnTLmNojHz1c8a4ko5+AORtGxGn7
-         W0MDo8LcHRPYS3go0MAy+wj8gn2dzISCtQ4Wc4dC7MISchKHTwUbBhMoxgpo0I7E4f6i
-         0DOw==
-X-Google-Smtp-Source: APXvYqw7Pci4YTJFLt1I1KNpeacgOl7cPhPVIWnmCvQ0fFiecbw8hxGeVGzUtJ5XZXfaGjfzXFlGSA==
-X-Received: by 2002:a37:9d84:: with SMTP id g126mr10364680qke.22.1553442144922;
-        Sun, 24 Mar 2019 08:42:24 -0700 (PDT)
-Received: from ovpn-120-94.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id c12sm8254899qkb.86.2019.03.24.08.42.24
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 24 Mar 2019 08:42:24 -0700 (PDT)
-Subject: Re: page cache: Store only head pages in i_pages
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Huang Ying <ying.huang@intel.com>, linux-mm@kvack.org
-References: <1553285568.26196.24.camel@lca.pw>
- <20190323033852.GC10344@bombadil.infradead.org>
- <f26c4cce-5f71-5235-8980-86d8fcd69ce6@lca.pw>
- <20190324020614.GD10344@bombadil.infradead.org>
- <897cfdda-7686-3794-571a-ecb8b9f6101f@lca.pw>
- <20190324030422.GE10344@bombadil.infradead.org>
-From: Qian Cai <cai@lca.pw>
-Message-ID: <0d7ae84f-268a-aefc-ee01-5db9b7327c8e@lca.pw>
-Date: Sun, 24 Mar 2019 11:42:23 -0400
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
- Gecko/20100101 Thunderbird/60.3.3
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=3E5PbD/R8KE0AK8IEXA0HiRaTNZrWClh6JLvVEMcjJA=;
+        b=Kpr2Pj89AACdsy9YXGxjPNM2856WloQP5gTnJGcMPHcDulRXB24JL1Q+55SZ8atsZ5
+         pTu+lL+XbvMqTKShWIDc2U1PeoFD/B0fTrhrmRmWHQL39Y2XUuH3WcWHArJ1fChakr8M
+         +EQugGx8TeJA6+qHQWTme3C9lUj/6RhHLE8pKqo9CAO9rB/MTEFgfWe9ZuB4k7PmnI/k
+         7aJ3xsiegOQE/AqwkFIiHUTDJZZPTG8tjvyTShIZRB/ft+NCDYcNMITqGZilJqRKZHGJ
+         kx++06XqoMPr0nh41EIxB69l6ghrb5N80kv2wK9f8K2619cn8tz2Rpgp8rzE15hkiie1
+         mkSg==
+X-Google-Smtp-Source: APXvYqwCwbatcl/nUNjqKbqJbunhhvR2uPQnvJ0q0OU9X7yHkG1uyIFEAYpQ+V9uE6Rkswj54NQTVvUhOderhX900JE=
+X-Received: by 2002:a0c:d2fa:: with SMTP id x55mr17704481qvh.161.1553453343410;
+ Sun, 24 Mar 2019 11:49:03 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190324030422.GE10344@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
+References: <20190319231020.tdcttojlbmx57gke@brauner.io> <20190320015249.GC129907@google.com>
+ <CAKOZuetJzg_EiyuK7Pa13X3LKuBbreg7zJ5g4uQv_uV4wpmZjg@mail.gmail.com>
+ <20190320035953.mnhax3vd47ya4zzm@brauner.io> <CAKOZuet3-VhmC3oHtEbPPvdiar_k_QXTf0TkgmH9LiwmW-_oNA@mail.gmail.com>
+ <4A06C5BB-9171-4E70-BE31-9574B4083A9F@joelfernandes.org> <20190320182649.spryp5uaeiaxijum@brauner.io>
+ <CAKOZuevHbQtrq+Nb-jw1L7O72BmAzcXmbUnfnseeXZjX4PE4tg@mail.gmail.com>
+ <20190320185156.7bq775vvtsxqlzfn@brauner.io> <CAKOZuetKkPaAZvRZyG3V6RMAgOJx08dH4K4ABqLnAf53WRUHTg@mail.gmail.com>
+ <20190324144404.GA32603@mail.hallyn.com>
+In-Reply-To: <20190324144404.GA32603@mail.hallyn.com>
+From: Joel Fernandes <joelaf@google.com>
+Date: Sun, 24 Mar 2019 14:48:51 -0400
+Message-ID: <CAJWu+op62YzbpKmgMMXROt-qaAVfx++XsYQCcK6MHu1qBfd=fg@mail.gmail.com>
+Subject: Re: pidfd design
+To: "Serge E. Hallyn" <serge@hallyn.com>
+Cc: Daniel Colascione <dancol@google.com>, Christian Brauner <christian@brauner.io>, 
+	Joel Fernandes <joel@joelfernandes.org>, Suren Baghdasaryan <surenb@google.com>, 
+	Steven Rostedt <rostedt@goodmis.org>, Sultan Alsawaf <sultan@kerneltoast.com>, 
+	Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, =?UTF-8?B?QXJ2ZSBIasO4bm5ldsOlZw==?= <arve@android.com>, 
+	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>, Ingo Molnar <mingo@redhat.com>, 
+	Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, 
+	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>, linux-mm <linux-mm@kvack.org>, 
+	kernel-team <kernel-team@android.com>, Oleg Nesterov <oleg@redhat.com>, 
+	Andy Lutomirski <luto@amacapital.net>, Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Sun, Mar 24, 2019 at 10:44 AM Serge E. Hallyn <serge@hallyn.com> wrote:
+>
+> On Wed, Mar 20, 2019 at 12:29:31PM -0700, Daniel Colascione wrote:
+> > On Wed, Mar 20, 2019 at 11:52 AM Christian Brauner <christian@brauner.io> wrote:
+> > > I really want to see Joel's pidfd_wait() patchset and have more people
+> > > review the actual code.
+> >
+> > Sure. But it's also unpleasant to have people write code and then have
+> > to throw it away due to guessing incorrectly about unclear
+> > requirements.
+>
+> No, it is not.  It is not unpleasant.  And it is useful.  It is the best way to
+> identify and resolve those incorrect guesses and unclear requirements.
 
-
-On 3/23/19 11:04 PM, Matthew Wilcox wrote:
-> The patch for you should have looked like this:
-> 
-> @@ -335,11 +335,12 @@ static inline struct page *grab_cache_page_nowait(struct address_space *mapping,
->  
->  static inline struct page *find_subpage(struct page *page, pgoff_t offset)
->  {
-> +       unsigned long index = page_index(page);
-> +
->         VM_BUG_ON_PAGE(PageTail(page), page);
-> -       VM_BUG_ON_PAGE(page->index > offset, page);
-> -       VM_BUG_ON_PAGE(page->index + (1 << compound_order(page)) <= offset,
-> -                       page);
-> -       return page - page->index + offset;
-> +       VM_BUG_ON_PAGE(index > offset, page);
-> +       VM_BUG_ON_PAGE(index + (1 << compound_order(page)) <= offset, page);
-> +       return page - index + offset;
->  }
-
-It works great.
+No problem, a bit of discussion helped set the direction. Personally
+it did help clarify lot of things for me.  We are hard at work with
+come up with an implementation and are looking at posting something
+soon. I agree that the best is to discuss on actual code where
+possible.
 
