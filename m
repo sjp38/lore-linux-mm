@@ -6,83 +6,83 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 25B52C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 13:55:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DF9A0C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 14:02:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C5E5020830
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 13:55:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C5E5020830
+	by mail.kernel.org (Postfix) with ESMTP id 9C9332085A
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 14:02:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9C9332085A
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 186876B0003; Mon, 25 Mar 2019 09:55:00 -0400 (EDT)
+	id 246116B0005; Mon, 25 Mar 2019 10:02:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 136026B0006; Mon, 25 Mar 2019 09:55:00 -0400 (EDT)
+	id 21A136B0006; Mon, 25 Mar 2019 10:02:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EF3596B0007; Mon, 25 Mar 2019 09:54:59 -0400 (EDT)
+	id 10A6D6B0007; Mon, 25 Mar 2019 10:02:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 912DB6B0003
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 09:54:59 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id t4so3872309eds.1
-        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 06:54:59 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id B47D76B0005
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 10:02:24 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id s27so3843266eda.16
+        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 07:02:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-transfer-encoding:content-language;
-        bh=iXu0py71qdgn6kC6c0X9ohJjgxQ1bpGWYDj+FbV2C44=;
-        b=XBhaRvMykZPsDMKvXDNYgxbanIPjOxLb9ZtbmGx8qHf1KAJaKMQ8e3HoZGGwbOikLZ
-         yQzFqKJY85IVzkqmL1D+7eBf+yNihkVCCeLhUlGrKJoZ47o/O4G7eHHXTjQlXVnB+H7z
-         wpJFyH8jxv9GykD8R8Q7BXik6RYsHuNZc6o3H8KxC97Wc84bCGHYAkOadH1iVsoWWkvW
-         kVSuk2Obj1eyK1FvytCxM5wv4+hPhsgM0bLg8X9d0YmVAJtt17A4hCPPa5Y3JqNjeBKD
-         sj/hmxJYYLhnO+zKGThMzgW5uaPp1PZcKNQOtXmP5IKU1cDIp3R0ElKtSqSuRvrifmu9
-         R3XQ==
+        bh=uSHlmUF1rpi8jhNov2WbkstxfcDETX9FJi3N0xz+iuw=;
+        b=mlxRrxO+ke6vCmvzPgYkl9n2fcO3IkmgAGdI1OnKAfrxjpklHZsI285udC6hEfUb5R
+         c1ZlVMuWPP+JPvBGD4XW1oGU29VbwkTc47/n2QmXlby+fW4jI9wEZkQwRPihMRYlKfIF
+         K6TXg3FQAU8Eh3r2u16pvgvq3P3xKDPt0dpJoRsP/rqZKmc908R/g2Rr7xiYYsMRM6Vh
+         oZGs0OePswEWXyfQLs97g3qOZYoNGG82e+l8wddW7kWqHyUoiciFkRExT0sQC383DVQj
+         ku91qk7fvtDbrSZWeaSflbQyWZcesjaloBY0/BBedZwFpHrV6cEt3t5QzWsyEjyOZZMP
+         t1jw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=kevin.brodsky@arm.com
-X-Gm-Message-State: APjAAAXX9UjJGgXOFE2WTi/XwmpgeNI9N3HMorLVmtjnijfId6cOxIph
-	4A2JbqKbGIPrcfC0CwIUUdb2OQ/PHbD0rJ7BI/Olr1mgOoe3IwPp2GbprKm1PP0IzmWZHgQw4r2
-	zn/QenaMUNvGUC/7FM0RcfXSMdVEx24c43VMVHkHIsoPJYDc5NVQfiY25xBeuuerCWQ==
-X-Received: by 2002:a17:906:640f:: with SMTP id d15mr12704042ejm.217.1553522099014;
-        Mon, 25 Mar 2019 06:54:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyoATW0CH0lnn6zvTnh52AJZ44Iy9ewVXf5Wq/2TyJ3tbqkA7d+I4Qx/QGGKo4KKolxl5eh
-X-Received: by 2002:a17:906:640f:: with SMTP id d15mr12703991ejm.217.1553522097815;
-        Mon, 25 Mar 2019 06:54:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553522097; cv=none;
+X-Gm-Message-State: APjAAAX8WFwXJLBWicZAAkubXaymptOnUFMNJy2yqRjEc1dqQq93QH50
+	9PXxv/CefiDTLLSnqegz1cSo5zwfGqzqIJFa0rpiesaswGJxRH78+qbJWZIlx2tnMdNNgN66/+M
+	YaRql7izhcjAacilDsoLjL5sG/jI67bDlJqbxYeo1OSMeqK3iWy4CA19o45WytGqMdg==
+X-Received: by 2002:a50:b512:: with SMTP id y18mr16242101edd.126.1553522544302;
+        Mon, 25 Mar 2019 07:02:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwKeggxr7m1m5MZMP/8CwxtP8/DLj8dTfcbD21rwCzLiS9tHsjZgCOaz5C7xMNGm3zwCgwq
+X-Received: by 2002:a50:b512:: with SMTP id y18mr16242054edd.126.1553522543399;
+        Mon, 25 Mar 2019 07:02:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553522543; cv=none;
         d=google.com; s=arc-20160816;
-        b=jS6P6k9FyDATtq+/stpa/rLMX5C1HqrnuE/Ysp/x1ob8AcURqHCf4+rIuOoQ4tNIIz
-         +NBeP/GiZfg2SFE5wZgRrqEtWpQLrLYlmhfb3VE/dczj0RFWPXcqix2pozlKIWim6QDy
-         Q0JBCqknfONTnLy9GGYJNxqsCX2jQTRy8RchP/vpGK3AIHgbLfjbGib1rjT5ttiV99Qt
-         vKjKU/lEgZki7lTS26t+qZ1fvHT5WXZp6M+kDHNMK4VmwpAhi5R6TuJ/rOzulx0srmSb
-         KGXAuFTZpGJ2V2FRpMFUvaguzIFBVVmnRCcaYlelFF4XNantJB5sI1I/e0Oh78KKOqmb
-         QSUw==
+        b=TbVjNO9DgG1kFa0VpXshGLCx/xrEBHSms0eoU5MnqT1RWP8OuaOhNdwNtAVV4/OA0f
+         eCIw/fxaKDLEbNqNGYVflvK6PVxAPENmaiI1O6TZewT1CtB0gVy85OO/8hiOxnCBUeP+
+         XelM0Zx1vZ2lXssce53THN28R3VNuhz+D1TS8oqZlC8NaFKMunvqJtsf6CACbp/+ILi6
+         3qwA5+VzQecV6WnK4hxVpxeOI3HfluO7FUP2fXY1j+w+t6BFQWF8QpCjU7McaNE26lfS
+         sDlSHlDgoZWSwB0NEIQly10wiRwDyhPIFsKqldjiZ+NDy5tTmKLzRdTqgQ1Mqna+e1RS
+         K5Mw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-language:content-transfer-encoding:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=iXu0py71qdgn6kC6c0X9ohJjgxQ1bpGWYDj+FbV2C44=;
-        b=IEfIok7trQBsJE08T+88wrDJG9fZ8Vzey9KZgr/dmcTyU5GOD2hgLMANAiZwZkmiVi
-         NE8wj2d7Da+TTuoHYu5L5KBHwy2O+f4xvFj3gZ06UHQdUOHxXY//H34w2Fg4Ag5imdyj
-         59lyzz2MmnZGdi1GkqpmTl6QJfUc5lhA1858VDNpE9GBgL3Jxr2mabeU02IS39xZOW2a
-         WbXxRJvUOqI9TTrTt+/ncgj9170CrlDoZvqP5aIwDOVf1VQ9nVBYzcsOg12vHTglWzfy
-         cWbHCCbs2MOPdpXH6Ju2wY4JtI7syBfWXEL+90Qptm0zGCCYkVJHdATlSofY4TGo8PZs
-         GO3g==
+        bh=uSHlmUF1rpi8jhNov2WbkstxfcDETX9FJi3N0xz+iuw=;
+        b=HDbZhfdZiPB1uy9P0trUjo98h02Hn/19iBJm8CEmedq/D4WHT2L/0fq/j53FR10j8A
+         X75jhorrlT3IJRLD6ovPB9TmRxHc8vm453LfGFPf0LhMI+Cuck//jCtq43hAmxNNyHcz
+         2YbS/61Ik0WYB9toh5XzXwSkgBxiZISTAayGBQTdQ74xVbFcIeCi3g5R1O/aMpo9M7Bn
+         lE0AwbMWTwvYTiT5/M7KlscNrs3wcDC4W+MkoGjxWaEaG4kmnVquKtwGp4gdHPl8tR0S
+         W8We9T8GFTN1dlqmWdYuytAiPIxFyJbpF529MQmle5MWSrtkISO5+AKmLzEX7EgEtwQ4
+         1qng==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=kevin.brodsky@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id d56si483463eda.12.2019.03.25.06.54.57
+        by mx.google.com with ESMTP id w44si2331943edd.126.2019.03.25.07.02.22
         for <linux-mm@kvack.org>;
-        Mon, 25 Mar 2019 06:54:57 -0700 (PDT)
+        Mon, 25 Mar 2019 07:02:23 -0700 (PDT)
 Received-SPF: pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=kevin.brodsky@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 3014F80D;
-	Mon, 25 Mar 2019 06:54:56 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 95C1780D;
+	Mon, 25 Mar 2019 07:02:21 -0700 (PDT)
 Received: from [10.1.199.35] (e107154-lin.cambridge.arm.com [10.1.199.35])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 6EDE93F59C;
-	Mon, 25 Mar 2019 06:54:48 -0700 (PDT)
-Subject: Re: [PATCH v13 09/20] net, arm64: untag user pointers in
- tcp_zerocopy_receive
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 128E53F59C;
+	Mon, 25 Mar 2019 07:02:12 -0700 (PDT)
+Subject: Re: [PATCH v13 14/20] drm/amdgpu, arm64: untag user pointers in
+ amdgpu_ttm_tt_get_user_pages
 To: Catalin Marinas <catalin.marinas@arm.com>,
  Andrey Konovalov <andreyknvl@google.com>
 Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
@@ -120,15 +120,15 @@ Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
  Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
  Dave Martin <Dave.Martin@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
 References: <cover.1553093420.git.andreyknvl@google.com>
- <2280b62096ce1fa5c9e9429d18f08f82f4be1b0b.1553093421.git.andreyknvl@google.com>
- <20190322120434.GD13384@arrakis.emea.arm.com>
+ <017804b2198a906463d634f84777b6087c9b4a40.1553093421.git.andreyknvl@google.com>
+ <20190322155955.GT13384@arrakis.emea.arm.com>
 From: Kevin Brodsky <kevin.brodsky@arm.com>
-Message-ID: <e5ed4fff-acf6-7b85-bf8f-df558a9cd33f@arm.com>
-Date: Mon, 25 Mar 2019 13:54:46 +0000
+Message-ID: <d054d40e-3f38-5728-8116-3cb0a5957f9b@arm.com>
+Date: Mon, 25 Mar 2019 14:02:11 +0000
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.5.3
 MIME-Version: 1.0
-In-Reply-To: <20190322120434.GD13384@arrakis.emea.arm.com>
+In-Reply-To: <20190322155955.GT13384@arrakis.emea.arm.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Language: en-GB
@@ -138,50 +138,46 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 22/03/2019 12:04, Catalin Marinas wrote:
-> On Wed, Mar 20, 2019 at 03:51:23PM +0100, Andrey Konovalov wrote:
+On 22/03/2019 15:59, Catalin Marinas wrote:
+> On Wed, Mar 20, 2019 at 03:51:28PM +0100, Andrey Konovalov wrote:
 >> This patch is a part of a series that extends arm64 kernel ABI to allow to
 >> pass tagged user pointers (with the top byte set to something else other
 >> than 0x00) as syscall arguments.
 >>
->> tcp_zerocopy_receive() uses provided user pointers for vma lookups, which
->> can only by done with untagged pointers.
+>> amdgpu_ttm_tt_get_user_pages() uses provided user pointers for vma
+>> lookups, which can only by done with untagged pointers.
 >>
 >> Untag user pointers in this function.
 >>
 >> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 >> ---
->>   net/ipv4/tcp.c | 2 ++
->>   1 file changed, 2 insertions(+)
+>>   drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c | 5 +++--
+>>   1 file changed, 3 insertions(+), 2 deletions(-)
 >>
->> diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
->> index 6baa6dc1b13b..855a1f68c1ea 100644
->> --- a/net/ipv4/tcp.c
->> +++ b/net/ipv4/tcp.c
->> @@ -1761,6 +1761,8 @@ static int tcp_zerocopy_receive(struct sock *sk,
->>   	if (address & (PAGE_SIZE - 1) || address != zc->address)
->>   		return -EINVAL;
+>> diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
+>> index 73e71e61dc99..891b027fa33b 100644
+>> --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
+>> +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
+>> @@ -751,10 +751,11 @@ int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages)
+>>   		 * check that we only use anonymous memory to prevent problems
+>>   		 * with writeback
+>>   		 */
+>> -		unsigned long end = gtt->userptr + ttm->num_pages * PAGE_SIZE;
+>> +		unsigned long userptr = untagged_addr(gtt->userptr);
+>> +		unsigned long end = userptr + ttm->num_pages * PAGE_SIZE;
+>>   		struct vm_area_struct *vma;
 >>   
->> +	address = untagged_addr(address);
->> +
->>   	if (sk->sk_state == TCP_LISTEN)
->>   		return -ENOTCONN;
-> I don't think we need this patch if we stick to Vincenzo's ABI
-> restrictions. Can zc->address be an anonymous mmap()? My understanding
-> of TCP_ZEROCOPY_RECEIVE is that this is an mmap() on a socket, so user
-> should not tag such pointer.
+>> -		vma = find_vma(mm, gtt->userptr);
+>> +		vma = find_vma(mm, userptr);
+>>   		if (!vma || vma->vm_file || vma->vm_end < end) {
+>>   			up_read(&mm->mmap_sem);
+>>   			return -EPERM;
+> I tried to track this down but I failed to see whether user could
+> provide an tagged pointer here (under the restrictions as per Vincenzo's
+> ABI document).
 
-Good point, I hadn't looked into the interface properly. The `vma->vm_ops != 
-&tcp_vm_ops` check just below makes sure that the mapping is specifically tied to a 
-TCP socket, so definitely not included in the ABI relaxation.
-
-> We want to allow tagged pointers to work transparently only for heap and
-> stack, hence the restriction to anonymous mmap() and those addresses
-> below sbrk(0).
-
-That's not quite true: in the ABI relaxation v2, all private mappings that are either 
-anonymous or backed by a regular file are included. The scope is quite a bit larger 
-than heap and stack, even though this is what we're primarily interested in for now.
+->userptr is set by radeon_ttm_tt_set_userptr(), itself called from 
+radeon_gem_userptr_ioctl(). Any page-aligned value is allowed.
 
 Kevin
 
