@@ -2,183 +2,351 @@ Return-Path: <SRS0=RIH8=R4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4F928C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 19:49:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 871DFC10F03
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 20:04:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 05AA520848
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 19:49:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 05AA520848
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 2D35F2075D
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 20:04:05 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="ul/ATYfu"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D35F2075D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 821F06B0007; Mon, 25 Mar 2019 15:49:40 -0400 (EDT)
+	id CACC06B0003; Mon, 25 Mar 2019 16:04:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7D1A56B0008; Mon, 25 Mar 2019 15:49:40 -0400 (EDT)
+	id C5A566B0006; Mon, 25 Mar 2019 16:04:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6C1DE6B000A; Mon, 25 Mar 2019 15:49:40 -0400 (EDT)
+	id B49316B0007; Mon, 25 Mar 2019 16:04:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A16C6B0007
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 15:49:40 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id 42so547999pld.8
-        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 12:49:40 -0700 (PDT)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 820D56B0003
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 16:04:04 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id w11so7109132otq.7
+        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 13:04:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=XbPCvNQuU1zSl8Hx00bLUSHO+ifQ58ciliZlIcVN9Zg=;
-        b=jNMzI4dSM1iSJ4/mYnNtTbFtMmEPq0m9GoXxOLGBPvp3cCTbVM6gLO04D9PWu8FK/O
-         c+dlQuUJ3zkOwmNq6xu5V5NK8a4J0oQwcTDx8UX2CcrwiEHTBTWuz5JNJJQywSO1ilkQ
-         VWKWTaV9cEiKfM9uMaAPFTbfYeZAFdDPs7K4tgOlSOvVRk5hQF1mfvkQUMO/T/ikMj5d
-         sS+VrTgOFrqqbg1JQs1EvQXdG1N+b5CuuhtrxYYHpGh5hrXxr6m+kEuOi/SMOjlDcLfG
-         wlbq7NdVavJLw+Rd8J+iaRWbUR/GPtkGj+8j+np+0tlvWkiQYvqPb9VT5c6PL0rHDwml
-         4Mug==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAVuoxYnkWc7OpI1kojD+0x3xEPVpS6iTqCjHeDeolb1PQNh4ReI
-	zMllB5sAENWjdGWeN6FLNeqSlsRjtdO3fD0LB17thJKqJcHy4rsxNUBFfvepwR9iyjefGVx5yJy
-	sjuhm/1+GGHAktTiB7QhFzLyXd9eSQ4GHd5w5D1bkfNlnwnl/Q06YITEchdgUzVi98Q==
-X-Received: by 2002:aa7:914f:: with SMTP id 15mr25581643pfi.49.1553543379827;
-        Mon, 25 Mar 2019 12:49:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqytiZAoIgqL0azPP6SWqmH9xz5UCTohFim1VBVWRHV5VToR0hWgiZ62kcywCfQlyyEGAEMI
-X-Received: by 2002:aa7:914f:: with SMTP id 15mr25581568pfi.49.1553543378893;
-        Mon, 25 Mar 2019 12:49:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553543378; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=j8iMmCuwX2aCoYyVyKsIorArHi446pk2+N/mU/mW9uk=;
+        b=MLFF57fwgW9iDwQ/OAnMxioYSXEdGC9kmoht1XbDwEJi5eDfWgwCeGJf/KuA+uiIdn
+         UW77gV9ww2Pz1oFeCP7uONCldURURl99J9HK3R+eXqOKKzV3UfSUgBEgxEzQaZv92rR/
+         yIluD3EuJ/EXVLXx4TrbDfRWIgVomLlpOcQKy+7bKPe0JZ3mw8PThaoWMsRMNBBkVROu
+         2NfcknEFFT634V41WZSafSclXv9+JAZ82OaYjUI7QYRMPW8a/y+aZGvSOROC3gsIiPfM
+         tXr6MgH83rHyQqFzk+me+VTd6epP7MMLcCDSBsf0bsqMB9ITY5coHcWX/SviioWUkKHr
+         1HTQ==
+X-Gm-Message-State: APjAAAVIjIFcutdApUKgK3Sn5wVrXVS4sWdrZp9FeAN2x1+MwBG+CqjO
+	pd4ESGFXQVQTM8V8LbXsl6efPbxiEqi7FnKRFVT3Qewr0mnXUrHTmGNfW62N1BMlB3nLTHJs0bo
+	bVsmQaTJ2DwzPp/cQWeVBE7jgTwwzTOnaNUnZKhcCdp3Z9sWWRVgPOre3d0zHCpszDg==
+X-Received: by 2002:a05:6830:20cc:: with SMTP id z12mr19626587otq.334.1553544243691;
+        Mon, 25 Mar 2019 13:04:03 -0700 (PDT)
+X-Received: by 2002:a05:6830:20cc:: with SMTP id z12mr19626493otq.334.1553544242311;
+        Mon, 25 Mar 2019 13:04:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553544242; cv=none;
         d=google.com; s=arc-20160816;
-        b=LHu3gpgAypWXugYq1Kgqj6V5OUF8p6F69pwFMjyj7KXbjpW650tsM/LiQaFDV3AnF5
-         bGsddwxeVUj1zdrhRmMMuUmdlQvgU2w2imVbkUtEsYJPknZ7BVra3P4W99TUW7qGPVIW
-         KrynUsw+gNUu6fdykvaonow21Dwg77nH5IknCxbEFcirZBiS441lrQS44Edq+gM64pGU
-         WPUQfGhUMPHFBKL9rmwAr4kl6f7cIevol0wHmGeeNuMAASmBzidybbC1DnhzhklvUqKm
-         MJ1WahUHZ/bWf/9OPClK1OqAqXZoDrOjvVhS5Cj4BNZ/xgvAHH4oZyJMkH6bbViIRvYp
-         38sg==
+        b=oXJN/E04gl7a82XVH49s2vhieyzCWbWakuu0RwQD09FBGSlJPbpt5C/5bkj4w5ALxu
+         T+iqKfvu4eRmqiLQtH6tt8CiW8n6JTH1c1NI8+Qz5igNk/gAkHD/NzvV+aIL+kvxpjFr
+         XLDqUI4B8hEwhn86a44DbmSgkwlNEVmS5NAMi2hkC9g4z2PIl4DSIMVPVF40avLPvXyR
+         quFHBwiIZtZUZuxABnRzEZ6u0sVhVESndZrFA0ucoy8nQ0iZaD97mt5MWHl0DgeesJse
+         t1CdihnpzA34qzpWK7yb7mJDD43sxwELhIxARZWy+t6cb/4EtqmI9MGrxyLSQnOGi4lL
+         wpjg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=XbPCvNQuU1zSl8Hx00bLUSHO+ifQ58ciliZlIcVN9Zg=;
-        b=LpQ/g6zCMCUKi92FOMswWlYfsGon3nEJbZcbKyNsWYCjLaEtTjoB9kke2043ML3+xJ
-         63rZWlJkmOAYOzTGQzGo2JqcG4NBhgg+hDE0qpyW3YvmzgocUFMqjGrQrIA7ZrwV93Ox
-         3Zt9ERd+RlDx0aH01YaitBMTzAAUKS3Tr3Xaib1hDpRhMk5KbfWdLxghwemuDbAkeH8h
-         WfiqXRT2XILfz2rqyJQdqYyT/JUftzhqQTqQfEce/1Ax/QpAPPBGG0oQ5zXNz7Af0YnR
-         n6QJH0LGhrRp++cT/507O83Ug2HUq1tTh20J0oNalyLrnPGhl8TSJKiAEw9e/DyLYSXR
-         x19g==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=j8iMmCuwX2aCoYyVyKsIorArHi446pk2+N/mU/mW9uk=;
+        b=odz613U5gm7pIoayUvMwFPRv2yltj3DLkCbr63sevqDg8cgnH6N6lY5dAB9t+rUiyg
+         fMGt4kW9xNp2Jkyx8lqY8n95Ya7VixDGl8Lsgp05n63fLdvuOfD3waVE5+uf1S16rboy
+         IbkFXUkKUvvF8Hf2sgTtx8loX75DkK/F0Lo0+9CwvBTUyOBgSgRHYAzcsasAUONTNypS
+         TnXVXjZ8vLo3APEnT0lsBItpfQ1zW64Djk9H76afsrOsTk5g3SJ+FRQjjxxsuKHD0o13
+         GlN4ahbHLv1/tyEJH/1yKzf3ZZur+7nXnjnR140/NJzVAhFyEOFsBIizUdfSM6ldQW1j
+         heGQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-42.freemail.mail.aliyun.com (out30-42.freemail.mail.aliyun.com. [115.124.30.42])
-        by mx.google.com with ESMTPS id be8si14332512plb.72.2019.03.25.12.49.38
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b="ul/ATYfu";
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c2sor2675530oto.158.2019.03.25.13.04.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Mar 2019 12:49:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) client-ip=115.124.30.42;
+        (Google Transport Security);
+        Mon, 25 Mar 2019 13:04:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R141e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04392;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=14;SR=0;TI=SMTPD_---0TNeJ9A9_1553543363;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TNeJ9A9_1553543363)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Tue, 26 Mar 2019 03:49:33 +0800
-Subject: Re: [PATCH 06/10] mm: vmscan: demote anon DRAM pages to PMEM node
-To: Keith Busch <kbusch@kernel.org>
-Cc: mhocko@suse.com, mgorman@techsingularity.net, riel@surriel.com,
- hannes@cmpxchg.org, akpm@linux-foundation.org, dave.hansen@intel.com,
- keith.busch@intel.com, dan.j.williams@intel.com, fengguang.wu@intel.com,
- fan.du@intel.com, ying.huang@intel.com, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
- <1553316275-21985-7-git-send-email-yang.shi@linux.alibaba.com>
- <20190324222040.GE31194@localhost.localdomain>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <ceec5604-b1df-2e14-8966-933865245f1c@linux.alibaba.com>
-Date: Mon, 25 Mar 2019 12:49:21 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b="ul/ATYfu";
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=j8iMmCuwX2aCoYyVyKsIorArHi446pk2+N/mU/mW9uk=;
+        b=ul/ATYfujOPFBQf6Plk87BLxrzpl00lYBLyGUKYvSh4tJJL3Afj/be39oxB+F+AbQ8
+         XevypMi/3cJrZ2Kl+zikv5aYw8HEkYiAsp9nl7bNIPXgFhryJ0BZ/bmMgdSTVh5dTeYc
+         KaqMFZiCcxplSSxk9ZppJ83ZwXdVqR65cthi9oWLwNWyB9PS6dhB/FtURuv1calXpoe1
+         DpmsiU/6IEBP2twQDn14r2mV66w+MUh8hk/WbWE+EQcXCHsKCcdB/beWBUOZYSKoktIk
+         eUKFZolbPhQbiPmV5gpBDRkZ9tK5Gv7QPR1HeA44Qx5lVdDTvOesD/TnKLZsTpXLrCUY
+         eKwA==
+X-Google-Smtp-Source: APXvYqzPOuSjj1sSIGgdYoB2Kz6mZc1CBDcBm+z++qoudQjIR03HzPDoh0mYY23PFFfO60vrLyEK7mdC2nyjgPwXWko=
+X-Received: by 2002:a9d:4d0b:: with SMTP id n11mr18040633otf.98.1553544240381;
+ Mon, 25 Mar 2019 13:04:00 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190324222040.GE31194@localhost.localdomain>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+References: <155327387405.225273.9325594075351253804.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20190322180532.GM32418@dhcp22.suse.cz> <CAPcyv4gBGNP95APYaBcsocEa50tQj9b5h__83vgngjq3ouGX_Q@mail.gmail.com>
+ <20190325101945.GD9924@dhcp22.suse.cz>
+In-Reply-To: <20190325101945.GD9924@dhcp22.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 25 Mar 2019 13:03:47 -0700
+Message-ID: <CAPcyv4iJCgu-akJM_O8ZtscqWQt=CU-fvx-ViGYeau-NJufmSQ@mail.gmail.com>
+Subject: Re: [PATCH v5 00/10] mm: Sub-section memory hotplug support
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	Logan Gunthorpe <logang@deltatee.com>, Toshi Kani <toshi.kani@hpe.com>, Jeff Moyer <jmoyer@redhat.com>, 
+	Vlastimil Babka <vbabka@suse.cz>, stable <stable@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
+	linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 3/24/19 3:20 PM, Keith Busch wrote:
-> On Sat, Mar 23, 2019 at 12:44:31PM +0800, Yang Shi wrote:
->>   		/*
->> +		 * Demote DRAM pages regardless the mempolicy.
->> +		 * Demot anonymous pages only for now and skip MADV_FREE
->> +		 * pages.
->> +		 */
->> +		if (PageAnon(page) && !PageSwapCache(page) &&
->> +		    (node_isset(page_to_nid(page), def_alloc_nodemask)) &&
->> +		    PageSwapBacked(page)) {
->> +
->> +			if (has_nonram_online()) {
->> +				list_add(&page->lru, &demote_pages);
->> +				unlock_page(page);
->> +				continue;
->> +			}
->> +		}
->> +
->> +		/*
->>   		 * Anonymous process memory has backing store?
->>   		 * Try to allocate it some swap space here.
->>   		 * Lazyfree page could be freed directly
->> @@ -1477,6 +1507,25 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->>   		VM_BUG_ON_PAGE(PageLRU(page) || PageUnevictable(page), page);
->>   	}
->>   
->> +	/* Demote pages to PMEM */
->> +	if (!list_empty(&demote_pages)) {
->> +		int err, target_nid;
->> +		nodemask_t used_mask;
->> +
->> +		nodes_clear(used_mask);
->> +		target_nid = find_next_best_node(pgdat->node_id, &used_mask,
->> +						 true);
->> +
->> +		err = migrate_pages(&demote_pages, alloc_new_node_page, NULL,
->> +				    target_nid, MIGRATE_ASYNC, MR_DEMOTE);
->> +
->> +		if (err) {
->> +			putback_movable_pages(&demote_pages);
->> +
->> +			list_splice(&ret_pages, &demote_pages);
->> +		}
->> +	}
->> +
->>   	mem_cgroup_uncharge_list(&free_pages);
->>   	try_to_unmap_flush();
->>   	free_unref_page_list(&free_pages);
-> How do these pages eventually get to swap when migration fails? Looks
-> like that's skipped.
-
-Yes, they will be just put back to LRU. Actually, I don't expect it 
-would be very often to have migration fail at this stage (but I have no 
-test data to support this hypothesis) since the pages have been isolated 
-from LRU, so other reclaim path should not find them anymore.
-
-If it is locked by someone else right before migration, it is likely 
-referenced again, so putting back to LRU sounds not bad.
-
-A potential improvement is to have sync migration for kswapd.
-
+On Mon, Mar 25, 2019 at 3:20 AM Michal Hocko <mhocko@kernel.org> wrote:
 >
-> And page cache demotion is useful too, we shouldn't consider only
-> anonymous for this feature.
+> On Fri 22-03-19 11:32:11, Dan Williams wrote:
+> > On Fri, Mar 22, 2019 at 11:06 AM Michal Hocko <mhocko@kernel.org> wrote:
+> > >
+> > > On Fri 22-03-19 09:57:54, Dan Williams wrote:
+> > > > Changes since v4 [1]:
+> > > > - Given v4 was from March of 2017 the bulk of the changes result from
+> > > >   rebasing the patch set from a v4.11-rc2 baseline to v5.1-rc1.
+> > > >
+> > > > - A unit test is added to ndctl to exercise the creation and dax
+> > > >   mounting of multiple independent namespaces in a single 128M section.
+> > > >
+> > > > [1]: https://lwn.net/Articles/717383/
+> > > >
+> > > > ---
+> > > >
+> > > > Quote patch7:
+> > > >
+> > > > "The libnvdimm sub-system has suffered a series of hacks and broken
+> > > >  workarounds for the memory-hotplug implementation's awkward
+> > > >  section-aligned (128MB) granularity. For example the following backtrace
+> > > >  is emitted when attempting arch_add_memory() with physical address
+> > > >  ranges that intersect 'System RAM' (RAM) with 'Persistent Memory' (PMEM)
+> > > >  within a given section:
+> > > >
+> > > >   WARNING: CPU: 0 PID: 558 at kernel/memremap.c:300 devm_memremap_pages+0x3b5/0x4c0
+> > > >   devm_memremap_pages attempted on mixed region [mem 0x200000000-0x2fbffffff flags 0x200]
+> > > >   [..]
+> > > >   Call Trace:
+> > > >     dump_stack+0x86/0xc3
+> > > >     __warn+0xcb/0xf0
+> > > >     warn_slowpath_fmt+0x5f/0x80
+> > > >     devm_memremap_pages+0x3b5/0x4c0
+> > > >     __wrap_devm_memremap_pages+0x58/0x70 [nfit_test_iomap]
+> > > >     pmem_attach_disk+0x19a/0x440 [nd_pmem]
+> > > >
+> > > >  Recently it was discovered that the problem goes beyond RAM vs PMEM
+> > > >  collisions as some platform produce PMEM vs PMEM collisions within a
+> > > >  given section. The libnvdimm workaround for that case revealed that the
+> > > >  libnvdimm section-alignment-padding implementation has been broken for a
+> > > >  long while. A fix for that long-standing breakage introduces as many
+> > > >  problems as it solves as it would require a backward-incompatible change
+> > > >  to the namespace metadata interpretation. Instead of that dubious route
+> > > >  [2], address the root problem in the memory-hotplug implementation."
+> > > >
+> > > > The approach is taken is to observe that each section already maintains
+> > > > an array of 'unsigned long' values to hold the pageblock_flags. A single
+> > > > additional 'unsigned long' is added to house a 'sub-section active'
+> > > > bitmask. Each bit tracks the mapped state of one sub-section's worth of
+> > > > capacity which is SECTION_SIZE / BITS_PER_LONG, or 2MB on x86-64.
+> > >
+> > > So the hotplugable unit is pageblock now, right?
+> >
+> > No, with this patchset the hotplug unit is 2MB.
+>
+> Which is a pageblock unit on x86 with hugetlb enabled. I was just
+> wondering whether this is really bound to pageblock or the math just
+> works out to be the same.
 
-Yes, definitely. I'm looking into the page cache case now. Any 
-suggestion is welcome.
+Ah, ok just coincidental math.
 
-Thanks,
-Yang
+> > > Why is this sufficient?
+> >
+> > 2MB is sufficient because it allows mapping a namespace at PMD
+> > granularity and there is no practical need to go smaller.
+> >
+> > > What prevents new and creative HW to come up with alignements that do not fit there?
+> >
+> > There is a resource in hardware memory controllers called
+> > address-decode-registers that control the mapping granularity. The
+> > minimum granularity today is 64MB and the pressure as memory sizes
+> > increases is to make that granularity larger, not smaller. So the
+> > hardware pressure is going in the opposite direction of your concern,
+> > at least for persistent memory.
+>
+> OK, this is good to know and actually against subsection direction.
 
+Seems I forgot to mention timescales. The 64MB granularity is present
+on current generation platforms, and I expect multiple platform
+generations (potentially years) until it might change in the future.
+
+That does not even take into consideration the configuration
+flexibility of PCI BAR ranges and the interaction with the
+peer-to-peer DMA facility which maps 'struct page' for physical ranges
+that are not memory. There is no pressure for PCI BAR ranges to submit
+to a 128MB alignment.
+
+> > User-defined memory namespaces have this problem, but 2MB is the
+> > default alignment and is sufficient for most uses.
+>
+> What does prevent users to go and use a larger alignment?
+
+Given that we are living with 64MB granularity on mainstream platforms
+for the foreseeable future, the reason users can't rely on a larger
+alignment to address the issue is that the physical alignment may
+change from one boot to the next.
+
+No, you can't just wish hardware / platform firmware won't do this,
+because there are not enough platform resources to give every hardware
+device a guaranteed alignment.
+
+The effect is that even if the driver deploys a software alignment
+mitigation when it first sees the persistent memory range, that
+alignment can be violated on a subsequent boot leading to data being
+unavailable. There is no facility to communicate to the administrator
+what went wrong in this scenario as several events can trigger a
+physical map layout change. Add / remove of hardware and hardware
+failure are the most likely causes.
+
+An additional pain point for users is that EFI pre-boot environment
+has little chance to create a namespace that Linux might be able to
+use. The section size is an arbitrary Linux constraint and we should
+not encode something Linux specific that might change in the future
+into OS agnostic software.
+
+> > PCI Address BARs that are also mapped with devm_memremap_pages are
+> > aligned to their size and there is no expectation to support smaller
+> > than 2MB.
+> >
+> > All that said, to support a smaller sub-section granularity, just add
+> > more bits to the section-active bitmask.
+> >
+> > > Do not get me wrong but the section
+> > > as a unit is deeply carved into the memory hotplug and removing all those
+> > > assumptions is a major undertaking
+> >
+> > Right, as stated in the cover letter, this does not remove all those
+> > assumptions, it only removes the ones that impact
+> > devm_memremap_pages(). Specifying that sub-section is only supported
+> > in the 'want_memblock=false' case to arch_add_memory().
+>
+> And this is exactly the problem. Having different assumptions depending
+> on whether there is a memblock interface or not is utterly wrong and a
+> maintainability mess.
+
+In this case I disagree with you. The hotplug code already has the
+want_memblock=false semantic in the implementation. The sub-section
+hotplug infrastructure is a strict superset of what is there already.
+Now, if it created parallel infrastructure that would indeed be a
+maintainability burden, but in this case there are no behavior changes
+for typical memory hotplug as it just hotplugs full sections at a time
+like always. The 'section' concept is not going away.
+
+> > > and I would like to know that you are
+> > > not just shifting the problem to a smaller unit and a new/creative HW
+> > > will force us to go even more complicated.
+> >
+> > HW will not do this to us. It's software that has the problem.
+> > Namespace creation is unnecessarily constrained to 128MB alignment.
+>
+> And why is that a problem?
+
+Data loss, inability to cope with some hardware configurations,
+difficult to interoperate with non-Linux software.
+
+> A lack of documentation that this is a requirement?
+
+It's not a requirement. It's an arbitrary Linux implementation detail.
+
+> Something will not work with a larger alignment? Someting else?
+[..]
+> Why do we have to go a mile to tweak the kernel, especially something as
+> fragile as memory hotplug, just to support sub mem section ranges. This
+> is somthing that is not clearly explained in the cover letter. Sure you
+> are talking about hacks at the higher level to deal with this but I do
+> not see any fundamental reason to actually support that at all.
+
+Like it or not, 'struct page' mappings for arbitrary hardware-physical
+memory ranges is a facility that has grown from the pmem case, to hmm,
+and peer-to-peer DMA. Unless you want to do the work to eliminate the
+'struct page' requirement across the kernel I think it is unreasonable
+to effectively archive the arch_add_memory() implementation and
+prevent it from reacting to growing demands.
+
+Note that I did try to eliminate 'struct page' before creating
+devm_memremap_pages(), that effort failed because 'struct page' is
+just too ingrained into too many kernel code paths.
+
+> > I'm also open to exploring lifting the section alignment constraint
+> > for the 'want_memblock=true', but first things first.
+>
+> I disagree. If you want to get rid of the the section requirement then
+> do it first and build on top. This is a normal kernel development
+> process.
+>
+> > > What is the fundamental reason that pmem sections cannot be assigned
+> > > to a section aligned memory range? The physical address space is
+> > > quite large to impose 128MB sections IMHO. I thought this is merely a
+> > > configuration issue.
+> >
+> > 1) it's not just hardware that imposes this, software wants to be able
+> > to avoid the constraint
+> >
+> > 2) the flexibility of the memory controller initialization code is
+> > constrained by address-decode-registers. So while it is simple to say
+> > "just configure it to be aligned" it's not that easy in practice
+> > without throwing away usable memory capacity.
+>
+> Yes and we are talking about 128MB is sacrifying that unit worth all the
+> troubles?
+>
+> [...]
+>
+> > > I will probably have much more question, but it's friday and I am mostly
+> > > offline already. I would just like to hear much more about the new
+> > > design and resulting assumptions.
+> >
+> > Happy to accommodate this discussion. The section alignment has been
+> > an absolute horror to contend with. So I have years worth of pain to
+> > share for as deep as you want to go on probing why this is needed.
+>
+> I can feel your frustration. I am not entirely happy about the section
+> size limitation myself but you have to realize that this is simplicy vs.
+> feature set compromise.
+
+You have to realize that arch_add_memory() is no longer just a
+front-end for typical memory hotplug. The requirements have changed.
+Simplicity should be maintained for as long as it can get the job
+done, and the simplicity is currently failing.
+
+> It works reasonably well for many usecases but
+> falls flat on some others. But you cannot simply build on top of
+> existing foundations and tweak some code paths to handle one particular
+> case. This is exactly how the memory hotplug ended in the unfortunate
+> state it is now. If you want to make the code more reusable then there
+> is a _lot_ of ground work first before you can add a shiny new feature.
+
+This *is* the ground work. It solves the today's hardware page-mapping
+pain points with a path to go deeper and enable sub-section hotplug
+for typical memory hotplug, but in the meantime the two cases share
+common code paths. This is not a tweak on the side, it's a super-set,
+and typical memory-hotplug is properly fixed up to use just the subset
+that it needs.
 
