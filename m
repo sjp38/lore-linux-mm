@@ -2,178 +2,165 @@ Return-Path: <SRS0=RIH8=R4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E924AC43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 16:56:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A625CC4360F
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 16:59:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 991802083D
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 16:56:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 55F6220896
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 16:59:35 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="srMzDC+m"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 991802083D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=android.com header.i=@android.com header.b="vqXpLsAU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55F6220896
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=android.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4368F6B0003; Mon, 25 Mar 2019 12:56:57 -0400 (EDT)
+	id C746B6B0003; Mon, 25 Mar 2019 12:59:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3E5A66B0006; Mon, 25 Mar 2019 12:56:57 -0400 (EDT)
+	id BFA6C6B0006; Mon, 25 Mar 2019 12:59:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2D5716B0007; Mon, 25 Mar 2019 12:56:57 -0400 (EDT)
+	id AC2F46B0007; Mon, 25 Mar 2019 12:59:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0940A6B0003
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 12:56:57 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id d8so9127055qkk.17
-        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 09:56:57 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E33F6B0003
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 12:59:34 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id d15so9872489pgt.14
+        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 09:59:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=hdrToB2TSv1yp4eb70QIvwrlSIW2W5jFyB226wrDD0Q=;
-        b=qkf/qojS/ogO1NAnQL4xtfqXYOXPRfjp7Oa+zlhl9TS5j2U+2ndkYrGWSeeCQ7/rJI
-         h4npjdhSWJ1pi5RLS71lYUPMgH+DCQDOEhFYwoKzcv4gBN3CkkkyIacBGndnNiU4/JXR
-         XFdv17b8FhEqLdqWH3UtUHn6J6qlJBfVXQ5BiQ0d9UO5BdS9wxJ889UWMExuCerIW7ov
-         g4PBP7WyIPL5Tzeeguh6lRDy4nP5oETQ9tfF8c6Bg0I2wtj23+M8ns4g/sVXJmGxW/59
-         vg/frbywf9cR36FrdFmmuMr9Npo7aqFSpmKCSt/jq22ilI3zaa3Rta7EpbEYw3hKAw2U
-         qOcQ==
-X-Gm-Message-State: APjAAAWjw0njz/Uh0UiTCYLvapbRddLDc8s3NZYDxaNNIbtC95iAi6BY
-	u7s611ZFy7G4RE0yhgCv6JVSsRk4zHHEMIuXB6odkOE9jgnKq++2S2Q9ODTEcjfYBKFs3Y+cMUb
-	IksiJUEVXN9wEwziXkHojPP56bPOuFOCXJiwXDgw2Wvn0XOBM4Vqggtz2Hr3i/AlveQ==
-X-Received: by 2002:a05:620a:13d7:: with SMTP id g23mr20166848qkl.198.1553533016801;
-        Mon, 25 Mar 2019 09:56:56 -0700 (PDT)
-X-Received: by 2002:a05:620a:13d7:: with SMTP id g23mr20166798qkl.198.1553533016082;
-        Mon, 25 Mar 2019 09:56:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553533016; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=NWGLIQGu38/jJb6e8uWtmgESprJGVMgumpIJ57GgwLQ=;
+        b=TA8XogRhw4+8NqJ1Ub1MgxDJTRcjyePRKeo2+zN5uUqT3klWt+L3z/UUNXPY4sEPMs
+         lZCus8M2RUbsUXaFcs5f4GxUGiZXlKJle8S5rx4RX8pEgf4IJoNGw7VkEhXdamF+G7s5
+         ykdJQ0rqe1OxtoACW/pHA3qKfsybO3o2NmTwJJaLKwJaTVR2di8fOY4OKnh9ji4MDZcp
+         eWs2bD5gCL582U1u1UyGhVB6uqV5VEpWH4g1gaFHjA5pcmz82pHTn5LCkRHD16qjE/qJ
+         6hkm8u2xLqiZoaCu4W072nQwjgLSIJs0uTQ3tvB3ya9umWphqRkxmN+z0+BeV35/va5F
+         3aTw==
+X-Gm-Message-State: APjAAAWCCrDBzFKFszxw4lAhAXRxjOhSAh6mYsoIWFvSqkal4YTnQo+K
+	d+Oa0pnESY4dp6Fin+2whSuydr2tEGONcfWz5zFDiAcc6kW0VEbtJEZjc6OQtYnsBxaYT5ijvYl
+	q5d5Aq8NllYJcnHb++m3Tqf9gPrm9mzhyekM7yHYWDaGp0M1uTNR6BsZ7z1PPzOnpcA==
+X-Received: by 2002:a17:902:a9c8:: with SMTP id b8mr26378371plr.12.1553533174011;
+        Mon, 25 Mar 2019 09:59:34 -0700 (PDT)
+X-Received: by 2002:a17:902:a9c8:: with SMTP id b8mr26378311plr.12.1553533173344;
+        Mon, 25 Mar 2019 09:59:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553533173; cv=none;
         d=google.com; s=arc-20160816;
-        b=S9WOOrmtEs5YJcZU00dzm2Y613EfROuMYsx0gJC5QMUqRC0tvnO71VzOJYAHEgAT2i
-         7dqTLk0p9DgHZyGJIFykvVvykLbUWAJPI++BZwUaRi0TQiYgfYU3JK/7OfI5rQTO0Qc9
-         GMZebF4PLx5YWPYrpSSx772j3+KhwSyT3mj9Umocxyb0DAZjD6qezR01jEwnMZoHOgLj
-         QZUV4rKzkMQQAGmdwbSgDiMPI02CLYnhdIWNGdlHemKAauGfGTDr1ty7NVZ7dy14Hhze
-         8/gOfESk+r8LUHGEKOilgGCVlkf0TjqLSa/aVr/Vg1hzXR1voJoOAlRlQV9i3HUrgS7Z
-         YF/A==
+        b=eoA9sqL9sZRtETk7XCm1hEma7nZ+35Eg1KsW/nHgYVUROzxI1Do3cmGEg0H5YZc9I4
+         fzoWiKVIqyFC8tHx8L0RYGOZ69VDUi80sig+cmq9To8gBeSA56lWPGA6LXmpMASuWYpP
+         txZ7pgllJb68mkN+s9cNEc4MpuIuqCRUYzct9SOlHLdjuiNk/W/pEUbrP2akIrNjZJX6
+         sMjEyRH3JViOYIxKTrlKhDF1D9PUcr2i2DS4dtRdIvvEum+vjMIJ90PK/DehkkRSXM64
+         ST1ti+B2nEj1A9D/rMLhdAl0kJ2c6wlqVoAHSABAemIleXo1Vsijp9IMmTbmDTiGYhgz
+         zWaA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=hdrToB2TSv1yp4eb70QIvwrlSIW2W5jFyB226wrDD0Q=;
-        b=GG+v0p/nIbm6S0wP5FN7IWuLZ2oz14fjVqUY7Ggk59YOIZerDEGBzcleifgmuEgiWL
-         I3OptjoFyke1FAXNyccZkrNQtSCr3cUadl0NjUEMjvql+vHIKUGaTa6/HhA2oRLGpN2d
-         2QS/JEvClRmy9ye+3cjc0xuqI0bba3EAfJJdkTgcDE6e9rXZTEGeXyP6SZqdKc9YeooI
-         D95SRQc0bF1rusz0tvpg72xkMCMCc96W80nJ9+hq+EmcgCTb1yxs3S2+uIIe93OAvWew
-         ybqAkesPLeg4UX4/141Rm3//5YyV0DMykp1oO1CCH+WPMf5SLb0hapQo8HvlxqvoJ0sy
-         8JzA==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=NWGLIQGu38/jJb6e8uWtmgESprJGVMgumpIJ57GgwLQ=;
+        b=YF4GLn4czdYkz853Ln+m03mOhQ5EtCoLxC30D/QYPm6hCWhjgALGpfOOQ1QvBDV7H+
+         9/NWBdFhEQ+PvlAi+kpk7oDypXPFDRmGJzDP8I8cNaW1K8H/tsfpMpgcXix1KJlrCE8/
+         QLv+QLhPNVPM+BwBOxKVpqOyp1LJoVygeY7QdhT00YGXHlLdFTP4x9PS+n1uq3rvNQuU
+         Wcqx9WPdK8hruNQMc1Ap9L+/3V/BtnUO+YReV3UaVFARoOLhD9lJQhymvJFxjiWpyvh/
+         eqzkhdQqyMFX3T2ySiZwaNGLe/1fuuqjBaa/rd72bvr8fEhcE3EypsoT75b8d4JO8yOS
+         ik1w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=srMzDC+m;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@android.com header.s=20161025 header.b=vqXpLsAU;
+       spf=pass (google.com: domain of salyzyn@android.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=salyzyn@android.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=android.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v15sor25605623qth.40.2019.03.25.09.56.55
+        by mx.google.com with SMTPS id n11sor10685185plg.60.2019.03.25.09.59.33
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 25 Mar 2019 09:56:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 25 Mar 2019 09:59:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of salyzyn@android.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=srMzDC+m;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@android.com header.s=20161025 header.b=vqXpLsAU;
+       spf=pass (google.com: domain of salyzyn@android.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=salyzyn@android.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=android.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=hdrToB2TSv1yp4eb70QIvwrlSIW2W5jFyB226wrDD0Q=;
-        b=srMzDC+ms5YQVqrvZwEGDX/E/ckzFQVhFOG1bMHwhic4SroBbCVHANYL/SW7vm3dcp
-         avpmvQxnZulEN13hnbtVkEInZPvG6TPTYzdDrz+/SKsrOhPEA9oiiF754eehdWTs2lLD
-         Gm7FtbqtzbumYo/P3bUaAQK0CG5bPTt/s9ZE4Xqrz46K+vzzbO3DuYepBASZG0TS4WLX
-         nliN3mXxhSN40Ia6QSqWfU9+lMq2AO9rAOlFtskjaIc+pmLucpgXw6v4ByzXWNa2jc7l
-         toVmuhIDkJ9VSAsPKdzbegy/3sLS/c7VmTttjV+bhDJF9mZUrMjXI6G474lIcbTt1PeZ
-         rgAQ==
-X-Google-Smtp-Source: APXvYqy5O1uj8uqWIybnhXlb2Rx+YIOdNrjiO8M6dBrKRM6Bjpvp5sf0FW3DMqU3p8w8Fpikdd4u7Clq96P0hl/KHRU=
-X-Received: by 2002:ac8:32fb:: with SMTP id a56mr21951184qtb.338.1553533015773;
- Mon, 25 Mar 2019 09:56:55 -0700 (PDT)
+        d=android.com; s=20161025;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-transfer-encoding:content-language;
+        bh=NWGLIQGu38/jJb6e8uWtmgESprJGVMgumpIJ57GgwLQ=;
+        b=vqXpLsAUGm0QT70kX4qwhbmciXz3cS7QYuXaQZf1e26ddA9ixDkoyH1skKslX3iVK9
+         U+yWZOWSgHV8bhdUFn28dzhI/SwxuP/uPdlwilQ8Zwe4VEmI0WKVyP9IAhi8pyL04eTI
+         bTJXctHM6c0Kf0OAEgUhwGhw9urE1YlnLPivsY8jyT0xz0LWVR1FrqmKWJdNuavaFM/7
+         u/IQl743Qcbo6PgvrV7mgBYltaw80uUEbBty85iiwU0UL5oyh2cl6M7+Lx8F3nAPbBRP
+         fO3QZ1DMn+N9myfUKaXFcCqzdlt0Xx7FTgpWGy7xyJ+eLzsmAESdOMRH2cttOuq0QPXZ
+         wSZg==
+X-Google-Smtp-Source: APXvYqwXslOnXOKe7wC30klcY2KN8K5xcX4jq5xguuZL/3Igbc5bGQNlXFr+P0grfxvTw8OCG3cGEA==
+X-Received: by 2002:a17:902:e684:: with SMTP id cn4mr3383014plb.71.1553533172882;
+        Mon, 25 Mar 2019 09:59:32 -0700 (PDT)
+Received: from nebulus.mtv.corp.google.com ([2620:0:1000:1612:b4fb:6752:f21f:3502])
+        by smtp.googlemail.com with ESMTPSA id z77sm30426023pfi.155.2019.03.25.09.59.32
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Mar 2019 09:59:32 -0700 (PDT)
+Subject: Re: [RFC PATCH] mm: readahead: add readahead_shift into backing
+ device
+To: Fengguang Wu <fengguang.wu@intel.com>, Martin Liu <liumartin@google.com>
+Cc: akpm@linux-foundation.org, axboe@kernel.dk, dchinner@redhat.com,
+ jenhaochen@google.com, salyzyn@google.com, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, linux-block@vger.kernel.org
+References: <20190322154610.164564-1-liumartin@google.com>
+ <20190325121628.zxlogz52go6k36on@wfg-t540p.sh.intel.com>
+From: Mark Salyzyn <salyzyn@android.com>
+Message-ID: <9b194e61-f2d0-82cb-30ac-95afb493b894@android.com>
+Date: Mon, 25 Mar 2019 09:59:31 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com> <cc6f44e2-48b5-067f-9685-99d8ae470b50@inria.fr>
-In-Reply-To: <cc6f44e2-48b5-067f-9685-99d8ae470b50@inria.fr>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 25 Mar 2019 09:56:44 -0700
-Message-ID: <CAPcyv4it1w7SdDVBV24cRCVHtLb3s1pVB5+SDM02Uw4RbahKiA@mail.gmail.com>
-Subject: Re: [RFC PATCH 0/10] Another Approach to Use PMEM as NUMA Node
-To: Brice Goglin <Brice.Goglin@inria.fr>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>, Michal Hocko <mhocko@suse.com>, 
-	Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@surriel.com>, 
-	Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Dave Hansen <dave.hansen@intel.com>, Keith Busch <keith.busch@intel.com>, 
-	Fengguang Wu <fengguang.wu@intel.com>, "Du, Fan" <fan.du@intel.com>, 
-	"Huang, Ying" <ying.huang@intel.com>, Linux MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20190325121628.zxlogz52go6k36on@wfg-t540p.sh.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-GB
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 25, 2019 at 9:15 AM Brice Goglin <Brice.Goglin@inria.fr> wrote:
+On 03/25/2019 05:16 AM, Fengguang Wu wrote:
+> Martin,
 >
+> On Fri, Mar 22, 2019 at 11:46:11PM +0800, Martin Liu wrote:
+>> As the discussion https://lore.kernel.org/patchwork/patch/334982/
+>> We know an open file's ra_pages might run out of sync from
+>> bdi.ra_pages since sequential, random or error read. Current design
+>> is we have to ask users to reopen the file or use fdavise system
+>> call to get it sync. However, we might have some cases to change
+>> system wide file ra_pages to enhance system performance such as
+>> enhance the boot time by increasing the ra_pages or decrease it to
 >
-> Le 23/03/2019 =C3=A0 05:44, Yang Shi a =C3=A9crit :
-> > With Dave Hansen's patches merged into Linus's tree
-> >
-> > https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/comm=
-it/?id=3Dc221c0b0308fd01d9fb33a16f64d2fd95f8830a4
-> >
-> > PMEM could be hot plugged as NUMA node now. But, how to use PMEM as NUM=
-A node
-> > effectively and efficiently is still a question.
-> >
-> > There have been a couple of proposals posted on the mailing list [1] [2=
-].
-> >
-> > The patchset is aimed to try a different approach from this proposal [1=
-]
-> > to use PMEM as NUMA nodes.
-> >
-> > The approach is designed to follow the below principles:
-> >
-> > 1. Use PMEM as normal NUMA node, no special gfp flag, zone, zonelist, e=
-tc.
-> >
-> > 2. DRAM first/by default. No surprise to existing applications and defa=
-ult
-> > running. PMEM will not be allocated unless its node is specified explic=
-itly
-> > by NUMA policy. Some applications may be not very sensitive to memory l=
-atency,
-> > so they could be placed on PMEM nodes then have hot pages promote to DR=
-AM
-> > gradually.
->
->
-> I am not against the approach for some workloads. However, many HPC
-> people would rather do this manually. But there's currently no easy way
-> to find out from userspace whether a given NUMA node is DDR or PMEM*. We
-> have to assume HMAT is available (and correct) and look at performance
-> attributes. When talking to humans, it would be better to say "I
-> allocated on the local DDR NUMA node" rather than "I allocated on the
-> fastest node according to HMAT latency".
->
-> Also, when we'll have HBM+DDR, some applications may want to use DDR by
-> default, which means they want the *slowest* node according to HMAT (by
-> the way, will your hybrid policy work if we ever have HBM+DDR+PMEM?).
-> Performance attributes could help, but how does user-space know for sure
-> that X>Y will still mean HBM>DDR and not DDR>PMEM in 5 years?
->
-> It seems to me that exporting a flag in sysfs saying whether a node is
-> PMEM could be convenient. Patch series [1] exported a "type" in sysfs
-> node directories ("pmem" or "dram"). I don't know how if there's an easy
-> way to define what HBM is and expose that type too.
+> Do you have examples that some distro making use of larger ra_pages
+> for boot time optimization?
 
-I'm generally against the concept that a "pmem" or "type" flag should
-indicate anything about the expected performance of the address range.
-The kernel should explicitly look to the HMAT for performance data and
-not otherwise make type-based performance assumptions.
+Android (if you are willing to squint and look at android-common AOSP 
+kernels as a Distro).
+
+>
+> Suppose N read streams with equal read speed. The thrash-free memory
+> requirement would be (N * 2 * ra_pages).
+>
+> If N=1000 and ra_pages=1MB, it'd require 2GB memory. Which looks
+> affordable in mainstream servers.
+That is 50% of the memory on a high end Android device ...
+>
+> Sorry but it sounds like introducing an unnecessarily twisted new
+> interface. I'm afraid it fixes the pain for 0.001% users while
+> bringing more puzzle to the majority others.
+ >2B Android devices on the planet is 0.001%?
+
+I am not defending the proposed interface though, if there is something 
+better that can be used, then looking into:
+>
+> Then let fadvise() and shrink_readahead_size_eio() adjust that
+> per-file ra_pages_shift.
+Sounds like this would require a lot from init to globally audit and 
+reduce the read-ahead for all open files?
+
+Sincerely -- Mark Salyzyn
 
