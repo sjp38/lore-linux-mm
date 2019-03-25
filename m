@@ -2,215 +2,177 @@ Return-Path: <SRS0=RIH8=R4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 86C12C10F03
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 10:30:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7ED2FC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 10:40:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 42B3320850
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 10:30:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 42B3320850
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 08ACB207DD
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 10:40:14 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="OD9Xe4Qo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 08ACB207DD
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C77206B0003; Mon, 25 Mar 2019 06:30:11 -0400 (EDT)
+	id 541AF6B0003; Mon, 25 Mar 2019 06:40:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C26716B0005; Mon, 25 Mar 2019 06:30:11 -0400 (EDT)
+	id 4C8636B0005; Mon, 25 Mar 2019 06:40:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AECE96B000A; Mon, 25 Mar 2019 06:30:11 -0400 (EDT)
+	id 3B8796B000A; Mon, 25 Mar 2019 06:40:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 75D756B0003
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 06:30:11 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id 33so9073199pgv.17
-        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 03:30:11 -0700 (PDT)
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CA0936B0003
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 06:40:13 -0400 (EDT)
+Received: by mail-lj1-f197.google.com with SMTP id s7so2704384lja.16
+        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 03:40:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding:message-id;
-        bh=iOIfFyfeG6dCsAwx1jtUf5n5MSSxsdtavxD4ISXyIVo=;
-        b=DeoBQ7phxhbVeqWR2bJ4MwVUPyi9Zj4P1VupuKpzwi/rsKB7Banse5SEqY16MRpnYo
-         EP7YBscb9f2flgelCJl9qLkBMzyYWMPmg2GgnLktBL9vk4TCBEWY0UGO0TBTDI1asJDD
-         gsm7B88fbzrENWUOJymkpfrIYYV3JrGXrAqtSMiLxvlYX9Y98t82lzp0eY2sg/cDZyUl
-         NKzP+3RFjcEb/iBI0jPYzxbviu4fTzTO8T5w9buBgFev6aBMb12S3mhUVWHT420Yzo5s
-         mkd6U4eqKawY7O5oGQdhmlNjy08PIYrcp5L3jj3ds7AjG5wGkxef16iUQrMsgycE+Bb/
-         yvJg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAVlTh+E6BcT2A2YHDnvpIddqVzkw6TKUd//p9jvQRIoNoLWE6E8
-	nfvUr7Gwt0TVUSFvRj4utdGSplbjMzxa6+UlLX2InUakAjHe2NkTWWjcTJtwGpEYhEYw/QyYjaf
-	TQwmv24OAk0l1TLZBAqUiAixnWx03IHy9CiSbr51yidrSBImgVu2Xi4EeRAwmZr6t8g==
-X-Received: by 2002:a17:902:2e83:: with SMTP id r3mr6902192plb.153.1553509811122;
-        Mon, 25 Mar 2019 03:30:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyO8UYR2X1JHOfepi0fHyjg51jiOVhouLjl20i3SegcahxXVW2rm3hX6d1lZlqp5/lfPvwu
-X-Received: by 2002:a17:902:2e83:: with SMTP id r3mr6902127plb.153.1553509810200;
-        Mon, 25 Mar 2019 03:30:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553509810; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=YRU9mGLD7tBpwsbhnIUDLGmCCUiVmdLvRT8V9m+brSg=;
+        b=iixF8jIVGnv9gyzNv0pL4s9Kidare/3T9ZF4qZIX7nGdgNS5kIkWd5qJT67nYE+dcR
+         t6b1yYYmTg6M3deNKWq2bHvqjCQepSWH1nXQiqo2diNQiCP1zvflKoitv8xwI29hgpA9
+         pwnIjFG2LL2pUf0h3cVrKVOz1p8gyl6JnP3VL0c0+YczOLFvxD4EdrlxsizWUAxH+9gC
+         p4L/E4F2eX2gE2wjha922pOCBT+5jkO3isJvNsNXJEcbBiNaKcQhPUL0zbtJh+hOTtTU
+         DxLokcSvvkTycq1wFnxEGB8ZtFLpXyzwBr0cFgS1q01Qgh0xTqCRFQ4tDLRQfPwY+V5x
+         Y8RQ==
+X-Gm-Message-State: APjAAAV6ROakM27TWD8VCXwkWaFz10o4C/9DXu5ayUkhFCvjWKH/tzB8
+	eJofRFh6lchVd4UcYABLfFVzMO3djUxd3L3MOkLQ71bAAao6Eb8ixKFDT41MqQeKidtoddrTAh7
+	LXhUl7lpCfPMQYfGNx+H/iZ6tgQ2gflJeFleP5Us10gd+FekCFrCJPm4uDSIt/hHpFA==
+X-Received: by 2002:ac2:5381:: with SMTP id g1mr11860054lfh.130.1553510412823;
+        Mon, 25 Mar 2019 03:40:12 -0700 (PDT)
+X-Received: by 2002:ac2:5381:: with SMTP id g1mr11860012lfh.130.1553510411876;
+        Mon, 25 Mar 2019 03:40:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553510411; cv=none;
         d=google.com; s=arc-20160816;
-        b=XB+/SxqvdwqX9BF5DJ+aHlFdzT1KgIxzG727dEQ1emQdJ4y9dmLm5311iI9RBx9axp
-         wTGITUe7pbJd8DjgH8p7zyhEsA/MQZjfadrLFaTpxVc5uJ1u/ZtFsrp5aIq1DTRWCTTh
-         HSEuMddjo79rGPR9SVOXtsqXblyJyb03TgqCSqwwQgDcTsBdpmzipBoa0JBufrZVYW35
-         zbDFxX5njIXPdBYG5xb2ear93ekIEpwsBzP+VkIeXEE/+bMSsdYnGGIPc7P/ObH+0g3X
-         7g6IEnUTuwFNTyXEIUWHsbF5qDc4yVc5bHGddJDdp8Ap9VIIZezyTaT4g2v4o4VYO7zr
-         vAdA==
+        b=Xwy9Ku4VKwUMHqMQq5qE+KOPOUp+u6bIFmie3F452tnnzXrXNA4U7Kt5N2JPpxj2/b
+         Z8eXOY6Oy8+PnY5/8UNYp7RPR8pElLAgN4lCwBHpY5shaiaBVLSu4njSAfsKYK5oPov1
+         r1q46UqrxXQ+NjHxHVT4q2XPbZSU1Q/KWYwGgi/3dpIZ8/yrTi8mwUOOaP7y1oxItNa2
+         y2T3oL5PytRMbxvpq/OLTN8GabaSjdBh3cA8A19dSfvG4LcjLBGcfThiATDzu+L0gz7y
+         IXKB5Dk1RazorAKg8cs3+UZ+RIh5Quc0FlKcnZLS5UCAMASjh1mxcHf+ON6un//vzX2w
+         hxPA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:content-transfer-encoding:content-language:in-reply-to
-         :mime-version:user-agent:date:from:references:cc:to:subject;
-        bh=iOIfFyfeG6dCsAwx1jtUf5n5MSSxsdtavxD4ISXyIVo=;
-        b=QBgxrK2ZqXLPzinIAReQd92lu1QtzVfLZUN31Meh+57zyH6dFZCHoR1mqs3ElyOrcM
-         WPYF3U6VvqxOt1/GQ0aR8hKBN7ErnyBYsLN2CLeOjO7ots/CcPY8G1FlvzlTU6NdY0hx
-         AxzXTKs4gv/c3EDdnsbkT2qZn2MtBBto8OAqMh64zBnxWm0AXLonltQbF9QotfEZspzk
-         PU11HWIuOQk4mEBQyBNTdtUaHgB1Iq1dJNfUZr4f1p5mwkaY5Ru93E1c4zGIqwhAFo0L
-         C6IDjQLbWx8GfeFsOg/Q54SJKxFHNAI+VrBM/284p5ut+/uvOvEOC5XcFgo1hc5kg739
-         jOcg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=YRU9mGLD7tBpwsbhnIUDLGmCCUiVmdLvRT8V9m+brSg=;
+        b=lzSsRR9ZAp5metbCzUNvg/ENfC/y84tHg9VTwEAWQfDLAUMaDaNsPb1mtfD0/n6wIA
+         InHY+FbQlIZlO1Q9zU5tIh8bS3pXCpDHRq/1dQI+lI3qzZXZFOAl/yAa8FsPg5PW1R4s
+         xCYDePSN/52xjHSx/xPMU5IWjFesrZr/NA0pLACQDHkqtKoe2fxdqGaUwst59YVpeIUp
+         Yjc2Jkn5V5q6i04DG+1TH3SBbDKfHXj9tOD2VlPpwvzUffGov48uT3erNEWv7Bq6YdMU
+         SmjwJOi9B2yZCOBfxZQM8l5QSk8aA1fr5/B7Hlg99OVXcuBschk7vz855J5V/XyKeZXE
+         lQjg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id l91si8202916plb.336.2019.03.25.03.30.10
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=OD9Xe4Qo;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r18sor3704979lji.31.2019.03.25.03.40.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Mar 2019 03:30:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        (Google Transport Security);
+        Mon, 25 Mar 2019 03:40:11 -0700 (PDT)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2PAU9i3070158
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 06:30:09 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2reuwe4fmm-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 06:28:53 -0400
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.ibm.com>;
-	Mon, 25 Mar 2019 10:28:51 -0000
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Mon, 25 Mar 2019 10:28:47 -0000
-Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x2PASk4n60948666
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 25 Mar 2019 10:28:46 GMT
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 678324C04E;
-	Mon, 25 Mar 2019 10:28:46 +0000 (GMT)
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id BD0F54C046;
-	Mon, 25 Mar 2019 10:28:45 +0000 (GMT)
-Received: from [9.145.180.32] (unknown [9.145.180.32])
-	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Mon, 25 Mar 2019 10:28:45 +0000 (GMT)
-Subject: Re: [PATCH] mm/slab: protect cache_reap() against CPU and memory hot
- plug operations
-To: Sasha Levin <sashal@kernel.org>, linux-kernel@vger.kernel.org,
-        linux-mm@kvack.org
-Cc: stable@vger.kernel.org, Christoph Lameter <cl@linux.com>,
-        Pekka Enberg <penberg@kernel.org>,
-        David Rientjes <rientjes@google.com>,
-        Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-        Andrew Morton <akpm@linux-foundation.org>
-References: <20190311191701.24325-1-ldufour@linux.ibm.com>
- <20190325003841.503582148D@mail.kernel.org>
-From: Laurent Dufour <ldufour@linux.ibm.com>
-Date: Mon, 25 Mar 2019 11:28:45 +0100
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
- Gecko/20100101 Thunderbird/60.5.3
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=OD9Xe4Qo;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=YRU9mGLD7tBpwsbhnIUDLGmCCUiVmdLvRT8V9m+brSg=;
+        b=OD9Xe4QoUkWCsNdG7yMOUXXXt67BeRgEv5p4nFEtL5lSl2v+gtkMFB6blyUBc5bs4u
+         gqw185I4nYiw7goIuRt0U7rn+Mj9+Njp6DletgqdXmAzxtUch5p24IW9gG4BuhbZYFJf
+         sg12G7ptunrmscrxLK46yWvaqjJGznCxrWhiwIxeLfUrE+WWH8E8QXdh6LO+zfB+f1Jm
+         PlQdR3wx1BL+9Eu8xOECX38yURD01DYaDdtljg2fxYRHl9hHmJ6jUWQlLEqA/HJpRFhx
+         JXaUG9Hh9YZGcfqRRUuccMQs26iawUqSEAD/uxyDyXtp0XZ/P4P1im8OXg/ZP/SP5AOV
+         UAuw==
+X-Google-Smtp-Source: APXvYqxP9oH0igx2yyoV0GxqC53ui9Xet6Sq2QQ0H4kq5GyMb2nDgXR8ogmu4TfqXq6jSMgA03pRzw==
+X-Received: by 2002:a2e:844a:: with SMTP id u10mr1113904ljh.41.1553510411397;
+        Mon, 25 Mar 2019 03:40:11 -0700 (PDT)
+Received: from kshutemo-mobl1.localdomain ([178.127.192.30])
+        by smtp.gmail.com with ESMTPSA id m18sm3377062ljb.35.2019.03.25.03.40.10
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Mar 2019 03:40:10 -0700 (PDT)
+Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
+	id 5A9F330123C; Mon, 25 Mar 2019 13:40:07 +0300 (+03)
+Date: Mon, 25 Mar 2019 13:40:07 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Mark Rutland <mark.rutland@arm.com>
+Subject: Re: Fw: [Bug 202919] New: Bad page map in process syz-executor.5
+ pte:9100000081 pmd:47c67067
+Message-ID: <20190325104007.hyvsnv2laqkfc7sc@kshutemo-mobl1>
+References: <20190320170151.2ed757a48e892ebc05922389@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20190325003841.503582148D@mail.kernel.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-X-TM-AS-GCONF: 00
-x-cbid: 19032510-0008-0000-0000-000002D135C5
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19032510-0009-0000-0000-0000223D5CE7
-Message-Id: <bcca778f-646c-378e-68ef-fde3e17c842c@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-25_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1903250078
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190320170151.2ed757a48e892ebc05922389@linux-foundation.org>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Le 25/03/2019 à 01:38, Sasha Levin a écrit :
-> Hi,
+On Wed, Mar 20, 2019 at 05:01:51PM -0700, Andrew Morton wrote:
 > 
-> [This is an automated email]
-> 
-> This commit has been processed because it contains a -stable tag.
-> The stable tag indicates that it's relevant for the following trees: all
-> 
-> The bot has tested the following trees: v5.0.3, v4.19.30, v4.14.107, v4.9.164, v4.4.176, v3.18.136.
-> 
-> v5.0.3: Build OK!
-> v4.19.30: Build OK!
-> v4.14.107: Build OK!
-> v4.9.164: Build OK!
-> v4.4.176: Failed to apply! Possible dependencies:
->      27590dc17b34 ("hrtimer: Convert to hotplug state machine")
->      31487f8328f2 ("smp/cfd: Convert core to hotplug state machine")
->      512089d98457 ("perf/x86/intel/rapl: Clean up the printk output")
->      55f2890f0726 ("perf/x86/intel/rapl: Add proper error handling")
->      57ecde42cc74 ("powerpc/perf: Convert book3s notifier to state machine callbacks")
->      6731d4f12315 ("slab: Convert to hotplug state machine")
->      6b2c28471de5 ("x86/x2apic: Convert to CPU hotplug state machine")
->      7162b8fea630 ("perf/x86/intel/rapl: Refactor the code some more")
->      75c7003fbf41 ("perf/x86/intel/rapl: Calculate timing once")
->      7ee681b25284 ("workqueue: Convert to state machine callbacks")
->      8a6d2f8f73ca ("perf/x86/intel/rapl: Utilize event->pmu_private")
->      8b5b773d6245 ("perf/x86/intel/rapl: Convert to hotplug state machine")
->      9de8d686955b ("perf/x86/intel/rapl: Convert it to a per package facility")
->      a208749c6426 ("perf/x86/intel/rapl: Make PMU lock raw")
->      a409f5ee2937 ("blackfin/perf: Convert hotplug notifier to state machine")
->      b8b3319a471b ("perf/x86/intel/rapl: Sanitize the quirk handling")
->      e3cfce17d309 ("sh/perf: Convert the hotplug notifiers to state machine callbacks")
->      e6d4989a9ad1 ("relayfs: Convert to hotplug state machine")
->      e722d8daafb9 ("profile: Convert to hotplug state machine")
-> 
-> v3.18.136: Failed to apply! Possible dependencies:
->      13ca62b243f6 ("ACPI: Fix minor syntax issues in processor_core.c")
->      27590dc17b34 ("hrtimer: Convert to hotplug state machine")
->      31487f8328f2 ("smp/cfd: Convert core to hotplug state machine")
->      4daa832d9987 ("x86: Drop bogus __ref / __refdata annotations")
->      57ecde42cc74 ("powerpc/perf: Convert book3s notifier to state machine callbacks")
->      645523960102 ("perf/x86/intel/rapl: Fix energy counter measurements but supporing per domain energy units")
->      6731d4f12315 ("slab: Convert to hotplug state machine")
->      6b2c28471de5 ("x86/x2apic: Convert to CPU hotplug state machine")
->      7162b8fea630 ("perf/x86/intel/rapl: Refactor the code some more")
->      7ee681b25284 ("workqueue: Convert to state machine callbacks")
->      828aef376d7a ("ACPI / processor: Introduce phys_cpuid_t for CPU hardware ID")
->      8b5b773d6245 ("perf/x86/intel/rapl: Convert to hotplug state machine")
->      9de8d686955b ("perf/x86/intel/rapl: Convert it to a per package facility")
->      a409f5ee2937 ("blackfin/perf: Convert hotplug notifier to state machine")
->      af8f3f514d19 ("ACPI / processor: Convert apic_id to phys_id to make it arch agnostic")
->      d02dc27db0dc ("ACPI / processor: Rename acpi_(un)map_lsapic() to acpi_(un)map_cpu()")
->      d089f8e97d37 ("x86: fix up obsolete cpu function usage.")
->      e3cfce17d309 ("sh/perf: Convert the hotplug notifiers to state machine callbacks")
->      e6d4989a9ad1 ("relayfs: Convert to hotplug state machine")
->      e722d8daafb9 ("profile: Convert to hotplug state machine")
->      ecf5636dcd59 ("ACPI: Add interfaces to parse IOAPIC ID for IOAPIC hotplug")
->      fdaf3a6539d6 ("x86: fix more deprecated cpu function usage.")
+> kcov_mmap()/kcov_fault_in_area() appear to have produced a pte which
+> confused _vm_normal_page().  Could someone please take a look?
 > 
 > 
-> How should we proceed with this patch?
+> Begin forwarded message:
+> 
+> Date: Thu, 14 Mar 2019 15:06:47 +0000
+> From: bugzilla-daemon@bugzilla.kernel.org
+> To: akpm@linux-foundation.org
+> Subject: [Bug 202919] New: Bad page map in process syz-executor.5  pte:9100000081 pmd:47c67067
+> 
+> 
+> https://bugzilla.kernel.org/show_bug.cgi?id=202919
+> 
+>             Bug ID: 202919
+>            Summary: Bad page map in process syz-executor.5  pte:9100000081
+>                     pmd:47c67067
+>            Product: Memory Management
+>            Version: 2.5
+>     Kernel Version: 5.0.2
+>           Hardware: All
+>                 OS: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Page Allocator
+>           Assignee: akpm@linux-foundation.org
+>           Reporter: zhanggen12@hotmail.com
+>         Regression: No
+> 
+> Created attachment 281823
+>   --> https://bugzilla.kernel.org/attachment.cgi?id=281823&action=edit
+> bad page map
+> 
+> BUG: Bad page map in process syz-executor.5  pte:9100000081 pmd:47c67067
+> addr:00000000768464c8 vm_flags:100400fb anon_vma:          (null)
+> mapping:000000009265a729 index:18f
+> file:kcov fault:          (null) mmap:kcov_mmap readpage:          (null)
+> CPU: 0 PID: 30290 Comm: syz-executor.5 Not tainted 5.0.2 #1
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+> Call Trace:
+>  __dump_stack lib/dump_stack.c:77 [inline]
+>  dump_stack+0xca/0x13e lib/dump_stack.c:113
+>  print_bad_pte.cold.120+0x2c7/0x2f0 mm/memory.c:526
+>  _vm_normal_page+0x111/0x2b0 mm/memory.c:612
 
-Please forget about it.
+Hm. This is print_bad_pte() under 'if (IS_ENABLED(CONFIG_ARCH_HAS_PTE_SPECIAL))'.
+I don't see how would we get there since pte (0x9100000081) doesn't have
+special flag set (0x200). 'if (likely(!pte_special(pte)))' should not
+not allow us to get there.
 
-As reported by Michal, this patch is useless.
-Sorry for the noise.
+Very strange.
 
-Thanks,
-Laurent.
+-- 
+ Kirill A. Shutemov
 
