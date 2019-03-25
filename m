@@ -2,345 +2,136 @@ Return-Path: <SRS0=RIH8=R4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.4 required=3.0 tests=DATE_IN_PAST_06_12,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D6ECC10F03
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 14:20:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3D08AC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 14:28:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 350A720863
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 14:20:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 350A720863
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 0648820830
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 14:28:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0648820830
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C722A6B0007; Mon, 25 Mar 2019 10:20:57 -0400 (EDT)
+	id 801D86B000A; Mon, 25 Mar 2019 10:28:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C21866B0008; Mon, 25 Mar 2019 10:20:57 -0400 (EDT)
+	id 7D6F36B000C; Mon, 25 Mar 2019 10:28:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AC40E6B000A; Mon, 25 Mar 2019 10:20:57 -0400 (EDT)
+	id 6C5D26B000D; Mon, 25 Mar 2019 10:28:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 631D96B0007
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 10:20:57 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id d33so30482pla.19
-        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 07:20:57 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 44EAD6B000A
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 10:28:06 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id 35so10263965qty.12
+        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 07:28:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=JOidV3B68I5Gqx27TeuPmQ9eNVwHuIvie/gpndVJZiU=;
-        b=nV60C9wUAVCTd+l/58QuuvJGv69ZabmZ5HlaQvllMh5AR3o6NpWQiiF6MkGXx/wMN0
-         XECduGr1BcQe6aUrd4F2g++LiqcvqNCnl1Zq4tOvHBhPjHlYTbG2gZt9X6I+3/IdAaQF
-         jh5LiZjqZMiyAOKhecu4lwYlijmsN3ZN2LUuy3Rj4s2e6xLNW2n9q4BJcStmTW/JGKzW
-         XnpZawF/os1izh3qPkCnUqNIo9jIj6aXrp3OrNCK2HGToKZ02dniQ1QaM0d72yUbegsB
-         nFz9LtYBoVoSB2msMemijGCPVRKPjBnVUksgAQ3eBD7tV+geE/VSSAVcyxSY2gOoGotB
-         GCzg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUFEwCF3jVoXd0uD5SaKXyQqp9yqJYZtt9SleIwhIeXnxdGuJ7d
-	D7byHh4RJCVV/6e71VOCLzKbkjsa6GJdBtvxy2GGUykSKEOia3JVI8RtoR29U7AMnZZAmHR954M
-	Wi0RCC9f6Cox8qmeaW1w6wtV/Gf9h4qiU9pi7jgnV6vnqwaxKgXxf13MnV8pflImmWw==
-X-Received: by 2002:a17:902:681:: with SMTP id 1mr25912480plh.31.1553523656977;
-        Mon, 25 Mar 2019 07:20:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyfZ+qcoV11JPf1im9S+W3+j0yIB85M6NlOx2aJ0jqDBsuzv6kzpY9o28yAi1o+WRwijbfY
-X-Received: by 2002:a17:902:681:: with SMTP id 1mr25912390plh.31.1553523655965;
-        Mon, 25 Mar 2019 07:20:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553523655; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:references:date:in-reply-to:message-id:user-agent
+         :mime-version;
+        bh=LMBOMwxYbRsKP8okAy5V5c3pavZCJkJEXA7M7qzD2gE=;
+        b=d7oF5RGBkZXh4ACHs+IDOOcEbvK0MRutPM+ZEKo4MYoGHRbKr1Efw7Io8NbhNlCS9n
+         bz3lzt75259AEBADCZVigtmTcp7zh89/mbZQfJVvew3evlZLkcTLx25b2HyD++xKCgB+
+         4qnoOZwLXAqX1R23mF5OI1GAqBVFRDf+sRw7VELLLcAdiNcZODPkqknni3uiNrNZJjO2
+         CaOdkIalvGpmVCahY8Z5sQNxFaGsQBSJvZpzovCnyboecjEsYLVKonsq8tW13bAydRiZ
+         a/F2ZsO7qf7JopQ7+Tdx9paYd+AW57UJHFnkx08xGZsdV0e15GilaPjvPqPBjOxeCE28
+         MvyA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jmoyer@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXi4ENnagkcEoe42Nx0RChjXqvN03yq102btQRtQN6xhkOQgAwM
+	XzJ4EAv2Kh8gD6Cok9T5iWJOicy9vtWDMDsU8tfOOPo8Sr1OaWzlPrvL0+r+BXq5dqWbp7MQ2jm
+	u/zMYZQgS0i4GCJSuh6/YHh28VROL4IIxvb+UJ6DH1w/LyGhfJqyv3+YdqQ9KHD3QZA==
+X-Received: by 2002:a37:6812:: with SMTP id d18mr20447422qkc.28.1553524086029;
+        Mon, 25 Mar 2019 07:28:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxTcfeSV+ZMr2RtCOquE3JUVziAA/8P3bKrUVvXNVIUOGPkap7oTSF3GZyP1WtGBzb8KR60
+X-Received: by 2002:a37:6812:: with SMTP id d18mr20447390qkc.28.1553524085537;
+        Mon, 25 Mar 2019 07:28:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553524085; cv=none;
         d=google.com; s=arc-20160816;
-        b=S3RUG+moTSQeHiCmQcZFAXlzOde4uTzCu7hQ2Ma4AhlshsnwI15X4CiTRJsoOnrtU2
-         svXGMftigbLWdj0n+PpCAMc4T1C5nnBKM+fhMXaBhuoKKleyrr9kx0UgUojM+xUvUMM2
-         kUhE3/Fm95Aeb4r4HaqgsklW9eyU0ZxCSTT2UpVO60JtpLkcOi5Ti2d7Lsb8dgXsF4kt
-         0rloo40mvNRuuCJbTRqyp1dLCcy0qIunHPwkG4ttEzu6aWixmx24cNQT/jJMDqF0VfMO
-         d5U/mHAoOmIVEJl4CqvFKXdCW5fFVWMeY35Coi5gqXnZFTZ2djJbRSNE/68jRCqrT1xN
-         q3Cg==
+        b=zgkFIImtK7cQ7KeZupGsOJiybyT9JZ5HqmCbGQPiQKH5XvmEDhFggmn02ZZYqRB2IQ
+         3uVY49+zhPyC6YmIrxW33zFdNi851gST3jsh9FSGaG0ickeciwpcD+v62AN//HuelL88
+         +FK1Dcdgx5KojCa8xUmvTY8ej0URrglqNpydA9ejeMRb5gU1E20Tq0mlNuUbybCcaBHa
+         PxR0AMi2JxjU9A5xFa6v4dyo2vonA0E46XIqeV/QR1N5vqGwYPmki0HsEMWhauopDdBM
+         SJJedrk+uDMdWO1tsB2hnhynf9vEb1LYkNmSXXHI65yOdsmCZ7p4gEIFNsb4+2xp75UF
+         5D9A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=JOidV3B68I5Gqx27TeuPmQ9eNVwHuIvie/gpndVJZiU=;
-        b=Xdxs2qRTU8O7hGRDYh80vg7G/i+K+wpD9EHXGiWvdP2gk3HAyywJ8zSSxxMLIus91e
-         fMCVn41nh+rH+/tZSuIVGMNPvEPVDwWqwO+JfVCutbyaDHbS6J/wgPmMfRQv8wHMFLwH
-         UKmln+mqXPbRxNMrbkuoHMErfZzFu1xJhY7zISfiStRHQEvzfIF/D1KZRP+pET0P4vbH
-         9fbadfdH0ka3ciSoWtbmnSpGRity239N6sBidOUdQ+iiqdYBuLsujpH84ulGYmCYhjuW
-         htDFA36+mZCnjcXts19IGM9+22RUJgDcan+tYo0RGtR4SlM9nhxFzpOkES4U+VYUJlNx
-         vUmA==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=LMBOMwxYbRsKP8okAy5V5c3pavZCJkJEXA7M7qzD2gE=;
+        b=aCUUgm+nFC3vBX2rCBTOYQ/2Y072gABC0OBoiBNZe1FgTUUYyfsWP6YgNz7qs9dL4n
+         cXa3F3yJSe68QYo2Rf+2CIVLTeXGwGU8lJVyUiGdMjj4ufZ+JltNrvUpew8HyXfdE0sk
+         MqwSEUFzdBrv0isT0QeXvQ3kvNV7+w0VLBo3TnDx5unSVP5wraC+QpYpKk5uacLkzHOK
+         sFytGs7HTh81oZJQ9/E1MCmexlmJdTkAgZpnjcL8zXkqF+czwbJJue5MgLLm+HIYXd34
+         UxVycHvRPYK7cR0PClbez54pin1mp+UpVv0P752dCg1y4MHsDPTNc4w4FJALSMBZqYUY
+         aMvg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id b7si15531432plb.0.2019.03.25.07.20.55
+       spf=pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jmoyer@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m10si1332766qkg.37.2019.03.25.07.28.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Mar 2019 07:20:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
+        Mon, 25 Mar 2019 07:28:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Mar 2019 07:20:55 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,269,1549958400"; 
-   d="scan'208";a="145054827"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga002.jf.intel.com with ESMTP; 25 Mar 2019 07:20:54 -0700
-Date: Sun, 24 Mar 2019 23:19:42 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Paul Mackerras <paulus@samba.org>,
-	"David S. Miller" <davem@davemloft.net>,
-	Martin Schwidefsky <schwidefsky@de.ibm.com>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	Rich Felker <dalias@libc.org>,
-	Yoshinori Sato <ysato@users.sourceforge.jp>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
-	Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>,
-	"Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>,
-	Michal Hocko <mhocko@kernel.org>, linux-mm <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	linux-mips@vger.kernel.org,
-	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
-	linux-s390 <linux-s390@vger.kernel.org>,
-	Linux-sh <linux-sh@vger.kernel.org>, sparclinux@vger.kernel.org,
-	linux-rdma@vger.kernel.org,
-	"netdev@vger.kernel.org" <netdev@vger.kernel.org>
-Subject: Re: [RESEND 1/7] mm/gup: Replace get_user_pages_longterm() with
- FOLL_LONGTERM
-Message-ID: <20190325061941.GA16366@iweiny-DESK2.sc.intel.com>
-References: <20190317183438.2057-1-ira.weiny@intel.com>
- <20190317183438.2057-2-ira.weiny@intel.com>
- <CAA9_cmffz1VBOJ0ykBtcj+hiznn-kbbuotu1uUhPiJtXiFjJXg@mail.gmail.com>
+       spf=pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jmoyer@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 9480288304;
+	Mon, 25 Mar 2019 14:28:04 +0000 (UTC)
+Received: from segfault.boston.devel.redhat.com (segfault.boston.devel.redhat.com [10.19.60.26])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 729CC842B2;
+	Mon, 25 Mar 2019 14:28:02 +0000 (UTC)
+From: Jeff Moyer <jmoyer@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Dan Williams <dan.j.williams@intel.com>,  Andrew Morton
+ <akpm@linux-foundation.org>,  =?utf-8?B?SsOpcsO0bWU=?= Glisse
+ <jglisse@redhat.com>,  Logan Gunthorpe <logang@deltatee.com>,  Toshi Kani
+ <toshi.kani@hpe.com>,  Vlastimil Babka <vbabka@suse.cz>,  stable
+ <stable@vger.kernel.org>,  Linux MM <linux-mm@kvack.org>,  linux-nvdimm
+ <linux-nvdimm@lists.01.org>,  Linux Kernel Mailing List
+ <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH v5 00/10] mm: Sub-section memory hotplug support
+References: <155327387405.225273.9325594075351253804.stgit@dwillia2-desk3.amr.corp.intel.com>
+	<20190322180532.GM32418@dhcp22.suse.cz>
+	<CAPcyv4gBGNP95APYaBcsocEa50tQj9b5h__83vgngjq3ouGX_Q@mail.gmail.com>
+	<20190325101945.GD9924@dhcp22.suse.cz>
+X-PGP-KeyID: 1F78E1B4
+X-PGP-CertKey: F6FE 280D 8293 F72C 65FD  5A58 1FF8 A7CA 1F78 E1B4
+Date: Mon, 25 Mar 2019 10:28:00 -0400
+In-Reply-To: <20190325101945.GD9924@dhcp22.suse.cz> (Michal Hocko's message of
+	"Mon, 25 Mar 2019 11:19:45 +0100")
+Message-ID: <x494l7rdo5r.fsf@segfault.boston.devel.redhat.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAA9_cmffz1VBOJ0ykBtcj+hiznn-kbbuotu1uUhPiJtXiFjJXg@mail.gmail.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+Content-Type: text/plain
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Mon, 25 Mar 2019 14:28:04 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 22, 2019 at 02:24:40PM -0700, Dan Williams wrote:
-> On Sun, Mar 17, 2019 at 7:36 PM <ira.weiny@intel.com> wrote:
-> >
-> > From: Ira Weiny <ira.weiny@intel.com>
-> >
-> > Rather than have a separate get_user_pages_longterm() call,
-> > introduce FOLL_LONGTERM and change the longterm callers to use
-> > it.
-> >
-> > This patch does not change any functionality.
-> >
-> > FOLL_LONGTERM can only be supported with get_user_pages() as it
-> > requires vmas to determine if DAX is in use.
-> >
-> > CC: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-> > CC: Andrew Morton <akpm@linux-foundation.org>
-> > CC: Michal Hocko <mhocko@kernel.org>
-> > Signed-off-by: Ira Weiny <ira.weiny@intel.com>
-> [..]
-> > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > index 2d483dbdffc0..6831077d126c 100644
-> > --- a/include/linux/mm.h
-> > +++ b/include/linux/mm.h
-> [..]
-> > @@ -2609,6 +2596,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
-> >  #define FOLL_REMOTE    0x2000  /* we are working on non-current tsk/mm */
-> >  #define FOLL_COW       0x4000  /* internal GUP flag */
-> >  #define FOLL_ANON      0x8000  /* don't do file mappings */
-> > +#define FOLL_LONGTERM  0x10000 /* mapping is intended for a long term pin */
-> 
-> Let's change this comment to say something like /* mapping lifetime is
-> indefinite / at the discretion of userspace */, since "longterm is not
-> well defined.
-> 
-> I think it should also include a /* FIXME: */ to say something about
-> the havoc a long term pin might wreak on fs and mm code paths.
+Michal Hocko <mhocko@kernel.org> writes:
 
-Will do.
+>> > and I would like to know that you are
+>> > not just shifting the problem to a smaller unit and a new/creative HW
+>> > will force us to go even more complicated.
+>> 
+>> HW will not do this to us. It's software that has the problem.
+>> Namespace creation is unnecessarily constrained to 128MB alignment.
+>
+> And why is that a problem? A lack of documentation that this is a
+> requirement? Something will not work with a larger alignment? Someting
+> else?
 
-> 
-> >  static inline int vm_fault_to_errno(vm_fault_t vm_fault, int foll_flags)
-> >  {
-> > diff --git a/mm/gup.c b/mm/gup.c
-> > index f84e22685aaa..8cb4cff067bc 100644
-> > --- a/mm/gup.c
-> > +++ b/mm/gup.c
-> > @@ -1112,26 +1112,7 @@ long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
-> >  }
-> >  EXPORT_SYMBOL(get_user_pages_remote);
-> >
-> > -/*
-> > - * This is the same as get_user_pages_remote(), just with a
-> > - * less-flexible calling convention where we assume that the task
-> > - * and mm being operated on are the current task's and don't allow
-> > - * passing of a locked parameter.  We also obviously don't pass
-> > - * FOLL_REMOTE in here.
-> > - */
-> > -long get_user_pages(unsigned long start, unsigned long nr_pages,
-> > -               unsigned int gup_flags, struct page **pages,
-> > -               struct vm_area_struct **vmas)
-> > -{
-> > -       return __get_user_pages_locked(current, current->mm, start, nr_pages,
-> > -                                      pages, vmas, NULL,
-> > -                                      gup_flags | FOLL_TOUCH);
-> > -}
-> > -EXPORT_SYMBOL(get_user_pages);
-> > -
-> >  #if defined(CONFIG_FS_DAX) || defined (CONFIG_CMA)
-> > -
-> > -#ifdef CONFIG_FS_DAX
-> >  static bool check_dax_vmas(struct vm_area_struct **vmas, long nr_pages)
-> >  {
-> >         long i;
-> > @@ -1150,12 +1131,6 @@ static bool check_dax_vmas(struct vm_area_struct **vmas, long nr_pages)
-> >         }
-> >         return false;
-> >  }
-> > -#else
-> > -static inline bool check_dax_vmas(struct vm_area_struct **vmas, long nr_pages)
-> > -{
-> > -       return false;
-> > -}
-> > -#endif
-> >
-> >  #ifdef CONFIG_CMA
-> >  static struct page *new_non_cma_page(struct page *page, unsigned long private)
-> > @@ -1209,10 +1184,13 @@ static struct page *new_non_cma_page(struct page *page, unsigned long private)
-> >         return __alloc_pages_node(nid, gfp_mask, 0);
-> >  }
-> >
-> > -static long check_and_migrate_cma_pages(unsigned long start, long nr_pages,
-> > -                                       unsigned int gup_flags,
-> > +static long check_and_migrate_cma_pages(struct task_struct *tsk,
-> > +                                       struct mm_struct *mm,
-> > +                                       unsigned long start,
-> > +                                       unsigned long nr_pages,
-> >                                         struct page **pages,
-> > -                                       struct vm_area_struct **vmas)
-> > +                                       struct vm_area_struct **vmas,
-> > +                                       unsigned int gup_flags)
-> >  {
-> >         long i;
-> >         bool drain_allow = true;
-> > @@ -1268,10 +1246,14 @@ static long check_and_migrate_cma_pages(unsigned long start, long nr_pages,
-> >                                 putback_movable_pages(&cma_page_list);
-> >                 }
-> >                 /*
-> > -                * We did migrate all the pages, Try to get the page references again
-> > -                * migrating any new CMA pages which we failed to isolate earlier.
-> > +                * We did migrate all the pages, Try to get the page references
-> > +                * again migrating any new CMA pages which we failed to isolate
-> > +                * earlier.
-> >                  */
-> > -               nr_pages = get_user_pages(start, nr_pages, gup_flags, pages, vmas);
-> > +               nr_pages = __get_user_pages_locked(tsk, mm, start, nr_pages,
-> > +                                                  pages, vmas, NULL,
-> > +                                                  gup_flags);
-> > +
-> 
-> Why did this need to change to __get_user_pages_locked?
+See this email for one user-visible problem:
+  https://lore.kernel.org/lkml/x49imxbx22d.fsf@segfault.boston.devel.redhat.com/
 
-__get_uer_pages_locked() is now the "internal call" for get_user_pages.
-
-Technically it did not _have_ to change but there is no need to call
-get_user_pages() again because the FOLL_TOUCH flags is already set.  Also this
-call then matches the __get_user_pages_locked() which was called on the pages
-we migrated from.  Mostly this keeps the code "symmetrical" in that we called
-__get_user_pages_locked() on the pages we are migrating from and the same call
-on the pages we migrated to.
-
-While the change here looks funny I think the final code is better.
-
-> 
-> >                 if ((nr_pages > 0) && migrate_allow) {
-> >                         drain_allow = true;
-> >                         goto check_again;
-> > @@ -1281,66 +1263,115 @@ static long check_and_migrate_cma_pages(unsigned long start, long nr_pages,
-> >         return nr_pages;
-> >  }
-> >  #else
-> > -static inline long check_and_migrate_cma_pages(unsigned long start, long nr_pages,
-> > -                                              unsigned int gup_flags,
-> > -                                              struct page **pages,
-> > -                                              struct vm_area_struct **vmas)
-> > +static long check_and_migrate_cma_pages(struct task_struct *tsk,
-> > +                                       struct mm_struct *mm,
-> > +                                       unsigned long start,
-> > +                                       unsigned long nr_pages,
-> > +                                       struct page **pages,
-> > +                                       struct vm_area_struct **vmas,
-> > +                                       unsigned int gup_flags)
-> >  {
-> >         return nr_pages;
-> >  }
-> >  #endif
-> >
-> >  /*
-> > - * This is the same as get_user_pages() in that it assumes we are
-> > - * operating on the current task's mm, but it goes further to validate
-> > - * that the vmas associated with the address range are suitable for
-> > - * longterm elevated page reference counts. For example, filesystem-dax
-> > - * mappings are subject to the lifetime enforced by the filesystem and
-> > - * we need guarantees that longterm users like RDMA and V4L2 only
-> > - * establish mappings that have a kernel enforced revocation mechanism.
-> > + * __gup_longterm_locked() is a wrapper for __get_uer_pages_locked which
-> 
-> s/uer/user/
-
-Check
-
-> 
-> > + * allows us to process the FOLL_LONGTERM flag if present.
-> > + *
-> > + * FOLL_LONGTERM Checks for either DAX VMAs or PPC CMA regions and either fails
-> > + * the pin or attempts to migrate the page as appropriate.
-> > + *
-> > + * In the filesystem-dax case mappings are subject to the lifetime enforced by
-> > + * the filesystem and we need guarantees that longterm users like RDMA and V4L2
-> > + * only establish mappings that have a kernel enforced revocation mechanism.
-> > + *
-> > + * In the CMA case pages can't be pinned in a CMA region as this would
-> > + * unnecessarily fragment that region.  So CMA attempts to migrate the page
-> > + * before pinning.
-> >   *
-> >   * "longterm" == userspace controlled elevated page count lifetime.
-> >   * Contrast this to iov_iter_get_pages() usages which are transient.
-> 
-> Ah, here's the longterm documentation, but if I was a developer
-> considering whether to use FOLL_LONGTERM or not I would expect to find
-> the documentation at the flag definition site.
-> 
-> I think it has become more clear since get_user_pages_longterm() was
-> initially merged that we need to warn people not to use it, or at
-> least seriously reconsider whether they want an interface to support
-> indefinite pins.
-
-Good point will move
-
-> 
-> >   */
-> > -long get_user_pages_longterm(unsigned long start, unsigned long nr_pages,
-> > -                            unsigned int gup_flags, struct page **pages,
-> > -                            struct vm_area_struct **vmas_arg)
-> > +static __always_inline long __gup_longterm_locked(struct task_struct *tsk,
-> 
-> ...why the __always_inline?
- 
-This was because it was only called from get_user_pages() in this patch.  But
-later on I use it elsewhere so __always_inline is wrong.
-
-Ira
+Cheers,
+Jeff
 
