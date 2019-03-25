@@ -2,222 +2,220 @@ Return-Path: <SRS0=RIH8=R4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.4 required=3.0 tests=DATE_IN_PAST_06_12,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7223FC43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 16:43:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D1BDBC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 16:44:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3996020863
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 16:43:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3996020863
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 8262F208E4
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 16:44:30 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="uWq2IC7v"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8262F208E4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C30826B0003; Mon, 25 Mar 2019 12:43:50 -0400 (EDT)
+	id 1CE956B0006; Mon, 25 Mar 2019 12:44:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BDFB46B0006; Mon, 25 Mar 2019 12:43:50 -0400 (EDT)
+	id 17E076B0007; Mon, 25 Mar 2019 12:44:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A80B06B0007; Mon, 25 Mar 2019 12:43:50 -0400 (EDT)
+	id 020FD6B0008; Mon, 25 Mar 2019 12:44:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 63C606B0003
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 12:43:50 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id 73so9834756pga.18
-        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 09:43:50 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A47C66B0006
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 12:44:29 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id u6so1151537wml.3
+        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 09:44:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Pa6nZS3K5nnS9y06L6oLI0n+uD+p/+Diqto8nrQGBog=;
-        b=sU8x3C994NfdrlZFJcedVEh5/QomuT+G1NXz9ggmlqGbJSmqa/zN0iog08Qdw7Gj8n
-         lFoADfi0BDgjYhbLXo6v5qBE1wliLI0GIn3J8Z7y9LjUdepXHHCPyfWTYDQvzqBZoVb+
-         m6nkcNc+RtSPLrw84PdaXS+bMvLMTeUAzu+amPnEhtDOP3R/Rcto/OSt+Tg3jOKWOIiU
-         G7ZsoerFFn3Z1olQZMV7Ek3xxzXbkT26B1KSDak31/OuP2Zk3qcDRUFYOqP7qQBUEDBp
-         4t/DdcUdITeXWIX7zeboo5+U09YQITE77N9uweezNaHlRXSeZQPZMuHLnib5Y/WpwgXM
-         xrCw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAX17cRhXiVeUvXWsssx6x4Jf0bYvKzjC8RbvCIpNBaKuridGpwM
-	3zfvbsTvew6SbAVTAT7PWSESS91RvlSlgYP8od+t00gHAS1HmAEObEpbNGEOkAHwKypFejcleo8
-	01K7Ld7Zki8k+L3VYAU5AGdLjF7FDAxBT6dkrFhG4hPD6SWdR3+OXvUs34I9rD+1h3A==
-X-Received: by 2002:a17:902:690a:: with SMTP id j10mr26497593plk.103.1553532230032;
-        Mon, 25 Mar 2019 09:43:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxIBnElVcgwmyd9MfZRmMErdBK6Rm5j6lgVwera0+10uVP/2/VhtuiQsXLw/WGiIqVwvK08
-X-Received: by 2002:a17:902:690a:: with SMTP id j10mr26497532plk.103.1553532229235;
-        Mon, 25 Mar 2019 09:43:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553532229; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :openpgp:autocrypt:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=NSY5EkU+HnGH2HB3kclwoIJRstfiL3cyMYhG7Hik+t4=;
+        b=rYA1PSqNUQWqVlylJczXR3e+6kOjPP+1zhKhrNHPLDpdg8Nwyet9r/VwNXeEsOFNsu
+         zEY8YV3pm1j+VrMTg/2dLk7XNePKzasbisEWKosDMzhEVlVDnr9kkSXpvxI5AsyGZFEr
+         /NpMm9wOfxnPQ0RhnDPxUObBQiaBd1hhnZ4QtT0jRdpVCGCH/kbAz9XYBB+zeQj/y6KX
+         yB9KQVsNwUDVXfyL/RtV/dtYfg3x4sImmK3/gZsVbuE3twAxXYBkuVcagA5FdcOL29ZE
+         9RvN0rKOTGd9B05OebIBoJlokbPC7inWWBccwntQDoLYN7A7yURj3mTisUCS2aGDoyw6
+         p5Gw==
+X-Gm-Message-State: APjAAAWqDzA25+M/OJfgMYChcLhiTzEoJ2HmFaKXqjx8YBKr9VBGxP1S
+	UBTcKp2q2wGIwFvmM+1he63TyLYS48pjgxMAq6jpLxtpjTb41f5C52xorMrOW7M63g9LV0AZ2Xq
+	sb7A/5IfC5gfuCHwojy0uOiVhOTnAu3kEvPdPK5fbJ0YMagd+2ekpVJDJTOtQm+NKZg==
+X-Received: by 2002:a05:6000:12c7:: with SMTP id l7mr15273235wrx.4.1553532269203;
+        Mon, 25 Mar 2019 09:44:29 -0700 (PDT)
+X-Received: by 2002:a05:6000:12c7:: with SMTP id l7mr15273200wrx.4.1553532268439;
+        Mon, 25 Mar 2019 09:44:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553532268; cv=none;
         d=google.com; s=arc-20160816;
-        b=DEWK+Xh6R/g/dulicPaOxoifo8WhbPCgBxCCAg1bLUjCVZ+eF383QEyWFG0qPx27kW
-         kMq4J0LRPUUIpSUtgv/k1PcjvEs8MqU840MGWVd3G4qtxSDE5Q+m+Y1K8YQHtmPxwwji
-         w30wQympONblbwd0nek1yZwgs2NARM+P1vgjtA4YNLzyKWceW44bDZnkJFhsUoC7OC7M
-         IoBPfOFAHfEHvBtormzr3+/yc3YYzGsxKFflkx9kJtJ1mtmnqnAgTMbjdE5USzTdzCTr
-         vXdMjstSd6A1hXSSGpxPpR/ajAtlkDc/77j/pIufyyJJgG+wTLL3VML+r4HlKH4108hl
-         FUsQ==
+        b=qzxRg+nagzJvqfpJsINlg5cAdVmlz5bnaAXnXKUnQ5hEDYZexfo549OXoUA0Esoage
+         azglhPk4Z9i4+9xMLcrJKe18Dd0DXHO+/tQS3hVJIGR7nuGmhCcg43PF4FOk+vixURWF
+         fX6Xvpv9B3O4VJ5kLa68XZ0z6jmOCH4PsmlMBQnWhLwdFc8nNq7FqOqxEWRpc++CVsCe
+         GOS+Liggzim/qGiasyPcbtu3qSLw4qtvsFVmJxFnXhkdGPAeZLEJfQoXMlfyxMUC2K8O
+         kNG4N0edbHxb417KSOG3d1GCy2iUeRW0e6Vb1cAbQvrnFAmd2L4iPjS5nDC/Tj4/TcRZ
+         VMHw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Pa6nZS3K5nnS9y06L6oLI0n+uD+p/+Diqto8nrQGBog=;
-        b=yhwgPHqtXzdp07vMuOzRdTrEfclPTh3DET50FNb0NY1ABBQWsA9TeMG5/6qr8Cki3P
-         +vsWMfTJhkdftxdjhpLoYJKNih2skY3S7OKdbUXruUWQSMB6TtTK1MOPmMz5birhrikY
-         xlCBJYz3FyN/T7kNIIhwx8RXuahkxa1o0l+34hL2OvUZkmdTRdgXchmrPpMrtPVLwIv/
-         xChWNpoyWka1KHaN6lcx8cveHFPwCHrgx5l0swP423QUVSJESClRRwJKjgaNpIXDOsNO
-         jcru5ELc5E+Oah6UL5EPeepJuxcYCRNsiwi6nAmYovFsJ2pjbclbTJw9vMuGuWTDtgIR
-         7kIA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject:dkim-signature;
+        bh=NSY5EkU+HnGH2HB3kclwoIJRstfiL3cyMYhG7Hik+t4=;
+        b=ux20N66IDTXyJX+88+rPOJQpT96jbpIk8DoyXo4iif9/8BuoLfwyAuZCOOo1ATVmHW
+         bbDfLeMyP8NzQGO7Fbi2eW0qaTZdDppzPes5lAsEjMiNLzfSl2xp8kqXBnPbPOfLI7P5
+         JXLM9uHgbdE9WOkrTkuIkI7IJn1MV4wwhDlfFaVkZTnJc8/j2oplB7n4pr9ecl3N+0T+
+         BHWO+qHDpOy3zn8CovoRTLDKCBr5M8xLF99EFRElxeE54DctyHgdJk0/tN+c+il9K3q6
+         /dmc6EjpJNGmAoLdSEP4FaiR/xmPD8xJ6Lirw2bkJ2Y9Mu07mFIEk06VhT1lCMNvDQNE
+         6Avg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id r17si9787270pgm.52.2019.03.25.09.43.48
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uWq2IC7v;
+       spf=pass (google.com: domain of f.fainelli@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=f.fainelli@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b6sor4386564wro.35.2019.03.25.09.44.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Mar 2019 09:43:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
+        (Google Transport Security);
+        Mon, 25 Mar 2019 09:44:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of f.fainelli@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from fmsmga003.fm.intel.com ([10.253.24.29])
-  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Mar 2019 09:43:40 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,269,1549958400"; 
-   d="scan'208";a="143686285"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by FMSMGA003.fm.intel.com with ESMTP; 25 Mar 2019 09:43:37 -0700
-Date: Mon, 25 Mar 2019 01:42:26 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Paul Mackerras <paulus@samba.org>,
-	"David S. Miller" <davem@davemloft.net>,
-	Martin Schwidefsky <schwidefsky@de.ibm.com>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	Rich Felker <dalias@libc.org>,
-	Yoshinori Sato <ysato@users.sourceforge.jp>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
-	Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>,
-	linux-mm <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	linux-mips@vger.kernel.org,
-	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
-	linux-s390 <linux-s390@vger.kernel.org>,
-	Linux-sh <linux-sh@vger.kernel.org>, sparclinux@vger.kernel.org,
-	linux-rdma@vger.kernel.org,
-	"netdev@vger.kernel.org" <netdev@vger.kernel.org>
-Subject: Re: [RESEND 4/7] mm/gup: Add FOLL_LONGTERM capability to GUP fast
-Message-ID: <20190325084225.GC16366@iweiny-DESK2.sc.intel.com>
-References: <20190317183438.2057-1-ira.weiny@intel.com>
- <20190317183438.2057-5-ira.weiny@intel.com>
- <CAA9_cmcx-Bqo=CFuSj7Xcap3e5uaAot2reL2T74C47Ut6_KtQw@mail.gmail.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uWq2IC7v;
+       spf=pass (google.com: domain of f.fainelli@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=f.fainelli@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=subject:to:cc:references:from:openpgp:autocrypt:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=NSY5EkU+HnGH2HB3kclwoIJRstfiL3cyMYhG7Hik+t4=;
+        b=uWq2IC7v80rd2dDJL2ZGY2d6q0F0j+4eANf+70QxyHjeKCR92EC59ZJTvB51S83KJs
+         VchT1a9/rEPKp1XeLd4LQnMzKyRBj3Y5PgiNhudWPgD/Dze7L6UTX4iikiPHnu0WrMZc
+         G37NEIswHw3otFUXGmslgIZxX3QSEbCbdusgrUmdqDfRYc3pcFXykZySqh4enVrtiUU9
+         BMmK0ANt47eYDD7dnlpTto3rYf/diccySvN7lKMURFakmIFo+II8xBs/8+foQLKWSeUM
+         BFQGAxbLAsLXfRfXgVRo4epx5dxxx0nXpmY8WuSWlnSxZXq6O1InMTOHdc04XjDfsC15
+         zdUg==
+X-Google-Smtp-Source: APXvYqyY6oZz4yWnt5x5aPIVtRQfDGGu8qZyPlOF/+TkRHBLNmgRijjVW43+yKepgDP95t9lQrc4ow==
+X-Received: by 2002:a5d:4646:: with SMTP id j6mr5841417wrs.56.1553532267961;
+        Mon, 25 Mar 2019 09:44:27 -0700 (PDT)
+Received: from [10.67.48.231] ([192.19.223.250])
+        by smtp.googlemail.com with ESMTPSA id b134sm35248839wmd.26.2019.03.25.09.44.24
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Mar 2019 09:44:27 -0700 (PDT)
+Subject: Re: Why CMA allocater fails if there is a signal pending?
+To: Russell King - ARM Linux admin <linux@armlinux.org.uk>,
+ Peter Chen <hzpeterchen@gmail.com>
+Cc: Michal Nazarewicz <mina86@mina86.com>, peter.chen@nxp.com,
+ fugang.duan@nxp.com, linux-usb@vger.kernel.org,
+ lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
+ linux-arm-kernel@lists.infradead.org,
+ Marek Szyprowski <m.szyprowski@samsung.com>
+References: <CAL411-pwHq4Df-FsBu=Vzd4CR6Pzee2yR579hHeZuh8T7fBNJA@mail.gmail.com>
+ <20190325102633.v6hkvda6q7462wza@shell.armlinux.org.uk>
+From: Florian Fainelli <f.fainelli@gmail.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=f.fainelli@gmail.com; prefer-encrypt=mutual; keydata=
+ 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
+ M5kY0ACeNhCZJvZ5g4C2Lc9fcTHu8jxmEkI=
+Message-ID: <7905eeb4-51ce-956b-31ed-33313bcfe7eb@gmail.com>
+Date: Mon, 25 Mar 2019 09:44:17 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAA9_cmcx-Bqo=CFuSj7Xcap3e5uaAot2reL2T74C47Ut6_KtQw@mail.gmail.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+In-Reply-To: <20190325102633.v6hkvda6q7462wza@shell.armlinux.org.uk>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 22, 2019 at 03:12:55PM -0700, Dan Williams wrote:
-> On Sun, Mar 17, 2019 at 7:36 PM <ira.weiny@intel.com> wrote:
-> >
-> > From: Ira Weiny <ira.weiny@intel.com>
-> >
-> > DAX pages were previously unprotected from longterm pins when users
-> > called get_user_pages_fast().
-> >
-> > Use the new FOLL_LONGTERM flag to check for DEVMAP pages and fall
-> > back to regular GUP processing if a DEVMAP page is encountered.
-> >
-> > Signed-off-by: Ira Weiny <ira.weiny@intel.com>
-> > ---
-> >  mm/gup.c | 29 +++++++++++++++++++++++++----
-> >  1 file changed, 25 insertions(+), 4 deletions(-)
-> >
-> > diff --git a/mm/gup.c b/mm/gup.c
-> > index 0684a9536207..173db0c44678 100644
-> > --- a/mm/gup.c
-> > +++ b/mm/gup.c
-> > @@ -1600,6 +1600,9 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
-> >                         goto pte_unmap;
-> >
-> >                 if (pte_devmap(pte)) {
-> > +                       if (unlikely(flags & FOLL_LONGTERM))
-> > +                               goto pte_unmap;
-> > +
-> >                         pgmap = get_dev_pagemap(pte_pfn(pte), pgmap);
-> >                         if (unlikely(!pgmap)) {
-> >                                 undo_dev_pagemap(nr, nr_start, pages);
-> > @@ -1739,8 +1742,11 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
-> >         if (!pmd_access_permitted(orig, flags & FOLL_WRITE))
-> >                 return 0;
-> >
-> > -       if (pmd_devmap(orig))
-> > +       if (pmd_devmap(orig)) {
-> > +               if (unlikely(flags & FOLL_LONGTERM))
-> > +                       return 0;
-> >                 return __gup_device_huge_pmd(orig, pmdp, addr, end, pages, nr);
-> > +       }
-> >
-> >         refs = 0;
-> >         page = pmd_page(orig) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
-> > @@ -1777,8 +1783,11 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
-> >         if (!pud_access_permitted(orig, flags & FOLL_WRITE))
-> >                 return 0;
-> >
-> > -       if (pud_devmap(orig))
-> > +       if (pud_devmap(orig)) {
-> > +               if (unlikely(flags & FOLL_LONGTERM))
-> > +                       return 0;
-> >                 return __gup_device_huge_pud(orig, pudp, addr, end, pages, nr);
-> > +       }
-> >
-> >         refs = 0;
-> >         page = pud_page(orig) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
-> > @@ -2066,8 +2075,20 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
-> >                 start += nr << PAGE_SHIFT;
-> >                 pages += nr;
-> >
-> > -               ret = get_user_pages_unlocked(start, nr_pages - nr, pages,
-> > -                                             gup_flags);
-> > +               if (gup_flags & FOLL_LONGTERM) {
-> > +                       down_read(&current->mm->mmap_sem);
-> > +                       ret = __gup_longterm_locked(current, current->mm,
-> > +                                                   start, nr_pages - nr,
-> > +                                                   pages, NULL, gup_flags);
-> > +                       up_read(&current->mm->mmap_sem);
-> > +               } else {
-> > +                       /*
-> > +                        * retain FAULT_FOLL_ALLOW_RETRY optimization if
-> > +                        * possible
-> > +                        */
-> > +                       ret = get_user_pages_unlocked(start, nr_pages - nr,
-> > +                                                     pages, gup_flags);
+On 3/25/19 3:26 AM, Russell King - ARM Linux admin wrote:
+> On Mon, Mar 25, 2019 at 04:37:09PM +0800, Peter Chen wrote:
+>> Hi Michal & Marek,
+>>
+>> I meet an issue that the DMA (CMA used) allocation failed if there is a user
+>> signal, Eg Ctrl+C, it causes the USB xHCI stack fails to resume due to
+>> dma_alloc_coherent
+>> failed. It can be easy to reproduce if the user press Ctrl+C at
+>> suspend/resume test.
 > 
-> I couldn't immediately grok why this path needs to branch on
-> FOLL_LONGTERM? Won't get_user_pages_unlocked(..., FOLL_LONGTERM) do
-> the right thing?
+> It has been possible in the past for cma_alloc() to take seconds or
+> longer to allocate, depending on the size of the CMA area and the
+> number of pinned GFP_MOVABLE pages within the CMA area.  Whether that
+> is true of today's CMA or not, I don't know.
+> 
+> It's probably there to allow such a situation to be recoverable, but
+> is not a good idea if we're expecting dma_alloc_*() not to fail in
+> those scenarios.
+> 
 
-Unfortunately holding the lock is required to support FOLL_LONGTERM (to check
-the VMAs) but we don't want to hold the lock to be optimal (specifically allow
-FAULT_FOLL_ALLOW_RETRY).  So I'm maintaining the optimization for *_fast users
-who do not specify FOLL_LONGTERM.
+This is a known issue that was discussed here before:
 
-Another way to do this would have been to define __gup_longterm_unlocked with
-the above logic, but that seemed overkill at this point.
+http://lists.infradead.org/pipermail/linux-arm-kernel/2014-November/299265.html
 
-Ira
+one issue is that the process that is responsible for putting the system
+asleep and is being resumed (which can be as simple as your shell doing
+an 'echo "standby" > /sys/power/state' can be killed, and that
+propagates throughout dpm_resume(). It is debatable whether the signal
+should be ignored or not, probably not.
+
+You can work around this by wrapping your echo to /sys/power/state with
+a shell script that trap the signal and say, does an exit 1. AFAIR there
+are many places where a dma_alloc_* allocation can fail, and not all
+drivers are designed to recover correctly.
+-- 
+Florian
 
