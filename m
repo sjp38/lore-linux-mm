@@ -2,181 +2,148 @@ Return-Path: <SRS0=RIH8=R4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E1018C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 15:26:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B5EFDC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 15:37:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 93EE620896
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 15:26:36 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="IpLumw3U"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 93EE620896
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 7A6C82083D
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 15:37:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7A6C82083D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2834B6B0003; Mon, 25 Mar 2019 11:26:36 -0400 (EDT)
+	id 0567C6B0003; Mon, 25 Mar 2019 11:37:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2305D6B0006; Mon, 25 Mar 2019 11:26:36 -0400 (EDT)
+	id 004F76B0006; Mon, 25 Mar 2019 11:37:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0D36E6B0007; Mon, 25 Mar 2019 11:26:36 -0400 (EDT)
+	id E36806B0007; Mon, 25 Mar 2019 11:37:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BD46D6B0003
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 11:26:35 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id bh5so137612plb.16
-        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 08:26:35 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C14E86B0003
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 11:37:26 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id q21so10549055qtf.10
+        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 08:37:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=D8ZVArfnFLBcVmlAcDBorEaZjH66v1dusWAAyZwbrQw=;
-        b=IZOi7u2dCkR7TVZnb4POUeQplAGlp7RRzzsmSmaGQHogepSHhVpPFvLmlUiYbdrcsm
-         dLyLkKlJiC5USgRhRWG20O0tRBh+EPLG2xjyYwRQOQZSUOa7Axfsze/P24bKHGdnivyJ
-         +RXCx2sjB0aKs+z/2N9VASZBoIKijbYK9tq4EDy55AChy0pJNRrnxLRWK0CZQbccFfTd
-         H3xONiRq5amjALOfpwA48/8G6GoLZm8Np9GUXIuAx3W9jJ11EZAgUWNjb1BbIokZ0DfC
-         AO2KQy3MTOIzwyACw5t+worzdsdftWCUb7F8oZSaeyoF+41J+syB1/FlEcDJ7bDiicG3
-         WHdw==
-X-Gm-Message-State: APjAAAXh8sm6PqeRS01yZGe57N5J/ZtAyn4ZodE1+DHtnx05dR5d0U/d
-	FvEh5veeeKbejH9tQjJLYO5djunj+yz59jW5/Z08bBtyqV83X0grqx0tn7WbhI5kuSjQQflyVvv
-	bF1OKJFAIPVYT2p8nj3bylJ7sEBRIGWCZERHYChbWooUloL9qyU7Y5uMtAdQUL2G51Q==
-X-Received: by 2002:a63:ef05:: with SMTP id u5mr23965301pgh.177.1553527595404;
-        Mon, 25 Mar 2019 08:26:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyUTPXTHZsEvqj6eN+F+y91EcfwF0j4O6852c1k3s4c76cZKx8xCMlfLQZE/XhbILTCRr9A
-X-Received: by 2002:a63:ef05:: with SMTP id u5mr23965234pgh.177.1553527594624;
-        Mon, 25 Mar 2019 08:26:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553527594; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to;
+        bh=ULt4UAznv66zNgUvqi5PYm74n/6JzDtsJmpKbhGf0Hc=;
+        b=KnGbA4zU72WqL4VXzcpSaVLsp9GF1Af2ZlTkkk8mN46F7IM0YOpOrlA7nDOjfXADUf
+         FW3LG4AnTvvtZu+frHL3WSXHlz/rfbHSsQEL0l99UJB3AcArVE0WTqP4of7+dC5zFZnI
+         Hvo7BvGz+tNvihlwLRiyJqw0LoFscP5DY44u8wHk8G4KxIElZmb/2nbhXXF+BX9iw2lz
+         5TRMZ0n6FGW3njxsxp/aa6lwNwiVLHteRkDy8kiE7dAQ2P3JBDP40SEBQngo2fVZ98g0
+         ULwKCkeeaQDwtzGUIVJL+apigczZyNHbK2ONgi3eXAnU6XM64nM2lRSF+sjk8E8LBWtB
+         r/2w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWq5cspuTKuCZniH3mwakfl7VFXCOwRDdSfWntsQYvFs4+uw56z
+	RZVgAUG23u5cUcq5tGl13Y3LnTgi/h1xeCtAz4iol3umQVRpaJy4ppFdAxzx+Bf3X+9Lfr/fgKq
+	0M8IHFaZZHLajzgClP/76GiEkkQNAIPj6PLT/Po3ybWloYDzEaQ/VH0EoMcZiXbeYhQ==
+X-Received: by 2002:a0c:ba13:: with SMTP id w19mr19876238qvf.179.1553528246542;
+        Mon, 25 Mar 2019 08:37:26 -0700 (PDT)
+X-Received: by 2002:a0c:ba13:: with SMTP id w19mr19876187qvf.179.1553528245658;
+        Mon, 25 Mar 2019 08:37:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553528245; cv=none;
         d=google.com; s=arc-20160816;
-        b=YohHzF0Ti22hudYJiesV5LSINlzEEIPS6YUxeNuN2ZsPAiE6b/M3CaCtOYV3/hMw4Z
-         sqyzjNVkv+2+gAnEx1MWlpQ6lhhO2FNjZXCmNFBm7ft6CyeTSTGmVpBnNFBv8MfOW0Sd
-         byIn90TOqSJLArFiV45XpPpPwuyfvTXuhIFO23VE1jv6CUXlLlOcrmksYp7X/1Q9gobV
-         9LI2+RH/Frb5jNdS8WKQK41wYgtgTYkkZT8alCgiEThdz4ff6TO/fYooOL9Upn9LdmNb
-         U72aFgrDY0sAIexLY/mKK7ZZvvHHfq4DMxoUopFNHOiMpxnjfRdIDPrGURtYG26vud2P
-         MUUQ==
+        b=q8rNL0phgxL/NtFkLpPSCiZzdY/BsYEv0TgzbGv3X4rccAM/WLht5ordAolxTnLmav
+         dGYzyrNP6MLzGju4zkWRvopk18sodvI7ebF286t7vtARjAOavmq3uXNN0cNzTcTnB16G
+         RZuqZj7ZXel48QbrCcR0bwX0YaG8wSewjoTrNA9orzAL0Rbi1hCD9zEEMT99efKjZoUs
+         UT7LJjGNz/BnYjOduRRhut5iYrJMpOJkPCurIkkVAUCE8eIB4f44WAourEO6Cuzx3hj8
+         QpAM1aLWYTpo46qOCqPMypPqANgJkTEfctNJBLpUhAZhY0OzJZqvccu/VpZalrbBp6hg
+         RdcQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=D8ZVArfnFLBcVmlAcDBorEaZjH66v1dusWAAyZwbrQw=;
-        b=bw8wN9DABrmPsyL9aRBSfyEtmgBbmYAFkR+OyyNDX36FVeQhjZfpRt15XcmM8Z2VYv
-         6JVNtkDJfY3IGppPXdFtglr53bPzSjy4Mg25zUkFos0jg1E/ImDAt7oil43ffl0mn+ic
-         zX770al+NqKhBGLvsoQsULQ5yH76EGQDGcP2uBU6Qxgnq4i6Gf18c+nWTfFcwWubQd7k
-         VZNF6mVk2gWJ1w9sf21r4F+dcx7joACMh/l8ZbftXVkdral3gZ3WBwxqZ1jIl+I7qBty
-         hKy/9U5rGBM9JAm6jbKnniP4bnD52JR3FGX0iSiTLIhHRzqVCEE3SS8zZs/OV0PTpAtO
-         YZpQ==
+        h=in-reply-to:content-transfer-encoding:content-disposition
+         :mime-version:references:message-id:subject:cc:to:from:date;
+        bh=ULt4UAznv66zNgUvqi5PYm74n/6JzDtsJmpKbhGf0Hc=;
+        b=WB3+bYB6IO6mkijvXhA/QOPph8LfO4RE230tG3l1i6H2Nn3bCg9wNYS4QRCkfWuNoC
+         bmjvKZLhkEwTYoIKClXYcGw5D3qukeyoErAqE8NCJXTExujJqPNgfuTwUxMpS8phbvF9
+         UtxPwx20j3pNA59NZ3LvXRUm1et8m1R2TcHd0M2zj+m14ceasyOLxTKjWeae62DYd+T6
+         ytF/LacGbIFNrFuVy8uDCzTLnruuAaHtJE127fL2vb/DtwEXTo5+HIcIqw1/tTpqjJMb
+         LpP2ASHMP66HPnAlDE4/f/xlfNW0m3bjRPOIMf3tg8pXYtfMnI7lPFovH+KIJLJ6Jmx3
+         jFMw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=IpLumw3U;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id m7si14185712pls.209.2019.03.25.08.26.34
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v186sor11304948qka.27.2019.03.25.08.37.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 25 Mar 2019 08:26:34 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Mon, 25 Mar 2019 08:37:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=IpLumw3U;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=D8ZVArfnFLBcVmlAcDBorEaZjH66v1dusWAAyZwbrQw=; b=IpLumw3UrLhH6QfeKSA8vQdAz
-	yTGI0GJFGhrgB77kTlyDPnn1vmjAdz4nLUBoVyTnVbPpH6JVZV0cTxUnBWzuah4Y2enj03N6JEM9E
-	LBc2CvIGi1DrS4KTI31rFTtOKpixQafa2pmUTouq9V9uL8SOnXcphOyKFuV9paW7x4O+wLMLlHFU8
-	3aoBTt/5WpXWs0qXlIZyjtiEC8Yp9rJDVcXKAHh/qyr4uTgKS+MTn1LOP4U2G5KrxBIGCcxFrK37S
-	767Tlo0LOq4V7Lb7S9Yj7B0IDy4t87ymWvxPQ53U8ClZteR6RCav/Ml3K4D6shqcmCKPpNJiSBX4i
-	2Yv7HGmqw==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1h8RUM-0003TH-7G; Mon, 25 Mar 2019 15:26:14 +0000
-Date: Mon, 25 Mar 2019 08:26:14 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Waiman Long <longman@redhat.com>, Oleg Nesterov <oleg@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, selinux@vger.kernel.org,
-	Paul Moore <paul@paul-moore.com>,
-	Stephen Smalley <sds@tycho.nsa.gov>,
-	Eric Paris <eparis@parisplace.org>,
-	"Peter Zijlstra (Intel)" <peterz@infradead.org>
-Subject: Re: [PATCH 2/4] signal: Make flush_sigqueue() use free_q to release
- memory
-Message-ID: <20190325152613.GG10344@bombadil.infradead.org>
-References: <20190321214512.11524-1-longman@redhat.com>
- <20190321214512.11524-3-longman@redhat.com>
- <20190322015208.GD19508@bombadil.infradead.org>
- <20190322111642.GA28876@redhat.com>
- <d9e02cc4-3162-57b0-7924-9642aecb8f49@redhat.com>
- <01000169a686689d-bc18fecd-95e1-4b3e-8cd5-dad1b1c570cc-000000@email.amazonses.com>
- <93523469-48b0-07c8-54fd-300678af3163@redhat.com>
- <01000169a6ea5e46-f845b8db-730b-436e-980c-3e4273ad2e34-000000@email.amazonses.com>
- <20190322195926.GB10344@bombadil.infradead.org>
- <01000169b534b9e8-31a2af2c-c396-47f9-8534-4cbd934ef09d-000000@email.amazonses.com>
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqzEUyn4wi4Muptc2YOpiuM7Xps1sZy26/sOBF6ZgKXmq1Rh2mOG+RfvwzCK/Bg9K1n8TZ90Nw==
+X-Received: by 2002:a37:4dc5:: with SMTP id a188mr19611207qkb.181.1553528245451;
+        Mon, 25 Mar 2019 08:37:25 -0700 (PDT)
+Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
+        by smtp.gmail.com with ESMTPSA id p188sm9361806qkb.43.2019.03.25.08.37.23
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 25 Mar 2019 08:37:24 -0700 (PDT)
+Date: Mon, 25 Mar 2019 11:37:22 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Nitesh Narayan Lal <nitesh@redhat.com>
+Cc: Alexander Duyck <alexander.duyck@gmail.com>,
+	David Hildenbrand <david@redhat.com>,
+	kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+	linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>,
+	lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
+	Yang Zhang <yang.zhang.wz@gmail.com>,
+	Rik van Riel <riel@surriel.com>, dodgen@google.com,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com,
+	Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC][Patch v9 0/6] KVM: Guest Free Page Hinting
+Message-ID: <20190325113543-mutt-send-email-mst@kernel.org>
+References: <20190306130955-mutt-send-email-mst@kernel.org>
+ <ce55943e-87b6-c102-9827-2cfd45b7192c@redhat.com>
+ <CAKgT0UcGCFNQRZFmp8oMkG+wKzRtwN292vtFWgyLsdyRnO04gQ@mail.gmail.com>
+ <ed9f7c2e-a7e3-a990-bcc3-459e4f2b4a44@redhat.com>
+ <4bd54f8b-3e9a-3493-40be-668962282431@redhat.com>
+ <6d744ed6-9c1c-b29f-aa32-d38387187b74@redhat.com>
+ <CAKgT0UcBDKr0ACHQWUCvmm8atxM6wSu7aCRFJkFvfjT_W_femQ@mail.gmail.com>
+ <6709bb82-5e99-019d-7de0-3fded385b9ac@redhat.com>
+ <6ab9b763-ac90-b3db-3712-79a20c949d5d@redhat.com>
+ <99b9fa88-17b1-f2a9-7dd4-7a8f6e790d30@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <01000169b534b9e8-31a2af2c-c396-47f9-8534-4cbd934ef09d-000000@email.amazonses.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <99b9fa88-17b1-f2a9-7dd4-7a8f6e790d30@redhat.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 25, 2019 at 02:15:25PM +0000, Christopher Lameter wrote:
-> On Fri, 22 Mar 2019, Matthew Wilcox wrote:
+On Mon, Mar 25, 2019 at 10:27:46AM -0400, Nitesh Narayan Lal wrote:
+> I performed some experiments to see if the current implementation of
+> hinting breaks THP. I used AnonHugePages to track the THP pages
+> currently in use and memhog as the guest workload.
+> Setup:
+> Host Size: 30GB (No swap)
+> Guest Size: 15GB
+> THP Size: 2MB
+> Process: Guest is installed with different kernels to hint different
+> granularities(MAX_ORDER - 1, MAX_ORDER - 2 and MAX_ORDER - 3). Memhog 
+> 15G is run multiple times in the same guest to see AnonHugePages usage
+> in the host.
 > 
-> > On Fri, Mar 22, 2019 at 07:39:31PM +0000, Christopher Lameter wrote:
-> > > On Fri, 22 Mar 2019, Waiman Long wrote:
-> > >
-> > > > >
-> > > > >> I am looking forward to it.
-> > > > > There is also alrady rcu being used in these paths. kfree_rcu() would not
-> > > > > be enough? It is an estalished mechanism that is mature and well
-> > > > > understood.
-> > > > >
-> > > > In this case, the memory objects are from kmem caches, so they can't
-> > > > freed using kfree_rcu().
-> > >
-> > > Oh they can. kfree() can free memory from any slab cache.
-> >
-> > Only for SLAB and SLUB.  SLOB requires that you pass a pointer to the
-> > slab cache; it has no way to look up the slab cache from the object.
+> Observation:
+> There is no THP split for order MAX_ORDER - 1 & MAX_ORDER - 2 whereas
+> for hinting granularity MAX_ORDER - 3 THP does split irrespective of
+> MADVISE_FREE or MADVISE_DONTNEED.
+> -- 
+> Regards
+> Nitesh
 > 
-> Well then we could either fix SLOB to conform to the others or add a
-> kmem_cache_free_rcu() variant.
 
-The problem with a kmem_cache_free_rcu() variant is that we now have
-three pointers to store -- the object pointer, the slab pointer and the
-rcu next pointer.
+This is on x86 right? So THP is 2M and MAX_ORDER is 8M.
+MAX_ORDER - 3 ==> 1M.
+Seems to work out.
 
-I spent some time looking at how SLOB might be fixed, and I didn't come
-up with a good idea.  Currently SLOB stores the size of the object in the
-four bytes before the object, unless the object is "allocated from a slab
-cache", in which case the size is taken from the cache pointer instead.
-So calling kfree() on a pointer allocated using kmem_cache_alloc() will
-cause corruption as it attempts to determine the length of the object.
-
-Options:
-
-1. Dispense with this optimisation and always store the size of the
-object before the object.
-
-2. Add a kmem_cache flag that says whether objects in this cache may be
-freed with kfree().  Only dispense with this optimisation for slabs
-with this flag set.
-
-3. Change SLOB to segregate objects by size.  If someone has gone to
-the trouble of creating a kmem_cache, this is a pretty good hint that
-there will be a lot of objects of this size allocated, so this could
-help SLOB fight fragmentation.
-
-Any other bright ideas?
+-- 
+MST
 
