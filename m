@@ -2,175 +2,178 @@ Return-Path: <SRS0=RIH8=R4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.4 required=3.0 tests=DATE_IN_PAST_06_12,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5C612C10F03
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 16:47:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E924AC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 16:56:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 138BA20863
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 16:47:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 138BA20863
+	by mail.kernel.org (Postfix) with ESMTP id 991802083D
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 16:56:57 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="srMzDC+m"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 991802083D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B90506B0006; Mon, 25 Mar 2019 12:47:29 -0400 (EDT)
+	id 4368F6B0003; Mon, 25 Mar 2019 12:56:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B3F986B0007; Mon, 25 Mar 2019 12:47:29 -0400 (EDT)
+	id 3E5A66B0006; Mon, 25 Mar 2019 12:56:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A30056B0008; Mon, 25 Mar 2019 12:47:29 -0400 (EDT)
+	id 2D5716B0007; Mon, 25 Mar 2019 12:56:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B4CC6B0006
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 12:47:29 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id n5so3253934pgk.9
-        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 09:47:29 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0940A6B0003
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 12:56:57 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id d8so9127055qkk.17
+        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 09:56:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=vMm1SwFwexRmfe0DhLS1tSZeKphD9ShP6utr7v396Xo=;
-        b=aOCeFqb+ZoePm8LA1NzYbU+Zbe0QYbANHsxOLz+bXkp2XOZeDHeXYvSTr1AQjcOucr
-         iTUOGZoXzlJFAHPYy+szgPUpHjQgyc8FF6JC1ts68G+s2C/4NfnP/Xo6cEl5YyFFGrJd
-         KA5j9AgUg4k8zc1r6V1iP5ixn7mv3CoKeCW7oruJrWNTQkSzOkfCgoixDjmwozNs/Auc
-         ypYZgqEvZYL6hqvwf0qU7SLGEsoxrMPinGO/g7kAq1MSpvkqTp0c+Ghta0K4+2LByEKu
-         wmYVuDFjDzKfv6bCaiVnuiI1LU7cf33pmpB+O4oP0KZvoWaFathWxD70LjVfjSwRJ4qF
-         aCOQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVQDWEe7oxyMrFe2Mg6Nvd5URIkx/vaQC9UuZxj01nfve3MHxnu
-	sgCcH85W3aH/o9SvNGVh4Uebqo/mPm6EoLtTdgCEn6b/InDIUD4EtOEU6Wnnd46IyEuj1lKat/z
-	1PNtc+DytrNkIocF6jes/iI57ov3k3p3JYZej7a9vJcFhdbhS55ZcE4rAE+YLDVpESQ==
-X-Received: by 2002:a63:cd06:: with SMTP id i6mr24616068pgg.267.1553532449124;
-        Mon, 25 Mar 2019 09:47:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxxDfNNyGmX/vDeoYDshb7bhxd46uqPdUIQFa/Cw7p15YongIF3SPa8DdHLcNqXGg42jSwm
-X-Received: by 2002:a63:cd06:: with SMTP id i6mr24616000pgg.267.1553532448199;
-        Mon, 25 Mar 2019 09:47:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553532448; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=hdrToB2TSv1yp4eb70QIvwrlSIW2W5jFyB226wrDD0Q=;
+        b=qkf/qojS/ogO1NAnQL4xtfqXYOXPRfjp7Oa+zlhl9TS5j2U+2ndkYrGWSeeCQ7/rJI
+         h4npjdhSWJ1pi5RLS71lYUPMgH+DCQDOEhFYwoKzcv4gBN3CkkkyIacBGndnNiU4/JXR
+         XFdv17b8FhEqLdqWH3UtUHn6J6qlJBfVXQ5BiQ0d9UO5BdS9wxJ889UWMExuCerIW7ov
+         g4PBP7WyIPL5Tzeeguh6lRDy4nP5oETQ9tfF8c6Bg0I2wtj23+M8ns4g/sVXJmGxW/59
+         vg/frbywf9cR36FrdFmmuMr9Npo7aqFSpmKCSt/jq22ilI3zaa3Rta7EpbEYw3hKAw2U
+         qOcQ==
+X-Gm-Message-State: APjAAAWjw0njz/Uh0UiTCYLvapbRddLDc8s3NZYDxaNNIbtC95iAi6BY
+	u7s611ZFy7G4RE0yhgCv6JVSsRk4zHHEMIuXB6odkOE9jgnKq++2S2Q9ODTEcjfYBKFs3Y+cMUb
+	IksiJUEVXN9wEwziXkHojPP56bPOuFOCXJiwXDgw2Wvn0XOBM4Vqggtz2Hr3i/AlveQ==
+X-Received: by 2002:a05:620a:13d7:: with SMTP id g23mr20166848qkl.198.1553533016801;
+        Mon, 25 Mar 2019 09:56:56 -0700 (PDT)
+X-Received: by 2002:a05:620a:13d7:: with SMTP id g23mr20166798qkl.198.1553533016082;
+        Mon, 25 Mar 2019 09:56:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553533016; cv=none;
         d=google.com; s=arc-20160816;
-        b=rw76hLCn13pntZmVOnlgBhqNuX2OeeQPHMXo07idJSMIH9ZjPnib6T+lSqUCFWsL/L
-         hEEnD8+Yublkv3J+74KZrQ19hhMgiVHMDtPpAAJ3gfR56giZyLXyB2trXt5qTRRrJXsB
-         rEYokQI2dyG3CWOCtSdHGXp5Q1FmsClJokDIcCg9/NkIIW51N8V5h5YurSO4COQJ7qu3
-         KVh1in/odeqsvEF4jas3VbJoJeoSF7Re02s5mFoeD0PmBL7CgmugacrXT6KQGWUZ2N8m
-         TC13sPEEtSbxl/diotXPldfAcJc9zANbdut10i/rthy072O6nrGffO35U5La4d8mpWwF
-         EHNg==
+        b=S9WOOrmtEs5YJcZU00dzm2Y613EfROuMYsx0gJC5QMUqRC0tvnO71VzOJYAHEgAT2i
+         7dqTLk0p9DgHZyGJIFykvVvykLbUWAJPI++BZwUaRi0TQiYgfYU3JK/7OfI5rQTO0Qc9
+         GMZebF4PLx5YWPYrpSSx772j3+KhwSyT3mj9Umocxyb0DAZjD6qezR01jEwnMZoHOgLj
+         QZUV4rKzkMQQAGmdwbSgDiMPI02CLYnhdIWNGdlHemKAauGfGTDr1ty7NVZ7dy14Hhze
+         8/gOfESk+r8LUHGEKOilgGCVlkf0TjqLSa/aVr/Vg1hzXR1voJoOAlRlQV9i3HUrgS7Z
+         YF/A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=vMm1SwFwexRmfe0DhLS1tSZeKphD9ShP6utr7v396Xo=;
-        b=U5HkjJb9kYehWub6Bs6+CJgHwofLaKUmzSEKvDjy8Y+SpuCZlDeKCQbBvqWw4WOoII
-         EKC99ij9I2bWgH7d746Rj8AVsaNdvqQhoRJup2T+Y3AtW1odZD/2ivY2hnC/l7oiaqY2
-         /jKN62nAYQ4S0nUjZkpQD5NvKH+0jcDiiGFsfezh5BpYG4/q9ORmLagYYb8/bOEUSH+B
-         l5h3w+q8R8eUNQ1VCLoic+TF/bVp7sfFkUEBLdNfHA+6SwrmoGkqlGAU4eFFsqbxa4Sj
-         SfQjl5dTsn53BkI4FrvkJtazTvNMdYiUIrhfLi+JcsMVOZ58p4WnS2jGeLeTvMIk5sfu
-         7PUw==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=hdrToB2TSv1yp4eb70QIvwrlSIW2W5jFyB226wrDD0Q=;
+        b=GG+v0p/nIbm6S0wP5FN7IWuLZ2oz14fjVqUY7Ggk59YOIZerDEGBzcleifgmuEgiWL
+         I3OptjoFyke1FAXNyccZkrNQtSCr3cUadl0NjUEMjvql+vHIKUGaTa6/HhA2oRLGpN2d
+         2QS/JEvClRmy9ye+3cjc0xuqI0bba3EAfJJdkTgcDE6e9rXZTEGeXyP6SZqdKc9YeooI
+         D95SRQc0bF1rusz0tvpg72xkMCMCc96W80nJ9+hq+EmcgCTb1yxs3S2+uIIe93OAvWew
+         ybqAkesPLeg4UX4/141Rm3//5YyV0DMykp1oO1CCH+WPMf5SLb0hapQo8HvlxqvoJ0sy
+         8JzA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=srMzDC+m;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id p125si13990491pga.84.2019.03.25.09.47.27
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v15sor25605623qth.40.2019.03.25.09.56.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Mar 2019 09:47:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        (Google Transport Security);
+        Mon, 25 Mar 2019 09:56:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=srMzDC+m;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Mar 2019 09:47:27 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,269,1549958400"; 
-   d="scan'208";a="145091052"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga002.jf.intel.com with ESMTP; 25 Mar 2019 09:47:25 -0700
-Date: Mon, 25 Mar 2019 01:46:14 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Paul Mackerras <paulus@samba.org>,
-	"David S. Miller" <davem@davemloft.net>,
-	Martin Schwidefsky <schwidefsky@de.ibm.com>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	Rich Felker <dalias@libc.org>,
-	Yoshinori Sato <ysato@users.sourceforge.jp>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
-	Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>,
-	"Aneesh Kumar K . V" <aneesh.kumar@linux.ibm.com>,
-	Michal Hocko <mhocko@kernel.org>, linux-mm <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	linux-mips@vger.kernel.org,
-	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
-	linux-s390 <linux-s390@vger.kernel.org>,
-	Linux-sh <linux-sh@vger.kernel.org>, sparclinux@vger.kernel.org,
-	linux-rdma <linux-rdma@vger.kernel.org>,
-	"netdev@vger.kernel.org" <netdev@vger.kernel.org>
-Subject: Re: [RESEND 1/7] mm/gup: Replace get_user_pages_longterm() with
- FOLL_LONGTERM
-Message-ID: <20190325084614.GE16366@iweiny-DESK2.sc.intel.com>
-References: <20190317183438.2057-1-ira.weiny@intel.com>
- <20190317183438.2057-2-ira.weiny@intel.com>
- <CAA9_cmffz1VBOJ0ykBtcj+hiznn-kbbuotu1uUhPiJtXiFjJXg@mail.gmail.com>
- <20190325061941.GA16366@iweiny-DESK2.sc.intel.com>
- <CAPcyv4hPxoX1+u=fjzCeVYOd9Bck9d=A9SQ-mjzeMA2tf9B9dA@mail.gmail.com>
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=hdrToB2TSv1yp4eb70QIvwrlSIW2W5jFyB226wrDD0Q=;
+        b=srMzDC+ms5YQVqrvZwEGDX/E/ckzFQVhFOG1bMHwhic4SroBbCVHANYL/SW7vm3dcp
+         avpmvQxnZulEN13hnbtVkEInZPvG6TPTYzdDrz+/SKsrOhPEA9oiiF754eehdWTs2lLD
+         Gm7FtbqtzbumYo/P3bUaAQK0CG5bPTt/s9ZE4Xqrz46K+vzzbO3DuYepBASZG0TS4WLX
+         nliN3mXxhSN40Ia6QSqWfU9+lMq2AO9rAOlFtskjaIc+pmLucpgXw6v4ByzXWNa2jc7l
+         toVmuhIDkJ9VSAsPKdzbegy/3sLS/c7VmTttjV+bhDJF9mZUrMjXI6G474lIcbTt1PeZ
+         rgAQ==
+X-Google-Smtp-Source: APXvYqy5O1uj8uqWIybnhXlb2Rx+YIOdNrjiO8M6dBrKRM6Bjpvp5sf0FW3DMqU3p8w8Fpikdd4u7Clq96P0hl/KHRU=
+X-Received: by 2002:ac8:32fb:: with SMTP id a56mr21951184qtb.338.1553533015773;
+ Mon, 25 Mar 2019 09:56:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4hPxoX1+u=fjzCeVYOd9Bck9d=A9SQ-mjzeMA2tf9B9dA@mail.gmail.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com> <cc6f44e2-48b5-067f-9685-99d8ae470b50@inria.fr>
+In-Reply-To: <cc6f44e2-48b5-067f-9685-99d8ae470b50@inria.fr>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 25 Mar 2019 09:56:44 -0700
+Message-ID: <CAPcyv4it1w7SdDVBV24cRCVHtLb3s1pVB5+SDM02Uw4RbahKiA@mail.gmail.com>
+Subject: Re: [RFC PATCH 0/10] Another Approach to Use PMEM as NUMA Node
+To: Brice Goglin <Brice.Goglin@inria.fr>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>, Michal Hocko <mhocko@suse.com>, 
+	Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@surriel.com>, 
+	Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Dave Hansen <dave.hansen@intel.com>, Keith Busch <keith.busch@intel.com>, 
+	Fengguang Wu <fengguang.wu@intel.com>, "Du, Fan" <fan.du@intel.com>, 
+	"Huang, Ying" <ying.huang@intel.com>, Linux MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 25, 2019 at 09:45:12AM -0700, Dan Williams wrote:
-> On Mon, Mar 25, 2019 at 7:21 AM Ira Weiny <ira.weiny@intel.com> wrote:
-> [..]
-> > > > @@ -1268,10 +1246,14 @@ static long check_and_migrate_cma_pages(unsigned long start, long nr_pages,
-> > > >                                 putback_movable_pages(&cma_page_list);
-> > > >                 }
-> > > >                 /*
-> > > > -                * We did migrate all the pages, Try to get the page references again
-> > > > -                * migrating any new CMA pages which we failed to isolate earlier.
-> > > > +                * We did migrate all the pages, Try to get the page references
-> > > > +                * again migrating any new CMA pages which we failed to isolate
-> > > > +                * earlier.
-> > > >                  */
-> > > > -               nr_pages = get_user_pages(start, nr_pages, gup_flags, pages, vmas);
-> > > > +               nr_pages = __get_user_pages_locked(tsk, mm, start, nr_pages,
-> > > > +                                                  pages, vmas, NULL,
-> > > > +                                                  gup_flags);
-> > > > +
-> > >
-> > > Why did this need to change to __get_user_pages_locked?
+On Mon, Mar 25, 2019 at 9:15 AM Brice Goglin <Brice.Goglin@inria.fr> wrote:
+>
+>
+> Le 23/03/2019 =C3=A0 05:44, Yang Shi a =C3=A9crit :
+> > With Dave Hansen's patches merged into Linus's tree
 > >
-> > __get_uer_pages_locked() is now the "internal call" for get_user_pages.
+> > https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/comm=
+it/?id=3Dc221c0b0308fd01d9fb33a16f64d2fd95f8830a4
 > >
-> > Technically it did not _have_ to change but there is no need to call
-> > get_user_pages() again because the FOLL_TOUCH flags is already set.  Also this
-> > call then matches the __get_user_pages_locked() which was called on the pages
-> > we migrated from.  Mostly this keeps the code "symmetrical" in that we called
-> > __get_user_pages_locked() on the pages we are migrating from and the same call
-> > on the pages we migrated to.
+> > PMEM could be hot plugged as NUMA node now. But, how to use PMEM as NUM=
+A node
+> > effectively and efficiently is still a question.
 > >
-> > While the change here looks funny I think the final code is better.
-> 
-> Agree, but I think that either needs to be noted in the changelog so
-> it's not a surprise, or moved to a follow-on cleanup patch.
-> 
+> > There have been a couple of proposals posted on the mailing list [1] [2=
+].
+> >
+> > The patchset is aimed to try a different approach from this proposal [1=
+]
+> > to use PMEM as NUMA nodes.
+> >
+> > The approach is designed to follow the below principles:
+> >
+> > 1. Use PMEM as normal NUMA node, no special gfp flag, zone, zonelist, e=
+tc.
+> >
+> > 2. DRAM first/by default. No surprise to existing applications and defa=
+ult
+> > running. PMEM will not be allocated unless its node is specified explic=
+itly
+> > by NUMA policy. Some applications may be not very sensitive to memory l=
+atency,
+> > so they could be placed on PMEM nodes then have hot pages promote to DR=
+AM
+> > gradually.
+>
+>
+> I am not against the approach for some workloads. However, many HPC
+> people would rather do this manually. But there's currently no easy way
+> to find out from userspace whether a given NUMA node is DDR or PMEM*. We
+> have to assume HMAT is available (and correct) and look at performance
+> attributes. When talking to humans, it would be better to say "I
+> allocated on the local DDR NUMA node" rather than "I allocated on the
+> fastest node according to HMAT latency".
+>
+> Also, when we'll have HBM+DDR, some applications may want to use DDR by
+> default, which means they want the *slowest* node according to HMAT (by
+> the way, will your hybrid policy work if we ever have HBM+DDR+PMEM?).
+> Performance attributes could help, but how does user-space know for sure
+> that X>Y will still mean HBM>DDR and not DDR>PMEM in 5 years?
+>
+> It seems to me that exporting a flag in sysfs saying whether a node is
+> PMEM could be convenient. Patch series [1] exported a "type" in sysfs
+> node directories ("pmem" or "dram"). I don't know how if there's an easy
+> way to define what HBM is and expose that type too.
 
-Can do...
-
-Thanks!
-Ira
+I'm generally against the concept that a "pmem" or "type" flag should
+indicate anything about the expected performance of the address range.
+The kernel should explicitly look to the HMAT for performance data and
+not otherwise make type-based performance assumptions.
 
