@@ -2,189 +2,132 @@ Return-Path: <SRS0=RIH8=R4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DADD2C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 07:20:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 41B52C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 07:40:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6F5BC20830
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 07:20:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F5BC20830
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 0651120879
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 07:40:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0651120879
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 80E066B0003; Mon, 25 Mar 2019 03:20:35 -0400 (EDT)
+	id 966686B0003; Mon, 25 Mar 2019 03:40:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7BE2B6B0005; Mon, 25 Mar 2019 03:20:35 -0400 (EDT)
+	id 8EDDC6B0005; Mon, 25 Mar 2019 03:40:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 685826B0007; Mon, 25 Mar 2019 03:20:35 -0400 (EDT)
+	id 78F6A6B0007; Mon, 25 Mar 2019 03:40:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 296266B0003
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 03:20:35 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id j10so8892255pfn.13
-        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 00:20:35 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 287806B0003
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 03:40:35 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id c40so2172257eda.10
+        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 00:40:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=9WeP9jzN7+rTrI8UEgVuW9fgzthsSonlS8P111uz+HQ=;
-        b=Pt3D2AmjoIMuqgmZ5nAoyIavKBvgA53FL8OFEpQpDQbnhSu5QLPfBahf248KgoZcQh
-         I9Gt0TVjAsA+/o8IpJkkW/0cN0fYSG2UD69ZlRZ+2/zcM8ubcIq9DmyTKpfOWZOoz6H9
-         EpYZvhiXZn8qvNQYoHq0Vsb6NMacx2It5QiXOSG/Tm9yjYm/WcBuOUhxcRPSAm2s/R2K
-         f805/0wFKASKvUnpl2LfAq+IpM3Cm/Cc1Xrt9T6P4WHiAJqiIrXXxbvOnB1OuCTiIKAr
-         bXA7X25i5fvrwKAe6HSvq56uqc3bFajELD2YeE7DnQcsM6qJkmrYTKRsJPq62rHwo5pY
-         TVpg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAVj00ImAnu31CkYNXGzBpXqtpOvJhyF8Y3/QvZ2RgKWwYcUAXp5
-	kOmnJkBVgWQqH1BVyQPOA4LOpnIYI6rqszGODRY+Mo0qWh8m8PAE59TU10O3Jx4oCNitfWIG7XD
-	tUWDYQoAb4vJVVfLlZrLT2XVJ6v250BPAOFD3gx0mpGmEYDUu87sUKmGuaJUkPnqshw==
-X-Received: by 2002:a62:1d90:: with SMTP id d138mr22355613pfd.232.1553498434678;
-        Mon, 25 Mar 2019 00:20:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxUhQXVywUkWMM2Kn+z+BGfRbklGaMxstmUN6gTzjzuA1b6qnRfbVgoTtKlHf9QIIWfZmTi
-X-Received: by 2002:a62:1d90:: with SMTP id d138mr22355580pfd.232.1553498433868;
-        Mon, 25 Mar 2019 00:20:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553498433; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=f7thCgmH7nVeQfePsQrlJ+8nVFZJhioPrlVouQttNcA=;
+        b=YVx2F86NoR4WRYIjWLRcn92O6LIdE2PWfAplQT4hu/kMTqdFTodh6+C7VkriRgGsS6
+         R5T3/jXvBFuI+gGVCL692JRmiWRZ+VBHKk1xxtdp0sVhAzB/RFxRktUbJlG6lWGs14rt
+         a/CHdDtmfI/zfNmXZ8Ss2aDCv/7TO0lPivZjnUfeLyLepG3k8r2fCg7GCTnQv9pQzn3v
+         TLHYRhd6NcvBug8MYRm6lhqLYqlegx69jUG5SozQlN91jLlATSpuTD3xCxfbFtQR4tuG
+         JsvbQpqvdNeTvf51ICtIaEDsqF5DtLEx+Pe4Cjk36D6G5VuEPyb7zdu6eGc6XWqeLz7c
+         p5rg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAWIf5EmRkGs0WjaXx6R6t3ZsRE96BtPVLyjgprspPzd80gCZCzN
+	vFW0kYzEMzxoitDJBM6z9E+D5+Etvp6PNRp3L9hgr5tuL4uOONAdL5BKuZDusQdh+J3Eo+hCi9d
+	Ja1anjarjsaye+c0nQAqRMuPg9wDrPjeXlUWSOo9o9DM72Pe13xj8VeNyWGC/e58=
+X-Received: by 2002:a50:91eb:: with SMTP id h40mr14937484eda.285.1553499634674;
+        Mon, 25 Mar 2019 00:40:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz440CiKfYpAlh1XFrlscPz9z9J7Hyv+ifMXtI4BvRkdzOpnupVvtW4jS8IQOjDglTCToJ5
+X-Received: by 2002:a50:91eb:: with SMTP id h40mr14937456eda.285.1553499633795;
+        Mon, 25 Mar 2019 00:40:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553499633; cv=none;
         d=google.com; s=arc-20160816;
-        b=qPOEi67PVHHhm20TLQAnbw1QnMwGJedxshGFns/7OCWIr7XQ29BBN7T3eia3iCD7MA
-         /2uvG0Cran16Bl6dlag46AeciCrOVSXW//ZeX40EqGW2vOGRzYPDuhOum2bjvaaumPQc
-         GH+jX8KHbFWOqS7OTSokj4EfogJGirHOCak4yEfFFmiWNvyZTm6Or/NL/7sAMBkVDL+t
-         FsISmY+GVEndhbVUyGVyYSJCJHFBwRCIyBefkQZxETE/IinyrOtxuiLEEeieCE9PkBTH
-         4TdDoKurAvabLYCT3TxB4SnKnT6wO8LAHbZBZreqwP9A4i/2c9KjioSaaQRl0kC1DHKI
-         0kuw==
+        b=RVi7DdVohyUxdRUQaK78Evc/WWBulbmPk1EeAVLZFXfYH0duJCO1LcXyF0hD7d6gp5
+         s2i8kv0GpJXXVg/Ea3UIUbd0GjPFPwB+DEGUlD4ZINNJJEpSSZNjUFR0VLDwM07o4Cff
+         Ej/sLuTny4Z/0iY47ZKDRYy4402I+nTy6fttGAyBL9hmL+qqVjrmvfSylLwD9/dVJr78
+         yLeAEJhVdtltkaSEcQmasYOOnzgX9w4qaxDuCxuKl90a6tyVXNem0TyMpQbetENE+T//
+         Pz7dNYry+FYMHVWem36QT/DWA5pPodNC5Ts0iS6YCVkO3jdc+wzY3acVzYBSrEky+xUY
+         vzFg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=9WeP9jzN7+rTrI8UEgVuW9fgzthsSonlS8P111uz+HQ=;
-        b=bV6bbtvFK6nKVL2zcnA2Or0zcCPCmcYMxqQM3GQxM6xp/qLQUQLML+4TK0XNDaammn
-         3rzU2/evz3EWbAAyCl1p1ew+hzEgcZpr/v+v8546unHaZ1w+iG7p1/WRW2ycqBWWlEjT
-         WTFFeP6VNkYYVzRy8UHFN7H9xU6VMFeVQDWIHFJYkFU9YW/NGb2kNUzcR71j52XL30GJ
-         8sWIIxtybL8fnfhg9IfXRtM6mHNSc0FC2jKNaG0AfsLbbDWEJWDjJirVDfQfntaNJcmc
-         ghFREGSEaunIIfWjNRC1An1k1DpmQj5EQmMbDLQ8PitolDM2rUK+lFE6vdpJ5ILvtjsA
-         0Ocw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=f7thCgmH7nVeQfePsQrlJ+8nVFZJhioPrlVouQttNcA=;
+        b=TCGHcj/uaOwhb3jbmPC+bjhq9ZYwKCYWHSLnGYuHzhEE7L+EuaAeaQQnY9YLzK0zdJ
+         rKCLNSJwKaQd2gaFbIOEA3LOjX+lnEOO9KNYPu6dtuwnIXsujdYyZEeNM1lqZoYFytbD
+         WKSS+teREdKSRig8mylJ3syYSZ6T8lLFUh8f8MMyuow8ouBtRJPATIzAkyNtnp7uvNaG
+         0/NuQOxiMWelDzZ7gWrLMEEAq2kKJ/XVPXCngVNhOP4HYGlMLYwBu7hHoZ7rnR5ooPXu
+         0OSaIwaHiC7HpVyXGMhdCN67midLHxYIYH7HDjXnxXjacDg038lXyIAQy/Tm1mUCdyvu
+         xbEg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id f11si12236411pgs.291.2019.03.25.00.20.33
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Mar 2019 00:20:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from suse.de (nat.nue.novell.com. [2620:113:80c0:5::2222])
+        by mx.google.com with ESMTP id w8si841018edt.335.2019.03.25.00.40.33
+        for <linux-mm@kvack.org>;
+        Mon, 25 Mar 2019 00:40:33 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) client-ip=2620:113:80c0:5::2222;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2P7FtAL049184
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 03:20:33 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2ressb1xg5-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 03:20:32 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 25 Mar 2019 07:20:30 -0000
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
-	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Mon, 25 Mar 2019 07:20:26 -0000
-Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x2P7KPQc55116010
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 25 Mar 2019 07:20:25 GMT
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id B35974C05C;
-	Mon, 25 Mar 2019 07:20:25 +0000 (GMT)
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id CD6164C044;
-	Mon, 25 Mar 2019 07:20:24 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.207.233])
-	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Mon, 25 Mar 2019 07:20:24 +0000 (GMT)
-Date: Mon, 25 Mar 2019 09:20:23 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Hellwig <hch@lst.de>, Palmer Dabbelt <palmer@sifive.com>,
-        Richard Kuo <rkuo@codeaurora.org>, linux-arch@vger.kernel.org,
-        linux-hexagon@vger.kernel.org, linux-kernel@vger.kernel.org,
-        linux-mm@kvack.org, linux-riscv@lists.infradead.org
-Subject: Re: [PATCH v2 0/4] provide a generic free_initmem implementation
-References: <1550515285-17446-1-git-send-email-rppt@linux.ibm.com>
+       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: by suse.de (Postfix, from userid 1000)
+	id CA41746C3; Mon, 25 Mar 2019 08:40:32 +0100 (CET)
+Date: Mon, 25 Mar 2019 08:40:32 +0100
+From: Oscar Salvador <osalvador@suse.de>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com,
+	pavel.tatashin@microsoft.com, jglisse@redhat.com,
+	Jonathan.Cameron@huawei.com, rafael@kernel.org, david@redhat.com,
+	linux-mm@kvack.org, Oscar Salvador <osalvador@suse.com>
+Subject: Re: [PATCH v2 4/5] mm, memory-hotplug: Rework
+ unregister_mem_sect_under_nodes
+Message-ID: <20190325074027.vhybenecc6hk7kxs@d104.suse.de>
+References: <20181127162005.15833-1-osalvador@suse.de>
+ <20181127162005.15833-5-osalvador@suse.de>
+ <45d6b6ed-ae84-f2d5-0d57-dc2e28938ce0@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1550515285-17446-1-git-send-email-rppt@linux.ibm.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19032507-0028-0000-0000-00000357E015
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19032507-0029-0000-0000-000024169150
-Message-Id: <20190325072022.GD2925@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-25_04:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=973 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1903250055
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
+In-Reply-To: <45d6b6ed-ae84-f2d5-0d57-dc2e28938ce0@arm.com>
+User-Agent: NeoMutt/20170421 (1.8.2)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Any comments on this?
+On Sun, Mar 24, 2019 at 12:18:26PM +0530, Anshuman Khandual wrote:
+> Hello Oscar,
 
-On Mon, Feb 18, 2019 at 08:41:21PM +0200, Mike Rapoport wrote:
-> Hi,
+Hi Anshuman,
+
+> Passing down node ID till unregister_mem_sect_under_nodes() solves the problem of
+> querying struct page for nid but the current code assumes that the pfn range for
+> any given memory section can have different node IDs. Hence it scans over the
+> section and try to remove all possible node <---> memory block sysfs links.
 > 
-> Many architectures implement free_initmem() in exactly the same or very
-> similar way: they wrap the call to free_initmem_default() with sometimes
-> different 'poison' parameter.
-> 
-> These patches switch those architectures to use a generic implementation
-> that does free_initmem_default(POISON_FREE_INITMEM).
-> 
-> This was inspired by Christoph's patches for free_initrd_mem [1] and I
-> shamelessly copied changelog entries from his patches :)
-> 
-> v2: rebased on top of v5.0-rc7 + Christoph's patches for free_initrd_mem
-> 
-> [1] https://lore.kernel.org/lkml/20190213174621.29297-1-hch@lst.de/
-> 
-> Mike Rapoport (4):
->   init: provide a generic free_initmem implementation
->   hexagon: switch over to generic free_initmem()
->   init: free_initmem: poison freed init memory
->   riscv: switch over to generic free_initmem()
-> 
->  arch/alpha/mm/init.c      |  6 ------
->  arch/arc/mm/init.c        |  8 --------
->  arch/c6x/mm/init.c        |  5 -----
->  arch/h8300/mm/init.c      |  6 ------
->  arch/hexagon/mm/init.c    | 10 ----------
->  arch/microblaze/mm/init.c |  5 -----
->  arch/nds32/mm/init.c      |  5 -----
->  arch/nios2/mm/init.c      |  5 -----
->  arch/openrisc/mm/init.c   |  5 -----
->  arch/riscv/mm/init.c      |  5 -----
->  arch/sh/mm/init.c         |  5 -----
->  arch/sparc/mm/init_32.c   |  5 -----
->  arch/unicore32/mm/init.c  |  5 -----
->  arch/xtensa/mm/init.c     |  5 -----
->  init/main.c               |  5 +++++
->  15 files changed, 5 insertions(+), 80 deletions(-)
-> 
-> -- 
-> 2.7.4
-> 
+> I am just wondering is that assumption even correct ? Can we really have a memory
+> section which belongs to different nodes ? Is that even possible.
+
+Yes, current code assumes that, but looking at when we init sections at boot
+stage, it seems like a 1:1 map to me.
+
+E.g, in memory_present(), we do encode the nid in section's section_mem_map
+field to use that later on in sparse_init(), and get the node we should allocate
+the data structures from.
+
+And in memory_present() itself, in case we do not use page's flags field,
+we end up using the section_to_node_table[] table, which is clearly a 1:1 map.
+
+So, I might be wrong here, but I think that we do not really have nodes mixed
+in a section.
 
 -- 
-Sincerely yours,
-Mike.
+Oscar Salvador
+SUSE L3
 
