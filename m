@@ -2,141 +2,177 @@ Return-Path: <SRS0=RIH8=R4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ABECFC10F0A
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 14:50:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 733C1C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 15:13:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 72E3A2087E
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 14:50:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 72E3A2087E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 087F32083D
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 15:13:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 087F32083D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 02AF36B0006; Mon, 25 Mar 2019 10:50:27 -0400 (EDT)
+	id 7BA356B0003; Mon, 25 Mar 2019 11:13:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F41D66B0008; Mon, 25 Mar 2019 10:50:26 -0400 (EDT)
+	id 774026B0006; Mon, 25 Mar 2019 11:13:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E0B4B6B000A; Mon, 25 Mar 2019 10:50:26 -0400 (EDT)
+	id 5E6596B0007; Mon, 25 Mar 2019 11:13:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F9D46B0006
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 10:50:26 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id m32so3946344edd.9
-        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 07:50:26 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 20B166B0003
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 11:13:14 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id s22so116651plq.1
+        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 08:13:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=LgB2gc+PW7bzoHCIRb7A2nfXSzD26V52wasM1SKGnyE=;
-        b=elznEBm3ePWz344iPmxHKr0C1U+CvZqnWWAm8yXPP+aeQTcLAXNsrN3hNzwZa8yojF
-         +Z///gx6nV87RjgoPCJyouy7Q9f7NFLDG2KhDA7ng7h5yoU9NAvHdUecseszzA8Om4DU
-         ZKORJ8Euvazh2Dz2guOV0Nd2lM50fXc1fzxrR93r3hT3C9jZ3CgAQ45TVx/2Ok6U9nSC
-         dkWeoLbAkIPUkBXMo95PKXaZeIh5uDzA4TntqKW84FPf4jxeTtc/877W1N527TtZBZdU
-         vtMz2QKC1B3m92Jzqrsb3bE4u+7SweJ7bQpOAVdqiDh5L0ozvT3t78GqpbuO+fxfjuVI
-         FoZA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXq/lYd2dpVOrD2ATxUQdFglYblYlZ6/IAqg9UiCsuAOfp+o8Pi
-	LVXKgRnYSJYaea+Ud64qnebzXME+1BPNtiU2dfVzWjVPiroVb0DD5oSGn1UEhLSKB2lehTyecLj
-	6EL+9lWO3NHRpjiEbDxS7LwU9nehCSz9FLgvhh19rYAC4Yi2b6B50TTn3Gtqs9Uw=
-X-Received: by 2002:a50:a54b:: with SMTP id z11mr16874799edb.133.1553525426100;
-        Mon, 25 Mar 2019 07:50:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwwX+Cs4z7rVDnogPyNHqRn+Pe5xbvvZg3y7ZGG7HAuN2exRqlYrlpuzL6F+XUOMbbjuSNK
-X-Received: by 2002:a50:a54b:: with SMTP id z11mr16874746edb.133.1553525425098;
-        Mon, 25 Mar 2019 07:50:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553525425; cv=none;
+        bh=DRFFFuypedpyni9ZzLiLCnIyphA5+60OeFwz+bX6UAY=;
+        b=GGZZZpPngHNvjia0KquZN6ACSXcCzpfAKB3AMFtyWGHHIcCs2AlmwUHp8HgppioKd2
+         NlwUIdNLnWkWiWYeSNzMORyKw2NWAcb0C084SHGILYDawa8U/3VI918SBxY+WdSj3qS6
+         1nXzu/bkadzMh3oiMNKSEERJ8sdcm/10xrhApfV+UImF7v9TjJFC12OPo6g1F+rd9Wjv
+         8Sr7EbYxnLBk6H80SCX7rTMMZFxOEZKthuR1J8/a7SVZa2qLVA+srjxNNPypBIvpMrNd
+         lanaM+Q/Bohww4L0iq2/ucXZNru0NoCqm/ZAmlVxskO0TJbEjdZ6rdi8xqiMHujeCMyC
+         rUlg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of sakari.ailus@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=sakari.ailus@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUWGzSZIdp4LlBS9OybdvrJpvJ+5Ya+CW5l4Pt3aQzgWmCzjlNt
+	rzP6opyGkJ0F/spP8ka35WVEEptPqdqWA3w0R2+7kZJ2pZ4wNrNmz39SUiU5vW72ayQgryG5lOu
+	Frs3ZCRKA+nOUa3L7OHb723FEWZmnImizOwkekIXwiv0ITFXzThv6gNh7NjLMq4vJDQ==
+X-Received: by 2002:a62:a509:: with SMTP id v9mr25264946pfm.64.1553526793693;
+        Mon, 25 Mar 2019 08:13:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw3MqHo+AYEfXedlM4yz7jWWHUEasggyzX22+E+nAtXcL2QyWvhSSAW0MTnF414XFLRcW2u
+X-Received: by 2002:a62:a509:: with SMTP id v9mr25264850pfm.64.1553526792637;
+        Mon, 25 Mar 2019 08:13:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553526792; cv=none;
         d=google.com; s=arc-20160816;
-        b=WuWYBIwB6oEYphc4Mqs9i1oyNNA6xlq9VlkwNbkxcpadjTNJEe3a7kTlRfxz8K/H7w
-         YJskMOzspg7408nIH6BqwCO5ABLineBWfErEIA+x82Zf0s5EZV20eSsJGg+SAd1N330x
-         z45V2rGfc+aJGLZTxWO+LmtCJMr7sP24Fjf/tNybaUg7j+mz+Pvt+u5NcnTwExjTWpj/
-         3I1Rtyrm43oJkydFhj2m0m7ZMvKFk4m91wVxP9lxrdcHv+uQ8/d3nR53QVdOynH/qm5S
-         rUAgx9c2+KhpQHDLV70J5hSQtsM/1vo3+YX286IRkLiJ8ovyGTpYRymK4+DIxg3C2iXN
-         98CA==
+        b=vppAWokHrZeHCvOFJwVCCv4ST77hzotw6+Sk+hJ7GfxkR9Cc06fRolqaXs0xfNGXnj
+         F20eLR3pIh+enxb0NNh6wsOGCvyWOBbtx5bqziuuD4tko+D6SQrWAJzFJsKORicrapA3
+         mW+3542wUJF5dbGORrmqjcdNZSdU5KIenVcxtchZ9WUBg69uphV0/4NMgRdwghKb++yS
+         kiOalQoFTEmotQOEEXzU6kcVaApScPiCyZA89nvoNh0zTpfRirYguthYi8sIaT5W5nBa
+         Yv0HKrX2YHHahFS1d45qXzd/n6UzNrNRdcoqhPCJ0l8mQhdtUt3y1fJcl123YRcEyPdV
+         69WA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=LgB2gc+PW7bzoHCIRb7A2nfXSzD26V52wasM1SKGnyE=;
-        b=mxufpMvZt4AanH3TGx5gsSZ7a5sxDUXP3SVP3SGlR1xJXiIYw0Butp2zpihY7rhRRx
-         3W8gei6j4/riP5sujRR25sTNeFmMFOr5aKZyibIbQOcis9sYHlSQS0NJpvn5uNfPQOuO
-         DvX3M/iDSKT4AedRZGEfw1V1iVll/igebGjQMSP4QN5sNC8sqyHslmMw1bmbLtr2kVrX
-         n18WNytPlFmIAZIq2ck/b9zbhW5u6snaF+oHVQVN4bFEsVmrpspCs10Cl7P69mLj2q6G
-         onD/ldWMEz18G3E9Z2sf5U4k6+XaAgGzuGkYCQmTFwum8El6GVXf5VmSxOyU2QuC67jI
-         aQOA==
+        bh=DRFFFuypedpyni9ZzLiLCnIyphA5+60OeFwz+bX6UAY=;
+        b=DXg9qBc3t15Niv0KvDCzk9AuGaKqrnkMuDD7A0wjsIkjs+OYFRFx2nwA40EW1Rhu8E
+         3LKcztlc7Mtrnv8WEWD39OVT/ii7PaFtl903xRhUiqKa5UeUcC0C2r0zgXZwW/h88otj
+         KiNyn2Z/a3+bq2yuEoD48RnZbwon1SySlEG05t4gCWtr7ga6voafcE2RlFk7n26Kh3JA
+         8FOFJnO1F29W73tebReCS1ah1x+0D53XPLDQ3/hbtjCsgBosXzyZ428sfGbXxeU73BBF
+         ncfMQNPIbwggMbqwO/VtOiGRAOWPhjs98s5c5FEa3L04ImjaJ+oNFl6bTAkLTHOF7kXx
+         s/MA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o7si1259870edv.140.2019.03.25.07.50.24
+       spf=pass (google.com: best guess record for domain of sakari.ailus@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=sakari.ailus@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id f34si14769034plf.343.2019.03.25.08.13.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Mar 2019 07:50:25 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 25 Mar 2019 08:13:12 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of sakari.ailus@linux.intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 058C5AF2F;
-	Mon, 25 Mar 2019 14:50:23 +0000 (UTC)
-Date: Mon, 25 Mar 2019 15:50:23 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: Dan Williams <dan.j.williams@intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Logan Gunthorpe <logang@deltatee.com>,
-	Toshi Kani <toshi.kani@hpe.com>, Vlastimil Babka <vbabka@suse.cz>,
-	stable <stable@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
-	linux-nvdimm <linux-nvdimm@lists.01.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH v5 00/10] mm: Sub-section memory hotplug support
-Message-ID: <20190325145023.GG9924@dhcp22.suse.cz>
-References: <155327387405.225273.9325594075351253804.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20190322180532.GM32418@dhcp22.suse.cz>
- <CAPcyv4gBGNP95APYaBcsocEa50tQj9b5h__83vgngjq3ouGX_Q@mail.gmail.com>
- <20190325101945.GD9924@dhcp22.suse.cz>
- <x494l7rdo5r.fsf@segfault.boston.devel.redhat.com>
+       spf=pass (google.com: best guess record for domain of sakari.ailus@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=sakari.ailus@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from fmsmga006.fm.intel.com ([10.253.24.20])
+  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Mar 2019 08:13:11 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,269,1549958400"; 
+   d="scan'208";a="330511062"
+Received: from ikahlonx-mobl.ger.corp.intel.com (HELO kekkonen.fi.intel.com) ([10.252.61.250])
+  by fmsmga006.fm.intel.com with ESMTP; 25 Mar 2019 08:13:06 -0700
+Received: by kekkonen.fi.intel.com (Postfix, from userid 1000)
+	id 75F7A21D09; Mon, 25 Mar 2019 17:13:00 +0200 (EET)
+Date: Mon, 25 Mar 2019 17:13:00 +0200
+From: Sakari Ailus <sakari.ailus@linux.intel.com>
+To: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>,
+	Petr Mladek <pmladek@suse.com>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	scsi <linux-scsi@vger.kernel.org>,
+	Linux PM list <linux-pm@vger.kernel.org>,
+	Linux MMC List <linux-mmc@vger.kernel.org>,
+	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
+	linux-um@lists.infradead.org,
+	linux-f2fs-devel@lists.sourceforge.net, linux-block@vger.kernel.org,
+	ACPI Devel Maling List <linux-acpi@vger.kernel.org>,
+	netdev <netdev@vger.kernel.org>,
+	linux-btrfs <linux-btrfs@vger.kernel.org>,
+	linux-pci <linux-pci@vger.kernel.org>,
+	sparclinux <sparclinux@vger.kernel.org>,
+	xen-devel@lists.xenproject.org,
+	ceph-devel <ceph-devel@vger.kernel.org>,
+	Linux MM <linux-mm@kvack.org>,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	Lars Ellenberg <drbd-dev@lists.linbit.com>
+Subject: Re: [PATCH 0/2] Remove support for deprecated %pf and %pF in vsprintf
+Message-ID: <20190325151259.2w22y4ijqilrbaxj@kekkonen.localdomain>
+References: <20190322132108.25501-1-sakari.ailus@linux.intel.com>
+ <CAMuHMdVmqqjVx7As9AAywYxYXG=grijF5rF77OBn6TUjM9+xKw@mail.gmail.com>
+ <20190322135350.2btpno7vspvewxvk@paasikivi.fi.intel.com>
+ <20190322170550.GX9224@smile.fi.intel.com>
+ <20190324211008.lypghym3gqcp62th@mara.localdomain>
+ <20190324211932.GK9224@smile.fi.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <x494l7rdo5r.fsf@segfault.boston.devel.redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190324211932.GK9224@smile.fi.intel.com>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 25-03-19 10:28:00, Jeff Moyer wrote:
-> Michal Hocko <mhocko@kernel.org> writes:
-> 
-> >> > and I would like to know that you are
-> >> > not just shifting the problem to a smaller unit and a new/creative HW
-> >> > will force us to go even more complicated.
-> >> 
-> >> HW will not do this to us. It's software that has the problem.
-> >> Namespace creation is unnecessarily constrained to 128MB alignment.
-> >
-> > And why is that a problem? A lack of documentation that this is a
-> > requirement? Something will not work with a larger alignment? Someting
-> > else?
-> 
-> See this email for one user-visible problem:
->   https://lore.kernel.org/lkml/x49imxbx22d.fsf@segfault.boston.devel.redhat.com/
+Hi Andy,
 
-: # ndctl create-namespace -m fsdax -s 128m
-:   Error: '--size=' must align to interleave-width: 6 and alignment: 2097152
-:   did you intend --size=132M?
-: 
-: failed to create namespace: Invalid argument
+On Sun, Mar 24, 2019 at 11:19:32PM +0200, Andy Shevchenko wrote:
+> On Sun, Mar 24, 2019 at 11:10:08PM +0200, Sakari Ailus wrote:
+> > On Fri, Mar 22, 2019 at 07:05:50PM +0200, Andy Shevchenko wrote:
+> > > On Fri, Mar 22, 2019 at 03:53:50PM +0200, Sakari Ailus wrote:
+> > > 
+> > > > Porting a patch
+> > > > forward should have no issues either as checkpatch.pl has been complaining
+> > > > of the use of %pf and %pF for a while now.
+> > > 
+> > > And that's exactly the reason why I think instead of removing warning on
+> > > checkpatch, it makes sense to convert to an error for a while. People are
+> > > tending read documentation on internet and thus might have outdated one. And
+> > > yes, the compiler doesn't tell a thing about it.
+> > > 
+> > > P.S. Though, if majority of people will tell that I'm wrong, then it's okay to
+> > > remove.
+> > 
+> > I wonder if you wrote this before seeing my other patchset.
+> 
+> Yes, I wrote it before seeing another series.
+> 
+> > What I think could be done is to warn of plain %pf (without following "w")
+> > in checkpatch.pl, and %pf that is not followed by "w" in the kernel.
+> > Although we didn't have such checks to begin with. The case is still a
+> > little bit different as %pf used to be a valid conversion specifier whereas
+> > %pO likely has never existed.
+> > 
+> > So, how about adding such checks in the other set? I can retain %p[fF] check
+> > here, too, if you like.
+> 
+> Consistency tells me that the warning->error transformation in checkpatch.pl
+> belongs this series.
 
-So the size is in section size units. So what prevents the userspace to
-use a proper alignment? I am sorry if this is a stupid question but I am
-not really familiar with ndctl nor the pmem side of it.
+All other invalid pointer conversion specifiers currently result into a
+warning only. I see that as an orthogonal change to this set. I found
+another issue in checkpatch.pl that may require some discussion; would you
+be ok with addressing this in another set?
+
 -- 
-Michal Hocko
-SUSE Labs
+Regards,
+
+Sakari Ailus
+sakari.ailus@linux.intel.com
 
