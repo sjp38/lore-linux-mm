@@ -2,326 +2,141 @@ Return-Path: <SRS0=RIH8=R4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 240DFC43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 14:40:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ABECFC10F0A
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 14:50:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C8DBF20879
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 14:40:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C8DBF20879
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 72E3A2087E
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Mar 2019 14:50:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 72E3A2087E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D29B66B026C; Mon, 25 Mar 2019 10:40:25 -0400 (EDT)
+	id 02AF36B0006; Mon, 25 Mar 2019 10:50:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CB0E86B026D; Mon, 25 Mar 2019 10:40:25 -0400 (EDT)
+	id F41D66B0008; Mon, 25 Mar 2019 10:50:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B2FC76B026E; Mon, 25 Mar 2019 10:40:25 -0400 (EDT)
+	id E0B4B6B000A; Mon, 25 Mar 2019 10:50:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 876686B026C
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 10:40:25 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id q12so10387375qtr.3
-        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 07:40:25 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F9D46B0006
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2019 10:50:26 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id m32so3946344edd.9
+        for <linux-mm@kvack.org>; Mon, 25 Mar 2019 07:50:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=MqKfHNfNBWpbmcGqXPdVGblL10NQAvDWexvXCgPT6fQ=;
-        b=B9zpUdMJjsEWKSYWGcTp0hFyX3vd0C1dkrzjJOubx5bVmiKQt9eXaYJGL5iiurw14k
-         959aeqLmJSR53T4B6iNV0y11PguizFxgI6A4hvvcNbIpCtwlBwJM8hzoypNLnUkZgpTn
-         p94W5Em0UH5TP5YdYiaOGEXhwLKqK4QhZY4X98/390zVcseH6Dx+hzf2Mw6dUu24Tso1
-         jSqMNUj/36BPZUKsMlgDLPsQwGDyawj/Ns2rcPwt8eZMCP2yJ+Sgi3aN3p2Zyfn8RA8c
-         0Z/NvY3byKySe3EtOOma9NLgCPAODh0S2rFH85+hGuT45r9dOQhjz5U31thFwqIfCmR+
-         PFNA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWLJeIV9Ljtuwh8Rm+siQ1Co9cObZyypLJPGLqcvkeG0yJ0N8Oz
-	EE0Meec3KDp1EpRWh7lK68974FycE/KnLWvE/JJsGBlPO5FnvbQdhoqXIsX9OFyo1WzAiO4DR4c
-	xtNUmridut975cZ5GHSX3mMHl+D0+7QAalP9LYKUpWtFFyHT1fqcJUcZPYNWeJKfnpA==
-X-Received: by 2002:a05:620a:101b:: with SMTP id z27mr19164017qkj.160.1553524825309;
-        Mon, 25 Mar 2019 07:40:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzqq/OVtCGsbaF2MyCQPfejjs57HSqvfAt6orqMpwBGoqfUZ5lmGt/RfpHJ3afKM3nGC5VV
-X-Received: by 2002:a05:620a:101b:: with SMTP id z27mr19163964qkj.160.1553524824574;
-        Mon, 25 Mar 2019 07:40:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553524824; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=LgB2gc+PW7bzoHCIRb7A2nfXSzD26V52wasM1SKGnyE=;
+        b=elznEBm3ePWz344iPmxHKr0C1U+CvZqnWWAm8yXPP+aeQTcLAXNsrN3hNzwZa8yojF
+         +Z///gx6nV87RjgoPCJyouy7Q9f7NFLDG2KhDA7ng7h5yoU9NAvHdUecseszzA8Om4DU
+         ZKORJ8Euvazh2Dz2guOV0Nd2lM50fXc1fzxrR93r3hT3C9jZ3CgAQ45TVx/2Ok6U9nSC
+         dkWeoLbAkIPUkBXMo95PKXaZeIh5uDzA4TntqKW84FPf4jxeTtc/877W1N527TtZBZdU
+         vtMz2QKC1B3m92Jzqrsb3bE4u+7SweJ7bQpOAVdqiDh5L0ozvT3t78GqpbuO+fxfjuVI
+         FoZA==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAXq/lYd2dpVOrD2ATxUQdFglYblYlZ6/IAqg9UiCsuAOfp+o8Pi
+	LVXKgRnYSJYaea+Ud64qnebzXME+1BPNtiU2dfVzWjVPiroVb0DD5oSGn1UEhLSKB2lehTyecLj
+	6EL+9lWO3NHRpjiEbDxS7LwU9nehCSz9FLgvhh19rYAC4Yi2b6B50TTn3Gtqs9Uw=
+X-Received: by 2002:a50:a54b:: with SMTP id z11mr16874799edb.133.1553525426100;
+        Mon, 25 Mar 2019 07:50:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwwX+Cs4z7rVDnogPyNHqRn+Pe5xbvvZg3y7ZGG7HAuN2exRqlYrlpuzL6F+XUOMbbjuSNK
+X-Received: by 2002:a50:a54b:: with SMTP id z11mr16874746edb.133.1553525425098;
+        Mon, 25 Mar 2019 07:50:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553525425; cv=none;
         d=google.com; s=arc-20160816;
-        b=jn3iYQDQGR1Z0xGJr3tyDD6Aqq3aX5iA/RNKFE4WU3cS+ERPUA5aNudxPc/wjgpt6d
-         jIkWo2PzwfhO7+tn6N1cmxPmJ8pn3/yqAy6dh93sWv1TxztLgUC5twD+blczj/rV5qXu
-         ZeC8aQPCcxiinNhXVJi46GipkICAWReduiEoc92J1dLIkOtdp8y2GWUw7YkKqg+V0EGj
-         88gIcWr/2jI/LD1+N5bKI6jmOLkxK7LcRXPURqNAWYaHUqrrtT9cSYPnz3VcV+Nnk6Oo
-         ZkA94HAB2s25yvso/agdLxI+iaU1/wML3w16stz3qJ0zViTf0IThZFZd6+cFLqnu70F/
-         Ar8g==
+        b=WuWYBIwB6oEYphc4Mqs9i1oyNNA6xlq9VlkwNbkxcpadjTNJEe3a7kTlRfxz8K/H7w
+         YJskMOzspg7408nIH6BqwCO5ABLineBWfErEIA+x82Zf0s5EZV20eSsJGg+SAd1N330x
+         z45V2rGfc+aJGLZTxWO+LmtCJMr7sP24Fjf/tNybaUg7j+mz+Pvt+u5NcnTwExjTWpj/
+         3I1Rtyrm43oJkydFhj2m0m7ZMvKFk4m91wVxP9lxrdcHv+uQ8/d3nR53QVdOynH/qm5S
+         rUAgx9c2+KhpQHDLV70J5hSQtsM/1vo3+YX286IRkLiJ8ovyGTpYRymK4+DIxg3C2iXN
+         98CA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=MqKfHNfNBWpbmcGqXPdVGblL10NQAvDWexvXCgPT6fQ=;
-        b=eQ+WlYjrO1nJuLjZOvuGCtSqcTLEN9iQVYnpFXuuk8OhQsNqsUUHHw/OUoK0p6DfmD
-         P9RuPWwNv2mN5nlVRBAVMZ8U7F8tKSeU/d18QmX5ZHwiaqrmPxrMuMyeRt2kLYz7AYFz
-         b/Hf1qGXFg5vyRT26sIfBl4IhK/Q8ug3ZTvhdPSUm8aYaulYb85jGcccOwDZ/Lsrs8mr
-         io4H3E7H86H7lhZ8K6k1cA6A8yT3T2nMS/iKBK0UxD8xL35cm5p8Zqd0uNDyFfs+i+X1
-         6qI51qSzj+P8/oRg2YdEfNYejHzlz5To0DbNOa/nmbwVkkb29E+dxmleiSqUmClaxZQ4
-         ca3A==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=LgB2gc+PW7bzoHCIRb7A2nfXSzD26V52wasM1SKGnyE=;
+        b=mxufpMvZt4AanH3TGx5gsSZ7a5sxDUXP3SVP3SGlR1xJXiIYw0Butp2zpihY7rhRRx
+         3W8gei6j4/riP5sujRR25sTNeFmMFOr5aKZyibIbQOcis9sYHlSQS0NJpvn5uNfPQOuO
+         DvX3M/iDSKT4AedRZGEfw1V1iVll/igebGjQMSP4QN5sNC8sqyHslmMw1bmbLtr2kVrX
+         n18WNytPlFmIAZIq2ck/b9zbhW5u6snaF+oHVQVN4bFEsVmrpspCs10Cl7P69mLj2q6G
+         onD/ldWMEz18G3E9Z2sf5U4k6+XaAgGzuGkYCQmTFwum8El6GVXf5VmSxOyU2QuC67jI
+         aQOA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 25si2754194qtq.283.2019.03.25.07.40.24
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o7si1259870edv.140.2019.03.25.07.50.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Mar 2019 07:40:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Mon, 25 Mar 2019 07:50:25 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id B07DB2026E;
-	Mon, 25 Mar 2019 14:40:23 +0000 (UTC)
-Received: from localhost.localdomain.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id EBEBD1001DC8;
-	Mon, 25 Mar 2019 14:40:22 +0000 (UTC)
-From: jglisse@redhat.com
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 058C5AF2F;
+	Mon, 25 Mar 2019 14:50:23 +0000 (UTC)
+Date: Mon, 25 Mar 2019 15:50:23 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Dan Williams <dan.j.williams@intel.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Dan Williams <dan.j.williams@intel.com>
-Subject: [PATCH v2 11/11] mm/hmm: add an helper function that fault pages and map them to a device v2
-Date: Mon, 25 Mar 2019 10:40:11 -0400
-Message-Id: <20190325144011.10560-12-jglisse@redhat.com>
-In-Reply-To: <20190325144011.10560-1-jglisse@redhat.com>
-References: <20190325144011.10560-1-jglisse@redhat.com>
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Logan Gunthorpe <logang@deltatee.com>,
+	Toshi Kani <toshi.kani@hpe.com>, Vlastimil Babka <vbabka@suse.cz>,
+	stable <stable@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
+	linux-nvdimm <linux-nvdimm@lists.01.org>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH v5 00/10] mm: Sub-section memory hotplug support
+Message-ID: <20190325145023.GG9924@dhcp22.suse.cz>
+References: <155327387405.225273.9325594075351253804.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20190322180532.GM32418@dhcp22.suse.cz>
+ <CAPcyv4gBGNP95APYaBcsocEa50tQj9b5h__83vgngjq3ouGX_Q@mail.gmail.com>
+ <20190325101945.GD9924@dhcp22.suse.cz>
+ <x494l7rdo5r.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Mon, 25 Mar 2019 14:40:23 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <x494l7rdo5r.fsf@segfault.boston.devel.redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Jérôme Glisse <jglisse@redhat.com>
+On Mon 25-03-19 10:28:00, Jeff Moyer wrote:
+> Michal Hocko <mhocko@kernel.org> writes:
+> 
+> >> > and I would like to know that you are
+> >> > not just shifting the problem to a smaller unit and a new/creative HW
+> >> > will force us to go even more complicated.
+> >> 
+> >> HW will not do this to us. It's software that has the problem.
+> >> Namespace creation is unnecessarily constrained to 128MB alignment.
+> >
+> > And why is that a problem? A lack of documentation that this is a
+> > requirement? Something will not work with a larger alignment? Someting
+> > else?
+> 
+> See this email for one user-visible problem:
+>   https://lore.kernel.org/lkml/x49imxbx22d.fsf@segfault.boston.devel.redhat.com/
 
-This is a all in one helper that fault pages in a range and map them to
-a device so that every single device driver do not have to re-implement
-this common pattern.
+: # ndctl create-namespace -m fsdax -s 128m
+:   Error: '--size=' must align to interleave-width: 6 and alignment: 2097152
+:   did you intend --size=132M?
+: 
+: failed to create namespace: Invalid argument
 
-This is taken from ODP RDMA in preparation of ODP RDMA convertion. It
-will be use by nouveau and other drivers.
-
-Changes since v1:
-    - improved commit message
-
-Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ralph Campbell <rcampbell@nvidia.com>
-Cc: John Hubbard <jhubbard@nvidia.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
----
- include/linux/hmm.h |   9 +++
- mm/hmm.c            | 152 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 161 insertions(+)
-
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 5f9deaeb9d77..7aadf18b29cb 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -568,6 +568,15 @@ int hmm_range_register(struct hmm_range *range,
- void hmm_range_unregister(struct hmm_range *range);
- long hmm_range_snapshot(struct hmm_range *range);
- long hmm_range_fault(struct hmm_range *range, bool block);
-+long hmm_range_dma_map(struct hmm_range *range,
-+		       struct device *device,
-+		       dma_addr_t *daddrs,
-+		       bool block);
-+long hmm_range_dma_unmap(struct hmm_range *range,
-+			 struct vm_area_struct *vma,
-+			 struct device *device,
-+			 dma_addr_t *daddrs,
-+			 bool dirty);
- 
- /*
-  * HMM_RANGE_DEFAULT_TIMEOUT - default timeout (ms) when waiting for a range
-diff --git a/mm/hmm.c b/mm/hmm.c
-index ce33151c6832..fd143251b157 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -30,6 +30,7 @@
- #include <linux/hugetlb.h>
- #include <linux/memremap.h>
- #include <linux/jump_label.h>
-+#include <linux/dma-mapping.h>
- #include <linux/mmu_notifier.h>
- #include <linux/memory_hotplug.h>
- 
-@@ -1163,6 +1164,157 @@ long hmm_range_fault(struct hmm_range *range, bool block)
- 	return (hmm_vma_walk.last - range->start) >> PAGE_SHIFT;
- }
- EXPORT_SYMBOL(hmm_range_fault);
-+
-+/*
-+ * hmm_range_dma_map() - hmm_range_fault() and dma map page all in one.
-+ * @range: range being faulted
-+ * @device: device against to dma map page to
-+ * @daddrs: dma address of mapped pages
-+ * @block: allow blocking on fault (if true it sleeps and do not drop mmap_sem)
-+ * Returns: number of pages mapped on success, -EAGAIN if mmap_sem have been
-+ *          drop and you need to try again, some other error value otherwise
-+ *
-+ * Note same usage pattern as hmm_range_fault().
-+ */
-+long hmm_range_dma_map(struct hmm_range *range,
-+		       struct device *device,
-+		       dma_addr_t *daddrs,
-+		       bool block)
-+{
-+	unsigned long i, npages, mapped;
-+	long ret;
-+
-+	ret = hmm_range_fault(range, block);
-+	if (ret <= 0)
-+		return ret ? ret : -EBUSY;
-+
-+	npages = (range->end - range->start) >> PAGE_SHIFT;
-+	for (i = 0, mapped = 0; i < npages; ++i) {
-+		enum dma_data_direction dir = DMA_FROM_DEVICE;
-+		struct page *page;
-+
-+		/*
-+		 * FIXME need to update DMA API to provide invalid DMA address
-+		 * value instead of a function to test dma address value. This
-+		 * would remove lot of dumb code duplicated accross many arch.
-+		 *
-+		 * For now setting it to 0 here is good enough as the pfns[]
-+		 * value is what is use to check what is valid and what isn't.
-+		 */
-+		daddrs[i] = 0;
-+
-+		page = hmm_pfn_to_page(range, range->pfns[i]);
-+		if (page == NULL)
-+			continue;
-+
-+		/* Check if range is being invalidated */
-+		if (!range->valid) {
-+			ret = -EBUSY;
-+			goto unmap;
-+		}
-+
-+		/* If it is read and write than map bi-directional. */
-+		if (range->pfns[i] & range->values[HMM_PFN_WRITE])
-+			dir = DMA_BIDIRECTIONAL;
-+
-+		daddrs[i] = dma_map_page(device, page, 0, PAGE_SIZE, dir);
-+		if (dma_mapping_error(device, daddrs[i])) {
-+			ret = -EFAULT;
-+			goto unmap;
-+		}
-+
-+		mapped++;
-+	}
-+
-+	return mapped;
-+
-+unmap:
-+	for (npages = i, i = 0; (i < npages) && mapped; ++i) {
-+		enum dma_data_direction dir = DMA_FROM_DEVICE;
-+		struct page *page;
-+
-+		page = hmm_pfn_to_page(range, range->pfns[i]);
-+		if (page == NULL)
-+			continue;
-+
-+		if (dma_mapping_error(device, daddrs[i]))
-+			continue;
-+
-+		/* If it is read and write than map bi-directional. */
-+		if (range->pfns[i] & range->values[HMM_PFN_WRITE])
-+			dir = DMA_BIDIRECTIONAL;
-+
-+		dma_unmap_page(device, daddrs[i], PAGE_SIZE, dir);
-+		mapped--;
-+	}
-+
-+	return ret;
-+}
-+EXPORT_SYMBOL(hmm_range_dma_map);
-+
-+/*
-+ * hmm_range_dma_unmap() - unmap range of that was map with hmm_range_dma_map()
-+ * @range: range being unmapped
-+ * @vma: the vma against which the range (optional)
-+ * @device: device against which dma map was done
-+ * @daddrs: dma address of mapped pages
-+ * @dirty: dirty page if it had the write flag set
-+ * Returns: number of page unmapped on success, -EINVAL otherwise
-+ *
-+ * Note that caller MUST abide by mmu notifier or use HMM mirror and abide
-+ * to the sync_cpu_device_pagetables() callback so that it is safe here to
-+ * call set_page_dirty(). Caller must also take appropriate locks to avoid
-+ * concurrent mmu notifier or sync_cpu_device_pagetables() to make progress.
-+ */
-+long hmm_range_dma_unmap(struct hmm_range *range,
-+			 struct vm_area_struct *vma,
-+			 struct device *device,
-+			 dma_addr_t *daddrs,
-+			 bool dirty)
-+{
-+	unsigned long i, npages;
-+	long cpages = 0;
-+
-+	/* Sanity check. */
-+	if (range->end <= range->start)
-+		return -EINVAL;
-+	if (!daddrs)
-+		return -EINVAL;
-+	if (!range->pfns)
-+		return -EINVAL;
-+
-+	npages = (range->end - range->start) >> PAGE_SHIFT;
-+	for (i = 0; i < npages; ++i) {
-+		enum dma_data_direction dir = DMA_FROM_DEVICE;
-+		struct page *page;
-+
-+		page = hmm_pfn_to_page(range, range->pfns[i]);
-+		if (page == NULL)
-+			continue;
-+
-+		/* If it is read and write than map bi-directional. */
-+		if (range->pfns[i] & range->values[HMM_PFN_WRITE]) {
-+			dir = DMA_BIDIRECTIONAL;
-+
-+			/*
-+			 * See comments in function description on why it is
-+			 * safe here to call set_page_dirty()
-+			 */
-+			if (dirty)
-+				set_page_dirty(page);
-+		}
-+
-+		/* Unmap and clear pfns/dma address */
-+		dma_unmap_page(device, daddrs[i], PAGE_SIZE, dir);
-+		range->pfns[i] = range->values[HMM_PFN_NONE];
-+		/* FIXME see comments in hmm_vma_dma_map() */
-+		daddrs[i] = 0;
-+		cpages++;
-+	}
-+
-+	return cpages;
-+}
-+EXPORT_SYMBOL(hmm_range_dma_unmap);
- #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
- 
- 
+So the size is in section size units. So what prevents the userspace to
+use a proper alignment? I am sorry if this is a stupid question but I am
+not really familiar with ndctl nor the pmem side of it.
 -- 
-2.17.2
+Michal Hocko
+SUSE Labs
 
