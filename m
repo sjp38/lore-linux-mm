@@ -2,98 +2,93 @@ Return-Path: <SRS0=c5Kt=R5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F3565C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 14:18:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 923AEC10F05
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 14:31:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BE9AE2075D
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 14:18:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BE9AE2075D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 4DB2C20685
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 14:31:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4DB2C20685
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 750136B0003; Tue, 26 Mar 2019 10:18:09 -0400 (EDT)
+	id DD6B16B0003; Tue, 26 Mar 2019 10:31:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6FF0D6B0006; Tue, 26 Mar 2019 10:18:09 -0400 (EDT)
+	id D85056B0006; Tue, 26 Mar 2019 10:31:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5EF9F6B0007; Tue, 26 Mar 2019 10:18:09 -0400 (EDT)
+	id C75296B0007; Tue, 26 Mar 2019 10:31:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 421B06B0003
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 10:18:09 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id 23so11689320qkl.16
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 07:18:09 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 780736B0003
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 10:31:49 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id w27so5349197edb.13
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 07:31:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=xedenWZ3PtHaguKYtHBOirpbQpKUUmeNt9P82J55FT8=;
-        b=BEDI0IQYJnyd851TMu5Ub1xjExaRQ9tBy3qDrEFBxMkQqYOUVT0fj1B4sQxyq+Bjkc
-         DqN7z4OZXzYwKS2FtPBHie7BvX+oxXp03WKVPaTbJQbh4KholDqaWCkzI2QlSNA3AlmZ
-         jaujLKBFuc4fbOguqlngjLt0cVW1SRKNDjJWqLGHtaIJTM97AwimMgK9jjViTD034HtD
-         8CnRAZQU674fEnAhOoERzYSnX4UvRYJKn1yFljdnc9xbBOS9lstTBOROZ38bVu/vAmkr
-         AbcE0+n2hwSQcvNIdWziXL3P5QBc+t+fd5KSG8xqudsWD0nYIppv6x1w5+uVjnbn7jBc
-         J3Yg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUx6FbDw/E/j1QOsw5hCao3sEETHyTqi5ZxoV4kP0DwPpFp0Muv
-	ccs21phzuu1WHnNDeJ1BMITa9dGa4iNs2Vrkc0G2rSgFbAXlD1sRfco9udB8Vg/4yXl3KmiwCpw
-	3bQ3fwXZvGNwJ1RFLPokxoATQn7EPjPd11qLaZuedOSpBOCb2RP/CiV8MkaxcOSdXdw==
-X-Received: by 2002:aed:3aaa:: with SMTP id o39mr10950718qte.100.1553609889035;
-        Tue, 26 Mar 2019 07:18:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwxS5BzcFe6A94EWURnXAOJe5oKo9bXYEp7cLQKliiH0wQryFX2KiFGbaSd5IP2tHyYid/d
-X-Received: by 2002:aed:3aaa:: with SMTP id o39mr10950676qte.100.1553609888519;
-        Tue, 26 Mar 2019 07:18:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553609888; cv=none;
+        bh=+TlxXrh+DiNHVku0SFSOW6+lTQTgWbZKu8A6jsP3y9A=;
+        b=i8SgBj5gjxaQ+c01doz7mYDCA9fVou/L8qaDwfef85pVPwaMpZoWO0jiLqmJzCCY6Q
+         I+b7F0K7hSktHLUdbldWWR5o1Cvc0KdVboSU6wewzdOm0BGK1NY8SwVHdA+aUtBrqzib
+         zlE9WV0NuI0UbctAFzJrTeG4ZwON7aw3CRs63nOpOjAuPOycAK+4omvGDgEzOfUohkUN
+         guxO53zNMuh5onUn6ojp2DoOJBj82Jnq2nvmdSnvKzZo1G96nSUljB1AefnWrIddSBI0
+         3pVySF1uWuTqCo9Xu5IGQNNnEXFIDLGN3bm4OpRR5au0D5aQ6336WaWjCnnghQbaM9Ud
+         Gc0g==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAVHpcdx5d1Oeo8A/ijonnOQrkGuUWaSyER5nbb4BLIbKvBBYDy7
+	LtuB49UfsLSexWBpxXOEdDJ0kRhMCD7Ef9O0RKdMk+Ci9si3butFW64vrx5GR5PzvJfF3cAoVKu
+	T+eh7wfzjA/OjSS9QAwC9G9NYScfnxm9O8trnqWLqoqndkC+hMqn8jKxqO/r2xFM=
+X-Received: by 2002:a17:906:b298:: with SMTP id q24mr4168387ejz.62.1553610709028;
+        Tue, 26 Mar 2019 07:31:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwWmVqf3jfWx4upG6MJ54IB4GiMZB1dQgDSPwP9MHTqOMLPa0AaBWjslBLKBdZI5jFtdytH
+X-Received: by 2002:a17:906:b298:: with SMTP id q24mr4168349ejz.62.1553610708224;
+        Tue, 26 Mar 2019 07:31:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553610708; cv=none;
         d=google.com; s=arc-20160816;
-        b=r+pqhGATxRuq9xr4C4HuviU3bihvdYUl+Gt+MK15KyIjHHYgA4eU6XFabFPkGVnNw1
-         fXC6YmphVvcBjPg4AZFxubg4uN0EsvuJStK9CXsZzXDMhoVi3wRzrJImrs04h9B3IvEc
-         qI0MQX8IyCAQZyelwISCHI3W4Q0/qFbIL32D8O2WrIvjLCE3c0V8+2wQj2i18TWrp2ri
-         DMdoWqPgBobbQCmmicqf4fkyDTzaQMPvMSiCGK+gF8vNxoWjqeqwTE7MyycXH6UZOF6j
-         lRQA4xe5zjba2pyVz7JXRmeRQ31/hKbyX6tGSQUTf9RgeXbAY+a3m6NzzW0IzXa/oL95
-         O8zA==
+        b=n67oRC29YrIBQRkt9ZE2KXzHON/MGR8gWNsRvyzBPtAMkIt78oZe1UwuIFu8WoQUJp
+         l3R0kYiCIqC3dF66g1gfDkwkM091ujOQ0f2oAksIC2diNzv81uUZs4pl2aiq01FqOkO3
+         vM1nywIJ+4u2Zvvd66mOL01UgXnZCtTgKxHnmg6VFmyn99yKPT5R8gsJuuJhxWFLaJB6
+         +XQZPwP06yN9dnKNmIBwTZ1n/s3n72G8wt6VAzySJFhJBpm1TAnOv2jjS/x7L4VxmfQv
+         cJxSDPMvnsaOCQfNt56Pz2+zUl8kKU14xdOot5MyAfxY/VS4Li66SZo2wRX0oxHjZH2X
+         LoMg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=xedenWZ3PtHaguKYtHBOirpbQpKUUmeNt9P82J55FT8=;
-        b=IUCC/KcjAfzJYXoPcgZMUQO1OwQXtid4L9anujwEE0gEo11vUGRnppq7XbjzPiHU4k
-         gvwFhZB6bTYwhu/MJ0TqfOGACl/RCDWmkape4hQeHychyuHHihZHS7w4tweHvR+ceNcO
-         cv1t93zH37FnV/eLmtB+Aqcuoq7HaORXfftajZo5wNkA7i2JF9+Wtj9+TvKxAB7MCRC/
-         RKXOSY8b6SPaCBhifdXFHMJsO+5PfTP3YJugHX/bNqbxH6zTltGSK4JheQozEY7Uk9dr
-         V/T0RlwOT0nlzqo+uZVwhwME4aa8d3bFXnXiwjSpgsQml+FdE00DtkKTGyXk6mFpr8t7
-         ov1g==
+        bh=+TlxXrh+DiNHVku0SFSOW6+lTQTgWbZKu8A6jsP3y9A=;
+        b=1CSd7Vkvur79zyBkueNZPJxuIQrnRoPs5Ivxq8Zv4DFfQpMROCEaPbJttTcsMRmRmk
+         Y4tHsKFs+l2dqlcrMslP2DB+AuO8ZU5o0fhxXWZdQZL42IBjPwl+6A5NBWzBViJcado1
+         kyX+5gvnFD/O9Xixc81t/C67iJ4DJNC2Oh4otQHhHwM1fDi4LviQSoXY+AzxDtk8AaW4
+         cD+ZF5lQRrk97xJqmKDOgy4pMKmcRmct57L7EfNhdcC1VRuL2YR8lMwgxpMZtoUTlhL+
+         44jJSH4LRI4QmAFpUJrJHeFpHjL7tTahA/hbVyxFNxSC3g9/geWI7neuEElgdI4vFqYW
+         Vd9Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j14si472801qvj.157.2019.03.26.07.18.08
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c48si2177547edc.283.2019.03.26.07.31.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Mar 2019 07:18:08 -0700 (PDT)
-Received-SPF: pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Tue, 26 Mar 2019 07:31:48 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id A321185545;
-	Tue, 26 Mar 2019 14:18:07 +0000 (UTC)
-Received: from localhost (ovpn-12-21.pek2.redhat.com [10.72.12.21])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 2EC4B1001E81;
-	Tue, 26 Mar 2019 14:18:05 +0000 (UTC)
-Date: Tue, 26 Mar 2019 22:18:03 +0800
-From: Baoquan He <bhe@redhat.com>
-To: Michal Hocko <mhocko@kernel.org>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 5FD71B00B;
+	Tue, 26 Mar 2019 14:31:47 +0000 (UTC)
+Date: Tue, 26 Mar 2019 15:31:45 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Baoquan He <bhe@redhat.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
 	akpm@linux-foundation.org, rppt@linux.ibm.com, osalvador@suse.de,
 	willy@infradead.org, william.kucharski@oracle.com
 Subject: Re: [PATCH v2 2/4] mm/sparse: Optimize sparse_add_one_section()
-Message-ID: <20190326141803.GX3659@MiWiFi-R3L-srv>
+Message-ID: <20190326143145.GR28406@dhcp22.suse.cz>
 References: <20190326090227.3059-1-bhe@redhat.com>
  <20190326090227.3059-3-bhe@redhat.com>
  <20190326092936.GK28406@dhcp22.suse.cz>
@@ -101,49 +96,65 @@ References: <20190326090227.3059-1-bhe@redhat.com>
  <20190326101710.GN28406@dhcp22.suse.cz>
  <20190326134522.GB21943@MiWiFi-R3L-srv>
  <20190326140348.GQ28406@dhcp22.suse.cz>
+ <20190326141803.GX3659@MiWiFi-R3L-srv>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190326140348.GQ28406@dhcp22.suse.cz>
+In-Reply-To: <20190326141803.GX3659@MiWiFi-R3L-srv>
 User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Tue, 26 Mar 2019 14:18:07 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 03/26/19 at 03:03pm, Michal Hocko wrote:
-> On Tue 26-03-19 21:45:22, Baoquan He wrote:
-> > On 03/26/19 at 11:17am, Michal Hocko wrote:
-> > > On Tue 26-03-19 18:08:17, Baoquan He wrote:
-> > > > On 03/26/19 at 10:29am, Michal Hocko wrote:
-> > > > > On Tue 26-03-19 17:02:25, Baoquan He wrote:
-> > > > > > Reorder the allocation of usemap and memmap since usemap allocation
-> > > > > > is much simpler and easier. Otherwise hard work is done to make
-> > > > > > memmap ready, then have to rollback just because of usemap allocation
-> > > > > > failure.
+On Tue 26-03-19 22:18:03, Baoquan He wrote:
+> On 03/26/19 at 03:03pm, Michal Hocko wrote:
+> > On Tue 26-03-19 21:45:22, Baoquan He wrote:
+> > > On 03/26/19 at 11:17am, Michal Hocko wrote:
+> > > > On Tue 26-03-19 18:08:17, Baoquan He wrote:
+> > > > > On 03/26/19 at 10:29am, Michal Hocko wrote:
+> > > > > > On Tue 26-03-19 17:02:25, Baoquan He wrote:
+> > > > > > > Reorder the allocation of usemap and memmap since usemap allocation
+> > > > > > > is much simpler and easier. Otherwise hard work is done to make
+> > > > > > > memmap ready, then have to rollback just because of usemap allocation
+> > > > > > > failure.
+> > > > > > 
+> > > > > > Is this really worth it? I can see that !VMEMMAP is doing memmap size
+> > > > > > allocation which would be 2MB aka costly allocation but we do not do
+> > > > > > __GFP_RETRY_MAYFAIL so the allocator backs off early.
 > > > > > 
-> > > > > Is this really worth it? I can see that !VMEMMAP is doing memmap size
-> > > > > allocation which would be 2MB aka costly allocation but we do not do
-> > > > > __GFP_RETRY_MAYFAIL so the allocator backs off early.
+> > > > > In !VMEMMAP case, it truly does simple allocation directly. surely
+> > > > > usemap which size is 32 is smaller. So it doesn't matter that much who's
+> > > > > ahead or who's behind. However, this benefit a little in VMEMMAP case.
 > > > > 
-> > > > In !VMEMMAP case, it truly does simple allocation directly. surely
-> > > > usemap which size is 32 is smaller. So it doesn't matter that much who's
-> > > > ahead or who's behind. However, this benefit a little in VMEMMAP case.
+> > > > How does it help there? The failure should be even much less probable
+> > > > there because we simply fall back to a small 4kB pages and those
+> > > > essentially never fail.
 > > > 
-> > > How does it help there? The failure should be even much less probable
-> > > there because we simply fall back to a small 4kB pages and those
-> > > essentially never fail.
+> > > OK, I am fine to drop it. Or only put the section existence checking
+> > > earlier to avoid unnecessary usemap/memmap allocation?
 > > 
-> > OK, I am fine to drop it. Or only put the section existence checking
-> > earlier to avoid unnecessary usemap/memmap allocation?
+> > DO you have any data on how often that happens? Should basically never
+> > happening, right?
 > 
-> DO you have any data on how often that happens? Should basically never
-> happening, right?
+> Oh, you think about it in this aspect. Yes, it rarely happens.
+> Always allocating firstly can increase efficiency. Then I will just drop
+> it.
 
-Oh, you think about it in this aspect. Yes, it rarely happens.
-Always allocating firstly can increase efficiency. Then I will just drop
-it.
+OK, let me try once more. Doing a check early is something that makes
+sense in general. Another question is whether the check is needed at
+all. So rather than fiddling with its placement I would go whether it is
+actually failing at all. I suspect it doesn't because the memory hotplug
+is currently enforced to be section aligned. There are people who would
+like to allow subsection or section unaligned aware hotplug and then
+this would be much more relevant but without any solid justification
+such a patch is not really helpful because it might cause code conflicts
+with other work or obscure the git blame tracking by an additional hop.
+
+In short, if you want to optimize something then make sure you describe
+what you are optimizing how it helps.
+-- 
+Michal Hocko
+SUSE Labs
 
