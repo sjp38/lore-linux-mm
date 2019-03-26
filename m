@@ -2,215 +2,247 @@ Return-Path: <SRS0=c5Kt=R5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FSL_HELO_FAKE,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT,
-	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0F742C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 08:12:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 425DEC10F05
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 08:18:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B43E620830
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 08:12:44 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="k6XFJyGw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B43E620830
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 0721720830
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 08:18:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0721720830
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4BC756B0007; Tue, 26 Mar 2019 04:12:44 -0400 (EDT)
+	id 9C2DB6B0007; Tue, 26 Mar 2019 04:18:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 46AA86B0008; Tue, 26 Mar 2019 04:12:44 -0400 (EDT)
+	id 94AC16B0008; Tue, 26 Mar 2019 04:18:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 358D46B000A; Tue, 26 Mar 2019 04:12:44 -0400 (EDT)
+	id 839E56B000A; Tue, 26 Mar 2019 04:18:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1607F6B0007
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 04:12:44 -0400 (EDT)
-Received: by mail-it1-f200.google.com with SMTP id v193so4923150itv.9
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 01:12:44 -0700 (PDT)
+Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D1666B0007
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 04:18:20 -0400 (EDT)
+Received: by mail-lf1-f70.google.com with SMTP id s26so1038955lfc.7
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 01:18:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=YdFwkF4eUySjbpG+38wjJdvK3fCy24c6M03FoBUoupk=;
-        b=kTFz0X9AoDYQ2aKdZA08Icx/CRzZXTGOUO+arucD8VTMv3di23CA9DTrE5tr9lQT4X
-         H17uKzzIo2wcLTX37uDkcQS4fREVxtHOyJVb5422o9G09v+oRyYqgCfMYrqNz+MOqRku
-         fDRBuZuhah7I8+439yAyY0E4YXa5TgAAaVe+NzRjnk4SjPX+e/f3g4cXgqkRFQ/3NImO
-         C6/3y+CFs/YaJ4JvPtfiReLJ87xoia8rubx/lz6y8wTQvxMKqPUFzHL9QsMqt7I0q8Hn
-         IDpEwtvR4SMEEaFU2d3bG5PHogIJyM56oYIznl9OPQs/6LRSCletuaKrCIoajdnspmJM
-         8bFA==
-X-Gm-Message-State: APjAAAV6F6D1i+PpRzEjiqfcBvJbQPlvBrLm7p0r67XgyqdW+cGmnwUs
-	65ZcUpaLBFbU8CUNBKA+aXRaG5Vme+wgzVFzoCQC9LK3LsVn+RPkd2b7UsmFjtrgACGTnFjcd4s
-	muRDXe2FembtSdtaY2sWQ/RlI55FXgCq6Y06UKVz7dTezxAWqyIxDcxeq1ZC77mttBw==
-X-Received: by 2002:a24:7b42:: with SMTP id q63mr4220878itc.174.1553587963726;
-        Tue, 26 Mar 2019 01:12:43 -0700 (PDT)
-X-Received: by 2002:a24:7b42:: with SMTP id q63mr4220848itc.174.1553587962924;
-        Tue, 26 Mar 2019 01:12:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553587962; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:references:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=Fc7QEnSMJOCWnX0b0b1JDUi3K89Px3teW0qf+Ot4o6U=;
+        b=gIhNJPuro+5oVuuUXKpA9VtSxoN3lyeX3Nq42rQnMsiUzbh6/YIq7vmXKiCN6Pr/2r
+         nTwG0OeEqeEF42cxkD+XqDwzh7tFJncGyIY6eLxUC5r59dFG9uUZo3FtBxlFJCH647OZ
+         5RIghBw0rB+q40N03e0eIzEoS8GbzK3sh00/4UkgBaEfkhIoN/gzcyPN8/qVgVFYbphE
+         HTptkLjEjyrROdyrHiGav1cLy++6IbJE/lEyumgaGcprzUpxHksjpVsPBbNs89IgMby1
+         kpnarIS9XN+AbH9ByhqqXW/pPH2hiSbzRiTORbtkI40LJz+h8fHh0ba3e84tBBjsR1nd
+         1EVQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAUZaPdtwNPhavyYc8zbqPmilph8zNR8edgZ0b8yxPHszO3mvxUw
+	X+Ds274C+MWxx92EyY+ESqls5erYoru+CLZRNhCFw1CBVjJTPhuEEp2v9a0IMT23nTx5XF5/c5Y
+	NblyGhNPfP0bCfv0gy78swWtopBMIvaqTfWWUnd6uMTBocMD0/6JgJhg6DUOZehPyxQ==
+X-Received: by 2002:ac2:569b:: with SMTP id 27mr15679581lfr.24.1553588299309;
+        Tue, 26 Mar 2019 01:18:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy99+LRr2xof0cfGdqC0H81Q9NcJnCgAFLU82QEmha1f/7sqDeqUbpO3CRIli2iDml0EA33
+X-Received: by 2002:ac2:569b:: with SMTP id 27mr15679459lfr.24.1553588296726;
+        Tue, 26 Mar 2019 01:18:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553588296; cv=none;
         d=google.com; s=arc-20160816;
-        b=sSJFOcP35xdytzf7keNKWLT2VRU2D5fJDb6bncJURSh2FYVrJDy2Ryo6xNS87HDd8q
-         DxTvzi6tftcBfsIsK/RuLLg1D3LQx7DRZRRFdMk1nXN6wFU0Mu4Ouymf7G1DbJaVlh6t
-         mDxTgU+LmBgKpS4zR9oNLcwdFL6LKYwS2Bv1u6A2rZbLMCZtNx+j4RFTPn3o/3W6PnVd
-         Ejpx1ikKxoz27JopKoWW1x/ik6gkq51C7/+xzqj1foOGnRiWdit7JpeXzNpcbSLlzGJz
-         1aA+rZ36E+NjKSMGDdpLKzSBMtae8Px90m6YIz76d35HL6Q7F5a/7h4JabXlxSkqwMeu
-         3xcQ==
+        b=tWmVmJ7knzX+aJ306aZ0NP3o+oJ5iPuKgZBnD/o93Jnvi/LJ39wIIEtCZTRmBcZLks
+         yuB+zoHlgsFmYJ1JFSTb8P+w/QkQ/X052VyB5W9EiYoGqRviGPwrfDlP/JvCPg7fPIde
+         CIN4eOX8T9o+qiu3gk9JAwdwDyXN38WORFgmZYTzxyNYvvypdrfV4nJY9ZP0zj0GwCr6
+         e7u40a1dmes07G310D22GNhnqNhgSve6ksYzFcxJacxIRZVGpmtFev9EQdk19IOBR1Wp
+         NiAr223X8i3hCBnUWeuLtMAMXbM80tQP7zIa0rcZxBvWV3kjjckZ/sbTkPOFg7Xr3l/U
+         YveA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=YdFwkF4eUySjbpG+38wjJdvK3fCy24c6M03FoBUoupk=;
-        b=ObeQIM8lSI5U9O5BXyVAvB8SPN/RPgfX0RwdSaIx+/RzTtQefqIADoUYsek5Sv4Ipu
-         X0GrLvVurF7AQ5pE+RKnR5IRQDxg6z1C7LckP6HHu9r7ItQslPvXr61/E3DEnZ+Q/OfP
-         /qNNyNa0RNUdTHoxkpvvoGKxLLpa+iBFRlML5u7WPzIPNc98dMLY91nAdMl9Z6Lt+6xT
-         XkzPncLgSTZUss7FmfOIH1ey9yH1IcDxtlzMDXAY8A9Elq35lDfIkqL6lOkjbQSx7KPN
-         1Bzuh+VOuT+n/Sqyg7KzXr2CDNNEc7xftYAeUWiXzLCxfijdVJfzL3ROUdv+G6nk7NUr
-         eLDg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:references:cc:to:from:subject;
+        bh=Fc7QEnSMJOCWnX0b0b1JDUi3K89Px3teW0qf+Ot4o6U=;
+        b=ICiCc1AgAQE6vZqrWVnz0nWZtDUR59FTBkbgJBEImFAb1RlRw6mNFCY+OmM2E8mMpz
+         FLY4KLvhESEZJwsRVNa/uqP/WVuKd6TIVZbrMkINyNkmUk4B9O2zW02SNxQKrGN/tq0A
+         l43MzPbBY8Xq9aUAs41dDaB7xHJYoPg9skECJyjC2sPuGpulJGgZmYOH6BdnUCmkxXuv
+         RINuYBAFUhCK42yZ6SjubVqmiyWXxGmYOskiaxXLnXB+tH8rN0aabingZrN/Yi6HEJH4
+         vADv1UiwE7O9JrenuZWJZHLfH4HYM9SSeT7AQXJ48miLNAy7nHXYahcvv1Oc5KkzxLzM
+         7dTw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=k6XFJyGw;
-       spf=pass (google.com: domain of liumartin@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=liumartin@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q4sor12078209ioj.90.2019.03.26.01.12.42
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id z23si12831979ljj.24.2019.03.26.01.18.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 26 Mar 2019 01:12:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of liumartin@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Mar 2019 01:18:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=k6XFJyGw;
-       spf=pass (google.com: domain of liumartin@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=liumartin@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=YdFwkF4eUySjbpG+38wjJdvK3fCy24c6M03FoBUoupk=;
-        b=k6XFJyGwJ9uMM5uZPWX/AMT7fviQV0Ld1mcPlddQHs0cPIvKIZsAGtkGGxowospoCT
-         dtY6QW0pQBRdQZw/Pzw1xGUnrxiMWMMWQoLuH0L+NTAhjv0l+Yb/scBRb8Eepi2+jpsZ
-         +ZfSqGLB3qiRjeQWh0Tgul4DOKaGm71Q8paP7zVq4PLWFJDKx4e7zw5OVJkORY5a2mpV
-         ReGqnFwm0nuny+7m0ehupOQZYBEJ5uTlS1sAE9PGHyJC7FgYKKgwDVuTukwLz/+hRlTd
-         MGNnI3tJskCS+Wu1/Aa6+rE98oi17qFjkFteyqgBOHmpSXEWFl1O8/BEaF0M9h/LvEhh
-         k/iQ==
-X-Google-Smtp-Source: APXvYqzUewoC4h/6psWy97TNreJAfbfzJbNTFpBTiFptGULlXyAtjw1mAFFx3ekIO/Ni0Jr6DpSEmg==
-X-Received: by 2002:a5e:db48:: with SMTP id r8mr20194656iop.220.1553587962220;
-        Tue, 26 Mar 2019 01:12:42 -0700 (PDT)
-Received: from google.com ([2401:fa00:fc:202:858d:45ea:f905:5ed4])
-        by smtp.gmail.com with ESMTPSA id t62sm6882457ita.35.2019.03.26.01.12.39
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 26 Mar 2019 01:12:41 -0700 (PDT)
-Date: Tue, 26 Mar 2019 16:12:33 +0800
-From: Martin Liu <liumartin@google.com>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Mark Salyzyn <salyzyn@android.com>, akpm@linux-foundation.org,
-	axboe@kernel.dk, dchinner@redhat.com, jenhaochen@google.com,
-	salyzyn@google.com, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org
-Subject: Re: [RFC PATCH] mm: readahead: add readahead_shift into backing
- device
-Message-ID: <20190326081233.GA175058@google.com>
-References: <20190322154610.164564-1-liumartin@google.com>
- <20190325121628.zxlogz52go6k36on@wfg-t540p.sh.intel.com>
- <9b194e61-f2d0-82cb-30ac-95afb493b894@android.com>
- <20190326013058.ykdwxbfkk3x3pvtu@wfg-t540p.sh.intel.com>
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.169]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <ktkhai@virtuozzo.com>)
+	id 1h8hHb-00080A-6M; Tue, 26 Mar 2019 11:18:07 +0300
+Subject: Re: [PATCH 1/2] userfaultfd: use RCU to free the task struct when
+ fork fails
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+To: Andrea Arcangeli <aarcange@redhat.com>,
+ Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, zhong jiang <zhongjiang@huawei.com>,
+ syzkaller-bugs@googlegroups.com,
+ syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com,
+ Mike Rapoport <rppt@linux.vnet.ibm.com>,
+ Mike Kravetz <mike.kravetz@oracle.com>, Peter Xu <peterx@redhat.com>,
+ Dmitry Vyukov <dvyukov@google.com>
+References: <20190325225636.11635-1-aarcange@redhat.com>
+ <20190325225636.11635-2-aarcange@redhat.com>
+ <29e5c5ed-5efb-fe02-45a5-97903c88e0ec@virtuozzo.com>
+Message-ID: <303ae124-dc01-0989-7cca-39ec7331d1be@virtuozzo.com>
+Date: Tue, 26 Mar 2019 11:18:05 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190326013058.ykdwxbfkk3x3pvtu@wfg-t540p.sh.intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <29e5c5ed-5efb-fe02-45a5-97903c88e0ec@virtuozzo.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 26, 2019 at 09:30:58AM +0800, Fengguang Wu wrote:
-> On Mon, Mar 25, 2019 at 09:59:31AM -0700, Mark Salyzyn wrote:
-> > On 03/25/2019 05:16 AM, Fengguang Wu wrote:
-> > > Martin,
-> > > 
-> > > On Fri, Mar 22, 2019 at 11:46:11PM +0800, Martin Liu wrote:
-> > > > As the discussion https://lore.kernel.org/patchwork/patch/334982/
-> > > > We know an open file's ra_pages might run out of sync from
-> > > > bdi.ra_pages since sequential, random or error read. Current design
-> > > > is we have to ask users to reopen the file or use fdavise system
-> > > > call to get it sync. However, we might have some cases to change
-> > > > system wide file ra_pages to enhance system performance such as
-> > > > enhance the boot time by increasing the ra_pages or decrease it to
-> > > 
-> > > Do you have examples that some distro making use of larger ra_pages
-> > > for boot time optimization?
-> > 
-> > Android (if you are willing to squint and look at android-common AOSP
-> > kernels as a Distro).
+On 26.03.2019 11:07, Kirill Tkhai wrote:
+> On 26.03.2019 01:56, Andrea Arcangeli wrote:
+>> MEMCG depends on the task structure not to be freed under
+>> rcu_read_lock() in get_mem_cgroup_from_mm() after it dereferences
+>> mm->owner.
+>>
+>> An alternate possible fix would be to defer the delivery of the
+>> userfaultfd contexts to the monitor until after fork() is guaranteed
+>> to succeed. Such a change would require more changes because it would
+>> create a strict ordering dependency where the uffd methods would need
+>> to be called beyond the last potentially failing branch in order to be
+>> safe. This solution as opposed only adds the dependency to common code
+>> to set mm->owner to NULL and to free the task struct that was pointed
+>> by mm->owner with RCU, if fork ends up failing. The userfaultfd
+>> methods can still be called anywhere during the fork runtime and the
+>> monitor will keep discarding orphaned "mm" coming from failed forks in
+>> userland.
+>>
+>> This race condition couldn't trigger if CONFIG_MEMCG was set =n at
+>> build time.
+>>
+>> Fixes: 893e26e61d04 ("userfaultfd: non-cooperative: Add fork() event")
+>> Cc: stable@kernel.org
+>> Tested-by: zhong jiang <zhongjiang@huawei.com>
+>> Reported-by: syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com
+>> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+>> ---
+>>  kernel/fork.c | 34 ++++++++++++++++++++++++++++++++--
+>>  1 file changed, 32 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/kernel/fork.c b/kernel/fork.c
+>> index 9dcd18aa210b..a19790e27afd 100644
+>> --- a/kernel/fork.c
+>> +++ b/kernel/fork.c
+>> @@ -952,6 +952,15 @@ static void mm_init_aio(struct mm_struct *mm)
+>>  #endif
+>>  }
+>>  
+>> +static __always_inline void mm_clear_owner(struct mm_struct *mm,
+>> +					   struct task_struct *p)
+>> +{
+>> +#ifdef CONFIG_MEMCG
+>> +	if (mm->owner == p)
+>> +		WRITE_ONCE(mm->owner, NULL);
+>> +#endif
+>> +}
+>> +
+>>  static void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
+>>  {
+>>  #ifdef CONFIG_MEMCG
+>> @@ -1331,6 +1340,7 @@ static struct mm_struct *dup_mm(struct task_struct *tsk)
+>>  free_pt:
+>>  	/* don't put binfmt in mmput, we haven't got module yet */
+>>  	mm->binfmt = NULL;
+>> +	mm_init_owner(mm, NULL);
+>>  	mmput(mm);
+>>  
+>>  fail_nomem:
+>> @@ -1662,6 +1672,24 @@ static inline void rcu_copy_process(struct task_struct *p)
+>>  #endif /* #ifdef CONFIG_TASKS_RCU */
+>>  }
+>>  
+>> +#ifdef CONFIG_MEMCG
+>> +static void __delayed_free_task(struct rcu_head *rhp)
+>> +{
+>> +	struct task_struct *tsk = container_of(rhp, struct task_struct, rcu);
+>> +
+>> +	free_task(tsk);
+>> +}
+>> +#endif /* CONFIG_MEMCG */
+>> +
+>> +static __always_inline void delayed_free_task(struct task_struct *tsk)
+>> +{
+>> +#ifdef CONFIG_MEMCG
+>> +	call_rcu(&tsk->rcu, __delayed_free_task);
+>> +#else /* CONFIG_MEMCG */
+>> +	free_task(tsk);
+>> +#endif /* CONFIG_MEMCG */
+>> +}
+>> +
+>>  /*
+>>   * This creates a new process as a copy of the old one,
+>>   * but does not actually start it yet.
+>> @@ -2123,8 +2151,10 @@ static __latent_entropy struct task_struct *copy_process(
+>>  bad_fork_cleanup_namespaces:
+>>  	exit_task_namespaces(p);
+>>  bad_fork_cleanup_mm:
+>> -	if (p->mm)
+>> +	if (p->mm) {
+>> +		mm_clear_owner(p->mm, p);
+>>  		mmput(p->mm);
+>> +	}
+>>  bad_fork_cleanup_signal:
+>>  	if (!(clone_flags & CLONE_THREAD))
+>>  		free_signal_struct(p->signal);
+>> @@ -2155,7 +2185,7 @@ static __latent_entropy struct task_struct *copy_process(
+>>  bad_fork_free:
+>>  	p->state = TASK_DEAD;
+>>  	put_task_stack(p);
+>> -	free_task(p);
+>> +	delayed_free_task(p);
 > 
-> OK. I wonder how exactly Android makes use of it. Since phones are not
-> using hard disks, so should benefit less from large ra_pages.  Would
-> you kindly point me to the code?
->
-Yes, one of the example is as below.
-https://source.android.com/devices/tech/perf/boot-times#optimizing-i-o-
-efficiency
-> > > Suppose N read streams with equal read speed. The thrash-free memory
-> > > requirement would be (N * 2 * ra_pages).
-> > > 
-> > > If N=1000 and ra_pages=1MB, it'd require 2GB memory. Which looks
-> > > affordable in mainstream servers.
-> > That is 50% of the memory on a high end Android device ...
-> 
-> Yeah but I'm obviously not talking Android device here. Will a phone
-> serve 1000 concurrent read streams?
-> 
-For Android, some important, persistent services and native HALs might
-hold fd for a long time unless request a restart action and then would
-impact overall user experience(guess more than 100). For some low end
-devices which is a big portion of Android devices, their memory size
-might be even smaller. Thus, when the device is under memory pressure,
-this might bring more overhead to impact the performance. As current
-design, we don't have a way to shrink readahead immediately. This
-interface gives the flexibility to an adiminstrator to decide how
-readahed to participate the mitigation level base on the metric it has.
+> Can't call_rcu(&p->rcu, delayed_put_task_struct) be used instead this?
 
-> > > Sorry but it sounds like introducing an unnecessarily twisted new
-> > > interface. I'm afraid it fixes the pain for 0.001% users while
-> > > bringing more puzzle to the majority others.
-> > >2B Android devices on the planet is 0.001%?
-> 
-> Nope. Sorry I didn't know about the Android usage.
-> Actually nobody mentioned it in the past discussions.
-> 
-> > I am not defending the proposed interface though, if there is something
-> > better that can be used, then looking into:
-> > > 
-> > > Then let fadvise() and shrink_readahead_size_eio() adjust that
-> > > per-file ra_pages_shift.
-> > Sounds like this would require a lot from init to globally audit and
-> > reduce the read-ahead for all open files?
-> 
-> It depends. In theory it should be possible to create a standalone
-> kernel module to dump the page cache and get the current snapshot of
-> all cached file pages. It'd be a one-shot action and don't require
-> continuous auditing.
-> 
-> [RFC] kernel facilities for cache prefetching
-> https://lwn.net/Articles/182128
-> 
-> This tool may also work. It's quick to get the list of opened files by
-> walking /proc/*/fd/, however not as easy to get the list of cached
-> file names.
-> 
-> https://github.com/tobert/pcstat
-> 
-> Perhaps we can do a simplified /proc/filecache that only dumps the
-> list of cached file names. Then let mincore() based tools take care
-> of the rest work.
-> 
-Thanks for the information, they are very useful. For Android, it would
-keep updating pretty frequently and the lists might need to be updated
-as the end users install apps, runtime optimization or get new OTA.
-Therefore, this might request pretty much effort to maintain this.
-Please kindly correct me if any misunderstanding. Thanks.
+I mean:
 
-Regards,
-Martin
+refcount_set(&tsk->usage, 2);
+call_rcu(&p->rcu, delayed_put_task_struct);
+
+And:
+
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 3c516c6f7ce4..27cdf61b51a1 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -715,7 +715,9 @@ static inline void put_signal_struct(struct signal_struct *sig)
+ 
+ void __put_task_struct(struct task_struct *tsk)
+ {
+-	WARN_ON(!tsk->exit_state);
++	if (!tsk->exit_state)
++	/* Cleanup of copy_process() */
++		goto free;
+ 	WARN_ON(refcount_read(&tsk->usage));
+ 	WARN_ON(tsk == current);
+ 
+@@ -727,6 +729,7 @@ void __put_task_struct(struct task_struct *tsk)
+ 	put_signal_struct(tsk->signal);
+ 
+ 	if (!profile_handoff_task(tsk))
++free:
+ 		free_task(tsk);
+ }
+ EXPORT_SYMBOL_GPL(__put_task_struct);
 
