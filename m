@@ -2,240 +2,189 @@ Return-Path: <SRS0=c5Kt=R5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.5 required=3.0 tests=MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 419AFC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 13:57:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C322C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 13:58:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F0B2E20823
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 13:57:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F0B2E20823
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 5462F20823
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 13:58:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5462F20823
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 820806B0007; Tue, 26 Mar 2019 09:57:17 -0400 (EDT)
+	id E14576B0007; Tue, 26 Mar 2019 09:58:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7D25E6B0008; Tue, 26 Mar 2019 09:57:17 -0400 (EDT)
+	id DC39F6B0008; Tue, 26 Mar 2019 09:58:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 699296B000A; Tue, 26 Mar 2019 09:57:17 -0400 (EDT)
+	id CB4316B000A; Tue, 26 Mar 2019 09:58:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 456246B0007
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 09:57:17 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id g17so13561956qte.17
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 06:57:17 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 781476B0007
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 09:58:43 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id 41so3980721edq.0
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 06:58:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=/hRifjeN9/kJWASH3KirTjYHFAjrPZoRV2rqEvVI9r8=;
-        b=d1vStSd+R295pqCTwAk1285j5nJ5Bs/RffLFcidqlgZiNZv/tQ+FSfTZIgZKKxd5Kd
-         0g7LzSsrXn7WKh2hL2aRbMWO+LxbX9MJ88ibeiy0cSdSiwfnkvYKtw80O9UD/uzFgRzE
-         2fqkBSd/K3RrwEvAmt2o6ffYT0y5tRiKmmzs+f6q01qk+O/59U366SJ2zv5GEg39GTQz
-         wri7Z5Pez9a2JlsvS4ZLFNAGlQOZpP6cMAin+OiwsyJ0Z8W9T5Y7WdHXn+Zg9u49l3jZ
-         Kg6zH7ysqP05Ffi5NLP6OpDSfdSVEipV0UF+PhZh/UahWdly8NHdqw6fsHWdhvxsO8Xe
-         yPbw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAXIx08jsPf7j/weuCdVkS7yKWvPsSB68Si9uRp2kLQ4goVjEFhq
-	mkTRMWKqrBOXUQrMYSgPTSksRP9mNWlswd3gy+S0PuiMdxqW40urepJX8wqOwMHjLh0jmmnjLNx
-	GMQMw990mNULzHt3CT4ErGmJVeWhGQoHnk44G0Ain68FTrOJqDSiZlgo+WNhSEAHAZw==
-X-Received: by 2002:a37:4ad4:: with SMTP id x203mr22431380qka.21.1553608636958;
-        Tue, 26 Mar 2019 06:57:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxIokyBByyKahORmrGWjLKAc+QH36U/Qx9KvlwTleNveE+TNmNhd8edz8LOrm40hl1nQpce
-X-Received: by 2002:a37:4ad4:: with SMTP id x203mr22431329qka.21.1553608636370;
-        Tue, 26 Mar 2019 06:57:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553608636; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=jOU6xt3JX5VunDgNyH+hQn9oq6Ym3Db0TOcBzrXZYUU=;
+        b=AOQhStceLook1aiuwmX8FVOaSBLABBDU0EKVJkly4/soN/1wHBIffQYOjdDLX9aJcr
+         6mzB8FjrNrzzmxtC1VDQBdVyRrejjj4GIDqBKZZb56NxsYDjYjpdPSKBp7qpVmXgRRj5
+         12NnW0eS/T/+2ELXFY7QLuRGkGMiYt6cXcsE43+r0PqLDoQWPF0fsrbFYCE4/jM2lkBO
+         4g/+1emqO90ljqOlcitvE+7hsanKCYvDoJtQVvWVGj5FGUE++KC/1IWekN3bSAZoEkIt
+         ghKtlgFMxyaZC0JVwAAllz7qfGXOJqdceJeJf4r4Tt//22/Cj3ezKDThBRpsmfrazEhs
+         lIuQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWk42/woFvC3qflY8B/0+DAqBtQLzHsI7mrva0WQ0gQHOlDEnBv
+	8Twmw25IfIkmTsc58l/L4LDM9PWRoBNLhuedFq3x8K66c1UYd1TjTBC3iQOscDDQGxn1besv4sJ
+	wB0h+PfjMHMeK8FITwdjLtjoNUUJfAF6QHdq+TC/PDDgILP02LdoJMow/1T0Rz28=
+X-Received: by 2002:a50:8854:: with SMTP id c20mr20140294edc.167.1553608723016;
+        Tue, 26 Mar 2019 06:58:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxhr6DgfBi3QzDw4OO+Vg0dTAFE7xYg6wzsn44Zh/NfXf6HnXqWhcP8jjCQe4r9gbi2ZBys
+X-Received: by 2002:a50:8854:: with SMTP id c20mr20140254edc.167.1553608722093;
+        Tue, 26 Mar 2019 06:58:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553608722; cv=none;
         d=google.com; s=arc-20160816;
-        b=gNGo043bLXlV3lRA6ggcGGNmWDWNyv9r0MeEd+Jn4Xj0e7Ah6y2c7z0hos8QWAvRoe
-         Yh+yFYhUT8iRVs2ApSLEmB/IdrEo3AVtR4A9WkBEjvgjwXGSbEVh+/6babekcBqNh167
-         Qp/5gJ7PVgcd+g69mkwxR6gP8m/pd+L4U/fWh1U1v8nHwk5EkG/T0ykeX7ty/UUdIdcz
-         oaLiMeI9hXFHAxo54pmUJHUmSa/Vu6/awMDIgiLOP2I3SocIqRVjqclwOqQ0/XB26Cq/
-         vSykC25a3B/5rkOStNvf6IJKVLq2eaJ3qbONtWXNg+dG6ZKmLZZi3ue5uwRPI5SVB9Ae
-         /7hw==
+        b=dowpTFLFB3tWgnW7PZuoQY9TYmSCHGa127QL3MGexx/HKTTHWbLnYPjw+7gMgMwHH+
+         uL1flqGAuzH6TidWTIAulx53sArsEptzDKnPq+JdEqDGY7vrzQszynhXsIJBz6Q9bvEp
+         6a+urkzptACBYqaURnIo57XUTk2/mzy1jGZ4PKgLPqn3g55Nfg2JTlR/25jNtwRuhCNj
+         psFXQlJEyxpagZVvNkZ41VhGJa0sEc0O61WwM5VArwkN8/O9ROcnGAoIovgwrJ6wanMi
+         //vI3xsUEn13GKhe2n1MZVcd8FMywcbhAAyMYPeNxrKcmqHd6vd+TkxRmV3ZdKBo8Q/D
+         6Sjg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=/hRifjeN9/kJWASH3KirTjYHFAjrPZoRV2rqEvVI9r8=;
-        b=II6Dhk6r9cMzFs9PUOFdWPLkxiwhgC5bcavoeDaU9xpnMclF0RuHk8VL6LHoZNN8r9
-         8k7sizmILPnkJ3YuIeWLtEPKjA1lyGMjIs+u7kXL1P9cuwn5mzgGyiAnzw1fTxq6gVmt
-         Z3Tt7EwI8puzYPyX/uNDlo58mnxBMO8UKJNCMAsoOg5Z3mgwBSx++PBWvjBVVlbmUT2H
-         rw1Bzg5JevXp1AVn+2iYPkB3IA5jtnmTJ2VeqggXNkkU+VyKdY37EObnVoPZJcB1iyey
-         WYIzWOhADx7S3TkpT3fFMjozxzg5+ICUMvc0e+Y6IrFMDj3x1AHV6yFLMq1YIF9FJBr/
-         ahqg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=jOU6xt3JX5VunDgNyH+hQn9oq6Ym3Db0TOcBzrXZYUU=;
+        b=Af+pNuSbL+ykTopcnOJPykqNMMmlvSgBvGYWIZ1VIb3UZmfekWFhkD6P1xHzNt/B9T
+         IYtopPtaPX7OuBJWHehDZ+XCLE5tcBDAnjsKo4lEyYGIyeZyWrN83o6fgrlNRS4196Bn
+         ZjVlyrEzSd2aaM1tUo2mEQcdyneF9z/0Yw/QfrZCbFWpO50gRXFaVOowA50/HKxu0ro7
+         vdvzJRlAWHzsa7tPFRtldsK6GhnOCqIXIjG0KXVOEXqn3zkf4AmzuK4+/JByAZjtH22U
+         tsL4QsS0FS/flndbT/mWBO8MHIj5y8/Oi8pcQFsr7zq43AFkQUyfZrs53CFYcbfg/gje
+         bT1g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 1si799106qvu.127.2019.03.26.06.57.16
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t19si522597ejr.240.2019.03.26.06.58.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Mar 2019 06:57:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Tue, 26 Mar 2019 06:58:42 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2QDtNqf137783
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 09:57:16 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2rfm97upk0-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 09:57:15 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Tue, 26 Mar 2019 13:57:13 -0000
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 26 Mar 2019 13:57:11 -0000
-Received: from d06av24.portsmouth.uk.ibm.com (mk.ibm.com [9.149.105.60])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x2QDvAUu53018786
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 26 Mar 2019 13:57:10 GMT
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 22B614204F;
-	Tue, 26 Mar 2019 13:57:10 +0000 (GMT)
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 3B08142042;
-	Tue, 26 Mar 2019 13:57:09 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.207.52])
-	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Tue, 26 Mar 2019 13:57:09 +0000 (GMT)
-Date: Tue, 26 Mar 2019 15:57:07 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Baoquan He <bhe@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org,
-        linux-mm@kvack.org, akpm@linux-foundation.org, osalvador@suse.de,
-        willy@infradead.org, william.kucharski@oracle.com
-Subject: Re: [PATCH v2 2/4] mm/sparse: Optimize sparse_add_one_section()
-References: <20190326090227.3059-1-bhe@redhat.com>
- <20190326090227.3059-3-bhe@redhat.com>
- <20190326092936.GK28406@dhcp22.suse.cz>
- <20190326100817.GV3659@MiWiFi-R3L-srv>
- <20190326101710.GN28406@dhcp22.suse.cz>
- <20190326134522.GB21943@MiWiFi-R3L-srv>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 1C7FFAC8E;
+	Tue, 26 Mar 2019 13:58:40 +0000 (UTC)
+Date: Tue, 26 Mar 2019 14:58:37 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: mgorman@techsingularity.net, riel@surriel.com, hannes@cmpxchg.org,
+	akpm@linux-foundation.org, dave.hansen@intel.com,
+	keith.busch@intel.com, dan.j.williams@intel.com,
+	fengguang.wu@intel.com, fan.du@intel.com, ying.huang@intel.com,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [RFC PATCH 0/10] Another Approach to Use PMEM as NUMA Node
+Message-ID: <20190326135837.GP28406@dhcp22.suse.cz>
+References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190326134522.GB21943@MiWiFi-R3L-srv>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19032613-0028-0000-0000-000003587834
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19032613-0029-0000-0000-00002417302C
-Message-Id: <20190326135706.GB23024@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-26_10:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1903260098
+In-Reply-To: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 26, 2019 at 09:45:22PM +0800, Baoquan He wrote:
-> On 03/26/19 at 11:17am, Michal Hocko wrote:
-> > On Tue 26-03-19 18:08:17, Baoquan He wrote:
-> > > On 03/26/19 at 10:29am, Michal Hocko wrote:
-> > > > On Tue 26-03-19 17:02:25, Baoquan He wrote:
-> > > > > Reorder the allocation of usemap and memmap since usemap allocation
-> > > > > is much simpler and easier. Otherwise hard work is done to make
-> > > > > memmap ready, then have to rollback just because of usemap allocation
-> > > > > failure.
-> > > > 
-> > > > Is this really worth it? I can see that !VMEMMAP is doing memmap size
-> > > > allocation which would be 2MB aka costly allocation but we do not do
-> > > > __GFP_RETRY_MAYFAIL so the allocator backs off early.
-> > > 
-> > > In !VMEMMAP case, it truly does simple allocation directly. surely
-> > > usemap which size is 32 is smaller. So it doesn't matter that much who's
-> > > ahead or who's behind. However, this benefit a little in VMEMMAP case.
-> > 
-> > How does it help there? The failure should be even much less probable
-> > there because we simply fall back to a small 4kB pages and those
-> > essentially never fail.
+On Sat 23-03-19 12:44:25, Yang Shi wrote:
 > 
-> OK, I am fine to drop it. Or only put the section existence checking
-> earlier to avoid unnecessary usemap/memmap allocation?
+> With Dave Hansen's patches merged into Linus's tree
 > 
+> https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=c221c0b0308fd01d9fb33a16f64d2fd95f8830a4
 > 
-> From 7594b86ebf5d6fcc8146eca8fc5625f1961a15b1 Mon Sep 17 00:00:00 2001
-> From: Baoquan He <bhe@redhat.com>
-> Date: Tue, 26 Mar 2019 18:48:39 +0800
-> Subject: [PATCH] mm/sparse: Check section's existence earlier in
->  sparse_add_one_section()
+> PMEM could be hot plugged as NUMA node now. But, how to use PMEM as NUMA node
+> effectively and efficiently is still a question. 
 > 
-> No need to allocate usemap and memmap if section has been present.
-> And can clean up the handling on failure.
+> There have been a couple of proposals posted on the mailing list [1] [2].
 > 
-> Signed-off-by: Baoquan He <bhe@redhat.com>
-> ---
->  mm/sparse.c | 21 ++++++++-------------
->  1 file changed, 8 insertions(+), 13 deletions(-)
+> The patchset is aimed to try a different approach from this proposal [1]
+> to use PMEM as NUMA nodes.
 > 
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 363f9d31b511..f564b531e0f7 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -714,7 +714,13 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
->  	ret = sparse_index_init(section_nr, nid);
->  	if (ret < 0 && ret != -EEXIST)
->  		return ret;
-> -	ret = 0;
-> +
-> +	ms = __pfn_to_section(start_pfn);
-> +	if (ms->section_mem_map & SECTION_MARKED_PRESENT) {
-> +		ret = -EEXIST;
-> +		goto out;
+> The approach is designed to follow the below principles:
+> 
+> 1. Use PMEM as normal NUMA node, no special gfp flag, zone, zonelist, etc.
+> 
+> 2. DRAM first/by default. No surprise to existing applications and default
+> running. PMEM will not be allocated unless its node is specified explicitly
+> by NUMA policy. Some applications may be not very sensitive to memory latency,
+> so they could be placed on PMEM nodes then have hot pages promote to DRAM
+> gradually.
 
-		return -EEXIST; ?
+Why are you pushing yourself into the corner right at the beginning? If
+the PMEM is exported as a regular NUMA node then the only difference
+should be performance characteristics (module durability which shouldn't
+play any role in this particular case, right?). Applications which are
+already sensitive to memory access should better use proper binding already.
+Some NUMA topologies might have quite a large interconnect penalties
+already. So this doesn't sound like an argument to me, TBH.
 
-> +	}
-> +
->  	memmap = kmalloc_section_memmap(section_nr, nid, altmap);
->  	if (!memmap)
->  		return -ENOMEM;
-> @@ -724,12 +730,6 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
->  		return -ENOMEM;
->  	}
->  
-> -	ms = __pfn_to_section(start_pfn);
-> -	if (ms->section_mem_map & SECTION_MARKED_PRESENT) {
-> -		ret = -EEXIST;
-> -		goto out;
-> -	}
-> -
->  	/*
->  	 * Poison uninitialized struct pages in order to catch invalid flags
->  	 * combinations.
-> @@ -739,12 +739,7 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
->  	section_mark_present(ms);
->  	sparse_init_one_section(ms, section_nr, memmap, usemap);
->  
-> -out:
-> -	if (ret < 0) {
-> -		kfree(usemap);
-> -		__kfree_section_memmap(memmap, altmap);
-> -	}
-> -	return ret;
-> +	return 0;
->  }
->  
->  #ifdef CONFIG_MEMORY_HOTREMOVE
-> -- 
-> 2.17.2
-> 
+> 5. Control memory allocation and hot/cold pages promotion/demotion on per VMA
+> basis.
 
+What does that mean? Anon vs. file backed memory?
+
+[...]
+
+> 2. Introduce a new mempolicy, called MPOL_HYBRID to keep other mempolicy
+> semantics intact. We would like to have memory placement control on per process
+> or even per VMA granularity. So, mempolicy sounds more reasonable than madvise.
+> The new mempolicy is mainly used for launching processes on PMEM nodes then
+> migrate hot pages to DRAM nodes via NUMA balancing. MPOL_BIND could bind to
+> PMEM nodes too, but migrating to DRAM nodes would just break the semantic of
+> it. MPOL_PREFERRED can't constraint the allocation to PMEM nodes. So, it sounds
+> a new mempolicy is needed to fulfill the usecase.
+
+The above restriction pushes you to invent an API which is not really
+trivial to get right and it seems quite artificial to me already.
+
+> 3. The new mempolicy would promote pages to DRAM via NUMA balancing. IMHO, I
+> don't think kernel is a good place to implement sophisticated hot/cold page
+> distinguish algorithm due to the complexity and overhead. But, kernel should
+> have such capability. NUMA balancing sounds like a good start point.
+
+This is what the kernel does all the time. We call it memory reclaim.
+
+> 4. Promote twice faulted page. Use PG_promote to track if a page is faulted
+> twice. This is an optimization to NUMA balancing to reduce the migration
+> thrashing and overhead for migrating from PMEM.
+
+I am sorry, but page flags are an extremely scarce resource and a new
+flag is extremely hard to get. On the other hand we already do have
+use-twice detection for mapped page cache (see page_check_references). I
+believe we can generalize that to anon pages as well.
+
+> 5. When DRAM has memory pressure, demote page to PMEM via page reclaim path.
+> This is quite similar to other proposals. Then NUMA balancing will promote
+> page to DRAM as long as the page is referenced again. But, the
+> promotion/demotion still assumes two tier main memory. And, the demotion may
+> break mempolicy.
+
+Yes, this sounds like a good idea to me ;)
+
+> 6. Anonymous page only for the time being since NUMA balancing can't promote
+> unmapped page cache.
+
+As long as the nvdimm access is faster than the regular storage then
+using any node (including pmem one) should be OK.
 -- 
-Sincerely yours,
-Mike.
+Michal Hocko
+SUSE Labs
 
