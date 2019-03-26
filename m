@@ -3,84 +3,84 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 84FACC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:27:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D499C4360F
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:27:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4E5F920879
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:27:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E5F920879
+	by mail.kernel.org (Postfix) with ESMTP id 59DFD20863
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:27:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 59DFD20863
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4F7E26B0281; Tue, 26 Mar 2019 12:27:37 -0400 (EDT)
+	id E47C16B0283; Tue, 26 Mar 2019 12:27:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 485396B0282; Tue, 26 Mar 2019 12:27:37 -0400 (EDT)
+	id DD39B6B0284; Tue, 26 Mar 2019 12:27:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 34CF56B0283; Tue, 26 Mar 2019 12:27:37 -0400 (EDT)
+	id C07206B0285; Tue, 26 Mar 2019 12:27:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D9F546B0281
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 12:27:36 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id f11so2271298edq.18
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 09:27:36 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DE646B0283
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 12:27:40 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id c40so4238632eda.10
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 09:27:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=82GVaLwkCHLAJuw0cg7cs7mz13Kyr233/Gpjb9qS/I0=;
-        b=G/kLw89LBpH4J+qQKqlUpvSLYaJpaBIYKWNVglQqZJyHADuDhsVnUkM/65tCTkDBJm
-         Fr/dEIuYZD/ZhvuN9spzt95b/AfohbvJLKpW4hYfyIzypMRGV+4P3UfIbdybDXqWTbGI
-         bcaGlFqsqrCJyeUswZSsKOBBOtkiORE44Kg2fiYlfFrooks4907hjhcEMjxndftLeIQS
-         Vb5Y4lb1ndDOVmfHq54O3vpxCpNOevUN+ISzMbKVy4bNVylqMxKELQW3KgL7CDnudfvg
-         aQMbKRV13WKXprhfJq0BcLQdlRAzvCpiNZUrI73NT5AaVkGpG5J0lYjbk1RBgDuuMrGU
-         7Apg==
+        bh=QI1ft8uG/6LmqX3YnTkHhfrqxc9+RDV6RJGxqI2lX8w=;
+        b=g/5+CecAfouwgJ0q3EIAoI9+jTwWOaI12MSq31ILSEghAkRuCJGgAdw2yC+g/VqBDZ
+         fCBIm3RT0IIrAwhnimVdpRslP9LOqZ9hMyp3AGmVUG+vVJmOHLH9/TPqOXD03Z32HglM
+         VUc48H19kIO6nvuesjT/WqZZVgWH7c/BGuQAXz6HWP13V5srzm/WqLuHnI2P2upJGKv+
+         sOyXv5b73l11fhd3x7cH/j8IHjEWT4OzHevtekK/T1w7kxV+Oaa+bOC4N5RtlUeMhBxw
+         YbYCPo37+IS4lR3YYSg8rzcq/dwTGH236dapRBhFE/SQqxmt5TOoT8gf1/BlQqsOuw4E
+         WdMg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAUjLMJVpo96SapFkysBdv/mxvt4RjU8FX1WiLM5olxuhLl6FjRw
-	C1TlPYsSEBEJsU1AUvg+zABNsVQJonhpOFJwouVlqf9PrbowQeQ0o6ATQ5TzAC+LaWR2c9j4HXo
-	6ecC5R6HkAhoh9T1ABtM+vgegCHiyy/Mzk/98j8UxZzYYnbgqeUsRqxwog7zRKGnnnA==
-X-Received: by 2002:a50:fe14:: with SMTP id f20mr20316293edt.187.1553617656414;
-        Tue, 26 Mar 2019 09:27:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzzRuoPXPoDN7C62A2Oc4M3NNE8ieplm7ZlHhYqR9I3rtCD4HD5yaW2yd3HGiGJ8+C59k95
-X-Received: by 2002:a50:fe14:: with SMTP id f20mr20316246edt.187.1553617655525;
-        Tue, 26 Mar 2019 09:27:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553617655; cv=none;
+X-Gm-Message-State: APjAAAWTlcteIPv1f4q+FBOuMquXDdcnfSBog/2J9pTSQgAFsRsTTzgx
+	6zgfV14sRJj/PnXvfogR10fRLfVUTOrI7uthCcbCslZyzgTIwBRpAcakjqLAgK4uR/3HhPG7zYD
+	u2B9KsUNc753qSrw53es5aeags20Mw74y3euqy8+E1yHs4b8MqR8RftODSKHRdvSioQ==
+X-Received: by 2002:a50:eac9:: with SMTP id u9mr10452484edp.159.1553617659951;
+        Tue, 26 Mar 2019 09:27:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzclWfq3l4pHGs/e6umc+WeO7LfYhGJiaKg6VjqRhvmp86FHaRHzuHIOfC87xDuupxpCdKo
+X-Received: by 2002:a50:eac9:: with SMTP id u9mr10452434edp.159.1553617658949;
+        Tue, 26 Mar 2019 09:27:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553617658; cv=none;
         d=google.com; s=arc-20160816;
-        b=FGejlSjzqynKSie5w/XJ1is5XHhZwndFTkyVMrNimqRboIgNl5at1gVdvKP3h5zMiF
-         kAoh0tdw46Qo8bIpqcRSk8S59FFVNsjVYg4dtp1kjDRAQsG1Qmy3Z+qq6I/a8DKjPSU4
-         Ol5+65My/p4/SXcy3JMV+lzBquzGLpFoKo52+IcIxJaX5DKm3uoorJcb+ANZfSBqNgpl
-         DmI08u+Eb8YIiHzbxdrmA+eJDKXuNj4xkoQIscminQWKtBEABd5/HFpxsg8rvQtu0foH
-         /60cGvht1cYhMbnhpjbmtJTOMZir/fiJlqd3B0wF/vGlkXDQUvOpCbxoUPozax64aeUo
-         m7fg==
+        b=peLFUMlvnxhqqwhQLAHLu/19b4hWz6bNX5ffcMxovUqbnwDPeFK+Vqa0uNsrAEWdvM
+         8QkjLcubyC1Qs6/QzaTdK/bT3lfS4TfgPeRCwH8b49YIpTlnx3kfO4VNDsd14C4R0sYZ
+         4HFxjNEeR8BDVOb50dJg+VkECZ+tQ1P/QLpt8BP5u1FKNoREOCnAqXBEf/VdBmc3Umqi
+         bTzkF07qwIzafV6ElSMYwons0973zqupFK1y1+yJwmorq52Ur5kkSu5VLvLW5adWxSuE
+         LVHOPlPiHzYFBzvntQcApIorqoiMt30DyexEz4anVhDvKQykW6ZlW16N/9YR8dBwLmsG
+         5Now==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=82GVaLwkCHLAJuw0cg7cs7mz13Kyr233/Gpjb9qS/I0=;
-        b=OUgGNactn9DgoHCAQ1PWRccUbYFrNucFYWGVDDOkBPs++Y+57sFdetS//smGPCd61i
-         IllfO88QLcaxH9MWV6wQS0c3m3au29atWKTScARaVMp/iBGKX3SuUJPlgIUad4r1f5OM
-         /coEFi2gN6acaSAnxEjES+7Uco2th2oyyG11urVhTFczfuboDYwPwZegScsxrB2rlVe0
-         mW7GuBOz3OxYwloA2M9YZuiaAn4zXivHMkF/Txo5nJCGaDEvNgpnjgljQ2/u05EifmuP
-         EtU0vNlNYsBcUgvcQ65uqJb3toeKHDrLnjl7PA50MQQXfMrqt9JBHg6aQYIZaACBvuY7
-         uGng==
+        bh=QI1ft8uG/6LmqX3YnTkHhfrqxc9+RDV6RJGxqI2lX8w=;
+        b=IzkDvfgXpYw6iMKcQepzhMlJa8u9y80rZOI2X9JkKULbd0IYrp0w+pnnLWBVlclzIv
+         +/meuFuNcbRe44vdI/JDqRG3LtUyp16OyWwdfpIFrsUDBlF4HzOfovRLoSsu3wpyzA9b
+         fSroA+PbNJcio8C0OLpTsHBVD1Ge/vK27cxLO6w3nAGmSIuhf3zQ/mWukPOL6q1x93ME
+         HR4FQw9/ATax7UG8O5PMoBbW2WmBCYShPEdsb4KQTnCvEEDg1ODdL3VNsCd4AgmiCTeC
+         cYvLsNAULE49W88ktt9Ss0z8qVby66usJDmtQPbnf2w0PQysRv+NEPjrvSNwmcIGgw0E
+         YSjg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id t32si1248409edd.442.2019.03.26.09.27.35
+        by mx.google.com with ESMTP id q8si2028942eju.121.2019.03.26.09.27.38
         for <linux-mm@kvack.org>;
-        Tue, 26 Mar 2019 09:27:35 -0700 (PDT)
+        Tue, 26 Mar 2019 09:27:38 -0700 (PDT)
 Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 72C8619F6;
-	Tue, 26 Mar 2019 09:27:34 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id EF6221B4B;
+	Tue, 26 Mar 2019 09:27:37 -0700 (PDT)
 Received: from e112269-lin.arm.com (e112269-lin.cambridge.arm.com [10.1.196.69])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 366263F614;
-	Tue, 26 Mar 2019 09:27:31 -0700 (PDT)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id B256C3F614;
+	Tue, 26 Mar 2019 09:27:34 -0700 (PDT)
 From: Steven Price <steven.price@arm.com>
 To: linux-mm@kvack.org
 Cc: Steven Price <steven.price@arm.com>,
@@ -102,9 +102,9 @@ Cc: Steven Price <steven.price@arm.com>,
 	linux-kernel@vger.kernel.org,
 	Mark Rutland <Mark.Rutland@arm.com>,
 	"Liang, Kan" <kan.liang@linux.intel.com>
-Subject: [PATCH v6 16/19] x86: mm+efi: Convert ptdump_walk_pgd_level() to take a mm_struct
-Date: Tue, 26 Mar 2019 16:26:21 +0000
-Message-Id: <20190326162624.20736-17-steven.price@arm.com>
+Subject: [PATCH v6 17/19] x86: mm: Convert ptdump_walk_pgd_level_debugfs() to take an mm_struct
+Date: Tue, 26 Mar 2019 16:26:22 +0000
+Message-Id: <20190326162624.20736-18-steven.price@arm.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190326162624.20736-1-steven.price@arm.com>
 References: <20190326162624.20736-1-steven.price@arm.com>
@@ -117,77 +117,116 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 To enable x86 to use the generic walk_page_range() function, the
-callers of ptdump_walk_pgd_level() need to pass an mm_struct rather
-than the raw pgd_t pointer. Luckily since commit 7e904a91bf60
-("efi: Use efi_mm in x86 as well as ARM") we now have an mm_struct
-for EFI on x86.
+callers of ptdump_walk_pgd_level_debugfs() need to pass in the mm_struct.
+
+This means that ptdump_walk_pgd_level_core() is now always passed a
+valid pgd, so drop the support for pgd==NULL.
 
 Signed-off-by: Steven Price <steven.price@arm.com>
 ---
- arch/x86/include/asm/pgtable.h | 2 +-
- arch/x86/mm/dump_pagetables.c  | 4 ++--
- arch/x86/platform/efi/efi_32.c | 2 +-
- arch/x86/platform/efi/efi_64.c | 4 ++--
- 4 files changed, 6 insertions(+), 6 deletions(-)
+ arch/x86/include/asm/pgtable.h |  3 ++-
+ arch/x86/mm/debug_pagetables.c |  8 ++++----
+ arch/x86/mm/dump_pagetables.c  | 14 ++++++--------
+ 3 files changed, 12 insertions(+), 13 deletions(-)
 
 diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 0dd04cf6ebeb..579959750f34 100644
+index 579959750f34..5abf693dc9b2 100644
 --- a/arch/x86/include/asm/pgtable.h
 +++ b/arch/x86/include/asm/pgtable.h
-@@ -27,7 +27,7 @@
- extern pgd_t early_top_pgt[PTRS_PER_PGD];
+@@ -28,7 +28,8 @@ extern pgd_t early_top_pgt[PTRS_PER_PGD];
  int __init __early_make_pgtable(unsigned long address, pmdval_t pmd);
  
--void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd);
-+void ptdump_walk_pgd_level(struct seq_file *m, struct mm_struct *mm);
- void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd, bool user);
+ void ptdump_walk_pgd_level(struct seq_file *m, struct mm_struct *mm);
+-void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd, bool user);
++void ptdump_walk_pgd_level_debugfs(struct seq_file *m, struct mm_struct *mm,
++				   bool user);
  void ptdump_walk_pgd_level_checkwx(void);
  void ptdump_walk_user_pgd_level_checkwx(void);
+ 
+diff --git a/arch/x86/mm/debug_pagetables.c b/arch/x86/mm/debug_pagetables.c
+index cd84f067e41d..824131052574 100644
+--- a/arch/x86/mm/debug_pagetables.c
++++ b/arch/x86/mm/debug_pagetables.c
+@@ -6,7 +6,7 @@
+ 
+ static int ptdump_show(struct seq_file *m, void *v)
+ {
+-	ptdump_walk_pgd_level_debugfs(m, NULL, false);
++	ptdump_walk_pgd_level_debugfs(m, &init_mm, false);
+ 	return 0;
+ }
+ 
+@@ -16,7 +16,7 @@ static int ptdump_curknl_show(struct seq_file *m, void *v)
+ {
+ 	if (current->mm->pgd) {
+ 		down_read(&current->mm->mmap_sem);
+-		ptdump_walk_pgd_level_debugfs(m, current->mm->pgd, false);
++		ptdump_walk_pgd_level_debugfs(m, current->mm, false);
+ 		up_read(&current->mm->mmap_sem);
+ 	}
+ 	return 0;
+@@ -31,7 +31,7 @@ static int ptdump_curusr_show(struct seq_file *m, void *v)
+ {
+ 	if (current->mm->pgd) {
+ 		down_read(&current->mm->mmap_sem);
+-		ptdump_walk_pgd_level_debugfs(m, current->mm->pgd, true);
++		ptdump_walk_pgd_level_debugfs(m, current->mm, true);
+ 		up_read(&current->mm->mmap_sem);
+ 	}
+ 	return 0;
+@@ -46,7 +46,7 @@ static struct dentry *pe_efi;
+ static int ptdump_efi_show(struct seq_file *m, void *v)
+ {
+ 	if (efi_mm.pgd)
+-		ptdump_walk_pgd_level_debugfs(m, efi_mm.pgd, false);
++		ptdump_walk_pgd_level_debugfs(m, &efi_mm, false);
+ 	return 0;
+ }
+ 
 diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index 3d12ac031144..ddf8ea6b059d 100644
+index ddf8ea6b059d..40b3f1da6e15 100644
 --- a/arch/x86/mm/dump_pagetables.c
 +++ b/arch/x86/mm/dump_pagetables.c
-@@ -574,9 +574,9 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
- 		pr_info("x86/mm: Checked W+X mappings: passed, no W+X pages found.\n");
- }
- 
--void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd)
-+void ptdump_walk_pgd_level(struct seq_file *m, struct mm_struct *mm)
+@@ -525,16 +525,12 @@ static inline bool is_hypervisor_range(int idx)
+ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
+ 				       bool checkwx, bool dmesg)
  {
--	ptdump_walk_pgd_level_core(m, pgd, false, true);
-+	ptdump_walk_pgd_level_core(m, mm->pgd, false, true);
+-	pgd_t *start = INIT_PGD;
++	pgd_t *start = pgd;
+ 	pgprotval_t prot, eff;
+ 	int i;
+ 	struct pg_state st = {};
+ 
+-	if (pgd) {
+-		start = pgd;
+-		st.to_dmesg = dmesg;
+-	}
+-
++	st.to_dmesg = dmesg;
+ 	st.check_wx = checkwx;
+ 	st.seq = m;
+ 	if (checkwx)
+@@ -579,8 +575,10 @@ void ptdump_walk_pgd_level(struct seq_file *m, struct mm_struct *mm)
+ 	ptdump_walk_pgd_level_core(m, mm->pgd, false, true);
  }
  
- void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd, bool user)
-diff --git a/arch/x86/platform/efi/efi_32.c b/arch/x86/platform/efi/efi_32.c
-index 9959657127f4..9175ceaa6e72 100644
---- a/arch/x86/platform/efi/efi_32.c
-+++ b/arch/x86/platform/efi/efi_32.c
-@@ -49,7 +49,7 @@ void efi_sync_low_kernel_mappings(void) {}
- void __init efi_dump_pagetable(void)
+-void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd, bool user)
++void ptdump_walk_pgd_level_debugfs(struct seq_file *m, struct mm_struct *mm,
++				   bool user)
  {
- #ifdef CONFIG_EFI_PGT_DUMP
--	ptdump_walk_pgd_level(NULL, swapper_pg_dir);
-+	ptdump_walk_pgd_level(NULL, init_mm);
- #endif
- }
++	pgd_t *pgd = mm->pgd;
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
+ 	if (user && static_cpu_has(X86_FEATURE_PTI))
+ 		pgd = kernel_to_user_pgdp(pgd);
+@@ -606,7 +604,7 @@ void ptdump_walk_user_pgd_level_checkwx(void)
  
-diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c
-index cf0347f61b21..a2e0f9800190 100644
---- a/arch/x86/platform/efi/efi_64.c
-+++ b/arch/x86/platform/efi/efi_64.c
-@@ -611,9 +611,9 @@ void __init efi_dump_pagetable(void)
+ void ptdump_walk_pgd_level_checkwx(void)
  {
- #ifdef CONFIG_EFI_PGT_DUMP
- 	if (efi_enabled(EFI_OLD_MEMMAP))
--		ptdump_walk_pgd_level(NULL, swapper_pg_dir);
-+		ptdump_walk_pgd_level(NULL, init_mm);
- 	else
--		ptdump_walk_pgd_level(NULL, efi_mm.pgd);
-+		ptdump_walk_pgd_level(NULL, efi_mm);
- #endif
+-	ptdump_walk_pgd_level_core(NULL, NULL, true, false);
++	ptdump_walk_pgd_level_core(NULL, INIT_PGD, true, false);
  }
  
+ static int __init pt_dump_init(void)
 -- 
 2.20.1
 
