@@ -2,159 +2,207 @@ Return-Path: <SRS0=c5Kt=R5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 923AEC10F05
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 14:31:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 041F4C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 14:52:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4DB2C20685
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 14:31:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4DB2C20685
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 90DE62075C
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 14:52:04 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="mtRExl5r"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 90DE62075C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DD6B16B0003; Tue, 26 Mar 2019 10:31:49 -0400 (EDT)
+	id 031A26B0003; Tue, 26 Mar 2019 10:52:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D85056B0006; Tue, 26 Mar 2019 10:31:49 -0400 (EDT)
+	id EFD9A6B0006; Tue, 26 Mar 2019 10:52:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C75296B0007; Tue, 26 Mar 2019 10:31:49 -0400 (EDT)
+	id DEDDC6B0007; Tue, 26 Mar 2019 10:52:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 780736B0003
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 10:31:49 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id w27so5349197edb.13
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 07:31:49 -0700 (PDT)
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D1286B0003
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 10:52:03 -0400 (EDT)
+Received: by mail-lj1-f200.google.com with SMTP id k1so3083914ljc.4
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 07:52:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=+TlxXrh+DiNHVku0SFSOW6+lTQTgWbZKu8A6jsP3y9A=;
-        b=i8SgBj5gjxaQ+c01doz7mYDCA9fVou/L8qaDwfef85pVPwaMpZoWO0jiLqmJzCCY6Q
-         I+b7F0K7hSktHLUdbldWWR5o1Cvc0KdVboSU6wewzdOm0BGK1NY8SwVHdA+aUtBrqzib
-         zlE9WV0NuI0UbctAFzJrTeG4ZwON7aw3CRs63nOpOjAuPOycAK+4omvGDgEzOfUohkUN
-         guxO53zNMuh5onUn6ojp2DoOJBj82Jnq2nvmdSnvKzZo1G96nSUljB1AefnWrIddSBI0
-         3pVySF1uWuTqCo9Xu5IGQNNnEXFIDLGN3bm4OpRR5au0D5aQ6336WaWjCnnghQbaM9Ud
-         Gc0g==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVHpcdx5d1Oeo8A/ijonnOQrkGuUWaSyER5nbb4BLIbKvBBYDy7
-	LtuB49UfsLSexWBpxXOEdDJ0kRhMCD7Ef9O0RKdMk+Ci9si3butFW64vrx5GR5PzvJfF3cAoVKu
-	T+eh7wfzjA/OjSS9QAwC9G9NYScfnxm9O8trnqWLqoqndkC+hMqn8jKxqO/r2xFM=
-X-Received: by 2002:a17:906:b298:: with SMTP id q24mr4168387ejz.62.1553610709028;
-        Tue, 26 Mar 2019 07:31:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwWmVqf3jfWx4upG6MJ54IB4GiMZB1dQgDSPwP9MHTqOMLPa0AaBWjslBLKBdZI5jFtdytH
-X-Received: by 2002:a17:906:b298:: with SMTP id q24mr4168349ejz.62.1553610708224;
-        Tue, 26 Mar 2019 07:31:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553610708; cv=none;
+        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=XI8nG9Dzmt5ShimcJLgUrFfOlr1UjZ/4vfezN58z7mI=;
+        b=erd/c+TQ7oTTtDkYeQRWPoCSpC0k4G4JteYzAJWZvmX5wUtTSLaw6i2+VtbsN44jSX
+         JD8LF+S5Ys9QL3M+Je3zIcJkA37M0yvSGhAOLDqfSME+sEdnGEIt2deTmdMzbzFbrNiP
+         1AxEBnzoDhsKDYTGUAeBUad+6c3OZCHG94pxQAW8SZnPzSmgWaK1Kcfz0IZ+SBpyIwN7
+         yAYM+z2mKwOZ/TTu0E/qp8ii/kierCMzZOjmsh9z30bKAfb5N/KWt4irAtHGCYV+VZYn
+         iGW1k1rl9Z039XpFqTFbVBHC/IlPzKmTET1RJeHqVW5dFhjOGxAjky9yXi2dPBnmlS+0
+         sWLg==
+X-Gm-Message-State: APjAAAUaorS75ipspo6LeUSWoUXKzs7Jevu/1kgepHJC0OeWWY1svlrm
+	1Kg8oo8+EvhMwVBpeLtyXdcRsvcmG2cyZvkvrjgBhO4aPGf+jSo10Qv6Vqzr4QPX2fgTY9k2Grl
+	xSrPc745k4DJfrLdkAGRIP8Ks+ItArv76BAWmQVSc75F8e43IjEKEv5n0op8nSCrd7g==
+X-Received: by 2002:ac2:5638:: with SMTP id b24mr1795578lff.18.1553611922895;
+        Tue, 26 Mar 2019 07:52:02 -0700 (PDT)
+X-Received: by 2002:ac2:5638:: with SMTP id b24mr1795529lff.18.1553611921967;
+        Tue, 26 Mar 2019 07:52:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553611921; cv=none;
         d=google.com; s=arc-20160816;
-        b=n67oRC29YrIBQRkt9ZE2KXzHON/MGR8gWNsRvyzBPtAMkIt78oZe1UwuIFu8WoQUJp
-         l3R0kYiCIqC3dF66g1gfDkwkM091ujOQ0f2oAksIC2diNzv81uUZs4pl2aiq01FqOkO3
-         vM1nywIJ+4u2Zvvd66mOL01UgXnZCtTgKxHnmg6VFmyn99yKPT5R8gsJuuJhxWFLaJB6
-         +XQZPwP06yN9dnKNmIBwTZ1n/s3n72G8wt6VAzySJFhJBpm1TAnOv2jjS/x7L4VxmfQv
-         cJxSDPMvnsaOCQfNt56Pz2+zUl8kKU14xdOot5MyAfxY/VS4Li66SZo2wRX0oxHjZH2X
-         LoMg==
+        b=CVjQjuam70b0bCpgvZL8B75EX5BsHDHALNSq4lQANfzO4+0cOcipLlx9ojngSFmtYG
+         NKEc+K5Sg/K8k/cSCjbDcKPmIkAYs+i4WuwKSjadNC4TTuv9GZKPLHvubSIDRvtVm5Ty
+         dazx4nZPyo1ZBYVM8DWs4W+IoafnNYU8njDSYVky7Vmit0XUEBeuF40j25eK7U9aAndc
+         RJAlK9YVK3TRWkR6acTWlqCXGmIymQfnHfjuALbxxYbbfBpUi/iCdjYC1HH/7ULwhnbm
+         kBVGiqJEXYEzqJprH3n+PT8Vl0w2D4Vss41z4Te5yxQUHhEYoeHw1QZNGPrjOPTICCss
+         2uBg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=+TlxXrh+DiNHVku0SFSOW6+lTQTgWbZKu8A6jsP3y9A=;
-        b=1CSd7Vkvur79zyBkueNZPJxuIQrnRoPs5Ivxq8Zv4DFfQpMROCEaPbJttTcsMRmRmk
-         Y4tHsKFs+l2dqlcrMslP2DB+AuO8ZU5o0fhxXWZdQZL42IBjPwl+6A5NBWzBViJcado1
-         kyX+5gvnFD/O9Xixc81t/C67iJ4DJNC2Oh4otQHhHwM1fDi4LviQSoXY+AzxDtk8AaW4
-         cD+ZF5lQRrk97xJqmKDOgy4pMKmcRmct57L7EfNhdcC1VRuL2YR8lMwgxpMZtoUTlhL+
-         44jJSH4LRI4QmAFpUJrJHeFpHjL7tTahA/hbVyxFNxSC3g9/geWI7neuEElgdI4vFqYW
-         Vd9Q==
+         :message-id:subject:cc:to:date:from:dkim-signature;
+        bh=XI8nG9Dzmt5ShimcJLgUrFfOlr1UjZ/4vfezN58z7mI=;
+        b=QfsxAO4YS6pSrLePSNXMSMojOcdQzCfXGt1qCAESYollRr5rc+wlebdQ3eUwdSBsFC
+         Uc2gSLdYGde3gAZDojy4NCu8Sxy+C8/+qudNm+weQLxb6p0rNX2gOBPfit+pHKbY9R9D
+         cDJF8aqsrLj5i1h7wvedp/v9UrrcFLGn93HvDTSBnwAc6Zpq8hBicDh1Jrj2UbsdwmZU
+         drAVMXf/0PpnseBh5hLqUiCikZi16OE0Zygt7HG0n21FUmZpOuD4TuQOm92M0HeRJNUz
+         1NBKvS6YXtzjNTlLtilCgdKuWbF96y3VkOY+PlNmLt1RZs3fW1tW737T+eP4fe8q2Z+1
+         L9tA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c48si2177547edc.283.2019.03.26.07.31.47
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=mtRExl5r;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t10sor6505354ljd.5.2019.03.26.07.52.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Mar 2019 07:31:48 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Tue, 26 Mar 2019 07:52:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 5FD71B00B;
-	Tue, 26 Mar 2019 14:31:47 +0000 (UTC)
-Date: Tue, 26 Mar 2019 15:31:45 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Baoquan He <bhe@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	akpm@linux-foundation.org, rppt@linux.ibm.com, osalvador@suse.de,
-	willy@infradead.org, william.kucharski@oracle.com
-Subject: Re: [PATCH v2 2/4] mm/sparse: Optimize sparse_add_one_section()
-Message-ID: <20190326143145.GR28406@dhcp22.suse.cz>
-References: <20190326090227.3059-1-bhe@redhat.com>
- <20190326090227.3059-3-bhe@redhat.com>
- <20190326092936.GK28406@dhcp22.suse.cz>
- <20190326100817.GV3659@MiWiFi-R3L-srv>
- <20190326101710.GN28406@dhcp22.suse.cz>
- <20190326134522.GB21943@MiWiFi-R3L-srv>
- <20190326140348.GQ28406@dhcp22.suse.cz>
- <20190326141803.GX3659@MiWiFi-R3L-srv>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=mtRExl5r;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:date:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=XI8nG9Dzmt5ShimcJLgUrFfOlr1UjZ/4vfezN58z7mI=;
+        b=mtRExl5rQvp5nbXGCI/zHz/hSZxZNfiZyNqO8FojEpmtvcCqNgzb3mRjnpamZQpWW1
+         K+OA4pLUbXctnOw0xvAiKD02hDCUZfrUw71JcmXKz/mqRJCXsvCpSj/+3/KGT3+5+8eh
+         r2sLoGsjsor9eNEnoOIzMKNlos+7JfVp57yi62KnmvFjoB/uNd9J/1yl7Q3y1rjPHEgO
+         TuK1VMYuXbA09G7aFW3F0IZPrMpQru4ZFRCakwwB6slytwAsXVG9WwFVEVp8Y9F2Gb0k
+         Yzf0P9fLan8AXDY5nSAb11qnf+GkkzITTpGXt+nGctYowVFX3P3Bkeq9oD3wYv3qymgD
+         7Uow==
+X-Google-Smtp-Source: APXvYqzTtQP+oFFD8jGFvpEJTrQjS1fwAFTra0tU4Xfa6gY3j2lgi5Z8Wwn4YaJfUT5HfAbn7DrrrQ==
+X-Received: by 2002:a2e:9655:: with SMTP id z21mr16910027ljh.60.1553611921190;
+        Tue, 26 Mar 2019 07:52:01 -0700 (PDT)
+Received: from pc636 ([37.139.158.167])
+        by smtp.gmail.com with ESMTPSA id y1sm4118474ljj.13.2019.03.26.07.51.59
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 26 Mar 2019 07:52:00 -0700 (PDT)
+From: Uladzislau Rezki <urezki@gmail.com>
+X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
+Date: Tue, 26 Mar 2019 15:51:53 +0100
+To: Uladzislau Rezki <urezki@gmail.com>
+Cc: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	LKML <linux-kernel@vger.kernel.org>,
+	Thomas Garnier <thgarnie@google.com>,
+	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Joel Fernandes <joelaf@google.com>,
+	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
+	Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCH v2 1/1] mm/vmap: keep track of free blocks for vmap
+ allocation
+Message-ID: <20190326145153.r7y3llwtvqsg4r2s@pc636>
+References: <20190321190327.11813-1-urezki@gmail.com>
+ <20190321190327.11813-2-urezki@gmail.com>
+ <20190322215413.GA15943@tower.DHCP.thefacebook.com>
+ <20190325172010.q343626klaozjtg4@pc636>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190326141803.GX3659@MiWiFi-R3L-srv>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190325172010.q343626klaozjtg4@pc636>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 26-03-19 22:18:03, Baoquan He wrote:
-> On 03/26/19 at 03:03pm, Michal Hocko wrote:
-> > On Tue 26-03-19 21:45:22, Baoquan He wrote:
-> > > On 03/26/19 at 11:17am, Michal Hocko wrote:
-> > > > On Tue 26-03-19 18:08:17, Baoquan He wrote:
-> > > > > On 03/26/19 at 10:29am, Michal Hocko wrote:
-> > > > > > On Tue 26-03-19 17:02:25, Baoquan He wrote:
-> > > > > > > Reorder the allocation of usemap and memmap since usemap allocation
-> > > > > > > is much simpler and easier. Otherwise hard work is done to make
-> > > > > > > memmap ready, then have to rollback just because of usemap allocation
-> > > > > > > failure.
-> > > > > > 
-> > > > > > Is this really worth it? I can see that !VMEMMAP is doing memmap size
-> > > > > > allocation which would be 2MB aka costly allocation but we do not do
-> > > > > > __GFP_RETRY_MAYFAIL so the allocator backs off early.
-> > > > > 
-> > > > > In !VMEMMAP case, it truly does simple allocation directly. surely
-> > > > > usemap which size is 32 is smaller. So it doesn't matter that much who's
-> > > > > ahead or who's behind. However, this benefit a little in VMEMMAP case.
-> > > > 
-> > > > How does it help there? The failure should be even much less probable
-> > > > there because we simply fall back to a small 4kB pages and those
-> > > > essentially never fail.
-> > > 
-> > > OK, I am fine to drop it. Or only put the section existence checking
-> > > earlier to avoid unnecessary usemap/memmap allocation?
+Hello, Roman.
+
 > > 
-> > DO you have any data on how often that happens? Should basically never
-> > happening, right?
+> > So, does it mean that this function always returns two following elements?
+> > Can't it return a single element using the return statement instead?
+> > The second one can be calculated as ->next?
+> > 
+> Yes, they follow each other and if you return "prev" for example you can easily
+> refer to next. But you will need to access "next" anyway. I would rather keep
+> implementation, because it strictly clear what it return when you look at this
+> function.
 > 
-> Oh, you think about it in this aspect. Yes, it rarely happens.
-> Always allocating firstly can increase efficiency. Then I will just drop
-> it.
+> But if there are some objections and we can simplify, let's discuss :)
+> 
+> > > +		}
+> > > +	} else {
+> > > +		/*
+> > > +		 * The red-black tree where we try to find VA neighbors
+> > > +		 * before merging or inserting is empty, i.e. it means
+> > > +		 * there is no free vmap space. Normally it does not
+> > > +		 * happen but we handle this case anyway.
+> > > +		 */
+> > > +		*prev = *next = &free_vmap_area_list;
+> > 
+> > And for example, return NULL in this case.
+> > 
+> Then we will need to check in the __merge_or_add_vmap_area() that
+> next/prev are not NULL and not head. But i do not like current implementation
+> as well, since it is hardcoded to specific list head.
+> 
+Like you said, it is more clever to return only one element, for example next.
+After that just simply access to the previous one. If nothing is found return
+NULL.
 
-OK, let me try once more. Doing a check early is something that makes
-sense in general. Another question is whether the check is needed at
-all. So rather than fiddling with its placement I would go whether it is
-actually failing at all. I suspect it doesn't because the memory hotplug
-is currently enforced to be section aligned. There are people who would
-like to allow subsection or section unaligned aware hotplug and then
-this would be much more relevant but without any solid justification
-such a patch is not really helpful because it might cause code conflicts
-with other work or obscure the git blame tracking by an additional hop.
+static inline struct list_head *
+__get_va_next_sibling(struct rb_node *parent, struct rb_node **link)
+{
+	struct list_head *list;
 
-In short, if you want to optimize something then make sure you describe
-what you are optimizing how it helps.
--- 
-Michal Hocko
-SUSE Labs
+	if (likely(parent)) {
+		list = &rb_entry(parent, struct vmap_area, rb_node)->list;
+		return (&parent->rb_right == link ? list->next:list);
+	}
+
+	/*
+	 * The red-black tree where we try to find VA neighbors
+	 * before merging or inserting is empty, i.e. it means
+	 * there is no free vmap space. Normally it does not
+	 * happen but we handle this case anyway.
+	 */
+	return NULL;
+}
+...
+static inline void
+__merge_or_add_vmap_area(struct vmap_area *va,
+	struct rb_root *root, struct list_head *head)
+{
+...
+	/*
+	 * Get next node of VA to check if merging can be done.
+	 */
+	next = __get_va_next_sibling(parent, link);
+	if (unlikely(next == NULL))
+		goto insert;
+...
+}
+
+Agree with your point and comment.
+
+Thanks!
+
+--
+Vlad Rezki
 
