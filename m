@@ -2,157 +2,262 @@ Return-Path: <SRS0=c5Kt=R5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.5 required=3.0 tests=MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9BC01C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:34:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 93ACBC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:48:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B7629206DF
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:34:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B7629206DF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 4B481205F4
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:48:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4B481205F4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2F8986B0005; Tue, 26 Mar 2019 12:34:02 -0400 (EDT)
+	id DEAA76B0003; Tue, 26 Mar 2019 12:48:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2A8CE6B028D; Tue, 26 Mar 2019 12:34:02 -0400 (EDT)
+	id D9A6C6B0006; Tue, 26 Mar 2019 12:48:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 172916B028F; Tue, 26 Mar 2019 12:34:02 -0400 (EDT)
+	id C89086B000D; Tue, 26 Mar 2019 12:48:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B941C6B0005
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 12:34:01 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id p88so1593622edd.17
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 09:34:01 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FBC66B0003
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 12:48:03 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id i3so14110782qtc.7
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 09:48:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=H+7OVsvEwhn5IgvoV7terYZ4TNjyjLp8FU/v4rcpkwM=;
-        b=UlItTZV2XWnG8v5qgEGdA6pIPkLNrxwmfic++QPkReuPZS21L17ZQObgCJROP+R/9H
-         Nj3rtTZlg08HfTL7kMgts1qCgrkJwGeiV8SBXKg3xzkjO2Fc5RGA1qyFqak/u7Vszcg2
-         sNjMY3OnENqUY0t1/CTB9dgvcFm3G9hpI0ShHhNUFfJiFxcIyx762Alnkzby1UfboyIC
-         JzEFGjw/b1MZ4ZMRcqoss+WHE3e8O7K/KYuv+ATrxXAwYALirLhEYUh65KhwewZxt0iI
-         HuwXybCFc/H54Fr6cr+7wbnGsM4tu3gPZ4B1aH9OJ4O7mmTucgamEd4hRTLkxqZvuFhY
-         lj1g==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXrjpiTIkv7Vyl3x5vpr4Ba4WAww+kMzw8wRChBDJt0v9GxS32N
-	k50cZ17tpTb/UBLeCw9OgRH1m5O/HFq7IZzZXVOlPq/ns6a/w24PKWB8knqOz5aowzIouNoq4Rd
-	sA0d9DNfNt1K0ffzhDq9GJbK55LI/jMEFVnGz88/ncDl+Xtoz56DR0rClokTgPmo=
-X-Received: by 2002:a17:906:bce9:: with SMTP id op9mr18106993ejb.65.1553618041305;
-        Tue, 26 Mar 2019 09:34:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx/g03e7cp5R8oza0PV13Bhfmw9TOTaHy7xrCTiClyy5VumaAhjhnp6BC7aR/5kBBvT6SqQ
-X-Received: by 2002:a17:906:bce9:: with SMTP id op9mr18106965ejb.65.1553618040554;
-        Tue, 26 Mar 2019 09:34:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553618040; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=LiR7M+gjL1jwp4S7wm8Je1S/i9RmM3FIjpOd06XnOUo=;
+        b=D9c42xKX+QVduWtsHbv3CluKvYkpqt2VZUubTuQeelF6Kqr2gsOSMFTPpEya6eMpxu
+         ca11VakishxDxbnDVqY404qqLt/bhDez6grLaVjPbsaTvW6i2b2ZEgNLtofvtaMHvICI
+         wRQx/oNnMkGSwUdFY1k9CGttwHUNIePUd2YKPcKMVuPEKBGQF58LXksR7iF/VyPl0BHv
+         blPnF8l11RRLCd7sn1ZlVFFnkPKIubqm8WaPrqPXzo74nasRRyUIMAeR5YxaAqHIEzMr
+         MJbaZQNvAKraBw0s2ABjHHy0P5+z8KdAx0Aa93vbm6oCbX5+cTleISE0sE4Y8bgHvMfY
+         sqhQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXtgmx3p6Wrdi+lEsZb1Xymiz1tiEQKH8YL/L8IytC7jzSFP0ym
+	U8oTK6WtWBT6yyxpKOMbUETlmmvbPZS9NeITLwa5EQc/gYtV+/EgzCppkl8z8lOakU6OeNJRoWT
+	r0DlqGwly5oP2tTOjVyC1DUv/zqIJOSncVXCNGfzIaZpRabDmWajFQd+R5QbOsusPZQ==
+X-Received: by 2002:a37:b345:: with SMTP id c66mr5615907qkf.219.1553618883368;
+        Tue, 26 Mar 2019 09:48:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqykre79woPyY7eEzWzZxpczlWE+BRIWuMeentNQ8xED9pb9u0xM5tEu8UZV2z00ZgLQyYuB
+X-Received: by 2002:a37:b345:: with SMTP id c66mr5615833qkf.219.1553618882318;
+        Tue, 26 Mar 2019 09:48:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553618882; cv=none;
         d=google.com; s=arc-20160816;
-        b=ECdhbzIufQHDyUyakSETsyjAZkuqC0/7DbFsnSjxgCLpfmImAIJU62ouydWoXl9o2b
-         84UQNDGYupOwrvbBcsWtFBGzvYepkJHJfAM7q126s3e/DJJ93tjODZwOYWO213tcOpZ9
-         T0l31YC/kqwN9SzUXQ9gG8BRwYS/GKoLkhcP/WPh2b6Xbr2g6qkNusk7fyeyGoj2iDEQ
-         dbjnGm5j9bB79TOl9VvO0K5VyGuN1bP/rkGLJfbPyQs3VwlIGWYcz2ypAjOaffvYRArR
-         nNr0iijdQfqL5zIjNYiDsOlBt33Mo7J3Q22rk7Q7haWFyyU9fb9H99ZnIvoQEIVAcOf1
-         xqxw==
+        b=L7xz5ikwN8GBBdVDftJ2PRMLK5Z0OjPuT2NdpsXVg2tinbwqSfdNXlr9CLM76kjEcD
+         fdGGZxmf88zJU05fhuEGzE5HusfUziyB6EuIZYo2mZRr66ax9+1Yp2nYMmZ0FOsQOxup
+         iwJmk8a0bjdONY23D9ZJNxxuQplQySvjM5Lnfw2dGxKrJnFuFxfE+QtmmzAi4k0jKnzG
+         bZfcC2zNaU9zJvI5lhgRzxmF1of4Bvw5lctumjk3hbvY0JUp05tiDaCdpSvCxE5ARV5D
+         UN+anAL0k1H/xNUVZvA6CmK3wYzL3qMkzCWgD6VEqO3Sf7dGGrdpIIJNluAh+kkPL6cA
+         4tug==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=H+7OVsvEwhn5IgvoV7terYZ4TNjyjLp8FU/v4rcpkwM=;
-        b=GnyATMPitD1WsgCJqCgr+u/8uytP0yQmPwthkGPpx1CjEXcREh4PS5KcQoZRpYo3sh
-         HfLxhzrZyS9GigK2+3KQmmqJ8IjLRF8UI+ftqRcKi9/wzs3t6xmpXpSsTrSyAn3LHirt
-         PRrSPAd3gLxlG1BwtNHaXzJiBK0HsNKyxsgNe754vaTvMMr0M+D+XuT8sZnRl33+iHZC
-         7Do4oOXGCOfFcKTHEmYcfemFPTu9MHlpXd6jVnzGUtkevPTO/1gX+EIKmdwuifL5mqnp
-         Gsf42pnmze5do4aw9gWdCRuxur66yyrVgUG/x2KvyzZxhkY9Y8fYM7de96dpV6dphCiw
-         T9cA==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=LiR7M+gjL1jwp4S7wm8Je1S/i9RmM3FIjpOd06XnOUo=;
+        b=b2i+AYiXCsXMQPTS746VyZHan4WqV3Bllii5s6MXx8tjx2E/j+Bc8Go2L2Sds8aEsw
+         w90ueI+QGaUI0o2GNcs/XQ5nJpy68NO6JOulLK5EoZ0SsjFjFG+pzoq6O1QeqRq+tFnW
+         xF+qEQzY2xkQgaaSnImFkGVeK1oZHA4cVOpMdKKW9tFbEVpvfueX53mPizThOAJPocqz
+         knlf4Crk/1k3PlRnhYt2vjKRCuYDeqGBhDaaH9OLI2zDpmFrQE+9/5FWgOmKecI7FTTM
+         P59iGhZgSMO7CZV1/GZeQEuT7MGVxI1He+QTR46fW/w7cL9dYZ+mHK2YTQVFqOsywcgS
+         dN4g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c9si3180592eda.290.2019.03.26.09.34.00
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p186si3793041qkd.108.2019.03.26.09.48.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Mar 2019 09:34:00 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Tue, 26 Mar 2019 09:48:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 9CD33ABC1;
-	Tue, 26 Mar 2019 16:33:59 +0000 (UTC)
-Date: Tue, 26 Mar 2019 17:33:56 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Qian Cai <cai@lca.pw>,
-	akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org,
-	rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v3] kmemleaak: survive in a low-memory situation
-Message-ID: <20190326163356.GS28406@dhcp22.suse.cz>
-References: <20190326154338.20594-1-cai@lca.pw>
- <20190326160536.GO10344@bombadil.infradead.org>
- <20190326162038.GH33308@arrakis.emea.arm.com>
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 47087461D1;
+	Tue, 26 Mar 2019 16:48:01 +0000 (UTC)
+Received: from localhost.localdomain.com (unknown [10.20.6.236])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 6C2B88429D;
+	Tue, 26 Mar 2019 16:47:55 +0000 (UTC)
+From: jglisse@redhat.com
+To: linux-kernel@vger.kernel.org
+Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	linux-mm@kvack.org,
+	=?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>,
+	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
+	Jani Nikula <jani.nikula@linux.intel.com>,
+	Rodrigo Vivi <rodrigo.vivi@intel.com>,
+	Jan Kara <jack@suse.cz>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Peter Xu <peterx@redhat.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	Ross Zwisler <zwisler@kernel.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	Alex Deucher <alexander.deucher@amd.com>,
+	=?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>,
+	Michal Hocko <mhocko@kernel.org>,
+	Ben Skeggs <bskeggs@redhat.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>,
+	kvm@vger.kernel.org,
+	dri-devel@lists.freedesktop.org,
+	linux-rdma@vger.kernel.org,
+	Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH v6 0/8] mmu notifier provide context informations
+Date: Tue, 26 Mar 2019 12:47:39 -0400
+Message-Id: <20190326164747.24405-1-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190326162038.GH33308@arrakis.emea.arm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Tue, 26 Mar 2019 16:48:01 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 26-03-19 16:20:41, Catalin Marinas wrote:
-> On Tue, Mar 26, 2019 at 09:05:36AM -0700, Matthew Wilcox wrote:
-> > On Tue, Mar 26, 2019 at 11:43:38AM -0400, Qian Cai wrote:
-> > > Unless there is a brave soul to reimplement the kmemleak to embed it's
-> > > metadata into the tracked memory itself in a foreseeable future, this
-> > > provides a good balance between enabling kmemleak in a low-memory
-> > > situation and not introducing too much hackiness into the existing
-> > > code for now.
-> > 
-> > I don't understand kmemleak.  Kirill pointed me at this a few days ago:
-> > 
-> > https://gist.github.com/kiryl/3225e235fea390aa2e49bf625bbe83ec
-> > 
-> > It's caused by the XArray allocating memory using GFP_NOWAIT | __GFP_NOWARN.
-> > kmemleak then decides it needs to allocate memory to track this memory.
-> > So it calls kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
-> > 
-> > #define gfp_kmemleak_mask(gfp)  (((gfp) & (GFP_KERNEL | GFP_ATOMIC)) | \
-> >                                  __GFP_NORETRY | __GFP_NOMEMALLOC | \
-> >                                  __GFP_NOWARN | __GFP_NOFAIL)
-> > 
-> > then the page allocator gets to see GFP_NOFAIL | GFP_NOWAIT and gets angry.
-> > 
-> > But I don't understand why kmemleak needs to mess with the GFP flags at
-> > all.
-> 
-> Originally, it was just preserving GFP_KERNEL | GFP_ATOMIC. Starting
-> with commit 6ae4bd1f0bc4 ("kmemleak: Allow kmemleak metadata allocations
-> to fail"), this mask changed, aimed at making kmemleak allocation
-> failures less verbose (i.e. just disable it since it's a debug tool).
-> 
-> Commit d9570ee3bd1d ("kmemleak: allow to coexist with fault injection")
-> introduced __GFP_NOFAIL but this came with its own problems which have
-> been previously reported (the warning you mentioned is another one of
-> these). We didn't get to any clear conclusion on how best to allow
-> allocations to fail with fault injection but not for the kmemleak
-> metadata. Your suggestion below would probably do the trick.
+From: Jérôme Glisse <jglisse@redhat.com>
 
-I have objected to that on several occasions. An implicit __GFP_NOFAIL
-is simply broken and __GFP_NOWAIT allocations are a shiny example of
-that. You cannot loop inside the allocator for an unbound amount of time
-potentially with locks held. I have heard that there are some plans to
-deal with that but nothing has really materialized AFAIK. d9570ee3bd1d
-should be reverted I believe.
+(Andrew this apply on top of my HMM patchset as otherwise you will have
+ conflict with changes to mm/hmm.c)
 
-The proper way around is to keep a pool objects and keep spare objects
-for restrected allocation contexts.
+Changes since v5:
+    - drop KVM bits waiting for KVM people to express interest if they
+      do not then i will post patchset to remove change_pte_notify as
+      without the changes in v5 change_pte_notify is just useless (it
+      it is useless today upstream it is just wasting cpu cycles)
+    - rebase on top of lastest Linus tree
+
+Previous cover letter with minor update:
+
+
+Here i am not posting users of this, they already have been posted to
+appropriate mailing list [6] and will be merge through the appropriate
+tree once this patchset is upstream.
+
+Note that this serie does not change any behavior for any existing
+code. It just pass down more information to mmu notifier listener.
+
+The rational for this patchset:
+
+CPU page table update can happens for many reasons, not only as a
+result of a syscall (munmap(), mprotect(), mremap(), madvise(), ...)
+but also as a result of kernel activities (memory compression, reclaim,
+migration, ...).
+
+This patch introduce a set of enums that can be associated with each
+of the events triggering a mmu notifier:
+
+    - UNMAP: munmap() or mremap()
+    - CLEAR: page table is cleared (migration, compaction, reclaim, ...)
+    - PROTECTION_VMA: change in access protections for the range
+    - PROTECTION_PAGE: change in access protections for page in the range
+    - SOFT_DIRTY: soft dirtyness tracking
+
+Being able to identify munmap() and mremap() from other reasons why the
+page table is cleared is important to allow user of mmu notifier to
+update their own internal tracking structure accordingly (on munmap or
+mremap it is not longer needed to track range of virtual address as it
+becomes invalid). Without this serie, driver are force to assume that
+every notification is an munmap which triggers useless trashing within
+drivers that associate structure with range of virtual address. Each
+driver is force to free up its tracking structure and then restore it
+on next device page fault. With this serie we can also optimize device
+page table update [6].
+
+More over this can also be use to optimize out some page table updates
+like for KVM where we can update the secondary MMU directly from the
+callback instead of clearing it.
+
+ACKS AMD/RADEON https://lkml.org/lkml/2019/2/1/395
+ACKS RDMA https://lkml.org/lkml/2018/12/6/1473
+
+Cheers,
+Jérôme
+
+[1] v1 https://lkml.org/lkml/2018/3/23/1049
+[2] v2 https://lkml.org/lkml/2018/12/5/10
+[3] v3 https://lkml.org/lkml/2018/12/13/620
+[4] v4 https://lkml.org/lkml/2019/1/23/838
+[5] v5 https://lkml.org/lkml/2019/2/19/752
+[6] patches to use this:
+    https://lkml.org/lkml/2019/1/23/833
+    https://lkml.org/lkml/2019/1/23/834
+    https://lkml.org/lkml/2019/1/23/832
+    https://lkml.org/lkml/2019/1/23/831
+
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
+Cc: Christian König <christian.koenig@amd.com>
+Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+Cc: Jani Nikula <jani.nikula@linux.intel.com>
+Cc: Rodrigo Vivi <rodrigo.vivi@intel.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Peter Xu <peterx@redhat.com>
+Cc: Felix Kuehling <Felix.Kuehling@amd.com>
+Cc: Jason Gunthorpe <jgg@mellanox.com>
+Cc: Ross Zwisler <zwisler@kernel.org>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Alex Deucher <alexander.deucher@amd.com>
+Cc: Radim Krčmář <rkrcmar@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Christian Koenig <christian.koenig@amd.com>
+Cc: Ben Skeggs <bskeggs@redhat.com>
+Cc: Ralph Campbell <rcampbell@nvidia.com>
+Cc: John Hubbard <jhubbard@nvidia.com>
+Cc: kvm@vger.kernel.org
+Cc: dri-devel@lists.freedesktop.org
+Cc: linux-rdma@vger.kernel.org
+Cc: Arnd Bergmann <arnd@arndb.de>
+
+Jérôme Glisse (8):
+  mm/mmu_notifier: helper to test if a range invalidation is blockable
+  mm/mmu_notifier: convert user range->blockable to helper function
+  mm/mmu_notifier: convert mmu_notifier_range->blockable to a flags
+  mm/mmu_notifier: contextual information for event enums
+  mm/mmu_notifier: contextual information for event triggering
+    invalidation v2
+  mm/mmu_notifier: use correct mmu_notifier events for each invalidation
+  mm/mmu_notifier: pass down vma and reasons why mmu notifier is
+    happening v2
+  mm/mmu_notifier: mmu_notifier_range_update_to_read_only() helper
+
+ drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c  |  8 ++--
+ drivers/gpu/drm/i915/i915_gem_userptr.c |  2 +-
+ drivers/gpu/drm/radeon/radeon_mn.c      |  4 +-
+ drivers/infiniband/core/umem_odp.c      |  5 +-
+ drivers/xen/gntdev.c                    |  6 +--
+ fs/proc/task_mmu.c                      |  3 +-
+ include/linux/mmu_notifier.h            | 63 +++++++++++++++++++++++--
+ kernel/events/uprobes.c                 |  3 +-
+ mm/hmm.c                                |  6 +--
+ mm/huge_memory.c                        | 14 +++---
+ mm/hugetlb.c                            | 12 +++--
+ mm/khugepaged.c                         |  3 +-
+ mm/ksm.c                                |  6 ++-
+ mm/madvise.c                            |  3 +-
+ mm/memory.c                             | 25 ++++++----
+ mm/migrate.c                            |  5 +-
+ mm/mmu_notifier.c                       | 12 ++++-
+ mm/mprotect.c                           |  4 +-
+ mm/mremap.c                             |  3 +-
+ mm/oom_kill.c                           |  3 +-
+ mm/rmap.c                               |  6 ++-
+ virt/kvm/kvm_main.c                     |  3 +-
+ 22 files changed, 147 insertions(+), 52 deletions(-)
+
 -- 
-Michal Hocko
-SUSE Labs
+2.20.1
 
