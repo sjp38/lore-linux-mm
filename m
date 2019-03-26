@@ -2,141 +2,145 @@ Return-Path: <SRS0=c5Kt=R5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4534DC4360F
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 12:03:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B4063C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 12:19:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DB3182075C
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 12:03:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB3182075C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
+	by mail.kernel.org (Postfix) with ESMTP id 78E1C2075E
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 12:19:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 78E1C2075E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8CAC26B0006; Tue, 26 Mar 2019 08:03:32 -0400 (EDT)
+	id 11B0B6B000A; Tue, 26 Mar 2019 08:19:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 82B266B0007; Tue, 26 Mar 2019 08:03:32 -0400 (EDT)
+	id 0A4386B000C; Tue, 26 Mar 2019 08:19:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6CCBF6B0008; Tue, 26 Mar 2019 08:03:32 -0400 (EDT)
+	id E89216B000D; Tue, 26 Mar 2019 08:19:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B7CE6B0006
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 08:03:32 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id c41so5171745edb.7
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 05:03:32 -0700 (PDT)
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B10746B000A
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 08:19:25 -0400 (EDT)
+Received: by mail-oi1-f198.google.com with SMTP id d198so5173626oih.6
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 05:19:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=DMGdOS3TCFi7gu3SuWza/u540MkytIhZHI5mq5Gi97c=;
-        b=FAxgH7Fj8LeAXyLJsBoeF5F/M8666+AQT/kZLLgwiVgnQTKzWNQfnq+8bjjr2iuWO2
-         qnc4//KLL/APEW0xvSi3EiOQhlkt98bYV2aeR78f7Gdx+tt5z04/IFgRNaH74RsFAVg2
-         TBc51dh+6kr0dIdn2Rd664bNr0unvn5qjfAMzQw/irUZokIUFUnGIPRcbvCTqlZn9K1N
-         pmX9TJqCHl+/6IuZtm41xHK02P7EtPjYLTLO7UqFmwJqkBa1lMy6frnRm5x/XHE0vClq
-         3TVj3f4F6H4CWl7vBH5qflK0vB8c+XDJqLOnpmhw5UnUdAh88VC4wUCZGKlry0n2dmTC
-         53Rw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: APjAAAX2B1S/s5wRk+fDW7X5zqA0rQ2vB6/D4YDp5BL9+shooeBMBwgC
-	xyMapknWeMES9hh4+mg4APiDfQhDqXTmcVpe8zD1IdJvQmSmX3c0unMkFyrWKVEVypYE8U/KsQF
-	hdI6MO7QijBeMFbKLp0lm5FlcOyU6r2KccROEArwBcwnrjm5lAv3UqsE+yUOnk7Oz0w==
-X-Received: by 2002:a50:a725:: with SMTP id h34mr10424104edc.201.1553601811690;
-        Tue, 26 Mar 2019 05:03:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz9ZVEJ4DtY62f+5I3leYzb2CFrhBsaFrbQYjnLYchkAetoo10HpCYKThbyhZ19e1lRe+13
-X-Received: by 2002:a50:a725:: with SMTP id h34mr10424048edc.201.1553601810726;
-        Tue, 26 Mar 2019 05:03:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553601810; cv=none;
+         :cc:subject:message-id:in-reply-to:references:organization
+         :mime-version:content-transfer-encoding;
+        bh=o1ht0cQu1vSLbWCzodaXG4J3SvluOY114GeXiFATVng=;
+        b=Pd7+HCFHEEOGJVgmsrYfAvCU/chm2eQzzSpBp3LDdG8T0abp6u0elkTB21OWd3/u4G
+         I/kKkYOnw/RjYabJv4TWG6/39JTscpUNawQ40xg3VqY0frqihZOkHkG546MI9wHXVQBC
+         tPmTGZPqSp+q96o09n2PW9JrIsenrQ7pU+CHJgl9O1xTD4HivMinWbyR+j96IZEl7oKn
+         Jws8JnP2aYKLZZTGnLXeVGLMlAz/AVKkX/WQzH/wCGkJi38nozxzvugsy0rMxanu+iey
+         uzwkhVllKiDuqqcBNnyltKPV/GMiK9z134MOsbujbpZS6jpjQgjoNcBR49PwrbyEU2op
+         7CdQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+X-Gm-Message-State: APjAAAXEFbkrYZ46Azv3St7B2mX2GDfrHoeQIJgk9BmPc5H63bt7yGoE
+	GHN6hTsGD279qSTViivrEL7YmYXed3uY+wgOFRzx9MDJYGa++mPvZFZgdh19ZWj+WLYUU5ydLBD
+	UicQSiIFHBD32RV4lKb31RDlGird5kK5/aQLjL1dhMARdAZu8ZUbS1Jvwbf6q22UtjQ==
+X-Received: by 2002:aca:5809:: with SMTP id m9mr15536329oib.88.1553602765386;
+        Tue, 26 Mar 2019 05:19:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyvYIY0FnW2dKsnB814xIEwyJOOMK3x4o8KoVEBsGxaJxOE+Lna1nQ6Nfp2Ve1sSoSQNSIj
+X-Received: by 2002:aca:5809:: with SMTP id m9mr15536295oib.88.1553602764768;
+        Tue, 26 Mar 2019 05:19:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553602764; cv=none;
         d=google.com; s=arc-20160816;
-        b=U5SOPkVY2t6HXOnkpWCXDZYRekpYcI14IFMzHAwNRjAObmB4/Eiy7MeIp47qivF/Ce
-         cUARFgk1i2hRnnIWewDeGRaj6VIpujI0nY/sTM4tTyZIa/RMWGHqno4wYYozOYrkgEzc
-         XlXMeQhrvjYQWMPytWy6/g01N3bYajg++TraCZpy1Z/ECo+o17gYehBvHpZ3yFpl9E0q
-         WmJGVLFOE0mfU4MqC8T9LaLIK5k22lETtP5H548U6TVQqopS1v5466bJStyRFYpfIfGp
-         PN6cr2BHw16fJ5kCZXWoa6H/EuFnNkXUrOayx/vGZCKiACK3CpdiiU2Y4IgfR5A6FzVd
-         204g==
+        b=A9XKu6iFeQ7G6coKTDn0g8LR0RwhBSzZGtz2MagZnK/enDnvfnyzsv2/AdHMe4FzUF
+         M0Ygjx1Evnw197jFcwRd4wAjtcEvfI0T/toAmuApBsRnBlLgQNCSiQzs26VecBLNOP9R
+         MGNUM7b23+B2V3jFy2q5VSo8x/zUhkvmUXjSRZ/c9ye5bfgWEGysNFIXRjAGJxFuu6mU
+         z1yqtUCytql3oSd9VABdZG5DKM2WxkhFN2CcwszP5UzF0EgczviSURwC7Cp9WxSfBBW2
+         hdXluYFqau6e2CqT9n6hOrZ2aNfcd8+2r+3Vh1G6xyKrFse6PApk21LoxpjFIkuFytTG
+         oW/w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=DMGdOS3TCFi7gu3SuWza/u540MkytIhZHI5mq5Gi97c=;
-        b=fm0oIvWVUVnEuj4ya8m1hbc4r9HwB6NR04yVlDqe8/tTCNcKZFoxvmFBXxNvt9OA2E
-         WxyM9WQdkhTj4NrDVafqpkSiQwoK4MGHbeq/WW+tSpH5z1dYI2aAel8xatzvQSsvTOD2
-         DT8NH641k5aQjhwc+6NSaosuX26MNEddOKMs1ne5ELAOlrq1/jncisZ2XICZyvTNrBQm
-         l3wMfhs456l2Vk576gzPlQbArgPfCOxR1m7nYJJwul7RJyGfc72+K5pJClQHsR68QaAT
-         FEBx6PS2w3YqQq8wb3BRMNXxdo8rWir7AR8mTR7rnwI2TO3aFsy92h4+10MInricC5ja
-         M2dw==
+        h=content-transfer-encoding:mime-version:organization:references
+         :in-reply-to:message-id:subject:cc:to:from:date;
+        bh=o1ht0cQu1vSLbWCzodaXG4J3SvluOY114GeXiFATVng=;
+        b=Ztoz2rdnTSq+CjwyrjAk1BtUiLqUyY3KAGJqUiTf3Pf+upOmcdSnGp10utERDxf3fw
+         7c02vpIzYB7KeKrXWEc5n3RX1xgTl+id9+zupQxeDxZ1W6B7po3WgOKRzCaJH8JeCt0N
+         LEoFqed0J+4krZPzDuiDO+y2Cl/TCarnSeCXw87C7+/lfQUMpQY7buUYaKJSa3hTcAru
+         Quo/1zz97IKKzjrBA84GvbI8Tr8KQHwhyhqalRuBLtfuprq3cEomqp0i1Q7m09jAAKXm
+         FqaHoTRcht9BoqRt881yrLxdZb5YEmo4TMBaxh0Dtiz+/TtKdD6l1zfqEJ9m5P7odzjb
+         2r9Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
-        by mx.google.com with ESMTPS id v2si3018152eja.217.2019.03.26.05.03.30
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
+        by mx.google.com with ESMTPS id d39si8498402otb.55.2019.03.26.05.19.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Mar 2019 05:03:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) client-ip=46.22.139.17;
+        Tue, 26 Mar 2019 05:19:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) client-ip=45.249.212.35;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id C72C11C2453
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 12:03:28 +0000 (GMT)
-Received: (qmail 6302 invoked from network); 26 Mar 2019 12:03:28 -0000
-Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
-  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 26 Mar 2019 12:03:28 -0000
-Date: Tue, 26 Mar 2019 12:03:27 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-To: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, Qian Cai <cai@lca.pw>,
-	linux-mm@kvack.org, vbabka@suse.cz
-Subject: Re: kernel BUG at include/linux/mm.h:1020!
-Message-ID: <20190326120327.GK3189@techsingularity.net>
-References: <CABXGCsM-SgUCAKA3=WpL7oWZ0Xq8A1Wf-Eh6MO0seee+TviDWQ@mail.gmail.com>
- <20190315205826.fgbelqkyuuayevun@ca-dmjordan1.us.oracle.com>
- <CABXGCsMcXb_W-w0AA4ZFJ5aKNvSMwFn8oAMaFV7AMHgsH_UB7g@mail.gmail.com>
- <CABXGCsO+DoEu5KMW8bELCKahhfZ1XGJCMYJ3Nka8B0Xi0A=aKg@mail.gmail.com>
- <20190322111527.GG3189@techsingularity.net>
- <CABXGCsMG+oCTxiEv1vmiK0P+fvr7ZiuOsbX-GCE13gapcRi5-Q@mail.gmail.com>
- <20190325105856.GI3189@techsingularity.net>
- <CABXGCsMjY4uQ_xpOXZ93idyzTS5yR2k-ZQ2R2neOgm_hDxd7Og@mail.gmail.com>
- <20190325203142.GJ3189@techsingularity.net>
- <CABXGCsNFNHee3Up78m7qH0NjEp_KCiNwQorJU=DGWUC4meGx1w@mail.gmail.com>
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from DGGEMS403-HUB.china.huawei.com (unknown [172.30.72.60])
+	by Forcepoint Email with ESMTP id 6F422EBD771C26ABBC51;
+	Tue, 26 Mar 2019 20:19:19 +0800 (CST)
+Received: from localhost (10.202.226.61) by DGGEMS403-HUB.china.huawei.com
+ (10.3.19.203) with Microsoft SMTP Server id 14.3.408.0; Tue, 26 Mar 2019
+ 20:19:17 +0800
+Date: Tue, 26 Mar 2019 12:19:02 +0000
+From: Jonathan Cameron <jonathan.cameron@huawei.com>
+To: Dan Williams <dan.j.williams@intel.com>
+CC: Brice Goglin <Brice.Goglin@inria.fr>, Yang Shi
+	<yang.shi@linux.alibaba.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman
+	<mgorman@techsingularity.net>, Rik van Riel <riel@surriel.com>, "Johannes
+ Weiner" <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>,
+	"Dave Hansen" <dave.hansen@intel.com>, Keith Busch <keith.busch@intel.com>,
+	Fengguang Wu <fengguang.wu@intel.com>, "Du, Fan" <fan.du@intel.com>, "Huang,
+ Ying" <ying.huang@intel.com>, Linux MM <linux-mm@kvack.org>, "Linux Kernel
+ Mailing List" <linux-kernel@vger.kernel.org>
+Subject: Re: [RFC PATCH 0/10] Another Approach to Use PMEM as NUMA Node
+Message-ID: <20190326121902.00004f10@huawei.com>
+In-Reply-To: <CAPcyv4imk02wme0PsY0rUePax8SOq2-=+objYT-x4bxthLkKkQ@mail.gmail.com>
+References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
+	<cc6f44e2-48b5-067f-9685-99d8ae470b50@inria.fr>
+	<CAPcyv4it1w7SdDVBV24cRCVHtLb3s1pVB5+SDM02Uw4RbahKiA@mail.gmail.com>
+	<3df2bf0e-0b1d-d299-3b8e-51c306cdc559@inria.fr>
+	<CAPcyv4gNrFOQJhKUV7crZqNfg8LQFZRVO04Z+Fo50kzswVQ=TA@mail.gmail.com>
+	<ac409eac-d2fa-8e93-6a18-14516b05632f@inria.fr>
+	<CAPcyv4imk02wme0PsY0rUePax8SOq2-=+objYT-x4bxthLkKkQ@mail.gmail.com>
+Organization: Huawei
+X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; i686-w64-mingw32)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <CABXGCsNFNHee3Up78m7qH0NjEp_KCiNwQorJU=DGWUC4meGx1w@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+X-Originating-IP: [10.202.226.61]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 26, 2019 at 09:03:07AM +0500, Mikhail Gavrilov wrote:
-> > Ok, thanks.
-> >
-> > Trying one last time before putting together a debugging patch to see
-> > exactly what PFNs are triggering as I still have not reproduced this on a
-> > local machine. This is another replacement that is based on the assumption
-> > that it's the free_pfn at the end of the zone that is triggering the
-> > warning and it happens to be the case the end of a zone is aligned. Sorry
-> > for the frustration with this and for persisting.
-> >
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index f171a83707ce..b4930bf93c8a 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
->
-> <SNIP>
-> 
-> I do not want to hurry, but it looks like this patch has fixed the problem.
-> I will watch for a day.
-> But the system has already experienced a night without a hang (kernel panic).
-> 
+On Mon, 25 Mar 2019 16:37:07 -0700
+Dan Williams <dan.j.williams@intel.com> wrote:
 
-Good news (for now at least). I've written an appropriate changelog and
-it's ready to send. I'll wait to hear confirmation on whether your
-machine survives for a day or not. Thanks.
+> On Mon, Mar 25, 2019 at 4:09 PM Brice Goglin <Brice.Goglin@inria.fr> wrot=
+e:
+> >
+> >
+> > Le 25/03/2019 =E0 20:29, Dan Williams a =E9crit : =20
+> > > Perhaps "path" might be a suitable replacement identifier rather than
+> > > type. I.e. memory that originates from an ACPI.NFIT root device is
+> > > likely "pmem". =20
+> >
+> >
+> > Could work.
+> >
+> > What kind of "path" would we get for other types of memory? (DDR,
+> > non-ACPI-based based PMEM if any, NVMe PMR?) =20
+>=20
+> I think for memory that is described by the HMAT "Reservation hint",
+> and no other ACPI table, it would need to have "HMAT" in the path. For
+> anything not ACPI it gets easier because the path can be the parent
+> PCI device.
+>=20
 
--- 
-Mel Gorman
-SUSE Labs
+There is no HMAT reservation hint in ACPI 6.3 - but there are other ways
+of doing much the same thing so this is just a nitpick.
+
+J
 
