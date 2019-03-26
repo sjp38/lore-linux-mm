@@ -6,93 +6,93 @@ X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F1F03C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 09:12:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 52517C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 09:16:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 892A920857
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 09:12:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E7D582084B
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 09:16:15 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=eInfochipsIndia.onmicrosoft.com header.i=@eInfochipsIndia.onmicrosoft.com header.b="y9DBfgzJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 892A920857
+	dkim=pass (1024-bit key) header.d=eInfochipsIndia.onmicrosoft.com header.i=@eInfochipsIndia.onmicrosoft.com header.b="vtKla7/v"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E7D582084B
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=einfochips.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 182256B0005; Tue, 26 Mar 2019 05:12:41 -0400 (EDT)
+	id 799A56B0005; Tue, 26 Mar 2019 05:16:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 12FB36B0006; Tue, 26 Mar 2019 05:12:41 -0400 (EDT)
+	id 721BE6B0006; Tue, 26 Mar 2019 05:16:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 01EE96B0007; Tue, 26 Mar 2019 05:12:40 -0400 (EDT)
+	id 59AF86B0007; Tue, 26 Mar 2019 05:16:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B8D136B0005
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 05:12:40 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id h15so11517587pfj.22
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 02:12:40 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1162D6B0005
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 05:16:15 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id o4so11420948pgl.6
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 02:16:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
          :thread-index:date:message-id:references:in-reply-to:accept-language
          :content-language:content-transfer-encoding:mime-version;
-        bh=cvbt4JeyhvN08obWAs4i4mWWkT0isD328Q6xa3GbbKc=;
-        b=WpRg0YMJ+U8E92NzwoSOP0SealCM0lhMTb1nudD5Y24qkaeWEWD2b4Mz7x6Y5kg85t
-         kk8A1cqdnuobz4z0QNIGwjthY9btvMovSXwsozrwEovX/3q5ypjmeNl46mavEfQOrYm+
-         D5ebX8z1upEOmQaMExCtLryvyui5dlXT5C9JnM30TMJvUq0GBAExLJbBJgIUIhyMGRqO
-         XNdkrtvVUio1pRC/uLUkK7nf577mfkzrOUu1DbWG6YNkUBQbyVMfFek5S/b+Zv736NfR
-         Qn/g78A3u5MhMmdBs5y+fG17ujHtyZcaBXcM0xQP/DszN7+WiZ/GSzBB1TyFf64swSyj
-         0LDA==
-X-Gm-Message-State: APjAAAVuqvDDbBdl68Kvf2GUdcF2rfVmeyPmXk7BkomE/a2HVl1gYm2W
-	fTrIeAfCTsA4gFrooVC7QwYBBxW33zJN+cTHIYgvNGwsWXVFiKn4L9ayewyYdHuMP30yaF7hKDE
-	xN9yLLwqSoIYjQZGnLXJ8SQKcHrz7u/rhTU0TWgb9/m55gD8kPRbOzFvdCaW6R9aexA==
-X-Received: by 2002:a63:af06:: with SMTP id w6mr27309821pge.338.1553591560383;
-        Tue, 26 Mar 2019 02:12:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw9pRlcHxSq0HrdPCDCYoqhxIs+MfUXClO/gXs1Qo9hakr8HgKkJJSVdgbddUqk6UAopMcW
-X-Received: by 2002:a63:af06:: with SMTP id w6mr27309766pge.338.1553591559578;
-        Tue, 26 Mar 2019 02:12:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553591559; cv=none;
+        bh=D88G+Vh5U3UtxzazzAqekvx4X29mAS8ojsGLDNKgfT8=;
+        b=runGNsEnWMhVU8rUyfWk63OeJD7/4NSakzx06JeY2R9Ojv6Zrqvc0OPdbvdVAirvBg
+         WclEI22yAPTVvspr/Ha4ENwwiGHOVZMNuvjguG+REqbj0tQZ1IAFE33PGqKcUYYIsg/i
+         bvvF6Dej75yOmzxBlX+NXqdZ1c+Lf5BoGQlYV4cH/UEfu5zZWEKhryGrwFjJFJ+C90rw
+         b7yJrQq8azid1UtVpHLEFalV1NcI5xj9xMONHb3rb5B3GJK8D4GgZzd6tE+ytuDzjHuE
+         GjDfzFBoYj0tH4ZSCdJErCBu4OZVOaYyq66yygpii+fHcuqQZo1kcAFJxJdtVdGsEyGu
+         LPGQ==
+X-Gm-Message-State: APjAAAXkdFQIyeMZNDvodbixAuoHuitXJK9gyKlJ2Q2Lebver1o1n3H6
+	slePMm7wkFBFYUitv0jzzinAf7REUZHBYBHWQxcYvEPTw9GMNVB8s6K3Qw2jdKnbMyLnNwztxhL
+	8J22F6eyF+s9gngeFCbZKN66GOa2bSD6xC0C+hjY6HewaJSAIk+R/7V7dgpZan6Y9NA==
+X-Received: by 2002:a17:902:b20e:: with SMTP id t14mr29522366plr.97.1553591774674;
+        Tue, 26 Mar 2019 02:16:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyVbWmZEbjrXz7EyaOe9wbuuO8Uxd9AOjNdOxPAf/kkuGWGEnGtKXM791B0SXLkGPW1i/Ex
+X-Received: by 2002:a17:902:b20e:: with SMTP id t14mr29522321plr.97.1553591774053;
+        Tue, 26 Mar 2019 02:16:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553591774; cv=none;
         d=google.com; s=arc-20160816;
-        b=Z+S5gCZHQ0+kNqPY+6fAmJPJ92nmEXxVDSGwwLXJ6ww7/zXW3thGT99+U1hkM2TyGd
-         UW/6vDq+cwoWvROdeWz78Pa7ted8wh/YhBXBLAd1/+Kuk01Ah+/ltOWVsG3NZZkVlz3g
-         KNlSo5w5W7OB0Fue3z2Qkt01XygAvP52B3fBctWTT6eHFOYA0cXokyOAIQPbgWD/hdq7
-         7DLa7UYVfx4SguhbtrSj6ULiazvMhvMRaJhRxoB2Nd8VYys7Zltgm8wjJCZg3nuyEDMU
-         mwvXFOv6u7vrSdNObxIPEQSwToVL0hqhvxYSfMz58w+MXdwwwurpg9Isw3v9bfeSwGw3
-         4IVA==
+        b=cEOlSQOkjuSHN1ZdK1gmHtRoSUACan6Aeown26I+tX6ggZwut05B70JzF1XJ14n2rd
+         lW9GPjBLtxSFio2BcwMQMjLsmoePQmcWUJAVyZfPtIL2ZRV+UZ6NVWn8lXZjamuP9p6n
+         ILxdDrsgGDRoDcqQRI21qTwyqVLK/y0zca+ueHgtDVhrmkCRp9uEG3bgkBbkqWGBfPHj
+         OlXS7UvwymPXIzWlyB6hIh6Rl2+0EjfGQ60etHvRcCciswUlDtM/XaGgzte5OxN0t9+y
+         0+RDKZ5I5d7cgtGzjKFA0ASAPVLG/1hS8ixQ/EynoornAlM//OBUueUQL1E0OO/pdAvn
+         uTDQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:content-transfer-encoding:content-language
          :accept-language:in-reply-to:references:message-id:date:thread-index
          :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=cvbt4JeyhvN08obWAs4i4mWWkT0isD328Q6xa3GbbKc=;
-        b=U4PyIvmwHk0b02gkqqGbkmHzU7cnWK4oCbtB9wBjWj57X7ORKFNTb/AKu0tmhQXbdp
-         7izsrhzQPUzhF/TMUb5E194v0jOwKTo3ZDe8kJ41fzENk1HYrCVZaNZbWyTkg6CN4xQJ
-         RgnAylwgUjTv8pzkU7injPplhvS2TVRLVXiqxf01UH42xyiShFUXrT5mttU5mjLYyg0k
-         ni4a3K63hlv/O8nJikZESE0opeFhM+EQSOwdOHiu3q/5gYLkdyhEK0exSfAyY4RcDRjh
-         slosksUxV9xMywlSwWSG9XyKYLQAMYhOA4av44lThcUOB8A1HzJ17ucTxQnPk/WS2Asz
-         dLXA==
+        bh=D88G+Vh5U3UtxzazzAqekvx4X29mAS8ojsGLDNKgfT8=;
+        b=XidTt4NBPW6G1NYMb8XEPIfvXiVc8InPu+b/92m286I/Am9CcAxpkCb+p3f/6nbYH+
+         PWTmpO5ZGLUWhvHmMh/nk8HoWsa61e3ZAYGbEpGerJ3gCh2FnjtdXr9E90c4pYn3po4a
+         YmkfTJG1xLR9J/LNy+5lG/5gbl0U6m2ze55s3lXNEQBr/lzddh/Mt3od4GL2AbiIT/lC
+         Azykrtm8NV2hONnfF8MhbTKeRGX57A9RT6y87jCiZjpnC0Fvovs1vI9wZnxdaHEfjhqi
+         uXXvmlZdAXVWK3YpNIuAOIIIi5CpeAyxPFx2FlxBKNNm8pY1W+ZUpfRZ+RZ1DbGzNQ3i
+         rdBg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=y9DBfgzJ;
-       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.47 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
-Received: from APC01-HK2-obe.outbound.protection.outlook.com (mail-eopbgr1300047.outbound.protection.outlook.com. [40.107.130.47])
-        by mx.google.com with ESMTPS id f2si15601856pgv.10.2019.03.26.02.12.39
+       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b="vtKla7/v";
+       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.48 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
+Received: from APC01-HK2-obe.outbound.protection.outlook.com (mail-eopbgr1300048.outbound.protection.outlook.com. [40.107.130.48])
+        by mx.google.com with ESMTPS id r190si5236691pfc.14.2019.03.26.02.16.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 26 Mar 2019 02:12:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.47 as permitted sender) client-ip=40.107.130.47;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Mar 2019 02:16:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.48 as permitted sender) client-ip=40.107.130.48;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=y9DBfgzJ;
-       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.47 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
+       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b="vtKla7/v";
+       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.48 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
  d=eInfochipsIndia.onmicrosoft.com; s=selector1-einfochips-com;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=cvbt4JeyhvN08obWAs4i4mWWkT0isD328Q6xa3GbbKc=;
- b=y9DBfgzJz6Pwfqwg9QlmakUbfPz6P2UyKYUmBrNfiBL8YHSuxDH3fc2jnMagNlFvoZP6gbbr31+Vk7ckWRP3nTc/RWaC1kHwBvKR0PyJeqTAzTE8MN7kUCNKMSHTSho/RNO0CrgeM6ni4kY+XJ4UTmSB0N0kICdKEIPfgMIdFyk=
+ bh=D88G+Vh5U3UtxzazzAqekvx4X29mAS8ojsGLDNKgfT8=;
+ b=vtKla7/v3LR4Tgykdc1KFn6myJ2HwI2yMXTPeicaVrUICtB/RmvflByRxc7qZYVZhG2wMcX6Z2Ut4Nk8H0y/9VSrXVpzaBIMweFtfuAQYI0U5rVE/QULi4mL7yDw0pjF8HVB7yaKymmT9mISQRVtKz4yJeyoXKzegOLk+57On4Y=
 Received: from SG2PR02MB3098.apcprd02.prod.outlook.com (20.177.88.78) by
  SG2PR02MB4249.apcprd02.prod.outlook.com (20.179.102.85) with Microsoft SMTP
  Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1730.17; Tue, 26 Mar 2019 09:12:37 +0000
+ 15.20.1730.17; Tue, 26 Mar 2019 09:16:12 +0000
 Received: from SG2PR02MB3098.apcprd02.prod.outlook.com
  ([fe80::f432:20e4:2d22:e60b]) by SG2PR02MB3098.apcprd02.prod.outlook.com
  ([fe80::f432:20e4:2d22:e60b%4]) with mapi id 15.20.1730.019; Tue, 26 Mar 2019
- 09:12:37 +0000
+ 09:16:12 +0000
 From: Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
 To: Michal Hocko <mhocko@kernel.org>
 CC: Kirill Tkhai <ktkhai@virtuozzo.com>, Vlastimil Babka <vbabka@suse.cz>,
@@ -104,10 +104,10 @@ CC: Kirill Tkhai <ktkhai@virtuozzo.com>, Vlastimil Babka <vbabka@suse.cz>,
 Subject: Re: [External] Re: vmscan: Reclaim unevictable pages
 Thread-Topic: [External] Re: vmscan: Reclaim unevictable pages
 Thread-Index:
- AQHU3WaYCAMWaFadm0e/0+hd2XPYGaYRGYZ/gAAG5oCAAAD82oAAAx4AgAABDq2AAAzwgIAC47DNgAmAbsCAABOgAIAAAlC/
-Date: Tue, 26 Mar 2019 09:12:37 +0000
+ AQHU3WaYCAMWaFadm0e/0+hd2XPYGaYRGYZ/gAAG5oCAAAD82oAAAx4AgAABDq2AAAzwgIAC47DNgAmAbsCAABOgAIAAA15X
+Date: Tue, 26 Mar 2019 09:16:11 +0000
 Message-ID:
- <SG2PR02MB30985379F554A2A49070C682E85F0@SG2PR02MB3098.apcprd02.prod.outlook.com>
+ <SG2PR02MB3098FAEA335228CFB56F1668E85F0@SG2PR02MB3098.apcprd02.prod.outlook.com>
 References:
  <SG2PR02MB3098E6F2C4BAEB56AE071EDCE8440@SG2PR02MB3098.apcprd02.prod.outlook.com>
  <0b86dbca-cbc9-3b43-e3b9-8876bcc24f22@suse.cz>
@@ -128,12 +128,12 @@ authentication-results: spf=none (sender IP is )
  smtp.mailfrom=pankaj.suryawanshi@einfochips.com; 
 x-originating-ip: [14.98.130.2]
 x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 13af1c99-1cc0-45f7-357c-08d6b1cb30cf
+x-ms-office365-filtering-correlation-id: d0efc8f5-9ce2-41a8-65b8-08d6b1cbb0b2
 x-microsoft-antispam:
  BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600127)(711020)(4605104)(4534185)(7168020)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7153060)(7193020);SRVR:SG2PR02MB4249;
 x-ms-traffictypediagnostic: SG2PR02MB4249:|SG2PR02MB4249:
 x-microsoft-antispam-prvs:
- <SG2PR02MB4249AB2FA5CFD89C81F99C78E85F0@SG2PR02MB4249.apcprd02.prod.outlook.com>
+ <SG2PR02MB4249BC2A7F5436F80FD23863E85F0@SG2PR02MB4249.apcprd02.prod.outlook.com>
 x-forefront-prvs: 09888BC01D
 x-forefront-antispam-report:
  SFV:NSPM;SFS:(10009020)(346002)(39850400004)(366004)(396003)(376002)(136003)(189003)(199004)(8936002)(52536014)(9686003)(476003)(74316002)(71200400001)(6116002)(105586002)(53936002)(54906003)(305945005)(6246003)(25786009)(55016002)(486006)(93886005)(316002)(33656002)(8676002)(5660300002)(11346002)(6506007)(7696005)(446003)(3846002)(6916009)(44832011)(68736007)(102836004)(53546011)(229853002)(55236004)(2906002)(14444005)(186003)(256004)(5024004)(106356001)(7736002)(76176011)(26005)(78486014)(81166006)(81156014)(14454004)(86362001)(6436002)(97736004)(66066001)(99286004)(66574012)(4326008)(478600001)(71190400001)(586874002);DIR:OUT;SFP:1101;SCL:1;SRVR:SG2PR02MB4249;H:SG2PR02MB3098.apcprd02.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
@@ -141,13 +141,13 @@ received-spf: None (protection.outlook.com: einfochips.com does not designate
  permitted sender hosts)
 x-ms-exchange-senderadcheck: 1
 x-microsoft-antispam-message-info:
- SzgmBUwYo+hC81suPbbF++VIn3O+xzTEh/YBx4uWceI6otVc1pXLJ/GuaLt7h96VpjDm8cBN5pMZDgxcv2vAZssvFuRiI1Kzy7Z3AH/WH2Pp8nPQaB8pHenWmNQeElaJgBRRFfq7WE/4nTl+2/zvJS9KyUT22fuF1xFlJu0lYJ5wRE0N1Wqu0BIwhUXpaMuZXMotA2s+Ej+NCWfqkPyeGm1Dgn1ckhRCEHpIwruAoAyZVzAOhNy1mTpGU6QmDIejjgtO+NyTMlPleFi0lt7sD4DJcotMuy5UrBoKN2bCykk8JVVXG4hbP6POt2i7nbovbFzpWW48GmJd3BZt/5AYs+y6IivHnB4/cpo03ot+GMRy8eS1enakRkqUAM+jxFU3J9HPEwAMolhVHVg0ghNltLZNwZV9D+pQDYNRwenKKSg=
+ 14gN9kp6Yz+7tFHuZSR99p9ClLUkIKrz2aMS1hw63XQd/c45+hOK31pobFsGftdBQ3cVie0ENPVZsJfTk46LQAujdxDBq9muwPSrRfCq/xFD7kG3QXAkZRCh4rkJk67I3ekuEehJaOVbPknNcbY6da2Ak6Eq7zoatGuWG7Aieb143/zsa9W0LEhJuyZ+NqsdvV0sBE7XklAXr1R4RMX3MuRm4WUkuQr6PRCjmpmBNHc1vcMx3l9w5q0JZ9GXi0kFVX3KnYsQkp7+evJgJJbz8jlEr9rlbwGDhmaC5HJvPoJX3G3s1f+VyftA2SnXzul637IyulLFqAf6duNBtLf8AFvb2wINbG/zWnmaC682lstnZuYSZgUPTaVuk3Fa/m8BtkgaDfId48g3ce4dRj4nQz2IiTwZRBlZlxbjcwWx3Zw=
 Content-Type: text/plain; charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 X-OriginatorOrg: einfochips.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 13af1c99-1cc0-45f7-357c-08d6b1cb30cf
-X-MS-Exchange-CrossTenant-originalarrivaltime: 26 Mar 2019 09:12:37.3106
+X-MS-Exchange-CrossTenant-Network-Message-Id: d0efc8f5-9ce2-41a8-65b8-08d6b1cbb0b2
+X-MS-Exchange-CrossTenant-originalarrivaltime: 26 Mar 2019 09:16:11.8621
  (UTC)
 X-MS-Exchange-CrossTenant-fromentityheader: Hosted
 X-MS-Exchange-CrossTenant-id: 0adb040b-ca22-4ca6-9447-ab7b049a22ff
@@ -172,7 +172,8 @@ Subject: Re: [External] Re: vmscan: Reclaim unevictable pages
 [You were asked to use a reasonable quoting several times. This is
 really annoying because it turns the email thread into a complete mess]
 
-I already fix the email client, dont know the reason for quoting.
+[Already fix the email client, but dont know the reason for quoting Maybe a=
+ccount issue.]
 
 On Tue 26-03-19 07:53:14, Pankaj Suryawanshi wrote:
 > Is there anyone who is familiar with this?  Please Comment.
@@ -184,8 +185,7 @@ you could track down how does the unevictable page get down to the
 reclaim path. I assume this is a CMA page or something like that but
 those shouldn't get to the reclaim path AFIR.
 
-As i said earlier, the kernel i am using is vanilla kernel.
-
+As i said earlier, i am using vanilla kernel 4.14.65.
 --
 Michal Hocko
 SUSE Labs
