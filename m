@@ -6,81 +6,81 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 08DBBC10F05
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:27:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 52E59C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:27:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AB3D321734
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:27:34 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AB3D321734
+	by mail.kernel.org (Postfix) with ESMTP id 117F620879
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:27:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 117F620879
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4F83F6B027F; Tue, 26 Mar 2019 12:27:34 -0400 (EDT)
+	id F0E1C6B0280; Tue, 26 Mar 2019 12:27:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4A8556B0280; Tue, 26 Mar 2019 12:27:34 -0400 (EDT)
+	id E95626B0281; Tue, 26 Mar 2019 12:27:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3BF896B0281; Tue, 26 Mar 2019 12:27:34 -0400 (EDT)
+	id DA8866B0282; Tue, 26 Mar 2019 12:27:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DAB7E6B027F
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 12:27:33 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id c40so4238483eda.10
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 09:27:33 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 85AF96B0280
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 12:27:34 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id c41so5499762edb.7
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 09:27:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=EdmI+0I92GKFAd3iMq11M1xz2Gn4jOCXE9cUiL18SLA=;
-        b=ZpKo+MQjyAZSLI5soMbUyGwbZml6XcFD8xalS92jTg6qUDuBabqM1zQj6StFT9zXtV
-         Mmo+kUpmg5GkNOxxM7pU1oyYqoXuImNIMBDHvND6GF4ZivVKSIlo2ohzlDCwFsQnAEhS
-         yTHZrNXknh2RUkZKOlzshOFOI+9QwSRDMifECNHCT2ER0/igl3xJGOGnf3+lWAkHAzut
-         WSZfRbNIJO7kprhg6vISXtCSpaJv2eimvaMQaudq60L3n6cjiK1P9g+NYBx+sEhtvGsa
-         c9VOdCrmEgvXKdfwX0Bw1in72n4JUnbdA3IllwTIsV/G1wtI4gKSyBZay+Ifd5EiCk5Q
-         uZFA==
+        bh=VefPUADSnZrha76TxVHSwbw6LrT1e+Tmwp23y0+XUXU=;
+        b=Sgd6tR2n5/feBKdYTR4a7oVrIFLKCj//AIfQuQMkDw7KHgN/V2Nv6vyaHQ7Payw/DA
+         mi0Cx0jj4cu5rNtUUydF492eTYncPyLFUTQYSrhVclf6Y2wy7uTEfp+RA26AhH9qKj/+
+         Vh2xlz6MFlZP2uMKBnlOQQ6mJMc2/8rCCEBexRFyhJCroGfO3jslpUXo87rywc2Q/E+w
+         dBIkOKgoaTXDxRQFuw0JmsPxkFWk7EK9Wu2gC1LweaXHu/9oVqyB3yZw5jQ9YetpeYW5
+         NxZhfWXF0VeAOaBN9wPRNQmNcsjW9O9dye0i8d/rovyXmQVLdXWWwayQruFjtHzXroFA
+         WGpA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAWKIEe2OOPDCD7n2X+iqO6DRp1makjuwMliSnyaAXQU6Lnnr7wT
-	6P7/vaYKF9vG/gk1gRfjgPAB/e1aYvejdpxjLkyySBmpzRpZuPlzgpJEIP7+kyvO2DNjPAr+xRd
-	nzsm3DAZmfhnU7yjBZpc0xhQGgBJugaoRHYpW/klbt7kjCpqsJschYseFJvrWKQNQKw==
-X-Received: by 2002:a17:906:3612:: with SMTP id q18mr14613270ejb.147.1553617653373;
+X-Gm-Message-State: APjAAAVO42YXhOpLl376v01yufZl3xLRwB9RXOxpu67spCQ9U5x3PqyZ
+	V/16Ptp+YHmrKaYQdKbzhLssc5rOogwEmYdSyq6KCjZCIPcRoYoEW2iJeFzgwU2PDZIrSH/w9ZK
+	kzKU2GlHwe71IGulEjA/Oc7+QTOppXQ6VibxHGJ9+zSLwSZHXZzGGS4KvZ7x7ekRFFA==
+X-Received: by 2002:a17:906:31cf:: with SMTP id f15mr14500591ejf.246.1553617654059;
+        Tue, 26 Mar 2019 09:27:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzm5AbnzhC276z51Olt4I0Xtzn/Y0FULHafTzcIeIzIWPyDtHmJBHL5B4mSqzjVf1xPg0kZ
+X-Received: by 2002:a17:906:31cf:: with SMTP id f15mr14500555ejf.246.1553617653178;
         Tue, 26 Mar 2019 09:27:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxyXgkTDuqI7OFdHQ5pKfsyyYgrzN12sfUnUwNbojxzQ4QwV+l3oVDO7eBx9Hl3WlAbUYhL
-X-Received: by 2002:a17:906:3612:: with SMTP id q18mr14613209ejb.147.1553617652069;
-        Tue, 26 Mar 2019 09:27:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553617652; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1553617653; cv=none;
         d=google.com; s=arc-20160816;
-        b=cjnpStILew2OAjzo/K/BFlC3+FQ5xYIWyAy/vg3NdYB5Ew9SWK3x524Tb0oU1ziJfy
-         NYG3i3wBit7z7PbalIGr9VJZQXON8GiuKIlABAdTq8Vkei5dqdENyA70cr+Flda4mDFA
-         NtIOA/58XguVK8DhOkm6DY0b8CuIWQA/LJIyjLBq0T+4G5rbkJ1kbbo3YMi/lGzITts5
-         V0YAjeebJvS85gvy/hlw99Nx9XcB6UHBB9XhMnwTqsPnL1CwE+61+Jj+rr5dpO6N1jYX
-         9e9hdL9L+91LAo9l3UnWQIa4xrIXki/SzO5FMtgQq4vLqq9oJNe61GuU0BO6BBG1O5gJ
-         JdSA==
+        b=sDo37E2Ay50ctNZ39d6iEF0DHmLO9Xt1wW2oBHJZt8R4rH/yk9b4Z3D8pifehFnN34
+         hiH6ekc/lo0Ck9ZXp299YGF2o/SWsguXmBSfcrIvvRCWQAe+8PdOjvzDkQEwUlYW4DUM
+         HoVtq9/oCHgtfOm8Xc5t8JRbcK3eEnu7iHxWBYcxObJ6e2hDpvuNH3BLNJ9DDjOwlDNI
+         56ZbkiB7TP2x6nIA62hfcSKleEa5YobTHG1Hk3Fm66W9WfWr1+ue3sY9gXaKidm6EINo
+         ZPhrXiM4DDADiONmFEg7t7DcgJjN9mzVS4yaZWcg7QELqXuO9zLMsucFWH3eDx5H5dDw
+         LJmQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=EdmI+0I92GKFAd3iMq11M1xz2Gn4jOCXE9cUiL18SLA=;
-        b=qCMvzT37hwDiel2xIsBHIX/vFirFXbgnqhOyJ7kyA+HoEH0jwj7+3gxAS5sqZxVUu+
-         mgMl7O1gDxcdiuuNyAeBRli6GwJtzJtAgjq1Z5fwQmI+7W+SxdjXGAvxsunOeEbxCUw1
-         RHAFatTaFPLA0bnv782HHKfvKzRNE26Yv0tON/LQBFSQSrdFIUEm95CQ/Kh2rf/8gxG6
-         wYmlrzM0fyA/iPmfEepA55zoqWARc1T5xc4dBOFFwpBHBwKeV/1FmFfD7NM9UIJHBNhZ
-         frU2yxtTO5WylSqtqaYvQ9HJf2pL36YjwBWMwCC2QeNTffEJEjxCM1hupMdGA3aptFsd
-         sWdA==
+        bh=VefPUADSnZrha76TxVHSwbw6LrT1e+Tmwp23y0+XUXU=;
+        b=m7c9gbKcrGDeueLkPXtlGo1mGXPg64d/hIKp2Gg1UW1KXtf+3hHShb3r2SRoBWrHEC
+         lqcJO2qe+fV3gBqBWEe8/uCTBiHsyGQ+4mBigY3MIqarVc5PZTU1P6sDTO5iCMhl0vv7
+         YzJs+w87s6/YLPKCmyi7EB7n1Upapyn9AffLSop8w1JMfzfNhatBCd38HCJJFtUKBHnK
+         kFIZ6oUsNYQMXPo8Qj5eRz/zNfiU3BUjVppUpK6cGE1OKY/zk0ZDFE2wDX4VKluwWe7U
+         uQiy3VQ7k0JLomBMC8iDddZxOF+MJnf2DrfeHunlGG1j4p5ztNZff+sfZ2qRjuvaemcC
+         BQPg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id a16si157341edj.408.2019.03.26.09.27.31
+        by mx.google.com with ESMTP id 20si1807142edx.64.2019.03.26.09.27.32
         for <linux-mm@kvack.org>;
-        Tue, 26 Mar 2019 09:27:32 -0700 (PDT)
+        Tue, 26 Mar 2019 09:27:33 -0700 (PDT)
 Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id EAF391AED;
-	Tue, 26 Mar 2019 09:27:30 -0700 (PDT)
-Received: from e112269-lin.arm.com (e112269-lin.cambridge.arm.com [10.1.196.69])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 8B07A3F614;
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 4B9FD169E;
 	Tue, 26 Mar 2019 09:27:27 -0700 (PDT)
+Received: from e112269-lin.arm.com (e112269-lin.cambridge.arm.com [10.1.196.69])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 0B9103F614;
+	Tue, 26 Mar 2019 09:27:23 -0700 (PDT)
 From: Steven Price <steven.price@arm.com>
 To: linux-mm@kvack.org
 Cc: Steven Price <steven.price@arm.com>,
@@ -102,9 +102,9 @@ Cc: Steven Price <steven.price@arm.com>,
 	linux-kernel@vger.kernel.org,
 	Mark Rutland <Mark.Rutland@arm.com>,
 	"Liang, Kan" <kan.liang@linux.intel.com>
-Subject: [PATCH v6 15/19] x86: mm: Point to struct seq_file from struct pg_state
-Date: Tue, 26 Mar 2019 16:26:20 +0000
-Message-Id: <20190326162624.20736-16-steven.price@arm.com>
+Subject: [PATCH v6 14/19] x86: mm: Don't display pages which aren't present in debugfs
+Date: Tue, 26 Mar 2019 16:26:19 +0000
+Message-Id: <20190326162624.20736-15-steven.price@arm.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190326162624.20736-1-steven.price@arm.com>
 References: <20190326162624.20736-1-steven.price@arm.com>
@@ -116,229 +116,42 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-mm/dump_pagetables.c passes both struct seq_file and struct pg_state
-down the chain of walk_*_level() functions to be passed to note_page().
-Instead place the struct seq_file in struct pg_state and access it from
-struct pg_state (which is private to this file) in note_page().
+For the /sys/kernel/debug/page_tables/ files, rather than outputing a
+mostly empty line when a block of memory isn't present just skip the
+line. This keeps the output shorter and will help with a future change
+switching to using the generic page walk code as we no longer care about
+the 'level' that the page table holes are at.
 
 Signed-off-by: Steven Price <steven.price@arm.com>
 ---
- arch/x86/mm/dump_pagetables.c | 69 ++++++++++++++++++-----------------
- 1 file changed, 35 insertions(+), 34 deletions(-)
+ arch/x86/mm/dump_pagetables.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
 diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index e2b53db92c34..3d12ac031144 100644
+index ca270fb00805..e2b53db92c34 100644
 --- a/arch/x86/mm/dump_pagetables.c
 +++ b/arch/x86/mm/dump_pagetables.c
-@@ -40,6 +40,7 @@ struct pg_state {
- 	bool to_dmesg;
- 	bool check_wx;
- 	unsigned long wx_pages;
-+	struct seq_file *seq;
- };
+@@ -304,8 +304,8 @@ static void note_page(struct seq_file *m, struct pg_state *st,
+ 		/*
+ 		 * Now print the actual finished series
+ 		 */
+-		if (!st->marker->max_lines ||
+-		    st->lines < st->marker->max_lines) {
++		if ((cur & _PAGE_PRESENT) && (!st->marker->max_lines ||
++		    st->lines < st->marker->max_lines)) {
+ 			pt_dump_seq_printf(m, st->to_dmesg,
+ 					   "0x%0*lx-0x%0*lx   ",
+ 					   width, st->start_address,
+@@ -321,7 +321,8 @@ static void note_page(struct seq_file *m, struct pg_state *st,
+ 			printk_prot(m, st->current_prot, st->level,
+ 				    st->to_dmesg);
+ 		}
+-		st->lines++;
++		if (cur & _PAGE_PRESENT)
++			st->lines++;
  
- struct addr_marker {
-@@ -268,11 +269,12 @@ static void note_wx(struct pg_state *st)
-  * of PTE entries; the next one is different so we need to
-  * print what we collected so far.
-  */
--static void note_page(struct seq_file *m, struct pg_state *st,
--		      pgprot_t new_prot, pgprotval_t new_eff, int level)
-+static void note_page(struct pg_state *st, pgprot_t new_prot,
-+		      pgprotval_t new_eff, int level)
- {
- 	pgprotval_t prot, cur, eff;
- 	static const char units[] = "BKMGTPE";
-+	struct seq_file *m = st->seq;
- 
- 	/*
- 	 * If we have a "break" in the series, we need to flush the state that
-@@ -358,8 +360,8 @@ static inline pgprotval_t effective_prot(pgprotval_t prot1, pgprotval_t prot2)
- 	       ((prot1 | prot2) & _PAGE_NX);
- }
- 
--static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
--			   pgprotval_t eff_in, unsigned long P)
-+static void walk_pte_level(struct pg_state *st, pmd_t addr, pgprotval_t eff_in,
-+			   unsigned long P)
- {
- 	int i;
- 	pte_t *pte;
-@@ -370,7 +372,7 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
- 		pte = pte_offset_map(&addr, st->current_address);
- 		prot = pte_flags(*pte);
- 		eff = effective_prot(eff_in, prot);
--		note_page(m, st, __pgprot(prot), eff, 5);
-+		note_page(st, __pgprot(prot), eff, 5);
- 		pte_unmap(pte);
- 	}
- }
-@@ -383,22 +385,20 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
-  * us dozens of seconds (minutes for 5-level config) while checking for
-  * W+X mapping or reading kernel_page_tables debugfs file.
-  */
--static inline bool kasan_page_table(struct seq_file *m, struct pg_state *st,
--				void *pt)
-+static inline bool kasan_page_table(struct pg_state *st, void *pt)
- {
- 	if (__pa(pt) == __pa(kasan_early_shadow_pmd) ||
- 	    (pgtable_l5_enabled() &&
- 			__pa(pt) == __pa(kasan_early_shadow_p4d)) ||
- 	    __pa(pt) == __pa(kasan_early_shadow_pud)) {
- 		pgprotval_t prot = pte_flags(kasan_early_shadow_pte[0]);
--		note_page(m, st, __pgprot(prot), 0, 5);
-+		note_page(st, __pgprot(prot), 0, 5);
- 		return true;
- 	}
- 	return false;
- }
- #else
--static inline bool kasan_page_table(struct seq_file *m, struct pg_state *st,
--				void *pt)
-+static inline bool kasan_page_table(struct pg_state *st, void *pt)
- {
- 	return false;
- }
-@@ -406,7 +406,7 @@ static inline bool kasan_page_table(struct seq_file *m, struct pg_state *st,
- 
- #if PTRS_PER_PMD > 1
- 
--static void walk_pmd_level(struct seq_file *m, struct pg_state *st, pud_t addr,
-+static void walk_pmd_level(struct pg_state *st, pud_t addr,
- 			   pgprotval_t eff_in, unsigned long P)
- {
- 	int i;
-@@ -420,19 +420,19 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st, pud_t addr,
- 			prot = pmd_flags(*start);
- 			eff = effective_prot(eff_in, prot);
- 			if (pmd_large(*start) || !pmd_present(*start)) {
--				note_page(m, st, __pgprot(prot), eff, 4);
--			} else if (!kasan_page_table(m, st, pmd_start)) {
--				walk_pte_level(m, st, *start, eff,
-+				note_page(st, __pgprot(prot), eff, 4);
-+			} else if (!kasan_page_table(st, pmd_start)) {
-+				walk_pte_level(st, *start, eff,
- 					       P + i * PMD_LEVEL_MULT);
- 			}
- 		} else
--			note_page(m, st, __pgprot(0), 0, 4);
-+			note_page(st, __pgprot(0), 0, 4);
- 		start++;
- 	}
- }
- 
- #else
--#define walk_pmd_level(m,s,a,e,p) walk_pte_level(m,s,__pmd(pud_val(a)),e,p)
-+#define walk_pmd_level(s,a,e,p) walk_pte_level(s,__pmd(pud_val(a)),e,p)
- #undef pud_large
- #define pud_large(a) pmd_large(__pmd(pud_val(a)))
- #define pud_none(a)  pmd_none(__pmd(pud_val(a)))
-@@ -440,8 +440,8 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st, pud_t addr,
- 
- #if PTRS_PER_PUD > 1
- 
--static void walk_pud_level(struct seq_file *m, struct pg_state *st, p4d_t addr,
--			   pgprotval_t eff_in, unsigned long P)
-+static void walk_pud_level(struct pg_state *st, p4d_t addr, pgprotval_t eff_in,
-+			   unsigned long P)
- {
- 	int i;
- 	pud_t *start, *pud_start;
-@@ -455,34 +455,34 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, p4d_t addr,
- 			prot = pud_flags(*start);
- 			eff = effective_prot(eff_in, prot);
- 			if (pud_large(*start) || !pud_present(*start)) {
--				note_page(m, st, __pgprot(prot), eff, 3);
--			} else if (!kasan_page_table(m, st, pud_start)) {
--				walk_pmd_level(m, st, *start, eff,
-+				note_page(st, __pgprot(prot), eff, 3);
-+			} else if (!kasan_page_table(st, pud_start)) {
-+				walk_pmd_level(st, *start, eff,
- 					       P + i * PUD_LEVEL_MULT);
- 			}
- 		} else
--			note_page(m, st, __pgprot(0), 0, 3);
-+			note_page(st, __pgprot(0), 0, 3);
- 
- 		start++;
- 	}
- }
- 
- #else
--#define walk_pud_level(m,s,a,e,p) walk_pmd_level(m,s,__pud(p4d_val(a)),e,p)
-+#define walk_pud_level(s,a,e,p) walk_pmd_level(s,__pud(p4d_val(a)),e,p)
- #undef p4d_large
- #define p4d_large(a) pud_large(__pud(p4d_val(a)))
- #define p4d_none(a)  pud_none(__pud(p4d_val(a)))
- #endif
- 
--static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
--			   pgprotval_t eff_in, unsigned long P)
-+static void walk_p4d_level(struct pg_state *st, pgd_t addr, pgprotval_t eff_in,
-+			   unsigned long P)
- {
- 	int i;
- 	p4d_t *start, *p4d_start;
- 	pgprotval_t prot, eff;
- 
- 	if (PTRS_PER_P4D == 1)
--		return walk_pud_level(m, st, __p4d(pgd_val(addr)), eff_in, P);
-+		return walk_pud_level(st, __p4d(pgd_val(addr)), eff_in, P);
- 
- 	p4d_start = start = (p4d_t *)pgd_page_vaddr(addr);
- 
-@@ -492,13 +492,13 @@ static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
- 			prot = p4d_flags(*start);
- 			eff = effective_prot(eff_in, prot);
- 			if (p4d_large(*start) || !p4d_present(*start)) {
--				note_page(m, st, __pgprot(prot), eff, 2);
--			} else if (!kasan_page_table(m, st, p4d_start)) {
--				walk_pud_level(m, st, *start, eff,
-+				note_page(st, __pgprot(prot), eff, 2);
-+			} else if (!kasan_page_table(st, p4d_start)) {
-+				walk_pud_level(st, *start, eff,
- 					       P + i * P4D_LEVEL_MULT);
- 			}
- 		} else
--			note_page(m, st, __pgprot(0), 0, 2);
-+			note_page(st, __pgprot(0), 0, 2);
- 
- 		start++;
- 	}
-@@ -536,6 +536,7 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
- 	}
- 
- 	st.check_wx = checkwx;
-+	st.seq = m;
- 	if (checkwx)
- 		st.wx_pages = 0;
- 
-@@ -549,13 +550,13 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
- 			eff = prot;
- #endif
- 			if (pgd_large(*start) || !pgd_present(*start)) {
--				note_page(m, &st, __pgprot(prot), eff, 1);
-+				note_page(&st, __pgprot(prot), eff, 1);
- 			} else {
--				walk_p4d_level(m, &st, *start, eff,
-+				walk_p4d_level(&st, *start, eff,
- 					       i * PGD_LEVEL_MULT);
- 			}
- 		} else
--			note_page(m, &st, __pgprot(0), 0, 1);
-+			note_page(&st, __pgprot(0), 0, 1);
- 
- 		cond_resched();
- 		start++;
-@@ -563,7 +564,7 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
- 
- 	/* Flush out the last page */
- 	st.current_address = normalize_addr(PTRS_PER_PGD*PGD_LEVEL_MULT);
--	note_page(m, &st, __pgprot(0), 0, 0);
-+	note_page(&st, __pgprot(0), 0, 0);
- 	if (!checkwx)
- 		return;
- 	if (st.wx_pages)
+ 		/*
+ 		 * We print markers for special areas of address space,
 -- 
 2.20.1
 
