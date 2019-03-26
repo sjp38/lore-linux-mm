@@ -2,157 +2,163 @@ Return-Path: <SRS0=c5Kt=R5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.5 required=3.0 tests=MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 12A3FC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 18:37:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E2E5C10F05
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 20:11:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C4AEB206DF
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 18:37:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4AEB206DF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id D59012070D
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 20:11:34 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="FZsDoNRb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D59012070D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 642A06B0003; Tue, 26 Mar 2019 14:37:35 -0400 (EDT)
+	id 2A0A26B0003; Tue, 26 Mar 2019 16:11:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5F26D6B0005; Tue, 26 Mar 2019 14:37:35 -0400 (EDT)
+	id 22A7D6B0005; Tue, 26 Mar 2019 16:11:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4E2A06B0006; Tue, 26 Mar 2019 14:37:35 -0400 (EDT)
+	id 0F3A16B0006; Tue, 26 Mar 2019 16:11:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F02C06B0003
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 14:37:34 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id l19so5623498edr.12
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 11:37:34 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C774C6B0003
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 16:11:33 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id s22so2811011plq.1
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 13:11:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=9vp2bYSsRJT3s3itn0wC2NSkUEVs0LwSq/aMujoR+xs=;
-        b=JVIi+0nJneDyvmwvPzi9mjbl3Qw6zQEQ8/RTA2ZEFUeupZu7wFH5owIVKnHWkOVmxV
-         ObhfvT1A4Xb45ZKRuKVYuMfyzpifwdmWeqeZupgTqqJeVsv1a2kIfmmWBsYj/ywR4Jm7
-         b313Yu7oYPXiobUj6GZTT2+bQ96pTU4oTL0lA/XrB6tyjcfiwj86NfPg2RDAWyKGDmKO
-         P7y5tkJuz3DhyI/4d4L8rWdZFEuc+esnRvvNDrXMJ51ClSLL9pzV6tdWV53vyGGr2zPq
-         tLDK3kCfBa9h4l3F/av24I1ZKdneyKxpQZHazRDNFc9Q/z3LGazGCrpz89vpznztgmOn
-         /b5w==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWaj40SCrxjXQHOdI5+Jseaz3ppf9QIj4XDUuoUNPuiMfBOiXqP
-	ml94whX7MV/nPonGd3lcPaK3ApUlpm1mbMfUiY9OiwD/u8Ebrl9G0F4TwqZ2P6FyosF/KB71TUP
-	g+RTPhfq2LxOA520nCijIKJo9LWlyHzpywZ3UqkYycyzhBljkqyrxbVRj75OHyLA=
-X-Received: by 2002:aa7:dcca:: with SMTP id w10mr4154636edu.73.1553625454528;
-        Tue, 26 Mar 2019 11:37:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzrFaWWUEbkLvm89bgmiNiD/P6W/UhUirB/ku+miKFK938yeFmyz9i88QIGfgXghVXzSIU8
-X-Received: by 2002:aa7:dcca:: with SMTP id w10mr4154598edu.73.1553625453709;
-        Tue, 26 Mar 2019 11:37:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553625453; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=culWY/Rk+vffcRaES9PIUDEE10WbDjvCzyyOH86GQbI=;
+        b=iwNGarwhTI0KiqXrTLGmQtPVc9V3uWtLfW23uAnn/nMRQsJT9SW+iipb+MUypWgSQp
+         YSNtp+s2m+vfsEhbeXKnjH6c0+Aggr37w1lDnmI+L/c/hzvl8Ke+kRUHwPT26LrKBPtX
+         UHZbUYybqPBCXQKArvMi+R9Re5UuxVp2KEBqLpNATdAxL4wjzGTU9UtdX8JbWAUubfWn
+         X7KMHtsYZcamqjlXH8YQMA2611d0zqzh1gTiifBUXWKHrbMJetBaSKal/hhe81nWfxiw
+         1tyZ00KLJ+GVQROPQIo+nHs+NGrKjpL6Iy9nMKMJn8hBTxpmlM2gJwQ1ucolcAIZOv2y
+         USpg==
+X-Gm-Message-State: APjAAAUnj45DS+8NtfpUAoDGEYX1f4evyp570ogfsCN1Tig7GpAgDZTV
+	mrMQcr/eRmCnHpwOSBeMRgIOetPfBj/6qeXB9ILGPbKyWlcjTWzl8Gf4SPTQZxIEyrA/PWdpJmA
+	IKuVV8CYAoPeKjqlw2qx6/gQVXY0mIEEsZhi2ITCfcAS+pYb0d58A816dYDRQdBnIdA==
+X-Received: by 2002:a62:a509:: with SMTP id v9mr32504038pfm.64.1553631093459;
+        Tue, 26 Mar 2019 13:11:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxjyHoughIOb5xDCEOWaNlcdcxL93hddcpUjFG4XWWDU1V4HA39srzSyVpmPFynsESS1SHS
+X-Received: by 2002:a62:a509:: with SMTP id v9mr32503973pfm.64.1553631092595;
+        Tue, 26 Mar 2019 13:11:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553631092; cv=none;
         d=google.com; s=arc-20160816;
-        b=lhQQXPLioV2i1Zu8NrXmEnYsRewKO6GlInjroYtFjt3hKjq6sVjBoDEt9qqVBZh3+z
-         QakXgfK90pOBjaG2GYW8zZRlLkeJW9Wn8jHb7ChkirG/LpTp9S+nSYQf+gtY3dd5vQ49
-         1OgAk9NcFF4xmI3u0gM4C0YhxSR0tsxz4WgsUtMJHVBIleVr65hsHT1X85o/A96P7eW8
-         5rFvQRAbgxPSRlgKOtHPNllob9nsvDE9sFkAFeuqVV6BF+vMVBbYc+w4I10L22MuOsLi
-         sYFOa8peN6FVBkn5cO/OX7cGlqUDWzXFFak51pfjf5Eu6YBV35oAaVxOeWBfxZStaTg9
-         K8Cw==
+        b=LvjX5klJgkX/g42Or2axjk6zfr6IPH0Yo5pZ7TE3AV6ZoFmc6YMpvtzvc3IL1GS2CH
+         q1v6oVzKtjN3+00O9hy+U743d5Yd2qRENZE+6ZnjXsFyEFaGhOkkYmKaMBBTTqoGuyh+
+         FjD11CbFg+7syhB8nH8cjB8qgcrGDU9d/4B18nwwNaZOjknskzcse7Qmny6BdiBfP3dk
+         AMANlfo9Dn1f8YYvwhRcvx0nwhbfaPSkPP3K7OJGLHtFVOxRTP09cv6t12Tj2gHCn/wI
+         crTb8WuLQQ50epxdrIFd1RECzLgUGAVmQsPDBQmMAKGPS/DyikUz1dOyP4+YUoWEvnUn
+         t2Jg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=9vp2bYSsRJT3s3itn0wC2NSkUEVs0LwSq/aMujoR+xs=;
-        b=GeakDJ+m34i87+7GiSGMRrRMvxoM4slKyEqN4Oc3SZdQYIMe59fDFXCVzW2hlBRRzI
-         KrdRYHsnVNT52+zvGCulXaChREbIv2nlr72sfBlmlzpodK1lCiPe8i6BAeBFIFjIm9ua
-         brg0d15I+rUGm7qZe7Fdzg8OCG5+bI74yJSW411kIaD9VsF2vs6rE6O2/DmQSHVvtRkI
-         BF/JRDFu//JpZxCtpGFz8H2FFsK7B1rBqoTeHot7FUlP551XznDOogheA5+7gbveA7JY
-         GhpHW8T+qcIeD9sTMdqrOBsCd0X1f/W1Lz3Xm97uxrqJOx5+hQeQ1L0ncAkXPgit7TF7
-         c7+w==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=culWY/Rk+vffcRaES9PIUDEE10WbDjvCzyyOH86GQbI=;
+        b=VhoLZSIXqnpeqGIzy/SURIcJVQ0YjP+mTFxbdW5gy3gfeb9jrlAe4prOAd6avue78J
+         TQ+VuxmuzHCnSax4VZ/SKUH0jWZC970jFiCvkqs15otHQlMI+MKGNfRs5WVtpeOKms4i
+         KOK4z6YrLDNVMw3Atwi+u37Im209NmShVyriHBmjrBeqdtkyTCEitkb+dufA1wzyy+vt
+         HKuff0FJR4QN4MDVET8cBbqYxbSnHAbEN6QmXaAa/otb2KxK8Nl9ZcCllVnXwxDlQx72
+         +WUCkiE3Q1Rb4keXkajQUmb5jmdtW7iVGr1KWvrfHoS9TXmF5w/0+1hjMWVSszJC7LOX
+         uM0Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m21si853618edq.234.2019.03.26.11.37.33
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=FZsDoNRb;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id y2si17072727pll.133.2019.03.26.13.11.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Mar 2019 11:37:33 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Tue, 26 Mar 2019 13:11:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 21C3AAC7E;
-	Tue, 26 Mar 2019 18:37:33 +0000 (UTC)
-Date: Tue, 26 Mar 2019 19:37:31 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: mgorman@techsingularity.net, riel@surriel.com, hannes@cmpxchg.org,
-	akpm@linux-foundation.org, dave.hansen@intel.com,
-	keith.busch@intel.com, dan.j.williams@intel.com,
-	fengguang.wu@intel.com, fan.du@intel.com, ying.huang@intel.com,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [RFC PATCH 0/10] Another Approach to Use PMEM as NUMA Node
-Message-ID: <20190326183731.GV28406@dhcp22.suse.cz>
-References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190326135837.GP28406@dhcp22.suse.cz>
- <43a1a59d-dc4a-6159-2c78-e1faeb6e0e46@linux.alibaba.com>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=FZsDoNRb;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c9a876f0000>; Tue, 26 Mar 2019 13:11:27 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Tue, 26 Mar 2019 13:11:31 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Tue, 26 Mar 2019 13:11:31 -0700
+Received: from rcampbell-dev.nvidia.com (172.20.13.39) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Tue, 26 Mar
+ 2019 20:11:31 +0000
+Subject: Re: CONFIG_DEBUG_VIRTUAL breaks boot on x86-32
+To: William Kucharski <william.kucharski@oracle.com>, Meelis Roos
+	<mroos@linux.ee>
+CC: LKML <linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>
+References: <4d5ee3b0-6d47-a8df-a6b3-54b0fba66ed7@linux.ee>
+ <A1B7F481-4BF6-4441-8019-AE088F8A8939@oracle.com>
+From: Ralph Campbell <rcampbell@nvidia.com>
+Message-ID: <f39477da-a1ef-e31e-a72d-8ea1d5755234@nvidia.com>
+Date: Tue, 26 Mar 2019 13:11:31 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <43a1a59d-dc4a-6159-2c78-e1faeb6e0e46@linux.alibaba.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <A1B7F481-4BF6-4441-8019-AE088F8A8939@oracle.com>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1553631087; bh=culWY/Rk+vffcRaES9PIUDEE10WbDjvCzyyOH86GQbI=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:Message-ID:Date:
+	 User-Agent:MIME-Version:In-Reply-To:X-Originating-IP:
+	 X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=FZsDoNRbAc/4HIAqnX+Vhp3z8GG7gJK9XpzbJ0o2AgUmo77iMdqmeGf4hsqJirXFz
+	 KD9YQx8cyDZO2zOa5KWXzLwhqJrh9hJBmbOral0aoQpkDeXzt0B4yZmiPBrBnFDpTp
+	 TnBXlS8XB16psg0eMYJrReNvKrHk6g9aM/ARYSLDwVek7HIhpN97BE635DArVyfjQp
+	 WFVjSAb0n+pK7VZWXuU0w31wIiDT1wdFIQNJDcS53JFHb9WI3LujqgV1CRBoqOM7Oq
+	 JzBMHcvXLsGogWedfKMpP8GzGvjLl6TmCN5uCvZ/aUTFacBwemf5G75ZNiWaQUxG5I
+	 5a14bPxDCOjPA==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 26-03-19 11:33:17, Yang Shi wrote:
-> 
-> 
-> On 3/26/19 6:58 AM, Michal Hocko wrote:
-> > On Sat 23-03-19 12:44:25, Yang Shi wrote:
-> > > With Dave Hansen's patches merged into Linus's tree
-> > > 
-> > > https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=c221c0b0308fd01d9fb33a16f64d2fd95f8830a4
-> > > 
-> > > PMEM could be hot plugged as NUMA node now. But, how to use PMEM as NUMA node
-> > > effectively and efficiently is still a question.
-> > > 
-> > > There have been a couple of proposals posted on the mailing list [1] [2].
-> > > 
-> > > The patchset is aimed to try a different approach from this proposal [1]
-> > > to use PMEM as NUMA nodes.
-> > > 
-> > > The approach is designed to follow the below principles:
-> > > 
-> > > 1. Use PMEM as normal NUMA node, no special gfp flag, zone, zonelist, etc.
-> > > 
-> > > 2. DRAM first/by default. No surprise to existing applications and default
-> > > running. PMEM will not be allocated unless its node is specified explicitly
-> > > by NUMA policy. Some applications may be not very sensitive to memory latency,
-> > > so they could be placed on PMEM nodes then have hot pages promote to DRAM
-> > > gradually.
-> > Why are you pushing yourself into the corner right at the beginning? If
-> > the PMEM is exported as a regular NUMA node then the only difference
-> > should be performance characteristics (module durability which shouldn't
-> > play any role in this particular case, right?). Applications which are
-> > already sensitive to memory access should better use proper binding already.
-> > Some NUMA topologies might have quite a large interconnect penalties
-> > already. So this doesn't sound like an argument to me, TBH.
-> 
-> The major rationale behind this is we assume the most applications should be
-> sensitive to memory access, particularly for meeting the SLA. The
-> applications run on the machine may be agnostic to us, they may be sensitive
-> or non-sensitive. But, assuming they are sensitive to memory access sounds
-> safer from SLA point of view. Then the "cold" pages could be demoted to PMEM
-> nodes by kernel's memory reclaim or other tools without impairing the SLA.
-> 
-> If the applications are not sensitive to memory access, they could be bound
-> to PMEM or allowed to use PMEM (nice to have allocation on DRAM) explicitly,
-> then the "hot" pages could be promoted to DRAM.
 
-Again, how is this different from NUMA in general?
--- 
-Michal Hocko
-SUSE Labs
+
+On 3/26/19 6:52 AM, William Kucharski wrote:
+> Does this still happen on 5.1-rc2?
+> 
+> Do you have idea as to what max_low_pfn() gets set to on your system at boot time?
+> 
+>  From the screen shot I'm guessing it MIGHT be 0x373fe, but it's hard to know for sure.
+> 
+> 
+>> On Mar 21, 2019, at 2:22 PM, Meelis Roos <mroos@linux.ee> wrote:
+>>
+>> I tried to debug another problem and turned on most debug options for memory.
+>> The resulting kernel failed to boot.
+>>
+>> Bisecting the configurations led to CONFIG_DEBUG_VIRTUAL - if I turned it on
+>> in addition to some other debug options, the machine crashed with
+>>
+>> kernel BUG at arch/x86/mm/physaddr.c:79!
+>>
+>> Screenshot at http://kodu.ut.ee/~mroos/debug_virtual-boot-hang-1.jpg
+>>
+>> The machine was Athlon XP with VIA KT600 chipset and 2G RAM.
+>>
+>> -- 
+>> Meelis Roos <mroos@linux.ee>
+>>
+> 
+
+You might be hitting a bug I found.
+Try applying this patch:
+https://marc.info/?l=linux-kernel&m=155355953012985&w=2
 
