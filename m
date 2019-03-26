@@ -2,155 +2,216 @@ Return-Path: <SRS0=c5Kt=R5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 225D7C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 09:23:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A415CC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 09:23:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DDE2A2084B
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 09:23:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DDE2A2084B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 5EE1020857
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 09:23:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5EE1020857
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 634106B0006; Tue, 26 Mar 2019 05:23:27 -0400 (EDT)
+	id F0DED6B0007; Tue, 26 Mar 2019 05:23:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5E2096B0007; Tue, 26 Mar 2019 05:23:27 -0400 (EDT)
+	id EBB6B6B0008; Tue, 26 Mar 2019 05:23:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4D3716B0008; Tue, 26 Mar 2019 05:23:27 -0400 (EDT)
+	id DD3EC6B000A; Tue, 26 Mar 2019 05:23:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0235D6B0006
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 05:23:27 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id n24so4954861edd.21
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 02:23:26 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A82E36B0007
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 05:23:48 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id e12so7326845pgh.2
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 02:23:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=C7MjwKqQAagBZDbh0m1tsLlMKHeylm2uEeYYB5lLtAY=;
-        b=LDw/G7Bz7Vg3WVXdXfsKGZba+/th2AqAYexpJCzuepK5TGOWPtCPPoBawKvjS2xcob
-         HxsupQT/NbWKlo1l7Sj+dyGMt0TNvpqYFGPCdnGX0glZ6heEjDhD1sErS7ASZYAHICGk
-         GmJto71cOONExtmEX8RTSIh5e4CMgkgfCxBiUREpFsIYufwkRdxHCw9kdoPAfn8PAem0
-         xTfOAsRoqrm14E4j+gtupaQF+ZqS+4w7zr8gsvzJV2A+vZh67DrIG1jL7gkc49cRww1V
-         peUEwfvoMiPFLrBT9CHcVE6IP/WG2wFzcEq47tHdtTogu+usxUfUuz0xOBfKrvzKWqb8
-         tnBA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWCMLevtaPpaU/oGEebCsqho39e00vKp6vr6Kzglsai3kJymSnf
-	npJmtLB+NLstlNLPLPPBauF0WphicnJ3nkXIs12zyY8B6Y+S0VCljbYsX9COgyC3PfKn8pAKtvy
-	7IHtsIxiZbbLyqD7bXUG6NCyFtgCB1HDT4xrytUXOmDUAMWTbG/d5QGOc1wWodh4=
-X-Received: by 2002:a50:94aa:: with SMTP id s39mr20224011eda.191.1553592206574;
-        Tue, 26 Mar 2019 02:23:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy4DQAZhmU14k1z8swBjix16HkbAcS0RlJvKiMdoZDNr0AvLWx9oH8CqoB3S4i8IbabrZuz
-X-Received: by 2002:a50:94aa:: with SMTP id s39mr20223974eda.191.1553592205924;
-        Tue, 26 Mar 2019 02:23:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553592205; cv=none;
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=QBBT2o3WyNf4d245LoEFylZIG4syyjeIXuC5ym3hohs=;
+        b=TgeDWAXN0t0kDnIBxsrRDCmJpoQSVuY6XeEVZ0AL06e7PwJyui/U9+VjgTylK/0B5s
+         WIUpftdXxEzLEfpMIfQkjqTeM/e+IixPPtZJtwUWoStf3rt19xffI/WO4o3tbOGk9ldM
+         9SAkubU0fuCiOiD7ldNBKsUo90bLyjg4sgQ0XE5vq0ScfUOPW0U13nz3Cn+LEYvMaIx7
+         XCUWN5kH/uN0nMMAhqfWIw7edl3NkC/CtnoKY/4OR5nkGDxTXjRyXyc9W9QTn4HgtFmg
+         2PDudNhWK5WXJU8M/ujaoLTHCJsJXD/rgr4oH35Wi2m67k9BED+2tbcOnh8vXvXZSxjL
+         il0A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAXyZ7dUSmhDoRTnKp0SL4pC/LOTiZhXEX2SMBsLUmMTLGAj+oXr
+	HW0lC4j1nm+hfTH+NhiWq63jbTlfk+6O5mX3annBvvITjakEhiKlRGKPZdppZKGjzsMUaV8VZh7
+	XdHnCvNWN/m19gpeWWvevYL3KLTPS3giz3dcerUrnnMx239WaqjidhQJECLlXHlf7Mw==
+X-Received: by 2002:a63:ed11:: with SMTP id d17mr27890001pgi.211.1553592228371;
+        Tue, 26 Mar 2019 02:23:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxWhHIC+MgSZLDKvaQMeVz0xn+5D8mp3DdY2gL56/8PksmLCxtB/CKS7lLfgJFtDA7ZKWEl
+X-Received: by 2002:a63:ed11:: with SMTP id d17mr27889963pgi.211.1553592227729;
+        Tue, 26 Mar 2019 02:23:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553592227; cv=none;
         d=google.com; s=arc-20160816;
-        b=wNcrZPM4A4HANOLSoo++Nb4JZoTf9qk7fb+jXf871z2/Esk6cHw+5lkF2321o4gCbG
-         UhuNUysShYVGoE4FiuA60wNmV5guHISk5Nb62GrUSkxgej1TPQvwAS8IhESi5rl6VilQ
-         qIXEvcOkXtPJzMWWsBFJOFUlHSwr0b75vZBAc7GIyca9v+KX0KlgGkFF2ihVXh0mw2mp
-         ldp1/DiXi5+fmTvj3u+J2yjUpJNdy6CD+n5MM51Px6u3i51y/v92gPxlN8pxBKoQ/R8z
-         8cUy2vabGwCe3zjuAoA2xoP1cX5NwV5s2itUF3cBx3rx82WSAuNSwRZlXvWUcUgvbWAS
-         CMVw==
+        b=G4pCmty/egomBqXhAuC1nLDmUprD/fjn6TPLS6EYfMdHeUBa/uEfb0DALKcBjGUXwF
+         g/1t+48wniIA3Ktv4lRY3XJxES6XV317hO6YoUCTnBSy0m31ps/nP+SIL0Pds2USYunr
+         LhmWxxtRPyn4EDiL++fHjiDkHhsnUJl4mmCa+IJBhdfhYzJRmM0BTO8ogH+maRzzw+Js
+         OZk/G5+INFNAoe0pEOsw8PAtFb2Kc5TPiURMFhHPJeKLpC+vZ/b+eMo9jYMsWSnCA9wY
+         htYx1zxfWacd+TjYhoLO0eaMkRQ3xlvmiwV796CqV+zmcrtw82FKvfdJbJI4NcqcOfFR
+         z2gA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=C7MjwKqQAagBZDbh0m1tsLlMKHeylm2uEeYYB5lLtAY=;
-        b=Y7m3/UyKXoY3qpZYcAetp63RW5I3oL4fPRwZC2lfLULy5Xv7oucGMlcgaBRHxZa6VC
-         4xP9mb86UiTA7aOH8F9uBRc8RqoaKOWNc7hIegxemJ3Bnkw/L1M1TjSkntbKT7HYuW+U
-         JqQ60K7bmqbrdJnjsDuTMY1TPJjJIAEyVXqkN84q9YjbKNSWO3deYqHTO7WS5QRu72bw
-         DDtgozY2jL6vAg4aZtRMJVm4ISzabMiONdNv7eYmc2w4dJ3yHBBo4JXz51bQ+rWNySzU
-         g0L/8sppcnipc6XDUpJZdZLh676/MhEDsTYqC+LxH9Ue694MdlfPMTqtZcyZ6PaZZhOR
-         6A1A==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=QBBT2o3WyNf4d245LoEFylZIG4syyjeIXuC5ym3hohs=;
+        b=ItAiVFLxNqcrndeZ/Jhy/EBjaOw7tuYt64otTgtDoONYSg0SDHHZgPBwMfOO7i1yVv
+         h2lL514J5OXvScgj1nO4BaHBVV45hsz/XCLmBqqxxae9b3dTSmP5F4HyeUlZQb1VjGoA
+         Tp9NM+rB7sHtuq64XHGB7itN7O40RNRcSF2ZozUvT+83YJaV7KKr9ux48mdI3ubWmaKc
+         5tmFCRfTT9CldFi8ZqsM9rDrM0s2sc4nl0+0OeO2BOQFxYJk4Swy0zLBymNNs0/YlKGM
+         RQ4ruJ4bjaYAQIdQrRnF2L0NOPJiPsdzpeiUy/adxlIbqyuNTII0//MWbWPYKRvopk+a
+         +HRQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q1si5674142ejs.275.2019.03.26.02.23.25
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id u70si9744232pgd.455.2019.03.26.02.23.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Mar 2019 02:23:25 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Tue, 26 Mar 2019 02:23:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 294C4ACEB;
-	Tue, 26 Mar 2019 09:23:25 +0000 (UTC)
-Date: Tue, 26 Mar 2019 10:23:24 +0100
-From: Michal Hocko <mhocko@kernel.org>
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2Q99NBw026392
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 05:23:47 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2rffue41n3-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 05:23:46 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Tue, 26 Mar 2019 09:23:44 -0000
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
+	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 26 Mar 2019 09:23:41 -0000
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x2Q9NerH58196084
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 26 Mar 2019 09:23:40 GMT
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id B8A9BA405B;
+	Tue, 26 Mar 2019 09:23:40 +0000 (GMT)
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 0FA7CA405C;
+	Tue, 26 Mar 2019 09:23:40 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.112])
+	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Tue, 26 Mar 2019 09:23:39 +0000 (GMT)
+Date: Tue, 26 Mar 2019 11:23:38 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
 To: Baoquan He <bhe@redhat.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	akpm@linux-foundation.org, rppt@linux.ibm.com, osalvador@suse.de,
-	willy@infradead.org, william.kucharski@oracle.com
-Subject: Re: [PATCH v2 1/4] mm/sparse: Clean up the obsolete code comment
-Message-ID: <20190326092324.GJ28406@dhcp22.suse.cz>
+        akpm@linux-foundation.org, mhocko@suse.com, osalvador@suse.de,
+        willy@infradead.org, william.kucharski@oracle.com
+Subject: Re: [PATCH v2 2/4] mm/sparse: Optimize sparse_add_one_section()
 References: <20190326090227.3059-1-bhe@redhat.com>
- <20190326090227.3059-2-bhe@redhat.com>
+ <20190326090227.3059-3-bhe@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190326090227.3059-2-bhe@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190326090227.3059-3-bhe@redhat.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19032609-0028-0000-0000-000003585CF7
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19032609-0029-0000-0000-000024171387
+Message-Id: <20190326092337.GC6297@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-26_05:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1903260069
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 26-03-19 17:02:24, Baoquan He wrote:
-> The code comment above sparse_add_one_section() is obsolete and
-> incorrect, clean it up and write new one.
+On Tue, Mar 26, 2019 at 05:02:25PM +0800, Baoquan He wrote:
+> Reorder the allocation of usemap and memmap since usemap allocation
+> is much simpler and easier. Otherwise hard work is done to make
+> memmap ready, then have to rollback just because of usemap allocation
+> failure.
+> 
+> And also check if section is present earlier. Then don't bother to
+> allocate usemap and memmap if yes.
 > 
 > Signed-off-by: Baoquan He <bhe@redhat.com>
 
-Please note that you need /** to start a kernel doc. Other than that.
+Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
 
-Acked-by: Michal Hocko <mhocko@suse.com>
 > ---
-> v1-v2:
->   Add comments to explain what the returned value means for
->   each error code.
+> v1->v2:
+>   Do section existence checking earlier to further optimize code.
 > 
->  mm/sparse.c | 15 ++++++++++++---
->  1 file changed, 12 insertions(+), 3 deletions(-)
+>  mm/sparse.c | 29 +++++++++++------------------
+>  1 file changed, 11 insertions(+), 18 deletions(-)
 > 
 > diff --git a/mm/sparse.c b/mm/sparse.c
-> index 69904aa6165b..b2111f996aa6 100644
+> index b2111f996aa6..f4f34d69131e 100644
 > --- a/mm/sparse.c
 > +++ b/mm/sparse.c
-> @@ -685,9 +685,18 @@ static void free_map_bootmem(struct page *memmap)
->  #endif /* CONFIG_SPARSEMEM_VMEMMAP */
+> @@ -714,20 +714,18 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
+>  	ret = sparse_index_init(section_nr, nid);
+>  	if (ret < 0 && ret != -EEXIST)
+>  		return ret;
+> -	ret = 0;
+> -	memmap = kmalloc_section_memmap(section_nr, nid, altmap);
+> -	if (!memmap)
+> -		return -ENOMEM;
+> -	usemap = __kmalloc_section_usemap();
+> -	if (!usemap) {
+> -		__kfree_section_memmap(memmap, altmap);
+> -		return -ENOMEM;
+> -	}
 >  
->  /*
-> - * returns the number of sections whose mem_maps were properly
-> - * set.  If this is <=0, then that means that the passed-in
-> - * map was not consumed and must be freed.
-> + * sparse_add_one_section - add a memory section
-> + * @nid: The node to add section on
-> + * @start_pfn: start pfn of the memory range
-> + * @altmap: device page map
-> + *
-> + * This is only intended for hotplug.
-> + *
-> + * Returns:
-> + *   0 on success.
-> + *   Other error code on failure:
-> + *     - -EEXIST - section has been present.
-> + *     - -ENOMEM - out of memory.
->   */
->  int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
->  				     struct vmem_altmap *altmap)
+>  	ms = __pfn_to_section(start_pfn);
+> -	if (ms->section_mem_map & SECTION_MARKED_PRESENT) {
+> -		ret = -EEXIST;
+> -		goto out;
+> +	if (ms->section_mem_map & SECTION_MARKED_PRESENT)
+> +		return -EEXIST;
+> +
+> +	usemap = __kmalloc_section_usemap();
+> +	if (!usemap)
+> +		return -ENOMEM;
+> +	memmap = kmalloc_section_memmap(section_nr, nid, altmap);
+> +	if (!memmap) {
+> +		kfree(usemap);
+> +		return  -ENOMEM;
+>  	}
+>  
+>  	/*
+> @@ -739,12 +737,7 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
+>  	section_mark_present(ms);
+>  	sparse_init_one_section(ms, section_nr, memmap, usemap);
+>  
+> -out:
+> -	if (ret < 0) {
+> -		kfree(usemap);
+> -		__kfree_section_memmap(memmap, altmap);
+> -	}
+> -	return ret;
+> +	return 0;
+>  }
+>  
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
 > -- 
 > 2.17.2
 > 
 
 -- 
-Michal Hocko
-SUSE Labs
+Sincerely yours,
+Mike.
 
