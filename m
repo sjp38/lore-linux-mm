@@ -2,207 +2,281 @@ Return-Path: <SRS0=c5Kt=R5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F056CC10F05
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:48:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 08898C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:58:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AD46A205F4
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:48:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AD46A205F4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 6713C20811
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:58:16 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="rMUjOLqZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6713C20811
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 86BB56B0297; Tue, 26 Mar 2019 12:48:28 -0400 (EDT)
+	id EF6066B026D; Tue, 26 Mar 2019 12:58:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 81F826B0298; Tue, 26 Mar 2019 12:48:28 -0400 (EDT)
+	id E7D416B026F; Tue, 26 Mar 2019 12:58:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 70F156B0299; Tue, 26 Mar 2019 12:48:28 -0400 (EDT)
+	id CF7A76B0270; Tue, 26 Mar 2019 12:58:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 391026B0297
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 12:48:28 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id 35so14059494qty.12
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 09:48:28 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 754326B026D
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 12:58:15 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id 65so7470169wri.15
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 09:58:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=jnvlAV+GWfMx/7xQbFXaF0JgvpgKRF2qvBTJuIYTYOk=;
-        b=D76z0XJ5uO/yoYIMbDnWQx63DTyNH0Bjs5Xdvya4ZGp6WgDfKjBpvptf5gBe6HtI1B
-         ev5KHAVyZBQ/b2XOYXhAVdNFRKGJG8KNtSNI0lcrMg7m/TDA+KK7f8s327G38hgW5ZWD
-         9ee8fSH2qhdWQB9xQNzrKcR+b1rxB0LTaZ/nE7/SPXhEsW0ZhE38QDF7/+wo4+nYHC7H
-         ZEABkAPdpAM0WHeyVY2D/FNNuoDGOItoBazUkAaRDNO1XKE+opJxF6zBt7U5x6to80dE
-         BOqiOB3pnIqwl70rImJtWb/e332UO7uFQBDcvFK7QHl7EnczBC/oRcGAfGzQxgkejrXh
-         TsGA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWlFQGi5HIp8QHQWFhGbbbqpnJJiJY7ya1s0sPRDzkb9yqZDMj0
-	csxnVx9DaG5ff6+nh7oQ6nZSZTGXiqwHfLiVkESd0QlXLhGprm4bPJ8WAEwzHOWucu7+xo8GkOx
-	DwQtmhPqmyCx9PycXUHvPEKKyhefhMbTxmB1S7HCeI78kISIRgQOYNAQ9lQJ+ieHyIg==
-X-Received: by 2002:a37:784:: with SMTP id 126mr24287211qkh.10.1553618908011;
-        Tue, 26 Mar 2019 09:48:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx55GVNwmoFPjHG9+7g6vF5xHLfb9AH86ZrSYRkOI4V2NJmqECy3VkHTyg7UyHMjj9clmKi
-X-Received: by 2002:a37:784:: with SMTP id 126mr24287174qkh.10.1553618907430;
-        Tue, 26 Mar 2019 09:48:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553618907; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=LD6hSdcwvQiyOzYMP5lSb0ibAdI5w/B0bCTvzjdJMOI=;
+        b=Bt4woaYidMiYXAGUkLMhgg4T2xv6LHj7ZtX8vyOVM7H87P6uJ5pmbqHJeTcKRy5ccj
+         eICqqZdTBXkZiQZGcjz0AIH7vNNXTQkXAwuj1V6X5lB5icaK031IKojCSwx0yE+1EQCJ
+         78QAe/8vOppSHRuUNPkTEfV4Ap1MNErJh+Y7oFCMlTANnfCByQyHfXWugWAQTuxBagEk
+         9UBSBzIh7Ie3XmLb8+CpdWGMXqZ3S6H4LmYk/U+dNrEg0oCP12KGQp7Yr8UWgdXl5+l9
+         Kqo2FmeQ1/LhSllUhVRmLfokafNHiOaOd1V0vakCaTKGBhOPom9KiCKoqoTIjz5/BgGp
+         v6TA==
+X-Gm-Message-State: APjAAAW3k6YV041XX/2qC9OLk/CAGYC2CRWwKYFhjt6RNvpWOMyjXvyl
+	I1czuJMDo8fc7LTdjRjtojZa+NkKosGAEq2Hg7Zg8ZkLbfGnWRjJ5BKEhEB9BaOFgeD0s6Ou4pI
+	dg6sfn1UvSY0iWK6fdFI3tC9bP48admUYHbGitiglw2vmvmxDK63snO/UZDJ2dTJ6vQ==
+X-Received: by 2002:a1c:cc0a:: with SMTP id h10mr9105034wmb.20.1553619494901;
+        Tue, 26 Mar 2019 09:58:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx77/IMCa34LTZl4qirKgBtnxw64m2akkChaaG4Je0lPWaOD5P6A5pj1loqWbmADqvXxhO5
+X-Received: by 2002:a1c:cc0a:: with SMTP id h10mr9104993wmb.20.1553619493955;
+        Tue, 26 Mar 2019 09:58:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553619493; cv=none;
         d=google.com; s=arc-20160816;
-        b=R1kozFGrKbJFishz2n3MdnZMZegfuNgoX1VF2KTCgy2jtNwKa4Qr+hLkRYr1eLm6bD
-         wWEKAVX23RQJa4pR0xRc3J+kAZl7kVcSLv8yzm4DObdUCFvYw8ydfZ23FS5wouy2nTWq
-         ZkPlOOzG4dcHkb28puQFGPjmmbMY2UA7lL5SWiKlu5WmbKbW4UrZxpJg15wL2oVSf4LA
-         jJ99yCFApNhbTmlPYKYdIpyCi0+hgeB/iq2CP2cCB8mOkbe0Tajx3xWx29pBYay3c3rj
-         kAav3BLt/5s1llm2G/VhscNv1dAWEu7d/QRU1I9G90azMDe+YOQhKR8E1j44WuNi2QDs
-         Bnjw==
+        b=G3zfgvvsJ6yoroRtk4g/dkZqRpHmTlzUB+YjimvHdnosd2XTCuLpEZdSlV2F9NmbGA
+         PG52xqyl3zTKxYFnq9ibd3xLa2Utxm7GHGlgTim71WzIZ+/g8oMl46uzhSTpNIgnrlIo
+         wz3+Q3yfnns5OTr6Qge3nmLE8v2fGerUnV1JH1gDRwpnBUm8caZlsTnrMxfPmxgHKCY3
+         iIKikdLCUlMH94UtC1AWdkXcSppBZYepmnAlXrUvFx0TP2+XsIxyICaNbtIxjcpvLPkR
+         GNm2EPtwqN0xPxYnzMssZMYLL/1ih/pOkT945DYe45ZYQkrNPBR4zOA+iJ+h3y7/tvul
+         LENQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=jnvlAV+GWfMx/7xQbFXaF0JgvpgKRF2qvBTJuIYTYOk=;
-        b=Dv6ITq7bnQ/gUW2hVcvcPI7ea6d1Y+j21nNveq57O7xMaPygOnBGJuuB+AW/J/61U7
-         /b8qNnyCYOf+DOYkTFM2//g4v6toJHvriFb8vIm1RSn5cuI/vbPs1Zy3ZIi8AGqGuRnw
-         A0edqf2tNZxbOj9fjHNTvYLtdt1eS1tjNUi2yk0fJLicorzh35u2WNnvi+dPmb5agixK
-         /U8CvpbGmssVtgbmJipUChBHEYRepTRlqLtx2myX/vEO1By5QVJ+GsbAfVIcD1/lTAGq
-         pNR6LYSdaOD2/7vCHApiTz4FMlLZmX6LT8wY1DJ1Yu1qLWrs8uEalI/F7rtLMx9Y6HHg
-         MSAQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=LD6hSdcwvQiyOzYMP5lSb0ibAdI5w/B0bCTvzjdJMOI=;
+        b=op79Ni+OL5oj3ngCSZhK/6TpIGpBSEpKtiBTI0B0FORXnYZbXDA4LYP1HJ4WJcwgnp
+         DRpWSN5AQET1foudpdFjRXPkrVxnBqHo29HWDQasy1+MtDNGeZRRsNMbrt3qPf1EdNgD
+         I0iRCqXybpI35EOhD10PlkIjJMN+OpsKZiqNU0rDw5fPgN+ifO+xj+UIei1iQ4zo+GgY
+         LcTBSyILkIp3ChWeMNZuciENnbQUAmIdJNxgud637uQ+K08iX9arwGdVevH520C63RmD
+         aaD4WgA8gp3b8zW4uMB6gHxG+OSl6/75or03Shj9qwv9wzcrh1rTBc0NDxz95HZdX0b3
+         /ZtA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k26si11111636qve.94.2019.03.26.09.48.27
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=rMUjOLqZ;
+       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
+Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
+        by mx.google.com with ESMTPS id d63si11739670wmf.30.2019.03.26.09.58.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Mar 2019 09:48:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Tue, 26 Mar 2019 09:58:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 7399A3086212;
-	Tue, 26 Mar 2019 16:48:26 +0000 (UTC)
-Received: from localhost.localdomain.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 485878428A;
-	Tue, 26 Mar 2019 16:48:24 +0000 (UTC)
-From: jglisse@redhat.com
-To: linux-kernel@vger.kernel.org
-Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm@kvack.org,
-	=?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>,
-	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
-	Jani Nikula <jani.nikula@linux.intel.com>,
-	Rodrigo Vivi <rodrigo.vivi@intel.com>,
-	Jan Kara <jack@suse.cz>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Peter Xu <peterx@redhat.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Jason Gunthorpe <jgg@mellanox.com>,
-	Ross Zwisler <zwisler@kernel.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Paolo Bonzini <pbonzini@redhat.com>,
-	=?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>,
-	kvm@vger.kernel.org,
-	dri-devel@lists.freedesktop.org,
-	linux-rdma@vger.kernel.org,
-	Arnd Bergmann <arnd@arndb.de>
-Subject: [PATCH v6 8/8] mm/mmu_notifier: mmu_notifier_range_update_to_read_only() helper
-Date: Tue, 26 Mar 2019 12:47:47 -0400
-Message-Id: <20190326164747.24405-9-jglisse@redhat.com>
-In-Reply-To: <20190326164747.24405-1-jglisse@redhat.com>
-References: <20190326164747.24405-1-jglisse@redhat.com>
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=rMUjOLqZ;
+       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
+Received: from localhost (mailhub1-int [192.168.12.234])
+	by localhost (Postfix) with ESMTP id 44THPv5XQvz9tyyq;
+	Tue, 26 Mar 2019 17:58:11 +0100 (CET)
+Authentication-Results: localhost; dkim=pass
+	reason="1024-bit key; insecure key"
+	header.d=c-s.fr header.i=@c-s.fr header.b=rMUjOLqZ; dkim-adsp=pass;
+	dkim-atps=neutral
+X-Virus-Scanned: Debian amavisd-new at c-s.fr
+Received: from pegase1.c-s.fr ([192.168.12.234])
+	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
+	with ESMTP id mRPEEK1aMQ5F; Tue, 26 Mar 2019 17:58:11 +0100 (CET)
+Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
+	by pegase1.c-s.fr (Postfix) with ESMTP id 44THPv4Cmfz9tyyn;
+	Tue, 26 Mar 2019 17:58:11 +0100 (CET)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
+	t=1553619491; bh=LD6hSdcwvQiyOzYMP5lSb0ibAdI5w/B0bCTvzjdJMOI=;
+	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
+	b=rMUjOLqZISmdIE6B1jHtMrvKQEmm5vf8LcThjXGq2uQq5zmFsrMSqhX0wMZorCflN
+	 VvdQUOuwY4vEKk/LZROBr/v73HEkV1zvQ78GtkgVSZt/jS/eaJri/J7XoR09cUPO6r
+	 zysNlRLaNu/T1pa6nA5aGrAf3ynsBBmA3yhzfW2Y=
+Received: from localhost (localhost [127.0.0.1])
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id F196D8B8DB;
+	Tue, 26 Mar 2019 17:58:10 +0100 (CET)
+X-Virus-Scanned: amavisd-new at c-s.fr
+Received: from messagerie.si.c-s.fr ([127.0.0.1])
+	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
+	with ESMTP id Yk3sBN4yLD5x; Tue, 26 Mar 2019 17:58:10 +0100 (CET)
+Received: from PO15451 (unknown [192.168.4.90])
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 645E58B8D0;
+	Tue, 26 Mar 2019 17:58:09 +0100 (CET)
+Subject: Re: [PATCH v6 04/19] powerpc: mm: Add p?d_large() definitions
+To: Steven Price <steven.price@arm.com>, linux-mm@kvack.org
+Cc: Mark Rutland <Mark.Rutland@arm.com>, Peter Zijlstra
+ <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>,
+ Will Deacon <will.deacon@arm.com>, Paul Mackerras <paulus@samba.org>,
+ "H. Peter Anvin" <hpa@zytor.com>, "Liang, Kan" <kan.liang@linux.intel.com>,
+ x86@kernel.org, Ingo Molnar <mingo@redhat.com>,
+ Catalin Marinas <catalin.marinas@arm.com>, Arnd Bergmann <arnd@arndb.de>,
+ kvm-ppc@vger.kernel.org, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+ <jglisse@redhat.com>, Borislav Petkov <bp@alien8.de>,
+ Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>,
+ linux-arm-kernel@lists.infradead.org,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>, linux-kernel@vger.kernel.org,
+ James Morse <james.morse@arm.com>, linuxppc-dev@lists.ozlabs.org
+References: <20190326162624.20736-1-steven.price@arm.com>
+ <20190326162624.20736-5-steven.price@arm.com>
+From: Christophe Leroy <christophe.leroy@c-s.fr>
+Message-ID: <8a2efe07-b99f-3caa-fab9-47e49043bf66@c-s.fr>
+Date: Tue, 26 Mar 2019 17:58:09 +0100
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20190326162624.20736-5-steven.price@arm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: fr
 Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Tue, 26 Mar 2019 16:48:26 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Jérôme Glisse <jglisse@redhat.com>
 
-Helper to test if a range is updated to read only (it is still valid
-to read from the range). This is useful for device driver or anyone
-who wish to optimize out update when they know that they already have
-the range map read only.
 
-Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
-Cc: Christian König <christian.koenig@amd.com>
-Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-Cc: Jani Nikula <jani.nikula@linux.intel.com>
-Cc: Rodrigo Vivi <rodrigo.vivi@intel.com>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Peter Xu <peterx@redhat.com>
-Cc: Felix Kuehling <Felix.Kuehling@amd.com>
-Cc: Jason Gunthorpe <jgg@mellanox.com>
-Cc: Ross Zwisler <zwisler@kernel.org>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Paolo Bonzini <pbonzini@redhat.com>
-Cc: Radim Krčmář <rkrcmar@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Christian Koenig <christian.koenig@amd.com>
-Cc: Ralph Campbell <rcampbell@nvidia.com>
-Cc: John Hubbard <jhubbard@nvidia.com>
-Cc: kvm@vger.kernel.org
-Cc: dri-devel@lists.freedesktop.org
-Cc: linux-rdma@vger.kernel.org
-Cc: Arnd Bergmann <arnd@arndb.de>
----
- include/linux/mmu_notifier.h |  4 ++++
- mm/mmu_notifier.c            | 10 ++++++++++
- 2 files changed, 14 insertions(+)
+Le 26/03/2019 à 17:26, Steven Price a écrit :
+> walk_page_range() is going to be allowed to walk page tables other than
+> those of user space. For this it needs to know when it has reached a
+> 'leaf' entry in the page tables. This information is provided by the
+> p?d_large() functions/macros.
+> 
+> For powerpc pmd_large() was already implemented, so hoist it out of the
+> CONFIG_TRANSPARENT_HUGEPAGE condition and implement the other levels.
+> 
+> Also since we now have a pmd_large always implemented we can drop the
+> pmd_is_leaf() function.
 
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index 0379956fff23..b6c004bd9f6a 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -259,6 +259,8 @@ extern void __mmu_notifier_invalidate_range_end(struct mmu_notifier_range *r,
- 				  bool only_end);
- extern void __mmu_notifier_invalidate_range(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end);
-+extern bool
-+mmu_notifier_range_update_to_read_only(const struct mmu_notifier_range *range);
- 
- static inline bool
- mmu_notifier_range_blockable(const struct mmu_notifier_range *range)
-@@ -568,6 +570,8 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
- {
- }
- 
-+#define mmu_notifier_range_update_to_read_only(r) false
-+
- #define ptep_clear_flush_young_notify ptep_clear_flush_young
- #define pmdp_clear_flush_young_notify pmdp_clear_flush_young
- #define ptep_clear_young_notify ptep_test_and_clear_young
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index abd88c466eb2..ee36068077b6 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -395,3 +395,13 @@ void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
- 	mmdrop(mm);
- }
- EXPORT_SYMBOL_GPL(mmu_notifier_unregister_no_release);
-+
-+bool
-+mmu_notifier_range_update_to_read_only(const struct mmu_notifier_range *range)
-+{
-+	if (!range->vma || range->event != MMU_NOTIFY_PROTECTION_VMA)
-+		return false;
-+	/* Return true if the vma still have the read flag set. */
-+	return range->vma->vm_flags & VM_READ;
-+}
-+EXPORT_SYMBOL_GPL(mmu_notifier_range_update_to_read_only);
--- 
-2.20.1
+Wouldn't it be better to drop the pmd_is_leaf() in a second patch ?
+
+Christophe
+
+> 
+> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> CC: Paul Mackerras <paulus@samba.org>
+> CC: Michael Ellerman <mpe@ellerman.id.au>
+> CC: linuxppc-dev@lists.ozlabs.org
+> CC: kvm-ppc@vger.kernel.org
+> Signed-off-by: Steven Price <steven.price@arm.com>
+> ---
+>   arch/powerpc/include/asm/book3s/64/pgtable.h | 30 ++++++++++++++------
+>   arch/powerpc/kvm/book3s_64_mmu_radix.c       | 12 ++------
+>   2 files changed, 24 insertions(+), 18 deletions(-)
+> 
+> diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
+> index 581f91be9dd4..f6d1ac8b832e 100644
+> --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
+> +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
+> @@ -897,6 +897,12 @@ static inline int pud_present(pud_t pud)
+>   	return !!(pud_raw(pud) & cpu_to_be64(_PAGE_PRESENT));
+>   }
+>   
+> +#define pud_large	pud_large
+> +static inline int pud_large(pud_t pud)
+> +{
+> +	return !!(pud_raw(pud) & cpu_to_be64(_PAGE_PTE));
+> +}
+> +
+>   extern struct page *pud_page(pud_t pud);
+>   extern struct page *pmd_page(pmd_t pmd);
+>   static inline pte_t pud_pte(pud_t pud)
+> @@ -940,6 +946,12 @@ static inline int pgd_present(pgd_t pgd)
+>   	return !!(pgd_raw(pgd) & cpu_to_be64(_PAGE_PRESENT));
+>   }
+>   
+> +#define pgd_large	pgd_large
+> +static inline int pgd_large(pgd_t pgd)
+> +{
+> +	return !!(pgd_raw(pgd) & cpu_to_be64(_PAGE_PTE));
+> +}
+> +
+>   static inline pte_t pgd_pte(pgd_t pgd)
+>   {
+>   	return __pte_raw(pgd_raw(pgd));
+> @@ -1093,6 +1105,15 @@ static inline bool pmd_access_permitted(pmd_t pmd, bool write)
+>   	return pte_access_permitted(pmd_pte(pmd), write);
+>   }
+>   
+> +#define pmd_large	pmd_large
+> +/*
+> + * returns true for pmd migration entries, THP, devmap, hugetlb
+> + */
+> +static inline int pmd_large(pmd_t pmd)
+> +{
+> +	return !!(pmd_raw(pmd) & cpu_to_be64(_PAGE_PTE));
+> +}
+> +
+>   #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>   extern pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot);
+>   extern pmd_t mk_pmd(struct page *page, pgprot_t pgprot);
+> @@ -1119,15 +1140,6 @@ pmd_hugepage_update(struct mm_struct *mm, unsigned long addr, pmd_t *pmdp,
+>   	return hash__pmd_hugepage_update(mm, addr, pmdp, clr, set);
+>   }
+>   
+> -/*
+> - * returns true for pmd migration entries, THP, devmap, hugetlb
+> - * But compile time dependent on THP config
+> - */
+> -static inline int pmd_large(pmd_t pmd)
+> -{
+> -	return !!(pmd_raw(pmd) & cpu_to_be64(_PAGE_PTE));
+> -}
+> -
+>   static inline pmd_t pmd_mknotpresent(pmd_t pmd)
+>   {
+>   	return __pmd(pmd_val(pmd) & ~_PAGE_PRESENT);
+> diff --git a/arch/powerpc/kvm/book3s_64_mmu_radix.c b/arch/powerpc/kvm/book3s_64_mmu_radix.c
+> index f55ef071883f..1b57b4e3f819 100644
+> --- a/arch/powerpc/kvm/book3s_64_mmu_radix.c
+> +++ b/arch/powerpc/kvm/book3s_64_mmu_radix.c
+> @@ -363,12 +363,6 @@ static void kvmppc_pte_free(pte_t *ptep)
+>   	kmem_cache_free(kvm_pte_cache, ptep);
+>   }
+>   
+> -/* Like pmd_huge() and pmd_large(), but works regardless of config options */
+> -static inline int pmd_is_leaf(pmd_t pmd)
+> -{
+> -	return !!(pmd_val(pmd) & _PAGE_PTE);
+> -}
+> -
+>   static pmd_t *kvmppc_pmd_alloc(void)
+>   {
+>   	return kmem_cache_alloc(kvm_pmd_cache, GFP_KERNEL);
+> @@ -460,7 +454,7 @@ static void kvmppc_unmap_free_pmd(struct kvm *kvm, pmd_t *pmd, bool full,
+>   	for (im = 0; im < PTRS_PER_PMD; ++im, ++p) {
+>   		if (!pmd_present(*p))
+>   			continue;
+> -		if (pmd_is_leaf(*p)) {
+> +		if (pmd_large(*p)) {
+>   			if (full) {
+>   				pmd_clear(p);
+>   			} else {
+> @@ -593,7 +587,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
+>   	else if (level <= 1)
+>   		new_pmd = kvmppc_pmd_alloc();
+>   
+> -	if (level == 0 && !(pmd && pmd_present(*pmd) && !pmd_is_leaf(*pmd)))
+> +	if (level == 0 && !(pmd && pmd_present(*pmd) && !pmd_large(*pmd)))
+>   		new_ptep = kvmppc_pte_alloc();
+>   
+>   	/* Check if we might have been invalidated; let the guest retry if so */
+> @@ -662,7 +656,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
+>   		new_pmd = NULL;
+>   	}
+>   	pmd = pmd_offset(pud, gpa);
+> -	if (pmd_is_leaf(*pmd)) {
+> +	if (pmd_large(*pmd)) {
+>   		unsigned long lgpa = gpa & PMD_MASK;
+>   
+>   		/* Check if we raced and someone else has set the same thing */
+> 
 
