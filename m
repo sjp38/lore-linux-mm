@@ -2,207 +2,173 @@ Return-Path: <SRS0=c5Kt=R5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 041F4C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 14:52:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 60384C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 15:43:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 90DE62075C
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 14:52:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1D68D2087C
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 15:43:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="mtRExl5r"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 90DE62075C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="UnRUcSI4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1D68D2087C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 031A26B0003; Tue, 26 Mar 2019 10:52:04 -0400 (EDT)
+	id 5191F6B0003; Tue, 26 Mar 2019 11:43:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EFD9A6B0006; Tue, 26 Mar 2019 10:52:03 -0400 (EDT)
+	id 4C8566B0006; Tue, 26 Mar 2019 11:43:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DEDDC6B0007; Tue, 26 Mar 2019 10:52:03 -0400 (EDT)
+	id 3B8A46B0007; Tue, 26 Mar 2019 11:43:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D1286B0003
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 10:52:03 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id k1so3083914ljc.4
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 07:52:03 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D44B6B0003
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 11:43:54 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id g17so13894684qte.17
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 08:43:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=XI8nG9Dzmt5ShimcJLgUrFfOlr1UjZ/4vfezN58z7mI=;
-        b=erd/c+TQ7oTTtDkYeQRWPoCSpC0k4G4JteYzAJWZvmX5wUtTSLaw6i2+VtbsN44jSX
-         JD8LF+S5Ys9QL3M+Je3zIcJkA37M0yvSGhAOLDqfSME+sEdnGEIt2deTmdMzbzFbrNiP
-         1AxEBnzoDhsKDYTGUAeBUad+6c3OZCHG94pxQAW8SZnPzSmgWaK1Kcfz0IZ+SBpyIwN7
-         yAYM+z2mKwOZ/TTu0E/qp8ii/kierCMzZOjmsh9z30bKAfb5N/KWt4irAtHGCYV+VZYn
-         iGW1k1rl9Z039XpFqTFbVBHC/IlPzKmTET1RJeHqVW5dFhjOGxAjky9yXi2dPBnmlS+0
-         sWLg==
-X-Gm-Message-State: APjAAAUaorS75ipspo6LeUSWoUXKzs7Jevu/1kgepHJC0OeWWY1svlrm
-	1Kg8oo8+EvhMwVBpeLtyXdcRsvcmG2cyZvkvrjgBhO4aPGf+jSo10Qv6Vqzr4QPX2fgTY9k2Grl
-	xSrPc745k4DJfrLdkAGRIP8Ks+ItArv76BAWmQVSc75F8e43IjEKEv5n0op8nSCrd7g==
-X-Received: by 2002:ac2:5638:: with SMTP id b24mr1795578lff.18.1553611922895;
-        Tue, 26 Mar 2019 07:52:02 -0700 (PDT)
-X-Received: by 2002:ac2:5638:: with SMTP id b24mr1795529lff.18.1553611921967;
-        Tue, 26 Mar 2019 07:52:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553611921; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=xPwO+VfBDlBl+yGZj+3rGMuEeXiQlCjRxp+hpH3Hq0A=;
+        b=Ecdn9ASZhykL0kpIfcTzzKi0B3/ZOOmLtvAbymTgmSSvkbuARLDG9xG4Kf20InekbC
+         FWblxGjhTxeNnDceeMb86y+briK5y4c8urXwlJsbasy9jSHbJeJByw94c2FNbHodhN+c
+         4eSmo59Xl9K8psGywGeCEvNenBlFx8i8A1kYJV66VwgXZ1dhbyWZF3HXWzbEId0hhsVM
+         J5A5UP7jzhhMZDrVyKMGmOLc4vnFyj4TQpFcbgls9orrtZpCSYGZj8INfZVK05ZI2SSn
+         lXjXeUec22U/ZN0jNrQdwzerf/xekkRKjKXYM72PbJOzUQZwy7N9q6BKA60FRoGpUqER
+         trzw==
+X-Gm-Message-State: APjAAAU8Iq6fDmGIih55HuSvjuCO/WOqXzorPXaSlzdo3CLsF7IG6tRO
+	ACV7HK+pAZeZtkZfAIObr1WLB5p+at+Jw7L3cjEUP/p751KwkseeU4pJnJ8BowH9SeKZEFtZ2W9
+	PC/88kacnRhLa8amrzkIX2HTziYEHFpldMiWPSiCafzQC83Ym/Kad22piJFu5QIGMSg==
+X-Received: by 2002:a37:9fc4:: with SMTP id i187mr25145827qke.141.1553615033867;
+        Tue, 26 Mar 2019 08:43:53 -0700 (PDT)
+X-Received: by 2002:a37:9fc4:: with SMTP id i187mr25145747qke.141.1553615032688;
+        Tue, 26 Mar 2019 08:43:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553615032; cv=none;
         d=google.com; s=arc-20160816;
-        b=CVjQjuam70b0bCpgvZL8B75EX5BsHDHALNSq4lQANfzO4+0cOcipLlx9ojngSFmtYG
-         NKEc+K5Sg/K8k/cSCjbDcKPmIkAYs+i4WuwKSjadNC4TTuv9GZKPLHvubSIDRvtVm5Ty
-         dazx4nZPyo1ZBYVM8DWs4W+IoafnNYU8njDSYVky7Vmit0XUEBeuF40j25eK7U9aAndc
-         RJAlK9YVK3TRWkR6acTWlqCXGmIymQfnHfjuALbxxYbbfBpUi/iCdjYC1HH/7ULwhnbm
-         kBVGiqJEXYEzqJprH3n+PT8Vl0w2D4Vss41z4Te5yxQUHhEYoeHw1QZNGPrjOPTICCss
-         2uBg==
+        b=L+R1tZdeWAAmDNc/X3a9VGxmApOBantbowOfaFLN33CDQmGkFhM+lplPpAYFyi8i1P
+         M8HtKF9c0p5Mvz9dZgDYMAG8dUdujfAos84m5XpBTeY+wWbN7QwHlhS44IyhookMNaz7
+         KooOpfzLZu2JM/Cl+QcPvGeFSMYNjF5KgzLxmNl7EcwywVbiWd63+lzGjmW2cBngpwVW
+         W3/jvUKPpQiorRvxXovxqxqdqZB2mVUGnxELRVBC3lSAjqDhFOnMlhjy4XImHP8aGI6t
+         mzsArZ9M4UIEwFEjPd4eJk2bP/FsgLjcZ+nVuELaTan67BNnzzpTX1Rh1u/NI6oMhfY+
+         Kdfw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:date:from:dkim-signature;
-        bh=XI8nG9Dzmt5ShimcJLgUrFfOlr1UjZ/4vfezN58z7mI=;
-        b=QfsxAO4YS6pSrLePSNXMSMojOcdQzCfXGt1qCAESYollRr5rc+wlebdQ3eUwdSBsFC
-         Uc2gSLdYGde3gAZDojy4NCu8Sxy+C8/+qudNm+weQLxb6p0rNX2gOBPfit+pHKbY9R9D
-         cDJF8aqsrLj5i1h7wvedp/v9UrrcFLGn93HvDTSBnwAc6Zpq8hBicDh1Jrj2UbsdwmZU
-         drAVMXf/0PpnseBh5hLqUiCikZi16OE0Zygt7HG0n21FUmZpOuD4TuQOm92M0HeRJNUz
-         1NBKvS6YXtzjNTlLtilCgdKuWbF96y3VkOY+PlNmLt1RZs3fW1tW737T+eP4fe8q2Z+1
-         L9tA==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=xPwO+VfBDlBl+yGZj+3rGMuEeXiQlCjRxp+hpH3Hq0A=;
+        b=osB/R/9Z5pGgueSqCMY1zGPsyvPMtc2r+0uaVTCyAQPBgfSFQAiNmiAYszyBX7YoUp
+         FbZ5cbOsuAMAoV29nppOKvCq6yw2Hr8mV2LbL4j4thAMhG3V535xq4YeyyKdU7Fu4vB4
+         ZLYmZ6ig+xq389lh7RYiYqGQa8YOjnI2/JgH5iRs18WhNZqwvVJuyV4qZHAl3SkcGwwa
+         2vQP2BJrM6vTh2AMMvoVHYerRUe1iVXG9lERhr+tWT5Yc6Mccg/kLw7opM/TGTVSgQYg
+         VhK1KavSoHMxbD2yV2dE4xbEim+Tzz+aDYNd65QFvKC2nLZODhoPA+ERICJC7s2+8Kjz
+         3ZHA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=mtRExl5r;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@lca.pw header.s=google header.b=UnRUcSI4;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t10sor6505354ljd.5.2019.03.26.07.52.01
+        by mx.google.com with SMTPS id k26sor336301qtf.56.2019.03.26.08.43.52
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 26 Mar 2019 07:52:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 26 Mar 2019 08:43:52 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=mtRExl5r;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@lca.pw header.s=google header.b=UnRUcSI4;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:date:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=XI8nG9Dzmt5ShimcJLgUrFfOlr1UjZ/4vfezN58z7mI=;
-        b=mtRExl5rQvp5nbXGCI/zHz/hSZxZNfiZyNqO8FojEpmtvcCqNgzb3mRjnpamZQpWW1
-         K+OA4pLUbXctnOw0xvAiKD02hDCUZfrUw71JcmXKz/mqRJCXsvCpSj/+3/KGT3+5+8eh
-         r2sLoGsjsor9eNEnoOIzMKNlos+7JfVp57yi62KnmvFjoB/uNd9J/1yl7Q3y1rjPHEgO
-         TuK1VMYuXbA09G7aFW3F0IZPrMpQru4ZFRCakwwB6slytwAsXVG9WwFVEVp8Y9F2Gb0k
-         Yzf0P9fLan8AXDY5nSAb11qnf+GkkzITTpGXt+nGctYowVFX3P3Bkeq9oD3wYv3qymgD
-         7Uow==
-X-Google-Smtp-Source: APXvYqzTtQP+oFFD8jGFvpEJTrQjS1fwAFTra0tU4Xfa6gY3j2lgi5Z8Wwn4YaJfUT5HfAbn7DrrrQ==
-X-Received: by 2002:a2e:9655:: with SMTP id z21mr16910027ljh.60.1553611921190;
-        Tue, 26 Mar 2019 07:52:01 -0700 (PDT)
-Received: from pc636 ([37.139.158.167])
-        by smtp.gmail.com with ESMTPSA id y1sm4118474ljj.13.2019.03.26.07.51.59
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 26 Mar 2019 07:52:00 -0700 (PDT)
-From: Uladzislau Rezki <urezki@gmail.com>
-X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
-Date: Tue, 26 Mar 2019 15:51:53 +0100
-To: Uladzislau Rezki <urezki@gmail.com>
-Cc: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Thomas Garnier <thgarnie@google.com>,
-	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Joel Fernandes <joelaf@google.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
-	Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC PATCH v2 1/1] mm/vmap: keep track of free blocks for vmap
- allocation
-Message-ID: <20190326145153.r7y3llwtvqsg4r2s@pc636>
-References: <20190321190327.11813-1-urezki@gmail.com>
- <20190321190327.11813-2-urezki@gmail.com>
- <20190322215413.GA15943@tower.DHCP.thefacebook.com>
- <20190325172010.q343626klaozjtg4@pc636>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190325172010.q343626klaozjtg4@pc636>
-User-Agent: NeoMutt/20170113 (1.7.2)
+        d=lca.pw; s=google;
+        h=from:to:cc:subject:date:message-id;
+        bh=xPwO+VfBDlBl+yGZj+3rGMuEeXiQlCjRxp+hpH3Hq0A=;
+        b=UnRUcSI4TZIx2r78mB5JigJyEu6np6Ud0wXDTFslg5/OmfzMRXniVE4SYCONHcDC8y
+         tMMLUKfmTGK3huEJJ36MrE7QswyLaZU+qXbNMvpmrjMu8S0Nupb/xdxL0+NRuMJL9CAG
+         vFgxFzh/865BZvaIKY2fmmfEIQY/oLpQMueoAcMThpgZJiCAZtgZs8Vh7yF5dwOqvABO
+         0g57MnHGvalTW98+FNHl9MpnGuv1g2kkB9VOAW5f59Pitfdnep4R+ZtywZNVtdgDtC/n
+         XILDCURc37mtovGtcED9cavYh91iZ1DcRowoKJ6YAUpwMUNi/zRI6Od0qBIKw2QZjxlX
+         5dGA==
+X-Google-Smtp-Source: APXvYqy045SWSJFO/BHLfG05yG54W7e+a05pC6xI7btFS93LrCM/yf9exjaxjN8VsQFaqDmh6vYDfQ==
+X-Received: by 2002:ac8:2ed4:: with SMTP id i20mr25830138qta.52.1553615032240;
+        Tue, 26 Mar 2019 08:43:52 -0700 (PDT)
+Received: from ovpn-120-94.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id j93sm7528547qtd.82.2019.03.26.08.43.50
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Mar 2019 08:43:51 -0700 (PDT)
+From: Qian Cai <cai@lca.pw>
+To: akpm@linux-foundation.org
+Cc: catalin.marinas@arm.com,
+	mhocko@kernel.org,
+	cl@linux.com,
+	penberg@kernel.org,
+	rientjes@google.com,
+	iamjoonsoo.kim@lge.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Qian Cai <cai@lca.pw>
+Subject: [PATCH v3] kmemleaak: survive in a low-memory situation
+Date: Tue, 26 Mar 2019 11:43:38 -0400
+Message-Id: <20190326154338.20594-1-cai@lca.pw>
+X-Mailer: git-send-email 2.17.2 (Apple Git-113)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello, Roman.
+Kmemleak could quickly fail to allocate an object structure and then
+disable itself in a low-memory situation. For example, running a mmap()
+workload triggering swapping and OOM. This is especially problematic for
+running things like LTP testsuite where one OOM test case would disable
+the whole kmemleak and render the rest of test cases without kmemleak
+watching for leaking.
 
-> > 
-> > So, does it mean that this function always returns two following elements?
-> > Can't it return a single element using the return statement instead?
-> > The second one can be calculated as ->next?
-> > 
-> Yes, they follow each other and if you return "prev" for example you can easily
-> refer to next. But you will need to access "next" anyway. I would rather keep
-> implementation, because it strictly clear what it return when you look at this
-> function.
-> 
-> But if there are some objections and we can simplify, let's discuss :)
-> 
-> > > +		}
-> > > +	} else {
-> > > +		/*
-> > > +		 * The red-black tree where we try to find VA neighbors
-> > > +		 * before merging or inserting is empty, i.e. it means
-> > > +		 * there is no free vmap space. Normally it does not
-> > > +		 * happen but we handle this case anyway.
-> > > +		 */
-> > > +		*prev = *next = &free_vmap_area_list;
-> > 
-> > And for example, return NULL in this case.
-> > 
-> Then we will need to check in the __merge_or_add_vmap_area() that
-> next/prev are not NULL and not head. But i do not like current implementation
-> as well, since it is hardcoded to specific list head.
-> 
-Like you said, it is more clever to return only one element, for example next.
-After that just simply access to the previous one. If nothing is found return
-NULL.
+Kmemleak allocation could fail even though the tracked memory is
+succeeded. Hence, it could still try to start a direct reclaim if it is
+not executed in an atomic context (spinlock, irq-handler etc), or a
+high-priority allocation in an atomic context as a last-ditch effort.
+Since kmemleak is a debug feature, it is unlikely to be used in
+production that memory resources is scarce where direct reclaim or
+high-priority atomic allocations should not be granted lightly.
 
-static inline struct list_head *
-__get_va_next_sibling(struct rb_node *parent, struct rb_node **link)
-{
-	struct list_head *list;
+Unless there is a brave soul to reimplement the kmemleak to embed it's
+metadata into the tracked memory itself in a foreseeable future, this
+provides a good balance between enabling kmemleak in a low-memory
+situation and not introducing too much hackiness into the existing
+code for now.
 
-	if (likely(parent)) {
-		list = &rb_entry(parent, struct vmap_area, rb_node)->list;
-		return (&parent->rb_right == link ? list->next:list);
-	}
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
 
-	/*
-	 * The red-black tree where we try to find VA neighbors
-	 * before merging or inserting is empty, i.e. it means
-	 * there is no free vmap space. Normally it does not
-	 * happen but we handle this case anyway.
-	 */
-	return NULL;
-}
-...
-static inline void
-__merge_or_add_vmap_area(struct vmap_area *va,
-	struct rb_root *root, struct list_head *head)
-{
-...
-	/*
-	 * Get next node of VA to check if merging can be done.
-	 */
-	next = __get_va_next_sibling(parent, link);
-	if (unlikely(next == NULL))
-		goto insert;
-...
-}
+v3: Update the commit log.
+    Simplify the code inspired by graph_trace_open() from ftrace.
+v2: Remove the needless checking for NULL objects in slab_post_alloc_hook()
+    per Catalin.
 
-Agree with your point and comment.
+ mm/kmemleak.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
 
-Thanks!
-
---
-Vlad Rezki
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index a2d894d3de07..239927166894 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -581,6 +581,17 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
+ 	unsigned long untagged_ptr;
+ 
+ 	object = kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
++	if (!object) {
++		/*
++		 * The tracked memory was allocated successful, if the kmemleak
++		 * object failed to allocate for some reasons, it ends up with
++		 * the whole kmemleak disabled, so let it success at all cost.
++		 */
++		gfp = (in_atomic() || irqs_disabled()) ? GFP_ATOMIC :
++		       gfp_kmemleak_mask(gfp) | __GFP_DIRECT_RECLAIM;
++		object = kmem_cache_alloc(object_cache, gfp);
++	}
++
+ 	if (!object) {
+ 		pr_warn("Cannot allocate a kmemleak_object structure\n");
+ 		kmemleak_disable();
+-- 
+2.17.2 (Apple Git-113)
 
