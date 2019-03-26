@@ -2,129 +2,173 @@ Return-Path: <SRS0=c5Kt=R5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 94AD1C10F05
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:00:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EB1ABC10F05
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:05:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3938D2070D
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:00:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9C5202070D
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 16:05:46 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="LlsVT94n"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3938D2070D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="VkC7m7yz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9C5202070D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C86906B0007; Tue, 26 Mar 2019 12:00:52 -0400 (EDT)
+	id 3F8396B000A; Tue, 26 Mar 2019 12:05:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C36C56B0008; Tue, 26 Mar 2019 12:00:52 -0400 (EDT)
+	id 380B26B000C; Tue, 26 Mar 2019 12:05:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B4D6F6B000A; Tue, 26 Mar 2019 12:00:52 -0400 (EDT)
+	id 2217D6B000D; Tue, 26 Mar 2019 12:05:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 940F06B0007
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 12:00:52 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id x12so14000614qtk.2
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 09:00:52 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CECC36B000A
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 12:05:45 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id m17so12092164pgk.3
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 09:05:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=5JSh85fk4kA2upwixVG2YsNhFipIv7bLyOUQWqffPOg=;
-        b=R5RzKC5o6J9+HZsf0l/f8YBhtJU7axNGC7JtqsD31mS1h1QOyL/dXoG6B/d2NvpSoz
-         HbMcBfrUtbZKmEkaYYW2huLTsH+oThh9zG+ButEjZcQqcMlwQOwciUvW7+GEkVYKGT3U
-         fj6mRatBmtUOyoL3hkhOberGLw8NQBm0CYZgymaO1l3QFZOWONvAvXtrQGMOsr7A/g6P
-         ZSgc53nlLrYGO4PggVKLlJS+QlAJmqqILGxX7a7HwGAeYuALy4n3lqqWJUEsYpO2xXDq
-         V5B6WWfKfwFDmj6gAFEVMHSkiCptTNH6MpnmhFM8+iIRJLIiZPPSCoOA+CSJbInSj0gM
-         30wg==
-X-Gm-Message-State: APjAAAXMv8KhTY1sNDQFzYdHB054phftsx2K118IhwN/P27EgMnNhYIG
-	ddGmTArluv99LazTY+U1fl7OL1L/cVwyWTGirdoGFcdSfE5CJUtzVDcDxD+AW1/1Uky2f6MgXkT
-	qM5nwzXcXE+eKxAAutiS06gIN94apipTbzvIPP5Tx14mKRlQl5UDbNJZD/YlVvbM=
-X-Received: by 2002:a05:620a:16b4:: with SMTP id s20mr25415626qkj.101.1553616052408;
-        Tue, 26 Mar 2019 09:00:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzfjvsLpVQgHTP/+SIIWju2ALnvkRMR7m8I8M5pK7S+q6WfpNSA3OQruTrYKwfxQlDvO+mA
-X-Received: by 2002:a05:620a:16b4:: with SMTP id s20mr25415511qkj.101.1553616051196;
-        Tue, 26 Mar 2019 09:00:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553616051; cv=none;
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=Yz2RvGFb8xZomssZ7mtRK2dOFU1jnfJaOyAOB+cKBIQ=;
+        b=sWWLEnd/8FJijNe3oojvFeT5dW9Doqum8/hgzCRkS2J5SyvfUp6DeNlSPHmGhDDPNz
+         ZUJuZ19AZI1qZxdQK8O5HzANcL0Nn8Qvusl/U2lIe85CkDrC17sabZ3MYd0tEOEtX6Cg
+         Gjn7SuVUkTzoXpOeim7vtWbE7bHd0r9hZCVu4Tpi5SxZc8jvF7cWlEXyFX+ig4jADpHp
+         +ebhgDiIHNadlgYZ04Hx2iIn2/hfDjgggJYzziwY/kUM+akktyPGL8g4Kaui1WYEVHWQ
+         Gv3WKLCXHJDStBoBgauQzL9XS1t+1IY82PaOOXEBQYAfHALHdUf9x6235+GKlkDrj0Qu
+         rdfw==
+X-Gm-Message-State: APjAAAU14biiEtx5DYTH/uTutam+6Ce/T21vuNI7UQ9ON4EY4PkVtiq1
+	auRFOJA9nAEkrfyilDMhuUSpWcNdHC4q0iG8/I7jOkIICE5aqyvkdX+cz2KAv0BP0TMn8eblp43
+	yS0DENZQzdl0inWR8ia/mC15ZgvTMcJnBQGqRRTgmA7XIsVNMVr9ouzofoF4XpRh7+A==
+X-Received: by 2002:a63:4e10:: with SMTP id c16mr30267825pgb.302.1553616345299;
+        Tue, 26 Mar 2019 09:05:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx18dkyC+qcQza6KH2L5qquVLlIxiubk9NJRvXAEp7DZKNcz8bicxGAWwv4wRWXXQGKNLdX
+X-Received: by 2002:a63:4e10:: with SMTP id c16mr30267691pgb.302.1553616343940;
+        Tue, 26 Mar 2019 09:05:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553616343; cv=none;
         d=google.com; s=arc-20160816;
-        b=BfgRDig04BtIxoaX5vA2FJZxk35V/4Rc/4pYhr5QzzSgLa59WDT8jtmpapHxw9t4Ci
-         zTW2yaMs8ZNfR0z3lvvAGC7QooRUGkQ1J+UiHtTNJ0ZG2kFc9ObilmS8ZYKg9Li/YD8I
-         PWlP/RC5+nUOYdI5npLpSJ2CUTyEdNpKBs/5/lZU11g/pHt0z+ncPp1qWIcH/yP3yrck
-         jugJSyKCyRUk2oV7WNrq77FWyGCRxDRNCI1fjYKO1bGl27ZXgsX1MdXdVIFh8GsAsOSG
-         ts8Yf0Zeo8Kkqh1T1mpIUx3XbYLvyreOSOJ5jVYxiAaWQtvBFxNNvBYvSLG+X2GfXp5a
-         ZivA==
+        b=gZzcP7iUvxYMZ3IHv6Vdqs1zbs2jmUJxFAQT+fZ5TicAKVe5nNSHkLjQmIGlY/DlFQ
+         4aPU5HOJX5DpIipZfPwRzzhnUohdq6jNGKby0T3ddUICxiTpz4UfQcABNg6+tIOhO3MV
+         1uOo0UtpIPyWOVBdceFDSwWijrKCm6Ejba0J4FTUEv0IgiSyv1pzyslp1mn/rcBFupuf
+         UoqEmXiLf7DZXMME3BzuEaJqCXD41qYuXxE6+uH+bDFRAt/4PB8IUHOUBU9/Y34ZxFgl
+         amcZVihrbvPON7ENjvp1L8uP2aeAqYfM7sa/hARJdlQk2Q5Y/+fv6P9zsa30HKnwnZuB
+         iaJg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=5JSh85fk4kA2upwixVG2YsNhFipIv7bLyOUQWqffPOg=;
-        b=olH2yhMmpm98Eeyk2vjR6DPXWS2zZqhtxwZU2xOk7iSqTGS3PJbzkGN53L0NLrF88t
-         wVSz4ZRGlNgyGK9IGKqZbxQxE1zv6gg6b70EHYc1xGB4pKQIXrL1OzZvwHHycDaJmfKc
-         bcOwJNA7VHVXZjdEalXR3nbbmJOJxOTvtEN1bACkUXQ2VhrRsw09klXLKF56Iv1QLxBo
-         v0bRuXo11kEzvfsGFd5kYPQfhaR2S8F3fOAnQHV25xD1dfMLbBFMGHWOPOxMvVvaycvW
-         1er+LvWxEOEwhuPic7jCbMLAO+pDqWaKCMVbbuD0Iv359oJYGemb1VqWblPohC8b83J7
-         BPnw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=Yz2RvGFb8xZomssZ7mtRK2dOFU1jnfJaOyAOB+cKBIQ=;
+        b=VZVoSTfziwfgyBHyhzER88YXHrbGrIxtIvMBw6derAns0C48eEH0q20Au42J0F43CA
+         9YBmK5dJh75lyCJtpx+McA5Yc3bFh6QKQLztfWLHfGMqa+J/qz7VbLiGz4UzLfxI4dOp
+         MAc8M4HTfP+ACJUJKn1GCXsxiMbjWRqwtPYsVLwjkDfA3eWCOOJo42spHIb5Fs8n3ip5
+         +qQkGaDU74JYWYg5/Mp8aGCyBrxKXAd3of4SkjG2XFH4R5fAocNCxcf1O4H1H2A4rvVX
+         0g3ydU6dC4xFImK0u195rBQoqvtildJA/4z228UVw9AQFiZZUokd1QtCD5lsWscZlZCN
+         OviQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=LlsVT94n;
-       spf=pass (google.com: domain of 01000169babb99b8-b583bf57-5104-45b7-a4d6-e7677c64ece2-000000@amazonses.com designates 54.240.9.99 as permitted sender) smtp.mailfrom=01000169babb99b8-b583bf57-5104-45b7-a4d6-e7677c64ece2-000000@amazonses.com
-Received: from a9-99.smtp-out.amazonses.com (a9-99.smtp-out.amazonses.com. [54.240.9.99])
-        by mx.google.com with ESMTPS id h9si1945853qkg.35.2019.03.26.09.00.51
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=VkC7m7yz;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id g12si17409708pla.52.2019.03.26.09.05.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 26 Mar 2019 09:00:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 01000169babb99b8-b583bf57-5104-45b7-a4d6-e7677c64ece2-000000@amazonses.com designates 54.240.9.99 as permitted sender) client-ip=54.240.9.99;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 26 Mar 2019 09:05:43 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=LlsVT94n;
-       spf=pass (google.com: domain of 01000169babb99b8-b583bf57-5104-45b7-a4d6-e7677c64ece2-000000@amazonses.com designates 54.240.9.99 as permitted sender) smtp.mailfrom=01000169babb99b8-b583bf57-5104-45b7-a4d6-e7677c64ece2-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1553616050;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=s/y64a9Nl0E1aNUlGJcS6EovFAznUXKfgfzvkfl1KBk=;
-	b=LlsVT94ndQ0NoNjRQgTIrVbjQxe8YzPsYuPiQpjKIJZtSBFGGpwhN3YnGRKaH4L1
-	pvVtFPrksLbz5+CNWyzLImAaHw9X8AF1fkzV9rY3g01W9wiQM0Yqol3Ecy7XczT/96x
-	BijQyM6zrcywzsOmTcDE2iCoQwNvJsZlJVDeJH+Y=
-Date: Tue, 26 Mar 2019 16:00:50 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=VkC7m7yz;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=Yz2RvGFb8xZomssZ7mtRK2dOFU1jnfJaOyAOB+cKBIQ=; b=VkC7m7yzRINQMwiNCcM2hrk5f
+	+Ct1T7URpjIcWrbr0ScsN9kuCOsNZsyRTRwVJnZ0QY/ic6Ti3DY3001lLmKJbVaQ9VHyPCbcZlZjL
+	ydVroQFgbIoPel1WyeZe4zc4W/A+zhSPdufqv6Iqh71FPVqEibq+mmDk9aeGpY7LWT4/IXdXHxEF0
+	Ki7LZAq/eLVWcWuIrfPd2VYpRPTbE21WP+fudi4qLn3cJJ1fDpoEjImy7GIwSn4N5tGVz9LeXmdwf
+	j4dP/8QAmKnXBG9qfRUXJVWa9INHMetFst4pP9jlJRY35GdXDHwNvdQyVLUU/S1YiiDTATVoyKPSw
+	QsagImLOQ==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1h8oa0-00042L-Ms; Tue, 26 Mar 2019 16:05:36 +0000
+Date: Tue, 26 Mar 2019 09:05:36 -0700
+From: Matthew Wilcox <willy@infradead.org>
 To: Qian Cai <cai@lca.pw>
-cc: akpm@linux-foundation.org, catalin.marinas@arm.com, mhocko@kernel.org, 
-    penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, 
-    linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, catalin.marinas@arm.com, mhocko@kernel.org,
+	cl@linux.com, penberg@kernel.org, rientjes@google.com,
+	iamjoonsoo.kim@lge.com, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
 Subject: Re: [PATCH v3] kmemleaak: survive in a low-memory situation
-In-Reply-To: <20190326154338.20594-1-cai@lca.pw>
-Message-ID: <01000169babb99b8-b583bf57-5104-45b7-a4d6-e7677c64ece2-000000@email.amazonses.com>
+Message-ID: <20190326160536.GO10344@bombadil.infradead.org>
 References: <20190326154338.20594-1-cai@lca.pw>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.03.26-54.240.9.99
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000064, version=1.2.4
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190326154338.20594-1-cai@lca.pw>
+User-Agent: Mutt/1.9.2 (2017-12-15)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Mar 2019, Qian Cai wrote:
+On Tue, Mar 26, 2019 at 11:43:38AM -0400, Qian Cai wrote:
+> Unless there is a brave soul to reimplement the kmemleak to embed it's
+> metadata into the tracked memory itself in a foreseeable future, this
+> provides a good balance between enabling kmemleak in a low-memory
+> situation and not introducing too much hackiness into the existing
+> code for now.
 
-> +	if (!object) {
-> +		/*
-> +		 * The tracked memory was allocated successful, if the kmemleak
-> +		 * object failed to allocate for some reasons, it ends up with
-> +		 * the whole kmemleak disabled, so let it success at all cost.
+I don't understand kmemleak.  Kirill pointed me at this a few days ago:
 
-"let it succeed at all costs"
+https://gist.github.com/kiryl/3225e235fea390aa2e49bf625bbe83ec
 
-> +		 */
-> +		gfp = (in_atomic() || irqs_disabled()) ? GFP_ATOMIC :
-> +		       gfp_kmemleak_mask(gfp) | __GFP_DIRECT_RECLAIM;
-> +		object = kmem_cache_alloc(object_cache, gfp);
-> +	}
-> +
->  	if (!object) {
+It's caused by the XArray allocating memory using GFP_NOWAIT | __GFP_NOWARN.
+kmemleak then decides it needs to allocate memory to track this memory.
+So it calls kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
 
-If the alloc must succeed then this check is no longer necessary.
+#define gfp_kmemleak_mask(gfp)  (((gfp) & (GFP_KERNEL | GFP_ATOMIC)) | \
+                                 __GFP_NORETRY | __GFP_NOMEMALLOC | \
+                                 __GFP_NOWARN | __GFP_NOFAIL)
+
+then the page allocator gets to see GFP_NOFAIL | GFP_NOWAIT and gets angry.
+
+But I don't understand why kmemleak needs to mess with the GFP flags at
+all.  Just allocate using the same flags as the caller, and fail the original
+allocation if the kmemleak allocation fails.  Like this:
+
++++ b/mm/slab.h
+@@ -435,12 +435,22 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags,
+        for (i = 0; i < size; i++) {
+                p[i] = kasan_slab_alloc(s, p[i], flags);
+                /* As p[i] might get tagged, call kmemleak hook after KASAN. */
+-               kmemleak_alloc_recursive(p[i], s->object_size, 1,
+-                                        s->flags, flags);
++               if (kmemleak_alloc_recursive(p[i], s->object_size, 1,
++                                        s->flags, flags))
++                       goto fail;
+        }
+ 
+        if (memcg_kmem_enabled())
+                memcg_kmem_put_cache(s);
++       return;
++
++fail:
++       while (i > 0) {
++               kasan_blah(...);
++               kmemleak_blah();
++               i--;
++       }
++	free_blah(p);
++       *p = NULL;
+ }
+ 
+ #ifndef CONFIG_SLOB
+
+
+and if we had something like this, we wouldn't need kmemleak to have this
+self-disabling or must-succeed property.
 
