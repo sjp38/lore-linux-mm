@@ -3,162 +3,132 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E2E5C10F05
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 20:11:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2EA2BC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 22:52:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D59012070D
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 20:11:34 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B92672087E
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 22:52:08 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="FZsDoNRb"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D59012070D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="n5Ofe8zL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B92672087E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2A0A26B0003; Tue, 26 Mar 2019 16:11:34 -0400 (EDT)
+	id 1DAEA6B0005; Tue, 26 Mar 2019 18:52:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 22A7D6B0005; Tue, 26 Mar 2019 16:11:34 -0400 (EDT)
+	id 18AA56B0006; Tue, 26 Mar 2019 18:52:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0F3A16B0006; Tue, 26 Mar 2019 16:11:34 -0400 (EDT)
+	id 0A1D26B0007; Tue, 26 Mar 2019 18:52:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C774C6B0003
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 16:11:33 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id s22so2811011plq.1
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 13:11:33 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DD23A6B0005
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 18:52:07 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id f15so15099035qtk.16
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 15:52:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=culWY/Rk+vffcRaES9PIUDEE10WbDjvCzyyOH86GQbI=;
-        b=iwNGarwhTI0KiqXrTLGmQtPVc9V3uWtLfW23uAnn/nMRQsJT9SW+iipb+MUypWgSQp
-         YSNtp+s2m+vfsEhbeXKnjH6c0+Aggr37w1lDnmI+L/c/hzvl8Ke+kRUHwPT26LrKBPtX
-         UHZbUYybqPBCXQKArvMi+R9Re5UuxVp2KEBqLpNATdAxL4wjzGTU9UtdX8JbWAUubfWn
-         X7KMHtsYZcamqjlXH8YQMA2611d0zqzh1gTiifBUXWKHrbMJetBaSKal/hhe81nWfxiw
-         1tyZ00KLJ+GVQROPQIo+nHs+NGrKjpL6Iy9nMKMJn8hBTxpmlM2gJwQ1ucolcAIZOv2y
-         USpg==
-X-Gm-Message-State: APjAAAUnj45DS+8NtfpUAoDGEYX1f4evyp570ogfsCN1Tig7GpAgDZTV
-	mrMQcr/eRmCnHpwOSBeMRgIOetPfBj/6qeXB9ILGPbKyWlcjTWzl8Gf4SPTQZxIEyrA/PWdpJmA
-	IKuVV8CYAoPeKjqlw2qx6/gQVXY0mIEEsZhi2ITCfcAS+pYb0d58A816dYDRQdBnIdA==
-X-Received: by 2002:a62:a509:: with SMTP id v9mr32504038pfm.64.1553631093459;
-        Tue, 26 Mar 2019 13:11:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxjyHoughIOb5xDCEOWaNlcdcxL93hddcpUjFG4XWWDU1V4HA39srzSyVpmPFynsESS1SHS
-X-Received: by 2002:a62:a509:: with SMTP id v9mr32503973pfm.64.1553631092595;
-        Tue, 26 Mar 2019 13:11:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553631092; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=k2K7y5i3c/bIxXtCts/FFPzx4K3yumcOwK4/9lIY7Rk=;
+        b=dz9EID+ZA1+no+G5Oq4K8mVDsJYCJAzzD0j4+uUBCVXKWe+0diLQbeu0wSGD/1dpyH
+         kufJ2CZHhZiuZ548XZhf+UsLMIx6kZ5rD8eIIN9Nme2i+TpSuugoNqLdAsxf5OAWDhgG
+         yROKoDF/4BzMyjzQ/YMmKr5RQfMqZtz8zhwEpxqEs5uXMpCVWFwHC8J5DX8dMgNjJrNs
+         bE8PMQlROB4geStZg2b8yYc17LGZAKsgGRrp1LDzSUxXLbpa1YxZB+EY53uAOtILbcj/
+         evSY3SK8QcT7F6Qkh6J867Je2wK55EFgaRj+Y+qkGjXCMDg2LGE+IpKKDFnfThJPNEDr
+         GiSA==
+X-Gm-Message-State: APjAAAVg4qNkwWzd88Vb+7biFQulljTwR3zfluwPd+l25d3o3810OJDW
+	gfMWW2cQ5LklyGsAeMmWJnnnRHWNuYIht2k82HPhY/EeJe9dltIZ4Xf7xg6Q3dKfkvMiIumNUX6
+	wy+dhms1tX2dxhFc7/K5WyhLD9hpoIVfl2dN5TmqB7hM4KlIucOthMlvnO5cehlmf8w==
+X-Received: by 2002:a37:5401:: with SMTP id i1mr27949122qkb.124.1553640727517;
+        Tue, 26 Mar 2019 15:52:07 -0700 (PDT)
+X-Received: by 2002:a37:5401:: with SMTP id i1mr27949076qkb.124.1553640726753;
+        Tue, 26 Mar 2019 15:52:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553640726; cv=none;
         d=google.com; s=arc-20160816;
-        b=LvjX5klJgkX/g42Or2axjk6zfr6IPH0Yo5pZ7TE3AV6ZoFmc6YMpvtzvc3IL1GS2CH
-         q1v6oVzKtjN3+00O9hy+U743d5Yd2qRENZE+6ZnjXsFyEFaGhOkkYmKaMBBTTqoGuyh+
-         FjD11CbFg+7syhB8nH8cjB8qgcrGDU9d/4B18nwwNaZOjknskzcse7Qmny6BdiBfP3dk
-         AMANlfo9Dn1f8YYvwhRcvx0nwhbfaPSkPP3K7OJGLHtFVOxRTP09cv6t12Tj2gHCn/wI
-         crTb8WuLQQ50epxdrIFd1RECzLgUGAVmQsPDBQmMAKGPS/DyikUz1dOyP4+YUoWEvnUn
-         t2Jg==
+        b=R/MSKv0YTlcGZaloGIs69XABgQLQ02FSfJD1Rb5diATqzzRrT93Fd1NLiQ2leseyeT
+         MQWI1dlWiDhYl7GlfaXHHYVLGOhzXoKWh3dDNGpHOgzjmdpb+8Q44durGSfGXKX8m+WM
+         WBDavKb2hWLTyEdqoF7akIZBg1ypyp3r/HOkBjXY7nIwr0H2XTof4GiLOrXjY1VHRW3l
+         eb+GuFTAQZNy8CEF6bnCSMHZmMc7EL5ZmqH9vBClgtTW9fMBCaGMuKA8amEBm72upjhX
+         V6nJ89hfm4Zb72u0GMpgfxDIEja/ysH6F1NJJn48MwDEf2l9Jx7WTuAh/ZGHveFqYqay
+         6ndA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=culWY/Rk+vffcRaES9PIUDEE10WbDjvCzyyOH86GQbI=;
-        b=VhoLZSIXqnpeqGIzy/SURIcJVQ0YjP+mTFxbdW5gy3gfeb9jrlAe4prOAd6avue78J
-         TQ+VuxmuzHCnSax4VZ/SKUH0jWZC970jFiCvkqs15otHQlMI+MKGNfRs5WVtpeOKms4i
-         KOK4z6YrLDNVMw3Atwi+u37Im209NmShVyriHBmjrBeqdtkyTCEitkb+dufA1wzyy+vt
-         HKuff0FJR4QN4MDVET8cBbqYxbSnHAbEN6QmXaAa/otb2KxK8Nl9ZcCllVnXwxDlQx72
-         +WUCkiE3Q1Rb4keXkajQUmb5jmdtW7iVGr1KWvrfHoS9TXmF5w/0+1hjMWVSszJC7LOX
-         uM0Q==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=k2K7y5i3c/bIxXtCts/FFPzx4K3yumcOwK4/9lIY7Rk=;
+        b=NCWR7Ns/Wxi1IGmKlQiINYRoTt5r1eMDQCyJfDgNPytF5VTzs+kHKjjZZ8aVHRHTFM
+         OBIBTMFaNt6W7wWSirPt4BALn/DBuGeZATVrT4zvyt6BDxYBRj/YW5smnLASx5rh0IFG
+         PsRSMAlE9Nn1lvm3l2RJ2ucxs41jOhAkM371+DQlgsDBRdAO6rI3l6jLJO9ruEwngCWV
+         223ZFMsIxLLybpqoOBNAOeUbVper/AS/7pi3NjdhNLPEKHvYo1p1P5Wl/9UpFAvrc8TJ
+         lMl0OBmzgQa0C74cGgKDKpIxF2NO72uFkCsAgW4sneiNVCGU5F+c7KpwnY095/EMH7aR
+         8sqw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=FZsDoNRb;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id y2si17072727pll.133.2019.03.26.13.11.32
+       dkim=pass header.i=@lca.pw header.s=google header.b=n5Ofe8zL;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h32sor32198557qtc.3.2019.03.26.15.52.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Mar 2019 13:11:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        (Google Transport Security);
+        Tue, 26 Mar 2019 15:52:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=FZsDoNRb;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5c9a876f0000>; Tue, 26 Mar 2019 13:11:27 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Tue, 26 Mar 2019 13:11:31 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Tue, 26 Mar 2019 13:11:31 -0700
-Received: from rcampbell-dev.nvidia.com (172.20.13.39) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Tue, 26 Mar
- 2019 20:11:31 +0000
-Subject: Re: CONFIG_DEBUG_VIRTUAL breaks boot on x86-32
-To: William Kucharski <william.kucharski@oracle.com>, Meelis Roos
-	<mroos@linux.ee>
-CC: LKML <linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>
-References: <4d5ee3b0-6d47-a8df-a6b3-54b0fba66ed7@linux.ee>
- <A1B7F481-4BF6-4441-8019-AE088F8A8939@oracle.com>
-From: Ralph Campbell <rcampbell@nvidia.com>
-Message-ID: <f39477da-a1ef-e31e-a72d-8ea1d5755234@nvidia.com>
-Date: Tue, 26 Mar 2019 13:11:31 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       dkim=pass header.i=@lca.pw header.s=google header.b=n5Ofe8zL;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=k2K7y5i3c/bIxXtCts/FFPzx4K3yumcOwK4/9lIY7Rk=;
+        b=n5Ofe8zLAm9EvPjLhVdPsZ3yG+NXRr4zT84bTkHrv5sbGyhMdamxp8kmuZCee4HzOn
+         vJkAbTon7PDVvYe3EFK7GVlOoVTOnjLB1CViUgGTK5uuYPXOw4ZLWKTOTm0NPo7Zx3Sf
+         iyFHDIRg7FTnJ32MLxyOMtoh7uSbxAG16X3FZ3kd/muS5nMET3h4yolATvnTiHym2shp
+         y8j4LbsQp7pv7TmRMcGCPehHXc2+FTM7JwFAubRsShJIAyU1frlyf/6DG3+h1adfDJ+y
+         sr61X8iIfSJWKhqqF4WxmKwMvQD6uJSXvByvuPeB7NLgjwqjc3xGfKuBUVZMsO7kWFFT
+         ywLQ==
+X-Google-Smtp-Source: APXvYqyACKSYRBpxrbdIiKwu+la2okmi8IV5CX3I+DKq1kFHmH4WfTErGqK9QvxozjxIFy+SFYyQww==
+X-Received: by 2002:ac8:17ee:: with SMTP id r43mr27012056qtk.169.1553640726411;
+        Tue, 26 Mar 2019 15:52:06 -0700 (PDT)
+Received: from ovpn-120-94.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id p64sm12128427qkc.62.2019.03.26.15.52.04
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Mar 2019 15:52:05 -0700 (PDT)
+Subject: Re: [PATCH v3] kmemleaak: survive in a low-memory situation
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: akpm@linux-foundation.org, mhocko@kernel.org, cl@linux.com,
+ penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <20190326154338.20594-1-cai@lca.pw>
+ <20190326160617.GG33308@arrakis.emea.arm.com>
+From: Qian Cai <cai@lca.pw>
+Message-ID: <2193546d-e525-b8d0-a643-53fea7391c86@lca.pw>
+Date: Tue, 26 Mar 2019 18:52:04 -0400
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
+ Gecko/20100101 Thunderbird/60.3.3
 MIME-Version: 1.0
-In-Reply-To: <A1B7F481-4BF6-4441-8019-AE088F8A8939@oracle.com>
-X-Originating-IP: [172.20.13.39]
-X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
- HQMAIL101.nvidia.com (172.20.187.10)
-Content-Type: text/plain; charset="utf-8"; format=flowed
+In-Reply-To: <20190326160617.GG33308@arrakis.emea.arm.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1553631087; bh=culWY/Rk+vffcRaES9PIUDEE10WbDjvCzyyOH86GQbI=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:Message-ID:Date:
-	 User-Agent:MIME-Version:In-Reply-To:X-Originating-IP:
-	 X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=FZsDoNRbAc/4HIAqnX+Vhp3z8GG7gJK9XpzbJ0o2AgUmo77iMdqmeGf4hsqJirXFz
-	 KD9YQx8cyDZO2zOa5KWXzLwhqJrh9hJBmbOral0aoQpkDeXzt0B4yZmiPBrBnFDpTp
-	 TnBXlS8XB16psg0eMYJrReNvKrHk6g9aM/ARYSLDwVek7HIhpN97BE635DArVyfjQp
-	 WFVjSAb0n+pK7VZWXuU0w31wIiDT1wdFIQNJDcS53JFHb9WI3LujqgV1CRBoqOM7Oq
-	 JzBMHcvXLsGogWedfKMpP8GzGvjLl6TmCN5uCvZ/aUTFacBwemf5G75ZNiWaQUxG5I
-	 5a14bPxDCOjPA==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On 3/26/19 12:06 PM, Catalin Marinas wrote:
+> I wonder whether we'd be better off to replace the metadata allocator
+> with gen_pool. This way we'd also get rid of early logging/replaying of
+> the memory allocations since we can populate the gen_pool early with a
+> static buffer.
 
+I suppose this is not going to work well, as DMA_API_DEBUG use a similar
+approach [1] but I still saw it is struggling in a low-memory situation and
+disable itself occasionally.
 
-On 3/26/19 6:52 AM, William Kucharski wrote:
-> Does this still happen on 5.1-rc2?
-> 
-> Do you have idea as to what max_low_pfn() gets set to on your system at boot time?
-> 
->  From the screen shot I'm guessing it MIGHT be 0x373fe, but it's hard to know for sure.
-> 
-> 
->> On Mar 21, 2019, at 2:22 PM, Meelis Roos <mroos@linux.ee> wrote:
->>
->> I tried to debug another problem and turned on most debug options for memory.
->> The resulting kernel failed to boot.
->>
->> Bisecting the configurations led to CONFIG_DEBUG_VIRTUAL - if I turned it on
->> in addition to some other debug options, the machine crashed with
->>
->> kernel BUG at arch/x86/mm/physaddr.c:79!
->>
->> Screenshot at http://kodu.ut.ee/~mroos/debug_virtual-boot-hang-1.jpg
->>
->> The machine was Athlon XP with VIA KT600 chipset and 2G RAM.
->>
->> -- 
->> Meelis Roos <mroos@linux.ee>
->>
-> 
-
-You might be hitting a bug I found.
-Try applying this patch:
-https://marc.info/?l=linux-kernel&m=155355953012985&w=2
+[1] https://lkml.org/lkml/2018/12/10/383
 
