@@ -2,154 +2,124 @@ Return-Path: <SRS0=c5Kt=R5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B6CE7C10F05
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 10:17:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 22705C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 11:37:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7F65F20866
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 10:17:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F65F20866
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id BB7862075D
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Mar 2019 11:37:04 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="pbvPG1TF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BB7862075D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1515A6B0005; Tue, 26 Mar 2019 06:17:14 -0400 (EDT)
+	id 384FB6B0005; Tue, 26 Mar 2019 07:37:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0D91B6B0006; Tue, 26 Mar 2019 06:17:14 -0400 (EDT)
+	id 335E26B0006; Tue, 26 Mar 2019 07:37:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EBB8D6B0007; Tue, 26 Mar 2019 06:17:13 -0400 (EDT)
+	id 200626B0007; Tue, 26 Mar 2019 07:37:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 999906B0005
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 06:17:13 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id k8so1923822edl.22
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 03:17:13 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CC2BC6B0005
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 07:37:03 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id b10so1971670plb.17
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 04:37:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=z5H7a+ndzXrGYDYXch+uDlo9UtGI1GPDeUhAl+HpKIw=;
-        b=R+4fRE6q3l/8RBmXj8wNJWu25is/GjBxlKVG7cOnX3iUh11uYn8pQ0MMERk5H5MmX/
-         pPCQRF70IyZlPZe1/EJF3+Z3Zr2NcoITa+2rbNAj0Ok4ifs/9d6Nk8jLDv7oTH22X9Fy
-         4jCJGNVCSNmqaoQSE4BP5OVX8rsneSgGGZT8+oHmwqzUkkhxPRZVChBGOySVrWALyyUF
-         YWOa8LtDaY6Xqg//I7wWiMHcxL+2E8zdjaLPjif4QJeAckvmL/N58BYBo82HnHq/1/OJ
-         e3s8ihzlTjz9BnriZBxTRHuHZd0BZ2xTQPCatvczCRcX9QVGrpMGlP/uOxan1AHRbZsU
-         9yow==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAW4TMdD605FdhCEJTCnfHvfyoGYk7WE1pRWLe4jK5um1XRWHEh+
-	/0B+RNyykD4b8rBGkfG4KC2odwhLWd0f6k2GBxVZXSONi4VeEw1z9b680jCL53DXLUfQgFEJXEM
-	bbYA0TmpAypZ/exWMA6ocNJgfo5K7hnAxd4G8cWyfpoGsj4j5lfhBl7cSH1ozHHE=
-X-Received: by 2002:a17:906:eb87:: with SMTP id mh7mr13061267ejb.152.1553595433180;
-        Tue, 26 Mar 2019 03:17:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwl/rVoUaXfLQp5BYU/rd7M837fhAB62xmgCrFo38S31E5GlgSWYhbA/f58d7G4ZyQkf/oF
-X-Received: by 2002:a17:906:eb87:: with SMTP id mh7mr13061227ejb.152.1553595432400;
-        Tue, 26 Mar 2019 03:17:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553595432; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=bv5G3/eS21umtZDY99PXXbaStFpJ80Xzj5R3U428fsc=;
+        b=BxRlAZFnFur0s1kSlPy8Zj+ToyYQmcb/95oV/lbmVEczSh7ykDWqNK4L7CiA8a/4P3
+         N4OLNKlQzpevts9JtU1TdBjgmrFfo4+gR1+nQik0/R3j5uNAdTmGxgP1gk+s4fr6G3/U
+         tRJmRAhdaqyhw1JXKKPi2dO3OPW54YhK1lHDcPled3oKPDQZJozCgerG99oSCSpF6kYI
+         nB3z9gM74IGFSi6Z1bgan+tgnV2XENjQUMfZLl2h8+Du+KgZsMmWf4RPGriwxmnoCdme
+         DnocwesJPL6V2e1wR2vyelrDd3CZuv4RbXJkaG764RWJv10ffd5E2ra4zAMBBDO51mYb
+         ms8Q==
+X-Gm-Message-State: APjAAAXl15Ijo0iQGCZaKwP4bAnFfHzl57+f61KlpjozI3FjAAMZyEaU
+	8mgDhUIWOSKNM7xndL8oSPstUeKDjJwxZKb7fm8znXC3Z5NxG9Vl1xur4g+Cddzjt7SarMi2X3F
+	ss3p3y+NBHwGpZE6V650dQLz+hyqgAQ59SSWU9DSUR16Dog6GlmINXjz+u9e93PQrAw==
+X-Received: by 2002:a63:6b89:: with SMTP id g131mr14703125pgc.438.1553600223459;
+        Tue, 26 Mar 2019 04:37:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxzU1Cwgp4y2Tfqv5+AzjpjbJelFR3KjEXCmiwRQ+T6f6vdZR0D1/0vk3jpP2/iJCqy8USW
+X-Received: by 2002:a63:6b89:: with SMTP id g131mr14703060pgc.438.1553600222545;
+        Tue, 26 Mar 2019 04:37:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553600222; cv=none;
         d=google.com; s=arc-20160816;
-        b=tZtXCuLjgJu+dmqwN57G1czK8R5AlRIaVzLjmB8eof5wvgxoP9wJQS11HQ3CDHaM3F
-         DssPZxbGFXQ4KkOmjJb0CuC1q/iYCn94WzjHHsXZeEH6kaAOsUDjnAH7FkYEP9deHuoD
-         hTkAN706r6oELtOo9Eg/XGZDrZKFL9PxyJaTLUkC93N4wjzEhaBGtK3FuiLHrB7xsJuS
-         VxFSkCmbJsqYLfcWMekWJIkw+u4VzUe55BYstvYwit406BeFtpvTB5zO2E4JgxTmk9Hz
-         TgLxQ/ZrtUJoAnWRc8XxzpyhNO5v60GfcyIIgHZLxQ0kbhdEIAvSIAwg2T6aIKgWFoSe
-         3HTA==
+        b=BelQ2ami49FnYcZvnFzPF00NCQzrbB9AG+nv8RZY+SEd3MzsWBMSMWykUcuwgFBbR1
+         ODFUo+7RE6yJ9RpjR67CR4aHDFPvzYEKkOiSQMcM8AL2LscX8W1ZYBlVhG3HeP/lacEf
+         ZV+4OvPv6t2x9pQNC29nYMvMrrJfRPYOfWrO2nMZPi7hM8HSxxPvNr9BIzjzQe+NzIiC
+         5QujsnKRfpxNKM+fx+YXH36P81vyYkC5Fg6yuw9N1XYlnhxgmz9Am/XOzd6//YFjtClX
+         lTT9k9WhfywJc++Isl8ts1pgQxAqobpmnYTq6h5gMbwObWCJh/Nm/1H+iX9RuEo0NA/d
+         WXZg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=z5H7a+ndzXrGYDYXch+uDlo9UtGI1GPDeUhAl+HpKIw=;
-        b=G+UgmEoUNlEVc9Gmcte6HRWNvkeB2x3Zlywxct2+3IzLq3O5AXQR0p5HsJfXlBoCFC
-         WXftyiDdqsY6nZiD2e41Aad4TPb1a0JIugmMHuOarE8KfQNICwI9uuKa/GXfpoCqHywI
-         s9dUYX4OsVOiwsbUGJEIM38hGt05ARNEfszdJckd6FA+1bnCT4V3AVKszGa818Dor9U9
-         Je36paOdRhCBeXJPsRUao8oLuolNlKPZ+SeLFZDnkawStuuOG0heRaEBVDG2KEM0Conr
-         susIm70RU1DFymMd8lPCVT0sphNhui7TlIaBGlPG0hUIBCbn9Wl8RmSWK5TwGL6Z0o7k
-         aG7g==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=bv5G3/eS21umtZDY99PXXbaStFpJ80Xzj5R3U428fsc=;
+        b=kdW0RLpMnNPwspOWW6iONftXY9ZK+1RyjiUGIoN1FvsnHtlubVLGc5lRKFunQsZrTh
+         vQeVJh6Vy5NbYnSjiOX/UYSRhx/G6KZPXX4OMqfAX5X2zECzqZ9ngAHccyQKNZ8PpYNC
+         rtnykS9zLNkqfbsqwO7TiuWv9tfKNiB8qhU8j90IUyKR2gUkOouyxCYx9hAQ9JKdaYha
+         iYM+zeZvycu1FPYzK1MZuEK/mezSjji8PE+JrB+wVcjOnklnvzYj0cEjM93QOdkDAJXn
+         wsUOFOdt1rY3hQzXuEjx6QJkShWcgodSQQanIfMvoSjgUS+wCRtvQqedt/TOK4JERg0U
+         aM/Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r30si5260696edd.248.2019.03.26.03.17.12
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=pbvPG1TF;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id a22si12615119plm.263.2019.03.26.04.37.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Mar 2019 03:17:12 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 26 Mar 2019 04:37:02 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 7FC8DAEDB;
-	Tue, 26 Mar 2019 10:17:11 +0000 (UTC)
-Date: Tue, 26 Mar 2019 11:17:10 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Baoquan He <bhe@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	akpm@linux-foundation.org, rppt@linux.ibm.com, osalvador@suse.de,
-	willy@infradead.org, william.kucharski@oracle.com
-Subject: Re: [PATCH v2 2/4] mm/sparse: Optimize sparse_add_one_section()
-Message-ID: <20190326101710.GN28406@dhcp22.suse.cz>
-References: <20190326090227.3059-1-bhe@redhat.com>
- <20190326090227.3059-3-bhe@redhat.com>
- <20190326092936.GK28406@dhcp22.suse.cz>
- <20190326100817.GV3659@MiWiFi-R3L-srv>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=pbvPG1TF;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=bv5G3/eS21umtZDY99PXXbaStFpJ80Xzj5R3U428fsc=; b=pbvPG1TFAf9dyNpJIgt8xAfrh
+	/Jp5p+bEr9ZP/xKdSIYbZGtXXuL2Hd/wDs78rTMcR2beiOKqEY+2qF+fsuixMDsjKP0gOaZEvWTqj
+	RXoAEL7hcsC3Ir0HxvJ2HJix2KKgUWWNJnaQTGdqEJAy4radoDP1yxhNaEAuUshBa9D4r758xGGpT
+	m2Q3BzSebFUcKC/B2aXXgyRZkx6HyWC0VDRpNSjSC9vmc9TXBESbW5FXClTwzjexbXDXE/1T0ed4K
+	QHXaMe3JcNLJ5cvcgh5Jy2f04T47Rk4QHi/wEwNB3TyNYLlOQXJGxwSvGKTxjHPOzsLNFWVzAA++O
+	0UuNcj38Q==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1h8kO1-0004SA-8v; Tue, 26 Mar 2019 11:36:57 +0000
+Date: Tue, 26 Mar 2019 04:36:57 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: Re: Print map for total physical and virtual memory
+Message-ID: <20190326113657.GL10344@bombadil.infradead.org>
+References: <SG2PR02MB3098F980E1EB299853AC46E6E85F0@SG2PR02MB3098.apcprd02.prod.outlook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190326100817.GV3659@MiWiFi-R3L-srv>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+In-Reply-To: <SG2PR02MB3098F980E1EB299853AC46E6E85F0@SG2PR02MB3098.apcprd02.prod.outlook.com>
+User-Agent: Mutt/1.9.2 (2017-12-15)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000567, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 26-03-19 18:08:17, Baoquan He wrote:
-> On 03/26/19 at 10:29am, Michal Hocko wrote:
-> > On Tue 26-03-19 17:02:25, Baoquan He wrote:
-> > > Reorder the allocation of usemap and memmap since usemap allocation
-> > > is much simpler and easier. Otherwise hard work is done to make
-> > > memmap ready, then have to rollback just because of usemap allocation
-> > > failure.
-> > 
-> > Is this really worth it? I can see that !VMEMMAP is doing memmap size
-> > allocation which would be 2MB aka costly allocation but we do not do
-> > __GFP_RETRY_MAYFAIL so the allocator backs off early.
+On Tue, Mar 26, 2019 at 08:34:20AM +0000, Pankaj Suryawanshi wrote:
+> Hello,
 > 
-> In !VMEMMAP case, it truly does simple allocation directly. surely
-> usemap which size is 32 is smaller. So it doesn't matter that much who's
-> ahead or who's behind. However, this benefit a little in VMEMMAP case.
-
-How does it help there? The failure should be even much less probable
-there because we simply fall back to a small 4kB pages and those
-essentially never fail.
-
-> And this make code a little cleaner, e.g the error handling at the end
-> is taken away.
+> 1. Is there any way to print whole physical and virtual memory map in kernel/user space ?
 > 
-> > 
-> > > And also check if section is present earlier. Then don't bother to
-> > > allocate usemap and memmap if yes.
-> > 
-> > Moving the check up makes some sense.
-> > 
-> > > Signed-off-by: Baoquan He <bhe@redhat.com>
-> > 
-> > The patch is not incorrect but I am wondering whether it is really worth
-> > it for the current code base. Is it fixing anything real or it is a mere
-> > code shuffling to please an eye?
+> 2. Is there any way to print map of cma area reserved memory and movable pages of cma area.
 > 
-> It's not a fixing, just a tiny code refactorying inside
-> sparse_add_one_section(), seems it doesn't worsen thing if I got the
-> !VMEMMAP case correctly, not quite sure. I am fine to drop it if it's
-> not worth. I could miss something in different cases.
+> 3. Is there any way to know who pinned the pages from cma reserved area ?
 
-Well, I usually prefer to not do micro-optimizations in a code that
-really begs for a much larger surgery. There are other people working on
-the code and patches like these might get into the way and cuase
-conflicts without a very good justification.
--- 
-Michal Hocko
-SUSE Labs
+You probably want tools/vm/page-types.c
 
