@@ -2,141 +2,178 @@ Return-Path: <SRS0=JxSR=R6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E7196C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:02:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C9DE8C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:02:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A7DDD2183F
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:02:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7BB7B217F5
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:02:50 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="rAymWQyw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A7DDD2183F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="KBaKqEmY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7BB7B217F5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3F7CF6B0006; Wed, 27 Mar 2019 14:02:32 -0400 (EDT)
+	id 0EB116B0007; Wed, 27 Mar 2019 14:02:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3A86E6B0007; Wed, 27 Mar 2019 14:02:32 -0400 (EDT)
+	id 09B9A6B0008; Wed, 27 Mar 2019 14:02:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 272C56B0008; Wed, 27 Mar 2019 14:02:32 -0400 (EDT)
+	id ECCEF6B000A; Wed, 27 Mar 2019 14:02:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 033106B0006
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 14:02:32 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id x58so17716167qtc.1
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 11:02:31 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B68A86B0007
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 14:02:49 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id h69so14611243pfd.21
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 11:02:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=I5uALa7MVL7UzXPrEYcYU1Dm9p2rPQBrM3MAs5UYgj0=;
-        b=lhco6IazXMzFCSqN8j+XtSN4HodVJcEftmM4GzkZqU8QkiJySEL6DXbmrT1ZpQQqH0
-         H/S5xmh2yK+N/UVKth0SEmkaJbjyI83C753TXsktPM9XvGxWp6KNbtTCTiN8dfRrqECD
-         5rbKmDCsueZemhsIZF/Q7yPy/LVaH83pLHhcrDaXQ27Lr1BCIzSotuFLTuZI0/uI9bPh
-         OBD5ygO/dCl3Ufcbl1Afgm7yhfwvamsFvYlz4YiWA1SR8RdrWsjFc0u+YhVgKCYMdeWz
-         b5ghfWMIaYFlFjaiTWPIzJWUQgeGF2bi5/r3leiEvp13pjm0WpgE2U/LYzBXwx+PrvmG
-         u/8Q==
-X-Gm-Message-State: APjAAAVi/xcETbJPaFESQ14nDmAwemBokn1pCeFtulFWDhmrCrzl3emJ
-	qHErr5ANHRYtVePrHKJ8u6zd/MCpXKPnjHeTcZBawYvGUOgtzv4MlxXEqKUGTdi83aPWRZUbpcx
-	kiUsTYNQXD5M/zjT61mXBwRefkll0IGVNwjhg2N3LH8jIQAw9Sgilc83zHYI2EiE2fA==
-X-Received: by 2002:a0c:d06a:: with SMTP id d39mr30190898qvh.182.1553709751779;
-        Wed, 27 Mar 2019 11:02:31 -0700 (PDT)
-X-Received: by 2002:a0c:d06a:: with SMTP id d39mr30190838qvh.182.1553709751129;
-        Wed, 27 Mar 2019 11:02:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553709751; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=rSaj9L1xCJ7iztPjfarFG1shcw+7hxXe+zCxGAJuYMQ=;
+        b=B6TwNTqva+/+nbOymPHTGnbWpKt1gnoukuB4n6j4HuuNzJEWC+Y2QDOJafuHztn5D6
+         NCIfOZbwpH4aLyZxlaWaCmbSEXlaQRaEG2VjwTuLbkm/7mVZC/4drqghEnDMpwTvgbcP
+         Yt0nfROg8p4Tb3DDAv0ks+Cg2WExoXfUSwR/A18KoQrnnyN2FbmoZC73HFVbN8mSPpfW
+         BKY0tOI4BheBrpfCQjl9xDrRYIcYTGNpF9I0WIxzrGhtqrAdaSQ7JKHzsnydUJ9jm88U
+         9c4865UpPmOl9Ph5y9bG0LqyiNjwxBCLcNzdE8qH34IYBldSL5aTFQzs9+RlMBvJKAuP
+         LGng==
+X-Gm-Message-State: APjAAAW1VtuneTSCLp30uv6afdyGLJU1eZzIbkse0c0ZSm9qijpD8GnW
+	bPjDe7MKhSZQAXpvNwRXCe/DsSg21mGI04ZO1HeHxzeoSjaaCwY0m9uXuGwNmhZPicXQktCMp4z
+	uQKF3cAZ8dg+/DFOc0Two2NSn46OQtEQRBzAMrGqqRGXNG3eIvUWaq6cUSCH5fMYCpg==
+X-Received: by 2002:a63:570d:: with SMTP id l13mr28063729pgb.55.1553709769418;
+        Wed, 27 Mar 2019 11:02:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyR1A5ewndwe+MvOlJy1A4496nVF5hZyQXZXD/D8bY7WHZrS05B0UE/TGxAmZEt02pAi7mu
+X-Received: by 2002:a63:570d:: with SMTP id l13mr28063650pgb.55.1553709768574;
+        Wed, 27 Mar 2019 11:02:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553709768; cv=none;
         d=google.com; s=arc-20160816;
-        b=djz433+407XLy0TtTN+dtIvtVKRUyztKtA/lJJzd9rxG8FIPAgry1hA5G2HyhYW7G2
-         BSeHnFZHjTKuBEGdexxhGEwp/Mm7Fge2Uhd9BN3UBLcHYxB4+N6d1mem7kFfbmcRpWYr
-         EKk7zfwYizzGKvgVUg4D8H0TFUhMBMR89xgCqNrO63BZHcf+gyTjbN+iXjN34SwQMGK+
-         k9czMEMf0n8Ipy5qLTtiqjJo511m9JY3v/panty07g/EJqzZSzcjeXj3w2vulyd+Imqq
-         tsvs9s0RnEmsRF+ze8gRIQbde8OuTCHJYOmuUi/DcaRlAOskC3N6A5UtCDXD3TC/G8Uh
-         EUYw==
+        b=uNga23S+qHO9dunj/pfKP3kxSgIZNG1dmGKt2gF+XjESwqsIIL5Rczea4bR8CZB60K
+         kFZXCvJVU1xlyQB9PPGFNbnG4qiKHhKSQtkp8V3k/QmBm6S+uT4awp4tAzZ9NF4g1pxr
+         +v/q4rnHnCS3qoG7VIQbWwwnUlHwzOqe6nfN+VnnhXFvpDGF3rfVbcXLhskXkJmt+415
+         xiduL9SSxriB9eLtogwetMdb+HHDZ5n320AQ2kDqnAThl3R2Kx1uFkZJZI8UXxo0xDJ3
+         SzxkbnBxHwzRJo9DP/V/dlq4mgUpYL1swQjjav6kEnq4itB+lqWVCT73qot+XmuK0XhF
+         C00w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=I5uALa7MVL7UzXPrEYcYU1Dm9p2rPQBrM3MAs5UYgj0=;
-        b=hLp4hbVFT9znP4k9k6YvwagGN6zyE6RT9NSnAe3Wk2lV+3kY+k5YC0a11iZXm9BL4Z
-         j326BfC2gY2m5egAg20Srdqu+I+HKOodZRvB6xsl29acOYV/bJcr288/SFEsSbW4eHAq
-         /2iaI4ginsLTMUBkNIqWmsMdwN+z9GS/CG63u+xDNYBILvWZADsR+CCcCYlnBKbKHcvu
-         rAOCkbCivv9IvmnqenB0A0U53rw9frOJodj7eOu2HLploRwwJfSdHx6oXIq5jqPji8cS
-         UZWczJrsixxwpfeonbdm6ynu4zP0gIX36T/6qGJk+PJNT/sQAqmBCbnUQDWMw6gksVZb
-         NRLQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=rSaj9L1xCJ7iztPjfarFG1shcw+7hxXe+zCxGAJuYMQ=;
+        b=qiH2MXrk/of09IHBxuV1gVoKG0ArK0e9ZzZJbmiSeSEOLV559qYuDnaLzpP3n7smSJ
+         9Us8rUn2Yl1Oiv6gYolPWYIGRDekee4Fphdz11Vtn0FU0jKTYQ3/ppAY1uN2VeDlPsY9
+         xB2hW/XEApyd25Kf45KTPHbaIXomvB6NELmXPhd5OQE/FhmQp2pz97nrn5azJb6513u+
+         b5QWVyikk0Hl5ThTXuI6JwAKeQtzkxsDHFm5nYG4lBbiszHOoH8q5YEUqSli+VAIZL7R
+         ewmzMLYkKpYhr3qlKG6MHJwiqtm4+Kg/4y8Tz1f/VIhMq6sUC0tw5ikh1k8HpT7RI2vK
+         Kjwg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=rAymWQyw;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q20sor23320973qvc.68.2019.03.27.11.02.31
+       dkim=pass header.i=@kernel.org header.s=default header.b=KBaKqEmY;
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id q11si18797486pgv.337.2019.03.27.11.02.48
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 27 Mar 2019 11:02:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=rAymWQyw;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=subject:to:cc:references:from:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=I5uALa7MVL7UzXPrEYcYU1Dm9p2rPQBrM3MAs5UYgj0=;
-        b=rAymWQywHAL6cGuLPbwZYc6GHPnzTva6JXMImf+l/QA6vsyiRM3ITgughd+S5T/UST
-         twIk0RyODDDlWDX2xDRPkJTuSD5Irmpn9hUlDRrCR4c/V+zQPURL77c4T7YCGiZE7NlJ
-         9GDZAIkTR9Jy7Yu4QVQyfl9a9fRNdg7g6eJU+vwJTuAw1MUt/xuplZ8b2Wuw98TiKo6+
-         DoGtFDjkJ1D4WgXowI27QJwWZI6wtOIeWP1thglRkPdAXo7gw06gS4M6VBjixhWxmc9w
-         K94yUTVqfA/uaj3tAMKUZhgPM+h1DeBVU4jayX5ZDwiLco6oWSbrtXQoJtwWoOkykTqO
-         NZdw==
-X-Google-Smtp-Source: APXvYqxSvtALFnQF+jYQ/t44NY6L3IdneTFfmE4na1KaS1YumXhbcc8Kb66nN5Yz+mR4IiaolNEoEg==
-X-Received: by 2002:a0c:d2fa:: with SMTP id x55mr32627047qvh.161.1553709750897;
-        Wed, 27 Mar 2019 11:02:30 -0700 (PDT)
-Received: from ovpn-120-94.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id j5sm776085qtb.30.2019.03.27.11.02.29
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Mar 2019 11:02:30 -0700 (PDT)
-Subject: Re: [PATCH v4] kmemleak: survive in a low-memory situation
-To: Catalin Marinas <catalin.marinas@arm.com>,
- Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, cl@linux.com, willy@infradead.org,
- penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <20190327005948.24263-1-cai@lca.pw>
- <20190327084432.GA11927@dhcp22.suse.cz>
- <20190327172955.GB17247@arrakis.emea.arm.com>
-From: Qian Cai <cai@lca.pw>
-Message-ID: <49f77efc-8375-8fc8-aa89-9814bfbfe5bc@lca.pw>
-Date: Wed, 27 Mar 2019 14:02:27 -0400
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
- Gecko/20100101 Thunderbird/60.3.3
+        Wed, 27 Mar 2019 11:02:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@kernel.org header.s=default header.b=KBaKqEmY;
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 5C1D22082F;
+	Wed, 27 Mar 2019 18:02:47 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1553709768;
+	bh=b5xJuu4cKmJC0HBUNTG66oXfu8IqPF1/ejzqYlsS8zI=;
+	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
+	b=KBaKqEmYIAB49HWucvLauhdZFKkmZxCUMrWtfwDMDOxFJzoBdZfIw8b0dcd+4PeQN
+	 MRR7BLRlpWtTGF878QXdZqfxdmAAlCevJD2dIrvXfgJhC24iDJ2J+HVMr5hOrBeIFN
+	 AdDzqyK1ed7xLuZY31ZDlguYZEU/7u5i2ALmpRIc=
+From: Sasha Levin <sashal@kernel.org>
+To: linux-kernel@vger.kernel.org,
+	stable@vger.kernel.org
+Cc: Qian Cai <cai@lca.pw>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Sasha Levin <sashal@kernel.org>,
+	linux-mm@kvack.org
+Subject: [PATCH AUTOSEL 5.0 030/262] mm/sparse: fix a bad comparison
+Date: Wed, 27 Mar 2019 13:58:05 -0400
+Message-Id: <20190327180158.10245-30-sashal@kernel.org>
+X-Mailer: git-send-email 2.19.1
+In-Reply-To: <20190327180158.10245-1-sashal@kernel.org>
+References: <20190327180158.10245-1-sashal@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20190327172955.GB17247@arrakis.emea.arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+X-Patchwork-Hint: Ignore
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/27/19 1:29 PM, Catalin Marinas wrote:
-> From dc4194539f8191bb754901cea74c86e7960886f8 Mon Sep 17 00:00:00 2001
-> From: Catalin Marinas <catalin.marinas@arm.com>
-> Date: Wed, 27 Mar 2019 17:20:57 +0000
-> Subject: [PATCH] mm: kmemleak: Add an emergency allocation pool for kmemleak
->  objects
-> 
-> This patch adds an emergency pool for struct kmemleak_object in case the
-> normal kmem_cache_alloc() fails under the gfp constraints passed by the
-> slab allocation caller. The patch also removes __GFP_NOFAIL which does
-> not play well with other gfp flags (introduced by commit d9570ee3bd1d,
-> "kmemleak: allow to coexist with fault injection").
-> 
-> Suggested-by: Michal Hocko <mhocko@kernel.org>
-> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+From: Qian Cai <cai@lca.pw>
 
-It takes 2 runs of LTP oom01 tests to disable kmemleak.
+[ Upstream commit d778015ac95bc036af73342c878ab19250e01fe1 ]
+
+next_present_section_nr() could only return an unsigned number -1, so
+just check it specifically where compilers will convert -1 to unsigned
+if needed.
+
+  mm/sparse.c: In function 'sparse_init_nid':
+  mm/sparse.c:200:20: warning: comparison of unsigned expression >= 0 is always true [-Wtype-limits]
+         ((section_nr >= 0) &&    \
+                      ^~
+  mm/sparse.c:478:2: note: in expansion of macro
+  'for_each_present_section_nr'
+    for_each_present_section_nr(pnum_begin, pnum) {
+    ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+  mm/sparse.c:200:20: warning: comparison of unsigned expression >= 0 is always true [-Wtype-limits]
+         ((section_nr >= 0) &&    \
+                      ^~
+  mm/sparse.c:497:2: note: in expansion of macro
+  'for_each_present_section_nr'
+    for_each_present_section_nr(pnum_begin, pnum) {
+    ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+  mm/sparse.c: In function 'sparse_init':
+  mm/sparse.c:200:20: warning: comparison of unsigned expression >= 0 is always true [-Wtype-limits]
+         ((section_nr >= 0) &&    \
+                      ^~
+  mm/sparse.c:520:2: note: in expansion of macro
+  'for_each_present_section_nr'
+    for_each_present_section_nr(pnum_begin + 1, pnum_end) {
+    ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Link: http://lkml.kernel.org/r/20190228181839.86504-1-cai@lca.pw
+Fixes: c4e1be9ec113 ("mm, sparsemem: break out of loops early")
+Signed-off-by: Qian Cai <cai@lca.pw>
+Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Sasha Levin <sashal@kernel.org>
+---
+ mm/sparse.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 7ea5dc6c6b19..77a0554fa5bd 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -197,7 +197,7 @@ static inline int next_present_section_nr(int section_nr)
+ }
+ #define for_each_present_section_nr(start, section_nr)		\
+ 	for (section_nr = next_present_section_nr(start-1);	\
+-	     ((section_nr >= 0) &&				\
++	     ((section_nr != -1) &&				\
+ 	      (section_nr <= __highest_present_section_nr));	\
+ 	     section_nr = next_present_section_nr(section_nr))
+ 
+-- 
+2.19.1
 
