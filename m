@@ -2,175 +2,125 @@ Return-Path: <SRS0=JxSR=R6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.7 required=3.0 tests=FROM_LOCAL_HEX,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C3EE8C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 20:10:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 30859C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 20:10:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 53FD62087C
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 20:10:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 53FD62087C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id EB52C2087C
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 20:10:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EB52C2087C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C26966B000D; Wed, 27 Mar 2019 16:09:59 -0400 (EDT)
+	id 87C0B6B000E; Wed, 27 Mar 2019 16:10:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BADCC6B000E; Wed, 27 Mar 2019 16:09:59 -0400 (EDT)
+	id 809096B0010; Wed, 27 Mar 2019 16:10:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A4F696B0010; Wed, 27 Mar 2019 16:09:59 -0400 (EDT)
+	id 67E0A6B0266; Wed, 27 Mar 2019 16:10:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 506526B000D
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 16:09:59 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id e6so6232683wrs.1
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 13:09:59 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 42E606B000E
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 16:10:02 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id b16so13986077iot.5
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 13:10:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=BxdlZA20V+nvmp9SYsJwRytC0uJFbrzmx7O1ApfI0ek=;
-        b=DuzJjsdjhUKdXW9qXYzC4kNFrjKwr7mtfAoOD8VgqdpdHv9gObve0QH8h1OEjZzNq9
-         cRMPKTojjU4BLkBPJg2PF6Hmjg4VWQLiyNVRYCmHanEwFe6suJNNzj2GiyIpteP03MZS
-         bOHdXm8nfdo2cxHKklSSJcLB9fA9gxtuPu5IhJt6/kSmXp1IgEZ29zKX1c51JX7g0/d+
-         cIBuLlDWS/bjtd/ave3NWdue8YpWckFv2/pC6y/3N45ClHhJlszPBnfF59WNrYiYGFx9
-         tBdgIx7WM/+Mk4rxNcn0ORk7/DMitWTDNKArHxrC68RrDAhYo91Rk6bBa4zCI/LWTcMj
-         mCxQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXSgmP7Gq6Giqb9/lEOFg0j2tyP1cmAhBjAgrp+DaTFGKyjP3vH
-	/FhwZ6gANOdJlNEO8PFkNNsujlWO2/uWN2kRSceY5Fz7E0qeyDNYV1xGCxY0IscmHmAtPK4oOqp
-	uGqKNChqBzX0vWII5gqKAWtVyPqicIsB3+zuEMPEJn3CCbHi843u8OcPDuZ0TwbA=
-X-Received: by 2002:a05:600c:2294:: with SMTP id 20mr12856124wmf.56.1553717398747;
-        Wed, 27 Mar 2019 13:09:58 -0700 (PDT)
-X-Received: by 2002:a05:600c:2294:: with SMTP id 20mr12856090wmf.56.1553717397565;
-        Wed, 27 Mar 2019 13:09:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553717397; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :date:in-reply-to:message-id:subject:from:to;
+        bh=M9LZ+bMimI4PbDOfuBNIBaRlNMQDprLBDf38mjJfhKc=;
+        b=Uwn9wy7zDnNCMzRRQIulHdK+zmykwhGCfogw7mAEmXbXuh9aBxetNWdOjNzUQG7TJ9
+         Cak4ivTeLHnh72DWAx+LBbXlMJTEXi6qwjTNSIbQUQF6/vtvsZDhbDYJaprTQ50FOKYs
+         tgI7BhTNnrpsbhPRb+TOvZt6SIREBsGGgrjHVxiYg69mejt2z16EmzmEgpsn5burRJhW
+         8jna+bRaI824zhuaD8mrUfNgE1Bn1ms45DnIEJ4Tx7119SEYtecs+GI/cZLIOrD5v60v
+         4IA2dFoQpIj/4q80alj+6JZuobwJ53YVmcMz/mXiW7mOmxvzVl/DwpW0tt+2OOarV8pF
+         E0Rg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3mdibxakbakqwcdoeppivettmh.ksskpiywivgsrxirx.gsq@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3mdibXAkbAKQWcdOEPPIVETTMH.KSSKPIYWIVGSRXIRX.GSQ@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Gm-Message-State: APjAAAXzZoIp/ZZ7j5W0R9B1tFyqzxCy6IVymC6ocS18AhXxDVI9UM2H
+	Uiz1EGdq87vQDxlsVr4zCsKE1nm9ysnewASgaSEnVPWn8sad3T6yETd39ZA6XYYTqYQVVSc1LKE
+	K2LfCE/tcbL+zMq602XdTpRvBBpiKiTqGSJQxqjQikxr9yxp/sLUHyhNah2aVK6g=
+X-Received: by 2002:a6b:5c0f:: with SMTP id z15mr26194907ioh.26.1553717402050;
+        Wed, 27 Mar 2019 13:10:02 -0700 (PDT)
+X-Received: by 2002:a6b:5c0f:: with SMTP id z15mr26194868ioh.26.1553717401343;
+        Wed, 27 Mar 2019 13:10:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553717401; cv=none;
         d=google.com; s=arc-20160816;
-        b=BNyHNUfTK0Qf1f7ykqaoJzF4oRJPsBooHn878cKUhx2BMbxCwlAV4I6zCOcIGjCN6j
-         qJDs+QpHlPZxYy9Eu44RVzVtbfhKgkQF5Zrvb5QestTJkn3HDy8zY/RAlDfYbuPOPaNq
-         cF5cTwegXSkLah5oSUUMk1Bx6A4lnrfXMrxyjENLHvXyzg6btejr7xa70ZxzLN40pGOl
-         8KJWo95W2vv03yfyyTV+vbPgcS2saZNFZJMZVVjwpdxxocQxkwplO2q0L6JCYgQPUdlA
-         LVVmznBQdTrs4zjetN0hso996/o6VaWQHEvR5VNL5JD5HPn+xUu0SX4Pkg+UKaJ5pfcv
-         tmLA==
+        b=ujj4kA0Ltmz1ghJlKebeOlwYOuRT0VkWaUrIYVICIsB7E4bTNit/enVHvtqIAs3gA8
+         CFMEdXO9MF0RvAZwXUWjR6x+hBt6LbNX0Uw/jvXLl21P8NGJ+FIv96xuLtHNqDeLpnNZ
+         z+PciZVC8XAPiAbLROuVmzgJnvGcv9MquJrqE70l0S1tluBIGAdBnBhXSCS49HmcVvZK
+         HYd3yk95FZ8B4urJow5GHtUlPd4qlcX6rDNYeIImrL5kXYmOhOUClWrdWhQhz1MAnWIa
+         wUU6cSYTAbPPw4KWDoB1ALKV8M8u9wtWJ5D+vCa1tjiUvW+Ul3WOXTGXOjF/hF4V8qFv
+         6yYA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=BxdlZA20V+nvmp9SYsJwRytC0uJFbrzmx7O1ApfI0ek=;
-        b=wM2VWTjoTr+24d21JAJN0rOJzJsCniubobSi/t4ovf6f2TbCWVuK3kerBt6m66hnUq
-         oFdqETlnoEWEh9eYu13nPvQU2Ofy/2rWNuyZ04a03cW8WIvpPRwEFESGz2YnjjgaqlLP
-         ZLrQrUjeF+71VHJSslBGdmJBArd4w7DEFuZckYvWLFn8kVewJL72rYlip5kb8C866fZD
-         oVeN2MzAkKIKQQ4Dh+PkIH5UKzAgXFDXzcZZ1fCDXmyn3wI9uN3wHpRpgzwVM7tlpu3Z
-         yGY5+wLkZJCpmXiBgsoyPhFAiVLjj+7/rxA6IA4cbmv6vZ+tES+QuNQPoTJjR8yTz/jC
-         gDaw==
+        h=to:from:subject:message-id:in-reply-to:date:mime-version;
+        bh=M9LZ+bMimI4PbDOfuBNIBaRlNMQDprLBDf38mjJfhKc=;
+        b=InYZYn5B2sOJBHoaKhdNzmFutWSjS837BaRpSYnaXdX7GmtUNvDc0H93AlBUss0VUV
+         LVPPrCnjft4Fiyb4wyTyljDkGTuMZ3W9sN2YSfEOT7CAFQwqAJSSoDYwDCJ7VtRHUKTR
+         SJbIOnsOtsQc6Bz//LowSEBOHXeIJTzBZR6zY4S0MFqjCDG83A9wetRJrw8b27eaW6IF
+         KvDcD5WfM0t94bxV/znd39bsQ1V55xf5ssWOsliR4qqXNxqRYEgAJbFsxa6cSu2wPveP
+         kbgHi/PXQRskHqWbruKEFgUS3DQIXD64cfUMBSh4O1fDbOftf54bauwf36DIAEiaAWwg
+         e0Cg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o8sor734287wmf.23.2019.03.27.13.09.57
+       spf=pass (google.com: domain of 3mdibxakbakqwcdoeppivettmh.ksskpiywivgsrxirx.gsq@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3mdibXAkbAKQWcdOEPPIVETTMH.KSSKPIYWIVGSRXIRX.GSQ@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id y101sor2005241ita.6.2019.03.27.13.10.01
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 27 Mar 2019 13:09:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 27 Mar 2019 13:10:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3mdibxakbakqwcdoeppivettmh.ksskpiywivgsrxirx.gsq@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: APXvYqyPIA2q4k2Xqf3l9eGLTWp7uk5RUzI1vR0hg5JFg9hwl3QocHsf9kX1F7RBMXysFcWsuTwneA==
-X-Received: by 2002:a1c:4187:: with SMTP id o129mr9646587wma.57.1553717397215;
-        Wed, 27 Mar 2019 13:09:57 -0700 (PDT)
-Received: from localhost (ip-37-188-250-59.eurotel.cz. [37.188.250.59])
-        by smtp.gmail.com with ESMTPSA id b8sm7577541wrr.64.2019.03.27.13.09.55
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 27 Mar 2019 13:09:56 -0700 (PDT)
-Date: Wed, 27 Mar 2019 21:09:54 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: Dan Williams <dan.j.williams@intel.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	Rik van Riel <riel@surriel.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Keith Busch <keith.busch@intel.com>,
-	Fengguang Wu <fengguang.wu@intel.com>, "Du, Fan" <fan.du@intel.com>,
-	"Huang, Ying" <ying.huang@intel.com>, Linux MM <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Subject: Re: [RFC PATCH 0/10] Another Approach to Use PMEM as NUMA Node
-Message-ID: <20190327193918.GP11927@dhcp22.suse.cz>
-References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190326135837.GP28406@dhcp22.suse.cz>
- <43a1a59d-dc4a-6159-2c78-e1faeb6e0e46@linux.alibaba.com>
- <20190326183731.GV28406@dhcp22.suse.cz>
- <f08fb981-d129-3357-e93a-a6b233aa9891@linux.alibaba.com>
- <20190327090100.GD11927@dhcp22.suse.cz>
- <CAPcyv4heiUbZvP7Ewoy-Hy=-mPrdjCjEuSw+0rwdOUHdjwetxg@mail.gmail.com>
- <c3690a19-e2a6-7db7-b146-b08aa9b22854@linux.alibaba.com>
+       spf=pass (google.com: domain of 3mdibxakbakqwcdoeppivettmh.ksskpiywivgsrxirx.gsq@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3mdibXAkbAKQWcdOEPPIVETTMH.KSSKPIYWIVGSRXIRX.GSQ@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Google-Smtp-Source: APXvYqyDAf4ploxQXeYfC+CFYQgbOcopu+jJ1sXdRok24pSP1DcDyVjvzKS+bGYT+67jK4ftl65L/WTLJk3QASrrZ0jfVnqyzKD5
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <c3690a19-e2a6-7db7-b146-b08aa9b22854@linux.alibaba.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Received: by 2002:a24:2704:: with SMTP id g4mr1307352ita.36.1553717401059;
+ Wed, 27 Mar 2019 13:10:01 -0700 (PDT)
+Date: Wed, 27 Mar 2019 13:10:01 -0700
+In-Reply-To: <00000000000051ee78057cc4d98f@google.com>
+X-Google-Appengine-App-Id: s~syzkaller
+X-Google-Appengine-App-Id-Alias: syzkaller
+Message-ID: <000000000000c58fcf058519059e@google.com>
+Subject: Re: general protection fault in put_pid
+From: syzbot <syzbot+1145ec2e23165570c3ac@syzkaller.appspotmail.com>
+To: akpm@linux-foundation.org, clm@fb.com, dan.carpenter@oracle.com, 
+	dave@stgolabs.net, dhowells@redhat.com, dsterba@suse.com, dvyukov@google.com, 
+	ebiederm@xmission.com, jbacik@fb.com, ktkhai@virtuozzo.com, 
+	ktsanaktsidis@zendesk.com, linux-btrfs@vger.kernel.org, 
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org, manfred@colorfullife.com, 
+	mhocko@suse.com, nborisov@suse.com, penguin-kernel@I-love.SAKURA.ne.jp, 
+	penguin-kernel@i-love.sakura.ne.jp, rppt@linux.vnet.ibm.com, 
+	sfr@canb.auug.org.au, shakeelb@google.com, syzkaller-bugs@googlegroups.com, 
+	vdavydov.dev@gmail.com, willy@infradead.org
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 27-03-19 11:59:28, Yang Shi wrote:
-> 
-> 
-> On 3/27/19 10:34 AM, Dan Williams wrote:
-> > On Wed, Mar 27, 2019 at 2:01 AM Michal Hocko <mhocko@kernel.org> wrote:
-> > > On Tue 26-03-19 19:58:56, Yang Shi wrote:
-[...]
-> > > > It is still NUMA, users still can see all the NUMA nodes.
-> > > No, Linux NUMA implementation makes all numa nodes available by default
-> > > and provides an API to opt-in for more fine tuning. What you are
-> > > suggesting goes against that semantic and I am asking why. How is pmem
-> > > NUMA node any different from any any other distant node in principle?
-> > Agree. It's just another NUMA node and shouldn't be special cased.
-> > Userspace policy can choose to avoid it, but typical node distance
-> > preference should otherwise let the kernel fall back to it as
-> > additional memory pressure relief for "near" memory.
-> 
-> In ideal case, yes, I agree. However, in real life world the performance is
-> a concern. It is well-known that PMEM (not considering NVDIMM-F or HBM) has
-> higher latency and lower bandwidth. We observed much higher latency on PMEM
-> than DRAM with multi threads.
+syzbot has bisected this bug to:
 
-One rule of thumb is: Do not design user visible interfaces based on the
-contemporary technology and its up/down sides. This will almost always
-fire back.
+commit b9b8a41adeff5666b402996020b698504c927353
+Author: Dan Carpenter <dan.carpenter@oracle.com>
+Date:   Mon Aug 20 08:25:33 2018 +0000
 
-Btw. if you keep arguing about performance without any numbers. Can you
-present something specific?
+     btrfs: use after free in btrfs_quota_enable
 
-> In real production environment we don't know what kind of applications would
-> end up on PMEM (DRAM may be full, allocation fall back to PMEM) then have
-> unexpected performance degradation. I understand to have mempolicy to choose
-> to avoid it. But, there might be hundreds or thousands of applications
-> running on the machine, it sounds not that feasible to me to have each
-> single application set mempolicy to avoid it.
+bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=14155a1f200000
+start commit:   f5d58277 Merge branch 'for-linus' of git://git.kernel.org/..
+git tree:       upstream
+final crash:    https://syzkaller.appspot.com/x/report.txt?x=16155a1f200000
+console output: https://syzkaller.appspot.com/x/log.txt?x=12155a1f200000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=c8970c89a0efbb23
+dashboard link: https://syzkaller.appspot.com/bug?extid=1145ec2e23165570c3ac
+syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=16803afb400000
 
-we have cpuset cgroup controller to help here.
+Reported-by: syzbot+1145ec2e23165570c3ac@syzkaller.appspotmail.com
+Fixes: b9b8a41adeff ("btrfs: use after free in btrfs_quota_enable")
 
-> So, I think we still need a default allocation node mask. The default value
-> may include all nodes or just DRAM nodes. But, they should be able to be
-> override by user globally, not only per process basis.
-> 
-> Due to the performance disparity, currently our usecases treat PMEM as
-> second tier memory for demoting cold page or binding to not memory access
-> sensitive applications (this is the reason for inventing a new mempolicy)
-> although it is a NUMA node.
-
-If the performance sucks that badly then do not use the pmem as NUMA,
-really. There are certainly other ways to export the pmem storage. Use
-it as a fast swap storage. Or try to work on a swap caching mechanism
-that still allows much faster access than a slow swap storage. But do
-not try to pretend to abuse the NUMA interface while you are breaking
-some of its long term established semantics.
--- 
-Michal Hocko
-SUSE Labs
+For information about bisection process see: https://goo.gl/tpsmEJ#bisection
 
