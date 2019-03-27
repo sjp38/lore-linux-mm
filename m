@@ -6,104 +6,112 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4C3FCC4360F
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:16:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5B05CC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:17:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0D7162147C
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:16:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0E52621741
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:17:02 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="riqpW//h"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D7162147C
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="MUvQZIES"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0E52621741
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A7DF96B0284; Wed, 27 Mar 2019 14:16:58 -0400 (EDT)
+	id 095296B0286; Wed, 27 Mar 2019 14:17:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A32986B0286; Wed, 27 Mar 2019 14:16:58 -0400 (EDT)
+	id 01A996B0288; Wed, 27 Mar 2019 14:17:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 887576B0287; Wed, 27 Mar 2019 14:16:58 -0400 (EDT)
+	id DFDE26B0289; Wed, 27 Mar 2019 14:17:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4870B6B0284
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 14:16:58 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id s22so4836046plq.1
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 11:16:58 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 961806B0286
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 14:17:01 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id z26so14634879pfa.7
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 11:17:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=ymFHFQ6+KBHI40F4Yx5ij4npiLTuJRVJExWU4mhtjsg=;
-        b=Ggf2dpsd5oekVY43Mpx6CB+lQeh8TXOxiDqe1U3XJC0HmFSTr+uiTMxec9vFCpD3bI
-         jWgwyRzBOt3GbsSKCSZRsp52FV7Kf0DYaCf0VvktX07Yw5NiqK7dyj8jfXt+aFdv+0Ol
-         uXX82MU0//fnMsic442gMQHPBy/UhdZT5MvRao4Xw5pTFwXjjfEReoAWf+0Iop1dPVQO
-         +x2NWJFxw5s7mDoXeEv4+ld32HzQFy641JJp0ajkxbmHnRHm4uxdLEkvjV1AiB5EMnk6
-         sz5fFZXyNqUd7kdH1cTf5QEnTl73d5rbMinGJW5fy4K9XcwH3WzZaaA6OZxtVRPLP1tL
-         71eQ==
-X-Gm-Message-State: APjAAAUgOfBGE/IYTvlh2DU6OJLPn8PZ/Wej1l+AWViz3irgr4+HHJvk
-	0SxnGBoygsc62cx2KOkXfeA889Q7Iw4L/cDsOyQcPUUgCgIe/Ujb1vEAPVL9PSyZM9MOtCgrRAu
-	g83BuMOQqDtAPFC0dJ/sCCv2CjlDM5gFJK5/R/Fd4q20+64Y4EKhEY1jiT+vdsoE7JA==
-X-Received: by 2002:a63:3d85:: with SMTP id k127mr20488015pga.152.1553710617952;
-        Wed, 27 Mar 2019 11:16:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwXphpygcPsN8sFPtTV3njfLZMVXG3oG2AVjZcN8FrSqvNO9unmt5k2KGwrgyo43YphL8FI
-X-Received: by 2002:a63:3d85:: with SMTP id k127mr20487942pga.152.1553710617138;
-        Wed, 27 Mar 2019 11:16:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553710617; cv=none;
+        bh=jDVBzzK+WLpPQuthFGnYHZWjDVTFJrtG5e/s0YG+j3o=;
+        b=dPkZwlVIWMOXKgqLMn1Pswo/c7ntm7p35ZlaQpq2W8UGL7qxUHZOIuMMDqW5FbwFZt
+         38YMvWqY9YseSz5KJavv3S8jHejosgxcss60cDDEFgYDybpSlZ35JC6OTFOQxn9Zz4pr
+         qOj08WCjfRjbj7201I+4A9jEBz7WlOtd3B5jLhZINklAp8pb8o2OwRhlWSWGJCZDOWxJ
+         BrpDsFa82WHc21sY4TVY4pjOkdoMXrRn1mt1p+YlmLeXABmtBpVq4V8LfIlcZqSeiUgf
+         +awz3ODAjZj9aLH8L6CjAvXrjGB5uGC30X566pQnWbWP7VdQ65kliUCol9bDDSAnv5kO
+         xHjA==
+X-Gm-Message-State: APjAAAVEszR6kG3Ku60+nPQ1EDw6yJYQbK5dO5pevpF5dgahrJd423XA
+	l+vMJ5eJq6HPV7WpfzV0/xvBV+9bBWkRjKnUlZy++JNL1fTE2sdXNZ+iRDoSE85yazvaR3ulQuj
+	QJYsLNNEojU/QZJ+oXhYSeW/76iBZD+i3MUWy0HQ4KBazSErUW7v3h4U97Opz0RRDUg==
+X-Received: by 2002:a17:902:6b03:: with SMTP id o3mr38339479plk.126.1553710621252;
+        Wed, 27 Mar 2019 11:17:01 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxVzE2ctFJQK1jfb5wl2HPKoOXukexj18sDEK4VHSe/9GLGlyusirDn/KRmK9/02+qGuMp0
+X-Received: by 2002:a17:902:6b03:: with SMTP id o3mr38339426plk.126.1553710620543;
+        Wed, 27 Mar 2019 11:17:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553710620; cv=none;
         d=google.com; s=arc-20160816;
-        b=C6o5qm1NmjyuRFdfzVhSUV8YmI2LCQiDiuskV3ZKrilJ1AjEq0s6mjBegTdD4Cj5Ys
-         QJBp8NcEyH8UQPy3CdWfvFBIaqYSSTtclapTTMsNLP4au5+lzVAHHelmsBfJKpE+/3fI
-         RgLKwjC7p641zuUQZK7y81KYjbNcFKDBJY9mUeCFuc/nqKvlOnq8IeWlwV9467/+T7N/
-         WC8ly0qtURrCdEUym7zuTw38E6avbAwJAIi5iMCdp8tDuq28P0+WtmXk6mmZZo2uMlBA
-         Y3c8EKP/IFfFHzDRtusoJs3RGyDJwASyfAwjOgAcfiIuvRy354EyMpS7Mc6HU4si/XwU
-         +vYw==
+        b=dBUxI6vD6ryV+722fQiyOFjIOF2Oh3xq4f8I3dnAs1COtjn8yVvN9gVa0KVYqzN6i5
+         /BbgwvJXeaBJweJW6zPb8600YR1rnNG3anrLhlohc4kSCsYETliU6dRVU6lkii//S0Q6
+         +RLQ0h6TN/Sb4JkAhr2zasfgqs94+d9JQ/JT4zGXXltQh7hFksr8OWtiTBZNB5+0e0Jh
+         KvEvEeb95yxuI7NTK/415MS1TkvFS88PoNuTUkAMh/1115akeKVF2j5DflQKz5NUEunf
+         8rYspqENVnZjOe/FhC/EUDTL4HtH4kSts1uiHKEIg5DpvBbtJx8D6wT9ydIbjOiSMMTk
+         aztg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=ymFHFQ6+KBHI40F4Yx5ij4npiLTuJRVJExWU4mhtjsg=;
-        b=mXGLHPSJJ1B7ljbR1osTitm0BAjUFJqwp8VgNvSPxdycwXfum9AoddimK/zg+4VRVH
-         3Cxbv+fE6nKX9S56ZkB6qtzsvYSw5Ej2KhrJRLxLYLN7ZcUOivqdlFAcA/2u0Kc0NzsC
-         uQhUHiYHpfX1akibvw9lbvy+LUEmEptHxJWGWrGETfUkOZiPbVrpIKeTTipRMYHo3ec0
-         MORcYLUP1ISHDFlJTA1kiolTHTXVyNg+AKeYSYF88nfCpDC8cWcCAZIFAldDBmxTugAz
-         TVybSi1eJ3PnFrkrnPHd8Y6pokDnHQVJgtuf2CWzCXCdAwykeC+NWxZxCvw7r+iWRkvZ
-         au1A==
+        bh=jDVBzzK+WLpPQuthFGnYHZWjDVTFJrtG5e/s0YG+j3o=;
+        b=nIVDt3e4WbOxntHxMlS2mZfkXcD5h57XRCg9telAFjk+ThZbtF4TjLZt/m1LOmVWdl
+         UtcnDUEdrtN/v9JwJbN1Db9bPzYPf8y8o/9uwlyg4jdfO3RRvjIDdQtbqbEaUq0Bp87w
+         XSe+znzTAxKpKHe9/yB3u+RCazXKDzxux1710/XrsA8gEYFYCEFkQ41I0tf2TRkMKa7T
+         Dc+UckB1Pb0sb49pulgD8U3OhXLWQ7eVYDJiIl45WPE2H+IpI08XaCP9AAsnHBbt7hh7
+         GUReKqbitcovj7bAtpFW4dG01nC3bgJghRLgQZixxH0/EdtcEeBVW1qTkwXPGTeCdn5h
+         n3Qw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="riqpW//h";
+       dkim=pass header.i=@kernel.org header.s=default header.b=MUvQZIES;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id d2si21413072pld.110.2019.03.27.11.16.57
+        by mx.google.com with ESMTPS id 129si1118882pfz.159.2019.03.27.11.17.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Mar 2019 11:16:57 -0700 (PDT)
+        Wed, 27 Mar 2019 11:17:00 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="riqpW//h";
+       dkim=pass header.i=@kernel.org header.s=default header.b=MUvQZIES;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 071B22082F;
-	Wed, 27 Mar 2019 18:16:55 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id A13F92082F;
+	Wed, 27 Mar 2019 18:16:58 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1553710616;
-	bh=nfxfrFS3OI9LFKtIK0YEsK11tyLuyUhwb0LxDZjNg+U=;
+	s=default; t=1553710620;
+	bh=vZlZSwjI0j1qTEE66ehzHcxXT94pw+35NscVhJmlVwM=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=riqpW//h5E2zCEbVlg2AWPSc5mDFj7aoamUlKObjDxsmVs20Me0vu/wPC48xijKY7
-	 tUWT9ZRxAKRgUaGwcI47t1EJ4cHBLPvXzMjXMSRb/lO2mnZIQKofLeNEb0/0lJusvK
-	 nqy5cxxjwQBO6yIhHGJ1i7ydrfFV1+GUtBFNrpss=
+	b=MUvQZIES8fuCF9Xm/nBZwSY3SNN4pqVIhmWtohyvMv+ji+BmA0J1EHKl9bm0ge8V/
+	 ckUQb2U0KOxjhNcWueuV2AYceYiMQrkaApNXfTzVPgKrT7xa3VUfsblC1nh8C//a5u
+	 YtIWnbUb5ssChU/5piR7grexKJ921bpx53r2QzTo=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Qian Cai <cai@lca.pw>,
+Cc: Vlastimil Babka <vbabka@suse.cz>,
+	Alexander Potapenko <glider@google.com>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Michal Hocko <mhocko@suse.com>,
+	David Rientjes <rientjes@google.com>,
+	Yisheng Xie <xieyisheng1@huawei.com>,
+	zhong jiang <zhongjiang@huawei.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.14 016/123] mm/page_ext.c: fix an imbalance with kmemleak
-Date: Wed, 27 Mar 2019 14:14:40 -0400
-Message-Id: <20190327181628.15899-16-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.14 017/123] mm, mempolicy: fix uninit memory access
+Date: Wed, 27 Mar 2019 14:14:41 -0400
+Message-Id: <20190327181628.15899-17-sashal@kernel.org>
 X-Mailer: git-send-email 2.19.1
 In-Reply-To: <20190327181628.15899-1-sashal@kernel.org>
 References: <20190327181628.15899-1-sashal@kernel.org>
@@ -116,82 +124,95 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Qian Cai <cai@lca.pw>
+From: Vlastimil Babka <vbabka@suse.cz>
 
-[ Upstream commit 0c81585499601acd1d0e1cbf424cabfaee60628c ]
+[ Upstream commit 2e25644e8da4ed3a27e7b8315aaae74660be72dc ]
 
-After offlining a memory block, kmemleak scan will trigger a crash, as
-it encounters a page ext address that has already been freed during
-memory offlining.  At the beginning in alloc_page_ext(), it calls
-kmemleak_alloc(), but it does not call kmemleak_free() in
-free_page_ext().
+Syzbot with KMSAN reports (excerpt):
 
-    BUG: unable to handle kernel paging request at ffff888453d00000
-    PGD 128a01067 P4D 128a01067 PUD 128a04067 PMD 47e09e067 PTE 800ffffbac2ff060
-    Oops: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN PTI
-    CPU: 1 PID: 1594 Comm: bash Not tainted 5.0.0-rc8+ #15
-    Hardware name: HP ProLiant DL180 Gen9/ProLiant DL180 Gen9, BIOS U20 10/25/2017
-    RIP: 0010:scan_block+0xb5/0x290
-    Code: 85 6e 01 00 00 48 b8 00 00 30 f5 81 88 ff ff 48 39 c3 0f 84 5b 01 00 00 48 89 d8 48 c1 e8 03 42 80 3c 20 00 0f 85 87 01 00 00 <4c> 8b 3b e8 f3 0c fa ff 4c 39 3d 0c 6b 4c 01 0f 87 08 01 00 00 4c
-    RSP: 0018:ffff8881ec57f8e0 EFLAGS: 00010082
-    RAX: 0000000000000000 RBX: ffff888453d00000 RCX: ffffffffa61e5a54
-    RDX: 0000000000000000 RSI: 0000000000000008 RDI: ffff888453d00000
-    RBP: ffff8881ec57f920 R08: fffffbfff4ed588d R09: fffffbfff4ed588c
-    R10: fffffbfff4ed588c R11: ffffffffa76ac463 R12: dffffc0000000000
-    R13: ffff888453d00ff9 R14: ffff8881f80cef48 R15: ffff8881f80cef48
-    FS:  00007f6c0e3f8740(0000) GS:ffff8881f7680000(0000) knlGS:0000000000000000
-    CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-    CR2: ffff888453d00000 CR3: 00000001c4244003 CR4: 00000000001606a0
-    Call Trace:
-     scan_gray_list+0x269/0x430
-     kmemleak_scan+0x5a8/0x10f0
-     kmemleak_write+0x541/0x6ca
-     full_proxy_write+0xf8/0x190
-     __vfs_write+0xeb/0x980
-     vfs_write+0x15a/0x4f0
-     ksys_write+0xd2/0x1b0
-     __x64_sys_write+0x73/0xb0
-     do_syscall_64+0xeb/0xaaa
-     entry_SYSCALL_64_after_hwframe+0x44/0xa9
-    RIP: 0033:0x7f6c0dad73b8
-    Code: 89 02 48 c7 c0 ff ff ff ff eb b3 0f 1f 80 00 00 00 00 f3 0f 1e fa 48 8d 05 65 63 2d 00 8b 00 85 c0 75 17 b8 01 00 00 00 0f 05 <48> 3d 00 f0 ff ff 77 58 c3 0f 1f 80 00 00 00 00 41 54 49 89 d4 55
-    RSP: 002b:00007ffd5b863cb8 EFLAGS: 00000246 ORIG_RAX: 0000000000000001
-    RAX: ffffffffffffffda RBX: 0000000000000005 RCX: 00007f6c0dad73b8
-    RDX: 0000000000000005 RSI: 000055a9216e1710 RDI: 0000000000000001
-    RBP: 000055a9216e1710 R08: 000000000000000a R09: 00007ffd5b863840
-    R10: 000000000000000a R11: 0000000000000246 R12: 00007f6c0dda9780
-    R13: 0000000000000005 R14: 00007f6c0dda4740 R15: 0000000000000005
-    Modules linked in: nls_iso8859_1 nls_cp437 vfat fat kvm_intel kvm irqbypass efivars ip_tables x_tables xfs sd_mod ahci libahci igb i2c_algo_bit libata i2c_core dm_mirror dm_region_hash dm_log dm_mod efivarfs
-    CR2: ffff888453d00000
-    ---[ end trace ccf646c7456717c5 ]---
-    Kernel panic - not syncing: Fatal exception
-    Shutting down cpus with NMI
-    Kernel Offset: 0x24c00000 from 0xffffffff81000000 (relocation range:
-    0xffffffff80000000-0xffffffffbfffffff)
-    ---[ end Kernel panic - not syncing: Fatal exception ]---
+==================================================================
+BUG: KMSAN: uninit-value in mpol_rebind_policy mm/mempolicy.c:353 [inline]
+BUG: KMSAN: uninit-value in mpol_rebind_mm+0x249/0x370 mm/mempolicy.c:384
+CPU: 1 PID: 17420 Comm: syz-executor4 Not tainted 4.20.0-rc7+ #15
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+Google 01/01/2011
+Call Trace:
+  __dump_stack lib/dump_stack.c:77 [inline]
+  dump_stack+0x173/0x1d0 lib/dump_stack.c:113
+  kmsan_report+0x12e/0x2a0 mm/kmsan/kmsan.c:613
+  __msan_warning+0x82/0xf0 mm/kmsan/kmsan_instr.c:295
+  mpol_rebind_policy mm/mempolicy.c:353 [inline]
+  mpol_rebind_mm+0x249/0x370 mm/mempolicy.c:384
+  update_tasks_nodemask+0x608/0xca0 kernel/cgroup/cpuset.c:1120
+  update_nodemasks_hier kernel/cgroup/cpuset.c:1185 [inline]
+  update_nodemask kernel/cgroup/cpuset.c:1253 [inline]
+  cpuset_write_resmask+0x2a98/0x34b0 kernel/cgroup/cpuset.c:1728
 
-Link: http://lkml.kernel.org/r/20190227173147.75650-1-cai@lca.pw
-Signed-off-by: Qian Cai <cai@lca.pw>
-Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+...
+
+Uninit was created at:
+  kmsan_save_stack_with_flags mm/kmsan/kmsan.c:204 [inline]
+  kmsan_internal_poison_shadow+0x92/0x150 mm/kmsan/kmsan.c:158
+  kmsan_kmalloc+0xa6/0x130 mm/kmsan/kmsan_hooks.c:176
+  kmem_cache_alloc+0x572/0xb90 mm/slub.c:2777
+  mpol_new mm/mempolicy.c:276 [inline]
+  do_mbind mm/mempolicy.c:1180 [inline]
+  kernel_mbind+0x8a7/0x31a0 mm/mempolicy.c:1347
+  __do_sys_mbind mm/mempolicy.c:1354 [inline]
+
+As it's difficult to report where exactly the uninit value resides in
+the mempolicy object, we have to guess a bit.  mm/mempolicy.c:353
+contains this part of mpol_rebind_policy():
+
+        if (!mpol_store_user_nodemask(pol) &&
+            nodes_equal(pol->w.cpuset_mems_allowed, *newmask))
+
+"mpol_store_user_nodemask(pol)" is testing pol->flags, which I couldn't
+ever see being uninitialized after leaving mpol_new().  So I'll guess
+it's actually about accessing pol->w.cpuset_mems_allowed on line 354,
+but still part of statement starting on line 353.
+
+For w.cpuset_mems_allowed to be not initialized, and the nodes_equal()
+reachable for a mempolicy where mpol_set_nodemask() is called in
+do_mbind(), it seems the only possibility is a MPOL_PREFERRED policy
+with empty set of nodes, i.e.  MPOL_LOCAL equivalent, with MPOL_F_LOCAL
+flag.  Let's exclude such policies from the nodes_equal() check.  Note
+the uninit access should be benign anyway, as rebinding this kind of
+policy is always a no-op.  Therefore no actual need for stable
+inclusion.
+
+Link: http://lkml.kernel.org/r/a71997c3-e8ae-a787-d5ce-3db05768b27c@suse.cz
+Link: http://lkml.kernel.org/r/73da3e9c-cc84-509e-17d9-0c434bb9967d@suse.cz
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Reported-by: syzbot+b19c2dc2c990ea657a71@syzkaller.appspotmail.com
+Cc: Alexander Potapenko <glider@google.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Yisheng Xie <xieyisheng1@huawei.com>
+Cc: zhong jiang <zhongjiang@huawei.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/page_ext.c | 1 +
- 1 file changed, 1 insertion(+)
+ mm/mempolicy.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/page_ext.c b/mm/page_ext.c
-index 2c44f5b78435..dece2bdf86fe 100644
---- a/mm/page_ext.c
-+++ b/mm/page_ext.c
-@@ -271,6 +271,7 @@ static void free_page_ext(void *addr)
- 		table_size = get_entry_size() * PAGES_PER_SECTION;
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 1331645a3794..b0e99ea0c3db 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -349,7 +349,7 @@ static void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask)
+ {
+ 	if (!pol)
+ 		return;
+-	if (!mpol_store_user_nodemask(pol) &&
++	if (!mpol_store_user_nodemask(pol) && !(pol->flags & MPOL_F_LOCAL) &&
+ 	    nodes_equal(pol->w.cpuset_mems_allowed, *newmask))
+ 		return;
  
- 		BUG_ON(PageReserved(page));
-+		kmemleak_free(addr);
- 		free_pages_exact(addr, table_size);
- 	}
- }
 -- 
 2.19.1
 
