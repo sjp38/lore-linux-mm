@@ -2,142 +2,135 @@ Return-Path: <SRS0=JxSR=R6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7C4A0C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 13:05:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3CF57C10F00
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 13:07:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3875821734
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 13:05:36 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="OMdCtJAO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3875821734
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id 077A82146F
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 13:07:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 077A82146F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BBBC16B0010; Wed, 27 Mar 2019 09:05:35 -0400 (EDT)
+	id 8AF066B0269; Wed, 27 Mar 2019 09:07:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B6BB46B0266; Wed, 27 Mar 2019 09:05:35 -0400 (EDT)
+	id 85DF36B026A; Wed, 27 Mar 2019 09:07:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9E53C6B0269; Wed, 27 Mar 2019 09:05:35 -0400 (EDT)
+	id 773666B026B; Wed, 27 Mar 2019 09:07:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BC3B6B0010
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 09:05:35 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id m8so14474435qka.10
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 06:05:35 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D3C86B0269
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 09:07:13 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id j184so14039813pgd.7
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 06:07:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=d8vohrDHmXaj8dPeFxTgq9hFa6mnamq9JQBWUjd1a/E=;
-        b=raXrblCLKKm9mwyyVa6woFPH1RIosoMtVTd3V8U4OU5MUY+rtrjXjZ6IGEtHMZKli+
-         lfsf0giAG4dJsF58C4jIM8ZeGsgYX6uP2oqmjDJsObq2iskDIDpDzLvFlPgpMs8i7fr3
-         W7vSA1XrY3bmmDYWXjjZUDJAQtCW3wR9YtR4C6iNYA5Du2Td/5a+6kYTtrnmbZfm9dDW
-         sqKb6nPDGGxgmvv2ZIzWBio9qVvcsCnatm//sm3GA2cZ6s8YS6RbQFpJPNAupWfgjuoo
-         BzC8rhdcre2UVaRU+GM8V/uUovYFBzTuhlDRaXrd3ebjVnwOy+4IlJr4xPqkgRDmjthz
-         bRww==
-X-Gm-Message-State: APjAAAUSgJuXT+QDQ7+pKXrfw1EYB9wKv8B6a+k9qI1FyZGS5nnmuQPD
-	MtyHlcnQ2mJfwCMFRUtxD4JMwxuUH9CbSISZk/q+rPKCA+rlZ7aaVpeeDtieoxJpsQ62/1MWTtk
-	Ko9wn08Zg6ZbOfzup6yYvAoKkCrNyY4jWMgEj2qurFnV87+OEx8X8c/wRCgzWs5jRww==
-X-Received: by 2002:a37:a412:: with SMTP id n18mr27269032qke.321.1553691935252;
-        Wed, 27 Mar 2019 06:05:35 -0700 (PDT)
-X-Received: by 2002:a37:a412:: with SMTP id n18mr27268962qke.321.1553691934541;
-        Wed, 27 Mar 2019 06:05:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553691934; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=WsY0P3qhN1SUzLhZnmLyDk0wP5NisUxkhKbEELzNIe4=;
+        b=JoOU/2mfG6LxY94r1WL7PvN+My6Fa7QWCd+8+NNtl5TyTuISPpYL3rSqHF/DtuTiMM
+         kvpiK3kRJpvacy2PiwyRZkEHQMxc6w3JvtNMX3lFU5sXtykZ8VSSb/geGrS5wWhrRFhr
+         U8bXmRvaMTZ5ffkGH2E34yoO7A58drZsbTiHhbKhPPNGMLLb816ekROA5VZfGIJNCcCa
+         E57LR1vNj+3sVEL0p3udVTuZ/h0SYoYWwFrxFjnJQXRAieMnurY6gv6M51ShWZmciEso
+         uSa/XccvdQWeMSxbrFW/suPSUHYzSZTvFip2E2uU2PhDs/SAhA4u7/O3i0MyzSnAs7XR
+         RZqw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning kbusch@kernel.org does not designate 134.134.136.31 as permitted sender) smtp.mailfrom=kbusch@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAUKi7yOOz6HJsx8IJ5Z6zu8anf7XkSj81Usnd3Ngt7C0/qnQ/So
+	Av4unLK/CtG9D5wyzc2hlSunk5VXTSThAduiB2UFF9nkv1RSZC9YASdAt4/vCwRqV9+/DmD6zqB
+	dloj2N30i/bevkqAsRlLJuejO73QUFXtAOwqJA3/sgRXGtj04hHZB/z9SB8vJrF8=
+X-Received: by 2002:a65:47cb:: with SMTP id f11mr34318098pgs.18.1553692032942;
+        Wed, 27 Mar 2019 06:07:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyFnJDirgCb1aAkqV9b2BCrXLV2E25IKpIp0YpggRCH+gVHIr0eLDugqoVOpq4eCg8UFoLP
+X-Received: by 2002:a65:47cb:: with SMTP id f11mr34318038pgs.18.1553692032278;
+        Wed, 27 Mar 2019 06:07:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553692032; cv=none;
         d=google.com; s=arc-20160816;
-        b=q3sRz2/3aUe51x/Ykpct4pFJg2tCBGSzlUe6yvFaocggB64KSazBezPqkdUXaL2Ki8
-         IdY1lTQ03pW1g+UUDqF1bhvx8C11vqpVN0EWYf+mzR3l5VK/Ybv90P9drGD9aV5elauK
-         Jf0fOG/EP4zg2rx7sib+QOjtqQAeo+GhrZZR/RelUU1nY/v414bxo8ggzuRuxvF2jIDW
-         KGj1QivG3XFlJBQ+/hGECnh2t02KYvVHcwS5mXB8zwY7yacfribtNA3njpM5a0n6Z2RL
-         fiAf1zUsaROOt5+M977BXIXsbjOYOfE2pk57Tf+Rnl/flR4Li4cV4+kfFmQw9Excl0xN
-         UDPg==
+        b=0yCwBHWVhI8R1ObrMFJUUO78w/n12EmmPJLOSX0pMJbuwINaYNiVvumxX2qPOcbCCY
+         RvfT7lZrvo0YNeIuonFtINmxtYx6r09cMdbJ7X3df6ZDFO95cYRdZ0gcnd1MK2h5uoPd
+         kL5kxdcfo3keqUWwAFjZgCCaiAlnz7GoavpqFfb0KFPR/wnKyMKmpMqRUKdMhR/IJC3G
+         41Xa1SXo1keyXrC2czUdVlqic/a4H2GreYZFQCOXrmb8eiD5UZ+GF0PkXfvMngUI/JpD
+         TGrU/BESc+A228F8PXw6Kqxu8acI8J2r/nlk+gtXOWRIAHrEUTbrS1m/YXTWA5GgDQpU
+         Gtiw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=d8vohrDHmXaj8dPeFxTgq9hFa6mnamq9JQBWUjd1a/E=;
-        b=QNpD38axalg5vhCqsoNSFhbBWWSQS5jU1Ku5/fJ3guA+i1HKKrPCBJDW+Akl67ZwdU
-         KYFBfoYCaNA3emyiSyadQblsgvZtSO9d8ehbjorF0SgSq4abMGGDMNzcxi18Po3Ljv/J
-         ztcgFw4MTzkhPtdWyNq6XpzWvt9FlaABP4hpwI1MGo/05PdGMnVuK8PUKHhrRlgACwg2
-         A1WKBsApzZBpxp8yAB5Sc7QNv1VAcKm4q9JIfIveb0e0/E5h3ysNBGhqFcp06oVPNlok
-         EClDqJdKesix3yJefwW90Za2QmzRTBk/Sdmb26XFkn54v/1j6HJqxTZWTpOblK9EnliY
-         nnXw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=WsY0P3qhN1SUzLhZnmLyDk0wP5NisUxkhKbEELzNIe4=;
+        b=HyeUZUjRjo+96ywQBzmCK0yFMYwcmaAAOFoHFcTBWW/0xA4R0L9gSptqHHiwMOlfTs
+         rtccn63gHWFVtHcQ6u3GtZOzz/q3a3bHBgKW8oN1hfsHArjtrK/zV3k43/2sEody4zJG
+         SoczWGLS32TUClXcnZ/UW4Yy1VpVgQ1KJ9xWyBYIku5WUTAc1OI3As5ELmGBvEZop4x8
+         gOzyP6DQs7P/Nq7eiViJPNm4C8j76r1QWb0Uj8SXbtDrIaT54wJcH3KqAsKeqaO0zoZI
+         LlOv3q7UJ5uum7+1lGHc1lpCSwA332qmEmtP1wQep2XOoZDsI1Spx7UTK3fsWXZ6Zfxi
+         0ooA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=OMdCtJAO;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o56sor1787384qvc.71.2019.03.27.06.05.34
+       spf=softfail (google.com: domain of transitioning kbusch@kernel.org does not designate 134.134.136.31 as permitted sender) smtp.mailfrom=kbusch@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id q64si18984689pga.492.2019.03.27.06.07.12
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 27 Mar 2019 06:05:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=OMdCtJAO;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=subject:to:cc:references:from:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=d8vohrDHmXaj8dPeFxTgq9hFa6mnamq9JQBWUjd1a/E=;
-        b=OMdCtJAOXebwBZD85kjEwulAskD+huji+vaYW52nRq+9CBDXpY53JyqfSKEi7EmIWT
-         yvDGt42qPNSv3hSlnuL4syyy3ntEKa0rZYusPb5qDvK+diGG8aS3W5HuTM+5k2PCfw36
-         EajfVK64CbZzIqq0rugOlQatseZOB5P9cY5zfVpR+1qjdzOqtBfoO8DpbJAYct7QpPkB
-         c1uNEXhRqr8tJjIepFBjyezk9bL5v33YRovDkB0n8OjWzQgQmb2daPFy7JGGMpYWb6+H
-         yrNRJvHoy7oT94KfCnURKxnhyIkOItKtbGsesRdWd5gZcPjFyGTyJvVY2LFgWnYhSiq2
-         Hrlg==
-X-Google-Smtp-Source: APXvYqyowtPb8iUVv0sqpgQw1DZfVAzV8hh9EtnJ9RGb27LO1hsBlIuqOKgOexg0m3zetsNP9fd+zA==
-X-Received: by 2002:a0c:8693:: with SMTP id 19mr30981574qvf.73.1553691934222;
-        Wed, 27 Mar 2019 06:05:34 -0700 (PDT)
-Received: from ovpn-120-94.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id z20sm5101396qkb.52.2019.03.27.06.05.33
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Mar 2019 06:05:33 -0700 (PDT)
-Subject: Re: [PATCH v4] kmemleak: survive in a low-memory situation
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, catalin.marinas@arm.com, cl@linux.com,
- willy@infradead.org, penberg@kernel.org, rientjes@google.com,
- iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <20190327005948.24263-1-cai@lca.pw>
- <20190327084432.GA11927@dhcp22.suse.cz>
- <651bd879-c8c0-b162-fee7-1e523904b14e@lca.pw>
- <20190327114458.GF11927@dhcp22.suse.cz>
-From: Qian Cai <cai@lca.pw>
-Message-ID: <68cff59d-2b0e-5a7b-bca9-36784522059b@lca.pw>
-Date: Wed, 27 Mar 2019 09:05:31 -0400
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
- Gecko/20100101 Thunderbird/60.3.3
+        Wed, 27 Mar 2019 06:07:12 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning kbusch@kernel.org does not designate 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
+Authentication-Results: mx.google.com;
+       spf=softfail (google.com: domain of transitioning kbusch@kernel.org does not designate 134.134.136.31 as permitted sender) smtp.mailfrom=kbusch@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from fmsmga006.fm.intel.com ([10.253.24.20])
+  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 27 Mar 2019 06:07:11 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,276,1549958400"; 
+   d="scan'208";a="331140619"
+Received: from unknown (HELO localhost.localdomain) ([10.232.112.69])
+  by fmsmga006.fm.intel.com with ESMTP; 27 Mar 2019 06:07:10 -0700
+Date: Wed, 27 Mar 2019 07:08:22 -0600
+From: Keith Busch <kbusch@kernel.org>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: "mhocko@suse.com" <mhocko@suse.com>,
+	"mgorman@techsingularity.net" <mgorman@techsingularity.net>,
+	"riel@surriel.com" <riel@surriel.com>,
+	"hannes@cmpxchg.org" <hannes@cmpxchg.org>,
+	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
+	"Hansen, Dave" <dave.hansen@intel.com>,
+	"Busch, Keith" <keith.busch@intel.com>,
+	"Williams, Dan J" <dan.j.williams@intel.com>,
+	"Wu, Fengguang" <fengguang.wu@intel.com>,
+	"Du, Fan" <fan.du@intel.com>, "Huang, Ying" <ying.huang@intel.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 06/10] mm: vmscan: demote anon DRAM pages to PMEM node
+Message-ID: <20190327130822.GD7389@localhost.localdomain>
+References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1553316275-21985-7-git-send-email-yang.shi@linux.alibaba.com>
+ <20190324222040.GE31194@localhost.localdomain>
+ <ceec5604-b1df-2e14-8966-933865245f1c@linux.alibaba.com>
+ <20190327003541.GE4328@localhost.localdomain>
+ <39d8fb56-df60-9382-9b47-59081d823c3c@linux.alibaba.com>
 MIME-Version: 1.0
-In-Reply-To: <20190327114458.GF11927@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <39d8fb56-df60-9382-9b47-59081d823c3c@linux.alibaba.com>
+User-Agent: Mutt/1.9.1 (2017-09-22)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/27/19 7:44 AM, Michal Hocko wrote> What? Normal spin lock implementation
-doesn't disable interrupts. So
-> either I misunderstand what you are saying or you seem to be confused.
-> the thing is that in_atomic relies on preempt_count to work properly and
-> if you have CONFIG_PREEMPT_COUNT=n then you simply never know whether
-> preemption is disabled so you do not know that a spin_lock is held.
-> irqs_disabled on the other hand checks whether arch specific flag for
-> IRQs handling is set (or cleared). So you would only catch irq safe spin
-> locks with the above check.
+On Tue, Mar 26, 2019 at 08:41:15PM -0700, Yang Shi wrote:
+> On 3/26/19 5:35 PM, Keith Busch wrote:
+> > migration nodes have higher free capacity than source nodes. And since
+> > your attempting THP's without ever splitting them, that also requires
+> > lower fragmentation for a successful migration.
+> 
+> Yes, it is possible. However, migrate_pages() already has logic to 
+> handle such case. If the target node has not enough space for migrating 
+> THP in a whole, it would split THP then retry with base pages.
 
-Exactly, because kmemleak_alloc() is only called in a few call sites, slab
-allocation, neigh_hash_alloc(), alloc_page_ext(), sg_kmalloc(),
-early_amd_iommu_init() and blk_mq_alloc_rqs(), my review does not yield any of
-those holding irq unsafe spinlocks.
-
-Could future code changes suddenly call kmemleak_alloc() with a irq unsafe
-spinlock held? Always possible, but it is unlikely to happen. I could put some
-comments on kmemleak_alloc() about this though.
+Oh, you're right, my mistake on splitting. So you have a good best effort
+migrate, but I still think it can fail for legitimate reasons that should
+have a swap fallback.
 
