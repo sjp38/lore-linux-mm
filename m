@@ -2,154 +2,136 @@ Return-Path: <SRS0=JxSR=R6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7CD8EC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 03:41:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 829FCC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 03:57:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 280562075E
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 03:41:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 280562075E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 3D8F0206B8
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 03:57:49 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="aD9NBc9i"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3D8F0206B8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 964CE6B0003; Tue, 26 Mar 2019 23:41:23 -0400 (EDT)
+	id C17556B0007; Tue, 26 Mar 2019 23:57:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 914586B0006; Tue, 26 Mar 2019 23:41:23 -0400 (EDT)
+	id BC6BE6B0008; Tue, 26 Mar 2019 23:57:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 82A686B0007; Tue, 26 Mar 2019 23:41:23 -0400 (EDT)
+	id ADC8B6B000A; Tue, 26 Mar 2019 23:57:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B6D36B0003
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 23:41:23 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id x5so3481408pll.2
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 20:41:23 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 61A7B6B0007
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 23:57:48 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id b133so5770883wmg.7
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 20:57:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=VdT375e6UgKXAkisZksuxeWeA1N2Js5PL7YlBEJx1aA=;
-        b=qq9Bg/xp0N6sXfYqw/LJEeWR/mvOKqPBfmMwfSy7GOKcLb5dM/05+/D0JwKVX5aO72
-         v8ktf/KfvHbynL12x2YIg/vioO/pgnj/neCQJvdwGpMwYG8y4VY8rTZLmrWh8jet7oZc
-         1hAW8GDZWBsXCOAQs7dcsaMhxAM/GsTb3Ua6gsU33Me/tMHGwH8tmlBZza242z78O8U/
-         ZQUueTPoaAsyaiygHLu2iVrT+XtMEmu/1yR4n9RZlX5D94m3TmtD1BU/haGhqOZI1Q7h
-         8G7PZsHfNOPcEYPC4h/4fe7iyU1gP+jdZXxb3R4X8OJmojgFCAk9ZoBl2QQxQ3GS7x66
-         eWEQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAWI2TF9BWBBex37S/3fcRfmKug7TBBBQSh4ysrbCVeiMgCJ9Vo6
-	VAHyQhWtXfQtV+cK3ucjZURtlLL3sTY9k0kGLM91dyenqWJeMt5F27/f/Ek68jFVv891eKN60JL
-	bguSwdwK0GqMVhdd4DAyAdOZLNm4Gq7GAXpHaCjrowjmqOphJ4nsB4gL3B5NsMyjklQ==
-X-Received: by 2002:a62:e411:: with SMTP id r17mr33006963pfh.127.1553658082957;
-        Tue, 26 Mar 2019 20:41:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqybhGb6TsuZ18SQnQNoDLcQ5d6xsiIPSkYY5SvuhdlRXCqyIO4O8w/5KDRwNSRgQmKcKpZN
-X-Received: by 2002:a62:e411:: with SMTP id r17mr33006918pfh.127.1553658082119;
-        Tue, 26 Mar 2019 20:41:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553658082; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=L2DezMdYEOzR/bwdOsV89vwOEsShIwrQUGZoxM2U1Cw=;
+        b=c6wJ33+/4KYFlZDBAdQDzQWoNsALBZl1UcV+bgvBUm/APkCHoLiU+B3ehiOJPlQdNq
+         RWZuJpHxggxdFtdyPGWUaAch5/Dvj8V2m2eCxJvG+VlyrU+z9MPmzWXal2aKKEey1HxS
+         Dqji5ssQo6YJy1Ucorvp14hxmyh8FxYdb6tzIcMcgrNrxL5iJXtL98mvKd6DWdPJHLyE
+         /c4dGX2mN6TyXaZIqrVJXK0hbCoH9Lf3SWHTqcb+eE92GNoDC/JAyH0YzcnewC5VEDdt
+         Fc3KfKMZeKaXnLpyBi4+O2hw+9rcJj4RME/PziY1PXxfoO3uWIX+V7COWgPBFdE0LZNA
+         gP2g==
+X-Gm-Message-State: APjAAAW06BF5pRA66ZzvKUcxoIZrOI3xUB1ewQvw3VuCvlRbvoX/wdoa
+	JbW03O93TRUs1+jMWeNKw+j+akyJuDT3YZqFGm8IjJeO4pYjYKRfryUpli9jBEmWhiCJCr8m+lm
+	PW0n8evSD2jNFtYs5gJ65ZQXzPhvFMEqmDOxWh68o+M7Rw1bJfYCP6KgAAbnft14TQQ==
+X-Received: by 2002:a1c:1d97:: with SMTP id d145mr10498014wmd.136.1553659067973;
+        Tue, 26 Mar 2019 20:57:47 -0700 (PDT)
+X-Received: by 2002:a1c:1d97:: with SMTP id d145mr10497987wmd.136.1553659067231;
+        Tue, 26 Mar 2019 20:57:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553659067; cv=none;
         d=google.com; s=arc-20160816;
-        b=QXXFOlwx3iwUJCTr7MhnKWRwlbRn5cT2dx8/mw4z9SjNSOTpewY1yvLe0HQgKagVvQ
-         HolWT9ZmjwbsrCaTl/1SrwoBKrq8aU3ynOWE7xY6g9INaZNMqttfM59vVXRrX3jxhf5i
-         JYM0OFKN5nCh9Uv99RHrm3q2pm0NoJjJ/RnNqiXvERcveZkdH7iyKgdePTYGKuLwUr7b
-         oanNPS1EBXUEPLE8QrLZ0G80CdSNfJvWSmSoPrQCdXDL7UxCdKCQ1EN+Dhw9I4Jlr6Cq
-         CjrgVTdycusw+GVz3Q8HyP8A5zM9727x9kB5GbxUD9BXE2UEA/1tHXM/VsnfXDBcx77K
-         J9+Q==
+        b=FQzWZYWUqvBca3U5AbxRM20nhCjqz77V83iwF7erw8+bP/gt9lRHZjTyQt4q17SmeA
+         AxZEsh9/Gn+hXud2xKbnrrB7hnKLm6oNUD6je/yh3BbzgJSdeX94p7MkTywApPuXs4Ec
+         uNGK+f440d8UM+XNIDmmSPOrNnFV5CdEgBSJXGB9Vv6YafpGGOWW23ehBFK9V8No6EG1
+         GGxU0LC0mKyBjuO8no4wpqEjSf842ysQsp7p9Pus7loC1oUmTBYEr1JZyQsNXx17r1JP
+         E0l445kMLybAcfiGY2R5xW54tKE7UOFKHeuT+QNUDUxsE/AwLNxUoeDrXsZXyPtbOsTD
+         PD4w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=VdT375e6UgKXAkisZksuxeWeA1N2Js5PL7YlBEJx1aA=;
-        b=v5czRuxFwP11IAP8e1te8A4UXIRu8tUnJnnKIhX9G0WBCZSVecY+LrS+UBzw7jjQWW
-         2jtklPZqqgeEabJvCxrJ9nRU0JR+fKtAAOwy6982JSzV6PypF81mtUWYVpe/Ze2H0GHK
-         wES2UHU8XtAGA+40dbCDVh9LD6CWJr5lOtNHEPhaYbnfX/kDHCZfM4V/jIexAJ7GCHcS
-         76vV9b43Dj5xlKLNBHSCDO8NBqlAcm7zSJ7S0YtRJ1sCbngFBEEIGMmvmV/RFdQqWi/g
-         P4zykULQN43SLfpqLOcStSMSYRTAkW/lvrtfTORQ3bNoId3msNZOpMjUwCfb/q+hfSeV
-         aSnA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=L2DezMdYEOzR/bwdOsV89vwOEsShIwrQUGZoxM2U1Cw=;
+        b=rPs7BNuTTgOH4BXdaJtlIezlq/EGnqLk/myFm7U/2GkXPEAe1fIKdbl49Ds2kTDjaB
+         +MPFFZwxPjluHK+uz8C8bj4roq2DnGBDeCexgmfapXA4hRwHx1nues6zq3a81DDtOu6Y
+         SXBZZUtVJfbeBhfebooD1o0hn1wXAtUee8gC88dIWIRuURVJn7PFKZseYXqsT309zjGe
+         F2M/0MTiZOYinx/D9ReDcanNAwA/zVu6YBigMfiSBhl61lL0bF2MIW7PzjFbQ5406OFC
+         cW/EYUxN6hiGaXvYK2JZXp2axau5SJkeVxqeIQ5XgNVp5vrwKnd/+7Hz2u/KodyAWwvN
+         9MCQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
-        by mx.google.com with ESMTPS id a13si4846751pfn.70.2019.03.26.20.41.21
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=aD9NBc9i;
+       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z4sor8144311wmb.29.2019.03.26.20.57.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Mar 2019 20:41:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) client-ip=115.124.30.131;
+        (Google Transport Security);
+        Tue, 26 Mar 2019 20:57:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R141e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04392;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=14;SR=0;TI=SMTPD_---0TNkXKFO_1553658075;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TNkXKFO_1553658075)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Wed, 27 Mar 2019 11:41:19 +0800
-Subject: Re: [PATCH 06/10] mm: vmscan: demote anon DRAM pages to PMEM node
-To: Keith Busch <kbusch@kernel.org>
-Cc: mhocko@suse.com, mgorman@techsingularity.net, riel@surriel.com,
- hannes@cmpxchg.org, akpm@linux-foundation.org, dave.hansen@intel.com,
- keith.busch@intel.com, dan.j.williams@intel.com, fengguang.wu@intel.com,
- fan.du@intel.com, ying.huang@intel.com, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
- <1553316275-21985-7-git-send-email-yang.shi@linux.alibaba.com>
- <20190324222040.GE31194@localhost.localdomain>
- <ceec5604-b1df-2e14-8966-933865245f1c@linux.alibaba.com>
- <20190327003541.GE4328@localhost.localdomain>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <39d8fb56-df60-9382-9b47-59081d823c3c@linux.alibaba.com>
-Date: Tue, 26 Mar 2019 20:41:15 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=aD9NBc9i;
+       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=L2DezMdYEOzR/bwdOsV89vwOEsShIwrQUGZoxM2U1Cw=;
+        b=aD9NBc9ipJlWH8d0AXxzIg9RQZmnc7+XE5PpXKA+vR+mh61BN+yByplIHpMaqG0eG4
+         0E8WkD3DPooZWBAR0mZ/gZBE9/9wGbfv+1zaXDP7/TE4Sg/t9dwmbvUdeJvFGa2tznrH
+         RwsEj4JcxglJA0dPyz/8Ma2WTkAoBseZHxeLS8iq4pzHw0fRgYPXK9fyUKo5Iz43cda6
+         YkbV4dBT8sJNWYUk+aYU1C8//YSM1LShB0Vt9A1OatccxmYz4tSpIHSoS7lNiYXP8qar
+         EEciiBg71rQvrQThxGqzcddC1sPVdvfta6rb9lOVlgWq/wtrojkAkrtnl7B2SDVGyIxi
+         BW5g==
+X-Google-Smtp-Source: APXvYqzvec8EKMcY+1+SkZLV8QDF2l3axnKr/0hLTGoVDFDpH/TRQpfcH+fOgfSsqqOCAHI5gme2Fs7bI+6aWkUn1ow=
+X-Received: by 2002:a1c:cc0a:: with SMTP id h10mr16859528wmb.22.1553659066604;
+ Tue, 26 Mar 2019 20:57:46 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190327003541.GE4328@localhost.localdomain>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+References: <CABXGCsM-SgUCAKA3=WpL7oWZ0Xq8A1Wf-Eh6MO0seee+TviDWQ@mail.gmail.com>
+ <20190315205826.fgbelqkyuuayevun@ca-dmjordan1.us.oracle.com>
+ <CABXGCsMcXb_W-w0AA4ZFJ5aKNvSMwFn8oAMaFV7AMHgsH_UB7g@mail.gmail.com>
+ <CABXGCsO+DoEu5KMW8bELCKahhfZ1XGJCMYJ3Nka8B0Xi0A=aKg@mail.gmail.com>
+ <20190322111527.GG3189@techsingularity.net> <CABXGCsMG+oCTxiEv1vmiK0P+fvr7ZiuOsbX-GCE13gapcRi5-Q@mail.gmail.com>
+ <20190325105856.GI3189@techsingularity.net> <CABXGCsMjY4uQ_xpOXZ93idyzTS5yR2k-ZQ2R2neOgm_hDxd7Og@mail.gmail.com>
+ <20190325203142.GJ3189@techsingularity.net> <CABXGCsNFNHee3Up78m7qH0NjEp_KCiNwQorJU=DGWUC4meGx1w@mail.gmail.com>
+ <20190326120327.GK3189@techsingularity.net>
+In-Reply-To: <20190326120327.GK3189@techsingularity.net>
+From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Date: Wed, 27 Mar 2019 08:57:35 +0500
+Message-ID: <CABXGCsMPmxMRDn2mebirBv9B2uhskLMfzRWr3t8_=HNcU=SZ9Q@mail.gmail.com>
+Subject: Re: kernel BUG at include/linux/mm.h:1020!
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, Qian Cai <cai@lca.pw>, linux-mm@kvack.org, 
+	vbabka@suse.cz
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 3/26/19 5:35 PM, Keith Busch wrote:
-> On Mon, Mar 25, 2019 at 12:49:21PM -0700, Yang Shi wrote:
->> On 3/24/19 3:20 PM, Keith Busch wrote:
->>> How do these pages eventually get to swap when migration fails? Looks
->>> like that's skipped.
->> Yes, they will be just put back to LRU. Actually, I don't expect it would be
->> very often to have migration fail at this stage (but I have no test data to
->> support this hypothesis) since the pages have been isolated from LRU, so
->> other reclaim path should not find them anymore.
->>
->> If it is locked by someone else right before migration, it is likely
->> referenced again, so putting back to LRU sounds not bad.
->>
->> A potential improvement is to have sync migration for kswapd.
-> Well, it's not that migration fails only if the page is recently
-> referenced. Migration would fail if there isn't available memory in
-> the migration node, so this implementation carries an expectation that
-> migration nodes have higher free capacity than source nodes. And since
-> your attempting THP's without ever splitting them, that also requires
-> lower fragmentation for a successful migration.
-
-Yes, it is possible. However, migrate_pages() already has logic to 
-handle such case. If the target node has not enough space for migrating 
-THP in a whole, it would split THP then retry with base pages.
-
-Swapping THP has been optimized to swap in a whole too. It would try to 
-add THP into swap cache in a whole, split THP if the attempt fails, then 
-add base pages into swap cache.
-
-So, I think we can leave this to migrate_pages() without splitting in 
-advance all the time.
-
-Thanks,
-Yang
-
+On Tue, 26 Mar 2019 at 17:03, Mel Gorman <mgorman@techsingularity.net> wrote:
 >
-> Applications, however, may allocate and pin pages directly out of that
-> migration node to the point it does not have so much free capacity or
-> physical continuity, so we probably shouldn't assume it's the only way
-> to reclaim pages.
+> Good news (for now at least). I've written an appropriate changelog and
+> it's ready to send. I'll wait to hear confirmation on whether your
+> machine survives for a day or not. Thanks.
+>
+> --
+> Mel Gorman
+> SUSE Labs
+
+30 hours uptime I think it's enough for believe that bug was fixed.
+I will wait this patch in mainline.
+
+--
+Best Regards,
+Mike Gavrilov.
 
