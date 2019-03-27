@@ -2,227 +2,314 @@ Return-Path: <SRS0=JxSR=R6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 73619C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 14:51:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 482A7C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 16:04:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 25EE12082F
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 14:51:16 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="elP/NX8Y"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 25EE12082F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id CD98720700
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 16:04:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CD98720700
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 948016B0005; Wed, 27 Mar 2019 10:51:15 -0400 (EDT)
+	id 31D386B0005; Wed, 27 Mar 2019 12:04:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8F6DF6B0006; Wed, 27 Mar 2019 10:51:15 -0400 (EDT)
+	id 2F2076B0006; Wed, 27 Mar 2019 12:04:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7E6226B0007; Wed, 27 Mar 2019 10:51:15 -0400 (EDT)
+	id 1BA976B0007; Wed, 27 Mar 2019 12:04:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AD2A6B0005
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 10:51:15 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id g25so10146800qkm.22
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 07:51:15 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EC1546B0005
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 12:04:02 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id n1so1620745qte.12
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 09:04:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=V2FxAfFFWtajtgc6o7ZK2g7f9qiJmBz4PznPjNz5bxg=;
-        b=L71dwousEV6FatGMMhDiMYdYHzCZTZ/VuRACmwyWweDKKLS92Bq4Ali37sPC41h7Oa
-         CSAfu7nynDDFqdYnbORXeHEG4EUGOiGTDta3tKhULZEXvJqo6N0X60tiz+pLeYIlaGyw
-         FrCB4s1KoB5zt+tC7RYL5o7M49pXEv0ucHeDp9OXp4nyin3oHJxH61PTocdtARQuWNr7
-         2W6pTlQq1fe0ZdzZ80g+0GiMKh/msN7sZ84hehRjwUOV6W0CeiCSraPJhYAZrBeiXaLT
-         9DGqsVk0bbUwxbzfb5+sW2iVQZORfiV5XBfhA6whMgjp+zIriMy3u9P2tYdxK+FUED/+
-         6jHw==
-X-Gm-Message-State: APjAAAWMxOVWXHJM0UoR0ux2KkzTApvDeDI0qTf/0iiGcWD3XMRjf4P3
-	n8BIk14bkLH8yxtBFPg2PNpQeYoVL5N/6kTiE2wBuiFt274CnviMNScRXVL6v0xEGmalFvBIH0t
-	NY+3CSkEOWof0e99K/AL0T2AFwgiSAErUZWI0QqZs3pBx4Ds+vtuMc448Am/Ymi6SHA==
-X-Received: by 2002:aed:2189:: with SMTP id l9mr11589331qtc.83.1553698275085;
-        Wed, 27 Mar 2019 07:51:15 -0700 (PDT)
-X-Received: by 2002:aed:2189:: with SMTP id l9mr11589252qtc.83.1553698273784;
-        Wed, 27 Mar 2019 07:51:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553698273; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=xkANHdW3SZgCyTOuB9dqs4+xKMibzoCyoGHQbX8nmOs=;
+        b=HbHYyZPwLYF7NF5URSCzMzGiQAmV8KewchkRkZVvMsPVVCTCsTsAK78hP+iNgIiKF8
+         wd4Q337kaXL0tDLcOueDt7p6lBKKBJRdoZkxAp4whRX0lZzZ/qg1R29xZa/NpSqIn4X5
+         lK51CPB2lfJQl4z7Zsw2GnaALt1/NScrXKHba02msZhgFapS/1+x5LFu05IJa2/bw1FM
+         vl67CMPmhACTGUJgThGTs5PvAog2RXpM4yvlsdMB8IO4rD+b2zBA6lyAYsGpxrTBMXFx
+         EaDqUhATE0gA/tyG6jA68H1gm+apFR4SqE/3RKKaJqvGm1vqhsymoFC4pReOPlg26j2W
+         luYA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWMRzduPNbU6GVpiEu52iselKNec7mr02ZEhdy7M08yAdQLm0G9
+	WxnwZqsxE4POcTfPzPxVcyDTX+ZpSB8qeLpX+LfSrLbq1iGC2p6zSDziOO6QISvpmUaEpfk6xrR
+	4DHYvjU2CcDzr3FufsyEQ1AF9j4MboEh8mo1obSJvm37gwfVK5/F3yo72adVG+mAkdg==
+X-Received: by 2002:a05:620a:165c:: with SMTP id c28mr22420137qko.199.1553702642650;
+        Wed, 27 Mar 2019 09:04:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzWJ7934vnesXALIq7hEyy3CR8U5Gir7LRrbIRqSFkDl3VM5nHu6J1Rh4vrPyM1ESPwH9X2
+X-Received: by 2002:a05:620a:165c:: with SMTP id c28mr22420054qko.199.1553702641691;
+        Wed, 27 Mar 2019 09:04:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553702641; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZDVwowlw1jhg29UqcIh+gdCJXm0005tYMzQAx+iyUkgHMJhsAiOArglYPqdWZo6upB
-         MkdF5QtRURwvifVkLFljbEQYjn9t42f/TfeIUiFtiL8pA3S877yZCZhnK22rl+NAgmmv
-         yVi2ldU91z0syRZp7wDq+fWZrywioLNmueh+oZY0PVt+yzpXZuYZys6eqSK9n2AG1sTh
-         v+yDsKZnn0PUzLpY00AtkRz47y7CN+qNTEp3RAJXNEMn8EKhNWCgpQZ7pK8pMwGThxgj
-         xMr96g0Ftd22V4IbzP8lQKpUtaGbsC+O8qfp8WD7815br0SDEYldxBAfUwF5NGjxLtYr
-         Qwow==
+        b=u8k2QiuLR4YuHc3CwkrDmc8524xOCpd9aWrGm5ErnSRfJK0UVO6iZ7vElgmwGMEFdA
+         K/qiu+Dem4mdDp3krw5VIseWvFBRoWLyF/cHF/LJWimL1BtApUuEUYsY8Od2S5Sn85hO
+         TnSSw+JB3peH3HuN3UO0UsjokzMe3pw42dIS2jw7minVzvDeanVs81NOt6tfTckd8cZy
+         m3gHv2sI6XD/FnQ2GBUklEVLvv/iHTSvyWa6hKZoKxJ2aYI+JOvb5lAibEYYkoEgf45b
+         a9Rl0wWGFGOwA0HttB6eYnwBP+9lEoao/UjqGIkemEB38hLL5+wz/erbhsUwkmdOcDrY
+         l0zA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=V2FxAfFFWtajtgc6o7ZK2g7f9qiJmBz4PznPjNz5bxg=;
-        b=Y1OnNsb1YkT2jPgYVby5OaNiArUHzZBYL4Ru11/JVz3hgyzVHo/Lega3NY1JP+c/W8
-         7ip0tBtd4ZsccH70mjf4epaXZLHfqIFBxzOIWGO/kf0IgXMjWfkmgO74C5aqQDzwuO1f
-         lohg4eJlVLPq0gmH/OtbOn5o2E9+qU0Zyy2ymB5qfSn0BQeUspqbapg1TL+PPPFJufG8
-         oSWMj4R9vlRhz/IqkGVBbeiBq1Y2GHWklz+zajEuzA9p+L7waOT8zKNGxtsa71g7Gxeh
-         Q/Op64ZQ6dDG9kMSs0avp7a0lStGL0gZ5VqRETQ75weXEgxphpYW1v8QifyyaLAMUeCV
-         C/fQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=xkANHdW3SZgCyTOuB9dqs4+xKMibzoCyoGHQbX8nmOs=;
+        b=SjSHOAK3/Cvvfd5cAAvsMhbyj9lK5pQuiqd8C/GxqZbHoLgz1sT7IKRiCm5Ur8Ca9S
+         H7Hgr5qrkBPVVE2FiFGY5vt75iPGuC4q4dMmXA12lQFJZIizer7VS+CSAB5vygdD0yYG
+         o68NHkkooZGKkbIon/BAuo05rxyDo/6p7CTvKDDwtVGsk3Xe8REcfE8s2aSTdyotgqxE
+         hf/ctAlEiWjuNgZ/vjepilbXk16QNNjEq5a1WXOaqhm5FiVOGy//H/S1gqwocCfK1S2O
+         G6jEHyIhNzFnSN1ik6WI93OOrJsgUd2TVyI+VQH67hMcXm3AmU8a1Wb1lxlmtvICN0y+
+         Wr4g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b="elP/NX8Y";
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i58sor27162070qtc.13.2019.03.27.07.51.13
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k37si866841qte.375.2019.03.27.09.04.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 27 Mar 2019 07:51:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b="elP/NX8Y";
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=from:to:cc:subject:date:message-id;
-        bh=V2FxAfFFWtajtgc6o7ZK2g7f9qiJmBz4PznPjNz5bxg=;
-        b=elP/NX8YIFhnGs2UxrlbkhY89KSfIh2axL6mj5Gc+/XB07tePbmLpOE5w6eNDqvf9O
-         GlDeLNU+oMxmMggbRnTWixHiqgeLdBENCegrbvH/pSjsLIIDgIq31T1uCeu+NFDCx6HB
-         lZbGIc0FTV88f5e2enhuc7ak/m90i6uKNWxCVnGK/Ziu15DgdWCKg1XJl4/TVMlhVWJ5
-         4Nb02IXTsQgOZJ4I+LTqapBQzlbroaeXdWcjgrO+bkkq9VyijDRWtAJqPHutK9fauLYQ
-         mjtalL3RifEZX+OYq/RiaP0vtwkXAw6GCE0MSQAkuHaf2SbXch0av0tFny4n6ESBxTxc
-         Pldw==
-X-Google-Smtp-Source: APXvYqy4IkBh9E7/Y9CE1R2wSyCdvbbWCkgoDwY53EfeqVSIxHJadjEnUEsBsALlHGxSSLtPyVuzlw==
-X-Received: by 2002:ac8:2f4a:: with SMTP id k10mr30200027qta.208.1553698273337;
-        Wed, 27 Mar 2019 07:51:13 -0700 (PDT)
-Received: from ovpn-120-94.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id g5sm12510936qke.71.2019.03.27.07.51.11
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Mar 2019 07:51:12 -0700 (PDT)
-From: Qian Cai <cai@lca.pw>
-To: akpm@linux-foundation.org
-Cc: catalin.marinas@arm.com,
-	cl@linux.com,
-	mhocko@kernel.org,
-	willy@infradead.org,
-	penberg@kernel.org,
-	rientjes@google.com,
-	iamjoonsoo.kim@lge.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Qian Cai <cai@lca.pw>
-Subject: [PATCH v5] kmemleak: survive in a low-memory situation
-Date: Wed, 27 Mar 2019 10:51:01 -0400
-Message-Id: <20190327145101.30845-1-cai@lca.pw>
-X-Mailer: git-send-email 2.17.2 (Apple Git-113)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000002, version=1.2.4
+        Wed, 27 Mar 2019 09:04:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id DAE746447D;
+	Wed, 27 Mar 2019 16:03:56 +0000 (UTC)
+Received: from [10.36.116.99] (ovpn-116-99.ams2.redhat.com [10.36.116.99])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 96357100164A;
+	Wed, 27 Mar 2019 16:03:34 +0000 (UTC)
+Subject: Re: [PATCH RFCv2 0/4] mm/memory_hotplug: Introduce memory block types
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+ linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
+ linux-acpi@vger.kernel.org, devel@linuxdriverproject.org,
+ xen-devel@lists.xenproject.org, x86@kernel.org,
+ Andrew Banman <andrew.banman@hpe.com>,
+ Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski
+ <luto@kernel.org>, Arun KS <arunks@codeaurora.org>,
+ Balbir Singh <bsingharora@gmail.com>,
+ Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Borislav Petkov <bp@alien8.de>, Boris Ostrovsky
+ <boris.ostrovsky@oracle.com>, Christophe Leroy <christophe.leroy@c-s.fr>,
+ Dan Williams <dan.j.williams@intel.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>, Dave Jiang
+ <dave.jiang@intel.com>, Fenghua Yu <fenghua.yu@intel.com>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Haiyang Zhang <haiyangz@microsoft.com>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin"
+ <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>,
+ Ingo Molnar <mingo@redhat.com>, =?UTF-8?Q?Jan_H=2e_Sch=c3=b6nherr?=
+ <jschoenh@amazon.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ =?UTF-8?Q?Jonathan_Neusch=c3=a4fer?= <j.neuschaefer@gmx.net>,
+ Joonsoo Kim <iamjoonsoo.kim@lge.com>, Juergen Gross <jgross@suse.com>,
+ "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+ "K. Y. Srinivasan" <kys@microsoft.com>, Len Brown <lenb@kernel.org>,
+ Logan Gunthorpe <logang@deltatee.com>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ Mathieu Malaterre <malat@debian.org>, Matthew Wilcox <willy@infradead.org>,
+ Mauricio Faria de Oliveira <mauricfo@linux.vnet.ibm.com>,
+ Michael Ellerman <mpe@ellerman.id.au>, Michael Neuling <mikey@neuling.org>,
+ =?UTF-8?Q?Michal_Such=c3=a1nek?= <msuchanek@suse.de>,
+ Mike Rapoport <rppt@linux.vnet.ibm.com>,
+ "mike.travis@hpe.com" <mike.travis@hpe.com>,
+ Nathan Fontenot <nfont@linux.vnet.ibm.com>,
+ Nicholas Piggin <npiggin@gmail.com>, Oscar Salvador <osalvador@suse.com>,
+ Oscar Salvador <osalvador@suse.de>, Paul Mackerras <paulus@samba.org>,
+ Pavel Tatashin <pasha.tatashin@oracle.com>,
+ Pavel Tatashin <pasha.tatashin@soleen.com>,
+ Pavel Tatashin <pavel.tatashin@microsoft.com>,
+ Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki"
+ <rafael@kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>,
+ Rashmica Gupta <rashmica.g@gmail.com>, Rich Felker <dalias@libc.org>,
+ Rob Herring <robh@kernel.org>, Stefano Stabellini <sstabellini@kernel.org>,
+ Stephen Hemminger <sthemmin@microsoft.com>,
+ Stephen Rothwell <sfr@canb.auug.org.au>, Thomas Gleixner
+ <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>,
+ Vasily Gorbik <gor@linux.ibm.com>, Vitaly Kuznetsov <vkuznets@redhat.com>,
+ Wei Yang <richard.weiyang@gmail.com>, Greg KH <gregkh@linuxfoundation.org>
+References: <20181130175922.10425-1-david@redhat.com>
+ <1b4afb6a-5f91-407d-6e6e-6a89b8cf5d56@redhat.com>
+ <20181220130832.GH9104@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ xsFNBFXLn5EBEAC+zYvAFJxCBY9Tr1xZgcESmxVNI/0ffzE/ZQOiHJl6mGkmA1R7/uUpiCjJ
+ dBrn+lhhOYjjNefFQou6478faXE6o2AhmebqT4KiQoUQFV4R7y1KMEKoSyy8hQaK1umALTdL
+ QZLQMzNE74ap+GDK0wnacPQFpcG1AE9RMq3aeErY5tujekBS32jfC/7AnH7I0v1v1TbbK3Gp
+ XNeiN4QroO+5qaSr0ID2sz5jtBLRb15RMre27E1ImpaIv2Jw8NJgW0k/D1RyKCwaTsgRdwuK
+ Kx/Y91XuSBdz0uOyU/S8kM1+ag0wvsGlpBVxRR/xw/E8M7TEwuCZQArqqTCmkG6HGcXFT0V9
+ PXFNNgV5jXMQRwU0O/ztJIQqsE5LsUomE//bLwzj9IVsaQpKDqW6TAPjcdBDPLHvriq7kGjt
+ WhVhdl0qEYB8lkBEU7V2Yb+SYhmhpDrti9Fq1EsmhiHSkxJcGREoMK/63r9WLZYI3+4W2rAc
+ UucZa4OT27U5ZISjNg3Ev0rxU5UH2/pT4wJCfxwocmqaRr6UYmrtZmND89X0KigoFD/XSeVv
+ jwBRNjPAubK9/k5NoRrYqztM9W6sJqrH8+UWZ1Idd/DdmogJh0gNC0+N42Za9yBRURfIdKSb
+ B3JfpUqcWwE7vUaYrHG1nw54pLUoPG6sAA7Mehl3nd4pZUALHwARAQABzSREYXZpZCBIaWxk
+ ZW5icmFuZCA8ZGF2aWRAcmVkaGF0LmNvbT7CwX4EEwECACgFAljj9eoCGwMFCQlmAYAGCwkI
+ BwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEE3eEPcA/4Na5IIP/3T/FIQMxIfNzZshIq687qgG
+ 8UbspuE/YSUDdv7r5szYTK6KPTlqN8NAcSfheywbuYD9A4ZeSBWD3/NAVUdrCaRP2IvFyELj
+ xoMvfJccbq45BxzgEspg/bVahNbyuBpLBVjVWwRtFCUEXkyazksSv8pdTMAs9IucChvFmmq3
+ jJ2vlaz9lYt/lxN246fIVceckPMiUveimngvXZw21VOAhfQ+/sofXF8JCFv2mFcBDoa7eYob
+ s0FLpmqFaeNRHAlzMWgSsP80qx5nWWEvRLdKWi533N2vC/EyunN3HcBwVrXH4hxRBMco3jvM
+ m8VKLKao9wKj82qSivUnkPIwsAGNPdFoPbgghCQiBjBe6A75Z2xHFrzo7t1jg7nQfIyNC7ez
+ MZBJ59sqA9EDMEJPlLNIeJmqslXPjmMFnE7Mby/+335WJYDulsRybN+W5rLT5aMvhC6x6POK
+ z55fMNKrMASCzBJum2Fwjf/VnuGRYkhKCqqZ8gJ3OvmR50tInDV2jZ1DQgc3i550T5JDpToh
+ dPBxZocIhzg+MBSRDXcJmHOx/7nQm3iQ6iLuwmXsRC6f5FbFefk9EjuTKcLMvBsEx+2DEx0E
+ UnmJ4hVg7u1PQ+2Oy+Lh/opK/BDiqlQ8Pz2jiXv5xkECvr/3Sv59hlOCZMOaiLTTjtOIU7Tq
+ 7ut6OL64oAq+zsFNBFXLn5EBEADn1959INH2cwYJv0tsxf5MUCghCj/CA/lc/LMthqQ773ga
+ uB9mN+F1rE9cyyXb6jyOGn+GUjMbnq1o121Vm0+neKHUCBtHyseBfDXHA6m4B3mUTWo13nid
+ 0e4AM71r0DS8+KYh6zvweLX/LL5kQS9GQeT+QNroXcC1NzWbitts6TZ+IrPOwT1hfB4WNC+X
+ 2n4AzDqp3+ILiVST2DT4VBc11Gz6jijpC/KI5Al8ZDhRwG47LUiuQmt3yqrmN63V9wzaPhC+
+ xbwIsNZlLUvuRnmBPkTJwwrFRZvwu5GPHNndBjVpAfaSTOfppyKBTccu2AXJXWAE1Xjh6GOC
+ 8mlFjZwLxWFqdPHR1n2aPVgoiTLk34LR/bXO+e0GpzFXT7enwyvFFFyAS0Nk1q/7EChPcbRb
+ hJqEBpRNZemxmg55zC3GLvgLKd5A09MOM2BrMea+l0FUR+PuTenh2YmnmLRTro6eZ/qYwWkC
+ u8FFIw4pT0OUDMyLgi+GI1aMpVogTZJ70FgV0pUAlpmrzk/bLbRkF3TwgucpyPtcpmQtTkWS
+ gDS50QG9DR/1As3LLLcNkwJBZzBG6PWbvcOyrwMQUF1nl4SSPV0LLH63+BrrHasfJzxKXzqg
+ rW28CTAE2x8qi7e/6M/+XXhrsMYG+uaViM7n2je3qKe7ofum3s4vq7oFCPsOgwARAQABwsFl
+ BBgBAgAPBQJVy5+RAhsMBQkJZgGAAAoJEE3eEPcA/4NagOsP/jPoIBb/iXVbM+fmSHOjEshl
+ KMwEl/m5iLj3iHnHPVLBUWrXPdS7iQijJA/VLxjnFknhaS60hkUNWexDMxVVP/6lbOrs4bDZ
+ NEWDMktAeqJaFtxackPszlcpRVkAs6Msn9tu8hlvB517pyUgvuD7ZS9gGOMmYwFQDyytpepo
+ YApVV00P0u3AaE0Cj/o71STqGJKZxcVhPaZ+LR+UCBZOyKfEyq+ZN311VpOJZ1IvTExf+S/5
+ lqnciDtbO3I4Wq0ArLX1gs1q1XlXLaVaA3yVqeC8E7kOchDNinD3hJS4OX0e1gdsx/e6COvy
+ qNg5aL5n0Kl4fcVqM0LdIhsubVs4eiNCa5XMSYpXmVi3HAuFyg9dN+x8thSwI836FoMASwOl
+ C7tHsTjnSGufB+D7F7ZBT61BffNBBIm1KdMxcxqLUVXpBQHHlGkbwI+3Ye+nE6HmZH7IwLwV
+ W+Ajl7oYF+jeKaH4DZFtgLYGLtZ1LDwKPjX7VAsa4Yx7S5+EBAaZGxK510MjIx6SGrZWBrrV
+ TEvdV00F2MnQoeXKzD7O4WFbL55hhyGgfWTHwZ457iN9SgYi1JLPqWkZB0JRXIEtjd4JEQcx
+ +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <39ec8cea-46c7-1be3-92a0-5ab2ddb0bbea@redhat.com>
+Date: Wed, 27 Mar 2019 17:03:33 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
+MIME-Version: 1.0
+In-Reply-To: <20181220130832.GH9104@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Wed, 27 Mar 2019 16:04:00 +0000 (UTC)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Kmemleak could quickly fail to allocate an object structure and then
-disable itself below in a low-memory situation. For example, running a
-mmap() workload triggering swapping and OOM. This is especially
-problematic for running things like LTP testsuite where one OOM test
-case would disable the whole kmemleak and render the rest of test cases
-without kmemleak watching for leaking.
+On 20.12.18 14:08, Michal Hocko wrote:
+> On Thu 20-12-18 13:58:16, David Hildenbrand wrote:
+>> On 30.11.18 18:59, David Hildenbrand wrote:
+>>> This is the second approach, introducing more meaningful memory block
+>>> types and not changing online behavior in the kernel. It is based on
+>>> latest linux-next.
+>>>
+>>> As we found out during dicussion, user space should always handle onlining
+>>> of memory, in any case. However in order to make smart decisions in user
+>>> space about if and how to online memory, we have to export more information
+>>> about memory blocks. This way, we can formulate rules in user space.
+>>>
+>>> One such information is the type of memory block we are talking about.
+>>> This helps to answer some questions like:
+>>> - Does this memory block belong to a DIMM?
+>>> - Can this DIMM theoretically ever be unplugged again?
+>>> - Was this memory added by a balloon driver that will rely on balloon
+>>>   inflation to remove chunks of that memory again? Which zone is advised?
+>>> - Is this special standby memory on s390x that is usually not automatically
+>>>   onlined?
+>>>
+>>> And in short it helps to answer to some extend (excluding zone imbalances)
+>>> - Should I online this memory block?
+>>> - To which zone should I online this memory block?
+>>> ... of course special use cases will result in different anwers. But that's
+>>> why user space has control of onlining memory.
+>>>
+>>> More details can be found in Patch 1 and Patch 3.
+>>> Tested on x86 with hotplugged DIMMs. Cross-compiled for PPC and s390x.
+>>>
+>>>
+>>> Example:
+>>> $ udevadm info -q all -a /sys/devices/system/memory/memory0
+>>> 	KERNEL=="memory0"
+>>> 	SUBSYSTEM=="memory"
+>>> 	DRIVER==""
+>>> 	ATTR{online}=="1"
+>>> 	ATTR{phys_device}=="0"
+>>> 	ATTR{phys_index}=="00000000"
+>>> 	ATTR{removable}=="0"
+>>> 	ATTR{state}=="online"
+>>> 	ATTR{type}=="boot"
+>>> 	ATTR{valid_zones}=="none"
+>>> $ udevadm info -q all -a /sys/devices/system/memory/memory90
+>>> 	KERNEL=="memory90"
+>>> 	SUBSYSTEM=="memory"
+>>> 	DRIVER==""
+>>> 	ATTR{online}=="1"
+>>> 	ATTR{phys_device}=="0"
+>>> 	ATTR{phys_index}=="0000005a"
+>>> 	ATTR{removable}=="1"
+>>> 	ATTR{state}=="online"
+>>> 	ATTR{type}=="dimm"
+>>> 	ATTR{valid_zones}=="Normal"
+>>>
+>>>
+>>> RFC -> RFCv2:
+>>> - Now also taking care of PPC (somehow missed it :/ )
+>>> - Split the series up to some degree (some ideas on how to split up patch 3
+>>>   would be very welcome)
+>>> - Introduce more memory block types. Turns out abstracting too much was
+>>>   rather confusing and not helpful. Properly document them.
+>>>
+>>> Notes:
+>>> - I wanted to convert the enum of types into a named enum but this
+>>>   provoked all kinds of different errors. For now, I am doing it just like
+>>>   the other types (e.g. online_type) we are using in that context.
+>>> - The "removable" property should never have been named like that. It
+>>>   should have been "offlinable". Can we still rename that? E.g. boot memory
+>>>   is sometimes marked as removable ...
+>>>
+>>
+>>
+>> Any feedback regarding the suggested block types would be very much
+>> appreciated!
+> 
+> I still do not like this much to be honest. I just didn't get to think
+> through this properly. My fear is that this is conflating an actual API
+> with the current implementation and as such will cause problems in
+> future. But I haven't really looked into your patches closely so I might
+> be wrong. Anyway I won't be able to look into it by the end of year.
+> 
 
-Kmemleak allocation could fail even though the tracked memory is
-succeeded. Hence, it could still try to start a direct reclaim if it is
-not executed in an atomic context (spinlock, irq-handler etc), or a
-high-priority allocation in an atomic context as a last-ditch effort.
-Since kmemleak is a debug feature, it is unlikely to be used in
-production that memory resources is scarce where direct reclaim or
-high-priority atomic allocations should not be granted lightly.
+So I started to think about this again, and I guess somehow exposing an
+identification of the device driver that added the memory section could
+be sufficient.
 
-Unless there is a brave soul to reimplement the kmemleak to embed it's
-metadata into the tracked memory itself in a foreseeable future, this
-provides a good balance between enabling kmemleak in a low-memory
-situation and not introducing too much hackiness into the existing
-code for now. Another approach is to fail back the original allocation
-once kmemleak_alloc() failed, but there are too many call sites to
-deal with which makes it error-prone.
+E.g. "hyperv", "xen", "acpi", "sclp", "virtio-mem" ...
 
-kmemleak: Cannot allocate a kmemleak_object structure
-kmemleak: Kernel memory leak detector disabled
-kmemleak: Automatic memory scanning thread ended
-RIP: 0010:__alloc_pages_nodemask+0x242a/0x2ab0
-Call Trace:
- alloc_pages_current+0xdb/0x1c0
- allocate_slab+0x4d9/0x930
- new_slab+0x46/0x70
- ___slab_alloc+0x5d3/0x9c0
- __slab_alloc+0x12/0x20
- kmem_cache_alloc+0x30a/0x360
- create_object+0x96/0x9a0
- kmemleak_alloc+0x71/0xa0
- kmem_cache_alloc+0x254/0x360
- mempool_alloc_slab+0x3f/0x60
- mempool_alloc+0x120/0x329
- bio_alloc_bioset+0x1a8/0x510
- get_swap_bio+0x107/0x470
- __swap_writepage+0xab4/0x1650
- swap_writepage+0x86/0xe0
+Via separate device driver interfaces, other information about the
+memory could be exposed. (e.g. for ACPI: which memory devices belong to
+one physical device). So stuff would not have to centered around
+/sys/devices/system/memory/ , uglifying it for special cases.
 
-Signed-off-by: Qian Cai <cai@lca.pw>
----
+We would have to write udev rules to deal with these values, should be
+easy. If no DRIVER is given, it is simply memory detected and detected
+during boot. ACPI changing the DRIVER might be tricky (from no DRIVER ->
+ACPI), but I guess it could be done.
 
-v5: Move everything into gfp_kmemleak_mask().
-    Use PREEMPT_COUNT to catch irq unsafe spinlocks held.
-v4: Update the commit log.
-    Fix a typo in comments per Christ.
-    Consolidate the allocation.
-v3: Update the commit log.
-    Simplify the code inspired by graph_trace_open() from ftrace.
-v2: Remove the needless checking for NULL objects in slab_post_alloc_hook()
-    per Catalin.
+Now, the question would be how to get the DRIVER value in there. Adding
+a bunch of fake device drivers would work, however this might get a
+little messy ... and then there is unbining and rebinding which can be
+triggered by userspace. Thinks to care about? Most probably not.
 
- mm/kmemleak.c | 29 ++++++++++++++++++++++++-----
- 1 file changed, 24 insertions(+), 5 deletions(-)
-
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index a2d894d3de07..98f874990553 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -124,11 +124,6 @@
- 
- #define BYTES_PER_POINTER	sizeof(void *)
- 
--/* GFP bitmask for kmemleak internal allocations */
--#define gfp_kmemleak_mask(gfp)	(((gfp) & (GFP_KERNEL | GFP_ATOMIC)) | \
--				 __GFP_NORETRY | __GFP_NOMEMALLOC | \
--				 __GFP_NOWARN | __GFP_NOFAIL)
--
- /* scanning area inside a memory block */
- struct kmemleak_scan_area {
- 	struct hlist_node node;
-@@ -315,6 +310,30 @@ static void kmemleak_disable(void);
- 		pr_warn(fmt, ##__VA_ARGS__);		\
- } while (0)
- 
-+/* GFP bitmask for kmemleak internal allocations */
-+static inline gfp_t gfp_kmemleak_mask(gfp_t gfp)
-+{
-+	gfp = (gfp & (GFP_KERNEL | GFP_ATOMIC)) | __GFP_NORETRY |
-+		__GFP_NOMEMALLOC | __GFP_NOWARN | __GFP_NOFAIL;
-+
-+/*
-+ * PREEMPT_COUNT is set by either PREEMPT or DEBUG_ATOMIC_SLEEP which is
-+ * normally found in a debug kernel just like kmemleak. Otherwise, it won't be
-+ * able to catch irq unsafe spinlocks held.
-+ */
-+#ifdef CONFIG_PREEMPT_COUNT
-+	/*
-+	 * The tracked memory was allocated successful, if the kmemleak object
-+	 * failed to allocate for some reasons, it ends up with the whole
-+	 * kmemleak disabled, so try it harder.
-+	 */
-+	gfp |= ((in_atomic() || irqs_disabled()) ? GFP_ATOMIC :
-+		__GFP_DIRECT_RECLAIM);
-+#endif
-+
-+	return gfp;
-+}
-+
- static void warn_or_seq_hex_dump(struct seq_file *seq, int prefix_type,
- 				 int rowsize, int groupsize, const void *buf,
- 				 size_t len, bool ascii)
 -- 
-2.17.2 (Apple Git-113)
+
+Thanks,
+
+David / dhildenb
 
