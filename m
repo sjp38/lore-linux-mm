@@ -4,126 +4,110 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8B36CC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:03:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BE796C4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:11:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 40F2D21738
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:03:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 58FD92184C
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:11:00 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="qKJDa9lq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 40F2D21738
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Ko7SEPAl"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 58FD92184C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C356A6B026F; Wed, 27 Mar 2019 14:03:48 -0400 (EDT)
+	id CCDB26B000C; Wed, 27 Mar 2019 14:10:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BE4D06B0270; Wed, 27 Mar 2019 14:03:48 -0400 (EDT)
+	id C7AF16B0270; Wed, 27 Mar 2019 14:10:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AACFF6B0271; Wed, 27 Mar 2019 14:03:48 -0400 (EDT)
+	id B26386B0271; Wed, 27 Mar 2019 14:10:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BAD76B026F
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 14:03:48 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id m37so4801517plg.22
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 11:03:48 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A8DD6B000C
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 14:10:59 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id h15so14555896pgi.19
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 11:10:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=k0AkTHPgA2O6nUBi3XOpT5HZUMd9XCxodgd3dbhYSMw=;
-        b=scnQqdWXGPGXc/iyH1a+BHua4J68ffbji+12GzIYAdgBiL2YUi/4qCXsLEml9otPdO
-         LjfCC9SqOXCZBnbmKo9dCsEGeDQrYHpHfAXW+BLaLamb8fUGMcMFkPEnE4Inh8WIhxVE
-         vQB0n8r+z1ED/wWoDTews/ddvO7pCOP8UhhzdrtcMNknKlT+9OHXOBk8zKaZnemwsEBa
-         h+uQfVvHgE6VhOMHesTWoMSEi3GfNpcBQ1RyTLkDFMYppXYGqlKBzoi465SkIavAalLb
-         56swzoWJyuxGsr0M4BFAPbaobFhZyIomGAxzjqtV8MGw+KcAwfEeneP9ShSucNxv6Dt5
-         xlSA==
-X-Gm-Message-State: APjAAAVvNCc0JTrDwgjbhl774JH2u6WYTimqsrkkUEvic15fOiJ7hk97
-	FVuHr58pbFu3tFLsCp2pwMpYbnRwC7NoV3e/u5WSK5EyzYQ4kp3pOHJ1xUtZFLyVkGB0cREo45j
-	9RiyY6pm9M+3Qfl/6NvLF5AhDWkyGXwM6nkydTjphTCoKl66VTTukbZJMwmkdx+b8ZA==
-X-Received: by 2002:a62:e418:: with SMTP id r24mr37154259pfh.52.1553709828071;
-        Wed, 27 Mar 2019 11:03:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx3pRq6F78259P4BECq3sjOjVJQ1kYbD4TpWn1kwlzTToYoUZ0jx3y7MLm6/sgdUgzHa2zs
-X-Received: by 2002:a62:e418:: with SMTP id r24mr37154181pfh.52.1553709827301;
-        Wed, 27 Mar 2019 11:03:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553709827; cv=none;
+        bh=oEBcxAdpCIW/LfbtKqfFp9cdJVP14S8VLUHk4KLW/5E=;
+        b=WWPFBgQ6CecUiQxjOgUFNxFJ/rAxxgTpLUYcstgR4XUzQSpOAFS/VAqR6NcMOJCTMq
+         uCDne5FSlrdQz111EkUqe1xvFGlNluolUA2pYXeo1olIuG7qM6L1mXJInwOEEIhCLkt1
+         KEgPAXKNGb8CkNiUK10tKpDHeiRCgATCCVtQNbVeSWlr1y1BoSCIJw22AGFihAAFBS/e
+         NRce1g7hYJt3ZFuYGrGhFBNQ0E5jdHnA7DXU86NzAA4P7BodeR4NUENFq7qVyivh5Dbt
+         z420hf4zkK30WWcWQ2phnETXhF3esSV06NGEbEjNTjZa2qhMMyx8SGRgJsXR6oloxDMU
+         qjTw==
+X-Gm-Message-State: APjAAAWDbxjTxzpMWJnKE23Q7Wrt8S1UyDEjuEgvQjb6q92RfqvPTrj2
+	o2Eb9mwc4Ph188x49CDyYIjFm9KiCc1GUN21psVUl8LsG8UHfB0DRZX0W+f+z/8LcsEMIDGsEnq
+	D1wR+ipsEO7uX3APvyoDbq9yBZ+2kDfePCEMqQuBo4XGCybO7gyp3JkcSZrB43YWJng==
+X-Received: by 2002:a63:ef05:: with SMTP id u5mr35862696pgh.177.1553710259047;
+        Wed, 27 Mar 2019 11:10:59 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzi8Y0UhqZ9njDxKJPwQLwwd5bwEg1FCyRBtamDIKQiiq6jJuPjPldKrr70GwHbc+pde4mZ
+X-Received: by 2002:a63:ef05:: with SMTP id u5mr35862633pgh.177.1553710258298;
+        Wed, 27 Mar 2019 11:10:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553710258; cv=none;
         d=google.com; s=arc-20160816;
-        b=us50X7pQLRyTxMuM2ECSly8Ve4UoZmUA6cxBa9Ith4up+yeKSlUtXuOy5jYzwPTOgK
-         DooGgyQtMZvvt9gvDpRvTrorW773tUUYOI7v6kPI5K4No+P8LU/KzOjtQh32eiguMtzK
-         Vn5aXn4JQtB0jSzxzdFQApMSsYdD3nTKffkObiAX2LDjCUsfJ3Mb/3L67zFIZAijyzVA
-         rcyg7E0ga4NS9ndMHUtsvL/gF3X11WkLgdApOBZUu5wPStSSvpq3L9D2UvLQ4inFhBah
-         PsnlRc1SglVyzLvmMNPPg/M2ugJL1GlYe2TJa5IxZP8/OvsHHFG/YAG9cTXFXrNKkap4
-         Zf0g==
+        b=fIfAA/hSaBPwJmFtorxIrnPpsuVkAtNjcV9QROsnrSjDd6AwW24A1ofWTN3DsFLe70
+         vZU8nET9feT5kqBRYbwdHwvzGMfR6Ihor5XbdzYMMd3jgqtEE/0INA86DvKbAkXPrhqS
+         vjxm61TyKScs05piSKaIARyqGFq8oAdywFLnQcDSOfKaZ0aLjQnJcMEv32kTDz0ibvfd
+         kekV5L0vsylua0wevVN4kTszXzY/4bN6UidG0W+AdKlAStPastDjaj7HwVpACBveadkQ
+         i3dJVQTYxq2WrezizRFmxRTwkQKTXwnbBQVpWGj3UAd+o6qYj74XdyWIc/yqEaVfocUp
+         gpew==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=k0AkTHPgA2O6nUBi3XOpT5HZUMd9XCxodgd3dbhYSMw=;
-        b=IHuP+G1NOPkPmaNicnLSwJWiW502KtSSJywMSYvbk6Kh8OMuaIgDqGGfI5ODQyCVQp
-         eClqylvyHmTDq6G1hkNc51aA+swtLwamrzCyuQQGdluBDSBGgPKN+omoQFzZbhkEKkp8
-         zN1T3uqCMjMZTT+Byolwpwf+cDmNlHdiC39LqKPGfpZwOQv/x8s5z819S2mVT+wd2Yve
-         JJDNNq4DaY7zExVr+/6QVmg0T4S+snomgxRoa2w0q05XR1rBmQFIxIBx+ckFUMOyRfj7
-         jzKQ3azxcLupZXM2SDH/qogNmvRdHv0AwnEYMfd3AJNaGM7l/QmhDP3ZSuMXlQ6AFAnE
-         jbeA==
+        bh=oEBcxAdpCIW/LfbtKqfFp9cdJVP14S8VLUHk4KLW/5E=;
+        b=c+PE4jI0KWa2xwLzrUqUHsZb0o37qHYYtxd+085K4vqgwmvuyeNcqyFwNf5rcR+mH2
+         tFQWqrGv0Oq1koJqkoATk4M/0pcCo6K5H3W9pnqAyOwWT/bf3/4zdUEqJYMr3iVXX8jI
+         lcX4+J7VZLkrbp6aZXhSdRWdn5aJJ7hl4L6vn6U5vQx7jZCZI09tzJppY37wfxJR7M+2
+         w1K13n98mC23UHAOiSSSHsdp3i+3UVAzveOiVcdKOf+KY0dbKN90sJa2XA5rCEVz2qm7
+         B6bCYNjIQ0AjKVr4Gsj5tBTdDzi2jqiwuKc1fP3lGIJdThdkIe+RIA9Qk9nm2qrj7Axs
+         8CuA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=qKJDa9lq;
+       dkim=pass header.i=@kernel.org header.s=default header.b=Ko7SEPAl;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 5si8006722pgg.505.2019.03.27.11.03.47
+        by mx.google.com with ESMTPS id c13si1822802pfb.67.2019.03.27.11.10.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Mar 2019 11:03:47 -0700 (PDT)
+        Wed, 27 Mar 2019 11:10:58 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=qKJDa9lq;
+       dkim=pass header.i=@kernel.org header.s=default header.b=Ko7SEPAl;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id A9AB42087C;
-	Wed, 27 Mar 2019 18:03:44 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 087682184D;
+	Wed, 27 Mar 2019 18:10:56 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1553709827;
-	bh=MGfIoXnzyNJ/KAFrw5ZJrFi7P/sOO+b797C3j3DpCrs=;
+	s=default; t=1553710257;
+	bh=F6LVIjqoBQw4+4vg1nhHNG/PqzrDUarrDFl95pWBNEc=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=qKJDa9lqPCT5FrQKRqlbe33Y1Ye8nJS7oPjbXYzBZXdORbP2sT2Gk9qQ/a+zaOe+r
-	 56eY7JaZIzN0iAPiS8P7be/uC6PxgIAFcyBrhSvdPoWSPmaep2ZwWuIFnw4qKCwHN4
-	 ZhUQpFgGkEsWbo2bsOhgFsFweXmOBPHTka2uJitQ=
+	b=Ko7SEPAlJilWBOWBBmuUPHTmYEnJ8EoqFZN289Qk/NfCE/Ooxq9nrIjNpRXKXSY5A
+	 shQ1HVo5hv/1F5bpLgOQBIRL/l9352lRavJVBr7+h7RD5IYWKRqAdfE7uIMTl/hhAU
+	 GFKYgp5g/zzqa8o3B7dVbxIsO+VwM5ikzic6bAAM=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Dave Hansen <dave.hansen@linux.intel.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Jiang <dave.jiang@intel.com>,
-	Ross Zwisler <zwisler@kernel.org>,
-	Vishal Verma <vishal.l.verma@intel.com>,
-	Tom Lendacky <thomas.lendacky@amd.com>,
+Cc: Qian Cai <cai@lca.pw>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>,
-	linux-nvdimm@lists.01.org,
-	linux-mm@kvack.org,
-	Huang Ying <ying.huang@intel.com>,
-	Fengguang Wu <fengguang.wu@intel.com>,
-	Borislav Petkov <bp@suse.de>,
-	Yaowei Bai <baiyaowei@cmss.chinamobile.com>,
-	Takashi Iwai <tiwai@suse.de>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Paul Mackerras <paulus@samba.org>,
-	linuxppc-dev@lists.ozlabs.org,
-	Keith Busch <keith.busch@intel.com>,
-	Sasha Levin <sashal@kernel.org>
-Subject: [PATCH AUTOSEL 5.0 061/262] mm/resource: Return real error codes from walk failures
-Date: Wed, 27 Mar 2019 13:58:36 -0400
-Message-Id: <20190327180158.10245-61-sashal@kernel.org>
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Sasha Levin <sashal@kernel.org>,
+	linux-mm@kvack.org
+Subject: [PATCH AUTOSEL 4.19 021/192] mm/sparse: fix a bad comparison
+Date: Wed, 27 Mar 2019 14:07:33 -0400
+Message-Id: <20190327181025.13507-21-sashal@kernel.org>
 X-Mailer: git-send-email 2.19.1
-In-Reply-To: <20190327180158.10245-1-sashal@kernel.org>
-References: <20190327180158.10245-1-sashal@kernel.org>
+In-Reply-To: <20190327181025.13507-1-sashal@kernel.org>
+References: <20190327181025.13507-1-sashal@kernel.org>
 MIME-Version: 1.0
 X-Patchwork-Hint: Ignore
 Content-Transfer-Encoding: 8bit
@@ -133,80 +117,63 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+From: Qian Cai <cai@lca.pw>
 
-[ Upstream commit 5cd401ace914dc68556c6d2fcae0c349444d5f86 ]
+[ Upstream commit d778015ac95bc036af73342c878ab19250e01fe1 ]
 
-walk_system_ram_range() can return an error code either becuase
-*it* failed, or because the 'func' that it calls returned an
-error.  The memory hotplug does the following:
+next_present_section_nr() could only return an unsigned number -1, so
+just check it specifically where compilers will convert -1 to unsigned
+if needed.
 
-	ret = walk_system_ram_range(..., func);
-        if (ret)
-		return ret;
+  mm/sparse.c: In function 'sparse_init_nid':
+  mm/sparse.c:200:20: warning: comparison of unsigned expression >= 0 is always true [-Wtype-limits]
+         ((section_nr >= 0) &&    \
+                      ^~
+  mm/sparse.c:478:2: note: in expansion of macro
+  'for_each_present_section_nr'
+    for_each_present_section_nr(pnum_begin, pnum) {
+    ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+  mm/sparse.c:200:20: warning: comparison of unsigned expression >= 0 is always true [-Wtype-limits]
+         ((section_nr >= 0) &&    \
+                      ^~
+  mm/sparse.c:497:2: note: in expansion of macro
+  'for_each_present_section_nr'
+    for_each_present_section_nr(pnum_begin, pnum) {
+    ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+  mm/sparse.c: In function 'sparse_init':
+  mm/sparse.c:200:20: warning: comparison of unsigned expression >= 0 is always true [-Wtype-limits]
+         ((section_nr >= 0) &&    \
+                      ^~
+  mm/sparse.c:520:2: note: in expansion of macro
+  'for_each_present_section_nr'
+    for_each_present_section_nr(pnum_begin + 1, pnum_end) {
+    ^~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-and 'ret' makes it out to userspace, eventually.  The problem
-s, walk_system_ram_range() failues that result from *it* failing
-(as opposed to 'func') return -1.  That leads to a very odd
--EPERM (-1) return code out to userspace.
-
-Make walk_system_ram_range() return -EINVAL for internal
-failures to keep userspace less confused.
-
-This return code is compatible with all the callers that I
-audited.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Reviewed-by: Bjorn Helgaas <bhelgaas@google.com>
-Acked-by: Michael Ellerman <mpe@ellerman.id.au> (powerpc)
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Dave Jiang <dave.jiang@intel.com>
-Cc: Ross Zwisler <zwisler@kernel.org>
-Cc: Vishal Verma <vishal.l.verma@intel.com>
-Cc: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: linux-nvdimm@lists.01.org
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: Huang Ying <ying.huang@intel.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Borislav Petkov <bp@suse.de>
-Cc: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
-Cc: Takashi Iwai <tiwai@suse.de>
-Cc: Jerome Glisse <jglisse@redhat.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: linuxppc-dev@lists.ozlabs.org
-Cc: Keith Busch <keith.busch@intel.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+Link: http://lkml.kernel.org/r/20190228181839.86504-1-cai@lca.pw
+Fixes: c4e1be9ec113 ("mm, sparsemem: break out of loops early")
+Signed-off-by: Qian Cai <cai@lca.pw>
+Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- kernel/resource.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/sparse.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/kernel/resource.c b/kernel/resource.c
-index 915c02e8e5dd..ca7ed5158cff 100644
---- a/kernel/resource.c
-+++ b/kernel/resource.c
-@@ -382,7 +382,7 @@ static int __walk_iomem_res_desc(resource_size_t start, resource_size_t end,
- 				 int (*func)(struct resource *, void *))
- {
- 	struct resource res;
--	int ret = -1;
-+	int ret = -EINVAL;
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 10b07eea9a6e..45950a074bdb 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -196,7 +196,7 @@ static inline int next_present_section_nr(int section_nr)
+ }
+ #define for_each_present_section_nr(start, section_nr)		\
+ 	for (section_nr = next_present_section_nr(start-1);	\
+-	     ((section_nr >= 0) &&				\
++	     ((section_nr != -1) &&				\
+ 	      (section_nr <= __highest_present_section_nr));	\
+ 	     section_nr = next_present_section_nr(section_nr))
  
- 	while (start < end &&
- 	       !find_next_iomem_res(start, end, flags, desc, first_lvl, &res)) {
-@@ -462,7 +462,7 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
- 	unsigned long flags;
- 	struct resource res;
- 	unsigned long pfn, end_pfn;
--	int ret = -1;
-+	int ret = -EINVAL;
- 
- 	start = (u64) start_pfn << PAGE_SHIFT;
- 	end = ((u64)(start_pfn + nr_pages) << PAGE_SHIFT) - 1;
 -- 
 2.19.1
 
