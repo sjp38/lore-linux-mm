@@ -2,226 +2,174 @@ Return-Path: <SRS0=JxSR=R6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 69308C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 10:05:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B14D8C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 10:26:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2D0A92070B
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 10:05:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D0A92070B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 5DDEE20700
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 10:26:13 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="UhwgKwT+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5DDEE20700
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C1D876B0003; Wed, 27 Mar 2019 06:05:34 -0400 (EDT)
+	id E5BF16B0007; Wed, 27 Mar 2019 06:26:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BCD856B0006; Wed, 27 Mar 2019 06:05:34 -0400 (EDT)
+	id DE2486B0008; Wed, 27 Mar 2019 06:26:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A95626B0007; Wed, 27 Mar 2019 06:05:34 -0400 (EDT)
+	id C83DD6B000A; Wed, 27 Mar 2019 06:26:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BB976B0003
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 06:05:34 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id z34so16364314qtz.14
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 03:05:34 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A3DD66B0007
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 06:26:12 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id q127so5404898qkd.2
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 03:26:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to
-         :subject:in-reply-to:references:date:mime-version
-         :content-transfer-encoding:message-id;
-        bh=0vWtgQh+qqPfs0IeoVQUYu2KfkJnnevA4rk3QkeKwI4=;
-        b=NGTqxsteH/4QhjOlBtDBI5tUS3FfWypUkRlSl5gitb1zKeG/GF942/l9TrXdldDgPz
-         93P+sm1qLa3gkhprje1VMw+LMgM2DX/KfiU+aXQ1RzyR6kFH63hgoe50UvfwmGpGimTv
-         dj2INwUSKlskqMQnO4Z+jzzeHIGJ2nyi1jDmjWvp6GxNVI9dJBeiOU8WOGn8E9jQA5yW
-         RQGUN9VjL1mCLZrS6pv8wjDDJHYdPw/4AuwQM86rrAhB0HqpvUVoN5SsYTFdMo0go84S
-         uLAIte1P31EkhhFNtiA5945BsHqSpPHk747yIERKCJwh/mvD657Zh96Mo+dWMrq4OSTR
-         4UTw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAUVoOqcnP9KrTk4Sb8XcGEifP4EOEQPUuH2DCxsc8rrtVYUk3nj
-	67N/oA5uFoSPG2FlnRNBseSxlQEhTNIBMdSD4uKlcILDpHybwOZh7KRYnzOArbvMpdRz/5rzgDp
-	XLzAkq+3nDU3L9thM/ftVnjYm5FRm5tXJpsB0gyCQmKyymxIJXfMS/7u3ZvZjYjFjJg==
-X-Received: by 2002:a0c:81a1:: with SMTP id 30mr28910307qvd.230.1553681134261;
-        Wed, 27 Mar 2019 03:05:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxLgUGmUlAAGeAuoG2Z37K5jsUvSMcXgATj6iY1CPs9CPdXw00QR/ilSTMhN6I5WJjnHpj6
-X-Received: by 2002:a0c:81a1:: with SMTP id 30mr28910252qvd.230.1553681133557;
-        Wed, 27 Mar 2019 03:05:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553681133; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=VcAQbbXDBqTw84B+zk/fFVeuAnEQor5PVMnQNwxDWss=;
+        b=IgWoFDIE/9kYiDL4J/GoV6duw8F5yFnC61A9Chs2g3wfwIxdFZsYMXKrd3pgS8gWKq
+         EFgaRUxJXj6SBZZvrG3i5OnuhhGzoAYOuC46n11SlsQcTepuwRfhI8LyN/fJEs/8+VSW
+         luBWvR+Nr9HtFUiQXeDJxqX7u7PhBSnt8iEMxN3ds3GQBd8p/j0oYGfGuIP2I+cpnmXo
+         AHjAwEHQrckm/zqC4VSIWxSD6UmdMIgvMLZnlsLd+CccaZtw21RUK/HtLpVS4M0lHGK3
+         39dYntZNvW3imOyjDBxCZJ36qzQ+FU5+KvQ5oMBdSKAwZwn+4LWc3HQjA6s4ALr1pKx1
+         6UXQ==
+X-Gm-Message-State: APjAAAWAwB1usKYpO3kNgu+RyI2mYmYH3AvzhgAh56qigCnNR2h9U6Zx
+	WDD/NVYtLNm4ukam2/kmcZbJfsJmC63YnL+l2LYGUubsnHCC0m6dCi2r5idd+DqklHqDtM47E2w
+	4iKPbEwmRymPJxCWSSAwZCppeo6QRpGRiaP+1g8x/zfu8L7rH6vZtGkM4U8eRmBsIKA==
+X-Received: by 2002:a37:b2c5:: with SMTP id b188mr26825841qkf.120.1553682372335;
+        Wed, 27 Mar 2019 03:26:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxa5duEXiXonOBsA2/8ngtGSrFRnUQHwflLiO2w5ZbIWpU2KuOl+pvnn5UgLVikt5CjhShP
+X-Received: by 2002:a37:b2c5:: with SMTP id b188mr26825808qkf.120.1553682371580;
+        Wed, 27 Mar 2019 03:26:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553682371; cv=none;
         d=google.com; s=arc-20160816;
-        b=uzdzSu6DHRpeKiIMo9tjEI0byTMA/8hvb/klpt/emSsqW1dXDy2n3v1v4fC7OTQHqv
-         lDuwh0mAkQyUS/9+kaJIGZzeK1nkN6xvl5E9OCk6T8M49d1LSMyivkol3BDNYqMURKgj
-         Uwj4zmsfpdDSBAxngWWXWig27pBONQjMRIyDCvulmDSxlMKRbatEcsD/gfRAhCW49qbj
-         3fXn4FBVMwsRzhxL0pm7azelKuwAFzE/XT7FL+x4acyvIA6T+fBTIatdo3MU4qk+nXVx
-         HCl2Q9OjmNOWVIRwi8StZk7V67mx+OMMgEndZhk01nX5vzC3F3oQKVD85yFCV4EEC4Pn
-         0Q2A==
+        b=W4OXL9fHmSrwRcN2MJsjLh+nBpkpn+4ZEa6wuZ0Pc6hsLstFxr0QU+pWbL5pYpHlSw
+         LpVSi9Z0OZA16mwj4/llP7ZqacYJomWW+SK3x2dpmCimIzcudJpea0eFmAiecQT2F9Ag
+         1bq9Kl2mPCNJZy3+MeKYRcUP6QrSq1Zz+xvgHbCCZYSW16fTySdP/ry9R8JFhKeGldog
+         zA48ftjFayf8lpAFKeZMR+2XwOgQFSD7XZN6+PF/iMywAY1MD/ivZQI9P1pt1/MY5H3B
+         v5lPjYI7ohvQx5jfY6iODyOdnbQro6hKoADDU7TDzzLGK1YLOWUbxTCbLTULNazRBAuO
+         zeBw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:content-transfer-encoding:mime-version:date:references
-         :in-reply-to:subject:to:from;
-        bh=0vWtgQh+qqPfs0IeoVQUYu2KfkJnnevA4rk3QkeKwI4=;
-        b=dqeUd3NWVm2ZdoAYMd7vBj1bEwWW8/m5NcODfT88pXIMEClzF/cM02H+sw9FIriafC
-         1Fjq/2ucaeEP+ySBZHlqZwHsLtwiPMXx7HxVh0taUWL4Ya4QXNAszknI4cmk3OrfhQLr
-         mR4IBLL8kLcYBOd6UjcfcMLs9D4IbG2PBQWTJwNzdPq/2FYEI8U4I4B0DLND+ou9EkIk
-         x4QX/xqt+eatpOEPijCVKGc9NJShf5+0aS0W6pqfaVNXM+ehjfkfy3kUF7RdLWjLCdol
-         Vuq68tSs3NA/D5K9OIvpow6su9LWb2xMRG50sRly6ZVu8p2V5IGOC0IKIArX1WRgBsae
-         NCoQ==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=VcAQbbXDBqTw84B+zk/fFVeuAnEQor5PVMnQNwxDWss=;
+        b=QOZ6W+roFFNi7xOnTl/SxymjudmPtVYASuqWPXNG9Yi4w8Uo1eLesDUr5wsh8pH+Ro
+         dRGc5LjsYBscp0tB2gisHFFLh1+YAOO0KQ2BOpVm5yq1X07xEkET1e8XWCF6+q6xlHkF
+         RETRgH8Dv+mAZ3wizKOTouGK3wBHnz015r58uypzxqHPE5RnWT0hbgTHek4kOMbEYKLK
+         zcmvN++FPxaJvs8joe8HcENsp00NRHZntJPZJr3B4wPfKNFIDPhsVUlN+rJnlMbp2PMj
+         e2msLZw+3efXsNR2H78SwWHyh2hHiqfLOceWWTrf/Qe6auutDGnLvSgovVnkD2KQcxEE
+         PXdg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id j19si4263765qkl.185.2019.03.27.03.05.33
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=UhwgKwT+;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id v3si303780qkc.114.2019.03.27.03.26.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Mar 2019 03:05:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Wed, 27 Mar 2019 03:26:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2RA4lBt103300
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 06:05:33 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2rg6vwrpj0-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 06:05:32 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Wed, 27 Mar 2019 10:05:30 -0000
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
-	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 27 Mar 2019 10:05:22 -0000
-Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x2RA5Ld536831236
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=UhwgKwT+;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x2RADnu4043952;
+	Wed, 27 Mar 2019 10:26:10 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
+ mime-version : subject : from : in-reply-to : date : cc :
+ content-transfer-encoding : message-id : references : to;
+ s=corp-2018-07-02; bh=VcAQbbXDBqTw84B+zk/fFVeuAnEQor5PVMnQNwxDWss=;
+ b=UhwgKwT+elL7PbO6otWVV9GJzz3Q9ltcXMUC6Cf3ioGRjVBFGcnvLXlcuhUCjuFZB+MQ
+ YB2TcIERHKXLaC1JgFHC2k8MWxW6nZueL4/RzPPt9Eoih4yVmxbhCr2GCmgtSIPfLjEA
+ lTunQBwIqbEd0+z9bPet0xzW5V6aj4Nx0NFZXLk7lxTfgEFIyQc2TvGUmWu8Zrpl44Jh
+ fRrtntiTv2YCgBPKT/LdV+QReAclg9X/2Y4wjVd0Fn7kTTXKFkhLFdPjn/wLPogrv8Zj
+ mosjket86+TbqZGY2rZxdMmSHpjWucadXUJdJE71QhXk11rwjjfm7D/lVhLTeRrPEE98 ew== 
+Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
+	by aserp2130.oracle.com with ESMTP id 2re6g0ymwe-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 27 Mar 2019 10:26:09 +0000
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x2RAQ9BS009230
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 27 Mar 2019 10:05:21 GMT
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id AA8ADAE045;
-	Wed, 27 Mar 2019 10:05:21 +0000 (GMT)
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 44B49AE051;
-	Wed, 27 Mar 2019 10:05:15 +0000 (GMT)
-Received: from skywalker.linux.ibm.com (unknown [9.102.0.57])
-	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Wed, 27 Mar 2019 10:05:15 +0000 (GMT)
-X-Mailer: emacs 26.1 (via feedmail 11-beta-1 I)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: Alexandre Ghiti <alex@ghiti.fr>, mpe@ellerman.id.au,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Vlastimil Babka <vbabka@suse.cz>,
-        Catalin Marinas <catalin.marinas@arm.com>,
-        Will Deacon <will.deacon@arm.com>,
-        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-        Paul Mackerras <paulus@samba.org>,
-        Martin Schwidefsky <schwidefsky@de.ibm.com>,
-        Heiko Carstens <heiko.carstens@de.ibm.com>,
-        Yoshinori Sato <ysato@users.sourceforge.jp>,
-        Rich Felker <dalias@libc.org>,
-        "David S . Miller" <davem@davemloft.net>,
-        Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
-        Borislav Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>,
-        x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>,
-        Andy Lutomirski <luto@kernel.org>,
-        Peter Zijlstra <peterz@infradead.org>,
-        Mike Kravetz <mike.kravetz@oracle.com>,
-        linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
-        linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
-        linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
+	Wed, 27 Mar 2019 10:26:09 GMT
+Received: from abhmp0013.oracle.com (abhmp0013.oracle.com [141.146.116.19])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x2RAQ8EE005484;
+	Wed, 27 Mar 2019 10:26:08 GMT
+Received: from [192.168.0.110] (/73.243.10.6)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Wed, 27 Mar 2019 03:26:08 -0700
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.8\))
+Subject: Re: CONFIG_DEBUG_VIRTUAL breaks boot on x86-32
+From: William Kucharski <william.kucharski@oracle.com>
+In-Reply-To: <dca61136-db66-a89e-e79d-679ee2281d8d@linux.ee>
+Date: Wed, 27 Mar 2019 04:26:07 -0600
+Cc: Ralph Campbell <rcampbell@nvidia.com>, LKML <linux-kernel@vger.kernel.org>,
         linux-mm@kvack.org
-Subject: Re: [PATCH v8 4/4] hugetlb: allow to free gigantic pages regardless of the configuration
-In-Reply-To: <e7637427-5f17-b4f4-93a2-70cac9b3a264@ghiti.fr>
-References: <20190327063626.18421-1-alex@ghiti.fr> <20190327063626.18421-5-alex@ghiti.fr> <f6e74ad8-acca-3b1e-27eb-a2881ac8437d@linux.ibm.com> <fbae7220-2e6f-8516-cf93-fbe430452043@ghiti.fr> <aabfc780-1681-c69a-9927-4645d6499984@linux.ibm.com> <e7637427-5f17-b4f4-93a2-70cac9b3a264@ghiti.fr>
-Date: Wed, 27 Mar 2019 15:35:13 +0530
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
-X-TM-AS-GCONF: 00
-x-cbid: 19032710-4275-0000-0000-0000031FC8B0
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19032710-4276-0000-0000-0000382E6206
-Message-Id: <87pnqcws2u.fsf@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-27_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1903270073
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Message-Id: <4AF9E4BD-58F0-4D12-A495-6192978790B6@oracle.com>
+References: <4d5ee3b0-6d47-a8df-a6b3-54b0fba66ed7@linux.ee>
+ <A1B7F481-4BF6-4441-8019-AE088F8A8939@oracle.com>
+ <f39477da-a1ef-e31e-a72d-8ea1d5755234@nvidia.com>
+ <dca61136-db66-a89e-e79d-679ee2281d8d@linux.ee>
+To: Meelis Roos <mroos@linux.ee>
+X-Mailer: Apple Mail (2.3445.104.8)
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9207 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1903270074
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000123, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Alexandre Ghiti <alex@ghiti.fr> writes:
 
-> On 03/27/2019 09:55 AM, Aneesh Kumar K.V wrote:
->> On 3/27/19 2:14 PM, Alexandre Ghiti wrote:
->>>
->>>
->>> On 03/27/2019 08:01 AM, Aneesh Kumar K.V wrote:
->>>> On 3/27/19 12:06 PM, Alexandre Ghiti wrote:
->
+The dmesg output you posted confirms that max_low_pfn is indeed 0x373fe, =
+and it appears
+that the value of phys_mem being checked mat be 0x3f401ff1, which =
+translates to pfn 0x3f401,
+at least if what's still in registers can be believed.
 
-.....
+Since that is indeed greater than max_low_pfn, VIRTUAL_BUG_ON triggers:
 
->>
->> This is now
->> #define __HAVE_ARCH_GIGANTIC_PAGE_RUNTIME_SUPPORTED
->> static inline bool gigantic_page_runtime_supported(void)
->> {
->> if (firmware_has_feature(FW_FEATURE_LPAR) && !radix_enabled())
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 return false;
->>
->> =C2=A0=C2=A0=C2=A0=C2=A0return true;
->> }
->>
->>
->> I am wondering whether it should be
->>
->> #define __HAVE_ARCH_GIGANTIC_PAGE_RUNTIME_SUPPORTED
->> static inline bool gigantic_page_runtime_supported(void)
->> {
->>
->> =C2=A0=C2=A0 if (!IS_ENABLED(CONFIG_CONTIG_ALLOC))
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 return false;
->
-> I don't think this test should happen here, CONFIG_CONTIG_ALLOC only allo=
-ws
-> to allocate gigantic pages, doing that check here would prevent powerpc
-> to free boottime gigantic pages when not a guest. Note that this check
-> is actually done in set_max_huge_pages.
->
->
->>
->> if (firmware_has_feature(FW_FEATURE_LPAR) && !radix_enabled())
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 return false;
->
-> Maybe I did not understand this check: I understood that, in the case=20
-> the system
-> is virtualized, we do not want it to hand back gigantic pages. Does this=
-=20
-> check
-> test if the system is currently being virtualized ?
-> If yes, I think the patch is correct: it prevents freeing gigantic pages=
-=20
-> when the system
-> is virtualized but allows a 'normal' system to free gigantic pages.
->
->
->>
+    VIRTUAL_BUG_ON((phys_addr >> PAGE_SHIFT) > max_low_pfn);
 
-Ok double checked the patch applying the the tree. I got confused by the
-removal of that #ifdef. So we now disallow the runtime free by checking
-for gigantic_page_runtime_supported() in  __nr_hugepages_store_common.
-Now if we allow and if CONFIG_CONTIG_ALLOC is disabled, we still should
-allow to free the boot time allocated pages back to buddy.
+Looking at the call stack of
 
-The patch looks good. You can add for the series
+    copy_strings_0x220
+        __check_object_size+0xef
 
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+that looks to translate to this sequence:
 
--aneesh
+copy_from_user(kaddr+offset, str, bytes_to_copy)
+    check_copy_size(kaddr+offset, bytes_to_copy, FALSE)
+        check_object_size(kaddr+offset, bytes_to_copy, FALSE)
+            __check_object_size(kaddr+offset, bytes_to_copy, FALSE)
+                check_heap_object(kaddr+offset, bytes_to_copy, FALSE)
+                    virt_to_head_page(kaddr+offset)
+                        virt_to_page(kaddr+offset)
+                            pfn_to_page(kaddr+offset)
+                                __pa(kaddr+offset)
+                                    __phys_addr(kaddr+offset)
+
+so it appears the address is "too high" for low memory at that point.
+
+
+
+
+                                   =20
+
 
