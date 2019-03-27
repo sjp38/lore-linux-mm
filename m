@@ -2,195 +2,195 @@ Return-Path: <SRS0=JxSR=R6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7C54EC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 16:17:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 56188C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 17:00:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2F55A206C0
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 16:17:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 04A042146E
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 17:00:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="riSZtAb4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F55A206C0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="IvZHSl+t"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 04A042146E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C11A96B0005; Wed, 27 Mar 2019 12:17:50 -0400 (EDT)
+	id 86FFF6B0005; Wed, 27 Mar 2019 13:00:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BC21C6B0006; Wed, 27 Mar 2019 12:17:50 -0400 (EDT)
+	id 845DA6B0006; Wed, 27 Mar 2019 13:00:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AB18D6B0007; Wed, 27 Mar 2019 12:17:50 -0400 (EDT)
+	id 733DC6B0007; Wed, 27 Mar 2019 13:00:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 78F3D6B0005
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 12:17:50 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id w139so7064229oiw.21
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 09:17:50 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 390466B0005
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 13:00:55 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id k185so8221186pga.5
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 10:00:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=o06e9v+9FpXO9GK+yHaRDxnC2XU9MQFMNB9rxnWVCx0=;
-        b=LV7MTH1lbsxn3MNtX/yi6teVFRBdheL1UmeHChO0HW5vjRglo9zfDPxc6R/dipSrxS
-         zwV+dhIAwGyx7aUdDX0cGB+XLLeMcrzAa2tsb75RdbWBOhZdaPKyLoH9LduRR+HNbTT9
-         7Tlkn2YIJQtGbEFOamH96l58p37v2CKhXBm2kO+2Z5hcF081xhJ5ivzC/WB2PZisMLCl
-         sX3zCsTC/petRQftvr2SlxRkcpJDtMmTrE1mpvFWj3pUw2vIUDdYFayioYlC8weVenze
-         +7XFIw7blnci1apAxSVimapkHcu4W9fdOIsttFxvvZIR1qMTty7d5BUxV9Tf02FqBHt1
-         XrRg==
-X-Gm-Message-State: APjAAAVzvrl+hS1ZExjTyI72FEETH1l1pKrhmZwPORVkpucBqmFeDKql
-	fZrZQpW/Hd8hpPqB8alyIvug4j6TVgmihfmGq2LPGT6zD5C3KQuqARUDmmHLh21tXggzfxavstJ
-	uMdiaz1/LZkYtD5DafclNM/q/DyRsu4tzl9IIoZiIdLkooYhO+X4nRxT+h77MExVJWA==
-X-Received: by 2002:a05:6830:1494:: with SMTP id s20mr28084036otq.318.1553703470072;
-        Wed, 27 Mar 2019 09:17:50 -0700 (PDT)
-X-Received: by 2002:a05:6830:1494:: with SMTP id s20mr28083968otq.318.1553703469154;
-        Wed, 27 Mar 2019 09:17:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553703469; cv=none;
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+         :references:mime-version:dkim-signature;
+        bh=Io+E5uEESZPp1e9HALilVFuhRQtmhI/36F2P/dMd/ho=;
+        b=G2yZ1GopqH42Og6yIhY71YOQYqvbJGOwSgNwgJJPhJBz/l517N7hCqNEM8g4YDo+6y
+         d5LS2n4tin7b5rIfA2Sj87tB9apjX4UcYSAFNRwXG+0xJGna01sPiZC3IwKJjhJGvVgh
+         TSw/DbEe2qr7VsAQMoya+yzvTXSzMOR/Kl5ygop8x2G1g6vAYxabVXsYjC7wticG+Rpi
+         HSDy4z2FeBegwTxmTTUM8RPNfbF+1j+ePGoJ2P6sUauD/xPy+nSvHQL/JGkHFZ23Kznj
+         IBK5xRzR5WuXKKpr6P20iD/Z9TUK75u2ySxEHj0y/HSP0E/t2Rhm5hbEmZBpvS9vZ5DQ
+         O8pg==
+X-Gm-Message-State: APjAAAXdZbOoZc8B/9g0kQE7lVXvIPL6YmvWrbXm5eNX/bBmRmJvVx4s
+	CUdCe9pnrspKK1gV70HjCiux886u8epDh6jriBtfLSRp1yTDpNJ3jv1/wBCFzzysIeX4DRBS3Ei
+	QZiMpqkkTF7z4pQfpWxLjxTzfkwwy0yg0ibkDL/XJPbFX+cOtSIbJKYxEZHQ0ns2bBw==
+X-Received: by 2002:a63:78ce:: with SMTP id t197mr22263933pgc.314.1553706054461;
+        Wed, 27 Mar 2019 10:00:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyj6MdVq6PU7fH/96aaJw78GL5iEQo/KRfV4Rm37vCmMXyf/z11L9BmLJeQl/4EAXaR0adX
+X-Received: by 2002:a63:78ce:: with SMTP id t197mr22263831pgc.314.1553706053448;
+        Wed, 27 Mar 2019 10:00:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553706053; cv=none;
         d=google.com; s=arc-20160816;
-        b=PhFx/FissijOCOQ/M2w0IX+6GoP97l0QSo3GX/q9VW4VAClSkrf8c2rBrCG5E1EfDw
-         kOcah0XvtucL37nQ7UBvfQCtxwu+AJyGvaAfb9LUWGidATVxYWgmgMnMsKTmKdd81WKS
-         yAw5GPIzuOrz0nPtU7+vYzUc5T7ORg3c6GrLwvCJONYuL0UKmxMLbwEU40jm6mumGSU+
-         Mtp96+rDvDNq6q/SvondYfti4FSRSvjabpoPCpi7artKxqwLdzJHqM58dxibG6qQ3VNd
-         LxrJs8XY0ARxIscJ6ufMhxdVBdCkFFhF3vMGPR3tbuZD8V5/pmgTacDueXQV8ob/0jRn
-         kkOw==
+        b=RdLcugBuhw8xXQY5TU7wDGy9uek9BoIu89yAum4sqb10WlC+kQfWaXl/v/Y+a41Fw5
+         EzLM0NktPLAtrU1zuGkAVumKMDiDoPTUBVaFOpM9rBwUalcZnTuawSPmzf+Dzcg3nT27
+         l83GSWAag8R3n0Fp7UWPBzvgWHEKjxQh857ot5poB5cHw6F3Ud1IijrtCFrM/GXs2ZKf
+         T1VK/NafIwNvXvpWlBsJVs18yJU+2d/W1YOq/lkjkg5zPTHfKSo5LraDq3ddtt8asSou
+         cCEJuenhzbQaIXRXE63lIqMxyT5zinhgU9J+RozxKIAmvhWtspHXBvLxQioKafC9BUxt
+         ot8A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=o06e9v+9FpXO9GK+yHaRDxnC2XU9MQFMNB9rxnWVCx0=;
-        b=xZrIq4CIg5KuLmTgQQXr1gfNYVzqsh/3n14vBa2DEUdrOE/KaMxRycvfEpyz6Z+ADk
-         q54Dcz1LmqTfwhexjPD3qyc70wYnqcwBmT3h0jOXzlJBe9MBxtPCr5Yt1F31FzHVbppz
-         yRtwsY19pAJBdBDTW4g0weZ0kjnGr0Zv1emIkw4mFDU6VI1nssdqgLfRH+H/Bayvt3lL
-         nPBZq4X1CM3pmd/pE1bygTWQiHSU6UIf7YzLjztBQOc0IagZIiXdEsId5qth0wXR76Mq
-         xBmHBKw4rKOjQPC4WU+2Z2YfjVTEgjZ6dlGYNGEWfdCDo6LEv1YpZuapCOMlxfdhIbG4
-         U4iA==
+        h=dkim-signature:mime-version:references:in-reply-to:message-id:date
+         :subject:cc:to:from;
+        bh=Io+E5uEESZPp1e9HALilVFuhRQtmhI/36F2P/dMd/ho=;
+        b=lZQAuVYW2RdFztDkfhhsI4spy7TDQOwi9O/YnCtkYJ7+I20xD6BrOptRWpyjtS4uyd
+         GWeralNYqDTTVOBfbCBvZcmmoEvw7uJIutkdsLGfOMeHNgjdPjEFFOYoJbTmJb95prcy
+         dbFATI4qQ7yeyHmon+Pqt6fluqK3AR3RYz1lWbVrfjvnnc7ZRsKqurSC7mPjyRtJ4jLR
+         Ch0KE44l/Yx452CjX0YJfZpKt0QTNrZ9WaPn/K3nWQYdboLPaVy+Q/3dVgJKBywm7xgW
+         ivaYooRz3TVzTY9GtfiJiRVzjdR1q/7wx827KNe6azdhvzAKy0Qz7egEmcR+FPCjxGb+
+         oTHQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=riSZtAb4;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y201sor6209792oie.29.2019.03.27.09.17.49
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=IvZHSl+t;
+       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id h20si17825999pgv.388.2019.03.27.10.00.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 27 Mar 2019 09:17:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Mar 2019 10:00:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ziy@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=riSZtAb4;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=o06e9v+9FpXO9GK+yHaRDxnC2XU9MQFMNB9rxnWVCx0=;
-        b=riSZtAb4wf4bYiirQclqxvNvoVvIjtdvtpP7hW1LkPvm8AIJkqkLcOikXYp70CGJF8
-         pO/VD4mpVZfLCWOoghiHrFHv2ix3uFN93wST3+Zo/8vL8tnAt3RUFcVE+bTNS6b0Bu8S
-         sPJHJGMjlaqftIoN/SQpJDjLqgKPHbsLHV7oRhJLaQeY56dthnI7xorlCM3jCS7N1qPf
-         4D6ld0NFBKCRMr0LNm2iJAZkUzdSyxX7qhEOV+g9rpVmKKNcFa3531Xk9UPzX6i+LFux
-         WYasZ76PTsX5mSzeAOm0mJyw4SL0YYdJEB0FU/+sH9/0HdD1ZHErFmYUisyGtVfwORCb
-         wizw==
-X-Google-Smtp-Source: APXvYqxG2bnCwdQGUdctD5jNEG+yjmMKiaKayOlZ0HZm5jA1Vxgyy7pJZJpRm6vB9iuirNO+ZditYMBmCo/wZFazHHs=
-X-Received: by 2002:aca:f581:: with SMTP id t123mr20220426oih.0.1553703468743;
- Wed, 27 Mar 2019 09:17:48 -0700 (PDT)
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=IvZHSl+t;
+       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c9bac420000>; Wed, 27 Mar 2019 10:00:50 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Wed, 27 Mar 2019 10:00:52 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Wed, 27 Mar 2019 10:00:52 -0700
+Received: from [10.2.164.169] (10.124.1.5) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 27 Mar
+ 2019 17:00:52 +0000
+From: Zi Yan <ziy@nvidia.com>
+To: Keith Busch <kbusch@kernel.org>
+CC: Yang Shi <yang.shi@linux.alibaba.com>, <mhocko@suse.com>,
+	<mgorman@techsingularity.net>, <riel@surriel.com>, <hannes@cmpxchg.org>,
+	<akpm@linux-foundation.org>, "Hansen, Dave" <dave.hansen@intel.com>, "Busch,
+ Keith" <keith.busch@intel.com>, "Williams, Dan J" <dan.j.williams@intel.com>,
+	"Wu, Fengguang" <fengguang.wu@intel.com>, "Du, Fan" <fan.du@intel.com>,
+	"Huang, Ying" <ying.huang@intel.com>, <linux-mm@kvack.org>,
+	<linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 06/10] mm: vmscan: demote anon DRAM pages to PMEM node
+Date: Wed, 27 Mar 2019 10:00:51 -0700
+X-Mailer: MailMate (1.12.4r5622)
+Message-ID: <2C32F713-2156-4B58-B5C1-789C1821EBB9@nvidia.com>
+In-Reply-To: <20190327130822.GD7389@localhost.localdomain>
+References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1553316275-21985-7-git-send-email-yang.shi@linux.alibaba.com>
+ <20190324222040.GE31194@localhost.localdomain>
+ <ceec5604-b1df-2e14-8966-933865245f1c@linux.alibaba.com>
+ <20190327003541.GE4328@localhost.localdomain>
+ <39d8fb56-df60-9382-9b47-59081d823c3c@linux.alibaba.com>
+ <20190327130822.GD7389@localhost.localdomain>
 MIME-Version: 1.0
-References: <155327387405.225273.9325594075351253804.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20190322180532.GM32418@dhcp22.suse.cz> <CAPcyv4gBGNP95APYaBcsocEa50tQj9b5h__83vgngjq3ouGX_Q@mail.gmail.com>
- <20190325101945.GD9924@dhcp22.suse.cz> <CAPcyv4iJCgu-akJM_O8ZtscqWQt=CU-fvx-ViGYeau-NJufmSQ@mail.gmail.com>
- <20190326080408.GC28406@dhcp22.suse.cz> <CAPcyv4jUeUPwbfToWQtWX1AxfgFLNpBUhm8BvgJ2Hv1RbNPiog@mail.gmail.com>
- <20190327161306.GM11927@dhcp22.suse.cz>
-In-Reply-To: <20190327161306.GM11927@dhcp22.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 27 Mar 2019 09:17:37 -0700
-Message-ID: <CAPcyv4heVUMUVrFz4HDX11OxW0ZWkS6EpJJ4aT3QJcUmPTFpRg@mail.gmail.com>
-Subject: Re: [PATCH v5 00/10] mm: Sub-section memory hotplug support
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
-	Logan Gunthorpe <logang@deltatee.com>, Toshi Kani <toshi.kani@hpe.com>, Jeff Moyer <jmoyer@redhat.com>, 
-	Vlastimil Babka <vbabka@suse.cz>, stable <stable@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-	linux-nvdimm <linux-nvdimm@lists.01.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL101.nvidia.com (172.20.187.10) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: multipart/signed;
+	boundary="=_MailMate_FDAFDC66-07F4-44F7-9872-93BE2994CEDA_=";
+	micalg=pgp-sha1; protocol="application/pgp-signature"
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1553706051; bh=Io+E5uEESZPp1e9HALilVFuhRQtmhI/36F2P/dMd/ho=;
+	h=X-PGP-Universal:From:To:CC:Subject:Date:X-Mailer:Message-ID:
+	 In-Reply-To:References:MIME-Version:X-Originating-IP:
+	 X-ClientProxiedBy:Content-Type;
+	b=IvZHSl+tgFV6D4idQxZTXdUfHMcBl+ShUvrE5uXkfGG4Db3DX2DHDQh17O39LV+ce
+	 Ufm4OpM6vpWU7wTDnsIDvtuihTe+yCyZWkJMVuXSaQii6g+GCdajD7ejGKrXwOWFvH
+	 R2Tun0CTNZO/Vkemb6HWBLBraOi3aIdjCFOLV4Cndo0UtQ8Nk7AxveDhV+p9tD2iqm
+	 /atJ0ZPWGg+7QVN+2YnXt/yrnwtHVUneUR+WzjMOoeyKie6OewIkspWPJkeuUCLiCo
+	 EDAoZJpQJlva3Fb6BtW0Obq1cnGuDCzePtOcgsTLGk6KA/RQvAzf2JCfjvBdh5q4fr
+	 7dbfuZb7tL7zg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 27, 2019 at 9:13 AM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Tue 26-03-19 17:20:41, Dan Williams wrote:
-> > On Tue, Mar 26, 2019 at 1:04 AM Michal Hocko <mhocko@kernel.org> wrote:
-> > >
-> > > On Mon 25-03-19 13:03:47, Dan Williams wrote:
-> > > > On Mon, Mar 25, 2019 at 3:20 AM Michal Hocko <mhocko@kernel.org> wrote:
-> > > [...]
-> > > > > > User-defined memory namespaces have this problem, but 2MB is the
-> > > > > > default alignment and is sufficient for most uses.
-> > > > >
-> > > > > What does prevent users to go and use a larger alignment?
-> > > >
-> > > > Given that we are living with 64MB granularity on mainstream platforms
-> > > > for the foreseeable future, the reason users can't rely on a larger
-> > > > alignment to address the issue is that the physical alignment may
-> > > > change from one boot to the next.
-> > >
-> > > I would love to learn more about this inter boot volatility. Could you
-> > > expand on that some more? I though that the HW configuration presented
-> > > to the OS would be more or less stable unless the underlying HW changes.
-> >
-> > Even if the configuration is static there can be hardware failures
-> > that prevent a DIMM, or a PCI device to be included in the memory map.
-> > When that happens the BIOS needs to re-layout the map and the result
-> > is not guaranteed to maintain the previous alignment.
-> >
-> > > > No, you can't just wish hardware / platform firmware won't do this,
-> > > > because there are not enough platform resources to give every hardware
-> > > > device a guaranteed alignment.
-> > >
-> > > Guarantee is one part and I can see how nobody wants to give you
-> > > something as strong but how often does that happen in the real life?
-> >
-> > I expect a "rare" event to happen everyday in a data-center fleet.
-> > Failure rates tend towards 100% daily occurrence at scale and in this
-> > case the kernel has everything it needs to mitigate such an event.
-> >
-> > Setting aside the success rate of a software-alignment mitigation, the
-> > reason I am charging this hill again after a 2 year hiatus is the
-> > realization that this problem is wider spread than the original
-> > failing scenario. Back in 2017 the problem seemed limited to custom
-> > memmap= configurations, and collisions between PMEM and System RAM.
-> > Now it is clear that the collisions can happen between PMEM regions
-> > and namespaces as well, and the problem spans platforms from multiple
-> > vendors. Here is the most recent collision problem:
-> > https://github.com/pmem/ndctl/issues/76, from a third-party platform.
-> >
-> > The fix for that issue uncovered a bug in the padding implementation,
-> > and a fix for that bug would result in even more hacks in the nvdimm
-> > code for what is a core kernel deficiency. Code review of those
-> > changes resulted in changing direction to go after the core
-> > deficiency.
->
-> This kind of information along with real world examples is exactly what
-> you should have added into the cover letter. A previous very vague
-> claims were not really convincing or something that can be considered a
-> proper justification. Please do realize that people who are not working
-> with the affected HW are unlikely to have an idea how serious/relevant
-> those problems really are.
->
-> People are asking for a smaller memory hotplug granularity for other
-> usecases (e.g. memory ballooning into VMs) which are quite dubious to
-> be honest and not really worth all the code rework. If we are talking
-> about something that can be worked around elsewhere then it is preferred
-> because the code base is not in an excellent shape and putting more on
-> top is just going to cause more headaches.
->
-> I will try to find some time to review this more deeply (no promises
-> though because time is hectic and this is not a simple feature). For the
-> future, please try harder to write up a proper justification and a
-> highlevel design description which tells a bit about all important parts
-> of the new scheme.
+--=_MailMate_FDAFDC66-07F4-44F7-9872-93BE2994CEDA_=
+Content-Type: text/plain; markup=markdown
 
-Fair enough. I've been steeped in this for too long, and should have
-taken a wider view to bring reviewers up to speed.
+On 27 Mar 2019, at 6:08, Keith Busch wrote:
+
+> On Tue, Mar 26, 2019 at 08:41:15PM -0700, Yang Shi wrote:
+>> On 3/26/19 5:35 PM, Keith Busch wrote:
+>>> migration nodes have higher free capacity than source nodes. And since
+>>> your attempting THP's without ever splitting them, that also requires
+>>> lower fragmentation for a successful migration.
+>>
+>> Yes, it is possible. However, migrate_pages() already has logic to
+>> handle such case. If the target node has not enough space for migrating
+>> THP in a whole, it would split THP then retry with base pages.
+>
+> Oh, you're right, my mistake on splitting. So you have a good best effort
+> migrate, but I still think it can fail for legitimate reasons that should
+> have a swap fallback.
+
+Does this mean we might want to factor out the page reclaim code in shrink_page_list()
+and call it for each page, which fails to migrate to PMEM. Or do you still prefer
+to migrate one page at a time, like what you did in your patch?
+
+I ask this because I observe that migrating a list of pages can achieve higher
+throughput compared to migrating individual page. For example, migrating 512 4KB
+pages can achieve ~750MB/s throughput, whereas migrating one 4KB page might only
+achieve ~40MB/s throughput. The experiments were done on a two-socket machine
+with two Xeon E5-2650 v3 @ 2.30GHz across the QPI link.
+
+
+--
+Best Regards,
+Yan Zi
+
+--=_MailMate_FDAFDC66-07F4-44F7-9872-93BE2994CEDA_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQJDBAEBAgAtFiEEh7yFAW3gwjwQ4C9anbJR82th+ooFAlybrEMPHHppeUBudmlk
+aWEuY29tAAoJEJ2yUfNrYfqK/twP/3lcO6kKxaHl/38KpTngJX//h7UJzoANsSrb
+le5gVdUnBGP9KnFWyltBDEbNggucShHm+U5hFBvrkDzY/fO8BJTM5ypXiPxDr7h1
+5XyvCJuuBtSE24X5autv1xF4QKIHTb69N9uojoMy4WYyQmnuuuMTC6vFICUinQuL
+pQHHtx2VxINXRVPOcW6XMYxBopW5+MuYyXtFRrT9+tEQvJ9Fw3Gwg0JwuiEZx9Sh
+aUJhOrg+43Lfs0ES0i31Mw7KD+csr/uii+HVdOT/FBEtge8QvxlV2FxBnINkpHa6
+xVo5cWoNbo++rdpobmnOsjQvJ01WWyoaTwvHOITU5zmH85IVraI0N7G5PsCMuexB
+Hvvndlo+WNcGTvF3YgQgLb/0xRjqT77Jwli7rXMNhihXLyw5cZrGTwueEJV8saou
+oXDw7WzLUokCPPuhdicKt8uQ+encxv20TxGxZrPCu9hL+7+s/DLZ3BhwptTkvhbF
+TQeGbfbCKTlifJ3AqSi1041vwxTz2C0moUz5kWIgf2rZG/NlM8S6AwPv2hHTxzLZ
+PEtY7fdJCEYLk5DPkkwBxpiH/JM/yyQLH0WOHYpbxWxtR/5CMnE+YR1JNL2hKs7e
+kOalkTxRURDb/3+uGUAPWEY+VWOhzU5DIsO28zXopEQCWB+sVYinCLhUdgroRgAD
+Bx5LaaKT
+=HFOS
+-----END PGP SIGNATURE-----
+
+--=_MailMate_FDAFDC66-07F4-44F7-9872-93BE2994CEDA_=--
 
