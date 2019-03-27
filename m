@@ -2,103 +2,105 @@ Return-Path: <SRS0=JxSR=R6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,UNPARSEABLE_RELAY
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5FBB2C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 02:59:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7CD8EC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 03:41:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2FFCD2082F
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 02:59:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2FFCD2082F
+	by mail.kernel.org (Postfix) with ESMTP id 280562075E
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 03:41:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 280562075E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A970B6B0003; Tue, 26 Mar 2019 22:59:07 -0400 (EDT)
+	id 964CE6B0003; Tue, 26 Mar 2019 23:41:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A47886B0006; Tue, 26 Mar 2019 22:59:07 -0400 (EDT)
+	id 914586B0006; Tue, 26 Mar 2019 23:41:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 934706B0007; Tue, 26 Mar 2019 22:59:07 -0400 (EDT)
+	id 82A686B0007; Tue, 26 Mar 2019 23:41:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D5C56B0003
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 22:59:07 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id n5so6534847pgk.9
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 19:59:07 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B6D36B0003
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2019 23:41:23 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id x5so3481408pll.2
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2019 20:41:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-transfer-encoding:content-language;
-        bh=8nM1lV2mgVcr4aDN4NQKOwpY5Vtqb2oMTpVw5jDVZHQ=;
-        b=tapUPizIOqpzdczrTr798p/RqAEGDIwmE0yhqlrimp91KwQiJhcUaP8vCG6+dKwOCL
-         myP0P0rM6QheP1rc7+aNYHQEJvWGvgZqNKeyOALN/VLxrYUPKTklv4Li6nbxGYROcnuJ
-         g77iyWfVNh5bBxihzuc9RHng5M7yIEmO5J3KjuRsSxhqX7MLBgCw12/Dc//0qJdvEk74
-         pNbJZEaj47c616nR+hdZUZPnuXuEt0LalgS2zrTSuIeD1ENT+DQPfUN4WtTb/ftd9rui
-         142BJVc25fQHIcUHvrxl6oFkApNiiCHZDDCcBqnZtEjd81FB8llLNsfTLUIE9IAOXH1C
-         EIUw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.57 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAWjRVrBTGexXeIN33JR2OkSJWJet5Ix1vfu4xb+hKGC46UXp3Jb
-	+6cQtm8elKb2u2toJ0JuXSpdW3wl+VCaLcTpoMceoW+zdPQkjdjIMBNPpFYcciWKOq5qtgf0pcw
-	vjj1M0sbCoO8o68TTQdPbaKc+a9peoaCapOM3aUAOQVdxGahgyGb7XTWLbDRKgYcuAg==
-X-Received: by 2002:a63:da56:: with SMTP id l22mr32741229pgj.127.1553655546970;
-        Tue, 26 Mar 2019 19:59:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyPDfgvWaL3+Sd+vAGr52rQfftAhCpzM/xC4RupSK6fZUZKdNMiNxBpMWWgwR4/2Vw3HgXY
-X-Received: by 2002:a63:da56:: with SMTP id l22mr32741190pgj.127.1553655546058;
-        Tue, 26 Mar 2019 19:59:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553655546; cv=none;
+        bh=VdT375e6UgKXAkisZksuxeWeA1N2Js5PL7YlBEJx1aA=;
+        b=qq9Bg/xp0N6sXfYqw/LJEeWR/mvOKqPBfmMwfSy7GOKcLb5dM/05+/D0JwKVX5aO72
+         v8ktf/KfvHbynL12x2YIg/vioO/pgnj/neCQJvdwGpMwYG8y4VY8rTZLmrWh8jet7oZc
+         1hAW8GDZWBsXCOAQs7dcsaMhxAM/GsTb3Ua6gsU33Me/tMHGwH8tmlBZza242z78O8U/
+         ZQUueTPoaAsyaiygHLu2iVrT+XtMEmu/1yR4n9RZlX5D94m3TmtD1BU/haGhqOZI1Q7h
+         8G7PZsHfNOPcEYPC4h/4fe7iyU1gP+jdZXxb3R4X8OJmojgFCAk9ZoBl2QQxQ3GS7x66
+         eWEQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAWI2TF9BWBBex37S/3fcRfmKug7TBBBQSh4ysrbCVeiMgCJ9Vo6
+	VAHyQhWtXfQtV+cK3ucjZURtlLL3sTY9k0kGLM91dyenqWJeMt5F27/f/Ek68jFVv891eKN60JL
+	bguSwdwK0GqMVhdd4DAyAdOZLNm4Gq7GAXpHaCjrowjmqOphJ4nsB4gL3B5NsMyjklQ==
+X-Received: by 2002:a62:e411:: with SMTP id r17mr33006963pfh.127.1553658082957;
+        Tue, 26 Mar 2019 20:41:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqybhGb6TsuZ18SQnQNoDLcQ5d6xsiIPSkYY5SvuhdlRXCqyIO4O8w/5KDRwNSRgQmKcKpZN
+X-Received: by 2002:a62:e411:: with SMTP id r17mr33006918pfh.127.1553658082119;
+        Tue, 26 Mar 2019 20:41:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553658082; cv=none;
         d=google.com; s=arc-20160816;
-        b=kzr+hPqUbCrLny/7k8dlwIeuxKNJ4GX5IjoVb26f8530DNWC7oAsZRkCJUMW1EdFFA
-         h3jbQquo52IUrgqz0qoDjd7AVy2UVFZ1EgDMh0dE8xamPSbMRlsEaMztAe+uv8CnYZHa
-         2fCMALZuhgBMvdl3TSlZtD2NNbaslgMUh0I/B6uEog5m4EdNdhirjj+U4ztz3POC1JEL
-         35rZcoqOFWUWN+0Kxvuawu6PYRsmTWIeNa8d8b7/SHiwUscBzjLs9UjbkB8XSJSW1/1m
-         XwizGkHJfaiP2E+z0A/pZSl+I3MHNVIbKQRAe7Fkeo90w32U2T5Synpgl5YTgd8j7wcG
-         usXg==
+        b=QXXFOlwx3iwUJCTr7MhnKWRwlbRn5cT2dx8/mw4z9SjNSOTpewY1yvLe0HQgKagVvQ
+         HolWT9ZmjwbsrCaTl/1SrwoBKrq8aU3ynOWE7xY6g9INaZNMqttfM59vVXRrX3jxhf5i
+         JYM0OFKN5nCh9Uv99RHrm3q2pm0NoJjJ/RnNqiXvERcveZkdH7iyKgdePTYGKuLwUr7b
+         oanNPS1EBXUEPLE8QrLZ0G80CdSNfJvWSmSoPrQCdXDL7UxCdKCQ1EN+Dhw9I4Jlr6Cq
+         CjrgVTdycusw+GVz3Q8HyP8A5zM9727x9kB5GbxUD9BXE2UEA/1tHXM/VsnfXDBcx77K
+         J9+Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-language:content-transfer-encoding:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=8nM1lV2mgVcr4aDN4NQKOwpY5Vtqb2oMTpVw5jDVZHQ=;
-        b=Ks01bHZEy8M2MagqSzzDE2q5fBwlZ8IosPnDNVki4VSlqSXzBgg6swirNX2oBZQskW
-         mzLUhYDCRdy9RVA5+fIOriETgmSdj38jWyvbQmGbtTeRHxNwnpx+5Ax35pf2xZead5m+
-         01vy9GkrtFDrFQD3CrQO7B+bR73Vwoa0QFNHCIgO/DtjsdnJOgIKz1hnyuRFZeApPjsX
-         A2mvuxiLTVZQurhTobFPmFBlhnWgBXmp/1EK8nlr6SjZNqPtJSylcKNSImvS9EvV8L5T
-         xyUcwKRC1jgS+CM1aDJHB9lZ8V6juX0m5j6E698HgWpIvdC7N9/rQbrtZGLTFFgTeMh2
-         19Qw==
+        bh=VdT375e6UgKXAkisZksuxeWeA1N2Js5PL7YlBEJx1aA=;
+        b=v5czRuxFwP11IAP8e1te8A4UXIRu8tUnJnnKIhX9G0WBCZSVecY+LrS+UBzw7jjQWW
+         2jtklPZqqgeEabJvCxrJ9nRU0JR+fKtAAOwy6982JSzV6PypF81mtUWYVpe/Ze2H0GHK
+         wES2UHU8XtAGA+40dbCDVh9LD6CWJr5lOtNHEPhaYbnfX/kDHCZfM4V/jIexAJ7GCHcS
+         76vV9b43Dj5xlKLNBHSCDO8NBqlAcm7zSJ7S0YtRJ1sCbngFBEEIGMmvmV/RFdQqWi/g
+         P4zykULQN43SLfpqLOcStSMSYRTAkW/lvrtfTORQ3bNoId3msNZOpMjUwCfb/q+hfSeV
+         aSnA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.57 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-57.freemail.mail.aliyun.com (out30-57.freemail.mail.aliyun.com. [115.124.30.57])
-        by mx.google.com with ESMTPS id d14si10908074pgb.26.2019.03.26.19.59.05
+Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
+        by mx.google.com with ESMTPS id a13si4846751pfn.70.2019.03.26.20.41.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Mar 2019 19:59:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.57 as permitted sender) client-ip=115.124.30.57;
+        Tue, 26 Mar 2019 20:41:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) client-ip=115.124.30.131;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.57 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R131e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04452;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=13;SR=0;TI=SMTPD_---0TNk2xdD_1553655539;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TNk2xdD_1553655539)
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R141e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04392;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=14;SR=0;TI=SMTPD_---0TNkXKFO_1553658075;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TNkXKFO_1553658075)
           by smtp.aliyun-inc.com(127.0.0.1);
-          Wed, 27 Mar 2019 10:59:03 +0800
-Subject: Re: [RFC PATCH 0/10] Another Approach to Use PMEM as NUMA Node
-To: Michal Hocko <mhocko@kernel.org>
-Cc: mgorman@techsingularity.net, riel@surriel.com, hannes@cmpxchg.org,
- akpm@linux-foundation.org, dave.hansen@intel.com, keith.busch@intel.com,
- dan.j.williams@intel.com, fengguang.wu@intel.com, fan.du@intel.com,
- ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+          Wed, 27 Mar 2019 11:41:19 +0800
+Subject: Re: [PATCH 06/10] mm: vmscan: demote anon DRAM pages to PMEM node
+To: Keith Busch <kbusch@kernel.org>
+Cc: mhocko@suse.com, mgorman@techsingularity.net, riel@surriel.com,
+ hannes@cmpxchg.org, akpm@linux-foundation.org, dave.hansen@intel.com,
+ keith.busch@intel.com, dan.j.williams@intel.com, fengguang.wu@intel.com,
+ fan.du@intel.com, ying.huang@intel.com, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
 References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190326135837.GP28406@dhcp22.suse.cz>
- <43a1a59d-dc4a-6159-2c78-e1faeb6e0e46@linux.alibaba.com>
- <20190326183731.GV28406@dhcp22.suse.cz>
+ <1553316275-21985-7-git-send-email-yang.shi@linux.alibaba.com>
+ <20190324222040.GE31194@localhost.localdomain>
+ <ceec5604-b1df-2e14-8966-933865245f1c@linux.alibaba.com>
+ <20190327003541.GE4328@localhost.localdomain>
 From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <f08fb981-d129-3357-e93a-a6b233aa9891@linux.alibaba.com>
-Date: Tue, 26 Mar 2019 19:58:56 -0700
+Message-ID: <39d8fb56-df60-9382-9b47-59081d823c3c@linux.alibaba.com>
+Date: Tue, 26 Mar 2019 20:41:15 -0700
 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
  Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190326183731.GV28406@dhcp22.suse.cz>
+In-Reply-To: <20190327003541.GE4328@localhost.localdomain>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Language: en-US
@@ -110,60 +112,44 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-On 3/26/19 11:37 AM, Michal Hocko wrote:
-> On Tue 26-03-19 11:33:17, Yang Shi wrote:
+On 3/26/19 5:35 PM, Keith Busch wrote:
+> On Mon, Mar 25, 2019 at 12:49:21PM -0700, Yang Shi wrote:
+>> On 3/24/19 3:20 PM, Keith Busch wrote:
+>>> How do these pages eventually get to swap when migration fails? Looks
+>>> like that's skipped.
+>> Yes, they will be just put back to LRU. Actually, I don't expect it would be
+>> very often to have migration fail at this stage (but I have no test data to
+>> support this hypothesis) since the pages have been isolated from LRU, so
+>> other reclaim path should not find them anymore.
 >>
->> On 3/26/19 6:58 AM, Michal Hocko wrote:
->>> On Sat 23-03-19 12:44:25, Yang Shi wrote:
->>>> With Dave Hansen's patches merged into Linus's tree
->>>>
->>>> https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=c221c0b0308fd01d9fb33a16f64d2fd95f8830a4
->>>>
->>>> PMEM could be hot plugged as NUMA node now. But, how to use PMEM as NUMA node
->>>> effectively and efficiently is still a question.
->>>>
->>>> There have been a couple of proposals posted on the mailing list [1] [2].
->>>>
->>>> The patchset is aimed to try a different approach from this proposal [1]
->>>> to use PMEM as NUMA nodes.
->>>>
->>>> The approach is designed to follow the below principles:
->>>>
->>>> 1. Use PMEM as normal NUMA node, no special gfp flag, zone, zonelist, etc.
->>>>
->>>> 2. DRAM first/by default. No surprise to existing applications and default
->>>> running. PMEM will not be allocated unless its node is specified explicitly
->>>> by NUMA policy. Some applications may be not very sensitive to memory latency,
->>>> so they could be placed on PMEM nodes then have hot pages promote to DRAM
->>>> gradually.
->>> Why are you pushing yourself into the corner right at the beginning? If
->>> the PMEM is exported as a regular NUMA node then the only difference
->>> should be performance characteristics (module durability which shouldn't
->>> play any role in this particular case, right?). Applications which are
->>> already sensitive to memory access should better use proper binding already.
->>> Some NUMA topologies might have quite a large interconnect penalties
->>> already. So this doesn't sound like an argument to me, TBH.
->> The major rationale behind this is we assume the most applications should be
->> sensitive to memory access, particularly for meeting the SLA. The
->> applications run on the machine may be agnostic to us, they may be sensitive
->> or non-sensitive. But, assuming they are sensitive to memory access sounds
->> safer from SLA point of view. Then the "cold" pages could be demoted to PMEM
->> nodes by kernel's memory reclaim or other tools without impairing the SLA.
+>> If it is locked by someone else right before migration, it is likely
+>> referenced again, so putting back to LRU sounds not bad.
 >>
->> If the applications are not sensitive to memory access, they could be bound
->> to PMEM or allowed to use PMEM (nice to have allocation on DRAM) explicitly,
->> then the "hot" pages could be promoted to DRAM.
-> Again, how is this different from NUMA in general?
+>> A potential improvement is to have sync migration for kswapd.
+> Well, it's not that migration fails only if the page is recently
+> referenced. Migration would fail if there isn't available memory in
+> the migration node, so this implementation carries an expectation that
+> migration nodes have higher free capacity than source nodes. And since
+> your attempting THP's without ever splitting them, that also requires
+> lower fragmentation for a successful migration.
 
-It is still NUMA, users still can see all the NUMA nodes.
+Yes, it is possible. However, migrate_pages() already has logic to 
+handle such case. If the target node has not enough space for migrating 
+THP in a whole, it would split THP then retry with base pages.
 
-Introduced default allocation node mask (please refer to patch #1) to 
-control the memory placement. Typically, the node mask just includes 
-DRAM nodes. PMEM nodes are excluded by the node mask for memory allocation.
+Swapping THP has been optimized to swap in a whole too. It would try to 
+add THP into swap cache in a whole, split THP if the attempt fails, then 
+add base pages into swap cache.
 
-The node mask could be override by user per the discussion with Dan.
+So, I think we can leave this to migrate_pages() without splitting in 
+advance all the time.
 
 Thanks,
 Yang
 
+>
+> Applications, however, may allocate and pin pages directly out of that
+> migration node to the point it does not have so much free capacity or
+> physical continuity, so we probably shouldn't assume it's the only way
+> to reclaim pages.
 
