@@ -6,107 +6,112 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
 	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A2EA2C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:11:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 45F35C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:11:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5875521738
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:11:15 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id F2C1B217D9
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:11:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="SA2lh+AA"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5875521738
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="gpjuknid"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F2C1B217D9
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 921B46B0278; Wed, 27 Mar 2019 14:11:12 -0400 (EDT)
+	id E30A36B027A; Wed, 27 Mar 2019 14:11:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8D2A56B027A; Wed, 27 Mar 2019 14:11:12 -0400 (EDT)
+	id DB96E6B027C; Wed, 27 Mar 2019 14:11:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7765C6B027B; Wed, 27 Mar 2019 14:11:12 -0400 (EDT)
+	id AAB8D6B027D; Wed, 27 Mar 2019 14:11:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 396DB6B0278
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 14:11:12 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id f67so14659973pfh.9
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 11:11:12 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 62DA76B027A
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 14:11:15 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id a90so4812169pla.11
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 11:11:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=Nj53lnk4fc3MbaatlwwJKcXw/y0hzD8iRlSlneQIqK8=;
-        b=WjaXGBJqd+kxtjCesGbUcokY2HPe5k7ZtpbBNlh7tWFxf+jZBUx/g+lLqzlboYIFyI
-         gaFjPtt7IDJndgzdOr5TPTCog6OFKx/M5ro1NnwMqm5+AlFV0vl6v0JxH5oDDMr5Or9w
-         9mbqX7Vaf12g0h7/YZcVOC/nwXjRmxwdRNl/bJIqTUrlK4iDvLizdbqlQ2hDHlySMRFP
-         IntIG+dI8eLcGxBz9k8ynfPiHAsWRk/7ms4sPsBbtPxmmD3YaIw/VT0HD9tliymkWUyJ
-         VICizUyIbya+DGVXpv82v8GVykkTFctE5uNCApfAeINEZt0R09WqNKCQr/NM+xEbRnLq
-         0Oug==
-X-Gm-Message-State: APjAAAVMMKuRAezlbnH5Bv7BlymWi6IjrHOhRVvmv3xomji59couaqkH
-	7dn/enpncMgDn0xCeZwNnyBP/DhEqBTwCMJyX2sAiWDN+k5aEI2dI+dciNrhSXoTZXjqB1UgWQG
-	iI9e7iyK3CcZuHdxMNVhqHf3qelH1+d/fsCBrnQdVRsyH5cjEnPYf3j3LEdGI5c78Bw==
-X-Received: by 2002:a17:902:8d97:: with SMTP id v23mr30582942plo.298.1553710271878;
-        Wed, 27 Mar 2019 11:11:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzVSOyLPHWJE6oET4weWYpvC1umaQpp3huILPMxqTZOtI3XJMjq2rgOvraRnkxCnGUf8b9k
-X-Received: by 2002:a17:902:8d97:: with SMTP id v23mr30582861plo.298.1553710271044;
-        Wed, 27 Mar 2019 11:11:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553710271; cv=none;
+        bh=+T44u5bIU/P3avjmDcSMpYAg984E4STk4hP/54qFw6c=;
+        b=cnsPSY8rnqD7B1PSXlP+C36ugnAUdlX5szXUpP7SSXT+YN0TOvhQITX/vRG1yxQBDN
+         UANyuOXpWoPDkcQnouOAWFCbzmf09UMYBx8Q3PUV8mbcodQ40DhFFrz4wo93d8ugrVrT
+         bGF8LX1Mdx3/OzKXV3Ckr8KwRGZLrkY6l+HJusP5bBVcUfgZKTQ4tC+TpHYJAzM9GC69
+         xdJHP8bJn8m4rdWACVFDwa1S0/rsUPXEWHKgMDkIo37GM1bW0VTI4xx2R//BRGIRehaR
+         zvlUXTqMy7PC2kkwccIRsrIh3mRUFhdFvE189946yfqIb1GGbIZcA7pfZtRbLMFbMKMb
+         6o3A==
+X-Gm-Message-State: APjAAAW5OcmMfPWJbaFkIbX/KmtOVMNHFFrv+4oqRv/xZ5eBZ5JzUbxT
+	64Gc5Nq0Yn24qt/RiVgmMvxT8E3Z9o1t9/YGVmb1dkVBYkiwmSrFG8BSVDNkgJ6y+rtqJfp2KoI
+	XEqDsVlzJZfawRSnFoZj8bZHpMWT19kRdQ3OwMcWlavMYzk2ocqu0jJ44kEYOKNKddQ==
+X-Received: by 2002:a17:902:bd96:: with SMTP id q22mr29836913pls.322.1553710275011;
+        Wed, 27 Mar 2019 11:11:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzblMgBhJeI0/Pggfq4a2NSf/yaQn1B2prpyx/V39I3OwLNlrlyDAptg7b+OF8HV2ZIfy3C
+X-Received: by 2002:a17:902:bd96:: with SMTP id q22mr29836833pls.322.1553710274150;
+        Wed, 27 Mar 2019 11:11:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553710274; cv=none;
         d=google.com; s=arc-20160816;
-        b=r5n7O80c4u8iIKctG3JeoXUpJsdWs8MRldlXRUL+gxWKJd8RMAi5lCZIZrogrVFviC
-         2AU0cVferfK9eMaKRSVNAtsEkDemYbwbrXdDJ7JOmlMl/LkraDOUvu3Hzm7OrJOksNEn
-         FS0GZD2QVG7P+UMTQBXcMmKO9T2NIF0ZhWnM2WNJuLllfS8ykr2cdIHr92tgoTY+whyk
-         GGUeqkfx83RWzENhyqKmWKYjKCTJlpvw9VrTlRltzw9In4mRB3tqA55PtFUqYQi0CwP7
-         KvH/+qcQlyK6PP0KjVQf4rkmRyFOntZqtgXVfUvSb0IwH7VC1jUB3XRlHFI4k44ZeC4x
-         jkxw==
+        b=X10b6MdpUs115z8Gr4ynfCxzT0a58ZD2eQto3KPx9FB+k6PQ6UuBquSy3FTdg8fL2z
+         DwjAfduRfeRQ2geSVCj5DcqsrFfPOxmJB5fleNM+fZzixWUObKU3f9eYkjTO8Z1hTixu
+         /QQ91uGmuZVg6DgU6kKf7EdAamjXa2CZs7RXI9Hl11myfH++3q5MNvi8JZjKkF0ASWo7
+         yqjjYw+DuVnccHVcKgYBdpmBdDIvZzBp075trUD/HaYZ7OhwKkA5MtB280c9oLYWlhNZ
+         /cq8jc1du594b3WlES+5VlE7KGjDgo5cwszc4c5YxWHSJhm6mbOtbFr/DvttOj91X4cp
+         I3ZQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=Nj53lnk4fc3MbaatlwwJKcXw/y0hzD8iRlSlneQIqK8=;
-        b=zUaT1vL3FdHeT5roMux6RTyG/2GjLHm5Lj0xaLW9oiJn2e7Lk2tSbP2qEr6n0iQ6gX
-         EjV7egJAOb8OkQ+EP0KyT6LJ15DvfwtcizbT5/se+axNobel7KUaxlMTqD/NYw3XNX1R
-         D8/2qY9F+TOqLmvfQ7mdb8+DFE/ygGF0SAFs1w2lJgj95qLT5j2jWv8kAqctydHN7Pwr
-         P7BzdLJG5dYNfT/QmVuSvy9Ar1W7aDLdYARrdJkUfUdYe4rJs0GAG5jU5Mosv0G4m1ml
-         qeWSFNqvMlbSW3straAkd3k+f9ea+TgKD4rjIWWLGAnbdW7JHalvIO+pJpE/q0S6ARMn
-         aZzw==
+        bh=+T44u5bIU/P3avjmDcSMpYAg984E4STk4hP/54qFw6c=;
+        b=WsFyV5I6i8ZVy01BDtyejWCJQl8KPsoit/wgFDe9nmFcgeLrvFvucU+drpQXexADml
+         VMTzja3JxPWFaJmyqT7L+f/xPcz5K524sk/54X4MfrmCjKMBR5Q596arB9C4rayiduY8
+         tSROhsGvzbVidnUwBo6daaBJuwrjTFcRqPHyo1I/NhKzrfJULWK5S7MGlkL3MoTU7mVD
+         yyihImJkp2RguBLUempC2twVlClsbsABeSBcSMPdv4G5jwX9qPVhZBM1u/QiTBJpFG+T
+         QxhDi++tq+codmM7l86W6mMDFmgS+LHZzemfzEmuQ8Q+ahW3YwhB16PH3sDHnfvLhyCU
+         z/Kg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=SA2lh+AA;
+       dkim=pass header.i=@kernel.org header.s=default header.b=gpjuknid;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id q13si13149860pff.3.2019.03.27.11.11.10
+        by mx.google.com with ESMTPS id y10si19329217pll.142.2019.03.27.11.11.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Mar 2019 11:11:11 -0700 (PDT)
+        Wed, 27 Mar 2019 11:11:14 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=SA2lh+AA;
+       dkim=pass header.i=@kernel.org header.s=default header.b=gpjuknid;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 9DFA7217F5;
-	Wed, 27 Mar 2019 18:11:09 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 4331621741;
+	Wed, 27 Mar 2019 18:11:12 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1553710270;
-	bh=Mh/4AwY9a0OWVofv47T5bGj6Q2yFFjAdYT4sKx0s80w=;
+	s=default; t=1553710273;
+	bh=jjyy72O1VbcZ/3O4FpFKkZSa8zUDlWIVltcMCUYuvQw=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=SA2lh+AAUVQkL1+HzlZZifq6G7DmYcdtg3FFhWcZXK2VIzXdmEe3DWEWNinc+94Mv
-	 oOgcj4eZrKdGUMEyDe5V/BKJ8NS9seMg8WgJh7rBuBC7F3+eT7Fv6J3iKThsmkzYCg
-	 ma206JbQDKh6bI4vQ5eg1ORJpFo7Lv+a4+D1UOfg=
+	b=gpjuknidbSXJc9S5Aw5EaotPfirqykXmQx6JegXQ4wSgYuDIo9l6/16f9tFTQGmNu
+	 vNhKksITohIjoPkg979h5oddZl9aNmgcPzEAfRqjIR8sRwzpBkRZkWgxTDHAXdcH4R
+	 zIOAgvJzdyfwqim2TkPpNUBsQXOrw+J3uCAZztZc=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>,
+Cc: Vlastimil Babka <vbabka@suse.cz>,
+	Alexander Potapenko <glider@google.com>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Michal Hocko <mhocko@suse.com>,
 	David Rientjes <rientjes@google.com>,
-	Kirill Tkhai <ktkhai@virtuozzo.com>,
+	Yisheng Xie <xieyisheng1@huawei.com>,
+	zhong jiang <zhongjiang@huawei.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
-	cgroups@vger.kernel.org,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.19 026/192] memcg: killed threads should not invoke memcg OOM killer
-Date: Wed, 27 Mar 2019 14:07:38 -0400
-Message-Id: <20190327181025.13507-26-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.19 027/192] mm, mempolicy: fix uninit memory access
+Date: Wed, 27 Mar 2019 14:07:39 -0400
+Message-Id: <20190327181025.13507-27-sashal@kernel.org>
 X-Mailer: git-send-email 2.19.1
 In-Reply-To: <20190327181025.13507-1-sashal@kernel.org>
 References: <20190327181025.13507-1-sashal@kernel.org>
@@ -119,97 +124,95 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+From: Vlastimil Babka <vbabka@suse.cz>
 
-[ Upstream commit 7775face207922ea62a4e96b9cd45abfdc7b9840 ]
+[ Upstream commit 2e25644e8da4ed3a27e7b8315aaae74660be72dc ]
 
-If a memory cgroup contains a single process with many threads
-(including different process group sharing the mm) then it is possible
-to trigger a race when the oom killer complains that there are no oom
-elible tasks and complain into the log which is both annoying and
-confusing because there is no actual problem.  The race looks as
-follows:
+Syzbot with KMSAN reports (excerpt):
 
-P1				oom_reaper		P2
-try_charge						try_charge
-  mem_cgroup_out_of_memory
-    mutex_lock(oom_lock)
-      out_of_memory
-        oom_kill_process(P1,P2)
-         wake_oom_reaper
-    mutex_unlock(oom_lock)
-    				oom_reap_task
-							  mutex_lock(oom_lock)
-							    select_bad_process # no victim
+==================================================================
+BUG: KMSAN: uninit-value in mpol_rebind_policy mm/mempolicy.c:353 [inline]
+BUG: KMSAN: uninit-value in mpol_rebind_mm+0x249/0x370 mm/mempolicy.c:384
+CPU: 1 PID: 17420 Comm: syz-executor4 Not tainted 4.20.0-rc7+ #15
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+Google 01/01/2011
+Call Trace:
+  __dump_stack lib/dump_stack.c:77 [inline]
+  dump_stack+0x173/0x1d0 lib/dump_stack.c:113
+  kmsan_report+0x12e/0x2a0 mm/kmsan/kmsan.c:613
+  __msan_warning+0x82/0xf0 mm/kmsan/kmsan_instr.c:295
+  mpol_rebind_policy mm/mempolicy.c:353 [inline]
+  mpol_rebind_mm+0x249/0x370 mm/mempolicy.c:384
+  update_tasks_nodemask+0x608/0xca0 kernel/cgroup/cpuset.c:1120
+  update_nodemasks_hier kernel/cgroup/cpuset.c:1185 [inline]
+  update_nodemask kernel/cgroup/cpuset.c:1253 [inline]
+  cpuset_write_resmask+0x2a98/0x34b0 kernel/cgroup/cpuset.c:1728
 
-The problem is more visible with many threads.
+...
 
-Fix this by checking for fatal_signal_pending from
-mem_cgroup_out_of_memory when the oom_lock is already held.
+Uninit was created at:
+  kmsan_save_stack_with_flags mm/kmsan/kmsan.c:204 [inline]
+  kmsan_internal_poison_shadow+0x92/0x150 mm/kmsan/kmsan.c:158
+  kmsan_kmalloc+0xa6/0x130 mm/kmsan/kmsan_hooks.c:176
+  kmem_cache_alloc+0x572/0xb90 mm/slub.c:2777
+  mpol_new mm/mempolicy.c:276 [inline]
+  do_mbind mm/mempolicy.c:1180 [inline]
+  kernel_mbind+0x8a7/0x31a0 mm/mempolicy.c:1347
+  __do_sys_mbind mm/mempolicy.c:1354 [inline]
 
-The oom bypass is safe because we do the same early in the try_charge
-path already.  The situation migh have changed in the mean time.  It
-should be safe to check for fatal_signal_pending and tsk_is_oom_victim
-but for a better code readability abstract the current charge bypass
-condition into should_force_charge and reuse it from that path.  "
+As it's difficult to report where exactly the uninit value resides in
+the mempolicy object, we have to guess a bit.  mm/mempolicy.c:353
+contains this part of mpol_rebind_policy():
 
-Link: http://lkml.kernel.org/r/01370f70-e1f6-ebe4-b95e-0df21a0bc15e@i-love.sakura.ne.jp
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+        if (!mpol_store_user_nodemask(pol) &&
+            nodes_equal(pol->w.cpuset_mems_allowed, *newmask))
+
+"mpol_store_user_nodemask(pol)" is testing pol->flags, which I couldn't
+ever see being uninitialized after leaving mpol_new().  So I'll guess
+it's actually about accessing pol->w.cpuset_mems_allowed on line 354,
+but still part of statement starting on line 353.
+
+For w.cpuset_mems_allowed to be not initialized, and the nodes_equal()
+reachable for a mempolicy where mpol_set_nodemask() is called in
+do_mbind(), it seems the only possibility is a MPOL_PREFERRED policy
+with empty set of nodes, i.e.  MPOL_LOCAL equivalent, with MPOL_F_LOCAL
+flag.  Let's exclude such policies from the nodes_equal() check.  Note
+the uninit access should be benign anyway, as rebinding this kind of
+policy is always a no-op.  Therefore no actual need for stable
+inclusion.
+
+Link: http://lkml.kernel.org/r/a71997c3-e8ae-a787-d5ce-3db05768b27c@suse.cz
+Link: http://lkml.kernel.org/r/73da3e9c-cc84-509e-17d9-0c434bb9967d@suse.cz
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Reported-by: syzbot+b19c2dc2c990ea657a71@syzkaller.appspotmail.com
+Cc: Alexander Potapenko <glider@google.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Michal Hocko <mhocko@suse.com>
 Cc: David Rientjes <rientjes@google.com>
-Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: Yisheng Xie <xieyisheng1@huawei.com>
+Cc: zhong jiang <zhongjiang@huawei.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/memcontrol.c | 19 ++++++++++++++-----
- 1 file changed, 14 insertions(+), 5 deletions(-)
+ mm/mempolicy.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 9518aefd8cbb..7c712c4565e6 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -248,6 +248,12 @@ enum res_type {
- 	     iter != NULL;				\
- 	     iter = mem_cgroup_iter(NULL, iter, NULL))
- 
-+static inline bool should_force_charge(void)
-+{
-+	return tsk_is_oom_victim(current) || fatal_signal_pending(current) ||
-+		(current->flags & PF_EXITING);
-+}
-+
- /* Some nice accessors for the vmpressure. */
- struct vmpressure *memcg_to_vmpressure(struct mem_cgroup *memcg)
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 89d4439516f6..c716ba52fb9e 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -350,7 +350,7 @@ static void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask)
  {
-@@ -1382,8 +1388,13 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	};
- 	bool ret;
+ 	if (!pol)
+ 		return;
+-	if (!mpol_store_user_nodemask(pol) &&
++	if (!mpol_store_user_nodemask(pol) && !(pol->flags & MPOL_F_LOCAL) &&
+ 	    nodes_equal(pol->w.cpuset_mems_allowed, *newmask))
+ 		return;
  
--	mutex_lock(&oom_lock);
--	ret = out_of_memory(&oc);
-+	if (mutex_lock_killable(&oom_lock))
-+		return true;
-+	/*
-+	 * A few threads which were not waiting at mutex_lock_killable() can
-+	 * fail to bail out. Therefore, check again after holding oom_lock.
-+	 */
-+	ret = should_force_charge() || out_of_memory(&oc);
- 	mutex_unlock(&oom_lock);
- 	return ret;
- }
-@@ -2200,9 +2211,7 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	 * bypass the last charges so that they can exit quickly and
- 	 * free their memory.
- 	 */
--	if (unlikely(tsk_is_oom_victim(current) ||
--		     fatal_signal_pending(current) ||
--		     current->flags & PF_EXITING))
-+	if (unlikely(should_force_charge()))
- 		goto force;
- 
- 	/*
 -- 
 2.19.1
 
