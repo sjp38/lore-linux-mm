@@ -2,172 +2,171 @@ Return-Path: <SRS0=JxSR=R6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DD2BCC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 10:49:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A850C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 10:56:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 67EEF20811
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 10:49:10 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="W4Df7r2y"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 67EEF20811
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id EF98320651
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 10:56:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EF98320651
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=profihost.ag
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C9A246B0003; Wed, 27 Mar 2019 06:49:07 -0400 (EDT)
+	id 8755E6B0003; Wed, 27 Mar 2019 06:56:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C4B546B0006; Wed, 27 Mar 2019 06:49:07 -0400 (EDT)
+	id 825736B0006; Wed, 27 Mar 2019 06:56:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B37D86B0007; Wed, 27 Mar 2019 06:49:07 -0400 (EDT)
+	id 714676B0007; Wed, 27 Mar 2019 06:56:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 957526B0003
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 06:49:07 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id v123so23037429ywf.16
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 03:49:07 -0700 (PDT)
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 258936B0003
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 06:56:16 -0400 (EDT)
+Received: by mail-wm1-f69.google.com with SMTP id t16so3473734wmi.5
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 03:56:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=SmLSNYZJIL19h/WzSX3CugM2fcl+DeXJ38qk+ETQLPE=;
-        b=TaSeYbpZhqFyX4Tpr/cQ0NKpPxRf2qLs4mTZYJnlma9Kjm4XknfyleO+qquD/znLML
-         KENHtM09LmRFVNE4qGHlYhRJZMjM65+MKp5zKvRhU+urZW//yqtD9OMbo+b9+XyYtkvt
-         bMpRPlSQ8SZFOCMMFE334cOS59v3r3QpS9ybar+F9qbV8PT5QBp00ydaBbnbcmOAlhgw
-         kcBdkWj1sd/jcyOjobeYNF/XnWln0H4E6zt0phL1CfOHPpHYDPSSNhuZOZLxNVvYBiTP
-         RfPu3+XfWXQg4ifJ7oF+CFq8T7lYN7BNmw7yYYYuDRdm3dCqAgGXHSNyO7SrmAx5DnKn
-         HlFg==
-X-Gm-Message-State: APjAAAVddyiV8Ajd1l5gCcRHiPzLpZhSsUGkQUv08o4Qlay7pT/F1Khd
-	PgVQEM0cvk1wy7qhZoaijQwtSM5so1kheSOqMIEIzgfMWovzLwAOOkkT1nRKKPkpIyf6OSQJgkU
-	7WO+fbEnYnL3dgHc0kFFsVUxzq5nAKuuMQ22xKCG8Fw/0cwdrurZawb0pNmJsZ9lPTA==
-X-Received: by 2002:a25:870a:: with SMTP id a10mr28935014ybl.339.1553683747260;
-        Wed, 27 Mar 2019 03:49:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyGzS/66Do41qq8kRpM7cQkhwGOppE0Zgz4bsAS2q6xuKOpzyCOHe5G91hWkxpbdbkp4Plx
-X-Received: by 2002:a25:870a:: with SMTP id a10mr28934991ybl.339.1553683746723;
-        Wed, 27 Mar 2019 03:49:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553683746; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:to:from
+         :subject:cc:message-id:date:user-agent:mime-version:content-language
+         :content-transfer-encoding;
+        bh=/0g7oChqljqKuezSInItVZ2Rw4PQjcjEqmGfGEwZnTY=;
+        b=qYJSl5xTdhPJmuDFFJbIQsL5pm2GlhWDF1ThgcB5Oc5pLXjo/2kdk+GxMN5NlTFEFv
+         TokUy3+cPhkV4zNP6lpnt99idWC6r8IyKqLXipU9IUFGSZYv/TSOdCpDtyrjIi07jNhp
+         T9Pu1XQ9Y+WvpYFSTOyCt5vHbb/qBr+bA8CNK5b3myVrhJuc3B7U5NVRQ7Pks5zhjHih
+         +ViHmieHkJRCFDdqErHZn+kvKyMzSd7TEUq3lfl9JO277P8h9AqM23LQYGZUwuN/T0fK
+         QR4jTbL5k0ggSyq33NfnysP2jD0xIl5Teh3e95grfms8XbzQffxAYzYjoEwPZlOjWk7+
+         I9bw==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
+X-Gm-Message-State: APjAAAXTn9autxTKVb456pqSuAhYXy41CxgJFT1Rn16k7pdb4hHrCNhN
+	6H5N2rm6+mFnQyfMPNSbdyIrre9nF554OMhAy2E9W9zjBs8TGq20cQBaUPw2L9JbXWpb+J7t76A
+	toH8Bx/bszlFvU7oBMLOYu87A139CUtve2u/imtlb5I3bneqV61wa4fzvo16lhSg=
+X-Received: by 2002:a1c:23cc:: with SMTP id j195mr12671277wmj.74.1553684175573;
+        Wed, 27 Mar 2019 03:56:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzoMOP0d9S6SGvZGEVUsr9qPfbl/MX9CPPewgAni/aIPhqforH7rSfYB2KZpN5tcDRwoZfX
+X-Received: by 2002:a1c:23cc:: with SMTP id j195mr12671231wmj.74.1553684174626;
+        Wed, 27 Mar 2019 03:56:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553684174; cv=none;
         d=google.com; s=arc-20160816;
-        b=jz6S5Y+Q85xeNWQI1bjc/9UREFYbbP41y5ub5wmfWjWcSKrxGPOqHWYkF3emNrkCkI
-         2y3M/3+qwa6xJd4Mg3fc29oe9br61FplgQ7oXtgUC+n3GPqGtuZJ80qv7DrA/9VB3Hco
-         SEXaSpHHAMyRDt4/hjlhva8xazLMb+yCcfChthp+puxkR9GtBZbKAfUorah0EVhfw7Y7
-         RF5HRqmyf/H3H4ojzAVfKN3/OKnAf3FnIRT+Ypdn8upMB21i3o3+lxLJOXT3Vdc4ZIdp
-         odXQy641Xk1n7Jn8jYXrToI5e22Y5XKnYfVmoORQvk+wudpAV/25x3P4vRJGRiZ/GDjG
-         Yz3w==
+        b=NuwV0QW+qchciMLK7zPCiNPQhJsag9b49I4vdGCd2Id4OPS4WeH+u/dHYtKngEdu/A
+         zGDJDg3y8q9g5DAMdrrkYb0VaeLnKrxc4B1/FtB3K1zI2ZgAP35ca9yYZaZbq09JuC5D
+         z105lCjaijJvgHjYexHg6QMiriYF1fOjWgaHl53dzOtvMCMQdKKxlyt8OgUW1iXFos+N
+         ppeabfseKAzJO5S2+LjHhv6D/gZbhlkRFeFGukdzLIkIjnnxRBUAgJ8EH12kmuMvfFvJ
+         CUwaWMzQGwLriSo774WEAIV2MKxqZd3kuSlE/e9Cj2NNPqOlmLUKaL2gpSXZEVXhqj0F
+         vd9w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=SmLSNYZJIL19h/WzSX3CugM2fcl+DeXJ38qk+ETQLPE=;
-        b=l1w3Y3Jx3o5OMpM8ublkDiOamqio0xTsrpN+Qvkb8JY6hCnNK+Xo/1qlKn11vik2/L
-         1516kYbCd2SUmsugev3RyeYz0RjxprCm4cyNlbdIa/ycCrnWR6HVohaVFlx07nKuh4OL
-         Ik5qsRdF0OBdsfOJCNgD8Gk0D+NYsTxKMwbZ1TDRWzlCWLjAHZ8NHXk4RBz0fHNbvNNa
-         ABMgYkPFTk4V11sI3zTbF/ag1Nb113vVByGFkHyOSgDZhBH5r7aDf51/pPiSKeUk2hDA
-         /OrOkgzji1ADVN5EBqlliH0JSMDmY776D7P5JzbnNPMDdh9UDrX/imU1mCTUjNZWt8FD
-         4gXQ==
+        h=content-transfer-encoding:content-language:mime-version:user-agent
+         :date:message-id:cc:subject:from:to;
+        bh=/0g7oChqljqKuezSInItVZ2Rw4PQjcjEqmGfGEwZnTY=;
+        b=J6R7vErsxaheQp4HdAMCeVC/J2PaHbkAdi2tIe1vd9l3OLj5E9fYQjz4H/fef1BpSg
+         EW2xndjOA1qqeTxgX6VS4rGa2053iCvBHllYL7ioRlOWSE0OccO02blhyU61tW2Va8SD
+         t9yqYBCCYaDOnUIdmrP0YFwbiLNxO3FzpGfv0BnnIArizBRoD+FzKP78pczDGljL9LZw
+         GoRbm0Nd2adeJyMsXWolDWd3l+pFLn4hkoZUkjnSMA6+UMvUuXBtI98bNCOlspDtll6y
+         VWqdUav5FL+7RRME5j6AFLaG5VSMNUhZ6St+8QMZNnQOwqPgeTI2gTPh6OrwDDk+ZaM9
+         HzEA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=W4Df7r2y;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id 204si9352512ywj.98.2019.03.27.03.49.06
+       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
+Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de. [178.250.10.56])
+        by mx.google.com with ESMTPS id u20si12776412wmc.109.2019.03.27.03.56.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Mar 2019 03:49:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 27 Mar 2019 03:56:14 -0700 (PDT)
+Received-SPF: neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) client-ip=178.250.10.56;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=W4Df7r2y;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x2RAhs5O075129;
-	Wed, 27 Mar 2019 10:48:49 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
- mime-version : subject : from : in-reply-to : date : cc :
- content-transfer-encoding : message-id : references : to;
- s=corp-2018-07-02; bh=SmLSNYZJIL19h/WzSX3CugM2fcl+DeXJ38qk+ETQLPE=;
- b=W4Df7r2yWFC7z25RFrRE+EleO2Mo3CQtRyUUgshFJx426p2KS4i6Ipj4Qt/kY2Ead3fl
- ZYbeurhT48qUHyEEeoaeiEIOI7oZseOc7Az6Jvt22E1m8hWOAXWbUVBOdj1HzGdec57D
- xfW8Rq5T/Qj5IRnWWk8xCkrWdc+2Y+U4xVF7UnrDs4+PmPUC2a/7HZ6tmSExaRs5jttJ
- 2PcIfwKCuNciutdjbCAe+w//yRq8fvj3Woz1uv5baaOPzpogv3Alb8AnkteeqK1v1zOP
- Rxq4+P+J9kKMk/8ViTvKNRTBQE7CzEUAKj13xuN+eitI7QTrv5GQThL2UIxNfYenEpoG Kg== 
-Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by userp2120.oracle.com with ESMTP id 2re6djft26-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 27 Mar 2019 10:48:49 +0000
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x2RAmlpt014029
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 27 Mar 2019 10:48:48 GMT
-Received: from abhmp0008.oracle.com (abhmp0008.oracle.com [141.146.116.14])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x2RAmh5B009536;
-	Wed, 27 Mar 2019 10:48:43 GMT
-Received: from [192.168.0.110] (/73.243.10.6)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 27 Mar 2019 03:48:43 -0700
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.8\))
-Subject: Re: page cache: Store only head pages in i_pages
-From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <20190324030422.GE10344@bombadil.infradead.org>
-Date: Wed, 27 Mar 2019 04:48:42 -0600
-Cc: Qian Cai <cai@lca.pw>, Huang Ying <ying.huang@intel.com>,
-        linux-mm@kvack.org
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <D2A51D2E-81A5-478A-9AF7-C08F85C5C874@oracle.com>
-References: <1553285568.26196.24.camel@lca.pw>
- <20190323033852.GC10344@bombadil.infradead.org>
- <f26c4cce-5f71-5235-8980-86d8fcd69ce6@lca.pw>
- <20190324020614.GD10344@bombadil.infradead.org>
- <897cfdda-7686-3794-571a-ecb8b9f6101f@lca.pw>
- <20190324030422.GE10344@bombadil.infradead.org>
-To: Matthew Wilcox <willy@infradead.org>
-X-Mailer: Apple Mail (2.3445.104.8)
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9207 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=27 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=824 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1903270076
+       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
+Received: (qmail 16389 invoked from network); 27 Mar 2019 11:56:14 +0100
+X-Fcrdns: No
+Received: from phoffice.de-nserver.de (HELO [10.11.11.165]) (185.39.223.5)
+  (smtp-auth username hostmaster@profihost.com, mechanism plain)
+  by cloud1-vm154.de-nserver.de (qpsmtpd/0.92) with (ECDHE-RSA-AES256-GCM-SHA384 encrypted) ESMTPSA; Wed, 27 Mar 2019 11:56:14 +0100
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+Subject: debug linux kernel memory management / pressure
+Cc: l.roehrs@profihost.ag,
+ Daniel Aberger - Profihost AG <d.aberger@profihost.ag>,
+ "n.fahldieck@profihost.ag" <n.fahldieck@profihost.ag>
+Message-ID: <36329138-4a6f-9560-b36c-02dc528a8e12@profihost.ag>
+Date: Wed, 27 Mar 2019 11:56:13 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
+X-User-Auth: Auth by hostmaster@profihost.com through 185.39.223.5
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hello list,
 
+i hope this is the right place to ask. If not i would be happy to point
+me to something else.
 
-> On Mar 23, 2019, at 9:04 PM, Matthew Wilcox <willy@infradead.org> =
-wrote:
->=20
->=20
-> static inline struct page *find_subpage(struct page *page, pgoff_t =
-offset)
-> {
-> +       unsigned long index =3D page_index(page);
-> +
->        VM_BUG_ON_PAGE(PageTail(page), page);
-> -       VM_BUG_ON_PAGE(page->index > offset, page);
-> -       VM_BUG_ON_PAGE(page->index + (1 << compound_order(page)) <=3D =
-offset,
-> -                       page);
-> -       return page - page->index + offset;
-> +       VM_BUG_ON_PAGE(index > offset, page);
-> +       VM_BUG_ON_PAGE(index + (1 << compound_order(page)) <=3D =
-offset, page);
-> +       return page - index + offset;
-> }
->=20
->=20
->> [   56.915812] page dumped because: VM_BUG_ON_PAGE(index + =
-compound_order(page)
->> <=3D offset)
->=20
-> Yeah, you were missing the '1 <<' part.
->=20
+I'm seeing the following behaviour on some of our hosts running a SLES
+15 kernel (kernel v4.12 as it's base) but i don't think it's related to
+the kernel.
 
-Is a V5 patch coming incorporating these?=
+At some "random" interval - mostly 3-6 weeks of uptime. Suddenly mem
+pressure rises and the linux cache (Cached: /proc/meminfo) drops from
+12G to 3G. After that io pressure rises most probably due to low cache.
+But at the same time i've MemFree und MemAvailable at 19-22G.
+
+Why does this happen? How can i debug this situation? I would expect
+that the page / file cache never drops if there is so much free mem.
+
+Thanks a lot for your help.
+
+Greets,
+Stefan
+
+Not sure whether needed but these are the vm. kernel settings:
+vm.admin_reserve_kbytes = 8192
+vm.block_dump = 0
+vm.compact_unevictable_allowed = 1
+vm.dirty_background_bytes = 0
+vm.dirty_background_ratio = 10
+vm.dirty_bytes = 0
+vm.dirty_expire_centisecs = 3000
+vm.dirty_ratio = 20
+vm.dirty_writeback_centisecs = 500
+vm.dirtytime_expire_seconds = 43200
+vm.drop_caches = 0
+vm.extfrag_threshold = 500
+vm.hugepages_treat_as_movable = 0
+vm.hugetlb_shm_group = 0
+vm.laptop_mode = 0
+vm.legacy_va_layout = 0
+vm.lowmem_reserve_ratio = 256   256     32      1
+vm.max_map_count = 65530
+vm.memory_failure_early_kill = 0
+vm.memory_failure_recovery = 1
+vm.min_free_kbytes = 393216
+vm.min_slab_ratio = 5
+vm.min_unmapped_ratio = 1
+vm.mmap_min_addr = 65536
+vm.mmap_rnd_bits = 28
+vm.mmap_rnd_compat_bits = 8
+vm.nr_hugepages = 0
+vm.nr_hugepages_mempolicy = 0
+vm.nr_overcommit_hugepages = 0
+vm.nr_pdflush_threads = 0
+vm.numa_zonelist_order = default
+vm.oom_dump_tasks = 1
+vm.oom_kill_allocating_task = 0
+vm.overcommit_kbytes = 0
+vm.overcommit_memory = 0
+vm.overcommit_ratio = 50
+vm.page-cluster = 3
+vm.panic_on_oom = 0
+vm.percpu_pagelist_fraction = 0
+vm.stat_interval = 1
+vm.swappiness = 50
+vm.user_reserve_kbytes = 131072
+vm.vfs_cache_pressure = 100
+vm.watermark_scale_factor = 10
+vm.zone_reclaim_mode = 0
 
