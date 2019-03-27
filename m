@@ -2,125 +2,181 @@ Return-Path: <SRS0=JxSR=R6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.7 required=3.0 tests=FROM_LOCAL_HEX,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 30859C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 20:10:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 21CE6C10F00
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 20:15:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EB52C2087C
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 20:10:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EB52C2087C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
+	by mail.kernel.org (Postfix) with ESMTP id CAE7D2087C
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 20:14:59 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CAE7D2087C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 87C0B6B000E; Wed, 27 Mar 2019 16:10:02 -0400 (EDT)
+	id 6A46B6B0007; Wed, 27 Mar 2019 16:14:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 809096B0010; Wed, 27 Mar 2019 16:10:02 -0400 (EDT)
+	id 653B46B0008; Wed, 27 Mar 2019 16:14:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 67E0A6B0266; Wed, 27 Mar 2019 16:10:02 -0400 (EDT)
+	id 4F6646B000A; Wed, 27 Mar 2019 16:14:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 42E606B000E
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 16:10:02 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id b16so13986077iot.5
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 13:10:02 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 15EE06B0008
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 16:14:59 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id d1so8354327pgk.21
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 13:14:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :date:in-reply-to:message-id:subject:from:to;
-        bh=M9LZ+bMimI4PbDOfuBNIBaRlNMQDprLBDf38mjJfhKc=;
-        b=Uwn9wy7zDnNCMzRRQIulHdK+zmykwhGCfogw7mAEmXbXuh9aBxetNWdOjNzUQG7TJ9
-         Cak4ivTeLHnh72DWAx+LBbXlMJTEXi6qwjTNSIbQUQF6/vtvsZDhbDYJaprTQ50FOKYs
-         tgI7BhTNnrpsbhPRb+TOvZt6SIREBsGGgrjHVxiYg69mejt2z16EmzmEgpsn5burRJhW
-         8jna+bRaI824zhuaD8mrUfNgE1Bn1ms45DnIEJ4Tx7119SEYtecs+GI/cZLIOrD5v60v
-         4IA2dFoQpIj/4q80alj+6JZuobwJ53YVmcMz/mXiW7mOmxvzVl/DwpW0tt+2OOarV8pF
-         E0Rg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3mdibxakbakqwcdoeppivettmh.ksskpiywivgsrxirx.gsq@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3mdibXAkbAKQWcdOEPPIVETTMH.KSSKPIYWIVGSRXIRX.GSQ@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Gm-Message-State: APjAAAXzZoIp/ZZ7j5W0R9B1tFyqzxCy6IVymC6ocS18AhXxDVI9UM2H
-	Uiz1EGdq87vQDxlsVr4zCsKE1nm9ysnewASgaSEnVPWn8sad3T6yETd39ZA6XYYTqYQVVSc1LKE
-	K2LfCE/tcbL+zMq602XdTpRvBBpiKiTqGSJQxqjQikxr9yxp/sLUHyhNah2aVK6g=
-X-Received: by 2002:a6b:5c0f:: with SMTP id z15mr26194907ioh.26.1553717402050;
-        Wed, 27 Mar 2019 13:10:02 -0700 (PDT)
-X-Received: by 2002:a6b:5c0f:: with SMTP id z15mr26194868ioh.26.1553717401343;
-        Wed, 27 Mar 2019 13:10:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553717401; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=+EZEPYUxPDsuP0Xktcj4iJvYYHdhbw66v9xikxPQOtc=;
+        b=qZzsP96O37llV+8NCQZJfzfClaAcPKYHmXAZhJ7+OrfsUPoVyiabpKvF2QAQzpEkWa
+         jjSDQayUFpwXwWNPFd9ezLl5iL6eRIkcpJHLjQH3RlgzQYk7usR9o68Ws1ntiSQ6MeWE
+         WFQ50c7CEHcSJh0jSmu1MwNpDuQadjJC9Z7xvXzYvP+0Yo9ZdH9qo657EozhElI3lB0k
+         2QtYZG4JLMxJdoyBSwP8aCsTLIP1WbuGVzTLNrR7FYJR4HuQF9haI3hzEE5109BuVlRZ
+         AjQp2yMOjcOmsIMimxMc9n0Dva9vQYKZC1ujNdCRrAVtQEVyRbt43hpucjrgh++6CwDQ
+         Sapg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAX4b65sAlh9tI/mjNTdiyGdUkOplyS4al1hNTRmN/GWp6ic0FXm
+	IUEaC5SzHRfINlq7sN4F4QT3pBDWF23q6mkXeb9eJ/j3ciGtu/RYbdU94ttyvBYno9cjVMVXdlu
+	rsSRVmKs2nqD3Y9gphT2LyImiETCNyuYhTLGY8mdl3jwAs0XSRpKjGYTnEZZILHyT/A==
+X-Received: by 2002:a63:114d:: with SMTP id 13mr14814408pgr.216.1553717698587;
+        Wed, 27 Mar 2019 13:14:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyhrxt5xMNUwyPxocxiZiMLi48Ko1icnQT3Pao+x6StK/z9IlOXdxm4nvNPF3JxksDPmCz6
+X-Received: by 2002:a63:114d:: with SMTP id 13mr14814357pgr.216.1553717697772;
+        Wed, 27 Mar 2019 13:14:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553717697; cv=none;
         d=google.com; s=arc-20160816;
-        b=ujj4kA0Ltmz1ghJlKebeOlwYOuRT0VkWaUrIYVICIsB7E4bTNit/enVHvtqIAs3gA8
-         CFMEdXO9MF0RvAZwXUWjR6x+hBt6LbNX0Uw/jvXLl21P8NGJ+FIv96xuLtHNqDeLpnNZ
-         z+PciZVC8XAPiAbLROuVmzgJnvGcv9MquJrqE70l0S1tluBIGAdBnBhXSCS49HmcVvZK
-         HYd3yk95FZ8B4urJow5GHtUlPd4qlcX6rDNYeIImrL5kXYmOhOUClWrdWhQhz1MAnWIa
-         wUU6cSYTAbPPw4KWDoB1ALKV8M8u9wtWJ5D+vCa1tjiUvW+Ul3WOXTGXOjF/hF4V8qFv
-         6yYA==
+        b=YWWT1yOmInmFmMj4A+oR3mMHYw6zFpmsJOwL7qUrUFKlvf48vtHZsB4LhtPFuPPA1H
+         cwaKtNsY6KEq1Gh17qkjIRRcrFFyb2GTiGar58vdMT4URzPmSUzFoN71WT6e91O+cbh2
+         BOFgPK8CfWax7r+A/4Z5IUY6v86p1JYJxdcTbVX1QZmd4WdT5cOjWy8evcZ0+iGhtqeO
+         aO7R+GNp41kAe3ZPRQPcRvoOX2OwdePgNcj3uNfLHGR9mqZwqfNP8Wh5qj3dqmMe0dbD
+         1pZL1M0aCuGhZwAKaI8lCoeMdt9bHFNK5qjsHdXObJodfN7VzPbPFvzg/NiC3xpaZHbw
+         WglQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:from:subject:message-id:in-reply-to:date:mime-version;
-        bh=M9LZ+bMimI4PbDOfuBNIBaRlNMQDprLBDf38mjJfhKc=;
-        b=InYZYn5B2sOJBHoaKhdNzmFutWSjS837BaRpSYnaXdX7GmtUNvDc0H93AlBUss0VUV
-         LVPPrCnjft4Fiyb4wyTyljDkGTuMZ3W9sN2YSfEOT7CAFQwqAJSSoDYwDCJ7VtRHUKTR
-         SJbIOnsOtsQc6Bz//LowSEBOHXeIJTzBZR6zY4S0MFqjCDG83A9wetRJrw8b27eaW6IF
-         KvDcD5WfM0t94bxV/znd39bsQ1V55xf5ssWOsliR4qqXNxqRYEgAJbFsxa6cSu2wPveP
-         kbgHi/PXQRskHqWbruKEFgUS3DQIXD64cfUMBSh4O1fDbOftf54bauwf36DIAEiaAWwg
-         e0Cg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=+EZEPYUxPDsuP0Xktcj4iJvYYHdhbw66v9xikxPQOtc=;
+        b=Qv2K1adAlvwIVQw8kGDCZUHpSGFojIoFVWWzfzLlzS3Te6jm1nNIlUl/uDsalOAQPv
+         Rwv5upWixU7SIydKdwKF2InYy1umhZKHYaKfrZp0rmkxPW/1/GnA6c2qBZ6cuCPPLuHi
+         Xx3Ej9jRstyAWJsxNxS90oauXj7W24McDRPT1hzFPVV3KzkzWv6JKF0gvEWdtyc4PAgF
+         QCeUOjstQWzN9d3EJBJQVd01+2lEVOUrsFBKMYllKdAQXshB0eJGBCFieObf3zlpS0mi
+         h78IjEpd3ASPUIi4Hpy2Bd3+FxKFFHvzR8ssBB/2RASXpmjuadZplXb/mFXw8Ra0w11q
+         ob5Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of 3mdibxakbakqwcdoeppivettmh.ksskpiywivgsrxirx.gsq@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3mdibXAkbAKQWcdOEPPIVETTMH.KSSKPIYWIVGSRXIRX.GSQ@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id y101sor2005241ita.6.2019.03.27.13.10.01
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id u26si14713246pfh.15.2019.03.27.13.14.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 27 Mar 2019 13:10:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3mdibxakbakqwcdoeppivettmh.ksskpiywivgsrxirx.gsq@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Mar 2019 13:14:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of 3mdibxakbakqwcdoeppivettmh.ksskpiywivgsrxirx.gsq@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3mdibXAkbAKQWcdOEPPIVETTMH.KSSKPIYWIVGSRXIRX.GSQ@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Google-Smtp-Source: APXvYqyDAf4ploxQXeYfC+CFYQgbOcopu+jJ1sXdRok24pSP1DcDyVjvzKS+bGYT+67jK4ftl65L/WTLJk3QASrrZ0jfVnqyzKD5
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga005.jf.intel.com ([10.7.209.41])
+  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 27 Mar 2019 13:14:57 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,277,1549958400"; 
+   d="scan'208";a="310937470"
+Received: from ray.jf.intel.com (HELO [10.7.201.126]) ([10.7.201.126])
+  by orsmga005.jf.intel.com with ESMTP; 27 Mar 2019 13:14:56 -0700
+Subject: Re: [RFC PATCH 0/10] Another Approach to Use PMEM as NUMA Node
+To: Yang Shi <yang.shi@linux.alibaba.com>,
+ Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Rik van Riel
+ <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Keith Busch <keith.busch@intel.com>, Fengguang Wu <fengguang.wu@intel.com>,
+ "Du, Fan" <fan.du@intel.com>, "Huang, Ying" <ying.huang@intel.com>,
+ Linux MM <linux-mm@kvack.org>,
+ Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190326135837.GP28406@dhcp22.suse.cz>
+ <43a1a59d-dc4a-6159-2c78-e1faeb6e0e46@linux.alibaba.com>
+ <20190326183731.GV28406@dhcp22.suse.cz>
+ <f08fb981-d129-3357-e93a-a6b233aa9891@linux.alibaba.com>
+ <20190327090100.GD11927@dhcp22.suse.cz>
+ <CAPcyv4heiUbZvP7Ewoy-Hy=-mPrdjCjEuSw+0rwdOUHdjwetxg@mail.gmail.com>
+ <c3690a19-e2a6-7db7-b146-b08aa9b22854@linux.alibaba.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <8ff09d53-1b74-2efb-98b2-ce10eaeffed9@intel.com>
+Date: Wed, 27 Mar 2019 13:14:56 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-X-Received: by 2002:a24:2704:: with SMTP id g4mr1307352ita.36.1553717401059;
- Wed, 27 Mar 2019 13:10:01 -0700 (PDT)
-Date: Wed, 27 Mar 2019 13:10:01 -0700
-In-Reply-To: <00000000000051ee78057cc4d98f@google.com>
-X-Google-Appengine-App-Id: s~syzkaller
-X-Google-Appengine-App-Id-Alias: syzkaller
-Message-ID: <000000000000c58fcf058519059e@google.com>
-Subject: Re: general protection fault in put_pid
-From: syzbot <syzbot+1145ec2e23165570c3ac@syzkaller.appspotmail.com>
-To: akpm@linux-foundation.org, clm@fb.com, dan.carpenter@oracle.com, 
-	dave@stgolabs.net, dhowells@redhat.com, dsterba@suse.com, dvyukov@google.com, 
-	ebiederm@xmission.com, jbacik@fb.com, ktkhai@virtuozzo.com, 
-	ktsanaktsidis@zendesk.com, linux-btrfs@vger.kernel.org, 
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org, manfred@colorfullife.com, 
-	mhocko@suse.com, nborisov@suse.com, penguin-kernel@I-love.SAKURA.ne.jp, 
-	penguin-kernel@i-love.sakura.ne.jp, rppt@linux.vnet.ibm.com, 
-	sfr@canb.auug.org.au, shakeelb@google.com, syzkaller-bugs@googlegroups.com, 
-	vdavydov.dev@gmail.com, willy@infradead.org
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+In-Reply-To: <c3690a19-e2a6-7db7-b146-b08aa9b22854@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-syzbot has bisected this bug to:
+On 3/27/19 11:59 AM, Yang Shi wrote:
+> In real production environment we don't know what kind of applications
+> would end up on PMEM (DRAM may be full, allocation fall back to PMEM)
+> then have unexpected performance degradation. I understand to have
+> mempolicy to choose to avoid it. But, there might be hundreds or
+> thousands of applications running on the machine, it sounds not that
+> feasible to me to have each single application set mempolicy to avoid it.
 
-commit b9b8a41adeff5666b402996020b698504c927353
-Author: Dan Carpenter <dan.carpenter@oracle.com>
-Date:   Mon Aug 20 08:25:33 2018 +0000
+Maybe not manually, but it's entirely possible to automate this.
 
-     btrfs: use after free in btrfs_quota_enable
-
-bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=14155a1f200000
-start commit:   f5d58277 Merge branch 'for-linus' of git://git.kernel.org/..
-git tree:       upstream
-final crash:    https://syzkaller.appspot.com/x/report.txt?x=16155a1f200000
-console output: https://syzkaller.appspot.com/x/log.txt?x=12155a1f200000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=c8970c89a0efbb23
-dashboard link: https://syzkaller.appspot.com/bug?extid=1145ec2e23165570c3ac
-syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=16803afb400000
-
-Reported-by: syzbot+1145ec2e23165570c3ac@syzkaller.appspotmail.com
-Fixes: b9b8a41adeff ("btrfs: use after free in btrfs_quota_enable")
-
-For information about bisection process see: https://goo.gl/tpsmEJ#bisection
+It would be trivial to get help from an orchestrator, or even systemd to
+get apps launched with a particular policy.  Or, even a *shell* that
+launches apps to have a particular policy.
 
