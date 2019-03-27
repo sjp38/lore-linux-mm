@@ -5,168 +5,142 @@ X-Spam-Level:
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A850C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 10:56:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 615BEC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 11:21:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EF98320651
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 10:56:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EF98320651
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=profihost.ag
+	by mail.kernel.org (Postfix) with ESMTP id 2BBF82087C
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 11:21:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2BBF82087C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8755E6B0003; Wed, 27 Mar 2019 06:56:16 -0400 (EDT)
+	id BE4FB6B0003; Wed, 27 Mar 2019 07:21:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 825736B0006; Wed, 27 Mar 2019 06:56:16 -0400 (EDT)
+	id B95166B0006; Wed, 27 Mar 2019 07:21:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 714676B0007; Wed, 27 Mar 2019 06:56:16 -0400 (EDT)
+	id A86A96B0007; Wed, 27 Mar 2019 07:21:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 258936B0003
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 06:56:16 -0400 (EDT)
-Received: by mail-wm1-f69.google.com with SMTP id t16so3473734wmi.5
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 03:56:16 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5749F6B0003
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 07:21:34 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id h27so6521390eda.8
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 04:21:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:to:from
-         :subject:cc:message-id:date:user-agent:mime-version:content-language
-         :content-transfer-encoding;
-        bh=/0g7oChqljqKuezSInItVZ2Rw4PQjcjEqmGfGEwZnTY=;
-        b=qYJSl5xTdhPJmuDFFJbIQsL5pm2GlhWDF1ThgcB5Oc5pLXjo/2kdk+GxMN5NlTFEFv
-         TokUy3+cPhkV4zNP6lpnt99idWC6r8IyKqLXipU9IUFGSZYv/TSOdCpDtyrjIi07jNhp
-         T9Pu1XQ9Y+WvpYFSTOyCt5vHbb/qBr+bA8CNK5b3myVrhJuc3B7U5NVRQ7Pks5zhjHih
-         +ViHmieHkJRCFDdqErHZn+kvKyMzSd7TEUq3lfl9JO277P8h9AqM23LQYGZUwuN/T0fK
-         QR4jTbL5k0ggSyq33NfnysP2jD0xIl5Teh3e95grfms8XbzQffxAYzYjoEwPZlOjWk7+
-         I9bw==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
-X-Gm-Message-State: APjAAAXTn9autxTKVb456pqSuAhYXy41CxgJFT1Rn16k7pdb4hHrCNhN
-	6H5N2rm6+mFnQyfMPNSbdyIrre9nF554OMhAy2E9W9zjBs8TGq20cQBaUPw2L9JbXWpb+J7t76A
-	toH8Bx/bszlFvU7oBMLOYu87A139CUtve2u/imtlb5I3bneqV61wa4fzvo16lhSg=
-X-Received: by 2002:a1c:23cc:: with SMTP id j195mr12671277wmj.74.1553684175573;
-        Wed, 27 Mar 2019 03:56:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzoMOP0d9S6SGvZGEVUsr9qPfbl/MX9CPPewgAni/aIPhqforH7rSfYB2KZpN5tcDRwoZfX
-X-Received: by 2002:a1c:23cc:: with SMTP id j195mr12671231wmj.74.1553684174626;
-        Wed, 27 Mar 2019 03:56:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553684174; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=M9JOBseDHYG3yQbCojyig8s1Tq1vXhZwTRXS/P2ca1Q=;
+        b=kChPTnja6T6+3sj07TliHhhhIhueIR2LkG0y+v5VMuj90jdFfuwIB+rquTGyaW9KAK
+         uGseGRAUew2muXDJbDqjihY7FOa8Ii4w9xkuA3LVZwMjCmhsAtVfgyrtOFuK8ZJZ7DRk
+         yF3jWNYv7dIctYY3pAl0O2V68M9ca8Was32czgpInoihojmT12/Mh09jDQ/GSoJNbU7D
+         4GFK+t2+C5uDbGSznhp9m2SwJCfK2gYmD+8Y+IP+9WM1UuK3Ok1VmxHYXO/lJnVR4wFE
+         XAP8Ujz9rfKQdrs7epVGqdt0QP6dRaX+oDvtpRn9qlXTd1u1+MSH/QhseUmp+LLdT1VU
+         haLw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAWbJwCQ/KUMhd60fmkbjpW8mDdeUEJE3luLZoNGNqgwRlKhChXr
+	xtd5LwhCFL6aAbzfvOj8TZuvtaiosmimSOSuC4LqNaAXTlAr1CC41DZ5883X19PLlOl/+MVs3OL
+	SsIrqYb8m1lSBwnqwGfijeyynCq6BPiZoNWyYpGHDQDCOx78+dcsN37Yi4w1v3jdFOA==
+X-Received: by 2002:a50:8ba6:: with SMTP id m35mr24362235edm.33.1553685693921;
+        Wed, 27 Mar 2019 04:21:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwHWTQ6Qwfv8Ae9cu6wMLx7oZrpjwwaluBzjKCdXzSW9FLebdYOmpeqvJEIAqPmJE4/wOvb
+X-Received: by 2002:a50:8ba6:: with SMTP id m35mr24362185edm.33.1553685693064;
+        Wed, 27 Mar 2019 04:21:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553685693; cv=none;
         d=google.com; s=arc-20160816;
-        b=NuwV0QW+qchciMLK7zPCiNPQhJsag9b49I4vdGCd2Id4OPS4WeH+u/dHYtKngEdu/A
-         zGDJDg3y8q9g5DAMdrrkYb0VaeLnKrxc4B1/FtB3K1zI2ZgAP35ca9yYZaZbq09JuC5D
-         z105lCjaijJvgHjYexHg6QMiriYF1fOjWgaHl53dzOtvMCMQdKKxlyt8OgUW1iXFos+N
-         ppeabfseKAzJO5S2+LjHhv6D/gZbhlkRFeFGukdzLIkIjnnxRBUAgJ8EH12kmuMvfFvJ
-         CUwaWMzQGwLriSo774WEAIV2MKxqZd3kuSlE/e9Cj2NNPqOlmLUKaL2gpSXZEVXhqj0F
-         vd9w==
+        b=j0r5+WGSjupZgeAPzfH3rmYVHYDZ7sxVtAsHm01KHac0nJQVoYnTq/y7sICCKVt1ID
+         7VfUWFNiH+wHJcROooMsHxzANQdHp3xck9w/3Z9ahLxQhkeA8ZTd/ACCyIN4BShNJrqJ
+         Xvwbu6uooGGtZAfzXbwGOf1IH/Dd9iDkp5AT4uInuT0jmcF52aUIPqqRrnqUrfz6/Cra
+         6bqGDZp/I+V7q15ki2ytCLvIgCO4k/W1bCg4ipfKLsBz9g2YLIn97AqedXyDA5wIt+o5
+         yUdVEbtn2aRlei4zR+yc3ZfzwCDCMdzyniTNxaRsqjzI8ptB7BYI9tR3Z7u9h62OXXm6
+         UvfA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:mime-version:user-agent
-         :date:message-id:cc:subject:from:to;
-        bh=/0g7oChqljqKuezSInItVZ2Rw4PQjcjEqmGfGEwZnTY=;
-        b=J6R7vErsxaheQp4HdAMCeVC/J2PaHbkAdi2tIe1vd9l3OLj5E9fYQjz4H/fef1BpSg
-         EW2xndjOA1qqeTxgX6VS4rGa2053iCvBHllYL7ioRlOWSE0OccO02blhyU61tW2Va8SD
-         t9yqYBCCYaDOnUIdmrP0YFwbiLNxO3FzpGfv0BnnIArizBRoD+FzKP78pczDGljL9LZw
-         GoRbm0Nd2adeJyMsXWolDWd3l+pFLn4hkoZUkjnSMA6+UMvUuXBtI98bNCOlspDtll6y
-         VWqdUav5FL+7RRME5j6AFLaG5VSMNUhZ6St+8QMZNnQOwqPgeTI2gTPh6OrwDDk+ZaM9
-         HzEA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=M9JOBseDHYG3yQbCojyig8s1Tq1vXhZwTRXS/P2ca1Q=;
+        b=BU7LNUego7z5Gl9FsrBcXfm5gYBjnPCGrTV4fAbEqKTDuYQWudq+dnRQiJIiavu4sN
+         p5M27H1YO1M7MDZN2gb8O80vp8kTbwTDaXeko5pIQUAOfDd/FpbHsyOcKTW0Zs4eXteH
+         8BPI5+iZ9R3sfSRico8m6VRoIHPKHErtGo6ooMYzO+cH/ooboPL8B7W75hzqh0/jOK/I
+         suqPSwdK4p2ZrNK60sb9vsIYjOQsJnDJFkMMFPuU7oYoBwszrBGqjYzrWx1EbUni1iDz
+         T7ertxlFqnxrHbxmAlX9+vwbIz0LsuixD/iGyloh+81G4EqpfzNzbfU4uKRn8Y3JKT/P
+         9CaA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
-Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de. [178.250.10.56])
-        by mx.google.com with ESMTPS id u20si12776412wmc.109.2019.03.27.03.56.14
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 27 Mar 2019 03:56:14 -0700 (PDT)
-Received-SPF: neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) client-ip=178.250.10.56;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id a6si422138edt.219.2019.03.27.04.21.32
+        for <linux-mm@kvack.org>;
+        Wed, 27 Mar 2019 04:21:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
-Received: (qmail 16389 invoked from network); 27 Mar 2019 11:56:14 +0100
-X-Fcrdns: No
-Received: from phoffice.de-nserver.de (HELO [10.11.11.165]) (185.39.223.5)
-  (smtp-auth username hostmaster@profihost.com, mechanism plain)
-  by cloud1-vm154.de-nserver.de (qpsmtpd/0.92) with (ECDHE-RSA-AES256-GCM-SHA384 encrypted) ESMTPSA; Wed, 27 Mar 2019 11:56:14 +0100
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
-Subject: debug linux kernel memory management / pressure
-Cc: l.roehrs@profihost.ag,
- Daniel Aberger - Profihost AG <d.aberger@profihost.ag>,
- "n.fahldieck@profihost.ag" <n.fahldieck@profihost.ag>
-Message-ID: <36329138-4a6f-9560-b36c-02dc528a8e12@profihost.ag>
-Date: Wed, 27 Mar 2019 11:56:13 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id F305BA78;
+	Wed, 27 Mar 2019 04:21:31 -0700 (PDT)
+Received: from [10.162.40.146] (p8cg001049571a15.blr.arm.com [10.162.40.146])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id A8BD93F557;
+	Wed, 27 Mar 2019 04:21:29 -0700 (PDT)
+Subject: Re: early_memtest() patterns
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>,
+ Dave Hansen <dave.hansen@intel.com>,
+ Vladimir Murzin <vladimir.murzin@arm.com>, Tony Luck <tony.luck@intel.com>,
+ Dan Williams <dan.j.williams@intel.com>
+References: <7da922fb-5254-0d3c-ce2b-13248e37db83@arm.com>
+ <20190326135420.GA23024@rapoport-lnx>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <2f272c22-8453-7637-f744-632e70404e61@arm.com>
+Date: Wed, 27 Mar 2019 16:51:28 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
+In-Reply-To: <20190326135420.GA23024@rapoport-lnx>
 Content-Type: text/plain; charset=utf-8
-Content-Language: de-DE
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-User-Auth: Auth by hostmaster@profihost.com through 185.39.223.5
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello list,
 
-i hope this is the right place to ask. If not i would be happy to point
-me to something else.
 
-I'm seeing the following behaviour on some of our hosts running a SLES
-15 kernel (kernel v4.12 as it's base) but i don't think it's related to
-the kernel.
+On 03/26/2019 07:24 PM, Mike Rapoport wrote:
+> On Tue, Mar 26, 2019 at 01:39:14PM +0530, Anshuman Khandual wrote:
+>> Hello,
+>>
+>> early_memtest() is being executed on many platforms even though they dont enable
+>> CONFIG_MEMTEST by default. Just being curious how the following set of patterns
+>> got decided. Are they just random 64 bit patterns ? Or there is some particular
+>> significance to them in detecting bad memory.
+>>
+>> static u64 patterns[] __initdata = {
+>>         /* The first entry has to be 0 to leave memtest with zeroed memory */
+>>         0,
+>>         0xffffffffffffffffULL,
+>>         0x5555555555555555ULL,
+>>         0xaaaaaaaaaaaaaaaaULL,
+>>         0x1111111111111111ULL,
+>>         0x2222222222222222ULL,
+>>         0x4444444444444444ULL,
+>>         0x8888888888888888ULL,
+>>         0x3333333333333333ULL,
+>>         0x6666666666666666ULL,
+>>         0x9999999999999999ULL,
+>>         0xccccccccccccccccULL,
+>>         0x7777777777777777ULL,
+>>         0xbbbbbbbbbbbbbbbbULL,
+>>         0xddddddddddddddddULL,
+>>         0xeeeeeeeeeeeeeeeeULL,
+>>         0x7a6c7258554e494cULL, /* yeah ;-) */
+>> };
+>>
+>> BTW what about the last one here.
+> It's 'LINUXrlz' ;-)
 
-At some "random" interval - mostly 3-6 weeks of uptime. Suddenly mem
-pressure rises and the linux cache (Cached: /proc/meminfo) drops from
-12G to 3G. After that io pressure rises most probably due to low cache.
-But at the same time i've MemFree und MemAvailable at 19-22G.
-
-Why does this happen? How can i debug this situation? I would expect
-that the page / file cache never drops if there is so much free mem.
-
-Thanks a lot for your help.
-
-Greets,
-Stefan
-
-Not sure whether needed but these are the vm. kernel settings:
-vm.admin_reserve_kbytes = 8192
-vm.block_dump = 0
-vm.compact_unevictable_allowed = 1
-vm.dirty_background_bytes = 0
-vm.dirty_background_ratio = 10
-vm.dirty_bytes = 0
-vm.dirty_expire_centisecs = 3000
-vm.dirty_ratio = 20
-vm.dirty_writeback_centisecs = 500
-vm.dirtytime_expire_seconds = 43200
-vm.drop_caches = 0
-vm.extfrag_threshold = 500
-vm.hugepages_treat_as_movable = 0
-vm.hugetlb_shm_group = 0
-vm.laptop_mode = 0
-vm.legacy_va_layout = 0
-vm.lowmem_reserve_ratio = 256   256     32      1
-vm.max_map_count = 65530
-vm.memory_failure_early_kill = 0
-vm.memory_failure_recovery = 1
-vm.min_free_kbytes = 393216
-vm.min_slab_ratio = 5
-vm.min_unmapped_ratio = 1
-vm.mmap_min_addr = 65536
-vm.mmap_rnd_bits = 28
-vm.mmap_rnd_compat_bits = 8
-vm.nr_hugepages = 0
-vm.nr_hugepages_mempolicy = 0
-vm.nr_overcommit_hugepages = 0
-vm.nr_pdflush_threads = 0
-vm.numa_zonelist_order = default
-vm.oom_dump_tasks = 1
-vm.oom_kill_allocating_task = 0
-vm.overcommit_kbytes = 0
-vm.overcommit_memory = 0
-vm.overcommit_ratio = 50
-vm.page-cluster = 3
-vm.panic_on_oom = 0
-vm.percpu_pagelist_fraction = 0
-vm.stat_interval = 1
-vm.swappiness = 50
-vm.user_reserve_kbytes = 131072
-vm.vfs_cache_pressure = 100
-vm.watermark_scale_factor = 10
-vm.zone_reclaim_mode = 0
+Yeah eventually figured that. Though first 16 patterns switch on/off individual
+bits on a given byte, there does not seem to be any order or pattern to it.
+Never mind, was just curious.
 
