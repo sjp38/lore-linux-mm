@@ -2,190 +2,141 @@ Return-Path: <SRS0=JxSR=R6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C5038C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 20:40:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CC8B5C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 20:41:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7E9B22054F
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 20:40:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7E9B22054F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 810AE2054F
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 20:41:24 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="u+/gcZFO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 810AE2054F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 29C026B0007; Wed, 27 Mar 2019 16:40:14 -0400 (EDT)
+	id 24F276B0007; Wed, 27 Mar 2019 16:41:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 24BF96B0008; Wed, 27 Mar 2019 16:40:14 -0400 (EDT)
+	id 1FBEA6B0008; Wed, 27 Mar 2019 16:41:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 112F76B000A; Wed, 27 Mar 2019 16:40:14 -0400 (EDT)
+	id 1124D6B000A; Wed, 27 Mar 2019 16:41:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CC6946B0007
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 16:40:13 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id i23so14929052pfa.0
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 13:40:13 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DFDCC6B0007
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 16:41:23 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id q12so18197572qtr.3
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 13:41:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=1G96h0P5hqT/VXYyr9nVI0aX7uRGU/uCdlCYoJ7ONkI=;
-        b=Hyb8tQloGJfs+Vh88eGwGOcNU0QAxVETTEjb9MtZm5J5ix2wBnQ72FrY/tRydGA654
-         l4yIlNHi65G1pRlokMBC36gpBK7k9hSdiDjF86ZIeSB7G/BqABdVUYWI4AgJhHXDZ7uT
-         JfkgDfR7Ybq5uaHpmQyoHLueBkCfduc5knTQSnMMgZb/wGN/JHHZQmZZbIibpVnoQPZZ
-         MQrfbMnairAWTA3Yo/pkZG2W9nBPt8+8xX7usASDy6IQ9COoN7v24CN3FIXOsrC4L45w
-         ZrvvnEs3JFElVrV87gAFP3FdUElt9iljb7VQ+AUd4kG5gHYT+i66zV8GLbXSMviYpsM8
-         yZzw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWmNnpq31VLvzy/IxktEXxR/+XzSciyh51PKcyVouI4PjKDHlEG
-	H4JJNFoAdJs1PppmHTkYLxXjHgf5a+6OiNNv2dZz0olwFFrMxxEHFBBB6zyfZJnucFwYpZNnVH8
-	/1RIhkoGayyv6Je/x2PySKFjWASNO4TzejPiDp0Ech9oYBy+GSu0m/VN3tDkZCb6v7g==
-X-Received: by 2002:a63:f218:: with SMTP id v24mr16400997pgh.326.1553719213507;
-        Wed, 27 Mar 2019 13:40:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqygrXdTCj8E+VA1npgjusCgNNnZLwPi8QOObSaXSM+WaXG8J4TkkwYWwh5lZfLc1Jso6/h2
-X-Received: by 2002:a63:f218:: with SMTP id v24mr16400964pgh.326.1553719212906;
-        Wed, 27 Mar 2019 13:40:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553719212; cv=none;
+        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
+         :subject:from:to:cc;
+        bh=d+4bMZ8rHzHoWjvzHcDD/tEn1xANDbLdCbbEdrq508Q=;
+        b=i+ZyqGjPhZrBXxUAweFkk0b8Mn9g5aROg20pi1/2L6T9PojnQ75bK9OtKRqIfKL9N1
+         BxYXYiOZ9mF7Ts/WPX2Iv4AyzRB8NklyOwbWIgmMGLGn1LTFOJ7McZJBl/VsCU6wt+m1
+         bpuMaR1xlrCkKrvvO7jtGUchuwJ9PTKTSd5L76+qH0Pdj66DUqZEu6poZ3pNwE01PGyf
+         lZaIKSL2hY659thF4FiGdFhtQITp6NZFBAO6ZkHUVtxfOLcIYlRHHQL4SRNzJkUaFsjO
+         h+K7PKNNUrqoKT5TApzy/nr5WtgERPBoaAX6mPrlDzoeuOZBV8TwUTRW6Mn6mfPM618n
+         eFwQ==
+X-Gm-Message-State: APjAAAXd6DAF4akw/0Yk89ozu/d9Klla/lYkvYqFnTLWPDT4Py3xZA9y
+	BZ1aOUVgLmVfPN8VkY/ITjc0Yf70SVAyM5tl6yoGz+AbsuZQUop/ub3GM8QyjNbbkkoQn7/4hRs
+	cMdHMsOVU1/qx07MLkiRhi7tX46dCOY0PdbYi+yoIl7fTJHMIczcV8LfYYAkhMKNo1w==
+X-Received: by 2002:a37:6615:: with SMTP id a21mr30060514qkc.64.1553719283643;
+        Wed, 27 Mar 2019 13:41:23 -0700 (PDT)
+X-Received: by 2002:a37:6615:: with SMTP id a21mr30060490qkc.64.1553719283068;
+        Wed, 27 Mar 2019 13:41:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553719283; cv=none;
         d=google.com; s=arc-20160816;
-        b=lEsLLo8SzCRHjt5gxyHySnqQqyhy6rLxdVf5r8Vushq2OalpCYEKEBEWRBvT1zQ+Xb
-         ct3q8EUaKz3xcZQ+2xWCLLSzeco7IYWSka+6RoMevB3xbxvcCy2sQNM7mq1c2eSy21B/
-         uRbVpt3955Rsm9XocHnBi6wuszCuJo32Y40egDax/ZWAN6qfb9yQxwiX/GDw48dKokrA
-         iBHrDwELmFEOjMC6C+Snha9H7yyu2duHvNrtdVYZrtdcS7A/OCcbt9tVKMxA3LPPlNdV
-         R0Fdg5ghAMnaKpJ4VxOI0FGqVivjbu1gRpYHnUXgZ6HtcRw6ftCaCsVj6ZwUm2HF/efn
-         iPAQ==
+        b=vamH9ogYE6UGck3usy69vh3LtowksYNSLVqERezCPFszcAJRKY3WvON8pseHD9WyVG
+         CL0SQ3gtwoOUZzjP/Z2IAyAVNVEwG34GjNJrrtP3EOKoO9B0yWcw5hM4Jnudip4yz8h6
+         PCATQSHqas8gt6STQPuYTJRnQXb+mhlrcOLiYW0RNyCE7hRGPXzDXuppXUEMU02ev1FF
+         MOYq8tVr2QczIC8zxOHIqpEu1Cg5epNTBuoVMOyoishD50LjIEzIdBjuBU9wCs4CcTqC
+         DEq8DAA8h2dZ3+Jaan2kWVerhKo8127pCs2EMkn3EkmkZsaWaAZlFcjsPUfHRAHJ+/l/
+         p5UQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=1G96h0P5hqT/VXYyr9nVI0aX7uRGU/uCdlCYoJ7ONkI=;
-        b=koB4RWEVwSnDwayJhm4cdYpmPxQCw5TYnUqgCgf3bdeuIX84sUC40m5toZQFjK6K0l
-         Y8PrqLuUYfeQhJd4BSbR8rm8EnsHovpNCZtvGYjkhykC+3BmmEph2h0pv2ZjT/k233f/
-         7gTOH66uWV16vF7gvqlYuV1Ir1Kv63ZPWbeE+jeeG9WlhPW3dj48pJ1DN1r7vCZ+cgI1
-         3+KzlCv8UL3DxjyubawDtXhmEb70T+tfBhAFSqp89OhmGapQLTZ3N3rckrCqY+Ounhks
-         vsRptgHKfG3PlLDhVgRp/W5iQ276D9iAEwQ8txYROMVYPgk04VlhzKwRPgmh5FpBzuom
-         5msg==
+        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
+        bh=d+4bMZ8rHzHoWjvzHcDD/tEn1xANDbLdCbbEdrq508Q=;
+        b=Ur/5n1pCHm+9DzBrPJ7361e6JT3klxjUUSXZqwKSN2Q/TZ+SuZnmQDSiGKsun5J4L7
+         PPa7xVy3VKGlJWCcALALaOlQ2rZoI0p1g6/l7njNJBbcpo1beB9sJELiIS17JsLebcgx
+         D1X1lAtRxOnQe5e3JhgHM0BuhLFWXRPQ6PV3MsmMDVkazDwS+ZOaUhm62rzBEsy7lQ4g
+         0SVCd9uvrGdVNJPXpSveLh201voWtmAbhPyAsLxNL5L03cBFjqR4vw7Jaxo5VZsV4dIw
+         iuVzFlzQ7Z35Hmhcv/u9LdbqOgMwCK4+IRINqTL66VSxPEjZtpYgzr4+aj3XGBWHElXc
+         VhCg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id j36si14801338plb.327.2019.03.27.13.40.12
+       dkim=pass header.i=@google.com header.s=20161025 header.b="u+/gcZFO";
+       spf=pass (google.com: domain of 38t-bxaukca0wn00ut11tyr.p1zyv07a-zzx8npx.14t@flex--jannh.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=38t-bXAUKCA0wn00ut11tyr.p1zyv07A-zzx8npx.14t@flex--jannh.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id 3sor19583168qth.42.2019.03.27.13.41.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Mar 2019 13:40:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
+        (Google Transport Security);
+        Wed, 27 Mar 2019 13:41:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 38t-bxaukca0wn00ut11tyr.p1zyv07a-zzx8npx.14t@flex--jannh.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga005.jf.intel.com ([10.7.209.41])
-  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 27 Mar 2019 13:40:09 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,277,1549958400"; 
-   d="scan'208";a="310943635"
-Received: from ray.jf.intel.com (HELO [10.7.201.126]) ([10.7.201.126])
-  by orsmga005.jf.intel.com with ESMTP; 27 Mar 2019 13:40:07 -0700
-Subject: Re: [RFC PATCH 0/10] Another Approach to Use PMEM as NUMA Node
-To: Matthew Wilcox <willy@infradead.org>,
- Dan Williams <dan.j.williams@intel.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Yang Shi <yang.shi@linux.alibaba.com>,
- Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@surriel.com>,
- Johannes Weiner <hannes@cmpxchg.org>,
- Andrew Morton <akpm@linux-foundation.org>,
- Keith Busch <keith.busch@intel.com>, Fengguang Wu <fengguang.wu@intel.com>,
- "Du, Fan" <fan.du@intel.com>, "Huang, Ying" <ying.huang@intel.com>,
- Linux MM <linux-mm@kvack.org>,
- Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190326135837.GP28406@dhcp22.suse.cz>
- <43a1a59d-dc4a-6159-2c78-e1faeb6e0e46@linux.alibaba.com>
- <20190326183731.GV28406@dhcp22.suse.cz>
- <f08fb981-d129-3357-e93a-a6b233aa9891@linux.alibaba.com>
- <20190327090100.GD11927@dhcp22.suse.cz>
- <CAPcyv4heiUbZvP7Ewoy-Hy=-mPrdjCjEuSw+0rwdOUHdjwetxg@mail.gmail.com>
- <20190327203520.GU10344@bombadil.infradead.org>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <7cb4e229-a1a9-e236-f806-926351a917cc@intel.com>
-Date: Wed, 27 Mar 2019 13:40:07 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
-MIME-Version: 1.0
-In-Reply-To: <20190327203520.GU10344@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+       dkim=pass header.i=@google.com header.s=20161025 header.b="u+/gcZFO";
+       spf=pass (google.com: domain of 38t-bxaukca0wn00ut11tyr.p1zyv07a-zzx8npx.14t@flex--jannh.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=38t-bXAUKCA0wn00ut11tyr.p1zyv07A-zzx8npx.14t@flex--jannh.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:message-id:mime-version:subject:from:to:cc;
+        bh=d+4bMZ8rHzHoWjvzHcDD/tEn1xANDbLdCbbEdrq508Q=;
+        b=u+/gcZFOBRAyKJbEKf7DD4d1TebCZNGNPGFRBc1APR6r2d8gLHkPv7OfRxLn9EuhgX
+         TMucWAtP+qQ2EgecTigArAMFMg5LMdiE41SDRnSMXEfqihHW7wqQBg3j+59nhQUaL9MU
+         bKc1joU9KQg3gL+rasSnEbsHQQqCX+KaV8EtzJwjW8LYsdmOtM/033zQsvQvO09wY602
+         8hubny29J6WF06R+7myO6fwzDAxD3OHubGuP/jbgVOAGBLOOzloCk7gNlDsmtoKT5ILA
+         OYK5VonJzeOtV/TH077c25T2SDixr9qw14cXN/+HKZ3lDeJiU43yp1LZBNm7Cvepn+Iw
+         5aOA==
+X-Google-Smtp-Source: APXvYqxr9sciDPMxjao/0JCNJ9Oxnjqdq+XBKJ4UWjQC34cagq02mzGT4V+V4jMPzz0o/xmi+24YP8Gj6A==
+X-Received: by 2002:ac8:22b3:: with SMTP id f48mr1929258qta.38.1553719282754;
+ Wed, 27 Mar 2019 13:41:22 -0700 (PDT)
+Date: Wed, 27 Mar 2019 21:41:17 +0100
+Message-Id: <20190327204117.35215-1-jannh@google.com>
+Mime-Version: 1.0
+X-Mailer: git-send-email 2.21.0.392.gf8f6787159e-goog
+Subject: [PATCH] mm: fix vm_fault_t cast in VM_FAULT_GET_HINDEX()
+From: Jann Horn <jannh@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, jannh@google.com
+Cc: Souptick Joarder <jrdr.linux@gmail.com>, Matthew Wilcox <willy@infradead.org>, 
+	Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, 
+	Rik van Riel <riel@surriel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.001082, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/27/19 1:35 PM, Matthew Wilcox wrote:
-> 
-> pmem1 --- node1 --- node2 --- pmem2
->             |   \ /   |
->             |    X    |
->             |   / \   |
-> pmem3 --- node3 --- node4 --- pmem4
-> 
-> which I could actually see someone building with normal DRAM, and we
-> should probably handle the same way as pmem; for a process running on
-> node3, allocate preferentially from node3, then pmem3, then other nodes,
-> then other pmems.
+Symmetrically to VM_FAULT_SET_HINDEX(), we need a force-cast in
+VM_FAULT_GET_HINDEX() to tell sparse that this is intentional.
 
-That makes sense.  But, it might _also_ make sense to fill up all DRAM
-first before using any pmem.  That could happen if the NUMA interconnect
-is really fast and pmem is really slow.
+Sparse complains about the current code when building a kernel with
+CONFIG_MEMORY_FAILURE:
 
-Basically, with the current patches we are depending on the firmware to
-"nicely" enumerate the topology and we're keeping the behavior that we
-end up with, for now, whatever it might be.
+arch/x86/mm/fault.c:1058:53: warning: restricted vm_fault_t degrades to
+integer
 
-Now, let's sit back and see how nice the firmware is. :)
+Fixes: 3d3539018d2c ("mm: create the new vm_fault_t type")
+Signed-off-by: Jann Horn <jannh@google.com>
+---
+ include/linux/mm_types.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 7eade9132f02..4ef4bbe78a1d 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -671,7 +671,7 @@ enum vm_fault_reason {
+ 
+ /* Encode hstate index for a hwpoisoned large page */
+ #define VM_FAULT_SET_HINDEX(x) ((__force vm_fault_t)((x) << 16))
+-#define VM_FAULT_GET_HINDEX(x) (((x) >> 16) & 0xf)
++#define VM_FAULT_GET_HINDEX(x) (((__force unsigned int)(x) >> 16) & 0xf)
+ 
+ #define VM_FAULT_ERROR (VM_FAULT_OOM | VM_FAULT_SIGBUS |	\
+ 			VM_FAULT_SIGSEGV | VM_FAULT_HWPOISON |	\
+-- 
+2.21.0.392.gf8f6787159e-goog
 
