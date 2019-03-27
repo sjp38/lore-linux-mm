@@ -6,110 +6,104 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D72B1C4360F
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:16:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4C3FCC4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:16:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 96AB22184D
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:16:56 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0D7162147C
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Mar 2019 18:16:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="2qNSng/b"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 96AB22184D
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="riqpW//h"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D7162147C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3515F6B0282; Wed, 27 Mar 2019 14:16:56 -0400 (EDT)
+	id A7DF96B0284; Wed, 27 Mar 2019 14:16:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2D9716B0284; Wed, 27 Mar 2019 14:16:56 -0400 (EDT)
+	id A32986B0286; Wed, 27 Mar 2019 14:16:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 17A026B0285; Wed, 27 Mar 2019 14:16:56 -0400 (EDT)
+	id 887576B0287; Wed, 27 Mar 2019 14:16:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CBB996B0282
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 14:16:55 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id j1so3318222pff.1
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 11:16:55 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4870B6B0284
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 14:16:58 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id s22so4836046plq.1
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 11:16:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=sJjYUUyizNaseNBGfmcN9oxUBkXNEnOhRdrUQ3ESK5k=;
-        b=CVy2xHNd2HRvR1kFjb9PCCFEcYvm/hegk6BoLYSctAL+tZRHQ4FRggcEKx/7exCRZK
-         N9aI7iTTABT/QNm68rT/hgr1SEAdw40mPvKFCDM4UWVfDmT6v8IQBDm/EHk884nfgArD
-         k1h4eA2ZBESMM0f4mCZYsPqPFLmCtXJQHN4JZOkIuWDv1LGVW76NFsdj5pYQfTli1Lwl
-         NrxFSSAN4lXMt6LXpz84CHSK3t6cxYNaFe022CXaoseFx2TVgBwVLqXlYGHbfVmeGIUI
-         chjj+lF02G3fBo+/b4EaAzjIjvTwhWyCGMz2xDMn9p5OYdUf0HCP09+yV6ika2j5XvtL
-         dexg==
-X-Gm-Message-State: APjAAAULR3iDGw6wmSbf9t9obI7+91JQkSlSRnQNirgRwJ5zcZIxx3lY
-	goMtKQRk638i7z2fyn9I6JbzAKrg3zMUpPICmClQLqRTSkNUWM6XqvpoOgjgdbGwpA8f4ucCr+B
-	0nd93iithVs4CmLeRo59gVwWk+xXHCgxJxFUHLuFtZgq16kyKkscNkSQftTX9Od6ylA==
-X-Received: by 2002:a62:484:: with SMTP id 126mr37089200pfe.91.1553710615480;
-        Wed, 27 Mar 2019 11:16:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw3yC+r8fk++Cjbrh9y23H9m+qZX2RCgtA1DUD1bL2B2EHPkSKyan72bE7hoyMLF0jbQZYL
-X-Received: by 2002:a62:484:: with SMTP id 126mr37089157pfe.91.1553710614820;
-        Wed, 27 Mar 2019 11:16:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553710614; cv=none;
+        bh=ymFHFQ6+KBHI40F4Yx5ij4npiLTuJRVJExWU4mhtjsg=;
+        b=Ggf2dpsd5oekVY43Mpx6CB+lQeh8TXOxiDqe1U3XJC0HmFSTr+uiTMxec9vFCpD3bI
+         jWgwyRzBOt3GbsSKCSZRsp52FV7Kf0DYaCf0VvktX07Yw5NiqK7dyj8jfXt+aFdv+0Ol
+         uXX82MU0//fnMsic442gMQHPBy/UhdZT5MvRao4Xw5pTFwXjjfEReoAWf+0Iop1dPVQO
+         +x2NWJFxw5s7mDoXeEv4+ld32HzQFy641JJp0ajkxbmHnRHm4uxdLEkvjV1AiB5EMnk6
+         sz5fFZXyNqUd7kdH1cTf5QEnTl73d5rbMinGJW5fy4K9XcwH3WzZaaA6OZxtVRPLP1tL
+         71eQ==
+X-Gm-Message-State: APjAAAUgOfBGE/IYTvlh2DU6OJLPn8PZ/Wej1l+AWViz3irgr4+HHJvk
+	0SxnGBoygsc62cx2KOkXfeA889Q7Iw4L/cDsOyQcPUUgCgIe/Ujb1vEAPVL9PSyZM9MOtCgrRAu
+	g83BuMOQqDtAPFC0dJ/sCCv2CjlDM5gFJK5/R/Fd4q20+64Y4EKhEY1jiT+vdsoE7JA==
+X-Received: by 2002:a63:3d85:: with SMTP id k127mr20488015pga.152.1553710617952;
+        Wed, 27 Mar 2019 11:16:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwXphpygcPsN8sFPtTV3njfLZMVXG3oG2AVjZcN8FrSqvNO9unmt5k2KGwrgyo43YphL8FI
+X-Received: by 2002:a63:3d85:: with SMTP id k127mr20487942pga.152.1553710617138;
+        Wed, 27 Mar 2019 11:16:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553710617; cv=none;
         d=google.com; s=arc-20160816;
-        b=0HiNbT6K3p8gRgzIk5X9dsMKwN6CU4hVqhlSipkkVuxWyBFYre11ASvAsOorrz0xCm
-         jaEAUozlWYjpTeTjy5vRdd3xlS72MCoBdEeA2RVAFlys1nGRvlZqvuq0bEuxvAVdVtFH
-         gF4sadjz2DDqaQzzAEvSzYwNpTitbnI3Df881nB6uf5b0ofVWqlR7FLmd2/ZONDiJhG0
-         QlmHQ8tOxBtdr5/J8/Dk1e8mlcxTxxnllp7FuoFXsUneVvDGv6LiZafAuA964hDqalQ5
-         QErEBnqR1+K2UsZk+2aBMMBKvWkXIcil0Zr7ZYSQd5nyY+8zJYZsHC/5/xqWCDhZoUwJ
-         dRXQ==
+        b=C6o5qm1NmjyuRFdfzVhSUV8YmI2LCQiDiuskV3ZKrilJ1AjEq0s6mjBegTdD4Cj5Ys
+         QJBp8NcEyH8UQPy3CdWfvFBIaqYSSTtclapTTMsNLP4au5+lzVAHHelmsBfJKpE+/3fI
+         RgLKwjC7p641zuUQZK7y81KYjbNcFKDBJY9mUeCFuc/nqKvlOnq8IeWlwV9467/+T7N/
+         WC8ly0qtURrCdEUym7zuTw38E6avbAwJAIi5iMCdp8tDuq28P0+WtmXk6mmZZo2uMlBA
+         Y3c8EKP/IFfFHzDRtusoJs3RGyDJwASyfAwjOgAcfiIuvRy354EyMpS7Mc6HU4si/XwU
+         +vYw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=sJjYUUyizNaseNBGfmcN9oxUBkXNEnOhRdrUQ3ESK5k=;
-        b=JLaL2zfe3koGF946Rz11sqYbQjiNvyIPr9tDYPJHd47ImPE2MszdXrJhC3tLzLTLS3
-         YlNwWZHkKae/cWZKmdzy0vi0nD6nElJwBY+ZrjkPnH00SX5DWb6iFIuf/MrLm+zIVMAF
-         hWGjDcRZgySrR+HxdCgILUHSDf/uGEpdW0BdOOusPmdSVq+lX+EwDs2PLR4AzMKP5lJc
-         bGixVTOGWUvpVWRVYrScmmIz7i44b5ya7uTjTXpr7E3gRETR4TnHyamG7GJQX1Zuxttz
-         +tDloTpINQK6hq0otoievw624Omb4YCQH9bD4xmlzn58ndJqg4NegEPbl4vlEMfVD6Sn
-         oeOw==
+        bh=ymFHFQ6+KBHI40F4Yx5ij4npiLTuJRVJExWU4mhtjsg=;
+        b=mXGLHPSJJ1B7ljbR1osTitm0BAjUFJqwp8VgNvSPxdycwXfum9AoddimK/zg+4VRVH
+         3Cxbv+fE6nKX9S56ZkB6qtzsvYSw5Ej2KhrJRLxLYLN7ZcUOivqdlFAcA/2u0Kc0NzsC
+         uQhUHiYHpfX1akibvw9lbvy+LUEmEptHxJWGWrGETfUkOZiPbVrpIKeTTipRMYHo3ec0
+         MORcYLUP1ISHDFlJTA1kiolTHTXVyNg+AKeYSYF88nfCpDC8cWcCAZIFAldDBmxTugAz
+         TVybSi1eJ3PnFrkrnPHd8Y6pokDnHQVJgtuf2CWzCXCdAwykeC+NWxZxCvw7r+iWRkvZ
+         au1A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="2qNSng/b";
+       dkim=pass header.i=@kernel.org header.s=default header.b="riqpW//h";
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id p22si3882840pgh.468.2019.03.27.11.16.54
+        by mx.google.com with ESMTPS id d2si21413072pld.110.2019.03.27.11.16.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Mar 2019 11:16:54 -0700 (PDT)
+        Wed, 27 Mar 2019 11:16:57 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="2qNSng/b";
+       dkim=pass header.i=@kernel.org header.s=default header.b="riqpW//h";
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 251F320449;
-	Wed, 27 Mar 2019 18:16:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 071B22082F;
+	Wed, 27 Mar 2019 18:16:55 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1553710614;
-	bh=xhmyjVLWB9/1dhPMm1HxjR32xkWZ8z3CmeWxjGX22oQ=;
+	s=default; t=1553710616;
+	bh=nfxfrFS3OI9LFKtIK0YEsK11tyLuyUhwb0LxDZjNg+U=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=2qNSng/bK00GPrOrfytU/otKJMeYQfcpSAOK1y9C3yh2gHfCTXJzA3QoHvG2d5pF+
-	 LO3yLgIhfMlxNL2a5dygSmIBLh9OtjifJdKsZpUMfhRyiKC2N4URKVJRkZPRxXE9jX
-	 TEVEjQ8Cmyn6oe8NFDCuEZyF2gpfRIzoRRXz3rO0=
+	b=riqpW//h5E2zCEbVlg2AWPSc5mDFj7aoamUlKObjDxsmVs20Me0vu/wPC48xijKY7
+	 tUWT9ZRxAKRgUaGwcI47t1EJ4cHBLPvXzMjXMSRb/lO2mnZIQKofLeNEb0/0lJusvK
+	 nqy5cxxjwQBO6yIhHGJ1i7ydrfFV1+GUtBFNrpss=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Peng Fan <peng.fan@nxp.com>,
-	Laura Abbott <labbott@redhat.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Marek Szyprowski <m.szyprowski@samsung.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
+Cc: Qian Cai <cai@lca.pw>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.14 015/123] mm/cma.c: cma_declare_contiguous: correct err handling
-Date: Wed, 27 Mar 2019 14:14:39 -0400
-Message-Id: <20190327181628.15899-15-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.14 016/123] mm/page_ext.c: fix an imbalance with kmemleak
+Date: Wed, 27 Mar 2019 14:14:40 -0400
+Message-Id: <20190327181628.15899-16-sashal@kernel.org>
 X-Mailer: git-send-email 2.19.1
 In-Reply-To: <20190327181628.15899-1-sashal@kernel.org>
 References: <20190327181628.15899-1-sashal@kernel.org>
@@ -122,59 +116,82 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Peng Fan <peng.fan@nxp.com>
+From: Qian Cai <cai@lca.pw>
 
-[ Upstream commit 0d3bd18a5efd66097ef58622b898d3139790aa9d ]
+[ Upstream commit 0c81585499601acd1d0e1cbf424cabfaee60628c ]
 
-In case cma_init_reserved_mem failed, need to free the memblock
-allocated by memblock_reserve or memblock_alloc_range.
+After offlining a memory block, kmemleak scan will trigger a crash, as
+it encounters a page ext address that has already been freed during
+memory offlining.  At the beginning in alloc_page_ext(), it calls
+kmemleak_alloc(), but it does not call kmemleak_free() in
+free_page_ext().
 
-Quote Catalin's comments:
-  https://lkml.org/lkml/2019/2/26/482
+    BUG: unable to handle kernel paging request at ffff888453d00000
+    PGD 128a01067 P4D 128a01067 PUD 128a04067 PMD 47e09e067 PTE 800ffffbac2ff060
+    Oops: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN PTI
+    CPU: 1 PID: 1594 Comm: bash Not tainted 5.0.0-rc8+ #15
+    Hardware name: HP ProLiant DL180 Gen9/ProLiant DL180 Gen9, BIOS U20 10/25/2017
+    RIP: 0010:scan_block+0xb5/0x290
+    Code: 85 6e 01 00 00 48 b8 00 00 30 f5 81 88 ff ff 48 39 c3 0f 84 5b 01 00 00 48 89 d8 48 c1 e8 03 42 80 3c 20 00 0f 85 87 01 00 00 <4c> 8b 3b e8 f3 0c fa ff 4c 39 3d 0c 6b 4c 01 0f 87 08 01 00 00 4c
+    RSP: 0018:ffff8881ec57f8e0 EFLAGS: 00010082
+    RAX: 0000000000000000 RBX: ffff888453d00000 RCX: ffffffffa61e5a54
+    RDX: 0000000000000000 RSI: 0000000000000008 RDI: ffff888453d00000
+    RBP: ffff8881ec57f920 R08: fffffbfff4ed588d R09: fffffbfff4ed588c
+    R10: fffffbfff4ed588c R11: ffffffffa76ac463 R12: dffffc0000000000
+    R13: ffff888453d00ff9 R14: ffff8881f80cef48 R15: ffff8881f80cef48
+    FS:  00007f6c0e3f8740(0000) GS:ffff8881f7680000(0000) knlGS:0000000000000000
+    CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+    CR2: ffff888453d00000 CR3: 00000001c4244003 CR4: 00000000001606a0
+    Call Trace:
+     scan_gray_list+0x269/0x430
+     kmemleak_scan+0x5a8/0x10f0
+     kmemleak_write+0x541/0x6ca
+     full_proxy_write+0xf8/0x190
+     __vfs_write+0xeb/0x980
+     vfs_write+0x15a/0x4f0
+     ksys_write+0xd2/0x1b0
+     __x64_sys_write+0x73/0xb0
+     do_syscall_64+0xeb/0xaaa
+     entry_SYSCALL_64_after_hwframe+0x44/0xa9
+    RIP: 0033:0x7f6c0dad73b8
+    Code: 89 02 48 c7 c0 ff ff ff ff eb b3 0f 1f 80 00 00 00 00 f3 0f 1e fa 48 8d 05 65 63 2d 00 8b 00 85 c0 75 17 b8 01 00 00 00 0f 05 <48> 3d 00 f0 ff ff 77 58 c3 0f 1f 80 00 00 00 00 41 54 49 89 d4 55
+    RSP: 002b:00007ffd5b863cb8 EFLAGS: 00000246 ORIG_RAX: 0000000000000001
+    RAX: ffffffffffffffda RBX: 0000000000000005 RCX: 00007f6c0dad73b8
+    RDX: 0000000000000005 RSI: 000055a9216e1710 RDI: 0000000000000001
+    RBP: 000055a9216e1710 R08: 000000000000000a R09: 00007ffd5b863840
+    R10: 000000000000000a R11: 0000000000000246 R12: 00007f6c0dda9780
+    R13: 0000000000000005 R14: 00007f6c0dda4740 R15: 0000000000000005
+    Modules linked in: nls_iso8859_1 nls_cp437 vfat fat kvm_intel kvm irqbypass efivars ip_tables x_tables xfs sd_mod ahci libahci igb i2c_algo_bit libata i2c_core dm_mirror dm_region_hash dm_log dm_mod efivarfs
+    CR2: ffff888453d00000
+    ---[ end trace ccf646c7456717c5 ]---
+    Kernel panic - not syncing: Fatal exception
+    Shutting down cpus with NMI
+    Kernel Offset: 0x24c00000 from 0xffffffff81000000 (relocation range:
+    0xffffffff80000000-0xffffffffbfffffff)
+    ---[ end Kernel panic - not syncing: Fatal exception ]---
 
-Kmemleak is supposed to work with the memblock_{alloc,free} pair and it
-ignores the memblock_reserve() as a memblock_alloc() implementation
-detail. It is, however, tolerant to memblock_free() being called on
-a sub-range or just a different range from a previous memblock_alloc().
-So the original patch looks fine to me. FWIW:
-
-Link: http://lkml.kernel.org/r/20190227144631.16708-1-peng.fan@nxp.com
-Signed-off-by: Peng Fan <peng.fan@nxp.com>
+Link: http://lkml.kernel.org/r/20190227173147.75650-1-cai@lca.pw
+Signed-off-by: Qian Cai <cai@lca.pw>
 Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
-Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
-Cc: Laura Abbott <labbott@redhat.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/cma.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ mm/page_ext.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-diff --git a/mm/cma.c b/mm/cma.c
-index 022e52bd8370..5749c9b3b5d0 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -348,12 +348,14 @@ int __init cma_declare_contiguous(phys_addr_t base,
+diff --git a/mm/page_ext.c b/mm/page_ext.c
+index 2c44f5b78435..dece2bdf86fe 100644
+--- a/mm/page_ext.c
++++ b/mm/page_ext.c
+@@ -271,6 +271,7 @@ static void free_page_ext(void *addr)
+ 		table_size = get_entry_size() * PAGES_PER_SECTION;
  
- 	ret = cma_init_reserved_mem(base, size, order_per_bit, name, res_cma);
- 	if (ret)
--		goto err;
-+		goto free_mem;
- 
- 	pr_info("Reserved %ld MiB at %pa\n", (unsigned long)size / SZ_1M,
- 		&base);
- 	return 0;
- 
-+free_mem:
-+	memblock_free(base, size);
- err:
- 	pr_err("Failed to reserve %ld MiB\n", (unsigned long)size / SZ_1M);
- 	return ret;
+ 		BUG_ON(PageReserved(page));
++		kmemleak_free(addr);
+ 		free_pages_exact(addr, table_size);
+ 	}
+ }
 -- 
 2.19.1
 
