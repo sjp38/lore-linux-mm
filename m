@@ -2,135 +2,242 @@ Return-Path: <SRS0=kLvD=R7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=0.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FORGED_YAHOO_RCVD,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 77901C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 06:58:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A5469C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 07:41:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 203542173C
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 06:58:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 203542173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 3B5602075E
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 07:41:39 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=yahoo.com header.i=@yahoo.com header.b="UFKkd+Hf"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B5602075E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=yahoo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 78A956B0003; Thu, 28 Mar 2019 02:58:07 -0400 (EDT)
+	id B166C6B0003; Thu, 28 Mar 2019 03:41:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 73AE46B0006; Thu, 28 Mar 2019 02:58:07 -0400 (EDT)
+	id AC5BC6B0006; Thu, 28 Mar 2019 03:41:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 602026B0007; Thu, 28 Mar 2019 02:58:07 -0400 (EDT)
+	id 9B4E36B0007; Thu, 28 Mar 2019 03:41:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1226C6B0003
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 02:58:07 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id t82so1256233wmg.8
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 23:58:07 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 557316B0003
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 03:41:38 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id f1so15830238pgv.12
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 00:41:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Q1PezP2XQg+mDviVgWM5i24dvdC/8vaYo2tkDH927Eo=;
-        b=GhWctcObbxbKeapzEiF8VqkrwFxRPZaPLnE/vU+aXnPwzsfA9ExLX2Qj7ijwQjvmeK
-         RwEB4Er5ZV+B+Pj8YtwELqtuMoYO0CtvRZsoPrIddO1KZfUHIjV4illVtToZYqsPPs+a
-         ANEFbJQrPK+jcnhDTVaw0ZM/gYi5cnOURVloSPFeGr+4X00981SZft/1E9fdHFXRnQaC
-         NpuLEg+MxcVgAO+WM2KAUIXoEstBc/AeuUl5T7FdDJ2A8KtW/FKdd28/6S55Iw8DzZ9/
-         4iLi1KJKYGVDfMD+lNsLsA+1ozPRGpy9KugShj1a87bvNVf08C2EgALsN77SN7AYydIK
-         OAPw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAV+fTrduyUNGtFVYj9S+jURo/BLii+rhYQdxeazK0O03My/1EWp
-	YGaMT0QEhYoOXTdJoPuiy+yToaflxUm0jV7sLIEtrp/jWG1Ag6xUmvbtnV3p98GMqaLUNsAVGpr
-	7C6pMUsAjB/6JQz/uCP5o7LieiTM1pzZOavwx0LPkQtsK1PPWka8ch1HdE832KAs=
-X-Received: by 2002:a1c:f312:: with SMTP id q18mr10661893wmq.96.1553756286441;
-        Wed, 27 Mar 2019 23:58:06 -0700 (PDT)
-X-Received: by 2002:a1c:f312:: with SMTP id q18mr10661858wmq.96.1553756285615;
-        Wed, 27 Mar 2019 23:58:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553756285; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:reply-to:to:message-id
+         :subject:mime-version:references;
+        bh=SrQHZ6RbZjGsSaaKpsXRIqDajh7EiALeMR36VlUR+as=;
+        b=bk8JX3oWTgoFJ8huAKhXcqURwqzkOYoecRblRbcRfq46esfvdxDQpf+/wWnbkSWIPg
+         p+LODYuvRnv5xCEbQnbAOsy5r8R5tTwedgALlSlWJP+q2Qtf6sqfkalznLqg6FnqaPbr
+         6PKZ+sz44WOK9HYhhC8sSsy4DAhQmtYCszSjtZnUpKk2AJCdrLJ/WXup1clMg6pRIIwk
+         g5OfZvkm8RChEshcn1MlfuLqrFZgi26W0kDDu1L78SKRZhuIq4dfmsvGnALVjGiA/g7o
+         zJ0j7IO1BjnL6RiSuNC+gIjlP3yolFNeigAMmcGoUWwu153TliGqz2RVKZlVZw9TYuZG
+         1BRg==
+X-Gm-Message-State: APjAAAU9D3bAUpr1CssyvH/Q1lBeNB/okMmyLhpmB/mKap0cdC6CVd6J
+	U/tv9CkzOTfsbN3s1ld/96I3e8R9iojadg+cqft/EuOE6ljDbAdk2aFz5r0ji4Ecwq0+YFuIOO6
+	u4jknDlW890E0l46SxVHm9F9abrUwBQ2BlYS+XqME1BNhd8bEpqeKIVO5xKPfVmsdXA==
+X-Received: by 2002:a65:5049:: with SMTP id k9mr25469276pgo.229.1553758897782;
+        Thu, 28 Mar 2019 00:41:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx56G5XUZJrnG0rB7PjCzL4n2GGmCFFsqJ0vd4F32gRumnVYOg6We68KCicfxWGL6eNepEt
+X-Received: by 2002:a65:5049:: with SMTP id k9mr25469233pgo.229.1553758896555;
+        Thu, 28 Mar 2019 00:41:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553758896; cv=none;
         d=google.com; s=arc-20160816;
-        b=FF2ePbqg6V2MsN8JxiLiTC3PPr88X2QuJSfYAuhmdEa049ouQHDpIus3ARXVwimvRR
-         bOdsX6fTryBH7XJ+VmrLhyoiXgOeQtfDhiwwbdKMunqTkZMumk6h1jFJ/5pXpuoJucCD
-         a50gZMFsZucFP6xYiE9vwxK+Uzw2ZnYuVxkKootpYdfKYJmqJgLm14EPZNkQvbW/IKNX
-         3j5Gv175YCTgzaiagNbaJFKZe6WpgDr2W2Wv9BI6HB+ca6c+LppkjMLiCTuQodxdyaFC
-         Qec3StEXYWft34TFsYvwLJFGuuHMXjFsAEJSrVFNUs5voy1dFM4mz+QBqkx5Obt64vKX
-         rGpg==
+        b=uHmQr/99gmSUMcCZDHWBkhMJ/x6y+vCxyDOCN1mu7jQI5zWTJyUPtwQ6HwPrEn1poh
+         VW5c3oDn0BrbzZypQGt38Fgcbm/4gFXdGCVV2j9ytbX9Z3JBTXO7t8yIUIZea4rjHegK
+         xOcMxjjhhnzmCHWTs5j1FQjs8bRVas7VoYTKsn8IrRgBu1DLUqCS1KT7PH8At1GltuSt
+         qcs/tksN8auMmArUr6hbB444fWH7SaOxxwb5J1+WzxPnHQVAaW0tiKTE4YPGu86jZRQh
+         R86bJ/GphRvQ1srTOVisHZEU0jjzPGU/JyNzdCDs0qz9EnLICFpkloCE0Fg9YsqYhclV
+         xWQA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Q1PezP2XQg+mDviVgWM5i24dvdC/8vaYo2tkDH927Eo=;
-        b=sIYOny+2pdz6YXlOkpnlNTNIniYkfJKugh4so3E3S+1rxKcyorOmZ5xajJSCXeq/5E
-         Pjqdc6sq0EmmEpGSUCHmfnjmN/IbbQkkCJRM4Y3sZKNDobuBYgkqoz+8n1OMqfd7GDmc
-         iGgjt5nnb/vH1jmTXCUO2Q/bGoWtAg4NrOHsDB+WjMtjfaWQAMUaByR6fLT+oJBFxVHl
-         4H9CUNgYhaazqUZnrbwdlR7hw9u05nBA6jENKotfR0MSJpJI9Ki8QseOquSqbomhGs65
-         1JRW0Fx+QuR5MX/SMCbBFomqZJiV9W0yb1wGrea2PmvqPz7OHuXUNre46XTy6kI0YYp5
-         Pzig==
+        h=references:mime-version:subject:message-id:to:reply-to:from:date
+         :dkim-signature;
+        bh=SrQHZ6RbZjGsSaaKpsXRIqDajh7EiALeMR36VlUR+as=;
+        b=Ex1CvqNBNPdxpyIjBtOvm1aiSe5KlX4Lu2k/skVj3upzEzXGFQIGAP7NKtkEvet/jU
+         Zrr78jk8XjsO+VzUHEh8tQeaqGKNZiOdFeMKUSJ+bwnAZtN2bbPGgp+jJd0k7Jmd04Dg
+         CgwuzXBZYjO8zv1f44PfvKg/y6SJpR9pDBiKy35SZK86y8NdilMMdyktVfoDD9+NTnHD
+         iGUDHpZG/lXP4WxqggENkBTJsabKIz0QITuem/MbPeXfKwseZ7UAy65JxbGok3EMhAw0
+         CxM+3azUTKs8DoAx+OgHcCdl4+sLFy1C6qg7f1IVdOw/ICZuFpgN+KxnRxOPwyGW7fua
+         3uOg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 187sor1485396wmb.10.2019.03.27.23.58.05
+       dkim=pass header.i=@yahoo.com header.s=s2048 header.b=UFKkd+Hf;
+       spf=pass (google.com: domain of suryawanshipankaj@yahoo.com designates 106.10.242.209 as permitted sender) smtp.mailfrom=suryawanshipankaj@yahoo.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=yahoo.com
+Received: from sonic304-19.consmr.mail.sg3.yahoo.com (sonic304-19.consmr.mail.sg3.yahoo.com. [106.10.242.209])
+        by mx.google.com with ESMTPS id 16si541460pfh.244.2019.03.28.00.41.35
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 27 Mar 2019 23:58:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Mar 2019 00:41:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of suryawanshipankaj@yahoo.com designates 106.10.242.209 as permitted sender) client-ip=106.10.242.209;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: APXvYqxEEg6bIrtRVpuuN9OeVJ+wS5PBnn6jxssxAGzZjgcAgnCUtNx+osvmbWfOn0eBECcFZXWlNQ==
-X-Received: by 2002:a7b:c00e:: with SMTP id c14mr14313558wmb.110.1553756285332;
-        Wed, 27 Mar 2019 23:58:05 -0700 (PDT)
-Received: from localhost (ip-37-188-147-215.eurotel.cz. [37.188.147.215])
-        by smtp.gmail.com with ESMTPSA id t69sm3211038wmt.16.2019.03.27.23.58.03
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 27 Mar 2019 23:58:03 -0700 (PDT)
-Date: Thu, 28 Mar 2019 07:58:02 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: Dan Williams <dan.j.williams@intel.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	Rik van Riel <riel@surriel.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Keith Busch <keith.busch@intel.com>,
-	Fengguang Wu <fengguang.wu@intel.com>, "Du, Fan" <fan.du@intel.com>,
-	"Huang, Ying" <ying.huang@intel.com>, Linux MM <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Subject: Re: [RFC PATCH 0/10] Another Approach to Use PMEM as NUMA Node
-Message-ID: <20190328065802.GQ11927@dhcp22.suse.cz>
-References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190326135837.GP28406@dhcp22.suse.cz>
- <43a1a59d-dc4a-6159-2c78-e1faeb6e0e46@linux.alibaba.com>
- <20190326183731.GV28406@dhcp22.suse.cz>
- <f08fb981-d129-3357-e93a-a6b233aa9891@linux.alibaba.com>
- <20190327090100.GD11927@dhcp22.suse.cz>
- <CAPcyv4heiUbZvP7Ewoy-Hy=-mPrdjCjEuSw+0rwdOUHdjwetxg@mail.gmail.com>
- <c3690a19-e2a6-7db7-b146-b08aa9b22854@linux.alibaba.com>
- <20190327193918.GP11927@dhcp22.suse.cz>
- <6f8b4c51-3f3c-16f9-ca2f-dbcd08ea23e6@linux.alibaba.com>
+       dkim=pass header.i=@yahoo.com header.s=s2048 header.b=UFKkd+Hf;
+       spf=pass (google.com: domain of suryawanshipankaj@yahoo.com designates 106.10.242.209 as permitted sender) smtp.mailfrom=suryawanshipankaj@yahoo.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=yahoo.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yahoo.com; s=s2048; t=1553758894; bh=SrQHZ6RbZjGsSaaKpsXRIqDajh7EiALeMR36VlUR+as=; h=Date:From:Reply-To:To:Subject:References:From:Subject; b=UFKkd+HfYmA7v5aVoBrI9Kbug0IGmt4jBo9PA0AhEYfZB7UuTqIStI1W9vBlsN2eMIdlIjyGI+9Cy5D7Fmh6uitx3FVRLL2BuT0GhxWy+D/e12bVDJANduPPC+3vTXKD+DijJk+/p9y+J3zN9/GncnxToGGvkZfE3GNydZ4DlAqyX05mIa+n0RLwCUvU40Wz1i5K4mimKVOqjooLde3Tw01eO3ECcfZidBGg/HTnWUw/WT29DnB8iG+RpmuKMScbZGh6aEJ+18a1ntCMJaGBMPHAs8xw+bDBTAU4U05sGlTFWf5gCc/602eujlIHOteMfFiBIpRlAxIlB20hJT5U6Q==
+X-YMail-OSG: laoxTCsVM1la7df64UyuOjh4hUkG9BqlCxkiSp5Jrkpkzd2oRArftSBoN8F644w
+ WToXZtovS3DzpdnRXU2zxf92nwQqTzboPyUNGWnNeBiov7AgMuGvLYWbUEK5JzO9q80imu6B56um
+ LBuFTNOR1DZ8y4yc0cxOLNWWJrEAdplsKcXpVTxDixYerkQiSM4mzak8dRfVNgBmQWJ0fFiC2CxY
+ mnI8CJudd6UddIfIR17qdMbST.8Jto_CeijRog7jJ8m_uRKz23UbJwrdsGhADzy_jhQ1sw4KtzHG
+ 8Wpg9oMjK.T1qbwnsO7Q2r1slwTKWPEXJRnqrxwrL7udR03WD.ssxj9lLWN3NTq.AkpgdDjHWwVd
+ 30r1Q7548_AgG4QXm4D0MxKUaxzRZdNP6.OM__OEormwI9UXTqB5uLPNv3NhS7MNtJfR_9oSVQzo
+ gxvwgeGmFxA0v9caYXnycP_zy3vA_armS06s9ZV8r9UkDoRAc3HwbEPeUTW0._LgtfxcwWJrTpST
+ zEqK4rq4mt11NW_suvubJL2rWPKsFhZRrvwP_rK78Saz.DSX2MPzRI6rV_IGBmOwxsbKT7rR4Y4w
+ MF2sXcrUbIpw6zZNBiqvwQ.mqx8P2XLxuKgVSdLYwESLPQVmYnAYV5s7ZRh5cxosUKkLtPp1iChZ
+ 1WpcoAW_g7UkvZyidiZ1v4j.FEo6PZBz118aLwXHSlFKkDhPrDPJJCD4trKRs72EKSud1ZvRvGDT
+ 5S_ounIEJO8CFX1g8I7nJljZWnmKrGJEIgtiPShBJfFZ0H_AUf7oxctq8Ly7utMKGnWYDh06ot_M
+ 5evYkI0uf4w6HjgQqmmxRnJY4mR25q0x6HHq9aNTgAZq1nETO5cS3tfrHC.MXKokAJsmaFLD.N7G
+ 0d7U9ug8ZVhywXy8lSkCCKCfU8uJ1KS2jbWKNYw1h8MNKQCDDq5b2XZTvrcKj0B56LlMUjHCsi.v
+ fkVxRqp6NfK23tdI6PnbVW6wS78eBhQv0p.k1VjN_NjKp4Sl7Nj7aMR15PnWWbcWumRS987mc9Sf
+ JTEC2rNNKdsu2DFECH8kPsiNsn_ZxRvhyqtKvVn2lGAsoPqSD3g--
+Received: from sonic.gate.mail.ne1.yahoo.com by sonic304.consmr.mail.sg3.yahoo.com with HTTP; Thu, 28 Mar 2019 07:41:34 +0000
+Date: Thu, 28 Mar 2019 07:41:30 +0000 (UTC)
+From: Pankaj Suryawanshi <suryawanshipankaj@yahoo.com>
+Reply-To: Pankaj Suryawanshi <suryawanshipankaj@yahoo.com>
+To: LKML <linux-kernel@vger.kernel.org>, 
+	"linux-mm@kvack.org" <linux-mm@kvack.org>
+Message-ID: <60090134.11615235.1553758890791@mail.yahoo.com>
+Subject: page-allocation-failure
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <6f8b4c51-3f3c-16f9-ca2f-dbcd08ea23e6@linux.alibaba.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: multipart/alternative; 
+	boundary="----=_Part_11615234_2052929298.1553758890789"
+References: <60090134.11615235.1553758890791.ref@mail.yahoo.com>
+X-Mailer: WebService/1.1.13212 YahooMailNeo Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 27-03-19 19:09:10, Yang Shi wrote:
-> One question, when doing demote and promote we need define a path, for
-> example, DRAM <-> PMEM (assume two tier memory). When determining what nodes
-> are "DRAM" nodes, does it make sense to assume the nodes with both cpu and
-> memory are DRAM nodes since PMEM nodes are typically cpuless nodes?
+------=_Part_11615234_2052929298.1553758890789
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-Do we really have to special case this for PMEM? Why cannot we simply go
-in the zonelist order? In other words why cannot we use the same logic
-for a larger NUMA machine and instead of swapping simply fallback to a
-less contended NUMA node? It can be a regular DRAM, PMEM or whatever
-other type of memory node.
--- 
-Michal Hocko
-SUSE Labs
+Hello ,
+I am facing issue related to page allocation failure.
+If anyone is familiar with this issue, let me know what is the issue?How to=
+ solved it.
+
+Failure logs -:
+---------------------------------------------------------------------------=
+---------------------------------------------------------------------------=
+---
+[=C2=A0=C2=A0 45.073877] kswapd0: page allocation failure: order:0, mode:0x=
+1080020(GFP_ATOMIC), nodemask=3D(null)
+[=C2=A0=C2=A0 45.073897] CPU: 1 PID: 716 Comm: kswapd0 Tainted: P=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 O=C2=A0=C2=A0=C2=A0 4.1=
+4.65 #3
+[=C2=A0=C2=A0 45.073899] Hardware name: Android (Flattened Device Tree)
+[=C2=A0=C2=A0 45.073901] Backtrace:
+[=C2=A0=C2=A0 45.073915] [<8020dbec>] (dump_backtrace) from [<8020ded0>] (s=
+how_stack+0x18/0x1c)
+[=C2=A0=C2=A0 45.073920]=C2=A0 r6:600f0093 r5:8141bd5c r4:00000000 r3:3abdc=
+664
+[=C2=A0=C2=A0 45.073928] [<8020deb8>] (show_stack) from [<80ba5e30>] (dump_=
+stack+0x94/0xa8)
+[=C2=A0=C2=A0 45.073936] [<80ba5d9c>] (dump_stack) from [<80350610>] (warn_=
+alloc+0xe0/0x194)
+[=C2=A0=C2=A0 45.073940]=C2=A0 r6:80e090cc r5:00000000 r4:81216588 r3:3abdc=
+664
+[=C2=A0=C2=A0 45.073946] [<80350534>] (warn_alloc) from [<803514e0>] (__all=
+oc_pages_nodemask+0xd70/0x124c)
+[=C2=A0=C2=A0 45.073949]=C2=A0 r3:00000000 r2:80e090cc
+[=C2=A0=C2=A0 45.073952]=C2=A0 r6:00000001 r5:00000000 r4:8121696c
+[=C2=A0=C2=A0 45.073959] [<80350770>] (__alloc_pages_nodemask) from [<803a6=
+c20>] (allocate_slab+0x364/0x3e4)
+[=C2=A0=C2=A0 45.073964]=C2=A0 r10:00000080 r9:00000000 r8:01081220 r7:ffff=
+ffff r6:00000000 r5:01080020
+[=C2=A0=C2=A0 45.073966]=C2=A0 r4:bd00d180
+[=C2=A0=C2=A0 45.073971] [<803a68bc>] (allocate_slab) from [<803a8c98>] (__=
+_slab_alloc.constprop.6+0x420/0x4b8)
+[=C2=A0=C2=A0 45.073977]=C2=A0 r10:00000000 r9:00000000 r8:bd00d180 r7:0108=
+0020 r6:81216588 r5:be586360
+[=C2=A0=C2=A0 45.073978]=C2=A0 r4:00000000
+[=C2=A0=C2=A0 45.073984] [<803a8878>] (___slab_alloc.constprop.6) from [<80=
+3a8d54>] (__slab_alloc.constprop.5+0x24/0x2c)
+[=C2=A0=C2=A0 45.073989]=C2=A0 r10:0004e299 r9:bd00d180 r8:01080020 r7:8147=
+b954 r6:bd6e5a68 r5:00000000
+[=C2=A0=C2=A0 45.073991]=C2=A0 r4:600f0093
+[=C2=A0=C2=A0 45.073996] [<803a8d30>] (__slab_alloc.constprop.5) from [<803=
+a9058>] (kmem_cache_alloc+0x16c/0x2d0)
+[=C2=A0=C2=A0 45.073999]=C2=A0 r4:bd00d180 r3:be586360
+---------------------------------------------------------------------------=
+---------------------------------------------------------------------------=
+-----
+Regards,Pankaj
+
+------=_Part_11615234_2052929298.1553758890789
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<html><head></head><body><div style=3D"color:#000; background-color:#fff; f=
+ont-family:Helvetica Neue, Helvetica, Arial, Lucida Grande, sans-serif;font=
+-size:16px"><div id=3D"yiv1387592317"><div id=3D"yui_3_16_0_ym19_1_15537587=
+84255_2515"><div style=3D"color:#000;background-color:#fff;font-family:Helv=
+etica Neue, Helvetica, Arial, Lucida Grande, sans-serif;font-size:16px;" id=
+=3D"yui_3_16_0_ym19_1_1553758784255_2514"><div id=3D"yiv1387592317"><div id=
+=3D"yiv1387592317yui_3_16_0_ym19_1_1553756571666_2145"><div class=3D"yiv138=
+7592317ydpdbdbf9cbyahoo-style-wrap" style=3D"font-family:Helvetica Neue, He=
+lvetica, Arial, sans-serif;font-size:16px;" id=3D"yiv1387592317yui_3_16_0_y=
+m19_1_1553756571666_2144"><div id=3D"yiv1387592317yui_3_16_0_ym19_1_1553756=
+571666_2235">Hello ,</div><div id=3D"yiv1387592317yui_3_16_0_ym19_1_1553756=
+571666_2198"><br></div><div id=3D"yiv1387592317yui_3_16_0_ym19_1_1553756571=
+666_2197"><div id=3D"yiv1387592317yui_3_16_0_ym19_1_1553756571666_2683">I a=
+m facing issue related to page allocation failure.</div><div id=3D"yiv13875=
+92317yui_3_16_0_ym19_1_1553756571666_2543"><br></div><div id=3D"yiv13875923=
+17yui_3_16_0_ym19_1_1553756571666_2557"><div id=3D"yui_3_16_0_ym19_1_155375=
+8784255_2674">If anyone is familiar with this issue, let me know what is th=
+e issue?</div><div>How to solved it.<br></div></div></div><div id=3D"yiv138=
+7592317yui_3_16_0_ym19_1_1553756571666_2192"><br></div><div id=3D"yiv138759=
+2317yui_3_16_0_ym19_1_1553756571666_2191">Failure logs -:</div><div id=3D"y=
+iv1387592317yui_3_16_0_ym19_1_1553756571666_2189"><div id=3D"yui_3_16_0_ym1=
+9_1_1553758784255_2718"><br></div><div id=3D"yui_3_16_0_ym19_1_155375878425=
+5_2719">-------------------------------------------------------------------=
+---------------------------------------------------------------------------=
+-----------<br></div></div><div id=3D"yiv1387592317yui_3_16_0_ym19_1_155375=
+6571666_2143"><span id=3D"yiv1387592317yui_3_16_0_ym19_1_1553756571666_2142=
+">[&nbsp;&nbsp; 45.073877] kswapd0: page allocation failure: order:0, mode:=
+0x1080020(GFP_ATOMIC), nodemask=3D(null)<br>[&nbsp;&nbsp; 45.073897] CPU: 1=
+ PID: 716 Comm: kswapd0 Tainted: P&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp=
+;&nbsp;&nbsp;&nbsp; O&nbsp;&nbsp;&nbsp; 4.14.65 #3<br>[&nbsp;&nbsp; 45.0738=
+99] Hardware name: Android (Flattened Device Tree)<br>[&nbsp;&nbsp; 45.0739=
+01] Backtrace:<br>[&nbsp;&nbsp; 45.073915] [&lt;8020dbec&gt;] (dump_backtra=
+ce) from [&lt;8020ded0&gt;] (show_stack+0x18/0x1c)<br>[&nbsp;&nbsp; 45.0739=
+20]&nbsp; r6:600f0093 r5:8141bd5c r4:00000000 r3:3abdc664<br>[&nbsp;&nbsp; =
+45.073928] [&lt;8020deb8&gt;] (show_stack) from [&lt;80ba5e30&gt;] (dump_st=
+ack+0x94/0xa8)<br>[&nbsp;&nbsp; 45.073936] [&lt;80ba5d9c&gt;] (dump_stack) =
+from [&lt;80350610&gt;] (warn_alloc+0xe0/0x194)<br>[&nbsp;&nbsp; 45.073940]=
+&nbsp; r6:80e090cc r5:00000000 r4:81216588 r3:3abdc664<br>[&nbsp;&nbsp; 45.=
+073946] [&lt;80350534&gt;] (warn_alloc) from [&lt;803514e0&gt;] (__alloc_pa=
+ges_nodemask+0xd70/0x124c)<br>[&nbsp;&nbsp; 45.073949]&nbsp; r3:00000000 r2=
+:80e090cc<br>[&nbsp;&nbsp; 45.073952]&nbsp; r6:00000001 r5:00000000 r4:8121=
+696c<br>[&nbsp;&nbsp; 45.073959] [&lt;80350770&gt;] (__alloc_pages_nodemask=
+) from [&lt;803a6c20&gt;] (allocate_slab+0x364/0x3e4)<br>[&nbsp;&nbsp; 45.0=
+73964]&nbsp; r10:00000080 r9:00000000 r8:01081220 r7:ffffffff r6:00000000 r=
+5:01080020<br>[&nbsp;&nbsp; 45.073966]&nbsp; r4:bd00d180<br>[&nbsp;&nbsp; 4=
+5.073971] [&lt;803a68bc&gt;] (allocate_slab) from [&lt;803a8c98&gt;] (___sl=
+ab_alloc.constprop.6+0x420/0x4b8)<br>[&nbsp;&nbsp; 45.073977]&nbsp; r10:000=
+00000 r9:00000000 r8:bd00d180 r7:01080020 r6:81216588 r5:be586360<br>[&nbsp=
+;&nbsp; 45.073978]&nbsp; r4:00000000<br>[&nbsp;&nbsp; 45.073984] [&lt;803a8=
+878&gt;] (___slab_alloc.constprop.6) from [&lt;803a8d54&gt;] (__slab_alloc.=
+constprop.5+0x24/0x2c)<br>[&nbsp;&nbsp; 45.073989]&nbsp; r10:0004e299 r9:bd=
+00d180 r8:01080020 r7:8147b954 r6:bd6e5a68 r5:00000000<br>[&nbsp;&nbsp; 45.=
+073991]&nbsp; r4:600f0093<br>[&nbsp;&nbsp; 45.073996] [&lt;803a8d30&gt;] (_=
+_slab_alloc.constprop.5) from [&lt;803a9058&gt;] (kmem_cache_alloc+0x16c/0x=
+2d0)<br>[&nbsp;&nbsp; 45.073999]&nbsp; r4:bd00d180 r3:be586360<br></span><d=
+iv id=3D"yui_3_16_0_ym19_1_1553758784255_2732">----------------------------=
+---------------------------------------------------------------------------=
+----------------------------------------------------</div><div id=3D"yui_3_=
+16_0_ym19_1_1553758784255_2733"><br></div><div id=3D"yui_3_16_0_ym19_1_1553=
+758784255_2734">Regards,</div><div id=3D"yui_3_16_0_ym19_1_1553758784255_27=
+35">Pankaj<br></div></div></div></div></div></div></div></div></div></body>=
+</html>
+------=_Part_11615234_2052929298.1553758890789--
 
