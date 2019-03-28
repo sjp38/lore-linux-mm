@@ -2,151 +2,135 @@ Return-Path: <SRS0=kLvD=R7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D6BFC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 06:05:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 77901C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 06:58:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C4FDD20700
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 06:05:41 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="z/PJ0bvM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4FDD20700
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=iki.fi
+	by mail.kernel.org (Postfix) with ESMTP id 203542173C
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 06:58:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 203542173C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6031C6B0003; Thu, 28 Mar 2019 02:05:41 -0400 (EDT)
+	id 78A956B0003; Thu, 28 Mar 2019 02:58:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5898E6B0006; Thu, 28 Mar 2019 02:05:41 -0400 (EDT)
+	id 73AE46B0006; Thu, 28 Mar 2019 02:58:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 451236B0007; Thu, 28 Mar 2019 02:05:41 -0400 (EDT)
+	id 602026B0007; Thu, 28 Mar 2019 02:58:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B7346B0003
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 02:05:41 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id l187so16685996qkd.7
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 23:05:41 -0700 (PDT)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1226C6B0003
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 02:58:07 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id t82so1256233wmg.8
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 23:58:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=jqtazJHsx+b9ct1DOtMFjfvs6F8nSs4P+e+seowAwTM=;
-        b=s/Qb8Mz8nJEC6ucuBr9cjTmxxsffx1f2WjmnkjnDiSTV7fUT48kKwpf4+nd54vCtjB
-         2Y20bYF0ynDP2QJhsCiO+GgtUVGPS/tDhawcjeqDfmLwfuN7wlTW7ZYO768WIZKgZcwt
-         4JZ7W4xuSMtznT3V7Mco4EGyhVHytLeEyuCjEs6p77903XOfCx+OYmCv4YqmGkqC9lsM
-         Wvov/2v3ioiVEPTvNVRlG7aSkY2Evq/vZlUs3fusJqwUvO9D+uKkHzBHT+EUiUmaM5ZK
-         0wLXnDA5uE4HZGyZL1ghv0QK1PUn2oYsDxpzAjN8K9Z2+UBVKDgSNMOgaJOBAxPTVj0+
-         M0pQ==
-X-Gm-Message-State: APjAAAXJ3QGyj5WsTk3xjxo0S3jR3u1c6904gf6Fgv5Iohs0Ku6Kxjl2
-	E0TDyfgAzn0vW5OGAHR62q6wudUq/iErd1Jidiv8E3iDJJQYvEzPO89dacwERgZJMtOvEF10+ou
-	tlrgGBic2urtp9IL8gL1bAP4LrQpx2ToKREw/K76WuQXxIh60L2ne4zaOQLYb9+A=
-X-Received: by 2002:ae9:f202:: with SMTP id m2mr31849237qkg.52.1553753140755;
-        Wed, 27 Mar 2019 23:05:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx404b2mRE+mV7ndZAAF+3WXB4Doru1URW71InRQ/ucoS3JSrPhXJs2rB25n3amIhzx8hgl
-X-Received: by 2002:ae9:f202:: with SMTP id m2mr31849214qkg.52.1553753140164;
-        Wed, 27 Mar 2019 23:05:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553753140; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Q1PezP2XQg+mDviVgWM5i24dvdC/8vaYo2tkDH927Eo=;
+        b=GhWctcObbxbKeapzEiF8VqkrwFxRPZaPLnE/vU+aXnPwzsfA9ExLX2Qj7ijwQjvmeK
+         RwEB4Er5ZV+B+Pj8YtwELqtuMoYO0CtvRZsoPrIddO1KZfUHIjV4illVtToZYqsPPs+a
+         ANEFbJQrPK+jcnhDTVaw0ZM/gYi5cnOURVloSPFeGr+4X00981SZft/1E9fdHFXRnQaC
+         NpuLEg+MxcVgAO+WM2KAUIXoEstBc/AeuUl5T7FdDJ2A8KtW/FKdd28/6S55Iw8DzZ9/
+         4iLi1KJKYGVDfMD+lNsLsA+1ozPRGpy9KugShj1a87bvNVf08C2EgALsN77SN7AYydIK
+         OAPw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAV+fTrduyUNGtFVYj9S+jURo/BLii+rhYQdxeazK0O03My/1EWp
+	YGaMT0QEhYoOXTdJoPuiy+yToaflxUm0jV7sLIEtrp/jWG1Ag6xUmvbtnV3p98GMqaLUNsAVGpr
+	7C6pMUsAjB/6JQz/uCP5o7LieiTM1pzZOavwx0LPkQtsK1PPWka8ch1HdE832KAs=
+X-Received: by 2002:a1c:f312:: with SMTP id q18mr10661893wmq.96.1553756286441;
+        Wed, 27 Mar 2019 23:58:06 -0700 (PDT)
+X-Received: by 2002:a1c:f312:: with SMTP id q18mr10661858wmq.96.1553756285615;
+        Wed, 27 Mar 2019 23:58:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553756285; cv=none;
         d=google.com; s=arc-20160816;
-        b=u6UtdhkadpEH23aVDpOhLOWQNzCqlKwx0Ko9WI3L+U4md4KZeppVa7sfBj7899i1zI
-         gODTtEFduw150e3gt6EPHX8Mm/Sn01owx4FyMBPWYZrVx1DePqWKFID80UtfRX6v1zi3
-         2794qKKVo7nq5Po9y1/F1/mMt+niBAINJS4SNomURY049L9w6woSJ5GtgmKzYMLMucZJ
-         HtAz4+CRmjYe4ORUY14rmRAXRwgcrRqE+wElQkhqfN+nYreLvus0R28FtEusYSotEWic
-         xwCPcxfF3C3J2iKcsZCaFeFU1mJLVRrZEMYO/meQLQIRRhu6wBqdwWo4Lzw9EqRcp/vl
-         P5og==
+        b=FF2ePbqg6V2MsN8JxiLiTC3PPr88X2QuJSfYAuhmdEa049ouQHDpIus3ARXVwimvRR
+         bOdsX6fTryBH7XJ+VmrLhyoiXgOeQtfDhiwwbdKMunqTkZMumk6h1jFJ/5pXpuoJucCD
+         a50gZMFsZucFP6xYiE9vwxK+Uzw2ZnYuVxkKootpYdfKYJmqJgLm14EPZNkQvbW/IKNX
+         3j5Gv175YCTgzaiagNbaJFKZe6WpgDr2W2Wv9BI6HB+ca6c+LppkjMLiCTuQodxdyaFC
+         Qec3StEXYWft34TFsYvwLJFGuuHMXjFsAEJSrVFNUs5voy1dFM4mz+QBqkx5Obt64vKX
+         rGpg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=jqtazJHsx+b9ct1DOtMFjfvs6F8nSs4P+e+seowAwTM=;
-        b=cbtMl9EhhD/cDqEaNJtursYjRQ6X3zPZR0owLkzDVLy9/2eP3kifKfZ/dnm4VZgANd
-         UW9f+oRC35tQdYQFeXWwVoh+X/4kw9llWh8hWydpkD5YEGBtpGA9xBTcmNFLv/JXLHCm
-         T50zuALbMR4GYzYt0n36dJcDqP11L6SNKmF1vkiDJDbX0M1qGT44goDGNQMe+oL5/lc/
-         5jOph6a759qbd7DtIowfVrSzdIE+FIjiNfJp9veK1DFhIsmtcnb5sezcGjDlpi+dvTks
-         EZH990fQqsx/UaN1vEEJA5PGi4wtFnH6T1YQQCWRBO0RlH8BLEFmPF93xCTlPLjvkCEh
-         JN/A==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=Q1PezP2XQg+mDviVgWM5i24dvdC/8vaYo2tkDH927Eo=;
+        b=sIYOny+2pdz6YXlOkpnlNTNIniYkfJKugh4so3E3S+1rxKcyorOmZ5xajJSCXeq/5E
+         Pjqdc6sq0EmmEpGSUCHmfnjmN/IbbQkkCJRM4Y3sZKNDobuBYgkqoz+8n1OMqfd7GDmc
+         iGgjt5nnb/vH1jmTXCUO2Q/bGoWtAg4NrOHsDB+WjMtjfaWQAMUaByR6fLT+oJBFxVHl
+         4H9CUNgYhaazqUZnrbwdlR7hw9u05nBA6jENKotfR0MSJpJI9Ki8QseOquSqbomhGs65
+         1JRW0Fx+QuR5MX/SMCbBFomqZJiV9W0yb1wGrea2PmvqPz7OHuXUNre46XTy6kI0YYp5
+         Pzig==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="z/PJ0bvM";
-       spf=neutral (google.com: 66.111.4.25 is neither permitted nor denied by domain of penberg@iki.fi) smtp.mailfrom=penberg@iki.fi;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=iki.fi
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id l88si798804qtd.251.2019.03.27.23.05.39
+       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 187sor1485396wmb.10.2019.03.27.23.58.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Mar 2019 23:05:40 -0700 (PDT)
-Received-SPF: neutral (google.com: 66.111.4.25 is neither permitted nor denied by domain of penberg@iki.fi) client-ip=66.111.4.25;
+        (Google Transport Security);
+        Wed, 27 Mar 2019 23:58:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="z/PJ0bvM";
-       spf=neutral (google.com: 66.111.4.25 is neither permitted nor denied by domain of penberg@iki.fi) smtp.mailfrom=penberg@iki.fi;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=iki.fi
-Received: from compute4.internal (compute4.nyi.internal [10.202.2.44])
-	by mailout.nyi.internal (Postfix) with ESMTP id B8EF92106A;
-	Thu, 28 Mar 2019 02:05:39 -0400 (EDT)
-Received: from mailfrontend1 ([10.202.2.162])
-  by compute4.internal (MEProxy); Thu, 28 Mar 2019 02:05:39 -0400
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
-	messagingengine.com; h=cc:content-transfer-encoding:content-type
-	:date:from:in-reply-to:message-id:mime-version:references
-	:subject:to:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender
-	:x-sasl-enc; s=fm2; bh=jqtazJHsx+b9ct1DOtMFjfvs6F8nSs4P+e+seowAw
-	TM=; b=z/PJ0bvMjNqjIRFMSifCfyHzH4pwkBOj+fX7DVLxdUaCOxD3o3cpxDRTU
-	TRIBku+dtNMhmuuDTsJZyE98dZWQtKmh6upJVYkQuC/PYNZ88jAOpdwJox5DBg4T
-	awNU+jHqh92Enu/+aAZu0g4M48fuCumuGVGkbqlhw67MkLWYBLQli03Aq3RiTc+E
-	9BnomWRH0LnvQSeF6xTr/dEUpA1H3zqvL0knmozMCbfYjFxifMUethwluvXr+9/E
-	ptaAaEoCnHnbpZvRjF08qSRxYZX1G2mQArmnInOut1SXQWT+18itpmE5GSyVL3iY
-	X5zzyDmyu3NxX41Sq6JLSSHiXMGlQ==
-X-ME-Sender: <xms:MWScXFLNbNKbGACaNhtY5UStBfFOaAAxZJ2pqIio7nT-xyQxD9daCA>
-X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedutddrkeefgddutdduucetufdoteggodetrfdotf
-    fvucfrrhhofhhilhgvmecuhfgrshhtofgrihhlpdfqfgfvpdfurfetoffkrfgpnffqhgen
-    uceurghilhhouhhtmecufedttdenucenucfjughrpefuvfhfhffkffgfgggjtgfgsehtje
-    ertddtfeejnecuhfhrohhmpefrvghkkhgrucfgnhgsvghrghcuoehpvghnsggvrhhgsehi
-    khhirdhfiheqnecukfhppeekledrvdejrdeffedrudejfeenucfrrghrrghmpehmrghilh
-    hfrhhomhepphgvnhgsvghrghesihhkihdrfhhinecuvehluhhsthgvrhfuihiivgeptd
-X-ME-Proxy: <xmx:MWScXGoOwmTOW2dtGsnspGGLTM5WNmfYafpzfQwRxUwzKVoMP9JHIA>
-    <xmx:MWScXAbJzY-VsjNDId0KEq-dNAKP8z67g82-SVvUt95KQqJlwzMgiw>
-    <xmx:MWScXDx78KJoHhRBnnl9M5t2PeOP0lOuVN2oerYnmln0dQFEK-VCRg>
-    <xmx:M2ScXCgc2C_dn1hu1072izvJdboWuKCbli32GmHWAscee-WN5tNI9A>
-Received: from Pekka-MacBook.local (89-27-33-173.bb.dnainternet.fi [89.27.33.173])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 039F9E442F;
-	Thu, 28 Mar 2019 02:05:34 -0400 (EDT)
-Subject: Re: [PATCH v4] kmemleak: survive in a low-memory situation
-To: Qian Cai <cai@lca.pw>, akpm@linux-foundation.org
-Cc: catalin.marinas@arm.com, cl@linux.com, mhocko@kernel.org,
- willy@infradead.org, penberg@kernel.org, rientjes@google.com,
- iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <20190327005948.24263-1-cai@lca.pw>
-From: Pekka Enberg <penberg@iki.fi>
-Message-ID: <c49208bf-b658-1d4e-a57e-8ca58c69afb1@iki.fi>
-Date: Thu, 28 Mar 2019 08:05:31 +0200
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:60.0)
- Gecko/20100101 Thunderbird/60.6.0
+       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Google-Smtp-Source: APXvYqxEEg6bIrtRVpuuN9OeVJ+wS5PBnn6jxssxAGzZjgcAgnCUtNx+osvmbWfOn0eBECcFZXWlNQ==
+X-Received: by 2002:a7b:c00e:: with SMTP id c14mr14313558wmb.110.1553756285332;
+        Wed, 27 Mar 2019 23:58:05 -0700 (PDT)
+Received: from localhost (ip-37-188-147-215.eurotel.cz. [37.188.147.215])
+        by smtp.gmail.com with ESMTPSA id t69sm3211038wmt.16.2019.03.27.23.58.03
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 27 Mar 2019 23:58:03 -0700 (PDT)
+Date: Thu, 28 Mar 2019 07:58:02 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: Dan Williams <dan.j.williams@intel.com>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	Rik van Riel <riel@surriel.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Keith Busch <keith.busch@intel.com>,
+	Fengguang Wu <fengguang.wu@intel.com>, "Du, Fan" <fan.du@intel.com>,
+	"Huang, Ying" <ying.huang@intel.com>, Linux MM <linux-mm@kvack.org>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Subject: Re: [RFC PATCH 0/10] Another Approach to Use PMEM as NUMA Node
+Message-ID: <20190328065802.GQ11927@dhcp22.suse.cz>
+References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190326135837.GP28406@dhcp22.suse.cz>
+ <43a1a59d-dc4a-6159-2c78-e1faeb6e0e46@linux.alibaba.com>
+ <20190326183731.GV28406@dhcp22.suse.cz>
+ <f08fb981-d129-3357-e93a-a6b233aa9891@linux.alibaba.com>
+ <20190327090100.GD11927@dhcp22.suse.cz>
+ <CAPcyv4heiUbZvP7Ewoy-Hy=-mPrdjCjEuSw+0rwdOUHdjwetxg@mail.gmail.com>
+ <c3690a19-e2a6-7db7-b146-b08aa9b22854@linux.alibaba.com>
+ <20190327193918.GP11927@dhcp22.suse.cz>
+ <6f8b4c51-3f3c-16f9-ca2f-dbcd08ea23e6@linux.alibaba.com>
 MIME-Version: 1.0
-In-Reply-To: <20190327005948.24263-1-cai@lca.pw>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <6f8b4c51-3f3c-16f9-ca2f-dbcd08ea23e6@linux.alibaba.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed 27-03-19 19:09:10, Yang Shi wrote:
+> One question, when doing demote and promote we need define a path, for
+> example, DRAM <-> PMEM (assume two tier memory). When determining what nodes
+> are "DRAM" nodes, does it make sense to assume the nodes with both cpu and
+> memory are DRAM nodes since PMEM nodes are typically cpuless nodes?
 
-On 27/03/2019 2.59, Qian Cai wrote:
-> Unless there is a brave soul to reimplement the kmemleak to embed it's
-> metadata into the tracked memory itself in a foreseeable future, this
-> provides a good balance between enabling kmemleak in a low-memory
-> situation and not introducing too much hackiness into the existing
-> code for now.
-
-Unfortunately I am not that brave soul, but I'm wondering what the 
-complication here is? It shouldn't be too hard to teach 
-calculate_sizes() in SLUB about a new SLAB_KMEMLEAK flag that reserves 
-spaces for the metadata.
-
-- Pekka
+Do we really have to special case this for PMEM? Why cannot we simply go
+in the zonelist order? In other words why cannot we use the same logic
+for a larger NUMA machine and instead of swapping simply fallback to a
+less contended NUMA node? It can be a regular DRAM, PMEM or whatever
+other type of memory node.
+-- 
+Michal Hocko
+SUSE Labs
 
