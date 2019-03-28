@@ -2,245 +2,207 @@ Return-Path: <SRS0=kLvD=R7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A099AC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 01:25:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 88B27C10F00
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 02:09:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 29AE92082F
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 01:25:43 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="lsgm72C+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 29AE92082F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 454DC206C0
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 02:09:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 454DC206C0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CA2DD6B0003; Wed, 27 Mar 2019 21:25:42 -0400 (EDT)
+	id C03B36B0003; Wed, 27 Mar 2019 22:09:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C2A216B0006; Wed, 27 Mar 2019 21:25:42 -0400 (EDT)
+	id B8CCE6B0006; Wed, 27 Mar 2019 22:09:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AF19B6B0007; Wed, 27 Mar 2019 21:25:42 -0400 (EDT)
+	id A54446B0007; Wed, 27 Mar 2019 22:09:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E26F6B0003
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 21:25:42 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id b12so13500507pfj.5
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 18:25:42 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FA206B0003
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 22:09:21 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id d128so15345963pgc.8
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 19:09:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=Ba9MLl0wdwMQV0ZvJwbqfucX+YOQVSVq5fnXfEeXRNw=;
-        b=ir2JaLOTRDXFbyK+JhqXgMGClK0jdoQEubHYYVD2ksg6kqWQnEOmyiUTrIAmJQ5Qwt
-         +/0XyBgWe8tjIFN/hE/4E+iy9ACktKBeycu6dF2zY/BfneAq3ADYBqRJWlpnIBuFoSun
-         U+1KeGNi7szmPrygUoBna7K1vflwtpfXfiL5pTGh++2Ud/IgqtFXhNmuhqSn/ZsmDghF
-         FPJVqQihMz7zycOV9eNkg5hn7NtCMo1ILcne6EM2Is3v74d1bjO4Xo48JQ7EJoaXPiQq
-         SuYGF3o2Zcgx/8NGIUT8z8XGXnE5NDoehOPI37B24udn8XOouc6FnD9S3s2qsrhJh2qP
-         IA8w==
-X-Gm-Message-State: APjAAAUr7uYyWGpbEVNz4m3JDjweaFTtPCbWFMd+j5RSFm1tFwOF6QF8
-	Q3igISCcIABwAZFFi6vigNuVThaHPO3LYHYQhe3rQXCDAqDycQYrh3vSNwFrcUryDp40NiZ44Ft
-	Q+jAUoVSxasllcY9HOpPL/NdWiGwEgb2WvNvVftAwtvhMIBiMM3lJACDoCjGtmDAIiw==
-X-Received: by 2002:a62:b61a:: with SMTP id j26mr37893933pff.151.1553736342005;
-        Wed, 27 Mar 2019 18:25:42 -0700 (PDT)
-X-Received: by 2002:a62:b61a:: with SMTP id j26mr37893857pff.151.1553736340624;
-        Wed, 27 Mar 2019 18:25:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553736340; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=OMTLa5Tx1CsKn9waJxBZ4nRZ3QlgPmvvZApjCAcqVB0=;
+        b=CBzKCPd70HKoG8pS7Ol4xcFl/F9aUr01Z9d123eyvb1mR/FdU2VLfFq8O9V+5K40jK
+         3zZHuJJIatxTCLcftMFCKurAZU4v9Dtibn+jNuvCFA84S7jwtq9OHyHslS9b8MBQkCto
+         vhwKWxZah+Tcc1WfltZHteUmKB4qotLvNqeBpGQqQZIYfauerXXK/KSG1Km6jer/uLVa
+         Nwmd4FLvoimA5cdzwcS+V8ZLBfwk6v50t6pC3eSl5yCxV0DAf7EWflj6we++PSFjGaVX
+         q46F5wRinOSFLuiCjulmfpjP1EQvrekiYAJxN9hI18RdO2anWiAJSA2Ppv7R5FfvisX2
+         BdSw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAUd9Pzbcv/ex36pBPO/rj7AEbHkTIkHB7qRvm+N+HlIqtjaqhAY
+	TfS5gC9c20ghKSZTmnA55mJY6wr29CnPAGg2SWWJ51cn8htv2TCLfsddX/K58ItIv3y1Hom7Txa
+	3BgLE8dpcq4fQsgWR+pgiJX6XATijQH++fQEFtz/q36NN3D7zwFTQgcdrwjXBErjYZg==
+X-Received: by 2002:a63:88c3:: with SMTP id l186mr37936601pgd.148.1553738961003;
+        Wed, 27 Mar 2019 19:09:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy1j0b7U2bVA9a4WU05kUXFREbZ/Fq3uV8Vve8LwoFIXU3lg7F57PGiJ4X3QGwItTcRJ/mQ
+X-Received: by 2002:a63:88c3:: with SMTP id l186mr37936542pgd.148.1553738960048;
+        Wed, 27 Mar 2019 19:09:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553738960; cv=none;
         d=google.com; s=arc-20160816;
-        b=iYy+/SfVArcEMLWk/DLI7rp6ghGYODPyuCisyDILYYe0oUa8Pl0yU+SloDcM5lAbAW
-         cBgZBCjRMQwyHIqLhaoAskOonff99D4wCmnw8bI60nHpmEibudnravIUIvUuJDgdTUTc
-         riS15yEZZj5SI4tNMYBjcBfHUCoTyve2xZ2YM6XMTPlvydXVUtw9FY5pu3W0KEnLKVs1
-         mARAKUoR/J9EcFMTeiyhcY3jhGH9ty70TQCmEWhn9pzZX/8/9mhGzVeCwaeBL3C+nu53
-         ouFvioFGygIHqd8YrjCGpxPOrK34aZKgHk485OQE/F+aa3EmYKUBLgTaWgbzNNDpOMDe
-         qc5A==
+        b=e8vP7Y59yT0DjiYjJqINfCgbju3HWWqiHowdyJEPjp8XsPlVf8RbX7c5QFj++XeVXr
+         7jtrcqv5yrs2G5+136DXGWkntSNSLASl5BefuZWkdy77WD73L1XAKofeNUS580tLaizw
+         QS828359oF2xUY+15z/Stqn2n5OzJ0h9x5EgYE+9iRH15fe3x1nUVbJJZEvqU514sdlH
+         a/l6IA3wn0WnjF3XHT/94ETz4fbwvSH5Mx+ldT3E9GOtsWEWDY7WPi2rXKDA0tPjnPM9
+         brQXFwK1S4Y4kPJ5sXFO+2S3jEa10zXTWG0HAR+2xMi/Av4NX6zmCw0k7sa4Jj+uy1z7
+         xa0w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=Ba9MLl0wdwMQV0ZvJwbqfucX+YOQVSVq5fnXfEeXRNw=;
-        b=ID9g0KwVLGt7MmMbrTK9OJ0u9cCfvx+PVIAE36yXblsSYAsmia/rueElEryDwefgAz
-         jt6YVK3aFg0swWLT2ifa193HN1d3SWPUrcTsVm66uuGzrh7OhTcJQn72n0e1Gksu+84S
-         u1l0lJovfzwByz1APl1w3CfLmAatop/Oh7pebKO5litewd7xkNF388wKIwXA4f2fk+u0
-         F9lqnpQxLUViO2Go+HUYaTdTyt6vGdmgh4vB89AwngOmnBlm5aS0kQBW4bfs2l86bCqh
-         JWfW9Nn9ek+/FJivsIuUQPQPKRA1Jiyku8R/++9EyvAqY33XcwY8j7v6hvJQhtmFZlm6
-         1ZrQ==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=OMTLa5Tx1CsKn9waJxBZ4nRZ3QlgPmvvZApjCAcqVB0=;
+        b=d2nvMUUBfeplsVYK7Mc208AyQqWs2Txitcjnf0ERPW7Ei3mL2I77G9BaW3dAaU+fFh
+         dPvP3KVBoA+6V9rGnVMvVVpJYLJb08yCQnvdlaB+bJL91oCqE2CTdNcxH3d50tMukuYY
+         Sv7dWOnOalc8mm8Buf3pSJ26p3Obp+fLCnBe+IAoPFXnS9mHkhl9inDal96LymLcq2KW
+         oAeelypPTgryZCmTrrsf/LSeK32NF9bRJNrHpcxWsqRSWRb5iw+mJ9dhJ5+ePQMe4UnL
+         g9uURK0cur8bYHgWD0xxzhCyRlAodkKxDfFE3nAoG8WeR1E6ohjG0wQDqDOtUowheHkf
+         vWHg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lsgm72C+;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 34sor29454506plp.24.2019.03.27.18.25.40
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
+        by mx.google.com with ESMTPS id v131si17813885pgb.452.2019.03.27.19.09.19
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 27 Mar 2019 18:25:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lsgm72C+;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id;
-        bh=Ba9MLl0wdwMQV0ZvJwbqfucX+YOQVSVq5fnXfEeXRNw=;
-        b=lsgm72C+zh7zax5G9gjn4zDrjdD/Fzs5KOfJCax53h4/ZftuF/RLocIlWFJhOlJBZd
-         8kLAj9IeSYrhWd5GQgCVwlt6E+obf3xnZBxQf7P18pjyajcQylM/XCfhXlPXjTUpWTxg
-         wSBMn+ErJADSoUFcX+vOtcSPYaxp+Mi9cPfnpBAanIR54Q49QzOBEAfTvGyf66fFSOCC
-         53LS+klgPuiyhj5ZP5OTCwuGGVULil8nNEubUNsUWpGTouCDnKmwy+jlO8WVhMZM0pe3
-         zc7GA/C/2rfkfri9FxNzLNcAvaSFWk2BlNh1/oI46ot3EqxqD0jLwV3FsX5Jin71hBSQ
-         nh9w==
-X-Google-Smtp-Source: APXvYqx3Gnnpo5XB8v/JP5tgkXS8CMcPtvSiLAyq9M2/a4FXNjlnFMfJ2b8JMH2dVqXGlGi3najldA==
-X-Received: by 2002:a17:902:28e6:: with SMTP id f93mr40240888plb.264.1553736340281;
-        Wed, 27 Mar 2019 18:25:40 -0700 (PDT)
-Received: from localhost.localdomain ([203.100.54.194])
-        by smtp.gmail.com with ESMTPSA id k124sm25157496pgc.65.2019.03.27.18.25.37
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Mar 2019 18:25:38 -0700 (PDT)
-From: Yafang Shao <laoar.shao@gmail.com>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org,
-	Yafang Shao <laoar.shao@gmail.com>
-Subject: [PATCH] mm/vmscan: drop may_writepage and classzone_idx from direct reclaim begin template
-Date: Thu, 28 Mar 2019 09:25:22 +0800
-Message-Id: <1553736322-32235-1-git-send-email-laoar.shao@gmail.com>
-X-Mailer: git-send-email 1.8.3.1
+        Wed, 27 Mar 2019 19:09:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) client-ip=115.124.30.131;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R181e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04446;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=13;SR=0;TI=SMTPD_---0TNol2eC_1553738950;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TNol2eC_1553738950)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Thu, 28 Mar 2019 10:09:17 +0800
+Subject: Re: [RFC PATCH 0/10] Another Approach to Use PMEM as NUMA Node
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Dan Williams <dan.j.williams@intel.com>,
+ Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@surriel.com>,
+ Johannes Weiner <hannes@cmpxchg.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Dave Hansen <dave.hansen@intel.com>, Keith Busch <keith.busch@intel.com>,
+ Fengguang Wu <fengguang.wu@intel.com>, "Du, Fan" <fan.du@intel.com>,
+ "Huang, Ying" <ying.huang@intel.com>, Linux MM <linux-mm@kvack.org>,
+ Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190326135837.GP28406@dhcp22.suse.cz>
+ <43a1a59d-dc4a-6159-2c78-e1faeb6e0e46@linux.alibaba.com>
+ <20190326183731.GV28406@dhcp22.suse.cz>
+ <f08fb981-d129-3357-e93a-a6b233aa9891@linux.alibaba.com>
+ <20190327090100.GD11927@dhcp22.suse.cz>
+ <CAPcyv4heiUbZvP7Ewoy-Hy=-mPrdjCjEuSw+0rwdOUHdjwetxg@mail.gmail.com>
+ <c3690a19-e2a6-7db7-b146-b08aa9b22854@linux.alibaba.com>
+ <20190327193918.GP11927@dhcp22.suse.cz>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <6f8b4c51-3f3c-16f9-ca2f-dbcd08ea23e6@linux.alibaba.com>
+Date: Wed, 27 Mar 2019 19:09:10 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
+MIME-Version: 1.0
+In-Reply-To: <20190327193918.GP11927@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-There are three tracepoints using this template, which are
-mm_vmscan_direct_reclaim_begin,
-mm_vmscan_memcg_reclaim_begin,
-mm_vmscan_memcg_softlimit_reclaim_begin.
 
-Regarding mm_vmscan_direct_reclaim_begin,
-sc.may_writepage is !laptop_mode, that's a static setting, and
-reclaim_idx is derived from gfp_mask which is already show in this
-tracepoint.
 
-Regarding mm_vmscan_memcg_reclaim_begin,
-may_writepage is !laptop_mode too, and reclaim_idx is (MAX_NR_ZONES-1),
-which are both static value.
+On 3/27/19 1:09 PM, Michal Hocko wrote:
+> On Wed 27-03-19 11:59:28, Yang Shi wrote:
+>>
+>> On 3/27/19 10:34 AM, Dan Williams wrote:
+>>> On Wed, Mar 27, 2019 at 2:01 AM Michal Hocko <mhocko@kernel.org> wrote:
+>>>> On Tue 26-03-19 19:58:56, Yang Shi wrote:
+> [...]
+>>>>> It is still NUMA, users still can see all the NUMA nodes.
+>>>> No, Linux NUMA implementation makes all numa nodes available by default
+>>>> and provides an API to opt-in for more fine tuning. What you are
+>>>> suggesting goes against that semantic and I am asking why. How is pmem
+>>>> NUMA node any different from any any other distant node in principle?
+>>> Agree. It's just another NUMA node and shouldn't be special cased.
+>>> Userspace policy can choose to avoid it, but typical node distance
+>>> preference should otherwise let the kernel fall back to it as
+>>> additional memory pressure relief for "near" memory.
+>> In ideal case, yes, I agree. However, in real life world the performance is
+>> a concern. It is well-known that PMEM (not considering NVDIMM-F or HBM) has
+>> higher latency and lower bandwidth. We observed much higher latency on PMEM
+>> than DRAM with multi threads.
+> One rule of thumb is: Do not design user visible interfaces based on the
+> contemporary technology and its up/down sides. This will almost always
+> fire back.
 
-mm_vmscan_memcg_softlimit_reclaim_begin is the same with
-mm_vmscan_memcg_reclaim_begin.
+Thanks. It does make sense to me.
 
-So we can drop them all.
+>
+> Btw. if you keep arguing about performance without any numbers. Can you
+> present something specific?
 
-Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
----
- include/trace/events/vmscan.h | 26 ++++++++++----------------
- mm/vmscan.c                   | 14 +++-----------
- 2 files changed, 13 insertions(+), 27 deletions(-)
+Yes, I did have some numbers. We did simple memory sequential rw latency 
+test with a designed-in-house test program on PMEM (bind to PMEM) and 
+DRAM (bind to DRAM). When running with 20 threads the result is as below:
 
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index a1cb913..153d90c 100644
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -105,51 +105,45 @@
- 
- DECLARE_EVENT_CLASS(mm_vmscan_direct_reclaim_begin_template,
- 
--	TP_PROTO(int order, int may_writepage, gfp_t gfp_flags, int classzone_idx),
-+	TP_PROTO(int order, gfp_t gfp_flags),
- 
--	TP_ARGS(order, may_writepage, gfp_flags, classzone_idx),
-+	TP_ARGS(order, gfp_flags),
- 
- 	TP_STRUCT__entry(
- 		__field(	int,	order		)
--		__field(	int,	may_writepage	)
- 		__field(	gfp_t,	gfp_flags	)
--		__field(	int,	classzone_idx	)
- 	),
- 
- 	TP_fast_assign(
- 		__entry->order		= order;
--		__entry->may_writepage	= may_writepage;
- 		__entry->gfp_flags	= gfp_flags;
--		__entry->classzone_idx	= classzone_idx;
- 	),
- 
--	TP_printk("order=%d may_writepage=%d gfp_flags=%s classzone_idx=%d",
-+	TP_printk("order=%d gfp_flags=%s",
- 		__entry->order,
--		__entry->may_writepage,
--		show_gfp_flags(__entry->gfp_flags),
--		__entry->classzone_idx)
-+		show_gfp_flags(__entry->gfp_flags))
- );
- 
- DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_direct_reclaim_begin,
- 
--	TP_PROTO(int order, int may_writepage, gfp_t gfp_flags, int classzone_idx),
-+	TP_PROTO(int order, gfp_t gfp_flags),
- 
--	TP_ARGS(order, may_writepage, gfp_flags, classzone_idx)
-+	TP_ARGS(order, gfp_flags)
- );
- 
- #ifdef CONFIG_MEMCG
- DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_reclaim_begin,
- 
--	TP_PROTO(int order, int may_writepage, gfp_t gfp_flags, int classzone_idx),
-+	TP_PROTO(int order, gfp_t gfp_flags),
- 
--	TP_ARGS(order, may_writepage, gfp_flags, classzone_idx)
-+	TP_ARGS(order, gfp_flags)
- );
- 
- DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_softlimit_reclaim_begin,
- 
--	TP_PROTO(int order, int may_writepage, gfp_t gfp_flags, int classzone_idx),
-+	TP_PROTO(int order, gfp_t gfp_flags),
- 
--	TP_ARGS(order, may_writepage, gfp_flags, classzone_idx)
-+	TP_ARGS(order, gfp_flags)
- );
- #endif /* CONFIG_MEMCG */
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index ac4806f..cdc0305 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3304,10 +3304,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- 	if (throttle_direct_reclaim(sc.gfp_mask, zonelist, nodemask))
- 		return 1;
- 
--	trace_mm_vmscan_direct_reclaim_begin(order,
--				sc.may_writepage,
--				sc.gfp_mask,
--				sc.reclaim_idx);
-+	trace_mm_vmscan_direct_reclaim_begin(order, sc.gfp_mask);
- 
- 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
- 
-@@ -3338,9 +3335,7 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
- 			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
- 
- 	trace_mm_vmscan_memcg_softlimit_reclaim_begin(sc.order,
--						      sc.may_writepage,
--						      sc.gfp_mask,
--						      sc.reclaim_idx);
-+						      sc.gfp_mask);
- 
- 	/*
- 	 * NOTE: Although we can get the priority field, using it
-@@ -3389,10 +3384,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 
- 	zonelist = &NODE_DATA(nid)->node_zonelists[ZONELIST_FALLBACK];
- 
--	trace_mm_vmscan_memcg_reclaim_begin(0,
--					    sc.may_writepage,
--					    sc.gfp_mask,
--					    sc.reclaim_idx);
-+	trace_mm_vmscan_memcg_reclaim_begin(0, sc.gfp_mask);
- 
- 	psi_memstall_enter(&pflags);
- 	noreclaim_flag = memalloc_noreclaim_save();
--- 
-1.8.3.1
+              Threads          w/lat            r/lat
+PMEM      20                537.15         68.06
+DRAM      20                14.19           6.47
+
+And, sysbench test with command: sysbench --time=600 memory 
+--memory-block-size=8G --memory-total-size=1024T --memory-scope=global 
+--memory-oper=read --memory-access-mode=rnd --rand-type=gaussian 
+--rand-pareto-h=0.1 --threads=1 run
+
+The result is:
+                    lat/ms
+PMEM      103766.09
+DRAM      31946.30
+
+>
+>> In real production environment we don't know what kind of applications would
+>> end up on PMEM (DRAM may be full, allocation fall back to PMEM) then have
+>> unexpected performance degradation. I understand to have mempolicy to choose
+>> to avoid it. But, there might be hundreds or thousands of applications
+>> running on the machine, it sounds not that feasible to me to have each
+>> single application set mempolicy to avoid it.
+> we have cpuset cgroup controller to help here.
+>
+>> So, I think we still need a default allocation node mask. The default value
+>> may include all nodes or just DRAM nodes. But, they should be able to be
+>> override by user globally, not only per process basis.
+>>
+>> Due to the performance disparity, currently our usecases treat PMEM as
+>> second tier memory for demoting cold page or binding to not memory access
+>> sensitive applications (this is the reason for inventing a new mempolicy)
+>> although it is a NUMA node.
+> If the performance sucks that badly then do not use the pmem as NUMA,
+> really. There are certainly other ways to export the pmem storage. Use
+> it as a fast swap storage. Or try to work on a swap caching mechanism
+> that still allows much faster access than a slow swap storage. But do
+> not try to pretend to abuse the NUMA interface while you are breaking
+> some of its long term established semantics.
+
+Yes, we are looking into using it as a fast swap storage too and perhaps 
+other usecases.
+
+Anyway, though nobody thought it makes sense to restrict default 
+allocation nodes, it sounds over-engineered. I'm going to drop it.
+
+One question, when doing demote and promote we need define a path, for 
+example, DRAM <-> PMEM (assume two tier memory). When determining what 
+nodes are "DRAM" nodes, does it make sense to assume the nodes with both 
+cpu and memory are DRAM nodes since PMEM nodes are typically cpuless nodes?
+
+Thanks,
+Yang
+
 
