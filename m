@@ -2,293 +2,237 @@ Return-Path: <SRS0=kLvD=R7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D577FC4360F
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 22:03:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 724CEC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 22:06:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7BFEA21850
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 22:03:38 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7BFEA21850
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 1B2992075E
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 22:06:05 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="To6XGK9f"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B2992075E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EC65F6B0006; Thu, 28 Mar 2019 18:03:37 -0400 (EDT)
+	id AA4EB6B0008; Thu, 28 Mar 2019 18:06:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E4C9E6B0007; Thu, 28 Mar 2019 18:03:37 -0400 (EDT)
+	id A53F66B000C; Thu, 28 Mar 2019 18:06:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CED126B0008; Thu, 28 Mar 2019 18:03:37 -0400 (EDT)
+	id 942A26B0266; Thu, 28 Mar 2019 18:06:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A860F6B0006
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 18:03:37 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id s70so98957qka.1
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 15:03:37 -0700 (PDT)
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 71F496B0008
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 18:06:04 -0400 (EDT)
+Received: by mail-it1-f200.google.com with SMTP id v193so265045itv.9
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 15:06:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=rdPWbej7EqVcN3T+YM5Cayk/G3ydkRrxFs1zc0ToGrc=;
-        b=nxSWKasIx/eROV6/thRnv3uYQXPWHYijq0s6GMtVBtVHUGvSk2tXTR+IEd6SX6h67D
-         9oUFsyaIYK39/0hnNxSEBMiTOJfN43lgrAxVamDRUjSf4vMEo3XG5hyRglxRKNLJzmEZ
-         yOAIhZK/pwmCoUdmTBEcbkrX3lhhAXNyMBoPCsOtDQiVeqRxiXcBKFvyKTeJSTUJLyEz
-         A9hRkpIz9QxaXZZURKwcmfFQTRNrc8u3Yn/nZyTNYPuwPuRlEW2JL7sV2FZCmkbrERss
-         vxQzrT+7Yh5s6sxTqzW19vW9Svvu8ujYBGkR+K7ZHttCjQOpImT7RPp00Fshlp5/bzIp
-         q+9g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXqNYI4cErd2z96ALVg4vo9dudnasX6Xrg82XczZpiKjiKmzeCm
-	8ysCdBGyK4V24eUb5Wz40ZnO6HlpFysVRjmELss3AZzAQEh08hU9ohyoUYC3EP/OHbTCwwd3wlV
-	PZSqDN69m839ROvQcDJuIychvPlGbY8sq9Xw12kpqjO6Wiwbgi7Erptu4sJ2OwRU9nw==
-X-Received: by 2002:a37:9fc6:: with SMTP id i189mr36515037qke.246.1553810617389;
-        Thu, 28 Mar 2019 15:03:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzYqGXIXGbqXAta5FTDJWDAKVZc+3aas0rxzZaECZNVww2U05b8UEK16EC6vxRs/ihQ76m5
-X-Received: by 2002:a37:9fc6:: with SMTP id i189mr36514995qke.246.1553810616756;
-        Thu, 28 Mar 2019 15:03:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553810616; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=efE+EqaifQWItnvqE5oHeBNSdF1slMZgpYXIiFbimNM=;
+        b=XDnKCijE6X3X7pVjQwcXrjjtiqg9FwWkfup+4H9vanI+pmcv1V/DPavlnDvoj4eSiw
+         e6qwf+EwuFJ12skx4cQBczEptcL20qX4jO31iS4ywKeJNze1LQs6ENXyRNSDoxi6GtIj
+         mH8bM8zMFvHHvTXkHge6MvV1np0mtP63Yk37nC6W6CF1dTQrakME922eGUyeAa0c+okp
+         TDnouAa4awh6FsLujHWvybmtgPyxrNuMAbBPFPhaLSCpqYAGyw+tCo4YFPgN4IRJ6/DS
+         28ZTCBReJWOAbue5iM4aGVkhDj0p9S99RT9Y0qm7B3CsyX5itzAV/JfZGJwIa+tjl6YN
+         BlBg==
+X-Gm-Message-State: APjAAAXSkBVD2Le02KqUK+qpwFD0yD4PMLjFIqOLJ2JGXtAbJAuE+0oh
+	lhFf2quwXxqGqL3ng97LpdsmTKRCY7l/D1+NZYbGNdLt3hGCXa4OZD/c3B8jB5jdrtPN/NVm9lj
+	c7LahmgTYSlXGOOCerNHBFEPLLm4UgEII7ZChBmhmmlctGz3KOpgChssEhu8qJA+A/Q==
+X-Received: by 2002:a24:ac6b:: with SMTP id m43mr2062562iti.28.1553810764160;
+        Thu, 28 Mar 2019 15:06:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy/+KqLu/JjvdwWLTMt9CN3itntzCF/z4iumjYlC2Wk5MIyhSB3TE+/OrzgW/9cmbmauzvq
+X-Received: by 2002:a24:ac6b:: with SMTP id m43mr2062508iti.28.1553810763382;
+        Thu, 28 Mar 2019 15:06:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553810763; cv=none;
         d=google.com; s=arc-20160816;
-        b=eFgmNBSpsLiprbuyO0uaylgGVbuQjrDDo8lD12oMioNCNHjiwPe25ol8j7XtFpzQMM
-         8HLYfVeCxmyFp1UOxF4qoe+KiAmGbN7k4Lh9X3zmeugwfrTU4MhCQksTsE2D1Tuo9OQS
-         QnRhaPTMUQaD4+ZHS5O3zzPfK+XtEz0pYAj3NlY7dVg2FCxurJX8e9qzvDYn+WRaLPBo
-         hiLCjVEsliI9VqvyHN660efhkP08smh+g3kcUmWTkWT1JoOm7Pro3QvS8E1CKJEYsEVc
-         HiPT8qJIN3KpyOWFm8QM43q27dOSm58cmvNO3SFA2xrNMjoiXC2LoaHHJEMaUAkh8kDn
-         /EMw==
+        b=sAs9g0yq9y8AVLGoRxa8i3ju75T+hvLnr3z23zkbL2XiThOJXAFBvnYE1KrU8HiizM
+         7tQkLoc/xg/rmoNhn/e8myb7FeGjfOJieHlMtVk1NrNRfVwCUgaoUzIekV9p386V7iP0
+         0GutVcSMnJyUl3t4yjXlJdsTfQZdzQ7U82czX5YBOfF/UuxV5TPpWppIx5XAxltCQ5Ok
+         yfNFmRj3oYmzYqP+hOXNjboT6nlG/rEDtY+zr7ayoQtoS6PzXnNTa2DhvtH+KHDyOs1G
+         w5lhI1rc2ZE+joydPHk/G8zbtqMkalM+s1uGWz64wgXs9LVoPjBjV8JPTmdrCy/8St/u
+         oYHQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=rdPWbej7EqVcN3T+YM5Cayk/G3ydkRrxFs1zc0ToGrc=;
-        b=V9LHugZEhU/UO1teIlYwPeWyD3ouRxCUgj+UMDw4beXWhyg54CvFHCO2KN++nmLvnO
-         R2loJq92mfd/HlUuuwO7LQosCPPCzppMlwgj1rtnDehcYFnpZCjDJo2zRyRtEH1gBKFw
-         jfxqyuYw8xIERixu/BQ2/JY8YF1KpR/971Bf20zSy/xgWVGJVHsCkKqhpb870+G1B1v3
-         wk6szyVkGIehbPdkT0HE13mO7jnxJSkHqj3L94h+KootfDQ1IwbtDbEzoN0wUkTiErGI
-         FMGhq6ok/2BWOp1roco3jvX4TXosbV99ez2P+mpa8juPwjhoJwJprczjLaSGknfPOKZQ
-         3iNQ==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=efE+EqaifQWItnvqE5oHeBNSdF1slMZgpYXIiFbimNM=;
+        b=GVWA9AkWMhCcrWdLamEYdkwVAyYyNEuwCTUqJfIjcSuDaU9J6/dim229bfYXCGvWZ3
+         8VFa3O7S041z96LGvPySbUY0szPwdx7xjOeCCR/eFWHat2zjE3F1ihXuuGd7b5BX/9jp
+         g2H+Bc6Bb8pTG2rbzMcq+hO9YY6QV7KidJ8qK5pjLDs+3jHXfOX1nhSZKUoF+obAUOI0
+         9nRN8MQlKy99gUevkyZXiy5vrCd96MQ188NjHgCAmTiEOZy09Elb+HMo7SX5v+2yWSUt
+         FvGWvzF8lVffMAjGOPwo6cR45W1E3j5ojUbYbDWgm/P/JmwRkWnvz+CaIv/dTc6mKn02
+         v19g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z4si54029qvz.104.2019.03.28.15.03.36
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=To6XGK9f;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id u14si198900ior.49.2019.03.28.15.06.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Mar 2019 15:03:36 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 28 Mar 2019 15:06:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id F3EEB20268;
-	Thu, 28 Mar 2019 22:03:35 +0000 (UTC)
-Received: from redhat.com (ovpn-121-118.rdu2.redhat.com [10.10.121.118])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id E009F379C;
-	Thu, 28 Mar 2019 22:03:34 +0000 (UTC)
-Date: Thu, 28 Mar 2019 18:03:32 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Ira Weiny <ira.weiny@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Dan Williams <dan.j.williams@intel.com>
-Subject: Re: [PATCH v2 05/11] mm/hmm: improve and rename hmm_vma_fault() to
- hmm_range_fault() v2
-Message-ID: <20190328220332.GD13560@redhat.com>
-References: <20190325144011.10560-1-jglisse@redhat.com>
- <20190325144011.10560-6-jglisse@redhat.com>
- <20190328134351.GD31324@iweiny-DESK2.sc.intel.com>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=To6XGK9f;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x2SLxmSs060297;
+	Thu, 28 Mar 2019 22:05:51 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
+ subject : date : message-id : mime-version : content-transfer-encoding;
+ s=corp-2018-07-02; bh=efE+EqaifQWItnvqE5oHeBNSdF1slMZgpYXIiFbimNM=;
+ b=To6XGK9fJKj9anhLwIkXsfVRTrO/rnl4b0e+jPhZakXVEEA9S4AhLDGLZD5Xl84ZVUrt
+ fL4og7Mm4DjgLZoh7vDk7l/tR4AaCopqJmt7s2N9QBiR8e24wGvEN2zFT2yTsKU13/83
+ 94sdE6jFdDRK7tgzJCwy5yh5K4k8c3f/mhN7dwEQyGvYhTLikvR+gj10atYNRNXtwxvh
+ GPFiWWagnMdp0WxDNq5fl9CDiXbOeTag9K8MKla6jjR2JFt5MEMfUSlP26cznvn4+ZpD
+ ndfAExKYHUaW30O8Nnsfaqb76jPbfZxy+gvPC/nWGydJWVhTKuDQAJ8FmB6CQaMGhfO0 yA== 
+Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
+	by userp2120.oracle.com with ESMTP id 2re6djsc20-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 28 Mar 2019 22:05:51 +0000
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x2SM5nqo006298
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 28 Mar 2019 22:05:50 GMT
+Received: from abhmp0022.oracle.com (abhmp0022.oracle.com [141.146.116.28])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x2SM5jwF009891;
+	Thu, 28 Mar 2019 22:05:45 GMT
+Received: from monkey.oracle.com (/50.38.38.67)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Thu, 28 Mar 2019 15:05:45 -0700
+From: Mike Kravetz <mike.kravetz@oracle.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+        Andrew Morton <akpm@linux-foundation.org>
+Cc: Oscar Salvador <osalvador@suse.de>, David Rientjes <rientjes@google.com>,
+        Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+        Alex Ghiti <alex@ghiti.fr>, Mike Kravetz <mike.kravetz@oracle.com>,
+        Jing Xiangfeng <jingxiangfeng@huawei.com>
+Subject: [PATCH REBASED] hugetlbfs: fix potential over/underflow setting node specific nr_hugepages
+Date: Thu, 28 Mar 2019 15:05:33 -0700
+Message-Id: <20190328220533.19884-1-mike.kravetz@oracle.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190328134351.GD31324@iweiny-DESK2.sc.intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Thu, 28 Mar 2019 22:03:36 +0000 (UTC)
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9209 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1903280142
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 28, 2019 at 06:43:51AM -0700, Ira Weiny wrote:
-> On Mon, Mar 25, 2019 at 10:40:05AM -0400, Jerome Glisse wrote:
-> > From: Jérôme Glisse <jglisse@redhat.com>
-> > 
-> > Rename for consistency between code, comments and documentation. Also
-> > improves the comments on all the possible returns values. Improve the
-> > function by returning the number of populated entries in pfns array.
-> > 
-> > Changes since v1:
-> >     - updated documentation
-> >     - reformated some comments
-> > 
-> > Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
-> > Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: John Hubbard <jhubbard@nvidia.com>
-> > Cc: Dan Williams <dan.j.williams@intel.com>
-> > ---
-> >  Documentation/vm/hmm.rst |  8 +---
-> >  include/linux/hmm.h      | 13 +++++-
-> >  mm/hmm.c                 | 91 +++++++++++++++++-----------------------
-> >  3 files changed, 52 insertions(+), 60 deletions(-)
-> > 
-> > diff --git a/Documentation/vm/hmm.rst b/Documentation/vm/hmm.rst
-> > index d9b27bdadd1b..61f073215a8d 100644
-> > --- a/Documentation/vm/hmm.rst
-> > +++ b/Documentation/vm/hmm.rst
-> > @@ -190,13 +190,7 @@ When the device driver wants to populate a range of virtual addresses, it can
-> >  use either::
-> >  
-> >    long hmm_range_snapshot(struct hmm_range *range);
-> > -  int hmm_vma_fault(struct vm_area_struct *vma,
-> > -                    struct hmm_range *range,
-> > -                    unsigned long start,
-> > -                    unsigned long end,
-> > -                    hmm_pfn_t *pfns,
-> > -                    bool write,
-> > -                    bool block);
-> > +  long hmm_range_fault(struct hmm_range *range, bool block);
-> >  
-> >  The first one (hmm_range_snapshot()) will only fetch present CPU page table
-> >  entries and will not trigger a page fault on missing or non-present entries.
-> > diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-> > index 32206b0b1bfd..e9afd23c2eac 100644
-> > --- a/include/linux/hmm.h
-> > +++ b/include/linux/hmm.h
-> > @@ -391,7 +391,18 @@ bool hmm_vma_range_done(struct hmm_range *range);
-> >   *
-> >   * See the function description in mm/hmm.c for further documentation.
-> >   */
-> > -int hmm_vma_fault(struct hmm_range *range, bool block);
-> > +long hmm_range_fault(struct hmm_range *range, bool block);
-> > +
-> > +/* This is a temporary helper to avoid merge conflict between trees. */
-> > +static inline int hmm_vma_fault(struct hmm_range *range, bool block)
-> > +{
-> > +	long ret = hmm_range_fault(range, block);
-> > +	if (ret == -EBUSY)
-> > +		ret = -EAGAIN;
-> > +	else if (ret == -EAGAIN)
-> > +		ret = -EBUSY;
-> > +	return ret < 0 ? ret : 0;
-> > +}
-> >  
-> >  /* Below are for HMM internal use only! Not to be used by device driver! */
-> >  void hmm_mm_destroy(struct mm_struct *mm);
-> > diff --git a/mm/hmm.c b/mm/hmm.c
-> > index 91361aa74b8b..7860e63c3ba7 100644
-> > --- a/mm/hmm.c
-> > +++ b/mm/hmm.c
-> > @@ -336,13 +336,13 @@ static int hmm_vma_do_fault(struct mm_walk *walk, unsigned long addr,
-> >  	flags |= write_fault ? FAULT_FLAG_WRITE : 0;
-> >  	ret = handle_mm_fault(vma, addr, flags);
-> >  	if (ret & VM_FAULT_RETRY)
-> > -		return -EBUSY;
-> > +		return -EAGAIN;
-> >  	if (ret & VM_FAULT_ERROR) {
-> >  		*pfn = range->values[HMM_PFN_ERROR];
-> >  		return -EFAULT;
-> >  	}
-> >  
-> > -	return -EAGAIN;
-> > +	return -EBUSY;
-> >  }
-> >  
-> >  static int hmm_pfns_bad(unsigned long addr,
-> > @@ -368,7 +368,7 @@ static int hmm_pfns_bad(unsigned long addr,
-> >   * @fault: should we fault or not ?
-> >   * @write_fault: write fault ?
-> >   * @walk: mm_walk structure
-> > - * Returns: 0 on success, -EAGAIN after page fault, or page fault error
-> > + * Returns: 0 on success, -EBUSY after page fault, or page fault error
-> >   *
-> >   * This function will be called whenever pmd_none() or pte_none() returns true,
-> >   * or whenever there is no page directory covering the virtual address range.
-> > @@ -391,12 +391,12 @@ static int hmm_vma_walk_hole_(unsigned long addr, unsigned long end,
-> >  
-> >  			ret = hmm_vma_do_fault(walk, addr, write_fault,
-> >  					       &pfns[i]);
-> > -			if (ret != -EAGAIN)
-> > +			if (ret != -EBUSY)
-> >  				return ret;
-> >  		}
-> >  	}
-> >  
-> > -	return (fault || write_fault) ? -EAGAIN : 0;
-> > +	return (fault || write_fault) ? -EBUSY : 0;
-> >  }
-> >  
-> >  static inline void hmm_pte_need_fault(const struct hmm_vma_walk *hmm_vma_walk,
-> > @@ -527,11 +527,11 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
-> >  	uint64_t orig_pfn = *pfn;
-> >  
-> >  	*pfn = range->values[HMM_PFN_NONE];
-> > -	cpu_flags = pte_to_hmm_pfn_flags(range, pte);
-> > -	hmm_pte_need_fault(hmm_vma_walk, orig_pfn, cpu_flags,
-> > -			   &fault, &write_fault);
-> > +	fault = write_fault = false;
-> >  
-> >  	if (pte_none(pte)) {
-> > +		hmm_pte_need_fault(hmm_vma_walk, orig_pfn, 0,
-> > +				   &fault, &write_fault);
-> 
-> This really threw me until I applied the patches to a tree.  It looks like this
-> is just optimizing away a pte_none() check.  The only functional change which
-> was mentioned was returning the number of populated pfns.  So I spent a bit of
-> time trying to figure out why hmm_pte_need_fault() needed to move _here_ to do
-> that...  :-(
-> 
-> It would have been nice to have said something about optimizing in the commit
-> message.
+The number of node specific huge pages can be set via a file such as:
+/sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages
+When a node specific value is specified, the global number of huge
+pages must also be adjusted.  This adjustment is calculated as the
+specified node specific value + (global value - current node value).
+If the node specific value provided by the user is large enough, this
+calculation could overflow an unsigned long leading to a smaller
+than expected number of huge pages.
 
-Yes i should have added that to the commit message i forgot.
+To fix, check the calculation for overflow.  If overflow is detected,
+use ULONG_MAX as the requested value.  This is inline with the user
+request to allocate as many huge pages as possible.
 
-> 
-> >  		if (fault || write_fault)
-> >  			goto fault;
-> >  		return 0;
-> > @@ -570,7 +570,7 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
-> >  				hmm_vma_walk->last = addr;
-> >  				migration_entry_wait(vma->vm_mm,
-> >  						     pmdp, addr);
-> > -				return -EAGAIN;
-> > +				return -EBUSY;
-> >  			}
-> >  			return 0;
-> >  		}
-> > @@ -578,6 +578,10 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
-> >  		/* Report error for everything else */
-> >  		*pfn = range->values[HMM_PFN_ERROR];
-> >  		return -EFAULT;
-> > +	} else {
-> > +		cpu_flags = pte_to_hmm_pfn_flags(range, pte);
-> > +		hmm_pte_need_fault(hmm_vma_walk, orig_pfn, cpu_flags,
-> > +				   &fault, &write_fault);
-> 
-> Looks like the same situation as above.
-> 
-> >  	}
-> >  
-> >  	if (fault || write_fault)
-> > @@ -628,7 +632,7 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
-> >  		if (fault || write_fault) {
-> >  			hmm_vma_walk->last = addr;
-> >  			pmd_migration_entry_wait(vma->vm_mm, pmdp);
-> > -			return -EAGAIN;
-> > +			return -EBUSY;
-> 
-> While I am at it.  Why are we swapping EAGAIN and EBUSY everywhere?
+It was also noticed that the above calculation was done outside the
+hugetlb_lock.  Therefore, the values could be inconsistent and result
+in underflow.  To fix, the calculation is moved within the routine
+set_max_huge_pages() where the lock is held.
 
-It is a part of the API change when going from hmm_vma_fault() to
-hmm_range_fault() and unifying the return values with the old
-hmm_vma_get_pfns() so that all API have the same meaning behind
-the same return value.
+In addition, the code in __nr_hugepages_store_common() which tries to
+handle the case of not being able to allocate a node mask would likely
+result in incorrect behavior.  Luckily, it is very unlikely we will
+ever take this path.  If we do, simply return ENOMEM.
 
-Cheers,
-Jérôme
+Reported-by: Jing Xiangfeng <jingxiangfeng@huawei.com>
+Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+---
+This was sent upstream during 5.1 merge window, but dropped as it was
+based on an earlier version of Alex Ghiti's patch which was dropped.
+Now rebased on top of Alex Ghiti's "[PATCH v8 0/4] Fix free/allocation
+of runtime gigantic pages" series which was just added to mmotm.
+
+ mm/hugetlb.c | 41 ++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 34 insertions(+), 7 deletions(-)
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index f3e84c1bef11..f79ae4e42159 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -2287,13 +2287,33 @@ static int adjust_pool_surplus(struct hstate *h, nodemask_t *nodes_allowed,
+ }
+ 
+ #define persistent_huge_pages(h) (h->nr_huge_pages - h->surplus_huge_pages)
+-static int set_max_huge_pages(struct hstate *h, unsigned long count,
++static int set_max_huge_pages(struct hstate *h, unsigned long count, int nid,
+ 			      nodemask_t *nodes_allowed)
+ {
+ 	unsigned long min_count, ret;
+ 
+ 	spin_lock(&hugetlb_lock);
+ 
++	/*
++	 * Check for a node specific request.
++	 * Changing node specific huge page count may require a corresponding
++	 * change to the global count.  In any case, the passed node mask
++	 * (nodes_allowed) will restrict alloc/free to the specified node.
++	 */
++	if (nid != NUMA_NO_NODE) {
++		unsigned long old_count = count;
++
++		count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
++		/*
++		 * User may have specified a large count value which caused the
++		 * above calculation to overflow.  In this case, they wanted
++		 * to allocate as many huge pages as possible.  Set count to
++		 * largest possible value to align with their intention.
++		 */
++		if (count < old_count)
++			count = ULONG_MAX;
++	}
++
+ 	/*
+ 	 * Gigantic pages runtime allocation depend on the capability for large
+ 	 * page range allocation.
+@@ -2445,15 +2465,22 @@ static ssize_t __nr_hugepages_store_common(bool obey_mempolicy,
+ 		}
+ 	} else if (nodes_allowed) {
+ 		/*
+-		 * per node hstate attribute: adjust count to global,
+-		 * but restrict alloc/free to the specified node.
++		 * Node specific request.  count adjustment happens in
++		 * set_max_huge_pages() after acquiring hugetlb_lock.
+ 		 */
+-		count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
+ 		init_nodemask_of_node(nodes_allowed, nid);
+-	} else
+-		nodes_allowed = &node_states[N_MEMORY];
++	} else {
++		/*
++		 * Node specific request, but we could not allocate the few
++		 * words required for a node mask.  We are unlikely to hit
++		 * this condition.  Since we can not pass down the appropriate
++		 * node mask, just return ENOMEM.
++		 */
++		err = -ENOMEM;
++		goto out;
++	}
+ 
+-	err = set_max_huge_pages(h, count, nodes_allowed);
++	err = set_max_huge_pages(h, count, nid, nodes_allowed);
+ 
+ out:
+ 	if (nodes_allowed != &node_states[N_MEMORY])
+-- 
+2.20.1
 
