@@ -2,270 +2,174 @@ Return-Path: <SRS0=kLvD=R7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A6EDCC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 11:00:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DFAC3C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 11:50:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 546B22082F
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 11:00:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 546B22082F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 6F38620700
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 11:50:38 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="g9uzCEdF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F38620700
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=iki.fi
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E26C16B0003; Thu, 28 Mar 2019 07:00:50 -0400 (EDT)
+	id CC8836B0003; Thu, 28 Mar 2019 07:50:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DAF2B6B0006; Thu, 28 Mar 2019 07:00:50 -0400 (EDT)
+	id C783A6B0006; Thu, 28 Mar 2019 07:50:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C50896B0007; Thu, 28 Mar 2019 07:00:50 -0400 (EDT)
+	id B403C6B0007; Thu, 28 Mar 2019 07:50:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 71C0B6B0003
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 07:00:50 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id w27so7952749edb.13
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 04:00:50 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9748E6B0003
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 07:50:37 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id c25so3833972qkl.6
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 04:50:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=GX0GvPcm7aaP46p8tpbgu01T/ZJB63R8khw69cSRiKo=;
-        b=h7SP0f5/ssn8WWmx8YeUydrpWIaczGXdGwhDVPIBlOs5BcMVCDQg3sSzohAyJfmeYd
-         w1mv3NSHuIDGu1t8UP7mdR/q0iTdad679kKSp1yS0qxU9//bzuQwvYWg2rtYpMEE23zz
-         gQ3S5Nne52sxSOri9/wrek6m7mFDpT2HoaLiQS2FW8MGlgWB7SBEGV0k6aiOaKTNlWMd
-         dvqdXRuEwoekpN3QlhTesykRGoXB0l5pMQW3YrRckX9wERDdkQIrMNHGE9lEwnQMK2Wt
-         3IoGrBri1wForkcK8DyTXZesK3mmwhtsjdksAIp761Og2s6m+Ddeu9wtKonU6Ou30T+D
-         qPWQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAWL38fBB+zJpcnjESTWCBaldxt0ELEX1N9wzJnJiV9PawCsKx2B
-	ozzOjOlMYIRoPfD5zfEFCbXuRGnFvPKpH/O7YModOMdbrqFkt4X1VtsK+Z6sEiN/RzuvUGTNklA
-	nNqpzTEaB97pQm+rbKy5hlHrOHMfab300YZpPsniv/CQAbvRXJaXITeljXoMbFODziQ==
-X-Received: by 2002:a50:9a02:: with SMTP id o2mr15501575edb.182.1553770849960;
-        Thu, 28 Mar 2019 04:00:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz0A9590TF5z1elKr/qWOdTsek1lK++pyDgeLfkb5GTnfIwgk0utBhR75j6Oe93olQ58sqF
-X-Received: by 2002:a50:9a02:: with SMTP id o2mr15501529edb.182.1553770849020;
-        Thu, 28 Mar 2019 04:00:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553770849; cv=none;
+        bh=CcTuxXyWOS0yjLFti3go8bFBxxJeXJfGM9tjdI39VeM=;
+        b=jNSyZq46ye87Fx5wGu1VVbbqBX+qUc+pyt/Ubwsqk1ODVxArC2WmICFE4pDbmUcNtQ
+         7rPV3XjFMnSq2V4mkFR5hOWT2oNgwthNF96zXz25nWIYjkl6m/O+goVBMu/5Y4hXE0eN
+         DxUoIZuSoA9iDLLKbloF0jfmWzVRXC+fzW2Y9vbY1+mGR1E6hk+PbKOAJnoF32xdsZKa
+         OpBUXRulx3haCN+XjJrppto/cUzvOBXiZrKjx3SLfm+uVyRZCtZwkRDEc1cIu0qnDfTe
+         FUyfzcY/V42b5KycqHTpekOvCOzZHwwA9CRxdZVZeHFuJNonnp/Zem8L5e3CNjg394gP
+         CUUQ==
+X-Gm-Message-State: APjAAAXoYpH7qSNTRYwB01LgPcM0oF0XtqA2um6JuLrbBcKqMaOE2nPB
+	UGrgXkadqnXkXuSmpXI1r8IQzX2dB6r4xsK3L9SEzwVe2HfZZHODCz1ICNdvY2vJU+64pQyiKxR
+	+HzXOVr1nvOUmBpUMinTYXNkXlNhdIv595htaEu1S2BDnJ3w/7MFNSeyQI0ehRWs=
+X-Received: by 2002:a37:9fc4:: with SMTP id i187mr33830559qke.141.1553773837261;
+        Thu, 28 Mar 2019 04:50:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw884hfvawKkGmGI45xJXIumDG93kt5NWG/jz2Nu4rOkIm1r701qfjOp6Kujx52lWEL3J7M
+X-Received: by 2002:a37:9fc4:: with SMTP id i187mr33830514qke.141.1553773836485;
+        Thu, 28 Mar 2019 04:50:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553773836; cv=none;
         d=google.com; s=arc-20160816;
-        b=Vh5PnumERgMiO9VQGnfvqcZcPoT1tneYVdy8KVgXiai/Jk47xMf6zyTJdpOfz1a5sM
-         0wuBBZ5GUIEe79UBGH7VMkwI5XAw6ZKniwYqAtrXnDGYVf0Hh1rYcqndg7aJEValFUBY
-         5p3bE36HuIo6eHZfNWrwPMhXvTpgQgpbNuvlV2wOzR+sx8R80NpbTeTx5PzV6OYP7Q4f
-         I2KaWSi9HH9M0oxlRmISIUKLDyEjGEiHIiYhurFK4Yu7u34QAQfOFqatphSJpK7227kT
-         Kk6QY2kQ6LVi9RueGJ/0oaJyjfvFV6cgN/TrKnR5FmD0GKzRjdjbzFI79PFkRVykvAxN
-         as/A==
+        b=fQOD5EPcZcAlwecqFuGe1qxVkttScYtlXYxGg00xHK3ia2yWGh9rKDTK9CQBD/dn2F
+         ja37J/8ykssmXIGp0IWi3omGIlerg/vKla07/gpJ16UV3NdkMaEm9/FwgOikLAZbxScB
+         UjPCHJH4JpoGcBW2W03kqMDgZ+bnGR2wG7rdHXQywkmOwy8GUt/CMjuOpfOxOW8K/0Wl
+         ySvvba/kgTtozaWfnBFFoqNLuc9TTzAv3j2w2+zs0+ZoKPmjbP1qqc5YOLHv7YdysnLL
+         mf9oPMdy6ABWZJ12ffMAzIjBGEQrJtuBvTvnHRRoiIaXkIRDTHNPR1WTZXIDxorYbUtI
+         JPAA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=GX0GvPcm7aaP46p8tpbgu01T/ZJB63R8khw69cSRiKo=;
-        b=Y1DuxIc2zsejgYRROmax3Gh5ad4Y5LMlcaiSrm6fQD/p77yV0scOq8+Z6IBrE3ZSSH
-         Gzsgf205lEedjpvxxg/Rzv0Ya2loKKLFz2Vu6JvDTwFHF/Msng04F0apj44jflTGa7w7
-         L0hoZgJ0BHFZjDz9vDqtoGNVjVEuXLNbCsna5KgEo7u5IRvJn7QQy8hR4UXlzGwx+ZCD
-         8pxyozKu+ONMELxmRbRsiUxjJqlsppcGxYSLejRyPNZ46TL9yLSOS+/Hjvxrv+xoKzJ9
-         QgJeRdEmD3AoJ6JvEob8WOKJTan1004xXxUAMNg5m5mBWOXBvURYK6hisYVBwVfns/nL
-         zQjA==
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=CcTuxXyWOS0yjLFti3go8bFBxxJeXJfGM9tjdI39VeM=;
+        b=ZThq1if6FURYsUaZ6n5nqfcu0Piilaq233Bbxd6wQUIrbOWUougBv48ZxNgut9x17p
+         ES0i+edmeAMHLd4uip5rGuStw7hOI331qhRnxk2i96zKmm4G224/VX7Qeyoa8b0NWboC
+         Tm+gLvpEa5pfSBwNJPWhU6iPcPrsXD/hDPlwGFJtqu3CmRBCwsDIYXTNMTu6wBIRNWys
+         3BncIwZPzaUq2/jmD71zzH2miLC6dpwOiHFYZT8z7hBreBy0j0o+UJURW536IB0LrYMy
+         ajs83hCHfI8dtR6P9MNywaSXIluYF3uFOa6Xbnzf/QsJAAyMtRboquvlhHLWQclKg/Aj
+         cLFg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id u29si642623edm.86.2019.03.28.04.00.48
-        for <linux-mm@kvack.org>;
-        Thu, 28 Mar 2019 04:00:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=g9uzCEdF;
+       spf=neutral (google.com: 66.111.4.25 is neither permitted nor denied by domain of penberg@iki.fi) smtp.mailfrom=penberg@iki.fi;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=iki.fi
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id o22si2484722qka.145.2019.03.28.04.50.36
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Mar 2019 04:50:36 -0700 (PDT)
+Received-SPF: neutral (google.com: 66.111.4.25 is neither permitted nor denied by domain of penberg@iki.fi) client-ip=66.111.4.25;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id C8DD415AB;
-	Thu, 28 Mar 2019 04:00:47 -0700 (PDT)
-Received: from [10.1.196.69] (e112269-lin.cambridge.arm.com [10.1.196.69])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 04B733F59C;
-	Thu, 28 Mar 2019 04:00:43 -0700 (PDT)
-Subject: Re: [PATCH v6 04/19] powerpc: mm: Add p?d_large() definitions
-To: Christophe Leroy <christophe.leroy@c-s.fr>, linux-mm@kvack.org
-Cc: Mark Rutland <Mark.Rutland@arm.com>, x86@kernel.org,
- James Morse <james.morse@arm.com>, Arnd Bergmann <arnd@arndb.de>,
- Ard Biesheuvel <ard.biesheuvel@linaro.org>,
- Peter Zijlstra <peterz@infradead.org>,
- Catalin Marinas <catalin.marinas@arm.com>,
- Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon
- <will.deacon@arm.com>, linux-kernel@vger.kernel.org,
- kvm-ppc@vger.kernel.org, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
- <jglisse@redhat.com>, Ingo Molnar <mingo@redhat.com>,
- Paul Mackerras <paulus@samba.org>, Andy Lutomirski <luto@kernel.org>,
- "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>,
- Thomas Gleixner <tglx@linutronix.de>, linuxppc-dev@lists.ozlabs.org,
- linux-arm-kernel@lists.infradead.org, "Liang, Kan"
- <kan.liang@linux.intel.com>
-References: <20190326162624.20736-1-steven.price@arm.com>
- <20190326162624.20736-5-steven.price@arm.com>
- <8a2efe07-b99f-3caa-fab9-47e49043bf66@c-s.fr>
-From: Steven Price <steven.price@arm.com>
-Message-ID: <2b7d32ce-f258-1b34-1dbf-3a05ea9a0f6b@arm.com>
-Date: Thu, 28 Mar 2019 11:00:42 +0000
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=g9uzCEdF;
+       spf=neutral (google.com: 66.111.4.25 is neither permitted nor denied by domain of penberg@iki.fi) smtp.mailfrom=penberg@iki.fi;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=iki.fi
+Received: from compute4.internal (compute4.nyi.internal [10.202.2.44])
+	by mailout.nyi.internal (Postfix) with ESMTP id 217BF21CE7;
+	Thu, 28 Mar 2019 07:50:36 -0400 (EDT)
+Received: from mailfrontend2 ([10.202.2.163])
+  by compute4.internal (MEProxy); Thu, 28 Mar 2019 07:50:36 -0400
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-transfer-encoding:content-type
+	:date:from:in-reply-to:message-id:mime-version:references
+	:subject:to:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender
+	:x-sasl-enc; s=fm2; bh=CcTuxXyWOS0yjLFti3go8bFBxxJeXJfGM9tjdI39V
+	eM=; b=g9uzCEdF7W61j4UC8oGpsglnHI1//g6wM7CpHOGVrdAJPxQBLnpgEq7jz
+	iGFEU/gKwoZASsmip9qqMqs5lvxETwaDxIVtLz0xmG+tZ1toEOpq3gUqJ2UoRQWu
+	z1uCOsdFwSfe07ghiAzYFj89Hqa8Pi9Fn/sw7BpvNqKQdpvug1aU9mq2w/+jaz5n
+	kZLvEAm2Nrqkvu6yRJUDJpKyEtd2rK+Hpzv5gmGpndf+x+2hr9AcIP5shmNDlXxO
+	3vtonBKjQbZ04bJGSgLkL2/mk/G4FVF2mQgXWWJwSxRSrqQCrEmUxZkAbT2qjZ8X
+	X/hvAMAvpr7j9bdd5LfCwude8K6fw==
+X-ME-Sender: <xms:CbWcXDAx6_XrYJ8XJKyHMtEt4zgYNRvYaWOfPUb6e_A1vZ67rPz_2Q>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedutddrkeeggdefgecutefuodetggdotefrodftvf
+    curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
+    uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenuc
+    fjughrpefuvfhfhffkffgfgggjtgfgsehtjeertddtfeejnecuhfhrohhmpefrvghkkhgr
+    ucfgnhgsvghrghcuoehpvghnsggvrhhgsehikhhirdhfiheqnecukfhppeekledrvdejrd
+    effedrudejfeenucfrrghrrghmpehmrghilhhfrhhomhepphgvnhgsvghrghesihhkihdr
+    fhhinecuvehluhhsthgvrhfuihiivgeptd
+X-ME-Proxy: <xmx:CbWcXD8gBJkfkAwEoSxiCqpsUlHbjixmccyiiQ_K3KiGVGraPacdSA>
+    <xmx:CbWcXFWkqFeKXeIbysLYMKOddL1n-NRlAZB97erQAqIvYgl7JQi0kg>
+    <xmx:CbWcXANJYGvSWsn8Jx1w3Hx_aN58rZLtvSpH7mpdVeA3QkaBBvyLUQ>
+    <xmx:DLWcXCG2WffXFbdFlAnReQD4gIcRCIBch_q3m9EiurFdAXCu5na9dQ>
+Received: from Pekka-MacBook.local (89-27-33-173.bb.dnainternet.fi [89.27.33.173])
+	by mail.messagingengine.com (Postfix) with ESMTPA id 2FA65100E5;
+	Thu, 28 Mar 2019 07:50:31 -0400 (EDT)
+Subject: Re: [PATCH v4] kmemleak: survive in a low-memory situation
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Qian Cai <cai@lca.pw>, akpm@linux-foundation.org, cl@linux.com,
+ mhocko@kernel.org, willy@infradead.org, penberg@kernel.org,
+ rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+References: <20190327005948.24263-1-cai@lca.pw>
+ <c49208bf-b658-1d4e-a57e-8ca58c69afb1@iki.fi>
+ <20190328103020.GA10283@arrakis.emea.arm.com>
+From: Pekka Enberg <penberg@iki.fi>
+Message-ID: <8e88b618-e774-de81-ca99-a8ee89f60b5a@iki.fi>
+Date: Thu, 28 Mar 2019 13:50:29 +0200
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:60.0)
+ Gecko/20100101 Thunderbird/60.6.0
 MIME-Version: 1.0
-In-Reply-To: <8a2efe07-b99f-3caa-fab9-47e49043bf66@c-s.fr>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 8bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+In-Reply-To: <20190328103020.GA10283@arrakis.emea.arm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000006, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 26/03/2019 16:58, Christophe Leroy wrote:
-> 
-> 
-> Le 26/03/2019 à 17:26, Steven Price a écrit :
->> walk_page_range() is going to be allowed to walk page tables other than
->> those of user space. For this it needs to know when it has reached a
->> 'leaf' entry in the page tables. This information is provided by the
->> p?d_large() functions/macros.
->>
->> For powerpc pmd_large() was already implemented, so hoist it out of the
->> CONFIG_TRANSPARENT_HUGEPAGE condition and implement the other levels.
->>
->> Also since we now have a pmd_large always implemented we can drop the
->> pmd_is_leaf() function.
-> 
-> Wouldn't it be better to drop the pmd_is_leaf() in a second patch ?
+Hi Catalin,
 
-Fair point, I'll split this patch.
+On 27/03/2019 2.59, Qian Cai wrote:
+>>> Unless there is a brave soul to reimplement the kmemleak to embed it's
+>>> metadata into the tracked memory itself in a foreseeable future, this
+>>> provides a good balance between enabling kmemleak in a low-memory
+>>> situation and not introducing too much hackiness into the existing
+>>> code for now.
 
-Thanks for the review,
+On Thu, Mar 28, 2019 at 08:05:31AM +0200, Pekka Enberg wrote:
+>> Unfortunately I am not that brave soul, but I'm wondering what the
+>> complication here is? It shouldn't be too hard to teach calculate_sizes() in
+>> SLUB about a new SLAB_KMEMLEAK flag that reserves spaces for the metadata.
 
-Steve
+On 28/03/2019 12.30, Catalin Marinas wrote:> I don't think it's the 
+calculate_sizes() that's the hard part. The way
+> kmemleak is designed assumes that the metadata has a longer lifespan
+> than the slab object it is tracking (and refcounted via
+> get_object/put_object()). We'd have to replace some of the
+> rcu_read_(un)lock() regions with a full kmemleak_lock together with a
+> few more tweaks to allow the release of kmemleak_lock during memory
+> scanning (which can take minutes; so it needs to be safe w.r.t. metadata
+> freeing, currently relying on a deferred RCU freeing).
 
-> Christophe
-> 
->>
->> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
->> CC: Paul Mackerras <paulus@samba.org>
->> CC: Michael Ellerman <mpe@ellerman.id.au>
->> CC: linuxppc-dev@lists.ozlabs.org
->> CC: kvm-ppc@vger.kernel.org
->> Signed-off-by: Steven Price <steven.price@arm.com>
->> ---
->>   arch/powerpc/include/asm/book3s/64/pgtable.h | 30 ++++++++++++++------
->>   arch/powerpc/kvm/book3s_64_mmu_radix.c       | 12 ++------
->>   2 files changed, 24 insertions(+), 18 deletions(-)
->>
->> diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h
->> b/arch/powerpc/include/asm/book3s/64/pgtable.h
->> index 581f91be9dd4..f6d1ac8b832e 100644
->> --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
->> +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
->> @@ -897,6 +897,12 @@ static inline int pud_present(pud_t pud)
->>       return !!(pud_raw(pud) & cpu_to_be64(_PAGE_PRESENT));
->>   }
->>   +#define pud_large    pud_large
->> +static inline int pud_large(pud_t pud)
->> +{
->> +    return !!(pud_raw(pud) & cpu_to_be64(_PAGE_PTE));
->> +}
->> +
->>   extern struct page *pud_page(pud_t pud);
->>   extern struct page *pmd_page(pmd_t pmd);
->>   static inline pte_t pud_pte(pud_t pud)
->> @@ -940,6 +946,12 @@ static inline int pgd_present(pgd_t pgd)
->>       return !!(pgd_raw(pgd) & cpu_to_be64(_PAGE_PRESENT));
->>   }
->>   +#define pgd_large    pgd_large
->> +static inline int pgd_large(pgd_t pgd)
->> +{
->> +    return !!(pgd_raw(pgd) & cpu_to_be64(_PAGE_PTE));
->> +}
->> +
->>   static inline pte_t pgd_pte(pgd_t pgd)
->>   {
->>       return __pte_raw(pgd_raw(pgd));
->> @@ -1093,6 +1105,15 @@ static inline bool pmd_access_permitted(pmd_t
->> pmd, bool write)
->>       return pte_access_permitted(pmd_pte(pmd), write);
->>   }
->>   +#define pmd_large    pmd_large
->> +/*
->> + * returns true for pmd migration entries, THP, devmap, hugetlb
->> + */
->> +static inline int pmd_large(pmd_t pmd)
->> +{
->> +    return !!(pmd_raw(pmd) & cpu_to_be64(_PAGE_PTE));
->> +}
->> +
->>   #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->>   extern pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot);
->>   extern pmd_t mk_pmd(struct page *page, pgprot_t pgprot);
->> @@ -1119,15 +1140,6 @@ pmd_hugepage_update(struct mm_struct *mm,
->> unsigned long addr, pmd_t *pmdp,
->>       return hash__pmd_hugepage_update(mm, addr, pmdp, clr, set);
->>   }
->>   -/*
->> - * returns true for pmd migration entries, THP, devmap, hugetlb
->> - * But compile time dependent on THP config
->> - */
->> -static inline int pmd_large(pmd_t pmd)
->> -{
->> -    return !!(pmd_raw(pmd) & cpu_to_be64(_PAGE_PTE));
->> -}
->> -
->>   static inline pmd_t pmd_mknotpresent(pmd_t pmd)
->>   {
->>       return __pmd(pmd_val(pmd) & ~_PAGE_PRESENT);
->> diff --git a/arch/powerpc/kvm/book3s_64_mmu_radix.c
->> b/arch/powerpc/kvm/book3s_64_mmu_radix.c
->> index f55ef071883f..1b57b4e3f819 100644
->> --- a/arch/powerpc/kvm/book3s_64_mmu_radix.c
->> +++ b/arch/powerpc/kvm/book3s_64_mmu_radix.c
->> @@ -363,12 +363,6 @@ static void kvmppc_pte_free(pte_t *ptep)
->>       kmem_cache_free(kvm_pte_cache, ptep);
->>   }
->>   -/* Like pmd_huge() and pmd_large(), but works regardless of config
->> options */
->> -static inline int pmd_is_leaf(pmd_t pmd)
->> -{
->> -    return !!(pmd_val(pmd) & _PAGE_PTE);
->> -}
->> -
->>   static pmd_t *kvmppc_pmd_alloc(void)
->>   {
->>       return kmem_cache_alloc(kvm_pmd_cache, GFP_KERNEL);
->> @@ -460,7 +454,7 @@ static void kvmppc_unmap_free_pmd(struct kvm *kvm,
->> pmd_t *pmd, bool full,
->>       for (im = 0; im < PTRS_PER_PMD; ++im, ++p) {
->>           if (!pmd_present(*p))
->>               continue;
->> -        if (pmd_is_leaf(*p)) {
->> +        if (pmd_large(*p)) {
->>               if (full) {
->>                   pmd_clear(p);
->>               } else {
->> @@ -593,7 +587,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t
->> *pgtable, pte_t pte,
->>       else if (level <= 1)
->>           new_pmd = kvmppc_pmd_alloc();
->>   -    if (level == 0 && !(pmd && pmd_present(*pmd) &&
->> !pmd_is_leaf(*pmd)))
->> +    if (level == 0 && !(pmd && pmd_present(*pmd) && !pmd_large(*pmd)))
->>           new_ptep = kvmppc_pte_alloc();
->>         /* Check if we might have been invalidated; let the guest
->> retry if so */
->> @@ -662,7 +656,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t
->> *pgtable, pte_t pte,
->>           new_pmd = NULL;
->>       }
->>       pmd = pmd_offset(pud, gpa);
->> -    if (pmd_is_leaf(*pmd)) {
->> +    if (pmd_large(*pmd)) {
->>           unsigned long lgpa = gpa & PMD_MASK;
->>             /* Check if we raced and someone else has set the same
->> thing */
->>
-> 
-> _______________________________________________
-> linux-arm-kernel mailing list
-> linux-arm-kernel@lists.infradead.org
-> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+Right.
+
+I think SLUB already supports delaying object freeing because of KASAN 
+(see the slab_free_freelist_hook() function) so the issue with metadata 
+outliving object is solvable (although will consume more memory).
+
+I can't say I remember enough details from kmemleak to comment on the 
+locking complications you point out, though.
+
+- Pekka
 
