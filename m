@@ -2,264 +2,221 @@ Return-Path: <SRS0=kLvD=R7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-13.5 required=3.0
-	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CA033C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 22:08:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 653A3C10F06
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 22:12:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 811BA2075E
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 22:08:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 811BA2075E
+	by mail.kernel.org (Postfix) with ESMTP id 1770B2184C
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 22:12:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1770B2184C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DAF496B000C; Thu, 28 Mar 2019 18:08:29 -0400 (EDT)
+	id C27D46B0008; Thu, 28 Mar 2019 18:12:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D5F836B0266; Thu, 28 Mar 2019 18:08:29 -0400 (EDT)
+	id BAF466B000C; Thu, 28 Mar 2019 18:12:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C4E416B0274; Thu, 28 Mar 2019 18:08:29 -0400 (EDT)
+	id A75AE6B0266; Thu, 28 Mar 2019 18:12:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A6DDC6B000C
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 18:08:29 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id d131so66040qkc.18
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 15:08:29 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E99A6B0008
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 18:12:08 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id a188so120728qkf.0
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 15:12:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :content-transfer-encoding:in-reply-to:user-agent;
-        bh=h0wVGhGqMdrTppX6tkD5HPWg1t6S6OIyRNqJBAvAd+g=;
-        b=tU7TWr3sRYb4KbTNVILw1BVnRWxnqC2N/SFqhNkP2ix1hai2kR3ZJAOsiEEuIqUMP0
-         FYvdq8ng+ks0kcwgr+9SfMA6ZYG5dbVVJApIIQni5jsHe4FCx0mZXZU13UM0ef4ySXKt
-         dk++LXVw1LK/2kf7PPJX4u5pauwPNrI0fccwg7v32MwTc7ks9wMIOZfVuFoyIw+qENGv
-         dbLSL4CnD0Lan3rLOsWZ0qOw1Avsr97k9VmncY1xfJWdfE1cS6ydwbjfrU0Qp/Nr3LAi
-         OMRb9QB7cYNM4pEpyHT3UJl1doEdiHorDr5I2E6JqsaPsvwKX34wpmGOQRUutk4OZT57
-         gdIQ==
+        bh=CEwSl34k6l4FLjjlbRxCU1JxeusG83TWF1XySun55Ik=;
+        b=dgSL9tB9Kbgk8zBpgOTsa1oQ017oGVa9drRtQjIodrk899Jt4Vv5WH8I9SzVuycnCb
+         tj/At1CKSnpr0G6u4P2SLBZFqvaHgMsA6fyZUmNnJ7u01b2bRLylQ1PzDbnmwmGfJTxA
+         KOlioZV+70q/Q8bQHssDNrKMXAoAe/f2gyEjfh+Le3vNY22D0hC4dmJq1mqrrngBZHGq
+         8VmMrQibDl1npaGMGT234O8tVtxXIWspI9DPKGqgxgZfZUaxECpVEq78ILbURHz2QzLV
+         n1/IFI38eWPowq/w/RCGCMY+HiBqKDhhj53jG9G6YxmyRLGNdeME0aPU4GiKXP3+CCsE
+         6PhA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXkF5jsmORxuH2aZ+7d+PDvI2J7pCT6Z95ec6qgbbcjzOeQKOBA
-	UwP55qciYp5/r6Myah0lokKsU2GOfN5uKq7m+N710E4pApEgFOQqXTHDh92yP2crEYN5DP+uzYA
-	qGhRASrNnVYldnGbiozP1Tn+8qb+L5Jrsm6gzs1OAAyiodmksAZ2y/i+t0ePXbXIlqg==
-X-Received: by 2002:a37:b005:: with SMTP id z5mr35426290qke.119.1553810909437;
-        Thu, 28 Mar 2019 15:08:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzbyFv7ozCzgMp0P2GN6QNVfwxwQpWHsYeAMR1F0EhskXaQ1WL7hAn3iqmIe3699g5k/Rm7
-X-Received: by 2002:a37:b005:: with SMTP id z5mr35426242qke.119.1553810908737;
-        Thu, 28 Mar 2019 15:08:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553810908; cv=none;
+X-Gm-Message-State: APjAAAXPh8ZYF6ft/Qd/amjiMLX4D8PYjW79prGk9MKsM1Zk2KrK+yLS
+	F0hgkVHtTuHG9vo8cRw9p6+f2s9nhVXXdDJjoAx8SJMkAWE8VZX15BPCfNzfvvELpjkD/hlyJya
+	vkJFPITgR/1KsMrINLRU5EP5hmpKtcrA9+2jFRBBDS1u8dmh4bKeDjoO5XJJrx3WR8g==
+X-Received: by 2002:a0c:9dc1:: with SMTP id p1mr13580782qvf.60.1553811128244;
+        Thu, 28 Mar 2019 15:12:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwgu6kjnoYj+KOLxdzBDRvLyZ3WhALdbGVDCHAh7nUdEvzqiKmXyBxRUjCWn5X1G3UbzloV
+X-Received: by 2002:a0c:9dc1:: with SMTP id p1mr13580746qvf.60.1553811127594;
+        Thu, 28 Mar 2019 15:12:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553811127; cv=none;
         d=google.com; s=arc-20160816;
-        b=0eXrzWgAgqFxTOqcRAd9G5QSH6iTcPitjDzk9em34kbVOCe3C/GhhpkJ3gCauMblGZ
-         1rxsZs7dJZJAMh3NBe1a2V84JbHZuSRg52Ik4Pdyeu1J3DjRXxViZzx4MbwRpaYj+/zi
-         eeTp96CQOaBI+ENsvbKZsqiC5angwy2Rpx9benavgjB5PJI1iX5BLs0zaJohmHrx8pzm
-         U0pVhL+uSwkg18KJTp6i/JyHb/nSRJefAaeiNDScaqI96P2TIWoZltZXlezpd3dTP4Dc
-         ELe4VvpJZT7WBTYaDBowlFsdXCU8IKiBEYH0nCAB5sZ6kK/IdTaDRbCjYldBbUD+dQNv
-         YhUQ==
+        b=XWgZBFJfOP2s/qkRz1yLiU37vECNqItGdpvvuz5dopEGNR4LOw+qslBy7NOtjINov2
+         khYG/VrTl7I3Fx0Mw4YDSAUymwyGel76GEwEpVscWxh5wXUfFJtG1NmRZhYqX7KA+JzH
+         RqDt3rviZ+4wpts5f8OzBJ2nwZwpGcnXwGZHQc40+028CdPQag10W0Uocz+8+EerilR2
+         gWzxSplXDQTY337vxXA2efUwQitNL1PhFxYXduVKUbR+tWrnTkVZODMho/VOZV99XfE2
+         zUFyHdSD/tXDYKeifbSW0X4MPcOCWfLNFS5i6MeP9QI1MftGwc/HXqyqUQLSf/dXD7X/
+         c8sw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-transfer-encoding
          :content-disposition:mime-version:references:message-id:subject:cc
          :to:from:date;
-        bh=h0wVGhGqMdrTppX6tkD5HPWg1t6S6OIyRNqJBAvAd+g=;
-        b=E7jPzjjZ6fDk8OqwDun3Cz+kJAlvD29/fqKPMae4dwlXDHdrj64XobsYZ+zzpd4bpV
-         qfB77B+DpUaapa4okK+b1fgwajSF+vSkHYn6o/lonPAuryvOM3qksg7ltUhA0uhM0jnK
-         0ES4MUhU9pF94BVJ6z0ZkVdfeevGcMc8bZJHkyukp7ySXQP6YuETI6FFN/YZmQIrkOsY
-         oNiVBjsaCR1yOTYuY3bH0XTelQDsi19InZmcwQIS9GSHq2N92ny3GIazmqLNtc+pyusO
-         kHAvTE4tIfCvSnAS1jmkfpiRvmkstUgGH+RwQjgYN4lrWXsI0V8YYrwH3x4BB81pmbnG
-         Vu6g==
+        bh=CEwSl34k6l4FLjjlbRxCU1JxeusG83TWF1XySun55Ik=;
+        b=BsaRy2lVanTwG8Y90Zs41yG7s96wogULSpafn8gIdhjQhWkE1vUpjelFMfuHoq6WA7
+         E1lCtwXflAKP/XV0RvkXOr0XhqaNeph6Tu4Z2W3Tr7+9sDH34MTDPY5MTxFTObqKhNuC
+         6DulMCrYdkA280HdrZabCRgZlK/+ELvz0MBLKMJ9MSEIvhH5L6lRDjOGX9Lb7BVApN70
+         tKRqwZbhN4EoZWwTDG/MercnJJqzCJjzJB6xLVhZyOkXEFHVTZuJK/JZxLf8Hw1B7tkE
+         iRSf7Ywj2PsHV6qIQHhk4r9vZn017J2gYjj9xp4lOfZZK3rYBQFoMJ9H1AU8wW6DHy3s
+         p5rg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o32si133232qte.347.2019.03.28.15.08.28
+        by mx.google.com with ESMTPS id p12si151856qtc.238.2019.03.28.15.12.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Mar 2019 15:08:28 -0700 (PDT)
+        Thu, 28 Mar 2019 15:12:07 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 8B6A73082AF0;
-	Thu, 28 Mar 2019 22:08:27 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id C942388306;
+	Thu, 28 Mar 2019 22:12:06 +0000 (UTC)
 Received: from redhat.com (ovpn-121-118.rdu2.redhat.com [10.10.121.118])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id A056D5D961;
-	Thu, 28 Mar 2019 22:08:26 +0000 (UTC)
-Date: Thu, 28 Mar 2019 18:08:24 -0400
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 0ECCC1001DDA;
+	Thu, 28 Mar 2019 22:12:05 +0000 (UTC)
+Date: Thu, 28 Mar 2019 18:12:04 -0400
 From: Jerome Glisse <jglisse@redhat.com>
 To: John Hubbard <jhubbard@nvidia.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Dan Williams <dan.j.williams@intel.com>
-Subject: Re: [PATCH v2 10/11] mm/hmm: add helpers for driver to safely take
- the mmap_sem v2
-Message-ID: <20190328220824.GE13560@redhat.com>
+Subject: Re: [PATCH v2 07/11] mm/hmm: add default fault flags to avoid the
+ need to pre-fill pfns arrays.
+Message-ID: <20190328221203.GF13560@redhat.com>
 References: <20190325144011.10560-1-jglisse@redhat.com>
- <20190325144011.10560-11-jglisse@redhat.com>
- <9df742eb-61ca-3629-a5f4-8ad1244ff840@nvidia.com>
- <20190328213047.GB13560@redhat.com>
- <a16efd42-3e2b-1b72-c205-0c2659de2750@nvidia.com>
+ <20190325144011.10560-8-jglisse@redhat.com>
+ <2f790427-ea87-b41e-b386-820ccdb7dd38@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <a16efd42-3e2b-1b72-c205-0c2659de2750@nvidia.com>
+In-Reply-To: <2f790427-ea87-b41e-b386-820ccdb7dd38@nvidia.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Thu, 28 Mar 2019 22:08:27 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Thu, 28 Mar 2019 22:12:06 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 28, 2019 at 02:41:02PM -0700, John Hubbard wrote:
-> On 3/28/19 2:30 PM, Jerome Glisse wrote:
-> > On Thu, Mar 28, 2019 at 01:54:01PM -0700, John Hubbard wrote:
-> >> On 3/25/19 7:40 AM, jglisse@redhat.com wrote:
-> >>> From: Jérôme Glisse <jglisse@redhat.com>
-> >>>
-> >>> The device driver context which holds reference to mirror and thus to
-> >>> core hmm struct might outlive the mm against which it was created. To
-> >>> avoid every driver to check for that case provide an helper that check
-> >>> if mm is still alive and take the mmap_sem in read mode if so. If the
-> >>> mm have been destroy (mmu_notifier release call back did happen) then
-> >>> we return -EINVAL so that calling code knows that it is trying to do
-> >>> something against a mm that is no longer valid.
-> >>>
-> >>> Changes since v1:
-> >>>     - removed bunch of useless check (if API is use with bogus argument
-> >>>       better to fail loudly so user fix their code)
-> >>>
-> >>> Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
-> >>> Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
-> >>> Cc: Andrew Morton <akpm@linux-foundation.org>
-> >>> Cc: John Hubbard <jhubbard@nvidia.com>
-> >>> Cc: Dan Williams <dan.j.williams@intel.com>
-> >>> ---
-> >>>  include/linux/hmm.h | 50 ++++++++++++++++++++++++++++++++++++++++++---
-> >>>  1 file changed, 47 insertions(+), 3 deletions(-)
-> >>>
-> >>> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-> >>> index f3b919b04eda..5f9deaeb9d77 100644
-> >>> --- a/include/linux/hmm.h
-> >>> +++ b/include/linux/hmm.h
-> >>> @@ -438,6 +438,50 @@ struct hmm_mirror {
-> >>>  int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm);
-> >>>  void hmm_mirror_unregister(struct hmm_mirror *mirror);
-> >>>  
-> >>> +/*
-> >>> + * hmm_mirror_mm_down_read() - lock the mmap_sem in read mode
-> >>> + * @mirror: the HMM mm mirror for which we want to lock the mmap_sem
-> >>> + * Returns: -EINVAL if the mm is dead, 0 otherwise (lock taken).
-> >>> + *
-> >>> + * The device driver context which holds reference to mirror and thus to core
-> >>> + * hmm struct might outlive the mm against which it was created. To avoid every
-> >>> + * driver to check for that case provide an helper that check if mm is still
-> >>> + * alive and take the mmap_sem in read mode if so. If the mm have been destroy
-> >>> + * (mmu_notifier release call back did happen) then we return -EINVAL so that
-> >>> + * calling code knows that it is trying to do something against a mm that is
-> >>> + * no longer valid.
-> >>> + */
-> >>> +static inline int hmm_mirror_mm_down_read(struct hmm_mirror *mirror)
-> >>
-> >> Hi Jerome,
-> >>
-> >> Let's please not do this. There are at least two problems here:
-> >>
-> >> 1. The hmm_mirror_mm_down_read() wrapper around down_read() requires a 
-> >> return value. This is counter to how locking is normally done: callers do
-> >> not normally have to check the return value of most locks (other than
-> >> trylocks). And sure enough, your own code below doesn't check the return value.
-> >> That is a pretty good illustration of why not to do this.
+On Thu, Mar 28, 2019 at 02:59:50PM -0700, John Hubbard wrote:
+> On 3/25/19 7:40 AM, jglisse@redhat.com wrote:
+> > From: Jérôme Glisse <jglisse@redhat.com>
 > > 
-> > Please read the function description this is not about checking lock
-> > return value it is about checking wether we are racing with process
-> > destruction and avoid trying to take lock in such cases so that driver
-> > do abort as quickly as possible when a process is being kill.
+> > The HMM mirror API can be use in two fashions. The first one where the HMM
+> > user coalesce multiple page faults into one request and set flags per pfns
+> > for of those faults. The second one where the HMM user want to pre-fault a
+> > range with specific flags. For the latter one it is a waste to have the user
+> > pre-fill the pfn arrays with a default flags value.
 > > 
-> >>
-> >> 2. This is a weird place to randomly check for semi-unrelated state, such 
-> >> as "is HMM still alive". By that I mean, if you have to detect a problem
-> >> at down_read() time, then the problem could have existed both before and
-> >> after the call to this wrapper. So it is providing a false sense of security,
-> >> and it is therefore actually undesirable to add the code.
+> > This patch adds a default flags value allowing user to set them for a range
+> > without having to pre-fill the pfn array.
 > > 
-> > It is not, this function is use in device page fault handler which will
-> > happens asynchronously from CPU event or process lifetime when a process
-> > is killed or is dying we do want to avoid useless page fault work and
-> > we do want to avoid blocking the page fault queue of the device. This
-> > function reports to the caller that the process is dying and that it
-> > should just abort the page fault and do whatever other device specific
-> > thing that needs to happen.
+> > Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
+> > Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: John Hubbard <jhubbard@nvidia.com>
+> > Cc: Dan Williams <dan.j.williams@intel.com>
+> > ---
+> >  include/linux/hmm.h |  7 +++++++
+> >  mm/hmm.c            | 12 ++++++++++++
+> >  2 files changed, 19 insertions(+)
 > > 
+> > diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> > index 79671036cb5f..13bc2c72f791 100644
+> > --- a/include/linux/hmm.h
+> > +++ b/include/linux/hmm.h
+> > @@ -165,6 +165,8 @@ enum hmm_pfn_value_e {
+> >   * @pfns: array of pfns (big enough for the range)
+> >   * @flags: pfn flags to match device driver page table
+> >   * @values: pfn value for some special case (none, special, error, ...)
+> > + * @default_flags: default flags for the range (write, read, ...)
+> > + * @pfn_flags_mask: allows to mask pfn flags so that only default_flags matter
+> >   * @pfn_shifts: pfn shift value (should be <= PAGE_SHIFT)
+> >   * @valid: pfns array did not change since it has been fill by an HMM function
+> >   */
+> > @@ -177,6 +179,8 @@ struct hmm_range {
+> >  	uint64_t		*pfns;
+> >  	const uint64_t		*flags;
+> >  	const uint64_t		*values;
+> > +	uint64_t		default_flags;
+> > +	uint64_t		pfn_flags_mask;
+> >  	uint8_t			pfn_shift;
+> >  	bool			valid;
+> >  };
+> > @@ -521,6 +525,9 @@ static inline int hmm_vma_fault(struct hmm_range *range, bool block)
+> >  {
+> >  	long ret;
+> >  
+> > +	range->default_flags = 0;
+> > +	range->pfn_flags_mask = -1UL;
 > 
-> But it's inherently racy, to check for a condition outside of any lock, so again,
-> it's a false sense of security.
+> Hi Jerome,
+> 
+> This is nice to have. Let's constrain it a little bit more, though: the pfn_flags_mask
+> definitely does not need to be a run time value. And we want some assurance that
+> the mask is 
+> 	a) large enough for the flags, and
+> 	b) small enough to avoid overrunning the pfns field.
+> 
+> Those are less certain with a run-time struct field, and more obviously correct with
+> something like, approximately:
+> 
+>  	#define PFN_FLAGS_MASK 0xFFFF
+> 
+> or something.
+> 
+> In other words, this is more flexibility than we need--just a touch too much,
+> IMHO.
 
-Yes and race are fine here, this is to avoid useless work if we are
-unlucky and we race and fail to see the destruction that is just
-happening then it is fine we are just going to do useless work. So
-we do not care about race here we just want to bailout early if we
-can witness the process dying.
+This mirror the fact that flags are provided as an array and some devices use
+the top bits for flags (read, write, ...). So here it is the safe default to
+set it to -1. If the caller want to leverage this optimization it can override
+the default_flags value.
 
 > 
-> >>
-> >> If you insist on having this wrapper, I think it should have approximately 
-> >> this form:
-> >>
-> >> void hmm_mirror_mm_down_read(...)
-> >> {
-> >> 	WARN_ON(...)
-> >> 	down_read(...)
-> >> } 
-> > 
-> > I do insist as it is useful and use by both RDMA and nouveau and the
-> > above would kill the intent. The intent is do not try to take the lock
-> > if the process is dying.
+> > +
+> >  	ret = hmm_range_register(range, range->vma->vm_mm,
+> >  				 range->start, range->end);
+> >  	if (ret)
+> > diff --git a/mm/hmm.c b/mm/hmm.c
+> > index fa9498eeb9b6..4fe88a196d17 100644
+> > --- a/mm/hmm.c
+> > +++ b/mm/hmm.c
+> > @@ -415,6 +415,18 @@ static inline void hmm_pte_need_fault(const struct hmm_vma_walk *hmm_vma_walk,
+> >  	if (!hmm_vma_walk->fault)
+> >  		return;
+> >  
+> > +	/*
+> > +	 * So we not only consider the individual per page request we also
+> > +	 * consider the default flags requested for the range. The API can
+> > +	 * be use in 2 fashions. The first one where the HMM user coalesce
+> > +	 * multiple page fault into one request and set flags per pfns for
+> > +	 * of those faults. The second one where the HMM user want to pre-
+> > +	 * fault a range with specific flags. For the latter one it is a
+> > +	 * waste to have the user pre-fill the pfn arrays with a default
+> > +	 * flags value.
+> > +	 */
+> > +	pfns = (pfns & range->pfn_flags_mask) | range->default_flags;
 > 
-> Could you provide me a link to those examples so I can take a peek? I
-> am still convinced that this whole thing is a race condition at best.
+> Need to verify that the mask isn't too large or too small.
 
-The race is fine and ok see:
-
-https://cgit.freedesktop.org/~glisse/linux/commit/?h=hmm-odp-v2&id=eebd4f3095290a16ebc03182e2d3ab5dfa7b05ec
-
-which has been posted and i think i provided a link in the cover
-letter to that post. The same patch exist for nouveau i need to
-cleanup that tree and push it.
-
-> > 
-> > 
-> >>
-> >>> +{
-> >>> +	struct mm_struct *mm;
-> >>> +
-> >>> +	/* Sanity check ... */
-> >>> +	if (!mirror || !mirror->hmm)
-> >>> +		return -EINVAL;
-> >>> +	/*
-> >>> +	 * Before trying to take the mmap_sem make sure the mm is still
-> >>> +	 * alive as device driver context might outlive the mm lifetime.
-> >>
-> >> Let's find another way, and a better place, to solve this problem.
-> >> Ref counting?
-> > 
-> > This has nothing to do with refcount or use after free or anthing
-> > like that. It is just about checking wether we are about to do
-> > something pointless. If the process is dying then it is pointless
-> > to try to take the lock and it is pointless for the device driver
-> > to trigger handle_mm_fault().
-> 
-> Well, what happens if you let such pointless code run anyway? 
-> Does everything still work? If yes, then we don't need this change.
-> If no, then we need a race-free version of this change.
-
-Yes everything work, nothing bad can happen from a race, it will just
-do useless work which never hurt anyone.
+I need to check agin but default flag is anded somewhere to limit
+the bit to the one we expect.
 
 Cheers,
 Jérôme
