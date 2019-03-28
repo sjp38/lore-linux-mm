@@ -6,81 +6,81 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1D9D3C4360F
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 15:22:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5B1EBC10F06
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 15:22:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CFDD8206BA
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 15:22:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CFDD8206BA
+	by mail.kernel.org (Postfix) with ESMTP id 16F6C206BA
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 15:22:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 16F6C206BA
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8030E6B000A; Thu, 28 Mar 2019 11:22:13 -0400 (EDT)
+	id A9B0E6B000C; Thu, 28 Mar 2019 11:22:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 78A8E6B000C; Thu, 28 Mar 2019 11:22:13 -0400 (EDT)
+	id A25E56B000D; Thu, 28 Mar 2019 11:22:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 62FDC6B000D; Thu, 28 Mar 2019 11:22:13 -0400 (EDT)
+	id 8C6F66B000E; Thu, 28 Mar 2019 11:22:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BAC06B000A
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 11:22:13 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id z98so8309071ede.3
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 08:22:13 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3557D6B000C
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 11:22:16 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id h27so8208367eda.8
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 08:22:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=6VnZSWrBLPP0YYU4zKMRDn5dbPSJfXU3wTa2rjMcHkk=;
-        b=PmujCNQpbCngn4xNs/14/JWCYtTx6GV4ZVF7HY1P0b++XC16zNjxCOkjbucPaUhAMq
-         uXm/F67vr0lPoSCbsDPSsx5z3aqKE2EmlaGCHaBAfyCiJN8xoP+WfComFos+6+brHSut
-         IDzpULkZRpLeN5hxuHA3XX7qxLOGj8pmDXKa+UVcRZs3Cdb2zrrAWL2xRHqSoyOzrDhY
-         rNvbXaFkxWvqx7jOB0Zziu2sk4CJWtnywQJ/Xezl3zi+shV5ixr9DbuPQrAntkPayiSO
-         DTYQXjYlwUy0nII8N4rQcrtvyRv0si4X5etR61rltE39n1I4wOsNOOV7AbXAEgSPY2fB
-         4t5A==
+        bh=SYRxLnl8XLiyLdkh6TtJG1FrMibEOdTkR6dxxuI72gg=;
+        b=bP7C+YwhxNHHhqfZu5gKo1y/dLlmwj1Bq9lNolu/6R2zX6gAQREmhAOR2rV75hblmI
+         +21tbL9t9EPzoy65Y6dg0Oe40G2i3DI1m9RaqTE1so/AdctiuAIAuCmJN9GprmI6wWDO
+         8L2VB+X+RetC6NpCdEhZm/9H/XJ2XiH8/0XxnCZOvs6qjDDL5HWVTHsFfDCO6Wre5vK8
+         K7GjfBok4fYUx9DgSNJLNd8z0M6RLeOc7JJa+BJWnJUY1xizWj/KCYoLnm+GOWJQbqeY
+         VEW40oMrtgc99FcVOENLtcBvnxqeZUYHFJ18ALjyYjhfMAAkoOEJ6vQw5hHw6pihbCsP
+         TOdA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAXbb4XfYARMTrXTlrbXdqCTuvP9NjTV7aTOvSzlib011vs8vn8Z
-	lJm1EAc9h8jCHF2zrNy/hy67zQfE2N1G563Kw9ri6cj6BPd+5TJR8xsB1vhWwn1M8Bnul1FaDP1
-	jzzdYuYuB1ywSR7NHEVXTznsLdBSRGBjDuz7NrpLjEixZtglQpOtdc+fFpLoTTovviA==
-X-Received: by 2002:a05:6402:1592:: with SMTP id c18mr28327336edv.274.1553786532622;
-        Thu, 28 Mar 2019 08:22:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxHQ0P++FY1+t52fCgs9wx3MuaC/0SykMHNhMUJNloVCIz3NwKTuqoWWKX2xl5+zMeoHg4S
-X-Received: by 2002:a05:6402:1592:: with SMTP id c18mr28327213edv.274.1553786530518;
-        Thu, 28 Mar 2019 08:22:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553786530; cv=none;
+X-Gm-Message-State: APjAAAU4hHOTCjbluANLCyBHyURJqsdPsC8SjYepaFQ4NUzUpNqwEEJZ
+	yQr3Rr3KXU7xyUo9Rp/mEeC1O/KFwRZUldgQCtrvFwAj0drMWBttMOam6lvdDkt+tNAUpMxUYRb
+	KgknW+xvU6BBUFuB0SzEioGS+7j62bZJJ9XbhKSu0foilbzTU5u1NbF8L9K0crkV+eQ==
+X-Received: by 2002:a50:b6a9:: with SMTP id d38mr28117069ede.98.1553786535735;
+        Thu, 28 Mar 2019 08:22:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwRiipBNLC1DscJhfnr6Pktya0KeBkYgV1WkPyyDQL7bvXqGCCWzjBj3ThYuwQ86Y4BksBT
+X-Received: by 2002:a50:b6a9:: with SMTP id d38mr28116996ede.98.1553786534552;
+        Thu, 28 Mar 2019 08:22:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553786534; cv=none;
         d=google.com; s=arc-20160816;
-        b=sWG5W54oagGMkf1ZBIVVYfH/yHrQfO+vkGE6h69K2Ov/M4HvnTlJWadyQXyWYmEpOW
-         TTWe+NlhX6awTPKf6+bi1iOJsVLdP+HpWHld3FDJnVG4z0ByAmtOXDeBLHxrs1qbUIcc
-         /F0kKJSW6WA0KtI9MPd1euPW/zljPjG0e3M55tIsV3+9d8hBbWCq13jBpbA6H4H/keZk
-         McoY4r6ml7oqWnJWHcVZ854Oi3ak2DowzkmP4bSrZJ9qW0Oxx4RoZmrCTACPH+qm77H+
-         IGSRxKCH9pcf0eoEyFAg3GpBxvW7Lpa1Ij5XaiVmat6DRQxxFvCbwhJNuvYBgbV5yo3U
-         1LSA==
+        b=LAfWTOpFhXKYOESHJzbfV2A5VGSj0p7qvc+AgWyVlKNQyPvOE2PB3hi3Cygk/fRafC
+         lS92gt5bEV/IduhvYGLaelcYPdVa/5HPdrSKV+3v7B+R+4IHmt14+vp+wrQUuIOu0K3r
+         tH8Cstdwo/MHXO8FEXLNMWPKLLwYXgy1hFMzmyCDg0H9Eu+QviPVzPMXQW0ywp0JuUq4
+         dmDLD8qyqp325OfCmmcMzTTMBvrGiWahSvRpxc4za6WcLM5qMJ/jFvdxV/evLz/2yR0W
+         g2NClA8P5bpClhpwwi/mFDwMdmvZe52mxRgMaPCwswUg0myXzUNf74NsB6iiydICF+pA
+         DPtw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=6VnZSWrBLPP0YYU4zKMRDn5dbPSJfXU3wTa2rjMcHkk=;
-        b=mZQpVT1v0ZXG7BeoUAcuvTaatZauPb7JfH6cNekbywp6N0TBRfc4vqP5MaV2mIQu/R
-         bF7veO9/AyOa4rLwBX8xlQIJTNLLZfLm0lgdSfYD1vnAid4bSedEz6hNcGWvlTjW1KPg
-         Fzn6cK88Zu6LvDJU6vFah/umAAs+liHUoc06qJ3VAbtj5/JHRuC08KZyjT4ZrPFN5Yed
-         E67BDNAi8Dwk1zPTZJ4Km8eGdCFZ4j+RMMYTK3/5q4cx62ckLv5kDYY+0OovucixhCWs
-         TBvA8kEhVfnYvkCZnEcswggzI3IWpKxlei0Gtgjk4lyD8eJiH4eQ4KGD1GlGCvVeNDZo
-         ZcYg==
+        bh=SYRxLnl8XLiyLdkh6TtJG1FrMibEOdTkR6dxxuI72gg=;
+        b=xv0V/WnCS26xzZqaX+/EoU77UhH5GmwSNtpgaxeO3RD/HV6iQSsjCn0wJ6ZqE9cJMt
+         lRrOI3S4v/1vLbpkDPnq7QFaogMDaGpZ1oRSRN6pPRjwOBINbBZlfLZnjznW4AU8uQQS
+         0TMb+n8+Cf2UYho/QPkMeig8YHHU32/82nK0s/b0mGif4Av+mMd7GVle/Pbm6XEzKlLh
+         kgQGKycEuaXi5nBvKI900xa+WVUwqo4fBW2/ZYrCD0EHs5KorzuRz+vBQlNDQayELLT4
+         f6Hj5mhrZaxxpe7OF3sAVRrsGeY4WGVw1m8Zr+M6/deowszOEv5m4EWhAXTw2r9c9z4f
+         FG4A==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id v9si5802496edc.26.2019.03.28.08.22.10
+        by mx.google.com with ESMTP id c20si1662691eda.94.2019.03.28.08.22.14
         for <linux-mm@kvack.org>;
-        Thu, 28 Mar 2019 08:22:10 -0700 (PDT)
+        Thu, 28 Mar 2019 08:22:14 -0700 (PDT)
 Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 5801B168F;
-	Thu, 28 Mar 2019 08:22:09 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 9FA4915BF;
+	Thu, 28 Mar 2019 08:22:13 -0700 (PDT)
 Received: from e112269-lin.arm.com (e112269-lin.cambridge.arm.com [10.1.196.69])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 502A33F557;
-	Thu, 28 Mar 2019 08:22:05 -0700 (PDT)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 98B3F3F557;
+	Thu, 28 Mar 2019 08:22:09 -0700 (PDT)
 From: Steven Price <steven.price@arm.com>
 To: linux-mm@kvack.org
 Cc: Steven Price <steven.price@arm.com>,
@@ -103,13 +103,13 @@ Cc: Steven Price <steven.price@arm.com>,
 	Mark Rutland <Mark.Rutland@arm.com>,
 	"Liang, Kan" <kan.liang@linux.intel.com>,
 	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Paul Mackerras <paulus@samba.org>,
 	Michael Ellerman <mpe@ellerman.id.au>,
-	linuxppc-dev@lists.ozlabs.org,
-	kvm-ppc@vger.kernel.org
-Subject: [PATCH v7 04/20] powerpc: mm: Add p?d_large() definitions
-Date: Thu, 28 Mar 2019 15:20:48 +0000
-Message-Id: <20190328152104.23106-5-steven.price@arm.com>
+	Paul Mackerras <paulus@ozlabs.org>,
+	kvm-ppc@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org
+Subject: [PATCH v7 05/20] KVM: PPC: Book3S HV: Remove pmd_is_leaf()
+Date: Thu, 28 Mar 2019 15:20:49 +0000
+Message-Id: <20190328152104.23106-6-steven.price@arm.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190328152104.23106-1-steven.price@arm.com>
 References: <20190328152104.23106-1-steven.price@arm.com>
@@ -121,86 +121,63 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-walk_page_range() is going to be allowed to walk page tables other than
-those of user space. For this it needs to know when it has reached a
-'leaf' entry in the page tables. This information is provided by the
-p?d_large() functions/macros.
-
-For powerpc pmd_large() was already implemented, so hoist it out of the
-CONFIG_TRANSPARENT_HUGEPAGE condition and implement the other levels.
+Since pmd_large() is now always available, pmd_is_leaf() is redundant.
+Replace all uses with calls to pmd_large().
 
 CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-CC: Paul Mackerras <paulus@samba.org>
 CC: Michael Ellerman <mpe@ellerman.id.au>
-CC: linuxppc-dev@lists.ozlabs.org
+CC: Paul Mackerras <paulus@ozlabs.org>
 CC: kvm-ppc@vger.kernel.org
+CC: linuxppc-dev@lists.ozlabs.org
 Signed-off-by: Steven Price <steven.price@arm.com>
 ---
- arch/powerpc/include/asm/book3s/64/pgtable.h | 30 ++++++++++++++------
- 1 file changed, 21 insertions(+), 9 deletions(-)
+ arch/powerpc/kvm/book3s_64_mmu_radix.c | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-index 581f91be9dd4..f6d1ac8b832e 100644
---- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-+++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-@@ -897,6 +897,12 @@ static inline int pud_present(pud_t pud)
- 	return !!(pud_raw(pud) & cpu_to_be64(_PAGE_PRESENT));
+diff --git a/arch/powerpc/kvm/book3s_64_mmu_radix.c b/arch/powerpc/kvm/book3s_64_mmu_radix.c
+index f55ef071883f..1b57b4e3f819 100644
+--- a/arch/powerpc/kvm/book3s_64_mmu_radix.c
++++ b/arch/powerpc/kvm/book3s_64_mmu_radix.c
+@@ -363,12 +363,6 @@ static void kvmppc_pte_free(pte_t *ptep)
+ 	kmem_cache_free(kvm_pte_cache, ptep);
  }
  
-+#define pud_large	pud_large
-+static inline int pud_large(pud_t pud)
-+{
-+	return !!(pud_raw(pud) & cpu_to_be64(_PAGE_PTE));
-+}
-+
- extern struct page *pud_page(pud_t pud);
- extern struct page *pmd_page(pmd_t pmd);
- static inline pte_t pud_pte(pud_t pud)
-@@ -940,6 +946,12 @@ static inline int pgd_present(pgd_t pgd)
- 	return !!(pgd_raw(pgd) & cpu_to_be64(_PAGE_PRESENT));
- }
- 
-+#define pgd_large	pgd_large
-+static inline int pgd_large(pgd_t pgd)
-+{
-+	return !!(pgd_raw(pgd) & cpu_to_be64(_PAGE_PTE));
-+}
-+
- static inline pte_t pgd_pte(pgd_t pgd)
- {
- 	return __pte_raw(pgd_raw(pgd));
-@@ -1093,6 +1105,15 @@ static inline bool pmd_access_permitted(pmd_t pmd, bool write)
- 	return pte_access_permitted(pmd_pte(pmd), write);
- }
- 
-+#define pmd_large	pmd_large
-+/*
-+ * returns true for pmd migration entries, THP, devmap, hugetlb
-+ */
-+static inline int pmd_large(pmd_t pmd)
-+{
-+	return !!(pmd_raw(pmd) & cpu_to_be64(_PAGE_PTE));
-+}
-+
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- extern pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot);
- extern pmd_t mk_pmd(struct page *page, pgprot_t pgprot);
-@@ -1119,15 +1140,6 @@ pmd_hugepage_update(struct mm_struct *mm, unsigned long addr, pmd_t *pmdp,
- 	return hash__pmd_hugepage_update(mm, addr, pmdp, clr, set);
- }
- 
--/*
-- * returns true for pmd migration entries, THP, devmap, hugetlb
-- * But compile time dependent on THP config
-- */
--static inline int pmd_large(pmd_t pmd)
+-/* Like pmd_huge() and pmd_large(), but works regardless of config options */
+-static inline int pmd_is_leaf(pmd_t pmd)
 -{
--	return !!(pmd_raw(pmd) & cpu_to_be64(_PAGE_PTE));
+-	return !!(pmd_val(pmd) & _PAGE_PTE);
 -}
 -
- static inline pmd_t pmd_mknotpresent(pmd_t pmd)
+ static pmd_t *kvmppc_pmd_alloc(void)
  {
- 	return __pmd(pmd_val(pmd) & ~_PAGE_PRESENT);
+ 	return kmem_cache_alloc(kvm_pmd_cache, GFP_KERNEL);
+@@ -460,7 +454,7 @@ static void kvmppc_unmap_free_pmd(struct kvm *kvm, pmd_t *pmd, bool full,
+ 	for (im = 0; im < PTRS_PER_PMD; ++im, ++p) {
+ 		if (!pmd_present(*p))
+ 			continue;
+-		if (pmd_is_leaf(*p)) {
++		if (pmd_large(*p)) {
+ 			if (full) {
+ 				pmd_clear(p);
+ 			} else {
+@@ -593,7 +587,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
+ 	else if (level <= 1)
+ 		new_pmd = kvmppc_pmd_alloc();
+ 
+-	if (level == 0 && !(pmd && pmd_present(*pmd) && !pmd_is_leaf(*pmd)))
++	if (level == 0 && !(pmd && pmd_present(*pmd) && !pmd_large(*pmd)))
+ 		new_ptep = kvmppc_pte_alloc();
+ 
+ 	/* Check if we might have been invalidated; let the guest retry if so */
+@@ -662,7 +656,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
+ 		new_pmd = NULL;
+ 	}
+ 	pmd = pmd_offset(pud, gpa);
+-	if (pmd_is_leaf(*pmd)) {
++	if (pmd_large(*pmd)) {
+ 		unsigned long lgpa = gpa & PMD_MASK;
+ 
+ 		/* Check if we raced and someone else has set the same thing */
 -- 
 2.20.1
 
