@@ -2,198 +2,273 @@ Return-Path: <SRS0=kLvD=R7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AFEE6C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 03:18:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9EB9FC4360F
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 05:57:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5BDF5206C0
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 03:18:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5BDF5206C0
+	by mail.kernel.org (Postfix) with ESMTP id 2DA6D20700
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 05:57:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2DA6D20700
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ABCDD6B0003; Wed, 27 Mar 2019 23:18:45 -0400 (EDT)
+	id B851F6B0003; Thu, 28 Mar 2019 01:57:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A45BE6B0006; Wed, 27 Mar 2019 23:18:45 -0400 (EDT)
+	id B35C76B0006; Thu, 28 Mar 2019 01:57:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8BDB66B0007; Wed, 27 Mar 2019 23:18:45 -0400 (EDT)
+	id 9D78D6B0007; Thu, 28 Mar 2019 01:57:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4ECCC6B0003
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 23:18:45 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id i23so15551118pfa.0
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 20:18:45 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 635E06B0003
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 01:57:39 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id q7so5876210plr.7
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2019 22:57:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding:message-id;
-        bh=IFDaOgeGE7XvfaKGh0CJsDo+W9/+pFoknBe8xYfXKsw=;
-        b=sh2/pfH3j/soWTlYpWo2NKojGXCs/dZIqMJPdWVKlmN/H/TI4kJS3zwwAiIvIlHKYD
-         fvKFspfefRsuHS+YwYwQCQkT58jGJtHCBuBzDKSP6CEkvciEVrfwTYTesOx8liJPyw7i
-         XbEZy5URj8ZfMemOGLSCFFTLOQFAbQy1jSNA1S2K0hJOYTHipIyjtPqV/NfK0We24yrD
-         8QkTtqX95W/AdyTXNPxi3juhkc+aX60BVwP1Eh6r/l0nL8LdQwDIgV49Ltm0znq4xBg+
-         3meU56+plOjYycHepbfJ+VDAfnDtZy0Oh742piQAMnKntI7Pyk6rz9bCyEolxvGshgtr
-         hCCA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAU3LQyVlL+SyTW0Gy2jRXfqqVnRIeHxo0Rz1vAa01Hxfcur35K/
-	MB00QIqMBt7hdOIp/sAGAC4gG5aP8XLM9AqnPhGvXhaV/i5J9Gj9QtNC7RPfspNYDFS55qa1Mm5
-	imZm7mDuNRjpUDh9XPGmgAZV9aIBpkbaSUI/dRG3jzi+Hmg3AuSXXApwBiM5lLEgNlg==
-X-Received: by 2002:a65:64d5:: with SMTP id t21mr36960102pgv.266.1553743124933;
-        Wed, 27 Mar 2019 20:18:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqweUHnrO6qTLQHlTnneN9XxnmPyvPD+LPT35fVLDKCmDgKkxfhPNyMzThzMsf4JbxAR6Z+X
-X-Received: by 2002:a65:64d5:: with SMTP id t21mr36960045pgv.266.1553743124065;
-        Wed, 27 Mar 2019 20:18:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553743124; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=t6t4lcMObyXRQ+SE7rAT68YzcAHuSiVHg6LDOnYL700=;
+        b=Ui5kz5ofswY6vPaosq3D0zFtJ01UH5HrEhE7HLAcA8V85bvh22p0Rqr+MCQdbjSBEi
+         Fi8CTRoXVIxbqogmhDrbnfLip5g41l04PvnnJpaavxUUmMnmBcRGrGLLJoxRQy3DqQ09
+         SzIu/TFDXVJlTfo6zrNkFMHiQdz+KGkc+KqL1OC9sLUcw+ADLntyiZ3Hrkc8D7DYiuEh
+         TRI2Urwfd3N+lIgtKyewmig90O1UaV4ai9iCIyjmUz2viZK1JRA9FIdFNjJrD7xVTNJW
+         cVAUsbEOvddqa0YD7Xe/l+MV17GdyFYfdIomylGks8Od+tjGQWlfAC4O5W2HmrqFa+0g
+         WxZg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAUyo5ZDx1rhxfvn4k3TzBAMUMty2l/66628A4m47p5Znfta12GW
+	ENNF6Jbw2PggE3q5IDIXmr7fH6kyuF0wglE2LUIoSpb+86JUy+LLIgSY3WFV0eFTai1QeXg7aZr
+	qMqqkTNVIIfDJRBZ1sFvpUtdyOjQgBxsUzlg5smoA2AemaF31w+xUTBbYHqhAORo45A==
+X-Received: by 2002:a17:902:b717:: with SMTP id d23mr22810738pls.260.1553752658809;
+        Wed, 27 Mar 2019 22:57:38 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxp9y2EA5B2i+FTshsSmZ0eDXCJRDj8mrFyTN2k6V1bfcDh0/OuYozsZBen6wL3iqyCh5Jv
+X-Received: by 2002:a17:902:b717:: with SMTP id d23mr22810694pls.260.1553752657923;
+        Wed, 27 Mar 2019 22:57:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553752657; cv=none;
         d=google.com; s=arc-20160816;
-        b=bbX5izMxi0hdOfk9ks6CPVghEaas8OxIcyGmQhlRCaRznHLbKyMxhS3Ei+4EMqou7L
-         SVyBqvmstO5SsR0L6C7beb91cNZ7eBqKgJYNpntGtECr9Xgu3z0GCPRi1emJDi1CLr+y
-         3ygxfUwpA5sFiHG9ZoxqJ7irmK/PLmhd7NQq5J97ilcRs3yGCa8tF3RA5DD9XmRQhPdu
-         +1ZnEzWDLhrmx0FBbEz6x/JlndtCfW39IWasv0MpKkIkztSqfuuyF93m729hiocPccKH
-         6rrJzVEmSSeoKeZu+IFwL3UIQZP76z/swyPBLRVd1C8N4bkN0ZKxsWUhmBwc2PLVt8ZP
-         55rQ==
+        b=YGOnJPEhjrtQRIGumsm5QtFcQEYUpv9MGW54smhoB1wmGc5bCL8m+QZpzA5DpvpOj+
+         Kk42Mby03xsoF2cYG/SORgmmW8jR51F0Z/ODsMIc4sON/fu3C++gj+Z6Y9ozjD23+ZSB
+         Otj8oWKczXhnydiLJD7IyoPe1xdU4q2G2WlPoMiNfUcfoYt+duKA6knoRlgvGnNd5KG0
+         UJs9YjnPJV0cho6ZWPJNHvzvTEv1xhACcd09Lf/vB54nL921h8gozG2d/mYZPoYi2xPH
+         GM5kglAbNkjVWs7LzHz9bq5FWUqA9VzitVTlURlgx9LPzKcdMUz3V7Ta9bQTb76N+ymo
+         ni8w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:content-transfer-encoding:content-language:in-reply-to
-         :mime-version:user-agent:date:from:references:cc:to:subject;
-        bh=IFDaOgeGE7XvfaKGh0CJsDo+W9/+pFoknBe8xYfXKsw=;
-        b=OMhptD1xrb/GciWrCjApP9G0s81Sv7K4KKuJqPIoXqsfwsweApnqiyHK6u5n53QK3v
-         lPCO4rnAgzdLDoh9ObBhYBP9tlAthxQ4QxNetSo3qoPubygDijBtbN1FLk5l1Jr4FpsQ
-         56pZvzdcAJYBS7LkJZs7zC5OetA14iXDJrHiiz+twawk+TBedx1UOEzErkUGERRnLkxn
-         EBjoQW5UOVOchiaPrW7aEAvGNYKv1qZ6vOJgXBA/lZ2ujSGy+cRyauhOttqh2MyVelLI
-         IP74pBbV8epWw+5EYzat40dKSM8Uay1i1tPWa52uV3BJKltZBPbD6KfltCcLRL1DVcyP
-         ND1g==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=t6t4lcMObyXRQ+SE7rAT68YzcAHuSiVHg6LDOnYL700=;
+        b=0VzDeUBQnkpSgEgsFMYrAawVtPbaFpa7Ni/nRke5v5e0CmqoaIlOKC3+npXzQiPGgP
+         gfH/WzkgbLf+QrcVsed2Ss++rtEyNw66zTmptWS9QT74q6jM1mS4JpQdIue9V15DFs3G
+         rzq5pORDy0xcdk4JlWrmCj+Zk1P0Vl5e9Xq/8JAr4wiqxctDVtlvUV4U+n7zdR5JBW71
+         Vx895uqgTlSTARRm4qMNIKfkqIuNrijE9Zf4u9tyKDLkYA22aN6jSlpIjLm9zXMxU7mO
+         WxdW13tpXsZvkSlPgxm/xuk3aTKZr70/1B4DDGjnfkbt3aLKWTRHwdBYBkHhG0o2T7qq
+         bPWA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id i13si12704458pgs.33.2019.03.27.20.18.43
+        by mx.google.com with ESMTPS id j17si9792505pgk.114.2019.03.27.22.57.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Mar 2019 20:18:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Wed, 27 Mar 2019 22:57:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2S2xAqd077455
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 23:18:43 -0400
-Received: from e16.ny.us.ibm.com (e16.ny.us.ibm.com [129.33.205.206])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2rgkxymya1-1
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2S5nCWn104317
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 01:57:37 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2rgnk0pe5n-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2019 23:18:42 -0400
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 01:57:37 -0400
 Received: from localhost
-	by e16.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Thu, 28 Mar 2019 03:18:41 -0000
-Received: from b01cxnp23033.gho.pok.ibm.com (9.57.198.28)
-	by e16.ny.us.ibm.com (146.89.104.203) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Thu, 28 Mar 2019 05:57:34 -0000
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
+	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
 	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 28 Mar 2019 03:18:38 -0000
-Received: from b01ledav006.gho.pok.ibm.com (b01ledav006.gho.pok.ibm.com [9.57.199.111])
-	by b01cxnp23033.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x2S3IbnJ24772810
+	Thu, 28 Mar 2019 05:57:26 -0000
+Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x2S5vPYa44761316
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 28 Mar 2019 03:18:37 GMT
-Received: from b01ledav006.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 41BC7AC064;
-	Thu, 28 Mar 2019 03:18:37 +0000 (GMT)
-Received: from b01ledav006.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 84E86AC05F;
-	Thu, 28 Mar 2019 03:18:35 +0000 (GMT)
-Received: from [9.85.72.169] (unknown [9.85.72.169])
-	by b01ledav006.gho.pok.ibm.com (Postfix) with ESMTP;
-	Thu, 28 Mar 2019 03:18:35 +0000 (GMT)
-Subject: Re: [PATCH] mm: Fix modifying of page protection by insert_pfn()
-To: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
-Cc: Linux MM <linux-mm@kvack.org>, Chandan Rajendra <chandan@linux.ibm.com>,
-        stable <stable@vger.kernel.org>,
-        Dan Williams <dan.j.williams@intel.com>
-References: <20190311084537.16029-1-jack@suse.cz>
- <CAPcyv4gBhTXs3Lf1ESgtaT4JUV8xiwNnM_OQU3-0ENB0hpAPng@mail.gmail.com>
- <20190327173332.GA15475@quack2.suse.cz>
- <20190327141414.ad663db479afa8694ed270c6@linux-foundation.org>
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Date: Thu, 28 Mar 2019 08:48:19 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.0
+	Thu, 28 Mar 2019 05:57:25 GMT
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 28854A4051;
+	Thu, 28 Mar 2019 05:57:25 +0000 (GMT)
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id B9B51A405D;
+	Thu, 28 Mar 2019 05:57:22 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.112])
+	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Thu, 28 Mar 2019 05:57:22 +0000 (GMT)
+Date: Thu, 28 Mar 2019 07:57:21 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Sasha Levin <sashal@kernel.org>
+Cc: linux-kernel@vger.kernel.org, stable@vger.kernel.org,
+        Catalin Marinas <catalin.marinas@arm.com>,
+        Christophe Leroy <christophe.leroy@c-s.fr>,
+        Christoph Hellwig <hch@lst.de>,
+        "David S. Miller" <davem@davemloft.net>,
+        Dennis Zhou <dennis@kernel.org>,
+        Geert Uytterhoeven <geert@linux-m68k.org>,
+        Greentime Hu <green.hu@gmail.com>,
+        Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+        Guan Xuetao <gxt@pku.edu.cn>, Guo Ren <guoren@kernel.org>,
+        Guo Ren <ren_guo@c-sky.com>,
+        Heiko Carstens <heiko.carstens@de.ibm.com>,
+        Juergen Gross <jgross@suse.com>, Mark Salter <msalter@redhat.com>,
+        Matt Turner <mattst88@gmail.com>, Max Filippov <jcmvbkbc@gmail.com>,
+        Michal Simek <monstr@monstr.eu>, Paul Burton <paul.burton@mips.com>,
+        Petr Mladek <pmladek@suse.com>, Richard Weinberger <richard@nod.at>,
+        Rich Felker <dalias@libc.org>, Rob Herring <robh+dt@kernel.org>,
+        Rob Herring <robh@kernel.org>, Russell King <linux@armlinux.org.uk>,
+        Stafford Horne <shorne@gmail.com>, Tony Luck <tony.luck@intel.com>,
+        Vineet Gupta <vgupta@synopsys.com>,
+        Yoshinori Sato <ysato@users.sourceforge.jp>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Linus Torvalds <torvalds@linux-foundation.org>,
+        linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+Subject: Re: [PATCH AUTOSEL 5.0 015/262] memblock:
+ memblock_phys_alloc_try_nid(): don't panic
+References: <20190327180158.10245-1-sashal@kernel.org>
+ <20190327180158.10245-15-sashal@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20190327141414.ad663db479afa8694ed270c6@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190327180158.10245-15-sashal@kernel.org>
+User-Agent: Mutt/1.5.24 (2015-08-30)
 X-TM-AS-GCONF: 00
-x-cbid: 19032803-0072-0000-0000-000004116E16
-X-IBM-SpamModules-Scores: 
-X-IBM-SpamModules-Versions: BY=3.00010827; HX=3.00000242; KW=3.00000007;
- PH=3.00000004; SC=3.00000282; SDB=6.01180691; UDB=6.00617909; IPR=6.00961410;
- MB=3.00026187; MTD=3.00000008; XFM=3.00000015; UTC=2019-03-28 03:18:40
+x-cbid: 19032805-0020-0000-0000-00000328A172
 X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19032803-0073-0000-0000-00004BA0AF87
-Message-Id: <bd44db17-b28e-a0ce-03c6-14a90f3a8850@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-28_02:,,
+x-cbparentid: 19032805-0021-0000-0000-0000217AE66F
+Message-Id: <20190328055720.GB14864@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-28_04:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ malwarescore=0 suspectscore=21 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1031 lowpriorityscore=0 mlxscore=0 impostorscore=0
  mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1903280021
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1903280044
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/28/19 2:44 AM, Andrew Morton wrote:
-> On Wed, 27 Mar 2019 18:33:32 +0100 Jan Kara <jack@suse.cz> wrote:
+Hi,
+
+On Wed, Mar 27, 2019 at 01:57:50PM -0400, Sasha Levin wrote:
+> From: Mike Rapoport <rppt@linux.ibm.com>
 > 
->> On Mon 11-03-19 10:22:44, Dan Williams wrote:
->>> On Mon, Mar 11, 2019 at 1:45 AM Jan Kara <jack@suse.cz> wrote:
->>>>
->>>> Aneesh has reported that PPC triggers the following warning when
->>>> excercising DAX code:
->>>>
->>>> [c00000000007610c] set_pte_at+0x3c/0x190
->>>> LR [c000000000378628] insert_pfn+0x208/0x280
->>>> Call Trace:
->>>> [c0000002125df980] [8000000000000104] 0x8000000000000104 (unreliable)
->>>> [c0000002125df9c0] [c000000000378488] insert_pfn+0x68/0x280
->>>> [c0000002125dfa30] [c0000000004a5494] dax_iomap_pte_fault.isra.7+0x734/0xa40
->>>> [c0000002125dfb50] [c000000000627250] __xfs_filemap_fault+0x280/0x2d0
->>>> [c0000002125dfbb0] [c000000000373abc] do_wp_page+0x48c/0xa40
->>>> [c0000002125dfc00] [c000000000379170] __handle_mm_fault+0x8d0/0x1fd0
->>>> [c0000002125dfd00] [c00000000037a9b0] handle_mm_fault+0x140/0x250
->>>> [c0000002125dfd40] [c000000000074bb0] __do_page_fault+0x300/0xd60
->>>> [c0000002125dfe20] [c00000000000acf4] handle_page_fault+0x18
->>>>
->>>> Now that is WARN_ON in set_pte_at which is
->>>>
->>>>          VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protnone(*ptep));
->>>>
->>>> The problem is that on some architectures set_pte_at() cannot cope with
->>>> a situation where there is already some (different) valid entry present.
->>>>
->>>> Use ptep_set_access_flags() instead to modify the pfn which is built to
->>>> deal with modifying existing PTE.
->>>>
->>>> CC: stable@vger.kernel.org
->>>> Fixes: b2770da64254 "mm: add vm_insert_mixed_mkwrite()"
->>>> Reported-by: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
->>>> Signed-off-by: Jan Kara <jack@suse.cz>
->>>
->>> Acked-by: Dan Williams <dan.j.williams@intel.com>
->>>
->>> Andrew, can you pick this up?
->>
->> Andrew, ping?
+> [ Upstream commit 337555744e6e39dd1d87698c6084dd88a606d60a ]
 > 
-> I merged this a couple of weeks ago and it's in the queue for 5.1.
+> The memblock_phys_alloc_try_nid() function tries to allocate memory from
+> the requested node and then falls back to allocation from any node in
+> the system.  The memblock_alloc_base() fallback used by this function
+> panics if the allocation fails.
+> 
+> Replace the memblock_alloc_base() fallback with the direct call to
+> memblock_alloc_range_nid() and update the memblock_phys_alloc_try_nid()
+> callers to check the returned value and panic in case of error.
+
+This is a part of memblock refactoring, I don't think it should be applied
+to -stable.
+ 
+> Link: http://lkml.kernel.org/r/1548057848-15136-7-git-send-email-rppt@linux.ibm.com
+> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+> Acked-by: Michael Ellerman <mpe@ellerman.id.au>		[powerpc]
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Christophe Leroy <christophe.leroy@c-s.fr>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: "David S. Miller" <davem@davemloft.net>
+> Cc: Dennis Zhou <dennis@kernel.org>
+> Cc: Geert Uytterhoeven <geert@linux-m68k.org>
+> Cc: Greentime Hu <green.hu@gmail.com>
+> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> Cc: Guan Xuetao <gxt@pku.edu.cn>
+> Cc: Guo Ren <guoren@kernel.org>
+> Cc: Guo Ren <ren_guo@c-sky.com>				[c-sky]
+> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+> Cc: Juergen Gross <jgross@suse.com>			[Xen]
+> Cc: Mark Salter <msalter@redhat.com>
+> Cc: Matt Turner <mattst88@gmail.com>
+> Cc: Max Filippov <jcmvbkbc@gmail.com>
+> Cc: Michal Simek <monstr@monstr.eu>
+> Cc: Paul Burton <paul.burton@mips.com>
+> Cc: Petr Mladek <pmladek@suse.com>
+> Cc: Richard Weinberger <richard@nod.at>
+> Cc: Rich Felker <dalias@libc.org>
+> Cc: Rob Herring <robh+dt@kernel.org>
+> Cc: Rob Herring <robh@kernel.org>
+> Cc: Russell King <linux@armlinux.org.uk>
+> Cc: Stafford Horne <shorne@gmail.com>
+> Cc: Tony Luck <tony.luck@intel.com>
+> Cc: Vineet Gupta <vgupta@synopsys.com>
+> Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+> Signed-off-by: Sasha Levin <sashal@kernel.org>
+> ---
+>  arch/arm64/mm/numa.c   | 4 ++++
+>  arch/powerpc/mm/numa.c | 4 ++++
+>  mm/memblock.c          | 4 +++-
+>  3 files changed, 11 insertions(+), 1 deletion(-)
+> 
+> diff --git a/arch/arm64/mm/numa.c b/arch/arm64/mm/numa.c
+> index ae34e3a1cef1..2c61ea4e290b 100644
+> --- a/arch/arm64/mm/numa.c
+> +++ b/arch/arm64/mm/numa.c
+> @@ -237,6 +237,10 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
+>  		pr_info("Initmem setup node %d [<memory-less node>]\n", nid);
+>  
+>  	nd_pa = memblock_phys_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
+> +	if (!nd_pa)
+> +		panic("Cannot allocate %zu bytes for node %d data\n",
+> +		      nd_size, nid);
+> +
+>  	nd = __va(nd_pa);
+>  
+>  	/* report and initialize */
+> diff --git a/arch/powerpc/mm/numa.c b/arch/powerpc/mm/numa.c
+> index 87f0dd004295..8ec2ed30d44c 100644
+> --- a/arch/powerpc/mm/numa.c
+> +++ b/arch/powerpc/mm/numa.c
+> @@ -788,6 +788,10 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
+>  	int tnid;
+>  
+>  	nd_pa = memblock_phys_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
+> +	if (!nd_pa)
+> +		panic("Cannot allocate %zu bytes for node %d data\n",
+> +		      nd_size, nid);
+> +
+>  	nd = __va(nd_pa);
+>  
+>  	/* report and initialize */
+> diff --git a/mm/memblock.c b/mm/memblock.c
+> index ea31045ba704..d5923df56acc 100644
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -1342,7 +1342,9 @@ phys_addr_t __init memblock_phys_alloc_try_nid(phys_addr_t size, phys_addr_t ali
+>  
+>  	if (res)
+>  		return res;
+> -	return memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
+> +	return memblock_alloc_range_nid(size, align, 0,
+> +					MEMBLOCK_ALLOC_ACCESSIBLE,
+> +					NUMA_NO_NODE, MEMBLOCK_NONE);
+>  }
+>  
+>  /**
+> -- 
+> 2.19.1
 > 
 
-I noticed that we need similar change for pmd and pud updates. I will 
-send a patch for that.
-
--aneesh
+-- 
+Sincerely yours,
+Mike.
 
