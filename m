@@ -2,394 +2,267 @@ Return-Path: <SRS0=kLvD=R7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.4 required=3.0 tests=DATE_IN_PAST_06_12,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4BB17C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 21:45:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 75E94C3E8A3
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 21:54:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DBC502173C
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 21:45:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DBC502173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 238702173C
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 21:54:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 238702173C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 757226B026C; Thu, 28 Mar 2019 17:45:01 -0400 (EDT)
+	id B72AF6B026C; Thu, 28 Mar 2019 17:54:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7067B6B0272; Thu, 28 Mar 2019 17:45:01 -0400 (EDT)
+	id AF6526B0272; Thu, 28 Mar 2019 17:54:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5F6376B0275; Thu, 28 Mar 2019 17:45:01 -0400 (EDT)
+	id 9983D6B0275; Thu, 28 Mar 2019 17:54:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 264E76B026C
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 17:45:01 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id d15so125419pgt.14
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 14:45:01 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 71F096B026C
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 17:54:40 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id d139so28253qke.20
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 14:54:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=5bwzjt4gPbQm5LUVXTZS70hJ9s/CiJgh7A/KpHzv40U=;
-        b=A8lnUcD55gG1CKxPi6BnIUBoTE5dCOv6Z/iEPol4n6Gq6Xy/EIaxHDsqJQsNeEv6t3
-         2vW/C1hEyta2lXrVgvgPjAVwlAjOkF3a50MkV5NsY/zpHXa8shDnDAzgwt5dDaJq5Cwv
-         2NBYQfPh/ZLz1eaewPL+y6EWHlkksz/MQUtp09UMMzj8H/PcrrCNTICBAcCp3sQ9NF63
-         URgJdwyj64lS2/qI1HrzjYPzk0JW9Tgj4GXv/XTxiu55KHrSgJDjYG2AyErDkFI9tTaH
-         UQdi3MAHH1RNSCwnExHZyF/9S76yzT9cvRsPlu1OE0I2eJFAzhEuMRZtCfo5yZ2LgCS2
-         3trA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUU381xyc72iGsAox6WqIK02fGq+XcOMTRyzDvssbom+4z0jRlc
-	6JW9Pejv6+p3GzI0Qdh0nAJZwg8LDc/dwEg6a8EC1/+n6mCaeMf21eUtlbo4XjrUy7idtIdYlqO
-	9l44cdI9WqG5Uyj3fUlFxdbEfBBqozDQ/OzkaRVPSXpepu/G4f94RO0mlwNgk0sL23w==
-X-Received: by 2002:a17:902:f302:: with SMTP id gb2mr582571plb.51.1553809500791;
-        Thu, 28 Mar 2019 14:45:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzHCQm7+tNoWhp4Z4r8WiQzlOMz6UVTqo/ugBt6dyLbyJkp/N4qwF1DYMAjcEB2uNPF6xV0
-X-Received: by 2002:a17:902:f302:: with SMTP id gb2mr582516plb.51.1553809499933;
-        Thu, 28 Mar 2019 14:44:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553809499; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=vlLVvi6UPx2NZGhPygKXAeoebswcYONIIP8wsyh8rFg=;
+        b=oNNBkeneAwWMJFs4zS6k9AY3ZA68D95l2sj2T/Z4kLk0Vi6d8BR+0nU5Z/HSt//m70
+         nMFr1XyMpUy/3nUPHGUc0W7lp0R3YqNGiMzv8FtTz0DzTzbLPmzwHlHRUPk5dZgbZ+Y4
+         a6711Qu8Bt1OHZlu5RPgbE21+lhX82bWMtigFdhwYbMP9MCjFtP4/JNGICwzc/DDfO03
+         +lMJ9yUTtO/7Mig50eKh/mNs4JzRNv8ZrpsGthd0yTCFm0WnBqRwCd3EqWQ411JVZKQ2
+         pDpw8/9aq+XbZQwwFiT+lLXegpWJPmvZO4q74K8jfi/YkYj9+rijWWDzDmn74joSkZKs
+         SQwg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXQymsSQn77VXog1SOgzT0vKN+lx7zOozxlStG9AgM5230v98Wo
+	v8sYE4MuyDKqfNw0BiLLBOtx93nT0woAVurekhQHZ8bqeHlUnBqWLlyfeeFYOfOkKOXJM69y3x/
+	n8s1XYfuHxq5d+0dSJEZDT6iMpZcTOQrzMLz1EgG0OgzgXO2ZdBrMQTmOB/hH3+MQMQ==
+X-Received: by 2002:a0c:98a4:: with SMTP id f33mr22333324qvd.130.1553810080182;
+        Thu, 28 Mar 2019 14:54:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqys4IVnBh013SN8BVtWAXYleazz7Ni9JFwOor/gLiMmdtPyoDUHu0xyOvqIDxv8Q5USDOA+
+X-Received: by 2002:a0c:98a4:: with SMTP id f33mr22333292qvd.130.1553810079291;
+        Thu, 28 Mar 2019 14:54:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553810079; cv=none;
         d=google.com; s=arc-20160816;
-        b=VNkY8y0bO9eoINEgznFcaayPFF94889kNHecP5V6voz4YnMu0A4kdcsowwGgNocDSh
-         SKoiCVfncS44JgmzsyxxUEY2wo70h/LCCe+SSCQlIDEnQ0WkZLn2GgniaHEZQqa4W2hP
-         kaV0ZdhPj68IHbqAvD0v3n9vOQypFj+VrlraI4CjzaDnEvDFrPsQd4+0Xlm9ljOzQZ7O
-         NWWoPelYsVhTUZO23DC/M1TgApv96rh3TxPNoq7XRSDFwus4gXGRF4PsSldUxdAGxkD/
-         thDWXbi4GpcheEpFmbew7kVtrJYNTr/Ws6/ddUB1FaK2faaAIsF/TB2ucGmDBX57JdNi
-         qbkg==
+        b=mGzCn1XHRVi0qQ5TLTurqCHvO+cWGFayCDl5RyIju7q+E8MohNpOqmKPzx0T9mNKMd
+         jqV7NNoe3H+9jDOZz0uGeebWestup2BreYcDqSUEsxpUV9SfyfIF8lfxXMB20W8SZ0xE
+         9YM+QAobDXBoysdkT1F7w39l/yTHXqZafleBsZ4KQZneviv4BNjjuRhekhmsDnB7CS+h
+         lOd447O2gJ7DhWcJ2jSgsgXQZYaQo9Vt8Sd0bapPVd/ZTyp8ttVHjyhA3Tywp2Teu4bw
+         eRNJYSVB01eiXf8JjamGvHkjrHYEWR8F96E4qpwbwVbwXt8ou2pohfv3SEGHMKzrhJTT
+         kWiw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=5bwzjt4gPbQm5LUVXTZS70hJ9s/CiJgh7A/KpHzv40U=;
-        b=sljPrhF/ZEktJwQ1ogKPLAEDdA9rHzGdjU4M9iLK+tFVEdWfC0GdgHdr2D4GpzKZg9
-         7aXCN1D2AC1zBKEE6elF4pGItIYXp7mHfR9oLQWb2VoA+dSaogM4tChu10TdVL9Dbz0B
-         1XE1OWECCNSkT1r3ZCDPvIldY53gx8o506ZuJMuXlBDMy6dtKIjICCetTDYAGZuO32aB
-         HL7SPRenz2BiHXhWbE1eiPS77XDbmY4NvarNqZq+TSqwg8ilf70ySSOLwD1dk4fsywUf
-         jDYUpMk/7KNBm8ydtZXlo5utetp8EftR6GQNXacLarwo/n5T8pvJga1EIaOiXV1pTegx
-         UHbA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=vlLVvi6UPx2NZGhPygKXAeoebswcYONIIP8wsyh8rFg=;
+        b=ERoU55rQ+575i40NcKkB6z7IL7szn+ya+4x1s4mnT2ca3ChOSn77lQXnaFQIMF7Qpz
+         +T0tuE5X5J+DgYQh06Mj+7nZqpxBOFjychGRDy9GTM19Rj0AFQJHg+mh79H019BSwsCf
+         kfPU6pQyWLB5n+CcQAl6B5b5Msm8p7gUS8VtC8iVu1twBt1Tyf5ViTSe75x5+e1QJhy1
+         YbZRSN5HfScdyC5S7dahQVvDjrtJ3DMiZIxOKsY57+ZMJ0wP/Lnkh+0XIIOw3gtJey6E
+         AgziTecIqVAjw1C5ID7g3CpnicKyL4JtSWnGZ5v9xvi65DbSUtUA8BFuWxhxiBF67UpD
+         8sQw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id u18si127783pfm.84.2019.03.28.14.44.59
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k137si14984qke.115.2019.03.28.14.54.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Mar 2019 14:44:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+        Thu, 28 Mar 2019 14:54:39 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga003.jf.intel.com ([10.7.209.27])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 28 Mar 2019 14:44:59 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,282,1549958400"; 
-   d="scan'208";a="138155203"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga003.jf.intel.com with ESMTP; 28 Mar 2019 14:44:58 -0700
-Date: Thu, 28 Mar 2019 06:43:51 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: jglisse@redhat.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Dan Williams <dan.j.williams@intel.com>
-Subject: Re: [PATCH v2 05/11] mm/hmm: improve and rename hmm_vma_fault() to
- hmm_range_fault() v2
-Message-ID: <20190328134351.GD31324@iweiny-DESK2.sc.intel.com>
-References: <20190325144011.10560-1-jglisse@redhat.com>
- <20190325144011.10560-6-jglisse@redhat.com>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 303EF308FB9D;
+	Thu, 28 Mar 2019 21:54:38 +0000 (UTC)
+Received: from [10.36.116.61] (ovpn-116-61.ams2.redhat.com [10.36.116.61])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id AA0C65D9C9;
+	Thu, 28 Mar 2019 21:54:35 +0000 (UTC)
+Subject: Re: [PATCH v5 00/10] mm: Sub-section memory hotplug support
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+ =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ Logan Gunthorpe <logang@deltatee.com>, Toshi Kani <toshi.kani@hpe.com>,
+ Jeff Moyer <jmoyer@redhat.com>, Michal Hocko <mhocko@suse.com>,
+ Vlastimil Babka <vbabka@suse.cz>, stable <stable@vger.kernel.org>,
+ Linux MM <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@lists.01.org>,
+ Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+References: <155327387405.225273.9325594075351253804.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <cf304a31-70a6-e701-ec3e-c47dc84b81d2@redhat.com>
+ <CAPcyv4hgAM=ex0B4EBZ40RNf=bXk2WkEzySTUV4ZzOWd_HZwSQ@mail.gmail.com>
+ <24c163f2-3b78-827f-257e-70e5a9655806@redhat.com>
+ <CAPcyv4ivBagzsZ1fCDb2Cr3scz+R8ZVgyie5c=LWNd6QZuw36g@mail.gmail.com>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <b76b3a91-a0b5-460d-df5c-9358e6219915@redhat.com>
+Date: Thu, 28 Mar 2019 22:54:34 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+In-Reply-To: <CAPcyv4ivBagzsZ1fCDb2Cr3scz+R8ZVgyie5c=LWNd6QZuw36g@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190325144011.10560-6-jglisse@redhat.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Thu, 28 Mar 2019 21:54:38 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 25, 2019 at 10:40:05AM -0400, Jerome Glisse wrote:
-> From: Jérôme Glisse <jglisse@redhat.com>
+>>>> Reason I am asking is because I wonder how that would interact with the
+>>>> memory block device infrastructure and hotplugging of system ram -
+>>>> add_memory()/add_memory_resource(). I *assume* you are not changing the
+>>>> add_memory() interface, so that one still only works with whole sections
+>>>> (or well, memory_block_size_bytes()) - check_hotplug_memory_range().
+>>>
+>>> Like you found below, the implementation enforces that add_memory_*()
+>>> interfaces maintain section alignment for @start and @size.
+>>>
+>>>> In general, mix and matching system RAM and persistent memory per
+>>>> section, I am not a friend of that.
+>>>
+>>> You have no choice. The platform may decide to map PMEM and System RAM
+>>> in the same section because the Linux section is too large compared to
+>>> typical memory controller mapping granularity capability.
+>>
+>> I might be very wrong here, but do we actually care about something like
+>> 64MB getting lost in the cracks? I mean if it simplifies core MM, let go
+>> of the couple of MB of system ram and handle the PMEM part only. Treat
+>> the system ram parts like memory holes we already have in ordinary
+>> sections (well, there we simply set the relevant struct pages to
+>> PG_reserved). Of course, if we have hundreds of unaligned devices and
+>> stuff will start to add up ... but I assume this is not the case?
 > 
-> Rename for consistency between code, comments and documentation. Also
-> improves the comments on all the possible returns values. Improve the
-> function by returning the number of populated entries in pfns array.
+> That's precisely what we do today and it has become untenable as the
+> collision scenarios pile up. This thread [1] is worth a read if you
+> care about  some of the gory details why I'm back to pushing for
+> sub-section support, but most if it has already been summarized in the
+> current discussion on this thread.
+
+Thanks, exactly what I am interested in, will have a look!
+
+>>>
+>>> I don't see a strong reason why not, as long as it does not regress
+>>> existing use cases. It might need to be an opt-in for new tooling that
+>>> is aware of finer granularity hotplug. That said, I have no pressing
+>>> need to go there and just care about the arch_add_memory() capability
+>>> for now.
+>>
+>> Especially onlining/offlining of memory might end up very ugly. And that
+>> goes hand in hand with memory block devices. They are either online or
+>> offline, not something in between. (I went that path and Michal
+>> correctly told me why it is not a good idea)
 > 
-> Changes since v1:
->     - updated documentation
->     - reformated some comments
+> Thread reference?
+
+Sure:
+
+https://marc.info/?l=linux-mm&m=152362539714432&w=2
+
+Onlining/offlining subsections was what I tried. (adding/removing whole
+sections). But with the memory block device model (online/offline memory
+blocks), this really was in some sense dirty, although it worked.
+
 > 
-> Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
-> Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: John Hubbard <jhubbard@nvidia.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> ---
->  Documentation/vm/hmm.rst |  8 +---
->  include/linux/hmm.h      | 13 +++++-
->  mm/hmm.c                 | 91 +++++++++++++++++-----------------------
->  3 files changed, 52 insertions(+), 60 deletions(-)
+>> I was recently trying to teach memory block devices who their owner is /
+>> of which type they are. Right now I am looking into the option of using
+>> drivers. Memory block devices that could belong to different drivers at
+>> a time are well ... totally broken.
 > 
-> diff --git a/Documentation/vm/hmm.rst b/Documentation/vm/hmm.rst
-> index d9b27bdadd1b..61f073215a8d 100644
-> --- a/Documentation/vm/hmm.rst
-> +++ b/Documentation/vm/hmm.rst
-> @@ -190,13 +190,7 @@ When the device driver wants to populate a range of virtual addresses, it can
->  use either::
->  
->    long hmm_range_snapshot(struct hmm_range *range);
-> -  int hmm_vma_fault(struct vm_area_struct *vma,
-> -                    struct hmm_range *range,
-> -                    unsigned long start,
-> -                    unsigned long end,
-> -                    hmm_pfn_t *pfns,
-> -                    bool write,
-> -                    bool block);
-> +  long hmm_range_fault(struct hmm_range *range, bool block);
->  
->  The first one (hmm_range_snapshot()) will only fetch present CPU page table
->  entries and will not trigger a page fault on missing or non-present entries.
-> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-> index 32206b0b1bfd..e9afd23c2eac 100644
-> --- a/include/linux/hmm.h
-> +++ b/include/linux/hmm.h
-> @@ -391,7 +391,18 @@ bool hmm_vma_range_done(struct hmm_range *range);
->   *
->   * See the function description in mm/hmm.c for further documentation.
->   */
-> -int hmm_vma_fault(struct hmm_range *range, bool block);
-> +long hmm_range_fault(struct hmm_range *range, bool block);
-> +
-> +/* This is a temporary helper to avoid merge conflict between trees. */
-> +static inline int hmm_vma_fault(struct hmm_range *range, bool block)
-> +{
-> +	long ret = hmm_range_fault(range, block);
-> +	if (ret == -EBUSY)
-> +		ret = -EAGAIN;
-> +	else if (ret == -EAGAIN)
-> +		ret = -EBUSY;
-> +	return ret < 0 ? ret : 0;
-> +}
->  
->  /* Below are for HMM internal use only! Not to be used by device driver! */
->  void hmm_mm_destroy(struct mm_struct *mm);
-> diff --git a/mm/hmm.c b/mm/hmm.c
-> index 91361aa74b8b..7860e63c3ba7 100644
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -336,13 +336,13 @@ static int hmm_vma_do_fault(struct mm_walk *walk, unsigned long addr,
->  	flags |= write_fault ? FAULT_FLAG_WRITE : 0;
->  	ret = handle_mm_fault(vma, addr, flags);
->  	if (ret & VM_FAULT_RETRY)
-> -		return -EBUSY;
-> +		return -EAGAIN;
->  	if (ret & VM_FAULT_ERROR) {
->  		*pfn = range->values[HMM_PFN_ERROR];
->  		return -EFAULT;
->  	}
->  
-> -	return -EAGAIN;
-> +	return -EBUSY;
->  }
->  
->  static int hmm_pfns_bad(unsigned long addr,
-> @@ -368,7 +368,7 @@ static int hmm_pfns_bad(unsigned long addr,
->   * @fault: should we fault or not ?
->   * @write_fault: write fault ?
->   * @walk: mm_walk structure
-> - * Returns: 0 on success, -EAGAIN after page fault, or page fault error
-> + * Returns: 0 on success, -EBUSY after page fault, or page fault error
->   *
->   * This function will be called whenever pmd_none() or pte_none() returns true,
->   * or whenever there is no page directory covering the virtual address range.
-> @@ -391,12 +391,12 @@ static int hmm_vma_walk_hole_(unsigned long addr, unsigned long end,
->  
->  			ret = hmm_vma_do_fault(walk, addr, write_fault,
->  					       &pfns[i]);
-> -			if (ret != -EAGAIN)
-> +			if (ret != -EBUSY)
->  				return ret;
->  		}
->  	}
->  
-> -	return (fault || write_fault) ? -EAGAIN : 0;
-> +	return (fault || write_fault) ? -EBUSY : 0;
->  }
->  
->  static inline void hmm_pte_need_fault(const struct hmm_vma_walk *hmm_vma_walk,
-> @@ -527,11 +527,11 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
->  	uint64_t orig_pfn = *pfn;
->  
->  	*pfn = range->values[HMM_PFN_NONE];
-> -	cpu_flags = pte_to_hmm_pfn_flags(range, pte);
-> -	hmm_pte_need_fault(hmm_vma_walk, orig_pfn, cpu_flags,
-> -			   &fault, &write_fault);
-> +	fault = write_fault = false;
->  
->  	if (pte_none(pte)) {
-> +		hmm_pte_need_fault(hmm_vma_walk, orig_pfn, 0,
-> +				   &fault, &write_fault);
+> Sub-section support is aimed at a similar case where different
+> portions of an 128MB span need to handed out to devices / drivers with
+> independent lifetimes.
 
-This really threw me until I applied the patches to a tree.  It looks like this
-is just optimizing away a pte_none() check.  The only functional change which
-was mentioned was returning the number of populated pfns.  So I spent a bit of
-time trying to figure out why hmm_pte_need_fault() needed to move _here_ to do
-that...  :-(
+Right, but we are stuck here with memory block devices having certain
+bigger granularity. We already went from 128MB to 2048MB because "there
+were too many". Modeling this on 2MB level (e.g. subsections), no way.
+And as I said, multiple users for one memory block device, very ugly.
 
-It would have been nice to have said something about optimizing in the commit
-message.
+What would be interesting is having memory block devices of variable
+size. (64MB, 1024GB, 6GB ..), maybe even representing the unit in which
+e.g. add_memory() was performed. But it would also have downsides when
+it comes to changing the zone of memory blocks. Memory would be
+onlined/offlined in way bigger chunks.
 
->  		if (fault || write_fault)
->  			goto fault;
->  		return 0;
-> @@ -570,7 +570,7 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
->  				hmm_vma_walk->last = addr;
->  				migration_entry_wait(vma->vm_mm,
->  						     pmdp, addr);
-> -				return -EAGAIN;
-> +				return -EBUSY;
->  			}
->  			return 0;
->  		}
-> @@ -578,6 +578,10 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
->  		/* Report error for everything else */
->  		*pfn = range->values[HMM_PFN_ERROR];
->  		return -EFAULT;
-> +	} else {
-> +		cpu_flags = pte_to_hmm_pfn_flags(range, pte);
-> +		hmm_pte_need_fault(hmm_vma_walk, orig_pfn, cpu_flags,
-> +				   &fault, &write_fault);
+E.g. one DIMM = one memory block device.
 
-Looks like the same situation as above.
-
->  	}
->  
->  	if (fault || write_fault)
-> @@ -628,7 +632,7 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
->  		if (fault || write_fault) {
->  			hmm_vma_walk->last = addr;
->  			pmd_migration_entry_wait(vma->vm_mm, pmdp);
-> -			return -EAGAIN;
-> +			return -EBUSY;
-
-While I am at it.  Why are we swapping EAGAIN and EBUSY everywhere?
-
-Ira
-
->  		}
->  		return 0;
->  	} else if (!pmd_present(pmd))
-> @@ -856,53 +860,34 @@ bool hmm_vma_range_done(struct hmm_range *range)
->  EXPORT_SYMBOL(hmm_vma_range_done);
->  
->  /*
-> - * hmm_vma_fault() - try to fault some address in a virtual address range
-> + * hmm_range_fault() - try to fault some address in a virtual address range
->   * @range: range being faulted
->   * @block: allow blocking on fault (if true it sleeps and do not drop mmap_sem)
-> - * Returns: 0 success, error otherwise (-EAGAIN means mmap_sem have been drop)
-> + * Returns: number of valid pages in range->pfns[] (from range start
-> + *          address). This may be zero. If the return value is negative,
-> + *          then one of the following values may be returned:
-> + *
-> + *           -EINVAL  invalid arguments or mm or virtual address are in an
-> + *                    invalid vma (ie either hugetlbfs or device file vma).
-> + *           -ENOMEM: Out of memory.
-> + *           -EPERM:  Invalid permission (for instance asking for write and
-> + *                    range is read only).
-> + *           -EAGAIN: If you need to retry and mmap_sem was drop. This can only
-> + *                    happens if block argument is false.
-> + *           -EBUSY:  If the the range is being invalidated and you should wait
-> + *                    for invalidation to finish.
-> + *           -EFAULT: Invalid (ie either no valid vma or it is illegal to access
-> + *                    that range), number of valid pages in range->pfns[] (from
-> + *                    range start address).
->   *
->   * This is similar to a regular CPU page fault except that it will not trigger
-> - * any memory migration if the memory being faulted is not accessible by CPUs.
-> + * any memory migration if the memory being faulted is not accessible by CPUs
-> + * and caller does not ask for migration.
->   *
->   * On error, for one virtual address in the range, the function will mark the
->   * corresponding HMM pfn entry with an error flag.
-> - *
-> - * Expected use pattern:
-> - * retry:
-> - *   down_read(&mm->mmap_sem);
-> - *   // Find vma and address device wants to fault, initialize hmm_pfn_t
-> - *   // array accordingly
-> - *   ret = hmm_vma_fault(range, write, block);
-> - *   switch (ret) {
-> - *   case -EAGAIN:
-> - *     hmm_vma_range_done(range);
-> - *     // You might want to rate limit or yield to play nicely, you may
-> - *     // also commit any valid pfn in the array assuming that you are
-> - *     // getting true from hmm_vma_range_monitor_end()
-> - *     goto retry;
-> - *   case 0:
-> - *     break;
-> - *   case -ENOMEM:
-> - *   case -EINVAL:
-> - *   case -EPERM:
-> - *   default:
-> - *     // Handle error !
-> - *     up_read(&mm->mmap_sem)
-> - *     return;
-> - *   }
-> - *   // Take device driver lock that serialize device page table update
-> - *   driver_lock_device_page_table_update();
-> - *   hmm_vma_range_done(range);
-> - *   // Commit pfns we got from hmm_vma_fault()
-> - *   driver_unlock_device_page_table_update();
-> - *   up_read(&mm->mmap_sem)
-> - *
-> - * YOU MUST CALL hmm_vma_range_done() AFTER THIS FUNCTION RETURN SUCCESS (0)
-> - * BEFORE FREEING THE range struct OR YOU WILL HAVE SERIOUS MEMORY CORRUPTION !
-> - *
-> - * YOU HAVE BEEN WARNED !
->   */
-> -int hmm_vma_fault(struct hmm_range *range, bool block)
-> +long hmm_range_fault(struct hmm_range *range, bool block)
->  {
->  	struct vm_area_struct *vma = range->vma;
->  	unsigned long start = range->start;
-> @@ -974,7 +959,8 @@ int hmm_vma_fault(struct hmm_range *range, bool block)
->  	do {
->  		ret = walk_page_range(start, range->end, &mm_walk);
->  		start = hmm_vma_walk.last;
-> -	} while (ret == -EAGAIN);
-> +		/* Keep trying while the range is valid. */
-> +	} while (ret == -EBUSY && range->valid);
->  
->  	if (ret) {
->  		unsigned long i;
-> @@ -984,6 +970,7 @@ int hmm_vma_fault(struct hmm_range *range, bool block)
->  			       range->end);
->  		hmm_vma_range_done(range);
->  		hmm_put(hmm);
-> +		return ret;
->  	} else {
->  		/*
->  		 * Transfer hmm reference to the range struct it will be drop
-> @@ -993,9 +980,9 @@ int hmm_vma_fault(struct hmm_range *range, bool block)
->  		range->hmm = hmm;
->  	}
->  
-> -	return ret;
-> +	return (hmm_vma_walk.last - range->start) >> PAGE_SHIFT;
->  }
-> -EXPORT_SYMBOL(hmm_vma_fault);
-> +EXPORT_SYMBOL(hmm_range_fault);
->  #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
->  
->  
-> -- 
-> 2.17.2
 > 
+>> I assume it would still be a special
+>> case, though, but conceptually speaking about the interface it would be
+>> allowed.
+>>
+>> Memory block devices (and therefore 1..X sections) should have one owner
+>> only. Anything else just does not fit.
+> 
+> Yes, but I would say the problem there is that the
+> memory-block-devices interface design is showing its age and is being
+> pressured with how systems want to deploy and use memory today.
+
+Maybe, I guess the main "issue" started to pop up when different things
+(RAM vs. PMEM) were started to be mapped into memory side by side. But
+it is ABI, and basic kdump would completely break if removed. And of
+course memory unplug and much more. It is a crucial part of how system
+ram is handled today and might not at all be easy to replace.
+
+-- 
+
+Thanks,
+
+David / dhildenb
 
