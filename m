@@ -2,173 +2,288 @@ Return-Path: <SRS0=kLvD=R7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 804F9C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 20:44:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9F978C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 20:54:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3012C20823
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 20:44:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3C1772184C
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 20:54:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="G09CZy9Z"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3012C20823
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="BFuqPlz2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C1772184C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D03276B0280; Thu, 28 Mar 2019 16:44:26 -0400 (EDT)
+	id CAC6E6B0282; Thu, 28 Mar 2019 16:54:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C8B536B0282; Thu, 28 Mar 2019 16:44:26 -0400 (EDT)
+	id C36DA6B0284; Thu, 28 Mar 2019 16:54:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B054E6B0283; Thu, 28 Mar 2019 16:44:26 -0400 (EDT)
+	id AD70F6B0285; Thu, 28 Mar 2019 16:54:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 72B7A6B0280
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 16:44:26 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id r13so34046pga.13
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 13:44:26 -0700 (PDT)
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8544A6B0282
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 16:54:04 -0400 (EDT)
+Received: by mail-yb1-f197.google.com with SMTP id y194so135242yby.2
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 13:54:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=J/Sv2txgzYEAQ4VYGS+H5dOrwerREpOEMC59LuErUdk=;
-        b=fee3siMPUiqgxH3CjRTQ7hhCGuq7Ku8u1T8MhBhrtyGdNrh44rPXHBwLfA9Yyq/TVR
-         +/eTsE+XNI0RVtRC0gAHHdP/jN9GaWPqkC5zg5P+7vQXgTvZCqEG25y8IdceSsREFwNK
-         FM5FQsui8O1PpXSafIPJeH/gQ0dRQDa6L9oW2QG196QXw3F6eiwghp82+CABCLTttYO+
-         6m2fkDcv20dEYVbufYw4HOdleaKvTifa3VEQCnfXLoovcuqoad3pbYGnTk5tI/WRO97l
-         IWnDAngKxK/Qym4tzJ0R7yiy0zO9XxqpzTAtHkAAtKrtwiyO8npPR6Xt6wIdcf2Yb5D5
-         +eVQ==
-X-Gm-Message-State: APjAAAU23a/PEK+xq1cHPjW4DdiHfjXzS2Tw40KZnamw1ukDQFaiGvS7
-	Zp3PhzbZTYscCmqmNtMIyRbO/CHrnXITcGTqk+P1HEp/9SrrQJFIJhliC1GVcwpxDeK8NxnB6W7
-	AYPFdkpHUEXE9IMVWAu/RA8hXA6fcugSWxWww/u+TNG/ep0mqrsjR3GgZE0/m30cbXw==
-X-Received: by 2002:a17:902:2e03:: with SMTP id q3mr44235625plb.166.1553805866146;
-        Thu, 28 Mar 2019 13:44:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyUwtiTAuCLxVnUPNL4voUocfeGyfXuOceZw4v1pCbGrwaueSJ36YPZt27sQ5eIqLzNTO44
-X-Received: by 2002:a17:902:2e03:: with SMTP id q3mr44235583plb.166.1553805865335;
-        Thu, 28 Mar 2019 13:44:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553805865; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=66ATySaHlVECGh1E7+UM9QuEPXamIu3gtSuhG9bf+E8=;
+        b=i4X2YDgsd1qCbTH2kJoKIrl1y9Jt6Q1ZOv204hKAGaBGyXvX2xPZCstw7T/+YDe+OY
+         Rx3z0KDZ1hpt3oGAmq6ms8rIfhVKJ8qxj4sxAFR9Z0mC/Zw4ENksIPwME/9MRHVPYX/e
+         ueNdx4o+PSThHBCTHYPqKeWKLjsS9VRatKp0zNHMOHXvJ20kY8lp3i2RDS3W6Rt9HU0M
+         sVtJ98aXJG9PsTosnR8NnP6RM23IbDsqdMwtUiXRPQpLyQyYsJ+xFGl8fq35oqU/c13a
+         xfXbrub0P5xd98hWBCWhfdEIW/gJKjLI/aPASv7gHwI4eU5wr1q3CBuJhIww0qe4H7Lv
+         y86w==
+X-Gm-Message-State: APjAAAXzIW9KfxOXNXZX5BgpEW835onGW4nnaOfEDyjv0YfuXIfZ+n9h
+	P+q6DIlZE/0ZCCzPfV+ebSkoriJGlzlOPL6605dDLd8E5Je73JLS/cflYbIwChqUf/mfhblqQKz
+	XPE0JAzdIzre+1qmw1sBPVvyoW1V+ysq5fDKIsoVyxBGIFcUwXgI6Y0SEUNYzpfHicg==
+X-Received: by 2002:a25:10d6:: with SMTP id 205mr38569627ybq.69.1553806444213;
+        Thu, 28 Mar 2019 13:54:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyxK8wKkw6LEiq52xsIMkUvVfvbWp81y9uV7WQForYzUvXzWnpUtij6jQQxImkuSjOS/rZg
+X-Received: by 2002:a25:10d6:: with SMTP id 205mr38569589ybq.69.1553806443535;
+        Thu, 28 Mar 2019 13:54:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553806443; cv=none;
         d=google.com; s=arc-20160816;
-        b=HD8dZpcp9YNtnuJT4RL13OyIYCTEKD9NunWJ/JT7bJVj+MerhoO+OYLg841rse9oT/
-         ILMtaVQRULNwPjxM1usK5dZS+nMFmJUf4rL7dChXQE9OslBF9R3pAcW53viqST8XHE1o
-         PoWJcxxgwhehseQ7J5D+oQn0j54104OsJf97V6tH/N6ZClx7wteo2ErscgZh9Fc0BvnY
-         PN7sWE+12K46IlWKGZBybM05r9Y/OsS2fgkSIrV9WtM6+U+Vou/sb3YjjKTX7pt2CAre
-         qOLngphOx79jCUqMOX8EvbFk3OzZ86ANkq/SMVX8aKddnmJRWrgdtY+EV0QXjprx9q6C
-         TUGQ==
+        b=HiQyLT5TQmYHINcNotcWwn4T9Sog2vkSGxT9H+emG78TuIlpRwDwgcJczEUBLv6KKU
+         q0e2DC6L8SHfy1yWqQ8JTtEXtWr2zp3jfLHY5CVGRqq8j5xuwHFpDnknn2+hoGAR6Rjs
+         wBYNhNQoeNZjhzzDykyiRkTM0k34tg914ywK1gS/0JpEtlJF2j6sg2e+tHhsXy/NOM8W
+         A7ABgnmtQykf96JM0eTseuCjHV3eRRGcNj7KgXAVJAsjoyceqnjpLNNHQwNq/Jk1Jqu/
+         gehs/U/2MeXWweNerpRMU6Ljc7hOuvcS2HCP7ml9Kv1Un8mzXvoledqwD4njrK3zJtps
+         xFWA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:to:subject
-         :dkim-signature;
-        bh=J/Sv2txgzYEAQ4VYGS+H5dOrwerREpOEMC59LuErUdk=;
-        b=AOzzU2nvPsSOH1pc/zR8DSDwNWQ0fe7iIs8NMMbN+6uAYmv4+sDlh+lTwH0+qx2luG
-         TK4NlgEdOw/JD1C8Sm+V5jEIbQ7S3pBDjynJh7MgPGpnvlDimQAzfoX3fHcQIHLHcvhF
-         ulivXacm/be8SW6yoZ5ji6hMalWPoZYjjjWB6snUExLMeHAhIPaMOto4ylBMbUazNdv6
-         PBXsTHN8MdMGZi5SQ6OuCJjCbwVbjKdHj1y8snp2ulukhJ+DAXSKBSMrk5Hrm4QZwP/X
-         QKxJyYjtoQZzrT3qfrXJ4aHsWuMvBweVcXwmLcKGqCWhV+VnuMJHC3Ml7VeWZrVYwRtV
-         6dRQ==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=66ATySaHlVECGh1E7+UM9QuEPXamIu3gtSuhG9bf+E8=;
+        b=gyVhYdozcv1wGlp2OX8NYuAda+cmGh/f/d66NagzzqH8pbdjM6zDypgHHkR2fNsy3D
+         UVQgF2ohkV6R+xK/AqSXiSIvR0KhNO5GB8LfTpRFH3vRQvg1pm+hL2yJkPs+yuxATRqq
+         52Sgf/C+968vBc4dtABI+mVyzXwMzhR3m7qq/WGkJqKc56RWe1uu++cUOflSHOr3utdH
+         GYj6tIwJmfWpCN31pI7yqSF3yV8CxngzhxXBPYTMq9OeEs5WEtqyze3mkvyYJ/BUWhg6
+         IVIwrQekHHVs69cjdzoR4w2ksllNWJj9O0IFCRbLptKv3ozL0/65rDdWLCmK75ECMblG
+         8CxA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=G09CZy9Z;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id g10si87930plb.375.2019.03.28.13.44.25
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=BFuqPlz2;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id g3si61834ywg.303.2019.03.28.13.54.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Mar 2019 13:44:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        Thu, 28 Mar 2019 13:54:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=G09CZy9Z;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x2SKcwSi194673;
-	Thu, 28 Mar 2019 20:43:48 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=J/Sv2txgzYEAQ4VYGS+H5dOrwerREpOEMC59LuErUdk=;
- b=G09CZy9Z0roM3J+ekA923y0scmmhw58c0EyD8iu6QUJEMHCuxhJios+WlIW3SW5iL73B
- 13/C8qhnL08l/kO+BTG55KGvtEJ0sDQa1ef6mKANMn4jHKqih0MsrBQL4H5OOLOn2x/s
- XlzIHjdvMTtmI23IFkM90a4QdtkyikJLP7vIIxbLAH+GZj1QXD4mOz9yCjSrc+oNlPOf
- UqRC53OnOd9RdKE7AD92McPwrIwNQJQ1ibaAFZ8Xa3otnpP3Dxrcuw7purThc4o06ASu
- iRfG+TdvKA5K/JeEiHpcLKS0YRHGAKbT01uzeNa2/Du0jOzIo4YdHGf2YcycVJIz5iPk JA== 
-Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
-	by userp2120.oracle.com with ESMTP id 2re6djs2kv-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 28 Mar 2019 20:43:47 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x2SKhiLW020325
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 28 Mar 2019 20:43:44 GMT
-Received: from abhmp0011.oracle.com (abhmp0011.oracle.com [141.146.116.17])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x2SKhOq4024431;
-	Thu, 28 Mar 2019 20:43:25 GMT
-Received: from [192.168.1.222] (/50.38.38.67)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 28 Mar 2019 13:43:24 -0700
-Subject: Re: [PATCH v8 4/4] hugetlb: allow to free gigantic pages regardless
- of the configuration
-To: Alexandre Ghiti <alex@ghiti.fr>, aneesh.kumar@linux.ibm.com,
-        mpe@ellerman.id.au, Andrew Morton <akpm@linux-foundation.org>,
-        Vlastimil Babka <vbabka@suse.cz>,
-        Catalin Marinas <catalin.marinas@arm.com>,
-        Will Deacon <will.deacon@arm.com>,
-        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-        Paul Mackerras <paulus@samba.org>,
-        Martin Schwidefsky <schwidefsky@de.ibm.com>,
-        Heiko Carstens <heiko.carstens@de.ibm.com>,
-        Yoshinori Sato <ysato@users.sourceforge.jp>,
-        Rich Felker <dalias@libc.org>,
-        "David S . Miller" <davem@davemloft.net>,
-        Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
-        Borislav Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>,
-        x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>,
-        Andy Lutomirski <luto@kernel.org>,
-        Peter Zijlstra <peterz@infradead.org>,
-        linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
-        linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
-        linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
-        linux-mm@kvack.org
-References: <20190327063626.18421-1-alex@ghiti.fr>
- <20190327063626.18421-5-alex@ghiti.fr>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <c6a93f46-4d8a-e7fd-3f39-4c3c5a9ed514@oracle.com>
-Date: Thu, 28 Mar 2019 13:43:21 -0700
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=BFuqPlz2;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c9d346d0001>; Thu, 28 Mar 2019 13:54:06 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Thu, 28 Mar 2019 13:54:02 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Thu, 28 Mar 2019 13:54:02 -0700
+Received: from [10.110.48.28] (10.124.1.5) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 28 Mar
+ 2019 20:54:02 +0000
+Subject: Re: [PATCH v2 10/11] mm/hmm: add helpers for driver to safely take
+ the mmap_sem v2
+To: <jglisse@redhat.com>, <linux-mm@kvack.org>
+CC: <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>,
+	Dan Williams <dan.j.williams@intel.com>
+References: <20190325144011.10560-1-jglisse@redhat.com>
+ <20190325144011.10560-11-jglisse@redhat.com>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <9df742eb-61ca-3629-a5f4-8ad1244ff840@nvidia.com>
+Date: Thu, 28 Mar 2019 13:54:01 -0700
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.0
+ Thunderbird/60.5.3
 MIME-Version: 1.0
-In-Reply-To: <20190327063626.18421-5-alex@ghiti.fr>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9209 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1903280133
+In-Reply-To: <20190325144011.10560-11-jglisse@redhat.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL101.nvidia.com (172.20.187.10) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US-large
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1553806446; bh=66ATySaHlVECGh1E7+UM9QuEPXamIu3gtSuhG9bf+E8=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=BFuqPlz2E3sxwSyIDD9EWu/eD+fvDokJzqkj9BM3Dd7891jCCptci248hOcEuLhLf
+	 Ozn4DDhBLtg2swX3xez9IbLAnDq3F0fVZTwvNL4Tvvuhid1Rburr1dU3p30nMktUSS
+	 e4H3lB4yQQ7tPrT3S1TtKHIiQyzrsFB0KvE6IUzBhJY368xVGl4oNlLpNaj3BhMw9R
+	 NJkiGuKFLft21ll+xlAYtB5J8L/IrbUX+G5YBVMDf0Yd+BST/uebj9PZSVlarH+s1Y
+	 SGR8bxM1Fq2m+OZi/SSHg99kBM+UnoXv6F4STZN8cDbq/cDcw2LZpkxo+N+ZXRFjB8
+	 2iquhi8a6waBg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/26/19 11:36 PM, Alexandre Ghiti wrote:
-> On systems without CONTIG_ALLOC activated but that support gigantic pages,
-> boottime reserved gigantic pages can not be freed at all. This patch
-> simply enables the possibility to hand back those pages to memory
-> allocator.
-> 
-> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
-> Acked-by: David S. Miller <davem@davemloft.net> [sparc]
+On 3/25/19 7:40 AM, jglisse@redhat.com wrote:
+> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>=20
+> The device driver context which holds reference to mirror and thus to
+> core hmm struct might outlive the mm against which it was created. To
+> avoid every driver to check for that case provide an helper that check
+> if mm is still alive and take the mmap_sem in read mode if so. If the
+> mm have been destroy (mmu_notifier release call back did happen) then
+> we return -EINVAL so that calling code knows that it is trying to do
+> something against a mm that is no longer valid.
+>=20
+> Changes since v1:
+>     - removed bunch of useless check (if API is use with bogus argument
+>       better to fail loudly so user fix their code)
+>=20
+> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  include/linux/hmm.h | 50 ++++++++++++++++++++++++++++++++++++++++++---
+>  1 file changed, 47 insertions(+), 3 deletions(-)
+>=20
+> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> index f3b919b04eda..5f9deaeb9d77 100644
+> --- a/include/linux/hmm.h
+> +++ b/include/linux/hmm.h
+> @@ -438,6 +438,50 @@ struct hmm_mirror {
+>  int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm)=
+;
+>  void hmm_mirror_unregister(struct hmm_mirror *mirror);
+> =20
+> +/*
+> + * hmm_mirror_mm_down_read() - lock the mmap_sem in read mode
+> + * @mirror: the HMM mm mirror for which we want to lock the mmap_sem
+> + * Returns: -EINVAL if the mm is dead, 0 otherwise (lock taken).
+> + *
+> + * The device driver context which holds reference to mirror and thus to=
+ core
+> + * hmm struct might outlive the mm against which it was created. To avoi=
+d every
+> + * driver to check for that case provide an helper that check if mm is s=
+till
+> + * alive and take the mmap_sem in read mode if so. If the mm have been d=
+estroy
+> + * (mmu_notifier release call back did happen) then we return -EINVAL so=
+ that
+> + * calling code knows that it is trying to do something against a mm tha=
+t is
+> + * no longer valid.
+> + */
+> +static inline int hmm_mirror_mm_down_read(struct hmm_mirror *mirror)
 
-Thanks for all the updates
+Hi Jerome,
 
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+Let's please not do this. There are at least two problems here:
 
--- 
-Mike Kravetz
+1. The hmm_mirror_mm_down_read() wrapper around down_read() requires a=20
+return value. This is counter to how locking is normally done: callers do
+not normally have to check the return value of most locks (other than
+trylocks). And sure enough, your own code below doesn't check the return va=
+lue.
+That is a pretty good illustration of why not to do this.
+
+2. This is a weird place to randomly check for semi-unrelated state, such=20
+as "is HMM still alive". By that I mean, if you have to detect a problem
+at down_read() time, then the problem could have existed both before and
+after the call to this wrapper. So it is providing a false sense of securit=
+y,
+and it is therefore actually undesirable to add the code.
+
+If you insist on having this wrapper, I think it should have approximately=
+=20
+this form:
+
+void hmm_mirror_mm_down_read(...)
+{
+	WARN_ON(...)
+	down_read(...)
+}=20
+
+> +{
+> +	struct mm_struct *mm;
+> +
+> +	/* Sanity check ... */
+> +	if (!mirror || !mirror->hmm)
+> +		return -EINVAL;
+> +	/*
+> +	 * Before trying to take the mmap_sem make sure the mm is still
+> +	 * alive as device driver context might outlive the mm lifetime.
+
+Let's find another way, and a better place, to solve this problem.
+Ref counting?
+
+> +	 *
+> +	 * FIXME: should we also check for mm that outlive its owning
+> +	 * task ?
+> +	 */
+> +	mm =3D READ_ONCE(mirror->hmm->mm);
+> +	if (mirror->hmm->dead || !mm)
+> +		return -EINVAL;
+> +
+> +	down_read(&mm->mmap_sem);
+> +	return 0;
+> +}
+> +
+> +/*
+> + * hmm_mirror_mm_up_read() - unlock the mmap_sem from read mode
+> + * @mirror: the HMM mm mirror for which we want to lock the mmap_sem
+> + */
+> +static inline void hmm_mirror_mm_up_read(struct hmm_mirror *mirror)
+> +{
+> +	up_read(&mirror->hmm->mm->mmap_sem);
+> +}
+> +
+> =20
+>  /*
+>   * To snapshot the CPU page table you first have to call hmm_range_regis=
+ter()
+> @@ -463,7 +507,7 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror)=
+;
+>   *          if (ret)
+>   *              return ret;
+>   *
+> - *          down_read(mm->mmap_sem);
+> + *          hmm_mirror_mm_down_read(mirror);
+
+See? The normal down_read() code never needs to check a return value, so wh=
+en
+someone does a "simple" upgrade, it introduces a fatal bug here: if the wra=
+pper
+returns early, then the caller proceeds without having acquired the mmap_se=
+m.
+
+>   *      again:
+>   *
+>   *          if (!hmm_range_wait_until_valid(&range, TIMEOUT)) {
+> @@ -476,13 +520,13 @@ void hmm_mirror_unregister(struct hmm_mirror *mirro=
+r);
+>   *
+>   *          ret =3D hmm_range_snapshot(&range); or hmm_range_fault(&rang=
+e);
+>   *          if (ret =3D=3D -EAGAIN) {
+> - *              down_read(mm->mmap_sem);
+> + *              hmm_mirror_mm_down_read(mirror);
+
+Same problem here.
+
+
+thanks,
+--=20
+John Hubbard
+NVIDIA
 
