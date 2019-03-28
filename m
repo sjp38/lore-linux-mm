@@ -2,237 +2,265 @@ Return-Path: <SRS0=kLvD=R7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-13.5 required=3.0
+	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 724CEC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 22:06:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CA033C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 22:08:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1B2992075E
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 22:06:05 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="To6XGK9f"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B2992075E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 811BA2075E
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 22:08:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 811BA2075E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AA4EB6B0008; Thu, 28 Mar 2019 18:06:04 -0400 (EDT)
+	id DAF496B000C; Thu, 28 Mar 2019 18:08:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A53F66B000C; Thu, 28 Mar 2019 18:06:04 -0400 (EDT)
+	id D5F836B0266; Thu, 28 Mar 2019 18:08:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 942A26B0266; Thu, 28 Mar 2019 18:06:04 -0400 (EDT)
+	id C4E416B0274; Thu, 28 Mar 2019 18:08:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 71F496B0008
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 18:06:04 -0400 (EDT)
-Received: by mail-it1-f200.google.com with SMTP id v193so265045itv.9
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 15:06:04 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A6DDC6B000C
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 18:08:29 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id d131so66040qkc.18
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 15:08:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=efE+EqaifQWItnvqE5oHeBNSdF1slMZgpYXIiFbimNM=;
-        b=XDnKCijE6X3X7pVjQwcXrjjtiqg9FwWkfup+4H9vanI+pmcv1V/DPavlnDvoj4eSiw
-         e6qwf+EwuFJ12skx4cQBczEptcL20qX4jO31iS4ywKeJNze1LQs6ENXyRNSDoxi6GtIj
-         mH8bM8zMFvHHvTXkHge6MvV1np0mtP63Yk37nC6W6CF1dTQrakME922eGUyeAa0c+okp
-         TDnouAa4awh6FsLujHWvybmtgPyxrNuMAbBPFPhaLSCpqYAGyw+tCo4YFPgN4IRJ6/DS
-         28ZTCBReJWOAbue5iM4aGVkhDj0p9S99RT9Y0qm7B3CsyX5itzAV/JfZGJwIa+tjl6YN
-         BlBg==
-X-Gm-Message-State: APjAAAXSkBVD2Le02KqUK+qpwFD0yD4PMLjFIqOLJ2JGXtAbJAuE+0oh
-	lhFf2quwXxqGqL3ng97LpdsmTKRCY7l/D1+NZYbGNdLt3hGCXa4OZD/c3B8jB5jdrtPN/NVm9lj
-	c7LahmgTYSlXGOOCerNHBFEPLLm4UgEII7ZChBmhmmlctGz3KOpgChssEhu8qJA+A/Q==
-X-Received: by 2002:a24:ac6b:: with SMTP id m43mr2062562iti.28.1553810764160;
-        Thu, 28 Mar 2019 15:06:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy/+KqLu/JjvdwWLTMt9CN3itntzCF/z4iumjYlC2Wk5MIyhSB3TE+/OrzgW/9cmbmauzvq
-X-Received: by 2002:a24:ac6b:: with SMTP id m43mr2062508iti.28.1553810763382;
-        Thu, 28 Mar 2019 15:06:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553810763; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=h0wVGhGqMdrTppX6tkD5HPWg1t6S6OIyRNqJBAvAd+g=;
+        b=tU7TWr3sRYb4KbTNVILw1BVnRWxnqC2N/SFqhNkP2ix1hai2kR3ZJAOsiEEuIqUMP0
+         FYvdq8ng+ks0kcwgr+9SfMA6ZYG5dbVVJApIIQni5jsHe4FCx0mZXZU13UM0ef4ySXKt
+         dk++LXVw1LK/2kf7PPJX4u5pauwPNrI0fccwg7v32MwTc7ks9wMIOZfVuFoyIw+qENGv
+         dbLSL4CnD0Lan3rLOsWZ0qOw1Avsr97k9VmncY1xfJWdfE1cS6ydwbjfrU0Qp/Nr3LAi
+         OMRb9QB7cYNM4pEpyHT3UJl1doEdiHorDr5I2E6JqsaPsvwKX34wpmGOQRUutk4OZT57
+         gdIQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXkF5jsmORxuH2aZ+7d+PDvI2J7pCT6Z95ec6qgbbcjzOeQKOBA
+	UwP55qciYp5/r6Myah0lokKsU2GOfN5uKq7m+N710E4pApEgFOQqXTHDh92yP2crEYN5DP+uzYA
+	qGhRASrNnVYldnGbiozP1Tn+8qb+L5Jrsm6gzs1OAAyiodmksAZ2y/i+t0ePXbXIlqg==
+X-Received: by 2002:a37:b005:: with SMTP id z5mr35426290qke.119.1553810909437;
+        Thu, 28 Mar 2019 15:08:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzbyFv7ozCzgMp0P2GN6QNVfwxwQpWHsYeAMR1F0EhskXaQ1WL7hAn3iqmIe3699g5k/Rm7
+X-Received: by 2002:a37:b005:: with SMTP id z5mr35426242qke.119.1553810908737;
+        Thu, 28 Mar 2019 15:08:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553810908; cv=none;
         d=google.com; s=arc-20160816;
-        b=sAs9g0yq9y8AVLGoRxa8i3ju75T+hvLnr3z23zkbL2XiThOJXAFBvnYE1KrU8HiizM
-         7tQkLoc/xg/rmoNhn/e8myb7FeGjfOJieHlMtVk1NrNRfVwCUgaoUzIekV9p386V7iP0
-         0GutVcSMnJyUl3t4yjXlJdsTfQZdzQ7U82czX5YBOfF/UuxV5TPpWppIx5XAxltCQ5Ok
-         yfNFmRj3oYmzYqP+hOXNjboT6nlG/rEDtY+zr7ayoQtoS6PzXnNTa2DhvtH+KHDyOs1G
-         w5lhI1rc2ZE+joydPHk/G8zbtqMkalM+s1uGWz64wgXs9LVoPjBjV8JPTmdrCy/8St/u
-         oYHQ==
+        b=0eXrzWgAgqFxTOqcRAd9G5QSH6iTcPitjDzk9em34kbVOCe3C/GhhpkJ3gCauMblGZ
+         1rxsZs7dJZJAMh3NBe1a2V84JbHZuSRg52Ik4Pdyeu1J3DjRXxViZzx4MbwRpaYj+/zi
+         eeTp96CQOaBI+ENsvbKZsqiC5angwy2Rpx9benavgjB5PJI1iX5BLs0zaJohmHrx8pzm
+         U0pVhL+uSwkg18KJTp6i/JyHb/nSRJefAaeiNDScaqI96P2TIWoZltZXlezpd3dTP4Dc
+         ELe4VvpJZT7WBTYaDBowlFsdXCU8IKiBEYH0nCAB5sZ6kK/IdTaDRbCjYldBbUD+dQNv
+         YhUQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=efE+EqaifQWItnvqE5oHeBNSdF1slMZgpYXIiFbimNM=;
-        b=GVWA9AkWMhCcrWdLamEYdkwVAyYyNEuwCTUqJfIjcSuDaU9J6/dim229bfYXCGvWZ3
-         8VFa3O7S041z96LGvPySbUY0szPwdx7xjOeCCR/eFWHat2zjE3F1ihXuuGd7b5BX/9jp
-         g2H+Bc6Bb8pTG2rbzMcq+hO9YY6QV7KidJ8qK5pjLDs+3jHXfOX1nhSZKUoF+obAUOI0
-         9nRN8MQlKy99gUevkyZXiy5vrCd96MQ188NjHgCAmTiEOZy09Elb+HMo7SX5v+2yWSUt
-         FvGWvzF8lVffMAjGOPwo6cR45W1E3j5ojUbYbDWgm/P/JmwRkWnvz+CaIv/dTc6mKn02
-         v19g==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=h0wVGhGqMdrTppX6tkD5HPWg1t6S6OIyRNqJBAvAd+g=;
+        b=E7jPzjjZ6fDk8OqwDun3Cz+kJAlvD29/fqKPMae4dwlXDHdrj64XobsYZ+zzpd4bpV
+         qfB77B+DpUaapa4okK+b1fgwajSF+vSkHYn6o/lonPAuryvOM3qksg7ltUhA0uhM0jnK
+         0ES4MUhU9pF94BVJ6z0ZkVdfeevGcMc8bZJHkyukp7ySXQP6YuETI6FFN/YZmQIrkOsY
+         oNiVBjsaCR1yOTYuY3bH0XTelQDsi19InZmcwQIS9GSHq2N92ny3GIazmqLNtc+pyusO
+         kHAvTE4tIfCvSnAS1jmkfpiRvmkstUgGH+RwQjgYN4lrWXsI0V8YYrwH3x4BB81pmbnG
+         Vu6g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=To6XGK9f;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id u14si198900ior.49.2019.03.28.15.06.03
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o32si133232qte.347.2019.03.28.15.08.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Mar 2019 15:06:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        Thu, 28 Mar 2019 15:08:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=To6XGK9f;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x2SLxmSs060297;
-	Thu, 28 Mar 2019 22:05:51 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
- subject : date : message-id : mime-version : content-transfer-encoding;
- s=corp-2018-07-02; bh=efE+EqaifQWItnvqE5oHeBNSdF1slMZgpYXIiFbimNM=;
- b=To6XGK9fJKj9anhLwIkXsfVRTrO/rnl4b0e+jPhZakXVEEA9S4AhLDGLZD5Xl84ZVUrt
- fL4og7Mm4DjgLZoh7vDk7l/tR4AaCopqJmt7s2N9QBiR8e24wGvEN2zFT2yTsKU13/83
- 94sdE6jFdDRK7tgzJCwy5yh5K4k8c3f/mhN7dwEQyGvYhTLikvR+gj10atYNRNXtwxvh
- GPFiWWagnMdp0WxDNq5fl9CDiXbOeTag9K8MKla6jjR2JFt5MEMfUSlP26cznvn4+ZpD
- ndfAExKYHUaW30O8Nnsfaqb76jPbfZxy+gvPC/nWGydJWVhTKuDQAJ8FmB6CQaMGhfO0 yA== 
-Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
-	by userp2120.oracle.com with ESMTP id 2re6djsc20-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 28 Mar 2019 22:05:51 +0000
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x2SM5nqo006298
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 28 Mar 2019 22:05:50 GMT
-Received: from abhmp0022.oracle.com (abhmp0022.oracle.com [141.146.116.28])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x2SM5jwF009891;
-	Thu, 28 Mar 2019 22:05:45 GMT
-Received: from monkey.oracle.com (/50.38.38.67)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 28 Mar 2019 15:05:45 -0700
-From: Mike Kravetz <mike.kravetz@oracle.com>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-        Andrew Morton <akpm@linux-foundation.org>
-Cc: Oscar Salvador <osalvador@suse.de>, David Rientjes <rientjes@google.com>,
-        Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-        Alex Ghiti <alex@ghiti.fr>, Mike Kravetz <mike.kravetz@oracle.com>,
-        Jing Xiangfeng <jingxiangfeng@huawei.com>
-Subject: [PATCH REBASED] hugetlbfs: fix potential over/underflow setting node specific nr_hugepages
-Date: Thu, 28 Mar 2019 15:05:33 -0700
-Message-Id: <20190328220533.19884-1-mike.kravetz@oracle.com>
-X-Mailer: git-send-email 2.20.1
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 8B6A73082AF0;
+	Thu, 28 Mar 2019 22:08:27 +0000 (UTC)
+Received: from redhat.com (ovpn-121-118.rdu2.redhat.com [10.10.121.118])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id A056D5D961;
+	Thu, 28 Mar 2019 22:08:26 +0000 (UTC)
+Date: Thu, 28 Mar 2019 18:08:24 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Dan Williams <dan.j.williams@intel.com>
+Subject: Re: [PATCH v2 10/11] mm/hmm: add helpers for driver to safely take
+ the mmap_sem v2
+Message-ID: <20190328220824.GE13560@redhat.com>
+References: <20190325144011.10560-1-jglisse@redhat.com>
+ <20190325144011.10560-11-jglisse@redhat.com>
+ <9df742eb-61ca-3629-a5f4-8ad1244ff840@nvidia.com>
+ <20190328213047.GB13560@redhat.com>
+ <a16efd42-3e2b-1b72-c205-0c2659de2750@nvidia.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9209 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1903280142
+In-Reply-To: <a16efd42-3e2b-1b72-c205-0c2659de2750@nvidia.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Thu, 28 Mar 2019 22:08:27 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The number of node specific huge pages can be set via a file such as:
-/sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages
-When a node specific value is specified, the global number of huge
-pages must also be adjusted.  This adjustment is calculated as the
-specified node specific value + (global value - current node value).
-If the node specific value provided by the user is large enough, this
-calculation could overflow an unsigned long leading to a smaller
-than expected number of huge pages.
+On Thu, Mar 28, 2019 at 02:41:02PM -0700, John Hubbard wrote:
+> On 3/28/19 2:30 PM, Jerome Glisse wrote:
+> > On Thu, Mar 28, 2019 at 01:54:01PM -0700, John Hubbard wrote:
+> >> On 3/25/19 7:40 AM, jglisse@redhat.com wrote:
+> >>> From: Jérôme Glisse <jglisse@redhat.com>
+> >>>
+> >>> The device driver context which holds reference to mirror and thus to
+> >>> core hmm struct might outlive the mm against which it was created. To
+> >>> avoid every driver to check for that case provide an helper that check
+> >>> if mm is still alive and take the mmap_sem in read mode if so. If the
+> >>> mm have been destroy (mmu_notifier release call back did happen) then
+> >>> we return -EINVAL so that calling code knows that it is trying to do
+> >>> something against a mm that is no longer valid.
+> >>>
+> >>> Changes since v1:
+> >>>     - removed bunch of useless check (if API is use with bogus argument
+> >>>       better to fail loudly so user fix their code)
+> >>>
+> >>> Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
+> >>> Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
+> >>> Cc: Andrew Morton <akpm@linux-foundation.org>
+> >>> Cc: John Hubbard <jhubbard@nvidia.com>
+> >>> Cc: Dan Williams <dan.j.williams@intel.com>
+> >>> ---
+> >>>  include/linux/hmm.h | 50 ++++++++++++++++++++++++++++++++++++++++++---
+> >>>  1 file changed, 47 insertions(+), 3 deletions(-)
+> >>>
+> >>> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> >>> index f3b919b04eda..5f9deaeb9d77 100644
+> >>> --- a/include/linux/hmm.h
+> >>> +++ b/include/linux/hmm.h
+> >>> @@ -438,6 +438,50 @@ struct hmm_mirror {
+> >>>  int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm);
+> >>>  void hmm_mirror_unregister(struct hmm_mirror *mirror);
+> >>>  
+> >>> +/*
+> >>> + * hmm_mirror_mm_down_read() - lock the mmap_sem in read mode
+> >>> + * @mirror: the HMM mm mirror for which we want to lock the mmap_sem
+> >>> + * Returns: -EINVAL if the mm is dead, 0 otherwise (lock taken).
+> >>> + *
+> >>> + * The device driver context which holds reference to mirror and thus to core
+> >>> + * hmm struct might outlive the mm against which it was created. To avoid every
+> >>> + * driver to check for that case provide an helper that check if mm is still
+> >>> + * alive and take the mmap_sem in read mode if so. If the mm have been destroy
+> >>> + * (mmu_notifier release call back did happen) then we return -EINVAL so that
+> >>> + * calling code knows that it is trying to do something against a mm that is
+> >>> + * no longer valid.
+> >>> + */
+> >>> +static inline int hmm_mirror_mm_down_read(struct hmm_mirror *mirror)
+> >>
+> >> Hi Jerome,
+> >>
+> >> Let's please not do this. There are at least two problems here:
+> >>
+> >> 1. The hmm_mirror_mm_down_read() wrapper around down_read() requires a 
+> >> return value. This is counter to how locking is normally done: callers do
+> >> not normally have to check the return value of most locks (other than
+> >> trylocks). And sure enough, your own code below doesn't check the return value.
+> >> That is a pretty good illustration of why not to do this.
+> > 
+> > Please read the function description this is not about checking lock
+> > return value it is about checking wether we are racing with process
+> > destruction and avoid trying to take lock in such cases so that driver
+> > do abort as quickly as possible when a process is being kill.
+> > 
+> >>
+> >> 2. This is a weird place to randomly check for semi-unrelated state, such 
+> >> as "is HMM still alive". By that I mean, if you have to detect a problem
+> >> at down_read() time, then the problem could have existed both before and
+> >> after the call to this wrapper. So it is providing a false sense of security,
+> >> and it is therefore actually undesirable to add the code.
+> > 
+> > It is not, this function is use in device page fault handler which will
+> > happens asynchronously from CPU event or process lifetime when a process
+> > is killed or is dying we do want to avoid useless page fault work and
+> > we do want to avoid blocking the page fault queue of the device. This
+> > function reports to the caller that the process is dying and that it
+> > should just abort the page fault and do whatever other device specific
+> > thing that needs to happen.
+> > 
+> 
+> But it's inherently racy, to check for a condition outside of any lock, so again,
+> it's a false sense of security.
 
-To fix, check the calculation for overflow.  If overflow is detected,
-use ULONG_MAX as the requested value.  This is inline with the user
-request to allocate as many huge pages as possible.
+Yes and race are fine here, this is to avoid useless work if we are
+unlucky and we race and fail to see the destruction that is just
+happening then it is fine we are just going to do useless work. So
+we do not care about race here we just want to bailout early if we
+can witness the process dying.
 
-It was also noticed that the above calculation was done outside the
-hugetlb_lock.  Therefore, the values could be inconsistent and result
-in underflow.  To fix, the calculation is moved within the routine
-set_max_huge_pages() where the lock is held.
+> 
+> >>
+> >> If you insist on having this wrapper, I think it should have approximately 
+> >> this form:
+> >>
+> >> void hmm_mirror_mm_down_read(...)
+> >> {
+> >> 	WARN_ON(...)
+> >> 	down_read(...)
+> >> } 
+> > 
+> > I do insist as it is useful and use by both RDMA and nouveau and the
+> > above would kill the intent. The intent is do not try to take the lock
+> > if the process is dying.
+> 
+> Could you provide me a link to those examples so I can take a peek? I
+> am still convinced that this whole thing is a race condition at best.
 
-In addition, the code in __nr_hugepages_store_common() which tries to
-handle the case of not being able to allocate a node mask would likely
-result in incorrect behavior.  Luckily, it is very unlikely we will
-ever take this path.  If we do, simply return ENOMEM.
+The race is fine and ok see:
 
-Reported-by: Jing Xiangfeng <jingxiangfeng@huawei.com>
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
-This was sent upstream during 5.1 merge window, but dropped as it was
-based on an earlier version of Alex Ghiti's patch which was dropped.
-Now rebased on top of Alex Ghiti's "[PATCH v8 0/4] Fix free/allocation
-of runtime gigantic pages" series which was just added to mmotm.
+https://cgit.freedesktop.org/~glisse/linux/commit/?h=hmm-odp-v2&id=eebd4f3095290a16ebc03182e2d3ab5dfa7b05ec
 
- mm/hugetlb.c | 41 ++++++++++++++++++++++++++++++++++-------
- 1 file changed, 34 insertions(+), 7 deletions(-)
+which has been posted and i think i provided a link in the cover
+letter to that post. The same patch exist for nouveau i need to
+cleanup that tree and push it.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index f3e84c1bef11..f79ae4e42159 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2287,13 +2287,33 @@ static int adjust_pool_surplus(struct hstate *h, nodemask_t *nodes_allowed,
- }
- 
- #define persistent_huge_pages(h) (h->nr_huge_pages - h->surplus_huge_pages)
--static int set_max_huge_pages(struct hstate *h, unsigned long count,
-+static int set_max_huge_pages(struct hstate *h, unsigned long count, int nid,
- 			      nodemask_t *nodes_allowed)
- {
- 	unsigned long min_count, ret;
- 
- 	spin_lock(&hugetlb_lock);
- 
-+	/*
-+	 * Check for a node specific request.
-+	 * Changing node specific huge page count may require a corresponding
-+	 * change to the global count.  In any case, the passed node mask
-+	 * (nodes_allowed) will restrict alloc/free to the specified node.
-+	 */
-+	if (nid != NUMA_NO_NODE) {
-+		unsigned long old_count = count;
-+
-+		count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
-+		/*
-+		 * User may have specified a large count value which caused the
-+		 * above calculation to overflow.  In this case, they wanted
-+		 * to allocate as many huge pages as possible.  Set count to
-+		 * largest possible value to align with their intention.
-+		 */
-+		if (count < old_count)
-+			count = ULONG_MAX;
-+	}
-+
- 	/*
- 	 * Gigantic pages runtime allocation depend on the capability for large
- 	 * page range allocation.
-@@ -2445,15 +2465,22 @@ static ssize_t __nr_hugepages_store_common(bool obey_mempolicy,
- 		}
- 	} else if (nodes_allowed) {
- 		/*
--		 * per node hstate attribute: adjust count to global,
--		 * but restrict alloc/free to the specified node.
-+		 * Node specific request.  count adjustment happens in
-+		 * set_max_huge_pages() after acquiring hugetlb_lock.
- 		 */
--		count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
- 		init_nodemask_of_node(nodes_allowed, nid);
--	} else
--		nodes_allowed = &node_states[N_MEMORY];
-+	} else {
-+		/*
-+		 * Node specific request, but we could not allocate the few
-+		 * words required for a node mask.  We are unlikely to hit
-+		 * this condition.  Since we can not pass down the appropriate
-+		 * node mask, just return ENOMEM.
-+		 */
-+		err = -ENOMEM;
-+		goto out;
-+	}
- 
--	err = set_max_huge_pages(h, count, nodes_allowed);
-+	err = set_max_huge_pages(h, count, nid, nodes_allowed);
- 
- out:
- 	if (nodes_allowed != &node_states[N_MEMORY])
--- 
-2.20.1
+> > 
+> > 
+> >>
+> >>> +{
+> >>> +	struct mm_struct *mm;
+> >>> +
+> >>> +	/* Sanity check ... */
+> >>> +	if (!mirror || !mirror->hmm)
+> >>> +		return -EINVAL;
+> >>> +	/*
+> >>> +	 * Before trying to take the mmap_sem make sure the mm is still
+> >>> +	 * alive as device driver context might outlive the mm lifetime.
+> >>
+> >> Let's find another way, and a better place, to solve this problem.
+> >> Ref counting?
+> > 
+> > This has nothing to do with refcount or use after free or anthing
+> > like that. It is just about checking wether we are about to do
+> > something pointless. If the process is dying then it is pointless
+> > to try to take the lock and it is pointless for the device driver
+> > to trigger handle_mm_fault().
+> 
+> Well, what happens if you let such pointless code run anyway? 
+> Does everything still work? If yes, then we don't need this change.
+> If no, then we need a race-free version of this change.
+
+Yes everything work, nothing bad can happen from a race, it will just
+do useless work which never hurt anyone.
+
+Cheers,
+Jérôme
 
