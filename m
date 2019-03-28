@@ -1,284 +1,405 @@
-Return-Path: <SRS0=kLvD=R7=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=6kLG=SA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.4 required=3.0 tests=DATE_IN_PAST_06_12,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6BBCEC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 23:47:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E5634C4360F
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 00:13:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0FF1A2173C
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 23:47:30 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="F19NqBy9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0FF1A2173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 780362075E
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 00:13:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 780362075E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AD33F6B0007; Thu, 28 Mar 2019 19:47:27 -0400 (EDT)
+	id 086AA6B0006; Thu, 28 Mar 2019 20:13:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AA9AE6B0008; Thu, 28 Mar 2019 19:47:27 -0400 (EDT)
+	id 034366B0007; Thu, 28 Mar 2019 20:13:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8AEFD6B000C; Thu, 28 Mar 2019 19:47:27 -0400 (EDT)
+	id E8D306B0008; Thu, 28 Mar 2019 20:13:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 437B46B0007
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 19:47:27 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id v5so370759plo.4
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 16:47:27 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AA78B6B0006
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 20:13:31 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id e5so191047pfi.23
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 17:13:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=YIsUhxU4+gts/JPtIOY3p0GcgAlB/Grz4wjUuRKy0gc=;
-        b=LMhWilBKYmK+XrUHL+GEXX9BL9yOwrHpb07OfwV8tFMO2n9ovqUidpz0DIwvW4Php5
-         r6nluDDztKJOm2rmNfMU8HiDeCHMoJhtRo01ZRhcuDLF6BHR9K0e/B4OqsV4leBRXeiH
-         rgGDx40xkXTEcWVNv12P9RnrrXcJccPuWD8b8uGi0XPV5/+m4oQLX5aX2t9QtPasDl9e
-         vdEdNkD4o7ddqaDXQkM+q7o8RxnhHilevsJnQDeVdfeWjAQmYlUNrH/y/nyPg/siUkby
-         euV5ICjdk2acBFSeohGuws7sbzTu4NEaqKM8kmUtnF0eWnqHQn0I+tWgsFYqNbg4pc6T
-         BLRw==
-X-Gm-Message-State: APjAAAU3Wy47B+U3JFMY+hjkmmrY8hbZj9xfda1um1gXUtOCStERWb36
-	mHG/l5bTk//KavnqFVMgkeIMc76iC3LEW5EsR/2nlqP/hLW1t2mTAVk/OHcDRxrM57ioELEej0z
-	EU9R5g1BpKwAiAWc7LvCL9kzaEhnKb9iE5S2YCXvyZYrC1I96ErjUyBKfKPZHK2qdUw==
-X-Received: by 2002:a63:8548:: with SMTP id u69mr42514292pgd.85.1553816846896;
-        Thu, 28 Mar 2019 16:47:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxvdN76lgaFisKN7BjmxE3ZYjkL+98YCuu1QYX5MB/xC+QQf7tLvxwlUCK/2Z8/yf5r10iw
-X-Received: by 2002:a63:8548:: with SMTP id u69mr42514256pgd.85.1553816846067;
-        Thu, 28 Mar 2019 16:47:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553816846; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=qAfC6FxTOZT20G8NgumKqJ7ugKUTLO1sPan67XkQjpk=;
+        b=Jai53pF3aguoDgc5GPdUQSfIBj5L8RLUOky7FYo2HE1Nh9fE12egIKh87Bg40F/QxU
+         109GusIn4v0DaVv1RNJR0h51L1iBsuR2PrXwUYiSsIqTrALwpDRlnv9jep2PIjV+jiWU
+         +RzuEgyzCaO0Q2EFYCdaOMUkETD+sTZbtQ5SrpmCv4tgJ9JVs7ZIPV7MUkRdj5qMtIit
+         aYf3/1v8KzRccY0WUx43CBZCNYA73m6+q9aytNg9+VhTw+SkMxZSYxVZuNZo+oi/nSA1
+         HYsjr46ht3FlzrbahwWhIY96vl+HMY1/MT/DI2r8HglGHYeHwqQvQswOx5x8umebqgIZ
+         jlNg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAW5ICPka1SJO+jbsz3p+V4F3ZJXuGUpVBR4V84lalqKJN06P+YC
+	mtGJv0iLq7PWogCQbmf3eJISoLpPkB0b9HhW2e5r96i/twIiMPl5CoxtlsNTBMnp8TAXNJqN9vr
+	6skzIANPvk49tOml/QsylOj2cDRAKC/wuqN7njBGNNqUwZm8FZhMpZkNsYAHNkDiYzg==
+X-Received: by 2002:a62:6587:: with SMTP id z129mr4656188pfb.88.1553818411283;
+        Thu, 28 Mar 2019 17:13:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwN7VsyuJUi4mmVJdW3Q1K5HcCtw7eNlD2cbXnVOfP/QLTSr5tcy1AKz+DJRVZ4YA4fjLKx
+X-Received: by 2002:a62:6587:: with SMTP id z129mr4656105pfb.88.1553818410174;
+        Thu, 28 Mar 2019 17:13:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553818410; cv=none;
         d=google.com; s=arc-20160816;
-        b=b0fk5IAqLauTVF8xdts0ZbAXaYD7OO1q0orurxx+cfPZ9UVmJZM9CjD5WgYU4PtjdY
-         IKBdaAz/rIXtHnXk/b/5B9VzP52H7a15O6eHr2eRnHctc/tjFKrwnwSD7mWe+lRzPOB3
-         kZgKHGb+nHdBsm7vselof6Epw7USTiOGxqIKl28feMRhrFjt1jIvQA8QWc7yfJpyVvGJ
-         ta3PL0vnsBzsJT6fIBZkV/gnHsScizzVishPhbsw1OpytsfHcX3DuLoTdvAzN+RYniS3
-         dchLxGJ70Fpqv6GwhIwQO719Uu96ffBv/92WjXZtsCcldfWspEL7CTOCw5fiBNBBAZHX
-         bf1A==
+        b=gqNEkEV5H0YwAm+isXr5QiC2jmE2r0gyUwCC9vIvRtqYTaR6UpipDrT4LhNESUiQXZ
+         5160ZVos4tINNaMa9cWpphhuLfg+Ks6Stp4lkMrBQAUC2oxJhGV75oSJTf++sKRPSps3
+         VtJTFzTdGkvWQzcwLFOFc5Dr9eicQiAS89LqI4BnDLEvc3wY4zhWl+dY6Xf4FhHJ1zcW
+         bSYpcNgPaMaYEp2ewnbvoRWnlV6biSLNW1TovGCK1LlXuiB6qDzDCJ+4bYKBjEzuUAYq
+         Ya98khDEmY9oyOTJ0MdlTpI7P5FRQY+DU1PVOZvCk0NWytieV4fwpxVQGOt+XcLWXWLI
+         cjxQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=YIsUhxU4+gts/JPtIOY3p0GcgAlB/Grz4wjUuRKy0gc=;
-        b=pi8TMfw88I61ZLk3NA2k3s6gKf02cw9zaRgEvrNomkVy5qrA76cCn4QdogvhOllllp
-         i5sU3Pxa2H6z7IOFvN5H0hjHe5GjY47FzWq2HNy/QFDpllQDMmnsT3zJMOrZTR4Nug92
-         Gf3Nu+TNY0TA8WPrO/EEAOmHI+00USLW3mBQHhed3GwGF/wgMmch1hVPZ4yZdxrUPaKU
-         VFBiYv2sApDZXDTQ5HDpO8gCPllZEUrOCZg3sWaoyEAY7K3jaNkbML5f8L8z8NLAHtn1
-         KhaldUX6D6RfkhQ0EEDCdKI8PelRpW+XxNnznr/bsDuheFoiK5nbCpSyc/9aZuGO+huY
-         FMgw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=qAfC6FxTOZT20G8NgumKqJ7ugKUTLO1sPan67XkQjpk=;
+        b=SAMbN9W2WWJK6db2VRe5OoOp7sEKRcbn2ltCckN0cn6MAfVPGe4uVPcWArpedbjkmw
+         oj05+H+ajdqdRE7L5p+IA5Dy0ZWBpIHr2lsV0armm2FBVD/qD/2n4OWZBWceCTFxaVDX
+         +kD4y4e6ortFU3uS2RJ1OyCwIDzfxiklBIxlkP4w3RWHWpfyaIx8Ym+iQo+uYGzJIEfy
+         nADnzBRHFai5ylH3b4+MSQWJD/X7N8BXnTHvt41IATwj0xYdUTmI4gcFj0YjY6U2RS36
+         ncw7Lrben1vkVh/I6aCU2YMZAqfLZUyLM33JcRVjpC9pb4CyyCS3HoNsNJTHIMCDGyTC
+         S4ug==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=F19NqBy9;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id 22si451322pgd.540.2019.03.28.16.47.25
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id u33si500915pga.341.2019.03.28.17.13.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Mar 2019 16:47:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Thu, 28 Mar 2019 17:13:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=F19NqBy9;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x2SNiRs1129269;
-	Thu, 28 Mar 2019 23:47:21 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
- subject : date : message-id : in-reply-to : references : mime-version :
- content-transfer-encoding; s=corp-2018-07-02;
- bh=YIsUhxU4+gts/JPtIOY3p0GcgAlB/Grz4wjUuRKy0gc=;
- b=F19NqBy9epTh+nTN9Tzp4A10Ci+lWRm+5Sbwnc7wMHqwCGpyrdFpcyZkg3mzQs28hXSY
- BadHFdhW9ncY6AsNh2BCx+cIlHPvcbqyoh/+G80jHQPvIFIN/brMUplsVxJT9Yz4gj/1
- DOe2KBQnlo2BUtdFCU3OkJYBTGQaaoAQQLiyrd79OTc3aAjRA+RkUOxsORnM4XLInNWw
- LKvrMSsCEBwUhVwbS/GJ9aVlf3sF4vKR/311pUgLatTW4czGABD60aY6rdTIFvZ8nL3X
- ZfnHY0xE7UJ7MM98N3vRxtR/AKXyvBJgAPr1TuM4SzpPE6+86zD5eQxBjjkgDHCBdg/8 Aw== 
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by aserp2130.oracle.com with ESMTP id 2re6g19kk2-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 28 Mar 2019 23:47:21 +0000
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x2SNlL8i015665
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 28 Mar 2019 23:47:21 GMT
-Received: from abhmp0011.oracle.com (abhmp0011.oracle.com [141.146.116.17])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x2SNlK0Q016061;
-	Thu, 28 Mar 2019 23:47:20 GMT
-Received: from monkey.oracle.com (/50.38.38.67)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 28 Mar 2019 16:47:20 -0700
-From: Mike Kravetz <mike.kravetz@oracle.com>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-        Davidlohr Bueso <dave@stgolabs.net>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>,
-        Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-        "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH v2 2/2] hugetlb: use same fault hash key for shared and private mappings
-Date: Thu, 28 Mar 2019 16:47:04 -0700
-Message-Id: <20190328234704.27083-3-mike.kravetz@oracle.com>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190328234704.27083-1-mike.kravetz@oracle.com>
-References: <20190328234704.27083-1-mike.kravetz@oracle.com>
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from orsmga005.jf.intel.com ([10.7.209.41])
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 28 Mar 2019 17:13:29 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,282,1549958400"; 
+   d="scan'208";a="311314120"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga005.jf.intel.com with ESMTP; 28 Mar 2019 17:13:28 -0700
+Date: Thu, 28 Mar 2019 09:12:21 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: jglisse@redhat.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	John Hubbard <jhubbard@nvidia.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dan Carpenter <dan.carpenter@oracle.com>,
+	Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v2 06/11] mm/hmm: improve driver API to work and wait
+ over a range v2
+Message-ID: <20190328161221.GE31324@iweiny-DESK2.sc.intel.com>
+References: <20190325144011.10560-1-jglisse@redhat.com>
+ <20190325144011.10560-7-jglisse@redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9209 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=973 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1903280154
+In-Reply-To: <20190325144011.10560-7-jglisse@redhat.com>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-hugetlb uses a fault mutex hash table to prevent page faults of the
-same pages concurrently.  The key for shared and private mappings is
-different.  Shared keys off address_space and file index.  Private
-keys off mm and virtual address.  Consider a private mappings of a
-populated hugetlbfs file.  A write fault will first map the page from
-the file and then do a COW to map a writable page.
+On Mon, Mar 25, 2019 at 10:40:06AM -0400, Jerome Glisse wrote:
+> From: Jérôme Glisse <jglisse@redhat.com>
+> 
+> A common use case for HMM mirror is user trying to mirror a range
+> and before they could program the hardware it get invalidated by
+> some core mm event. Instead of having user re-try right away to
+> mirror the range provide a completion mechanism for them to wait
+> for any active invalidation affecting the range.
+> 
+> This also changes how hmm_range_snapshot() and hmm_range_fault()
+> works by not relying on vma so that we can drop the mmap_sem
+> when waiting and lookup the vma again on retry.
+> 
+> Changes since v1:
+>     - squashed: Dan Carpenter: potential deadlock in nonblocking code
+> 
+> Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
+> Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Dan Carpenter <dan.carpenter@oracle.com>
+> Cc: Matthew Wilcox <willy@infradead.org>
+> ---
+>  include/linux/hmm.h | 208 ++++++++++++++---
+>  mm/hmm.c            | 528 +++++++++++++++++++++-----------------------
+>  2 files changed, 428 insertions(+), 308 deletions(-)
+> 
+> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> index e9afd23c2eac..79671036cb5f 100644
+> --- a/include/linux/hmm.h
+> +++ b/include/linux/hmm.h
+> @@ -77,8 +77,34 @@
+>  #include <linux/migrate.h>
+>  #include <linux/memremap.h>
+>  #include <linux/completion.h>
+> +#include <linux/mmu_notifier.h>
+>  
+> -struct hmm;
+> +
+> +/*
+> + * struct hmm - HMM per mm struct
+> + *
+> + * @mm: mm struct this HMM struct is bound to
+> + * @lock: lock protecting ranges list
+> + * @ranges: list of range being snapshotted
+> + * @mirrors: list of mirrors for this mm
+> + * @mmu_notifier: mmu notifier to track updates to CPU page table
+> + * @mirrors_sem: read/write semaphore protecting the mirrors list
+> + * @wq: wait queue for user waiting on a range invalidation
+> + * @notifiers: count of active mmu notifiers
+> + * @dead: is the mm dead ?
+> + */
+> +struct hmm {
+> +	struct mm_struct	*mm;
+> +	struct kref		kref;
+> +	struct mutex		lock;
+> +	struct list_head	ranges;
+> +	struct list_head	mirrors;
+> +	struct mmu_notifier	mmu_notifier;
+> +	struct rw_semaphore	mirrors_sem;
+> +	wait_queue_head_t	wq;
+> +	long			notifiers;
+> +	bool			dead;
+> +};
+>  
+>  /*
+>   * hmm_pfn_flag_e - HMM flag enums
+> @@ -155,6 +181,38 @@ struct hmm_range {
+>  	bool			valid;
+>  };
+>  
+> +/*
+> + * hmm_range_wait_until_valid() - wait for range to be valid
+> + * @range: range affected by invalidation to wait on
+> + * @timeout: time out for wait in ms (ie abort wait after that period of time)
+> + * Returns: true if the range is valid, false otherwise.
+> + */
+> +static inline bool hmm_range_wait_until_valid(struct hmm_range *range,
+> +					      unsigned long timeout)
+> +{
+> +	/* Check if mm is dead ? */
+> +	if (range->hmm == NULL || range->hmm->dead || range->hmm->mm == NULL) {
+> +		range->valid = false;
+> +		return false;
+> +	}
+> +	if (range->valid)
+> +		return true;
+> +	wait_event_timeout(range->hmm->wq, range->valid || range->hmm->dead,
+> +			   msecs_to_jiffies(timeout));
+> +	/* Return current valid status just in case we get lucky */
+> +	return range->valid;
+> +}
+> +
+> +/*
+> + * hmm_range_valid() - test if a range is valid or not
+> + * @range: range
+> + * Returns: true if the range is valid, false otherwise.
+> + */
+> +static inline bool hmm_range_valid(struct hmm_range *range)
+> +{
+> +	return range->valid;
+> +}
+> +
+>  /*
+>   * hmm_pfn_to_page() - return struct page pointed to by a valid HMM pfn
+>   * @range: range use to decode HMM pfn value
+> @@ -357,51 +415,133 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror);
+>  
+>  
+>  /*
+> - * To snapshot the CPU page table, call hmm_vma_get_pfns(), then take a device
+> - * driver lock that serializes device page table updates, then call
+> - * hmm_vma_range_done(), to check if the snapshot is still valid. The same
+> - * device driver page table update lock must also be used in the
+> - * hmm_mirror_ops.sync_cpu_device_pagetables() callback, so that CPU page
+> - * table invalidation serializes on it.
+> + * To snapshot the CPU page table you first have to call hmm_range_register()
+> + * to register the range. If hmm_range_register() return an error then some-
+> + * thing is horribly wrong and you should fail loudly. If it returned true then
+> + * you can wait for the range to be stable with hmm_range_wait_until_valid()
+> + * function, a range is valid when there are no concurrent changes to the CPU
+> + * page table for the range.
+> + *
+> + * Once the range is valid you can call hmm_range_snapshot() if that returns
+> + * without error then you can take your device page table lock (the same lock
+> + * you use in the HMM mirror sync_cpu_device_pagetables() callback). After
+> + * taking that lock you have to check the range validity, if it is still valid
+> + * (ie hmm_range_valid() returns true) then you can program the device page
+> + * table, otherwise you have to start again. Pseudo code:
+> + *
+> + *      mydevice_prefault(mydevice, mm, start, end)
+> + *      {
+> + *          struct hmm_range range;
+> + *          ...
+>   *
+> - * YOU MUST CALL hmm_vma_range_done() ONCE AND ONLY ONCE EACH TIME YOU CALL
+> - * hmm_range_snapshot() WITHOUT ERROR !
+> + *          ret = hmm_range_register(&range, mm, start, end);
+> + *          if (ret)
+> + *              return ret;
+>   *
+> - * IF YOU DO NOT FOLLOW THE ABOVE RULE THE SNAPSHOT CONTENT MIGHT BE INVALID !
+> - */
+> -long hmm_range_snapshot(struct hmm_range *range);
+> -bool hmm_vma_range_done(struct hmm_range *range);
+> -
+> -
+> -/*
+> - * Fault memory on behalf of device driver. Unlike handle_mm_fault(), this will
+> - * not migrate any device memory back to system memory. The HMM pfn array will
+> - * be updated with the fault result and current snapshot of the CPU page table
+> - * for the range.
+> + *          down_read(mm->mmap_sem);
+> + *      again:
+> + *
+> + *          if (!hmm_range_wait_until_valid(&range, TIMEOUT)) {
+> + *              up_read(&mm->mmap_sem);
+> + *              hmm_range_unregister(range);
+> + *              // Handle time out, either sleep or retry or something else
+> + *              ...
+> + *              return -ESOMETHING; || goto again;
+> + *          }
+> + *
+> + *          ret = hmm_range_snapshot(&range); or hmm_range_fault(&range);
+> + *          if (ret == -EAGAIN) {
+> + *              down_read(mm->mmap_sem);
+> + *              goto again;
+> + *          } else if (ret == -EBUSY) {
+> + *              goto again;
+> + *          }
+> + *
+> + *          up_read(&mm->mmap_sem);
+> + *          if (ret) {
+> + *              hmm_range_unregister(range);
+> + *              return ret;
+> + *          }
+> + *
+> + *          // It might not have snap-shoted the whole range but only the first
+> + *          // npages, the return values is the number of valid pages from the
+> + *          // start of the range.
+> + *          npages = ret;
+>   *
+> - * The mmap_sem must be taken in read mode before entering and it might be
+> - * dropped by the function if the block argument is false. In that case, the
+> - * function returns -EAGAIN.
+> + *          ...
+>   *
+> - * Return value does not reflect if the fault was successful for every single
+> - * address or not. Therefore, the caller must to inspect the HMM pfn array to
+> - * determine fault status for each address.
+> + *          mydevice_page_table_lock(mydevice);
+> + *          if (!hmm_range_valid(range)) {
+> + *              mydevice_page_table_unlock(mydevice);
+> + *              goto again;
+> + *          }
+>   *
+> - * Trying to fault inside an invalid vma will result in -EINVAL.
+> + *          mydevice_populate_page_table(mydevice, range, npages);
+> + *          ...
+> + *          mydevice_take_page_table_unlock(mydevice);
+> + *          hmm_range_unregister(range);
+>   *
+> - * See the function description in mm/hmm.c for further documentation.
+> + *          return 0;
+> + *      }
+> + *
+> + * The same scheme apply to hmm_range_fault() (ie replace hmm_range_snapshot()
+> + * with hmm_range_fault() in above pseudo code).
+> + *
+> + * YOU MUST CALL hmm_range_unregister() ONCE AND ONLY ONCE EACH TIME YOU CALL
+> + * hmm_range_register() AND hmm_range_register() RETURNED TRUE ! IF YOU DO NOT
+> + * FOLLOW THIS RULE MEMORY CORRUPTION WILL ENSUE !
+>   */
+> +int hmm_range_register(struct hmm_range *range,
+> +		       struct mm_struct *mm,
+> +		       unsigned long start,
+> +		       unsigned long end);
+> +void hmm_range_unregister(struct hmm_range *range);
 
-Hugetlbfs hole punch uses the fault mutex to prevent mappings of file
-pages.  It uses the address_space file index key.  However, private
-mappings will use a different key and could temporarily map the file
-page before COW.  This causes problems (BUG) for the hole punch code
-as it expects the mutex to prevent additional uses/mappings of the page.
+The above comment is great!  But I think you also need to update
+Documentation/vm/hmm.rst:hmm_range_snapshot() to show the use of
+hmm_range_[un]register()
 
-There seems to be another potential COW issue/race with this approach
-of different private and shared keys as notes in commit 8382d914ebf7
-("mm, hugetlb: improve page-fault scalability").
+> +long hmm_range_snapshot(struct hmm_range *range);
+>  long hmm_range_fault(struct hmm_range *range, bool block);
+>  
+> +/*
+> + * HMM_RANGE_DEFAULT_TIMEOUT - default timeout (ms) when waiting for a range
+> + *
+> + * When waiting for mmu notifiers we need some kind of time out otherwise we
+> + * could potentialy wait for ever, 1000ms ie 1s sounds like a long time to
+> + * wait already.
+> + */
+> +#define HMM_RANGE_DEFAULT_TIMEOUT 1000
+> +
+>  /* This is a temporary helper to avoid merge conflict between trees. */
+> +static inline bool hmm_vma_range_done(struct hmm_range *range)
+> +{
+> +	bool ret = hmm_range_valid(range);
+> +
+> +	hmm_range_unregister(range);
+> +	return ret;
+> +}
+> +
+>  static inline int hmm_vma_fault(struct hmm_range *range, bool block)
+>  {
+> -	long ret = hmm_range_fault(range, block);
+> -	if (ret == -EBUSY)
+> -		ret = -EAGAIN;
+> -	else if (ret == -EAGAIN)
+> -		ret = -EBUSY;
+> -	return ret < 0 ? ret : 0;
+> +	long ret;
+> +
+> +	ret = hmm_range_register(range, range->vma->vm_mm,
+> +				 range->start, range->end);
+> +	if (ret)
+> +		return (int)ret;
+> +
+> +	if (!hmm_range_wait_until_valid(range, HMM_RANGE_DEFAULT_TIMEOUT)) {
+> +		up_read(&range->vma->vm_mm->mmap_sem);
+> +		return -EAGAIN;
+> +	}
+> +
+> +	ret = hmm_range_fault(range, block);
+> +	if (ret <= 0) {
+> +		if (ret == -EBUSY || !ret) {
+> +			up_read(&range->vma->vm_mm->mmap_sem);
+> +			ret = -EBUSY;
+> +		} else if (ret == -EAGAIN)
+> +			ret = -EBUSY;
+> +		hmm_range_unregister(range);
+> +		return ret;
+> +	}
+> +	return 0;
 
-Since every hugetlb mapping (even anon and private) is actually a file
-mapping, just use the address_space index key for all mappings.  This
-results in potentially more hash collisions.  However, this should not
-be the common case.
+Is hmm_vma_fault() also temporary to keep the nouveau driver working?  It looks
+like it to me.
 
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- fs/hugetlbfs/inode.c    |  7 ++-----
- include/linux/hugetlb.h |  4 +---
- mm/hugetlb.c            | 22 ++++++----------------
- mm/userfaultfd.c        |  3 +--
- 4 files changed, 10 insertions(+), 26 deletions(-)
+This and hmm_vma_range_done() above are part of the old interface which is in
+the Documentation correct?  As stated above we should probably change that
+documentation with this patch to ensure no new users of these 2 functions
+appear.
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index ec32fece5e1e..6189ba80b57b 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -440,9 +440,7 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
- 			u32 hash;
- 
- 			index = page->index;
--			hash = hugetlb_fault_mutex_hash(h, current->mm,
--							&pseudo_vma,
--							mapping, index, 0);
-+			hash = hugetlb_fault_mutex_hash(h, mapping, index, 0);
- 			mutex_lock(&hugetlb_fault_mutex_table[hash]);
- 
- 			/*
-@@ -639,8 +637,7 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
- 		addr = index * hpage_size;
- 
- 		/* mutex taken here, fault path and hole punch */
--		hash = hugetlb_fault_mutex_hash(h, mm, &pseudo_vma, mapping,
--						index, addr);
-+		hash = hugetlb_fault_mutex_hash(h, mapping, index, addr);
- 		mutex_lock(&hugetlb_fault_mutex_table[hash]);
- 
- 		/* See if already present in mapping to avoid alloc/free */
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index ea35263eb76b..3bc0d02649fe 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -123,9 +123,7 @@ void move_hugetlb_state(struct page *oldpage, struct page *newpage, int reason);
- void free_huge_page(struct page *page);
- void hugetlb_fix_reserve_counts(struct inode *inode);
- extern struct mutex *hugetlb_fault_mutex_table;
--u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
--				struct vm_area_struct *vma,
--				struct address_space *mapping,
-+u32 hugetlb_fault_mutex_hash(struct hstate *h, struct address_space *mapping,
- 				pgoff_t idx, unsigned long address);
- 
- pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud);
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 8651d6a602f9..4409a87434f1 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -3837,8 +3837,7 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
- 			 * handling userfault.  Reacquire after handling
- 			 * fault to make calling code simpler.
- 			 */
--			hash = hugetlb_fault_mutex_hash(h, mm, vma, mapping,
--							idx, haddr);
-+			hash = hugetlb_fault_mutex_hash(h, mapping, idx, haddr);
- 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
- 			ret = handle_userfault(&vmf, VM_UFFD_MISSING);
- 			mutex_lock(&hugetlb_fault_mutex_table[hash]);
-@@ -3946,21 +3945,14 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
- }
- 
- #ifdef CONFIG_SMP
--u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
--			    struct vm_area_struct *vma,
--			    struct address_space *mapping,
-+u32 hugetlb_fault_mutex_hash(struct hstate *h, struct address_space *mapping,
- 			    pgoff_t idx, unsigned long address)
- {
- 	unsigned long key[2];
- 	u32 hash;
- 
--	if (vma->vm_flags & VM_SHARED) {
--		key[0] = (unsigned long) mapping;
--		key[1] = idx;
--	} else {
--		key[0] = (unsigned long) mm;
--		key[1] = address >> huge_page_shift(h);
--	}
-+	key[0] = (unsigned long) mapping;
-+	key[1] = idx;
- 
- 	hash = jhash2((u32 *)&key, sizeof(key)/sizeof(u32), 0);
- 
-@@ -3971,9 +3963,7 @@ u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
-  * For uniprocesor systems we always use a single mutex, so just
-  * return 0 and avoid the hashing overhead.
-  */
--u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
--			    struct vm_area_struct *vma,
--			    struct address_space *mapping,
-+u32 hugetlb_fault_mutex_hash(struct hstate *h, struct address_space *mapping,
- 			    pgoff_t idx, unsigned long address)
- {
- 	return 0;
-@@ -4018,7 +4008,7 @@ vm_fault_t hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	 * get spurious allocation failures if two CPUs race to instantiate
- 	 * the same page in the page cache.
- 	 */
--	hash = hugetlb_fault_mutex_hash(h, mm, vma, mapping, idx, haddr);
-+	hash = hugetlb_fault_mutex_hash(h, mapping, idx, haddr);
- 	mutex_lock(&hugetlb_fault_mutex_table[hash]);
- 
- 	entry = huge_ptep_get(ptep);
-diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-index d59b5a73dfb3..9932d5755e4c 100644
---- a/mm/userfaultfd.c
-+++ b/mm/userfaultfd.c
-@@ -271,8 +271,7 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
- 		 */
- 		idx = linear_page_index(dst_vma, dst_addr);
- 		mapping = dst_vma->vm_file->f_mapping;
--		hash = hugetlb_fault_mutex_hash(h, dst_mm, dst_vma, mapping,
--								idx, dst_addr);
-+		hash = hugetlb_fault_mutex_hash(h, mapping, idx, dst_addr);
- 		mutex_lock(&hugetlb_fault_mutex_table[hash]);
- 
- 		err = -ENOMEM;
--- 
-2.20.1
+Ira
 
