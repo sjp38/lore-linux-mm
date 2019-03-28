@@ -2,232 +2,173 @@ Return-Path: <SRS0=kLvD=R7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 432F3C4360F
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 20:44:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 804F9C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 20:44:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E9E342184C
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 20:44:05 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3012C20823
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 20:44:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="Z6gwxHZq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E9E342184C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="G09CZy9Z"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3012C20823
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 75D566B027E; Thu, 28 Mar 2019 16:44:05 -0400 (EDT)
+	id D03276B0280; Thu, 28 Mar 2019 16:44:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 70C876B0280; Thu, 28 Mar 2019 16:44:05 -0400 (EDT)
+	id C8B536B0282; Thu, 28 Mar 2019 16:44:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5FD236B0281; Thu, 28 Mar 2019 16:44:05 -0400 (EDT)
+	id B054E6B0283; Thu, 28 Mar 2019 16:44:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 322516B027E
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 16:44:05 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id r190so9004037oie.13
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 13:44:05 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 72B7A6B0280
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 16:44:26 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id r13so34046pga.13
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 13:44:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=/obLKJHkKpQUcxL9/HpnQX/CMWLlh2MpUJBgyyDo0Ik=;
-        b=WjXMSXsfFP63I6yHNQRsbCkCY+YypOveHALjyZ9ytICLLRWyQTOolJwI6dycbeZFdR
-         2YPk8DdLffWmn8GLfYMTcA7zfEmY6foxkAjYuj9TYfpQQkDAAoyaQJMxNMDH/ZA29L31
-         qmZVbGsRtTngDGoAdttRYnNva4FnUFlDUHxVfrWUhr2ML8dP24yMr7tESFBxo6Juur9E
-         Zx1jzTskBOgM4RWEtUQA4+m1vez7tLp5eQPHJxsq16+QVAzdrodSP4iCki1JyM1arYrb
-         lWlYsFe93r20J3ElQCUP/XDseG17/6bxVq0foZWA32j6movyOIn63z2yhI2Ugwauq3gH
-         uZXA==
-X-Gm-Message-State: APjAAAWydVnY8RO4O9tVu1ODYdQh7t/HrmsXd93R/wxiY48lpcN3Fvu+
-	FfLd1d2z6be0frQefF0M+c01IVcDkk0/104hGt0RqeyWAv84J6yVCsGM9DlHrGkCqk4tSI0M/hp
-	o0/BjYZJ3Y+HgT5Z0JA2k55bmCaZcfaGOBhPefSMJykHa3v5fUR+72OQZAWAQVu/Zrg==
-X-Received: by 2002:a9d:7645:: with SMTP id o5mr34219150otl.225.1553805844853;
-        Thu, 28 Mar 2019 13:44:04 -0700 (PDT)
-X-Received: by 2002:a9d:7645:: with SMTP id o5mr34219126otl.225.1553805844044;
-        Thu, 28 Mar 2019 13:44:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553805844; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=J/Sv2txgzYEAQ4VYGS+H5dOrwerREpOEMC59LuErUdk=;
+        b=fee3siMPUiqgxH3CjRTQ7hhCGuq7Ku8u1T8MhBhrtyGdNrh44rPXHBwLfA9Yyq/TVR
+         +/eTsE+XNI0RVtRC0gAHHdP/jN9GaWPqkC5zg5P+7vQXgTvZCqEG25y8IdceSsREFwNK
+         FM5FQsui8O1PpXSafIPJeH/gQ0dRQDa6L9oW2QG196QXw3F6eiwghp82+CABCLTttYO+
+         6m2fkDcv20dEYVbufYw4HOdleaKvTifa3VEQCnfXLoovcuqoad3pbYGnTk5tI/WRO97l
+         IWnDAngKxK/Qym4tzJ0R7yiy0zO9XxqpzTAtHkAAtKrtwiyO8npPR6Xt6wIdcf2Yb5D5
+         +eVQ==
+X-Gm-Message-State: APjAAAU23a/PEK+xq1cHPjW4DdiHfjXzS2Tw40KZnamw1ukDQFaiGvS7
+	Zp3PhzbZTYscCmqmNtMIyRbO/CHrnXITcGTqk+P1HEp/9SrrQJFIJhliC1GVcwpxDeK8NxnB6W7
+	AYPFdkpHUEXE9IMVWAu/RA8hXA6fcugSWxWww/u+TNG/ep0mqrsjR3GgZE0/m30cbXw==
+X-Received: by 2002:a17:902:2e03:: with SMTP id q3mr44235625plb.166.1553805866146;
+        Thu, 28 Mar 2019 13:44:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyUwtiTAuCLxVnUPNL4voUocfeGyfXuOceZw4v1pCbGrwaueSJ36YPZt27sQ5eIqLzNTO44
+X-Received: by 2002:a17:902:2e03:: with SMTP id q3mr44235583plb.166.1553805865335;
+        Thu, 28 Mar 2019 13:44:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553805865; cv=none;
         d=google.com; s=arc-20160816;
-        b=g6C/idl3wbJ0PVLEgUTWFmblYIaXYCicdnn8swKcx/kFcE4bp4GPk83iVqFUMjj5H8
-         fz8z2jVS/1wCaRLevDcFcCSTZmobPav3HQxs406OfvFxZifUMv0lnavehHxYgOxazz+3
-         D9nPQK5t0WKy45/gL6FG4g1MWYppLk0W71XuB6ICT2CyTE2JlTtl/Q0ekHa/rVgw7eQE
-         V7Kd3mKvyFpgtkxyg93FEUQukoZqbFIx6rugpiZY0uw117DvXtStOz1dI3w/dlLGIUzZ
-         Qm1AYVpR9fN20FP7vPOGcZZamAvx3Hq/nTw3bTimFnWP53+52WfH2awmdzPmm9pz3IKs
-         s1vw==
+        b=HD8dZpcp9YNtnuJT4RL13OyIYCTEKD9NunWJ/JT7bJVj+MerhoO+OYLg841rse9oT/
+         ILMtaVQRULNwPjxM1usK5dZS+nMFmJUf4rL7dChXQE9OslBF9R3pAcW53viqST8XHE1o
+         PoWJcxxgwhehseQ7J5D+oQn0j54104OsJf97V6tH/N6ZClx7wteo2ErscgZh9Fc0BvnY
+         PN7sWE+12K46IlWKGZBybM05r9Y/OsS2fgkSIrV9WtM6+U+Vou/sb3YjjKTX7pt2CAre
+         qOLngphOx79jCUqMOX8EvbFk3OzZ86ANkq/SMVX8aKddnmJRWrgdtY+EV0QXjprx9q6C
+         TUGQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=/obLKJHkKpQUcxL9/HpnQX/CMWLlh2MpUJBgyyDo0Ik=;
-        b=lJO87jXq7x16vzd5Zlz+VcHEpKOB2EsOhNQj0gNNPAZCrTP6hg+oKu8h848PP/dymG
-         FgSy+SaKdCdjMS8F1QeueIekWkbNSugydQcE1ygFgwEVNwWFaZ6WR1RMPdp4Btydkd/F
-         Y7LPOFmbh6f1RjVJTgfshO19tbeJ1fO/YhGcMPZ5aru8aG4OaV385JZL9Gh7qvJ4S4Fv
-         cYp5Ew9+YkxZ9p8BC2TyhZCQfBN5j1t0LkGtPmz8vELnwm9YAmkSr+KbmXrgNpE41slo
-         g+r1ncmR84A+PV9wOIZO3ChOnTee0PUV17h05lOVQQNKCQVcKl45BClX5SXMkGDlxeIc
-         Wyjg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:to:subject
+         :dkim-signature;
+        bh=J/Sv2txgzYEAQ4VYGS+H5dOrwerREpOEMC59LuErUdk=;
+        b=AOzzU2nvPsSOH1pc/zR8DSDwNWQ0fe7iIs8NMMbN+6uAYmv4+sDlh+lTwH0+qx2luG
+         TK4NlgEdOw/JD1C8Sm+V5jEIbQ7S3pBDjynJh7MgPGpnvlDimQAzfoX3fHcQIHLHcvhF
+         ulivXacm/be8SW6yoZ5ji6hMalWPoZYjjjWB6snUExLMeHAhIPaMOto4ylBMbUazNdv6
+         PBXsTHN8MdMGZi5SQ6OuCJjCbwVbjKdHj1y8snp2ulukhJ+DAXSKBSMrk5Hrm4QZwP/X
+         QKxJyYjtoQZzrT3qfrXJ4aHsWuMvBweVcXwmLcKGqCWhV+VnuMJHC3Ml7VeWZrVYwRtV
+         6dRQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Z6gwxHZq;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m187sor16234962oib.89.2019.03.28.13.44.03
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=G09CZy9Z;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id g10si87930plb.375.2019.03.28.13.44.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 28 Mar 2019 13:44:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Mar 2019 13:44:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Z6gwxHZq;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=/obLKJHkKpQUcxL9/HpnQX/CMWLlh2MpUJBgyyDo0Ik=;
-        b=Z6gwxHZqr8tHa9o/+Y4BLmPHFulVoPKKKjj2D3/WJezDP4/nbkB6wsQ1JcYIhMU3PK
-         x6XPTOicb4eeyA2TW2pc3Q1A1S9xw8MHaINKmVyp47Zw9v3uIRKE4PLpOWtfydFU6jc+
-         8mKWU1/QkuoMf8xTY2zXG91iPAwQpv1DZ8VHw0jM0ikFbk1lrBSEr9FVeohOjjbmgrpv
-         vhkRt2SU1nS8XfOEc3ABp1Ty0WDcnEWMTysR31p31RIZcZst4A4IJ/emIB1wr7iyx54D
-         kxnV1BqJ0igx3yiJepx7sRDnxwCRlnk6SY2jb3ZI0amU/h704MBJcklxMgsUxW45uN5q
-         O7tA==
-X-Google-Smtp-Source: APXvYqwGBDvSfFK7lZAr4qztuFRCQd2h6pge6C8hW/qUos+bHal25JX9ESoOqvD69ByJERllNSID1SEu82DcVNHePkQ=
-X-Received: by 2002:aca:e64f:: with SMTP id d76mr1482897oih.105.1553805842214;
- Thu, 28 Mar 2019 13:44:02 -0700 (PDT)
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=G09CZy9Z;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x2SKcwSi194673;
+	Thu, 28 Mar 2019 20:43:48 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=J/Sv2txgzYEAQ4VYGS+H5dOrwerREpOEMC59LuErUdk=;
+ b=G09CZy9Z0roM3J+ekA923y0scmmhw58c0EyD8iu6QUJEMHCuxhJios+WlIW3SW5iL73B
+ 13/C8qhnL08l/kO+BTG55KGvtEJ0sDQa1ef6mKANMn4jHKqih0MsrBQL4H5OOLOn2x/s
+ XlzIHjdvMTtmI23IFkM90a4QdtkyikJLP7vIIxbLAH+GZj1QXD4mOz9yCjSrc+oNlPOf
+ UqRC53OnOd9RdKE7AD92McPwrIwNQJQ1ibaAFZ8Xa3otnpP3Dxrcuw7purThc4o06ASu
+ iRfG+TdvKA5K/JeEiHpcLKS0YRHGAKbT01uzeNa2/Du0jOzIo4YdHGf2YcycVJIz5iPk JA== 
+Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
+	by userp2120.oracle.com with ESMTP id 2re6djs2kv-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 28 Mar 2019 20:43:47 +0000
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x2SKhiLW020325
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 28 Mar 2019 20:43:44 GMT
+Received: from abhmp0011.oracle.com (abhmp0011.oracle.com [141.146.116.17])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x2SKhOq4024431;
+	Thu, 28 Mar 2019 20:43:25 GMT
+Received: from [192.168.1.222] (/50.38.38.67)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Thu, 28 Mar 2019 13:43:24 -0700
+Subject: Re: [PATCH v8 4/4] hugetlb: allow to free gigantic pages regardless
+ of the configuration
+To: Alexandre Ghiti <alex@ghiti.fr>, aneesh.kumar@linux.ibm.com,
+        mpe@ellerman.id.au, Andrew Morton <akpm@linux-foundation.org>,
+        Vlastimil Babka <vbabka@suse.cz>,
+        Catalin Marinas <catalin.marinas@arm.com>,
+        Will Deacon <will.deacon@arm.com>,
+        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+        Paul Mackerras <paulus@samba.org>,
+        Martin Schwidefsky <schwidefsky@de.ibm.com>,
+        Heiko Carstens <heiko.carstens@de.ibm.com>,
+        Yoshinori Sato <ysato@users.sourceforge.jp>,
+        Rich Felker <dalias@libc.org>,
+        "David S . Miller" <davem@davemloft.net>,
+        Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+        Borislav Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>,
+        x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>,
+        Andy Lutomirski <luto@kernel.org>,
+        Peter Zijlstra <peterz@infradead.org>,
+        linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+        linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
+        linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
+        linux-mm@kvack.org
+References: <20190327063626.18421-1-alex@ghiti.fr>
+ <20190327063626.18421-5-alex@ghiti.fr>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <c6a93f46-4d8a-e7fd-3f39-4c3c5a9ed514@oracle.com>
+Date: Thu, 28 Mar 2019 13:43:21 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.0
 MIME-Version: 1.0
-References: <155327387405.225273.9325594075351253804.stgit@dwillia2-desk3.amr.corp.intel.com>
- <cf304a31-70a6-e701-ec3e-c47dc84b81d2@redhat.com>
-In-Reply-To: <cf304a31-70a6-e701-ec3e-c47dc84b81d2@redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 28 Mar 2019 13:43:49 -0700
-Message-ID: <CAPcyv4hgAM=ex0B4EBZ40RNf=bXk2WkEzySTUV4ZzOWd_HZwSQ@mail.gmail.com>
-Subject: Re: [PATCH v5 00/10] mm: Sub-section memory hotplug support
-To: David Hildenbrand <david@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
-	Logan Gunthorpe <logang@deltatee.com>, Toshi Kani <toshi.kani@hpe.com>, Jeff Moyer <jmoyer@redhat.com>, 
-	Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, stable <stable@vger.kernel.org>, 
-	Linux MM <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190327063626.18421-5-alex@ghiti.fr>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9209 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1903280133
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 28, 2019 at 1:10 PM David Hildenbrand <david@redhat.com> wrote:
->
-> On 22.03.19 17:57, Dan Williams wrote:
-> > Changes since v4 [1]:
-> > - Given v4 was from March of 2017 the bulk of the changes result from
-> >   rebasing the patch set from a v4.11-rc2 baseline to v5.1-rc1.
-> >
-> > - A unit test is added to ndctl to exercise the creation and dax
-> >   mounting of multiple independent namespaces in a single 128M section.
-> >
-> > [1]: https://lwn.net/Articles/717383/
-> >
-> > ---
->
-> I'm gonna have to ask some very basic questions:
+On 3/26/19 11:36 PM, Alexandre Ghiti wrote:
+> On systems without CONTIG_ALLOC activated but that support gigantic pages,
+> boottime reserved gigantic pages can not be freed at all. This patch
+> simply enables the possibility to hand back those pages to memory
+> allocator.
+> 
+> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
+> Acked-by: David S. Miller <davem@davemloft.net> [sparc]
 
-No worries.
+Thanks for all the updates
 
->
-> You are using the term "Sub-section memory hotplug support", but is it
-> actually what you mean? To rephrase, aren't we talking here about
-> "Sub-section device memory hotplug support" or similar?
+Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
 
-Specifically it is support for passing @start and @size arguments to
-arch_add_memory() that are not section aligned. It's not limited to
-"device memory" which is otherwise not a concept that
-arch_add_memory() understands, it just groks spans of pfns.
-
-> Reason I am asking is because I wonder how that would interact with the
-> memory block device infrastructure and hotplugging of system ram -
-> add_memory()/add_memory_resource(). I *assume* you are not changing the
-> add_memory() interface, so that one still only works with whole sections
-> (or well, memory_block_size_bytes()) - check_hotplug_memory_range().
-
-Like you found below, the implementation enforces that add_memory_*()
-interfaces maintain section alignment for @start and @size.
-
-> In general, mix and matching system RAM and persistent memory per
-> section, I am not a friend of that.
-
-You have no choice. The platform may decide to map PMEM and System RAM
-in the same section because the Linux section is too large compared to
-typical memory controller mapping granularity capability.
-
-> Especially when it comes to memory
-> block devices. But I am getting the feeling that we are rather targeting
-> PMEM vs. PMEM with this patch series.
-
-The collisions are between System RAM, PMEM regions, and PMEM
-namespaces (sub-divisions of regions that each need their own mapping
-lifetime).
-
-> > Quote patch7:
-> >
-> > "The libnvdimm sub-system has suffered a series of hacks and broken
-> >  workarounds for the memory-hotplug implementation's awkward
-> >  section-aligned (128MB) granularity. For example the following backtrace
-> >  is emitted when attempting arch_add_memory() with physical address
-> >  ranges that intersect 'System RAM' (RAM) with 'Persistent Memory' (PMEM)
-> >  within a given section:
-> >
-> >   WARNING: CPU: 0 PID: 558 at kernel/memremap.c:300 devm_memremap_pages+0x3b5/0x4c0
-> >   devm_memremap_pages attempted on mixed region [mem 0x200000000-0x2fbffffff flags 0x200]
-> >   [..]
-> >   Call Trace:
-> >     dump_stack+0x86/0xc3
-> >     __warn+0xcb/0xf0
-> >     warn_slowpath_fmt+0x5f/0x80
-> >     devm_memremap_pages+0x3b5/0x4c0
-> >     __wrap_devm_memremap_pages+0x58/0x70 [nfit_test_iomap]
-> >     pmem_attach_disk+0x19a/0x440 [nd_pmem]
-> >
-> >  Recently it was discovered that the problem goes beyond RAM vs PMEM
-> >  collisions as some platform produce PMEM vs PMEM collisions within a
->
-> As side-noted by Michal, I wonder if PMEM vs. PMEM cannot rather be
-> implemented "on top" of what we have right now. Or is this what we
-> already have that you call "hacks in nvdimm" code? (no NVDIMM expert,
-> sorry for the stupid questions)
-
-It doesn't work, because even if the padding was implemented 100%
-correct, which thus far has failed to be the case, the platform may
-change physical alignments from one boot to the next for a variety of
-reasons.
-
->
-> >  given section. The libnvdimm workaround for that case revealed that the
-> >  libnvdimm section-alignment-padding implementation has been broken for a
-> >  long while. A fix for that long-standing breakage introduces as many
-> >  problems as it solves as it would require a backward-incompatible change
-> >  to the namespace metadata interpretation. Instead of that dubious route
-> >  [2], address the root problem in the memory-hotplug implementation."
-> >
-> > The approach is taken is to observe that each section already maintains
-> > an array of 'unsigned long' values to hold the pageblock_flags. A single
-> > additional 'unsigned long' is added to house a 'sub-section active'
-> > bitmask. Each bit tracks the mapped state of one sub-section's worth of
-> > capacity which is SECTION_SIZE / BITS_PER_LONG, or 2MB on x86-64.
-> >
-> > The implication of allowing sections to be piecemeal mapped/unmapped is
-> > that the valid_section() helper is no longer authoritative to determine
-> > if a section is fully mapped. Instead pfn_valid() is updated to consult
-> > the section-active bitmask. Given that typical memory hotplug still has
-> > deep "section" dependencies the sub-section capability is limited to
-> > 'want_memblock=false' invocations of arch_add_memory(), effectively only
-> > devm_memremap_pages() users for now.
->
-> Ah, there it is. And my point would be, please don't ever unlock
-> something like that for want_memblock=true. Especially not for memory
-> added after boot via device drivers (add_memory()).
-
-I don't see a strong reason why not, as long as it does not regress
-existing use cases. It might need to be an opt-in for new tooling that
-is aware of finer granularity hotplug. That said, I have no pressing
-need to go there and just care about the arch_add_memory() capability
-for now.
+-- 
+Mike Kravetz
 
