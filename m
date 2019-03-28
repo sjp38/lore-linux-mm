@@ -2,117 +2,124 @@ Return-Path: <SRS0=kLvD=R7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.9 required=3.0 tests=DATE_IN_PAST_06_12,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C40BFC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 15:41:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E29B6C10F03
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 16:45:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7EFB021773
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 15:41:44 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="JDZi8m6A"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7EFB021773
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id 7F0372183F
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 16:45:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F0372183F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1647E6B0007; Thu, 28 Mar 2019 11:41:44 -0400 (EDT)
+	id C572B6B000C; Thu, 28 Mar 2019 12:45:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0EFE76B000C; Thu, 28 Mar 2019 11:41:44 -0400 (EDT)
+	id C06B96B000D; Thu, 28 Mar 2019 12:45:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0019B6B0285; Thu, 28 Mar 2019 11:41:43 -0400 (EDT)
+	id AA7786B000E; Thu, 28 Mar 2019 12:45:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D26A16B0007
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 11:41:43 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id a188so4000469qkf.0
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 08:41:43 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 65AD76B000C
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 12:45:37 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id u8so16775070pfm.6
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 09:45:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=VSIK0NlB9kqC2VbxVE8Lqm6fkbIpXVRmd/x9heQilLI=;
-        b=rQOv1D+NAdJbM1dcMi4hQwdYiQ7I7E4O+fPVcjY8IcDCS/9IHyuQ2esEqalpR/Jbt5
-         nhgyuVknjXYEj8rtYy/3BIl9eUVRD1V1Hq7+5L3P5Edq94apjVm4tXH/9tkMizSX1wKg
-         f07PaVNrploxj0nKG3W4ENjAaR5GHOeK/m6bb4ga5YX+aL48vr8eKaqEaUy0iWypykja
-         AQJ9RS67PHuFMpxx9s+IdTAvNvcHnAJsFKPxP8/EQ3srNRPWxK5qPSXsEOp6deFWrSCY
-         ONEt+AYXPw93fiT/yV077/ZskUss0aDoSeFZr7VW3/yAp1522+Ta9NOgR16T/Q8dDPjX
-         yL0w==
-X-Gm-Message-State: APjAAAVFVuFbYHd5cik55qSBUYTFP+r7AnfSaCp/wCNC3G7D7hDBCunH
-	rXPYuG3/lr9emh1UzVsgJSRsQB/DXlZQIbYOcvGEbEwU/dNF8C5cKQ2UwF3c1EUiw6evo97WfNW
-	n03gWyfrJ8Yjz6Nys6a8OrfydLqZbaJPVgyZFCWCLEWmh1sENwn+w+BkSCHSnD8rkww==
-X-Received: by 2002:a0c:b501:: with SMTP id d1mr36899111qve.115.1553787703610;
-        Thu, 28 Mar 2019 08:41:43 -0700 (PDT)
-X-Received: by 2002:a0c:b501:: with SMTP id d1mr36899062qve.115.1553787702982;
-        Thu, 28 Mar 2019 08:41:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553787702; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=pSMtVaTsgnjEEmKj8MAwt2GQ6EuchIPa6hUgmHI6PJU=;
+        b=n5xwwWHEzSl83EIN8rX4CeVWPtx/iuFiWQB+3TTnHRS0XvJEDHw37tzr6/TO7mXeWc
+         DJYs6bQrzyUDW/YfFMfoFaLGKF6VlnDsMPRaVl+xpNDvolmuV2z8tMhFoKn9x3Ct5zWi
+         YfAFMJEgP3KJoPDjnchZyHcvveVcXVJVR+uzGYLtJ1wRKlU4VQKT7hoTw6gwNKM90yk7
+         evcKcj8jc2hvmHb0tWyTdsIIo7YqtB2VqLuqWIAuaypra4n93uGApP10A5eHzcfdUUTe
+         RxmsXRL1pit5EBjYaFq/PpEwpQjgE4aLudAFqcvQmjhwfXgyPO3VjIqh8uRPCeoHqe1O
+         kciw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAX1oHYY162C4hxFQEOV80peAQQ+Rz/FqJJryqju6gm4FhTLZ79u
+	ewNYGy76yQJFPZSUt1O5RHj4SavV9MKb7lnjIH7YvwaH02FEuDQpStnIwiIlZszvEk3n1+lbYih
+	6x3Q8waZDTIAohxduEp6cPzUlsX5pSyY5UMoVCcHiauNMPQRqUQ1uQwoZm+l5fO61AA==
+X-Received: by 2002:a62:b61a:: with SMTP id j26mr41571967pff.151.1553791536853;
+        Thu, 28 Mar 2019 09:45:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyesR3/0w8WWmIts3keBnTYKCV0jTJaG5r5jtaUEdUdXp9FnGwzeL5B23XC6Wqlu9tIlH7j
+X-Received: by 2002:a62:b61a:: with SMTP id j26mr41571873pff.151.1553791535582;
+        Thu, 28 Mar 2019 09:45:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553791535; cv=none;
         d=google.com; s=arc-20160816;
-        b=qPXj/D2Nu9GGrVnPORYmWTFrSVrTZSJWqwyDY//4oRKWH/mX2ZZQBcBvT75jiqyBMd
-         MKiInfs+HJyCXLICH/lk4IBvGQLkqVxAJdj+qsxW2mVF8KcKZ2zNmi//eCh3GeAloDqu
-         SIuf7BEzcJqDaFBjdWy5jXxgYsQjFVAdYEmOxamYKdEW2pPskRwCxX0vw1ocavcB42We
-         0ZuI/3kmEB7YSxREMyuWi/44Fr86rdJoZefB6nX/7V7sz56WtWu9n0pIKRJrpAQ40nGF
-         Xd0+eKLelOSWl87iJ4zXP8v8UpuuZYAi9jy5tWkKUf3TI7jB6HfIkbVEa6gs1GH08y+c
-         71Pw==
+        b=Gjvivu38SNM+2aFFnALx9N8AakYHod+W2tWl0vzrIjvI2nqHZ+NeQlM6daw7RVVMjO
+         CU2f0Rt/YxLivwsWYu4Di2j4CDhRrPVZZTNs14Y+fZUNr9aNwvAaviR38MO6dG7xEd8l
+         BZIOYfW+TIyvbOqs/whPCfxna4N8KC1Mh8oCBFsFbvIwqCHK9LVbnBlq1sILMt29S9Ci
+         55ikt+x2/7Dhz+DixHbmnnA29+TT5se6qoP8XevpunmTETY+BdeHH6TbwLuno9FTy8QU
+         LS3c3PibsglYyWWHH556VFI7sfUAtinlMxsYuqSwPkgEL5eBGx8yQVX6Ya3eJIJbF2oq
+         TgdQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=VSIK0NlB9kqC2VbxVE8Lqm6fkbIpXVRmd/x9heQilLI=;
-        b=USlKHvEovofC+jKZKXGvpdLOVnClyiBxEoVKFqEPqNrkB3IG9Y66rNWrlFt8YrfnLJ
-         LWx96qcTSghHyWj9orZge+UcHqeTYZcagmmnaX0fA9+Q+RtRBtt9Lg4Ag+0G4e0GlPXv
-         PJUsOlsxmX0fGdp86x+KKwk6kXuQmchFtQOVqHAdA6QdyEe6Q/Alq+wKj2NYltQApX7S
-         6sNCF9Sxl0iUr1nZEnoatXQXdsT++d2+s+gYYe5FM+hEB4HYaB9hcslPwJHdLWIkIry8
-         jhZK87iAvtFGPbc9V1mtVySpr6Wi4NQR50P6O5U+Mt/AXk0x5dTgYphXcp+/XCWwpIh9
-         qhNQ==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=pSMtVaTsgnjEEmKj8MAwt2GQ6EuchIPa6hUgmHI6PJU=;
+        b=0vfA2W7QsRZKE9+TIRgKCnz+Z4+DmVWfrSQJ0AhdHc8DzSyZdKGRZef7eVmd9EEl65
+         1+lEEuddsgpA3oUsYi0Ca1md/9FkthamDT7vCNmopvpsfJFv4xeepe4qe6gO3sKwMPlZ
+         B3j5EvKeoulQ2LJDHFo1s659e9ZTS3inabTT0N+b3XyuR2cxNNRxDyjfPn2zD7plGV2M
+         mmtWlqtC8inMnB2D02DgYun7zcYn8OYbYzHQa0yIGsl9uD3oKhWvvLQKcxKsviMMfCEp
+         CxQpDGbOfEMADF4HgdYMJY1EA5GzwyKs273S9awN+YM9VhxyIiZ0sMilwCf7f++e1LFy
+         9ybA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=JDZi8m6A;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v35sor1288856qvc.41.2019.03.28.08.41.42
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id 31si22686092plb.39.2019.03.28.09.45.35
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 28 Mar 2019 08:41:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=JDZi8m6A;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=VSIK0NlB9kqC2VbxVE8Lqm6fkbIpXVRmd/x9heQilLI=;
-        b=JDZi8m6ACT0foATFYmQ6ovzh0iDKHypwkpqBZs9kyJL7ichy99ptXM6U/fKrgcZYzL
-         wmjsZlHhckKBj8vWlcbNFaAGAVE9/t7SwmiFiATM1po1utOEgf0S4x9oLDZDTt+fmpFq
-         +3r0Caq6JFDqDhTqe61s9CTKH/azj0vIanSTdCO8lb477DU+xkb9m2il8hhej59lVdQ8
-         uE3gMzsNK25/EqDNFkhttnrONv1vt+G7dNQvnItgoO2Py6tymhTJL7AlcqYPLDsBnVVH
-         nUndYHgqz/ajLVfBx7sC/FM7t4LSUlqSvERdbkqgKjhFShrEbC20DDumx3UBXziLbZbr
-         rMLQ==
-X-Google-Smtp-Source: APXvYqwOKXrnwuWYvmxRUfZxLNHbF5XUH/2O1kIju5c+oTYyHsaPHoHFiusJXvtbeVTZjrYnxW37Kw==
-X-Received: by 2002:a0c:d6c9:: with SMTP id l9mr36061464qvi.58.1553787702607;
-        Thu, 28 Mar 2019 08:41:42 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id u3sm4236697qtk.97.2019.03.28.08.41.41
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Mar 2019 08:41:41 -0700 (PDT)
-Message-ID: <1553787700.26196.28.camel@lca.pw>
-Subject: Re: [PATCH v4] kmemleak: survive in a low-memory situation
-From: Qian Cai <cai@lca.pw>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org,
- cl@linux.com,  willy@infradead.org, penberg@kernel.org,
- rientjes@google.com,  iamjoonsoo.kim@lge.com, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-Date: Thu, 28 Mar 2019 11:41:40 -0400
-In-Reply-To: <20190328150555.GD10283@arrakis.emea.arm.com>
-References: <20190327005948.24263-1-cai@lca.pw>
-	 <20190327084432.GA11927@dhcp22.suse.cz>
-	 <20190327172955.GB17247@arrakis.emea.arm.com>
-	 <49f77efc-8375-8fc8-aa89-9814bfbfe5bc@lca.pw>
-	 <20190328150555.GD10283@arrakis.emea.arm.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
+        Thu, 28 Mar 2019 09:45:35 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga001.jf.intel.com ([10.7.209.18])
+  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 28 Mar 2019 09:45:32 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,281,1549958400"; 
+   d="scan'208";a="218460183"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga001.jf.intel.com with ESMTP; 28 Mar 2019 09:45:33 -0700
+From: ira.weiny@intel.com
+To: Andrew Morton <akpm@linux-foundation.org>,
+	John Hubbard <jhubbard@nvidia.com>,
+	Michal Hocko <mhocko@suse.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Paul Mackerras <paulus@samba.org>,
+	"David S. Miller" <davem@davemloft.net>,
+	Martin Schwidefsky <schwidefsky@de.ibm.com>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	Rich Felker <dalias@libc.org>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>,
+	Borislav Petkov <bp@alien8.de>,
+	Ralf Baechle <ralf@linux-mips.org>,
+	James Hogan <jhogan@kernel.org>
+Cc: Ira Weiny <ira.weiny@intel.com>,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	linux-mips@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org,
+	linux-s390@vger.kernel.org,
+	linux-sh@vger.kernel.org,
+	sparclinux@vger.kernel.org,
+	linux-rdma@vger.kernel.org,
+	netdev@vger.kernel.org
+Subject: [PATCH V3 0/7] Add FOLL_LONGTERM to GUP fast and use it
+Date: Thu, 28 Mar 2019 01:44:15 -0700
+Message-Id: <20190328084422.29911-1-ira.weiny@intel.com>
+X-Mailer: git-send-email 2.20.1
+MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -120,50 +127,92 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2019-03-28 at 15:05 +0000, Catalin Marinas wrote:
-> > It takes 2 runs of LTP oom01 tests to disable kmemleak.
-> 
-> What configuration are you using (number of CPUs, RAM)? I tried this on
-> an arm64 guest under kvm with 4 CPUs and 512MB of RAM, together with
-> fault injection on kmemleak_object cache and running oom01 several times
-> without any failures.
+From: Ira Weiny <ira.weiny@intel.com>
 
-Apparently, the CPUs are so fast and the disk is so slow (swapping). It ends up
-taking a long time for OOM to kick in.
+Following discussion and review[1] here are the cleanups requested.
 
-# lscpu
-Architecture:        x86_64
-CPU op-mode(s):      32-bit, 64-bit
-Byte Order:          Little Endian
-CPU(s):              48
-On-line CPU(s) list: 0-47
-Thread(s) per core:  2
-Core(s) per socket:  12
-Socket(s):           2
-NUMA node(s):        2
-Vendor ID:           GenuineIntel
-CPU family:          6
-Model:               85
-Model name:          Intel(R) Xeon(R) Gold 6126T CPU @ 2.60GHz
-Stepping:            4
-CPU MHz:             3300.002
-BogoMIPS:            5200.00
-Virtualization:      VT-x
-L1d cache:           32K
-L1i cache:           32K
-L2 cache:            1024K
-L3 cache:            19712K
-NUMA node0 CPU(s):   0-11,24-35
-NUMA node1 CPU(s):   12-23,36-47
+The biggest change for V3 was the disabling of the ability to use FOLL_LONGTERM
+in get_user_pages[unlocked|locked|remote]
 
-# free -m
-              total        used        free      shared  buff/cache   available
-Mem:         166206       31737      134063          33         406      133584
-Swap:          4095           0        4095
+Comments were also enhanced throughout to show potential users what
+FOLL_LONGTERM is all about and limitations it has.
 
-# lspci | grep -i sata
-00:11.5 SATA controller: Intel Corporation C620 Series Chipset Family SSATA
-Controller [AHCI mode] (rev 08)
-00:17.0 SATA controller: Intel Corporation C620 Series Chipset Family SATA
-Controller [AHCI mode] (rev 08)
+Minor review comments were fixed
+
+Original cover letter:
+
+HFI1, qib, and mthca, use get_user_pages_fast() due to it performance
+advantages.  These pages can be held for a significant time.  But
+get_user_pages_fast() does not protect against mapping FS DAX pages.
+
+Introduce FOLL_LONGTERM and use this flag in get_user_pages_fast() which
+retains the performance while also adding the FS DAX checks.  XDP has also
+shown interest in using this functionality.[1]
+
+In addition we change get_user_pages() to use the new FOLL_LONGTERM flag and
+remove the specialized get_user_pages_longterm call.
+
+[1] https://lkml.org/lkml/2019/3/19/939
+
+
+
+Ira Weiny (7):
+  mm/gup: Replace get_user_pages_longterm() with FOLL_LONGTERM
+  mm/gup: Change write parameter to flags in fast walk
+  mm/gup: Change GUP fast to use flags rather than a write 'bool'
+  mm/gup: Add FOLL_LONGTERM capability to GUP fast
+  IB/hfi1: Use the new FOLL_LONGTERM flag to get_user_pages_fast()
+  IB/qib: Use the new FOLL_LONGTERM flag to get_user_pages_fast()
+  IB/mthca: Use the new FOLL_LONGTERM flag to get_user_pages_fast()
+
+ arch/mips/mm/gup.c                          |  11 +-
+ arch/powerpc/kvm/book3s_64_mmu_hv.c         |   4 +-
+ arch/powerpc/kvm/e500_mmu.c                 |   2 +-
+ arch/powerpc/mm/mmu_context_iommu.c         |   3 +-
+ arch/s390/kvm/interrupt.c                   |   2 +-
+ arch/s390/mm/gup.c                          |  12 +-
+ arch/sh/mm/gup.c                            |  11 +-
+ arch/sparc/mm/gup.c                         |   9 +-
+ arch/x86/kvm/paging_tmpl.h                  |   2 +-
+ arch/x86/kvm/svm.c                          |   2 +-
+ drivers/fpga/dfl-afu-dma-region.c           |   2 +-
+ drivers/gpu/drm/via/via_dmablit.c           |   3 +-
+ drivers/infiniband/core/umem.c              |   5 +-
+ drivers/infiniband/hw/hfi1/user_pages.c     |   3 +-
+ drivers/infiniband/hw/mthca/mthca_memfree.c |   3 +-
+ drivers/infiniband/hw/qib/qib_user_pages.c  |   8 +-
+ drivers/infiniband/hw/qib/qib_user_sdma.c   |   2 +-
+ drivers/infiniband/hw/usnic/usnic_uiom.c    |   9 +-
+ drivers/media/v4l2-core/videobuf-dma-sg.c   |   6 +-
+ drivers/misc/genwqe/card_utils.c            |   2 +-
+ drivers/misc/vmw_vmci/vmci_host.c           |   2 +-
+ drivers/misc/vmw_vmci/vmci_queue_pair.c     |   6 +-
+ drivers/platform/goldfish/goldfish_pipe.c   |   3 +-
+ drivers/rapidio/devices/rio_mport_cdev.c    |   4 +-
+ drivers/sbus/char/oradax.c                  |   2 +-
+ drivers/scsi/st.c                           |   3 +-
+ drivers/staging/gasket/gasket_page_table.c  |   4 +-
+ drivers/tee/tee_shm.c                       |   2 +-
+ drivers/vfio/vfio_iommu_spapr_tce.c         |   3 +-
+ drivers/vfio/vfio_iommu_type1.c             |   3 +-
+ drivers/vhost/vhost.c                       |   2 +-
+ drivers/video/fbdev/pvr2fb.c                |   2 +-
+ drivers/virt/fsl_hypervisor.c               |   2 +-
+ drivers/xen/gntdev.c                        |   2 +-
+ fs/io_uring.c                               |   5 +-
+ fs/orangefs/orangefs-bufmap.c               |   2 +-
+ include/linux/mm.h                          |  45 ++-
+ kernel/futex.c                              |   2 +-
+ lib/iov_iter.c                              |   7 +-
+ mm/gup.c                                    | 288 +++++++++++++-------
+ mm/gup_benchmark.c                          |   5 +-
+ mm/util.c                                   |   8 +-
+ net/ceph/pagevec.c                          |   2 +-
+ net/rds/info.c                              |   2 +-
+ net/rds/rdma.c                              |   3 +-
+ net/xdp/xdp_umem.c                          |   4 +-
+ 46 files changed, 314 insertions(+), 200 deletions(-)
+
+-- 
+2.20.1
 
