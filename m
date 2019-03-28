@@ -2,170 +2,143 @@ Return-Path: <SRS0=kLvD=R7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D12EC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 18:19:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 27877C10F06
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 18:59:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 24A432173C
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 18:19:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 24A432173C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=goodmis.org
+	by mail.kernel.org (Postfix) with ESMTP id 9545C2173C
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Mar 2019 18:59:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9545C2173C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 645016B026B; Thu, 28 Mar 2019 14:19:42 -0400 (EDT)
+	id 207B76B026D; Thu, 28 Mar 2019 14:59:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5F3866B026C; Thu, 28 Mar 2019 14:19:42 -0400 (EDT)
+	id 1E8586B026E; Thu, 28 Mar 2019 14:59:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 495316B026D; Thu, 28 Mar 2019 14:19:42 -0400 (EDT)
+	id 0CEDC6B026F; Thu, 28 Mar 2019 14:59:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 06DAA6B026B
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 14:19:42 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id a72so16915145pfj.19
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 11:19:41 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C8BF76B026D
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 14:59:08 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id k185so10671854pga.5
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 11:59:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=v2Pk8vwVJEKevmVbVwbjgZdGoINUNiAQiZlY83dEjAU=;
-        b=MWKWJoZsS/9uz8NLZ9jA7AmoLQn6UG8+iGwzz0u/jN5EpfM990gotGP+R1bIvgp5Rn
-         OGT8HbUqcf88L4kOPhaagHSXaKp8CGlQ9vAXiKC2Gwb5tE31pPm+T+pnoBT5SIZD8kJN
-         6ty7CBvtKc9DZcUlFN6zHgwW4tBxbhrgJBrJBOWP22jZlla5xkx+jUoTwQ0uJxTm4D6T
-         ZqHUcHQhbMIJluh/FMINFHyXE5PFYlm/aIMEoi5HKonWI7blkttVT8NtVurcGadsJ/DE
-         Bmu7FXX8eijrbU/s9gvQFiham7xcYoomAeom+6QrQMbZVgfwjLUN9yzbkG0yIzrE5PAv
-         2taA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of srs0=sarb=r7=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=saRB=R7=goodmis.org=rostedt@kernel.org"
-X-Gm-Message-State: APjAAAUZ2rJUznHegCc9RYX3QefF/Ax2U4ciM8mpfJyHO3DlxRjJYK4Z
-	pY3arhFM5H4TtuVggIWjA0yf3FthV9PYMKpySxqplGVnwt7f4XvAQSd3IEL0lPFB1Ql8WbpLwHS
-	i/TzT2Hz/WJpKgeRpvmQr+FiZDcQEyB88yhDD6mgG+UF1ZwxDysWJsFpWK5zN1rg=
-X-Received: by 2002:a17:902:788d:: with SMTP id q13mr45309968pll.154.1553797181701;
-        Thu, 28 Mar 2019 11:19:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzmjCNGVvglIYneUOL9T3gyqsr9qUYvnscP3vDfWeVZ5CPo0P+naLh9UoCiKA04kspoFCh6
-X-Received: by 2002:a17:902:788d:: with SMTP id q13mr45309915pll.154.1553797180968;
-        Thu, 28 Mar 2019 11:19:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553797180; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=1adDNexjjjpelc7IwKKEv8/QS8pCGJp6sA+YqsesiCU=;
+        b=nOsALXzRm758xxt98aGQrnpTFSfqJLcnC09WZbX+8lgmxkVWwaSqRSbHmjISBUxWB1
+         1itxwA5YxGiuQRTr+hHKeoAlMWcaK0LLykW2FHvZ/bRmsK0YVayCmaG6ZWqpq67DyWyb
+         p23X7+yrMKm89c5nssdkaEg7JqeBu8qN8PZOBVZwJrafFPAMDln6PAg3R4h2Fc9M7X2G
+         pW2wK6QQct4HMbkkjzdLb0JUPWyLH/1A1bgqXcwT6vsivCpru/M50+d0SOgsGd8Npvld
+         IfhWNc20FGmbRUjlq0XKcH6n0yzpfcOJLDNj8kSo4thT+ffMA8aUX1aA+cDkl05vI+u+
+         T7KA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAUlik5iMdFBgePYS+zZczVFIUcHFW27P1fZAju7+SSyP5TC0cjf
+	n/6w1h4G+EbzjqpO6qEt4U4uC0kLFpa3/24DgRxvdEQmOBfssnhyPhrFgEbRuKBovgwP2TMsZqe
+	Mns+xX53g30UZjqRDrYfoJ6rO9l+UCQ0feIjNXEwkd/kMOk9CwbgGyXDARESUI6nimQ==
+X-Received: by 2002:a17:902:9001:: with SMTP id a1mr14328721plp.96.1553799548448;
+        Thu, 28 Mar 2019 11:59:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw41k9ITTkX9MQwvmKlSiS44XLSIqf4aWqhx3huHK4lNs8+NoWdvLgkSqSHRezCCYBvHG5q
+X-Received: by 2002:a17:902:9001:: with SMTP id a1mr14328673plp.96.1553799547539;
+        Thu, 28 Mar 2019 11:59:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553799547; cv=none;
         d=google.com; s=arc-20160816;
-        b=GqhiGsdyUxAihcwkmNjkpVOmJ5IaFahb52GvxM2RBNwnCOE1OazGcd2aBVEzrTI9/j
-         EaL6jqZeXYEaaBwC47y0c0JJ1/30tnQKUF+5YXgPy5pV89shevUVNNuD99Ezcx2pA1Ya
-         ZJglKgGBSt1Qrjvdz8ymvI2ipmomLJnN8Q/iqEAdx4ZVnhPtNv+4qoNcs5xUYlJMaWaB
-         OCuQujFNVvcsBbdeW+U5WqJbY41brGgvoo/gTEPymUwn1OCjC3S02lw46msDvhHAOaXH
-         gRIcjhbvCJNQQJ8QNupGgakgxuOoEtJC3j0Z29NnYsfmi3qtcL8ujb6PmHcxFudiDJ9j
-         yHeQ==
+        b=qg6ZwQGy7dJHqw4U+ORg/aFh4VAFZm/nqR3yNsGONnfMi291WMX/au7bNwoPSItEhq
+         1X3Gi9Fz457VK6EV7sE6NGUHdjvUXLznMduo0D5DjYF+XWqr/teFaL+hM5GbQSHnE1ME
+         57ckyCmC78tvhh1OCe3AiStFX2/2xzn9SNHCai2q8ZVplGQ2F/6y1c99Xr+DuES3tGLT
+         671N75AIHyECw32L7Sj3N2jkKHZwjZwBjExXmn0DXVi9db++A3alsOz87AEeAJm7nQu5
+         Q5ZadPYn9shBzSaAKBQPYifdWPTX9ULNngvtGCf0btYRTan8j88jsOvENEGjoFvoRg3X
+         YzhA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date;
-        bh=v2Pk8vwVJEKevmVbVwbjgZdGoINUNiAQiZlY83dEjAU=;
-        b=se7W6D6FD2561BKBt0ApMrVH8cFxHo5Coimw/WWy2FX7L2hrUxsBAIQ4VOeVfAUGM7
-         YaPsC3WELazZ11WDoCVd7NVolZoPFROMwu84i+PKXaRpLaMIkFz8YD9s66Z7d7l/xCb+
-         KnpoJk+NGvgaxXGNRTt3/iBYsdIsMaiha4+TFs/H32sGM/cCJgVeOU6M1Dfl4JjhsBpC
-         /naBSzIaBirnANfk9v83TczDZ29Vz7XlNXZWe9yaSX4z4OgtA98MXOSRF7Th64K21TwL
-         KuDQRp6ID+Nxr5JF2H9NA7/PiJ2qLnAoZVcCmufNpAKLMlbzL+UZ3WsE74ODG4qKQTsD
-         JoSQ==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=1adDNexjjjpelc7IwKKEv8/QS8pCGJp6sA+YqsesiCU=;
+        b=OE1JXwHQMebWflna3doD+dy7vJJ0msGPJ2x7m8ASnvGydBZGktNanZHjN3L2aoaJOg
+         /0vx7JX2+ydcplLl8G3TenjtJPba97HYuZYtWpcNuO+G7xAxEJERQxSRlkQ4dS70mspi
+         LJHvLiBxopxsXyY6V6LHQoeqH7mewDxTTDjClRPDUP/UN4aab3TKSzWBQI5t1/cnNUmz
+         m0i/ZnfwBofozEP+uN4kcUSugb+yRwE4tddhjJ1BvC+7As68V+FSKwQQLNDctdySutje
+         iiHtoT0mi17pjKFSoil0urAx9bDWfJopR5+fG3VoDsTWRpidobNbFx3ZAcQW1zfKV6A/
+         yRuA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of srs0=sarb=r7=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=saRB=R7=goodmis.org=rostedt@kernel.org"
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id x15si1020201pgi.524.2019.03.28.11.19.40
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-43.freemail.mail.aliyun.com (out30-43.freemail.mail.aliyun.com. [115.124.30.43])
+        by mx.google.com with ESMTPS id p90si13403169pfa.18.2019.03.28.11.59.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Mar 2019 11:19:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of srs0=sarb=r7=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Thu, 28 Mar 2019 11:59:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) client-ip=115.124.30.43;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of srs0=sarb=r7=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=saRB=R7=goodmis.org=rostedt@kernel.org"
-Received: from gandalf.local.home (cpe-66-24-58-225.stny.res.rr.com [66.24.58.225])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 61DFB2082F;
-	Thu, 28 Mar 2019 18:19:36 +0000 (UTC)
-Date: Thu, 28 Mar 2019 14:19:34 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
- <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Robin Murphy
- <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, Kate Stewart
- <kstewart@linuxfoundation.org>, Greg Kroah-Hartman
- <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>,
- Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov"
- <kirill.shutemov@linux.intel.com>, Shuah Khan <shuah@kernel.org>, Vincenzo
- Frascino <vincenzo.frascino@arm.com>, Eric Dumazet <edumazet@google.com>,
- "David S. Miller" <davem@davemloft.net>, Alexei Starovoitov
- <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, Ingo Molnar
- <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Arnaldo Carvalho
- de Melo <acme@kernel.org>, Alex Deucher <alexander.deucher@amd.com>,
- Christian =?UTF-8?B?S8O2bmln?= <christian.koenig@amd.com>, "David
- (ChunMing) Zhou" <David1.Zhou@amd.com>, Yishai Hadas
- <yishaih@mellanox.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Jens
- Wiklander <jens.wiklander@linaro.org>, Alex Williamson
- <alex.williamson@redhat.com>, Linux ARM
- <linux-arm-kernel@lists.infradead.org>, Linux Memory Management List
- <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, netdev
- <netdev@vger.kernel.org>, bpf <bpf@vger.kernel.org>,
- amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org,
- linux-rdma@vger.kernel.org, linux-media@vger.kernel.org,
- kvm@vger.kernel.org, "open list:KERNEL SELFTEST FRAMEWORK"
- <linux-kselftest@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
- Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>,
- Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>,
- Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley
- <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
- Chintan Pandya <cpandya@codeaurora.org>, Luc Van Oostenryck
- <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>, Kevin
- Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v13 04/20] mm, arm64: untag user pointers passed to
- memory syscalls
-Message-ID: <20190328141934.38960af0@gandalf.local.home>
-In-Reply-To: <CAAeHK+xE-ywfpVHRhBJVGiqOe0+BYW9awUa10ZP4P6Ggc8nxMg@mail.gmail.com>
-References: <cover.1553093420.git.andreyknvl@google.com>
-	<44ad2d0c55dbad449edac23ae46d151a04102a1d.1553093421.git.andreyknvl@google.com>
-	<20190322114357.GC13384@arrakis.emea.arm.com>
-	<CAAeHK+xE-ywfpVHRhBJVGiqOe0+BYW9awUa10ZP4P6Ggc8nxMg@mail.gmail.com>
-X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R281e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04391;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=13;SR=0;TI=SMTPD_---0TNsklAz_1553799538;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TNsklAz_1553799538)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Fri, 29 Mar 2019 02:59:04 +0800
+Subject: Re: [RFC PATCH 0/10] Another Approach to Use PMEM as NUMA Node
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Dan Williams <dan.j.williams@intel.com>,
+ Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@surriel.com>,
+ Johannes Weiner <hannes@cmpxchg.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Dave Hansen <dave.hansen@intel.com>, Keith Busch <keith.busch@intel.com>,
+ Fengguang Wu <fengguang.wu@intel.com>, "Du, Fan" <fan.du@intel.com>,
+ "Huang, Ying" <ying.huang@intel.com>, Linux MM <linux-mm@kvack.org>,
+ Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+References: <1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190326135837.GP28406@dhcp22.suse.cz>
+ <43a1a59d-dc4a-6159-2c78-e1faeb6e0e46@linux.alibaba.com>
+ <20190326183731.GV28406@dhcp22.suse.cz>
+ <f08fb981-d129-3357-e93a-a6b233aa9891@linux.alibaba.com>
+ <20190327090100.GD11927@dhcp22.suse.cz>
+ <CAPcyv4heiUbZvP7Ewoy-Hy=-mPrdjCjEuSw+0rwdOUHdjwetxg@mail.gmail.com>
+ <c3690a19-e2a6-7db7-b146-b08aa9b22854@linux.alibaba.com>
+ <20190327193918.GP11927@dhcp22.suse.cz>
+ <6f8b4c51-3f3c-16f9-ca2f-dbcd08ea23e6@linux.alibaba.com>
+ <20190328065802.GQ11927@dhcp22.suse.cz>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <6487e0f5-aee4-3fea-00f5-c12602b8ad2b@linux.alibaba.com>
+Date: Thu, 28 Mar 2019 11:58:57 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20190328065802.GQ11927@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Mar 2019 19:10:07 +0100
-Andrey Konovalov <andreyknvl@google.com> wrote:
 
-> > > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> > > ---
-> > >  ipc/shm.c      | 2 ++
-> > >  mm/madvise.c   | 2 ++
-> > >  mm/mempolicy.c | 5 +++++
-> > >  mm/migrate.c   | 1 +
-> > >  mm/mincore.c   | 2 ++
-> > >  mm/mlock.c     | 5 +++++
-> > >  mm/mmap.c      | 7 +++++++
-> > >  mm/mprotect.c  | 1 +
-> > >  mm/mremap.c    | 2 ++
-> > >  mm/msync.c     | 2 ++
-> > >  10 files changed, 29 insertions(+)  
-> >
-> > I wonder whether it's better to keep these as wrappers in the arm64
-> > code.  
-> 
-> I don't think I understand what you propose, could you elaborate?
 
-I believe Catalin is saying that instead of placing things like:
+On 3/27/19 11:58 PM, Michal Hocko wrote:
+> On Wed 27-03-19 19:09:10, Yang Shi wrote:
+>> One question, when doing demote and promote we need define a path, for
+>> example, DRAM <-> PMEM (assume two tier memory). When determining what nodes
+>> are "DRAM" nodes, does it make sense to assume the nodes with both cpu and
+>> memory are DRAM nodes since PMEM nodes are typically cpuless nodes?
+> Do we really have to special case this for PMEM? Why cannot we simply go
+> in the zonelist order? In other words why cannot we use the same logic
+> for a larger NUMA machine and instead of swapping simply fallback to a
+> less contended NUMA node? It can be a regular DRAM, PMEM or whatever
+> other type of memory node.
 
-@@ -1593,6 +1593,7 @@ SYSCALL_DEFINE3(shmat, int, shmid, char __user *, shmaddr, int, shmflg)
- 	unsigned long ret;
- 	long err;
- 
-+	shmaddr = untagged_addr(shmaddr);
+Thanks for the suggestion. It makes sense. However, if we don't 
+specialize a pmem node, its fallback node may be a DRAM node, then the 
+memory reclaim may move the inactive page to the DRAM node, it sounds 
+not make too much sense since memory reclaim would prefer to move 
+downwards (DRAM -> PMEM -> Disk).
 
-To instead have the shmaddr set to the untagged_addr() before calling
-the system call, and passing the untagged addr to the system call, as
-that goes through the arm64 architecture specific code first.
+Yang
 
--- Steve
 
