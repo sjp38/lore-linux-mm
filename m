@@ -2,140 +2,133 @@ Return-Path: <SRS0=6kLG=SA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4AD23C10F05
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 12:26:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F2381C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 12:55:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ED07B2183E
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 12:26:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED07B2183E
+	by mail.kernel.org (Postfix) with ESMTP id B93C1217F5
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 12:55:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B93C1217F5
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 86B556B0010; Fri, 29 Mar 2019 08:26:58 -0400 (EDT)
+	id 549976B0005; Fri, 29 Mar 2019 08:55:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7F5016B0269; Fri, 29 Mar 2019 08:26:58 -0400 (EDT)
+	id 4F93D6B0006; Fri, 29 Mar 2019 08:55:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6BC066B026A; Fri, 29 Mar 2019 08:26:58 -0400 (EDT)
+	id 3C0E66B0010; Fri, 29 Mar 2019 08:55:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 42F8A6B0010
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 08:26:58 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id k5so2065417qte.0
-        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 05:26:58 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 18A3B6B0005
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 08:55:15 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id n10so2107147qtk.9
+        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 05:55:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=5mOrzRv/HPyQ53b0gSOzKRXcbgqVDdoYfbXz/Rxir5o=;
-        b=cxuTbdFvIXH4GF3sWNmry93a2zs5yqsuGHFauV8OHVfxFS8R3VKoS7nC0HsEX4y/UI
-         yP3VU1vUUzPuGGInPupicIwVp1cjljDeRYiRwrnD+cCYewpgjl0J9iVLLtSTSquGnHuL
-         5dbIsvfsmNTfqjrYs9PiQKqoxN8mTzRfFHJIuKg7G/Ph60oQD94+PVAd+2JISqj7vYs1
-         19tGViZICPCLl4h8IY6BJJAAzndcZTDcyy5DoW8hF44ue1EFDohOOdhfrFdzhv9Tn5oL
-         go9fTYT8RPXh1P5xfXVs40ciruP01MkVBmkHxAz7eQhx6tu7BCHcf6bYR/gnJZH+7T3I
-         72uQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAV2liVvCb5mMDYhrZBnLTk6ZZ46K2/6DWe+No02r7q4HivaEkLL
-	f22A/XVWjq4JE3UPU+eDXG0Bii3xZ7Wz45ByIosoO7B3xgXMhjzIvMgL7WKjmU7E1nXAmWZFWUZ
-	jI6HShcKOg5sMgURXHLkj61JY3gGA+RVEzBXX4o0ClIpDnAMPapl6VuesqOQHHlpCUA==
-X-Received: by 2002:ac8:27b0:: with SMTP id w45mr25490345qtw.341.1553862418008;
-        Fri, 29 Mar 2019 05:26:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyDUIxoi0v8YvevDpoC3cEqEBpcnRUVoRDOUPho8VFD7T8w87sN4PJv8eegvrAOM0ZN/bgO
-X-Received: by 2002:ac8:27b0:: with SMTP id w45mr25490294qtw.341.1553862417194;
-        Fri, 29 Mar 2019 05:26:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553862417; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=gnl65CNHwgR2Gn1TqF5oif7rObVnKP8B6Yw8gcVz3XQ=;
+        b=bKKVbzuan63v4uATliveLPQDaf6oa/iPGHnD9aZDnYTHFxwAUfnEI80cXIfRK4Ljij
+         etqg+uuf94e2M0L9mrM1pLlLpIVkSdeV7GAEFBHnNsj/a5N5vOjRQT3VpiMenhpvt+Hq
+         hj+yK0CBQaxEEWrfucD2k4zkBJNZKXbg679704FzdPqAbx6AX7d41MQu/6Ftv/G9HqqJ
+         LqVuUuAhiHuRbFdm6SZ8AyQpoYKLgmj/Df/Id/RofaCpZ70LrMJ/Gz1lG0WOxgG2jQpl
+         RDpkxduVsg6SojJrjhknu0XXV8topzKXUGv2koXbZneFbSIyecHp44ymRZH6wC33ZH7Y
+         qwXg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXcoFMUGQevQupVWGwMsbjmIqWEWyQl/kJkuKXqy4up3o4kF5+f
+	jfS+2rtPA/4GCkguVWlhJCT6nDFKXXTB2gb3W/UQkKD8YPbqe7RNlS+6J+snFxXK+aH0WJAF8q5
+	vLYdMVY9+gC2a3mEZ01Q9nMh8b8lrkq6iscGSNm+Qecc3hSINm3DHHUrDAUo220aYNg==
+X-Received: by 2002:a37:70c4:: with SMTP id l187mr39544637qkc.146.1553864114750;
+        Fri, 29 Mar 2019 05:55:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx/rv6mGGQWUfMIzpJ09t1Zq2En+AUnhkMZyVkl+n6p1sRj3lsz/oAS01VwmKYEeQ99boS8
+X-Received: by 2002:a37:70c4:: with SMTP id l187mr39544594qkc.146.1553864114012;
+        Fri, 29 Mar 2019 05:55:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553864114; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZEt/Jb2+4drtRk9SI7eWziFtUPz4qumGAD6hOGuG1E93LQ4EUw03t842GyyfBAey7Q
-         zeplEm6iYTgVYtq6L9IUmNin097LzqTBN2f7ftycmA5G5wdGvhc2MePtI9fKMOXk+NyX
-         i3Co4k+Lty5aSzgyMMF+RjEX7wF+ylE3iI7334NNtnR7hajaCOOC+s2/8azytE95Eep+
-         Iv9KGSo+cXRpA5aLovWLXNrDNVuHFq+EKE9Vok1b4Bt3qatEcnb4zkdUahDGkGlExTlU
-         VpaLiM4TZ9LrIAl4n6toz5tjv6YTcZhuqk0oaeYHiZpOhJ0T6j/fPRc/qwJg386J9l22
-         3uDw==
+        b=KDwt1n4GG9eNBfNVwCy2UfBl6g+517XqoLZT4b8vmuCdTDy99u064kKM8PAI/wPygg
+         P0YudGGmfShvESMnMgMPum73TpNNSJrkpUgblXq6sFbAqgsdvuCRwHtWQWOCCmFRUYLd
+         r3VNwqMWwuQD8F6uz3L/R9/CwZyf/ZqHjjjUrOI7512QcM/i/gnRgdLUhZzaeXa9Auy8
+         jrmrPmPZpdUb2FY0Zodr/F4BXl2C3HsL2Q5XK0h3NCznf9bsWUfvSCdZGIOXhNm4m6Oi
+         lvStr02x/+LPzwB6+F77iec6f92SXbiZrdVC/eq67A2Wn8ptWCUSiRrVpeCJOqLEFQvY
+         N5DA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=5mOrzRv/HPyQ53b0gSOzKRXcbgqVDdoYfbXz/Rxir5o=;
-        b=Odh/ioaszugo1b6HrbWIqKaOBlDvmfqyoN4Ei+7yujWU2C1Ps8DBdwzeUpgXHDJobK
-         IwKOEqNCbetmLQhNi3702kZy5yMQPIcyHnINBls9JzoZFf7gZpKtFL3hVrCe2eKvAJzf
-         /KWD/tTxBSWTeWCMcaOG7V3ATOGIvgVmIfABfqJR6gbq60+8mIevkvFjWA+E45IeboFf
-         2KJcnxz8a1C8sXDDzCzFh6qklFN6QULUGn9d7Ya+xFtQye5cH4JgGguxzS4iHSYOY1TH
-         L/BY18ycnLPVXAS3QZLzb42zR/5zoE1wNvVBdHSUt7qZD/eTvZe6vzswTIvIfwT9Cw6u
-         wMrQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=gnl65CNHwgR2Gn1TqF5oif7rObVnKP8B6Yw8gcVz3XQ=;
+        b=oFxQOfhRlXO35mB/UUn8vuvo1RVHhFZP9p5L4NTyrS82ERP6S785DTPJO/+1268B8L
+         cDmPAlSwpdhWOBt4GX/szxjqkAKi12DLrGkzmiB88Nnj1Z6LrCRSV2lFg48TwI2cXVNK
+         G8TFBH6n9SDo44zjTlscfrXgkHQqwn4x2kfV3ddFMfIykc5fghCKoMyLUDQqGdVtvNp0
+         qks+ND1PeWafOc7DtWEx7JVGFFNeuozZYLJ6UL4amPtNVo4OUVJbqmsbL92RUL+X3MCR
+         HbtT4ZPe+PUIxHRImKugqGl1eA1l+g4MwA89T56Yk6IK785PeSQNO672aI0GJxY6ghqu
+         HDoA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y16si119193qth.296.2019.03.29.05.26.56
+        by mx.google.com with ESMTPS id 58si1227696qtr.13.2019.03.29.05.55.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Mar 2019 05:26:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Fri, 29 Mar 2019 05:55:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       spf=pass (google.com: domain of bhe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bhe@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 4FAC2307D914;
-	Fri, 29 Mar 2019 12:26:56 +0000 (UTC)
-Received: from t460s.redhat.com (unknown [10.36.117.0])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 44CC417991;
-	Fri, 29 Mar 2019 12:26:50 +0000 (UTC)
-From: David Hildenbrand <david@redhat.com>
-To: linux-kernel@vger.kernel.org
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>,
-	Pankaj Gupta <pagupta@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	"Michael S . Tsirkin" <mst@redhat.com>,
-	linux-mm@kvack.org,
-	David Hildenbrand <david@redhat.com>
-Subject: [PATCH v1] mm: balloon: drop unused function stubs
-Date: Fri, 29 Mar 2019 13:26:49 +0100
-Message-Id: <20190329122649.28404-1-david@redhat.com>
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Fri, 29 Mar 2019 12:26:56 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id CA3CB80E5D;
+	Fri, 29 Mar 2019 12:55:12 +0000 (UTC)
+Received: from localhost (ovpn-12-24.pek2.redhat.com [10.72.12.24])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 345D46B48A;
+	Fri, 29 Mar 2019 12:55:06 +0000 (UTC)
+Date: Fri, 29 Mar 2019 20:55:03 +0800
+From: Baoquan He <bhe@redhat.com>
+To: Oscar Salvador <osalvador@suse.de>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, rafael@kernel.org, akpm@linux-foundation.org,
+	rppt@linux.ibm.com, willy@infradead.org, fanc.fnst@cn.fujitsu.com
+Subject: Re: [PATCH v3 2/2] drivers/base/memory.c: Rename the misleading
+ parameter
+Message-ID: <20190329125503.GK7627@MiWiFi-R3L-srv>
+References: <20190329082915.19763-1-bhe@redhat.com>
+ <20190329082915.19763-2-bhe@redhat.com>
+ <20190329091325.GD28616@dhcp22.suse.cz>
+ <20190329093725.blpcyane33fnxvn7@d104.suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190329093725.blpcyane33fnxvn7@d104.suse.de>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Fri, 29 Mar 2019 12:55:13 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-These are leftovers from the pre-"general non-lru movable page" era.
+On 03/29/19 at 10:37am, Oscar Salvador wrote:
+> On Fri, Mar 29, 2019 at 10:13:25AM +0100, Michal Hocko wrote:
+> > On Fri 29-03-19 16:29:15, Baoquan He wrote:
+> > > The input parameter 'phys_index' of memory_block_action() is actually
+> > > the section number, but not the phys_index of memory_block. Fix it.
+> > 
+> > I have tried to explain that the naming is mostly a relict from the past
+> > than really a misleading name http://lkml.kernel.org/r/20190326093315.GL28406@dhcp22.suse.cz
+> > Maybe it would be good to reflect that in the changelog
+> 
+> I think that phys_device variable in remove_memory_section() is also a relict
+> from the past, and it is no longer used.
+> Neither node_id variable is used.
+> Actually, unregister_memory_section() sets those two to 0 no matter what.
+> 
+> Since we are cleaning up, I wonder if we can go a bit further and we can get
+> rid of that as well.
 
-Signed-off-by: David Hildenbrand <david@redhat.com>
----
- include/linux/balloon_compaction.h | 15 ---------------
- 1 file changed, 15 deletions(-)
-
-diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
-index f111c780ef1d..f31521dcb09a 100644
---- a/include/linux/balloon_compaction.h
-+++ b/include/linux/balloon_compaction.h
-@@ -151,21 +151,6 @@ static inline void balloon_page_delete(struct page *page)
- 	list_del(&page->lru);
- }
- 
--static inline bool __is_movable_balloon_page(struct page *page)
--{
--	return false;
--}
--
--static inline bool balloon_page_movable(struct page *page)
--{
--	return false;
--}
--
--static inline bool isolated_balloon_page(struct page *page)
--{
--	return false;
--}
--
- static inline bool balloon_page_isolate(struct page *page)
- {
- 	return false;
--- 
-2.17.2
+Yes, certainly. I would like to post a new one to carry this.
 
