@@ -5,76 +5,76 @@ X-Spam-Level:
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B82CDC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 08:56:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9CF4DC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 09:01:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 64B162184D
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 08:56:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 64B162184D
+	by mail.kernel.org (Postfix) with ESMTP id 4D7402184D
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 09:01:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D7402184D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EFF776B026A; Fri, 29 Mar 2019 04:56:41 -0400 (EDT)
+	id DC3196B026A; Fri, 29 Mar 2019 05:01:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ED6276B026B; Fri, 29 Mar 2019 04:56:41 -0400 (EDT)
+	id D736E6B026B; Fri, 29 Mar 2019 05:01:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DEE036B026C; Fri, 29 Mar 2019 04:56:41 -0400 (EDT)
+	id C62F86B026C; Fri, 29 Mar 2019 05:01:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BA6FC6B026A
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 04:56:41 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id q12so1594184qtr.3
-        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 01:56:41 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A010B6B026A
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 05:01:31 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id c67so1198743qkg.5
+        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 02:01:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:references:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=PBMt1wTkD0xpnWo/dRY7GKZR4V8f+lC6/Y5I5kDL8Hw=;
-        b=iaFmOOGAOL+INQIZcCqdNIwHPaqWk2L2AfFbrWdWQrUY2jV8bacYgsOrOvyfY8IY+a
-         TxsuPcZK/i1gzNmEfUdvfom3EILeqAnde5ILDnY6IvapyKIrF040BgM92tQtEg4HEvUe
-         zzwtYcqKAHDajzVnwSo1L5LsolJ7/iMPVPyY9aE2q3f8x1wUa1hlPzsk6S0OY+FMcs5E
-         cKKUUzevRA3jJOreqzBdLKB6gxL2WOo1+9/cjNKapXoWSAOVUb8bvJDPTjRxhziZ7LPm
-         +rshzcZoTflFb70INK0QA5qTw1MSONBOYf+kWj4UEwQr/44M+pQh3qUUolSLErUElXhc
-         0xfQ==
+        bh=6fH1IuKmORJJq5IUd3STvtgXR5vuewmaZietV9iMZwg=;
+        b=PGvaLxv7oLKdIAGUSYGcl3vD/Ahm7JdDv3HMKPJKMjBdKjS4DBoZDdDLNJMDhDQba/
+         xhQ6iOGeP4IiTiZI2wJajkb2zvrC4ujNNR29J2W8d/nOhPokbvVltTZobilDAUMg2RVX
+         eflOeMYdr0LLQ40dIrZh8V8HcCcMZnGNjWaZp5xPX32bku2aegh23Mgqpch6DhApsHUw
+         7+5IRiVbLxyCsMS2AX3m5FmwFOTjjEkdAG2Acsa67LcOgPTyVOmdKlIjwWlbu3bZuJMA
+         x5LEJz6UUUxA8X3kJAPyjKonnkis85VkurQhoMJJ/VgKXmPHT0I7jvc3mHgub+hX6RDc
+         MyRg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVsh6UPBPGPmEg/T7lbb2GTfIKr9SKW40CTkDGTxWb8sz6grJ5S
-	QE3UFQZQ5IjGcI0yCBZOvrTBdv4t3iue9orGUzXeWR17gd0/CaGzr8JmUDpVVZjXU7WCd5do+wh
-	1AIU7p6x5ZQTHvRUaDKo9Exo2NMsDblL5xPG7eQLh3aY5ex5QuT1O4H8I/udAd83URg==
-X-Received: by 2002:aed:2208:: with SMTP id n8mr25162871qtc.168.1553849801537;
-        Fri, 29 Mar 2019 01:56:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxL0oGzZqPiG4PStYZhTUck/Q2B7s9ZKTt/dfyupbk6WMGBX7AARbCxJKI+G9+9gjokynbz
-X-Received: by 2002:aed:2208:: with SMTP id n8mr25162847qtc.168.1553849800969;
-        Fri, 29 Mar 2019 01:56:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553849800; cv=none;
+X-Gm-Message-State: APjAAAWaeM18RoVG1qDGcOooPi8+JOCJa5poDDqKrN7158WFc6SSM1ha
+	QRFdfYlADgHu5VxR2QudILPtjrJ1mAuIztSxv5S2s36Xh8i60vxUUkXxG412F7mpChz67jCG5EH
+	5dxZAxRjuOLTI6G8v0LX1T0CipLKZLd+0i/M9ITMV+S8dJjKzXCV3HLQVkxFn6CRvKA==
+X-Received: by 2002:a37:8505:: with SMTP id h5mr38317726qkd.66.1553850091428;
+        Fri, 29 Mar 2019 02:01:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxL3qwnNYxotyaqkioWy3xGcEd+ewurP+ga5LABdjudNR+SxfXEJH+RIQ7x8TlwfeqGdqcG
+X-Received: by 2002:a37:8505:: with SMTP id h5mr38317692qkd.66.1553850090813;
+        Fri, 29 Mar 2019 02:01:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553850090; cv=none;
         d=google.com; s=arc-20160816;
-        b=OaudRrx/PWZSENByVDabLhjku9s8XverFqkv/ztEzHVYGS4+PCE+m6HwYF4O+ND/JS
-         0KLQ8UbzE7bkGatocLnt0btwopgtSapuaL0bmEVu6lmaeSMQ/HjHyK+jDb2lTjlVyiUQ
-         8GlanEEiNrY+9NIBtILAzvPYXXOmFl6xzO71pfiEpd9xDMv2RGspmph+vlnDgcDB6f2u
-         62v5uAaUSDSQ13sBBsxOjJCLwy6G9I6UmBbdxRAUVSEFbL7zj09dEcB6jxxa04HcGL68
-         JenytWH7Bix7shQgBZN+ASe9xgvyjn4qBxWh61mAuowdfdV/Kpf/r3VQ7oR7jqD1mbqj
-         X1Gg==
+        b=kVWZepztN/MXY9foCwi/lLwwm265GaQf2dtHbGdGJf/BfuMqv8tB1N6cCOsIRAUhyr
+         EzK3vFCYl8U3kciluHe6ui56Ngab41asKeccB2At9e4ftv0i33+xQySWdzKz/BO24Fqq
+         +l70QDVqcr9WXSIHz88oSRK40hz3YKc/7b4dcZgmELhMDT1bobN7fs2+ze4afWE6G39i
+         81ZuCgfRuDe2yTx5KpRqn9thEO7cgEqFr2L2GRBgIOZXMBDtoW/kIG9JOJHZrW2qOZ27
+         S+qaildd4gR7jUmOCXfGdpaNAXd7Y6D+HXexv/prRVycBMthVg7Nk5JGTt+Q/wunjPqZ
+         ViUQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=PBMt1wTkD0xpnWo/dRY7GKZR4V8f+lC6/Y5I5kDL8Hw=;
-        b=GuLuax+t4GFmlsJrytJVbwQxmG4swv43w/a5viN8BBt8JfAS3cEJAw/mXLtTNi5GNk
-         qqBQBLLipkje/6qgzpr/JlzN8+uuA88UxIyPiJDwOilDLjOyBuzrDdhJ4e94+9yH1HMN
-         26VTFWBpgYwfp7AcAlWXPMUWsn7VDejz8mItEzbXAwCTueyDpHuPpEpIvLOuIRYNvRs5
-         Q6mgu7ASI/0SYJRc1+c9ZNWTL2LRgyBt/qNgeIOIgoPsjZ4dS7O7wfSmmSELIDd0z6Bp
-         t6IooIoaUXaPJSrej1VAv0/rbQ0tKNsR+83ktLiyFJmcbe0Z7E5A0BZPKgiGAQmjg4rg
-         6fVg==
+         :user-agent:date:message-id:organization:autocrypt:openpgp
+         :references:cc:to:from:subject;
+        bh=6fH1IuKmORJJq5IUd3STvtgXR5vuewmaZietV9iMZwg=;
+        b=ZQYOK8CqO3U8KtuF4UotmMg/QtdIoehkkTJq7w4aKvrxf0zNGL3hOwGusqBFKOFSic
+         qvVVm+xniUmPX1O8Hq3Lny4UITzBhr4Rgnt+yPOzAuGGAim2MU6oTAxAfhobSXqw8WOI
+         7ENvWTEk4DPxcymYWurobLLu53UCdhcy69kz+xjdo/iab31Yno1olVObZSn83Qf8BPx8
+         Ay4pZF+h4HMjs7ESPxtYaYotbJFkGhTiTJAOYXLhHA/vBooudYD+hU73YSRPX/U/h3RY
+         C+RMA99hgHMb+UxW5NJ91R9pSQjqIBITcJ05mcFJWjYEobGVa9rv/iopFNhCLFo7jDfb
+         XVgA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m13si920583qtp.68.2019.03.29.01.56.40
+        by mx.google.com with ESMTPS id 25si920123qts.195.2019.03.29.02.01.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Mar 2019 01:56:40 -0700 (PDT)
+        Fri, 29 Mar 2019 02:01:30 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
@@ -82,13 +82,14 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id F330E30BC65D;
-	Fri, 29 Mar 2019 08:56:39 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id ED0F1308FC5E;
+	Fri, 29 Mar 2019 09:01:29 +0000 (UTC)
 Received: from [10.36.117.0] (unknown [10.36.117.0])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 2D0A760852;
-	Fri, 29 Mar 2019 08:56:38 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 5ABD060851;
+	Fri, 29 Mar 2019 09:01:27 +0000 (UTC)
 Subject: Re: [PATCH 0/4] mm,memory_hotplug: allocate memmap from hotadded
  memory
+From: David Hildenbrand <david@redhat.com>
 To: Oscar Salvador <osalvador@suse.de>
 Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com,
  Jonathan.Cameron@huawei.com, anshuman.khandual@arm.com,
@@ -97,7 +98,7 @@ References: <20190328134320.13232-1-osalvador@suse.de>
  <cc68ec6d-3ad2-a998-73dc-cb90f3563899@redhat.com>
  <efb08377-ca5d-4110-d7ae-04a0d61ac294@redhat.com>
  <20190329084547.5k37xjwvkgffwajo@d104.suse.de>
-From: David Hildenbrand <david@redhat.com>
+ <23dcfb4a-339b-dcaf-c037-331f82fdef5a@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  xsFNBFXLn5EBEAC+zYvAFJxCBY9Tr1xZgcESmxVNI/0ffzE/ZQOiHJl6mGkmA1R7/uUpiCjJ
@@ -143,91 +144,66 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <23dcfb4a-339b-dcaf-c037-331f82fdef5a@redhat.com>
-Date: Fri, 29 Mar 2019 09:56:37 +0100
+Message-ID: <6c58b0ef-7a9a-491d-7286-7642f9d4c7bb@redhat.com>
+Date: Fri, 29 Mar 2019 10:01:26 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <20190329084547.5k37xjwvkgffwajo@d104.suse.de>
+In-Reply-To: <23dcfb4a-339b-dcaf-c037-331f82fdef5a@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Fri, 29 Mar 2019 08:56:40 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Fri, 29 Mar 2019 09:01:30 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 29.03.19 09:45, Oscar Salvador wrote:
-> On Thu, Mar 28, 2019 at 04:31:44PM +0100, David Hildenbrand wrote:
->> Correct me if I am wrong. I think I was confused - vmemmap data is still
->> allocated *per memory block*, not for the whole added memory, correct?
+On 29.03.19 09:56, David Hildenbrand wrote:
+> On 29.03.19 09:45, Oscar Salvador wrote:
+>> On Thu, Mar 28, 2019 at 04:31:44PM +0100, David Hildenbrand wrote:
+>>> Correct me if I am wrong. I think I was confused - vmemmap data is still
+>>> allocated *per memory block*, not for the whole added memory, correct?
+>>
+>> No, vmemap data is allocated per memory-resource added.
+>> In case a DIMM, would be a DIMM, in case a qemu memory-device, would be that
+>> memory-device.
+>> That is counting that ACPI does not split the DIMM/memory-device in several memory
+>> resources.
+>> If that happens, then acpi_memory_enable_device() calls __add_memory for every
+>> memory-resource, which means that the vmemmap data will be allocated per
+>> memory-resource.
+>> I did not see this happening though, and I am not sure under which circumstances
+>> can happen (I have to study the ACPI code a bit more).
+>>
+>> The problem with allocating vmemmap data per memblock, is the fragmentation.
+>> Let us say you do the following:
+>>
+>> * memblock granularity 128M
+>>
+>> (qemu) object_add memory-backend-ram,id=ram0,size=256M
+>> (qemu) device_add pc-dimm,id=dimm0,memdev=ram0,node=1
+>>
+>> This will create two memblocks (2 sections), and if we allocate the vmemmap
+>> data for each corresponding section within it section(memblock), you only get
+>> 126M contiguous memory.
 > 
-> No, vmemap data is allocated per memory-resource added.
-> In case a DIMM, would be a DIMM, in case a qemu memory-device, would be that
-> memory-device.
-> That is counting that ACPI does not split the DIMM/memory-device in several memory
-> resources.
-> If that happens, then acpi_memory_enable_device() calls __add_memory for every
-> memory-resource, which means that the vmemmap data will be allocated per
-> memory-resource.
-> I did not see this happening though, and I am not sure under which circumstances
-> can happen (I have to study the ACPI code a bit more).
+> Oh okay, so actually the way I guessed it would be now.
 > 
-> The problem with allocating vmemmap data per memblock, is the fragmentation.
-> Let us say you do the following:
+> While this makes totally sense, I'll have to look how it is currently
+> handled, meaning if there is a change. I somewhat remembering that
+> delayed struct pages initialization would initialize vmmap per section,
+> not per memory resource.
 > 
-> * memblock granularity 128M
-> 
-> (qemu) object_add memory-backend-ram,id=ram0,size=256M
-> (qemu) device_add pc-dimm,id=dimm0,memdev=ram0,node=1
-> 
-> This will create two memblocks (2 sections), and if we allocate the vmemmap
-> data for each corresponding section within it section(memblock), you only get
-> 126M contiguous memory.
+> But as I work on 10 things differently, my mind sometimes seems to
+> forget stuff in order to replace it with random nonsense. Will look into
+> the details to not have to ask too many dumb questions.
 
-Oh okay, so actually the way I guessed it would be now.
+s/differently/concurrently/
 
-While this makes totally sense, I'll have to look how it is currently
-handled, meaning if there is a change. I somewhat remembering that
-delayed struct pages initialization would initialize vmmap per section,
-not per memory resource.
-
-But as I work on 10 things differently, my mind sometimes seems to
-forget stuff in order to replace it with random nonsense. Will look into
-the details to not have to ask too many dumb questions.
-
-> 
-> So, the taken approach is to allocate the vmemmap data corresponging to the
-> whole DIMM/memory-device/memory-resource from the beginning of its memory.
-> 
-> In the example from above, the vmemmap data for both sections is allocated from
-> the beginning of the first section:
-> 
-> memmap array takes 2MB per section, so 512 pfns.
-> If we add 2 sections:
-> 
-> [  pfn#0  ]  \
-> [  ...    ]  |  vmemmap used for memmap array
-> [pfn#1023 ]  /  
-> 
-> [pfn#1024 ]  \
-> [  ...    ]  |  used as normal memory
-> [pfn#65536]  /
-> 
-> So, out of 256M, we get 252M to use as a real memory, as 4M will be used for
-> building the memmap array.
-> 
-> Actually, it can happen that depending on how big a DIMM/memory-device is,
-> the first/s memblock is fully used for the memmap array (of course, this
-> can only be seen when adding a huge DIMM/memory-device).
-> 
-
-Just stating here, that with your code, add_memory() and remove_memory()
-always have to be called in the same granularity. Will have to see if
-that implies a change.
+See, nonsense ;)
 
 -- 
 
