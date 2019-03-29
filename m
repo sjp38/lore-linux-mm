@@ -2,154 +2,176 @@ Return-Path: <SRS0=6kLG=SA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EED42C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 17:50:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8CE1CC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 18:01:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B8C75218A5
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 17:50:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B8C75218A5
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=deltatee.com
+	by mail.kernel.org (Postfix) with ESMTP id 2D920206B7
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 18:01:31 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="djw4196f"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D920206B7
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5A70F6B0010; Fri, 29 Mar 2019 13:50:28 -0400 (EDT)
+	id 9BBA86B000D; Fri, 29 Mar 2019 14:01:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 52D856B0269; Fri, 29 Mar 2019 13:50:28 -0400 (EDT)
+	id 96B946B000E; Fri, 29 Mar 2019 14:01:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3CFF86B026A; Fri, 29 Mar 2019 13:50:28 -0400 (EDT)
+	id 80E366B0010; Fri, 29 Mar 2019 14:01:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 170806B0010
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 13:50:28 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id a188so2496379qkf.0
-        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 10:50:28 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 450B56B000D
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 14:01:30 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id g1so1997462pfo.2
+        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 11:01:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding:subject;
-        bh=jUF3KgmYeni2oaq/7GqeO2T5xqbLj6M5hpE5lsKO8+g=;
-        b=cxtaZzqZejc2G2vmNu7SRbhr0NifKVY2H31N9qfBlPrlXFros4O/wQuET31QhZIMpG
-         POVuDEkF2YVrrGPirh0XFHLiTqT4dxo4iMtfoLQ7XZvUwfNMAv+ciqqcF2NWEl6xr5d/
-         9aKYOpDt59gfzLoyQaAACuOAJLOPlsGfvodoZkhuwLq8ryWNEycJAGRF5QYUFqZe0PaF
-         EYc2wCbpyodzrzYisUI1boXtYrRx2/6eb9qGL9AzpElUz8smvdJFl1NkqBvvaQ9Lj103
-         1j99AibjfUsyvCLMeq3kYBedQI/RkDYzBpxiOo0LOcVhIyt08RRK2huB1dLvxPVlj5Ip
-         Dbjw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-X-Gm-Message-State: APjAAAUeRTSYQx7VV8M9EXJlw0hGMM0/G8Ywslv3MCfMNyKo2m98908H
-	0Yot+hkcBt23D/mm/CO4eyr3whkhermvg2RLAWzY1OYa4IjaTKfn+oCE61LP7abWDY2VtDoQNk1
-	ARPnvhGM3NAtt3dD/pH+YtZYOEgGd/Q7OEMk1GW7EtAQWJd7FgxTWAExU+UeggcqsgA==
-X-Received: by 2002:aed:23ac:: with SMTP id j41mr3236582qtc.181.1553881827861;
-        Fri, 29 Mar 2019 10:50:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxBMUolga6owJh/Z2MVonHAHSk1d3kPkjZKIqPaPVCcMszypKKFrPQKKF8/c1Fu4Mdv6c2b
-X-Received: by 2002:aed:23ac:: with SMTP id j41mr3236530qtc.181.1553881827231;
-        Fri, 29 Mar 2019 10:50:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553881827; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=dd5MRiFBsN+AsSinzvLVsYwYGLT+K1KoqVgd4aICLWI=;
+        b=F2eZ6Z5bWFcsT0xug+rpQiRoYWMafhULE52R/L962rMh6M7ozMOMUEjbdJUZJ4uG9T
+         YIIffEfE3ZV1gbjR6LpMEwh9cOI1e1//Jng0vbX67ZrYXogiIqeYUxlhYXAUef4kd1Ao
+         OI/HPzSce4PzrJTsUFu4S80H9FFp4lIZTZ+klHs1HjOSuSk+8sUBZiIpNlbNfoZw+0BN
+         yJjG10xESd+W89q6BjDYAmCnyOUmAaGjq7Ob+lQjiEb1ztEDhQcgn4UkLwq+J7Czo7p/
+         GYy0XU0ck0Dje7YLCScLeaqBWz/AxRWpYtVlONE38oyP61Ent23Tk12R3iOY6/jYHRRC
+         CRQw==
+X-Gm-Message-State: APjAAAViy8P/GS/VaMux5fQsjOevNScHF5KWbj4OS45S1PAZN2k7Rhx1
+	qBF2NByXJiPk4yfGYbkzN0i5FszAG6GSA1h8L7/yvnQZ4gwDOjqmQPDTbJzGdRvQ5gT9BMGF2Rb
+	rcKZK8BFBh3mpJ/tKcxTeqnnR5ZwkqGZGwR0vgXidrn76nyt6xcVEcWS5fGxWvpHFKw==
+X-Received: by 2002:a17:902:a612:: with SMTP id u18mr49551921plq.145.1553882489861;
+        Fri, 29 Mar 2019 11:01:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxdcamqxcpB+dRdbOHOfju4UXp/BimT4bVX5zEoCWeUetItNPu8tgUtM2d/xSLrFl/z1lZY
+X-Received: by 2002:a17:902:a612:: with SMTP id u18mr49551845plq.145.1553882489079;
+        Fri, 29 Mar 2019 11:01:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553882489; cv=none;
         d=google.com; s=arc-20160816;
-        b=Z+oWBxcvxK6y6rNVfWTRENsJ2t2r9IpiJVuyklTVgAsJ0duyR8gZ1JXhJwRUYE6Plf
-         DwLEDHQo+PLnmCdA5Fq4ylHST4+2/z0mPxci4l/kQTws0uCVd6yU4Ns88OmDkz1dCNcr
-         ouGfjSW6BcX9NYl3DPmJS/YcbpmeND9THBJdK9bbGjgzu0rGwbZM9yREpISty/0jPX2+
-         FZcl7uynb73ivVnUSxh72Z/BUhAvfBBajNl9ic2R1IcaN0df5SbZUgC6lmsU5haBbzZ9
-         LeoVXDpIRryU89eu+vpH7DjK5aQIseI5luOyPd/fRvL6HFPMRTK90gWyFE46fEiLiQnt
-         ofpg==
+        b=awPPOApd0sK8490cW+rRIRwuilXPsoYAnD9EE7XYAj/mJuGKyDTR9cRiJlqa7hkRqk
+         1BZEC4qunNESr6dEtv3qDyYUFG0qo7BEvKdw7nvkSj8kqMu7r8RYcvIVhiGrulr37A6D
+         lL3SxuMBUEYcZHAjczH2sQ/zqa1AOVwGxeCDcqcoiZ+EjMVwfcbvjwATGs1nPm5HaWjU
+         cOhv5/McejZorwhiEstvIN6HPSsy85kHaPF0bTGrLG1witHeM/gsleEx5Y3rywpU9pGF
+         iZPUubfYSAdYejF0xKgmA+qssT9pt9kFsnb7sE1/UvSFvUbGh+AR+Fp/TXJOtPtxfE93
+         mkzQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=subject:content-transfer-encoding:content-language:in-reply-to
-         :mime-version:user-agent:date:message-id:from:references:cc:to;
-        bh=jUF3KgmYeni2oaq/7GqeO2T5xqbLj6M5hpE5lsKO8+g=;
-        b=cZzWmV2kGZSUpQDA+m19askIFVnfOydAiWMxMz2WmtV7eejhDJYaLK08b3Dn95QMCh
-         6f23os7YjYDwnx8sdfsKChqP9T7AOBkRxCQW3Rla557EFR8i90Jw5XdzunNVuW3P2pgm
-         FgV944ZkZEi8RM5GNpRFywj/tCNDNZn608Fl3qWHAoIdLs4nOGp8BKkarYdNnBjgeO5+
-         mBto5meMLZsFicF0g3gvmDeeeiEQElAq0qjOlM4VcbfzbPjnUScsg2WVGpk9MdxFZBb4
-         7IaFhn1wmZT4tsR8dSlA4squgWMppbckcDMO+jpPKDdXYyGCHewUpNx9pocZv3Asn494
-         OeaA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=dd5MRiFBsN+AsSinzvLVsYwYGLT+K1KoqVgd4aICLWI=;
+        b=OE3mrOHHwrct0BGY3FWYgayLtTxLayW7LfHnSLHagTFnWtiPN7ox83FbvKo7pehYHp
+         HEUpH7p9M4vykPuiq1kubJtRqVAQjh2+kWB2Yfuw/YBNv4Z8TYw+viMSHUl/uV1D/MQ7
+         WW5SxB10AWMozrmfQwIMTeC42QYKQ3kj0cnA3ClkgbIKu1wMzvKeYA1U3jsSRTZUz3KI
+         Z2pfl7quVN3jf/1ypfmH37s9qDc0E6hV/RYgv2A3dQzQ5jTo8CFxA5gCnjB5JnpvQWyl
+         EBcG0r/MICfz0BBBrhyV2PciaD6Izvx2HgZSDvkfhxq1JRhGrqIJpkaSjUGw9St7ROll
+         ioJg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id f16si1522986qve.57.2019.03.29.10.50.26
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=djw4196f;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id q29si2385441pfi.98.2019.03.29.11.01.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 29 Mar 2019 10:50:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) client-ip=207.54.116.67;
+        Fri, 29 Mar 2019 11:01:25 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-Received: from guinness.priv.deltatee.com ([172.16.1.162])
-	by ale.deltatee.com with esmtp (Exim 4.89)
-	(envelope-from <logang@deltatee.com>)
-	id 1h9ve4-0000x0-Cd; Fri, 29 Mar 2019 11:50:25 -0600
-To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
-Cc: Bjorn Helgaas <bhelgaas@google.com>, Christoph Hellwig <hch@lst.de>,
- linux-mm@kvack.org, linux-pci@vger.kernel.org, linux-nvdimm@lists.01.org,
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=djw4196f;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	Content-Type:In-Reply-To:MIME-Version:Date:Message-ID:From:References:Cc:To:
+	Subject:Sender:Reply-To:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=dd5MRiFBsN+AsSinzvLVsYwYGLT+K1KoqVgd4aICLWI=; b=djw4196fs7me/2RwMmGT2/Hbm
+	gPLkrFCdsSxgDNZ9TtT2SJuF7swl5kDNMYn97QPHtcC/PP0/5yCjIuzi4b92h3fi48pXcKVmVzhKW
+	N/D9RlOik/hcGz836JhB7hx8EC26CNlp2t5ygx+6SuwxOl8/F4uH4Y5Vbw3h0oqbwQJasqznuthAQ
+	Khg9Rhk6iUo+O8kLjaMuxeQa17ulfsa25amkAUdrpllUhJGNzHPsQ4kZQAnPJDrhe8fsx3WCg6L3r
+	ilO/DhaA44rqrOC+cVIKMnlHMym7e5k7LRdY3r6B6vH+D5xafK6QT9UGKZrSsMieeUIPs8lUwtVgw
+	UqUMs0QQw==;
+Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=midway.dunlab)
+	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1h9voa-0008Jr-T2; Fri, 29 Mar 2019 18:01:21 +0000
+Subject: Re: [PATCH] gcov: include linux/module.h for within_module
+To: Nick Desaulniers <ndesaulniers@google.com>, oberpar@linux.ibm.com,
+ akpm@linux-foundation.org
+Cc: Greg Hackmann <ghackmann@android.com>, Tri Vo <trong@android.com>,
+ linux-mm@kvack.org, kbuild-all@01.org, kbuild test robot <lkp@intel.com>,
  linux-kernel@vger.kernel.org
-References: <155387324370.2443841.574715745262628837.stgit@dwillia2-desk3.amr.corp.intel.com>
- <155387327020.2443841.6446837127378298192.stgit@dwillia2-desk3.amr.corp.intel.com>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <cfda881b-d99c-7c53-64cb-745ff4b257b0@deltatee.com>
-Date: Fri, 29 Mar 2019 11:50:23 -0600
+References: <201903291603.7podsjD7%lkp@intel.com>
+ <20190329174541.79972-1-ndesaulniers@google.com>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <9f1ad3e1-fad7-2fb4-31c0-d31832468143@infradead.org>
+Date: Fri, 29 Mar 2019 11:01:15 -0700
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.5.1
 MIME-Version: 1.0
-In-Reply-To: <155387327020.2443841.6446837127378298192.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <20190329174541.79972-1-ndesaulniers@google.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-CA
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-SA-Exim-Connect-IP: 172.16.1.162
-X-SA-Exim-Rcpt-To: linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, hch@lst.de, bhelgaas@google.com, akpm@linux-foundation.org, dan.j.williams@intel.com
-X-SA-Exim-Mail-From: logang@deltatee.com
-Subject: Re: [PATCH 5/6] pci/p2pdma: Track pgmap references per resource, not
- globally
-X-SA-Exim-Version: 4.2.1 (built Tue, 02 Aug 2016 21:08:31 +0000)
-X-SA-Exim-Scanned: Yes (on ale.deltatee.com)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Thanks Dan, this is great. I think the changes in this series are
-cleaner and more understandable than the patch set I had sent earlier.
+On 3/29/19 10:45 AM, Nick Desaulniers wrote:
+> Fixes commit 8c3d220cb6b5 ("gcov: clang support")
+> 
+> Cc: Greg Hackmann <ghackmann@android.com>
+> Cc: Tri Vo <trong@android.com>
+> Cc: Peter Oberparleiter <oberpar@linux.ibm.com>
+> Cc: linux-mm@kvack.org
+> Cc: kbuild-all@01.org
+> Reported-by: kbuild test robot <lkp@intel.com>
+> Link: https://marc.info/?l=linux-mm&m=155384681109231&w=2
+> Signed-off-by: Nick Desaulniers <ndesaulniers@google.com>
 
-However, I found a couple minor issues with this patch:
+Reported-by: Randy Dunlap <rdunlap@infradead.org>
+see https://lore.kernel.org/linux-mm/20190328225107.ULwYw%25akpm@linux-foundation.org/T/#mee26c00158574326e807480fc39dfcbd7bebd5fd
 
-On 2019-03-29 9:27 a.m., Dan Williams wrote:
->  static void pci_p2pdma_release(void *data)
->  {
->  	struct pci_dev *pdev = data;
-> @@ -103,12 +110,12 @@ static void pci_p2pdma_release(void *data)
->  	if (!pdev->p2pdma)
->  		return;
+Did you test this?  kernel/gcov/gcc_4_7.c includes local "gcov.h",
+which includes <linux/module.h>, so why didn't that work or why
+does this patch work?
+
+thanks.
+
+> ---
+>  kernel/gcov/gcc_3_4.c | 1 +
+>  kernel/gcov/gcc_4_7.c | 1 +
+>  2 files changed, 2 insertions(+)
+> 
+> diff --git a/kernel/gcov/gcc_3_4.c b/kernel/gcov/gcc_3_4.c
+> index 801ee4b0b969..0eda59ef57df 100644
+> --- a/kernel/gcov/gcc_3_4.c
+> +++ b/kernel/gcov/gcc_3_4.c
+> @@ -16,6 +16,7 @@
+>   */
 >  
-> -	wait_for_completion(&pdev->p2pdma->devmap_ref_done);
-> -	percpu_ref_exit(&pdev->p2pdma->devmap_ref);
-> +	/* Flush and disable pci_alloc_p2p_mem() */
-> +	pdev->p2pdma = NULL;
-> +	synchronize_rcu();
+>  #include <linux/errno.h>
+> +#include <linux/module.h>
+>  #include <linux/slab.h>
+>  #include <linux/string.h>
+>  #include <linux/seq_file.h>
+> diff --git a/kernel/gcov/gcc_4_7.c b/kernel/gcov/gcc_4_7.c
+> index ec37563674d6..677851284fe2 100644
+> --- a/kernel/gcov/gcc_4_7.c
+> +++ b/kernel/gcov/gcc_4_7.c
+> @@ -13,6 +13,7 @@
+>   */
 >  
->  	gen_pool_destroy(pdev->p2pdma->pool);
+>  #include <linux/errno.h>
+> +#include <linux/module.h>
+>  #include <linux/slab.h>
+>  #include <linux/string.h>
+>  #include <linux/seq_file.h>
+> 
 
-I missed this on my initial review, but it became obvious when I tried
-to test the series: this is a NULL dereference seeing pdev->p2pdma was
-set to NULL a few lines up.
 
-When I fix this by storing p2pdma in a local variable, the patch set
-works and never seems to crash when I hot remove p2pdma memory.
-
->  void *pci_alloc_p2pmem(struct pci_dev *pdev, size_t size)
->  {
-> -	void *ret;
-> +	void *ret = NULL;
-> +	struct percpu_ref *ref;
->  
-> +	rcu_read_lock();
->  	if (unlikely(!pdev->p2pdma))
-> -		return NULL;
-
-Using RCU here makes sense to me, however I expect we should be using
-the proper rcu_assign_pointer(), rcu_dereference() and __rcu tag with
-pdev->p2pdma. If only to better document what's being protected with the
-new RCU calls.
-
-Logan
+-- 
+~Randy
 
