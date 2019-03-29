@@ -2,216 +2,156 @@ Return-Path: <SRS0=6kLG=SA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 325A6C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 08:45:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B8162C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 08:45:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DD2102082F
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 08:45:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DD2102082F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 77DDA2082F
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 08:45:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77DDA2082F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7DCA86B000C; Fri, 29 Mar 2019 04:45:27 -0400 (EDT)
+	id 2FB936B000D; Fri, 29 Mar 2019 04:45:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 78B3D6B000D; Fri, 29 Mar 2019 04:45:27 -0400 (EDT)
+	id 2A8F16B000E; Fri, 29 Mar 2019 04:45:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 653116B000E; Fri, 29 Mar 2019 04:45:27 -0400 (EDT)
+	id 19A076B0010; Fri, 29 Mar 2019 04:45:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 15A276B000C
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 04:45:27 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id f11so712892edq.18
-        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 01:45:27 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id B94006B000D
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 04:45:49 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id z98so753371ede.3
+        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 01:45:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=8yICnyqRhZJEB/kLZDbhqBVH8w5+wcJKR1sYb24dDog=;
-        b=PH2kE/utGSHoVD9+223wla5GBYvBZMJC+F2SJXpx1rW09oKFixSUlqIAenIxRs27Ek
-         2FrZyPYQg3YksfDtaTHMIpdc9bV/ceBXXcvV+0THf9nCTKCobHdCk1qh7naCPR1VeGrA
-         YkBfBfm4vg0oh5TbRX1tuUwpM5aOJBLNoUD9LWSEv+K14zqUvll7k11rf9oELlsBzkpE
-         npyIWjLD+p8CFifcjaFzC12+yFaMr/F4Wo3pycYHbdlWyR7bXRyRwMMDlQkC7fatKndh
-         8qezPjy0hdeTWfEpoViCcphLTDAfOGNsor3OZCznMuOwHwjQ4vku4+fgEZEJ3eCxNGDP
-         CZsQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAVDfjV9rWbQYyA5UlKYAgEzfoxlukBRNn16tJnADE04cAa98UR0
-	RBbvswIZTJ5f5IzwTD+8E1PhQuKETNVqpe3n+qv4AfjoXy4GKTWFAz9d5ojhFmFVBu3gx20yf/k
-	t4IoM9RxV8QPU96rdM0lbFDz0R7dQWjCremr99FC3NWxgPCmwAvjdiJrk0N0zKcU5Hg==
-X-Received: by 2002:a50:97d0:: with SMTP id f16mr29998153edb.287.1553849126636;
-        Fri, 29 Mar 2019 01:45:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx8IBMbfzEbbcX9mIrJ5qRzmTeufIT+sNKH1HVLke+0P+d8bPXHyGG4sxjGpohnvnXE249W
-X-Received: by 2002:a50:97d0:: with SMTP id f16mr29998107edb.287.1553849125856;
-        Fri, 29 Mar 2019 01:45:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553849125; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=nDQ5WbNOR0W3AwMYulKYCDyCajVsgohaxGV63Fl2mcE=;
+        b=cpVzPW0VL3R5aBdhyRcygcxUx7I8CpQrqXcf2T47Zd+7TlQL4vP+F3utHugwRklif4
+         ltilOLgjMbJQO2s6SspWWZxwcLlLU0fx3fWP7nhUET3r30B9gNeNe4aKqS24R8bVmvxN
+         zXwsbrP4WLTvoF4SjF/A+YD08E+nWOoc/g5yOp6IkeBqqHjt4l6lGtK7jYEYw0hoA0sg
+         cGYCENVAjPDKVajdVkqZ7pbbnYegeQ486mM2PWxpgpL79XifRuo63vGuY2TQZM3ycyVn
+         oRqYf+oHOQCxlNkRQrB3mYmitMg8zRQymT6YrXjyLQ18CaCgEXcM0TMF2em+ISUvbe3T
+         5kIA==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAX85KxCUa6G13/BsviP9Tg5j4j0RlDbBnvwMRJaKIXI74m7ulrh
+	V7qsvhQu5WmaHucXDW7qefgiIZiZ0Hgd0W9vr6/eo9uWA8h1Cpm0rQId5hvLsCewtgMuc+ip3Zr
+	qfxiXwkrVzfqo1lTCJkVfrBLKh5IApJKlQ2z9bZlfdNZDlT4AxyQgzV2GBe9D2RI=
+X-Received: by 2002:a50:eb0c:: with SMTP id y12mr29701832edp.237.1553849149312;
+        Fri, 29 Mar 2019 01:45:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwwIDClXZ7bsgRPJTdxpA8VGfYKFpL5gKsfJ0wxtu7SIPlbIQ+YUPO/dPkNN2flY2CKeKiY
+X-Received: by 2002:a50:eb0c:: with SMTP id y12mr29701794edp.237.1553849148456;
+        Fri, 29 Mar 2019 01:45:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553849148; cv=none;
         d=google.com; s=arc-20160816;
-        b=D4IYBlrexanRSLHL+iu1mUuV7UE7g8rFUk3r9Es7Y6MyXXPfiihSMWSNXsVVxH0Tio
-         j9bwfzLaqmiEDJj/b3F/Q/I79g7LhGKYd6d+nmX2yGI0XxOGzB2POtGRKSpAGr5Uc25Z
-         2WkMdtjYjfZjZTwAX9pkb9qkplV9aNa+GcK3oRvNLMf9GXDopQFh79BImggsHEVjf8p6
-         RCGpQjtIkZ8aHmHr6/bteNG/lGZq4GbmYVHi6mrbYhpEvvXarvHjUlUJB8FBAGOMWiVD
-         B91QCH1lFot+NAZJH0UGtI7Pt7kjlghTh4Dr1LaHuuaboHDxsizcCIXBCzDaTmVd01/N
-         tYnw==
+        b=fyK598U3s4TSo58wsDnr7SgZMDiEhW4svYoeYyqamDS+IsQi456yVUqi2bQMqyehqe
+         YMLW4aVUvOVaHLeW/GvROhY/O2zryY/Z6k73gSeGFCqxn27EaezzPE9g+6sshY1y1NSK
+         fQdH7MqWLRscG7BscArOnyT4Oiuic0CG2VV34ZVflZtsWpiIgJG98/RKbZh526kMY5qO
+         DKhpAZgPTc7BBYfuHesXHYd4/262J6D/ITNnkbnXphreOTug1d+gjMjXIm8WCfk0mn6V
+         dCw+PR6Hr/S8Yg+v++UrxTfs7res6PRv1jGxN+vpNOxiK5dhL7f5K5a+7DwVlrMDFNq8
+         XRdg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=8yICnyqRhZJEB/kLZDbhqBVH8w5+wcJKR1sYb24dDog=;
-        b=fgXvYfEUwC5WmAbRfhmdIHEzeHghIcTfaKWK6YCNy2LqiiUoRryO13B1cMQKsOF2F1
-         FpPQfhCgNWCp+eMIkgnI38IMtN6zn8KVJuaAkZ+n35eREtOGgF2qjp3Cl2oREtPqd2hd
-         EuZZS1tvAA8Gz7JbsXBBr0QgrTDD+au9NUdQfjbVkukpFJRRcbYQarAuJ9D78tfpeE/B
-         8wKwDRHf8zi0Z/RztQqlessblHWUe5ifJFyR21pTk/i1oHRH142MlQETLyScqs5K17q+
-         O6r3G60YJf++1fcI8rPYnK29eWp6jEw+zoT8h1wz0DL+rR82BkbyssqmcnYaL5WNSzA3
-         Oyyg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=nDQ5WbNOR0W3AwMYulKYCDyCajVsgohaxGV63Fl2mcE=;
+        b=ZgTfVN0aj1YKltwoRowABHlnOxt/eGLJ/A4SNFiA0AjjQvct8PJbbpa3QzhlmRTinC
+         A5CV9e8wI8m2M2SzY3jhl2W8n3gALHdRsSYOtKNf5O77DAi+BawJgY9hmqwcB1nXRjsw
+         K0+Y/zNfNtQkNgBfTFKO33TMtNwzimkRberbbI9X6q/aNyIZmOhZi78wou9LWbPIIfsB
+         PhbkIc9r66ilRrRT+ZA+zFjsSFv+/iu2PZW1W5/5s2UIbU+7AtkNKjVxRvbeSW7UPe5K
+         i0rUX7YGTXXKR4o8yzu0FKObbJFrXH1GWbsxULeCt1tzSIwErriXrXXFbhFltBDylL30
+         Zjwg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x7si573393ejb.77.2019.03.29.01.45.25
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Mar 2019 01:45:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from suse.de (nat.nue.novell.com. [2620:113:80c0:5::2222])
+        by mx.google.com with ESMTP id s4si678345edx.79.2019.03.29.01.45.48
+        for <linux-mm@kvack.org>;
+        Fri, 29 Mar 2019 01:45:48 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) client-ip=2620:113:80c0:5::2222;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 3EB75AF99;
-	Fri, 29 Mar 2019 08:45:25 +0000 (UTC)
-Subject: Re: [PATCH] mm/compaction: fix missed direct_compaction setting for
- non-direct compaction
-To: Yafang Shao <laoar.shao@gmail.com>, mhocko@suse.com,
- mgorman@techsingularity.net
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, shaoyafang@didiglobal.com
-References: <1553848599-6124-1-git-send-email-laoar.shao@gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <60f6a5fd-e4d3-b615-6f41-cc7dd16d183c@suse.cz>
-Date: Fri, 29 Mar 2019 09:45:24 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.2
+       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: by suse.de (Postfix, from userid 1000)
+	id A0F54473E; Fri, 29 Mar 2019 09:45:47 +0100 (CET)
+Date: Fri, 29 Mar 2019 09:45:47 +0100
+From: Oscar Salvador <osalvador@suse.de>
+To: David Hildenbrand <david@redhat.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com,
+	Jonathan.Cameron@huawei.com, anshuman.khandual@arm.com,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH 0/4] mm,memory_hotplug: allocate memmap from hotadded
+ memory
+Message-ID: <20190329084547.5k37xjwvkgffwajo@d104.suse.de>
+References: <20190328134320.13232-1-osalvador@suse.de>
+ <cc68ec6d-3ad2-a998-73dc-cb90f3563899@redhat.com>
+ <efb08377-ca5d-4110-d7ae-04a0d61ac294@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1553848599-6124-1-git-send-email-laoar.shao@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <efb08377-ca5d-4110-d7ae-04a0d61ac294@redhat.com>
+User-Agent: NeoMutt/20170421 (1.8.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/29/19 9:36 AM, Yafang Shao wrote:
-> direct_compaction is not initialized for kcompactd or manually triggered
-> compaction (via /proc or /sys).
+On Thu, Mar 28, 2019 at 04:31:44PM +0100, David Hildenbrand wrote:
+> Correct me if I am wrong. I think I was confused - vmemmap data is still
+> allocated *per memory block*, not for the whole added memory, correct?
 
-It doesn't need to, this style of initialization does guarantee that any
-field not explicitly mentioned is initialized to 0/NULL/false... and
-this pattern is used all over the kernel.
+No, vmemap data is allocated per memory-resource added.
+In case a DIMM, would be a DIMM, in case a qemu memory-device, would be that
+memory-device.
+That is counting that ACPI does not split the DIMM/memory-device in several memory
+resources.
+If that happens, then acpi_memory_enable_device() calls __add_memory for every
+memory-resource, which means that the vmemmap data will be allocated per
+memory-resource.
+I did not see this happening though, and I am not sure under which circumstances
+can happen (I have to study the ACPI code a bit more).
 
-> That may cause unexpected behavior in __compact_finished(), so we should
-> set direct_compaction to false explicitly for these compactions.
+The problem with allocating vmemmap data per memblock, is the fragmentation.
+Let us say you do the following:
 
-It's not necessary.
+* memblock granularity 128M
 
-> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> ---
->  mm/compaction.c | 5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 98f99f4..ba2b711 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -2400,13 +2400,12 @@ static void compact_node(int nid)
->  		.total_free_scanned = 0,
->  		.mode = MIGRATE_SYNC,
->  		.ignore_skip_hint = true,
-> +		.direct_compaction = false,
->  		.whole_zone = true,
->  		.gfp_mask = GFP_KERNEL,
->  	};
->  
-> -
->  	for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
-> -
->  		zone = &pgdat->node_zones[zoneid];
->  		if (!populated_zone(zone))
->  			continue;
-> @@ -2522,8 +2521,10 @@ static void kcompactd_do_work(pg_data_t *pgdat)
->  		.classzone_idx = pgdat->kcompactd_classzone_idx,
->  		.mode = MIGRATE_SYNC_LIGHT,
->  		.ignore_skip_hint = false,
-> +		.direct_compaction = false,
->  		.gfp_mask = GFP_KERNEL,
->  	};
-> +
->  	trace_mm_compaction_kcompactd_wake(pgdat->node_id, cc.order,
->  							cc.classzone_idx);
->  	count_compact_event(KCOMPACTD_WAKE);
-> 
+(qemu) object_add memory-backend-ram,id=ram0,size=256M
+(qemu) device_add pc-dimm,id=dimm0,memdev=ram0,node=1
+
+This will create two memblocks (2 sections), and if we allocate the vmemmap
+data for each corresponding section within it section(memblock), you only get
+126M contiguous memory.
+
+So, the taken approach is to allocate the vmemmap data corresponging to the
+whole DIMM/memory-device/memory-resource from the beginning of its memory.
+
+In the example from above, the vmemmap data for both sections is allocated from
+the beginning of the first section:
+
+memmap array takes 2MB per section, so 512 pfns.
+If we add 2 sections:
+
+[  pfn#0  ]  \
+[  ...    ]  |  vmemmap used for memmap array
+[pfn#1023 ]  /  
+
+[pfn#1024 ]  \
+[  ...    ]  |  used as normal memory
+[pfn#65536]  /
+
+So, out of 256M, we get 252M to use as a real memory, as 4M will be used for
+building the memmap array.
+
+Actually, it can happen that depending on how big a DIMM/memory-device is,
+the first/s memblock is fully used for the memmap array (of course, this
+can only be seen when adding a huge DIMM/memory-device).
+
+-- 
+Oscar Salvador
+SUSE L3
 
