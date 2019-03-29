@@ -2,182 +2,159 @@ Return-Path: <SRS0=6kLG=SA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B0B6C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 08:30:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 74440C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 08:36:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D5B842173C
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 08:30:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D5B842173C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 32DB72082F
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 08:36:58 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="axViJ2b9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 32DB72082F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7712D6B000E; Fri, 29 Mar 2019 04:30:13 -0400 (EDT)
+	id 06A4B6B0007; Fri, 29 Mar 2019 04:36:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7214C6B0010; Fri, 29 Mar 2019 04:30:13 -0400 (EDT)
+	id 017496B0008; Fri, 29 Mar 2019 04:36:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 637696B0266; Fri, 29 Mar 2019 04:30:13 -0400 (EDT)
+	id E6ED16B000C; Fri, 29 Mar 2019 04:36:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 15F796B000E
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 04:30:13 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id e55so717610edd.6
-        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 01:30:13 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A63796B0007
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 04:36:57 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id a90so1226661pla.11
+        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 01:36:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=KJmrHOp5U+9dZH7AuKYLjL1jq8R1gTGpv78lGxEGaCA=;
-        b=Xoa6P2ToG1HCgBPZG1JJBtGWv/cCuyVVx7RVDGMOq2EwsIIl0osCWXejEyiXX51PKB
-         8feZfzuUPClJ9OqyfM48HFzG1wO9oUfHgf8G8pD8OFdfup0EK6Ml1ZOSGl1DI5JjfkvM
-         JRPrnNMWLua8GndatkHt7wz+y0fTu0eQyyGQtjTR/EjYJOlIlYcglspIS2XVUkDO31nh
-         6llUszuXDHrWUaGWHv4RRBOpbsWK5GGWEKUboFxoHX6epP/FIMTFsONCqPH4Gr7xOeMc
-         oF5EmLxkiRXTbSm1Vvk+bI+U59GNFyWByvUvd1TsTZZmpKGANEulTxbPv8FzKsDXx/G9
-         782g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAUXjOZ3bnT/1apkixEBBfy8qrDtqIwBLdtEv16wxeJzo3mUA0/H
-	yA46aznNCUGYjjmJawTOFdqEus2rXUNiCPWfDQs7TQSnKulF+JIeSTjbBRdXoILULVAm/LrzF19
-	T6tDDOFPK9UwJaka5rsg/nnnbcphoIdv7eQqjvdeeV7t8hcgUW4qV1d18SlDjjUlvBA==
-X-Received: by 2002:a50:c201:: with SMTP id n1mr19578766edf.244.1553848212616;
-        Fri, 29 Mar 2019 01:30:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwBRDeoNBZC97VwEPZhxPqTth8uzUNr/JwQcvPgd+umPY7JHi2RuUCUSw+NlCSqHbDYUABp
-X-Received: by 2002:a50:c201:: with SMTP id n1mr19578729edf.244.1553848211807;
-        Fri, 29 Mar 2019 01:30:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553848211; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=l0b0WniSTnG+KNqcDNYZsKuv8WXhdpbpfgthVMuVfIA=;
+        b=EClavQ5WZF9ZC+aiNp2WdBj4m9pI2Gq7y8IDojlJeB7y7avmt3r2IjqkREa6Orx+8T
+         ppXjdqtju0D20wqnu429e7Mgk7vjOWIfwq3RKn/lUwmAofvDFvdchpOkCffUQVce5VQ0
+         rHLcAlrg8uCctnup7Z7DSfUOQGl8pb2AO1Ow3rXFTFPIRck5Z9jZ5LGBOpyu8seWw0ez
+         87ctGMypq2+78oYG624h4BMAmFE7/6EW+jXfsWPlL1Hqe49y5aN95aVAV09Mdm7glH2+
+         UYHUYUOf9yk2aC6chE62hQ1bOZFRquslhH17pZGErVDroy0ntAdFPj3n/0iy+aysEw4G
+         MkoQ==
+X-Gm-Message-State: APjAAAVIe07dwC6vDADtN1HGoyZxQmSGWKn/graYbAgoHbeaLDJErZrg
+	Ovr9cGsO7+gBM1vW58LFI6i5C2a9FHvyRFaMdGgXd0Dh9WOs09HtdqXdzmcv3DfdFz80hvyw72w
+	/4V5BJMED2mis82V8O2cO1NCm4m1mFBvj7xgmb35fw+qLwtKVC4sTQ2Uv4LdURO10Rw==
+X-Received: by 2002:a65:50c4:: with SMTP id s4mr3946170pgp.33.1553848617231;
+        Fri, 29 Mar 2019 01:36:57 -0700 (PDT)
+X-Received: by 2002:a65:50c4:: with SMTP id s4mr3946111pgp.33.1553848616196;
+        Fri, 29 Mar 2019 01:36:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553848616; cv=none;
         d=google.com; s=arc-20160816;
-        b=V1gs4FWaeg6yDDLAwtSwgptlqnj/42HjyotwBYAkdO0b/jF4pHOGyHJqyOXPGNgeLT
-         SvzzHImMBOXMf95E8JHQSgYbgsa46zm9pfu3ruuCCdEM5srawAM9cStKNwvkorfIAtmT
-         AtxvB388ZeG2X7FX9r+UAF0g4oTMjFIRsEeiBf56CIgFaZx1zI5wD1YYEv+sUce+kMKP
-         x8jWBt0IGGMvyCYcRbbFgA14Nd2WrnxqaJrkbihBk14eXkAbtrj8Un338fzcGRTIsjkD
-         VDEnz6Zfh3QKGbUiY2BxnvucVamrm/Ohh6U7zrq3OBQlTAtDYEs/0w33QJuVHzG77DHn
-         9GeQ==
+        b=aa3TFGkqCml3myhHE/MRREt3bsc6w2I2D0xgzNcBMPI2NQJoCC3us7qF6bFV6LzXPa
+         fcCe5YnxbC/mKJkGMl6dD4Ieq2N6YEh0l9eroFvSPQcov0KO08h2YleSWg7hRFkSrHgH
+         jpWNUo5KSrz7c3+kJh/REMQzGPEaM1+GzhF0zNtoX6z6O417/e60d3vAQJ6hZoJaWu+h
+         CWkuA1hXp5kYmeNx/uVi3zMJX5bzojyUQ1cg3lzQ4cxwGrD2sob6Cb4q1/IXoo0zo7kz
+         w/dcONtiCxjEb1IGMFFJ+wZHg4xaWxCRplinhS1VxKyB40iZ56kMGoaiSD/fnjW8c13G
+         wYwg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=KJmrHOp5U+9dZH7AuKYLjL1jq8R1gTGpv78lGxEGaCA=;
-        b=aZ1KYFGInjf7+dw5MtvYoflCs5WI2Bot3I4LfAK15zyqAqHsxKwgJ7krzyinjjqlxH
-         4b8sKmIc0+baPhvSHJHYJDAFxW793f86iM4z9BKg6SNBnjlNdSfHz5xdQlrDibZ+bAKJ
-         lWTVS2iKQ9hbjbao2xVFYhsauZWKaa6nHRvkV/4fdEbN7Mn24f8ZEEq3fN/07CP6Z1/8
-         fTvrRVMAejPFKrn/YziZTwr0wtE7vDF/dNQ0YXmA3q7jAbz4Eb8CU51fsZh0wJ9Roqhz
-         led8Fi/lNJhmdg9v2Q6uOyRlHqFTMmanez/ikFhvilzJo68OwkG+n5W/EqpAE/NOxzcW
-         QTuA==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=l0b0WniSTnG+KNqcDNYZsKuv8WXhdpbpfgthVMuVfIA=;
+        b=KxGqzuWbcqkcYY+jMX1AB4h/UWmOx2vxV9LFkk0Mox2N0gt5cWpcn8BMhabT/3MDrd
+         4iGq8C2o4cwK+KRJGiC6P2MxP0A6FpUrN1QQ+OhMuAKHeIEhR6mIyaIPgokAGj0XL+U9
+         kguVapmrqDiWP49N5d6xYrUI+h05Pe+OiqZy83y5TZ4RoVd7a9b4T6EufxPlAA+AonTQ
+         J+NyKYiH+rISrUR8zcqFJrquydr+yVucy2AEe8Sk2IWem6Du16WhZdwEZIIjIyGLgcsw
+         H2ZowqPF6F8n3WcgOybH/pc9nvFkK3Hrd6YEDSCsOymCLJcaWxdrLkKLK1q0lE130ie0
+         fJAA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from suse.de (charybdis-ext.suse.de. [195.135.221.2])
-        by mx.google.com with ESMTP id y7si560476ejc.246.2019.03.29.01.30.11
-        for <linux-mm@kvack.org>;
-        Fri, 29 Mar 2019 01:30:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) client-ip=195.135.221.2;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=axViJ2b9;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z18sor1526804plo.58.2019.03.29.01.36.56
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Fri, 29 Mar 2019 01:36:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: by suse.de (Postfix, from userid 1000)
-	id E08F6473C; Fri, 29 Mar 2019 09:30:10 +0100 (CET)
-Date: Fri, 29 Mar 2019 09:30:10 +0100
-From: Oscar Salvador <osalvador@suse.de>
-To: David Hildenbrand <david@redhat.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com,
-	Jonathan.Cameron@huawei.com, anshuman.khandual@arm.com,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH 0/4] mm,memory_hotplug: allocate memmap from hotadded
- memory
-Message-ID: <20190329083006.j7j54nq6pdiffe7v@d104.suse.de>
-References: <20190328134320.13232-1-osalvador@suse.de>
- <cc68ec6d-3ad2-a998-73dc-cb90f3563899@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <cc68ec6d-3ad2-a998-73dc-cb90f3563899@redhat.com>
-User-Agent: NeoMutt/20170421 (1.8.2)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=axViJ2b9;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id;
+        bh=l0b0WniSTnG+KNqcDNYZsKuv8WXhdpbpfgthVMuVfIA=;
+        b=axViJ2b9pnFeFBKZjWf2JzBZLlyHuvNb7OvBojLq31DECUw5haXNIaM7WmTEwPOZls
+         SaryHcfemugn58zQtILFDccpq2SNXSvvKhFDZiH/470uvXMRza7UPNKA1PSARqRx3LG4
+         Z9UMcPtAz7WCMidL9IPi87NOeXdFGKop+2lGIDBy2GNbXsJ0r+3buouzgTVPCOv+2+OF
+         g1/UENO0U7AiyjxPpmbCy4Pd22QXg9/yS/Q3EgNuKqTMKpmSInHv2BqVNB1QwDNAN+ML
+         GPm7Xtp30amckxbcA82bw2mLZEE2hfCl4BxkLFVrWEuoFW/qNdr2tsV9uknUu5bmfiEq
+         7t0w==
+X-Google-Smtp-Source: APXvYqy6N1FvwAkA58abZFYxacPBOpWzM6n3e9/THO6+TIvGLmq/Gjty2jFeDqzV0km1zg/BgFm/4Q==
+X-Received: by 2002:a17:902:8c89:: with SMTP id t9mr37126952plo.265.1553848615943;
+        Fri, 29 Mar 2019 01:36:55 -0700 (PDT)
+Received: from localhost.localdomain ([203.100.54.194])
+        by smtp.gmail.com with ESMTPSA id u14sm1920178pfm.66.2019.03.29.01.36.52
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Mar 2019 01:36:54 -0700 (PDT)
+From: Yafang Shao <laoar.shao@gmail.com>
+To: mhocko@suse.com,
+	vbabka@suse.cz,
+	mgorman@techsingularity.net
+Cc: akpm@linux-foundation.org,
+	linux-mm@kvack.org,
+	shaoyafang@didiglobal.com,
+	Yafang Shao <laoar.shao@gmail.com>
+Subject: [PATCH] mm/compaction: fix missed direct_compaction setting for non-direct compaction
+Date: Fri, 29 Mar 2019 16:36:39 +0800
+Message-Id: <1553848599-6124-1-git-send-email-laoar.shao@gmail.com>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 28, 2019 at 04:09:06PM +0100, David Hildenbrand wrote:
-> On 28.03.19 14:43, Oscar Salvador wrote:
-> > Hi,
-> > 
-> > since last two RFCs were almost unnoticed (thanks David for the feedback),
-> > I decided to re-work some parts to make it more simple and give it a more
-> > testing, and drop the RFC, to see if it gets more attention.
-> > I also added David's feedback, so now all users of add_memory/__add_memory/
-> > add_memory_resource can specify whether they want to use this feature or not.
-> 
-> Terrific, I will also definetly try to make use of that in the next
-> virito-mem prototype (looks like I'll finally have time to look into it
-> again).
+direct_compaction is not initialized for kcompactd or manually triggered
+compaction (via /proc or /sys).
+That may cause unexpected behavior in __compact_finished(), so we should
+set direct_compaction to false explicitly for these compactions.
 
-Great, I would like to see how this works there :-).
+Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+---
+ mm/compaction.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-> I guess one important thing to mention is that it is no longer possible
-> to remove memory in a different granularity it was added. I slightly
-> remember that ACPI code sometimes "reuses" parts of already added
-> memory. We would have to validate that this can indeed not be an issue.
-> 
-> drivers/acpi/acpi_memhotplug.c:
-> 
-> result = __add_memory(node, info->start_addr, info->length);
-> if (result && result != -EEXIST)
-> 	continue;
-> 
-> What would happen when removing this dimm (->remove_memory())
-
-Yeah, I see the point.
-Well, we are safe here because the vmemmap data is being allocated in
-every call to __add_memory/add_memory/add_memory_resource.
-
-E.g:
-
-* Being memblock granularity 128M
-
-# object_add memory-backend-ram,id=ram0,size=256M
-# device_add pc-dimm,id=dimm0,memdev=ram0,node=1
-
-I am not sure how ACPI gets to split the DIMM in memory resources
-(aka mem_device->res_list), but it does not really matter.
-For each mem_device->res_list item, we will make a call to __add_memory,
-which will allocate the vmemmap data for __that__ item, we do not care
-about the others.
-
-And when removing the DIMM, acpi_memory_remove_memory will make a call to
-__remove_memory() for each mem_device->res_list item, and that will take
-care of free up the vmemmap data.
-
-Now, with all my tests, ACPI always considered a DIMM a single memory resource,
-but maybe under different circumstances it gets to split it in different mem
-resources.
-But it does not really matter, as vmemmap data is being created and isolated in
-every call to __add_memory.
-
-> Also have a look at
-> 
-> arch/powerpc/platforms/powernv/memtrace.c
-> 
-> I consider it evil code. It will simply try to offline+unplug *some*
-> memory it finds in *some granularity*. Not sure if this might be
-> problematic-
-
-Heh, memtrace from powerpc ^^, I saw some oddities coming from there, but
-with my code though because I did not get to test that in concret.
-But I am interested to see if it can trigger something, so I will be testing
-that the next days.
-
-> Would there be any "safety net" for adding/removing memory in different
-> granularities?
-
-Uhm, I do not think we need it, or at least I cannot think of a case where this
-could cause trouble with the current design.
-Can you think of any? 
-
-Thanks David ;-)
-
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 98f99f4..ba2b711 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -2400,13 +2400,12 @@ static void compact_node(int nid)
+ 		.total_free_scanned = 0,
+ 		.mode = MIGRATE_SYNC,
+ 		.ignore_skip_hint = true,
++		.direct_compaction = false,
+ 		.whole_zone = true,
+ 		.gfp_mask = GFP_KERNEL,
+ 	};
+ 
+-
+ 	for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
+-
+ 		zone = &pgdat->node_zones[zoneid];
+ 		if (!populated_zone(zone))
+ 			continue;
+@@ -2522,8 +2521,10 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+ 		.classzone_idx = pgdat->kcompactd_classzone_idx,
+ 		.mode = MIGRATE_SYNC_LIGHT,
+ 		.ignore_skip_hint = false,
++		.direct_compaction = false,
+ 		.gfp_mask = GFP_KERNEL,
+ 	};
++
+ 	trace_mm_compaction_kcompactd_wake(pgdat->node_id, cc.order,
+ 							cc.classzone_idx);
+ 	count_compact_event(KCOMPACTD_WAKE);
 -- 
-Oscar Salvador
-SUSE L3
+1.8.3.1
 
