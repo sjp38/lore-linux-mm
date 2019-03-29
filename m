@@ -2,161 +2,166 @@ Return-Path: <SRS0=6kLG=SA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8ABD4C4360F
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 16:16:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 79D2FC10F05
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 16:51:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 545BF218A3
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 16:16:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 545BF218A3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 0494F218D3
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 16:51:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0494F218D3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CF12D6B000D; Fri, 29 Mar 2019 12:16:45 -0400 (EDT)
+	id 620DC6B000D; Fri, 29 Mar 2019 12:51:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CC7046B000E; Fri, 29 Mar 2019 12:16:45 -0400 (EDT)
+	id 5CE7E6B000E; Fri, 29 Mar 2019 12:51:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BB7E96B0010; Fri, 29 Mar 2019 12:16:45 -0400 (EDT)
+	id 4BDC86B0010; Fri, 29 Mar 2019 12:51:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D2366B000D
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 12:16:45 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id p5so1345168edh.2
-        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 09:16:45 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 274D86B000D
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 12:51:32 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id d131so2265560qkc.18
+        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 09:51:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=4mkhAVDAmSxhV6NHsQwW4naxzznaTX9qMP1ZYOoyAps=;
-        b=KYlX7nXQCWq3oOVt+RSHMWBeSFHN4zRygjxctxEQ2wMVar8NwkdHF4hiC3zoh7rlCF
-         wB+vbaCOXwPPx+MyOBhTGa9uhU2xovaGrmFwdBGaQ69H3Pye45LVaIyBMITddfYhWimc
-         gCYzT8PrWnj4gFEhMVegphcCWePTFqbnK0AVZ7MK1JBZ2tsyamkUQWdT6Nzm54WtksBz
-         QvqfEfyomLcNxHvWpscmttZ2vwfqAkImMo2RuEN9bMaICKiyTW8zG3/80ubdMZj/Btpa
-         +tHBSGNRvR01NQLitbsvxU2vkPT08PV4quC9NzZePNVCisWo+0SrBqZ7F9lq0K7k09al
-         GeDw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAXGN4IoKoAz4ngDhbFyk5ArapRTNhu14Lv5Uft0edUm1dA5hOHW
-	9hr3FIBR3A2sRJ9eU3fHhs/kQPtE+FaXUsZJ99i8m7wJHaPvpKb8MJZ734UJN7L0rOjly0ovB4b
-	mWAR5/6edNqLWXNQ9+tmYS4KLnI9cK1DBd3gJ+BVequguGOZ+vx5HXKoClvySQ2l1Xw==
-X-Received: by 2002:a50:a7a6:: with SMTP id i35mr32856446edc.96.1553876204947;
-        Fri, 29 Mar 2019 09:16:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyBzpodL3REfFqm9koS1WWTUYYhOPkSFEckVNUpBIHszfMIuf6pYdyiywyvuAUwkNCYCMsD
-X-Received: by 2002:a50:a7a6:: with SMTP id i35mr32856388edc.96.1553876203909;
-        Fri, 29 Mar 2019 09:16:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553876203; cv=none;
+         :in-reply-to;
+        bh=JnQtOm1yPrnbkzP6/W9hj/ZhgDKVeNsjW2OawjBvYTY=;
+        b=fa+freWA4gXK2DoNNj8xeoSlQFTXJN5j0zwdyOl5W+DLPAhmrTcvXv9JmwF/c6LqMa
+         02OYVI1veCTrI0LfV3qgOCLBZMF5s087x06IEdPAGwIWXtTHe5qdwW2sw/iwfVMfN7xE
+         qSxqrvyIz5QnqoeadOa8+8Badg0kguQp02ZG0wb/ze1cxG39bl8pPcmnL0uakkARc2Fg
+         b7tbglr2aReMJYERKoZYbJAoHOjWbLOrPHMgZzz9dICH8n3mgIsLv7bmTJd3V911DpSR
+         11WQrkWRenK4J6BdSCiHcIpDnHfE10zUO0rIxtAq32Zj4m+VS2g9nchtmK3JjOVyme3H
+         z2Cw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXLYMVaLeOS10BYq5EWSGqBuvFdDZWR7o6lFMbKvq650lJ2NCi3
+	QyfeXq/4pVoQg4lR6xeKV9Y0gTWFDfSd3PsKvUvW+7bEk5cRrcJw7uQbGTaboW9t2wUb8omjGpk
+	mrKQ97ptQRThLRxD/otuDvgSs/Bd31LyyHurgXYktkfyh5zY++xgBx9UelKtBfXPdUw==
+X-Received: by 2002:a0c:d217:: with SMTP id m23mr39595274qvh.154.1553878291857;
+        Fri, 29 Mar 2019 09:51:31 -0700 (PDT)
+X-Received: by 2002:a0c:d217:: with SMTP id m23mr39595230qvh.154.1553878291089;
+        Fri, 29 Mar 2019 09:51:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553878291; cv=none;
         d=google.com; s=arc-20160816;
-        b=qGDLu/Qa53Bvi0/4h+4TprHgYv4hU2GybdA2apyi/hp2iGCeeCN4GySg51NZQHcJXD
-         3EgvZTxSMXWVbSFlIWY6332B9tyedPDjNaS2/ZU16t3+FmuMcySlwJh4ii074CVCllsT
-         dY4wdxLjZlPhQI02h+FHxBgB0lu7LchlIrfJINPa9mLndTWwz2ojigbJjW2r1uIEHWz+
-         WXhhzJDNSXQCRlg/3jdKpbA5FZTm8zWw76gEVED1E7wNO79wqWOCwYAg7nyolmyrpow7
-         Y+t2Mk2p77Vm9wIPWN84wNMb9399JRAq6hGKQSKuJNsQZaIrrsyiWRBk1Cs4phWDSEHj
-         Z3+g==
+        b=kzA6uA0AUWIvJbD4kM72nkODWc7BFY0a8J8Xrx6GgzQbZtEtPta9VtFREsWOyyo1ZL
+         +5QdLLFGOcpfJbElcuSnO0T2OKNjBEHz6iKTp0t8PfoCJUG88WJ125p5HrxJ16sdnJ60
+         j7EWQDyT4Fsj4jZW9HV1IQ3wnNKRWUSQljzVp0imdJ3XzLCiemeJDoUVN4aLRmhB7esW
+         hxrSqJfJoFJK4ctbFRg6rIjCdhb0115ws9Eo5FxJtAdiPRaExzyC7ByC1OLIEeOyH/Hs
+         ujEdJwk9j5n3XpZND6JjHJwC0qc0ORkKz6vfumGOb3LymTdphVqS9f+PC13ZT+oDTJHW
+         8coA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=4mkhAVDAmSxhV6NHsQwW4naxzznaTX9qMP1ZYOoyAps=;
-        b=EBUNgmlFO65AJx8Mjt/blRcz0jnBRuSXi4lWKSp7HBOoMqnzX7odxVKZtm69LZtLag
-         mcsia2RGs4EZRh4bZER9rt1a0IxkKoM37ocMnDxw0+R4Jp+299kpFe+Dfdnqqq79a1WF
-         3RDHG3gH04POOW/0+54bPe8R46fLr5hEUtVqJZ6k0dRBhutZKjUF+wpDeTv9IRfbNBLx
-         qaQxzTkzX6SzYeE5rwdIDF710VsNYTPXpPapyAV2rfE4pZr8fmmvaGGzVUT+HunWNTR0
-         UItQ+5VNcg7OJZvLr1/MKbq/RSFR+hqsdFgNe1Yws/YUAijjAnddhbQY8JYKm5bVaaEQ
-         oRpQ==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=JnQtOm1yPrnbkzP6/W9hj/ZhgDKVeNsjW2OawjBvYTY=;
+        b=hrmLcGaYM1cOraBmEQ95W4fDlpaKsvCyNaFD2ME8rK3+XL2DkOyAU1IftCrdc4Bl3Q
+         9kcextHCGMgqXxfXPHWIGZV++XIjgJHdKqtA+0DUruc01Iplth5DLGaPwiqEA8ELQWBo
+         Qz6nydgvM01UtdZcXAERUllvIO6Tb+4wmNn9dZG/EQZurDkOmabXm2WauOFhfEmwlfSM
+         D2LNUEM1Vu3MhiIolIhSVOGO50Jzk0n//Icg6ZC5bG0I9Y3i6hF5oAotl4dzAman+F6n
+         8nWVp/fVO6yTTdEghWj3LGvkL79Un+7NjTKHeu7wPcwusABIa4sKTCf9EOzN38/qZGze
+         e7Qg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id e1si976414ejl.292.2019.03.29.09.16.43
-        for <linux-mm@kvack.org>;
-        Fri, 29 Mar 2019 09:16:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z6sor2757016qve.15.2019.03.29.09.51.30
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Fri, 29 Mar 2019 09:51:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id CA87980D;
-	Fri, 29 Mar 2019 09:16:42 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id D92FC3F68F;
-	Fri, 29 Mar 2019 09:16:40 -0700 (PDT)
-Date: Fri, 29 Mar 2019 16:16:38 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>, Qian Cai <cai@lca.pw>,
-	akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org,
-	rientjes@google.com, iamjoonsoo.kim@lge.com, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v4] kmemleak: survive in a low-memory situation
-Message-ID: <20190329161637.GC48010@arrakis.emea.arm.com>
-References: <20190327005948.24263-1-cai@lca.pw>
- <20190327084432.GA11927@dhcp22.suse.cz>
- <20190327172955.GB17247@arrakis.emea.arm.com>
- <20190327182158.GS10344@bombadil.infradead.org>
- <20190328145917.GC10283@arrakis.emea.arm.com>
- <20190329120237.GB17624@dhcp22.suse.cz>
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqxBgfBkI11ElcG4ShAYKMBjANr6IPgccDr6/JrHGDJDvwRxxD++gvYrD29fhyrttrIle3nwrw==
+X-Received: by 2002:a0c:a424:: with SMTP id w33mr41335410qvw.5.1553878290672;
+        Fri, 29 Mar 2019 09:51:30 -0700 (PDT)
+Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
+        by smtp.gmail.com with ESMTPSA id x201sm1403846qkb.92.2019.03.29.09.51.28
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 29 Mar 2019 09:51:29 -0700 (PDT)
+Date: Fri, 29 Mar 2019 12:51:26 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: David Hildenbrand <david@redhat.com>
+Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	pbonzini@redhat.com, lcapitulino@redhat.com, pagupta@redhat.com,
+	wei.w.wang@intel.com, yang.zhang.wz@gmail.com, riel@surriel.com,
+	dodgen@google.com, konrad.wilk@oracle.com, dhildenb@redhat.com,
+	aarcange@redhat.com, alexander.duyck@gmail.com
+Subject: Re: On guest free page hinting and OOM
+Message-ID: <20190329125034-mutt-send-email-mst@kernel.org>
+References: <20190329084058-mutt-send-email-mst@kernel.org>
+ <f6332928-d6a4-7a75-245d-2c534cf6e710@redhat.com>
+ <20190329104311-mutt-send-email-mst@kernel.org>
+ <7a3baa90-5963-e6e2-c862-9cd9cc1b5f60@redhat.com>
+ <f0ee075d-3e99-efd5-8c82-98d53b9f204f@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190329120237.GB17624@dhcp22.suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <f0ee075d-3e99-efd5-8c82-98d53b9f204f@redhat.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 29, 2019 at 01:02:37PM +0100, Michal Hocko wrote:
-> On Thu 28-03-19 14:59:17, Catalin Marinas wrote:
-> [...]
-> > >From 09eba8f0235eb16409931e6aad77a45a12bedc82 Mon Sep 17 00:00:00 2001
-> > From: Catalin Marinas <catalin.marinas@arm.com>
-> > Date: Thu, 28 Mar 2019 13:26:07 +0000
-> > Subject: [PATCH] mm: kmemleak: Use mempool allocations for kmemleak objects
+On Fri, Mar 29, 2019 at 04:45:58PM +0100, David Hildenbrand wrote:
+> On 29.03.19 16:37, David Hildenbrand wrote:
+> > On 29.03.19 16:08, Michael S. Tsirkin wrote:
+> >> On Fri, Mar 29, 2019 at 03:24:24PM +0100, David Hildenbrand wrote:
+> >>>
+> >>> We had a very simple idea in mind: As long as a hinting request is
+> >>> pending, don't actually trigger any OOM activity, but wait for it to be
+> >>> processed. Can be done using simple atomic variable.
+> >>>
+> >>> This is a scenario that will only pop up when already pretty low on
+> >>> memory. And the main difference to ballooning is that we *know* we will
+> >>> get more memory soon.
+> >>
+> >> No we don't.  If we keep polling we are quite possibly keeping the CPU
+> >> busy so delaying the hint request processing.  Again the issue it's a
 > > 
-> > This patch adds mempool allocations for struct kmemleak_object and
-> > kmemleak_scan_area as slightly more resilient than kmem_cache_alloc()
-> > under memory pressure. The patch also masks out all the gfp flags passed
-> > to kmemleak other than GFP_KERNEL|GFP_ATOMIC.
+> > You can always yield. But that's a different topic.
+> > 
+> >> tradeoff. One performance for the other. Very hard to know which path do
+> >> you hit in advance, and in the real world no one has the time to profile
+> >> and tune things. By comparison trading memory for performance is well
+> >> understood.
+> >>
+> >>
+> >>> "appended to guest memory", "global list of memory", malicious guests
+> >>> always using that memory like what about NUMA?
+> >>
+> >> This can be up to the guest. A good approach would be to take
+> >> a chunk out of each node and add to the hints buffer.
+> > 
+> > This might lead to you not using the buffer efficiently. But also,
+> > different topic.
+> > 
+> >>
+> >>> What about different page
+> >>> granularity?
+> >>
+> >> Seems like an orthogonal issue to me.
+> > 
+> > It is similar, yes. But if you support multiple granularities (e.g.
+> > MAX_ORDER - 1, MAX_ORDER - 2 ...) you might have to implement some sort
+> > of buddy for the buffer. This is different than just a list for each node.
+
+Right but we don't plan to do it yet.
+
+> Oh, and before I forget, different zones might of course also be a problem.
+
+I would just split the hint buffer evenly between zones.
+
 > 
-> Using mempool allocator is better than inventing its own implementation
-> but there is one thing to be slightly careful/worried about.
+> -- 
 > 
-> This allocator expects that somebody will refill the pool in a finit
-> time. Most users are OK with that because objects in flight are going
-> to return in the pool in a relatively short time (think of an IO) but
-> kmemleak is not guaranteed to comply with that AFAIU. Sure ephemeral
-> allocations are happening all the time so there should be some churn
-> in the pool all the time but if we go to an extreme where there is a
-> serious memory leak then I suspect we might get stuck here without any
-> way forward. Page/slab allocator would eventually back off even though
-> small allocations never fail because a user context would get killed
-> sooner or later but there is no fatal_signal_pending backoff in the
-> mempool alloc path.
-
-We could improve the mempool code slightly to refill itself (from some
-workqueue or during a mempool_alloc() which allows blocking) but it's
-really just a best effort for a debug tool under OOM conditions. It may
-be sufficient just to make the mempool size tunable (via
-/sys/kernel/debug/kmemleak).
-
-> Anyway, I believe this is a step in the right direction and should the
-> above ever materializes as a relevant problem we can tune the mempool
-> to backoff for _some_ callers or do something similar.
+> Thanks,
 > 
-> Btw. there is kmemleak_update_trace call in mempool_alloc, is this ok
-> for the kmemleak allocation path?
-
-It's not a problem, maybe only a small overhead in searching an rbtree
-in kmemleak but it cannot find anything since the kmemleak metadata is
-not tracked. And this only happens if a normal allocation fails and
-takes an existing object from the pool.
-
-I thought about passing the mempool back into kmemleak and checking
-whether it's one of the two pools it uses but concluded that it's not
-worth it.
-
--- 
-Catalin
+> David / dhildenb
 
