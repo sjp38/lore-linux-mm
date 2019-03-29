@@ -2,404 +2,246 @@ Return-Path: <SRS0=6kLG=SA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.4 required=3.0 tests=DATE_IN_PAST_06_12,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E5634C4360F
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 00:13:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4FE21C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 00:21:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 780362075E
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 00:13:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 780362075E
+	by mail.kernel.org (Postfix) with ESMTP id D6FC22173C
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 00:21:34 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D6FC22173C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 086AA6B0006; Thu, 28 Mar 2019 20:13:32 -0400 (EDT)
+	id 512A76B0006; Thu, 28 Mar 2019 20:21:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 034366B0007; Thu, 28 Mar 2019 20:13:31 -0400 (EDT)
+	id 4C3D56B0007; Thu, 28 Mar 2019 20:21:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E8D306B0008; Thu, 28 Mar 2019 20:13:31 -0400 (EDT)
+	id 3B2606B0008; Thu, 28 Mar 2019 20:21:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AA78B6B0006
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 20:13:31 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id e5so191047pfi.23
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 17:13:31 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 008C76B0006
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 20:21:33 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id n5so374840pgk.9
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 17:21:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=qAfC6FxTOZT20G8NgumKqJ7ugKUTLO1sPan67XkQjpk=;
-        b=Jai53pF3aguoDgc5GPdUQSfIBj5L8RLUOky7FYo2HE1Nh9fE12egIKh87Bg40F/QxU
-         109GusIn4v0DaVv1RNJR0h51L1iBsuR2PrXwUYiSsIqTrALwpDRlnv9jep2PIjV+jiWU
-         +RzuEgyzCaO0Q2EFYCdaOMUkETD+sTZbtQ5SrpmCv4tgJ9JVs7ZIPV7MUkRdj5qMtIit
-         aYf3/1v8KzRccY0WUx43CBZCNYA73m6+q9aytNg9+VhTw+SkMxZSYxVZuNZo+oi/nSA1
-         HYsjr46ht3FlzrbahwWhIY96vl+HMY1/MT/DI2r8HglGHYeHwqQvQswOx5x8umebqgIZ
-         jlNg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAW5ICPka1SJO+jbsz3p+V4F3ZJXuGUpVBR4V84lalqKJN06P+YC
-	mtGJv0iLq7PWogCQbmf3eJISoLpPkB0b9HhW2e5r96i/twIiMPl5CoxtlsNTBMnp8TAXNJqN9vr
-	6skzIANPvk49tOml/QsylOj2cDRAKC/wuqN7njBGNNqUwZm8FZhMpZkNsYAHNkDiYzg==
-X-Received: by 2002:a62:6587:: with SMTP id z129mr4656188pfb.88.1553818411283;
-        Thu, 28 Mar 2019 17:13:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwN7VsyuJUi4mmVJdW3Q1K5HcCtw7eNlD2cbXnVOfP/QLTSr5tcy1AKz+DJRVZ4YA4fjLKx
-X-Received: by 2002:a62:6587:: with SMTP id z129mr4656105pfb.88.1553818410174;
-        Thu, 28 Mar 2019 17:13:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553818410; cv=none;
+         :cc:subject:message-id:mime-version:content-disposition:user-agent;
+        bh=aOMMf2rScZt9jcF5X49QkbW00dukwf93knKs/58A1HM=;
+        b=i1CzyZHl1HzEuPcoGvUKvkTy+FWStflxyBFIWyMNh9igk8pe5josgYNOu94X1K2Fj2
+         3S5aDqzecvDe1relhAFcB02kZRZV3nmOPtBlweQzGA3Qszr9j9LzkdQFipOA+784MfYh
+         0rcJqeyrW+plPrEwE4IThOBAIstwxer7qTfiuIHAbswZotP9gqPHPDKfq7kaydd7aSX7
+         iiSjQ8nSnuV9/mI034xGkyb++cG7TyTuUEgOar/vkSh6SfYdUun5f2YTNSoA22hvDslD
+         tLITsChEb5/A1GoMZEIMxqk6WTgGeaS1pSOPtX9hwNqweXAbt59tb85F3er1cP553dRD
+         po+A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of lkp@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=lkp@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXXgrG5bAbn6FniL6e0SnC+ScGZvUEwHjlmatlB0boB0boCcsno
+	KscOHH3YIq3CCp/Xm2NCsNlYi1uavkN4GoUQBDtloZNurLi/gQBBOa+3Aif+tFQPd1qxXuujBQb
+	NsMLJmTy1JRL/aF+rhadYng033DtUZhyyV+Ffoleyi2GjCOUG/0r6P6xhEez5UFATpA==
+X-Received: by 2002:a65:4bcc:: with SMTP id p12mr43149098pgr.187.1553818893204;
+        Thu, 28 Mar 2019 17:21:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy329vFPxqrpvMbCg6uEG9ukGRZ5JddcTSwJsJfaMOW7aWgIXEH5gNy78ZCBL7X4FmGy38N
+X-Received: by 2002:a65:4bcc:: with SMTP id p12mr43149021pgr.187.1553818892239;
+        Thu, 28 Mar 2019 17:21:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553818892; cv=none;
         d=google.com; s=arc-20160816;
-        b=gqNEkEV5H0YwAm+isXr5QiC2jmE2r0gyUwCC9vIvRtqYTaR6UpipDrT4LhNESUiQXZ
-         5160ZVos4tINNaMa9cWpphhuLfg+Ks6Stp4lkMrBQAUC2oxJhGV75oSJTf++sKRPSps3
-         VtJTFzTdGkvWQzcwLFOFc5Dr9eicQiAS89LqI4BnDLEvc3wY4zhWl+dY6Xf4FhHJ1zcW
-         bSYpcNgPaMaYEp2ewnbvoRWnlV6biSLNW1TovGCK1LlXuiB6qDzDCJ+4bYKBjEzuUAYq
-         Ya98khDEmY9oyOTJ0MdlTpI7P5FRQY+DU1PVOZvCk0NWytieV4fwpxVQGOt+XcLWXWLI
-         cjxQ==
+        b=Oy1YRV767g70Gqmyl/qDZy3aOTbmXi2AG7V5k/d6WQz7LmxC/xG5nqNLRugg+YyMJe
+         BubfXcRBAeqCXoygaivKTKseztwD34B7BGo9I3bqPWFllTmMgpnNTFj8YgUIcjnSdBvp
+         b9a9HgDMAhK7huhyAKwlhwjwJl5asTILspOxcA/oZm1ljrXlAPE7DCZJd7nWbBPpveOB
+         Ipku58ZySkagtn0PnKXsiHrtALwQUa0Hn6BF19W8AieAIqQGhMDVEoPAtWpoO5u76+iv
+         Fweo3OVmO69IKO6nYmddywAtJiXqK5tC1EoUpPKIWhyXX2DNqqIzUwX1oZMFK6ZYZVcc
+         PUHA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
+        h=user-agent:content-disposition:mime-version:message-id:subject:cc
          :to:from:date;
-        bh=qAfC6FxTOZT20G8NgumKqJ7ugKUTLO1sPan67XkQjpk=;
-        b=SAMbN9W2WWJK6db2VRe5OoOp7sEKRcbn2ltCckN0cn6MAfVPGe4uVPcWArpedbjkmw
-         oj05+H+ajdqdRE7L5p+IA5Dy0ZWBpIHr2lsV0armm2FBVD/qD/2n4OWZBWceCTFxaVDX
-         +kD4y4e6ortFU3uS2RJ1OyCwIDzfxiklBIxlkP4w3RWHWpfyaIx8Ym+iQo+uYGzJIEfy
-         nADnzBRHFai5ylH3b4+MSQWJD/X7N8BXnTHvt41IATwj0xYdUTmI4gcFj0YjY6U2RS36
-         ncw7Lrben1vkVh/I6aCU2YMZAqfLZUyLM33JcRVjpC9pb4CyyCS3HoNsNJTHIMCDGyTC
-         S4ug==
+        bh=aOMMf2rScZt9jcF5X49QkbW00dukwf93knKs/58A1HM=;
+        b=0x8RQG+FPdGQ41Okhk4GMlkGvYqsRtzFknm0uaHNQdpU/4TyWepwwHatTmLnriveZl
+         jV8bxFoLv5IYxJJ4iU076FhGw8a9OsoX4R9YnEuHoLw9342KLG8GP0Ib5ixftuhYR/XH
+         TN61qjwMDjxH2TeJJHFC/oyAC2kL5pt18FP6vN2F4/ycXtsGa4IcX58JH3Kct3lIrljK
+         HFQgUld2rzjJD/BrzmjJsEV3oVr00N+mTRe7zbnqpiKIQW9b4AheaArBzqWJ9/HxSaFG
+         +j7iY9yUblflkoJ5iZCJpA88D8KY8ad5ZIcEK5MLvLDRMyWNOQ1W6IpKtdtAE/TjexQ+
+         6mvA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       spf=pass (google.com: domain of lkp@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=lkp@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id u33si500915pga.341.2019.03.28.17.13.29
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id m18si484241pgv.396.2019.03.28.17.21.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Mar 2019 17:13:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        Thu, 28 Mar 2019 17:21:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of lkp@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       spf=pass (google.com: domain of lkp@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=lkp@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: UNKNOWN
 X-Amp-Original-Verdict: FILE UNKNOWN
 X-Amp-File-Uploaded: False
-Received: from orsmga005.jf.intel.com ([10.7.209.41])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 28 Mar 2019 17:13:29 -0700
+Received: from fmsmga003.fm.intel.com ([10.253.24.29])
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 28 Mar 2019 17:21:31 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,282,1549958400"; 
-   d="scan'208";a="311314120"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga005.jf.intel.com with ESMTP; 28 Mar 2019 17:13:28 -0700
-Date: Thu, 28 Mar 2019 09:12:21 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: jglisse@redhat.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+   d="gz'50?scan'50,208,50";a="144776403"
+Received: from lkp-server01.sh.intel.com (HELO lkp-server01) ([10.239.97.150])
+  by FMSMGA003.fm.intel.com with ESMTP; 28 Mar 2019 17:21:30 -0700
+Received: from kbuild by lkp-server01 with local (Exim 4.89)
+	(envelope-from <lkp@intel.com>)
+	id 1h9fGz-000F54-Q3; Fri, 29 Mar 2019 08:21:29 +0800
+Date: Fri, 29 Mar 2019 08:20:51 +0800
+From: kbuild test robot <lkp@intel.com>
+To: George Spelvin <lkml@sdf.org>
+Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>,
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dan Carpenter <dan.carpenter@oracle.com>,
-	Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v2 06/11] mm/hmm: improve driver API to work and wait
- over a range v2
-Message-ID: <20190328161221.GE31324@iweiny-DESK2.sc.intel.com>
-References: <20190325144011.10560-1-jglisse@redhat.com>
- <20190325144011.10560-7-jglisse@redhat.com>
+	Linux Memory Management List <linux-mm@kvack.org>
+Subject: [mmotm:master 153/210] lib/list_sort.c:17:36: warning: 'pure'
+ attribute ignored
+Message-ID: <201903290850.STEBcRKb%lkp@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: multipart/mixed; boundary="BOKacYhQ+x31HxR3"
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190325144011.10560-7-jglisse@redhat.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+User-Agent: Mutt/1.5.23 (2014-03-12)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 25, 2019 at 10:40:06AM -0400, Jerome Glisse wrote:
-> From: Jérôme Glisse <jglisse@redhat.com>
-> 
-> A common use case for HMM mirror is user trying to mirror a range
-> and before they could program the hardware it get invalidated by
-> some core mm event. Instead of having user re-try right away to
-> mirror the range provide a completion mechanism for them to wait
-> for any active invalidation affecting the range.
-> 
-> This also changes how hmm_range_snapshot() and hmm_range_fault()
-> works by not relying on vma so that we can drop the mmap_sem
-> when waiting and lookup the vma again on retry.
-> 
-> Changes since v1:
->     - squashed: Dan Carpenter: potential deadlock in nonblocking code
-> 
-> Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
-> Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: John Hubbard <jhubbard@nvidia.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Dan Carpenter <dan.carpenter@oracle.com>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> ---
->  include/linux/hmm.h | 208 ++++++++++++++---
->  mm/hmm.c            | 528 +++++++++++++++++++++-----------------------
->  2 files changed, 428 insertions(+), 308 deletions(-)
-> 
-> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-> index e9afd23c2eac..79671036cb5f 100644
-> --- a/include/linux/hmm.h
-> +++ b/include/linux/hmm.h
-> @@ -77,8 +77,34 @@
->  #include <linux/migrate.h>
->  #include <linux/memremap.h>
->  #include <linux/completion.h>
-> +#include <linux/mmu_notifier.h>
->  
-> -struct hmm;
-> +
-> +/*
-> + * struct hmm - HMM per mm struct
-> + *
-> + * @mm: mm struct this HMM struct is bound to
-> + * @lock: lock protecting ranges list
-> + * @ranges: list of range being snapshotted
-> + * @mirrors: list of mirrors for this mm
-> + * @mmu_notifier: mmu notifier to track updates to CPU page table
-> + * @mirrors_sem: read/write semaphore protecting the mirrors list
-> + * @wq: wait queue for user waiting on a range invalidation
-> + * @notifiers: count of active mmu notifiers
-> + * @dead: is the mm dead ?
-> + */
-> +struct hmm {
-> +	struct mm_struct	*mm;
-> +	struct kref		kref;
-> +	struct mutex		lock;
-> +	struct list_head	ranges;
-> +	struct list_head	mirrors;
-> +	struct mmu_notifier	mmu_notifier;
-> +	struct rw_semaphore	mirrors_sem;
-> +	wait_queue_head_t	wq;
-> +	long			notifiers;
-> +	bool			dead;
-> +};
->  
->  /*
->   * hmm_pfn_flag_e - HMM flag enums
-> @@ -155,6 +181,38 @@ struct hmm_range {
->  	bool			valid;
->  };
->  
-> +/*
-> + * hmm_range_wait_until_valid() - wait for range to be valid
-> + * @range: range affected by invalidation to wait on
-> + * @timeout: time out for wait in ms (ie abort wait after that period of time)
-> + * Returns: true if the range is valid, false otherwise.
-> + */
-> +static inline bool hmm_range_wait_until_valid(struct hmm_range *range,
-> +					      unsigned long timeout)
-> +{
-> +	/* Check if mm is dead ? */
-> +	if (range->hmm == NULL || range->hmm->dead || range->hmm->mm == NULL) {
-> +		range->valid = false;
-> +		return false;
-> +	}
-> +	if (range->valid)
-> +		return true;
-> +	wait_event_timeout(range->hmm->wq, range->valid || range->hmm->dead,
-> +			   msecs_to_jiffies(timeout));
-> +	/* Return current valid status just in case we get lucky */
-> +	return range->valid;
-> +}
-> +
-> +/*
-> + * hmm_range_valid() - test if a range is valid or not
-> + * @range: range
-> + * Returns: true if the range is valid, false otherwise.
-> + */
-> +static inline bool hmm_range_valid(struct hmm_range *range)
-> +{
-> +	return range->valid;
-> +}
-> +
->  /*
->   * hmm_pfn_to_page() - return struct page pointed to by a valid HMM pfn
->   * @range: range use to decode HMM pfn value
-> @@ -357,51 +415,133 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror);
->  
->  
->  /*
-> - * To snapshot the CPU page table, call hmm_vma_get_pfns(), then take a device
-> - * driver lock that serializes device page table updates, then call
-> - * hmm_vma_range_done(), to check if the snapshot is still valid. The same
-> - * device driver page table update lock must also be used in the
-> - * hmm_mirror_ops.sync_cpu_device_pagetables() callback, so that CPU page
-> - * table invalidation serializes on it.
-> + * To snapshot the CPU page table you first have to call hmm_range_register()
-> + * to register the range. If hmm_range_register() return an error then some-
-> + * thing is horribly wrong and you should fail loudly. If it returned true then
-> + * you can wait for the range to be stable with hmm_range_wait_until_valid()
-> + * function, a range is valid when there are no concurrent changes to the CPU
-> + * page table for the range.
-> + *
-> + * Once the range is valid you can call hmm_range_snapshot() if that returns
-> + * without error then you can take your device page table lock (the same lock
-> + * you use in the HMM mirror sync_cpu_device_pagetables() callback). After
-> + * taking that lock you have to check the range validity, if it is still valid
-> + * (ie hmm_range_valid() returns true) then you can program the device page
-> + * table, otherwise you have to start again. Pseudo code:
-> + *
-> + *      mydevice_prefault(mydevice, mm, start, end)
-> + *      {
-> + *          struct hmm_range range;
-> + *          ...
->   *
-> - * YOU MUST CALL hmm_vma_range_done() ONCE AND ONLY ONCE EACH TIME YOU CALL
-> - * hmm_range_snapshot() WITHOUT ERROR !
-> + *          ret = hmm_range_register(&range, mm, start, end);
-> + *          if (ret)
-> + *              return ret;
->   *
-> - * IF YOU DO NOT FOLLOW THE ABOVE RULE THE SNAPSHOT CONTENT MIGHT BE INVALID !
-> - */
-> -long hmm_range_snapshot(struct hmm_range *range);
-> -bool hmm_vma_range_done(struct hmm_range *range);
-> -
-> -
-> -/*
-> - * Fault memory on behalf of device driver. Unlike handle_mm_fault(), this will
-> - * not migrate any device memory back to system memory. The HMM pfn array will
-> - * be updated with the fault result and current snapshot of the CPU page table
-> - * for the range.
-> + *          down_read(mm->mmap_sem);
-> + *      again:
-> + *
-> + *          if (!hmm_range_wait_until_valid(&range, TIMEOUT)) {
-> + *              up_read(&mm->mmap_sem);
-> + *              hmm_range_unregister(range);
-> + *              // Handle time out, either sleep or retry or something else
-> + *              ...
-> + *              return -ESOMETHING; || goto again;
-> + *          }
-> + *
-> + *          ret = hmm_range_snapshot(&range); or hmm_range_fault(&range);
-> + *          if (ret == -EAGAIN) {
-> + *              down_read(mm->mmap_sem);
-> + *              goto again;
-> + *          } else if (ret == -EBUSY) {
-> + *              goto again;
-> + *          }
-> + *
-> + *          up_read(&mm->mmap_sem);
-> + *          if (ret) {
-> + *              hmm_range_unregister(range);
-> + *              return ret;
-> + *          }
-> + *
-> + *          // It might not have snap-shoted the whole range but only the first
-> + *          // npages, the return values is the number of valid pages from the
-> + *          // start of the range.
-> + *          npages = ret;
->   *
-> - * The mmap_sem must be taken in read mode before entering and it might be
-> - * dropped by the function if the block argument is false. In that case, the
-> - * function returns -EAGAIN.
-> + *          ...
->   *
-> - * Return value does not reflect if the fault was successful for every single
-> - * address or not. Therefore, the caller must to inspect the HMM pfn array to
-> - * determine fault status for each address.
-> + *          mydevice_page_table_lock(mydevice);
-> + *          if (!hmm_range_valid(range)) {
-> + *              mydevice_page_table_unlock(mydevice);
-> + *              goto again;
-> + *          }
->   *
-> - * Trying to fault inside an invalid vma will result in -EINVAL.
-> + *          mydevice_populate_page_table(mydevice, range, npages);
-> + *          ...
-> + *          mydevice_take_page_table_unlock(mydevice);
-> + *          hmm_range_unregister(range);
->   *
-> - * See the function description in mm/hmm.c for further documentation.
-> + *          return 0;
-> + *      }
-> + *
-> + * The same scheme apply to hmm_range_fault() (ie replace hmm_range_snapshot()
-> + * with hmm_range_fault() in above pseudo code).
-> + *
-> + * YOU MUST CALL hmm_range_unregister() ONCE AND ONLY ONCE EACH TIME YOU CALL
-> + * hmm_range_register() AND hmm_range_register() RETURNED TRUE ! IF YOU DO NOT
-> + * FOLLOW THIS RULE MEMORY CORRUPTION WILL ENSUE !
->   */
-> +int hmm_range_register(struct hmm_range *range,
-> +		       struct mm_struct *mm,
-> +		       unsigned long start,
-> +		       unsigned long end);
-> +void hmm_range_unregister(struct hmm_range *range);
 
-The above comment is great!  But I think you also need to update
-Documentation/vm/hmm.rst:hmm_range_snapshot() to show the use of
-hmm_range_[un]register()
+--BOKacYhQ+x31HxR3
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-> +long hmm_range_snapshot(struct hmm_range *range);
->  long hmm_range_fault(struct hmm_range *range, bool block);
->  
-> +/*
-> + * HMM_RANGE_DEFAULT_TIMEOUT - default timeout (ms) when waiting for a range
-> + *
-> + * When waiting for mmu notifiers we need some kind of time out otherwise we
-> + * could potentialy wait for ever, 1000ms ie 1s sounds like a long time to
-> + * wait already.
-> + */
-> +#define HMM_RANGE_DEFAULT_TIMEOUT 1000
-> +
->  /* This is a temporary helper to avoid merge conflict between trees. */
-> +static inline bool hmm_vma_range_done(struct hmm_range *range)
-> +{
-> +	bool ret = hmm_range_valid(range);
-> +
-> +	hmm_range_unregister(range);
-> +	return ret;
-> +}
-> +
->  static inline int hmm_vma_fault(struct hmm_range *range, bool block)
->  {
-> -	long ret = hmm_range_fault(range, block);
-> -	if (ret == -EBUSY)
-> -		ret = -EAGAIN;
-> -	else if (ret == -EAGAIN)
-> -		ret = -EBUSY;
-> -	return ret < 0 ? ret : 0;
-> +	long ret;
-> +
-> +	ret = hmm_range_register(range, range->vma->vm_mm,
-> +				 range->start, range->end);
-> +	if (ret)
-> +		return (int)ret;
-> +
-> +	if (!hmm_range_wait_until_valid(range, HMM_RANGE_DEFAULT_TIMEOUT)) {
-> +		up_read(&range->vma->vm_mm->mmap_sem);
-> +		return -EAGAIN;
-> +	}
-> +
-> +	ret = hmm_range_fault(range, block);
-> +	if (ret <= 0) {
-> +		if (ret == -EBUSY || !ret) {
-> +			up_read(&range->vma->vm_mm->mmap_sem);
-> +			ret = -EBUSY;
-> +		} else if (ret == -EAGAIN)
-> +			ret = -EBUSY;
-> +		hmm_range_unregister(range);
-> +		return ret;
-> +	}
-> +	return 0;
+tree:   git://git.cmpxchg.org/linux-mmotm.git master
+head:   ecb428ddd7449905d371074f509d08475eef43f0
+commit: 14ce92c1cbed4da6460b285f83e2348cf2416e45 [153/210] lib/list_sort: simplify and remove MAX_LIST_LENGTH_BITS
+config: riscv-tinyconfig (attached as .config)
+compiler: riscv64-linux-gcc (GCC) 8.1.0
+reproduce:
+        wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+        chmod +x ~/bin/make.cross
+        git checkout 14ce92c1cbed4da6460b285f83e2348cf2416e45
+        # save the attached .config to linux build tree
+        GCC_VERSION=8.1.0 make.cross ARCH=riscv 
 
-Is hmm_vma_fault() also temporary to keep the nouveau driver working?  It looks
-like it to me.
+All warnings (new ones prefixed by >>):
 
-This and hmm_vma_range_done() above are part of the old interface which is in
-the Documentation correct?  As stated above we should probably change that
-documentation with this patch to ensure no new users of these 2 functions
-appear.
+>> lib/list_sort.c:17:36: warning: 'pure' attribute ignored [-Wattributes]
+      struct list_head const *, struct list_head const *);
+                                       ^~~~~~~~~
 
-Ira
+vim +/pure +17 lib/list_sort.c
+
+     9	
+    10	/*
+    11	 * By declaring the compare function with the __pure attribute, we give
+    12	 * the compiler more opportunity to optimize.  Ideally, we'd use this in
+    13	 * the prototype of list_sort(), but that would involve a lot of churn
+    14	 * at all call sites, so just cast the function pointer passed in.
+    15	 */
+    16	typedef int __pure __attribute__((nonnull(2,3))) (*cmp_func)(void *,
+  > 17			struct list_head const *, struct list_head const *);
+    18	
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+
+--BOKacYhQ+x31HxR3
+Content-Type: application/gzip
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
+
+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
+Kpvu+iIeVp90PX4dyNYW/x8AIctyIzwAAA==
+
+--BOKacYhQ+x31HxR3--
 
