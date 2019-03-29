@@ -2,153 +2,197 @@ Return-Path: <SRS0=6kLG=SA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9031CC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 03:59:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 54994C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 04:02:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1BE00206DD
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 03:59:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EFC6D206DD
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 04:02:29 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="EkcTR7Mh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1BE00206DD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="dVN34tq6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EFC6D206DD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7C7E96B0007; Thu, 28 Mar 2019 23:59:58 -0400 (EDT)
+	id A0E2A6B0007; Fri, 29 Mar 2019 00:02:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 776CE6B0008; Thu, 28 Mar 2019 23:59:58 -0400 (EDT)
+	id 998656B0008; Fri, 29 Mar 2019 00:02:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 667376B000C; Thu, 28 Mar 2019 23:59:58 -0400 (EDT)
+	id 85F7A6B000C; Fri, 29 Mar 2019 00:02:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 488C46B0007
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 23:59:58 -0400 (EDT)
-Received: by mail-yw1-f69.google.com with SMTP id a75so731008ywh.8
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 20:59:58 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 60FF86B0007
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 00:02:29 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id v18so1064696qtk.5
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 21:02:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=sodBEomwfUZX4txDWtjSVMZxEBAIq/0o8L2NFyjYD0g=;
-        b=L1Uxu7AGAqbk5u21f0hxfWSrWjp1metzCgqvJUWigKPHXmYNC0y/faGDgAmwz6lmlT
-         ifzLp7ghIGqdpQtPvWOvmtTqpazTeGV89H/0WMI5UDq8F+tCksl3WLyLvAvtQTG+uHES
-         1NEXbmVGcwdVrUdI82KY5Uk/ZNIxNceVnjEVltYaPcHP/lGY0/ie8GPyq1M53S09apHs
-         tzPfB8cXpgstWd7LXgJ+xcZXaMhGvYMFTsDWUMiVsgfs43kzM3Y7I5yTebtD18ZhsmHr
-         9yqYDeHxGddga7nFatEMdJTkltv3edKmiRVZor+a12nedGF1TcXnBA0lVyfWittyYcsq
-         aqmQ==
-X-Gm-Message-State: APjAAAXjRjxQ9GbOH7dRLtakuPfDdXx9aPQ/23UXo5waom5eZSGlKZx4
-	zdzR8bCxh7OoXCZAjypmj8SLVboQsy04zh83ONNqm4Jqz2HZye58i+Nq6x/1/BFIfJywdTinkGC
-	NK4GMn7pF+vO2L/6iitHzaFG2Z5oRLVeec8GtfOcxWGOHv1+WHmq6XiyuZNKVGwHZJQ==
-X-Received: by 2002:a25:50d7:: with SMTP id e206mr1301266ybb.266.1553831997979;
-        Thu, 28 Mar 2019 20:59:57 -0700 (PDT)
-X-Received: by 2002:a25:50d7:: with SMTP id e206mr1301236ybb.266.1553831997103;
-        Thu, 28 Mar 2019 20:59:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553831997; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=u01ttpO1CNLjAEDYksWHTKEjyHSBV2Sue3sQFqhEFl4=;
+        b=VPpNqc9BhmlHrd5mmWA47IrT4TgPyOy8JH/B0gJ5jbIzh+7hWITQ6dcG69CezEKWZl
+         cHXwccjV/DqhEn1cEHpHt1p/8cLmC1c2nxV/QJcvuo7yfuZikbrEwL1+fSx+t639NZ3F
+         yUvnu90UaqUYeXvFEVCKslazcCopgeYzNZcfbIKxqGA3XJCmZ/VNM6DKoHybl/3RP23l
+         feFYV3Nh758vy9pVFM1p0DtjzckRfuzvWTJL6ehlE4zCZOqmWdUuIm06+tfOkqhjafRm
+         Q/9qNaQdXtMlDW/EUbeKdQ1cJ3kYLGBGK34iMhLDwJLwp6VWRpIjgUiuhYatWYfkYY8R
+         VOUg==
+X-Gm-Message-State: APjAAAUQO2K78auY3NiEPcHyia2dUGONZhhvo8e0Q/iDGvHyxMr44iIT
+	Qfiq0d/ZFzEPFp54YCANIALc4MDocezIcL0QqMpdMA3r6mQPLUVYzBVOAUhPQafCkQNDFFI5nrI
+	q0aA1rfQXv3NwKjN1ADSnbnmy73+v3DHYGiP25cDOpnmATRM8sugbcjYgljmuuCBoLg==
+X-Received: by 2002:a0c:897b:: with SMTP id 56mr38365201qvq.55.1553832149059;
+        Thu, 28 Mar 2019 21:02:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw9ccE78btTfIosgwf0lsUlyRRctR7/puKjkbNti1FHkH4y+DFxYhPxIgprmG2rdsbJDjbx
+X-Received: by 2002:a0c:897b:: with SMTP id 56mr38365143qvq.55.1553832147903;
+        Thu, 28 Mar 2019 21:02:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553832147; cv=none;
         d=google.com; s=arc-20160816;
-        b=RVGsZO3U3tI6EDiHS44bWrjiY8MKM4SiDTmUljW6yVbeiTnSvwZHQvBGF34unyFWyk
-         zmQfTs8CEjM2N8xURSslVGX7oZd03QafhKafuAnwqUH5jEaFVfvq7AMSfv4wqEO83LDK
-         j2MuSGlnSLz+7nRa9/WV3M+kIZgmSgRB0ktv7rJ4xiXXvPofCH611a4j36vqJc473R/Y
-         4l20dq5pkgMUZbhu+lAFXTwwFIaDaXzj1xbvvECWiBs2kvpT4mW528WJyd9D26yCpJZg
-         FYgPER9dCCxWRa79N86/a3OlPZIAshA303gMEX03EWE17MKPiwy5bBxEURVsX0ivTW/x
-         femA==
+        b=XjMe6PtkLTaLkBxBVnyqL/XI7BtxcuaLHPKbLyW3xjD9rUMXc8/Jq6HVWA1EVyKHZE
+         4zCKH2DtpRAaZb30e7zBPeyHlSJzqoPEbFX+n3Cs+pbKJ1E1EilRivXCIx1WxnfSt1zz
+         GCpkVdorLlKOUz405SZjsR3c7abh4KeJ/zU/a9JqBH3AnQA6kMg+lH55iTOB/uZxBhMk
+         E1JuAqKqDvafUiBMXm+pL4ZH9ha+EOcpWyYfAoeO1cW4Xz+LsrvOP8/oxqYoiyXs6sBU
+         p2UVBY957pP+K+fV0gvhYMHXJvuyIr+S4DRwTz3/8Spk9BNgZP0WMYnO+EKgrUIXZUkl
+         oBfw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=sodBEomwfUZX4txDWtjSVMZxEBAIq/0o8L2NFyjYD0g=;
-        b=XQO5pc0CWyCRPeDdHPqth8A2gll6h5zHipPunXjQ1ao3wM46K3y/saQt6YKhQajQjx
-         81KrkpIzoQCVB/GlvPmq2HZalHGyUag9pOSMp3/Tjic4IpFqNUyeeJjDw9/IaVWe5k34
-         K8MfJra6mO9Qa/1EE8LNmczR9+EUntsiMymoerwASiGS4wNI691JVIZWE7Uha5HKV+Nl
-         tyQJaNElFmTwiR6GI/QtElpsOTrVyrXsQKe/ThsXqH8DVrldKL35XZwUR48VOGAfAvDA
-         c2YOQbC1xWlLvVUaP3gUcGUqR0qXTmrY0QUOQ53QcO60cwsQC4PArvZ5Ollt04JJS9tI
-         QsXA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=u01ttpO1CNLjAEDYksWHTKEjyHSBV2Sue3sQFqhEFl4=;
+        b=pnyxrtNvl+Sqxh3qSdHoPlvcpNO35PsSdTMIJI7rmJhEOc2VbGmIvLvaSU34BzvAgF
+         37Ri9yekK22c3/NeVe47JEItnoCe8Pj4TlQhmDkTkV1FnxEpabacxJ0EIjiCmht9VrS9
+         6HsbESreFn1XRA9mRdK6tN8RsS1d0mEeXiCE0REj6ToNyHa74MaDWV9clfzcFDm2ePT3
+         Q7VRMQvAwK34gt6lWa556QEkpAMYING3WSNuGvsTf0Ox7ajIiURKwFZ/h22CR9QMuNOT
+         r6MoRtTM4TyAUVV8dx+ifkKDAZG3+5Fa+ybFpYtx6l9IfY48RPdzAVxk/ISAvRYvwyd2
+         CJKw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=EkcTR7Mh;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 135sor301406yww.116.2019.03.28.20.59.57
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=dVN34tq6;
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id b43si510759qvd.78.2019.03.28.21.02.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 28 Mar 2019 20:59:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Mar 2019 21:02:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=EkcTR7Mh;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=sodBEomwfUZX4txDWtjSVMZxEBAIq/0o8L2NFyjYD0g=;
-        b=EkcTR7MhCLUJ3wg1Mkfze+pvFsS9FB7+CPtJTkogY2qjrCBEdYGc1kiyAGuFvCKbFX
-         /i3X0AdR8j1gSbjYvOqorKAxMkFweTtSd3UfZW6lzzItqCBTx2wG/e8X0/Sv6auOmel6
-         3w4v/O/rNX74uhId2sTheecpJUaZGonuf10NeAc9RXnfWan/Dgxn/0a5psLOH55uOZvZ
-         rG4OaN15bq3MAiQGV7Q4jjmSOldrVYzzDyky9mMZ3oozjvW/EHRclj7HEPvtKOAMk1ZC
-         LpTpok6yvbeh61jPs1j2Nb1prK/UfFE9QnuBubIq8wY6AwhnFDjcQnN0Pw/PpbcWXRiI
-         qrFQ==
-X-Google-Smtp-Source: APXvYqxuG02NZLurFciuM9gsdcxHoqpf5aEBrqH2HonpHDdVpXor894q8P+U1qJC2MJKs8kgzcwU4hs8pReSX8zYJ60=
-X-Received: by 2002:a81:1b52:: with SMTP id b79mr39274302ywb.285.1553831996530;
- Thu, 28 Mar 2019 20:59:56 -0700 (PDT)
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=dVN34tq6;
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x2T3whWq107708;
+	Fri, 29 Mar 2019 04:02:26 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2018-07-02;
+ bh=u01ttpO1CNLjAEDYksWHTKEjyHSBV2Sue3sQFqhEFl4=;
+ b=dVN34tq6HtCv36WRYsQrQ9AuxOEQQDZjohx3wShwVgBesFMRwEUxLmixuGfX2OHhN50Z
+ VvCNugd5TDovuLz7qp47gyx6pAkxblAn2t3gYEkKImJKceyXBb24EFcwKc/hoFd0m4WU
+ HV9bIQsgfZlIbRWb9QBPQTcL8b4pOKJmbww6aMAMqeUOaTjQm5A2JFSsBaDalhccc1Pv
+ u/2qnXPA9UCygfQ99jfeUV7o3lFHdyRlUlvmkwnjyerfpG5FRQ/CeJGfirCCXu4FCPrG
+ f6d/gVIxHm6/PoqcSUoHvWbpgUoUky31lWdz0u+9rS5Qyt4lB8EDHeipWQAwsr/1SNAw 6A== 
+Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
+	by userp2120.oracle.com with ESMTP id 2re6djt6h5-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 29 Mar 2019 04:02:26 +0000
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x2T42PCp027427
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 29 Mar 2019 04:02:25 GMT
+Received: from abhmp0001.oracle.com (abhmp0001.oracle.com [141.146.116.7])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x2T42O3b001680;
+	Fri, 29 Mar 2019 04:02:24 GMT
+Received: from localhost (/67.161.8.12)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Thu, 28 Mar 2019 21:02:24 -0700
+Date: Thu, 28 Mar 2019 21:02:22 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+        linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org,
+        linux-mm@kvack.org
+Subject: Re: [PATCH 3/3] xfs: don't allow most setxattr to immutable files
+Message-ID: <20190329040222.GC18833@magnolia>
+References: <155379543409.24796.5783716624820175068.stgit@magnolia>
+ <155379545404.24796.5019142212767521955.stgit@magnolia>
+ <20190328212948.GL23020@dastard>
 MIME-Version: 1.0
-References: <20190329012836.47013-1-shakeelb@google.com> <20190329023552.GV10344@bombadil.infradead.org>
-In-Reply-To: <20190329023552.GV10344@bombadil.infradead.org>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Thu, 28 Mar 2019 20:59:45 -0700
-Message-ID: <CALvZod5GiC1+HB3_Mm969Qbgj7s6-unbd141uP5pnMbsufS+mg@mail.gmail.com>
-Subject: Re: [RFC PATCH] mm, kvm: account kvm_vcpu_mmap to kmemcg
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
-	Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Paolo Bonzini <pbonzini@redhat.com>, Ben Gardon <bgardon@google.com>, 
-	=?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, 
-	Linux MM <linux-mm@kvack.org>, kvm@vger.kernel.org, 
-	LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190328212948.GL23020@dastard>
+User-Agent: Mutt/1.9.4 (2018-02-28)
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9210 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=992 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1903290029
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 28, 2019 at 7:36 PM Matthew Wilcox <willy@infradead.org> wrote:
->
-> On Thu, Mar 28, 2019 at 06:28:36PM -0700, Shakeel Butt wrote:
-> > A VCPU of a VM can allocate upto three pages which can be mmap'ed by the
-> > user space application. At the moment this memory is not charged. On a
-> > large machine running large number of VMs (or small number of VMs having
-> > large number of VCPUs), this unaccounted memory can be very significant.
-> > So, this memory should be charged to a kmemcg. However that is not
-> > possible as these pages are mmapped to the userspace and PageKmemcg()
-> > was designed with the assumption that such pages will never be mmapped
-> > to the userspace.
-> >
-> > One way to solve this problem is by introducing an additional memcg
-> > charging API similar to mem_cgroup_[un]charge_skmem(). However skmem
-> > charging API usage is contained and shared and no new users are
-> > expected but the pages which can be mmapped and should be charged to
-> > kmemcg can and will increase. So, requiring the usage for such API will
-> > increase the maintenance burden. The simplest solution is to remove the
-> > assumption of no mmapping PageKmemcg() pages to user space.
->
-> The usual response under these circumstances is "No, you can't have a
-> page flag bit".
->
+On Fri, Mar 29, 2019 at 08:29:48AM +1100, Dave Chinner wrote:
+> On Thu, Mar 28, 2019 at 10:50:54AM -0700, Darrick J. Wong wrote:
+> > From: Darrick J. Wong <darrick.wong@oracle.com>
+> > 
+> > The chattr manpage has this to say about immutable files:
+> > 
+> > "A file with the 'i' attribute cannot be modified: it cannot be deleted
+> > or renamed, no link can be created to this file, most of the file's
+> > metadata can not be modified, and the file can not be opened in write
+> > mode."
+> > 
+> > However, we don't actually check the immutable flag in the setattr code,
+> > which means that we can update project ids and extent size hints on
+> > supposedly immutable files.  Therefore, reject a setattr call on an
+> > immutable file except for the case where we're trying to unset
+> > IMMUTABLE.
+> > 
+> > Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+> > ---
+> >  fs/xfs/xfs_ioctl.c |    8 ++++++++
+> >  1 file changed, 8 insertions(+)
+> > 
+> > 
+> > diff --git a/fs/xfs/xfs_ioctl.c b/fs/xfs/xfs_ioctl.c
+> > index 2bd1c5ab5008..9cf0bc0ae2bd 100644
+> > --- a/fs/xfs/xfs_ioctl.c
+> > +++ b/fs/xfs/xfs_ioctl.c
+> > @@ -1067,6 +1067,14 @@ xfs_ioctl_setattr_xflags(
+> >  	    !capable(CAP_LINUX_IMMUTABLE))
+> >  		return -EPERM;
+> >  
+> > +	/*
+> > +	 * If immutable is set and we are not clearing it, we're not allowed
+> > +	 * to change anything else in the inode.
+> > +	 */
+> > +	if ((ip->i_d.di_flags & XFS_DIFLAG_IMMUTABLE) &&
+> > +	    (fa->fsx_xflags & FS_XFLAG_IMMUTABLE))
+> > +		return -EPERM;
+> > +
+> >  	/* diflags2 only valid for v3 inodes. */
+> >  	di_flags2 = xfs_flags2diflags2(ip, fa->fsx_xflags);
+> >  	if (di_flags2 && ip->i_d.di_version < 3)
+> 
+> Looks fine - catches both FS_IOC_SETFLAGS and FS_IOC_FSSETXATTR
+> for XFS.
+> 
+> Do the other filesystems that implement FS_IOC_FSSETXATTR have
+> the same bug?
 
-I would say for systems having CONFIG_MEMCG_KMEM, a page flag bit is
-not that expensive.
+Yes.  I'm not even 100% sure I've finished playing xfs whackamole yet.
 
-> I don't understand why we need a PageKmemcg anyway.  We already
-> have an entire pointer in struct page; can we not just check whether
-> page->mem_cgroup is NULL or not?
+--D
 
-PageKmemcg is for kmem while page->mem_cgroup is used for anon, file
-and kmem memory. So, page->mem_cgroup can not be used for NULL check
-unless we unify them. Not sure how complicated would that be.
-
-Shakeel
+> Cheers,
+> 
+> Dave.
+> -- 
+> Dave Chinner
+> david@fromorbit.com
 
