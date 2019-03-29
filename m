@@ -2,189 +2,187 @@ Return-Path: <SRS0=6kLG=SA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DE879C4360F
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 21:15:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2DF42C4360F
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 21:25:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9531E2184C
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 21:15:34 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9531E2184C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id BB6D02184C
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 21:25:37 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="Y5KuxfJw"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BB6D02184C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2C48B6B0008; Fri, 29 Mar 2019 17:15:34 -0400 (EDT)
+	id 57BD56B0007; Fri, 29 Mar 2019 17:25:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 275FA6B000A; Fri, 29 Mar 2019 17:15:34 -0400 (EDT)
+	id 52C666B0008; Fri, 29 Mar 2019 17:25:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 166A76B000D; Fri, 29 Mar 2019 17:15:34 -0400 (EDT)
+	id 442416B000A; Fri, 29 Mar 2019 17:25:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E91BD6B0008
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 17:15:33 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id v2so2960206qkf.21
-        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 14:15:33 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 24F796B0007
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 17:25:37 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id 18so3604870qtw.20
+        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 14:25:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=Po/nzgdtzi8v6Fo6duX4gx/DPJSZpnrMuV/kmJ0V3mE=;
-        b=XSC5YzzK1xKg4Q57FC3jWYy3vBda3hwYy9Q6f9lbmkFBdeFRQeBD74xdl4Ypf1ahcG
-         Ft+7+z1dgDP8SagNR5RMlIOImsvrm3hhf4k1OQGBU9Xn4y/nTqa8XO6stW2Wvk0BR6UV
-         ltpTjyHSL+x+CMvzkp9lcpTPTHzeH6GRR91r2VfZqCI487TkdhagBN7sCyEuR+9ZYz5b
-         QZhEQqW3hDGJeEDldd6F61f/b90FO96FuFfK0gK8CvtuYf45+wZZ9li7fw0YGTneiMFS
-         NbXXZ6HqWggK3Qdzbzwx3HZVgEizTXJ3hScsjboli+cT3k4eDbjdKVpH0Vj71UFdqDHm
-         f5vw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWONFzYvj8fAtpwb/U9ys2Y2kL3p+13126DirmHN0QxGQnRAz48
-	lb0l8NnV2Xbb7NE5pXG+mBbi+MMcv4M0b91q2IX8NoYwead/bfi7KpMT9n5aNE04h0fE5ObFwHF
-	f01s8KiN4AzZ2H5K+wjUhPnnKheNCdXK7DFttQMX7ytZHrXujewdjMp4z1M3cZGG5Wg==
-X-Received: by 2002:ac8:1943:: with SMTP id g3mr42494096qtk.384.1553894133733;
-        Fri, 29 Mar 2019 14:15:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyHZp9nRTZIs8x0mSHsF0HVYdrj16S2zkcbZ7sykcN3td5XSI8NUbEiR3L+8Q2gPHbeCs4A
-X-Received: by 2002:ac8:1943:: with SMTP id g3mr42494055qtk.384.1553894133119;
-        Fri, 29 Mar 2019 14:15:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553894133; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:mime-version:content-transfer-encoding;
+        bh=B9AGniAb3nRyLOzlwimHdq/mCOPDCGy4AKCRjTzayXI=;
+        b=JeCsmZ9xAmOzRMpL8yaYOMJS1GywyOOz7V2Q+NNDGRGxZFdt3pJclzjySlODJfrRpL
+         jlW8AiQWONSR3cfuuwKSqt+CzUo7gUxV/5qKc6pIVCV42EbSKTe0IgQiiugBYooux8ii
+         5XVmE56fXNNX7PvQfoxK9AecheTts9VEQfvgLy90bk1gmBbHVJRWeVAsNcnPmdqSgYbh
+         UC9zrANT2D4bhogCj3miI2QfoJ1jqhk8t6WelaiYWmZvAxCIdTYAcflg3Eq9KL1+uYk4
+         E7bUYPBDkogN2RUz8yvm4IYcX9f5N3io0+Isbx+fGOAklYAqvzjvuXcVlvFiOovT19Bh
+         bRbQ==
+X-Gm-Message-State: APjAAAU7QyFA8WH127Mm2z7TQsdfKX/7PPaSd6EvTyu+/dKOhYpn13qV
+	l18sWpZDq6I2e7FuXddTX8yMAooxGbkP6bbgxey4B7Bvh+n99jO1O3L+9kYXBrO+mwHv3Txu1bp
+	ZBjqeH3iLb7xEmkpHgY9StnlyDws7NcQmYztg4Vo5bYDoCFmcyUGiAOCGSRbqX5VPFg==
+X-Received: by 2002:a0c:9baa:: with SMTP id o42mr37109034qve.184.1553894736932;
+        Fri, 29 Mar 2019 14:25:36 -0700 (PDT)
+X-Received: by 2002:a0c:9baa:: with SMTP id o42mr37109003qve.184.1553894736359;
+        Fri, 29 Mar 2019 14:25:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553894736; cv=none;
         d=google.com; s=arc-20160816;
-        b=E8U+gltPyLk51KwBGTAu5XUHD8SmKbXy4i6WrqKp8a9EwjuWCHVoeHug+9fAqTTdE1
-         vbBcg3iLmWz3WbJ51ctnBG3/Scq+JMcXpArppPVdaV6UP/bAkMxTIURvLH2z2I5vtohS
-         yCiEm2IzM/F4WClqvgoNzfc79xaC8Szps+AMz2SBLfCN2837Q9B3YpYsK4es/urgC792
-         6mwQHN1bvRWj+f/I9NediixKPG0Ug0744fNun+R7Hv5d52KoJ82J4yrzkrlVjT84/w0p
-         qbkh34QEttv4O5QzboYVz560xbh7PEr5oa5lZgWHqNXwoLS5hsadHR2pDTrTotNofpn6
-         N9pQ==
+        b=0w2ktfJXz2tCQoorYr2PwCh27wFfCEhbA/JdSTJukhSdrLx1gBf963vTsOnvK8kjvb
+         SfbkftLumnxVZKyIweQF1yFuWDpLnTH2Ua9VIDEiMKpXOh2yxMmOoLBVFE5CLWUrnBZZ
+         Wc586uXMwxtTzdlTNqLbXaMhm8lwU+j3PoAfnNHKgumqMg8YugqK/jdfAptjG+Niigzh
+         fo6ft4cv957bNlyrUkwA8QzGQaYLXeADhK2Vzv4TZmAMXMv+0w9O5Vgnk5PpGYz8Uizb
+         JSvtyVtjXs3D3yVkxcL8N9y4XqAi2ETejcognB6jdigqxwUv54CZvG2KEuAyc+a501NK
+         E19Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=Po/nzgdtzi8v6Fo6duX4gx/DPJSZpnrMuV/kmJ0V3mE=;
-        b=rlKBOTCz5YJ6wwqi9lmmtob3I033y1S1js4LKd+8KzAA27zMPRuUEBbAcXF7OIU4SN
-         YDmAcjWXtjIb02hgBra5paWtyuPR7Y2QpDkA+N2gsN0HsqpZp9b/uodKJH2rWTl+oktl
-         r9DsYYc3B6cpjA1q48Im6OEFo8n/9XYNfIOtZi0AjtI8/vZ1xb9aRZv10oyaDJVnvlde
-         S6lfK99fkCn7vtF/bJNXe5AVQxBs6be23enI9HnZNZd2gXr7vT2a2Fjox7y9omAyB/nN
-         V0IwMMcGZ8Z+ao4d7E8msgpj5bmGU5Xf6/SjwaE2PDPUTtMOx55mnv2d/RNacZ/GYIDc
-         qRyw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id:dkim-signature;
+        bh=B9AGniAb3nRyLOzlwimHdq/mCOPDCGy4AKCRjTzayXI=;
+        b=0Eupb62JMy6l15iITCVKUr0YCZW52nDH92aDgK5iNPRZ1xwqWy3OP6/oryeB9FDiVt
+         TELwbKRjdjtlqzzG3kqVeaoVboupNUILzs6cHWY+LGTYjZ3UWoDdeJ+Z+mfpipqBjUnm
+         T0CH93LaVU0ddXuPvTgEDBFKCLMu4pGmk3i+J6c35qma2/Su29lZrXd7WkTmF/p9y4AF
+         Gjz28yz8jVOEGADV5gLhuMKxL9/0S5vm9UZdMh+Eq40HSY/lzYHrroIp2hodnS9ukgEY
+         mz+tuJGym0B6VYXMIyNiN79hx0V17bTGmKbAmhykkgCcfvEzY+RBSZDUomn6xUieaDGn
+         p99Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k32si957081qvf.200.2019.03.29.14.15.33
+       dkim=pass header.i=@lca.pw header.s=google header.b=Y5KuxfJw;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a199sor1378475qkc.139.2019.03.29.14.25.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Mar 2019 14:15:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Fri, 29 Mar 2019 14:25:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 4B51280E7A;
-	Fri, 29 Mar 2019 21:15:32 +0000 (UTC)
-Received: from redhat.com (ovpn-125-57.rdu2.redhat.com [10.10.125.57])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 87C3F5C22E;
-	Fri, 29 Mar 2019 21:15:31 +0000 (UTC)
-Date: Fri, 29 Mar 2019 17:15:29 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Dan Williams <dan.j.williams@intel.com>
-Subject: Re: [PATCH v2 01/11] mm/hmm: select mmu notifier when selecting HMM
-Message-ID: <20190329211529.GA6124@redhat.com>
-References: <20190325144011.10560-1-jglisse@redhat.com>
- <20190325144011.10560-2-jglisse@redhat.com>
- <d4889f44-0cc5-3ef6-deeb-7302c93c1f90@nvidia.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+       dkim=pass header.i=@lca.pw header.s=google header.b=Y5KuxfJw;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=B9AGniAb3nRyLOzlwimHdq/mCOPDCGy4AKCRjTzayXI=;
+        b=Y5KuxfJw5VfP3MrFhL1aT2+70kt4EosdHc54GwLswRe6m67P5Pj6dcy9McMiblM/Z5
+         e+z/+wZ6xPYtuCHncVycDcf3cbwjtfpLigcjBoEjiLF9c65bzRjeeu1c025pHp7zODO7
+         UV6svlbpyEUdoiC/KGPhTJyUBpYzaj/eS3KZ7lL8K0SCI2ZKFhMQ1d6/8+s4Ob6YuCKs
+         EWcgrmyvGFZZpLBHM3cVfD5Zuc29gNJopTCDaVa9qdzD6EE27YyJorQpD1g7ibmmqaHr
+         g19DlPBJjAumX6Tcfjg07TV3+Rb5gJ0XPl9BKjzKxxZfjtZgq7c1qVwETs0a4IvdwTIK
+         u+ww==
+X-Google-Smtp-Source: APXvYqynCaAKlX00/ja178luKbWIh+PczS6wV4dq8PXeUcGHWJ2h8iwHH7tjRWB+bPv+4UpbCWLcmQ==
+X-Received: by 2002:a37:9d04:: with SMTP id g4mr14196078qke.128.1553894736021;
+        Fri, 29 Mar 2019 14:25:36 -0700 (PDT)
+Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id y197sm1732617qkb.23.2019.03.29.14.25.35
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Mar 2019 14:25:35 -0700 (PDT)
+Message-ID: <1553894734.26196.30.camel@lca.pw>
+Subject: Re: page cache: Store only head pages in i_pages
+From: Qian Cai <cai@lca.pw>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Huang Ying <ying.huang@intel.com>, linux-mm@kvack.org, "Kirill A.
+ Shutemov" <kirill@shutemov.name>
+Date: Fri, 29 Mar 2019 17:25:34 -0400
+In-Reply-To: <20190329195941.GW10344@bombadil.infradead.org>
+References: <1553285568.26196.24.camel@lca.pw>
+	 <20190323033852.GC10344@bombadil.infradead.org>
+	 <f26c4cce-5f71-5235-8980-86d8fcd69ce6@lca.pw>
+	 <20190324020614.GD10344@bombadil.infradead.org>
+	 <897cfdda-7686-3794-571a-ecb8b9f6101f@lca.pw>
+	 <20190324030422.GE10344@bombadil.infradead.org>
+	 <d35bc0a3-07b7-f0ee-fdae-3d5c750a4421@lca.pw>
+	 <20190329195941.GW10344@bombadil.infradead.org>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
+Mime-Version: 1.0
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <d4889f44-0cc5-3ef6-deeb-7302c93c1f90@nvidia.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Fri, 29 Mar 2019 21:15:32 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 28, 2019 at 01:33:42PM -0700, John Hubbard wrote:
-> On 3/25/19 7:40 AM, jglisse@redhat.com wrote:
-> > From: J�r�me Glisse <jglisse@redhat.com>
-> > 
-> > To avoid random config build issue, select mmu notifier when HMM is
-> > selected. In any cases when HMM get selected it will be by users that
-> > will also wants the mmu notifier.
-> > 
-> > Signed-off-by: J�r�me Glisse <jglisse@redhat.com>
-> > Acked-by: Balbir Singh <bsingharora@gmail.com>
-> > Cc: Ralph Campbell <rcampbell@nvidia.com>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: John Hubbard <jhubbard@nvidia.com>
-> > Cc: Dan Williams <dan.j.williams@intel.com>
-> > ---
-> >  mm/Kconfig | 1 +
-> >  1 file changed, 1 insertion(+)
-> > 
-> > diff --git a/mm/Kconfig b/mm/Kconfig
-> > index 25c71eb8a7db..0d2944278d80 100644
-> > --- a/mm/Kconfig
-> > +++ b/mm/Kconfig
-> > @@ -694,6 +694,7 @@ config DEV_PAGEMAP_OPS
-> >  
-> >  config HMM
-> >  	bool
-> > +	select MMU_NOTIFIER
-> >  	select MIGRATE_VMA_HELPER
-> >  
-> >  config HMM_MIRROR
-> > 
+On Fri, 2019-03-29 at 12:59 -0700, Matthew Wilcox wrote:
+> I don't understand how we get to this situation.  We SetPageSwapCache()
+> in add_to_swap_cache() right before we store the page in i_pages.
+> We ClearPageSwapCache() in __delete_from_swap_cache() right after
+> removing the page from the array.  So how do we find a page in a swap
+> address space that has PageSwapCache cleared?
 > 
-> Yes, this is a good move, given that MMU notifiers are completely,
-> indispensably part of the HMM design and implementation.
+> Indeed, we have a check which should trigger ...
 > 
-> The alternative would also work, but it's not quite as good. I'm
-> listing it in order to forestall any debate: 
+>         VM_BUG_ON_PAGE(!PageSwapCache(page), page);
 > 
->   config HMM
->   	bool
->  +	depends on MMU_NOTIFIER
->   	select MIGRATE_VMA_HELPER
+> in __delete_from_swap_cache().
 > 
-> ...and "depends on" versus "select" is always a subtle question. But in
-> this case, I'd say that if someone wants HMM, there's no advantage in
-> making them know that they must first ensure MMU_NOTIFIER is enabled.
-> After poking around a bit I don't see any obvious downsides either.
+> Oh ... is it a race?
+> 
+>  * Its ok to check for PageSwapCache without the page lock
+>  * here because we are going to recheck again inside
+>  * try_to_free_swap() _with_ the lock.
+> 
+> so CPU A does:
+> 
+> page = find_get_page(swap_address_space(entry), offset)
+>         page = find_subpage(page, offset);
+> trylock_page(page);
+> 
+> while CPU B does:
+> 
+> xa_lock_irq(&address_space->i_pages);
+> __delete_from_swap_cache(page, entry);
+>         xas_store(&xas, NULL);
+>         ClearPageSwapCache(page);
+> xa_unlock_irq(&address_space->i_pages);
+> 
+> and if the ClearPageSwapCache happens between the xas_load() and the
+> find_subpage(), we're stuffed.  CPU A has a reference to the page, but
+> not a lock, and find_get_page is running under RCU.
+> 
+> I suppose we could fix this by taking the i_pages xa_lock around the
+> call to find_get_pages().  If indeed, that's what this problem is.
+> Want to try this patch?
 
-You can not depend on MMU_NOTIFIER it is one of the kernel config
-option that is not selectable. So any config that need MMU_NOTIFIER
-must select it.
+Confirmed. Well spotted!
 
-> 
-> However, given that you're making this change, in order to avoid odd
-> redundancy, you should also do this:
-> 
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 0d2944278d80..2e6d24d783f7 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -700,7 +700,6 @@ config HMM
->  config HMM_MIRROR
->         bool "HMM mirror CPU page table into a device page table"
->         depends on ARCH_HAS_HMM
-> -       select MMU_NOTIFIER
->         select HMM
->         help
->           Select HMM_MIRROR if you want to mirror range of the CPU page table of a
-
-Because it is a select option no harm can come from that hence i do
-not remove but i can remove it.
-
-Cheers,
-J�r�me
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 2b8d9c3fbb47..ed8e42be88b5 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -127,10 +127,14 @@ static int __try_to_reclaim_swap(struct swap_info_struct
+> *si,
+>  				 unsigned long offset, unsigned long flags)
+>  {
+>  	swp_entry_t entry = swp_entry(si->type, offset);
+> +	struct address_space *mapping = swap_address_space(entry);
+> +	unsigned long irq_flags;
+>  	struct page *page;
+>  	int ret = 0;
+>  
+> -	page = find_get_page(swap_address_space(entry), offset);
+> +	xa_lock_irqsave(&mapping->i_pages, irq_flags);
+> +	page = find_get_page(mapping, offset);
+> +	xa_unlock_irqrestore(&mapping->i_pages, irq_flags);
+>  	if (!page)
+>  		return 0;
+>  	/*
 
