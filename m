@@ -6,145 +6,378 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 22C31C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 15:40:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 67A83C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 15:40:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DFF702075E
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 15:40:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DFF702075E
+	by mail.kernel.org (Postfix) with ESMTP id 16E7A2075E
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 15:40:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 16E7A2075E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 853A46B026C; Fri, 29 Mar 2019 11:40:20 -0400 (EDT)
+	id C6EFE6B026D; Fri, 29 Mar 2019 11:40:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7DA016B026D; Fri, 29 Mar 2019 11:40:20 -0400 (EDT)
+	id BF7E06B026E; Fri, 29 Mar 2019 11:40:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6A2236B026E; Fri, 29 Mar 2019 11:40:20 -0400 (EDT)
+	id A9B046B026F; Fri, 29 Mar 2019 11:40:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 311F26B026C
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 11:40:20 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id 132so1863728pgc.18
-        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 08:40:20 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 633206B026D
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 11:40:26 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id e5so1931591plb.9
+        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 08:40:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:from
          :to:cc:date:message-id:in-reply-to:references:user-agent
          :mime-version:content-transfer-encoding;
-        bh=BGW5opGcfChg9t4SQtyg6XKafZpTItiwM+WiiS4PyGc=;
-        b=erA+x0liE8JNlMJEQ1e70Tdydd4nt8j6RPFSy2wCQgdrll7EuHGk0LyLCoaQG2Ke8n
-         I508I3zaxwfZd5ltiMZB4EA92DtfDhPFvRfXdYDPhItZbyRa6T+9Q0U8gSQFNeQYVUby
-         lnrnrn3xwq5IfBkSs8QySJk5xljnH/wmE5gysjg8THtuSwZRcJArBX1AK6GRLd5w5bvn
-         OeoEM6IbQpNCyz0re9nAcuibZiLhqk1bSF+RC6G5G4UpmiJEhN85UYjwNki/IvhAnkBP
-         7DrV0wF8WhvjnvyheJXsn7ged9AphWsRSZg2NF4DX+xTJiI/U3aUIh7eqGADE07lRjHX
-         sdMg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWN4KN+NnK4kGegJ45YtX46LQPov81gu1NPxQJoxN1a5CgDOtes
-	OFNW21qQdq+R2K5aKhTF9oQhRGakO+NWWFXguuCa7eHnKwfuRNXETnP9yuNIUcRMAp7MXGXQ7td
-	UhoVtlcMgR0D9maqAYRFWIiuW8XndiyGaokYoFSLylmyG0gd51CpnGhHkjVCUCozQGA==
-X-Received: by 2002:a62:29c5:: with SMTP id p188mr46566593pfp.203.1553874019861;
-        Fri, 29 Mar 2019 08:40:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzZ7Vj+GhSe7doVWE7quJHMKPcpDcyieQJMChsITRkNhK7WFdBwJAMpW0H7AxVVEUYPXD8h
-X-Received: by 2002:a62:29c5:: with SMTP id p188mr46566530pfp.203.1553874019097;
-        Fri, 29 Mar 2019 08:40:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553874019; cv=none;
+        bh=KMuvdVhDgsmANRguFYy5WyGjH25xZmgLKgcz3Eba90g=;
+        b=nqypfZxfz2nWT2wpg0Xzdm79JystlVVt1WO/9U0CZxGLi+CHQWhtwvbcNi1cYEiifh
+         8exoQvfh1rx6c/jvOMTg2dox+DIDihdQhUpteMzV6NpEmNhpkd9YzjTJHfLMCtq7HnQM
+         Q+nWl86smmXGWbkJ+fG3wxzuUJp457HSRX5oU9yTCichjmhEs3Y2p85vuJB1XoMyUgzu
+         PRfPvdxngGELaLcX2FOsIdZ+FSBJjmXA5hjIHHDovsK0JHqlRMA1716OkalHkkqL+WP3
+         KMeabAd/TJ8SQgtY1QvSIQj8BUK5drfMxjwKXWnAMF3R2r/dWRPyh+dmzhC+emZvf9EB
+         SMhg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAX8Ix+uA63Hhc/+BXgUhOhbzhn9v6nRtvhtH4iDowkO5Ips4WaS
+	FC2lkxY8XE4fypexoaTcSjCGUpv3WguFrQ7SrHnNoC/gl8fPqJgBrVIxrbsowtPuH6c8H49HqM/
+	1o2MWobcSFEBnmEHDUKnRxcIEi/iJfYg/BSCfacgmKldjBuHjtf/GeKl9dRC6zbUXiQ==
+X-Received: by 2002:a17:902:d211:: with SMTP id t17mr14280416ply.214.1553874025986;
+        Fri, 29 Mar 2019 08:40:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxNarkD4mLYkw+SxG12PlmL35tvyDx4EULX9EAvCqGxuT2P4b5lSAqaaH4l9VPzAi+zOcsl
+X-Received: by 2002:a17:902:d211:: with SMTP id t17mr14280347ply.214.1553874025105;
+        Fri, 29 Mar 2019 08:40:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553874025; cv=none;
         d=google.com; s=arc-20160816;
-        b=Z52BYTYAxCgQ49CbWIMRM8aT8TSP1sZ5OB561uyUMoxVb4JCm0yHIl6WXTDGYukBoh
-         Qm7+znt1mjN0jSBXSvm6Z9KZGlwXohp63+HEKeST0O8TpoCa/UvnrB9zyXML5WFaZT1e
-         wSTEoLGoBw6b7T4yD62l0aE4ebrBvU2zMk+tYOiswKXMCzKL2Iwp9enw5YgJBb+09h9y
-         w9TfVu1K3/z0PJ8dRL1jv7oXju18OHadmKpIYbE5AnhP+RCpIGuzA1AcUKtpId9UShuz
-         bNI5hPzMdCmYsPqNDtZtNRXrjywnyOtx0Q8HAcyIxvKacF2pG9vA3c2n7SNygRmI1edm
-         5ang==
+        b=jimYu/2vYbaRU9g/ZDTUbpB7eUBmWzLc2PNe44h6WjsPt+eVd7tN80u7wFNZiIGSta
+         4v5+MJlL7hVKafBJacLs+4vmsJhkRbKJUPKgMWjGIDTbOfOJHf0q5ozc6IiskkGY3n/k
+         p944Hn7uiwC1jnP+NlhgAKLrqzYXvPWnPSZIvDbcNTlR4cR06w1kZW6ty8dgK1sOkvEp
+         xSO5spMgGBDI4YgStfEVv927cCnosUAfIsInH5jVrvZK0eKDrpExn1/27Gh9QmqLLizy
+         Tba5yBXTSqVGMloP8VIxvy0cBputHJ1HNwTiKrbNf2js39n/y0PGt3npX2rvdNeHsNx7
+         DwIQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:message-id:date:cc:to:from:subject;
-        bh=BGW5opGcfChg9t4SQtyg6XKafZpTItiwM+WiiS4PyGc=;
-        b=VyB6nLKWRa/8KXDlxu0sTCu5jQaSsJ9oPAzL3mQmdI+C5jZlaQnjZD4W75iW75Vy7P
-         VWjeFrQOZyygOxoNJd1UeqZgHsj4EpH2TLnonWEzM6FbLYQIQf1gBzc45bz3fWo66fAn
-         EOU19AVhi/6JcBw7rljto4Xq8XEgzOuAfdyjb2C4knLBER4WQ4XLI32zcJKOOgaE95ls
-         Sb6sAARW3WsmtTiz2fAtYDk/wIhMWeMzqA8Qe024swYORHO1+FMaoN5dAWPczgDdMifT
-         Scc6ExYZi11+19/4IS4hapnlSOb6yGbUbYGXGKC4TywfRREA6lM4g/w+lADHL+0qV67q
-         U7QA==
+        bh=KMuvdVhDgsmANRguFYy5WyGjH25xZmgLKgcz3Eba90g=;
+        b=FlvvizbEpciwKmprkrsHOiY+QKlauhr90z1a0VKk+Eo3KiP6FbmFY6qH0zZMAgMmQi
+         3OrgQxzBDOBjFPshtuCIS73kn5FFwJCqnfIm0f8B5vnz4CvRwiP0OkcA9GP9K99JUcCr
+         TQz7yE13gR6ZQ1Hn5nevqQe98Ywydyt6glai9enDTPB9GWBM76DSl6t5KXvsZRN5KX5f
+         rc01PXI5Qyd9W5NJCIZ9jlgEl4CLpNVgEr1XCrCAQ1Z8SM0hywspZdf6McvOv3zukaxx
+         oIlCdUuhcTerUpTGMv78+d/V73Oey5YajjLrteMJCdBvJKzfs2vdt1MIdVrnrw2w+vWB
+         AZTQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id g3si913456plq.400.2019.03.29.08.40.18
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id f185si2162626pgc.182.2019.03.29.08.40.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Mar 2019 08:40:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
+        Fri, 29 Mar 2019 08:40:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from fmsmga007.fm.intel.com ([10.253.24.52])
-  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 29 Mar 2019 08:40:18 -0700
+Received: from fmsmga002.fm.intel.com ([10.253.24.26])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 29 Mar 2019 08:40:24 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,284,1549958400"; 
-   d="scan'208";a="138515813"
+   d="scan'208";a="156424704"
 Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
-  by fmsmga007.fm.intel.com with ESMTP; 29 Mar 2019 08:40:18 -0700
-Subject: [PATCH 3/6] pci/p2pdma: Fix the gen_pool_add_virt() failure path
+  by fmsmga002.fm.intel.com with ESMTP; 29 Mar 2019 08:40:23 -0700
+Subject: [PATCH 4/6] lib/genalloc: Introduce chunk owners
 From: Dan Williams <dan.j.williams@intel.com>
 To: akpm@linux-foundation.org
 Cc: Logan Gunthorpe <logang@deltatee.com>, Ira Weiny <ira.weiny@intel.com>,
- Bjorn Helgaas <bhelgaas@google.com>, Christoph Hellwig <hch@lst.de>,
- linux-mm@kvack.org, linux-pci@vger.kernel.org, linux-nvdimm@lists.01.org,
- linux-kernel@vger.kernel.org
-Date: Fri, 29 Mar 2019 08:27:39 -0700
-Message-ID: <155387325926.2443841.6674640070856872301.stgit@dwillia2-desk3.amr.corp.intel.com>
+ Bjorn Helgaas <bhelgaas@google.com>,
+ =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+ Christoph Hellwig <hch@lst.de>, linux-mm@kvack.org, linux-pci@vger.kernel.org,
+ linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
+Date: Fri, 29 Mar 2019 08:27:44 -0700
+Message-ID: <155387326480.2443841.4506646109682116121.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <155387324370.2443841.574715745262628837.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <155387324370.2443841.574715745262628837.stgit@dwillia2-desk3.amr.corp.intel.com>
 User-Agent: StGit/0.18-2-gc94f
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The pci_p2pdma_add_resource() implementation immediately frees the pgmap
-if gen_pool_add_virt() fails. However, that means that when @dev
-triggers a devres release devm_memremap_pages_release() will crash
-trying to access the freed @pgmap.
+The p2pdma facility enables a provider to publish a pool of dma
+addresses for a consumer to allocate. A genpool is used internally by
+p2pdma to collect dma resources, 'chunks', to be handed out to
+consumers. Whenever a consumer allocates a resource it needs to pin the
+'struct dev_pagemap' instance that backs the chunk selected by
+pci_alloc_p2pmem().
 
-Use the new devm_memunmap_pages() to manually free the mapping in the
-error path.
+Currently that reference is taken globally on the entire provider
+device. That sets up a lifetime mismatch whereby the p2pdma core needs
+to maintain hacks to make sure the percpu_ref is not released twice.
 
-Fixes: 52916982af48 ("PCI/P2PDMA: Support peer-to-peer memory")
+This lifetime mismatch also stands in the way of a fix to
+devm_memremap_pages() whereby devm_memremap_pages_release() must wait
+for the percpu_ref ->release() callback to complete before it can
+proceed to teardown pages.
+
+So, towards fixing this situation, introduce the ability to store a
+'chunk owner' at gen_pool_add() time, and a facility to retrieve the
+owner at gen_pool_{alloc,free}() time. For p2pdma this will be used to
+store and recall individual dev_pagemap reference counter instances
+per-chunk.
+
 Cc: Logan Gunthorpe <logang@deltatee.com>
 Cc: Ira Weiny <ira.weiny@intel.com>
 Cc: Bjorn Helgaas <bhelgaas@google.com>
+Cc: "Jérôme Glisse" <jglisse@redhat.com>
 Cc: Christoph Hellwig <hch@lst.de>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/pci/p2pdma.c |    4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ include/linux/genalloc.h |   55 +++++++++++++++++++++++++++++++++++++++++-----
+ lib/genalloc.c           |   51 +++++++++++++++++++++----------------------
+ 2 files changed, 74 insertions(+), 32 deletions(-)
 
-diff --git a/drivers/pci/p2pdma.c b/drivers/pci/p2pdma.c
-index c52298d76e64..595a534bd749 100644
---- a/drivers/pci/p2pdma.c
-+++ b/drivers/pci/p2pdma.c
-@@ -208,13 +208,15 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
- 			pci_bus_address(pdev, bar) + offset,
- 			resource_size(&pgmap->res), dev_to_node(&pdev->dev));
- 	if (error)
--		goto pgmap_free;
-+		goto pages_free;
+diff --git a/include/linux/genalloc.h b/include/linux/genalloc.h
+index dd0a452373e7..a337313e064f 100644
+--- a/include/linux/genalloc.h
++++ b/include/linux/genalloc.h
+@@ -75,6 +75,7 @@ struct gen_pool_chunk {
+ 	struct list_head next_chunk;	/* next chunk in pool */
+ 	atomic_long_t avail;
+ 	phys_addr_t phys_addr;		/* physical starting address of memory chunk */
++	void *owner;			/* private data to retrieve at alloc time */
+ 	unsigned long start_addr;	/* start address of memory chunk */
+ 	unsigned long end_addr;		/* end address of memory chunk (inclusive) */
+ 	unsigned long bits[0];		/* bitmap for allocating memory chunk */
+@@ -96,8 +97,15 @@ struct genpool_data_fixed {
  
- 	pci_info(pdev, "added peer-to-peer DMA memory %pR\n",
- 		 &pgmap->res);
+ extern struct gen_pool *gen_pool_create(int, int);
+ extern phys_addr_t gen_pool_virt_to_phys(struct gen_pool *pool, unsigned long);
+-extern int gen_pool_add_virt(struct gen_pool *, unsigned long, phys_addr_t,
+-			     size_t, int);
++extern int gen_pool_add_owner(struct gen_pool *, unsigned long, phys_addr_t,
++			     size_t, int, void *);
++
++static inline int gen_pool_add_virt(struct gen_pool *pool, unsigned long addr,
++		phys_addr_t phys, size_t size, int nid)
++{
++	return gen_pool_add_owner(pool, addr, phys, size, nid, NULL);
++}
++
+ /**
+  * gen_pool_add - add a new chunk of special memory to the pool
+  * @pool: pool to add new memory chunk to
+@@ -116,12 +124,47 @@ static inline int gen_pool_add(struct gen_pool *pool, unsigned long addr,
+ 	return gen_pool_add_virt(pool, addr, -1, size, nid);
+ }
+ extern void gen_pool_destroy(struct gen_pool *);
+-extern unsigned long gen_pool_alloc(struct gen_pool *, size_t);
+-extern unsigned long gen_pool_alloc_algo(struct gen_pool *, size_t,
+-		genpool_algo_t algo, void *data);
++unsigned long gen_pool_alloc_algo_owner(struct gen_pool *pool, size_t size,
++		genpool_algo_t algo, void *data, void **owner);
++
++static inline unsigned long gen_pool_alloc_owner(struct gen_pool *pool,
++		size_t size, void **owner)
++{
++	return gen_pool_alloc_algo_owner(pool, size, pool->algo, pool->data,
++			owner);
++}
++
++static inline unsigned long gen_pool_alloc_algo(struct gen_pool *pool,
++		size_t size, genpool_algo_t algo, void *data)
++{
++	return gen_pool_alloc_algo_owner(pool, size, algo, data, NULL);
++}
++
++/**
++ * gen_pool_alloc - allocate special memory from the pool
++ * @pool: pool to allocate from
++ * @size: number of bytes to allocate from the pool
++ *
++ * Allocate the requested number of bytes from the specified pool.
++ * Uses the pool allocation function (with first-fit algorithm by default).
++ * Can not be used in NMI handler on architectures without
++ * NMI-safe cmpxchg implementation.
++ */
++static inline unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
++{
++	return gen_pool_alloc_algo(pool, size, pool->algo, pool->data);
++}
++
+ extern void *gen_pool_dma_alloc(struct gen_pool *pool, size_t size,
+ 		dma_addr_t *dma);
+-extern void gen_pool_free(struct gen_pool *, unsigned long, size_t);
++extern void gen_pool_free_owner(struct gen_pool *pool, unsigned long addr,
++		size_t size, void **owner);
++static inline void gen_pool_free(struct gen_pool *pool, unsigned long addr,
++                size_t size)
++{
++	gen_pool_free_owner(pool, addr, size, NULL);
++}
++
+ extern void gen_pool_for_each_chunk(struct gen_pool *,
+ 	void (*)(struct gen_pool *, struct gen_pool_chunk *, void *), void *);
+ extern size_t gen_pool_avail(struct gen_pool *);
+diff --git a/lib/genalloc.c b/lib/genalloc.c
+index 7e85d1e37a6e..770c769d7cb7 100644
+--- a/lib/genalloc.c
++++ b/lib/genalloc.c
+@@ -168,20 +168,21 @@ struct gen_pool *gen_pool_create(int min_alloc_order, int nid)
+ EXPORT_SYMBOL(gen_pool_create);
+ 
+ /**
+- * gen_pool_add_virt - add a new chunk of special memory to the pool
++ * gen_pool_add_owner- add a new chunk of special memory to the pool
+  * @pool: pool to add new memory chunk to
+  * @virt: virtual starting address of memory chunk to add to pool
+  * @phys: physical starting address of memory chunk to add to pool
+  * @size: size in bytes of the memory chunk to add to pool
+  * @nid: node id of the node the chunk structure and bitmap should be
+  *       allocated on, or -1
++ * @owner: private data the publisher would like to recall at alloc time
+  *
+  * Add a new chunk of special memory to the specified pool.
+  *
+  * Returns 0 on success or a -ve errno on failure.
+  */
+-int gen_pool_add_virt(struct gen_pool *pool, unsigned long virt, phys_addr_t phys,
+-		 size_t size, int nid)
++int gen_pool_add_owner(struct gen_pool *pool, unsigned long virt, phys_addr_t phys,
++		 size_t size, int nid, void *owner)
+ {
+ 	struct gen_pool_chunk *chunk;
+ 	int nbits = size >> pool->min_alloc_order;
+@@ -195,6 +196,7 @@ int gen_pool_add_virt(struct gen_pool *pool, unsigned long virt, phys_addr_t phy
+ 	chunk->phys_addr = phys;
+ 	chunk->start_addr = virt;
+ 	chunk->end_addr = virt + size - 1;
++	chunk->owner = owner;
+ 	atomic_long_set(&chunk->avail, size);
+ 
+ 	spin_lock(&pool->lock);
+@@ -203,7 +205,7 @@ int gen_pool_add_virt(struct gen_pool *pool, unsigned long virt, phys_addr_t phy
  
  	return 0;
+ }
+-EXPORT_SYMBOL(gen_pool_add_virt);
++EXPORT_SYMBOL(gen_pool_add_owner);
  
-+pages_free:
-+	devm_memunmap_pages(&pdev->dev, pgmap);
- pgmap_free:
- 	devm_kfree(&pdev->dev, pgmap);
- 	return error;
+ /**
+  * gen_pool_virt_to_phys - return the physical address of memory
+@@ -260,35 +262,20 @@ void gen_pool_destroy(struct gen_pool *pool)
+ EXPORT_SYMBOL(gen_pool_destroy);
+ 
+ /**
+- * gen_pool_alloc - allocate special memory from the pool
+- * @pool: pool to allocate from
+- * @size: number of bytes to allocate from the pool
+- *
+- * Allocate the requested number of bytes from the specified pool.
+- * Uses the pool allocation function (with first-fit algorithm by default).
+- * Can not be used in NMI handler on architectures without
+- * NMI-safe cmpxchg implementation.
+- */
+-unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
+-{
+-	return gen_pool_alloc_algo(pool, size, pool->algo, pool->data);
+-}
+-EXPORT_SYMBOL(gen_pool_alloc);
+-
+-/**
+- * gen_pool_alloc_algo - allocate special memory from the pool
++ * gen_pool_alloc_algo_owner - allocate special memory from the pool
+  * @pool: pool to allocate from
+  * @size: number of bytes to allocate from the pool
+  * @algo: algorithm passed from caller
+  * @data: data passed to algorithm
++ * @owner: optionally retrieve the chunk owner
+  *
+  * Allocate the requested number of bytes from the specified pool.
+  * Uses the pool allocation function (with first-fit algorithm by default).
+  * Can not be used in NMI handler on architectures without
+  * NMI-safe cmpxchg implementation.
+  */
+-unsigned long gen_pool_alloc_algo(struct gen_pool *pool, size_t size,
+-		genpool_algo_t algo, void *data)
++unsigned long gen_pool_alloc_algo_owner(struct gen_pool *pool, size_t size,
++		genpool_algo_t algo, void *data, void **owner)
+ {
+ 	struct gen_pool_chunk *chunk;
+ 	unsigned long addr = 0;
+@@ -299,6 +286,9 @@ unsigned long gen_pool_alloc_algo(struct gen_pool *pool, size_t size,
+ 	BUG_ON(in_nmi());
+ #endif
+ 
++	if (owner)
++		*owner = NULL;
++
+ 	if (size == 0)
+ 		return 0;
+ 
+@@ -326,12 +316,14 @@ unsigned long gen_pool_alloc_algo(struct gen_pool *pool, size_t size,
+ 		addr = chunk->start_addr + ((unsigned long)start_bit << order);
+ 		size = nbits << order;
+ 		atomic_long_sub(size, &chunk->avail);
++		if (owner)
++			*owner = chunk->owner;
+ 		break;
+ 	}
+ 	rcu_read_unlock();
+ 	return addr;
+ }
+-EXPORT_SYMBOL(gen_pool_alloc_algo);
++EXPORT_SYMBOL(gen_pool_alloc_algo_owner);
+ 
+ /**
+  * gen_pool_dma_alloc - allocate special memory from the pool for DMA usage
+@@ -367,12 +359,14 @@ EXPORT_SYMBOL(gen_pool_dma_alloc);
+  * @pool: pool to free to
+  * @addr: starting address of memory to free back to pool
+  * @size: size in bytes of memory to free
++ * @owner: private data stashed at gen_pool_add() time
+  *
+  * Free previously allocated special memory back to the specified
+  * pool.  Can not be used in NMI handler on architectures without
+  * NMI-safe cmpxchg implementation.
+  */
+-void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
++void gen_pool_free_owner(struct gen_pool *pool, unsigned long addr, size_t size,
++		void **owner)
+ {
+ 	struct gen_pool_chunk *chunk;
+ 	int order = pool->min_alloc_order;
+@@ -382,6 +376,9 @@ void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
+ 	BUG_ON(in_nmi());
+ #endif
+ 
++	if (owner)
++		*owner = NULL;
++
+ 	nbits = (size + (1UL << order) - 1) >> order;
+ 	rcu_read_lock();
+ 	list_for_each_entry_rcu(chunk, &pool->chunks, next_chunk) {
+@@ -392,6 +389,8 @@ void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
+ 			BUG_ON(remain);
+ 			size = nbits << order;
+ 			atomic_long_add(size, &chunk->avail);
++			if (owner)
++				*owner = chunk->owner;
+ 			rcu_read_unlock();
+ 			return;
+ 		}
+@@ -399,7 +398,7 @@ void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
+ 	rcu_read_unlock();
+ 	BUG();
+ }
+-EXPORT_SYMBOL(gen_pool_free);
++EXPORT_SYMBOL(gen_pool_free_owner);
+ 
+ /**
+  * gen_pool_for_each_chunk - call func for every chunk of generic memory pool
 
