@@ -2,288 +2,253 @@ Return-Path: <SRS0=6kLG=SA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B34BC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 01:43:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 206BFC10F06
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 01:50:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EEC2A20700
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 01:43:32 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="ArI8bkRo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EEC2A20700
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id CEA282183F
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 01:50:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CEA282183F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A2E086B0008; Thu, 28 Mar 2019 21:43:32 -0400 (EDT)
+	id 6CC556B000C; Thu, 28 Mar 2019 21:50:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9DDB96B000C; Thu, 28 Mar 2019 21:43:32 -0400 (EDT)
+	id 6554C6B000D; Thu, 28 Mar 2019 21:50:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8A4A76B000D; Thu, 28 Mar 2019 21:43:32 -0400 (EDT)
+	id 4F7606B000E; Thu, 28 Mar 2019 21:50:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A0956B0008
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 21:43:32 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id x58so837548qtc.1
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 18:43:32 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A0B96B000C
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 21:50:09 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id f196so513767qke.4
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 18:50:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=gv6hWDFttTfp7Z+q9DmSrCaQCc0nzY2zjIjOCBbe07w=;
-        b=KRAOUnGoVxcHfZEGs55XauE9F/d7/02dRzxhMUEL5yNKAl/n0Ua1pc6HSdZM8zNjkJ
-         xSU39NDADvK1R5AF1qSW0Vtymm+2+Mt0DK4KE/0sSe3IuIjqtNkuSNxkd/eyg18TlnaE
-         VdmiLObPFGymRGavGqHwyQb4ETPcQgZXeMigBxD98ReRSbJzh2Y4sGeQCKliGAD+Jz12
-         BUyOrCwUa0u5Kt5odYvVzeydLDFkolDwxu5OJaNdidQtSXyY6u9z9l1rek5jMS+RJXCo
-         bHq1aWt2AVXuTdvAfPqRwMSo5rIwM0GimrU2b6FJy1/mzoogsgAc3GKJiO6rB2Y9s470
-         UMlA==
-X-Gm-Message-State: APjAAAWmMpceZ3fev2z60Evs7PvhSnaOLoBlhlG/DCeSJ99dAyrafDZ2
-	byjeNShaosuL+WROJnTxyMq1nfnwa7Q1VA0cnxn7Oo7VIknaNeGdsKtgR3U/lmP3RvzYdzC8zzX
-	WF9DzyxZZ25ixX0SFwAycUddifTkJQUHhAXzSptBILDT017/x/bI6PL9qPJJC8It7vw==
-X-Received: by 2002:a05:620a:1305:: with SMTP id o5mr36584426qkj.35.1553823812129;
-        Thu, 28 Mar 2019 18:43:32 -0700 (PDT)
-X-Received: by 2002:a05:620a:1305:: with SMTP id o5mr36584400qkj.35.1553823811000;
-        Thu, 28 Mar 2019 18:43:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553823810; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=qN6Rc7XEv8QwbjagVRoV68366L9/qfMOiNe9AqfUlJU=;
+        b=VpQEizRUYsmGiTlfoRBfbF7qGN+Y2x00YwUqUhAcXazrqEhwW0/4x4l/LEGDG4TR+0
+         WI8BGLYBPBmLhS4dLGENmrgaZsiMI1HVNOqlxyP1xVKzA0yEF1S3JflbL/UHgS/+xJAL
+         bwnjmpTuumnNHS8Jk1R4MwI7S3lUdEuBlp0vwIjWQq6pVExN2QMTcNGXWHuPsxVwysU5
+         A7nFopB9Ki0L3ytDzbPQucnLjip30Mkt8HqCOp0Pgx/A1vuvTwCK5TDthUnqvkiiWsly
+         E6szzdurvVMKlYPrXjIMMuii6kwrfxirznSWdnKONw2SXSkqYeipRq11v8Hr0Qq/Dvvm
+         PzMQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAU7v3wqGmwZaBw0ycuNfViFEu3yQTdgXYwyBQVa4yPJ0pn5R9Ag
+	E3IRCqjxZOvKtgkKU1cmi4dBQJDmodvvFL/XjdzFW3bhG0HGcgIgQXM+zJzuKKmA6PhHKOFkkTD
+	AdfaKUyi0zVwFPTGd/LqS+F139nv8DrehKju3Tuh+JtT9t0daIfsDhM7fkMncWyC4Jw==
+X-Received: by 2002:ac8:f5c:: with SMTP id l28mr38037759qtk.249.1553824208892;
+        Thu, 28 Mar 2019 18:50:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyRhILLZXcWtRHnI4ELxC7+oWY/x4foeU+QCV9yfnpWr+SV4gX8kY0MlhM0RhRgzAfJPz/2
+X-Received: by 2002:ac8:f5c:: with SMTP id l28mr38037734qtk.249.1553824208161;
+        Thu, 28 Mar 2019 18:50:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553824208; cv=none;
         d=google.com; s=arc-20160816;
-        b=Xt2nP3FUhRwp1tbILp2dPJ/Gxi4TeWNM6kkb9HZCIHE4+l2IO68uHPNLL7oFdPiDzW
-         5Suz2dJpEOhtTo4N338UOG/+6bUP/PgSW8LzlyVofGAIAdaSxCX+OoyTfWydMeLc7m3V
-         rJbgEQ5RNxm1g8oIvuoxmlfaoT86Vbems8yww7U71n28O+fUXNh6u9X0sns5i0DtiqOa
-         r8GF1wdlIifUJ3H+ePP0c0eMMegPqmvXS42m1+svuuucVZd2urVOgdoPjjue0kRkkgnZ
-         x+OoqEGhykMsHLy5ZQCp5myO2lWgve44oOmV9W6QIhHE/PJvbAbM/lnSTDc6LAeAQ3OT
-         81PQ==
+        b=CnUFu/osdPIAKWECT6CdlV6QvllYTlax1+LZzw6W5oV3Oy52wkdMynRxXwf6V/122M
+         6aOhsH0Kh2kqUt599Z53dz1bDHhm7zMps82nvd+WvDZPQEG8FXP51IP7CzNs3USvXbrf
+         Q6tELSRqr0q9DoVY6vw2tGPJE4CHewlNGBFrEow0FABFXaRwVeI6gh1Jl/LZNhmX/98x
+         BtHnPjTHOTl/aOcwSbcxdsszJYJd1Ta+NBtyX+YonyGa4lSxHJW+sJjCo0QEGPcE/cS8
+         iKXWGKIHU+laC0B5EoodC45NN1qbP+b0mQOm/Q4ql+BN5nL51QLJqKuGIqtrisBy3fhe
+         VjoA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=gv6hWDFttTfp7Z+q9DmSrCaQCc0nzY2zjIjOCBbe07w=;
-        b=gNaJlr6lO1XnBToYiPPenxkKIL/wH0WDrsIr/NwH0JaXWqm8SnsF4xRB3n6p84VjIx
-         JBXIZsCiLaYhpcqyRR+iDq6auGq2w0WHZu7XUwp97AdIEXLyxl6C2HA8Jh2mDRECIFZm
-         B4HHVXod/q76qAiSVbRuL+b4ldGDdQO/zOYJJcFOL4uGHuhBxeC3QYgFT5lur8D8eIJ+
-         Lw1aYxQVRzN9VJ4+Hqo0gmfiJas7sdldgJgIh3r1im4JRrPjwTn3VVPuotT0drxGlcmY
-         KkYh29+8KTe+oieMHo8dNCJIWZgj+xNUEe/O5BOaSnIFjxlee1rO5Jbb2IPtWdHfFKHk
-         FRbw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=qN6Rc7XEv8QwbjagVRoV68366L9/qfMOiNe9AqfUlJU=;
+        b=xvEEuzFRxzho8pQAAH4ahfOHAobPXBNmFsLG7fErh10OOq5YbRWn2qIrKDZRERC1km
+         SCc6nHr3lbEZ7MAKVVtrgJEVdWQlUWNxtXBw8+Q0tVh8hnl0aW2w4BiMJQkjzYMiqwfY
+         EpJFjVlRdScxd5BpJ9LkWezZtDYk5dj5hILP7/TgWA2y6h8HpU03N7gxQID4v//vXXYp
+         snZ8AE6yTiPthN0H1RSeNaHoviipuNA5o1RSySbYrpyv3g8xGSVELhA4nicIAp/l8/Yc
+         QiNfFAGUe7aIavhAwbGm/7irhj+ctuWmtWRt7tnMCUqAXdIlbVk8EQA+z8c7Hk8yNjCD
+         hDGw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=ArI8bkRo;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m38sor651077qtm.37.2019.03.28.18.43.30
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 58si338734qvx.190.2019.03.28.18.50.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 28 Mar 2019 18:43:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=ArI8bkRo;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=subject:to:cc:references:from:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=gv6hWDFttTfp7Z+q9DmSrCaQCc0nzY2zjIjOCBbe07w=;
-        b=ArI8bkRoP8Pu7YXvxFCaq/w2IWF4Qrck9PvQTkmB5OoAKmUO0wRqiC5YYz6BCoEYS4
-         M3Oc2MB0em8qj76wsrYzhEYhUL/wXNzn7X23F7eRAaTCtuAc8oWy+uCvTZPDdz8CvGg8
-         EIqhXzLWNbQaTXv0HcpC+OCjvQU1Ly8tWKPJEI3OA45u/44idRDFZGncdTJW3jzkpUhv
-         TeXLGU1i47h2QBXPYjWdE0yqxvKeCP2aE481shxR+gAIMZ8CP1s7MmsJ1dESLup4xYK5
-         KpqD6kAUAGYA29suS/s58/9xdta1F95fjBj4MO5yaUNOvjZhWh63NigR49YOiMpIY/cD
-         MjfQ==
-X-Google-Smtp-Source: APXvYqxrE88bXL0Ox1H+2qKUWqTKAYcEei6k3D8vsA9kzxYkCrDY9LP/bwcIUKZTTNFUNuNzKrwHbw==
-X-Received: by 2002:aed:32e1:: with SMTP id z88mr31785334qtd.137.1553823810361;
-        Thu, 28 Mar 2019 18:43:30 -0700 (PDT)
-Received: from ovpn-120-94.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id m4sm307370qtp.16.2019.03.28.18.43.29
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Mar 2019 18:43:29 -0700 (PDT)
-Subject: Re: page cache: Store only head pages in i_pages
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Huang Ying <ying.huang@intel.com>, linux-mm@kvack.org
-References: <1553285568.26196.24.camel@lca.pw>
- <20190323033852.GC10344@bombadil.infradead.org>
- <f26c4cce-5f71-5235-8980-86d8fcd69ce6@lca.pw>
- <20190324020614.GD10344@bombadil.infradead.org>
- <897cfdda-7686-3794-571a-ecb8b9f6101f@lca.pw>
- <20190324030422.GE10344@bombadil.infradead.org>
-From: Qian Cai <cai@lca.pw>
-Message-ID: <d35bc0a3-07b7-f0ee-fdae-3d5c750a4421@lca.pw>
-Date: Thu, 28 Mar 2019 21:43:29 -0400
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
- Gecko/20100101 Thunderbird/60.3.3
+        Thu, 28 Mar 2019 18:50:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 345833099FD0;
+	Fri, 29 Mar 2019 01:50:07 +0000 (UTC)
+Received: from redhat.com (ovpn-121-118.rdu2.redhat.com [10.10.121.118])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 02F606FDDE;
+	Fri, 29 Mar 2019 01:50:05 +0000 (UTC)
+Date: Thu, 28 Mar 2019 21:50:03 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Ira Weiny <ira.weiny@intel.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Dan Williams <dan.j.williams@intel.com>
+Subject: Re: [PATCH v2 02/11] mm/hmm: use reference counting for HMM struct v2
+Message-ID: <20190329015003.GE16680@redhat.com>
+References: <20190325144011.10560-1-jglisse@redhat.com>
+ <20190325144011.10560-3-jglisse@redhat.com>
+ <20190328110719.GA31324@iweiny-DESK2.sc.intel.com>
+ <20190328191122.GA5740@redhat.com>
+ <c8fd897f-b9d3-a77b-9898-78e20221ba44@nvidia.com>
+ <20190328212145.GA13560@redhat.com>
+ <fcb7be01-38c1-ed1f-70a0-d03dc9260473@nvidia.com>
+ <20190328165708.GH31324@iweiny-DESK2.sc.intel.com>
+ <20190329010059.GB16680@redhat.com>
+ <55dd8607-c91b-12ab-e6d7-adfe6d9cb5e2@nvidia.com>
 MIME-Version: 1.0
-In-Reply-To: <20190324030422.GE10344@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <55dd8607-c91b-12ab-e6d7-adfe6d9cb5e2@nvidia.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Fri, 29 Mar 2019 01:50:07 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/23/19 11:04 PM, Matthew Wilcox wrote> @@ -335,11 +335,12 @@ static inline
-struct page *grab_cache_page_nowait(struct address_space *mapping,
->  
->  static inline struct page *find_subpage(struct page *page, pgoff_t offset)
->  {
-> +       unsigned long index = page_index(page);
-> +
->         VM_BUG_ON_PAGE(PageTail(page), page);
-> -       VM_BUG_ON_PAGE(page->index > offset, page);
-> -       VM_BUG_ON_PAGE(page->index + (1 << compound_order(page)) <= offset,
-> -                       page);
-> -       return page - page->index + offset;
-> +       VM_BUG_ON_PAGE(index > offset, page);
-> +       VM_BUG_ON_PAGE(index + (1 << compound_order(page)) <= offset, page);
-> +       return page - index + offset;
->  }
+On Thu, Mar 28, 2019 at 06:18:35PM -0700, John Hubbard wrote:
+> On 3/28/19 6:00 PM, Jerome Glisse wrote:
+> > On Thu, Mar 28, 2019 at 09:57:09AM -0700, Ira Weiny wrote:
+> >> On Thu, Mar 28, 2019 at 05:39:26PM -0700, John Hubbard wrote:
+> >>> On 3/28/19 2:21 PM, Jerome Glisse wrote:
+> >>>> On Thu, Mar 28, 2019 at 01:43:13PM -0700, John Hubbard wrote:
+> >>>>> On 3/28/19 12:11 PM, Jerome Glisse wrote:
+> >>>>>> On Thu, Mar 28, 2019 at 04:07:20AM -0700, Ira Weiny wrote:
+> >>>>>>> On Mon, Mar 25, 2019 at 10:40:02AM -0400, Jerome Glisse wrote:
+> >>>>>>>> From: Jérôme Glisse <jglisse@redhat.com>
+> >>> [...]
+> >>>>>>>> @@ -67,14 +78,9 @@ struct hmm {
+> >>>>>>>>   */
+> >>>>>>>>  static struct hmm *hmm_register(struct mm_struct *mm)
+> >>>>>>>>  {
+> >>>>>>>> -	struct hmm *hmm = READ_ONCE(mm->hmm);
+> >>>>>>>> +	struct hmm *hmm = mm_get_hmm(mm);
+> >>>>>>>
+> >>>>>>> FWIW: having hmm_register == "hmm get" is a bit confusing...
+> >>>>>>
+> >>>>>> The thing is that you want only one hmm struct per process and thus
+> >>>>>> if there is already one and it is not being destroy then you want to
+> >>>>>> reuse it.
+> >>>>>>
+> >>>>>> Also this is all internal to HMM code and so it should not confuse
+> >>>>>> anyone.
+> >>>>>>
+> >>>>>
+> >>>>> Well, it has repeatedly come up, and I'd claim that it is quite 
+> >>>>> counter-intuitive. So if there is an easy way to make this internal 
+> >>>>> HMM code clearer or better named, I would really love that to happen.
+> >>>>>
+> >>>>> And we shouldn't ever dismiss feedback based on "this is just internal
+> >>>>> xxx subsystem code, no need for it to be as clear as other parts of the
+> >>>>> kernel", right?
+> >>>>
+> >>>> Yes but i have not seen any better alternative that present code. If
+> >>>> there is please submit patch.
+> >>>>
+> >>>
+> >>> Ira, do you have any patch you're working on, or a more detailed suggestion there?
+> >>> If not, then I might (later, as it's not urgent) propose a small cleanup patch 
+> >>> I had in mind for the hmm_register code. But I don't want to duplicate effort 
+> >>> if you're already thinking about it.
+> >>
+> >> No I don't have anything.
+> >>
+> >> I was just really digging into these this time around and I was about to
+> >> comment on the lack of "get's" for some "puts" when I realized that
+> >> "hmm_register" _was_ the get...
+> >>
+> >> :-(
+> >>
+> > 
+> > The get is mm_get_hmm() were you get a reference on HMM from a mm struct.
+> > John in previous posting complained about me naming that function hmm_get()
+> > and thus in this version i renamed it to mm_get_hmm() as we are getting
+> > a reference on hmm from a mm struct.
+> 
+> Well, that's not what I recommended, though. The actual conversation went like
+> this [1]:
+> 
+> ---------------------------------------------------------------
+> >> So for this, hmm_get() really ought to be symmetric with
+> >> hmm_put(), by taking a struct hmm*. And the null check is
+> >> not helping here, so let's just go with this smaller version:
+> >>
+> >> static inline struct hmm *hmm_get(struct hmm *hmm)
+> >> {
+> >>     if (kref_get_unless_zero(&hmm->kref))
+> >>         return hmm;
+> >>
+> >>     return NULL;
+> >> }
+> >>
+> >> ...and change the few callers accordingly.
+> >>
+> >
+> > What about renaning hmm_get() to mm_get_hmm() instead ?
+> >
+> 
+> For a get/put pair of functions, it would be ideal to pass
+> the same argument type to each. It looks like we are passing
+> around hmm*, and hmm retains a reference count on hmm->mm,
+> so I think you have a choice of using either mm* or hmm* as
+> the argument. I'm not sure that one is better than the other
+> here, as the lifetimes appear to be linked pretty tightly.
+> 
+> Whichever one is used, I think it would be best to use it
+> in both the _get() and _put() calls. 
+> ---------------------------------------------------------------
+> 
+> Your response was to change the name to mm_get_hmm(), but that's not
+> what I recommended.
 
-Even with this patch, it is still able to trigger a panic below by running LTP
-mm tests. Always triggered by oom02 (or oom04) at the end.
+Because i can not do that, hmm_put() can _only_ take hmm struct as
+input while hmm_get() can _only_ get mm struct as input.
 
-# /opt/ltp/runltp -f mm
+hmm_put() can only take hmm because the hmm we are un-referencing
+might no longer be associated with any mm struct and thus i do not
+have a mm struct to use.
 
-The problem is that in scan_swap_map_slots(),
+hmm_get() can only get mm as input as we need to be careful when
+accessing the hmm field within the mm struct and thus it is better
+to have that code within a function than open coded and duplicated
+all over the place.
 
-/* reuse swap entry of cache-only swap if not busy. */
-	if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
-		int swap_was_freed;
-		unlock_cluster(ci);
-		spin_unlock(&si->lock);
-		swap_was_freed = __try_to_reclaim_swap(si, offset, TTRS_ANYWAY);
+> 
+> > 
+> > The hmm_put() is just releasing the reference on the hmm struct.
+> > 
+> > Here i feel i am getting contradicting requirement from different people.
+> > I don't think there is a way to please everyone here.
+> > 
+> 
+> That's not a true conflict: you're comparing your actual implementation
+> to Ira's request, rather than comparing my request to Ira's request.
+> 
+> I think there's a way forward. Ira and I are actually both asking for the
+> same thing:
+> 
+> a) clear, concise get/put routines
+> 
+> b) avoiding odd side effects in functions that have one name, but do
+> additional surprising things.
 
-but that swap entry has already been freed, and the page has PageSwapCache
-cleared and page->private is 0.
+Please show me code because i do not see any other way to do it then
+how i did.
 
-swp_entry_t entry = swp_entry(si->type, offset)
-
-and then in find_subpage(),
-
-its page->index has a different meaning again and the calculation is now all wrong.
-
-return page - page->index + offset;
-
-[ 7439.033573] oom_reaper: reaped process 47172 (oom02), now anon-rss:0kB,
-file-rss:0kB, shmem-rss:0kB
-[ 7456.445737] LTP: starting oom03
-[ 7456.535940] LTP: starting oom04
-[ 7493.077222] page:ffffea00877a13c0 count:1 mapcount:0 mapping:ffff88a79061d009
-index:0x7fa81584f
-[ 7493.086963] anon
-[ 7493.086968] flags: 0x15fffe00008005c(uptodate|dirty|lru|workingset|swapbacked)
-[ 7493.097201] raw: 015fffe00008005c ffffea00b4bf9508 ffffea007f45efc8
-ffff88a79061d009
-[ 7493.105853] raw: 00000007fa81584f 0000000000000000 00000001ffffffff
-ffff888f18278008
-[ 7493.114504] page dumped because: VM_BUG_ON_PAGE(index + (1 <<
-compound_order(page)) <= offset)
-[ 7493.124126] page->mem_cgroup:ffff888f18278008
-[ 7493.129036] page_owner info is not active (free page?)
-[ 7493.134782] ------------[ cut here ]------------
-[ 7493.139937] kernel BUG at include/linux/pagemap.h:342!
-[ 7493.145682] invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN PTI
-[ 7493.152679] CPU: 5 PID: 47308 Comm: oom04 Kdump: loaded Tainted: G        W
-      5.1.0-rc2-mm1+ #13
-[ 7493.163068] Hardware name: Lenovo ThinkSystem SR530
--[7X07RCZ000]-/-[7X07RCZ000]-, BIOS -[TEE113T-1.00]- 07/07/2017
-[ 7493.174721] RIP: 0010:find_get_entry+0x751/0x9b0
-[ 7493.179876] Code: c6 e0 aa a9 8d 4c 89 ff e8 3c 18 0d 00 0f 0b 48 c7 c7 20 40
-02 8e e8 a3 17 58 00 48 c7 c6 40 ad a9 8d 4c 89 ff e8 1f 18 0d 00 <0f> 0b 48 c7
-c7 e0 3f 02 8e e8 86 17 58 00 48 c7 c7 68 11 3f 8e e8
-[ 7493.200834] RSP: 0000:ffff888d50536ba8 EFLAGS: 00010282
-[ 7493.206666] RAX: 0000000000000000 RBX: 0000000000000001 RCX: ffffffff8cd6401e
-[ 7493.214632] RDX: 0000000000000000 RSI: 0000000000000008 RDI: ffff88979e8b5480
-[ 7493.222599] RBP: ffff888d50536cb8 R08: ffffed12f3d16a91 R09: ffffed12f3d16a90
-[ 7493.230566] R10: ffffed12f3d16a90 R11: ffff88979e8b5487 R12: ffffea00877a13c0
-[ 7493.238531] R13: ffffea00877a13c8 R14: ffffea00877a13c8 R15: ffffea00877a13c0
-[ 7493.246496] FS:  00007f248398c700(0000) GS:ffff88979e880000(0000)
-knlGS:0000000000000000
-[ 7493.255527] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[ 7493.261942] CR2: 00007f3fde110000 CR3: 00000011b2fcc003 CR4: 00000000001606a0
-[ 7493.269900] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[ 7493.277864] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-[ 7493.285830] Call Trace:
-[ 7493.288555]  ? queued_spin_lock_slowpath+0x571/0x9e0
-[ 7493.294097]  ? __filemap_set_wb_err+0x1f0/0x1f0
-[ 7493.299154]  pagecache_get_page+0x4a/0xb70
-[ 7493.303729]  __try_to_reclaim_swap+0xa3/0x400
-[ 7493.308593]  scan_swap_map_slots+0xc05/0x1850
-[ 7493.313447]  ? __try_to_reclaim_swap+0x400/0x400
-[ 7493.318600]  ? do_raw_spin_lock+0x128/0x280
-[ 7493.323269]  ? rwlock_bug.part.0+0x90/0x90
-[ 7493.327840]  ? get_swap_pages+0x195/0x730
-[ 7493.332316]  get_swap_pages+0x386/0x730
-[ 7493.336590]  get_swap_page+0x2b2/0x643
-[ 7493.340774]  ? rmap_walk+0x140/0x140
-[ 7493.344765]  ? free_swap_slot+0x3c0/0x3c0
-[ 7493.349232]  ? anon_vma_ctor+0xe0/0xe0
-[ 7493.353407]  ? page_get_anon_vma+0x280/0x280
-[ 7493.358173]  add_to_swap+0x10b/0x230
-[ 7493.362164]  shrink_page_list+0x29d8/0x4960
-[ 7493.366822]  ? page_evictable+0x11b/0x1d0
-[ 7493.371296]  ? page_evictable+0x1d0/0x1d0
-[ 7493.375769]  ? __isolate_lru_page+0x880/0x880
-[ 7493.380631]  ? __lock_acquire.isra.14+0x7d7/0x2130
-[ 7493.385977]  ? shrink_inactive_list+0x484/0x13b0
-[ 7493.391130]  ? lock_downgrade+0x760/0x760
-[ 7493.395608]  ? kasan_check_read+0x11/0x20
-[ 7493.400082]  ? do_raw_spin_unlock+0x59/0x250
-[ 7493.404848]  shrink_inactive_list+0x4bf/0x13b0
-[ 7493.409823]  ? move_pages_to_lru+0x1c90/0x1c90
-[ 7493.414795]  ? kasan_check_read+0x11/0x20
-[ 7493.419261]  ? lruvec_lru_size+0xef/0x4c0
-[ 7493.423738]  ? call_function_interrupt+0xa/0x20
-[ 7493.428800]  ? rcu_all_qs+0x11/0xc0
-[ 7493.432692]  shrink_node_memcg+0x66a/0x1ee0
-[ 7493.437361]  ? shrink_active_list+0x1150/0x1150
-[ 7493.442417]  ? lock_downgrade+0x760/0x760
-[ 7493.446891]  ? lock_acquire+0x169/0x360
-[ 7493.451177]  ? mem_cgroup_iter+0x210/0xca0
-[ 7493.455747]  ? kasan_check_read+0x11/0x20
-[ 7493.460221]  ? mem_cgroup_protected+0x94/0x450
-[ 7493.465179]  shrink_node+0x266/0x13c0
-[ 7493.469267]  ? shrink_node_memcg+0x1ee0/0x1ee0
-[ 7493.474230]  ? ktime_get+0xab/0x140
-[ 7493.478122]  ? zone_reclaimable_pages+0x553/0x8d0
-[ 7493.483371]  do_try_to_free_pages+0x349/0x11e0
-[ 7493.488333]  ? allow_direct_reclaim.part.6+0xc3/0x240
-[ 7493.493971]  ? shrink_node+0x13c0/0x13c0
-[ 7493.498352]  ? queue_delayed_work_on+0x30/0x30
-[ 7493.503313]  try_to_free_pages+0x277/0x740
-[ 7493.507884]  ? __lock_acquire.isra.14+0x7d7/0x2130
-[ 7493.513232]  ? do_try_to_free_pages+0x11e0/0x11e0
-[ 7493.518482]  __alloc_pages_nodemask+0xc37/0x2ab0
-[ 7493.523635]  ? gfp_pfmemalloc_allowed+0x150/0x150
-[ 7493.528886]  ? __lock_acquire.isra.14+0x7d7/0x2130
-[ 7493.534226]  ? __lock_acquire.isra.14+0x7d7/0x2130
-[ 7493.539566]  ? do_anonymous_page+0x450/0x1e00
-[ 7493.544419]  ? lock_downgrade+0x760/0x760
-[ 7493.548896]  ? __lru_cache_add+0xc2/0x240
-[ 7493.553372]  alloc_pages_vma+0xb2/0x430
-[ 7493.557652]  do_anonymous_page+0x50a/0x1e00
-[ 7493.562324]  ? put_prev_task_fair+0x27c/0x720
-[ 7493.567189]  ? finish_fault+0x290/0x290
-[ 7493.571471]  __handle_mm_fault+0x1688/0x3bc0
-[ 7493.576227]  ? __lock_acquire.isra.14+0x7d7/0x2130
-[ 7493.581574]  ? vmf_insert_mixed_mkwrite+0x20/0x20
-[ 7493.586824]  handle_mm_fault+0x326/0x6cf
-[ 7493.591203]  __do_page_fault+0x333/0x8d0
-[ 7493.595571]  do_page_fault+0x75/0x48e
-[ 7493.599660]  ? page_fault+0x5/0x20
-[ 7493.603458]  page_fault+0x1b/0x20
-[ 7493.607156] RIP: 0033:0x410930
-[ 7493.610564] Code: 89 de e8 53 26 ff ff 48 83 f8 ff 0f 84 86 00 00 00 48 89 c5
-41 83 fc 02 74 28 41 83 fc 03 74 62 e8 05 2c ff ff 31 d2 48 98 90 <c6> 44 15 00
-07 48 01 c2 48 39 d3 7f f3 31 c0 5b 5d 41 5c c3 0f 1f
-[ 7493.631521] RSP: 002b:00007f248398bec0 EFLAGS: 00010206
-[ 7493.637352] RAX: 0000000000001000 RBX: 00000000c0000000 RCX: 00007f42982ad497
-[ 7493.645316] RDX: 000000002a9a3000 RSI: 00000000c0000000 RDI: 0000000000000000
-[ 7493.653281] RBP: 00007f230298b000 R08: 00000000ffffffff R09: 0000000000000000
-[ 7493.661245] R10: 0000000000000022 R11: 0000000000000246 R12: 0000000000000001
-[ 7493.669209] R13: 00007ffc5b8a54ef R14: 0000000000000000 R15: 00007f248398bfc0
-[ 7493.677176] Modules linked in: brd ext4 crc16 mbcache jbd2 overlay loop
-nls_iso8859_1 nls_cp437 vfat fat kvm_intel kvm irqbypass efivars ip_tables
-x_tables xfs sd_mod i40e ahci libahci megaraid_sas libata dm_mirror
-dm_region_hash dm_log dm_mod efivarfs
+Cheers,
+Jérôme
 
