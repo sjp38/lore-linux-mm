@@ -2,184 +2,148 @@ Return-Path: <SRS0=6kLG=SA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 557CBC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 01:01:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5FFF2C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 01:04:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1146A20700
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 01:01:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1146A20700
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 156F120700
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 01:04:14 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="T6duP2l9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 156F120700
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A25986B0007; Thu, 28 Mar 2019 21:01:08 -0400 (EDT)
+	id A24596B0006; Thu, 28 Mar 2019 21:04:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9D6226B0008; Thu, 28 Mar 2019 21:01:08 -0400 (EDT)
+	id 9D3466B0007; Thu, 28 Mar 2019 21:04:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8C4906B000A; Thu, 28 Mar 2019 21:01:08 -0400 (EDT)
+	id 8C2726B0008; Thu, 28 Mar 2019 21:04:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 67E086B0007
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 21:01:08 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id h51so679315qte.22
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 18:01:08 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 6F0FF6B0006
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 21:04:14 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id k13so685452qtc.23
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 18:04:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=rwp7V5lLPdaj+nAjoBmdNcN/aCF8GcZtyuXce7hl5ps=;
-        b=GBhzeNdRQwYqj0IWCARR1/HWNnX4c3nPJbCZDebK+fCjJvWlzfOPbn334euzgxdHDM
-         Kp5dM641ydMQGwhdyZ3QdKZJKeNb//Js5gjG488l9GYbC3yHLActQyrzJCHTEaXQtlnv
-         eOA7qjgmer1v2/vRC0wo70JzYS6oegaX6MA3K91EtzWdso/Y6SXPDU17nVxYp8PpN31l
-         7s0SWBoOp97s/J54ZzWaV/fsDncmZlGVSQJRCc0BiJ2WZegToM27kAlt0Kl3XgIzdF9F
-         e0yVFxp7JF9M/gv7mncj5tlTDixTNkTwRiCK5ey40BtLIyLGQrPLojMH6Cc0tFMnCDrY
-         r31Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUrIf4612yOkKiF6MXZTkYFcY14D1Ca9q3r556vTEU6fI5bfl5Y
-	dC/8WvTEcEeOkz3Ou0Sp/oYwU5P9YYhNdjjpKo7VQouURvSqIsR3lqZcP2qZUuRdGtGnAJ5iqht
-	nmCIHnnNsBnAKsEXRLwYrim9PTUvvNnPmjj82q8ofOfLRUUoXP0arEyblhNZ6h3I/QA==
-X-Received: by 2002:ac8:925:: with SMTP id t34mr22877876qth.30.1553821268130;
-        Thu, 28 Mar 2019 18:01:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzN2WpLAAbphkvU+HvYRyY9K8lX0n2vwVj5dhTt0eUuUhaWmcgNg8KSlrENO24IMI7T+PSu
-X-Received: by 2002:ac8:925:: with SMTP id t34mr22877605qth.30.1553821264225;
-        Thu, 28 Mar 2019 18:01:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553821263; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=qLvJpD5VtGmd85WRPzy2IOxg0BGUhYP6z/BWmT7XiCA=;
+        b=Qe//UZ1FKg8MhYkTVGEsYgdAmfVS2G6e+rwDIWyjTU2IBgHaxd52IS0FWLZhHiedW4
+         D3GbBXc4a1dQGoDS+sj6orYHRSpbBGukF03RdfQJOc6xmX6+OjpyNOCJrz8D4rFEopjT
+         b7MKH3cG8y2Cz0QSgjexICX008I++9eTJWcIkzeO+0amkrv0t6eLGJB6CuljTrlqyfSV
+         SFQN+ZyBSwJLa1llUVwso2NMbBDFxsKAzLQyuhiyO/0CA8l/q4/2lZc58n/CfS+yXBXF
+         SZXcHy1YxRg+GZtuCCr7gn74ekZmkffHYt5XFRPYLS6H47gOz2A7zTdt5Ub32SqSRBN2
+         RXCw==
+X-Gm-Message-State: APjAAAU7s25XmjilfdmAH8YhnLD0getlvwGu1R+77CU8a+NFZdaMyiJ3
+	aG3BFkYwOq5y27mViSkAPgbd9+Oc9YGXfL6+57tHzE6F9sk7LfcYSuKrhP2QgMIybeNsewPkLZk
+	AyNQ7GxenQ1x48P+99s/YFUTBFi7EY/Ap2jneq1ckcY6f9ReCksS9UHr2eLMBXyE3Eg==
+X-Received: by 2002:ac8:f27:: with SMTP id e36mr24825226qtk.27.1553821454197;
+        Thu, 28 Mar 2019 18:04:14 -0700 (PDT)
+X-Received: by 2002:ac8:f27:: with SMTP id e36mr24825202qtk.27.1553821453701;
+        Thu, 28 Mar 2019 18:04:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553821453; cv=none;
         d=google.com; s=arc-20160816;
-        b=JEVToeJ1qxVgFFYQusurR4LFIowFdAHAYhnH/kGJTg1Sl3eLXcguQMUYozY1orVIin
-         ee0yJCDBfGFPH0FfGiltCI5z+vbaAM6BfE93FRKqVbjaYNUVXCGLDATBVJsbHPv3w88u
-         BRrcbMFBc1eeiJQ0Fw+w4rI+waSWA+kqsGMb48+6q4gQfEm3kHiUyYfE1KVDn5OEyCIV
-         jxlmvImS8PhTOEVe0VBcxoA/kgrOMErElk1b7pDj++5HrXIerXJ1Ig1X8Y0aVGDMHDEh
-         0vljsicrRzXzAhT6s9edEcpPuD3C3lHewn1S0qLn1TaYxRLofBYldqdXTQNaJDJ4lK5Z
-         fObA==
+        b=UjjZkikHtPG0jhbqibh/t6RVPLNlSthL9HGhx8YwAHLrCvc/E/Ydt3kmpnFOAurBSb
+         HxtfM3kYBUnH0haFDKPmq8WvOggarzDM55WhfAA5Us4H7zy30fCwhjoFbTKAU88bKUVD
+         2pmsm4ZRvX3v2rUbi46agrj20cP11TbK5yYgivFAIVZEoFgvJ1uAWiZjcUZgb4MDwFGr
+         STgB//1VlsKsgXxRr32pOaNBKfFQ3oeaVyIB4SvzU6IIPuF2csSDZNPeyZs8QgaDlZJr
+         QwmN2/gM5+F9KCaTW5paAMC5dUf+3P5fvyV4N1TU846m3e5NJz1fLtMXMF5JECwI7y7L
+         nYzQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=rwp7V5lLPdaj+nAjoBmdNcN/aCF8GcZtyuXce7hl5ps=;
-        b=JAMAPxHda1p5eigMvIK2zzPizf65JnyaqJruj1hJ0jbsWGW1aN0rLRsdGcDgCgVVFz
-         +dR3WE8x1HHFTYBJlhLCRkP4kDcK7ux72/NE8dHJ731Osfww7Dfco/jHUWa/a+DELUET
-         /91bB/awS03H7Wj79aYoyOOqK3PP9gB8aL16vJ3aK6a9bKSw7xOmgF0l53UQKV+3vTnT
-         gCLkECnTWUInAjOYlHakm+E6UHmfwv+trbfry6yUTs1qXHK5h1Uz2K8MPZJ4Gj+nBbcQ
-         SoONKTO01TY5dRH2sr1OeEOzoeyV9jVnZ8PZHQ9nm/c81T8dWu0xoE3LKn6cWC2YhpcU
-         mbDg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=qLvJpD5VtGmd85WRPzy2IOxg0BGUhYP6z/BWmT7XiCA=;
+        b=I0mGn1071eZOLaRzu9e2EyA6St4khQc7rOgBbtKpMdmaOhauggldnyjIzxjzFytpJX
+         03q9zQTGwkjP8Tar10mVus5euNprdQAUN0u41rjq4y+dz0A1Vc7hdIufer9Cx/cdiNJm
+         bEPkQ8vUWM/n8knwRNfwVGmhIeqF/kc+5rS5eSZllL0LsSO4q23qyYjw8rWN5YfynUn7
+         EsUBNBAaYagJSUaK5E//GVTrB41QFsv6IsXE7ZmoFW8OtaFVtrwJNd9qu+gK8GTRcFG2
+         P5DEKi4V6Ic9T202beQXCIDTwdT15lFZB3nwNbli0gUdn7SF/U5mdBrsAXKLCJkf2RWG
+         Qr8g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q46si130532qtf.237.2019.03.28.18.01.03
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=T6duP2l9;
+       spf=pass (google.com: domain of vincent.mc.li@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vincent.mc.li@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h12sor583346qth.20.2019.03.28.18.04.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Mar 2019 18:01:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Thu, 28 Mar 2019 18:04:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vincent.mc.li@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id D239088ABB;
-	Fri, 29 Mar 2019 01:01:02 +0000 (UTC)
-Received: from redhat.com (ovpn-121-118.rdu2.redhat.com [10.10.121.118])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id BE88362669;
-	Fri, 29 Mar 2019 01:01:01 +0000 (UTC)
-Date: Thu, 28 Mar 2019 21:00:59 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Ira Weiny <ira.weiny@intel.com>
-Cc: John Hubbard <jhubbard@nvidia.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Dan Williams <dan.j.williams@intel.com>
-Subject: Re: [PATCH v2 02/11] mm/hmm: use reference counting for HMM struct v2
-Message-ID: <20190329010059.GB16680@redhat.com>
-References: <20190325144011.10560-1-jglisse@redhat.com>
- <20190325144011.10560-3-jglisse@redhat.com>
- <20190328110719.GA31324@iweiny-DESK2.sc.intel.com>
- <20190328191122.GA5740@redhat.com>
- <c8fd897f-b9d3-a77b-9898-78e20221ba44@nvidia.com>
- <20190328212145.GA13560@redhat.com>
- <fcb7be01-38c1-ed1f-70a0-d03dc9260473@nvidia.com>
- <20190328165708.GH31324@iweiny-DESK2.sc.intel.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=T6duP2l9;
+       spf=pass (google.com: domain of vincent.mc.li@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vincent.mc.li@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=qLvJpD5VtGmd85WRPzy2IOxg0BGUhYP6z/BWmT7XiCA=;
+        b=T6duP2l9Qfj6Gx11JdzcV3DBT6F21EIPjf8eix7uAQ16bl8AGXrlzHrZNc5Ej1ApIC
+         KTdkiSiS86LXbFW8XleLeuA5nLxaqmjgWBACd9Aun4WRVSajPrwXo7LCkJsnCyg7g/rq
+         e2olkqWgxe+lRzzasc583vhtnU1b/syWyXW0lYqbKIB0tWUq3hY9ALyMAd5NutjLm07w
+         SVoT+bq4oswBax3iJGTeNW6Oc+WfiWnPx57EMvRFhgnFvKQVfKiMqyUKjD4KjMy6MWAi
+         obLdzLbG3yI2DMperFoHl2ak1P3xZZTur/o2VfBFG92i9NoWzQnOwnA+PRbjXg/cJR4b
+         ko9w==
+X-Google-Smtp-Source: APXvYqzdS0mmjOEg9m9D3hqyflNoUXl5SJGeDWK/v3XEo4e9pELE4hrvhDnaDbdj090moRojWy3432aeabDcMY+r0Wg=
+X-Received: by 2002:ac8:2e99:: with SMTP id h25mr39847974qta.166.1553821453422;
+ Thu, 28 Mar 2019 18:04:13 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190328165708.GH31324@iweiny-DESK2.sc.intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Fri, 29 Mar 2019 01:01:02 +0000 (UTC)
+References: <fcf5dd0b-8e96-7512-b76a-65a74e5fd52f@I-love.SAKURA.ne.jp>
+ <CAK3+h2wB2x4p976cqA5UPXhz5bZ6mjK98xB8nGQ8hkBoW02k7g@mail.gmail.com> <201903290006.x2T06fWZ001228@www262.sakura.ne.jp>
+In-Reply-To: <201903290006.x2T06fWZ001228@www262.sakura.ne.jp>
+From: Vincent Li <vincent.mc.li@gmail.com>
+Date: Thu, 28 Mar 2019 18:04:02 -0700
+Message-ID: <CAK3+h2xppfdTSd2Gc=Qfd2oDp+Z+VyiTf_CQhn4JyB7UqsiGUQ@mail.gmail.com>
+Subject: Re: sysrq key f to trigger OOM manually
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Linux-MM <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 28, 2019 at 09:57:09AM -0700, Ira Weiny wrote:
-> On Thu, Mar 28, 2019 at 05:39:26PM -0700, John Hubbard wrote:
-> > On 3/28/19 2:21 PM, Jerome Glisse wrote:
-> > > On Thu, Mar 28, 2019 at 01:43:13PM -0700, John Hubbard wrote:
-> > >> On 3/28/19 12:11 PM, Jerome Glisse wrote:
-> > >>> On Thu, Mar 28, 2019 at 04:07:20AM -0700, Ira Weiny wrote:
-> > >>>> On Mon, Mar 25, 2019 at 10:40:02AM -0400, Jerome Glisse wrote:
-> > >>>>> From: Jérôme Glisse <jglisse@redhat.com>
-> > [...]
-> > >>>>> @@ -67,14 +78,9 @@ struct hmm {
-> > >>>>>   */
-> > >>>>>  static struct hmm *hmm_register(struct mm_struct *mm)
-> > >>>>>  {
-> > >>>>> -	struct hmm *hmm = READ_ONCE(mm->hmm);
-> > >>>>> +	struct hmm *hmm = mm_get_hmm(mm);
-> > >>>>
-> > >>>> FWIW: having hmm_register == "hmm get" is a bit confusing...
-> > >>>
-> > >>> The thing is that you want only one hmm struct per process and thus
-> > >>> if there is already one and it is not being destroy then you want to
-> > >>> reuse it.
-> > >>>
-> > >>> Also this is all internal to HMM code and so it should not confuse
-> > >>> anyone.
-> > >>>
-> > >>
-> > >> Well, it has repeatedly come up, and I'd claim that it is quite 
-> > >> counter-intuitive. So if there is an easy way to make this internal 
-> > >> HMM code clearer or better named, I would really love that to happen.
-> > >>
-> > >> And we shouldn't ever dismiss feedback based on "this is just internal
-> > >> xxx subsystem code, no need for it to be as clear as other parts of the
-> > >> kernel", right?
-> > > 
-> > > Yes but i have not seen any better alternative that present code. If
-> > > there is please submit patch.
-> > > 
-> > 
-> > Ira, do you have any patch you're working on, or a more detailed suggestion there?
-> > If not, then I might (later, as it's not urgent) propose a small cleanup patch 
-> > I had in mind for the hmm_register code. But I don't want to duplicate effort 
-> > if you're already thinking about it.
-> 
-> No I don't have anything.
-> 
-> I was just really digging into these this time around and I was about to
-> comment on the lack of "get's" for some "puts" when I realized that
-> "hmm_register" _was_ the get...
-> 
-> :-(
-> 
+On Thu, Mar 28, 2019 at 5:06 PM Tetsuo Handa
+<penguin-kernel@i-love.sakura.ne.jp> wrote:
+>
+> > On Thu, Mar 28, 2019 at 3:46 PM Tetsuo Handa
+> > <penguin-kernel@i-love.sakura.ne.jp> wrote:
+> > >
+> > > On 2019/03/29 6:37, Vincent Li wrote:
+> > > > Hi,
+> > > >
+> > > > not sure if this is the right place, I tried to use echo f >
+> > > > /proc/sysrq-trigger to manually trigger OOM, the OOM killer is
+> > > > triggered to kill a process, does it make sense to trigger OOM killer
+> > > > manually but not actually kill the process, this could be useful to
+> > > > diagnosis problem without actually killing a process in production
+> > > > box.
+> > >
+> > > Why not use "/usr/bin/top -o %MEM" etc. ?
+> > > Reading from /proc will give you more information than from SysRq.
+> >
+> > I am interested to see OOM output including swap entries per process
+> > in swap partition and all
+> > the other kernel internal virtual memory stats, I find it useful than
+> > top or free or /proc/meminfo
+> >
+>
+> Please read http://man7.org/linux/man-pages/man5/proc.5.html and/or
+> https://www.kernel.org/doc/Documentation/filesystems/proc.txt .
 
-The get is mm_get_hmm() were you get a reference on HMM from a mm struct.
-John in previous posting complained about me naming that function hmm_get()
-and thus in this version i renamed it to mm_get_hmm() as we are getting
-a reference on hmm from a mm struct.
 
-The hmm_put() is just releasing the reference on the hmm struct.
-
-Here i feel i am getting contradicting requirement from different people.
-I don't think there is a way to please everyone here.
-
-Cheers,
-Jérôme
+Thanks, I know I can get lots of information from /proc/<pid>/, but I
+like the format/style that OOM dumps since I
+don't have to use some kind of script to parse out the /proc/<pid>,
+plus, OOM also dumps node/zone/page orders....information all
+together, lots of useful information so I can have big picture on the
+memory usage of the system.
 
