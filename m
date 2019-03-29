@@ -6,121 +6,124 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3483BC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 10:40:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 076EDC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 10:43:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DAC612075E
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 10:40:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AAB8C2075E
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 10:43:39 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="key not found in DNS" (0-bit key) header.d=codeaurora.org header.i=@codeaurora.org header.b="WhcgmAeA";
-	dkim=fail reason="key not found in DNS" (0-bit key) header.d=codeaurora.org header.i=@codeaurora.org header.b="FUxNFofr"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DAC612075E
+	dkim=fail reason="key not found in DNS" (0-bit key) header.d=codeaurora.org header.i=@codeaurora.org header.b="UrDWV3nZ";
+	dkim=fail reason="key not found in DNS" (0-bit key) header.d=codeaurora.org header.i=@codeaurora.org header.b="gPTr+dtC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AAB8C2075E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=codeaurora.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 785EF6B000E; Fri, 29 Mar 2019 06:40:53 -0400 (EDT)
+	id 5B02B6B026A; Fri, 29 Mar 2019 06:43:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 736DB6B0269; Fri, 29 Mar 2019 06:40:53 -0400 (EDT)
+	id 538556B026B; Fri, 29 Mar 2019 06:43:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 64C4D6B026A; Fri, 29 Mar 2019 06:40:53 -0400 (EDT)
+	id 3DAE46B026C; Fri, 29 Mar 2019 06:43:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 27B116B000E
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 06:40:53 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id h15so1368381pgi.19
-        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 03:40:53 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 04A0D6B026A
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 06:43:39 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id z7so1405479pgc.1
+        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 03:43:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:dkim-signature:dmarc-filter
          :subject:to:cc:references:from:message-id:date:user-agent
          :mime-version:in-reply-to:content-transfer-encoding:content-language;
-        bh=MOwFYSgTdBBIGRgb3yeDcR3pbmrFQDBgPGPRQ8MYQyg=;
-        b=fXIGCoe13XbvvDWhHob0po+Zc7gAipShpthp39sUk6P6ccJqwsfO2PP1wlCpBoCOGu
-         B2rlJ/nANF+9K9SigEjoiC/33bHEKDHkTXrOqRhbhCJkEGukIxNmbnCAqQ6DglKDJBK0
-         Dr+mIKngJmgUkWdTZCJ67OgI5yRvh3khcs2xVWnF+atzAO/Lf+J/geUb9k/Axzlx8nlK
-         WCSlz9J0EuccQKWtN4UqNeyzY1mEXFjvnZU4JqCvHbHp3hTtF36LRTc006EZLzNjehFq
-         DEyl6L/7bT6j85PZSbszeIDYgxymRr6ND7cAKRnd08DJO0ju/NKCZ65AZhb+FvEOR1zy
-         gqtQ==
-X-Gm-Message-State: APjAAAVl5DitpJTynKrQPkNlQub8zZoEX1oglHtYgsjrRs5IvB2YlY/T
-	UR29i9nYs8D6UhYQew5aG/BTkzrXxv50shnpfFme0aEMZstBhlJHZVprw3BS0ic2VUif42dgFmE
-	2NPXKWH047Msx/0z8ufJHPdg//IilOHE/mkxPczRizAWZL80DwZGsN5y0yNIbbI0WKA==
-X-Received: by 2002:a65:4342:: with SMTP id k2mr45789080pgq.445.1553856052541;
-        Fri, 29 Mar 2019 03:40:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz3YcfmJLFYTguAXH3HGteGk8qO0uPtH8rVoutVrGMyzL9gyz7te5z6ONgZW8BHVKPdw0yx
-X-Received: by 2002:a65:4342:: with SMTP id k2mr45789023pgq.445.1553856051638;
-        Fri, 29 Mar 2019 03:40:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553856051; cv=none;
+        bh=2g1J53+eUOYqgNYb8xE4yjRBXuTLahFiOGHbhrIi3RI=;
+        b=Sk6Gpjv96QGgPGd2x9NsFLH2hximzwr0dUmyEoeAngZv+M0WXRoG4E6sDqtEQzydgP
+         ZXQWyUMtVkpy1ulpqtX7M1jwh6sCZxTwpuwD8AEgTGxQVKPggvNajW3FZWc/Odzab/yQ
+         NnBx/ZrTkVUE44bl4Xsk0+qbyEyC7OQxcnhMOD4RKmf6Daqts3yfN0Y9jbO5KOMcud4g
+         uTxp3kwe64XqgZze2/3RF5S6Bo3epX7rVGYzoWsXxwL4Fy9S0qbhfq1PVG7RmS7lcnu0
+         ZVhUjzLZP1RFidRAhcYUwyqyzkzgptIX4A3r2K8QxTfoqka+DEWg0WwYpLoe+almE8X0
+         e4uw==
+X-Gm-Message-State: APjAAAWaResH1Ic0hUC9VLevl8zBGjI8JOe6spHQSSLm1o0NaEnZifBu
+	ywBwQcSTKEChRkpRzDyJoTyhr+GeJJqPlNOtwIGTKbYz4ppgZwDHlbhsrkPi6bYQWsbSka5rTrY
+	qTqJfqRel42i7ildXS+zNvVdJU49LhGbd32Y3p6KOlqZmp/W7Qw4h1gZEAbsdy9Y5JQ==
+X-Received: by 2002:a17:902:2f43:: with SMTP id s61mr48588866plb.158.1553856218673;
+        Fri, 29 Mar 2019 03:43:38 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwTpfDjw7KQy00C2f6IdKapFHQ4NBEsb6LlbS3tbhov3F4xSJItKaFEbNkTfQ9us0yYqzs/
+X-Received: by 2002:a17:902:2f43:: with SMTP id s61mr48588830plb.158.1553856218024;
+        Fri, 29 Mar 2019 03:43:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553856218; cv=none;
         d=google.com; s=arc-20160816;
-        b=fq3Yoac+lcpx+y2rWj6A5zxpkdd1ZUokE3Mdk4OzSoQtnMUwK6nJqJhOMfLvbTPFHM
-         lh9V0NbP57VhjJAawk/RMSHRhk6rfk/InuNZCkE2AJyMwMFUWblUnHfFF5Vx8udT7uER
-         OFWs5gtlg5m4aTunY97K+nN20iCms0t0eYGIhK9RV5uNosPEzbzwyCXGyd3GEur/Gjhh
-         CGrPdpiL0HSHUP1kOhF9XTy0Llv3Vvjfsjtbp3cHHwgBG+w59KR+pJJmT1ZqGUEsfr/x
-         cc1QEm5vkTgf1o4dQ/kbYANJwOjpz56pNf0GQucF8b66dm3okVxIT/bDvMRO4xay4Tf4
-         AgOA==
+        b=RBpumGzoPGmaRecNkiwK77UmuY7JaqxQaPx2Ix7I4eI+nd3lxPqJ8a8JlvHfP/K3fw
+         QJU5rpst6bJPKBgUnRwD4mEbfJdOLI1IQYfwEsE+WY/WflFWu7MyL4v2ab2lzAdFt1uh
+         vU5q9WxTcQNV5XRzU6AoSq2x2rEvHb99pRAj081xTK/6Kmn/z2xq8skgOdrXbA8Yf3nZ
+         8iDmkptZ0n0yySFm4nl9S5O6qauL+REesVbsPlnKjXtIj75R2pjTqJ+RvGE9LgHHtNB3
+         0J4CTtCgsFgHkK+3GDZ/X5rDkFkKWjr8qdEhocBtmJ341qGngh0gb+b/Ls6eKmqyMZ7J
+         36NQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-language:content-transfer-encoding:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject
          :dmarc-filter:dkim-signature:dkim-signature;
-        bh=MOwFYSgTdBBIGRgb3yeDcR3pbmrFQDBgPGPRQ8MYQyg=;
-        b=SJHMOfaGZxJXdxgcn3AlkvxY3ko3sMQqsUAhE7bTK7EQLkaxpRGXiquVGx4So3Md1s
-         0ClubC45SFu8LXTPxGdEVZElAHiUYbaaxtc0wtqEL9yJ2HvjyUlLOizdgzhDQt/Wzabz
-         ZbB2gQz2BMclvQo0IcfkL1DxkUc+nTGbDYGICWQ+GxM20wbjkJm6YNf9zLOhb4/N1V14
-         t0RRjRa6E9hLoBKb50KZuVH1uR+aEyzUuXhiYF+sG9798GxeQpN/nGEQTiG40BXnRTuv
-         xNdLo3dO4G2cC4AdyUpaXEdNyVRuvhRNMQO8FO4AWYGxkmbXNYB7wdyzAXSiHrMX1608
-         x6rg==
+        bh=2g1J53+eUOYqgNYb8xE4yjRBXuTLahFiOGHbhrIi3RI=;
+        b=dcLRNI03PPTCfdBINwBGBpLUl5805OzjYQrFX7E6cE1jJ/4u2otwgmAjN612/iII5E
+         xLRPyzp7Sw33DL29u5v8zeGqWp9R1oxsTUWd/1R3m5ha8GrOU3lkQpaMAKEBC5jAwExv
+         ZYuly9+LJLWGuE1V9p+GsoKqsHcHhrSbqm0HfxCXrdgmsYgKt1OkCwhHAUk+e/IV1jHl
+         orFfSEKpJwZvk/rqF02hQF8/yvqJVJmsZ+DW2RndzhstHJs9hUxhnJamoOt/MT596uwG
+         KNAPVnv5oJezGOt2bNJnCPuh0SNXyR1p5PJ31xm3NqPH0xW5J2I8rQ1TW0OhEnABerBS
+         I5Gw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@codeaurora.org header.s=default header.b=WhcgmAeA;
-       dkim=pass header.i=@codeaurora.org header.s=default header.b=FUxNFofr;
+       dkim=pass header.i=@codeaurora.org header.s=default header.b=UrDWV3nZ;
+       dkim=pass header.i=@codeaurora.org header.s=default header.b=gPTr+dtC;
        spf=pass (google.com: domain of mojha@codeaurora.org designates 198.145.29.96 as permitted sender) smtp.mailfrom=mojha@codeaurora.org
 Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id d2si1570318pgq.129.2019.03.29.03.40.51
+        by mx.google.com with ESMTPS id e5si1615552pgk.150.2019.03.29.03.43.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Mar 2019 03:40:51 -0700 (PDT)
+        Fri, 29 Mar 2019 03:43:38 -0700 (PDT)
 Received-SPF: pass (google.com: domain of mojha@codeaurora.org designates 198.145.29.96 as permitted sender) client-ip=198.145.29.96;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@codeaurora.org header.s=default header.b=WhcgmAeA;
-       dkim=pass header.i=@codeaurora.org header.s=default header.b=FUxNFofr;
+       dkim=pass header.i=@codeaurora.org header.s=default header.b=UrDWV3nZ;
+       dkim=pass header.i=@codeaurora.org header.s=default header.b=gPTr+dtC;
        spf=pass (google.com: domain of mojha@codeaurora.org designates 198.145.29.96 as permitted sender) smtp.mailfrom=mojha@codeaurora.org
 Received: by smtp.codeaurora.org (Postfix, from userid 1000)
-	id 4586E6079C; Fri, 29 Mar 2019 10:40:51 +0000 (UTC)
+	id 4F58D609CD; Fri, 29 Mar 2019 10:43:36 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=codeaurora.org;
-	s=default; t=1553856051;
-	bh=6UJq9H0yEsYd4R3+jgGK+moeeQ9mNyIzO2VgN16P4jY=;
+	s=default; t=1553856217;
+	bh=llaMkjdyBdsEZbV7SmieM0AVvKTgsZ3IEIReE0vnbNU=;
 	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
-	b=WhcgmAeAnZz3C7CB+VmrjQ8m3NAZiyNsaIcraLxp6ILqvOkOMv25Fb4E/M+CkLMGu
-	 FqRgMMUYAcC94cxAzLeOuW76OwSW5+7Eh7tzFPqHC0MUDOl6laC00uc90P4/4/MSlN
-	 dTr0BbzHbKZkd9K8JFUH4jwHC4MIuhxkj3rGeI3Y=
+	b=UrDWV3nZu/X5u3kLGiW78+YQZriQxaCWkfC57ZjKaDBDcn/pfuJ18BY1Ur/Uxy6YO
+	 2ceW52zDsaovcAq//mqR6ssPcTaBm1OJMDvGGJKJow0B5xLvxJnsaAoIrGdXcc6Nve
+	 wMeZDWYJWCAy+Qhdeoq7jBgF7LUB6UIkCF1GqY2U=
 Received: from [10.204.79.83] (blr-c-bdr-fw-01_globalnat_allzones-outside.qualcomm.com [103.229.19.19])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
 	(Authenticated sender: mojha@smtp.codeaurora.org)
-	by smtp.codeaurora.org (Postfix) with ESMTPSA id 12D8060237;
-	Fri, 29 Mar 2019 10:40:46 +0000 (UTC)
+	by smtp.codeaurora.org (Postfix) with ESMTPSA id C3AE0608CC;
+	Fri, 29 Mar 2019 10:43:31 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=codeaurora.org;
-	s=default; t=1553856050;
-	bh=6UJq9H0yEsYd4R3+jgGK+moeeQ9mNyIzO2VgN16P4jY=;
+	s=default; t=1553856215;
+	bh=llaMkjdyBdsEZbV7SmieM0AVvKTgsZ3IEIReE0vnbNU=;
 	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
-	b=FUxNFofrBoBRI4jRCz0ejj8mWMH2UTW9p9rtjXXMxXRH5HaXvujViOhIguMQ34U5S
-	 jchS215FqJt+hNpohVdWo//mQqHdfEhIvObgIaFcnPRnP87pbjFnWIi5PIOgwwgSlb
-	 9oX43OCtJ4BlCvXicGVeKQUNy0g7ptMlHY8ry7fw=
-DMARC-Filter: OpenDMARC Filter v1.3.2 smtp.codeaurora.org 12D8060237
+	b=gPTr+dtCIr2NUcXjeoHgxRysKE60tI7EJ8q2W9F90xWGIhU7G89CRI2xWh/huk0lX
+	 qI0HG98Y99V47Ght1sJRfE+dZphqbuvIyZkidPLUWpzenWLRA20irm1WlMjKJXd4Oc
+	 XTTM+jb4FXU3c0KGBplaF37asK09qwK1Lh3oyawc=
+DMARC-Filter: OpenDMARC Filter v1.3.2 smtp.codeaurora.org C3AE0608CC
 Authentication-Results: pdx-caf-mail.web.codeaurora.org; dmarc=none (p=none dis=none) header.from=codeaurora.org
 Authentication-Results: pdx-caf-mail.web.codeaurora.org; spf=none smtp.mailfrom=mojha@codeaurora.org
-Subject: Re: [PATCH v3 1/2] mm/sparse: Clean up the obsolete code comment
+Subject: Re: [PATCH v4 2/2] drivers/base/memory.c: Rename the misleading
+ parameter
 To: Baoquan He <bhe@redhat.com>, linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, rafael@kernel.org, akpm@linux-foundation.org,
  mhocko@suse.com, osalvador@suse.de, rppt@linux.ibm.com, willy@infradead.org,
  fanc.fnst@cn.fujitsu.com
 References: <20190329082915.19763-1-bhe@redhat.com>
+ <20190329082915.19763-2-bhe@redhat.com>
+ <20190329093659.GG7627@MiWiFi-R3L-srv>
 From: Mukesh Ojha <mojha@codeaurora.org>
-Message-ID: <1a1ff1d0-3bfa-4f06-1534-c49c63a8b58d@codeaurora.org>
-Date: Fri, 29 Mar 2019 16:10:44 +0530
+Message-ID: <029aac79-37d6-c118-b2b4-f536d0368d60@codeaurora.org>
+Date: Fri, 29 Mar 2019 16:13:27 +0530
 User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
  Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <20190329082915.19763-1-bhe@redhat.com>
+In-Reply-To: <20190329093659.GG7627@MiWiFi-R3L-srv>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Language: en-US
@@ -131,11 +134,17 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On 3/29/2019 1:59 PM, Baoquan He wrote:
-> The code comment above sparse_add_one_section() is obsolete and
-> incorrect, clean it up and write new one.
+On 3/29/2019 3:06 PM, Baoquan He wrote:
+> The input parameter 'phys_index' of memory_block_action() is actually
+> the section number, but not the phys_index of memory_block. This is
+> a relict from the past when one memory block could only contain one
+> section.
+>
+> Rename it to start_section_nr.
 >
 > Signed-off-by: Baoquan He <bhe@redhat.com>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Reviewed-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 
 
 Reviewed-by: Mukesh Ojha <mojha@codeaurora.org>
@@ -144,41 +153,37 @@ Cheers,
 -Mukesh
 
 > ---
-> v2->v3:
->    Normalize the code comment to use '/**' at 1st line of doc
->    above function.
-> v1-v2:
->    Add comments to explain what the returned value means for
->    each error code.
->   mm/sparse.c | 17 +++++++++++++----
->   1 file changed, 13 insertions(+), 4 deletions(-)
+>   drivers/base/memory.c | 7 ++++---
+>   1 file changed, 4 insertions(+), 3 deletions(-)
 >
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 69904aa6165b..363f9d31b511 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -684,10 +684,19 @@ static void free_map_bootmem(struct page *memmap)
->   #endif /* CONFIG_MEMORY_HOTREMOVE */
->   #endif /* CONFIG_SPARSEMEM_VMEMMAP */
->   
-> -/*
-> - * returns the number of sections whose mem_maps were properly
-> - * set.  If this is <=0, then that means that the passed-in
-> - * map was not consumed and must be freed.
-> +/**
-> + * sparse_add_one_section - add a memory section
-> + * @nid: The node to add section on
-> + * @start_pfn: start pfn of the memory range
-> + * @altmap: device page map
-> + *
-> + * This is only intended for hotplug.
-> + *
-> + * Returns:
-> + *   0 on success.
-> + *   Other error code on failure:
-> + *     - -EEXIST - section has been present.
-> + *     - -ENOMEM - out of memory.
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index cb8347500ce2..9ea972b2ae79 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -231,13 +231,14 @@ static bool pages_correctly_probed(unsigned long start_pfn)
+>    * OK to have direct references to sparsemem variables in here.
 >    */
->   int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
->   				     struct vmem_altmap *altmap)
+>   static int
+> -memory_block_action(unsigned long phys_index, unsigned long action, int online_type)
+> +memory_block_action(unsigned long start_section_nr, unsigned long action,
+> +		    int online_type)
+>   {
+>   	unsigned long start_pfn;
+>   	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
+>   	int ret;
+>   
+> -	start_pfn = section_nr_to_pfn(phys_index);
+> +	start_pfn = section_nr_to_pfn(start_section_nr);
+>   
+>   	switch (action) {
+>   	case MEM_ONLINE:
+> @@ -251,7 +252,7 @@ memory_block_action(unsigned long phys_index, unsigned long action, int online_t
+>   		break;
+>   	default:
+>   		WARN(1, KERN_WARNING "%s(%ld, %ld) unknown action: "
+> -		     "%ld\n", __func__, phys_index, action, action);
+> +		     "%ld\n", __func__, start_section_nr, action, action);
+>   		ret = -EINVAL;
+>   	}
+>   
 
