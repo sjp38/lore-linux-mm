@@ -7,105 +7,102 @@ X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 02F54C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 17:45:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 88739C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 17:46:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B27DD2184D
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 17:45:54 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2C6C421871
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 17:46:15 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="U9KbfiY2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B27DD2184D
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="cqMEa3PN"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2C6C421871
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 55A6C6B000D; Fri, 29 Mar 2019 13:45:54 -0400 (EDT)
+	id D23AF6B000E; Fri, 29 Mar 2019 13:46:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5099D6B000E; Fri, 29 Mar 2019 13:45:54 -0400 (EDT)
+	id CD1056B0010; Fri, 29 Mar 2019 13:46:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 421DD6B0010; Fri, 29 Mar 2019 13:45:54 -0400 (EDT)
+	id BEAA26B0269; Fri, 29 Mar 2019 13:46:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 21E416B000D
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 13:45:54 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id d49so2961879qtk.8
-        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 10:45:54 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A5146B000E
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 13:46:14 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id l26so2937594qtk.18
+        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 10:46:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
-         :mime-version:references:subject:from:to:cc;
-        bh=MY/FhGStq36GLtRvOP3TUiFwwq8ZbgwnWXgDNjfyXLc=;
-        b=EHrXwsV7Ww1efWniTta3Qkm4lGQ+NIRZU2WBr7mIYt/9nvRqxfPnFhefxb+BklqPtO
-         ebRap0lxA+339QSZco9R5fdCOy4GWhb7orUkCX+l67w481gH/o2yPM3TIFwgJW3n5rvK
-         W3CgQzmSQo+C1gEIxxvPDRI6mPfzlK+d1U0ypW73UYfQskk9hHf2cULGg6FqyaUBi7ZK
-         sXyc+UrmAbAE1t0bZ8Bb0J6mNkZYN2rAe7s8Jb/tT2JIIXQbzS6sao2Citt6eXw9ybUN
-         jwQe3IB2tHrxcCWeKd2rkqibtDUZ/01cDYckD4onHYCGoaBRWNlvoteay3/U95Q8rx86
-         PKAQ==
-X-Gm-Message-State: APjAAAXfjq8DrsvglEhcbmZO8NLHlUzM1bhzgzRDQ9P/h4xkaXQstFQN
-	++IwTZU7jpQSneQKA0c65aZy0shaaFYAuMO0G0iq6kD2tQOskJeDo3CXM1Bv8RxOfzM2qJBCUKg
-	w2XYVYzboySaTly/R37KS++KdsTsHu7GVm9pzQD/ai0Tvwtn6VfyYVTgF3Dcg4W2RZA==
-X-Received: by 2002:a05:620a:12d0:: with SMTP id e16mr39561443qkl.140.1553881553808;
-        Fri, 29 Mar 2019 10:45:53 -0700 (PDT)
-X-Received: by 2002:a05:620a:12d0:: with SMTP id e16mr39561409qkl.140.1553881553209;
-        Fri, 29 Mar 2019 10:45:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553881553; cv=none;
+        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
+         :subject:from:to:cc;
+        bh=HecDosyfTxgMGrjWUH7w5Q0D6lV4nYY1byCXj4k9AG4=;
+        b=TkY4DpSu4UvFp1yy9u3PqRvl4Jp0kavslbFsZ1ylncw13mOdnuoNvsAQl2w0rkLDQI
+         uP9RCUuvRmTBVNuMCzikZXANLJ5o5UllRpP8sTOz83wkno2ps2r9ofIUWTTswLO9Wxe8
+         q99u+6f4wUcf3WEWJBEU0GRr16N9uN7jHH16AedMYxW2h12hvxxpUjKL/AW3uqEJ5/By
+         7dxh2/Lgv5PnMhWP5eVy/AePPNN2dlLJnEO/SA8pdCxL0kdPTMhMD7a6RNsMas3EglW4
+         vOFTdYKvEmzduHErfwi+A1fgJl9HVEiC0LoKPXhLcmWO+mNtLHHlV9n6LRjd0tC+DbVy
+         h+vA==
+X-Gm-Message-State: APjAAAWRIKO6+iQXbqSKi+FM2QQgwZNX9AWRzdXDp5qa5FYlahfHw1wO
+	iZedZLlldlCRn6q6UPoR6KkQ4lAhG0b8LFSSnvb4WymyEBCpFVq0YGk8O1uH8nRe30BKY7ZJ2Am
+	oy8C2NBRxxf8h4PNKyTf0s1DWjqHlDGlD8BSpG81YaiLqGcOS5pEF5gH/p+QUgV/a6A==
+X-Received: by 2002:a0c:b60d:: with SMTP id f13mr39671695qve.209.1553881574369;
+        Fri, 29 Mar 2019 10:46:14 -0700 (PDT)
+X-Received: by 2002:a0c:b60d:: with SMTP id f13mr39671644qve.209.1553881573452;
+        Fri, 29 Mar 2019 10:46:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553881573; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZdVEYjtBMVyS62+fHNk1lhEqVcyfI1FeyFuO9HUljkIbrPUBL3zAH/rk5Uk+WwBO1n
-         qv9hac8XHOU+BTMbjmmMZBoIrZM3kyat70QmJqtDsZHfRpPGOK2IlfvjE5GnD0kpbCHf
-         yvH/zhEPSSupvH2stwO+A6PNZOxYnpDceliIDQHylwlzmeKE+6LNA4D2shw5hhwjC+2Y
-         dAMY1GCAp7RrHqoK6LQMoxSfYv8/mgyba5WQ7hbZmGCWdm2A5JZSezzRzBq3j0dO3tth
-         cAIVaYP7BuR77yC1uaJIAE6tm2ZS5cjYsN6Wj867lO63rURP7FCytVSZOwHTVsi0jQG5
-         jCcQ==
+        b=dARH9hm0DxlgO+ctc/ywf6x/lP9j5FmWeC/4jBgJlQiq09us/NQKiex/VHGo8L02tE
+         mDl2p1FjuuM6VUSQVVdH+3HNSayaFtelJT3UVMvyBe9MFcfIRdWDgITVglJb3VKBuQIZ
+         +7tV8WLTXnzpL/fBpW0AVrPhFnwoqb9OJXLguKG5eChYZwoQn0gmhT1TJGwZCTmDPo0s
+         upGX3m+C4HamsNEXK5MgI0ZU1vHEO/32/qnxVyqSJ3nktdcSHxFLMbJWMo4nfu0Ipykk
+         iT9su6HVPkGZlmGEIl1P29+TT84Uht08+/JcK6Z141ILS2Lm8K+fCP8WK+vToVg4ZKfs
+         lQeQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
-         :date:dkim-signature;
-        bh=MY/FhGStq36GLtRvOP3TUiFwwq8ZbgwnWXgDNjfyXLc=;
-        b=CUeWy+UEXK2JS8/jJuIuSzk2zHBkD4AcTgESq4yohrlXUPA5Ojzv8AFVUEPXvY7pGI
-         nl0jLLm4Q1+cxX2P3dsaigb3PqLWGQ6HIRS6FDvgB/jY8gXM1Q6jVmoG/vPqD8dm1+aR
-         EL6bIo5Qjo+HTcjCeAI1xYGdrbWcD8wY2bt2Tj5LtzhWBSQRj2oNK2a3HY7rIKgqGqIb
-         8IW/0C7y8MAHCiu/J8zs305YFOcgrakB/peB5rbz2EAUjNPZ8hdoUZYL6qRhlZuPSOpv
-         XxrUsY2lrMFrO8yUr5pjDqZ3RtE3hUrdBZkfnfWgIGUgQ8pnJ6EKa1ToAe4yyAWiA7S7
-         murg==
+        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
+        bh=HecDosyfTxgMGrjWUH7w5Q0D6lV4nYY1byCXj4k9AG4=;
+        b=BVveEHREtPJxdEZsqUs0sOm7drNQ/DdhuQkCiXFuj3F6ho+mH/fEzUfB29hMXlNFjt
+         M7TJ3cAfGc8+O1C3KFMa/UYrc7HQTcGdyEuJehWVPMvVXDcqrNPBYiFopNZeEnYkKATI
+         v8NGtXAFDObPCPZr0N0OrXxR832XYiDCBG9SRlGz2T4RS9Psp8k1K1+Z1k6Ga4Tw14fA
+         bIoYKJJglOPBlTKdBQO7MfG2VMgepXQZTGOvXd1XIO3eJwaeJ4M/oJ3kcC9h5cs6FRdJ
+         Wjtky6yQtzZcFPk2dBu7tVD0gioUl6s65IFMdMRD/hjsUCVZMi7yvSBlkmaO0qM0K1hI
+         5DXg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=U9KbfiY2;
-       spf=pass (google.com: domain of 30fmexawkcocwmnbjduwrnabpxxpun.lxvurwdg-vvtejlt.xap@flex--ndesaulniers.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=30FmeXAwKCOcWMNbJdUWRNabPXXPUN.LXVURWdg-VVTeJLT.XaP@flex--ndesaulniers.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=cqMEa3PN;
+       spf=pass (google.com: domain of 35vmexackcpwkxlipirksskpi.gsqpmry1-qqozego.svk@flex--gthelen.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=35VmeXAcKCPwkxlipirksskpi.gsqpmry1-qqozego.svk@flex--gthelen.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id j6sor1605409qkg.72.2019.03.29.10.45.53
+        by mx.google.com with SMTPS id t17sor2907274qvm.6.2019.03.29.10.46.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 29 Mar 2019 10:45:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 30fmexawkcocwmnbjduwrnabpxxpun.lxvurwdg-vvtejlt.xap@flex--ndesaulniers.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Fri, 29 Mar 2019 10:46:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 35vmexackcpwkxlipirksskpi.gsqpmry1-qqozego.svk@flex--gthelen.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=U9KbfiY2;
-       spf=pass (google.com: domain of 30fmexawkcocwmnbjduwrnabpxxpun.lxvurwdg-vvtejlt.xap@flex--ndesaulniers.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=30FmeXAwKCOcWMNbJdUWRNabPXXPUN.LXVURWdg-VVTeJLT.XaP@flex--ndesaulniers.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=cqMEa3PN;
+       spf=pass (google.com: domain of 35vmexackcpwkxlipirksskpi.gsqpmry1-qqozego.svk@flex--gthelen.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=35VmeXAcKCPwkxlipirksskpi.gsqpmry1-qqozego.svk@flex--gthelen.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
-        h=date:in-reply-to:message-id:mime-version:references:subject:from:to
-         :cc;
-        bh=MY/FhGStq36GLtRvOP3TUiFwwq8ZbgwnWXgDNjfyXLc=;
-        b=U9KbfiY2tmMN3GbfNt8jNImUF01m6grsBPWSAKAY+TrMvuGI6cltQvl/Nirx7lcbau
-         /akZ/ARDBKBCMYz1I19MMPsToUhiU4BJcVIzKJV6YKtUdE+bzoUnHPToaaCd2naMOIcV
-         ZOtykiTHkOTpTb3WJkmcOfffCA+58ktbybVfG6xMgrWhv46+yngJmvLRhCyWQETNKMyJ
-         1WWioQfxhI3z8MqAPw7T5CTFK7yCulwR3rMPL/3fVEFMgCF+IBB2IlQ+korX36XTuOHG
-         EB0aNuRSnIgnZEgMx9fBh8DS75VMssmVPBjHGBoAp6X+bazkB2/R8bYyJxs8T23jiQif
-         73qQ==
-X-Google-Smtp-Source: APXvYqxtGdNegUoK0pdi/nSTKMHASrseGZaV3kE5Z3L0T9xsiDIdV2DrQQlwb5i+SndR8Lbae0m3yNWoCYyCgBJwxzs=
-X-Received: by 2002:a37:6704:: with SMTP id b4mr3214830qkc.29.1553881552858;
- Fri, 29 Mar 2019 10:45:52 -0700 (PDT)
-Date: Fri, 29 Mar 2019 10:45:41 -0700
-In-Reply-To: <201903291603.7podsjD7%lkp@intel.com>
-Message-Id: <20190329174541.79972-1-ndesaulniers@google.com>
+        h=date:message-id:mime-version:subject:from:to:cc;
+        bh=HecDosyfTxgMGrjWUH7w5Q0D6lV4nYY1byCXj4k9AG4=;
+        b=cqMEa3PNpRy8WcyNUOAaWlijQ16ZhQ1K9HVHCM7lPtjNNDvV2lsXTo4+K99HEiJYmd
+         vs9r7/EH23//ynO/F2i86aYhzGBI0p7v1Vju239SnZSoWHBFSJWhSCe67Dv+ImTSIoHI
+         a/n4+EoooBJZFJzKxUeatMaaslRvljHknhH9g4nuIfFZU5EagUURuBSFPyr+Y4+Hb23Z
+         rvA2fEFfriP4w4Ua+4PisqiFxHkTI6wZ+DnAJH+Mql+xGlI04BCe9yumhkeafdmFFIe1
+         prrcH3H3UFMcZsxwUSSMvG/yh2UxwQ8xmvveb6IruN4OY9A3VoE4wnSlqx1NHUYkPh0/
+         QRVw==
+X-Google-Smtp-Source: APXvYqxzQW2SonDnjkuDuqtoTZtQBTSwsDbdzgUhTk7AvwJAB1uNC0V/3RxlJqSUgG1KzxxU+5gRzKTGdW23
+X-Received: by 2002:a0c:9622:: with SMTP id 31mr716828qvx.22.1553881573167;
+ Fri, 29 Mar 2019 10:46:13 -0700 (PDT)
+Date: Fri, 29 Mar 2019 10:46:09 -0700
+Message-Id: <20190329174609.164344-1-gthelen@google.com>
 Mime-Version: 1.0
-References: <201903291603.7podsjD7%lkp@intel.com>
 X-Mailer: git-send-email 2.21.0.392.gf8f6787159e-goog
-Subject: [PATCH] gcov: include linux/module.h for within_module
-From: Nick Desaulniers <ndesaulniers@google.com>
-To: oberpar@linux.ibm.com, akpm@linux-foundation.org
-Cc: Nick Desaulniers <ndesaulniers@google.com>, Greg Hackmann <ghackmann@android.com>, 
-	Tri Vo <trong@android.com>, linux-mm@kvack.org, kbuild-all@01.org, 
-	kbuild test robot <lkp@intel.com>, linux-kernel@vger.kernel.org
+Subject: [PATCH v2] writeback: use exact memcg dirty counts
+From: Greg Thelen <gthelen@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Roman Gushchin <guro@fb.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>, 
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
+	Greg Thelen <gthelen@google.com>, stable@vger.kernel.org
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -113,45 +110,217 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Fixes commit 8c3d220cb6b5 ("gcov: clang support")
+Since commit a983b5ebee57 ("mm: memcontrol: fix excessive complexity in
+memory.stat reporting") memcg dirty and writeback counters are managed
+as:
+1) per-memcg per-cpu values in range of [-32..32]
+2) per-memcg atomic counter
+When a per-cpu counter cannot fit in [-32..32] it's flushed to the
+atomic.  Stat readers only check the atomic.
+Thus readers such as balance_dirty_pages() may see a nontrivial error
+margin: 32 pages per cpu.
+Assuming 100 cpus:
+   4k x86 page_size:  13 MiB error per memcg
+  64k ppc page_size: 200 MiB error per memcg
+Considering that dirty+writeback are used together for some decisions
+the errors double.
 
-Cc: Greg Hackmann <ghackmann@android.com>
-Cc: Tri Vo <trong@android.com>
-Cc: Peter Oberparleiter <oberpar@linux.ibm.com>
-Cc: linux-mm@kvack.org
-Cc: kbuild-all@01.org
-Reported-by: kbuild test robot <lkp@intel.com>
-Link: https://marc.info/?l=linux-mm&m=155384681109231&w=2
-Signed-off-by: Nick Desaulniers <ndesaulniers@google.com>
+This inaccuracy can lead to undeserved oom kills.  One nasty case is
+when all per-cpu counters hold positive values offsetting an atomic
+negative value (i.e. per_cpu[*]=32, atomic=n_cpu*-32).
+balance_dirty_pages() only consults the atomic and does not consider
+throttling the next n_cpu*32 dirty pages.  If the file_lru is in the
+13..200 MiB range then there's absolutely no dirty throttling, which
+burdens vmscan with only dirty+writeback pages thus resorting to oom
+kill.
+
+It could be argued that tiny containers are not supported, but it's more
+subtle.  It's the amount the space available for file lru that matters.
+If a container has memory.max-200MiB of non reclaimable memory, then it
+will also suffer such oom kills on a 100 cpu machine.
+
+The following test reliably ooms without this patch.  This patch avoids
+oom kills.
+
+  $ cat test
+  mount -t cgroup2 none /dev/cgroup
+  cd /dev/cgroup
+  echo +io +memory > cgroup.subtree_control
+  mkdir test
+  cd test
+  echo 10M > memory.max
+  (echo $BASHPID > cgroup.procs && exec /memcg-writeback-stress /foo)
+  (echo $BASHPID > cgroup.procs && exec dd if=/dev/zero of=/foo bs=2M count=100)
+
+  $ cat memcg-writeback-stress.c
+  /*
+   * Dirty pages from all but one cpu.
+   * Clean pages from the non dirtying cpu.
+   * This is to stress per cpu counter imbalance.
+   * On a 100 cpu machine:
+   * - per memcg per cpu dirty count is 32 pages for each of 99 cpus
+   * - per memcg atomic is -99*32 pages
+   * - thus the complete dirty limit: sum of all counters 0
+   * - balance_dirty_pages() only sees atomic count -99*32 pages, which
+   *   it max()s to 0.
+   * - So a workload can dirty -99*32 pages before balance_dirty_pages()
+   *   cares.
+   */
+  #define _GNU_SOURCE
+  #include <err.h>
+  #include <fcntl.h>
+  #include <sched.h>
+  #include <stdlib.h>
+  #include <stdio.h>
+  #include <sys/stat.h>
+  #include <sys/sysinfo.h>
+  #include <sys/types.h>
+  #include <unistd.h>
+
+  static char *buf;
+  static int bufSize;
+
+  static void set_affinity(int cpu)
+  {
+  	cpu_set_t affinity;
+
+  	CPU_ZERO(&affinity);
+  	CPU_SET(cpu, &affinity);
+  	if (sched_setaffinity(0, sizeof(affinity), &affinity))
+  		err(1, "sched_setaffinity");
+  }
+
+  static void dirty_on(int output_fd, int cpu)
+  {
+  	int i, wrote;
+
+  	set_affinity(cpu);
+  	for (i = 0; i < 32; i++) {
+  		for (wrote = 0; wrote < bufSize; ) {
+  			int ret = write(output_fd, buf+wrote, bufSize-wrote);
+  			if (ret == -1)
+  				err(1, "write");
+  			wrote += ret;
+  		}
+  	}
+  }
+
+  int main(int argc, char **argv)
+  {
+  	int cpu, flush_cpu = 1, output_fd;
+  	const char *output;
+
+  	if (argc != 2)
+  		errx(1, "usage: output_file");
+
+  	output = argv[1];
+  	bufSize = getpagesize();
+  	buf = malloc(getpagesize());
+  	if (buf == NULL)
+  		errx(1, "malloc failed");
+
+  	output_fd = open(output, O_CREAT|O_RDWR);
+  	if (output_fd == -1)
+  		err(1, "open(%s)", output);
+
+  	for (cpu = 0; cpu < get_nprocs(); cpu++) {
+  		if (cpu != flush_cpu)
+  			dirty_on(output_fd, cpu);
+  	}
+
+  	set_affinity(flush_cpu);
+  	if (fsync(output_fd))
+  		err(1, "fsync(%s)", output);
+  	if (close(output_fd))
+  		err(1, "close(%s)", output);
+  	free(buf);
+  }
+
+Make balance_dirty_pages() and wb_over_bg_thresh() work harder to
+collect exact per memcg counters.  This avoids the aforementioned oom
+kills.
+
+This does not affect the overhead of memory.stat, which still reads the
+single atomic counter.
+
+Why not use percpu_counter?  memcg already handles cpus going offline,
+so no need for that overhead from percpu_counter.  And the
+percpu_counter spinlocks are more heavyweight than is required.
+
+It probably also makes sense to use exact dirty and writeback counters
+in memcg oom reports.  But that is saved for later.
+
+Cc: stable@vger.kernel.org # v4.16+
+Signed-off-by: Greg Thelen <gthelen@google.com>
 ---
- kernel/gcov/gcc_3_4.c | 1 +
- kernel/gcov/gcc_4_7.c | 1 +
- 2 files changed, 2 insertions(+)
+Changelog since v1:
+- Move memcg_exact_page_state() into memcontrol.c.
+- Unconditionally gather exact (per cpu) counters in mem_cgroup_wb_stats(), it's
+  not called in performance sensitive paths.
+- Unconditionally check for underflow regardless of CONFIG_SMP.  It's just
+  easier this way.  This isn't performance sensitive.
+- Add stable tag.
 
-diff --git a/kernel/gcov/gcc_3_4.c b/kernel/gcov/gcc_3_4.c
-index 801ee4b0b969..0eda59ef57df 100644
---- a/kernel/gcov/gcc_3_4.c
-+++ b/kernel/gcov/gcc_3_4.c
-@@ -16,6 +16,7 @@
-  */
+ include/linux/memcontrol.h |  5 ++++-
+ mm/memcontrol.c            | 20 ++++++++++++++++++--
+ 2 files changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 1f3d880b7ca1..dbb6118370c1 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -566,7 +566,10 @@ struct mem_cgroup *lock_page_memcg(struct page *page);
+ void __unlock_page_memcg(struct mem_cgroup *memcg);
+ void unlock_page_memcg(struct page *page);
  
- #include <linux/errno.h>
-+#include <linux/module.h>
- #include <linux/slab.h>
- #include <linux/string.h>
- #include <linux/seq_file.h>
-diff --git a/kernel/gcov/gcc_4_7.c b/kernel/gcov/gcc_4_7.c
-index ec37563674d6..677851284fe2 100644
---- a/kernel/gcov/gcc_4_7.c
-+++ b/kernel/gcov/gcc_4_7.c
-@@ -13,6 +13,7 @@
-  */
+-/* idx can be of type enum memcg_stat_item or node_stat_item */
++/*
++ * idx can be of type enum memcg_stat_item or node_stat_item.
++ * Keep in sync with memcg_exact_page_state().
++ */
+ static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
+ 					     int idx)
+ {
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 532e0e2a4817..81a0d3914ec9 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3882,6 +3882,22 @@ struct wb_domain *mem_cgroup_wb_domain(struct bdi_writeback *wb)
+ 	return &memcg->cgwb_domain;
+ }
  
- #include <linux/errno.h>
-+#include <linux/module.h>
- #include <linux/slab.h>
- #include <linux/string.h>
- #include <linux/seq_file.h>
++/*
++ * idx can be of type enum memcg_stat_item or node_stat_item.
++ * Keep in sync with memcg_exact_page().
++ */
++static unsigned long memcg_exact_page_state(struct mem_cgroup *memcg, int idx)
++{
++	long x = atomic_long_read(&memcg->stat[idx]);
++	int cpu;
++
++	for_each_online_cpu(cpu)
++		x += per_cpu_ptr(memcg->stat_cpu, cpu)->count[idx];
++	if (x < 0)
++		x = 0;
++	return x;
++}
++
+ /**
+  * mem_cgroup_wb_stats - retrieve writeback related stats from its memcg
+  * @wb: bdi_writeback in question
+@@ -3907,10 +3923,10 @@ void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pfilepages,
+ 	struct mem_cgroup *memcg = mem_cgroup_from_css(wb->memcg_css);
+ 	struct mem_cgroup *parent;
+ 
+-	*pdirty = memcg_page_state(memcg, NR_FILE_DIRTY);
++	*pdirty = memcg_exact_page_state(memcg, NR_FILE_DIRTY);
+ 
+ 	/* this should eventually include NR_UNSTABLE_NFS */
+-	*pwriteback = memcg_page_state(memcg, NR_WRITEBACK);
++	*pwriteback = memcg_exact_page_state(memcg, NR_WRITEBACK);
+ 	*pfilepages = mem_cgroup_nr_lru_pages(memcg, (1 << LRU_INACTIVE_FILE) |
+ 						     (1 << LRU_ACTIVE_FILE));
+ 	*pheadroom = PAGE_COUNTER_MAX;
 -- 
 2.21.0.392.gf8f6787159e-goog
 
