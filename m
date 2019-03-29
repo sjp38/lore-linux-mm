@@ -2,162 +2,148 @@ Return-Path: <SRS0=6kLG=SA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 04443C10F05
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 13:26:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2687AC4360F
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 13:42:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8E65A217F5
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 13:26:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8E65A217F5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id DEA1A217F5
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 13:42:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DEA1A217F5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ECF1A6B0006; Fri, 29 Mar 2019 09:26:24 -0400 (EDT)
+	id 7E77A6B000D; Fri, 29 Mar 2019 09:42:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E7E4B6B000A; Fri, 29 Mar 2019 09:26:24 -0400 (EDT)
+	id 794766B000E; Fri, 29 Mar 2019 09:42:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D6D4E6B0010; Fri, 29 Mar 2019 09:26:24 -0400 (EDT)
+	id 684706B0010; Fri, 29 Mar 2019 09:42:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BA2966B0006
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 09:26:24 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id b188so1733424qkg.15
-        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 06:26:24 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B0F26B000D
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 09:42:48 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id s27so1101422eda.16
+        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 06:42:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:mime-version:content-disposition;
-        bh=6tZ3FsToy/uGhRDMKBuu0T5a7ZQTYi3c4gG8cjj/IR4=;
-        b=HOYgd5eMGmMu877UhR/LojNsL9HcsBXxYh0aU7unZVPQO/xd//oP5cFHCxjP3m/RYT
-         qnWumOzCvrSCU0BmA3PZ4ypJR2h/aOCtsodgdlxgANdUzaXy7FomfrW/bBjjFW6V43D1
-         h/n/eYdkt0MgDHlid7xPo7flzbMX3aNHaYCnlMlJ54AhX/nFZmmlxXZXRqAiodkJSlxI
-         Aq5oUHLMpMcIn70DHK1SwJudawWstbY9Y00A7D/Tlow8G41zbzlgNBxYQMKaW9eUx0nV
-         /VRQY0+LlNKWICJYmnp6tBC0SVsOLo15gcWL9cF7vDQnSWhdg5JvvwOkjDNrtWwk2o+C
-         msVg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVZRhUMFD9xDOVrFuFeYNGAsclneytK+pu/hL8Jb9+nllIG+DwT
-	2PdJX4eb4OmEvHBdGWyScwijE+qXADloS9wZe/DU56wwGCw8oDZ76CNyZfSGCVvQNLrMeL3gY2L
-	SeKgkJr5qgYAzkMlUVT8RXZb54m3sGnsVWaAJ3lxFiDVKKR5DXH9KDJw+pYgkhfEzvQ==
-X-Received: by 2002:aed:3bc3:: with SMTP id s3mr16676471qte.313.1553865984491;
-        Fri, 29 Mar 2019 06:26:24 -0700 (PDT)
-X-Received: by 2002:aed:3bc3:: with SMTP id s3mr16676414qte.313.1553865983750;
-        Fri, 29 Mar 2019 06:26:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553865983; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=j4HggFgP/KO2utS67OktA0Sgrokl0I7flKv0+nEEwt4=;
+        b=E5A/Ug3axxDueuLcXmgv8rq2wLoNjp2/xJxFxtHTMQ19dl73swEWROb1xX7O9x0Okn
+         kFkSaU+/rN1yKmZCYmVklEerC3/onwk11nBFwyv5UuQfAIsUyDLWbFwOJ5Q+P8JMUi24
+         NHTHd9M2N4e0TE08hhAY3MgjOf3J8jltX1GO2KQE6KwRsZG4flF9FXZK6qOnoLhpLXHW
+         kZeqrUtqyHlQ7VNVowwpECImdSomocy5xrVNsTr9g9uDK0g8axgKrfaZ9Urw1Kcz0ID+
+         Pbvc7AUaugMGQ9iygok906tacmEg5YIIHrpnU5qhsOCf7BjSbaDezx9499IWdNjihXh/
+         LLmg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAVYRBDiN65u/n8GdFEHbtxo+qGq4SU9LVjXYLus8M6Am6qevMgL
+	NeGTJj0DeLYeSDtPplJUDIA6RO38UTx2ragvF7xfSZG+E7CnD3BQjWZtvRTbZdMdg4Z4bpwiu7T
+	0rLPsDx+z6Bqe0oEb7tY3L3fdJPXWHYHFeAcRCHR25v3NYGGXMvSS0QGLIX8UV5I=
+X-Received: by 2002:a17:906:b756:: with SMTP id fx22mr27662483ejb.192.1553866967648;
+        Fri, 29 Mar 2019 06:42:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyMSdH5KTPXdIWcw7DYJl/MwX5FgntB2vi66h0zU5/kqpbOJpdvp31NVHLkEzvl1IduL7kn
+X-Received: by 2002:a17:906:b756:: with SMTP id fx22mr27662386ejb.192.1553866965537;
+        Fri, 29 Mar 2019 06:42:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553866965; cv=none;
         d=google.com; s=arc-20160816;
-        b=kQUw0EAU8I/Eq4SCDMRsIkocoCnRtMoCN2uhiqUGUuekpgGEgov9UQfa2WD4PC1BpP
-         CsJ7pgsCORFPwMrdxFTApZkZ/BKXzVIYWkpM85kyvYQlHsfmwlB2KPejDezgoRG68Jpp
-         YdWoF+3EXh8TVnLS3oIbF1MzshUqnW4T9Fvu5a9ALKIDwpdiVjs2In3V71/lC69Tir8i
-         KXSRVv2kDiuW3SE6pnPRJZfX/Az+Bv1V8javJJxC7aB7Hu69hoXA0ooTWdz0VTToyrx0
-         m6lyn5ZfTsq6czFfViJ7YH01Ixb4XPB0Rt6v8gH8MGxAQuyv1wcsigxZVIWfi++GWd+5
-         JMcA==
+        b=MzsEUJ+CtC5e5drepDLYKxuOwuVluo2cUsmGho8WZ6PApHgZ2QvIUiQGcntpXwk+2n
+         dxUff0DqKb8wtxAy2n59oD//R3KG0i4A8N00tVeN3l2WXp/dl5Jx9cCL7/RaCo0t9VYK
+         cJaR8gq9YTt+Vx1lBRE3U8dz6JKXrekPs5ZYPOC8ilCmP+7MZ9jSnsU5wOfTK8wQTxTt
+         xmyFy2UN/sWue0jqiZgd+CTN9z/iKe/40AO9z22sMmaVaYTaeZGip9gJxzFqRepL+UdD
+         mSz1DsoVZuKg3daW3syL/cIS05ImySLmdRQH7rhMNJaMeiOB39A9Xsy81kY6+6z9nl2k
+         l6Ew==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-disposition:mime-version:message-id:subject:cc:to:from:date;
-        bh=6tZ3FsToy/uGhRDMKBuu0T5a7ZQTYi3c4gG8cjj/IR4=;
-        b=lE9QFfLIP6OF8HbkL9qigqJY23Am4VYsqdio6ESAhBaR+FUjCbD90T0hjdz+FAQdZR
-         8AvAfg0dFkBVW+8tr0fCkzXg4x2ihsJmU+cJETzWPMM6KRyC4zRuPpNj9c0+nV3cgOT2
-         W2l8uB1GT0d9oMEUgsVh2oHb02B5PFj6Tlh4oa9AHpkP1EFh1S2l42Ruh7vtxWEN33mU
-         E9OZNXSc0/6SZ+usqSuRj1SXQy4aaMsoKKuri8nEIo1c4CWM50xCm3V6q8S+/XD+sfSm
-         P9u3zD4mGFiqEy0vhH2+fzhHjtjzIGy/6gGOGxx8WQQkofV6nWHjtDGt7LVk8NtlW1Ik
-         dJ6w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=j4HggFgP/KO2utS67OktA0Sgrokl0I7flKv0+nEEwt4=;
+        b=vl2Fc/GUSldyEnmbWSMAmCRz9UBy8EMFO5DHEtiQ6eVw8cDybKZ0u8RapkCwJ5JYzx
+         rzxPwriHk2E4H0Q7sXZCo0gQnZEq1XYOFxPACuV7RCU1pdj5rPUpogbvkV3iUWSxLk14
+         XxwBQeaBTF/t2eIfSc1hF41avJ7+VwPWtGd4WVAozHlLVe2EP8FCLV/wnClmofg/tZ3x
+         MvzJK9f3LzDgAjr8eifIaILFkvqJjfswtqJm+mXRByykSnwQLq/TvSvH/OFD7UZuPUTX
+         nOnUQMZkYrexcN2c32dEYOhiNe3vBnBv9acvahNuNGfrU8m8+0+DEUc3vfDQWH+FxRS5
+         zkNQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y26sor2529233qtf.12.2019.03.29.06.26.23
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z27si1122148edl.146.2019.03.29.06.42.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 29 Mar 2019 06:26:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Mar 2019 06:42:45 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqz9t/fOoWybrlhU5qTUKqQb8Vg0MsizWKV62BSCAnVK0lqtO0/FYFYgcKbqvUoCo7B+Vt0rPg==
-X-Received: by 2002:aed:3c0f:: with SMTP id t15mr21216042qte.282.1553865983383;
-        Fri, 29 Mar 2019 06:26:23 -0700 (PDT)
-Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
-        by smtp.gmail.com with ESMTPSA id y6sm1102459qka.69.2019.03.29.06.26.21
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 29 Mar 2019 06:26:22 -0700 (PDT)
-Date: Fri, 29 Mar 2019 09:26:19 -0400
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: Nitesh Narayan Lal <nitesh@redhat.com>
-Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	pbonzini@redhat.com, lcapitulino@redhat.com, pagupta@redhat.com,
-	wei.w.wang@intel.com, yang.zhang.wz@gmail.com, riel@surriel.com,
-	david@redhat.com, dodgen@google.com, konrad.wilk@oracle.com,
-	dhildenb@redhat.com, aarcange@redhat.com, alexander.duyck@gmail.com
-Subject: On guest free page hinting and OOM
-Message-ID: <20190329084058-mutt-send-email-mst@kernel.org>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id E8E5CB00F;
+	Fri, 29 Mar 2019 13:42:44 +0000 (UTC)
+Date: Fri, 29 Mar 2019 14:42:43 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Oscar Salvador <osalvador@suse.de>
+Cc: David Hildenbrand <david@redhat.com>, akpm@linux-foundation.org,
+	dan.j.williams@intel.com, Jonathan.Cameron@huawei.com,
+	anshuman.khandual@arm.com, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [PATCH 0/4] mm,memory_hotplug: allocate memmap from hotadded
+ memory
+Message-ID: <20190329134243.GA30026@dhcp22.suse.cz>
+References: <20190328134320.13232-1-osalvador@suse.de>
+ <cc68ec6d-3ad2-a998-73dc-cb90f3563899@redhat.com>
+ <efb08377-ca5d-4110-d7ae-04a0d61ac294@redhat.com>
+ <20190329084547.5k37xjwvkgffwajo@d104.suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000022, version=1.2.4
+In-Reply-To: <20190329084547.5k37xjwvkgffwajo@d104.suse.de>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 06, 2019 at 10:50:42AM -0500, Nitesh Narayan Lal wrote:
-> The following patch-set proposes an efficient mechanism for handing freed memory between the guest and the host. It enables the guests with no page cache to rapidly free and reclaims memory to and from the host respectively.
+On Fri 29-03-19 09:45:47, Oscar Salvador wrote:
+[...]
+> * memblock granularity 128M
+> 
+> (qemu) object_add memory-backend-ram,id=ram0,size=256M
+> (qemu) device_add pc-dimm,id=dimm0,memdev=ram0,node=1
+> 
+> This will create two memblocks (2 sections), and if we allocate the vmemmap
+> data for each corresponding section within it section(memblock), you only get
+> 126M contiguous memory.
+> 
+> So, the taken approach is to allocate the vmemmap data corresponging to the
+> whole DIMM/memory-device/memory-resource from the beginning of its memory.
+> 
+> In the example from above, the vmemmap data for both sections is allocated from
+> the beginning of the first section:
+> 
+> memmap array takes 2MB per section, so 512 pfns.
+> If we add 2 sections:
+> 
+> [  pfn#0  ]  \
+> [  ...    ]  |  vmemmap used for memmap array
+> [pfn#1023 ]  /  
+> 
+> [pfn#1024 ]  \
+> [  ...    ]  |  used as normal memory
+> [pfn#65536]  /
+> 
+> So, out of 256M, we get 252M to use as a real memory, as 4M will be used for
+> building the memmap array.
 
-Sorry about breaking the thread: the original subject was
-	KVM: Guest Free Page Hinting
-but the following isn't in a response to a specific patch
-so I thought it's reasonable to start a new one.
-
-What bothers both me (and others) with both Nitesh's asynchronous approach
-to hinting and the hinting that is already supported in the balloon
-driver right now is that it seems to have the potential to create a fake OOM situation:
-the page that is in the process of being hinted can not be used.  How
-likely that is would depend on the workload so is hard to predict.
-
-Alex's patches do not have this problem as they block the
-VCPUs from attempting to get new pages during hinting. Solves the fake OOM
-issue but adds blocking which most of the time is not necessary.
-
-With both approaches there's a tradeoff: hinting is more efficient if it
-hints about large sized chunks of memory at a time, but as that size
-increases, chances of being able to hold on to that much memory at a
-time decrease. One can claim that this is a regular performance/memory
-tradeoff however there is a difference here: normally
-guest performance is traded off for host memory (which host
-knows how much there is of), this trades guest performance
-for guest memory, but the benefit is on the host, not on
-the guest. Thus this is harder to manage.
-
-I have an idea: how about allocating extra guest memory on the host?  An
-extra hinting buffer would be appended to guest memory, with the
-understanding that it is destined specifically to improve page hinting.
-Balloon device would get an extra parameter specifying the
-hinting buffer size - e.g. in the config space of the driver.
-At driver startup, it would get hold of the amount of
-memory specified by host as the hinting buffer size, and keep it around in a
-buffer list - if no action is taken - forever.  Whenever balloon would
-want to get hold of a page of memory and send it to host for hinting, it
-would release a page of the same size from the buffer into the free
-list: a new page swaps places with a page in the buffer.
-
-In this way the amount of useful free memory stays constant.
-
-Once hinting is done page can be swapped back - or just stay
-in the hinting buffer until the next hint.
-
-Clearly this is a memory/performance tradeoff: the more memory host can
-allocate for the hinting buffer, the more batching we'll get so hints
-become cheaper. One notes that:
-- if guest memory isn't pinned, this memory is virtual and can
-  be reclaimed by host. In partucular guest can hint about the
-  memory within the hinting buffer at startup.
-- guest performance/host memory tradeoffs are reasonably well understood, and
-  so it's easier to manage: host knows how much memory it can
-  sacrifice to gain the benefit of hinting.
-
-Thoughts?
-
+Having a larger contiguous area is definitely nice to have but you also
+have to consider the other side of the thing. If we have a movable
+memblock with unmovable memory then we are breaking the movable
+property. So there should be some flexibility for caller to tell whether
+to allocate on per device or per memblock. Or we need something to move
+memmaps during the hotremove.
 -- 
-MST
+Michal Hocko
+SUSE Labs
 
