@@ -2,325 +2,445 @@ Return-Path: <SRS0=6kLG=SA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.4 required=3.0 tests=DATE_IN_PAST_06_12,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 88739C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 17:46:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F3F80C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 17:47:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2C6C421871
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 17:46:15 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="cqMEa3PN"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2C6C421871
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id A16162184D
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 17:47:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A16162184D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D23AF6B000E; Fri, 29 Mar 2019 13:46:14 -0400 (EDT)
+	id 497136B000E; Fri, 29 Mar 2019 13:47:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CD1056B0010; Fri, 29 Mar 2019 13:46:14 -0400 (EDT)
+	id 446276B0010; Fri, 29 Mar 2019 13:47:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BEAA26B0269; Fri, 29 Mar 2019 13:46:14 -0400 (EDT)
+	id 335C16B0269; Fri, 29 Mar 2019 13:47:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A5146B000E
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 13:46:14 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id l26so2937594qtk.18
-        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 10:46:14 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E9FC26B000E
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 13:47:39 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id q18so2141143pll.16
+        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 10:47:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
-         :subject:from:to:cc;
-        bh=HecDosyfTxgMGrjWUH7w5Q0D6lV4nYY1byCXj4k9AG4=;
-        b=TkY4DpSu4UvFp1yy9u3PqRvl4Jp0kavslbFsZ1ylncw13mOdnuoNvsAQl2w0rkLDQI
-         uP9RCUuvRmTBVNuMCzikZXANLJ5o5UllRpP8sTOz83wkno2ps2r9ofIUWTTswLO9Wxe8
-         q99u+6f4wUcf3WEWJBEU0GRr16N9uN7jHH16AedMYxW2h12hvxxpUjKL/AW3uqEJ5/By
-         7dxh2/Lgv5PnMhWP5eVy/AePPNN2dlLJnEO/SA8pdCxL0kdPTMhMD7a6RNsMas3EglW4
-         vOFTdYKvEmzduHErfwi+A1fgJl9HVEiC0LoKPXhLcmWO+mNtLHHlV9n6LRjd0tC+DbVy
-         h+vA==
-X-Gm-Message-State: APjAAAWRIKO6+iQXbqSKi+FM2QQgwZNX9AWRzdXDp5qa5FYlahfHw1wO
-	iZedZLlldlCRn6q6UPoR6KkQ4lAhG0b8LFSSnvb4WymyEBCpFVq0YGk8O1uH8nRe30BKY7ZJ2Am
-	oy8C2NBRxxf8h4PNKyTf0s1DWjqHlDGlD8BSpG81YaiLqGcOS5pEF5gH/p+QUgV/a6A==
-X-Received: by 2002:a0c:b60d:: with SMTP id f13mr39671695qve.209.1553881574369;
-        Fri, 29 Mar 2019 10:46:14 -0700 (PDT)
-X-Received: by 2002:a0c:b60d:: with SMTP id f13mr39671644qve.209.1553881573452;
-        Fri, 29 Mar 2019 10:46:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553881573; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=w9iAm9mtRGL0c6b4Qv9pOcaRgs1GRlLTUXZ07VKuonU=;
+        b=bO4vqTWjYP4hxkANt/bUL7bQAuw4+Aztbl4tXT+S/mWfWamzTEVFU08bhqEgV4qGm0
+         jDweem/0JUZjnMhWv4l/tvvYzUsKw4btTQmbVEyfQr2bIkTT+lDXnTVuXOtkFLsYVEdz
+         7WbI/lu7X1VqwtkQ2k3vJlynJ6VpKo2JaCFJJ7L6Yksqco4qBOd9GOkS0q9VsRsz9S8k
+         akqEV2rFUHgFD+Msf6U58etxTbxx3qdwSbKKZdRCXN7fVUB9qdl8rboRwakirVTHOeuS
+         H9pb3iVOx6Yot9QUu/OXlhDYd67xd6zAmqbsZubN2aiGAqyQ/YwfzT7Ir2mkcUz7w3NE
+         5AQA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUeKmUPjCuAPRRvCW1TGijfQvJhYuhwHsndEBm2topTF2wvTSqF
+	RnkryeZuAXCvtSgJkCdOo/euEFynM3AvYIH6KOw1oOv/vjbv68bdyrNRTpnukfocv2sH7zbMarK
+	QRmbCJqgYxNS6BvqqmVs7KhyLNQq3cGkwMinEH8tH/Pk8JA3IadeyAhPdHE7CBgMz3Q==
+X-Received: by 2002:a62:3047:: with SMTP id w68mr48031090pfw.17.1553881659507;
+        Fri, 29 Mar 2019 10:47:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzuS/Qkug167ZVlZAv1t0qPixMs0kxYPWDdvuSy+5NYo3BHwqKuqgQ6fVAph8GUien+gdcr
+X-Received: by 2002:a62:3047:: with SMTP id w68mr48031019pfw.17.1553881658421;
+        Fri, 29 Mar 2019 10:47:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553881658; cv=none;
         d=google.com; s=arc-20160816;
-        b=dARH9hm0DxlgO+ctc/ywf6x/lP9j5FmWeC/4jBgJlQiq09us/NQKiex/VHGo8L02tE
-         mDl2p1FjuuM6VUSQVVdH+3HNSayaFtelJT3UVMvyBe9MFcfIRdWDgITVglJb3VKBuQIZ
-         +7tV8WLTXnzpL/fBpW0AVrPhFnwoqb9OJXLguKG5eChYZwoQn0gmhT1TJGwZCTmDPo0s
-         upGX3m+C4HamsNEXK5MgI0ZU1vHEO/32/qnxVyqSJ3nktdcSHxFLMbJWMo4nfu0Ipykk
-         iT9su6HVPkGZlmGEIl1P29+TT84Uht08+/JcK6Z141ILS2Lm8K+fCP8WK+vToVg4ZKfs
-         lQeQ==
+        b=QC8taqGCBIfYqL64wn9Xp42azpqb1jV+I4J4I0UXlD8sxPW/5yENhele7ra3pUYQDN
+         E4VTugsj6P8YDJqc2n0F3w1GNekqoX+MIxz3YHkKOYa9u0+i6rn6KEDlc/fCZU/5ckH0
+         XdsYgPqvVosQ4i4h5x+VNpk30IOLzYr9O8t6EkFy70BJLoaPbsyz+b3CB/bP8DpKHmuw
+         Qwk6WkwG+NQMjQp0Rzbl/0FpCvFgNTOXNtCVqHPJTQE9X7tOzM1cYl/XRfOX0COU6Bds
+         t7bEWNCOuPjBJmzPANtAOyATIEks3DgLrsfPGHd3Tvq84CG85xDaYt40gsT7HuiJ852e
+         JiHQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
-        bh=HecDosyfTxgMGrjWUH7w5Q0D6lV4nYY1byCXj4k9AG4=;
-        b=BVveEHREtPJxdEZsqUs0sOm7drNQ/DdhuQkCiXFuj3F6ho+mH/fEzUfB29hMXlNFjt
-         M7TJ3cAfGc8+O1C3KFMa/UYrc7HQTcGdyEuJehWVPMvVXDcqrNPBYiFopNZeEnYkKATI
-         v8NGtXAFDObPCPZr0N0OrXxR832XYiDCBG9SRlGz2T4RS9Psp8k1K1+Z1k6Ga4Tw14fA
-         bIoYKJJglOPBlTKdBQO7MfG2VMgepXQZTGOvXd1XIO3eJwaeJ4M/oJ3kcC9h5cs6FRdJ
-         Wjtky6yQtzZcFPk2dBu7tVD0gioUl6s65IFMdMRD/hjsUCVZMi7yvSBlkmaO0qM0K1hI
-         5DXg==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=w9iAm9mtRGL0c6b4Qv9pOcaRgs1GRlLTUXZ07VKuonU=;
+        b=yarjoXKSGMwswx1pdTPHTqPEiCLAo0r/4Gmu+U6rUo/kPHMwg3fJQgHEF5t+/TQuo3
+         lpLfpeStng0xFa6LjdzRtog4gFPdkzMbISVtS2F5z23g9mQjurbf0X02H/DbimjqkJFA
+         dSeGNws7LFE6moKkAD9cHuf5hlEjNhNheTxJXNo+uexxyALWwxM9xzof/5938dsvLc2k
+         O72DQrXbGvtPPz0f7f8wiq5FvuuetG1rmgPhguU1WiW2nuiNplC9+LPJUiiBppQzyU7k
+         rSmDNhTlYDzXq0fHYbiayS/R6I6MamsU7hMT00hKnCz+SXkg+N+HARLxe1yphav+jrWp
+         B/Yw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=cqMEa3PN;
-       spf=pass (google.com: domain of 35vmexackcpwkxlipirksskpi.gsqpmry1-qqozego.svk@flex--gthelen.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=35VmeXAcKCPwkxlipirksskpi.gsqpmry1-qqozego.svk@flex--gthelen.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id t17sor2907274qvm.6.2019.03.29.10.46.13
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id 124si2323026pfw.148.2019.03.29.10.47.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 29 Mar 2019 10:46:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 35vmexackcpwkxlipirksskpi.gsqpmry1-qqozego.svk@flex--gthelen.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Mar 2019 10:47:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=cqMEa3PN;
-       spf=pass (google.com: domain of 35vmexackcpwkxlipirksskpi.gsqpmry1-qqozego.svk@flex--gthelen.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=35VmeXAcKCPwkxlipirksskpi.gsqpmry1-qqozego.svk@flex--gthelen.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:message-id:mime-version:subject:from:to:cc;
-        bh=HecDosyfTxgMGrjWUH7w5Q0D6lV4nYY1byCXj4k9AG4=;
-        b=cqMEa3PNpRy8WcyNUOAaWlijQ16ZhQ1K9HVHCM7lPtjNNDvV2lsXTo4+K99HEiJYmd
-         vs9r7/EH23//ynO/F2i86aYhzGBI0p7v1Vju239SnZSoWHBFSJWhSCe67Dv+ImTSIoHI
-         a/n4+EoooBJZFJzKxUeatMaaslRvljHknhH9g4nuIfFZU5EagUURuBSFPyr+Y4+Hb23Z
-         rvA2fEFfriP4w4Ua+4PisqiFxHkTI6wZ+DnAJH+Mql+xGlI04BCe9yumhkeafdmFFIe1
-         prrcH3H3UFMcZsxwUSSMvG/yh2UxwQ8xmvveb6IruN4OY9A3VoE4wnSlqx1NHUYkPh0/
-         QRVw==
-X-Google-Smtp-Source: APXvYqxzQW2SonDnjkuDuqtoTZtQBTSwsDbdzgUhTk7AvwJAB1uNC0V/3RxlJqSUgG1KzxxU+5gRzKTGdW23
-X-Received: by 2002:a0c:9622:: with SMTP id 31mr716828qvx.22.1553881573167;
- Fri, 29 Mar 2019 10:46:13 -0700 (PDT)
-Date: Fri, 29 Mar 2019 10:46:09 -0700
-Message-Id: <20190329174609.164344-1-gthelen@google.com>
-Mime-Version: 1.0
-X-Mailer: git-send-email 2.21.0.392.gf8f6787159e-goog
-Subject: [PATCH v2] writeback: use exact memcg dirty counts
-From: Greg Thelen <gthelen@google.com>
-To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Roman Gushchin <guro@fb.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>, 
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
-	Greg Thelen <gthelen@google.com>, stable@vger.kernel.org
-Content-Type: text/plain; charset="UTF-8"
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from fmsmga005.fm.intel.com ([10.253.24.32])
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 29 Mar 2019 10:47:37 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,285,1549958400"; 
+   d="scan'208";a="333270212"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by fmsmga005.fm.intel.com with ESMTP; 29 Mar 2019 10:47:37 -0700
+Date: Fri, 29 Mar 2019 02:46:31 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, Logan Gunthorpe <logang@deltatee.com>,
+	Bjorn Helgaas <bhelgaas@google.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Christoph Hellwig <hch@lst.de>, linux-mm@kvack.org,
+	linux-pci@vger.kernel.org, linux-nvdimm@lists.01.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 6/6] mm/devm_memremap_pages: Fix final page put race
+Message-ID: <20190329094630.GA6024@iweiny-DESK2.sc.intel.com>
+References: <155387324370.2443841.574715745262628837.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <155387327591.2443841.1024616899609926902.stgit@dwillia2-desk3.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <155387327591.2443841.1024616899609926902.stgit@dwillia2-desk3.amr.corp.intel.com>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Since commit a983b5ebee57 ("mm: memcontrol: fix excessive complexity in
-memory.stat reporting") memcg dirty and writeback counters are managed
-as:
-1) per-memcg per-cpu values in range of [-32..32]
-2) per-memcg atomic counter
-When a per-cpu counter cannot fit in [-32..32] it's flushed to the
-atomic.  Stat readers only check the atomic.
-Thus readers such as balance_dirty_pages() may see a nontrivial error
-margin: 32 pages per cpu.
-Assuming 100 cpus:
-   4k x86 page_size:  13 MiB error per memcg
-  64k ppc page_size: 200 MiB error per memcg
-Considering that dirty+writeback are used together for some decisions
-the errors double.
+On Fri, Mar 29, 2019 at 08:27:55AM -0700, Dan Williams wrote:
+> Logan noticed that devm_memremap_pages_release() kills the percpu_ref
+> drops all the page references that were acquired at init and then
+> immediately proceeds to unplug, arch_remove_memory(), the backing pages
+> for the pagemap. If for some reason device shutdown actually collides
+> with a busy / elevated-ref-count page then arch_remove_memory() should
+> be deferred until after that reference is dropped.
+> 
+> As it stands the "wait for last page ref drop" happens *after*
+> devm_memremap_pages_release() returns, which is obviously too late and
+> can lead to crashes.
+> 
+> Fix this situation by assigning the responsibility to wait for the
+> percpu_ref to go idle to devm_memremap_pages() with a new ->cleanup()
+> callback. Implement the new cleanup callback for all
+> devm_memremap_pages() users: pmem, devdax, hmm, and p2pdma.
+> 
+> Reported-by: Logan Gunthorpe <logang@deltatee.com>
+> Fixes: 41e94a851304 ("add devm_memremap_pages")
+> Cc: Ira Weiny <ira.weiny@intel.com>
+> Cc: Bjorn Helgaas <bhelgaas@google.com>
+> Cc: "Jérôme Glisse" <jglisse@redhat.com>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-This inaccuracy can lead to undeserved oom kills.  One nasty case is
-when all per-cpu counters hold positive values offsetting an atomic
-negative value (i.e. per_cpu[*]=32, atomic=n_cpu*-32).
-balance_dirty_pages() only consults the atomic and does not consider
-throttling the next n_cpu*32 dirty pages.  If the file_lru is in the
-13..200 MiB range then there's absolutely no dirty throttling, which
-burdens vmscan with only dirty+writeback pages thus resorting to oom
-kill.
+For the series:
 
-It could be argued that tiny containers are not supported, but it's more
-subtle.  It's the amount the space available for file lru that matters.
-If a container has memory.max-200MiB of non reclaimable memory, then it
-will also suffer such oom kills on a 100 cpu machine.
+Reviewed-by: Ira Weiny <ira.weiny@intel.com>
 
-The following test reliably ooms without this patch.  This patch avoids
-oom kills.
-
-  $ cat test
-  mount -t cgroup2 none /dev/cgroup
-  cd /dev/cgroup
-  echo +io +memory > cgroup.subtree_control
-  mkdir test
-  cd test
-  echo 10M > memory.max
-  (echo $BASHPID > cgroup.procs && exec /memcg-writeback-stress /foo)
-  (echo $BASHPID > cgroup.procs && exec dd if=/dev/zero of=/foo bs=2M count=100)
-
-  $ cat memcg-writeback-stress.c
-  /*
-   * Dirty pages from all but one cpu.
-   * Clean pages from the non dirtying cpu.
-   * This is to stress per cpu counter imbalance.
-   * On a 100 cpu machine:
-   * - per memcg per cpu dirty count is 32 pages for each of 99 cpus
-   * - per memcg atomic is -99*32 pages
-   * - thus the complete dirty limit: sum of all counters 0
-   * - balance_dirty_pages() only sees atomic count -99*32 pages, which
-   *   it max()s to 0.
-   * - So a workload can dirty -99*32 pages before balance_dirty_pages()
-   *   cares.
-   */
-  #define _GNU_SOURCE
-  #include <err.h>
-  #include <fcntl.h>
-  #include <sched.h>
-  #include <stdlib.h>
-  #include <stdio.h>
-  #include <sys/stat.h>
-  #include <sys/sysinfo.h>
-  #include <sys/types.h>
-  #include <unistd.h>
-
-  static char *buf;
-  static int bufSize;
-
-  static void set_affinity(int cpu)
-  {
-  	cpu_set_t affinity;
-
-  	CPU_ZERO(&affinity);
-  	CPU_SET(cpu, &affinity);
-  	if (sched_setaffinity(0, sizeof(affinity), &affinity))
-  		err(1, "sched_setaffinity");
-  }
-
-  static void dirty_on(int output_fd, int cpu)
-  {
-  	int i, wrote;
-
-  	set_affinity(cpu);
-  	for (i = 0; i < 32; i++) {
-  		for (wrote = 0; wrote < bufSize; ) {
-  			int ret = write(output_fd, buf+wrote, bufSize-wrote);
-  			if (ret == -1)
-  				err(1, "write");
-  			wrote += ret;
-  		}
-  	}
-  }
-
-  int main(int argc, char **argv)
-  {
-  	int cpu, flush_cpu = 1, output_fd;
-  	const char *output;
-
-  	if (argc != 2)
-  		errx(1, "usage: output_file");
-
-  	output = argv[1];
-  	bufSize = getpagesize();
-  	buf = malloc(getpagesize());
-  	if (buf == NULL)
-  		errx(1, "malloc failed");
-
-  	output_fd = open(output, O_CREAT|O_RDWR);
-  	if (output_fd == -1)
-  		err(1, "open(%s)", output);
-
-  	for (cpu = 0; cpu < get_nprocs(); cpu++) {
-  		if (cpu != flush_cpu)
-  			dirty_on(output_fd, cpu);
-  	}
-
-  	set_affinity(flush_cpu);
-  	if (fsync(output_fd))
-  		err(1, "fsync(%s)", output);
-  	if (close(output_fd))
-  		err(1, "close(%s)", output);
-  	free(buf);
-  }
-
-Make balance_dirty_pages() and wb_over_bg_thresh() work harder to
-collect exact per memcg counters.  This avoids the aforementioned oom
-kills.
-
-This does not affect the overhead of memory.stat, which still reads the
-single atomic counter.
-
-Why not use percpu_counter?  memcg already handles cpus going offline,
-so no need for that overhead from percpu_counter.  And the
-percpu_counter spinlocks are more heavyweight than is required.
-
-It probably also makes sense to use exact dirty and writeback counters
-in memcg oom reports.  But that is saved for later.
-
-Cc: stable@vger.kernel.org # v4.16+
-Signed-off-by: Greg Thelen <gthelen@google.com>
----
-Changelog since v1:
-- Move memcg_exact_page_state() into memcontrol.c.
-- Unconditionally gather exact (per cpu) counters in mem_cgroup_wb_stats(), it's
-  not called in performance sensitive paths.
-- Unconditionally check for underflow regardless of CONFIG_SMP.  It's just
-  easier this way.  This isn't performance sensitive.
-- Add stable tag.
-
- include/linux/memcontrol.h |  5 ++++-
- mm/memcontrol.c            | 20 ++++++++++++++++++--
- 2 files changed, 22 insertions(+), 3 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 1f3d880b7ca1..dbb6118370c1 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -566,7 +566,10 @@ struct mem_cgroup *lock_page_memcg(struct page *page);
- void __unlock_page_memcg(struct mem_cgroup *memcg);
- void unlock_page_memcg(struct page *page);
- 
--/* idx can be of type enum memcg_stat_item or node_stat_item */
-+/*
-+ * idx can be of type enum memcg_stat_item or node_stat_item.
-+ * Keep in sync with memcg_exact_page_state().
-+ */
- static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
- 					     int idx)
- {
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 532e0e2a4817..81a0d3914ec9 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3882,6 +3882,22 @@ struct wb_domain *mem_cgroup_wb_domain(struct bdi_writeback *wb)
- 	return &memcg->cgwb_domain;
- }
- 
-+/*
-+ * idx can be of type enum memcg_stat_item or node_stat_item.
-+ * Keep in sync with memcg_exact_page().
-+ */
-+static unsigned long memcg_exact_page_state(struct mem_cgroup *memcg, int idx)
-+{
-+	long x = atomic_long_read(&memcg->stat[idx]);
-+	int cpu;
-+
-+	for_each_online_cpu(cpu)
-+		x += per_cpu_ptr(memcg->stat_cpu, cpu)->count[idx];
-+	if (x < 0)
-+		x = 0;
-+	return x;
-+}
-+
- /**
-  * mem_cgroup_wb_stats - retrieve writeback related stats from its memcg
-  * @wb: bdi_writeback in question
-@@ -3907,10 +3923,10 @@ void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pfilepages,
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(wb->memcg_css);
- 	struct mem_cgroup *parent;
- 
--	*pdirty = memcg_page_state(memcg, NR_FILE_DIRTY);
-+	*pdirty = memcg_exact_page_state(memcg, NR_FILE_DIRTY);
- 
- 	/* this should eventually include NR_UNSTABLE_NFS */
--	*pwriteback = memcg_page_state(memcg, NR_WRITEBACK);
-+	*pwriteback = memcg_exact_page_state(memcg, NR_WRITEBACK);
- 	*pfilepages = mem_cgroup_nr_lru_pages(memcg, (1 << LRU_INACTIVE_FILE) |
- 						     (1 << LRU_ACTIVE_FILE));
- 	*pheadroom = PAGE_COUNTER_MAX;
--- 
-2.21.0.392.gf8f6787159e-goog
+> ---
+>  drivers/dax/device.c              |   13 +++----------
+>  drivers/nvdimm/pmem.c             |   17 +++++++++++++----
+>  drivers/pci/p2pdma.c              |   17 +++--------------
+>  include/linux/memremap.h          |    2 ++
+>  kernel/memremap.c                 |   17 ++++++++++++-----
+>  mm/hmm.c                          |   14 +++-----------
+>  tools/testing/nvdimm/test/iomap.c |    2 ++
+>  7 files changed, 38 insertions(+), 44 deletions(-)
+> 
+> diff --git a/drivers/dax/device.c b/drivers/dax/device.c
+> index e428468ab661..e3aa78dd1bb0 100644
+> --- a/drivers/dax/device.c
+> +++ b/drivers/dax/device.c
+> @@ -27,9 +27,8 @@ static void dev_dax_percpu_release(struct percpu_ref *ref)
+>  	complete(&dev_dax->cmp);
+>  }
+>  
+> -static void dev_dax_percpu_exit(void *data)
+> +static void dev_dax_percpu_exit(struct percpu_ref *ref)
+>  {
+> -	struct percpu_ref *ref = data;
+>  	struct dev_dax *dev_dax = ref_to_dev_dax(ref);
+>  
+>  	dev_dbg(&dev_dax->dev, "%s\n", __func__);
+> @@ -468,18 +467,12 @@ int dev_dax_probe(struct device *dev)
+>  	if (rc)
+>  		return rc;
+>  
+> -	rc = devm_add_action_or_reset(dev, dev_dax_percpu_exit, &dev_dax->ref);
+> -	if (rc)
+> -		return rc;
+> -
+>  	dev_dax->pgmap.ref = &dev_dax->ref;
+>  	dev_dax->pgmap.kill = dev_dax_percpu_kill;
+> +	dev_dax->pgmap.cleanup = dev_dax_percpu_exit;
+>  	addr = devm_memremap_pages(dev, &dev_dax->pgmap);
+> -	if (IS_ERR(addr)) {
+> -		devm_remove_action(dev, dev_dax_percpu_exit, &dev_dax->ref);
+> -		percpu_ref_exit(&dev_dax->ref);
+> +	if (IS_ERR(addr))
+>  		return PTR_ERR(addr);
+> -	}
+>  
+>  	inode = dax_inode(dax_dev);
+>  	cdev = inode->i_cdev;
+> diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
+> index bc2f700feef8..507b9eda42aa 100644
+> --- a/drivers/nvdimm/pmem.c
+> +++ b/drivers/nvdimm/pmem.c
+> @@ -304,11 +304,19 @@ static const struct attribute_group *pmem_attribute_groups[] = {
+>  	NULL,
+>  };
+>  
+> -static void pmem_release_queue(void *q)
+> +static void __pmem_release_queue(struct percpu_ref *ref)
+>  {
+> +	struct request_queue *q;
+> +
+> +	q = container_of(ref, typeof(*q), q_usage_counter);
+>  	blk_cleanup_queue(q);
+>  }
+>  
+> +static void pmem_release_queue(void *ref)
+> +{
+> +	__pmem_release_queue(ref);
+> +}
+> +
+>  static void pmem_freeze_queue(struct percpu_ref *ref)
+>  {
+>  	struct request_queue *q;
+> @@ -400,12 +408,10 @@ static int pmem_attach_disk(struct device *dev,
+>  	if (!q)
+>  		return -ENOMEM;
+>  
+> -	if (devm_add_action_or_reset(dev, pmem_release_queue, q))
+> -		return -ENOMEM;
+> -
+>  	pmem->pfn_flags = PFN_DEV;
+>  	pmem->pgmap.ref = &q->q_usage_counter;
+>  	pmem->pgmap.kill = pmem_freeze_queue;
+> +	pmem->pgmap.cleanup = __pmem_release_queue;
+>  	if (is_nd_pfn(dev)) {
+>  		if (setup_pagemap_fsdax(dev, &pmem->pgmap))
+>  			return -ENOMEM;
+> @@ -426,6 +432,9 @@ static int pmem_attach_disk(struct device *dev,
+>  		pmem->pfn_flags |= PFN_MAP;
+>  		memcpy(&bb_res, &pmem->pgmap.res, sizeof(bb_res));
+>  	} else {
+> +		if (devm_add_action_or_reset(dev, pmem_release_queue,
+> +					&q->q_usage_counter))
+> +			return -ENOMEM;
+>  		addr = devm_memremap(dev, pmem->phys_addr,
+>  				pmem->size, ARCH_MEMREMAP_PMEM);
+>  		memcpy(&bb_res, &nsio->res, sizeof(bb_res));
+> diff --git a/drivers/pci/p2pdma.c b/drivers/pci/p2pdma.c
+> index 1b96c1688715..7ff5b8067670 100644
+> --- a/drivers/pci/p2pdma.c
+> +++ b/drivers/pci/p2pdma.c
+> @@ -95,7 +95,7 @@ static void pci_p2pdma_percpu_kill(struct percpu_ref *ref)
+>  	percpu_ref_kill(ref);
+>  }
+>  
+> -static void pci_p2pdma_percpu_cleanup(void *ref)
+> +static void pci_p2pdma_percpu_cleanup(struct percpu_ref *ref)
+>  {
+>  	struct p2pdma_pagemap *p2p_pgmap = to_p2p_pgmap(ref);
+>  
+> @@ -197,16 +197,6 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
+>  	if (error)
+>  		goto pgmap_free;
+>  
+> -	/*
+> -	 * FIXME: the percpu_ref_exit needs to be coordinated internal
+> -	 * to devm_memremap_pages_release(). Duplicate the same ordering
+> -	 * as other devm_memremap_pages() users for now.
+> -	 */
+> -	error = devm_add_action(&pdev->dev, pci_p2pdma_percpu_cleanup,
+> -			&p2p_pgmap->ref);
+> -	if (error)
+> -		goto ref_cleanup;
+> -
+>  	pgmap = &p2p_pgmap->pgmap;
+>  
+>  	pgmap->res.start = pci_resource_start(pdev, bar) + offset;
+> @@ -217,11 +207,12 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
+>  	pgmap->pci_p2pdma_bus_offset = pci_bus_address(pdev, bar) -
+>  		pci_resource_start(pdev, bar);
+>  	pgmap->kill = pci_p2pdma_percpu_kill;
+> +	pgmap->cleanup = pci_p2pdma_percpu_cleanup;
+>  
+>  	addr = devm_memremap_pages(&pdev->dev, pgmap);
+>  	if (IS_ERR(addr)) {
+>  		error = PTR_ERR(addr);
+> -		goto ref_exit;
+> +		goto pgmap_free;
+>  	}
+>  
+>  	error = gen_pool_add_owner(pdev->p2pdma->pool, (unsigned long)addr,
+> @@ -238,8 +229,6 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
+>  
+>  pages_free:
+>  	devm_memunmap_pages(&pdev->dev, pgmap);
+> -ref_cleanup:
+> -	percpu_ref_exit(&p2p_pgmap->ref);
+>  pgmap_free:
+>  	devm_kfree(&pdev->dev, p2p_pgmap);
+>  	return error;
+> diff --git a/include/linux/memremap.h b/include/linux/memremap.h
+> index 7601ee314c4a..1732dea030b2 100644
+> --- a/include/linux/memremap.h
+> +++ b/include/linux/memremap.h
+> @@ -81,6 +81,7 @@ typedef void (*dev_page_free_t)(struct page *page, void *data);
+>   * @res: physical address range covered by @ref
+>   * @ref: reference count that pins the devm_memremap_pages() mapping
+>   * @kill: callback to transition @ref to the dead state
+> + * @cleanup: callback to wait for @ref to be idle and reap it
+>   * @dev: host device of the mapping for debug
+>   * @data: private data pointer for page_free()
+>   * @type: memory type: see MEMORY_* in memory_hotplug.h
+> @@ -92,6 +93,7 @@ struct dev_pagemap {
+>  	struct resource res;
+>  	struct percpu_ref *ref;
+>  	void (*kill)(struct percpu_ref *ref);
+> +	void (*cleanup)(struct percpu_ref *ref);
+>  	struct device *dev;
+>  	void *data;
+>  	enum memory_type type;
+> diff --git a/kernel/memremap.c b/kernel/memremap.c
+> index 65afbacab44e..05d1af5a2f15 100644
+> --- a/kernel/memremap.c
+> +++ b/kernel/memremap.c
+> @@ -96,6 +96,7 @@ static void devm_memremap_pages_release(void *data)
+>  	pgmap->kill(pgmap->ref);
+>  	for_each_device_pfn(pfn, pgmap)
+>  		put_page(pfn_to_page(pfn));
+> +	pgmap->cleanup(pgmap->ref);
+>  
+>  	/* pages are dead and unused, undo the arch mapping */
+>  	align_start = res->start & ~(SECTION_SIZE - 1);
+> @@ -134,8 +135,8 @@ static void devm_memremap_pages_release(void *data)
+>   * 2/ The altmap field may optionally be initialized, in which case altmap_valid
+>   *    must be set to true
+>   *
+> - * 3/ pgmap->ref must be 'live' on entry and will be killed at
+> - *    devm_memremap_pages_release() time, or if this routine fails.
+> + * 3/ pgmap->ref must be 'live' on entry and will be killed and reaped
+> + *    at devm_memremap_pages_release() time, or if this routine fails.
+>   *
+>   * 4/ res is expected to be a host memory range that could feasibly be
+>   *    treated as a "System RAM" range, i.e. not a device mmio range, but
+> @@ -151,8 +152,10 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+>  	pgprot_t pgprot = PAGE_KERNEL;
+>  	int error, nid, is_ram;
+>  
+> -	if (!pgmap->ref || !pgmap->kill)
+> +	if (!pgmap->ref || !pgmap->kill || !pgmap->cleanup) {
+> +		WARN(1, "Missing reference count teardown definition\n");
+>  		return ERR_PTR(-EINVAL);
+> +	}
+>  
+>  	align_start = res->start & ~(SECTION_SIZE - 1);
+>  	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
+> @@ -163,14 +166,16 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+>  	if (conflict_pgmap) {
+>  		dev_WARN(dev, "Conflicting mapping in same section\n");
+>  		put_dev_pagemap(conflict_pgmap);
+> -		return ERR_PTR(-ENOMEM);
+> +		error = -ENOMEM;
+> +		goto err_array;
+>  	}
+>  
+>  	conflict_pgmap = get_dev_pagemap(PHYS_PFN(align_end), NULL);
+>  	if (conflict_pgmap) {
+>  		dev_WARN(dev, "Conflicting mapping in same section\n");
+>  		put_dev_pagemap(conflict_pgmap);
+> -		return ERR_PTR(-ENOMEM);
+> +		error = -ENOMEM;
+> +		goto err_array;
+>  	}
+>  
+>  	is_ram = region_intersects(align_start, align_size,
+> @@ -262,6 +267,8 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+>  	pgmap_array_delete(res);
+>   err_array:
+>  	pgmap->kill(pgmap->ref);
+> +	pgmap->cleanup(pgmap->ref);
+> +
+>  	return ERR_PTR(error);
+>  }
+>  EXPORT_SYMBOL_GPL(devm_memremap_pages);
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index fe1cd87e49ac..225ade644058 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -975,9 +975,8 @@ static void hmm_devmem_ref_release(struct percpu_ref *ref)
+>  	complete(&devmem->completion);
+>  }
+>  
+> -static void hmm_devmem_ref_exit(void *data)
+> +static void hmm_devmem_ref_exit(struct percpu_ref *ref)
+>  {
+> -	struct percpu_ref *ref = data;
+>  	struct hmm_devmem *devmem;
+>  
+>  	devmem = container_of(ref, struct hmm_devmem, ref);
+> @@ -1054,10 +1053,6 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
+>  	if (ret)
+>  		return ERR_PTR(ret);
+>  
+> -	ret = devm_add_action_or_reset(device, hmm_devmem_ref_exit, &devmem->ref);
+> -	if (ret)
+> -		return ERR_PTR(ret);
+> -
+>  	size = ALIGN(size, PA_SECTION_SIZE);
+>  	addr = min((unsigned long)iomem_resource.end,
+>  		   (1UL << MAX_PHYSMEM_BITS) - 1);
+> @@ -1096,6 +1091,7 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
+>  	devmem->pagemap.ref = &devmem->ref;
+>  	devmem->pagemap.data = devmem;
+>  	devmem->pagemap.kill = hmm_devmem_ref_kill;
+> +	devmem->pagemap.cleanup = hmm_devmem_ref_exit;
+>  
+>  	result = devm_memremap_pages(devmem->device, &devmem->pagemap);
+>  	if (IS_ERR(result))
+> @@ -1133,11 +1129,6 @@ struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
+>  	if (ret)
+>  		return ERR_PTR(ret);
+>  
+> -	ret = devm_add_action_or_reset(device, hmm_devmem_ref_exit,
+> -			&devmem->ref);
+> -	if (ret)
+> -		return ERR_PTR(ret);
+> -
+>  	devmem->pfn_first = devmem->resource->start >> PAGE_SHIFT;
+>  	devmem->pfn_last = devmem->pfn_first +
+>  			   (resource_size(devmem->resource) >> PAGE_SHIFT);
+> @@ -1150,6 +1141,7 @@ struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
+>  	devmem->pagemap.ref = &devmem->ref;
+>  	devmem->pagemap.data = devmem;
+>  	devmem->pagemap.kill = hmm_devmem_ref_kill;
+> +	devmem->pagemap.cleanup = hmm_devmem_ref_exit;
+>  
+>  	result = devm_memremap_pages(devmem->device, &devmem->pagemap);
+>  	if (IS_ERR(result))
+> diff --git a/tools/testing/nvdimm/test/iomap.c b/tools/testing/nvdimm/test/iomap.c
+> index c6635fee27d8..219dd0a1cb08 100644
+> --- a/tools/testing/nvdimm/test/iomap.c
+> +++ b/tools/testing/nvdimm/test/iomap.c
+> @@ -108,7 +108,9 @@ static void nfit_test_kill(void *_pgmap)
+>  {
+>  	struct dev_pagemap *pgmap = _pgmap;
+>  
+> +	WARN_ON(!pgmap || !pgmap->ref || !pgmap->kill || !pgmap->cleanup);
+>  	pgmap->kill(pgmap->ref);
+> +	pgmap->cleanup(pgmap->ref);
+>  }
+>  
+>  void *__wrap_devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+> 
 
