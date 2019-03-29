@@ -2,236 +2,177 @@ Return-Path: <SRS0=6kLG=SA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.4 required=3.0 tests=DATE_IN_PAST_06_12,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 97CF0C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 02:05:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CEDC4C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 02:11:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 479E12173C
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 02:05:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 479E12173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 78BF02173C
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 02:11:20 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="TCCYngfr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 78BF02173C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ED8B86B000D; Thu, 28 Mar 2019 22:05:34 -0400 (EDT)
+	id 0A2EC6B0007; Thu, 28 Mar 2019 22:11:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E87A96B000E; Thu, 28 Mar 2019 22:05:34 -0400 (EDT)
+	id 052226B0008; Thu, 28 Mar 2019 22:11:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D759C6B0010; Thu, 28 Mar 2019 22:05:34 -0400 (EDT)
+	id E35E26B000C; Thu, 28 Mar 2019 22:11:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A01B06B000D
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 22:05:34 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id 33so536683pgv.17
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 19:05:34 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CDC46B0007
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 22:11:19 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id m37so588872plg.22
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 19:11:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=npeFvWz1UKVM4wlSOd5g612PH6kgpRLjs4ih0B9n87s=;
-        b=RVg1di8QFoyzppE/2Y62CLoKlPcChZaYKZB2mI2MVbjf2RT4MTS/6z06vY4I5PyDXD
-         35hK1EGZPfVaoMQhGdGFynJPenZwolXq1xlJhfDcz5kDHeSBJGNaND4e2h36P1Lv3kTs
-         tP6ZKPJVmuMtYQTRB5t/jF3epI60Ry+sMoJXRRZ5VGbTsZRa17nGJ053VOi/Ax8Ht8tn
-         7Ekk6kIenUZ8JtTUk56aMeRIMkTZEoPcGZJ6TYytJSwqsPdfER+OLjWdqWHIgv6prLco
-         PUacA4oQFYAnOK5yBRcgA7dKCHVWIwmYkalkQqzCz3HMuKSl25d3wQHxjs5hByz7SehN
-         LnXA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAX72AMMCj8nG5HOsmxWQOCLg2Yd9f9FY/5XD0RMQ6BrQQuyVOkO
-	wmgQl40wfqZc19dCNuS0TPmoFMgevjBOsNwwDia2qiZb1jkCmjotF0hfhtaNYZgOlW6JHBBGvHN
-	fIuRVTmA+Ace4DzlElgwlJbQFq+zzIOIoVXXVXtKqbp0h4laLFuVMSKwkMo1ZRHhoIQ==
-X-Received: by 2002:a17:902:bb0d:: with SMTP id l13mr11127692pls.141.1553825134320;
-        Thu, 28 Mar 2019 19:05:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzRHTh1SGO4Io5YX/Z8vN2DWuF0wChLRg/I1H5E4y46qeQvHf6urfz2iqz9t6IvGN2zJA+N
-X-Received: by 2002:a17:902:bb0d:: with SMTP id l13mr11127644pls.141.1553825133605;
-        Thu, 28 Mar 2019 19:05:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553825133; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=kNXxnRe3M1ijRkP4yynTmx6uLTiKcabSICyOQfMgSMw=;
+        b=FHMSDus5YtYB8IUK3tYxzFhvWY2wm/u3EclqoXeDM+ipFhZ8WXiJMRofczTBlvk20c
+         XtGA12sdLrygdvj/qXln1xoOh+FuX+C5+qzz1dt0fx/NyH/QslydyDytL5Wx4Qi5AgI5
+         IeUuDxpSrIIxkpRJDsk9ChdvPoOTuuTw6QxI0U69quZI25XwEdBXkrMXZ73X1tbi98Oj
+         nGy0WtuO+7mqallyM4uN7dL5W4Km1mt92fOo+6TcKl5ynwcoTzHwzfEmaK/w7Bzunf+j
+         bye52COmkOiZHY5p4B+JAh5iS+2H02Y4RxNcz7061PDimQy641CfHB07BIt4yx4Kq+3/
+         XpmA==
+X-Gm-Message-State: APjAAAU8zhZH1H3TjadO+aXD1Ynztgt6tOKOrQwP7+RmI2IoT/IG+nxU
+	y+SpTTBHGy+wysLo9Xnaiokl4VU7NwPfrEHtH9xPtuqO9dnxri12i+FzMApw0nPcUXaEzIFlKEb
+	j8j6U4/O+JEagp2G+uRU0TmQDl7OXNqjhUGbocyJS9UpKmobyNsjVfLnliuDEE2HnRQ==
+X-Received: by 2002:a17:902:b58f:: with SMTP id a15mr31975900pls.36.1553825479251;
+        Thu, 28 Mar 2019 19:11:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzjAdVKQlp+r55pUk4twRRNAGBHcQZjC20+TA8kP+IWj+63ZYWhwD162Z+xVdzLeSYoUBfD
+X-Received: by 2002:a17:902:b58f:: with SMTP id a15mr31975858pls.36.1553825478507;
+        Thu, 28 Mar 2019 19:11:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553825478; cv=none;
         d=google.com; s=arc-20160816;
-        b=iIZXMZoNNZFwTSAWFJRfUKKRiVtNE/LOwK2Szw6i0txCiQ/ZZBkHLOU0/Kh7L5izKy
-         WCu+OA9RF+74R9js03W0h763tJiEczObIVpL+qyv4UDDTUqeaPylS0geYYnr1Hq0EDlb
-         m9FhAotq4UsXDRL3he1qUjzY/f0OaeG5pN1Lps05XlzoHpoHKIbeLBc+0n6P6TubkfTW
-         5v5QGGxYATb7bOaaNWIacTVARv4iYZ9CsxCEOBE+Y9lpeuxjDzVehCUJ9Rbg7A0BdnJd
-         5nNWTRyjXBlGeLF9lVLzYujaBZpoDKPkmkuY2vWoXOU3rtJals25oPOHcpvve2y/K/pb
-         kKog==
+        b=d8I4qhGAsWLcExDyxc9al0EQUs4zOYRxZaTWJJFvXreNGYKnO/Ooz0W8gCVuzJi17q
+         DfhRAlgcvd5vUZX1PkMQ7hN47AgZVkhk9FsOMMjpfBZ/d2wDCuUZq5LyUVm7JgJQ/QIr
+         KAWc0jKjIInBMTnSa5YZ5ty30apAsRB2KO98AFzo7tipU+177/21aghfM/Xvw4YBt8oC
+         UeztruaWg8qr2wHgnDbvRfVZkRUZAq05//kelHgLlCrUU7Rb1QLSLfMj1OkPHuKRZ8bm
+         U5L1Qhsih861e4lLASTBE3IhSasCFcU0WohfaLTLLOGdjaV05SOzrq7f/ZTgXkuzs8OV
+         cOsw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=npeFvWz1UKVM4wlSOd5g612PH6kgpRLjs4ih0B9n87s=;
-        b=wOq1ntwHjNW0Z0Oe3/Nv/rUEix68au/GcTPZE8LXjmNYK7GEsTeM6s6R9PStJUDNsk
-         8RA9MRngJ7eEmzToPYTxMStmrGJIyb16T+rQhrmhRbfGZNJUyB+t+jJ4SjnFrNqTC4ni
-         W1Ht0vje0MScFDxz2cZqWarV0YrqqpvLJgJP3ze1eowv2kqqzknO7HJZexapRbKtxAnq
-         pr9+8EJKdMa3p4rLHaaQ6FxOruDMlTfjE/Qui2Soayt5OVXiyEiF5mVbvkjqtjwOykaF
-         O9EZiZ7c4MquPRLHVEvW5Wf2QYyF1agVp7BMmoyiuQVwgrIh609S8hvJm0llSBL7YWYB
-         TTGA==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=kNXxnRe3M1ijRkP4yynTmx6uLTiKcabSICyOQfMgSMw=;
+        b=A1RM2AY8BUdTtavM2lnVeHR3EYaeHiyN8N7Zz7F8KQBmkE2DtstuA54AWMEZSt+V7c
+         gZ9jkFphRsAy8MQa4V9dirfD0ZsXDBjZT11jsbIdTnRnlKXi8UMwP3QEfdXVhcl+nnUV
+         AyZPW/j8bMkxMc+9wtmkutz9gy5FUyKa/Knip48Cewtc4jzasI+AUWpsM/bCII/p3X5U
+         /UTs+RARBNabe0FrdYzRtU4t2oho/z/d0/xutSlgJABThMf8FGKyT0quCXp7EJLwysuQ
+         ssh98c0or2oHqmLi4r8lLjtXowKT5kii6vmi3ji18LB3TDCFiJT3kgc0fdlxodn+tzlh
+         u9vg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id 140si667913pga.460.2019.03.28.19.05.33
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=TCCYngfr;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id f63si677354pfa.154.2019.03.28.19.11.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Mar 2019 19:05:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
+        Thu, 28 Mar 2019 19:11:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from fmsmga007.fm.intel.com ([10.253.24.52])
-  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 28 Mar 2019 19:05:32 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,282,1549958400"; 
-   d="scan'208";a="138333451"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by fmsmga007.fm.intel.com with ESMTP; 28 Mar 2019 19:05:32 -0700
-Date: Thu, 28 Mar 2019 11:04:26 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: jglisse@redhat.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	John Hubbard <jhubbard@nvidia.com>, Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH v2 09/11] mm/hmm: allow to mirror vma of a file on a DAX
- backed filesystem v2
-Message-ID: <20190328180425.GI31324@iweiny-DESK2.sc.intel.com>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=TCCYngfr;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c9d7ec40001>; Thu, 28 Mar 2019 19:11:16 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Thu, 28 Mar 2019 19:11:17 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Thu, 28 Mar 2019 19:11:17 -0700
+Received: from [10.110.48.28] (172.20.13.39) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 29 Mar
+ 2019 02:11:17 +0000
+Subject: Re: [PATCH v2 02/11] mm/hmm: use reference counting for HMM struct v2
+To: Jerome Glisse <jglisse@redhat.com>
+CC: Ira Weiny <ira.weiny@intel.com>, <linux-mm@kvack.org>,
+	<linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>,
+	Dan Williams <dan.j.williams@intel.com>
 References: <20190325144011.10560-1-jglisse@redhat.com>
- <20190325144011.10560-10-jglisse@redhat.com>
+ <20190325144011.10560-3-jglisse@redhat.com>
+ <20190328110719.GA31324@iweiny-DESK2.sc.intel.com>
+ <20190328191122.GA5740@redhat.com>
+ <c8fd897f-b9d3-a77b-9898-78e20221ba44@nvidia.com>
+ <20190328212145.GA13560@redhat.com>
+ <fcb7be01-38c1-ed1f-70a0-d03dc9260473@nvidia.com>
+ <20190328165708.GH31324@iweiny-DESK2.sc.intel.com>
+ <20190329010059.GB16680@redhat.com>
+ <55dd8607-c91b-12ab-e6d7-adfe6d9cb5e2@nvidia.com>
+ <20190329015003.GE16680@redhat.com>
+From: John Hubbard <jhubbard@nvidia.com>
+X-Nvconfidentiality: public
+Message-ID: <cc587c80-34ea-8d08-533d-0dc0c2fb079f@nvidia.com>
+Date: Thu, 28 Mar 2019 19:11:17 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.3
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190325144011.10560-10-jglisse@redhat.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+In-Reply-To: <20190329015003.GE16680@redhat.com>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL106.nvidia.com (172.18.146.12) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US-large
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1553825476; bh=kNXxnRe3M1ijRkP4yynTmx6uLTiKcabSICyOQfMgSMw=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=TCCYngfrlCQTvKv1rhpyIVK3LxaWz+hW7XDu8Fzz9E/d18QO1CqEZSqLswtry/e+k
+	 UrOnp6rld7LJCk+y6FB6xYN1orUNpKBjpF7gxkWh15FE/QSc2Ls6HIK6gOG6T8QHhH
+	 zVDoPrYKUbDfwd3pbHLSCYLtDOdb/ZMVJNIiiEzgooV072BV415VSMJ+gPjf/MAyxX
+	 FjKg1oym70nUDnOGY/vhLbTP1dhy6HTBWdb5F738n1Hud5sL50J7LDGCz2NfcCGsPR
+	 vwOrkHl/E8o01yxW4w9XdyfDc8dtAZM08lyhbdMr9jwsV97Ot8Dp0Fp0ZlEuZFD7w9
+	 vkAvK9PA2IttA==
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000005, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 25, 2019 at 10:40:09AM -0400, Jerome Glisse wrote:
-> From: Jérôme Glisse <jglisse@redhat.com>
+On 3/28/19 6:50 PM, Jerome Glisse wrote:
+[...]
+>>>
+>>> The hmm_put() is just releasing the reference on the hmm struct.
+>>>
+>>> Here i feel i am getting contradicting requirement from different people.
+>>> I don't think there is a way to please everyone here.
+>>>
+>>
+>> That's not a true conflict: you're comparing your actual implementation
+>> to Ira's request, rather than comparing my request to Ira's request.
+>>
+>> I think there's a way forward. Ira and I are actually both asking for the
+>> same thing:
+>>
+>> a) clear, concise get/put routines
+>>
+>> b) avoiding odd side effects in functions that have one name, but do
+>> additional surprising things.
 > 
-> HMM mirror is a device driver helpers to mirror range of virtual address.
-> It means that the process jobs running on the device can access the same
-> virtual address as the CPU threads of that process. This patch adds support
-> for mirroring mapping of file that are on a DAX block device (ie range of
-> virtual address that is an mmap of a file in a filesystem on a DAX block
-> device). There is no reason to not support such case when mirroring virtual
-> address on a device.
+> Please show me code because i do not see any other way to do it then
+> how i did.
 > 
-> Note that unlike GUP code we do not take page reference hence when we
-> back-off we have nothing to undo.
-> 
-> Changes since v1:
->     - improved commit message
->     - squashed: Arnd Bergmann: fix unused variable warning in hmm_vma_walk_pud
-> 
-> Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
-> Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: John Hubbard <jhubbard@nvidia.com>
-> Cc: Arnd Bergmann <arnd@arndb.de>
-> ---
->  mm/hmm.c | 132 ++++++++++++++++++++++++++++++++++++++++++++++---------
->  1 file changed, 111 insertions(+), 21 deletions(-)
-> 
-> diff --git a/mm/hmm.c b/mm/hmm.c
-> index 64a33770813b..ce33151c6832 100644
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -325,6 +325,7 @@ EXPORT_SYMBOL(hmm_mirror_unregister);
->  
->  struct hmm_vma_walk {
->  	struct hmm_range	*range;
-> +	struct dev_pagemap	*pgmap;
->  	unsigned long		last;
->  	bool			fault;
->  	bool			block;
-> @@ -499,6 +500,15 @@ static inline uint64_t pmd_to_hmm_pfn_flags(struct hmm_range *range, pmd_t pmd)
->  				range->flags[HMM_PFN_VALID];
->  }
->  
-> +static inline uint64_t pud_to_hmm_pfn_flags(struct hmm_range *range, pud_t pud)
-> +{
-> +	if (!pud_present(pud))
-> +		return 0;
-> +	return pud_write(pud) ? range->flags[HMM_PFN_VALID] |
-> +				range->flags[HMM_PFN_WRITE] :
-> +				range->flags[HMM_PFN_VALID];
-> +}
-> +
->  static int hmm_vma_handle_pmd(struct mm_walk *walk,
->  			      unsigned long addr,
->  			      unsigned long end,
-> @@ -520,8 +530,19 @@ static int hmm_vma_handle_pmd(struct mm_walk *walk,
->  		return hmm_vma_walk_hole_(addr, end, fault, write_fault, walk);
->  
->  	pfn = pmd_pfn(pmd) + pte_index(addr);
-> -	for (i = 0; addr < end; addr += PAGE_SIZE, i++, pfn++)
-> +	for (i = 0; addr < end; addr += PAGE_SIZE, i++, pfn++) {
-> +		if (pmd_devmap(pmd)) {
-> +			hmm_vma_walk->pgmap = get_dev_pagemap(pfn,
-> +					      hmm_vma_walk->pgmap);
-> +			if (unlikely(!hmm_vma_walk->pgmap))
-> +				return -EBUSY;
-> +		}
->  		pfns[i] = hmm_pfn_from_pfn(range, pfn) | cpu_flags;
-> +	}
-> +	if (hmm_vma_walk->pgmap) {
-> +		put_dev_pagemap(hmm_vma_walk->pgmap);
-> +		hmm_vma_walk->pgmap = NULL;
-> +	}
->  	hmm_vma_walk->last = end;
->  	return 0;
->  }
-> @@ -608,10 +629,24 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
->  	if (fault || write_fault)
->  		goto fault;
->  
-> +	if (pte_devmap(pte)) {
-> +		hmm_vma_walk->pgmap = get_dev_pagemap(pte_pfn(pte),
-> +					      hmm_vma_walk->pgmap);
-> +		if (unlikely(!hmm_vma_walk->pgmap))
-> +			return -EBUSY;
-> +	} else if (IS_ENABLED(CONFIG_ARCH_HAS_PTE_SPECIAL) && pte_special(pte)) {
-> +		*pfn = range->values[HMM_PFN_SPECIAL];
-> +		return -EFAULT;
-> +	}
-> +
->  	*pfn = hmm_pfn_from_pfn(range, pte_pfn(pte)) | cpu_flags;
 
-	<tag>
+Sure, I'll take a run at it. I've driven you crazy enough with the naming 
+today, it's time to back it up with actual code. :)
 
->  	return 0;
->  
->  fault:
-> +	if (hmm_vma_walk->pgmap) {
-> +		put_dev_pagemap(hmm_vma_walk->pgmap);
-> +		hmm_vma_walk->pgmap = NULL;
-> +	}
->  	pte_unmap(ptep);
->  	/* Fault any virtual address we were asked to fault */
->  	return hmm_vma_walk_hole_(addr, end, fault, write_fault, walk);
-> @@ -699,12 +734,83 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
->  			return r;
->  		}
->  	}
-> +	if (hmm_vma_walk->pgmap) {
-> +		put_dev_pagemap(hmm_vma_walk->pgmap);
-> +		hmm_vma_walk->pgmap = NULL;
-> +	}
+I hope this is not one of those "we must also change Nouveau in N+M steps" 
+situations, though. I'm starting to despair about reviewing code that
+basically can't be changed...
 
-
-Why is this here and not in hmm_vma_handle_pte()?  Unless I'm just getting
-tired this is the corresponding put when hmm_vma_handle_pte() returns 0 above
-at <tag> above.
-
-Ira
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
