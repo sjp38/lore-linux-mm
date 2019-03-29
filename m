@@ -2,242 +2,265 @@ Return-Path: <SRS0=6kLG=SA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 98EC2C4360F
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 01:17:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CF0BAC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 01:18:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4868C206B6
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 01:17:34 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4868C206B6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 5ABC4206B6
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 01:18:38 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="T/6lVXUU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5ABC4206B6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D27D46B0008; Thu, 28 Mar 2019 21:17:33 -0400 (EDT)
+	id 07CE16B0008; Thu, 28 Mar 2019 21:18:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CD6C26B000A; Thu, 28 Mar 2019 21:17:33 -0400 (EDT)
+	id 02BE66B000A; Thu, 28 Mar 2019 21:18:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B9EC76B000C; Thu, 28 Mar 2019 21:17:33 -0400 (EDT)
+	id E0FAB6B000C; Thu, 28 Mar 2019 21:18:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 98DD36B0008
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 21:17:33 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id x58so788990qtc.1
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 18:17:33 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A867A6B0008
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 21:18:37 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id e12so484728pgh.2
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 18:18:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=vWXQHZWj5B9n9u1m4nYJc8XOzk8sgjuz0x7UCf5Np1Q=;
-        b=EATDAlJzPF5J+Fe2hZQjaQVbKH+ncFT7B1TNO0eGM8OYIv1qEPL/3oz9OCIsY+c08y
-         jWpv1jTneQZ4tfxMSpR4qZQaNN4ae5kcbzj8dGahnAVzTmVfrymL3e8vjRyOCa+sFLpE
-         AjANN8KGzlJznvl22XwQkDEb4+vAp2lImFxA6XPUCwR55W7XHZSTL24QL+kWXkNDcvrX
-         Hl8tTP7aKXokgpNYwWmAGd/jIRCkgkPcFoncWa/l5uMxb0GMjsiypw2hsUNpiTFsxmLP
-         TrM2pZO4B3CmVw2jKoThegtmIVl1GC/mBoAotPeV5Z6wjwDNbjTTx0ZFuT9wzp0nTTwd
-         styQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXD2EkiORD31tPRlN7zHqgHd/eP7xJx1ptv0K5kqc5RRQpcwMnq
-	+RCzKIeuaAtDoeSaAwN307cPEIlvpTpqVn1tQNZ7c52ulcxbVz7/nJF/FKZ5qWbzajhi2GFGAmK
-	Ud2aXQVO9OZASJePgF1W9yK1d0uJBxnflNGqLBTSauetJXENURvGCH0zL501D0rJsHQ==
-X-Received: by 2002:a05:620a:15ef:: with SMTP id p15mr35550054qkm.317.1553822253360;
-        Thu, 28 Mar 2019 18:17:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzb1B08dUW1H381GGtntlWXJrDK3nv2fiO1q/M6ExecmwOIIF9FlprrCPzwjg1UiEDWXpws
-X-Received: by 2002:a05:620a:15ef:: with SMTP id p15mr35550004qkm.317.1553822252388;
-        Thu, 28 Mar 2019 18:17:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553822252; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=2/FR0Ry1UStrvREskYdSc/DwdYAa2zhZDQ2e+lmbW5g=;
+        b=VyScba5qI3st9pt4ajOxjaUDbIWIMXBJ0BYiNu15hE0fEZ0EVa6NsV0M6HS9tmKzoB
+         SEM7Z6jepV1Jo6ce23+C4DJ6NcKxheNf8flRazBBT2UT9XLYuRPN8VgfpyrhMMabTkXb
+         sr28BOrzoF93B7Ja0DDPgghUiQO6OL8+JwGa52enkfTr3B454WoiSKETWBzI8yw0Ynh5
+         H8rDV7Ufw2OrR2odQ8pBNJN0KLqc+/xFNYPg1ZxgsUUVb0yKEEXH8lgS35gCMYWcdkXq
+         S2gAJ8LRSx8iyB7L+/f8eziJ54gtPoW5n2Bqnj/zna0n5tUOpI++L8vFeQ9lQJ2JiNS2
+         36dg==
+X-Gm-Message-State: APjAAAXDR+/LeX9RG3X2QpTopjK/4RxVDwiO1+UVJn0UUsHkN2dUj5ZK
+	nW1/wjml1o4DBly8/nCGWObEjSDenfgroRo47Z9GQyS5iC3pFPwktyYDQlM6p1MSpJh+5DbN5p8
+	y4/ZvcuSwqVXQM+a/oFFojQY8k8xbxCLyk0VVxGpInTUMv32H5v9IzMci2xeeHXB+eQ==
+X-Received: by 2002:a17:902:e084:: with SMTP id cb4mr22235590plb.77.1553822317211;
+        Thu, 28 Mar 2019 18:18:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy9t6lFVVyWhFYOWOdXgXRAU7A+DukiyqLqbiM2qQ3st9FmV1GmAcNn5TqTWZU1lPs4y/k0
+X-Received: by 2002:a17:902:e084:: with SMTP id cb4mr22235532plb.77.1553822316293;
+        Thu, 28 Mar 2019 18:18:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553822316; cv=none;
         d=google.com; s=arc-20160816;
-        b=H64CtvXvwU0U/HmGu0RfPogV25DEckR1H74g99GKb5ABocAbsqWRAMycuDiqxgLKok
-         Fen49vcZ6Gb7PmRmUcCTPdFekby+PrJszfSqhtq+tWj7TX3JYk9B3Uno2XAvqD3Ge1Qp
-         /RQdDPxuAY2e22e1Lgw7OpsHEla9Qb6WmT1/HJ81JNgwdRjDzLyb/Du9uZmzWnERd/kH
-         kntaw49eBS6CMsGxvRT2xF+ixIzTgCkzhBF3ALZ/a9X7cCnP+64ywBHdJy2K4v/YxGYr
-         FrZiB60H3z+poutk7pwalrnbFRFpBtfKw1dw7Q0zLb7RCU96IE8u6/ME7tzxJkf8hlXK
-         Rthg==
+        b=oZLmEYheUmInhkMGTb23SMeEvquxanGUKLfYdOwXEbwraZEdvf3WQVXPTV1jYLIqgm
+         R0PUyhItfiei2RHMaFcSxfIb/dBIpO/7PG3B9unxUwr7Iv+IodiMVe/gR5BLb/6HFYGA
+         FyOB088SITaa5TteNHqT3Qt+pltGpqKDB9YAOGlZC4RbD2EnrHpTIGTv8gXe9OhjmasM
+         p0EEeGSHw9x28zOm13tZJvNJjRRCCZqjkVELWyhIxJsDeItjnLTH6ylcvJ7P0hgJ08vm
+         NS54L6mFPhJc+gnCrT6wdJvuy8FrhECy7tZvLWOTG+6NaYWO+Q4xMJpD666qIL4ZDXLc
+         gC+A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=vWXQHZWj5B9n9u1m4nYJc8XOzk8sgjuz0x7UCf5Np1Q=;
-        b=0M8M8byv+aIhmJhXSGROoaq05uV637S6ImDmj91yo4cEmwTxyeYZqp54rF661pS334
-         AceWXcpwaTULZb5CZ8gwkLDsYk5tNtxhQAKC+jI4BbviOx7m1Tpag5qTiaDW/PhRisWf
-         Srj2LA1rQSgoUfSUlBgqUVAIdBdl4caQOM9aXkFmII/kjelkdI6ezuLzSik4sFU3Wy51
-         kihFvuyrD4H4aspVCjr8EiJLmlgsIPv6Si3oQgvIFkUQtNSZQN/kiroz97oUjj/xhRsZ
-         E8T2t/A+i/gHA2j/DJC8jcn4BhVUCd8GIgLW/gn8fo0mFiSieyymoI4X3ZFsKJUCKdaq
-         Z0tg==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=2/FR0Ry1UStrvREskYdSc/DwdYAa2zhZDQ2e+lmbW5g=;
+        b=M6W7Uo9D71wkoFjgOm9MsKPwkycVjhBsTJZHtvJm8xV/IkzkwCXy+zn2RckAHSEsog
+         PGUksgHGP6DKPM2aOTRcbJRioY/gcx6Xl2+D5x+zA1EN4wNr0NG3RPqi6jEUCRhDnVMs
+         8xnyabI4R1Z4ZssoyvOTUW1sPlXP//oYshsZAxUpDXR5ZwoZ3C1Le5mC5+PwJ9Y3y1GX
+         RU3HRKaeAMwrHJTV2oUJ82esp7NTRjdEokBmbXQF/VFCXdRPNs6R5BIhZBsKhZ4VFnOR
+         GxtmZ+O+UhplLZ5zMUWAQHZA0FtONkcNbUXu9x7+Dqgd8Hnu2h+IhMEXgAQNSvA//5sV
+         Jntw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q16si328720qvc.13.2019.03.28.18.17.32
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b="T/6lVXUU";
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id z3si608762pgv.295.2019.03.28.18.18.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Mar 2019 18:17:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 28 Mar 2019 18:18:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 822D23082AED;
-	Fri, 29 Mar 2019 01:17:31 +0000 (UTC)
-Received: from redhat.com (ovpn-121-118.rdu2.redhat.com [10.10.121.118])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 671EE62669;
-	Fri, 29 Mar 2019 01:17:30 +0000 (UTC)
-Date: Thu, 28 Mar 2019 21:17:28 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Ira Weiny <ira.weiny@intel.com>
-Cc: John Hubbard <jhubbard@nvidia.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Dan Williams <dan.j.williams@intel.com>
-Subject: Re: [PATCH v2 07/11] mm/hmm: add default fault flags to avoid the
- need to pre-fill pfns arrays.
-Message-ID: <20190329011727.GC16680@redhat.com>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b="T/6lVXUU";
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c9d726f0000>; Thu, 28 Mar 2019 18:18:39 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Thu, 28 Mar 2019 18:18:35 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Thu, 28 Mar 2019 18:18:35 -0700
+Received: from [10.110.48.28] (10.124.1.5) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 29 Mar
+ 2019 01:18:35 +0000
+Subject: Re: [PATCH v2 02/11] mm/hmm: use reference counting for HMM struct v2
+To: Jerome Glisse <jglisse@redhat.com>, Ira Weiny <ira.weiny@intel.com>
+CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, Andrew Morton
+	<akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>
 References: <20190325144011.10560-1-jglisse@redhat.com>
- <20190325144011.10560-8-jglisse@redhat.com>
- <2f790427-ea87-b41e-b386-820ccdb7dd38@nvidia.com>
- <20190328221203.GF13560@redhat.com>
- <555ad864-d1f9-f513-9666-0d3d05dbb85d@nvidia.com>
- <20190328223153.GG13560@redhat.com>
- <768f56f5-8019-06df-2c5a-b4187deaac59@nvidia.com>
- <20190328232125.GJ13560@redhat.com>
- <d2008b88-962f-b7b4-8351-9e1df95ea2cc@nvidia.com>
- <20190328164231.GF31324@iweiny-DESK2.sc.intel.com>
+ <20190325144011.10560-3-jglisse@redhat.com>
+ <20190328110719.GA31324@iweiny-DESK2.sc.intel.com>
+ <20190328191122.GA5740@redhat.com>
+ <c8fd897f-b9d3-a77b-9898-78e20221ba44@nvidia.com>
+ <20190328212145.GA13560@redhat.com>
+ <fcb7be01-38c1-ed1f-70a0-d03dc9260473@nvidia.com>
+ <20190328165708.GH31324@iweiny-DESK2.sc.intel.com>
+ <20190329010059.GB16680@redhat.com>
+From: John Hubbard <jhubbard@nvidia.com>
+X-Nvconfidentiality: public
+Message-ID: <55dd8607-c91b-12ab-e6d7-adfe6d9cb5e2@nvidia.com>
+Date: Thu, 28 Mar 2019 18:18:35 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.3
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190328164231.GF31324@iweiny-DESK2.sc.intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Fri, 29 Mar 2019 01:17:31 +0000 (UTC)
+In-Reply-To: <20190329010059.GB16680@redhat.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL101.nvidia.com (172.20.187.10) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US-large
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1553822319; bh=2/FR0Ry1UStrvREskYdSc/DwdYAa2zhZDQ2e+lmbW5g=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=T/6lVXUUap0qBw04TUUtpmg+YkSegkIY+NWmt+r0UgJpBDI/sNDaIVYbN7B5qqVgE
+	 axRubf5TBqIjxm2nnQj44JyIOwX+sXT+Kv+WwuH4wxHAEz7nKO7rSsrQnFwJxorWAb
+	 tq9Fx1iIkpy9ljeb3FRY9efNCjzrUKHoenFrpHPXUvqT+2PYKG1aLKbOq1VIEA9Amk
+	 bn2G/PxOxqVkAPRd2lMamaztqw6UjEG7spn30p1VeztwxgiOwZBmMhESCctVGZSeUh
+	 6hyOmd+r2twzUt+LUKUgu/3CnHCK6u0o/bwaMsx/z7dVNkMMohlK4DpCrxswuUebE1
+	 vzVgCN0ft9zUQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 28, 2019 at 09:42:31AM -0700, Ira Weiny wrote:
-> On Thu, Mar 28, 2019 at 04:28:47PM -0700, John Hubbard wrote:
-> > On 3/28/19 4:21 PM, Jerome Glisse wrote:
-> > > On Thu, Mar 28, 2019 at 03:40:42PM -0700, John Hubbard wrote:
-> > >> On 3/28/19 3:31 PM, Jerome Glisse wrote:
-> > >>> On Thu, Mar 28, 2019 at 03:19:06PM -0700, John Hubbard wrote:
-> > >>>> On 3/28/19 3:12 PM, Jerome Glisse wrote:
-> > >>>>> On Thu, Mar 28, 2019 at 02:59:50PM -0700, John Hubbard wrote:
-> > >>>>>> On 3/25/19 7:40 AM, jglisse@redhat.com wrote:
-> > >>>>>>> From: Jérôme Glisse <jglisse@redhat.com>
-> > [...]
-> > >> Hi Jerome,
-> > >>
-> > >> I think you're talking about flags, but I'm talking about the mask. The 
-> > >> above link doesn't appear to use the pfn_flags_mask, and the default_flags 
-> > >> that it uses are still in the same lower 3 bits:
-> > >>
-> > >> +static uint64_t odp_hmm_flags[HMM_PFN_FLAG_MAX] = {
-> > >> +	ODP_READ_BIT,	/* HMM_PFN_VALID */
-> > >> +	ODP_WRITE_BIT,	/* HMM_PFN_WRITE */
-> > >> +	ODP_DEVICE_BIT,	/* HMM_PFN_DEVICE_PRIVATE */
-> > >> +};
-> > >>
-> > >> So I still don't see why we need the flexibility of a full 0xFFFFFFFFFFFFFFFF
-> > >> mask, that is *also* runtime changeable. 
-> > > 
-> > > So the pfn array is using a device driver specific format and we have
-> > > no idea nor do we need to know where the valid, write, ... bit are in
-> > > that format. Those bits can be in the top 60 bits like 63, 62, 61, ...
-> > > we do not care. They are device with bit at the top and for those you
-> > > need a mask that allows you to mask out those bits or not depending on
-> > > what the user want to do.
-> > > 
-> > > The mask here is against an _unknown_ (from HMM POV) format. So we can
-> > > not presume where the bits will be and thus we can not presume what a
-> > > proper mask is.
-> > > 
-> > > So that's why a full unsigned long mask is use here.
-> > > 
-> > > Maybe an example will help let say the device flag are:
-> > >     VALID (1 << 63)
-> > >     WRITE (1 << 62)
-> > > 
-> > > Now let say that device wants to fault with at least read a range
-> > > it does set:
-> > >     range->default_flags = (1 << 63)
-> > >     range->pfn_flags_mask = 0;
-> > > 
-> > > This will fill fault all page in the range with at least read
-> > > permission.
-> > > 
-> > > Now let say it wants to do the same except for one page in the range
-> > > for which its want to have write. Now driver set:
-> > >     range->default_flags = (1 << 63);
-> > >     range->pfn_flags_mask = (1 << 62);
-> > >     range->pfns[index_of_write] = (1 << 62);
-> > > 
-> > > With this HMM will fault in all page with at least read (ie valid)
-> > > and for the address: range->start + index_of_write << PAGE_SHIFT it
-> > > will fault with write permission ie if the CPU pte does not have
-> > > write permission set then handle_mm_fault() will be call asking for
-> > > write permission.
-> > > 
-> > > 
-> > > Note that in the above HMM will populate the pfns array with write
-> > > permission for any entry that have write permission within the CPU
-> > > pte ie the default_flags and pfn_flags_mask is only the minimun
-> > > requirement but HMM always returns all the flag that are set in the
-> > > CPU pte.
-> > > 
-> > > 
-> > > Now let say you are an "old" driver like nouveau upstream, then it
-> > > means that you are setting each individual entry within range->pfns
-> > > with the exact flags you want for each address hence here what you
-> > > want is:
-> > >     range->default_flags = 0;
-> > >     range->pfn_flags_mask = -1UL;
-> > > 
-> > > So that what we do is (for each entry):
-> > >     (range->pfns[index] & range->pfn_flags_mask) | range->default_flags
-> > > and we end up with the flags that were set by the driver for each of
-> > > the individual range->pfns entries.
-> > > 
-> > > 
-> > > Does this help ?
-> > > 
-> > 
-> > Yes, the key point for me was that this is an entirely device driver specific
-> > format. OK. But then we have HMM setting it. So a comment to the effect that
-> > this is device-specific might be nice, but I'll leave that up to you whether
-> > it is useful.
-> 
-> Indeed I did not realize there is an hmm "pfn" until I saw this function:
-> 
-> /*
->  * hmm_pfn_from_pfn() - create a valid HMM pfn value from pfn
->  * @range: range use to encode HMM pfn value
->  * @pfn: pfn value for which to create the HMM pfn
->  * Returns: valid HMM pfn for the pfn
->  */
-> static inline uint64_t hmm_pfn_from_pfn(const struct hmm_range *range,
->                                         unsigned long pfn)
-> 
-> So should this patch contain some sort of helper like this... maybe?
-> 
-> I'm assuming the "hmm_pfn" being returned above is the device pfn being
-> discussed here?
-> 
-> I'm also thinking calling it pfn is confusing.  I'm not advocating a new type
-> but calling the "device pfn's" "hmm_pfn" or "device_pfn" seems like it would
-> have shortened the discussion here.
-> 
+On 3/28/19 6:00 PM, Jerome Glisse wrote:
+> On Thu, Mar 28, 2019 at 09:57:09AM -0700, Ira Weiny wrote:
+>> On Thu, Mar 28, 2019 at 05:39:26PM -0700, John Hubbard wrote:
+>>> On 3/28/19 2:21 PM, Jerome Glisse wrote:
+>>>> On Thu, Mar 28, 2019 at 01:43:13PM -0700, John Hubbard wrote:
+>>>>> On 3/28/19 12:11 PM, Jerome Glisse wrote:
+>>>>>> On Thu, Mar 28, 2019 at 04:07:20AM -0700, Ira Weiny wrote:
+>>>>>>> On Mon, Mar 25, 2019 at 10:40:02AM -0400, Jerome Glisse wrote:
+>>>>>>>> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>>> [...]
+>>>>>>>> @@ -67,14 +78,9 @@ struct hmm {
+>>>>>>>>   */
+>>>>>>>>  static struct hmm *hmm_register(struct mm_struct *mm)
+>>>>>>>>  {
+>>>>>>>> -	struct hmm *hmm =3D READ_ONCE(mm->hmm);
+>>>>>>>> +	struct hmm *hmm =3D mm_get_hmm(mm);
+>>>>>>>
+>>>>>>> FWIW: having hmm_register =3D=3D "hmm get" is a bit confusing...
+>>>>>>
+>>>>>> The thing is that you want only one hmm struct per process and thus
+>>>>>> if there is already one and it is not being destroy then you want to
+>>>>>> reuse it.
+>>>>>>
+>>>>>> Also this is all internal to HMM code and so it should not confuse
+>>>>>> anyone.
+>>>>>>
+>>>>>
+>>>>> Well, it has repeatedly come up, and I'd claim that it is quite=20
+>>>>> counter-intuitive. So if there is an easy way to make this internal=20
+>>>>> HMM code clearer or better named, I would really love that to happen.
+>>>>>
+>>>>> And we shouldn't ever dismiss feedback based on "this is just interna=
+l
+>>>>> xxx subsystem code, no need for it to be as clear as other parts of t=
+he
+>>>>> kernel", right?
+>>>>
+>>>> Yes but i have not seen any better alternative that present code. If
+>>>> there is please submit patch.
+>>>>
+>>>
+>>> Ira, do you have any patch you're working on, or a more detailed sugges=
+tion there?
+>>> If not, then I might (later, as it's not urgent) propose a small cleanu=
+p patch=20
+>>> I had in mind for the hmm_register code. But I don't want to duplicate =
+effort=20
+>>> if you're already thinking about it.
+>>
+>> No I don't have anything.
+>>
+>> I was just really digging into these this time around and I was about to
+>> comment on the lack of "get's" for some "puts" when I realized that
+>> "hmm_register" _was_ the get...
+>>
+>> :-(
+>>
+>=20
+> The get is mm_get_hmm() were you get a reference on HMM from a mm struct.
+> John in previous posting complained about me naming that function hmm_get=
+()
+> and thus in this version i renamed it to mm_get_hmm() as we are getting
+> a reference on hmm from a mm struct.
 
-That helper is also use today by nouveau so changing that name is not that
-easy it does require the multi-release dance. So i am not sure how much
-value there is in a name change.
+Well, that's not what I recommended, though. The actual conversation went l=
+ike
+this [1]:
 
-Cheers,
-Jérôme
+---------------------------------------------------------------
+>> So for this, hmm_get() really ought to be symmetric with
+>> hmm_put(), by taking a struct hmm*. And the null check is
+>> not helping here, so let's just go with this smaller version:
+>>
+>> static inline struct hmm *hmm_get(struct hmm *hmm)
+>> {
+>>     if (kref_get_unless_zero(&hmm->kref))
+>>         return hmm;
+>>
+>>     return NULL;
+>> }
+>>
+>> ...and change the few callers accordingly.
+>>
+>
+> What about renaning hmm_get() to mm_get_hmm() instead ?
+>
+
+For a get/put pair of functions, it would be ideal to pass
+the same argument type to each. It looks like we are passing
+around hmm*, and hmm retains a reference count on hmm->mm,
+so I think you have a choice of using either mm* or hmm* as
+the argument. I'm not sure that one is better than the other
+here, as the lifetimes appear to be linked pretty tightly.
+
+Whichever one is used, I think it would be best to use it
+in both the _get() and _put() calls.=20
+---------------------------------------------------------------
+
+Your response was to change the name to mm_get_hmm(), but that's not
+what I recommended.
+
+>=20
+> The hmm_put() is just releasing the reference on the hmm struct.
+>=20
+> Here i feel i am getting contradicting requirement from different people.
+> I don't think there is a way to please everyone here.
+>=20
+
+That's not a true conflict: you're comparing your actual implementation
+to Ira's request, rather than comparing my request to Ira's request.
+
+I think there's a way forward. Ira and I are actually both asking for the
+same thing:
+
+a) clear, concise get/put routines
+
+b) avoiding odd side effects in functions that have one name, but do
+additional surprising things.
+
+[1] https://lore.kernel.org/r/1ccab0d3-7e90-8e39-074d-02ffbfc68480@nvidia.c=
+om
+
+thanks,
+--=20
+John Hubbard
+NVIDIA
 
