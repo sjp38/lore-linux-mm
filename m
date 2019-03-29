@@ -6,248 +6,187 @@ X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 206BFC10F06
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 01:50:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EBC82C10F06
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 01:59:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CEA282183F
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 01:50:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CEA282183F
+	by mail.kernel.org (Postfix) with ESMTP id B0EC621850
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 01:59:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B0EC621850
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6CC556B000C; Thu, 28 Mar 2019 21:50:09 -0400 (EDT)
+	id 4CB2A6B000C; Thu, 28 Mar 2019 21:59:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6554C6B000D; Thu, 28 Mar 2019 21:50:09 -0400 (EDT)
+	id 452756B000D; Thu, 28 Mar 2019 21:59:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4F7606B000E; Thu, 28 Mar 2019 21:50:09 -0400 (EDT)
+	id 2F3896B000E; Thu, 28 Mar 2019 21:59:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A0B96B000C
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 21:50:09 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id f196so513767qke.4
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 18:50:09 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A58C6B000C
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 21:59:27 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id v18so848281qtk.5
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 18:59:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :content-transfer-encoding:in-reply-to:user-agent;
-        bh=qN6Rc7XEv8QwbjagVRoV68366L9/qfMOiNe9AqfUlJU=;
-        b=VpQEizRUYsmGiTlfoRBfbF7qGN+Y2x00YwUqUhAcXazrqEhwW0/4x4l/LEGDG4TR+0
-         WI8BGLYBPBmLhS4dLGENmrgaZsiMI1HVNOqlxyP1xVKzA0yEF1S3JflbL/UHgS/+xJAL
-         bwnjmpTuumnNHS8Jk1R4MwI7S3lUdEuBlp0vwIjWQq6pVExN2QMTcNGXWHuPsxVwysU5
-         A7nFopB9Ki0L3ytDzbPQucnLjip30Mkt8HqCOp0Pgx/A1vuvTwCK5TDthUnqvkiiWsly
-         E6szzdurvVMKlYPrXjIMMuii6kwrfxirznSWdnKONw2SXSkqYeipRq11v8Hr0Qq/Dvvm
-         PzMQ==
+        bh=2ibVBNyq9tMEYR/A3OPT67wSuY8m9obp+u6fsaryfi4=;
+        b=dJgZ64P/ZAXP/ceDipkDCmeR4/SxgKPc5wnEHumqdonHDQYnmK0MDnsTFpiFXVaKUN
+         x8pasfFLlv/Ll8KuKDnrEzLZTJtsU7cZodAsx+gcaP8NoltbfuRh9jjHVQ8IHuZL9vNS
+         TpPpSoxMffTutOY1s9N3QFfj0Pr+61OWpB2tsO0WU0pAmxSNVnqnf99U2YrjcZNCIRy+
+         YQK9So+61nWurgbc28LKiDZO/01tBRQRMajMvmRXLgb9VYUMIPiHK8iWpJ988C4hBEQA
+         31AQSMlQu2XnrrUQJl46Ixc6y/rLd1sAjCJ2HlaAZNkY+Tdi1ftDsZsjX0Sxa9wekx4n
+         +41A==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAU7v3wqGmwZaBw0ycuNfViFEu3yQTdgXYwyBQVa4yPJ0pn5R9Ag
-	E3IRCqjxZOvKtgkKU1cmi4dBQJDmodvvFL/XjdzFW3bhG0HGcgIgQXM+zJzuKKmA6PhHKOFkkTD
-	AdfaKUyi0zVwFPTGd/LqS+F139nv8DrehKju3Tuh+JtT9t0daIfsDhM7fkMncWyC4Jw==
-X-Received: by 2002:ac8:f5c:: with SMTP id l28mr38037759qtk.249.1553824208892;
-        Thu, 28 Mar 2019 18:50:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyRhILLZXcWtRHnI4ELxC7+oWY/x4foeU+QCV9yfnpWr+SV4gX8kY0MlhM0RhRgzAfJPz/2
-X-Received: by 2002:ac8:f5c:: with SMTP id l28mr38037734qtk.249.1553824208161;
-        Thu, 28 Mar 2019 18:50:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553824208; cv=none;
+X-Gm-Message-State: APjAAAV46ibkNQnTSRzTQTFAF4QUqDW8hjHxpexcl5UiYI1hqA/ds03P
+	0QkQHraYxGe7lJBs6sg7q9pPum1sM+N0/HO5A2v8Rx07fzL/P6T4GGFtrs6p6to8FKFMxBwddvP
+	s0c5xYWZRVKHL7jXuGYMFjjwi1TvkQIJGYT4dPco2IzdRtgJAU/ShmCSQ+7ojjhVJhg==
+X-Received: by 2002:a0c:a8e7:: with SMTP id h39mr20461133qvc.34.1553824766802;
+        Thu, 28 Mar 2019 18:59:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyK+pikUCu2PuAhTH9LLSzzams50LIB995NbT0ldL4rg1xO9P54Dg02DY4Q04rbuWVgoyM1
+X-Received: by 2002:a0c:a8e7:: with SMTP id h39mr20461103qvc.34.1553824766083;
+        Thu, 28 Mar 2019 18:59:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553824766; cv=none;
         d=google.com; s=arc-20160816;
-        b=CnUFu/osdPIAKWECT6CdlV6QvllYTlax1+LZzw6W5oV3Oy52wkdMynRxXwf6V/122M
-         6aOhsH0Kh2kqUt599Z53dz1bDHhm7zMps82nvd+WvDZPQEG8FXP51IP7CzNs3USvXbrf
-         Q6tELSRqr0q9DoVY6vw2tGPJE4CHewlNGBFrEow0FABFXaRwVeI6gh1Jl/LZNhmX/98x
-         BtHnPjTHOTl/aOcwSbcxdsszJYJd1Ta+NBtyX+YonyGa4lSxHJW+sJjCo0QEGPcE/cS8
-         iKXWGKIHU+laC0B5EoodC45NN1qbP+b0mQOm/Q4ql+BN5nL51QLJqKuGIqtrisBy3fhe
-         VjoA==
+        b=SbjrhnGCJ0EzicQvP7ih3OB6h51d204OfUDPhTJgBXmkdTET4fHMBkvezhveM7lZaM
+         AEZ2qeXDFN2h2Hn2H6U6A6r6NepKf9u4O3VCQW9wEAvTVrkRFs4FhGSOpBVczhg0xW3x
+         c89917G1LkaOi/iUjSUGWaoVFakzaTr+e20U++xs1pS5z3X5CH55FSY52lAp0nAMeMO+
+         TBkOeci5nDJTcm4yP8CdK6EWh2+8aYxC59mViYvGkpUPAiTJS4UyEkDxFadz6byulN70
+         fFsP3afgfCZHTmW7YiUJdxqW8Iyarp8AKsh8fwkQ44rAjQ15Jj5Jg5E8psok5U9KqDzc
+         KTwg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-transfer-encoding
          :content-disposition:mime-version:references:message-id:subject:cc
          :to:from:date;
-        bh=qN6Rc7XEv8QwbjagVRoV68366L9/qfMOiNe9AqfUlJU=;
-        b=xvEEuzFRxzho8pQAAH4ahfOHAobPXBNmFsLG7fErh10OOq5YbRWn2qIrKDZRERC1km
-         SCc6nHr3lbEZ7MAKVVtrgJEVdWQlUWNxtXBw8+Q0tVh8hnl0aW2w4BiMJQkjzYMiqwfY
-         EpJFjVlRdScxd5BpJ9LkWezZtDYk5dj5hILP7/TgWA2y6h8HpU03N7gxQID4v//vXXYp
-         snZ8AE6yTiPthN0H1RSeNaHoviipuNA5o1RSySbYrpyv3g8xGSVELhA4nicIAp/l8/Yc
-         QiNfFAGUe7aIavhAwbGm/7irhj+ctuWmtWRt7tnMCUqAXdIlbVk8EQA+z8c7Hk8yNjCD
-         hDGw==
+        bh=2ibVBNyq9tMEYR/A3OPT67wSuY8m9obp+u6fsaryfi4=;
+        b=eX2zI6sActlh8Pxg6cNAxKo9de3i2uUB0f9e4JXIJ/mnrwMT5fgHwyEFHdKsfXy0A0
+         2CW6pi49uouDZCbRwp/ghWr8ML0kHMgyeNPbWQVSlq45uJrGkjPpcV8kvaX7AFIedqRP
+         g01POUmTMvkfLwOCFsBxdSXT0VN2fEvaoSYtnDWxhe/G540ZMU954FXfQexvY7Y//laU
+         Cisuvzz9iM7Gp3K+a5L8z2fB/pSALc95hZyK4vCebMWdhGSzARf0Uf8RheLjt0GIqGVf
+         n9+Rp9ps9Lp7CvhcPPDdDeRlVnKaF5UKDlAe6hvxPSHT89FMRW+U793AIccJvdPC82W4
+         T//A==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 58si338734qvx.190.2019.03.28.18.50.07
+        by mx.google.com with ESMTPS id v25si456612qtc.297.2019.03.28.18.59.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Mar 2019 18:50:08 -0700 (PDT)
+        Thu, 28 Mar 2019 18:59:26 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 345833099FD0;
-	Fri, 29 Mar 2019 01:50:07 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 4A6BA3086205;
+	Fri, 29 Mar 2019 01:59:25 +0000 (UTC)
 Received: from redhat.com (ovpn-121-118.rdu2.redhat.com [10.10.121.118])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 02F606FDDE;
-	Fri, 29 Mar 2019 01:50:05 +0000 (UTC)
-Date: Thu, 28 Mar 2019 21:50:03 -0400
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id DC41C8958A;
+	Fri, 29 Mar 2019 01:59:23 +0000 (UTC)
+Date: Thu, 28 Mar 2019 21:59:19 -0400
 From: Jerome Glisse <jglisse@redhat.com>
 To: John Hubbard <jhubbard@nvidia.com>
 Cc: Ira Weiny <ira.weiny@intel.com>, linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Dan Williams <dan.j.williams@intel.com>
-Subject: Re: [PATCH v2 02/11] mm/hmm: use reference counting for HMM struct v2
-Message-ID: <20190329015003.GE16680@redhat.com>
-References: <20190325144011.10560-1-jglisse@redhat.com>
- <20190325144011.10560-3-jglisse@redhat.com>
- <20190328110719.GA31324@iweiny-DESK2.sc.intel.com>
- <20190328191122.GA5740@redhat.com>
- <c8fd897f-b9d3-a77b-9898-78e20221ba44@nvidia.com>
- <20190328212145.GA13560@redhat.com>
- <fcb7be01-38c1-ed1f-70a0-d03dc9260473@nvidia.com>
- <20190328165708.GH31324@iweiny-DESK2.sc.intel.com>
- <20190329010059.GB16680@redhat.com>
- <55dd8607-c91b-12ab-e6d7-adfe6d9cb5e2@nvidia.com>
+Subject: Re: [PATCH v2 07/11] mm/hmm: add default fault flags to avoid the
+ need to pre-fill pfns arrays.
+Message-ID: <20190329015919.GF16680@redhat.com>
+References: <20190328221203.GF13560@redhat.com>
+ <555ad864-d1f9-f513-9666-0d3d05dbb85d@nvidia.com>
+ <20190328223153.GG13560@redhat.com>
+ <768f56f5-8019-06df-2c5a-b4187deaac59@nvidia.com>
+ <20190328232125.GJ13560@redhat.com>
+ <d2008b88-962f-b7b4-8351-9e1df95ea2cc@nvidia.com>
+ <20190328164231.GF31324@iweiny-DESK2.sc.intel.com>
+ <20190329011727.GC16680@redhat.com>
+ <f053e75e-25b5-d95a-bb3c-73411ba49e3e@nvidia.com>
+ <20190329014259.GD16680@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <55dd8607-c91b-12ab-e6d7-adfe6d9cb5e2@nvidia.com>
+In-Reply-To: <20190329014259.GD16680@redhat.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Fri, 29 Mar 2019 01:50:07 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Fri, 29 Mar 2019 01:59:25 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 28, 2019 at 06:18:35PM -0700, John Hubbard wrote:
-> On 3/28/19 6:00 PM, Jerome Glisse wrote:
-> > On Thu, Mar 28, 2019 at 09:57:09AM -0700, Ira Weiny wrote:
-> >> On Thu, Mar 28, 2019 at 05:39:26PM -0700, John Hubbard wrote:
-> >>> On 3/28/19 2:21 PM, Jerome Glisse wrote:
-> >>>> On Thu, Mar 28, 2019 at 01:43:13PM -0700, John Hubbard wrote:
-> >>>>> On 3/28/19 12:11 PM, Jerome Glisse wrote:
-> >>>>>> On Thu, Mar 28, 2019 at 04:07:20AM -0700, Ira Weiny wrote:
-> >>>>>>> On Mon, Mar 25, 2019 at 10:40:02AM -0400, Jerome Glisse wrote:
-> >>>>>>>> From: Jérôme Glisse <jglisse@redhat.com>
-> >>> [...]
-> >>>>>>>> @@ -67,14 +78,9 @@ struct hmm {
-> >>>>>>>>   */
-> >>>>>>>>  static struct hmm *hmm_register(struct mm_struct *mm)
-> >>>>>>>>  {
-> >>>>>>>> -	struct hmm *hmm = READ_ONCE(mm->hmm);
-> >>>>>>>> +	struct hmm *hmm = mm_get_hmm(mm);
-> >>>>>>>
-> >>>>>>> FWIW: having hmm_register == "hmm get" is a bit confusing...
-> >>>>>>
-> >>>>>> The thing is that you want only one hmm struct per process and thus
-> >>>>>> if there is already one and it is not being destroy then you want to
-> >>>>>> reuse it.
-> >>>>>>
-> >>>>>> Also this is all internal to HMM code and so it should not confuse
-> >>>>>> anyone.
-> >>>>>>
-> >>>>>
-> >>>>> Well, it has repeatedly come up, and I'd claim that it is quite 
-> >>>>> counter-intuitive. So if there is an easy way to make this internal 
-> >>>>> HMM code clearer or better named, I would really love that to happen.
-> >>>>>
-> >>>>> And we shouldn't ever dismiss feedback based on "this is just internal
-> >>>>> xxx subsystem code, no need for it to be as clear as other parts of the
-> >>>>> kernel", right?
-> >>>>
-> >>>> Yes but i have not seen any better alternative that present code. If
-> >>>> there is please submit patch.
-> >>>>
-> >>>
-> >>> Ira, do you have any patch you're working on, or a more detailed suggestion there?
-> >>> If not, then I might (later, as it's not urgent) propose a small cleanup patch 
-> >>> I had in mind for the hmm_register code. But I don't want to duplicate effort 
-> >>> if you're already thinking about it.
-> >>
-> >> No I don't have anything.
-> >>
-> >> I was just really digging into these this time around and I was about to
-> >> comment on the lack of "get's" for some "puts" when I realized that
-> >> "hmm_register" _was_ the get...
-> >>
-> >> :-(
-> >>
+On Thu, Mar 28, 2019 at 09:42:59PM -0400, Jerome Glisse wrote:
+> On Thu, Mar 28, 2019 at 06:30:26PM -0700, John Hubbard wrote:
+> > On 3/28/19 6:17 PM, Jerome Glisse wrote:
+> > > On Thu, Mar 28, 2019 at 09:42:31AM -0700, Ira Weiny wrote:
+> > >> On Thu, Mar 28, 2019 at 04:28:47PM -0700, John Hubbard wrote:
+> > >>> On 3/28/19 4:21 PM, Jerome Glisse wrote:
+> > >>>> On Thu, Mar 28, 2019 at 03:40:42PM -0700, John Hubbard wrote:
+> > >>>>> On 3/28/19 3:31 PM, Jerome Glisse wrote:
+> > >>>>>> On Thu, Mar 28, 2019 at 03:19:06PM -0700, John Hubbard wrote:
+> > >>>>>>> On 3/28/19 3:12 PM, Jerome Glisse wrote:
+> > >>>>>>>> On Thu, Mar 28, 2019 at 02:59:50PM -0700, John Hubbard wrote:
+> > >>>>>>>>> On 3/25/19 7:40 AM, jglisse@redhat.com wrote:
+> > >>>>>>>>>> From: Jérôme Glisse <jglisse@redhat.com>
+> > >>> [...]
+> > >> Indeed I did not realize there is an hmm "pfn" until I saw this function:
+> > >>
+> > >> /*
+> > >>  * hmm_pfn_from_pfn() - create a valid HMM pfn value from pfn
+> > >>  * @range: range use to encode HMM pfn value
+> > >>  * @pfn: pfn value for which to create the HMM pfn
+> > >>  * Returns: valid HMM pfn for the pfn
+> > >>  */
+> > >> static inline uint64_t hmm_pfn_from_pfn(const struct hmm_range *range,
+> > >>                                         unsigned long pfn)
+> > >>
+> > >> So should this patch contain some sort of helper like this... maybe?
+> > >>
+> > >> I'm assuming the "hmm_pfn" being returned above is the device pfn being
+> > >> discussed here?
+> > >>
+> > >> I'm also thinking calling it pfn is confusing.  I'm not advocating a new type
+> > >> but calling the "device pfn's" "hmm_pfn" or "device_pfn" seems like it would
+> > >> have shortened the discussion here.
+> > >>
+> > > 
+> > > That helper is also use today by nouveau so changing that name is not that
+> > > easy it does require the multi-release dance. So i am not sure how much
+> > > value there is in a name change.
+> > > 
 > > 
-> > The get is mm_get_hmm() were you get a reference on HMM from a mm struct.
-> > John in previous posting complained about me naming that function hmm_get()
-> > and thus in this version i renamed it to mm_get_hmm() as we are getting
-> > a reference on hmm from a mm struct.
-> 
-> Well, that's not what I recommended, though. The actual conversation went like
-> this [1]:
-> 
-> ---------------------------------------------------------------
-> >> So for this, hmm_get() really ought to be symmetric with
-> >> hmm_put(), by taking a struct hmm*. And the null check is
-> >> not helping here, so let's just go with this smaller version:
-> >>
-> >> static inline struct hmm *hmm_get(struct hmm *hmm)
-> >> {
-> >>     if (kref_get_unless_zero(&hmm->kref))
-> >>         return hmm;
-> >>
-> >>     return NULL;
-> >> }
-> >>
-> >> ...and change the few callers accordingly.
-> >>
-> >
-> > What about renaning hmm_get() to mm_get_hmm() instead ?
-> >
-> 
-> For a get/put pair of functions, it would be ideal to pass
-> the same argument type to each. It looks like we are passing
-> around hmm*, and hmm retains a reference count on hmm->mm,
-> so I think you have a choice of using either mm* or hmm* as
-> the argument. I'm not sure that one is better than the other
-> here, as the lifetimes appear to be linked pretty tightly.
-> 
-> Whichever one is used, I think it would be best to use it
-> in both the _get() and _put() calls. 
-> ---------------------------------------------------------------
-> 
-> Your response was to change the name to mm_get_hmm(), but that's not
-> what I recommended.
-
-Because i can not do that, hmm_put() can _only_ take hmm struct as
-input while hmm_get() can _only_ get mm struct as input.
-
-hmm_put() can only take hmm because the hmm we are un-referencing
-might no longer be associated with any mm struct and thus i do not
-have a mm struct to use.
-
-hmm_get() can only get mm as input as we need to be careful when
-accessing the hmm field within the mm struct and thus it is better
-to have that code within a function than open coded and duplicated
-all over the place.
-
-> 
+> > Once the dust settles, I would expect that a name change for this could go
+> > via Andrew's tree, right? It seems incredible to claim that we've built something
+> > that effectively does not allow any minor changes!
 > > 
-> > The hmm_put() is just releasing the reference on the hmm struct.
-> > 
-> > Here i feel i am getting contradicting requirement from different people.
-> > I don't think there is a way to please everyone here.
-> > 
+> > I do think it's worth some *minor* trouble to improve the name, assuming that we
+> > can do it in a simple patch, rather than some huge maintainer-level effort.
 > 
-> That's not a true conflict: you're comparing your actual implementation
-> to Ira's request, rather than comparing my request to Ira's request.
+> Change to nouveau have to go through nouveau tree so changing name means:
+>  -  release N add function with new name, maybe make the old function just
+>     a wrapper to the new function
+>  -  release N+1 update user to use the new name
+>  -  release N+2 remove the old name
 > 
-> I think there's a way forward. Ira and I are actually both asking for the
-> same thing:
+> So it is do-able but it is painful so i rather do that one latter that now
+> as i am sure people will then complain again about some little thing and it
+> will post pone this whole patchset on that new bit. To avoid post-poning
+> RDMA and bunch of other patchset that build on top of that i rather get
+> this patchset in and then do more changes in the next cycle.
 > 
-> a) clear, concise get/put routines
-> 
-> b) avoiding odd side effects in functions that have one name, but do
-> additional surprising things.
+> This is just a capacity thing.
 
-Please show me code because i do not see any other way to do it then
-how i did.
+Also for clarity changes to API i am doing in this patchset is to make
+the ODP convertion easier and thus they bring a real hard value. Renaming
+those function is esthetic, i am not saying it is useless, i am saying it
+does not have the same value as those other changes and i would rather not
+miss another merge window just for esthetic changes.
 
 Cheers,
 Jérôme
