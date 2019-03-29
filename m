@@ -2,445 +2,409 @@ Return-Path: <SRS0=6kLG=SA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.4 required=3.0 tests=DATE_IN_PAST_06_12,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 333A0C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 00:54:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 69B07C4360F
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 00:57:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D45412183E
-	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 00:54:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D45412183E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 09FD72183E
+	for <linux-mm@archiver.kernel.org>; Fri, 29 Mar 2019 00:57:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 09FD72183E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 60C526B0006; Thu, 28 Mar 2019 20:54:53 -0400 (EDT)
+	id 9DB8F6B0006; Thu, 28 Mar 2019 20:57:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5BD416B0007; Thu, 28 Mar 2019 20:54:53 -0400 (EDT)
+	id 98B2A6B0007; Thu, 28 Mar 2019 20:57:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4A9CC6B0008; Thu, 28 Mar 2019 20:54:53 -0400 (EDT)
+	id 878FF6B0008; Thu, 28 Mar 2019 20:57:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E88D6B0006
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 20:54:53 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id x5so484789pll.2
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 17:54:53 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 659906B0006
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2019 20:57:00 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id f89so726414qtb.4
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2019 17:57:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :content-transfer-encoding:in-reply-to:user-agent;
-        bh=1y9NWh28oUJrB/ryfuIj4nxGTSDl30jBJpu7Inkj1+8=;
-        b=XW983/idZu0OVBQzJ29ZoSLR6SVZXwtaGyBFjH2F/L0DKetAf3/BKxMa+TmdLfMb1B
-         F+LsYUvOd4gETntFOI/BnCKDmdh7Xc2hvjwgUCvmTikpv8fo2y3Td4odO4nk9FbP4GNn
-         FsQCoM9INeeCrrcbxxIdPnM8sLPO1SSvr841QZjsDoNZHRPbttJ167YG6HDOtDNcQd13
-         RqnUS4KdX5LQRnR9nCOYQdHJMG5V9rPniGfWDNNb7U0lsk8VJLtAtoEd2Y4Rqr0GH+3R
-         ySfkS8aBf4H2E5Iw+41NYSkWMr+mpRpKmuhU9vfW2W7RQDA1/l3MvuJbK90Kd2B08fSb
-         AXTA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXar39dCxLnoye+jDNyPJpTDqKKFoIHfihjeVCjkbFbHSAgnYSV
-	RDTQwpo4LM+gsFnQL3LSa8B/n+uoYSGT7jNrVT9kkJDILt/xLhQdh/m/gjllsj6xWnFdh9Jr1PR
-	TQtv6ZwZyU69WuWxJzMqZjJ1DyEdYTp3bFYI+fY3I95yJiKF5fDHpHOxcT1X12U75kA==
-X-Received: by 2002:a63:f146:: with SMTP id o6mr42224599pgk.360.1553820892667;
-        Thu, 28 Mar 2019 17:54:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwOxgcxS1JeEt1Ax0yvRhTjioWHoIf62R8BuguTh6wb/l0Pz99Lr0NWNytTxBoXGrDt2Le4
-X-Received: by 2002:a63:f146:: with SMTP id o6mr42224542pgk.360.1553820891601;
-        Thu, 28 Mar 2019 17:54:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553820891; cv=none;
+        bh=v36YaSlOp5D85V/nvkPMoZ9snIQMlD87a22vYcoupBs=;
+        b=CHq5KlR4L9Ujuy9jr4HGdfpHe6LKZWdllFacehtMNlKSBzx5rq1AhtklDg5tVmKktM
+         LyVCNyykl4HI9ocJPugoquTBcTQVsOmOp+Tio03Xhi7jwOkEp+gy9Yi4/Ke2eG+XtEUt
+         wwKWYHveom6GXUT9ZlYRTR74DEOirqulaQw9zJuTOwDyWr+VNbWhm1U/TnJbd/SFRpJM
+         b8oxQfQLbGt9tQ3ZoLwYo5wrLd2fVyH6R2CNJO8/ZjKO+/wPCIlk3CYuW+PagdgCFlLB
+         0d3GMd4QC/DFYUbeAZtbDeb6xepR9Jle0zMVwZP9F9q2TpJG6aQOn4svvnqgVxC416eW
+         Mt4A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUUSz72MID5ZithrMXhRNYI1Po5hVS7Duag1udaLBRJpqBDjjpT
+	7U/AAnmRjh8K+H45zQMUnNsN5XQmU3WnnB4e92+WyX/Cs+0pkRFvz0hPtmGv9nreflY/420fQuc
+	rrO6ukWYRZ7CoY9aVeZ/uivo8i0hsjI7Wd78aaNmIUJoa89S+kDPee/+m3n9/y8TCNQ==
+X-Received: by 2002:a37:bd81:: with SMTP id n123mr36913027qkf.249.1553821020077;
+        Thu, 28 Mar 2019 17:57:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxu10bI5gdb24y42rde51M+ik7pIDJTpBYvHif8d1TozRVy5Im12Suv8JlJAJ6hccpLeWyl
+X-Received: by 2002:a37:bd81:: with SMTP id n123mr36912986qkf.249.1553821019285;
+        Thu, 28 Mar 2019 17:56:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553821019; cv=none;
         d=google.com; s=arc-20160816;
-        b=vh9BjZq9NKYcxhZJ+tVdvFR0HvxjGFn4YujqJG/YcG53BjY5a/FYAHT2J4u2LADaZw
-         bWVyEtBK2n6iiyzVWLpW39LFo86PNkuoYkpIV5eLOSXezmOg4O9MAoBNeh+eT9D/526q
-         yG9BelR4NPM67wFJE3LACLSULX0WfFt9fEWdYfK11p4EZ9KZeorzfCEU3EVhi0jKg2F3
-         KpkckgbPf31ABPExPBO1ygHDeGjLcwLCQQuOlJtKHrHahTijwTViAmDTsHaQxsS4jxXS
-         KWRJxwgTqHXw2prxlASy0dpZW7yTLNdxd7HUIwwAai/Ca3qYX6jagRK32TMt2+ZNtnmO
-         9+gw==
+        b=FfwzRO6EnocnRAH/AQ7VTh6RV+7kbtdBR3sqLEGx4FR9GohWL9YmHz5oNehoanQc+Y
+         Efni92Fu+qfC+bs6iwTpV1utMpQEqKg/w52HYFD8k1YUAkH9lAfsznJquYuKonF9hHOU
+         rHcRMso4aZ5JheBdnCT8dLrPjr4oCabb5F3EThWGMd/jkxqUAe1HywxHNKTo6MdE1cpT
+         OIhWJmQMXSGWwBnw2d5S2nyTJHXYoNySXj93phYNFkZhCt1ed5R0/IKXyf2+QcKx9MbM
+         ABpRPFLUBZ1iznJBMekfpKUuz+tRY6QTzdv54y0cZqfrkDyu2kyxY3ns26SZY8wneArB
+         fTPg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-transfer-encoding
          :content-disposition:mime-version:references:message-id:subject:cc
          :to:from:date;
-        bh=1y9NWh28oUJrB/ryfuIj4nxGTSDl30jBJpu7Inkj1+8=;
-        b=aAl2p4144wktFzdjo3EMgLueHpgPXyPGMFk0hw7twCQw8At8Wvpurp7VhlC3ID6+Q2
-         w9xg6+AvI+JcN5aH9uzxcNJ8yVqyOzRMm2S0lBSHUy5FMGf/9quN5K7zI4sw3rJmHJkE
-         kPCF8Yo4aK9zqk7JbEOd1rCEF2+Aluv8/ZlFXqKfHXKgcGQBqFIo0Q78db8fcTjQg5p/
-         /2bEnce2xzIzLHVF2FnkldY2QYfKkl8HcWz/4ZEAHCywj3I7TqhPOyZ9sDeR5aEERJt1
-         xq9jG/qNjwBgmJuFwop/r7NRkB0oGu0dkB6CNlUEt++azSmzsZDpMVd54fs6kkrSSkOM
-         nDhA==
+        bh=v36YaSlOp5D85V/nvkPMoZ9snIQMlD87a22vYcoupBs=;
+        b=naEoBDitZ6XXIwhc2RKRDbVS8ISWhba3d4wAm1NoSYY4l2sBZRQTFLjJJWMEcWXfjk
+         O0dEAYwPMv29B5D65pDPjFvDDzCE4NyFG5p6W6x9p8JGltl4qE0+o0JyX+feOBgNVbHy
+         11Mv2rjn7Y+/BDNU6cjv3tGJngBLArr8hZquyrK52qug2bmh/rvP7cf6+/Q2BKO1mkwQ
+         YBxZBRAhxxkGk9LEKvaWUvBON6AYq1sU5uON9cRFSDmLLJArGwO57vC4FB4yOdd64Ucu
+         0l0/+/aZo4XPzmr4Y9BiI7AeTOZdoKdv+uUJT+Th+j5flLtaoUQWrF8iyuVIiqH5NFdT
+         Z26g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id 138si500444pfa.199.2019.03.28.17.54.51
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u4si259834qkj.110.2019.03.28.17.56.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Mar 2019 17:54:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
+        Thu, 28 Mar 2019 17:56:59 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from fmsmga003.fm.intel.com ([10.253.24.29])
-  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 28 Mar 2019 17:54:51 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,282,1549958400"; 
-   d="scan'208";a="144783633"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by FMSMGA003.fm.intel.com with ESMTP; 28 Mar 2019 17:54:50 -0700
-Date: Thu, 28 Mar 2019 09:53:43 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: jglisse@redhat.com
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 44454C057F30;
+	Fri, 29 Mar 2019 00:56:58 +0000 (UTC)
+Received: from redhat.com (ovpn-121-118.rdu2.redhat.com [10.10.121.118])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id E8A68608BC;
+	Fri, 29 Mar 2019 00:56:56 +0000 (UTC)
+Date: Thu, 28 Mar 2019 20:56:54 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: Ira Weiny <ira.weiny@intel.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
 	Andrew Morton <akpm@linux-foundation.org>,
 	John Hubbard <jhubbard@nvidia.com>,
 	Dan Williams <dan.j.williams@intel.com>,
-	Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH v2 08/11] mm/hmm: mirror hugetlbfs (snapshoting, faulting
- and DMA mapping) v2
-Message-ID: <20190328165343.GG31324@iweiny-DESK2.sc.intel.com>
+	Dan Carpenter <dan.carpenter@oracle.com>,
+	Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v2 06/11] mm/hmm: improve driver API to work and wait
+ over a range v2
+Message-ID: <20190329005654.GA16680@redhat.com>
 References: <20190325144011.10560-1-jglisse@redhat.com>
- <20190325144011.10560-9-jglisse@redhat.com>
+ <20190325144011.10560-7-jglisse@redhat.com>
+ <20190328161221.GE31324@iweiny-DESK2.sc.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190325144011.10560-9-jglisse@redhat.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+In-Reply-To: <20190328161221.GE31324@iweiny-DESK2.sc.intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Fri, 29 Mar 2019 00:56:58 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 25, 2019 at 10:40:08AM -0400, Jerome Glisse wrote:
-> From: Jérôme Glisse <jglisse@redhat.com>
+On Thu, Mar 28, 2019 at 09:12:21AM -0700, Ira Weiny wrote:
+> On Mon, Mar 25, 2019 at 10:40:06AM -0400, Jerome Glisse wrote:
+> > From: Jérôme Glisse <jglisse@redhat.com>
+> > 
+> > A common use case for HMM mirror is user trying to mirror a range
+> > and before they could program the hardware it get invalidated by
+> > some core mm event. Instead of having user re-try right away to
+> > mirror the range provide a completion mechanism for them to wait
+> > for any active invalidation affecting the range.
+> > 
+> > This also changes how hmm_range_snapshot() and hmm_range_fault()
+> > works by not relying on vma so that we can drop the mmap_sem
+> > when waiting and lookup the vma again on retry.
+> > 
+> > Changes since v1:
+> >     - squashed: Dan Carpenter: potential deadlock in nonblocking code
+> > 
+> > Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
+> > Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: John Hubbard <jhubbard@nvidia.com>
+> > Cc: Dan Williams <dan.j.williams@intel.com>
+> > Cc: Dan Carpenter <dan.carpenter@oracle.com>
+> > Cc: Matthew Wilcox <willy@infradead.org>
+> > ---
+> >  include/linux/hmm.h | 208 ++++++++++++++---
+> >  mm/hmm.c            | 528 +++++++++++++++++++++-----------------------
+> >  2 files changed, 428 insertions(+), 308 deletions(-)
+> > 
+> > diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> > index e9afd23c2eac..79671036cb5f 100644
+> > --- a/include/linux/hmm.h
+> > +++ b/include/linux/hmm.h
+> > @@ -77,8 +77,34 @@
+> >  #include <linux/migrate.h>
+> >  #include <linux/memremap.h>
+> >  #include <linux/completion.h>
+> > +#include <linux/mmu_notifier.h>
+> >  
+> > -struct hmm;
+> > +
+> > +/*
+> > + * struct hmm - HMM per mm struct
+> > + *
+> > + * @mm: mm struct this HMM struct is bound to
+> > + * @lock: lock protecting ranges list
+> > + * @ranges: list of range being snapshotted
+> > + * @mirrors: list of mirrors for this mm
+> > + * @mmu_notifier: mmu notifier to track updates to CPU page table
+> > + * @mirrors_sem: read/write semaphore protecting the mirrors list
+> > + * @wq: wait queue for user waiting on a range invalidation
+> > + * @notifiers: count of active mmu notifiers
+> > + * @dead: is the mm dead ?
+> > + */
+> > +struct hmm {
+> > +	struct mm_struct	*mm;
+> > +	struct kref		kref;
+> > +	struct mutex		lock;
+> > +	struct list_head	ranges;
+> > +	struct list_head	mirrors;
+> > +	struct mmu_notifier	mmu_notifier;
+> > +	struct rw_semaphore	mirrors_sem;
+> > +	wait_queue_head_t	wq;
+> > +	long			notifiers;
+> > +	bool			dead;
+> > +};
+> >  
+> >  /*
+> >   * hmm_pfn_flag_e - HMM flag enums
+> > @@ -155,6 +181,38 @@ struct hmm_range {
+> >  	bool			valid;
+> >  };
+> >  
+> > +/*
+> > + * hmm_range_wait_until_valid() - wait for range to be valid
+> > + * @range: range affected by invalidation to wait on
+> > + * @timeout: time out for wait in ms (ie abort wait after that period of time)
+> > + * Returns: true if the range is valid, false otherwise.
+> > + */
+> > +static inline bool hmm_range_wait_until_valid(struct hmm_range *range,
+> > +					      unsigned long timeout)
+> > +{
+> > +	/* Check if mm is dead ? */
+> > +	if (range->hmm == NULL || range->hmm->dead || range->hmm->mm == NULL) {
+> > +		range->valid = false;
+> > +		return false;
+> > +	}
+> > +	if (range->valid)
+> > +		return true;
+> > +	wait_event_timeout(range->hmm->wq, range->valid || range->hmm->dead,
+> > +			   msecs_to_jiffies(timeout));
+> > +	/* Return current valid status just in case we get lucky */
+> > +	return range->valid;
+> > +}
+> > +
+> > +/*
+> > + * hmm_range_valid() - test if a range is valid or not
+> > + * @range: range
+> > + * Returns: true if the range is valid, false otherwise.
+> > + */
+> > +static inline bool hmm_range_valid(struct hmm_range *range)
+> > +{
+> > +	return range->valid;
+> > +}
+> > +
+> >  /*
+> >   * hmm_pfn_to_page() - return struct page pointed to by a valid HMM pfn
+> >   * @range: range use to decode HMM pfn value
+> > @@ -357,51 +415,133 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror);
+> >  
+> >  
+> >  /*
+> > - * To snapshot the CPU page table, call hmm_vma_get_pfns(), then take a device
+> > - * driver lock that serializes device page table updates, then call
+> > - * hmm_vma_range_done(), to check if the snapshot is still valid. The same
+> > - * device driver page table update lock must also be used in the
+> > - * hmm_mirror_ops.sync_cpu_device_pagetables() callback, so that CPU page
+> > - * table invalidation serializes on it.
+> > + * To snapshot the CPU page table you first have to call hmm_range_register()
+> > + * to register the range. If hmm_range_register() return an error then some-
+> > + * thing is horribly wrong and you should fail loudly. If it returned true then
+> > + * you can wait for the range to be stable with hmm_range_wait_until_valid()
+> > + * function, a range is valid when there are no concurrent changes to the CPU
+> > + * page table for the range.
+> > + *
+> > + * Once the range is valid you can call hmm_range_snapshot() if that returns
+> > + * without error then you can take your device page table lock (the same lock
+> > + * you use in the HMM mirror sync_cpu_device_pagetables() callback). After
+> > + * taking that lock you have to check the range validity, if it is still valid
+> > + * (ie hmm_range_valid() returns true) then you can program the device page
+> > + * table, otherwise you have to start again. Pseudo code:
+> > + *
+> > + *      mydevice_prefault(mydevice, mm, start, end)
+> > + *      {
+> > + *          struct hmm_range range;
+> > + *          ...
+> >   *
+> > - * YOU MUST CALL hmm_vma_range_done() ONCE AND ONLY ONCE EACH TIME YOU CALL
+> > - * hmm_range_snapshot() WITHOUT ERROR !
+> > + *          ret = hmm_range_register(&range, mm, start, end);
+> > + *          if (ret)
+> > + *              return ret;
+> >   *
+> > - * IF YOU DO NOT FOLLOW THE ABOVE RULE THE SNAPSHOT CONTENT MIGHT BE INVALID !
+> > - */
+> > -long hmm_range_snapshot(struct hmm_range *range);
+> > -bool hmm_vma_range_done(struct hmm_range *range);
+> > -
+> > -
+> > -/*
+> > - * Fault memory on behalf of device driver. Unlike handle_mm_fault(), this will
+> > - * not migrate any device memory back to system memory. The HMM pfn array will
+> > - * be updated with the fault result and current snapshot of the CPU page table
+> > - * for the range.
+> > + *          down_read(mm->mmap_sem);
+> > + *      again:
+> > + *
+> > + *          if (!hmm_range_wait_until_valid(&range, TIMEOUT)) {
+> > + *              up_read(&mm->mmap_sem);
+> > + *              hmm_range_unregister(range);
+> > + *              // Handle time out, either sleep or retry or something else
+> > + *              ...
+> > + *              return -ESOMETHING; || goto again;
+> > + *          }
+> > + *
+> > + *          ret = hmm_range_snapshot(&range); or hmm_range_fault(&range);
+> > + *          if (ret == -EAGAIN) {
+> > + *              down_read(mm->mmap_sem);
+> > + *              goto again;
+> > + *          } else if (ret == -EBUSY) {
+> > + *              goto again;
+> > + *          }
+> > + *
+> > + *          up_read(&mm->mmap_sem);
+> > + *          if (ret) {
+> > + *              hmm_range_unregister(range);
+> > + *              return ret;
+> > + *          }
+> > + *
+> > + *          // It might not have snap-shoted the whole range but only the first
+> > + *          // npages, the return values is the number of valid pages from the
+> > + *          // start of the range.
+> > + *          npages = ret;
+> >   *
+> > - * The mmap_sem must be taken in read mode before entering and it might be
+> > - * dropped by the function if the block argument is false. In that case, the
+> > - * function returns -EAGAIN.
+> > + *          ...
+> >   *
+> > - * Return value does not reflect if the fault was successful for every single
+> > - * address or not. Therefore, the caller must to inspect the HMM pfn array to
+> > - * determine fault status for each address.
+> > + *          mydevice_page_table_lock(mydevice);
+> > + *          if (!hmm_range_valid(range)) {
+> > + *              mydevice_page_table_unlock(mydevice);
+> > + *              goto again;
+> > + *          }
+> >   *
+> > - * Trying to fault inside an invalid vma will result in -EINVAL.
+> > + *          mydevice_populate_page_table(mydevice, range, npages);
+> > + *          ...
+> > + *          mydevice_take_page_table_unlock(mydevice);
+> > + *          hmm_range_unregister(range);
+> >   *
+> > - * See the function description in mm/hmm.c for further documentation.
+> > + *          return 0;
+> > + *      }
+> > + *
+> > + * The same scheme apply to hmm_range_fault() (ie replace hmm_range_snapshot()
+> > + * with hmm_range_fault() in above pseudo code).
+> > + *
+> > + * YOU MUST CALL hmm_range_unregister() ONCE AND ONLY ONCE EACH TIME YOU CALL
+> > + * hmm_range_register() AND hmm_range_register() RETURNED TRUE ! IF YOU DO NOT
+> > + * FOLLOW THIS RULE MEMORY CORRUPTION WILL ENSUE !
+> >   */
+> > +int hmm_range_register(struct hmm_range *range,
+> > +		       struct mm_struct *mm,
+> > +		       unsigned long start,
+> > +		       unsigned long end);
+> > +void hmm_range_unregister(struct hmm_range *range);
 > 
-> HMM mirror is a device driver helpers to mirror range of virtual address.
-> It means that the process jobs running on the device can access the same
-> virtual address as the CPU threads of that process. This patch adds support
-> for hugetlbfs mapping (ie range of virtual address that are mmap of a
-> hugetlbfs).
+> The above comment is great!  But I think you also need to update
+> Documentation/vm/hmm.rst:hmm_range_snapshot() to show the use of
+> hmm_range_[un]register()
 > 
-> Changes since v1:
->     - improved commit message
->     - squashed: Arnd Bergmann: fix unused variable warnings
+> > +long hmm_range_snapshot(struct hmm_range *range);
+> >  long hmm_range_fault(struct hmm_range *range, bool block);
+> >  
+> > +/*
+> > + * HMM_RANGE_DEFAULT_TIMEOUT - default timeout (ms) when waiting for a range
+> > + *
+> > + * When waiting for mmu notifiers we need some kind of time out otherwise we
+> > + * could potentialy wait for ever, 1000ms ie 1s sounds like a long time to
+> > + * wait already.
+> > + */
+> > +#define HMM_RANGE_DEFAULT_TIMEOUT 1000
+> > +
+> >  /* This is a temporary helper to avoid merge conflict between trees. */
+> > +static inline bool hmm_vma_range_done(struct hmm_range *range)
+> > +{
+> > +	bool ret = hmm_range_valid(range);
+> > +
+> > +	hmm_range_unregister(range);
+> > +	return ret;
+> > +}
+> > +
+> >  static inline int hmm_vma_fault(struct hmm_range *range, bool block)
+> >  {
+> > -	long ret = hmm_range_fault(range, block);
+> > -	if (ret == -EBUSY)
+> > -		ret = -EAGAIN;
+> > -	else if (ret == -EAGAIN)
+> > -		ret = -EBUSY;
+> > -	return ret < 0 ? ret : 0;
+> > +	long ret;
+> > +
+> > +	ret = hmm_range_register(range, range->vma->vm_mm,
+> > +				 range->start, range->end);
+> > +	if (ret)
+> > +		return (int)ret;
+> > +
+> > +	if (!hmm_range_wait_until_valid(range, HMM_RANGE_DEFAULT_TIMEOUT)) {
+> > +		up_read(&range->vma->vm_mm->mmap_sem);
+> > +		return -EAGAIN;
+> > +	}
+> > +
+> > +	ret = hmm_range_fault(range, block);
+> > +	if (ret <= 0) {
+> > +		if (ret == -EBUSY || !ret) {
+> > +			up_read(&range->vma->vm_mm->mmap_sem);
+> > +			ret = -EBUSY;
+> > +		} else if (ret == -EAGAIN)
+> > +			ret = -EBUSY;
+> > +		hmm_range_unregister(range);
+> > +		return ret;
+> > +	}
+> > +	return 0;
 > 
-> Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
-> Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: John Hubbard <jhubbard@nvidia.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Arnd Bergmann <arnd@arndb.de>
-> ---
->  include/linux/hmm.h |  29 ++++++++--
->  mm/hmm.c            | 126 +++++++++++++++++++++++++++++++++++++++-----
->  2 files changed, 138 insertions(+), 17 deletions(-)
+> Is hmm_vma_fault() also temporary to keep the nouveau driver working?  It looks
+> like it to me.
 > 
-> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-> index 13bc2c72f791..f3b919b04eda 100644
-> --- a/include/linux/hmm.h
-> +++ b/include/linux/hmm.h
-> @@ -181,10 +181,31 @@ struct hmm_range {
->  	const uint64_t		*values;
->  	uint64_t		default_flags;
->  	uint64_t		pfn_flags_mask;
-> +	uint8_t			page_shift;
->  	uint8_t			pfn_shift;
->  	bool			valid;
->  };
->  
-> +/*
-> + * hmm_range_page_shift() - return the page shift for the range
-> + * @range: range being queried
-> + * Returns: page shift (page size = 1 << page shift) for the range
-> + */
-> +static inline unsigned hmm_range_page_shift(const struct hmm_range *range)
-> +{
-> +	return range->page_shift;
-> +}
-> +
-> +/*
-> + * hmm_range_page_size() - return the page size for the range
-> + * @range: range being queried
-> + * Returns: page size for the range in bytes
-> + */
-> +static inline unsigned long hmm_range_page_size(const struct hmm_range *range)
-> +{
-> +	return 1UL << hmm_range_page_shift(range);
-> +}
-> +
->  /*
->   * hmm_range_wait_until_valid() - wait for range to be valid
->   * @range: range affected by invalidation to wait on
-> @@ -438,7 +459,7 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror);
->   *          struct hmm_range range;
->   *          ...
->   *
-> - *          ret = hmm_range_register(&range, mm, start, end);
-> + *          ret = hmm_range_register(&range, mm, start, end, page_shift);
->   *          if (ret)
->   *              return ret;
->   *
-> @@ -498,7 +519,8 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror);
->  int hmm_range_register(struct hmm_range *range,
->  		       struct mm_struct *mm,
->  		       unsigned long start,
-> -		       unsigned long end);
-> +		       unsigned long end,
-> +		       unsigned page_shift);
->  void hmm_range_unregister(struct hmm_range *range);
->  long hmm_range_snapshot(struct hmm_range *range);
->  long hmm_range_fault(struct hmm_range *range, bool block);
-> @@ -529,7 +551,8 @@ static inline int hmm_vma_fault(struct hmm_range *range, bool block)
->  	range->pfn_flags_mask = -1UL;
->  
->  	ret = hmm_range_register(range, range->vma->vm_mm,
-> -				 range->start, range->end);
-> +				 range->start, range->end,
-> +				 PAGE_SHIFT);
->  	if (ret)
->  		return (int)ret;
->  
-> diff --git a/mm/hmm.c b/mm/hmm.c
-> index 4fe88a196d17..64a33770813b 100644
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -387,11 +387,13 @@ static int hmm_vma_walk_hole_(unsigned long addr, unsigned long end,
->  	struct hmm_vma_walk *hmm_vma_walk = walk->private;
->  	struct hmm_range *range = hmm_vma_walk->range;
->  	uint64_t *pfns = range->pfns;
-> -	unsigned long i;
-> +	unsigned long i, page_size;
->  
->  	hmm_vma_walk->last = addr;
-> -	i = (addr - range->start) >> PAGE_SHIFT;
-> -	for (; addr < end; addr += PAGE_SIZE, i++) {
-> +	page_size = 1UL << range->page_shift;
+> This and hmm_vma_range_done() above are part of the old interface which is in
+> the Documentation correct?  As stated above we should probably change that
+> documentation with this patch to ensure no new users of these 2 functions
+> appear.
 
-NIT: page_size = hmm_range_page_size(range);
+Ok will update the documentation, note that i already posted patches to use
+this new API see the ODP RDMA link in the cover letter.
 
-??
-
-Otherwise:
-
-Reviewed-by: Ira Weiny <ira.weiny@intel.com>
-
-> +	i = (addr - range->start) >> range->page_shift;
-> +
-> +	for (; addr < end; addr += page_size, i++) {
->  		pfns[i] = range->values[HMM_PFN_NONE];
->  		if (fault || write_fault) {
->  			int ret;
-> @@ -703,6 +705,69 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
->  	return 0;
->  }
->  
-> +static int hmm_vma_walk_hugetlb_entry(pte_t *pte, unsigned long hmask,
-> +				      unsigned long start, unsigned long end,
-> +				      struct mm_walk *walk)
-> +{
-> +#ifdef CONFIG_HUGETLB_PAGE
-> +	unsigned long addr = start, i, pfn, mask, size, pfn_inc;
-> +	struct hmm_vma_walk *hmm_vma_walk = walk->private;
-> +	struct hmm_range *range = hmm_vma_walk->range;
-> +	struct vm_area_struct *vma = walk->vma;
-> +	struct hstate *h = hstate_vma(vma);
-> +	uint64_t orig_pfn, cpu_flags;
-> +	bool fault, write_fault;
-> +	spinlock_t *ptl;
-> +	pte_t entry;
-> +	int ret = 0;
-> +
-> +	size = 1UL << huge_page_shift(h);
-> +	mask = size - 1;
-> +	if (range->page_shift != PAGE_SHIFT) {
-> +		/* Make sure we are looking at full page. */
-> +		if (start & mask)
-> +			return -EINVAL;
-> +		if (end < (start + size))
-> +			return -EINVAL;
-> +		pfn_inc = size >> PAGE_SHIFT;
-> +	} else {
-> +		pfn_inc = 1;
-> +		size = PAGE_SIZE;
-> +	}
-> +
-> +
-> +	ptl = huge_pte_lock(hstate_vma(walk->vma), walk->mm, pte);
-> +	entry = huge_ptep_get(pte);
-> +
-> +	i = (start - range->start) >> range->page_shift;
-> +	orig_pfn = range->pfns[i];
-> +	range->pfns[i] = range->values[HMM_PFN_NONE];
-> +	cpu_flags = pte_to_hmm_pfn_flags(range, entry);
-> +	fault = write_fault = false;
-> +	hmm_pte_need_fault(hmm_vma_walk, orig_pfn, cpu_flags,
-> +			   &fault, &write_fault);
-> +	if (fault || write_fault) {
-> +		ret = -ENOENT;
-> +		goto unlock;
-> +	}
-> +
-> +	pfn = pte_pfn(entry) + (start & mask);
-> +	for (; addr < end; addr += size, i++, pfn += pfn_inc)
-> +		range->pfns[i] = hmm_pfn_from_pfn(range, pfn) | cpu_flags;
-> +	hmm_vma_walk->last = end;
-> +
-> +unlock:
-> +	spin_unlock(ptl);
-> +
-> +	if (ret == -ENOENT)
-> +		return hmm_vma_walk_hole_(addr, end, fault, write_fault, walk);
-> +
-> +	return ret;
-> +#else /* CONFIG_HUGETLB_PAGE */
-> +	return -EINVAL;
-> +#endif
-> +}
-> +
->  static void hmm_pfns_clear(struct hmm_range *range,
->  			   uint64_t *pfns,
->  			   unsigned long addr,
-> @@ -726,6 +791,7 @@ static void hmm_pfns_special(struct hmm_range *range)
->   * @mm: the mm struct for the range of virtual address
->   * @start: start virtual address (inclusive)
->   * @end: end virtual address (exclusive)
-> + * @page_shift: expect page shift for the range
->   * Returns 0 on success, -EFAULT if the address space is no longer valid
->   *
->   * Track updates to the CPU page table see include/linux/hmm.h
-> @@ -733,16 +799,23 @@ static void hmm_pfns_special(struct hmm_range *range)
->  int hmm_range_register(struct hmm_range *range,
->  		       struct mm_struct *mm,
->  		       unsigned long start,
-> -		       unsigned long end)
-> +		       unsigned long end,
-> +		       unsigned page_shift)
->  {
-> -	range->start = start & PAGE_MASK;
-> -	range->end = end & PAGE_MASK;
-> +	unsigned long mask = ((1UL << page_shift) - 1UL);
-> +
->  	range->valid = false;
->  	range->hmm = NULL;
->  
-> -	if (range->start >= range->end)
-> +	if ((start & mask) || (end & mask))
-> +		return -EINVAL;
-> +	if (start >= end)
->  		return -EINVAL;
->  
-> +	range->page_shift = page_shift;
-> +	range->start = start;
-> +	range->end = end;
-> +
->  	range->hmm = hmm_register(mm);
->  	if (!range->hmm)
->  		return -EFAULT;
-> @@ -809,6 +882,7 @@ EXPORT_SYMBOL(hmm_range_unregister);
->   */
->  long hmm_range_snapshot(struct hmm_range *range)
->  {
-> +	const unsigned long device_vma = VM_IO | VM_PFNMAP | VM_MIXEDMAP;
->  	unsigned long start = range->start, end;
->  	struct hmm_vma_walk hmm_vma_walk;
->  	struct hmm *hmm = range->hmm;
-> @@ -825,15 +899,26 @@ long hmm_range_snapshot(struct hmm_range *range)
->  			return -EAGAIN;
->  
->  		vma = find_vma(hmm->mm, start);
-> -		if (vma == NULL || (vma->vm_flags & VM_SPECIAL))
-> +		if (vma == NULL || (vma->vm_flags & device_vma))
->  			return -EFAULT;
->  
-> -		/* FIXME support hugetlb fs/dax */
-> -		if (is_vm_hugetlb_page(vma) || vma_is_dax(vma)) {
-> +		/* FIXME support dax */
-> +		if (vma_is_dax(vma)) {
->  			hmm_pfns_special(range);
->  			return -EINVAL;
->  		}
->  
-> +		if (is_vm_hugetlb_page(vma)) {
-> +			struct hstate *h = hstate_vma(vma);
-> +
-> +			if (huge_page_shift(h) != range->page_shift &&
-> +			    range->page_shift != PAGE_SHIFT)
-> +				return -EINVAL;
-> +		} else {
-> +			if (range->page_shift != PAGE_SHIFT)
-> +				return -EINVAL;
-> +		}
-> +
->  		if (!(vma->vm_flags & VM_READ)) {
->  			/*
->  			 * If vma do not allow read access, then assume that it
-> @@ -859,6 +944,7 @@ long hmm_range_snapshot(struct hmm_range *range)
->  		mm_walk.hugetlb_entry = NULL;
->  		mm_walk.pmd_entry = hmm_vma_walk_pmd;
->  		mm_walk.pte_hole = hmm_vma_walk_hole;
-> +		mm_walk.hugetlb_entry = hmm_vma_walk_hugetlb_entry;
->  
->  		walk_page_range(start, end, &mm_walk);
->  		start = end;
-> @@ -877,7 +963,7 @@ EXPORT_SYMBOL(hmm_range_snapshot);
->   *          then one of the following values may be returned:
->   *
->   *           -EINVAL  invalid arguments or mm or virtual address are in an
-> - *                    invalid vma (ie either hugetlbfs or device file vma).
-> + *                    invalid vma (for instance device file vma).
->   *           -ENOMEM: Out of memory.
->   *           -EPERM:  Invalid permission (for instance asking for write and
->   *                    range is read only).
-> @@ -898,6 +984,7 @@ EXPORT_SYMBOL(hmm_range_snapshot);
->   */
->  long hmm_range_fault(struct hmm_range *range, bool block)
->  {
-> +	const unsigned long device_vma = VM_IO | VM_PFNMAP | VM_MIXEDMAP;
->  	unsigned long start = range->start, end;
->  	struct hmm_vma_walk hmm_vma_walk;
->  	struct hmm *hmm = range->hmm;
-> @@ -917,15 +1004,25 @@ long hmm_range_fault(struct hmm_range *range, bool block)
->  		}
->  
->  		vma = find_vma(hmm->mm, start);
-> -		if (vma == NULL || (vma->vm_flags & VM_SPECIAL))
-> +		if (vma == NULL || (vma->vm_flags & device_vma))
->  			return -EFAULT;
->  
-> -		/* FIXME support hugetlb fs/dax */
-> -		if (is_vm_hugetlb_page(vma) || vma_is_dax(vma)) {
-> +		/* FIXME support dax */
-> +		if (vma_is_dax(vma)) {
->  			hmm_pfns_special(range);
->  			return -EINVAL;
->  		}
->  
-> +		if (is_vm_hugetlb_page(vma)) {
-> +			if (huge_page_shift(hstate_vma(vma)) !=
-> +			    range->page_shift &&
-> +			    range->page_shift != PAGE_SHIFT)
-> +				return -EINVAL;
-> +		} else {
-> +			if (range->page_shift != PAGE_SHIFT)
-> +				return -EINVAL;
-> +		}
-> +
->  		if (!(vma->vm_flags & VM_READ)) {
->  			/*
->  			 * If vma do not allow read access, then assume that it
-> @@ -952,6 +1049,7 @@ long hmm_range_fault(struct hmm_range *range, bool block)
->  		mm_walk.hugetlb_entry = NULL;
->  		mm_walk.pmd_entry = hmm_vma_walk_pmd;
->  		mm_walk.pte_hole = hmm_vma_walk_hole;
-> +		mm_walk.hugetlb_entry = hmm_vma_walk_hugetlb_entry;
->  
->  		do {
->  			ret = walk_page_range(start, end, &mm_walk);
-> -- 
-> 2.17.2
-> 
+Cheers,
+Jérôme
 
