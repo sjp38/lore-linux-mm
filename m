@@ -2,188 +2,224 @@ Return-Path: <SRS0=krm6=SB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2171EC43381
-	for <linux-mm@archiver.kernel.org>; Sat, 30 Mar 2019 03:04:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E4103C10F00
+	for <linux-mm@archiver.kernel.org>; Sat, 30 Mar 2019 05:41:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A007B218A3
-	for <linux-mm@archiver.kernel.org>; Sat, 30 Mar 2019 03:04:37 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="io1Nmw0t"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A007B218A3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 8628F218AC
+	for <linux-mm@archiver.kernel.org>; Sat, 30 Mar 2019 05:41:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8628F218AC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 059EC6B0003; Fri, 29 Mar 2019 23:04:37 -0400 (EDT)
+	id E69876B0003; Sat, 30 Mar 2019 01:41:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0097E6B0005; Fri, 29 Mar 2019 23:04:36 -0400 (EDT)
+	id E17D66B0005; Sat, 30 Mar 2019 01:41:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E3D276B0006; Fri, 29 Mar 2019 23:04:36 -0400 (EDT)
+	id D2BFB6B0006; Sat, 30 Mar 2019 01:41:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A95036B0003
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2019 23:04:36 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id s19so1957500plp.6
-        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 20:04:36 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AEE7F6B0003
+	for <linux-mm@kvack.org>; Sat, 30 Mar 2019 01:41:36 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id a15so3712237qkl.23
+        for <linux-mm@kvack.org>; Fri, 29 Mar 2019 22:41:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=8n8kb/6mGjw/eVvVXT+iku29g9P/RMOgBPJAQ0CS9qw=;
-        b=A/BfFvAl0x74/V2fiZz3SUUOnpDuZawZ6MyuX2FAtXrKrGwBbCCEW/R5G7pAVC8cQa
-         hejTTCz9G4NMk+OHHkR+c8iKELWOxfYhVZ9HcMC5tMckbQMPSHiFY0t4uFvjWnv3To6O
-         EDNuQSxoKpX+kM8LwvyIvv+vjc7kLfeg5aOSQZRrS78KD0vPyxJ3CRjU8HnodS1lusPP
-         G1t+iMipwlwHbz2eb8Z4Xnfu0NrD3NRL7ulukeS/FV1QgGWSOberwWem244udx8k7Lwg
-         WgtG9k93WGTjs9zZdSC+wiE5jQ08BHBGsviiGf1V/TNIohlwVmFiNjyI4hKfMqh0Ob5b
-         PBag==
-X-Gm-Message-State: APjAAAWFX2eD5/n4/TXGhhu4UNHXAtJ6ZJFfmlBmmw/YNp5sBL5eCT+M
-	rejMc9o4LaHrRPiSZnrcwbBCTeCa8sFCwmoSJigofg00gQQ6su7NlSuWX5jMvBnc7l8Adz4LB7G
-	8sOk0KFNRsQ74EtoD788l4I/TuTLKV6IsCGXaFXXQv0/koRMoM04JHVe1NJxGIU17ZA==
-X-Received: by 2002:a63:1410:: with SMTP id u16mr47564839pgl.420.1553915076177;
-        Fri, 29 Mar 2019 20:04:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwuMhVqg+0yDF/bpC7O9Pd1iUh8O9LYztGzPg0pHR1BNvt2A4s7FNVVnQOiRp/qxuYujy86
-X-Received: by 2002:a63:1410:: with SMTP id u16mr47564783pgl.420.1553915075301;
-        Fri, 29 Mar 2019 20:04:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1553915075; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:mime-version:content-transfer-encoding:message-id;
+        bh=BanAFjxwx2/bGKXj2uWHhj5BN5AsIe1UhVs8ZkbcyfU=;
+        b=AuGSQmtrAJSWDKJv0TF5h0uhASnipXYMgPC9OJJF0KAWcvBN8TLNb8XfPtDekdR/d8
+         lMzcieXCVD5gEOt2rv7LK8cyfbPuo42DfMcg8gznl2r2FU6RXqYuzo95oEIkhth5+P0n
+         w8zZQuuTvlNkAApFQ9TlJEauV1ztCi0fGvEqzYo9V4wKnJuh8zQ0HGzp2m7JQQLqufFY
+         AIHRvZo57MKZsdhGS7uqcX5b1yosNIdlRSRlNgYsNAZkhfaHwIuRi2SZy6qVNe7EMTvl
+         JsDXa5YXo8xzJl2eNzS0FBEzzqrLfCWNt1eSHhePiBK5Gh7oZLDGEOrZG2+oRb22H9Dk
+         wyLA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAXJqKSOLhQ+Jg2b2yOyzuMkiKLvqpSAQNdwKwCj9P++rsQ5NXdr
+	9ndr2NBrg9teVuMZRpP4EM7K1xybphDXKl6ewVEv4Rk6agu79O5TIByAoZ9aqhhTXw1LfTjG3pM
+	UXRAqdKjP0JaOJPgG0oAFnfl+wmqHUkNh/1xggCclg13tQiA5I6X5uU419UT9Mnr+WA==
+X-Received: by 2002:a0c:8957:: with SMTP id 23mr42928387qvq.92.1553924496472;
+        Fri, 29 Mar 2019 22:41:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxcQzP97vXI9jFDlXFB8FjptwsmTOtdS+4xOen9Krey4prH2axTgEHIBWDK8pOaHX3X3CxF
+X-Received: by 2002:a0c:8957:: with SMTP id 23mr42928358qvq.92.1553924495759;
+        Fri, 29 Mar 2019 22:41:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1553924495; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZCcL17IYs5hE2rb3c7WaKY9JCRqqfrFmb2Wr5OASU2NfhMoGRhlOcIb8HW3Cfwtd8w
-         gsDGeJY6t55RoEhHPZEOGCcyUBvqbYDbX6PGRFARBtBAAGSZRVxZg9o1xmaPz7nE3sp7
-         Q+6fSM+bhA4UgANob+xTPHt+H7pUrWdj26c8OmkTzi6Oysh3tF9NvzSgz55hOv5b62K3
-         l8yHvNRRHSoTB825oOVZgyHEyOvncfevYWD6Q6Qt+kYR2Yvk4iciCuj+35tDhmCu6NZJ
-         CE9gkXwETrEKtyCHpQwh0ZP4HBX36f/09ffVCI5xEvioTNC2loOeAqh6qhZ7JglljOc/
-         2lyQ==
+        b=xwooWDK/TK24b7gq2o+ibTikGjQZm1+AA2ksjF+ZzIkWQ/vrYTeNAqCMdP6f/WtidG
+         2i+hjcUYHiDX2G8K1uGDeCXmZbKvDkbyhB8MF74uNqASfQME72eh1ZLoX3K23TVtEa5G
+         KOhiInMCjn3ApH9sgPyd5hDNYmLvKxTCECVPvOJYgs1hiNKqIOvDfODleFbdDnd9/Ms3
+         XuXAmH5EwxnVSm/UZJ10kTigQgev89506ARwqeFiUT6oZ7IJFbl0pzb8he0uP9qVk+51
+         cXtoAfuWIAxw0G1zJYn2jxwqWYlHseXlZI0kQg5K09W9S3COOJgBMn9L0B8wMWblNpRP
+         kvdA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=8n8kb/6mGjw/eVvVXT+iku29g9P/RMOgBPJAQ0CS9qw=;
-        b=UHsb3mGc0Nb3DRVOxbxPdx4Uer/uBNW7A3H29WIh3FMjJ/zSPRYMyODEPESTGXgMBf
-         WI+eTqSXG8aOxsHWc1BLr8k4DU6BZpJV9GLotdmxx+9hKJk3qjuiwnymAcl1ZdhNO8Ds
-         W6ygLZHOmAEmKvdKs0lzwrlyFwQt3e2rhpwuycew6Bjk8fof4WoEq5S2EUsCMJ5LnLIH
-         Dyv+w3puFrfpbci5Cful/LLUcsydwNmuv4o1sdaYymsyf0kMPSpxzHk1X3MJtAumCU0X
-         Uf8hOc86yccW1RxTRBe5LZFYdytapkLIdOvpO4CVmEUmvbTRaqbiC/wPO0p5RhCc8i3r
-         2w1A==
+        h=message-id:content-transfer-encoding:mime-version:date:subject:cc
+         :to:from;
+        bh=BanAFjxwx2/bGKXj2uWHhj5BN5AsIe1UhVs8ZkbcyfU=;
+        b=Tpm0ZhIqlcgV/OzLSetEzX1wKzGfzk5zdqCcscHmVoMzIuZmW0/XpTTWnf5qdT/0ki
+         Zs5TkfaYEwfoRaHJC5fie/lcTStR4m0fHyyAbFAzeb5PdMLRy6Xy/x8nGHe7y0muRh/p
+         XzKIuUOZHGOVh51qPpxwiaaGPkEIiWG6fG11F/wVyCpLaKeXM5KHuJblN53bMHyTVvWU
+         11NS5Ew5hvppouf0k64tbyvZ19EzDl7P0cNrFCc1YeYW1E+Na6ww2YYSLeZXI+ZZSyj1
+         pVfaOSugXRda7F0QNh3+lGm4kmSN0ti2el7J0Kr2g43G9zVt8f+UFdYVAE6ZLPxgwp+8
+         yCYQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=io1Nmw0t;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v3si3270875pga.209.2019.03.29.20.04.35
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id c20si97607qtb.35.2019.03.29.22.41.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 29 Mar 2019 20:04:35 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Mar 2019 22:41:35 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=io1Nmw0t;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Transfer-Encoding
-	:Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
-	Sender:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
-	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
-	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=8n8kb/6mGjw/eVvVXT+iku29g9P/RMOgBPJAQ0CS9qw=; b=io1Nmw0tOIU6GNl8D+L7G1DqLf
-	trODHzX7DGzU8q3Llq+G79OJIuctnnIER2XBC5pmyR1ouxmVOFUwotFEA22/aFQ8t1lFlve6wqH8i
-	s8Tq/3JGEwnlJ/Bh2fw5azMQHokp5sn9jUmfzVYMQs7XafiXhLNaum+4Ub7wiCNk3ZiLM0S/T9PNh
-	XxKZMPF8tLUmMr+lns52ae9eaUPkH35s6cGzvj3DiaUaQ8OAj8BskUqG1B5Wed7tWQcxmd+pBOMTf
-	LQLH6UH6XGt1Zb0EuyRCzcjKczAXVGSC39Ri4eiGVvyuKLVD5liWvYO2NkPUn584XpQ3ixZ9TX5Ah
-	rJiqjPUA==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hA4IK-0007p2-6V; Sat, 30 Mar 2019 03:04:32 +0000
-Date: Fri, 29 Mar 2019 20:04:32 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Qian Cai <cai@lca.pw>
-Cc: Huang Ying <ying.huang@intel.com>, linux-mm@kvack.org,
-	"Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: page cache: Store only head pages in i_pages
-Message-ID: <20190330030431.GX10344@bombadil.infradead.org>
-References: <1553285568.26196.24.camel@lca.pw>
- <20190323033852.GC10344@bombadil.infradead.org>
- <f26c4cce-5f71-5235-8980-86d8fcd69ce6@lca.pw>
- <20190324020614.GD10344@bombadil.infradead.org>
- <897cfdda-7686-3794-571a-ecb8b9f6101f@lca.pw>
- <20190324030422.GE10344@bombadil.infradead.org>
- <d35bc0a3-07b7-f0ee-fdae-3d5c750a4421@lca.pw>
- <20190329195941.GW10344@bombadil.infradead.org>
- <1553894734.26196.30.camel@lca.pw>
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x2U5YFgs098030
+	for <linux-mm@kvack.org>; Sat, 30 Mar 2019 01:41:35 -0400
+Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2rhv513jqq-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sat, 30 Mar 2019 01:41:35 -0400
+Received: from localhost
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Sat, 30 Mar 2019 05:41:34 -0000
+Received: from b03cxnp08028.gho.boulder.ibm.com (9.17.130.20)
+	by e34.co.us.ibm.com (192.168.1.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Sat, 30 Mar 2019 05:41:30 -0000
+Received: from b03ledav001.gho.boulder.ibm.com (b03ledav001.gho.boulder.ibm.com [9.17.130.232])
+	by b03cxnp08028.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x2U5fTBm15728746
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Sat, 30 Mar 2019 05:41:30 GMT
+Received: from b03ledav001.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id E096D6E04C;
+	Sat, 30 Mar 2019 05:41:29 +0000 (GMT)
+Received: from b03ledav001.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 3861A6E04E;
+	Sat, 30 Mar 2019 05:41:27 +0000 (GMT)
+Received: from skywalker.ibmuc.com (unknown [9.85.85.132])
+	by b03ledav001.gho.boulder.ibm.com (Postfix) with ESMTP;
+	Sat, 30 Mar 2019 05:41:26 +0000 (GMT)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: dan.j.williams@intel.com, akpm@linux-foundation.org,
+        Jan Kara <jack@suse.cz>
+Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org,
+        linuxppc-dev@lists.ozlabs.org,
+        "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
+        stable@vger.kernel.org
+Subject: [PATCH] mm: Fix modifying of page protection by insert_pfn_pmd()
+Date: Sat, 30 Mar 2019 11:11:21 +0530
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <1553894734.26196.30.camel@lca.pw>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+X-TM-AS-GCONF: 00
+x-cbid: 19033005-0016-0000-0000-000009991E5D
+X-IBM-SpamModules-Scores: 
+X-IBM-SpamModules-Versions: BY=3.00010838; HX=3.00000242; KW=3.00000007;
+ PH=3.00000004; SC=3.00000283; SDB=6.01181690; UDB=6.00618514; IPR=6.00962416;
+ MB=3.00026217; MTD=3.00000008; XFM=3.00000015; UTC=2019-03-30 05:41:33
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19033005-0017-0000-0000-000042A193B0
+Message-Id: <20190330054121.27831-1-aneesh.kumar@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-30_02:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=905 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1903300038
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 29, 2019 at 05:25:34PM -0400, Qian Cai wrote:
-> On Fri, 2019-03-29 at 12:59 -0700, Matthew Wilcox wrote:
-> > Oh ... is it a race?
-> > 
-> > so CPU A does:
-> > 
-> > page = find_get_page(swap_address_space(entry), offset)
-> >         page = find_subpage(page, offset);
-> > trylock_page(page);
-> > 
-> > while CPU B does:
-> > 
-> > xa_lock_irq(&address_space->i_pages);
-> > __delete_from_swap_cache(page, entry);
-> >         xas_store(&xas, NULL);
-> >         ClearPageSwapCache(page);
-> > xa_unlock_irq(&address_space->i_pages);
-> > 
-> > and if the ClearPageSwapCache happens between the xas_load() and the
-> > find_subpage(), we're stuffed.  CPU A has a reference to the page, but
-> > not a lock, and find_get_page is running under RCU.
-> > 
-> > I suppose we could fix this by taking the i_pages xa_lock around the
-> > call to find_get_pages().  If indeed, that's what this problem is.
-> > Want to try this patch?
-> 
-> Confirmed. Well spotted!
+With some architectures like ppc64, set_pmd_at() cannot cope with
+a situation where there is already some (different) valid entry present.
 
-Excellent!  I'm not comfortable with the rule that you have to be holding
-the i_pages lock in order to call find_get_page() on a swap address_space.
-How does this look to the various smart people who know far more about the
-MM than I do?
+Use pmdp_set_access_flags() instead to modify the pfn which is built to
+deal with modifying existing PMD entries.
 
-The idea is to ensure that if this race does happen, the page will be
-handled the same way as a pagecache page.  If __delete_from_swap_cache()
-can be called while the page is still part of a VMA, then this patch
-will break page_to_pgoff().  But I don't think that can happen ... ?
+This is similar to
+commit cae85cb8add3 ("mm/memory.c: fix modifying of page protection by insert_pfn()")
 
-(also, is this the right memory barrier to use to ensure that the old
-value of page->index cannot be observed if the PageSwapCache bit is
-obseved as having been cleared?)
+We also do similar update w.r.t insert_pfn_pud eventhough ppc64 don't support
+pud pfn entries now.
 
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 2e15cc335966..a715efcf0991 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -165,13 +165,16 @@ void __delete_from_swap_cache(struct page *page, swp_entry_t entry)
- 	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
- 	VM_BUG_ON_PAGE(PageWriteback(page), page);
+CC: stable@vger.kernel.org
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+---
+ mm/huge_memory.c | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 404acdcd0455..f7dca413c4b2 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -755,6 +755,20 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+ 	spinlock_t *ptl;
  
-+	page->index = idx;
-+	smp_mb__before_atomic();
-+	ClearPageSwapCache(page);
+ 	ptl = pmd_lock(mm, pmd);
++	if (!pmd_none(*pmd)) {
++		if (write) {
++			if (pmd_pfn(*pmd) != pfn_t_to_pfn(pfn)) {
++				WARN_ON_ONCE(!is_huge_zero_pmd(*pmd));
++				goto out_unlock;
++			}
++			entry = pmd_mkyoung(*pmd);
++			entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
++			if (pmdp_set_access_flags(vma, addr, pmd, entry, 1))
++				update_mmu_cache_pmd(vma, addr, pmd);
++		}
++		goto out_unlock;
++	}
 +
- 	for (i = 0; i < nr; i++) {
- 		void *entry = xas_store(&xas, NULL);
- 		VM_BUG_ON_PAGE(entry != page, entry);
- 		set_page_private(page + i, 0);
- 		xas_next(&xas);
+ 	entry = pmd_mkhuge(pfn_t_pmd(pfn, prot));
+ 	if (pfn_t_devmap(pfn))
+ 		entry = pmd_mkdevmap(entry);
+@@ -770,6 +784,7 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+ 
+ 	set_pmd_at(mm, addr, pmd, entry);
+ 	update_mmu_cache_pmd(vma, addr, pmd);
++out_unlock:
+ 	spin_unlock(ptl);
+ }
+ 
+@@ -821,6 +836,20 @@ static void insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
+ 	spinlock_t *ptl;
+ 
+ 	ptl = pud_lock(mm, pud);
++	if (!pud_none(*pud)) {
++		if (write) {
++			if (pud_pfn(*pud) != pfn_t_to_pfn(pfn)) {
++				WARN_ON_ONCE(!is_huge_zero_pud(*pud));
++				goto out_unlock;
++			}
++			entry = pud_mkyoung(*pud);
++			entry = maybe_pud_mkwrite(pud_mkdirty(entry), vma);
++			if (pudp_set_access_flags(vma, addr, pud, entry, 1))
++				update_mmu_cache_pud(vma, addr, pud);
++		}
++		goto out_unlock;
++	}
++
+ 	entry = pud_mkhuge(pfn_t_pud(pfn, prot));
+ 	if (pfn_t_devmap(pfn))
+ 		entry = pud_mkdevmap(entry);
+@@ -830,6 +859,8 @@ static void insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
  	}
--	ClearPageSwapCache(page);
- 	address_space->nrpages -= nr;
- 	__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, -nr);
- 	ADD_CACHE_INFO(del_total, nr);
+ 	set_pud_at(mm, addr, pud, entry);
+ 	update_mmu_cache_pud(vma, addr, pud);
++
++out_unlock:
+ 	spin_unlock(ptl);
+ }
+ 
+-- 
+2.20.1
 
