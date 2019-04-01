@@ -2,151 +2,221 @@ Return-Path: <SRS0=sWz3=SD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-12.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,FSL_HELO_FAKE,HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 59134C10F05
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 18:20:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 14058C43381
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 18:34:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 14A692133D
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 18:20:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8F60C206C0
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 18:34:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="yYWfiYjk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 14A692133D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="eDYAXQ27"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8F60C206C0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9A88F6B0006; Mon,  1 Apr 2019 14:20:50 -0400 (EDT)
+	id 0ED6C6B0006; Mon,  1 Apr 2019 14:34:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 958716B0008; Mon,  1 Apr 2019 14:20:50 -0400 (EDT)
+	id 074656B0008; Mon,  1 Apr 2019 14:34:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 846B16B000A; Mon,  1 Apr 2019 14:20:50 -0400 (EDT)
+	id EA6CB6B000A; Mon,  1 Apr 2019 14:34:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 615A76B0006
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 14:20:50 -0400 (EDT)
-Received: by mail-yb1-f200.google.com with SMTP id 204so5469475ybf.5
-        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 11:20:50 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C44686B0006
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 14:34:31 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id k5so8946213ioh.13
+        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 11:34:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=xawSNcb89Uo6X8oCMqaGeyypJgFbGg80AqgpmSx6PNw=;
-        b=ppVtqLRRoYbqSuh/jKMs9NpaN8ZzftaKcb801o+X56wY0lS+C3nDaXXjcvZn2EzSbN
-         UKHLNpL8t4ZHw8LfON7KdZipgwNWF2z2NJD3LxnI+w5/nkgkI0EpFGXU7ODmYuqulkSR
-         mepot05LypB8y9WLDippX4tHiofeyEWmmemKpGly2sxdqKIXlMeOAXTxwIQCvUKLygZw
-         vUnEZUy1kCjVJcqSxKhvxYcQe8iDesdgzB1O0TypbSNwFR7aewZTL5ZIYZnxrWI/9PZ+
-         DVk9SvWrIg5URmZ0FSGdCosnvAx1PuHCtOmDbwcP3jN4H4u0IqeC7Lz7t1V4F7xtT7LB
-         /l0w==
-X-Gm-Message-State: APjAAAUrkY1cG9jkc+x7ka13yO8ZB72E4870BnCeaeri95vUo++5NQDW
-	q0PIss4WgKR5kZrT1+T6NKkGr2CYJJXAHuh/K9Cvp5uDJMA/cUuwOUyDSXo5mRrQ8SEvxeF4Kya
-	XxFIBO4No5U0qEerOYsUReyVHlzrNfy2QbbiVk0M6gnaGZbdhIRVu1MOjw49R7KPSBA==
-X-Received: by 2002:a25:5d02:: with SMTP id r2mr37944919ybb.258.1554142850059;
-        Mon, 01 Apr 2019 11:20:50 -0700 (PDT)
-X-Received: by 2002:a25:5d02:: with SMTP id r2mr37944875ybb.258.1554142849404;
-        Mon, 01 Apr 2019 11:20:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554142849; cv=none;
+        bh=+53egRqiXPQZ9EJ7mGipuGA/l/Y4XVrW1UL2Rjyi1aY=;
+        b=BkYWpu0mf4j7v5y/5FKwEwtSRfzMax5BdRjn9igsnEEdzfaq31P9upcVQKYif24yt5
+         dAf71npHEDd0Mf44Sty6VN6aN2QMTy6GQyYS4EBQKF+kDyIoQohqlbGVqaAbgyYrxlV1
+         084T4G707yiywFdQCyE4PBpnZi0Wi8OZmYZR5aSbtOyHY5mmha9/JBYuQeKNkw5k8XpW
+         gwPRsaR5YMTTYKk/0r1gHVJnf1eBxB81YzRis19aw2lXlSyWTKHed53tGSODuvnXI+BC
+         ub11HC0QmIonlAF79M4GSUsrysMa85d/IPrmqtCRwyLEGmDdlp42sSOXRsDG3a65Q3ph
+         vkiw==
+X-Gm-Message-State: APjAAAXpxtWOAcVnIkijfHzcW0NE2NGv3IZIxt7pEVtK6SrJ8Y2ZKtFA
+	iKs5WJ5ZXrgU6Xsj4DdziFp8Yk9K48ZpAO2EviYRHZx8CEj0bOtU7ODwp4Y4kqa4kTlH8hP1tXA
+	A7QThDelyQ5DKZ9Uvv7jEli9Rlb/JoRz89OWkNICaN7ufljtH4qWSR/EUPCi5665qSQ==
+X-Received: by 2002:a24:68c8:: with SMTP id v191mr866222itb.75.1554143671445;
+        Mon, 01 Apr 2019 11:34:31 -0700 (PDT)
+X-Received: by 2002:a24:68c8:: with SMTP id v191mr866172itb.75.1554143670628;
+        Mon, 01 Apr 2019 11:34:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554143670; cv=none;
         d=google.com; s=arc-20160816;
-        b=OOMxxrI+SfkJYF6g8CAuV3FzNIDDg0a+nNbHWc0VAorabwPuLf09B7zEOP1Za9evog
-         IaPWvQOjSYIgvNodWD1V2H5Szw7a2nXtv3qhC3YiPGQdLkc1XgzYFpws3WfTOizW/UNB
-         jxVcVZbFL2RGNU9u/ftQsbUskSPXy3tvr7oxK/LhSSgkL7/8k0lD+XnTXuBl3MThHkpr
-         rwMLo3eoC+dAH9fy1O4xg6njzzdTsTrcU3vQEGukFHRwG/xX0f/Fnd0PSu6yYvfU7RSl
-         g5kNpwa79W43uvfV3aV+VF+mAfRwF8al2N0udZma0PN7YxNSSB+rHL1aISimTxWEJwtR
-         4VFw==
+        b=kLwPcZl4RLaCp6gnaA76QHJfxUBtsxgQcSFWl38NVrVkc3r0rTKcDmozHguRQ5XQuI
+         BynmTcAwUB1WBxQ9dS7jDFzgZX+eu8Nr3qlhuPoMrCJe+LOx7A00mbp0pBCYTcrw5QUx
+         1hBZrBvAmxyuW/j1+A8k0isXyHT3mAYO0HkP+j3q65mroNY8KH573KWABjNM/beowFuD
+         uJjqmo21Er7ZwM1QiUpNcZk7xjn5r8Dk7AcnHnlWjmtLbc+7mjbfs6JP9DQIUJf5eBiX
+         ltkOLL6mrZVENjPOcFGQC+ai4JN4qioGrfq3by9B4VJfZeQG8lJuj/mS0jqEyEEiTVO+
+         YG1g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=xawSNcb89Uo6X8oCMqaGeyypJgFbGg80AqgpmSx6PNw=;
-        b=hdovKRslKcE8uYe8pzh4GywVuYMQuH5E5bhvcjjpfZuOQe/hzaiIOKoGOSdAUKtX89
-         TPje21oDse6Z+6GIK1V0bCGh25jfaTJfMG9yrdfG+Pd6lZSeWAn0Vp6pvPOS0osXd35p
-         wYVIv+U6AlGwAQeJkuM3TOvPRMH14kwlvbpEi3ae9ctEJ4LVOjv4xDm1kcv3f/CAi5aq
-         2iw+npIzRA4u0Bbhxy3jPDN5mz4NOzsHXFfuMDu3UxcKFl7kbslbmOsY8svjMS8GWJYX
-         tDmVl9QCAZxXK9AG8CA+H6qJaFvgoJ+odxyoXv/ZG1E0Xjx8V9pQwzdGfDi2qIQslaIG
-         Z6ow==
+        bh=+53egRqiXPQZ9EJ7mGipuGA/l/Y4XVrW1UL2Rjyi1aY=;
+        b=B+GbVwFa/XedmsF2+v13jm4dxo/D0YBBoYY2dIQH+908MeXsosYVBPJbl2zOFmXoRy
+         cci8zz/ItrDPxKAnUyTbnH5Vt3ToYDh/KG5ZZ548VVhEL3uV+N6zkclqXP6/nb60BSZ7
+         /ek/HAxY8b0yBRYIlQpQEpmwnW55qfBEU/j36e5NAGNnZDDnVTyBN69OrUpqIFjFXZhW
+         aN4HGjDbEGnUl/I2kyGiRq55XnB4hY2/2eUKISnrYoTzpQ4cA5kgL+2CtP76C/5YVDRG
+         QhFmdvbWGjZkEeqcF9aM04lID7coRVDlw90F2psF35Fr/0FjTE+6yGgV8dedHZ6DtJMr
+         lmxw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=yYWfiYjk;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=eDYAXQ27;
+       spf=pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yuzhao@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z65sor1148297yba.179.2019.04.01.11.20.46
+        by mx.google.com with SMTPS id y2sor29218317jaf.2.2019.04.01.11.34.30
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 01 Apr 2019 11:20:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 01 Apr 2019 11:34:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=yYWfiYjk;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=eDYAXQ27;
+       spf=pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yuzhao@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        d=google.com; s=20161025;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=xawSNcb89Uo6X8oCMqaGeyypJgFbGg80AqgpmSx6PNw=;
-        b=yYWfiYjksvzCycCvVISWrOF1si2tzoUTbtYRIO3Q25hQ3L8PVGgWzkv+A3Ik4Y7NNH
-         V0oGUi2/jMXGFY7kaU1DmwQxMkpGlw6Dg1lwsBlmL/4u0/6HyOe2S/NddX8hbhEQn8RB
-         QYOLiBL2R+6jrYtYEwQLS5JPOa0nq8qW/nrez2scZlWrPP1oQqeEG9db5heWgMskCn1q
-         EGrTHOE4zVQgN+HJ3TjT4Q+Rz85tSAXJuWLGteK0d1Iq0HJw1I+c4z3r9cg6u5Lb8pMt
-         +Gy1OIxomtJFU0V/FTUvs3StyivwFtk/wBRkg82gxhTwhzwnbYqHH6wzrjRAZ4bXV5tb
-         YHQQ==
-X-Google-Smtp-Source: APXvYqxl+K7Jjs97IcKCD8eAX5F/SrbeGuLebrgoG7sE8UJcNFGJoN4oL+ZPoJmgFfzdICWPWphMRw==
-X-Received: by 2002:a25:99c3:: with SMTP id q3mr54775170ybo.263.1554142846659;
-        Mon, 01 Apr 2019 11:20:46 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:200::2:8ed4])
-        by smtp.gmail.com with ESMTPSA id d9sm7226304ywd.23.2019.04.01.11.20.45
+        bh=+53egRqiXPQZ9EJ7mGipuGA/l/Y4XVrW1UL2Rjyi1aY=;
+        b=eDYAXQ27VoAC7+Qv2snc75BOR1No525mPjeUWUBN5ZQDYffbsqG/JAEpAH9plTZBA0
+         5QmkBdG4vPydgQz3g+pjFgQ4jijgIhtJyqRsUK5t/K4TAfbQZYzCrT65jMljFU3smoXr
+         UKSrVqXcCFe1wRXufXWRK2iP3IMDew4disNuXDBwoAQQJy8U6LuDHjnfwAqC/z9XlC/8
+         HWrJWMHSvyu2n2yiznM6WDQnPb8F6iPT16jnODrqnMGVN5XL11J1qYeRVdQ4N/DPqWU0
+         R248eZh5XqtP72GF5x2vj0EQ4xoI8XZXcbt4Jw6T/DYJPyGnrOHJpr3tHK6mDdQKQCZE
+         2NcA==
+X-Google-Smtp-Source: APXvYqzZTl9HjDi6RnxdmwsZz5YNWY2r4EgOJRkxEpWp2zd2bQ6DyUFaMDMtV9M2qFewuWS4RaLmhw==
+X-Received: by 2002:a02:938f:: with SMTP id z15mr9224027jah.108.1554143670032;
+        Mon, 01 Apr 2019 11:34:30 -0700 (PDT)
+Received: from google.com ([2620:15c:183:0:a0c3:519e:9276:fc96])
+        by smtp.gmail.com with ESMTPSA id f9sm4571750ioo.24.2019.04.01.11.34.29
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 01 Apr 2019 11:20:45 -0700 (PDT)
-Date: Mon, 1 Apr 2019 14:20:44 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Tejun Heo <tj@kernel.org>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, stable@vger.kernel.org
-Subject: Re: [PATCH v2] writeback: use exact memcg dirty counts
-Message-ID: <20190401182044.GA3694@cmpxchg.org>
-References: <20190329174609.164344-1-gthelen@google.com>
+        Mon, 01 Apr 2019 11:34:29 -0700 (PDT)
+Date: Mon, 1 Apr 2019 12:34:25 -0600
+From: Yu Zhao <yuzhao@google.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org,
+	linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com,
+	mark.rutland@arm.com, suzuki.poulose@arm.com, marc.zyngier@arm.com,
+	christoffer.dall@arm.com, james.morse@arm.com,
+	julien.thierry@arm.com, kvmarm@lists.cs.columbia.edu
+Subject: Re: [PATCH V2] KVM: ARM: Remove pgtable page standard functions from
+ stage-2 page tables
+Message-ID: <20190401183425.GA106130@google.com>
+References: <3be0b7e0-2ef8-babb-88c9-d229e0fdd220@arm.com>
+ <1552397145-10665-1-git-send-email-anshuman.khandual@arm.com>
+ <20190401161638.GB22092@fuggles.cambridge.arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190329174609.164344-1-gthelen@google.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <20190401161638.GB22092@fuggles.cambridge.arm.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 29, 2019 at 10:46:09AM -0700, Greg Thelen wrote:
-> @@ -3907,10 +3923,10 @@ void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pfilepages,
->  	struct mem_cgroup *memcg = mem_cgroup_from_css(wb->memcg_css);
->  	struct mem_cgroup *parent;
->  
-> -	*pdirty = memcg_page_state(memcg, NR_FILE_DIRTY);
-> +	*pdirty = memcg_exact_page_state(memcg, NR_FILE_DIRTY);
->  
->  	/* this should eventually include NR_UNSTABLE_NFS */
-> -	*pwriteback = memcg_page_state(memcg, NR_WRITEBACK);
-> +	*pwriteback = memcg_exact_page_state(memcg, NR_WRITEBACK);
->  	*pfilepages = mem_cgroup_nr_lru_pages(memcg, (1 << LRU_INACTIVE_FILE) |
->  						     (1 << LRU_ACTIVE_FILE));
+On Mon, Apr 01, 2019 at 05:16:38PM +0100, Will Deacon wrote:
+> [+KVM/ARM folks, since I can't take this without an Ack in place from them]
+> 
+> My understanding is that this patch is intended to replace patch 3/4 in
+> this series:
+> 
+> http://lists.infradead.org/pipermail/linux-arm-kernel/2019-March/638083.html
 
-Andrew,
+Yes, and sorry for the confusion. I could send an updated series once
+this patch is merged. Thanks.
 
-just a head-up: -mm has that LRU stat cleanup series queued ("mm:
-memcontrol: clean up the LRU counts tracking") that changes the
-mem_cgroup_nr_lru_pages() call here to two memcg_page_state().
-
-I'm assuming Greg's fix here will get merged before the cleanup. When
-it gets picked up, it'll conflict with "mm: memcontrol: push down
-mem_cgroup_nr_lru_pages()".
-
-"mm: memcontrol: push down mem_cgroup_nr_lru_pages()" will need to be
-changed to use memcg_exact_page_state() calls instead of the plain
-memcg_page_state() for *pfilepages.
-
-Thanks
+> On Tue, Mar 12, 2019 at 06:55:45PM +0530, Anshuman Khandual wrote:
+> > ARM64 standard pgtable functions are going to use pgtable_page_[ctor|dtor]
+> > or pgtable_pmd_page_[ctor|dtor] constructs. At present KVM guest stage-2
+> > PUD|PMD|PTE level page tabe pages are allocated with __get_free_page()
+> > via mmu_memory_cache_alloc() but released with standard pud|pmd_free() or
+> > pte_free_kernel(). These will fail once they start calling into pgtable_
+> > [pmd]_page_dtor() for pages which never originally went through respective
+> > constructor functions. Hence convert all stage-2 page table page release
+> > functions to call buddy directly while freeing pages.
+> > 
+> > Reviewed-by: Suzuki K Poulose <suzuki.poulose@arm.com>
+> > Acked-by: Yu Zhao <yuzhao@google.com>
+> > Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+> > ---
+> > Changes in V2:
+> > 
+> > - Updated stage2_pud_free() with NOP as per Suzuki
+> > - s/__free_page/free_page/ in clear_stage2_pmd_entry() for uniformity
+> > 
+> >  arch/arm/include/asm/stage2_pgtable.h   | 4 ++--
+> >  arch/arm64/include/asm/stage2_pgtable.h | 4 ++--
+> >  virt/kvm/arm/mmu.c                      | 2 +-
+> >  3 files changed, 5 insertions(+), 5 deletions(-)
+> > 
+> > diff --git a/arch/arm/include/asm/stage2_pgtable.h b/arch/arm/include/asm/stage2_pgtable.h
+> > index de2089501b8b..fed02c3b4600 100644
+> > --- a/arch/arm/include/asm/stage2_pgtable.h
+> > +++ b/arch/arm/include/asm/stage2_pgtable.h
+> > @@ -32,14 +32,14 @@
+> >  #define stage2_pgd_present(kvm, pgd)		pgd_present(pgd)
+> >  #define stage2_pgd_populate(kvm, pgd, pud)	pgd_populate(NULL, pgd, pud)
+> >  #define stage2_pud_offset(kvm, pgd, address)	pud_offset(pgd, address)
+> > -#define stage2_pud_free(kvm, pud)		pud_free(NULL, pud)
+> > +#define stage2_pud_free(kvm, pud)		do { } while (0)
+> >  
+> >  #define stage2_pud_none(kvm, pud)		pud_none(pud)
+> >  #define stage2_pud_clear(kvm, pud)		pud_clear(pud)
+> >  #define stage2_pud_present(kvm, pud)		pud_present(pud)
+> >  #define stage2_pud_populate(kvm, pud, pmd)	pud_populate(NULL, pud, pmd)
+> >  #define stage2_pmd_offset(kvm, pud, address)	pmd_offset(pud, address)
+> > -#define stage2_pmd_free(kvm, pmd)		pmd_free(NULL, pmd)
+> > +#define stage2_pmd_free(kvm, pmd)		free_page((unsigned long)pmd)
+> >  
+> >  #define stage2_pud_huge(kvm, pud)		pud_huge(pud)
+> >  
+> > diff --git a/arch/arm64/include/asm/stage2_pgtable.h b/arch/arm64/include/asm/stage2_pgtable.h
+> > index 5412fa40825e..915809e4ac32 100644
+> > --- a/arch/arm64/include/asm/stage2_pgtable.h
+> > +++ b/arch/arm64/include/asm/stage2_pgtable.h
+> > @@ -119,7 +119,7 @@ static inline pud_t *stage2_pud_offset(struct kvm *kvm,
+> >  static inline void stage2_pud_free(struct kvm *kvm, pud_t *pud)
+> >  {
+> >  	if (kvm_stage2_has_pud(kvm))
+> > -		pud_free(NULL, pud);
+> > +		free_page((unsigned long)pud);
+> >  }
+> >  
+> >  static inline bool stage2_pud_table_empty(struct kvm *kvm, pud_t *pudp)
+> > @@ -192,7 +192,7 @@ static inline pmd_t *stage2_pmd_offset(struct kvm *kvm,
+> >  static inline void stage2_pmd_free(struct kvm *kvm, pmd_t *pmd)
+> >  {
+> >  	if (kvm_stage2_has_pmd(kvm))
+> > -		pmd_free(NULL, pmd);
+> > +		free_page((unsigned long)pmd);
+> >  }
+> >  
+> >  static inline bool stage2_pud_huge(struct kvm *kvm, pud_t pud)
+> > diff --git a/virt/kvm/arm/mmu.c b/virt/kvm/arm/mmu.c
+> > index e9d28a7ca673..cbfbdadca8a5 100644
+> > --- a/virt/kvm/arm/mmu.c
+> > +++ b/virt/kvm/arm/mmu.c
+> > @@ -191,7 +191,7 @@ static void clear_stage2_pmd_entry(struct kvm *kvm, pmd_t *pmd, phys_addr_t addr
+> >  	VM_BUG_ON(pmd_thp_or_huge(*pmd));
+> >  	pmd_clear(pmd);
+> >  	kvm_tlb_flush_vmid_ipa(kvm, addr);
+> > -	pte_free_kernel(NULL, pte_table);
+> > +	free_page((unsigned long)pte_table);
+> >  	put_page(virt_to_page(pmd));
+> >  }
+> >  
+> > -- 
+> > 2.20.1
+> > 
 
