@@ -2,129 +2,357 @@ Return-Path: <SRS0=sWz3=SD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 99735C10F05
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 11:53:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4697FC43381
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 12:00:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4554D2082C
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 11:53:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4554D2082C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id DB8832086C
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 12:00:10 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="SIlQwFHQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB8832086C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 835E06B000A; Mon,  1 Apr 2019 07:53:10 -0400 (EDT)
+	id 7BC8F6B000D; Mon,  1 Apr 2019 08:00:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7BDDA6B000C; Mon,  1 Apr 2019 07:53:10 -0400 (EDT)
+	id 742DA6B000E; Mon,  1 Apr 2019 08:00:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 687596B000D; Mon,  1 Apr 2019 07:53:10 -0400 (EDT)
+	id 5E4D66B0010; Mon,  1 Apr 2019 08:00:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 14BD66B000A
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 07:53:10 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id s27so4229501eda.16
-        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 04:53:10 -0700 (PDT)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E33226B000D
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 08:00:09 -0400 (EDT)
+Received: by mail-lj1-f199.google.com with SMTP id j8so2351441lja.11
+        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 05:00:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=jOmZTUo7++HdeYgJ1YgLKZzRlvlJbZ3RA09Hu3oO6iI=;
-        b=tlWUpbTCWlVRBUe5drxa7Aj+bv9a5iT1c1a6h2K+FaY79pdrhyOqyRY1purH9rXcAH
-         NbovLh38KwTxy5UZb44EfSTG5f7QM9dbWZEOIWn5wluuhbzVYV3sbfOpJZu5sEqIfWyZ
-         d+L3oAGJxbJ9UfqC2OKzva44/O0K8rZVCWlKQBKhqhXYBvdPOQI5200nDP03l4P/87Wt
-         4b1eWWDknnP/R1toBSwFrUWrou9aNrfgFLK+fpaJ3FCm/mK8E8GdOjL5qUKBjpRNs/Nu
-         3sPZq2pHETKxe5kvPAxFqEs0BGDxRMwwSbmILEz+k3OAxY4bmZh6158N/jgGEY5KBSAz
-         hbTA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWQqwEsy2edGV0sUviAUMEGvhH8HiZb1ZCn1ZW7GD05ri7Hp/6K
-	fdpSQlbvkGmnE/8yJ87p/Bk5K8UFnW1ZY4RxK7qzyRLBgacoZuYTUz0QWqewYHm4qL27nZ3oEcm
-	pGIYsDZL+lfiLljNxmnDgcn6xSh6oVXGYLLija3+3MXUn1GXeGVfEm47ZdsDsEbc=
-X-Received: by 2002:a17:906:3941:: with SMTP id g1mr21172035eje.168.1554119589594;
-        Mon, 01 Apr 2019 04:53:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzCpSHVWrU4tdpqQKTrPLUd8eahCzJ40ZIqCpuL6ocRSZK6cT7lfGqajrmTvdAkc9hBSjG1
-X-Received: by 2002:a17:906:3941:: with SMTP id g1mr21171992eje.168.1554119588608;
-        Mon, 01 Apr 2019 04:53:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554119588; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=lONlQLaEvJFultSO5a8NUBSr+5P5+0uVNlPDaqTG73w=;
+        b=edhOdcAlwyQSCgmE9FzNcFaaAR2zTdqu8S1ZcBMlaM706oUkyO/6gO+4bJ6bnoEeJ+
+         xJ5KFdgHN1pkpWUM0yNjy/MiwxvEK9NlIbVsURUldC+oPqTywFAORYtTwDqxD8/kpbNY
+         DaBWW42tbLnORBNQIfBxeq9v5TAZ4SeVZuI3Ck+wyDJ4YfuYZ/ezz2BNapaQ12rlCRYo
+         V4uJw1GB89VjSagrMnvhOBUHhEW2LABDXXAL4DAIafFY3kmlDbKetx1+TYxRtOdNt9Ws
+         2NjpzNSXKvyGPOkv02TYGB9F13k8Yge1etYWD7yuN/VnCLRny327IxQA+IPWtzR1Pvl9
+         +Thw==
+X-Gm-Message-State: APjAAAW7fqFqr5ClHyXKhcxf4Oki/KhIlh89StUQxNFikHuWdObm2t6J
+	3JsEgnKtLCA1lhRNyZsMq5etly5R12geexLqyyhrUdUBx6dHVE0DJOPQ9zCCg9fdTB7cqdWn68V
+	m/tb9BFG+bN7VfsCmjP0TqakbNKH3WAKLIUAaOMt+2dcsECjOXJ5G0NHXzYtcq4kyyA==
+X-Received: by 2002:a19:9e0d:: with SMTP id h13mr31796546lfe.51.1554120009137;
+        Mon, 01 Apr 2019 05:00:09 -0700 (PDT)
+X-Received: by 2002:a19:9e0d:: with SMTP id h13mr31796488lfe.51.1554120007995;
+        Mon, 01 Apr 2019 05:00:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554120007; cv=none;
         d=google.com; s=arc-20160816;
-        b=DXKwv2sdX5/jgFkkeH+1lbrkiu/1UkbhJw64BtOSMc+1Oy5u33AJ22MU8IsaNejh1K
-         0ILESyPtHq6DNEfMYzBLuUgMxdRnSXPrt9djL58+x7l/bTz/wrC4wJXwHeMh+Swew8s5
-         VGVGPKpGJyG+F8CNZDTit5hMklUn1m9+im/ZjSqAlNmudSIttFTr5Oxs1SF3Pg9djZaN
-         yv3YNX2q1iN3AkRlNCAj59Ge4jBvmG9Mo1cRXLEtuKF4/tnI8yIMKSgLNEwUEP110hrs
-         xbRPR4twDT13eVP9v14T5sjOxQ1As253OszYxif5M5+oiFQk/h1SVs3f+fNZdtD1n+PV
-         +0tA==
+        b=j+jE/XwCryoIGiig6xwoLcbubvDa50vkNrtL4/rJPvBmIBB2oLGzcK1Hc4GwqA5Z9X
+         xk5LuU6Hq6RSy9CLboXg3btDtI4Pojwp8gY96HLjBlPnzx0oe2qM6XBV3OO56itWRa8c
+         +kw7oEv88t44VTCmORtvaP3QXwmBIisqysc15gep93rslQQRkz/NV/nt4prCgrgp6KxU
+         zJTxrLctuYBksUGR4rVEFlp113QLxwl/8cR6e2XIKH2Oo3S6hfe+2jp87zVHbZBHX07e
+         aZMOEUooT4UgyN5nGBYdxE3+WDBX+XCCVTnqPHauXL8wWLnvaiS2PyzNOUCHYeCjhMv3
+         POFw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=jOmZTUo7++HdeYgJ1YgLKZzRlvlJbZ3RA09Hu3oO6iI=;
-        b=siEM2E6KeTHRJ3dGKsxaGheqkLr4JMhmqFq/E54VcEB5B35NJ8DpR7YfhqLBk5dT5J
-         KrcaMxdMtXlY/I4mocivocELuZL/qRO9M2fi9fj7W+GWkmkCg1+VL5MTvEeF/KhjmClh
-         eKvYAoo9RN9nC7v9+zyFKJy1MI71+j3EbqV6KDpfpiCaB0l+n5vQUIegxWjknhAWHuVv
-         mIpJFC6k2Y6pbOSr1Z41UNtVwy1AMULa04LdeHPFqzyc/my6lmn8TYeHTCP0lbH+asNF
-         k3kzLxMz0I+mRR220LXH6phDb5BG7EoJMMBBY17bhk3SFTnr4Pdnk1SfoMPf9NATEYdy
-         7GLg==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=lONlQLaEvJFultSO5a8NUBSr+5P5+0uVNlPDaqTG73w=;
+        b=0CcybHvViyraBHpii0rnP+NTutvH8zvbf8r09gu6CHDt9Q0qvbpw8ruAfJa1zPMroe
+         +XtsTmKdz1st6nlpooK8TkBRO2P8X62fdTL6DT6sdlwHWROxWosrYWnOgVlGu3wW99q8
+         SGRStKIgIDu3xsjhMoCsxEnzkMNeQca1uSS/WDsyYgdlhr8FyWzYJB4aKUsvv7Ad8ioM
+         uqsb0lqIRaIUcMF2Ke3ztjWyIJn886f2chmBatG20i+garSK4Aznl8GzfQ0yiM4e8A2P
+         L0d9FVmOLe7L8IEIDqpRDj8fQ05uJIkjJEikzXWFLliP2BQPpgeQRXTAPReJPpbHJACV
+         uafw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v7si1073783ede.424.2019.04.01.04.53.08
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=SIlQwFHQ;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q19sor5233829ljj.27.2019.04.01.05.00.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Apr 2019 04:53:08 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Mon, 01 Apr 2019 05:00:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id D24CDAEC8;
-	Mon,  1 Apr 2019 11:53:07 +0000 (UTC)
-Date: Mon, 1 Apr 2019 13:53:06 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Oscar Salvador <osalvador@suse.de>
-Cc: David Hildenbrand <david@redhat.com>, akpm@linux-foundation.org,
-	dan.j.williams@intel.com, Jonathan.Cameron@huawei.com,
-	anshuman.khandual@arm.com, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH 0/4] mm,memory_hotplug: allocate memmap from hotadded
- memory
-Message-ID: <20190401115306.GF28293@dhcp22.suse.cz>
-References: <20190328134320.13232-1-osalvador@suse.de>
- <cc68ec6d-3ad2-a998-73dc-cb90f3563899@redhat.com>
- <efb08377-ca5d-4110-d7ae-04a0d61ac294@redhat.com>
- <20190329084547.5k37xjwvkgffwajo@d104.suse.de>
- <20190329134243.GA30026@dhcp22.suse.cz>
- <20190401075936.bjt2qsrhw77rib77@d104.suse.de>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=SIlQwFHQ;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=lONlQLaEvJFultSO5a8NUBSr+5P5+0uVNlPDaqTG73w=;
+        b=SIlQwFHQZvwbKWh1gXNbMAsQCDe1RPYDmv5JQpb1qXgh8tAieDYIZ+KG/wLs9zRAib
+         XNvzW8s6DNMBFTOoWj8OqJ6DEU7ITmcMlutzyb6Ry8nMSPKjwzw4MNknUjzccjnHBVmO
+         +UTDFo3HyyDKCT9gVwNPw9cUwrRe7qWUIQdpO3OY7FUJevtI4xHv9Q7F3zC7bMzwDBgj
+         e66i2SMdqseC83T6UbuvODLerrR2i9/4+uvB5eNtzjtvGn4qr5ftNn52mCB0xCn4MLnU
+         u/zIpjh0PzmI1wNgduTyNqLOiAr721XBGSLzFYcZUNZEhM2SUsTENqWNW2etB25/iFoJ
+         h4tA==
+X-Google-Smtp-Source: APXvYqzy4/fWp4TYhA9MtAZpxY4sRxXpk/Awh75ofm/avT6FmdX9b1svh0Y1z9IMRIWq9nqTz12MOjFYlkpAdsc8BBU=
+X-Received: by 2002:a2e:8888:: with SMTP id k8mr15485928lji.43.1554120007575;
+ Mon, 01 Apr 2019 05:00:07 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190401075936.bjt2qsrhw77rib77@d104.suse.de>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <20190325144011.10560-1-jglisse@redhat.com> <20190325144011.10560-12-jglisse@redhat.com>
+In-Reply-To: <20190325144011.10560-12-jglisse@redhat.com>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Mon, 1 Apr 2019 17:29:54 +0530
+Message-ID: <CAFqt6zau2+Z-D1noF4VeWW6Fa3=xZ8WGbaKpkAdPJcB70dGZjQ@mail.gmail.com>
+Subject: Re: [PATCH v2 11/11] mm/hmm: add an helper function that fault pages
+ and map them to a device v2
+To: jglisse@redhat.com
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, 
+	Andrew Morton <akpm@linux-foundation.org>, Ralph Campbell <rcampbell@nvidia.com>, 
+	John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 01-04-19 09:59:36, Oscar Salvador wrote:
-> On Fri, Mar 29, 2019 at 02:42:43PM +0100, Michal Hocko wrote:
-> > Having a larger contiguous area is definitely nice to have but you also
-> > have to consider the other side of the thing. If we have a movable
-> > memblock with unmovable memory then we are breaking the movable
-> > property. So there should be some flexibility for caller to tell whether
-> > to allocate on per device or per memblock. Or we need something to move
-> > memmaps during the hotremove.
-> 
-> By movable memblock you mean a memblock whose pages can be migrated over when
-> this memblock is offlined, right?
+On Mon, Mar 25, 2019 at 8:11 PM <jglisse@redhat.com> wrote:
+>
+> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>
+> This is a all in one helper that fault pages in a range and map them to
+> a device so that every single device driver do not have to re-implement
+> this common pattern.
+>
+> This is taken from ODP RDMA in preparation of ODP RDMA convertion. It
+> will be use by nouveau and other drivers.
+>
+> Changes since v1:
+>     - improved commit message
+>
+> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  include/linux/hmm.h |   9 +++
+>  mm/hmm.c            | 152 ++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 161 insertions(+)
+>
+> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> index 5f9deaeb9d77..7aadf18b29cb 100644
+> --- a/include/linux/hmm.h
+> +++ b/include/linux/hmm.h
+> @@ -568,6 +568,15 @@ int hmm_range_register(struct hmm_range *range,
+>  void hmm_range_unregister(struct hmm_range *range);
+>  long hmm_range_snapshot(struct hmm_range *range);
+>  long hmm_range_fault(struct hmm_range *range, bool block);
+> +long hmm_range_dma_map(struct hmm_range *range,
+> +                      struct device *device,
+> +                      dma_addr_t *daddrs,
+> +                      bool block);
+> +long hmm_range_dma_unmap(struct hmm_range *range,
+> +                        struct vm_area_struct *vma,
+> +                        struct device *device,
+> +                        dma_addr_t *daddrs,
+> +                        bool dirty);
+>
+>  /*
+>   * HMM_RANGE_DEFAULT_TIMEOUT - default timeout (ms) when waiting for a r=
+ange
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index ce33151c6832..fd143251b157 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -30,6 +30,7 @@
+>  #include <linux/hugetlb.h>
+>  #include <linux/memremap.h>
+>  #include <linux/jump_label.h>
+> +#include <linux/dma-mapping.h>
+>  #include <linux/mmu_notifier.h>
+>  #include <linux/memory_hotplug.h>
+>
+> @@ -1163,6 +1164,157 @@ long hmm_range_fault(struct hmm_range *range, boo=
+l block)
+>         return (hmm_vma_walk.last - range->start) >> PAGE_SHIFT;
+>  }
+>  EXPORT_SYMBOL(hmm_range_fault);
+> +
+> +/*
 
-I am mostly thinking about movable_node kernel parameter which makes
-newly hotpluged memory go into ZONE_MOVABLE and people do use that to
-make sure such a memory can be later hotremoved.
+Adding extra * might be helpful here for documentation.
 
--- 
-Michal Hocko
-SUSE Labs
+> + * hmm_range_dma_map() - hmm_range_fault() and dma map page all in one.
+> + * @range: range being faulted
+> + * @device: device against to dma map page to
+> + * @daddrs: dma address of mapped pages
+> + * @block: allow blocking on fault (if true it sleeps and do not drop mm=
+ap_sem)
+> + * Returns: number of pages mapped on success, -EAGAIN if mmap_sem have =
+been
+> + *          drop and you need to try again, some other error value other=
+wise
+> + *
+> + * Note same usage pattern as hmm_range_fault().
+> + */
+> +long hmm_range_dma_map(struct hmm_range *range,
+> +                      struct device *device,
+> +                      dma_addr_t *daddrs,
+> +                      bool block)
+> +{
+> +       unsigned long i, npages, mapped;
+> +       long ret;
+> +
+> +       ret =3D hmm_range_fault(range, block);
+> +       if (ret <=3D 0)
+> +               return ret ? ret : -EBUSY;
+> +
+> +       npages =3D (range->end - range->start) >> PAGE_SHIFT;
+> +       for (i =3D 0, mapped =3D 0; i < npages; ++i) {
+> +               enum dma_data_direction dir =3D DMA_FROM_DEVICE;
+> +               struct page *page;
+> +
+> +               /*
+> +                * FIXME need to update DMA API to provide invalid DMA ad=
+dress
+> +                * value instead of a function to test dma address value.=
+ This
+> +                * would remove lot of dumb code duplicated accross many =
+arch.
+> +                *
+> +                * For now setting it to 0 here is good enough as the pfn=
+s[]
+> +                * value is what is use to check what is valid and what i=
+sn't.
+> +                */
+> +               daddrs[i] =3D 0;
+> +
+> +               page =3D hmm_pfn_to_page(range, range->pfns[i]);
+> +               if (page =3D=3D NULL)
+> +                       continue;
+> +
+> +               /* Check if range is being invalidated */
+> +               if (!range->valid) {
+> +                       ret =3D -EBUSY;
+> +                       goto unmap;
+> +               }
+> +
+> +               /* If it is read and write than map bi-directional. */
+> +               if (range->pfns[i] & range->values[HMM_PFN_WRITE])
+> +                       dir =3D DMA_BIDIRECTIONAL;
+> +
+> +               daddrs[i] =3D dma_map_page(device, page, 0, PAGE_SIZE, di=
+r);
+> +               if (dma_mapping_error(device, daddrs[i])) {
+> +                       ret =3D -EFAULT;
+> +                       goto unmap;
+> +               }
+> +
+> +               mapped++;
+> +       }
+> +
+> +       return mapped;
+> +
+> +unmap:
+> +       for (npages =3D i, i =3D 0; (i < npages) && mapped; ++i) {
+> +               enum dma_data_direction dir =3D DMA_FROM_DEVICE;
+> +               struct page *page;
+> +
+> +               page =3D hmm_pfn_to_page(range, range->pfns[i]);
+> +               if (page =3D=3D NULL)
+> +                       continue;
+> +
+> +               if (dma_mapping_error(device, daddrs[i]))
+> +                       continue;
+> +
+> +               /* If it is read and write than map bi-directional. */
+> +               if (range->pfns[i] & range->values[HMM_PFN_WRITE])
+> +                       dir =3D DMA_BIDIRECTIONAL;
+> +
+> +               dma_unmap_page(device, daddrs[i], PAGE_SIZE, dir);
+> +               mapped--;
+> +       }
+> +
+> +       return ret;
+> +}
+> +EXPORT_SYMBOL(hmm_range_dma_map);
+> +
+> +/*
+
+Same here.
+
+> + * hmm_range_dma_unmap() - unmap range of that was map with hmm_range_dm=
+a_map()
+> + * @range: range being unmapped
+> + * @vma: the vma against which the range (optional)
+> + * @device: device against which dma map was done
+> + * @daddrs: dma address of mapped pages
+> + * @dirty: dirty page if it had the write flag set
+> + * Returns: number of page unmapped on success, -EINVAL otherwise
+> + *
+> + * Note that caller MUST abide by mmu notifier or use HMM mirror and abi=
+de
+> + * to the sync_cpu_device_pagetables() callback so that it is safe here =
+to
+> + * call set_page_dirty(). Caller must also take appropriate locks to avo=
+id
+> + * concurrent mmu notifier or sync_cpu_device_pagetables() to make progr=
+ess.
+> + */
+> +long hmm_range_dma_unmap(struct hmm_range *range,
+> +                        struct vm_area_struct *vma,
+> +                        struct device *device,
+> +                        dma_addr_t *daddrs,
+> +                        bool dirty)
+> +{
+> +       unsigned long i, npages;
+> +       long cpages =3D 0;
+> +
+> +       /* Sanity check. */
+> +       if (range->end <=3D range->start)
+> +               return -EINVAL;
+> +       if (!daddrs)
+> +               return -EINVAL;
+> +       if (!range->pfns)
+> +               return -EINVAL;
+> +
+> +       npages =3D (range->end - range->start) >> PAGE_SHIFT;
+> +       for (i =3D 0; i < npages; ++i) {
+> +               enum dma_data_direction dir =3D DMA_FROM_DEVICE;
+> +               struct page *page;
+> +
+> +               page =3D hmm_pfn_to_page(range, range->pfns[i]);
+> +               if (page =3D=3D NULL)
+> +                       continue;
+> +
+> +               /* If it is read and write than map bi-directional. */
+> +               if (range->pfns[i] & range->values[HMM_PFN_WRITE]) {
+> +                       dir =3D DMA_BIDIRECTIONAL;
+> +
+> +                       /*
+> +                        * See comments in function description on why it=
+ is
+> +                        * safe here to call set_page_dirty()
+> +                        */
+> +                       if (dirty)
+> +                               set_page_dirty(page);
+> +               }
+> +
+> +               /* Unmap and clear pfns/dma address */
+> +               dma_unmap_page(device, daddrs[i], PAGE_SIZE, dir);
+> +               range->pfns[i] =3D range->values[HMM_PFN_NONE];
+> +               /* FIXME see comments in hmm_vma_dma_map() */
+> +               daddrs[i] =3D 0;
+> +               cpages++;
+> +       }
+> +
+> +       return cpages;
+> +}
+> +EXPORT_SYMBOL(hmm_range_dma_unmap);
+>  #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
+>
+>
+> --
+> 2.17.2
+>
 
