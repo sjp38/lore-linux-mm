@@ -2,147 +2,193 @@ Return-Path: <SRS0=sWz3=SD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7DF37C4360F
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 15:37:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2CD54C43381
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 15:38:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4722A20880
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 15:37:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4722A20880
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id D200620880
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 15:38:54 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="rz+eKGWd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D200620880
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EDE316B000C; Mon,  1 Apr 2019 11:37:18 -0400 (EDT)
+	id 84CC06B0008; Mon,  1 Apr 2019 11:38:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EB4376B000D; Mon,  1 Apr 2019 11:37:18 -0400 (EDT)
+	id 7FC9B6B000A; Mon,  1 Apr 2019 11:38:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DCA016B000E; Mon,  1 Apr 2019 11:37:18 -0400 (EDT)
+	id 69E7B6B000C; Mon,  1 Apr 2019 11:38:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B759D6B000C
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 11:37:18 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id 64so6721776ota.18
-        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 08:37:18 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B39B6B0008
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 11:38:54 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id j18so7132751pfi.20
+        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 08:38:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=8RCKlxZLig/j8+KvzSyfS11/XgCNzk3sasMHjNb2h1g=;
-        b=Gi7cyTms8J3lzyMQHnYLSlpl7OlgKl9uK5ipZrgeKEewzbHf7pvmBsrX43cKS7RmFp
-         roLCMsP1hv/nLOm3zJRkMzKlojdxsc2+IwEwF5P9fli/qS+ZtfMEkANh3DVKS5yjf9Lx
-         FIYnVFcunbe3Lln09F1Zf3u/PvIwtYIs8y/xDKRUJBM32teM/bOXpu+CMyhW0+il1ZQD
-         oP0AfMM0ue36cEPEAW6cVQuXN5VxxJkV50YyIo/jFiRhUjiFCOJiEuztVMLCQ1HIPuCl
-         tOsl4OtTfJwg74yigCIPrriR7d77ny5WAlnD2rEHtTMN8v3GUfZK7Vs0Kj3GVOhK61vh
-         wtQQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-X-Gm-Message-State: APjAAAVe9JiH9x+EnhgLVmsy2rW5Zi0U+P+m0aFE+jNSL98wuR4v7GZI
-	myMoKaLtZPLx1bDgMwQ821xUou4Ig31g5ETosaedDJyKXUNAGgJPrBLULIj+Iz8r5tg5BRGviSb
-	XbtMOk/60X6P9KMoKYIvD0ekBcbuIQgl9v/Xr38c611mQshqqL01QPlMgl/dnZePXJA==
-X-Received: by 2002:aca:ecc5:: with SMTP id k188mr12459937oih.125.1554133038317;
-        Mon, 01 Apr 2019 08:37:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyv57GVsIxc4znep9PbyVT60jSKWefIQkclVooysibTPnpS/gabxRhejuPNjzW2Um/cdmlu
-X-Received: by 2002:aca:ecc5:: with SMTP id k188mr12459840oih.125.1554133037099;
-        Mon, 01 Apr 2019 08:37:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554133037; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=HpLKq1u6zgG4u47m+oJy6q6/PWHFj2n1/o90qI1J+5Q=;
+        b=K8Uexe9wcZtGyR6hkzv+3U1mwx+kF73wAk0RsiNR4T0J9QGKWCdZMWTos6IT0vJFEW
+         iigdgxFerUcT4Ty5DRo64zQao0e4tkhgSGsJkQ+BmqUPeVH3i5s0C39rtzerTeDHVkXr
+         ZHwAwUGmfAAIRLWf19ZtPsGiYZdiipZILa9sA0UuNzC3D7+5e5tBRC9WovLZF+GhOHUh
+         YV0a1ftfcQ9+DQ3so7rYHFpDGjDlV9WPnB5Fw1lTvdEBTYKqH6udr5PDxeuHBgBWnZFR
+         yEE6DICzUQH0+hkAY4wgdcQUP8NUIbMaEOHb1vt0mZi1Olkna8haGkUhKX7Xn6iNBXlU
+         RRpQ==
+X-Gm-Message-State: APjAAAWVbCGL83OjT7Wbx8uM3mGfrcWNZ6hbahx0sIgVmP3xOObGSeqe
+	cGIFKyVauOJmbXvxnj6p42oKIZ7MaBP/xG6MiBGaleDtTsvutNGvMlA8YbC6I8DwKLxQ4KgN8Ue
+	4Odjfqv8zaKGZRJJJEtMAJ9Owm5dnqh+2bCoZtHapGN5M+oCRWwhoL9x1kdKsHCX0Ig==
+X-Received: by 2002:a17:902:7206:: with SMTP id ba6mr26568102plb.301.1554133133668;
+        Mon, 01 Apr 2019 08:38:53 -0700 (PDT)
+X-Received: by 2002:a17:902:7206:: with SMTP id ba6mr26568025plb.301.1554133132829;
+        Mon, 01 Apr 2019 08:38:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554133132; cv=none;
         d=google.com; s=arc-20160816;
-        b=MVp0c053pq71AnBw2yuo3H3fRsNfH7418uejiixwMlrFJM62mNDVmG8uvAe8kvzuB8
-         TO1B6ljEQBDbdXMRsKdx4PnPGMzbaYAJXoWOAk+bn3nHGsIS6SBkj+WMUOBCb2DEY7pO
-         sTRr/eQegI2eog37Qdphc/rdmvM9oHJVQdnS4WNI20r6XBSHSb0kBJxWf0C+wTcVBlSC
-         p1l6UAXmHVyWpxj7RUyUGzs7MgievEYtOZd8LO+5p080hoJPFnvyag2fec/gEwQWIfGY
-         zla2XlbFw/fvBKjsdiavr268jLWk7/zkuTrHmHAS83OuUc2XVNpNBLXDIXHYf/gXkXHZ
-         Eyag==
+        b=VK9GyhHCswiAnlAjhTIpKR3Na50j2NzbamfumbJPXovPtiH0Q5gCG0uWhp3GalwvEB
+         tr9Dea6Dzu5azKgbJLjes6R8vb+sAEy51fI+U6QzfgnR65m7K55Ua95Pmxm3cF+4OmWr
+         n0xOuecWQHEQ4Tu9cFAs+FL23N3GiA8dLe/o2B4bajKZfzub9kBDARRbWBUCKucX57wT
+         Ss0XHnW3gobty+t23reOMdLOcZm/ph7Ai/Rr3YPPLU/T4D/RupgHOP45/rZr4uvHtXsm
+         13QwxA+NdowzTd6I2uTudJG8v9Xk2hM2uFBrKuusl+1vKZF+gUePSQV6pU6fd2QE2HSq
+         nhRQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=8RCKlxZLig/j8+KvzSyfS11/XgCNzk3sasMHjNb2h1g=;
-        b=XVI0NDVgPDO68HrKuuwZ4GylI7sKjwelF4Y+GcNLTRkx9DttsMvTqcWmbI5P9Ey6zW
-         TBw04FLTu2xWYaX9iS/n7TzVV1fT9TaZjBnQ13onLfVKzAiZQFf+LnNsSoclXsRPi4EN
-         Atz7JYus9c67w3ZWsYXqxqJi4orwNYnZ04XC0t4eH4bOoTeGLxdg0AdTy0KkWBo3PLm6
-         FjGqS2WDQlFaww2Arwzscs8DdG5kI9xk8iKebp1mPQT+iQUUvXcuGBEPs4uz+z6APUr8
-         Ihqu9DaunqCG8jmp6tQnPB5jgU0ckDSHf2OH4zxm/zUdTzugqAhFcdg/xWvjT7JVjxn7
-         fu4Q==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=HpLKq1u6zgG4u47m+oJy6q6/PWHFj2n1/o90qI1J+5Q=;
+        b=M1udvKNKerNdMo0wj2p0tFE/VhkLxb2bxYYtt3X6elx1+T5hi8lj2faAdEmdjOSJ+3
+         EgtXaqcZKObUrtzEcCHHEr9x59RdLK5sLc0C123q8ZEZnXKjURspufC46hNNeMDCDYb4
+         59cVi1ki4LOd8Lkg0GshJicJk1Yq5C/sG4jhPQ6D5GWZt7KWUFFARv5StusyzgM1e4Kn
+         stGzyqFE1YAKEYfg0drwZl2pyQcur2R8oBkGG45fQpjMTcrJZlE/RTFeEI7lGc3c73Hq
+         3Rr1+q3sSSbBU3ebFdnheaP8J6erM9zcf5OZZW3gOQ4Bs7jVLMDUehb7RO7msVBYzLpg
+         igLg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
-        by mx.google.com with ESMTPS id k133si4312489oia.185.2019.04.01.08.37.16
+       dkim=pass header.i=@google.com header.s=20161025 header.b=rz+eKGWd;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h68sor10271630pfj.73.2019.04.01.08.38.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Apr 2019 08:37:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) client-ip=45.249.212.35;
+        (Google Transport Security);
+        Mon, 01 Apr 2019 08:38:52 -0700 (PDT)
+Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-Received: from DGGEMS414-HUB.china.huawei.com (unknown [10.3.19.214])
-	by Forcepoint Email with ESMTP id 98D9D3E39DD5515E0BB5;
-	Mon,  1 Apr 2019 23:37:11 +0800 (CST)
-Received: from FRA1000014316.huawei.com (100.126.230.97) by
- DGGEMS414-HUB.china.huawei.com (10.3.19.214) with Microsoft SMTP Server id
- 14.3.408.0; Mon, 1 Apr 2019 23:37:01 +0800
-From: Jonathan Cameron <Jonathan.Cameron@huawei.com>
-To: <linux-mm@kvack.org>, <linux-acpi@vger.kernel.org>,
-	<linux-arm-kernel@lists.infradead.org>
-CC: <rjw@rjwysocki.net>, <keith.busch@intel.com>, <linuxarm@huawei.com>,
-	<jglisse@redhat.com>, Jonathan Cameron <Jonathan.Cameron@huawei.com>
-Subject: [RFC PATCH v2 3/3] ACPI: Let ACPI know we support Generic Initiator Affinity Structures
-Date: Mon, 1 Apr 2019 23:36:03 +0800
-Message-ID: <20190401153603.67775-4-Jonathan.Cameron@huawei.com>
-X-Mailer: git-send-email 2.19.1
-In-Reply-To: <20190401153603.67775-1-Jonathan.Cameron@huawei.com>
-References: <20190401153603.67775-1-Jonathan.Cameron@huawei.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=rz+eKGWd;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=HpLKq1u6zgG4u47m+oJy6q6/PWHFj2n1/o90qI1J+5Q=;
+        b=rz+eKGWdIEAATVPKtPNa1Orgm+SbBpSOUItB/oKEP9YFvpyeRSiNTjebBofH85vmuv
+         Ruo6xVKWsDadspv/HufxX8zlWaE2YfFITksk0W67DGyhwRPZzC7+gzZB1ALf/n+tyHvS
+         D0yOd7NPpE0szXEAh4t1t4OxUCepvNGSbAokE8BiKS8d9NdDUhY7hSE5Ylh0xSoAv/R5
+         /JqgbBqVDIITLjgEaRXeiJ5w48h29NLd5psds/vI1hvwGhFuRBI5pib3dyhgzrQc6NTv
+         h+gs0qckSWse4iFFCLh5ue5/qaD/TT8WdpCkVjuCA/Dr/MnpB2rUzW08V20dFWPmm68Z
+         sg0w==
+X-Google-Smtp-Source: APXvYqwkizGwSG7ZyEmRuIQOd2nXeyJg5S4D8809WfJkrKIsV5+aD0+BiMFtb4gqUAAsYahc3/6PhBK4XlY5d3rLnhw=
+X-Received: by 2002:a62:69c2:: with SMTP id e185mr21673086pfc.119.1554133132011;
+ Mon, 01 Apr 2019 08:38:52 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Content-Type: text/plain
-X-Originating-IP: [100.126.230.97]
+References: <cover.1553093420.git.andreyknvl@google.com> <c9553c3a4850d43c8af0c00e97850d70428b7de7.1553093421.git.andreyknvl@google.com>
+ <20190322154513.GQ13384@arrakis.emea.arm.com>
+In-Reply-To: <20190322154513.GQ13384@arrakis.emea.arm.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Mon, 1 Apr 2019 17:38:40 +0200
+Message-ID: <CAAeHK+zxo4aY0qLzSmT8QDHFhas0_=hrXBo6dSamuVE+-VUyQQ@mail.gmail.com>
+Subject: Re: [PATCH v13 11/20] tracing, arm64: untag user pointers in seq_print_user_ip
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, 
+	Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, 
+	Kate Stewart <kstewart@linuxfoundation.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, 
+	Shuah Khan <shuah@kernel.org>, Vincenzo Frascino <vincenzo.frascino@arm.com>, 
+	Eric Dumazet <edumazet@google.com>, "David S. Miller" <davem@davemloft.net>, 
+	Alexei Starovoitov <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, 
+	Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, 
+	Peter Zijlstra <peterz@infradead.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, 
+	Alex Deucher <alexander.deucher@amd.com>, =?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>, 
+	"David (ChunMing) Zhou" <David1.Zhou@amd.com>, Yishai Hadas <yishaih@mellanox.com>, 
+	Mauro Carvalho Chehab <mchehab@kernel.org>, Jens Wiklander <jens.wiklander@linaro.org>, 
+	Alex Williamson <alex.williamson@redhat.com>, 
+	Linux ARM <linux-arm-kernel@lists.infradead.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, 
+	netdev <netdev@vger.kernel.org>, bpf <bpf@vger.kernel.org>, 
+	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
+	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, 
+	Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>, 
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>, 
+	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Until we tell ACPI that we support generic initiators, it will have
-to operate in fall back domain mode and all _PXM entries should
-be on existing non GI domains.
+On Fri, Mar 22, 2019 at 4:45 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
+>
+> On Wed, Mar 20, 2019 at 03:51:25PM +0100, Andrey Konovalov wrote:
+> > This patch is a part of a series that extends arm64 kernel ABI to allow to
+> > pass tagged user pointers (with the top byte set to something else other
+> > than 0x00) as syscall arguments.
+> >
+> > seq_print_user_ip() uses provided user pointers for vma lookups, which
+> > can only by done with untagged pointers.
+> >
+> > Untag user pointers in this function.
+> >
+> > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> > ---
+> >  kernel/trace/trace_output.c | 5 +++--
+> >  1 file changed, 3 insertions(+), 2 deletions(-)
+> >
+> > diff --git a/kernel/trace/trace_output.c b/kernel/trace/trace_output.c
+> > index 54373d93e251..6376bee93c84 100644
+> > --- a/kernel/trace/trace_output.c
+> > +++ b/kernel/trace/trace_output.c
+> > @@ -370,6 +370,7 @@ static int seq_print_user_ip(struct trace_seq *s, struct mm_struct *mm,
+> >  {
+> >       struct file *file = NULL;
+> >       unsigned long vmstart = 0;
+> > +     unsigned long untagged_ip = untagged_addr(ip);
+> >       int ret = 1;
+> >
+> >       if (s->full)
+> > @@ -379,7 +380,7 @@ static int seq_print_user_ip(struct trace_seq *s, struct mm_struct *mm,
+> >               const struct vm_area_struct *vma;
+> >
+> >               down_read(&mm->mmap_sem);
+> > -             vma = find_vma(mm, ip);
+> > +             vma = find_vma(mm, untagged_ip);
+> >               if (vma) {
+> >                       file = vma->vm_file;
+> >                       vmstart = vma->vm_start;
+> > @@ -388,7 +389,7 @@ static int seq_print_user_ip(struct trace_seq *s, struct mm_struct *mm,
+> >                       ret = trace_seq_path(s, &file->f_path);
+> >                       if (ret)
+> >                               trace_seq_printf(s, "[+0x%lx]",
+> > -                                              ip - vmstart);
+> > +                                              untagged_ip - vmstart);
+> >               }
+> >               up_read(&mm->mmap_sem);
+> >       }
+>
+> How would we end up with a tagged address here? Does "ip" here imply
+> instruction pointer, which we wouldn't tag?
 
-This patch sets the relevant OSC bit to make that happen.
-
-Note that this currently doesn't take into account whether we have the relevant
-setup code for a given architecture.  Do we want to make this optional, or
-should the initial patch set just enable it for all ACPI supporting architectures?
-
-Signed-off-by: Jonathan Cameron <Jonathan.Cameron@huawei.com>
----
- drivers/acpi/bus.c   | 1 +
- include/linux/acpi.h | 1 +
- 2 files changed, 2 insertions(+)
-
-diff --git a/drivers/acpi/bus.c b/drivers/acpi/bus.c
-index 6ecbbabf1233..0ebc4722d83e 100644
---- a/drivers/acpi/bus.c
-+++ b/drivers/acpi/bus.c
-@@ -315,6 +315,7 @@ static void acpi_bus_osc_support(void)
- 
- 	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_HOTPLUG_OST_SUPPORT;
- 	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PCLPI_SUPPORT;
-+	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_GENERIC_INITIATOR_SUPPORT;
- 
- #ifdef CONFIG_X86
- 	if (boot_cpu_has(X86_FEATURE_HWP)) {
-diff --git a/include/linux/acpi.h b/include/linux/acpi.h
-index d5dcebd7aad3..cc68b2ad0630 100644
---- a/include/linux/acpi.h
-+++ b/include/linux/acpi.h
-@@ -503,6 +503,7 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
- #define OSC_SB_PCLPI_SUPPORT			0x00000080
- #define OSC_SB_OSLPI_SUPPORT			0x00000100
- #define OSC_SB_CPC_DIVERSE_HIGH_SUPPORT		0x00001000
-+#define OSC_SB_GENERIC_INITIATOR_SUPPORT	0x00002000
- 
- extern bool osc_sb_apei_support_acked;
- extern bool osc_pc_lpi_support_confirmed;
--- 
-2.18.0
+Yes, it's the instruction pointer. I think I got confused and decided
+that it's OK to have instruction pointer tagged, but I guess it's not
+a part of this ABI relaxation. I'll drop the patches that untag
+instruction pointers.
 
