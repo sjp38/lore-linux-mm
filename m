@@ -2,129 +2,166 @@ Return-Path: <SRS0=sWz3=SD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=unavailable
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EAE1AC10F05
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 07:52:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 97FD6C43381
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 07:56:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B3F3D21873
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 07:52:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3F3D21873
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 56F8620857
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 07:56:26 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=eInfochipsIndia.onmicrosoft.com header.i=@eInfochipsIndia.onmicrosoft.com header.b="fu257IWz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 56F8620857
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=einfochips.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 430296B0008; Mon,  1 Apr 2019 03:52:17 -0400 (EDT)
+	id E66F46B0008; Mon,  1 Apr 2019 03:56:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3DDA06B000A; Mon,  1 Apr 2019 03:52:17 -0400 (EDT)
+	id DEE786B000A; Mon,  1 Apr 2019 03:56:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2CCA56B000C; Mon,  1 Apr 2019 03:52:17 -0400 (EDT)
+	id C69446B000C; Mon,  1 Apr 2019 03:56:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DF4906B0008
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 03:52:16 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id p5so3964623edh.2
-        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 00:52:16 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 888AA6B0008
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 03:56:25 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id g83so6676851pfd.3
+        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 00:56:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=8u76RWuslWz/+1eO9L8VcWwCr1NOOKvt1bvBaQnvT00=;
-        b=bAXX2UDAK9FAzGaPvOK0BqQmP5uITEOGVSUL4iDG3wtcQ48up8e+iiU7mJLj1AvCyM
-         it+bI7/UJIiFoLwkXoheeFCsmY3kn88lmJ27Js1A0kcEK1ETE19roGi1oZ8jjZR+WOei
-         kFz/CTOld9fDO3czsn68Uh8SR+zxMmCa9T/4Zt5aCjcgjzyPQ3WgKStFh0UofEpkV0YW
-         HmoY3pbvzcaQk/Qj08YukkXUABuY/U6697BRMrB2HYu1uSN019mB0n1KMGySD0h6PLRW
-         IP8Si5SlaL8APjhIPBqgqJWmHD/2Wdh3qN24+O/qL9LWKDS77erh4FcCu8g7eoGdsv6V
-         jqBQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAWwrHrPDC5uwmESM8+AjFw1BZJ4l7rnpg7vskrJ8plDzCnwzwWw
-	CmKniTeNtfkyrddPwAGqlU2rHbX3OhOpXZ6qSlKd+NKnZDtyXiS4Bi+TEhtJDeQhxE+I1AeQSMr
-	moytNIx70eUWy8uqwKTuAbgdLp9HDx/nYdDxa7/+bWZUUYJVoqGAoQC5EBwEwN3H9Nw==
-X-Received: by 2002:a50:ad58:: with SMTP id z24mr41825034edc.75.1554105135591;
-        Mon, 01 Apr 2019 00:52:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyyUBVzsv/UULWfOwyKq3uxjCv1jZnB1GGbvtOi+PcTVNUECijALqb4VCr+Vu4X2H/3Un58
-X-Received: by 2002:a50:ad58:: with SMTP id z24mr41824966edc.75.1554105133504;
-        Mon, 01 Apr 2019 00:52:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554105133; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:subject:thread-topic
+         :thread-index:date:message-id:accept-language:content-language
+         :content-transfer-encoding:mime-version;
+        bh=LYzMQyAhasE0Q2EE9k+wuIbZo9QNt5Qwmj9eKemqg2Q=;
+        b=DaOVOCKTWA6bVDOHVzeAiXYmZk0BnRGJn6/sGxdQqt80F0veD2UoRmNohAuQb8Fsyl
+         wGAT1sb5fV5OYXgBndrUM0wIOcRosAPwJGUXrwfGaI4xZr+mlfJXmul+G3w8Hh/m3iSg
+         CkwIl5vNrE0V1Fs2OU3cIP0E5pSQkSnUaplHM3H9dvepr1SAjGWO8Tp5bnE+Z6Z/UaPM
+         HfCWXFoMfNvmkH3/QYhG3vifYLasjfrTn0Fbsu31ceBhdtQrs0PvBEF9nNqb3TKEdDXX
+         eVtaTbqyS0bBgCgGmYtcBo/LLeC6Yz9jhXphWUjQfHNDjF2aUMBCQ32VIyIDgNTIpGO8
+         B5fw==
+X-Gm-Message-State: APjAAAXAHmCtrlwvYgBugE9mjpzqdsXqMPD3WFP7dtL6p9UQKr/XNA1V
+	dqJZZ+vVxBSHZur95GAuQ868AleDEauO5GzsRYshwtxpSqdQCNVTzjbFBrs6vTvcMtvQIKtVNBb
+	l1MBAYARIbKms4oLXBD4a3/P/2JZVFeeXicD8mvfjSYOl0GEkJQbXac7MeWt1HXUD1Q==
+X-Received: by 2002:a63:c06:: with SMTP id b6mr59634037pgl.440.1554105385165;
+        Mon, 01 Apr 2019 00:56:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwWzgofMkGB+aiQltCvmJsFGUOBp0UxklcWvxT1F8GnYIDiBrLNmJlKP1KNepKf4Z10wPa4
+X-Received: by 2002:a63:c06:: with SMTP id b6mr59633999pgl.440.1554105384443;
+        Mon, 01 Apr 2019 00:56:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554105384; cv=none;
         d=google.com; s=arc-20160816;
-        b=upBHWvk9bThOFAKF8r0T68VMcVuF6u2A6K27HzPefpg/Dv+b5eJ4BjLZYVq30IcEZR
-         1LZLW2D9B5i0w00GxXovNoMh3n0kSreJXyOfGdjs22pVUh3o/aZi1sNceMipVZr38mx9
-         buc2OFcOr7GtkpOECP7nS2Gq7UdDlHUP4D5M2WPv/u6ObOY4wtaAzoWnSKGSWgdmTLiq
-         PotkOnQwXpSuz2vsvVEpKxQONQOYNvfKMcw9hBqrHo7shfKGI6bNJwKAWUEhTUWMRuYH
-         Cu50GAAAl4YjI3+FS5QcNRjNtgMtKFabADGgR0v6BVSpOg4j+6cjei+eL9uWCeWfZsZz
-         U7ZQ==
+        b=REYVyHSA+X0mT8pMDskJoF+LwMYRy5L5iDIq+xgKafnBgiKXR0SJPMZuFApMQZqMS1
+         2e7QOmq7xKLJXvvFmWZuT9eFFgWIVTsR+49lmbx3m+ILInOaqpP6M26+i0tFyz+otEQw
+         Wg3P3oVRKzMqLmVFe4wVAPkKOd/eweIqAdoXnS5G990dWc4L9hGF8Bm3YzF+GBSgsw2q
+         aswDFZFRYK4BFb7vRGB7lKcjh2kcFvW/mWbI7B3cxBlg6AdKFYVDQGHwlL0GJqUwAa9W
+         GxK1VkQk5DPsFuM617Y8Gtbbqf8l1lwyk9O09fgtIXxq3tHK2HD/5cYH3CZcgxLvx1O5
+         /GnQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=8u76RWuslWz/+1eO9L8VcWwCr1NOOKvt1bvBaQnvT00=;
-        b=YZLTwwtJS4q5LqojY+w51/c8QoL3xvmwf4WN+SLIQoW0FzrSySppRQmLZy15ny62tB
-         2/1hNZ1jE7p57Vhd9u8OEn6aDRr0FLsZfHZSxsZ0qOSwiI8lWuNNwgDJccsS1+hRtlQw
-         icVAGgV5ycBJWbrQWyOk3ECLeaZ/vWaSQhCXTnNoqK2mQl+iO6XBW+Jf3enT0B97PNYL
-         qJUH6uVwdkp0lS3vqCLoq0kB53EEuLlwY1RXjK1nlsYZBbhfzoviiZt17K2yDtCH+kMi
-         PwHYJy321grhm/psCpQvIc2RKfUsE5VAv7hRGzfSjFgb6aY2+rzkml77mRujlduroYO2
-         yTHg==
+        h=mime-version:content-transfer-encoding:content-language
+         :accept-language:message-id:date:thread-index:thread-topic:subject
+         :to:from:dkim-signature;
+        bh=LYzMQyAhasE0Q2EE9k+wuIbZo9QNt5Qwmj9eKemqg2Q=;
+        b=uZZnoXMG2A7OTKwOs8dlrJqLwJC11jI5F6WXLGCbYFwA1x+KfAvwiFjOcJo5XFBK5q
+         e3nsxuqJt6bM1Kp8DqXtu/koZu+K12UhF60zv84QRTiOdkzQNoEJ+dNIEtcHdwGVKUzD
+         Gh7z3e90eTij1Geb8+IkjxTjmJQaB3h7RgMEuN2p9Ihu05pye6qfKDwQZO5RCN0mSs/d
+         P66kVD1n8H95hhJ+gSrj732/+sFrH+32HpP04/uZs83Ye+ANewiBy+tgij/LMJk+xJYz
+         XEAuNzkA8/yDIlKBpHwpE3j7uk484tithe7etCfh+ryePpHyA9+9WsqqV/M7oigEFSt+
+         AM1g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from suse.de (nat.nue.novell.com. [195.135.221.2])
-        by mx.google.com with ESMTP id e49si722708ede.155.2019.04.01.00.52.13
-        for <linux-mm@kvack.org>;
-        Mon, 01 Apr 2019 00:52:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) client-ip=195.135.221.2;
+       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=fu257IWz;
+       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.131.49 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
+Received: from APC01-SG2-obe.outbound.protection.outlook.com (mail-eopbgr1310049.outbound.protection.outlook.com. [40.107.131.49])
+        by mx.google.com with ESMTPS id m16si5372786pls.150.2019.04.01.00.56.24
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Apr 2019 00:56:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.131.49 as permitted sender) client-ip=40.107.131.49;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: by suse.de (Postfix, from userid 1000)
-	id 9C2D3479D; Mon,  1 Apr 2019 09:52:12 +0200 (CEST)
-Date: Mon, 1 Apr 2019 09:52:12 +0200
-From: Oscar Salvador <osalvador@suse.de>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, david@redhat.com,
-	dan.j.williams@intel.com, Jonathan.Cameron@huawei.com,
-	anshuman.khandual@arm.com, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH 0/4] mm,memory_hotplug: allocate memmap from hotadded
- memory
-Message-ID: <20190401075204.zaxgmgyrejjaq3az@d104.suse.de>
-References: <20190328134320.13232-1-osalvador@suse.de>
- <91cfdf41-ef43-1f18-36b8-806e246538a0@nvidia.com>
+       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=fu257IWz;
+       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.131.49 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=eInfochipsIndia.onmicrosoft.com; s=selector1-einfochips-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=LYzMQyAhasE0Q2EE9k+wuIbZo9QNt5Qwmj9eKemqg2Q=;
+ b=fu257IWzaYjElFdZWx14YVvZCid8fR0BT0r50IOozhVKYWTEBBwwif2jgZL+3xbP6sly7BGutJL29dHbUavnCCO1PijxOCXKjmnAl8Bmn87lS+dF4gd6awyFBT2zH+NlptSefDDbhnzaZhAYX/1t25iiZ8trBHixx+8RzBXMkwQ=
+Received: from SG2PR02MB3098.apcprd02.prod.outlook.com (20.177.88.78) by
+ SG2PR02MB3800.apcprd02.prod.outlook.com (20.177.170.202) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1750.15; Mon, 1 Apr 2019 07:56:21 +0000
+Received: from SG2PR02MB3098.apcprd02.prod.outlook.com
+ ([fe80::f432:20e4:2d22:e60b]) by SG2PR02MB3098.apcprd02.prod.outlook.com
+ ([fe80::f432:20e4:2d22:e60b%4]) with mapi id 15.20.1750.017; Mon, 1 Apr 2019
+ 07:56:21 +0000
+From: Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: CMA area pages information
+Thread-Topic: CMA area pages information
+Thread-Index: AQHU6GA9RylraT4uwk+04/PdjD+qFg==
+Date: Mon, 1 Apr 2019 07:56:21 +0000
+Message-ID:
+ <SG2PR02MB30986806577CDA3F568553B6E8550@SG2PR02MB3098.apcprd02.prod.outlook.com>
+Accept-Language: en-GB, en-US
+Content-Language: en-GB
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=pankaj.suryawanshi@einfochips.com; 
+x-originating-ip: [14.98.130.2]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 577af18c-ac62-4bb6-b688-08d6b67787b8
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600139)(711020)(4605104)(4534185)(7168020)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7153060)(7193020);SRVR:SG2PR02MB3800;
+x-ms-traffictypediagnostic: SG2PR02MB3800:
+x-microsoft-antispam-prvs:
+ <SG2PR02MB3800A83B5C0237FE40076143E8550@SG2PR02MB3800.apcprd02.prod.outlook.com>
+x-forefront-prvs: 0994F5E0C5
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(396003)(346002)(366004)(136003)(39840400004)(376002)(189003)(199004)(25786009)(3480700005)(478600001)(14454004)(486006)(81156014)(81166006)(5660300002)(86362001)(8676002)(186003)(7736002)(6116002)(52536014)(66066001)(74316002)(33656002)(2906002)(6436002)(106356001)(55016002)(9686003)(476003)(55236004)(102836004)(68736007)(26005)(53936002)(3846002)(110136005)(7696005)(6506007)(8936002)(316002)(2501003)(305945005)(97736004)(105586002)(71190400001)(99286004)(71200400001)(256004)(14444005)(5024004)(44832011)(66574012)(78486014);DIR:OUT;SFP:1101;SCL:1;SRVR:SG2PR02MB3800;H:SG2PR02MB3098.apcprd02.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: einfochips.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ apC02R6Y7AZkWJ+7rOENAjEqxNb041Yq7vW7Nyw9ihtrVE0DGBk/rGQjYToFai8iPPvp4Yv1Wx+8z4ux0d9WsYsq48YuaathoS0ZlMBTdUsscDaQTkBKdn/IMfE4FQIMUITTgPXFdrne5bfeIvguH/oKv8oR/vgtibdJg6FGQFOyjb6CEs1rgdT60p66clTFnZMRXY2HFzU8qz2JyRkcRFvmQsY1F58XjR509rIRkNh1N//+RbZbfjKDv5Lm7R40cS6cGR3iB5T81BzF56Jf3MvltTNGA+sscQxj4BX3sGW6wR6jm1DOlalMB8F78BWNzSazAD2XkMrHzyhtomXHFxlDW4nuziOWqBb9D5jyFtutA2wROjkZjL0AVElWQz3nj63zQcNcT6P20eDioTEBgrnKFMRYXaR2//AmpAqpkXw=
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <91cfdf41-ef43-1f18-36b8-806e246538a0@nvidia.com>
-User-Agent: NeoMutt/20170421 (1.8.2)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+X-OriginatorOrg: einfochips.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 577af18c-ac62-4bb6-b688-08d6b67787b8
+X-MS-Exchange-CrossTenant-originalarrivaltime: 01 Apr 2019 07:56:21.2916
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 0adb040b-ca22-4ca6-9447-ab7b049a22ff
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: SG2PR02MB3800
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000566, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 29, 2019 at 03:23:00PM -0700, John Hubbard wrote:
-> On 3/28/19 6:43 AM, Oscar Salvador wrote:
-> > Hi,
-> > 
-> > since last two RFCs were almost unnoticed (thanks David for the feedback),
-> > I decided to re-work some parts to make it more simple and give it a more
-> > testing, and drop the RFC, to see if it gets more attention.
-> > I also added David's feedback, so now all users of add_memory/__add_memory/
-> > add_memory_resource can specify whether they want to use this feature or not.
-> > I also fixed some compilation issues when CONFIG_SPARSEMEM_VMEMMAP is not set.
-> > 
-> 
-> Hi Oscar, say, what tree and/or commit does this series apply to? I'm having some
-> trouble finding the right place. Sorry for the easy question, I did try quite
-> a few trees already...
+Hello,
 
-Hi John, I somehow forgot to mention it in the cover-letter, sorry.
-This patchsed is based on v5.1-rc2-31-gece06d4a8149 + the following fixes
-on top:
+Is there any way to get CMA area pages information (tool/application) ?
 
-* https://patchwork.kernel.org/patch/10862609/
-* https://patchwork.kernel.org/patch/10862611/
-* https://patchwork.kernel.org/patch/10853049/
-
--- 
-Oscar Salvador
-SUSE L3
+Regards,
+Pankaj
+***************************************************************************=
+***************************************************************************=
+******* eInfochips Business Disclaimer: This e-mail message and all attachm=
+ents transmitted with it are intended solely for the use of the addressee a=
+nd may contain legally privileged and confidential information. If the read=
+er of this message is not the intended recipient, or an employee or agent r=
+esponsible for delivering this message to the intended recipient, you are h=
+ereby notified that any dissemination, distribution, copying, or other use =
+of this message or its attachments is strictly prohibited. If you have rece=
+ived this message in error, please notify the sender immediately by replyin=
+g to this message and please delete it from your computer. Any views expres=
+sed in this message are those of the individual sender unless otherwise sta=
+ted. Company has taken enough precautions to prevent the spread of viruses.=
+ However the company accepts no liability for any damage caused by any viru=
+s transmitted by this email. **********************************************=
+***************************************************************************=
+************************************
 
