@@ -2,221 +2,180 @@ Return-Path: <SRS0=sWz3=SD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-12.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,FSL_HELO_FAKE,HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 14058C43381
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 18:34:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 16CA1C4360F
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 18:43:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8F60C206C0
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 18:34:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BD7862086C
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 18:43:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="eDYAXQ27"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8F60C206C0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=synopsys.com header.i=@synopsys.com header.b="J7CZLbqC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BD7862086C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=synopsys.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0ED6C6B0006; Mon,  1 Apr 2019 14:34:32 -0400 (EDT)
+	id 48F756B0005; Mon,  1 Apr 2019 14:43:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 074656B0008; Mon,  1 Apr 2019 14:34:32 -0400 (EDT)
+	id 43E5C6B0008; Mon,  1 Apr 2019 14:43:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EA6CB6B000A; Mon,  1 Apr 2019 14:34:31 -0400 (EDT)
+	id 2BA356B000A; Mon,  1 Apr 2019 14:43:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C44686B0006
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 14:34:31 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id k5so8946213ioh.13
-        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 11:34:31 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DD2CD6B0005
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 14:43:33 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id n23so8031604plp.23
+        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 11:43:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=+53egRqiXPQZ9EJ7mGipuGA/l/Y4XVrW1UL2Rjyi1aY=;
-        b=BkYWpu0mf4j7v5y/5FKwEwtSRfzMax5BdRjn9igsnEEdzfaq31P9upcVQKYif24yt5
-         dAf71npHEDd0Mf44Sty6VN6aN2QMTy6GQyYS4EBQKF+kDyIoQohqlbGVqaAbgyYrxlV1
-         084T4G707yiywFdQCyE4PBpnZi0Wi8OZmYZR5aSbtOyHY5mmha9/JBYuQeKNkw5k8XpW
-         gwPRsaR5YMTTYKk/0r1gHVJnf1eBxB81YzRis19aw2lXlSyWTKHed53tGSODuvnXI+BC
-         ub11HC0QmIonlAF79M4GSUsrysMa85d/IPrmqtCRwyLEGmDdlp42sSOXRsDG3a65Q3ph
-         vkiw==
-X-Gm-Message-State: APjAAAXpxtWOAcVnIkijfHzcW0NE2NGv3IZIxt7pEVtK6SrJ8Y2ZKtFA
-	iKs5WJ5ZXrgU6Xsj4DdziFp8Yk9K48ZpAO2EviYRHZx8CEj0bOtU7ODwp4Y4kqa4kTlH8hP1tXA
-	A7QThDelyQ5DKZ9Uvv7jEli9Rlb/JoRz89OWkNICaN7ufljtH4qWSR/EUPCi5665qSQ==
-X-Received: by 2002:a24:68c8:: with SMTP id v191mr866222itb.75.1554143671445;
-        Mon, 01 Apr 2019 11:34:31 -0700 (PDT)
-X-Received: by 2002:a24:68c8:: with SMTP id v191mr866172itb.75.1554143670628;
-        Mon, 01 Apr 2019 11:34:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554143670; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=iRhBAjZz3mos7qscT7fOqIQ3MmerevvmfVCbbH+MZvA=;
+        b=sMxubJVmjgfMc0zq1u10Gqjmbsp43qiey+2iZ+MgbsoV5qaJm7lEJHV7Df0v7Guo5v
+         +aQCATv3r9COhQzQWHvffw9bXmwnjRBVwO1Dm8ypn7RUhN/yORvj1d3wPao49TI+xKxn
+         Fm0BCD+a/49cnuwrXcS/l+U7kgr4hpXZJ/dACxrbAHy4IxyDxPQ022/uDoNd9B7ghpFL
+         mmHlGG/XwsiBHqxgeQJG2xibk34j+2+4e+bl9ZejBm/bxp/xdmSlxEH+WeXTUur+X+Nw
+         oCO40zXo30o5UAyN0pZc86A7IQ3VZ+Y7DNH9oCjAzU6BzE6odfJpadAXcth36h910zQ8
+         apJA==
+X-Gm-Message-State: APjAAAVDabUSXYsKV4zg3UljkMARZH8LNeI9UcXPHTGPE5FPEodtkktS
+	X1ykkM2OSu0vI9yPF0ehqtCyTLiQEbaEJ2uwJW7usDpHC+SoHwBywnGw4pHhJ8t1hfnxQWQJGlK
+	cntb0EGGEfsIPHZy4lmkH90HsT69XLkycirPm5TH71aV/rOWjod+L6HngW+bS7CmLDg==
+X-Received: by 2002:a65:625a:: with SMTP id q26mr6654433pgv.68.1554144213400;
+        Mon, 01 Apr 2019 11:43:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw1W5cvXA9Z+5LT1XyjIpl9Sw4UOWiw0tNf8sDx1DNwxlxeWRjiWlnLoDYICNm5zqbBw4MM
+X-Received: by 2002:a65:625a:: with SMTP id q26mr6654352pgv.68.1554144212255;
+        Mon, 01 Apr 2019 11:43:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554144212; cv=none;
         d=google.com; s=arc-20160816;
-        b=kLwPcZl4RLaCp6gnaA76QHJfxUBtsxgQcSFWl38NVrVkc3r0rTKcDmozHguRQ5XQuI
-         BynmTcAwUB1WBxQ9dS7jDFzgZX+eu8Nr3qlhuPoMrCJe+LOx7A00mbp0pBCYTcrw5QUx
-         1hBZrBvAmxyuW/j1+A8k0isXyHT3mAYO0HkP+j3q65mroNY8KH573KWABjNM/beowFuD
-         uJjqmo21Er7ZwM1QiUpNcZk7xjn5r8Dk7AcnHnlWjmtLbc+7mjbfs6JP9DQIUJf5eBiX
-         ltkOLL6mrZVENjPOcFGQC+ai4JN4qioGrfq3by9B4VJfZeQG8lJuj/mS0jqEyEEiTVO+
-         YG1g==
+        b=GrgjC1tHm8OaZs548pzvZNfNJN/jZEGh37rrNKm7Wzy6vtVHrvdQV/9UTciCFLBqUb
+         7Cot/T9+XlyqgGUwe09E71Xti8SLxHtzSYmmPL2Z7Y44YCCuV9YRAAcMoRVJIYxm4Ip1
+         sSJJGFvD9x/JodQXCTtPQzQnzDbqxspfWgD8pDnfG1Cohb0S/O3g4mgEazrM/GSeaVya
+         p8p4d6ICIWGEE8fgoJpUNZsu6ozBn7a0yizCAkfKqdnqyeWfHNajByopmTatDCfOQ5aQ
+         SJXXzAPs0hFHowJOvTQA/K0Q4eUhyq6QWI4KuaALm5Auxz2DqAMXLlcvnTrS06bgbFXW
+         d/Kw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=+53egRqiXPQZ9EJ7mGipuGA/l/Y4XVrW1UL2Rjyi1aY=;
-        b=B+GbVwFa/XedmsF2+v13jm4dxo/D0YBBoYY2dIQH+908MeXsosYVBPJbl2zOFmXoRy
-         cci8zz/ItrDPxKAnUyTbnH5Vt3ToYDh/KG5ZZ548VVhEL3uV+N6zkclqXP6/nb60BSZ7
-         /ek/HAxY8b0yBRYIlQpQEpmwnW55qfBEU/j36e5NAGNnZDDnVTyBN69OrUpqIFjFXZhW
-         aN4HGjDbEGnUl/I2kyGiRq55XnB4hY2/2eUKISnrYoTzpQ4cA5kgL+2CtP76C/5YVDRG
-         QhFmdvbWGjZkEeqcF9aM04lID7coRVDlw90F2psF35Fr/0FjTE+6yGgV8dedHZ6DtJMr
-         lmxw==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=iRhBAjZz3mos7qscT7fOqIQ3MmerevvmfVCbbH+MZvA=;
+        b=FdXfxEl2EgOlV5oMnM6IIIZICbJJFJ0/ciP6I33ZFTEYPMTh63U/HlqrFyNZNisyiK
+         pRBQ01rq5GQwTfonoihrlz7ZR+N7D0cOvpyhM1JdDBHLUSx/jL53Kbd3eL9lGyvjT88x
+         Vyrbq6/72XPU9wXjtJ+8xHwutxmjpyngVyQMbkBwoTkN3wlvP1R9+h28+xcT9v0h2+V9
+         /UxsaNOHAV9fxiMx60tl2G3SDmAWO6G4GjvZRnkQo6ZvUBfZFZKMbjw/6kWIqJvgPGkS
+         T+ZFUCvr59SLEH2pgHgwgNJQtzu9/Rzgi4dmYQz+GBrVH+dRjXXUm8YDnarh6x03kC0n
+         PNbg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=eDYAXQ27;
-       spf=pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yuzhao@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y2sor29218317jaf.2.2019.04.01.11.34.30
+       dkim=pass header.i=@synopsys.com header.s=mail header.b=J7CZLbqC;
+       spf=pass (google.com: domain of eugeniy.paltsev@synopsys.com designates 198.182.47.9 as permitted sender) smtp.mailfrom=eugeniy.paltsev@synopsys.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=synopsys.com
+Received: from smtprelay.synopsys.com (smtprelay.synopsys.com. [198.182.47.9])
+        by mx.google.com with ESMTPS id c7si9219155plo.274.2019.04.01.11.43.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 01 Apr 2019 11:34:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Apr 2019 11:43:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of eugeniy.paltsev@synopsys.com designates 198.182.47.9 as permitted sender) client-ip=198.182.47.9;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=eDYAXQ27;
-       spf=pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yuzhao@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=+53egRqiXPQZ9EJ7mGipuGA/l/Y4XVrW1UL2Rjyi1aY=;
-        b=eDYAXQ27VoAC7+Qv2snc75BOR1No525mPjeUWUBN5ZQDYffbsqG/JAEpAH9plTZBA0
-         5QmkBdG4vPydgQz3g+pjFgQ4jijgIhtJyqRsUK5t/K4TAfbQZYzCrT65jMljFU3smoXr
-         UKSrVqXcCFe1wRXufXWRK2iP3IMDew4disNuXDBwoAQQJy8U6LuDHjnfwAqC/z9XlC/8
-         HWrJWMHSvyu2n2yiznM6WDQnPb8F6iPT16jnODrqnMGVN5XL11J1qYeRVdQ4N/DPqWU0
-         R248eZh5XqtP72GF5x2vj0EQ4xoI8XZXcbt4Jw6T/DYJPyGnrOHJpr3tHK6mDdQKQCZE
-         2NcA==
-X-Google-Smtp-Source: APXvYqzZTl9HjDi6RnxdmwsZz5YNWY2r4EgOJRkxEpWp2zd2bQ6DyUFaMDMtV9M2qFewuWS4RaLmhw==
-X-Received: by 2002:a02:938f:: with SMTP id z15mr9224027jah.108.1554143670032;
-        Mon, 01 Apr 2019 11:34:30 -0700 (PDT)
-Received: from google.com ([2620:15c:183:0:a0c3:519e:9276:fc96])
-        by smtp.gmail.com with ESMTPSA id f9sm4571750ioo.24.2019.04.01.11.34.29
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 01 Apr 2019 11:34:29 -0700 (PDT)
-Date: Mon, 1 Apr 2019 12:34:25 -0600
-From: Yu Zhao <yuzhao@google.com>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org,
-	linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com,
-	mark.rutland@arm.com, suzuki.poulose@arm.com, marc.zyngier@arm.com,
-	christoffer.dall@arm.com, james.morse@arm.com,
-	julien.thierry@arm.com, kvmarm@lists.cs.columbia.edu
-Subject: Re: [PATCH V2] KVM: ARM: Remove pgtable page standard functions from
- stage-2 page tables
-Message-ID: <20190401183425.GA106130@google.com>
-References: <3be0b7e0-2ef8-babb-88c9-d229e0fdd220@arm.com>
- <1552397145-10665-1-git-send-email-anshuman.khandual@arm.com>
- <20190401161638.GB22092@fuggles.cambridge.arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190401161638.GB22092@fuggles.cambridge.arm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       dkim=pass header.i=@synopsys.com header.s=mail header.b=J7CZLbqC;
+       spf=pass (google.com: domain of eugeniy.paltsev@synopsys.com designates 198.182.47.9 as permitted sender) smtp.mailfrom=eugeniy.paltsev@synopsys.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=synopsys.com
+Received: from mailhost.synopsys.com (dc8-mailhost2.synopsys.com [10.13.135.210])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by smtprelay.synopsys.com (Postfix) with ESMTPS id C09B424E28DF;
+	Mon,  1 Apr 2019 11:43:31 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=synopsys.com; s=mail;
+	t=1554144211; bh=/Sb7ii47xyMFrm/jOGOPlK+eRZjqEj1UcszpvGYSL8I=;
+	h=From:To:Cc:Subject:Date:From;
+	b=J7CZLbqCx4x40b0IM111kgO1xvCa3+eNV0vw9VEw4Mm4R+gH9uOj9ZyDyY8r297Si
+	 ZETjNFWMPNAvY89KyNw2HgiyxZe5wOUxqGE5WPnQMoF/AlmPKdIRMp6LVt7HNJqen8
+	 WqTsrKDOGZNLEiIvwJxQ0ZUrYnFCdRYIdlk4NPUgZJQ576UUeGaUpUPOSG+2Q7CR7Q
+	 +zPcx3ksdIieGe1Buv6zy7ReGn8pcAtQe/N0qbE/c/hou4YVTz1tbyqoEd36nwGeoE
+	 AVGOGd1KIefSdMD+mY+g5/zCgynBfA0EE/1ZEjUvd/4M1tT4l5oQmNrCalqE/et1yy
+	 NVRV4jJP/uKXA==
+Received: from paltsev-e7480.internal.synopsys.com (paltsev-e7480.internal.synopsys.com [10.121.8.106])
+	by mailhost.synopsys.com (Postfix) with ESMTP id C4D20A005A;
+	Mon,  1 Apr 2019 18:43:29 +0000 (UTC)
+From: Eugeniy Paltsev <eugeniy.paltsev@synopsys.com>
+To: linux-snps-arc@lists.infradead.org,
+	Vineet Gupta <vineet.gupta1@synopsys.com>
+Cc: linux-kernel@vger.kernel.org,
+	Alexey Brodkin <alexey.brodkin@synopsys.com>,
+	linux-arch@vger.kernel.org, linux-mm@kvack.org,
+	Eugeniy Paltsev <eugeniy.paltsev@synopsys.com>
+Subject: [PATCH] ARC: fix memory nodes topology in case of highmem enabled
+Date: Mon,  1 Apr 2019 21:42:42 +0300
+Message-Id: <20190401184242.7636-1-Eugeniy.Paltsev@synopsys.com>
+X-Mailer: git-send-email 2.14.5
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 01, 2019 at 05:16:38PM +0100, Will Deacon wrote:
-> [+KVM/ARM folks, since I can't take this without an Ack in place from them]
-> 
-> My understanding is that this patch is intended to replace patch 3/4 in
-> this series:
-> 
-> http://lists.infradead.org/pipermail/linux-arm-kernel/2019-March/638083.html
+Tweak generic node topology in case of CONFIG_HIGHMEM enabled to
+prioritize allocations from ZONE_HIGHMEM to avoid ZONE_NORMAL
+pressure.
 
-Yes, and sorry for the confusion. I could send an updated series once
-this patch is merged. Thanks.
+Signed-off-by: Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
+---
+Tested on both NSIM and HSDK (require memory apertures remmaping and
+device tree patching)
 
-> On Tue, Mar 12, 2019 at 06:55:45PM +0530, Anshuman Khandual wrote:
-> > ARM64 standard pgtable functions are going to use pgtable_page_[ctor|dtor]
-> > or pgtable_pmd_page_[ctor|dtor] constructs. At present KVM guest stage-2
-> > PUD|PMD|PTE level page tabe pages are allocated with __get_free_page()
-> > via mmu_memory_cache_alloc() but released with standard pud|pmd_free() or
-> > pte_free_kernel(). These will fail once they start calling into pgtable_
-> > [pmd]_page_dtor() for pages which never originally went through respective
-> > constructor functions. Hence convert all stage-2 page table page release
-> > functions to call buddy directly while freeing pages.
-> > 
-> > Reviewed-by: Suzuki K Poulose <suzuki.poulose@arm.com>
-> > Acked-by: Yu Zhao <yuzhao@google.com>
-> > Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
-> > ---
-> > Changes in V2:
-> > 
-> > - Updated stage2_pud_free() with NOP as per Suzuki
-> > - s/__free_page/free_page/ in clear_stage2_pmd_entry() for uniformity
-> > 
-> >  arch/arm/include/asm/stage2_pgtable.h   | 4 ++--
-> >  arch/arm64/include/asm/stage2_pgtable.h | 4 ++--
-> >  virt/kvm/arm/mmu.c                      | 2 +-
-> >  3 files changed, 5 insertions(+), 5 deletions(-)
-> > 
-> > diff --git a/arch/arm/include/asm/stage2_pgtable.h b/arch/arm/include/asm/stage2_pgtable.h
-> > index de2089501b8b..fed02c3b4600 100644
-> > --- a/arch/arm/include/asm/stage2_pgtable.h
-> > +++ b/arch/arm/include/asm/stage2_pgtable.h
-> > @@ -32,14 +32,14 @@
-> >  #define stage2_pgd_present(kvm, pgd)		pgd_present(pgd)
-> >  #define stage2_pgd_populate(kvm, pgd, pud)	pgd_populate(NULL, pgd, pud)
-> >  #define stage2_pud_offset(kvm, pgd, address)	pud_offset(pgd, address)
-> > -#define stage2_pud_free(kvm, pud)		pud_free(NULL, pud)
-> > +#define stage2_pud_free(kvm, pud)		do { } while (0)
-> >  
-> >  #define stage2_pud_none(kvm, pud)		pud_none(pud)
-> >  #define stage2_pud_clear(kvm, pud)		pud_clear(pud)
-> >  #define stage2_pud_present(kvm, pud)		pud_present(pud)
-> >  #define stage2_pud_populate(kvm, pud, pmd)	pud_populate(NULL, pud, pmd)
-> >  #define stage2_pmd_offset(kvm, pud, address)	pmd_offset(pud, address)
-> > -#define stage2_pmd_free(kvm, pmd)		pmd_free(NULL, pmd)
-> > +#define stage2_pmd_free(kvm, pmd)		free_page((unsigned long)pmd)
-> >  
-> >  #define stage2_pud_huge(kvm, pud)		pud_huge(pud)
-> >  
-> > diff --git a/arch/arm64/include/asm/stage2_pgtable.h b/arch/arm64/include/asm/stage2_pgtable.h
-> > index 5412fa40825e..915809e4ac32 100644
-> > --- a/arch/arm64/include/asm/stage2_pgtable.h
-> > +++ b/arch/arm64/include/asm/stage2_pgtable.h
-> > @@ -119,7 +119,7 @@ static inline pud_t *stage2_pud_offset(struct kvm *kvm,
-> >  static inline void stage2_pud_free(struct kvm *kvm, pud_t *pud)
-> >  {
-> >  	if (kvm_stage2_has_pud(kvm))
-> > -		pud_free(NULL, pud);
-> > +		free_page((unsigned long)pud);
-> >  }
-> >  
-> >  static inline bool stage2_pud_table_empty(struct kvm *kvm, pud_t *pudp)
-> > @@ -192,7 +192,7 @@ static inline pmd_t *stage2_pmd_offset(struct kvm *kvm,
-> >  static inline void stage2_pmd_free(struct kvm *kvm, pmd_t *pmd)
-> >  {
-> >  	if (kvm_stage2_has_pmd(kvm))
-> > -		pmd_free(NULL, pmd);
-> > +		free_page((unsigned long)pmd);
-> >  }
-> >  
-> >  static inline bool stage2_pud_huge(struct kvm *kvm, pud_t pud)
-> > diff --git a/virt/kvm/arm/mmu.c b/virt/kvm/arm/mmu.c
-> > index e9d28a7ca673..cbfbdadca8a5 100644
-> > --- a/virt/kvm/arm/mmu.c
-> > +++ b/virt/kvm/arm/mmu.c
-> > @@ -191,7 +191,7 @@ static void clear_stage2_pmd_entry(struct kvm *kvm, pmd_t *pmd, phys_addr_t addr
-> >  	VM_BUG_ON(pmd_thp_or_huge(*pmd));
-> >  	pmd_clear(pmd);
-> >  	kvm_tlb_flush_vmid_ipa(kvm, addr);
-> > -	pte_free_kernel(NULL, pte_table);
-> > +	free_page((unsigned long)pte_table);
-> >  	put_page(virt_to_page(pmd));
-> >  }
-> >  
-> > -- 
-> > 2.20.1
-> > 
+ arch/arc/include/asm/Kbuild     |  1 -
+ arch/arc/include/asm/topology.h | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 1 deletion(-)
+ create mode 100644 arch/arc/include/asm/topology.h
+
+diff --git a/arch/arc/include/asm/Kbuild b/arch/arc/include/asm/Kbuild
+index caa270261521..e64e0439baff 100644
+--- a/arch/arc/include/asm/Kbuild
++++ b/arch/arc/include/asm/Kbuild
+@@ -18,7 +18,6 @@ generic-y += msi.h
+ generic-y += parport.h
+ generic-y += percpu.h
+ generic-y += preempt.h
+-generic-y += topology.h
+ generic-y += trace_clock.h
+ generic-y += user.h
+ generic-y += vga.h
+diff --git a/arch/arc/include/asm/topology.h b/arch/arc/include/asm/topology.h
+new file mode 100644
+index 000000000000..c273506931c9
+--- /dev/null
++++ b/arch/arc/include/asm/topology.h
+@@ -0,0 +1,30 @@
++#ifndef _ASM_ARC_TOPOLOGY_H
++#define _ASM_ARC_TOPOLOGY_H
++
++/*
++ * On ARC (w/o PAE) HIGHMEM addresses are smaller (0x0 based) than addresses in
++ * NORMAL aka low memory (0x8000_0000 based).
++ * Thus HIGHMEM on ARC is imlemented with DISCONTIGMEM which requires multiple
++ * nodes. So here is memory node map depending on the CONFIG_HIGHMEM
++ * enabled/disabled:
++ *
++ * CONFIG_HIGHMEM disabled:
++ *  - node 0: ZONE_NORMAL memory only.
++ *
++ * CONFIG_HIGHMEM enabled:
++ *  - node 0: ZONE_NORMAL memory only.
++ *  - node 1: ZONE_HIGHMEM memory only.
++ *
++ * In case of CONFIG_HIGHMEM enabled we tweak generic node topology and mark
++ * node 1 as the closest to all CPUs to prioritize allocations from ZONE_HIGHMEM
++ * where it is possible to avoid ZONE_NORMAL pressure.
++ */
++#ifdef CONFIG_HIGHMEM
++#define cpu_to_node(cpu)	((void)(cpu), 1)
++#define cpu_to_mem(cpu)		((void)(cpu), 1)
++#define cpumask_of_node(node)	((node) == 1 ? cpu_online_mask : cpu_none_mask)
++#endif /* CONFIG_HIGHMEM */
++
++#include <asm-generic/topology.h>
++
++#endif /* _ASM_ARC_TOPOLOGY_H */
+-- 
+2.14.5
 
