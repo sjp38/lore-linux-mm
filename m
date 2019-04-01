@@ -2,213 +2,132 @@ Return-Path: <SRS0=sWz3=SD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=0.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FORGED_YAHOO_RCVD,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A5E9C43381
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 07:49:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6E3C2C43381
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 07:51:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E3859213A2
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 07:49:18 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2DB7920857
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 07:51:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=eInfochipsIndia.onmicrosoft.com header.i=@eInfochipsIndia.onmicrosoft.com header.b="UQowoQFx"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E3859213A2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=einfochips.com
+	dkim=pass (2048-bit key) header.d=yahoo.com header.i=@yahoo.com header.b="rESWC5p9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2DB7920857
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=yahoo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 51A7F6B0006; Mon,  1 Apr 2019 03:49:18 -0400 (EDT)
+	id B0D4E6B0006; Mon,  1 Apr 2019 03:51:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4CB816B0008; Mon,  1 Apr 2019 03:49:18 -0400 (EDT)
+	id ABCD66B0008; Mon,  1 Apr 2019 03:51:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 345FB6B000A; Mon,  1 Apr 2019 03:49:18 -0400 (EDT)
+	id 9AFF86B000A; Mon,  1 Apr 2019 03:51:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E79B46B0006
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 03:49:17 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id i23so6668641pfa.0
-        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 00:49:17 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 586B86B0006
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 03:51:35 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id 42so6891457pld.8
+        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 00:51:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-transfer-encoding:mime-version;
-        bh=YzDRcL5HGApuuS9OTyrFpea3LHxiQCjmBLdxl0rre0Q=;
-        b=c+6St21UogcACxnfGtjOxIZ3+9+Pz1ZvFL1Cu8l504eQY7YDeOr7uX93yhuVt3ZdU5
-         tHkp1Lg+ubHveZiRe46l9yUnnuTViK0qHPS9N5ksp3xnyOaXbRdsLVnQ5wE8k/A6Fy17
-         lAI84CczatbcWwytostShSmJ8/6Nj1tQk7d/v2uSlC1YTodefcs7S4lrQFtZ0hqnypks
-         uaS+aboa3mSE54xc/5NsilzT7y/33o5hxqJW5ka4vDi2soZoblSoe8QdTpFfo4CggWxf
-         LFB6nL2UFOViKOXJ6TORoLu1f+WWcjUgkpU4ZjksrGHRGpypKFrosfBDOMG6Mc1yLK3U
-         7pWg==
-X-Gm-Message-State: APjAAAWM1bAjvHgGhuYlcdCcpYaAaC9wvyZtEAf46DPDHI961cpqs4t8
-	Nc3t90tBclpMa90Mt7dnKOnfUfFdFYPSapSyfCMJ1vHL1GHLySi+EnbxJLLVLpatdfjtU07CItd
-	5GrOF2JamUuWia0sSnY8aumyNo4Eo88WDjPUUoszotFjX8GyWWvtuWVGfLQhTM6CkNQ==
-X-Received: by 2002:a17:902:2e01:: with SMTP id q1mr63740004plb.253.1554104957431;
-        Mon, 01 Apr 2019 00:49:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyXsXBsS3btjS8i0bxduYFH9On2QZ+pMr+6C4x1XA06/I/wcV9ZFlCIMPzNxRSqcC7eaNel
-X-Received: by 2002:a17:902:2e01:: with SMTP id q1mr63739959plb.253.1554104956600;
-        Mon, 01 Apr 2019 00:49:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554104956; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:reply-to:to:message-id
+         :subject:mime-version:references;
+        bh=/jK0x4jxPwJw1KEinC3EyJB3XO5hELN4A3Ws6yUDMCs=;
+        b=X6lYIm0UHrqtdn6h/xQ8F/UN6HuJshYZzN8ZM9BSAqfyMMX/lSsHqu5wvsCsRWTUVB
+         un1yTZanymmLaoZ1Dn1LVbfhYoYu736lwxXRvV7Guiz+n1ikgv446OoB+1mdyNZ8MrUf
+         DQtEJ+1B22CfqcXKpkTC3uKbVAOb3fs39Ucykr6Zo8rDkLoHetU0ubF7/IYXbNYp31Jz
+         dxBtcWWRvHOGIrDvMddCvbSC5Jqo7GcHUnnLJ94bane8opvpxudiue5CPyGN0Ms/sgEp
+         AfaQvIpvZ9f0TR4/ZR05DUdCjwwjjOw258IaTBTkQe8ar+PJcjDWQJ2vwxJ0p/Bc79Zc
+         EFrA==
+X-Gm-Message-State: APjAAAX6lQNlOzt8QVz21qfZnVKfne8vC/HTKYaYDGKGjvb5zahf4g7H
+	5PmLGDgZN803eOPqUgwiEg39uwSzvIRokJLgst/c4/9ghIPbJ4zfCm88mLnNk4mLqH0MgOUd9nf
+	kfHuqgXguwQbSmqtdzTE7xKXhlmqS1S7WFymq8jHqxv4p1mM7jSAOHjq6vkV56ExM6w==
+X-Received: by 2002:a62:1385:: with SMTP id 5mr60666956pft.221.1554105094986;
+        Mon, 01 Apr 2019 00:51:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxp+qNKXOebinAu0LM+LiL0BGsuM+pWy86aHk09wf7XESk+SkMG5ObCV8K2JQDCPGwAehe8
+X-Received: by 2002:a62:1385:: with SMTP id 5mr60666905pft.221.1554105094077;
+        Mon, 01 Apr 2019 00:51:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554105094; cv=none;
         d=google.com; s=arc-20160816;
-        b=gshb9oaHVFW5/ilvSVqwGFSYeJR0BkVGR3UDy1gYhesLhERPHa2Amo43ACbYL1mnnZ
-         qCm5w+tDahrooyUqhEYPxsaP7QQabGCaRD+4ehiuAPuHJyFQ0vBNNtHjKznWI0sQ6NfQ
-         Q0954sqaAmbI04LdKBCoCUbZNGZQVGxRSPEc90ehf7x68rBRaWjto8BnThhQ8yWaqZGO
-         C3ZzR7522bCVipyXAPdhl7wFhh4knjbJeuh6WCvl9nHk8DeFz1LPNwsJBxkaqIXU2ozu
-         KhRnYStvpcFWhlKjsmCd4NXyyd6W6KivnJnAQf3JqoGAVWYATj+m1quUZtkd27CUEtz1
-         nPSQ==
+        b=AOcFbMPY+8QHqVcSJoCBB/4k2LRA+4IcrVc5JdXM0harE1ZdIl3j7cFQ/dIo7oXcQh
+         +5dsmJX3LMKp6mrYhHbntrdJXQ1RxtAuYoC+gUZiO2g/owVMLDJah6OI9x49Cocs5iF4
+         5sHKarjJloqCLvdvBVwqIjiJp4A6yNntcMqpb61oeNJ5Uh+5lseshiRzTO2mA/gCc/fQ
+         eH6BR9sdB9cx6bxpcj8AjcJZndFJaNO6U7K3wbsWJnA7Homo4zrUUbjeD2vKxhUrSPi6
+         EfI7z7JLeKPp1Rplj8pEHzuaAuLqc55B7NolMx3sfBxYoclbP7MlVO3HcRsizwXg8eZ2
+         fOjg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=YzDRcL5HGApuuS9OTyrFpea3LHxiQCjmBLdxl0rre0Q=;
-        b=IrdmPNp0s0CeHy03w8flyd21PdVvvjmBmyxiVi+rP5mJdYVVtMZe7x9lOfVSTtd/uW
-         H0DwD8C/2k5jAwz8SnG8bpzuS6Fd6fVl1T8FWKDqnEyyXuZkHnIu450ZmiskwVGtGpxX
-         D5uaw2Qi74KpDXYwNdODibPOwvkWAvB8rXj05QSkM8+lBzt0l2rhItFj+R9DLUVBfarG
-         HAwOjFll5gFjI2z0pGY5Me5ft4M+KQ9ePq5rkIjB3Hi2fAM6ionOK2ifAUWMfZWVXYMG
-         wgCN2dlY6su6B1D1LCdpkjgxWEZA1VCLKd0qn3B98RqXoZ3KKsfwp9J/rgLTKowMA2y8
-         HJkw==
+        h=references:mime-version:subject:message-id:to:reply-to:from:date
+         :dkim-signature;
+        bh=/jK0x4jxPwJw1KEinC3EyJB3XO5hELN4A3Ws6yUDMCs=;
+        b=L7jxkYBUezCG80KfpA9wq3c1zWqmd01Ed9Z+Uy92yV8r01ImT3gHWiXZJSv3iOeKuP
+         FNeDeMTRaDSbhO6iutSXxaCKGT7YYweQWTIVAsc/SI/3UNc7B8mqcU8fVxfURaLGAjXo
+         aOQV9s2jzMWZhiFFAKCH8GeSE19amB7hrvVQr7KbZdU3nJ/2DXVd3S0R+fS3bhG0tV5w
+         f64i2OG80n6ta8S60gmM7SqG7AXQiQDCPsEK//ZybfZkrIlbMN8hibCGkda+7YC76R/N
+         I1kchC5ec/wmmZKGqqE5FCO5jSW9eXiWFVM2argnBDbEWX0Re6d6ElQevhcDjM6QX5zC
+         vKIg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=UQowoQFx;
-       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.40 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
-Received: from APC01-HK2-obe.outbound.protection.outlook.com (mail-eopbgr1300040.outbound.protection.outlook.com. [40.107.130.40])
-        by mx.google.com with ESMTPS id m18si8188385pgl.483.2019.04.01.00.49.16
+       dkim=pass header.i=@yahoo.com header.s=s2048 header.b=rESWC5p9;
+       spf=pass (google.com: domain of suryawanshipankaj@yahoo.com designates 106.10.242.82 as permitted sender) smtp.mailfrom=suryawanshipankaj@yahoo.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=yahoo.com
+Received: from sonic301-19.consmr.mail.sg3.yahoo.com (sonic301-19.consmr.mail.sg3.yahoo.com. [106.10.242.82])
+        by mx.google.com with ESMTPS id i195si8346828pgd.521.2019.04.01.00.51.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Apr 2019 00:49:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.40 as permitted sender) client-ip=40.107.130.40;
+        Mon, 01 Apr 2019 00:51:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of suryawanshipankaj@yahoo.com designates 106.10.242.82 as permitted sender) client-ip=106.10.242.82;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=UQowoQFx;
-       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.40 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=eInfochipsIndia.onmicrosoft.com; s=selector1-einfochips-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=YzDRcL5HGApuuS9OTyrFpea3LHxiQCjmBLdxl0rre0Q=;
- b=UQowoQFxNN21liy4W9yXqRiN8MAwdTA7wVTjyQ5X1OllOaIcSLRU0YX+GuhQ9DzZ2OUZcexN189yy/0kR/KJ8udJr/rtJrW7ec0hkb9fSWfVIGqq4Jq5czj46HmsZWWI7BvJz/1J55zoW9HQ3CXRMhdhsEnp+mLjJX/n1/ZNYUk=
-Received: from SG2PR02MB3098.apcprd02.prod.outlook.com (20.177.88.78) by
- SG2PR02MB3372.apcprd02.prod.outlook.com (20.177.82.14) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1750.20; Mon, 1 Apr 2019 07:49:14 +0000
-Received: from SG2PR02MB3098.apcprd02.prod.outlook.com
- ([fe80::f432:20e4:2d22:e60b]) by SG2PR02MB3098.apcprd02.prod.outlook.com
- ([fe80::f432:20e4:2d22:e60b%4]) with mapi id 15.20.1750.017; Mon, 1 Apr 2019
- 07:49:14 +0000
-From: Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
-To: Matthew Wilcox <willy@infradead.org>
-CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+       dkim=pass header.i=@yahoo.com header.s=s2048 header.b=rESWC5p9;
+       spf=pass (google.com: domain of suryawanshipankaj@yahoo.com designates 106.10.242.82 as permitted sender) smtp.mailfrom=suryawanshipankaj@yahoo.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=yahoo.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yahoo.com; s=s2048; t=1554105092; bh=/jK0x4jxPwJw1KEinC3EyJB3XO5hELN4A3Ws6yUDMCs=; h=Date:From:Reply-To:To:Subject:References:From:Subject; b=rESWC5p9KIlvBvrMAw5VtUkAUiigSy6GaKTJZX+QxQt3cWq/HRCew5+c1LsZE9A9e5ombIiRpYGsttrhOXRKD+qCRadTD7B89raR4WOzE+yqJH+qJFg9n5m+WkUEXgEPY0TfnDhSe4MwhZTcq9XpUCD8vHQPRAAA8Z+qRnDdGkMhNa1KiA1CtYEB+zMfTHW1K14Vn6n+sn6fX1AH/WOqHji3z4Kh3q9FoSLCpY/d2mypXnq2rcrBZQPgjCCcDupkckmt7UZDvpv/X6yyClZNoEwJGrlqiA3EwwtihEBvEwYFNf6VUtl5AgJL1FALiLW0ezDaeiVfQ7D4gEfdq9RARA==
+X-YMail-OSG: tUCXzqwVM1kJyW8.4R3pZLGgcWB_yg10nYX_0D4NSeu23BPgVvlrgRFRFZ4JbCM
+ _XOBUWjXprhJ2WzF7YaMCSEY.IupOM1.wRJh60TZDopkMr4XmHRS7_Fm8Md5IDcJmZc2hpy67a9a
+ am0MgnM4W60OFFGKdcSrci3C6QgCaZruJe2drcP1CbInw7p.PIp3F8vhZ9ICz0jAdbXnvd0z6Gfb
+ bovfEonrAFlqe3hvthhPki8h10GGFMZH_H9BlRPehPkmtrV2cvOPPJhpRg4hQ2w5Op1w1GouGChW
+ GHoeqyys0iU3RA5te0CCtz5VOVsEIaRi27DLQdsogzSPGhMR63kX0pz9hNGfR3TFeT14jcL3Owt1
+ pmqmQh9YodBG3bV5HYmq9EAjbQ8g55zxq4ICSwNZjxJOMWBgCcFmZFp1Wg3cf6Od6tNaeHH_ZQoh
+ l2dmwd7QPJ85svHmvxa9oztFhGG6ZEDPHs_S55W7sFszBY_LhN43cJQ08_YgT9wQviZ1uy_tZ5UT
+ oSCpBPkj4YsNlljOwd6VqmloAl1d3uGGWHxHOigZsR.EDubtSwrMMlWb6C0cHWyFyi6R7jLaqdeP
+ N4h67oEGbwTxJkVYYfB0kMg9H6cNizZDupToef9jdsqaxGT5GfUPu91LljzTvtuj35T_imwu96BL
+ tfG_ZrTAdXVD4DGCYl0r7Tr0fJ4U_vppSOLrTjBYVf68X5EcSE2XLiXv8skH8GZtMANmi79bj.p_
+ JnVYPsUXBn8pKEZjETMW6ir1bG5tNR_TzjQNg66z9r9ZVEWmGAa3nqTFz2yAf5.4y.c2SR1vbsvu
+ DeNOY1YTtw_9.2WgiQqYLO6C_vmpavGxb5KcolHfhtsP13yvJykr_qxMjF2A426NAOjgws3v3eIX
+ 0.UAnumT4SUVZnU.NRQLIpEjKfsnGnrjwMml6opm.zvU7a93FwFOU_ZeV.ueOrmucVq1T879xhny
+ bJ.l_WEJNH2yT_qoXbULq1LKPMEp35yup._mUGl1zTRH36EiB4XHdcGZg2dRVGlgiXQZ2S.D_c7d
+ QVb8P0avfXmMmXmg7r3Y.PKOcu3fMCY1rq98fHskAL35vXrXHlrWKEw--
+Received: from sonic.gate.mail.ne1.yahoo.com by sonic301.consmr.mail.sg3.yahoo.com with HTTP; Mon, 1 Apr 2019 07:51:32 +0000
+Date: Mon, 1 Apr 2019 07:51:29 +0000 (UTC)
+From: Pankaj Suryawanshi <suryawanshipankaj@yahoo.com>
+Reply-To: Pankaj Suryawanshi <suryawanshipankaj@yahoo.com>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 
 	"linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: Re: [External] Re: Print map for total physical and virtual memory
-Thread-Topic: [External] Re: Print map for total physical and virtual memory
-Thread-Index: AQHU46nCeD1YOwMRP0e9ea2iKxtjwaYdyRyAgAAQFrWAAAJjAIAEO9QagATeRQE=
-Date: Mon, 1 Apr 2019 07:49:14 +0000
-Message-ID:
- <SG2PR02MB3098608C52BFEA600BDD7DD7E8550@SG2PR02MB3098.apcprd02.prod.outlook.com>
-References:
- <SG2PR02MB3098F980E1EB299853AC46E6E85F0@SG2PR02MB3098.apcprd02.prod.outlook.com>
- <20190326113657.GL10344@bombadil.infradead.org>
- <SG2PR02MB3098B0C0CD27969FB7C9ECD7E85F0@SG2PR02MB3098.apcprd02.prod.outlook.com>,<20190326124304.GN10344@bombadil.infradead.org>,<SG2PR02MB3098156002F7CCC46078B57AE85A0@SG2PR02MB3098.apcprd02.prod.outlook.com>
-In-Reply-To:
- <SG2PR02MB3098156002F7CCC46078B57AE85A0@SG2PR02MB3098.apcprd02.prod.outlook.com>
-Accept-Language: en-GB, en-US
-Content-Language: en-GB
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=pankaj.suryawanshi@einfochips.com; 
-x-originating-ip: [14.98.130.2]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: b6b2a6f9-2a74-4cdc-6148-08d6b676892a
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600139)(711020)(4605104)(4534185)(7168020)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7153060)(7193020);SRVR:SG2PR02MB3372;
-x-ms-traffictypediagnostic: SG2PR02MB3372:
-x-microsoft-antispam-prvs:
- <SG2PR02MB33723B015B64A815A7BB4407E8550@SG2PR02MB3372.apcprd02.prod.outlook.com>
-x-forefront-prvs: 0994F5E0C5
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(366004)(396003)(39840400004)(376002)(346002)(136003)(189003)(199004)(76176011)(33656002)(6436002)(14454004)(4326008)(25786009)(316002)(78486014)(54906003)(105586002)(6246003)(8936002)(8676002)(5660300002)(106356001)(74316002)(7736002)(68736007)(305945005)(6916009)(53936002)(7696005)(478600001)(99286004)(93886005)(97736004)(55016002)(52536014)(86362001)(81166006)(81156014)(6116002)(229853002)(71190400001)(71200400001)(186003)(3846002)(9686003)(66574012)(44832011)(476003)(486006)(256004)(14444005)(5024004)(446003)(11346002)(6506007)(53546011)(2906002)(66066001)(55236004)(102836004)(26005)(586874002)(98474002);DIR:OUT;SFP:1101;SCL:1;SRVR:SG2PR02MB3372;H:SG2PR02MB3098.apcprd02.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: einfochips.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- zl0/ULvVuidhS4fZZKlJtGB5xFxp+kRQXiiVdMwLgl1VXVERplEKVnmPMFT18vDwMvyf+HAwqDlFqt0Gz44WwoFumEUx73G7tBA8NNeKm14+QZZLuWze7zU13ekWqaQM2VhdVi/xzWWGIP9WPvC0xwGPV2GM5YrGdjsMUp1fX5zsX/hWmRhBX1J8bDTFU/kXf18glLUjAsVm870HYX7hF4F3G6FNrq9pzdGR6nIN1R+Clz1thc0KnDZbXUuzY+O/Mz2QzHEo54LYOSr4fQuyErJVhsyG4xl4RnNHpKGCZAe5U6UJbNE5K92lC55nGoPJhRBTnQ09Xnk+klKGzaS5SYvDWG3zh/zUi92rxQL5aGL2/0Px5VOs78BaFBvnI7q7nRXiJqbakVpsBKDn8Hec+I3IiJDFtyvnbRIzCb1X4+M=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Message-ID: <1733073807.13478305.1554105089959@mail.yahoo.com>
+Subject: CMA area pages Information
 MIME-Version: 1.0
-X-OriginatorOrg: einfochips.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: b6b2a6f9-2a74-4cdc-6148-08d6b676892a
-X-MS-Exchange-CrossTenant-originalarrivaltime: 01 Apr 2019 07:49:14.2725
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 0adb040b-ca22-4ca6-9447-ab7b049a22ff
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: SG2PR02MB3372
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Content-Type: multipart/alternative; 
+	boundary="----=_Part_13478304_1097488253.1554105089957"
+References: <1733073807.13478305.1554105089959.ref@mail.yahoo.com>
+X-Mailer: WebService/1.1.13212 YahooMailNeo Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:66.0) Gecko/20100101 Firefox/66.0
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.009123, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+------=_Part_13478304_1097488253.1554105089957
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 
-________________________________________
-From: Pankaj Suryawanshi
-Sent: 29 March 2019 10:52
-To: Matthew Wilcox
-Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org
-Subject: Re: [External] Re: Print map for total physical and virtual memory
+Hello,
+Is there any way to get cma area pages/memory information?
+Regards,Pankaj
 
+------=_Part_13478304_1097488253.1554105089957
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 
-________________________________________
-From: Matthew Wilcox <willy@infradead.org>
-Sent: 26 March 2019 18:13
-To: Pankaj Suryawanshi
-Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org
-Subject: Re: [External] Re: Print map for total physical and virtual memory
-
-On Tue, Mar 26, 2019 at 12:35:25PM +0000, Pankaj Suryawanshi wrote:
-> From: Matthew Wilcox <willy@infradead.org>
-> Sent: 26 March 2019 17:06
-> To: Pankaj Suryawanshi
-> Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org
-> Subject: [External] Re: Print map for total physical and virtual memory
->
-> CAUTION: This email originated from outside of the organization. Do not c=
-lick links or open attachments unless you recognize the sender and know the=
- content is safe.
-
-... you should probably use gmail or something.  Whatever broken email
-system your employer provides makes it really hard for you to participate
-in any meaningful way.
-
-Okay i will use gmail.
-
-> Can you please elaborate about tools/vm/page-types.c ?
-
-cd tools/vm/
-make
-sudo ./page-types
-
-If that doesn't do exactly what you need, you can use the source code to
-make a program which does.
-
-Is there any other way to print only cma area pages ? because i am interest=
-ed for cma area pages only.
-
-Thanks Matthew.
-***************************************************************************=
-***************************************************************************=
-******* eInfochips Business Disclaimer: This e-mail message and all attachm=
-ents transmitted with it are intended solely for the use of the addressee a=
-nd may contain legally privileged and confidential information. If the read=
-er of this message is not the intended recipient, or an employee or agent r=
-esponsible for delivering this message to the intended recipient, you are h=
-ereby notified that any dissemination, distribution, copying, or other use =
-of this message or its attachments is strictly prohibited. If you have rece=
-ived this message in error, please notify the sender immediately by replyin=
-g to this message and please delete it from your computer. Any views expres=
-sed in this message are those of the individual sender unless otherwise sta=
-ted. Company has taken enough precautions to prevent the spread of viruses.=
- However the company accepts no liability for any damage caused by any viru=
-s transmitted by this email. **********************************************=
-***************************************************************************=
-************************************
+<html><head></head><body><div style="color:#000; background-color:#fff; font-family:times new roman, new york, times, serif;font-size:16px"><div id="yui_3_16_0_ym19_1_1554104723106_3252">Hello,</div><div id="yui_3_16_0_ym19_1_1554104723106_6225"><br></div><div id="yui_3_16_0_ym19_1_1554104723106_6224">Is there any way to get cma area pages/memory information?</div><div id="yui_3_16_0_ym19_1_1554104723106_3278"><br></div><div id="yui_3_16_0_ym19_1_1554104723106_3279">Regards,</div><div id="yui_3_16_0_ym19_1_1554104723106_8056">Pankaj<br></div></div></body></html>
+------=_Part_13478304_1097488253.1554105089957--
 
