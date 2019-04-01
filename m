@@ -5,85 +5,85 @@ X-Spam-Level:
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E4D57C43381
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 14:45:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D359DC43381
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 14:48:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8397B20840
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 14:45:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8397B20840
+	by mail.kernel.org (Postfix) with ESMTP id 9455D20840
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 14:48:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9455D20840
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D7E5C6B0005; Mon,  1 Apr 2019 10:45:31 -0400 (EDT)
+	id 409006B0005; Mon,  1 Apr 2019 10:48:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D2D976B0008; Mon,  1 Apr 2019 10:45:31 -0400 (EDT)
+	id 390076B0008; Mon,  1 Apr 2019 10:48:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C44C06B000A; Mon,  1 Apr 2019 10:45:31 -0400 (EDT)
+	id 2591C6B000A; Mon,  1 Apr 2019 10:48:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A58306B0005
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 10:45:31 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id a15so8613653qkl.23
-        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 07:45:31 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 00FF46B0005
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 10:48:00 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id d8so8661280qkk.17
+        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 07:47:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to;
-        bh=gMWFXOF84tirN8vJJaH4r/H0McFie5EFwhOH5jwK39Q=;
-        b=bTlgxN9s095UUrtHFyWOm+BKL5kH+DxPfAFAdoVQP0j1LUBggPGKP4Mk6gP4I4LsZi
-         HhbaLJFxeM1BscHwyRcsLIBuOKvgAP7f0rwLQ7B7kp9ZLvA5nCkxBo5jCEKCSecTNAOx
-         Y4DpYygp9RoxboIPtuKVnjiYG4wAlWj6MOXsPZQNCnFOo6SuM2IIxFxgBjLEUOdvOp1S
-         6GPh7VMq87/IaP2fE1SJZBEeh3wR9vtCiFwLzhxU4fR/NqrXKwNO7Cmc8Q8exFTIsTfD
-         m2UprBUKmYxUDf+QW9G+czq/pUsHAA7rEt6+F851EndsRCYmH51fwMekGtDD6GcS31mg
-         73pA==
+        bh=Nt8nCkiL/lmRXg5mImkQVFR8ydDkGxqOHtXpP9B9HMI=;
+        b=nxXGooJI33q3OnJT/MHrJmJ80i6pX2rDEyo9NWT3ez6cNjgXRZEDo8wh31VjzMgS3q
+         ECyfVSddScADl3cqFsZuJzko9DOM5WPe0lnLellAzTau2wi/sBPGFmZal8NeOazoP3GN
+         cDDG9iGyloZkgY05Up4XFrunUcXiUxgQEkdRLUINMo9spJqFWHVjJK3MZVfQ3vtLCi7+
+         uMKQlTXJ1eDbqAHdd0sJLy9V6US937RKF4cJ1L5xG2PvFB8e4v+FKJ5JkZRSOj3ZWrds
+         5wb5vl5EpIyq7VJ3viZCkuAad4i7yH+eGNbeYJ3327l3KOzgUCb2cS+6XOweNR3NxPv4
+         GDKg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWQR1dppoMBTK4Hc6tQXq2hY+IUYU9m9tpONAmDNDRtXMQB/F6W
-	7+gGFViX5qfAeHF47mkFK3F6R9WDlrfidOTqCkv2cdsGln/ys7PfxNUqd7QTb4+mB8oWzpHzWNJ
-	hSEDFXWpIXNHZlLUECGBeP/7VH+h2yKkKU5a+9ZrbzIIbeu3Ksk+dPEHm3Raz/osWag==
-X-Received: by 2002:a37:ef19:: with SMTP id j25mr50229112qkk.176.1554129931405;
-        Mon, 01 Apr 2019 07:45:31 -0700 (PDT)
-X-Received: by 2002:a37:ef19:: with SMTP id j25mr50229058qkk.176.1554129930787;
-        Mon, 01 Apr 2019 07:45:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554129930; cv=none;
+X-Gm-Message-State: APjAAAUupzbHI2I3AoCpitrsuPVFNP7plZj/tBYhO6fTHCb1xfAXmkCu
+	RubEW6dhC1wijOgcWFcKEQqP+xZMAsrQTd/eLjMkJFGNtxbCJV2dq+lTe8/zIdo6vrg41zuCYYi
+	lgD5Gy+mWGlWYVJcgdBtGpHWk1t8OcPfe6Y7UCwIFsrmptzhadI4/5/BumWXIbCx6Ng==
+X-Received: by 2002:a05:620a:1407:: with SMTP id d7mr47352563qkj.189.1554130079771;
+        Mon, 01 Apr 2019 07:47:59 -0700 (PDT)
+X-Received: by 2002:a05:620a:1407:: with SMTP id d7mr47352537qkj.189.1554130079310;
+        Mon, 01 Apr 2019 07:47:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554130079; cv=none;
         d=google.com; s=arc-20160816;
-        b=0DjHw/nsjx03/zHhqn5lX/M8lEseVQkP//TmvRiVCavl7/OzwdQKwvUhNefEtbQlDO
-         rdCEEWiTOCZ8Pt1fsCRJbGlp0+8IEKlFjm+01EV8vNo04RYVhXXHy8LOijo3Z2kANWm9
-         GhvfwNqTP0ADi8K8boveLudgDhSirjTDs64lS2FULD8AfYeSzSF1kB1oCktOVvPZ6A74
-         eMelT1UO8RkJTBlx2QjeEIkk6ksciyYWAizsncw4ZyFGHy2KwpCNn4pwCGEcJ206dyAw
-         BBxDXTo6JAtJ0+1Dg832swhFE154KKs8CATTRMXhi2msICzvp824kJ157QwLKWJrkcJN
-         pZ5w==
+        b=PtgH2/u9cdKlTnf+GImM/Wrb+eyyc5yT33w3LK7CUcTAVFnQp/pnaPHuvzVttu/X+W
+         kQUJyt0hAjWsqHoqcW230QJ8u1EvYq5XAK5R7sY1iAT1Zks+UOfRO5BKEAApcYgpcUz7
+         031lRg2AzWAeKWB/oiZEQFIPSAqHqW3Rsblaoc4LjNTNrRxOKnaaAFvepuPYVHHK6hDu
+         0acYqOkT0p8xyb4uxjffYL7FUtCgESgQfY7+glX/2VVpgxbViRJYTz1Kp7w8yr/+o/lV
+         68VFvRnDQd5FKgX1KuExMcp3TrDAS2iiNyVz9hBVDaCs37C5Bib+1anzfjYYBbXpwxzu
+         J4uA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=in-reply-to:content-disposition:mime-version:references:message-id
          :subject:cc:to:from:date;
-        bh=gMWFXOF84tirN8vJJaH4r/H0McFie5EFwhOH5jwK39Q=;
-        b=USx/Okt6db+pLScii+JJIjcDxPAOmhnIAxAPTkn5C1WUu5CA53vt3fRQ4VgIq3u+2N
-         dLhiA9it+zd0uzCoUQKXaoqkrxxuFTv8o+VDhORgWOIBN/r1bty3tjJlBMzdqdChxD0u
-         GCU49DEIe2YuRE3qMUv1dhEdssusvN2Ehg0oeCEG0SmA+FhswuDj0vk+Tj2+Na2oCH+R
-         35zExXC6nGOIDYIbIKU4qAMcp7UeoWA/sFIpQv/3Iwsvo4slOZ5Il+SI3IAs+HlwZWDe
-         nKb4QhUG2m9K1VmQYb3XqGa5zvuvfJ6uZGG8P8tB3KDlbpYNXvyQFe9trVtew9fKZ7Q/
-         yu5A==
+        bh=Nt8nCkiL/lmRXg5mImkQVFR8ydDkGxqOHtXpP9B9HMI=;
+        b=HicGAAUgGnomWmtuzrcFTqglOGdrKApezmNt1yGcujrrSLmj7h1fVUFcs9bjyboGjr
+         77Drm5srjVOTEe4fQ80tAiz3Ule92vXs1Ydbd4g5VEbHpcVnOa0ky403pQrptVBoLhIj
+         CxeGIKlj/KQlaQBq5zyZ/51ZzOfsDaRBp/VirDS/y2EdASQ52VRcoIWUIafVCVvFuHCM
+         iWHC1kiHtYELSMkGhRh2HJxm5N+E8SOJx7wB09W5PWbdGHcxaWwhQya48ugzAeu21iaJ
+         IrQv837IVYUCb063P+FIlSxMcSDRHcd5Q7KXFNTJmF8Pmvzh1ba1Lfqv0bWgMF0ZEQGJ
+         yHzA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d12sor10507311qvh.69.2019.04.01.07.45.30
+        by mx.google.com with SMTPS id u2sor10594621qvi.67.2019.04.01.07.47.59
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 01 Apr 2019 07:45:30 -0700 (PDT)
+        Mon, 01 Apr 2019 07:47:59 -0700 (PDT)
 Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqzJBJY8DrD6iTliprqMc4U5/LFnbB2DPVMUWe0YjnKWLftbU9KgcgwpqYMeNv25dt8ev3bOFA==
-X-Received: by 2002:a0c:ae04:: with SMTP id y4mr46602243qvc.49.1554129930417;
-        Mon, 01 Apr 2019 07:45:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwzMFehCXyKpzmyvfdZzFoZbM7plT1F+hAXxH2SANmhbRwnjoxXtZ7V+qdz4DDg0+b8E538ew==
+X-Received: by 2002:a0c:d1a6:: with SMTP id e35mr53515321qvh.174.1554130079126;
+        Mon, 01 Apr 2019 07:47:59 -0700 (PDT)
 Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
-        by smtp.gmail.com with ESMTPSA id b46sm5053834qtk.77.2019.04.01.07.45.28
+        by smtp.gmail.com with ESMTPSA id u16sm7752118qtc.84.2019.04.01.07.47.57
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 01 Apr 2019 07:45:29 -0700 (PDT)
-Date: Mon, 1 Apr 2019 10:45:21 -0400
+        Mon, 01 Apr 2019 07:47:58 -0700 (PDT)
+Date: Mon, 1 Apr 2019 10:47:56 -0400
 From: "Michael S. Tsirkin" <mst@redhat.com>
 To: David Hildenbrand <david@redhat.com>
 Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm@vger.kernel.org,
@@ -93,7 +93,7 @@ Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm@vger.kernel.org,
 	dodgen@google.com, konrad.wilk@oracle.com, dhildenb@redhat.com,
 	aarcange@redhat.com, alexander.duyck@gmail.com
 Subject: Re: On guest free page hinting and OOM
-Message-ID: <20190401104328-mutt-send-email-mst@kernel.org>
+Message-ID: <20190401104608-mutt-send-email-mst@kernel.org>
 References: <20190329084058-mutt-send-email-mst@kernel.org>
  <f6332928-d6a4-7a75-245d-2c534cf6e710@redhat.com>
  <20190329104311-mutt-send-email-mst@kernel.org>
@@ -103,33 +103,33 @@ References: <20190329084058-mutt-send-email-mst@kernel.org>
  <fb23fd70-4f1b-26a8-5ecc-4c14014ef29d@redhat.com>
  <20190401073007-mutt-send-email-mst@kernel.org>
  <29e11829-c9ac-a21b-b2f1-ed833e4ca449@redhat.com>
+ <dc14a711-a306-d00b-c4ce-c308598ee386@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <29e11829-c9ac-a21b-b2f1-ed833e4ca449@redhat.com>
+In-Reply-To: <dc14a711-a306-d00b-c4ce-c308598ee386@redhat.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 01, 2019 at 04:09:32PM +0200, David Hildenbrand wrote:
+On Mon, Apr 01, 2019 at 04:11:42PM +0200, David Hildenbrand wrote:
+> > The interesting thing is most probably: Will the hinting size usually be
+> > reasonable small? At least I guess a guest with 4TB of RAM will not
+> > suddenly get a hinting size of hundreds of GB. Most probably also only
+> > something in the range of 1GB. But this is an interesting question to
+> > look into.
 > > 
-> > When you say yield, I would guess that would involve config space access
-> > to the balloon to flush out outstanding hints?
+> > Also, if the admin does not care about performance implications when
+> > already close to hinting, no need to add the additional 1Gb to the ram size.
 > 
-> I rather meant yield your CPU to the hypervisor, so it can process
-> hinting requests faster (like waiting for a spinlock). This is the
-> simple case. More involved approaches might somehow indicate to the
-> hypervisor to not process queued requests but simply return them to the
-> guest so the guest can add the isolated pages to the buddy. If this is
-> "config space access to the balloon to flush out outstanding hints" then
-> yes, something like that might be a good idea if it doesn't harm
-> performance.
+> "close to OOM" is what I meant.
 
-The problem would be in testing this unfortunately. Same as any
-OOM hack, it is difficult to test well.
+Problem is, host admin is the one adding memory. Guest admin is
+the one that knows about performance.
 
+> 
 > -- 
 > 
 > Thanks,
