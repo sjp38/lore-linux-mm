@@ -3,308 +3,332 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 87C9AC43381
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 14:11:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 408D2C10F05
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 14:23:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3D7F620840
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 14:11:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3D7F620840
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id E0E4F208E4
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 14:23:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E0E4F208E4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CAF936B0008; Mon,  1 Apr 2019 10:11:58 -0400 (EDT)
+	id 7C44A6B0006; Mon,  1 Apr 2019 10:23:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C36E96B000A; Mon,  1 Apr 2019 10:11:58 -0400 (EDT)
+	id 772F06B0008; Mon,  1 Apr 2019 10:23:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AB5346B000C; Mon,  1 Apr 2019 10:11:58 -0400 (EDT)
+	id 614386B000A; Mon,  1 Apr 2019 10:23:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8320C6B0008
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 10:11:58 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id s70so8650754qka.1
-        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 07:11:58 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FDF86B0006
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 10:23:11 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id p8so7355073pfd.4
+        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 07:23:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:references:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=ZC6uUWQXI4PEfdsrsQvHbrZCV+D8No1632cdDEK/kKc=;
-        b=RJm3VcWW3/N5lBFEHxVc0mQtL6eNj/d2o/Jm3ln+c52wdWagpsb8Lh6VhSNA5I6GdG
-         3kEsXVHprAJRgm7M6IopnByni9nEFvI7zzkm2eUaOzuYMyQeBvAtHOtUE+tYkPNWG83M
-         DO0YWV2bHSJERWCItwoIPHSM++cl5cLD3NbUHtv55yYQrlzK/o/Cclmpl8dqxK/+FpdI
-         jToPNbJ1kY9Cw6CFldHE4lkurO5bSR6bKze+MY+b7vU6FsIwdHcrrMkUfA4/R0kMz5l+
-         1wXF7D6UDkqdqEOXGg5VE8SiAj8UwOal2cFNLxRjmMKwFUWnCo3cnhEH4X+H8xnPaq3E
-         cnRQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVfA461aKyEVrWvHrrGGVKaoc4ZSArLXCW8Fya92Y1D2h5lW1t+
-	1Vh041Z0axDY91h8QakipCQZsvZWRI7qDyFFV57N9P2n8Pg7UbaiXkN+YTMQxQok8WwLsFDzf1d
-	8yFy6TbEwQmaKt32sF0IZodlJaGdg+uTJ1vNdhRwiAw+VRk0u3hLFyp4wWPmSnkdDEQ==
-X-Received: by 2002:ac8:14c:: with SMTP id f12mr54333842qtg.138.1554127918266;
-        Mon, 01 Apr 2019 07:11:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxTfcU8900Oy4TevVepQmTYjFBN157smlWxyk8jJU7+7RW68q7/S/47ieMILIAhlvsqwkzO
-X-Received: by 2002:ac8:14c:: with SMTP id f12mr54333747qtg.138.1554127917197;
-        Mon, 01 Apr 2019 07:11:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554127917; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :from:date:message-id;
+        bh=faqu+HDovbB+h4KFPoMaoz4kGn7nIwDbpnMi1XAKxeE=;
+        b=q/2hPAanZw+9t/oVha8wtVHlb0tOaz8rqtCsl73INnqZehQV41DIit2/hMEWtbKAxe
+         Hg6OIl/UofeK2XS88bGbAIETPFvbv83G9G/QO9kXV2CEs457imwIq1RWH3xjkf7+LCPR
+         5MB274Pgn0eWMFFIxnr3xlLaDf/DLAa+WzvShXFYZtGHX7Yy5vK7pWUwLSJUXw+5c8tM
+         HmXrB1RYy+RMAlQqASj1bFwGRdZ6keBsMxKclgNiXt7qZMgz6BBVIWNsceStrza9jsok
+         KFVOcnvhh9FRMQsaQYb6HCGy0tQs6OfCWRBuzCoFFEf6xXOGnQHqBPE/i8+i/NCZFHFL
+         KbqA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of dave.hansen@linux.intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dave.hansen@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAW74iyKXeMRfHd8wvw9ldDuFRNys8kT57k59vHN2Ed6JSRAsvv2
+	0FqcpIKT10tYD12do03/4YJUAJDlDc6lvI5kdIXLX2FrmdVWLp3OnbXj0ll7rDmVAP8HCtpVClJ
+	SkxJy5deVJOp2ubkrTsWDOqj6nmxwszB22iw/PTH8WbSZyFryyxIm90FaX9J9dJHQNw==
+X-Received: by 2002:a17:902:1122:: with SMTP id d31mr30293484pla.29.1554128590634;
+        Mon, 01 Apr 2019 07:23:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwtEoPskXVawilykTfAu1beJhlc5ZuVOTSFQKZAX5+SWYCZDhhYy31GuzvsDx+NpiKCgIGT
+X-Received: by 2002:a17:902:1122:: with SMTP id d31mr30293391pla.29.1554128589517;
+        Mon, 01 Apr 2019 07:23:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554128589; cv=none;
         d=google.com; s=arc-20160816;
-        b=o1guB47ugcMpTWWhWNNZJfoPvlPK2VQs/AtjoWYeHwSFduaZiWw3AUlppfNqG83JqE
-         BPwCe4BarQcrBp7D6HKgEAK/Wc/xlV0LtcnYpM5j0FO0gqY6YVXtZAsm5eLCELsvuF0n
-         r92XArPEbvk0gq1UzQLA/7QRcqCyr39nvtCydhiHWQ+ssCVcNC5ApEyHRI1ih+OiD5d/
-         cls+/zXh4qI5lIa+kbLFb4J5a20nsD5IG1o2Qlby2msehriJ68Q6X0T2n+Sk4OrTqJTl
-         NwXhc9MGo4XBuzvI8M8ibekph35jn0kusD34MWfMnv4xDUk8Z8Nlyqge4g1/G7XwCL+b
-         aklw==
+        b=hOlo4K2+5QnwaBQSpxUgxezJHHqPM+jkeh9fFLu3HAaDPCs3wnisDZYAStIommrz5P
+         p/Q3sXUrShfU5hT9kbcWZILqoK+nsaKJd9VlKCxMRege6ZzheiUidfHKEN9ggOUrMnJw
+         ekC/wY9Hvg6okpvxyJfEtAVFGlDYc527FRawNcB9+RIW2AWz3HZOwcTPtaMfOTvC1LQj
+         eBSXrxefmGtuTYkjXt/S/diG1QiBGwnflXCHhlYvlkR3IZu12Fkp+gL0LhwrvoyUDn9D
+         UTOG5rWknjBzo3nY/SuBbMYE0LIpzYP0gZvriHypMnCsoEtTgx1oW66JqD060kt2OpIE
+         ouOA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp
-         :references:cc:to:from:subject;
-        bh=ZC6uUWQXI4PEfdsrsQvHbrZCV+D8No1632cdDEK/kKc=;
-        b=sFTizBPGXf1U/4EBZkng642qANUVWnMwD8PFoEuNyxq2qc692i8UJlnhw5mUG8vsQm
-         QgRH/2SL+YSsFteiBgDK1BApT7HjzDr0AwL3pBsoNn02udjhn17u6XkgodktzqWe+kZ5
-         fvm60dM+OGzlOZtCgB/1L3FRTUshSjxEONKGXmb8nOmXUYcKsOMtQuoO4uh4p6MxjR5v
-         GszFYS5T6ej9w+nm7c/m17lSg2f781xXFjXREbaMcjXIBHZo98IIdgNdOuLWW6nUtX71
-         k3/vROd48dhU1vQcNmCwUDangXlbtYmSUjD6bgOdY2A4pmWzfCbq0/2al5mBuUeRgwel
-         TOhQ==
+        h=message-id:date:from:cc:to:subject;
+        bh=faqu+HDovbB+h4KFPoMaoz4kGn7nIwDbpnMi1XAKxeE=;
+        b=dbKGpJn65yA16+0DldjNSE/4iOezycCP4wyoHuiNpLinEMAgvUMxPV7gYUxEsdhR0+
+         sh84bURfqwa2B5SF3i1orfA/6CUKaRySnOkIHl6Z2SSDII8UdLX7Xg0wrFDZiqsAVjLZ
+         juwrRx4/ZeO33ZS6gZEbsMBwf8/12ep+Er/+d+MtHYJJQqznYn7Q9kXbf6kaDC7s/5SB
+         Uk2ysonw1wP37Deovp9mqH4EnY4Zksh0yDFqMrs317a0KL11jqQNK5BSMPOztjm+0guc
+         Ogfk7y6QfSfyF96e+K40UCXReKH6iF2G5MgbboRbqU4fyygQO4TQCy3HaOM4Jj32DaqH
+         Se2w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j50si2113971qtk.3.2019.04.01.07.11.57
+       spf=pass (google.com: best guess record for domain of dave.hansen@linux.intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dave.hansen@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id p9si8991722pgn.358.2019.04.01.07.23.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Apr 2019 07:11:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Mon, 01 Apr 2019 07:23:09 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of dave.hansen@linux.intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 5FB7230832F4;
-	Mon,  1 Apr 2019 14:11:56 +0000 (UTC)
-Received: from [10.36.118.81] (unknown [10.36.118.81])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id DC96A5D70E;
-	Mon,  1 Apr 2019 14:11:42 +0000 (UTC)
-Subject: Re: On guest free page hinting and OOM
-From: David Hildenbrand <david@redhat.com>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm@vger.kernel.org,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org, pbonzini@redhat.com,
- lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
- yang.zhang.wz@gmail.com, riel@surriel.com, dodgen@google.com,
- konrad.wilk@oracle.com, dhildenb@redhat.com, aarcange@redhat.com,
- alexander.duyck@gmail.com
-References: <20190329084058-mutt-send-email-mst@kernel.org>
- <f6332928-d6a4-7a75-245d-2c534cf6e710@redhat.com>
- <20190329104311-mutt-send-email-mst@kernel.org>
- <7a3baa90-5963-e6e2-c862-9cd9cc1b5f60@redhat.com>
- <f0ee075d-3e99-efd5-8c82-98d53b9f204f@redhat.com>
- <20190329125034-mutt-send-email-mst@kernel.org>
- <fb23fd70-4f1b-26a8-5ecc-4c14014ef29d@redhat.com>
- <20190401073007-mutt-send-email-mst@kernel.org>
- <29e11829-c9ac-a21b-b2f1-ed833e4ca449@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <dc14a711-a306-d00b-c4ce-c308598ee386@redhat.com>
-Date: Mon, 1 Apr 2019 16:11:42 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
-MIME-Version: 1.0
-In-Reply-To: <29e11829-c9ac-a21b-b2f1-ed833e4ca449@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Mon, 01 Apr 2019 14:11:56 +0000 (UTC)
+       spf=pass (google.com: best guess record for domain of dave.hansen@linux.intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dave.hansen@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga007.jf.intel.com ([10.7.209.58])
+  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 01 Apr 2019 07:23:09 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,296,1549958400"; 
+   d="scan'208";a="127643820"
+Received: from viggo.jf.intel.com (HELO localhost.localdomain) ([10.54.77.144])
+  by orsmga007.jf.intel.com with ESMTP; 01 Apr 2019 07:23:08 -0700
+Subject: [PATCH] x86/mpx: fix recursive munmap() corruption
+To: linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave.hansen@linux.intel.com>,rguenther@suse.de,mhocko@suse.com,vbabka@suse.cz,luto@amacapital.net,x86@kernel.org,akpm@linux-foundation.org,linux-mm@kvack.org,stable@vger.kernel.org
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Date: Mon, 01 Apr 2019 07:15:49 -0700
+Message-Id: <20190401141549.3F4721FE@viggo.jf.intel.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 01.04.19 16:09, David Hildenbrand wrote:
->>> Thinking about your approach, there is one elementary thing to notice:
->>>
->>> Giving the guest pages from the buffer while hinting requests are being
->>> processed means that the guest can and will temporarily make use of more
->>> memory than desired. Essentially up to the point where MADV_FREE is
->>> finally called for the hinted pages.
->>
->> Right - but that seems like exactly the reverse of the issue with the current
->> approach which is guest can temporarily use less memory than desired.
->>
->>> Even then the guest will logicall
->>> make use of more memory than desired until core MM takes pages away.
->>
->> That sounds more like a host issue though. If it wants to
->> it can use e.g. MAD_DONTNEED.
-> 
-> Indeed. But MADV_DONTNEED is somewhat undesired for performance reasons.
-> You want to do the work when swapping not when hinting.
-> 
-> But what I wanted to say here: Looking at the pure size of your guest
-> will at least not help you to identify if more memory than desired will
-> be used.
-> 
->>
->>> So:
->>> 1) Unmodified guests will make use of more memory than desired.
->>
->> One interesting possibility for this is to add the buffer memory
->> by hotplug after the feature has been negotiated.
->> I agree this sounds complex.
-> 
-> Yes it is, and it goes into the direction of virtio-mem that essentially
-> does that. But bad news: memory hotplug is complicated stuff, both on
-> the hypervisor and guest side. And things like NUMA make it more involved.
-> 
-> But even then, malicious guest can simply fake feature negotiation and
-> make use of all hotplugged memory. Won't work, at least not for
-> malicious guests.
-> 
->>
->> But I have an idea: how about we include the hint size in the
->> num_pages counter? Then unmodified guests put
->> it in the balloon and don't use it. Modified ones
->> will know to use it just for hinting.
-> 
-> These are the nightmares I was talking about. I would like to decouple
-> this feature as far as possible from balloon inflation/deflation.
-> Ballooning is 4k based and might have other undesirable side effect.
-> Just because somebody wants to use page hinting does not mean he wants
-> to use ballooning. Effectively, many people will want to avoid
-> ballooning completely by using page hinting for their use case.
-> 
->>
->>
->>> 2) Malicious guests will make use of more memory than desired.
->>
->> Well this limitation is fundamental to balloon right?
-> 
-> Yep, it is the fundamental issue of ballooning. If memory is available
-> right from the boot, the system is free to do with it whatever it wants.
-> (one of the main things virtio-mem will do differently/better)
-> 
->> If host wants to add tracking of balloon memory, it
->> can enforce the limits. So far no one bothered,
->> but maybe with this feature we should start to do that.
-> 
-> I think I already had endless rants about why this is not possible.
-> Ballooning as it is currently implemented by virtio-balloon is broken by
-> design. Period. You can and never will be able to distinguish unmodified
-> guests from malicious guests. Please don't design new approaches based
-> on broken design.
-> 
->>
->>> 3) Sane, modified guests will make use of more memory than desired.
->>>
->>> Instead, we could make our life much easier by doing the following:
->>>
->>> 1) Introduce a parameter to cap the amount of memory concurrently hinted
->>> similar like you suggested, just don't consider it a buffer value.
->>> "-device virtio-balloon,hinting_size=1G". This gives us control over the
->>> hinting proceess.
->>>
->>> hinting_size=0 (default) disables hinting
->>>
->>> The admin can tweak the number along with memory requirements of the
->>> guest. We can make suggestions (e.g. calculate depending on #cores,#size
->>> of memory, or simply "1GB")
->>
->> So if it's all up to the guest and for the benefit of the guest, and
->> with no cost/benefit to the host, then why are we supplying this value
->> from the host?
-> 
-> See 3), the admin has to be aware of hinting behavior.
-> 
->>
->>> 2) In the guest, track the size of hints in progress, cap at the
->>> hinting_size.
->>>
->>> 3) Document hinting behavior
->>>
->>> "When hinting is enabled, memory up to hinting_size might temporarily be
->>> removed from your guest in order to be hinted to the hypervisor. This is
->>> only for a very short time, but might affect applications. Consider the
->>> hinting_size when sizing your guest. If your application was tested with
->>> XGB and a hinting size of 1G is used, please configure X+1GB for the
->>> guest. Otherwise, performance degradation might be possible."
->>
->> OK, so let's start with this. Now let us assume that guest follows
->> the advice.  We thus know that 1GB is not needed for guest applications.
->> So why do we want to allow applications to still use this extra memory?
-> 
-> If the application does not need the 1GB, the 1GB will be hinted to the
-> hypervisor and are effectively only a buffer for the OOM scenario.
-> (ignoring page cache discussions for now).
-> 
-> "So why do we want to allow applications to still use this extra memory"
-> is the EXACT same issue you have with your buffer approach. Any guest
-> can make use of the buffer and you won't be able to detect it. Very same
-> problem. Only in your approach, the guest might agree to play nicely by
-> not making use of the 1G you provided. Just as if the application does
-> not need/use the additional 1GB.
-> 
-> The interesting thing is most probably: Will the hinting size usually be
-> reasonable small? At least I guess a guest with 4TB of RAM will not
-> suddenly get a hinting size of hundreds of GB. Most probably also only
-> something in the range of 1GB. But this is an interesting question to
-> look into.
-> 
-> Also, if the admin does not care about performance implications when
-> already close to hinting, no need to add the additional 1Gb to the ram size.
 
-"close to OOM" is what I meant.
+This is a bit of a mess, to put it mildly.  But, it's a bug
+that seems to have gone unticked up to now, probably because
+nobody uses MPX.  The other alternative to this fix is to just
+deprecate MPX, even in -stable kernels.
 
+MPX has the arch_unmap() hook inside of munmap() because MPX
+uses bounds tables that protect other areas of memory.  When
+memory is unmapped, there is also a need to unmap the MPX
+bounds tables.  Barring this, unused bounds tables can eat 80%
+of the address space.
 
--- 
+But, the recursive do_munmap() that gets called vi arch_unmap()
+wreaks havoc with __do_munmap()'s state.  It can result in
+freeing populated page tables, accessing bogus VMA state,
+double-freed VMAs and more.
 
-Thanks,
+To fix this, call arch_unmap() before __do_unmap() has a chance
+to do anything meaningful.  Also, remove the 'vma' argument
+and force the MPX code to do its own, independent VMA lookup.
 
-David / dhildenb
+For the common success case this is functionally identical to
+what was there before.  For the munmap() failure case, it's
+possible that some MPX tables will be zapped for memory that
+continues to be in use.  But, this is an extraordinarily
+unlikely scenario and the harm would be that MPX provides no
+protection since the bounds table got reset (zeroed).
+
+I can't imagine anyone doing this:
+
+	ptr = mmap();
+	// use ptr
+	ret = munmap(ptr);
+	if (ret)
+		// oh, there was an error, I'll
+		// keep using ptr.
+
+Because if you're doing munmap(), you are *done* with the
+memory.  There's probably no good data in there _anyway_.
+
+This passes the original reproducer from Richard Biener as
+well as the existing mpx selftests/.
+
+====
+
+The long story:
+
+munmap() has a couple of pieces:
+1. Find the affected VMA(s)
+2. Split the start/end one(s) if neceesary
+3. Pull the VMAs out of the rbtree
+4. Actually zap the memory via unmap_region(), including
+   freeing page tables (or queueing them to be freed).
+5. Fixup some of the accounting (like fput()) and actually
+   free the VMA itself.
+
+I decided to put the arch_unmap() call right afer #3.  This
+was *just* before mmap_sem looked like it might get downgraded
+(it won't in this context), but it looked right.  It wasn't.
+
+Richard Biener reported a test that shows this in dmesg:
+
+[1216548.787498] BUG: Bad rss-counter state mm:0000000017ce560b idx:1 val:551
+[1216548.787500] BUG: non-zero pgtables_bytes on freeing mm: 24576
+
+What triggered this was the recursive do_munmap() called via
+arch_unmap().  It was freeing page tables that has not been
+properly zapped.
+
+But, the problem was bigger than this.  For one, arch_unmap()
+can free VMAs.  But, the calling __do_munmap() has variables
+that *point* to VMAs and obviously can't handle them just
+getting freed while the pointer is still valid.
+
+I tried a couple of things here.  First, I tried to fix the page
+table freeing problem in isolation, but I then found the VMA
+issue.  I also tried having the MPX code return a flag if it
+modified the rbtree which would force __do_munmap() to re-walk
+to restart.  That spiralled out of control in complexity pretty
+fast.
+
+Just moving arch_unmap() and accepting that the bonkers failure
+case might eat some bounds tables seems like the simplest viable
+fix.
+
+Reported-by: Richard Biener <rguenther@suse.de>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: x86@kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: stable@vger.kernel.org
+
+---
+
+ b/arch/x86/include/asm/mmu_context.h |    6 +++---
+ b/arch/x86/include/asm/mpx.h         |    5 ++---
+ b/arch/x86/mm/mpx.c                  |   10 ++++++----
+ b/include/asm-generic/mm_hooks.h     |    1 -
+ b/mm/mmap.c                          |   15 ++++++++-------
+ 5 files changed, 19 insertions(+), 18 deletions(-)
+
+diff -puN mm/mmap.c~mpx-rss-pass-no-vma mm/mmap.c
+--- a/mm/mmap.c~mpx-rss-pass-no-vma	2019-04-01 06:56:53.409411123 -0700
++++ b/mm/mmap.c	2019-04-01 06:56:53.423411123 -0700
+@@ -2731,9 +2731,17 @@ int __do_munmap(struct mm_struct *mm, un
+ 		return -EINVAL;
+ 
+ 	len = PAGE_ALIGN(len);
++	end = start + len;
+ 	if (len == 0)
+ 		return -EINVAL;
+ 
++	/*
++	 * arch_unmap() might do unmaps itself.  It must be called
++	 * and finish any rbtree manipulation before this code
++	 * runs and also starts to manipulate the rbtree.
++	 */
++	arch_unmap(mm, start, end);
++
+ 	/* Find the first overlapping VMA */
+ 	vma = find_vma(mm, start);
+ 	if (!vma)
+@@ -2742,7 +2750,6 @@ int __do_munmap(struct mm_struct *mm, un
+ 	/* we have  start < vma->vm_end  */
+ 
+ 	/* if it doesn't overlap, we have nothing.. */
+-	end = start + len;
+ 	if (vma->vm_start >= end)
+ 		return 0;
+ 
+@@ -2812,12 +2819,6 @@ int __do_munmap(struct mm_struct *mm, un
+ 	/* Detach vmas from rbtree */
+ 	detach_vmas_to_be_unmapped(mm, vma, prev, end);
+ 
+-	/*
+-	 * mpx unmap needs to be called with mmap_sem held for write.
+-	 * It is safe to call it before unmap_region().
+-	 */
+-	arch_unmap(mm, vma, start, end);
+-
+ 	if (downgrade)
+ 		downgrade_write(&mm->mmap_sem);
+ 
+diff -puN arch/x86/include/asm/mmu_context.h~mpx-rss-pass-no-vma arch/x86/include/asm/mmu_context.h
+--- a/arch/x86/include/asm/mmu_context.h~mpx-rss-pass-no-vma	2019-04-01 06:56:53.412411123 -0700
++++ b/arch/x86/include/asm/mmu_context.h	2019-04-01 06:56:53.423411123 -0700
+@@ -277,8 +277,8 @@ static inline void arch_bprm_mm_init(str
+ 	mpx_mm_init(mm);
+ }
+ 
+-static inline void arch_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
+-			      unsigned long start, unsigned long end)
++static inline void arch_unmap(struct mm_struct *mm, unsigned long start,
++			      unsigned long end)
+ {
+ 	/*
+ 	 * mpx_notify_unmap() goes and reads a rarely-hot
+@@ -298,7 +298,7 @@ static inline void arch_unmap(struct mm_
+ 	 * consistently wrong.
+ 	 */
+ 	if (unlikely(cpu_feature_enabled(X86_FEATURE_MPX)))
+-		mpx_notify_unmap(mm, vma, start, end);
++		mpx_notify_unmap(mm, start, end);
+ }
+ 
+ /*
+diff -puN include/asm-generic/mm_hooks.h~mpx-rss-pass-no-vma include/asm-generic/mm_hooks.h
+--- a/include/asm-generic/mm_hooks.h~mpx-rss-pass-no-vma	2019-04-01 06:56:53.414411123 -0700
++++ b/include/asm-generic/mm_hooks.h	2019-04-01 06:56:53.423411123 -0700
+@@ -18,7 +18,6 @@ static inline void arch_exit_mmap(struct
+ }
+ 
+ static inline void arch_unmap(struct mm_struct *mm,
+-			struct vm_area_struct *vma,
+ 			unsigned long start, unsigned long end)
+ {
+ }
+diff -puN arch/x86/mm/mpx.c~mpx-rss-pass-no-vma arch/x86/mm/mpx.c
+--- a/arch/x86/mm/mpx.c~mpx-rss-pass-no-vma	2019-04-01 06:56:53.416411123 -0700
++++ b/arch/x86/mm/mpx.c	2019-04-01 06:56:53.423411123 -0700
+@@ -881,9 +881,10 @@ static int mpx_unmap_tables(struct mm_st
+  * the virtual address region start...end have already been split if
+  * necessary, and the 'vma' is the first vma in this range (start -> end).
+  */
+-void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
+-		unsigned long start, unsigned long end)
++void mpx_notify_unmap(struct mm_struct *mm, unsigned long start,
++		      unsigned long end)
+ {
++       	struct vm_area_struct *vma;
+ 	int ret;
+ 
+ 	/*
+@@ -902,11 +903,12 @@ void mpx_notify_unmap(struct mm_struct *
+ 	 * which should not occur normally. Being strict about it here
+ 	 * helps ensure that we do not have an exploitable stack overflow.
+ 	 */
+-	do {
++	vma = find_vma(mm, start);
++	while (vma && vma->vm_start < end) {
+ 		if (vma->vm_flags & VM_MPX)
+ 			return;
+ 		vma = vma->vm_next;
+-	} while (vma && vma->vm_start < end);
++	}
+ 
+ 	ret = mpx_unmap_tables(mm, start, end);
+ 	if (ret)
+diff -puN arch/x86/include/asm/mpx.h~mpx-rss-pass-no-vma arch/x86/include/asm/mpx.h
+--- a/arch/x86/include/asm/mpx.h~mpx-rss-pass-no-vma	2019-04-01 06:56:53.418411123 -0700
++++ b/arch/x86/include/asm/mpx.h	2019-04-01 06:56:53.424411123 -0700
+@@ -78,8 +78,8 @@ static inline void mpx_mm_init(struct mm
+ 	 */
+ 	mm->context.bd_addr = MPX_INVALID_BOUNDS_DIR;
+ }
+-void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
+-		      unsigned long start, unsigned long end);
++void mpx_notify_unmap(struct mm_struct *mm, unsigned long start,
++		unsigned long end);
+ 
+ unsigned long mpx_unmapped_area_check(unsigned long addr, unsigned long len,
+ 		unsigned long flags);
+@@ -100,7 +100,6 @@ static inline void mpx_mm_init(struct mm
+ {
+ }
+ static inline void mpx_notify_unmap(struct mm_struct *mm,
+-				    struct vm_area_struct *vma,
+ 				    unsigned long start, unsigned long end)
+ {
+ }
+_
 
