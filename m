@@ -2,179 +2,269 @@ Return-Path: <SRS0=sWz3=SD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DFE2C4360F
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 16:44:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A499FC43381
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 17:32:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B3E23208E4
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 16:44:48 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3C67A21473
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 17:32:08 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="vslBuYvy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3E23208E4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="FFlBLXN1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C67A21473
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 312AD6B0005; Mon,  1 Apr 2019 12:44:48 -0400 (EDT)
+	id 983E96B0006; Mon,  1 Apr 2019 13:32:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2C1E06B0008; Mon,  1 Apr 2019 12:44:48 -0400 (EDT)
+	id 92E846B0008; Mon,  1 Apr 2019 13:32:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 18A606B000A; Mon,  1 Apr 2019 12:44:48 -0400 (EDT)
+	id 7D10F6B000A; Mon,  1 Apr 2019 13:32:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D3B616B0005
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 12:44:47 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id i23so7655113pfa.0
-        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 09:44:47 -0700 (PDT)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 521336B0006
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 13:32:07 -0400 (EDT)
+Received: by mail-yw1-f70.google.com with SMTP id z130so3418208ywb.14
+        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 10:32:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=jcvAo90iEgrnlBze/0hMSJPNi22jiy7MfsIMeTHCzlE=;
-        b=tUJjai/q+K8PAXp8h56BwMtV1CHtUhN5XdLgnPZwYmBpFBB9TlyqOPoRyNAinAb+70
-         gppXoPqpbq6ex3llfDQ7kjLF3A3xDozEoVRoQ07VsH9si6EdoCVJu5ZjgaioJ7FA9wSM
-         GR4aUOs2tjY9eBIBcZ6m3Sn1RYI64z2AWJ3sbXyMEtq1n6XUILrKsuPF8ItLlL9dF7xj
-         mcq/xG1jWnthE0imQXkUeRxE3EKSUvO76Bsq+otVixWvQ8V396InSnFfPgFAgX7uXqNA
-         0yXe34w8flmVAQ/p+M4XqupIcXsPxjpDd4enPmQaHLO7dh/tIIB40hoXktX0cI7HmqDI
-         oV9Q==
-X-Gm-Message-State: APjAAAU7E0ser9BZDosaMy9gyCI1OLNwWC5++DpM0EWPgaNsZ7NlOr49
-	2qsl4x+UQ9VgqLI7A0gJpxFMTU//sCyaQ8iy4/zZB9Je7HOPS+FBaaiiPltlGO6xp6Np+qzacTv
-	O2Kxa5jW1ivvYhbEOXK3v6Zs5UgBuMjSx0KjC7onDkw5FPn6vrr3DdFEe68QFnHU8PQ==
-X-Received: by 2002:a17:902:f08a:: with SMTP id go10mr51173076plb.121.1554137087357;
-        Mon, 01 Apr 2019 09:44:47 -0700 (PDT)
-X-Received: by 2002:a17:902:f08a:: with SMTP id go10mr51172989plb.121.1554137086377;
-        Mon, 01 Apr 2019 09:44:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554137086; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=iUCgqqeBDBtU+OdBinvCxjIFMvP27vDN5dESCqfsGZ0=;
+        b=bsymgeA79Yo1jgYw+d7VZDdN741V4PKKenu3iMJqkTzujK0i75MriYGZtSwwbuVcv4
+         /b3s49lP6Mlb6tMuT1WPf+7sihOR+UIzVwpDGUyp+jmSG7vA5P2ydqw7Y0uGrAaQ0s+z
+         vHhz+R9nZ/vNcpbNs86cjjpHF2F7IgIlE40MmINJZpMSFbmvGCyTXuLL6YINr2OP5fPb
+         nryCa5csNiLj5S1GqaX7z9mJvFQ9NYYy7qHyCH3rT2PTX+Aoycv7H1VFUrlP4/hg90vd
+         PjzfQdWtk9pPaJSPx+9wOM+gegXLORhUuO1JMGazMEXHCOClOivWnPhy0nvXbs4iyZsh
+         ISYQ==
+X-Gm-Message-State: APjAAAUfSFdO4HcFkxLbkUo6pb+So3M0ZSNRG1eW/jkU+H94JArOtru+
+	H5i79boHxCHzU6mQec8+PcJusIXgf/jyd8jGIFdakM1XkTbUQH42k7u3pUyD/OdhQdN9/ID0eSA
+	FXXgwmcTXrQ13GOknNbsa43QNOS+VDhT5qzdP4QdjNPKjTPfk+WYYho1Pv5SC1uaN8Q==
+X-Received: by 2002:a81:1390:: with SMTP id 138mr10322888ywt.230.1554139926880;
+        Mon, 01 Apr 2019 10:32:06 -0700 (PDT)
+X-Received: by 2002:a81:1390:: with SMTP id 138mr10322791ywt.230.1554139925843;
+        Mon, 01 Apr 2019 10:32:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554139925; cv=none;
         d=google.com; s=arc-20160816;
-        b=a2xmn8CQW3XcdefIy5zCzACJ1EgpAxDr7TR7sJZxv/5oHGmi3rHqLi2CO7VkESfAim
-         1fzwhjHCIc7eOKJq5xdtmmrfbIl2OUQdjwi9KZx07NmT+pg4+FlQi1wQXVkMX11MzgBs
-         V8uz0EuYmv7Z0pjFdWRaJwY0rIlApDyPRCDlzvsqF0GlEPlJ58nNj9oBzGLH8y8D8I/Z
-         5fY+uERt9fYEZhFx9K8A3xau5FTsHmuTsGUvwUY+As84EtjcutdKdI7NxfhXDXdCY2o4
-         Zrwh9DZtB7dxmaCuuWCDgNSt3JS/P07yF9Eu8H6wB2CPYM4g0G3lJ3Q2xLVKatjtsU1r
-         1kAw==
+        b=UdHnLBZvXFmonyt/s511HLpWUnUBlh8/PHCR9/URm5iaI3MyE73+gmVAEgrFn8+wyq
+         xhmI0aVFIJdjxRIet/78vrsaNWd1A20nSf05ISFpX3kLxeHAgExjHz9c1TYhDXdm2RXz
+         WgAkCdKE6yCP+aMRvmy35hCE1rVg8CfAOPDZiqjNJsquedpwbQadQGumaUfrEFduhk62
+         Ovkc9zB1xJ5R4vDr/kaMVrFfVu34vwbblOtnEHe7erLSdUpq2dMLU9TjiMlFrQj7eqJ/
+         eI57QEH3q45nK7FG1xUuPVAOzUPfHHoxWh8l7Ssj80UoSdwZNwJ1LVGu/pYxcYeNMqM7
+         C8tg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=jcvAo90iEgrnlBze/0hMSJPNi22jiy7MfsIMeTHCzlE=;
-        b=Kh7rlgXnQA3ofOwPxfdIALOxf2LFRMkVchtmYiqyttGuT6Tc/E525TTKxIxrovSuW6
-         BEaWS7nVbCIXyMhxzqqqekNMMLQqKV2hrDxqv3ebbAvykSJXYL5VGQz4eLJKK7MN53HG
-         zUNdQXg/illeDptCUXd5/DqdZ6XG8OlSqFkrpGdfe+vJoL6owJo7LMwyUUc7lnYQfB5C
-         zjcb3RppK4TUfNjns0S52e8aVPwEuoK1iO6yFVMB2xovcAEJb4OSWMhTNfMVP+5YMhsL
-         hiKWPKVHrfNoTGy+3sP0heRkmvz6argqjoDilQg7Kctyz+y0+Kc3w84hsx8G1PHaEm6r
-         p1zg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=iUCgqqeBDBtU+OdBinvCxjIFMvP27vDN5dESCqfsGZ0=;
+        b=mXodoRZp+6HNpaqmI2GWt/CMLNM69IQrXZ++pWUi4z8oJ31DcSYgbzn/+ZLzmwwP2n
+         EunRvxYjFZ0veMUWtQrER8P1h247N0JUn6eAIkJfF1Z1xQ6lAkEVCgZhqXJeIBN5qB0e
+         n7QY0yPTQAJDe7YqclD21KEqkmS3325+oHNGXJORf9JPPtotB1o2mkxdfW0HOPGyAiJx
+         NT+lvw/jMR2stbYmIO+DsuW22XACkyML7do2QELRLnmpOA8JCzVAMNe5hZKGF7tmEWCO
+         okImlnlGhIEHN6fCrFQsmjgDxNX/z11dpcB338j5A1Oidn+U1Jxt8Lb9sOBsFJvjTSYc
+         f6qQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=vslBuYvy;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=FFlBLXN1;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g1sor1764428plp.57.2019.04.01.09.44.46
+        by mx.google.com with SMTPS id u22sor3953785ywu.213.2019.04.01.10.32.05
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 01 Apr 2019 09:44:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 01 Apr 2019 10:32:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=vslBuYvy;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=FFlBLXN1;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=jcvAo90iEgrnlBze/0hMSJPNi22jiy7MfsIMeTHCzlE=;
-        b=vslBuYvyVACTtd9R5+codicCDT1kankQTx9ynqhgVyffds1dzXxjpldeqxWmBmfHsC
-         /1SlqNwfj8MKh+hKq6rQiBl2wu9AiF7/sl91aJ+XWVvy/fPWd0KB/mkqTbCjyTk0n544
-         FrH+QO3vjOvGFFIdMc+UPhP10aS3P9Ra+66OD51kzN1nk8mAgZmqn5j7YfQz4za8dq3p
-         Bb0/i/5T+S8fy2fQrS8Qa+vxkZokUeBrQHWlf4dlxYyrtfxlyWG0GRCEDRoiLnuDwZIe
-         KKKj+jqvVOG+hUPOAqZXafRhe3CNvh+AmzYBiQ5jMbBGQn/fzMDivTGkBZQLUQfet6gy
-         APMg==
-X-Google-Smtp-Source: APXvYqxoEv7uRsHZ4Mjlc/vszzpnGNQmzJMZE9SWqgzz6pDDFBr2573vmZ5LPK49GUB2H17kk4Ibik9LHbBOBFyKLeg=
-X-Received: by 2002:a17:902:586:: with SMTP id f6mr63903459plf.68.1554137085707;
- Mon, 01 Apr 2019 09:44:45 -0700 (PDT)
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=iUCgqqeBDBtU+OdBinvCxjIFMvP27vDN5dESCqfsGZ0=;
+        b=FFlBLXN1ReTLIcakm+zexDtxxsRyk97wv0ScT9Q+ZhPL4lD0FOHYTSFDiHuowsCUJO
+         Vnf4Q7dI4Q8THWgl6vJCjLVh9q/O87xrFkvolqIFCQJU4dwy1F6RGq+OzvgUmUJZwweX
+         OZls2jItEjwVLVeByyysEr7OrwE/Y1CON/Gp4tIYB7FiBSJV0RxzwnLLfn9570AhCNAH
+         aKzBcfIFeA5wtegQnWiR+ekW61L6HoZ29m+u9DLbOy/zbDQL3ZBqQ4ihTzSkXfmBka9/
+         JLLe9vjql2wU8Ac5PnwLj4Hg0M3KA9a/IcVv5OKANZv9WK0gq9i1YItVY4BPCnx73CIH
+         n2Og==
+X-Google-Smtp-Source: APXvYqxlSH4orwXxHoNbWQR2M5WR8DFrGzupoUG+2WS96YMss4VGMIj+HKcg5xHKhXP0yfg1PuwIHw==
+X-Received: by 2002:a81:a101:: with SMTP id y1mr44792235ywg.43.1554139924995;
+        Mon, 01 Apr 2019 10:32:04 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:200::2:8ed4])
+        by smtp.gmail.com with ESMTPSA id m133sm5041831ywm.55.2019.04.01.10.32.03
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 01 Apr 2019 10:32:03 -0700 (PDT)
+Date: Mon, 1 Apr 2019 13:32:02 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>,
+	Michal Hocko <mhocko@kernel.org>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Tejun Heo <tj@kernel.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, stable@vger.kernel.org
+Subject: Re: [PATCH v2] writeback: use exact memcg dirty counts
+Message-ID: <20190401173202.GA2953@cmpxchg.org>
+References: <20190329174609.164344-1-gthelen@google.com>
 MIME-Version: 1.0
-References: <cover.1553093420.git.andreyknvl@google.com> <76f96eb9162b3a7fa5949d71af38bf8fdf6924c4.1553093421.git.andreyknvl@google.com>
- <20190322154136.GP13384@arrakis.emea.arm.com>
-In-Reply-To: <20190322154136.GP13384@arrakis.emea.arm.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Mon, 1 Apr 2019 18:44:34 +0200
-Message-ID: <CAAeHK+yHp27eT+wTE3Uy4DkN8XN3ZjHATE+=HgjgRjrHjiXs3Q@mail.gmail.com>
-Subject: Re: [PATCH v13 10/20] kernel, arm64: untag user pointers in prctl_set_mm*
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, 
-	Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, 
-	Kate Stewart <kstewart@linuxfoundation.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, 
-	Shuah Khan <shuah@kernel.org>, Vincenzo Frascino <vincenzo.frascino@arm.com>, 
-	Eric Dumazet <edumazet@google.com>, "David S. Miller" <davem@davemloft.net>, 
-	Alexei Starovoitov <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, 
-	Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, 
-	Peter Zijlstra <peterz@infradead.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, 
-	Alex Deucher <alexander.deucher@amd.com>, =?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>, 
-	"David (ChunMing) Zhou" <David1.Zhou@amd.com>, Yishai Hadas <yishaih@mellanox.com>, 
-	Mauro Carvalho Chehab <mchehab@kernel.org>, Jens Wiklander <jens.wiklander@linaro.org>, 
-	Alex Williamson <alex.williamson@redhat.com>, 
-	Linux ARM <linux-arm-kernel@lists.infradead.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, 
-	netdev <netdev@vger.kernel.org>, bpf <bpf@vger.kernel.org>, 
-	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
-	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
-	Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, 
-	Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>, 
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>, 
-	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190329174609.164344-1-gthelen@google.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 22, 2019 at 4:41 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
->
-> On Wed, Mar 20, 2019 at 03:51:24PM +0100, Andrey Konovalov wrote:
-> > @@ -2120,13 +2135,14 @@ static int prctl_set_mm(int opt, unsigned long addr,
-> >       if (opt == PR_SET_MM_AUXV)
-> >               return prctl_set_auxv(mm, addr, arg4);
-> >
-> > -     if (addr >= TASK_SIZE || addr < mmap_min_addr)
-> > +     if (untagged_addr(addr) >= TASK_SIZE ||
-> > +                     untagged_addr(addr) < mmap_min_addr)
-> >               return -EINVAL;
-> >
-> >       error = -EINVAL;
-> >
-> >       down_write(&mm->mmap_sem);
-> > -     vma = find_vma(mm, addr);
-> > +     vma = find_vma(mm, untagged_addr(addr));
-> >
-> >       prctl_map.start_code    = mm->start_code;
-> >       prctl_map.end_code      = mm->end_code;
->
-> Does this mean that we are left with tagged addresses for the
-> mm->start_code etc. values? I really don't think we should allow this,
-> I'm not sure what the implications are in other parts of the kernel.
->
-> Arguably, these are not even pointer values but some address ranges. I
-> know we decided to relax this notion for mmap/mprotect/madvise() since
-> the user function prototypes take pointer as arguments but it feels like
-> we are overdoing it here (struct prctl_mm_map doesn't even have
-> pointers).
->
-> What is the use-case for allowing tagged addresses here? Can user space
-> handle untagging?
+On Fri, Mar 29, 2019 at 10:46:09AM -0700, Greg Thelen wrote:
+> Since commit a983b5ebee57 ("mm: memcontrol: fix excessive complexity in
+> memory.stat reporting") memcg dirty and writeback counters are managed
+> as:
+> 1) per-memcg per-cpu values in range of [-32..32]
+> 2) per-memcg atomic counter
+> When a per-cpu counter cannot fit in [-32..32] it's flushed to the
+> atomic.  Stat readers only check the atomic.
+> Thus readers such as balance_dirty_pages() may see a nontrivial error
+> margin: 32 pages per cpu.
+> Assuming 100 cpus:
+>    4k x86 page_size:  13 MiB error per memcg
+>   64k ppc page_size: 200 MiB error per memcg
+> Considering that dirty+writeback are used together for some decisions
+> the errors double.
+> 
+> This inaccuracy can lead to undeserved oom kills.  One nasty case is
+> when all per-cpu counters hold positive values offsetting an atomic
+> negative value (i.e. per_cpu[*]=32, atomic=n_cpu*-32).
+> balance_dirty_pages() only consults the atomic and does not consider
+> throttling the next n_cpu*32 dirty pages.  If the file_lru is in the
+> 13..200 MiB range then there's absolutely no dirty throttling, which
+> burdens vmscan with only dirty+writeback pages thus resorting to oom
+> kill.
+> 
+> It could be argued that tiny containers are not supported, but it's more
+> subtle.  It's the amount the space available for file lru that matters.
+> If a container has memory.max-200MiB of non reclaimable memory, then it
+> will also suffer such oom kills on a 100 cpu machine.
+> 
+> The following test reliably ooms without this patch.  This patch avoids
+> oom kills.
+> 
+>   $ cat test
+>   mount -t cgroup2 none /dev/cgroup
+>   cd /dev/cgroup
+>   echo +io +memory > cgroup.subtree_control
+>   mkdir test
+>   cd test
+>   echo 10M > memory.max
+>   (echo $BASHPID > cgroup.procs && exec /memcg-writeback-stress /foo)
+>   (echo $BASHPID > cgroup.procs && exec dd if=/dev/zero of=/foo bs=2M count=100)
+> 
+>   $ cat memcg-writeback-stress.c
+>   /*
+>    * Dirty pages from all but one cpu.
+>    * Clean pages from the non dirtying cpu.
+>    * This is to stress per cpu counter imbalance.
+>    * On a 100 cpu machine:
+>    * - per memcg per cpu dirty count is 32 pages for each of 99 cpus
+>    * - per memcg atomic is -99*32 pages
+>    * - thus the complete dirty limit: sum of all counters 0
+>    * - balance_dirty_pages() only sees atomic count -99*32 pages, which
+>    *   it max()s to 0.
+>    * - So a workload can dirty -99*32 pages before balance_dirty_pages()
+>    *   cares.
+>    */
+>   #define _GNU_SOURCE
+>   #include <err.h>
+>   #include <fcntl.h>
+>   #include <sched.h>
+>   #include <stdlib.h>
+>   #include <stdio.h>
+>   #include <sys/stat.h>
+>   #include <sys/sysinfo.h>
+>   #include <sys/types.h>
+>   #include <unistd.h>
+> 
+>   static char *buf;
+>   static int bufSize;
+> 
+>   static void set_affinity(int cpu)
+>   {
+>   	cpu_set_t affinity;
+> 
+>   	CPU_ZERO(&affinity);
+>   	CPU_SET(cpu, &affinity);
+>   	if (sched_setaffinity(0, sizeof(affinity), &affinity))
+>   		err(1, "sched_setaffinity");
+>   }
+> 
+>   static void dirty_on(int output_fd, int cpu)
+>   {
+>   	int i, wrote;
+> 
+>   	set_affinity(cpu);
+>   	for (i = 0; i < 32; i++) {
+>   		for (wrote = 0; wrote < bufSize; ) {
+>   			int ret = write(output_fd, buf+wrote, bufSize-wrote);
+>   			if (ret == -1)
+>   				err(1, "write");
+>   			wrote += ret;
+>   		}
+>   	}
+>   }
+> 
+>   int main(int argc, char **argv)
+>   {
+>   	int cpu, flush_cpu = 1, output_fd;
+>   	const char *output;
+> 
+>   	if (argc != 2)
+>   		errx(1, "usage: output_file");
+> 
+>   	output = argv[1];
+>   	bufSize = getpagesize();
+>   	buf = malloc(getpagesize());
+>   	if (buf == NULL)
+>   		errx(1, "malloc failed");
+> 
+>   	output_fd = open(output, O_CREAT|O_RDWR);
+>   	if (output_fd == -1)
+>   		err(1, "open(%s)", output);
+> 
+>   	for (cpu = 0; cpu < get_nprocs(); cpu++) {
+>   		if (cpu != flush_cpu)
+>   			dirty_on(output_fd, cpu);
+>   	}
+> 
+>   	set_affinity(flush_cpu);
+>   	if (fsync(output_fd))
+>   		err(1, "fsync(%s)", output);
+>   	if (close(output_fd))
+>   		err(1, "close(%s)", output);
+>   	free(buf);
+>   }
+> 
+> Make balance_dirty_pages() and wb_over_bg_thresh() work harder to
+> collect exact per memcg counters.  This avoids the aforementioned oom
+> kills.
+> 
+> This does not affect the overhead of memory.stat, which still reads the
+> single atomic counter.
+> 
+> Why not use percpu_counter?  memcg already handles cpus going offline,
+> so no need for that overhead from percpu_counter.  And the
+> percpu_counter spinlocks are more heavyweight than is required.
+> 
+> It probably also makes sense to use exact dirty and writeback counters
+> in memcg oom reports.  But that is saved for later.
+> 
+> Cc: stable@vger.kernel.org # v4.16+
+> Signed-off-by: Greg Thelen <gthelen@google.com>
 
-I don't know any use cases for this. I did it because it seems to be
-covered by the relaxed ABI. I'm not entirely sure what to do here,
-should I just drop this patch?
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
->
-> --
-> Catalin
+Thanks Greg!
 
