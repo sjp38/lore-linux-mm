@@ -2,200 +2,279 @@ Return-Path: <SRS0=sWz3=SD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C1CC2C10F05
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 08:14:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B5226C43381
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 08:18:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7BD7E2084B
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 08:14:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7BD7E2084B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 6184A2084B
+	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 08:18:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6184A2084B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 185766B0006; Mon,  1 Apr 2019 04:14:45 -0400 (EDT)
+	id 0E8FE6B0006; Mon,  1 Apr 2019 04:18:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 10EE86B0008; Mon,  1 Apr 2019 04:14:45 -0400 (EDT)
+	id 0987C6B0008; Mon,  1 Apr 2019 04:18:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F17CB6B000A; Mon,  1 Apr 2019 04:14:44 -0400 (EDT)
+	id E79E16B000A; Mon,  1 Apr 2019 04:18:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 99A2A6B0006
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 04:14:44 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id z98so4043549ede.3
-        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 01:14:44 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C63386B0006
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 04:18:03 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id d8so7840249qkk.17
+        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 01:18:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=OlwPsHPL3UFoVGCXCQloUW0f8hygBy/Kizop/FlYfQk=;
-        b=YHPhWEhCuK4sDkY/t9kXKF1KQWtFz2Vj05MmbAu3gdkCXPRilSGUty1y/Kh5SX5PG/
-         WXUdqPaZe6aTj0A/Lvk74wUCNs7bG08IDVLBWf8rrv8kTEHt0duvna96GHQ4lLkQ7Nbr
-         MF9CqMYIBlCbfERQYamb59+5+vjRhn5Aty0dzZJR6dEab2lF11dB+f6Xmqc8lDePF6wD
-         eHL7OcpS4b3Rf+gUui9bVToQZcvguYc4nRJ3yeNneKDWgEnTTB9t7plUz8vuMEAvYoKg
-         qAKPGzZGdNi5rhw5bm5au9JipZaT1mNw8dOBW1dzpuzkBKWLrunj5uxZlAnz2+AlPJmu
-         tM8A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: APjAAAUYPamITOUPJFLR5iDhvrp8Dm+pDy0Q5hi7g1kCFzeiz6twF46t
-	s3vwyjymrscXEwCQxkh4CpkNK+6cT5Ycyelql7C7LA0KfJ7YnDBRz43jfEUiuVlRbfkO9zIersE
-	jkYaKH5svOZBXhG9JfsHftlUKro1C52k2gBSXUIxwpVSXbxKY8qcG5iwMD5UDCBGc5Q==
-X-Received: by 2002:a17:906:1584:: with SMTP id k4mr32037055ejd.226.1554106484107;
-        Mon, 01 Apr 2019 01:14:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy1kJjJNqzehE3HWqrBQf2Y4f1l2hlxCJF6cz3Vi6fn8rFIx3NblD7IiTUbdZnILJbQnLdT
-X-Received: by 2002:a17:906:1584:: with SMTP id k4mr32037018ejd.226.1554106483186;
-        Mon, 01 Apr 2019 01:14:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554106483; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=IoXH/rpEYuMV6xX+QAj8bnG6/X0/+K0uAx2M8Uj1UPA=;
+        b=VJrinyyyVDTBhVuL9diIiyq+ypVNxnr2jlaRexanjzNlcKD8f10bjDeJTsoTWb0esA
+         4iXgNr6RHkzrzucYDR9IAX/DST30NKxZtAUeaaUi8Cb2pLSlyCwaufKCJhS/kZUz3NeN
+         DUy+c+1jybH+Eo6wIIFjBYe1X0CTlMwNkM0pavNFrxd0OU0w62DArL8G0b/g5b5sPwxw
+         1L+gIHpThhYFLW2HMZUFIjInZLm2AeEWLf8cv8GqZHL/ldVSu+2FQzkoMl1QN8MOjax4
+         dqSsB+4ftIg1R9LqfyaZfH5hZzqcFGEaqWg3Mj8XKBFg2v8JwTaR24UUfaGBzFSPyPf8
+         9xIg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWKBnGxebb9+N3h7giP4xaAnusAHuVuL2kyYIjrEQiEDntCZ865
+	MxWtcc1oH/dwscKD/vvNTtvh+YoANiy7vAECkx6rC4VHg4C636jsmXdVsgbf2zHC/gKj5RtyTFT
+	lZ7gQ2ix4VjBtyJgZMxvzl1ycOqe2BvObdWTgBwiaeUsSuZX5R7gZue+9DF+cVBL8Vg==
+X-Received: by 2002:a05:620a:1429:: with SMTP id k9mr48669025qkj.238.1554106683552;
+        Mon, 01 Apr 2019 01:18:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwC9uDpj4EAgXUmiVeC3lkZm2hfh6wFb4CU7tnicFRp9ABDMLBblpljpWKOWOz8vMyWWjiW
+X-Received: by 2002:a05:620a:1429:: with SMTP id k9mr48668986qkj.238.1554106682653;
+        Mon, 01 Apr 2019 01:18:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554106682; cv=none;
         d=google.com; s=arc-20160816;
-        b=sMzf8bO6R9z/1S6l2kmVhPgv1YRywW0OureankpISMXcE7fnebD5d4DeeHzjqWTQcB
-         rqQOXYL79AKQ3aEa5IkBsAjDhcU9/DNPsfcD9kqAcy9BqCQm5a8hYoNbflp8tLtZkltE
-         28l5VXESlJ2O/ELuYqFKWCQL1/NRcX3zGodHgRxqHu1cv1QaKPGQiIy4xrRbbuQYrfws
-         XksTNqM+tkyCiR094GLcZ1M62cCsC+A5q8+0eTxeHy2c/A5LRWSBXz062bAAuJundZaS
-         tHQ4EJ+06ZUSirOIcV7cgA4ElJDbfMNMeVh86nFSjFyG8eIw0az7f4veQth5xtjcDViP
-         VDGw==
+        b=J+brX8/5ncWXpFWPL2JdIfMce/Iz75FsOzJva2nD/T8VnWySi+SYsEIyOZO4TOhgP1
+         mAyRY3rRjmABM9Zqmp4o0fS7Sq1dmY+BwyeZeRgdI/43M5gSwFuDOyFRNvN4Czuc0ESa
+         +PIuWZ9mATMylDTTFaT+9yr4cS8d/1ZW33eqq+1brh/v3ZtLNTh+o6K0WIKRJHb3hml1
+         cjBu2y2MrP9EfSVYtO6eUZGxiT6nLSFRHjPGSg6Na0JzFl4PFF8HUfBBQXhsujWTQsi2
+         cgOy7TSVjfSfojXjA2v1J/HdoJZmamdvqkkaBrBPw8BhqYn1tjcfDc6CSfnQcydef/AJ
+         2z8g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=OlwPsHPL3UFoVGCXCQloUW0f8hygBy/Kizop/FlYfQk=;
-        b=0XZ36h2PNGDh3Rst2wGykTlCucpJR3ey1mQ8OLkrlCFlSdrUQHBUZIaeHlAsK8Gcqz
-         vmoQGumek4vfLPBGRrvBAk0HgimdwrUlrnEP2IMkqTAvFZi8fBGfIFs0OnpD+BgkUfqT
-         haaexlvoYBhx+WrjHwMOP2d9aUQ+w0AOzN27YRILqQ94r6wBQHHR+J/QtPkCCgHgxENG
-         nb4X6YJ/vzDvk2usKh/OorGx7ZV7OdfWo5TAqIxDUOeYpOoYI7yfEIyZ+KM2ApVMo7az
-         uPWFzcm2QLfsh39pv4YoPwL0tM0ccfQkDYQY6FYZLTX5Q+KGDogM4nIfd4OOsYD2pmCb
-         0pyg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=IoXH/rpEYuMV6xX+QAj8bnG6/X0/+K0uAx2M8Uj1UPA=;
+        b=jtby9ays92M1oxXMuOz8f1gcydfHDMTzM9ES2ygg9yGIQWf3nDW9DC/sAoxjm0CWmA
+         BkhEdJFMiV9kU+a/gme4p2v3qIRp9NvN5ghiMlP0fbOWNru5Ceq7JCkc530gO7jSiumQ
+         JduQqB48KlhN0NbFBkqHFYcjo3voFcfXs4lsfknTzpbSq44TJlMh7TY2p9GUvFJKFgew
+         09kd7TAJcGRbq7fZXKhCJLj2QOOBENbSdlLpTbZS30/8gpbNfe/n6kM54/ntedqk5h3i
+         F++MHxbq6COeRZGDjsXg2yOTSPgCttBuIxsphfFgOTA9D472eosntPCB6mgPBo5Q+exm
+         cHuQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t23si2626660ejl.208.2019.04.01.01.14.42
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b23si367267qtq.44.2019.04.01.01.18.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Apr 2019 01:14:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 01 Apr 2019 01:18:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 48BE9ACB1;
-	Mon,  1 Apr 2019 08:14:42 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id DD5AC1E42C7; Mon,  1 Apr 2019 10:14:41 +0200 (CEST)
-Date: Mon, 1 Apr 2019 10:14:41 +0200
-From: Jan Kara <jack@suse.cz>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: dan.j.williams@intel.com, akpm@linux-foundation.org,
-	Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org,
-	linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org,
-	stable@vger.kernel.org
-Subject: Re: [PATCH] mm: Fix modifying of page protection by insert_pfn_pmd()
-Message-ID: <20190401081441.GD4826@quack2.suse.cz>
-References: <20190330054121.27831-1-aneesh.kumar@linux.ibm.com>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id B97613084034;
+	Mon,  1 Apr 2019 08:18:01 +0000 (UTC)
+Received: from [10.36.117.63] (ovpn-117-63.ams2.redhat.com [10.36.117.63])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 03DC11A918;
+	Mon,  1 Apr 2019 08:17:51 +0000 (UTC)
+Subject: Re: On guest free page hinting and OOM
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm@vger.kernel.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org, pbonzini@redhat.com,
+ lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
+ yang.zhang.wz@gmail.com, riel@surriel.com, dodgen@google.com,
+ konrad.wilk@oracle.com, dhildenb@redhat.com, aarcange@redhat.com,
+ alexander.duyck@gmail.com
+References: <20190329084058-mutt-send-email-mst@kernel.org>
+ <f6332928-d6a4-7a75-245d-2c534cf6e710@redhat.com>
+ <20190329104311-mutt-send-email-mst@kernel.org>
+ <7a3baa90-5963-e6e2-c862-9cd9cc1b5f60@redhat.com>
+ <f0ee075d-3e99-efd5-8c82-98d53b9f204f@redhat.com>
+ <20190329125034-mutt-send-email-mst@kernel.org>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <fb23fd70-4f1b-26a8-5ecc-4c14014ef29d@redhat.com>
+Date: Mon, 1 Apr 2019 10:17:51 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190330054121.27831-1-aneesh.kumar@linux.ibm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190329125034-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Mon, 01 Apr 2019 08:18:01 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat 30-03-19 11:11:21, Aneesh Kumar K.V wrote:
-> With some architectures like ppc64, set_pmd_at() cannot cope with
-> a situation where there is already some (different) valid entry present.
+On 29.03.19 17:51, Michael S. Tsirkin wrote:
+> On Fri, Mar 29, 2019 at 04:45:58PM +0100, David Hildenbrand wrote:
+>> On 29.03.19 16:37, David Hildenbrand wrote:
+>>> On 29.03.19 16:08, Michael S. Tsirkin wrote:
+>>>> On Fri, Mar 29, 2019 at 03:24:24PM +0100, David Hildenbrand wrote:
+>>>>>
+>>>>> We had a very simple idea in mind: As long as a hinting request is
+>>>>> pending, don't actually trigger any OOM activity, but wait for it to be
+>>>>> processed. Can be done using simple atomic variable.
+>>>>>
+>>>>> This is a scenario that will only pop up when already pretty low on
+>>>>> memory. And the main difference to ballooning is that we *know* we will
+>>>>> get more memory soon.
+>>>>
+>>>> No we don't.  If we keep polling we are quite possibly keeping the CPU
+>>>> busy so delaying the hint request processing.  Again the issue it's a
+>>>
+>>> You can always yield. But that's a different topic.
+>>>
+>>>> tradeoff. One performance for the other. Very hard to know which path do
+>>>> you hit in advance, and in the real world no one has the time to profile
+>>>> and tune things. By comparison trading memory for performance is well
+>>>> understood.
+>>>>
+>>>>
+>>>>> "appended to guest memory", "global list of memory", malicious guests
+>>>>> always using that memory like what about NUMA?
+>>>>
+>>>> This can be up to the guest. A good approach would be to take
+>>>> a chunk out of each node and add to the hints buffer.
+>>>
+>>> This might lead to you not using the buffer efficiently. But also,
+>>> different topic.
+>>>
+>>>>
+>>>>> What about different page
+>>>>> granularity?
+>>>>
+>>>> Seems like an orthogonal issue to me.
+>>>
+>>> It is similar, yes. But if you support multiple granularities (e.g.
+>>> MAX_ORDER - 1, MAX_ORDER - 2 ...) you might have to implement some sort
+>>> of buddy for the buffer. This is different than just a list for each node.
 > 
-> Use pmdp_set_access_flags() instead to modify the pfn which is built to
-> deal with modifying existing PMD entries.
-> 
-> This is similar to
-> commit cae85cb8add3 ("mm/memory.c: fix modifying of page protection by insert_pfn()")
-> 
-> We also do similar update w.r.t insert_pfn_pud eventhough ppc64 don't support
-> pud pfn entries now.
-> 
-> CC: stable@vger.kernel.org
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+> Right but we don't plan to do it yet.
 
-Thanks for fixing this! The patch looks good to me. Feel free to add:
+MAX_ORDER - 2 on x86-64 seems to work just fine (no THP splits) and
+early performance numbers indicate it might be the right thing to do. So
+it could be very desirable once we do more performance tests.
 
-Reviewed-by: Jan Kara <jack@suse.cz>
-
-								Honza
-
-> ---
->  mm/huge_memory.c | 31 +++++++++++++++++++++++++++++++
->  1 file changed, 31 insertions(+)
 > 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 404acdcd0455..f7dca413c4b2 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -755,6 +755,20 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
->  	spinlock_t *ptl;
->  
->  	ptl = pmd_lock(mm, pmd);
-> +	if (!pmd_none(*pmd)) {
-> +		if (write) {
-> +			if (pmd_pfn(*pmd) != pfn_t_to_pfn(pfn)) {
-> +				WARN_ON_ONCE(!is_huge_zero_pmd(*pmd));
-> +				goto out_unlock;
-> +			}
-> +			entry = pmd_mkyoung(*pmd);
-> +			entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-> +			if (pmdp_set_access_flags(vma, addr, pmd, entry, 1))
-> +				update_mmu_cache_pmd(vma, addr, pmd);
-> +		}
-> +		goto out_unlock;
-> +	}
-> +
->  	entry = pmd_mkhuge(pfn_t_pmd(pfn, prot));
->  	if (pfn_t_devmap(pfn))
->  		entry = pmd_mkdevmap(entry);
-> @@ -770,6 +784,7 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
->  
->  	set_pmd_at(mm, addr, pmd, entry);
->  	update_mmu_cache_pmd(vma, addr, pmd);
-> +out_unlock:
->  	spin_unlock(ptl);
->  }
->  
-> @@ -821,6 +836,20 @@ static void insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
->  	spinlock_t *ptl;
->  
->  	ptl = pud_lock(mm, pud);
-> +	if (!pud_none(*pud)) {
-> +		if (write) {
-> +			if (pud_pfn(*pud) != pfn_t_to_pfn(pfn)) {
-> +				WARN_ON_ONCE(!is_huge_zero_pud(*pud));
-> +				goto out_unlock;
-> +			}
-> +			entry = pud_mkyoung(*pud);
-> +			entry = maybe_pud_mkwrite(pud_mkdirty(entry), vma);
-> +			if (pudp_set_access_flags(vma, addr, pud, entry, 1))
-> +				update_mmu_cache_pud(vma, addr, pud);
-> +		}
-> +		goto out_unlock;
-> +	}
-> +
->  	entry = pud_mkhuge(pfn_t_pud(pfn, prot));
->  	if (pfn_t_devmap(pfn))
->  		entry = pud_mkdevmap(entry);
-> @@ -830,6 +859,8 @@ static void insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
->  	}
->  	set_pud_at(mm, addr, pud, entry);
->  	update_mmu_cache_pud(vma, addr, pud);
-> +
-> +out_unlock:
->  	spin_unlock(ptl);
->  }
->  
-> -- 
-> 2.20.1
+>> Oh, and before I forget, different zones might of course also be a problem.
 > 
+> I would just split the hint buffer evenly between zones.
+> 
+
+Thinking about your approach, there is one elementary thing to notice:
+
+Giving the guest pages from the buffer while hinting requests are being
+processed means that the guest can and will temporarily make use of more
+memory than desired. Essentially up to the point where MADV_FREE is
+finally called for the hinted pages. Even then the guest will logicall
+make use of more memory than desired until core MM takes pages away.
+
+So:
+1) Unmodified guests will make use of more memory than desired.
+2) Malicious guests will make use of more memory than desired.
+3) Sane, modified guests will make use of more memory than desired.
+
+Instead, we could make our life much easier by doing the following:
+
+1) Introduce a parameter to cap the amount of memory concurrently hinted
+similar like you suggested, just don't consider it a buffer value.
+"-device virtio-balloon,hinting_size=1G". This gives us control over the
+hinting proceess.
+
+hinting_size=0 (default) disables hinting
+
+The admin can tweak the number along with memory requirements of the
+guest. We can make suggestions (e.g. calculate depending on #cores,#size
+of memory, or simply "1GB")
+
+2) In the guest, track the size of hints in progress, cap at the
+hinting_size.
+
+3) Document hinting behavior
+
+"When hinting is enabled, memory up to hinting_size might temporarily be
+removed from your guest in order to be hinted to the hypervisor. This is
+only for a very short time, but might affect applications. Consider the
+hinting_size when sizing your guest. If your application was tested with
+XGB and a hinting size of 1G is used, please configure X+1GB for the
+guest. Otherwise, performance degradation might be possible."
+
+4) Do the loop/yield on OOM as discussed to improve performance when OOM
+and avoid false OOM triggers just to be sure.
+
+
+BTW, one alternatives I initially had in mind was to add pages from the
+buffer from the OOM handler only and putting these pages back into the
+buffer once freed. I thought this might help for certain memory offline
+scenarios where pages stuck in the buffer might hinder offlining of
+memory. And of course, improve performance as the buffer is only touched
+when really needed. But it would only help for memory (e.g. DIMM) added
+after boot, so it is also not 100% safe. Also, same issues as with your
+given approach.
+
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+
+Thanks,
+
+David / dhildenb
 
