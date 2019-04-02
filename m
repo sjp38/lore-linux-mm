@@ -2,182 +2,137 @@ Return-Path: <SRS0=cFM0=SE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E9A7CC4360F
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 09:43:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C123C4360F
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 10:16:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 94C8E20883
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 09:43:36 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=nxp.com header.i=@nxp.com header.b="GACUknFW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 94C8E20883
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nxp.com
+	by mail.kernel.org (Postfix) with ESMTP id 63BA92082C
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 10:16:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 63BA92082C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 34C546B0277; Tue,  2 Apr 2019 05:43:36 -0400 (EDT)
+	id D1F236B0279; Tue,  2 Apr 2019 06:16:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2FD056B0278; Tue,  2 Apr 2019 05:43:36 -0400 (EDT)
+	id CA87E6B027A; Tue,  2 Apr 2019 06:16:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1EB686B0279; Tue,  2 Apr 2019 05:43:36 -0400 (EDT)
+	id B978A6B027B; Tue,  2 Apr 2019 06:16:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C039B6B0277
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 05:43:35 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id p88so5589730edd.17
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 02:43:35 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F81D6B0279
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 06:16:16 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id p88so5629867edd.17
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 03:16:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:accept-language:content-language
-         :content-transfer-encoding:mime-version;
-        bh=xSRc8Pz01JTPpJmtk7tlkeDqW/6QOxKjXGKZ74ohUJA=;
-        b=YQf08Z8bQzw0/woLlJ/HYhTDip/t/DyOX2jlo9UsYGGMs9wCJTAcnpktstGRDmUNpy
-         BwHA0jIQBLgMR0QROfm9/ozwyV9BaaCgfIAGn5B0wKYF9BIyxjF4/NYfGvNQmJ0sblI1
-         JnidiyTMNB+2eQRxwq4vfQaoIOXLczkijDJiiD63tJrcvUbkGEMaFD1jczZc708AMHD7
-         NEaWIaziriri0jVFlbxYmeUEcSN+oRfnGAeG4sSpjOKJSopdPjLCh3nNantZ9stpQoNo
-         5sIL4bY9ohAJO84uta3vvesBndWITsxuYUN63M89EU1D2F6zy7SMbXYpUeVPG75upgZT
-         AD3w==
-X-Gm-Message-State: APjAAAXb/Th3qX70HCRIfWOQvVCDvTkyXLDXSP2guka2an9wZ0HlSTsl
-	3PvcIbs06nWNhP7szGxVudTqsQowzYORP1ENNWGUG+2n0LednzrqbS3+1Ds3TTXoUHPA1+tz3dk
-	e2YqVSORArrDeetNQtyV+cHdWmNPrByMTzlYaCPCuzkJGx/JmrVjcQAdIAZlk6Qb1DQ==
-X-Received: by 2002:a17:906:b309:: with SMTP id n9mr7773452ejz.210.1554198215309;
-        Tue, 02 Apr 2019 02:43:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz/jGdh3lrEvZ4sC37KAwZ9YYAY7owW4sTN0lLC1OIsLXYOJR2mxIBdDLEkSIRyylUXPnjX
-X-Received: by 2002:a17:906:b309:: with SMTP id n9mr7773416ejz.210.1554198214546;
-        Tue, 02 Apr 2019 02:43:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554198214; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=K59ac77Cn2ebhel60fTdWNb2ZGVEdI+O62seUFEyKfc=;
+        b=RABS1Z8FRK9f87jZ3ma2yB/GBOcPz0+Xa4VvTxkTDhUFiN5kS86zEwmXOJFu2koy9b
+         XFJfjxEmuQbN/pFh8IP2YSKYCDqv4s7CEUYUMQTfPPAzSTjsF/wKU2aOS/nwaFDI+qEE
+         HFfHdhWS1Pn93PYomkg6GFMA2FJUl7byWMLqC+5eFDz6dhIy2P+jF0DLH3hJj25MqmTg
+         1p1Gcd+JMoWr3g8sKo0lDMkC+1caEqizGLq2/NJxxyXuQ9XZTgxHfqvZXD+pDPtmNf9G
+         0reSHqYjUPO1kN0myRZmAVZN79sAJ+qkCXCXM4Xp0ZbWx35nCWR29n0Wo7AtmCgW1OB7
+         nlgQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Gm-Message-State: APjAAAU7SY3iJop0cGjT7jMExHUW0S0nb9yWfeBrQ07gSidvq+sC3N63
+	0vawN3Jj2t3S2L6ndQ8ppssZw02p2kvYDIQAjrfgonY7Z04qtTC8VbWAw19RHO0NIPt+wZE6W2S
+	rBfFhOSYqULcj72Zm4wozsOOUATWgX7zZTxZFIunhT2L2uD49Xzt9d5s//++lCQ1hnw==
+X-Received: by 2002:a17:906:5a57:: with SMTP id l23mr40035597ejs.34.1554200175969;
+        Tue, 02 Apr 2019 03:16:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzSCwfTuh4nlTOMOpheV7mwBElUx/iyd4ZU82etcABoGgo54spWl8oqH83D+YijVKFPV1XN
+X-Received: by 2002:a17:906:5a57:: with SMTP id l23mr40035539ejs.34.1554200174761;
+        Tue, 02 Apr 2019 03:16:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554200174; cv=none;
         d=google.com; s=arc-20160816;
-        b=jcc3wW/kjHKz7ld8ydZWTfdDDxaVFBvPLQyvsb3KiiLgW+0ZPoG6eRE/3cFnVrSCCi
-         YoM+kmCvTEkAfPhYecZYPpzjfSK2F6kTbPtNZ+4bYpv/tPCalz82d7nBL8w6CuFvj6af
-         Y3G7g6OhT7yTO15VbEJwT4o6Ico2jAn8280e2W0C/35pbsqgbPfBf5YnNXQE9naHaVzu
-         A5+huanVL81NnByREHf9J+8JCS8QC8KlfgjovEj8Tq0DlqkCkG1q9UBrN3M8wHXFt3D2
-         hO+H3kZl+mqSNPXnnAYN4ggTxted/BqjVTwFjoE1sPaXgcVfDno0bksl5vEj+D1piTqz
-         SD0g==
+        b=ws7xrhSvAu7Y+hPwkEccXJa27DOI2q5kK0c5wAivwkqKOtd/j9sJ81f22XwR0fl70d
+         QJ+tA3fcUnsKxQ3vibeja3Eu79Nc5hDIHTIMltrDh2bcB6cSVIHIld4aEjqA4jACTIbX
+         Lbt/pCR2yprCdE+lln2Hnb8gHEIxzfVUmyxj4GggfTReLRXbI43HuTD1ZpeH3UZYm9E7
+         vkVtREtRQV6dMkMy4kkStEouIgbynGS7VE5wvNd0M4djkFP7foilLcOw9a8AmemNrLVD
+         knCeR/L332VjwO8l3mPE+gbOLUVm9eLhNF2GswvzS/Sf1bxuuS66u/1z7sXOrnPrE/yy
+         9YRA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-language
-         :accept-language:message-id:date:thread-index:thread-topic:subject
-         :cc:to:from:dkim-signature;
-        bh=xSRc8Pz01JTPpJmtk7tlkeDqW/6QOxKjXGKZ74ohUJA=;
-        b=UH1H8SRWk1ggWmn7B10f/stj1Fj6ZNKCPoPXnI12febb3Kmmbs4oOKdKTHqHtPlFJJ
-         LyiNV/Zo55by7CcX2bURaSIDD5jKxEU86OwiAFnldqsk3QhfhILuYxv3jhXuo0JOJe3O
-         f/7HhkigLjapzbvQZCTHENs5KAWa0LdfG+/1zYbz0uvY5x3Jg6Vqhv+649IHC/wAVJlY
-         4a4XJZ67D8RBeaeJPTEkjhhpP/KfH4/SsUUN4RIXvhtvelRpQg7MnJVOXgdLITlb9F4b
-         N/J+p1Fcwfbds1/v/mw5dRDTLkYobJBbgimX40IEgYVe/kPXtXWz7NKb03sl09kBgH6U
-         ZY0A==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=K59ac77Cn2ebhel60fTdWNb2ZGVEdI+O62seUFEyKfc=;
+        b=rF0583E/U0duuGyou/YLz2Nq81nxgZNDD14uY9AaM0YdPmlyvU9cU94K7ht/OLQmv2
+         QtaoiJs3EFdY3SoG827pOkShZiJ4yEugQdniOsuYWDLj43vyHYYxX09P6Y0C4+rZ0+Qh
+         Rzip4xw1bBenrOxjVZ+/BIPRSP2KMf6VgiBM6Z5Q1k9AsyEQfvvVHA0/NZH+80KPq16f
+         iqVRGeBeFoTR9xkhg7nY19JPw8zxqUN0O0j5um7cxTqnslKa4QIEQddtmZpudnOo+R1l
+         qoShQCVpXbe1XqhBSLQ9yt8CvCcLzv6tF5K1KrVzYed3kVDUP7pPWnmY0Kvdr5oCG5cN
+         Iwhw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nxp.com header.s=selector1 header.b=GACUknFW;
-       spf=pass (google.com: domain of peng.fan@nxp.com designates 40.107.8.89 as permitted sender) smtp.mailfrom=peng.fan@nxp.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nxp.com
-Received: from EUR04-VI1-obe.outbound.protection.outlook.com (mail-eopbgr80089.outbound.protection.outlook.com. [40.107.8.89])
-        by mx.google.com with ESMTPS id k8si4579456ejk.54.2019.04.02.02.43.34
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j3si4542613eja.2.2019.04.02.03.16.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 02 Apr 2019 02:43:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of peng.fan@nxp.com designates 40.107.8.89 as permitted sender) client-ip=40.107.8.89;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Apr 2019 03:16:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nxp.com header.s=selector1 header.b=GACUknFW;
-       spf=pass (google.com: domain of peng.fan@nxp.com designates 40.107.8.89 as permitted sender) smtp.mailfrom=peng.fan@nxp.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nxp.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nxp.com; s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=xSRc8Pz01JTPpJmtk7tlkeDqW/6QOxKjXGKZ74ohUJA=;
- b=GACUknFWcUCH1jn2Mi+yqltqXA2Hp5PrwNZLsXqAXrPEq4aZW93FePvLz3mx81anIHojJVeE401a+3YEMjTfATmxlvtuVmJXBJq2FGRD2NdiRgrk2jpmIgvXvmP0SveeE4tZwbGe2fF8yjW8oa8TanWQQWgRnJyObH9eXZCbUq8=
-Received: from AM0PR04MB4481.eurprd04.prod.outlook.com (52.135.147.15) by
- AM0PR04MB5025.eurprd04.prod.outlook.com (20.177.40.142) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1750.22; Tue, 2 Apr 2019 09:43:32 +0000
-Received: from AM0PR04MB4481.eurprd04.prod.outlook.com
- ([fe80::dc63:432c:eb4b:8d1b]) by AM0PR04MB4481.eurprd04.prod.outlook.com
- ([fe80::dc63:432c:eb4b:8d1b%3]) with mapi id 15.20.1750.017; Tue, 2 Apr 2019
- 09:43:32 +0000
-From: Peng Fan <peng.fan@nxp.com>
-To: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "vbabka@suse.cz"
-	<vbabka@suse.cz>, "mhocko@suse.com" <mhocko@suse.com>, "willy@infradead.org"
-	<willy@infradead.org>, "rppt@linux.vnet.ibm.com" <rppt@linux.vnet.ibm.com>,
-	"arunks@codeaurora.org" <arunks@codeaurora.org>, "nborisov@suse.com"
-	<nborisov@suse.com>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>,
-	"aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "ldr709@gmail.com"
-	<ldr709@gmail.com>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>, "van.freenix@gmail.com"
-	<van.freenix@gmail.com>, Peng Fan <peng.fan@nxp.com>
-Subject: [PATCH] mm: __pagevec_lru_add_fn: typo fix
-Thread-Topic: [PATCH] mm: __pagevec_lru_add_fn: typo fix
-Thread-Index: AQHU6TiIf+7xhVfRzkCOK8uLgCZGpg==
-Date: Tue, 2 Apr 2019 09:43:31 +0000
-Message-ID: <20190402095609.27181-1-peng.fan@nxp.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-mailer: git-send-email 2.16.4
-x-clientproxiedby: HK0PR01CA0060.apcprd01.prod.exchangelabs.com
- (2603:1096:203:a6::24) To AM0PR04MB4481.eurprd04.prod.outlook.com
- (2603:10a6:208:70::15)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=peng.fan@nxp.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [119.31.174.71]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 62143116-25cf-4378-034a-08d6b74faab5
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600139)(711020)(4605104)(4618075)(2017052603328)(7193020);SRVR:AM0PR04MB5025;
-x-ms-traffictypediagnostic: AM0PR04MB5025:
-x-microsoft-antispam-prvs:
- <AM0PR04MB5025483FBC0703739628644D88560@AM0PR04MB5025.eurprd04.prod.outlook.com>
-x-forefront-prvs: 0995196AA2
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(979002)(39860400002)(136003)(396003)(366004)(346002)(376002)(189003)(199004)(6506007)(4326008)(5660300002)(386003)(68736007)(97736004)(305945005)(476003)(2616005)(2906002)(6486002)(6436002)(66066001)(36756003)(52116002)(486006)(186003)(1076003)(50226002)(54906003)(4744005)(81166006)(81156014)(102836004)(2201001)(25786009)(26005)(8936002)(53936002)(8676002)(6512007)(7416002)(86362001)(316002)(7736002)(99286004)(110136005)(478600001)(44832011)(3846002)(71200400001)(6116002)(71190400001)(14444005)(256004)(2501003)(14454004)(106356001)(105586002)(921003)(1121003)(969003)(989001)(999001)(1009001)(1019001);DIR:OUT;SFP:1101;SCL:1;SRVR:AM0PR04MB5025;H:AM0PR04MB4481.eurprd04.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: nxp.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- Ju8rl2HiFR/HiZ9ZKQ66ceMXBrUhEoeaffPLFOw9eXxGEyDzleHCSY0w83zUeUZoEaJ1BrsKdioeU8QkOJd++uKY/XmhnxGvN1uUKBaffdRnN14LwW7cd1WwkIzKFQZ7HROAmQcVMSpPaEdYZQGHOYqu56Q4/mrsiwHI88c/68/vy8Fz6O7hueCJaLj8PMdfTdpdl9Rn6+P/mXQjTyRswFB8wmbXBd0QB59oUW5/JUkjUtnfes4fW6CyH+CeytgZ1A6LHdFfST/Js7Jj6cDs09TGYPLx/eYO5qJJ4HL3aKLM6+T3Vl+/f6I7PtsSpOH0HYboRNjoyYLwgrCgF7uY5KW9Ydv2afTR5HSjtC5pl7pZfq+LXwLIBsdIUdkHi1PEjZ7AzKsTNlQrznB7Egx9jqXegIF5XwHTGTdktl+oHBk=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id A291FAC4A;
+	Tue,  2 Apr 2019 10:16:13 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id 7179D1E42C7; Tue,  2 Apr 2019 12:16:13 +0200 (CEST)
+Date: Tue, 2 Apr 2019 12:16:13 +0200
+From: Jan Kara <jack@suse.cz>
+To: bugzilla-daemon@bugzilla.kernel.org
+Cc: linux-ext4@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [Bug 203107] New: Bad page map in process during boot
+Message-ID: <20190402101613.GF12133@quack2.suse.cz>
+References: <bug-203107-13602@https.bugzilla.kernel.org/>
 MIME-Version: 1.0
-X-OriginatorOrg: nxp.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 62143116-25cf-4378-034a-08d6b74faab5
-X-MS-Exchange-CrossTenant-originalarrivaltime: 02 Apr 2019 09:43:32.0037
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 686ea1d3-bc2b-4c6f-a92c-d99c5c301635
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: AM0PR04MB5025
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <bug-203107-13602@https.bugzilla.kernel.org/>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-There is no function named munlock_vma_pages, correct it to
-munlock_vma_page.
+Switching to email...
 
-Signed-off-by: Peng Fan <peng.fan@nxp.com>
----
- mm/swap.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+On Fri 29-03-19 20:46:22, bugzilla-daemon@bugzilla.kernel.org wrote:
+> https://bugzilla.kernel.org/show_bug.cgi?id=203107
+> 
+>             Bug ID: 203107
+>            Summary: Bad page map in process during boot
+>            Product: File System
+>            Version: 2.5
+>     Kernel Version: 5.0.5
+>           Hardware: All
+>                 OS: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: ext4
+>           Assignee: fs_ext4@kernel-bugs.osdl.org
+>           Reporter: echto1@gmail.com
+>         Regression: No
+> 
+> Error occurs randomly at boot after upgrading kernel from 5.0.0 to 5.0.4.
+> 
+> https://justpaste.it/387uf
 
-diff --git a/mm/swap.c b/mm/swap.c
-index 301ed4e04320..3a75722e68a9 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -867,7 +867,7 @@ static void __pagevec_lru_add_fn(struct page *page, str=
-uct lruvec *lruvec,
- 	SetPageLRU(page);
- 	/*
- 	 * Page becomes evictable in two ways:
--	 * 1) Within LRU lock [munlock_vma_pages() and __munlock_pagevec()].
-+	 * 1) Within LRU lock [munlock_vma_page() and __munlock_pagevec()].
- 	 * 2) Before acquiring LRU lock to put the page to correct LRU and then
- 	 *   a) do PageLRU check with lock [check_move_unevictable_pages]
- 	 *   b) do PageLRU check before lock [clear_page_mlock]
---=20
-2.16.4
+I don't think this is an ext4 error. Sure this is an error in file mapping
+of libblkid.so.1.1.0 (which is handled by ext4) but the filesystem has very
+little to say wrt how or which PTEs are installed. And the problem is that
+invalid PTE (dead000000000100) is present in page tables. So this looks
+more like a problem in MM itself. Adding MM guys to CC.
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
