@@ -2,241 +2,188 @@ Return-Path: <SRS0=cFM0=SE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-11.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AE9D6C4360F
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 11:51:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BF00FC10F00
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 12:47:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4603720856
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 11:51:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4603720856
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 6B2A32146E
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 12:47:49 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="RvtPBpLv"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6B2A32146E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B2C026B027B; Tue,  2 Apr 2019 07:51:38 -0400 (EDT)
+	id DBD6C6B027D; Tue,  2 Apr 2019 08:47:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AB1F06B027C; Tue,  2 Apr 2019 07:51:38 -0400 (EDT)
+	id D6C7A6B027E; Tue,  2 Apr 2019 08:47:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 92E5A6B027D; Tue,  2 Apr 2019 07:51:38 -0400 (EDT)
+	id C5CE66B027F; Tue,  2 Apr 2019 08:47:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 561D96B027B
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 07:51:38 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id e19so3631572pfd.19
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 04:51:38 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A35E6B027D
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 08:47:48 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id h14so5929174pgn.23
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 05:47:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:mime-version:content-transfer-encoding:message-id;
-        bh=6M/ODAhw5kC3VSMnrljDc0UGz0+sFfq/Tcz9NAaqeLI=;
-        b=N2C3O16StpUQx1XJQxs4mb9rbrpceIOAFJl+paxwYm34obp6s2w9UfO/w3LYmBjt2j
-         AQ79EvpvWMJPU6o4P5gFDhJ1RsO9VTVwv/f/ABrQh/kvB26q9Vw6IW56Fg2Dp+E+YCcp
-         byJ2EHqTKY9Jc9maOgVvK5z0uaJ45pMDc3Pzar4MNIT6EpRN6VkSnWB6GLmPPydMwHXh
-         aVsmctplip/Uy2fElC+5pOBVvx1vmj79lxjyTdhBXuNU2btZ/f1CyupDhAAA7t0s0KQP
-         5oiAQ0zQmjzMeN0gnRtIFi8N1sp4dl93dRv13RSZXutRxVe+BfB0ZsU9a86Z9h1mByfy
-         Cg1Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAW2dmRsRgi86H62JHUlLpaBqVCcTG4YcSm4iG9AUxFBc6G4GHrp
-	yDCTdd/YJf2pMSP/Vc+FknTKFyhi6PHVLBjlaP+vuNVDWiGAgsJcJCAuTWG/c6knGkykm0ciP6h
-	nIL5gOACjoY1A5Z75z00ro0QwwWD3orMZg+cpMHJIQK13XRPjFiFw/aJozUqR+HnXWQ==
-X-Received: by 2002:a62:1b8a:: with SMTP id b132mr45322975pfb.19.1554205897952;
-        Tue, 02 Apr 2019 04:51:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyn0xiOqqmD6jdQR7y1G6Eiuk60y66ny2iji3IXq8g/wH8qS53j3Cf4m58EJ662Oq0/MJK0
-X-Received: by 2002:a62:1b8a:: with SMTP id b132mr45322872pfb.19.1554205896547;
-        Tue, 02 Apr 2019 04:51:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554205896; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=u3PSOHs4we7+LgIG6ZQZir4Fy57VqCCMcbhzYXQWknQ=;
+        b=GoTEi8Z67k8DEoGsnAMWd/mBGINeL0U80srE8dIMc+iGehtulpzhTSClyeB6sf1x/j
+         /BMGlhCUeTBGjHaC+z+ouP85R8MF99Ko0jfi1+OeVETrQ3ozHFFPx2PFD//F69HHym85
+         M0YHPWnr1rqf8rCfoiluBeIoTWhlLiNsl0TlMxhByH/OCUJRDxflBd5yZfrSlXzcWJ1o
+         78h1aXQ7XEGLuK4g3t6i1OqB9ZfWrcEwi9V2bUfqHVvtP4Qm8k9Ig4ElzoClae9Q+3id
+         SkIujLdwXuRdmdzUVNDD1OS2x/JBqFnCeSMVR7seEehKhEBQwXECtQOOqmshm9KaRUSe
+         aknQ==
+X-Gm-Message-State: APjAAAVublP4eWZGG0mNpifiSyDKt6inrmps6yUSDQz5wEMo2OYVdC26
+	QFxvw9ZdwrOdcWTt7Bqfq3GCKQB4xRi9o8ZLtSfd9nWdyFnP2LOTT+/ZFRaiIQ3zLqlle+rik3d
+	JBvDJqye0wOtUN9/xms0Z79kYTlnAv6K5JQjXnypoatxo3CzcNx6l43c1+ALyY3OOxA==
+X-Received: by 2002:a63:7150:: with SMTP id b16mr56909936pgn.83.1554209268082;
+        Tue, 02 Apr 2019 05:47:48 -0700 (PDT)
+X-Received: by 2002:a63:7150:: with SMTP id b16mr56909847pgn.83.1554209266963;
+        Tue, 02 Apr 2019 05:47:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554209266; cv=none;
         d=google.com; s=arc-20160816;
-        b=I5A/54aW8MyRZ6+2s7zujF26EDVCYhE/2vIR0lVKSeEALylNxG3hjdGSuEwv9Rp76W
-         xD5QjHxbJJ5gLXdYoGFJLhraZ2eShGkV0LUL/cJSLYw45LamvY5vzKYUaPAPGeZtQyUk
-         ecOhtFtA1jbjJU0k6qds6emgP9upoxBjvbAu0gp6SHX44K/I1ZTfYV2NRv1apVCmrgsz
-         skI/y1vR3oz6j1PJg/YOb44ePRj685NiyDAZsZC48sRvOZ/EBvn6A7c8culNBZvl3dfQ
-         94/jD6WzFHcqlroi+P20xV6bnlodUkiBRzilUJ+Z3sooZZTfpcyZLN0k5UsuNyAViWHC
-         u71Q==
+        b=yayH4rZGc+euooUaEfBoAhE57pKhMIMOCsJncZAZzOByNlY6zCS4xTjh40Mp50/jSQ
+         gJUQhiOzlSgGdb0K2VOT5Dt0944ff4hxkz2pBOi1Y84ypJhvaTmpCTIDLSCi0UrVjFZr
+         qcaC3HOlH3eqXGC8RwqAQil/ee551qVYXZ02wsBiWFUM5OAzY/Wp262KJOAB4XtpR8aG
+         DOifc/O4fcVxu9ykS1pmtY2xTL3aaRqAIir4kv6DGDr+JowfOJCZVRECylay16pHnIi3
+         6HLuSO7uF4NtTOp2XcWmJaByDHdaKHkx2xjPRbyK0WCW5NQ2ohoG+E6YW/aeOefzz8yd
+         26JQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:content-transfer-encoding:mime-version:date:subject:cc
-         :to:from;
-        bh=6M/ODAhw5kC3VSMnrljDc0UGz0+sFfq/Tcz9NAaqeLI=;
-        b=uvmT8HgezqmVQYdmlpYBzaGBwuZ1Bicvq2v1K1nEueEaeowI8av4a2sRPdJJvT13n3
-         M+St2QWEHiEQ1O261lSwRtbyLiWsSuOyd2abSiyJ+/M9cmSa6hPCZmI6I11ILJhTgBx8
-         ivgZx4kLviVUc2pfJM61gZ1uRJLcdqJyf7ifcUMMcGlNMZmvzcgtWArijIJYujd5e8Ze
-         UmVb6sXTkCJ1P8lssNc8GL2+mkbIsAiM7KoTZEGzuhhE2CWHzpesT0fj2iJzZMwb502a
-         8r6Csh3Z8SE3kY6LTy22E2qUAPcI4jp6q0u/bP0esBYpnwsqIpoR1kI8qAOPkyyk7nSV
-         gxwg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=u3PSOHs4we7+LgIG6ZQZir4Fy57VqCCMcbhzYXQWknQ=;
+        b=ZY2JNs2x6OZGmYHGvkLLvqhMrTrAI51Owtd7q6szgPBeY1dWhNfdJsgUXchH+u6IOS
+         fkDSz10UaB2qKj5GN03S1WADoCcQOaB/f7lOTi2u2eLVsSZEJrrnnRhDK0xP4VYvqSni
+         zbrEct23qZmcozWkRXI8RxUWGKhvi00VKzwY3CebiyAYCtriQt8a1yszE3YCYipiFT+0
+         MIHbo38dyqcWmGuOE9Uv0OM9YrZl+PWVv2KSCDLhoW1ZAavO5CYGwSJpwZqWlrLFgKJP
+         dgb+BIiO04+tcO60IZSGBKJkUeIJJSIqdXVS7Dw/PZ8B9ZcgRfkMUyja9n1BPMenAlMz
+         4uFw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id o1si11230264pfe.194.2019.04.02.04.51.36
+       dkim=pass header.i=@google.com header.s=20161025 header.b=RvtPBpLv;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a15sor13898275pgw.83.2019.04.02.05.47.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Apr 2019 04:51:36 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        (Google Transport Security);
+        Tue, 02 Apr 2019 05:47:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x32BelmO116280
-	for <linux-mm@kvack.org>; Tue, 2 Apr 2019 07:51:36 -0400
-Received: from e13.ny.us.ibm.com (e13.ny.us.ibm.com [129.33.205.203])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2rm631ky0e-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 02 Apr 2019 07:51:35 -0400
-Received: from localhost
-	by e13.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Tue, 2 Apr 2019 12:51:34 +0100
-Received: from b01cxnp22036.gho.pok.ibm.com (9.57.198.26)
-	by e13.ny.us.ibm.com (146.89.104.200) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 2 Apr 2019 12:51:32 +0100
-Received: from b01ledav003.gho.pok.ibm.com (b01ledav003.gho.pok.ibm.com [9.57.199.108])
-	by b01cxnp22036.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x32BpV3L19464358
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 2 Apr 2019 11:51:31 GMT
-Received: from b01ledav003.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 8678FB2067;
-	Tue,  2 Apr 2019 11:51:31 +0000 (GMT)
-Received: from b01ledav003.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 5801DB2068;
-	Tue,  2 Apr 2019 11:51:28 +0000 (GMT)
-Received: from skywalker.ibmuc.com (unknown [9.85.118.252])
-	by b01ledav003.gho.pok.ibm.com (Postfix) with ESMTP;
-	Tue,  2 Apr 2019 11:51:27 +0000 (GMT)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: dan.j.williams@intel.com, akpm@linux-foundation.org,
-        Jan Kara <jack@suse.cz>
-Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org,
-        linuxppc-dev@lists.ozlabs.org,
-        "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
-        stable@vger.kernel.org, Chandan Rajendra <chandan@linux.ibm.com>
-Subject: [PATCH v2] mm: Fix modifying of page protection by insert_pfn_pmd()
-Date: Tue,  2 Apr 2019 17:21:25 +0530
-X-Mailer: git-send-email 2.20.1
+       dkim=pass header.i=@google.com header.s=20161025 header.b=RvtPBpLv;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=u3PSOHs4we7+LgIG6ZQZir4Fy57VqCCMcbhzYXQWknQ=;
+        b=RvtPBpLvPglDtwnPF4yXUeK5oDlzVoAw9Ac/QiLLKSGbikn9e6229p73Q0tOoviq2D
+         BavSCer7Dzqe0/C31mrVK/886gbUDYWuPnxHOlht2sOu/e62noERB05hR+v+Bbj+JICn
+         Lb7g/8TOjfYKi5cKqi9tDj/4Gjl0w7oFGi+cz1GXwEAzmc5l0cphMO74o+wu5S8JjZik
+         7AqeS2RJ0S+0J5+xNSxMiTjPOKYRkB2DaefRCT/WCl4ZMTNyy1aYXf9qwji/GQQh7uA6
+         a4SkVWVDmZ28lLA5h47JmaNF3G6jNLy7QP3Ylvcw6DiwtS/xNNeagblhaZ/cgn7jvFfX
+         OA/w==
+X-Google-Smtp-Source: APXvYqwSO12tw5fRix4o6PstoDzeaM5ZQf6IJ2XlmsbVCqK/ZDPoD7HrCoDXID/J7Vmm+PM48eFxdwxASU4WIrz1GI4=
+X-Received: by 2002:a65:6496:: with SMTP id e22mr52163844pgv.249.1554209265963;
+ Tue, 02 Apr 2019 05:47:45 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-TM-AS-GCONF: 00
-x-cbid: 19040211-0064-0000-0000-000003C55D6F
-X-IBM-SpamModules-Scores: 
-X-IBM-SpamModules-Versions: BY=3.00010860; HX=3.00000242; KW=3.00000007;
- PH=3.00000004; SC=3.00000284; SDB=6.01183232; UDB=6.00619446; IPR=6.00963980;
- MB=3.00026260; MTD=3.00000008; XFM=3.00000015; UTC=2019-04-02 11:51:34
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19040211-0065-0000-0000-00003CEC1A00
-Message-Id: <20190402115125.18803-1-aneesh.kumar@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-02_04:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=827 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1904020081
+References: <cover.1553093420.git.andreyknvl@google.com> <44ad2d0c55dbad449edac23ae46d151a04102a1d.1553093421.git.andreyknvl@google.com>
+ <20190322114357.GC13384@arrakis.emea.arm.com> <CAAeHK+xE-ywfpVHRhBJVGiqOe0+BYW9awUa10ZP4P6Ggc8nxMg@mail.gmail.com>
+ <20190328141934.38960af0@gandalf.local.home> <20190329103039.GA44339@arrakis.emea.arm.com>
+In-Reply-To: <20190329103039.GA44339@arrakis.emea.arm.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Tue, 2 Apr 2019 14:47:34 +0200
+Message-ID: <CAAeHK+xe-zWn8WpCxUxBB2tXL8oiLkshkPi1J3Ly87mACaA4-A@mail.gmail.com>
+Subject: Re: [PATCH v13 04/20] mm, arm64: untag user pointers passed to memory syscalls
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Will Deacon <will.deacon@arm.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Kees Cook <keescook@chromium.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, 
+	Vincenzo Frascino <vincenzo.frascino@arm.com>, Eric Dumazet <edumazet@google.com>, 
+	"David S. Miller" <davem@davemloft.net>, Alexei Starovoitov <ast@kernel.org>, 
+	Daniel Borkmann <daniel@iogearbox.net>, Peter Zijlstra <peterz@infradead.org>, 
+	Arnaldo Carvalho de Melo <acme@kernel.org>, Mauro Carvalho Chehab <mchehab@kernel.org>, 
+	Jens Wiklander <jens.wiklander@linaro.org>, Alex Williamson <alex.williamson@redhat.com>, 
+	Linux ARM <linux-arm-kernel@lists.infradead.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, 
+	LKML <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, 
+	Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, 
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>, 
+	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-With some architectures like ppc64, set_pmd_at() cannot cope with
-a situation where there is already some (different) valid entry present.
+On Fri, Mar 29, 2019 at 11:30 AM Catalin Marinas
+<catalin.marinas@arm.com> wrote:
+>
+> (I trimmed down the cc list a bit since it's always bouncing)
+>
+> On Thu, Mar 28, 2019 at 02:19:34PM -0400, Steven Rostedt wrote:
+> > On Thu, 28 Mar 2019 19:10:07 +0100
+> > Andrey Konovalov <andreyknvl@google.com> wrote:
+> >
+> > > > > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> > > > > ---
+> > > > >  ipc/shm.c      | 2 ++
+> > > > >  mm/madvise.c   | 2 ++
+> > > > >  mm/mempolicy.c | 5 +++++
+> > > > >  mm/migrate.c   | 1 +
+> > > > >  mm/mincore.c   | 2 ++
+> > > > >  mm/mlock.c     | 5 +++++
+> > > > >  mm/mmap.c      | 7 +++++++
+> > > > >  mm/mprotect.c  | 1 +
+> > > > >  mm/mremap.c    | 2 ++
+> > > > >  mm/msync.c     | 2 ++
+> > > > >  10 files changed, 29 insertions(+)
+> > > >
+> > > > I wonder whether it's better to keep these as wrappers in the arm64
+> > > > code.
+> > >
+> > > I don't think I understand what you propose, could you elaborate?
+> >
+> > I believe Catalin is saying that instead of placing things like:
+> >
+> > @@ -1593,6 +1593,7 @@ SYSCALL_DEFINE3(shmat, int, shmid, char __user *, shmaddr, int, shmflg)
+> >       unsigned long ret;
+> >       long err;
+> >
+> > +     shmaddr = untagged_addr(shmaddr);
+> >
+> > To instead have the shmaddr set to the untagged_addr() before calling
+> > the system call, and passing the untagged addr to the system call, as
+> > that goes through the arm64 architecture specific code first.
+>
+> Indeed. For example, we already have a SYSCALL_DEFINE6(mmap, ...) in
+> arch/arm64/kernel/sys.c, just add the untagging there. We could do
+> something similar for the other syscalls. I don't mind doing this in the
+> generic code but if it's only needed for arm64, I'd rather keep the
+> generic changes to a minimum.
 
-Use pmdp_set_access_flags() instead to modify the pfn which is built to
-deal with modifying existing PMD entries.
+Do I understand correctly, that I'll need to add ksys_ wrappers for
+each of the memory syscalls, and then redefine them in
+arch/arm64/kernel/sys.c with arm64_ prefix, like it is done for the
+personality syscall right now? This will require generic changes as
+well.
 
-This is similar to
-commit cae85cb8add3 ("mm/memory.c: fix modifying of page protection by insert_pfn()")
-
-We also do similar update w.r.t insert_pfn_pud eventhough ppc64 don't support
-pud pfn entries now.
-
-Without this patch we also see the below message in kernel log
-"BUG: non-zero pgtables_bytes on freeing mm:"
-
-CC: stable@vger.kernel.org
-Reported-by: Chandan Rajendra <chandan@linux.ibm.com>
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
----
-Changes from v1:
-* Fix the pgtable leak 
-
- mm/huge_memory.c | 36 ++++++++++++++++++++++++++++++++++++
- 1 file changed, 36 insertions(+)
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 404acdcd0455..165ea46bf149 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -755,6 +755,21 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
- 	spinlock_t *ptl;
- 
- 	ptl = pmd_lock(mm, pmd);
-+	if (!pmd_none(*pmd)) {
-+		if (write) {
-+			if (pmd_pfn(*pmd) != pfn_t_to_pfn(pfn)) {
-+				WARN_ON_ONCE(!is_huge_zero_pmd(*pmd));
-+				goto out_unlock;
-+			}
-+			entry = pmd_mkyoung(*pmd);
-+			entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-+			if (pmdp_set_access_flags(vma, addr, pmd, entry, 1))
-+				update_mmu_cache_pmd(vma, addr, pmd);
-+		}
-+
-+		goto out_unlock;
-+	}
-+
- 	entry = pmd_mkhuge(pfn_t_pmd(pfn, prot));
- 	if (pfn_t_devmap(pfn))
- 		entry = pmd_mkdevmap(entry);
-@@ -766,11 +781,16 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
- 	if (pgtable) {
- 		pgtable_trans_huge_deposit(mm, pmd, pgtable);
- 		mm_inc_nr_ptes(mm);
-+		pgtable = NULL;
- 	}
- 
- 	set_pmd_at(mm, addr, pmd, entry);
- 	update_mmu_cache_pmd(vma, addr, pmd);
-+
-+out_unlock:
- 	spin_unlock(ptl);
-+	if (pgtable)
-+		pte_free(mm, pgtable);
- }
- 
- vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
-@@ -821,6 +841,20 @@ static void insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
- 	spinlock_t *ptl;
- 
- 	ptl = pud_lock(mm, pud);
-+	if (!pud_none(*pud)) {
-+		if (write) {
-+			if (pud_pfn(*pud) != pfn_t_to_pfn(pfn)) {
-+				WARN_ON_ONCE(!is_huge_zero_pud(*pud));
-+				goto out_unlock;
-+			}
-+			entry = pud_mkyoung(*pud);
-+			entry = maybe_pud_mkwrite(pud_mkdirty(entry), vma);
-+			if (pudp_set_access_flags(vma, addr, pud, entry, 1))
-+				update_mmu_cache_pud(vma, addr, pud);
-+		}
-+		goto out_unlock;
-+	}
-+
- 	entry = pud_mkhuge(pfn_t_pud(pfn, prot));
- 	if (pfn_t_devmap(pfn))
- 		entry = pud_mkdevmap(entry);
-@@ -830,6 +864,8 @@ static void insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
- 	}
- 	set_pud_at(mm, addr, pud, entry);
- 	update_mmu_cache_pud(vma, addr, pud);
-+
-+out_unlock:
- 	spin_unlock(ptl);
- }
- 
--- 
-2.20.1
+>
+> (I had a hack overriding __SC_CAST to do this automatically for pointer
+> arguments but this wouldn't work on mmap() and friends as the argument
+> is unsigned long)
+>
+> --
+> Catalin
 
