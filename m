@@ -2,117 +2,131 @@ Return-Path: <SRS0=cFM0=SE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 739FEC4360F
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 03:10:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 62CC3C10F00
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 03:31:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 257D52084C
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 03:10:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 21AA72087C
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 03:31:15 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=android.com header.i=@android.com header.b="g3m1Y2Sc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 257D52084C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=android.com
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="4h6GGvxj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 21AA72087C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B2BDC6B0003; Mon,  1 Apr 2019 23:10:25 -0400 (EDT)
+	id 9211E6B0003; Mon,  1 Apr 2019 23:31:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AD9B66B0005; Mon,  1 Apr 2019 23:10:25 -0400 (EDT)
+	id 8CEED6B0005; Mon,  1 Apr 2019 23:31:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9A3E86B0007; Mon,  1 Apr 2019 23:10:25 -0400 (EDT)
+	id 7E6126B0007; Mon,  1 Apr 2019 23:31:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D4A26B0003
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 23:10:25 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id l13so5468207pgp.3
-        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 20:10:25 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 609AC6B0003
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 23:31:14 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id w124so10365543qkb.12
+        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 20:31:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:mime-version:content-transfer-encoding;
-        bh=Hp60OTE4ke8iP5Aud+CmanJ0ZyIKgseuIbzLLPcisQY=;
-        b=gj2s5yzVeOiOS7A4UbRfQwhy4gWFwjIsBwD8aAillSrFxvnbVjItlwMlUcEKrzZqii
-         jGSldyJ7s3JyFEtyUB0L9DMAewfZeGGM5S2CTowJNRqfAFNlnoSbcU18cGFAkhtPXOhv
-         mOs/gHFWcxoPhbHkShpNwSdgTG60po1dTuWjinYju64UmqHRaakG08/15lhjm+a+gtcX
-         sojnWubrqJZ5+ZLDKDXFAX1KnEWW3MySy5M/sU3RJ18Mzi/7IdK4cmhudOzRkGVgkLU9
-         RzFDOByYpsXD1XY+HiOWsS4gCYAf839bN2bR/VVLz3iAZCa2KqIlpxUgNJpJbRblMfph
-         +/YA==
-X-Gm-Message-State: APjAAAX2i91cBoBpMuUokuajyiB9AxmTNBJQYLSDnrq9LvOlYLwQUuMD
-	RbEcCUNu+KO7Cocv5UZ3Rvpw3HvJ0YBCi8HWvDPraLtAka3PgP55BYeMLV7boJKtAkn4TKRGm2Q
-	d+7/reAlvGurvJrmVB2hGAD0F9j0DrYM2kmOYE4PIFwDWmp0IG09rY4uoud4u4ivNuQ==
-X-Received: by 2002:a63:e653:: with SMTP id p19mr2790700pgj.284.1554174624786;
-        Mon, 01 Apr 2019 20:10:24 -0700 (PDT)
-X-Received: by 2002:a63:e653:: with SMTP id p19mr2790658pgj.284.1554174624075;
-        Mon, 01 Apr 2019 20:10:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554174624; cv=none;
+        bh=GhdVsMTVKjBk9iUxn5IpYnUVsn7WlgpvFL7kEcghYa8=;
+        b=ijEYS0E/Z6vfqnS+kiBQjMz6yzJsSFFtunoIQPxDCQl77eEEyWbbY9la/HN5b9vbzo
+         yax1uEcMrCvB2PdjksGU84RA5g9qQwufHJQnQ8EpVnWk4mMWIVQ5lDo0IwFeAiSVHKPL
+         uipMRT6BsKUphIvLlS3hCLt+IYKwKgEpLbKzqc/m8PNGqn332OxqeFKfQopH4iu3Zv/g
+         GQres0ipGgwWUWvGAcqhWwgOnzdT+CaLILDL9IsNx4czyPyHyGkJLhk4rgjHdkAMx5tE
+         5k64DETHJZdzE464ikfbbOmLYD0CZANN6YpZm/k0nYhyZFV1WPNrbWiw7vmaEt7LDr38
+         LeCA==
+X-Gm-Message-State: APjAAAV+HuIjcdUBljHOrS1dkegIBeKAnCdMAmow5hgrZB6/vzC0ZKcj
+	fUozmQvGmQPy8Z3Iq88MFXkhh9fLWZ2/p56Ql2hngmq75hJNaGuBTcICFvuID7QQx3ixnfZaS4v
+	5gIVoGNi1drnvAI2WI/UInerNQbaHu+0Ee2yAyno9iyuTR/lTGRMpcPoooYfhq/k=
+X-Received: by 2002:a37:a34a:: with SMTP id m71mr31611825qke.323.1554175874012;
+        Mon, 01 Apr 2019 20:31:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz6Hrcd2opTRGS68Hg0oXxIij68S+6/NwWOPTP/ADnRx1VOf+Kp16w4WuTa4Bda+F6QsXF3
+X-Received: by 2002:a37:a34a:: with SMTP id m71mr31611779qke.323.1554175873135;
+        Mon, 01 Apr 2019 20:31:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554175873; cv=none;
         d=google.com; s=arc-20160816;
-        b=L3okLok2jArZU+l3LWHVbusy/TsVvJ+KY+oyOD5UmCpIadeNCWoNtJMFk4vP8tl0yW
-         gMX2BWSxgSxDNHoQ9wntwwVADR1ixEcMkOrMf2XS9Oo6qNNormvj8nScx2+L+n83A7JX
-         x8rNEC6VhmYT0k8hmXbti7Z3Ikw9HKdKoxkgWu3KZtUaUu+miqifeTbm5fTXCCyEJEHF
-         76hVKG1OA8dwJjwtFeCLuqEC+/DCeEqN0WYrGgXiv9jBH0X+bdrI1aXEYS8jiZlAjZ+K
-         ly8KzDcL0dz15q6X2z0FQmjy9rP+Ru5atub5PeJUJxOB6GqxBk9gA/7x4fXi0F8Dq7Md
-         xgVg==
+        b=abX+caBfIgb/lcnvWlVLXs3lj7mf9bimjxuigY1TxNxHVfoB7k8bAH+GUK6M4x+z4W
+         NDznip4MtHziFMo6WRxCRNp0UwYXdnSp5bYl8EpJr8U204hZSNQSxKE8HHUOgTWVvS7J
+         r0gDKWe5c2zvhQLeqJexawt2yek/POTxxFMhmIWWy3eid4da3BExW439CJ7KZnodRiGh
+         SDgNSphR7vmPr7l8jmbJwq8G6/6hgaL3sz57ew77f5gyfim9a/C/DXVqXQX1ceeZHB9V
+         Bjd4rC8VgZFFzA3HVm+zZB8Fzo8EWg8rIXjYLzq+bBEw/HJXvYzZj1VmEWaCyuyWDGYD
+         GwNw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:message-id:date:subject:cc
          :to:from:dkim-signature;
-        bh=Hp60OTE4ke8iP5Aud+CmanJ0ZyIKgseuIbzLLPcisQY=;
-        b=0wMMXYzQeOC0oLC+/BxpETHfrIJbCvcz2qXMY42s1SUaKOVqiJSuqkTJnuArz1dZbe
-         KIH5K96PYSO8tH1cTEZqhD1Wu/Qz2d0b9inWSHAvkVzWfvQ4Wh+7/rYic9cskUB5qZq3
-         y8EKjng1YGCgZOrU6zkmybCXeBR+75LH35G76kdSB4dwHCljbCvHg5MJAJsapD8eC/r3
-         PaNnOKnXvBPeJImzZ/Qp5bidDIvMOS4TY6otKNtfzPNRMdlp1noxsJZTnbz0ELW8Cd+W
-         3UxqEwqfoKN562b+wb6c8o+J6kUxQSSctfuEYbuBpUeD/YmphScBIrjyRY0iy9Kzdum0
-         qNzw==
+        bh=GhdVsMTVKjBk9iUxn5IpYnUVsn7WlgpvFL7kEcghYa8=;
+        b=mrWGmG7bV5naa4WGNnVttiL+Rfwf0jhbV135HzE1QSk+T3b90fCV4JCrsmx0JiQhxY
+         p5yYhHQ9Zjl0oqMvSK1LBsGT/Iu/PsZ4msgl8Rmtp3LJRKUNSzjq97KAWZtpd8luI0An
+         ZaHRkiRfF1I3DiY0CUAhlNiYPdj+4TlyygMDmcK2vmUV6L7X073PgKuATmndwVve1x+b
+         yLagb6F1lWtwITGSLZoRf7knX4FwiQEjjiSbSkEY7KHCnWGEIhwgCFaImHHyWzgIXirc
+         9H6Ff/NqOeeHUehWABv9HGkx8QEfXpmk0pqga0Ji4dOZ1azzzC76MuYjbX8Mkhe+Rlp4
+         3oUQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@android.com header.s=20161025 header.b=g3m1Y2Sc;
-       spf=pass (google.com: domain of trong@android.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=trong@android.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=android.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id bg2sor13337543plb.20.2019.04.01.20.10.23
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=4h6GGvxj;
+       spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) smtp.mailfrom=tobin@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from out2-smtp.messagingengine.com (out2-smtp.messagingengine.com. [66.111.4.26])
+        by mx.google.com with ESMTPS id i6si1640681qvj.31.2019.04.01.20.31.12
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 01 Apr 2019 20:10:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of trong@android.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@android.com header.s=20161025 header.b=g3m1Y2Sc;
-       spf=pass (google.com: domain of trong@android.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=trong@android.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=android.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=android.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=Hp60OTE4ke8iP5Aud+CmanJ0ZyIKgseuIbzLLPcisQY=;
-        b=g3m1Y2ScyzDAURubjhsTnVSDieFyBlqPSM2LC7CUatm8gRlzI4Z4XQ8e+sauoBVcMy
-         /Si0ZgUXDkb0dPj3vSxlgc5r0s2q7Upfik19UZen265H5YZZ42iiEK9QbuX7YonIPVGD
-         d0/tPGVBnFEdWBuZzWmyAl7nqsH30axLzN9a/pDbloDEH6lC9LU9a4jIP9tdhzmsciY5
-         S3tIIQOc4z1gsawWCFsfc9AkK7pkcFlCQf4Z5R8i1IFoxZ3IVzHzOFybLqrgNgncMa7W
-         Yh4ifra9SolAtD3ZfW1fVy94mG7zhGcdjiK400DReloJN9yY0S5qFzHvofEschSfANPf
-         kDSw==
-X-Google-Smtp-Source: APXvYqyBVin/OFPJ5V12iXbP2gcs5Osv/4t27BzE77qH7pR8fgo4gJrG7KlV5JQtMOT9MiQxqhVPIg==
-X-Received: by 2002:a17:902:2c83:: with SMTP id n3mr69465358plb.281.1554174623140;
-        Mon, 01 Apr 2019 20:10:23 -0700 (PDT)
-Received: from trong-glaptop.imgcgcw.net ([147.50.13.10])
-        by smtp.gmail.com with ESMTPSA id c17sm16168464pfd.76.2019.04.01.20.10.19
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Apr 2019 20:10:22 -0700 (PDT)
-From: trong@android.com
-To: oberpar@linux.ibm.com,
-	akpm@linux-foundation.org
-Cc: ndesaulniers@google.com,
-	ghackmann@android.com,
+        Mon, 01 Apr 2019 20:31:13 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) client-ip=66.111.4.26;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=4h6GGvxj;
+       spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) smtp.mailfrom=tobin@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
+	by mailout.nyi.internal (Postfix) with ESMTP id A7F3E22205;
+	Mon,  1 Apr 2019 23:31:12 -0400 (EDT)
+Received: from mailfrontend2 ([10.202.2.163])
+  by compute3.internal (MEProxy); Mon, 01 Apr 2019 23:31:12 -0400
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-transfer-encoding:date:from
+	:message-id:mime-version:subject:to:x-me-proxy:x-me-proxy
+	:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=GhdVsMTVKjBk9iUxn
+	5IpYnUVsn7WlgpvFL7kEcghYa8=; b=4h6GGvxjAduskW8z2+xkvHUDonHLeaxzo
+	OpdND1moNstvSCB3U3UdLmRHXe652TX2LIbSCHBSSeU2QHfoPUnDpE/SYUUWHrju
+	W4n+KQ8A8O9eQCbep+ok5OoWGoIRWpbjYMHH/DgckHggOrlWn80KS/F77ZkwFSE8
+	qwu6spWnxPpVn+Y3rSjZsqBrCwJaBQBm2h/lUw0WXJ0MZGBYH43tKJ+g13TezuSN
+	9G3nOBLFdSlM+BpaDnGL5yRbumtwrw7id36ZWRmKDMuHLJRyeGfnRyWFbrGaHhzO
+	D8XKDA3g/TzeQZqMTyKCU05fKaIMBrbi9XLTMsgpKTGE4is3wPx5g==
+X-ME-Sender: <xms:fteiXAjnNz3kCdhLz_BNzY1vJkrn2ex_iR3UDTk_kTdj153i9WeFIg>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedutddrleehgdeikecutefuodetggdotefrodftvf
+    curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
+    uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenuc
+    fjughrpefhvffufffkofgggfestdekredtredttdenucfhrhhomhepfdfvohgsihhnucev
+    rdcujfgrrhguihhnghdfuceothhosghinheskhgvrhhnvghlrdhorhhgqeenucffohhmrg
+    hinhepghhithhhuhgsrdgtohhmpdhoiihlrggsshdrohhrghenucfkphepuddvgedrudej
+    uddrvdefrdduvddvnecurfgrrhgrmhepmhgrihhlfhhrohhmpehtohgsihhnsehkvghrnh
+    gvlhdrohhrghenucevlhhushhtvghrufhiiigvpedt
+X-ME-Proxy: <xmx:fteiXPEdeXrUl6-EIAHSsIYBBfSJGzp32qnEMy0YjngnrfonQJ_G1A>
+    <xmx:fteiXLWmLQ_UGez3uQT65pc1rGihfbjIIHgdKhTxYSFQzRc-MVpEYA>
+    <xmx:fteiXJYwuU6SQ9oBX_iQqk506dpLynTdOZh4bH6rWD2AxjmALkLW6w>
+    <xmx:gNeiXMWpmRg18hyrF_R-xsScykLtThsdIv0Pn3YCaKvtUWsow9nZOQ>
+Received: from eros.localdomain (124-171-23-122.dyn.iinet.net.au [124.171.23.122])
+	by mail.messagingengine.com (Postfix) with ESMTPA id CD8B710390;
+	Mon,  1 Apr 2019 23:31:06 -0400 (EDT)
+From: "Tobin C. Harding" <tobin@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Tobin C. Harding" <tobin@kernel.org>,
+	LKP <lkp@01.org>,
+	Roman Gushchin <guro@fb.com>,
+	Christoph Lameter <cl@linux.com>,
+	Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Matthew Wilcox <willy@infradead.org>,
 	linux-mm@kvack.org,
-	kbuild-all@01.org,
-	rdunlap@infradead.org,
-	lkp@intel.com,
-	linux-kernel@vger.kernel.org,
-	Tri Vo <trong@android.com>
-Subject: [PATCH v3] gcov: fix when CONFIG_MODULES is not set
-Date: Tue,  2 Apr 2019 10:09:56 +0700
-Message-Id: <20190402030956.48166-1-trong@android.com>
-X-Mailer: git-send-email 2.21.0.392.gf8f6787159e-goog
+	linux-kernel@vger.kernel.org
+Subject: [PATCH 0/1] slob: Fix list_head bug during allocation
+Date: Tue,  2 Apr 2019 14:29:56 +1100
+Message-Id: <20190402032957.26249-1-tobin@kernel.org>
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -121,73 +135,91 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Tri Vo <trong@android.com>
+Hi Andrew,
 
-Fixes: 8c3d220cb6b5 ("gcov: clang support")
+This patch is in response to an email from the 0day kernel test robot
+subject:
 
-Cc: Greg Hackmann <ghackmann@android.com>
-Cc: Peter Oberparleiter <oberpar@linux.ibm.com>
-Cc: linux-mm@kvack.org
-Cc: kbuild-all@01.org
-Reported-by: Randy Dunlap <rdunlap@infradead.org>
-Reported-by: kbuild test robot <lkp@intel.com>
-Link: https://marc.info/?l=linux-mm&m=155384681109231&w=2
-Signed-off-by: Nick Desaulniers <ndesaulniers@google.com>
-Signed-off-by: Tri Vo <trong@android.com>
----
- kernel/gcov/clang.c   | 4 ++++
- kernel/gcov/gcc_3_4.c | 4 ++++
- kernel/gcov/gcc_4_7.c | 4 ++++
- 3 files changed, 12 insertions(+)
+  340d3d6178 ("mm/slob.c: respect list_head abstraction layer"):  kernel BUG at lib/list_debug.c:31!
 
-diff --git a/kernel/gcov/clang.c b/kernel/gcov/clang.c
-index 125c50397ba2..cfb9ce5e0fed 100644
---- a/kernel/gcov/clang.c
-+++ b/kernel/gcov/clang.c
-@@ -223,7 +223,11 @@ void gcov_info_unlink(struct gcov_info *prev, struct gcov_info *info)
-  */
- bool gcov_info_within_module(struct gcov_info *info, struct module *mod)
- {
-+#ifdef CONFIG_MODULES
- 	return within_module((unsigned long)info->filename, mod);
-+#else
-+	return false;
-+#endif
- }
- 
- /* Symbolic links to be created for each profiling data file. */
-diff --git a/kernel/gcov/gcc_3_4.c b/kernel/gcov/gcc_3_4.c
-index 801ee4b0b969..8fc30f178351 100644
---- a/kernel/gcov/gcc_3_4.c
-+++ b/kernel/gcov/gcc_3_4.c
-@@ -146,7 +146,11 @@ void gcov_info_unlink(struct gcov_info *prev, struct gcov_info *info)
-  */
- bool gcov_info_within_module(struct gcov_info *info, struct module *mod)
- {
-+#ifdef CONFIG_MODULES
- 	return within_module((unsigned long)info, mod);
-+#else
-+	return false;
-+#endif
- }
- 
- /* Symbolic links to be created for each profiling data file. */
-diff --git a/kernel/gcov/gcc_4_7.c b/kernel/gcov/gcc_4_7.c
-index ec37563674d6..0b6886d4a4dd 100644
---- a/kernel/gcov/gcc_4_7.c
-+++ b/kernel/gcov/gcc_4_7.c
-@@ -159,7 +159,11 @@ void gcov_info_unlink(struct gcov_info *prev, struct gcov_info *info)
-  */
- bool gcov_info_within_module(struct gcov_info *info, struct module *mod)
- {
-+#ifdef CONFIG_MODULES
- 	return within_module((unsigned long)info, mod);
-+#else
-+	return false;
-+#endif
- }
- 
- /* Symbolic links to be created for each profiling data file. */
+
+This patch applies on top of linux-next tag: next-20190401
+
+It fixes a patch that was merged recently into mm:
+
+  The patch titled
+       Subject: mm/slob.c: respect list_head abstraction layer
+  has been added to the -mm tree.  Its filename is
+       slob-respect-list_head-abstraction-layer.patch
+  
+  This patch should soon appear at
+      http://ozlabs.org/~akpm/mmots/broken-out/slob-respect-list_head-abstraction-layer.patch
+  and later at
+      http://ozlabs.org/~akpm/mmotm/broken-out/slob-respect-list_head-abstraction-layer.patch
+
+
+If reverting is easier than patching I can re-work this into another
+version of the original (buggy) patch set which was the series:
+
+  [PATCH 0/4] mm: Use slab_list list_head instead of lru
+
+Please don't be afraid to give a firm response.  I'm new to mm and I'd
+like to not be a nuisance if I can manage it ;)  I'd also like to fix
+this in a way that makes your day as easy as possible.
+
+
+The 0day kernel test robot found a bug in the slob allocator caused by a
+patch from me recently merged into the mm tree.  This is the first time
+the 0day has found a bug in already merged code of mine so I do not know
+the exact protocol in regards to linking the fix with the report,
+patching, reverting etc.
+
+I was unable to reproduce the crash, I tried building with the config
+attached to the email above but the kernel booted fine for me in Qemu.
+
+So I re-worked the module originally used for testing, it can be found
+here:
+
+	https://github.com/tcharding/ktest/tree/master/list_head
+
+From this I think the list.h code added prior to the buggy patch is
+ok.
+
+Next I tried to find the bug just using my eyes.  This patch is the
+result.  Unfortunately I can not understand why this bug was not
+triggered _before_ I originally patched it.  Perhaps I'm not juggling
+all the state perfectly in my head.  Anyways, this patch stops and code
+calling list manipulation functions if the slab_list page member has
+been modified during allocation.
+
+The code in question revolves around an optimisation aimed at preventing
+fragmentation at the start of a slab due to the first fit nature of the
+allocation algorithm.
+
+Full explanation is in the commit log for the patch, the short version
+is; skip optimisation if page list is modified, this only occurs when an
+allocation completely fills the slab and in this case the optimisation
+is unnecessary since we have not fragmented the slab by this allocation.
+
+This is more than just a bug fix, it significantly reduces the
+complexity of the function while still fixing the reason for originally
+touching this code (violation of list_head abstraction).
+
+The only testing I've done is to build and boot a kernel in Qemu (with
+CONFIG_LIST_DEBUG and CONFIG_SLOB) enabled).  However, as mentioned,
+this method of testing did _not_ reproduce the 0day crash so if there
+are better suggestions on how I should test these I'm happy to do so.
+
+thanks,
+Tobin.
+
+
+Tobin C. Harding (1):
+  slob: Only use list functions when safe to do so
+
+ mm/slob.c | 50 ++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 30 insertions(+), 20 deletions(-)
+
 -- 
-2.21.0.392.gf8f6787159e-goog
+2.21.0
 
