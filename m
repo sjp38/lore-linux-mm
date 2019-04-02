@@ -6,98 +6,98 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 006A7C4360F
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 23:06:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A9D8C4360F
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 23:06:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A886C2084C
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 23:06:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 19EAD2084C
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 23:06:44 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="J+ufpkhH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A886C2084C
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="71NZ5cRe"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 19EAD2084C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 511846B0274; Tue,  2 Apr 2019 19:06:40 -0400 (EDT)
+	id B53386B0275; Tue,  2 Apr 2019 19:06:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4C22B6B0275; Tue,  2 Apr 2019 19:06:40 -0400 (EDT)
+	id B05226B0276; Tue,  2 Apr 2019 19:06:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 38AFC6B0276; Tue,  2 Apr 2019 19:06:40 -0400 (EDT)
+	id 9CC9D6B0277; Tue,  2 Apr 2019 19:06:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 194246B0274
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 19:06:40 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id 77so13071273qkd.9
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 16:06:40 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 797806B0275
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 19:06:43 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id x12so15087014qtk.2
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 16:06:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=3K2yhT+sszNfHiVNPV2b/RN3GQNa8ZJypdeBAdHjZ+U=;
-        b=JmPI2WjD9Em3KsP5Qi0I6phtFuTvv5upX/WVxO+f0XJ0ULRrGdBi1eDSqVpYBdphYH
-         Hcoae+hU7DTpm2/oIWyiiEAPoYWCySsa3qLfY+nzpxg23uWTfmILIcABlUBCltr5nZ/f
-         pH5t4Z1IfRTOtXYd0pCPCEZ+NiWtFZ0kAFrg4hxR0xuqQJ9GN4g/HoFmKj+QeB55/Nw0
-         KEYFgbaaiRHzERgRLhznEm6XEHD6DV/pqKQTsCSWmlbIX5jXvBqb5ApNsKopQFfFNC13
-         dpFK77O1bhiMGbAX9qs77CtzNb+c211808WqG+dhGFHSuwURMzcotEzv9DYfKjBYsOYk
-         FuIg==
-X-Gm-Message-State: APjAAAUnBcgbeAs84U30wbHQTIXjqiwX8eQ5UCZv0clzA6CLcVD+X1jF
-	i9rJXKPPbSIYJ3q3Z6P3yN/hvDOlBlPpP1oagDvRbrhOumO/QYRwja0pRhqlZgk3ab4V4zycAwm
-	8bDxIhzGCshcd/9dThTwDiFWKGmdDfEZj8pdSZyjO3V6fq3V/Mwhi37qHXOdwQrU=
-X-Received: by 2002:ac8:38b6:: with SMTP id f51mr39268301qtc.33.1554246399688;
-        Tue, 02 Apr 2019 16:06:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwkvm3MngK4miOCkknlamRol9qFCsHAVxReyimXzg/976gGUVc7Ts+Shvg+RaBlacmNoMN/
-X-Received: by 2002:ac8:38b6:: with SMTP id f51mr39268198qtc.33.1554246398067;
-        Tue, 02 Apr 2019 16:06:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554246398; cv=none;
+        bh=aP7x6ocNpn524UbFJtnYWiwqT9lY5T2tQUUdBKmIxoY=;
+        b=sxOCA9rPxMp/p3TINGGVAT2TVYNqzfOUVgLaCTfwZ4HpSiHn+0mHWHhwZ3I1wVdnB8
+         AOr5ZfKKOt4ngVDn8kySKSn4/gijEMnOqLgnr67P31vvRRW+bcQsbz3VqtdMQr+8RIe0
+         kLdawBYXqVld61ffjK45k59K+IVVztJR2DBu9UFUBMbvsdAFzsh7DhAHsI6jVRaYLduC
+         urvVOumIl+5HunRGutR2aMUW+o5F8XBd5K4LZ5s6JtlDSArxL6im1/iQfFsN7qn82A2a
+         foFv0/hbDJ0ZozcaPjq1CDOHSTiGkXR659yd65wZ9W+8r5UI9+4bXH5wFhsbCDgt09fQ
+         gutg==
+X-Gm-Message-State: APjAAAWDiAKyyblHI000g7yw/M4mhmQ0NujWFubgZoiqesND902zp2c6
+	TO3Rxj0tC875Bj3vhGlUbUQ+xbnZz3FLyaK9skh/whhViuwQ30+aw25XbYCZEOrOAWeAiBZyqid
+	+EdqhOWmCgetKFDuilEMqdr5p0hJ23ugmp81E48t/3rhcYWe5HD1uqCrMbLeaIr8=
+X-Received: by 2002:a0c:f989:: with SMTP id t9mr4975658qvn.74.1554246403252;
+        Tue, 02 Apr 2019 16:06:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxyzJgwEtYEhtAtpw/8ti2vl5Pzw8Dgkj+tU29VTY2qP1rmvQx3ibkvARzxaXIeLrxnfkkh
+X-Received: by 2002:a0c:f989:: with SMTP id t9mr4975600qvn.74.1554246402215;
+        Tue, 02 Apr 2019 16:06:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554246402; cv=none;
         d=google.com; s=arc-20160816;
-        b=VrKixVsuG1JJagqBD4jYglKvBcEoAYKR18lnEtNJA5EpS0XlYOFsiNAFFiP2oEirbN
-         gqZFCLPEw74PDKvnxJzUYJKarQ7Axaj1QOGN+GV85ZNkMWWkflFJ+2EvR05IySRVOh+8
-         fCT81UXVRMF4Vuacwb5uCnkL1cdBLweMNtELxH9Dfjs7wIOAQh7N1UCpTif5aYQWOAFE
-         N3GMIeHrYRPzu1V2Gli6In4UE0ahbOTGKzsTD3X1QHOLlJVSUCUGEviOMKlmKHPLbCZ1
-         FEAA092xWWQi6Bbh/R8Ux/ZKohJuQvgUY4mgCPKrUN9kyDELsl6+DVuxQN7scNk2JhW2
-         imUA==
+        b=e3RRFIJidPOoabAZFjk0eLtR5UudEzXSx6m5MShleZ/LwVvPJS4wjxESRchsMBx5aV
+         tmje55gsBKIjd34QOeKcb0gEs1FhTfWl7TH3c5k/VgtPcIbhpu3DqVBdjjloPOn5IIHe
+         rWv0JhBCP5FYOadlpzIHvKrNbJPALFz7j3/PFvMxWTHKMHEXT4oFDe9Sl5lfojQ1hnnY
+         0WHjvVkw52lbpHDt9ZOHoFSnalO7y9xhSCVqiz9kJpaxPgJV9nZI48SDLWLBLWzjDLSS
+         ZkxBkvitLfscIyvevtJlsYoQ1BMzMgBq0xLkPveA2EqtjaVg1wNOb++5CSKoPi4w9Zjz
+         Gwiw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=3K2yhT+sszNfHiVNPV2b/RN3GQNa8ZJypdeBAdHjZ+U=;
-        b=GVpaxyz48HEw/0K0QywjsqSG6MxzEb4AsXb9PZUsNk4Y5MCKmRvAabpQqlbMWleo1i
-         v5gqv+d03JgfikAvNE7hfheft5tzx1jKv8SwPmai7piEgZi+Z3Rk4B/mlzjzEYY4kDiT
-         gy+KG4Bti+pJfeQzgeeLpiqFmuEAUN6ObL6MXRpUNB29KJKJ6Wirg1lrZrb0BvH7yDeK
-         dL0C44xfx+SP2OPwdo7Eb6Ee5kQBQzdubefi9xFbt52BQXkc3sXQPAYkxeiWzcvfQ8BY
-         yPn6AiH31jtcYb4lQq3cpa8YTVEiJduwRtutN0upokCdaXEj15q+2WYfSzmVpHeque5W
-         nQ4Q==
+        bh=aP7x6ocNpn524UbFJtnYWiwqT9lY5T2tQUUdBKmIxoY=;
+        b=boxSwX619gMfi+FIv9L9L7hsUCwK32SWDfL/0B+5q7udIRC93tOyIQQ0vvsQmVQqOO
+         EFbEfoycEgC8Oppr3NbCHVF6FKEa12BU4BqlBh3EhkxUb5Sh7UsaEs0hEGa8WRwE0buu
+         4POoH/UtRHbzR7A6SxUW6AEpOn94Dx32HVeY8aZyqiFONTo60Dt1T/Cq1sbyobi+VTvy
+         XUPACeDIihtc05XmSZh3Yi/rv+e9TV2iO/45B3s1EOGSa3SU89cum/RePcFReG7VbRUF
+         BP+Ort7K54V/c4XzsJOOQKpRQv3b9E5S3oU0Hl3ZmuvFPALoMtcCpm6sB1kYWHR37Yc4
+         gPWQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=J+ufpkhH;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=71NZ5cRe;
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from out2-smtp.messagingengine.com (out2-smtp.messagingengine.com. [66.111.4.26])
-        by mx.google.com with ESMTPS id a2si1124641qkl.123.2019.04.02.16.06.37
+        by mx.google.com with ESMTPS id y14si891269qvc.45.2019.04.02.16.06.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Apr 2019 16:06:38 -0700 (PDT)
+        Tue, 02 Apr 2019 16:06:42 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) client-ip=66.111.4.26;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=J+ufpkhH;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=71NZ5cRe;
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.nyi.internal (Postfix) with ESMTP id ACCEC21EF6;
-	Tue,  2 Apr 2019 19:06:37 -0400 (EDT)
+	by mailout.nyi.internal (Postfix) with ESMTP id EA72921EF6;
+	Tue,  2 Apr 2019 19:06:41 -0400 (EDT)
 Received: from mailfrontend2 ([10.202.2.163])
-  by compute3.internal (MEProxy); Tue, 02 Apr 2019 19:06:37 -0400
+  by compute3.internal (MEProxy); Tue, 02 Apr 2019 19:06:41 -0400
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:subject:to
 	:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=3K2yhT+sszNfHiVNPV2b/RN3GQNa8ZJypdeBAdHjZ+U=; b=J+ufpkhH
-	vZEfzYhN14fxy08UgL7zicdFN3w19iPwhvtvHDyyFGhp+th9Y4H+bs59zZ/lCEYf
-	sAuMzO0kEdX0d6MrM7j3VVadRO79mpKP0OeBSX9X+7XR3fTJ2yz68brwxGaHSN7/
-	D2xQ5Gzp5OpC+9JndF8XHSE37m6iEO2seUGEasvV+WqttsN3o24s6pa2VLPj8TSP
-	Cpfyi7lPHhEFsybWnMCnfT/5akQtQ0uPXoTCed5EXmf51gCcEe07hzG7E6OEhOU2
-	3GN76kSDFAZda6mmChVz1dzZRZlbm5d40Y35rHyhWSbQtkAo37gq3JbRjTmTVTn0
-	Q+qfUXPIXyCO/Q==
-X-ME-Sender: <xms:_eqjXJy3zwZs_ahB6UQ_BEvLuU6tdjzStnCRjXsV4eea_IMhqYefNw>
+	fm2; bh=aP7x6ocNpn524UbFJtnYWiwqT9lY5T2tQUUdBKmIxoY=; b=71NZ5cRe
+	Vb88xdu4aAjbR8bx2wu26shp1R2vRoM4i8wn+wPH20gLrjy7KshCT6ZPLixtNDE7
+	yVF43B9/0IbyoKtRKEgOOFboAhAWWqBKbNRn5rVvXgOJAKWgQ5hJDVsRQ8H7Sy2Q
+	tMu4GH/iXlDLr0kEdQZOtHcC+a4fe78PO4K3sMCil2TSiQpt1bqGQxjy3te6RdcJ
+	20AJ+oTGJ4ytiSxCMKKXQD2BhKA7W5JtkA8mzakt7f3AQKnF3BUqIlNjgP1tS0lQ
+	m3sCkcxyEh6W0Kx1n2p0d2Gtg6sZ5wurgp2i3xsDSkUC5JWey739YqIasW2xGPEm
+	wpQX8IZ+EwSqtg==
+X-ME-Sender: <xms:AeujXOoYp2i9Y3gcTfR8YMt_Mvrao_4NQ1IW_RPsE6EAr8XEAJypVg>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtddugdduieculddtuddrgedutddrtddtmd
     cutefuodetggdotefrodftvfcurfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdp
     uffrtefokffrpgfnqfghnecuuegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivg
@@ -105,14 +105,14 @@ X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtddugdduieculddtuddrgedutd
     ucfhrhhomhepfdfvohgsihhnucevrdcujfgrrhguihhnghdfuceothhosghinheskhgvrh
     hnvghlrdhorhhgqeenucfkphepuddvgedrudeiledrvdejrddvtdeknecurfgrrhgrmhep
     mhgrihhlfhhrohhmpehtohgsihhnsehkvghrnhgvlhdrohhrghenucevlhhushhtvghruf
-    hiiigvpedu
-X-ME-Proxy: <xmx:_eqjXBMMLhXtM191LHPlc4_z5CufHr_QDkcw19WD646QXhHTuarIvg>
-    <xmx:_eqjXKg_nhTplalxG3T6P8xEKtsoaX9MuVjpKCLNX9UUMNTMsCebrQ>
-    <xmx:_eqjXB9oVWjAUi1xIHpRutQ89xoEYYdYgEcy_ls15zqPBPWacqSiMw>
-    <xmx:_eqjXI4-vMRehLp7b2vI8NnJALmfgnTlWWcxqVudcSRMNOefiOOiFA>
+    hiiigvpeef
+X-ME-Proxy: <xmx:AeujXNamtfmVZiGB2pSIPcsMHGb_GkP_vomkyf0stuGxSZ1-5yT_yQ>
+    <xmx:AeujXPVrtHbrzKhXSiWqwYpOKoeGF_mRaWfysqkPFeUpwufqa8pvKA>
+    <xmx:AeujXO-LtK3gcyaiec1BbA-d-9qYEKNW57GVFBLYa4SnwbflqAmGHQ>
+    <xmx:AeujXPrHbp5QaAG9_9M3t4taoI8iN5nCPplYSrSoXivBDeSY8IkTtw>
 Received: from eros.localdomain (124-169-27-208.dyn.iinet.net.au [124.169.27.208])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 212961031A;
-	Tue,  2 Apr 2019 19:06:33 -0400 (EDT)
+	by mail.messagingengine.com (Postfix) with ESMTPA id 67C081031A;
+	Tue,  2 Apr 2019 19:06:38 -0400 (EDT)
 From: "Tobin C. Harding" <tobin@kernel.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: "Tobin C. Harding" <tobin@kernel.org>,
@@ -124,9 +124,9 @@ Cc: "Tobin C. Harding" <tobin@kernel.org>,
 	Matthew Wilcox <willy@infradead.org>,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH v5 3/7] slob: Use slab_list instead of lru
-Date: Wed,  3 Apr 2019 10:05:41 +1100
-Message-Id: <20190402230545.2929-4-tobin@kernel.org>
+Subject: [PATCH v5 4/7] slub: Add comments to endif pre-processor macros
+Date: Wed,  3 Apr 2019 10:05:42 +1100
+Message-Id: <20190402230545.2929-5-tobin@kernel.org>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190402230545.2929-1-tobin@kernel.org>
 References: <20190402230545.2929-1-tobin@kernel.org>
@@ -138,112 +138,119 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Currently we use the page->lru list for maintaining lists of slabs.  We
-have a list_head in the page structure (slab_list) that can be used for
-this purpose.  Doing so makes the code cleaner since we are not
-overloading the lru list.
+SLUB allocator makes heavy use of ifdef/endif pre-processor macros.
+The pairing of these statements is at times hard to follow e.g. if the
+pair are further than a screen apart or if there are nested pairs.  We
+can reduce cognitive load by adding a comment to the endif statement of
+form
 
-The slab_list is part of a union within the page struct (included here
-stripped down):
+       #ifdef CONFIG_FOO
+       ...
+       #endif /* CONFIG_FOO */
 
-	union {
-		struct {	/* Page cache and anonymous pages */
-			struct list_head lru;
-			...
-		};
-		struct {
-			dma_addr_t dma_addr;
-		};
-		struct {	/* slab, slob and slub */
-			union {
-				struct list_head slab_list;
-				struct {	/* Partial pages */
-					struct page *next;
-					int pages;	/* Nr of pages left */
-					int pobjects;	/* Approximate count */
-				};
-			};
-		...
+Add comments to endif pre-processor macros if ifdef/endif pair is not
+immediately apparent.
 
-Here we see that slab_list and lru are the same bits.  We can verify
-that this change is safe to do by examining the object file produced from
-slob.c before and after this patch is applied.
-
-Steps taken to verify:
-
- 1. checkout current tip of Linus' tree
-
-    commit a667cb7a94d4 ("Merge branch 'akpm' (patches from Andrew)")
-
- 2. configure and build (select SLOB allocator)
-
-    CONFIG_SLOB=y
-    CONFIG_SLAB_MERGE_DEFAULT=y
-
- 3. dissasemble object file `objdump -dr mm/slub.o > before.s
- 4. apply patch
- 5. build
- 6. dissasemble object file `objdump -dr mm/slub.o > after.s
- 7. diff before.s after.s
-
-Use slab_list list_head instead of the lru list_head for maintaining
-lists of slabs.
-
-Reviewed-by: Roman Gushchin <guro@fb.com>
+Acked-by: Christoph Lameter <cl@linux.com>
 Signed-off-by: Tobin C. Harding <tobin@kernel.org>
 ---
- mm/slob.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ mm/slub.c | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 
-diff --git a/mm/slob.c b/mm/slob.c
-index 07356e9feaaa..84aefd9b91ee 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -112,13 +112,13 @@ static inline int slob_page_free(struct page *sp)
- 
- static void set_slob_page_free(struct page *sp, struct list_head *list)
- {
--	list_add(&sp->lru, list);
-+	list_add(&sp->slab_list, list);
- 	__SetPageSlobFree(sp);
- }
- 
- static inline void clear_slob_page_free(struct page *sp)
- {
--	list_del(&sp->lru);
-+	list_del(&sp->slab_list);
- 	__ClearPageSlobFree(sp);
- }
- 
-@@ -298,7 +298,7 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
- 
- 	spin_lock_irqsave(&slob_lock, flags);
- 	/* Iterate through each partially free page, try to find room */
--	list_for_each_entry(sp, slob_list, lru) {
-+	list_for_each_entry(sp, slob_list, slab_list) {
- 		bool page_removed_from_list = false;
- #ifdef CONFIG_NUMA
- 		/*
-@@ -328,8 +328,8 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
- 			 * search time by starting our next search here. (see
- 			 * Knuth vol 1, sec 2.5, pg 449)
- 			 */
--			if (!list_is_first(&sp->lru, slob_list))
--				list_rotate_to_front(&sp->lru, slob_list);
-+			if (!list_is_first(&sp->slab_list, slob_list))
-+				list_rotate_to_front(&sp->slab_list, slob_list);
+diff --git a/mm/slub.c b/mm/slub.c
+index d30ede89f4a6..8fbba4ff6c67 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1951,7 +1951,7 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
+ 			}
  		}
- 		break;
+ 	} while (read_mems_allowed_retry(cpuset_mems_cookie));
+-#endif
++#endif	/* CONFIG_NUMA */
+ 	return NULL;
+ }
+ 
+@@ -2249,7 +2249,7 @@ static void unfreeze_partials(struct kmem_cache *s,
+ 		discard_slab(s, page);
+ 		stat(s, FREE_SLAB);
  	}
-@@ -346,7 +346,7 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
- 		spin_lock_irqsave(&slob_lock, flags);
- 		sp->units = SLOB_UNITS(PAGE_SIZE);
- 		sp->freelist = b;
--		INIT_LIST_HEAD(&sp->lru);
-+		INIT_LIST_HEAD(&sp->slab_list);
- 		set_slob(b, SLOB_UNITS(PAGE_SIZE), b + SLOB_UNITS(PAGE_SIZE));
- 		set_slob_page_free(sp, slob_list);
- 		b = slob_page_alloc(sp, size, align, &_unused);
+-#endif
++#endif	/* CONFIG_SLUB_CPU_PARTIAL */
+ }
+ 
+ /*
+@@ -2308,7 +2308,7 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+ 		local_irq_restore(flags);
+ 	}
+ 	preempt_enable();
+-#endif
++#endif	/* CONFIG_SLUB_CPU_PARTIAL */
+ }
+ 
+ static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
+@@ -2813,7 +2813,7 @@ void *kmem_cache_alloc_node_trace(struct kmem_cache *s,
+ }
+ EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
+ #endif
+-#endif
++#endif	/* CONFIG_NUMA */
+ 
+ /*
+  * Slow path handling. This may still be called frequently since objects
+@@ -3848,7 +3848,7 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node)
+ 	return ret;
+ }
+ EXPORT_SYMBOL(__kmalloc_node);
+-#endif
++#endif	/* CONFIG_NUMA */
+ 
+ #ifdef CONFIG_HARDENED_USERCOPY
+ /*
+@@ -4066,7 +4066,7 @@ void __kmemcg_cache_deactivate(struct kmem_cache *s)
+ 	 */
+ 	slab_deactivate_memcg_cache_rcu_sched(s, kmemcg_cache_deact_after_rcu);
+ }
+-#endif
++#endif	/* CONFIG_MEMCG */
+ 
+ static int slab_mem_going_offline_callback(void *arg)
+ {
+@@ -4699,7 +4699,7 @@ static int list_locations(struct kmem_cache *s, char *buf,
+ 		len += sprintf(buf, "No data\n");
+ 	return len;
+ }
+-#endif
++#endif	/* CONFIG_SLUB_DEBUG */
+ 
+ #ifdef SLUB_RESILIENCY_TEST
+ static void __init resiliency_test(void)
+@@ -4759,7 +4759,7 @@ static void __init resiliency_test(void)
+ #ifdef CONFIG_SYSFS
+ static void resiliency_test(void) {};
+ #endif
+-#endif
++#endif	/* SLUB_RESILIENCY_TEST */
+ 
+ #ifdef CONFIG_SYSFS
+ enum slab_stat_type {
+@@ -5416,7 +5416,7 @@ STAT_ATTR(CPU_PARTIAL_ALLOC, cpu_partial_alloc);
+ STAT_ATTR(CPU_PARTIAL_FREE, cpu_partial_free);
+ STAT_ATTR(CPU_PARTIAL_NODE, cpu_partial_node);
+ STAT_ATTR(CPU_PARTIAL_DRAIN, cpu_partial_drain);
+-#endif
++#endif	/* CONFIG_SLUB_STATS */
+ 
+ static struct attribute *slab_attrs[] = {
+ 	&slab_size_attr.attr,
+@@ -5617,7 +5617,7 @@ static void memcg_propagate_slab_attrs(struct kmem_cache *s)
+ 
+ 	if (buffer)
+ 		free_page((unsigned long)buffer);
+-#endif
++#endif	/* CONFIG_MEMCG */
+ }
+ 
+ static void kmem_cache_release(struct kobject *k)
 -- 
 2.21.0
 
