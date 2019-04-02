@@ -2,182 +2,150 @@ Return-Path: <SRS0=cFM0=SE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-10.0 required=3.0 tests=DKIM_ADSP_CUSTOM_MED,
-	DKIM_INVALID,DKIM_SIGNED,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ADC9AC10F0B
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 16:17:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 37AE1C4360F
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 16:18:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 54BC5204EC
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 16:17:22 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DE306204EC
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 16:18:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="HqHi3KXr"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 54BC5204EC
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="PHnsUCSY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DE306204EC
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C381C6B0005; Tue,  2 Apr 2019 12:17:21 -0400 (EDT)
+	id 8B4C06B000D; Tue,  2 Apr 2019 12:18:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BE6F16B000D; Tue,  2 Apr 2019 12:17:21 -0400 (EDT)
+	id 863406B0010; Tue,  2 Apr 2019 12:18:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AAF996B0010; Tue,  2 Apr 2019 12:17:21 -0400 (EDT)
+	id 779F66B0269; Tue,  2 Apr 2019 12:18:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 720A36B0005
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 12:17:21 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id j1so10247468pll.13
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 09:17:21 -0700 (PDT)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 578C66B000D
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 12:18:32 -0400 (EDT)
+Received: by mail-it1-f198.google.com with SMTP id v193so3286216itv.9
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 09:18:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=JbfDVSihwTx21ysjcpNCAdgycCvIFZGZ/Q4z4v790s0=;
-        b=VvHpJH5/toSMm/sCHFMnNw7ZXUAiAuBrCZZmMS9JCm8AgFath5S7vzCeOP/cvnK1b6
-         Sdo2THmbuIB+KHQ22Qk5OQni7N4FQSPBwlHudyhHgyR1e6VeQDpnR3HXozLcwaEJYKB3
-         OKIojyRZW92uYVtFWqk+rozK2Tv2PqoqBPjMzDj8gK1WuIHEcNk/uo+90qI+pPIlHjMO
-         824nGJBUsMyUtJuZLZADMzzgNmbcReWWVRB275xqkgEFyRZF82Nm2pGoB7HrK+P3Br4F
-         pJKM5HFtkB2KBllElcC07dTol5NQbblOFVHi06cdgEextP9uPFU3Hbm1h7/R82tFZFIZ
-         kqsA==
-X-Gm-Message-State: APjAAAVU11cA0mewrv7y0Niva2FKxcFAC7Qw7V1AXZCAQyyWjPxC/6/b
-	6QPs3a8cCRTAUlWUe2pVnnX5LmycFhpJ0apc2SjfVY0A8WbKcmnHc0Wq5wB72HMa0pcEmLENaJt
-	z2NAYEe7HCfq1/FCrIe/SYTaTEHglwONOhbseySeuGBbJuD+x2wJy8T6yRxjLLjVAsg==
-X-Received: by 2002:a65:5c4b:: with SMTP id v11mr66615114pgr.411.1554221840916;
-        Tue, 02 Apr 2019 09:17:20 -0700 (PDT)
-X-Received: by 2002:a65:5c4b:: with SMTP id v11mr66615053pgr.411.1554221840259;
-        Tue, 02 Apr 2019 09:17:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554221840; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=Re+RFOGNndaiMDA2vDzD5LwdmPcg3nxlGPP85IpTjik=;
+        b=ebn5cTBa9ztHxDHT91FNDKr/7rlaKug18OcplJguB9GgXR+Z7t19cpzhJKYBEKcKha
+         kR1UlRNdUwEKZBm4A1QRUkvONr2DGr92CksD09+k/+XmhWx5tVswcehW8dCuqRlZyLfP
+         wA03SnBtiq3kwYlV1YQFj1mvOX7TbFA92QZ4kPQ6kpnBP3x/DJFQfzpr+DTd3RkE6Wqv
+         YoHdRdjjucRhq1bDJEXaX8dkKzUHcZycgAoigQNvUp7RG6k3G2KW75n8SzBBnWLGsc0q
+         JlFKBXu/pWSL1Lhaysz9hBjYWnEta8udWdweUdiTosNcCi35kfJaqTqxmutqqs+hmSXD
+         JNuQ==
+X-Gm-Message-State: APjAAAWukf5iPTh/QWpX45YwhfNL+pboqw2DFwc5D0MK+K9bZh50tWqZ
+	lFXSaAOCO7H+kD+WfGcqBPg19oVDptb8JYCDEBlZoao+wxmYUamrbhrbwhSez9O/QUIac4HcCJ9
+	CKIyAsbyCT3bT3W0UV9rfuJ1YcVdW+lRJFxVEu69oY2s42Af5ibzUi0sDajmPM6bX1Q==
+X-Received: by 2002:a02:9830:: with SMTP id t45mr53217842jaj.0.1554221912129;
+        Tue, 02 Apr 2019 09:18:32 -0700 (PDT)
+X-Received: by 2002:a02:9830:: with SMTP id t45mr53217776jaj.0.1554221911460;
+        Tue, 02 Apr 2019 09:18:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554221911; cv=none;
         d=google.com; s=arc-20160816;
-        b=V0kiv33UKkU8Sd5q7vmSYyf1G+5Q2QpaBEsP8TG7398Bsq/cTqi0Y00ywI6FPass39
-         7EsL29hU1bWV8quaFtPbw6KAs/kF5RjJ3UnVP0fr2k6E9YwViiU8jUeEnW9OKcYdkgcg
-         644s7P5t0hkQkA77gryAgHw1Za5VW/nJprZ8SqCg8FU6sLK8kv/TJRC6xWHCBERvHgid
-         cVtfp2Ab/0HCKhResHXKPmex0dfU1AfzrPVPYfKKaddNjpzSsdg14ahx0OOEZ6CSSHQd
-         46fBchAg8lUSLF9nB2FWvwnubnK0dslVSqu+WOmEVdkHW3vCMApkoBCIppiBifNvcmPV
-         dvwA==
+        b=kRnCsrZrEgwQ19we3Xjz/E/ZO5Qj+DgKteSPmQ4a3z5sQ5DKxkr8M1lm/CZHfIziOT
+         x6osSmWCLEiEkkawzLtKT7WItBnSqYivcprTY47dQvsVyS5iSCXpQVeAaFu2W0YHGmLD
+         pxTFM56WnZdnQHqTyOjChRT6+OLGCWzbwjR7qWMGfRVW9BBqn9oc7hMMH2X63g5UGgLW
+         JvCAvhzpTvUjHhjag+kjLaiMG07I+17CfER3lZt4ODIljAUk8rIfx0dAId3r7vfYgU8h
+         cHU1dsX2/OGQch/bUkXp2aYG2TK9KLJkDCVbD88fQtpcoyQ1ZF/OM5/6SzFhjCDUDOve
+         1dvw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=JbfDVSihwTx21ysjcpNCAdgycCvIFZGZ/Q4z4v790s0=;
-        b=TwVJ7AGe2aoSAltM6MhT9pJ+zaBJ3G1C+h7l3BFvOQYK3Z7pCjvT2AQj2butImcPkI
-         6CvsFTaNJRsRJXHr3z7DxAFRtYm0Ve8AhaOzjBM76ZIDn9+QJuJ4MPi6pcBYx9v57QdI
-         XyXbysEIkve+ZYpjfQ9QsioTAu4C8/WTmTwz4ebpyKW5IHDmM4/kPir5o/w279GRkEkZ
-         7hVu375CvGpnaOGE0q4M6XBsJQmJN81uvT0fskvmalrOgqztYEF4ANTj/lWPCsccl9rW
-         I9F4IVt/ob7DiIKOCx+00agVKhzfwVMSNzdJZik3avVQQzedMZDGu8Br2EIIK6D6+nJ2
-         V44Q==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=Re+RFOGNndaiMDA2vDzD5LwdmPcg3nxlGPP85IpTjik=;
+        b=zsNguLD2fwRhQ81qNKSUvy6n0CCOsb3B+1zOPHBBFtqeFMaU1LnyrcHWz1ynGGtqik
+         8IpQA9ljV0DZxgfgf/3dGemf0BzTNcb1EKh0wXS2+WBWs2bHuUGasy9u97gu6A+Zijnm
+         LBt7Hci0CHzAbJNx3aCFsxN3xUxqEZUCH4sl+Kp5rnMv3I9qPKOdY40Vm8KLKNzYTyLW
+         ANWP25U/7fMTOv8q5XVBUjMwmksRYUaNiu9jkMBEBpFzyG7X6BZGd+eCGy8sSWoiFvVA
+         WYsFEOJmzUg2hmKuf6vrTBhNeZhx+n4CEcYxQSMWBGJOoUXHBRhVLM33XVA+L9Qkmaef
+         dHBA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=HqHi3KXr;
-       spf=pass (google.com: domain of nikitas.angelinas@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nikitas.angelinas@gmail.com;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=PHnsUCSY;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y196sor13781617pfb.16.2019.04.02.09.17.20
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id h12sor23638717itb.29.2019.04.02.09.18.31
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 02 Apr 2019 09:17:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of nikitas.angelinas@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 02 Apr 2019 09:18:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=HqHi3KXr;
-       spf=pass (google.com: domain of nikitas.angelinas@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nikitas.angelinas@gmail.com;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=PHnsUCSY;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=JbfDVSihwTx21ysjcpNCAdgycCvIFZGZ/Q4z4v790s0=;
-        b=HqHi3KXr+FXHd4AqTz1ou1EFpoK3fZUF2eztfS2BBqq/LlDPQ48vdtCQTwYGN43QiL
-         H5zNFG+pjs+3KnACZcR4Mr4/yGKxX5yqlHViGHd7eG6wvy74YS8uVi6RtpRVJjoTS69P
-         VmAZI4o/dQAn95e/vqqCZKj6C9qiTQ/Y0xdryj+Ji0lUpM0zfTs+SxmG8jl21kKI6PU3
-         e4WPzkQoypjPEA+o34ASEEcziOaQBKM9FcITcDdVdo997nHiPQ8jMjVqxq3rNYzXXvs/
-         2vlsPRzXeDy8nXfQhtzfd8f96hpbvL+uR1Gm77WsRLPtjMQFnKd6H1d9+uDkiaWoMj+7
-         cWrg==
-X-Google-Smtp-Source: APXvYqzBPmWUn8xkWl5jCa/CxzGFeOEfjylG8P8xS/YVegMfkHlqp/y8C6vW1V1oLe4qgab0OnSsbw==
-X-Received: by 2002:a62:5ec2:: with SMTP id s185mr3423780pfb.16.1554221839526;
-        Tue, 02 Apr 2019 09:17:19 -0700 (PDT)
-Received: from vostro (173-228-88-115.dsl.dynamic.fusionbroadband.com. [173.228.88.115])
-        by smtp.gmail.com with ESMTPSA id o67sm16832118pga.55.2019.04.02.09.17.18
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Apr 2019 09:17:18 -0700 (PDT)
-Date: Tue, 2 Apr 2019 09:17:10 -0700
-From: Nikitas Angelinas <nikitas.angelinas@gmail.com>
-To: Mukesh Ojha <mojha@codeaurora.org>,
-	Andrew Morton <akpm@linux-foundation.org>
-Cc: kernel test robot <lkp@intel.com>,
-	Alexey Dobriyan <adobriyan@gmail.com>, LKP <lkp@01.org>,
-	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	Linux Memory Management List <linux-mm@kvack.org>
-Subject: Re: b050de0f98 ("fs/binfmt_elf.c: free PT_INTERP filename ASAP"):
- BUG: KASAN: null-ptr-deref in allow_write_access
-Message-ID: <20190402161710.GA4152@vostro>
-References: <5ca377a6.5zcN4o4WezY4tfcr%lkp@intel.com>
- <86f16af9-961f-5057-6596-c95c0316f7da@codeaurora.org>
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=Re+RFOGNndaiMDA2vDzD5LwdmPcg3nxlGPP85IpTjik=;
+        b=PHnsUCSY/qiykMhJ4pa9KK5JKO3Ze7zSHPJ79uUnDsBRGMw6hIDkR7+DcjMXQQYjPH
+         nB7e1TsSudWHd8n1C4IYRhdkyNIXY5kUqyJ6zgVVQpaAmkoJV18cekhQhcPTXFFMnPTi
+         t5dsHs3ikGRI5XwwZjWY4/kWN0GeLjJTzxCnOg51/Kkaop8NVvCmUixCZ538zIy9bRG7
+         tcNmaT1ItOUct5VDhqjIS2/Z60StmPMOWOlROAXsP30qkFUeLdj3GIXCEQChdDb6EmcA
+         9/2ta9d+qH7zKSOyNPXCZNc9lgyEcf6nOdr2EOgrYEJGPnN9Fkx3mDVDH3c2JUwzAqP7
+         KY0g==
+X-Google-Smtp-Source: APXvYqy3Rrz4CRj+wlX1B/s3NmvOSbnBxyJoOkkdOzK2bOS6mXJEXcERmnbqRdRmUCESfRrIxxTPqIyWF9egxW07qxY=
+X-Received: by 2002:a02:c6d8:: with SMTP id r24mr5372138jan.93.1554221911086;
+ Tue, 02 Apr 2019 09:18:31 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <86f16af9-961f-5057-6596-c95c0316f7da@codeaurora.org>
-User-Agent: Mutt/1.7.0 (2016-08-17)
+References: <f0ee075d-3e99-efd5-8c82-98d53b9f204f@redhat.com>
+ <20190329125034-mutt-send-email-mst@kernel.org> <fb23fd70-4f1b-26a8-5ecc-4c14014ef29d@redhat.com>
+ <20190401073007-mutt-send-email-mst@kernel.org> <29e11829-c9ac-a21b-b2f1-ed833e4ca449@redhat.com>
+ <dc14a711-a306-d00b-c4ce-c308598ee386@redhat.com> <20190401104608-mutt-send-email-mst@kernel.org>
+ <CAKgT0UcJuD-t+MqeS9geiGE1zsUiYUgZzeRrOJOJbOzn2C-KOw@mail.gmail.com>
+ <6a612adf-e9c3-6aff-3285-2e2d02c8b80d@redhat.com> <CAKgT0Ue_By3Z0=5ZEvscmYAF2P40Bdyo-AXhH8sZv5VxUGGLvA@mail.gmail.com>
+ <20190402112115-mutt-send-email-mst@kernel.org> <3dd76ce6-c138-b019-3a43-0bb0b793690a@redhat.com>
+In-Reply-To: <3dd76ce6-c138-b019-3a43-0bb0b793690a@redhat.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Tue, 2 Apr 2019 09:18:19 -0700
+Message-ID: <CAKgT0Uc78NYnva4T+G5uas_iSnE_YHGz+S5rkBckCvhNPV96gw@mail.gmail.com>
+Subject: Re: On guest free page hinting and OOM
+To: David Hildenbrand <david@redhat.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>, 
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
+	Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com, pagupta@redhat.com, 
+	wei.w.wang@intel.com, Yang Zhang <yang.zhang.wz@gmail.com>, 
+	Rik van Riel <riel@surriel.com>, dodgen@google.com, 
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com, 
+	Andrea Arcangeli <aarcange@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 02, 2019 at 08:53:42PM +0530, Mukesh Ojha wrote:
-> I think, this may fix the problem.
-> 
-> https://patchwork.kernel.org/patch/10878501/
-> 
-> 
-> Thanks,
-> Mukesh
-> 
-> On 4/2/2019 8:24 PM, kernel test robot wrote:
-> > Greetings,
-> > 
-> > 0day kernel testing robot got the below dmesg and the first bad commit is
-> > 
-> > https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> > 
-> > commit b050de0f986606011986698de504c0dbc12c40dc
-> > Author:     Alexey Dobriyan <adobriyan@gmail.com>
-> > AuthorDate: Fri Mar 29 10:02:05 2019 +1100
-> > Commit:     Stephen Rothwell <sfr@canb.auug.org.au>
-> > CommitDate: Sat Mar 30 16:09:51 2019 +1100
-> > 
-> >      fs/binfmt_elf.c: free PT_INTERP filename ASAP
-> >      There is no reason for PT_INTERP filename to linger till the end of
-> >      the whole loading process.
-> >      Link: http://lkml.kernel.org/r/20190314204953.GD18143@avx2
-> >      Signed-off-by: Alexey Dobriyan <adobriyan@gmail.com>
-> >      Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
-> >      Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> >      Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
-> > 
-> > 46238614d8  fs/binfmt_elf.c: make scope of "pos" variable smaller
-> > b050de0f98  fs/binfmt_elf.c: free PT_INTERP filename ASAP
-> > 05d08e2995  Add linux-next specific files for 20190402
-<snip>
-> > 
-> > ---
-> > 0-DAY kernel test infrastructure                Open Source Technology Center
-> > https://lists.01.org/pipermail/lkp                          Intel Corporation
-> 
+n Tue, Apr 2, 2019 at 8:57 AM David Hildenbrand <david@redhat.com> wrote:
+>
+> On 02.04.19 17:25, Michael S. Tsirkin wrote:
+> > On Tue, Apr 02, 2019 at 08:04:00AM -0700, Alexander Duyck wrote:
+> >> Basically what we would be doing is providing a means for
+> >> incrementally transitioning the buddy memory into the idle/offline
+> >> state to reduce guest memory overhead. It would require one function
+> >> that would walk the free page lists and pluck out pages that don't
+> >> have the "Offline" page type set,
+> >
+> > I think we will need an interface that gets
+> > an offline page and returns the next online free page.
+> >
+> > If we restart the list walk each time we can't guarantee progress.
+>
+> Yes, and essentially we are scanning all the time for chunks vs. we get
+> notified which chunks are possible hinting candidates. Totally different
+> design.
 
-Hi,
-
-Yes, it should.
-
-Andrew seems to have added the patch to the -mm tree.
-
-
-P.S. Apologies to individual recipients for the double-posting. I am resending
-this as the previous mail was rejected from linux-kernel and linux-fsdevel due
-to HTML content.
-
-
-
-Cheers,
-Nikitas
+The problem as I see it is that we can miss notifications if we become
+too backlogged, and that will lead to us having to fall back to
+scanning anyway. So instead of trying to implement both why don't we
+just focus on the scanning approach. Otherwise the only other option
+is to hold up the guest and make it wait until the hint processing has
+completed and at that point we are back to what is essentially just a
+synchronous solution with batching anyway.
 
