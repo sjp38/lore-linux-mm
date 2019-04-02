@@ -3,94 +3,99 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 720CDC10F00
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 21:32:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 93CE2C10F0B
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 22:04:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 34FCF2084B
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 21:32:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 34FCF2084B
+	by mail.kernel.org (Postfix) with ESMTP id 1986020856
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 22:04:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1986020856
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C36E06B0269; Tue,  2 Apr 2019 17:32:34 -0400 (EDT)
+	id 826206B0269; Tue,  2 Apr 2019 18:04:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BE3EE6B026D; Tue,  2 Apr 2019 17:32:34 -0400 (EDT)
+	id 7D4D06B026D; Tue,  2 Apr 2019 18:04:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AD3B26B026F; Tue,  2 Apr 2019 17:32:34 -0400 (EDT)
+	id 6C3F36B026F; Tue,  2 Apr 2019 18:04:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 77B0B6B0269
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 17:32:34 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id l74so3859928pfb.23
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 14:32:34 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 289B16B0269
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 18:04:28 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id 1so10834804ply.14
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 15:04:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=r1TqTzAnofVWov8Ckjl4rpwMXRjJzcR/zbtqSMMZ1V0=;
-        b=HoUleqaRhJF1RlOm9WlPGez6eUSUWiZeW9eJ+ATZO3PGus1I92kQAqYDUkZyhTi+TT
-         yNCobGWmQQs7+Z2pc0LFWVXto26KxUYD62wGC9hWEIYYba6Mj514Gd6/36S4OY13Ttm5
-         SdC6eyq+F3+69oglMXun9QmwXJo0HczWDVoR6fFKK0AyMjiBhNWkjtzryAM+pH8yluW2
-         tR7sqweaqt/ZBdCSsWPLS6M9f1VImKmffzeUM6fp+8YyXZ1IHAyq/LnAXf/gady9qRT3
-         z+qU6XQ6iERgqsmBLBdkZ+ztZAj2fn8QSmqxHBiJ8at+/J4tOhpS+SsSvcuXWSduRX6H
-         Fm/Q==
+        bh=1I2QFMTY/NFOM9BA9zBZOHywXvs9ZbEpts/LPqMqrmk=;
+        b=UCAd8sVycEJErv1wOq3Dq+/hZXuw351FOicytE3ExSHnMFKkNsqeXmwIBBr62nYCUS
+         q6qs2IddastGZ3xEQkSeeW/vzBYmmRvLswwxD8sBs9L9GueBVdgtfW5PaXy0z5/8wqd3
+         QqEHhoqZCRhbPuEV0xXjlr+VhAZZt/D4LsKFoLnaiQdNDTbJgJAKID8m0iyWg5+vvBlk
+         LV/dFfS4P4r9u3AvCeGLdfJsV9NClfAzQLvX1veNp3sEPPiMACzMosX1oC1VR/LGhsMn
+         Aj1uPM0Z6vFIMwqAO+AykqYXkG9BxMn1IuRg7crNiJ79pOR/AijLmSgVMH2ecLQFBepG
+         kRrw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: APjAAAUW+UwgPwhZQIM5LvUgx3X82v3P9nTITyV4YX4CvZOGO59TyUxc
-	/KTRrA3+Y2Ghtb4KClTK1hOH6UAXiby9IvTQiFECUR0VaY74gh37cOr0E7kc0v0eRHDqBciRZh6
-	U9UPmGGOkOVIz1pkbdw9gzZ0gTDyitvkaiQAqLnr9QDiPo1vL1hz8T074kKCX2ALANA==
-X-Received: by 2002:a63:ac12:: with SMTP id v18mr67427892pge.111.1554240753925;
-        Tue, 02 Apr 2019 14:32:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwRZNEvrSSdxJhrwxL8Yxp1M0QKQA9Va+YHPgfoVx2a8u3SfM62tltsrCH6tH9Qg3oaRPy6
-X-Received: by 2002:a63:ac12:: with SMTP id v18mr67427811pge.111.1554240752849;
-        Tue, 02 Apr 2019 14:32:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554240752; cv=none;
+X-Gm-Message-State: APjAAAUBCQ9HTD95d+WCWTNMMAHivdsEUQXyjVk4e9APm8yHM/37PN7C
+	bJIwHS4EtMDsufPNTzEPKAYptszAXKbLOhTaO/UnLWsoYNOSi/dyevlYq5Bxh7DSr7MOMB2CvK1
+	0DBBPxlQFP9kMw6hDgIDx9ZZpGKsLsm8UUbCOtR9q4sV9T74u37DpPjkTn+Un18MTEQ==
+X-Received: by 2002:a17:902:e01:: with SMTP id 1mr74234819plw.128.1554242667772;
+        Tue, 02 Apr 2019 15:04:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyW2xJQCCZW/UF7lEwW3Z/9UpkcAHzHoZc7Jy2f/NukmCvald2ZfaMo2GVRcO/qmFAmfxJb
+X-Received: by 2002:a17:902:e01:: with SMTP id 1mr74234732plw.128.1554242666868;
+        Tue, 02 Apr 2019 15:04:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554242666; cv=none;
         d=google.com; s=arc-20160816;
-        b=j16YIMsAVJB1HItG2/dTA+eGqHemwmozKituUphLmwnHMXlHezzjSzFjfwgVP9KWRP
-         24mcdPsalat5aPsMaKRe8+ccVTi3tgyzTvkPIGmOvou7jhSH2NDzHd9CspChM2rPe6Nk
-         RvtUmyScWQlEkBtvmlwdpKCect7xYFYTOtZoOB6E/OB4NSjZhK5C7Rulu7dbY7paT51C
-         N604Xs8a3m8jW0GEERWZYPn04YFHiggBYTlgz1vth3WK1+qCKBMHglwKWGQBarXFgKgt
-         GKSv4TKi8vCHP8iA7b5htkdq6kGUF1NdRL5YBTN5qtnJxx8lvkc6n79h1qMei7/dl7eK
-         8H7w==
+        b=dBw6jRckrrrUr/CRlT3cXZdYgeFaehurwDWoK2Z/nIEpP9uxabiBMjZw6C+Pgw26Ey
+         CNIxglEerLIyZM3kaiAOAZnzu7XROI9u+eapAxSbg8Pw3OioLSa5kbzQSIllX6yvsGBx
+         bGS5Wc7iM8QV+wVKNnyyDu/hmJr51xfgnqXQzuvfJ8CI7vSH46x7Oa8cbCX1cUj0JMVA
+         c/mPC2fmKIKT8gy4pAphVwaHGUXKGpS3IkDKW+xa5ly9i+ocajFBtIfLDK91Y4ViShZ/
+         Lod++h9hlCo/xVWR8jVuo0ZXt5hjCk1JTT5HrKtUtvB0R72uUeiXCem450IqnnQbaBIQ
+         m/Hg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date;
-        bh=r1TqTzAnofVWov8Ckjl4rpwMXRjJzcR/zbtqSMMZ1V0=;
-        b=eZAznLjWLjEAKAdnXhdnhcPSMDaIGPSj51B5ygNub1HCfGBQWt7nmCAUG6/mQd90Na
-         +Y0QL6mx9Ln9YsGW1iSJeGxDsSVwt+Gmr4uZDXMr7OFbrs5OXRSFyUrwoyH7/wt1iN17
-         XsgTUYFnjuNvFqP8jnK20QbVB64+szju5VXFhTAHmjVoIkryWtoBw/cRVLf56I6Nxer0
-         orSPnXKi2qWEPk2R+GRro5Yp0TDy+dlfGYSG3T0MZJGPaK525VFAVudqLKJZadnO1rL9
-         9zpOssdPFcQZ7E8NtccBEkeSKGgHTJe+dhN8Ok5+WWp53jzBasZ8TjsA7t/If7QwpLL7
-         59fg==
+        bh=1I2QFMTY/NFOM9BA9zBZOHywXvs9ZbEpts/LPqMqrmk=;
+        b=ILdyxaWMzoSGN+To23HcA9+9pg+9mzfgasYK61rw2Oucj8dyWa4xDNedW4OEZzk6Ud
+         eAsQfKefctrpba5wcNtNDjvbMyuA/L2r8dThL3g0WNPEQSPbssnnJVonV3Z9tG3+iXIl
+         vs3XMVEQ3ierNon+Wab2rMMo6WB9LlYfCn9STpZMklRMai1tPd6YvJxmTbJeGiijWMAp
+         6B1J0xjK0oDh+xYcs11Q+JfVxpFnVH+alRW9+BmUVTlOt/L2LGpISkp8tvkC8rYgOOok
+         HPdqYZTWcN+KHi4cdYGugJfq5hbojG6DMEeSu7BL4w7IsqGZv4q3582B77L3KnoK2+p1
+         ARhw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b23si12145994pfd.182.2019.04.02.14.32.32
+        by mx.google.com with ESMTPS id z13si11970034pgp.376.2019.04.02.15.04.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Apr 2019 14:32:32 -0700 (PDT)
+        Tue, 02 Apr 2019 15:04:26 -0700 (PDT)
 Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id E45E3D88;
-	Tue,  2 Apr 2019 21:32:31 +0000 (UTC)
-Date: Tue, 2 Apr 2019 14:32:30 -0700
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id EB8B0C84;
+	Tue,  2 Apr 2019 22:04:25 +0000 (UTC)
+Date: Tue, 2 Apr 2019 15:04:24 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Greg Thelen <gthelen@google.com>, Roman Gushchin <guro@fb.com>, Michal
- Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun
- Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- stable@vger.kernel.org
-Subject: Re: [PATCH v2] writeback: use exact memcg dirty counts
-Message-Id: <20190402143230.3ea53a7d599b2d78c39b77b0@linux-foundation.org>
-In-Reply-To: <20190401182044.GA3694@cmpxchg.org>
-References: <20190329174609.164344-1-gthelen@google.com>
-	<20190401182044.GA3694@cmpxchg.org>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Alan Tull <atull@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, Alex
+ Williamson <alex.williamson@redhat.com>, Benjamin Herrenschmidt
+ <benh@kernel.crashing.org>, Christoph Lameter <cl@linux.com>, Davidlohr
+ Bueso <dave@stgolabs.net>, Michael Ellerman <mpe@ellerman.id.au>, Moritz
+ Fischer <mdf@kernel.org>, Paul Mackerras <paulus@ozlabs.org>, Wu Hao
+ <hao.wu@intel.com>, linux-mm@kvack.org, kvm@vger.kernel.org,
+ kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+ linux-fpga@vger.kernel.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 1/6] mm: change locked_vm's type from unsigned long to
+ atomic64_t
+Message-Id: <20190402150424.5cf64e19deeafa58fc6c1a9f@linux-foundation.org>
+In-Reply-To: <20190402204158.27582-2-daniel.m.jordan@oracle.com>
+References: <20190402204158.27582-1-daniel.m.jordan@oracle.com>
+	<20190402204158.27582-2-daniel.m.jordan@oracle.com>
 X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -101,60 +106,67 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Apr 2019 14:20:44 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Tue,  2 Apr 2019 16:41:53 -0400 Daniel Jordan <daniel.m.jordan@oracle.com> wrote:
 
-> On Fri, Mar 29, 2019 at 10:46:09AM -0700, Greg Thelen wrote:
-> > @@ -3907,10 +3923,10 @@ void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pfilepages,
-> >  	struct mem_cgroup *memcg = mem_cgroup_from_css(wb->memcg_css);
-> >  	struct mem_cgroup *parent;
-> >  
-> > -	*pdirty = memcg_page_state(memcg, NR_FILE_DIRTY);
-> > +	*pdirty = memcg_exact_page_state(memcg, NR_FILE_DIRTY);
-> >  
-> >  	/* this should eventually include NR_UNSTABLE_NFS */
-> > -	*pwriteback = memcg_page_state(memcg, NR_WRITEBACK);
-> > +	*pwriteback = memcg_exact_page_state(memcg, NR_WRITEBACK);
-> >  	*pfilepages = mem_cgroup_nr_lru_pages(memcg, (1 << LRU_INACTIVE_FILE) |
-> >  						     (1 << LRU_ACTIVE_FILE));
+> Taking and dropping mmap_sem to modify a single counter, locked_vm, is
+> overkill when the counter could be synchronized separately.
 > 
-> Andrew,
+> Make mmap_sem a little less coarse by changing locked_vm to an atomic,
+> the 64-bit variety to avoid issues with overflow on 32-bit systems.
 > 
-> just a head-up: -mm has that LRU stat cleanup series queued ("mm:
-> memcontrol: clean up the LRU counts tracking") that changes the
-> mem_cgroup_nr_lru_pages() call here to two memcg_page_state().
-> 
-> I'm assuming Greg's fix here will get merged before the cleanup. When
-> it gets picked up, it'll conflict with "mm: memcontrol: push down
-> mem_cgroup_nr_lru_pages()".
-> 
-> "mm: memcontrol: push down mem_cgroup_nr_lru_pages()" will need to be
-> changed to use memcg_exact_page_state() calls instead of the plain
-> memcg_page_state() for *pfilepages.
-> 
+> ...
+>
+> --- a/arch/powerpc/kvm/book3s_64_vio.c
+> +++ b/arch/powerpc/kvm/book3s_64_vio.c
+> @@ -59,32 +59,34 @@ static unsigned long kvmppc_stt_pages(unsigned long tce_pages)
+>  static long kvmppc_account_memlimit(unsigned long stt_pages, bool inc)
+>  {
+>  	long ret = 0;
+> +	s64 locked_vm;
+>  
+>  	if (!current || !current->mm)
+>  		return ret; /* process exited */
+>  
+>  	down_write(&current->mm->mmap_sem);
+>  
+> +	locked_vm = atomic64_read(&current->mm->locked_vm);
+>  	if (inc) {
+>  		unsigned long locked, lock_limit;
+>  
+> -		locked = current->mm->locked_vm + stt_pages;
+> +		locked = locked_vm + stt_pages;
+>  		lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+>  		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
+>  			ret = -ENOMEM;
+>  		else
+> -			current->mm->locked_vm += stt_pages;
+> +			atomic64_add(stt_pages, &current->mm->locked_vm);
+>  	} else {
+> -		if (WARN_ON_ONCE(stt_pages > current->mm->locked_vm))
+> -			stt_pages = current->mm->locked_vm;
+> +		if (WARN_ON_ONCE(stt_pages > locked_vm))
+> +			stt_pages = locked_vm;
+>  
+> -		current->mm->locked_vm -= stt_pages;
+> +		atomic64_sub(stt_pages, &current->mm->locked_vm);
+>  	}
 
-Thanks.  Like this?
+With the current code, current->mm->locked_vm cannot go negative. 
+After the patch, it can go negative.  If someone else decreased
+current->mm->locked_vm between this function's atomic64_read() and
+atomic64_sub().
 
-void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pfilepages,
-			 unsigned long *pheadroom, unsigned long *pdirty,
-			 unsigned long *pwriteback)
-{
-	struct mem_cgroup *memcg = mem_cgroup_from_css(wb->memcg_css);
-	struct mem_cgroup *parent;
+I guess this is a can't-happen in this case because the racing code
+which performed the modification would have taken it negative anyway.
 
-	*pdirty = memcg_exact_page_state(memcg, NR_FILE_DIRTY);
+But this all makes me rather queazy.
 
-	/* this should eventually include NR_UNSTABLE_NFS */
-	*pwriteback = memcg_exact_page_state(memcg, NR_WRITEBACK);
-	*pfilepages = memcg_exact_page_state(memcg, NR_INACTIVE_FILE) +
-			memcg_exact_page_state(memcg, NR_ACTIVE_FILE);
-	*pheadroom = PAGE_COUNTER_MAX;
 
-	while ((parent = parent_mem_cgroup(memcg))) {
-		unsigned long ceiling = min(memcg->memory.max, memcg->high);
-		unsigned long used = page_counter_read(&memcg->memory);
+Also, we didn't remove any down_write(mmap_sem)s from core code so I'm
+thinking that the benefit of removing a few mmap_sem-takings from a few
+obscure drivers (sorry ;)) is pretty small.
 
-		*pheadroom = min(*pheadroom, ceiling - min(ceiling, used));
-		memcg = parent;
-	}
-}
+
+Also, the argument for switching 32-bit arches to a 64-bit counter was
+suspiciously vague.  What overflow issues?  Or are we just being lazy?
 
