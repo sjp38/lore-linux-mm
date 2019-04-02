@@ -2,214 +2,884 @@ Return-Path: <SRS0=cFM0=SE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 78459C4360F
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 14:57:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 346B6C4360F
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 14:57:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 321C5204EC
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 14:57:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 321C5204EC
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id A7ACF2075E
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 14:57:55 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="e+ZqMlJO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A7ACF2075E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C9AA96B0277; Tue,  2 Apr 2019 10:57:14 -0400 (EDT)
+	id 34A236B0278; Tue,  2 Apr 2019 10:57:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C47EE6B0278; Tue,  2 Apr 2019 10:57:14 -0400 (EDT)
+	id 31EF16B0279; Tue,  2 Apr 2019 10:57:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B38B66B0279; Tue,  2 Apr 2019 10:57:14 -0400 (EDT)
+	id 1C0BD6B027C; Tue,  2 Apr 2019 10:57:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 545686B0277
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 10:57:14 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id p5so6027460edh.2
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 07:57:14 -0700 (PDT)
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A62566B0278
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 10:57:54 -0400 (EDT)
+Received: by mail-wm1-f71.google.com with SMTP id b133so2256691wmg.7
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 07:57:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=g4PQf3qV6RZaTVxBeCHS03DIVl34mMa1dwn5XtzjWco=;
-        b=FV+LZVg97wP6KoW9e5hMAqbVhIUjE4SHryH3WZwd4WchqctAN7XiY2SXOaL1wH6ZHt
-         eMU+L3+hyTyM8vsUjzchR1j6ORXTqOv+FDKEeM6V4lGafuNmr6YlOB8IyM3fsHJOKo7J
-         M+cNRSV5s4l2YtZWyeEbZQUoa0hQbor3MBainQLGG4EZh21KZb9DVaK5n+E7GlAjXUky
-         bBz6H+w8Ep7X/lvWeVyOK0bEprC4Tifjhl4Ml2SNnOTpkKRuiKD9bifQVgkXU5cBo7ZE
-         3y5OsYB4jbMKysPVJhovrJyi+Dqq2UeVafiOl40JSf7J62fCU053td+AuzMfzPrY5DpO
-         mv9g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAU7H0+kHorwQY4aZ+lRzj0KMfPUVq8l81qA3B+wBfQ/u+EUaINp
-	Pk2ojLuYd3QDRFidcYvyubdCi5+dZhzMEEFbVluOiFHiM7fTn/Dsg3IBzWP82xAkBSkEIgBdvNY
-	PRV5vH1eK2M0cTHZYx0lvN3ibiDnyv3UmsFiE/6sOmm+VuShfQo9bc8fVreiWOdrT9g==
-X-Received: by 2002:aa7:c5c4:: with SMTP id h4mr35530448eds.19.1554217033899;
-        Tue, 02 Apr 2019 07:57:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy5Rp8u5FW0tHjyptvfX0oPljQmqf/QoKVmahgD3psGzu5cjGxyW97FcgBs8I22EOehOiMI
-X-Received: by 2002:aa7:c5c4:: with SMTP id h4mr35530368eds.19.1554217032608;
-        Tue, 02 Apr 2019 07:57:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554217032; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=CM9HCFvK0RJH9Ha0RMH2NwK6R4phldsAq8ZUmReVzRs=;
+        b=lpSJfU64lfGWQauqQSCAzUlvXY7N1NVK/LxNp2LIdF/nyqeZ6Opbx1kpF/Tm3hr/1x
+         Axsz4E1we7NWOFFiK5cMbD7TQQMzGDYHEbyrUSaZQ7jeg/vzSGh+15JUmnZCSsBsvQyR
+         g0vBJwbEUdaM/73gDp6LRqvF9hWVQi4Uq1VAUpXVpc7Jz3FiNw3S4sIt18wgEk86MmKc
+         ugstrab5+xh/zi6JeOr6DpqaGv1XgaBFuh5nGahvqfR3lQ5AoVnMgz+cDqBmDx+Ir3rq
+         OJUihM5qJiPcXRlqZnXHRGWak+VoIcg1fIpmeUjKWbI3HUMbcUuP5O4U3iy4IO6I80/D
+         N51A==
+X-Gm-Message-State: APjAAAWf/PCDoqbyIIbavaBqhdLWEg8cZutwaqe9rXuLWNHHPxGGaLiE
+	YwzLBmhRfMyH1mKuAgfZjuHlENw6W/2rGHJLUlDSeJwrUhz3zpxUZtztuvctfD75rf0XY4qpF/1
+	1B95r+5BYnS7ozcx6AIXcZ2jVvCLjStXYLvpyYpmDyKtDUGfUX+VLV9eMNYvqoTBs3g==
+X-Received: by 2002:a5d:4b01:: with SMTP id v1mr39194275wrq.48.1554217074102;
+        Tue, 02 Apr 2019 07:57:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzKNFTNwHIhOJPG0oiACAqNe8cfRPS3saa/vac85HBkGGSWSA7VaY1DnCoWBMOsw3IP16vi
+X-Received: by 2002:a5d:4b01:: with SMTP id v1mr39194196wrq.48.1554217072536;
+        Tue, 02 Apr 2019 07:57:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554217072; cv=none;
         d=google.com; s=arc-20160816;
-        b=EV9Yv5uKiItUY3BAD/dQBNYvMFJSNixjOtCRLCf2l79/Yy4dYbbZPaFc0EVf/A/7Ng
-         lOxKSoriV4iE3tcY0andBUqCdTTm+ivho999RGiaTLRLlavZlEziQpIB1AzmIoyRjCmB
-         4gdyQWzL31mbZecxB7B2nKqScBba/2rQ1RFqdL2hykSOvslMBxfCgUyUBFfAEhvnVV9d
-         ndmmsI2/kAeoeRoB7EzhEIiuf1t14sZZP/+9fcMvY/wFK9DqZnsBmBh1X7yGi74+3S1a
-         mxqJBb/N/va1PhB0aB9Eu3Vb2DAPRwM9S0AzDti7ROG5T8uqXaIgtD6xQqurBPn5t70F
-         VBJw==
+        b=yXnht03D/fKViTCTWLJyRY4Wp6vDIO/ppMq4POdiVXiPxQimH3N1yrMCIA+zpo+tQM
+         rtKNu+YcrTIueyVkT4pw0fUPsElBQUJJnjvC1i4YBTupw8os42ME2+zG7CsqRPpfZ1e3
+         If64kiDrje8h7MWABffPFUN2CKWf5i5UDEJWlF6r/2epnrhBSF/4tVhT+bnY9ys4aTTU
+         Tk/UCyaZ54ew6eKP2+1ofA3DQ5nBfCC3/vdwIKOzM/A5nzP84ORpwpgfOgXm/qTNMePZ
+         Bgma51eww3W7pbFTSbAhxsREi9Gu0YbThluspb1iOQCFsnq0dpKCcIytVSfPOr+VdlNE
+         7rkA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=g4PQf3qV6RZaTVxBeCHS03DIVl34mMa1dwn5XtzjWco=;
-        b=ucX9z9/XZ6FA6T9CKfhWC76OjqZLIU113CR9kX5lK65Y/kDJLiwNo5zWUYz/QkYCAp
-         K6NhBnYnatsHr/DiKEkIKcJXb/vmBmbKm9erRFWNKQqyriuU5g/g3TvECfhckRmChf1x
-         onKqNRcYc3E1FV3BEXrMUZh6iqZlqlMYqEMMxYey6uTEEo3hywznD7XXULBEK6gM4+5X
-         Un1WBhM+Cha46WhFMPbA0mtDCHSLEkMhr/zzVdeOdqw/PXJI/suSxUlzmU26i8FyKyJL
-         E6zdxfL9COohaFc0JWCh4QK+eVWpAJKtrZYrADXMnB8D6WrdldkuuL6o47FPY3btc9/b
-         MsTQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=CM9HCFvK0RJH9Ha0RMH2NwK6R4phldsAq8ZUmReVzRs=;
+        b=Gy5fxZ1kwv0kGcNE/dqoQmzmRO/IQ+DAR9j7RWwLWHhWAf/WksjKhyL/xxH23DjpMA
+         yqRL5OxIs8gk4psJiDxewzmgcLalTpSPVz476dDgOccwbKrqJXPFox1IP35aqI0dgiIt
+         8KUsdf3CGIjESOl+sWJ+VjJG0NGFWe3/G+oN10jhtyq30ATtVx+h4F9T/mOwnRLPAzuB
+         4K9vABp8uRb9g1sUpypTkf0U+ltlljEfqx3gAqmp3eFFfDMOApv1Dz6VFRbUpqc0UHeW
+         ca7MBeTQxO6McIilaKDDBAZfYY9PHeDgB35/kwet9bo+MEE2V9QR/vxpnap7fabCoH+n
+         zqQg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from suse.de (nat.nue.novell.com. [195.135.221.2])
-        by mx.google.com with ESMTP id q20si1049802ejb.114.2019.04.02.07.57.12
-        for <linux-mm@kvack.org>;
-        Tue, 02 Apr 2019 07:57:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) client-ip=195.135.221.2;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=e+ZqMlJO;
+       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
+Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
+        by mx.google.com with ESMTPS id t124si8038498wmb.43.2019.04.02.07.57.52
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Apr 2019 07:57:52 -0700 (PDT)
+Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: by suse.de (Postfix, from userid 1000)
-	id AF0D947C7; Tue,  2 Apr 2019 16:57:11 +0200 (CEST)
-Date: Tue, 2 Apr 2019 16:57:11 +0200
-From: Oscar Salvador <osalvador@suse.de>
-To: Linxu Fang <fanglinxu@huawei.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz,
-	pavel.tatashin@microsoft.com, linux-mm@kvack.org
-Subject: Re: [PATCH] mem-hotplug: fix node spanned pages when we have a node
- with only zone_movable
-Message-ID: <20190402145708.7b2xp3cc72vqqlzl@d104.suse.de>
-References: <1554178276-10372-1-git-send-email-fanglinxu@huawei.com>
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=e+ZqMlJO;
+       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
+Received: from localhost (mailhub1-int [192.168.12.234])
+	by localhost (Postfix) with ESMTP id 44YXPp33s4z9tytF;
+	Tue,  2 Apr 2019 16:57:50 +0200 (CEST)
+Authentication-Results: localhost; dkim=pass
+	reason="1024-bit key; insecure key"
+	header.d=c-s.fr header.i=@c-s.fr header.b=e+ZqMlJO; dkim-adsp=pass;
+	dkim-atps=neutral
+X-Virus-Scanned: Debian amavisd-new at c-s.fr
+Received: from pegase1.c-s.fr ([192.168.12.234])
+	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
+	with ESMTP id ed2igWe31gvZ; Tue,  2 Apr 2019 16:57:50 +0200 (CEST)
+Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
+	by pegase1.c-s.fr (Postfix) with ESMTP id 44YXPp1njFz9tytC;
+	Tue,  2 Apr 2019 16:57:50 +0200 (CEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
+	t=1554217070; bh=CM9HCFvK0RJH9Ha0RMH2NwK6R4phldsAq8ZUmReVzRs=;
+	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
+	b=e+ZqMlJOslM6TeygxiVpApst2Dfi/3iZSbag4AXG660B42aZTiGEDdzhcDqtoBYWt
+	 BCOtemTW0xvc+Sv5SxiFZuF8Ersmrt7RlertVZOfBiMxmJZ4Kx4i34O68n9a9yRwAN
+	 3WxULSKjSaOLGbOiWWJamlpFBwIaGC34LKzOFM/A=
+Received: from localhost (localhost [127.0.0.1])
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id C198F8B8CF;
+	Tue,  2 Apr 2019 16:57:51 +0200 (CEST)
+X-Virus-Scanned: amavisd-new at c-s.fr
+Received: from messagerie.si.c-s.fr ([127.0.0.1])
+	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
+	with ESMTP id VVU33_ySrRje; Tue,  2 Apr 2019 16:57:51 +0200 (CEST)
+Received: from PO15451 (unknown [192.168.4.90])
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id E3C358B8CD;
+	Tue,  2 Apr 2019 16:57:50 +0200 (CEST)
+Subject: Re: [RFC PATCH v2 3/3] kasan: add interceptors for all string
+ functions
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
+ Nicholas Piggin <npiggin@gmail.com>,
+ "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
+ Andrey Ryabinin <aryabinin@virtuozzo.com>,
+ Alexander Potapenko <glider@google.com>, Daniel Axtens <dja@axtens.net>,
+ Linux-MM <linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org,
+ LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>
+References: <f13944c4e99ec2cef6d93d762e6b526e0335877f.1553785019.git.christophe.leroy@c-s.fr>
+ <51a6d9d7185de310f37ccbd7e4ebfdd6c7e9791f.1553785020.git.christophe.leroy@c-s.fr>
+ <3211b0f8-7b52-01b7-8208-65d746969248@c-s.fr>
+ <CACT4Y+YYMJX-PKZhOkjDFnhaC1wcC0h_DzhhgxEwtffNNUh_Nw@mail.gmail.com>
+From: Christophe Leroy <christophe.leroy@c-s.fr>
+Message-ID: <1f24d2ff-ea36-e3f9-113f-69dfff293c3d@c-s.fr>
+Date: Tue, 2 Apr 2019 16:57:50 +0200
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1554178276-10372-1-git-send-email-fanglinxu@huawei.com>
-User-Agent: NeoMutt/20170421 (1.8.2)
+In-Reply-To: <CACT4Y+YYMJX-PKZhOkjDFnhaC1wcC0h_DzhhgxEwtffNNUh_Nw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: fr
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 02, 2019 at 12:11:16PM +0800, Linxu Fang wrote:
-> commit <342332e6a925> ("mm/page_alloc.c: introduce kernelcore=mirror
-> option") and series patches rewrote the calculation of node spanned
-> pages.
-> commit <e506b99696a2> (mem-hotplug: fix node spanned pages when we have a
-> movable node), but the current code still has problems,
-> when we have a node with only zone_movable and the node id is not zero,
-> the size of node spanned pages is double added.
-> That's because we have an empty normal zone, and zone_start_pfn or
-> zone_end_pfn is not between arch_zone_lowest_possible_pfn and
-> arch_zone_highest_possible_pfn, so we need to use clamp to constrain the
-> range just like the commit <96e907d13602> (bootmem: Reimplement
-> __absent_pages_in_range() using for_each_mem_pfn_range()).
 
-So, let me see if I understood this correctly:
 
-When calling zone_spanned_pages_in_node() for any node which is not node 0,
+Le 02/04/2019 à 14:58, Dmitry Vyukov a écrit :
+> On Tue, Apr 2, 2019 at 11:43 AM Christophe Leroy
+> <christophe.leroy@c-s.fr> wrote:
+>>
+>> Hi Dmitry, Andrey and others,
+>>
+>> Do you have any comments to this series ?
+>>
+>> I'd like to know if this approach is ok or if it is better to keep doing
+>> as in https://patchwork.ozlabs.org/patch/1055788/
+> 
+> Hi Christophe,
+> 
+> Forking every kernel function does not look like a scalable approach
+> to me. There is not much special about str* functions. There is
+> something a bit special about memset/memcpy as compiler emits them for
+> struct set/copy.
+> Could powerpc do the same as x86 and map some shadow early enough
+> (before "prom")? Then we would not need anything of this? Sorry if we
+> already discussed this, I am losing context quickly.
 
-> *zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
-> *zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
+Hi Dmitry,
 
-will actually set zone_start_pfn/zone_end_pfn to the values from node0's
-ZONE_NORMAL?
+I'm afraid we can't map shadow ram that early. This code gets run by 
+third party BIOS SW which manages the MMU and provides a 1:1 mapping, so 
+there is no way we can map shadow memory.
 
-So we use clamp to actually check if such values fall within what node1's
-memory spans, and ignore them otherwise?
+If you feel providing interceptors for the string functions is not a 
+good idea, I'm ok with it, I'll keep the necessary string functions in 
+prom_init.c
 
-Btw, mem-hotplug does not hit this path anymore.
+I was proposing the interceptor's approach because behind the specific 
+need for handling early prom_init code, I thought it was also a way to 
+limit KASAN performance impact on string functions, and it was also a 
+way to handle all the optimised string functions provided by architectures.
+In my series I have a patch that disables powerpc's optimised string 
+functions (https://patchwork.ozlabs.org/patch/1055780/). The 
+interceptor's approach was a way to avoid that. As far as I can see, at 
+the time being the other arches don't disable their optimised string 
+functions, meaning the KASAN checks are skipped.
 
+Thanks
+Christophe
 
 > 
-> e.g.
-> Zone ranges:
->   DMA      [mem 0x0000000000001000-0x0000000000ffffff]
->   DMA32    [mem 0x0000000001000000-0x00000000ffffffff]
->   Normal   [mem 0x0000000100000000-0x000000023fffffff]
-> Movable zone start for each node
->   Node 0: 0x0000000100000000
->   Node 1: 0x0000000140000000
-> Early memory node ranges
->   node   0: [mem 0x0000000000001000-0x000000000009efff]
->   node   0: [mem 0x0000000000100000-0x00000000bffdffff]
->   node   0: [mem 0x0000000100000000-0x000000013fffffff]
->   node   1: [mem 0x0000000140000000-0x000000023fffffff]
-> 
-> node 0 DMA	spanned:0xfff   present:0xf9e   absent:0x61
-> node 0 DMA32	spanned:0xff000 present:0xbefe0	absent:0x40020
-> node 0 Normal	spanned:0	present:0	absent:0
-> node 0 Movable	spanned:0x40000 present:0x40000 absent:0
-> On node 0 totalpages(node_present_pages): 1048446
-> node_spanned_pages:1310719
-> node 1 DMA	spanned:0	    present:0		absent:0
-> node 1 DMA32	spanned:0	    present:0		absent:0
-> node 1 Normal	spanned:0x100000    present:0x100000	absent:0
-> node 1 Movable	spanned:0x100000    present:0x100000	absent:0
-> On node 1 totalpages(node_present_pages): 2097152
-> node_spanned_pages:2097152
-> Memory: 6967796K/12582392K available (16388K kernel code, 3686K rwdata,
-> 4468K rodata, 2160K init, 10444K bss, 5614596K reserved, 0K
-> cma-reserved)
-> 
-> It shows that the current memory of node 1 is double added.
-> After this patch, the problem is fixed.
-> 
-> node 0 DMA	spanned:0xfff   present:0xf9e   absent:0x61
-> node 0 DMA32	spanned:0xff000 present:0xbefe0	absent:0x40020
-> node 0 Normal	spanned:0	present:0	absent:0
-> node 0 Movable	spanned:0x40000 present:0x40000 absent:0
-> On node 0 totalpages(node_present_pages): 1048446
-> node_spanned_pages:1310719
-> node 1 DMA	spanned:0	    present:0		absent:0
-> node 1 DMA32	spanned:0	    present:0		absent:0
-> node 1 Normal	spanned:0	    present:0		absent:0
-> node 1 Movable	spanned:0x100000    present:0x100000	absent:0
-> On node 1 totalpages(node_present_pages): 1048576
-> node_spanned_pages:1048576
-> memory: 6967796K/8388088K available (16388K kernel code, 3686K rwdata,
-> 4468K rodata, 2160K init, 10444K bss, 1420292K reserved, 0K
-> cma-reserved)
-> 
-> Signed-off-by: Linxu Fang <fanglinxu@huawei.com>
-> ---
->  mm/page_alloc.c | 6 ++++--
->  1 file changed, 4 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 3eb01de..5cd0cb2 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6233,13 +6233,15 @@ static unsigned long __init zone_spanned_pages_in_node(int nid,
->  					unsigned long *zone_end_pfn,
->  					unsigned long *ignored)
->  {
-> +	unsigned long zone_low = arch_zone_lowest_possible_pfn[zone_type];
-> +	unsigned long zone_high = arch_zone_highest_possible_pfn[zone_type];
->  	/* When hotadd a new node from cpu_up(), the node should be empty */
->  	if (!node_start_pfn && !node_end_pfn)
->  		return 0;
->  
->  	/* Get the start and end of the zone */
-> -	*zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
-> -	*zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
-> +	*zone_start_pfn = clamp(node_start_pfn, zone_low, zone_high);
-> +	*zone_end_pfn = clamp(node_end_pfn, zone_low, zone_high);
->  	adjust_zone_range_for_zone_movable(nid, zone_type,
->  				node_start_pfn, node_end_pfn,
->  				zone_start_pfn, zone_end_pfn);
-> -- 
-> 1.8.5.6
 > 
 > 
-
--- 
-Oscar Salvador
-SUSE L3
+> 
+>> Thanks
+>> Christophe
+>>
+>> Le 28/03/2019 à 16:00, Christophe Leroy a écrit :
+>>> In the same spirit as commit 393f203f5fd5 ("x86_64: kasan: add
+>>> interceptors for memset/memmove/memcpy functions"), this patch
+>>> adds interceptors for string manipulation functions so that we
+>>> can compile lib/string.o without kasan support hence allow the
+>>> string functions to also be used from places where kasan has
+>>> to be disabled.
+>>>
+>>> Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
+>>> ---
+>>>    v2: Fixed a few checkpatch stuff and added missing EXPORT_SYMBOL() and missing #undefs
+>>>
+>>>    include/linux/string.h |  79 ++++++++++
+>>>    lib/Makefile           |   2 +
+>>>    lib/string.c           |   8 +
+>>>    mm/kasan/string.c      | 394 +++++++++++++++++++++++++++++++++++++++++++++++++
+>>>    4 files changed, 483 insertions(+)
+>>>
+>>> diff --git a/include/linux/string.h b/include/linux/string.h
+>>> index 7927b875f80c..3d2aff2ed402 100644
+>>> --- a/include/linux/string.h
+>>> +++ b/include/linux/string.h
+>>> @@ -19,54 +19,117 @@ extern void *memdup_user_nul(const void __user *, size_t);
+>>>     */
+>>>    #include <asm/string.h>
+>>>
+>>> +#if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
+>>> +/*
+>>> + * For files that are not instrumented (e.g. mm/slub.c) we
+>>> + * should use not instrumented version of mem* functions.
+>>> + */
+>>> +#define memset16     __memset16
+>>> +#define memset32     __memset32
+>>> +#define memset64     __memset64
+>>> +#define memzero_explicit     __memzero_explicit
+>>> +#define strcpy               __strcpy
+>>> +#define strncpy              __strncpy
+>>> +#define strlcpy              __strlcpy
+>>> +#define strscpy              __strscpy
+>>> +#define strcat               __strcat
+>>> +#define strncat              __strncat
+>>> +#define strlcat              __strlcat
+>>> +#define strcmp               __strcmp
+>>> +#define strncmp              __strncmp
+>>> +#define strcasecmp   __strcasecmp
+>>> +#define strncasecmp  __strncasecmp
+>>> +#define strchr               __strchr
+>>> +#define strchrnul    __strchrnul
+>>> +#define strrchr              __strrchr
+>>> +#define strnchr              __strnchr
+>>> +#define skip_spaces  __skip_spaces
+>>> +#define strim                __strim
+>>> +#define strstr               __strstr
+>>> +#define strnstr              __strnstr
+>>> +#define strlen               __strlen
+>>> +#define strnlen              __strnlen
+>>> +#define strpbrk              __strpbrk
+>>> +#define strsep               __strsep
+>>> +#define strspn               __strspn
+>>> +#define strcspn              __strcspn
+>>> +#define memscan              __memscan
+>>> +#define memcmp               __memcmp
+>>> +#define memchr               __memchr
+>>> +#define memchr_inv   __memchr_inv
+>>> +#define strreplace   __strreplace
+>>> +
+>>> +#ifndef __NO_FORTIFY
+>>> +#define __NO_FORTIFY /* FORTIFY_SOURCE uses __builtin_memcpy, etc. */
+>>> +#endif
+>>> +
+>>> +#endif
+>>> +
+>>>    #ifndef __HAVE_ARCH_STRCPY
+>>>    extern char * strcpy(char *,const char *);
+>>> +char *__strcpy(char *, const char *);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRNCPY
+>>>    extern char * strncpy(char *,const char *, __kernel_size_t);
+>>> +char *__strncpy(char *, const char *, __kernel_size_t);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRLCPY
+>>>    size_t strlcpy(char *, const char *, size_t);
+>>> +size_t __strlcpy(char *, const char *, size_t);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRSCPY
+>>>    ssize_t strscpy(char *, const char *, size_t);
+>>> +ssize_t __strscpy(char *, const char *, size_t);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRCAT
+>>>    extern char * strcat(char *, const char *);
+>>> +char *__strcat(char *, const char *);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRNCAT
+>>>    extern char * strncat(char *, const char *, __kernel_size_t);
+>>> +char *__strncat(char *, const char *, __kernel_size_t);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRLCAT
+>>>    extern size_t strlcat(char *, const char *, __kernel_size_t);
+>>> +size_t __strlcat(char *, const char *, __kernel_size_t);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRCMP
+>>>    extern int strcmp(const char *,const char *);
+>>> +int __strcmp(const char *, const char *);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRNCMP
+>>>    extern int strncmp(const char *,const char *,__kernel_size_t);
+>>> +int __strncmp(const char *, const char *, __kernel_size_t);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRCASECMP
+>>>    extern int strcasecmp(const char *s1, const char *s2);
+>>> +int __strcasecmp(const char *s1, const char *s2);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRNCASECMP
+>>>    extern int strncasecmp(const char *s1, const char *s2, size_t n);
+>>> +int __strncasecmp(const char *s1, const char *s2, size_t n);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRCHR
+>>>    extern char * strchr(const char *,int);
+>>> +char *__strchr(const char *, int);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRCHRNUL
+>>>    extern char * strchrnul(const char *,int);
+>>> +char *__strchrnul(const char *, int);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRNCHR
+>>>    extern char * strnchr(const char *, size_t, int);
+>>> +char *__strnchr(const char *, size_t, int);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRRCHR
+>>>    extern char * strrchr(const char *,int);
+>>> +char *__strrchr(const char *, int);
+>>>    #endif
+>>>    extern char * __must_check skip_spaces(const char *);
+>>> +char * __must_check __skip_spaces(const char *);
+>>>
+>>>    extern char *strim(char *);
+>>> +char *__strim(char *);
+>>>
+>>>    static inline __must_check char *strstrip(char *str)
+>>>    {
+>>> @@ -75,27 +138,35 @@ static inline __must_check char *strstrip(char *str)
+>>>
+>>>    #ifndef __HAVE_ARCH_STRSTR
+>>>    extern char * strstr(const char *, const char *);
+>>> +char *__strstr(const char *, const char *);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRNSTR
+>>>    extern char * strnstr(const char *, const char *, size_t);
+>>> +char *__strnstr(const char *, const char *, size_t);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRLEN
+>>>    extern __kernel_size_t strlen(const char *);
+>>> +__kernel_size_t __strlen(const char *);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRNLEN
+>>>    extern __kernel_size_t strnlen(const char *,__kernel_size_t);
+>>> +__kernel_size_t __strnlen(const char *, __kernel_size_t);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRPBRK
+>>>    extern char * strpbrk(const char *,const char *);
+>>> +char *__strpbrk(const char *, const char *);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRSEP
+>>>    extern char * strsep(char **,const char *);
+>>> +char *__strsep(char **, const char *);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRSPN
+>>>    extern __kernel_size_t strspn(const char *,const char *);
+>>> +__kernel_size_t __strspn(const char *, const char *);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_STRCSPN
+>>>    extern __kernel_size_t strcspn(const char *,const char *);
+>>> +__kernel_size_t __strcspn(const char *, const char *);
+>>>    #endif
+>>>
+>>>    #ifndef __HAVE_ARCH_MEMSET
+>>> @@ -104,14 +175,17 @@ extern void * memset(void *,int,__kernel_size_t);
+>>>
+>>>    #ifndef __HAVE_ARCH_MEMSET16
+>>>    extern void *memset16(uint16_t *, uint16_t, __kernel_size_t);
+>>> +void *__memset16(uint16_t *, uint16_t, __kernel_size_t);
+>>>    #endif
+>>>
+>>>    #ifndef __HAVE_ARCH_MEMSET32
+>>>    extern void *memset32(uint32_t *, uint32_t, __kernel_size_t);
+>>> +void *__memset32(uint32_t *, uint32_t, __kernel_size_t);
+>>>    #endif
+>>>
+>>>    #ifndef __HAVE_ARCH_MEMSET64
+>>>    extern void *memset64(uint64_t *, uint64_t, __kernel_size_t);
+>>> +void *__memset64(uint64_t *, uint64_t, __kernel_size_t);
+>>>    #endif
+>>>
+>>>    static inline void *memset_l(unsigned long *p, unsigned long v,
+>>> @@ -146,12 +220,15 @@ extern void * memmove(void *,const void *,__kernel_size_t);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_MEMSCAN
+>>>    extern void * memscan(void *,int,__kernel_size_t);
+>>> +void *__memscan(void *, int, __kernel_size_t);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_MEMCMP
+>>>    extern int memcmp(const void *,const void *,__kernel_size_t);
+>>> +int __memcmp(const void *, const void *, __kernel_size_t);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_MEMCHR
+>>>    extern void * memchr(const void *,int,__kernel_size_t);
+>>> +void *__memchr(const void *, int, __kernel_size_t);
+>>>    #endif
+>>>    #ifndef __HAVE_ARCH_MEMCPY_MCSAFE
+>>>    static inline __must_check unsigned long memcpy_mcsafe(void *dst,
+>>> @@ -168,7 +245,9 @@ static inline void memcpy_flushcache(void *dst, const void *src, size_t cnt)
+>>>    }
+>>>    #endif
+>>>    void *memchr_inv(const void *s, int c, size_t n);
+>>> +void *__memchr_inv(const void *s, int c, size_t n);
+>>>    char *strreplace(char *s, char old, char new);
+>>> +char *__strreplace(char *s, char old, char new);
+>>>
+>>>    extern void kfree_const(const void *x);
+>>>
+>>> diff --git a/lib/Makefile b/lib/Makefile
+>>> index 30b9b0bfbba9..19d0237f9b9c 100644
+>>> --- a/lib/Makefile
+>>> +++ b/lib/Makefile
+>>> @@ -18,6 +18,8 @@ KCOV_INSTRUMENT_list_debug.o := n
+>>>    KCOV_INSTRUMENT_debugobjects.o := n
+>>>    KCOV_INSTRUMENT_dynamic_debug.o := n
+>>>
+>>> +KASAN_SANITIZE_string.o := n
+>>> +
+>>>    lib-y := ctype.o string.o string_sysfs.o vsprintf.o cmdline.o \
+>>>         rbtree.o radix-tree.o timerqueue.o xarray.o \
+>>>         idr.o int_sqrt.o extable.o \
+>>> diff --git a/lib/string.c b/lib/string.c
+>>> index f3886c5175ac..31a253201bba 100644
+>>> --- a/lib/string.c
+>>> +++ b/lib/string.c
+>>> @@ -85,7 +85,9 @@ EXPORT_SYMBOL(strcasecmp);
+>>>     * @dest: Where to copy the string to
+>>>     * @src: Where to copy the string from
+>>>     */
+>>> +#ifndef CONFIG_KASAN
+>>>    #undef strcpy
+>>> +#endif
+>>>    char *strcpy(char *dest, const char *src)
+>>>    {
+>>>        char *tmp = dest;
+>>> @@ -243,7 +245,9 @@ EXPORT_SYMBOL(strscpy);
+>>>     * @dest: The string to be appended to
+>>>     * @src: The string to append to it
+>>>     */
+>>> +#ifndef CONFIG_KASAN
+>>>    #undef strcat
+>>> +#endif
+>>>    char *strcat(char *dest, const char *src)
+>>>    {
+>>>        char *tmp = dest;
+>>> @@ -319,7 +323,9 @@ EXPORT_SYMBOL(strlcat);
+>>>     * @cs: One string
+>>>     * @ct: Another string
+>>>     */
+>>> +#ifndef CONFIG_KASAN
+>>>    #undef strcmp
+>>> +#endif
+>>>    int strcmp(const char *cs, const char *ct)
+>>>    {
+>>>        unsigned char c1, c2;
+>>> @@ -773,7 +779,9 @@ EXPORT_SYMBOL(memmove);
+>>>     * @ct: Another area of memory
+>>>     * @count: The size of the area.
+>>>     */
+>>> +#ifndef CONFIG_KASAN
+>>>    #undef memcmp
+>>> +#endif
+>>>    __visible int memcmp(const void *cs, const void *ct, size_t count)
+>>>    {
+>>>        const unsigned char *su1, *su2;
+>>> diff --git a/mm/kasan/string.c b/mm/kasan/string.c
+>>> index 083b967255a2..0db31bbbf643 100644
+>>> --- a/mm/kasan/string.c
+>>> +++ b/mm/kasan/string.c
+>>> @@ -35,6 +35,42 @@ void *memset(void *addr, int c, size_t len)
+>>>        return __memset(addr, c, len);
+>>>    }
+>>>
+>>> +#undef memset16
+>>> +void *memset16(uint16_t *s, uint16_t v, size_t count)
+>>> +{
+>>> +     check_memory_region((unsigned long)s, count << 1, true, _RET_IP_);
+>>> +
+>>> +     return __memset16(s, v, count);
+>>> +}
+>>> +EXPORT_SYMBOL(memset16);
+>>> +
+>>> +#undef memset32
+>>> +void *memset32(uint32_t *s, uint32_t v, size_t count)
+>>> +{
+>>> +     check_memory_region((unsigned long)s, count << 2, true, _RET_IP_);
+>>> +
+>>> +     return __memset32(s, v, count);
+>>> +}
+>>> +EXPORT_SYMBOL(memset32);
+>>> +
+>>> +#undef memset64
+>>> +void *memset64(uint64_t *s, uint64_t v, size_t count)
+>>> +{
+>>> +     check_memory_region((unsigned long)s, count << 3, true, _RET_IP_);
+>>> +
+>>> +     return __memset64(s, v, count);
+>>> +}
+>>> +EXPORT_SYMBOL(memset64);
+>>> +
+>>> +#undef memzero_explicit
+>>> +void memzero_explicit(void *s, size_t count)
+>>> +{
+>>> +     check_memory_region((unsigned long)s, count, true, _RET_IP_);
+>>> +
+>>> +     return __memzero_explicit(s, count);
+>>> +}
+>>> +EXPORT_SYMBOL(memzero_explicit);
+>>> +
+>>>    #undef memmove
+>>>    void *memmove(void *dest, const void *src, size_t len)
+>>>    {
+>>> @@ -52,3 +88,361 @@ void *memcpy(void *dest, const void *src, size_t len)
+>>>
+>>>        return __memcpy(dest, src, len);
+>>>    }
+>>> +
+>>> +#undef strcpy
+>>> +char *strcpy(char *dest, const char *src)
+>>> +{
+>>> +     size_t len = __strlen(src) + 1;
+>>> +
+>>> +     check_memory_region((unsigned long)src, len, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)dest, len, true, _RET_IP_);
+>>> +
+>>> +     return __strcpy(dest, src);
+>>> +}
+>>> +EXPORT_SYMBOL(strcpy);
+>>> +
+>>> +#undef strncpy
+>>> +char *strncpy(char *dest, const char *src, size_t count)
+>>> +{
+>>> +     size_t len = min(__strlen(src) + 1, count);
+>>> +
+>>> +     check_memory_region((unsigned long)src, len, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)dest, count, true, _RET_IP_);
+>>> +
+>>> +     return __strncpy(dest, src, count);
+>>> +}
+>>> +EXPORT_SYMBOL(strncpy);
+>>> +
+>>> +#undef strlcpy
+>>> +size_t strlcpy(char *dest, const char *src, size_t size)
+>>> +{
+>>> +     size_t len = __strlen(src) + 1;
+>>> +
+>>> +     check_memory_region((unsigned long)src, len, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)dest, min(len, size), true, _RET_IP_);
+>>> +
+>>> +     return __strlcpy(dest, src, size);
+>>> +}
+>>> +EXPORT_SYMBOL(strlcpy);
+>>> +
+>>> +#undef strscpy
+>>> +ssize_t strscpy(char *dest, const char *src, size_t count)
+>>> +{
+>>> +     int len = min(__strlen(src) + 1, count);
+>>> +
+>>> +     check_memory_region((unsigned long)src, len, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)dest, len, true, _RET_IP_);
+>>> +
+>>> +     return __strscpy(dest, src, count);
+>>> +}
+>>> +EXPORT_SYMBOL(strscpy);
+>>> +
+>>> +#undef strcat
+>>> +char *strcat(char *dest, const char *src)
+>>> +{
+>>> +     size_t slen = __strlen(src) + 1;
+>>> +     size_t dlen = __strlen(dest);
+>>> +
+>>> +     check_memory_region((unsigned long)src, slen, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)dest, dlen, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)(dest + dlen), slen, true, _RET_IP_);
+>>> +
+>>> +     return __strcat(dest, src);
+>>> +}
+>>> +EXPORT_SYMBOL(strcat);
+>>> +
+>>> +#undef strncat
+>>> +char *strncat(char *dest, const char *src, size_t count)
+>>> +{
+>>> +     size_t slen = min(__strlen(src) + 1, count);
+>>> +     size_t dlen = __strlen(dest);
+>>> +
+>>> +     check_memory_region((unsigned long)src, slen, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)dest, dlen, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)(dest + dlen), slen, true, _RET_IP_);
+>>> +
+>>> +     return __strncat(dest, src, count);
+>>> +}
+>>> +EXPORT_SYMBOL(strncat);
+>>> +
+>>> +#undef strlcat
+>>> +size_t strlcat(char *dest, const char *src, size_t count)
+>>> +{
+>>> +     size_t slen = min(__strlen(src) + 1, count);
+>>> +     size_t dlen = __strlen(dest);
+>>> +
+>>> +     check_memory_region((unsigned long)src, slen, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)dest, dlen, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)(dest + dlen), slen, true, _RET_IP_);
+>>> +
+>>> +     return __strlcat(dest, src, count);
+>>> +}
+>>> +EXPORT_SYMBOL(strlcat);
+>>> +
+>>> +#undef strcmp
+>>> +int strcmp(const char *cs, const char *ct)
+>>> +{
+>>> +     size_t len = min(__strlen(cs) + 1, __strlen(ct) + 1);
+>>> +
+>>> +     check_memory_region((unsigned long)cs, len, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)ct, len, false, _RET_IP_);
+>>> +
+>>> +     return __strcmp(cs, ct);
+>>> +}
+>>> +EXPORT_SYMBOL(strcmp);
+>>> +
+>>> +#undef strncmp
+>>> +int strncmp(const char *cs, const char *ct, size_t count)
+>>> +{
+>>> +     size_t len = min3(__strlen(cs) + 1, __strlen(ct) + 1, count);
+>>> +
+>>> +     check_memory_region((unsigned long)cs, len, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)ct, len, false, _RET_IP_);
+>>> +
+>>> +     return __strncmp(cs, ct, count);
+>>> +}
+>>> +EXPORT_SYMBOL(strncmp);
+>>> +
+>>> +#undef strcasecmp
+>>> +int strcasecmp(const char *s1, const char *s2)
+>>> +{
+>>> +     size_t len = min(__strlen(s1) + 1, __strlen(s2) + 1);
+>>> +
+>>> +     check_memory_region((unsigned long)s1, len, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)s2, len, false, _RET_IP_);
+>>> +
+>>> +     return __strcasecmp(s1, s2);
+>>> +}
+>>> +EXPORT_SYMBOL(strcasecmp);
+>>> +
+>>> +#undef strncasecmp
+>>> +int strncasecmp(const char *s1, const char *s2, size_t len)
+>>> +{
+>>> +     size_t sz = min3(__strlen(s1) + 1, __strlen(s2) + 1, len);
+>>> +
+>>> +     check_memory_region((unsigned long)s1, sz, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)s2, sz, false, _RET_IP_);
+>>> +
+>>> +     return __strncasecmp(s1, s2, len);
+>>> +}
+>>> +EXPORT_SYMBOL(strncasecmp);
+>>> +
+>>> +#undef strchr
+>>> +char *strchr(const char *s, int c)
+>>> +{
+>>> +     size_t len = __strlen(s) + 1;
+>>> +
+>>> +     check_memory_region((unsigned long)s, len, false, _RET_IP_);
+>>> +
+>>> +     return __strchr(s, c);
+>>> +}
+>>> +EXPORT_SYMBOL(strchr);
+>>> +
+>>> +#undef strchrnul
+>>> +char *strchrnul(const char *s, int c)
+>>> +{
+>>> +     size_t len = __strlen(s) + 1;
+>>> +
+>>> +     check_memory_region((unsigned long)s, len, false, _RET_IP_);
+>>> +
+>>> +     return __strchrnul(s, c);
+>>> +}
+>>> +EXPORT_SYMBOL(strchrnul);
+>>> +
+>>> +#undef strrchr
+>>> +char *strrchr(const char *s, int c)
+>>> +{
+>>> +     size_t len = __strlen(s) + 1;
+>>> +
+>>> +     check_memory_region((unsigned long)s, len, false, _RET_IP_);
+>>> +
+>>> +     return __strrchr(s, c);
+>>> +}
+>>> +EXPORT_SYMBOL(strrchr);
+>>> +
+>>> +#undef strnchr
+>>> +char *strnchr(const char *s, size_t count, int c)
+>>> +{
+>>> +     size_t len = __strlen(s) + 1;
+>>> +
+>>> +     check_memory_region((unsigned long)s, len, false, _RET_IP_);
+>>> +
+>>> +     return __strnchr(s, count, c);
+>>> +}
+>>> +EXPORT_SYMBOL(strnchr);
+>>> +
+>>> +#undef skip_spaces
+>>> +char *skip_spaces(const char *str)
+>>> +{
+>>> +     size_t len = __strlen(str) + 1;
+>>> +
+>>> +     check_memory_region((unsigned long)str, len, false, _RET_IP_);
+>>> +
+>>> +     return __skip_spaces(str);
+>>> +}
+>>> +EXPORT_SYMBOL(skip_spaces);
+>>> +
+>>> +#undef strim
+>>> +char *strim(char *s)
+>>> +{
+>>> +     size_t len = __strlen(s) + 1;
+>>> +
+>>> +     check_memory_region((unsigned long)s, len, false, _RET_IP_);
+>>> +
+>>> +     return __strim(s);
+>>> +}
+>>> +EXPORT_SYMBOL(strim);
+>>> +
+>>> +#undef strstr
+>>> +char *strstr(const char *s1, const char *s2)
+>>> +{
+>>> +     size_t l1 = __strlen(s1) + 1;
+>>> +     size_t l2 = __strlen(s2) + 1;
+>>> +
+>>> +     check_memory_region((unsigned long)s1, l1, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)s2, l2, false, _RET_IP_);
+>>> +
+>>> +     return __strstr(s1, s2);
+>>> +}
+>>> +EXPORT_SYMBOL(strstr);
+>>> +
+>>> +#undef strnstr
+>>> +char *strnstr(const char *s1, const char *s2, size_t len)
+>>> +{
+>>> +     size_t l1 = min(__strlen(s1) + 1, len);
+>>> +     size_t l2 = __strlen(s2) + 1;
+>>> +
+>>> +     check_memory_region((unsigned long)s1, l1, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)s2, l2, false, _RET_IP_);
+>>> +
+>>> +     return __strnstr(s1, s2, len);
+>>> +}
+>>> +EXPORT_SYMBOL(strnstr);
+>>> +
+>>> +#undef strlen
+>>> +size_t strlen(const char *s)
+>>> +{
+>>> +     size_t len = __strlen(s);
+>>> +
+>>> +     check_memory_region((unsigned long)s, len + 1, false, _RET_IP_);
+>>> +
+>>> +     return len;
+>>> +}
+>>> +EXPORT_SYMBOL(strlen);
+>>> +
+>>> +#undef strnlen
+>>> +size_t strnlen(const char *s, size_t count)
+>>> +{
+>>> +     size_t len = __strnlen(s, count);
+>>> +
+>>> +     check_memory_region((unsigned long)s, min(len + 1, count), false, _RET_IP_);
+>>> +
+>>> +     return len;
+>>> +}
+>>> +EXPORT_SYMBOL(strnlen);
+>>> +
+>>> +#undef strpbrk
+>>> +char *strpbrk(const char *cs, const char *ct)
+>>> +{
+>>> +     size_t ls = __strlen(cs) + 1;
+>>> +     size_t lt = __strlen(ct) + 1;
+>>> +
+>>> +     check_memory_region((unsigned long)cs, ls, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)ct, lt, false, _RET_IP_);
+>>> +
+>>> +     return __strpbrk(cs, ct);
+>>> +}
+>>> +EXPORT_SYMBOL(strpbrk);
+>>> +
+>>> +#undef strsep
+>>> +char *strsep(char **s, const char *ct)
+>>> +{
+>>> +     char *cs = *s;
+>>> +
+>>> +     check_memory_region((unsigned long)s, sizeof(*s), true, _RET_IP_);
+>>> +
+>>> +     if (cs) {
+>>> +             int ls = __strlen(cs) + 1;
+>>> +             int lt = __strlen(ct) + 1;
+>>> +
+>>> +             check_memory_region((unsigned long)cs, ls, false, _RET_IP_);
+>>> +             check_memory_region((unsigned long)ct, lt, false, _RET_IP_);
+>>> +     }
+>>> +
+>>> +     return __strsep(s, ct);
+>>> +}
+>>> +EXPORT_SYMBOL(strsep);
+>>> +
+>>> +#undef strspn
+>>> +size_t strspn(const char *s, const char *accept)
+>>> +{
+>>> +     size_t ls = __strlen(s) + 1;
+>>> +     size_t la = __strlen(accept) + 1;
+>>> +
+>>> +     check_memory_region((unsigned long)s, ls, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)accept, la, false, _RET_IP_);
+>>> +
+>>> +     return __strspn(s, accept);
+>>> +}
+>>> +EXPORT_SYMBOL(strspn);
+>>> +
+>>> +#undef strcspn
+>>> +size_t strcspn(const char *s, const char *reject)
+>>> +{
+>>> +     size_t ls = __strlen(s) + 1;
+>>> +     size_t lr = __strlen(reject) + 1;
+>>> +
+>>> +     check_memory_region((unsigned long)s, ls, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)reject, lr, false, _RET_IP_);
+>>> +
+>>> +     return __strcspn(s, reject);
+>>> +}
+>>> +EXPORT_SYMBOL(strcspn);
+>>> +
+>>> +#undef memscan
+>>> +void *memscan(void *addr, int c, size_t size)
+>>> +{
+>>> +     check_memory_region((unsigned long)addr, size, false, _RET_IP_);
+>>> +
+>>> +     return __memscan(addr, c, size);
+>>> +}
+>>> +EXPORT_SYMBOL(memscan);
+>>> +
+>>> +#undef memcmp
+>>> +int memcmp(const void *cs, const void *ct, size_t count)
+>>> +{
+>>> +     check_memory_region((unsigned long)cs, count, false, _RET_IP_);
+>>> +     check_memory_region((unsigned long)ct, count, false, _RET_IP_);
+>>> +
+>>> +     return __memcmp(cs, ct, count);
+>>> +}
+>>> +EXPORT_SYMBOL(memcmp);
+>>> +
+>>> +#undef memchr
+>>> +void *memchr(const void *s, int c, size_t n)
+>>> +{
+>>> +     check_memory_region((unsigned long)s, n, false, _RET_IP_);
+>>> +
+>>> +     return __memchr(s, c, n);
+>>> +}
+>>> +EXPORT_SYMBOL(memchr);
+>>> +
+>>> +#undef memchr_inv
+>>> +void *memchr_inv(const void *start, int c, size_t bytes)
+>>> +{
+>>> +     check_memory_region((unsigned long)start, bytes, false, _RET_IP_);
+>>> +
+>>> +     return __memchr_inv(start, c, bytes);
+>>> +}
+>>> +EXPORT_SYMBOL(memchr_inv);
+>>> +
+>>> +#undef strreplace
+>>> +char *strreplace(char *s, char old, char new)
+>>> +{
+>>> +     size_t len = __strlen(s) + 1;
+>>> +
+>>> +     check_memory_region((unsigned long)s, len, true, _RET_IP_);
+>>> +
+>>> +     return __strreplace(s, old, new);
+>>> +}
+>>> +EXPORT_SYMBOL(strreplace);
+>>>
 
