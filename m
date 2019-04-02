@@ -2,144 +2,192 @@ Return-Path: <SRS0=cFM0=SE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4A04FC10F05
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 02:55:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 739FEC4360F
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 03:10:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D7B79207E0
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 02:55:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 257D52084C
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 03:10:26 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="S80rgrKK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D7B79207E0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=android.com header.i=@android.com header.b="g3m1Y2Sc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 257D52084C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=android.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 36CEC6B0003; Mon,  1 Apr 2019 22:55:04 -0400 (EDT)
+	id B2BDC6B0003; Mon,  1 Apr 2019 23:10:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 31D036B0005; Mon,  1 Apr 2019 22:55:04 -0400 (EDT)
+	id AD9B66B0005; Mon,  1 Apr 2019 23:10:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 20D216B0007; Mon,  1 Apr 2019 22:55:04 -0400 (EDT)
+	id 9A3E86B0007; Mon,  1 Apr 2019 23:10:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DD15C6B0003
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 22:55:03 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id q7so8888926plr.7
-        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 19:55:03 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D4A26B0003
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 23:10:25 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id l13so5468207pgp.3
+        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 20:10:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=2YJv0TU4reqr1XesjZUu85dr59wYQQ2sU3iSxRPA0nA=;
-        b=QhX8cz4aZlfJUtijtb1//zJBODuaCHvtPNG9n/gWoSiyA4IxnBjtdzLbNaDB7vsl0x
-         Ufix/2vcO994yDBSJKtPXn+K8yF3qkDKrXhviFHoMTugtknRmVrQUo8kAVtPIv/Xrk7/
-         Jvy7lS2LBGIPh0798YeT72oAXp0BY40Nt2jsjXMLVB0LIqoYbu9C67EF6PRmW41CRsAi
-         BW3lfVZkjjoXE+vsTD3f7/8hMPMujwkJ6vrTfEBusaKix7qGfABMzIMfIt14VBuRQ+jc
-         LhGnaEpwag5bDrvsbO6kRWOBtkyLRZMW8nG0d6tI570tDE31r+yDN4IIeyAHOtgNYXMP
-         TfPw==
-X-Gm-Message-State: APjAAAWFXjikBlX1R+RVYZnKlney0ja2P/bvHpNJy/+itkvsVWk4EWMc
-	xuT8K0dcGjCV8NqMxVZJFmTZYh8lKnc5V3xaIu56iUITZhRzt9K633jMs44EmYI+rE7nrc8GZyX
-	m8KVxndtGi8Q8fgRGNpoYwEMcepcZ2AX/ov3Q765wfbVbftzUHUMHKcEIp+Lu1VmdkA==
-X-Received: by 2002:a17:902:b282:: with SMTP id u2mr49937494plr.9.1554173703435;
-        Mon, 01 Apr 2019 19:55:03 -0700 (PDT)
-X-Received: by 2002:a17:902:b282:: with SMTP id u2mr49937449plr.9.1554173702577;
-        Mon, 01 Apr 2019 19:55:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554173702; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=Hp60OTE4ke8iP5Aud+CmanJ0ZyIKgseuIbzLLPcisQY=;
+        b=gj2s5yzVeOiOS7A4UbRfQwhy4gWFwjIsBwD8aAillSrFxvnbVjItlwMlUcEKrzZqii
+         jGSldyJ7s3JyFEtyUB0L9DMAewfZeGGM5S2CTowJNRqfAFNlnoSbcU18cGFAkhtPXOhv
+         mOs/gHFWcxoPhbHkShpNwSdgTG60po1dTuWjinYju64UmqHRaakG08/15lhjm+a+gtcX
+         sojnWubrqJZ5+ZLDKDXFAX1KnEWW3MySy5M/sU3RJ18Mzi/7IdK4cmhudOzRkGVgkLU9
+         RzFDOByYpsXD1XY+HiOWsS4gCYAf839bN2bR/VVLz3iAZCa2KqIlpxUgNJpJbRblMfph
+         +/YA==
+X-Gm-Message-State: APjAAAX2i91cBoBpMuUokuajyiB9AxmTNBJQYLSDnrq9LvOlYLwQUuMD
+	RbEcCUNu+KO7Cocv5UZ3Rvpw3HvJ0YBCi8HWvDPraLtAka3PgP55BYeMLV7boJKtAkn4TKRGm2Q
+	d+7/reAlvGurvJrmVB2hGAD0F9j0DrYM2kmOYE4PIFwDWmp0IG09rY4uoud4u4ivNuQ==
+X-Received: by 2002:a63:e653:: with SMTP id p19mr2790700pgj.284.1554174624786;
+        Mon, 01 Apr 2019 20:10:24 -0700 (PDT)
+X-Received: by 2002:a63:e653:: with SMTP id p19mr2790658pgj.284.1554174624075;
+        Mon, 01 Apr 2019 20:10:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554174624; cv=none;
         d=google.com; s=arc-20160816;
-        b=PFLyq6qVxNhWpEbswngBCIPs/M5WlSVfV0lPSG8YUatIeUheib1vLly5GJeoYkkiiq
-         e28nsVJ0LR1ZvtB94Gtn4am7UbG5dDYoxjxHWX66kQk8GRLBlCjn25jTioh70c1L1Xw6
-         GjLMAz8/mTVaHTWjTCQiZf0LT69ZhWmSswL/X1dKAJiIX/4Hj7eEXy+YSscDkbxWR9Ed
-         l61f717wX2jhjjfVEQkihbK87+IQZm8eu3o3ZbaoCyT/BCSkXl5IEBFlz+UlpgwfxZL1
-         1pehrP8vPKhW3A95FZ6+43jDwlld2j1F0xA9Uly93+o+0OHssaHeOHmnSAyslfvD6iUA
-         OGvw==
+        b=L3okLok2jArZU+l3LWHVbusy/TsVvJ+KY+oyOD5UmCpIadeNCWoNtJMFk4vP8tl0yW
+         gMX2BWSxgSxDNHoQ9wntwwVADR1ixEcMkOrMf2XS9Oo6qNNormvj8nScx2+L+n83A7JX
+         x8rNEC6VhmYT0k8hmXbti7Z3Ikw9HKdKoxkgWu3KZtUaUu+miqifeTbm5fTXCCyEJEHF
+         76hVKG1OA8dwJjwtFeCLuqEC+/DCeEqN0WYrGgXiv9jBH0X+bdrI1aXEYS8jiZlAjZ+K
+         ly8KzDcL0dz15q6X2z0FQmjy9rP+Ru5atub5PeJUJxOB6GqxBk9gA/7x4fXi0F8Dq7Md
+         xgVg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=2YJv0TU4reqr1XesjZUu85dr59wYQQ2sU3iSxRPA0nA=;
-        b=JfUVFu3C+KY9xZ/ICCMNrtjkbD6ZA7Nk6RJd4InWC7JAh4wyBjL6w8d90NBlPoUFk8
-         YUyaPwyvRle9FOZ74qtazXrePiqOzTbqmWPRU+UfAUUB/XcnNwD6T/9st4M2mBUoAHid
-         LKyOuyTjCTOpYM+KO0xK2rZLcPAk9of62S0se2UtUgilvluNLNDX7LRbxDToyEHw3g6i
-         AbfctdhaqGMnbByVToHG+4QKCeunfp09VSMoER9wZ4DGeCTDTLbyR5qDl9MvJZ4JiH1P
-         IMjsMT7chJ6MfcYWphTqtgDL3VDEvLF8BICdH+ph75oyxfJO42WBWOIQKx5dKD15VEPK
-         ET5A==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=Hp60OTE4ke8iP5Aud+CmanJ0ZyIKgseuIbzLLPcisQY=;
+        b=0wMMXYzQeOC0oLC+/BxpETHfrIJbCvcz2qXMY42s1SUaKOVqiJSuqkTJnuArz1dZbe
+         KIH5K96PYSO8tH1cTEZqhD1Wu/Qz2d0b9inWSHAvkVzWfvQ4Wh+7/rYic9cskUB5qZq3
+         y8EKjng1YGCgZOrU6zkmybCXeBR+75LH35G76kdSB4dwHCljbCvHg5MJAJsapD8eC/r3
+         PaNnOKnXvBPeJImzZ/Qp5bidDIvMOS4TY6otKNtfzPNRMdlp1noxsJZTnbz0ELW8Cd+W
+         3UxqEwqfoKN562b+wb6c8o+J6kUxQSSctfuEYbuBpUeD/YmphScBIrjyRY0iy9Kzdum0
+         qNzw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=S80rgrKK;
-       spf=pass (google.com: domain of ndesaulniers@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=ndesaulniers@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@android.com header.s=20161025 header.b=g3m1Y2Sc;
+       spf=pass (google.com: domain of trong@android.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=trong@android.com;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=android.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f12sor12673882pgp.66.2019.04.01.19.55.02
+        by mx.google.com with SMTPS id bg2sor13337543plb.20.2019.04.01.20.10.23
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 01 Apr 2019 19:55:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ndesaulniers@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 01 Apr 2019 20:10:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of trong@android.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=S80rgrKK;
-       spf=pass (google.com: domain of ndesaulniers@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=ndesaulniers@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@android.com header.s=20161025 header.b=g3m1Y2Sc;
+       spf=pass (google.com: domain of trong@android.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=trong@android.com;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=android.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=2YJv0TU4reqr1XesjZUu85dr59wYQQ2sU3iSxRPA0nA=;
-        b=S80rgrKKnKgYNCbvkSPiIuDGpRPXZ5PcLNMr8oY8XBSSnzoUNg1wh2K+j+SDx3D6KZ
-         y67KJ3vRFSFhU+8rxZmJARzpzjtyYmpOfNMZzwrKFM8kmu5QoK4AF2gvXHa2J93wwbND
-         n+XLuFEc2J2TB2zeVCsLAxbLrt8LQsBtlRvByqaEkDdoa8uLwU/SA+mthltHW/KCb6go
-         Od8a8pSd2glFkZKmpeErd3GtbSACJEiQ9tgBl0w2NRg3bLHDJ2QVOIYuhh35nAtUtV1j
-         KOoVF0U0HQnV76bItRJ4RPzcrDsRoux2U9ue1+vdxGVWpKSTFD8hXNmzdeGzQDYsB2/g
-         ALqA==
-X-Google-Smtp-Source: APXvYqzCV5fvCjc8AQ2luhPjV0wd8ML4qhCjaMK9ahShMpCfz9YWDN4+7uPlOM+kDxTJd2fLOu9sX6RlX3SqvdiC70E=
-X-Received: by 2002:a63:7444:: with SMTP id e4mr46157276pgn.261.1554173701838;
- Mon, 01 Apr 2019 19:55:01 -0700 (PDT)
+        d=android.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=Hp60OTE4ke8iP5Aud+CmanJ0ZyIKgseuIbzLLPcisQY=;
+        b=g3m1Y2ScyzDAURubjhsTnVSDieFyBlqPSM2LC7CUatm8gRlzI4Z4XQ8e+sauoBVcMy
+         /Si0ZgUXDkb0dPj3vSxlgc5r0s2q7Upfik19UZen265H5YZZ42iiEK9QbuX7YonIPVGD
+         d0/tPGVBnFEdWBuZzWmyAl7nqsH30axLzN9a/pDbloDEH6lC9LU9a4jIP9tdhzmsciY5
+         S3tIIQOc4z1gsawWCFsfc9AkK7pkcFlCQf4Z5R8i1IFoxZ3IVzHzOFybLqrgNgncMa7W
+         Yh4ifra9SolAtD3ZfW1fVy94mG7zhGcdjiK400DReloJN9yY0S5qFzHvofEschSfANPf
+         kDSw==
+X-Google-Smtp-Source: APXvYqyBVin/OFPJ5V12iXbP2gcs5Osv/4t27BzE77qH7pR8fgo4gJrG7KlV5JQtMOT9MiQxqhVPIg==
+X-Received: by 2002:a17:902:2c83:: with SMTP id n3mr69465358plb.281.1554174623140;
+        Mon, 01 Apr 2019 20:10:23 -0700 (PDT)
+Received: from trong-glaptop.imgcgcw.net ([147.50.13.10])
+        by smtp.gmail.com with ESMTPSA id c17sm16168464pfd.76.2019.04.01.20.10.19
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Apr 2019 20:10:22 -0700 (PDT)
+From: trong@android.com
+To: oberpar@linux.ibm.com,
+	akpm@linux-foundation.org
+Cc: ndesaulniers@google.com,
+	ghackmann@android.com,
+	linux-mm@kvack.org,
+	kbuild-all@01.org,
+	rdunlap@infradead.org,
+	lkp@intel.com,
+	linux-kernel@vger.kernel.org,
+	Tri Vo <trong@android.com>
+Subject: [PATCH v3] gcov: fix when CONFIG_MODULES is not set
+Date: Tue,  2 Apr 2019 10:09:56 +0700
+Message-Id: <20190402030956.48166-1-trong@android.com>
+X-Mailer: git-send-email 2.21.0.392.gf8f6787159e-goog
 MIME-Version: 1.0
-References: <eea3ce6a-732b-5c1d-9975-eddaeee21cf5@infradead.org>
- <20190329181839.139301-1-ndesaulniers@google.com> <83226cfb-afa7-0174-896c-d9f7a6193cf4@infradead.org>
- <CANA+-vAcW0VfAZmZWi84s1pQQ+tFx8VyzYsWi5_gj7vHT3Ao6Q@mail.gmail.com>
-In-Reply-To: <CANA+-vAcW0VfAZmZWi84s1pQQ+tFx8VyzYsWi5_gj7vHT3Ao6Q@mail.gmail.com>
-From: Nick Desaulniers <ndesaulniers@google.com>
-Date: Tue, 2 Apr 2019 09:54:50 +0700
-Message-ID: <CAKwvOd=PstHEm_Vxtx_SGanKhAJSjoQiCb3kgCVeK4peUF2k-g@mail.gmail.com>
-Subject: Re: [PATCH v2] gcov: fix when CONFIG_MODULES is not set
-To: Tri Vo <trong@android.com>
-Cc: Randy Dunlap <rdunlap@infradead.org>, Peter Oberparleiter <oberpar@linux.ibm.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, Greg Hackmann <ghackmann@android.com>, 
-	Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org, kbuild test robot <lkp@intel.com>, 
-	LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Mar 31, 2019 at 6:57 AM Tri Vo <trong@android.com> wrote:
->
-> On Fri, Mar 29, 2019 at 1:53 PM Randy Dunlap <rdunlap@infradead.org> wrote:
-> >
-> > On 3/29/19 11:18 AM, Nick Desaulniers wrote:
-> > > Fixes commit 8c3d220cb6b5 ("gcov: clang support")
-> >
-> > There is a certain format for Fixes: and that's not quite it. :(
+From: Tri Vo <trong@android.com>
 
-Looks like the format is:
-Fixes: <first 12 characters of commit sha> ("<first line of commit>")
-so:
 Fixes: 8c3d220cb6b5 ("gcov: clang support")
 
-We should update:
-https://www.kernel.org/doc/html/v5.0/process/stable-kernel-rules.html
-to include this information.
+Cc: Greg Hackmann <ghackmann@android.com>
+Cc: Peter Oberparleiter <oberpar@linux.ibm.com>
+Cc: linux-mm@kvack.org
+Cc: kbuild-all@01.org
+Reported-by: Randy Dunlap <rdunlap@infradead.org>
+Reported-by: kbuild test robot <lkp@intel.com>
+Link: https://marc.info/?l=linux-mm&m=155384681109231&w=2
+Signed-off-by: Nick Desaulniers <ndesaulniers@google.com>
+Signed-off-by: Tri Vo <trong@android.com>
+---
+ kernel/gcov/clang.c   | 4 ++++
+ kernel/gcov/gcc_3_4.c | 4 ++++
+ kernel/gcov/gcc_4_7.c | 4 ++++
+ 3 files changed, 12 insertions(+)
 
-> Thanks for taking a look at this Nick! I believe same fix should be
-> applied to kernel/gcov/clang.c. I'll send out an updated version later
-> today.
-
-All yours, happy to review.
-
+diff --git a/kernel/gcov/clang.c b/kernel/gcov/clang.c
+index 125c50397ba2..cfb9ce5e0fed 100644
+--- a/kernel/gcov/clang.c
++++ b/kernel/gcov/clang.c
+@@ -223,7 +223,11 @@ void gcov_info_unlink(struct gcov_info *prev, struct gcov_info *info)
+  */
+ bool gcov_info_within_module(struct gcov_info *info, struct module *mod)
+ {
++#ifdef CONFIG_MODULES
+ 	return within_module((unsigned long)info->filename, mod);
++#else
++	return false;
++#endif
+ }
+ 
+ /* Symbolic links to be created for each profiling data file. */
+diff --git a/kernel/gcov/gcc_3_4.c b/kernel/gcov/gcc_3_4.c
+index 801ee4b0b969..8fc30f178351 100644
+--- a/kernel/gcov/gcc_3_4.c
++++ b/kernel/gcov/gcc_3_4.c
+@@ -146,7 +146,11 @@ void gcov_info_unlink(struct gcov_info *prev, struct gcov_info *info)
+  */
+ bool gcov_info_within_module(struct gcov_info *info, struct module *mod)
+ {
++#ifdef CONFIG_MODULES
+ 	return within_module((unsigned long)info, mod);
++#else
++	return false;
++#endif
+ }
+ 
+ /* Symbolic links to be created for each profiling data file. */
+diff --git a/kernel/gcov/gcc_4_7.c b/kernel/gcov/gcc_4_7.c
+index ec37563674d6..0b6886d4a4dd 100644
+--- a/kernel/gcov/gcc_4_7.c
++++ b/kernel/gcov/gcc_4_7.c
+@@ -159,7 +159,11 @@ void gcov_info_unlink(struct gcov_info *prev, struct gcov_info *info)
+  */
+ bool gcov_info_within_module(struct gcov_info *info, struct module *mod)
+ {
++#ifdef CONFIG_MODULES
+ 	return within_module((unsigned long)info, mod);
++#else
++	return false;
++#endif
+ }
+ 
+ /* Symbolic links to be created for each profiling data file. */
 -- 
-Thanks,
-~Nick Desaulniers
+2.21.0.392.gf8f6787159e-goog
 
