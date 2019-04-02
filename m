@@ -6,98 +6,98 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A9D8C4360F
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 23:06:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6DFCAC4360F
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 23:06:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 19EAD2084C
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 23:06:44 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 11DDD207E0
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 23:06:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="71NZ5cRe"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 19EAD2084C
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="pV6zDQgV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 11DDD207E0
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B53386B0275; Tue,  2 Apr 2019 19:06:43 -0400 (EDT)
+	id B7ABC6B0276; Tue,  2 Apr 2019 19:06:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B05226B0276; Tue,  2 Apr 2019 19:06:43 -0400 (EDT)
+	id B04026B0277; Tue,  2 Apr 2019 19:06:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9CC9D6B0277; Tue,  2 Apr 2019 19:06:43 -0400 (EDT)
+	id 9CAB26B0278; Tue,  2 Apr 2019 19:06:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 797806B0275
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 19:06:43 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id x12so15087014qtk.2
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 16:06:43 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 79DB76B0276
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 19:06:47 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id 75so13061125qki.13
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 16:06:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=aP7x6ocNpn524UbFJtnYWiwqT9lY5T2tQUUdBKmIxoY=;
-        b=sxOCA9rPxMp/p3TINGGVAT2TVYNqzfOUVgLaCTfwZ4HpSiHn+0mHWHhwZ3I1wVdnB8
-         AOr5ZfKKOt4ngVDn8kySKSn4/gijEMnOqLgnr67P31vvRRW+bcQsbz3VqtdMQr+8RIe0
-         kLdawBYXqVld61ffjK45k59K+IVVztJR2DBu9UFUBMbvsdAFzsh7DhAHsI6jVRaYLduC
-         urvVOumIl+5HunRGutR2aMUW+o5F8XBd5K4LZ5s6JtlDSArxL6im1/iQfFsN7qn82A2a
-         foFv0/hbDJ0ZozcaPjq1CDOHSTiGkXR659yd65wZ9W+8r5UI9+4bXH5wFhsbCDgt09fQ
-         gutg==
-X-Gm-Message-State: APjAAAWDiAKyyblHI000g7yw/M4mhmQ0NujWFubgZoiqesND902zp2c6
-	TO3Rxj0tC875Bj3vhGlUbUQ+xbnZz3FLyaK9skh/whhViuwQ30+aw25XbYCZEOrOAWeAiBZyqid
-	+EdqhOWmCgetKFDuilEMqdr5p0hJ23ugmp81E48t/3rhcYWe5HD1uqCrMbLeaIr8=
-X-Received: by 2002:a0c:f989:: with SMTP id t9mr4975658qvn.74.1554246403252;
-        Tue, 02 Apr 2019 16:06:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxyzJgwEtYEhtAtpw/8ti2vl5Pzw8Dgkj+tU29VTY2qP1rmvQx3ibkvARzxaXIeLrxnfkkh
-X-Received: by 2002:a0c:f989:: with SMTP id t9mr4975600qvn.74.1554246402215;
-        Tue, 02 Apr 2019 16:06:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554246402; cv=none;
+        bh=qs5oMJVG8T7y17a75wRO6haSj5HkqCPcGJrvYSSveK4=;
+        b=d8R2MfXC8xAOCT92KmX1Ry8I9pcqOSKd3oquMJ/Qr14tUp/BKKao0/H1GThn3ljwl9
+         iYo9mqjTzDL+f8l9GLUjcMSHtTSFoQnob3ersagKzgiEdyYXzgsZCG4abgzsxN7BVf+3
+         Z6hrgtStUlnO+hY70KpYo3wH8S3JmZ/+gpF93lePqJyuBxeFMUeTk5iL0ikQkXq+ANc6
+         iXcuyQtECvM1n69SpmvX15bq8A/HKx+16FdsU5ybAP7zQl/EjG93rrpEX5zsT92/jzwl
+         RktY65U7IQ/e7lh4MNTxYN6ZJ491JQTB4rZWZPMi09vdj/OaRNfklX74OYFuCKTcHFwJ
+         zJfg==
+X-Gm-Message-State: APjAAAXZkI7+Y5EUqa5SBzdJLCJNuB0gZPmK+pTVGk/ADEYhWmcGEJuv
+	DbI4w71tYJXhFTicPU2YGTlyA6VeYoqjklT+P4KQlTXm6VgRTGMrXa5x9flM+1Yhax4caFVqvKS
+	FpIO4V+1Wk50P7uDC+OGopO7ZCpfNiun7HcxTM6yryblt1mNOfKcC0iXTIxXKCY0=
+X-Received: by 2002:ac8:3042:: with SMTP id g2mr61243832qte.1.1554246407250;
+        Tue, 02 Apr 2019 16:06:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyofg6J/MrO7/9PKUqWp7chzCOlnLDmeKoIJHYNeAiW7xtMVKowSzyQbyM31uBdtQ3X2WyZ
+X-Received: by 2002:ac8:3042:: with SMTP id g2mr61243774qte.1.1554246406453;
+        Tue, 02 Apr 2019 16:06:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554246406; cv=none;
         d=google.com; s=arc-20160816;
-        b=e3RRFIJidPOoabAZFjk0eLtR5UudEzXSx6m5MShleZ/LwVvPJS4wjxESRchsMBx5aV
-         tmje55gsBKIjd34QOeKcb0gEs1FhTfWl7TH3c5k/VgtPcIbhpu3DqVBdjjloPOn5IIHe
-         rWv0JhBCP5FYOadlpzIHvKrNbJPALFz7j3/PFvMxWTHKMHEXT4oFDe9Sl5lfojQ1hnnY
-         0WHjvVkw52lbpHDt9ZOHoFSnalO7y9xhSCVqiz9kJpaxPgJV9nZI48SDLWLBLWzjDLSS
-         ZkxBkvitLfscIyvevtJlsYoQ1BMzMgBq0xLkPveA2EqtjaVg1wNOb++5CSKoPi4w9Zjz
-         Gwiw==
+        b=SM+wPBcMwxacEqJhRWYOZ36qEfEpyEkahZ/vNk3V6pD3T0Dwte3iXPWXQY7BmZnSec
+         GWCwjOeO/FtfZgNpx39B+PCv0JbvGlA/E83N9puktu2rCBXy2xAjLYI6q7q16+iJ16tM
+         ezph6cd5SxdbigfDI++5cxs4zuw354+9G/XHfO8mXRxxa5LjkWJbGc25cpFJfqYCrblE
+         lW+cFqyreJkeW8dRqxSPFlIavtm7+tlBUGvJbR//2e/7ZqM48UUZrcY//Ff7z8eIG74O
+         3yNY4zRUwT1BSvwWdWPHxGIc4nZL3bhEkgukIyPbnPoFg6BvbdIheNSJf+WrlFx+t6DD
+         2nzA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=aP7x6ocNpn524UbFJtnYWiwqT9lY5T2tQUUdBKmIxoY=;
-        b=boxSwX619gMfi+FIv9L9L7hsUCwK32SWDfL/0B+5q7udIRC93tOyIQQ0vvsQmVQqOO
-         EFbEfoycEgC8Oppr3NbCHVF6FKEa12BU4BqlBh3EhkxUb5Sh7UsaEs0hEGa8WRwE0buu
-         4POoH/UtRHbzR7A6SxUW6AEpOn94Dx32HVeY8aZyqiFONTo60Dt1T/Cq1sbyobi+VTvy
-         XUPACeDIihtc05XmSZh3Yi/rv+e9TV2iO/45B3s1EOGSa3SU89cum/RePcFReG7VbRUF
-         BP+Ort7K54V/c4XzsJOOQKpRQv3b9E5S3oU0Hl3ZmuvFPALoMtcCpm6sB1kYWHR37Yc4
-         gPWQ==
+        bh=qs5oMJVG8T7y17a75wRO6haSj5HkqCPcGJrvYSSveK4=;
+        b=lLyboLqx/mm144tWgv08QU5MlMIBt5GMATEmk1Dk3UdESS+nEL/wg3FutSJ3XN+F60
+         0DHqAR2Qtr95C4C5PCEFnHE10eg5/gaemztwRD5q++sUBtzyiJuI0RPFMVt44mX9Sf9s
+         2ceVxhbvvzT9XLXCPC/wQ0bbrS+qj81vVdUQLNuDzLwe3INr9lbfkqoNbWzkSLT75eDA
+         eqChs0yw+RLwNd4wKGEbgJVYfH2y3xxXPR5BLigfl/XxnHhKJuPrpdQY9rCROZxDH2iI
+         jEkjXj0PkGdnxOUmVnvC8+/iseQPuSsYxAzvm5gf5/1WO7kxSfAFgdIWHRKiG/OlEdMu
+         +aDA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=71NZ5cRe;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=pV6zDQgV;
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from out2-smtp.messagingengine.com (out2-smtp.messagingengine.com. [66.111.4.26])
-        by mx.google.com with ESMTPS id y14si891269qvc.45.2019.04.02.16.06.42
+        by mx.google.com with ESMTPS id 41si731960qtp.20.2019.04.02.16.06.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Apr 2019 16:06:42 -0700 (PDT)
+        Tue, 02 Apr 2019 16:06:46 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) client-ip=66.111.4.26;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=71NZ5cRe;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=pV6zDQgV;
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.nyi.internal (Postfix) with ESMTP id EA72921EF6;
-	Tue,  2 Apr 2019 19:06:41 -0400 (EDT)
+	by mailout.nyi.internal (Postfix) with ESMTP id 2E6F922028;
+	Tue,  2 Apr 2019 19:06:46 -0400 (EDT)
 Received: from mailfrontend2 ([10.202.2.163])
-  by compute3.internal (MEProxy); Tue, 02 Apr 2019 19:06:41 -0400
+  by compute3.internal (MEProxy); Tue, 02 Apr 2019 19:06:46 -0400
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:subject:to
 	:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=aP7x6ocNpn524UbFJtnYWiwqT9lY5T2tQUUdBKmIxoY=; b=71NZ5cRe
-	Vb88xdu4aAjbR8bx2wu26shp1R2vRoM4i8wn+wPH20gLrjy7KshCT6ZPLixtNDE7
-	yVF43B9/0IbyoKtRKEgOOFboAhAWWqBKbNRn5rVvXgOJAKWgQ5hJDVsRQ8H7Sy2Q
-	tMu4GH/iXlDLr0kEdQZOtHcC+a4fe78PO4K3sMCil2TSiQpt1bqGQxjy3te6RdcJ
-	20AJ+oTGJ4ytiSxCMKKXQD2BhKA7W5JtkA8mzakt7f3AQKnF3BUqIlNjgP1tS0lQ
-	m3sCkcxyEh6W0Kx1n2p0d2Gtg6sZ5wurgp2i3xsDSkUC5JWey739YqIasW2xGPEm
-	wpQX8IZ+EwSqtg==
-X-ME-Sender: <xms:AeujXOoYp2i9Y3gcTfR8YMt_Mvrao_4NQ1IW_RPsE6EAr8XEAJypVg>
+	fm2; bh=qs5oMJVG8T7y17a75wRO6haSj5HkqCPcGJrvYSSveK4=; b=pV6zDQgV
+	51S0o14N/YzIUe8qXuA4ZYzNP+4WSpAt6O1Ajm4OXfNBL7Un91tHrOEUkAYEhWuV
+	ibh92Ph0jEEgXTt9xwZMRA3fe6ieF+eAMuTCOkI8nol0w8u9DsqfoonHxylHwnsp
+	mZ5wQpifhQLm1HMmytXFypzRiQBX2FvR2sRDdHbtM09YUmgNGh5lT/lA6JZKOeSd
+	PYhiE3akqRYcGl6rAqDDA7WG5QONjrbvhGp2Cs+g5DLhRAzz+gLhNvTdrR6cwqqm
+	5IiSZ6o3jpjrUgfYp3lCXeN1+4Jcv+QADAaRbG4+CddgCozvEdmXluxEv4JibnIO
+	PjptbIuavnfNdg==
+X-ME-Sender: <xms:BeujXIvcjg0lpOQF2yMnbc1kNTahBN7yDU5FhrgQcEtVWOmrTfzgIA>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtddugdduieculddtuddrgedutddrtddtmd
     cutefuodetggdotefrodftvfcurfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdp
     uffrtefokffrpgfnqfghnecuuegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivg
@@ -105,14 +105,14 @@ X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtddugdduieculddtuddrgedutd
     ucfhrhhomhepfdfvohgsihhnucevrdcujfgrrhguihhnghdfuceothhosghinheskhgvrh
     hnvghlrdhorhhgqeenucfkphepuddvgedrudeiledrvdejrddvtdeknecurfgrrhgrmhep
     mhgrihhlfhhrohhmpehtohgsihhnsehkvghrnhgvlhdrohhrghenucevlhhushhtvghruf
-    hiiigvpeef
-X-ME-Proxy: <xmx:AeujXNamtfmVZiGB2pSIPcsMHGb_GkP_vomkyf0stuGxSZ1-5yT_yQ>
-    <xmx:AeujXPVrtHbrzKhXSiWqwYpOKoeGF_mRaWfysqkPFeUpwufqa8pvKA>
-    <xmx:AeujXO-LtK3gcyaiec1BbA-d-9qYEKNW57GVFBLYa4SnwbflqAmGHQ>
-    <xmx:AeujXPrHbp5QaAG9_9M3t4taoI8iN5nCPplYSrSoXivBDeSY8IkTtw>
+    hiiigvpeeg
+X-ME-Proxy: <xmx:BuujXEtqGVkSyKeCF4eq8RAYqgoL03vWYJI5qELYLRlqfHsPTspL4w>
+    <xmx:BuujXP841gpJWmvt6brl_P9kjQtz5YS4dLmi8oIKjokCkKQiYCsEDg>
+    <xmx:BuujXF-XcF0q4hPNN_X0IR4Q0sD763Ss_FSItJ48LPkcjsw6pQbfeQ>
+    <xmx:BuujXA5RJSrAhLyM7zirQbDwc_gUbenz0QoP7GN5DmVPHABdxVoGyA>
 Received: from eros.localdomain (124-169-27-208.dyn.iinet.net.au [124.169.27.208])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 67C081031A;
-	Tue,  2 Apr 2019 19:06:38 -0400 (EDT)
+	by mail.messagingengine.com (Postfix) with ESMTPA id 8D856100E5;
+	Tue,  2 Apr 2019 19:06:42 -0400 (EDT)
 From: "Tobin C. Harding" <tobin@kernel.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: "Tobin C. Harding" <tobin@kernel.org>,
@@ -124,9 +124,9 @@ Cc: "Tobin C. Harding" <tobin@kernel.org>,
 	Matthew Wilcox <willy@infradead.org>,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH v5 4/7] slub: Add comments to endif pre-processor macros
-Date: Wed,  3 Apr 2019 10:05:42 +1100
-Message-Id: <20190402230545.2929-5-tobin@kernel.org>
+Subject: [PATCH v5 5/7] slub: Use slab_list instead of lru
+Date: Wed,  3 Apr 2019 10:05:43 +1100
+Message-Id: <20190402230545.2929-6-tobin@kernel.org>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190402230545.2929-1-tobin@kernel.org>
 References: <20190402230545.2929-1-tobin@kernel.org>
@@ -138,119 +138,178 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-SLUB allocator makes heavy use of ifdef/endif pre-processor macros.
-The pairing of these statements is at times hard to follow e.g. if the
-pair are further than a screen apart or if there are nested pairs.  We
-can reduce cognitive load by adding a comment to the endif statement of
-form
+Currently we use the page->lru list for maintaining lists of slabs.  We
+have a list in the page structure (slab_list) that can be used for this
+purpose.  Doing so makes the code cleaner since we are not overloading
+the lru list.
 
-       #ifdef CONFIG_FOO
-       ...
-       #endif /* CONFIG_FOO */
-
-Add comments to endif pre-processor macros if ifdef/endif pair is not
-immediately apparent.
+Use the slab_list instead of the lru list for maintaining lists of
+slabs.
 
 Acked-by: Christoph Lameter <cl@linux.com>
 Signed-off-by: Tobin C. Harding <tobin@kernel.org>
 ---
- mm/slub.c | 20 ++++++++++----------
- 1 file changed, 10 insertions(+), 10 deletions(-)
+ mm/slub.c | 40 ++++++++++++++++++++--------------------
+ 1 file changed, 20 insertions(+), 20 deletions(-)
 
 diff --git a/mm/slub.c b/mm/slub.c
-index d30ede89f4a6..8fbba4ff6c67 100644
+index 8fbba4ff6c67..d17f117830a9 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -1951,7 +1951,7 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
- 			}
- 		}
- 	} while (read_mems_allowed_retry(cpuset_mems_cookie));
--#endif
-+#endif	/* CONFIG_NUMA */
- 	return NULL;
+@@ -1023,7 +1023,7 @@ static void add_full(struct kmem_cache *s,
+ 		return;
+ 
+ 	lockdep_assert_held(&n->list_lock);
+-	list_add(&page->lru, &n->full);
++	list_add(&page->slab_list, &n->full);
  }
  
-@@ -2249,7 +2249,7 @@ static void unfreeze_partials(struct kmem_cache *s,
- 		discard_slab(s, page);
- 		stat(s, FREE_SLAB);
- 	}
--#endif
-+#endif	/* CONFIG_SLUB_CPU_PARTIAL */
+ static void remove_full(struct kmem_cache *s, struct kmem_cache_node *n, struct page *page)
+@@ -1032,7 +1032,7 @@ static void remove_full(struct kmem_cache *s, struct kmem_cache_node *n, struct
+ 		return;
+ 
+ 	lockdep_assert_held(&n->list_lock);
+-	list_del(&page->lru);
++	list_del(&page->slab_list);
  }
  
- /*
-@@ -2308,7 +2308,7 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
- 		local_irq_restore(flags);
- 	}
- 	preempt_enable();
--#endif
-+#endif	/* CONFIG_SLUB_CPU_PARTIAL */
- }
- 
- static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
-@@ -2813,7 +2813,7 @@ void *kmem_cache_alloc_node_trace(struct kmem_cache *s,
- }
- EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
- #endif
--#endif
-+#endif	/* CONFIG_NUMA */
- 
- /*
-  * Slow path handling. This may still be called frequently since objects
-@@ -3848,7 +3848,7 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node)
- 	return ret;
- }
- EXPORT_SYMBOL(__kmalloc_node);
--#endif
-+#endif	/* CONFIG_NUMA */
- 
- #ifdef CONFIG_HARDENED_USERCOPY
- /*
-@@ -4066,7 +4066,7 @@ void __kmemcg_cache_deactivate(struct kmem_cache *s)
- 	 */
- 	slab_deactivate_memcg_cache_rcu_sched(s, kmemcg_cache_deact_after_rcu);
- }
--#endif
-+#endif	/* CONFIG_MEMCG */
- 
- static int slab_mem_going_offline_callback(void *arg)
+ /* Tracking of the number of slabs for debugging purposes */
+@@ -1773,9 +1773,9 @@ __add_partial(struct kmem_cache_node *n, struct page *page, int tail)
  {
-@@ -4699,7 +4699,7 @@ static int list_locations(struct kmem_cache *s, char *buf,
- 		len += sprintf(buf, "No data\n");
- 	return len;
+ 	n->nr_partial++;
+ 	if (tail == DEACTIVATE_TO_TAIL)
+-		list_add_tail(&page->lru, &n->partial);
++		list_add_tail(&page->slab_list, &n->partial);
+ 	else
+-		list_add(&page->lru, &n->partial);
++		list_add(&page->slab_list, &n->partial);
  }
--#endif
-+#endif	/* CONFIG_SLUB_DEBUG */
  
- #ifdef SLUB_RESILIENCY_TEST
- static void __init resiliency_test(void)
-@@ -4759,7 +4759,7 @@ static void __init resiliency_test(void)
- #ifdef CONFIG_SYSFS
- static void resiliency_test(void) {};
+ static inline void add_partial(struct kmem_cache_node *n,
+@@ -1789,7 +1789,7 @@ static inline void remove_partial(struct kmem_cache_node *n,
+ 					struct page *page)
+ {
+ 	lockdep_assert_held(&n->list_lock);
+-	list_del(&page->lru);
++	list_del(&page->slab_list);
+ 	n->nr_partial--;
+ }
+ 
+@@ -1863,7 +1863,7 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
+ 		return NULL;
+ 
+ 	spin_lock(&n->list_lock);
+-	list_for_each_entry_safe(page, page2, &n->partial, lru) {
++	list_for_each_entry_safe(page, page2, &n->partial, slab_list) {
+ 		void *t;
+ 
+ 		if (!pfmemalloc_match(page, flags))
+@@ -2407,7 +2407,7 @@ static unsigned long count_partial(struct kmem_cache_node *n,
+ 	struct page *page;
+ 
+ 	spin_lock_irqsave(&n->list_lock, flags);
+-	list_for_each_entry(page, &n->partial, lru)
++	list_for_each_entry(page, &n->partial, slab_list)
+ 		x += get_count(page);
+ 	spin_unlock_irqrestore(&n->list_lock, flags);
+ 	return x;
+@@ -3705,10 +3705,10 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
+ 
+ 	BUG_ON(irqs_disabled());
+ 	spin_lock_irq(&n->list_lock);
+-	list_for_each_entry_safe(page, h, &n->partial, lru) {
++	list_for_each_entry_safe(page, h, &n->partial, slab_list) {
+ 		if (!page->inuse) {
+ 			remove_partial(n, page);
+-			list_add(&page->lru, &discard);
++			list_add(&page->slab_list, &discard);
+ 		} else {
+ 			list_slab_objects(s, page,
+ 			"Objects remaining in %s on __kmem_cache_shutdown()");
+@@ -3716,7 +3716,7 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
+ 	}
+ 	spin_unlock_irq(&n->list_lock);
+ 
+-	list_for_each_entry_safe(page, h, &discard, lru)
++	list_for_each_entry_safe(page, h, &discard, slab_list)
+ 		discard_slab(s, page);
+ }
+ 
+@@ -3996,7 +3996,7 @@ int __kmem_cache_shrink(struct kmem_cache *s)
+ 		 * Note that concurrent frees may occur while we hold the
+ 		 * list_lock. page->inuse here is the upper limit.
+ 		 */
+-		list_for_each_entry_safe(page, t, &n->partial, lru) {
++		list_for_each_entry_safe(page, t, &n->partial, slab_list) {
+ 			int free = page->objects - page->inuse;
+ 
+ 			/* Do not reread page->inuse */
+@@ -4006,10 +4006,10 @@ int __kmem_cache_shrink(struct kmem_cache *s)
+ 			BUG_ON(free <= 0);
+ 
+ 			if (free == page->objects) {
+-				list_move(&page->lru, &discard);
++				list_move(&page->slab_list, &discard);
+ 				n->nr_partial--;
+ 			} else if (free <= SHRINK_PROMOTE_MAX)
+-				list_move(&page->lru, promote + free - 1);
++				list_move(&page->slab_list, promote + free - 1);
+ 		}
+ 
+ 		/*
+@@ -4022,7 +4022,7 @@ int __kmem_cache_shrink(struct kmem_cache *s)
+ 		spin_unlock_irqrestore(&n->list_lock, flags);
+ 
+ 		/* Release empty slabs */
+-		list_for_each_entry_safe(page, t, &discard, lru)
++		list_for_each_entry_safe(page, t, &discard, slab_list)
+ 			discard_slab(s, page);
+ 
+ 		if (slabs_node(s, node))
+@@ -4214,11 +4214,11 @@ static struct kmem_cache * __init bootstrap(struct kmem_cache *static_cache)
+ 	for_each_kmem_cache_node(s, node, n) {
+ 		struct page *p;
+ 
+-		list_for_each_entry(p, &n->partial, lru)
++		list_for_each_entry(p, &n->partial, slab_list)
+ 			p->slab_cache = s;
+ 
+ #ifdef CONFIG_SLUB_DEBUG
+-		list_for_each_entry(p, &n->full, lru)
++		list_for_each_entry(p, &n->full, slab_list)
+ 			p->slab_cache = s;
  #endif
--#endif
-+#endif	/* SLUB_RESILIENCY_TEST */
+ 	}
+@@ -4435,7 +4435,7 @@ static int validate_slab_node(struct kmem_cache *s,
  
- #ifdef CONFIG_SYSFS
- enum slab_stat_type {
-@@ -5416,7 +5416,7 @@ STAT_ATTR(CPU_PARTIAL_ALLOC, cpu_partial_alloc);
- STAT_ATTR(CPU_PARTIAL_FREE, cpu_partial_free);
- STAT_ATTR(CPU_PARTIAL_NODE, cpu_partial_node);
- STAT_ATTR(CPU_PARTIAL_DRAIN, cpu_partial_drain);
--#endif
-+#endif	/* CONFIG_SLUB_STATS */
+ 	spin_lock_irqsave(&n->list_lock, flags);
  
- static struct attribute *slab_attrs[] = {
- 	&slab_size_attr.attr,
-@@ -5617,7 +5617,7 @@ static void memcg_propagate_slab_attrs(struct kmem_cache *s)
+-	list_for_each_entry(page, &n->partial, lru) {
++	list_for_each_entry(page, &n->partial, slab_list) {
+ 		validate_slab_slab(s, page, map);
+ 		count++;
+ 	}
+@@ -4446,7 +4446,7 @@ static int validate_slab_node(struct kmem_cache *s,
+ 	if (!(s->flags & SLAB_STORE_USER))
+ 		goto out;
  
- 	if (buffer)
- 		free_page((unsigned long)buffer);
--#endif
-+#endif	/* CONFIG_MEMCG */
- }
+-	list_for_each_entry(page, &n->full, lru) {
++	list_for_each_entry(page, &n->full, slab_list) {
+ 		validate_slab_slab(s, page, map);
+ 		count++;
+ 	}
+@@ -4642,9 +4642,9 @@ static int list_locations(struct kmem_cache *s, char *buf,
+ 			continue;
  
- static void kmem_cache_release(struct kobject *k)
+ 		spin_lock_irqsave(&n->list_lock, flags);
+-		list_for_each_entry(page, &n->partial, lru)
++		list_for_each_entry(page, &n->partial, slab_list)
+ 			process_slab(&t, s, page, alloc, map);
+-		list_for_each_entry(page, &n->full, lru)
++		list_for_each_entry(page, &n->full, slab_list)
+ 			process_slab(&t, s, page, alloc, map);
+ 		spin_unlock_irqrestore(&n->list_lock, flags);
+ 	}
 -- 
 2.21.0
 
