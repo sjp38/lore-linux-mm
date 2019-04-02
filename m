@@ -2,138 +2,137 @@ Return-Path: <SRS0=cFM0=SE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5F27FC4360F
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 20:44:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 69159C4360F
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 20:44:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1095E2082C
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 20:44:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 14A362082C
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 20:44:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="3dhzuKoW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1095E2082C
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="ZHUgm2Mu"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 14A362082C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F183D6B0277; Tue,  2 Apr 2019 16:44:25 -0400 (EDT)
+	id B49CD6B0278; Tue,  2 Apr 2019 16:44:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EA5DC6B0278; Tue,  2 Apr 2019 16:44:25 -0400 (EDT)
+	id AA7866B0279; Tue,  2 Apr 2019 16:44:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BE91B6B0279; Tue,  2 Apr 2019 16:44:25 -0400 (EDT)
+	id 94F9D6B027A; Tue,  2 Apr 2019 16:44:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9800A6B0277
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 16:44:25 -0400 (EDT)
-Received: by mail-yw1-f70.google.com with SMTP id b131so7795854ywe.21
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 13:44:25 -0700 (PDT)
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 63CB56B0278
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 16:44:29 -0400 (EDT)
+Received: by mail-it1-f197.google.com with SMTP id 190so3996325itv.3
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 13:44:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=80amkJDfmO8rQR51MIz8k/sRGV6h3aL7PZ9G0VgPgaI=;
-        b=XGQOlTEZP2T+rmqlfCbZIj+NHprWbO2STgDUS82JT+suTyzrocCWZGvQYKJgNeR+xT
-         QJ6FlZrB0X+c3iS4AvISs8QDh5PwzZh85WEohIyfg36bQrgMu0az2a8y832K+u9Cb1gk
-         p+6tXzNrUsUz9MIp0l+Fu80Y95tbA7UDhAeMuoSD/PvqOdxGR334jHxPDZZyApkp1F6Y
-         fdVnr8rQohER1d93FYssmqlb5KqOsy7/wL41DIpHu8Tg+If8U/rKYEcCFg2dvcSxd7nn
-         H1KGVnZzSBH+JO+JWJ32Thz2N9BoUBeiLLN4H/DBFJo0MH7MrURLDhQcfQFzgqbwe832
-         yunQ==
-X-Gm-Message-State: APjAAAWSY3V7MfBpfXd5Wu8Zl6nrH+iA6t7olunVTj5gwBaHGPzT3j1E
-	YhV+DysrE+KfmdL6QQSQba695jb2omspJ4bGYUKxOOQoXyF02cXAUVDu2flqE82U2RVptF+XQoT
-	ZYo2jE8zgSajzeA0+lSNvIP7zJrOEUrmE9cObHI7dS5SQ2x+FR+RXoOY+kceXjyQbxQ==
-X-Received: by 2002:a25:f82:: with SMTP id 124mr60265977ybp.48.1554237865368;
-        Tue, 02 Apr 2019 13:44:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxqLsWYpaSqQvyzS1qlDbQHPeevE1NOnNQ2SZt+RCo5EMHcmn5g6UdvKLBepBtQFZd1DA54
-X-Received: by 2002:a25:f82:: with SMTP id 124mr60265936ybp.48.1554237864628;
-        Tue, 02 Apr 2019 13:44:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554237864; cv=none;
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=SWwbtSuBuVRAsBvShPwVRYWt3xedhjkFQ6ROdmYUzro=;
+        b=enwPbXTNGLuJBl7hEfF49lF8qDuKteghTf+0SEmHUzBxt2wqWqsb2R4QZKPpTkYkWW
+         VNDqcUHc9whvZBfaKD7mD0tElq7QdOhWxnR3dMLefzoRd/DUne6RRBWaGnNO7bayTWXV
+         Xi1Vr35KAYdSV02v9IB5jHLP2u29GIu9LWl0d06FQi1QTITS5YmQMMCxXV8dkIUNxkW4
+         iiSSgkN2c8roMOm76AuDT9vThPLJi/OPs56n0A66OpvLKfOFg5dZ5/MvorTv6Dre/l2C
+         LmcCFZMK20afxUkBsQdr5AtXbqc5nnaPLrjzufnDo7ttMpiqoLb6b7JN1N2XMyXrgWVm
+         tf7Q==
+X-Gm-Message-State: APjAAAXIqNxc9A+MjCBHf6GDA3D8NV8p3w4MO7T56CXRvK1mzppS7TIR
+	Z8HkJNtyfM/PfA+o/QJKj/7FzC2S+5mGxS5I3XqBRNr9BaVpRhE4wpYhHlvHEfA0RffK+bx8QKg
+	cWZGXmsNzJp6secix/iadUkpr27RSVwIM3MEWtHUbWHPc0h6KQBUDjOlR6ExVUJB8ew==
+X-Received: by 2002:a6b:cd89:: with SMTP id d131mr47440300iog.213.1554237869147;
+        Tue, 02 Apr 2019 13:44:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxwC5OeuJbiVc0vSfNCLYafXdUtFwCF9i1KRvBf9dcwItabUjvC83Z+hlVL6HdVySbJsmO8
+X-Received: by 2002:a6b:cd89:: with SMTP id d131mr47440261iog.213.1554237868071;
+        Tue, 02 Apr 2019 13:44:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554237868; cv=none;
         d=google.com; s=arc-20160816;
-        b=t6gCv8rkutSEDzXIgiIAMJRBB8YsuGaJjaDQFTBQfv93bkKvrwd8cEN4G/Hl0w4InU
-         6EpVObdqoPetSTa89IhrcL/fEezQTCS0eS2MGfNC4lU4cKDX2Z5hKuRqvu5zezJXFhJb
-         lDDtrBkxzOGKEC5tDO4b5fMWnoAq5pQLac2pPKZBLQYlw2WEj4hG7KGAQsXgDufWS98O
-         EtihZpeRoToFU8elw/CGURCWd7BX/Nqp7b8jIEArd/XMsM0TOBPKpdhsR2U/e8lI1+Z+
-         Ejuv7INyaX8xEny2uFDuEi0PVeHi5ikendczNvANV4uUAcc5HtjcMSjoXePLcQUxmmnj
-         7n7g==
+        b=y+ZY5tNnOJDLPsvWPuaCLY5Y9xHSB5ja8igNm0gPyniLlkTb49vj8hRH0XRAsmlirc
+         cjCwoq5yHTMK3+QN43ZGbBcQqc+juyjhrnry6hQeYKojR7M+JY3fJXXUr6EeZKmUMovy
+         VRNmXDzeWFnoCTnKMHY5cnh4kvYUSShRKjzWepBXyi8bnBW8hQx8YbsV62hbpnxc1elQ
+         LbskrkL+x2+0EbPEXO/iSfL75p+V5Cmeegt79R/SIkkvydtkmzzIa2sNVeAiak8YYfGM
+         bGj9+ouiFW99pjVL1vQeXI+cfbqcuLJrAKO+LiM4GnCXhPY8Rhfayx7qkOe8lWpFXXa8
+         8BEg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=80amkJDfmO8rQR51MIz8k/sRGV6h3aL7PZ9G0VgPgaI=;
-        b=xjiC/d6ALECvAwyEIsMnBP2aRrXBc/bZEjKz7cVqExVI2WTIDQGhJQMiwnZhrndlbv
-         A0c02f4JfCoPXLNu6ctrQG6dDHVm8wKaWOKBrVDCb3ItHmvEBWGte6j6vovic8x+5pgY
-         vmckDZALE1hAdtJmEtc8Qajg2+6DpWeVOv6dfj3YAoyKUpO1KiKUOirIfbreMtqYJ+AE
-         Ar84EsIIKkjT/+ZO+Hz2c6OIoMK2ls0LvwoEwiqnkDYL0vE3dOV3dURuOxLN/lzBdLfp
-         7Ud0nJrfcU6JGDuGQzUTKTk6PViZm3i5hvwpnCKRNZE+qi2AyAvk0kwQsPFlRki1XlWW
-         t/3A==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=SWwbtSuBuVRAsBvShPwVRYWt3xedhjkFQ6ROdmYUzro=;
+        b=RQRSplMgdPi0Gay30yPQ7IOzvysPO5opCpwzDr4cIFg/DdPbfDxkrLeVA4h8NbJ4GQ
+         h+GAVo1gYKheHsntH0gr/edHrZNhk0QoE7cA9zxnMxaFs6cmlhYjyFqUTUB9mk2WlQbS
+         bb+pv7HQhuL7bxI9+8VZkvGXwisyqye4WiVshiOtQWJwJBMvQIKUcOIoaikeE13+8Jzh
+         vHC88pxzTqq9np8ky+I35CYTuoXIDSiAguvnZ2UdhjYMEPPWq8Alfk4a31WROQUtHUHD
+         OnqwJ1o/IStWBkCkBMccPUWuVi6C0+SuUG7Qdwad3ZLh61QFmA1mNLFxrcuKkyb5WZpO
+         OiqQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=3dhzuKoW;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=ZHUgm2Mu;
        spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
 Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id 81si8324536ywq.79.2019.04.02.13.44.24
+        by mx.google.com with ESMTPS id z14si6780471ioj.131.2019.04.02.13.44.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Apr 2019 13:44:24 -0700 (PDT)
+        Tue, 02 Apr 2019 13:44:28 -0700 (PDT)
 Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=3dhzuKoW;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=ZHUgm2Mu;
        spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
 Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x32Kd3B7163968;
-	Tue, 2 Apr 2019 20:42:13 GMT
+	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x32Kd3oq163977;
+	Tue, 2 Apr 2019 20:44:23 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
- subject : date : message-id : mime-version : content-transfer-encoding;
- s=corp-2018-07-02; bh=80amkJDfmO8rQR51MIz8k/sRGV6h3aL7PZ9G0VgPgaI=;
- b=3dhzuKoWxKS942ub9epZAEYv9lHvjtSKguDUksCdLymSkrm4017tbZP/McvSHb7vgphg
- HG1QB1Mh/DUs2M5kG4NtQfn/NpSXSuW/JfOB9deJC8CuMJJ6BXSKb4Dc9r/dk4bYPbkq
- P/R8IH1neNmPTMdwZ4cjHRaRJeCuYXwP8IRNDyEQHjd6RFituOicmQsVLgc6AzvOXMZ2
- 073tkjOQNg/UWN0G0z2uEi3ss0M9iEeF0pZfTmw0omvIW/7BX9PB9k1EJnV7GNRcOyGz
- bftpAc2WL/XOoenSSKb/on4FvPH4QftOeOijD0L4mkW56CTL89av5zBJx06UQWAi81s4 +A== 
+ subject : date : message-id : in-reply-to : references : mime-version :
+ content-transfer-encoding; s=corp-2018-07-02;
+ bh=SWwbtSuBuVRAsBvShPwVRYWt3xedhjkFQ6ROdmYUzro=;
+ b=ZHUgm2MuOOV0krty4T7QXlZIWISL8Smr5VxapxX5M+iGYwDtJrdgceBsKxYJad72jdFs
+ WS6PXNlId7SQt1sMM422gZWgqsqdoOXN4TuZV9XoD+5A4MgP2ZHg4kYngmD/wvkJ+Xgj
+ OcxQ0Ed7eusFEwspi+mZ4o+M15eUeGihEv2NnqjMkMR9M/SgYecFbMS2YxvOnsYMm27K
+ DbDjihLSkP5+pHWFMCMIJK0R0jhEKczACn8l1Bgh/JSxMplw+viZEOvNtNzKtkwi8JNd
+ G8lMfgtiWXb7/DUUffMG3VNE5jGReclP09wmyGjuhYIpBk/SM3T6LIXX7CzgD5iDuFEY xw== 
 Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
-	by aserp2120.oracle.com with ESMTP id 2rj0dnkyvd-1
+	by aserp2120.oracle.com with ESMTP id 2rj0dnm0bs-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 02 Apr 2019 20:42:13 +0000
+	Tue, 02 Apr 2019 20:44:23 +0000
 Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
-	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x32KfG0w064769;
-	Tue, 2 Apr 2019 20:42:12 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by aserp3030.oracle.com with ESMTP id 2rm8f4yjxx-1
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x32KfJxi065003;
+	Tue, 2 Apr 2019 20:42:23 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by aserp3030.oracle.com with ESMTP id 2rm8f4yk08-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 02 Apr 2019 20:42:12 +0000
+	Tue, 02 Apr 2019 20:42:22 +0000
 Received: from abhmp0009.oracle.com (abhmp0009.oracle.com [141.146.116.15])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x32Kg9r8029935;
-	Tue, 2 Apr 2019 20:42:09 GMT
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x32KgLio031444;
+	Tue, 2 Apr 2019 20:42:21 GMT
 Received: from localhost.localdomain (/73.60.114.248)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 02 Apr 2019 13:42:09 -0700
+	with ESMTP ; Tue, 02 Apr 2019 13:42:21 -0700
 From: Daniel Jordan <daniel.m.jordan@oracle.com>
 To: akpm@linux-foundation.org
 Cc: daniel.m.jordan@oracle.com, Alan Tull <atull@kernel.org>,
-        Alexey Kardashevskiy <aik@ozlabs.ru>,
-        Alex Williamson <alex.williamson@redhat.com>,
-        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
         Christoph Lameter <cl@linux.com>, Davidlohr Bueso <dave@stgolabs.net>,
-        Michael Ellerman <mpe@ellerman.id.au>, Moritz Fischer <mdf@kernel.org>,
-        Paul Mackerras <paulus@ozlabs.org>, Wu Hao <hao.wu@intel.com>,
-        linux-mm@kvack.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org,
-        linuxppc-dev@lists.ozlabs.org, linux-fpga@vger.kernel.org,
+        Moritz Fischer <mdf@kernel.org>, Wu Hao <hao.wu@intel.com>,
+        linux-mm@kvack.org, linux-fpga@vger.kernel.org,
         linux-kernel@vger.kernel.org
-Subject: [PATCH 0/6] convert locked_vm from unsigned long to atomic64_t
-Date: Tue,  2 Apr 2019 16:41:52 -0400
-Message-Id: <20190402204158.27582-1-daniel.m.jordan@oracle.com>
+Subject: [PATCH 4/6] fpga/dlf/afu: drop mmap_sem now that locked_vm is atomic
+Date: Tue,  2 Apr 2019 16:41:56 -0400
+Message-Id: <20190402204158.27582-5-daniel.m.jordan@oracle.com>
 X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190402204158.27582-1-daniel.m.jordan@oracle.com>
+References: <20190402204158.27582-1-daniel.m.jordan@oracle.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9215 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=3 malwarescore=0
  phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
  adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
  engine=8.0.1-1810050000 definitions=main-1904020138
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9215 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=3 malwarescore=0
  phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 lowpriorityscore=0
  mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
  scancount=1 engine=8.0.1-1810050000 definitions=main-1904020138
@@ -143,61 +142,113 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+With locked_vm now an atomic, there is no need to take mmap_sem as
+writer.  Delete and refactor accordingly.
 
-From patch 1:
+Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Alan Tull <atull@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Davidlohr Bueso <dave@stgolabs.net>
+Cc: Moritz Fischer <mdf@kernel.org>
+Cc: Wu Hao <hao.wu@intel.com>
+Cc: <linux-mm@kvack.org>
+Cc: <linux-fpga@vger.kernel.org>
+Cc: <linux-kernel@vger.kernel.org>
+---
+ drivers/fpga/dfl-afu-dma-region.c | 40 ++++++++++++-------------------
+ 1 file changed, 15 insertions(+), 25 deletions(-)
 
-  Taking and dropping mmap_sem to modify a single counter, locked_vm, is
-  overkill when the counter could be synchronized separately.
-  
-  Make mmap_sem a little less coarse by changing locked_vm to an atomic,
-  the 64-bit variety to avoid issues with overflow on 32-bit systems.
-
-This is a more conservative alternative to [1] with no user-visible
-effects.  Thanks to Alexey Kardashevskiy for pointing out the racy
-atomics and to Alex Williamson, Christoph Lameter, Ira Weiny, and Jason
-Gunthorpe for their comments on [1].
-
-Davidlohr Bueso recently did a similar conversion for pinned_vm[2].
-
-Testing
- 1. passes LTP mlock[all], munlock[all], fork, mmap, and mremap tests in an
-    x86 kvm guest
- 2. a VFIO-enabled x86 kvm guest shows the same VmLck in
-    /proc/pid/status before and after this change
- 3. cross-compiles on powerpc
-
-The series is based on v5.1-rc3.  Please consider for 5.2.
-
-Daniel
-
-[1] https://lore.kernel.org/linux-mm/20190211224437.25267-1-daniel.m.jordan@oracle.com/
-[2] https://lore.kernel.org/linux-mm/20190206175920.31082-1-dave@stgolabs.net/
-
-Daniel Jordan (6):
-  mm: change locked_vm's type from unsigned long to atomic64_t
-  vfio/type1: drop mmap_sem now that locked_vm is atomic
-  vfio/spapr_tce: drop mmap_sem now that locked_vm is atomic
-  fpga/dlf/afu: drop mmap_sem now that locked_vm is atomic
-  powerpc/mmu: drop mmap_sem now that locked_vm is atomic
-  kvm/book3s: drop mmap_sem now that locked_vm is atomic
-
- arch/powerpc/kvm/book3s_64_vio.c    | 34 ++++++++++--------------
- arch/powerpc/mm/mmu_context_iommu.c | 28 +++++++++-----------
- drivers/fpga/dfl-afu-dma-region.c   | 40 ++++++++++++-----------------
- drivers/vfio/vfio_iommu_spapr_tce.c | 37 ++++++++++++--------------
- drivers/vfio/vfio_iommu_type1.c     | 31 +++++++++-------------
- fs/proc/task_mmu.c                  |  2 +-
- include/linux/mm_types.h            |  2 +-
- kernel/fork.c                       |  2 +-
- mm/debug.c                          |  5 ++--
- mm/mlock.c                          |  4 +--
- mm/mmap.c                           | 18 ++++++-------
- mm/mremap.c                         |  6 ++---
- 12 files changed, 89 insertions(+), 120 deletions(-)
-
-
-base-commit: 79a3aaa7b82e3106be97842dedfd8429248896e6
+diff --git a/drivers/fpga/dfl-afu-dma-region.c b/drivers/fpga/dfl-afu-dma-region.c
+index 08132fd9b6b7..81e3e3a71758 100644
+--- a/drivers/fpga/dfl-afu-dma-region.c
++++ b/drivers/fpga/dfl-afu-dma-region.c
+@@ -35,46 +35,36 @@ void afu_dma_region_init(struct dfl_feature_platform_data *pdata)
+  * afu_dma_adjust_locked_vm - adjust locked memory
+  * @dev: port device
+  * @npages: number of pages
+- * @incr: increase or decrease locked memory
+  *
+  * Increase or decrease the locked memory size with npages input.
+  *
+  * Return 0 on success.
+  * Return -ENOMEM if locked memory size is over the limit and no CAP_IPC_LOCK.
+  */
+-static int afu_dma_adjust_locked_vm(struct device *dev, long npages, bool incr)
++static int afu_dma_adjust_locked_vm(struct device *dev, long pages)
+ {
+-	unsigned long locked, lock_limit;
++	unsigned long lock_limit;
+ 	s64 locked_vm;
+ 	int ret = 0;
+ 
+ 	/* the task is exiting. */
+-	if (!current->mm)
++	if (!current->mm || !pages)
+ 		return 0;
+ 
+-	down_write(&current->mm->mmap_sem);
+-
+-	locked_vm = atomic64_read(&current->mm->locked_vm);
+-	if (incr) {
+-		locked = locked_vm + npages;
++	locked_vm = atomic64_add_return(pages, &current->mm->locked_vm);
++	WARN_ON_ONCE(locked_vm < 0);
++	if (pages > 0 && !capable(CAP_IPC_LOCK)) {
+ 		lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+-
+-		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
++		if (locked_vm > lock_limit) {
+ 			ret = -ENOMEM;
+-		else
+-			atomic64_add(npages, &current->mm->locked_vm);
+-	} else {
+-		if (WARN_ON_ONCE(npages > locked_vm))
+-			npages = locked_vm;
+-		atomic64_sub(npages, &current->mm->locked_vm);
++			atomic64_sub(pages, &current->mm->locked_vm);
++		}
+ 	}
+ 
+ 	dev_dbg(dev, "[%d] RLIMIT_MEMLOCK %c%ld %lld/%lu%s\n", current->pid,
+-		incr ? '+' : '-', npages << PAGE_SHIFT,
+-		(s64)atomic64_read(&current->mm->locked_vm) << PAGE_SHIFT,
+-		rlimit(RLIMIT_MEMLOCK), ret ? "- exceeded" : "");
+-
+-	up_write(&current->mm->mmap_sem);
++		(pages > 0) ? '+' : '-', pages << PAGE_SHIFT,
++		locked_vm << PAGE_SHIFT, rlimit(RLIMIT_MEMLOCK),
++		ret ? "- exceeded" : "");
+ 
+ 	return ret;
+ }
+@@ -94,7 +84,7 @@ static int afu_dma_pin_pages(struct dfl_feature_platform_data *pdata,
+ 	struct device *dev = &pdata->dev->dev;
+ 	int ret, pinned;
+ 
+-	ret = afu_dma_adjust_locked_vm(dev, npages, true);
++	ret = afu_dma_adjust_locked_vm(dev, npages);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -123,7 +113,7 @@ static int afu_dma_pin_pages(struct dfl_feature_platform_data *pdata,
+ free_pages:
+ 	kfree(region->pages);
+ unlock_vm:
+-	afu_dma_adjust_locked_vm(dev, npages, false);
++	afu_dma_adjust_locked_vm(dev, -npages);
+ 	return ret;
+ }
+ 
+@@ -143,7 +133,7 @@ static void afu_dma_unpin_pages(struct dfl_feature_platform_data *pdata,
+ 
+ 	put_all_pages(region->pages, npages);
+ 	kfree(region->pages);
+-	afu_dma_adjust_locked_vm(dev, npages, false);
++	afu_dma_adjust_locked_vm(dev, -npages);
+ 
+ 	dev_dbg(dev, "%ld pages unpinned\n", npages);
+ }
 -- 
 2.21.0
 
