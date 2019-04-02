@@ -3,122 +3,129 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5ADE5C4360F
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 19:26:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61F3CC4360F
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 19:49:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 23CD12082C
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 19:26:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 23CD12082C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 09C522075E
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 19:49:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 09C522075E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A48BB6B0273; Tue,  2 Apr 2019 15:26:44 -0400 (EDT)
+	id 5A4006B0273; Tue,  2 Apr 2019 15:49:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9F8B36B0274; Tue,  2 Apr 2019 15:26:44 -0400 (EDT)
+	id 553636B0274; Tue,  2 Apr 2019 15:49:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8C0F66B0275; Tue,  2 Apr 2019 15:26:44 -0400 (EDT)
+	id 46A916B0275; Tue,  2 Apr 2019 15:49:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5680A6B0273
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 15:26:44 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id h15so10492754pfj.22
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 12:26:44 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2580D6B0273
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 15:49:06 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id l26so14371640qtk.18
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 12:49:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=Ru63b56YkJYzy/hWEL/aVO+6QHkZEdTGvps5jBMoL+o=;
-        b=LWWT8DyWBe/AOnIL0GGPqicrwmhycDlcDhoxHvu4iwZCUileroSZJrH4cljINDbWnN
-         +cxEsaCq5des+eCGgaZCl0TzTRhyh5R8Lyx2Y+UALiycUycQoIlemQBWecVdDVTzarw+
-         2lKVDDWOyA9zHz/6OLpriAYZQRDd9uS0+5WEE+FjxslRQ+aC3ncXZa9gPsUziwHUazj+
-         3tiYuodU7vTHBHYQT/FOL42iygLKOgHqkFAamv0LUDuDgSws4KbfQD6KZNLx7BfdWwyh
-         orv+/4o2NlNMHxAkf1jIAEhO6MIyQ9A6376l6b0f6U4q7YjhUBpo3wxQbIYyry8+tpSF
-         a8Ow==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: APjAAAUvHA7/dOfzngTRRVpCggyAQBJLfvXNsgd71o0y7r0KffcFQTYe
-	9RTzdrGJMDPPofmF8bUzUFAvZ0fdByiTKmS0hnlR+U03ni1dfU83ElXsIVU8C/Rubdf4mmVgvUN
-	X1Li/Ib/CKO1paRA1F8+OBZRl80VAZk+V9jDxLburK5bkuDsRHjRj8fINhnLVaqGXmQ==
-X-Received: by 2002:a17:902:ea0d:: with SMTP id cu13mr14693292plb.92.1554233203980;
-        Tue, 02 Apr 2019 12:26:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxfVpmqihtAE2XU0RYVGS1YhWvVcZd9iW7iRUYYzBYhGMGa1nFV7/F7Y0WnFV83BcIU8urc
-X-Received: by 2002:a17:902:ea0d:: with SMTP id cu13mr14693259plb.92.1554233203306;
-        Tue, 02 Apr 2019 12:26:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554233203; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=Hj5v9f5m4XcpUD3AHCmGwsgzwcyKpLxNeHtv55UKsvQ=;
+        b=czsaf3UGeWRcYlQkQaJsux8xqUiCNyhOw6A6wnayAM3qkTMv/FZVZzAckQ8GJvw0Y1
+         mr5yzi4fYrr38abu/kqAir8c+EpuJnhmhbHUCsdcOJTsvpyYdOJ6VMrNGXl6q+84J2zY
+         CxdmtDCymT0xmxeDkBkECMF4hyj6Qu6WoKAzQBxePbs9eAvfnnYOS0onKtkl3v6d8gMk
+         5eRfeTBZTsad/FYJrOIGKJD7ewGA71jMf7lmMMnc3DYn7n1l/V1uwsY7sreyiguiEXMz
+         8i9xfN7dVGZ9Hi+qd5g22ZVR4R7If5fOJjjMiiiPgfU1p82jKGE7olX3voDc2YAAHFrc
+         Inqg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXr55Z2WJryD5N3o3tdqW8GNn20W5RVmLmFg7oTxh7YlS1uHpGV
+	MpvFNfFdw0GWjVzzTBp3PC/XHju81gSWNMlOaWf243Gxq275BXoNKBm4LN3emUSaIh0gfsmygIR
+	t6n8D+pIAQFyGkLDvJYIZtYKNbmKq9q+fEuy/ATAyRAU+sB1K9BzEdX1cFKhisOLc5w==
+X-Received: by 2002:ac8:65ce:: with SMTP id t14mr58400888qto.255.1554234545893;
+        Tue, 02 Apr 2019 12:49:05 -0700 (PDT)
+X-Received: by 2002:ac8:65ce:: with SMTP id t14mr58400846qto.255.1554234545227;
+        Tue, 02 Apr 2019 12:49:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554234545; cv=none;
         d=google.com; s=arc-20160816;
-        b=W/kcfI8j4/xTH37Q3kwYrk2WbHnvD9juO1WnJwFrbyC4in4zE/nadVPNsTek1EQsTk
-         R2XE4rBizrFHfLuc0QbOZ8/si1GHKFGGWrC3mNgvJoCTJWh2gTqH8cYtlvaJCJIG/Mq8
-         WtT0p2EYppsUforGQvx2oAbF7IVSn6rN1HwcuoyJ/KFF8qgEsQvQFpg0+wgnGt/Fs4W/
-         e3290Kczdf9mY61zycXXqX9kW1mBbcRKABsXuFFkQlMrp2pfolkItPiEGIO0GYvieg5R
-         w2txV+7hFXbAwG7M4Cp4Psqd2zTjPBiLAdWeIJ1yjhwM8fa/OT8O3Yu/jCBWfZ8ci15l
-         /9Ug==
+        b=QpmU8fz/5mTFCsDVRS91mj98XZoja3QfdiW7dvQilDTMGc01PkucMCv2HnQQOw9Eca
+         WrzIuANgqfuysd001ZALUpRUyJraJB5PZLJg/vglSaLhUJE3OuYLM8seGZcNVIhkti3H
+         MsPH4mItvYE1oEJUilw8xBMmmDCPj6quzq4ROSWLaRcJpZ//36hHA5YAmfxkZ6a9EU4u
+         yqrt/RnB6KsKZmiPgi3k6PT37PbvQJN5JzrSZ71PBV+d4U/5pehKO2ueZaDMqYomFGy4
+         TqPNR9M8WHSnpP8AJu4q+uyzf48r9Iw5GQgjOl5Z9IXTti/Sorcf6ZZvVb1cYMQb3Efd
+         SKLQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date;
-        bh=Ru63b56YkJYzy/hWEL/aVO+6QHkZEdTGvps5jBMoL+o=;
-        b=sE80YFVgpkyslnQcg3PfRcwM72xlQb3+DyMGwLzcaS1zhMG7I+f9rwzB9wNcztdOiE
-         vND5KmoWTBrkF6tYKnnSQGMdZpu3G+mAuta1i1doFodLlEzmcRyrDYTBEirsp0WUugjL
-         Kc6cx9tEBYch2TcOP9iMzRuOU+7xFi6G4gqafkguzggkuJq5Eaevym0Aqo8FP/ZtTOR5
-         JKOSeb7d6MPMZTZTPfYBADnCBYNu5LcmIXAVk/QJel61tno33U/SqjO+Co7REmBPaDm8
-         WtxQ0n1VM0wR0eKW2Z8vHiMcsBQ63hpb+y52k0DSDa1L0edAunUlp/hmF0o7gkbJp8su
-         SNvQ==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=Hj5v9f5m4XcpUD3AHCmGwsgzwcyKpLxNeHtv55UKsvQ=;
+        b=vVPdooFivmHoBJn4KmpK9TbTpUT4k1NzajAq/79kJbOFmezw8/aZcoihkIcAVQ9BAd
+         WJuKDNlc+3srkS9dCz8Ffmg9aSXHMRpi3urzVXf4lzcc1xX9mgrLuq6cpZIoeKLJc3d6
+         Oluo51vCWdVpaig4BbxlOxgv0OhUwSMV7CtmhofFf4Z+2Du6ZH8JtxpD6fKJHsLMI1Sd
+         +S0gqRjtf2dYsAC5r5ic4n88RQGs2Yzj/uGN1VNYHkpUHk6LRlFs3pKTd+ONhfRDar7q
+         TNjf+ZMnm29SlwVDoBncAeevdybb/Wr4W8FqZM3T796FSOKjrHw3lhV5RMVQcxC9O8uk
+         JYWQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id m10si11538912pll.355.2019.04.02.12.26.43
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q11sor19622156qtq.28.2019.04.02.12.49.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Apr 2019 12:26:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
+        (Google Transport Security);
+        Tue, 02 Apr 2019 12:49:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 1689CEA2;
-	Tue,  2 Apr 2019 19:26:42 +0000 (UTC)
-Date: Tue, 2 Apr 2019 12:26:41 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
-Cc: Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@suse.com>, Matthew
- Wilcox <willy@infradead.org>, linux-mm@kvack.org, LKML
- <linux-kernel@vger.kernel.org>, Thomas Garnier <thgarnie@google.com>,
- Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Steven Rostedt
- <rostedt@goodmis.org>, Joel Fernandes <joelaf@google.com>, Thomas Gleixner
- <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Tejun Heo
- <tj@kernel.org>, <rong.a.chen@intel.com>
-Subject: Re: [RESEND PATCH 0/3] improve vmap allocation
-Message-Id: <20190402122641.d4c8b7cbc6409ad14c13f3aa@linux-foundation.org>
-In-Reply-To: <20190402162531.10888-1-urezki@gmail.com>
-References: <20190402162531.10888-1-urezki@gmail.com>
-X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqyssdHTS/DKlsZsXRC9d0R0s3gdduOA5QVLCvuRf6QzAqxPUhlhL0TEas0IduN6EdWwMJPg8g==
+X-Received: by 2002:ac8:21c7:: with SMTP id 7mr58333120qtz.66.1554234544899;
+        Tue, 02 Apr 2019 12:49:04 -0700 (PDT)
+Received: from redhat.com ([66.187.232.66])
+        by smtp.gmail.com with ESMTPSA id a75sm6940361qkg.84.2019.04.02.12.49.02
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 02 Apr 2019 12:49:03 -0700 (PDT)
+Date: Tue, 2 Apr 2019 15:49:00 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: David Hildenbrand <david@redhat.com>
+Cc: Alexander Duyck <alexander.duyck@gmail.com>,
+	Nitesh Narayan Lal <nitesh@redhat.com>,
+	kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+	linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>,
+	lcapitulino@redhat.com, pagupta@redhat.com,
+	Yang Zhang <yang.zhang.wz@gmail.com>,
+	Rik van Riel <riel@surriel.com>, dodgen@google.com,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Dave Hansen <dave.hansen@intel.com>
+Subject: Re: On guest free page hinting and OOM
+Message-ID: <20190402154732-mutt-send-email-mst@kernel.org>
+References: <20190401104608-mutt-send-email-mst@kernel.org>
+ <CAKgT0UcJuD-t+MqeS9geiGE1zsUiYUgZzeRrOJOJbOzn2C-KOw@mail.gmail.com>
+ <6a612adf-e9c3-6aff-3285-2e2d02c8b80d@redhat.com>
+ <CAKgT0Ue_By3Z0=5ZEvscmYAF2P40Bdyo-AXhH8sZv5VxUGGLvA@mail.gmail.com>
+ <20190402112115-mutt-send-email-mst@kernel.org>
+ <3dd76ce6-c138-b019-3a43-0bb0b793690a@redhat.com>
+ <CAKgT0Uc78NYnva4T+G5uas_iSnE_YHGz+S5rkBckCvhNPV96gw@mail.gmail.com>
+ <6b0a3610-0e7b-08dc-8b5f-707062f87bea@redhat.com>
+ <CAKgT0UdHA66z1j=3H06AfgtiF4ThFdXwQ6i8p1MszdL2bRHeZQ@mail.gmail.com>
+ <d105e3c7-52b4-de94-9f61-0aee5442d463@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d105e3c7-52b4-de94-9f61-0aee5442d463@redhat.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue,  2 Apr 2019 18:25:28 +0200 "Uladzislau Rezki (Sony)" <urezki@gmail.com> wrote:
+On Tue, Apr 02, 2019 at 08:21:30PM +0200, David Hildenbrand wrote:
+> The other extreme is a system that barely frees (MAX_ORDER - X) pages,
+> however your thread will waste cycles scanning for such.
 
-> Changes in v3
-> -------------
-> - simplify the __get_va_next_sibling() and __find_va_links() functions;
-> - remove "unlikely". Place the WARN_ON_ONCE directly to the "if" condition;
-> - replace inline to __always_inline;
-> - move the debug code to separate patches;
+I don't think we need to scan as such. An arch hook
+that queues a job to a wq only when there's work to
+do will fix the issue, right?
 
-Does v3 address the report from kernel test robot
-<rong.a.chen@intel.com>, Subject "[mm/vmalloc.c] 7ae76449bd:
-kernel_BUG_at_lib/list_debug.c".
-
-For some reason I cannot find that email in my linux-kernel folder and
-nor does google find it and
-http://lkml.kernel.org/r/20190401132655.GD9217@shao2-debian doesn't
-work.  Message-ID 20190401132655.GD9217@shao2-debian doesn't seem to
-have got through the list server.  Ditto linux-mm.
+-- 
+MST
 
