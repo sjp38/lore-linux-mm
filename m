@@ -1,135 +1,145 @@
-Return-Path: <SRS0=sWz3=SD=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=cFM0=SE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 18632C43381
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 23:06:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4A04FC10F05
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 02:55:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CDD5C20880
-	for <linux-mm@archiver.kernel.org>; Mon,  1 Apr 2019 23:06:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CDD5C20880
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id D7B79207E0
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 02:55:04 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="S80rgrKK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D7B79207E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5C6D06B0003; Mon,  1 Apr 2019 19:06:02 -0400 (EDT)
+	id 36CEC6B0003; Mon,  1 Apr 2019 22:55:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 575DF6B0005; Mon,  1 Apr 2019 19:06:02 -0400 (EDT)
+	id 31D036B0005; Mon,  1 Apr 2019 22:55:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4191A6B0007; Mon,  1 Apr 2019 19:06:02 -0400 (EDT)
+	id 20D216B0007; Mon,  1 Apr 2019 22:55:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 090C16B0003
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 19:06:02 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id u78so8319497pfa.12
-        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 16:06:01 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DD15C6B0003
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 22:55:03 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id q7so8888926plr.7
+        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 19:55:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=EtKHIy8fQa/h8PAhFjMfd95BFLV40kjPqj5XwEyKlRI=;
-        b=mmyyqAkwPsUiSDTzzSGmrTgJRz+MNqeBaO5Hzs40whqfGYZ1BHcvmntBSG3DL92+zg
-         qQCz/DqbczPfmEvUTIX7g+tDHf5sQq+9a1DXB6Fotylb7VfUUseOilo0ev+fhkt1kFCm
-         JNE7HG5XoAnAX4XTibzhAP6KfgBneS7kguh/fkBWCLzqdgEowJIq1TgDNX9H71ZiOPDk
-         l12FeHHW8RvV5c0Z2GGHF27H/i9OiQX3ofmSGGINi2ETe3d3Fo+JnAO2e9CYy97Ke2oP
-         TtP/HP/DEB+DwVxx/S+O+SlVb40yvaoIsGHJQHhGu4rvm4eKxuvB4jMC/rPGThmdR8+t
-         gnFg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: APjAAAXRdOH3qfmPLq21iop4wiqGNLR0Ase+1I3d7BgM9V4qNl+aloZY
-	avJfJeNkcwLAA6zAtdZw+W6BiTSuXM+q32ervTjnCc6Cg71gI6kfQ4IycrKTUBzv7IRFuXSiNby
-	HQk4QIPCELjyd6Hy3ujJlBiklrCoof3ZsZSXDZqnzYuhGDSKL38rHauc5VKhONRFCVA==
-X-Received: by 2002:a17:902:e48c:: with SMTP id cj12mr19568582plb.93.1554159961611;
-        Mon, 01 Apr 2019 16:06:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyLOHNPnIR3SCkp+hThrz0Arv5jMHgfAK1ME6lZbEav5mjEXhOoTB5MyeSaCbh8B6nSvieP
-X-Received: by 2002:a17:902:e48c:: with SMTP id cj12mr19568518plb.93.1554159960796;
-        Mon, 01 Apr 2019 16:06:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554159960; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=2YJv0TU4reqr1XesjZUu85dr59wYQQ2sU3iSxRPA0nA=;
+        b=QhX8cz4aZlfJUtijtb1//zJBODuaCHvtPNG9n/gWoSiyA4IxnBjtdzLbNaDB7vsl0x
+         Ufix/2vcO994yDBSJKtPXn+K8yF3qkDKrXhviFHoMTugtknRmVrQUo8kAVtPIv/Xrk7/
+         Jvy7lS2LBGIPh0798YeT72oAXp0BY40Nt2jsjXMLVB0LIqoYbu9C67EF6PRmW41CRsAi
+         BW3lfVZkjjoXE+vsTD3f7/8hMPMujwkJ6vrTfEBusaKix7qGfABMzIMfIt14VBuRQ+jc
+         LhGnaEpwag5bDrvsbO6kRWOBtkyLRZMW8nG0d6tI570tDE31r+yDN4IIeyAHOtgNYXMP
+         TfPw==
+X-Gm-Message-State: APjAAAWFXjikBlX1R+RVYZnKlney0ja2P/bvHpNJy/+itkvsVWk4EWMc
+	xuT8K0dcGjCV8NqMxVZJFmTZYh8lKnc5V3xaIu56iUITZhRzt9K633jMs44EmYI+rE7nrc8GZyX
+	m8KVxndtGi8Q8fgRGNpoYwEMcepcZ2AX/ov3Q765wfbVbftzUHUMHKcEIp+Lu1VmdkA==
+X-Received: by 2002:a17:902:b282:: with SMTP id u2mr49937494plr.9.1554173703435;
+        Mon, 01 Apr 2019 19:55:03 -0700 (PDT)
+X-Received: by 2002:a17:902:b282:: with SMTP id u2mr49937449plr.9.1554173702577;
+        Mon, 01 Apr 2019 19:55:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554173702; cv=none;
         d=google.com; s=arc-20160816;
-        b=n52ouSk2HQ1Mcv+L+5/1q6mayrl515X436j9ECIyy6Heh6D9nD6GnXkMHYIcOgjDOi
-         zkcSGb3GEJGzCKTWjCI4m2IW1pN9PCd5iO3QOOkfSBKzoVwHHJpnHH86Q9qP0WOSMsMe
-         F1j6Aax0UBw52pEbUX9sFMWEFcfj2wzvNOwnz27MjObNsm4vm9nbcil+fZ7O9mMfvRjq
-         ouXw/C1ooSuAvwLVTycGjsVKlAnpykti8UDl05hsUmuPsn1I2PdwcDrVQR6xkjZP5VPq
-         tH0xdQHZ1ncoZbQylZmoIX4HEuvIt/+KtiPZyUzovUXhjoRXNQQd34sDO8hBy4HA3aP1
-         kWbw==
+        b=PFLyq6qVxNhWpEbswngBCIPs/M5WlSVfV0lPSG8YUatIeUheib1vLly5GJeoYkkiiq
+         e28nsVJ0LR1ZvtB94Gtn4am7UbG5dDYoxjxHWX66kQk8GRLBlCjn25jTioh70c1L1Xw6
+         GjLMAz8/mTVaHTWjTCQiZf0LT69ZhWmSswL/X1dKAJiIX/4Hj7eEXy+YSscDkbxWR9Ed
+         l61f717wX2jhjjfVEQkihbK87+IQZm8eu3o3ZbaoCyT/BCSkXl5IEBFlz+UlpgwfxZL1
+         1pehrP8vPKhW3A95FZ6+43jDwlld2j1F0xA9Uly93+o+0OHssaHeOHmnSAyslfvD6iUA
+         OGvw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date;
-        bh=EtKHIy8fQa/h8PAhFjMfd95BFLV40kjPqj5XwEyKlRI=;
-        b=k3bMd9q7TOxaD0uUAClJzWBIx1eYMofDqJ99xaizQRotHcQaAP8bvjYIa2j9oE5qH5
-         faQsYmRweFRN1PxOE2KHQ52HdYNe0tWqOdd8XWtieNEAQn7C8wEn7ZtS11gXtx6++alo
-         7nsYFPm+92diSCoUeXl+vlcxS6HGm5nJq/F21GA1mFBWnLT3+l6L3gKygnF8evnnC6Sj
-         L2J1wGdgHm8s7fdo3l/GVMlJA22iYs5dCeZJNH9QiBZUgvevy10ATV9XRfbYsMuBN3s7
-         T1exUePBr2QBINCiZZoU9QIPvkBQb5dpDFleMmoPtyKrQeGxfmO7z5hcAjn7cT8KaV9H
-         6cNg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=2YJv0TU4reqr1XesjZUu85dr59wYQQ2sU3iSxRPA0nA=;
+        b=JfUVFu3C+KY9xZ/ICCMNrtjkbD6ZA7Nk6RJd4InWC7JAh4wyBjL6w8d90NBlPoUFk8
+         YUyaPwyvRle9FOZ74qtazXrePiqOzTbqmWPRU+UfAUUB/XcnNwD6T/9st4M2mBUoAHid
+         LKyOuyTjCTOpYM+KO0xK2rZLcPAk9of62S0se2UtUgilvluNLNDX7LRbxDToyEHw3g6i
+         AbfctdhaqGMnbByVToHG+4QKCeunfp09VSMoER9wZ4DGeCTDTLbyR5qDl9MvJZ4JiH1P
+         IMjsMT7chJ6MfcYWphTqtgDL3VDEvLF8BICdH+ph75oyxfJO42WBWOIQKx5dKD15VEPK
+         ET5A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id m26si9767657pfi.247.2019.04.01.16.06.00
+       dkim=pass header.i=@google.com header.s=20161025 header.b=S80rgrKK;
+       spf=pass (google.com: domain of ndesaulniers@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=ndesaulniers@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f12sor12673882pgp.66.2019.04.01.19.55.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Apr 2019 16:06:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
+        (Google Transport Security);
+        Mon, 01 Apr 2019 19:55:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ndesaulniers@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 51957B59;
-	Mon,  1 Apr 2019 23:06:00 +0000 (UTC)
-Date: Mon, 1 Apr 2019 16:05:59 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Alexey Dobriyan <adobriyan@gmail.com>
-Cc: linux-mm@kvack.org
-Subject: Re: [PATCH] Bump vm.mmap_min_addr on 64-bit
-Message-Id: <20190401160559.6e945d8d235ae16006702bfc@linux-foundation.org>
-In-Reply-To: <20190401050613.GA16287@avx2>
-References: <20190401050613.GA16287@avx2>
-X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@google.com header.s=20161025 header.b=S80rgrKK;
+       spf=pass (google.com: domain of ndesaulniers@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=ndesaulniers@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=2YJv0TU4reqr1XesjZUu85dr59wYQQ2sU3iSxRPA0nA=;
+        b=S80rgrKKnKgYNCbvkSPiIuDGpRPXZ5PcLNMr8oY8XBSSnzoUNg1wh2K+j+SDx3D6KZ
+         y67KJ3vRFSFhU+8rxZmJARzpzjtyYmpOfNMZzwrKFM8kmu5QoK4AF2gvXHa2J93wwbND
+         n+XLuFEc2J2TB2zeVCsLAxbLrt8LQsBtlRvByqaEkDdoa8uLwU/SA+mthltHW/KCb6go
+         Od8a8pSd2glFkZKmpeErd3GtbSACJEiQ9tgBl0w2NRg3bLHDJ2QVOIYuhh35nAtUtV1j
+         KOoVF0U0HQnV76bItRJ4RPzcrDsRoux2U9ue1+vdxGVWpKSTFD8hXNmzdeGzQDYsB2/g
+         ALqA==
+X-Google-Smtp-Source: APXvYqzCV5fvCjc8AQ2luhPjV0wd8ML4qhCjaMK9ahShMpCfz9YWDN4+7uPlOM+kDxTJd2fLOu9sX6RlX3SqvdiC70E=
+X-Received: by 2002:a63:7444:: with SMTP id e4mr46157276pgn.261.1554173701838;
+ Mon, 01 Apr 2019 19:55:01 -0700 (PDT)
+MIME-Version: 1.0
+References: <eea3ce6a-732b-5c1d-9975-eddaeee21cf5@infradead.org>
+ <20190329181839.139301-1-ndesaulniers@google.com> <83226cfb-afa7-0174-896c-d9f7a6193cf4@infradead.org>
+ <CANA+-vAcW0VfAZmZWi84s1pQQ+tFx8VyzYsWi5_gj7vHT3Ao6Q@mail.gmail.com>
+In-Reply-To: <CANA+-vAcW0VfAZmZWi84s1pQQ+tFx8VyzYsWi5_gj7vHT3Ao6Q@mail.gmail.com>
+From: Nick Desaulniers <ndesaulniers@google.com>
+Date: Tue, 2 Apr 2019 09:54:50 +0700
+Message-ID: <CAKwvOd=PstHEm_Vxtx_SGanKhAJSjoQiCb3kgCVeK4peUF2k-g@mail.gmail.com>
+Subject: Re: [PATCH v2] gcov: fix when CONFIG_MODULES is not set
+To: Tri Vo <trong@android.com>
+Cc: Randy Dunlap <rdunlap@infradead.org>, Peter Oberparleiter <oberpar@linux.ibm.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, Greg Hackmann <ghackmann@android.com>, 
+	Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org, kbuild test robot <lkp@intel.com>, 
+	LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Apr 2019 08:06:13 +0300 Alexey Dobriyan <adobriyan@gmail.com> wrote:
-
-> No self respecting 64-bit program should ever touch that lowly 32-bit
-> part of address space.
+On Sun, Mar 31, 2019 at 6:57 AM Tri Vo <trong@android.com> wrote:
 >
-> ...
->
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -306,7 +306,8 @@ config KSM
->  config DEFAULT_MMAP_MIN_ADDR
->          int "Low address space to protect from user allocation"
->  	depends on MMU
-> -        default 4096
-> +	default 4096 if !64BIT
-> +	default 4294967296 if 64BIT
->          help
->  	  This is the portion of low virtual memory which should be protected
->  	  from userspace allocation.  Keeping a user from writing to low pages
-> --- a/security/Kconfig
-> +++ b/security/Kconfig
-> @@ -129,7 +129,8 @@ config LSM_MMAP_MIN_ADDR
->  	int "Low address space for LSM to protect from user allocation"
->  	depends on SECURITY && SECURITY_SELINUX
->  	default 32768 if ARM || (ARM64 && COMPAT)
-> -	default 65536
-> +	default 65536 if !64BIT
-> +	default 4294967296 if 64BIT
->  	help
->  	  This is the portion of low virtual memory which should be protected
->  	  from userspace allocation.  Keeping a user from writing to low pages
+> On Fri, Mar 29, 2019 at 1:53 PM Randy Dunlap <rdunlap@infradead.org> wrote:
+> >
+> > On 3/29/19 11:18 AM, Nick Desaulniers wrote:
+> > > Fixes commit 8c3d220cb6b5 ("gcov: clang support")
+> >
+> > There is a certain format for Fixes: and that's not quite it. :(
 
-Gee.  Do we have any idea what effect this will have upon all userspace
-programs, some of which do inexplicably weird things?
+Looks like the format is:
+Fixes: <first 12 characters of commit sha> ("<first line of commit>")
+so:
+Fixes: 8c3d220cb6b5 ("gcov: clang support")
 
-What's the benefit?
+We should update:
+https://www.kernel.org/doc/html/v5.0/process/stable-kernel-rules.html
+to include this information.
+
+> Thanks for taking a look at this Nick! I believe same fix should be
+> applied to kernel/gcov/clang.c. I'll send out an updated version later
+> today.
+
+All yours, happy to review.
+
+-- 
+Thanks,
+~Nick Desaulniers
 
