@@ -3,97 +3,96 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B2266C4360F
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 19:12:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5ADE5C4360F
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 19:26:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7B3FE2082C
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 19:12:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B3FE2082C
+	by mail.kernel.org (Postfix) with ESMTP id 23CD12082C
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 19:26:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 23CD12082C
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 28B486B0273; Tue,  2 Apr 2019 15:12:43 -0400 (EDT)
+	id A48BB6B0273; Tue,  2 Apr 2019 15:26:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 23B3E6B0274; Tue,  2 Apr 2019 15:12:43 -0400 (EDT)
+	id 9F8B36B0274; Tue,  2 Apr 2019 15:26:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 12A4D6B0275; Tue,  2 Apr 2019 15:12:43 -0400 (EDT)
+	id 8C0F66B0275; Tue,  2 Apr 2019 15:26:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C64F06B0273
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 15:12:42 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id o61so10528829pld.21
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 12:12:42 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5680A6B0273
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 15:26:44 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id h15so10492754pfj.22
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 12:26:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=+muWnmDnL8oDPBA3wIcHek9GRIbdD/+2O0D6DSEsRhE=;
-        b=sdYJmk/oaN2BTqP0U4u/8EIlJotPs8aeMxVNdBiBFgP3Gvn7XAg7wfIK8zFHTLt4aD
-         yYURYfk/5Eiu+Hn6cod3OyG/NIvAsdNnwntobP2vyKQaMbKGNswlOO3F/9KDZQNg4rCz
-         T7HlVo3aEL9qv1UmPsKUYbcHxXNAciOtKI/C2EbqkausnispsS6x0OWIcd15M7P5PxGQ
-         FQ3LAYJOmIC8SHQYIaYgKwnvMrLzMmEKF2GhqAa0Cv2PpoppMhpuqRHcQcsESVHiEVn/
-         FChDO7kp/YLMgh2l+C0x4Jox8iJS+XfPHUl0Bd1xb3EkJx2IdaIi1CAIssl+PWsS6JEu
-         l0Ag==
+        bh=Ru63b56YkJYzy/hWEL/aVO+6QHkZEdTGvps5jBMoL+o=;
+        b=LWWT8DyWBe/AOnIL0GGPqicrwmhycDlcDhoxHvu4iwZCUileroSZJrH4cljINDbWnN
+         +cxEsaCq5des+eCGgaZCl0TzTRhyh5R8Lyx2Y+UALiycUycQoIlemQBWecVdDVTzarw+
+         2lKVDDWOyA9zHz/6OLpriAYZQRDd9uS0+5WEE+FjxslRQ+aC3ncXZa9gPsUziwHUazj+
+         3tiYuodU7vTHBHYQT/FOL42iygLKOgHqkFAamv0LUDuDgSws4KbfQD6KZNLx7BfdWwyh
+         orv+/4o2NlNMHxAkf1jIAEhO6MIyQ9A6376l6b0f6U4q7YjhUBpo3wxQbIYyry8+tpSF
+         a8Ow==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: APjAAAU3dkq47v0OCdw/TX+4A0eGH2gl5TsUODB85qM6tuZucljA4VnG
-	oeO0jISTxmJULUslaW4XFccj6TIte7oVIrHlDLi10RsOJ59XpELCHztJkVCgGQKG3qrYw1ZZcW8
-	N1cfAzNigUYY7zP40kyAl+i31DyOWKlJRHERgjgcDMJOAH1aRvv2BG6QO+zvEbaB6TQ==
-X-Received: by 2002:a63:7808:: with SMTP id t8mr35246360pgc.127.1554232362415;
-        Tue, 02 Apr 2019 12:12:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxsK9+NeQpYOo/CWC9WMraT/Y9fcm8+luUp1XS/6BVPSWb37/3EuywxbJedioDJsQcyxO07
-X-Received: by 2002:a63:7808:: with SMTP id t8mr35246293pgc.127.1554232361633;
-        Tue, 02 Apr 2019 12:12:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554232361; cv=none;
+X-Gm-Message-State: APjAAAUvHA7/dOfzngTRRVpCggyAQBJLfvXNsgd71o0y7r0KffcFQTYe
+	9RTzdrGJMDPPofmF8bUzUFAvZ0fdByiTKmS0hnlR+U03ni1dfU83ElXsIVU8C/Rubdf4mmVgvUN
+	X1Li/Ib/CKO1paRA1F8+OBZRl80VAZk+V9jDxLburK5bkuDsRHjRj8fINhnLVaqGXmQ==
+X-Received: by 2002:a17:902:ea0d:: with SMTP id cu13mr14693292plb.92.1554233203980;
+        Tue, 02 Apr 2019 12:26:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxfVpmqihtAE2XU0RYVGS1YhWvVcZd9iW7iRUYYzBYhGMGa1nFV7/F7Y0WnFV83BcIU8urc
+X-Received: by 2002:a17:902:ea0d:: with SMTP id cu13mr14693259plb.92.1554233203306;
+        Tue, 02 Apr 2019 12:26:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554233203; cv=none;
         d=google.com; s=arc-20160816;
-        b=WnecF9yYOlzbm2kAgp6lvzPZq9vF6z8eUUZHdWkYC/PRY+DUO+Q9QfJwWiVFKQPRAd
-         t4vyruNkSkTbiVQ0e64BNZfRlCfKxyRjYSCYkPJqtUa0sTPKNsoCFf39nrL0XA73dujC
-         LyoRmp1YS6HOOclBIL85H6jNZ2FD/xvlCBrwXm+tRm0D7JukhtSr1FYhiI14DR90y2sT
-         iemWhEzT4XV9t5hewfT2zyj3pSbGAZV2fQt8VCGOCfQioR8ODxxH9h5u4TF8rjeYyFFq
-         FoUkFF9BV2+pjnkgy6J+GSuF+PeKQ9y0qC+gIkhYxbQ1VF0+1Uz6hTrDPiou7e+nO3Sd
-         G/tw==
+        b=W/kcfI8j4/xTH37Q3kwYrk2WbHnvD9juO1WnJwFrbyC4in4zE/nadVPNsTek1EQsTk
+         R2XE4rBizrFHfLuc0QbOZ8/si1GHKFGGWrC3mNgvJoCTJWh2gTqH8cYtlvaJCJIG/Mq8
+         WtT0p2EYppsUforGQvx2oAbF7IVSn6rN1HwcuoyJ/KFF8qgEsQvQFpg0+wgnGt/Fs4W/
+         e3290Kczdf9mY61zycXXqX9kW1mBbcRKABsXuFFkQlMrp2pfolkItPiEGIO0GYvieg5R
+         w2txV+7hFXbAwG7M4Cp4Psqd2zTjPBiLAdWeIJ1yjhwM8fa/OT8O3Yu/jCBWfZ8ci15l
+         /9Ug==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date;
-        bh=+muWnmDnL8oDPBA3wIcHek9GRIbdD/+2O0D6DSEsRhE=;
-        b=Pl+G0W2wJzAqcbAySdMa4h6ZFoUVzaLrgWir0xXG4wna8Dcc70Vj9xcloxQjqkAGEt
-         RVILQPQkF9a/B7X5veM1xjoVfHl+ZZ905ReiSqtYgb8uRn+vTYdnrzTxpQymi3NUmv5A
-         BIv5O07/KV13A+vYT9KlFRYPNKmghj1NOJpxyr1NT+LDvThTbSd1N0zgDfXdIrxBrNgc
-         j71lAs087SLTpuhOPPzO/tdk5pWzIJFIrPVSLx9l3sfKF7Bwx5GMUHmeBKY4aQPMW1pj
-         hs3KzV4ejFWz+wHd3Hmj1NMgEsSULMQKh0nJTLNkj5fStccAHEpFiNFrLvWx2OBVksek
-         hbdA==
+        bh=Ru63b56YkJYzy/hWEL/aVO+6QHkZEdTGvps5jBMoL+o=;
+        b=sE80YFVgpkyslnQcg3PfRcwM72xlQb3+DyMGwLzcaS1zhMG7I+f9rwzB9wNcztdOiE
+         vND5KmoWTBrkF6tYKnnSQGMdZpu3G+mAuta1i1doFodLlEzmcRyrDYTBEirsp0WUugjL
+         Kc6cx9tEBYch2TcOP9iMzRuOU+7xFi6G4gqafkguzggkuJq5Eaevym0Aqo8FP/ZtTOR5
+         JKOSeb7d6MPMZTZTPfYBADnCBYNu5LcmIXAVk/QJel61tno33U/SqjO+Co7REmBPaDm8
+         WtxQ0n1VM0wR0eKW2Z8vHiMcsBQ63hpb+y52k0DSDa1L0edAunUlp/hmF0o7gkbJp8su
+         SNvQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id h11si11549109pgp.391.2019.04.02.12.12.41
+        by mx.google.com with ESMTPS id m10si11538912pll.355.2019.04.02.12.26.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Apr 2019 12:12:41 -0700 (PDT)
+        Tue, 02 Apr 2019 12:26:43 -0700 (PDT)
 Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id BA461E93;
-	Tue,  2 Apr 2019 19:12:40 +0000 (UTC)
-Date: Tue, 2 Apr 2019 12:12:39 -0700
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 1689CEA2;
+	Tue,  2 Apr 2019 19:26:42 +0000 (UTC)
+Date: Tue, 2 Apr 2019 12:26:41 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-To: "Tobin C. Harding" <me@tobin.cc>
-Cc: "Tobin C. Harding" <tobin@kernel.org>, LKP <lkp@01.org>, Roman Gushchin
- <guro@fb.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg
- <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim
- <iamjoonsoo.kim@lge.com>, Matthew Wilcox <willy@infradead.org>,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel test robot
- <lkp@intel.com>
-Subject: Re: [PATCH 1/1] slob: Only use list functions when safe to do so
-Message-Id: <20190402121239.76d64e3c262dcb24ebcee058@linux-foundation.org>
-In-Reply-To: <20190402190538.GA5084@eros.localdomain>
-References: <20190402032957.26249-1-tobin@kernel.org>
-	<20190402032957.26249-2-tobin@kernel.org>
-	<20190401214128.c671d1126b14745a43937969@linux-foundation.org>
-	<20190402190538.GA5084@eros.localdomain>
+To: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
+Cc: Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@suse.com>, Matthew
+ Wilcox <willy@infradead.org>, linux-mm@kvack.org, LKML
+ <linux-kernel@vger.kernel.org>, Thomas Garnier <thgarnie@google.com>,
+ Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Steven Rostedt
+ <rostedt@goodmis.org>, Joel Fernandes <joelaf@google.com>, Thomas Gleixner
+ <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Tejun Heo
+ <tj@kernel.org>, <rong.a.chen@intel.com>
+Subject: Re: [RESEND PATCH 0/3] improve vmap allocation
+Message-Id: <20190402122641.d4c8b7cbc6409ad14c13f3aa@linux-foundation.org>
+In-Reply-To: <20190402162531.10888-1-urezki@gmail.com>
+References: <20190402162531.10888-1-urezki@gmail.com>
 X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -104,33 +103,22 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Apr 2019 06:05:38 +1100 "Tobin C. Harding" <me@tobin.cc> wrote:
+On Tue,  2 Apr 2019 18:25:28 +0200 "Uladzislau Rezki (Sony)" <urezki@gmail.com> wrote:
 
-> > It's regrettable that this fixes
-> > slob-respect-list_head-abstraction-layer.patch but doesn't apply to
-> > that patch - slob-use-slab_list-instead-of-lru.patch gets in the way. 
-> > So we end up with a patch series which introduces a bug and later
-> > fixes it.
-> 
-> Yes I thought that also.  Do you rebase the mm tree?  Did you apply this
-> right after slob-use-slab_list-instead-of-lru or to the current tip?
+> Changes in v3
+> -------------
+> - simplify the __get_va_next_sibling() and __find_va_links() functions;
+> - remove "unlikely". Place the WARN_ON_ONCE directly to the "if" condition;
+> - replace inline to __always_inline;
+> - move the debug code to separate patches;
 
-After slob-use-slab_list-instead-of-lru.patch
+Does v3 address the report from kernel test robot
+<rong.a.chen@intel.com>, Subject "[mm/vmalloc.c] 7ae76449bd:
+kernel_BUG_at_lib/list_debug.c".
 
->  If
-> it is applied to the tip does this effect the ability to later bisect in
-> between these two commits (if the need arises for some unrelated reason)?
-
-There is a bisection hole but it is short and the bug is hardish to
-hit.
-
-> > I guess we can live with that but if the need comes to respin this
-> > series, please do simply fix
-> > slob-respect-list_head-abstraction-layer.patch so we get a clean
-> > series.
-> 
-> If its not too much work for you to apply the new series I'll do another
-> version just to get this right.
-
-I guess that would be best, thanks.
+For some reason I cannot find that email in my linux-kernel folder and
+nor does google find it and
+http://lkml.kernel.org/r/20190401132655.GD9217@shao2-debian doesn't
+work.  Message-ID 20190401132655.GD9217@shao2-debian doesn't seem to
+have got through the list server.  Ditto linux-mm.
 
