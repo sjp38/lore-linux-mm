@@ -2,136 +2,137 @@ Return-Path: <SRS0=cFM0=SE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E67E8C43381
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 07:57:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7830BC4360F
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 08:28:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9FD2E20830
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 07:57:08 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="uy/Wtrn9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9FD2E20830
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 245972084C
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 08:28:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 245972084C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4AF536B026D; Tue,  2 Apr 2019 03:57:08 -0400 (EDT)
+	id 709AC6B000A; Tue,  2 Apr 2019 04:28:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 45E546B026E; Tue,  2 Apr 2019 03:57:08 -0400 (EDT)
+	id 6DE7D6B026E; Tue,  2 Apr 2019 04:28:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 300726B026F; Tue,  2 Apr 2019 03:57:08 -0400 (EDT)
+	id 5CE656B026F; Tue,  2 Apr 2019 04:28:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E9CA6B026D
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 03:57:08 -0400 (EDT)
-Received: by mail-it1-f197.google.com with SMTP id j8so2055618ita.5
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 00:57:08 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0717D6B000A
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 04:28:23 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id p5so5521754edh.2
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 01:28:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=wwqAk3i2+Zv3o0pWyHzJF+VB/i0BlUhtj9pR8gcxtjI=;
-        b=VaLsGaNelW9N4P2AYF/g78JXXGsaOrrQu5kvcnnWomSCenvSu0xu7dscPY6yrJDoyp
-         GWIqX9eba5fvarf4BbtG83fPVJscfD/waazFObzk5laO674hsKlNZB7InsddzmkO801S
-         Wf0Ous/lwNt5HiqC7fgtKoYlNTHGfaB2JbG7RO8xtOum4oQwQFa0QWV3tJogi4frCNCa
-         FFXDag9IO9xvaQ+6wQ2VjCRjz3scW6OxlyBgm5nUZhhBrClgXr5WQJMRhtYdeH4/cSHg
-         eI4wNf51RtaTmu2eUbxCnbN+zEquAYLoyPHt4cFkcBwyZnZMWUpGBDHtqZNKkIxXHnUB
-         daLg==
-X-Gm-Message-State: APjAAAXyHmxwaWRDrUf5kHkbqvgBATtGMVDwi5qe4yF7uQ5TFisuuwfG
-	O5cV9o6af7pfhBFUIRHTK89o+fVj7E3x2gL8c0a+2TUKcb38PTAMgGlA9JByFvExIi2me0xt/sj
-	P7p7Dq3UuC7CK0WeA4Y3AkQdyuvQAfwaiIiPU54Q8/pazpSlxXMej/AMXj92d/00PbA==
-X-Received: by 2002:a6b:700d:: with SMTP id l13mr47053365ioc.248.1554191827839;
-        Tue, 02 Apr 2019 00:57:07 -0700 (PDT)
-X-Received: by 2002:a6b:700d:: with SMTP id l13mr47053333ioc.248.1554191826938;
-        Tue, 02 Apr 2019 00:57:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554191826; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=pM2xwSphupg6rXDQBeNmtCSGa3JvGpdRybF7NUiSisc=;
+        b=nZb4RVcTwhVADssMy80qjKZdmNGNZNTQEj/Moi4BBASK8rDpa/DRWT23Pcrgl1Qkwx
+         fi2QNMHof6jM3X3mJJnofwOucDwKSuXQHlaSgufAqNE7TSlJKT0gqar9mcDQaZUTUrb7
+         TxAaXRB2fyaW6Dlbj37kaWIIf2gvgP05912+sMAOSaaZyzc+t+g1coA973ECB2SKAd0y
+         RKqyOGtAggYObr93u6fxIevZuP8EQ3oJjnspiEOt4KXXusZhDVkb/+tcdY4XjgQ1QTGs
+         RGnG7yRogo/Tv5ytj/s04zb1wC8+emXVfUpy46zt0AjoiSll/7N/nSI3+N8fWXQj4m+e
+         skZg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAVvN2Rb72x9U3qq3tz5EIoZoaWW7oxjm2Dqhp/9NA1/pIF4yeTI
+	MbKQEHBpY4vMpXJWwyWTBH2syH39NmywARKo17QelFSWM8Y61WmbBOAxjewgiXO4XHBH6r2Mr2O
+	EMLwAJFFFJPa/SEezBCRk6FqDPXIMLbTtwgARS0Rktlnpeg8K5YvWTZxZzmiKrWo=
+X-Received: by 2002:a17:906:6d58:: with SMTP id a24mr33034747ejt.195.1554193702498;
+        Tue, 02 Apr 2019 01:28:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzo66bt9BtKGke6LINqpX+6elqWMDwN16habIrYKJ6P64hF8944jC/SYiJVm2JdsNeoArmB
+X-Received: by 2002:a17:906:6d58:: with SMTP id a24mr33034698ejt.195.1554193701541;
+        Tue, 02 Apr 2019 01:28:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554193701; cv=none;
         d=google.com; s=arc-20160816;
-        b=tmSXS5oFQ9GCthe7ifvSs3K5G/e3mtdTHEG2C5H2Zh9x9JbQHqGNBUwxSNrPxRkFo9
-         Es44sP6Zh9VFwQy5jdZ+XAY4MmgSCUYlOWU+x+n/dEQIcUMRa58XSPwkb/ezi2YGCVq+
-         ufiRRSmBH3ZFvoqNEnV8IEqtyb2jxWExmR6vnlkYVMOE3YQgN7xHKNiJaNGqDmoH+CqF
-         58c40EVoVkeUF8n7BUQR1IsIrmDO0D0UrjL8wFoo5WFQg0E5404JONJO6uMg1ulBI+T0
-         MFoohEARwuPWlHnhBMpQpkPVLodj1sHjtAGmviHMKH7VGflz/YVy/st/+SHGDPK2b59H
-         DIyw==
+        b=DuPZgyAFTesOajW/qoNuvGu2Cnvpl6NuLxrUi4cwJoVFt/wevKcFkeDsyuwblQk+KR
+         vL18rS0psiJVekkUXlLMF/DakHbUVwYAwc47WrGRkC8Dx2ZIPqDeoAUuDbV7nHJV9uAf
+         6zCx/nJKboeG4F2Tnjx0FEikzXumfGwfOHZSiigiKpCaO3a0dtfFp65C/q6DayyxgvXP
+         wHQW5QytE059u8Sn7Ij54sD7sEkutLtYVAurV5YYaJb7qMdfQCQeuVTc3l/ThKQQ1xgk
+         XTW6YJRVlbRZIfJ4L0kXcfhy+Y9GNNs94RUYYTCuJboJtJnS0VIdO3j9SCjw8qBtCP/d
+         HHMg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=wwqAk3i2+Zv3o0pWyHzJF+VB/i0BlUhtj9pR8gcxtjI=;
-        b=HbIswy3aouy7uwE+zjlz9yK4R7KKPcFt9uQJAUe2DmVlnZCMdN4wxEZra/hPQa8qQo
-         zKGLfysBwViX/9ohtqwPb52K+qTyPVC4wmIz8764rBJhmyd1RLEUCC0IRoC3xB6A37qd
-         5HxMNt+XM7+q8d2nhRDryLjTcxOMAaxrtMf9JbF8E9/ZGLOraE5p+qSYmSEBp9alNsPK
-         G5xRpcur7IId4EV+De1/iXRwVTphaWYJWRRTTC1w87l3y/kLLAmOYsFT8vevnwI/xrjt
-         IQZTVu8V2PN/5qxvgdLJ6wx5SfZ5fIZl764VJZJdqkuVRTXiRH5lIrRfPSYEXWWAtBWR
-         OcCg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=pM2xwSphupg6rXDQBeNmtCSGa3JvGpdRybF7NUiSisc=;
+        b=orlHXtj+4Ss16jTYJSzWxpce/EeLYCKael5MvupRLXFtLZ/tpP9vjUMHlE2kZXrJdR
+         rznqKgFCFl8lS61+454iPWqI7phuozn0czdGlnSi6ZtKKCg4vhhWBrmv5FI4PVIeXdf3
+         9QAc1FvVmKZ3q4mf8r9xuEHljZHb9qZVN2m9uVKUkwlSQS35CDePLW66XzDQdftj1O1U
+         wPaHtjaSRyQFjVYi0COwDQh/3N1eEv0ZDToD6jCZSE9cxZk7kUiSx0Ug0fxt04U/+9/G
+         yS4w6uOyOMLpG6A37X3K5DkjSj3yd4mjkg2cBcfAjKBS8o9Z/VAAzde/dex5pIJPtE/V
+         61Tg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="uy/Wtrn9";
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x7sor6808385iom.5.2019.04.02.00.57.06
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 02 Apr 2019 00:57:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from suse.de (nat.nue.novell.com. [2620:113:80c0:5::2222])
+        by mx.google.com with ESMTP id s53si5392753edd.432.2019.04.02.01.28.21
+        for <linux-mm@kvack.org>;
+        Tue, 02 Apr 2019 01:28:21 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) client-ip=2620:113:80c0:5::2222;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="uy/Wtrn9";
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=wwqAk3i2+Zv3o0pWyHzJF+VB/i0BlUhtj9pR8gcxtjI=;
-        b=uy/Wtrn9+qQNfoD8pExD0yoZlxPtLH19N8AgGJ2doFoBypY+rnAQvyPnxGnM+arKIR
-         DRfvy+Emwog0Sj1yz9KQXmmZ7So68Mq0BN2VVWp0vjnZixyxtxhIv/OVddgWC0RnowWY
-         +qSJzQs2ZGQhBP6U+kq2KC4EBpFK/TRbX3ks5FwabsJxOnASeR0BLBk8liZ4YFbjMWa2
-         M0GCEz7zmV1vCiFU87c2b6Dp3wWEi66xydlXpyJsELAqaDHCQZ3za6o0zP7mwQnkP/Qo
-         5vdCJZ+YhkzsV9iaDNTa87oaOwnQBa8V7lA9rQE9PSrQcSEoSMX0sqJrUascyt+bb/3+
-         pjeg==
-X-Google-Smtp-Source: APXvYqwnp6xCt7FlNjMJy2A1tfclDopUF4MlZI21KCVEtf1MQeguCgxCXZp1epuwptOd50yK23WasNPnQR9R06rHqgg=
-X-Received: by 2002:a5e:df06:: with SMTP id f6mr14527223ioq.199.1554191826738;
- Tue, 02 Apr 2019 00:57:06 -0700 (PDT)
+       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: by suse.de (Postfix, from userid 1000)
+	id 6D7C047BE; Tue,  2 Apr 2019 10:28:15 +0200 (CEST)
+Date: Tue, 2 Apr 2019 10:28:15 +0200
+From: Oscar Salvador <osalvador@suse.de>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: David Hildenbrand <david@redhat.com>, akpm@linux-foundation.org,
+	dan.j.williams@intel.com, Jonathan.Cameron@huawei.com,
+	anshuman.khandual@arm.com, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [PATCH 0/4] mm,memory_hotplug: allocate memmap from hotadded
+ memory
+Message-ID: <20190402082812.fefamf7qlzulb7t2@d104.suse.de>
+References: <20190328134320.13232-1-osalvador@suse.de>
+ <cc68ec6d-3ad2-a998-73dc-cb90f3563899@redhat.com>
+ <efb08377-ca5d-4110-d7ae-04a0d61ac294@redhat.com>
+ <20190329084547.5k37xjwvkgffwajo@d104.suse.de>
+ <20190329134243.GA30026@dhcp22.suse.cz>
+ <20190401075936.bjt2qsrhw77rib77@d104.suse.de>
+ <20190401115306.GF28293@dhcp22.suse.cz>
 MIME-Version: 1.0
-References: <1554185720-26404-1-git-send-email-laoar.shao@gmail.com>
- <20190402072351.GN28293@dhcp22.suse.cz> <CALOAHbASRo1xdkG62K3sAAYbApD5yTt6GEnCAZo1ZSop=ORj6w@mail.gmail.com>
- <20190402074459.GP28293@dhcp22.suse.cz> <20190402074911.GQ28293@dhcp22.suse.cz>
-In-Reply-To: <20190402074911.GQ28293@dhcp22.suse.cz>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Tue, 2 Apr 2019 15:56:30 +0800
-Message-ID: <CALOAHbD=64+Sy5HsRVvGXBSduv5eofD39XNuz_cvwymAX-ghYg@mail.gmail.com>
-Subject: Re: [PATCH] mm: add vm event for page cache miss
-To: Michal Hocko <mhocko@suse.com>
-Cc: willy@infradead.org, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, 
-	Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, 
-	Linux MM <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000039, version=1.2.4
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190401115306.GF28293@dhcp22.suse.cz>
+User-Agent: NeoMutt/20170421 (1.8.2)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 2, 2019 at 3:49 PM Michal Hocko <mhocko@suse.com> wrote:
->
-> On Tue 02-04-19 09:44:59, Michal Hocko wrote:
-> > On Tue 02-04-19 15:38:02, Yafang Shao wrote:
-> [...]
-> > > Seems I missed this dicussion.
-> > > Could you pls. give a reference to it?
-> >
-> > The long thread starts here http://lkml.kernel.org/r/nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm
->
-> Thinking about it some more this like falls into the same category as
-> timing attack where you measure the read latency or even watch for major
-> faults. The attacker would destroy the side channel by the read so the
-> attack would be likely impractical.
+On Mon, Apr 01, 2019 at 01:53:06PM +0200, Michal Hocko wrote:
+> On Mon 01-04-19 09:59:36, Oscar Salvador wrote:
+> > On Fri, Mar 29, 2019 at 02:42:43PM +0100, Michal Hocko wrote:
+> > > Having a larger contiguous area is definitely nice to have but you also
+> > > have to consider the other side of the thing. If we have a movable
+> > > memblock with unmovable memory then we are breaking the movable
+> > > property. So there should be some flexibility for caller to tell whether
+> > > to allocate on per device or per memblock. Or we need something to move
+> > > memmaps during the hotremove.
+> > 
+> > By movable memblock you mean a memblock whose pages can be migrated over when
+> > this memblock is offlined, right?
+> 
+> I am mostly thinking about movable_node kernel parameter which makes
+> newly hotpluged memory go into ZONE_MOVABLE and people do use that to
+> make sure such a memory can be later hotremoved.
 
-Thanks for your information.
-I will think about it.
+Uhm, I might be missing your point, but hot-added memory that makes use of
+vmemmap pages can be hot-removed as any other memory.
 
-Thanks
-Yafang
+Vmemmap pages do not account as unmovable memory, they just stick around
+until all sections they referred to have been removed, and then, we proceed
+with removing them.
+So, to put it in another way: vmemmap pages are left in the system until the
+whole memory device (DIMM, virt mem-device or whatever) is completely
+hot-removed.
+
+-- 
+Oscar Salvador
+SUSE L3
 
