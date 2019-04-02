@@ -2,115 +2,116 @@ Return-Path: <SRS0=cFM0=SE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 62CC3C10F00
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 03:31:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 652CAC43381
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 03:31:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 21AA72087C
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 03:31:15 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 05A4620880
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 03:31:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="4h6GGvxj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 21AA72087C
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="J08A5mJb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 05A4620880
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9211E6B0003; Mon,  1 Apr 2019 23:31:14 -0400 (EDT)
+	id 9BCE66B0005; Mon,  1 Apr 2019 23:31:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8CEED6B0005; Mon,  1 Apr 2019 23:31:14 -0400 (EDT)
+	id 96CE56B0007; Mon,  1 Apr 2019 23:31:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7E6126B0007; Mon,  1 Apr 2019 23:31:14 -0400 (EDT)
+	id 85B776B0008; Mon,  1 Apr 2019 23:31:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 609AC6B0003
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 23:31:14 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id w124so10365543qkb.12
-        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 20:31:14 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 66C0E6B0005
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2019 23:31:17 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id s26so3093795qkm.19
+        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 20:31:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=GhdVsMTVKjBk9iUxn5IpYnUVsn7WlgpvFL7kEcghYa8=;
-        b=ijEYS0E/Z6vfqnS+kiBQjMz6yzJsSFFtunoIQPxDCQl77eEEyWbbY9la/HN5b9vbzo
-         yax1uEcMrCvB2PdjksGU84RA5g9qQwufHJQnQ8EpVnWk4mMWIVQ5lDo0IwFeAiSVHKPL
-         uipMRT6BsKUphIvLlS3hCLt+IYKwKgEpLbKzqc/m8PNGqn332OxqeFKfQopH4iu3Zv/g
-         GQres0ipGgwWUWvGAcqhWwgOnzdT+CaLILDL9IsNx4czyPyHyGkJLhk4rgjHdkAMx5tE
-         5k64DETHJZdzE464ikfbbOmLYD0CZANN6YpZm/k0nYhyZFV1WPNrbWiw7vmaEt7LDr38
-         LeCA==
-X-Gm-Message-State: APjAAAV+HuIjcdUBljHOrS1dkegIBeKAnCdMAmow5hgrZB6/vzC0ZKcj
-	fUozmQvGmQPy8Z3Iq88MFXkhh9fLWZ2/p56Ql2hngmq75hJNaGuBTcICFvuID7QQx3ixnfZaS4v
-	5gIVoGNi1drnvAI2WI/UInerNQbaHu+0Ee2yAyno9iyuTR/lTGRMpcPoooYfhq/k=
-X-Received: by 2002:a37:a34a:: with SMTP id m71mr31611825qke.323.1554175874012;
-        Mon, 01 Apr 2019 20:31:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz6Hrcd2opTRGS68Hg0oXxIij68S+6/NwWOPTP/ADnRx1VOf+Kp16w4WuTa4Bda+F6QsXF3
-X-Received: by 2002:a37:a34a:: with SMTP id m71mr31611779qke.323.1554175873135;
-        Mon, 01 Apr 2019 20:31:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554175873; cv=none;
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=qS74YLv32TK4OdRxyP79l+k5LQKLZkF6HF7u7XLPsVY=;
+        b=IeUYizvvgvczrK3Hu4UEFynXphtmjLmKDAgxI+SMoNfMWM6gzbRNAgj4xq9DE2aq2K
+         SvmRlIozMpH/un1WBRAl6wsABBoYYtXmel01EymTt0JLYaV0E2iMMODiINOuPY19WPaz
+         uFY5eJCv9yN6LR+yI4liPMTRibKDiq0w3UvoQ1ydmKB8hzRXRbR5Iztustetue9TRtV4
+         WgyoV9DYJ0rdDDtQ05NQGePmAUVPdRrr5JP3MwwwBaUQ3M/sXggk555zmTSfvJqCE8cY
+         56CNwF93v+yWSL9N/2/ArXdkDAVOxtsHlVXuxYmiSvwkNt08Ji66NNa+CXMn9x07PChg
+         /Oqg==
+X-Gm-Message-State: APjAAAXxWVcfH0Q90N+YiFWRar1x5WXXkWHnOYXFMf5SvzhI8roEP+jl
+	teSZKGxlIouJFNjnFHqSoecPBfGVAv0jFbXowWJvxoL8wm2YPU4paz6rqtCyEXDpNF0sTM/sfZl
+	Wyji8T8FN/FsuUyTFVbIw37wzxa+URfWWzAuMQE+9ehoYHCwAivtsqwXeA2LpieU=
+X-Received: by 2002:a37:6748:: with SMTP id b69mr54221276qkc.79.1554175877104;
+        Mon, 01 Apr 2019 20:31:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwRNsaPeJe4MjM3GXgKagIB9effkkgOWIzyNgUBRzuSnbBNgfiwxLF6xkg32ZLMWkhWWxyW
+X-Received: by 2002:a37:6748:: with SMTP id b69mr54221206qkc.79.1554175875729;
+        Mon, 01 Apr 2019 20:31:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554175875; cv=none;
         d=google.com; s=arc-20160816;
-        b=abX+caBfIgb/lcnvWlVLXs3lj7mf9bimjxuigY1TxNxHVfoB7k8bAH+GUK6M4x+z4W
-         NDznip4MtHziFMo6WRxCRNp0UwYXdnSp5bYl8EpJr8U204hZSNQSxKE8HHUOgTWVvS7J
-         r0gDKWe5c2zvhQLeqJexawt2yek/POTxxFMhmIWWy3eid4da3BExW439CJ7KZnodRiGh
-         SDgNSphR7vmPr7l8jmbJwq8G6/6hgaL3sz57ew77f5gyfim9a/C/DXVqXQX1ceeZHB9V
-         Bjd4rC8VgZFFzA3HVm+zZB8Fzo8EWg8rIXjYLzq+bBEw/HJXvYzZj1VmEWaCyuyWDGYD
-         GwNw==
+        b=Oyji5CT6ecyF084DP2afctS74CoHYIOvXuO9jCwTxgzyxXjs1ibJ/iDK5Bn64jclg+
+         h2U3GZGwzjgBjR5qDTVtXpLe2U3Erkkc5dvRKM7f+awa4AYyU0Loi3bKO/kVRFyPBeTl
+         /0EIVd1nCVwkvc4pEveJeUbC5jTezB660KMGxC8Gv2D7l8OG5pV0G22IXSBuBV0Y0uTj
+         oQYr54VW9sweABQaxBr5l7mNroqAz3XOicFw39LUg5uOGBAMZcP8Qq/CwvM1DeiBoOZ2
+         uLXliEsuJ6QjgfO6NIMzENBPkgFFkAAVyFVBU3pAKTn9m3Ds57rhPAJtYS5FIjBrQruZ
+         xJcg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=GhdVsMTVKjBk9iUxn5IpYnUVsn7WlgpvFL7kEcghYa8=;
-        b=mrWGmG7bV5naa4WGNnVttiL+Rfwf0jhbV135HzE1QSk+T3b90fCV4JCrsmx0JiQhxY
-         p5yYhHQ9Zjl0oqMvSK1LBsGT/Iu/PsZ4msgl8Rmtp3LJRKUNSzjq97KAWZtpd8luI0An
-         ZaHRkiRfF1I3DiY0CUAhlNiYPdj+4TlyygMDmcK2vmUV6L7X073PgKuATmndwVve1x+b
-         yLagb6F1lWtwITGSLZoRf7knX4FwiQEjjiSbSkEY7KHCnWGEIhwgCFaImHHyWzgIXirc
-         9H6Ff/NqOeeHUehWABv9HGkx8QEfXpmk0pqga0Ji4dOZ1azzzC76MuYjbX8Mkhe+Rlp4
-         3oUQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=qS74YLv32TK4OdRxyP79l+k5LQKLZkF6HF7u7XLPsVY=;
+        b=CFDw/Lmb1Sro38A0LVfKP1lJQxlljMuarJC86MDmd5qF5j566wyURZGWVJzG9qLFnn
+         RgrVDD+Xcg70iOJnawvJHlulxxjSb5W+chO4NZskAH5sk7VZAvCjOb0li2mBSUTPvNMo
+         9QzlqVaDOA4idYdgocwlDmhRzm4rNeTi4uukWKr5JevQ9cdmpypRDNd99AZyfQO2OnZX
+         PYgZMvlSH9KwuhhQsBEg6ymsI/H+eYDOt6dl/IOvSEXvloPaZAvnbsnRF0wdjpbfpZQn
+         QGeiSXQ5jRr6HgkX3UQNlahSdmuIp1IRpkxa2+qwav9pDN0/qCjCOmg7vw4dxo530S1x
+         hH0g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=4h6GGvxj;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=J08A5mJb;
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from out2-smtp.messagingengine.com (out2-smtp.messagingengine.com. [66.111.4.26])
-        by mx.google.com with ESMTPS id i6si1640681qvj.31.2019.04.01.20.31.12
+        by mx.google.com with ESMTPS id n4si6789448qkg.43.2019.04.01.20.31.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Apr 2019 20:31:13 -0700 (PDT)
+        Mon, 01 Apr 2019 20:31:15 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) client-ip=66.111.4.26;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=4h6GGvxj;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=J08A5mJb;
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.26 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.nyi.internal (Postfix) with ESMTP id A7F3E22205;
-	Mon,  1 Apr 2019 23:31:12 -0400 (EDT)
+	by mailout.nyi.internal (Postfix) with ESMTP id 7444822246;
+	Mon,  1 Apr 2019 23:31:15 -0400 (EDT)
 Received: from mailfrontend2 ([10.202.2.163])
-  by compute3.internal (MEProxy); Mon, 01 Apr 2019 23:31:12 -0400
+  by compute3.internal (MEProxy); Mon, 01 Apr 2019 23:31:15 -0400
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
-	:message-id:mime-version:subject:to:x-me-proxy:x-me-proxy
-	:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=GhdVsMTVKjBk9iUxn
-	5IpYnUVsn7WlgpvFL7kEcghYa8=; b=4h6GGvxjAduskW8z2+xkvHUDonHLeaxzo
-	OpdND1moNstvSCB3U3UdLmRHXe652TX2LIbSCHBSSeU2QHfoPUnDpE/SYUUWHrju
-	W4n+KQ8A8O9eQCbep+ok5OoWGoIRWpbjYMHH/DgckHggOrlWn80KS/F77ZkwFSE8
-	qwu6spWnxPpVn+Y3rSjZsqBrCwJaBQBm2h/lUw0WXJ0MZGBYH43tKJ+g13TezuSN
-	9G3nOBLFdSlM+BpaDnGL5yRbumtwrw7id36ZWRmKDMuHLJRyeGfnRyWFbrGaHhzO
-	D8XKDA3g/TzeQZqMTyKCU05fKaIMBrbi9XLTMsgpKTGE4is3wPx5g==
-X-ME-Sender: <xms:fteiXAjnNz3kCdhLz_BNzY1vJkrn2ex_iR3UDTk_kTdj153i9WeFIg>
+	:in-reply-to:message-id:mime-version:references:subject:to
+	:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
+	fm2; bh=qS74YLv32TK4OdRxyP79l+k5LQKLZkF6HF7u7XLPsVY=; b=J08A5mJb
+	UVl31TB6lBjTNCDo3r2bk4xwTFtJIQ9a+1YCHSkj1oQGYW7B3uWXxsbHyGIoyaY6
+	1cSMIi8SOQdEFgMG3V1puLlXCNvSlftMGeu4BP1PPbcyeVt1+CFXp/GljiqrGZ0Y
+	hsuDAsRcHfDYGAaJCmkVuwj1wU9Kg+588EQPWr8MFpUTH8BJA8/JDQ0Ldap/S9F8
+	+yTfqCBElrEHZlrL72Ngk6jd6gw9WFdY65Fvbrr8mHQB5yd/8MwpBE6rPxOMQUsW
+	z2l/Jb4UG2O/9BpRfOnjSdL9RQYz4oP30CF+IwA0i1PCrw/JeY5J69iOE9vfwE8H
+	EQpqkROtgrjsDQ==
+X-ME-Sender: <xms:g9eiXCHV__yzzZ4dYncfoCwTDXxYKKqFVUVI1ZtzwIsUjJdJEor6WA>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedutddrleehgdeikecutefuodetggdotefrodftvf
     curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
     uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenuc
-    fjughrpefhvffufffkofgggfestdekredtredttdenucfhrhhomhepfdfvohgsihhnucev
-    rdcujfgrrhguihhnghdfuceothhosghinheskhgvrhhnvghlrdhorhhgqeenucffohhmrg
-    hinhepghhithhhuhgsrdgtohhmpdhoiihlrggsshdrohhrghenucfkphepuddvgedrudej
-    uddrvdefrdduvddvnecurfgrrhgrmhepmhgrihhlfhhrohhmpehtohgsihhnsehkvghrnh
-    gvlhdrohhrghenucevlhhushhtvghrufhiiigvpedt
-X-ME-Proxy: <xmx:fteiXPEdeXrUl6-EIAHSsIYBBfSJGzp32qnEMy0YjngnrfonQJ_G1A>
-    <xmx:fteiXLWmLQ_UGez3uQT65pc1rGihfbjIIHgdKhTxYSFQzRc-MVpEYA>
-    <xmx:fteiXJYwuU6SQ9oBX_iQqk506dpLynTdOZh4bH6rWD2AxjmALkLW6w>
-    <xmx:gNeiXMWpmRg18hyrF_R-xsScykLtThsdIv0Pn3YCaKvtUWsow9nZOQ>
+    fjughrpefhvffufffkofgjfhgggfestdekredtredttdenucfhrhhomhepfdfvohgsihhn
+    ucevrdcujfgrrhguihhnghdfuceothhosghinheskhgvrhhnvghlrdhorhhgqeenucfkph
+    epuddvgedrudejuddrvdefrdduvddvnecurfgrrhgrmhepmhgrihhlfhhrohhmpehtohgs
+    ihhnsehkvghrnhgvlhdrohhrghenucevlhhushhtvghrufhiiigvpedt
+X-ME-Proxy: <xmx:g9eiXA1IwyQqtEnT7rMxLhFSYTAYY4Uk3HXvutL05cjcw8FiG7Ma4w>
+    <xmx:g9eiXOxOo2l5ZMyZEBeDEA5jJdFenChkeDY_TfKSoxghmCD5vBFleQ>
+    <xmx:g9eiXBjwd-RlVNhHmI9SHrSWUgvXthaKe8RyCy4NstFCi9iazAzT8g>
+    <xmx:g9eiXAr0-Wuk57VBwwiHYe4poMe5AbqzVM_rWxW9QfdpD9ehnSzNdg>
 Received: from eros.localdomain (124-171-23-122.dyn.iinet.net.au [124.171.23.122])
-	by mail.messagingengine.com (Postfix) with ESMTPA id CD8B710390;
-	Mon,  1 Apr 2019 23:31:06 -0400 (EDT)
+	by mail.messagingengine.com (Postfix) with ESMTPA id 549AC100E5;
+	Mon,  1 Apr 2019 23:31:11 -0400 (EDT)
 From: "Tobin C. Harding" <tobin@kernel.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: "Tobin C. Harding" <tobin@kernel.org>,
@@ -122,11 +123,14 @@ Cc: "Tobin C. Harding" <tobin@kernel.org>,
 	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
 	Matthew Wilcox <willy@infradead.org>,
 	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH 0/1] slob: Fix list_head bug during allocation
-Date: Tue,  2 Apr 2019 14:29:56 +1100
-Message-Id: <20190402032957.26249-1-tobin@kernel.org>
+	linux-kernel@vger.kernel.org,
+	kernel test robot <lkp@intel.com>
+Subject: [PATCH 1/1] slob: Only use list functions when safe to do so
+Date: Tue,  2 Apr 2019 14:29:57 +1100
+Message-Id: <20190402032957.26249-2-tobin@kernel.org>
 X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190402032957.26249-1-tobin@kernel.org>
+References: <20190402032957.26249-1-tobin@kernel.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -135,91 +139,139 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
+Currently we call (indirectly) list_del() then we manually try to combat
+the fact that the list may be in an undefined state by getting 'prev'
+and 'next' pointers in a somewhat contrived manner.  It is hard to
+verify that this works for all initial states of the list.  Clearly the
+author (me) got it wrong the first time because the 0day kernel testing
+robot managed to crash the kernel thanks to this code.
 
-This patch is in response to an email from the 0day kernel test robot
-subject:
+All this is done in order to do an optimisation aimed at preventing
+fragmentation at the start of a slab.  We can just skip this
+optimisation any time the list is put into an undefined state since this
+only occurs when an allocation completely fills the slab and in this
+case the optimisation is unnecessary since we have not fragmented the slab
+by this allocation.
 
-  340d3d6178 ("mm/slob.c: respect list_head abstraction layer"):  kernel BUG at lib/list_debug.c:31!
+Change the page pointer passed to slob_alloc_page() to be a double
+pointer so that we can set it to NULL to indicate that the page was
+removed from the list.  Skip the optimisation if the page was removed.
 
+Found thanks to the kernel test robot, email subject:
 
-This patch applies on top of linux-next tag: next-20190401
+	340d3d6178 ("mm/slob.c: respect list_head abstraction layer"):  kernel BUG at lib/list_debug.c:31!
 
-It fixes a patch that was merged recently into mm:
-
-  The patch titled
-       Subject: mm/slob.c: respect list_head abstraction layer
-  has been added to the -mm tree.  Its filename is
-       slob-respect-list_head-abstraction-layer.patch
-  
-  This patch should soon appear at
-      http://ozlabs.org/~akpm/mmots/broken-out/slob-respect-list_head-abstraction-layer.patch
-  and later at
-      http://ozlabs.org/~akpm/mmotm/broken-out/slob-respect-list_head-abstraction-layer.patch
-
-
-If reverting is easier than patching I can re-work this into another
-version of the original (buggy) patch set which was the series:
-
-  [PATCH 0/4] mm: Use slab_list list_head instead of lru
-
-Please don't be afraid to give a firm response.  I'm new to mm and I'd
-like to not be a nuisance if I can manage it ;)  I'd also like to fix
-this in a way that makes your day as easy as possible.
-
-
-The 0day kernel test robot found a bug in the slob allocator caused by a
-patch from me recently merged into the mm tree.  This is the first time
-the 0day has found a bug in already merged code of mine so I do not know
-the exact protocol in regards to linking the fix with the report,
-patching, reverting etc.
-
-I was unable to reproduce the crash, I tried building with the config
-attached to the email above but the kernel booted fine for me in Qemu.
-
-So I re-worked the module originally used for testing, it can be found
-here:
-
-	https://github.com/tcharding/ktest/tree/master/list_head
-
-From this I think the list.h code added prior to the buggy patch is
-ok.
-
-Next I tried to find the bug just using my eyes.  This patch is the
-result.  Unfortunately I can not understand why this bug was not
-triggered _before_ I originally patched it.  Perhaps I'm not juggling
-all the state perfectly in my head.  Anyways, this patch stops and code
-calling list manipulation functions if the slab_list page member has
-been modified during allocation.
-
-The code in question revolves around an optimisation aimed at preventing
-fragmentation at the start of a slab due to the first fit nature of the
-allocation algorithm.
-
-Full explanation is in the commit log for the patch, the short version
-is; skip optimisation if page list is modified, this only occurs when an
-allocation completely fills the slab and in this case the optimisation
-is unnecessary since we have not fragmented the slab by this allocation.
-
-This is more than just a bug fix, it significantly reduces the
-complexity of the function while still fixing the reason for originally
-touching this code (violation of list_head abstraction).
-
-The only testing I've done is to build and boot a kernel in Qemu (with
-CONFIG_LIST_DEBUG and CONFIG_SLOB) enabled).  However, as mentioned,
-this method of testing did _not_ reproduce the 0day crash so if there
-are better suggestions on how I should test these I'm happy to do so.
-
-thanks,
-Tobin.
-
-
-Tobin C. Harding (1):
-  slob: Only use list functions when safe to do so
-
+Reported-by: kernel test robot <lkp@intel.com>
+Signed-off-by: Tobin C. Harding <tobin@kernel.org>
+---
  mm/slob.c | 50 ++++++++++++++++++++++++++++++--------------------
  1 file changed, 30 insertions(+), 20 deletions(-)
 
+diff --git a/mm/slob.c b/mm/slob.c
+index 21af3fdb457a..c543da10df45 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -213,10 +213,18 @@ static void slob_free_pages(void *b, int order)
+ }
+ 
+ /*
+- * Allocate a slob block within a given slob_page sp.
++ * slob_page_alloc() - Allocate a slob block within a given slob_page sp.
++ * @spp: Page to look in, return parameter.
++ * @size: Size of the allocation.
++ * @align: Allocation alignment.
++ *
++ * Tries to find a chunk of memory at least @size within page.  If the
++ * allocation fills up page then page is removed from list, in this case
++ * *spp will be set to %NULL to signal that list removal occurred.
+  */
+-static void *slob_page_alloc(struct page *sp, size_t size, int align)
++static void *slob_page_alloc(struct page **spp, size_t size, int align)
+ {
++	struct page *sp = *spp;
+ 	slob_t *prev, *cur, *aligned = NULL;
+ 	int delta = 0, units = SLOB_UNITS(size);
+ 
+@@ -254,8 +262,11 @@ static void *slob_page_alloc(struct page *sp, size_t size, int align)
+ 			}
+ 
+ 			sp->units -= units;
+-			if (!sp->units)
++			if (!sp->units) {
+ 				clear_slob_page_free(sp);
++				/* Signal that page was removed from list. */
++				*spp = NULL;
++			}
+ 			return cur;
+ 		}
+ 		if (slob_last(cur))
+@@ -268,7 +279,7 @@ static void *slob_page_alloc(struct page *sp, size_t size, int align)
+  */
+ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
+ {
+-	struct page *sp, *prev, *next;
++	struct page *sp;
+ 	struct list_head *slob_list;
+ 	slob_t *b = NULL;
+ 	unsigned long flags;
+@@ -283,6 +294,7 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
+ 	spin_lock_irqsave(&slob_lock, flags);
+ 	/* Iterate through each partially free page, try to find room */
+ 	list_for_each_entry(sp, slob_list, slab_list) {
++		struct page **spp = &sp;
+ #ifdef CONFIG_NUMA
+ 		/*
+ 		 * If there's a node specification, search for a partial
+@@ -295,27 +307,25 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
+ 		if (sp->units < SLOB_UNITS(size))
+ 			continue;
+ 
+-		/*
+-		 * Cache previous entry because slob_page_alloc() may
+-		 * remove sp from slob_list.
+-		 */
+-		prev = list_prev_entry(sp, slab_list);
+-
+ 		/* Attempt to alloc */
+-		b = slob_page_alloc(sp, size, align);
++		b = slob_page_alloc(spp, size, align);
+ 		if (!b)
+ 			continue;
+ 
+-		next = list_next_entry(prev, slab_list); /* This may or may not be sp */
+-
+ 		/*
+-		 * Improve fragment distribution and reduce our average
+-		 * search time by starting our next search here. (see
+-		 * Knuth vol 1, sec 2.5, pg 449)
++		 * If slob_page_alloc() removed sp from the list then we
++		 * cannot call list functions on sp.  Just bail, don't
++		 * worry about the optimisation below.
+ 		 */
+-		if (!list_is_first(&next->slab_list, slob_list))
+-			list_rotate_to_front(&next->slab_list, slob_list);
+-
++		if (*spp) {
++			/*
++			 * Improve fragment distribution and reduce our average
++			 * search time by starting our next search here. (see
++			 * Knuth vol 1, sec 2.5, pg 449)
++			 */
++			if (!list_is_first(&sp->slab_list, slob_list))
++				list_rotate_to_front(&sp->slab_list, slob_list);
++		}
+ 		break;
+ 	}
+ 	spin_unlock_irqrestore(&slob_lock, flags);
+@@ -334,7 +344,7 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
+ 		INIT_LIST_HEAD(&sp->slab_list);
+ 		set_slob(b, SLOB_UNITS(PAGE_SIZE), b + SLOB_UNITS(PAGE_SIZE));
+ 		set_slob_page_free(sp, slob_list);
+-		b = slob_page_alloc(sp, size, align);
++		b = slob_page_alloc(&sp, size, align);
+ 		BUG_ON(!b);
+ 		spin_unlock_irqrestore(&slob_lock, flags);
+ 	}
 -- 
 2.21.0
 
