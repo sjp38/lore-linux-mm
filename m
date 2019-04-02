@@ -2,196 +2,132 @@ Return-Path: <SRS0=cFM0=SE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DA187C4360F
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 04:47:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C195FC43381
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 05:57:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8ADA82084B
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 04:47:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5CD5B2075E
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 05:57:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="NRCuIUie"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8ADA82084B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="tqmK2RHc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5CD5B2075E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 081866B0003; Tue,  2 Apr 2019 00:47:16 -0400 (EDT)
+	id B95486B0005; Tue,  2 Apr 2019 01:57:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 031096B0005; Tue,  2 Apr 2019 00:47:15 -0400 (EDT)
+	id B46D96B0008; Tue,  2 Apr 2019 01:57:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E646B6B000A; Tue,  2 Apr 2019 00:47:15 -0400 (EDT)
+	id A0D9F6B000A; Tue,  2 Apr 2019 01:57:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id ADA2B6B0003
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 00:47:15 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id c64so5947241pfb.6
-        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 21:47:15 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A6BE6B0005
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 01:57:16 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id u18so9978656wrp.19
+        for <linux-mm@kvack.org>; Mon, 01 Apr 2019 22:57:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=aMPPfj5JnNOQrKOZmzKYJq4pNGTHYuLUKAkg9cwvBis=;
-        b=bykFm+Jx/5tVpO2cCYihUu9tqviL7M/xH04E8qOhAEl+r5YQv5nB/NJg+M+V3WtGu4
-         L7PthuM7OlS+NqkEwHqRgScwJzPipXW2W2Lyy67FdhQHeo4PP1k5FyTD1RhHadN4ZKA1
-         11sOP9pTAQ8l4FLf5J0hgcufy8LTGyZUjyFQRP4jFVh/AvpUR74F5Rzl0x09JEPEWX85
-         ZGRE6nfE68XG46X2Oo1mz50hr/9BA60amQraVv5cuMNgJzEdRvBlBlEEcEwKCMx1QBho
-         8vR5Eegwsen8VodwX3uCb+5UHaMpZMxVRqo/m5GXA/kyOrnjSXMDYVtECpcf+14DOHMs
-         U9Hw==
-X-Gm-Message-State: APjAAAUeoY5C/Prdy26PZ4zdH2gsyUv5FrlAO/xBmYb5UDizordFLmbT
-	KKDLY3UZjm53H+l41VThLWBUDsZ+2moWCwQq04Xseys0UWcb7OdUytXtyWTqkflikPmkVf4CW41
-	PpAnd9XL0fjpH2Gw4anlmBa/gSjnypPi75VhfpLH4H9DfTUSZHuuEGzeBZ28hcxgYtQ==
-X-Received: by 2002:a17:902:d24:: with SMTP id 33mr68001163plu.246.1554180435166;
-        Mon, 01 Apr 2019 21:47:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxHNJkqEE+Klmxmv6G92s3IaqWoMoWuhnR+GT8meFL2MpZ9LrMG/sL/R7orWXCO5nhmP+Bn
-X-Received: by 2002:a17:902:d24:: with SMTP id 33mr68001121plu.246.1554180434504;
-        Mon, 01 Apr 2019 21:47:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554180434; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=zqPIMCgjn4CkXkrOXkctLP/edN2VdhXVbKkBnLc+HsA=;
+        b=VCU+0bkyzkVg11ib5/sy2MoRRsGf3k+1hXj91pWhBbFAM1A85QMrRUpmM0J1dWm1yr
+         NAhrwFHm2dqwS8gKRv37o83w7JRUXllvcEGFGHHKUN1EPs9fsZo1bZW0dfAIfMbDtuVw
+         2ZOGuQVy/TOvXhD/9RbVV1MQ9z1KhPgchYlyuk7o7QEzYEsFFWRRBuLVwMD0WZtD1+Ye
+         rRcbbExjvjP45hdo8rh5336YF/KPrvbMdm2v8otaeAHYqP3+EkF66nk6ZkILs9oCm8Z7
+         gyEc4JJBwVwL6NwpcpZqyq0Of2cMZX2XYrKjzB47pHNIODKXK8EoYneWeVnXyF+H74za
+         QPQw==
+X-Gm-Message-State: APjAAAUysM55tNWbtRbiWahQgqKBGY6C6Yt3GOAAfFroXChBHt3EAwWD
+	Kg9UvnxdQNe4VEO0eThO82qJ76NXlfl9ZifnstRyMtka5bhF/Vbn+IqJ1Nc5jZlXIN/NP65hwZL
+	O7Bom+Y9XJfk6Ak5ZTdDO6sDjpyAedDSrBc9Obzkf56YVvXUIANRziwL4S0pB0fe2sg==
+X-Received: by 2002:a5d:6646:: with SMTP id f6mr9743385wrw.68.1554184635758;
+        Mon, 01 Apr 2019 22:57:15 -0700 (PDT)
+X-Received: by 2002:a5d:6646:: with SMTP id f6mr9743348wrw.68.1554184634921;
+        Mon, 01 Apr 2019 22:57:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554184634; cv=none;
         d=google.com; s=arc-20160816;
-        b=RueNC1gfzm6qUOyRjZpwUcBiB2b45nZwFqh1pLx/xPzWHq54vH5sKQsQCucuyFWY/M
-         rlm1nIrf3TVuoMS84V/Oztz7HJ4s91Kzz0S/2ITFOoqHLDB7uIk4M5la1UcMCQn0yP9M
-         Do1Lx3TWoZ7kXjihv85XNqBHbHY+Ze1MQZDoDgAWQRDk5LYSooatm5h8aKIFOPc6t+Tk
-         vahCxYr/9pgHlh3pA/cyLuer7SGptmLvSNuY0aDQK/MxZTcBz1874ZSnO3v6cOB2fw5f
-         xJcf67aerlb8Fy/n4HFwSEUoUKDgpw7lPEMfMi4BkwNQannvsDFbUpj9/qewPytXB/qe
-         zjPg==
+        b=sChq9L9rtgX6fkA7xrFib4ZjEW07NVHPrJapsDNgn6PjstfuJk/GI+/Cfka9O7SBcV
+         oz7q1SZv+SaHm+FPF9H5nvUv5R/xC09VD+aIqG5PVkfiAaboK7Xcj21XrAV0W1EcBKRT
+         SRD+Tvj6sOPPMcolnALPfGqiGTyyEifZN3Db7syhNvDn2ZsUB15miII5VeL0Bp/HMtKi
+         5QPpA+yEYfRTvRCqpfLtp+ZbCQ73HU97QS/CuejIyf1zSEgMfeq4rRlCk42xLaKgSTEC
+         dcc7IoMuOKkaaViTrNTGaBvpPF+FazP7/e2Df8cM3NRbd82XCgHf2kJVqChMBei0qrqP
+         0IhA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=aMPPfj5JnNOQrKOZmzKYJq4pNGTHYuLUKAkg9cwvBis=;
-        b=Zz83Hv5XNpPGRp2/ZBBdaS1fKs2s7lZR8LCCKXiG+UbFfy4iCq1xWxJVZzzr5jE8as
-         3giEkeWozJchxdMFZJL9K8XYA4XFaKgmYS9+0trHOO7oorvPjpPSshzBkHmcsPhzHMu5
-         FHxLdOaXNSj7wAUDRx4eDULGMcBzF7eUSxJk1sjFI/wQ/qKNMLISfw2tmMAfmj540edu
-         3eA9E4QRE5qHYHkgB6vwKgLaZjAO+3cD36Yfd7MIm1N7jjb4DC+gE69EkwAeZlR+sCKr
-         J+9pawoi+rTpsZkpAaRtQEU+Meb8dmhE4AL1+Qk+qqzzlwPT9kvtePDgktWf8z1kv5sb
-         yvYg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=zqPIMCgjn4CkXkrOXkctLP/edN2VdhXVbKkBnLc+HsA=;
+        b=uO7OueFixZhroKlfLVQVX9fjXG11v3yJ33+e6aaU3rEuwxOeIcbSEwqCydsBAbIo0B
+         JBs0SdQVwgU5CqlEcQU1noYsjWfyMqk1I4GRFXZp/3Z3GSmV4YOWv3nF32nIVlM6ZILz
+         k7sYfztIheG5ldV5AuIzEsWNbFBGWkEvDEgeS8SlOA12XraTkF/pn91Qf7b6gjNVQu7V
+         oObCIhGHWUZ02hZk71Fosip0jTB0mWF1nV8Qd2BHaBov8lW5hyds0eF+781eA/3vVG8i
+         Q+DYia4KiwL96NAhuSVffJ2Am6Q7xreSr71lxuVufPMuEDM8nNYwYFYmCXuhyCJIeP0A
+         eQPA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=NRCuIUie;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id k7si10569739pfb.69.2019.04.01.21.47.14
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=tqmK2RHc;
+       spf=pass (google.com: domain of adobriyan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=adobriyan@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x3sor7124295wmk.9.2019.04.01.22.57.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 01 Apr 2019 21:47:14 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Mon, 01 Apr 2019 22:57:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of adobriyan@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=NRCuIUie;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
-	Content-Type:In-Reply-To:MIME-Version:Date:Message-ID:From:References:Cc:To:
-	Subject:Sender:Reply-To:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=aMPPfj5JnNOQrKOZmzKYJq4pNGTHYuLUKAkg9cwvBis=; b=NRCuIUie73WIwB+IKHA2kfPsR
-	1eEMLtiJ3mtAnHhDZQsGtDIBPSMouSt0UyL1OroZVOZAIqEfcyfcEZPzolQxhgwsNoYw0ww6HPC5+
-	DwIVi5CXoyDsMzHcqwvY2isfTCbbTLyCMVCItkXkL+IGN3IqN3e6o19k5PMYkji4x//9XR8dlnqoz
-	As9BU9+ORPZkUFrxRbkIFXqAYL2y1/279CRlF+O73Ub7YK4mfvfs086c6ZEOlGeBtikouVur8eF6k
-	7CNBabBO54kv6KMQFeBLDg/4djZb+HQYLBdr1oJjYMuN7nfb0L1AdxMPBy7sXemTqF6rNjvqrj3Ez
-	NXTBQRcxg==;
-Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=midway.dunlab)
-	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hBBKJ-00007H-9Z; Tue, 02 Apr 2019 04:47:11 +0000
-Subject: Re: [PATCH v3] gcov: fix when CONFIG_MODULES is not set
-To: trong@android.com, oberpar@linux.ibm.com, akpm@linux-foundation.org
-Cc: ndesaulniers@google.com, ghackmann@android.com, linux-mm@kvack.org,
- kbuild-all@01.org, lkp@intel.com, linux-kernel@vger.kernel.org
-References: <20190402030956.48166-1-trong@android.com>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <ef2492c2-2b30-b431-3aaa-33b619a2e1d3@infradead.org>
-Date: Mon, 1 Apr 2019 21:47:09 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=tqmK2RHc;
+       spf=pass (google.com: domain of adobriyan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=adobriyan@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=zqPIMCgjn4CkXkrOXkctLP/edN2VdhXVbKkBnLc+HsA=;
+        b=tqmK2RHchbJBdh3gll7YSfmeW2ub6TrZddm2YjQmhLQNH4If1OhorWGGMXofvmvsZx
+         zw2DlxUEmiizXcMQYCNSmiiFnKjxbxu3YlCitgt6sfnbBEnWKObHhPssxgle8aZ5sF4z
+         MvxhmpYRsDHvoyEw0wy/v1ENPxvSEA9tsWKM3u4pm9kD08II/3mjVUxOwCc1jN6AM7Sh
+         6AapNigbZ5JWvsS0s1FcOIZkih3nTLp9hT2wvyehxn+pqyTdlP95gQh/fY6BfvqR0nkW
+         Sr78sMUy0wHGCSkLwMR3SvLBWFqgAgImzjX0buaAWN1nagR/7zTqL9nJqo0dRyjOePs2
+         znAA==
+X-Google-Smtp-Source: APXvYqyeOJBVAsa/o0RTnTneAibpA3f2Qioi2K4yCMqb4SgWlDBd+lG6pi3Sb3nwL7RHAjNv/Hw3PQ==
+X-Received: by 2002:a1c:38b:: with SMTP id 133mr2099803wmd.26.1554184634475;
+        Mon, 01 Apr 2019 22:57:14 -0700 (PDT)
+Received: from avx2 ([46.53.240.21])
+        by smtp.gmail.com with ESMTPSA id i18sm13080066wrm.7.2019.04.01.22.57.13
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Apr 2019 22:57:13 -0700 (PDT)
+Date: Tue, 2 Apr 2019 08:57:11 +0300
+From: Alexey Dobriyan <adobriyan@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
+Subject: Re: [PATCH] Bump vm.mmap_min_addr on 64-bit
+Message-ID: <20190402055711.GA3078@avx2>
+References: <20190401050613.GA16287@avx2>
+ <20190401160559.6e945d8d235ae16006702bfc@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20190402030956.48166-1-trong@android.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Content-Disposition: inline
+In-Reply-To: <20190401160559.6e945d8d235ae16006702bfc@linux-foundation.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000208, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/1/19 8:09 PM, trong@android.com wrote:
-> From: Tri Vo <trong@android.com>
+On Mon, Apr 01, 2019 at 04:05:59PM -0700, Andrew Morton wrote:
+> On Mon, 1 Apr 2019 08:06:13 +0300 Alexey Dobriyan <adobriyan@gmail.com> wrote:
 > 
-> Fixes: 8c3d220cb6b5 ("gcov: clang support")
+> > No self respecting 64-bit program should ever touch that lowly 32-bit
+> > part of address space.
+
+> Gee.  Do we have any idea what effect this will have upon all userspace
+> programs, some of which do inexplicably weird things?
 > 
-> Cc: Greg Hackmann <ghackmann@android.com>
-> Cc: Peter Oberparleiter <oberpar@linux.ibm.com>
-> Cc: linux-mm@kvack.org
-> Cc: kbuild-all@01.org
-> Reported-by: Randy Dunlap <rdunlap@infradead.org>
-> Reported-by: kbuild test robot <lkp@intel.com>
-> Link: https://marc.info/?l=linux-mm&m=155384681109231&w=2
-> Signed-off-by: Nick Desaulniers <ndesaulniers@google.com>
-> Signed-off-by: Tri Vo <trong@android.com>
+> What's the benefit?
 
-Acked-by: Randy Dunlap <rdunlap@infradead.org> # build-tested
-
-Thanks.
-
-> ---
->  kernel/gcov/clang.c   | 4 ++++
->  kernel/gcov/gcc_3_4.c | 4 ++++
->  kernel/gcov/gcc_4_7.c | 4 ++++
->  3 files changed, 12 insertions(+)
-> 
-> diff --git a/kernel/gcov/clang.c b/kernel/gcov/clang.c
-> index 125c50397ba2..cfb9ce5e0fed 100644
-> --- a/kernel/gcov/clang.c
-> +++ b/kernel/gcov/clang.c
-> @@ -223,7 +223,11 @@ void gcov_info_unlink(struct gcov_info *prev, struct gcov_info *info)
->   */
->  bool gcov_info_within_module(struct gcov_info *info, struct module *mod)
->  {
-> +#ifdef CONFIG_MODULES
->  	return within_module((unsigned long)info->filename, mod);
-> +#else
-> +	return false;
-> +#endif
->  }
->  
->  /* Symbolic links to be created for each profiling data file. */
-> diff --git a/kernel/gcov/gcc_3_4.c b/kernel/gcov/gcc_3_4.c
-> index 801ee4b0b969..8fc30f178351 100644
-> --- a/kernel/gcov/gcc_3_4.c
-> +++ b/kernel/gcov/gcc_3_4.c
-> @@ -146,7 +146,11 @@ void gcov_info_unlink(struct gcov_info *prev, struct gcov_info *info)
->   */
->  bool gcov_info_within_module(struct gcov_info *info, struct module *mod)
->  {
-> +#ifdef CONFIG_MODULES
->  	return within_module((unsigned long)info, mod);
-> +#else
-> +	return false;
-> +#endif
->  }
->  
->  /* Symbolic links to be created for each profiling data file. */
-> diff --git a/kernel/gcov/gcc_4_7.c b/kernel/gcov/gcc_4_7.c
-> index ec37563674d6..0b6886d4a4dd 100644
-> --- a/kernel/gcov/gcc_4_7.c
-> +++ b/kernel/gcov/gcc_4_7.c
-> @@ -159,7 +159,11 @@ void gcov_info_unlink(struct gcov_info *prev, struct gcov_info *info)
->   */
->  bool gcov_info_within_module(struct gcov_info *info, struct module *mod)
->  {
-> +#ifdef CONFIG_MODULES
->  	return within_module((unsigned long)info, mod);
-> +#else
-> +	return false;
-> +#endif
->  }
->  
->  /* Symbolic links to be created for each profiling data file. */
-> 
-
-
--- 
-~Randy
+Note the date :^)
 
