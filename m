@@ -7,163 +7,131 @@ X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 54E3EC43381
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 07:54:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E67E8C43381
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 07:57:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 10BBA2084C
-	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 07:54:47 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9FD2E20830
+	for <linux-mm@archiver.kernel.org>; Tue,  2 Apr 2019 07:57:08 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Jp+tSC8K"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 10BBA2084C
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="uy/Wtrn9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9FD2E20830
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A2FE56B026B; Tue,  2 Apr 2019 03:54:46 -0400 (EDT)
+	id 4AF536B026D; Tue,  2 Apr 2019 03:57:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9DE6F6B026C; Tue,  2 Apr 2019 03:54:46 -0400 (EDT)
+	id 45E546B026E; Tue,  2 Apr 2019 03:57:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8F4136B026D; Tue,  2 Apr 2019 03:54:46 -0400 (EDT)
+	id 300726B026F; Tue,  2 Apr 2019 03:57:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 704EE6B026B
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 03:54:46 -0400 (EDT)
-Received: by mail-it1-f197.google.com with SMTP id a64so2087900ith.0
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 00:54:46 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 0E9CA6B026D
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2019 03:57:08 -0400 (EDT)
+Received: by mail-it1-f197.google.com with SMTP id j8so2055618ita.5
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 00:57:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=fVRLBEFJAHoY/K/5EzGGyJBatAKnecX/Sq5cGdSYc0s=;
-        b=oG9KjYPoz5G/jkFd3GOo00FdihQM49fdLtQ91xF72fMU3tvtrng6GlSgIrFV69IjPF
-         yiQfEVn5HcwU4BiIXybSovntShEEOuedFa9Euw3D9iBJ729IgGlobwHGzrgaenP0ALpX
-         WR80pewhBP6/F9/iv6znOajDy/GvcGIXrBIdxidulNfktaTLzMDDMtV/GhStnKwMw/Yz
-         joGu6p/2OtoY4onjXqyJKqlGQVEYCkGucZIYvf8ne0Q2TRFzjp6nFgq0sVhJRszWjQ/q
-         ha4W6xArcB1Tz88O6cKgVVBAXwUWA0eL16vo9gsBUlUK3wdPrw2K0w71aAa71sPuloIA
-         GUhQ==
-X-Gm-Message-State: APjAAAWJ6g/9wmEJM7jYTXS/ZguhrJX5P811wQsQa/W2NRcgLCQW/pyb
-	fJC3Y/CHI9t5p8+Xn7JJdYCUiqlnti3yQGty5VI3rjZOWG7dWcANNIKZMqfQnChSQnkVjnvbCJ+
-	4FAvJlJd6PTaUhSVRLoz3ZbgG2XdQuufjuAusfjIm4bqlvevYfv0zFB0TQBMm6kxcTg==
-X-Received: by 2002:a24:65c8:: with SMTP id u191mr1338061itb.137.1554191686132;
-        Tue, 02 Apr 2019 00:54:46 -0700 (PDT)
-X-Received: by 2002:a24:65c8:: with SMTP id u191mr1338045itb.137.1554191685550;
-        Tue, 02 Apr 2019 00:54:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554191685; cv=none;
+        bh=wwqAk3i2+Zv3o0pWyHzJF+VB/i0BlUhtj9pR8gcxtjI=;
+        b=VaLsGaNelW9N4P2AYF/g78JXXGsaOrrQu5kvcnnWomSCenvSu0xu7dscPY6yrJDoyp
+         GWIqX9eba5fvarf4BbtG83fPVJscfD/waazFObzk5laO674hsKlNZB7InsddzmkO801S
+         Wf0Ous/lwNt5HiqC7fgtKoYlNTHGfaB2JbG7RO8xtOum4oQwQFa0QWV3tJogi4frCNCa
+         FFXDag9IO9xvaQ+6wQ2VjCRjz3scW6OxlyBgm5nUZhhBrClgXr5WQJMRhtYdeH4/cSHg
+         eI4wNf51RtaTmu2eUbxCnbN+zEquAYLoyPHt4cFkcBwyZnZMWUpGBDHtqZNKkIxXHnUB
+         daLg==
+X-Gm-Message-State: APjAAAXyHmxwaWRDrUf5kHkbqvgBATtGMVDwi5qe4yF7uQ5TFisuuwfG
+	O5cV9o6af7pfhBFUIRHTK89o+fVj7E3x2gL8c0a+2TUKcb38PTAMgGlA9JByFvExIi2me0xt/sj
+	P7p7Dq3UuC7CK0WeA4Y3AkQdyuvQAfwaiIiPU54Q8/pazpSlxXMej/AMXj92d/00PbA==
+X-Received: by 2002:a6b:700d:: with SMTP id l13mr47053365ioc.248.1554191827839;
+        Tue, 02 Apr 2019 00:57:07 -0700 (PDT)
+X-Received: by 2002:a6b:700d:: with SMTP id l13mr47053333ioc.248.1554191826938;
+        Tue, 02 Apr 2019 00:57:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554191826; cv=none;
         d=google.com; s=arc-20160816;
-        b=Drfh497y3GIBZiMfhelMobq7LxoFflXdDWr7LBJr3s7v7IFJ3M7FpqsDhqsIzDxKPw
-         O4AENXCkzIUe1mkaUYViUszNCx/tevurySYeHGzrAgDNdSiuutDzQA6TOo4PSJ1rLtDB
-         RH1+zVHKOaUu7j6yXNn4QMbNh3yuuiNrIoup5q/BL1ZqGZPJmR7PEOfy0deK9YqHsnQO
-         mxNLXYWjq4eVTtnv49oyArzv4eRFi1n85g76dCDrkN71Iw76Ti25La/KgDvp2I0NaTlh
-         ytkY4sn36clPdEGaKJfca2ChwOs8hdlVjEr0pPzJKlX1M9RqdszwSkF6cDwjdMG694PK
-         M6qw==
+        b=tmSXS5oFQ9GCthe7ifvSs3K5G/e3mtdTHEG2C5H2Zh9x9JbQHqGNBUwxSNrPxRkFo9
+         Es44sP6Zh9VFwQy5jdZ+XAY4MmgSCUYlOWU+x+n/dEQIcUMRa58XSPwkb/ezi2YGCVq+
+         ufiRRSmBH3ZFvoqNEnV8IEqtyb2jxWExmR6vnlkYVMOE3YQgN7xHKNiJaNGqDmoH+CqF
+         58c40EVoVkeUF8n7BUQR1IsIrmDO0D0UrjL8wFoo5WFQg0E5404JONJO6uMg1ulBI+T0
+         MFoohEARwuPWlHnhBMpQpkPVLodj1sHjtAGmviHMKH7VGflz/YVy/st/+SHGDPK2b59H
+         DIyw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=fVRLBEFJAHoY/K/5EzGGyJBatAKnecX/Sq5cGdSYc0s=;
-        b=QZrHWfBUiQGu26uExMF43OvVTIHxUQTFKGSYYDt+XJYdVOrwz7YhZ/JkIJWiS0rtVN
-         PpYD98yItw8h14LTRlJBMi+SYtHneoMLD3gezUULExjuW+CLIFuW+zhL0ymO38HyZU4k
-         d+wsxjQd/uCWx157PUAfoa6LUCmixhbViYuPme554eFGot50+G1ZRiMdGdh7QdxhxO0I
-         ys4ZxSUByyl3G5L1KVyZHXy0dBBnHu+p3RE73/Lp5Cpl4gI3yhTBuf3ZLRDfzovrvaHs
-         D2XslwJrNsM0ZF91N/UuRRMNGf1fd9YH0lmiEXFyDBuhRXN7RszXZPWisQVeY+fvaMmL
-         0jYQ==
+        bh=wwqAk3i2+Zv3o0pWyHzJF+VB/i0BlUhtj9pR8gcxtjI=;
+        b=HbIswy3aouy7uwE+zjlz9yK4R7KKPcFt9uQJAUe2DmVlnZCMdN4wxEZra/hPQa8qQo
+         zKGLfysBwViX/9ohtqwPb52K+qTyPVC4wmIz8764rBJhmyd1RLEUCC0IRoC3xB6A37qd
+         5HxMNt+XM7+q8d2nhRDryLjTcxOMAaxrtMf9JbF8E9/ZGLOraE5p+qSYmSEBp9alNsPK
+         G5xRpcur7IId4EV+De1/iXRwVTphaWYJWRRTTC1w87l3y/kLLAmOYsFT8vevnwI/xrjt
+         IQZTVu8V2PN/5qxvgdLJ6wx5SfZ5fIZl764VJZJdqkuVRTXiRH5lIrRfPSYEXWWAtBWR
+         OcCg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Jp+tSC8K;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="uy/Wtrn9";
        spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l22sor7708966iob.74.2019.04.02.00.54.45
+        by mx.google.com with SMTPS id x7sor6808385iom.5.2019.04.02.00.57.06
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 02 Apr 2019 00:54:45 -0700 (PDT)
+        Tue, 02 Apr 2019 00:57:06 -0700 (PDT)
 Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Jp+tSC8K;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="uy/Wtrn9";
        spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=fVRLBEFJAHoY/K/5EzGGyJBatAKnecX/Sq5cGdSYc0s=;
-        b=Jp+tSC8KXs59bN3V9va6En1vKRiMgE/EUonl64nULWgG61luh1ha6SbwdKCZEXepZN
-         qoYb4rOUGISKgbtZWVsB+6xA3ivmiqMJkuEtqRIA9ArE9X5e/gCd8hLzsHdrRotPeS/e
-         s0AJdIZ3gRN0FQU7xIXivtcY6zGmC8fpBedeHqHFu6V708FTKY/yAqjCuR1DF2SKKt7p
-         Td7GviYLJOqlfkaojRwJpI6uBcJZQkOq/Tc6tUZ6vwD/z0O0ow40fO8rhH2BKxDpjQY8
-         zwqTsJ0aHoyMTxvLjSII/8Vn5WTm4T0yiluWkS+1Gjd+tch2uJa4+r5RTbK4C53ITOqC
-         ZB4Q==
-X-Google-Smtp-Source: APXvYqzsGFuogadboqKMrmzXjrqwss0e7hgtnpNQeT6udYT4CHn1L2tGEFYr80gO3Ldd2aCl2+2o0G7K9NN1bZmZVqY=
-X-Received: by 2002:a5d:8c98:: with SMTP id g24mr1243535ion.35.1554191685290;
- Tue, 02 Apr 2019 00:54:45 -0700 (PDT)
+        bh=wwqAk3i2+Zv3o0pWyHzJF+VB/i0BlUhtj9pR8gcxtjI=;
+        b=uy/Wtrn9+qQNfoD8pExD0yoZlxPtLH19N8AgGJ2doFoBypY+rnAQvyPnxGnM+arKIR
+         DRfvy+Emwog0Sj1yz9KQXmmZ7So68Mq0BN2VVWp0vjnZixyxtxhIv/OVddgWC0RnowWY
+         +qSJzQs2ZGQhBP6U+kq2KC4EBpFK/TRbX3ks5FwabsJxOnASeR0BLBk8liZ4YFbjMWa2
+         M0GCEz7zmV1vCiFU87c2b6Dp3wWEi66xydlXpyJsELAqaDHCQZ3za6o0zP7mwQnkP/Qo
+         5vdCJZ+YhkzsV9iaDNTa87oaOwnQBa8V7lA9rQE9PSrQcSEoSMX0sqJrUascyt+bb/3+
+         pjeg==
+X-Google-Smtp-Source: APXvYqwnp6xCt7FlNjMJy2A1tfclDopUF4MlZI21KCVEtf1MQeguCgxCXZp1epuwptOd50yK23WasNPnQR9R06rHqgg=
+X-Received: by 2002:a5e:df06:: with SMTP id f6mr14527223ioq.199.1554191826738;
+ Tue, 02 Apr 2019 00:57:06 -0700 (PDT)
 MIME-Version: 1.0
 References: <1554185720-26404-1-git-send-email-laoar.shao@gmail.com>
  <20190402072351.GN28293@dhcp22.suse.cz> <CALOAHbASRo1xdkG62K3sAAYbApD5yTt6GEnCAZo1ZSop=ORj6w@mail.gmail.com>
- <20190402074459.GP28293@dhcp22.suse.cz>
-In-Reply-To: <20190402074459.GP28293@dhcp22.suse.cz>
+ <20190402074459.GP28293@dhcp22.suse.cz> <20190402074911.GQ28293@dhcp22.suse.cz>
+In-Reply-To: <20190402074911.GQ28293@dhcp22.suse.cz>
 From: Yafang Shao <laoar.shao@gmail.com>
-Date: Tue, 2 Apr 2019 15:54:09 +0800
-Message-ID: <CALOAHbBs4MJhJKg2dLF91TeKgr5s6Z91TgMJXLH+66ZBqbS4hA@mail.gmail.com>
+Date: Tue, 2 Apr 2019 15:56:30 +0800
+Message-ID: <CALOAHbD=64+Sy5HsRVvGXBSduv5eofD39XNuz_cvwymAX-ghYg@mail.gmail.com>
 Subject: Re: [PATCH] mm: add vm event for page cache miss
 To: Michal Hocko <mhocko@suse.com>
 Cc: willy@infradead.org, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, 
 	Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, 
 	Linux MM <linux-mm@kvack.org>
 Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000039, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 2, 2019 at 3:45 PM Michal Hocko <mhocko@suse.com> wrote:
+On Tue, Apr 2, 2019 at 3:49 PM Michal Hocko <mhocko@suse.com> wrote:
 >
-> On Tue 02-04-19 15:38:02, Yafang Shao wrote:
-> > On Tue, Apr 2, 2019 at 3:23 PM Michal Hocko <mhocko@suse.com> wrote:
-> > >
-> > > On Tue 02-04-19 14:15:20, Yafang Shao wrote:
-> > > > We found that some latency spike was caused by page cache miss on our
-> > > > database server.
-> > > > So we decide to measure the page cache miss.
-> > > > Currently the kernel is lack of this facility for measuring it.
-> > >
-> > > What are you going to use this information for?
-> > >
+> On Tue 02-04-19 09:44:59, Michal Hocko wrote:
+> > On Tue 02-04-19 15:38:02, Yafang Shao wrote:
+> [...]
+> > > Seems I missed this dicussion.
+> > > Could you pls. give a reference to it?
 > >
-> > With this counter, we can monitor pgcachemiss per second and this can
-> > give us some informaton that
-> > whether the database performance issue is releated with pgcachemiss.
-> > For example, if this value increase suddently, it always cause latency spike.
-> >
-> > What's more, I also want to measure how long this page cache miss may cause,
-> > but this seems more complex to implement.
+> > The long thread starts here http://lkml.kernel.org/r/nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm
 >
-> Aren't tracepoints a better fit with this usecase? You not only get the
-> count of misses but also the latency. Btw. latency might be caused also
-> for the minor fault when you hit lock contention.
-> >
+> Thinking about it some more this like falls into the same category as
+> timing attack where you measure the read latency or even watch for major
+> faults. The attacker would destroy the side channel by the read so the
+> attack would be likely impractical.
 
-I have think about tracepoints before, the reason why I don't choose
-it is that the implementation is a little more complex.
-I will rethinking it.
+Thanks for your information.
+I will think about it.
 
-> >
-> > > > This patch introduces a new vm counter PGCACHEMISS for this purpose.
-> > > > This counter will be incremented in bellow scenario,
-> > > > - page cache miss in generic file read routine
-> > > > - read access page cache miss in mmap
-> > > > - read access page cache miss in swapin
-> > > >
-> > > > NB, readahead routine is not counted because it won't stall the
-> > > > application directly.
-> > >
-> > > Doesn't this partially open the side channel we have closed for mincore
-> > > just recently?
-> > >
-> >
-> > Seems I missed this dicussion.
-> > Could you pls. give a reference to it?
->
-> The long thread starts here http://lkml.kernel.org/r/nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm
-> --
-> Michal Hocko
-> SUSE Labs
+Thanks
+Yafang
 
