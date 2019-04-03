@@ -6,98 +6,98 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 13645C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 04:22:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A49A2C10F06
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 04:23:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A08EF2084C
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 04:22:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 473B92146E
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 04:23:01 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="I/Ui5km2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A08EF2084C
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="V/Y3w93P"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 473B92146E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 449D76B026F; Wed,  3 Apr 2019 00:22:53 -0400 (EDT)
+	id C38EC6B0272; Wed,  3 Apr 2019 00:23:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 421C16B0272; Wed,  3 Apr 2019 00:22:53 -0400 (EDT)
+	id C12346B0274; Wed,  3 Apr 2019 00:23:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3129C6B0274; Wed,  3 Apr 2019 00:22:53 -0400 (EDT)
+	id AD8F86B0275; Wed,  3 Apr 2019 00:23:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 127AB6B026F
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 00:22:53 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id p26so15548919qtq.21
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 21:22:53 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 8CE346B0272
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 00:23:00 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id v18so15706383qtk.5
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 21:23:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=ToWY0R45y8BHjmAdWxteY+oDuIkdik3lI8PSNGM4h2M=;
-        b=YbPb9BG3D34xOX8lhpj1L5Ewgkjm6AIc0X1E5SrQJjo3J8yifOLIkRJH0PbWQXIE8+
-         zhdnbAjMamQ/ZRXmzWC1UabGNi8eZXc/gYFNcuOfavt53f3AwSgSwOb9J0Cfs6XCwC54
-         5CdpErm+jdEDj/YlQv/WhEhCManHanfmskEEOP8LTubjAghM2OTBcuiCVBA824H/Z+vI
-         gldUrnVrg6HM7hFwEHWtU+YMD2u6ETMV2atVdGAWZJsdD4W022z//y2kK6PjR7L4DuDT
-         4Pon+bhawHTPufwhhav1KYw440tboIM2S3U3q4Ao4a8xW8p8MYkqac3glqVT++BKFUAa
-         8oxg==
-X-Gm-Message-State: APjAAAVoOKdtqngOCNzauNyEV1Vzq+mmkB7BjMDXWdqaDBKAB9DIWzjj
-	T1nB2AY1aXw4fSDyKwDj4fL4mBtDxNyijdJWtX9aasXqvwiAs3Rk05fsWhf5LkiS1giEYzT6TiL
-	xW+36onu1b4PvYhrtnb5bhEHcMhb7Qxtlz/YBFxk7Dy8gx/ddjNC53e2L25zkJYQ=
-X-Received: by 2002:a0c:b99c:: with SMTP id v28mr28089913qvf.10.1554265372800;
-        Tue, 02 Apr 2019 21:22:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwl27u43friSBtI/4bQ28lq12bQ3dV4XhYvbDVdUM/qP7eNnD5GaqBnLmmYl0kUiepMdVXY
-X-Received: by 2002:a0c:b99c:: with SMTP id v28mr28089880qvf.10.1554265371696;
-        Tue, 02 Apr 2019 21:22:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554265371; cv=none;
+        bh=bxV5jBaXvA/LKL0qOR0ZLSK5IIfdrfWAd0nyjsopfiM=;
+        b=LueBaAUI1iE6FSybqpbGnejtYEdauhGZARUzXb2j6OoTGJ5+P6poKaWG1FgIjNy+5t
+         DJQAImHV2kHEgJyZm9IGMsZ6E29BMwm+Br6eRpvCVvJuZLpludW/owPq+egVfm5Goqc9
+         TOdGmZndOdwsSCulaX19JwzlE6Q8HszH3EAK8VyIiN5KzTm1hRVFh5EAh5sUxH+kXJLp
+         ExIm1Y/WC3jdbc2/1ua78yJHSLc9B7CacUA45fO2lCb/MKQF7PokHFtH+U/y52hn4Amm
+         PTcOWwecV1UkoamojKozIl1SSSLZbIS/GE1I1fJTn835EiGo0TgunjuDCNoHY2IF/n9w
+         Ow/A==
+X-Gm-Message-State: APjAAAUqjoqUglO5NCvznIRA1WBFmEUYPGb55bdi4qReJnPxCfMLMwBI
+	Q5jmc8A70GMVKsxTcsiwOqwTzhL17d833XAKzvBNmedsus6GiyeTI1k1L4vCARwGDPlzHSdiI/U
+	Y0lcCIVFf/YE7hVDlOBbKsXfTf81zPNqxB1NBiWPrCqct/Q4b/rch0r7rCdTTF48=
+X-Received: by 2002:a0c:e587:: with SMTP id t7mr37965219qvm.114.1554265380319;
+        Tue, 02 Apr 2019 21:23:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzoPrXPc1LRgN/bxCcXBhvShRz0TvCdJn+K5iARaPh1LfsG9lcJGtaJeo2rRuqR6I00BhPv
+X-Received: by 2002:a0c:e587:: with SMTP id t7mr37965175qvm.114.1554265379057;
+        Tue, 02 Apr 2019 21:22:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554265379; cv=none;
         d=google.com; s=arc-20160816;
-        b=Nj4HZgu/kJ7I873A6uGNbnmTGFMgoZcjCJuvcVfjKPIl1cHgyR6mP8V12uIn8OpyBR
-         epB0hVhqa1qJlUo2fjq1rEK35pn2Em4BmgBKfXKlu8tJchrIBHQj+Cg2qjnkdFUG6AW+
-         1WhwPT/4H0yjDn6UiIuhrzbicDD5Me1JRRKPzwS6J5VoBCdP3KgA+LQiN16HavOdwS5r
-         bL6Xzoxh7gxBaR/p5ngOa5p32scz2oX//51bfIl28z/3ImvOP/lbT40gCKP5JXgF5oH9
-         lA0XN2dD7hWFDFdhhskeIuq+6V6iNSbeyrGWdZCfMrvYhY+QLWbcpdo7VwGp8n8ofcmy
-         GvFg==
+        b=tjK8ROP8lzXRgPDs/8JG0vtu1+qBo0nvnmr38g1NJKsF0J5oR4ysOyoW+xBTAmZLXt
+         r/tvz1XyvsJiwhr//uLXOz3r1oMVNiYaGlaM5RVSHhC5n0Iy3UH275lZDbwPQuut9H4y
+         Ds0JLWaUCcTmEB2qys8BBoOFCPB4HhLbIXcdOHCFOG/uDxHCaxLktjimYb6JJ+mV719g
+         5K/S82ZvBz6Y7XyC6ZskFh5oCQ2GzGkgOUTH9QDZ5pvxrwYrSZpG3ej7UFDDaS9/wgTu
+         sWliAiBGxOJTQmEz+/f5xTYW/graA6lNwr/bjTehbgd9LPW4fjzadsldyxnARwhjDTZY
+         NU1Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=ToWY0R45y8BHjmAdWxteY+oDuIkdik3lI8PSNGM4h2M=;
-        b=ESuD7kfYCcl727sd3sZUURj4W70I6aJBmrS3RYt2wCn33kBnKlJzhvXlty4MW0mG5o
-         cA7d0sqOtbCqJMZ2NUe0UcZAzDx8PaJ9oevEwqRWD+AIhLwTZJOcu6WnjXYsUYdST60/
-         vtlawi4WdX27sU9tzDOjQTqDGe7+Zkk57XAUsOJWmym4Ys+5vlmoZ76av40iv/7PNT79
-         V85Tynpgg0x95QlUKRqztOfp9QJM0erQBjdm9e9QnvRB/Az0O1E7FK+NTu3Hz3Kkzvlr
-         MJ9J672HZeP0z4qCvnTJ4WgXAN2fsWwf0tqpzQFW6Bq3uvTLrYEE1s3j1jqPejIQ0zyM
-         2OWw==
+        bh=bxV5jBaXvA/LKL0qOR0ZLSK5IIfdrfWAd0nyjsopfiM=;
+        b=Av8ReY6h+lNYDEdG+wqljtjaDHy3bcaMkdmyfuQHZerfAm+kSEdOVMsb9R88Kcf11q
+         pjeBHw3hhFVdWb2kga++cKbdjR+E0uzcsU4+m4ebpWTvj6FE69i7EQdf23mZzUCV8nu0
+         EYkHehj48GkimcRhhrFuOGTFjp2UYRJpy5JmWskyZmAfK8CGajL1bHPt9h9Pg1uPgW/0
+         5r/diwWPmdRlfG3/kPPXXBAyxKBzmWoHSCqwzK6EV8SKeSZLnddSbRNL96sDk9x1wkxz
+         sTN26FQkzGGb2pFZ2OadjAdjiPHfj/hVKSlXMiLu/giyQdsg9tvs3PPw2u5e0lTkQSXh
+         s2Ug==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="I/Ui5km2";
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="V/Y3w93P";
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.28 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from out4-smtp.messagingengine.com (out4-smtp.messagingengine.com. [66.111.4.28])
-        by mx.google.com with ESMTPS id m8si523769qte.391.2019.04.02.21.22.51
+        by mx.google.com with ESMTPS id i12si2734380qtr.73.2019.04.02.21.22.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Apr 2019 21:22:51 -0700 (PDT)
+        Tue, 02 Apr 2019 21:22:59 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.28 as permitted sender) client-ip=66.111.4.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="I/Ui5km2";
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="V/Y3w93P";
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.28 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.nyi.internal (Postfix) with ESMTP id 6768821908;
-	Wed,  3 Apr 2019 00:22:51 -0400 (EDT)
+	by mailout.nyi.internal (Postfix) with ESMTP id AE48921B24;
+	Wed,  3 Apr 2019 00:22:58 -0400 (EDT)
 Received: from mailfrontend2 ([10.202.2.163])
-  by compute3.internal (MEProxy); Wed, 03 Apr 2019 00:22:51 -0400
+  by compute3.internal (MEProxy); Wed, 03 Apr 2019 00:22:58 -0400
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:subject:to
 	:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=ToWY0R45y8BHjmAdWxteY+oDuIkdik3lI8PSNGM4h2M=; b=I/Ui5km2
-	fzUg9Gk9NdXhf11L7d39CpWXho85pgZB3EdjjtN9gRTTuxOVubTuvbpUmRBh84Ee
-	TbLt9X12k2w2Ck5Y6ubD9qYTYuDf2PxVW/jlY37hiNQGUXii1W8TgHdYHuLQ5Kx8
-	2LPMvlFeI+bhIf54SrVprANJinvsUSTzHqMoOX6nf+H9qwfddHnwxfZhIxFcyAAo
-	Zp9Ub5B3DOqc8g8MtltyXnY31R084eF33UB9lFNI+j0L0NRniqVo7Faort+zO+uh
-	WLiWoR1QQCZWQaP9KSdayPpDRWjff/WRnkIDd3NNwLqAMaEVKqkJzUlbpj72zC8r
-	m8YEo78EAkmftA==
-X-ME-Sender: <xms:GzWkXBVYnLTGd06HjDNcA4r-lxNfksChskoHE_27oKDENFRybGZNPQ>
+	fm2; bh=bxV5jBaXvA/LKL0qOR0ZLSK5IIfdrfWAd0nyjsopfiM=; b=V/Y3w93P
+	eDWWJ0zDKkgrTdnG9yUUrsY+karzjq+Fn9idovC3n7/bivCQ7R1bsVM2c5YGscG8
+	sR2mhr+En1765Mq5xj+9KQKGLCVvAOGhwa15dx6UudoCxQHsXMVVuFZP9u8Ur/Cg
+	LN7WzigSvztiJ4vcOGkHnTyf2WFc8d0DGepG8WyyPxmN5Eiz2pPVh3dFmdbibVL6
+	6oapkwkiWiJzBt64IaSFbbr/wyJFPg2DqNMe9yE09bSc+nUCgRO8E5Bjq2kCcaIf
+	H+CSus/Gw9OONyrpzMtxWCC6If1SeD25wsJ7SFu0lZzXvl6aAmSE7Jqb3XQAGmdN
+	zUjMb6akz8gRCw==
+X-ME-Sender: <xms:IjWkXMZrz0012enT9vsIhX3oX5XzbuQuaLvS4PH2VlEDag1fYiyeZA>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtddugdektdculddtuddrgedutddrtddtmd
     cutefuodetggdotefrodftvfcurfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdp
     uffrtefokffrpgfnqfghnecuuegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivg
@@ -105,14 +105,14 @@ X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtddugdektdculddtuddrgedutd
     ucfhrhhomhepfdfvohgsihhnucevrdcujfgrrhguihhnghdfuceothhosghinheskhgvrh
     hnvghlrdhorhhgqeenucfkphepuddvgedrudeiledrvdejrddvtdeknecurfgrrhgrmhep
     mhgrihhlfhhrohhmpehtohgsihhnsehkvghrnhgvlhdrohhrghenucevlhhushhtvghruf
-    hiiigvpedt
-X-ME-Proxy: <xmx:GzWkXHnWEqBg2vlr9BHQicjoIM2dSAkUwELpxfTzmFUgGZNLpGlaUQ>
-    <xmx:GzWkXINwAk41R8_f25AKPsX9ISDUN7EQ3VuHDteLqDTc4ANaNyKp4Q>
-    <xmx:GzWkXHKqVX0yOj9VxirWtUlW51iRbaKmHiBAuJ5zKDBeC0bKxP8d9Q>
-    <xmx:GzWkXFs0iUmghMCF9QPlZnyfcuFYDFW-iBZH70OIQ4dxxvLxnMY-OA>
+    hiiigvpedu
+X-ME-Proxy: <xmx:IjWkXI0ZnDx3MLVwPYPvaN9LCFHaMpAoPXYDXQr0dCsxMl6a6z_OtA>
+    <xmx:IjWkXCXHHQZ27KafH2DTennDlK2TvI83TiT_abenRFB1PaON4UdGgQ>
+    <xmx:IjWkXDv9EyKJzE8s1Wtb2R6mvilqEVA2kPMj4RBEGRcMURniv5OxSA>
+    <xmx:IjWkXIQqHnQYCIalwKV6mxwIY5hUW_37YM9Bw8U5IwrBOoJo9ionoQ>
 Received: from eros.localdomain (124-169-27-208.dyn.iinet.net.au [124.169.27.208])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 6A7E1100E5;
-	Wed,  3 Apr 2019 00:22:44 -0400 (EDT)
+	by mail.messagingengine.com (Postfix) with ESMTPA id D33C210380;
+	Wed,  3 Apr 2019 00:22:51 -0400 (EDT)
 From: "Tobin C. Harding" <tobin@kernel.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: "Tobin C. Harding" <tobin@kernel.org>,
@@ -137,9 +137,9 @@ Cc: "Tobin C. Harding" <tobin@kernel.org>,
 	linux-mm@kvack.org,
 	linux-fsdevel@vger.kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [RFC PATCH v2 01/14] slub: Add isolate() and migrate() methods
-Date: Wed,  3 Apr 2019 15:21:14 +1100
-Message-Id: <20190403042127.18755-2-tobin@kernel.org>
+Subject: [RFC PATCH v2 02/14] tools/vm/slabinfo: Add support for -C and -M options
+Date: Wed,  3 Apr 2019 15:21:15 +1100
+Message-Id: <20190403042127.18755-3-tobin@kernel.org>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190403042127.18755-1-tobin@kernel.org>
 References: <20190403042127.18755-1-tobin@kernel.org>
@@ -151,210 +151,150 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Add the two methods needed for moving objects and enable the display of
-the callbacks via the /sys/kernel/slab interface.
+-C lists caches that use a ctor.
 
-Add documentation explaining the use of these methods and the prototypes
-for slab.h. Add functions to setup the callbacks method for a slab
-cache.
+-M lists caches that support object migration.
 
-Add empty functions for SLAB/SLOB. The API is generic so it could be
-theoretically implemented for these allocators as well.
-
-Change sysfs 'ctor' field to be 'ops' to contain all the callback
-operations defined for a slab cache.  Display the existing 'ctor'
-callback in the ops fields contents along with 'isolate' and 'migrate'
-callbacks.
+Add command line options to show caches with a constructor and caches
+that are movable (i.e. have migrate function).
 
 Co-developed-by: Christoph Lameter <cl@linux.com>
 Signed-off-by: Tobin C. Harding <tobin@kernel.org>
 ---
- include/linux/slab.h     | 70 ++++++++++++++++++++++++++++++++++++++++
- include/linux/slub_def.h |  3 ++
- mm/slub.c                | 59 +++++++++++++++++++++++++++++----
- 3 files changed, 126 insertions(+), 6 deletions(-)
+ tools/vm/slabinfo.c | 40 ++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 36 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 9449b19c5f10..886fc130334d 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -154,6 +154,76 @@ void memcg_create_kmem_cache(struct mem_cgroup *, struct kmem_cache *);
- void memcg_deactivate_kmem_caches(struct mem_cgroup *);
- void memcg_destroy_kmem_caches(struct mem_cgroup *);
+diff --git a/tools/vm/slabinfo.c b/tools/vm/slabinfo.c
+index 73818f1b2ef8..cbfc56c44c2f 100644
+--- a/tools/vm/slabinfo.c
++++ b/tools/vm/slabinfo.c
+@@ -33,6 +33,7 @@ struct slabinfo {
+ 	unsigned int hwcache_align, object_size, objs_per_slab;
+ 	unsigned int sanity_checks, slab_size, store_user, trace;
+ 	int order, poison, reclaim_account, red_zone;
++	int movable, ctor;
+ 	unsigned long partial, objects, slabs, objects_partial, objects_total;
+ 	unsigned long alloc_fastpath, alloc_slowpath;
+ 	unsigned long free_fastpath, free_slowpath;
+@@ -67,6 +68,8 @@ int show_report;
+ int show_alias;
+ int show_slab;
+ int skip_zero = 1;
++int show_movable;
++int show_ctor;
+ int show_numa;
+ int show_track;
+ int show_first_alias;
+@@ -109,11 +112,13 @@ static void fatal(const char *x, ...)
  
-+/*
-+ * Function prototypes passed to kmem_cache_setup_mobility() to enable
-+ * mobile objects and targeted reclaim in slab caches.
-+ */
+ static void usage(void)
+ {
+-	printf("slabinfo 4/15/2011. (c) 2007 sgi/(c) 2011 Linux Foundation.\n\n"
+-		"slabinfo [-aADefhilnosrStTvz1LXBU] [N=K] [-dafzput] [slab-regexp]\n"
++	printf("slabinfo 4/15/2017. (c) 2007 sgi/(c) 2011 Linux Foundation/(c) 2017 Jump Trading LLC.\n\n"
++	       "slabinfo [-aACDefhilMnosrStTvz1LXBU] [N=K] [-dafzput] [slab-regexp]\n"
 +
-+/**
-+ * typedef kmem_cache_isolate_func - Object migration callback function.
-+ * @s: The cache we are working on.
-+ * @ptr: Pointer to an array of pointers to the objects to isolate.
-+ * @nr: Number of objects in @ptr array.
-+ *
-+ * The purpose of kmem_cache_isolate_func() is to pin each object so that
-+ * they cannot be freed until kmem_cache_migrate_func() has processed
-+ * them. This may be accomplished by increasing the refcount or setting
-+ * a flag.
-+ *
-+ * The object pointer array passed is also passed to
-+ * kmem_cache_migrate_func().  The function may remove objects from the
-+ * array by setting pointers to %NULL. This is useful if we can
-+ * determine that an object is being freed because
-+ * kmem_cache_isolate_func() was called when the subsystem was calling
-+ * kmem_cache_free().  In that case it is not necessary to increase the
-+ * refcount or specially mark the object because the release of the slab
-+ * lock will lead to the immediate freeing of the object.
-+ *
-+ * Context: Called with locks held so that the slab objects cannot be
-+ *          freed.  We are in an atomic context and no slab operations
-+ *          may be performed.
-+ * Return: A pointer that is passed to the migrate function. If any
-+ *         objects cannot be touched at this point then the pointer may
-+ *         indicate a failure and then the migration function can simply
-+ *         remove the references that were already obtained. The private
-+ *         data could be used to track the objects that were already pinned.
-+ */
-+typedef void *kmem_cache_isolate_func(struct kmem_cache *s, void **ptr, int nr);
-+
-+/**
-+ * typedef kmem_cache_migrate_func - Object migration callback function.
-+ * @s: The cache we are working on.
-+ * @ptr: Pointer to an array of pointers to the objects to migrate.
-+ * @nr: Number of objects in @ptr array.
-+ * @node: The NUMA node where the object should be allocated.
-+ * @private: The pointer returned by kmem_cache_isolate_func().
-+ *
-+ * This function is responsible for migrating objects.  Typically, for
-+ * each object in the input array you will want to allocate an new
-+ * object, copy the original object, update any pointers, and free the
-+ * old object.
-+ *
-+ * After this function returns all pointers to the old object should now
-+ * point to the new object.
-+ *
-+ * Context: Called with no locks held and interrupts enabled.  Sleeping
-+ *          is possible.  Any operation may be performed.
-+ */
-+typedef void kmem_cache_migrate_func(struct kmem_cache *s, void **ptr,
-+				     int nr, int node, void *private);
-+
-+/*
-+ * kmem_cache_setup_mobility() is used to setup callbacks for a slab cache.
-+ */
-+#ifdef CONFIG_SLUB
-+void kmem_cache_setup_mobility(struct kmem_cache *, kmem_cache_isolate_func,
-+			       kmem_cache_migrate_func);
-+#else
-+static inline void
-+kmem_cache_setup_mobility(struct kmem_cache *s, kmem_cache_isolate_func isolate,
-+			  kmem_cache_migrate_func migrate) {}
-+#endif
-+
- /*
-  * Please use this macro to create slab caches. Simply specify the
-  * name of the structure and maybe some flags that are listed above.
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index d2153789bd9f..2879a2f5f8eb 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -99,6 +99,9 @@ struct kmem_cache {
- 	gfp_t allocflags;	/* gfp flags to use on each alloc */
- 	int refcount;		/* Refcount for slab cache destroy */
- 	void (*ctor)(void *);
-+	kmem_cache_isolate_func *isolate;
-+	kmem_cache_migrate_func *migrate;
-+
- 	unsigned int inuse;		/* Offset to metadata */
- 	unsigned int align;		/* Alignment */
- 	unsigned int red_left_pad;	/* Left redzone padding size */
-diff --git a/mm/slub.c b/mm/slub.c
-index d30ede89f4a6..ae44d640b8c1 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -4326,6 +4326,33 @@ int __kmem_cache_create(struct kmem_cache *s, slab_flags_t flags)
- 	return err;
- }
+ 		"-a|--aliases           Show aliases\n"
+ 		"-A|--activity          Most active slabs first\n"
+ 		"-B|--Bytes             Show size in bytes\n"
++		"-C|--ctor              Show slabs with ctors\n"
+ 		"-D|--display-active    Switch line format to activity\n"
+ 		"-e|--empty             Show empty slabs\n"
+ 		"-f|--first-alias       Show first alias\n"
+@@ -121,6 +126,7 @@ static void usage(void)
+ 		"-i|--inverted          Inverted list\n"
+ 		"-l|--slabs             Show slabs\n"
+ 		"-L|--Loss              Sort by loss\n"
++		"-M|--movable           Show caches that support movable objects\n"
+ 		"-n|--numa              Show NUMA information\n"
+ 		"-N|--lines=K           Show the first K slabs\n"
+ 		"-o|--ops               Show kmem_cache_ops\n"
+@@ -588,6 +594,12 @@ static void slabcache(struct slabinfo *s)
+ 	if (show_empty && s->slabs)
+ 		return;
  
-+void kmem_cache_setup_mobility(struct kmem_cache *s,
-+			       kmem_cache_isolate_func isolate,
-+			       kmem_cache_migrate_func migrate)
-+{
-+	/*
-+	 * Mobile objects must have a ctor otherwise the object may be
-+	 * in an undefined state on allocation.  Since the object may
-+	 * need to be inspected by the migration function at any time
-+	 * after allocation we must ensure that the object always has a
-+	 * defined state.
-+	 */
-+	if (!s->ctor) {
-+		pr_err("%s: require constructor to setup mobility\n", s->name);
++	if (show_ctor && !s->ctor)
 +		return;
-+	}
 +
-+	s->isolate = isolate;
-+	s->migrate = migrate;
++	if (show_movable && !s->movable)
++		return;
 +
-+	/*
-+	 * Sadly serialization requirements currently mean that we have
-+	 * to disable fast cmpxchg based processing.
-+	 */
-+	s->flags &= ~__CMPXCHG_DOUBLE;
-+}
-+EXPORT_SYMBOL(kmem_cache_setup_mobility);
-+
- void *__kmalloc_track_caller(size_t size, gfp_t gfpflags, unsigned long caller)
- {
- 	struct kmem_cache *s;
-@@ -5010,13 +5037,33 @@ static ssize_t cpu_partial_store(struct kmem_cache *s, const char *buf,
- }
- SLAB_ATTR(cpu_partial);
- 
--static ssize_t ctor_show(struct kmem_cache *s, char *buf)
-+static int op_show(char *buf, const char *txt, unsigned long addr)
- {
--	if (!s->ctor)
--		return 0;
--	return sprintf(buf, "%pS\n", s->ctor);
-+	int x = 0;
-+
-+	x += sprintf(buf, "%s : ", txt);
-+	x += sprint_symbol(buf + x, addr);
-+	x += sprintf(buf + x, "\n");
-+
-+	return x;
-+}
-+
-+static ssize_t ops_show(struct kmem_cache *s, char *buf)
-+{
-+	int x = 0;
-+
+ 	if (sort_loss == 0)
+ 		store_size(size_str, slab_size(s));
+ 	else
+@@ -602,6 +614,10 @@ static void slabcache(struct slabinfo *s)
+ 		*p++ = '*';
+ 	if (s->cache_dma)
+ 		*p++ = 'd';
 +	if (s->ctor)
-+		x += op_show(buf + x, "ctor", (unsigned long)s->ctor);
++		*p++ = 'C';
++	if (s->movable)
++		*p++ = 'M';
+ 	if (s->hwcache_align)
+ 		*p++ = 'A';
+ 	if (s->poison)
+@@ -636,7 +652,8 @@ static void slabcache(struct slabinfo *s)
+ 		printf("%-21s %8ld %7d %15s %14s %4d %1d %3ld %3ld %s\n",
+ 			s->name, s->objects, s->object_size, size_str, dist_str,
+ 			s->objs_per_slab, s->order,
+-			s->slabs ? (s->partial * 100) / s->slabs : 100,
++			s->slabs ? (s->partial * 100) /
++					(s->slabs * s->objs_per_slab) : 100,
+ 			s->slabs ? (s->objects * s->object_size * 100) /
+ 				(s->slabs * (page_size << s->order)) : 100,
+ 			flags);
+@@ -1256,6 +1273,13 @@ static void read_slab_dir(void)
+ 			slab->alloc_node_mismatch = get_obj("alloc_node_mismatch");
+ 			slab->deactivate_bypass = get_obj("deactivate_bypass");
+ 			chdir("..");
++			if (read_slab_obj(slab, "ops")) {
++				if (strstr(buffer, "ctor :"))
++					slab->ctor = 1;
++				if (strstr(buffer, "migrate :"))
++					slab->movable = 1;
++			}
 +
-+	if (s->isolate)
-+		x += op_show(buf + x, "isolate", (unsigned long)s->isolate);
-+
-+	if (s->migrate)
-+		x += op_show(buf + x, "migrate", (unsigned long)s->migrate);
-+
-+	return x;
+ 			if (slab->name[0] == ':')
+ 				alias_targets++;
+ 			slab++;
+@@ -1332,6 +1356,8 @@ static void xtotals(void)
  }
--SLAB_ATTR_RO(ctor);
-+SLAB_ATTR_RO(ops);
  
- static ssize_t aliases_show(struct kmem_cache *s, char *buf)
- {
-@@ -5429,7 +5476,7 @@ static struct attribute *slab_attrs[] = {
- 	&objects_partial_attr.attr,
- 	&partial_attr.attr,
- 	&cpu_slabs_attr.attr,
--	&ctor_attr.attr,
-+	&ops_attr.attr,
- 	&aliases_attr.attr,
- 	&align_attr.attr,
- 	&hwcache_align_attr.attr,
+ struct option opts[] = {
++	{ "ctor", no_argument, NULL, 'C' },
++	{ "movable", no_argument, NULL, 'M' },
+ 	{ "aliases", no_argument, NULL, 'a' },
+ 	{ "activity", no_argument, NULL, 'A' },
+ 	{ "debug", optional_argument, NULL, 'd' },
+@@ -1367,7 +1393,7 @@ int main(int argc, char *argv[])
+ 
+ 	page_size = getpagesize();
+ 
+-	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTSN:LXBU",
++	while ((c = getopt_long(argc, argv, "aACd::Defhil1MnoprstvzTSN:LXBU",
+ 						opts, NULL)) != -1)
+ 		switch (c) {
+ 		case '1':
+@@ -1376,6 +1402,9 @@ int main(int argc, char *argv[])
+ 		case 'a':
+ 			show_alias = 1;
+ 			break;
++		case 'C':
++			show_ctor = 1;
++			break;
+ 		case 'A':
+ 			sort_active = 1;
+ 			break;
+@@ -1399,6 +1428,9 @@ int main(int argc, char *argv[])
+ 		case 'i':
+ 			show_inverted = 1;
+ 			break;
++		case 'M':
++			show_movable = 1;
++			break;
+ 		case 'n':
+ 			show_numa = 1;
+ 			break;
 -- 
 2.21.0
 
