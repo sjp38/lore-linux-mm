@@ -7,109 +7,109 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 86A5AC4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:37:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6890AC4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:37:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2A447206DF
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:37:18 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 021D6206DF
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:37:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="BaxcCITX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2A447206DF
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="m6ea2Uwq"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 021D6206DF
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 30A356B026D; Wed,  3 Apr 2019 13:37:04 -0400 (EDT)
+	id 9C1F06B026F; Wed,  3 Apr 2019 13:37:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2BEC96B026F; Wed,  3 Apr 2019 13:37:04 -0400 (EDT)
+	id 94A686B0271; Wed,  3 Apr 2019 13:37:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0E7036B0271; Wed,  3 Apr 2019 13:37:04 -0400 (EDT)
+	id 775F06B0272; Wed,  3 Apr 2019 13:37:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D94C86B026D
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 13:37:03 -0400 (EDT)
-Received: by mail-yb1-f200.google.com with SMTP id h125so13149481ybh.4
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 10:37:03 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5473C6B0271
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 13:37:04 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id s11so12705049ywa.18
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 10:37:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:in-reply-to:references;
-        bh=ynty9flFqcPPDSeTkJifnT4Yutdn8/TkRysaHE6m4cE=;
-        b=aqfAAr6Nx2l82KLyDdsXZjRxhnxK1j0wnB/GcR4v1hnYLanKXnPNwMg2It2h0Ey7L8
-         LsPQgL31ivQeGpAUZeG2D6El9hnBsnBpaA+5a2RtxY7668K+SEzuvD/BkrTTAVTaJ5BZ
-         EBMiURqpM03t0Trh2X/kVkR9SZZPVnNqJ1vivOUNJoEVuMAZanm4r0+Qh1XMXciWl24n
-         ND+gVBREhtH/Lz/a9YJCCmvr3NlOqvo2erfzfKZm8t61msENT2C0cS7WbTMbs5OGCOwR
-         IX0P1OWtw0zEyJVn4mDATS9uLILYeHxMrey9UUBh98sRhhOnGVEqK6sFturiVQa2+y/S
-         coGg==
-X-Gm-Message-State: APjAAAVoj0PZEgtPYS90GyWKZCqN0prAk5rk153LQDIEWrmhECSr2FYj
-	TaHPwwSCwhMWVSxJOWDyLhpm5ZIlrMX8vscen9VGaCIWLj8KEP0iChuGpEjKFTjxbRDQb0ruWl0
-	K6rZFRsjilIEkS6U3Kzndd9ZW4u0IbDZCuUnnjweEmfCmBHfjz/OkfDathA0feGchbQ==
-X-Received: by 2002:a25:e744:: with SMTP id e65mr1161876ybh.432.1554313023616;
+        bh=b6onsz6VNX7DtbTr5TqzUNVhpOrN6pO3jfRzW4prgsk=;
+        b=doYu/AyARmrG+2JeDmBhQ1AjYLEbzMqgN2sF9R00ue+G3Q6QZsDw+0HajFwK6o3Yd5
+         XwT0Swr+siSSKmAhqjPU2uGwijQyyQ6qXrqZ84+s3ha06glVley+mBStUaP/hPtsv6Wg
+         PH05tUJx4hGgwra7zuB5Z65QDlvngaQxJDU3V6OlRj5VL+b+RhNhIFZLWr0i7btjH1nI
+         jo1JTloiSWGdt8+E82QjyUHJyZJqnWyAMbbiTDTvW2g7LnNzruF7eOUk3P8PljKT3wIl
+         6tADM/QRjCr4C3z69k9OqNMXp8BFiUdiMNY7gGZQJpv3tgnTT/cO/M5/TMlo9FLtfE+d
+         +hjA==
+X-Gm-Message-State: APjAAAUxx3qIY/rxQYMu8eO6+lE8Y7DrJmM5sBPJ8s3plcjshDaUO1ED
+	FhbYRjvKvAVcBSVy1gqN4pfarG6wYY8TVxM8n5b+3oLfmZZqIj3H58jB5JhT4wNqDe1/qkjgOUA
+	lFHa18Iwkufw2yVMuzVju4kwOCYq5CwzPFyrcX0uf8g0MVvV0PRRMqcOIIZcRbZw4YQ==
+X-Received: by 2002:a25:e4c6:: with SMTP id b189mr1168070ybh.454.1554313024108;
+        Wed, 03 Apr 2019 10:37:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxUVzI1Nig6Qgtr8WKBhtQ/tJ/530wEIgI/WFnZyZY5ezmEpqTF/ksnwCK/6j8NhXincczG
+X-Received: by 2002:a25:e4c6:: with SMTP id b189mr1167996ybh.454.1554313023167;
         Wed, 03 Apr 2019 10:37:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxlcHAHza+jE7BrK4+uol142k6ObzsQ/M+E0C5FO8+9RJbCd9G6hkhkBFZ0OQhQ/XERqSzq
-X-Received: by 2002:a25:e744:: with SMTP id e65mr1161808ybh.432.1554313022846;
-        Wed, 03 Apr 2019 10:37:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554313022; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1554313023; cv=none;
         d=google.com; s=arc-20160816;
-        b=tV+kvJGLJ1m8mDV/iDuPvu5ugJBAjDDpfJO93Vb762buCMG5WixAzEA9jHFiNFoum2
-         J+r3gREsHLEtQXhDJm+vL8zB0oSzDDn7JfKeKaQuuWKRxOei9hOdj0h+kITlliph8DU4
-         k6+7QMFe4U3Dy6MJIuTY+eCsSdfZi/hzJuScHWNSOYCqZQus5gyUu8xOcqldogSdIlDV
-         OlYQqzBJ0hLydGYCXZmo9xXUyJBZarqrQbneM4IBaV7ubSa28nlzOl7gT/OnRGbL0xX2
-         0mtpKwQbY7ilZe5q46kOz+EYdMP9pwfFPcO11A8w6lKMQu4kpHIvGcNWaFED/VuDNpLY
-         rIBQ==
+        b=SX6twYi3nkTY5hVZFbSOseXBeZYLx85OwWfNmIzp1Dts9GtH0oo706R2DjDGRR0jzi
+         owKB78o4DEkITHUTtkkycE6JLSBfmNzrHlWnWyzI0DHAf7zSxnItKZZ+47oxS2Ids68d
+         ewWrcY+/mD/nF/3zdawH53E58eKsTi/g9561uv3z4Y5zoB3KXFOuxgjvMcJ+ISu+hZLY
+         dcN+lY5D5kkcMfJS+Y3lLKjN/sn6a3S2fDt85cy7cuLz7dA554Xs8dYAB8GqSYTre8fe
+         +10LkpIy9XcY75M8r3kw+8e0ei8tOHCiyi2dB2q6tHKh3CPIxosdFrWAdMx8o7P+cCl+
+         nIfg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:references:in-reply-to:message-id:date
          :subject:cc:to:from:dkim-signature;
-        bh=ynty9flFqcPPDSeTkJifnT4Yutdn8/TkRysaHE6m4cE=;
-        b=VlUz40cv9NP1r2xs7InagJhLFperQM+e3QYaBMnSeZ+svS4f5Zof7bv3PKPvb/I6Om
-         WD0uPWo5/AlRzbUXwBf+3kBim2Dw8G8ajhnRb2vnusgND8sDEoADh1PltF5CUdgetkDz
-         C2kn0Z95r1e1Aot11MkU+JOCk4r9TfZz1+rbcCFErPaBBs2BPtE12DG8s4h275Peu25S
-         2PLmpBZySEjIQNtsewPpeyAoq5KRgD0LnFMTrOrvcEn/5wxK83/2qCvZ3KJr0Y/R0D01
-         +w0FcTBSsEBOI/+HfWtKh9491xdWWeH47co+4C9PmfuUhMbZtCJCUj8osVIdxFHSDxTO
-         NH/g==
+        bh=b6onsz6VNX7DtbTr5TqzUNVhpOrN6pO3jfRzW4prgsk=;
+        b=cIuLdyLoE/dNFkTvU7PPMHmyIqOuCDCWJAinOIuuBxkk80gb5ut70UgnfK79WLaToy
+         hP8vfhSIRaVWMQSdLUpRJe2an6ifZIMFY6BRcMQFtH8FmoAuGs0qcA/whuLheDHPt5wo
+         dzRg/hr5L1J/YPhMXZOB7Kd1lkebmJV7GXwcHSLCvG9p2vbAXnQRDbgjQszx2/bA2A4v
+         sp7qOiHYRYk1kOzBanYlTVm8EdATBm09nrFpWQlLJVqF7LJCi7PgBislWE7ni2psXZ37
+         AJ9j4onsUr1it0TMf9AfyGI/d9UN87DGg6qCWgD7uHlYXqdpDE1AQTFhbXMwwXbmgaPK
+         hllw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=BaxcCITX;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=m6ea2Uwq;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id b2si10346722ywh.384.2019.04.03.10.37.02
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id g5si10686231ybb.287.2019.04.03.10.37.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 10:37:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        Wed, 03 Apr 2019 10:37:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=BaxcCITX;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=m6ea2Uwq;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x33HNdqq165965;
-	Wed, 3 Apr 2019 17:36:04 GMT
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x33HNeek171670;
+	Wed, 3 Apr 2019 17:35:45 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
  subject : date : message-id : in-reply-to : references : in-reply-to :
  references; s=corp-2018-07-02;
- bh=ynty9flFqcPPDSeTkJifnT4Yutdn8/TkRysaHE6m4cE=;
- b=BaxcCITX+BZ4+lS5aQJjRB3VCfd26NfZpmG7792Zbur5ODmmm50Sno8QeknDLKaCAir9
- Da0W1vB05l+2ASj/y+rE4hgV3tyBaxqqb91JOILD/MwVMrBRtVmhbFSrA9iMgDXoNJWS
- dRYrw4FjheDfi1giGH7j+C9Mh6xLGdSnbjK1Qg2rrxQNlCBwjMZjabA2o0bhjwvFsgvm
- ZGyPPSObB3PcM3+v3y/fDDKNwO6++dz2FVngxt1vH1XDVUGHsq570xDSyzQsC9TWwkKO
- 1h+WkiWSGvDnqnffj7boaGX3CkOtpbIGYXFlvMpx+ygTyz3/w/5rP9ib47WXL8Nh+xu6 xA== 
+ bh=b6onsz6VNX7DtbTr5TqzUNVhpOrN6pO3jfRzW4prgsk=;
+ b=m6ea2UwqzBDaAmNQRgMpNsMJ0c4I7NC/WYQD9k10Ju8tN9Bh1BDehTDeYnj8QLawIjuV
+ 4hpLBnsVvZP3329bGZa+hG8vig6xgrCjVOyQ7jGSs90Kr+Dt/MxPIJ77p+hr2lUP1qb2
+ nSz2yaRDJTsnGM2NanyqxY8wWRS5WZ+4lyPovf64GyOVZwYnqqhKm+PU5vQtz7cPPqMU
+ WKKPyUr4OYpkMAEKhMm6bxwS0Iax+rXMZizx/7oJC5aHCdADQpLu4AvZHxhxOe4s8s88
+ pihbXFhaMN67EolwQFVqgtHWnBMXaQJYo/bybuJH5xUH+Ejh17OR9jA2osF8nLmayDMk CQ== 
 Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
-	by userp2130.oracle.com with ESMTP id 2rhyvtahn9-1
+	by aserp2130.oracle.com with ESMTP id 2rhwydape0-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 03 Apr 2019 17:36:03 +0000
+	Wed, 03 Apr 2019 17:35:45 +0000
 Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
-	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x33HZIEn110862;
-	Wed, 3 Apr 2019 17:36:03 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserp3030.oracle.com with ESMTP id 2rm8f5fyjx-1
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x33HZIRj110867;
+	Wed, 3 Apr 2019 17:35:45 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by aserp3030.oracle.com with ESMTP id 2rm8f5fyev-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 03 Apr 2019 17:36:02 +0000
+	Wed, 03 Apr 2019 17:35:45 +0000
 Received: from abhmp0005.oracle.com (abhmp0005.oracle.com [141.146.116.11])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x33HZwKI001502;
-	Wed, 3 Apr 2019 17:35:58 GMT
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x33HZeqd001363;
+	Wed, 3 Apr 2019 17:35:40 GMT
 Received: from concerto.internal (/10.65.181.37)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 03 Apr 2019 10:35:57 -0700
+	with ESMTP ; Wed, 03 Apr 2019 10:35:39 -0700
 From: Khalid Aziz <khalid.aziz@oracle.com>
 To: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com,
         liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
@@ -150,9 +150,9 @@ Cc: deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com,
         linux-kernel@vger.kernel.org, linux-mm@kvack.org,
         linux-security-module@vger.kernel.org,
         Khalid Aziz <khalid@gonehiking.org>
-Subject: [RFC PATCH v9 09/13] xpfo: add primitives for mapping underlying memory
-Date: Wed,  3 Apr 2019 11:34:10 -0600
-Message-Id: <9f7930eca60750aaf5381efbbcb45f6da192874f.1554248002.git.khalid.aziz@oracle.com>
+Subject: [RFC PATCH v9 05/13] mm: add a user_virt_to_phys symbol
+Date: Wed,  3 Apr 2019 11:34:06 -0600
+Message-Id: <107cc547b68f044651a87ed1aa583e3526b053a6.1554248002.git.khalid.aziz@oracle.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <cover.1554248001.git.khalid.aziz@oracle.com>
 References: <cover.1554248001.git.khalid.aziz@oracle.com>
@@ -177,103 +177,112 @@ List-ID: <linux-mm.kvack.org>
 
 From: Tycho Andersen <tycho@tycho.ws>
 
-In some cases (on arm64 DMA and data cache flushes) we may have unmapped
-the underlying pages needed for something via XPFO. Here are some
-primitives useful for ensuring the underlying memory is mapped/unmapped in
-the face of xpfo.
+We need someting like this for testing XPFO. Since it's architecture
+specific, putting it in the test code is slightly awkward, so let's make it
+an arch-specific symbol and export it for use in LKDTM.
 
+CC: linux-arm-kernel@lists.infradead.org
+CC: x86@kernel.org
 Signed-off-by: Tycho Andersen <tycho@tycho.ws>
+Tested-by: Marco Benatto <marco.antonio.780@gmail.com>
 Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
 Cc: Khalid Aziz <khalid@gonehiking.org>
 ---
- include/linux/xpfo.h | 21 +++++++++++++++++++++
- mm/xpfo.c            | 30 ++++++++++++++++++++++++++++++
- 2 files changed, 51 insertions(+)
+v7: * make user_virt_to_phys a GPL symbol
 
+v6: * add a definition of user_virt_to_phys in the !CONFIG_XPFO case
+
+ arch/x86/mm/xpfo.c   | 57 ++++++++++++++++++++++++++++++++++++++++++++
+ include/linux/xpfo.h |  4 ++++
+ 2 files changed, 61 insertions(+)
+
+diff --git a/arch/x86/mm/xpfo.c b/arch/x86/mm/xpfo.c
+index 3045bb7e4659..b42513347865 100644
+--- a/arch/x86/mm/xpfo.c
++++ b/arch/x86/mm/xpfo.c
+@@ -121,3 +121,60 @@ inline void xpfo_flush_kernel_tlb(struct page *page, int order)
+ 	flush_tlb_kernel_range(kaddr, kaddr + (1 << order) * size);
+ }
+ EXPORT_SYMBOL_GPL(xpfo_flush_kernel_tlb);
++
++/* Convert a user space virtual address to a physical address.
++ * Shamelessly copied from slow_virt_to_phys() and lookup_address() in
++ * arch/x86/mm/pageattr.c
++ */
++phys_addr_t user_virt_to_phys(unsigned long addr)
++{
++	phys_addr_t phys_addr;
++	unsigned long offset;
++	pgd_t *pgd;
++	p4d_t *p4d;
++	pud_t *pud;
++	pmd_t *pmd;
++	pte_t *pte;
++
++	pgd = pgd_offset(current->mm, addr);
++	if (pgd_none(*pgd))
++		return 0;
++
++	p4d = p4d_offset(pgd, addr);
++	if (p4d_none(*p4d))
++		return 0;
++
++	if (p4d_large(*p4d) || !p4d_present(*p4d)) {
++		phys_addr = (unsigned long)p4d_pfn(*p4d) << PAGE_SHIFT;
++		offset = addr & ~P4D_MASK;
++		goto out;
++	}
++
++	pud = pud_offset(p4d, addr);
++	if (pud_none(*pud))
++		return 0;
++
++	if (pud_large(*pud) || !pud_present(*pud)) {
++		phys_addr = (unsigned long)pud_pfn(*pud) << PAGE_SHIFT;
++		offset = addr & ~PUD_MASK;
++		goto out;
++	}
++
++	pmd = pmd_offset(pud, addr);
++	if (pmd_none(*pmd))
++		return 0;
++
++	if (pmd_large(*pmd) || !pmd_present(*pmd)) {
++		phys_addr = (unsigned long)pmd_pfn(*pmd) << PAGE_SHIFT;
++		offset = addr & ~PMD_MASK;
++		goto out;
++	}
++
++	pte =  pte_offset_kernel(pmd, addr);
++	phys_addr = (phys_addr_t)pte_pfn(*pte) << PAGE_SHIFT;
++	offset = addr & ~PAGE_MASK;
++
++out:
++	return (phys_addr_t)(phys_addr | offset);
++}
++EXPORT_SYMBOL_GPL(user_virt_to_phys);
 diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
-index 5d8d06e4b796..2318c7eb5fb7 100644
+index c1d232da7ee0..5d8d06e4b796 100644
 --- a/include/linux/xpfo.h
 +++ b/include/linux/xpfo.h
-@@ -91,6 +91,15 @@ void xpfo_free_pages(struct page *page, int order);
+@@ -89,6 +89,8 @@ static inline void xpfo_kunmap(void *kaddr, struct page *page)
+ void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp, bool will_map);
+ void xpfo_free_pages(struct page *page, int order);
  
- phys_addr_t user_virt_to_phys(unsigned long addr);
- 
-+#define XPFO_NUM_PAGES(addr, size) \
-+	(PFN_UP((unsigned long) (addr) + (size)) - \
-+		PFN_DOWN((unsigned long) (addr)))
-+
-+void xpfo_temp_map(const void *addr, size_t size, void **mapping,
-+		   size_t mapping_len);
-+void xpfo_temp_unmap(const void *addr, size_t size, void **mapping,
-+		     size_t mapping_len);
++phys_addr_t user_virt_to_phys(unsigned long addr);
 +
  #else /* !CONFIG_XPFO */
  
  static inline void xpfo_init_single_page(struct page *page) { }
-@@ -106,6 +115,18 @@ static inline void xpfo_flush_kernel_tlb(struct page *page, int order) { }
+@@ -102,6 +104,8 @@ static inline void xpfo_free_pages(struct page *page, int order) { }
+ static inline void set_kpte(void *kaddr, struct page *page, pgprot_t prot) { }
+ static inline void xpfo_flush_kernel_tlb(struct page *page, int order) { }
  
- static inline phys_addr_t user_virt_to_phys(unsigned long addr) { return 0; }
- 
-+#define XPFO_NUM_PAGES(addr, size) 0
-+
-+static inline void xpfo_temp_map(const void *addr, size_t size, void **mapping,
-+				 size_t mapping_len)
-+{
-+}
-+
-+static inline void xpfo_temp_unmap(const void *addr, size_t size,
-+				   void **mapping, size_t mapping_len)
-+{
-+}
++static inline phys_addr_t user_virt_to_phys(unsigned long addr) { return 0; }
 +
  #endif /* CONFIG_XPFO */
  
  #if (!defined(CONFIG_HIGHMEM)) && (!defined(ARCH_HAS_KMAP))
-diff --git a/mm/xpfo.c b/mm/xpfo.c
-index b74fee0479e7..974f1b70ccd9 100644
---- a/mm/xpfo.c
-+++ b/mm/xpfo.c
-@@ -14,6 +14,7 @@
-  * the Free Software Foundation.
-  */
- 
-+#include <linux/highmem.h>
- #include <linux/mm.h>
- #include <linux/module.h>
- #include <linux/xpfo.h>
-@@ -104,3 +105,32 @@ void xpfo_free_pages(struct page *page, int order)
- 		}
- 	}
- }
-+
-+void xpfo_temp_map(const void *addr, size_t size, void **mapping,
-+		   size_t mapping_len)
-+{
-+	struct page *page = virt_to_page(addr);
-+	int i, num_pages = mapping_len / sizeof(mapping[0]);
-+
-+	memset(mapping, 0, mapping_len);
-+
-+	for (i = 0; i < num_pages; i++) {
-+		if (page_to_virt(page + i) >= addr + size)
-+			break;
-+
-+		if (PageXpfoUnmapped(page + i))
-+			mapping[i] = kmap_atomic(page + i);
-+	}
-+}
-+EXPORT_SYMBOL(xpfo_temp_map);
-+
-+void xpfo_temp_unmap(const void *addr, size_t size, void **mapping,
-+		     size_t mapping_len)
-+{
-+	int i, num_pages = mapping_len / sizeof(mapping[0]);
-+
-+	for (i = 0; i < num_pages; i++)
-+		if (mapping[i])
-+			kunmap_atomic(mapping[i]);
-+}
-+EXPORT_SYMBOL(xpfo_temp_unmap);
 -- 
 2.17.1
 
