@@ -2,219 +2,148 @@ Return-Path: <SRS0=DmM3=SF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D950C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 12:53:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7E925C4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 13:07:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5107620663
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 12:53:43 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 38E382084B
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 13:07:54 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Ul68qe+l"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5107620663
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="gj3d2dIg"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 38E382084B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D2B176B0008; Wed,  3 Apr 2019 08:53:42 -0400 (EDT)
+	id C0E3D6B0008; Wed,  3 Apr 2019 09:07:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CB25B6B000A; Wed,  3 Apr 2019 08:53:42 -0400 (EDT)
+	id BE54D6B000A; Wed,  3 Apr 2019 09:07:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B545C6B000C; Wed,  3 Apr 2019 08:53:42 -0400 (EDT)
+	id AFBEC6B000C; Wed,  3 Apr 2019 09:07:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9060C6B0008
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 08:53:42 -0400 (EDT)
-Received: by mail-yw1-f70.google.com with SMTP id i203so12164855ywa.5
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 05:53:42 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F0576B0008
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 09:07:53 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id v2so14479760qkf.21
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 06:07:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :organization:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=NHT9PqacVbcb+iEdSEkiTY4KiJSA+ruLSKxJflNrU5g=;
-        b=uJxzomgYI2m2wKDqYxAl3YJKxMwBj9Kyc36bu1c89IPIvQEjkOoOhUbTKN4MZDMP8k
-         +7u5tjeEd/oAeQxkwtw7cU1uU0A5BrqHsPKcH3Y7wxXsZtecMPyHlpJ17ci1aVrrzH9S
-         gISjUYkgFa79oF1+hcc4YyA+t7IyHI9ityX5PEx9GIbBKrGxNgSywFtgJpcV1b2VxKI6
-         72Om28Q1AOo13bjRcYj2GLLzjVv05flJ8/mKSq5pg5aMN9ouTj60mFFA2oR7JOguVygp
-         SmAk1AuorC73ugWxtuH338odWYyvWho2MQk7mfwtz3isBHcqPkwXjj+ijkhQ+KisZvWq
-         IlYQ==
-X-Gm-Message-State: APjAAAVappiE03LH7243G9fZha/mQTqMcDJW+qAZ5R4eweZLKV+Ay05e
-	TZnxe+0+0ev+0JPxT1SD6B82EaZUvH9yjXg9HGzzR6Nijg9hOoiJLQbFYj86P2AsL4fA0b8Dxv9
-	q7VFsZq9HXyU7p0TsfAmCqxWimHmt/6C0QLuhDpmUqKQAyCeV/r2mi9JSbk9PaqRebw==
-X-Received: by 2002:a81:71d5:: with SMTP id m204mr632220ywc.462.1554296022272;
-        Wed, 03 Apr 2019 05:53:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwtj54t/hmuU3fGhYtLprDKi12yIwljhQ2RnNtC4n4kkYCWzigNu4E2qvWs/yFyvrA0EGx9
-X-Received: by 2002:a81:71d5:: with SMTP id m204mr632155ywc.462.1554296021228;
-        Wed, 03 Apr 2019 05:53:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554296021; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:mime-version:content-transfer-encoding;
+        bh=6TbXx470gB2/L327MHubCCa9FGqzdEttkYRsItRZ/js=;
+        b=GzDo11OsKf1zqm1W6hUcXm1EJK2AlyYa74cM1QOR5oKAK2nwXd/myQ9SKFzfV9wxfp
+         lxTyCGOhdlhRiKMFIob2WaW5NuAf0eBB9gjucJHElS+XCJfYcqhPqI8wC0j/G8Z/AxXR
+         95aeX6AqNDsjprsDN2Lx/q5c8BNS6ycYRJvX8GrOi+ZvbJzYqueMYcCd88JoTzezm6ht
+         +t4YqWHsKGwpgSTtZch7Klu+jPe451aKrxxawTDN2u9uAMaHqXge61WiFcdA1F3F+Svx
+         bbqPmIEWdbxxwbOe3BZYt/Hf9gDDWePAiIITPNfX5C2dm51B+aDEAjMinGQ8JHE2cY19
+         w+0g==
+X-Gm-Message-State: APjAAAWkdR79CxEgciXUTh7wBaTBxI+l0B6u4RquFst1a12ad8fzFnAp
+	XK3JJrXl0Pe+0woe/yOIrTGT965NLnG7ZQn9//EUFGPfh3wDroR9fxIsb+R47hBKsKETAZgeOSg
+	VwLhzKYGNRE/ZD7+Ea4eemkU/fL3V4fMRQmX3lQ/MUlAKGFG4CNfJsStrr2VnBDjmvg==
+X-Received: by 2002:ae9:ec18:: with SMTP id h24mr5258637qkg.207.1554296873318;
+        Wed, 03 Apr 2019 06:07:53 -0700 (PDT)
+X-Received: by 2002:ae9:ec18:: with SMTP id h24mr5258561qkg.207.1554296872562;
+        Wed, 03 Apr 2019 06:07:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554296872; cv=none;
         d=google.com; s=arc-20160816;
-        b=txFmK9lHyqlRnba3bksFkJIjHtnM7FqaaeHQg+AFcQ5xyUWOt3mmxDW+JdrUTQ9x0J
-         xQcM7Qg90w4LOtBo6jMaDetYbtp+pkIHGjnBAtRn5aUQDEd2eihuG3wt9Np3efsdSBE1
-         IPHTyFGdzfZ0RXN8WpU5LbXrTiXHkxANuxYyXozzJaxC45WMW2ONmnNaJ4V0XpKmFewc
-         Cz5UZ1enwsb26IHWXZOOQAlRdhwRt5m41aawBfXHxGk/HURNmnnZOpfpJLF4itniz7Dy
-         0lRjvSUy4odsN4S0fJV17SM0PmDwBZ64EiCBrdZCogeKV4Q+BunRTPTVbeNE6huRg0oc
-         um5w==
+        b=WcBnYSDNLW24re6VDHNepGg/n+5e+IVje7bzGotb403C2+NQ9NC6p0ky4OneyRVk6S
+         S/BrZW/wMh5xlDC+12a9Z1vrkMzywitDaV474RJnHQdymROl2mPBtLZzdJ7zXyAuK30w
+         nM2zlleG+xMPUA8VD8epwbF7k6uHUJ6bHH8dggOizkCGAbt4waZwxPHXb4QJOiXEHVaY
+         bmba8KldJUT3hds4lB38dqtFb801rne2/ou5XTMrCgTnJHtGirCKAXihoQ+dIiBrstRv
+         hdQ7/V93x7jGmFAEaXa0La+f1qZejDXz/f1uwYncN7aTkp0yQPl3FBjVYWts0tNuv60p
+         ZGBA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:from:references:cc:to
-         :subject:dkim-signature;
-        bh=NHT9PqacVbcb+iEdSEkiTY4KiJSA+ruLSKxJflNrU5g=;
-        b=AhTuEbme+vBxYsn7BZPMU246Xk5tq9n8nqbyNnN476pZGHoceLfY0oIeSHL0iANZTh
-         GtVqFON945vTSTTckK5aqhHv1e0D6vOr4SdW9rrWltFyAFRbPEEFmroimujXv7gTxckm
-         QtElgVoCzRyMJ4ucQu6Mln7jnkfDR4Um5nBq4BxwHpjbB8clfdet+uQWrhup2CkjledH
-         b6VazWSQDPrg7NHChoU8O8OPwK+iST9MHdCXN6uZ4Gm2bXJEwyPkJKS9E+0y1BxHB4aM
-         hJtAVBguQj0rMDnnzUepzhDUPAJUxoCEv5XfjBd0ObyBVhGPbSvV81DAusSr0ZmAT9c6
-         qBog==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id:dkim-signature;
+        bh=6TbXx470gB2/L327MHubCCa9FGqzdEttkYRsItRZ/js=;
+        b=tV7GtWakzVarjNcZJj6ZSw8H81s+IIuyuu+jsEFpnf44HElZfbg8dik9vOhfLurR7W
+         wtMvk8T7KsEwilSttTBXVXn/f2UyX6+liJRosNe6n6vDAcapFUfnNIPbxDgdhvLFhF9A
+         3p3tGDQu19VLuZOoasdO+FyV5ZwbZ/cvhin331WzkUC1GGpTp+SbmgQX4W2Yed+T5n7U
+         PN9rci3SN9wB4thNXUSdp1pIKlVJbt/5/1/10g1MbGlkNY3ILJsTYB8bpKLoFd4A+JEP
+         YgILJIN4a16DCQyXdMFl1xcxp4bMN7XIycDGFALw+0ewXegoHLBOjGA+ub1mlQT0PgDx
+         ewCA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Ul68qe+l;
-       spf=pass (google.com: domain of steven.sistare@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=steven.sistare@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id a4si10865235ywm.13.2019.04.03.05.53.40
+       dkim=pass header.i=@lca.pw header.s=google header.b=gj3d2dIg;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x4sor22453706qto.38.2019.04.03.06.07.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 05:53:41 -0700 (PDT)
-Received-SPF: pass (google.com: domain of steven.sistare@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        (Google Transport Security);
+        Wed, 03 Apr 2019 06:07:52 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Ul68qe+l;
-       spf=pass (google.com: domain of steven.sistare@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=steven.sistare@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x33ChXe2100938;
-	Wed, 3 Apr 2019 12:51:22 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=NHT9PqacVbcb+iEdSEkiTY4KiJSA+ruLSKxJflNrU5g=;
- b=Ul68qe+lCVRnB8QxIbkSLnknGO8ENEkGNFXBYcdNdl49HLsfdL7wxQGQtZVnqZxRnrHt
- mOw3455ycB8dfibQLUWzKyx60JJCSBmHpcBd8VYj9vk2bbSpthszKkxhWxUTZJnAGavK
- pr4/QDDvWxsSiDFQVVmeOJosIbw4NG1hl3h29ap6VBUGtu4AgJxL1ckkTTdVXdrb+d1p
- EenRHGIcBO4W52S1FCoIoFgTJt9ubJ8eE8gg3I80gxVw3gHqLqHMSMscwfxVg73NczAP
- ZqEoI5ilfojmvKUJ5yhSJzowimyc801vAD377rzf4zdeBlXz+bPq9kcK211+i4ZEcpkV 7g== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by userp2130.oracle.com with ESMTP id 2rhyvt8swk-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 03 Apr 2019 12:51:22 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x33Co47M064129;
-	Wed, 3 Apr 2019 12:51:22 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by userp3030.oracle.com with ESMTP id 2rm8f52vra-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 03 Apr 2019 12:51:22 +0000
-Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x33CpEC3031705;
-	Wed, 3 Apr 2019 12:51:15 GMT
-Received: from [10.152.35.85] (/10.152.35.85)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 03 Apr 2019 05:51:14 -0700
-Subject: Re: [PATCH 0/6] convert locked_vm from unsigned long to atomic64_t
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: akpm@linux-foundation.org, linux_lkml_grp@oracle.com,
-        Alan Tull <atull@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>,
-        Alex Williamson <alex.williamson@redhat.com>,
-        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-        Christoph Lameter <cl@linux.com>, Davidlohr Bueso <dave@stgolabs.net>,
-        Michael Ellerman <mpe@ellerman.id.au>, Moritz Fischer <mdf@kernel.org>,
-        Paul Mackerras <paulus@ozlabs.org>, Wu Hao <hao.wu@intel.com>,
-        linux-mm@kvack.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org,
-        linuxppc-dev@lists.ozlabs.org, linux-fpga@vger.kernel.org,
-        linux-kernel@vger.kernel.org
-References: <20190402204158.27582-1-daniel.m.jordan@oracle.com>
-From: Steven Sistare <steven.sistare@oracle.com>
-Organization: Oracle Corporation
-Message-ID: <abe31bae-1bdf-b763-c4d1-5e4ea2ccda13@oracle.com>
-Date: Wed, 3 Apr 2019 08:51:13 -0400
-User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
-MIME-Version: 1.0
-In-Reply-To: <20190402204158.27582-1-daniel.m.jordan@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+       dkim=pass header.i=@lca.pw header.s=google header.b=gj3d2dIg;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=6TbXx470gB2/L327MHubCCa9FGqzdEttkYRsItRZ/js=;
+        b=gj3d2dIgyS1juous1+rrj5kPXgzLNcDgCTr0MjFUCmXxbywzvPEbuXfBhNfDjC1N61
+         CMGh6M7pxGvStFupFAXAL40cY305TZmNYiylRnPoXmCIzQGxiPbCnqdVKmF24zamew3f
+         wUNbwizEnVexKfzbEK/xTornjseE5OAqSvInI36+WiWJB1fsyhjYID9AR9MV9LOsoKGH
+         mIgaeq/jub+ukXx0pZt8vkjbglYCRAVr8KrhLWylg0RElkC5hZ6AkIu1V18C4/vWsdtO
+         A0FjzOj2TDtxxN4Yz0HfwFkvJVZOvGGedSsWJ5PR0iuS44JwO4BYQQrIY6V2DiSCXipQ
+         JIoA==
+X-Google-Smtp-Source: APXvYqzEEHgsgkai8JhpGANOP06QXmX0CP1vzaNNrNU61AclZARASaHB8UoGll4tCJ6GJGEk51f24A==
+X-Received: by 2002:ac8:66d0:: with SMTP id m16mr53517935qtp.215.1554296872208;
+        Wed, 03 Apr 2019 06:07:52 -0700 (PDT)
+Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id h2sm7013076qkl.3.2019.04.03.06.07.50
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Apr 2019 06:07:51 -0700 (PDT)
+Message-ID: <1554296870.26196.32.camel@lca.pw>
+Subject: Re: [PATCH] slab: store tagged freelist for off-slab slabmgmt
+From: Qian Cai <cai@lca.pw>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter
+ <cl@linux.com>,  Pekka Enberg <penberg@kernel.org>, David Rientjes
+ <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>,  Andrey
+ Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko
+ <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev
+ <kasan-dev@googlegroups.com>, Linux Memory Management List
+ <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Date: Wed, 03 Apr 2019 09:07:50 -0400
+In-Reply-To: <CAAeHK+y25S6GYMrGUEQJJ5AU1LZ7T-jWrwoDsLXdxuk_E+q5BQ@mail.gmail.com>
+References: <20190403022858.97584-1-cai@lca.pw>
+	 <CAAeHK+y25S6GYMrGUEQJJ5AU1LZ7T-jWrwoDsLXdxuk_E+q5BQ@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9215 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1904030088
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9215 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1904030088
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/2/2019 4:41 PM, Daniel Jordan wrote:
-> Hi,
+On Wed, 2019-04-03 at 13:23 +0200, Andrey Konovalov wrote:
+> On Wed, Apr 3, 2019 at 4:29 AM Qian Cai <cai@lca.pw> wrote:
+> > 
+> > The commit 51dedad06b5f ("kasan, slab: make freelist stored without
+> > tags") calls kasan_reset_tag() for off-slab slab management object
+> > leading to freelist being stored non-tagged. However, cache_grow_begin()
+> > -> alloc_slabmgmt() -> kmem_cache_alloc_node() which assigns a tag for
+> > the address and stores in the shadow address. As the result, it causes
+> > endless errors below during boot due to drain_freelist() ->
+> > slab_destroy() -> kasan_slab_free() which compares already untagged
+> > freelist against the stored tag in the shadow address. Since off-slab
+> > slab management object freelist is such a special case, so just store it
+> > tagged. Non-off-slab management object freelist is still stored untagged
+> > which has not been assigned a tag and should not cause any other
+> > troubles with this inconsistency.
 > 
-> From patch 1:
+> Hi Qian,
 > 
->   Taking and dropping mmap_sem to modify a single counter, locked_vm, is
->   overkill when the counter could be synchronized separately.
->   
->   Make mmap_sem a little less coarse by changing locked_vm to an atomic,
->   the 64-bit variety to avoid issues with overflow on 32-bit systems.
-> 
-> This is a more conservative alternative to [1] with no user-visible
-> effects.  Thanks to Alexey Kardashevskiy for pointing out the racy
-> atomics and to Alex Williamson, Christoph Lameter, Ira Weiny, and Jason
-> Gunthorpe for their comments on [1].
-> 
-> Davidlohr Bueso recently did a similar conversion for pinned_vm[2].
-> 
-> Testing
->  1. passes LTP mlock[all], munlock[all], fork, mmap, and mremap tests in an
->     x86 kvm guest
->  2. a VFIO-enabled x86 kvm guest shows the same VmLck in
->     /proc/pid/status before and after this change
->  3. cross-compiles on powerpc
-> 
-> The series is based on v5.1-rc3.  Please consider for 5.2.
-> 
-> Daniel
-> 
-> [1] https://lore.kernel.org/linux-mm/20190211224437.25267-1-daniel.m.jordan@oracle.com/
-> [2] https://lore.kernel.org/linux-mm/20190206175920.31082-1-dave@stgolabs.net/
-> 
-> Daniel Jordan (6):
->   mm: change locked_vm's type from unsigned long to atomic64_t
->   vfio/type1: drop mmap_sem now that locked_vm is atomic
->   vfio/spapr_tce: drop mmap_sem now that locked_vm is atomic
->   fpga/dlf/afu: drop mmap_sem now that locked_vm is atomic
->   powerpc/mmu: drop mmap_sem now that locked_vm is atomic
->   kvm/book3s: drop mmap_sem now that locked_vm is atomic
-> 
->  arch/powerpc/kvm/book3s_64_vio.c    | 34 ++++++++++--------------
->  arch/powerpc/mm/mmu_context_iommu.c | 28 +++++++++-----------
->  drivers/fpga/dfl-afu-dma-region.c   | 40 ++++++++++++-----------------
->  drivers/vfio/vfio_iommu_spapr_tce.c | 37 ++++++++++++--------------
->  drivers/vfio/vfio_iommu_type1.c     | 31 +++++++++-------------
->  fs/proc/task_mmu.c                  |  2 +-
->  include/linux/mm_types.h            |  2 +-
->  kernel/fork.c                       |  2 +-
->  mm/debug.c                          |  5 ++--
->  mm/mlock.c                          |  4 +--
->  mm/mmap.c                           | 18 ++++++-------
->  mm/mremap.c                         |  6 ++---
->  12 files changed, 89 insertions(+), 120 deletions(-)
-> 
-> base-commit: 79a3aaa7b82e3106be97842dedfd8429248896e6
+> Could you share the config (or other steps) you used to reproduce this?
 
-Hi Daniel,
-  You could clean all 6 patches up nicely with a common subroutine that
-increases locked_vm subject to the rlimit.  Pass a bool arg that is true if
-the  limit should be enforced, !dma->lock_cap for one call site, and
-!capable(CAP_IPC_LOCK) for the rest.  Push the warnings and debug statements
-to the subroutine as well.  One patch could refactor, and a second could
-change the locking method.
+https://git.sr.ht/~cai/linux-debug/blob/master/config
 
-- Steve
+Additional command-line option to boot:
+
+page_poison=on crashkernel=768M earlycon page_owner=on numa_balancing=enable
+systemd.unified_cgroup_hierarchy=1 debug_guardpage_minorder=1
 
