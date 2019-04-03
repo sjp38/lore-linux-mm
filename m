@@ -2,117 +2,105 @@ Return-Path: <SRS0=DmM3=SF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7E925C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 13:07:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 92A3DC4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 13:12:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 38E382084B
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 13:07:54 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="gj3d2dIg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 38E382084B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id 579DD2084C
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 13:12:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 579DD2084C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C0E3D6B0008; Wed,  3 Apr 2019 09:07:53 -0400 (EDT)
+	id E55EA6B000C; Wed,  3 Apr 2019 09:12:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BE54D6B000A; Wed,  3 Apr 2019 09:07:53 -0400 (EDT)
+	id E043A6B000D; Wed,  3 Apr 2019 09:12:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AFBEC6B000C; Wed,  3 Apr 2019 09:07:53 -0400 (EDT)
+	id D1AF36B000E; Wed,  3 Apr 2019 09:12:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F0576B0008
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 09:07:53 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id v2so14479760qkf.21
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 06:07:53 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8304A6B000C
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 09:12:30 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id y17so7508671edd.20
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 06:12:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=6TbXx470gB2/L327MHubCCa9FGqzdEttkYRsItRZ/js=;
-        b=GzDo11OsKf1zqm1W6hUcXm1EJK2AlyYa74cM1QOR5oKAK2nwXd/myQ9SKFzfV9wxfp
-         lxTyCGOhdlhRiKMFIob2WaW5NuAf0eBB9gjucJHElS+XCJfYcqhPqI8wC0j/G8Z/AxXR
-         95aeX6AqNDsjprsDN2Lx/q5c8BNS6ycYRJvX8GrOi+ZvbJzYqueMYcCd88JoTzezm6ht
-         +t4YqWHsKGwpgSTtZch7Klu+jPe451aKrxxawTDN2u9uAMaHqXge61WiFcdA1F3F+Svx
-         bbqPmIEWdbxxwbOe3BZYt/Hf9gDDWePAiIITPNfX5C2dm51B+aDEAjMinGQ8JHE2cY19
-         w+0g==
-X-Gm-Message-State: APjAAAWkdR79CxEgciXUTh7wBaTBxI+l0B6u4RquFst1a12ad8fzFnAp
-	XK3JJrXl0Pe+0woe/yOIrTGT965NLnG7ZQn9//EUFGPfh3wDroR9fxIsb+R47hBKsKETAZgeOSg
-	VwLhzKYGNRE/ZD7+Ea4eemkU/fL3V4fMRQmX3lQ/MUlAKGFG4CNfJsStrr2VnBDjmvg==
-X-Received: by 2002:ae9:ec18:: with SMTP id h24mr5258637qkg.207.1554296873318;
-        Wed, 03 Apr 2019 06:07:53 -0700 (PDT)
-X-Received: by 2002:ae9:ec18:: with SMTP id h24mr5258561qkg.207.1554296872562;
-        Wed, 03 Apr 2019 06:07:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554296872; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=UB3zzA/YM9Fa5HrsaG5jRhhGURYP41u6Xfwt2B+v/C0=;
+        b=YZ8r4qPIGdYuh4MMgTr2eWIs0phi1GCT/iBM1qRxWVljOSrS4zpi9mr5kWv7oO+yaS
+         5rUlfAmaqA2fJtyxLw8kU+iY7veOVBicO4FyEjAm3i8snJb2/1Uv45e5i99FEBZxsrqA
+         ixHE8a8HLu3Trx2JHfcKb5c8KLPah7GluD8RzYP8wF+ukZ3c4I2pGJ/vDF0yVS8Szt0S
+         siAhyojuuxxcxP2V10IOF4FmObOJRQQ9+NbOHgMd3WMuYcLltpLPVzv4yX5wVeHf/Pb1
+         HdJTBWB/oJVrAGWqlpabDdQHTPGMPeM6oN+CPmZgqOw/KLYvQTt1jBu5dxyFf6VHgWWs
+         lfeg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+X-Gm-Message-State: APjAAAXUlm+f/pLEd2Hs9KIlv5qwK+A/zNW6qnoRr2xaWWMUswr8faYV
+	/GpkvCXe6hlNZ8PScMS/u6n5JA8ynclldU+nTmqQqg0sNdk6jiuRjcTMl81yySye3r3tI0hp7BW
+	xQ5qP3MCm24pxNxnKgZ2/HPRzVP2H9TI4psFufXw2u0XayuV33jTNAqGN3laDxkgWYw==
+X-Received: by 2002:a05:6402:392:: with SMTP id o18mr35253093edv.118.1554297150049;
+        Wed, 03 Apr 2019 06:12:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqweHikKNhsNVcpFTlQNGuMglBtv5OL9agqe+kIls5Ir9/137+VMRupSITe6iBoiC1E/UReb
+X-Received: by 2002:a05:6402:392:: with SMTP id o18mr35253017edv.118.1554297148901;
+        Wed, 03 Apr 2019 06:12:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554297148; cv=none;
         d=google.com; s=arc-20160816;
-        b=WcBnYSDNLW24re6VDHNepGg/n+5e+IVje7bzGotb403C2+NQ9NC6p0ky4OneyRVk6S
-         S/BrZW/wMh5xlDC+12a9Z1vrkMzywitDaV474RJnHQdymROl2mPBtLZzdJ7zXyAuK30w
-         nM2zlleG+xMPUA8VD8epwbF7k6uHUJ6bHH8dggOizkCGAbt4waZwxPHXb4QJOiXEHVaY
-         bmba8KldJUT3hds4lB38dqtFb801rne2/ou5XTMrCgTnJHtGirCKAXihoQ+dIiBrstRv
-         hdQ7/V93x7jGmFAEaXa0La+f1qZejDXz/f1uwYncN7aTkp0yQPl3FBjVYWts0tNuv60p
-         ZGBA==
+        b=T0oDyU/56FA+jH0K23FCvvNWmyep1SM1g+Om9V1sIAy/qeivPocC+8/PNmn/QHD/9o
+         4Y91emov/RnY5aLRfBw5iZQ+Fpi/8iY2CPpM+wRAH7bcQH8tUuSkVgR1iEutTdeLei8B
+         fb6Kay1whkooDZLZzaUWoGUD+0aKCsMq93gUFzosDYW72XD4WL+EraEmHPy2JddDEqzv
+         mHo2oSq+96ZbYD4OQnlZ0jjdCSFUKQ90Yz+7etdzM/1cj4x1yLPyzvEENrk3rJ1f47B6
+         UUAKBc0W6OnX8iMeg5yw9KbH0bGWtxGuWOZYhFik6eX3Q6jCsKXzMfW8SfGeJV39wpYu
+         dXZA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=6TbXx470gB2/L327MHubCCa9FGqzdEttkYRsItRZ/js=;
-        b=tV7GtWakzVarjNcZJj6ZSw8H81s+IIuyuu+jsEFpnf44HElZfbg8dik9vOhfLurR7W
-         wtMvk8T7KsEwilSttTBXVXn/f2UyX6+liJRosNe6n6vDAcapFUfnNIPbxDgdhvLFhF9A
-         3p3tGDQu19VLuZOoasdO+FyV5ZwbZ/cvhin331WzkUC1GGpTp+SbmgQX4W2Yed+T5n7U
-         PN9rci3SN9wB4thNXUSdp1pIKlVJbt/5/1/10g1MbGlkNY3ILJsTYB8bpKLoFd4A+JEP
-         YgILJIN4a16DCQyXdMFl1xcxp4bMN7XIycDGFALw+0ewXegoHLBOjGA+ub1mlQT0PgDx
-         ewCA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=UB3zzA/YM9Fa5HrsaG5jRhhGURYP41u6Xfwt2B+v/C0=;
+        b=v9elccYJPbP5VyPSYc65zfczc1NAWtY3mcNqMZ3C/G2sNSfcQfdzvTyZkXzahLh6pS
+         SPkjSS6Q8biGT9KyzQgxSdg0NEaAOw/MojKPUqavfTrpjlbTos9DtHEKsfxbNh2iP8Ve
+         dRl7eS+wk62RcGKmXPGF9zOBox7P8RdDTZ0EieMfw45Ek/2dVPrAyrPW9g9951jWYFCx
+         0y8PXJ2XXzb1cuiG4s/ZdjXDBV94XK+0xEdMvJ/zT8LjOxDD8Lb/qwU3/pV3UTc0nmdM
+         TCfQ+P+lUbyb4j4bHfEsHBXrdalBXiCLdRtMaB4oeH33M+p06+31feTk5ov7v9bR+0Wx
+         BQGQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=gj3d2dIg;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x4sor22453706qto.38.2019.04.03.06.07.52
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 03 Apr 2019 06:07:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id p93si120724edd.158.2019.04.03.06.12.28
+        for <linux-mm@kvack.org>;
+        Wed, 03 Apr 2019 06:12:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=gj3d2dIg;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=6TbXx470gB2/L327MHubCCa9FGqzdEttkYRsItRZ/js=;
-        b=gj3d2dIgyS1juous1+rrj5kPXgzLNcDgCTr0MjFUCmXxbywzvPEbuXfBhNfDjC1N61
-         CMGh6M7pxGvStFupFAXAL40cY305TZmNYiylRnPoXmCIzQGxiPbCnqdVKmF24zamew3f
-         wUNbwizEnVexKfzbEK/xTornjseE5OAqSvInI36+WiWJB1fsyhjYID9AR9MV9LOsoKGH
-         mIgaeq/jub+ukXx0pZt8vkjbglYCRAVr8KrhLWylg0RElkC5hZ6AkIu1V18C4/vWsdtO
-         A0FjzOj2TDtxxN4Yz0HfwFkvJVZOvGGedSsWJ5PR0iuS44JwO4BYQQrIY6V2DiSCXipQ
-         JIoA==
-X-Google-Smtp-Source: APXvYqzEEHgsgkai8JhpGANOP06QXmX0CP1vzaNNrNU61AclZARASaHB8UoGll4tCJ6GJGEk51f24A==
-X-Received: by 2002:ac8:66d0:: with SMTP id m16mr53517935qtp.215.1554296872208;
-        Wed, 03 Apr 2019 06:07:52 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id h2sm7013076qkl.3.2019.04.03.06.07.50
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 06:07:51 -0700 (PDT)
-Message-ID: <1554296870.26196.32.camel@lca.pw>
-Subject: Re: [PATCH] slab: store tagged freelist for off-slab slabmgmt
-From: Qian Cai <cai@lca.pw>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter
- <cl@linux.com>,  Pekka Enberg <penberg@kernel.org>, David Rientjes
- <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>,  Andrey
- Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko
- <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev
- <kasan-dev@googlegroups.com>, Linux Memory Management List
- <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
-Date: Wed, 03 Apr 2019 09:07:50 -0400
-In-Reply-To: <CAAeHK+y25S6GYMrGUEQJJ5AU1LZ7T-jWrwoDsLXdxuk_E+q5BQ@mail.gmail.com>
-References: <20190403022858.97584-1-cai@lca.pw>
-	 <CAAeHK+y25S6GYMrGUEQJJ5AU1LZ7T-jWrwoDsLXdxuk_E+q5BQ@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
+       spf=pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id CEB58A78;
+	Wed,  3 Apr 2019 06:12:27 -0700 (PDT)
+Received: from [10.1.196.75] (e110467-lin.cambridge.arm.com [10.1.196.75])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id DCED23F59C;
+	Wed,  3 Apr 2019 06:12:24 -0700 (PDT)
+Subject: Re: [PATCH 1/6] arm64/mm: Enable sysfs based memory hot add interface
+To: David Hildenbrand <david@redhat.com>,
+ Anshuman Khandual <anshuman.khandual@arm.com>, linux-kernel@vger.kernel.org,
+ linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+ akpm@linux-foundation.org, will.deacon@arm.com, catalin.marinas@arm.com
+Cc: mhocko@suse.com, mgorman@techsingularity.net, james.morse@arm.com,
+ mark.rutland@arm.com, cpandya@codeaurora.org, arunks@codeaurora.org,
+ dan.j.williams@intel.com, osalvador@suse.de, logang@deltatee.com, cai@lca.pw
+References: <1554265806-11501-1-git-send-email-anshuman.khandual@arm.com>
+ <1554265806-11501-2-git-send-email-anshuman.khandual@arm.com>
+ <4b9dd2b0-3b11-608c-1a40-9a3d203dd904@redhat.com>
+From: Robin Murphy <robin.murphy@arm.com>
+Message-ID: <e5665673-60ab-eee8-bc05-53dafb941039@arm.com>
+Date: Wed, 3 Apr 2019 14:12:23 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
+MIME-Version: 1.0
+In-Reply-To: <4b9dd2b0-3b11-608c-1a40-9a3d203dd904@redhat.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-GB
 Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -120,30 +108,57 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2019-04-03 at 13:23 +0200, Andrey Konovalov wrote:
-> On Wed, Apr 3, 2019 at 4:29 AM Qian Cai <cai@lca.pw> wrote:
-> > 
-> > The commit 51dedad06b5f ("kasan, slab: make freelist stored without
-> > tags") calls kasan_reset_tag() for off-slab slab management object
-> > leading to freelist being stored non-tagged. However, cache_grow_begin()
-> > -> alloc_slabmgmt() -> kmem_cache_alloc_node() which assigns a tag for
-> > the address and stores in the shadow address. As the result, it causes
-> > endless errors below during boot due to drain_freelist() ->
-> > slab_destroy() -> kasan_slab_free() which compares already untagged
-> > freelist against the stored tag in the shadow address. Since off-slab
-> > slab management object freelist is such a special case, so just store it
-> > tagged. Non-off-slab management object freelist is still stored untagged
-> > which has not been assigned a tag and should not cause any other
-> > troubles with this inconsistency.
+On 03/04/2019 09:20, David Hildenbrand wrote:
+> On 03.04.19 06:30, Anshuman Khandual wrote:
+>> Sysfs memory probe interface (/sys/devices/system/memory/probe) can accept
+>> starting physical address of an entire memory block to be hot added into
+>> the kernel. This is in addition to the existing ACPI based interface. This
+>> just enables it with the required config CONFIG_ARCH_MEMORY_PROBE.
+>>
 > 
-> Hi Qian,
+> We recently discussed that the similar interface for removal should
+> rather be moved to a debug/test module
 > 
-> Could you share the config (or other steps) you used to reproduce this?
+> I wonder if we should try to do the same for the sysfs probing
+> interface. Rather try to get rid of it than open the doors for more users.
 
-https://git.sr.ht/~cai/linux-debug/blob/master/config
+Agreed - if this option even exists in a released kernel, there's a risk 
+that distros will turn it on for the sake of it, and at that point arm64 
+is stuck carrying the same ABI baggage as well.
 
-Additional command-line option to boot:
+If users turn up in future with a desperate and unavoidable need for the 
+legacy half-an-API on arm64, we can always reconsider adding it at that 
+point. It was very much deliberate that my original hot-add support did 
+not include a patch like this one.
 
-page_poison=on crashkernel=768M earlycon page_owner=on numa_balancing=enable
-systemd.unified_cgroup_hierarchy=1 debug_guardpage_minorder=1
+Robin.
+
+>> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+>> ---
+>>   arch/arm64/Kconfig | 9 +++++++++
+>>   1 file changed, 9 insertions(+)
+>>
+>> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+>> index 7e34b9e..a2418fb 100644
+>> --- a/arch/arm64/Kconfig
+>> +++ b/arch/arm64/Kconfig
+>> @@ -266,6 +266,15 @@ config HAVE_GENERIC_GUP
+>>   config ARCH_ENABLE_MEMORY_HOTPLUG
+>>   	def_bool y
+>>   
+>> +config ARCH_MEMORY_PROBE
+>> +	bool "Enable /sys/devices/system/memory/probe interface"
+>> +	depends on MEMORY_HOTPLUG
+>> +	help
+>> +	  This option enables a sysfs /sys/devices/system/memory/probe
+>> +	  interface for testing. See Documentation/memory-hotplug.txt
+>> +	  for more information. If you are unsure how to answer this
+>> +	  question, answer N.
+>> +
+>>   config SMP
+>>   	def_bool y
+>>   
+>>
+> 
+> 
 
