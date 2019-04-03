@@ -7,116 +7,115 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A0F64C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:37:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 86A5AC4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:37:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 414ED20830
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:37:15 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2A447206DF
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:37:18 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="npNl9oJA"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 414ED20830
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="BaxcCITX"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2A447206DF
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B1AEA6B026B; Wed,  3 Apr 2019 13:37:02 -0400 (EDT)
+	id 30A356B026D; Wed,  3 Apr 2019 13:37:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A84546B0271; Wed,  3 Apr 2019 13:37:02 -0400 (EDT)
+	id 2BEC96B026F; Wed,  3 Apr 2019 13:37:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 777346B026B; Wed,  3 Apr 2019 13:37:02 -0400 (EDT)
+	id 0E7036B0271; Wed,  3 Apr 2019 13:37:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F41E6B026D
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 13:37:02 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id 186so14321820iox.15
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 10:37:02 -0700 (PDT)
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D94C86B026D
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 13:37:03 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id h125so13149481ybh.4
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 10:37:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:in-reply-to:references;
-        bh=rvo2MdeHWW3FffgXBOnUmvIQSFmvjV1SQw64yMoM6qw=;
-        b=kV6O50HxrcfimKoveoNTv7be8f02pRdMQXFoL6YkRTu3+DdV/jETl03wq/yv1WNUTX
-         d3f7QL8B560X+y6VykgowXSBna5UgbIGex8FLvVTU53o0G07z822v5zpLfsE2KQ39qXz
-         wPcHlmuvjl78YvDEqTtC/RCbNeGy78IaZcRla9bN+b6xkSM3fHPTMek+1LI0J74vgDNw
-         VsmaRZ59Pb8OqCPDK16wxOzJxXuX4aLJn6vLHJV5du/7UuFnincV22kLQg5ry3rI4esZ
-         t4UMa074X8+/fU4wmvJxICqCkATv2TfVcMxCuPbadZVaNJk7BLKeYcvXUinQzy+Z8YVb
-         vAfA==
-X-Gm-Message-State: APjAAAW0NxiZJBs68tLOorgB6fb1GsBysHuJwrZNshBSnKQH60uAZYPr
-	98IzNE6EJfwVtYrUoQieo89K67Sv0qdalFaV0r+07P+bDQFoeOvnPS550laOTHsv15QjJgVtJWw
-	xW4d1/51S3oRTpGCZCTtrOBmvzSOweMQOVuo2XWV+ysjvc5or2c00iSXJ0io+FKEX4g==
-X-Received: by 2002:a24:57c1:: with SMTP id u184mr1258911ita.38.1554313022104;
+        bh=ynty9flFqcPPDSeTkJifnT4Yutdn8/TkRysaHE6m4cE=;
+        b=aqfAAr6Nx2l82KLyDdsXZjRxhnxK1j0wnB/GcR4v1hnYLanKXnPNwMg2It2h0Ey7L8
+         LsPQgL31ivQeGpAUZeG2D6El9hnBsnBpaA+5a2RtxY7668K+SEzuvD/BkrTTAVTaJ5BZ
+         EBMiURqpM03t0Trh2X/kVkR9SZZPVnNqJ1vivOUNJoEVuMAZanm4r0+Qh1XMXciWl24n
+         ND+gVBREhtH/Lz/a9YJCCmvr3NlOqvo2erfzfKZm8t61msENT2C0cS7WbTMbs5OGCOwR
+         IX0P1OWtw0zEyJVn4mDATS9uLILYeHxMrey9UUBh98sRhhOnGVEqK6sFturiVQa2+y/S
+         coGg==
+X-Gm-Message-State: APjAAAVoj0PZEgtPYS90GyWKZCqN0prAk5rk153LQDIEWrmhECSr2FYj
+	TaHPwwSCwhMWVSxJOWDyLhpm5ZIlrMX8vscen9VGaCIWLj8KEP0iChuGpEjKFTjxbRDQb0ruWl0
+	K6rZFRsjilIEkS6U3Kzndd9ZW4u0IbDZCuUnnjweEmfCmBHfjz/OkfDathA0feGchbQ==
+X-Received: by 2002:a25:e744:: with SMTP id e65mr1161876ybh.432.1554313023616;
+        Wed, 03 Apr 2019 10:37:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxlcHAHza+jE7BrK4+uol142k6ObzsQ/M+E0C5FO8+9RJbCd9G6hkhkBFZ0OQhQ/XERqSzq
+X-Received: by 2002:a25:e744:: with SMTP id e65mr1161808ybh.432.1554313022846;
         Wed, 03 Apr 2019 10:37:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy28EjyvR4pH2LY5MnqF9K3cOMAs6rJxYuGBLWLefZ3FZDNPEfBjbs+WOoYaZ6dXyxrtAmf
-X-Received: by 2002:a24:57c1:: with SMTP id u184mr1258856ita.38.1554313021210;
-        Wed, 03 Apr 2019 10:37:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554313021; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1554313022; cv=none;
         d=google.com; s=arc-20160816;
-        b=LI8Wra2Ph/hG+gKjXUHegLLVHJgmmJFwOUa+1EBB4q+Z4jIq1fQpkwZRezyoV3cCib
-         geSNNSYk/3lexfeH3hqSWQxvUOyQrzkuL4IVz08tZGlPXhNIcoetT56QwUmAr3o88oH2
-         EX62+eI9LdHXypohZClGH3PzMqx+1BBZwUS9xhw8iczvbKgB3Wx/RavGvmBIfPTRpwEf
-         kynfFJ3CbB/mW3k7pEiFuzA+0smHBZGfrF710tmSee+Xtq3rh9yqp+xQpQx1OetxFCyY
-         d+kcRGqb9N+NKl0fFvvyHOnc09mtwXLcldU4aSaLpji+6T0EJfp3U+E8Thsuv9pP5Fq2
-         lCxA==
+        b=tV+kvJGLJ1m8mDV/iDuPvu5ugJBAjDDpfJO93Vb762buCMG5WixAzEA9jHFiNFoum2
+         J+r3gREsHLEtQXhDJm+vL8zB0oSzDDn7JfKeKaQuuWKRxOei9hOdj0h+kITlliph8DU4
+         k6+7QMFe4U3Dy6MJIuTY+eCsSdfZi/hzJuScHWNSOYCqZQus5gyUu8xOcqldogSdIlDV
+         OlYQqzBJ0hLydGYCXZmo9xXUyJBZarqrQbneM4IBaV7ubSa28nlzOl7gT/OnRGbL0xX2
+         0mtpKwQbY7ilZe5q46kOz+EYdMP9pwfFPcO11A8w6lKMQu4kpHIvGcNWaFED/VuDNpLY
+         rIBQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:references:in-reply-to:message-id:date
          :subject:cc:to:from:dkim-signature;
-        bh=rvo2MdeHWW3FffgXBOnUmvIQSFmvjV1SQw64yMoM6qw=;
-        b=oqwMGiZB1fXLZ+NXntRJImpOeltcrYu1qoI+/tRChDniZOGPKpwT9orE7ufrR57h7x
-         v17ZMOZ62nBDoU5q5Rxc6drJChfzR6jfQi/oUd9kOVpLJbWAHc1zP9pMDznGchyeTbcA
-         1tX0A6t6gn1V0j502Xzjaxye9EZbImcT7ApLNrnfWvcO8JeRPI0QF8MUcMUidLVv6mGK
-         zB0zcpdtF/5oNUq0mY+weeIkzPYsQ8s+URXf1qkSfoJ5d1GzPJuLfUnOXYq/EanyeSiK
-         3w2mqWFV8DjEJajKVfXHafbA4sxV86RSVeZwaSwPkOj7iLA+gV0CmEd6OlYpIe4zE1+0
-         wPtg==
+        bh=ynty9flFqcPPDSeTkJifnT4Yutdn8/TkRysaHE6m4cE=;
+        b=VlUz40cv9NP1r2xs7InagJhLFperQM+e3QYaBMnSeZ+svS4f5Zof7bv3PKPvb/I6Om
+         WD0uPWo5/AlRzbUXwBf+3kBim2Dw8G8ajhnRb2vnusgND8sDEoADh1PltF5CUdgetkDz
+         C2kn0Z95r1e1Aot11MkU+JOCk4r9TfZz1+rbcCFErPaBBs2BPtE12DG8s4h275Peu25S
+         2PLmpBZySEjIQNtsewPpeyAoq5KRgD0LnFMTrOrvcEn/5wxK83/2qCvZ3KJr0Y/R0D01
+         +w0FcTBSsEBOI/+HfWtKh9491xdWWeH47co+4C9PmfuUhMbZtCJCUj8osVIdxFHSDxTO
+         NH/g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=npNl9oJA;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=BaxcCITX;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id a192si8597803ita.13.2019.04.03.10.37.00
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id b2si10346722ywh.384.2019.04.03.10.37.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 10:37:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        Wed, 03 Apr 2019 10:37:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=npNl9oJA;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=BaxcCITX;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x33HNhR0175372;
-	Wed, 3 Apr 2019 17:36:08 GMT
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x33HNdqq165965;
+	Wed, 3 Apr 2019 17:36:04 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
  subject : date : message-id : in-reply-to : references : in-reply-to :
  references; s=corp-2018-07-02;
- bh=rvo2MdeHWW3FffgXBOnUmvIQSFmvjV1SQw64yMoM6qw=;
- b=npNl9oJAhSwyoIUJBpUdDPF4JZ2CEYHDa3hUF0rsMUd/TEUZukdAVOkSbIAOjqZ6DnhF
- 4PeMvlNZBGu3MlDHO96FNz7ZYY4KGvv7n5GotA4/y9ON0ExvPl/M9xWTwTgrYJlmrjPt
- KrY2ATZ/2p1EUBzuS+cPJ0H0Go+Gw49Ol8sGEGecBg6+4vpnuJRpl2iI+pGvq2WSHF5f
- cNT8uKqrqWkIzeQB8soGylpULikvh8aYZHPSbDYfFRqgwsMoWBi2heFAa2HwOw4ulleL
- bH5dtKuvZHXYPcnXA26kaww/oD554BWvyKYQjs0uON2qSiyZ7kHrJavD0EnUKzK+eaOS +A== 
+ bh=ynty9flFqcPPDSeTkJifnT4Yutdn8/TkRysaHE6m4cE=;
+ b=BaxcCITX+BZ4+lS5aQJjRB3VCfd26NfZpmG7792Zbur5ODmmm50Sno8QeknDLKaCAir9
+ Da0W1vB05l+2ASj/y+rE4hgV3tyBaxqqb91JOILD/MwVMrBRtVmhbFSrA9iMgDXoNJWS
+ dRYrw4FjheDfi1giGH7j+C9Mh6xLGdSnbjK1Qg2rrxQNlCBwjMZjabA2o0bhjwvFsgvm
+ ZGyPPSObB3PcM3+v3y/fDDKNwO6++dz2FVngxt1vH1XDVUGHsq570xDSyzQsC9TWwkKO
+ 1h+WkiWSGvDnqnffj7boaGX3CkOtpbIGYXFlvMpx+ygTyz3/w/5rP9ib47WXL8Nh+xu6 xA== 
 Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
-	by userp2120.oracle.com with ESMTP id 2rj13qae91-1
+	by userp2130.oracle.com with ESMTP id 2rhyvtahn9-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 03 Apr 2019 17:36:08 +0000
+	Wed, 03 Apr 2019 17:36:03 +0000
 Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
-	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x33HZIaq110901;
-	Wed, 3 Apr 2019 17:36:07 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserp3030.oracle.com with ESMTP id 2rm8f5fym6-1
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x33HZIEn110862;
+	Wed, 3 Apr 2019 17:36:03 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by aserp3030.oracle.com with ESMTP id 2rm8f5fyjx-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 03 Apr 2019 17:36:07 +0000
+	Wed, 03 Apr 2019 17:36:02 +0000
 Received: from abhmp0005.oracle.com (abhmp0005.oracle.com [141.146.116.11])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x33Ha2pB001570;
-	Wed, 3 Apr 2019 17:36:02 GMT
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x33HZwKI001502;
+	Wed, 3 Apr 2019 17:35:58 GMT
 Received: from concerto.internal (/10.65.181.37)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 03 Apr 2019 10:36:02 -0700
+	with ESMTP ; Wed, 03 Apr 2019 10:35:57 -0700
 From: Khalid Aziz <khalid.aziz@oracle.com>
 To: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com,
         liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
-Cc: Juerg Haefliger <juerg.haefliger@canonical.com>,
-        deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
-        tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
-        jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com,
+Cc: deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com,
+        dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com,
+        boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com,
         joao.m.martins@oracle.com, jmattson@google.com,
         pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de,
         kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com,
@@ -149,24 +148,25 @@ Cc: Juerg Haefliger <juerg.haefliger@canonical.com>,
         iommu@lists.linux-foundation.org, x86@kernel.org,
         linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org,
         linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-        linux-security-module@vger.kernel.org
-Subject: [RFC PATCH v9 10/13] arm64/mm, xpfo: temporarily map dcache regions
-Date: Wed,  3 Apr 2019 11:34:11 -0600
-Message-Id: <a98c81d581e31b573b80ca9982e0325c3f542075.1554248002.git.khalid.aziz@oracle.com>
+        linux-security-module@vger.kernel.org,
+        Khalid Aziz <khalid@gonehiking.org>
+Subject: [RFC PATCH v9 09/13] xpfo: add primitives for mapping underlying memory
+Date: Wed,  3 Apr 2019 11:34:10 -0600
+Message-Id: <9f7930eca60750aaf5381efbbcb45f6da192874f.1554248002.git.khalid.aziz@oracle.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <cover.1554248001.git.khalid.aziz@oracle.com>
 References: <cover.1554248001.git.khalid.aziz@oracle.com>
 In-Reply-To: <cover.1554248001.git.khalid.aziz@oracle.com>
 References: <cover.1554248001.git.khalid.aziz@oracle.com>
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9216 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=677
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=2 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
  adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
  engine=8.0.1-1810050000 definitions=main-1904030118
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9216 signatures=668685
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=687 adultscore=0
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
  definitions=main-1904030118
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -175,50 +175,105 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Juerg Haefliger <juerg.haefliger@canonical.com>
+From: Tycho Andersen <tycho@tycho.ws>
 
-If the page is unmapped by XPFO, a data cache flush results in a fatal
-page fault, so let's temporarily map the region, flush the cache, and then
-unmap it.
+In some cases (on arm64 DMA and data cache flushes) we may have unmapped
+the underlying pages needed for something via XPFO. Here are some
+primitives useful for ensuring the underlying memory is mapped/unmapped in
+the face of xpfo.
 
-CC: linux-arm-kernel@lists.infradead.org
-Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
 Signed-off-by: Tycho Andersen <tycho@tycho.ws>
+Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
+Cc: Khalid Aziz <khalid@gonehiking.org>
 ---
-v6: actually flush in the face of xpfo, and temporarily map the underlying
-    memory so it can be flushed correctly
+ include/linux/xpfo.h | 21 +++++++++++++++++++++
+ mm/xpfo.c            | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+)
 
- arch/arm64/mm/flush.c | 7 +++++++
- 1 file changed, 7 insertions(+)
-
-diff --git a/arch/arm64/mm/flush.c b/arch/arm64/mm/flush.c
-index 5c9073bace83..114e8bc5a3dc 100644
---- a/arch/arm64/mm/flush.c
-+++ b/arch/arm64/mm/flush.c
-@@ -20,6 +20,7 @@
- #include <linux/export.h>
+diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
+index 5d8d06e4b796..2318c7eb5fb7 100644
+--- a/include/linux/xpfo.h
++++ b/include/linux/xpfo.h
+@@ -91,6 +91,15 @@ void xpfo_free_pages(struct page *page, int order);
+ 
+ phys_addr_t user_virt_to_phys(unsigned long addr);
+ 
++#define XPFO_NUM_PAGES(addr, size) \
++	(PFN_UP((unsigned long) (addr) + (size)) - \
++		PFN_DOWN((unsigned long) (addr)))
++
++void xpfo_temp_map(const void *addr, size_t size, void **mapping,
++		   size_t mapping_len);
++void xpfo_temp_unmap(const void *addr, size_t size, void **mapping,
++		     size_t mapping_len);
++
+ #else /* !CONFIG_XPFO */
+ 
+ static inline void xpfo_init_single_page(struct page *page) { }
+@@ -106,6 +115,18 @@ static inline void xpfo_flush_kernel_tlb(struct page *page, int order) { }
+ 
+ static inline phys_addr_t user_virt_to_phys(unsigned long addr) { return 0; }
+ 
++#define XPFO_NUM_PAGES(addr, size) 0
++
++static inline void xpfo_temp_map(const void *addr, size_t size, void **mapping,
++				 size_t mapping_len)
++{
++}
++
++static inline void xpfo_temp_unmap(const void *addr, size_t size,
++				   void **mapping, size_t mapping_len)
++{
++}
++
+ #endif /* CONFIG_XPFO */
+ 
+ #if (!defined(CONFIG_HIGHMEM)) && (!defined(ARCH_HAS_KMAP))
+diff --git a/mm/xpfo.c b/mm/xpfo.c
+index b74fee0479e7..974f1b70ccd9 100644
+--- a/mm/xpfo.c
++++ b/mm/xpfo.c
+@@ -14,6 +14,7 @@
+  * the Free Software Foundation.
+  */
+ 
++#include <linux/highmem.h>
  #include <linux/mm.h>
- #include <linux/pagemap.h>
-+#include <linux/xpfo.h>
- 
- #include <asm/cacheflush.h>
- #include <asm/cache.h>
-@@ -28,9 +29,15 @@
- void sync_icache_aliases(void *kaddr, unsigned long len)
- {
- 	unsigned long addr = (unsigned long)kaddr;
-+	unsigned long num_pages = XPFO_NUM_PAGES(addr, len);
-+	void *mapping[num_pages];
- 
- 	if (icache_is_aliasing()) {
-+		xpfo_temp_map(kaddr, len, mapping,
-+			      sizeof(mapping[0]) * num_pages);
- 		__clean_dcache_area_pou(kaddr, len);
-+		xpfo_temp_unmap(kaddr, len, mapping,
-+				sizeof(mapping[0]) * num_pages);
- 		__flush_icache_all();
- 	} else {
- 		/*
+ #include <linux/module.h>
+ #include <linux/xpfo.h>
+@@ -104,3 +105,32 @@ void xpfo_free_pages(struct page *page, int order)
+ 		}
+ 	}
+ }
++
++void xpfo_temp_map(const void *addr, size_t size, void **mapping,
++		   size_t mapping_len)
++{
++	struct page *page = virt_to_page(addr);
++	int i, num_pages = mapping_len / sizeof(mapping[0]);
++
++	memset(mapping, 0, mapping_len);
++
++	for (i = 0; i < num_pages; i++) {
++		if (page_to_virt(page + i) >= addr + size)
++			break;
++
++		if (PageXpfoUnmapped(page + i))
++			mapping[i] = kmap_atomic(page + i);
++	}
++}
++EXPORT_SYMBOL(xpfo_temp_map);
++
++void xpfo_temp_unmap(const void *addr, size_t size, void **mapping,
++		     size_t mapping_len)
++{
++	int i, num_pages = mapping_len / sizeof(mapping[0]);
++
++	for (i = 0; i < num_pages; i++)
++		if (mapping[i])
++			kunmap_atomic(mapping[i]);
++}
++EXPORT_SYMBOL(xpfo_temp_unmap);
 -- 
 2.17.1
 
