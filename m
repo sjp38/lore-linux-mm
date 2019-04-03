@@ -2,284 +2,219 @@ Return-Path: <SRS0=DmM3=SF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 83287C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 21:24:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BC934C4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 21:45:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1F5CB206DF
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 21:24:08 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="qdD/W0cl";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="f47Ea+X7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1F5CB206DF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	by mail.kernel.org (Postfix) with ESMTP id 6615B206DD
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 21:45:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6615B206DD
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=rjwysocki.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9FDD16B026F; Wed,  3 Apr 2019 17:24:08 -0400 (EDT)
+	id F1E6F6B0010; Wed,  3 Apr 2019 17:45:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9ACC86B0271; Wed,  3 Apr 2019 17:24:08 -0400 (EDT)
+	id ECD746B0269; Wed,  3 Apr 2019 17:45:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8737E6B0272; Wed,  3 Apr 2019 17:24:08 -0400 (EDT)
+	id D6DAB6B026A; Wed,  3 Apr 2019 17:45:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6433B6B026F
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 17:24:08 -0400 (EDT)
-Received: by mail-yb1-f197.google.com with SMTP id 188so243384ybi.17
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 14:24:08 -0700 (PDT)
+Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 693B86B0010
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 17:45:21 -0400 (EDT)
+Received: by mail-lf1-f71.google.com with SMTP id d19so50227lfm.22
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 14:45:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=BoepgHmhCBIDcbfbKFyCP0TuDUaVhSaVSHYj9hjOBk4=;
-        b=JVljIY4Zp/nsZdZACJswLB0eXZyWSGG872mnHoPxxRirCanEh3yr4nJOEcWkE3luR1
-         CCMQZ1yThaD64XItw9bf4grYfLQfsxAPtfvPuX+H4/C1gqsuefCXNVJl+294XJP/G6i5
-         YiD4O5l1yyxIF/Ss7FjIoxYVVMmLDu54qrbltTCoSJpQZUTep1/E2Lp2KDSIMZyZVD6c
-         1yNiKdkfL/PvFWMyG78NQZXmcyUOtKGUGmmrKPsOdBtDHdqzHHetHMWcYdSpdYEimm0B
-         xGNOQL01xwl8YSylYGAmtPL3Aoovxvg8Yb1jIEXdu38upX6BD0HHJTEAI+zLnK9FtEcU
-         ZclA==
-X-Gm-Message-State: APjAAAWW4DgL1w4aEv2hMVKeaaqle+VkpSlyRCQoSMf4O68Y7WK2aJSF
-	HS84Q8vY8FCbpoU1lypGdCDSVOdS4gx6m4bnqX7cM8HgmA5wCp9TosTCXUl2/1s0AWhXxJVHu3d
-	mNuwO8swjYHtJ4GQttDjOA0Sl4TFCO2tq7wc3mqSk3mjDLGkWNFhOhqji4tC9x3xmvg==
-X-Received: by 2002:a0d:db91:: with SMTP id d139mr1534861ywe.418.1554326648082;
-        Wed, 03 Apr 2019 14:24:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyQJadkj4KjAnlHGyEZ84NJbQ6poGAtJDsfGZn7oYifxBuBFcmWN51um5vsFG0HCkOiLYwP
-X-Received: by 2002:a0d:db91:: with SMTP id d139mr1534822ywe.418.1554326647413;
-        Wed, 03 Apr 2019 14:24:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554326647; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=fjfKjBALFmX3df2Ieu/RJvL7HTJTUzAsEOVPXBVlz1w=;
+        b=QPjKz9F5e4AUR6ZF0U0ddRbCvcsX4jSChOq0M19ZTokgZBf0UVANwpkbFlGhboqJLK
+         6po2fAr6xGQnLsTEX7gI56mUQFbDwIMjkaGQN8OBPnCfDI1hUtwqViZRvcVcMQN7Qwu1
+         anqvCe0yD6OZHwU4ezRwWfTQDKgErf5axgXjlqhqx1JApQ4KobE3vtWOIqW1VOBmQM5p
+         HWbWP9IjIGDq9dSPrLPWxqLuE2BS4gO5A6hA6d0SzAeAJdBJ2Z239u0/RUeCNmlbduzW
+         EgNYwYhEZhRrnFxU6/turUFznPSZAHcGrqtluX98Tg6AiqyiNzgFVxm4hqgtcAlAcuBP
+         7AkQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rjw@rjwysocki.net designates 79.96.170.134 as permitted sender) smtp.mailfrom=rjw@rjwysocki.net
+X-Gm-Message-State: APjAAAXfmRe7DQPGj6CRjyhVHE5kCG1Q5XvK0VR2Z8nRHve+Ra82p85R
+	j7u+ezezc3qslTRRofUP4h97wJTN7O6vso0qsy3P6C0qdH8Tdr5ccIgOJe0DMhR2j6HQHeMqMtv
+	Z7GInumAWLGn5VFLbOMYl06ub2VyoVPqRCaKrW+3H2+DhzWCDUFAZoG55JXTh7ZGRGw==
+X-Received: by 2002:a2e:6a14:: with SMTP id f20mr1225500ljc.65.1554327920774;
+        Wed, 03 Apr 2019 14:45:20 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyEnwlyfCFGMBNU3x1ufiPE2MkkialStp3vJeXPI+YkgBG4mg+7fWpajWjE1xxz7+unFnJR
+X-Received: by 2002:a2e:6a14:: with SMTP id f20mr1225459ljc.65.1554327919489;
+        Wed, 03 Apr 2019 14:45:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554327919; cv=none;
         d=google.com; s=arc-20160816;
-        b=rQDRQ1ARQr66uKeKy6NaJcnd8FnlSfBXy06WV1qr3egzJQvV/IW1XtVkGKonCsPEp1
-         VKLcrBXgcUiMqj7+PRskVDlkFSXgIze438C8RSQfsecbl1o3/WxQfo0yFZXrw8wwG5iR
-         QjCQPTfkfQjjLr7cE1+gPvDKNSG5GsQowt9YvrAW5jwmqLXhU7G8H2iI6T2u9rWLWexC
-         LLfc3iP+9RWYkaKkoQ1uF7s540/bArLJYCBV9HkcwMCbubVaAQAAw6LmsE/Y2AbPkpMs
-         Dn1pBmHum7vC3P1Li948KGhksV4ZBlJATF7OcenFpW4eE4YkXfaTghW9/Jp5MSvRCDMH
-         EMJA==
+        b=y2NcGsKmTx/CRDZA35KgpYlDSKoc/qMVkY8UTMoZ77r6q1d04+WBtFmO173y2hWRJT
+         FBV619/0CJjBV+AXGSWphgJvd6Q2oNfzaNUaKsh5cJAR1fqiEnKJr+7C5w0dBa9c4WTd
+         4vGXV7b2iolKRq4QQ6bqcoC/qP7SKYlpeQRUmG2G6Wjpzd03rovTNemqgIhNRzfPuHoP
+         adh7wvndfplTrpv2XqFrdtQWvPg69UpKqKs0Id/j/793X4O11kB7cx6/4PoAG3PPFAiC
+         ItSw7L16Yf7B9/ccjvAqwTWUdhmhhgSDZxLwp8bNt4dKw/FArQVVFvzHwqx3AbnPRlnK
+         ngfg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=BoepgHmhCBIDcbfbKFyCP0TuDUaVhSaVSHYj9hjOBk4=;
-        b=LminYbvOnvrRaMzJgp1qjI0pILVd3AzyBP5DUhjS7pfK/ErzlXj0nvZPPjh2hg+FEt
-         KvudLdUGdi4WxlLqQ5fCxdxLaJ178KRBt4u7yBKh6HQLxSDUdmLYkfflfVpgDQFcs9Sz
-         eLlmSZ2VWQNWyMJLwLSHbdvU51It7ksMGeRf1MFQPAmm0Eoo0UGDMLvEGv0L/DTez8Zm
-         +ZJc2HvWa6aGuYdzkh0z2yd7gkFvrDKe8fbvOiyF00m0uFh8L7M4tIrKGyC4fN9X4tLA
-         0GlBFDouLr9BWtc6WEBvRSYyn3xZCDHDuNZbSRTj4+r+GCObbPL2h+eOdKQ4BlPEoj9Y
-         7JOA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=fjfKjBALFmX3df2Ieu/RJvL7HTJTUzAsEOVPXBVlz1w=;
+        b=y45xxkwPR6WOF+5OLNbtqT+haf+Y4EF8IZVFCY5xt/T0YXX5NiMZM4FsKlYeNduU3o
+         Y9ilc3qDq1gO5pVkHoMfSsXQTrTJw2RbUkl9KT7OQSqsGeNSlrrOppBINNZBvlS360+L
+         VpEZdPeQFFdkF5GYAb/XCsZ6W+cyGz+VI4elt/TxsovqTL2lY5iGZy1vYoc5wGtVSXjp
+         AgHcOu8nYamsfkDe65d1Isj4JXAmtgHhtSGYguB81EI9+H7DfUC3+kUZGnSc2ovNhvlE
+         BjuGfxXm7tZtbp1gGEhIlDqWSp46dC42DtZjrWrg0R5v5liZXSde1jD1TV08a/pwtGVh
+         8dvA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="qdD/W0cl";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=f47Ea+X7;
-       spf=pass (google.com: domain of prvs=99962c6dea=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=99962c6dea=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id c16si9621165ywc.187.2019.04.03.14.24.07
+       spf=pass (google.com: domain of rjw@rjwysocki.net designates 79.96.170.134 as permitted sender) smtp.mailfrom=rjw@rjwysocki.net
+Received: from cloudserver094114.home.pl (cloudserver094114.home.pl. [79.96.170.134])
+        by mx.google.com with ESMTPS id f10si6349563ljk.64.2019.04.03.14.45.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 14:24:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=99962c6dea=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 03 Apr 2019 14:45:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rjw@rjwysocki.net designates 79.96.170.134 as permitted sender) client-ip=79.96.170.134;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="qdD/W0cl";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=f47Ea+X7;
-       spf=pass (google.com: domain of prvs=99962c6dea=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=99962c6dea=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0109331.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x33LNEXd027707;
-	Wed, 3 Apr 2019 14:24:01 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=BoepgHmhCBIDcbfbKFyCP0TuDUaVhSaVSHYj9hjOBk4=;
- b=qdD/W0clzPYp5ECevJeMMMcC4eeFdKQzlpcYK+DiTxBRo9Ggxga/vaSIJ7rXzhhlByyz
- X5oAsbBpmpzB/XdFEVmvUXD/hTZCmAj13fTXJ4q6PhTaADNcMkMYovyB1oz9gAmuaDLa
- wk7Myb6eJk2kcjJ9OhHlY6AflzmHYwGlqR4= 
-Received: from maileast.thefacebook.com ([199.201.65.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2rn475g3jt-2
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Wed, 03 Apr 2019 14:24:01 -0700
-Received: from frc-mbx06.TheFacebook.com (2620:10d:c0a1:f82::30) by
- frc-hub05.TheFacebook.com (2620:10d:c021:18::175) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Wed, 3 Apr 2019 14:23:30 -0700
-Received: from frc-hub02.TheFacebook.com (2620:10d:c021:18::172) by
- frc-mbx06.TheFacebook.com (2620:10d:c0a1:f82::30) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Wed, 3 Apr 2019 14:23:30 -0700
-Received: from NAM04-BN3-obe.outbound.protection.outlook.com (192.168.183.28)
- by o365-in.thefacebook.com (192.168.177.72) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Wed, 3 Apr 2019 14:23:30 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=BoepgHmhCBIDcbfbKFyCP0TuDUaVhSaVSHYj9hjOBk4=;
- b=f47Ea+X7JTxn+aSXn05ViBlkWdfPC/2I7wwN7NnDL/6JWEilkkTl9ughLAUx4fNx2/GLc/jpGIOltD9H0SPtvL9qATKZ4soRPCUA2rvCKMo1baceARLOctBs9feoMbp5+vA7RnGmYyAW/ahnTIHcBsz+4tIGyh0GYbqW/nhcC48=
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
- BYAPR15MB2805.namprd15.prod.outlook.com (20.179.158.146) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1750.16; Wed, 3 Apr 2019 21:23:28 +0000
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::790e:7294:b086:9ded]) by BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::790e:7294:b086:9ded%3]) with mapi id 15.20.1750.017; Wed, 3 Apr 2019
- 21:23:28 +0000
-From: Roman Gushchin <guro@fb.com>
-To: "Tobin C. Harding" <me@tobin.cc>
-CC: "Tobin C. Harding" <tobin@kernel.org>,
-        Andrew Morton
-	<akpm@linux-foundation.org>,
-        Christoph Lameter <cl@linux.com>, Pekka Enberg
-	<penberg@kernel.org>,
-        David Rientjes <rientjes@google.com>,
-        Joonsoo Kim
-	<iamjoonsoo.kim@lge.com>,
-        Matthew Wilcox <willy@infradead.org>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH v5 2/7] slob: Respect list_head abstraction layer
-Thread-Topic: [PATCH v5 2/7] slob: Respect list_head abstraction layer
-Thread-Index: AQHU6ajAyy6khhqQC0Sp/NoP4ahiCKYqRZAAgACoe4CAAAWTAA==
-Date: Wed, 3 Apr 2019 21:23:28 +0000
-Message-ID: <20190403212322.GA5116@tower.DHCP.thefacebook.com>
-References: <20190402230545.2929-1-tobin@kernel.org>
- <20190402230545.2929-3-tobin@kernel.org>
- <20190403180026.GC6778@tower.DHCP.thefacebook.com>
- <20190403210327.GB23288@eros.localdomain>
-In-Reply-To: <20190403210327.GB23288@eros.localdomain>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: MWHPR19CA0010.namprd19.prod.outlook.com
- (2603:10b6:300:d4::20) To BYAPR15MB2631.namprd15.prod.outlook.com
- (2603:10b6:a03:152::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::1:9220]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: c4d6633c-68fa-4060-d3f4-08d6b87a9d24
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600139)(711020)(4605104)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7193020);SRVR:BYAPR15MB2805;
-x-ms-traffictypediagnostic: BYAPR15MB2805:
-x-microsoft-antispam-prvs: <BYAPR15MB2805ACE7980B6246FDA7AE23BE570@BYAPR15MB2805.namprd15.prod.outlook.com>
-x-forefront-prvs: 0996D1900D
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(346002)(39860400002)(376002)(366004)(136003)(396003)(189003)(199004)(486006)(305945005)(93886005)(6512007)(316002)(7416002)(476003)(11346002)(68736007)(54906003)(446003)(8936002)(229853002)(86362001)(9686003)(6506007)(6486002)(6246003)(25786009)(4326008)(386003)(6436002)(102836004)(478600001)(76176011)(1076003)(256004)(99286004)(186003)(105586002)(46003)(71190400001)(53936002)(52116002)(106356001)(97736004)(71200400001)(33656002)(14454004)(5660300002)(8676002)(2906002)(81166006)(81156014)(14444005)(6116002)(7736002)(6916009);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB2805;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: qHBKP/B5q1eni+bS2q1Y5HoohqKElv9bU3+GpoY6S6ZLqjeTXGopZR44eUxoonw5ljMSYcLpVjLzBMNYbOVKzIWe7N63yrtva2D4lcLk7VOBdmDgC38Rt6Wg9S9V2qPd8dM0t2TOMKC7DTVRH85FPPPiD+WqB+6BdjvGYPJ/Lj7C/bYj/oxwo87D/6wluNRXWodDwnA7tPduikLBE2FTfHuGq7PFJPK0E97Ps6wvDEnWHhDi4UCw9+DBx0i5BEJTFLpvbHSD2YdltkfFF5jUPK7iYbl7OK9tfXJ/vibn4I+xGR/8m4G2tpWQ7eYrc2fd+G+jd1KiSHyzk9Jrk+G8fhfVDnv6Eu44N5byS/Ak7yOF4pnE7Pn2xfXRMWkOSBJ4LNqrQXecHJFBPg49kDYdnml7D5CoIuGARwOJUz12ERM=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <8430EC8008007841B1D6BEAE51EF5F20@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of rjw@rjwysocki.net designates 79.96.170.134 as permitted sender) smtp.mailfrom=rjw@rjwysocki.net
+Received: from 79.184.254.219.ipv4.supernova.orange.pl (79.184.254.219) (HELO aspire.rjw.lan)
+ by serwer1319399.home.pl (79.96.170.134) with SMTP (IdeaSmtpServer 0.83.213)
+ id 711508f9338ff3e2; Wed, 3 Apr 2019 23:45:18 +0200
+From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+To: Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rodolfo =?ISO-8859-1?Q?Garc=EDa_Pe=F1as_=28kix=29?= <kix@kix.es>, Oliver Winker <oliverml1@oli1170.net>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Maxim Patlasov <mpatlasov@parallels.com>, Fengguang Wu <fengguang.wu@intel.com>, Tejun Heo <tj@kernel.org>, killian.de.volder@megasoft.be, atillakaraca72@hotmail.com, jrf@mailbox.org, matheusfillipeag@gmail.com
+Subject: Re: [Bug 75101] New: [bisected] s2disk / hibernate blocks on "Saving 506031 image data pages () ..."
+Date: Wed, 03 Apr 2019 23:43:10 +0200
+Message-ID: <1892727.yFHGcz2naH@aspire.rjw.lan>
+In-Reply-To: <20190403093432.GD8836@quack2.suse.cz>
+References: <20140505233358.GC19914@cmpxchg.org> <20190402162500.def729ec05e6e267bff8a5da@linux-foundation.org> <20190403093432.GD8836@quack2.suse.cz>
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: c4d6633c-68fa-4060-d3f4-08d6b87a9d24
-X-MS-Exchange-CrossTenant-originalarrivaltime: 03 Apr 2019 21:23:28.4293
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB2805
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-03_13:,,
- signatures=0
-X-Proofpoint-Spam-Reason: safe
-X-FB-Internal: Safe
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 04, 2019 at 08:03:27AM +1100, Tobin C. Harding wrote:
-> On Wed, Apr 03, 2019 at 06:00:30PM +0000, Roman Gushchin wrote:
-> > On Wed, Apr 03, 2019 at 10:05:40AM +1100, Tobin C. Harding wrote:
-> > > Currently we reach inside the list_head.  This is a violation of the
-> > > layer of abstraction provided by the list_head.  It makes the code
-> > > fragile.  More importantly it makes the code wicked hard to understan=
-d.
-> > >=20
-> > > The code reaches into the list_head structure to counteract the fact
-> > > that the list _may_ have been changed during slob_page_alloc().  Inst=
-ead
-> > > of this we can add a return parameter to slob_page_alloc() to signal
-> > > that the list was modified (list_del() called with page->lru to remov=
-e
-> > > page from the freelist).
-> > >=20
-> > > This code is concerned with an optimisation that counters the tendenc=
-y
-> > > for first fit allocation algorithm to fragment memory into many small
-> > > chunks at the front of the memory pool.  Since the page is only remov=
-ed
-> > > from the list when an allocation uses _all_ the remaining memory in t=
-he
-> > > page then in this special case fragmentation does not occur and we
-> > > therefore do not need the optimisation.
-> > >=20
-> > > Add a return parameter to slob_page_alloc() to signal that the
-> > > allocation used up the whole page and that the page was removed from =
-the
-> > > free list.  After calling slob_page_alloc() check the return value ju=
-st
-> > > added and only attempt optimisation if the page is still on the list.
-> > >=20
-> > > Use list_head API instead of reaching into the list_head structure to
-> > > check if sp is at the front of the list.
-> > >=20
-> > > Signed-off-by: Tobin C. Harding <tobin@kernel.org>
-> > > ---
-> > >  mm/slob.c | 51 +++++++++++++++++++++++++++++++++++++--------------
-> > >  1 file changed, 37 insertions(+), 14 deletions(-)
-> > >=20
-> > > diff --git a/mm/slob.c b/mm/slob.c
-> > > index 307c2c9feb44..07356e9feaaa 100644
-> > > --- a/mm/slob.c
-> > > +++ b/mm/slob.c
-> > > @@ -213,13 +213,26 @@ static void slob_free_pages(void *b, int order)
-> > >  }
-> > > =20
-> > >  /*
-> > > - * Allocate a slob block within a given slob_page sp.
-> > > + * slob_page_alloc() - Allocate a slob block within a given slob_pag=
-e sp.
-> > > + * @sp: Page to look in.
-> > > + * @size: Size of the allocation.
-> > > + * @align: Allocation alignment.
-> > > + * @page_removed_from_list: Return parameter.
-> > > + *
-> > > + * Tries to find a chunk of memory at least @size bytes big within @=
-page.
-> > > + *
-> > > + * Return: Pointer to memory if allocated, %NULL otherwise.  If the
-> > > + *         allocation fills up @page then the page is removed from t=
-he
-> > > + *         freelist, in this case @page_removed_from_list will be se=
-t to
-> > > + *         true (set to false otherwise).
-> > >   */
-> > > -static void *slob_page_alloc(struct page *sp, size_t size, int align=
-)
-> > > +static void *slob_page_alloc(struct page *sp, size_t size, int align=
-,
-> > > +			     bool *page_removed_from_list)
-> >=20
-> > Hi Tobin!
-> >=20
-> > Isn't it better to make slob_page_alloc() return a bool value?
-> > Then it's easier to ignore the returned value, no need to introduce "_u=
-nused".
->=20
-> We need a pointer to the memory allocated also so AFAICS its either a
-> return parameter for the memory pointer or a return parameter to
-> indicate the boolean value?  Open to any other ideas I'm missing.
->=20
-> In a previous crack at this I used a double pointer to the page struct
-> then set that to null to indicate the boolean value.  I think the
-> explicit boolean parameter is cleaner.
+On Wednesday, April 3, 2019 11:34:32 AM CEST Jan Kara wrote:
+> On Tue 02-04-19 16:25:00, Andrew Morton wrote:
+> > 
+> > I cc'ed a bunch of people from bugzilla.
+> > 
+> > Folks, please please please remember to reply via emailed
+> > reply-to-all.  Don't use the bugzilla interface!
+> > 
+> > On Mon, 16 Jun 2014 18:29:26 +0200 "Rafael J. Wysocki" <rafael.j.wysocki@intel.com> wrote:
+> > 
+> > > On 6/13/2014 6:55 AM, Johannes Weiner wrote:
+> > > > On Fri, Jun 13, 2014 at 01:50:47AM +0200, Rafael J. Wysocki wrote:
+> > > >> On 6/13/2014 12:02 AM, Johannes Weiner wrote:
+> > > >>> On Tue, May 06, 2014 at 01:45:01AM +0200, Rafael J. Wysocki wrote:
+> > > >>>> On 5/6/2014 1:33 AM, Johannes Weiner wrote:
+> > > >>>>> Hi Oliver,
+> > > >>>>>
+> > > >>>>> On Mon, May 05, 2014 at 11:00:13PM +0200, Oliver Winker wrote:
+> > > >>>>>> Hello,
+> > > >>>>>>
+> > > >>>>>> 1) Attached a full function-trace log + other SysRq outputs, see [1]
+> > > >>>>>> attached.
+> > > >>>>>>
+> > > >>>>>> I saw bdi_...() calls in the s2disk paths, but didn't check in detail
+> > > >>>>>> Probably more efficient when one of you guys looks directly.
+> > > >>>>> Thanks, this looks interesting.  balance_dirty_pages() wakes up the
+> > > >>>>> bdi_wq workqueue as it should:
+> > > >>>>>
+> > > >>>>> [  249.148009]   s2disk-3327    2.... 48550413us : global_dirty_limits <-balance_dirty_pages_ratelimited
+> > > >>>>> [  249.148009]   s2disk-3327    2.... 48550414us : global_dirtyable_memory <-global_dirty_limits
+> > > >>>>> [  249.148009]   s2disk-3327    2.... 48550414us : writeback_in_progress <-balance_dirty_pages_ratelimited
+> > > >>>>> [  249.148009]   s2disk-3327    2.... 48550414us : bdi_start_background_writeback <-balance_dirty_pages_ratelimited
+> > > >>>>> [  249.148009]   s2disk-3327    2.... 48550414us : mod_delayed_work_on <-balance_dirty_pages_ratelimited
+> > > >>>>> but the worker wakeup doesn't actually do anything:
+> > > >>>>> [  249.148009] kworker/-3466    2d... 48550431us : finish_task_switch <-__schedule
+> > > >>>>> [  249.148009] kworker/-3466    2.... 48550431us : _raw_spin_lock_irq <-worker_thread
+> > > >>>>> [  249.148009] kworker/-3466    2d... 48550431us : need_to_create_worker <-worker_thread
+> > > >>>>> [  249.148009] kworker/-3466    2d... 48550432us : worker_enter_idle <-worker_thread
+> > > >>>>> [  249.148009] kworker/-3466    2d... 48550432us : too_many_workers <-worker_enter_idle
+> > > >>>>> [  249.148009] kworker/-3466    2.... 48550432us : schedule <-worker_thread
+> > > >>>>> [  249.148009] kworker/-3466    2.... 48550432us : __schedule <-worker_thread
+> > > >>>>>
+> > > >>>>> My suspicion is that this fails because the bdi_wq is frozen at this
+> > > >>>>> point and so the flush work never runs until resume, whereas before my
+> > > >>>>> patch the effective dirty limit was high enough so that image could be
+> > > >>>>> written in one go without being throttled; followed by an fsync() that
+> > > >>>>> then writes the pages in the context of the unfrozen s2disk.
+> > > >>>>>
+> > > >>>>> Does this make sense?  Rafael?  Tejun?
+> > > >>>> Well, it does seem to make sense to me.
+> > > >>>  From what I see, this is a deadlock in the userspace suspend model and
+> > > >>> just happened to work by chance in the past.
+> > > >> Well, it had been working for quite a while, so it was a rather large
+> > > >> opportunity
+> > > >> window it seems. :-)
+> > > > No doubt about that, and I feel bad that it broke.  But it's still a
+> > > > deadlock that can't reasonably be accommodated from dirty throttling.
+> > > >
+> > > > It can't just put the flushers to sleep and then issue a large amount
+> > > > of buffered IO, hoping it doesn't hit the dirty limits.  Don't shoot
+> > > > the messenger, this bug needs to be addressed, not get papered over.
+> > > >
+> > > >>> Can we patch suspend-utils as follows?
+> > > >> Perhaps we can.  Let's ask the new maintainer.
+> > > >>
+> > > >> Rodolfo, do you think you can apply the patch below to suspend-utils?
+> > > >>
+> > > >>> Alternatively, suspend-utils
+> > > >>> could clear the dirty limits before it starts writing and restore them
+> > > >>> post-resume.
+> > > >> That (and the patch too) doesn't seem to address the problem with existing
+> > > >> suspend-utils
+> > > >> binaries, however.
+> > > > It's userspace that freezes the system before issuing buffered IO, so
+> > > > my conclusion was that the bug is in there.  This is arguable.  I also
+> > > > wouldn't be opposed to a patch that sets the dirty limits to infinity
+> > > > from the ioctl that freezes the system or creates the image.
+> > > 
+> > > OK, that sounds like a workable plan.
+> > > 
+> > > How do I set those limits to infinity?
+> > 
+> > Five years have passed and people are still hitting this.
+> > 
+> > Killian described the workaround in comment 14 at
+> > https://bugzilla.kernel.org/show_bug.cgi?id=75101.
+> > 
+> > People can use this workaround manually by hand or in scripts.  But we
+> > really should find a proper solution.  Maybe special-case the freezing
+> > of the flusher threads until all the writeout has completed.  Or
+> > something else.
+> 
+> I've refreshed my memory wrt this bug and I believe the bug is really on
+> the side of suspend-utils (uswsusp or however it is called). They are low
+> level system tools, they ask the kernel to freeze all processes
+> (SNAPSHOT_FREEZE ioctl), and then they rely on buffered writeback (which is
+> relatively heavyweight infrastructure) to work. That is wrong in my
+> opinion.
+> 
+> I can see Johanness was suggesting in comment 11 to use O_SYNC in
+> suspend-utils which worked but was too slow. Indeed O_SYNC is rather big
+> hammer but using O_DIRECT should be what they need and get better
+> performance - no additional buffering in the kernel, no dirty throttling,
+> etc. They only need their buffer & device offsets sector aligned - they
+> seem to be even page aligned in suspend-utils so they should be fine. And
+> if the performance still sucks (currently they appear to do mostly random
+> 4k writes so it probably would for rotating disks), they could use AIO DIO
+> to get multiple pages in flight (as many as they dare to allocate buffers)
+> and then the IO scheduler will reorder things as good as it can and they
+> should get reasonable performance.
+> 
+> Is there someone who works on suspend-utils these days?
 
-Yeah, sorry, it's my fault. Please, ignore this comment.
-Bool* argument is perfectly fine here.
+Not that I know of.
 
-Thanks!
+> Because the repo I've found on kernel.org seems to be long dead
+> (last commit in 2012).
+
+And that's where the things are as of today, AFAICS.
+
+Cheers,
+Rafael
 
