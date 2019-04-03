@@ -6,79 +6,79 @@ X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9F0A5C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:08:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5F785C4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:19:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4C98E2084B
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:08:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4C98E2084B
+	by mail.kernel.org (Postfix) with ESMTP id 277D2205C9
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:19:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 277D2205C9
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=zeniv.linux.org.uk
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BCF706B000E; Wed,  3 Apr 2019 13:08:43 -0400 (EDT)
+	id 9CB3E6B0008; Wed,  3 Apr 2019 13:19:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B7F2D6B0010; Wed,  3 Apr 2019 13:08:43 -0400 (EDT)
+	id 97BCD6B000C; Wed,  3 Apr 2019 13:19:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A6F046B026A; Wed,  3 Apr 2019 13:08:43 -0400 (EDT)
+	id 89DF06B0008; Wed,  3 Apr 2019 13:19:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C4DA6B000E
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 13:08:43 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id u18so13512173wrp.19
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 10:08:43 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C22B6B0008
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 13:19:41 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id y7so13569733wrq.4
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 10:19:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent:sender;
-        bh=szulT7NfpOOAl6Q5NRLBlwod2VyZhZp2orgKdKl2/8M=;
-        b=a7uzyJAluhIBSCcDASP/faWYyshKSFNyJOPobMXvlR9i9IqC+fF4k6ezCbL3ZqIhhY
-         tGYy0ghcoZPjCEJbwJbhr82s5nQ7478lPxOPf1VUVogo54Z+AVw3BulatmKmOnC59qyq
-         KSUHSEwLzeAAzi0lEulkCwMwFHEuXiz6c1teGb5JroHdv/FlKhQ+L0kc7Co1odgtpeoI
-         H6w5ovgAL/HcRa4CH1AdQzN0qz+5d0HchVTrny7aP64vIOEWMY7xnNkOerhN96e/M7QX
-         cr4qUPQmb8ZTPw2INEN8KYytqw5Nrn8uTR9WTltvXXa354jhPwLF+4Vp+vIxJ7aRMxcR
-         FDzg==
+        bh=Nrovqt/E3sLIY0UINWIZm4LZjlIUz46vFJMaX0OPy6U=;
+        b=rY+KQ4sLnAIGNBrjCelkvxmdWJOnhI7HPdo4sFbKqHdL5Y9fWRv1xZfEPHXSZT+C/C
+         C445qBDwT3jJZqXaoAhFAdkB2h6O7HDHS8pSdXtUc4Yhdr1jBC9So5JZLv1LnCFP/YXQ
+         N5BCmudtfUh2kz1YEfOZj7bd4cRuci7oNLe+jIvKFdIjT5rRs+H8gidC/VdR0RkcHzSj
+         sWYhpvSqhdDxe+KyFhZm44v4DdlfYLqCAHr8IyVdtlZ2qDWoaceVY2DePdVGtXjl3xKC
+         G1lv1BS/pVx5mV3lwJxNTIXAvF6ivcM6R+yzutIZZgIh+SZG04/y20O8/Kp2mG1OwAem
+         9fcg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
-X-Gm-Message-State: APjAAAVCUYB1iP6cagF8zEh+q6ssKhX01ow7Z6bSBBUoXQuHZ49W/2D0
-	V7PJbU94PeoBcJJstcivSFYVSciorc4nQi+Px2DxpIC3Qyxy4+PRRI/51wEqv0MqbuyBeXK5Z9/
-	MFVMbIEdZ3K0DhuXaHd9WSpjzwO7lApNf8w4ehE0tWi34btAbeWrnVHNokDsWc2LMrg==
-X-Received: by 2002:a1c:7f10:: with SMTP id a16mr765409wmd.30.1554311322898;
-        Wed, 03 Apr 2019 10:08:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz5orWa1p25wp6tlv5OLGrMU+W7KKguqAbDuxeoE8Rl4iYNRGvx0y3bW2kC3IDs0dzNsNo8
-X-Received: by 2002:a1c:7f10:: with SMTP id a16mr765364wmd.30.1554311321926;
-        Wed, 03 Apr 2019 10:08:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554311321; cv=none;
+X-Gm-Message-State: APjAAAX4nfPTEamLdbJMRFwHVTICm8yL68+YIVVwNq8uQc3QeuVM+nvY
+	JiV8DlFdxLFbOnpuXFVtAbmFqO7cE4fwQ3BEdjmSnFphym8S9A4gCJDnYsajN8YOt5mpd3/sptp
+	YoH5ArGH3I12r7+JVeWKTpxqkW/wu3WusnRAzSMDtKzT8hNDutSf0u0Rgll+XOADaQQ==
+X-Received: by 2002:a1c:7e10:: with SMTP id z16mr768577wmc.117.1554311980819;
+        Wed, 03 Apr 2019 10:19:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyzvdGXDKOvYDn11Chb3nzFbtuDTPacLWdj0ALM2FzqeYXUa6mdAxyGhxNX5N6unq2tSXTC
+X-Received: by 2002:a1c:7e10:: with SMTP id z16mr768532wmc.117.1554311979928;
+        Wed, 03 Apr 2019 10:19:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554311979; cv=none;
         d=google.com; s=arc-20160816;
-        b=BFG+oFcXCMDmZABTTvJGMXMH6vdoDSskok+TaZfwvF6/ydcMQXD6gRA6Ff2Y5YVtiI
-         NcKSJkaohSE2PwHIVeG3NJurMP/V9z4igOiV9W681jVi+5uWnZz+j8LYDOmV0mfgpTyU
-         eG3qBSgBXry1LSzZ4mun7MdcHnQdIAC8taVlkOz1A7ooo9BEDp85zcGLUVETnEE+7YiE
-         5OhB+BWDCQlmE+knMLkTRl8Ku4L+8sTfo9fH0FBCzsTgWOt+gTr8b8J4126imAtXEPkH
-         3sqj0WGknRqz5BDY7pzN8vlhT3zbmx4zA8cP6Cp+6/L+SQQMK0+egjqvkoYUZPJ1Gzer
-         zdMA==
+        b=ooBVdA9oasEqRNoC5L7nHyfgmFoNtbfzhUeSoZGbgZ+6Zi6qHb8RYuC1YTjwkxhUtd
+         pH15SyhWDhTCt2OpxgFt9ey/Ij2DYguu86YXQjY5CHE2KXLPAjKoGRFwfBTAxuN65NZ9
+         3NTp5mJU/8R07AJHdNenyEkkMVFCtXvp7IiTxElHHIUOGJOkZv00pC4rjZPFyK/SFZr9
+         WCKC79WtnfyRWetaJUcvLLBKk5KrieTqiXpiy6LrV43ZePRBbZ4hflLt1qpXLCxUoBKz
+         Yr5G4ycWhz+D+FpTlRhBMFXDKgC3WQPBvPcOiFsSDk4uvM7b0c/MNf30ngFxEdKNTjM0
+         j5rA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=sender:user-agent:in-reply-to:content-disposition:mime-version
          :references:message-id:subject:cc:to:from:date;
-        bh=szulT7NfpOOAl6Q5NRLBlwod2VyZhZp2orgKdKl2/8M=;
-        b=k8NmbQW51xf8XK6eJ4rd6I42GBiFExWQVYUNh1ZKx7BOZS0aEVtPpOcxgbCADXK/7S
-         SDHgo6q2zDTfT22dP0y8i1je41TstG2UVFuFXLsQU/E9Ve7nwFqlhfbfhc5nz+PBZwOn
-         F9rgZQGSeDfSda99mIRd7IDENXs1i/w3aO6fkQYIfX7/6vHpopuPRWZs/OxhhvW6smSk
-         rD7UeXUhP3/Wgg+EPvYf4y80qZ3SQqD/cVnAlNLK3wVEyo0kw6LTFuq75KNjmNRMhv+9
-         5iE+FxaPzdkkxf8RrkmD0Tt7JJkhYu/4ZdnEyJEituQ80eSsqYRWR7hiwI3d2csactYn
-         eqDA==
+        bh=Nrovqt/E3sLIY0UINWIZm4LZjlIUz46vFJMaX0OPy6U=;
+        b=SbLEru+5PbpKe0Z59CpZfuCc138S6JMtDMVO6lULMGHleXc8mAHmjtfgah05N/xdZ7
+         0NyhHWnXzTvQcnVeYs4jvhgCLvc/3uenbYuZgsYvuHAcGWHpvdZh/mOZ1sXG5BDyFfIk
+         ZrBYbxcIu2DZ80Yv7n39iari3xcaVhkxX4y1gFAB34qja1rv5JUNmiZHoLD9BRWct8ik
+         cdDdUzDBEMyVT1hEVkY8MRErY1fYD0iGOq5DuNBYPLvEjEFF0IRlcanZwshplVF+KnAy
+         0b3acDSx8XIcxtrMDmoxgVN1yoOk7yMt6sEjZhtImeSmIwX51lotb07OCPvI+nUYbhSe
+         79dQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
 Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
-        by mx.google.com with ESMTPS id y8si11006676wrn.405.2019.04.03.10.08.41
+        by mx.google.com with ESMTPS id c4si10576958wrv.79.2019.04.03.10.19.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 03 Apr 2019 10:08:41 -0700 (PDT)
+        Wed, 03 Apr 2019 10:19:39 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) client-ip=195.92.253.2;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
 Received: from viro by ZenIV.linux.org.uk with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hBjMx-0003uc-II; Wed, 03 Apr 2019 17:08:11 +0000
-Date: Wed, 3 Apr 2019 18:08:11 +0100
+	id 1hBjXl-000498-1C; Wed, 03 Apr 2019 17:19:21 +0000
+Date: Wed, 3 Apr 2019 18:19:21 +0100
 From: Al Viro <viro@zeniv.linux.org.uk>
 To: "Tobin C. Harding" <tobin@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>,
@@ -99,13 +99,14 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>,
 	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
 	Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [RFC PATCH v2 14/14] dcache: Implement object migration
-Message-ID: <20190403170811.GR2217@ZenIV.linux.org.uk>
+Message-ID: <20190403171920.GS2217@ZenIV.linux.org.uk>
 References: <20190403042127.18755-1-tobin@kernel.org>
  <20190403042127.18755-15-tobin@kernel.org>
+ <20190403170811.GR2217@ZenIV.linux.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190403042127.18755-15-tobin@kernel.org>
+In-Reply-To: <20190403170811.GR2217@ZenIV.linux.org.uk>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -113,78 +114,37 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 03, 2019 at 03:21:27PM +1100, Tobin C. Harding wrote:
-> The dentry slab cache is susceptible to internal fragmentation.  Now
-> that we have Slab Movable Objects we can defragment the dcache.  Object
-> migration is only possible for dentry objects that are not currently
-> referenced by anyone, i.e. we are using the object migration
-> infrastructure to free unused dentries.
+On Wed, Apr 03, 2019 at 06:08:11PM +0100, Al Viro wrote:
+
+> Oh, *brilliant*
 > 
-> Implement isolate and migrate functions for the dentry slab cache.
+> Let's do d_invalidate() on random dentries and hope they go away.
+> With convoluted and brittle logics for deciding which ones to
+> spare, which is actually wrong.  This will pick mountpoints
+> and tear them out, to start with.
+> 
+> NAKed-by: Al Viro <viro@zeniv.linux.org.uk>
+> 
+> And this is a NAK for the entire approach; if it has a positive refcount,
+> LEAVE IT ALONE.  Period.  Don't play this kind of games, they are wrong.
+> d_invalidate() is not something that can be done to an arbitrary dentry.
 
-> +		/*
-> +		 * Three sorts of dentries cannot be reclaimed:
-> +		 *
-> +		 * 1. dentries that are in the process of being allocated
-> +		 *    or being freed. In that case the dentry is neither
-> +		 *    on the LRU nor hashed.
-> +		 *
-> +		 * 2. Fake hashed entries as used for anonymous dentries
-> +		 *    and pipe I/O. The fake hashed entries have d_flags
-> +		 *    set to indicate a hashed entry. However, the
-> +		 *    d_hash field indicates that the entry is not hashed.
-> +		 *
-> +		 * 3. dentries that have a backing store that is not
-> +		 *    writable. This is true for tmpsfs and other in
-> +		 *    memory filesystems. Removing dentries from them
-> +		 *    would loose dentries for good.
-> +		 */
-> +		if ((d_unhashed(dentry) && list_empty(&dentry->d_lru)) ||
-> +		    (!d_unhashed(dentry) && hlist_bl_unhashed(&dentry->d_hash)) ||
-> +		    (dentry->d_inode &&
-> +		     !mapping_cap_writeback_dirty(dentry->d_inode->i_mapping))) {
-> +			/* Ignore this dentry */
-> +			v[i] = NULL;
-> +		} else {
-> +			__dget_dlock(dentry);
-> +		}
-> +		spin_unlock(&dentry->d_lock);
-> +	}
-> +	return NULL;		/* No need for private data */
-> +}
-> +
-> +/*
-> + * d_migrate() - Dentry migration callback function.
-> + * @s: The dentry cache.
-> + * @v: Vector of pointers to the objects to migrate.
-> + * @nr: Number of objects in @v.
-> + * @node: The NUMA node where new object should be allocated.
-> + * @private: Returned by d_isolate() (currently %NULL).
-> + *
-> + * Slab has dropped all the locks. Get rid of the refcount obtained
-> + * earlier and also free the object.
-> + */
-> +static void d_migrate(struct kmem_cache *s, void **v, int nr,
-> +		      int node, void *_unused)
-> +{
-> +	struct dentry *dentry;
-> +	int i;
-> +
-> +	for (i = 0; i < nr; i++) {
-> +		dentry = v[i];
-> +		if (dentry)
-> +			d_invalidate(dentry);
+PS: "try to evict what can be evicted out of this set" can be done, but
+you want something like
+	start with empty list
+	go through your array of references
+		grab dentry->d_lock
+		if dentry->d_lockref.count is not zero
+			unlock and continue
+		if dentry->d_flags & DCACHE_SHRINK_LIST
+			ditto, it's not for us to play with
+                if (dentry->d_flags & DCACHE_LRU_LIST)
+                        d_lru_del(dentry);
+		d_shrink_add(dentry, &list);
+		unlock
 
-Oh, *brilliant*
-
-Let's do d_invalidate() on random dentries and hope they go away.
-With convoluted and brittle logics for deciding which ones to
-spare, which is actually wrong.  This will pick mountpoints
-and tear them out, to start with.
-
-NAKed-by: Al Viro <viro@zeniv.linux.org.uk>
-
-And this is a NAK for the entire approach; if it has a positive refcount,
-LEAVE IT ALONE.  Period.  Don't play this kind of games, they are wrong.
-d_invalidate() is not something that can be done to an arbitrary dentry.
+on the collection phase and
+	if the list is not empty by the end of that loop
+		shrink_dentry_list(&list);
+on the disposal.
 
