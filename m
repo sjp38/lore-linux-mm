@@ -2,162 +2,190 @@ Return-Path: <SRS0=DmM3=SF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_NEOMUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9034DC4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 16:39:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 41468C4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 16:39:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0B2AB20700
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 16:39:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id F2F9720700
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 16:39:49 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="N2XKLx6C"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0B2AB20700
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="wDb1seI9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F2F9720700
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 72DCC6B000E; Wed,  3 Apr 2019 12:39:44 -0400 (EDT)
+	id 951616B0010; Wed,  3 Apr 2019 12:39:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6B3A16B0010; Wed,  3 Apr 2019 12:39:44 -0400 (EDT)
+	id 8D7AA6B0266; Wed,  3 Apr 2019 12:39:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 57C406B0266; Wed,  3 Apr 2019 12:39:44 -0400 (EDT)
+	id 7779A6B0269; Wed,  3 Apr 2019 12:39:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 14E6C6B000E
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 12:39:44 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id h15so12718696pfj.22
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 09:39:44 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 535136B0010
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 12:39:49 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id b1so17209400qtk.11
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 09:39:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=8IQMSP6P4b510J55TjeGkbsT5/Y/3zEz6PB9bSwT+7E=;
-        b=Yqc0n1DlxuN6c5LEJDTcSf2UHnbhsbmEKoYEYWnh4pi2SFsU1tJDiLWFar4efhz8pF
-         diAbPS55v9FU3gjFWolStriCcAUjOhki3boWesL607LBMnn4lOvPQ9peaABbvaLeLAj2
-         xhvdAT65A/t4qNAmdGL7Z2B/tMelwQ9ELihg8/rxb7S8x1KocHANAOfs5cQZ3N+440Kq
-         NhxZ5N6/86AMd36iiXMW4K8hhXNYQn5ske8KM6XRwdLn0LpnJ6w2Mo5L+SKNodf641FG
-         KT/hDghI6ImDFwrZy2BFcATMWxZ/P3gVgpHu7u6YNpYeyE0rbVu83MAZdps9o/ta6nm5
-         uI3g==
-X-Gm-Message-State: APjAAAXgEcdXUAVRBxgfYOEr1+QbVfFiGHT+DN1uvg07Pg4sCC1TWfM3
-	Qf7abtQK5MFZ5hi9RyDzpCG4WQFaKhzX9WdsyaImufgaglgA2tmBGJVN3E2H5k1DWPt/F6WbqBj
-	qqhH4oKpDZUpua5YgW5XS6xynZlNCvi3q/zcb58uuX3pU01HKtuBLT+/P6IWOd8WIug==
-X-Received: by 2002:a17:902:b948:: with SMTP id h8mr935772pls.39.1554309583611;
-        Wed, 03 Apr 2019 09:39:43 -0700 (PDT)
-X-Received: by 2002:a17:902:b948:: with SMTP id h8mr935696pls.39.1554309582645;
-        Wed, 03 Apr 2019 09:39:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554309582; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=NjqszMs7E3gOIGdwaUNs0dj+AbjCWmOyC3cb7a2Lz70=;
+        b=Q7tqVIT0vP/GPr+5PEXtuAPlWkqIHwO2JGJgZsaB5oNEFTGGDDM4MoCwOakOj0c3HS
+         s9S8trFZgYijr4jqLn8M3F/zN5/rlXJwmToHKFwB2mzsliViFHPS8kBEpBMiBIV81UDM
+         qFPVX5COzIhXH8nM0eAphBAQktu61YltMvxI3jXPmWALGCthB1yFCQ8uq1ZZ5xPvDJ2y
+         qYFg/B7YZrxBeDgSCIPHZI/4roUNmmPNTCMrv3AatxeQc56DXp9GQ048qnPVB8DXzEoV
+         +wwNW7LE3g9TDIknfxk5Fk6cPrkS040xGLDEVQj86dk6H9kjVgkk244J8j1Pam1Mqrzx
+         ab1Q==
+X-Gm-Message-State: APjAAAXsRcJDPwRlYUdkM+9eLyZF59VCfrMUQipzird3NzGfUnHI4X/S
+	xD4Gg+xTomtclzScBDc0FsP0ErxE72wWznAI5aA+lDwNVPPrceSwEjq15HV5UxDMni1xO7RggH1
+	BVwKknkUBlZ2RPcHOzOquBt4NR9FZGZmYPLPj7Tl5D6W1IPktXSXWEXjEwedXHQR+pw==
+X-Received: by 2002:a0c:e014:: with SMTP id j20mr469530qvk.172.1554309589077;
+        Wed, 03 Apr 2019 09:39:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwzezrsz/uObHPAVq6CXU323NcxYSx3wvbfHl8A7tLrn9rDti5yvw9rlu0K5ecUR2Ec3bpx
+X-Received: by 2002:a0c:e014:: with SMTP id j20mr469489qvk.172.1554309588371;
+        Wed, 03 Apr 2019 09:39:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554309588; cv=none;
         d=google.com; s=arc-20160816;
-        b=D4kTUja9hGPlXf9Dv+W4oRnAD433W5+B8mSwkL8E3sb11Q7Czlw7ZHx88WBrWCOewA
-         9zI7r+sAY42+2SVbpxz7YpaaEkH+tSY0A3fe3bhUY3+JZVtEnJJ6D7Hxga4GiqmIsU9v
-         96x7tp0KxOfyG0HLnqZehY8cpWKZMNYctjOHwEdV+Mer1O7NKY+pPU0JIpJU+GEb8Ep1
-         nTculENetF5OjShYpTuV6XL0ptiIjBgUoFN3pdlCDs7JZlw/B0x1UwvZk7L7ScrbQTii
-         n2W6rBdzhiupyXQb/lLrGEtqGs9bqzU+oPhCwzYerAOOk4Z4OGJKO+wKoW4KJphn020L
-         cyeA==
+        b=D0GcB18B4Rwi6LBriGEQZBtKu1gufv94yurWY8TNNEcGR3Wue1DxzmcnJWlw6gwdSI
+         e0MQ83f8R3pJ2GCVd6c8uoeL83JIAcG2DD4LHZUsxrSsFIgjAYnOIhmQkA92tc84RBF3
+         /YYxmFgDO6XSWfBBgVDZKx+zpE1y+hcVMMbHo+8hLhis/21eEtuLDSdD/u4CUdhD80Io
+         PVqwfp/gyJlS+8OavmjBxtxkxeGHzjjE4RAvs6gYZ0K9XrqZ+dRdXYBKw0PVkdTP915g
+         AhVw52DMYFKyxfy0T//tc3/lWfWPFjDAYlOMVBLWGrauDbMMqb/WU6HEkBaWBRj05q9o
+         HsKA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=8IQMSP6P4b510J55TjeGkbsT5/Y/3zEz6PB9bSwT+7E=;
-        b=tN8oX2FX9VEARrn5nwJzWOSci+JrHzIWy0YrN2w/Ha7WKP9zt1QzqlYGLAb8s+Wh6r
-         r36qcHbgJraMAfL1yJ+hLbqAJwK7105/lHyF/SGE2lOjEsJqc/yZULQotzab1C1KN+Yu
-         5FNE08r6aEocfjIYnOnRqzG5VIeJdw8dfV3XpQpOpxotjky/odGPUu1TzlmA1rVHzzE6
-         MYGHE2r58u4+qpKkkITP2P0oTO/D87thZFhAvWosgrc4tWL8PY9y25QvRL2DZlHnshEf
-         YBLUQ+z3xEnZrgcRbUNqXeLzFKOXILPPIN/ZAi1He3ZLx0npfodv6Sk6wI65WAcdVSiW
-         aX/w==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=NjqszMs7E3gOIGdwaUNs0dj+AbjCWmOyC3cb7a2Lz70=;
+        b=vwubLMKrzIsP1T2/iZscTzoE+mTnDeczqec3FcJs40rEmO7Kz5DxYA5EDAgtvYXfTb
+         OqFQtE0+STGajX4v2C1hQR2YCADWkZwn5RzCDH/VPzpySn7JXjNLoBZrKTAMeSjkZwDz
+         YBhF82O5SMncubFkHAUyuWNqGyof01HTHlhtbnl/GOpZTxGrHZJWSnxa2cGlZrX4wecH
+         V95IUYoj+zf0emzH6T1RvPCRqvjCt4tlzDjfzP8U2BpApJJAW2NyMJNd55XHMNbLSUwg
+         y2YZos+h+QV3dwNzBQSuzvyrsBoOOa+yN2br69cdztowlQE3iFZ0iJq22TEb1V2US9JG
+         CQIQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=N2XKLx6C;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d4sor17230667pfn.43.2019.04.03.09.39.42
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=wDb1seI9;
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id w55si1270893qtc.350.2019.04.03.09.39.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 03 Apr 2019 09:39:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Apr 2019 09:39:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=N2XKLx6C;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=8IQMSP6P4b510J55TjeGkbsT5/Y/3zEz6PB9bSwT+7E=;
-        b=N2XKLx6CwqbNgMJ1R23HY44NJ8E5jLkGzjmH3vzavEGsnUhSx5spwjOvDihNdKeHLD
-         hiucnujUTZFNi9BJbS5ZZcViGdNdedLO1DTkY0HgdHNPjnDEjOlIghEiUQ3KEtWoEJvb
-         hlYn3zfi2x7zS5JY2oyWATaMaUY6BtlFZ3OrTgtB0msmsdiDNfD9pMJ7Ltk5nAXP3yDj
-         5W8KOeZ4AhHDF2akw58m3cZJBibsfONnnOUvFKsXUkLzMzlp383ccKE62xg+6tVpOPv5
-         QsRci9bzTdkqTq8TAeE+o/0gbVgTOwhzbEc/vxi80Xdn9WHWnkXq8Jj+N3YW288e5CzO
-         pzPw==
-X-Google-Smtp-Source: APXvYqzYXS80SV0hZJplY4wbQNIVdXhJJqlu6SJclWXyq0z/0V+GPeAi6agt59VEmqpex5O4cxAu8xmIrxGQvFLtTC8=
-X-Received: by 2002:a62:a513:: with SMTP id v19mr398736pfm.212.1554309581669;
- Wed, 03 Apr 2019 09:39:41 -0700 (PDT)
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=wDb1seI9;
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x33GY8DS123283;
+	Wed, 3 Apr 2019 16:39:41 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ content-transfer-encoding : in-reply-to; s=corp-2018-07-02;
+ bh=NjqszMs7E3gOIGdwaUNs0dj+AbjCWmOyC3cb7a2Lz70=;
+ b=wDb1seI92hgo522RHXd4reMB9zkAqMls9VSvgcdjUxogKDD5J+hXR5nIQ6e1RF5nvfeJ
+ yvo1WDLR0+cay945s5CowFcHd3jjzFZsf4NS8tDvswsKUon3j/9rmrDfnflM2DN40AQC
+ p89U9xrMzz6NfdNVkdZKpfv+QO+E+XcrFHW3a3bW3Yscf6TYAeMXf/MfLJT019LJdBfK
+ qdoyh/i9H5STZJHeLFWFhiumH7e2qsq6PZgeEevBUBevAR/O89c1IO+XNEmBYeTXoSRa
+ fe8vgBSoITQUVaIUvHmDjdmDSMaVpIu9e2EuZje9U7/e6xrb5k3v7b3RkbJWxOWfEWrK Jw== 
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
+	by userp2130.oracle.com with ESMTP id 2rhyvta869-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 03 Apr 2019 16:39:41 +0000
+Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
+	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x33GdLsm003451;
+	Wed, 3 Apr 2019 16:39:40 GMT
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserp3020.oracle.com with ESMTP id 2rm9mj5jn4-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 03 Apr 2019 16:39:40 +0000
+Received: from abhmp0010.oracle.com (abhmp0010.oracle.com [141.146.116.16])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x33GdZSM008090;
+	Wed, 3 Apr 2019 16:39:36 GMT
+Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Wed, 03 Apr 2019 09:39:35 -0700
+Date: Wed, 3 Apr 2019 12:40:02 -0400
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+To: Christophe Leroy <christophe.leroy@c-s.fr>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, akpm@linux-foundation.org,
+        Davidlohr Bueso <dave@stgolabs.net>,
+        Alexey Kardashevskiy <aik@ozlabs.ru>, linux-kernel@vger.kernel.org,
+        linux-mm@kvack.org, Paul Mackerras <paulus@samba.org>,
+        Christoph Lameter <cl@linux.com>, linuxppc-dev@lists.ozlabs.org
+Subject: Re: [PATCH 5/6] powerpc/mmu: drop mmap_sem now that locked_vm is
+ atomic
+Message-ID: <20190403164002.hued52o4mga4yprw@ca-dmjordan1.us.oracle.com>
+References: <20190402204158.27582-1-daniel.m.jordan@oracle.com>
+ <20190402204158.27582-6-daniel.m.jordan@oracle.com>
+ <964bd5b0-f1e5-7bf0-5c58-18e75c550841@c-s.fr>
 MIME-Version: 1.0
-References: <20190403022858.97584-1-cai@lca.pw> <CAAeHK+y25S6GYMrGUEQJJ5AU1LZ7T-jWrwoDsLXdxuk_E+q5BQ@mail.gmail.com>
- <1554296870.26196.32.camel@lca.pw>
-In-Reply-To: <1554296870.26196.32.camel@lca.pw>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Wed, 3 Apr 2019 18:39:30 +0200
-Message-ID: <CAAeHK+wB4L9nj+iPf8iHUbuWBCE_FQN4aea4zswEd4bbr49FPQ@mail.gmail.com>
-Subject: Re: [PATCH] slab: store tagged freelist for off-slab slabmgmt
-To: Qian Cai <cai@lca.pw>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, 
-	Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, 
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, 
-	Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, 
-	kasan-dev <kasan-dev@googlegroups.com>, 
-	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <964bd5b0-f1e5-7bf0-5c58-18e75c550841@c-s.fr>
+User-Agent: NeoMutt/20180323-268-5a959c
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9216 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1904030113
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9216 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1904030113
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 3, 2019 at 3:07 PM Qian Cai <cai@lca.pw> wrote:
->
-> On Wed, 2019-04-03 at 13:23 +0200, Andrey Konovalov wrote:
-> > On Wed, Apr 3, 2019 at 4:29 AM Qian Cai <cai@lca.pw> wrote:
-> > >
-> > > The commit 51dedad06b5f ("kasan, slab: make freelist stored without
-> > > tags") calls kasan_reset_tag() for off-slab slab management object
-> > > leading to freelist being stored non-tagged. However, cache_grow_begin()
-> > > -> alloc_slabmgmt() -> kmem_cache_alloc_node() which assigns a tag for
-> > > the address and stores in the shadow address. As the result, it causes
-> > > endless errors below during boot due to drain_freelist() ->
-> > > slab_destroy() -> kasan_slab_free() which compares already untagged
-> > > freelist against the stored tag in the shadow address. Since off-slab
-> > > slab management object freelist is such a special case, so just store it
-> > > tagged. Non-off-slab management object freelist is still stored untagged
-> > > which has not been assigned a tag and should not cause any other
-> > > troubles with this inconsistency.
-> >
-> > Hi Qian,
-> >
-> > Could you share the config (or other steps) you used to reproduce this?
->
-> https://git.sr.ht/~cai/linux-debug/blob/master/config
->
-> Additional command-line option to boot:
->
-> page_poison=on crashkernel=768M earlycon page_owner=on numa_balancing=enable
-> systemd.unified_cgroup_hierarchy=1 debug_guardpage_minorder=1
+On Wed, Apr 03, 2019 at 06:58:45AM +0200, Christophe Leroy wrote:
+> Le 02/04/2019 à 22:41, Daniel Jordan a écrit :
+> > With locked_vm now an atomic, there is no need to take mmap_sem as
+> > writer.  Delete and refactor accordingly.
+> 
+> Could you please detail the change ?
 
-Reproduced, thanks!
+Ok, I'll be more specific in the next version, using some of your language in
+fact.  :)
 
-As far as my understanding of how SLAB works goes, this change looks good to me.
+> It looks like this is not the only
+> change. I'm wondering what the consequences are.
+> 
+> Before we did:
+> - lock
+> - calculate future value
+> - check the future value is acceptable
+> - update value if future value acceptable
+> - return error if future value non acceptable
+> - unlock
+> 
+> Now we do:
+> - atomic update with future (possibly too high) value
+> - check the new value is acceptable
+> - atomic update back with older value if new value not acceptable and return
+> error
+> 
+> So if a concurrent action wants to increase locked_vm with an acceptable
+> step while another one has temporarily set it too high, it will now fail.
+> 
+> I think we should keep the previous approach and do a cmpxchg after
+> validating the new value.
 
-Reviewed-by: Andrey Konovalov <andreyknvl@google.com>
+That's a good idea, and especially worth doing considering that an arbitrary
+number of threads that charge a low amount of locked_vm can fail just because
+one thread charges lots of it.
 
-Thanks, Qian!
-
->
-> --
-> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
-> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
-> To post to this group, send email to kasan-dev@googlegroups.com.
-> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/1554296870.26196.32.camel%40lca.pw.
-> For more options, visit https://groups.google.com/d/optout.
+pinned_vm appears to be broken the same way, so I can fix it too unless someone
+beats me to it.
 
