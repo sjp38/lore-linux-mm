@@ -7,109 +7,109 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B80D7C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:37:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B570DC4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:37:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5CC2C206DF
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:37:09 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 56908206DF
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:37:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="uA/GfXn2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5CC2C206DF
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="A1IlnQsb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 56908206DF
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3A6026B026C; Wed,  3 Apr 2019 13:37:02 -0400 (EDT)
+	id 8D4EA6B026A; Wed,  3 Apr 2019 13:37:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 332956B026B; Wed,  3 Apr 2019 13:37:02 -0400 (EDT)
+	id 8855B6B026D; Wed,  3 Apr 2019 13:37:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 06F016B026C; Wed,  3 Apr 2019 13:37:02 -0400 (EDT)
+	id 6B0CE6B026F; Wed,  3 Apr 2019 13:37:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CB67A6B026A
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 13:37:01 -0400 (EDT)
-Received: by mail-yb1-f198.google.com with SMTP id k65so13055731ybc.12
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 10:37:01 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A5EF6B026A
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 13:37:02 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id r21so14208933iod.12
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 10:37:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:in-reply-to:references;
-        bh=+01mLH7UeRlyUX9m4clHTbWXXa1hEWoneLzdofN2ooQ=;
-        b=WXJLdD1hAHrvK2RnsONH6+cQA8pn4neko6473BSh4bLpH9VJY24hqpFXamBvygCI3s
-         jPPOkHYPgbcz5aN9l92Pa7Nf1RA+/QjabeV2rxq9kdGL2IEDsg32oXfd89C6i4jU+iv0
-         Z7M/zwqOSmfPlDkAVGC8KXC3omwdG8WkFGWgsOla01NK8Qtdq9jn1j8OYL5A7pRSJK/3
-         iIbM4b6z/t3eSlzJ78N1rfH8UgF07NdMq+mbbBGpt2Ge03aOsn+DEAc8W3pbXhqWpFNP
-         0nTSKz2nu9bfRAZeP3KYll8nD2x/qaDBD/lA0USy9KFbKEYvtSsUrsdA43vbp/sH1Aec
-         BxOA==
-X-Gm-Message-State: APjAAAXigGPM3415xogqiP7CbCWpf8djkmIIHMJ1wIMmQEX+GVePxgUw
-	3vUCvqVxCtjggZwydx5rgcr0QH/pcPLaVyJ40xDucYCYWg1g+mTWNr5N2XqTxr7I+hbErgYrW/0
-	f1LtgohCFwjoPRAM/iiN4LFwU7ZUHOc/765+DVAUEsPuk/d2s42KnREwCGE1QMronlQ==
-X-Received: by 2002:a25:bbc2:: with SMTP id c2mr1196903ybk.356.1554313021533;
+        bh=MmLdvd3g+VOR33kiTfxTpT9StVgXRV1EaevyJ8pqRKM=;
+        b=Qq6x7JTtsAVp7Jf7y8aFvpCePzZid/y4awHW5KSMQ/WPqqU3o6GybNAAScLPMIKR7D
+         XyGIy22rte3dVMFmJ33JyYFVPdHN+VWFBJoBvl6SYJ6f71H2jhkR+WTVSoWFuN8/Q2KQ
+         D1fx896iYuBa+5NKsjhPcilE4esVrdKHn37oVr95AgEIF4vTljo9Ifjk8VJpE+UCtmVe
+         Z760ULr8N0OvpqaFxgGi1AxTg+CfX+3dcMVj2MBR+w+kFGKZm5Q5hK6KAxO2CmVZszSo
+         ecC4F770g/IlRprJj1gn0IBugNUiaZrIMfOJlbwOlZoz+IjeZSgHYd/prfNwMBWrGEMj
+         O09g==
+X-Gm-Message-State: APjAAAVzWoxiLEQKrpZLfuCQ32YpodOFQsw1xGBrjkk8YA4n2YIWEeMa
+	9Y8Vj/wPLb2b67YmmmhX1lycQv+5w2hIpJG34YJr4P4+aqH6CThfe9m79GCMnpzo83EZJhJ0COx
+	2xDuvlXwZtB6XNmpD0xEFOxv3E56zU5cyglHAzOqgQQxDVgxpfcaA3Q0qs9rsjmM4rw==
+X-Received: by 2002:a6b:e418:: with SMTP id u24mr1149492iog.128.1554313021981;
         Wed, 03 Apr 2019 10:37:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqznKmWJFUBPRFR4TC0P99xt6TZ4cyMGkjoWBHgBE1tWO1ZOm42hRNgF1VTZynmXDzr8LpoA
-X-Received: by 2002:a25:bbc2:: with SMTP id c2mr1196800ybk.356.1554313020434;
-        Wed, 03 Apr 2019 10:37:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554313020; cv=none;
+X-Google-Smtp-Source: APXvYqysZdWXn47WxCEOSz/Or8sypnIgq07gKUhpAZwnYtDQM83mFuhMgenv6+FcpzhGZ0AtcP/B
+X-Received: by 2002:a6b:e418:: with SMTP id u24mr1149419iog.128.1554313021060;
+        Wed, 03 Apr 2019 10:37:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554313021; cv=none;
         d=google.com; s=arc-20160816;
-        b=N8rbAkUmK/8bBk4TShDOTf2szCIgT7AqpANmYYwuCdSWGXq3nlZWB6DcOKwMenOHSh
-         deXUP/Mkerma/3lb9nh41hX917d0NKhG4wZ2R+ITTvpHs0EwCQkG5y7VF+3prtSsJijm
-         ijcH6DbcfzIlqMJ/hn3wkUTxEyPT55evnJDqJC1oTaW1bzn9tvG/vTbdSyh5sw14lZAR
-         8TNqRM6UjL9/rgTIj+c8pBfXzi/ESsk75UM2/RRYwi4cnYhXCB70L43Cjc51Zjmdf9mi
-         ns/7Gq9dL9XeNnxt+2JDmj87Ho9X8N6FKbZOfIjSVtt+vFQ8KEizf6SuGAuXWnolNUsR
-         0s8w==
+        b=Ec3K4PM5mQmYHvjLUQNKl3Enzai3yrHXEaZT/H03c+U+22w+nDNq2B//03PI1QLLle
+         J7YKwD6/nt4I7UlSJC7Vk6AZNCS3mpojDMiiPENhMqLqd3CfsHOgiYcVLh5ABkmTnrEQ
+         ayWVO9aiXoj1pPOgX/7xau/+b1fGzjx2KIV5EAtL4JaTugYPEx1OgVjrpzJ5vO4kmP/C
+         7FE4WGyi8YPjXbrpTKlHADjY2Le034oS6oLFIYEK4YX7bJSjyClPufmrGMwI5PDDbx6R
+         xdxFLLEwDoxGpFKLgXAguZjSaEe3FgruxH3a7uxbN2d3HnhXVF3xTvi33mYxQWtdsKUE
+         LXMg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:references:in-reply-to:message-id:date
          :subject:cc:to:from:dkim-signature;
-        bh=+01mLH7UeRlyUX9m4clHTbWXXa1hEWoneLzdofN2ooQ=;
-        b=YIyK9MB0eNeZXNWFSpbdbM6ZwvxUlYOUNdvaKi6f2T8CWdG7dX2rSBqBckTCJ7TwyG
-         fZ/ia9y4tetdcARbhJzDM8AAWG59GGiNCJFX5Mk6z9KAnFmR74L6TOD9VUTkjfRarUkH
-         hlqGejDita3NPYQ9rx54pg0lvP2eXrQN3rR9f2yiPxub635wDnICRCW/5+Z5MaENdGwC
-         /Wb8N2+QojSRcdWDKWyLcGZYapqnxtbeVaZ4rUuTNWR9R9EfbsJZwkaq35htyTcjWU+X
-         YeRB+CdbcmXpuGv/+I0l4VVdpm9wmu39t9Lgqt4EUKd4IK5oa2dcSssnEpcR7D4H15Dl
-         GxVQ==
+        bh=MmLdvd3g+VOR33kiTfxTpT9StVgXRV1EaevyJ8pqRKM=;
+        b=rVvlr5Is7HC8bNekCpq8ReLadi3xPqWEvT5nrO26b6OJkJPfXylUUFKvdLmzyUIKbX
+         6DnL8s4eD0kjIkQONaIKzSbFsJax9gkFiUfeepb1BVVR6KaAv2emgp7vT+5eHQduSMM0
+         xMvJe9eXh+y5Sl+OYNpG3x7t8Ymv/5cDHa6h638ip59Qmf9fitDXM9n7ZS5gP9lPDZLX
+         nOX8nQgE0CJ2HaSZS7TusJnS6T7/tUPPA9CvjmD1jcdP9xuxFIgYxLXqduZjPG6W0zKR
+         uBTp4Urz+DE53CbAQmWwaBJYpPGxH06VYVKcvaYnmyyTZNG1VCt4rVS/Kdr8MqXPlo1r
+         +CtA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="uA/GfXn2";
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=A1IlnQsb;
        spf=pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
 Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id s187si3340975ybf.317.2019.04.03.10.37.00
+        by mx.google.com with ESMTPS id y4si9365927jan.121.2019.04.03.10.37.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 10:37:00 -0700 (PDT)
+        Wed, 03 Apr 2019 10:37:01 -0700 (PDT)
 Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="uA/GfXn2";
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=A1IlnQsb;
        spf=pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
 Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x33HNml0172016;
-	Wed, 3 Apr 2019 17:35:44 GMT
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x33HNd4U171655;
+	Wed, 3 Apr 2019 17:35:54 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
  subject : date : message-id : in-reply-to : references : in-reply-to :
  references; s=corp-2018-07-02;
- bh=+01mLH7UeRlyUX9m4clHTbWXXa1hEWoneLzdofN2ooQ=;
- b=uA/GfXn2tZZmE7mbGgEjJtH6lkX7duJMRcKDROSU1jH8FAus0LkOk3aZo51FvqFswZ/l
- uAJ1y7abrVRzgsC2B86iaQT35HVOnjmEXz3KKtMfg647l24qTnwuLISV3AM22cHm+G8r
- 7BQ+BB4Rmk0UCL9EOGF2+mLd/4ZcZ3EvofXyofppe5A3iPWuAiazort95ATH7khXJvlW
- VgR+opBTIGKzeN/v1eHhAbWrlDrqdR4tIA8lfX7qM/V+5CdnokgKycQo83eFdt7Nz2w5
- sJ10GZj9aZx9sUyw2MsjHTbydAnB2K9QWB6v6aWJQ0p9ODNrYhlK4CgSamr9LWXaA1ow 3g== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by aserp2130.oracle.com with ESMTP id 2rhwydapdw-1
+ bh=MmLdvd3g+VOR33kiTfxTpT9StVgXRV1EaevyJ8pqRKM=;
+ b=A1IlnQsbVmk3r7/UQc6MdFG/cRK9jKFVE4Bgxh4JAosAGn0Rq0w+/bzoMtqIp222k2xa
+ 07XSD9hIlM0Pmg9rsVAJJq/JE0OWmaeYHCdw3XNVIFx2cceW+kZ8IikrRB1SHKW2yCAd
+ RW7TTYytsps+JD6RjMLkebFQ2smqWV6WN4g49EkBz096AjpZj2YvRX6bSKF1UwNS5zF7
+ Q3MZJo5yW3pIoe7JJGihO4P67rz/XassZge0JfcPNF+SQLCIunOcUZ2pVOrdZ0uDG5cH
+ 8QarNSLrk8AHBL2zD3np5bgQ18hftrVKMCzSWbdsPgVwCZnWSs3kVGoRG9L1KDDtlPim Jg== 
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
+	by aserp2130.oracle.com with ESMTP id 2rhwydapeu-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 03 Apr 2019 17:35:43 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x33HZgwL087983;
-	Wed, 3 Apr 2019 17:35:42 GMT
+	Wed, 03 Apr 2019 17:35:54 +0000
+Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
+	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x33HZLl2152602;
+	Wed, 3 Apr 2019 17:35:54 GMT
 Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by userp3020.oracle.com with ESMTP id 2rm8f67xu5-1
+	by aserp3020.oracle.com with ESMTP id 2rm9mj6gta-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 03 Apr 2019 17:35:42 +0000
+	Wed, 03 Apr 2019 17:35:54 +0000
 Received: from abhmp0005.oracle.com (abhmp0005.oracle.com [141.146.116.11])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x33HZZq8001238;
-	Wed, 3 Apr 2019 17:35:35 GMT
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x33HZnSR001401;
+	Wed, 3 Apr 2019 17:35:49 GMT
 Received: from concerto.internal (/10.65.181.37)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 03 Apr 2019 10:35:35 -0700
+	with ESMTP ; Wed, 03 Apr 2019 10:35:48 -0700
 From: Khalid Aziz <khalid.aziz@oracle.com>
 To: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com,
         liran.alon@oracle.com, keescook@google.com, konrad.wilk@oracle.com
@@ -151,22 +151,22 @@ Cc: Juerg Haefliger <juerg.haefliger@canonical.com>,
         linux-kernel@vger.kernel.org, linux-mm@kvack.org,
         linux-security-module@vger.kernel.org,
         Khalid Aziz <khalid@gonehiking.org>
-Subject: [RFC PATCH v9 04/13] xpfo, x86: Add support for XPFO for x86-64
-Date: Wed,  3 Apr 2019 11:34:05 -0600
-Message-Id: <c15e7d09dfe3dfdb9947d39ed0ddd6573ff86dbf.1554248002.git.khalid.aziz@oracle.com>
+Subject: [RFC PATCH v9 07/13] arm64/mm: Add support for XPFO
+Date: Wed,  3 Apr 2019 11:34:08 -0600
+Message-Id: <50011e8d1ae252c6b70806f8d6a2d6dd79cb1a8c.1554248002.git.khalid.aziz@oracle.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <cover.1554248001.git.khalid.aziz@oracle.com>
 References: <cover.1554248001.git.khalid.aziz@oracle.com>
 In-Reply-To: <cover.1554248001.git.khalid.aziz@oracle.com>
 References: <cover.1554248001.git.khalid.aziz@oracle.com>
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9216 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=2 malwarescore=0
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
  phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
  adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
  engine=8.0.1-1810050000 definitions=main-1904030118
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9216 signatures=668685
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
  lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
  definitions=main-1904030118
@@ -178,170 +178,84 @@ List-ID: <linux-mm.kvack.org>
 
 From: Juerg Haefliger <juerg.haefliger@canonical.com>
 
-This patch adds support for XPFO for x86-64. It uses the generic
-infrastructure in place for XPFO and adds the architecture specific
-bits to enable XPFO on x86-64.
+Enable support for eXclusive Page Frame Ownership (XPFO) for arm64 and
+provide a hook for updating a single kernel page table entry (which is
+required by the generic XPFO code).
 
-CC: x86@kernel.org
-Suggested-by: Vasileios P. Kemerlis <vpk@cs.columbia.edu>
+XPFO doesn't support section/contiguous mappings yet, so let's disable
+it if XPFO is turned on.
+
+Thanks to Laura Abbot for the simplification from v5, and Mark Rutland
+for pointing out we need NO_CONT_MAPPINGS too.
+
+CC: linux-arm-kernel@lists.infradead.org
 Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
 Signed-off-by: Tycho Andersen <tycho@tycho.ws>
-Signed-off-by: Marco Benatto <marco.antonio.780@gmail.com>
-Signed-off-by: Julian Stecklina <jsteckli@amazon.de>
 Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
 Cc: Khalid Aziz <khalid@gonehiking.org>
 ---
- .../admin-guide/kernel-parameters.txt         |  10 +-
- arch/x86/Kconfig                              |   1 +
- arch/x86/include/asm/pgtable.h                |  26 ++++
- arch/x86/mm/Makefile                          |   2 +
- arch/x86/mm/pageattr.c                        |  23 +---
- arch/x86/mm/xpfo.c                            | 123 ++++++++++++++++++
- include/linux/xpfo.h                          |   2 +
- 7 files changed, 162 insertions(+), 25 deletions(-)
- create mode 100644 arch/x86/mm/xpfo.c
+ .../admin-guide/kernel-parameters.txt         |  2 +-
+ arch/arm64/Kconfig                            |  1 +
+ arch/arm64/mm/Makefile                        |  2 +
+ arch/arm64/mm/mmu.c                           |  2 +-
+ arch/arm64/mm/xpfo.c                          | 66 +++++++++++++++++++
+ 5 files changed, 71 insertions(+), 2 deletions(-)
+ create mode 100644 arch/arm64/mm/xpfo.c
 
 diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-index 9b36da94760e..e65e3bc1efe0 100644
+index e65e3bc1efe0..9fcf8c83031a 100644
 --- a/Documentation/admin-guide/kernel-parameters.txt
 +++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -2997,11 +2997,11 @@
+@@ -2997,7 +2997,7 @@
  
  	nox2apic	[X86-64,APIC] Do not enable x2APIC mode.
  
--	noxpfo		[XPFO] Disable eXclusive Page Frame Ownership (XPFO)
--			when CONFIG_XPFO is on. Physical pages mapped into
--			user applications will also be mapped in the
--			kernel's address space as if CONFIG_XPFO was not
--			enabled.
-+	noxpfo		[XPFO,X86-64] Disable eXclusive Page Frame
-+			Ownership (XPFO) when CONFIG_XPFO is on. Physical
-+			pages mapped into user applications will also be
-+			mapped in the kernel's address space as if
-+			CONFIG_XPFO was not enabled.
+-	noxpfo		[XPFO,X86-64] Disable eXclusive Page Frame
++	noxpfo		[XPFO,X86-64,ARM64] Disable eXclusive Page Frame
+ 			Ownership (XPFO) when CONFIG_XPFO is on. Physical
+ 			pages mapped into user applications will also be
+ 			mapped in the kernel's address space as if
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index a4168d366127..9a8d8e649cf8 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -174,6 +174,7 @@ config ARM64
+ 	select SWIOTLB
+ 	select SYSCTL_EXCEPTION_TRACE
+ 	select THREAD_INFO_IN_TASK
++	select ARCH_SUPPORTS_XPFO
+ 	help
+ 	  ARM 64-bit (AArch64) Linux support.
  
- 	cpu0_hotplug	[X86] Turn on CPU0 hotplug feature when
- 			CONFIG_BOOTPARAM_HOTPLUG_CPU0 is off.
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 68261430fe6e..122786604252 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -209,6 +209,7 @@ config X86
- 	select USER_STACKTRACE_SUPPORT
- 	select VIRT_TO_BUS
- 	select X86_FEATURE_NAMES		if PROC_FS
-+	select ARCH_SUPPORTS_XPFO		if X86_64
+diff --git a/arch/arm64/mm/Makefile b/arch/arm64/mm/Makefile
+index 849c1df3d214..cca3808d9776 100644
+--- a/arch/arm64/mm/Makefile
++++ b/arch/arm64/mm/Makefile
+@@ -12,3 +12,5 @@ KASAN_SANITIZE_physaddr.o	+= n
  
- config INSTRUCTION_DECODER
- 	def_bool y
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 2779ace16d23..5c0e1581fa56 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -1437,6 +1437,32 @@ static inline bool arch_has_pfn_modify_check(void)
- 	return boot_cpu_has_bug(X86_BUG_L1TF);
- }
- 
-+/*
-+ * The current flushing context - we pass it instead of 5 arguments:
-+ */
-+struct cpa_data {
-+	unsigned long	*vaddr;
-+	pgd_t		*pgd;
-+	pgprot_t	mask_set;
-+	pgprot_t	mask_clr;
-+	unsigned long	numpages;
-+	unsigned long	curpage;
-+	unsigned long	pfn;
-+	unsigned int	flags;
-+	unsigned int	force_split		: 1,
-+			force_static_prot	: 1;
-+	struct page	**pages;
-+};
-+
-+
-+int
-+should_split_large_page(pte_t *kpte, unsigned long address,
-+			struct cpa_data *cpa);
-+extern spinlock_t cpa_lock;
-+int
-+__split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
-+		   struct page *base);
-+
- #include <asm-generic/pgtable.h>
- #endif	/* __ASSEMBLY__ */
- 
-diff --git a/arch/x86/mm/Makefile b/arch/x86/mm/Makefile
-index 4b101dd6e52f..93b0fdaf4a99 100644
---- a/arch/x86/mm/Makefile
-+++ b/arch/x86/mm/Makefile
-@@ -53,3 +53,5 @@ obj-$(CONFIG_PAGE_TABLE_ISOLATION)		+= pti.o
- obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt.o
- obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_identity.o
- obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_boot.o
+ obj-$(CONFIG_KASAN)		+= kasan_init.o
+ KASAN_SANITIZE_kasan_init.o	:= n
 +
 +obj-$(CONFIG_XPFO)		+= xpfo.o
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index 14e6119838a6..530b5df0617e 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -28,23 +28,6 @@
+diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+index b6f5aa52ac67..1673f7443d62 100644
+--- a/arch/arm64/mm/mmu.c
++++ b/arch/arm64/mm/mmu.c
+@@ -453,7 +453,7 @@ static void __init map_mem(pgd_t *pgdp)
+ 	struct memblock_region *reg;
+ 	int flags = 0;
  
- #include "mm_internal.h"
+-	if (rodata_full || debug_pagealloc_enabled())
++	if (rodata_full || debug_pagealloc_enabled() || xpfo_enabled())
+ 		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
  
--/*
-- * The current flushing context - we pass it instead of 5 arguments:
-- */
--struct cpa_data {
--	unsigned long	*vaddr;
--	pgd_t		*pgd;
--	pgprot_t	mask_set;
--	pgprot_t	mask_clr;
--	unsigned long	numpages;
--	unsigned long	curpage;
--	unsigned long	pfn;
--	unsigned int	flags;
--	unsigned int	force_split		: 1,
--			force_static_prot	: 1;
--	struct page	**pages;
--};
--
- enum cpa_warn {
- 	CPA_CONFLICT,
- 	CPA_PROTECT,
-@@ -59,7 +42,7 @@ static const int cpa_warn_level = CPA_PROTECT;
-  * entries change the page attribute in parallel to some other cpu
-  * splitting a large page entry along with changing the attribute.
-  */
--static DEFINE_SPINLOCK(cpa_lock);
-+DEFINE_SPINLOCK(cpa_lock);
- 
- #define CPA_FLUSHTLB 1
- #define CPA_ARRAY 2
-@@ -876,7 +859,7 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
- 	return 0;
- }
- 
--static int should_split_large_page(pte_t *kpte, unsigned long address,
-+int should_split_large_page(pte_t *kpte, unsigned long address,
- 				   struct cpa_data *cpa)
- {
- 	int do_split;
-@@ -926,7 +909,7 @@ static void split_set_pte(struct cpa_data *cpa, pte_t *pte, unsigned long pfn,
- 	set_pte(pte, pfn_pte(pfn, ref_prot));
- }
- 
--static int
-+int
- __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
- 		   struct page *base)
- {
-diff --git a/arch/x86/mm/xpfo.c b/arch/x86/mm/xpfo.c
+ 	/*
+diff --git a/arch/arm64/mm/xpfo.c b/arch/arm64/mm/xpfo.c
 new file mode 100644
-index 000000000000..3045bb7e4659
+index 000000000000..7866c5acfffb
 --- /dev/null
-+++ b/arch/x86/mm/xpfo.c
-@@ -0,0 +1,123 @@
++++ b/arch/arm64/mm/xpfo.c
+@@ -0,0 +1,66 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Copyright (C) 2017 Hewlett Packard Enterprise Development, L.P.
@@ -357,127 +271,57 @@ index 000000000000..3045bb7e4659
 + */
 +
 +#include <linux/mm.h>
++#include <linux/module.h>
 +
 +#include <asm/tlbflush.h>
 +
-+extern spinlock_t cpa_lock;
++/*
++ * Lookup the page table entry for a virtual address and return a pointer to
++ * the entry. Based on x86 tree.
++ */
++static pte_t *lookup_address(unsigned long addr)
++{
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++
++	pgd = pgd_offset_k(addr);
++	if (pgd_none(*pgd))
++		return NULL;
++
++	pud = pud_offset(pgd, addr);
++	if (pud_none(*pud))
++		return NULL;
++
++	pmd = pmd_offset(pud, addr);
++	if (pmd_none(*pmd))
++		return NULL;
++
++	return pte_offset_kernel(pmd, addr);
++}
 +
 +/* Update a single kernel page table entry */
 +inline void set_kpte(void *kaddr, struct page *page, pgprot_t prot)
 +{
-+	unsigned int level;
-+	pgprot_t msk_clr;
-+	pte_t *pte = lookup_address((unsigned long)kaddr, &level);
++	pte_t *pte = lookup_address((unsigned long)kaddr);
 +
 +	if (unlikely(!pte)) {
 +		WARN(1, "xpfo: invalid address %p\n", kaddr);
 +		return;
 +	}
 +
-+	switch (level) {
-+	case PG_LEVEL_4K:
-+		set_pte_atomic(pte, pfn_pte(page_to_pfn(page),
-+			       canon_pgprot(prot)));
-+		break;
-+	case PG_LEVEL_2M:
-+	case PG_LEVEL_1G: {
-+		struct cpa_data cpa = { };
-+		int do_split;
-+
-+		if (level == PG_LEVEL_2M)
-+			msk_clr = pmd_pgprot(*(pmd_t *)pte);
-+		else
-+			msk_clr = pud_pgprot(*(pud_t *)pte);
-+
-+		cpa.vaddr = kaddr;
-+		cpa.pages = &page;
-+		cpa.mask_set = prot;
-+		cpa.mask_clr = msk_clr;
-+		cpa.numpages = 1;
-+		cpa.flags = 0;
-+		cpa.curpage = 0;
-+		cpa.force_split = 0;
-+
-+
-+		do_split = should_split_large_page(pte, (unsigned long)kaddr,
-+						   &cpa);
-+		if (do_split) {
-+			struct page *base;
-+
-+			base = alloc_pages(GFP_ATOMIC, 0);
-+			if (!base) {
-+				WARN(1, "xpfo: failed to split large page\n");
-+				break;
-+			}
-+
-+			if (!debug_pagealloc_enabled())
-+				spin_lock(&cpa_lock);
-+			if  (__split_large_page(&cpa, pte, (unsigned long)kaddr,
-+						base) < 0) {
-+				__free_page(base);
-+				WARN(1, "xpfo: failed to split large page\n");
-+			}
-+			if (!debug_pagealloc_enabled())
-+				spin_unlock(&cpa_lock);
-+		}
-+
-+		break;
-+	}
-+	case PG_LEVEL_512G:
-+		/* fallthrough, splitting infrastructure doesn't
-+		 * support 512G pages.
-+		 */
-+	default:
-+		WARN(1, "xpfo: unsupported page level %x\n", level);
-+	}
-+
++	set_pte(pte, pfn_pte(page_to_pfn(page), prot));
 +}
 +EXPORT_SYMBOL_GPL(set_kpte);
 +
 +inline void xpfo_flush_kernel_tlb(struct page *page, int order)
 +{
-+	int level;
-+	unsigned long size, kaddr;
-+
-+	kaddr = (unsigned long)page_address(page);
-+
-+	if (unlikely(!lookup_address(kaddr, &level))) {
-+		WARN(1, "xpfo: invalid address to flush %lx %d\n", kaddr,
-+		     level);
-+		return;
-+	}
-+
-+	switch (level) {
-+	case PG_LEVEL_4K:
-+		size = PAGE_SIZE;
-+		break;
-+	case PG_LEVEL_2M:
-+		size = PMD_SIZE;
-+		break;
-+	case PG_LEVEL_1G:
-+		size = PUD_SIZE;
-+		break;
-+	default:
-+		WARN(1, "xpfo: unsupported page level %x\n", level);
-+		return;
-+	}
++	unsigned long kaddr = (unsigned long)page_address(page);
++	unsigned long size = PAGE_SIZE;
 +
 +	flush_tlb_kernel_range(kaddr, kaddr + (1 << order) * size);
 +}
 +EXPORT_SYMBOL_GPL(xpfo_flush_kernel_tlb);
-diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
-index 93a1b5aceca3..c1d232da7ee0 100644
---- a/include/linux/xpfo.h
-+++ b/include/linux/xpfo.h
-@@ -25,6 +25,8 @@ struct page;
- 
- #ifdef CONFIG_XPFO
- 
-+#include <linux/dma-mapping.h>
-+
- DECLARE_STATIC_KEY_TRUE(xpfo_inited);
- 
- /* Architecture specific implementations */
 -- 
 2.17.1
 
