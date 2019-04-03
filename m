@@ -2,307 +2,275 @@ Return-Path: <SRS0=DmM3=SF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C1669C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 21:14:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EA6E4C4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 21:17:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6130A206B8
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 21:14:31 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 88844206B8
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 21:17:06 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="TBuk2CMu";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="tJg/AMhc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6130A206B8
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=tobin.cc
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="G16/4bcl";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="HB2kCROa"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 88844206B8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EE8356B026B; Wed,  3 Apr 2019 17:14:30 -0400 (EDT)
+	id 08E336B026B; Wed,  3 Apr 2019 17:17:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EBD206B026D; Wed,  3 Apr 2019 17:14:30 -0400 (EDT)
+	id 063656B026D; Wed,  3 Apr 2019 17:17:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D86506B026F; Wed,  3 Apr 2019 17:14:30 -0400 (EDT)
+	id E46C66B026F; Wed,  3 Apr 2019 17:17:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BA4016B026B
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 17:14:30 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id n10so386889qtk.9
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 14:14:30 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 95B7C6B026B
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 17:17:05 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id d2so205872edo.23
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 14:17:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:date:from:to:cc
-         :subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=eT5LyJ3XilDZvzAmzpa/qNoLto9N4YRi9epZijWVMuQ=;
-        b=Sv+EQxmZUPDWKbKW4BmINy7Q3QO6t4B+EWKWzx4x2E5k+3tu25E/cPZtFs3w7O3/fF
-         BQq0m7bCHzGhyWOUCQUedrZN1omEREZ3KKrIu4Tyb6rdBuBFh2ZHAFNI+Jk9jWt0Y5W7
-         /nVe9YC8IAASO1wUNvyd6ctru8KeQsdbJqgDkek/3C9N+ZTNm3C/t5R2fihcx02Hulh1
-         02jBVk8lvIPqn7trqtk9AtIXf4ZEVk8xqdaxQfQCwhwDmgBBxgrAiG/zKGAZxxb2NLdv
-         M0BrlxGbINMYNfrhuZVqPEST0srjw8fvhFDcwlJ29Go8RMj2uOL2UNkjB8RqoKtKAILM
-         l4fA==
-X-Gm-Message-State: APjAAAVsMmDq2juKji04dOdMYdkzhDxDmPeI6vTeLW64n1758U1nwemG
-	zWhS4E6oyA16RuUfMG234aZuyo6f2ScENKLl1+phu9S60kHZRqrrurByUbS618A+2bZ9C0E41sM
-	S562NmjA2pD5GUiJ2XNzELr2CSdkwBiuuDZ4PA2SiqXy7rwRCJe/b+4Q4IlljndmTAA==
-X-Received: by 2002:a37:a14:: with SMTP id 20mr1979858qkk.265.1554326070455;
-        Wed, 03 Apr 2019 14:14:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwv8TSOja3muk0aSNCtmnuZkntROQL1eshNqFZHu4xIcKu1LdEyOJ2EQ4GKC6l3qzZzqzNb
-X-Received: by 2002:a37:a14:: with SMTP id 20mr1979791qkk.265.1554326069352;
-        Wed, 03 Apr 2019 14:14:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554326069; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=yMSHUAGOc8xPTYbjOLszOfE79ayRLFWYphU/fwtGWes=;
+        b=eOv4tC0gIiIJkKfa5FEkzZ69Zf3d8EwPzicjgL+2VGlD/SLWRgwBd9sg4Z3u8Chlz3
+         VYs834iQB5ri12od2uegJ/BxiT2mMw87WTXwI09LRAI3ORuQk0OMq+sojLOm0n6xDMvW
+         TriUwG3S3puBRmoTgiq1rOV9J0z13p/vOZFUi9ZKmgqURvPqFX0HbgAKr25ytTaaZbQB
+         xxB+bbkwr5t6Bj6XVEXTxBmHu59E4T8chtKSm774ybMt0rdKCzXD1liQAMPCPW36yqku
+         y8/IxSZNHTenmkqYAxhyMPoMgABsNXwYLK0A9X85jz3/sCqIuiblXVCVe8Hi9gmhDyDO
+         ay8g==
+X-Gm-Message-State: APjAAAWd9qRmPOkc8Nz1v7KcYhfWOb80fmJfLSqTxnFEGAjD2xxpBdEm
+	1M9TI/hbEOJp86yor67Ai5wp5T6zQve/aTk05yI+/n27jzAYeVeLHMTxUxERdbCvC9JJ+kr6mJ9
+	W42MjYwL0NkccCmIgkqHTuEgUfJZfWH6AjCImx4sQMFjhO4p7/jFGnxPiacLcMvbmUQ==
+X-Received: by 2002:a17:906:1906:: with SMTP id a6mr1137730eje.236.1554326225153;
+        Wed, 03 Apr 2019 14:17:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx2gVf+gTtyWoU/UbMyMgglMbGIB3aDWtud1qWZBkw4AcSqHifvyHOgLXPlQUS63A6qECaK
+X-Received: by 2002:a17:906:1906:: with SMTP id a6mr1137683eje.236.1554326224239;
+        Wed, 03 Apr 2019 14:17:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554326224; cv=none;
         d=google.com; s=arc-20160816;
-        b=H3UIQjzOjCGVZfDhjIu43Ae0KFTDNZtWpVB3Qh/ukPYApYOWYTbHMGEoji8G0tKfRp
-         bq6s/VA3dtsTPq3Lwa0pEsOcNPQ0Eed4yi7qB17wyFu++JgO4Q/D6fgNkRk3IWDkm5Gd
-         2JefLrAXsIITYxNaJlbxP1YAZQngCy7wQVioyR3B+SmZgx4fdLhccMqIFNDWJRHt4g81
-         3lpFpKq8sbjZ1AsGSOTYhy3WXaMxFhYlENLWNzS4ctwRbgu70chcr9Euz2wOfTjfD3uu
-         IdTmgLBvhEMAfYd3xUFFvjaBojmM9rbBxjMlyEU+0EU7oR4EdtFE3t/xTjpSI4tULwsV
-         xk7A==
+        b=bMtz/xkCQyCVFGic7asK4JNc0x69ULNBZOJChBW6H2gUC2ZxVtvqJTVJkrBJkKEoT2
+         wS7/KRqAefkp8iYX5J+WYUI1e1GJEmZtJGw6NoeKNcS18fp3ECvqsoHZuWc73iYX39Jz
+         eBFMhLa1yvM9VwqzNqMidGIjqrE3LpoHTAtTQ16QypF4va9oB53yLWmdhJr4d6GeKLh/
+         OP3BUKIiruucBvmi4ZzdTy1t1qZWvI5TDqSeJUuC95PYOO3S7NFbAzLQwpw7tJu6C690
+         wHMC7wjAYV2amuvzUURuAurN2+wsAKySO9Kq0csd+GrcQBrxUG+UOWCYHnp2PwRsp3TK
+         l3jg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature:dkim-signature;
-        bh=eT5LyJ3XilDZvzAmzpa/qNoLto9N4YRi9epZijWVMuQ=;
-        b=p5iDX/1p1ioSq7ATABXy+v3eh4NG1+OnoVySSqjSXC+GRPbCLf6MbYg14/Y2uvxS9a
-         tMNeqq8wrnkQvkHDJYBK2gx+fXD/S+R1pPfZgSwNmKG3PrMk1Jk0V5Vf6BHg41l0Gw0t
-         kA5pwu4quFbD3CsZmwtYuOhywEhcHUnGPQ1mjPsqnS7Wpa6/lPaHNczWnb2e91PWrhbx
-         f24fbJcN3wjsk+iIH/tzqykOMmK4O3VXiyr7jFimFJ763LwMDOyxsiNPrLKyx+U8NRoo
-         66NFg9H8zaiwebNQlJsvjUMCFGOk0VuqD6R3SNR7aqielUt5zb0MQ+dqJnSiNFz0XGuP
-         rLHA==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=yMSHUAGOc8xPTYbjOLszOfE79ayRLFWYphU/fwtGWes=;
+        b=TsKBNN2FjQsmD0XKvxc1EmtyZcWmktDNkrzWK974hPe93dwFIW8cqUnqQAFUOOCAp4
+         urGmbJMXpaXG1Xa5PV/hQopVsw5fqr4bHhA9RdVkTdDJMZJDHIskSeZ8nf1mqEdXoZYE
+         AyhqxfWaXyLl4XAYlooFrtKagrmZs790Z6ZNVjTCT8wt6+Gc1EUe5rEi7ryN3U5wzN4M
+         wDPXX74EazgnNKb8MQGkxRWcyU0NlgltcyH4DSQkdcJDBKyeDKsKerZX0ujiH5LCNN2A
+         scvTXFZRU+jn3ugp1fQNX4qJTt3hD+g+7NP6rOLdM1XQclYKdkao53AfzuHNAoKvIbgG
+         mYVQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=TBuk2CMu;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="tJg/AMhc";
-       spf=neutral (google.com: 66.111.4.28 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
-Received: from out4-smtp.messagingengine.com (out4-smtp.messagingengine.com. [66.111.4.28])
-        by mx.google.com with ESMTPS id 7si3331405qvg.130.2019.04.03.14.14.29
+       dkim=pass header.i=@fb.com header.s=facebook header.b="G16/4bcl";
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=HB2kCROa;
+       spf=pass (google.com: domain of prvs=99962c6dea=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=99962c6dea=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id f21si614957edy.208.2019.04.03.14.17.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 14:14:29 -0700 (PDT)
-Received-SPF: neutral (google.com: 66.111.4.28 is neither permitted nor denied by best guess record for domain of me@tobin.cc) client-ip=66.111.4.28;
+        Wed, 03 Apr 2019 14:17:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=99962c6dea=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=TBuk2CMu;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="tJg/AMhc";
-       spf=neutral (google.com: 66.111.4.28 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
-Received: from compute5.internal (compute5.nyi.internal [10.202.2.45])
-	by mailout.nyi.internal (Postfix) with ESMTP id 1D791231BB;
-	Wed,  3 Apr 2019 17:14:29 -0400 (EDT)
-Received: from mailfrontend1 ([10.202.2.162])
-  by compute5.internal (MEProxy); Wed, 03 Apr 2019 17:14:29 -0400
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=tobin.cc; h=date
-	:from:to:cc:subject:message-id:references:mime-version
-	:content-type:in-reply-to; s=fm2; bh=eT5LyJ3XilDZvzAmzpa/qNoLto9
-	N4YRi9epZijWVMuQ=; b=TBuk2CMuz13ViMY1TIo+aLivtPnZMmkaUm/TlTfUOJH
-	mtc3jHcYxSL+ysk8xbdwK0jjKbg9YoBEfN30delzG2ej6og5j6ASKj/F7SApJ5JW
-	zhyfSQngreFiz2/GIzhpvzZoFoCqu//9gdmyfv8cJYPMLlduMXLkijgsGMT3nQma
-	SN1Q2xpwWpQO0Ht0I2epxyC/J5bcHqXadPi25+2h29v4QFEcvo4HwZS7tVXXUVcQ
-	5+0O27bPtgjxb/g/Dubfa6yl0vr3btkFvXbEhaANG8OELcaguXQAKVd1VWHLsDsa
-	a/roMsI494Y+pntIaipEyX9/JwU4/aq/9eD2E8LUoNQ==
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
-	messagingengine.com; h=cc:content-type:date:from:in-reply-to
-	:message-id:mime-version:references:subject:to:x-me-proxy
-	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=eT5LyJ
-	3XilDZvzAmzpa/qNoLto9N4YRi9epZijWVMuQ=; b=tJg/AMhcb7XSPVPL/l1FIz
-	Yu+/pcs+KbPNdswfGujQJbuHR+pVYJH5HHD8x7IujIjTQ5JocJz2+5JaMQ+vTZdD
-	wYjiC1by2Az8Dw7zETBKPPNNZlgwXbOLELePmcDsSR2WBcH/vKlykxp5SIh7AMoY
-	mpW1O3CDGM6/EeBIzx6t5gGDfq8hQVUZHrdLyl1Jr05jtcnpcswr+KazPLTA6TEx
-	QF+DxuVB8Z59PXxcmtJJ98MGrnHf9QWdP/GwlN7loeovcbar3K6rvKIA5Hy8/Wgr
-	wZs5iGUAOYaXWO4Kmw7PHLLwThs5heaHasJCOKLZcTKLxo8zSEZJ2/VLr+cQe2dg
-	==
-X-ME-Sender: <xms:MiKlXO1fzOtfzSJmd5mjjstLQQ21Zg3RBW6tlzJMH7T4NDWWmdZ9fw>
-X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtdefgddufedvucdltddurdeguddtrddttd
-    dmucetufdoteggodetrfdotffvucfrrhhofhhilhgvmecuhfgrshhtofgrihhlpdfqfgfv
-    pdfurfetoffkrfgpnffqhgenuceurghilhhouhhtmecufedttdenucesvcftvggtihhpih
-    gvnhhtshculddquddttddmnegfrhhlucfvnfffucdludehmdenucfjughrpeffhffvuffk
-    fhggtggujgfofgesthdtredtofervdenucfhrhhomhepfdfvohgsihhnucevrdcujfgrrh
-    guihhnghdfuceomhgvsehtohgsihhnrdgttgeqnecukfhppeduvdegrddugeelrdduudeg
-    rdekieenucfrrghrrghmpehmrghilhhfrhhomhepmhgvsehtohgsihhnrdgttgenucevlh
-    hushhtvghrufhiiigvpedt
-X-ME-Proxy: <xmx:MiKlXLy6kc0NzsVaZXM5VYYItV2y-Ra6xaYLxQUpPNz128ue2tx2zA>
-    <xmx:MiKlXK7s60MrqPWbfeHOQ_SzUEHiGAgnofsaRvII59fiNSpq3DdZsw>
-    <xmx:MiKlXAhmHDMpTjrEsHjyDiIaxSAifmI14679d1lmRNc8gn8V--X8Tw>
-    <xmx:NSKlXDizc7rqOfz4tRMZ4GWZ7QjsdZJC29I0N_gUQSbDiGnAoOBS6Q>
-Received: from localhost (124-149-114-86.dyn.iinet.net.au [124.149.114.86])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 33026E408B;
-	Wed,  3 Apr 2019 17:14:24 -0400 (EDT)
-Date: Thu, 4 Apr 2019 08:13:54 +1100
-From: "Tobin C. Harding" <me@tobin.cc>
-To: Roman Gushchin <guro@fb.com>
-Cc: "Tobin C. Harding" <tobin@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH v5 2/7] slob: Respect list_head abstraction layer
-Message-ID: <20190403211354.GC23288@eros.localdomain>
-References: <20190402230545.2929-1-tobin@kernel.org>
- <20190402230545.2929-3-tobin@kernel.org>
- <20190403180026.GC6778@tower.DHCP.thefacebook.com>
+       dkim=pass header.i=@fb.com header.s=facebook header.b="G16/4bcl";
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=HB2kCROa;
+       spf=pass (google.com: domain of prvs=99962c6dea=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=99962c6dea=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0109332.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x33LFZE4008359;
+	Wed, 3 Apr 2019 14:16:25 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=yMSHUAGOc8xPTYbjOLszOfE79ayRLFWYphU/fwtGWes=;
+ b=G16/4bclIhRv7sDTLlomJwG+x12SDa+vcllv8iTWutuXwCN3kt5PNjgop2AYcDCMT6mG
+ BIHD7lC0lSi8ZTX275ytcjyhsKikIx2l4qwg2+yGSzvQQVLyPUTSL26xajjaPmtS8kB/
+ fYV4eEYprA0FHyC8PJGH+rYP4C/Ex0TgqOg= 
+Received: from maileast.thefacebook.com ([199.201.65.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 2rn4kd8032-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
+	Wed, 03 Apr 2019 14:16:25 -0700
+Received: from frc-mbx05.TheFacebook.com (2620:10d:c0a1:f82::29) by
+ frc-hub06.TheFacebook.com (2620:10d:c021:18::176) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1713.5; Wed, 3 Apr 2019 14:15:51 -0700
+Received: from frc-hub03.TheFacebook.com (2620:10d:c021:18::173) by
+ frc-mbx05.TheFacebook.com (2620:10d:c0a1:f82::29) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1713.5; Wed, 3 Apr 2019 14:15:51 -0700
+Received: from NAM05-DM3-obe.outbound.protection.outlook.com (192.168.183.28)
+ by o365-in.thefacebook.com (192.168.177.73) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
+ via Frontend Transport; Wed, 3 Apr 2019 14:15:51 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector1-fb-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=yMSHUAGOc8xPTYbjOLszOfE79ayRLFWYphU/fwtGWes=;
+ b=HB2kCROaU6X1BlFj85skXoHyOO8qQq//oBjZ1/QCXjxUSbu/X0y8HdhAsmDKty2l9GfJyBUgmrGExNBLeJmEgNOvnh6Jgs3kbgf4Uekavpnj+iYQu8Ww/RDsQ2qC7u0VxLE2IgT0jbct4zc8vMJ8UOGTWpr4CDD4xhqziu9vZL0=
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
+ BYAPR15MB3047.namprd15.prod.outlook.com (20.178.238.152) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1750.22; Wed, 3 Apr 2019 21:15:44 +0000
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::790e:7294:b086:9ded]) by BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::790e:7294:b086:9ded%3]) with mapi id 15.20.1750.017; Wed, 3 Apr 2019
+ 21:15:44 +0000
+From: Roman Gushchin <guro@fb.com>
+To: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
+CC: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>,
+        Matthew Wilcox <willy@infradead.org>,
+        "linux-mm@kvack.org"
+	<linux-mm@kvack.org>,
+        LKML <linux-kernel@vger.kernel.org>,
+        Thomas Garnier
+	<thgarnie@google.com>,
+        Oleksiy Avramchenko
+	<oleksiy.avramchenko@sonymobile.com>,
+        Steven Rostedt <rostedt@goodmis.org>,
+        Joel Fernandes <joelaf@google.com>,
+        Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
+        Tejun Heo <tj@kernel.org>
+Subject: Re: [RESEND PATCH 2/3] mm/vmap: add DEBUG_AUGMENT_PROPAGATE_CHECK
+ macro
+Thread-Topic: [RESEND PATCH 2/3] mm/vmap: add DEBUG_AUGMENT_PROPAGATE_CHECK
+ macro
+Thread-Index: AQHU6XC/snrJ8Ur+cUCmvX5DYASOrqYq8eaA
+Date: Wed, 3 Apr 2019 21:15:44 +0000
+Message-ID: <20190403211540.GJ6778@tower.DHCP.thefacebook.com>
+References: <20190402162531.10888-1-urezki@gmail.com>
+ <20190402162531.10888-3-urezki@gmail.com>
+In-Reply-To: <20190402162531.10888-3-urezki@gmail.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-clientproxiedby: MW2PR16CA0002.namprd16.prod.outlook.com (2603:10b6:907::15)
+ To BYAPR15MB2631.namprd15.prod.outlook.com (2603:10b6:a03:152::24)
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [2620:10d:c090:200::1:9220]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: db2e13a4-d8ef-42fd-48f6-08d6b87988c4
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600139)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR15MB3047;
+x-ms-traffictypediagnostic: BYAPR15MB3047:
+x-microsoft-antispam-prvs: <BYAPR15MB3047F945C1986C7A87B230FCBE570@BYAPR15MB3047.namprd15.prod.outlook.com>
+x-forefront-prvs: 0996D1900D
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(366004)(39860400002)(136003)(346002)(376002)(396003)(189003)(199004)(46003)(1411001)(105586002)(5660300002)(6506007)(102836004)(2906002)(54906003)(71190400001)(386003)(33656002)(229853002)(14454004)(71200400001)(106356001)(25786009)(446003)(86362001)(7736002)(6486002)(7416002)(99286004)(186003)(6116002)(476003)(97736004)(11346002)(316002)(1076003)(478600001)(305945005)(6246003)(6436002)(6512007)(486006)(68736007)(256004)(8936002)(9686003)(6916009)(53936002)(14444005)(81166006)(4326008)(81156014)(52116002)(76176011)(8676002);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB3047;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: sAfwE7KuSIm727q7QqyR1oRwz98c12PYJPcIKYhQbTEv1Gf7UjgHM5nvpZ2bxBpYpdJPYv2qXNaWvtmHlzHa4gtv7gEuUrVUlg4kfwWmfX2W6d1umnyNM1Zd41d+UNA7+IM4PnwDbSAQ5B4EiiKunNYtEDzcAFVlwaIbk4T/oGWTL4GWxAjwABuyG2Uqguncieymo/387xq4W70s5CUPJTu8h7E745I/IHxz+UR9wcVuM+2i816SiLgYc8DplS3mXXu9nR/j6dLo9Oz4QdXaRFQzPZmWP1FFzvp+4vI3EbRVTdQvlWcid2YU8pqqgm22wzuuMlr03IHPvtFGXADgO145KaYglV2kEo+QqzqiFAvgM7jy2QwOGnotbeXBqk8BVh9IEMPAT6kwdL9uGad6/TsTU0qFSpnvcD5BrKk5M34=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <3C933796509DFD49A841B366184840E0@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190403180026.GC6778@tower.DHCP.thefacebook.com>
-X-Mailer: Mutt 1.11.4 (2019-03-13)
-User-Agent: Mutt/1.11.4 (2019-03-13)
+X-MS-Exchange-CrossTenant-Network-Message-Id: db2e13a4-d8ef-42fd-48f6-08d6b87988c4
+X-MS-Exchange-CrossTenant-originalarrivaltime: 03 Apr 2019 21:15:44.7434
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB3047
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-03_13:,,
+ signatures=0
+X-Proofpoint-Spam-Reason: safe
+X-FB-Internal: Safe
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 03, 2019 at 06:00:30PM +0000, Roman Gushchin wrote:
-> On Wed, Apr 03, 2019 at 10:05:40AM +1100, Tobin C. Harding wrote:
-> > Currently we reach inside the list_head.  This is a violation of the
-> > layer of abstraction provided by the list_head.  It makes the code
-> > fragile.  More importantly it makes the code wicked hard to understand.
-> > 
-> > The code reaches into the list_head structure to counteract the fact
-> > that the list _may_ have been changed during slob_page_alloc().  Instead
-> > of this we can add a return parameter to slob_page_alloc() to signal
-> > that the list was modified (list_del() called with page->lru to remove
-> > page from the freelist).
-> > 
-> > This code is concerned with an optimisation that counters the tendency
-> > for first fit allocation algorithm to fragment memory into many small
-> > chunks at the front of the memory pool.  Since the page is only removed
-> > from the list when an allocation uses _all_ the remaining memory in the
-> > page then in this special case fragmentation does not occur and we
-> > therefore do not need the optimisation.
-> > 
-> > Add a return parameter to slob_page_alloc() to signal that the
-> > allocation used up the whole page and that the page was removed from the
-> > free list.  After calling slob_page_alloc() check the return value just
-> > added and only attempt optimisation if the page is still on the list.
-> > 
-> > Use list_head API instead of reaching into the list_head structure to
-> > check if sp is at the front of the list.
-> > 
-> > Signed-off-by: Tobin C. Harding <tobin@kernel.org>
-> > ---
-> >  mm/slob.c | 51 +++++++++++++++++++++++++++++++++++++--------------
-> >  1 file changed, 37 insertions(+), 14 deletions(-)
-> > 
-> > diff --git a/mm/slob.c b/mm/slob.c
-> > index 307c2c9feb44..07356e9feaaa 100644
-> > --- a/mm/slob.c
-> > +++ b/mm/slob.c
-> > @@ -213,13 +213,26 @@ static void slob_free_pages(void *b, int order)
-> >  }
-> >  
-> >  /*
-> > - * Allocate a slob block within a given slob_page sp.
-> > + * slob_page_alloc() - Allocate a slob block within a given slob_page sp.
-> > + * @sp: Page to look in.
-> > + * @size: Size of the allocation.
-> > + * @align: Allocation alignment.
-> > + * @page_removed_from_list: Return parameter.
-> > + *
-> > + * Tries to find a chunk of memory at least @size bytes big within @page.
-> > + *
-> > + * Return: Pointer to memory if allocated, %NULL otherwise.  If the
-> > + *         allocation fills up @page then the page is removed from the
-> > + *         freelist, in this case @page_removed_from_list will be set to
-> > + *         true (set to false otherwise).
-> >   */
-> > -static void *slob_page_alloc(struct page *sp, size_t size, int align)
-> > +static void *slob_page_alloc(struct page *sp, size_t size, int align,
-> > +			     bool *page_removed_from_list)
-> 
-> Hi Tobin!
-> 
-> Isn't it better to make slob_page_alloc() return a bool value?
-> Then it's easier to ignore the returned value, no need to introduce "_unused".
-> 
-> Thanks!
-> 
-> >  {
-> >  	slob_t *prev, *cur, *aligned = NULL;
-> >  	int delta = 0, units = SLOB_UNITS(size);
-> >  
-> > +	*page_removed_from_list = false;
-> >  	for (prev = NULL, cur = sp->freelist; ; prev = cur, cur = slob_next(cur)) {
-> >  		slobidx_t avail = slob_units(cur);
-> >  
-> > @@ -254,8 +267,10 @@ static void *slob_page_alloc(struct page *sp, size_t size, int align)
-> >  			}
-> >  
-> >  			sp->units -= units;
-> > -			if (!sp->units)
-> > +			if (!sp->units) {
-> >  				clear_slob_page_free(sp);
-> > +				*page_removed_from_list = true;
-> > +			}
-> >  			return cur;
-> >  		}
-> >  		if (slob_last(cur))
-> > @@ -269,10 +284,10 @@ static void *slob_page_alloc(struct page *sp, size_t size, int align)
-> >  static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
-> >  {
-> >  	struct page *sp;
-> > -	struct list_head *prev;
-> >  	struct list_head *slob_list;
-> >  	slob_t *b = NULL;
-> >  	unsigned long flags;
-> > +	bool _unused;
-> >  
-> >  	if (size < SLOB_BREAK1)
-> >  		slob_list = &free_slob_small;
-> > @@ -284,6 +299,7 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
-> >  	spin_lock_irqsave(&slob_lock, flags);
-> >  	/* Iterate through each partially free page, try to find room */
-> >  	list_for_each_entry(sp, slob_list, lru) {
-> > +		bool page_removed_from_list = false;
-> >  #ifdef CONFIG_NUMA
-> >  		/*
-> >  		 * If there's a node specification, search for a partial
-> > @@ -296,18 +312,25 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
-> >  		if (sp->units < SLOB_UNITS(size))
-> >  			continue;
-> >  
-> > -		/* Attempt to alloc */
-> > -		prev = sp->lru.prev;
-> > -		b = slob_page_alloc(sp, size, align);
-> > +		b = slob_page_alloc(sp, size, align, &page_removed_from_list);
-> >  		if (!b)
-> >  			continue;
-> >  
-> > -		/* Improve fragment distribution and reduce our average
-> > -		 * search time by starting our next search here. (see
-> > -		 * Knuth vol 1, sec 2.5, pg 449) */
-> > -		if (prev != slob_list->prev &&
-> > -				slob_list->next != prev->next)
-> > -			list_move_tail(slob_list, prev->next);
-> > +		/*
-> > +		 * If slob_page_alloc() removed sp from the list then we
-> > +		 * cannot call list functions on sp.  If so allocation
-> > +		 * did not fragment the page anyway so optimisation is
-> > +		 * unnecessary.
-> > +		 */
-> > +		if (!page_removed_from_list) {
-> > +			/*
-> > +			 * Improve fragment distribution and reduce our average
-> > +			 * search time by starting our next search here. (see
-> > +			 * Knuth vol 1, sec 2.5, pg 449)
-> > +			 */
-> > +			if (!list_is_first(&sp->lru, slob_list))
-> > +				list_rotate_to_front(&sp->lru, slob_list);
+On Tue, Apr 02, 2019 at 06:25:30PM +0200, Uladzislau Rezki (Sony) wrote:
+> This macro adds some debug code to check that the augment tree
+> is maintained correctly, meaning that every node contains valid
+> subtree_max_size value.
+>=20
+> By default this option is set to 0 and not active. It requires
+> recompilation of the kernel to activate it. Set to 1, compile
+> the kernel.
+>=20
+> Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
+> ---
+>  mm/vmalloc.c | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 53 insertions(+)
+>=20
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 3adbad3fb6c1..1449a8c43aa2 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -322,6 +322,8 @@ unsigned long vmalloc_to_pfn(const void *vmalloc_addr=
+)
+>  EXPORT_SYMBOL(vmalloc_to_pfn);
+> =20
+>  /*** Global kva allocator ***/
+> +#define DEBUG_AUGMENT_PROPAGATE_CHECK 0
+> +
+>  #define VM_LAZY_FREE	0x02
+>  #define VM_VM_AREA	0x04
+> =20
+> @@ -544,6 +546,53 @@ __unlink_va(struct vmap_area *va, struct rb_root *ro=
+ot)
+>  	}
+>  }
+> =20
+> +#if DEBUG_AUGMENT_PROPAGATE_CHECK
+> +static void
+> +augment_tree_propagate_do_check(struct rb_node *n)
+> +{
+> +	struct vmap_area *va;
+> +	struct rb_node *node;
+> +	unsigned long size;
+> +	bool found =3D false;
+> +
+> +	if (n =3D=3D NULL)
+> +		return;
+> +
+> +	va =3D rb_entry(n, struct vmap_area, rb_node);
+> +	size =3D va->subtree_max_size;
+> +	node =3D n;
+> +
+> +	while (node) {
+> +		va =3D rb_entry(node, struct vmap_area, rb_node);
+> +
+> +		if (get_subtree_max_size(node->rb_left) =3D=3D size) {
+> +			node =3D node->rb_left;
+> +		} else {
+> +			if (__va_size(va) =3D=3D size) {
+> +				found =3D true;
+> +				break;
+> +			}
+> +
+> +			node =3D node->rb_right;
+> +		}
+> +	}
+> +
+> +	if (!found) {
+> +		va =3D rb_entry(n, struct vmap_area, rb_node);
+> +		pr_emerg("tree is corrupted: %lu, %lu\n",
+> +			__va_size(va), va->subtree_max_size);
+> +	}
+> +
+> +	augment_tree_propagate_do_check(n->rb_left);
+> +	augment_tree_propagate_do_check(n->rb_right);
+> +}
+> +
+> +static void augment_tree_propagate_from_check(void)
 
-According to 0day test robot this is triggering an error from
-CHECK_DATA_CORRUPTION when the kernel is built with CONFIG_DEBUG_LIST.
-I think this is because list_rotate_to_front() puts the list into an
-invalid state before it calls __list_add().  The thing that has me
-stumped is why this was not happening before this patch series was
-applied?  ATM I'm not able to get my test module to trigger this but I'm
-going to try a bit harder today.  If I'm right one solution is to modify
-list_rotate_to_front() to _not_ call __list_add() but do it manually,
-this solution doesn't sit well with me though.
+Why do you need this intermediate function?
 
-So, summing up, I think the patch is correct in that it does the correct
-thing but I think the debugging code doesn't like it because we are
-violating typical usage - so the patch is wrong :)
+Other than that looks good to me, please free to use
+Reviewed-by: Roman Gushchin <guro@fb.com>
 
-thanks,
-Tobin.
+Thank you!
 
