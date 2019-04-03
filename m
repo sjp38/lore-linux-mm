@@ -5,92 +5,92 @@ X-Spam-Level:
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2C904C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 08:53:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A229C4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 08:54:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D905C21473
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 08:53:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D905C21473
+	by mail.kernel.org (Postfix) with ESMTP id B7824206B7
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 08:54:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B7824206B7
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 862B86B0008; Wed,  3 Apr 2019 04:53:27 -0400 (EDT)
+	id 728036B000A; Wed,  3 Apr 2019 04:54:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 811EC6B000A; Wed,  3 Apr 2019 04:53:27 -0400 (EDT)
+	id 6D7B16B000C; Wed,  3 Apr 2019 04:54:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6FF176B000C; Wed,  3 Apr 2019 04:53:27 -0400 (EDT)
+	id 59FB36B000D; Wed,  3 Apr 2019 04:54:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5046D6B0008
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 04:53:27 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id x58so16213623qtc.1
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 01:53:27 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 33D476B000A
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 04:54:32 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id t22so16190118qtc.13
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 01:54:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=6hfWGHoCwAVQU3sP4laaijTierNYeuucSY/HXvPK+Xw=;
-        b=JmD6P03oL6AEL+3qtvIMT/Y7jWBX72Ztisul1k2G7d0Q5+EIkA+0zLaOHZyutd2bii
-         tgKSGL7t7CXppSgFHU8sRSPmVTz4tqCZ9BxcdlHbpB+MkwdxIQfdVKVan54sSj6WB3SG
-         9LbQc9h6UttcCqhCS5i4AMSOkoCslmDBNPAMYvn1SjHJLxhAInnhPK8hT4jVTwPVAJK0
-         CC1zAzTmbyq8yMWeGe5metwCB/vOnRcvUGF9K2XbwG4nRHYjEzPAja52BTG180WMGdlX
-         fyhkcNuZiupHnUA6G8uiui8m1Amq0pwDdYq22z3HvVVBjDL6m8Q55hswb7fBgFWBZkHD
-         WRFA==
+        bh=6yOJorzNGGU5HiAje+tjFE1jELyyrXzt9SSVwrWzt9M=;
+        b=FN2iRHByEA3+bqlm2uTceS3ajV5zVUh+E0PW1Qxq/P/SZspfjSaBU+6vUesLh7f0Dm
+         LTI2/cteZ+GevKXT2EDa/p2mP7yI+diNE0SoNLnB8UI0BGZWJf7CPTqq6dT7UBv7hSBU
+         tmeShJcBBOtFFhNXNpMIm1CFSWgmsiaLZLnEatUxd96hBer+yqvb9RIbVU0mNwbcV6lA
+         f4eV96XQXAlu8UMnXrlGgIEi63rQY6RH+gUcK+TmDFtlw4JOryQOFmWw+Ao25JI/TjQe
+         aDI5jB3sJUPUiayloYZakmh+Z86RlMJ0Nyf/67HHhia5VoMuqLoGkW+JyRDR+LbDUNKJ
+         o8Ww==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAU9T6GrUx9e17eP9dLfqQ+G8kkbUjPQjRfuHrj9ty61LAXsPBFb
-	56zdYRhL3LmDDxvSYnmg5FE5XhPTJWJR5KBZPfoX2KlhxNVqIhqsM7oFduVS6TlfDzmYrE0PyIC
-	sav4BuOBGbE2twi0ncs3vNZbHuUv6mO6IPUKMHY0ZGN8OxaYsxNyv5ACDrvRQnV0J2g==
-X-Received: by 2002:ac8:1a25:: with SMTP id v34mr61392314qtj.337.1554281607095;
-        Wed, 03 Apr 2019 01:53:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxK4/2jO5DR8c1WizitB7qRcpxEI7bIbiEwIsj8F1TzORuMvSdBhvsj6Mh2EGaLyCs9jShB
-X-Received: by 2002:ac8:1a25:: with SMTP id v34mr61392290qtj.337.1554281606608;
-        Wed, 03 Apr 2019 01:53:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554281606; cv=none;
+X-Gm-Message-State: APjAAAVqvXV7f8/PpZZYFgzMXt5tiDk6MDn9m7G+UA2rSYLqzBRmPeqR
+	Eg1SBx9LnfYAaMK5Ulcrpda7ZnNllRucmPmhvCP9216MGUSE8Gc040tMhEWhe19VM/4UU9Gwasj
+	plyYoV6FEMsX98vx8QX0TwbiU0LR1mF/J/zsAqfsHeEidBcq1MeRSzW0MzLOIn+f7bw==
+X-Received: by 2002:a05:620a:1529:: with SMTP id n9mr50548829qkk.190.1554281671998;
+        Wed, 03 Apr 2019 01:54:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxZwYWJN5MC3f4h/ijJTERsk9NAiD5Y0Blz9ejVC5InW5vvcfORI0H2n7kYHxIzAlVVJe4o
+X-Received: by 2002:a05:620a:1529:: with SMTP id n9mr50548805qkk.190.1554281671504;
+        Wed, 03 Apr 2019 01:54:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554281671; cv=none;
         d=google.com; s=arc-20160816;
-        b=lUFQ9y2UDdtVqla/bhBywrlrcENsqe10PWIQbqQj40D6+jwH/kRAGHFOaxTpxcWYZg
-         C++E68aHMYG+/+6BBV/KanzuEk6KhcRdA5nAOs3cfQ00aKp1u83vHKeP3HMyJL54tPFX
-         zpTwAmRl2tAVKRxqoWLnFzqdt6Sw++0bfPNxHr7maWq1a4qTM87CYdk8d1WU3MZjppV2
-         uREDyqUfWBhAv+4JtK9h8dZxqrvfdva3vVkApY1lHE6ouAiT1H67uAIWMSR6CKHYEyGq
-         JppEn1pfixejc4M3krEKmmLbD0P4rHZe3CLoLcFmv5HWwb6iv0IOZyofOG1RsV3fdZqT
-         gdHQ==
+        b=mqwtta76r2M24fd3rZf//9ud5F4GxUKVEs3BhAbghHoeMm60zq4St55gbZjRx6r9/7
+         WgWaqYeupXXNHuMAvoTIqjlNRzEtvvB2SzJujnt2NijcReWMX9mzFUQEfKWAljbNiQij
+         q4uI9PEx2+9dMqEXNn8Qk3+oajpAXIz/IxrR0HhYIcLnIkE3a1Iq/TM2EM9W06FoDrEO
+         Nl/VtzhqbrsfTSEdwZ0+YVEfFNNulVuGua5B/ZSyMTPq3uI7FxYqPg4ye4cZV6Imyhla
+         Ah8O709/+8Wrw95DX6S5cpnvRK+vug8c8elOUla8C7nVIs8tB0kVBhDq8PA+Ha41lwTq
+         N49g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=6hfWGHoCwAVQU3sP4laaijTierNYeuucSY/HXvPK+Xw=;
-        b=u34vLFMXDIZC6ghXJzZOfsCbLWpsg2vXszVcrPm+RH3Lxf6kTOD4/d+mjBNOqLsrLG
-         h95JzACtlrANhMa87+O3gTk56rO6cIkH0hjTiqGCy64jeKoG8jNiL90k4kn0cNKDSKNZ
-         umwyumQiJiyp9bkqRqk2hZmzWioFV4nyY3p82PpMLfjwDniHD8RL3ZuLk9riR5cN6yKl
-         v+byzmroI3WWbvJ8uDzsaJGkiV/ablz3UluLC8OqC/rkXFtF2TEJ6sJ4tjDD8VdbBNXG
-         lEOAU47KG4aRZpj1XXxYLVyJNkuvBkRKwp8JILfpDoQ1cvBSurPVOt9+pC10Yw9zF6Fn
-         atDg==
+        bh=6yOJorzNGGU5HiAje+tjFE1jELyyrXzt9SSVwrWzt9M=;
+        b=o1lPHSQgbE6c5x/919IHPoFhMECwnkVINVdm7Zq6j5j03gThWZIg0+HHxHoZ3GoRQo
+         ep0By7BmH9+8NdjY4TkG4MND8a0G2v/bZVPKBsif2gbh0MK50HBNDeAMz5BBtrG4l5lf
+         BVQgnfg94pvYIdlencug5Ia3DAusPOTCbe7Ps6xWwNm6S6ML8L+CNV1Ek0jarvyy5S8L
+         Y9nAStjgRrBbq3NORZgNdlUM8qlvrfY1zStC6YODoqGET6EDmBlle7100VLpiIaGtpaJ
+         hQcMtOGyQQuUVedAZCArToe2ArNO3czQy5SAqgO2m6QTdDtWc/jDCE5ed3n7o5RdxkQE
+         dSjQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f27si3445153qkk.134.2019.04.03.01.53.26
+        by mx.google.com with ESMTPS id t36si3852747qvj.49.2019.04.03.01.54.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 01:53:26 -0700 (PDT)
+        Wed, 03 Apr 2019 01:54:31 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id A5F562DD22;
-	Wed,  3 Apr 2019 08:53:25 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 9117B3086206;
+	Wed,  3 Apr 2019 08:54:30 +0000 (UTC)
 Received: from [10.36.117.246] (ovpn-117-246.ams2.redhat.com [10.36.117.246])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 02B9F608A5;
-	Wed,  3 Apr 2019 08:53:23 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id D623E60145;
+	Wed,  3 Apr 2019 08:54:28 +0000 (UTC)
 Subject: Re: [PATCH 0/4] mm,memory_hotplug: allocate memmap from hotadded
  memory
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Oscar Salvador <osalvador@suse.de>, akpm@linux-foundation.org,
+To: Oscar Salvador <osalvador@suse.de>
+Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org,
  dan.j.williams@intel.com, Jonathan.Cameron@huawei.com,
  anshuman.khandual@arm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 References: <20190329134243.GA30026@dhcp22.suse.cz>
@@ -103,7 +103,7 @@ References: <20190329134243.GA30026@dhcp22.suse.cz>
  <d55aa259-56c0-9601-ffce-997ea1fb3ac5@redhat.com>
  <20190403083757.GC15605@dhcp22.suse.cz>
  <04a5b856-c8e0-937b-72bb-b9d17a12ccc7@redhat.com>
- <20190403084915.GF15605@dhcp22.suse.cz>
+ <20190403085042.t5wcyvaolxiw65rr@d104.suse.de>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -150,27 +150,25 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <e3b151ec-b050-d5bf-0cd1-d8489463c169@redhat.com>
-Date: Wed, 3 Apr 2019 10:53:23 +0200
+Message-ID: <815a98e1-3b2e-e5c8-5074-7f46a363adb8@redhat.com>
+Date: Wed, 3 Apr 2019 10:54:28 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <20190403084915.GF15605@dhcp22.suse.cz>
+In-Reply-To: <20190403085042.t5wcyvaolxiw65rr@d104.suse.de>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Wed, 03 Apr 2019 08:53:25 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Wed, 03 Apr 2019 08:54:30 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 03.04.19 10:49, Michal Hocko wrote:
-> On Wed 03-04-19 10:41:35, David Hildenbrand wrote:
->> On 03.04.19 10:37, Michal Hocko wrote:
-> [...]
+On 03.04.19 10:50, Oscar Salvador wrote:
+> On Wed, Apr 03, 2019 at 10:41:35AM +0200, David Hildenbrand wrote:
 >>> That being said it should be the caller of the hotplug code to tell
 >>> the vmemmap allocation strategy. For starter, I would only pack vmemmaps
 >>> for "regular" kernel zone memory. Movable zones should be more careful.
@@ -182,25 +180,16 @@ On 03.04.19 10:49, Michal Hocko wrote:
 >> it didn't add in some other granularity. We then really have to identify
 >> and isolate that case.
 > 
-> Can you give an example of a sensible usecase that would require this?
+> If we let the caller specify whether it wants vmemmaps per memblock or range,
+> I would trust that caller to do the correct thing and specify one thing or
+> another depending on what it wants to do in the future.
+> 
+> So, say a driver adds 512MB memory and it specifies that it wants vmemmaps per
+> memblock because later on it will like to hot-remove in chunks of 128MB.
 > 
 
-The two cases I mentioned are
-
-1. arch/powerpc/platforms/powernv/memtrace.c: memtrace_alloc_node()
-
-AFAIKS, memory that wasn't added by memtrace is tried to be offlined +
-removed.
-
-"Remove memory in memory block size chunks so that iomem resources are
-always split to the same size and we never try to remove memory that
-spans two iomem resources"
-
-2. drivers/acpi/acpi_memhotplug.c:acpi_memory_enable_device()
-
-We might hit "__add_memory() == -EEXIST" and continue. When removing the
-devices, __remove_memory() is called. I am still to find out if that
-could imply removing in a different granularity than added.
+I am talking about the memtrace and ACPI thing. Otherwise I agree, trust
+the user iff the user is the same person adding/removing memory.
 
 -- 
 
