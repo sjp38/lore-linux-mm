@@ -2,198 +2,212 @@ Return-Path: <SRS0=DmM3=SF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A229C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 08:54:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0B234C10F0B
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 09:18:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B7824206B7
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 08:54:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B7824206B7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id A0CC121473
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 09:18:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A0CC121473
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 728036B000A; Wed,  3 Apr 2019 04:54:32 -0400 (EDT)
+	id 0FDE16B0008; Wed,  3 Apr 2019 05:18:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6D7B16B000C; Wed,  3 Apr 2019 04:54:32 -0400 (EDT)
+	id 0AC5B6B000A; Wed,  3 Apr 2019 05:18:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 59FB36B000D; Wed,  3 Apr 2019 04:54:32 -0400 (EDT)
+	id EB6446B000C; Wed,  3 Apr 2019 05:17:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 33D476B000A
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 04:54:32 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id t22so16190118qtc.13
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 01:54:32 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 98F8D6B0008
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 05:17:59 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id w3so636368edt.2
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 02:17:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=6yOJorzNGGU5HiAje+tjFE1jELyyrXzt9SSVwrWzt9M=;
-        b=FN2iRHByEA3+bqlm2uTceS3ajV5zVUh+E0PW1Qxq/P/SZspfjSaBU+6vUesLh7f0Dm
-         LTI2/cteZ+GevKXT2EDa/p2mP7yI+diNE0SoNLnB8UI0BGZWJf7CPTqq6dT7UBv7hSBU
-         tmeShJcBBOtFFhNXNpMIm1CFSWgmsiaLZLnEatUxd96hBer+yqvb9RIbVU0mNwbcV6lA
-         f4eV96XQXAlu8UMnXrlGgIEi63rQY6RH+gUcK+TmDFtlw4JOryQOFmWw+Ao25JI/TjQe
-         aDI5jB3sJUPUiayloYZakmh+Z86RlMJ0Nyf/67HHhia5VoMuqLoGkW+JyRDR+LbDUNKJ
-         o8Ww==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVqvXV7f8/PpZZYFgzMXt5tiDk6MDn9m7G+UA2rSYLqzBRmPeqR
-	Eg1SBx9LnfYAaMK5Ulcrpda7ZnNllRucmPmhvCP9216MGUSE8Gc040tMhEWhe19VM/4UU9Gwasj
-	plyYoV6FEMsX98vx8QX0TwbiU0LR1mF/J/zsAqfsHeEidBcq1MeRSzW0MzLOIn+f7bw==
-X-Received: by 2002:a05:620a:1529:: with SMTP id n9mr50548829qkk.190.1554281671998;
-        Wed, 03 Apr 2019 01:54:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxZwYWJN5MC3f4h/ijJTERsk9NAiD5Y0Blz9ejVC5InW5vvcfORI0H2n7kYHxIzAlVVJe4o
-X-Received: by 2002:a05:620a:1529:: with SMTP id n9mr50548805qkk.190.1554281671504;
-        Wed, 03 Apr 2019 01:54:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554281671; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=LpMsNlcIScPv5aEAYVdpKZ4XrgvCSJIyahc+2TCwhHY=;
+        b=q/EmRtkw8ttxuWTKzresFb7b39KFVm4mxRTm32xOiomtx7Kpsplt+llID135CmDYyC
+         k4sgIMppJ1jwX2HQQeH6Tp9UVroT7PXWFmRC1wKOapaZRHK663TQxwc6uR/7uIwHlbjD
+         +ilgO+X3VFB+yinVfrldMPm8Nuyfy1FrwvtnzSI3TrWqnDFNtxomquIqoK/wpB4oLInL
+         n7UceshNMGEc0mXUTrgi0g6afwgiV7a3Y3q7p3+Wgaq/fPjThP8Bzc4akEdGZeqCsAfk
+         ze97YifeAeTkLnrMNiI322XVYQAc/5kRJFLaYZKagGAH3TpEl/uq3H0WklS5SKyAZ2o6
+         6Yjw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAVdcPOuIyN3FjfB17RMqi9o1E0pOmAdAM4p0Vhp94ekDTRYAC4m
+	3q0YkLi63O2H4qIxuH8Ej2dUcvKxP3ue7fqG6FHaff+uO1Nbpgs9OWAueUeaRZqPlwOOp7lMOkx
+	bzMfN1TCuH7Y9KC6IEUsogt0EJKX+WufY45aVVkdyifDx+DvivjTr3f8JcrKcUb4=
+X-Received: by 2002:a17:906:f2d6:: with SMTP id gz22mr22775269ejb.38.1554283079151;
+        Wed, 03 Apr 2019 02:17:59 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwQQEAvkwp+TpKe5W/MHC94C599eX6zInSVstWTmD/CDg2zUZ7W+Jj8wrM0TtU4qgEWg6AW
+X-Received: by 2002:a17:906:f2d6:: with SMTP id gz22mr22775213ejb.38.1554283078030;
+        Wed, 03 Apr 2019 02:17:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554283078; cv=none;
         d=google.com; s=arc-20160816;
-        b=mqwtta76r2M24fd3rZf//9ud5F4GxUKVEs3BhAbghHoeMm60zq4St55gbZjRx6r9/7
-         WgWaqYeupXXNHuMAvoTIqjlNRzEtvvB2SzJujnt2NijcReWMX9mzFUQEfKWAljbNiQij
-         q4uI9PEx2+9dMqEXNn8Qk3+oajpAXIz/IxrR0HhYIcLnIkE3a1Iq/TM2EM9W06FoDrEO
-         Nl/VtzhqbrsfTSEdwZ0+YVEfFNNulVuGua5B/ZSyMTPq3uI7FxYqPg4ye4cZV6Imyhla
-         Ah8O709/+8Wrw95DX6S5cpnvRK+vug8c8elOUla8C7nVIs8tB0kVBhDq8PA+Ha41lwTq
-         N49g==
+        b=O2KEqgEJv3C5hWrhcEZUbCeCh6jNf3NcCK3oLO3zbqjXmuJaMVBFiEyRqKheYFwz7G
+         YQniYsu1qFFwcfeoBfrOl8wKPWQI3zChJqJ32XJmAriO09bk+50FWJbYs/J2eOpVRSFE
+         4uz4+i9EQUax4jkYKFxpMKG/rwMHpHrUYgO9GQ080BlpiB0ltT/N+sb+tZ4bkKIqD9aw
+         1BJ7PjhTrgHhjVLLlYq8EegPvgBQFSk8VRwLShOCc4+craJvS15U83Hq7eRbwY3WDtL3
+         YscTa6mZtHAQFS4IY8kVx7DsGARP5hWSd9auWiqa3pqCPqJhT1/69PMlpYp6sR09+YG+
+         JIiA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=6yOJorzNGGU5HiAje+tjFE1jELyyrXzt9SSVwrWzt9M=;
-        b=o1lPHSQgbE6c5x/919IHPoFhMECwnkVINVdm7Zq6j5j03gThWZIg0+HHxHoZ3GoRQo
-         ep0By7BmH9+8NdjY4TkG4MND8a0G2v/bZVPKBsif2gbh0MK50HBNDeAMz5BBtrG4l5lf
-         BVQgnfg94pvYIdlencug5Ia3DAusPOTCbe7Ps6xWwNm6S6ML8L+CNV1Ek0jarvyy5S8L
-         Y9nAStjgRrBbq3NORZgNdlUM8qlvrfY1zStC6YODoqGET6EDmBlle7100VLpiIaGtpaJ
-         hQcMtOGyQQuUVedAZCArToe2ArNO3czQy5SAqgO2m6QTdDtWc/jDCE5ed3n7o5RdxkQE
-         dSjQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=LpMsNlcIScPv5aEAYVdpKZ4XrgvCSJIyahc+2TCwhHY=;
+        b=0zIbUlFlob2g3ibizz+kku47sUSVhJLminDYlm2mRgtpfGXrRd7QtIhMFT91fTPTrQ
+         cbL19WdQAP1KquAbfsEnKIEzZEg7nRPp0E4eKhr4PnQPuzjXsj3BFf7uPfEYl21nQ054
+         W13tX02u97JyaPJFqArI272nBD4wpR93SidoMiGFLgBSPdhv0RaYDsIKjwDm+C1L6WIz
+         EMlHMG9/BUhi8eYeZNo0iwXsZsid57Y22524z39WyI0Bfh/rC7O0ZYjaKRAskFf2c3ZI
+         IESkoA3iMHbfASWc1Mua8AEYq6lHQ7naIBRmFmtDk3PrOGjxcdHLn+VFYq/ApgyAKXRv
+         cL1A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t36si3852747qvj.49.2019.04.03.01.54.31
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y22si1347794edc.134.2019.04.03.02.17.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 01:54:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Wed, 03 Apr 2019 02:17:58 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 9117B3086206;
-	Wed,  3 Apr 2019 08:54:30 +0000 (UTC)
-Received: from [10.36.117.246] (ovpn-117-246.ams2.redhat.com [10.36.117.246])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id D623E60145;
-	Wed,  3 Apr 2019 08:54:28 +0000 (UTC)
-Subject: Re: [PATCH 0/4] mm,memory_hotplug: allocate memmap from hotadded
- memory
-To: Oscar Salvador <osalvador@suse.de>
-Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org,
- dan.j.williams@intel.com, Jonathan.Cameron@huawei.com,
- anshuman.khandual@arm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-References: <20190329134243.GA30026@dhcp22.suse.cz>
- <20190401075936.bjt2qsrhw77rib77@d104.suse.de>
- <20190401115306.GF28293@dhcp22.suse.cz>
- <20190402082812.fefamf7qlzulb7t2@d104.suse.de>
- <20190402124845.GD28293@dhcp22.suse.cz>
- <20190403080113.adj2m3szhhnvzu56@d104.suse.de>
- <20190403081232.GB15605@dhcp22.suse.cz>
- <d55aa259-56c0-9601-ffce-997ea1fb3ac5@redhat.com>
- <20190403083757.GC15605@dhcp22.suse.cz>
- <04a5b856-c8e0-937b-72bb-b9d17a12ccc7@redhat.com>
- <20190403085042.t5wcyvaolxiw65rr@d104.suse.de>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <815a98e1-3b2e-e5c8-5074-7f46a363adb8@redhat.com>
-Date: Wed, 3 Apr 2019 10:54:28 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id B8FE1ADE7;
+	Wed,  3 Apr 2019 09:17:56 +0000 (UTC)
+Date: Wed, 3 Apr 2019 11:17:55 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+	linux-mm@kvack.org, akpm@linux-foundation.org, will.deacon@arm.com,
+	catalin.marinas@arm.com, mgorman@techsingularity.net,
+	james.morse@arm.com, mark.rutland@arm.com, robin.murphy@arm.com,
+	cpandya@codeaurora.org, arunks@codeaurora.org,
+	dan.j.williams@intel.com, osalvador@suse.de, logang@deltatee.com,
+	pasha.tatashin@oracle.com, david@redhat.com, cai@lca.pw
+Subject: Re: [PATCH 4/6] mm/hotplug: Reorder arch_remove_memory() call in
+ __remove_memory()
+Message-ID: <20190403091755.GG15605@dhcp22.suse.cz>
+References: <1554265806-11501-1-git-send-email-anshuman.khandual@arm.com>
+ <1554265806-11501-5-git-send-email-anshuman.khandual@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20190403085042.t5wcyvaolxiw65rr@d104.suse.de>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Wed, 03 Apr 2019 08:54:30 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1554265806-11501-5-git-send-email-anshuman.khandual@arm.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 03.04.19 10:50, Oscar Salvador wrote:
-> On Wed, Apr 03, 2019 at 10:41:35AM +0200, David Hildenbrand wrote:
->>> That being said it should be the caller of the hotplug code to tell
->>> the vmemmap allocation strategy. For starter, I would only pack vmemmaps
->>> for "regular" kernel zone memory. Movable zones should be more careful.
->>> We can always re-evaluate later when there is a strong demand for huge
->>> pages on movable zones but this is not the case now because those pages
->>> are not really movable in practice.
->>
->> Remains the issue with potential different user trying to remove memory
->> it didn't add in some other granularity. We then really have to identify
->> and isolate that case.
+On Wed 03-04-19 10:00:04, Anshuman Khandual wrote:
+> Memory hot remove uses get_nid_for_pfn() while tearing down linked sysfs
+> entries between memory block and node. It first checks pfn validity with
+> pfn_valid_within() before fetching nid. With CONFIG_HOLES_IN_ZONE config
+> (arm64 has this enabled) pfn_valid_within() calls pfn_valid().
 > 
-> If we let the caller specify whether it wants vmemmaps per memblock or range,
-> I would trust that caller to do the correct thing and specify one thing or
-> another depending on what it wants to do in the future.
+> pfn_valid() is an arch implementation on arm64 (CONFIG_HAVE_ARCH_PFN_VALID)
+> which scans all mapped memblock regions with memblock_is_map_memory(). This
+> creates a problem in memory hot remove path which has already removed given
+> memory range from memory block with memblock_[remove|free] before arriving
+> at unregister_mem_sect_under_nodes(). Hence get_nid_for_pfn() returns -1
+> skipping subsequent sysfs_remove_link() calls leaving node <-> memory block
+> sysfs entries as is. Subsequent memory add operation hits BUG_ON() because
+> of existing sysfs entries.
 > 
-> So, say a driver adds 512MB memory and it specifies that it wants vmemmaps per
-> memblock because later on it will like to hot-remove in chunks of 128MB.
+> [   62.007176] NUMA: Unknown node for memory at 0x680000000, assuming node 0
+> [   62.052517] ------------[ cut here ]------------
+> [   62.053211] kernel BUG at mm/memory_hotplug.c:1143!
+> [   62.053868] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP
+> [   62.054589] Modules linked in:
+> [   62.054999] CPU: 19 PID: 3275 Comm: bash Not tainted 5.1.0-rc2-00004-g28cea40b2683 #41
+> [   62.056274] Hardware name: linux,dummy-virt (DT)
+> [   62.057166] pstate: 40400005 (nZcv daif +PAN -UAO)
+> [   62.058083] pc : add_memory_resource+0x1cc/0x1d8
+> [   62.058961] lr : add_memory_resource+0x10c/0x1d8
+> [   62.059842] sp : ffff0000168b3ce0
+> [   62.060477] x29: ffff0000168b3ce0 x28: ffff8005db546c00
+> [   62.061501] x27: 0000000000000000 x26: 0000000000000000
+> [   62.062509] x25: ffff0000111ef000 x24: ffff0000111ef5d0
+> [   62.063520] x23: 0000000000000000 x22: 00000006bfffffff
+> [   62.064540] x21: 00000000ffffffef x20: 00000000006c0000
+> [   62.065558] x19: 0000000000680000 x18: 0000000000000024
+> [   62.066566] x17: 0000000000000000 x16: 0000000000000000
+> [   62.067579] x15: ffffffffffffffff x14: ffff8005e412e890
+> [   62.068588] x13: ffff8005d6b105d8 x12: 0000000000000000
+> [   62.069610] x11: ffff8005d6b10490 x10: 0000000000000040
+> [   62.070615] x9 : ffff8005e412e898 x8 : ffff8005e412e890
+> [   62.071631] x7 : ffff8005d6b105d8 x6 : ffff8005db546c00
+> [   62.072640] x5 : 0000000000000001 x4 : 0000000000000002
+> [   62.073654] x3 : ffff8005d7049480 x2 : 0000000000000002
+> [   62.074666] x1 : 0000000000000003 x0 : 00000000ffffffef
+> [   62.075685] Process bash (pid: 3275, stack limit = 0x00000000d754280f)
+> [   62.076930] Call trace:
+> [   62.077411]  add_memory_resource+0x1cc/0x1d8
+> [   62.078227]  __add_memory+0x70/0xa8
+> [   62.078901]  probe_store+0xa4/0xc8
+> [   62.079561]  dev_attr_store+0x18/0x28
+> [   62.080270]  sysfs_kf_write+0x40/0x58
+> [   62.080992]  kernfs_fop_write+0xcc/0x1d8
+> [   62.081744]  __vfs_write+0x18/0x40
+> [   62.082400]  vfs_write+0xa4/0x1b0
+> [   62.083037]  ksys_write+0x5c/0xc0
+> [   62.083681]  __arm64_sys_write+0x18/0x20
+> [   62.084432]  el0_svc_handler+0x88/0x100
+> [   62.085177]  el0_svc+0x8/0xc
 > 
+> Re-ordering arch_remove_memory() with memblock_[free|remove] solves the
+> problem on arm64 as pfn_valid() behaves correctly and returns positive
+> as memblock for the address range still exists. arch_remove_memory()
+> removes applicable memory sections from zone with __remove_pages() and
+> tears down kernel linear mapping. Removing memblock regions afterwards
+> is consistent.
 
-I am talking about the memtrace and ACPI thing. Otherwise I agree, trust
-the user iff the user is the same person adding/removing memory.
+consistent with what? Anyway, I believe you wanted to mention that this
+is safe because there is no other memblock (bootmem) allocator user that
+late. So nobody is going to allocate from the removed range just to blow
+up later. Also nobody should be using the bootmem allocated range else
+we wouldn't allow to remove it. So reordering is indeed safe.
+ 
+> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+
+With a changelog updated to explain why this is safe
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  mm/memory_hotplug.c | 3 +--
+>  1 file changed, 1 insertion(+), 2 deletions(-)
+> 
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 0082d69..71d0d79 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1872,11 +1872,10 @@ void __ref __remove_memory(int nid, u64 start, u64 size)
+>  
+>  	/* remove memmap entry */
+>  	firmware_map_remove(start, start + size, "System RAM");
+> +	arch_remove_memory(nid, start, size, NULL);
+>  	memblock_free(start, size);
+>  	memblock_remove(start, size);
+>  
+> -	arch_remove_memory(nid, start, size, NULL);
+> -
+>  	try_offline_node(nid);
+>  
+>  	mem_hotplug_done();
+> -- 
+> 2.7.4
+> 
 
 -- 
-
-Thanks,
-
-David / dhildenb
+Michal Hocko
+SUSE Labs
 
