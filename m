@@ -2,84 +2,99 @@ Return-Path: <SRS0=DmM3=SF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5F785C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:19:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 890BEC4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:23:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 277D2205C9
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:19:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 277D2205C9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=zeniv.linux.org.uk
+	by mail.kernel.org (Postfix) with ESMTP id 0D360205C9
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 17:23:46 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="WcbLykPN"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D360205C9
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9CB3E6B0008; Wed,  3 Apr 2019 13:19:41 -0400 (EDT)
+	id 8B8BF6B000A; Wed,  3 Apr 2019 13:23:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 97BCD6B000C; Wed,  3 Apr 2019 13:19:41 -0400 (EDT)
+	id 8401C6B000C; Wed,  3 Apr 2019 13:23:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 89DF06B0008; Wed,  3 Apr 2019 13:19:41 -0400 (EDT)
+	id 6E0D76B000D; Wed,  3 Apr 2019 13:23:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C22B6B0008
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 13:19:41 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id y7so13569733wrq.4
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 10:19:41 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F7B06B000A
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 13:23:46 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id w9so6380455plz.11
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 10:23:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent:sender;
-        bh=Nrovqt/E3sLIY0UINWIZm4LZjlIUz46vFJMaX0OPy6U=;
-        b=rY+KQ4sLnAIGNBrjCelkvxmdWJOnhI7HPdo4sFbKqHdL5Y9fWRv1xZfEPHXSZT+C/C
-         C445qBDwT3jJZqXaoAhFAdkB2h6O7HDHS8pSdXtUc4Yhdr1jBC9So5JZLv1LnCFP/YXQ
-         N5BCmudtfUh2kz1YEfOZj7bd4cRuci7oNLe+jIvKFdIjT5rRs+H8gidC/VdR0RkcHzSj
-         sWYhpvSqhdDxe+KyFhZm44v4DdlfYLqCAHr8IyVdtlZ2qDWoaceVY2DePdVGtXjl3xKC
-         G1lv1BS/pVx5mV3lwJxNTIXAvF6ivcM6R+yzutIZZgIh+SZG04/y20O8/Kp2mG1OwAem
-         9fcg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
-X-Gm-Message-State: APjAAAX4nfPTEamLdbJMRFwHVTICm8yL68+YIVVwNq8uQc3QeuVM+nvY
-	JiV8DlFdxLFbOnpuXFVtAbmFqO7cE4fwQ3BEdjmSnFphym8S9A4gCJDnYsajN8YOt5mpd3/sptp
-	YoH5ArGH3I12r7+JVeWKTpxqkW/wu3WusnRAzSMDtKzT8hNDutSf0u0Rgll+XOADaQQ==
-X-Received: by 2002:a1c:7e10:: with SMTP id z16mr768577wmc.117.1554311980819;
-        Wed, 03 Apr 2019 10:19:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyzvdGXDKOvYDn11Chb3nzFbtuDTPacLWdj0ALM2FzqeYXUa6mdAxyGhxNX5N6unq2tSXTC
-X-Received: by 2002:a1c:7e10:: with SMTP id z16mr768532wmc.117.1554311979928;
-        Wed, 03 Apr 2019 10:19:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554311979; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=zModaMrriE/hDDtVlXWrEVhoyZAp1FMyXnAmN/NXe0E=;
+        b=eJvIGJTEsNTy4Uy22MUCAw2pHcydV37KgTVtHbJMWEfi6LhUKfcM18XkeH7XYHTFDV
+         ui/6a2ZCRb0nNTfxi1yWbl9Zyr4QWOr9PPSnMWxMG4M6DmmCAdIXT75kDCrFBrFE/cTf
+         YrWEGBjPbsZpz4nzN1ETxkhNA2hbKIdePKSR1qjx2yJzetBzyBBeH18yGlnP5kkPFJLn
+         k1oPNFmG7neEd9MUjwPgIM2Ol3aW7OaAFw0LoF86UnfUh37yEb2Hfu3j+jeSXHqI3o/a
+         j9PDlj7QIz1Vks9ucnGYRx1EwFu1SpQGYVxxOGW4Jm7aBXfbrQq0H0WQDCpnLQKf7Okk
+         S3CQ==
+X-Gm-Message-State: APjAAAXJoX63flZrfygp0WSaMteI42lXu9xWgh69nyHSqpLsgXI7DwYI
+	pGVtr3W+pcUun4UhlpMrS+GKZoCTV9N6yNpHAQhVWgAJjdKJ5iDBiDSYzdRO5RCLLAvm/PXjlzJ
+	HNJtY3LCIO+p5VLaEfSvC0flivskJSzc9rAmOJ6SDHIUjrhMjcJNaHR08Us9Amo95tw==
+X-Received: by 2002:aa7:9116:: with SMTP id 22mr587719pfh.165.1554312225691;
+        Wed, 03 Apr 2019 10:23:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwuBfKFLvS7XMTfaRqKwFEWkfsn4O5/2yNyiUIGsT5bWp6Owp5A4HFffS+i4jb0IuTOhFKj
+X-Received: by 2002:aa7:9116:: with SMTP id 22mr587659pfh.165.1554312224944;
+        Wed, 03 Apr 2019 10:23:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554312224; cv=none;
         d=google.com; s=arc-20160816;
-        b=ooBVdA9oasEqRNoC5L7nHyfgmFoNtbfzhUeSoZGbgZ+6Zi6qHb8RYuC1YTjwkxhUtd
-         pH15SyhWDhTCt2OpxgFt9ey/Ij2DYguu86YXQjY5CHE2KXLPAjKoGRFwfBTAxuN65NZ9
-         3NTp5mJU/8R07AJHdNenyEkkMVFCtXvp7IiTxElHHIUOGJOkZv00pC4rjZPFyK/SFZr9
-         WCKC79WtnfyRWetaJUcvLLBKk5KrieTqiXpiy6LrV43ZePRBbZ4hflLt1qpXLCxUoBKz
-         Yr5G4ycWhz+D+FpTlRhBMFXDKgC3WQPBvPcOiFsSDk4uvM7b0c/MNf30ngFxEdKNTjM0
-         j5rA==
+        b=LeP2PET1sB0Ak9TvEeveW2cEdRhKCQfvjDSX5F1hj7JzdS/9u1ni/J8PGA5vTvtFHi
+         +5R/T65hRYchL27SBHFfAsbKZeLdAb7u8FkXhgnQX/4EEgPHWexhxDI/QXrdqBs5K4Tr
+         hnuoJaWpYS6ikv9bMkjlSYri0wrMFX5Eqh1HVduiq8cPnwgbo0XxlGMAgymgUxNp0bvT
+         yx8XiWHYGJOyZvzM6T7V8XA+UsDM1Qva/LZU1omwwv16dOugt9Ma+MiI+ajmP9Ci1fOo
+         ykynfIXLTBsh0E/xWtL261Q8rqeuBQVJN9Ny10fvOG6ZtObmbZiKQT/ym0MwKX2Ehn65
+         aAEg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=sender:user-agent:in-reply-to:content-disposition:mime-version
-         :references:message-id:subject:cc:to:from:date;
-        bh=Nrovqt/E3sLIY0UINWIZm4LZjlIUz46vFJMaX0OPy6U=;
-        b=SbLEru+5PbpKe0Z59CpZfuCc138S6JMtDMVO6lULMGHleXc8mAHmjtfgah05N/xdZ7
-         0NyhHWnXzTvQcnVeYs4jvhgCLvc/3uenbYuZgsYvuHAcGWHpvdZh/mOZ1sXG5BDyFfIk
-         ZrBYbxcIu2DZ80Yv7n39iari3xcaVhkxX4y1gFAB34qja1rv5JUNmiZHoLD9BRWct8ik
-         cdDdUzDBEMyVT1hEVkY8MRErY1fYD0iGOq5DuNBYPLvEjEFF0IRlcanZwshplVF+KnAy
-         0b3acDSx8XIcxtrMDmoxgVN1yoOk7yMt6sEjZhtImeSmIwX51lotb07OCPvI+nUYbhSe
-         79dQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=zModaMrriE/hDDtVlXWrEVhoyZAp1FMyXnAmN/NXe0E=;
+        b=yD8EodMoTVInMEBq38hsBddqgkZMhyZE5sG/fWlJ1Oz/fx2qbWs9iZSpoZjRT1DJUW
+         v2xB53eLZVwgigjH07npfupgLqGQClA0Ru6Owsf5JH3dozKLAfNuO3lSDL3rTWYjGgrw
+         wbuMBpbFeMAYU9VifaKEU44pNumRL8ZkhYHXBF14XskC391a93w/UcVHGvNRz+UtuIji
+         MM0dju38LG1KXEf3vLLI11nUuLcqgln1pwSJkDvDA3nGebb01YO8OP2xEuzi28GjyWHX
+         XXYI5rj+4jyBGWIFPFXSPZoX1ctx9gMeOXhacbRUauQvAMI8EPFmxrlvCgszTArScCDW
+         Otpw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
-Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
-        by mx.google.com with ESMTPS id c4si10576958wrv.79.2019.04.03.10.19.39
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=WcbLykPN;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id j15si14325814pfi.8.2019.04.03.10.23.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 03 Apr 2019 10:19:39 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) client-ip=195.92.253.2;
+        Wed, 03 Apr 2019 10:23:44 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
-Received: from viro by ZenIV.linux.org.uk with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hBjXl-000498-1C; Wed, 03 Apr 2019 17:19:21 +0000
-Date: Wed, 3 Apr 2019 18:19:21 +0100
-From: Al Viro <viro@zeniv.linux.org.uk>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=WcbLykPN;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=zModaMrriE/hDDtVlXWrEVhoyZAp1FMyXnAmN/NXe0E=; b=WcbLykPNLboAU+ciI4NMLCIDe
+	Z6anVMTST5BQ6g4ZKs+bxsg7dmx353AbIHO2bgVpKlNZZbXPkrk+WnujgQGLRQy8K3SRqyQiJRutv
+	jkjwjTRBL4EvWM/7izzAvy3lOSaBii31BfLfeft6t9K0DhmrlT+B92H7hvxcpjrQVaqAtsF7JGi1F
+	5ySylFRefcmQbe8SXpN+HPk1EGwuI6qu0XgykFmEZ7OUhIWcmSkrGdgoWqYKTFEFRIZLfW1+/OO3I
+	WaTFaUxXw7a3aMmahQg5Mxahyq627ia53RCgEOHLMocouJ2HFgeSu8HXGnPkZXOA8zR6JvNKwhQpk
+	WKpMFrsxQ==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hBjbi-000465-Iu; Wed, 03 Apr 2019 17:23:26 +0000
+Date: Wed, 3 Apr 2019 10:23:26 -0700
+From: Matthew Wilcox <willy@infradead.org>
 To: "Tobin C. Harding" <tobin@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>,
 	Alexander Viro <viro@ftp.linux.org.uk>,
@@ -88,7 +103,6 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>,
 	David Rientjes <rientjes@google.com>,
 	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
 	Christopher Lameter <cl@linux.com>,
-	Matthew Wilcox <willy@infradead.org>,
 	Miklos Szeredi <mszeredi@redhat.com>,
 	Andreas Dilger <adilger@dilger.ca>,
 	Waiman Long <longman@redhat.com>, Tycho Andersen <tycho@tycho.ws>,
@@ -96,55 +110,64 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>,
 	David Chinner <david@fromorbit.com>,
 	Nick Piggin <npiggin@gmail.com>, Rik van Riel <riel@redhat.com>,
 	Hugh Dickins <hughd@google.com>, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
-	Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [RFC PATCH v2 14/14] dcache: Implement object migration
-Message-ID: <20190403171920.GS2217@ZenIV.linux.org.uk>
+	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+Subject: Re: [RFC PATCH v2 09/14] xarray: Implement migration function for
+ objects
+Message-ID: <20190403172326.GJ22763@bombadil.infradead.org>
 References: <20190403042127.18755-1-tobin@kernel.org>
- <20190403042127.18755-15-tobin@kernel.org>
- <20190403170811.GR2217@ZenIV.linux.org.uk>
+ <20190403042127.18755-10-tobin@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190403170811.GR2217@ZenIV.linux.org.uk>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190403042127.18755-10-tobin@kernel.org>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 03, 2019 at 06:08:11PM +0100, Al Viro wrote:
+On Wed, Apr 03, 2019 at 03:21:22PM +1100, Tobin C. Harding wrote:
+> +void xa_object_migrate(struct xa_node *node, int numa_node)
+> +{
+> +	struct xarray *xa = READ_ONCE(node->array);
+> +	void __rcu **slot;
+> +	struct xa_node *new_node;
+> +	int i;
+> +
+> +	/* Freed or not yet in tree then skip */
+> +	if (!xa || xa == XA_RCU_FREE)
+> +		return;
+> +
+> +	new_node = kmem_cache_alloc_node(radix_tree_node_cachep,
+> +					 GFP_KERNEL, numa_node);
+> +	if (!new_node)
+> +		return;
+> +
+> +	xa_lock_irq(xa);
+> +
+> +	/* Check again..... */
+> +	if (xa != node->array || !list_empty(&node->private_list)) {
+> +		node = new_node;
+> +		goto unlock;
+> +	}
+> +
+> +	memcpy(new_node, node, sizeof(struct xa_node));
+> +
+> +	/* Move pointers to new node */
+> +	INIT_LIST_HEAD(&new_node->private_list);
 
-> Oh, *brilliant*
-> 
-> Let's do d_invalidate() on random dentries and hope they go away.
-> With convoluted and brittle logics for deciding which ones to
-> spare, which is actually wrong.  This will pick mountpoints
-> and tear them out, to start with.
-> 
-> NAKed-by: Al Viro <viro@zeniv.linux.org.uk>
-> 
-> And this is a NAK for the entire approach; if it has a positive refcount,
-> LEAVE IT ALONE.  Period.  Don't play this kind of games, they are wrong.
-> d_invalidate() is not something that can be done to an arbitrary dentry.
+Surely we can do something more clever, like ...
 
-PS: "try to evict what can be evicted out of this set" can be done, but
-you want something like
-	start with empty list
-	go through your array of references
-		grab dentry->d_lock
-		if dentry->d_lockref.count is not zero
-			unlock and continue
-		if dentry->d_flags & DCACHE_SHRINK_LIST
-			ditto, it's not for us to play with
-                if (dentry->d_flags & DCACHE_LRU_LIST)
-                        d_lru_del(dentry);
-		d_shrink_add(dentry, &list);
-		unlock
+	if (xa != node->array) {
+...
+	if (list_empty(&node->private_list))
+		INIT_LIST_HEAD(&new_node->private_list);
+	else
+		list_replace(&node->private_list, &new_node->private_list);
 
-on the collection phase and
-	if the list is not empty by the end of that loop
-		shrink_dentry_list(&list);
-on the disposal.
+
+BTW, the raidx tree nodes / xa_nodes share the same slab cache; we need
+to finish converting all radix tree & IDR users to the XArray before
+this series can go in.
 
