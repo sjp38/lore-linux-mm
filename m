@@ -2,108 +2,103 @@ Return-Path: <SRS0=DmM3=SF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 08253C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 08:17:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D3428C10F06
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 08:20:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BA5342084C
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 08:17:31 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA5342084C
+	by mail.kernel.org (Postfix) with ESMTP id 8BD6421473
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 08:20:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8BD6421473
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 524D96B0008; Wed,  3 Apr 2019 04:17:31 -0400 (EDT)
+	id 398036B0008; Wed,  3 Apr 2019 04:20:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4D01B6B000A; Wed,  3 Apr 2019 04:17:31 -0400 (EDT)
+	id 36FE36B000A; Wed,  3 Apr 2019 04:20:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 332DC6B000C; Wed,  3 Apr 2019 04:17:31 -0400 (EDT)
+	id 25EA56B000C; Wed,  3 Apr 2019 04:20:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C9F26B0008
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 04:17:31 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id g7so13942776qkb.7
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 01:17:31 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 081F06B0008
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 04:20:40 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id z34so16104975qtz.14
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 01:20:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=vDWFrrrmVN71h31ZLDbUO5HYDV9P0xTCBEXzKPdo/oQ=;
-        b=n5z8A20dVOUlSs6dvq5w2PcCNhp4t+eaVaKSMvFTlnWn1T/eN98bHqMLuJlb4qGjSN
-         WiMXkwbnp41Z6XZD7avXOMaaj+BxrEBmWH2/SiRQJSq+AS26Ywt2RWmr+pAykv+Zw3bH
-         XMRFRSxhuMekEkh5x2DQgVsPOkyJbKggdV3Isx/o02EzvGFFmSFHe2/4WieQwoDvLuH3
-         bF9dnhzvbh06KfZ9alpqvmy3HQLRj3D8dZNZq8M963gtsBIUNtTrMJ2MnTlwWaO6SrkB
-         1Iz1sOsRzx72gQLNGP2eaZam4YM7xZsc5npomd2wQ21flS4gHC7TiAfRpaub/ZbOHt5o
-         QQpg==
+        bh=pdrGnibi9CY36LQxVDUKmhIkfYPLUJxTINRB43JrB5M=;
+        b=ByNRMbliHkx+M7ckYTYkapg84Fyilyx1pCaoyMRWgx17dhS5Fx1I50Mft2e7GZhrom
+         JwqdMjeqPvynbE8bHAynwe6R0NNhgP8U/ba5DXe7O+GDXOAxJW7RTbqVQHKK2nu06YuY
+         oidYEomrYPOPV7nExBH5zgP/RrCkPj+UKM+1gzt1pdtfPuCTKAbtNQ2ZMjahuKLbmk56
+         3bJMOddBQ56s3pk/TCpn1DYA3KJ92s37TKAoSCQSa9+axNIqKGknTAjn4L1kywtG8R6L
+         7N9v4a+zAn4bRlvEiuTu3kFoDqEJ86SFkO/0jh9dWDdXQcOWauiMXvKSyXp5HePg6Fic
+         YVEA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXYvlQXFx7tKKwE4rMpUKrZvRmBv1kSjsgrS1aDr9efnQ5Q1Ypp
-	T2iIwa3JdQhODhEMcC3c5LnXW8VdZrNzCroYL/ZWsIuROhRzrReEQS1XyyCw/1yr2YxgO4p/V4E
-	Bkhf4u3oG7MxcssCLrxzADGYqaUgJ9syXf4KdahrkUVie7M/x2dxmk3j46CeaNmq8GA==
-X-Received: by 2002:ac8:37c7:: with SMTP id e7mr53782843qtc.46.1554279450807;
-        Wed, 03 Apr 2019 01:17:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwWbYlOd7Ue2edGyys+03dnLyloIVK0YWPpTGEwBMa2NDvad8QcataWXrW2FYilsRw+Jbwy
-X-Received: by 2002:ac8:37c7:: with SMTP id e7mr53782812qtc.46.1554279450281;
-        Wed, 03 Apr 2019 01:17:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554279450; cv=none;
+X-Gm-Message-State: APjAAAWnIFDKDi74tLiyeanamezTFYECsOSb+A0E+pBg+hpUedyuKjLf
+	GbGp1ZSMZ9TfIUkY4sZEeOsVv2b0SkbNAa5z+WgYQ3UTJsyPM7zHtre32haERbnZseyYou5Ym6+
+	iy1flWs/PgLhl6ObNxo2I291eHp6TRO5KJm6WehU786W9jVpHN0BCYZsV3SpDB89PXw==
+X-Received: by 2002:ae9:e109:: with SMTP id g9mr56306528qkm.251.1554279639771;
+        Wed, 03 Apr 2019 01:20:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz3+rSlvNyGJB75o9IzzEPjBPD4ypafc/iYxHGy2jwPUgT3NRSWCxe4QGq/u6OMoPOnvR40
+X-Received: by 2002:ae9:e109:: with SMTP id g9mr56306482qkm.251.1554279638990;
+        Wed, 03 Apr 2019 01:20:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554279638; cv=none;
         d=google.com; s=arc-20160816;
-        b=Wdr77NnFiziwKa6sjauuO7CLrmBfKSheD/lDLKJodemv9JabSs7FxYih8OMjLW8txF
-         Jvw5SFm0P97irNglwp7N4970Yc0RBZGBBOPC83fivGICHX8kpa+TVFyX7YQs+DDFBZW7
-         AGiiT5WA+QFiglgInXElwJtc9eFQJPRZJC0yT2/q7z1Vu53vmfRkTZEy/dtHSpNe44eg
-         OjBeI92e33eyaPt1e8OOPOb1rRTPjQNV//kTHWrt0ToucBxLpE4pKUvrjzlnuUzyPdh7
-         Xwtvx7T8C05nuaZaaIqH8tLqv9KYE08A/NKBzi3TuwPVVLBSfxFZ5nThNdg3nNt2OHSi
-         PAkA==
+        b=YytNRtzC4WJExhp/ePwr9i+/R1BtSU3GYuAleEbTWMuvAeeqB2kPecxJrHMuvIQqqb
+         j7HYzLb3HipvLuaYfS3oP0PHn3cko+4p3HMd8t3we51SlomuJee5zI9f/QxKdF8y+0Sl
+         NON8PSLG6FmZdAOnBe7+AVTAN6P+KfuJRX3V6UZreWru8qVeUSNqeqMiqTydhWmWZOyC
+         RaXtHvzkdueFoxwS3G66xVIbCWHsow5GSA0xSwf9MiUkHmG9hl/PTgR2s6p8UawtHuhV
+         zgSxIy/C8LK533ujcGnlr30pmSpJV4sXqTCaCC4R+gTXR5mI3cuWi0HFiQdutj6Bqr/j
+         UTFg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=vDWFrrrmVN71h31ZLDbUO5HYDV9P0xTCBEXzKPdo/oQ=;
-        b=AXTXk8MKMZvfVWUkLIZ+tkuntY+n5Pm6nzvUloYEv2IEMtGwiHZM4mUgtahWqqQ5D2
-         kpmiMz2f/hvv6j/l7trqVEEWIw0ewVgYH57TBpqTgPVtXOb5NidAAoWZWY013gnrbR5b
-         lJ9AcRBwWXocR7m+vVJOdP1iLmgYAcGdKTnPafuxcAyKJGk/29EtQkVaSMoiSCqfopGs
-         mCYHZ63Y++rpH/sjk2GPMmx6o4+Iwh+sxs2qPmMJUoKZvK95GDFtnnSJq1NZ8hRKkOeG
-         LgNRM2A75XI/IZMVzNplhsk4yuiFX8qrNip2ZredhyT5a6ZJKTmu0e3V8ABxick2151D
-         MaOQ==
+        bh=pdrGnibi9CY36LQxVDUKmhIkfYPLUJxTINRB43JrB5M=;
+        b=zyGlQnAJfTbfvViSyJIq3DZHXW3ffVXiFACvddVpAJsCkivLrQAWawWTz+mvsSMMls
+         GLYjuM1ZYYL29F/SYKU/Yl5xzT6cFf8ybj4pY/dgIrkHi8Dj7HdxBJAHapKL2ZLlBXH5
+         TzljJnkB0YK/7wKH/BAlD8lnApdWvylZAwIcaD3fKtmOjXGljxoyERrqYWGHqVyBlcVF
+         nSVHnWlfPvsoiFnJKf4EQRjYFrYLl6AawTvDobk24pcvSa7lPg7kNqwXBm3aMUQh54mB
+         1mYudVdqAT9ilWiZGZRLK6fJA9uam9pkxHVG7Mf7xROEqWuGPRcUD0iJeOrkMThllNVA
+         Ngdw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c47si3520147qve.197.2019.04.03.01.17.30
+        by mx.google.com with ESMTPS id a62si3275695qke.96.2019.04.03.01.20.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 01:17:30 -0700 (PDT)
+        Wed, 03 Apr 2019 01:20:38 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 5B3DA30B9318;
-	Wed,  3 Apr 2019 08:17:29 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 52B1E2026B;
+	Wed,  3 Apr 2019 08:20:37 +0000 (UTC)
 Received: from [10.36.117.246] (ovpn-117-246.ams2.redhat.com [10.36.117.246])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id A5D5C608D4;
-	Wed,  3 Apr 2019 08:17:27 +0000 (UTC)
-Subject: Re: [PATCH 0/4] mm,memory_hotplug: allocate memmap from hotadded
- memory
-To: Michal Hocko <mhocko@kernel.org>, Oscar Salvador <osalvador@suse.de>
-Cc: akpm@linux-foundation.org, dan.j.williams@intel.com,
- Jonathan.Cameron@huawei.com, anshuman.khandual@arm.com,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org
-References: <20190328134320.13232-1-osalvador@suse.de>
- <cc68ec6d-3ad2-a998-73dc-cb90f3563899@redhat.com>
- <efb08377-ca5d-4110-d7ae-04a0d61ac294@redhat.com>
- <20190329084547.5k37xjwvkgffwajo@d104.suse.de>
- <20190329134243.GA30026@dhcp22.suse.cz>
- <20190401075936.bjt2qsrhw77rib77@d104.suse.de>
- <20190401115306.GF28293@dhcp22.suse.cz>
- <20190402082812.fefamf7qlzulb7t2@d104.suse.de>
- <20190402124845.GD28293@dhcp22.suse.cz>
- <20190403080113.adj2m3szhhnvzu56@d104.suse.de>
- <20190403081232.GB15605@dhcp22.suse.cz>
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 79C4E17AF3;
+	Wed,  3 Apr 2019 08:20:33 +0000 (UTC)
+Subject: Re: [PATCH 1/6] arm64/mm: Enable sysfs based memory hot add interface
+To: Anshuman Khandual <anshuman.khandual@arm.com>,
+ linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+ linux-mm@kvack.org, akpm@linux-foundation.org, will.deacon@arm.com,
+ catalin.marinas@arm.com
+Cc: mhocko@suse.com, mgorman@techsingularity.net, james.morse@arm.com,
+ mark.rutland@arm.com, robin.murphy@arm.com, cpandya@codeaurora.org,
+ arunks@codeaurora.org, dan.j.williams@intel.com, osalvador@suse.de,
+ logang@deltatee.com, pasha.tatashin@oracle.com, cai@lca.pw
+References: <1554265806-11501-1-git-send-email-anshuman.khandual@arm.com>
+ <1554265806-11501-2-git-send-email-anshuman.khandual@arm.com>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -150,55 +145,63 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <d55aa259-56c0-9601-ffce-997ea1fb3ac5@redhat.com>
-Date: Wed, 3 Apr 2019 10:17:26 +0200
+Message-ID: <4b9dd2b0-3b11-608c-1a40-9a3d203dd904@redhat.com>
+Date: Wed, 3 Apr 2019 10:20:32 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <20190403081232.GB15605@dhcp22.suse.cz>
+In-Reply-To: <1554265806-11501-2-git-send-email-anshuman.khandual@arm.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Wed, 03 Apr 2019 08:17:29 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Wed, 03 Apr 2019 08:20:38 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 03.04.19 10:12, Michal Hocko wrote:
-> On Wed 03-04-19 10:01:16, Oscar Salvador wrote:
->> On Tue, Apr 02, 2019 at 02:48:45PM +0200, Michal Hocko wrote:
->>> So what is going to happen when you hotadd two memblocks. The first one
->>> holds memmaps and then you want to hotremove (not just offline) it?
->>
->> If you hot-add two memblocks, this means that either:
->>
->> a) you hot-add a 256MB-memory-device (128MB per memblock)
->> b) you hot-add two 128MB-memory-device
->>
->> Either way, hot-removing only works for memory-device as a whole, so
->> there is no problem.
->>
->> Vmemmaps are created per hot-added operations, this means that
->> vmemmaps will be created for the hot-added range.
->> And since hot-add/hot-remove operations works with the same granularity,
->> there is no problem.
-> 
-> What does prevent calling somebody arch_add_memory for a range spanning
-> multiple memblocks from a driver directly. In other words aren't you
-
-To drivers, we only expose add_memory() and friends. And I think this is
-a good idea.
-
-> making  assumptions about a future usage based on the qemu usecase?
+On 03.04.19 06:30, Anshuman Khandual wrote:
+> Sysfs memory probe interface (/sys/devices/system/memory/probe) can accept
+> starting physical address of an entire memory block to be hot added into
+> the kernel. This is in addition to the existing ACPI based interface. This
+> just enables it with the required config CONFIG_ARCH_MEMORY_PROBE.
 > 
 
-As I noted, we only have an issue if add add_memory() and
-remove_memory() is called with different granularity. I gave two
-examples where this might not be the case, but we will have to look int
-the details.
+We recently discussed that the similar interface for removal should
+rather be moved to a debug/test module
+
+I wonder if we should try to do the same for the sysfs probing
+interface. Rather try to get rid of it than open the doors for more users.
+
+> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+> ---
+>  arch/arm64/Kconfig | 9 +++++++++
+>  1 file changed, 9 insertions(+)
+> 
+> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+> index 7e34b9e..a2418fb 100644
+> --- a/arch/arm64/Kconfig
+> +++ b/arch/arm64/Kconfig
+> @@ -266,6 +266,15 @@ config HAVE_GENERIC_GUP
+>  config ARCH_ENABLE_MEMORY_HOTPLUG
+>  	def_bool y
+>  
+> +config ARCH_MEMORY_PROBE
+> +	bool "Enable /sys/devices/system/memory/probe interface"
+> +	depends on MEMORY_HOTPLUG
+> +	help
+> +	  This option enables a sysfs /sys/devices/system/memory/probe
+> +	  interface for testing. See Documentation/memory-hotplug.txt
+> +	  for more information. If you are unsure how to answer this
+> +	  question, answer N.
+> +
+>  config SMP
+>  	def_bool y
+>  
+> 
+
 
 -- 
 
