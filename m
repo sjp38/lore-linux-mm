@@ -2,172 +2,175 @@ Return-Path: <SRS0=DmM3=SF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_NEOMUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A4058C10F06
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 16:07:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CA3C7C4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 16:08:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 61B4D206B7
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 16:07:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 61B4D206B7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 5136A206B7
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 16:08:48 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="SK873dho"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5136A206B7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C9B4F6B0007; Wed,  3 Apr 2019 12:07:35 -0400 (EDT)
+	id 0642F6B0010; Wed,  3 Apr 2019 12:08:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C4A416B0010; Wed,  3 Apr 2019 12:07:35 -0400 (EDT)
+	id 015226B0266; Wed,  3 Apr 2019 12:08:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B39D56B0266; Wed,  3 Apr 2019 12:07:35 -0400 (EDT)
+	id E468C6B026A; Wed,  3 Apr 2019 12:08:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 920776B0007
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 12:07:35 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id z24so5488955qto.7
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 09:07:35 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C3F8C6B0010
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 12:08:47 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id r21so13983147iod.12
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 09:08:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
          :content-transfer-encoding:in-reply-to:user-agent;
-        bh=+t9zGWo/D9Ij8TkTpZuEmfDN0c4KJqeCxCftzTelGFc=;
-        b=Qey8ftlN+PUrX1XqP5l3vF0uKtyeI2igoLeZQyD4MT3e+UkrFlQ4K1CMIjG6CnpkQE
-         5IEpd0xuGGXlJnO+qW4e9q8lybH/n5OiMIl2CxLVtAzT6nWvxHHOzeJiLKYH+e/XWJdY
-         JScZagShA2BRygUBzKh+FxIpytMiHH/ldqpEiIxAJchHsdC4C3cPRMbrIGiE4/DQgE2l
-         7HDFGMCODu6ZkSuCchOJEbEnUvQdUNrlcCq6oifAGhlxvoTRs8gFk0ArZ/rMhGm0/jFd
-         D9OMNrMkqM4euIuJUVEnwpW4oiOqrl8u2QfTU9Jbxjt1bdZXQQQKTQ4OcYFSPIeLWNIt
-         CMFA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUIPEZ0h/ixrmnw5OHY2dSpcOonx+oDkrbqggpAWCGAgzTZ0PRr
-	kDT70VMWtB2KkNGXzmaDblaldubYi1eKLxqye+sOlUzWZ/MLPDA9DISXAQlkMzKXboCKJGSdhfx
-	UQKxN5l1PX7rQomyQzNWK4Gye19ZuGBF9e/6JUin7swkCpMo4TEbnPxHha28h1hbNcg==
-X-Received: by 2002:ac8:2ed4:: with SMTP id i20mr749067qta.52.1554307655161;
-        Wed, 03 Apr 2019 09:07:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwbWfz7Cf/KcmaoQahOIiJeOr8ls/M5WEo5BLNbpysihKXy5MazHthTacKxCNiBL2/S2gvv
-X-Received: by 2002:ac8:2ed4:: with SMTP id i20mr748986qta.52.1554307654334;
-        Wed, 03 Apr 2019 09:07:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554307654; cv=none;
+        bh=6UKrouLSO9YGf202OeHJTSISbS0nfGS6XGw/sMkz2ko=;
+        b=Di6D3zn0DD/E1PjIBPU5FcH1jG1QDg2p4ukkPzy1VD6jS4GCHBJ6nDPUN+66Fz9yk3
+         o/Wjre8+00U6t+3JzNxNvXh/39EfAIJGr+k53QfbkN+JxBZD4wRDznwZrnV4UpXgGin3
+         wm9Wtnot8ydJZXBKkKQvqT0UpkhUSuxy8hZiJXlhhU4oAqWWYTgiVMfHjzQeEIlE2lmI
+         eT2mrTOJirxt5dNujK8/N1XqsgwIyeAx/tiBKy6t3rUq1ESYgvU/ikGfk/PA0inaf1gb
+         s93lSV5z90lHgTO/IpUvsigrFhUXxd2UTiXmszxtzkpf10UvbXMpRJuUQ9SJHEQAofDa
+         rAKw==
+X-Gm-Message-State: APjAAAVCBQwm8Q4nJMoYSHy8Dulk6FRXw15x//jbLeWY6/5Nhy/TmGws
+	6RGKywH1X/1hk5d3ey2jjNo8wurStowu7XsmknekcHLE/uIZOii5E90isE8WM2uLAW63WHh0W4i
+	tq5sDUi3nUjtgPNFPmezCzHuKtNkKM3qdcfq9WugjmspOsd0N+F+O6GxUelDEfiH9Lg==
+X-Received: by 2002:a5e:a50e:: with SMTP id 14mr659169iog.63.1554307727571;
+        Wed, 03 Apr 2019 09:08:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqydXwlUCCot6JA2nKWXp/CjSuPEZOsbxsOFUriIgGGeSGl7RxOvaGv6XXeloH/UfEk4a9fy
+X-Received: by 2002:a5e:a50e:: with SMTP id 14mr659111iog.63.1554307726884;
+        Wed, 03 Apr 2019 09:08:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554307726; cv=none;
         d=google.com; s=arc-20160816;
-        b=AqnCgYypBEc+4KS3oaftRf+brLfOtZkrGEYOcAnKKqRF/Txf9BTGavJzmw6QnqbUsk
-         ovhArcft6/AB0cLcMUb7vFRns7dbZjY5F9/Wy3r+USyU9ldJ2W3o2x/Z6cfZ4DzZY7PH
-         U/SxKlYHGtTU28UDIF9purdP/yN5WBckc2IK8qkdpLyoCFYptZ6z90lW6s6uU11Yewgr
-         wHJrpcC4nA8tUNm203ywbtlLHto5e9I8QSlUFIesEJZJRc5rXl7G9S35POWDHoUkXe3T
-         mR+WdfiWS8mYCRVV4cRZVLEeoAhM6HmrSHnmEkS/uqMREUTw9r+L5rxdTyqg2Iv8ZSOu
-         isCw==
+        b=l3bo7ALXVyAcHQ8tV+U6NSpjfsEG85GLB0oF6qzPlU5NdBGC9JxWDxs5ZrGzwqQ91p
+         pnKdLuGvOS9xipH2ZxHFn8KpOiyzFrLSN+fnyvEqwiO8i9UonIH1JPQszsxdVqXqM1HP
+         FsihvZl5apxNhEvMXXG9Lsgm92/C/F9gW7qmXQEKZl4LxQpYrbItdX8m25Sox7ekPUNj
+         w/OASZvrPOfNWdZhFaNxLAmBY4va8x8BGEhO9R42Fu2AWt+E+b/H7SgfkUIaoDa/LsUh
+         H4zAZX6bci+ijmVpnIUh1PmyGmxYgY56FLUW/1WCqdOOe8FNsdDyUPs5y3ZMhuoLHw8W
+         Cb4A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-transfer-encoding
          :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=+t9zGWo/D9Ij8TkTpZuEmfDN0c4KJqeCxCftzTelGFc=;
-        b=Iuf19AKrINsdhubhl8zU0smsKV4zNO7SHnDi7yfZT5LeF3lnMx/JfFMfQ3p76sHGKZ
-         NwCIt2wsPD8YimR29qDAzwHekaQ3mkve1DQhzrC6c1C6fZ1w/tnksS5WXPKb4vLv8nqe
-         NSRD9/Zi7S81Tc5jECRgWmK6Gi8bMRWkqk39cOnvnQVlPUDQLZOCfPb/JxNf3qr/Jm9Z
-         T/AZZg1ZmHkeziUPJetMD6w9kET3SWCgjtSb9GDNVqnEIN+UUL0/v5mPvtKF4KGQp1OT
-         WwoEtCPRKDi92//TbRYxqkQrF2pDXyCtnGeCJ1dm2dlvEXnkcSvf8MHnepWp5loSMHHR
-         8glg==
+         :to:from:date:dkim-signature;
+        bh=6UKrouLSO9YGf202OeHJTSISbS0nfGS6XGw/sMkz2ko=;
+        b=DYeZCc7LdvY4dWDglDCRDSCcMlQa7SONACv6DEG5+NGDn2vkPdYb7zeGYGagIPUNMb
+         KPYSttkghgXuyXSxng7k4oLr9Qd2n2X/bCxEZ2ZmsmlfdOnOlDQMGx/C/A5AlP94jjVl
+         0ki4yUToShBKbZIFxpWnL7zTrAQ3aX4rRa8BfrmvpSlaFZTCa3xN1rN2JaIphqNUkwQy
+         wKjxkzTeL3Z+LhOLUt1ghhxkJEIdJABxzshwGGJKinY39fKtb0FL/yaZSUtlsnesetWL
+         0GK0ziNY4Psrk0XFud6T0MrmAXFnBBYqU4Hrb3aNI1YhZt+voKN0u137GLbRXTf5hh8Z
+         LYfw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 8si1109011qtt.203.2019.04.03.09.07.33
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=SK873dho;
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id j133si8656576itj.95.2019.04.03.09.08.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 09:07:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Wed, 03 Apr 2019 09:08:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 478CB88AAE;
-	Wed,  3 Apr 2019 16:07:31 +0000 (UTC)
-Received: from redhat.com (ovpn-125-190.rdu2.redhat.com [10.10.125.190])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id AF99B608A5;
-	Wed,  3 Apr 2019 16:07:24 +0000 (UTC)
-Date: Wed, 3 Apr 2019 12:07:22 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Robin Murphy <robin.murphy@arm.com>
-Cc: Anshuman Khandual <anshuman.khandual@arm.com>,
-	linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
-	linux-mm@kvack.org, akpm@linux-foundation.org, will.deacon@arm.com,
-	catalin.marinas@arm.com, mhocko@suse.com,
-	mgorman@techsingularity.net, james.morse@arm.com,
-	mark.rutland@arm.com, cpandya@codeaurora.org, arunks@codeaurora.org,
-	dan.j.williams@intel.com, osalvador@suse.de, logang@deltatee.com,
-	david@redhat.com, cai@lca.pw
-Subject: Re: [PATCH 6/6] arm64/mm: Enable ZONE_DEVICE
-Message-ID: <20190403160722.GB12818@redhat.com>
-References: <1554265806-11501-1-git-send-email-anshuman.khandual@arm.com>
- <1554265806-11501-7-git-send-email-anshuman.khandual@arm.com>
- <ea5567c7-caad-8a4e-7c6f-cec4b772a526@arm.com>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=SK873dho;
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x33G8eDa108963;
+	Wed, 3 Apr 2019 16:08:40 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ content-transfer-encoding : in-reply-to; s=corp-2018-07-02;
+ bh=6UKrouLSO9YGf202OeHJTSISbS0nfGS6XGw/sMkz2ko=;
+ b=SK873dhoOJ098oW9qX/LBUJG1yK+EHo0A6lM9ZNxq9LCVL4PhZTJiPZquZgVmVfDhIU6
+ gfc/VHWuIEJMhw1Q0bpaYcik0fQcG2RHWvuyXg4mvjIVhyQ0MFVRGjRVj2Wvr/fQ1/lW
+ CpJo6iLUkBVC5nhl1AzOmC0zRf7j3pyofsE7DnWNSgcuQOQxL/IyoZFCUMPv4WSAmkgC
+ FpHXzHSyHQfjeB0dA9gV+G9VB4eTpfcmZC3WEu0BVEs3RlYLcfWUee8RbaKrZwckuf07
+ tC2VlPnvohyw1xBi+C4k/3YJabuJRoHCOtbfXHwbg74phwl2Txu9+DnPkQOhq/hSlQG/ ZA== 
+Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
+	by userp2120.oracle.com with ESMTP id 2rj13q9y2k-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 03 Apr 2019 16:08:40 +0000
+Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
+	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x33G7ZGm024334;
+	Wed, 3 Apr 2019 16:08:40 GMT
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by userp3020.oracle.com with ESMTP id 2rm8f66a6g-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 03 Apr 2019 16:08:40 +0000
+Received: from abhmp0004.oracle.com (abhmp0004.oracle.com [141.146.116.10])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x33G8cBU017591;
+	Wed, 3 Apr 2019 16:08:38 GMT
+Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Wed, 03 Apr 2019 09:08:38 -0700
+Date: Wed, 3 Apr 2019 12:09:03 -0400
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+To: Christophe Leroy <christophe.leroy@c-s.fr>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, akpm@linux-foundation.org,
+        Davidlohr Bueso <dave@stgolabs.net>, kvm@vger.kernel.org,
+        Alan Tull <atull@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>,
+        linux-fpga@vger.kernel.org, linux-kernel@vger.kernel.org,
+        kvm-ppc@vger.kernel.org, linux-mm@kvack.org,
+        Alex Williamson <alex.williamson@redhat.com>,
+        Moritz Fischer <mdf@kernel.org>, Christoph Lameter <cl@linux.com>,
+        linuxppc-dev@lists.ozlabs.org, Wu Hao <hao.wu@intel.com>
+Subject: Re: [PATCH 1/6] mm: change locked_vm's type from unsigned long to
+ atomic64_t
+Message-ID: <20190403160903.5so4okn3ha2tvob3@ca-dmjordan1.us.oracle.com>
+References: <20190402204158.27582-1-daniel.m.jordan@oracle.com>
+ <20190402204158.27582-2-daniel.m.jordan@oracle.com>
+ <4140911c-8193-010b-e8fc-c8b24ffdf423@c-s.fr>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <ea5567c7-caad-8a4e-7c6f-cec4b772a526@arm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Wed, 03 Apr 2019 16:07:32 +0000 (UTC)
+In-Reply-To: <4140911c-8193-010b-e8fc-c8b24ffdf423@c-s.fr>
+User-Agent: NeoMutt/20180323-268-5a959c
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9216 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=911
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1904030109
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9216 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=949 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1904030110
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 03, 2019 at 02:58:28PM +0100, Robin Murphy wrote:
-> [ +Dan, Jerome ]
+On Wed, Apr 03, 2019 at 06:46:07AM +0200, Christophe Leroy wrote:
 > 
-> On 03/04/2019 05:30, Anshuman Khandual wrote:
-> > Arch implementation for functions which create or destroy vmemmap mapping
-> > (vmemmap_populate, vmemmap_free) can comprehend and allocate from inside
-> > device memory range through driver provided vmem_altmap structure which
-> > fulfils all requirements to enable ZONE_DEVICE on the platform. Hence just
 > 
-> ZONE_DEVICE is about more than just altmap support, no?
-> 
-> > enable ZONE_DEVICE by subscribing to ARCH_HAS_ZONE_DEVICE. But this is only
-> > applicable for ARM64_4K_PAGES (ARM64_SWAPPER_USES_SECTION_MAPS) only which
-> > creates vmemmap section mappings and utilize vmem_altmap structure.
-> 
-> What prevents it from working with other page sizes? One of the foremost
-> use-cases for our 52-bit VA/PA support is to enable mapping large quantities
-> of persistent memory, so we really do need this for 64K pages too. FWIW, it
-> appears not to be an issue for PowerPC.
-> 
-> > Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
-> > ---
-> >   arch/arm64/Kconfig | 1 +
-> >   1 file changed, 1 insertion(+)
+> Le 02/04/2019 à 22:41, Daniel Jordan a écrit :
+> > Taking and dropping mmap_sem to modify a single counter, locked_vm, is
+> > overkill when the counter could be synchronized separately.
 > > 
-> > diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> > index db3e625..b5d8cf5 100644
-> > --- a/arch/arm64/Kconfig
-> > +++ b/arch/arm64/Kconfig
-> > @@ -31,6 +31,7 @@ config ARM64
-> >   	select ARCH_HAS_SYSCALL_WRAPPER
-> >   	select ARCH_HAS_TEARDOWN_DMA_OPS if IOMMU_SUPPORT
-> >   	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
-> > +	select ARCH_HAS_ZONE_DEVICE if ARM64_4K_PAGES
+> > Make mmap_sem a little less coarse by changing locked_vm to an atomic,
+> > the 64-bit variety to avoid issues with overflow on 32-bit systems.
 > 
-> IIRC certain configurations (HMM?) don't even build if you just turn this on
-> alone (although of course things may have changed elsewhere in the meantime)
-> - crucially, though, from previous discussions[1] it seems fundamentally
-> unsafe, since I don't think we can guarantee that nobody will touch the
-> corners of ZONE_DEVICE that also require pte_devmap in order not to go
-> subtly wrong. I did get as far as cooking up some patches to sort that out
-> [2][3] which I never got round to posting for their own sake, so please
-> consider picking those up as part of this series.
+> Can you elaborate on the above ? Previously it was 'unsigned long', what
+> were the issues ?
 
-Correct _do not_ enable ZONE_DEVICE without support for pte_devmap detection.
-If you want some feature of ZONE_DEVICE. Like HMM as while DAX does require
-pte_devmap, HMM device private does not. So you would first have to split
-ZONE_DEVICE into more sub-features kconfig option.
+Sure, I responded to this in another thread from this series.
 
-What is the end use case you are looking for ? Persistent memory ?
+> If there was such issues, shouldn't there be a first patch
+> moving it from unsigned long to u64 before this atomic64_t change ? Or at
+> least it should be clearly explain here what the issues are and how
+> switching to a 64 bit counter fixes them.
 
-Cheers,
-Jérôme
+Yes, I can explain the motivation in the next version.
 
