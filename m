@@ -6,121 +6,121 @@ X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 075DFC4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 18:43:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BC601C4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 18:45:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A4CE92084B
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 18:43:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 55A062084B
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 18:45:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="Yl/xPNan";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="gfkVG0XO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A4CE92084B
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="Ve4Vyrbg";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="BkilDUYV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55A062084B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3743E6B000C; Wed,  3 Apr 2019 14:43:20 -0400 (EDT)
+	id E95A86B000A; Wed,  3 Apr 2019 14:45:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 324696B000D; Wed,  3 Apr 2019 14:43:20 -0400 (EDT)
+	id E6AEA6B000E; Wed,  3 Apr 2019 14:45:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 19CA76B000E; Wed,  3 Apr 2019 14:43:20 -0400 (EDT)
+	id D0CC56B0010; Wed,  3 Apr 2019 14:45:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BD9A16B000C
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 14:43:19 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id h27so35444eda.8
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 11:43:19 -0700 (PDT)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AD0286B000A
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 14:45:22 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id 62so13188899ybg.11
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 11:45:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
          :thread-topic:thread-index:date:message-id:references:in-reply-to
          :accept-language:content-language:content-id
          :content-transfer-encoding:mime-version;
-        bh=xakx3XOAalKXuenJk7d0hryS8+ZvFx48h2UyI+RZdwk=;
-        b=RfUNKWw7AO4M0oLtMEYW2i2RVZDPHrPZEkQlFUTQkF/fZ9lEkR6oY1Wf+5bZXeV1/u
-         w2BMNEroDdZlNoAKtIsVjlEU2QoxrRPBwqKgq9GYX+w3vEm3Bk4IlFFZgOX6A8EcLHvW
-         5dwMr8oCRCFX0o9rHSR6c1FUauyg6gLEgePFGb8V7O6DxgtXJjcwGWyffLeU3k20Pg5Z
-         Stliu+7YPDt5CElOgx2fZjPbheda9G7OE3dkcHRMBvwruQRaYjapPw8Tge5ZXcYlQqLA
-         TU7jc8KxVP/4z8q1ufZtFBUAyrXo7cqzBhj1RCc/1VBRw7Ec7zHXm1MxyxvhxpZpfR33
-         2UEQ==
-X-Gm-Message-State: APjAAAUGKc7sZai0TsBVjKj1OO7x6ootfw115GoXNDBiC/8mOO0plHz7
-	tCVIOy/93Qh6kXxo7vNmURDAixdn+t/NWDMF6zMrpBcoUQa+aJyP3PvD6rofeKxWPRNh6SRyid+
-	5iv2irU7Kw6vqSBx2OJpwcuuCnfLQ4vIMDIOVHam0FNJFxdgxjn/ocvXPk1KQv/7cIA==
-X-Received: by 2002:a50:b2e1:: with SMTP id p88mr792227edd.62.1554316999349;
-        Wed, 03 Apr 2019 11:43:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx7D/LSgmuRE8FsQJvR/ETjcDYq+FPOGMhSkVmQ3+1KQc7Rpy3hy8CYtO2FYS6w9IqHIgBv
-X-Received: by 2002:a50:b2e1:: with SMTP id p88mr792194edd.62.1554316998706;
-        Wed, 03 Apr 2019 11:43:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554316998; cv=none;
+        bh=L7FIHyvcM/tt1s1gSuW9RkbRdE58Qv8n7027w8tuaJc=;
+        b=KFNfUTXkkHD4TPcZyMYPRrfxvbL3EhUrjbZjAPaFBDjFODdoolI0Ifk119GAezAWhT
+         mcNh2vxIz39P4B3QGxM3xmODQuYWHUp8Op7ZdblOGmHflNHi+8OZKW206Sxr5cVhHw0q
+         uYMiwMmr17BNI0M9nx3SIGFQJt15piUH8GmkGWjIlTBMPhg0edFj16+oYTYqQFe3gZ+g
+         pHCkOKt4sL3glqyNoiKBLgFSPTK1McbpE6YOoR+HoYhvWHcBXAIPUpeZTzYD9Clbces2
+         VL4WEilZa6Fv0ZQq5gqPejxYCvo6dg8EKoLF6mCIf+u64rNWqPblSHKp1wv42CUqn8vI
+         6e6Q==
+X-Gm-Message-State: APjAAAVlLdUY7FHI2Wk7uNbb5B1NkpOwbr0TCfUVpzeVVkYPLFvRgfX6
+	y3nIh2mCGH59PxbyoMFrvBYR8O/09b4FpLpELHQtvl6bD49boPQakJz6z1N0IQGs664LbLz9lnC
+	hv+6uOvToM1mJaiWUQIvEvU2BsWAYE1kT0aWi5tkf9uUc9EGbUaJoSP/7Hki71lik4Q==
+X-Received: by 2002:a25:ba8f:: with SMTP id s15mr1430866ybg.411.1554317122484;
+        Wed, 03 Apr 2019 11:45:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwElZFMGxcAx3TOmJzgFHFj1AyXB/t9ezJ2cIP/mGQc8KnmhtIRUaKWM5WTntcNLsp+wHkK
+X-Received: by 2002:a25:ba8f:: with SMTP id s15mr1430827ybg.411.1554317121983;
+        Wed, 03 Apr 2019 11:45:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554317121; cv=none;
         d=google.com; s=arc-20160816;
-        b=priFphopG9v84oKs5rgjiyh1B5tNIhilA/hb9DAIQQ/gqkWh+JeXKcmVY0Fmb7/5La
-         mnrXLblet2f19k5K2f89S1+uwLVPnn8i6lOgXhajYoSYS+OkLJqDDNifQjdfTYnZalXK
-         lTuKhZb3Jn+3T/0hnfZcr63+BSuj+C1AhxbD3OXPisGaiF7dQ1uJEbdFtf1vjPvkyKjl
-         K21Tc+kJ0Pe5v25D+hBHKSGXaRuqX9goufJ4BnCiVb2pknXnWDnqrfs1DjNJuAcG/RQS
-         /GSP/6QgNBJR9KqRWT65Z+266k19HPVLlgRirAd7gUaK48qtNtLZ9RflhVho84GVJHVU
-         4zRQ==
+        b=SR6qQFj/tCS7C8bpyDOY9A0o8pCSVp1WJjaX8fp0hKn2UTbuKQZ50Ujl3MN1GpvZob
+         aKx8z/Z4XTg0lKoFp525POBxrNJm6YtJV85dStnGxCQLuSsdrEpF6ERfCMKtnhZzPmle
+         Yh7sVGqcc813pO2GGZOP3EFA82Unf43pvcpp1mQu4D0eM0ar4iYsUqgxRuq5cgf+iD9V
+         9exrdoP1ihQjF5v1/KUexfuxb6En+cJw3VKB/YBXk0FR+q8W8ng1F6fSAjWb7E7VYpKL
+         FWy/tgSZCPRLGcpGjkr/DOrboEZQ3M5VdGCMX9oqXraWGrUZp9wKDyjmkneR9e9OgAsc
+         klIA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:content-transfer-encoding:content-id:content-language
          :accept-language:in-reply-to:references:message-id:date:thread-index
          :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=xakx3XOAalKXuenJk7d0hryS8+ZvFx48h2UyI+RZdwk=;
-        b=SJaNfmuc4NCNhuKECSO261iOpOMEc176isoxCLYUTbmRJfejtmqv7ioJn/QrPoGKB7
-         NhWna+fBqypM5nkn9phnCEGx+h2gkbJNBc0A0JHzu2DwVB/x3F2f9WPEo/TrWwxbUa70
-         cMjkZNyTRLcVdMPxzAtjKh4/oP40ZxOatvEJZBVStscHvWIeC8M6wrXehHXVPRLlMqoH
-         F/eGqhLCSD7d7bxTNZ2rUtUDLnQx2Y+R+hIxm0/KtiuVP/uXhpt7Z3emdiZZhciQM1eF
-         SYQy194dMxJpzHT04YvwIRExf6Eos4wUNVq7jddppsF+0XAPBrq0y22Y5iwP94QZ95KJ
-         1rZA==
+        bh=L7FIHyvcM/tt1s1gSuW9RkbRdE58Qv8n7027w8tuaJc=;
+        b=QbAxm75FCkWap7gFJi8AsZdlTJUgVqiRgmXZjbM7EjyK1+6ZrGdh40L/bEHeX+8P7N
+         r5oY2yGH9z6amc2raa5UXnzIMCc23gPk4YG1OQAWKIg/pZeYBcAK6HsSD4sA/uSJZgxS
+         UUANs79lX0m9W6cP0bZGyRj2qxqvy03V9Rj+8YQ2eBfNKje28flGOH0OJHqEWybQhYTf
+         f8QCshTkRS32XZ/qVljkePv2VR1tkNxEVxMWuPJ6rbq2z4urknqzMaZMM1oELtaGBS8/
+         H/VYv/IFSAjDOq8LwnEoIMIYjSuvMulhIX3HTwfWRrYZJ5xKv9eUFL/vjmPPcYK/3YZe
+         qDuQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="Yl/xPNan";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=gfkVG0XO;
-       spf=pass (google.com: domain of prvs=99962c6dea=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=99962c6dea=guro@fb.com";
+       dkim=pass header.i=@fb.com header.s=facebook header.b=Ve4Vyrbg;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=BkilDUYV;
+       spf=pass (google.com: domain of prvs=99962c6dea=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=99962c6dea=guro@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id s3si2930659eja.174.2019.04.03.11.43.18
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id 5si1094603yba.107.2019.04.03.11.45.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 11:43:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=99962c6dea=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
+        Wed, 03 Apr 2019 11:45:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=99962c6dea=guro@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="Yl/xPNan";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=gfkVG0XO;
-       spf=pass (google.com: domain of prvs=99962c6dea=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=99962c6dea=guro@fb.com";
+       dkim=pass header.i=@fb.com header.s=facebook header.b=Ve4Vyrbg;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=BkilDUYV;
+       spf=pass (google.com: domain of prvs=99962c6dea=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=99962c6dea=guro@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0109331.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x33Ih8w2014641;
-	Wed, 3 Apr 2019 11:43:10 -0700
+Received: from pps.filterd (m0044010.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x33IiSfE019251;
+	Wed, 3 Apr 2019 11:45:14 -0700
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
  : date : message-id : references : in-reply-to : content-type : content-id
  : content-transfer-encoding : mime-version; s=facebook;
- bh=xakx3XOAalKXuenJk7d0hryS8+ZvFx48h2UyI+RZdwk=;
- b=Yl/xPNan9ifQnaFSRbHS6liDVt9rS0jkcXdkzb6vZeJb2IAiowehyScG7+jVnr/hORyl
- THs3mrOKJ5vcpOZ044e23vLWY5L3DrEtHv9tPENExZ/z5PiNrgx77g/Z1okg3495oQoF
- STEJrFQ1mqwoOahOeRqpqTe4v8lYTSogN0U= 
-Received: from maileast.thefacebook.com ([199.201.65.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2rn1hvg7na-10
+ bh=L7FIHyvcM/tt1s1gSuW9RkbRdE58Qv8n7027w8tuaJc=;
+ b=Ve4VyrbgVY16XXZvAxRcxOC18/y50DAHj9MLKANgAEQf40ViQUQtWHoW+LY/aujUQas5
+ MU4OANsVFqI7Gd7f6sX21LDh3T0/zzQ7AWxPCbRZMEzm1kLOZw2FzPDUcMu3vv88Vwt2
+ IQSRp7Ozf+Dq3+eDHu9MVDnSSDZyxmhJd+I= 
+Received: from mail.thefacebook.com ([199.201.64.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 2rmx9t953b-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Wed, 03 Apr 2019 11:43:09 -0700
-Received: from frc-hub06.TheFacebook.com (2620:10d:c021:18::176) by
- frc-hub03.TheFacebook.com (2620:10d:c021:18::173) with Microsoft SMTP Server
+	Wed, 03 Apr 2019 11:45:13 -0700
+Received: from prn-hub04.TheFacebook.com (2620:10d:c081:35::128) by
+ prn-hub02.TheFacebook.com (2620:10d:c081:35::126) with Microsoft SMTP Server
  (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Wed, 3 Apr 2019 11:43:09 -0700
-Received: from NAM02-CY1-obe.outbound.protection.outlook.com (192.168.183.28)
- by o365-in.thefacebook.com (192.168.177.76) with Microsoft SMTP Server
+ 15.1.1713.5; Wed, 3 Apr 2019 11:45:12 -0700
+Received: from NAM03-BY2-obe.outbound.protection.outlook.com (192.168.54.28)
+ by o365-in.thefacebook.com (192.168.16.28) with Microsoft SMTP Server
  (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Wed, 3 Apr 2019 11:43:09 -0700
+ via Frontend Transport; Wed, 3 Apr 2019 11:45:12 -0700
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
  s=selector1-fb-com;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=xakx3XOAalKXuenJk7d0hryS8+ZvFx48h2UyI+RZdwk=;
- b=gfkVG0XOtuz148wpdiYFT9jWKV/hQ5DC0LBgOOvadbs/GuyWuOJs9BK+tV18TKZ/xVmu86+4coLQ+8wXGmRKFcbbP83m328alu9BfNAkj7wadsbvq9Ge3gKS8nC02H1g60W7Lj0MihTK3vETyiU83VVRirOCfQ+vg+xNp3HnfKs=
+ bh=L7FIHyvcM/tt1s1gSuW9RkbRdE58Qv8n7027w8tuaJc=;
+ b=BkilDUYVdwR7h+0+ikXUbGX08fOq/k2APlz+4p3saYA3XSXbhQZFLDhm1RCHE6kEa8a7Jn574yfVhj9aAU+xt0B5kqpCzGP7HKC6s+BRPpIbqNtDaRyyfcZ7GbftxCtceIReeL75qwykTIBtxwzBZ6/FQXTYQ65aiemUIjlJyG8=
 Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
- BYAPR15MB3480.namprd15.prod.outlook.com (20.179.60.20) with Microsoft SMTP
+ BYAPR15MB3335.namprd15.prod.outlook.com (20.179.58.141) with Microsoft SMTP
  Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1771.13; Wed, 3 Apr 2019 18:43:07 +0000
+ 15.20.1771.15; Wed, 3 Apr 2019 18:45:10 +0000
 Received: from BYAPR15MB2631.namprd15.prod.outlook.com
  ([fe80::790e:7294:b086:9ded]) by BYAPR15MB2631.namprd15.prod.outlook.com
  ([fe80::790e:7294:b086:9ded%3]) with mapi id 15.20.1750.017; Wed, 3 Apr 2019
- 18:43:07 +0000
+ 18:45:10 +0000
 From: Roman Gushchin <guro@fb.com>
 To: "Tobin C. Harding" <tobin@kernel.org>
 CC: Andrew Morton <akpm@linux-foundation.org>,
@@ -133,45 +133,45 @@ CC: Andrew Morton <akpm@linux-foundation.org>,
 	<willy@infradead.org>,
         "linux-mm@kvack.org" <linux-mm@kvack.org>,
         "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH v5 5/7] slub: Use slab_list instead of lru
-Thread-Topic: [PATCH v5 5/7] slub: Use slab_list instead of lru
-Thread-Index: AQHU6ajGtW+41y5S4EKW3fNq6YALbqYqxtIA
-Date: Wed, 3 Apr 2019 18:43:07 +0000
-Message-ID: <20190403184303.GE6778@tower.DHCP.thefacebook.com>
+Subject: Re: [PATCH v5 7/7] mm: Remove stale comment from page struct
+Thread-Topic: [PATCH v5 7/7] mm: Remove stale comment from page struct
+Thread-Index: AQHU6ajOU7GynWp6IEue5SP0M2OjLaYqx2QA
+Date: Wed, 3 Apr 2019 18:45:10 +0000
+Message-ID: <20190403184506.GG6778@tower.DHCP.thefacebook.com>
 References: <20190402230545.2929-1-tobin@kernel.org>
- <20190402230545.2929-6-tobin@kernel.org>
-In-Reply-To: <20190402230545.2929-6-tobin@kernel.org>
+ <20190402230545.2929-8-tobin@kernel.org>
+In-Reply-To: <20190402230545.2929-8-tobin@kernel.org>
 Accept-Language: en-US
 Content-Language: en-US
 X-MS-Has-Attach: 
 X-MS-TNEF-Correlator: 
-x-clientproxiedby: CO1PR15CA0078.namprd15.prod.outlook.com
- (2603:10b6:101:20::22) To BYAPR15MB2631.namprd15.prod.outlook.com
+x-clientproxiedby: CO2PR04CA0112.namprd04.prod.outlook.com
+ (2603:10b6:104:7::14) To BYAPR15MB2631.namprd15.prod.outlook.com
  (2603:10b6:a03:152::24)
 x-ms-exchange-messagesentrepresentingtype: 1
 x-originating-ip: [2620:10d:c090:200::1:9220]
 x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 944a08f4-bf65-4004-6c10-08d6b86436be
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600139)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR15MB3480;
-x-ms-traffictypediagnostic: BYAPR15MB3480:
-x-microsoft-antispam-prvs: <BYAPR15MB348029F2F584370F69FA26E3BE570@BYAPR15MB3480.namprd15.prod.outlook.com>
+x-ms-office365-filtering-correlation-id: 0e80ce9b-df6c-4a14-daa7-08d6b864801e
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600139)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR15MB3335;
+x-ms-traffictypediagnostic: BYAPR15MB3335:
+x-microsoft-antispam-prvs: <BYAPR15MB3335F3A816AD9739A46E6AF5BE570@BYAPR15MB3335.namprd15.prod.outlook.com>
 x-forefront-prvs: 0996D1900D
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(396003)(136003)(39860400002)(376002)(366004)(346002)(199004)(189003)(6486002)(33656002)(46003)(14454004)(478600001)(76176011)(6916009)(97736004)(2906002)(186003)(102836004)(25786009)(256004)(6506007)(386003)(229853002)(105586002)(106356001)(53936002)(305945005)(6246003)(7736002)(6512007)(9686003)(476003)(446003)(68736007)(11346002)(86362001)(486006)(99286004)(5660300002)(8676002)(54906003)(81166006)(316002)(4326008)(81156014)(4744005)(6436002)(52116002)(71190400001)(71200400001)(1076003)(6116002)(8936002);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB3480;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(346002)(396003)(39860400002)(136003)(366004)(376002)(199004)(189003)(186003)(6486002)(11346002)(33656002)(6436002)(476003)(6116002)(46003)(6916009)(229853002)(446003)(2906002)(105586002)(68736007)(106356001)(316002)(53936002)(25786009)(54906003)(97736004)(6246003)(7736002)(305945005)(4326008)(99286004)(256004)(486006)(14454004)(478600001)(5660300002)(52116002)(6512007)(9686003)(8676002)(76176011)(102836004)(71190400001)(86362001)(8936002)(6506007)(386003)(4744005)(1076003)(71200400001)(81156014)(81166006);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB3335;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
 received-spf: None (protection.outlook.com: fb.com does not designate
  permitted sender hosts)
 x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: GrGjB722PV83xmFxXkL1w7Id3SHchCDRt9uHHDhiW9pS6aWU2j/EZMdQ4TyHnVwFlP5wtOs4vVZSZAYBQL9bUm2C4iVXs11xORyBurPrKriEcXL1Qfaaoqo4r5aM+DslVHqmpPXQuznzD2gK7yU691xGCjcXo7BIkss3onyR0/fhzfWFKXKu5BikQ34cs2b5Qzk6duTgPugFJUk4wCySDDk7UHJDqlkxbYEWU4mUXG++vwLxVfcbIqXpMHK/PD+bt0tPMulef/e3hbgqZObq1R1EwuojjC9uiamYoZIaDeoyFVllS0hWK+MHJe4Y/nkKNV3gzuemsJa+DidDbdZj8Vu4cn1oqiImjpVTO+N894XaLEyTS3kChhcoFUjabX21c+2frpYF7ByNUP9v6PgceV8E2hbES9Ltp0TqzdbQklE=
+x-microsoft-antispam-message-info: denffugvwvATL80wSYqch6/toU3EeOaeuIBZhTA1xj8r5LQ17oLxji+/84HkhHh69u6YOs15bVdSOyF3Rr1Ti/DXuCZ0ukXhd+esmPbfY5l9WKT0yyxNOyiJrJsq4qmZlR/mM5uOcoFsph0gqfnzeK8TuTnWen2Vw3AJJRhSc7KOPdqlMCgbS7aY1MvHdBmPuGLWcEPS/tLuEsQQ4LKYykyOUYuNSpoIC/1dCud1zP2JtGr4nbWhUoKXPQ0CV71B3B8kZM4lL5Jy3bFkzfEcqmI+q3/EvDE6mjRPkmtSZAO0ZGmmBGYuveRcI2XA9+xb1n9RrXQwpUkO3fPBNZuHGNTVxTXZJEcb5CxowmLUfzcULG+YdzGwg3AinWaW24YZUkfIWjs9/xi0p7B+noZYq+KI0sBEqtfuFv4AYLq0MfU=
 Content-Type: text/plain; charset="us-ascii"
-Content-ID: <2FB2145B5F59E742BBA0F8C5ABF950EB@namprd15.prod.outlook.com>
+Content-ID: <13443334D4FE2B4E80C8D86B49925EBE@namprd15.prod.outlook.com>
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 944a08f4-bf65-4004-6c10-08d6b86436be
-X-MS-Exchange-CrossTenant-originalarrivaltime: 03 Apr 2019 18:43:07.6605
+X-MS-Exchange-CrossTenant-Network-Message-Id: 0e80ce9b-df6c-4a14-daa7-08d6b864801e
+X-MS-Exchange-CrossTenant-originalarrivaltime: 03 Apr 2019 18:45:10.7851
  (UTC)
 X-MS-Exchange-CrossTenant-fromentityheader: Hosted
 X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
 X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB3480
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB3335
 X-OriginatorOrg: fb.com
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-03_10:,,
  signatures=0
@@ -183,17 +183,16 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 03, 2019 at 10:05:43AM +1100, Tobin C. Harding wrote:
-> Currently we use the page->lru list for maintaining lists of slabs.  We
-> have a list in the page structure (slab_list) that can be used for this
-> purpose.  Doing so makes the code cleaner since we are not overloading
-> the lru list.
+On Wed, Apr 03, 2019 at 10:05:45AM +1100, Tobin C. Harding wrote:
+> We now use the slab_list list_head instead of the lru list_head.  This
+> comment has become stale.
 >=20
-> Use the slab_list instead of the lru list for maintaining lists of
-> slabs.
+> Remove stale comment from page struct slab_list list_head.
 >=20
 > Acked-by: Christoph Lameter <cl@linux.com>
 > Signed-off-by: Tobin C. Harding <tobin@kernel.org>
 
 Reviewed-by: Roman Gushchin <guro@fb.com>
+
+Thank you!
 
