@@ -2,300 +2,179 @@ Return-Path: <SRS0=DmM3=SF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E9571C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 11:29:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B66ECC4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 12:29:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 936552082C
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 11:29:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 936552082C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 4AD4020882
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 12:29:43 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="VhuUM0Nn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4AD4020882
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4439F6B0008; Wed,  3 Apr 2019 07:29:42 -0400 (EDT)
+	id 9BAA06B0008; Wed,  3 Apr 2019 08:29:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3F1736B000A; Wed,  3 Apr 2019 07:29:42 -0400 (EDT)
+	id 96A366B000A; Wed,  3 Apr 2019 08:29:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2E0E46B000C; Wed,  3 Apr 2019 07:29:42 -0400 (EDT)
+	id 859716B000C; Wed,  3 Apr 2019 08:29:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D1B96B0008
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 07:29:42 -0400 (EDT)
-Received: by mail-yw1-f70.google.com with SMTP id x66so12009696ywx.1
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 04:29:42 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C6D16B0008
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 08:29:42 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id l74so5416036pfb.23
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 05:29:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=ScnfQ19nRYLkYJyHyTVUDeskaMIg/C34LR5U0n5IB+s=;
-        b=LwwgiJcx3pRhKtjjrcbKZhBr4fKl3jTyCKRcFNRTBssveCpljTu3V+WloG+GHpiqOK
-         jJPc9BJQJGQwOmjkrj+jF6ibRleGcV5U2dzMWRWj2XTyu4yADqrnnhQLjZ6xQQWXttsJ
-         DEQTp2PkbmiURNKFrY1zuJXA3vq4car0yQo7TGVb/KyyjGsyajrtHnCtOFdnu9zOFtMC
-         aGPQl/k80NN58rAfgE7sFIdW64xiIhtnTIotkkp/X8uUkJAsQAMOauGYDEtgaDfk+Win
-         yAj0HNGE8fgX4icyDWVK5Q0dj8+IlZYMtXjmDeD53PtXiwpPCRUe9AyOSvYb4G2B8DVO
-         v8zQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAVb6zyasV0fBobXNTH/EAN5RXI3fIPlP0EU6ko8EPQV2k691uFt
-	BaztoVeW/7HvNiVjDzJYH75sivY0xf/FI4OWNuOgC2P0rW7DxLX68DcEpeYf5o+wAmCNp/0tbul
-	nyBe8k49hL56GQj+DB2Eu9N/Mja4Er7g7g8R39ZqFJjriz5sWis2i/q6qzgTv/ZWVAA==
-X-Received: by 2002:a25:9804:: with SMTP id a4mr245975ybo.241.1554290981751;
-        Wed, 03 Apr 2019 04:29:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxXzAgFlvnuoz0+239ODz5MsCmAgRACqneiXy3du7byWe1imjlPeIOropgCFPLJMzE11mK3
-X-Received: by 2002:a25:9804:: with SMTP id a4mr245926ybo.241.1554290980985;
-        Wed, 03 Apr 2019 04:29:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554290980; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:to:to:cc:cc:cc
+         :subject:in-reply-to:references:message-id;
+        bh=8iNQFzyu1TDwPEiodhmRLVeWf2jXVMQE4/sjNN/ogA8=;
+        b=XSMVfrGVir2X4TPKxxLfEsuZbgndeQroSKO8PJ4gs6vu3M3WJ4U/vVcFsElQa8pswK
+         dAwpppIcfouie3xhPXEFAkPd6Vr+lFQJnRlAm+xcOWXCwVAQdYpoUyx2HOJjKTAsjDmw
+         zzdnW9wWv38srVfG9gRPk/V6TlKdTN6g3az8nFir8lm884jDhAK189cLmOYqLWvE+wY4
+         zcq6FIYslWhBpuNtFwY21ab+00LUh1mqc/fIAG/a++8lug+5HkrOOwywdleGR4EA1bMN
+         mt0XGYBQ1LUIYhI+czDHcFJkqirU5FJ3MNwVdv4zK5hsB9roLajJSg8GCmDCXMhd0yZg
+         Dyzw==
+X-Gm-Message-State: APjAAAVW5Ny3ur9pmX6HonEr/uXotQgnWLQxec/Hsu9KmUQztkgseK9a
+	dp3e7c1iCYMUvjnfKW7N+EALUKzne/KkZQMRxkj6JCB1n+nGeqiQUoE9SI/HJCo4WR5PknZww50
+	3j+xL6akV7OhxPXK/zA207Ym7+SeidsKqq9wchi2xv6dsQtrmB4HNtc8a+qRlsm/u0g==
+X-Received: by 2002:a63:30c5:: with SMTP id w188mr48359233pgw.76.1554294581735;
+        Wed, 03 Apr 2019 05:29:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyTyvXJNw0kz0riK1VJ9aYYJcYfRbxqqFFMQnSzHC085NHYWyxl510ztPqxXUOEp6b8HnPF
+X-Received: by 2002:a63:30c5:: with SMTP id w188mr48359124pgw.76.1554294580396;
+        Wed, 03 Apr 2019 05:29:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554294580; cv=none;
         d=google.com; s=arc-20160816;
-        b=FRHrP6f2cwOfsXLc8k7NG2e8zeuy/iA4+z/OkJiI89uaEQ4KerfaDPFrZNCXqFkcPG
-         PCXeNbm1T3518i1egk7QSGvdj5I8NiJBjGSIvf+eWwlpwZ6OgSui7IYmbpxegR3SFnj/
-         2AK0/XDP+eP+T6fFvWWQn6NRvgUC5NSLLhdj+bcELs1sQhrl4tJGlOytLnv18CZ5sk7G
-         9UhxHgV18iAtPy9BFi6FF2rnyi8jG9PSE0uoabyGpQ0gYCpABudz3sj5aYAR0x9iBmP1
-         TRmpvbNN4XeYhUdTpARB5rnqM7fL9LOaGtyvYkrTLYWENeLvTsFZWYE+vaSeI6thQffe
-         c0nw==
+        b=QO2jsvx1NEcX0S/eD787DOyC9Xk+8SOIOLlbrhLZ+9DaLOtUQPwLeHboi+MSv9lARE
+         8UfQ2M74mAKWGAnq0eODC6Y0JzFoIQ76N1+VyTSeMqsVua3e3KyYYBtP37BjlZxeBs7r
+         bIyQZ55Ay3ChsAVZVE7JBwwPfnlQAve0FtC3mHqdus0Umcz141mxSSp90euz+FEDzQsv
+         5TPxMgGR9d+HTeEw2ex8/YoDxGKdYLRF25DWfgmHNp65hDLFwNmLrqpMr5LL7XVq7Fkb
+         E1fYoHN+zK2AOzxKUR3Ujg0iqih4RQe226RkOTZx0CJJ89DVAjtTEghNqYMDiP3EdReb
+         tH4Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=ScnfQ19nRYLkYJyHyTVUDeskaMIg/C34LR5U0n5IB+s=;
-        b=cWtRo6FenssdDhEPmGAFE2GjBe1lmh7QZ/LYA4QvxYKQWWlb4nHWfDZk/3/0JLM2FK
-         ugZOPP4kMkyMmUWqYPaIYsckJq0gCvEOwzoGG4R7AiQZFg18swu7C5NVfDGQ+cO8X3kI
-         y1OzFz1HKrUZOe0QZksiucR34gr/acEbnKvi0KHDEno+Jkhxahusjwl2C4FFIseNwODX
-         sJTfSHsZsfsy5jL5wW4zgg8Vj1iIgSh1qnNp8LvLLHs+QLpaUs4ZATeKrnJNF+UdgdAT
-         ypuPOLnEgXjwvoWAlKImiPujUpaSXUjuGhuwp8TFJBNCiUJ6A4OPuKpPzeNJMwnnTm+x
-         aFkQ==
+        h=message-id:references:in-reply-to:subject:cc:cc:cc:to:to:to:from
+         :date:dkim-signature;
+        bh=8iNQFzyu1TDwPEiodhmRLVeWf2jXVMQE4/sjNN/ogA8=;
+        b=Pvvd3WB67zipqb+4c9Z88CAmcUxgWdVgZybdHWyTpqjJzzSwk2kAeub101r8/eMRba
+         mVBuUxcj1mPzDBj11GZ60KXWWmd+r51tRas6gmr7dP676bCqM+kGOcEKkEq2Jpnw5mBs
+         X5cibTgxFJccUSlerLLWDGIwxkealtBNRHUoPpLnGDqHR2c6W4BiQp9XlEOPZD2MF8My
+         ZeDImpB/hQpubmmjG1QOybIeL0CbWBdqQ8AMkwXVB4M10b9UcH855FGwaG95GE5TzUUF
+         a6IL+hAHAJ+bCnY33FgB5QxEsBcWekGeHFl8MOhbE8Z03/nF0hJotQtkyq3uAXxAeWle
+         C5oA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id f187si9597222ybb.297.2019.04.03.04.29.40
+       dkim=pass header.i=@kernel.org header.s=default header.b=VhuUM0Nn;
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id j26si13550660pfe.175.2019.04.03.05.29.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 04:29:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Wed, 03 Apr 2019 05:29:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x33BOlBK008944
-	for <linux-mm@kvack.org>; Wed, 3 Apr 2019 07:29:40 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2rmsyf5bma-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 03 Apr 2019 07:29:39 -0400
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Wed, 3 Apr 2019 12:29:37 +0100
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
-	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 3 Apr 2019 12:29:33 +0100
-Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x33BTWsg61341696
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 3 Apr 2019 11:29:33 GMT
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id D04B5A404D;
-	Wed,  3 Apr 2019 11:29:32 +0000 (GMT)
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id F26F4A4040;
-	Wed,  3 Apr 2019 11:29:31 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.112])
-	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Wed,  3 Apr 2019 11:29:31 +0000 (GMT)
-Date: Wed, 3 Apr 2019 14:29:30 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Chen Zhou <chenzhou10@huawei.com>
-Cc: catalin.marinas@arm.com, will.deacon@arm.com, akpm@linux-foundation.org,
-        ard.biesheuvel@linaro.org, takahiro.akashi@linaro.org,
-        linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
-        kexec@lists.infradead.org, linux-mm@kvack.org,
-        wangkefeng.wang@huawei.com
-Subject: Re: [PATCH 2/3] arm64: kdump: support more than one crash kernel
- regions
-References: <20190403030546.23718-1-chenzhou10@huawei.com>
- <20190403030546.23718-3-chenzhou10@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190403030546.23718-3-chenzhou10@huawei.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19040311-0008-0000-0000-000002D5C88A
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19040311-0009-0000-0000-00002241D02C
-Message-Id: <20190403112929.GA7715@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-03_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1904030079
+       dkim=pass header.i=@kernel.org header.s=default header.b=VhuUM0Nn;
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from localhost (unknown [23.100.24.84])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id C4187214AF;
+	Wed,  3 Apr 2019 12:29:39 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1554294580;
+	bh=tC7VHdeuTQrsr8HVJVxmxKXyzoqq8aUa2Cj/IKZv0II=;
+	h=Date:From:To:To:To:Cc:CC:Cc:Subject:In-Reply-To:References:From;
+	b=VhuUM0NndOh9A2fzQL76yIalkUdX1tn/tqMhy5WP2XOOTeuY2xjv0NtWZsdSrLDRt
+	 a6BYD+6yrcI8ElQxbbOugTpCWjQ2WNXclh7q2CHqjza7XY9JB6BwdTZVi4tPqrISmv
+	 jFCbNM3YN91pqK5O3s494Hvf9p1aaH7A66i6Xe0U=
+Date: Wed, 03 Apr 2019 12:29:39 +0000
+From: Sasha Levin <sashal@kernel.org>
+To: Sasha Levin <sashal@kernel.org>
+To:   "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To:     dan.j.williams@intel.com, akpm@linux-foundation.org,
+Cc:     linux-nvdimm@lists.01.org, linux-mm@kvack.org,
+CC: stable@vger.kernel.org
+Cc: stable@vger.kernel.org
+Subject: Re: [PATCH v2] mm: Fix modifying of page protection by insert_pfn_pmd()
+In-Reply-To: <20190402115125.18803-1-aneesh.kumar@linux.ibm.com>
+References: <20190402115125.18803-1-aneesh.kumar@linux.ibm.com>
+Message-Id: <20190403122939.C4187214AF@mail.kernel.org>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 03, 2019 at 11:05:45AM +0800, Chen Zhou wrote:
-> After commit (arm64: kdump: support reserving crashkernel above 4G),
-> there may be two crash kernel regions, one is below 4G, the other is
-> above 4G.
-> 
-> Crash dump kernel reads more than one crash kernel regions via a dtb
-> property under node /chosen,
-> linux,usable-memory-range = <BASE1 SIZE1 [BASE2 SIZE2]>
-> 
-> Signed-off-by: Chen Zhou <chenzhou10@huawei.com>
-> ---
->  arch/arm64/mm/init.c     | 37 +++++++++++++++++++++++++------------
->  include/linux/memblock.h |  1 +
->  mm/memblock.c            | 40 ++++++++++++++++++++++++++++++++++++++++
->  3 files changed, 66 insertions(+), 12 deletions(-)
-> 
-> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-> index ceb2a25..769c77a 100644
-> --- a/arch/arm64/mm/init.c
-> +++ b/arch/arm64/mm/init.c
-> @@ -64,6 +64,8 @@ EXPORT_SYMBOL(memstart_addr);
->  phys_addr_t arm64_dma_phys_limit __ro_after_init;
->  
->  #ifdef CONFIG_KEXEC_CORE
-> +# define CRASH_MAX_USABLE_RANGES        2
-> +
->  static int __init reserve_crashkernel_low(void)
->  {
->  	unsigned long long base, low_base = 0, low_size = 0;
-> @@ -346,8 +348,8 @@ static int __init early_init_dt_scan_usablemem(unsigned long node,
->  		const char *uname, int depth, void *data)
->  {
->  	struct memblock_region *usablemem = data;
-> -	const __be32 *reg;
-> -	int len;
-> +	const __be32 *reg, *endp;
-> +	int len, nr = 0;
->  
->  	if (depth != 1 || strcmp(uname, "chosen") != 0)
->  		return 0;
-> @@ -356,22 +358,33 @@ static int __init early_init_dt_scan_usablemem(unsigned long node,
->  	if (!reg || (len < (dt_root_addr_cells + dt_root_size_cells)))
->  		return 1;
->  
-> -	usablemem->base = dt_mem_next_cell(dt_root_addr_cells, &reg);
-> -	usablemem->size = dt_mem_next_cell(dt_root_size_cells, &reg);
-> +	endp = reg + (len / sizeof(__be32));
-> +	while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
-> +		usablemem[nr].base = dt_mem_next_cell(dt_root_addr_cells, &reg);
-> +		usablemem[nr].size = dt_mem_next_cell(dt_root_size_cells, &reg);
-> +
-> +		if (++nr >= CRASH_MAX_USABLE_RANGES)
-> +			break;
-> +	}
->  
->  	return 1;
->  }
->  
->  static void __init fdt_enforce_memory_region(void)
->  {
-> -	struct memblock_region reg = {
-> -		.size = 0,
-> -	};
-> -
-> -	of_scan_flat_dt(early_init_dt_scan_usablemem, &reg);
-> -
-> -	if (reg.size)
-> -		memblock_cap_memory_range(reg.base, reg.size);
-> +	int i, cnt = 0;
-> +	struct memblock_region regs[CRASH_MAX_USABLE_RANGES];
-> +
-> +	memset(regs, 0, sizeof(regs));
-> +	of_scan_flat_dt(early_init_dt_scan_usablemem, regs);
-> +
-> +	for (i = 0; i < CRASH_MAX_USABLE_RANGES; i++)
-> +		if (regs[i].size)
-> +			cnt++;
-> +		else
-> +			break;
-> +	if (cnt)
-> +		memblock_cap_memory_ranges(regs, cnt);
+Hi,
 
-Why not simply call memblock_cap_memory_range() for each region?
+[This is an automated email]
 
->  }
->  
->  void __init arm64_memblock_init(void)
-> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> index 47e3c06..aeade34 100644
-> --- a/include/linux/memblock.h
-> +++ b/include/linux/memblock.h
-> @@ -446,6 +446,7 @@ phys_addr_t memblock_start_of_DRAM(void);
->  phys_addr_t memblock_end_of_DRAM(void);
->  void memblock_enforce_memory_limit(phys_addr_t memory_limit);
->  void memblock_cap_memory_range(phys_addr_t base, phys_addr_t size);
-> +void memblock_cap_memory_ranges(struct memblock_region *regs, int cnt);
->  void memblock_mem_limit_remove_map(phys_addr_t limit);
->  bool memblock_is_memory(phys_addr_t addr);
->  bool memblock_is_map_memory(phys_addr_t addr);
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 28fa8926..1a7f4ee7c 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -1697,6 +1697,46 @@ void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
->  			base + size, PHYS_ADDR_MAX);
->  }
->  
-> +void __init memblock_cap_memory_ranges(struct memblock_region *regs, int cnt)
-> +{
-> +	int start_rgn[INIT_MEMBLOCK_REGIONS], end_rgn[INIT_MEMBLOCK_REGIONS];
-> +	int i, j, ret, nr = 0;
-> +
-> +	for (i = 0; i < cnt; i++) {
-> +		ret = memblock_isolate_range(&memblock.memory, regs[i].base,
-> +				regs[i].size, &start_rgn[i], &end_rgn[i]);
-> +		if (ret)
-> +			break;
-> +		nr++;
-> +	}
-> +	if (!nr)
-> +		return;
-> +
-> +	/* remove all the MAP regions */
-> +	for (i = memblock.memory.cnt - 1; i >= end_rgn[nr - 1]; i--)
-> +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-> +			memblock_remove_region(&memblock.memory, i);
-> +
-> +	for (i = nr - 1; i > 0; i--)
-> +		for (j = start_rgn[i] - 1; j >= end_rgn[i - 1]; j--)
-> +			if (!memblock_is_nomap(&memblock.memory.regions[j]))
-> +				memblock_remove_region(&memblock.memory, j);
-> +
-> +	for (i = start_rgn[0] - 1; i >= 0; i--)
-> +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-> +			memblock_remove_region(&memblock.memory, i);
-> +
-> +	/* truncate the reserved regions */
-> +	memblock_remove_range(&memblock.reserved, 0, regs[0].base);
-> +
-> +	for (i = nr - 1; i > 0; i--)
-> +		memblock_remove_range(&memblock.reserved,
-> +				regs[i].base, regs[i - 1].base + regs[i - 1].size);
-> +
-> +	memblock_remove_range(&memblock.reserved,
-> +			regs[nr - 1].base + regs[nr - 1].size, PHYS_ADDR_MAX);
-> +}
-> +
->  void __init memblock_mem_limit_remove_map(phys_addr_t limit)
->  {
->  	phys_addr_t max_addr;
-> -- 
-> 2.7.4
-> 
+This commit has been processed because it contains a -stable tag.
+The stable tag indicates that it's relevant for the following trees: all
 
--- 
-Sincerely yours,
-Mike.
+The bot has tested the following trees: v5.0.5, v4.19.32, v4.14.109, v4.9.166, v4.4.177, v3.18.137.
+
+v5.0.5: Build OK!
+v4.19.32: Build OK!
+v4.14.109: Failed to apply! Possible dependencies:
+    b4e98d9ac775 ("mm: account pud page tables")
+    c4812909f5d5 ("mm: introduce wrappers to access mm->nr_ptes")
+
+v4.9.166: Failed to apply! Possible dependencies:
+    166f61b9435a ("mm: codgin-style fixes")
+    505a60e22560 ("asm-generic: introduce 5level-fixup.h")
+    5c6a84a3f455 ("mm/kasan: Switch to using __pa_symbol and lm_alias")
+    82b0f8c39a38 ("mm: join struct fault_env and vm_fault")
+    953c66c2b22a ("mm: THP page cache support for ppc64")
+    b279ddc33824 ("mm: clarify mm_struct.mm_{users,count} documentation")
+    b4e98d9ac775 ("mm: account pud page tables")
+    c2febafc6773 ("mm: convert generic code to 5-level paging")
+    c4812909f5d5 ("mm: introduce wrappers to access mm->nr_ptes")
+
+v4.4.177: Failed to apply! Possible dependencies:
+    01871e59af5c ("mm, dax: fix livelock, allow dax pmd mappings to become writeable")
+    01c8f1c44b83 ("mm, dax, gpu: convert vm_insert_mixed to pfn_t")
+    0e749e54244e ("dax: increase granularity of dax_clear_blocks() operations")
+    1bdb2d4ee05f ("ARM: split off core mapping logic from create_mapping")
+    34c0fd540e79 ("mm, dax, pmem: introduce pfn_t")
+    3ed3a4f0ddff ("mm: cleanup *pte_alloc* interfaces")
+    52db400fcd50 ("pmem, dax: clean up clear_pmem()")
+    7bc3777ca19c ("sparc64: Trim page tables for 8M hugepages")
+    b2e0d1625e19 ("dax: fix lifetime of in-kernel dax mappings with dax_map_atomic()")
+    c4812909f5d5 ("mm: introduce wrappers to access mm->nr_ptes")
+    c7936206b971 ("ARM: implement create_mapping_late() for EFI use")
+    f25748e3c34e ("mm, dax: convert vmf_insert_pfn_pmd() to pfn_t")
+    f579b2b10412 ("ARM: factor out allocation routine from __create_mapping()")
+
+v3.18.137: Failed to apply! Possible dependencies:
+    047fc8a1f9a6 ("libnvdimm, nfit, nd_blk: driver for BLK-mode access persistent memory")
+    2a3746984c98 ("x86: Use new cache mode type in track_pfn_remap() and track_pfn_insert()")
+    34c0fd540e79 ("mm, dax, pmem: introduce pfn_t")
+    4c1eaa2344fb ("drivers/block/pmem: Fix 32-bit build warning in pmem_alloc()")
+    5cad465d7fa6 ("mm: add vmf_insert_pfn_pmd()")
+    61031952f4c8 ("arch, x86: pmem api for ensuring durability of persistent memory updates")
+    62232e45f4a2 ("libnvdimm: control (ioctl) messages for nvdimm_bus and nvdimm devices")
+    777783e0abae ("staging: android: binder: move to the "real" part of the kernel")
+    957e3facd147 ("gcov: enable GCOV_PROFILE_ALL from ARCH Kconfigs")
+    9e853f2313e5 ("drivers/block/pmem: Add a driver for persistent memory")
+    9f53f9fa4ad1 ("libnvdimm, pmem: add libnvdimm support to the pmem driver")
+    b94d5230d06e ("libnvdimm, nfit: initial libnvdimm infrastructure and NFIT support")
+    cb389b9c0e00 ("dax: drop size parameter to ->direct_access()")
+    dd22f551ac0a ("block: Change direct_access calling convention")
+    e2e05394e4a3 ("pmem, dax: have direct_access use __pmem annotation")
+    ec776ef6bbe1 ("x86/mm: Add support for the non-standard protected e820 type")
+    f0dc089ce217 ("libnvdimm: enable iostat")
+    f25748e3c34e ("mm, dax: convert vmf_insert_pfn_pmd() to pfn_t")
+
+
+How should we proceed with this patch?
+
+--
+Thanks,
+Sasha
 
