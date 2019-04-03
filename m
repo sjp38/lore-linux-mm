@@ -3,134 +3,133 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5E284C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 08:23:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E11E6C4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 08:34:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ED5BB2147A
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 08:23:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8600521473
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 08:34:04 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=mailbox.org header.i=@mailbox.org header.b="gyeqjJr4";
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=mailbox.org header.i=@mailbox.org header.b="amauV29x"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED5BB2147A
+	dkim=pass (2048-bit key) header.d=mailbox.org header.i=@mailbox.org header.b="m75kWfPE";
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=mailbox.org header.i=@mailbox.org header.b="MP0IpBtb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8600521473
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mailbox.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7DB856B0008; Wed,  3 Apr 2019 04:23:40 -0400 (EDT)
+	id 193116B0008; Wed,  3 Apr 2019 04:34:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 765A56B000A; Wed,  3 Apr 2019 04:23:40 -0400 (EDT)
+	id 142CD6B000A; Wed,  3 Apr 2019 04:34:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5DFA36B000C; Wed,  3 Apr 2019 04:23:40 -0400 (EDT)
+	id F24576B000C; Wed,  3 Apr 2019 04:34:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0701A6B0008
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 04:23:40 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id 41so7119031edq.0
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 01:23:39 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F8FA6B0008
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 04:34:03 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id p90so4490715edp.11
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 01:34:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:dkim-signature:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:mime-version
          :in-reply-to;
-        bh=vACzMnxw6x58wlccDwsJXqe6NqBOhwov8kGmhEfdkJE=;
-        b=Okyc3I0sF82wNPYWGayuC5SrjqTYleiy6IysMlZCWmChxufsnWvNTdsLHXBEYWIP+X
-         yhipAzL2UoEHkaq6DmTwBIVs0L8T43LOvVigNmUEUvfor7F4MgXOoM6dnwuYlSSftXDO
-         hBT1D38H7oDH5PF5VPoOFkYJ+oVcBIuBL+wabX9ZvVk+F8/roI1uB3I473tm3thtt9fn
-         LNvQoeg7ya1rr1vM2tsBg2L5zqJgxQCPXTwrR5HvWbuLgf5bGUiZe7ETWSXMKZWj/wcB
-         fza4vfYv5GNsfa2Oi8Iqfz2n+dWdkTb+WOFFobztAiLZ3uLlILGxOQXhvKJKoMbH+nSy
-         7M7g==
-X-Gm-Message-State: APjAAAVC4ihtl1IvfdSd5eTt8IQ6oevcvunOI2FXYaHoq+U8TRK0cf9H
-	bs//rQPKlNJUp5uX5MOCjzt6I6KEG9TyG5RQI7cBGHBeqr02Vubxe7B76aOst96foXrj6nzUcQq
-	t/i7ZfqAD9C4kljeTo/M69WTo6K+LyMaGxMtGk4QaPcK026qTAtPHGBByJDX8M1Oalg==
-X-Received: by 2002:aa7:dc4a:: with SMTP id g10mr35698568edu.103.1554279819550;
-        Wed, 03 Apr 2019 01:23:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwrz0M7J51GV0OgT/Ozg8rg7nlDVwS81V0Whf4+95dq2badfyfa8rdGZvY2D4aHrgrrJ2NF
-X-Received: by 2002:aa7:dc4a:: with SMTP id g10mr35698517edu.103.1554279818618;
-        Wed, 03 Apr 2019 01:23:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554279818; cv=none;
+        bh=kB9VOlwjPLXqFLUHfORYIfl2+yq8lAZmEZKVJBsa66k=;
+        b=Vq5G75g23h1jxnsYPV4bhaWB/vsIrc30qeCsA4/Hj8QKVIpfRGc71T1QPxlwv63Yyk
+         Nbo74VaMcODUQd3Yie9Tc0kFw2TTj4qoz4VgUleZfYFgsKuJ0YdEyRexh03eJS7+w+vH
+         /1wLzVyQ4LxJgqUbSjJRGsnab4ED/YFLFcLiiBrg44A1PyBDtpsDrvbqNnQEY71Rcs0M
+         8DbiOm92tARmmiIrzs5g1umZQFTDXA1ZCt4Uyhn5s53ayFcd2fNBdatebLYnrsvlWSrp
+         jixELr/qp3T5d5mGcqWIBJex8LTDbSiq6OAt0BuOtHxQ1N14UysfmEsajN186OZn8pL9
+         ewYw==
+X-Gm-Message-State: APjAAAWz8f817nRvoCylotzScXHyV0kL1YxkiKfiTdHDYJbsKqxHpCXZ
+	pHIyXXFZGnxRcKgyAZDavbZh33RSaRJNGqYjJdr4H1HD2Xlad7JmB/y0Dd5ymT5rlFuUPv8LVMv
+	OJoKMJT/oRueUl27nRmday1Ndfd2osa94yCfjBeB2AlwsvjLXGRZO5DReGRJGLXTbgA==
+X-Received: by 2002:a17:906:824a:: with SMTP id f10mr35673957ejx.105.1554280443209;
+        Wed, 03 Apr 2019 01:34:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwAbzgVq/xLeNDKEdJ3LA2s1/RGmnzic6SA3Le6QTW/1bi1maq0eHx42/ec8tjdiCBGR9EV
+X-Received: by 2002:a17:906:824a:: with SMTP id f10mr35673929ejx.105.1554280442412;
+        Wed, 03 Apr 2019 01:34:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554280442; cv=none;
         d=google.com; s=arc-20160816;
-        b=Uzvh8xPGmAajADafCm6jAZVgSO16hmry/u5JHPVBBPcbYhOR7lIiTHO1lWN8U3UMGR
-         DU8FcKxM77jJ/4t5VMaqS6COUecfUZGrLUc4RlAstGf6l+tUtgSWPz1HfBCJ0i9ceV2U
-         ik9AxJ0qFszrq9mcek1jdUakRNXXBVBKWb3RYtad8ngM4rqXslylqHZxP+iYe/oLWjY8
-         Gwgz6LUcBS5qzcKHFopK+UzcIn82Y3NioiCxd4Nf7ej4x4DEJfBsZlpOh2f0Lzrip7Vl
-         INaexDbCa9JmbhVpiG+ThoQJtNt8iwa8xeHClTxTFxHCzsCBcFassbwFfJbv25E2NYQE
-         9bdg==
+        b=ExD+xhAD7hvzkZRI6lU4uLvjXQNHI1Or0fdJV3kaUv+MALPcpLc4gRxUnrEr6KCmjr
+         MwfI/3D4aQBdh5W/7eFF9rMyEpg3r5PQVVEFh9OMCYl9QbV1POj1oXqs4/hDnilT9cv2
+         j0qX9c/nWVRYCkYxOcag789ph7IwkPFuR+pnalLc335oM+p0bo8zLmN9hVbbb17pDIbQ
+         JOTXbbetPgtCqRZ5RpHxOE9ykouxepDmOMYeoEsoHtttho/UwnSMjaPjJoeHB5iDj/KW
+         pyanTMWGGt56cxkH1ITLa8mEvk4bscyRwWYsHLkatp2qNiT9TT8ZDMO37q48dq4CDaoF
+         fLMw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=in-reply-to:mime-version:date:message-id:autocrypt:openpgp:from
          :references:cc:to:subject:dkim-signature:dkim-signature;
-        bh=vACzMnxw6x58wlccDwsJXqe6NqBOhwov8kGmhEfdkJE=;
-        b=HQgjsRkR4eOQjqIlvLvJi0i6TONmTFqd4TMdJYkBYkD2hDXLJJFAczJPprzbCKvq7W
-         ZpHxQ0XuK+PwwvT485RJ+cG6zBNhS+9XQrglUC/elmHyDctq3SWwi/nIpbDwiLaGqCXE
-         C3TMjn1VHj+CrU3QpER1Nqvghd1SWFRnwonPrbQzulH5FGYidrN5+dbhx7A92PadeoV7
-         VUBsGWPBoIfEBB1N3N67yY7gRkMPGArPVBbzTnWQZ/zZEyaPwTrwMMvgH3gGPm0DEIZc
-         TpvoigYKRl4Amfdtvim7DI5X1JXagD2g+N9zhksOHp03Muzpo9KQXrbrEwoAXYm/v6PN
-         fUog==
+        bh=kB9VOlwjPLXqFLUHfORYIfl2+yq8lAZmEZKVJBsa66k=;
+        b=kVKuC3MEh0wQ39CFlEOAG34Kp+jxn16HwRhU334gA+fvIYxM01ZvFtKGZ5YuTiUhbG
+         V6TB7EHM9M4q6uHwA3VLZDiv75T+iLFpJ1OR70zVZUt5kqEb6gJEOSR4xQKGTmpl/pQE
+         3uhXlTsHX8c6fTc35zJzuKXyyYKk/SlYFe4sbhxUmFj2ZcJzGzmJokqlHVRdl5DOEf68
+         l5Fg1hAef0Klqp7qK5+VDehwXBStKUX4VMXu0zCvPRWIVWzsI8sPDpvhWVHPojhg0//5
+         Ig5gldDITud4UG/mgQv6umtG5/My8eyUyN2muSlYD+NnbBiGf5nmaXqju4vgUGXsT3H+
+         nOcA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@mailbox.org header.s=mail20150812 header.b=gyeqjJr4;
-       dkim=pass header.i=@mailbox.org header.s=mail20150812 header.b=amauV29x;
-       spf=pass (google.com: domain of jrf@mailbox.org designates 2001:67c:2050:104:0:2:25:2 as permitted sender) smtp.mailfrom=jrf@mailbox.org;
+       dkim=pass header.i=@mailbox.org header.s=mail20150812 header.b=m75kWfPE;
+       dkim=pass header.i=@mailbox.org header.s=mail20150812 header.b=MP0IpBtb;
+       spf=pass (google.com: domain of jrf@mailbox.org designates 80.241.60.212 as permitted sender) smtp.mailfrom=jrf@mailbox.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mailbox.org
-Received: from mx2.mailbox.org (mx2a.mailbox.org. [2001:67c:2050:104:0:2:25:2])
-        by mx.google.com with ESMTPS id s41si777039edd.16.2019.04.03.01.23.38
+Received: from mx1.mailbox.org (mx1.mailbox.org. [80.241.60.212])
+        by mx.google.com with ESMTPS id e11si2819399edd.399.2019.04.03.01.34.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 03 Apr 2019 01:23:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jrf@mailbox.org designates 2001:67c:2050:104:0:2:25:2 as permitted sender) client-ip=2001:67c:2050:104:0:2:25:2;
+        Wed, 03 Apr 2019 01:34:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jrf@mailbox.org designates 80.241.60.212 as permitted sender) client-ip=80.241.60.212;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@mailbox.org header.s=mail20150812 header.b=gyeqjJr4;
-       dkim=pass header.i=@mailbox.org header.s=mail20150812 header.b=amauV29x;
-       spf=pass (google.com: domain of jrf@mailbox.org designates 2001:67c:2050:104:0:2:25:2 as permitted sender) smtp.mailfrom=jrf@mailbox.org;
+       dkim=pass header.i=@mailbox.org header.s=mail20150812 header.b=m75kWfPE;
+       dkim=pass header.i=@mailbox.org header.s=mail20150812 header.b=MP0IpBtb;
+       spf=pass (google.com: domain of jrf@mailbox.org designates 80.241.60.212 as permitted sender) smtp.mailfrom=jrf@mailbox.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mailbox.org
 Received: from smtp2.mailbox.org (smtp2.mailbox.org [80.241.60.241])
 	(using TLSv1.2 with cipher ECDHE-RSA-CHACHA20-POLY1305 (256/256 bits))
 	(No client certificate requested)
-	by mx2.mailbox.org (Postfix) with ESMTPS id B6390A1731;
-	Wed,  3 Apr 2019 10:23:37 +0200 (CEST)
+	by mx1.mailbox.org (Postfix) with ESMTPS id 314684C196;
+	Wed,  3 Apr 2019 10:34:01 +0200 (CEST)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=mailbox.org; h=
 	content-type:content-type:in-reply-to:mime-version:date:date
 	:message-id:from:from:references:subject:subject:received; s=
-	mail20150812; t=1554279812; bh=dnEN7GddzwsmeEiOv1H4v5GMeUJVQXIdT
-	dqqiKu/5TY=; b=gyeqjJr4/hGV3qFzgVAxFu7GyiZz1E5VxM/a7TztWOg99hk1v
-	eKZKsSARb+r3xMCr1aP9hsfGyW1D0YWDKsNKRzftWn6yad7musgpy3sf7mUAs1s6
-	QXliCKSYnfCXctdGKbmN7j034bFr5k9RCHUWKP9iP+zLeQS+xXJkbfVoHgimFiTo
-	MfjnGBHRXtcCABtCjYedkLVMY4Whsq4RyGdEiJiFVMJw1Rh0deXVrHz8MUGz9ddP
-	oIeijbLYRO430BU8y4SQ6kFd8o+U5XXExOQ1oQgzAebzg3eVuxxFjtbpcLx8VKJZ
-	GYahH7q5FCzuEFkOmOAzzUdxXJ0C6HYY0um1g==
+	mail20150812; t=1554280436; bh=W/NgxRCzZWyQDNppUXdGOTTL6+Rf4CZFJ
+	t5+8LSCS5Q=; b=m75kWfPEI3TasptKTrxzXpNmLeag+vqaoLGc9V94joVCEJk51
+	7sAmBdq4y65Ka+ek99Yyx9SOweAI0nROz5ZEEpeO+ndQe1GfcJAwCAAzzoFTMXH+
+	nIs2eP20jL1dsYp2pGxt1krbSmTxGYO41DDebJpi9gk/GpLltr2R0+vNGIGKwKRV
+	1FqkvC3CHD+AlJG9ldGm4qJuc1nXAls21vhcNwCxOnJPJ7/kLFbJI0i0QA9j/Ozu
+	bO5HEYR62XrAEvHCiG6xkzXHWQxV/CjuBiCEhCfsQdjL8FH04XnOE9GTnh6B5nti
+	NtOAFOB3q+0V1QYdjNno58qw+0JPsxsFqdcfQ==
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=mailbox.org; s=mail20150812;
-	t=1554279815; h=from:from:sender:reply-to:subject:subject:date:date:
+	t=1554280439; h=from:from:sender:reply-to:subject:subject:date:date:
 	 message-id:message-id:to:to:cc:cc:mime-version:mime-version:
 	 content-type:content-type:content-transfer-encoding:
 	 in-reply-to:in-reply-to:references:references;
-	bh=vACzMnxw6x58wlccDwsJXqe6NqBOhwov8kGmhEfdkJE=;
-	b=amauV29x/1gWnaLcoTKJuL+8npF3FAEtMz5myZ0WnEWhsXFfaWlmxRAChRomUHaz09q55p
-	zpb8fG0OB00vMaH2boLWfGuvZwFQIP53hVYZTL5V+HyR0SaikWjycisyMA3AH3tRLPMF1V
-	aznEXrbLrapT8KtD2F2tRJkj9ec7grNbvDdnVzrfdR63VNtmHQvMvvGSeibrQEB7v0gH/Y
-	2t4oYRuttjPwPmS4pdEW1mBwzp0uoBrNzVdREPbWmQVEWjCWi9z5WWRUG6un7buCUT0EUV
-	H+JmRAcz/6WBQoPfVDPTntNVe9oSXnXu2DF3mF+pi1HGbOFmy5eI4l/V4i0uzQ==
+	bh=kB9VOlwjPLXqFLUHfORYIfl2+yq8lAZmEZKVJBsa66k=;
+	b=MP0IpBtbPWpKa/MGQsEXe5sk8gvrlV4YKI/zEhguZsORXBxDIRKyt8BZiXxEwoS0UuvLpX
+	Zj3iYBFs/akn9jtv9lomyvyRl4/WoFcTEpQscUtODY+T3qd3XcPjI9pG3Hi/lyi2hXdjds
+	6vLC8sHIDpS3pS1syFRncFtElCZLVVkM7wQnLI1R1Oe43ZvKN/s6ZbItSIclzaZkf0xsQh
+	JHZ2rd835m2XDQbGMPkqYjYnFwAiuPY7uec0x4iFnzH0br5t00SFm1fpHUmz0Z2RPjfysv
+	Yb9tft4Z6qNT8cWkKJY9MiMjqtDE9LAGd65hkoOxQ0BZ014sQBybzCB8nDL6Xw==
 X-Virus-Scanned: amavisd-new at heinlein-support.de
 Received: from smtp2.mailbox.org ([80.241.60.241])
-	by hefe.heinlein-support.de (hefe.heinlein-support.de [91.198.250.172]) (amavisd-new, port 10030)
-	with ESMTP id evZivunZoNAL; Wed,  3 Apr 2019 10:23:32 +0200 (CEST)
+	by spamfilter01.heinlein-hosting.de (spamfilter01.heinlein-hosting.de [80.241.56.115]) (amavisd-new, port 10030)
+	with ESMTP id DriGsFpQoQpu; Wed,  3 Apr 2019 10:33:56 +0200 (CEST)
 Subject: Re: [Bug 75101] New: [bisected] s2disk / hibernate blocks on "Saving
  506031 image data pages () ..."
-To: Matheus Fillipe <matheusfillipeag@gmail.com>,
- Andrew Morton <akpm@linux-foundation.org>
-Cc: "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>,
- Johannes Weiner <hannes@cmpxchg.org>, =?UTF-8?Q?Rodolfo_Garc=c3=ada_Pe?=
- =?UTF-8?Q?=c3=b1as?= <kix@kix.es>, Oliver Winker <oliverml1@oli1170.net>,
- Jan Kara <jack@suse.cz>, bugzilla-daemon@bugzilla.kernel.org,
- linux-mm@kvack.org, Maxim Patlasov <mpatlasov@parallels.com>,
+To: Andrew Morton <akpm@linux-foundation.org>,
+ "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>,
+ =?UTF-8?Q?Rodolfo_Garc=c3=ada_Pe=c3=b1as_=28kix=29?= <kix@kix.es>,
+ Oliver Winker <oliverml1@oli1170.net>, Jan Kara <jack@suse.cz>,
+ bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org,
+ Maxim Patlasov <mpatlasov@parallels.com>,
  Fengguang Wu <fengguang.wu@intel.com>, Tejun Heo <tj@kernel.org>,
  "Rafael J. Wysocki" <rjw@rjwysocki.net>, killian.de.volder@megasoft.be,
- atillakaraca72@hotmail.com
+ atillakaraca72@hotmail.com, matheusfillipeag@gmail.com
 References: <20140505233358.GC19914@cmpxchg.org> <5368227D.7060302@intel.com>
  <20140612220200.GA25344@cmpxchg.org> <539A3CD7.6080100@intel.com>
  <20140613045557.GL2878@cmpxchg.org> <539F1B66.2020006@intel.com>
  <20190402162500.def729ec05e6e267bff8a5da@linux-foundation.org>
- <CAFWuBvcAFhhPk4K-w7OLVBo8psWuDdUP4hJNLq3QeFUyg=_Mow@mail.gmail.com>
 From: Rainer Fiebig <jrf@mailbox.org>
 Openpgp: preference=signencrypt
 Autocrypt: addr=jrf@mailbox.org; prefer-encrypt=mutual; keydata=
@@ -176,13 +175,13 @@ Autocrypt: addr=jrf@mailbox.org; prefer-encrypt=mutual; keydata=
  qSNPXQdzTkIlwb96lAUxxw2B9OHrAgvpCaGXJOztSz9hDDM0MlVDwVvdWPFv9GzHqGa32ze4
  bL65x+tD6l5U76WT55SulZx/25dK39nDkpjniVH63k6DGMFgrRISqu2GMSUPDOv3U+x8bsJ1
  SJBEfJI=
-Message-ID: <8bfe1578-6ace-4bb2-5a31-295660f0f8a4@mailbox.org>
-Date: Wed, 3 Apr 2019 10:23:46 +0200
+Message-ID: <da186f07-1988-8c60-aa46-96f640a91076@mailbox.org>
+Date: Wed, 3 Apr 2019 10:34:11 +0200
 MIME-Version: 1.0
-In-Reply-To: <CAFWuBvcAFhhPk4K-w7OLVBo8psWuDdUP4hJNLq3QeFUyg=_Mow@mail.gmail.com>
+In-Reply-To: <20190402162500.def729ec05e6e267bff8a5da@linux-foundation.org>
 Content-Type: multipart/signed; micalg=pgp-sha256;
  protocol="application/pgp-signature";
- boundary="mus55juQZ7jBrSNGxkDbrn5jXuxqvoFIo"
+ boundary="aj2DRkx6my2l3m6pz6I8vEJAib7taAik9"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -190,112 +189,74 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---mus55juQZ7jBrSNGxkDbrn5jXuxqvoFIo
-Content-Type: multipart/mixed; boundary="OqpTniGmsTT1EPYZ1UG5nPUeY3FlA93bQ";
+--aj2DRkx6my2l3m6pz6I8vEJAib7taAik9
+Content-Type: multipart/mixed; boundary="Rwn7rr0n0gwqMD2igH2DEHC8I0HvzlqPQ";
  protected-headers="v1"
 From: Rainer Fiebig <jrf@mailbox.org>
-To: Matheus Fillipe <matheusfillipeag@gmail.com>,
- Andrew Morton <akpm@linux-foundation.org>
-Cc: "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>,
- Johannes Weiner <hannes@cmpxchg.org>, =?UTF-8?Q?Rodolfo_Garc=c3=ada_Pe?=
- =?UTF-8?Q?=c3=b1as?= <kix@kix.es>, Oliver Winker <oliverml1@oli1170.net>,
- Jan Kara <jack@suse.cz>, bugzilla-daemon@bugzilla.kernel.org,
- linux-mm@kvack.org, Maxim Patlasov <mpatlasov@parallels.com>,
+To: Andrew Morton <akpm@linux-foundation.org>,
+ "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>,
+ =?UTF-8?Q?Rodolfo_Garc=c3=ada_Pe=c3=b1as_=28kix=29?= <kix@kix.es>,
+ Oliver Winker <oliverml1@oli1170.net>, Jan Kara <jack@suse.cz>,
+ bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org,
+ Maxim Patlasov <mpatlasov@parallels.com>,
  Fengguang Wu <fengguang.wu@intel.com>, Tejun Heo <tj@kernel.org>,
  "Rafael J. Wysocki" <rjw@rjwysocki.net>, killian.de.volder@megasoft.be,
- atillakaraca72@hotmail.com
-Message-ID: <8bfe1578-6ace-4bb2-5a31-295660f0f8a4@mailbox.org>
+ atillakaraca72@hotmail.com, matheusfillipeag@gmail.com
+Message-ID: <da186f07-1988-8c60-aa46-96f640a91076@mailbox.org>
 Subject: Re: [Bug 75101] New: [bisected] s2disk / hibernate blocks on "Saving
  506031 image data pages () ..."
 References: <20140505233358.GC19914@cmpxchg.org> <5368227D.7060302@intel.com>
  <20140612220200.GA25344@cmpxchg.org> <539A3CD7.6080100@intel.com>
  <20140613045557.GL2878@cmpxchg.org> <539F1B66.2020006@intel.com>
  <20190402162500.def729ec05e6e267bff8a5da@linux-foundation.org>
- <CAFWuBvcAFhhPk4K-w7OLVBo8psWuDdUP4hJNLq3QeFUyg=_Mow@mail.gmail.com>
-In-Reply-To: <CAFWuBvcAFhhPk4K-w7OLVBo8psWuDdUP4hJNLq3QeFUyg=_Mow@mail.gmail.com>
+In-Reply-To: <20190402162500.def729ec05e6e267bff8a5da@linux-foundation.org>
 
---OqpTniGmsTT1EPYZ1UG5nPUeY3FlA93bQ
+--Rwn7rr0n0gwqMD2igH2DEHC8I0HvzlqPQ
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
-Am 03.04.19 um 05:54 schrieb Matheus Fillipe:
-> Wow! Here I am to revive this topic in 2019! I have exactly the same
-> problem, on ubuntu 18.04.2 with basically all kernels since 4.15.0-42 u=
-p to
-> 5, which was all I tested, currently on 4.18.0-17-generic... I guess th=
-is
-> has nothing to do with the kernel anyway.
+Am 03.04.19 um 01:25 schrieb Andrew Morton:
 >=20
-> It was working fine before, even with proprietary nvidia drivers which
-> would generally cause a bug on the resume and not while saving the ram
-> snapshot. I've been trying to tell this to the ubuntu guys and you can =
-see
-> my whole story with this problem right here:
-> https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1819915
+> I cc'ed a bunch of people from bugzilla.
 >=20
-> Shortly, I tried with or without nvidia modules enabled (or intel or us=
-ing
-> nouveau), many different kernels, disabled i915, and this is all  get i=
-n
-> all those different combinations:
-> https://launchpadlibrarian.net/417327528/i915.jpg
->=20
-> The event is pretty random and seems to be more likely to happen after =
-2 or
-> 4 gb of ram is ever used (I have 16 in total), and nothing changes if l=
-ater
-> I reduce the ram usage later. But is random, I successfully hibernated =
-with
-> 11gb in use yesterday, just resumed and hibernated 5 seconds later with=
-out
-> doing nothing else  than running hibernate, and got freeze there.
->=20
-> This also happens randomly if there's just 3 or 2 gb in use, likely on =
-the
-> second attempt of after more than 5 minutes after the computer is on. W=
-hat
-> can be wrong here?
->=20
+> Folks, please please please remember to reply via emailed
+> reply-to-all.  Don't use the bugzilla interface!
 
-The last time that I've encountered this issue was sometime in 2017
-under conditions described in Comment 23. And that's true for
-s2both/s2disk and the kernel-methods.
+Do you want this as a general rule? If so, an according message should
+be displayed after login into Bugzilla. How else would people know?
 
-It seems that you are using the uswsusp package. In that case it might
-be worth taking a look at the settings in /etc/suspend.conf. What works
-here is:
+Regards!
 
-#image size =3D 3500000
-early writeout =3D n
-#threads =3D y
-
-If this doesn't help, you should try hard to figure out what has changed
-from Ubuntu 18.04.1 to 18.04.2 as it worked with the former for you.
+Rainer Fiebig
 
 
---OqpTniGmsTT1EPYZ1UG5nPUeY3FlA93bQ--
 
---mus55juQZ7jBrSNGxkDbrn5jXuxqvoFIo
+
+
+--Rwn7rr0n0gwqMD2igH2DEHC8I0HvzlqPQ--
+
+--aj2DRkx6my2l3m6pz6I8vEJAib7taAik9
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Description: OpenPGP digital signature
 Content-Disposition: attachment; filename="signature.asc"
 
 -----BEGIN PGP SIGNATURE-----
 
-iQIzBAEBCAAdFiEE6yx5PjBNuGB2qJXG8OH3JiWK+PUFAlykbZ8ACgkQ8OH3JiWK
-+PXGMQ//X9MvEx6prLUQmEl4bSMz2MfEsZxqEGmm7PpU9PccEqx+FyqtAM3dX4ZT
-AuNJqofhpTVxuDjSPBCfy9lhsLZ6BiS6tL9BVCxgA/KA7Wex3zCm89wLoGPJ+uO4
-MqcI0s2VJTIXeMDEwU/0GdICfFHbpCucRrmMJfJn8xHOiIEKFHr4kLa2xPnMfMAO
-nP0uyqspFlPWYRJZZAFlqizA0u2s0sOr9X4GzPXAas4qAeFwxj7SRTMKIebHowSM
-0VNEDbyZmsB1vQ/swlITCoFOT8c/fKMVxyHYpV4se5VwDupBU9a6w9pMjlsviC6G
-q7c1GcbreElS1uuCC/QzQq6o+IIg4Hz6D+zF0Hz/7XgsVS5db/J02undCrTjePG3
-ZtUDASWo4x98qcB4NlcORSK1UYOw4witFQbpEsoRhvlr+E+QNYJQ11lRtbcd2oW+
-CAXUHmyveEwUvilXWOvr1W5xuuQVHGX2MChVDkBE7mtrILN65HJycyasTf53nrEZ
-oybjawdEuXr5Gcz6pqvKgSegf3OPR6vQM4IZBtgb4aoOO1mdsbrqvsHipNrohBsp
-2ygCKMSrQ7Uy7kSQZyIGcEv6C8EG56xhQkRaul1GcoaPgBfPc5v68HjTkAv3f7sn
-CQ0eDjYPPBjnuSHKWXvfg8d6CNiF3zMVbVh7GS6loaHiHUaRZ5o=
-=JNhG
+iQIzBAEBCAAdFiEE6yx5PjBNuGB2qJXG8OH3JiWK+PUFAlykcAQACgkQ8OH3JiWK
++PUK2A/+MYw86rr+n5H2eaHWaYmzXv5w1i7AbHhVAcA/T78eogWFIZhYc4LyeJJ5
+MAJHfNGPaNY+qc4j9fUb0TOvLB66urEjO7UM8j80yjJciyii2RWTJw61YEthjYrH
+HOs1hSYfVyYcx3LQbTxqHcJs01RNkfPB5CN5fbee/qimGKtsr8Z/BNGqAyKgWUfE
+gb2qczFQJPfhlsWZtPlRio3yXnhAO1Vnp1+JR7aTjEueBYZL6zf05WqWvq1dp8U5
+cMPet6jnzzcO4hU5Qg9AiNDvHKYp1c7rE8kvAL58f5bc9TGfj1M8f/eINgnCyV7a
+dP4i5ZbLBXtXCUG8GWmWPM87fILCKV2MAktq7Se13pREOe+XNsK4Jn/G/LPWEX2c
+QPkY+V+HTGzM7660VNyP4Gz9UdNPeQrZmRaaDfT0shkhCCTpSCUckZJYL8rcCmW5
+JvDB88k8cd4tDnlSFSX7j6GFVcCM6KCKQCqDwBEtROXFb301Xowkqxw5Ko/wTQ11
+qOYUDKTNYHfvKasCrQ6VoCduTwFYcVZZR5+kHA1GQG1ZEnIFQ7lja0eFHWig1QGI
+VQRH2lev/5zpZw49ozJZtlfUkljp/q2++osKwOlvTyxvTdaXS4wX+Q63KE7LrHK/
+Jva0gvGM2xm0OaQqCVOC84X3PrFx/wdcfDStPhvlK2/EsAG7kH4=
+=iR8C
 -----END PGP SIGNATURE-----
 
---mus55juQZ7jBrSNGxkDbrn5jXuxqvoFIo--
+--aj2DRkx6my2l3m6pz6I8vEJAib7taAik9--
 
