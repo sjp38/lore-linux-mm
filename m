@@ -6,98 +6,98 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DD847C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 04:24:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 898A9C4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 04:24:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8CE38206B7
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 04:24:24 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 39C21206B7
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 04:24:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="A2qei93U"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8CE38206B7
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="wY4kIaUF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 39C21206B7
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3FB006B0275; Wed,  3 Apr 2019 00:24:24 -0400 (EDT)
+	id DBF0E6B027F; Wed,  3 Apr 2019 00:24:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3AB5E6B027E; Wed,  3 Apr 2019 00:24:24 -0400 (EDT)
+	id D6F586B0280; Wed,  3 Apr 2019 00:24:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2739B6B027F; Wed,  3 Apr 2019 00:24:24 -0400 (EDT)
+	id C37CE6B0281; Wed,  3 Apr 2019 00:24:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 094BE6B0275
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 00:24:24 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id f196so13644635qke.4
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 21:24:24 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A40DD6B027F
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 00:24:31 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id z34so15667806qtz.14
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 21:24:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=bbV+w3gF2LYD1FivN0kmZexmR5wyxe6wR2gkjGxFRYI=;
-        b=iuhwCeLcFSW1+bHBvoIRPw2fy+ZKtJ7rEA2a7Ehg8fR44VtkyCVeIyNPWS9L5AYmVf
-         xfApj8zrTNZABrug8v/zt3hdTH2LiGcsldy4Bf5KUvnB9QyniY7+t7N/SLcC42L5URUJ
-         Be3Iwrt1BbjRCJyMeMDFTursTL23gc4v69OlI91jg5q850ieoUACezsqj2Nb+B4v/yM4
-         0VwO6cDe6hKpYSGjM1ttEMPIkeco6WNBeu42HYgVbJhoN1Tl930WEX6uqPuvckZcHML1
-         MyDQx4olbFq6x46903TQT6ZvQStmEGnu8gHVeOfdNbhqYvbYWoADj/KuCFdV+A8OtlBN
-         I1hQ==
-X-Gm-Message-State: APjAAAX1p/jcaAi7rAFyIetJVvYsy0uBTeGiruj3XqVjqWy6z5qk7Ssc
-	GdPfaQxwPR3BT+1JsG59cZaW+rZn21F0VoQoTko+X0GSVaqeIYMyvPSHPnC9av+axeir29+sZ/n
-	YD5l4vZ93a9caUxlj1TPf4A+j3E5Y7vuzJpNDDsdTeo97j6R3paUW8Crg6h0Np7k=
-X-Received: by 2002:a0c:d25a:: with SMTP id o26mr62114176qvh.78.1554265463802;
-        Tue, 02 Apr 2019 21:24:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxMx+FSty8XJ+f6wtel8o/wODmPu3LTtDn0fTyGBWceT7VIhixxXWiuN+BirQoX4WVCD77r
-X-Received: by 2002:a0c:d25a:: with SMTP id o26mr62114137qvh.78.1554265462736;
-        Tue, 02 Apr 2019 21:24:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554265462; cv=none;
+        bh=3CgZchYLd16ww3/LiD/mAfG7GXA+RJSG10+pHsLIDks=;
+        b=nQlYBqot0kpcuzlZ+bjFOkqxaZvoxAJ9ox2kDDoAnxiG6Q9t0rm6r+MUWH7Q9wIwXn
+         1MkaRrEmGgWhD/AMWjGFqKWlhtpAPSkrTZMARMfRfYFDR7EN3w2WZzBm4s064SMtCiY8
+         eiykS6gE8nXFZwapk71vkqBhJupxt7Gn3Gp8z2hATDduevGCExqdo9xGGFr9NbaAkmzc
+         Mnot/9wY3vYlV76uvsfPrni7bMgWteBv4eWIYiHcNX6qwn6sKJdUahgBtSfpj0RxWufG
+         LZIRqdR1fyH4T1NFydIQCrO8Ek5l6TBcTXfTxx5mnwL8ot+AqBizMEhjbTZJBQVG83xs
+         DO6A==
+X-Gm-Message-State: APjAAAXAPq+WBji3MnPM8xIhNhjnbDZzSTj/30gudzuSnbljyI6xbUF4
+	od2op63+19fUbPqBM+ODezC4aYK1DepDJZQRUaJb2vNUeHxKYCkJZnsqyI0GNPE8UuLAb4OYwzy
+	+6+AJLbyyUlVjAGofqlfr0rWsvbo7nn0QmX9T1ADGkSEZLNGeHMyx+HV3goiKTfs=
+X-Received: by 2002:a0c:81e2:: with SMTP id 31mr25271444qve.179.1554265471416;
+        Tue, 02 Apr 2019 21:24:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzykPWLxF7/qOPnYO5FBUcMWiT5GC2F7KFuQj+bc6b4N8oW8GZ4o1ny0QC8Ld/iuJYCD0sJ
+X-Received: by 2002:a0c:81e2:: with SMTP id 31mr25271396qve.179.1554265470185;
+        Tue, 02 Apr 2019 21:24:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554265470; cv=none;
         d=google.com; s=arc-20160816;
-        b=A1YAZAEr3djhYO/s8CxwctM0AdWYI/rcFcg40kyAY0jXZVOhqlgkpIDyhc2CbQugtm
-         3OWOQFpJWW1NqjWozrJhFDgKVV5/pDwhxgPVDihojCm5JDp2e7q9xH8bX/LS8UHOVYAD
-         bxG5TNEhBe1RcgLOw8ETyncuxkodkZd4fzrwsPjYDKuwVCfjzQiYp8UIWPggPNBZ+LM1
-         GjSzssVAsXA5NXSR+BN5K2FtpnwtW06LEpZcGvOXx1U5cQ4nLM/B9LMthCXTf+rO+t7k
-         weqsK/N2Y8ixUArXH2dXGJVsP04TsRMSJjWompMBgDcP9gLPTI/RDyzmewsIfxbp+225
-         mZNw==
+        b=OxPgaQoCvijFjP+XskRWfcQRqaxbWCUCywlMJOezJLvVKizxuDWnzh17bySO0hqk+J
+         S7cLk+8PCYqLLmfLuuL/HVjoDfsLCSirwgOJEWNNSMP8PjfXrfqJDDQRrAAU2d7bPYoW
+         aqM7q9NiX494alKUlpPU7xniuGs862lenljHOUanhV99yNNeLc9v3hlHD8k41QjOM41/
+         g+UEvX5vNGtlY5wOPs/oWPjhhPIeGRp6Nb4wd1OiT3kWW2/uB1Vx8XHj88J6M3r2P8JR
+         JFQYK1lqbeSLTJZ9TOsXnvL74cGdK4/O20o6junIhxpFQgQAewnXD8HZDfEzQg42Ejum
+         0/cg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=bbV+w3gF2LYD1FivN0kmZexmR5wyxe6wR2gkjGxFRYI=;
-        b=F1gKre+tZTexyUWS0SZ4kZ+VEMjtq2fdDlPd3q5cVfyd1TeocAJzWPqnuuKqIjdpCq
-         +J6TCsYbnEjJ7Ck5JO85zGUrnsz4lodOF3qiR5hmJM34bQJB/26AW85HUA4clraoQYYf
-         g2qsYEe5rvn5RK/7rQO9CDUco3ozH6I2scs0fSFwgxQs1LgVRgNvIiyv0+BwhHUDhjdu
-         6pTTfHQMdGWcnwi2oFM+3llkL5/t20pVc7AhinOPCs4FGf+ZOd33rVtqnMK9X8X8RuBG
-         KwiIGmuDz4vxoAw9JO8fkGhvxRRz5TRSNMaOpyJQ6YxGVERILveVWu4VHmBxO+sEVwZx
-         z+Nw==
+        bh=3CgZchYLd16ww3/LiD/mAfG7GXA+RJSG10+pHsLIDks=;
+        b=dCiJAFjrzm7ii1fvcBX0mZuyB6jyXqDy+ee8xgnsh0Q/3M2AUqr29+RGbVjiIMKcJz
+         Aw/85Y+DAxecHOMKtLGBvdJcUuV1iGJZ9I6+jMrRQuTZLJ/+Dpc0JsK08I/DoJDjbdbC
+         4Oh4QlNY9EMcONJ8VWktqAz4cgYI/Op5zI6Iz9eN03y2+BJkwqpcefeworH8I2bd6zbP
+         soPVppYNBhamyTjU7MXbK06vk7xj8Ja7K0C0XRRQ/y0uteXXh0lRKnY433ZJrZcznKrE
+         uFdhHcGMVDMWtfpQRbn5ZVwrU+kIFCm/vzxVD8zRb/Tb3Fd8s+ejQgsRZ43apS1FJ6Dt
+         tAOg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=A2qei93U;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=wY4kIaUF;
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.28 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from out4-smtp.messagingengine.com (out4-smtp.messagingengine.com. [66.111.4.28])
-        by mx.google.com with ESMTPS id p9si2375945qkj.232.2019.04.02.21.24.22
+        by mx.google.com with ESMTPS id n24si1690641qkk.23.2019.04.02.21.24.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Apr 2019 21:24:22 -0700 (PDT)
+        Tue, 02 Apr 2019 21:24:30 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.28 as permitted sender) client-ip=66.111.4.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=A2qei93U;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=wY4kIaUF;
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.28 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.nyi.internal (Postfix) with ESMTP id 79D1021F93;
-	Wed,  3 Apr 2019 00:24:22 -0400 (EDT)
+	by mailout.nyi.internal (Postfix) with ESMTP id E23B621FAE;
+	Wed,  3 Apr 2019 00:24:29 -0400 (EDT)
 Received: from mailfrontend2 ([10.202.2.163])
-  by compute3.internal (MEProxy); Wed, 03 Apr 2019 00:24:22 -0400
+  by compute3.internal (MEProxy); Wed, 03 Apr 2019 00:24:29 -0400
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:subject:to
 	:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=bbV+w3gF2LYD1FivN0kmZexmR5wyxe6wR2gkjGxFRYI=; b=A2qei93U
-	HU48t5f6nD+xKkxRcoxHrLa8FeTIc145hRYP6nIdf5yeW5Zh1r9KqwlDsYVUWOg0
-	wSndlC0Vr0TaWNSFGBsHApW+etgX/1SU/sgVCBjNp+JmkFvfLouRJ0hXN6DN1XXj
-	cyiPzg1vPdxP6JhKQUnxEMMwJoJJCZa+YTEJQGaQaoB3J8eQ6Ghlx2PVy6Oi+lKI
-	Jan3g6XBb0xIBNe1y9V6kSiajNCgmekjCpmw2E4+7S9L5AJQOXoI8xp9QQLrs1st
-	bbj3mmvbN36dWYpHFUCPnY8100JoI/4MMxfQlz6CR2rqRfQHD7VbaDLR1uZASy2i
-	oIB3q1xqQ7hy2w==
-X-ME-Sender: <xms:djWkXNYl4V-tXMjSxPgkCb9vE92NzxxC-S7vTpM-I-D7GsuuiDLNLw>
+	fm2; bh=3CgZchYLd16ww3/LiD/mAfG7GXA+RJSG10+pHsLIDks=; b=wY4kIaUF
+	bKeyoZ1pX1nCWrBGHGHId2HQJ7fpODFRyw9W9hbVgEBM2F+znekZY9/Ya6bpkQLx
+	g4bxXkC0jILJxfUFw+Xp/nP9yTQgozkM4b4uJR7dSeJn7Du55PXTCh12806jtLbw
+	ZZtzaSMa5mrjyPZji51A8vd+/ku4ZVL5Qd4QTYWu6LVgY3XDelhAATeQIwGLJEeb
+	QLOnXlctXLmYy9UVB2VQXXHy3Vce14hsYi8KLRqRXNOdpfUzNHOb/opiGiwyMH4x
+	NkPSYl8X0PHNA6n6iOzmg96i85YHVOD3FW9jf9WsUSTJx9TKvaAriKhZyw0pb5db
+	fRyyTYkfF5tEDg==
+X-ME-Sender: <xms:fTWkXJ1HmSTc0NWQ09l2pitFB5VEPfcu0zy0mThfRuP5raBiya01rw>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtddugdektdculddtuddrgedutddrtddtmd
     cutefuodetggdotefrodftvfcurfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdp
     uffrtefokffrpgfnqfghnecuuegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivg
@@ -105,14 +105,14 @@ X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtddugdektdculddtuddrgedutd
     ucfhrhhomhepfdfvohgsihhnucevrdcujfgrrhguihhnghdfuceothhosghinheskhgvrh
     hnvghlrdhorhhgqeenucfkphepuddvgedrudeiledrvdejrddvtdeknecurfgrrhgrmhep
     mhgrihhlfhhrohhmpehtohgsihhnsehkvghrnhgvlhdrohhrghenucevlhhushhtvghruf
-    hiiigvpeduvd
-X-ME-Proxy: <xmx:djWkXAQzCIfbRRgLj9ibmclaRc4KcPsFh2s6GgfbMB53slSRW2Y_GA>
-    <xmx:djWkXM9rzitkUfHrXV69NA0J_KGyZFzMKkJsVkEMBFNTBEuX98mJmA>
-    <xmx:djWkXAhMxb1Fwy_EoE5JAFyEQakVlppE5UOnEHYhCz0avxAnJC9Ouw>
-    <xmx:djWkXFjDb3dhBwbdUJMGq_wxasP-aJaOWtbCJsiGdZXUedbbsxZMEA>
+    hiiigvpedufe
+X-ME-Proxy: <xmx:fTWkXEWBexcOAxb392Gqp6hyOG49Ztf-_U-rHA-Ki1tgG_EXiz3SFw>
+    <xmx:fTWkXE71ALl-nmH_kBAHCYj0V9luUF7MdvkNuNAvN2vb3BaTTEJHgA>
+    <xmx:fTWkXLKPs3hYiX2DVAR1NpMEGBeVt946yGWKOEB5mD5Fa_gWKvPFRA>
+    <xmx:fTWkXOk_bHrx8S3koLe_9eTZGaPPkor3nTsEOKI-tg__FRSGz1lR4w>
 Received: from eros.localdomain (124-169-27-208.dyn.iinet.net.au [124.169.27.208])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 8369E1030F;
-	Wed,  3 Apr 2019 00:24:15 -0400 (EDT)
+	by mail.messagingengine.com (Postfix) with ESMTPA id 0A2BB10319;
+	Wed,  3 Apr 2019 00:24:22 -0400 (EDT)
 From: "Tobin C. Harding" <tobin@kernel.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: "Tobin C. Harding" <tobin@kernel.org>,
@@ -137,9 +137,9 @@ Cc: "Tobin C. Harding" <tobin@kernel.org>,
 	linux-mm@kvack.org,
 	linux-fsdevel@vger.kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [RFC PATCH v2 13/14] dcache: Provide a dentry constructor
-Date: Wed,  3 Apr 2019 15:21:26 +1100
-Message-Id: <20190403042127.18755-14-tobin@kernel.org>
+Subject: [RFC PATCH v2 14/14] dcache: Implement object migration
+Date: Wed,  3 Apr 2019 15:21:27 +1100
+Message-Id: <20190403042127.18755-15-tobin@kernel.org>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190403042127.18755-1-tobin@kernel.org>
 References: <20190403042127.18755-1-tobin@kernel.org>
@@ -151,79 +151,131 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In order to support object migration on the dentry cache we need to have
-a determined object state at all times. Without a constructor the object
-would have a random state after allocation.
+The dentry slab cache is susceptible to internal fragmentation.  Now
+that we have Slab Movable Objects we can defragment the dcache.  Object
+migration is only possible for dentry objects that are not currently
+referenced by anyone, i.e. we are using the object migration
+infrastructure to free unused dentries.
 
-Provide a dentry constructor.
+Implement isolate and migrate functions for the dentry slab cache.
 
 Signed-off-by: Tobin C. Harding <tobin@kernel.org>
 ---
- fs/dcache.c | 37 ++++++++++++++++++++++++++++---------
- 1 file changed, 28 insertions(+), 9 deletions(-)
+ fs/dcache.c | 87 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 87 insertions(+)
 
 diff --git a/fs/dcache.c b/fs/dcache.c
-index aac41adf4743..606844ad5171 100644
+index 606844ad5171..4387715b7ebb 100644
 --- a/fs/dcache.c
 +++ b/fs/dcache.c
-@@ -1603,6 +1603,22 @@ void d_invalidate(struct dentry *dentry)
- }
- EXPORT_SYMBOL(d_invalidate);
+@@ -30,6 +30,7 @@
+ #include <linux/bit_spinlock.h>
+ #include <linux/rculist_bl.h>
+ #include <linux/list_lru.h>
++#include <linux/backing-dev.h>
+ #include "internal.h"
+ #include "mount.h"
  
-+static void dcache_ctor(void *p)
+@@ -3074,6 +3075,90 @@ void d_tmpfile(struct dentry *dentry, struct inode *inode)
+ }
+ EXPORT_SYMBOL(d_tmpfile);
+ 
++/*
++ * d_isolate() - Dentry isolation callback function.
++ * @s: The dentry cache.
++ * @v: Vector of pointers to the objects to migrate.
++ * @nr: Number of objects in @v.
++ *
++ * The slab allocator is holding off frees. We can safely examine
++ * the object without the danger of it vanishing from under us.
++ */
++static void *d_isolate(struct kmem_cache *s, void **v, int nr)
 +{
-+	struct dentry *dentry = p;
++	struct dentry *dentry;
++	int i;
 +
-+	dentry->d_lockref.count = 0;
-+	dentry->d_inode = NULL;
-+
-+	spin_lock_init(&dentry->d_lock);
-+
-+	INIT_HLIST_BL_NODE(&dentry->d_hash);
-+	INIT_LIST_HEAD(&dentry->d_lru);
-+	INIT_LIST_HEAD(&dentry->d_subdirs);
-+	INIT_HLIST_NODE(&dentry->d_u.d_alias);
-+	INIT_LIST_HEAD(&dentry->d_child);
++	for (i = 0; i < nr; i++) {
++		dentry = v[i];
++		spin_lock(&dentry->d_lock);
++		/*
++		 * Three sorts of dentries cannot be reclaimed:
++		 *
++		 * 1. dentries that are in the process of being allocated
++		 *    or being freed. In that case the dentry is neither
++		 *    on the LRU nor hashed.
++		 *
++		 * 2. Fake hashed entries as used for anonymous dentries
++		 *    and pipe I/O. The fake hashed entries have d_flags
++		 *    set to indicate a hashed entry. However, the
++		 *    d_hash field indicates that the entry is not hashed.
++		 *
++		 * 3. dentries that have a backing store that is not
++		 *    writable. This is true for tmpsfs and other in
++		 *    memory filesystems. Removing dentries from them
++		 *    would loose dentries for good.
++		 */
++		if ((d_unhashed(dentry) && list_empty(&dentry->d_lru)) ||
++		    (!d_unhashed(dentry) && hlist_bl_unhashed(&dentry->d_hash)) ||
++		    (dentry->d_inode &&
++		     !mapping_cap_writeback_dirty(dentry->d_inode->i_mapping))) {
++			/* Ignore this dentry */
++			v[i] = NULL;
++		} else {
++			__dget_dlock(dentry);
++		}
++		spin_unlock(&dentry->d_lock);
++	}
++	return NULL;		/* No need for private data */
 +}
 +
- /**
-  * __d_alloc	-	allocate a dcache entry
-  * @sb: filesystem it will belong to
-@@ -1658,7 +1674,7 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
- 
- 	dentry->d_lockref.count = 1;
- 	dentry->d_flags = 0;
--	spin_lock_init(&dentry->d_lock);
++/*
++ * d_migrate() - Dentry migration callback function.
++ * @s: The dentry cache.
++ * @v: Vector of pointers to the objects to migrate.
++ * @nr: Number of objects in @v.
++ * @node: The NUMA node where new object should be allocated.
++ * @private: Returned by d_isolate() (currently %NULL).
++ *
++ * Slab has dropped all the locks. Get rid of the refcount obtained
++ * earlier and also free the object.
++ */
++static void d_migrate(struct kmem_cache *s, void **v, int nr,
++		      int node, void *_unused)
++{
++	struct dentry *dentry;
++	int i;
 +
- 	seqcount_init(&dentry->d_seq);
- 	dentry->d_inode = NULL;
- 	dentry->d_parent = dentry;
-@@ -3091,14 +3107,17 @@ static void __init dcache_init_early(void)
- 
- static void __init dcache_init(void)
++	for (i = 0; i < nr; i++) {
++		dentry = v[i];
++		if (dentry)
++			d_invalidate(dentry);
++	}
++
++	for (i = 0; i < nr; i++) {
++		dentry = v[i];
++		if (dentry)
++			dput(dentry);
++	}
++
++	/*
++	 * dentries are freed using RCU so we need to wait until RCU
++	 * operations are complete.
++	 */
++	synchronize_rcu();
++}
++
+ static __initdata unsigned long dhash_entries;
+ static int __init set_dhash_entries(char *str)
  {
--	/*
--	 * A constructor could be added for stable state like the lists,
--	 * but it is probably not worth it because of the cache nature
--	 * of the dcache.
--	 */
--	dentry_cache = KMEM_CACHE_USERCOPY(dentry,
--		SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD|SLAB_ACCOUNT,
--		d_iname);
-+	slab_flags_t flags =
-+		SLAB_RECLAIM_ACCOUNT | SLAB_PANIC | SLAB_MEM_SPREAD | SLAB_ACCOUNT;
-+
-+	dentry_cache =
-+		kmem_cache_create_usercopy("dentry",
-+					   sizeof(struct dentry),
-+					   __alignof__(struct dentry),
-+					   flags,
-+					   offsetof(struct dentry, d_iname),
-+					   sizeof_field(struct dentry, d_iname),
-+					   dcache_ctor);
+@@ -3119,6 +3204,8 @@ static void __init dcache_init(void)
+ 					   sizeof_field(struct dentry, d_iname),
+ 					   dcache_ctor);
  
++	kmem_cache_setup_mobility(dentry_cache, d_isolate, d_migrate);
++
  	/* Hash may have been set up in dcache_init_early */
  	if (!hashdist)
+ 		return;
 -- 
 2.21.0
 
