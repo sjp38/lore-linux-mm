@@ -6,74 +6,74 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 49B84C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 19:33:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D839C10F0E
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 19:33:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DAFC12133D
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 19:33:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DAFC12133D
+	by mail.kernel.org (Postfix) with ESMTP id 47367214AF
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 19:33:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 47367214AF
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 885FD6B026F; Wed,  3 Apr 2019 15:33:39 -0400 (EDT)
+	id C56586B026D; Wed,  3 Apr 2019 15:33:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7E23B6B026D; Wed,  3 Apr 2019 15:33:39 -0400 (EDT)
+	id A83516B0274; Wed,  3 Apr 2019 15:33:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5987C6B0272; Wed,  3 Apr 2019 15:33:39 -0400 (EDT)
+	id 680EB6B0271; Wed,  3 Apr 2019 15:33:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F2656B026D
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 39E5C6B026F
 	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 15:33:39 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id 54so114407qtn.15
+Received: by mail-qk1-f199.google.com with SMTP id o135so159280qke.11
         for <linux-mm@kvack.org>; Wed, 03 Apr 2019 12:33:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=1slSSF5ggjKW1CRbI3lXLqNclzMYmdvCruVVukHeqUA=;
-        b=ZLm9KQGZGVQW88Hu3Pu7Mi2X4XYE8JumgPGzIjjTUDafsLMLXq9EGKbccpv0TkfUWq
-         3xDh9pS2bI2/JkqN/eDmtVDHJO7bkvjwN0D07Hb0SYdBh+wyNsNh39cC8ap3JKw4l9SH
-         /OgJa508RT6Pdt+6aVmcBUoFV7JS79RNjyav9qYVZ+w12zs2Ms1i1APJfUjtFL3hlA7m
-         D4N+Ixbp87VAMUUCmcNCPG1FlAJH138bbRMTvWwBe7Nc9qkO/IAUxbNNbHoU08AZosJC
-         rQFhtfxax7BA6fl89efAfwJiKoVluOztcpTY9YXgj9Ni8AmMSfIWOT/2xRNFrk68B14I
-         3vYA==
+        bh=seuyMvHcnjUrsqyohmlvNEeaYKNbox69Y4Nl803gldo=;
+        b=SPkNwd1ZMr4a12xssedSOg67sTlza+YYlUI9myGpD8V6oddyvCG51+qpwbDhnu020j
+         MJsRipWLAxX3AqSFtqkH/fVyT6lNEeWqtvdcRy8DkGWRlkC2OvitrXrxZZAgQPfFt9Zq
+         6x/WCEaZ1TA5EwH6SLK89SSaJWyt2LGbpUukGfM02lzO0Avo+yk7HPl8O1XKrgZdaD3k
+         BTr5E/O44ME0xxgH51SLXxXseT7avdBcKD1ORQpdPI/v/lEGBv/HEzuMXcy9UlxyM5eV
+         xobZPmrSIiPHL2tIBmapG5fl4nq9zOswVhUw2mBBdvoqCBXcs251ukfuQs/fTGPHjH81
+         Rz8A==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXLcUGQ0wKJYfu67Moq+zxOo5H+OkGDrAEIQC1ejptkplO6BP7Y
-	yZQcBUhzlde09CwPj+dq6txRTEre1yluXutb8IpuuE/mxFe1Cs0AKMQUETi+bi06Aqzu6vTgAPb
-	QcNSl3sz9QKWhMzgjv38Vjn8TJ1yCtW33nrj9d2RQDmJCNc5iA0DDoFM7FwVwdlSJ1Q==
-X-Received: by 2002:a05:620a:103c:: with SMTP id a28mr1590908qkk.284.1554320018786;
+X-Gm-Message-State: APjAAAWRGv7rewetp+MPNLv3M1TfWzdpHYFjjwcS9hgOMDXobOXVuXB0
+	SkjKBOATFhgZ6VI4iMhYOBzQQUAi7NXUFiZlRUcHOpxW7HgCxKUtt7/SiExHRSVG+oHSJZr4/mY
+	E/gIMFzriew1c3qELoI9W5hS+bX86NzFrnXbYco40xdsHlokprDAzs1NJG9NTjRovNA==
+X-Received: by 2002:ac8:3687:: with SMTP id a7mr1667042qtc.284.1554320018983;
         Wed, 03 Apr 2019 12:33:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwhVs8diP3T5PskkhDHkjla5PaAs9ObBc3TZr9xIZxMBxRY48xOW55bbstwS7BvtcoIflAO
-X-Received: by 2002:a05:620a:103c:: with SMTP id a28mr1590815qkk.284.1554320017142;
-        Wed, 03 Apr 2019 12:33:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554320017; cv=none;
+X-Google-Smtp-Source: APXvYqzhi+BPO0Ap3CW5gV7SCXx1DOqXxZBupDcX7gRdXEzn2zESLhPIFLnlt5wAbb4F+/5fSbD9
+X-Received: by 2002:ac8:3687:: with SMTP id a7mr1666980qtc.284.1554320018178;
+        Wed, 03 Apr 2019 12:33:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554320018; cv=none;
         d=google.com; s=arc-20160816;
-        b=torzxmhrxpHEGYqZUz47dUAvH6A/1dIULOkOww3bvqqV6kuyKUF+TlaJVCuj6b5NU6
-         jFO0uufwK4vYlKJJB+3vSs1OeRVYer3Qm1Lt626JP0pqyU93VEKg6+/w6JBgdvSMvLkh
-         +W4LANnx90VRYje5xc5hr54Gj5m9b8s/TsCdxpbu8t9nXT074a8cpsDJru2WjVF7fl9v
-         Hzs/1TLsHG06KosSvQAVKvOdNlC+MKdKZs8c9UAzBN9uDMdax//bUAOStdz8BPi3ksCE
-         a6sUfK7G/Kw7DBRb+EzNgHPB/lUcn3Nbr76mPnD39lehQnfqW4V5n1iZ4GZ/JO1dWG+r
-         9rLA==
+        b=dEXj9QL1M+tWqBJncJ44jZX29j+5hHuHtVpHALUVZmId+lPckCSfArUqOBV16Np5jX
+         +VdpUnHkOiiHW3Io0O77Pi3qDosvlOKDkS8LRY12eqYZGs32L6k1LTfjkf043XH4U4CB
+         KRir262vWIMhqmrrgD63IfZ1Gvo+LK9YS3Ep6FeU1YJBfQepVCLUL52KP3qZy0dOWvpB
+         KTfcUWbUutHb1NVWGxuJ17CQ5PSIdM48dG16WOowyW053RBIbB9XeKL/mGSFrHW2Mokp
+         vzEoFVxwxa5kzIZEImh/jQx/fWrr/yNPuUc6YwHuuf3J0NYNpBnUaBdtw7YW3XZuCmvj
+         fj1w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=1slSSF5ggjKW1CRbI3lXLqNclzMYmdvCruVVukHeqUA=;
-        b=j3ZQ28mTn4UpdBTwVTZbNTzNCnN5OzSqXbr3+1YvJaA1htDlCmmqWVfTy+n1stsMhK
-         j3u8jnPd/UhXjvVth8ZmZcxIHM7tzGH0vxvbBu95wUkIdZCkm+ZMx9mRGP4NBPwHkWLO
-         0MANtC7w0aUWPbreiWvs9uNnwV5+SnKG5/Jcu4gUFDMg4kizddWcnjFaqpOcEGFlIOvR
-         BA2aBAO+BtjEajV9vRrrtw+rGqkDJ8YgBRlz3A+nOFfATF17c4MOnX/IUdtNmR58KrBI
-         AXz1qGAnRpNyjM+7qH5X76GnYncJsICQHkGg0Ic30VrFlNGYkv8NKvkSXUlYNWUOPK8P
-         sNbw==
+        bh=seuyMvHcnjUrsqyohmlvNEeaYKNbox69Y4Nl803gldo=;
+        b=TIv/O5DwvZ0NCi8H0TN6qbMGalYHXvfborNfPxJVDVP2b/bjs6PVaolmRPOuh4YMXm
+         JHIbh7RnTEOJ6L/2P+zM8pATHHTGvs5Zf9q2yUZTi4kw7NojjFdAQ9+q+CQ0TbsqLGKY
+         qWQ68+cp6ObXbiSyeHlOeN4cLofs9zRPg2Nu1wAwZ/GJqurCLVWm8i3wlnRGAHv5cfzR
+         grLSv94tqyJpT7oJ7xzSdU01yoX2ihNzx9iuyhlaomYktO0+2U+XRwn3iizAuGB6mpSd
+         SzNRjUfRNo+yCxN5ZLv6Q1eHn++ZRnKoGQPZV0LZAhAF38q6Xb76EIcvjFSXTrMUprEV
+         /s0Q==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 28si1639505qvl.218.2019.04.03.12.33.36
+        by mx.google.com with ESMTPS id w28si2521044qtk.21.2019.04.03.12.33.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 12:33:37 -0700 (PDT)
+        Wed, 03 Apr 2019 12:33:38 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
@@ -81,30 +81,28 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 540D9308FF17;
-	Wed,  3 Apr 2019 19:33:36 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 63F8230842B1;
+	Wed,  3 Apr 2019 19:33:37 +0000 (UTC)
 Received: from localhost.localdomain.com (ovpn-125-190.rdu2.redhat.com [10.10.125.190])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 915516012C;
-	Wed,  3 Apr 2019 19:33:34 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 7D2C86012C;
+	Wed,  3 Apr 2019 19:33:36 +0000 (UTC)
 From: jglisse@redhat.com
 To: linux-mm@kvack.org,
 	Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org,
 	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
 	John Hubbard <jhubbard@nvidia.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dan Carpenter <dan.carpenter@oracle.com>,
-	Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v3 06/12] mm/hmm: improve driver API to work and wait over a range v3
-Date: Wed,  3 Apr 2019 15:33:12 -0400
-Message-Id: <20190403193318.16478-7-jglisse@redhat.com>
+	Dan Williams <dan.j.williams@intel.com>
+Subject: [PATCH v3 07/12] mm/hmm: add default fault flags to avoid the need to pre-fill pfns arrays v2
+Date: Wed,  3 Apr 2019 15:33:13 -0400
+Message-Id: <20190403193318.16478-8-jglisse@redhat.com>
 In-Reply-To: <20190403193318.16478-1-jglisse@redhat.com>
 References: <20190403193318.16478-1-jglisse@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Wed, 03 Apr 2019 19:33:36 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Wed, 03 Apr 2019 19:33:37 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -113,943 +111,137 @@ List-ID: <linux-mm.kvack.org>
 
 From: Jérôme Glisse <jglisse@redhat.com>
 
-A common use case for HMM mirror is user trying to mirror a range
-and before they could program the hardware it get invalidated by
-some core mm event. Instead of having user re-try right away to
-mirror the range provide a completion mechanism for them to wait
-for any active invalidation affecting the range.
+The HMM mirror API can be use in two fashions. The first one where the HMM
+user coalesce multiple page faults into one request and set flags per pfns
+for of those faults. The second one where the HMM user want to pre-fault a
+range with specific flags. For the latter one it is a waste to have the user
+pre-fill the pfn arrays with a default flags value.
 
-This also changes how hmm_range_snapshot() and hmm_range_fault()
-works by not relying on vma so that we can drop the mmap_sem
-when waiting and lookup the vma again on retry.
+This patch adds a default flags value allowing user to set them for a range
+without having to pre-fill the pfn array.
 
-Changes since v2:
-    - Updated documentation to match new API.
-    - Added more comments in old API temporary wrapper.
-    - Consolidated documentation in hmm.rst to avoid out of sync.
 Changes since v1:
-    - squashed: Dan Carpenter: potential deadlock in nonblocking code
+    - Added documentation.
+    - Added comments in the old API wrapper to explain what is going on.
 
 Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
 Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: John Hubbard <jhubbard@nvidia.com>
 Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Dan Carpenter <dan.carpenter@oracle.com>
-Cc: Matthew Wilcox <willy@infradead.org>
 ---
- Documentation/vm/hmm.rst |  25 +-
- include/linux/hmm.h      | 145 ++++++++---
- mm/hmm.c                 | 531 +++++++++++++++++++--------------------
- 3 files changed, 387 insertions(+), 314 deletions(-)
+ Documentation/vm/hmm.rst | 35 +++++++++++++++++++++++++++++++++++
+ include/linux/hmm.h      | 13 +++++++++++++
+ mm/hmm.c                 | 12 ++++++++++++
+ 3 files changed, 60 insertions(+)
 
 diff --git a/Documentation/vm/hmm.rst b/Documentation/vm/hmm.rst
-index 61f073215a8d..945d5fb6d14a 100644
+index 945d5fb6d14a..ec1efa32af3c 100644
 --- a/Documentation/vm/hmm.rst
 +++ b/Documentation/vm/hmm.rst
-@@ -217,17 +217,33 @@ Locking with the update() callback is the most important aspect the driver must
-       range.flags = ...;
-       range.values = ...;
-       range.pfn_shift = ...;
-+      hmm_range_register(&range);
+@@ -276,6 +276,41 @@ report commands as executed is serialized (there is no point in doing this
+ concurrently).
+ 
+ 
++Leverage default_flags and pfn_flags_mask
++=========================================
 +
-+      /*
-+       * Just wait for range to be valid, safe to ignore return value as we
-+       * will use the return value of hmm_range_snapshot() below under the
-+       * mmap_sem to ascertain the validity of the range.
-+       */
-+      hmm_range_wait_until_valid(&range, TIMEOUT_IN_MSEC);
++The hmm_range struct has 2 fields default_flags and pfn_flags_mask that allows
++to set fault or snapshot policy for a whole range instead of having to set them
++for each entries in the range.
++
++For instance if the device flags for device entries are:
++    VALID (1 << 63)
++    WRITE (1 << 62)
++
++Now let say that device driver wants to fault with at least read a range then
++it does set:
++    range->default_flags = (1 << 63)
++    range->pfn_flags_mask = 0;
++
++and calls hmm_range_fault() as described above. This will fill fault all page
++in the range with at least read permission.
++
++Now let say driver wants to do the same except for one page in the range for
++which its want to have write. Now driver set:
++    range->default_flags = (1 << 63);
++    range->pfn_flags_mask = (1 << 62);
++    range->pfns[index_of_write] = (1 << 62);
++
++With this HMM will fault in all page with at least read (ie valid) and for the
++address == range->start + (index_of_write << PAGE_SHIFT) it will fault with
++write permission ie if the CPU pte does not have write permission set then HMM
++will call handle_mm_fault().
++
++Note that HMM will populate the pfns array with write permission for any entry
++that have write permission within the CPU pte no matter what are the values set
++in default_flags or pfn_flags_mask.
++
++
+ Represent and manage device memory from core kernel point of view
+ =================================================================
  
-  again:
-       down_read(&mm->mmap_sem);
--      range.vma = ...;
-       ret = hmm_range_snapshot(&range);
-       if (ret) {
-           up_read(&mm->mmap_sem);
-+          if (ret == -EAGAIN) {
-+            /*
-+             * No need to check hmm_range_wait_until_valid() return value
-+             * on retry we will get proper error with hmm_range_snapshot()
-+             */
-+            hmm_range_wait_until_valid(&range, TIMEOUT_IN_MSEC);
-+            goto again;
-+          }
-+          hmm_mirror_unregister(&range);
-           return ret;
-       }
-       take_lock(driver->update);
--      if (!hmm_vma_range_done(vma, &range)) {
-+      if (!range.valid) {
-           release_lock(driver->update);
-           up_read(&mm->mmap_sem);
-           goto again;
-@@ -235,14 +251,15 @@ Locking with the update() callback is the most important aspect the driver must
- 
-       // Use pfns array content to update device page table
- 
-+      hmm_mirror_unregister(&range);
-       release_lock(driver->update);
-       up_read(&mm->mmap_sem);
-       return 0;
-  }
- 
- The driver->update lock is the same lock that the driver takes inside its
--update() callback. That lock must be held before hmm_vma_range_done() to avoid
--any race with a concurrent CPU page table update.
-+update() callback. That lock must be held before checking the range.valid
-+field to avoid any race with a concurrent CPU page table update.
- 
- HMM implements all this on top of the mmu_notifier API because we wanted a
- simpler API and also to be able to perform optimizations latter on like doing
 diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index e9afd23c2eac..ec4bfa91648f 100644
+index ec4bfa91648f..dee2f8953b2e 100644
 --- a/include/linux/hmm.h
 +++ b/include/linux/hmm.h
-@@ -77,8 +77,34 @@
- #include <linux/migrate.h>
- #include <linux/memremap.h>
- #include <linux/completion.h>
-+#include <linux/mmu_notifier.h>
- 
--struct hmm;
-+
-+/*
-+ * struct hmm - HMM per mm struct
-+ *
-+ * @mm: mm struct this HMM struct is bound to
-+ * @lock: lock protecting ranges list
-+ * @ranges: list of range being snapshotted
-+ * @mirrors: list of mirrors for this mm
-+ * @mmu_notifier: mmu notifier to track updates to CPU page table
-+ * @mirrors_sem: read/write semaphore protecting the mirrors list
-+ * @wq: wait queue for user waiting on a range invalidation
-+ * @notifiers: count of active mmu notifiers
-+ * @dead: is the mm dead ?
-+ */
-+struct hmm {
-+	struct mm_struct	*mm;
-+	struct kref		kref;
-+	struct mutex		lock;
-+	struct list_head	ranges;
-+	struct list_head	mirrors;
-+	struct mmu_notifier	mmu_notifier;
-+	struct rw_semaphore	mirrors_sem;
-+	wait_queue_head_t	wq;
-+	long			notifiers;
-+	bool			dead;
-+};
- 
- /*
-  * hmm_pfn_flag_e - HMM flag enums
-@@ -155,6 +181,38 @@ struct hmm_range {
+@@ -165,6 +165,8 @@ enum hmm_pfn_value_e {
+  * @pfns: array of pfns (big enough for the range)
+  * @flags: pfn flags to match device driver page table
+  * @values: pfn value for some special case (none, special, error, ...)
++ * @default_flags: default flags for the range (write, read, ... see hmm doc)
++ * @pfn_flags_mask: allows to mask pfn flags so that only default_flags matter
+  * @pfn_shifts: pfn shift value (should be <= PAGE_SHIFT)
+  * @valid: pfns array did not change since it has been fill by an HMM function
+  */
+@@ -177,6 +179,8 @@ struct hmm_range {
+ 	uint64_t		*pfns;
+ 	const uint64_t		*flags;
+ 	const uint64_t		*values;
++	uint64_t		default_flags;
++	uint64_t		pfn_flags_mask;
+ 	uint8_t			pfn_shift;
  	bool			valid;
  };
- 
-+/*
-+ * hmm_range_wait_until_valid() - wait for range to be valid
-+ * @range: range affected by invalidation to wait on
-+ * @timeout: time out for wait in ms (ie abort wait after that period of time)
-+ * Returns: true if the range is valid, false otherwise.
-+ */
-+static inline bool hmm_range_wait_until_valid(struct hmm_range *range,
-+					      unsigned long timeout)
-+{
-+	/* Check if mm is dead ? */
-+	if (range->hmm == NULL || range->hmm->dead || range->hmm->mm == NULL) {
-+		range->valid = false;
-+		return false;
-+	}
-+	if (range->valid)
-+		return true;
-+	wait_event_timeout(range->hmm->wq, range->valid || range->hmm->dead,
-+			   msecs_to_jiffies(timeout));
-+	/* Return current valid status just in case we get lucky */
-+	return range->valid;
-+}
-+
-+/*
-+ * hmm_range_valid() - test if a range is valid or not
-+ * @range: range
-+ * Returns: true if the range is valid, false otherwise.
-+ */
-+static inline bool hmm_range_valid(struct hmm_range *range)
-+{
-+	return range->valid;
-+}
-+
- /*
-  * hmm_pfn_to_page() - return struct page pointed to by a valid HMM pfn
-  * @range: range use to decode HMM pfn value
-@@ -357,51 +415,66 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror);
- 
- 
- /*
-- * To snapshot the CPU page table, call hmm_vma_get_pfns(), then take a device
-- * driver lock that serializes device page table updates, then call
-- * hmm_vma_range_done(), to check if the snapshot is still valid. The same
-- * device driver page table update lock must also be used in the
-- * hmm_mirror_ops.sync_cpu_device_pagetables() callback, so that CPU page
-- * table invalidation serializes on it.
-- *
-- * YOU MUST CALL hmm_vma_range_done() ONCE AND ONLY ONCE EACH TIME YOU CALL
-- * hmm_range_snapshot() WITHOUT ERROR !
-- *
-- * IF YOU DO NOT FOLLOW THE ABOVE RULE THE SNAPSHOT CONTENT MIGHT BE INVALID !
-+ * Please see Documentation/vm/hmm.rst for how to use the range API.
-  */
-+int hmm_range_register(struct hmm_range *range,
-+		       struct mm_struct *mm,
-+		       unsigned long start,
-+		       unsigned long end);
-+void hmm_range_unregister(struct hmm_range *range);
- long hmm_range_snapshot(struct hmm_range *range);
--bool hmm_vma_range_done(struct hmm_range *range);
--
-+long hmm_range_fault(struct hmm_range *range, bool block);
- 
- /*
-- * Fault memory on behalf of device driver. Unlike handle_mm_fault(), this will
-- * not migrate any device memory back to system memory. The HMM pfn array will
-- * be updated with the fault result and current snapshot of the CPU page table
-- * for the range.
-- *
-- * The mmap_sem must be taken in read mode before entering and it might be
-- * dropped by the function if the block argument is false. In that case, the
-- * function returns -EAGAIN.
-- *
-- * Return value does not reflect if the fault was successful for every single
-- * address or not. Therefore, the caller must to inspect the HMM pfn array to
-- * determine fault status for each address.
-- *
-- * Trying to fault inside an invalid vma will result in -EINVAL.
-+ * HMM_RANGE_DEFAULT_TIMEOUT - default timeout (ms) when waiting for a range
-  *
-- * See the function description in mm/hmm.c for further documentation.
-+ * When waiting for mmu notifiers we need some kind of time out otherwise we
-+ * could potentialy wait for ever, 1000ms ie 1s sounds like a long time to
-+ * wait already.
-  */
--long hmm_range_fault(struct hmm_range *range, bool block);
-+#define HMM_RANGE_DEFAULT_TIMEOUT 1000
-+
-+/* This is a temporary helper to avoid merge conflict between trees. */
-+static inline bool hmm_vma_range_done(struct hmm_range *range)
-+{
-+	bool ret = hmm_range_valid(range);
-+
-+	hmm_range_unregister(range);
-+	return ret;
-+}
- 
- /* This is a temporary helper to avoid merge conflict between trees. */
- static inline int hmm_vma_fault(struct hmm_range *range, bool block)
+@@ -448,6 +452,15 @@ static inline int hmm_vma_fault(struct hmm_range *range, bool block)
  {
--	long ret = hmm_range_fault(range, block);
--	if (ret == -EBUSY)
--		ret = -EAGAIN;
--	else if (ret == -EAGAIN)
--		ret = -EBUSY;
--	return ret < 0 ? ret : 0;
-+	long ret;
-+
-+	ret = hmm_range_register(range, range->vma->vm_mm,
-+				 range->start, range->end);
-+	if (ret)
-+		return (int)ret;
-+
-+	if (!hmm_range_wait_until_valid(range, HMM_RANGE_DEFAULT_TIMEOUT)) {
-+		/*
-+		 * The mmap_sem was taken by driver we release it here and
-+		 * returns -EAGAIN which correspond to mmap_sem have been
-+		 * drop in the old API.
-+		 */
-+		up_read(&range->vma->vm_mm->mmap_sem);
-+		return -EAGAIN;
-+	}
-+
-+	ret = hmm_range_fault(range, block);
-+	if (ret <= 0) {
-+		if (ret == -EBUSY || !ret) {
-+			/* Same as above  drop mmap_sem to match old API. */
-+			up_read(&range->vma->vm_mm->mmap_sem);
-+			ret = -EBUSY;
-+		} else if (ret == -EAGAIN)
-+			ret = -EBUSY;
-+		hmm_range_unregister(range);
-+		return ret;
-+	}
-+	return 0;
- }
+ 	long ret;
  
- /* Below are for HMM internal use only! Not to be used by device driver! */
++	/*
++	 * With the old API the driver must set each individual entries with
++	 * the requested flags (valid, write, ...). So here we set the mask to
++	 * keep intact the entries provided by the driver and zero out the
++	 * default_flags.
++	 */
++	range->default_flags = 0;
++	range->pfn_flags_mask = -1UL;
++
+ 	ret = hmm_range_register(range, range->vma->vm_mm,
+ 				 range->start, range->end);
+ 	if (ret)
 diff --git a/mm/hmm.c b/mm/hmm.c
-index b7e4034d96e1..3e07f32b94f8 100644
+index 3e07f32b94f8..0e21d3594ab6 100644
 --- a/mm/hmm.c
 +++ b/mm/hmm.c
-@@ -38,26 +38,6 @@
- #if IS_ENABLED(CONFIG_HMM_MIRROR)
- static const struct mmu_notifier_ops hmm_mmu_notifier_ops;
- 
--/*
-- * struct hmm - HMM per mm struct
-- *
-- * @mm: mm struct this HMM struct is bound to
-- * @lock: lock protecting ranges list
-- * @ranges: list of range being snapshotted
-- * @mirrors: list of mirrors for this mm
-- * @mmu_notifier: mmu notifier to track updates to CPU page table
-- * @mirrors_sem: read/write semaphore protecting the mirrors list
-- */
--struct hmm {
--	struct mm_struct	*mm;
--	struct kref		kref;
--	spinlock_t		lock;
--	struct list_head	ranges;
--	struct list_head	mirrors;
--	struct mmu_notifier	mmu_notifier;
--	struct rw_semaphore	mirrors_sem;
--};
--
- static inline struct hmm *mm_get_hmm(struct mm_struct *mm)
- {
- 	struct hmm *hmm = READ_ONCE(mm->hmm);
-@@ -91,12 +71,15 @@ static struct hmm *hmm_get_or_create(struct mm_struct *mm)
- 	hmm = kmalloc(sizeof(*hmm), GFP_KERNEL);
- 	if (!hmm)
- 		return NULL;
-+	init_waitqueue_head(&hmm->wq);
- 	INIT_LIST_HEAD(&hmm->mirrors);
- 	init_rwsem(&hmm->mirrors_sem);
- 	hmm->mmu_notifier.ops = NULL;
- 	INIT_LIST_HEAD(&hmm->ranges);
--	spin_lock_init(&hmm->lock);
-+	mutex_init(&hmm->lock);
- 	kref_init(&hmm->kref);
-+	hmm->notifiers = 0;
-+	hmm->dead = false;
- 	hmm->mm = mm;
- 
- 	spin_lock(&mm->page_table_lock);
-@@ -158,6 +141,7 @@ void hmm_mm_destroy(struct mm_struct *mm)
- 	mm->hmm = NULL;
- 	if (hmm) {
- 		hmm->mm = NULL;
-+		hmm->dead = true;
- 		spin_unlock(&mm->page_table_lock);
- 		hmm_put(hmm);
- 		return;
-@@ -166,43 +150,22 @@ void hmm_mm_destroy(struct mm_struct *mm)
- 	spin_unlock(&mm->page_table_lock);
- }
- 
--static int hmm_invalidate_range(struct hmm *hmm, bool device,
--				const struct hmm_update *update)
-+static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
- {
-+	struct hmm *hmm = mm_get_hmm(mm);
- 	struct hmm_mirror *mirror;
- 	struct hmm_range *range;
- 
--	spin_lock(&hmm->lock);
--	list_for_each_entry(range, &hmm->ranges, list) {
--		if (update->end < range->start || update->start >= range->end)
--			continue;
-+	/* Report this HMM as dying. */
-+	hmm->dead = true;
- 
-+	/* Wake-up everyone waiting on any range. */
-+	mutex_lock(&hmm->lock);
-+	list_for_each_entry(range, &hmm->ranges, list) {
- 		range->valid = false;
- 	}
--	spin_unlock(&hmm->lock);
--
--	if (!device)
--		return 0;
--
--	down_read(&hmm->mirrors_sem);
--	list_for_each_entry(mirror, &hmm->mirrors, list) {
--		int ret;
--
--		ret = mirror->ops->sync_cpu_device_pagetables(mirror, update);
--		if (!update->blockable && ret == -EAGAIN) {
--			up_read(&hmm->mirrors_sem);
--			return -EAGAIN;
--		}
--	}
--	up_read(&hmm->mirrors_sem);
--
--	return 0;
--}
--
--static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
--{
--	struct hmm_mirror *mirror;
--	struct hmm *hmm = mm_get_hmm(mm);
-+	wake_up_all(&hmm->wq);
-+	mutex_unlock(&hmm->lock);
- 
- 	down_write(&hmm->mirrors_sem);
- 	mirror = list_first_entry_or_null(&hmm->mirrors, struct hmm_mirror,
-@@ -228,36 +191,80 @@ static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
- }
- 
- static int hmm_invalidate_range_start(struct mmu_notifier *mn,
--			const struct mmu_notifier_range *range)
-+			const struct mmu_notifier_range *nrange)
- {
--	struct hmm *hmm = mm_get_hmm(range->mm);
-+	struct hmm *hmm = mm_get_hmm(nrange->mm);
-+	struct hmm_mirror *mirror;
- 	struct hmm_update update;
--	int ret;
-+	struct hmm_range *range;
-+	int ret = 0;
- 
- 	VM_BUG_ON(!hmm);
- 
--	update.start = range->start;
--	update.end = range->end;
-+	update.start = nrange->start;
-+	update.end = nrange->end;
- 	update.event = HMM_UPDATE_INVALIDATE;
--	update.blockable = range->blockable;
--	ret = hmm_invalidate_range(hmm, true, &update);
-+	update.blockable = nrange->blockable;
-+
-+	if (nrange->blockable)
-+		mutex_lock(&hmm->lock);
-+	else if (!mutex_trylock(&hmm->lock)) {
-+		ret = -EAGAIN;
-+		goto out;
-+	}
-+	hmm->notifiers++;
-+	list_for_each_entry(range, &hmm->ranges, list) {
-+		if (update.end < range->start || update.start >= range->end)
-+			continue;
-+
-+		range->valid = false;
-+	}
-+	mutex_unlock(&hmm->lock);
-+
-+	if (nrange->blockable)
-+		down_read(&hmm->mirrors_sem);
-+	else if (!down_read_trylock(&hmm->mirrors_sem)) {
-+		ret = -EAGAIN;
-+		goto out;
-+	}
-+	list_for_each_entry(mirror, &hmm->mirrors, list) {
-+		int ret;
-+
-+		ret = mirror->ops->sync_cpu_device_pagetables(mirror, &update);
-+		if (!update.blockable && ret == -EAGAIN) {
-+			up_read(&hmm->mirrors_sem);
-+			ret = -EAGAIN;
-+			goto out;
-+		}
-+	}
-+	up_read(&hmm->mirrors_sem);
-+
-+out:
- 	hmm_put(hmm);
- 	return ret;
- }
- 
- static void hmm_invalidate_range_end(struct mmu_notifier *mn,
--			const struct mmu_notifier_range *range)
-+			const struct mmu_notifier_range *nrange)
- {
--	struct hmm *hmm = mm_get_hmm(range->mm);
--	struct hmm_update update;
-+	struct hmm *hmm = mm_get_hmm(nrange->mm);
- 
- 	VM_BUG_ON(!hmm);
- 
--	update.start = range->start;
--	update.end = range->end;
--	update.event = HMM_UPDATE_INVALIDATE;
--	update.blockable = true;
--	hmm_invalidate_range(hmm, false, &update);
-+	mutex_lock(&hmm->lock);
-+	hmm->notifiers--;
-+	if (!hmm->notifiers) {
-+		struct hmm_range *range;
-+
-+		list_for_each_entry(range, &hmm->ranges, list) {
-+			if (range->valid)
-+				continue;
-+			range->valid = true;
-+		}
-+		wake_up_all(&hmm->wq);
-+	}
-+	mutex_unlock(&hmm->lock);
-+
- 	hmm_put(hmm);
- }
- 
-@@ -409,7 +416,6 @@ static inline void hmm_pte_need_fault(const struct hmm_vma_walk *hmm_vma_walk,
- {
- 	struct hmm_range *range = hmm_vma_walk->range;
- 
--	*fault = *write_fault = false;
+@@ -419,6 +419,18 @@ static inline void hmm_pte_need_fault(const struct hmm_vma_walk *hmm_vma_walk,
  	if (!hmm_vma_walk->fault)
  		return;
  
-@@ -448,10 +454,11 @@ static void hmm_range_need_fault(const struct hmm_vma_walk *hmm_vma_walk,
++	/*
++	 * So we not only consider the individual per page request we also
++	 * consider the default flags requested for the range. The API can
++	 * be use in 2 fashions. The first one where the HMM user coalesce
++	 * multiple page fault into one request and set flags per pfns for
++	 * of those faults. The second one where the HMM user want to pre-
++	 * fault a range with specific flags. For the latter one it is a
++	 * waste to have the user pre-fill the pfn arrays with a default
++	 * flags value.
++	 */
++	pfns = (pfns & range->pfn_flags_mask) | range->default_flags;
++
+ 	/* We aren't ask to do anything ... */
+ 	if (!(pfns & range->flags[HMM_PFN_VALID]))
  		return;
- 	}
- 
-+	*fault = *write_fault = false;
- 	for (i = 0; i < npages; ++i) {
- 		hmm_pte_need_fault(hmm_vma_walk, pfns[i], cpu_flags,
- 				   fault, write_fault);
--		if ((*fault) || (*write_fault))
-+		if ((*write_fault))
- 			return;
- 	}
- }
-@@ -706,162 +713,155 @@ static void hmm_pfns_special(struct hmm_range *range)
- }
- 
- /*
-- * hmm_range_snapshot() - snapshot CPU page table for a range
-+ * hmm_range_register() - start tracking change to CPU page table over a range
-  * @range: range
-- * Returns: number of valid pages in range->pfns[] (from range start
-- *          address). This may be zero. If the return value is negative,
-- *          then one of the following values may be returned:
-+ * @mm: the mm struct for the range of virtual address
-+ * @start: start virtual address (inclusive)
-+ * @end: end virtual address (exclusive)
-+ * Returns 0 on success, -EFAULT if the address space is no longer valid
-  *
-- *           -EINVAL  invalid arguments or mm or virtual address are in an
-- *                    invalid vma (ie either hugetlbfs or device file vma).
-- *           -EPERM   For example, asking for write, when the range is
-- *                    read-only
-- *           -EAGAIN  Caller needs to retry
-- *           -EFAULT  Either no valid vma exists for this range, or it is
-- *                    illegal to access the range
-- *
-- * This snapshots the CPU page table for a range of virtual addresses. Snapshot
-- * validity is tracked by range struct. See hmm_vma_range_done() for further
-- * information.
-+ * Track updates to the CPU page table see include/linux/hmm.h
-  */
--long hmm_range_snapshot(struct hmm_range *range)
-+int hmm_range_register(struct hmm_range *range,
-+		       struct mm_struct *mm,
-+		       unsigned long start,
-+		       unsigned long end)
- {
--	struct vm_area_struct *vma = range->vma;
--	struct hmm_vma_walk hmm_vma_walk;
--	struct mm_walk mm_walk;
--	struct hmm *hmm;
--
-+	range->start = start & PAGE_MASK;
-+	range->end = end & PAGE_MASK;
-+	range->valid = false;
- 	range->hmm = NULL;
- 
--	/* Sanity check, this really should not happen ! */
--	if (range->start < vma->vm_start || range->start >= vma->vm_end)
--		return -EINVAL;
--	if (range->end < vma->vm_start || range->end > vma->vm_end)
-+	if (range->start >= range->end)
- 		return -EINVAL;
- 
--	hmm = hmm_get_or_create(vma->vm_mm);
--	if (!hmm)
--		return -ENOMEM;
-+	range->start = start;
-+	range->end = end;
-+
-+	range->hmm = hmm_get_or_create(mm);
-+	if (!range->hmm)
-+		return -EFAULT;
- 
- 	/* Check if hmm_mm_destroy() was call. */
--	if (hmm->mm == NULL) {
--		hmm_put(hmm);
--		return -EINVAL;
-+	if (range->hmm->mm == NULL || range->hmm->dead) {
-+		hmm_put(range->hmm);
-+		return -EFAULT;
- 	}
- 
--	/* FIXME support hugetlb fs */
--	if (is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL) ||
--			vma_is_dax(vma)) {
--		hmm_pfns_special(range);
--		hmm_put(hmm);
--		return -EINVAL;
--	}
-+	/* Initialize range to track CPU page table update */
-+	mutex_lock(&range->hmm->lock);
- 
--	if (!(vma->vm_flags & VM_READ)) {
--		/*
--		 * If vma do not allow read access, then assume that it does
--		 * not allow write access, either. Architecture that allow
--		 * write without read access are not supported by HMM, because
--		 * operations such has atomic access would not work.
--		 */
--		hmm_pfns_clear(range, range->pfns, range->start, range->end);
--		hmm_put(hmm);
--		return -EPERM;
--	}
-+	list_add_rcu(&range->list, &range->hmm->ranges);
- 
--	/* Initialize range to track CPU page table update */
--	spin_lock(&hmm->lock);
--	range->valid = true;
--	list_add_rcu(&range->list, &hmm->ranges);
--	spin_unlock(&hmm->lock);
--
--	hmm_vma_walk.fault = false;
--	hmm_vma_walk.range = range;
--	mm_walk.private = &hmm_vma_walk;
--	hmm_vma_walk.last = range->start;
--
--	mm_walk.vma = vma;
--	mm_walk.mm = vma->vm_mm;
--	mm_walk.pte_entry = NULL;
--	mm_walk.test_walk = NULL;
--	mm_walk.hugetlb_entry = NULL;
--	mm_walk.pmd_entry = hmm_vma_walk_pmd;
--	mm_walk.pte_hole = hmm_vma_walk_hole;
--
--	walk_page_range(range->start, range->end, &mm_walk);
- 	/*
--	 * Transfer hmm reference to the range struct it will be drop inside
--	 * the hmm_vma_range_done() function (which _must_ be call if this
--	 * function return 0).
-+	 * If there are any concurrent notifiers we have to wait for them for
-+	 * the range to be valid (see hmm_range_wait_until_valid()).
- 	 */
--	range->hmm = hmm;
--	return (hmm_vma_walk.last - range->start) >> PAGE_SHIFT;
-+	if (!range->hmm->notifiers)
-+		range->valid = true;
-+	mutex_unlock(&range->hmm->lock);
-+
-+	return 0;
- }
--EXPORT_SYMBOL(hmm_range_snapshot);
-+EXPORT_SYMBOL(hmm_range_register);
- 
- /*
-- * hmm_vma_range_done() - stop tracking change to CPU page table over a range
-- * @range: range being tracked
-- * Returns: false if range data has been invalidated, true otherwise
-+ * hmm_range_unregister() - stop tracking change to CPU page table over a range
-+ * @range: range
-  *
-  * Range struct is used to track updates to the CPU page table after a call to
-- * either hmm_vma_get_pfns() or hmm_vma_fault(). Once the device driver is done
-- * using the data,  or wants to lock updates to the data it got from those
-- * functions, it must call the hmm_vma_range_done() function, which will then
-- * stop tracking CPU page table updates.
-- *
-- * Note that device driver must still implement general CPU page table update
-- * tracking either by using hmm_mirror (see hmm_mirror_register()) or by using
-- * the mmu_notifier API directly.
-- *
-- * CPU page table update tracking done through hmm_range is only temporary and
-- * to be used while trying to duplicate CPU page table contents for a range of
-- * virtual addresses.
-- *
-- * There are two ways to use this :
-- * again:
-- *   hmm_vma_get_pfns(range); or hmm_vma_fault(...);
-- *   trans = device_build_page_table_update_transaction(pfns);
-- *   device_page_table_lock();
-- *   if (!hmm_vma_range_done(range)) {
-- *     device_page_table_unlock();
-- *     goto again;
-- *   }
-- *   device_commit_transaction(trans);
-- *   device_page_table_unlock();
-- *
-- * Or:
-- *   hmm_vma_get_pfns(range); or hmm_vma_fault(...);
-- *   device_page_table_lock();
-- *   hmm_vma_range_done(range);
-- *   device_update_page_table(range->pfns);
-- *   device_page_table_unlock();
-+ * hmm_range_register(). See include/linux/hmm.h for how to use it.
-  */
--bool hmm_vma_range_done(struct hmm_range *range)
-+void hmm_range_unregister(struct hmm_range *range)
- {
--	bool ret = false;
--
- 	/* Sanity check this really should not happen. */
--	if (range->hmm == NULL || range->end <= range->start) {
--		BUG();
--		return false;
--	}
-+	if (range->hmm == NULL || range->end <= range->start)
-+		return;
- 
--	spin_lock(&range->hmm->lock);
-+	mutex_lock(&range->hmm->lock);
- 	list_del_rcu(&range->list);
--	ret = range->valid;
--	spin_unlock(&range->hmm->lock);
-+	mutex_unlock(&range->hmm->lock);
- 
--	/* Is the mm still alive ? */
--	if (range->hmm->mm == NULL)
--		ret = false;
--
--	/* Drop reference taken by hmm_vma_fault() or hmm_vma_get_pfns() */
-+	/* Drop reference taken by hmm_range_register() */
-+	range->valid = false;
- 	hmm_put(range->hmm);
- 	range->hmm = NULL;
--	return ret;
- }
--EXPORT_SYMBOL(hmm_vma_range_done);
-+EXPORT_SYMBOL(hmm_range_unregister);
-+
-+/*
-+ * hmm_range_snapshot() - snapshot CPU page table for a range
-+ * @range: range
-+ * Returns: -EINVAL if invalid argument, -ENOMEM out of memory, -EPERM invalid
-+ *          permission (for instance asking for write and range is read only),
-+ *          -EAGAIN if you need to retry, -EFAULT invalid (ie either no valid
-+ *          vma or it is illegal to access that range), number of valid pages
-+ *          in range->pfns[] (from range start address).
-+ *
-+ * This snapshots the CPU page table for a range of virtual addresses. Snapshot
-+ * validity is tracked by range struct. See in include/linux/hmm.h for example
-+ * on how to use.
-+ */
-+long hmm_range_snapshot(struct hmm_range *range)
-+{
-+	unsigned long start = range->start, end;
-+	struct hmm_vma_walk hmm_vma_walk;
-+	struct hmm *hmm = range->hmm;
-+	struct vm_area_struct *vma;
-+	struct mm_walk mm_walk;
-+
-+	/* Check if hmm_mm_destroy() was call. */
-+	if (hmm->mm == NULL || hmm->dead)
-+		return -EFAULT;
-+
-+	do {
-+		/* If range is no longer valid force retry. */
-+		if (!range->valid)
-+			return -EAGAIN;
-+
-+		vma = find_vma(hmm->mm, start);
-+		if (vma == NULL || (vma->vm_flags & VM_SPECIAL))
-+			return -EFAULT;
-+
-+		/* FIXME support hugetlb fs/dax */
-+		if (is_vm_hugetlb_page(vma) || vma_is_dax(vma)) {
-+			hmm_pfns_special(range);
-+			return -EINVAL;
-+		}
-+
-+		if (!(vma->vm_flags & VM_READ)) {
-+			/*
-+			 * If vma do not allow read access, then assume that it
-+			 * does not allow write access, either. HMM does not
-+			 * support architecture that allow write without read.
-+			 */
-+			hmm_pfns_clear(range, range->pfns,
-+				range->start, range->end);
-+			return -EPERM;
-+		}
-+
-+		range->vma = vma;
-+		hmm_vma_walk.last = start;
-+		hmm_vma_walk.fault = false;
-+		hmm_vma_walk.range = range;
-+		mm_walk.private = &hmm_vma_walk;
-+		end = min(range->end, vma->vm_end);
-+
-+		mm_walk.vma = vma;
-+		mm_walk.mm = vma->vm_mm;
-+		mm_walk.pte_entry = NULL;
-+		mm_walk.test_walk = NULL;
-+		mm_walk.hugetlb_entry = NULL;
-+		mm_walk.pmd_entry = hmm_vma_walk_pmd;
-+		mm_walk.pte_hole = hmm_vma_walk_hole;
-+
-+		walk_page_range(start, end, &mm_walk);
-+		start = end;
-+	} while (start < range->end);
-+
-+	return (hmm_vma_walk.last - range->start) >> PAGE_SHIFT;
-+}
-+EXPORT_SYMBOL(hmm_range_snapshot);
- 
- /*
-  * hmm_range_fault() - try to fault some address in a virtual address range
-@@ -893,96 +893,79 @@ EXPORT_SYMBOL(hmm_vma_range_done);
-  */
- long hmm_range_fault(struct hmm_range *range, bool block)
- {
--	struct vm_area_struct *vma = range->vma;
--	unsigned long start = range->start;
-+	unsigned long start = range->start, end;
- 	struct hmm_vma_walk hmm_vma_walk;
-+	struct hmm *hmm = range->hmm;
-+	struct vm_area_struct *vma;
- 	struct mm_walk mm_walk;
--	struct hmm *hmm;
- 	int ret;
- 
--	range->hmm = NULL;
--
--	/* Sanity check, this really should not happen ! */
--	if (range->start < vma->vm_start || range->start >= vma->vm_end)
--		return -EINVAL;
--	if (range->end < vma->vm_start || range->end > vma->vm_end)
--		return -EINVAL;
-+	/* Check if hmm_mm_destroy() was call. */
-+	if (hmm->mm == NULL || hmm->dead)
-+		return -EFAULT;
- 
--	hmm = hmm_get_or_create(vma->vm_mm);
--	if (!hmm) {
--		hmm_pfns_clear(range, range->pfns, range->start, range->end);
--		return -ENOMEM;
--	}
-+	do {
-+		/* If range is no longer valid force retry. */
-+		if (!range->valid) {
-+			up_read(&hmm->mm->mmap_sem);
-+			return -EAGAIN;
-+		}
- 
--	/* Check if hmm_mm_destroy() was call. */
--	if (hmm->mm == NULL) {
--		hmm_put(hmm);
--		return -EINVAL;
--	}
-+		vma = find_vma(hmm->mm, start);
-+		if (vma == NULL || (vma->vm_flags & VM_SPECIAL))
-+			return -EFAULT;
- 
--	/* FIXME support hugetlb fs */
--	if (is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL) ||
--			vma_is_dax(vma)) {
--		hmm_pfns_special(range);
--		hmm_put(hmm);
--		return -EINVAL;
--	}
-+		/* FIXME support hugetlb fs/dax */
-+		if (is_vm_hugetlb_page(vma) || vma_is_dax(vma)) {
-+			hmm_pfns_special(range);
-+			return -EINVAL;
-+		}
- 
--	if (!(vma->vm_flags & VM_READ)) {
--		/*
--		 * If vma do not allow read access, then assume that it does
--		 * not allow write access, either. Architecture that allow
--		 * write without read access are not supported by HMM, because
--		 * operations such has atomic access would not work.
--		 */
--		hmm_pfns_clear(range, range->pfns, range->start, range->end);
--		hmm_put(hmm);
--		return -EPERM;
--	}
-+		if (!(vma->vm_flags & VM_READ)) {
-+			/*
-+			 * If vma do not allow read access, then assume that it
-+			 * does not allow write access, either. HMM does not
-+			 * support architecture that allow write without read.
-+			 */
-+			hmm_pfns_clear(range, range->pfns,
-+				range->start, range->end);
-+			return -EPERM;
-+		}
- 
--	/* Initialize range to track CPU page table update */
--	spin_lock(&hmm->lock);
--	range->valid = true;
--	list_add_rcu(&range->list, &hmm->ranges);
--	spin_unlock(&hmm->lock);
--
--	hmm_vma_walk.fault = true;
--	hmm_vma_walk.block = block;
--	hmm_vma_walk.range = range;
--	mm_walk.private = &hmm_vma_walk;
--	hmm_vma_walk.last = range->start;
--
--	mm_walk.vma = vma;
--	mm_walk.mm = vma->vm_mm;
--	mm_walk.pte_entry = NULL;
--	mm_walk.test_walk = NULL;
--	mm_walk.hugetlb_entry = NULL;
--	mm_walk.pmd_entry = hmm_vma_walk_pmd;
--	mm_walk.pte_hole = hmm_vma_walk_hole;
-+		range->vma = vma;
-+		hmm_vma_walk.last = start;
-+		hmm_vma_walk.fault = true;
-+		hmm_vma_walk.block = block;
-+		hmm_vma_walk.range = range;
-+		mm_walk.private = &hmm_vma_walk;
-+		end = min(range->end, vma->vm_end);
-+
-+		mm_walk.vma = vma;
-+		mm_walk.mm = vma->vm_mm;
-+		mm_walk.pte_entry = NULL;
-+		mm_walk.test_walk = NULL;
-+		mm_walk.hugetlb_entry = NULL;
-+		mm_walk.pmd_entry = hmm_vma_walk_pmd;
-+		mm_walk.pte_hole = hmm_vma_walk_hole;
-+
-+		do {
-+			ret = walk_page_range(start, end, &mm_walk);
-+			start = hmm_vma_walk.last;
-+
-+			/* Keep trying while the range is valid. */
-+		} while (ret == -EBUSY && range->valid);
-+
-+		if (ret) {
-+			unsigned long i;
-+
-+			i = (hmm_vma_walk.last - range->start) >> PAGE_SHIFT;
-+			hmm_pfns_clear(range, &range->pfns[i],
-+				hmm_vma_walk.last, range->end);
-+			return ret;
-+		}
-+		start = end;
- 
--	do {
--		ret = walk_page_range(start, range->end, &mm_walk);
--		start = hmm_vma_walk.last;
--		/* Keep trying while the range is valid. */
--	} while (ret == -EBUSY && range->valid);
--
--	if (ret) {
--		unsigned long i;
--
--		i = (hmm_vma_walk.last - range->start) >> PAGE_SHIFT;
--		hmm_pfns_clear(range, &range->pfns[i], hmm_vma_walk.last,
--			       range->end);
--		hmm_vma_range_done(range);
--		hmm_put(hmm);
--		return ret;
--	} else {
--		/*
--		 * Transfer hmm reference to the range struct it will be drop
--		 * inside the hmm_vma_range_done() function (which _must_ be
--		 * call if this function return 0).
--		 */
--		range->hmm = hmm;
--	}
-+	} while (start < range->end);
- 
- 	return (hmm_vma_walk.last - range->start) >> PAGE_SHIFT;
- }
 -- 
 2.17.2
 
