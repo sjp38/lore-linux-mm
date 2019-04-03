@@ -2,275 +2,215 @@ Return-Path: <SRS0=DmM3=SF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EA6E4C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 21:17:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 287EFC4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 21:19:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 88844206B8
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 21:17:06 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CBE77206BA
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 21:19:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="G16/4bcl";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="HB2kCROa"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 88844206B8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="aXnTnzvR";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="Ov872Nzw"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CBE77206BA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=tobin.cc
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 08E336B026B; Wed,  3 Apr 2019 17:17:06 -0400 (EDT)
+	id 6F5366B026D; Wed,  3 Apr 2019 17:19:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 063656B026D; Wed,  3 Apr 2019 17:17:06 -0400 (EDT)
+	id 6A2776B026F; Wed,  3 Apr 2019 17:19:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E46C66B026F; Wed,  3 Apr 2019 17:17:05 -0400 (EDT)
+	id 51D7D6B0271; Wed,  3 Apr 2019 17:19:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 95B7C6B026B
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 17:17:05 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id d2so205872edo.23
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 14:17:05 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 304E36B026D
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 17:19:58 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id t22so388193qtc.13
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 14:19:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=yMSHUAGOc8xPTYbjOLszOfE79ayRLFWYphU/fwtGWes=;
-        b=eOv4tC0gIiIJkKfa5FEkzZ69Zf3d8EwPzicjgL+2VGlD/SLWRgwBd9sg4Z3u8Chlz3
-         VYs834iQB5ri12od2uegJ/BxiT2mMw87WTXwI09LRAI3ORuQk0OMq+sojLOm0n6xDMvW
-         TriUwG3S3puBRmoTgiq1rOV9J0z13p/vOZFUi9ZKmgqURvPqFX0HbgAKr25ytTaaZbQB
-         xxB+bbkwr5t6Bj6XVEXTxBmHu59E4T8chtKSm774ybMt0rdKCzXD1liQAMPCPW36yqku
-         y8/IxSZNHTenmkqYAxhyMPoMgABsNXwYLK0A9X85jz3/sCqIuiblXVCVe8Hi9gmhDyDO
-         ay8g==
-X-Gm-Message-State: APjAAAWd9qRmPOkc8Nz1v7KcYhfWOb80fmJfLSqTxnFEGAjD2xxpBdEm
-	1M9TI/hbEOJp86yor67Ai5wp5T6zQve/aTk05yI+/n27jzAYeVeLHMTxUxERdbCvC9JJ+kr6mJ9
-	W42MjYwL0NkccCmIgkqHTuEgUfJZfWH6AjCImx4sQMFjhO4p7/jFGnxPiacLcMvbmUQ==
-X-Received: by 2002:a17:906:1906:: with SMTP id a6mr1137730eje.236.1554326225153;
-        Wed, 03 Apr 2019 14:17:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx2gVf+gTtyWoU/UbMyMgglMbGIB3aDWtud1qWZBkw4AcSqHifvyHOgLXPlQUS63A6qECaK
-X-Received: by 2002:a17:906:1906:: with SMTP id a6mr1137683eje.236.1554326224239;
-        Wed, 03 Apr 2019 14:17:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554326224; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:date:from:to:cc
+         :subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Jby8yi6XtGo+Fp5Ers69YhaBfux3eIt01Ju9PJJZVTw=;
+        b=WIc36gMyPzUH0grVjn5HAff4RD01SQF2GuCvDD3bLKcDz3F4myHkYfTDs1LbHMNAEf
+         A7JRUOPPShujd8IWtwJnn7UiOePYFiUGFUcXfbRxXW9oKa0X5J6Hf3+Qe0LDBXbLD6/L
+         K89WwwtVVc945WXdRucjJ8z7J4wU9hfYl9Qb987xM7lYoaTbqT2BhZJtkyFjRz3hRLRm
+         cIgM9jsykzLyY7ldu85fyH5hxxF3apmdqiRCsU8W3On/mNqgzcr/4YcR2f0Ii62qfp/u
+         DXc9xrCVJd+IF5pIw/Ipa0OP8MbWu4fFrhdHoItwiRp9tuVWwqU5Fsxdcp1SnPh/40dV
+         bJLA==
+X-Gm-Message-State: APjAAAUr3wnsrc51T4OBZPEThbQlleLDp0QIt7KR9TxofXr/laZ5kxt8
+	OaFVdxrChub0d6XPtaRsscRa0LU9EEPUDYEgKEeQ3C+MffC2+qiuKS1Yv8gpny/e7GwqJVXsXqA
+	czCXUO2XjgszacDKzb4IMX+p5m0NVcusY1XSLS6VFgMx9GDwEWR2g3UKJDxgGZyZJiA==
+X-Received: by 2002:a37:9d04:: with SMTP id g4mr2054155qke.128.1554326397990;
+        Wed, 03 Apr 2019 14:19:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw2PaMH5v/v4IbIcuJDc+8Ya0NsEJx53io24yQufctwf1ESKV3bPsALMhklxYnORRyyj+YL
+X-Received: by 2002:a37:9d04:: with SMTP id g4mr2054118qke.128.1554326397434;
+        Wed, 03 Apr 2019 14:19:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554326397; cv=none;
         d=google.com; s=arc-20160816;
-        b=bMtz/xkCQyCVFGic7asK4JNc0x69ULNBZOJChBW6H2gUC2ZxVtvqJTVJkrBJkKEoT2
-         wS7/KRqAefkp8iYX5J+WYUI1e1GJEmZtJGw6NoeKNcS18fp3ECvqsoHZuWc73iYX39Jz
-         eBFMhLa1yvM9VwqzNqMidGIjqrE3LpoHTAtTQ16QypF4va9oB53yLWmdhJr4d6GeKLh/
-         OP3BUKIiruucBvmi4ZzdTy1t1qZWvI5TDqSeJUuC95PYOO3S7NFbAzLQwpw7tJu6C690
-         wHMC7wjAYV2amuvzUURuAurN2+wsAKySO9Kq0csd+GrcQBrxUG+UOWCYHnp2PwRsp3TK
-         l3jg==
+        b=dzHsCXsG/DilBdt47rJMC/0CH4cdtRMk7Y4Oeh/burJ4+t3EXSW583am/1uRqZFUGC
+         JTpT+sREiQ4v12mwMLX1syc2XScyLcjN3mB8GYLiiG1xR/Ar/DfEivi7ZMSnCm23J6zv
+         MZNWsnuKCE5Tb2TtufqODtoF/dGChGiNCFWgy6tSWbfUJnSo27Zea3ODpQhD2J8LE1ut
+         veJbILX0Yj5r20yBbhHG9lYBQ4cTsYLwlGhLSIA3JYItrBziZGQTo7iuqfwJyJEGuxNg
+         BtTQh9l4iv5XCr/5aTKwME3pSngkSK9pJfTSvE0igivLHRLBCxZO2CgktwRoRCjb8tFu
+         zl4g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=yMSHUAGOc8xPTYbjOLszOfE79ayRLFWYphU/fwtGWes=;
-        b=TsKBNN2FjQsmD0XKvxc1EmtyZcWmktDNkrzWK974hPe93dwFIW8cqUnqQAFUOOCAp4
-         urGmbJMXpaXG1Xa5PV/hQopVsw5fqr4bHhA9RdVkTdDJMZJDHIskSeZ8nf1mqEdXoZYE
-         AyhqxfWaXyLl4XAYlooFrtKagrmZs790Z6ZNVjTCT8wt6+Gc1EUe5rEi7ryN3U5wzN4M
-         wDPXX74EazgnNKb8MQGkxRWcyU0NlgltcyH4DSQkdcJDBKyeDKsKerZX0ujiH5LCNN2A
-         scvTXFZRU+jn3ugp1fQNX4qJTt3hD+g+7NP6rOLdM1XQclYKdkao53AfzuHNAoKvIbgG
-         mYVQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature:dkim-signature;
+        bh=Jby8yi6XtGo+Fp5Ers69YhaBfux3eIt01Ju9PJJZVTw=;
+        b=h4etjs3ihd0w8aNQwSKJdcD+I38kN83draCDxirHiLmxO+7gxS9NMTwiV6mc15JJoF
+         On8HciaFpmMA2QvYT8MXTPTTHytpEc7YSe6zRWtk7v8yilg1LThxGe8OG4kOKLjcaYWZ
+         xA8+LRjy3JWlUY3OsidGSBNBtYNr+j4S1hMVFq3sHEcS41lqj71jBUjalLKB6eTp+Pp4
+         iPt7LBZvF0VYkBXUgKbhVhX3vOXFt6vo87U8srFnaoShAc1Gstr8tYyQinvq2pctukMH
+         da4KHSem9COViYL2KT8yg9CdBGymsbsUzTyaM3MEdND/vIEOz13t2JeQN6zR2TLh7M6s
+         WJDA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="G16/4bcl";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=HB2kCROa;
-       spf=pass (google.com: domain of prvs=99962c6dea=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=99962c6dea=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id f21si614957edy.208.2019.04.03.14.17.03
+       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=aXnTnzvR;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=Ov872Nzw;
+       spf=neutral (google.com: 66.111.4.28 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
+Received: from out4-smtp.messagingengine.com (out4-smtp.messagingengine.com. [66.111.4.28])
+        by mx.google.com with ESMTPS id m41si3189823qvg.206.2019.04.03.14.19.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 14:17:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=99962c6dea=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
+        Wed, 03 Apr 2019 14:19:57 -0700 (PDT)
+Received-SPF: neutral (google.com: 66.111.4.28 is neither permitted nor denied by best guess record for domain of me@tobin.cc) client-ip=66.111.4.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="G16/4bcl";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=HB2kCROa;
-       spf=pass (google.com: domain of prvs=99962c6dea=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=99962c6dea=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0109332.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x33LFZE4008359;
-	Wed, 3 Apr 2019 14:16:25 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=yMSHUAGOc8xPTYbjOLszOfE79ayRLFWYphU/fwtGWes=;
- b=G16/4bclIhRv7sDTLlomJwG+x12SDa+vcllv8iTWutuXwCN3kt5PNjgop2AYcDCMT6mG
- BIHD7lC0lSi8ZTX275ytcjyhsKikIx2l4qwg2+yGSzvQQVLyPUTSL26xajjaPmtS8kB/
- fYV4eEYprA0FHyC8PJGH+rYP4C/Ex0TgqOg= 
-Received: from maileast.thefacebook.com ([199.201.65.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2rn4kd8032-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Wed, 03 Apr 2019 14:16:25 -0700
-Received: from frc-mbx05.TheFacebook.com (2620:10d:c0a1:f82::29) by
- frc-hub06.TheFacebook.com (2620:10d:c021:18::176) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Wed, 3 Apr 2019 14:15:51 -0700
-Received: from frc-hub03.TheFacebook.com (2620:10d:c021:18::173) by
- frc-mbx05.TheFacebook.com (2620:10d:c0a1:f82::29) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Wed, 3 Apr 2019 14:15:51 -0700
-Received: from NAM05-DM3-obe.outbound.protection.outlook.com (192.168.183.28)
- by o365-in.thefacebook.com (192.168.177.73) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Wed, 3 Apr 2019 14:15:51 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=yMSHUAGOc8xPTYbjOLszOfE79ayRLFWYphU/fwtGWes=;
- b=HB2kCROaU6X1BlFj85skXoHyOO8qQq//oBjZ1/QCXjxUSbu/X0y8HdhAsmDKty2l9GfJyBUgmrGExNBLeJmEgNOvnh6Jgs3kbgf4Uekavpnj+iYQu8Ww/RDsQ2qC7u0VxLE2IgT0jbct4zc8vMJ8UOGTWpr4CDD4xhqziu9vZL0=
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
- BYAPR15MB3047.namprd15.prod.outlook.com (20.178.238.152) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1750.22; Wed, 3 Apr 2019 21:15:44 +0000
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::790e:7294:b086:9ded]) by BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::790e:7294:b086:9ded%3]) with mapi id 15.20.1750.017; Wed, 3 Apr 2019
- 21:15:44 +0000
-From: Roman Gushchin <guro@fb.com>
-To: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
-CC: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>,
-        Matthew Wilcox <willy@infradead.org>,
-        "linux-mm@kvack.org"
-	<linux-mm@kvack.org>,
-        LKML <linux-kernel@vger.kernel.org>,
-        Thomas Garnier
-	<thgarnie@google.com>,
-        Oleksiy Avramchenko
-	<oleksiy.avramchenko@sonymobile.com>,
-        Steven Rostedt <rostedt@goodmis.org>,
-        Joel Fernandes <joelaf@google.com>,
-        Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
-        Tejun Heo <tj@kernel.org>
-Subject: Re: [RESEND PATCH 2/3] mm/vmap: add DEBUG_AUGMENT_PROPAGATE_CHECK
- macro
-Thread-Topic: [RESEND PATCH 2/3] mm/vmap: add DEBUG_AUGMENT_PROPAGATE_CHECK
- macro
-Thread-Index: AQHU6XC/snrJ8Ur+cUCmvX5DYASOrqYq8eaA
-Date: Wed, 3 Apr 2019 21:15:44 +0000
-Message-ID: <20190403211540.GJ6778@tower.DHCP.thefacebook.com>
-References: <20190402162531.10888-1-urezki@gmail.com>
- <20190402162531.10888-3-urezki@gmail.com>
-In-Reply-To: <20190402162531.10888-3-urezki@gmail.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: MW2PR16CA0002.namprd16.prod.outlook.com (2603:10b6:907::15)
- To BYAPR15MB2631.namprd15.prod.outlook.com (2603:10b6:a03:152::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::1:9220]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: db2e13a4-d8ef-42fd-48f6-08d6b87988c4
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600139)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR15MB3047;
-x-ms-traffictypediagnostic: BYAPR15MB3047:
-x-microsoft-antispam-prvs: <BYAPR15MB3047F945C1986C7A87B230FCBE570@BYAPR15MB3047.namprd15.prod.outlook.com>
-x-forefront-prvs: 0996D1900D
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(366004)(39860400002)(136003)(346002)(376002)(396003)(189003)(199004)(46003)(1411001)(105586002)(5660300002)(6506007)(102836004)(2906002)(54906003)(71190400001)(386003)(33656002)(229853002)(14454004)(71200400001)(106356001)(25786009)(446003)(86362001)(7736002)(6486002)(7416002)(99286004)(186003)(6116002)(476003)(97736004)(11346002)(316002)(1076003)(478600001)(305945005)(6246003)(6436002)(6512007)(486006)(68736007)(256004)(8936002)(9686003)(6916009)(53936002)(14444005)(81166006)(4326008)(81156014)(52116002)(76176011)(8676002);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB3047;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: sAfwE7KuSIm727q7QqyR1oRwz98c12PYJPcIKYhQbTEv1Gf7UjgHM5nvpZ2bxBpYpdJPYv2qXNaWvtmHlzHa4gtv7gEuUrVUlg4kfwWmfX2W6d1umnyNM1Zd41d+UNA7+IM4PnwDbSAQ5B4EiiKunNYtEDzcAFVlwaIbk4T/oGWTL4GWxAjwABuyG2Uqguncieymo/387xq4W70s5CUPJTu8h7E745I/IHxz+UR9wcVuM+2i816SiLgYc8DplS3mXXu9nR/j6dLo9Oz4QdXaRFQzPZmWP1FFzvp+4vI3EbRVTdQvlWcid2YU8pqqgm22wzuuMlr03IHPvtFGXADgO145KaYglV2kEo+QqzqiFAvgM7jy2QwOGnotbeXBqk8BVh9IEMPAT6kwdL9uGad6/TsTU0qFSpnvcD5BrKk5M34=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <3C933796509DFD49A841B366184840E0@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=aXnTnzvR;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=Ov872Nzw;
+       spf=neutral (google.com: 66.111.4.28 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
+Received: from compute5.internal (compute5.nyi.internal [10.202.2.45])
+	by mailout.nyi.internal (Postfix) with ESMTP id 101FA21A84;
+	Wed,  3 Apr 2019 17:19:57 -0400 (EDT)
+Received: from mailfrontend2 ([10.202.2.163])
+  by compute5.internal (MEProxy); Wed, 03 Apr 2019 17:19:57 -0400
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=tobin.cc; h=date
+	:from:to:cc:subject:message-id:references:mime-version
+	:content-type:in-reply-to; s=fm2; bh=Jby8yi6XtGo+Fp5Ers69YhaBfux
+	3eIt01Ju9PJJZVTw=; b=aXnTnzvRemKYQDugVcBQFMBidMbrHuWIp28Zo6aK7cS
+	6JTYrXR8OOLoJtGXHKOg5SjHLQ1TcGYfZ2Tor2ZfNI6xOQHDbuw3JE/MXxJ+kVoq
+	LL8tQtY+pj1DkEh49+a7Na1vtU5zBbVvKt27bpwO/BYYT722J7HqnFf8eFg+GnhD
+	LPNipeOXXEfjSGzFYzke/rFm3lO706Xupm35W7xSQJcd9Fbgz2MBQ4JZab4tNRAl
+	dovGvwFuS/2UZfUJ67LwJCU0a+51DT0W+qwJss/0DabzS0uy5O/L8RY0IaUs3ugq
+	SZC6jsHSR2/8qLb6SLCJB69ySkEN9GzEyXOIhYWa+Zg==
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-type:date:from:in-reply-to
+	:message-id:mime-version:references:subject:to:x-me-proxy
+	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=Jby8yi
+	6XtGo+Fp5Ers69YhaBfux3eIt01Ju9PJJZVTw=; b=Ov872Nzw1Or51P1ZU2Z50O
+	N53CmnY1UAeQeQIa24Z85+5yyQZLsXAMVofaHS5OeXEwbYo2N0LI8JtJEH0UM24Z
+	SpUdvDE5FZium9lDrzbWmprnZEfmY9s1FQssikf06j/bSqFQGzK53Roi938kQQlt
+	d7Fo9PjPW/Ds4KR2U/Ah/MHauqJEX7dat3R7SUowXbjOxORftx1xNH3GOTJe/qcR
+	B8DMcYSsozJHsuVqwo2C5H+s8y7mNyf21a7rMcld65FODI/cQsuwpJRDlHB/VQB0
+	F/fFUnO/HswtSHZlAHro5vESLBhVPTTDXTG2q/x2VtnSCyAScJ/7Y5hf7lf/MZYA
+	==
+X-ME-Sender: <xms:eSOlXLOV41zOG-nEaB5TQnLsbZOE4KeyVwNth3Tfy2cd9y_pmhkHvw>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtdefgddufeefucdltddurdeguddtrddttd
+    dmucetufdoteggodetrfdotffvucfrrhhofhhilhgvmecuhfgrshhtofgrihhlpdfqfgfv
+    pdfurfetoffkrfgpnffqhgenuceurghilhhouhhtmecufedttdenucesvcftvggtihhpih
+    gvnhhtshculddquddttddmnegfrhhlucfvnfffucdlfedtmdenucfjughrpeffhffvuffk
+    fhggtggujgfofgesthdtredtofervdenucfhrhhomhepfdfvohgsihhnucevrdcujfgrrh
+    guihhnghdfuceomhgvsehtohgsihhnrdgttgeqnecukfhppeduvdegrddugeelrdduudeg
+    rdekieenucfrrghrrghmpehmrghilhhfrhhomhepmhgvsehtohgsihhnrdgttgenucevlh
+    hushhtvghrufhiiigvpedt
+X-ME-Proxy: <xmx:eSOlXKOEjuEzZcgzocxVwveTn72r2YKBa-7dJgzueErl-b5x7Tlt5Q>
+    <xmx:eSOlXFTYx3b42Tpk-GSpj5rbqhylvjU3e8z7RiOqHaRVYx4lK1U5MA>
+    <xmx:eSOlXECd4XOJQs1casaHGkm1lNcQZVyJhGUttt3uTAd3DY22ZLZdMw>
+    <xmx:fSOlXIQsKCyM0c3Iecoie5OsBuzy83Zi1iaGHTbDC1u3h9tTzgnA3g>
+Received: from localhost (124-149-114-86.dyn.iinet.net.au [124.149.114.86])
+	by mail.messagingengine.com (Postfix) with ESMTPA id DA78F10390;
+	Wed,  3 Apr 2019 17:19:51 -0400 (EDT)
+Date: Thu, 4 Apr 2019 08:19:23 +1100
+From: "Tobin C. Harding" <me@tobin.cc>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: "Tobin C. Harding" <tobin@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Roman Gushchin <guro@fb.com>,
+	Alexander Viro <viro@ftp.linux.org.uk>,
+	Christoph Hellwig <hch@infradead.org>,
+	Pekka Enberg <penberg@cs.helsinki.fi>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Christopher Lameter <cl@linux.com>,
+	Miklos Szeredi <mszeredi@redhat.com>,
+	Andreas Dilger <adilger@dilger.ca>,
+	Waiman Long <longman@redhat.com>, Tycho Andersen <tycho@tycho.ws>,
+	Theodore Ts'o <tytso@mit.edu>, Andi Kleen <ak@linux.intel.com>,
+	David Chinner <david@fromorbit.com>,
+	Nick Piggin <npiggin@gmail.com>, Rik van Riel <riel@redhat.com>,
+	Hugh Dickins <hughd@google.com>, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+Subject: Re: [RFC PATCH v2 09/14] xarray: Implement migration function for
+ objects
+Message-ID: <20190403211923.GD23288@eros.localdomain>
+References: <20190403042127.18755-1-tobin@kernel.org>
+ <20190403042127.18755-10-tobin@kernel.org>
+ <20190403172326.GJ22763@bombadil.infradead.org>
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: db2e13a4-d8ef-42fd-48f6-08d6b87988c4
-X-MS-Exchange-CrossTenant-originalarrivaltime: 03 Apr 2019 21:15:44.7434
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB3047
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-03_13:,,
- signatures=0
-X-Proofpoint-Spam-Reason: safe
-X-FB-Internal: Safe
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190403172326.GJ22763@bombadil.infradead.org>
+X-Mailer: Mutt 1.11.4 (2019-03-13)
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 02, 2019 at 06:25:30PM +0200, Uladzislau Rezki (Sony) wrote:
-> This macro adds some debug code to check that the augment tree
-> is maintained correctly, meaning that every node contains valid
-> subtree_max_size value.
->=20
-> By default this option is set to 0 and not active. It requires
-> recompilation of the kernel to activate it. Set to 1, compile
-> the kernel.
->=20
-> Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
-> ---
->  mm/vmalloc.c | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 53 insertions(+)
->=20
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index 3adbad3fb6c1..1449a8c43aa2 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -322,6 +322,8 @@ unsigned long vmalloc_to_pfn(const void *vmalloc_addr=
-)
->  EXPORT_SYMBOL(vmalloc_to_pfn);
-> =20
->  /*** Global kva allocator ***/
-> +#define DEBUG_AUGMENT_PROPAGATE_CHECK 0
-> +
->  #define VM_LAZY_FREE	0x02
->  #define VM_VM_AREA	0x04
-> =20
-> @@ -544,6 +546,53 @@ __unlink_va(struct vmap_area *va, struct rb_root *ro=
-ot)
->  	}
->  }
-> =20
-> +#if DEBUG_AUGMENT_PROPAGATE_CHECK
-> +static void
-> +augment_tree_propagate_do_check(struct rb_node *n)
-> +{
-> +	struct vmap_area *va;
-> +	struct rb_node *node;
-> +	unsigned long size;
-> +	bool found =3D false;
-> +
-> +	if (n =3D=3D NULL)
-> +		return;
-> +
-> +	va =3D rb_entry(n, struct vmap_area, rb_node);
-> +	size =3D va->subtree_max_size;
-> +	node =3D n;
-> +
-> +	while (node) {
-> +		va =3D rb_entry(node, struct vmap_area, rb_node);
-> +
-> +		if (get_subtree_max_size(node->rb_left) =3D=3D size) {
-> +			node =3D node->rb_left;
-> +		} else {
-> +			if (__va_size(va) =3D=3D size) {
-> +				found =3D true;
-> +				break;
-> +			}
-> +
-> +			node =3D node->rb_right;
-> +		}
-> +	}
-> +
-> +	if (!found) {
-> +		va =3D rb_entry(n, struct vmap_area, rb_node);
-> +		pr_emerg("tree is corrupted: %lu, %lu\n",
-> +			__va_size(va), va->subtree_max_size);
-> +	}
-> +
-> +	augment_tree_propagate_do_check(n->rb_left);
-> +	augment_tree_propagate_do_check(n->rb_right);
-> +}
-> +
-> +static void augment_tree_propagate_from_check(void)
+On Wed, Apr 03, 2019 at 10:23:26AM -0700, Matthew Wilcox wrote:
+> On Wed, Apr 03, 2019 at 03:21:22PM +1100, Tobin C. Harding wrote:
+> > +void xa_object_migrate(struct xa_node *node, int numa_node)
+> > +{
+> > +	struct xarray *xa = READ_ONCE(node->array);
+> > +	void __rcu **slot;
+> > +	struct xa_node *new_node;
+> > +	int i;
+> > +
+> > +	/* Freed or not yet in tree then skip */
+> > +	if (!xa || xa == XA_RCU_FREE)
+> > +		return;
+> > +
+> > +	new_node = kmem_cache_alloc_node(radix_tree_node_cachep,
+> > +					 GFP_KERNEL, numa_node);
+> > +	if (!new_node)
+> > +		return;
+> > +
+> > +	xa_lock_irq(xa);
+> > +
+> > +	/* Check again..... */
+> > +	if (xa != node->array || !list_empty(&node->private_list)) {
+> > +		node = new_node;
+> > +		goto unlock;
+> > +	}
+> > +
+> > +	memcpy(new_node, node, sizeof(struct xa_node));
+> > +
+> > +	/* Move pointers to new node */
+> > +	INIT_LIST_HEAD(&new_node->private_list);
+> 
+> Surely we can do something more clever, like ...
+> 
+> 	if (xa != node->array) {
+> ...
+> 	if (list_empty(&node->private_list))
+> 		INIT_LIST_HEAD(&new_node->private_list);
+> 	else
+> 		list_replace(&node->private_list, &new_node->private_list);
 
-Why do you need this intermediate function?
+Oh nice, thanks!  I'll roll this into the next version.
 
-Other than that looks good to me, please free to use
-Reviewed-by: Roman Gushchin <guro@fb.com>
+> BTW, the raidx tree nodes / xa_nodes share the same slab cache; we need
+> to finish converting all radix tree & IDR users to the XArray before
+> this series can go in.
 
-Thank you!
+Ok, I'll add this comment to the commit log for this patch on the next
+version so we don't forget.  FTR complete conversion to the XArray is
+your goal isn't it (on the way to the Maple tree)?
+
+thanks,
+Tobin.
 
