@@ -2,209 +2,278 @@ Return-Path: <SRS0=DmM3=SF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8F225C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 04:12:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2DFBAC4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 04:22:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4708920882
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 04:12:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4708920882
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id C21622084C
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 04:22:48 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="IIfhAZBQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C21622084C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D7A606B026D; Wed,  3 Apr 2019 00:12:26 -0400 (EDT)
+	id 5D19E6B026D; Wed,  3 Apr 2019 00:22:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D29B76B026F; Wed,  3 Apr 2019 00:12:26 -0400 (EDT)
+	id 57FE06B026F; Wed,  3 Apr 2019 00:22:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C18DE6B0272; Wed,  3 Apr 2019 00:12:26 -0400 (EDT)
+	id 4704F6B0272; Wed,  3 Apr 2019 00:22:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9557C6B026D
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 00:12:26 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id c21so5959357oig.20
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 21:12:26 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 271036B026D
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 00:22:48 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id g48so15646788qtk.19
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2019 21:22:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version;
-        bh=Hlc49p4j4wJfcgtD04rAu2J6UwDtSrmPflFFBjh8eQY=;
-        b=afd2naoM4qBrXMMX6M4OwVIUGRAnxVIrVG6Nmzm7GRpGx6/PLEvMIpdSfqTriY/Hk9
-         ou3Rp9cPPbfJs7hkCxM11BdW5bGWz5t2TmJ1dBok7PlTc7hZuNK10JbVUmVzsa8BOWYp
-         cBtZYROTeudsjNATwAtLHuJR03JYcH4QXjKug1KY9mD2/22c6WMDAH5p4WtGWyk/BC4W
-         0lCqQNUztD54MkMlunpnqCAVB1eVLEsnn5uk2UfuWztcu0P3e/1dUp3eVQHayVBJrEsL
-         20EJATQfYhMV6tPdAqAy1ihdYL1lqZcrYXpsNlrEFf6zpj4fVzRWgcZ/Qe1N+Gf9fy+G
-         hBug==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fanglinxu@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=fanglinxu@huawei.com
-X-Gm-Message-State: APjAAAWpoF+FU56JhYK7TpwWzOtxrmb7ElLI+VUqIogx9LEV0eoKrDt9
-	BP9os+VoSKV1MaZg1tXNc+20mG8GrSEO1vuFxI436VyHGHzpK+O2bhVISD2sRO/xmQogPuZH6wE
-	4s8MHxzHUk93AnhCkpcrEAl++2Yzb1BFRakUn/SfrAkhaliFQpHkxuYropOC8c3KtqA==
-X-Received: by 2002:aca:d7d5:: with SMTP id o204mr333282oig.23.1554264746261;
-        Tue, 02 Apr 2019 21:12:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyDkhfNbQreSq5suQJ+xNN/jqWx3X2Wc4ZY5qAWc/KSujvAHay+oD8WDPshw7ZJSDAShio2
-X-Received: by 2002:aca:d7d5:: with SMTP id o204mr333255oig.23.1554264745475;
-        Tue, 02 Apr 2019 21:12:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554264745; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=5hYI8b2F/hMNndGsuIPxlYyfuOY04PDt4MqicmCvTbs=;
+        b=NUyODvlZMXhjzK8Yo71Q4u9A78XOHDCsr8YgqAP7nIRmN45kxQJ+GePyhMAv/+n+RD
+         engRnCv00OgJsYpXWxouppWr1DInV1H0XqNyfbchB4ysfvuyQfBCO3SyOhlRpi5r67X4
+         AkiQy0dhsOgZ3JMsQ1ewUACPUQk2P2U6warCrPxQbq0dIBcxt6NabUI+sSBzDW8jbSO+
+         R4xi6xA8GWeQog6BbXa9R44ZI7b7WWpMP82ELG0Jvx16utcZSSRFpewSoZGnCiaciS0l
+         31XZw8KkyKmOmhAFaaOL733UQEjm849K8MU+nVOUm02x67pUdTd0FAowYrrXGxlHqjcN
+         F16Q==
+X-Gm-Message-State: APjAAAWvE1mWm0lstmAQuqQ8r5SHNxJKjnijdYyiTKNTY9Emd8iIEfG6
+	+xhY0JD4kBXsqCqI+ZLSYflqoa3W2BuZzsKmts0GHcEtQc9Gp26l1od9/+EfVW7hzz4PeHS1WWM
+	Kf4lu495GWrKjLNdiAGqZQwkW/eQ1RDUBYXardGQCzpHdfFaOvs2+aM5FIF+VVko=
+X-Received: by 2002:ac8:3126:: with SMTP id g35mr37939498qtb.244.1554265367851;
+        Tue, 02 Apr 2019 21:22:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxpNpS3TuMIfjKvjnFlyzo6DcDkrgEgQ60b0A1JVQmz47QBs7bt0NdZsdBTuZc0rlJFIhVO
+X-Received: by 2002:ac8:3126:: with SMTP id g35mr37939459qtb.244.1554265366869;
+        Tue, 02 Apr 2019 21:22:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554265366; cv=none;
         d=google.com; s=arc-20160816;
-        b=YqjQYVcUUI/K1X6ZPjk271XP7WYShmbKCYe8+SZP/VCmzCn7ufuJDLM1sTIOfKggfR
-         HrtHpwGcU8Jt/4VabAkTn/oukqMMflbbSQ2nY0+CIkwd/d8V59z7ohPCnZYmf7Kg6NQh
-         7tg33NUn2FHSrxa8c9P84B0qqLmhcptO2Eu+6bVk/ua/qHLJomG+d18Zqvs58JWzXBYj
-         2kp86Gxg4GP7LR/mUKBMYgquyGwmGZtUNoonTVWQlZpdXFcklX/BSNN87NSMKNUs4Q3i
-         huZx9zJcr4KW2hXUpZI5pB+zjjzNrCt229BlXskdLzGsf0Yi7tzTGNAy6Pnt9fQqOHtr
-         XtPQ==
+        b=TO7H62cmLvph6vFB4RRdlLw0I8yC7SycC6o3QAXXlYZ5fSgAI7wRdf5TWHi+ad/CoQ
+         Bo5kJxsaBHAubTh+zMosVjdkJrsB+VGeKXWzba2/hEy/tzC7GvyYiMiSHR4U88eZ19GJ
+         6GrKZQrEef9NcwvIPww4T+aEnt6aJuT5b3XXEQP8RXU5yTSeN+K52Aa1dwkNZDG1jGjg
+         XZB2nYyYdHjJ13xHsJKui/cv2qOZO8eNl/qDwqzp8PykCEId5T52J7TDUapeOqBSYzZr
+         tcW4zJhmyivvGCq3MMtYl5LQ8ksTx2IRfUdjX9XTkksRlRUjpDT6VJhhtD4UBCUixIJa
+         P2lQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:references:in-reply-to:message-id:date:subject:cc:to
-         :from;
-        bh=Hlc49p4j4wJfcgtD04rAu2J6UwDtSrmPflFFBjh8eQY=;
-        b=dLggEjll1pgE3pEQNzTfdgdIvlgTuYPBA2Dk6Fyk6mygY8zU0ta2krObHCdM8vTxHh
-         dcKZVV8p4VYLmp7UidHCilCa/KBxuOLaXaDuUVzBa8tlwEm0y1JvWpo5j/oYAqpvw/RL
-         PnP0+dea5xkqpUyYkWOW2UnT1A5LmT5SVpMkn5eKiOPMJ4t1LdV7+1l0U7K0TwraI+rW
-         0x0i890p7NVj2iy7pP4URuazReGaG4j/U/qq7oWckgaP/kya+InYohspk25F+P0Pm5SI
-         b11o7/t7P91+T5qAr7Ythu5Yf4HPStJZdRcgjAN3JezO6y68ASeDjOIW4l8o81tOd45s
-         DiLg==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=5hYI8b2F/hMNndGsuIPxlYyfuOY04PDt4MqicmCvTbs=;
+        b=zew0jkT1GHFYHavT9VSwImdJii8gRNVnSzVrCkZtYruplLmLQBvwg3LKh0ThXxKuvA
+         VE4hRaXYianYqphtiFfFxJ12iaEB3vb2c2tWa4t+ELok8l4AF0fQO6xtQqRwa4WxRJiN
+         YLvMUT4uxitCfETtlKL28pI5vtTHOu9HJLJfL6XeF84QWv4iR4XKbDPoHuaYJFjiGnIq
+         b/kAE+ON5rrHUyKXuzuPhHHwg4IXKO9SnBVH/vqUf+wy5NDV0SbjLTu6Ze0q9BhSl3Fr
+         J79fPQStlp+LiAoirOPrc/qSHK/R6amKuTHehkhqGptBS2DhEBMbbBCk51FMiBTW15Gh
+         muPg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of fanglinxu@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=fanglinxu@huawei.com
-Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
-        by mx.google.com with ESMTPS id o82si6596524oia.0.2019.04.02.21.12.25
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=IIfhAZBQ;
+       spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.28 as permitted sender) smtp.mailfrom=tobin@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from out4-smtp.messagingengine.com (out4-smtp.messagingengine.com. [66.111.4.28])
+        by mx.google.com with ESMTPS id c14si3267447qkl.125.2019.04.02.21.22.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Apr 2019 21:12:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of fanglinxu@huawei.com designates 45.249.212.35 as permitted sender) client-ip=45.249.212.35;
+        Tue, 02 Apr 2019 21:22:46 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.28 as permitted sender) client-ip=66.111.4.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of fanglinxu@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=fanglinxu@huawei.com
-Received: from DGGEMS410-HUB.china.huawei.com (unknown [10.3.19.210])
-	by Forcepoint Email with ESMTP id C2D53B5303F3517EEFF6;
-	Wed,  3 Apr 2019 12:12:20 +0800 (CST)
-Received: from huawei.com (10.66.68.70) by DGGEMS410-HUB.china.huawei.com
- (10.3.19.210) with Microsoft SMTP Server id 14.3.408.0; Wed, 3 Apr 2019
- 12:12:14 +0800
-From: f00440829 <fanglinxu@huawei.com>
-To: <osalvador@suse.de>
-CC: <akpm@linux-foundation.org>, <fanglinxu@huawei.com>, <linux-mm@kvack.org>,
-	<mhocko@suse.com>, <pavel.tatashin@microsoft.com>, <vbabka@suse.cz>
-Subject: Re: [PATCH] mem-hotplug: fix node spanned pages when we have a node with only zone_movable
-Date: Wed, 3 Apr 2019 12:06:07 +0800
-Message-ID: <1554264367-14900-1-git-send-email-fanglinxu@huawei.com>
-X-Mailer: git-send-email 2.8.1.windows.1
-In-Reply-To: <20190402145708.7b2xp3cc72vqqlzl@d104.suse.de>
-References: <20190402145708.7b2xp3cc72vqqlzl@d104.suse.de>
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=IIfhAZBQ;
+       spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.28 as permitted sender) smtp.mailfrom=tobin@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
+	by mailout.nyi.internal (Postfix) with ESMTP id 7E95921B10;
+	Wed,  3 Apr 2019 00:22:46 -0400 (EDT)
+Received: from mailfrontend2 ([10.202.2.163])
+  by compute3.internal (MEProxy); Wed, 03 Apr 2019 00:22:46 -0400
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-transfer-encoding:date:from
+	:message-id:mime-version:subject:to:x-me-proxy:x-me-proxy
+	:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=5hYI8b2F/hMNndGsu
+	IPxlYyfuOY04PDt4MqicmCvTbs=; b=IIfhAZBQeDc9DxpDfTu9PVqYMIbSDcGCG
+	s7kMZuvPb4QScrIRMGAZmQQfmTqKzlZwWsMJT8PCuWMbz5OLpltDzKuIL/uITi1D
+	sIrtot4H/D9S7S7CTK7vhxzTC1sDaNyN3HHUvFMAGRxTs444UZ/4FT2ZGBQiqBP3
+	R00cauuLdcrcQVsRmkdJ5wL5/csX8fcAXYIgnfaIvksmD6xgnuLLDoruRHzq5nTh
+	SPYyZsmu1+w/++V6E+vPnbY21OHB+YfEqq6fNWctuEdV6pW0CPCz064t3rk8k1pQ
+	mzD+k/g7vymzsG1yEUlfL+coFhH+fsUSu/iX7DBlEz8eG/rg5dAOQ==
+X-ME-Sender: <xms:EzWkXHSCUlBPTPtVdDwRBd3KwFa7FEZJ_IHTvUr-VzyKNh2DhD6hWQ>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtddugdektdculddtuddrgedutddrtddtmd
+    cutefuodetggdotefrodftvfcurfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdp
+    uffrtefokffrpgfnqfghnecuuegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivg
+    hnthhsucdlqddutddtmdenucfjughrpefhvffufffkofgggfestdekredtredttdenucfh
+    rhhomhepfdfvohgsihhnucevrdcujfgrrhguihhnghdfuceothhosghinheskhgvrhhnvg
+    hlrdhorhhgqeenucffohhmrghinhepkhgvrhhnvghlrdhorhhgnecukfhppeduvdegrddu
+    ieelrddvjedrvddtkeenucfrrghrrghmpehmrghilhhfrhhomhepthhosghinheskhgvrh
+    hnvghlrdhorhhgnecuvehluhhsthgvrhfuihiivgeptd
+X-ME-Proxy: <xmx:EzWkXOxi2Qc38QyiSAgHn9gpRjM1tXvMeXkuNYJliTY6jY7f56zD8A>
+    <xmx:EzWkXKccSLSc1A1dUeF5En6prLVAELe_QH1tBajG7bv2QO3l94JhAA>
+    <xmx:EzWkXCKGQPCJ4kYhRSsiC-SVE-W0BNTkklzhVb71kVfNqSX25xKbcQ>
+    <xmx:FjWkXKrafd-T_cD3OOZ00l8I4DTXFp_qjozQ9Pv2dUMNbdSOow6NKw>
+Received: from eros.localdomain (124-169-27-208.dyn.iinet.net.au [124.169.27.208])
+	by mail.messagingengine.com (Postfix) with ESMTPA id E728710319;
+	Wed,  3 Apr 2019 00:22:36 -0400 (EDT)
+From: "Tobin C. Harding" <tobin@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Tobin C. Harding" <tobin@kernel.org>,
+	Roman Gushchin <guro@fb.com>,
+	Alexander Viro <viro@ftp.linux.org.uk>,
+	Christoph Hellwig <hch@infradead.org>,
+	Pekka Enberg <penberg@cs.helsinki.fi>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Christopher Lameter <cl@linux.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Miklos Szeredi <mszeredi@redhat.com>,
+	Andreas Dilger <adilger@dilger.ca>,
+	Waiman Long <longman@redhat.com>,
+	Tycho Andersen <tycho@tycho.ws>,
+	"Theodore Ts'o" <tytso@mit.edu>,
+	Andi Kleen <ak@linux.intel.com>,
+	David Chinner <david@fromorbit.com>,
+	Nick Piggin <npiggin@gmail.com>,
+	Rik van Riel <riel@redhat.com>,
+	Hugh Dickins <hughd@google.com>,
+	linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: [RFC PATCH v2 00/14] Slab Movable Objects (SMO)
+Date: Wed,  3 Apr 2019 15:21:13 +1100
+Message-Id: <20190403042127.18755-1-tobin@kernel.org>
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-Content-Type: text/plain
-X-Originating-IP: [10.66.68.70]
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> will actually set zone_start_pfn/zone_end_pfn to the values from node0's
-> ZONE_NORMAL?
+Hi,
 
-> So we use clamp to actually check if such values fall within what node1's
-> memory spans, and ignore them otherwise?
+Version 2 re-structured to better follow the structure of Chirstoph's
+original patchset (linked below).  Functions renamed and other suggestions
+on v1 from Roman implemented.
 
-That's right.
-Normally, zone_start_pfn/zone_end_pfn has the same value for all nodes.
-Let's look at another example, which is obtained by adding some debugging
-information.
+This version also adds an attempt at implementing object migration for
+the dcache, appropriate filesystem folk CC'd.  Please see comments
+below in 'dcache' section.
+
+Applies on top of Linus' tree (tag: v5.1-rc3).
+
+This is a patch set implementing movable objects within the SLUB
+allocator.  This is work based on Christopher's patch set:
+
+ https://lore.kernel.org/patchwork/project/lkml/list/?series=377335
+
+The original code logic is from that set and implemented by Christopher.
+Clean up, refactoring, documentation, and additional features by myself.
+Blame for any bugs remaining falls solely with myself.  Patches using
+Christopher's code use the Co-developed-by tag but do not currently have
+his SOB tag.
+
+The core of the implementation is now contained within the first 4
+patches (primarily patch #4).
+
+Patches 7,8,10 add test code including a test modules to play around
+with this.  With the series applied one can see functionality in
+action by using the slabinfo command on the xarray slab cache
+
+	slabinfo radix_tree_node -r
+
+The NUMA stuff works as claimed with the radix_tree_node slab cache.
+
+dcache
+------
+
+The dcache patches are my best effort on top of Christoph's original
+work.  The dcache has changed a lot since then (2009).  FTR one month
+ago was the first time I have ever opened fs/dcache.c.
+
+I have been playing with this for at least two weeks without any
+functional changes to the dcache patches - I do not think me playing
+with it more is going to improve my understanding of the dcache so I am
+asking for help here.  I've been testing in Qemu (both using ramdisk
+filesystem and a disk image filesystem) as well as on bare metal.
+
+Shrinking the dcache with:
+
+	slabinfo dentry -s
+
+produces _more_ partial slabs than before and repeated calls continue to
+increase the number of partial slabs.  Although the initial calls do
+decrease the total number of cached objects.  I cannot explain this.
+
+During development I added a bunch of printks and the majority of dentry
+slab objects are skipped during the isolation function due to the
+following check from d_isolate():
+	
+	if (dentry->d_inode &&
+	    !mapping_cap_writeback_dirty(dentry->d_inode->i_mapping))
+	    ...
+	    /* skip object*/
+		     
+I cannot explain the large number of dentry objects skipped by this
+clause.
+
+Any suggestions no matter how wild very much appreciated.  Tips on files
+I should study or anything else I could do to better understand what is
+needed to understand to work with this.  So far I have been primarily
+trying to grok the VFS and the dcache in particular via:
+
+fs/dcache.c
+include/linux/fs.h
+include/linux/dcache.h
+Documentation/filesystems/vfs.txt
+
+I also tried using the cache shrinkers
+
+	echo 2 > /proc/sys/vm/drop_caches
+
+Then shrinking the dentry slab cache.  This resulted in a bunch of
+things disappearing e.g. sysfs gets unmounted, /home directory contents
+disappear.  Again, I cannot explain this.  Should this be doable if this
+series was implemented correctly?
+
+Thanks for taking the time to look at this.
+
+	Tobin.
 
 
+Tobin C. Harding (14):
+  slub: Add isolate() and migrate() methods
+  tools/vm/slabinfo: Add support for -C and -M options
+  slub: Sort slab cache list
+  slub: Slab defrag core
+  tools/vm/slabinfo: Add remote node defrag ratio output
+  tools/vm/slabinfo: Add defrag_used_ratio output
+  tools/testing/slab: Add object migration test module
+  tools/testing/slab: Add object migration test suite
+  xarray: Implement migration function for objects
+  tools/testing/slab: Add XArray movable objects tests
+  slub: Enable moving objects to/from specific nodes
+  slub: Enable balancing slabs across nodes
+  dcache: Provide a dentry constructor
+  dcache: Implement object migration
 
+ Documentation/ABI/testing/sysfs-kernel-slab |  14 +
+ fs/dcache.c                                 | 124 ++-
+ include/linux/slab.h                        |  71 ++
+ include/linux/slub_def.h                    |  10 +
+ lib/radix-tree.c                            |  13 +
+ lib/xarray.c                                |  46 ++
+ mm/Kconfig                                  |   7 +
+ mm/slab_common.c                            |   2 +-
+ mm/slub.c                                   | 819 ++++++++++++++++++--
+ tools/testing/slab/Makefile                 |  10 +
+ tools/testing/slab/slub_defrag.c            | 567 ++++++++++++++
+ tools/testing/slab/slub_defrag.py           | 451 +++++++++++
+ tools/testing/slab/slub_defrag_xarray.c     | 211 +++++
+ tools/vm/slabinfo.c                         |  51 +-
+ 14 files changed, 2303 insertions(+), 93 deletions(-)
+ create mode 100644 tools/testing/slab/Makefile
+ create mode 100644 tools/testing/slab/slub_defrag.c
+ create mode 100755 tools/testing/slab/slub_defrag.py
+ create mode 100644 tools/testing/slab/slub_defrag_xarray.c
 
-
-e.g.
-Zone ranges:
-  DMA      [mem 0x0000000000001000-0x0000000000ffffff]
-  DMA32    [mem 0x0000000001000000-0x00000000ffffffff]
-  Normal   [mem 0x0000000100000000-0x0000000792ffffff]
-Movable zone start for each node
-  Node 0: 0x0000000100000000
-  Node 1: 0x00000002b1000000
-  Node 2: 0x0000000522000000
-Early memory node ranges
-  node   0: [mem 0x0000000000001000-0x000000000009efff]
-  node   0: [mem 0x0000000000100000-0x00000000bffdefff]
-  node   0: [mem 0x0000000100000000-0x00000002b0ffffff]
-  node   1: [mem 0x00000002b1000000-0x0000000521ffffff]
-  node   2: [mem 0x0000000522000000-0x0000000792ffffff]
-
-Node 0:
-node_start_pfn=1        node_end_pfn=2822144
-DMA      zone_low=1        zone_high=4096
-DMA32    zone_low=4096     zone_high=1048576
-Normal   zone_low=1048576  zone_high=7942144
-Movable  zone_low=0        zone_high=0
-
-Node 1:
-node_start_pfn=2822144  node_end_pfn=5382144
-DMA      zone_low=1        zone_high=4096
-DMA32    zone_low=4096     zone_high=1048576
-Normal   zone_low=1048576  zone_high=7942144
-Movable  zone_low=0        zone_high=0
-
-Node 2:
-node_start_pfn=5382144  node_end_pfn=7942144
-DMA      zone_low=1        zone_high=4096
-DMA32    zone_low=4096     zone_high=1048576
-Normal   zone_low=1048576  zone_high=7942144
-Movable  zone_low=0        zone_high=0
-
-Before this patch, zone_start_pfn/zone_end_pfn in node 0,1,2 is the same:
-  DMA      zone_start_pfn:1        zone_end_pfn:4096
-  DMA32    zone_start_pfn:4096     zone_end_pfn:1048576
-  Normal   zone_start_pfn:1048576  zone_end_pfn:7942144
-  Movable  zone_start_pfn:0        zone_end_pfn:0
-  spaned pages resuelt:
-  node 0:
-    DMA      spanned:4095
-    DMA32    spanned:1044480
-    Normal   spanned:0
-    Movable  spanned:1773568
-    totalpages:2559869
-  node 1:
-    DMA      spanned:0
-    DMA32    spanned:0
-    Normal   spanned:2560000
-    Movable  spanned:2560000
-    totalpages:5120000
-  node 2:
-    DMA      spanned:0
-    DMA32    spanned:0
-    Normal   spanned:2560000
-    Movable  spanned:2560000
-    totalpages:5120000
-
-After this patch:
-  node 0:
-    DMA      zone_start_pfn:1        zone_end_pfn:4096    spanned:4095
-    DMA32    zone_start_pfn:4096     zone_end_pfn:1048576 spanned:1044480
-    Normal   zone_start_pfn:1048576  zone_end_pfn:2822144 spanned:0
-    Movable  zone_start_pfn:0        zone_end_pfn:0       spanned:1773568
-    totalpages:2559869
-  node 1:
-    DMA      zone_start_pfn:4096     zone_end_pfn:4096    spanned:0
-    DMA32    zone_start_pfn:1048576  zone_end_pfn:1048576 spanned:0
-    Normal   zone_start_pfn:2822144  zone_end_pfn:5382144 spanned:0
-    Movable  zone_start_pfn:0        zone_end_pfn:0       spanned:2560000
-    totalpages:2560000
-  node 2:
-    DMA      zone_start_pfn:4096     zone_end_pfn:4096    spanned:0
-    DMA32    zone_start_pfn:1048576  zone_end_pfn:1048576 spanned:0
-    Normal   zone_start_pfn:5382144  zone_end_pfn:7942144 spanned:0
-    Movable  zone_start_pfn:0        zone_end_pfn:0       spanned:2560000
-    totalpages:2560000
-
-It is easy to construct such a scenario by configuring kernelcore=mirror
-in a multi-NUMA machine without full mirrored memory. 
-Of course, it can be a machine without any mirrored memory. 
-A great difference can be observed by startup information and viewing
-/proc/pagetypeinfo.
-
-On earlier kernel versions, such BUGs will directly double the memory of
-some nodes.
-Although these redundant memory exists in the form of reserved memory,
-this should not be expected.
+-- 
+2.21.0
 
