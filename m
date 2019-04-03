@@ -2,173 +2,177 @@ Return-Path: <SRS0=DmM3=SF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 24372C4360F
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 14:21:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 29697C4360F
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 14:46:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A874D2075E
-	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 14:21:02 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CE06620830
+	for <linux-mm@archiver.kernel.org>; Wed,  3 Apr 2019 14:46:22 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=eInfochipsIndia.onmicrosoft.com header.i=@eInfochipsIndia.onmicrosoft.com header.b="pSuIzhiE"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A874D2075E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=einfochips.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="cCydogQi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CE06620830
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 263156B028D; Wed,  3 Apr 2019 10:21:02 -0400 (EDT)
+	id 5D42C6B0008; Wed,  3 Apr 2019 10:46:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 212B86B028E; Wed,  3 Apr 2019 10:21:02 -0400 (EDT)
+	id 55B266B000A; Wed,  3 Apr 2019 10:46:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0DA976B028F; Wed,  3 Apr 2019 10:21:02 -0400 (EDT)
+	id 3FC956B000C; Wed,  3 Apr 2019 10:46:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C74396B028D
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 10:21:01 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id z7so12412309pgc.1
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 07:21:01 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 022B96B0008
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 10:46:22 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id y2so12513119pfl.16
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 07:46:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:subject:thread-topic
-         :thread-index:date:message-id:accept-language:content-language
-         :content-transfer-encoding:mime-version;
-        bh=KCY4n+634QN8idCFBL5iZU2uBgOMbKGR8cnYVsDTH5o=;
-        b=fdREGVx1EgmZj8Fux9CJ+GBTGh5d102Ngja9SkHMjRIBVBWThLqn2CmJZ/SaRjrOmp
-         hqUJ8XC0hqdItlA9AMsFziiysAuLERcdTSlO7rgOB4mIBxJ5voMVVJ3M2VihFYX4Z6H9
-         EF/mpXganpq/Mqdc/gkkiBTVoLQ4CNmTNmluGhdLDgcqamBuN6tnbFFdr35qXOQE0WZt
-         OErQUHI4yR4a0qJ913it+xqIFW24y7cyLllIq3mVRroSmQl6bGxtpCEY6KnqLyXZXmWv
-         Jq3rCHgDXoSOUmxcwqPDZyhEvAyMgTztl92pvpOZblEQbrqEvnjyx4yEa5fjaIZh2HkS
-         MPxw==
-X-Gm-Message-State: APjAAAW9TOoljS0DcOiM73ZwbU2jKuRl+4zsAQOW0aC6cRzFbSLBcizd
-	AfbvHzAhtXEANRe5LPi29bB/53VGw2GUy3JiJI/oyBNll86Oz3djIAshizJxM+GZHhbMbBVmNnq
-	L4ZTO1HOX19GB9TJ9G2YMjaEEDJ+8EzBvf2CMjaAVCfC57XNCeKyMntK79FIUciUBeQ==
-X-Received: by 2002:a17:902:8b8c:: with SMTP id ay12mr153686plb.192.1554301261155;
-        Wed, 03 Apr 2019 07:21:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw8rVitrRBRyeAU9+lRpK5nfawgRR7fpN+y53x04vdLj9QlJle7UOb6lTemWCvPV1nPb7UJ
-X-Received: by 2002:a17:902:8b8c:: with SMTP id ay12mr153632plb.192.1554301260425;
-        Wed, 03 Apr 2019 07:21:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554301260; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=9cUDFCKv8nkxnqXXlNldVxmjwYStmT4DTqy8AloTJc0=;
+        b=KxfmQ86311Hg5M5RoEHghNEi1smn10rYAgpbS6jPiZsin5tKK5AWrh1tPDjzjxZ/bI
+         KJSJbyWdBdWTtve6ccW4KR1cKHdk83VXYswvV0eI6yBerxeBfHWkG0geYCkIpoXIfxiU
+         8dwS1QeJbRwppijN11B4MOQN6RBDbIlWJJpAKLIZQu2Yn8md8SrsCTVGUnbRnjm8P92T
+         fHC4En4yB+/CNMLFSfswiyjjwbAVTLcvdxbi5sofgfkTD+VSApEqzKQRcf8uAzsBdfqA
+         t7BkJje7qoxYTCn6Jq0NeNiAWqi98b/jzaJQ6zJzb/Ai+ynsjuztyf1UAmILA+MYQyfi
+         4yKQ==
+X-Gm-Message-State: APjAAAXkTY+BVaX2gPQ4xHzRgpA9sm7loN3Bg2mcKiHakaOmONxx18xp
+	s7vDWGyAoazyFWyDoeFT67OaW5yj/L5WtEzGGKbl8ov+LFLLzKzZU3EyUHJHFJJLbq3BvunCprq
+	+NlsvvbhY7tlxBE9ezbhAqtXpiuvGCtJVDHVJfSqh5ryz6GNbYzcf7zT0zjBBG3JrLA==
+X-Received: by 2002:a63:525f:: with SMTP id s31mr59535pgl.172.1554302781570;
+        Wed, 03 Apr 2019 07:46:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw4o225d9sEKd+cLWbXn3MBLRq1MXqEJw67fKTfWET6by0WSydOhYAL5lb1vnjV2/ZH28sD
+X-Received: by 2002:a63:525f:: with SMTP id s31mr59446pgl.172.1554302780551;
+        Wed, 03 Apr 2019 07:46:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554302780; cv=none;
         d=google.com; s=arc-20160816;
-        b=pbKAX6WRwjhvxygKE+CdFeJZ5UHjq3VZ3KuBbjpGchIWheXIHpP6sr9a6Vq1t+yMWF
-         FayPPmnebqdt5n8P91HCbSM41EkW1kEpytGVYiEklFLM98zerDRXaJqq/ZYFxgYBCLEa
-         fQDBk5ysnLthrQkajKKuNpGclNFiecgQf7djoZX+x/ZG+h4YP+gp4i5dCVumwW/yRgE6
-         ImA5m/EtdDYm6QVgpvFxIvFUwXmCg3A81PerKWcfdwODr2ppeKE4nNiC5Zbx1v7tus1S
-         H32XGPcBNOZpTCoNLWNrA7tnPa8VRMAVBwHureiud/9tb02XoNntJrchaDQtDXwZdZuq
-         18kg==
+        b=IPIj310yMEy8e90oaLgloAssTD3RJ4WrZPbqJEcrWa7WDnPgOMbEGarkSqMbezC50Q
+         GXmcTc7T54y3puZ2Kv/YN3dqORRSKhPnmGJ5oLigk1tGkE39R9t8iYp3kelr8H51kLzN
+         Fsw+/yQ57EBFOJpsrbqRgYoBmZdWQZuNHixB9kh+wENQ7DM1hK7cUBvpOV2XB/itpiNc
+         zYZd0F8GHS+o7wRkAFezhaeJEPv0YT4OQ0lN8i/SDZHb+C06A3ldMw54YpmHdHOD3Ft6
+         Z150FJnP/GeOK1XLjIG7TVMa93xwK/nfV+GQRzaKyzqbxAXIzCU9Fj6wapbyhSRJh8Uo
+         NBwQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-language
-         :accept-language:message-id:date:thread-index:thread-topic:subject
-         :to:from:dkim-signature;
-        bh=KCY4n+634QN8idCFBL5iZU2uBgOMbKGR8cnYVsDTH5o=;
-        b=VvpNKyTRmReF9cb1VAilKaAk8VwILhcJJhRkfkMIEdCkR7P0CnOUl7MFL9bZxvRbHX
-         j4JUNY1vrhdjM/iwKoeKmFHD6y9BaafiY/TqFdbL2GhUn9gAHxIZ+WI6EX88RLCUxeu5
-         GeYt9cT7LSdJnz+Xq5XzadhsfsvKFbEEfrlsWzqbo+Kpzi4o5On9STRgmyCCab4grLj1
-         NobxTFOX0GBX5FkUi37TabxMfbrqUJccTi5g39jrY0JFI94//vYtSIDpXeARvJLYWU56
-         7gEDBMDxHEIsHXhGpbX5OdgeNDgfkj/iq5mjFuBPQy3lu2zGtHWYZFXBTFrxLhSSL4x0
-         dPSw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=9cUDFCKv8nkxnqXXlNldVxmjwYStmT4DTqy8AloTJc0=;
+        b=jh8JI7dq/NiK+NaTR3B0IwiUXZphKJjY20Ip75Aqb0UYJWRnqfJHQ3D29ZmM+AUNxU
+         WLS6Bn/KDPiUrXF/B+/KkerV6mNLUIsgOupD9+Mq9nKmAyBJel6IC6RjLsAsA6YfsV3z
+         dcvZBraXh1pa9EZ+RA+d/lYy/G0c8XbiS5IAkpahW7T/cGCQqfid2LW2AFarWrTTwZTH
+         9nnZiikt1u9TPacLBaMZvRwDD9RO9s+4E21DS9LhV/GEwrCWD/2O1xtvX1e2mCDbnQb3
+         DuRTbFrjn9hRMc1d1xL4oiAVmyz+2yd+5EQsH5ZTv4Ez4PMhXkiLbA6s2EE7PRveWOL3
+         j9vg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=pSuIzhiE;
-       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.84 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
-Received: from APC01-HK2-obe.outbound.protection.outlook.com (mail-eopbgr1300084.outbound.protection.outlook.com. [40.107.130.84])
-        by mx.google.com with ESMTPS id b3si13573582pgq.325.2019.04.03.07.20.59
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=cCydogQi;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id f2si13549554pgi.61.2019.04.03.07.46.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 07:21:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.84 as permitted sender) client-ip=40.107.130.84;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 03 Apr 2019 07:46:20 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=pSuIzhiE;
-       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.84 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=eInfochipsIndia.onmicrosoft.com; s=selector1-einfochips-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=KCY4n+634QN8idCFBL5iZU2uBgOMbKGR8cnYVsDTH5o=;
- b=pSuIzhiEn5+vI5n+qGRXGqHdJ8SkMPUdPpItjNEdT4zMJUscmzVONncOe3oOk61N7K0EoInkSabiz1tAbB80mXKtdlBlUF7MSfMZVT6gSffEPW0p6wKuJZlICO56nWx3Z2AIQlgBb+odqkPkYsVAprAFBhsNoGCtY5jv+mHJB/E=
-Received: from SG2PR02MB3098.apcprd02.prod.outlook.com (20.177.88.78) by
- SG2PR02MB3417.apcprd02.prod.outlook.com (20.177.84.9) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1750.22; Wed, 3 Apr 2019 14:20:57 +0000
-Received: from SG2PR02MB3098.apcprd02.prod.outlook.com
- ([fe80::f432:20e4:2d22:e60b]) by SG2PR02MB3098.apcprd02.prod.outlook.com
- ([fe80::f432:20e4:2d22:e60b%4]) with mapi id 15.20.1750.017; Wed, 3 Apr 2019
- 14:20:57 +0000
-From: Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>
-Subject: How to calculate instruction executed for function
-Thread-Topic: How to calculate instruction executed for function
-Thread-Index: AQHU6igi0LAQURcEFkafVLmNd6QLnw==
-Date: Wed, 3 Apr 2019 14:20:56 +0000
-Message-ID:
- <SG2PR02MB3098EF270AE08CB19E96C5C4E8570@SG2PR02MB3098.apcprd02.prod.outlook.com>
-Accept-Language: en-GB, en-US
-Content-Language: en-GB
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=pankaj.suryawanshi@einfochips.com; 
-x-originating-ip: [14.98.130.2]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 7eae1c02-83f5-4a98-0731-08d6b83f96c9
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600139)(711020)(4605104)(4534185)(7168020)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7193020);SRVR:SG2PR02MB3417;
-x-ms-traffictypediagnostic: SG2PR02MB3417:
-x-microsoft-antispam-prvs:
- <SG2PR02MB3417D5DF95A689D10124AA3BE8570@SG2PR02MB3417.apcprd02.prod.outlook.com>
-x-forefront-prvs: 0996D1900D
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(366004)(39850400004)(396003)(346002)(376002)(136003)(199004)(189003)(74316002)(2906002)(97736004)(66066001)(6506007)(78486014)(55236004)(14444005)(68736007)(33656002)(102836004)(3846002)(6116002)(6436002)(71200400001)(5024004)(66574012)(478600001)(71190400001)(256004)(25786009)(105586002)(106356001)(9686003)(7696005)(53936002)(476003)(14454004)(486006)(86362001)(316002)(186003)(2501003)(99286004)(5660300002)(8676002)(55016002)(81166006)(7736002)(81156014)(110136005)(52536014)(305945005)(44832011)(8936002)(26005);DIR:OUT;SFP:1101;SCL:1;SRVR:SG2PR02MB3417;H:SG2PR02MB3098.apcprd02.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: einfochips.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- Z4LmI8dq9T2xKqNft2Val+QuaCUq5qsIpPpr6gjF76UQyqS1Vc8+0yyW+te4OSD4Z2canVuR+kIaZ8Iq0WE79sqTduBaxUFOtbS8KoWlUCfqTtch4e+Vk76ytMjS4c9FhhJTgxntWwBxnsX5LHaK0eej2o9R540I2Wsi3LRfeh9Nfhxvet0nrm4n8PLi0LdzXWbVEpbX7xVJXpxBWNKDHGLxCITkESt55ZMB+PmoXHfsgoEm9j380l5gBVLKS/8QMJQcIq3TdOH4Ayk6L0tZ7WP3QKhJ06uCHHacg37hS5yoo2AGHCgD5ynVW7oi2egDcgucsHsw9XapfcoDuBe9X1KSWxVjlGl2ctgmUKibjsvPKEXcrFeZ1N1vch5jXX7hnw5sh5unK26mI140N7qJYQXyx3AR/igezMQwGZeExjo=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=cCydogQi;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	Content-Type:In-Reply-To:MIME-Version:Date:Message-ID:From:References:Cc:To:
+	Subject:Sender:Reply-To:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=9cUDFCKv8nkxnqXXlNldVxmjwYStmT4DTqy8AloTJc0=; b=cCydogQivcTjSsheqUuGx8u0n
+	ch7lvDlBpD38lNsleRsC/1xH6vp6FeBEW7jpVBju5SxfghVu6s8hk73/aHMowt9jVi74S8nPBGmQU
+	RidTeen6IYlh9J5M/RU6fdzmcuGz9z8lyMAfzUQQ6nUwDsjyEn9r4TU4owomdAZzH6tQyL1Rn99Cn
+	ULHseu/TI/psJgCsWYJ7rTT9OFLd+Lsg4hokJXhvQylV7qet3+FnMaap5UFW9a3rlOB/nbFf+3PRP
+	tBXpiWQ6tN9j6Yt6o/ODnUmRnWl5abnEuEm+zngOtcfGpP8YVKfDagpXR39VbG7PTgbGLeKisB/a2
+	QFWvotPzQ==;
+Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=midway.dunlab)
+	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hBh9e-0003fd-E1; Wed, 03 Apr 2019 14:46:18 +0000
+Subject: Re: [kbuild-all] [mmotm:master 19/222]
+ arch/sh/kernel/cpu/sh2/clock-sh7619.o:undefined reference to
+ `followparent_recalc'
+To: Rong Chen <rong.a.chen@intel.com>, kbuild test robot <lkp@intel.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>,
+ Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org,
+ Johannes Weiner <hannes@cmpxchg.org>
+References: <201904031355.srXJo4hh%lkp@intel.com>
+ <2af6aff3-ac3f-1d53-0d33-f81dd0dfa605@infradead.org>
+ <44789370-4ca9-329f-65ad-8ff428a7e91b@intel.com>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <38dbc113-2b1c-3fe6-ba37-36f89bbb71c4@infradead.org>
+Date: Wed, 3 Apr 2019 07:46:16 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-X-OriginatorOrg: einfochips.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 7eae1c02-83f5-4a98-0731-08d6b83f96c9
-X-MS-Exchange-CrossTenant-originalarrivaltime: 03 Apr 2019 14:20:56.9859
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 0adb040b-ca22-4ca6-9447-ab7b049a22ff
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: SG2PR02MB3417
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.004089, version=1.2.4
+In-Reply-To: <44789370-4ca9-329f-65ad-8ff428a7e91b@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On 4/3/19 12:09 AM, Rong Chen wrote:
+> 
+> On 4/3/19 2:26 PM, Randy Dunlap wrote:
+>> On 4/2/19 10:54 PM, kbuild test robot wrote:
+>>> Hi Randy,
+>>>
+>>> It's probably a bug fix that unveils the link errors.
+>>>
+>>> tree:   git://git.cmpxchg.org/linux-mmotm.git master
+>>> head:   03590d39c08e0f2969871a5efcf27a366c1e8c60
+>>> commit: cffa367bb8abe4c1424e93e345c7d63844d1c5db [19/222] sh: fix multiple function definition build errors
+>>> config: sh-allmodconfig (attached as .config)
+>>> compiler: sh4-linux-gnu-gcc (Debian 7.2.0-11) 7.2.0
+>>> reproduce:
+>>>          wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+>>>          chmod +x ~/bin/make.cross
+>>>          git checkout cffa367bb8abe4c1424e93e345c7d63844d1c5db
+>>>          # save the attached .config to linux build tree
+>>>          GCC_VERSION=7.2.0 make.cross ARCH=sh
+>>>
+>>> All errors (new ones prefixed by >>):
+>>>
+>>>>> arch/sh/kernel/cpu/sh2/clock-sh7619.o:(.data+0x1c): undefined reference to `followparent_recalc'
+>>> ---
+>>> 0-DAY kernel test infrastructure                Open Source Technology Center
+>>> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+>>>
+>> Hi,
+>> I suspect that it's more of an invalid .config file.
+>> How do you generate the .config files?  or is it a defconfig?
+> 
+> the config file was generated by "make ARCH=sh allmodconfig"
+> 
+> 
+>>
+>> Yes, I have seen this build error, but I was able to get around it
+>> by modifying the .config file.  That's why I suspect that it may be
+>> an invalid .config file.
+> 
+> Can you share the fix steps? We'll take a look at it.
 
-How to calculate instruction executed for function ?
+Hi,
 
-For eg.
+For this build error:
+>> arch/sh/kernel/cpu/sh2/clock-sh7619.o:(.data+0x1c): undefined reference to `followparent_recalc'
 
-I need to calculate instruction executed for CMA_ALLOC function.
-How many instruction executed for cma_alloc ?
+the problem is with CONFIG_COMMON_CLK.  The COMMON_CLK framework does not
+provide this API.  However, in arch/sh/boards/Kconfig, COMMON_CLK is always
+selected by SH_DEVICE_TREE.  By disabling SH_DEVICE_TREE, the build
+succeeds.
 
-Any help would be appreciated.
 
-Regards,
-Pankaj
-***************************************************************************=
-***************************************************************************=
-******* eInfochips Business Disclaimer: This e-mail message and all attachm=
-ents transmitted with it are intended solely for the use of the addressee a=
-nd may contain legally privileged and confidential information. If the read=
-er of this message is not the intended recipient, or an employee or agent r=
-esponsible for delivering this message to the intended recipient, you are h=
-ereby notified that any dissemination, distribution, copying, or other use =
-of this message or its attachments is strictly prohibited. If you have rece=
-ived this message in error, please notify the sender immediately by replyin=
-g to this message and please delete it from your computer. Any views expres=
-sed in this message are those of the individual sender unless otherwise sta=
-ted. Company has taken enough precautions to prevent the spread of viruses.=
- However the company accepts no liability for any damage caused by any viru=
-s transmitted by this email. **********************************************=
-***************************************************************************=
-************************************
+-- 
+~Randy
 
