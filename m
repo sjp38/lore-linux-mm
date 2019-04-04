@@ -2,169 +2,219 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B9877C4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 09:16:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E003AC4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 09:26:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8074220652
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 09:16:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8074220652
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id A0F6D20449
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 09:26:05 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="lXimA78f"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A0F6D20449
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 181346B0005; Thu,  4 Apr 2019 05:16:57 -0400 (EDT)
+	id 2652C6B0007; Thu,  4 Apr 2019 05:26:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 130E26B0008; Thu,  4 Apr 2019 05:16:57 -0400 (EDT)
+	id 1ED956B0008; Thu,  4 Apr 2019 05:26:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F3B5A6B000E; Thu,  4 Apr 2019 05:16:56 -0400 (EDT)
+	id 08FF86B000A; Thu,  4 Apr 2019 05:26:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A47B46B0005
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 05:16:56 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id e16so1068418edj.1
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 02:16:56 -0700 (PDT)
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DA44D6B0007
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 05:26:04 -0400 (EDT)
+Received: by mail-it1-f197.google.com with SMTP id v11so5108910itb.1
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 02:26:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=TNFbuiNLWimb6q6rVhNX5raXOrM/OF6l5mNMpaB9C3I=;
-        b=jjKYwpRzMwg6i4M8syJvdke5jZp/o0jmdAOD4bnbaegu5P/QSX9Hq18e5Zh+9bDdZe
-         5pVORBMLjfB9lHLREKBpRFPsIc9xh8QXh2E5J8ymNBnEYwerzURqlufg2o2nWsrkrLN5
-         fZzoBfONiTrl8nwe+pg91lJD/Fzey820vfcbMx3/fPMkIA9QZ6WGKWQwlHsc519ej0+I
-         ZuXDt4USa7bYGgbfk22ZV9IonLDrVKvm/02quiZ8MBXTd+cJUH/W74+nd3hMf3bMSdwy
-         F7LxbuzNcwge6olcdHrw2bGf8mN8e+Ac+MUTlSJe2Er3g9F1HAHHixPO9Cva0v4fRQg5
-         e3lg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAWm9aRdoGuldoyEtNhJaBCW2vde0OPEqD5KVuEfeswp/DfMyh8s
-	vlJ8xuNDIkA6W7Rl6lNLZgJtUj8OVCdfjU+DOOWsuE0hw1u+bG39VugP7aT46s2bDYYIMqbDOXT
-	e/+2PjSVzvuWgAT5l9w64TQsah5ohayig9CIIh1p5Ne4dleeigXw1889WRD+lPPsITQ==
-X-Received: by 2002:a17:906:5a09:: with SMTP id p9mr2954869ejq.46.1554369416226;
-        Thu, 04 Apr 2019 02:16:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwLdkcPJHTE5u9cvLvX5knBOHpMQyGcXXeYFCvRfE38stW3Fccf4R0UF0gEwkSRwb6Zjxe0
-X-Received: by 2002:a17:906:5a09:: with SMTP id p9mr2954817ejq.46.1554369415179;
-        Thu, 04 Apr 2019 02:16:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554369415; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=X+EiJspXrthvhY7cDQYnv6wc4+xKqln42WsdUBF2ewQ=;
+        b=kdkd15xBqjBbYthVBxLI8DZ/bqJlUBa6u8ZenVodYLc+Jgy4Jw0Y746kW+QSC5UxRA
+         EQOlycSEtLHeasdPUKpUc4/8yHvPF59xfiSFO8+RPu8sy9odmbOmAru3uucwMlPD2FN0
+         ra03t+tbTQI9CHJZUYNKuLT/g7ODSWhUw6n88kz0l6UR7XXNIIpez+QuN7L2eWaCG5ap
+         L9aHPVIrr943dxnXscMd1/aL81O6mZsMyU6ClFTbZYztU+n1iUkNMSH6AcGWyzgmmCKF
+         EEUARmyg01cvWt4MClF2+yPmyJk22LsQQKo6lDpvHjjdhLpxu2tXbxkl/QZEaiChtYuc
+         /Pjg==
+X-Gm-Message-State: APjAAAVzpeKu5KKF0X1nYGWT89o1/z3BYyqz6ibslkiv4dBPgAkxGd2/
+	0DGbgowQDzH8zYOYXLsoielQclkCeTmLPFPLKlimIJ5L3nDKHlU7ywBuXdpbbu3LO4/qFw4x/l2
+	Cur/KUfiEavQ15tAMzbMZfx3u0EDm/cbyBbk5P5S3wZWJpvR84GTIpG1Dof0wnvFmHw==
+X-Received: by 2002:a5e:8418:: with SMTP id h24mr3393031ioj.170.1554369964627;
+        Thu, 04 Apr 2019 02:26:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqycLm1OOo6kI/TG2CeYmCbuDcmNub3BQIFr9FeIL4KXs+/YMYqEX0Ik04HL+oxgh5Ej8ZOA
+X-Received: by 2002:a5e:8418:: with SMTP id h24mr3392996ioj.170.1554369963703;
+        Thu, 04 Apr 2019 02:26:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554369963; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZvPpmMuRrI17VCqXwxc/AtsUns7UJPaVqqvemfuE4PMjrIoGLhT2fqd2Rc3xxB9j4Z
-         NPBklilwFPIRix4hlSweBSh/0rXoQp8o1G4a8YyXzGFiVo7SgzfgZoXYc8INpWgxgFEE
-         W9ND6SwAw3MBtHSm7Fsl134bQ7m1xgnpeYFLXPJR50qIHneASaBhI+H0tTZDFDS5M7zA
-         w1usnJ/kSOzI6V2pYM9Tmfgg8OxJCXagnuVprQb6SLjwg6qirD9Vvd4zE5k+Zug/LeOW
-         X8yUFxgclWvHD03gbF6vQ9B/TPwR3jBNeFLeJPyldms5q9PnHaTxseSwg2IoS79SQP7/
-         KWKg==
+        b=jn1jTyGJ13YA6SgnYpCiV+29JgDUf0cvlOxBzGxXaCwkNyq9VW3ks0+yVUhakkfjF9
+         vIhmY9N1a0NJEWh75ira5giQIr7VfYExjQYDPShHT9bbdJZmnlOBvB0C2VDPbYvg6XhK
+         Z3tCS/JclhCkOg3gu4s14mkTxOxCVO5ZITHr+LhT7D8lt4K5ujELH7sPdCqpt4erDBj7
+         wZdSaCGrYBzEd/fiCfwBpX1eermivjM9WzmtXk8zePzf53Zb/j1GI0LelctzwSSYpViN
+         7CxmXB6++U21X2fzmswFhrX9nP4+xSkQ0Oc/+cmegtTPxA2XPRWbMdyQrCF32+Fbw4Nx
+         SNNg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=TNFbuiNLWimb6q6rVhNX5raXOrM/OF6l5mNMpaB9C3I=;
-        b=F0wN6FUkCIXQuAx/F82DOI7BHIjQ6psBeEVs6J5etu9GkPNT0aFeCoPeqtUA4LLw+u
-         Wim6RfTzEXosEstmf4u+LUAn1CN14aRLJowZ1u2aHrTmT4gnjOG5JCKmUhYxj/KTrLGh
-         xMHEz2CZYkJFD8qz/t9RHx8sQq9cFSh+L5d7N4yH4/9Aq3LUJTnSWGYLN7HJw2TryeZu
-         vdY5cuuHjxvHuqZRKoz/ylPAY/vCC80jpGqAcy72qyx/i/pj2v0hG3G5K803r3jS0zjx
-         lSbUpAPoGElbrJjkyuMJv97Nq6+fBKted86WYid9jlKOWkSSJsR/nCCck9BEU5gphXgH
-         Q6fQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=X+EiJspXrthvhY7cDQYnv6wc4+xKqln42WsdUBF2ewQ=;
+        b=Xu/NBg/ipD1u3/F9MG2OQA8HNoyEIh4PC8c5JXVQbucXaOi0e3tIxPOcFRggBjpNqR
+         EyvV8aTvs2wl47Wspvih8zGwo/Tvd1NC6+j+LjG1OLXRb0zzo3bMWfolJcE/aI/ggrkL
+         XzNJD/+xmh1JweohBuFVWKPg03JnKq4hMwhnVlHF9BLEoZdUdQ4kb+3Nsw2ppxW4W8Xw
+         wfOz5n1nX7AYsZVR3GjO+P/Ci4W7+5G+BPTV80Px/Z1sAyHxcUPEmB+yuL0i6jwZGqA0
+         i0VaPJhHzhIWjYuE2J8tYAmT6gUWra4sSiMQrwkQhv2/oT9aOFotKYUUd+KigOUxD0wb
+         EQwQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id w42si430363edd.305.2019.04.04.02.16.54
-        for <linux-mm@kvack.org>;
-        Thu, 04 Apr 2019 02:16:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=lXimA78f;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id n32si10347018jac.105.2019.04.04.02.26.03
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 04 Apr 2019 02:26:03 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id D54E8168F;
-	Thu,  4 Apr 2019 02:16:53 -0700 (PDT)
-Received: from [10.1.196.69] (e112269-lin.cambridge.arm.com [10.1.196.69])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 757D73F557;
-	Thu,  4 Apr 2019 02:16:50 -0700 (PDT)
-Subject: Re: [PATCH 2/6] arm64/mm: Enable memory hot remove
-To: Anshuman Khandual <anshuman.khandual@arm.com>,
- Logan Gunthorpe <logang@deltatee.com>, linux-kernel@vger.kernel.org,
- linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
- akpm@linux-foundation.org, will.deacon@arm.com, catalin.marinas@arm.com
-Cc: mark.rutland@arm.com, mhocko@suse.com, david@redhat.com,
- robin.murphy@arm.com, cai@lca.pw, pasha.tatashin@oracle.com,
- Stephen Bates <sbates@raithlin.com>, james.morse@arm.com,
- cpandya@codeaurora.org, arunks@codeaurora.org, dan.j.williams@intel.com,
- mgorman@techsingularity.net, osalvador@suse.de
-References: <1554265806-11501-1-git-send-email-anshuman.khandual@arm.com>
- <1554265806-11501-3-git-send-email-anshuman.khandual@arm.com>
- <f2ea761c-49b2-88f6-14fa-5aaec57952cb@deltatee.com>
- <45afb99f-5785-4048-a748-4e0f06b06b31@arm.com>
-From: Steven Price <steven.price@arm.com>
-Message-ID: <1d1d69d1-06e6-f429-f22b-00ca922a314d@arm.com>
-Date: Thu, 4 Apr 2019 10:16:48 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=lXimA78f;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=X+EiJspXrthvhY7cDQYnv6wc4+xKqln42WsdUBF2ewQ=; b=lXimA78fwS8UjbrqTeMj6TJtL
+	+Y02yuivEU35LV0e7zjb9RR38MHad76DV8JTThj68HG4BTESroqZUnOlMZeizL0f5MWwAWTJ56zRX
+	YoLqgzc5aOyb1xJ7LazSoQf+AzftKj30wdmdnwDtJNZSg5Ec2X5NZsY9c227nVZlV+fTdTXdgt5Lp
+	BlwRrhXm5gwgz3LPSxFHjuX/3LQTKEIwQ6g8ozwxnmKYDtgvgSkWiINBS2hPO1CganrbSJVUAE/rc
+	VMPGXZdcR+R5gBAVsRDKXO8csbsDQqEnl5x7DaGWJv0wHpRkWdOYc4DtO5N1L3TS36/Uhz9ILLZI2
+	SwrC9HavQ==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hBycO-0002Bh-1i; Thu, 04 Apr 2019 09:25:08 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 76E92203C12D9; Thu,  4 Apr 2019 11:25:06 +0200 (CEST)
+Date: Thu, 4 Apr 2019 11:25:06 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Khalid Aziz <khalid.aziz@oracle.com>
+Cc: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de,
+	ak@linux.intel.com, liran.alon@oracle.com, keescook@google.com,
+	konrad.wilk@oracle.com,
+	Juerg Haefliger <juerg.haefliger@canonical.com>,
+	deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
+	tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
+	jcm@redhat.com, boris.ostrovsky@oracle.com,
+	kanth.ghatraju@oracle.com, joao.m.martins@oracle.com,
+	jmattson@google.com, pradeep.vincent@oracle.com,
+	john.haxby@oracle.com, tglx@linutronix.de,
+	kirill.shutemov@linux.intel.com, hch@lst.de,
+	steven.sistare@oracle.com, labbott@redhat.com, luto@kernel.org,
+	dave.hansen@intel.com, aaron.lu@intel.com,
+	akpm@linux-foundation.org, alexander.h.duyck@linux.intel.com,
+	amir73il@gmail.com, andreyknvl@google.com,
+	aneesh.kumar@linux.ibm.com, anthony.yznaga@oracle.com,
+	ard.biesheuvel@linaro.org, arnd@arndb.de, arunks@codeaurora.org,
+	ben@decadent.org.uk, bigeasy@linutronix.de, bp@alien8.de,
+	brgl@bgdev.pl, catalin.marinas@arm.com, corbet@lwn.net,
+	cpandya@codeaurora.org, daniel.vetter@ffwll.ch,
+	dan.j.williams@intel.com, gregkh@linuxfoundation.org, guro@fb.com,
+	hannes@cmpxchg.org, hpa@zytor.com, iamjoonsoo.kim@lge.com,
+	james.morse@arm.com, jannh@google.com, jgross@suse.com,
+	jkosina@suse.cz, jmorris@namei.org, joe@perches.com,
+	jrdr.linux@gmail.com, jroedel@suse.de, keith.busch@intel.com,
+	khlebnikov@yandex-team.ru, logang@deltatee.com,
+	marco.antonio.780@gmail.com, mark.rutland@arm.com,
+	mgorman@techsingularity.net, mhocko@suse.com, mhocko@suse.cz,
+	mike.kravetz@oracle.com, mingo@redhat.com, mst@redhat.com,
+	m.szyprowski@samsung.com, npiggin@gmail.com, osalvador@suse.de,
+	paulmck@linux.vnet.ibm.com, pavel.tatashin@microsoft.com,
+	rdunlap@infradead.org, richard.weiyang@gmail.com, riel@surriel.com,
+	rientjes@google.com, robin.murphy@arm.com, rostedt@goodmis.org,
+	rppt@linux.vnet.ibm.com, sai.praneeth.prakhya@intel.com,
+	serge@hallyn.com, steve.capper@arm.com, thymovanbeers@gmail.com,
+	vbabka@suse.cz, will.deacon@arm.com, willy@infradead.org,
+	yang.shi@linux.alibaba.com, yaojun8558363@gmail.com,
+	ying.huang@intel.com, zhangshaokun@hisilicon.com,
+	iommu@lists.linux-foundation.org, x86@kernel.org,
+	linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-security-module@vger.kernel.org,
+	Khalid Aziz <khalid@gonehiking.org>
+Subject: Re: [RFC PATCH v9 03/13] mm: Add support for eXclusive Page Frame
+ Ownership (XPFO)
+Message-ID: <20190404092506.GC14281@hirez.programming.kicks-ass.net>
+References: <cover.1554248001.git.khalid.aziz@oracle.com>
+ <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
+ <20190404072152.GN4038@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-In-Reply-To: <45afb99f-5785-4048-a748-4e0f06b06b31@arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190404072152.GN4038@hirez.programming.kicks-ass.net>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/04/2019 08:07, Anshuman Khandual wrote:
+On Thu, Apr 04, 2019 at 09:21:52AM +0200, Peter Zijlstra wrote:
+> On Wed, Apr 03, 2019 at 11:34:04AM -0600, Khalid Aziz wrote:
+> > diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> > index 2c471a2c43fa..d17d33f36a01 100644
+> > --- a/include/linux/mm_types.h
+> > +++ b/include/linux/mm_types.h
+> > @@ -204,6 +204,14 @@ struct page {
+> >  #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
+> >  	int _last_cpupid;
+> >  #endif
+> > +
+> > +#ifdef CONFIG_XPFO
+> > +	/* Counts the number of times this page has been kmapped. */
+> > +	atomic_t xpfo_mapcount;
+> > +
+> > +	/* Serialize kmap/kunmap of this page */
+> > +	spinlock_t xpfo_lock;
 > 
+> NAK, see ALLOC_SPLIT_PTLOCKS
 > 
-> On 04/03/2019 11:02 PM, Logan Gunthorpe wrote:
->>
->>
->> On 2019-04-02 10:30 p.m., Anshuman Khandual wrote:
->>> Memory removal from an arch perspective involves tearing down two different
->>> kernel based mappings i.e vmemmap and linear while releasing related page
->>> table pages allocated for the physical memory range to be removed.
->>>
->>> Define a common kernel page table tear down helper remove_pagetable() which
->>> can be used to unmap given kernel virtual address range. In effect it can
->>> tear down both vmemap or kernel linear mappings. This new helper is called
->>> from both vmemamp_free() and ___remove_pgd_mapping() during memory removal.
->>> The argument 'direct' here identifies kernel linear mappings.
->>>
->>> Vmemmap mappings page table pages are allocated through sparse mem helper
->>> functions like vmemmap_alloc_block() which does not cycle the pages through
->>> pgtable_page_ctor() constructs. Hence while removing it skips corresponding
->>> destructor construct pgtable_page_dtor().
->>>
->>> While here update arch_add_mempory() to handle __add_pages() failures by
->>> just unmapping recently added kernel linear mapping. Now enable memory hot
->>> remove on arm64 platforms by default with ARCH_ENABLE_MEMORY_HOTREMOVE.
->>>
->>> This implementation is overall inspired from kernel page table tear down
->>> procedure on X86 architecture.
->>
->> I've been working on very similar things for RISC-V. In fact, I'm
->> currently in progress on a very similar stripped down version of
->> remove_pagetable(). (Though I'm fairly certain I've done a bunch of
->> stuff wrong.)
->>
->> Would it be possible to move this work into common code that can be used
->> by all arches? Seems like, to start, we should be able to support both
->> arm64 and RISC-V... and maybe even x86 too.
->>
->> I'd be happy to help integrate and test such functions in RISC-V.
+> spinlock_t can be _huge_ (CONFIG_PROVE_LOCKING=y), also are you _really_
+> sure you want spinlock_t and not raw_spinlock_t ? For
+> CONFIG_PREEMPT_FULL spinlock_t turns into a rtmutex.
 > 
-> Sure that will be great. The only impediment is pgtable_page_ctor() for kernel
-> linear mapping. This series is based on current arm64 where linear mapping
-> pgtable pages go through pgtable_page_ctor() init sequence but that might be
-> changing soon. If RISC-V does not have pgtable_page_ctor() init for linear
-> mapping and no other arch specific stuff later on we can try to consolidate
-> remove_pagetable() atleast for both the architectures.
+> > +#endif
 > 
-> Then I wondering whether I can transition pud|pmd_large() to pud|pmd_sect().
+> Growing the page-frame by 8 bytes (in the good case) is really sad,
+> that's a _lot_ of memory.
 
-The first 10 patches of my generic page walk series[1] adds p?d_large()
-as a common feature, so probably best sticking with p?d_large() if this
-is going to be common and basing on top of those patches.
+So if you use the original kmap_atomic/kmap code from i386 and create
+an alias per user you can do away with all that.
 
-[1]
-https://lore.kernel.org/lkml/20190403141627.11664-1-steven.price@arm.com/T/
+Now, that leaves you with the fixmap kmap_atomic code, which I also
+hate, but it gets rid of a lot of the ugly you introduce in these here
+patches.
 
-Steve
+As to the fixmap kmap_atomic; so fundamentally the PTEs are only used on
+a single CPU and therefore CPU local TLB invalidation _should_ suffice.
+
+However, speculation...
+
+Another CPU can speculatively hit upon a fixmap entry for another CPU
+and populate it's own TLB entry. Then the TLB invalidate is
+insufficient, it leaves a stale entry in a remote TLB.
+
+If the remote CPU then re-uses that fixmap slot to alias another page,
+we have two CPUs with different translations for the same VA, a
+condition that AMD CPU's dislike enough to machine check on (IIRC).
+
+Actually hitting that is incredibly difficult (we have to have
+speculation, fixmap reuse and not get a full TLB invalidate in between),
+but, afaict, not impossible.
+
+Your monstrosity from the last patch avoids this particular issue by not
+aliasing in this manner, but it comes at the cost of this page-frame
+bloat. Also, I'm still not sure there's not other problems with it.
+
+Bah..
 
