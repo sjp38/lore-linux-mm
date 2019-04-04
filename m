@@ -8,111 +8,111 @@ X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 09B28C4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:02:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CB286C4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:02:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9802620820
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:02:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7B65220820
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:02:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=sent.com header.i=@sent.com header.b="kHdvF9pN";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="muwx5J5m"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9802620820
+	dkim=pass (2048-bit key) header.d=sent.com header.i=@sent.com header.b="uiRPlq6m";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="MyEaAGe4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B65220820
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=sent.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3D7596B0277; Wed,  3 Apr 2019 22:01:47 -0400 (EDT)
+	id B2DD86B0278; Wed,  3 Apr 2019 22:01:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3B12F6B0278; Wed,  3 Apr 2019 22:01:47 -0400 (EDT)
+	id AB7576B0279; Wed,  3 Apr 2019 22:01:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 252C36B0279; Wed,  3 Apr 2019 22:01:47 -0400 (EDT)
+	id 9A30F6B027A; Wed,  3 Apr 2019 22:01:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F0A7C6B0277
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 22:01:46 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id m8so932715qka.10
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 19:01:46 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 763A06B0278
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 22:01:48 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id n13so968520qtn.6
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 19:01:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
          :date:message-id:in-reply-to:references:reply-to:mime-version
          :content-transfer-encoding;
-        bh=bogrl8ykXE3AE9N3lxqf7+kaVmqboUoXMwOaBKi4kwI=;
-        b=X7hfYsD5Yjq0uiG1H/U0J4PfR3WK5CmlhEJZmxHspmQDku60/1Ux3sW4c/6v8AaXN2
-         fL570akptrclKRJDaNN0sOP1o+Im4lIXTv/1dUhj2iUP4CgBgCPLTJYThBlbaILxmL8R
-         Vw+nPq42/BPxHRv+AKiz/4P5zPe7/YPQ2hueIYSR1rTJq1jAkOrbGjAwmvnwCQz0yaGV
-         TZsBTFWrKzkIFMIYYtYy8KS3zhCizWFjZ2p9o8BP421lvTuDw7uYGdLH44EQXG+s+WAs
-         jxjh/2bp1nWgnJnSG9ldv+VJVkhlKwi7yD7D5D1Pi7/oDkw7RCvTl4fzd76ETjY8jrNs
-         cvjg==
-X-Gm-Message-State: APjAAAXVd5pqcCFnVzlLdCIzwXz3gth9hxyB4qwAzasBl7bx19EtJ2Th
-	5khGvoQTDfu26f/BKnrLy3BxVKauqF0x20DWZEknPXPoFwbd1SHl2epFye0XP9HTVb3vCQt/SWD
-	Nynso84798KvXHHfaZXigf9BhbFzg+Biq9d94hUhjRf1e3k3pYOEQgWS9fhEMvRBmLA==
-X-Received: by 2002:aed:3b62:: with SMTP id q31mr3013786qte.82.1554343306739;
-        Wed, 03 Apr 2019 19:01:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyNuYjuImayzQjueuTij0uIpO778FuyxEfX2dDrdCnkquUe/o3SUTPHIhM614tCBF5FVRyp
-X-Received: by 2002:aed:3b62:: with SMTP id q31mr3013734qte.82.1554343305959;
-        Wed, 03 Apr 2019 19:01:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554343305; cv=none;
+        bh=3UekVlM57ISUTTW0lHTJU3YrdfYPvp3rAFH0aaIT5ag=;
+        b=kUyg9pIEnUYP3SndR9qZ6BFzj894EBoZQVg0sFqaqXb7FA3yNHUIzVogCZolFunyle
+         3DNhPpzUeBaiifLMW0JEgxmRy9vZeeB1PbdAikGPSt/Xnuzxsl6SgcTrQ+gf+NEfTWfy
+         cRLR3EDnZvQsJeer3TKRxz8n1rUkxyqmzfT9GOKA+6HaWT0+evE0WU36hJZRWmKZdW2Y
+         VTtxjGlN6ew84wzKHpjdl4ym9leZOh64Lu7syAJbYyioad9bDuvD6WJEymB+FlFTmbbK
+         VceMExsupgoD8hCaf+XuHckiakSD1Sh1iyKkkh/ejsDp1nLsmRnlDuOdgxUjtjLNbwbW
+         t5LQ==
+X-Gm-Message-State: APjAAAWzK5rTN8zukbvGtVCUixrR9dl3amzUZuJA/eYzOiyATxxxAlYI
+	PoA9D6ZJ32XTIwQZAJ8KAHzqJBhUmBlZd+olr+uqJFPllNabg+ylkVYgMZOGliC2+MLqwsbg/1j
+	kZzmjc/59qGwBlgJv2QJnGjy9sHTqs2pHd1oxOa+b3uMVUm+spXHF4hLqQgGfNosqOQ==
+X-Received: by 2002:ad4:42cb:: with SMTP id f11mr2557927qvr.53.1554343308262;
+        Wed, 03 Apr 2019 19:01:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzICTZnPoNUzGTgHjMdy3lfEmPUWNJtE63FU8Wlz1rYnF04qx/iW2QYkQNqZ+bgTmZNGQcP
+X-Received: by 2002:ad4:42cb:: with SMTP id f11mr2557898qvr.53.1554343307645;
+        Wed, 03 Apr 2019 19:01:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554343307; cv=none;
         d=google.com; s=arc-20160816;
-        b=Am04fkMvmAhsSIPyOVxCI/ydWcD5U9r7N3fnETK1/c5ieOGEtIvG3hiOug8A67mc1s
-         S3/7Zzxu3wVSdeSpQyRsrRjfgKUZNLlFaoJCtuJPGKeBfySAFARq7vY2lLmXuyfPFbE5
-         U3NSf9p/YUlZKIFlqQiSg+A4SBaGLHVGtxynWs7Maenv9EXqHLSxylMiukXbhJ8ScEqH
-         bmpgLuDhILv2TXZHJNlGoTGfPd/3ov7aXz046l0OjCGIkifuUuxRugQIGrx3lCvfliWB
-         uXVAZy4FShPIZ+mJrCuq8jEMlKsIQfu5IEo2AlSSQZjJKPr2XjlX8EshbmU6BnDL7ULT
-         ZToQ==
+        b=kcI1oydqN6jknELYB2oLbdwUy5xzyJuG22sAghKPeehr62TmNtK6WdTFUE5NriTcQv
+         uz9BDA11RESMgAOqZSq4RWje5VXw6pDS1ZgqHVRBpfuPt/l7e3hlRaNDCzKsF/f4xbyh
+         3eErEjbyAW5X02QHzNpXj1ULCOGZsW30IwvlZLU8W771xjgbzj93heFY/tvMV6RyNxtq
+         RBFm7Yxr2nciFaFeoOhOEquvbG6zww66JeUDj5jK1J88x3Ru4FM1M4/ErF5pvHbWC9YK
+         coZ+H73vAPpECVAn5eniIL0bMOYQaRmgrUJOqacYlGNmvryObK0avxnz9Eh7hB7yVm2x
+         ZQOA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:reply-to:references
          :in-reply-to:message-id:date:subject:cc:to:from:dkim-signature
          :dkim-signature;
-        bh=bogrl8ykXE3AE9N3lxqf7+kaVmqboUoXMwOaBKi4kwI=;
-        b=ANuButLncynQTaKM6igkU/gjH6Wh27AFLwyBnr6FxwrsSeoXEnNDroWGlVrxcmHT5d
-         cSjcHcpOetEP4CMRFEUf/SEp1iz/iS1Pc3WHiournxv8xn8jvpm3maV88R/ut8qj4Cbi
-         0VJinZwjuDe/4MN24xZ6a72YpgD0Mo89+i2xVHjpDYWZV4M5x0tskuZYbqLEgFk6MV2V
-         aPV91dmQpQI5GtFz18/ZbJEpIQM18UuSzu0xPwfmhPFes9NIYFEy95n1e4DCE/U9mV5H
-         uNAHMx9roTn+BkCRIqV8V47FOSv2/kujlESaBEdplVkwpmX6eEIMq+dcm7n4J7fvhkKq
-         qFWg==
+        bh=3UekVlM57ISUTTW0lHTJU3YrdfYPvp3rAFH0aaIT5ag=;
+        b=Lns4QZHfLkg7/4u1NaDUt0un48PeB0dVC3jQFimUaReYrHlAYyo5St1gS33h40xlc0
+         O5dLtDWPjLJRl8sCR2ErK7Qppv0QInmBrpZErxsybOitHIdFc3KgxDvzOT0w+PbPhDHl
+         xOsW2HMhy7frGW3SvUUd4w8E1r91kfAGOFJXN+o5mhDeDioCrFspPWa+M35TYoUA2E5r
+         +v/HMkMRYzPLnw5klE95lF/1i3T8yFnKljUSA/8DA1GP7ISXkljsorNk8B7ZeOlVgt2+
+         YxNpBle99/6PKnQ94QrFhhCaVBoiULqJVrhI5elvW0ed5NaN9oU1l9ccUAGjBAPFkW/n
+         52/A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@sent.com header.s=fm3 header.b=kHdvF9pN;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=muwx5J5m;
+       dkim=pass header.i=@sent.com header.s=fm3 header.b=uiRPlq6m;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=MyEaAGe4;
        spf=pass (google.com: domain of zi.yan@sent.com designates 66.111.4.29 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
 Received: from out5-smtp.messagingengine.com (out5-smtp.messagingengine.com. [66.111.4.29])
-        by mx.google.com with ESMTPS id r7si1758323qke.34.2019.04.03.19.01.45
+        by mx.google.com with ESMTPS id t21si8256843qte.338.2019.04.03.19.01.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 19:01:45 -0700 (PDT)
+        Wed, 03 Apr 2019 19:01:47 -0700 (PDT)
 Received-SPF: pass (google.com: domain of zi.yan@sent.com designates 66.111.4.29 as permitted sender) client-ip=66.111.4.29;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@sent.com header.s=fm3 header.b=kHdvF9pN;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=muwx5J5m;
+       dkim=pass header.i=@sent.com header.s=fm3 header.b=uiRPlq6m;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=MyEaAGe4;
        spf=pass (google.com: domain of zi.yan@sent.com designates 66.111.4.29 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.nyi.internal (Postfix) with ESMTP id A7A9D228BA;
-	Wed,  3 Apr 2019 22:01:45 -0400 (EDT)
+	by mailout.nyi.internal (Postfix) with ESMTP id 6095422710;
+	Wed,  3 Apr 2019 22:01:47 -0400 (EDT)
 Received: from mailfrontend2 ([10.202.2.163])
-  by compute3.internal (MEProxy); Wed, 03 Apr 2019 22:01:45 -0400
+  by compute3.internal (MEProxy); Wed, 03 Apr 2019 22:01:47 -0400
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=sent.com; h=from
 	:to:cc:subject:date:message-id:in-reply-to:references:reply-to
-	:mime-version:content-transfer-encoding; s=fm3; bh=bogrl8ykXE3AE
-	9N3lxqf7+kaVmqboUoXMwOaBKi4kwI=; b=kHdvF9pNWcw8D8b8/t/kv8mKy+ArM
-	dg62fTqmQKSItiP6KA8Vwk35fnN/5YjdeJl3B6KUd7eTC/44vtAzvWx6+U+A6P4X
-	Piy2T6tLbpFFwvQ2a+hjWkv7JxOSb3ASu/brFlmlG25yt/ggco4UjZ0r0ZyOI67S
-	ElbA4KNk3VnvoJiER8XoetoJ1c8TnScHn8u4vfIovZovy+2iI437NaUZRPfhB5eR
-	uyHiLxigKLp4sKsJEHX9L2eZYqI0HSZ4xleKLKbRdexU3Yjb8nlHav1EKRYvV1H8
-	el5AC2pwrLUpjoi2D0HLOyaMF/whe2L9GoIA9+WHf8Jlz6WMIEXvp2e1w==
+	:mime-version:content-transfer-encoding; s=fm3; bh=3UekVlM57ISUT
+	TW0lHTJU3YrdfYPvp3rAFH0aaIT5ag=; b=uiRPlq6mC9oXMnQB8WtxkGcQ0xCOf
+	b7pGGA5rxoUR/W1l4alCIYJEymTCa8ogRidqOt//14B9/kwgDh7KNV1tDBvlj/kl
+	hLStBwtyoswGRgSzMavZE4wASV2KjaPBgA+nLU2FAvuRQfZV+bHPgxk0GLw5lmYD
+	jxQkgxNJNeB58nNLj7OtRyBjx8E2RlRBGivEIb/+KigepHrhmsSm7KZlE6qOFsZt
+	tU99yhvHWv3AztL49xrP3e8IgTnrpXO3AAyC2YUd5z6jA0bxIbKBsABPAnNjrvFY
+	gTMDhTxYWCKPVCpyVxtE2GZq36+2Tgk0eW0gTk4nOR/hFrN7Zo8MwUc/Q==
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:reply-to:subject
 	:to:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=bogrl8ykXE3AE9N3lxqf7+kaVmqboUoXMwOaBKi4kwI=; b=muwx5J5m
-	gMAQYmtcbAweMtV01l1pPYxfGsXWSAAJLKYJxEBbotutU98jcz+0Tg/k8yGEgEYA
-	8LClxo10euoBJ8Y0ZNiglPT9zpe0Ey4c3ztZJ91rFOzgjR88n6xGNFMjyNuKgmlq
-	qNSkfJPXkAZtYav7jjUYgyhgBx9SU4WeK+VY+bB+DhCzq574mFK3E29FJJ+HB3Dd
-	/a73q69lHQO66YxPnncSr7j/XIAvs602pTfDQNiQK35gcPc18+qIhkLsZkdYLm9S
-	vYLVnDBAqbX4eM6pQ5ZFHxvCUImu4cajiwkt5yFije7ipZXkBXsYB4xvnXKkcHA4
-	IrTV2gn+rhDmxg==
-X-ME-Sender: <xms:iWWlXD-YuOXTjzAJ1ccCNATl3kvH47tsdIovXsrPgw3wtouIJTtb1w>
+	fm2; bh=3UekVlM57ISUTTW0lHTJU3YrdfYPvp3rAFH0aaIT5ag=; b=MyEaAGe4
+	6nOYVcgLm7Dnv4D9kfwxR4el7PgmlaH7vQjvG+tPatHJsI3xAPkNLbR7BtYveG/c
+	6+muJpOgUMqIUvMKE8gjytzHGnEBQ+sdfi8rcp9AhOwc8JZjddR22gm52qp9xLsP
+	wjGYGkNFVAKDlVLLalxRMCO8w2JAiMzYeMWpCgVihfnUP3+ve75nO0SawyavLK/g
+	xhyxO1VhM2YadnHl9lkLwBEly6Mapb235uQS3Sfmt2gB7/xGTXnwLY4uQgBQMy9t
+	itUHnRVMWx10CzCOp6vW54XgaDyggW8Dtx2jpaHNV9wZNmp5p3Xw9cQsZSn6PP8e
+	UIsiQeAH+R6Kmg==
+X-ME-Sender: <xms:i2WlXPifvyVwTTNfsv7n1GY6ZelcSbug0VQeuXzo0YgUAC4UyWE_rA>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtdeggdehudculddtuddrgedutddrtddtmd
     cutefuodetggdotefrodftvfcurfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdp
     uffrtefokffrpgfnqfghnecuuegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivg
@@ -120,13 +120,13 @@ X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtdeggdehudculddtuddrgedutd
     necuhfhrohhmpegkihcujggrnhcuoeiiihdrhigrnhesshgvnhhtrdgtohhmqeenucfkph
     epvdduiedrvddvkedrudduvddrvddvnecurfgrrhgrmhepmhgrihhlfhhrohhmpeiiihdr
     higrnhesshgvnhhtrdgtohhmnecuvehluhhsthgvrhfuihiivgepudej
-X-ME-Proxy: <xmx:iWWlXCARb0FZvIxhcRN1bQQAff_ydbcPvtQHs_yo9HjWSlnaSpjU2g>
-    <xmx:iWWlXPtnAEyQ2x2UQyBFCqD3jwjNbRf6ZzqiiJFMm6_hHf9svqx0xw>
-    <xmx:iWWlXMbdKLicKAyVSHbL6l33Tchuh8AhAmV1_NJfs9q5CUTVt6oTUQ>
-    <xmx:iWWlXFWNznFnfHdMmp5vwO9J09zND2pNp8DD5ujIc1JzW8SCVoJs6w>
+X-ME-Proxy: <xmx:i2WlXMNxmY3qsb5DXjucrDcxkSaZwvIQHKaAi1pfaZnzKqa4apFcUg>
+    <xmx:i2WlXIkL7kyXtZnywnyWjEfgAaHy2Qf0cveZTDe0e30OQOWkLvRSFQ>
+    <xmx:i2WlXLW020U8yC6ynYTYt59WIC-cz8t8z5XdDCngPS7GAAm6oFeyoQ>
+    <xmx:i2WlXKl7Tc3-lPq9aHWAl-Yfw5rXmN3a1WXGpR47rklOp6fsfEYtdg>
 Received: from nvrsysarch5.nvidia.com (thunderhill.nvidia.com [216.228.112.22])
-	by mail.messagingengine.com (Postfix) with ESMTPA id B84C610319;
-	Wed,  3 Apr 2019 22:01:43 -0400 (EDT)
+	by mail.messagingengine.com (Postfix) with ESMTPA id 624C610393;
+	Wed,  3 Apr 2019 22:01:45 -0400 (EDT)
 From: Zi Yan <zi.yan@sent.com>
 To: Dave Hansen <dave.hansen@linux.intel.com>,
 	Yang Shi <yang.shi@linux.alibaba.com>,
@@ -146,9 +146,9 @@ Cc: Daniel Jordan <daniel.m.jordan@oracle.com>,
 	Javier Cabezas <jcabezas@nvidia.com>,
 	David Nellans <dnellans@nvidia.com>,
 	Zi Yan <ziy@nvidia.com>
-Subject: [RFC PATCH 18/25] memcg: Add per node memory usage&max stats in memcg.
-Date: Wed,  3 Apr 2019 19:00:39 -0700
-Message-Id: <20190404020046.32741-19-zi.yan@sent.com>
+Subject: [RFC PATCH 19/25] mempolicy: add MPOL_F_MEMCG flag, enforcing memcg memory limit.
+Date: Wed,  3 Apr 2019 19:00:40 -0700
+Message-Id: <20190404020046.32741-20-zi.yan@sent.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190404020046.32741-1-zi.yan@sent.com>
 References: <20190404020046.32741-1-zi.yan@sent.com>
@@ -163,217 +163,81 @@ List-ID: <linux-mm.kvack.org>
 
 From: Zi Yan <ziy@nvidia.com>
 
-It prepares for the following patches to enable memcg-based NUMA
-node page migration. We are going to limit memory usage in each node
-on a per-memcg basis.
+With MPOL_F_MEMCG set and MPOL_PREFERRED is used, we will enforce
+the memory limit set in the corresponding memcg.
 
 Signed-off-by: Zi Yan <ziy@nvidia.com>
 ---
- include/linux/cgroup-defs.h |  1 +
- include/linux/memcontrol.h  | 67 +++++++++++++++++++++++++++++++++++++
- mm/memcontrol.c             | 80 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 148 insertions(+)
+ include/uapi/linux/mempolicy.h |  3 ++-
+ mm/mempolicy.c                 | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/cgroup-defs.h b/include/linux/cgroup-defs.h
-index 1c70803..7e87f5e 100644
---- a/include/linux/cgroup-defs.h
-+++ b/include/linux/cgroup-defs.h
-@@ -531,6 +531,7 @@ struct cftype {
- 	struct cgroup_subsys *ss;	/* NULL for cgroup core files */
- 	struct list_head node;		/* anchored at ss->cfts */
- 	struct kernfs_ops *kf_ops;
-+	int numa_node_id;
+diff --git a/include/uapi/linux/mempolicy.h b/include/uapi/linux/mempolicy.h
+index eb6560e..a9d03e5 100644
+--- a/include/uapi/linux/mempolicy.h
++++ b/include/uapi/linux/mempolicy.h
+@@ -28,12 +28,13 @@ enum {
+ /* Flags for set_mempolicy */
+ #define MPOL_F_STATIC_NODES	(1 << 15)
+ #define MPOL_F_RELATIVE_NODES	(1 << 14)
++#define MPOL_F_MEMCG		(1 << 13)
  
- 	int (*open)(struct kernfs_open_file *of);
- 	void (*release)(struct kernfs_open_file *of);
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 1f3d880..3e40321 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -130,6 +130,7 @@ struct mem_cgroup_per_node {
- 	atomic_long_t		lruvec_stat[NR_VM_NODE_STAT_ITEMS];
+ /*
+  * MPOL_MODE_FLAGS is the union of all possible optional mode flags passed to
+  * either set_mempolicy() or mbind().
+  */
+-#define MPOL_MODE_FLAGS	(MPOL_F_STATIC_NODES | MPOL_F_RELATIVE_NODES)
++#define MPOL_MODE_FLAGS	(MPOL_F_STATIC_NODES | MPOL_F_RELATIVE_NODES | MPOL_F_MEMCG)
  
- 	unsigned long		lru_zone_size[MAX_NR_ZONES][NR_LRU_LISTS];
-+	unsigned long		max_nr_base_pages;
+ /* Flags for get_mempolicy */
+ #define MPOL_F_NODE	(1<<0)	/* return next IL mode instead of node mask */
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index af171cc..0e30049 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -2040,6 +2040,42 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+ 		goto out;
+ 	}
  
- 	struct mem_cgroup_reclaim_iter	iter[DEF_PRIORITY + 1];
- 
-@@ -797,6 +798,51 @@ static inline void memcg_memory_event_mm(struct mm_struct *mm,
- void mem_cgroup_split_huge_fixup(struct page *head);
- #endif
- 
-+static inline unsigned long lruvec_size_memcg_node(enum lru_list lru,
-+	struct mem_cgroup *memcg, int nid)
-+{
-+	if (nid == MAX_NUMNODES)
-+		return 0;
++	if (pol->mode == MPOL_PREFERRED && (pol->flags & MPOL_F_MEMCG)) {
++		struct task_struct *p = current;
++		struct mem_cgroup *memcg = mem_cgroup_from_task(p);
++		int nid = pol->v.preferred_node;
++		unsigned long nr_memcg_node_size;
++		struct mm_struct *mm = get_task_mm(p);
++		unsigned long nr_pages = hugepage?HPAGE_PMD_NR:1;
 +
-+	VM_BUG_ON(lru < 0 || lru >= NR_LRU_LISTS);
-+	return mem_cgroup_node_nr_lru_pages(memcg, nid, BIT(lru));
-+}
++		if (!(memcg && mm)) {
++			if (mm)
++				mmput(mm);
++			goto use_other_policy;
++		}
 +
-+static inline unsigned long active_inactive_size_memcg_node(struct mem_cgroup *memcg, int nid, bool active)
-+{
-+	unsigned long val = 0;
-+	enum lru_list lru;
++		/* skip preferred node if mm_manage is going on */
++		if (test_bit(MMF_MM_MANAGE, &mm->flags)) {
++			nid = next_memory_node(nid);
++			if (nid == MAX_NUMNODES)
++				nid = first_memory_node;
++		}
++		mmput(mm);
 +
-+	for_each_evictable_lru(lru) {
-+		if ((active  && is_active_lru(lru)) ||
-+			(!active && !is_active_lru(lru)))
-+			val += mem_cgroup_node_nr_lru_pages(memcg, nid, BIT(lru));
++		nr_memcg_node_size = memcg_max_size_node(memcg, nid);
++
++		while (nr_memcg_node_size != ULONG_MAX &&
++			   nr_memcg_node_size <= (memcg_size_node(memcg, nid) + nr_pages)) {
++			if ((nid = next_memory_node(nid)) == MAX_NUMNODES)
++				nid = first_memory_node;
++			nr_memcg_node_size = memcg_max_size_node(memcg, nid);
++		}
++
++		mpol_cond_put(pol);
++		page = __alloc_pages_node(nid, gfp | __GFP_THISNODE, order);
++		goto out;
 +	}
-+
-+	return val;
-+}
-+
-+static inline unsigned long memcg_size_node(struct mem_cgroup *memcg, int nid)
-+{
-+	unsigned long val = 0;
-+	int i;
-+
-+	if (nid == MAX_NUMNODES)
-+		return val;
-+
-+	for (i = 0; i < NR_LRU_LISTS; i++)
-+		val += mem_cgroup_node_nr_lru_pages(memcg, nid, BIT(i));
-+
-+	return val;
-+}
-+
-+static inline unsigned long memcg_max_size_node(struct mem_cgroup *memcg, int nid)
-+{
-+	if (nid == MAX_NUMNODES)
-+		return 0;
-+	return memcg->nodeinfo[nid]->max_nr_base_pages;
-+}
-+
- #else /* CONFIG_MEMCG */
++use_other_policy:
+ 	if (unlikely(IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) && hugepage)) {
+ 		int hpage_node = node;
  
- #define MEM_CGROUP_ID_SHIFT	0
-@@ -1123,6 +1169,27 @@ static inline
- void count_memcg_event_mm(struct mm_struct *mm, enum vm_event_item idx)
- {
- }
-+
-+static inline unsigned long lruvec_size_memcg_node(enum lru_list lru,
-+	struct mem_cgroup *memcg, int nid)
-+{
-+	return 0;
-+}
-+
-+static inline unsigned long active_inactive_size_memcg_node(struct mem_cgroup *memcg, int nid, bool active)
-+{
-+	return 0;
-+}
-+
-+static inline unsigned long memcg_size_node(struct mem_cgroup *memcg, int nid)
-+{
-+	return 0;
-+}
-+static inline unsigned long memcg_max_size_node(struct mem_cgroup *memcg, int nid)
-+{
-+	return 0;
-+}
-+
- #endif /* CONFIG_MEMCG */
- 
- /* idx can be of type enum memcg_stat_item or node_stat_item */
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 532e0e2..478d216 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4394,6 +4394,7 @@ static int alloc_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
- 	pn->usage_in_excess = 0;
- 	pn->on_tree = false;
- 	pn->memcg = memcg;
-+	pn->max_nr_base_pages = PAGE_COUNTER_MAX;
- 
- 	memcg->nodeinfo[node] = pn;
- 	return 0;
-@@ -6700,4 +6701,83 @@ static int __init mem_cgroup_swap_init(void)
- }
- subsys_initcall(mem_cgroup_swap_init);
- 
-+static int memory_per_node_stat_show(struct seq_file *m, void *v)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
-+	struct cftype *cur_file = seq_cft(m);
-+	int nid = cur_file->numa_node_id;
-+	unsigned long val = 0;
-+	int i;
-+
-+	for (i = 0; i < NR_LRU_LISTS; i++)
-+		val += mem_cgroup_node_nr_lru_pages(memcg, nid, BIT(i));
-+
-+	seq_printf(m, "%llu\n", (u64)val * PAGE_SIZE);
-+
-+	return 0;
-+}
-+
-+static int memory_per_node_max_show(struct seq_file *m, void *v)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
-+	struct cftype *cur_file = seq_cft(m);
-+	int nid = cur_file->numa_node_id;
-+	unsigned long max = READ_ONCE(memcg->nodeinfo[nid]->max_nr_base_pages);
-+
-+	if (max == PAGE_COUNTER_MAX)
-+		seq_puts(m, "max\n");
-+	else
-+		seq_printf(m, "%llu\n", (u64)max * PAGE_SIZE);
-+
-+	return 0;
-+}
-+
-+static ssize_t memory_per_node_max_write(struct kernfs_open_file *of,
-+				char *buf, size_t nbytes, loff_t off)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
-+	struct cftype *cur_file = of_cft(of);
-+	int nid = cur_file->numa_node_id;
-+	unsigned long max;
-+	int err;
-+
-+	buf = strstrip(buf);
-+	err = page_counter_memparse(buf, "max", &max);
-+	if (err)
-+		return err;
-+
-+	xchg(&memcg->nodeinfo[nid]->max_nr_base_pages, max);
-+
-+	return nbytes;
-+}
-+
-+static struct cftype memcg_per_node_stats_files[N_MEMORY];
-+static struct cftype memcg_per_node_max_files[N_MEMORY];
-+
-+static int __init mem_cgroup_per_node_init(void)
-+{
-+	int nid;
-+
-+	for_each_node_state(nid, N_MEMORY) {
-+		snprintf(memcg_per_node_stats_files[nid].name, MAX_CFTYPE_NAME,
-+				"size_at_node:%d", nid);
-+		memcg_per_node_stats_files[nid].flags = CFTYPE_NOT_ON_ROOT;
-+		memcg_per_node_stats_files[nid].seq_show = memory_per_node_stat_show;
-+		memcg_per_node_stats_files[nid].numa_node_id = nid;
-+
-+		snprintf(memcg_per_node_max_files[nid].name, MAX_CFTYPE_NAME,
-+				"max_at_node:%d", nid);
-+		memcg_per_node_max_files[nid].flags = CFTYPE_NOT_ON_ROOT;
-+		memcg_per_node_max_files[nid].seq_show = memory_per_node_max_show;
-+		memcg_per_node_max_files[nid].write = memory_per_node_max_write;
-+		memcg_per_node_max_files[nid].numa_node_id = nid;
-+	}
-+	WARN_ON(cgroup_add_dfl_cftypes(&memory_cgrp_subsys,
-+				memcg_per_node_stats_files));
-+	WARN_ON(cgroup_add_dfl_cftypes(&memory_cgrp_subsys,
-+				memcg_per_node_max_files));
-+	return 0;
-+}
-+subsys_initcall(mem_cgroup_per_node_init);
-+
- #endif /* CONFIG_MEMCG_SWAP */
 -- 
 2.7.4
 
