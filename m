@@ -2,154 +2,158 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B6848C10F0E
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 12:05:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 82BB8C10F0E
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 12:32:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7A39F2082E
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 12:05:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7A39F2082E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 3433D214AF
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 12:32:44 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="bax0dq5n"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3433D214AF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0B3136B0005; Thu,  4 Apr 2019 08:05:00 -0400 (EDT)
+	id ECE1A6B0003; Thu,  4 Apr 2019 08:32:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 061686B0006; Thu,  4 Apr 2019 08:04:59 -0400 (EDT)
+	id E7EED6B0005; Thu,  4 Apr 2019 08:32:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E946F6B0007; Thu,  4 Apr 2019 08:04:59 -0400 (EDT)
+	id D6D8A6B0006; Thu,  4 Apr 2019 08:32:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A57C6B0005
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 08:04:59 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id m32so1293742edd.9
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 05:04:59 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B22E6B0003
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 08:32:43 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id y17so1313117edd.20
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 05:32:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=XR2B/chloHiq/qru7Oa83LKLBsVzX+PkM+70Jovxs7o=;
-        b=PlzEt2ByL7+NftSQNdG7NNoTbNDyJT+Gw61Dg2JIWQmV8kaofELHa2YTMqRgABRZjO
-         upNXMmToIhabLuLppAYzBvNyaDBgDXkupKm6GEb89Eod8hn0DTDLwfTwAmO36YYwYFta
-         IZCipcm55El4H5YjlGECzkwmQREnri4roNAfmqLiYIGh++G89MhRkGOf3C0+BMIq0km3
-         oEzRqO7eqOcQGSx+xqaq3kFCrhmnCOR2rSb89zbWPXXx96PFxFKQM/77/2XjiREowYQ/
-         Vo+295/Rqt6MgAZk/ZXuFjtLOhvjr7XdH9SKnkKDPDfwJSgoAkY9r4Wj9AJTiwvlDk+M
-         mcqA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAWfcAx/EECI74aXXPQLuYkMOb/5aXAAibhdZFLYGXF8Q0f8SS43
-	sDJw2cfjSzd5MfWLkxEaZA81ljVnttEpIA7b7mpuO1Ff2UhfLhTo7B6YTXF14sZb+6n1NxOSEwD
-	YU/2zf0mSoWTOd7uAsJrSkd8zzASZpW6T9Jp5DZTzII2WGhEFjg8sk4cdTmtWsaw=
-X-Received: by 2002:a17:906:a445:: with SMTP id cb5mr3491439ejb.196.1554379499185;
-        Thu, 04 Apr 2019 05:04:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwn+V9JX236qjr9FUebkZlJBVW6/CvqTBkC5Ei20/EkJmAupYYaj2uUp+fbsvT2TuaGHVKF
-X-Received: by 2002:a17:906:a445:: with SMTP id cb5mr3491377ejb.196.1554379497922;
-        Thu, 04 Apr 2019 05:04:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554379497; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=gZDsPgT54iopIB/5RFZJdDu4VB62KWX4j1imZ+6IIlg=;
+        b=BWSn0xOT4nPOO4QoizmBfOSouBxK1D/VBtr6eJYnrZ0QXFRzspr4KGpqoLJS2dEcMK
+         pkgttdiOsjJk9C/0fP4cFgd2b5vklHWUwcoCjUVloRhFn/Kn1qBOPeLkR448faByk+uE
+         FYV1jlTRZ5aAmYZFvaGF2nSBIskdTsZzKA1X+B17ylOXNlDAgGs5vYKMeJNojRZJf9sd
+         yPcj+y9XOhmIR+iDI1x5xrTkDzYHhAWoX32RKSacBABrbAo4RUF2rVfMPaYVoLfFb2wr
+         CgZs5B1XKASdwx1r0cdgjABBuh8YVmdZeZZGCUAOS2CJZ9C8BXWcKa2xcaZdN5cHImeu
+         mxQw==
+X-Gm-Message-State: APjAAAVtDg9j6jm5kbzAzumytlBaJpmmAsJI2BvfHW2BD3loReaLG4tg
+	Um6AvWJ2hTNiZQgwOx7gF6J+GKM/HGI3WK8QdwLIkZCTUMB0dKfHlnAVuO5rJK7ooIuAkPaGN0T
+	aLCm8ieKBHmmKo8kRjUS8K86jo1gdFdNJCtVx3LhJWKyl2Ib5ht5JYidLsSbwPA3zXg==
+X-Received: by 2002:a17:906:5d4:: with SMTP id t20mr3492774ejt.80.1554381163010;
+        Thu, 04 Apr 2019 05:32:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxsy5F4fObLVTCWj1rDmGEOnoJCkXubF4lvXaQCrFGL9rlAFzokmS5uiGU7tCJv3kDSqXkN
+X-Received: by 2002:a17:906:5d4:: with SMTP id t20mr3492704ejt.80.1554381161746;
+        Thu, 04 Apr 2019 05:32:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554381161; cv=none;
         d=google.com; s=arc-20160816;
-        b=WDPXPa+92SpIRwjG9ZQZ1xj86aU/HPJyYH9SIZDfxMfb7QhzMK3SIvSHK7Ng+XG9fw
-         nxHX5FSkB1xS5O//q7aTjt8SXsz1l0FyXPsbxhIPzySJmb+m2DAJAvAlMAl3EM9seaJP
-         yRbvIH1IH397wdaCqTLacu7f11oPsnyfPT0TQ8exsBtygD/r5pV8j+fxq1XTxFJYKU6b
-         Lzgq3fDPf8A2eN98kqPPZUkz2lgV6rfk+T7pEiUxjQqoSZLFyQDv56x78dPcIts+wg8U
-         mIKil/d4wEHLEL4A3V6ub2WaSBViuEHjSCdAs4RA6DHCrb0oLh7NVXSYfKWzBFt6fyl7
-         AzIw==
+        b=n2iW91RHFYZ4ahnDp8jvoguM7oqO0OHYO9aIIUaIi/Ue9zWJ9tuAgUNogOlAxgkLCM
+         k+SveK4vSdOdidqw0aivTorU8FjSCBKxWdq0bimV9TjzseTr67YTgxgufIpQ/2Hde+Sn
+         h8W+1quUtNijzfn5QWZgGLlf+XAcwn0bP7oCSM5i9KMLwoT+LeQI5SjGEg03ygYXAc+Y
+         cn0NgzKJzJ1PZznjM1dd4zXmBvJo2NjwyKkwEdszBuchuSaW0KGdEynAPjAFg+1RKHaw
+         Qg3AhOujXJoZidHQzRf89qhS51bXWaFqL4U79nZUickkaKif4/qUj8Foi7IY6FIic0lC
+         k5jg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=XR2B/chloHiq/qru7Oa83LKLBsVzX+PkM+70Jovxs7o=;
-        b=Pt3UbPHnF5s510rBIHCRuA+6mL8/KLQUxtpyTxf1/SrOe6oqcH/8GFVieOWWvVz9E/
-         gdPTtA4IbYzrTnmFHXJ6TQU8LiDFWCdlGk9t/5w1rJpte3c9RROB/TLsSh1rHmGRG1uf
-         UrkmuqUuOsgnjTPjvzp6lQmEelvvPFoWEQ1ajj9j78twsbN6Xja00FrOHk2ThqXURSmJ
-         k6otca7wc3OQjXz07idkQr4Gvj2wFJM20JMZBLOH6UwWlwXWCbbukE00xWCt4GDRebqU
-         nyNptdAChmvVy6FWp1AcZOQ4kANaxqqDURZbb54B6QwCATtzxUctSPLDD9SIZE/3/96Z
-         yKzA==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=gZDsPgT54iopIB/5RFZJdDu4VB62KWX4j1imZ+6IIlg=;
+        b=yhCGJgbVGfuW93SH7ExycyH7gR1Y0wZrDe8b6zgFr7ZViwTOyJHhIFzWRIxaPHMVWK
+         qdyhA1Zfvtv6yrWgMYZoLjJStlMYkbSFVS6g+nqE9McoDQHFvh1mcKqxxdO970q2l9HG
+         by7H/Z0L9dOMLsvRyM8TrJfflYfQYlOfI9Piat9GbsEFKKQTUQg/OFX3ASrzT3m6dKAe
+         oi5avMHAOHZYljPmHLFsCCQPl4utFXYWVipf0ubL+WRpAvkLj3rlAT2EpHwNK6vS5hWX
+         q9TfGnTjakNCzxNlg39pPXLETHThBo3Zcv2Sa6aWkwOMJdKbSHSMQUVVZktRCv1RMBFE
+         p7UA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from suse.de (nat.nue.novell.com. [2620:113:80c0:5::2222])
-        by mx.google.com with ESMTP id j11si4169743ejm.39.2019.04.04.05.04.57
-        for <linux-mm@kvack.org>;
-        Thu, 04 Apr 2019 05:04:57 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) client-ip=2620:113:80c0:5::2222;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=bax0dq5n;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id b21si654608ejb.190.2019.04.04.05.32.41
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 Apr 2019 05:32:41 -0700 (PDT)
+Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: by suse.de (Postfix, from userid 1000)
-	id 1676C4817; Thu,  4 Apr 2019 14:04:56 +0200 (CEST)
-Date: Thu, 4 Apr 2019 14:04:56 +0200
-From: Oscar Salvador <osalvador@suse.de>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, david@redhat.com, dan.j.williams@intel.com,
-	Jonathan.Cameron@huawei.com, anshuman.khandual@arm.com,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH 2/4] mm, memory_hotplug: provide a more generic
- restrictions for memory hotplug
-Message-ID: <20190404120456.htogl7lck6v4rj37@d104.suse.de>
-References: <20190328134320.13232-1-osalvador@suse.de>
- <20190328134320.13232-3-osalvador@suse.de>
- <20190403084603.GE15605@dhcp22.suse.cz>
- <20190404100403.6lci2e55egrjfwig@d104.suse.de>
- <20190404103115.GF12864@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190404103115.GF12864@dhcp22.suse.cz>
-User-Agent: NeoMutt/20170421 (1.8.2)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=bax0dq5n;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x34CNjbc071171;
+	Thu, 4 Apr 2019 12:32:24 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
+ mime-version : subject : from : in-reply-to : date : cc :
+ content-transfer-encoding : message-id : references : to;
+ s=corp-2018-07-02; bh=gZDsPgT54iopIB/5RFZJdDu4VB62KWX4j1imZ+6IIlg=;
+ b=bax0dq5nz+zCq5Hh7heAKm3Gbajh0ndp+yIi20Cow+AmZ+Lr7DaGACQ7H8tgSPqHisfT
+ ETobWq7+yda4aVXVZ06xWALV2SuByLIvVjYn2aAhXnB+KC4R6/ddKCr7ywZ6rJFj7p2v
+ bhVnWVBHmDccGgfSKUreKrdCd5H7Z+jg2Rp3fP9j9MOC5as9iN9F8Qhm7t5vw+BbPLKD
+ U+TSFv2R5j8/h1Pvz74I6kp91birLPir3o15lbzFw1xDtn0ASLHUbAcVbyXMpvhMH7aP
+ LYfedp9l4sJG6gJgP+qXAO96Jn3p5QElwbmsPNKRlWJStxokMwFotPB4+SgcyEAHkFil PQ== 
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
+	by userp2130.oracle.com with ESMTP id 2rhyvtet9e-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 04 Apr 2019 12:32:24 +0000
+Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
+	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x34CVP7L092445;
+	Thu, 4 Apr 2019 12:32:23 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by aserp3020.oracle.com with ESMTP id 2rm9mjkea0-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 04 Apr 2019 12:32:23 +0000
+Received: from abhmp0006.oracle.com (abhmp0006.oracle.com [141.146.116.12])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x34CWL3L024622;
+	Thu, 4 Apr 2019 12:32:21 GMT
+Received: from [192.168.0.110] (/73.243.10.6)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Thu, 04 Apr 2019 05:32:21 -0700
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.8\))
+Subject: Re: [PATCH] mm/gup.c: fix the wrong comments
+From: William Kucharski <william.kucharski@oracle.com>
+In-Reply-To: <20190404072347.3440-1-sjhuang@iluvatar.ai>
+Date: Thu, 4 Apr 2019 06:32:20 -0600
+Cc: akpm@linux-foundation.org, ira.weiny@intel.com, sfr@canb.auug.org.au,
+        linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Content-Transfer-Encoding: 7bit
+Message-Id: <3D9A544A-D447-4FD2-87A5-211588D6F3E5@oracle.com>
+References: <20190404072347.3440-1-sjhuang@iluvatar.ai>
+To: Huang Shijie <sjhuang@iluvatar.ai>
+X-Mailer: Apple Mail (2.3445.104.8)
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9216 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=590
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1904040083
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9216 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=650 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1904040083
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000144, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 04, 2019 at 12:31:15PM +0200, Michal Hocko wrote:
-> On Thu 04-04-19 12:04:05, Oscar Salvador wrote:
-> > On Wed, Apr 03, 2019 at 10:46:03AM +0200, Michal Hocko wrote:
-> > > On Thu 28-03-19 14:43:18, Oscar Salvador wrote:
-> > > > From: Michal Hocko <mhocko@suse.com>
-> > > > 
-> > > > arch_add_memory, __add_pages take a want_memblock which controls whether
-> > > > the newly added memory should get the sysfs memblock user API (e.g.
-> > > > ZONE_DEVICE users do not want/need this interface). Some callers even
-> > > > want to control where do we allocate the memmap from by configuring
-> > > > altmap.
-> > > > 
-> > > > Add a more generic hotplug context for arch_add_memory and __add_pages.
-> > > > struct mhp_restrictions contains flags which contains additional
-> > > > features to be enabled by the memory hotplug (MHP_MEMBLOCK_API
-> > > > currently) and altmap for alternative memmap allocator.
-> > > > 
-> > > > Please note that the complete altmap propagation down to vmemmap code
-> > > > is still not done in this patch. It will be done in the follow up to
-> > > > reduce the churn here.
-> > > > 
-> > > > This patch shouldn't introduce any functional change.
-> > > 
-> > > Is there an agreement on the interface here? Or do we want to hide almap
-> > > behind some more general looking interface? If the former is true, can
-> > > we merge it as it touches a code that might cause merge conflicts later on
-> > > as multiple people are working on this area.
-> > 
-> > Uhm, I think that the interface is fine for now.
-> > I thought about providing some callbacks to build the altmap layout, but I
-> > realized that it was overcomplicated and I would rather start easy.
-> > Maybe the naming could be changed to what David suggested, something like
-> > "mhp_options", which actually looks more generic and allows us to stuff more
-> > things into it should the need arise in the future.
-> > But that is something that can come afterwards I guess.
-> > 
-> > But merging this now is not a bad idea taking into account that some people
-> > is working on the same area and merge conflicts arise easily.
-> > Otherwise re-working it every version is going to be a pita.
+
+
+> On Apr 4, 2019, at 1:23 AM, Huang Shijie <sjhuang@iluvatar.ai> wrote:
 > 
-> I do not get wee bit about naming TBH. Do as you like. But please repost
-> just these two patches and we can discuss the rest of this feature in a
-> separate discussion.
+> 
+> + * This function is different from the get_user_pages_unlocked():
+> + *      The @pages may has different page order with the result
+> + *      got by get_user_pages_unlocked().
+> + *
 
-Sure, I will repost them in the next hour (just want to check that everything
-is alright).
+I suggest a slight rewrite of the comment, something like:
 
--- 
-Oscar Salvador
-SUSE L3
+* Note this routine may fill the pages array with entries in a
+* different order than get_user_pages_unlocked(), which may cause
+* issues for callers expecting the routines to be equivalent.
 
