@@ -2,137 +2,156 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AE7C0C4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 07:30:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 59121C4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 07:44:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 69C5D206DF
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 07:30:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 09A0520882
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 07:44:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="key not found in DNS" (0-bit key) header.d=codeaurora.org header.i=@codeaurora.org header.b="BN4Ej/JD";
-	dkim=fail reason="key not found in DNS" (0-bit key) header.d=codeaurora.org header.i=@codeaurora.org header.b="oFfS295r"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 69C5D206DF
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=codeaurora.org
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ynh5aum/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 09A0520882
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 06F8F6B0269; Thu,  4 Apr 2019 03:30:27 -0400 (EDT)
+	id 87DA56B0005; Thu,  4 Apr 2019 03:44:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F3B6D6B026A; Thu,  4 Apr 2019 03:30:26 -0400 (EDT)
+	id 82BF16B0007; Thu,  4 Apr 2019 03:44:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DB52A6B026B; Thu,  4 Apr 2019 03:30:26 -0400 (EDT)
+	id 6F4126B0008; Thu,  4 Apr 2019 03:44:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FDD86B0269
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 03:30:26 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id s19so1257935plp.6
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 00:30:26 -0700 (PDT)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 517D86B0005
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 03:44:27 -0400 (EDT)
+Received: by mail-it1-f198.google.com with SMTP id 79so1441618itz.3
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 00:44:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:dmarc-filter
-         :subject:to:cc:references:from:message-id:date:user-agent
-         :mime-version:in-reply-to:content-transfer-encoding:content-language;
-        bh=KWKUmZlwiOvhevc38gmx4x8XOqMg/20lgxwrN29WmQs=;
-        b=P1DCHTvDngahglhhC9kccNB1HrZDMFNimOW2y5m53PivHzf3p2Wvxml42pIFWWMGgH
-         7zfggCgh+8HJhDpkBeIM+SzqCCi95VFjGfBtutp/GHzb7KcG7G2/IbX9Jm3AfiJl2GQq
-         0a/hKo0cLUAK8MNpSE2r4ZW8/TtvptcA4huPl8ffJe0wpQ5vXgjLeM2iZz3jcHOq1Thk
-         iAZzA7ERcM9FMRRt3QtMRwTRuNvX4j+4cnqQ3dqvbLieGX6XW06sRn7UJmgRSvpUCFV9
-         3Hx8BbwUaa0WaGXmKLatq+bI9X7ncvWz5zstVN55x/TD4hJ5iDqpMD9GAHo4o+48NaOT
-         Cbog==
-X-Gm-Message-State: APjAAAWHIptzNwh2C/2f5sg4fn3MDFD8P6j3p63s+APaFIFnwtOFTGKe
-	sYVrL/zci10mH9XglO1DdeRnVghlpV5R2kWNfbIt2xAXn+OcIASG/aPhJQpH/YSDWrmuyp7NEI8
-	UaGhRa44h3POV+TeiQNWfZhOWFJSaErsCdJjxO3M81zIsNg/q9RlAjpcxsX1dUpqNzA==
-X-Received: by 2002:a62:458a:: with SMTP id n10mr4237435pfi.136.1554363026272;
-        Thu, 04 Apr 2019 00:30:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyz6DAxeKnw1+6XdtEobgNQFmXxahTFNXHm/KIFPLz1QfOnxKkhSssMLRQhUlMPAEEdT2MM
-X-Received: by 2002:a62:458a:: with SMTP id n10mr4237378pfi.136.1554363025490;
-        Thu, 04 Apr 2019 00:30:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554363025; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=fkXTvxTntduKxZ8WdZYgqJ5i7S/Be5vMJb4Djj6/dOA=;
+        b=mo1UDQuTpbBUz4oHibikNx8+itfnWUleZxJ7UdP3FfTvg8UjEK1xRo5QbCjJxWO2nx
+         C8eikh4c+MGzDhNQggtK8SuPF7oo/NARLS28nEx87nwd2yfIAvzCKX8oahWoRqpTNDow
+         Z0iWBh0Wt/5r1/pW2oI/RgFMGpzlT27D/VS9TyVn4NPBMk9xre5wySN9zWj1WYAXWG6r
+         GLYyA6PMivY+akniq4eE6o/qjKNbvvJ00Y6mtfaGwJZM7ynp9NoGGUrrUiiPNe1xhqNc
+         f8pMUjX3n+B3Y9TLa1Pz/iw0bqVwyVhvmDcX5h5NAywtMQRebP3Jv1oVY5Jak2Z2c+RP
+         RiKg==
+X-Gm-Message-State: APjAAAWOZ1sTiZI/i1Dwnp4aLGWyqE7313hBKmbIiniqNeXjNhMr5LMj
+	CQPBlptp/H9yXLCVFiiL0qg6phfYRY4GKmi2sHDJ32iIczaw/4934EufU1lne4uY1Ja7mUpDgfP
+	nKcIkX3sDz2xmqy9Xa5vfxHNipALXERAp6DVWMJ0JINvfbqjY//t0suCDS7gIcCO54Q==
+X-Received: by 2002:a02:4482:: with SMTP id o124mr3691612jaa.121.1554363866988;
+        Thu, 04 Apr 2019 00:44:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzNKJecr+7oOKQmHZl2ulzqAozqGvQyTRo2HOkl5BXtFLIkdSKwuGKQCJSqJqfIemIVcak8
+X-Received: by 2002:a02:4482:: with SMTP id o124mr3691575jaa.121.1554363866107;
+        Thu, 04 Apr 2019 00:44:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554363866; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ec8t4xS8IlNJBIpEarTyoCffoCWxaxJk2OxB3klfHpKzp6+WbD9YM2amClbJons+XX
-         EwRXk/ufQ3h5cfPR77IeD1BNxNhlr+mx5ghhecvKC9ld2UR6FdFoqoHePHJIU1Q4EaCB
-         wkWYXlg1RbnglppwYzy/sq9Pwc/ELPgJx8NXUJ3DYJN63q+XRk4PQPUzlqFZhN85YUkG
-         f7QD4qxpHklcZX+8h39+qD4MRSzfv5Qtj0e0o8QE3rnjpwKv6QLclMwmY+Ni9q/SMtf3
-         mzNZWpI5vm1JHenEHyWBLIZ61D0M/ZWMJ0ERfY1UwqD7wTp1JNNV99BfnpNn6yfDRuD1
-         xeGQ==
+        b=abUXhIH/puibNvn8G/AOIFzA8ixc4bAhPC3kQCgM5VoYL03MBS0iqMJxYOEpI4M62m
+         mp6rlhNN100bQejEQFbxaQeVmW1E0pWhQKVhsKJUg+19BW2tnko3yWaZTWgddlJi13pU
+         Ox85sPneWuUt2GbuFPosw5+TSo1zLGun5l6VD9Yk82nHkSsd3dWiYowMwVuzx3xG8DyA
+         EBaWYpF1G5kbqoJ3/HdSurxUhTS0KOc1NRr0P5bAKOQ1LwU2uhfhPHuOwHcaNyZUIeFt
+         wyjELT5AZGqz8IgYSfSk6UJP4zNZxC3R5n59dIcUPcY+h7raBs3IK/BDG8O+IIa8PB+u
+         czbw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dmarc-filter:dkim-signature:dkim-signature;
-        bh=KWKUmZlwiOvhevc38gmx4x8XOqMg/20lgxwrN29WmQs=;
-        b=vOnStnHiFE8aPc9CpY5qJI8s3wZADrsoRc/81UMpzgsi2ix9d4yVdqQYHz/pqE4COe
-         VTy0RqZinqNTrgf1DyU26c4ToBPHUqo59SXch/3mUZji/t/sQjaCKfq4iZb90r5BtTOP
-         RBJKCIG3y4QpAJWXuEKNrgJKRlFeXRgVBgdNEI72qp/cUxZG1ouxLyZ43b2CjjBYhW3w
-         S6SehPrpSG01+hdHuRBybxIAr1eme8weFNbpNJ6ipNObVY+v0He5QJpR9W8VBAwa5BWx
-         7O0bUThpM+C4jOQOS/L2EyzVTzOxgvWSGMVyvlmf784oe6Fg5qQm5eaPU8hIwdDAqVMS
-         fLFQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=fkXTvxTntduKxZ8WdZYgqJ5i7S/Be5vMJb4Djj6/dOA=;
+        b=kucjBx2NzyWm5hUUq3p1DEE1ylQaSev/I1/h5jO5coNGj6pI3KqXZXsKZi5RAn3pmT
+         IEAWpuG0gxi1/sTZuVjJBCjEh82B91kDHxwV/1ohqkMHBjKmFtYfa3RFIxPS/aUj8gzO
+         T1VC210w6BuJVSk+UoKfPfK5cOBkuzyKClAcH8yrOhyHRfh1jVTlJeRWU04UzdfIhwVq
+         hKuRnMr/Q/5WO6JH5DbvdEzAb7jd551xjORirM70T6I018rCjKq20q5fJOdFtJRndhez
+         SlFijKH82t9RBlrTPIkGcoGsl/Fmxo0c5xAhksMWayObX/fHkyFnJ+uN8IcVU1a6x0Pq
+         jnmQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@codeaurora.org header.s=default header.b="BN4Ej/JD";
-       dkim=pass header.i=@codeaurora.org header.s=default header.b=oFfS295r;
-       spf=pass (google.com: domain of mojha@codeaurora.org designates 198.145.29.96 as permitted sender) smtp.mailfrom=mojha@codeaurora.org
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id f20si15670392pfd.51.2019.04.04.00.30.25
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b="ynh5aum/";
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id s24si9502307jan.48.2019.04.04.00.44.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Apr 2019 00:30:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mojha@codeaurora.org designates 198.145.29.96 as permitted sender) client-ip=198.145.29.96;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 04 Apr 2019 00:44:26 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@codeaurora.org header.s=default header.b="BN4Ej/JD";
-       dkim=pass header.i=@codeaurora.org header.s=default header.b=oFfS295r;
-       spf=pass (google.com: domain of mojha@codeaurora.org designates 198.145.29.96 as permitted sender) smtp.mailfrom=mojha@codeaurora.org
-Received: by smtp.codeaurora.org (Postfix, from userid 1000)
-	id 22BD361A42; Thu,  4 Apr 2019 07:30:23 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=codeaurora.org;
-	s=default; t=1554363025;
-	bh=eFb1Phc+myeQ/NOdZyTaAoOXqU1b8biNLp0iv1xEqlk=;
-	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
-	b=BN4Ej/JDEyxMHCeM/b8hh+vkX+PXkaxfcS59hWAYOsERDdLedA/K8aQyevmg3J4dT
-	 DngCZsHhLaqYOB79AkTa45kEwy1XrbmqHiUtpHhBO1ztDDcovKxRED7I/ZaZZtDM0X
-	 fnb8YT53GskVbaP7hf59lSR6N/N6kvHOdDPGES4M=
-Received: from [10.204.79.83] (blr-c-bdr-fw-01_globalnat_allzones-outside.qualcomm.com [103.229.19.19])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	(Authenticated sender: mojha@smtp.codeaurora.org)
-	by smtp.codeaurora.org (Postfix) with ESMTPSA id 824EA6155D;
-	Thu,  4 Apr 2019 07:30:13 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=codeaurora.org;
-	s=default; t=1554363022;
-	bh=eFb1Phc+myeQ/NOdZyTaAoOXqU1b8biNLp0iv1xEqlk=;
-	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
-	b=oFfS295r0yoWB2adTX6rQ1sWHIw36Ol/zHYx7jG4Xp6LC5SXDHcWd1VmZEyafo391
-	 l8mDjb9ZwT23er8QE3dwtb892/5cVnkKX5W03ybycVUQi8S68I2VG+SBvje80InI6E
-	 uAtCaA1Oz+r1TkjlHzBL01R3U5QnJGnnqpd4pQs0=
-DMARC-Filter: OpenDMARC Filter v1.3.2 smtp.codeaurora.org 824EA6155D
-Authentication-Results: pdx-caf-mail.web.codeaurora.org; dmarc=none (p=none dis=none) header.from=codeaurora.org
-Authentication-Results: pdx-caf-mail.web.codeaurora.org; spf=none smtp.mailfrom=mojha@codeaurora.org
-Subject: Re: [PATCH] mm: __pagevec_lru_add_fn: typo fix
-To: Peng Fan <peng.fan@nxp.com>,
- "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
- "vbabka@suse.cz" <vbabka@suse.cz>, "mhocko@suse.com" <mhocko@suse.com>,
- "willy@infradead.org" <willy@infradead.org>,
- "rppt@linux.vnet.ibm.com" <rppt@linux.vnet.ibm.com>,
- "arunks@codeaurora.org" <arunks@codeaurora.org>,
- "nborisov@suse.com" <nborisov@suse.com>,
- "dan.j.williams@intel.com" <dan.j.williams@intel.com>,
- "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>,
- "ldr709@gmail.com" <ldr709@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- "van.freenix@gmail.com" <van.freenix@gmail.com>
-References: <20190402095609.27181-1-peng.fan@nxp.com>
-From: Mukesh Ojha <mojha@codeaurora.org>
-Message-ID: <43a2f07f-1b28-cd85-b37c-af730b446d2e@codeaurora.org>
-Date: Thu, 4 Apr 2019 13:00:11 +0530
-User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b="ynh5aum/";
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=fkXTvxTntduKxZ8WdZYgqJ5i7S/Be5vMJb4Djj6/dOA=; b=ynh5aum/IvMQq1evMErbxjEL3
+	r8v6ZH3fod/irBtsbj3f9emyFWE1wyKW7TU+erYeHS1PoweM0OgoI/j3hBNfosLBeiNBLkqDzMgsI
+	B++X5lgr8rT3cxqkJJwQCSrDLo715zCfCZO7Wydw7KzPt8T10AFX/jCF8b2TydsO27ajiiIrU8851
+	N4IwuCuhliz5iINuDvRH2x/iDI6t3e8wRv31PnHIK2x15UPJ9DdF47V9AnsMEBERRNS6RHmDbkVAV
+	TOh+4Sqby7RqzcXTaw7AmvP8l5uNfswFTBHJy8QWTTuMEqLiC8SiQv2gNdubMpRGLpKG/kZpm9OY2
+	tXwrxLlHQ==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hBx1x-0000sG-63; Thu, 04 Apr 2019 07:43:26 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id E06AF2038C247; Thu,  4 Apr 2019 09:43:23 +0200 (CEST)
+Date: Thu, 4 Apr 2019 09:43:23 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Khalid Aziz <khalid.aziz@oracle.com>
+Cc: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de,
+	ak@linux.intel.com, liran.alon@oracle.com, keescook@google.com,
+	konrad.wilk@oracle.com,
+	Juerg Haefliger <juerg.haefliger@canonical.com>,
+	deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
+	tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
+	jcm@redhat.com, boris.ostrovsky@oracle.com,
+	kanth.ghatraju@oracle.com, joao.m.martins@oracle.com,
+	jmattson@google.com, pradeep.vincent@oracle.com,
+	john.haxby@oracle.com, tglx@linutronix.de,
+	kirill.shutemov@linux.intel.com, hch@lst.de,
+	steven.sistare@oracle.com, labbott@redhat.com, luto@kernel.org,
+	dave.hansen@intel.com, aaron.lu@intel.com,
+	akpm@linux-foundation.org, alexander.h.duyck@linux.intel.com,
+	amir73il@gmail.com, andreyknvl@google.com,
+	aneesh.kumar@linux.ibm.com, anthony.yznaga@oracle.com,
+	ard.biesheuvel@linaro.org, arnd@arndb.de, arunks@codeaurora.org,
+	ben@decadent.org.uk, bigeasy@linutronix.de, bp@alien8.de,
+	brgl@bgdev.pl, catalin.marinas@arm.com, corbet@lwn.net,
+	cpandya@codeaurora.org, daniel.vetter@ffwll.ch,
+	dan.j.williams@intel.com, gregkh@linuxfoundation.org, guro@fb.com,
+	hannes@cmpxchg.org, hpa@zytor.com, iamjoonsoo.kim@lge.com,
+	james.morse@arm.com, jannh@google.com, jgross@suse.com,
+	jkosina@suse.cz, jmorris@namei.org, joe@perches.com,
+	jrdr.linux@gmail.com, jroedel@suse.de, keith.busch@intel.com,
+	khlebnikov@yandex-team.ru, logang@deltatee.com,
+	marco.antonio.780@gmail.com, mark.rutland@arm.com,
+	mgorman@techsingularity.net, mhocko@suse.com, mhocko@suse.cz,
+	mike.kravetz@oracle.com, mingo@redhat.com, mst@redhat.com,
+	m.szyprowski@samsung.com, npiggin@gmail.com, osalvador@suse.de,
+	paulmck@linux.vnet.ibm.com, pavel.tatashin@microsoft.com,
+	rdunlap@infradead.org, richard.weiyang@gmail.com, riel@surriel.com,
+	rientjes@google.com, robin.murphy@arm.com, rostedt@goodmis.org,
+	rppt@linux.vnet.ibm.com, sai.praneeth.prakhya@intel.com,
+	serge@hallyn.com, steve.capper@arm.com, thymovanbeers@gmail.com,
+	vbabka@suse.cz, will.deacon@arm.com, willy@infradead.org,
+	yang.shi@linux.alibaba.com, yaojun8558363@gmail.com,
+	ying.huang@intel.com, zhangshaokun@hisilicon.com,
+	iommu@lists.linux-foundation.org, x86@kernel.org,
+	linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-security-module@vger.kernel.org,
+	Khalid Aziz <khalid@gonehiking.org>
+Subject: Re: [RFC PATCH v9 03/13] mm: Add support for eXclusive Page Frame
+ Ownership (XPFO)
+Message-ID: <20190404074323.GO4038@hirez.programming.kicks-ass.net>
+References: <cover.1554248001.git.khalid.aziz@oracle.com>
+ <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20190402095609.27181-1-peng.fan@nxp.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -140,30 +159,91 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On 4/2/2019 3:13 PM, Peng Fan wrote:
-> There is no function named munlock_vma_pages, correct it to
-> munlock_vma_page.
->
-> Signed-off-by: Peng Fan <peng.fan@nxp.com>
-Reviewed-by: Mukesh Ojha <mojha@codeaurora.org>
+You must be so glad I no longer use kmap_atomic from NMI context :-)
 
-Cheers,
--Mukesh
-> ---
->   mm/swap.c | 2 +-
->   1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/mm/swap.c b/mm/swap.c
-> index 301ed4e04320..3a75722e68a9 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -867,7 +867,7 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
->   	SetPageLRU(page);
->   	/*
->   	 * Page becomes evictable in two ways:
-> -	 * 1) Within LRU lock [munlock_vma_pages() and __munlock_pagevec()].
-> +	 * 1) Within LRU lock [munlock_vma_page() and __munlock_pagevec()].
->   	 * 2) Before acquiring LRU lock to put the page to correct LRU and then
->   	 *   a) do PageLRU check with lock [check_move_unevictable_pages]
->   	 *   b) do PageLRU check before lock [clear_page_mlock]
+On Wed, Apr 03, 2019 at 11:34:04AM -0600, Khalid Aziz wrote:
+> +static inline void xpfo_kmap(void *kaddr, struct page *page)
+> +{
+> +	unsigned long flags;
+> +
+> +	if (!static_branch_unlikely(&xpfo_inited))
+> +		return;
+> +
+> +	if (!PageXpfoUser(page))
+> +		return;
+> +
+> +	/*
+> +	 * The page was previously allocated to user space, so
+> +	 * map it back into the kernel if needed. No TLB flush required.
+> +	 */
+> +	spin_lock_irqsave(&page->xpfo_lock, flags);
+> +
+> +	if ((atomic_inc_return(&page->xpfo_mapcount) == 1) &&
+> +		TestClearPageXpfoUnmapped(page))
+> +		set_kpte(kaddr, page, PAGE_KERNEL);
+> +
+> +	spin_unlock_irqrestore(&page->xpfo_lock, flags);
+
+That's a really sad sequence, not wrong, but sad. _3_ atomic operations,
+2 on likely the same cacheline. And mostly all pointless.
+
+This patch makes xpfo_mapcount an atomic, but then all modifications are
+under the spinlock, what gives?
+
+Anyway, a possibly saner sequence might be:
+
+	if (atomic_inc_not_zero(&page->xpfo_mapcount))
+		return;
+
+	spin_lock_irqsave(&page->xpfo_lock, flag);
+	if ((atomic_inc_return(&page->xpfo_mapcount) == 1) &&
+	    TestClearPageXpfoUnmapped(page))
+		set_kpte(kaddr, page, PAGE_KERNEL);
+	spin_unlock_irqrestore(&page->xpfo_lock, flags);
+
+> +}
+> +
+> +static inline void xpfo_kunmap(void *kaddr, struct page *page)
+> +{
+> +	unsigned long flags;
+> +
+> +	if (!static_branch_unlikely(&xpfo_inited))
+> +		return;
+> +
+> +	if (!PageXpfoUser(page))
+> +		return;
+> +
+> +	/*
+> +	 * The page is to be allocated back to user space, so unmap it from
+> +	 * the kernel, flush the TLB and tag it as a user page.
+> +	 */
+> +	spin_lock_irqsave(&page->xpfo_lock, flags);
+> +
+> +	if (atomic_dec_return(&page->xpfo_mapcount) == 0) {
+> +#ifdef CONFIG_XPFO_DEBUG
+> +		WARN_ON(PageXpfoUnmapped(page));
+> +#endif
+> +		SetPageXpfoUnmapped(page);
+> +		set_kpte(kaddr, page, __pgprot(0));
+> +		xpfo_flush_kernel_tlb(page, 0);
+
+You didn't speak about the TLB invalidation anywhere. But basically this
+is one that x86 cannot do.
+
+> +	}
+> +
+> +	spin_unlock_irqrestore(&page->xpfo_lock, flags);
+
+Idem:
+
+	if (atomic_add_unless(&page->xpfo_mapcount, -1, 1))
+		return;
+
+	....
+
+
+> +}
+
+Also I'm failing to see the point of PG_xpfo_unmapped, afaict it
+is identical to !atomic_read(&page->xpfo_mapcount).
 
