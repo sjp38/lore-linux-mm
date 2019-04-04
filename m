@@ -2,243 +2,192 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2023BC4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 09:28:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F2967C4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 09:40:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AF99D20820
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 09:27:59 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=eInfochipsIndia.onmicrosoft.com header.i=@eInfochipsIndia.onmicrosoft.com header.b="QXMBP+j/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF99D20820
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=einfochips.com
+	by mail.kernel.org (Postfix) with ESMTP id A8F79205F4
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 09:40:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A8F79205F4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 485316B0007; Thu,  4 Apr 2019 05:27:59 -0400 (EDT)
+	id 36A566B0007; Thu,  4 Apr 2019 05:40:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 437336B0008; Thu,  4 Apr 2019 05:27:59 -0400 (EDT)
+	id 2F2E96B0008; Thu,  4 Apr 2019 05:40:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3250B6B000A; Thu,  4 Apr 2019 05:27:59 -0400 (EDT)
+	id 1BB196B000A; Thu,  4 Apr 2019 05:40:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EF3176B0007
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 05:27:58 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id n5so1209201pgk.9
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 02:27:58 -0700 (PDT)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E36CB6B0007
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 05:40:16 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id w3so848558otg.11
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 02:40:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-transfer-encoding:mime-version;
-        bh=5QJEwPl+CXdreFGjX7hUhAb/B83qjn99ySBy4TnWAbk=;
-        b=j/hYRROPT2z73QYWmX9BwSA9LygUbDuEv+Y1zmaffR/jKvgyTPEb9LAOFxBAJsZUV2
-         nuZ2XzvyZoAUdlHd/UxfPlwNFjgHFq2kehDrGJ98ICffNRKLvc1XwuunQ2KouuyF/3GP
-         5XZBD/15m2kXqWlCEWw2DLKjFpo4AZDAbLMr+ljXyNDSB8JW0+QtXA5GI0d1liq5c8Lo
-         MpMGQBhFjW5w/C/asXNMaGSJhdRq5E+oiZyI6vIm6fj9mLhST2lyJrMSApykWl1D4OdG
-         8FU6HU9GR9zjeo0dKpJhFdB4xSBvLy7PgKrm12ZUUQm19kUVLyqHQNxc8r+fpv1m4U3H
-         Cjdg==
-X-Gm-Message-State: APjAAAUnxjwSrOjBLywgoaqFkFiXejbsIinNXkWzCUs5XH+C0aIy/L0V
-	+6clUZYOMS96WSYmJTDCSVgDU9H2SxVvJMUKH2VP2gfPkaz70UKRbhCVB3KCnvcTPzY9vWSugD8
-	Hq69D7gdVymUXOcbLeSWMQF2B7yV0JnAG5uZEZ2h5zrkd/GW7upUpz9sAe/ryb20rfQ==
-X-Received: by 2002:a17:902:2888:: with SMTP id f8mr5344355plb.244.1554370078553;
-        Thu, 04 Apr 2019 02:27:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyj0skoJ9Zy+Xvay3t3x+B5KegkVi+53+4xauKNHaEN2/euZvbj07B+wHC9mqgPuEeK45lt
-X-Received: by 2002:a17:902:2888:: with SMTP id f8mr5344303plb.244.1554370077864;
-        Thu, 04 Apr 2019 02:27:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554370077; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version;
+        bh=F2vJTDUQQPekEsio9ABNwpo/nIflzHrX3NvpI0eAfgE=;
+        b=uoc/eLgBQsSPt8g8T3jsBXXb4zxOdEEL3tqvQ4+v1Fn1PwxYqjwKZ38qLiPBibXJv9
+         08DcREL6sBvmCTvZOIeVwpbgr5b1jQYLL5A7EzhvVzd1efJ8ZdfsYX9L+Ezo8LsngPNm
+         krsCUpSLPjmTnTaihtNEFYzCqVTS8W5gw8KT2aEpHZmL26qUVWXDz1i52BTMPYNJMvmt
+         +JFsckZf4zgHbY44VfvA4wloa1pvrfJ8jFzlsm3DFIogBb3iKr/PXQJEjubyKUgnUjQ0
+         qyoed4eCS+lrGO3xy3wt1ZARnkBjJwk8dcXT9z8UyvKBJbHX/zh1ipszWiaVC4Jgpxmf
+         erDQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fanglinxu@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=fanglinxu@huawei.com
+X-Gm-Message-State: APjAAAVKC1s+wfjN01x6KaKOnYCh4hE04vpu3v9Kjg2jTSnnkHF7oPKD
+	e4RbAMF1Jf4nGcuxtahq9e7umHyyEVcTavS4MjNCvVgFrsmHyfZeycqInPjNIbdm9eCSH4XoIWe
+	zrZyiEL0ngMC+mV00CsiLbeHa5uOAycpxe9I2Yb/WMXMJ721VLvvntjGHqqxbxn4M2g==
+X-Received: by 2002:aca:bd02:: with SMTP id n2mr2710081oif.70.1554370816618;
+        Thu, 04 Apr 2019 02:40:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxBK7Z04YOkXJfca5Y/tSjwY7RMWEvXc81O4C+ndAMmQLmr+NmWqV9wOOJaEMzgeE2CUajp
+X-Received: by 2002:aca:bd02:: with SMTP id n2mr2710040oif.70.1554370815345;
+        Thu, 04 Apr 2019 02:40:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554370815; cv=none;
         d=google.com; s=arc-20160816;
-        b=WCUtkB+ll69Ha/3h2XxFMejH2noOrB+3H+C0kXb6U1mVc2cJ7kKCpnm1orOyaSjBnC
-         0W62XvwGgoiFsE+1s+U0v0kAupEKQnZYEMNToB0qBZtiWWB0CQje8bP1CbAf5SMBhyh3
-         wZ8Cd/QeTqu7uUNRVRYY47DDK2SQjiLaRBmyaKdaUoMCabmid6hXygi3TnBcHy4geS3C
-         RYkyqk3LZli1/R/lHeckvaWD0jTp3No7c4UNve5drEuo1qvWTY5FmKLWlr35u5C2Pbul
-         a3yKyQsyL8AGfjTZoteOe5eqQFDQUoIhj2mnWrHY9CXa9CPEUkaMJUrYNYmdWfen7adZ
-         Fw2A==
+        b=E3njQ8TE+Zm7+TCi+5cR8jIi1eUt1IU72royXsMzSJ4YhqSI7IWfKLFeMsMWhEDb4l
+         4DmK4t6uJ2no+l+orW1edXT+7gOylhZ16mqC9UDrEXTeqsR6yGzXmvttWY4DyxXWwgdm
+         b9FNxZUTODSOxnlCt/IXQBzOoU3DmGf5BhuA1tCJBpx/2C17Mbw7gpDR8hs5WKOF6lsL
+         vCxmpX+afXMQaMnE/wppoJD5h6ESJya5WOz1JWy+sV0krBpgsrAmTSY6xF5u2uoHAn6r
+         dhOGTGk4jPp6BNAC/YBTKw3OeXgeUsZBXketf1ab7NiRLFe4mUg9GAW4dpWrsgGpnPO7
+         m/Eg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:to:from:dkim-signature;
-        bh=5QJEwPl+CXdreFGjX7hUhAb/B83qjn99ySBy4TnWAbk=;
-        b=svr2HqrXNc7k9oaPI7qmBISjxMFGIntMYaGjxbMbcBfnxEq9gVucMaWc22iDW6aZX0
-         FT/2VHkd4XFz5UDfvW6Q/CVm72Sebk0L169foktsnSCu29t9lrcpqNh8vgvNPco/PNF9
-         /l6PPFYcRL7Je6ufxuGscfVD1bhgLIL1z4UaxdSiuU7p5hT/935Vw0vRtPnQI/+P3/9u
-         QnOb2dEWQi3BZtufx8YDuJgQoqtexxG+6Ks7if2ShVGvjbK1k7NXIOGNWdh2pU5GJwB3
-         SPLWGLDHz57gg/xUxZ0P93ghTgyn8PiKp5BAgpEHl0b0CuJn25ZXI5zHb1wH7FtYfwFQ
-         KcXQ==
+        h=mime-version:message-id:date:subject:cc:to:from;
+        bh=F2vJTDUQQPekEsio9ABNwpo/nIflzHrX3NvpI0eAfgE=;
+        b=Aivqyjj1qayRiiO299dlcH9yFWpbu3uLI7CrFoF2NrDsy4+yZ42OFG9L8rkVSZ27O3
+         V7CHY0+nBUyL6BoRcWz7FzrOyKz3jaoL8LS93IPlyNQUy/Wh7nzPKV0ahBdaI4lDDJBM
+         tyI0emm9kpRmolezbi/c8MXyqEfknOSHH0Lnsk5cb8G7DIZCzR9leUVA8VdASmapLgdE
+         mTNqD0HS+5A43ZCVs8C4Ax4oSjNoTq5I0nafmXQW7u5QNbarIR1c4Soc7pCllS/6ocXy
+         z1NoSMbjpeT3LJ7ZHs4D1xh/spbhGkVpYuSZ3q5treVJ1hBHTVD7QaZpFyJ/NiYIDxiu
+         9XHw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b="QXMBP+j/";
-       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.74 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
-Received: from APC01-HK2-obe.outbound.protection.outlook.com (mail-eopbgr1300074.outbound.protection.outlook.com. [40.107.130.74])
-        by mx.google.com with ESMTPS id 60si16697145plf.122.2019.04.04.02.27.57
+       spf=pass (google.com: domain of fanglinxu@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=fanglinxu@huawei.com
+Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id b25si8235327oti.141.2019.04.04.02.40.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Apr 2019 02:27:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.74 as permitted sender) client-ip=40.107.130.74;
+        Thu, 04 Apr 2019 02:40:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of fanglinxu@huawei.com designates 45.249.212.190 as permitted sender) client-ip=45.249.212.190;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b="QXMBP+j/";
-       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.74 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=eInfochipsIndia.onmicrosoft.com; s=selector1-einfochips-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=5QJEwPl+CXdreFGjX7hUhAb/B83qjn99ySBy4TnWAbk=;
- b=QXMBP+j/dPNHXsW6tJYHvxmLuObvJoy8gLnpU2EPuy1hFWrXLeOyMGWxP4OB4GXI2MChry09zZxYA9vFVvv00FEOXAZGwOs9iZz0SEBM6IVSAO44ANcidS6DxJWvhdbZFgU5P0bbt6eSFKR5gewmvyJZ1ZXhEI2ShezhDF0JPmA=
-Received: from SG2PR02MB3098.apcprd02.prod.outlook.com (20.177.88.78) by
- SG2PR02MB3608.apcprd02.prod.outlook.com (20.177.170.141) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1771.15; Thu, 4 Apr 2019 09:27:53 +0000
-Received: from SG2PR02MB3098.apcprd02.prod.outlook.com
- ([fe80::f432:20e4:2d22:e60b]) by SG2PR02MB3098.apcprd02.prod.outlook.com
- ([fe80::f432:20e4:2d22:e60b%4]) with mapi id 15.20.1750.017; Thu, 4 Apr 2019
- 09:27:53 +0000
-From: Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>
-Subject: Re: How to calculate instruction executed for function
-Thread-Topic: How to calculate instruction executed for function
-Thread-Index: AQHU6igi0LAQURcEFkafVLmNd6QLn6YrvLoU
-Date: Thu, 4 Apr 2019 09:27:53 +0000
-Message-ID:
- <SG2PR02MB309878FDF524EAE5F61228B7E8500@SG2PR02MB3098.apcprd02.prod.outlook.com>
-References:
- <SG2PR02MB3098EF270AE08CB19E96C5C4E8570@SG2PR02MB3098.apcprd02.prod.outlook.com>
-In-Reply-To:
- <SG2PR02MB3098EF270AE08CB19E96C5C4E8570@SG2PR02MB3098.apcprd02.prod.outlook.com>
-Accept-Language: en-GB, en-US
-Content-Language: en-GB
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=pankaj.suryawanshi@einfochips.com; 
-x-originating-ip: [14.98.130.2]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: d1e2025e-e65e-4d08-1439-08d6b8dfd0c3
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(7168020)(4627221)(201703031133081)(201702281549075)(8990200)(5600139)(711020)(4605104)(2017052603328)(7193020);SRVR:SG2PR02MB3608;
-x-ms-traffictypediagnostic: SG2PR02MB3608:
-x-microsoft-antispam-prvs:
- <SG2PR02MB3608E4ADCC4CF947328DA1F2E8500@SG2PR02MB3608.apcprd02.prod.outlook.com>
-x-forefront-prvs: 0997523C40
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(346002)(396003)(39850400004)(136003)(366004)(376002)(189003)(199004)(33656002)(186003)(26005)(6436002)(3846002)(2501003)(6116002)(476003)(446003)(105586002)(316002)(68736007)(106356001)(2906002)(11346002)(229853002)(53936002)(25786009)(110136005)(6246003)(305945005)(7736002)(97736004)(74316002)(99286004)(5024004)(486006)(5660300002)(44832011)(66574012)(52536014)(478600001)(14454004)(7696005)(8936002)(8676002)(102836004)(76176011)(53546011)(78486014)(6506007)(71190400001)(86362001)(55016002)(9686003)(71200400001)(55236004)(81166006)(81156014)(14444005)(256004)(66066001)(586874002);DIR:OUT;SFP:1101;SCL:1;SRVR:SG2PR02MB3608;H:SG2PR02MB3098.apcprd02.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: einfochips.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- tRiJbYgaqEl8TEz0/uORLDPaQ2dWghbagmdfWJcv/694uhTNFCz+5bUQlh++zPhsOjwBUUfUc5LSNENYAnxwTkbiaFCzw2KE7gnuW2te51gTe/c3oisn9fhQF+VgmL+oXgJbwyOLkEuXwe2+06W1rHD5c1AAdy3O0n56Fy9C4CKuRlda0+kD6s2joNanEt72P94fqwjTOtN0cUJERtH4Qgp+Ladwan1N5qnk8EmO+/jhl/AjTNKenX72EbjvgbvUNdzpJNW+Yz0WixxiP3wGMVTs58soZtvTLz3qhTXgKIqtuWA3WquyiVdueozcTFbOpoXdhtQeTKIGIrtVnsQW6fsxLqF/9B7HO59uHsrzxJvsXQJ62Mo5M3pI9xbMD7FtCrmXtDrjTl1ZLI+0MuNx2oZjQ2YK5FLkdPO7y/mJv/M=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of fanglinxu@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=fanglinxu@huawei.com
+Received: from DGGEMS414-HUB.china.huawei.com (unknown [172.30.72.58])
+	by Forcepoint Email with ESMTP id DEC05A35646911DE5371;
+	Thu,  4 Apr 2019 17:40:09 +0800 (CST)
+Received: from huawei.com (10.66.68.70) by DGGEMS414-HUB.china.huawei.com
+ (10.3.19.214) with Microsoft SMTP Server id 14.3.408.0; Thu, 4 Apr 2019
+ 17:40:09 +0800
+From: Linxu Fang <fanglinxu@huawei.com>
+To: <akpm@linux-foundation.org>, <mhocko@suse.com>, <vbabka@suse.cz>,
+	<pavel.tatashin@microsoft.com>, <osalvador@suse.de>
+CC: <linux-mm@kvack.org>
+Subject: [PATCH V2] mm: fix node spanned pages when we have a node with only zone_movable
+Date: Thu, 4 Apr 2019 17:38:24 +0800
+Message-ID: <1554370704-18268-1-git-send-email-fanglinxu@huawei.com>
+X-Mailer: git-send-email 2.8.1.windows.1
 MIME-Version: 1.0
-X-OriginatorOrg: einfochips.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: d1e2025e-e65e-4d08-1439-08d6b8dfd0c3
-X-MS-Exchange-CrossTenant-originalarrivaltime: 04 Apr 2019 09:27:53.7355
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 0adb040b-ca22-4ca6-9447-ab7b049a22ff
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: SG2PR02MB3608
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
+Content-Type: text/plain
+X-Originating-IP: [10.66.68.70]
+X-CFilter-Loop: Reflected
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+commit <342332e6a925> ("mm/page_alloc.c: introduce kernelcore=mirror
+option") and series patches rewrote the calculation of node spanned
+pages.
+commit <e506b99696a2> (mem-hotplug: fix node spanned pages when we have a
+movable node), but the current code still has problems,
+when we have a node with only zone_movable and the node id is not zero,
+the size of node spanned pages is double added.
+That's because we have an empty normal zone, and zone_start_pfn or
+zone_end_pfn is not between arch_zone_lowest_possible_pfn and
+arch_zone_highest_possible_pfn, so we need to use clamp to constrain the
+range just like the commit <96e907d13602> (bootmem: Reimplement
+__absent_pages_in_range() using for_each_mem_pfn_range()).
 
-________________________________________
-From: Pankaj Suryawanshi
-Sent: 03 April 2019 19:50
-To: linux-mm@kvack.org; linux-kernel@vger.kernel.org
-Subject: How to calculate instruction executed for function
+e.g.
+Zone ranges:
+  DMA      [mem 0x0000000000001000-0x0000000000ffffff]
+  DMA32    [mem 0x0000000001000000-0x00000000ffffffff]
+  Normal   [mem 0x0000000100000000-0x000000023fffffff]
+Movable zone start for each node
+  Node 0: 0x0000000100000000
+  Node 1: 0x0000000140000000
+Early memory node ranges
+  node   0: [mem 0x0000000000001000-0x000000000009efff]
+  node   0: [mem 0x0000000000100000-0x00000000bffdffff]
+  node   0: [mem 0x0000000100000000-0x000000013fffffff]
+  node   1: [mem 0x0000000140000000-0x000000023fffffff]
 
-Hello,
+node 0 DMA	spanned:0xfff   present:0xf9e   absent:0x61
+node 0 DMA32	spanned:0xff000 present:0xbefe0	absent:0x40020
+node 0 Normal	spanned:0	present:0	absent:0
+node 0 Movable	spanned:0x40000 present:0x40000 absent:0
+On node 0 totalpages(node_present_pages): 1048446
+node_spanned_pages:1310719
+node 1 DMA	spanned:0	    present:0		absent:0
+node 1 DMA32	spanned:0	    present:0		absent:0
+node 1 Normal	spanned:0x100000    present:0x100000	absent:0
+node 1 Movable	spanned:0x100000    present:0x100000	absent:0
+On node 1 totalpages(node_present_pages): 2097152
+node_spanned_pages:2097152
+Memory: 6967796K/12582392K available (16388K kernel code, 3686K rwdata,
+4468K rodata, 2160K init, 10444K bss, 5614596K reserved, 0K
+cma-reserved)
 
-How to calculate instruction executed for function ?
+It shows that the current memory of node 1 is double added.
+After this patch, the problem is fixed.
 
-For eg.
+node 0 DMA	spanned:0xfff   present:0xf9e   absent:0x61
+node 0 DMA32	spanned:0xff000 present:0xbefe0	absent:0x40020
+node 0 Normal	spanned:0	present:0	absent:0
+node 0 Movable	spanned:0x40000 present:0x40000 absent:0
+On node 0 totalpages(node_present_pages): 1048446
+node_spanned_pages:1310719
+node 1 DMA	spanned:0	    present:0		absent:0
+node 1 DMA32	spanned:0	    present:0		absent:0
+node 1 Normal	spanned:0	    present:0		absent:0
+node 1 Movable	spanned:0x100000    present:0x100000	absent:0
+On node 1 totalpages(node_present_pages): 1048576
+node_spanned_pages:1048576
+memory: 6967796K/8388088K available (16388K kernel code, 3686K rwdata,
+4468K rodata, 2160K init, 10444K bss, 1420292K reserved, 0K
+cma-reserved)
 
-I need to calculate instruction executed for CMA_ALLOC function.
-How many instruction executed for cma_alloc ?
+Signed-off-by: Linxu Fang <fanglinxu@huawei.com>
+---
+ mm/page_alloc.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 3eb01de..5cd0cb2 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6233,13 +6233,15 @@ static unsigned long __init zone_spanned_pages_in_node(int nid,
+ 					unsigned long *zone_end_pfn,
+ 					unsigned long *ignored)
+ {
++	unsigned long zone_low = arch_zone_lowest_possible_pfn[zone_type];
++	unsigned long zone_high = arch_zone_highest_possible_pfn[zone_type];
+ 	/* When hotadd a new node from cpu_up(), the node should be empty */
+ 	if (!node_start_pfn && !node_end_pfn)
+ 		return 0;
+ 
+ 	/* Get the start and end of the zone */
+-	*zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
+-	*zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
++	*zone_start_pfn = clamp(node_start_pfn, zone_low, zone_high);
++	*zone_end_pfn = clamp(node_end_pfn, zone_low, zone_high);
+ 	adjust_zone_range_for_zone_movable(nid, zone_type,
+ 				node_start_pfn, node_end_pfn,
+ 				zone_start_pfn, zone_end_pfn);
+-- 
+1.8.5.6
 
-CMA_ALLOC :
-
-        for 1 cma_alloc success call there will around 75 instruction is ex=
-ecuted, excluding jump, mutex,error case and debug info instruction.
-
-        below are mandatory jump calls that are required for successful all=
-ocations.
-
-        cma_bitmap_aligned_mask
-        cma_bitmap_aligned_offset
-        cma_bitmap_maxno
-        cma_bitmap_pages_to_bits
-        bitmap_find_next_zero_area_off -> find_next_zero_bit -> find_next_b=
-it
-        bitmap_set
-        alloc_contig_range -> start_isolate_page_range
-        __alloc_contig_migrate_range -> isolate_migratepages_range -> recla=
-im_clean_pages_from_list -> shrink_page_list -> migrate_pages
-
-
-        So lets say
-
-        cma_bitmap_aligned_mask  =3D 1 instrs
-        cma_bitmap_aligned_offset =3D 1 instrs
-        cma_bitmap_maxno                  =3D 1 instrs
-        cma_bitmap_pages_to_bits  =3D 1 instrs
-
-        bitmap_find_next_zero_area_off -> find_next_zero_bit -> find_next_b=
-it =3D 3 instrs
-        bitmap_set  =3D 1 instrs
-        alloc_contig_range -> start_isolate_page_range =3D
-
-                                has_unmovable_pages =3D 1 instrs
-                                get_pfnblock_flags_mask =3D 1 instrs
-                                set_pageblock_migratetype =3D 1 instrs
-                                move_freepages_block =3D 1 instrn
-                                __mod_zone_page_state =3D 1 instrs store in=
-fo in vmstat
-                                unset_migratetype_isolate =3D 1 instrs
-
-        __alloc_contig_migrate_range -> isolate_migratepages_range -> recla=
-im_clean_pages_from_list -> shrink_page_list -> migrate_pages
-
-
-        isolate_migratepages_range =3D 3 instrs
-        reclaim_clean_pages_from_list =3D 2 instrs
-        migrate_pages =3D 1 instrs
-
-        --------------------------------------------------------------
-        Total =3D around 20 instrs per page
-
-        20 ns per page on 1ghz processor is minimum excluding any overheads=
- like mutex, variables, failure/error case,debug/prints.
-
-I roughly calculated this.
-Is it Correct ?
-
-
-Any help would be appreciated.
-
-Regards,
-Pankaj
-***************************************************************************=
-***************************************************************************=
-******* eInfochips Business Disclaimer: This e-mail message and all attachm=
-ents transmitted with it are intended solely for the use of the addressee a=
-nd may contain legally privileged and confidential information. If the read=
-er of this message is not the intended recipient, or an employee or agent r=
-esponsible for delivering this message to the intended recipient, you are h=
-ereby notified that any dissemination, distribution, copying, or other use =
-of this message or its attachments is strictly prohibited. If you have rece=
-ived this message in error, please notify the sender immediately by replyin=
-g to this message and please delete it from your computer. Any views expres=
-sed in this message are those of the individual sender unless otherwise sta=
-ted. Company has taken enough precautions to prevent the spread of viruses.=
- However the company accepts no liability for any damage caused by any viru=
-s transmitted by this email. **********************************************=
-***************************************************************************=
-************************************
 
