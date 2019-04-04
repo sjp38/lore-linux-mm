@@ -2,143 +2,134 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 83879C10F0C
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 13:25:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1AEB6C4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 13:28:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3FDCC21741
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 13:25:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FDCC21741
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id CC381206B7
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 13:28:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CC381206B7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E31ED6B0003; Thu,  4 Apr 2019 09:25:12 -0400 (EDT)
+	id 7CA366B0003; Thu,  4 Apr 2019 09:28:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DE1656B0005; Thu,  4 Apr 2019 09:25:12 -0400 (EDT)
+	id 74F016B0005; Thu,  4 Apr 2019 09:28:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CF7766B0006; Thu,  4 Apr 2019 09:25:12 -0400 (EDT)
+	id 6178B6B0006; Thu,  4 Apr 2019 09:28:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BA026B0003
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 09:25:12 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id p90so1397979edp.11
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 06:25:12 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C7F56B0003
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 09:28:43 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id p26so2195002qtq.21
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 06:28:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=scS5grmSBc6INQUXfM9sGzHnKbj0BCOeAX3cB8O08ds=;
-        b=a8zm4pqWFIM6ARhPfYMrFoLzH7PSw/aVaYgbzlRWVH8SpHyHEN/eeSrltwKkABio8C
-         Mi6xziyTCgw9kmp5RAvNJwmJIkqI3Ci1cxM6fbV6uV6vmzQS207sgx9oewvoImh83fgW
-         L52n3qQGzmxaTjAw8zs0F0nP4mDp1QiJBK/NdG7N5JwyDI4/jHF74XF803D7B/71KQcg
-         MeiCDrGCP9wturZHiWXRR9ONOl9fFL+/2NXCQb60jBr1ZFW7Gck1gLxrtVTlJCkCHdJi
-         nGDftczZOWlPNYHGmuzhLcG7++jP6W8yERGVhRJEPIoCCvZe6H+rubEFZmNpD2CnUAQl
-         eZkg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAU8tZkLsnEhpACu0g4706DpJFScGAYAONynZpwI1KBJb4dDuqYU
-	M2+k5usbdNKmjhlZimv53o25EjxfXBTnbXjDTvjNobcHC+rPk4y2o4gH7PxHudRvuxat84x8RT0
-	apc5Be0kOPcXzgJH8yF5dfFWy/yQTv+1UnGr1eCLBmHRyRhRUzu1kv4utWREAaig=
-X-Received: by 2002:a17:906:d512:: with SMTP id ge18mr3612268ejb.232.1554384312179;
-        Thu, 04 Apr 2019 06:25:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwlsYzeL88el/rvsfPxy5utNrbI+FeSvsX3RBLuY5N0XtTNbpmqrA9FtzwuSk1MZJcIzPlR
-X-Received: by 2002:a17:906:d512:: with SMTP id ge18mr3612218ejb.232.1554384311124;
-        Thu, 04 Apr 2019 06:25:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554384311; cv=none;
+         :in-reply-to;
+        bh=7yyf+HgxleLYBHaKJbIu80u0jEokOC4UH8AehtEvcEM=;
+        b=TSoB0i/1RgNwkE9gj1bmKZ99rbh3edAUKZFJS+m86Qu59XEVjvSIwHHIKAZyYWZpBz
+         jNoH5siVIJq+DfBXCzTz5iPEr8l4ad+PQjhK/2tDzJCV6sFSpdEVHSby5lWqfhhxxFw5
+         d2OPhyC3ecohvYK8y/Afeu73ZDjUrcDRA33AQXCKWlf7wkf9dqGkJOXdIAeEYOMRj8yy
+         EOVajyH1SesvkFyGs6+H55nQKpN7saUiqgzCGyFzslaLKVByS7RUc9yRiRZM77lgQg0V
+         gqo7Hnal7qSBNsQPV90ZDNJccZnIUQkrlsqBuGVo1ysn94Aqb/eg+LPUlsYjP5m02Ka/
+         Gx1g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXpyaXdUDYYWMHUT1tme+1vM11ONaENi9KGFzv1Geljk/UfzmvP
+	oKWiYF2bQbc1gSTzJyEZUGxpROhjfreVyje6sBeFcjkAI8zIMvlyrDzWJ9JfDHa5453tdaAFl+2
+	SmID/sCrNrBEqCQ67nz+SdPlP6yuLKVB5lI9gptrIuAjxHKeRAtRcZgRvTFP5mRpNiQ==
+X-Received: by 2002:ac8:35ea:: with SMTP id l39mr5507888qtb.151.1554384523060;
+        Thu, 04 Apr 2019 06:28:43 -0700 (PDT)
+X-Received: by 2002:ac8:35ea:: with SMTP id l39mr5507837qtb.151.1554384522357;
+        Thu, 04 Apr 2019 06:28:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554384522; cv=none;
         d=google.com; s=arc-20160816;
-        b=rMge5Ldga+NNu0hiaaHzJXn2aQEmJGefF0LoVFD8V/7QyvoXEXwKtA7aR/AWoOI83W
-         53j2WPCQrB7ELpfqLikvh9eiyoxMXaUhT2SI2wQLQIw3xXUDeISZYRzw0fzQ/hnDQNMi
-         rcnpeXa52N0tpEpVBKG6mmOifsSFjiJycNH3oqOgQGvDn/xaB992ywtL8Qz8vgQwLU6z
-         PbzdkmT3SUCn8dPHwQPPHNHOqiMI52777APWVhFCKzDajv9G4PrvgVVjOWK0WLehRFu4
-         F5R8t3TebcMhohGsy8V8Yhne2605BQHGSkOzwDDSGhz+/MdlDMKSErbgG7WpQ4uXc54d
-         5lqg==
+        b=RpCKq9QM8cD/q+ECIKd+pX0p6+RY1th/KPl0y5onOL+olTFwG8l8ppDl9xBKJ+RrhR
+         vT11eZBj3LYNXesVBhFDHTK7GNvyLpSKsGiWAE5oZZ0aRWDmUTZMIpU0SbNhahMmr108
+         2GTEbXHibyz3avZtGZMgCgI9y1vdFaAwGV65V67c8YCxZBRXAgISq8/3OfhTy+yCl/fE
+         JyJjVJ6RKzAPf+MJOOwSWr4H7Ie0+EorpZOb8mNL9xZPqfz2pjxr3gCOWs1YWQE1OPvY
+         uaqYJXneAMEfMgwrVk5aVNcz7Knm8o/Oh8Ge+sPm7syW0JeQc9UE4AmSBH1tD0EU7WPK
+         bJ0g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=scS5grmSBc6INQUXfM9sGzHnKbj0BCOeAX3cB8O08ds=;
-        b=pKDzk4w6XpyvGvLQbQcN0Q8uG304Sb5qGRmuALQCZroIQoaMaGVb4bhCIo5P/HOqdb
-         loZJZEgxsQag1wJeZ5quXpvZMhPdNhoCOEPcL2LwP5a85UJkkBl67vZD2pdE+AQ4GvS+
-         0xBQloZSPp3HKOx4P05W6lUe3Z9s6Re+Eguvg/eLYGu43VS8+u3ueEN0zEtpBJDKwvOQ
-         EyoJnG6lQRyUKn8b4102LYgkzV8qDEHdHiGG+wPJfg42FAYmUxCBh90yQJa564+uIUOI
-         ZjycFJW2AJeoaG4/F71YYF8zRWTdWDSGBlVef9Tp9VIguqUs3Lf3jwZhtUl5OtgR9XSa
-         GYSA==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=7yyf+HgxleLYBHaKJbIu80u0jEokOC4UH8AehtEvcEM=;
+        b=uvcsqv/izbgnYAzGnwOdoI0CNdu2GTeBDY4GAzyHlAGombHH0Y8ro9Q+ToMwXr486Q
+         YJtzwX/smc4ehSVPe5xMkou0949FLmR2ugMrLe+kC6gg42QnWw0Rbj+eqEa5uV8aIhMT
+         i5B9DVz6gkiLWUEgbn5gCGzKp2WaHOmr7I/ycHm4E528Pd7zomcaQNQwwErfMJVZZ9Bw
+         5JU2Q/mIVpxXVdBx9ts9+64QShHLcSW8F+ZohKdDN/KKaE71ODn2vGMSXIKqTx063kBY
+         7m4ilBFzczgG065+Q77QbRPVBEaldjcQSwXMA1i+0QHceUax16q6dzgdrX8fZdf5dgqf
+         Bq5Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from suse.de (nat.nue.novell.com. [2620:113:80c0:5::2222])
-        by mx.google.com with ESMTP id j3si41140edc.3.2019.04.04.06.25.10
-        for <linux-mm@kvack.org>;
-        Thu, 04 Apr 2019 06:25:11 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) client-ip=2620:113:80c0:5::2222;
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 55sor26390686qtu.34.2019.04.04.06.28.42
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 04 Apr 2019 06:28:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: by suse.de (Postfix, from userid 1000)
-	id 16B4D481A; Thu,  4 Apr 2019 15:25:09 +0200 (CEST)
-Date: Thu, 4 Apr 2019 15:25:09 +0200
-From: Oscar Salvador <osalvador@suse.de>
-To: David Hildenbrand <david@redhat.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH 1/2] mm, memory_hotplug: cleanup memory offline path
-Message-ID: <20190404132506.kaqzop4qs6m56plu@d104.suse.de>
-References: <20190404125916.10215-1-osalvador@suse.de>
- <20190404125916.10215-2-osalvador@suse.de>
- <f2360f11-4360-b678-f095-c4ebbf7cd0ec@redhat.com>
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqyGfRXpzQFNaSliZNlz6/G8SzOU+HMRc8xYFoGZ0ZQbt0QhYGmCO8b8oYZ6Q0w9Htvlju38sw==
+X-Received: by 2002:ac8:28e9:: with SMTP id j38mr5244597qtj.297.1554384522144;
+        Thu, 04 Apr 2019 06:28:42 -0700 (PDT)
+Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
+        by smtp.gmail.com with ESMTPSA id q51sm12443768qtc.38.2019.04.04.06.28.39
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 04 Apr 2019 06:28:41 -0700 (PDT)
+Date: Thu, 4 Apr 2019 09:28:38 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: David Hildenbrand <david@redhat.com>,
+	Nitesh Narayan Lal <nitesh@redhat.com>,
+	kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+	linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>,
+	lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
+	Yang Zhang <yang.zhang.wz@gmail.com>,
+	Rik van Riel <riel@surriel.com>, dodgen@google.com,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com,
+	Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: On guest free page hinting and OOM
+Message-ID: <20190404083321-mutt-send-email-mst@kernel.org>
+References: <29e11829-c9ac-a21b-b2f1-ed833e4ca449@redhat.com>
+ <dc14a711-a306-d00b-c4ce-c308598ee386@redhat.com>
+ <20190401104608-mutt-send-email-mst@kernel.org>
+ <CAKgT0UcJuD-t+MqeS9geiGE1zsUiYUgZzeRrOJOJbOzn2C-KOw@mail.gmail.com>
+ <6a612adf-e9c3-6aff-3285-2e2d02c8b80d@redhat.com>
+ <CAKgT0Ue_By3Z0=5ZEvscmYAF2P40Bdyo-AXhH8sZv5VxUGGLvA@mail.gmail.com>
+ <1249f9dd-d22d-9e19-ee33-767581a30021@redhat.com>
+ <CAKgT0UeqX8Q8BYAo4COfQ2TQGBduzctAf5Ko+0mUmSw-aemOSg@mail.gmail.com>
+ <0fdc41fb-b2ba-c6e6-36b9-97ad5a6eb54c@redhat.com>
+ <CAKgT0UcrkXKjMgYy2H3MKQxG71ScNqhwqxwti7QjvPSxtb8FBg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <f2360f11-4360-b678-f095-c4ebbf7cd0ec@redhat.com>
-User-Agent: NeoMutt/20170421 (1.8.2)
+In-Reply-To: <CAKgT0UcrkXKjMgYy2H3MKQxG71ScNqhwqxwti7QjvPSxtb8FBg@mail.gmail.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 04, 2019 at 03:18:00PM +0200, David Hildenbrand wrote:
-> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > index f206b8b66af1..d8a3e9554aec 100644
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
-> > @@ -1451,15 +1451,11 @@ static int
-> >  offline_isolated_pages_cb(unsigned long start, unsigned long nr_pages,
-> >  			void *data)
-> >  {
-> > -	__offline_isolated_pages(start, start + nr_pages);
-> > -	return 0;
-> > -}
-> > +	unsigned long offlined_pages;
-> >  
-> > -static void
-> > -offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
-> > -{
-> > -	walk_system_ram_range(start_pfn, end_pfn - start_pfn, NULL,
-> > -				offline_isolated_pages_cb);
-> > +	offlined_pages = __offline_isolated_pages(start, start + nr_pages);
-> > +	*(unsigned long *)data += offlined_pages;
-> 
-> unsigned long *offlined_pages = data;
-> 
-> *offlined_pages += __offline_isolated_pages(start, start + nr_pages);
+On Tue, Apr 02, 2019 at 04:43:03PM -0700, Alexander Duyck wrote:
+> Yes, but hopefully it should be a small enough amount that nobody will
+> notice. In many cases devices such as NICs can consume much more than
+> this regularly for just their Rx buffers and it is not an issue. There
+> has to be a certain amount of overhead that any given device is
+> allowed to consume. If we contain the balloon hinting to just 64M that
+> should be a small enough amount that nobody would notice in practice.
 
-Yeah, more readable.
+I am still inclined to add ability for balloon to exit to host on OOM
+if any hints are outstanding.
 
-> Only nits
-
-About the identation, I double checked the code and it looks fine to me.
-In [1] looks fine too, might be your mail client?
-
-[1] https://patchwork.kernel.org/patch/10885571/
-
-> 
-> Reviewed-by: David Hildenbrand <david@redhat.com>
-
-Thanks ;-)
+If nothing else will be helpful for stats.
 
 -- 
-Oscar Salvador
-SUSE L3
+MST
 
