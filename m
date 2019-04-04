@@ -5,111 +5,111 @@ X-Spam-Level:
 X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ED035C10F06
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:03:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9DB53C10F0B
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 03:30:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9A31621734
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:03:33 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 377CE2133D
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 03:30:46 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="StRH5oW7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9A31621734
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Bs+UaaYK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 377CE2133D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 44D536B000A; Wed,  3 Apr 2019 22:03:33 -0400 (EDT)
+	id 9AEDB6B000C; Wed,  3 Apr 2019 23:30:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3FACB6B0294; Wed,  3 Apr 2019 22:03:33 -0400 (EDT)
+	id 95EA96B000D; Wed,  3 Apr 2019 23:30:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2EA666B0295; Wed,  3 Apr 2019 22:03:33 -0400 (EDT)
+	id 876546B0266; Wed,  3 Apr 2019 23:30:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EAB496B000A
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 22:03:32 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id j1so700545pff.1
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 19:03:32 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 468946B000C
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 23:30:45 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id d33so888149pla.19
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 20:30:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:subject:date:message-id;
-        bh=OFrH6yUQs4lhopvXqwVEFAjv4sQz8EJS3WfpjR4cwWs=;
-        b=p4wTbkNWlAkGe8INGKWVkOGomEL/2V1Dwc4+cd2Vbz+WFyqUMTDRVeRYAIpVO+SPa+
-         sqK/9ZlyrA0DsZXvwx+OWWs9eyRYne4leVsufZx7iStRZIUq9Xu1AfXr+GrN0dQSh6e2
-         uI3qd7u9KwnO4I3sx7d6nOtZbcDcqfFPjDEjBojIX1TTSt8WXzGn15MCG7nYaAkmlfRq
-         4OrF/9fQjpoqEhZOGZzRk/FQEH9NSm2qK0R2JP5YumyQCZxSTvw6udQYETQqXroiRAq0
-         LRpCz+KIz1q1WGyghm3l9Pv2l5Jo5p5qTwGEvetrfcjORxBgVloZdXcxvyeYKfiySml+
-         8Neg==
-X-Gm-Message-State: APjAAAW8PaYxXay+3mG6lv2BbWK7a/1BkGnYYDazu1GF4+yBCkan6ffL
-	O4N+T2bzBhTm9k7z/P49mlXW4VQPwbHZbWR93H5GAYK3G7NgbaSgsUyy0I4Wrb1I5+4qZfH/qFj
-	l3v50CyfSlDWFqxgMz19X2oTyhKMCXLiUXWrtssI7FAV/QPfpbUEqOOJI23rDgsuR/A==
-X-Received: by 2002:a63:d706:: with SMTP id d6mr3027129pgg.367.1554343412308;
-        Wed, 03 Apr 2019 19:03:32 -0700 (PDT)
-X-Received: by 2002:a63:d706:: with SMTP id d6mr3027020pgg.367.1554343410925;
-        Wed, 03 Apr 2019 19:03:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554343410; cv=none;
+        bh=lv8NVbJO6cxJt5xlEdH0XCLVCT+ImQmsAWGyClGMj7s=;
+        b=aQVpM4kYZuqVpQZCHM26q1aFXBPiNJp5SySjPu/2Kt7K43LxJVHYajZ+xaPUeBWY4H
+         CWiKrdLu3wQKvqSC53QfWUoHOEa3KEwV4t66eedTVz/Cl3ZQxpmL+Cp465BdkCo05rJO
+         nC/4DuWiZzs7DticWq5UUYhRlVJrXrgm0Ph5eE3i8DBRaC8auL996Q7Pd8TQY2/7jW+7
+         erE04SPCoeXYgWqOWvwQ8cTa2TM59Kk+iHPq8H1yQ2nzo2mjT/TsJyQWF4wweaWGqnDM
+         Anvu1zDRnJPCx3Rocn+C5vKVB0lC0F16eDPVR+L3eE82aiijgbcddtPjtNQuOlaXQS4Q
+         M6ng==
+X-Gm-Message-State: APjAAAVz+rtCvPRpzQLg5P/89lwEduSChcCpt2xpjc87kKpaVQx96IDa
+	iP7Ae/PYvYoSrZGsgqE72fFJH4UbcvCSGTX0RbAIvX9feG/9FSVA7oykAYP5b1Pi+zT8S+ZgmFw
+	x4BWfDlcIPcsGlhfhH2ILAC+2c1Xvc9jbctOQpK8RyzkEea6aXckOahUHEjskXBGqrQ==
+X-Received: by 2002:a63:5a20:: with SMTP id o32mr3306658pgb.225.1554348644815;
+        Wed, 03 Apr 2019 20:30:44 -0700 (PDT)
+X-Received: by 2002:a63:5a20:: with SMTP id o32mr3306569pgb.225.1554348643740;
+        Wed, 03 Apr 2019 20:30:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554348643; cv=none;
         d=google.com; s=arc-20160816;
-        b=yZTy3MAlSCPEJUCRH5lK/WQT12LUcSJZ5K+YIs6gCMKrfJzkqv3AnSCI/dL2lN6T6+
-         6AXVlWkIVRp4HEdvKztaVHPlbZRXktXkbllpEkdreq7iH+AUXl2Ba01cjFKrZZn7wey+
-         yTzlj6T+Cg+lYPg3sVfI3DQ3jZ7lCZatF4yjTTy3/yLKeKthJjjSwlrlGD/BJvrmq2PZ
-         eoZMqRJ1KzBTszQ4XwI3pj2X0cc4kZVQnALCfYnBVdWiJaM7IWDqvph+XnWqqLD5pJhO
-         L9ki8yN8uA5Mug+bgNL1wHKzQJMcKr9sP9ShXBPi/1RJPkvAcc/LZw7XqUTh1Gt4YmYC
-         U3ng==
+        b=aTgZsjhxUZI02mI4ZVH291SgZJ8JPmtYessclIwqQDi87a6lllHFkvA33nvfW/RX1v
+         BmMkFHsfvwv7vnjFyUHP1oBBY9hITMWUmkyXqRaVTFy13OxvWneVPE2+WHuLT2jV3+pm
+         NS8B7UdFCw2kNBZOzxVdAzhDCgV+GnEiqV44o1rlu5cMS1pDuWs/4gI+XLsUS1NdlMIl
+         EJdq5W0FdIT/AHveCAOcC3agm42t6XEpMdUtKH4/DZ+0uhhsvTSVQPNiLkbY6Qgft9D4
+         ftxzhSCuJrpfAQhfFkyKoqyxl/4ytgTY7z0BYu0hfCNEqzLEdtAIsLhcLaQZ8wehhwvd
+         5zyQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=message-id:date:subject:to:from:dkim-signature;
-        bh=OFrH6yUQs4lhopvXqwVEFAjv4sQz8EJS3WfpjR4cwWs=;
-        b=fOvwH0etkGiseXQFFoyqS832A/EbBhSfz/M3wGtphf2PKVhpUUcvPjealQCDr/kE3h
-         lGjmL1WUbV5HK2W7b+ymyJ4IhPlBs/YFPvxpeYZhEi3JjLdXkOq8iO5iJUAw7V3HfqYV
-         y3pGYFbJGfM7b1kJcRoVzH7bDH790bR4Ydg9NisA959UKXXF7FiRYTnYRg5rr7bQ+vb1
-         RcB5xEK9hZrW6gnajqH4OqVChCbTRGVxwQ3dbhRH7ywW3cQ1gwdxxU0PRN8lWV/FI2xv
-         vucnlmXIS60xHry0ASLMKdMVe/ENAzD0vP1gG+OQSenf2rzkj98V1VhmIqvaICHPq0To
-         Ew4w==
+        bh=lv8NVbJO6cxJt5xlEdH0XCLVCT+ImQmsAWGyClGMj7s=;
+        b=aK/+vxot6cdS1fWe2VFAey6vClerZRFMI7hPhzsbo51QUr56FzY6ozNuJNBqQmk3dX
+         m0Tz2kA8xt8IrMXyij8UttflQByN3LUZtD67knXIceFKqYJTkWHiJCPsMOLpde1d9i3B
+         E7cwS2/0384YxvCuDNoBKWxImDH+DqSgxpdIaxiTnGepR2ZRZLafLEItiWGC/CRsbdht
+         53oLH6WIMcQ3aub6jZ4WxjmiTNZz8JAU+AFLr8EHoK0NB9u+JGkwX6OJ5Cs8KRkpXkkF
+         JY78dcm3WrLgH7J57ZLxbzriRP8Fx9tALmpnFC03beKGeeIjAbwG+3n/ikSLPN2PSreZ
+         IavA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=StRH5oW7;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Bs+UaaYK;
        spf=pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=huangzhaoyang@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r5sor15245332pgr.42.2019.04.03.19.03.30
+        by mx.google.com with SMTPS id x80sor19594301pgx.79.2019.04.03.20.30.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 03 Apr 2019 19:03:30 -0700 (PDT)
+        Wed, 03 Apr 2019 20:30:43 -0700 (PDT)
 Received-SPF: pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=StRH5oW7;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Bs+UaaYK;
        spf=pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=huangzhaoyang@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:subject:date:message-id;
-        bh=OFrH6yUQs4lhopvXqwVEFAjv4sQz8EJS3WfpjR4cwWs=;
-        b=StRH5oW7ol0qJacNcLUKg6mElxHwgHClJj3sVgqC5ElSoLQoEqlICWkYPdE8xcDLMr
-         wmS9qErF3MFwEqd3sWtltmY2GkToAzT0L3rM+aLGqZYT1fCSZPJvCTgnMeEkiWT8Rcr/
-         uzgScX2JvC8+w9EGaTnDLTbeMXeim9QCIvfB0HmTwkWfuW7JPFLfFanMV40HLjJs8uUr
-         +KTfpyzIIdaCyN8DhWxKT5d7DaWQaXq+UrOFoSeZP2A/HyCDZK48VV0La4US8Qc7sUXf
-         atCp4Hr03GEtEBmWkCuWIps1fCHksW2ElDeh5yj27jFKlFcst9ahbChzTefOxGm1yrz/
-         XBBw==
-X-Google-Smtp-Source: APXvYqyYj7scXs4rbtSWVf5ySYOl11Xmr38bvaJJ86L2IVxr/FPYntWmAhcWF90zhcyX4IACstd3ZA==
-X-Received: by 2002:a65:64d3:: with SMTP id t19mr3058941pgv.57.1554343410596;
-        Wed, 03 Apr 2019 19:03:30 -0700 (PDT)
+        bh=lv8NVbJO6cxJt5xlEdH0XCLVCT+ImQmsAWGyClGMj7s=;
+        b=Bs+UaaYK7meC5Cxn0BfLUhKq2cxLzN/IxzdWFfI5ouoUAsAeWY/0ic8yvAyF4Z3FP5
+         i43xuSQd3ClJH05R4RJxnYS0ER2iOFW6gWgjtzGILMCcuO3Jl0mEYYBMMZbd9crz0Fkk
+         j38WPKQwMtWfl1wqCKRJjmrvUdCRueIi6qFRze4qBGMFlO/Bom4h49eUFkFp0fr0qPqb
+         jkiZEFj9FfdqmzlC/1Mqaie5zpbQSC9zoKpOZVuffBuR3bElTFJTcbViqaiGqH/ph6Vw
+         Zm5F6E0AFOF/fSie8TBulqSyiCP1ObxhGBEjD1cZ1DtdNAvnsrKPFQpL5gW4FV3Ir+wW
+         v4dw==
+X-Google-Smtp-Source: APXvYqwUv0dDc5yX7JjWTWOotQnOt3ARoTj1FoGAfJdEyBh+T0nU/S8/a+Kf7sdDsKqbttMjLkaaEQ==
+X-Received: by 2002:a63:6a42:: with SMTP id f63mr3345989pgc.207.1554348643029;
+        Wed, 03 Apr 2019 20:30:43 -0700 (PDT)
 Received: from bj03382pcu.spreadtrum.com ([117.18.48.82])
-        by smtp.gmail.com with ESMTPSA id e4sm20065805pgd.32.2019.04.03.19.02.35
+        by smtp.gmail.com with ESMTPSA id j4sm27324017pfn.132.2019.04.03.20.30.34
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 03 Apr 2019 19:03:29 -0700 (PDT)
+        Wed, 03 Apr 2019 20:30:42 -0700 (PDT)
 From: Zhaoyang Huang <huangzhaoyang@gmail.com>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Vlastimil Babka <vbabka@suse.cz>,
 	Pavel Tatashin <pasha.tatashin@oracle.com>,
 	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
 	David Rientjes <rientjes@google.com>,
+	Zhaoyang Huang <zhaoyang.huang@unisoc.com>,
 	Roman Gushchin <guro@fb.com>,
 	Jeff Layton <jlayton@redhat.com>,
 	Matthew Wilcox <mawilcox@microsoft.com>,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
 Subject: [PATCH] mm:workingset use real time to judge activity of the file page
-Date: Thu,  4 Apr 2019 10:01:43 +0800
-Message-Id: <1554343303-11880-1-git-send-email-huangzhaoyang@gmail.com>
+Date: Thu,  4 Apr 2019 11:30:17 +0800
+Message-Id: <1554348617-12897-1-git-send-email-huangzhaoyang@gmail.com>
 X-Mailer: git-send-email 1.7.9.5
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -117,13 +117,15 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Zhaoyang Huang <Zhaoyang Huang@unisoc.com>
+From: Zhaoyang Huang <zhaoyang.huang@unisoc.com>
 
 In previous implementation, the number of refault pages is used
-for judging the refault period of each page, which is not precised.
-We introduce the timestamp into the workingset's entry to measure
-the file page's activity.
-
+for judging the refault period of each page, which is not precised as
+eviction of other files will be affect a lot on current cache.
+We introduce the timestamp into the workingset's entry and refault ratio
+to measure the file page's activity. It helps to decrease the affection
+of other files(average refault ratio can reflect the view of whole system
+'s memory).
 The patch is tested on an Android system, which can be described as
 comparing the launch time of an application between a huge memory
 consumption. The result is launch time decrease 50% and the page fault
