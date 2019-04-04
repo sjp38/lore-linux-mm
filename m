@@ -2,82 +2,83 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 83F4EC4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 07:52:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EB63AC4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 07:56:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1702C2147C
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 07:52:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9DDF720674
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 07:56:56 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="QfMRF0P0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1702C2147C
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="eFm8AusD"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9DDF720674
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 73D7D6B0005; Thu,  4 Apr 2019 03:52:45 -0400 (EDT)
+	id 31CA86B0005; Thu,  4 Apr 2019 03:56:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 715466B0007; Thu,  4 Apr 2019 03:52:45 -0400 (EDT)
+	id 2A4406B0006; Thu,  4 Apr 2019 03:56:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 603CD6B0008; Thu,  4 Apr 2019 03:52:45 -0400 (EDT)
+	id 120F56B0007; Thu,  4 Apr 2019 03:56:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 269906B0005
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 03:52:45 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id g1so1239600pfo.2
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 00:52:45 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C8B326B0005
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 03:56:55 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id n63so1222830pfb.14
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 00:56:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=cMJWzxe4Ao25HkpKxnpYPU9EEB9na0XP+peiUGUVxig=;
-        b=BLlhLKB50mohoYCwbIeXWXciE1oX1GFOVKSoAkxDfylkx90dA+PhqNOLy2L74R/EAS
-         2mwXdhf82H3lOSFFWsbsRuAgHC0HoMQ3EhIQcfOvo4lPgTFFqsZ7in2YJ481QOOwqtn3
-         16nyhPaY1rKzEYlbb1yHpyFGdkuMGgd4ak7cKrY8DnQlyUNe8JEME+3brJhTYVlsiS6a
-         xSbA7pcYRfY+n+ycIjxV+uBQk6z1Xng9kU2E8uwu4KVEpSZiMqMf+7uXVgWWGzYdcZKb
-         y3F9IxzUQjD4Xfvoujotzs4Wk/Sh2QXrvXaeHtoxyqYWAS74O2vGZcFjmhmhH7P3CO9W
-         0mvg==
-X-Gm-Message-State: APjAAAXURBkI1VzZ5DigGniJ9sgbtuuWidOu9zL38tandiN+8r+8MxBL
-	K3Hzc5X5Avj1out7L+3hff2csEQUIKROIjTmKpFkw/1q8YxbQ5LREL8yTXV1N5GRwCrhE4Ow49o
-	mnTIS4lR0swNR2MIrRxRiz0kLtrRp6CAnzqXrA/9FsIEh+nvOQiJbC+8l6nCunbg80Q==
-X-Received: by 2002:a63:ed10:: with SMTP id d16mr4356834pgi.75.1554364363218;
-        Thu, 04 Apr 2019 00:52:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwcsnp2qd+OjH0F71rTm5uyOpzK2uH6TN/7qxvJdwhcfxRbmuZzg6DCDqUQFOo+E4NrN4hZ
-X-Received: by 2002:a63:ed10:: with SMTP id d16mr4356782pgi.75.1554364362301;
-        Thu, 04 Apr 2019 00:52:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554364362; cv=none;
+        bh=sNr0UCNtybW5G7vqlzh4XQP02LQ1aNT5Ns3ahyoQ+Yk=;
+        b=o8jE1yd9NUqligx+MSOkZCFDSG0J9nNANErv7j2ZIH/WHHNzuA4xIy4VnSObemCOVX
+         otK+Th++2EhlbFgcijjWgTy4C4NL7bTvy/CTYLg5M4jH4RJ81qfUwABDmgMR2KjUq7nC
+         l9MXPVF8aeRj9mpbevxS4FJ++BtcDQMvz5idcThpPLxCyRjBGtqjGWRmjryElLCyhvYz
+         N8BjF9/N9T1z9D8YdJ4z8w5U+dT6ZIMYndVWWRQKY0kvMhNTlR9xlInoROAnw2FYnrnf
+         w2YwlvkK3upCUk3GRmNtZAxdvd2mzF7WMniKAC3dZCJoEtTGDYNiAUqAFwuTpNpyr6EW
+         AyPA==
+X-Gm-Message-State: APjAAAUQ/5aUKkJqXaYQWPU55YPyugs9LO6BrHIheh6k56HOcA0L8Jnd
+	4bzdZjApHFJhGiHcNer1hRCLAahaEWYQesog3IJfW0bwzLNBBbp86njrjkEr7sCJO5GIMmi2LFT
+	3QBQQbE1hgE8LSjotnkK83UpiHb12wcAFaHUy4IO5wMaSg7ztvJk5yG88wyTIy2qsBw==
+X-Received: by 2002:a63:1659:: with SMTP id 25mr4224605pgw.275.1554364615394;
+        Thu, 04 Apr 2019 00:56:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzI2FVcbKn5fVZtDCPeKc/Fr7XpyzuhX5E8157qFSCLS8lkISFljubkHWNvaLLkzCqANAlC
+X-Received: by 2002:a63:1659:: with SMTP id 25mr4224487pgw.275.1554364613079;
+        Thu, 04 Apr 2019 00:56:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554364613; cv=none;
         d=google.com; s=arc-20160816;
-        b=oVbcxIg9mf1TA8mD4Q8K+KIOVPSgYhiaWtz0cHjgBkIbLhoZgnRJ/U2wNvGcVnx54k
-         le51uexMheRSlcmeGEMnU03aAllUiYliYhWIZ/PTgRruVEVaqFrqrCQqHdrGGacQsM99
-         5P6lnHS93+P8J/2YqMDyCN7/bb2IbcBlDhzgvSy05WmJtdd+W9J/qlythfAuC8JI/Iq1
-         t3MNpJ6WuYRqcoN8Sn5bYa9eo5A2BtXx4kHayptr5wYp0qlurbVfVT9D1VHwwOoLKfrf
-         gRdzmZOylS0KY5rX4nIsEePvBxYsnUm4H8F2R4tB5XKg6yhMP5HspMUIExuKmi35otkb
-         IAOw==
+        b=bhZbsZNh7PZkgFHymIqn3XEHvxI6ZlQjbR6JwE8m0vau8R50K84ZPeddzkEBcCHGBR
+         Eb6+/05AeoXARZlLbXAJ3K9o7z18JJ00RQFRRgHwi0Ek5cVz9F9ZjbuyHTBiLoevUWLS
+         vykEK4K5QG/XBjxqb/glbBNgerPy7Sz4qD/hncKwjYR8vKZSKUBsoHt2j/xBqEMSXOs4
+         cbx6xttz2LMGlrf6csl1Jpw7U1z2Z+ggHIBK+eADpKtwWm1x0Z6rh/sYijAKmPeilbcj
+         ee8+Amr7JazcX/RrEQQhLWkjd1LxZRnbArTsEDmyzuitXu45gRbnCCqBbqPwJZiFODA/
+         Jujw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=cMJWzxe4Ao25HkpKxnpYPU9EEB9na0XP+peiUGUVxig=;
-        b=gjP6MeEg3wZ4sk7HLcqJvWcF3eypN9XpwclWPe1fku2cy+Ui6KZZhLbt26tV7ZCADI
-         LZ0uJBNXtcxPNLBzVyT5/MuYHDsIgaeYiEhr2b1Zq8puhZebSM1tgyZzOChW6EdVDqxr
-         E3RV4sXV+DGQtandamUCeii2l5ulwOVsnjIqZLI1O93540I3+gMYbX2QlCqD4W8qYpEG
-         aDCxh+0DA6KLUbe/cf+8vUFaF0p5w2MInA9molSZ6J4Bj+HW11kkp3b2Eyw8T43gU8Ef
-         zI8oRke7EJ34d6OBO97PjFTGI8kOdDCe/3VNjHDGEOT8NmRFaqZ+yIOXl5TF14M9p+mN
-         CcAA==
+        bh=sNr0UCNtybW5G7vqlzh4XQP02LQ1aNT5Ns3ahyoQ+Yk=;
+        b=cf8OF8qM+CV4/5uTo/V26WB4e7D7932Wm6lJ0f5ufYom3/LoSCdQHL0R21n9TDl0Ia
+         QiJ9eSwZ1lha6CcZ7+rrIJlxWGmEQ/C9ZEs6EZrgN9FD2iPDUf/ibTfL/uc6oovKtjF1
+         gvzue6umF7XQ0BFmCwsuOymA9Y9aOUUCAOKUzSbarQyT27MoCy23boLv/zN78HMkodwK
+         qyGGL3wT5R38aOPlb+giL0ycnrUtVd0WWUsC+AvDCHIFa79vMAbcJMMr9lD2o13mo5G0
+         4FUyGXKQMOGBukP9vsIMPdRCQ9rKp6m08z/Hh/ruFGS5R2xCXeYj//YrpNdmA5Wl/9sH
+         r/bA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=QfMRF0P0;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=eFm8AusD;
        spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id m3si15229356pgp.263.2019.04.04.00.52.42
+        by mx.google.com with ESMTPS id e3si11126696pfn.164.2019.04.04.00.56.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 04 Apr 2019 00:52:42 -0700 (PDT)
+        Thu, 04 Apr 2019 00:56:53 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=QfMRF0P0;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=eFm8AusD;
        spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
@@ -85,31 +86,29 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
 	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
 	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=cMJWzxe4Ao25HkpKxnpYPU9EEB9na0XP+peiUGUVxig=; b=QfMRF0P0o4xB65zKJwlQQn3vD
-	cFmhPptsCyvoTWqUCtdr2/GyQ6lQCYKQeUtoCWYwdO9lJqy0G+r51s/+otu96QwShwhDZZtDGnn89
-	bHugKSoUDmx/nAKIvsQH04Kk6kHpMmy+MxrKGEp2z4OSRUM+Z1I5Ze6KLkQ4H9FhSA61hXC5tUszP
-	RGP47SDri9X8Q1Sm9ck41cKQiBOAUlCvLBMWwrDsJpTTfCpqMpsOvW4OOCw2eJegBZzi0cQFiifDt
-	8phiRtPVp1tnIxicGVce6xUBDhVhdzkO+5GR0BB9IXW+UMCy5E0ngOyFpFrnpUXhOFtFyqOY6SHiS
-	Su54werTQ==;
+	 bh=sNr0UCNtybW5G7vqlzh4XQP02LQ1aNT5Ns3ahyoQ+Yk=; b=eFm8AusDBgX3GWUX8LDuMd3Rk
+	C3a398T3Ughz/tFXlkt3oUAvixILp0rtPpjU6H7/OMdaw9nae7WjWhxxgCcrSGksjwZvnL47TlwHp
+	XVRXuUVsdH0J6qDly4I1BeYn1aMWTKq56mguQBwdkR9VGP2RfAvajE3krzJOWdmDMymMVno6hSQys
+	7726882pVsttLds/EhwcothsC1Qeet4x+hZQq6LhZ0/d757ruB9JQXCCTGLjCt1TgF0XPzGuJfuL9
+	1tJK8p3Ci3KfsgbFotzcj+2fV0XGFJENE+8bX6swcorJIn/4P/IawMq/hvV3OCZi0S1tCOMIN8/ZX
+	SAOKNV6Tw==;
 Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
 	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hBxAN-0003vm-T6; Thu, 04 Apr 2019 07:52:08 +0000
+	id 1hBxEv-0006RG-TV; Thu, 04 Apr 2019 07:56:50 +0000
 Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 3C8DD2022A093; Thu,  4 Apr 2019 09:52:06 +0200 (CEST)
-Date: Thu, 4 Apr 2019 09:52:06 +0200
+	id 63BAA2038C247; Thu,  4 Apr 2019 09:56:48 +0200 (CEST)
+Date: Thu, 4 Apr 2019 09:56:48 +0200
 From: Peter Zijlstra <peterz@infradead.org>
 To: Khalid Aziz <khalid.aziz@oracle.com>
 Cc: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de,
 	ak@linux.intel.com, liran.alon@oracle.com, keescook@google.com,
-	konrad.wilk@oracle.com,
-	Juerg Haefliger <juerg.haefliger@canonical.com>,
-	deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
-	tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
-	jcm@redhat.com, boris.ostrovsky@oracle.com,
-	kanth.ghatraju@oracle.com, joao.m.martins@oracle.com,
-	jmattson@google.com, pradeep.vincent@oracle.com,
-	john.haxby@oracle.com, tglx@linutronix.de,
-	kirill.shutemov@linux.intel.com, hch@lst.de,
+	konrad.wilk@oracle.com, deepa.srinivasan@oracle.com,
+	chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk,
+	andrew.cooper3@citrix.com, jcm@redhat.com,
+	boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com,
+	joao.m.martins@oracle.com, jmattson@google.com,
+	pradeep.vincent@oracle.com, john.haxby@oracle.com,
+	tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de,
 	steven.sistare@oracle.com, labbott@redhat.com, luto@kernel.org,
 	dave.hansen@intel.com, aaron.lu@intel.com,
 	akpm@linux-foundation.org, alexander.h.duyck@linux.intel.com,
@@ -141,15 +140,20 @@ Cc: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de,
 	linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org,
 	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
 	linux-security-module@vger.kernel.org,
-	Khalid Aziz <khalid@gonehiking.org>
-Subject: Re: [RFC PATCH v9 04/13] xpfo, x86: Add support for XPFO for x86-64
-Message-ID: <20190404075206.GP4038@hirez.programming.kicks-ass.net>
+	Khalid Aziz <khalid@gonehiking.org>,
+	kernel-hardening@lists.openwall.com,
+	"Vasileios P . Kemerlis" <vpk@cs.columbia.edu>,
+	Juerg Haefliger <juerg.haefliger@canonical.com>,
+	David Woodhouse <dwmw2@infradead.org>
+Subject: Re: [RFC PATCH v9 11/13] xpfo, mm: optimize spinlock usage in
+ xpfo_kunmap
+Message-ID: <20190404075648.GQ4038@hirez.programming.kicks-ass.net>
 References: <cover.1554248001.git.khalid.aziz@oracle.com>
- <c15e7d09dfe3dfdb9947d39ed0ddd6573ff86dbf.1554248002.git.khalid.aziz@oracle.com>
+ <5bab13e12d4215112ad2180106cc6bb9b513754a.1554248002.git.khalid.aziz@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <c15e7d09dfe3dfdb9947d39ed0ddd6573ff86dbf.1554248002.git.khalid.aziz@oracle.com>
+In-Reply-To: <5bab13e12d4215112ad2180106cc6bb9b513754a.1554248002.git.khalid.aziz@oracle.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -157,189 +161,75 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 03, 2019 at 11:34:05AM -0600, Khalid Aziz wrote:
-> diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-> index 2779ace16d23..5c0e1581fa56 100644
-> --- a/arch/x86/include/asm/pgtable.h
-> +++ b/arch/x86/include/asm/pgtable.h
-> @@ -1437,6 +1437,32 @@ static inline bool arch_has_pfn_modify_check(void)
->  	return boot_cpu_has_bug(X86_BUG_L1TF);
->  }
+On Wed, Apr 03, 2019 at 11:34:12AM -0600, Khalid Aziz wrote:
+> From: Julian Stecklina <jsteckli@amazon.de>
+> 
+> Only the xpfo_kunmap call that needs to actually unmap the page
+> needs to be serialized. We need to be careful to handle the case,
+> where after the atomic decrement of the mapcount, a xpfo_kmap
+> increased the mapcount again. In this case, we can safely skip
+> modifying the page table.
+> 
+> Model-checked with up to 4 concurrent callers with Spin.
+> 
+> Signed-off-by: Julian Stecklina <jsteckli@amazon.de>
+> Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
+> Cc: Khalid Aziz <khalid@gonehiking.org>
+> Cc: x86@kernel.org
+> Cc: kernel-hardening@lists.openwall.com
+> Cc: Vasileios P. Kemerlis <vpk@cs.columbia.edu>
+> Cc: Juerg Haefliger <juerg.haefliger@canonical.com>
+> Cc: Tycho Andersen <tycho@tycho.ws>
+> Cc: Marco Benatto <marco.antonio.780@gmail.com>
+> Cc: David Woodhouse <dwmw2@infradead.org>
+> ---
+>  include/linux/xpfo.h | 24 +++++++++++++++---------
+>  1 file changed, 15 insertions(+), 9 deletions(-)
+> 
+> diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
+> index 2318c7eb5fb7..37e7f52fa6ce 100644
+> --- a/include/linux/xpfo.h
+> +++ b/include/linux/xpfo.h
+> @@ -61,6 +61,7 @@ static inline void xpfo_kmap(void *kaddr, struct page *page)
+>  static inline void xpfo_kunmap(void *kaddr, struct page *page)
+>  {
+>  	unsigned long flags;
+> +	bool flush_tlb = false;
 >  
-> +/*
-> + * The current flushing context - we pass it instead of 5 arguments:
-> + */
-> +struct cpa_data {
-> +	unsigned long	*vaddr;
-> +	pgd_t		*pgd;
-> +	pgprot_t	mask_set;
-> +	pgprot_t	mask_clr;
-> +	unsigned long	numpages;
-> +	unsigned long	curpage;
-> +	unsigned long	pfn;
-> +	unsigned int	flags;
-> +	unsigned int	force_split		: 1,
-> +			force_static_prot	: 1;
-> +	struct page	**pages;
-> +};
+>  	if (!static_branch_unlikely(&xpfo_inited))
+>  		return;
+> @@ -72,18 +73,23 @@ static inline void xpfo_kunmap(void *kaddr, struct page *page)
+>  	 * The page is to be allocated back to user space, so unmap it from
+>  	 * the kernel, flush the TLB and tag it as a user page.
+>  	 */
+> -	spin_lock_irqsave(&page->xpfo_lock, flags);
+> -
+>  	if (atomic_dec_return(&page->xpfo_mapcount) == 0) {
+> -#ifdef CONFIG_XPFO_DEBUG
+> -		WARN_ON(PageXpfoUnmapped(page));
+> -#endif
+> -		SetPageXpfoUnmapped(page);
+> -		set_kpte(kaddr, page, __pgprot(0));
+> -		xpfo_flush_kernel_tlb(page, 0);
+> +		spin_lock_irqsave(&page->xpfo_lock, flags);
 > +
-> +
-> +int
-> +should_split_large_page(pte_t *kpte, unsigned long address,
-> +			struct cpa_data *cpa);
-> +extern spinlock_t cpa_lock;
-> +int
-> +__split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
-> +		   struct page *base);
-> +
-
-I really hate exposing all that.
-
->  #include <asm-generic/pgtable.h>
->  #endif	/* __ASSEMBLY__ */
->  
-
-> diff --git a/arch/x86/mm/xpfo.c b/arch/x86/mm/xpfo.c
-> new file mode 100644
-> index 000000000000..3045bb7e4659
-> --- /dev/null
-> +++ b/arch/x86/mm/xpfo.c
-> @@ -0,0 +1,123 @@
-> +// SPDX-License-Identifier: GPL-2.0
-> +/*
-> + * Copyright (C) 2017 Hewlett Packard Enterprise Development, L.P.
-> + * Copyright (C) 2016 Brown University. All rights reserved.
-> + *
-> + * Authors:
-> + *   Juerg Haefliger <juerg.haefliger@hpe.com>
-> + *   Vasileios P. Kemerlis <vpk@cs.brown.edu>
-> + *
-> + * This program is free software; you can redistribute it and/or modify it
-> + * under the terms of the GNU General Public License version 2 as published by
-> + * the Free Software Foundation.
-> + */
-> +
-> +#include <linux/mm.h>
-> +
-> +#include <asm/tlbflush.h>
-> +
-> +extern spinlock_t cpa_lock;
-> +
-> +/* Update a single kernel page table entry */
-> +inline void set_kpte(void *kaddr, struct page *page, pgprot_t prot)
-> +{
-> +	unsigned int level;
-> +	pgprot_t msk_clr;
-> +	pte_t *pte = lookup_address((unsigned long)kaddr, &level);
-> +
-> +	if (unlikely(!pte)) {
-> +		WARN(1, "xpfo: invalid address %p\n", kaddr);
-> +		return;
-> +	}
-> +
-> +	switch (level) {
-> +	case PG_LEVEL_4K:
-> +		set_pte_atomic(pte, pfn_pte(page_to_pfn(page),
-> +			       canon_pgprot(prot)));
-
-(sorry, do we also need a nikon_pgprot() ? :-)
-
-> +		break;
-> +	case PG_LEVEL_2M:
-> +	case PG_LEVEL_1G: {
-> +		struct cpa_data cpa = { };
-> +		int do_split;
-> +
-> +		if (level == PG_LEVEL_2M)
-> +			msk_clr = pmd_pgprot(*(pmd_t *)pte);
-> +		else
-> +			msk_clr = pud_pgprot(*(pud_t *)pte);
-> +
-> +		cpa.vaddr = kaddr;
-> +		cpa.pages = &page;
-> +		cpa.mask_set = prot;
-> +		cpa.mask_clr = msk_clr;
-> +		cpa.numpages = 1;
-> +		cpa.flags = 0;
-> +		cpa.curpage = 0;
-> +		cpa.force_split = 0;
-> +
-> +
-> +		do_split = should_split_large_page(pte, (unsigned long)kaddr,
-> +						   &cpa);
-> +		if (do_split) {
-> +			struct page *base;
-> +
-> +			base = alloc_pages(GFP_ATOMIC, 0);
-> +			if (!base) {
-> +				WARN(1, "xpfo: failed to split large page\n");
-
-You have to be fcking kidding right? A WARN when a GFP_ATOMIC allocation
-fails?!
-
-> +				break;
-> +			}
-> +
-> +			if (!debug_pagealloc_enabled())
-> +				spin_lock(&cpa_lock);
-> +			if  (__split_large_page(&cpa, pte, (unsigned long)kaddr,
-> +						base) < 0) {
-> +				__free_page(base);
-> +				WARN(1, "xpfo: failed to split large page\n");
-> +			}
-> +			if (!debug_pagealloc_enabled())
-> +				spin_unlock(&cpa_lock);
-> +		}
-> +
-> +		break;
-
-Ever heard of helper functions?
-
-> +	}
-> +	case PG_LEVEL_512G:
-> +		/* fallthrough, splitting infrastructure doesn't
-> +		 * support 512G pages.
+> +		/*
+> +		 * In the case, where we raced with kmap after the
+> +		 * atomic_dec_return, we must not nuke the mapping.
 > +		 */
+> +		if (atomic_read(&page->xpfo_mapcount) == 0) {
+> +			SetPageXpfoUnmapped(page);
+> +			set_kpte(kaddr, page, __pgprot(0));
+> +			flush_tlb = true;
+> +		}
+> +		spin_unlock_irqrestore(&page->xpfo_lock, flags);
+>  	}
+>  
+> -	spin_unlock_irqrestore(&page->xpfo_lock, flags);
+> +	if (flush_tlb)
+> +		xpfo_flush_kernel_tlb(page, 0);
+>  }
 
-Broken coment style.
-
-> +	default:
-> +		WARN(1, "xpfo: unsupported page level %x\n", level);
-> +	}
-> +
-> +}
-> +EXPORT_SYMBOL_GPL(set_kpte);
-> +
-> +inline void xpfo_flush_kernel_tlb(struct page *page, int order)
-> +{
-> +	int level;
-> +	unsigned long size, kaddr;
-> +
-> +	kaddr = (unsigned long)page_address(page);
-> +
-> +	if (unlikely(!lookup_address(kaddr, &level))) {
-> +		WARN(1, "xpfo: invalid address to flush %lx %d\n", kaddr,
-> +		     level);
-> +		return;
-> +	}
-> +
-> +	switch (level) {
-> +	case PG_LEVEL_4K:
-> +		size = PAGE_SIZE;
-> +		break;
-> +	case PG_LEVEL_2M:
-> +		size = PMD_SIZE;
-> +		break;
-> +	case PG_LEVEL_1G:
-> +		size = PUD_SIZE;
-> +		break;
-> +	default:
-> +		WARN(1, "xpfo: unsupported page level %x\n", level);
-> +		return;
-> +	}
-> +
-> +	flush_tlb_kernel_range(kaddr, kaddr + (1 << order) * size);
-> +}
-
-You call this from IRQ/IRQ-disabled context... that _CANNOT_ be right.
+This doesn't help with the TLB invalidation issue, AFAICT this is still
+completely buggered. kunmap_atomic() can be called from IRQ context.
 
