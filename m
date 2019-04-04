@@ -8,125 +8,125 @@ X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6DEE6C4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:01:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EBDEEC4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:01:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0F38420820
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:01:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8C47620820
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:01:43 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=sent.com header.i=@sent.com header.b="P/2vymj9";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="8LiFw7Ip"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F38420820
+	dkim=pass (2048-bit key) header.d=sent.com header.i=@sent.com header.b="YnCSB3YN";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="jdmARHKr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8C47620820
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=sent.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C8A996B026B; Wed,  3 Apr 2019 22:01:28 -0400 (EDT)
+	id E86686B026C; Wed,  3 Apr 2019 22:01:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C3AE36B026C; Wed,  3 Apr 2019 22:01:28 -0400 (EDT)
+	id E37AF6B026D; Wed,  3 Apr 2019 22:01:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B08676B026D; Wed,  3 Apr 2019 22:01:28 -0400 (EDT)
+	id CDC546B026E; Wed,  3 Apr 2019 22:01:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A31E6B026B
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 22:01:28 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id v2so908587qkf.21
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 19:01:28 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DE406B026C
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 22:01:30 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id q21so954432qtf.10
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 19:01:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
          :date:message-id:in-reply-to:references:reply-to:mime-version
          :content-transfer-encoding;
-        bh=6ZpqxtTHTHc65gkfR21N4lwZirSEr4tGkw1nMDmRxNg=;
-        b=Xpy4khlz7Q0f58ffY67Y4NPTw2EXTPkoPa9Vo9BYpIov5eV4YWC9dG0CG1iN8Z5LLM
-         kIxloPBS2T10Q5eoVWmj0aAis1WaI61SxtX9bL1BrS0L7F2prlYyu+Dn1FLK9uUo+qYW
-         y7bNFdzg3D85CAgReLPLfbksgCZtICSqJxZySU1GBcMBMinSXkQ+w8zagryAupzPYBG+
-         TDpeQnyLcME4JIjqgNjyN9MSVksPXNQUkQd5REH3Q1BXlS4Bo73pCINrQmkKqRa01RO3
-         puPzhN1lvYLHAQZGxg28TLDtfcJX05kqTNAvz0+PESVZMSk/cXVYhQ/pXq5YPi9xHlvf
-         HuRg==
-X-Gm-Message-State: APjAAAXH+NGJ9Hm5WPqP9xDCqc3IW+8imNJCwxkyXikxwXKPhF7s9/wY
-	O4gIIsSdbUbPLDdX8Udv23jNpnzklPYEoQLTgnklF2SlwKvutm+YIAcIa+DhJ3cR+RBUbnn0rm2
-	Cn1jA2nwD7XaG0czgGCcX6jjyYR61iubd84n1eVpetyTV6VEx1/Gg+JSuDk/yMSNUjA==
-X-Received: by 2002:a05:620a:130f:: with SMTP id o15mr3023640qkj.252.1554343288318;
-        Wed, 03 Apr 2019 19:01:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwXeCLa3y1nxt2ySgRndT7FTOPMk70Nnr85sNLETI1Yd+PXbai9ajvAThQ9TJfNYTOJElKM
-X-Received: by 2002:a05:620a:130f:: with SMTP id o15mr3023554qkj.252.1554343286965;
-        Wed, 03 Apr 2019 19:01:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554343286; cv=none;
+        bh=VIkgM+882IONo3Guhv/rUEZozu4u9IBUTwV5VJxdnmI=;
+        b=N0DW1bHJq4spRT3usTiIrqFQ03pDlT2QppFx2/B+Z/oVFxLezSnFXH+pKqqCB2+j/4
+         yHyPOvPYrH2OVQTIVnaD57i68X/XuqwE6PUsvzfxkgt1l3kE///byg9V+pBvcyJr8czD
+         qdv4t2VlMihUr8gjKrVluCdVsbHViTVXhSWwyPnJYyYgbsSJJg1oLDI7sGU4c3BfrQgG
+         4kfuSWoJOhPk9RZkkje1rNiPjOL7D4QMHA4/7JP/U0hbRra7Kiwi9+i4e10FS8ijhVtn
+         VxqmnN9ZUf1tUAs3x7hQhRfaIdSiyuEIMOHZai+u8Sx7PLp3lJDok2EN6f68Vq7XgVgi
+         Pscg==
+X-Gm-Message-State: APjAAAUSEZGUFdkL6OzDeaxTn6/KibfxwLn3SbQoH40l3RXpyh35NbES
+	lGySQnUClSoatPzJvG2TQrxENpx5QYwCskE4JYJxDhqApm9LSAtZQFJHZyap+PtldFxv/ErdOVa
+	5otG0okVs0ofCpT+FrmntAPsnC2d2GQH7gO72IxvZXZ0/34VKfQ+8VzZZopjaAaNFXA==
+X-Received: by 2002:aed:2196:: with SMTP id l22mr2947532qtc.226.1554343290392;
+        Wed, 03 Apr 2019 19:01:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyq5MgJsfL/87NNpSX5/eeP8tmAjwj8BbRJ0J2GVaDaDVOh2tJGrj1a+EctuF6z8uB5uf5W
+X-Received: by 2002:aed:2196:: with SMTP id l22mr2947479qtc.226.1554343289580;
+        Wed, 03 Apr 2019 19:01:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554343289; cv=none;
         d=google.com; s=arc-20160816;
-        b=sekh+quNtu5EwpegS/XiN8ImA2migo6ud6VgfEzcQRNVGQrm4mTtgJpQgXDtzs2s4L
-         hPs/mYxS0JtpxVl6+nha5I6brWNjA8EeI8YL+2zyGv8XTHksH8OYbobYTIGYSJ8vMRX4
-         fo3HqVcSf1Y8wy+K/r8N1dIXwv9rM7NtAHNJ2mg5vtiXvkuo+mbTEEAyfq/bU3T9CbCq
-         uHr0RIe+y4LjlDMvog6IO5GCQRzsbR1of4QC4b718zgg4sWMBLt8Xde3Q3srfVX9vkdO
-         SanIM8F86assIFLBOs+yEoEGqn/w9QaNQI9VwnH9fbNRqg/WuUj58SFYf8xuziOyx4uq
-         7GqA==
+        b=EMNR9gIExzZKBEJSJUdPisFeHKIfmZgDih8hhTsuVVL/mc0Lt4PMaISSnZbLgDE5UJ
+         n/6euq4MX0pzVn7grzKcWifjSF9TJdAvavTdH1Chb0PA3JJkW6r5+Yyfuxjc56rOxeNX
+         BmrYpg9K6OV0WYTenMk35DQoSGDyQBkkMYUnMoE6VIQRjA2TYmeZoEjrnEHa0oLZLKBA
+         lcC7QgUbisUdiN+OhkQkxSL8KUHlel4PeDjKKxgAW73J+xmufxV/5c74+4YpqM6pZfQW
+         7F0xz/UZ6ntwuuhKo8JSnDDXLJswKllVopQ6XPNJFPopnkanW5HGpRO2kCURYFfycX6e
+         sn1A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:reply-to:references
          :in-reply-to:message-id:date:subject:cc:to:from:dkim-signature
          :dkim-signature;
-        bh=6ZpqxtTHTHc65gkfR21N4lwZirSEr4tGkw1nMDmRxNg=;
-        b=BthWu1Bc05h/b9tMnXinqj62AjCCvdoxn0vvLsMAs/9k+mTsp47AQ4qJpvPFhrDrBf
-         8+6HXMpFOFZOCBLCw1IjVFIrB5adHMmp5QYIBpkhe+n+vT5XttdYvp8h0vr/Gi0/bYXQ
-         hiHOT1qk7cbIF0XYzMuh7GoBz9l2rnF0vcM6c0O95VOedkVBfvEYoKrS78degGL83Rpc
-         5RSAGn9yDlnScFt4TgY6GrhYnx7w/j0BVYLsUEDqsPKahRy2yxCH7g7GPeBjPNXaTKmZ
-         pgqclzFLnRixf02J0h4GFFdF+p4jdM0UjN+oqNRS4zGrsl/ZDu4PH8VSf7QRWiQNvme+
-         2LAg==
+        bh=VIkgM+882IONo3Guhv/rUEZozu4u9IBUTwV5VJxdnmI=;
+        b=EdeR9nf+3kvLz3zN3Vh6L8NUFQzFyIACoT6nsuaGi1ykG3Un4J86CvrIud0dp9T31G
+         w/DOEuq56EFNE3KfkZperCWs/PbnKYCtybERPjN1zkY6Acr42tCqMQGMHhVryYxOs7YK
+         019SDv3U/1jtcv4/OsyiR1YV6hBgVP7v2FcqSFq6WqqMK780phFS3jYeVhwEtoqDc2NV
+         AdW2ZQuGIJw+PHyv+xUtFQ7jt5ZfAQoU/NB0r2BEzQXvDvcO19a1rbqbINjKehY4yzpU
+         z07h9Qr6IW/RUB6cX0O50gKnAT0HpJW57c7N+BPvkkdGfX5gJHTa6mwtSbaECDi1J62a
+         nhGQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@sent.com header.s=fm3 header.b="P/2vymj9";
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=8LiFw7Ip;
+       dkim=pass header.i=@sent.com header.s=fm3 header.b=YnCSB3YN;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=jdmARHKr;
        spf=pass (google.com: domain of zi.yan@sent.com designates 66.111.4.29 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
 Received: from out5-smtp.messagingengine.com (out5-smtp.messagingengine.com. [66.111.4.29])
-        by mx.google.com with ESMTPS id m32si573275qvg.172.2019.04.03.19.01.26
+        by mx.google.com with ESMTPS id t17si4638019qkt.181.2019.04.03.19.01.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 19:01:26 -0700 (PDT)
+        Wed, 03 Apr 2019 19:01:29 -0700 (PDT)
 Received-SPF: pass (google.com: domain of zi.yan@sent.com designates 66.111.4.29 as permitted sender) client-ip=66.111.4.29;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@sent.com header.s=fm3 header.b="P/2vymj9";
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=8LiFw7Ip;
+       dkim=pass header.i=@sent.com header.s=fm3 header.b=YnCSB3YN;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=jdmARHKr;
        spf=pass (google.com: domain of zi.yan@sent.com designates 66.111.4.29 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.nyi.internal (Postfix) with ESMTP id A41B922694;
-	Wed,  3 Apr 2019 22:01:26 -0400 (EDT)
+	by mailout.nyi.internal (Postfix) with ESMTP id BC556226AD;
+	Wed,  3 Apr 2019 22:01:28 -0400 (EDT)
 Received: from mailfrontend2 ([10.202.2.163])
-  by compute3.internal (MEProxy); Wed, 03 Apr 2019 22:01:26 -0400
+  by compute3.internal (MEProxy); Wed, 03 Apr 2019 22:01:28 -0400
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=sent.com; h=from
 	:to:cc:subject:date:message-id:in-reply-to:references:reply-to
-	:mime-version:content-transfer-encoding; s=fm3; bh=6ZpqxtTHTHc65
-	gkfR21N4lwZirSEr4tGkw1nMDmRxNg=; b=P/2vymj9CobgSqo/KRxkjY3P/RjnS
-	mIIrbc/li7lTPkHRWM+arjKvaG0SeqSZSDBWZ/8MT2JovStY/VPvGUSvjmv6cY1N
-	oggj1vnYt0MQ9DcGsCBFQqcA4r7fn64o5qgsoP6FUWPAoEf9GdNCnyhy8lUy2fjF
-	rOSf/81l3/42yl3V9G8hB2Hz/L+ftlIsfQltHa3jAT3HfVT9Ah1zY2wgxdkC9eQ6
-	IjpsyfKVK7jwi1pkmpWL5XhNJqjM2XzifAIGwGKnCtDFNB33J5LlFyiwfcWAzn2A
-	s+zWWm43pwmspzERIz4UcYDrXj7jsvZ6vU9VxS06VPWowoFYhlGabCqUg==
+	:mime-version:content-transfer-encoding; s=fm3; bh=VIkgM+882IONo
+	3Guhv/rUEZozu4u9IBUTwV5VJxdnmI=; b=YnCSB3YNRz/K6xN+4chFMo1NLtyZ0
+	kfSrQtI9P1RLihuwc5xXZ086brvPD38Tj81bn6cCtVcknYPaPuPm3mzKZEy8TIlI
+	brQvSbwJe/XEAqOofxIGsuZNFXSsQV4vJiZZq3Uvko0zNgM2Nt4qS8jxInGurjaa
+	M3nMz1hhMw4mRPw31I8o/ONAOLsP371pKpx134KkRijpljihQHgWwQqHkU+uO/tz
+	UIF9+XCbyMYto9Lv3LtxTKIyj6YhubPWzxaoSgDnWTccQs856/ISylyoprlXRxhy
+	R15JZ0nbIBY+PbPcSI4OZoyYid9V88Y6wHJMt4xDMHfzwHLqNrnccDbkA==
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:reply-to:subject
 	:to:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=6ZpqxtTHTHc65gkfR21N4lwZirSEr4tGkw1nMDmRxNg=; b=8LiFw7Ip
-	Wot0oSyhzmOsxW7f8bKtllJDgs5MI+TwfS97Ur3S+I3Mvx0k/sx/KU4W3PjumwmZ
-	MHrkmvuXkfqzSzSTIlNOB/brsXAJSVappV/7vF28jDQis6Ec006ZtAhr1QqcWRJP
-	kjh++V2ker12Az9NOFYKgiBrk8EukNLApg3sTWEUj8C3PLSYRuLC9PLVwf64hm6V
-	z0xqmmRKnFkd5vVgRE9tXFVe9IElSEiouQTli5fa275eHrxcn2WSU9KW3uvjqFuo
-	UgU46Xyg5sBIvx224RbGwqHtDJ8QnF+5A/Gy7lKU53UVrVraWDzOb8h+M6pETLsf
-	f9PelGzAOtuGTw==
-X-ME-Sender: <xms:dmWlXFaP28Q-EfUKyh8JBGGenuZvZhcbdohzzVjNNiYunfIHDRLHSw>
+	fm2; bh=VIkgM+882IONo3Guhv/rUEZozu4u9IBUTwV5VJxdnmI=; b=jdmARHKr
+	73TxQMOntRLiEEfU1UDhBk9EGXmzpkGXFKVh4e4cGq7/FmBPaRIRgfXZmNN0cJej
+	xyfBRN79joGo30hm1m8rJ9b7sJBMpwZSPRCD0KWO6FezA26TBPU41/dRaEPC9ZSA
+	iQ2lMy54De3y7HRMG2ZVBisXUZdRFkPo6T2hKZ8uyptRf1k2W0GtsbUG4KcYoVQ6
+	rcD0/L7QOo09OnoVosRDag+/RLLdcYhQPNWVZWb3bUUF7wBuPKTmkEiARvtFZMlV
+	grBvJrHk3D2q0cAgz0NKJwMCSXARybhdFybXKKowkjvXra+9JvBXVksHoVX3BbIx
+	lHvFwhe9zrgbsQ==
+X-ME-Sender: <xms:eGWlXAG8AkZYSt82ETEFehdC-PiWjWrLc27UJXw2pil3iLV9YTBScw>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtdeggdehudculddtuddrgedutddrtddtmd
     cutefuodetggdotefrodftvfcurfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdp
     uffrtefokffrpgfnqfghnecuuegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivg
     hnthhsucdlqddutddtmdenucfjughrpefhvffufffkofgjfhhrggfgsedtkeertdertddt
     necuhfhrohhmpegkihcujggrnhcuoeiiihdrhigrnhesshgvnhhtrdgtohhmqeenucfkph
     epvdduiedrvddvkedrudduvddrvddvnecurfgrrhgrmhepmhgrihhlfhhrohhmpeiiihdr
-    higrnhesshgvnhhtrdgtohhmnecuvehluhhsthgvrhfuihiivgepge
-X-ME-Proxy: <xmx:dmWlXC7BF718WD1geqao7kKzjMOYgf4DN21pMSs5u88wD_ExxIPyQw>
-    <xmx:dmWlXLI1ETSmEcrUNSA8neKiqOCLEjjovRqaWYwlRluVz1rYMWgxYw>
-    <xmx:dmWlXNpdCryKN8HNkykQsn3nqYKpJ9Lze_MkqUvRKAc-tTmO2oOX2A>
-    <xmx:dmWlXKhTOwf-nr576_nhpr0eNRDEsDpdmHxiiKJFtRNWJ3VpIAzi0A>
+    higrnhesshgvnhhtrdgtohhmnecuvehluhhsthgvrhfuihiivgepje
+X-ME-Proxy: <xmx:eGWlXDAAUWnSD5rmseVGbFBJfMXVtD_BZ2uVjLzw1twWuI1jFlAaog>
+    <xmx:eGWlXBEUYSU_DaHgvrYiCgfVZ4oj96cy8cyAUaO6YrF9etYpLqvdSw>
+    <xmx:eGWlXGLuQASrUtnnheDKwlA1iHw7bxs7wlhbf8TFZq-03sUcSPukKA>
+    <xmx:eGWlXC8giEOkshyQcTrDY7HrKKM3M1A8EUWa0wHdQWQ89RoFW47hMQ>
 Received: from nvrsysarch5.nvidia.com (thunderhill.nvidia.com [216.228.112.22])
-	by mail.messagingengine.com (Postfix) with ESMTPA id D5C6C10310;
-	Wed,  3 Apr 2019 22:01:24 -0400 (EDT)
+	by mail.messagingengine.com (Postfix) with ESMTPA id 87CC310316;
+	Wed,  3 Apr 2019 22:01:26 -0400 (EDT)
 From: Zi Yan <zi.yan@sent.com>
 To: Dave Hansen <dave.hansen@linux.intel.com>,
 	Yang Shi <yang.shi@linux.alibaba.com>,
@@ -146,9 +146,9 @@ Cc: Daniel Jordan <daniel.m.jordan@oracle.com>,
 	Javier Cabezas <jcabezas@nvidia.com>,
 	David Nellans <dnellans@nvidia.com>,
 	Zi Yan <ziy@nvidia.com>
-Subject: [RFC PATCH 07/25] mm: migrate: Add copy_page_dma to use DMA Engine to copy pages.
-Date: Wed,  3 Apr 2019 19:00:28 -0700
-Message-Id: <20190404020046.32741-8-zi.yan@sent.com>
+Subject: [RFC PATCH 08/25] mm: migrate: Add copy_page_dma into migrate_page_copy.
+Date: Wed,  3 Apr 2019 19:00:29 -0700
+Message-Id: <20190404020046.32741-9-zi.yan@sent.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190404020046.32741-1-zi.yan@sent.com>
 References: <20190404020046.32741-1-zi.yan@sent.com>
@@ -163,376 +163,152 @@ List-ID: <linux-mm.kvack.org>
 
 From: Zi Yan <ziy@nvidia.com>
 
-vm.use_all_dma_chans will grab all usable DMA channels
-vm.limit_dma_chans will limit how many DMA channels in use
+Fallback to copy_highpage when it fails.
 
 Signed-off-by: Zi Yan <ziy@nvidia.com>
 ---
- include/linux/highmem.h      |   1 +
- include/linux/sched/sysctl.h |   3 +
- kernel/sysctl.c              |  19 +++
- mm/copy_page.c               | 291 +++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 314 insertions(+)
+ include/linux/migrate_mode.h   |  1 +
+ include/uapi/linux/mempolicy.h |  1 +
+ mm/migrate.c                   | 31 +++++++++++++++++++++----------
+ 3 files changed, 23 insertions(+), 10 deletions(-)
 
-diff --git a/include/linux/highmem.h b/include/linux/highmem.h
-index 0f50dc5..119bb39 100644
---- a/include/linux/highmem.h
-+++ b/include/linux/highmem.h
-@@ -277,5 +277,6 @@ static inline void copy_highpage(struct page *to, struct page *from)
- #endif
+diff --git a/include/linux/migrate_mode.h b/include/linux/migrate_mode.h
+index 5bc8a77..4f7f5557 100644
+--- a/include/linux/migrate_mode.h
++++ b/include/linux/migrate_mode.h
+@@ -23,6 +23,7 @@ enum migrate_mode {
+ 	MIGRATE_MODE_MASK = 3,
+ 	MIGRATE_SINGLETHREAD	= 0,
+ 	MIGRATE_MT				= 1<<4,
++	MIGRATE_DMA				= 1<<5,
+ };
  
- int copy_page_multithread(struct page *to, struct page *from, int nr_pages);
-+int copy_page_dma(struct page *to, struct page *from, int nr_pages);
+ #endif		/* MIGRATE_MODE_H_INCLUDED */
+diff --git a/include/uapi/linux/mempolicy.h b/include/uapi/linux/mempolicy.h
+index 890269b..49573a6 100644
+--- a/include/uapi/linux/mempolicy.h
++++ b/include/uapi/linux/mempolicy.h
+@@ -48,6 +48,7 @@ enum {
+ #define MPOL_MF_LAZY	 (1<<3)	/* Modifies '_MOVE:  lazy migrate on fault */
+ #define MPOL_MF_INTERNAL (1<<4)	/* Internal flags start here */
  
- #endif /* _LINUX_HIGHMEM_H */
-diff --git a/include/linux/sched/sysctl.h b/include/linux/sched/sysctl.h
-index 99ce6d7..ce11241 100644
---- a/include/linux/sched/sysctl.h
-+++ b/include/linux/sched/sysctl.h
-@@ -90,4 +90,7 @@ extern int sched_energy_aware_handler(struct ctl_table *table, int write,
- 				 loff_t *ppos);
- #endif
++#define MPOL_MF_MOVE_DMA (1<<5)	/* Use DMA page copy routine */
+ #define MPOL_MF_MOVE_MT  (1<<6)	/* Use multi-threaded page copy routine */
  
-+extern int sysctl_dma_page_migration(struct ctl_table *table, int write,
-+				 void __user *buffer, size_t *lenp,
-+				 loff_t *ppos);
- #endif /* _LINUX_SCHED_SYSCTL_H */
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 0eae0b8..b8712eb 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -103,6 +103,8 @@
+ #define MPOL_MF_VALID	(MPOL_MF_STRICT   | 	\
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 8a344e2..09114d3 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -553,15 +553,21 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
+  * specialized.
+  */
+ static void __copy_gigantic_page(struct page *dst, struct page *src,
+-				int nr_pages)
++				int nr_pages, enum migrate_mode mode)
+ {
+ 	int i;
+ 	struct page *dst_base = dst;
+ 	struct page *src_base = src;
++	int rc = -EFAULT;
  
- extern int accel_page_copy;
- extern unsigned int limit_mt_num;
-+extern int use_all_dma_chans;
-+extern int limit_dma_chans;
+ 	for (i = 0; i < nr_pages; ) {
+ 		cond_resched();
+-		copy_highpage(dst, src);
++
++		if (mode & MIGRATE_DMA)
++			rc = copy_page_dma(dst, src, 1);
++
++		if (rc)
++			copy_highpage(dst, src);
  
- /* External variables not in a header file. */
- extern int suid_dumpable;
-@@ -1451,6 +1453,23 @@ static struct ctl_table vm_table[] = {
- 		.extra1		= &zero,
- 	},
- 	 {
-+		.procname	= "use_all_dma_chans",
-+		.data		= &use_all_dma_chans,
-+		.maxlen		= sizeof(use_all_dma_chans),
-+		.mode		= 0644,
-+		.proc_handler	= sysctl_dma_page_migration,
-+		.extra1		= &zero,
-+		.extra2		= &one,
-+	 },
-+	 {
-+		.procname	= "limit_dma_chans",
-+		.data		= &limit_dma_chans,
-+		.maxlen		= sizeof(limit_dma_chans),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec,
-+		.extra1		= &zero,
-+	 },
-+	 {
- 		.procname	= "hugetlb_shm_group",
- 		.data		= &sysctl_hugetlb_shm_group,
- 		.maxlen		= sizeof(gid_t),
-diff --git a/mm/copy_page.c b/mm/copy_page.c
-index 6665e3d..5e7a797 100644
---- a/mm/copy_page.c
-+++ b/mm/copy_page.c
-@@ -126,3 +126,294 @@ int copy_page_multithread(struct page *to, struct page *from, int nr_pages)
+ 		i++;
+ 		dst = mem_map_next(dst, dst_base, i);
+@@ -582,7 +588,7 @@ static void copy_huge_page(struct page *dst, struct page *src,
+ 		nr_pages = pages_per_huge_page(h);
  
- 	return err;
+ 		if (unlikely(nr_pages > MAX_ORDER_NR_PAGES)) {
+-			__copy_gigantic_page(dst, src, nr_pages);
++			__copy_gigantic_page(dst, src, nr_pages, mode);
+ 			return;
+ 		}
+ 	} else {
+@@ -597,6 +603,8 @@ static void copy_huge_page(struct page *dst, struct page *src,
+ 
+ 	if (mode & MIGRATE_MT)
+ 		rc = copy_page_multithread(dst, src, nr_pages);
++	else if (mode & MIGRATE_DMA)
++		rc = copy_page_dma(dst, src, nr_pages);
+ 
+ 	if (rc)
+ 		for (i = 0; i < nr_pages; i++) {
+@@ -674,8 +682,9 @@ void migrate_page_copy(struct page *newpage, struct page *page,
+ {
+ 	if (PageHuge(page) || PageTransHuge(page))
+ 		copy_huge_page(newpage, page, mode);
+-	else
++	else {
+ 		copy_highpage(newpage, page);
++	}
+ 
+ 	migrate_page_states(newpage, page);
  }
-+/* ======================== DMA copy page ======================== */
-+#include <linux/dmaengine.h>
-+#include <linux/dma-mapping.h>
-+
-+#define NUM_AVAIL_DMA_CHAN 16
-+
-+
-+int use_all_dma_chans = 0;
-+int limit_dma_chans = NUM_AVAIL_DMA_CHAN;
-+
-+
-+struct dma_chan *copy_chan[NUM_AVAIL_DMA_CHAN] = {0};
-+struct dma_device *copy_dev[NUM_AVAIL_DMA_CHAN] = {0};
-+
-+
-+
-+#ifdef CONFIG_PROC_SYSCTL
-+extern int proc_dointvec_minmax(struct ctl_table *table, int write,
-+		  void __user *buffer, size_t *lenp, loff_t *ppos);
-+int sysctl_dma_page_migration(struct ctl_table *table, int write,
-+				 void __user *buffer, size_t *lenp,
-+				 loff_t *ppos)
-+{
-+	int err = 0;
-+	int use_all_dma_chans_prior_val = use_all_dma_chans;
-+	dma_cap_mask_t copy_mask;
-+
-+	if (write && !capable(CAP_SYS_ADMIN))
-+		return -EPERM;
-+
-+	err = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-+
-+	if (err < 0)
-+		return err;
-+	if (write) {
-+		/* Grab all DMA channels  */
-+		if (use_all_dma_chans_prior_val == 0 && use_all_dma_chans == 1) {
-+			int i;
-+
-+			dma_cap_zero(copy_mask);
-+			dma_cap_set(DMA_MEMCPY, copy_mask);
-+
-+			dmaengine_get();
-+			for (i = 0; i < NUM_AVAIL_DMA_CHAN; ++i) {
-+				if (!copy_chan[i]) {
-+					copy_chan[i] = dma_request_channel(copy_mask, NULL, NULL);
-+				}
-+				if (!copy_chan[i]) {
-+					pr_err("%s: cannot grab channel: %d\n", __func__, i);
-+					continue;
-+				}
-+
-+				copy_dev[i] = copy_chan[i]->device;
-+
-+				if (!copy_dev[i]) {
-+					pr_err("%s: no device: %d\n", __func__, i);
-+					continue;
-+				}
-+			}
-+
-+		}
-+		/* Release all DMA channels  */
-+		else if (use_all_dma_chans_prior_val == 1 && use_all_dma_chans == 0) {
-+			int i;
-+
-+			for (i = 0; i < NUM_AVAIL_DMA_CHAN; ++i) {
-+				if (copy_chan[i]) {
-+					dma_release_channel(copy_chan[i]);
-+					copy_chan[i] = NULL;
-+					copy_dev[i] = NULL;
-+				}
-+			}
-+
-+			dmaengine_put();
-+		}
-+
-+		if (err)
-+			use_all_dma_chans = use_all_dma_chans_prior_val;
-+	}
-+	return err;
-+}
-+
-+#endif
-+
-+static int copy_page_dma_once(struct page *to, struct page *from, int nr_pages)
-+{
-+	static struct dma_chan *copy_chan = NULL;
-+	struct dma_device *device = NULL;
-+	struct dma_async_tx_descriptor *tx = NULL;
-+	dma_cookie_t cookie;
-+	enum dma_ctrl_flags flags = 0;
-+	struct dmaengine_unmap_data *unmap = NULL;
-+	dma_cap_mask_t mask;
-+	int ret_val = 0;
-+
-+
-+	dma_cap_zero(mask);
-+	dma_cap_set(DMA_MEMCPY, mask);
-+
-+	dmaengine_get();
-+
-+	copy_chan = dma_request_channel(mask, NULL, NULL);
-+
-+	if (!copy_chan) {
-+		pr_err("%s: cannot get a channel\n", __func__);
-+		ret_val = -1;
-+		goto no_chan;
-+	}
-+
-+	device = copy_chan->device;
-+
-+	if (!device) {
-+		pr_err("%s: cannot get a device\n", __func__);
-+		ret_val = -2;
-+		goto release;
-+	}
-+
-+	unmap = dmaengine_get_unmap_data(device->dev, 2, GFP_NOWAIT);
-+
-+	if (!unmap) {
-+		pr_err("%s: cannot get unmap data\n", __func__);
-+		ret_val = -3;
-+		goto release;
-+	}
-+
-+	unmap->to_cnt = 1;
-+	unmap->addr[0] = dma_map_page(device->dev, from, 0, PAGE_SIZE*nr_pages,
-+					  DMA_TO_DEVICE);
-+	unmap->from_cnt = 1;
-+	unmap->addr[1] = dma_map_page(device->dev, to, 0, PAGE_SIZE*nr_pages,
-+					  DMA_FROM_DEVICE);
-+	unmap->len = PAGE_SIZE*nr_pages;
-+
-+	tx = device->device_prep_dma_memcpy(copy_chan,
-+						unmap->addr[1],
-+						unmap->addr[0], unmap->len,
-+						flags);
-+
-+	if (!tx) {
-+		pr_err("%s: null tx descriptor\n", __func__);
-+		ret_val = -4;
-+		goto unmap_dma;
-+	}
-+
-+	cookie = tx->tx_submit(tx);
-+
-+	if (dma_submit_error(cookie)) {
-+		pr_err("%s: submission error\n", __func__);
-+		ret_val = -5;
-+		goto unmap_dma;
-+	}
-+
-+	if (dma_sync_wait(copy_chan, cookie) != DMA_COMPLETE) {
-+		pr_err("%s: dma does not complete properly\n", __func__);
-+		ret_val = -6;
-+	}
-+
-+unmap_dma:
-+	dmaengine_unmap_put(unmap);
-+release:
-+	if (copy_chan) {
-+		dma_release_channel(copy_chan);
-+	}
-+no_chan:
-+	dmaengine_put();
-+
-+	return ret_val;
-+}
-+
-+static int copy_page_dma_always(struct page *to, struct page *from, int nr_pages)
-+{
-+	struct dma_async_tx_descriptor *tx[NUM_AVAIL_DMA_CHAN] = {0};
-+	dma_cookie_t cookie[NUM_AVAIL_DMA_CHAN];
-+	enum dma_ctrl_flags flags[NUM_AVAIL_DMA_CHAN] = {0};
-+	struct dmaengine_unmap_data *unmap[NUM_AVAIL_DMA_CHAN] = {0};
-+	int ret_val = 0;
-+	int total_available_chans = NUM_AVAIL_DMA_CHAN;
-+	int i;
-+	size_t page_offset;
-+
-+	for (i = 0; i < NUM_AVAIL_DMA_CHAN; ++i) {
-+		if (!copy_chan[i]) {
-+			total_available_chans = i;
-+		}
-+	}
-+	if (total_available_chans != NUM_AVAIL_DMA_CHAN) {
-+		pr_err("%d channels are missing", NUM_AVAIL_DMA_CHAN - total_available_chans);
-+	}
-+
-+	total_available_chans = min_t(int, total_available_chans, limit_dma_chans);
-+
-+	/* round down to closest 2^x value  */
-+	total_available_chans = 1<<ilog2(total_available_chans);
-+
-+	if ((nr_pages != 1) && (nr_pages % total_available_chans != 0))
-+		return -5;
-+
-+	for (i = 0; i < total_available_chans; ++i) {
-+		unmap[i] = dmaengine_get_unmap_data(copy_dev[i]->dev, 2, GFP_NOWAIT);
-+		if (!unmap[i]) {
-+			pr_err("%s: no unmap data at chan %d\n", __func__, i);
-+			ret_val = -3;
-+			goto unmap_dma;
-+		}
-+	}
-+
-+	for (i = 0; i < total_available_chans; ++i) {
-+		if (nr_pages == 1) {
-+			page_offset = PAGE_SIZE / total_available_chans;
-+
-+			unmap[i]->to_cnt = 1;
-+			unmap[i]->addr[0] = dma_map_page(copy_dev[i]->dev, from, page_offset*i,
-+							  page_offset,
-+							  DMA_TO_DEVICE);
-+			unmap[i]->from_cnt = 1;
-+			unmap[i]->addr[1] = dma_map_page(copy_dev[i]->dev, to, page_offset*i,
-+							  page_offset,
-+							  DMA_FROM_DEVICE);
-+			unmap[i]->len = page_offset;
-+		} else {
-+			page_offset = nr_pages / total_available_chans;
-+
-+			unmap[i]->to_cnt = 1;
-+			unmap[i]->addr[0] = dma_map_page(copy_dev[i]->dev,
-+								from + page_offset*i,
-+								0,
-+								PAGE_SIZE*page_offset,
-+								DMA_TO_DEVICE);
-+			unmap[i]->from_cnt = 1;
-+			unmap[i]->addr[1] = dma_map_page(copy_dev[i]->dev,
-+								to + page_offset*i,
-+								0,
-+								PAGE_SIZE*page_offset,
-+								DMA_FROM_DEVICE);
-+			unmap[i]->len = PAGE_SIZE*page_offset;
-+		}
-+	}
-+
-+	for (i = 0; i < total_available_chans; ++i) {
-+		tx[i] = copy_dev[i]->device_prep_dma_memcpy(copy_chan[i],
-+							unmap[i]->addr[1],
-+							unmap[i]->addr[0],
-+							unmap[i]->len,
-+							flags[i]);
-+		if (!tx[i]) {
-+			pr_err("%s: no tx descriptor at chan %d\n", __func__, i);
-+			ret_val = -4;
-+			goto unmap_dma;
-+		}
-+	}
-+
-+	for (i = 0; i < total_available_chans; ++i) {
-+		cookie[i] = tx[i]->tx_submit(tx[i]);
-+
-+		if (dma_submit_error(cookie[i])) {
-+			pr_err("%s: submission error at chan %d\n", __func__, i);
-+			ret_val = -5;
-+			goto unmap_dma;
-+		}
-+
-+		dma_async_issue_pending(copy_chan[i]);
-+	}
-+
-+	for (i = 0; i < total_available_chans; ++i) {
-+		if (dma_sync_wait(copy_chan[i], cookie[i]) != DMA_COMPLETE) {
-+			ret_val = -6;
-+			pr_err("%s: dma does not complete at chan %d\n", __func__, i);
-+		}
-+	}
-+
-+unmap_dma:
-+
-+	for (i = 0; i < total_available_chans; ++i) {
-+		if (unmap[i])
-+			dmaengine_unmap_put(unmap[i]);
-+	}
-+
-+	return ret_val;
-+}
-+
-+int copy_page_dma(struct page *to, struct page *from, int nr_pages)
-+{
-+	BUG_ON(hpage_nr_pages(from) != nr_pages);
-+	BUG_ON(hpage_nr_pages(to) != nr_pages);
-+
-+	if (!use_all_dma_chans) {
-+		return copy_page_dma_once(to, from, nr_pages);
-+	}
-+
-+	return copy_page_dma_always(to, from, nr_pages);
-+}
+@@ -1511,7 +1520,8 @@ static int store_status(int __user *status, int start, int value, int nr)
+ }
+ 
+ static int do_move_pages_to_node(struct mm_struct *mm,
+-		struct list_head *pagelist, int node, bool migrate_mt)
++		struct list_head *pagelist, int node,
++		bool migrate_mt, bool migrate_dma)
+ {
+ 	int err;
+ 
+@@ -1519,7 +1529,8 @@ static int do_move_pages_to_node(struct mm_struct *mm,
+ 		return 0;
+ 
+ 	err = migrate_pages(pagelist, alloc_new_node_page, NULL, node,
+-			MIGRATE_SYNC | (migrate_mt ? MIGRATE_MT : MIGRATE_SINGLETHREAD),
++			MIGRATE_SYNC | (migrate_mt ? MIGRATE_MT : MIGRATE_SINGLETHREAD) |
++			(migrate_dma ? MIGRATE_DMA : MIGRATE_SINGLETHREAD),
+ 			MR_SYSCALL);
+ 	if (err)
+ 		putback_movable_pages(pagelist);
+@@ -1642,7 +1653,7 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
+ 			start = i;
+ 		} else if (node != current_node) {
+ 			err = do_move_pages_to_node(mm, &pagelist, current_node,
+-				flags & MPOL_MF_MOVE_MT);
++				flags & MPOL_MF_MOVE_MT, flags & MPOL_MF_MOVE_DMA);
+ 			if (err)
+ 				goto out;
+ 			err = store_status(status, start, current_node, i - start);
+@@ -1666,7 +1677,7 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
+ 			goto out_flush;
+ 
+ 		err = do_move_pages_to_node(mm, &pagelist, current_node,
+-				flags & MPOL_MF_MOVE_MT);
++				flags & MPOL_MF_MOVE_MT, flags & MPOL_MF_MOVE_DMA);
+ 		if (err)
+ 			goto out;
+ 		if (i > start) {
+@@ -1682,7 +1693,7 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
+ 
+ 	/* Make sure we do not overwrite the existing error */
+ 	err1 = do_move_pages_to_node(mm, &pagelist, current_node,
+-				flags & MPOL_MF_MOVE_MT);
++				flags & MPOL_MF_MOVE_MT, flags & MPOL_MF_MOVE_DMA);
+ 	if (!err1)
+ 		err1 = store_status(status, start, current_node, i - start);
+ 	if (!err)
+@@ -1778,7 +1789,7 @@ static int kernel_move_pages(pid_t pid, unsigned long nr_pages,
+ 	nodemask_t task_nodes;
+ 
+ 	/* Check flags */
+-	if (flags & ~(MPOL_MF_MOVE|MPOL_MF_MOVE_ALL|MPOL_MF_MOVE_MT))
++	if (flags & ~(MPOL_MF_MOVE|MPOL_MF_MOVE_ALL|MPOL_MF_MOVE_MT|MPOL_MF_MOVE_DMA))
+ 		return -EINVAL;
+ 
+ 	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_NICE))
 -- 
 2.7.4
 
