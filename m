@@ -5,114 +5,113 @@ X-Spam-Level:
 X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5E046C4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:01:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BBD76C4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:01:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 00BD220820
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:01:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5A66220820
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:01:50 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=sent.com header.i=@sent.com header.b="YHWZ7pws";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="lFdHxGNc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 00BD220820
+	dkim=pass (2048-bit key) header.d=sent.com header.i=@sent.com header.b="Gfm1ydd0";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="Mu+YIkDB"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5A66220820
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=sent.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E632F6B026D; Wed,  3 Apr 2019 22:01:31 -0400 (EDT)
+	id 672BD6B026E; Wed,  3 Apr 2019 22:01:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D9C4C6B026E; Wed,  3 Apr 2019 22:01:31 -0400 (EDT)
+	id 5FADB6B026F; Wed,  3 Apr 2019 22:01:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C13CD6B026F; Wed,  3 Apr 2019 22:01:31 -0400 (EDT)
+	id 44D136B0270; Wed,  3 Apr 2019 22:01:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BE476B026D
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 22:01:31 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id h51so925041qte.22
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 19:01:31 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 24B9C6B026E
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 22:01:33 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id s26so921551qkm.19
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 19:01:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
          :date:message-id:in-reply-to:references:reply-to:mime-version
          :content-transfer-encoding;
-        bh=WZXwx4HISUDgI8TfJQzyJVeD3sCMwmp5Girw2m9njPA=;
-        b=Szl5bcajdDCXCJ4D5irCX2UQiAzGY91EjZYXK1SlipjkZWnD2cWD6C2vDKUfZtstjp
-         N8PGJ6crxRD9uC7LBae0yk5v+j1HmKb9DUQlQXfJRUoWsYeGW8PpT2XNC9xPROUJp6gS
-         IJazep6L60czbKIJpEuE78SdznazQGsuyKmOz5yEOl0+lkOGX7zhlVxs42ixOWFdgHKP
-         Mlmyrkf0ogHZJCZBs5tDtT4UUENiR2zVub/rF5wCGLv2tXQULJCgErw5kcaVDFT9/Kbt
-         h585t7YH3Y74YQFM/dD7sbbKTyCUul9LNDPgFTh+0EaBEIkp1i0WoMtL481S9q1+pk2g
-         gDHg==
-X-Gm-Message-State: APjAAAUhU4COQnizePbvlpeXL2NsBAooxlS9HjKfY6OlkV8relNOHo02
-	mwqxwbQRi/0tQYfQHGzOEBq08ry/aNFjv0TUdwze1f8wgk9w4Ql2GgpTu5Fn9QzENGNj8G9lGwk
-	orbyqe/NGeTlT1p4pMs4I2yqb06qgtq9fAO8A8AzBcQTuUbUwkU6vFBgR1XhDsvmfMQ==
-X-Received: by 2002:ac8:372e:: with SMTP id o43mr3029329qtb.74.1554343291385;
-        Wed, 03 Apr 2019 19:01:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzXxfFVTgAzNKK0bjIL5RzQ+RXY/oK4PZWwBLrhdE4OzOib5mdkjVDHtnlhj95mozsZm6iN
-X-Received: by 2002:ac8:372e:: with SMTP id o43mr3029282qtb.74.1554343290628;
-        Wed, 03 Apr 2019 19:01:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554343290; cv=none;
+        bh=fFiPOXcG+tagawAnsTiiPFqaNASH1sdzyZFszg1HWpM=;
+        b=KHq/d4olYLeGWM9vMFGDTuvZojAcdf4w+lLx6yFJdNvS7EX6x4Zx9+OivyE7nsweSy
+         PJxjUSDv7ERDs+Q5rBWlBOwyLthHM1j9Zj/WeaaSpIxtfjG1veEmW66FJJdBHtWKAQIl
+         Zh1E6J5wH+X4geRhnp3GRua+Ba2PC2wZ0XhXYoqBiB7K80Xh+XIexYsPo3FxWbpSQ3l9
+         HHb561tw+SB3CWTohTU/OY98eqoAYtRNwsbL6iFRUHb5JY+aizmQVSy02VA5kW69hWl3
+         uNUipsn2rKj1j4jQj8LF0PReWfKS8hz2769NtGABfa9RCRBHk7sblb5PXrdBVEwMFW9N
+         g6Kg==
+X-Gm-Message-State: APjAAAXPeyzzp91zzSXNI1pp+53dsoSfp/KXkVSuhVrZk2j6DDiIhtBN
+	O1BJjkFkuPtTs0hzGkmMgBsewkfFK/JELuXYjs/cuwiEGfoySASsgUukV4WNRqThHUJ3HD+5Pq5
+	2ICQn7HrarwqjjbJ0kTYVr7dH35BlGZCmiGCCqm3fOMae7lizeQvPy+f0ekpnLI1f/w==
+X-Received: by 2002:ae9:c210:: with SMTP id j16mr2862778qkg.218.1554343292912;
+        Wed, 03 Apr 2019 19:01:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqySdzkV03Sh5PGpBxpsamZOXDeTBiz5gxEE0hTTjSaQFzcziETfTp6cZsl0+p7u/0O7CYxJ
+X-Received: by 2002:ae9:c210:: with SMTP id j16mr2862707qkg.218.1554343292120;
+        Wed, 03 Apr 2019 19:01:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554343292; cv=none;
         d=google.com; s=arc-20160816;
-        b=JJ40m3q8nCjFTKy9dFW0BKP4YwAePlMouRGUcHfIg+qls56X8GzmTnYhz8syAAJnGL
-         TFHpc3mgW0ubJHealxYS6d1AGvTzPX06zMZXgx2+bl6viktJ6SBI7NF5Inpn7uMezhWi
-         sGse8bRvAJnTeWGTSyZ/aOCCADvkNop3qszhTAuJ7kJ85urmF3kq2Kp5tCHjqUQwJMwE
-         +IFh4xinim+vXJgDBcMareS5R2/K3WTI0Uko1L3RBl9739r7LsXGidw3QhXq4eZ/5jW4
-         jZ9v+r8uOfVVZcTxk0WDjRUmBWt3YKzAA03nxPZXuBqmlDNVdKb7FGfh2TYl7ZnU68Kr
-         jMog==
+        b=b1oKRLoU4L8WKIA8eICmkCqY0KdTw8PS3mNoxBTiOcOKwUJB+HKKF+MpGvNAlGrFyl
+         LctRnvqQnkbOtd6cLp5vqnyTHsH0WRznGSN80sqEMUGC/HVaME+vUTZgKPuZ3TA6Md6A
+         bMooZ80wRPRynNfC1vgpYVbe3IN9HfkajcoetWcrKHOfiiP3j+44V1wUvc6ieS8rhDit
+         jPHysQRIJBxLvP+FJCJj8Hn/s1djcQ5nsdXgUzX5bu6pxqye9jIu1YNV4umPcsW7r8IE
+         fKg/sRoaVY5AGdz8vBV+jC3RN0OIo3O048TncimyZs7GASf3UP/WeOFTFx85qYJkuAUK
+         3p+Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:reply-to:references
          :in-reply-to:message-id:date:subject:cc:to:from:dkim-signature
          :dkim-signature;
-        bh=WZXwx4HISUDgI8TfJQzyJVeD3sCMwmp5Girw2m9njPA=;
-        b=Lz93GQ2D1FUz3VMdohhnhJwavVPLIxYFn0kdwecW9f2AH3e3BoruOOLYbGEFbsdBiE
-         R5aIki3RPSN8wLTB9PLXjfUdUZY1xSp7YJLVe/cq+1DZAFGHpSCHT/IbN92fQ9dTvWPA
-         Ys7H7LK1tpZoNMYRc+PWsfUPmUvW7yrXyDrRLRvYkHRgV/9piW7V0eBLbQ1hmNqUcYHd
-         xsQtVj9os+A5sOHuAjE4Mi6f/etCelMYXVptDg+r4cpA/C1Xr/e+QGEJ72L/2mDq5yxf
-         s2UmZofQysU0AbJdHqem4GrK/NqAH59AAoHXzgI/Mszf1xHvv39mqHsdytfUZ0Rq38jy
-         z7mQ==
+        bh=fFiPOXcG+tagawAnsTiiPFqaNASH1sdzyZFszg1HWpM=;
+        b=g8KuspQTOq+HElsnPpyPa6d/LGg7JIS/a9v7EQCxUwqNaO4vKdBqJCG7taqgGRpsOK
+         UuuD2f1dKCsIkXeE3lwEYhGUz9RDrgBJAs5tWvYzyDO3E16Ois2R9uVTe7jSkJGnBYKl
+         q81qKwnJ+GYXIluWsuxdc8Rh8wWQKQVCH8c+ypaTyzMXGlCJWYYZjynxRjapNzqi4AQD
+         h4UI8hVy/MZUqBjEDeYV0a8BJixhpH9mhuvnjguBkAjuz6DDomDHY9Rzbsv+UHF8LxRn
+         06MmDD2MrgLcfII4V/+BRfTqErCMT/h+PHmbr6LeGLI0Aubr8GBd5IEUVS9JYo/cBOjn
+         FF3A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@sent.com header.s=fm3 header.b=YHWZ7pws;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=lFdHxGNc;
+       dkim=pass header.i=@sent.com header.s=fm3 header.b=Gfm1ydd0;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=Mu+YIkDB;
        spf=pass (google.com: domain of zi.yan@sent.com designates 66.111.4.29 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
 Received: from out5-smtp.messagingengine.com (out5-smtp.messagingengine.com. [66.111.4.29])
-        by mx.google.com with ESMTPS id p9si1868968qvf.115.2019.04.03.19.01.30
+        by mx.google.com with ESMTPS id p28si8406767qtj.306.2019.04.03.19.01.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 19:01:30 -0700 (PDT)
+        Wed, 03 Apr 2019 19:01:32 -0700 (PDT)
 Received-SPF: pass (google.com: domain of zi.yan@sent.com designates 66.111.4.29 as permitted sender) client-ip=66.111.4.29;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@sent.com header.s=fm3 header.b=YHWZ7pws;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=lFdHxGNc;
+       dkim=pass header.i=@sent.com header.s=fm3 header.b=Gfm1ydd0;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=Mu+YIkDB;
        spf=pass (google.com: domain of zi.yan@sent.com designates 66.111.4.29 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.nyi.internal (Postfix) with ESMTP id 571F722738;
-	Wed,  3 Apr 2019 22:01:30 -0400 (EDT)
+	by mailout.nyi.internal (Postfix) with ESMTP id D651B226C0;
+	Wed,  3 Apr 2019 22:01:31 -0400 (EDT)
 Received: from mailfrontend2 ([10.202.2.163])
-  by compute3.internal (MEProxy); Wed, 03 Apr 2019 22:01:30 -0400
+  by compute3.internal (MEProxy); Wed, 03 Apr 2019 22:01:31 -0400
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=sent.com; h=from
 	:to:cc:subject:date:message-id:in-reply-to:references:reply-to
-	:mime-version:content-transfer-encoding; s=fm3; bh=WZXwx4HISUDgI
-	8TfJQzyJVeD3sCMwmp5Girw2m9njPA=; b=YHWZ7pwsO+AQY2MK+dVV1sfc+RQqa
-	y0+PemKbFnqlXT3HnwW+jj+8wqbXpEOjA/J9qWo8nIFU0xSIK8+1t5Y+joz9aP9D
-	PCwKEP54wy1JUiE4Yx4QyxZSYdca5E5MEHYdFNa9S5f1cVCFnilHQmzvxxOjIcFF
-	TaEPskiO88H48XLZ/6DQWZfHgw34G4Gr622cdgH98yrQJSuQpQurdSDqjmGRnclI
-	DB0VWw1Q7hYC+V6vfqSFUQfGagLdeQOtsdjQjhlPBkhLclDBi+mGmBhUY7+Lpwkk
-	yo6T/QxpNAPxVN/6inaE7rn9+SBVIEgj6ry3kdZK5Sai0F8BBpZOlbvUw==
+	:mime-version:content-transfer-encoding; s=fm3; bh=fFiPOXcG+taga
+	wAnsTiiPFqaNASH1sdzyZFszg1HWpM=; b=Gfm1ydd0rEKEmAh6YCF/WLq52HFoN
+	uiTjw6U6R4ewtBPRLPopBIVKqrLS3oaxHPx2JysLOdHndECZQV3mzJToXrf0CfSZ
+	8uNotHy9s7Lxwj6l+Ac1XYU1xPa8loNBctcDGy+HTTnaucve2eGtFfpTg87f2rmZ
+	8KMWUCKSSN4soiPwjyIhc3FjbC5oOXSxmp1EWqwKgtq0rC4KvbNdUID83tLhT44/
+	nXTrD5q0BzNuDKkd5HAqTpWFoyQpDimuLK98s2K1KwbyrmWH5H2XsP07lHuS3IDR
+	IZeejK9F1vRWL3lJ2En4W6zO8nJnlXk61vcAorwgrQ4+KGaIycNgAgE+w==
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:reply-to:subject
 	:to:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=WZXwx4HISUDgI8TfJQzyJVeD3sCMwmp5Girw2m9njPA=; b=lFdHxGNc
-	PI7EEvnuiKPmFifQ79uju5ydBluuPGo2k4N1/BRmGvOT6rQN+bHDZ9SqDlO9bp5u
-	kVTs63VrcyST5SsloiB3RiWjcOK3LrNS+QhGwV7UKFShTciQXlHvumgq1bV+YYg2
-	D5+QYJy26/QDkqvVd+EuaYb+4Qqz8HpYFPEFiKsb34oLFLpYaa9vX0ULkbVNYpue
-	9t9a2Adz1hm8inZJr4pNPnM/CupgQnCSkQXyRKDWPoQHHL0SWivq3S0Kv7uDHQff
-	31kzoQqO2qAKgtMeCyPVx3ECiAM9swStgwR9u9WVAm3XEOypf2p9FCIq3s85e9HN
-	NyZceirh0PvA9w==
-X-ME-Sender: <xms:emWlXLagNLXUDfxm-mCuN6YowT-_gPyG_vkQTCAfc5TWqMMT1I14Ww>
+	fm2; bh=fFiPOXcG+tagawAnsTiiPFqaNASH1sdzyZFszg1HWpM=; b=Mu+YIkDB
+	Twp8/EFWuJX/uJEN9yZF70j/31sYOwPAsAyX0cV086LDxC6ULQiCS6w/31s24Qra
+	cKaPx+dKXMOy1in6YoLMO7VgEkQG2Ljj3P8pi5nNg4V/iOxpIbNoFS2RjzNzBzDs
+	agys7n9q4mqfUry4ncDiNQj90GMagvs+zgbtibF0PcjtYF4GG3VqN8a/BW0ooHnz
+	knZ6mEI1qZb2+XJXDJ8XR+BzLML2I0+fGFNRkMj/J5Znh3NCpfl38W18WHCRpyko
+	+W7YVyNYYZZk3IDP7TB4RZs6rn6pVi9gpy/tT6gPty5+hOMEZnBhmoz5l1VwGr+D
+	A9q7qCTiuWVfFA==
+X-ME-Sender: <xms:e2WlXMHcDLyxiSUMhxVDgajUDVDbEOBobLPxmj81zZJgfsxZyJVOOg>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtdeggdehudculddtuddrgedutddrtddtmd
     cutefuodetggdotefrodftvfcurfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdp
     uffrtefokffrpgfnqfghnecuuegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivg
@@ -120,13 +119,13 @@ X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtdeggdehudculddtuddrgedutd
     necuhfhrohhmpegkihcujggrnhcuoeiiihdrhigrnhesshgvnhhtrdgtohhmqeenucfkph
     epvdduiedrvddvkedrudduvddrvddvnecurfgrrhgrmhepmhgrihhlfhhrohhmpeiiihdr
     higrnhesshgvnhhtrdgtohhmnecuvehluhhsthgvrhfuihiivgepje
-X-ME-Proxy: <xmx:emWlXAjVHmk0VUHhtG5fGcT4PR95aUJLIS2MdAGBE9UhnJs5nfrQLA>
-    <xmx:emWlXEeWF5NSi8DNn_4Rssgo0wzM2dT4yo0oemXhhAZNv52cETtKyg>
-    <xmx:emWlXLpbG752MzR94qx3UCp5yqxZEwFw9x8Is5XFlN8QNjib-jN0PQ>
-    <xmx:emWlXJfK9TnEM5ag8NlfdhXIIU4mNcpCNkwHS-fu4tfZbQS5YvLMhQ>
+X-ME-Proxy: <xmx:e2WlXIlsObTUPbnuEpWRrOJU1JilLD6y0fKsmgWXz3RB_pO8tfnGyQ>
+    <xmx:e2WlXPnPDBm8LwXitp7HH7cl4YaWZN2pO2Iz2t9v4H9xT457slv8eA>
+    <xmx:e2WlXJu-Oz9eAL-JubY7kfuDhhq6qaZzz3owRLdj4gXKOWH2j2A06Q>
+    <xmx:e2WlXBvZkTc0rI8Q8YTbxV3s7l30b7KHxd8qNs-OOy5Xn5867MqEKA>
 Received: from nvrsysarch5.nvidia.com (thunderhill.nvidia.com [216.228.112.22])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 615E210319;
-	Wed,  3 Apr 2019 22:01:28 -0400 (EDT)
+	by mail.messagingengine.com (Postfix) with ESMTPA id 1474710310;
+	Wed,  3 Apr 2019 22:01:30 -0400 (EDT)
 From: Zi Yan <zi.yan@sent.com>
 To: Dave Hansen <dave.hansen@linux.intel.com>,
 	Yang Shi <yang.shi@linux.alibaba.com>,
@@ -146,9 +145,9 @@ Cc: Daniel Jordan <daniel.m.jordan@oracle.com>,
 	Javier Cabezas <jcabezas@nvidia.com>,
 	David Nellans <dnellans@nvidia.com>,
 	Zi Yan <ziy@nvidia.com>
-Subject: [RFC PATCH 09/25] mm: migrate: Add copy_page_lists_dma_always to support copy a list of pages.
-Date: Wed,  3 Apr 2019 19:00:30 -0700
-Message-Id: <20190404020046.32741-10-zi.yan@sent.com>
+Subject: [RFC PATCH 10/25] mm: migrate: copy_page_lists_mt() to copy a page list using multi-threads.
+Date: Wed,  3 Apr 2019 19:00:31 -0700
+Message-Id: <20190404020046.32741-11-zi.yan@sent.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190404020046.32741-1-zi.yan@sent.com>
 References: <20190404020046.32741-1-zi.yan@sent.com>
@@ -163,201 +162,160 @@ List-ID: <linux-mm.kvack.org>
 
 From: Zi Yan <ziy@nvidia.com>
 
-Both src and dst page lists should match the page size at each
-page and the length of both lists is shared.
+This prepare the support for migrate_page_concur(), which migrates
+multiple pages at the same time.
 
 Signed-off-by: Zi Yan <ziy@nvidia.com>
 ---
- mm/copy_page.c | 166 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/internal.h  |   4 ++
- 2 files changed, 170 insertions(+)
+ mm/copy_page.c | 123 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/internal.h  |   2 +
+ 2 files changed, 125 insertions(+)
 
 diff --git a/mm/copy_page.c b/mm/copy_page.c
-index 5e7a797..84f1c02 100644
+index 84f1c02..d2fd67e 100644
 --- a/mm/copy_page.c
 +++ b/mm/copy_page.c
-@@ -417,3 +417,169 @@ int copy_page_dma(struct page *to, struct page *from, int nr_pages)
+@@ -126,6 +126,129 @@ int copy_page_multithread(struct page *to, struct page *from, int nr_pages)
  
- 	return copy_page_dma_always(to, from, nr_pages);
+ 	return err;
  }
 +
-+/*
-+ * Use DMA copy a list of pages to a new location
-+ *
-+ * Just put each page into individual DMA channel.
-+ *
-+ * */
-+int copy_page_lists_dma_always(struct page **to, struct page **from, int nr_items)
++int copy_page_lists_mt(struct page **to, struct page **from, int nr_items)
 +{
-+	struct dma_async_tx_descriptor **tx = NULL;
-+	dma_cookie_t *cookie = NULL;
-+	enum dma_ctrl_flags flags[NUM_AVAIL_DMA_CHAN] = {0};
-+	struct dmaengine_unmap_data *unmap[NUM_AVAIL_DMA_CHAN] = {0};
-+	int ret_val = 0;
-+	int total_available_chans = NUM_AVAIL_DMA_CHAN;
++	int err = 0;
++	unsigned int total_mt_num = limit_mt_num;
++	int to_node = page_to_nid(*to);
 +	int i;
-+	int page_idx;
++	struct copy_page_info *work_items[NR_CPUS] = {0};
++	const struct cpumask *per_node_cpumask = cpumask_of_node(to_node);
++	int cpu_id_list[NR_CPUS] = {0};
++	int cpu;
++	int max_items_per_thread;
++	int item_idx;
 +
-+	for (i = 0; i < NUM_AVAIL_DMA_CHAN; ++i) {
-+		if (!copy_chan[i]) {
-+			total_available_chans = i;
-+		}
-+	}
-+	if (total_available_chans != NUM_AVAIL_DMA_CHAN) {
-+		pr_err("%d channels are missing\n", NUM_AVAIL_DMA_CHAN - total_available_chans);
-+	}
-+	if (limit_dma_chans < total_available_chans)
-+		total_available_chans = limit_dma_chans;
-+
-+	/* round down to closest 2^x value  */
-+	total_available_chans = 1<<ilog2(total_available_chans);
-+
-+	total_available_chans = min_t(int, total_available_chans, nr_items);
++	total_mt_num = min_t(unsigned int, total_mt_num,
++						 cpumask_weight(per_node_cpumask));
 +
 +
-+	tx = kzalloc(sizeof(struct dma_async_tx_descriptor*)*nr_items, GFP_KERNEL);
-+	if (!tx) {
-+		ret_val = -ENOMEM;
-+		goto out;
-+	}
-+	cookie = kzalloc(sizeof(dma_cookie_t)*nr_items, GFP_KERNEL);
-+	if (!cookie) {
-+		ret_val = -ENOMEM;
-+		goto out_free_tx;
-+	}
++	if (total_mt_num > num_online_cpus())
++		return -ENODEV;
 +
-+	for (i = 0; i < total_available_chans; ++i) {
-+		int num_xfer_per_dev = nr_items / total_available_chans;
++	/* Each threads get part of each page, if nr_items < totla_mt_num */
++	if (nr_items < total_mt_num)
++		max_items_per_thread = nr_items;
++	else
++		max_items_per_thread = (nr_items / total_mt_num) +
++				((nr_items % total_mt_num)?1:0);
 +
-+		if (i < (nr_items % total_available_chans))
-+			num_xfer_per_dev += 1;
 +
-+		if (num_xfer_per_dev > 128) {
-+			ret_val = -ENOMEM;
-+			pr_err("%s: too many pages to be transferred\n", __func__);
-+			goto out_free_both;
-+		}
-+
-+		unmap[i] = dmaengine_get_unmap_data(copy_dev[i]->dev,
-+						2 * num_xfer_per_dev, GFP_NOWAIT);
-+		if (!unmap[i]) {
-+			pr_err("%s: no unmap data at chan %d\n", __func__, i);
-+			ret_val = -ENODEV;
-+			goto unmap_dma;
++	for (cpu = 0; cpu < total_mt_num; ++cpu) {
++		work_items[cpu] = kzalloc(sizeof(struct copy_page_info) +
++					sizeof(struct copy_item)*max_items_per_thread, GFP_KERNEL);
++		if (!work_items[cpu]) {
++			err = -ENOMEM;
++			goto free_work_items;
 +		}
 +	}
 +
-+	page_idx = 0;
-+	for (i = 0; i < total_available_chans; ++i) {
-+		int num_xfer_per_dev = nr_items / total_available_chans;
-+		int xfer_idx;
-+
-+		if (i < (nr_items % total_available_chans))
-+			num_xfer_per_dev += 1;
-+
-+		unmap[i]->to_cnt = num_xfer_per_dev;
-+		unmap[i]->from_cnt = num_xfer_per_dev;
-+		unmap[i]->len = hpage_nr_pages(from[i]) * PAGE_SIZE;
-+
-+		for (xfer_idx = 0; xfer_idx < num_xfer_per_dev; ++xfer_idx, ++page_idx) {
-+			size_t page_len = hpage_nr_pages(from[page_idx]) * PAGE_SIZE;
-+
-+			BUG_ON(page_len != hpage_nr_pages(to[page_idx]) * PAGE_SIZE);
-+			BUG_ON(unmap[i]->len != page_len);
-+
-+			unmap[i]->addr[xfer_idx] =
-+				 dma_map_page(copy_dev[i]->dev, from[page_idx],
-+							  0,
-+							  page_len,
-+							  DMA_TO_DEVICE);
-+
-+			unmap[i]->addr[xfer_idx+num_xfer_per_dev] =
-+				 dma_map_page(copy_dev[i]->dev, to[page_idx],
-+							  0,
-+							  page_len,
-+							  DMA_FROM_DEVICE);
-+		}
++	i = 0;
++	for_each_cpu(cpu, per_node_cpumask) {
++		if (i >= total_mt_num)
++			break;
++		cpu_id_list[i] = cpu;
++		++i;
 +	}
 +
-+	page_idx = 0;
-+	for (i = 0; i < total_available_chans; ++i) {
-+		int num_xfer_per_dev = nr_items / total_available_chans;
-+		int xfer_idx;
++	if (nr_items < total_mt_num) {
++		for (cpu = 0; cpu < total_mt_num; ++cpu) {
++			INIT_WORK((struct work_struct *)work_items[cpu],
++					  copy_page_work_queue_thread);
++			work_items[cpu]->num_items = max_items_per_thread;
++		}
 +
-+		if (i < (nr_items % total_available_chans))
-+			num_xfer_per_dev += 1;
++		for (item_idx = 0; item_idx < nr_items; ++item_idx) {
++			unsigned long chunk_size = PAGE_SIZE * hpage_nr_pages(from[item_idx]) / total_mt_num;
++			char *vfrom = kmap(from[item_idx]);
++			char *vto = kmap(to[item_idx]);
++			VM_BUG_ON(PAGE_SIZE * hpage_nr_pages(from[item_idx]) % total_mt_num);
++			BUG_ON(hpage_nr_pages(to[item_idx]) !=
++				   hpage_nr_pages(from[item_idx]));
 +
-+		for (xfer_idx = 0; xfer_idx < num_xfer_per_dev; ++xfer_idx, ++page_idx) {
-+
-+			tx[page_idx] = copy_dev[i]->device_prep_dma_memcpy(copy_chan[i],
-+								unmap[i]->addr[xfer_idx + num_xfer_per_dev],
-+								unmap[i]->addr[xfer_idx],
-+								unmap[i]->len,
-+								flags[i]);
-+			if (!tx[page_idx]) {
-+				pr_err("%s: no tx descriptor at chan %d xfer %d\n",
-+					   __func__, i, xfer_idx);
-+				ret_val = -ENODEV;
-+				goto unmap_dma;
-+			}
-+
-+			cookie[page_idx] = tx[page_idx]->tx_submit(tx[page_idx]);
-+
-+			if (dma_submit_error(cookie[page_idx])) {
-+				pr_err("%s: submission error at chan %d xfer %d\n",
-+					   __func__, i, xfer_idx);
-+				ret_val = -ENODEV;
-+				goto unmap_dma;
++			for (cpu = 0; cpu < total_mt_num; ++cpu) {
++				work_items[cpu]->item_list[item_idx].to = vto + chunk_size * cpu;
++				work_items[cpu]->item_list[item_idx].from = vfrom + chunk_size * cpu;
++				work_items[cpu]->item_list[item_idx].chunk_size =
++					chunk_size;
 +			}
 +		}
 +
-+		dma_async_issue_pending(copy_chan[i]);
-+	}
++		for (cpu = 0; cpu < total_mt_num; ++cpu)
++			queue_work_on(cpu_id_list[cpu],
++						  system_highpri_wq,
++						  (struct work_struct *)work_items[cpu]);
++	} else {
++		item_idx = 0;
++		for (cpu = 0; cpu < total_mt_num; ++cpu) {
++			int num_xfer_per_thread = nr_items / total_mt_num;
++			int per_cpu_item_idx;
 +
-+	page_idx = 0;
-+	for (i = 0; i < total_available_chans; ++i) {
-+		int num_xfer_per_dev = nr_items / total_available_chans;
-+		int xfer_idx;
++			if (cpu < (nr_items % total_mt_num))
++				num_xfer_per_thread += 1;
 +
-+		if (i < (nr_items % total_available_chans))
-+			num_xfer_per_dev += 1;
++			INIT_WORK((struct work_struct *)work_items[cpu],
++					  copy_page_work_queue_thread);
 +
-+		for (xfer_idx = 0; xfer_idx < num_xfer_per_dev; ++xfer_idx, ++page_idx) {
++			work_items[cpu]->num_items = num_xfer_per_thread;
++			for (per_cpu_item_idx = 0; per_cpu_item_idx < work_items[cpu]->num_items;
++				 ++per_cpu_item_idx, ++item_idx) {
++				work_items[cpu]->item_list[per_cpu_item_idx].to = kmap(to[item_idx]);
++				work_items[cpu]->item_list[per_cpu_item_idx].from =
++					kmap(from[item_idx]);
++				work_items[cpu]->item_list[per_cpu_item_idx].chunk_size =
++					PAGE_SIZE * hpage_nr_pages(from[item_idx]);
 +
-+			if (dma_sync_wait(copy_chan[i], cookie[page_idx]) != DMA_COMPLETE) {
-+				ret_val = -6;
-+				pr_err("%s: dma does not complete at chan %d, xfer %d\n",
-+					   __func__, i, xfer_idx);
++				BUG_ON(hpage_nr_pages(to[item_idx]) !=
++					   hpage_nr_pages(from[item_idx]));
 +			}
++
++			queue_work_on(cpu_id_list[cpu],
++						  system_highpri_wq,
++						  (struct work_struct *)work_items[cpu]);
 +		}
++		if (item_idx != nr_items)
++			pr_err("%s: only %d out of %d pages are transferred\n", __func__,
++				item_idx - 1, nr_items);
 +	}
 +
-+unmap_dma:
-+	for (i = 0; i < total_available_chans; ++i) {
-+		if (unmap[i])
-+			dmaengine_unmap_put(unmap[i]);
++	/* Wait until it finishes  */
++	for (i = 0; i < total_mt_num; ++i)
++		flush_work((struct work_struct *)work_items[i]);
++
++	for (i = 0; i < nr_items; ++i) {
++			kunmap(to[i]);
++			kunmap(from[i]);
 +	}
 +
-+out_free_both:
-+	kfree(cookie);
-+out_free_tx:
-+	kfree(tx);
-+out:
++free_work_items:
++	for (cpu = 0; cpu < total_mt_num; ++cpu)
++		if (work_items[cpu])
++			kfree(work_items[cpu]);
 +
-+	return ret_val;
++	return err;
 +}
+ /* ======================== DMA copy page ======================== */
+ #include <linux/dmaengine.h>
+ #include <linux/dma-mapping.h>
 diff --git a/mm/internal.h b/mm/internal.h
-index 9eeaf2b..cb1a610 100644
+index cb1a610..51f5e1b 100644
 --- a/mm/internal.h
 +++ b/mm/internal.h
-@@ -555,4 +555,8 @@ static inline bool is_migrate_highatomic_page(struct page *page)
+@@ -558,5 +558,7 @@ extern struct page *alloc_new_node_page(struct page *page, unsigned long node);
  
- void setup_zone_pageset(struct zone *zone);
- extern struct page *alloc_new_node_page(struct page *page, unsigned long node);
-+
-+extern int copy_page_lists_dma_always(struct page **to,
+ extern int copy_page_lists_dma_always(struct page **to,
+ 			struct page **from, int nr_pages);
++extern int copy_page_lists_mt(struct page **to,
 +			struct page **from, int nr_pages);
-+
+ 
  #endif	/* __MM_INTERNAL_H */
 -- 
 2.7.4
