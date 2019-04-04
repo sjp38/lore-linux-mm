@@ -2,150 +2,167 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D9A19C4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 05:48:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 96AA9C4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 05:51:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0416820855
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 05:48:43 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=iluvatar.ai header.i=@iluvatar.ai header.b="q/HyLEGS"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0416820855
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=iluvatar.ai
+	by mail.kernel.org (Postfix) with ESMTP id 4938920855
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 05:51:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4938920855
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4DCEB6B000D; Thu,  4 Apr 2019 01:48:43 -0400 (EDT)
+	id D8E8F6B000D; Thu,  4 Apr 2019 01:51:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 48BF76B000E; Thu,  4 Apr 2019 01:48:43 -0400 (EDT)
+	id D3C1A6B000E; Thu,  4 Apr 2019 01:51:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 37BDD6B0266; Thu,  4 Apr 2019 01:48:43 -0400 (EDT)
+	id C54006B0266; Thu,  4 Apr 2019 01:51:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F3ED16B000D
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 01:48:42 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id g1so1038703pfo.2
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 22:48:42 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 790C76B000D
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 01:51:37 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id c40so777085eda.10
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 22:51:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version;
-        bh=+wsX3euaQTbnZYORNSKThK5YQHdjOBZReHK6/+C0+Oc=;
-        b=GyrfvVyMcFF17H0JolCH9m2rPs9NC9HiZPktQ7n69JU/DvFJOdqbkFQGILYzQpntrA
-         n+XQdMOChGhFtwiKxkknGjYf4vZJ7IcNiPZ4Sq8ek8jH5X5mPqhU2nWrdMVrZ+mM5Yqp
-         CySTzv4UPQj8G4Jlzak3fJ5ymCl2/N0zZaVUkht0yIAsLkwNiYQbkxJWIylmat7YF5WU
-         8hr/oI/SKuRRhGjpm+sIrxJrMs4039GIOkcrb/56UTKVD+jZDRcftdvd6QN/XIpAkmpy
-         GZFKEbZ+PrEETwQ38996pVLF54Mhygcwf+Ev+mzgTVZWM2/abu3J5T7Oz1k2BIwfYn4Z
-         yaVw==
-X-Gm-Message-State: APjAAAX306aF5gmvd6KJef5Cp9Zb4VZHg75l2z8/LNGgjWdaebt9F0eH
-	9m+DQ1uZGPlD3wbhUyNBMAacxOCd007zI8L6ABjN0JsGCCM06GpMVolk8aRtFTZ72ImukadHRXf
-	TNk+BkIg375CNqN7eG/E4dqAKTODIWFc8XT8zuZZAYysGNNRaprsqPp+5iilZIy2X/A==
-X-Received: by 2002:a17:902:29ca:: with SMTP id h68mr4289343plb.297.1554356922481;
-        Wed, 03 Apr 2019 22:48:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzIcYdxjsd+pFSez8s0T4NDBc4Ca5II9JQhFmaEN0RuAgxJzuYrvqcvWYk2Z0RH/zFn0X/8
-X-Received: by 2002:a17:902:29ca:: with SMTP id h68mr4289291plb.297.1554356921629;
-        Wed, 03 Apr 2019 22:48:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554356921; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=YdGdDJHeCmQC+RW7k1h8mpRrLzlQKPKkXRLdFADEvXU=;
+        b=Ht8jBZBIA/QhT6fhP0rjGpvHfU/oVwJ1o25MoHxuduNStRlUMUJkdyxuouDPF42EJo
+         qU6p6d09JM6OT8MkFuzCmkZt3RE9rBHIGIxWbbvafrLUpEJ5GiCj3f/PTidZxRyMm/F0
+         pjtTDypbvz2wseMWNe3alZajypuEtCf3MI8Oci5oZAbte39HJJqYJSF6OIQ/w4EYvoTw
+         JIX8bNOzXN9piT2IynK63BVu5JQyl2C1LSggV92CN/Oa7ZgJ1k/C+iYgYtJW2G+F9wnG
+         kJhpZLm/WTavjRyKSKMlgKD6DJL83+Gid5P1z9SDKmFl7sVUjb3mxEvgSRKE/YqsKRlL
+         kxrg==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Gm-Message-State: APjAAAU2PDrOCup2dzVjOHoepC/Pns3NgviLcuTy8OaEDFK5oSAuntN0
+	WSYFBJTFs6APqDIHxvn0eP+oOa1KHIhFjqxDB/suqnvuaRJiWvEtncMnc7e/pI9Ws80ofk+jpCQ
+	EorEcpNY19EN2XY6EPLBSPQTQjVKDdzUJ9OSmmK832sZRK/3xHTA+mw05+D/22KM=
+X-Received: by 2002:a17:906:4f19:: with SMTP id t25mr2306397eju.165.1554357096975;
+        Wed, 03 Apr 2019 22:51:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzUHpVPr8P3E4jOpY8gjxVJPipzyE4wvFjJphS6L+K0bkHHcm9GbVtsHKTb49lLMmlx0zl7
+X-Received: by 2002:a17:906:4f19:: with SMTP id t25mr2306347eju.165.1554357095859;
+        Wed, 03 Apr 2019 22:51:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554357095; cv=none;
         d=google.com; s=arc-20160816;
-        b=PgGbWcFeKj5xRdyA/PFE6qWON97YpXIBlxOI6lBcPcknuRzPztdyUzy04Ew9HBquvj
-         vHL6YrxUIxMhPOVgbB9lUGz52PB8dYMggdohjwy1AcaCTaGR60mSM0bdTY6Ir0zp1oMh
-         M7S9iHWH1c28zvQPvWbUCB0kn2BRZBhxvz8smKC6Wjmlx1iikq4lwFBDTVbRuzciVMb/
-         xK9kUZRkB2R7U23ip6yUOHQ1Gt/xI7gpgUmk5wBvBFFnIKKTt2VGTUwlZVThTWWZLVlV
-         MBpaqiYLlIfQHywus6bTZloObcGjW7C0aQdsJjrW04o4DW7+OF/xSPX0tVenH/n8Twdy
-         ZFSw==
+        b=XLayBCENYNUPI81+ODS72d5ZHITqofqBoa/N3QNSiop5j8bsEZplALYwUNzSU36rHz
+         IJtTFejqGG3Cbi69/orv3bxHMueUvozhxc/qdA83FxiVWokBMhEuV3MTwQ7K5sJGfwTp
+         B5srDXp5tIs9LJ6FzagegF+ij9V2ww1y7IswxVPEr9vvUvGGlQuUVVfKJWBZiLCis0tO
+         lcO7qr65+CU47UFCA8Eqt44MCXUFU+Rgd+BHk+4bHOCt9Z2GDRZuSS2qXR5opM25oGnv
+         4E5xfJf3k9snIMmJbeAryBA8Xu7H+u3GrmNYiEREyXLveUhOpMn4zbMGCjOk4MkVFXrn
+         ALfw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:subject:cc:to:from:dkim-signature;
-        bh=+wsX3euaQTbnZYORNSKThK5YQHdjOBZReHK6/+C0+Oc=;
-        b=kzc1g30EqaTFOGach5jUy3kbHm743VMtUAh96gM4DSFaSxM3/JNv6Wxy1oY/ImPixn
-         VSkDNsLgJ/LN+xOzC8GVKHaAFsUJsQI3KlyP8PEEWfW8qCzJwTtGAau4CLC4TMf+C5SY
-         JuYjPhWKGHQ74wDLz5V6Ne/hEhmHutabYGszJ/koTVaTRZX74R8p4cvkoA9hVVcoVXWv
-         wqDt50xPcTw/pWNMDMxOTUfzlEjTCpsj1RpaVIA5iH84YRgVRBQlPG8L1uQMasa/S5CS
-         nxx3fai/eFecTrB1dPqO1zdNWtBqYwNrtWz+EonTYs9Z/qUQYryXRgOSe8qRT+5eND/T
-         GZew==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=YdGdDJHeCmQC+RW7k1h8mpRrLzlQKPKkXRLdFADEvXU=;
+        b=zvOqsTnv5kja44nEpCb+W3v26xENcYmqyDZgsuUgYX+gJdql1r/zBwKC7rm7/lqF/m
+         zPUW6NQ1mEGP9OMXT3pkdkI/2FaW3S9GOgvslzGvtiCukti1nO3OtalptlmXZUMGr0n7
+         6fvrJeVzCcT72M2pv9LG/OhDimvDFTlYgm2Tz8RxpwOPbKeyYuANEUZEdxaPIPQLTKrV
+         1YB7ZUG9mkIfEyTkQHusMr7cnc7jjj5WKLhoZUARZhKWcSdWroGRwTzSb2NXIsZd27We
+         65W3XOfSD4A1p1QSgKSasXq6OAvDBA7Deiu6C8vLRq2ig19ztH0WP32wo+O+nwZwETNj
+         rl+Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@iluvatar.ai header.s=key_2018 header.b="q/HyLEGS";
-       spf=pass (google.com: domain of sjhuang@iluvatar.ai designates 103.91.158.24 as permitted sender) smtp.mailfrom=sjhuang@iluvatar.ai;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=iluvatar.ai
-Received: from smg.iluvatar.ai (owa.iluvatar.ai. [103.91.158.24])
-        by mx.google.com with ESMTP id n34si14408878pld.352.2019.04.03.22.48.39
-        for <linux-mm@kvack.org>;
-        Wed, 03 Apr 2019 22:48:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sjhuang@iluvatar.ai designates 103.91.158.24 as permitted sender) client-ip=103.91.158.24;
+       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from relay9-d.mail.gandi.net (relay9-d.mail.gandi.net. [217.70.183.199])
+        by mx.google.com with ESMTPS id j30si119188eda.42.2019.04.03.22.51.35
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 03 Apr 2019 22:51:35 -0700 (PDT)
+Received-SPF: neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.199;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@iluvatar.ai header.s=key_2018 header.b="q/HyLEGS";
-       spf=pass (google.com: domain of sjhuang@iluvatar.ai designates 103.91.158.24 as permitted sender) smtp.mailfrom=sjhuang@iluvatar.ai;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=iluvatar.ai
-X-AuditID: 0a650161-773ff700000078a3-c2-5ca59ab6fcce
-Received: from owa.iluvatar.ai (s-10-101-1-102.iluvatar.local [10.101.1.102])
-	by smg.iluvatar.ai (Symantec Messaging Gateway) with SMTP id A6.63.30883.6BA95AC5; Thu,  4 Apr 2019 13:48:38 +0800 (HKT)
-Content-Type: text/plain
-DKIM-Signature: v=1; a=rsa-sha256; d=iluvatar.ai; s=key_2018;
-	c=relaxed/relaxed; t=1554356918; h=from:subject:to:date:message-id;
-	bh=+wsX3euaQTbnZYORNSKThK5YQHdjOBZReHK6/+C0+Oc=;
-	b=q/HyLEGSuwoWqkw3HI87CbTcbbnKSzjhK2J1MB7oInnuw/jssdO6l9LHmjDvPxZvnPyEyQnhQ7a
-	Z7ul5pvZLj5RuIrTOuGDgMeDzFR6GgQnn2BlK2O/I89kySsrVewFr+TZGTKzoS9Ozd8vWqQsLIH8G
-	8/t6gC+8L0rZCx7lYu4=
-Received: from hsj-Precision-5520.iluvatar.local (10.101.199.253) by
- S-10-101-1-102.iluvatar.local (10.101.1.102) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256_P256) id
- 15.1.1415.2; Thu, 4 Apr 2019 13:48:38 +0800
-From: Huang Shijie <sjhuang@iluvatar.ai>
-To: <akpm@linux-foundation.org>
-CC: <kirill.shutemov@linux.intel.com>, <mike.kravetz@oracle.com>,
-	<linux-mm@kvack.org>, Huang Shijie <sjhuang@iluvatar.ai>
-Subject: [PATCH] mm:rmap: use the pra.mapcount to do the check
-Date: Thu, 4 Apr 2019 13:48:28 +0800
-Message-ID: <20190404054828.2731-1-sjhuang@iluvatar.ai>
-X-Mailer: git-send-email 2.17.1
+       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Originating-IP: 79.86.19.127
+Received: from alex.numericable.fr (127.19.86.79.rev.sfr.net [79.86.19.127])
+	(Authenticated sender: alex@ghiti.fr)
+	by relay9-d.mail.gandi.net (Postfix) with ESMTPSA id D845CFF808;
+	Thu,  4 Apr 2019 05:51:29 +0000 (UTC)
+From: Alexandre Ghiti <alex@ghiti.fr>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Hellwig <hch@infradead.org>,
+	Russell King <linux@armlinux.org.uk>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Ralf Baechle <ralf@linux-mips.org>,
+	Paul Burton <paul.burton@mips.com>,
+	James Hogan <jhogan@kernel.org>,
+	Palmer Dabbelt <palmer@sifive.com>,
+	Albert Ou <aou@eecs.berkeley.edu>,
+	Alexander Viro <viro@zeniv.linux.org.uk>,
+	Luis Chamberlain <mcgrof@kernel.org>,
+	Kees Cook <keescook@chromium.org>,
+	linux-arm-kernel@lists.infradead.org,
+	linux-kernel@vger.kernel.org,
+	linux-mips@vger.kernel.org,
+	linux-riscv@lists.infradead.org,
+	linux-fsdevel@vger.kernel.org,
+	linux-mm@kvack.org,
+	Alexandre Ghiti <alex@ghiti.fr>
+Subject: [PATCH v2 0/5] Provide generic top-down mmap layout functions 
+Date: Thu,  4 Apr 2019 01:51:23 -0400
+Message-Id: <20190404055128.24330-1-alex@ghiti.fr>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-X-Originating-IP: [10.101.199.253]
-X-ClientProxiedBy: S-10-101-1-105.iluvatar.local (10.101.1.105) To
- S-10-101-1-102.iluvatar.local (10.101.1.102)
-X-Brightmail-Tracker: H4sIAAAAAAAAA+NgFtrCLMWRmVeSWpSXmKPExsXClcqYprtt1tIYg3PrpSzmrF/DZnHz+RwW
-	i3tr/rNafNwf7MDisenTJHaPEzN+s3jMOxno8fHpLZYAligum5TUnMyy1CJ9uwSujCs/2QsO
-	sVS83vGBqYHxDHMXIyeHhICJxI1399i6GLk4hAROMEo8WfCDDSTBLCAhcfDFC2aQBIvAWyaJ
-	M8dusENUtTJJPPl7H6yKTUBDYu6Ju2CjRATkJZq+PAIq4gDqrpH48AcsLCxgJ9Hz4CYTiM0i
-	oCLx8GoPWJxXwFyifeILJogr5CVWbzgAFReUODnzCQvIGCEBBYkXK7UgSpQkluydBVVeKDFj
-	4grGCYwCs5CcOgtJ9wJGplWM/MW56XqZOaVliSWJRXqJmZsYIUGZuIPxRudLvUOMAhyMSjy8
-	P1YviRFiTSwrrsw9xCjBwawkwuv6GijEm5JYWZValB9fVJqTWnyIUZqDRUmct2yiSYyQQHpi
-	SWp2ampBahFMlomDU6qBKW67vFHsvUmvVN9sDTzjpVxxNHiyant3MVfAxFC7PVMbJjd8z38h
-	/Uv63bT73v7zPax9P768V3jAas7cfCfFuPaX99oL5NlV9py+uO3MhjUPL7pvtnjU8N+Ao+2y
-	+07WwopZSoeOqK9OFRZjEW+d/f/APBen5yorwgp3qGr8MLt90T+l8N/dU6rH/KXCrujGWO6M
-	UZhw4MPH3iCBkOPuxzzZjv/QPiHB4tnDfezLPY5PSkyh02OOqz+tf3BB/sbhrj2Vl83+33oc
-	tWBT8LOG2/trzgsuNTiusSEmupPte/uuyd3tN0Q2yrEeFI0zaJxpuNx50g3BizH9EnvORGWs
-	/DbXN/bO6pwPq5MYl+1fKazEUpyRaKjFXFScCABG/mbkxwIAAA==
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We have the pra.mapcount already, and there is no need to call
-the page_mapped() which may do some complicated computing
-for compound page.
+This series introduces generic functions to make top-down mmap layout
+easily accessible to architectures, in particular riscv which was
+the initial goal of this series.
+The generic implementation was taken from arm64 and used successively
+by arm, mips and finally riscv.
 
-Signed-off-by: Huang Shijie <sjhuang@iluvatar.ai>
----
- mm/rmap.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Note that in addition the series fixes 2 issues:
+- stack randomization was taken into account even if not necessary.
+- [1] fixed an issue with mmap base which did not take into account
+  randomization but did not report it to arm and mips, so by moving
+  arm64 into a generic library, this problem is now fixed for both
+  architectures.
 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 76c8dfd3ae1c..6c5843dddb5a 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -850,7 +850,7 @@ int page_referenced(struct page *page,
- 	};
- 
- 	*vm_flags = 0;
--	if (!page_mapped(page))
-+	if (!pra.mapcount)
- 		return 0;
- 
- 	if (!page_rmapping(page))
+This work is an effort to factorize architecture functions to avoid
+code duplication and oversights as in [1].
+
+[1]: https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1429066.html
+
+Changes in v2 as suggested by Christoph Hellwig:
+  - Preparatory patch that moves randomize_stack_top
+  - Fix duplicate config in riscv
+  - Align #if defined on next line => this gives rise to a checkpatch
+    warning. I found this pattern all around the tree, in the same proportion
+    as the previous pattern which was less pretty:
+    git grep -C 1 -n -P "^#if defined.+\|\|.*\\\\$" 
+
+Alexandre Ghiti (5):
+  mm, fs: Move randomize_stack_top from fs to mm
+  arm64, mm: Move generic mmap layout functions to mm
+  arm: Use generic mmap top-down layout
+  mips: Use generic mmap top-down layout
+  riscv: Make mmap allocation top-down by default
+
+ arch/Kconfig                       |  8 +++
+ arch/arm/Kconfig                   |  1 +
+ arch/arm/include/asm/processor.h   |  2 -
+ arch/arm/mm/mmap.c                 | 52 ----------------
+ arch/arm64/Kconfig                 |  1 +
+ arch/arm64/include/asm/processor.h |  2 -
+ arch/arm64/mm/mmap.c               | 72 ----------------------
+ arch/mips/Kconfig                  |  1 +
+ arch/mips/include/asm/processor.h  |  5 --
+ arch/mips/mm/mmap.c                | 57 -----------------
+ arch/riscv/Kconfig                 | 11 ++++
+ fs/binfmt_elf.c                    | 20 ------
+ include/linux/mm.h                 |  2 +
+ kernel/sysctl.c                    |  6 +-
+ mm/util.c                          | 99 +++++++++++++++++++++++++++++-
+ 15 files changed, 126 insertions(+), 213 deletions(-)
+
 -- 
-2.17.1
+2.20.1
 
