@@ -3,101 +3,99 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3150DC10F0C
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 19:21:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 75E9DC10F0C
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 19:21:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D7B042075E
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 19:21:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D7B042075E
+	by mail.kernel.org (Postfix) with ESMTP id 286302075E
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 19:21:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 286302075E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 893996B0266; Thu,  4 Apr 2019 15:21:15 -0400 (EDT)
+	id CDE9F6B0269; Thu,  4 Apr 2019 15:21:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 843896B0269; Thu,  4 Apr 2019 15:21:15 -0400 (EDT)
+	id CB12E6B026A; Thu,  4 Apr 2019 15:21:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 734656B026A; Thu,  4 Apr 2019 15:21:15 -0400 (EDT)
+	id B797D6B026B; Thu,  4 Apr 2019 15:21:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 393426B0266
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 15:21:15 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id u78so2369448pfa.12
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 12:21:15 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 813526B0269
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 15:21:20 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id s22so2381476plq.1
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 12:21:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:from
          :to:cc:date:message-id:in-reply-to:references:user-agent
          :mime-version:content-transfer-encoding;
-        bh=mUGSMeK/z6xQc5qTC/EsW6ZXZgYY4YzJrYllkb+7LZQ=;
-        b=lluvM1ve0zRkY6kgayfbr1eXy82PSEuakoszlEx44fcxAzdCxhlfR+9PqO0lTE+5Ds
-         iIPSSd/4KBUVYFAKcgxWWevy2wWIButuxQri8FKDwEzPqQXHVxCaO5+cgiPwXgs2BkpR
-         uKEmYoDqU7XrmXdYSdptwpGRIyF2WSD3KoVqKrQOMlBkSiUUSVgnZG/MPEJklgbAxjzN
-         MHcfzgAwZg/1E6h1OIj/8lM11VqS6YkdxVip3kyYSU8BEGcBxGYbGxtVz/RCEy8JwX4/
-         MMait5SuA+uSQYguuOvhOIBafzw/8hr9Ey4UxgqYPxmYUqMO0ky1D4WKE6JYwga4cyXX
-         oNBQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWPckm0j1P55qlwv74wBfXw7mu+4RoRLH2ZcUPmeTXOPbPxRhfr
-	is+uikRv5iTL9vw9GYZn4gM6DxNIcAdxZBXEElcXgXmunP3QwJUsyXKxzClTIkOlh16rLuiLODs
-	0TvJUUOG5j36riV8lezqi0unBttyFy5NmZ+wMLTyu61rmczENEMFKeup1sXGyoW2LCw==
-X-Received: by 2002:a62:52c3:: with SMTP id g186mr7732489pfb.173.1554405674760;
-        Thu, 04 Apr 2019 12:21:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyBEmQNqSr32tgA0YFgy4PgJAjYIe4HA6fF+M8i5OGwSJ3oAjJZhAet9e/zkBfwPrqGA8tF
-X-Received: by 2002:a62:52c3:: with SMTP id g186mr7732405pfb.173.1554405673431;
-        Thu, 04 Apr 2019 12:21:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554405673; cv=none;
+        bh=ectYJ+6tKGgJCqQL9gegx+RSdwPdyypVroqHFoHFu3U=;
+        b=bCARDoL7bTDsXbX0Vc8ChXxNViW4/yxDA9UPdT9/rJLJyb5S4FM8R7DVstnELYkwk+
+         5O5QUcPWfYWbgbgRtOd85R+N/ouleB8UCryiii72CYjsII3WIOlkNKZWA1ThpOKqX88T
+         mc4OxAS7wAPkIn9MqXBh0YxRs4SCHwIRbmOdQStBOU981okmnMYH5ZePi6Io3Tnl6o0Z
+         7XZMrAXdXwVdQfqfzRd9pTAF20riwKJNoxIc9JQyJB8HG2EKYqBNsFvFPeLf4pIhuIpT
+         9OS/Vd1UYcx7xaF5kD5LJwDclZ7mYwPtKhRaRlJFGg5cVekAVk952SKMs+vqW1Sz2UdH
+         M+oQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWJFebN93+xP00/cDpjvRViMw2zE8wsZSIrPqHJKhW+Cy5bKKnf
+	1wkHAJtV70qFpqIN/GQhspO/VA9siVbiYZP589rIWEre72RCXTXfx9/tLKEtkaOH8OWfuChovNk
+	aUx/S60mtEKVopOvP5eUEWcYpSN5ZguskWKM5t6tcnZ0Ww80jiLSZSZzoPs98AiK/EA==
+X-Received: by 2002:a65:5a81:: with SMTP id c1mr7639115pgt.391.1554405680112;
+        Thu, 04 Apr 2019 12:21:20 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwqRk4HZuamdhZePCIuyFISoPmPMUVE7yUSM+B6yq4bbmz/h79P4XalwO5PiIEqJ/wId0Hb
+X-Received: by 2002:a65:5a81:: with SMTP id c1mr7638998pgt.391.1554405678652;
+        Thu, 04 Apr 2019 12:21:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554405678; cv=none;
         d=google.com; s=arc-20160816;
-        b=WICUdgr59c2F9jNGT4uUvDVHlHc5da6vNxUXJ7NKhsn+s27WGOCsUq7f1jhTwIRCo9
-         +EXt2LYc5KOEJc36kNuUji7hc/jJAyouVhYdh3/mnvWOYBWFkL8oZSp9gd1i825pDkCw
-         Z/nvP0gW2bzSC1FztB6AWW8iCtnGXwCAMjwl+7bZ0kTDCva29j6Cw98fCskk8eItyCFA
-         g6YPvr8+HMWEh4ou+H2EVQgXHoMvL9fYQwiJn5INwlpDeiYqI+nIgqo6glYh8I4ci8pd
-         w1IzKZi9h41kr7rJleD1yEt1NoYjidawscpv73+g9qYeQ9y98+Qb8dQkGttYpZc+1d/+
-         5TAg==
+        b=Yg6ZOioXNw55EgGnIJq4yfLupJS930T5iptjhZuXVEnaH4MaZNN6JM0M2TYaymazla
+         Seva/eNGy82QZS0W0Vp/wZykaApnkvaunSEkppkrtKl/aKmEUHWIi495o/exp4zru1Jj
+         EUYZSdvN1TwZuxL8Y3YXMsE+9EHWO8mi4hgIh4bZFBdiKF1572MTSy8C+73sLR9nP2ab
+         FP/git4VP/ZJBYcg3bj2lnZkms8T9Q78Vfe1I60V8YdaaGPoTZkkXhUoAoR+xtLe/RTt
+         46H7cZgbsf/v3dKUvF5vKT0YOmBbFFgHujP7gtxBrcrVWE7D/b69na+/GVwQPx3U8WXR
+         Nxgg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:message-id:date:cc:to:from:subject;
-        bh=mUGSMeK/z6xQc5qTC/EsW6ZXZgYY4YzJrYllkb+7LZQ=;
-        b=zEqsOs/7uvujs65ECSOQgF2EsaRDoTuNeFjyX0j0o+sEX470d8HktMBXQgdIyvIYth
-         yAdZCSl6fS3QclVA4BN/I+qaHqEArJHNkoWSzkJr5OWb5xhRUlUPihEgBvtwLsy3VN8L
-         h8+/QRWtTbi+KpFJUFHoMHmOVRMTh0gUeStUskjLXfmEMkbyFAsKFagQFhb6KSi922nE
-         x1xl9p530Ngh13SMjcrvf4EykXUMvmeMSjyTjYuAIIMSZymutJiIwWN619qOan6/NDUO
-         4FyGcDYenqzHJL5S1JcEjghaPHVgtG8K8mafWdhICESPk+OV6fYdr5OefUR/sawK7cgf
-         g/yQ==
+        bh=ectYJ+6tKGgJCqQL9gegx+RSdwPdyypVroqHFoHFu3U=;
+        b=Fjm1ZyIwGT4Bw58i6LS7YplHwq7FHz3FRNuaNF+2llaZLFNyWxlna59TbKZwk/l858
+         7bi7qPcHdIkR2wSEWJqY/siAUcfdvn627g6hyAKkE6I5NG/aGT5erOMwd+JAeQ7MyXAB
+         9IBM0+cJBk+ia0G++TtJHk02hYCpyPCjS04SsrOvXBSOGNdjwYnyyNtEac6vqnPUZsZb
+         fR6+hV60X6Y9r6u5YEb4aNeXPEFjRlrjRKF1bZdPXLjt6rXT7Ag3SOF4xFu8DZ7MhEd4
+         f7hbw8Y+xO4YYNCck32sdEVGpW+EDRszWzsCQa/Jb5aqpcIKHOs7FPEV3aSJgVfn4JbD
+         PZwg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id f6si17402503plf.356.2019.04.04.12.21.13
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id e17si16187010pgo.44.2019.04.04.12.21.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Apr 2019 12:21:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+        Thu, 04 Apr 2019 12:21:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from orsmga004.jf.intel.com ([10.7.209.38])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 04 Apr 2019 12:21:12 -0700
+Received: from fmsmga008.fm.intel.com ([10.253.24.58])
+  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 04 Apr 2019 12:21:18 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,309,1549958400"; 
-   d="scan'208";a="288767543"
+   d="scan'208";a="137653465"
 Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
-  by orsmga004.jf.intel.com with ESMTP; 04 Apr 2019 12:21:12 -0700
-Subject: [RFC PATCH 1/5] efi: Detect UEFI 2.8 Special Purpose Memory
+  by fmsmga008.fm.intel.com with ESMTP; 04 Apr 2019 12:21:18 -0700
+Subject: [RFC PATCH 2/5] lib/memregion: Uplevel the pmem "region" ida to a
+ global allocator
 From: Dan Williams <dan.j.williams@intel.com>
 To: linux-kernel@vger.kernel.org
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
- Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
- Ard Biesheuvel <ard.biesheuvel@linaro.org>, Darren Hart <dvhart@infradead.org>,
- Andy Shevchenko <andy@infradead.org>, vishal.l.verma@intel.com, x86@kernel.org,
- linux-mm@kvack.org, keith.busch@intel.com, vishal.l.verma@intel.com,
- linux-nvdimm@lists.01.org
-Date: Thu, 04 Apr 2019 12:08:33 -0700
-Message-ID: <155440491334.3190322.44013027330479237.stgit@dwillia2-desk3.amr.corp.intel.com>
+Cc: Keith Busch <keith.busch@intel.com>, vishal.l.verma@intel.com,
+ x86@kernel.org, linux-mm@kvack.org, keith.busch@intel.com,
+ vishal.l.verma@intel.com, linux-nvdimm@lists.01.org
+Date: Thu, 04 Apr 2019 12:08:38 -0700
+Message-ID: <155440491849.3190322.17551464505265122881.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <155440490809.3190322.15060922240602775809.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <155440490809.3190322.15060922240602775809.stgit@dwillia2-desk3.amr.corp.intel.com>
 User-Agent: StGit/0.18-2-gc94f
@@ -110,241 +108,185 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-UEFI 2.8 defines an EFI_MEMORY_SP attribute bit to augment the
-interpretation of the EFI Memory Types as "reserved for a special
-purpose".
+In preparation for handling platform differentiated memory types beyond
+persistent memory, uplevel the "region" identifier to a global number
+space. This enables a device-dax instance to be registered to any memory
+type with guaranteed unique names.
 
-The proposed Linux behavior for special purpose memory is that it is
-reserved for direct-access (device-dax) by default and not available for
-any kernel usage, not even as an OOM fallback. Later, through udev
-scripts or another init mechanism, these device-dax claimed ranges can
-be reconfigured and hot-added to the available System-RAM with a unique
-node identifier.
-
-A follow-on patch integrates parsing of the ACPI HMAT to identify the
-node and sub-range boundaries of EFI_MEMORY_SP designated memory. For
-now, arrange for EFI_MEMORY_SP memory to be reserved.
-
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Cc: Darren Hart <dvhart@infradead.org>
-Cc: Andy Shevchenko <andy@infradead.org>
+Cc: Keith Busch <keith.busch@intel.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- arch/x86/Kconfig                  |   18 ++++++++++++++++++
- arch/x86/boot/compressed/eboot.c  |    5 ++++-
- arch/x86/boot/compressed/kaslr.c  |    2 +-
- arch/x86/include/asm/e820/types.h |    9 +++++++++
- arch/x86/kernel/e820.c            |    9 +++++++--
- arch/x86/platform/efi/efi.c       |   10 +++++++++-
- include/linux/efi.h               |   14 ++++++++++++++
- include/linux/ioport.h            |    1 +
- 8 files changed, 63 insertions(+), 5 deletions(-)
+ drivers/nvdimm/Kconfig       |    1 +
+ drivers/nvdimm/core.c        |    1 -
+ drivers/nvdimm/nd-core.h     |    1 -
+ drivers/nvdimm/region_devs.c |   13 ++++---------
+ include/linux/memregion.h    |    6 ++++++
+ lib/Kconfig                  |    6 ++++++
+ lib/Makefile                 |    1 +
+ lib/memregion.c              |   22 ++++++++++++++++++++++
+ 8 files changed, 40 insertions(+), 11 deletions(-)
+ create mode 100644 include/linux/memregion.h
+ create mode 100644 lib/memregion.c
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index c1f9b3cf437c..cb9ca27de7a5 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1961,6 +1961,24 @@ config EFI_MIXED
+diff --git a/drivers/nvdimm/Kconfig b/drivers/nvdimm/Kconfig
+index 5e27918e4624..bf26cc5f6d67 100644
+--- a/drivers/nvdimm/Kconfig
++++ b/drivers/nvdimm/Kconfig
+@@ -3,6 +3,7 @@ menuconfig LIBNVDIMM
+ 	depends on PHYS_ADDR_T_64BIT
+ 	depends on HAS_IOMEM
+ 	depends on BLK_DEV
++	select MEMREGION
+ 	help
+ 	  Generic support for non-volatile memory devices including
+ 	  ACPI-6-NFIT defined resources.  On platforms that define an
+diff --git a/drivers/nvdimm/core.c b/drivers/nvdimm/core.c
+index acce050856a8..75fe651d327d 100644
+--- a/drivers/nvdimm/core.c
++++ b/drivers/nvdimm/core.c
+@@ -463,7 +463,6 @@ static __exit void libnvdimm_exit(void)
+ 	nd_region_exit();
+ 	nvdimm_exit();
+ 	nvdimm_bus_exit();
+-	nd_region_devs_exit();
+ 	nvdimm_devs_exit();
+ }
  
- 	   If unsure, say N.
+diff --git a/drivers/nvdimm/nd-core.h b/drivers/nvdimm/nd-core.h
+index e5ffd5733540..17561302dfec 100644
+--- a/drivers/nvdimm/nd-core.h
++++ b/drivers/nvdimm/nd-core.h
+@@ -133,7 +133,6 @@ struct nvdimm_bus *walk_to_nvdimm_bus(struct device *nd_dev);
+ int __init nvdimm_bus_init(void);
+ void nvdimm_bus_exit(void);
+ void nvdimm_devs_exit(void);
+-void nd_region_devs_exit(void);
+ void nd_region_probe_success(struct nvdimm_bus *nvdimm_bus, struct device *dev);
+ struct nd_region;
+ void nd_region_create_ns_seed(struct nd_region *nd_region);
+diff --git a/drivers/nvdimm/region_devs.c b/drivers/nvdimm/region_devs.c
+index b4ef7d9ff22e..eefdfd2565dd 100644
+--- a/drivers/nvdimm/region_devs.c
++++ b/drivers/nvdimm/region_devs.c
+@@ -11,6 +11,7 @@
+  * General Public License for more details.
+  */
+ #include <linux/scatterlist.h>
++#include <linux/memregion.h>
+ #include <linux/highmem.h>
+ #include <linux/sched.h>
+ #include <linux/slab.h>
+@@ -27,7 +28,6 @@
+  */
+ #include <linux/io-64-nonatomic-hi-lo.h>
  
-+config EFI_SPECIAL_MEMORY
-+	bool "EFI Special Purpose Memory Support"
-+	depends on EFI
-+	---help---
-+	  On systems that have mixed performance classes of memory EFI
-+	  may indicate special purpose memory with an attribute (See
-+	  EFI_MEMORY_SP in UEFI 2.8). A memory range tagged with this
-+	  attribute may have unique performance characteristics compared
-+	  to the system's general purpose "System RAM" pool. On the
-+	  expectation that such memory has application specific usage
-+	  answer Y to arrange for the kernel to reserve it for
-+	  direct-access (device-dax) by default. The memory range can
-+	  later be optionally assigned to the page allocator by system
-+	  administrator policy. Say N to have the kernel treat this
-+	  memory as general purpose by default.
-+
-+	  If unsure, say Y.
-+
- config SECCOMP
- 	def_bool y
- 	prompt "Enable seccomp to safely compute untrusted bytecode"
-diff --git a/arch/x86/boot/compressed/eboot.c b/arch/x86/boot/compressed/eboot.c
-index 544ac4fafd11..9b90fae21abe 100644
---- a/arch/x86/boot/compressed/eboot.c
-+++ b/arch/x86/boot/compressed/eboot.c
-@@ -560,7 +560,10 @@ setup_e820(struct boot_params *params, struct setup_data *e820ext, u32 e820ext_s
- 		case EFI_BOOT_SERVICES_CODE:
- 		case EFI_BOOT_SERVICES_DATA:
- 		case EFI_CONVENTIONAL_MEMORY:
--			e820_type = E820_TYPE_RAM;
-+			if (is_efi_special(d))
-+				e820_type = E820_TYPE_SPECIAL;
-+			else
-+				e820_type = E820_TYPE_RAM;
- 			break;
+-static DEFINE_IDA(region_ida);
+ static DEFINE_PER_CPU(int, flush_idx);
  
- 		case EFI_ACPI_MEMORY_NVS:
-diff --git a/arch/x86/boot/compressed/kaslr.c b/arch/x86/boot/compressed/kaslr.c
-index 2e53c056ba20..897e46eb9714 100644
---- a/arch/x86/boot/compressed/kaslr.c
-+++ b/arch/x86/boot/compressed/kaslr.c
-@@ -757,7 +757,7 @@ process_efi_entries(unsigned long minimum, unsigned long image_size)
- 		 *
- 		 * Only EFI_CONVENTIONAL_MEMORY is guaranteed to be free.
- 		 */
--		if (md->type != EFI_CONVENTIONAL_MEMORY)
-+		if (md->type != EFI_CONVENTIONAL_MEMORY || is_efi_special(md))
- 			continue;
- 
- 		if (efi_mirror_found &&
-diff --git a/arch/x86/include/asm/e820/types.h b/arch/x86/include/asm/e820/types.h
-index c3aa4b5e49e2..0ab8abae2e8b 100644
---- a/arch/x86/include/asm/e820/types.h
-+++ b/arch/x86/include/asm/e820/types.h
-@@ -28,6 +28,15 @@ enum e820_type {
- 	 */
- 	E820_TYPE_PRAM		= 12,
- 
-+	/*
-+	 * Special-purpose / application-specific memory is indicated to
-+	 * the system via the EFI_MEMORY_SP attribute. Define an e820
-+	 * translation of this memory type for the purpose of
-+	 * reserving this range and marking it with the
-+	 * IORES_DESC_APPLICATION_RESERVED designation.
-+	 */
-+	E820_TYPE_SPECIAL	= 0xefffffff,
-+
- 	/*
- 	 * Reserved RAM used by the kernel itself if
- 	 * CONFIG_INTEL_TXT=y is enabled, memory of this type
-diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
-index 2879e234e193..9f50dd0bbb04 100644
---- a/arch/x86/kernel/e820.c
-+++ b/arch/x86/kernel/e820.c
-@@ -176,6 +176,7 @@ static void __init e820_print_type(enum e820_type type)
- 	switch (type) {
- 	case E820_TYPE_RAM:		/* Fall through: */
- 	case E820_TYPE_RESERVED_KERN:	pr_cont("usable");			break;
-+	case E820_TYPE_SPECIAL:		/* Fall through: */
- 	case E820_TYPE_RESERVED:	pr_cont("reserved");			break;
- 	case E820_TYPE_ACPI:		pr_cont("ACPI data");			break;
- 	case E820_TYPE_NVS:		pr_cont("ACPI NVS");			break;
-@@ -1023,6 +1024,7 @@ static const char *__init e820_type_to_string(struct e820_entry *entry)
- 	case E820_TYPE_UNUSABLE:	return "Unusable memory";
- 	case E820_TYPE_PRAM:		return "Persistent Memory (legacy)";
- 	case E820_TYPE_PMEM:		return "Persistent Memory";
-+	case E820_TYPE_SPECIAL:		/* Fall-through: */
- 	case E820_TYPE_RESERVED:	return "Reserved";
- 	default:			return "Unknown E820 type";
+ static int nvdimm_map_flush(struct device *dev, struct nvdimm *nvdimm, int dimm,
+@@ -141,7 +141,7 @@ static void nd_region_release(struct device *dev)
+ 		put_device(&nvdimm->dev);
  	}
-@@ -1038,6 +1040,7 @@ static unsigned long __init e820_type_to_iomem_type(struct e820_entry *entry)
- 	case E820_TYPE_UNUSABLE:	/* Fall-through: */
- 	case E820_TYPE_PRAM:		/* Fall-through: */
- 	case E820_TYPE_PMEM:		/* Fall-through: */
-+	case E820_TYPE_SPECIAL:		/* Fall-through: */
- 	case E820_TYPE_RESERVED:	/* Fall-through: */
- 	default:			return IORESOURCE_MEM;
- 	}
-@@ -1050,6 +1053,7 @@ static unsigned long __init e820_type_to_iores_desc(struct e820_entry *entry)
- 	case E820_TYPE_NVS:		return IORES_DESC_ACPI_NV_STORAGE;
- 	case E820_TYPE_PMEM:		return IORES_DESC_PERSISTENT_MEMORY;
- 	case E820_TYPE_PRAM:		return IORES_DESC_PERSISTENT_MEMORY_LEGACY;
-+	case E820_TYPE_SPECIAL:		return IORES_DESC_APPLICATION_RESERVED;
- 	case E820_TYPE_RESERVED_KERN:	/* Fall-through: */
- 	case E820_TYPE_RAM:		/* Fall-through: */
- 	case E820_TYPE_UNUSABLE:	/* Fall-through: */
-@@ -1065,13 +1069,14 @@ static bool __init do_mark_busy(enum e820_type type, struct resource *res)
- 		return true;
+ 	free_percpu(nd_region->lane);
+-	ida_simple_remove(&region_ida, nd_region->id);
++	memregion_free(nd_region->id);
+ 	if (is_nd_blk(dev))
+ 		kfree(to_nd_blk_region(dev));
+ 	else
+@@ -1036,7 +1036,7 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
  
- 	/*
--	 * Treat persistent memory like device memory, i.e. reserve it
--	 * for exclusive use of a driver
-+	 * Treat persistent memory and other special memory ranges like
-+	 * device memory, i.e. reserve it for exclusive use of a driver
- 	 */
- 	switch (type) {
- 	case E820_TYPE_RESERVED:
- 	case E820_TYPE_PRAM:
- 	case E820_TYPE_PMEM:
-+	case E820_TYPE_SPECIAL:
- 		return false;
- 	case E820_TYPE_RESERVED_KERN:
- 	case E820_TYPE_RAM:
-diff --git a/arch/x86/platform/efi/efi.c b/arch/x86/platform/efi/efi.c
-index e1cb01a22fa8..d227751f331b 100644
---- a/arch/x86/platform/efi/efi.c
-+++ b/arch/x86/platform/efi/efi.c
-@@ -139,7 +139,9 @@ static void __init do_add_efi_memmap(void)
- 		case EFI_BOOT_SERVICES_CODE:
- 		case EFI_BOOT_SERVICES_DATA:
- 		case EFI_CONVENTIONAL_MEMORY:
--			if (md->attribute & EFI_MEMORY_WB)
-+			if (is_efi_special(md))
-+				e820_type = E820_TYPE_SPECIAL;
-+			else if (md->attribute & EFI_MEMORY_WB)
- 				e820_type = E820_TYPE_RAM;
- 			else
- 				e820_type = E820_TYPE_RESERVED;
-@@ -753,6 +755,12 @@ static bool should_map_region(efi_memory_desc_t *md)
- 	if (IS_ENABLED(CONFIG_X86_32))
- 		return false;
+ 	if (!region_buf)
+ 		return NULL;
+-	nd_region->id = ida_simple_get(&region_ida, 0, 0, GFP_KERNEL);
++	nd_region->id = memregion_alloc();
+ 	if (nd_region->id < 0)
+ 		goto err_id;
  
-+	/*
-+	 * Special purpose memory is not mapped by default.
-+	 */
-+	if (is_efi_special(md))
-+		return false;
+@@ -1090,7 +1090,7 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
+ 	return nd_region;
+ 
+  err_percpu:
+-	ida_simple_remove(&region_ida, nd_region->id);
++	memregion_free(nd_region->id);
+  err_id:
+ 	kfree(region_buf);
+ 	return NULL;
+@@ -1237,8 +1237,3 @@ int nd_region_conflict(struct nd_region *nd_region, resource_size_t start,
+ 
+ 	return device_for_each_child(&nvdimm_bus->dev, &ctx, region_conflict);
+ }
+-
+-void __exit nd_region_devs_exit(void)
+-{
+-	ida_destroy(&region_ida);
+-}
+diff --git a/include/linux/memregion.h b/include/linux/memregion.h
+new file mode 100644
+index 000000000000..99fa47793b49
+--- /dev/null
++++ b/include/linux/memregion.h
+@@ -0,0 +1,6 @@
++// SPDX-License-Identifier: GPL-2.0
++#ifndef _MEMREGION_H_
++#define _MEMREGION_H_
++int memregion_alloc(void);
++void memregion_free(int id);
++#endif /* _MEMREGION_H_ */
+diff --git a/lib/Kconfig b/lib/Kconfig
+index a9e56539bd11..0b765d9a1145 100644
+--- a/lib/Kconfig
++++ b/lib/Kconfig
+@@ -318,6 +318,12 @@ config DECOMPRESS_LZ4
+ config GENERIC_ALLOCATOR
+ 	bool
+ 
++#
++# Generic IDA for memory regions
++#
++config MEMREGION
++	bool
 +
- 	/*
- 	 * Map all of RAM so that we can access arguments in the 1:1
- 	 * mapping when making EFI runtime calls.
-diff --git a/include/linux/efi.h b/include/linux/efi.h
-index 54357a258b35..cecbc2bda1da 100644
---- a/include/linux/efi.h
-+++ b/include/linux/efi.h
-@@ -112,6 +112,7 @@ typedef	struct {
- #define EFI_MEMORY_MORE_RELIABLE \
- 				((u64)0x0000000000010000ULL)	/* higher reliability */
- #define EFI_MEMORY_RO		((u64)0x0000000000020000ULL)	/* read-only */
-+#define EFI_MEMORY_SP		((u64)0x0000000000040000ULL)	/* special purpose */
- #define EFI_MEMORY_RUNTIME	((u64)0x8000000000000000ULL)	/* range requires runtime mapping */
- #define EFI_MEMORY_DESCRIPTOR_VERSION	1
+ #
+ # reed solomon support is select'ed if needed
+ #
+diff --git a/lib/Makefile b/lib/Makefile
+index 3b08673e8881..6e237c4071af 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -122,6 +122,7 @@ obj-$(CONFIG_LIBCRC32C)	+= libcrc32c.o
+ obj-$(CONFIG_CRC8)	+= crc8.o
+ obj-$(CONFIG_XXHASH)	+= xxhash.o
+ obj-$(CONFIG_GENERIC_ALLOCATOR) += genalloc.o
++obj-$(CONFIG_MEMREGION) += memregion.o
  
-@@ -128,6 +129,19 @@ typedef struct {
- 	u64 attribute;
- } efi_memory_desc_t;
- 
-+#ifdef CONFIG_EFI_SPECIAL_MEMORY
-+static inline bool is_efi_special(efi_memory_desc_t *md)
-+{
-+	return md->type == EFI_CONVENTIONAL_MEMORY
-+		&& (md->attribute & EFI_MEMORY_SP);
-+}
-+#else
-+static inline bool is_efi_special(efi_memory_desc_t *md)
-+{
-+	return false;
-+}
-+#endif
+ obj-$(CONFIG_842_COMPRESS) += 842/
+ obj-$(CONFIG_842_DECOMPRESS) += 842/
+diff --git a/lib/memregion.c b/lib/memregion.c
+new file mode 100644
+index 000000000000..21f5ff96c2eb
+--- /dev/null
++++ b/lib/memregion.c
+@@ -0,0 +1,22 @@
++#include <linux/idr.h>
++#include <linux/module.h>
 +
- typedef struct {
- 	efi_guid_t guid;
- 	u32 headersize;
-diff --git a/include/linux/ioport.h b/include/linux/ioport.h
-index da0ebaec25f0..2d79841ee9b9 100644
---- a/include/linux/ioport.h
-+++ b/include/linux/ioport.h
-@@ -133,6 +133,7 @@ enum {
- 	IORES_DESC_PERSISTENT_MEMORY_LEGACY	= 5,
- 	IORES_DESC_DEVICE_PRIVATE_MEMORY	= 6,
- 	IORES_DESC_DEVICE_PUBLIC_MEMORY		= 7,
-+	IORES_DESC_APPLICATION_RESERVED		= 8,
- };
- 
- /* helpers to define resources */
++static DEFINE_IDA(region_ida);
++
++int memregion_alloc(void)
++{
++	return ida_simple_get(&region_ida, 0, 0, GFP_KERNEL);
++}
++EXPORT_SYMBOL(memregion_alloc);
++
++void memregion_free(int id)
++{
++	ida_simple_remove(&region_ida, id);
++}
++EXPORT_SYMBOL(memregion_free);
++
++static void __exit memregion_exit(void)
++{
++	ida_destroy(&region_ida);
++}
++module_exit(memregion_exit);
 
