@@ -2,151 +2,119 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CBBDFC10F0C
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 16:39:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61D44C4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 16:40:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8A37B206DF
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 16:39:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 228CF206DF
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 16:40:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="N9O/P989"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A37B206DF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="QCkR8nbv"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 228CF206DF
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 233D56B0269; Thu,  4 Apr 2019 12:39:20 -0400 (EDT)
+	id 8E8066B0269; Thu,  4 Apr 2019 12:40:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1B9796B026A; Thu,  4 Apr 2019 12:39:20 -0400 (EDT)
+	id 871A86B026A; Thu,  4 Apr 2019 12:40:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0822A6B026B; Thu,  4 Apr 2019 12:39:20 -0400 (EDT)
+	id 739666B026B; Thu,  4 Apr 2019 12:40:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D5BC76B0269
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 12:39:19 -0400 (EDT)
-Received: by mail-yb1-f197.google.com with SMTP id q195so2266188ybg.3
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 09:39:19 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 51C596B0269
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 12:40:54 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id d131so2606904qkc.18
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 09:40:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=sVZzefylPUert59vxaZI/oiiATEF9PQOgxdOg2fXoEs=;
-        b=JhU9Npb5eW13zvasExSzypS9R2wqf0W8aZRKj5JjyNyhZZU/n9Vv8TCjXAkhI1YpK0
-         5kgdTAow9t9uzQbv2t3XuGhrumGNktufgVlATYMUEfiO/k9NYG+zHl22likT+MHlJYzu
-         IWZQ7OCHad+Sol1ilXHuXg9CJuzQ8HbY4SX/WpdjWOcwelmEo+UYwYleaNp4+dIZKPHi
-         zJdhloSz40qwnu4EI3+MeBjbX6hAgco0sqFhs+j8TTJ+t/DYZkD+XhVaZZ+4obnc+bFz
-         BlIFYw+Y7p8QOVl9HS27PTsaGBknwDRTl2Sr6bsbZiL5Ruzs5AyCDRKHj8NYHSoAMcCE
-         PXRQ==
-X-Gm-Message-State: APjAAAUb15obaZgjsiOSJKMrspN7+sU4oEbypx6SGv59ykZA8YWY6rJu
-	vu9leCdkZOtlkxvXNsozY5EdymByyKrrPBGI6Sh9XKM2O8mL+j4+jLglJn/P/2p4lCMfCYNDzN/
-	kdr8bw0rlawMFKi1PfFQ1dOX9kUtCiXdVkDp6BwHCmW3FGTkx3H6dL7xQjGK+1BWH9g==
-X-Received: by 2002:a0d:ee41:: with SMTP id x62mr5870235ywe.58.1554395959644;
-        Thu, 04 Apr 2019 09:39:19 -0700 (PDT)
-X-Received: by 2002:a0d:ee41:: with SMTP id x62mr5870168ywe.58.1554395958886;
-        Thu, 04 Apr 2019 09:39:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554395958; cv=none;
+         :in-reply-to:message-id:references:user-agent:mime-version
+         :feedback-id;
+        bh=28+09XFOqkmUno0MP/WfSRXRXy04JRnokQl+mHKKxO4=;
+        b=EEwiNpo/mU9eK2wqb/NZPX94soU6x9vDBgNxYjn4SzTcUpNNlEKsLY1kNyvE0O8S7I
+         VgRS8wAjPB25Y5OJn39YRiWTh0r+qW832lkRcPUrjFlheUKwAYKYegC67UtxARrfuiCw
+         I7m8JMfMv4zgY8qLL9cSX1jki1JQE70p+Tct1RKRAjTDni491jRTHL3ZUmuMQNa4Bd73
+         zzViSGUAFmoPablvzpBC3CewNyYy8ZfNxsgC4eRDmoBkIgdjl1MDcDB0mqmBkTsK+owU
+         UcCyxrDcUgjmY6u9X0pyCuFKW8AS5XUAK/rm4FSse3uXCqukOL3LQjJkUZZyU7Wws4kt
+         agMw==
+X-Gm-Message-State: APjAAAWW+QQCFQHimXO48CXZU5BB6DDPCtuMATCt5F2YYefXQKrC0dcx
+	n7m7NC4SlJIc5pX9wmUsc4JF8opPLWKXynvt33NKrOIXNmYt5PJC4yoXuxF9sji7CZM8iwS+XxR
+	YxjuMuwcZz5qg3C+f2MUy2M3svriLj/PWhpIqXuiM+rjFOUeB3TY2lfGLpnJ+71o=
+X-Received: by 2002:a37:6615:: with SMTP id a21mr5841539qkc.64.1554396054110;
+        Thu, 04 Apr 2019 09:40:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw2yUmt64a326tFz16mJHoPEJRl3nFQYMVeFxyLeADC3CpWgns4ZsS0nYSoXrsoAGlP5I/u
+X-Received: by 2002:a37:6615:: with SMTP id a21mr5841481qkc.64.1554396053538;
+        Thu, 04 Apr 2019 09:40:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554396053; cv=none;
         d=google.com; s=arc-20160816;
-        b=f9uB3fxNb+W9Qdjl+53nbfkQxvHatIvg06NSuxirCkFYOg8Gjb2FtTCFyVvVl1lcw4
-         +D61RayuK7ispLYeRzfH9/wpZGLVgahclfQv9AuVGGf3ub+rFpSg4lzgVD1sMLGl/d1N
-         tXZIxTs5KfKKECinT8bAwwoemkPK0pmUjqZJq+Gs11P7oHyGMQSHL0iLdc0y3b6eYWVt
-         E8edojYlJunbpnYLBojKgp63JVTOqpVjjpbOgPoGhz79HI5V23azzT71LfzKBbRCY1Zh
-         SlnT1RunjkL3YpJMZ/2pUr++MhgBXkKNKLA6yFO58qqTXcqUvxBhDDfK2Hw2ewOFZTd2
-         kkFw==
+        b=KHQyCaJs6X7UHbaYVwGC1sw4WWSn/WK4FU0+6PysmANsSuK3kDHPcW+pqHUeoIYPyQ
+         FZ7m7/vrQxWveDb5XvAJPU5uZSFBaADO0CKsZy8Rq7NjFeNvc8I5wvx320vyLA0fddVj
+         GynFMft0sZ7ozJe7mvqZzjqi2YpehLSBvtvscU48u97msPqo5FwoJIQaQKHK5haBNibk
+         Z0hjgX6Y9gu3UNzmoA60AIIQ/ZDh5Qh62IVOFTu6vguXaNCiFAAuwymjLqhIP02aKYBN
+         PplDfLhn3E7hYJk+SqlTSOG3E7OoXxJgkQsWZlEGIgyIP2aT7ksXGgKJbHoJtIt5fEWo
+         oakQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=sVZzefylPUert59vxaZI/oiiATEF9PQOgxdOg2fXoEs=;
-        b=tfHA5LM6g00Z5AkiZqObUdbBzzhtzfxwa2KypXeBKLf3oEc5pTsfoUcrdrNAP7re+i
-         l7TA0pOwruP+r0tE8Sy3T+5hrr6NQo7NuxPdbL52tdfuEfnN8q+XZx9YlIdQrskc6Bu3
-         FinL08H8Ew8kvPapRR469X46T/rQ/C5pZtNHN1onihpctmauorsM/afKEJvyMbIKN7e5
-         bD1jYK7Mou+It3NpQG86f7Q8h0A1pYv2qkyq+pArBdTXsZNrGdBJCtHrw9AziK3E67AV
-         I5H3odJjr5jYIXS+uOpT5DQ+ow5NRa2MKlpJ30lShK6M3OPqrPY7OHLbFk0FyJATKOGM
-         3VqA==
+        h=feedback-id:mime-version:user-agent:references:message-id
+         :in-reply-to:subject:cc:to:from:date:dkim-signature;
+        bh=28+09XFOqkmUno0MP/WfSRXRXy04JRnokQl+mHKKxO4=;
+        b=zOo4Dsb0spSmKLpsIcyHPkwkTU9OQvbRK0R3EcBFkySm70AfHQFJX+EgsGXOD6n/sZ
+         dQ8SPU+q4Ublb+KGu+TWc7QRvSsJ8uOWr9UJ6mikcXZZVlk2/ovONpjN4QR+gJppJqCR
+         FvU+ThCBjh5sKXTjK+G+cqjZ8JyUkBhdmS059MCFY9UcH4mly0RPH6+z4PIKAmnuY0zr
+         d1vzKb6ZaxWxo2bOglos82M1EwGHd2ElPoMXXSx9NWam0R5gkCopMeyKiyjkIBil1aXN
+         pybmbxLyoRxvwm+ro4IQFeLRFewmMCL/paZzXzXaFEp1wJkZfV0VpDZ5N/Gj9WeP4nyD
+         Iv+g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b="N9O/P989";
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id h136sor6622861ywa.41.2019.04.04.09.39.16
+       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=QCkR8nbv;
+       spf=pass (google.com: domain of 01000169e9397c8b-5e09e11d-50f7-4622-b369-d684d17856c9-000000@amazonses.com designates 54.240.9.35 as permitted sender) smtp.mailfrom=01000169e9397c8b-5e09e11d-50f7-4622-b369-d684d17856c9-000000@amazonses.com
+Received: from a9-35.smtp-out.amazonses.com (a9-35.smtp-out.amazonses.com. [54.240.9.35])
+        by mx.google.com with ESMTPS id g22si260067qta.80.2019.04.04.09.40.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 04 Apr 2019 09:39:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 04 Apr 2019 09:40:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 01000169e9397c8b-5e09e11d-50f7-4622-b369-d684d17856c9-000000@amazonses.com designates 54.240.9.35 as permitted sender) client-ip=54.240.9.35;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b="N9O/P989";
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=sVZzefylPUert59vxaZI/oiiATEF9PQOgxdOg2fXoEs=;
-        b=N9O/P989CYq5nDJ+5cfuaXQTyO9yPFp/1/eKojWhp/i7Y2K8efOxl8h5pcHtpCFXpV
-         2/Fgk3oF02TPKWP0j2FhXquqaxWo7pcBk+LSDFbvbP6L7+AKKu3P8X1Bc/ih1Un5oAHW
-         lidSBfVBXnjoYtvNI8yPV/jeLc7aSm1KqADr4p45hgk+VpTgdmNZgYK7a9ZtS8/nOvWv
-         Ze6qWGbBNiCJZnPke88ZMLvYVM1HMR/817cLJax12DTXw/4xn7MrjL1SOwjZX3E93CRT
-         n9tNcxv2bv+8v9aEkys2lEACvHlf/xG0dxvVaY7Mo0mI/Orl1g12urtpIGjl1Q1vKsWG
-         eLEQ==
-X-Google-Smtp-Source: APXvYqzilLKYDRMZlOnegsGNrRHGCTLtWjZZcd0Pk6bBZMtt4KU1a29LEu2clZfsFtRi2mMQ7fOucw==
-X-Received: by 2002:a81:4d8b:: with SMTP id a133mr5725050ywb.122.1554395956113;
-        Thu, 04 Apr 2019 09:39:16 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:200::1:af4])
-        by smtp.gmail.com with ESMTPSA id j187sm6563806ywj.32.2019.04.04.09.39.15
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 04 Apr 2019 09:39:15 -0700 (PDT)
-Date: Thu, 4 Apr 2019 12:39:14 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Zhaoyang Huang <huangzhaoyang@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Pavel Tatashin <pasha.tatashin@oracle.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	David Rientjes <rientjes@google.com>,
-	Zhaoyang Huang <zhaoyang.huang@unisoc.com>,
-	Roman Gushchin <guro@fb.com>, Jeff Layton <jlayton@redhat.com>,
-	Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm:workingset use real time to judge activity of the
- file page
-Message-ID: <20190404163914.GA4229@cmpxchg.org>
-References: <1554348617-12897-1-git-send-email-huangzhaoyang@gmail.com>
+       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=QCkR8nbv;
+       spf=pass (google.com: domain of 01000169e9397c8b-5e09e11d-50f7-4622-b369-d684d17856c9-000000@amazonses.com designates 54.240.9.35 as permitted sender) smtp.mailfrom=01000169e9397c8b-5e09e11d-50f7-4622-b369-d684d17856c9-000000@amazonses.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1554396052;
+	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
+	bh=28+09XFOqkmUno0MP/WfSRXRXy04JRnokQl+mHKKxO4=;
+	b=QCkR8nbvGPc46188u3FKsmfoRKR+C8SJcpzLMQepDco+/v/jNbIM1i9oRzKcsRGJ
+	u4bwBFfxfBEwpyaeWRQUN77Wh7CMdEUPsGcX/QH5IPyDlUTiZjZS9yRsV10kZfiS1On
+	C2yv3QO2mEYO/RwYRw5MUIOZhGdUdYfLEenOnXIk=
+Date: Thu, 4 Apr 2019 16:40:52 +0000
+From: Christopher Lameter <cl@linux.com>
+X-X-Sender: cl@nuc-kabylake
+To: Vlastimil Babka <vbabka@suse.cz>
+cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, 
+    David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, 
+    Andrew Morton <akpm@linux-foundation.org>, 
+    Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org
+Subject: Re: [RFC 2/2] mm, slub: add missing kmem_cache_debug() checks
+In-Reply-To: <20190404091531.9815-3-vbabka@suse.cz>
+Message-ID: <01000169e9397c8b-5e09e11d-50f7-4622-b369-d684d17856c9-000000@email.amazonses.com>
+References: <20190404091531.9815-1-vbabka@suse.cz> <20190404091531.9815-3-vbabka@suse.cz>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1554348617-12897-1-git-send-email-huangzhaoyang@gmail.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+Content-Type: text/plain; charset=US-ASCII
+X-SES-Outgoing: 2019.04.04-54.240.9.35
+Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 04, 2019 at 11:30:17AM +0800, Zhaoyang Huang wrote:
-> From: Zhaoyang Huang <zhaoyang.huang@unisoc.com>
-> 
-> In previous implementation, the number of refault pages is used
-> for judging the refault period of each page, which is not precised as
-> eviction of other files will be affect a lot on current cache.
-> We introduce the timestamp into the workingset's entry and refault ratio
-> to measure the file page's activity. It helps to decrease the affection
-> of other files(average refault ratio can reflect the view of whole system
-> 's memory).
+On Thu, 4 Apr 2019, Vlastimil Babka wrote:
 
-I don't understand what exactly you're saying here, can you please
-elaborate?
+> Some debugging checks in SLUB are not hidden behind kmem_cache_debug() check.
+> Add the check so that those places can also benefit from reduced overhead
+> thanks to the the static key added by the previous patch.
 
-The reason it's using distances instead of absolute time is because
-the ordering of the LRU is relative and not based on absolute time.
-
-E.g. if a page is accessed every 500ms, it depends on all other pages
-to determine whether this page is at the head or the tail of the LRU.
-
-So when you refault, in order to determine the relative position of
-the refaulted page in the LRU, you have to compare it to how fast that
-LRU is moving. The absolute refault time, or the average time between
-refaults, is not comparable to what's already in memory.
+Hmmm... I would not expect too much of a benefit from these changes since
+most of the stuff is actually not on the hot path.
 
