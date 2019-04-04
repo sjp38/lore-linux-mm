@@ -2,192 +2,209 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 46F8BC4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 13:46:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4D11C4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 14:10:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E6DB220882
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 13:46:01 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="PZmWxRXG"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E6DB220882
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	by mail.kernel.org (Postfix) with ESMTP id 4399F2082E
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 14:10:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4399F2082E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 609736B0003; Thu,  4 Apr 2019 09:46:01 -0400 (EDT)
+	id ADC206B0003; Thu,  4 Apr 2019 10:10:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5BA376B0005; Thu,  4 Apr 2019 09:46:01 -0400 (EDT)
+	id A64846B0006; Thu,  4 Apr 2019 10:10:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2FC146B0006; Thu,  4 Apr 2019 09:46:01 -0400 (EDT)
+	id 8E01B6B0007; Thu,  4 Apr 2019 10:10:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BC7C76B0003
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 09:46:00 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id g26so653393ljd.20
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 06:46:00 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 390356B0003
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 10:10:39 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id f2so1495547edv.15
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 07:10:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=aX4bcANLE0qbzEM/DY2hmCSK/Q3OEHPRQfTver3cSSA=;
-        b=oprDq3S622J98BuJ7Qw4Qd3TY/u22Bzjrb3vmrGO5R9HPRtnJRYw1zXPlg2E3D0g/L
-         PNiOQn2JIPf7gw6pg/5CdixfLaMZJ5ORmlq92unI7deRwSJG/VaZ50eDpHu+BQdOUXaz
-         MnjJPOXjYg0uh1yc4NZJScUTVGw9iino2D2I7Ayc6rOMRzvMq8bsgdE4zFKDxzV4qkj8
-         tPrtDxm0nJb8b+I11/648Gq+IEkTt6RmOsbktd21hrFubJqeOh3mVKXHocuFmolYt8qe
-         xbTncO4VL/X4v72+8pkyIceP6W+NMoey4WD+n+GrMI/HvmAEEeOfMfuKS2Ey9xpm/Vhy
-         083A==
-X-Gm-Message-State: APjAAAUjHMimBDZmw+MGe0TjrmKHoOBJzFgfieA+eUAVbbtjlldNSKNp
-	qgpeTSng430v103FGmb0OKDyyZl7Ov5b9OPWblrLwsjrrXoIxDm5ygQDTltaM+CH4d1OR+/P8qE
-	icnP/HfPPBI6xnTRX1oDfpF+xHu3ar+hNAcgn1M78xLESJJmRj3ehPkT0QbhXjhqCuw==
-X-Received: by 2002:a2e:1245:: with SMTP id t66mr3602680lje.18.1554385559980;
-        Thu, 04 Apr 2019 06:45:59 -0700 (PDT)
-X-Received: by 2002:a2e:1245:: with SMTP id t66mr3602623lje.18.1554385558738;
-        Thu, 04 Apr 2019 06:45:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554385558; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=dnsO4qfUVHQydV7Z84e+M79arvAO68kfbNr9ra2Ku2A=;
+        b=Ht21OnA9wXX1uiR+LhnbGNks+yzqzC36TFuMClb8u4yIzfKcFhCTwT1IU3h14LjbV9
+         lfL5+sfhSwpNral0j/Op+PHo9u8fLaWNi5BjVyxmEi7vD6xmVNe3NsnloVKZFgPlwg6N
+         9Wg+RZgjUyGBeem+8bd4debHuOgmLa9iWzUVK7uWH68EqIPeAvcIBrq7JVNtao1kO18Q
+         Z2ju565QDhDTUaJMw0UKbb2d6QqbLuFkG2Y/hqxh/rMBbQhO7MqjLnj56noMFI+Hnj/A
+         1mQfcAfTXm+8/CsTNZno/HOOU5hK+in+pA+wmEhvakssXUcokYrTcgwDqqRuOYWioQt2
+         SAtQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAW4TlM+qaKTp0W/MBiO7MCfjtuXLVQ7llvncdreQe1ZmtPWRynQ
+	vCKnUeRw4wXKMSl/gjzE3Vvhsi8GlzDY5iNByW4OyJdoavwE17MDY6C51nEnzql2TdtTYtJagPF
+	Puug+kXPK9A2fm+0E18tWXBEFgu0E62I5IFuu3hQ/lciNpLgwjXl2qYVO/lEYcaNyPw==
+X-Received: by 2002:a17:906:b34c:: with SMTP id cd12mr3874102ejb.106.1554387038763;
+        Thu, 04 Apr 2019 07:10:38 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqymX/J6PlcS+uRMYQRnWsH8TUKHW7Zmvtl0NSPEI1YsqoWWifj0k/wfxeI0uT1lSkqtfhrZ
+X-Received: by 2002:a17:906:b34c:: with SMTP id cd12mr3874031ejb.106.1554387037623;
+        Thu, 04 Apr 2019 07:10:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554387037; cv=none;
         d=google.com; s=arc-20160816;
-        b=baqr8vPcuAl3gobtE3Iz+syjw2+m8lgLuBnBq2MBcpmdguQvMjXzWm7WaDS0LleVQC
-         QxdwtKWWWgSrGlGy/aOgmALUv4Yvi3drch30kTBcWCta2Rmz8t6p32tpKzdtz2CZdu6I
-         DHcIG1+tAufsU533LNNhqesAy1II+YwY6wGygAn98e5EjFUQckJdYw2wK42RWYXT8ap+
-         vQ3MHWwavEX+08j06IbMoxMtRMTfi1csKVqVef6xTVXg9KGUn8EDutFqy1Sq0H/8czJx
-         eCo4Y80xt7hAMScg3u5e0U15kFWkoS5i3ESrLfY68eqEeQqwUgmV2/uLtdcAnajtT4en
-         7Zyg==
+        b=KbeOBAPD+RAJaRhhbBW8ddTnuKVd2eots8eOqeVq7S4kzILALGlSdRuCdZKG6UvVF6
+         AQD6wO6QwC2W9utstKsAjTK1wJXbTbtsy8AfXgbtBmyri99SGn1aX9r9nWDOIZ2Ve+G2
+         m2EplYzdOduC9k4CywmYRa90oz7qiFBdTIJEp+paabWoimsUguadq6K+l2tIFMLAOKlU
+         QjQwWQ70U94Rk2PR2ZQiYSgg4gEJMZf9OEeZcIp7BtjD++jBpe+7Waltg4HmLVE4ubBN
+         qeau7tDLeV5dBmQnQcgKNeli4wrjutsDTitfMONlwDUwJRZMYrDyr1NzvPcskcTMLpCQ
+         PI8Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=aX4bcANLE0qbzEM/DY2hmCSK/Q3OEHPRQfTver3cSSA=;
-        b=PJmZEcijSWdg947PeuESNTGH1/veDAnWjYzoI1NMm1bFY03F+E45LJrdxXKroQ0WrB
-         HKX3HfJ/YYpzU4IhtQ8/clrT2FR0o2VyYj2OCsnGaR25R/bjxMcm6PKG805mE5jJwqy+
-         sopjTyDFeZgU4OVB92BdQaNqTNYjHUZsobO6FoFcvym4tcxQCjUV3JtPvDpgQYLkwRsJ
-         7UwNbRijI7yqYbjtqwfpwEHH3I03nNuws+s0s9KYNnoI6rVcyX9ey/YkxXVhrK+03Lne
-         /96XqVEvliX/BU/fRBgZOj/W/UKL6+yEqKEwPMlX8k+HIl5QwX6mSF2uLe6YZkSK5G96
-         ZgQg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=dnsO4qfUVHQydV7Z84e+M79arvAO68kfbNr9ra2Ku2A=;
+        b=dnPnkkWavl+AXGTSuXbGN5pw10ueQygzajTbVhc5BgPRiL7myLlW4/gkeEroeI8qls
+         Y81OXUbXKXgzR+cJ586Rk6ZDW7p0jr6hsBrrcBpjk9/Jn0suEJivRAfWe/Zh8KoyU0mb
+         ELfKh1+Dm17vswyMgwcvbct7wbGwpBq/lSGQnFTrF7zEuWafDe04vgKT3C407RmIKsRY
+         KmVNm3dDplqg7fNoMW6oG8pUYWcFftWQK4eut+ohlBmuGbyfCUS6v6t/jSGzZiLeyZu6
+         rMitUhb1rMUlwfkLEFmjo9zeGyKDpRZeiPz0PU84BfEEE2GmqXTY+1bezeFvB5+Ysrqz
+         PsmA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=PZmWxRXG;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e8sor5081567ljk.39.2019.04.04.06.45.58
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f2si4338062edb.413.2019.04.04.07.10.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 04 Apr 2019 06:45:58 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=PZmWxRXG;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=aX4bcANLE0qbzEM/DY2hmCSK/Q3OEHPRQfTver3cSSA=;
-        b=PZmWxRXGpWcayfSi2kpHJRJoveLRXTjFHKoqxDEfzHy1fOJ2bSpeiv3tiz7KnR66dN
-         3Xc1ypiLVSEW+vOvbkBOGFCt8ub6hjlzGjIMhXnRDdjqj+fPsW6XFdn/AaAX5ZYnJxis
-         Sv7mHCtYLd2UNEaY9fAjnKYMxZBsFAMEyEB367ga46zqhFkebph3nXrU9Jn8Je9TyAOe
-         +z7Hvl8N4MqgHQ7eFwLJJK+31gp1brMnd7wPIsoxEwAmp0MpUMJOKtwhFmNFbh/lH73I
-         uZnlAo8qohpd0YLHntEjlo7mPIuGjWB+yQWw+jfMc26ROQaFFyA5Dx3VXIZnxNJA3cTy
-         QgFA==
-X-Google-Smtp-Source: APXvYqwm2Jmb6aQLc/380YnVbklP1+kuRjTa1UotVecAMc/nlwo+G0qtwJZnHFp9S3z/BKP3BBJnVg==
-X-Received: by 2002:a2e:88c1:: with SMTP id a1mr3487516ljk.78.1554385558116;
-        Thu, 04 Apr 2019 06:45:58 -0700 (PDT)
-Received: from kshutemo-mobl1.localdomain ([178.127.198.154])
-        by smtp.gmail.com with ESMTPSA id s67sm3932013lja.57.2019.04.04.06.45.56
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Apr 2019 06:45:57 -0700 (PDT)
-Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
-	id 1387D30039B; Thu,  4 Apr 2019 16:45:54 +0300 (+03)
-Date: Thu, 4 Apr 2019 16:45:54 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Qian Cai <cai@lca.pw>
-Cc: Matthew Wilcox <willy@infradead.org>, Huang Ying <ying.huang@intel.com>,
-	linux-mm@kvack.org
-Subject: Re: page cache: Store only head pages in i_pages
-Message-ID: <20190404134553.vuvhgmghlkiw2hgl@kshutemo-mobl1>
-References: <20190324030422.GE10344@bombadil.infradead.org>
- <d35bc0a3-07b7-f0ee-fdae-3d5c750a4421@lca.pw>
- <20190329195941.GW10344@bombadil.infradead.org>
- <1553894734.26196.30.camel@lca.pw>
- <20190330030431.GX10344@bombadil.infradead.org>
- <20190330141052.GZ10344@bombadil.infradead.org>
- <20190331032326.GA10344@bombadil.infradead.org>
- <20190401091858.s7clitbvf46nomjm@kshutemo-mobl1>
- <20190401092716.mxw32y4sl66ywc2o@kshutemo-mobl1>
- <1554383410.26196.39.camel@lca.pw>
+        Thu, 04 Apr 2019 07:10:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 83641B14C;
+	Thu,  4 Apr 2019 14:10:36 +0000 (UTC)
+Subject: Re: [Bug 203107] New: Bad page map in process during boot
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Jan Kara <jack@suse.cz>
+Cc: bugzilla-daemon@bugzilla.kernel.org, linux-ext4@vger.kernel.org,
+ linux-mm@kvack.org
+References: <bug-203107-13602@https.bugzilla.kernel.org/>
+ <20190402101613.GF12133@quack2.suse.cz>
+ <20190404130839.5tkpwihuct4mex32@kshutemo-mobl1>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <7ff105df-f572-54e2-345e-047ed317fa65@suse.cz>
+Date: Thu, 4 Apr 2019 16:10:34 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1554383410.26196.39.camel@lca.pw>
-User-Agent: NeoMutt/20180716
+In-Reply-To: <20190404130839.5tkpwihuct4mex32@kshutemo-mobl1>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 04, 2019 at 09:10:10AM -0400, Qian Cai wrote:
-> On Mon, 2019-04-01 at 12:27 +0300, Kirill A. Shutemov wrote:
-> > What about patch like this? (completely untested)
-> > 
-> > diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-> > index f939e004c5d1..e3b9bf843dcb 100644
-> > --- a/include/linux/pagemap.h
-> > +++ b/include/linux/pagemap.h
-> > @@ -335,12 +335,12 @@ static inline struct page *grab_cache_page_nowait(struct
-> > address_space *mapping,
-> >  
-> >  static inline struct page *find_subpage(struct page *page, pgoff_t offset)
-> >  {
-> > -	unsigned long index = page_index(page);
-> > +	unsigned long mask;
-> >  
-> >  	VM_BUG_ON_PAGE(PageTail(page), page);
-> > -	VM_BUG_ON_PAGE(index > offset, page);
-> > -	VM_BUG_ON_PAGE(index + (1 << compound_order(page)) <= offset, page);
-> > -	return page - index + offset;
-> > +
-> > +	mask = (1UL << compound_order(page)) - 1;
-> > +	return page + (offset & mask);
-> >  }
-> >  
-> >  struct page *find_get_entry(struct address_space *mapping, pgoff_t offset);
+On 4/4/19 3:08 PM, Kirill A. Shutemov wrote:
+> On Tue, Apr 02, 2019 at 12:16:13PM +0200, Jan Kara wrote:
+>> Switching to email...
+>>
+>> On Fri 29-03-19 20:46:22, bugzilla-daemon@bugzilla.kernel.org wrote:
+>>> https://bugzilla.kernel.org/show_bug.cgi?id=203107
+>>>
+>>>             Bug ID: 203107
+>>>            Summary: Bad page map in process during boot
+>>>            Product: File System
+>>>            Version: 2.5
+>>>     Kernel Version: 5.0.5
+>>>           Hardware: All
+>>>                 OS: Linux
+>>>               Tree: Mainline
+>>>             Status: NEW
+>>>           Severity: normal
+>>>           Priority: P1
+>>>          Component: ext4
+>>>           Assignee: fs_ext4@kernel-bugs.osdl.org
+>>>           Reporter: echto1@gmail.com
+>>>         Regression: No
+>>>
+>>> Error occurs randomly at boot after upgrading kernel from 5.0.0 to 5.0.4.
+>>>
+>>> https://justpaste.it/387uf
+>>
+>> I don't think this is an ext4 error. Sure this is an error in file mapping
+>> of libblkid.so.1.1.0 (which is handled by ext4) but the filesystem has very
+>> little to say wrt how or which PTEs are installed. And the problem is that
+>> invalid PTE (dead000000000100) is present in page tables. So this looks
+>> more like a problem in MM itself. Adding MM guys to CC.
 > 
-> No, this then leads to a panic below by LTP hugemmap05.  Still reverting the
-> whole "mm: page cache: store only head pages in i_pages" commit fixed the
-> problem.
+> 0xdead000000000100 and 0xdead000000000200 are LIST_POISON1 and
+> LIST_POISON2 repectively. Have no idea how would they end up in page table.
 
-Ughh... hugetlb stores pages in page cache differently.
+It's possible that CONFIG_DEBUG_LIST could catch the issue. Between
+5.0.0 to 5.0.4 it should be also relatively easy to bisect with the
+stable git tree [1], although if it happens randomly, you need to
+perform enough attempts to accurately determine which commit is "good".
 
-What about this:
-
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index f939e004c5d1..2e8438a1216a 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -335,12 +335,15 @@ static inline struct page *grab_cache_page_nowait(struct address_space *mapping,
- 
- static inline struct page *find_subpage(struct page *page, pgoff_t offset)
- {
--	unsigned long index = page_index(page);
-+	unsigned long mask;
-+
-+	if (PageHuge(page))
-+		return page;
- 
- 	VM_BUG_ON_PAGE(PageTail(page), page);
--	VM_BUG_ON_PAGE(index > offset, page);
--	VM_BUG_ON_PAGE(index + (1 << compound_order(page)) <= offset, page);
--	return page - index + offset;
-+
-+	mask = (1UL << compound_order(page)) - 1;
-+	return page + (offset & mask);
- }
- 
- struct page *find_get_entry(struct address_space *mapping, pgoff_t offset);
--- 
- Kirill A. Shutemov
+[1] git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
 
