@@ -3,101 +3,99 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C4652C10F0C
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 19:21:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B97CEC4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 19:21:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 87B262075E
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 19:21:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 87B262075E
+	by mail.kernel.org (Postfix) with ESMTP id 781C02075E
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 19:21:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 781C02075E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3D87E6B026B; Thu,  4 Apr 2019 15:21:32 -0400 (EDT)
+	id 1DCC76B026C; Thu,  4 Apr 2019 15:21:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 389D06B026C; Thu,  4 Apr 2019 15:21:32 -0400 (EDT)
+	id 18CFF6B026D; Thu,  4 Apr 2019 15:21:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2778A6B026D; Thu,  4 Apr 2019 15:21:32 -0400 (EDT)
+	id 07DE66B026E; Thu,  4 Apr 2019 15:21:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E5FD56B026B
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 15:21:31 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id y2so2365652pfl.16
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 12:21:31 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id C6B9C6B026C
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 15:21:36 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id f67so2383414pfh.9
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 12:21:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:from
          :to:cc:date:message-id:in-reply-to:references:user-agent
          :mime-version:content-transfer-encoding;
-        bh=8i4u1ApnkiA3xu2i//e05uMGEJN//RYP0N3yUrZNBY0=;
-        b=CSoM21QMiIbLlEhYJbCzRNXT7NJ2BUWX73VBraVBi8pDwvP52vLWL2cZCYQRXL7sCX
-         aa8gfEVzTFBGCyAI6o5McVWfp3wRo0VWA9oH0Q/OI6FZX0SrLJMbsJ1yczUkldMdPxA2
-         KILtd2RXxjSPEXHKN8PE1PzMSKws1GTSOaDYUb3COZQIUuIXvX3t8ClKVbsVjeA3PY5L
-         6XF5tA29uUvnkUN7/wi81DfRwxPGQ/FNZMul5XQncepANIQTNQWfRTz3+tL1kT40toN0
-         FQfOsyqGIcOxKtnLavmOaeF5pjQqozD8B9h93gIP4hqZxzGlE+y2/WyIFxu48SuC/7z/
-         oxVA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXAsyO5sVp6GXwU88QOwI6n5AD9y3+sVPTmW1PXJDfnivk2x6O8
-	b+2bsYyiQClNWFFB0vAYrZ1wkjeFAaHOCC37MEqNS/aSDQs8Y5D4QmPdCdrX//EGtwEPLUdqJkI
-	EZeYO6S3UWfPctcsYqM127hlQvJZpg4FHSTiJRc/d0L7yyAZZtmMgz/vVHcI5dls5/A==
-X-Received: by 2002:a65:6283:: with SMTP id f3mr7463990pgv.125.1554405691540;
-        Thu, 04 Apr 2019 12:21:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwAeR6zA2KauzwzW+CtEREzP1k8RuXQsBs00omvmYwLBzbeigBrH2Cg0vaMomkfgkcfn679
-X-Received: by 2002:a65:6283:: with SMTP id f3mr7463904pgv.125.1554405690275;
-        Thu, 04 Apr 2019 12:21:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554405690; cv=none;
+        bh=TFnuqaXB2kmLiqax7B5YVialSPwNXuZ3lbiDMIwUJxU=;
+        b=l0Db5CWT8RAlw6iS4sNdvDWC0c9naMLF4NyiVY/3FfZQAvhafgef9YsPtNzhZ3YywW
+         JLlFr7G3S8oYWExb59/8YQyC3GcjUyCJO03qrETF9bxFLUJxVV3JvNpJi4zrZlkQOp7P
+         tfnbJt3uz4m69Hk9LfXTPr033YKIHRdKkTZMmDbIZLG5f5PJ+4LI75cu25XH1tgKfef8
+         eDMlX2oO9X7yXro/AYvVO1GQoIofL0TTH1NeFQij+6mG9pEzdvy/gtpD9wn3GDFchBfa
+         OiZ+5aCbFefMtDG1avjgWyLEDwimQMyCA7g3WbgyZNmQAW2HzbxgFlMoqu1/HvkaVVT0
+         ohVg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXWmiqIu1D/ZlJ2FbjBdP4LMbxm2qd+Ep3wObMcGmZzs1geGe5s
+	pFi7W4gm+ruQQ37T6+n2z8eU/Oant7Mfo5WsOTzxvybC3+3yr4K+Ct/xSXkl4bUNJtY3TqWUdlH
+	qoqWqVQWbGJAwfmHA82sRTR7LmdcXCcZk+332OEfDDGMP7FXAo1lKUiFUIjhIqFhzUg==
+X-Received: by 2002:aa7:8d01:: with SMTP id j1mr7576775pfe.122.1554405696417;
+        Thu, 04 Apr 2019 12:21:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwnR06m68HkxVal79ok3sS6+cXSN1RzZ066xMejJ7js7juXNQDWEfJB24fwQ+9fV9qseo0s
+X-Received: by 2002:aa7:8d01:: with SMTP id j1mr7576709pfe.122.1554405695560;
+        Thu, 04 Apr 2019 12:21:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554405695; cv=none;
         d=google.com; s=arc-20160816;
-        b=XNaNMYPN0cc15p3UnM1FEG2sprGLhWZS1SLo6vQIE2js0arNiRRUm+n0rmPl0yL2fN
-         FQQ1KKyCPuo8EEi/Ic5uwTe0kJdx2jylMg2pE5w1suwXqrqaVR22BUwhPFHt3RvfU8rq
-         3uQKTRa2uC47YrmC4ZbJ6TTatnVf6E1QzBCzMcM0sseD8rN7zFE3XivRinabDsoMcRUI
-         kUWffgg6QYjsKUpKTQEzYvKnxPQbDdYn26NQqRlIqg7JHvfCdCu6MIXn4xapm8A2wIq7
-         9OVKpdIEijt328anH1osHqIjSCySBg/r/wYdfe5bYYIi+rwHwCn4b40NhHKmeyKsjY8Y
-         p5Hg==
+        b=HYxwQn+8KR41pkchVSDZDhhzOj0iucR8yn8tJCGopLqH9fXGMKkK1yoOHe05u2HAcA
+         joF/huMrnCbgF1TYAqIfRPD682BCzudHr6Amnl0UcVbmOI3zfHxfcYcqCrsnvvYI7nGD
+         +fPP6vfRQ2m3XZl04/461gawTvb1Il9jebfiRI/UJpTcI+VqvMp1HrPB9bUSnIEKVeXs
+         MprGMhWniv8DBcsEhUJtVjjA1Rm6ViIJA0PEoO4prjZiJ54Ued1AWyHt90pDRNJiiiYL
+         ikT+ZaP8S7Rc46OR4tIZxwx6BqalIh8LaUxt29n5vpRckHokdgyXYoFtlH9N8qqDcGBl
+         +UQA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:message-id:date:cc:to:from:subject;
-        bh=8i4u1ApnkiA3xu2i//e05uMGEJN//RYP0N3yUrZNBY0=;
-        b=y7fcIv7X4PjbqXlnuYD+mcju5WEUb8TXtS4f0fus3dGFdgYzS9uXkoX8Fh9zkupOju
-         rM+nHTORU39yxFN9hfwYY4CICOe+ODTDZJvKXs2h7CcmSWxEIjK0p2wHCy6UjVG4KwLc
-         87AFNfRsVW4m74S2fh3vwdwbLmcI1YP749QvfPFogdSGocFLZsRcpcsUwCksmf8ZtJ1S
-         3YvbEXbPbqspkQGJrx8p6HWH7cA6VEYOGvxFE53CoiqG++FiqFZzYlEJmuYOC7kT9zl2
-         FLXHphBWG8mnd6W6cP8kQ4dVh3+1BpOZ+AQMH5BVs539Xymy7jjVriLKtGsKoUK8mcbz
-         IiYw==
+        bh=TFnuqaXB2kmLiqax7B5YVialSPwNXuZ3lbiDMIwUJxU=;
+        b=UjZHDvispVyEmmXy9J+7x6q/GB+32u7Blm/2HYAfMTFSR73C7w17VjTdscHYPVdoBR
+         lBnfa13PUO/VH66LGuE3gTvQwJ7+HOyD5DLY6YbbRAwFu9pftGO1c5EIFgRAMT+v++et
+         jMMjBGZesF+z1wNbwm97mp2xXDj6Fu7G4wXC3f4tQ4bw6r7F1uUi4aIa93Wez/LGbNqO
+         8P6YApaIvHeVeLyoxdGhPYhjkILH5Gc7EDSpqUJzVTOIbgwIamgq5hhQRh2Dxrde0BQ1
+         UNh1OYmuWWlBaYzcdDi1Ql7OTmEL+S2YqgTSdmIVAyqNrrfRMSUYxKY2EoRqwn4W+w5U
+         BY7Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id f5si4479618plo.13.2019.04.04.12.21.30
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id u30si17890322pfl.23.2019.04.04.12.21.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Apr 2019 12:21:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        Thu, 04 Apr 2019 12:21:35 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from fmsmga003.fm.intel.com ([10.253.24.29])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 04 Apr 2019 12:21:29 -0700
+Received: from fmsmga005.fm.intel.com ([10.253.24.32])
+  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 04 Apr 2019 12:21:35 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,309,1549958400"; 
-   d="scan'208";a="146656209"
+   d="scan'208";a="335059446"
 Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
-  by FMSMGA003.fm.intel.com with ESMTP; 04 Apr 2019 12:21:29 -0700
-Subject: [RFC PATCH 4/5] acpi/hmat: Register special purpose memory as a
- device
+  by fmsmga005.fm.intel.com with ESMTP; 04 Apr 2019 12:21:34 -0700
+Subject: [RFC PATCH 5/5] device-dax: Add a driver for "hmem" devices
 From: Dan Williams <dan.j.williams@intel.com>
 To: linux-kernel@vger.kernel.org
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>,
- Keith Busch <keith.busch@intel.com>,
- Jonathan Cameron <Jonathan.Cameron@huawei.com>, vishal.l.verma@intel.com,
+Cc: Vishal Verma <vishal.l.verma@intel.com>,
+ Keith Busch <keith.busch@intel.com>, Dave Jiang <dave.jiang@intel.com>,
  x86@kernel.org, linux-mm@kvack.org, keith.busch@intel.com,
  vishal.l.verma@intel.com, linux-nvdimm@lists.01.org
-Date: Thu, 04 Apr 2019 12:08:49 -0700
-Message-ID: <155440492988.3190322.4475460421334178449.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Thu, 04 Apr 2019 12:08:55 -0700
+Message-ID: <155440493544.3190322.10165040361847405101.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <155440490809.3190322.15060922240602775809.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <155440490809.3190322.15060922240602775809.stgit@dwillia2-desk3.amr.corp.intel.com>
 User-Agent: StGit/0.18-2-gc94f
@@ -110,143 +108,146 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Memory that has been tagged EFI_SPECIAL_PURPOSE, and has performance
-properties described by the ACPI HMAT is expected to have an application
-specific consumer.
+Platform firmware like EFI/ACPI may publish "hmem" platform devices.
+Such a device is a performance differentiated memory range likely
+reserved for an application specific use case. The driver gives access
+to 100% of the capacity via a device-dax mmap instance by default.
 
-Those consumers may want 100% of the memory capacity to be reserved from
-any usage by the kernel. By default, with this enabling, a platform
-device is created to represent this differentiated resource.
+However, if over-subscription and other kernel memory management is
+desired the resulting dax device can be assigned to the core-mm via the
+kmem driver.
 
-A follow on change arranges for device-dax to claim these devices by
-default and provide an mmap interface for the target application.
-However, if the administrator prefers that some or all of the special
-purpose memory is made available to the core-mm the device-dax hotplug
-facility can be used to online the memory with its own numa node.
-
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Len Brown <lenb@kernel.org>
+Cc: Vishal Verma <vishal.l.verma@intel.com>
 Cc: Keith Busch <keith.busch@intel.com>
-Cc: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+Cc: Dave Jiang <dave.jiang@intel.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/acpi/hmat/Kconfig |    1 +
- drivers/acpi/hmat/hmat.c  |   63 +++++++++++++++++++++++++++++++++++++++++++++
- include/linux/memregion.h |    3 ++
- 3 files changed, 67 insertions(+)
+ drivers/dax/Kconfig  |   26 ++++++++++++++++++----
+ drivers/dax/Makefile |    2 ++
+ drivers/dax/hmem.c   |   58 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 81 insertions(+), 5 deletions(-)
+ create mode 100644 drivers/dax/hmem.c
 
-diff --git a/drivers/acpi/hmat/Kconfig b/drivers/acpi/hmat/Kconfig
-index 95a29964dbea..4fcf76e8aa1d 100644
---- a/drivers/acpi/hmat/Kconfig
-+++ b/drivers/acpi/hmat/Kconfig
-@@ -3,6 +3,7 @@ config ACPI_HMAT
- 	bool "ACPI Heterogeneous Memory Attribute Table Support"
- 	depends on ACPI_NUMA
- 	select HMEM_REPORTING
-+	select MEMREGION
+diff --git a/drivers/dax/Kconfig b/drivers/dax/Kconfig
+index 5ef624fe3934..b3886f43dd77 100644
+--- a/drivers/dax/Kconfig
++++ b/drivers/dax/Kconfig
+@@ -38,16 +38,32 @@ config DEV_DAX_KMEM
+ 	depends on DEV_DAX
+ 	depends on MEMORY_HOTPLUG # for add_memory() and friends
  	help
- 	 If set, this option has the kernel parse and report the
- 	 platform's ACPI HMAT (Heterogeneous Memory Attributes Table),
-diff --git a/drivers/acpi/hmat/hmat.c b/drivers/acpi/hmat/hmat.c
-index e7ae44c8d359..482360004ea0 100644
---- a/drivers/acpi/hmat/hmat.c
-+++ b/drivers/acpi/hmat/hmat.c
-@@ -13,6 +13,9 @@
- #include <linux/device.h>
- #include <linux/init.h>
- #include <linux/list.h>
-+#include <linux/mm.h>
-+#include <linux/memregion.h>
-+#include <linux/platform_device.h>
- #include <linux/list_sort.h>
- #include <linux/node.h>
- #include <linux/sysfs.h>
-@@ -612,6 +615,65 @@ static __init void hmat_register_target_perf(struct memory_target *target)
- 	node_set_perf_attrs(mem_nid, &target->hmem_attrs, 0);
- }
+-	  Support access to persistent memory as if it were RAM.  This
+-	  allows easier use of persistent memory by unmodified
+-	  applications.
++	  Support access to persistent, or other performance
++	  differentiated memory as if it were System RAM. This allows
++	  easier use of persistent memory by unmodified applications, or
++	  adds core kernel memory services to heterogeneous memory types
++	  (HMEM) marked "reserved" by platform firmware.
  
-+static __init void hmat_register_target_device(struct memory_target *target)
+ 	  To use this feature, a DAX device must be unbound from the
+-	  device_dax driver (PMEM DAX) and bound to this kmem driver
+-	  on each boot.
++	  device_dax driver and bound to this kmem driver on each boot.
+ 
+ 	  Say N if unsure.
+ 
++config DEV_DAX_HMEM
++	tristate "HMEM DAX: generic support for 'special purpose' memory"
++	default DEV_DAX
++	help
++	  EFI 2.8 platforms, and others, may advertise 'special purpose'
++	  memory.  For example, a high bandwidth memory pool. The
++	  indication from platform firmware is meant to reserve the
++	  memory from typical usage by default.  This driver creates
++	  device-dax instances for these memory ranges, and that also
++	  enables the possibility to assign them to the DEV_DAX_KMEM
++	  driver to override the reservation and add them to kernel
++	  "System RAM" pool.
++
++	  Say Y if unsure.
++
+ config DEV_DAX_PMEM_COMPAT
+ 	tristate "PMEM DAX: support the deprecated /sys/class/dax interface"
+ 	depends on DEV_DAX_PMEM
+diff --git a/drivers/dax/Makefile b/drivers/dax/Makefile
+index 81f7d54dadfb..80065b38b3c4 100644
+--- a/drivers/dax/Makefile
++++ b/drivers/dax/Makefile
+@@ -2,9 +2,11 @@
+ obj-$(CONFIG_DAX) += dax.o
+ obj-$(CONFIG_DEV_DAX) += device_dax.o
+ obj-$(CONFIG_DEV_DAX_KMEM) += kmem.o
++obj-$(CONFIG_DEV_DAX_HMEM) += dax_hmem.o
+ 
+ dax-y := super.o
+ dax-y += bus.o
+ device_dax-y := device.o
++dax_hmem-y := hmem.o
+ 
+ obj-y += pmem/
+diff --git a/drivers/dax/hmem.c b/drivers/dax/hmem.c
+new file mode 100644
+index 000000000000..b01cf9c65329
+--- /dev/null
++++ b/drivers/dax/hmem.c
+@@ -0,0 +1,58 @@
++// SPDX-License-Identifier: GPL-2.0
++#include <linux/platform_device.h>
++#include <linux/memregion.h>
++#include <linux/memremap.h>
++#include <linux/module.h>
++#include <linux/pfn_t.h>
++#include "bus.h"
++
++static int dax_hmem_probe(struct platform_device *pdev)
 +{
-+	struct memregion_info info;
-+	struct resource res = {
-+		.start = target->start,
-+		.end = target->start + target->size - 1,
-+		.flags = IORESOURCE_MEM,
-+		.desc = IORES_DESC_APPLICATION_RESERVED,
-+	};
-+	struct platform_device *pdev;
-+	int rc, id;
++	struct dev_pagemap pgmap = { 0 };
++	struct device *dev = &pdev->dev;
++	struct dax_region *dax_region;
++	struct memregion_info *mri;
++	struct dev_dax *dev_dax;
++	struct resource *res;
 +
-+	if (region_intersects(target->start, target->size, IORESOURCE_MEM,
-+				IORES_DESC_APPLICATION_RESERVED)
-+			!= REGION_INTERSECTS)
-+		return;
++	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
++	if (!res)
++		return -ENOMEM;
 +
-+	id = memregion_alloc();
-+	if (id < 0) {
-+		pr_err("acpi/hmat: memregion allocation failure for %pr\n", &res);
-+		return;
-+	}
++	mri = dev->platform_data;
++	pgmap.dev = dev;
++	memcpy(&pgmap.res, res, sizeof(*res));
 +
-+	pdev = platform_device_alloc("hmem", id);
-+	if (!pdev) {
-+		pr_err("acpi/hmat: hmem device allocation failure for %pr\n", &res);
-+		goto out_pdev;
-+	}
++	dax_region = alloc_dax_region(dev, pdev->id, res, mri->target_node,
++			PMD_SIZE, PFN_DEV|PFN_MAP);
++	if (!dax_region)
++		return -ENOMEM;
 +
-+	pdev->dev.numa_node = acpi_map_pxm_to_online_node(target->processor_pxm);
-+	info = (struct memregion_info) {
-+		.target_node = acpi_map_pxm_to_node(target->memory_pxm),
-+	};
-+	rc = platform_device_add_data(pdev, &info, sizeof(info));
-+	if (rc < 0) {
-+		pr_err("acpi/hmat: hmem memregion_info allocation failure for %pr\n", &res);
-+		goto out_pdev;
-+	}
++	dev_dax = devm_create_dev_dax(dax_region, 0, &pgmap);
++	if (IS_ERR(dev_dax))
++		return PTR_ERR(dev_dax);
 +
-+	rc = platform_device_add_resources(pdev, &res, 1);
-+	if (rc < 0) {
-+		pr_err("acpi/hmat: hmem resource allocation failure for %pr\n", &res);
-+		goto out_resource;
-+	}
-+
-+	rc = platform_device_add(pdev);
-+	if (rc < 0) {
-+		dev_err(&pdev->dev, "acpi/hmat: device add failed for %pr\n", &res);
-+		goto out_resource;
-+	}
-+
-+	return;
-+
-+out_resource:
-+	put_device(&pdev->dev);
-+out_pdev:
-+	memregion_free(id);
++	/* child dev_dax instances now own the lifetime of the dax_region */
++	dax_region_put(dax_region);
++	return 0;
 +}
 +
- static __init void hmat_register_targets(void)
- {
- 	struct memory_target *target;
-@@ -619,6 +681,7 @@ static __init void hmat_register_targets(void)
- 	list_for_each_entry(target, &targets, node) {
- 		hmat_register_target_initiators(target);
- 		hmat_register_target_perf(target);
-+		hmat_register_target_device(target);
- 	}
- }
- 
-diff --git a/include/linux/memregion.h b/include/linux/memregion.h
-index 99fa47793b49..5de2ac7fcf5e 100644
---- a/include/linux/memregion.h
-+++ b/include/linux/memregion.h
-@@ -1,6 +1,9 @@
- // SPDX-License-Identifier: GPL-2.0
- #ifndef _MEMREGION_H_
- #define _MEMREGION_H_
-+struct memregion_info {
-+	int target_node;
++static int dax_hmem_remove(struct platform_device *pdev)
++{
++	/* devm handles teardown */
++	return 0;
++}
++
++static struct platform_driver dax_hmem_driver = {
++	.probe = dax_hmem_probe,
++	.remove = dax_hmem_remove,
++	.driver = {
++		.name = "hmem",
++	},
 +};
- int memregion_alloc(void);
- void memregion_free(int id);
- #endif /* _MEMREGION_H_ */
++
++module_platform_driver(dax_hmem_driver);
++
++MODULE_ALIAS("platform:hmem*");
++MODULE_LICENSE("GPL v2");
++MODULE_AUTHOR("Intel Corporation");
 
