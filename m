@@ -2,112 +2,113 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 638F9C4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 04:10:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5F42EC4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 04:12:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F3F8C2133D
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 04:10:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1005D2171F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 04:12:38 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="L/SLPOie"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F3F8C2133D
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="PuiPZq2O"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1005D2171F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 683E96B0007; Thu,  4 Apr 2019 00:10:46 -0400 (EDT)
+	id A2C6D6B0007; Thu,  4 Apr 2019 00:12:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 60CD96B0008; Thu,  4 Apr 2019 00:10:46 -0400 (EDT)
+	id 9DBDB6B0008; Thu,  4 Apr 2019 00:12:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4AD066B000D; Thu,  4 Apr 2019 00:10:46 -0400 (EDT)
+	id 8A36E6B000D; Thu,  4 Apr 2019 00:12:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BCDF6B0007
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 00:10:46 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id x2so706202pge.16
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 21:10:46 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 477036B0007
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 00:12:38 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id m37so939879plg.22
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 21:12:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=/Azuha6DiK4iW7u6ZlG02YZIB9WXfWKZPUN5iJiXr0M=;
-        b=Rwfa1IvxpFvcJYdcqIWD3faCj6yW1rfN6Q2IvLhDaxGiQ4dNJx1XC6kg82LdK5uS+8
-         PVapIue62I9LmD/KA31Bnoa6K2wOBlf+KebOvH3IcAeRGwEN1MJpeIXUHkyJJeWrS22S
-         yjhGhGp11RAQnuGqRrHYmJdSoxGTIO+T4Y1C45aDzfwIuPPXz8y3SPavz6b28qD1QJG/
-         K76MInsF1keYZ5nsJyxBrqmP9K//OXtzahxdEBG5alYvWRy4RZXn8oLslr7lmPCB31fZ
-         rW66YsC7sI+9S566fj3A06aKsrEYufbh00wz566dcrHblw9nlHfQ45iVPuSn4934LnTR
-         ITRg==
-X-Gm-Message-State: APjAAAXxui0y6ZncAlFdgYXiquu4N4oYxU7lKzJkOVOnJ3UAxrfmeAgv
-	eJ4GcR0+0rGrwzh7sbq/4MuJOuXY/4mKou3kapMMfdjEc34AsOqh1oQKgROIroV4QA2ossMGIxZ
-	HzadMfzTQH/WP6WC9vOr3YrgWDs1UCzeHDmmEunUDNFBl+HP5XCDpUb79dekIqZU8Ig==
-X-Received: by 2002:a65:5ac3:: with SMTP id d3mr3689400pgt.168.1554351045556;
-        Wed, 03 Apr 2019 21:10:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyWWx2qsFHcXtEQq8ydD+rfB+5DNCOczyIGwP/wMxxxn1NKBK/lCcSbk33KkhTgRPFYjyuQ
-X-Received: by 2002:a65:5ac3:: with SMTP id d3mr3689353pgt.168.1554351044686;
-        Wed, 03 Apr 2019 21:10:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554351044; cv=none;
+        bh=FbHJbgXLlmAIjnYfX9OPEYTYbW0UaSxBHYPLP/4p09Q=;
+        b=t427GxEUC4TCe4xKeORoM8W1iGdUyhiuZdKoaXhENCyRCW2KpGmQPXOht9Resepm1Y
+         cvJ8qwkJ5spS5wNDrofagYWmEC8kMezg6rMtlIvfMAfTcP1W76sML6Ew5Ee0jKpOoRvQ
+         7vUFoHhvETSbwdsyAyEFNgTt7O+7ttk/vFvgEPjYGWW24wFqvUvB3rdGzUk/wJXH6Qwo
+         nSW91n4Xpcw0KKvIGxwc1HkDCbx0YIUcPuP6bHEaL4oxe42OmPR6yXMwiydlV1hW9Jo9
+         /f0Fg3k2C574IoWRoPHf2n9pbbtQzY+CRO2MwysxkDN5IO6tnLGa7XeglchDO5HapI73
+         XmKg==
+X-Gm-Message-State: APjAAAVEJWo+8Y2OryBANXL8/vt7MSL3uiyYUSQ+GIyFhfh6PLok7NE3
+	Ejg2WvGCgU1u0KkBhL71vqU6KmSq4RSCzLxHvVgf2/lN2IwIAUPCgVSIKJT1McbnSUG/lQlcaAe
+	3SPLgZH9dRAWKXoeK+frusk8IRqFFHEZccyPQIhSaaADF2pPXIktwk2VwVAHsr1jrnw==
+X-Received: by 2002:a65:430a:: with SMTP id j10mr3386665pgq.143.1554351157908;
+        Wed, 03 Apr 2019 21:12:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzZ/byJ5MiYdqeJZtsxL7E9RzTjsO4o0xD/prOH2uhPAVctXgvrpD7Vk0fS3b7DUzRqik84
+X-Received: by 2002:a65:430a:: with SMTP id j10mr3386615pgq.143.1554351157107;
+        Wed, 03 Apr 2019 21:12:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554351157; cv=none;
         d=google.com; s=arc-20160816;
-        b=fJQIrkUNGOK3Ayk33/CrORIXivyRZrrptgs4bxwWtsj0obzCFqro+vo5w2f3T7guDQ
-         zciBZdIt9o6Jq4fWh8jtb+R20BrRo8bMWriHfp6p/DWGtxdoib1w8QH/oDcjT6yQkscH
-         9++kVLHjeGIbI2GwTzkmD+fsIVmGM4V84hGajAXFpJvW6U3NzR8aHO7lyQSvLJ5lawGU
-         Ew1DMZrdSSUrgjlVyYepu+JezGmwTDTipaSnK4xntV7TnjVIC/CUhpz1+tOFDNohRRuP
-         tcVhEdVFsTskOfSDP41kA3BaX2/AKA+Y4g0dp9YreUGj8RH4F3r4QmmZAkykD/MEbaBb
-         ZqWQ==
+        b=EahXEQz/AJoo25ihyvaHuI7GhLUsLoSwwmQDNKSrsOmSaO0PLu2Hq0rGAKJMxQkhQF
+         Iq4xdqf1tb8Gawniuxw1cC3DpLdxX+zO+YEbw/zV+61oU2I9H0fTpWr2qyYfpd9KXEc1
+         GZDpf6PMYRw6oYfV7kulCNKctaa83b8cQDhklxhWs7gsqdW3Jk0a7H42+IVZvxMm31Dx
+         WP0lbYxLQExSGWAZNa2TLzkdJi+q02M0vWtXlrhPu16axDmDbxpWuH5+B41Gly4GuSqr
+         5E8XzQNhFFPQYKNfnFic/shHu8dYnlIyFqVltYz95guDwjG4g7y0DBOAPl8r0ki5clsC
+         dRPg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=/Azuha6DiK4iW7u6ZlG02YZIB9WXfWKZPUN5iJiXr0M=;
-        b=zYoHm5Ic7BCAVVeeVa9tGgfdBnBBwGOfz9gk9f8ciprl615OcsttJkoIamDvw0rG2d
-         oBzZ7ExTjA1r3mZirtGm+Q3dlLQ2v48DdC51EP0h00ncAQjCXaApC9Fnn+8mPeY6cw3t
-         tACJt9JIvZv1KMQkYCo4/H67tHTagCgRvsnNbedSkNWleWsf7P1Fc/hTEYac08x4nqF+
-         z0Yfu8HxAkyZFHvq9/lZQT1i4PYfw8v0CZZJtsbTwY6lgkogf1yaUAGq4UGXpTrvH1Bv
-         dtS7y3syzJ6CqyFHqjrO4jDZPu08iYF/KH5isbWYwZN06EaxEfwpTjmipMFdrOzps5l5
-         BS4A==
+        bh=FbHJbgXLlmAIjnYfX9OPEYTYbW0UaSxBHYPLP/4p09Q=;
+        b=J+YoMo9clgS6CTV5/MosqILT82oDsePMRXH710n+ncG0Xy7/z7tuWTqbEbjxDtUpX1
+         QtXxzMo+JeMNNGGtZy2H/PfHAJjqOu4fhoxDZu4YsJ8KDoTRMkuXAZc66HVwqQZ1ZLEh
+         ti/mrz9gOLYSY5+2LutZyW0Ody1Ftr1oGSnagXJZlKg9TNgRLnB2bE5T0umFQtO9lcw4
+         x7t8+dCZKk20GpwNgRel5dHMnXZ4GL3KW37A72LDh9d3TGS8a3Qo4PL9PYoBve4NLXll
+         fmBOdlANGap98vLKFFdG5gGU1AJPp8PnCb3ZU3AFa0j6nqoExsL0/Ya/XaTMRF0Q0RLU
+         Ncnw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="L/SLPOie";
+       dkim=pass header.i=@kernel.org header.s=default header.b=PuiPZq2O;
        spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id r184si14878949pgr.24.2019.04.03.21.10.44
+        by mx.google.com with ESMTPS id 31si15811801plk.398.2019.04.03.21.12.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 21:10:44 -0700 (PDT)
+        Wed, 03 Apr 2019 21:12:37 -0700 (PDT)
 Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="L/SLPOie";
+       dkim=pass header.i=@kernel.org header.s=default header.b=PuiPZq2O;
        spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wr1-f52.google.com (mail-wr1-f52.google.com [209.85.221.52])
+Received: from mail-wr1-f43.google.com (mail-wr1-f43.google.com [209.85.221.43])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id D32C621915
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 04:10:43 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 87F1E21741
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 04:12:36 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1554351044;
-	bh=HX0C5suuVm0rYTkGKcmAZLyJBvn4rZemHJs0m1aWRG0=;
+	s=default; t=1554351156;
+	bh=8olT3SzX/tOLFLcs0oupddwKsSWKr8XaKQpK/Wcq1+Q=;
 	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=L/SLPOieczoPGHlEwe9OluxIaRnMgvWm/8PxZ9me4/1iDKFfAW0H3EiA2lFN8STyk
-	 ym6NASjWWWlGrRHvIZH7VM2OP2fvXOsQmz2htOfapN+DHojzOIjaohvVW7k/N/Csb7
-	 93fUOpwAfKgIhSJNBwdsdWav/YFEkE37mFgremz4=
-Received: by mail-wr1-f52.google.com with SMTP id k17so1656814wrx.10
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 21:10:43 -0700 (PDT)
-X-Received: by 2002:adf:ebd2:: with SMTP id v18mr2213160wrn.108.1554351034995;
- Wed, 03 Apr 2019 21:10:34 -0700 (PDT)
+	b=PuiPZq2OrJa7eloBQMWbdmjA6KgMkA/XFxtgIPSbrAxTA9cJ6wWFy7V4AhpX35OWQ
+	 eP75gvZugp0fyhdkj2bzOaiHy0roKC4C0+QglfiQAbLvGAofV1Y83fhgA3Y5WLrOTa
+	 IFAUMknyScL1SRab6E8K+VnAySM+fO97624tueWc=
+Received: by mail-wr1-f43.google.com with SMTP id w10so1716032wrm.4
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 21:12:36 -0700 (PDT)
+X-Received: by 2002:a5d:4606:: with SMTP id t6mr2082188wrq.43.1554351147909;
+ Wed, 03 Apr 2019 21:12:27 -0700 (PDT)
 MIME-Version: 1.0
-References: <cover.1554248001.git.khalid.aziz@oracle.com> <4495dda4bfc4a06b3312cc4063915b306ecfaecb.1554248002.git.khalid.aziz@oracle.com>
-In-Reply-To: <4495dda4bfc4a06b3312cc4063915b306ecfaecb.1554248002.git.khalid.aziz@oracle.com>
+References: <cover.1554248001.git.khalid.aziz@oracle.com> <e6c57f675e5b53d4de266412aa526b7660c47918.1554248002.git.khalid.aziz@oracle.com>
+ <CALCETrXvwuwkVSJ+S5s7wTBkNNj3fRVxpx9BvsXWrT=3ZdRnCw@mail.gmail.com> <20190404013956.GA3365@cisco>
+In-Reply-To: <20190404013956.GA3365@cisco>
 From: Andy Lutomirski <luto@kernel.org>
-Date: Wed, 3 Apr 2019 21:10:23 -0700
-X-Gmail-Original-Message-ID: <CALCETrXMXxnWqN94d83UvGWhkD1BNWiwvH2vsUth1w0T3=0ywQ@mail.gmail.com>
-Message-ID: <CALCETrXMXxnWqN94d83UvGWhkD1BNWiwvH2vsUth1w0T3=0ywQ@mail.gmail.com>
-Subject: Re: [RFC PATCH v9 12/13] xpfo, mm: Defer TLB flushes for non-current
- CPUs (x86 only)
-To: Khalid Aziz <khalid.aziz@oracle.com>
-Cc: Juerg Haefliger <juergh@gmail.com>, Tycho Andersen <tycho@tycho.ws>, jsteckli@amazon.de, 
-	Andi Kleen <ak@linux.intel.com>, liran.alon@oracle.com, Kees Cook <keescook@google.com>, 
+Date: Wed, 3 Apr 2019 21:12:16 -0700
+X-Gmail-Original-Message-ID: <CALCETrVp37Xo3EMHkeedP1zxUMf9og=mceBa8c55e1F4G1DRSQ@mail.gmail.com>
+Message-ID: <CALCETrVp37Xo3EMHkeedP1zxUMf9og=mceBa8c55e1F4G1DRSQ@mail.gmail.com>
+Subject: Re: [RFC PATCH v9 02/13] x86: always set IF before oopsing from page fault
+To: Tycho Andersen <tycho@tycho.ws>
+Cc: Andy Lutomirski <luto@kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, 
+	Juerg Haefliger <juergh@gmail.com>, jsteckli@amazon.de, Andi Kleen <ak@linux.intel.com>, 
+	liran.alon@oracle.com, Kees Cook <keescook@google.com>, 
 	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, deepa.srinivasan@oracle.com, 
 	chris hyser <chris.hyser@oracle.com>, Tyler Hicks <tyhicks@canonical.com>, 
 	"Woodhouse, David" <dwmw@amazon.co.uk>, Andrew Cooper <andrew.cooper3@citrix.com>, 
@@ -116,10 +117,10 @@ Cc: Juerg Haefliger <juergh@gmail.com>, Tycho Andersen <tycho@tycho.ws>, jsteckl
 	pradeep.vincent@oracle.com, John Haxby <john.haxby@oracle.com>, 
 	Thomas Gleixner <tglx@linutronix.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, 
 	Christoph Hellwig <hch@lst.de>, steven.sistare@oracle.com, Laura Abbott <labbott@redhat.com>, 
-	Andrew Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, 
-	Peter Zijlstra <peterz@infradead.org>, Aaron Lu <aaron.lu@intel.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, alexander.h.duyck@linux.intel.com, 
-	Amir Goldstein <amir73il@gmail.com>, Andrey Konovalov <andreyknvl@google.com>, aneesh.kumar@linux.ibm.com, 
+	Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <peterz@infradead.org>, 
+	Aaron Lu <aaron.lu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	alexander.h.duyck@linux.intel.com, Amir Goldstein <amir73il@gmail.com>, 
+	Andrey Konovalov <andreyknvl@google.com>, aneesh.kumar@linux.ibm.com, 
 	anthony.yznaga@oracle.com, Ard Biesheuvel <ard.biesheuvel@linaro.org>, 
 	Arnd Bergmann <arnd@arndb.de>, arunks@codeaurora.org, Ben Hutchings <ben@decadent.org.uk>, 
 	Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Borislav Petkov <bp@alien8.de>, brgl@bgdev.pl, 
@@ -138,16 +139,8 @@ Cc: Juerg Haefliger <juergh@gmail.com>, Tycho Andersen <tycho@tycho.ws>, jsteckl
 	Marek Szyprowski <m.szyprowski@samsung.com>, Nicholas Piggin <npiggin@gmail.com>, osalvador@suse.de, 
 	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, pavel.tatashin@microsoft.com, 
 	Randy Dunlap <rdunlap@infradead.org>, richard.weiyang@gmail.com, 
-	Rik van Riel <riel@surriel.com>, David Rientjes <rientjes@google.com>, 
-	Robin Murphy <robin.murphy@arm.com>, Steven Rostedt <rostedt@goodmis.org>, 
-	Mike Rapoport <rppt@linux.vnet.ibm.com>, 
-	Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>, "Serge E. Hallyn" <serge@hallyn.com>, 
-	Steve Capper <steve.capper@arm.com>, thymovanbeers@gmail.com, 
-	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will.deacon@arm.com>, 
-	Matthew Wilcox <willy@infradead.org>, yang.shi@linux.alibaba.com, yaojun8558363@gmail.com, 
-	Huang Ying <ying.huang@intel.com>, zhangshaokun@hisilicon.com, 
-	iommu@lists.linux-foundation.org, X86 ML <x86@kernel.org>, 
-	linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, 
+	"Serge E. Hallyn" <serge@hallyn.com>, iommu@lists.linux-foundation.org, 
+	X86 ML <x86@kernel.org>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, 
 	"open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
 	Linux-MM <linux-mm@kvack.org>, LSM List <linux-security-module@vger.kernel.org>, 
 	Khalid Aziz <khalid@gonehiking.org>
@@ -158,55 +151,52 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 3, 2019 at 10:36 AM Khalid Aziz <khalid.aziz@oracle.com> wrote:
+On Wed, Apr 3, 2019 at 6:42 PM Tycho Andersen <tycho@tycho.ws> wrote:
 >
-> XPFO flushes kernel space TLB entries for pages that are now mapped
-> in userspace on not only the current CPU but also all other CPUs
-> synchronously. Processes on each core allocating pages causes a
-> flood of IPI messages to all other cores to flush TLB entries.
-> Many of these messages are to flush the entire TLB on the core if
-> the number of entries being flushed from local core exceeds
-> tlb_single_page_flush_ceiling. The cost of TLB flush caused by
-> unmapping pages from physmap goes up dramatically on machines with
-> high core count.
+> On Wed, Apr 03, 2019 at 05:12:56PM -0700, Andy Lutomirski wrote:
+> > On Wed, Apr 3, 2019 at 10:36 AM Khalid Aziz <khalid.aziz@oracle.com> wrote:
+> > >
+> > > From: Tycho Andersen <tycho@tycho.ws>
+> > >
+> > > Oopsing might kill the task, via rewind_stack_do_exit() at the bottom, and
+> > > that might sleep:
+> > >
+> >
+> >
+> > > diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+> > > index 9d5c75f02295..7891add0913f 100644
+> > > --- a/arch/x86/mm/fault.c
+> > > +++ b/arch/x86/mm/fault.c
+> > > @@ -858,6 +858,12 @@ no_context(struct pt_regs *regs, unsigned long error_code,
+> > >         /* Executive summary in case the body of the oops scrolled away */
+> > >         printk(KERN_DEFAULT "CR2: %016lx\n", address);
+> > >
+> > > +       /*
+> > > +        * We're about to oops, which might kill the task. Make sure we're
+> > > +        * allowed to sleep.
+> > > +        */
+> > > +       flags |= X86_EFLAGS_IF;
+> > > +
+> > >         oops_end(flags, regs, sig);
+> > >  }
+> > >
+> >
+> >
+> > NAK.  If there's a bug in rewind_stack_do_exit(), please fix it in
+> > rewind_stack_do_exit().
 >
-> This patch flushes relevant TLB entries for current process or
-> entire TLB depending upon number of entries for the current CPU
-> and posts a pending TLB flush on all other CPUs when a page is
-> unmapped from kernel space and mapped in userspace. Each core
-> checks the pending TLB flush flag for itself on every context
-> switch, flushes its TLB if the flag is set and clears it.
-> This patch potentially aggregates multiple TLB flushes into one.
-> This has very significant impact especially on machines with large
-> core counts.
+> [I trimmed the CC list since google rejected it with E2BIG :)]
+>
+> I guess the problem is really that do_exit() (or really
+> exit_signals()) might sleep. Maybe we should put an irq_enable() at
+> the beginning of do_exit() instead and fix this problem for all
+> arches?
+>
 
-Why is this a reasonable strategy?
-
-> +void xpfo_flush_tlb_kernel_range(unsigned long start, unsigned long end)
-> +{
-> +       struct cpumask tmp_mask;
-> +
-> +       /*
-> +        * Balance as user space task's flush, a bit conservative.
-> +        * Do a local flush immediately and post a pending flush on all
-> +        * other CPUs. Local flush can be a range flush or full flush
-> +        * depending upon the number of entries to be flushed. Remote
-> +        * flushes will be done by individual processors at the time of
-> +        * context switch and this allows multiple flush requests from
-> +        * other CPUs to be batched together.
-> +        */
-
-I don't like this function at all.  A core function like this is a
-contract of sorts between the caller and the implementation.  There is
-no such thing as an "xpfo" flush, and this function's behavior isn't
-at all well defined.  For flush_tlb_kernel_range(), I can tell you
-exactly what that function does, and the implementation is either
-correct or incorrect.  With this function, I have no idea what is
-actually required, and I can't possibly tell whether it's correct.
-
-As far as I can see, xpfo_flush_tlb_kernel_range() actually means
-"flush this range on this CPU right now, and flush it on remote CPUs
-eventually".  It would be valid, but probably silly, to flush locally
-and to never flush at all on remote CPUs.  This makes me wonder what
-the point is.
+Hmm.  do_exit() isn't really meant to be "try your best to leave the
+system somewhat usable without returning" -- it's a function that,
+other than in OOPSes, is called from a well-defined state.  So I think
+rewind_stack_do_exit() is probably a better spot.  But we need to
+rewind the stack and *then* turn on IRQs, since we otherwise risk
+exploding quite badly.
 
