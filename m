@@ -2,183 +2,143 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 50F45C10F0E
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 09:47:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A868AC4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 10:04:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0C342206B7
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 09:47:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0C342206B7
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 6CFB32075E
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 10:04:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6CFB32075E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B06916B000E; Thu,  4 Apr 2019 05:47:14 -0400 (EDT)
+	id 09B7E6B0007; Thu,  4 Apr 2019 06:04:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AB5CF6B0266; Thu,  4 Apr 2019 05:47:14 -0400 (EDT)
+	id 04BF96B0008; Thu,  4 Apr 2019 06:04:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9CE146B0269; Thu,  4 Apr 2019 05:47:14 -0400 (EDT)
+	id EA3986B0269; Thu,  4 Apr 2019 06:04:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FFD36B000E
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 05:47:14 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id s27so1083081eda.16
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 02:47:14 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 9AD546B0007
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 06:04:08 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id n24so1102170edd.21
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 03:04:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=kbLzgI/BbNqddxcLvhl156HmxQpyP2Y/KdoRc3dMBxE=;
-        b=AGbgIDXGgfnrENoqjziAFFOm0CvZq3AB3pUDAHn//pq852WU2hcbZTXO5Pm7Wcotge
-         eIZmBRysiKyzKz5mGc9dnogPz8rjm4h3IVXgfd+Zv3X0GW1UpHeIpy6x/Mef8rVHLZu+
-         JJdomlrwP2ASl+Vjkg0HXh+zTNoW1psoVY4YfnGaUPgn87pm3zZ8z4Wp9xN7+6OSNALm
-         AMyK8HEHKy7qTfCqHjf/Zu4xoxr00dZvCYS94q+Yvoj+JkqlnwU1y2966kkZ0ul9JJ7E
-         phF27JHURudnryBdGTflylWsJXQgkKFR/q4aBhUeQsrUtI20QoNvPWFPfTs7w7fMV8Gp
-         RgfA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAWXfzgCIdAt8cOLMKuQZvTKqC4dV01h9f1aZTaFtjSB8Vn2Xf/3
-	uxbZEw/p5S0o3PeyO1NN4IDAChdQqNYAqVlmzIES+L/AuV6CBLwKXseCnxxjdompEk3wmPRgT/D
-	s44qte+Broqo2k/vHNEQ0EJ3gnhxkLBVZ6qTUwd2J0cowYHG130Zg3iyyLseNAz/tlg==
-X-Received: by 2002:aa7:c250:: with SMTP id y16mr3050661edo.238.1554371233843;
-        Thu, 04 Apr 2019 02:47:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzxYMDQxsE2Qy2TE/0zi6yvBxpp+gt/JKJ5COUcm1Y3lRqoJpnekElGwxIFbwXz9QfXihR4
-X-Received: by 2002:aa7:c250:: with SMTP id y16mr3050591edo.238.1554371232508;
-        Thu, 04 Apr 2019 02:47:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554371232; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=M+m1rKqLrEEjKxqnjBVJinK8aaLGK7kUpm/Z2Wsf3EI=;
+        b=VrWOaBMbZnmyasbtmrnEH253mWo9NYf6TTrpHN/CiC/8oSP8nmHn7l3jPoooWOtBGi
+         McJYUEkerArde3n5obAXJt6LpLVFfTe4v0hGUxEG6ZwwE9NUCQEs02oVSCMVjXKHNJri
+         DEpHSs0KulRd9TMD4cGWCqNNpCoO8khaesYHmkKuxJln0J0enIxb1FJvFiohmU/r9O8K
+         Bo77JBsQ2/9t6G7UiTdwXMpOx87NzqgsFqGfK/d+B+jt+03ZgVbZ3EyB13vhksqBPVnF
+         64MCw3nGXuz7DhbcO7fXxV+bEBSKU0rfLVCspcR7BS1/z/zCjhZJpYjBx4BFo1nzsTRM
+         /i8A==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAXQ5g5RrycId9uP7SZg7qEsDbEWD5qwdD1IchpoNbuuXjem5cWq
+	8F4lQSpHWLW/iOx82PgsmQAn9R9qorfohHnrS7A0HI25XgAPVmDomrF5kj6VgiCsdc/87ay2ZxE
+	T82ZZlPOAdiweNiqRNz5BhF52xtPVowjqsqag6DfZa9wRE5gVCTr3HVC0lFFz/a8=
+X-Received: by 2002:a05:6402:88a:: with SMTP id e10mr3124893edy.88.1554372248107;
+        Thu, 04 Apr 2019 03:04:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxbLvBZyUcvFL+ZfTikTkaxv+k+EEuahVfHL2s8MOc8UP/jGM2aARPHPDv1WwEk8v6V0uFv
+X-Received: by 2002:a05:6402:88a:: with SMTP id e10mr3124842edy.88.1554372247163;
+        Thu, 04 Apr 2019 03:04:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554372247; cv=none;
         d=google.com; s=arc-20160816;
-        b=tsqA0oUM82WJ0Z06dIx4PX4FTHOyGaoDFI6CmQftPU9tbQ8dln4cY+axVHhzwzHzch
-         fmnYt5mrNdbx6i8+lXGsHZMw/3vFcNdHZIzfuajnS/bg0PW7D0UutCgiRQR5eRQf9d+x
-         3UpNU9tIfZ18CwTngK9ai/4UwZNa1PFs3xkD6CkBAfnxT1fC8ESC0jIRglxQOs4xfhwm
-         bV0W2ArqHdCesIQbjhHP1ftlcWzU1P0ogWpz/MPw3Wcgvd2Sk/eiq5UDwHo8QetsSeXC
-         Inl8SCNFLqZKXC3htLD6DjywvVx+v1df0ACYdIMXrUyTJtSwFFOPh51udhqPn2O20f0C
-         CZNg==
+        b=SCjfPHLItlnePIAq3OzqwJ0lJrixa4LpCH9C4lB7GNtYeUhxtQgU2hPGuAwmXkDPWn
+         G1jMp7K6gN1fiRcAw85YO1Tu434JGcd7Q9m7kjcjL+SuR07U1oX9xer3nzejukSO4I3j
+         GJFGUhS5r7hDysgEuvvTNHbmswFFJLvNUGF4eIqSpX8RZSV/874znwafRJ3vulIA+5ke
+         +NCvBTED5e3cRttySXl2xeIN1n20PMHx31YuSGPTVXkfE8RlrCmS5JzbRKTeF7BLOmBk
+         +TmLfdN8s0ThjCPHmoxe6DEY+hrGga3YWzmiYtbEJkfGYSg7p3oawhFbcp0CiyzdLvWZ
+         Sy1Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=kbLzgI/BbNqddxcLvhl156HmxQpyP2Y/KdoRc3dMBxE=;
-        b=WzB3fEJJTGleCoG2Knvs5T/B6BjF0yjLY3zGbkCbb2fCRPWK9oCipUKbY1AZThA8i0
-         EitefWRke5Z+Qtw4vVAa5TY2yhQyxq5n3qEzj+UIDbbbPPJAQmNzlrBBvSQipkwK/JRG
-         itQdnRP7QVJ3yblHfC5+ZEdY+iWDyBRjGl77n5peb97krvISrixX3wNFDwgF7KqyNmws
-         u35IHJelPI1jpXbqtK2YvlTwT3xjGGd1fwbxG2wmNKDW8oLPbPqythqvSJ9udTWyPmFl
-         HPY1aoPfvYyN4OD4wyVj6Of+i4M5yEzxmzCSv5WqxKsvPzyYkZC89RFcW+8PIFlyGAa3
-         ZV8w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=M+m1rKqLrEEjKxqnjBVJinK8aaLGK7kUpm/Z2Wsf3EI=;
+        b=0+gcAAWIekHBUey+FSJ2lEvgjtgYUubnIuUqDQwNKkY2mW97vMffPce2oahRiewmSI
+         mrvZUDRo0Ip4PjURqg4aWgw3P8nmhNgXoTNLLuEDr5uSgiFVkjfnJHUG6xbSRFAPNy5Y
+         bb2H3QQ0i9f6Gd/trmI107E/u8nPLKpCVAQNh4qJq+PJbvrBQrqyc2v8x5pUVEgxpIkY
+         eL69/I9Mh9nQM2g32sKuivGeffnSwVBCLDeGOXebLV4elZarrABe/xmn83Ol5XgJe7d2
+         2Ch+0TAZJJ+uFK8HdF1s5fYARTY4T2juXd54Pz78tHOsS0LsyfpaMh2sl09uTs7EFIOj
+         8s2A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id f25si2999991ejf.32.2019.04.04.02.47.12
+       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from suse.de (nat.nue.novell.com. [2620:113:80c0:5::2222])
+        by mx.google.com with ESMTP id s53si8020389edd.432.2019.04.04.03.04.06
         for <linux-mm@kvack.org>;
-        Thu, 04 Apr 2019 02:47:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+        Thu, 04 Apr 2019 03:04:07 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) client-ip=2620:113:80c0:5::2222;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 67B1C169E;
-	Thu,  4 Apr 2019 02:47:11 -0700 (PDT)
-Received: from p8cg001049571a15.blr.arm.com (p8cg001049571a15.blr.arm.com [10.162.40.100])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 6B6113F557;
-	Thu,  4 Apr 2019 02:47:05 -0700 (PDT)
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-To: linux-kernel@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org,
-	linux-mm@kvack.org,
-	akpm@linux-foundation.org,
-	will.deacon@arm.com,
-	catalin.marinas@arm.com
-Cc: mhocko@suse.com,
-	mgorman@techsingularity.net,
-	james.morse@arm.com,
-	mark.rutland@arm.com,
-	robin.murphy@arm.com,
-	cpandya@codeaurora.org,
-	arunks@codeaurora.org,
-	dan.j.williams@intel.com,
-	osalvador@suse.de,
-	logang@deltatee.com,
-	david@redhat.com,
-	cai@lca.pw
-Subject: [RFC 2/2] arm64/mm: Enable ZONE_DEVICE for all page configs
-Date: Thu,  4 Apr 2019 15:16:50 +0530
-Message-Id: <1554371210-24736-2-git-send-email-anshuman.khandual@arm.com>
-X-Mailer: git-send-email 2.7.4
-In-Reply-To: <1554371210-24736-1-git-send-email-anshuman.khandual@arm.com>
-References: <1554265806-11501-1-git-send-email-anshuman.khandual@arm.com>
- <1554371210-24736-1-git-send-email-anshuman.khandual@arm.com>
+       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: by suse.de (Postfix, from userid 1000)
+	id ECC29480E; Thu,  4 Apr 2019 12:04:05 +0200 (CEST)
+Date: Thu, 4 Apr 2019 12:04:05 +0200
+From: Oscar Salvador <osalvador@suse.de>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, david@redhat.com, dan.j.williams@intel.com,
+	Jonathan.Cameron@huawei.com, anshuman.khandual@arm.com,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH 2/4] mm, memory_hotplug: provide a more generic
+ restrictions for memory hotplug
+Message-ID: <20190404100403.6lci2e55egrjfwig@d104.suse.de>
+References: <20190328134320.13232-1-osalvador@suse.de>
+ <20190328134320.13232-3-osalvador@suse.de>
+ <20190403084603.GE15605@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190403084603.GE15605@dhcp22.suse.cz>
+User-Agent: NeoMutt/20170421 (1.8.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Now that vmemmap_populate_basepages() supports struct vmem_altmap based
-allocations, ZONE_DEVICE can be functional across all page size configs.
-Now vmemmap_populate_baepages() takes in actual struct vmem_altmap for
-allocation and remove_pagetable() should accommodate such new PTE level
-vmemmap mappings. Just remove the ARCH_HAS_ZONE_DEVICE dependency from
-ARM64_4K_PAGES.
+On Wed, Apr 03, 2019 at 10:46:03AM +0200, Michal Hocko wrote:
+> On Thu 28-03-19 14:43:18, Oscar Salvador wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > arch_add_memory, __add_pages take a want_memblock which controls whether
+> > the newly added memory should get the sysfs memblock user API (e.g.
+> > ZONE_DEVICE users do not want/need this interface). Some callers even
+> > want to control where do we allocate the memmap from by configuring
+> > altmap.
+> > 
+> > Add a more generic hotplug context for arch_add_memory and __add_pages.
+> > struct mhp_restrictions contains flags which contains additional
+> > features to be enabled by the memory hotplug (MHP_MEMBLOCK_API
+> > currently) and altmap for alternative memmap allocator.
+> > 
+> > Please note that the complete altmap propagation down to vmemmap code
+> > is still not done in this patch. It will be done in the follow up to
+> > reduce the churn here.
+> > 
+> > This patch shouldn't introduce any functional change.
+> 
+> Is there an agreement on the interface here? Or do we want to hide almap
+> behind some more general looking interface? If the former is true, can
+> we merge it as it touches a code that might cause merge conflicts later on
+> as multiple people are working on this area.
 
-Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
----
- arch/arm64/Kconfig  |  2 +-
- arch/arm64/mm/mmu.c | 10 +++++-----
- 2 files changed, 6 insertions(+), 6 deletions(-)
+Uhm, I think that the interface is fine for now.
+I thought about providing some callbacks to build the altmap layout, but I
+realized that it was overcomplicated and I would rather start easy.
+Maybe the naming could be changed to what David suggested, something like
+"mhp_options", which actually looks more generic and allows us to stuff more
+things into it should the need arise in the future.
+But that is something that can come afterwards I guess.
 
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index b5d8cf57e220..4a37a33a4fe5 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -31,7 +31,7 @@ config ARM64
- 	select ARCH_HAS_SYSCALL_WRAPPER
- 	select ARCH_HAS_TEARDOWN_DMA_OPS if IOMMU_SUPPORT
- 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
--	select ARCH_HAS_ZONE_DEVICE if ARM64_4K_PAGES
-+	select ARCH_HAS_ZONE_DEVICE
- 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
- 	select ARCH_INLINE_READ_LOCK if !PREEMPT
- 	select ARCH_INLINE_READ_LOCK_BH if !PREEMPT
-diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
-index 2859aa89cc4a..509ed7e547a3 100644
---- a/arch/arm64/mm/mmu.c
-+++ b/arch/arm64/mm/mmu.c
-@@ -818,8 +818,8 @@ static void __meminit free_pud_table(pud_t *pud_start, pgd_t *pgd, bool direct)
- #endif
- 
- static void __meminit
--remove_pte_table(pte_t *pte_start, unsigned long addr,
--			unsigned long end, bool direct)
-+remove_pte_table(pte_t *pte_start, unsigned long addr, unsigned long end,
-+		bool direct, struct vmem_altmap *altmap)
- {
- 	pte_t *pte;
- 
-@@ -829,7 +829,7 @@ remove_pte_table(pte_t *pte_start, unsigned long addr,
- 			continue;
- 
- 		if (!direct)
--			free_pagetable(pte_page(*pte), 0);
-+			free_huge_pagetable(pte_page(*pte), 0, altmap);
- 		spin_lock(&init_mm.page_table_lock);
- 		pte_clear(&init_mm, addr, pte);
- 		spin_unlock(&init_mm.page_table_lock);
-@@ -860,7 +860,7 @@ remove_pmd_table(pmd_t *pmd_start, unsigned long addr, unsigned long end,
- 			continue;
- 		}
- 		pte_base = pte_offset_kernel(pmd, 0UL);
--		remove_pte_table(pte_base, addr, next, direct);
-+		remove_pte_table(pte_base, addr, next, direct, altmap);
- 		free_pte_table(pte_base, pmd, direct);
- 	}
- }
-@@ -921,7 +921,7 @@ remove_pagetable(unsigned long start, unsigned long end,
- int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
- 		struct vmem_altmap *altmap)
- {
--	return vmemmap_populate_basepages(start, end, node, NULL);
-+	return vmemmap_populate_basepages(start, end, node, altmap);
- }
- #else	/* !ARM64_SWAPPER_USES_SECTION_MAPS */
- int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+But merging this now is not a bad idea taking into account that some people
+is working on the same area and merge conflicts arise easily.
+Otherwise re-working it every version is going to be a pita.
+
 -- 
-2.20.1
+Oscar Salvador
+SUSE L3
 
