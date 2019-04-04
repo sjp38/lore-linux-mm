@@ -2,151 +2,198 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 77386C10F0E
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 16:54:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 36778C4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 17:02:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2406C2063F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 16:54:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2406C2063F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id D54A0206DD
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 17:02:46 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="vRjZAYQr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D54A0206DD
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C38496B0266; Thu,  4 Apr 2019 12:54:02 -0400 (EDT)
+	id 776846B0010; Thu,  4 Apr 2019 13:02:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BEB616B026B; Thu,  4 Apr 2019 12:54:02 -0400 (EDT)
+	id 726C86B0266; Thu,  4 Apr 2019 13:02:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ADAA36B026C; Thu,  4 Apr 2019 12:54:02 -0400 (EDT)
+	id 5EFC16B026B; Thu,  4 Apr 2019 13:02:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 732846B0266
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 12:54:02 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id j184so1923756pgd.7
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 09:54:02 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1624E6B0010
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 13:02:46 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id y7so2349234wrq.4
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 10:02:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:dlp-product
-         :dlp-version:dlp-reaction:content-transfer-encoding:mime-version;
-        bh=G5vlB9ogY7qE5fRXXrp3YzuRT1HiyOjIVjli+m0ivrE=;
-        b=KRKT3Mrwtu9FEPYMiyKaDeumHFrdqPjIMetEmCVC7h1y73+VraPHOlAFV/czvCIbfs
-         tI9b91U/va2gBQRwK+DdozBUuf8zXiMHs0nm3V79p4mEJGpI26gJwioVTBZ8aNfOk5Mn
-         zRiZZzHdEUlXWjvO/vGYyytvnF49bRVldkfP7a+eX6IB5ftRHyl6Vb77ZbvXyCDTSMwN
-         pbfqxprIXPnF8iLyg81da04/BDPhRIo2o4fJ2DJmAJQFGKel19WMQvcFg2D8J8zr2Cao
-         54J5fORw2sTUadQ+S0mf2hKmAAtse2K6HqrsRq0EQ1WYWVBG7rQ4zUJKinKNWaEiIyFs
-         xy5g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWDnzCY/SEVt1XSEE6U/vo20wHpJ2A1XY1CYcTS0uGlC7Wopz5v
-	T+M+1Bw6gNb0JKhhU0shx4/162+/4iSXOt4B9owG1PKI0Jc8v3TAaIL5QJAM6OXLSnIdrDjMoLz
-	WmFZvt3gL3KKzkJvR7ZOcA82ekTJyJ2n/TV1lcZVAXCntxFtH+q3MbSRRS5FqZWhhDA==
-X-Received: by 2002:a17:902:70c8:: with SMTP id l8mr7586547plt.177.1554396842057;
-        Thu, 04 Apr 2019 09:54:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzdG3Jqgczwo5NqskAjr88puDBfhpoETGcZIHKrXiDOBOnUv2n2M92CS6Mu1b7zMfJeedeX
-X-Received: by 2002:a17:902:70c8:: with SMTP id l8mr7586492plt.177.1554396841456;
-        Thu, 04 Apr 2019 09:54:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554396841; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=DuOGTJZ7sMG2u+bQoSBicKt7dBisbjP7T/Kfoz9vRWs=;
+        b=rWwm/LkcEf4DWaEKLswSrRsuICCJ+asjtefeD3JtKqmO3ZQAToIUb69ty2rnuCaqMe
+         Kcvn1rHNsi4TPPzCCAY1dCy/al7790yP1PPcMPUnf32RiXU+UfCs5V7qiE5ZkM7878KF
+         Si//avMZBoK0mUQpzOxXXAQmZcR+vNKU3Z+yvzBTX7rUNcE6Ziox+NfHfaAzjBu33fPF
+         AvtTyY4Su4nlFclCNNDoQ1t5tn6OYWLT+a9jTJ/fm83YUkFuRqWcBzPVkLp+Zlo5CJ85
+         ViRAiu6bIKOIdlFgNlyq2U1JYEcj37O26DLAFgTSDnKz6pTqOk0uNLJmVr0dw4l3Pztt
+         KKhg==
+X-Gm-Message-State: APjAAAUmEV0Hn7GTO5dgZE3kAt1/JFtd2AOfe+z3xpWZ8f+o3JkO2rXe
+	YgCoeFKyFN47eY/6dQI1ak7HaZbv+96/B98MLuJCeZuMruEiAsssTIHlsfLbhBs9xGSDMwuBgIe
+	oTRw5QMvzgRGHK3fYdxL7P7yT9YvqqtWlsqg4AkZhV0Pd7Wc1VfimQKTEKZLECu8XOQ==
+X-Received: by 2002:adf:fec3:: with SMTP id q3mr4997084wrs.173.1554397365564;
+        Thu, 04 Apr 2019 10:02:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxjPsnt+1Y2HVEX5plXjs6DOc9RfeqDiDQxB5J7K/8YAFrc3bDgSXajmePgE38WcSe9Y91l
+X-Received: by 2002:adf:fec3:: with SMTP id q3mr4997013wrs.173.1554397364461;
+        Thu, 04 Apr 2019 10:02:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554397364; cv=none;
         d=google.com; s=arc-20160816;
-        b=NXOZzgMpXdWhxFfbKCLnhwBin1zDpNMR0nY0H9ve4GRZ6xhcRa7HqlUdXYhA6hOreX
-         BTedHKUNklGhbaWlquEeJTLxtt7Z6wTe0mK9aUz3XJBu6WoGn1tLK38A2cou+KowxN5+
-         JFpNKm9KFZQBKL07Dmt/0JlDA+8Zb0u9PBKA8PYe7KTM2EqRXYV+LZDuzqT99R4ohIQl
-         LO06pwwIXOeYYt3kmsO7fpqb7HZLMphApoFe27Mn6GZhoyhZbAtJrRqn+lqCAeZxV0XZ
-         Y4BFH1ei2EfXIt29A0lOjuF16oxcQ2F1eQzLw37zu7TEa/4oacqhKhYV3w4SPaNuIQiM
-         wWng==
+        b=UOiDgkz9bK7be4CEuB6SEcDJRNowj7pDyujhA+wXAn3BQbMgt0UyWE4sogJV1Sqe3k
+         Wzo0YuLGCajGMsn9fpSVzNHcZSZO2dZpaWH2RBLPqTZTt3fnRx/x5f0hKjSrOUTFssgp
+         7F+JGk8AJEyuVTmHorOJzPRhodIhR8W1jDxQvm1ow6rppuhzURW1txeSBj0lPPrGRRwz
+         pyxPmlfsuzVq0p1ShVNRJXvbr53a3ipyOmW9aDU14FnhIt+w1OPAfZvQ5EckMbNgZNeT
+         fResJ18pdECSXWtvoIlG6qVPen3CRyW71HNlr+SS70ldMIE5DrxRRN7hjYbKz/VSL/lR
+         uQIQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:dlp-reaction:dlp-version
-         :dlp-product:content-language:accept-language:in-reply-to:references
-         :message-id:date:thread-index:thread-topic:subject:cc:to:from;
-        bh=G5vlB9ogY7qE5fRXXrp3YzuRT1HiyOjIVjli+m0ivrE=;
-        b=byFfZzaHVl6vR7NASyV1AuWrLL26yAI2NPPszmQhC5gMI3EKfaXpAbTJLXa8l5vvdD
-         l8XAFfAFidgb4nUWQuuGb0U0Wfj58hkroGzQGjkAA42EZIVQ7jHpyxqGlBHWMd/B0H2P
-         sdcSjdwXGI2L1esox8B1ZT2huBS7pChlRQ1rCBPlOpKFs38nb3ap1OP0I2jw5BkE5C6g
-         RybuNXbmoDG+TVFBxdqvmNZOwS6SWJV9uaIGfzfUlfS90X2AK2+PDgYAQzOtFfr570LH
-         /Ren0n/+MzNgnxJMD7dq2Z+kxoUnDfkSWPqyZ2/C//Ew+JVGYVHqOuDPL1bsmEbkdrC6
-         xMfQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=DuOGTJZ7sMG2u+bQoSBicKt7dBisbjP7T/Kfoz9vRWs=;
+        b=sm2ANqwzrfR6LUyBmEUBEUYe/E0QEPhi4A5ZFGsEw2sfR6xrS2hFFuekvV0L2WBrRn
+         fe+pJhB3FICB1582h853r/+XuNQNWoQgQGRnaAeEneSirCMpjxD0e9Mo65W7yH5RG7s9
+         6U5WWX3PVdKLOs/6/lBaP35Cskg+t1TikRT5HmjqUqAI2RQYa8vvAbo9gUBJl97d4lbS
+         Sa5IoQ4lgyRkGyhCnmfxR0MGJTZJ9peFkfItANqf5b18tehtRlIApm54gwoQrl4zE5D/
+         8KcsFuYSlenoaXrUb9lS8k33ck1VccEPIE8ZCtfHZiihGnafkZ+mhhp7ZyzCyhWsXEru
+         SyxA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id h11si17385084plb.38.2019.04.04.09.54.01
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=vRjZAYQr;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id s13si12998964wri.136.2019.04.04.10.02.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Apr 2019 09:54:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 04 Apr 2019 10:02:44 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 04 Apr 2019 09:54:00 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,308,1549958400"; 
-   d="scan'208";a="131480547"
-Received: from fmsmsx103.amr.corp.intel.com ([10.18.124.201])
-  by orsmga008.jf.intel.com with ESMTP; 04 Apr 2019 09:53:57 -0700
-Received: from fmsmsx123.amr.corp.intel.com (10.18.125.38) by
- FMSMSX103.amr.corp.intel.com (10.18.124.201) with Microsoft SMTP Server (TLS)
- id 14.3.408.0; Thu, 4 Apr 2019 09:53:57 -0700
-Received: from crsmsx152.amr.corp.intel.com (172.18.7.35) by
- fmsmsx123.amr.corp.intel.com (10.18.125.38) with Microsoft SMTP Server (TLS)
- id 14.3.408.0; Thu, 4 Apr 2019 09:53:56 -0700
-Received: from crsmsx101.amr.corp.intel.com ([169.254.1.94]) by
- CRSMSX152.amr.corp.intel.com ([169.254.5.30]) with mapi id 14.03.0415.000;
- Thu, 4 Apr 2019 10:53:54 -0600
-From: "Weiny, Ira" <ira.weiny@intel.com>
-To: William Kucharski <william.kucharski@oracle.com>, Huang Shijie
-	<sjhuang@iluvatar.ai>
-CC: "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"sfr@canb.auug.org.au" <sfr@canb.auug.org.au>, "linux-mm@kvack.org"
-	<linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>
-Subject: RE: [PATCH] mm/gup.c: fix the wrong comments
-Thread-Topic: [PATCH] mm/gup.c: fix the wrong comments
-Thread-Index: AQHU6rdootqQqf6MVU2Y2vuXC43Qn6YsVAoA///ka7A=
-Date: Thu, 4 Apr 2019 16:53:53 +0000
-Message-ID: <2807E5FD2F6FDA4886F6618EAC48510E79C99E19@CRSMSX101.amr.corp.intel.com>
-References: <20190404072347.3440-1-sjhuang@iluvatar.ai>
- <3D9A544A-D447-4FD2-87A5-211588D6F3E5@oracle.com>
-In-Reply-To: <3D9A544A-D447-4FD2-87A5-211588D6F3E5@oracle.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-titus-metadata-40: eyJDYXRlZ29yeUxhYmVscyI6IiIsIk1ldGFkYXRhIjp7Im5zIjoiaHR0cDpcL1wvd3d3LnRpdHVzLmNvbVwvbnNcL0ludGVsMyIsImlkIjoiNWUxNTc1MTUtNzE0Yy00ZDI0LWI3OWMtMDlmNGMyZWI3YzJhIiwicHJvcHMiOlt7Im4iOiJDVFBDbGFzc2lmaWNhdGlvbiIsInZhbHMiOlt7InZhbHVlIjoiQ1RQX05UIn1dfV19LCJTdWJqZWN0TGFiZWxzIjpbXSwiVE1DVmVyc2lvbiI6IjE3LjEwLjE4MDQuNDkiLCJUcnVzdGVkTGFiZWxIYXNoIjoicTBnNXhTUlFqVktYb0lncnA4QVJsSFlLaHZIQ3VUTHdDUUVzQVJ0ODd6ZHFLVUtBYnlxZ09SNXkraEFZQXBcL2UifQ==
-x-ctpclassification: CTP_NT
-dlp-product: dlpe-windows
-dlp-version: 11.0.400.15
-dlp-reaction: no-action
-x-originating-ip: [172.18.205.10]
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=vRjZAYQr;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=DuOGTJZ7sMG2u+bQoSBicKt7dBisbjP7T/Kfoz9vRWs=; b=vRjZAYQrTXWQj9Gw7oaVfV3o5
+	m62U3bP3A8Ix76w10FOjTdTA9Hjz+DjEiA/6j1Q+0i79WdBTuGWJSWVvTZfy7egwrXoRmgkNiFARz
+	UIHWXjpMaausOaNPwzR+EPjRGwR6jC4ApaYanMEl4aBW3HM/p1tvuoBdCx2dHmFbgSEsj8k4ALZVU
+	HIX6RehcX1LUGtM1gHenrp9sERqiKs7v7eOiF92sb44r0OllXf6XvBSnLn1wMen+iFT0l9RrChfQQ
+	aroUm8LQ8A2o0F2SEsdFT5esiQnGswOoDDXIDYKu3dgDIjiPqizlYn7K5JrtiOmHTSnc7dmL9aNt4
+	J/5nZmFLg==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hC5kD-0004sc-LX; Thu, 04 Apr 2019 17:01:41 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id D2AE92038C245; Thu,  4 Apr 2019 19:01:39 +0200 (CEST)
+Date: Thu, 4 Apr 2019 19:01:39 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Khalid Aziz <khalid.aziz@oracle.com>
+Cc: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de,
+	ak@linux.intel.com, liran.alon@oracle.com, keescook@google.com,
+	konrad.wilk@oracle.com,
+	Juerg Haefliger <juerg.haefliger@canonical.com>,
+	deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
+	tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
+	jcm@redhat.com, boris.ostrovsky@oracle.com,
+	kanth.ghatraju@oracle.com, joao.m.martins@oracle.com,
+	jmattson@google.com, pradeep.vincent@oracle.com,
+	john.haxby@oracle.com, tglx@linutronix.de,
+	kirill.shutemov@linux.intel.com, hch@lst.de,
+	steven.sistare@oracle.com, labbott@redhat.com, luto@kernel.org,
+	dave.hansen@intel.com, aaron.lu@intel.com,
+	akpm@linux-foundation.org, alexander.h.duyck@linux.intel.com,
+	amir73il@gmail.com, andreyknvl@google.com,
+	aneesh.kumar@linux.ibm.com, anthony.yznaga@oracle.com,
+	ard.biesheuvel@linaro.org, arnd@arndb.de, arunks@codeaurora.org,
+	ben@decadent.org.uk, bigeasy@linutronix.de, bp@alien8.de,
+	brgl@bgdev.pl, catalin.marinas@arm.com, corbet@lwn.net,
+	cpandya@codeaurora.org, daniel.vetter@ffwll.ch,
+	dan.j.williams@intel.com, gregkh@linuxfoundation.org, guro@fb.com,
+	hannes@cmpxchg.org, hpa@zytor.com, iamjoonsoo.kim@lge.com,
+	james.morse@arm.com, jannh@google.com, jgross@suse.com,
+	jkosina@suse.cz, jmorris@namei.org, joe@perches.com,
+	jrdr.linux@gmail.com, jroedel@suse.de, keith.busch@intel.com,
+	khlebnikov@yandex-team.ru, logang@deltatee.com,
+	marco.antonio.780@gmail.com, mark.rutland@arm.com,
+	mgorman@techsingularity.net, mhocko@suse.com, mhocko@suse.cz,
+	mike.kravetz@oracle.com, mingo@redhat.com, mst@redhat.com,
+	m.szyprowski@samsung.com, npiggin@gmail.com, osalvador@suse.de,
+	paulmck@linux.vnet.ibm.com, pavel.tatashin@microsoft.com,
+	rdunlap@infradead.org, richard.weiyang@gmail.com, riel@surriel.com,
+	rientjes@google.com, robin.murphy@arm.com, rostedt@goodmis.org,
+	rppt@linux.vnet.ibm.com, sai.praneeth.prakhya@intel.com,
+	serge@hallyn.com, steve.capper@arm.com, thymovanbeers@gmail.com,
+	vbabka@suse.cz, will.deacon@arm.com, willy@infradead.org,
+	yang.shi@linux.alibaba.com, yaojun8558363@gmail.com,
+	ying.huang@intel.com, zhangshaokun@hisilicon.com,
+	iommu@lists.linux-foundation.org, x86@kernel.org,
+	linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-security-module@vger.kernel.org,
+	Khalid Aziz <khalid@gonehiking.org>
+Subject: Re: [RFC PATCH v9 03/13] mm: Add support for eXclusive Page Frame
+ Ownership (XPFO)
+Message-ID: <20190404170139.GA4038@hirez.programming.kicks-ass.net>
+References: <cover.1554248001.git.khalid.aziz@oracle.com>
+ <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
+ <20190404074323.GO4038@hirez.programming.kicks-ass.net>
+ <b414bacc-2883-1914-38ec-3d8f4a032e10@oracle.com>
 MIME-Version: 1.0
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b414bacc-2883-1914-38ec-3d8f4a032e10@oracle.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > On Apr 4, 2019, at 1:23 AM, Huang Shijie <sjhuang@iluvatar.ai> wrote:
-> >
-> >
-> > + * This function is different from the get_user_pages_unlocked():
-> > + *      The @pages may has different page order with the result
-> > + *      got by get_user_pages_unlocked().
-> > + *
->=20
-> I suggest a slight rewrite of the comment, something like:
->=20
-> * Note this routine may fill the pages array with entries in a
-> * different order than get_user_pages_unlocked(), which may cause
-> * issues for callers expecting the routines to be equivalent.
+On Thu, Apr 04, 2019 at 09:15:46AM -0600, Khalid Aziz wrote:
+> Thanks Peter. I really appreciate your review. Your feedback helps make
+> this code better and closer to where I can feel comfortable not calling
+> it RFC any more.
+> 
+> The more I look at xpfo_kmap()/xpfo_kunmap() code, the more I get
+> uncomfortable with it. As you pointed out about calling kmap_atomic from
+> NMI context, that just makes the kmap_atomic code look even worse. I
+> pointed out one problem with this code in cover letter and suggested a
+> rewrite. I see these problems with this code:
 
-This is good too.  :-D
+Well, I no longer use it from NMI context, but I did do that for a
+while. We now have a giant heap of magic in the NMI path that allows us
+to take faults from NMI context (please don't ask), this means we can
+mostly do copy_from_user_inatomic() now.
 
-Ira
+> 1. When xpfo_kmap maps a page back in physmap, it opens up the ret2dir
+> attack security hole again even if just for the duration of kmap. A kmap
+> can stay around for some time if the page is being used for I/O.
+
+Correct.
+
+> 2. This code uses spinlock which leads to problems. If it does not
+> disable IRQ, it is exposed to deadlock around xpfo_lock. If it disables
+> IRQ, I think it can still deadlock around pgd_lock.
+
+I've not spotted that inversion yet, but then I didn't look at the lock
+usage outside of k{,un}map_xpfo().
+
+> I think a better implementation of xpfo_kmap()/xpfo_kunmap() would map
+> the page at a new virtual address similar to what kmap_high for i386
+> does. This avoids re-opening the ret2dir security hole. We can also
+> possibly do away with xpfo_lock saving bytes in page-frame and the not
+> so sane code sequence can go away.
+
+Right, the TLB invalidation issues are still tricky, even there :/
 
