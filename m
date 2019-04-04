@@ -5,113 +5,114 @@ X-Spam-Level:
 X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EF043C4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:02:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DE83BC4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:02:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 923B220820
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:02:02 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7498520820
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:02:06 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=sent.com header.i=@sent.com header.b="W2eIyqgl";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="5Mx+lgAC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 923B220820
+	dkim=pass (2048-bit key) header.d=sent.com header.i=@sent.com header.b="fCpfmq6r";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="xXsEe6Si"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7498520820
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=sent.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D76416B0271; Wed,  3 Apr 2019 22:01:38 -0400 (EDT)
+	id 4EE396B0272; Wed,  3 Apr 2019 22:01:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D4CC36B0272; Wed,  3 Apr 2019 22:01:38 -0400 (EDT)
+	id 49C1A6B0274; Wed,  3 Apr 2019 22:01:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C12EF6B0274; Wed,  3 Apr 2019 22:01:38 -0400 (EDT)
+	id 363426B0275; Wed,  3 Apr 2019 22:01:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EF896B0271
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 22:01:38 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id t22so954494qtc.13
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 19:01:38 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 10B2C6B0272
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 22:01:41 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id c67so951225qkg.5
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 19:01:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
          :date:message-id:in-reply-to:references:reply-to:mime-version
          :content-transfer-encoding;
-        bh=sXG3rQcTOdL12EImFulmnFrT8g5Zh7pYzesmPBFsvuo=;
-        b=G7IU8nq/vVHgOOCEhh23Y0TV5jKXTEqGXOMP+9bUOWfY0o0WbWj3Klk9W+fhzp2TjV
-         YgR7l1krE9Qlh0sHUHm5ESEjzxD2ByQFCcRghC1uEAQXpXJmKUyLizDSULGPsih9+bS0
-         r/5p1KzpQZhckP22SSUuvmKV1iBAzRuLUm8uw2cMZiAEY4GLij+U+z2bz1kpkf6y+5MC
-         Bb4/tpNIzIx0Z66lz2eQ4e7FCAs0A7HxrYr6oYOEyUBu7AN5I9GyogI9k0q94kakxpFu
-         6w54CTcVBBBUJvGl15Kc+4ZoMfPj/FWCg4OSkD22P5nTBltkifckBlfnTbjplYj5+eNL
-         HmSA==
-X-Gm-Message-State: APjAAAWpzsdKUlG8ejVzPWxSsfy4FGhKe/IF5wiJz3qzqsAbzdnfLgSh
-	+dsU2cnY9X9QozZj1nf/HPQcNkvfHPsg5/f3eL3teYUiMDuTA9jS28hZpkKwTZqUd0/AA7avUbp
-	0HKJptSvGufLTqrh7NFQAeH/sxD82jOPWy/7krDkHlAedTaOjMlNtDnAGtCtmtzQBBQ==
-X-Received: by 2002:a0c:b14d:: with SMTP id r13mr2581001qvc.80.1554343298401;
-        Wed, 03 Apr 2019 19:01:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwXQlQixgAxVkBdSaTRO0lL1U+SC/bNJdUl5JrnaADuH0npiCrwePms1KeDApJOLQ5cmoYt
-X-Received: by 2002:a0c:b14d:: with SMTP id r13mr2580934qvc.80.1554343297424;
-        Wed, 03 Apr 2019 19:01:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554343297; cv=none;
+        bh=wYGW67q2hX0YeFGfjhSH69JcgDm6ztcqTDnUJ+CdMVc=;
+        b=N+T11yND7/VXXNH+lAvAS7ecePmd8Od4hwN+gosKhBPW1kZq+MqNtmKWr01qMbcyt+
+         X56UbGIVYp5ClXuiGBsGAif4IkixpzlvBunt/D65T1PNUwMR3VSOEwIu7rtMEinPZtnf
+         CrPT52ezdhmLdzXKt/WW0rQnezakLa3QQ5zxRludAxLot/iOnnxzlMSP5JEZ3QJd5eZw
+         EQiy2HULo4YbiVjDB8SGtR9TUyElvur7VOGL3isMCzXMZhiyTK9TtuT1wWI0eY2YWkBz
+         PNPUnvME9LCSZztuYoSVpFaMH2+GUllIHtucBA0/7rM4/PuRxC5IE8UAClkFZ4fHWCKv
+         1tVg==
+X-Gm-Message-State: APjAAAW8D24yfQSiFeWkYoh8ZG/MPvfdqEMPr31eYEDwWxN33XyJ+/eo
+	ta2xgGYT0sqpwcjKuSID3K+Om8kUmtxPH3r2msvhaI4yPpLCmfa8fCgSsxnuPKdAQq4mv9i3Vtd
+	j9rMRKdIkCgvDP8btb6iU7M3MJPHOidBIXMcT9lQ3fZCRSlTAjmq765pv2hKhzSQWDw==
+X-Received: by 2002:ae9:ef07:: with SMTP id d7mr3047462qkg.100.1554343300797;
+        Wed, 03 Apr 2019 19:01:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzID+DxAG8H+kVhR4jJwrhHXHLA/Jm9U/7MJhCO6oNRX2QeDxlkK7WMrUHfDrC6YOqBoOkb
+X-Received: by 2002:ae9:ef07:: with SMTP id d7mr3047360qkg.100.1554343299254;
+        Wed, 03 Apr 2019 19:01:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554343299; cv=none;
         d=google.com; s=arc-20160816;
-        b=imSNkPN4LYjrhioC3wE0zQHbZRtQoZUCY99ICieKbSFg9R8OSME3WNvhnSHzOpY/jO
-         BBN9ADD3p5zk8BYW7QYeBBlEVX1x+tLlQXC8mjsgBdzLgzUz6eECqbYzXfWhJ+D2tlBx
-         4U4BeH5p+W4dQVz8lzkrm3ahsCrAMISvyYgW1YXJDPSYv6HipWDUENIC01OnbOT4hJVR
-         hLdL3f+R0VH0znbNDdjngIDKlFxVqBgmT5z8bHcP8JMRlaoKg9i0UXB93RAcWCOLLJQD
-         xt40PmFg7iNJ4KS55H1xty5SHXY4m+OEXTiUPu9aQi8VxfcWmwoGMuBcqcIrPxAEgt4q
-         bbzA==
+        b=CfjGj4GskgAFLd4MZYqZi7j3qxRFY6+RmE+phzdiLY44wQ5mwWVsiLiZ2Vs2wzkMoq
+         mVJDQLJj+tmSXal0upeAUPWXqqfUj7D12qvlVxJZKMvUMmluqH0qMbJSjkxUwvAL5+ZE
+         rT5IU619ji/rYEfKVozH2j4A3Wrtg+nQDUH88YJdo7UGruLSRjuxx8zlvD/ExN5RorJe
+         i29LQU+P4xQcuG0VpQ4ZVeCh0loQHsa3TIcrSRFxZDdDltj8Ez21hB9IxJCavg9gWbR/
+         FZuXQMtxi0yPtPuIx8mJWwOmajuzPiM2Dka117xYdZWI1GkJqaYA150fjrtsuaRPo8mk
+         vdIg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:reply-to:references
          :in-reply-to:message-id:date:subject:cc:to:from:dkim-signature
          :dkim-signature;
-        bh=sXG3rQcTOdL12EImFulmnFrT8g5Zh7pYzesmPBFsvuo=;
-        b=M41gMs+pHCNBjRArjje9GAg5eSc5O10Gzz1DGs/M1GPvwHZ5UsJMSRSeXwiHS/wWDJ
-         iySW0D2QspH7kybH30atL4WIb51aCFV69JHRixcG0ausyLNjvVpoz2S04su4/QqCEV4A
-         7wDEwh5CXIioaFGcYU7bgai62QtZHP+P4OYTKt5LP5XNTMI5q/LzzJRxg4nnr8mfqR1b
-         OPNFxFQOP6C17AkJCAYQs0IAlgOGfa+SzG0jd3mMoRrqZGqhJLeY6j+H/urLPx9zWDn1
-         sYSGIZiVfyVeT0oGuIl3s2nbcMYrD2tvypijgdKxCgL6lnmBNGX50Tx2nUem7rHoq6F4
-         IZWg==
+        bh=wYGW67q2hX0YeFGfjhSH69JcgDm6ztcqTDnUJ+CdMVc=;
+        b=Qb8y+cQp6b+Gj2f1ctHpU69lzsXmC1xSq806LztLCn1beo0jBVmFcKJ39ImocH9j6A
+         vOXwOX/N6TZdJ//8MvF+nn8NMblAZ9cQ9PEsOSc3Zk3U5KX7u9LjweJtNZEQoFGb9jnC
+         D6g+ycCQToSROWorgBA5wX7FS+qYEodLCFVHZpI3M3mgg/1smKPj4MQDiODRUIs/MPI+
+         E8Burz4YAr78kTb0VxGyXJN3UBZI+eDn9Ri0sYQYBRNTcqW05RMsfxQ46fpFR6xiynWQ
+         5zZvVQ0UNLp0mmj3vMGPaAkrtYPcUvwijMzoCBHtgqn+YSC4k8jDOgl4RXmTyLhK3rBF
+         njpg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@sent.com header.s=fm3 header.b=W2eIyqgl;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=5Mx+lgAC;
+       dkim=pass header.i=@sent.com header.s=fm3 header.b=fCpfmq6r;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=xXsEe6Si;
        spf=pass (google.com: domain of zi.yan@sent.com designates 66.111.4.29 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
 Received: from out5-smtp.messagingengine.com (out5-smtp.messagingengine.com. [66.111.4.29])
-        by mx.google.com with ESMTPS id d7si1777713qke.148.2019.04.03.19.01.37
+        by mx.google.com with ESMTPS id h4si3685063qta.351.2019.04.03.19.01.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 19:01:37 -0700 (PDT)
+        Wed, 03 Apr 2019 19:01:39 -0700 (PDT)
 Received-SPF: pass (google.com: domain of zi.yan@sent.com designates 66.111.4.29 as permitted sender) client-ip=66.111.4.29;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@sent.com header.s=fm3 header.b=W2eIyqgl;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=5Mx+lgAC;
+       dkim=pass header.i=@sent.com header.s=fm3 header.b=fCpfmq6r;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=xXsEe6Si;
        spf=pass (google.com: domain of zi.yan@sent.com designates 66.111.4.29 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.nyi.internal (Postfix) with ESMTP id 2AA8E2278E;
-	Wed,  3 Apr 2019 22:01:37 -0400 (EDT)
+	by mailout.nyi.internal (Postfix) with ESMTP id E70A7228D4;
+	Wed,  3 Apr 2019 22:01:38 -0400 (EDT)
 Received: from mailfrontend2 ([10.202.2.163])
-  by compute3.internal (MEProxy); Wed, 03 Apr 2019 22:01:37 -0400
+  by compute3.internal (MEProxy); Wed, 03 Apr 2019 22:01:38 -0400
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=sent.com; h=from
 	:to:cc:subject:date:message-id:in-reply-to:references:reply-to
-	:mime-version:content-transfer-encoding; s=fm3; bh=sXG3rQcTOdL12
-	EImFulmnFrT8g5Zh7pYzesmPBFsvuo=; b=W2eIyqglUIoPdhEoBrYqkALYEwBAy
-	mrWNgfESFLTDPFUr8KPyFvjQNgjXApnMept6L/h/0sWxRticLShbQa1oaFLnQCRW
-	DnUl8I1fR3h9IQlZlZF774PzztAv7krSBVZ6DhzxiDEnlP7fLYLLOE3UMA2V4Njm
-	3H+7nM6zpyg1hlfGO5sfueE6wAmk/nB7gjUOyFU2lYId1SqCbfmFeBy1HDQWnRz5
-	yP3C4yLKR8WkjbVY96UVRLsppZuWTqlyHLENB5vevy7vOn5GbeGyMvdt3MHecMeJ
-	ZIP2ZFMod9AoBzg2+OXGk0oV3acM/zNqbqVJl43nYYvkWRdQLW4Wfikeg==
+	:mime-version:content-transfer-encoding; s=fm3; bh=wYGW67q2hX0Ye
+	FGfjhSH69JcgDm6ztcqTDnUJ+CdMVc=; b=fCpfmq6ri4dvlPq3glhihZTgdw/hw
+	y57u+VkeKxBP8eQp2qDCAalNUl2bFcPcG+Ve9QXMaA1tUHpGszvCvsnuYG7YTCDw
+	qjy1kW4mGX21k0APvAHWLqMcWpB1W8Ml7PHpOJFvvtwEumCCUThHvi0YszBgtMZD
+	tzzIbtMx0K8nVBkI3vN/D1blcoUge/fgWytVPLBjvZig3t3G+68jSWbOYiPexSC7
+	0shMeh+zTCp/miMOrmSb94BbkaxcOhVyUXUZGOnFaqsiwrmb6MG+sHfx52+6zlat
+	vObGBzHTGr0yKm4WimYoMD75+c7kFcl8JwN8DLvrqeuxc1f08OUWmVgjA==
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:reply-to:subject
 	:to:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=sXG3rQcTOdL12EImFulmnFrT8g5Zh7pYzesmPBFsvuo=; b=5Mx+lgAC
-	KDkvHRxSZV/pLrpUHQNBSrBo8LVd9uBkAiMlkAhiEZ1cNvJ4pxFO/LRd8XMdWtHU
-	Ohzw/EMVniSR+vaUuK5V+ql8WCZiCyvhodklOA0zsmesnYGMGm4IZ6bglJY9Cjym
-	V9HzA44JzDt5L+UL3cHxreUqjHLB8G9I56oV9uE24yZh6xBb1e0Y+nrRXoEh/CHn
-	4cgBQQLmAvIUKYp3d4l52Zdkur8nhh7NiWcYw3+2/swgm3ho1Dt6hrKXRNre8qil
-	BIZnOmwQaUluPIXSGL3oqVEU9PvKavJ2BpPSL71EsKIsMrsVqud56v4BPMfiiOsN
-	fXumJbx95Gdcfw==
-X-ME-Sender: <xms:gGWlXD4kF-Jf5v3hPT1fHBuCyfKw9pOnPdiFYOxvVJElUCdxQY74pQ>
+	fm2; bh=wYGW67q2hX0YeFGfjhSH69JcgDm6ztcqTDnUJ+CdMVc=; b=xXsEe6Si
+	1I8CPRa6jVORnOP1UG1J9zV9dqjQzPZvEgfE042iVdXe2PsHYWRZMFVE3Hbrwopa
+	f+2YKs/HkBjAI4/ULj6tMuc532L/+pTneOm7/rr5pmiDGrkA4LAv6C0BbB7XdbzQ
+	2+yRetPTS0NnCZ8Nce1z4SQbI/PImyqWsP6XhIVud4EzCRTMhcpsaZwzDlOdJ/XE
+	UZzwJlpSsbzvvt3//rRdOw20NnW025+HOW5ePBYqsFaDvzxsqsctyvOWTPfvGm7d
+	PTEs6huvl02cUunBGyokQTxwIfcOaKmAIb32fbOpFMDzLmL0bFym7APyDbd/o9hQ
+	G/hxmkHOS+3PBQ==
+X-ME-Sender: <xms:gmWlXHKMIsoQDWOcX3TfNs0F8LfH1oPqXuLL-m38NfZjRZCU0fhexA>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtdeggdehudculddtuddrgedutddrtddtmd
     cutefuodetggdotefrodftvfcurfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdp
     uffrtefokffrpgfnqfghnecuuegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivg
@@ -119,13 +120,13 @@ X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtdeggdehudculddtuddrgedutd
     necuhfhrohhmpegkihcujggrnhcuoeiiihdrhigrnhesshgvnhhtrdgtohhmqeenucfkph
     epvdduiedrvddvkedrudduvddrvddvnecurfgrrhgrmhepmhgrihhlfhhrohhmpeiiihdr
     higrnhesshgvnhhtrdgtohhmnecuvehluhhsthgvrhfuihiivgepuddt
-X-ME-Proxy: <xmx:gGWlXEn53tYAkqaqA_3J_TJ_Qi0ozDpkoHbc01QxwCoYD4if-fgHjg>
-    <xmx:gGWlXBWypbq5SLtiskVavsqbZMMcSeejVy-GC070PDCaSOmwq1a13Q>
-    <xmx:gGWlXI9x1AXCq_Sz2mM84CL1ghS22pb3IxRYn25gULrBelx7uHlXZw>
-    <xmx:gWWlXMsa2Ye1jAzo-b01f_iu33SX3FS0iB6VJHvVbt0pzo8wFStYRw>
+X-ME-Proxy: <xmx:gmWlXPYEJEKNf8tS-K03P9wEb93pnhCjaf39HSX5otNlDu3-JH545Q>
+    <xmx:gmWlXMrYenYz42pjJWEXQtMsWi-zY_aE8snQoyfaGrny5miv7ah3JQ>
+    <xmx:gmWlXPFK27rBuEv-BhL0zmSdBdE3nbGiXSeIWKPLIkeQQnOEQMiBZA>
+    <xmx:gmWlXFa5jiHcmTMZy5xq7dHQ5LCZM7bHAKLcezKkapmBexRvIZei-w>
 Received: from nvrsysarch5.nvidia.com (thunderhill.nvidia.com [216.228.112.22])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 244C210319;
-	Wed,  3 Apr 2019 22:01:35 -0400 (EDT)
+	by mail.messagingengine.com (Postfix) with ESMTPA id D4DCF10310;
+	Wed,  3 Apr 2019 22:01:36 -0400 (EDT)
 From: Zi Yan <zi.yan@sent.com>
 To: Dave Hansen <dave.hansen@linux.intel.com>,
 	Yang Shi <yang.shi@linux.alibaba.com>,
@@ -145,9 +146,9 @@ Cc: Daniel Jordan <daniel.m.jordan@oracle.com>,
 	Javier Cabezas <jcabezas@nvidia.com>,
 	David Nellans <dnellans@nvidia.com>,
 	Zi Yan <ziy@nvidia.com>
-Subject: [RFC PATCH 13/25] exchange pages: add multi-threaded exchange pages.
-Date: Wed,  3 Apr 2019 19:00:34 -0700
-Message-Id: <20190404020046.32741-14-zi.yan@sent.com>
+Subject: [RFC PATCH 14/25] exchange pages: concurrent exchange pages.
+Date: Wed,  3 Apr 2019 19:00:35 -0700
+Message-Id: <20190404020046.32741-15-zi.yan@sent.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190404020046.32741-1-zi.yan@sent.com>
 References: <20190404020046.32741-1-zi.yan@sent.com>
@@ -162,305 +163,445 @@ List-ID: <linux-mm.kvack.org>
 
 From: Zi Yan <ziy@nvidia.com>
 
-Exchange two pages using multi threads. Exchange two lists of pages
-using multi threads.
+It unmaps two lists of pages, then exchange them in
+exchange_page_lists_mthread(), and finally remaps both lists of
+pages.
 
 Signed-off-by: Zi Yan <ziy@nvidia.com>
 ---
- mm/Makefile        |   1 +
- mm/exchange.c      |  15 ++--
- mm/exchange_page.c | 229 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/internal.h      |   5 ++
- 4 files changed, 245 insertions(+), 5 deletions(-)
- create mode 100644 mm/exchange_page.c
+ include/linux/exchange.h |   2 +
+ mm/exchange.c            | 397 +++++++++++++++++++++++++++++++++++++++++++++++
+ mm/exchange_page.c       |   1 -
+ 3 files changed, 399 insertions(+), 1 deletion(-)
 
-diff --git a/mm/Makefile b/mm/Makefile
-index 5e6c591..2f1f1ad 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -46,6 +46,7 @@ obj-y += memblock.o
- 
- obj-y += copy_page.o
- obj-y += exchange.o
-+obj-y += exchange_page.o
- 
- ifdef CONFIG_MMU
- 	obj-$(CONFIG_ADVISE_SYSCALLS)	+= madvise.o
+diff --git a/include/linux/exchange.h b/include/linux/exchange.h
+index 778068e..20d2184 100644
+--- a/include/linux/exchange.h
++++ b/include/linux/exchange.h
+@@ -20,4 +20,6 @@ struct exchange_page_info {
+ int exchange_pages(struct list_head *exchange_list,
+ 			enum migrate_mode mode,
+ 			int reason);
++int exchange_pages_concur(struct list_head *exchange_list,
++		enum migrate_mode mode, int reason);
+ #endif /* _LINUX_EXCHANGE_H */
 diff --git a/mm/exchange.c b/mm/exchange.c
-index 626bbea..ce2c899 100644
+index ce2c899..bbada58 100644
 --- a/mm/exchange.c
 +++ b/mm/exchange.c
-@@ -345,11 +345,16 @@ static int exchange_from_to_pages(struct page *to_page, struct page *from_page,
- 
- 	rc = -EFAULT;
- 
--	if (PageHuge(from_page) || PageTransHuge(from_page))
--		exchange_huge_page(to_page, from_page);
--	else
--		exchange_highpage(to_page, from_page);
--	rc = 0;
-+	if (mode & MIGRATE_MT)
-+		rc = exchange_page_mthread(to_page, from_page,
-+				hpage_nr_pages(from_page));
-+	if (rc) {
-+		if (PageHuge(from_page) || PageTransHuge(from_page))
-+			exchange_huge_page(to_page, from_page);
-+		else
-+			exchange_highpage(to_page, from_page);
-+		rc = 0;
-+	}
- 
- 	exchange_page_flags(to_page, from_page);
- 
-diff --git a/mm/exchange_page.c b/mm/exchange_page.c
-new file mode 100644
-index 0000000..6054697
---- /dev/null
-+++ b/mm/exchange_page.c
-@@ -0,0 +1,229 @@
-+/*
-+ * Exchange page copy routine.
-+ *
-+ * Copyright 2019 by NVIDIA.
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License as published by
-+ * the Free Software Foundation; either version 2 of the License, or
-+ * (at your option) any later version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * Authors: Zi Yan <ziy@nvidia.com>
-+ *
-+ */
-+#include <linux/highmem.h>
-+#include <linux/workqueue.h>
-+#include <linux/slab.h>
-+#include <linux/freezer.h>
+@@ -600,3 +600,400 @@ int exchange_pages(struct list_head *exchange_list,
+ 	}
+ 	return failed;
+ }
 +
-+/*
-+ * nr_copythreads can be the highest number of threads for given node
-+ * on any architecture. The actual number of copy threads will be
-+ * limited by the cpumask weight of the target node.
-+ */
-+extern unsigned int limit_mt_num;
 +
-+struct copy_page_info {
-+	struct work_struct copy_page_work;
-+	char *to;
-+	char *from;
-+	unsigned long chunk_size;
-+};
-+
-+static void exchange_page_routine(char *to, char *from, unsigned long chunk_size)
++static int unmap_pair_pages_concur(struct exchange_page_info *one_pair,
++				int force, enum migrate_mode mode)
 +{
-+	u64 tmp;
-+	int i;
++	int rc = -EAGAIN;
++	struct anon_vma *anon_vma_from_page = NULL, *anon_vma_to_page = NULL;
++	struct page *from_page = one_pair->from_page;
++	struct page *to_page = one_pair->to_page;
 +
-+	for (i = 0; i < chunk_size; i += sizeof(tmp)) {
-+		tmp = *((u64*)(from + i));
-+		*((u64*)(from + i)) = *((u64*)(to + i));
-+		*((u64*)(to + i)) = tmp;
++	/* from_page lock down  */
++	if (!trylock_page(from_page)) {
++		if (!force || ((mode & MIGRATE_MODE_MASK) == MIGRATE_ASYNC))
++			goto out;
++
++		lock_page(from_page);
 +	}
++
++	BUG_ON(PageWriteback(from_page));
++
++	/*
++	 * By try_to_unmap(), page->mapcount goes down to 0 here. In this case,
++	 * we cannot notice that anon_vma is freed while we migrates a page.
++	 * This get_anon_vma() delays freeing anon_vma pointer until the end
++	 * of migration. File cache pages are no problem because of page_lock()
++	 * File Caches may use write_page() or lock_page() in migration, then,
++	 * just care Anon page here.
++	 *
++	 * Only page_get_anon_vma() understands the subtleties of
++	 * getting a hold on an anon_vma from outside one of its mms.
++	 * But if we cannot get anon_vma, then we won't need it anyway,
++	 * because that implies that the anon page is no longer mapped
++	 * (and cannot be remapped so long as we hold the page lock).
++	 */
++	if (PageAnon(from_page) && !PageKsm(from_page))
++		one_pair->from_anon_vma = anon_vma_from_page
++					= page_get_anon_vma(from_page);
++
++	/* to_page lock down  */
++	if (!trylock_page(to_page)) {
++		if (!force || ((mode & MIGRATE_MODE_MASK) == MIGRATE_ASYNC))
++			goto out_unlock;
++
++		lock_page(to_page);
++	}
++
++	BUG_ON(PageWriteback(to_page));
++
++	/*
++	 * By try_to_unmap(), page->mapcount goes down to 0 here. In this case,
++	 * we cannot notice that anon_vma is freed while we migrates a page.
++	 * This get_anon_vma() delays freeing anon_vma pointer until the end
++	 * of migration. File cache pages are no problem because of page_lock()
++	 * File Caches may use write_page() or lock_page() in migration, then,
++	 * just care Anon page here.
++	 *
++	 * Only page_get_anon_vma() understands the subtleties of
++	 * getting a hold on an anon_vma from outside one of its mms.
++	 * But if we cannot get anon_vma, then we won't need it anyway,
++	 * because that implies that the anon page is no longer mapped
++	 * (and cannot be remapped so long as we hold the page lock).
++	 */
++	if (PageAnon(to_page) && !PageKsm(to_page))
++		one_pair->to_anon_vma = anon_vma_to_page = page_get_anon_vma(to_page);
++
++	/*
++	 * Corner case handling:
++	 * 1. When a new swap-cache page is read into, it is added to the LRU
++	 * and treated as swapcache but it has no rmap yet.
++	 * Calling try_to_unmap() against a page->mapping==NULL page will
++	 * trigger a BUG.  So handle it here.
++	 * 2. An orphaned page (see truncate_complete_page) might have
++	 * fs-private metadata. The page can be picked up due to memory
++	 * offlining.  Everywhere else except page reclaim, the page is
++	 * invisible to the vm, so the page can not be migrated.  So try to
++	 * free the metadata, so the page can be freed.
++	 */
++	if (!from_page->mapping) {
++		VM_BUG_ON_PAGE(PageAnon(from_page), from_page);
++		if (page_has_private(from_page)) {
++			try_to_free_buffers(from_page);
++			goto out_unlock_both;
++		}
++	} else if (page_mapped(from_page)) {
++		/* Establish migration ptes */
++		VM_BUG_ON_PAGE(PageAnon(from_page) && !PageKsm(from_page) &&
++					   !anon_vma_from_page, from_page);
++		try_to_unmap(from_page,
++			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
++
++		one_pair->from_page_was_mapped = 1;
++	}
++
++	if (!to_page->mapping) {
++		VM_BUG_ON_PAGE(PageAnon(to_page), to_page);
++		if (page_has_private(to_page)) {
++			try_to_free_buffers(to_page);
++			goto out_unlock_both;
++		}
++	} else if (page_mapped(to_page)) {
++		/* Establish migration ptes */
++		VM_BUG_ON_PAGE(PageAnon(to_page) && !PageKsm(to_page) &&
++					   !anon_vma_to_page, to_page);
++		try_to_unmap(to_page,
++			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
++
++		one_pair->to_page_was_mapped = 1;
++	}
++
++	return MIGRATEPAGE_SUCCESS;
++
++out_unlock_both:
++	if (anon_vma_to_page)
++		put_anon_vma(anon_vma_to_page);
++	unlock_page(to_page);
++out_unlock:
++	/* Drop an anon_vma reference if we took one */
++	if (anon_vma_from_page)
++		put_anon_vma(anon_vma_from_page);
++	unlock_page(from_page);
++out:
++
++	return rc;
 +}
 +
-+static void exchange_page_work_queue_thread(struct work_struct *work)
++static int exchange_page_mapping_concur(struct list_head *unmapped_list_ptr,
++					   struct list_head *exchange_list_ptr,
++						enum migrate_mode mode)
 +{
-+	struct copy_page_info *my_work = (struct copy_page_info*)work;
++	int rc = -EBUSY;
++	int nr_failed = 0;
++	struct address_space *to_page_mapping, *from_page_mapping;
++	struct exchange_page_info *one_pair, *one_pair2;
 +
-+	exchange_page_routine(my_work->to,
-+							  my_work->from,
-+							  my_work->chunk_size);
++	list_for_each_entry_safe(one_pair, one_pair2, unmapped_list_ptr, list) {
++		struct page *from_page = one_pair->from_page;
++		struct page *to_page = one_pair->to_page;
++
++		VM_BUG_ON_PAGE(!PageLocked(from_page), from_page);
++		VM_BUG_ON_PAGE(!PageLocked(to_page), to_page);
++
++		/* copy page->mapping not use page_mapping()  */
++		to_page_mapping = page_mapping(to_page);
++		from_page_mapping = page_mapping(from_page);
++
++		BUG_ON(from_page_mapping);
++		BUG_ON(to_page_mapping);
++
++		BUG_ON(PageWriteback(from_page));
++		BUG_ON(PageWriteback(to_page));
++
++		/* actual page mapping exchange */
++		rc = exchange_page_move_mapping(to_page_mapping, from_page_mapping,
++							to_page, from_page, mode, 0, 0);
++
++		if (rc) {
++			if (one_pair->from_page_was_mapped)
++				remove_migration_ptes(from_page, from_page, false);
++			if (one_pair->to_page_was_mapped)
++				remove_migration_ptes(to_page, to_page, false);
++
++			if (one_pair->from_anon_vma)
++				put_anon_vma(one_pair->from_anon_vma);
++			unlock_page(from_page);
++
++			if (one_pair->to_anon_vma)
++				put_anon_vma(one_pair->to_anon_vma);
++			unlock_page(to_page);
++
++			mod_node_page_state(page_pgdat(from_page), NR_ISOLATED_ANON +
++					page_is_file_cache(from_page), -hpage_nr_pages(from_page));
++			putback_lru_page(from_page);
++
++			mod_node_page_state(page_pgdat(to_page), NR_ISOLATED_ANON +
++					page_is_file_cache(to_page), -hpage_nr_pages(to_page));
++			putback_lru_page(to_page);
++
++			one_pair->from_page = NULL;
++			one_pair->to_page = NULL;
++
++			list_move(&one_pair->list, exchange_list_ptr);
++			++nr_failed;
++		}
++	}
++
++	return nr_failed;
 +}
 +
-+int exchange_page_mthread(struct page *to, struct page *from, int nr_pages)
++static int exchange_page_data_concur(struct list_head *unmapped_list_ptr,
++									enum migrate_mode mode)
 +{
-+	int total_mt_num = limit_mt_num;
-+	int to_node = page_to_nid(to);
-+	int i;
-+	struct copy_page_info *work_items;
-+	char *vto, *vfrom;
-+	unsigned long chunk_size;
-+	const struct cpumask *per_node_cpumask = cpumask_of_node(to_node);
-+	int cpu_id_list[32] = {0};
-+	int cpu;
++	struct exchange_page_info *one_pair;
++	int num_pages = 0, idx = 0;
++	struct page **src_page_list = NULL, **dst_page_list = NULL;
++	unsigned long size = 0;
++	int rc = -EFAULT;
 +
-+	total_mt_num = min_t(unsigned int, total_mt_num,
-+						 cpumask_weight(per_node_cpumask));
++	if (list_empty(unmapped_list_ptr))
++		return 0;
 +
-+	if (total_mt_num > 1)
-+		total_mt_num = (total_mt_num / 2) * 2;
++	/* form page list  */
++	list_for_each_entry(one_pair, unmapped_list_ptr, list) {
++		++num_pages;
++		size += PAGE_SIZE * hpage_nr_pages(one_pair->from_page);
++	}
 +
-+	if (total_mt_num > 32 || total_mt_num < 1)
-+		return -ENODEV;
-+
-+	work_items = kvzalloc(sizeof(struct copy_page_info)*total_mt_num,
-+						 GFP_KERNEL);
-+	if (!work_items)
++	src_page_list = kzalloc(sizeof(struct page *)*num_pages, GFP_KERNEL);
++	if (!src_page_list)
++		return -ENOMEM;
++	dst_page_list = kzalloc(sizeof(struct page *)*num_pages, GFP_KERNEL);
++	if (!dst_page_list)
 +		return -ENOMEM;
 +
-+	i = 0;
-+	for_each_cpu(cpu, per_node_cpumask) {
-+		if (i >= total_mt_num)
-+			break;
-+		cpu_id_list[i] = cpu;
-+		++i;
++	list_for_each_entry(one_pair, unmapped_list_ptr, list) {
++		src_page_list[idx] = one_pair->from_page;
++		dst_page_list[idx] = one_pair->to_page;
++		++idx;
 +	}
 +
-+	/* XXX: assume no highmem  */
-+	vfrom = kmap(from);
-+	vto = kmap(to);
-+	chunk_size = PAGE_SIZE*nr_pages / total_mt_num;
++	BUG_ON(idx != num_pages);
 +
-+	for (i = 0; i < total_mt_num; ++i) {
-+		INIT_WORK((struct work_struct *)&work_items[i],
-+				exchange_page_work_queue_thread);
 +
-+		work_items[i].to = vto + i * chunk_size;
-+		work_items[i].from = vfrom + i * chunk_size;
-+		work_items[i].chunk_size = chunk_size;
++	if (mode & MIGRATE_MT)
++		rc = exchange_page_lists_mthread(dst_page_list, src_page_list,
++				num_pages);
 +
-+		queue_work_on(cpu_id_list[i],
-+					  system_highpri_wq,
-+					  (struct work_struct *)&work_items[i]);
++	if (rc) {
++		list_for_each_entry(one_pair, unmapped_list_ptr, list) {
++			if (PageHuge(one_pair->from_page) ||
++				PageTransHuge(one_pair->from_page)) {
++				exchange_huge_page(one_pair->to_page, one_pair->from_page);
++			} else {
++				exchange_highpage(one_pair->to_page, one_pair->from_page);
++			}
++		}
 +	}
 +
-+	/* Wait until it finishes  */
-+	flush_workqueue(system_highpri_wq);
++	kfree(src_page_list);
++	kfree(dst_page_list);
 +
-+	kunmap(to);
-+	kunmap(from);
++	list_for_each_entry(one_pair, unmapped_list_ptr, list) {
++		exchange_page_flags(one_pair->to_page, one_pair->from_page);
++	}
 +
-+	kvfree(work_items);
++	return rc;
++}
++
++static int remove_migration_ptes_concur(struct list_head *unmapped_list_ptr)
++{
++	struct exchange_page_info *iterator;
++
++	list_for_each_entry(iterator, unmapped_list_ptr, list) {
++		remove_migration_ptes(iterator->from_page, iterator->to_page, false);
++		remove_migration_ptes(iterator->to_page, iterator->from_page, false);
++
++
++		if (iterator->from_anon_vma)
++			put_anon_vma(iterator->from_anon_vma);
++		unlock_page(iterator->from_page);
++
++
++		if (iterator->to_anon_vma)
++			put_anon_vma(iterator->to_anon_vma);
++		unlock_page(iterator->to_page);
++
++
++		putback_lru_page(iterator->from_page);
++		iterator->from_page = NULL;
++
++		putback_lru_page(iterator->to_page);
++		iterator->to_page = NULL;
++	}
 +
 +	return 0;
 +}
 +
-+int exchange_page_lists_mthread(struct page **to, struct page **from, int nr_pages)
++int exchange_pages_concur(struct list_head *exchange_list,
++		enum migrate_mode mode, int reason)
 +{
-+	int err = 0;
-+	unsigned int total_mt_num = limit_mt_num;
-+	int to_node = page_to_nid(*to);
-+	int i;
-+	struct copy_page_info *work_items;
-+	int nr_pages_per_page = hpage_nr_pages(*from);
-+	const struct cpumask *per_node_cpumask = cpumask_of_node(to_node);
-+	int cpu_id_list[32] = {0};
-+	int cpu;
-+	int item_idx;
++	struct exchange_page_info *one_pair, *one_pair2;
++	int pass = 0;
++	int retry = 1;
++	int nr_failed = 0;
++	int nr_succeeded = 0;
++	int rc = 0;
++	LIST_HEAD(serialized_list);
++	LIST_HEAD(unmapped_list);
 +
++	for(pass = 0; pass < 1 && retry; pass++) {
++		retry = 0;
 +
-+	total_mt_num = min_t(unsigned int, total_mt_num,
-+						 cpumask_weight(per_node_cpumask));
++		/* unmap and get new page for page_mapping(page) == NULL */
++		list_for_each_entry_safe(one_pair, one_pair2, exchange_list, list) {
++			struct page *from_page = one_pair->from_page;
++			struct page *to_page = one_pair->to_page;
++			cond_resched();
 +
-+	if (total_mt_num > 32 || total_mt_num < 1)
-+		return -ENODEV;
++			if (page_count(from_page) == 1) {
++				/* page was freed from under us. So we are done  */
++				ClearPageActive(from_page);
++				ClearPageUnevictable(from_page);
 +
-+	if (nr_pages < total_mt_num) {
-+		int residual_nr_pages = nr_pages - rounddown_pow_of_two(nr_pages);
++				put_page(from_page);
++				dec_node_page_state(from_page, NR_ISOLATED_ANON +
++						page_is_file_cache(from_page));
 +
-+		if (residual_nr_pages) {
-+			for (i = 0; i < residual_nr_pages; ++i) {
-+				BUG_ON(hpage_nr_pages(to[i]) != hpage_nr_pages(from[i]));
-+				err = exchange_page_mthread(to[i], from[i], hpage_nr_pages(to[i]));
-+				VM_BUG_ON(err);
++				if (page_count(to_page) == 1) {
++					ClearPageActive(to_page);
++					ClearPageUnevictable(to_page);
++					put_page(to_page);
++				} else {
++					mod_node_page_state(page_pgdat(to_page), NR_ISOLATED_ANON +
++							page_is_file_cache(to_page), -hpage_nr_pages(to_page));
++					putback_lru_page(to_page);
++				}
++				list_del(&one_pair->list);
++
++				continue;
 +			}
-+			nr_pages = rounddown_pow_of_two(nr_pages);
-+			to = &to[residual_nr_pages];
-+			from = &from[residual_nr_pages];
-+		}
 +
-+		work_items = kvzalloc(sizeof(struct copy_page_info)*total_mt_num,
-+							 GFP_KERNEL);
-+	} else
-+		work_items = kvzalloc(sizeof(struct copy_page_info)*nr_pages,
-+							 GFP_KERNEL);
-+	if (!work_items)
-+		return -ENOMEM;
++			if (page_count(to_page) == 1) {
++				/* page was freed from under us. So we are done  */
++				ClearPageActive(to_page);
++				ClearPageUnevictable(to_page);
 +
-+	i = 0;
-+	for_each_cpu(cpu, per_node_cpumask) {
-+		if (i >= total_mt_num)
-+			break;
-+		cpu_id_list[i] = cpu;
-+		++i;
-+	}
++				put_page(to_page);
 +
-+	if (nr_pages < total_mt_num) {
-+		for (cpu = 0; cpu < total_mt_num; ++cpu)
-+			INIT_WORK((struct work_struct *)&work_items[cpu],
-+					  exchange_page_work_queue_thread);
-+		cpu = 0;
-+		for (item_idx = 0; item_idx < nr_pages; ++item_idx) {
-+			unsigned long chunk_size = nr_pages * PAGE_SIZE * hpage_nr_pages(from[item_idx]) / total_mt_num;
-+			char *vfrom = kmap(from[item_idx]);
-+			char *vto = kmap(to[item_idx]);
-+			VM_BUG_ON(PAGE_SIZE * hpage_nr_pages(from[item_idx]) % total_mt_num);
-+			VM_BUG_ON(total_mt_num % nr_pages);
-+			BUG_ON(hpage_nr_pages(to[item_idx]) !=
-+				   hpage_nr_pages(from[item_idx]));
++				dec_node_page_state(to_page, NR_ISOLATED_ANON +
++						page_is_file_cache(to_page));
 +
-+			for (i = 0; i < (total_mt_num/nr_pages); ++cpu, ++i) {
-+				work_items[cpu].to = vto + chunk_size * i;
-+				work_items[cpu].from = vfrom + chunk_size * i;
-+				work_items[cpu].chunk_size = chunk_size;
++				mod_node_page_state(page_pgdat(from_page), NR_ISOLATED_ANON +
++						page_is_file_cache(from_page), -hpage_nr_pages(from_page));
++				putback_lru_page(from_page);
++
++				list_del(&one_pair->list);
++				continue;
++			}
++		/* We do not exchange huge pages and file-backed pages concurrently */
++			if (PageHuge(one_pair->from_page) || PageHuge(one_pair->to_page)) {
++				rc = -ENODEV;
++			}
++			else if ((page_mapping(one_pair->from_page) != NULL) ||
++					 (page_mapping(one_pair->from_page) != NULL)) {
++				rc = -ENODEV;
++			}
++			else
++				rc = unmap_pair_pages_concur(one_pair, 1, mode);
++
++			switch(rc) {
++			case -ENODEV:
++				list_move(&one_pair->list, &serialized_list);
++				break;
++			case -ENOMEM:
++				goto out;
++			case -EAGAIN:
++				retry++;
++				break;
++			case MIGRATEPAGE_SUCCESS:
++				list_move(&one_pair->list, &unmapped_list);
++				nr_succeeded++;
++				break;
++			default:
++				/*
++				 * Permanent failure (-EBUSY, -ENOSYS, etc.):
++				 * unlike -EAGAIN case, the failed page is
++				 * removed from migration page list and not
++				 * retried in the next outer loop.
++				 */
++				list_move(&one_pair->list, &serialized_list);
++				nr_failed++;
++				break;
 +			}
 +		}
-+		if (cpu != total_mt_num)
-+			pr_err("%s: only %d out of %d pages are transferred\n", __func__,
-+				cpu - 1, total_mt_num);
 +
-+		for (cpu = 0; cpu < total_mt_num; ++cpu)
-+			queue_work_on(cpu_id_list[cpu],
-+						  system_highpri_wq,
-+						  (struct work_struct *)&work_items[cpu]);
-+	} else {
-+		for (i = 0; i < nr_pages; ++i) {
-+			int thread_idx = i % total_mt_num;
++		/* move page->mapping to new page, only -EAGAIN could happen  */
++		exchange_page_mapping_concur(&unmapped_list, exchange_list, mode);
 +
-+			INIT_WORK((struct work_struct *)&work_items[i], exchange_page_work_queue_thread);
 +
-+			/* XXX: assume no highmem  */
-+			work_items[i].to = kmap(to[i]);
-+			work_items[i].from = kmap(from[i]);
-+			work_items[i].chunk_size = PAGE_SIZE * hpage_nr_pages(from[i]);
++		/* copy pages in unmapped_list */
++		exchange_page_data_concur(&unmapped_list, mode);
 +
-+			BUG_ON(hpage_nr_pages(to[i]) != hpage_nr_pages(from[i]));
 +
-+			queue_work_on(cpu_id_list[thread_idx], system_highpri_wq, (struct work_struct *)&work_items[i]);
-+		}
++		/* remove migration pte, if old_page is NULL?, unlock old and new
++		 * pages, put anon_vma, put old and new pages */
++		remove_migration_ptes_concur(&unmapped_list);
 +	}
 +
-+	/* Wait until it finishes  */
-+	flush_workqueue(system_highpri_wq);
++	nr_failed += retry;
++	rc = nr_failed;
 +
-+	for (i = 0; i < nr_pages; ++i) {
-+			kunmap(to[i]);
-+			kunmap(from[i]);
-+	}
++	exchange_pages(&serialized_list, mode, reason);
++out:
++	list_splice(&unmapped_list, exchange_list);
++	list_splice(&serialized_list, exchange_list);
 +
-+	kvfree(work_items);
-+
-+	return err;
++	return nr_failed?-EFAULT:0;
 +}
-+
-diff --git a/mm/internal.h b/mm/internal.h
-index 51f5e1b..a039459 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -561,4 +561,9 @@ extern int copy_page_lists_dma_always(struct page **to,
- extern int copy_page_lists_mt(struct page **to,
- 			struct page **from, int nr_pages);
- 
-+extern int exchange_page_mthread(struct page *to, struct page *from,
-+			int nr_pages);
-+extern int exchange_page_lists_mthread(struct page **to,
-+						  struct page **from, 
-+						  int nr_pages);
- #endif	/* __MM_INTERNAL_H */
+diff --git a/mm/exchange_page.c b/mm/exchange_page.c
+index 6054697..5dba0a6 100644
+--- a/mm/exchange_page.c
++++ b/mm/exchange_page.c
+@@ -126,7 +126,6 @@ int exchange_page_lists_mthread(struct page **to, struct page **from, int nr_pag
+ 	int to_node = page_to_nid(*to);
+ 	int i;
+ 	struct copy_page_info *work_items;
+-	int nr_pages_per_page = hpage_nr_pages(*from);
+ 	const struct cpumask *per_node_cpumask = cpumask_of_node(to_node);
+ 	int cpu_id_list[32] = {0};
+ 	int cpu;
 -- 
 2.7.4
 
