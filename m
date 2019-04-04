@@ -8,111 +8,111 @@ X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 41B7CC4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:02:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D60E0C10F06
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:02:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D88DA20820
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:02:13 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 75BBE2133D
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:02:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=sent.com header.i=@sent.com header.b="J5GTuTLS";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="ebgaOEje"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D88DA20820
+	dkim=pass (2048-bit key) header.d=sent.com header.i=@sent.com header.b="dFVS7mRN";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="wDoNd3M3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 75BBE2133D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=sent.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7D8D06B0275; Wed,  3 Apr 2019 22:01:44 -0400 (EDT)
+	id BC9666B0276; Wed,  3 Apr 2019 22:01:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 75B166B0276; Wed,  3 Apr 2019 22:01:44 -0400 (EDT)
+	id B9F336B0277; Wed,  3 Apr 2019 22:01:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5D4616B0277; Wed,  3 Apr 2019 22:01:44 -0400 (EDT)
+	id A3EFB6B0278; Wed,  3 Apr 2019 22:01:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CE4E6B0275
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 22:01:44 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id q127so958751qkd.2
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 19:01:44 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BD436B0276
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 22:01:45 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id k13so921858qtc.23
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 19:01:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
          :date:message-id:in-reply-to:references:reply-to:mime-version
          :content-transfer-encoding;
-        bh=6c2RdtcLhR3zr/QIZTKdBARjyyIAyxC57tVZiXAXuu4=;
-        b=I6R3SfvAMT8toV3P1v9/lmyachzkTf4zyLwTKkcm4uO304Hwq922QyB2MVS3adFoIc
-         7Nz9ddLoSSTC9oKclD4WqSE0ZegROlcoGDO4vZ32m3Ai8F+zfebv0qqooeqgvnXR/gjM
-         rJXS+d1UyVshO07qzymXEnWcrpXcS5qlIG9xs/ORTjbO/jzDuCV0weDi5UUfn6//2juM
-         7/Oz9r2858jxXLwxO3qTZZj5vrUOv/BnpOEgs4EoPRAinhDp7c9o5t3ZFet2EvDDhw9B
-         CfJsGcnBGLQ5EWKrILF/AFRtUYnoP8+pagC2OzIWoTARk5i1wdl3MFkP4gqMbuH9W4Li
-         tmTw==
-X-Gm-Message-State: APjAAAVIwFhL+dHc0di49IKyTg6o7jVtWP0k7crJbhF68NvlznPzfi0h
-	1FugOohTvw6wml+qTzNhQX8QhsWXAUZ/TWWYz535g4u+m+fDfB28tTBsfU7wL+jf+LWEnQRn/L2
-	Hcvhr9RZaybHyxy13TXBtYUxlAQeEiwT+P6JXGG110RujLnYrQGNC+0HaPgy7iMZt4A==
-X-Received: by 2002:a05:620a:12ea:: with SMTP id f10mr2864236qkl.86.1554343303990;
-        Wed, 03 Apr 2019 19:01:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyu0qiRU9BKfL24/g/A8cUad94d3kBtnQmbLPrLMBfNfErAC+VVZJfaZGiSczJl0Kfiezqk
-X-Received: by 2002:a05:620a:12ea:: with SMTP id f10mr2864157qkl.86.1554343302628;
-        Wed, 03 Apr 2019 19:01:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554343302; cv=none;
+        bh=XrMS+H78cvhwFXbC0E6g3rjtcoxdIYJ+GaG+5au9LuY=;
+        b=BUYo9c8s8s6zDrIzkk80hpHx42Tf0syoKPtQ9YjZJh5dk+nlVunHR5Jbl3701M1N0z
+         fKOUyGbKZMmN4hhNrhmgy0eSmx/m6B3izSNcJ5ntejtANicaJsNA+q4+P3yTaRGOU/Qm
+         fg2I7pYGe0x0qNsTSMdVL6fKR8/HcmmWSNqZbXMDmj2FFug1fXPcFeCJWK5/kfhypz63
+         ugXcibVdTnrcfVVoJZim6N03RNFWedahYEupFkMDnwKBqrhn8LELlhVQ2NWOGLeQbeTR
+         VqEHX1njKzel+aajMXtMTNB6AwRcvL5TMTxZQnwRTRV0DL/jJkNnv0HHG1vY4q2nLVC3
+         EbsA==
+X-Gm-Message-State: APjAAAUAiGUHKigzO8KWU1nVQJH1O3prfBk8V02B6ije/jBk+dGy2pmL
+	qIFZkjg+2b9kOKJsxMyyfroFum3K5lzdne7ebXo5NV0yjCT/fqqMtrse+JcSk7h57akqdTHg3i4
+	1cyQwxo4ECvL2cyiAmjyP/BaOEHzIl9qg8OdTQFPx3reJduxKzmVojsP42JObEq86Eg==
+X-Received: by 2002:ac8:f24:: with SMTP id e33mr3149416qtk.256.1554343305237;
+        Wed, 03 Apr 2019 19:01:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyCtuJAxdEdYJXc3MSLye3Z0ngdsUph/QWg18BElHqAMmZuFFIg6c35memw1Axgyfrrbg3G
+X-Received: by 2002:ac8:f24:: with SMTP id e33mr3149362qtk.256.1554343304308;
+        Wed, 03 Apr 2019 19:01:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554343304; cv=none;
         d=google.com; s=arc-20160816;
-        b=PgZ9b3OcZGCHGnTAdr3VH4x2YfeELobpYoqPs5kWn2DwslEz3Y6pheSxaA5Bm37JQQ
-         gNBcAijNiS21s+gcX33fuRCP7HJ7o4H4UbN/tUiPAiIs7bL24aL6tu0HvhQGJ+e0Vypc
-         QL7Ge/fM/91fn7Kf8CbBVUkdttCIBBTktfMbHPPTQSqZjlMOj3ajiQ3vTkzYXNCvaciX
-         1eLVwJo2+owSm1P1qVsLJqu9WleC4dQ4dyxdZCPsZUnCP1LmaNuRR+GGGrHggcWWgQ6k
-         RBuZlNz6bCXhPo9lZt/+pFYWPxq5i3ApXBJYPbQxUbLf4U35EHNfX5cAN82u7xCUt1YF
-         RnOQ==
+        b=CHhH4G0G/z9cN1ra0N8sxAEqsXgNKqJl1umQuWbc4secgA1z20Fv4/V9nK/gzlPJvt
+         2/rRBR5g4KP6b1gFrJB51fNUszBnIUaL4R5qCHJ4I5u1TmC8MHe8t36oz2vxtcu7APBw
+         I0PZTPNYQTmBbHMxP1WXzJ16jp8SbrwdCE+owsgGaU4uCeU0S9XCzxc8VCMbV7NpkNIO
+         RspTuWPqZQgJtk/outZMLybrPwU0aYB9MS+h2/qYAG+iaJzQ4ViSftkAuxTlCn5gloYL
+         uhwxBZVMF33nObkEKyQCI6sCYahhUdKM9YKyQ7yNLKdHE+AMQ4qVGXY3zd3kWagF/1c+
+         D8Mw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:reply-to:references
          :in-reply-to:message-id:date:subject:cc:to:from:dkim-signature
          :dkim-signature;
-        bh=6c2RdtcLhR3zr/QIZTKdBARjyyIAyxC57tVZiXAXuu4=;
-        b=qdGsgbiMnb+74Xy7Oi7uKINMRSaF2hooCN9x/UuF27EADZDA/HYfKLeus5kDRsfWoR
-         XzxT9tTuMAoKalJk8E3WunMFKaZvqj1zpEKVoMmximFYIQz/eRPSsARSuRwc51T8+7Ml
-         Mk90fvzq9zAVPiMbsuVKovf6PZzkjF/GbGt3Q79nClifPXqu0LBinZl6931NQSb9sSi6
-         3WGqhHAbC7rcvL9ZR1opk/qhCjW10SBzyi0weWpK88pnJJoHTiGWK4JPdbHTIc+HuK/Q
-         PCEiJGz8p6YDjenbXNt9aFJWpxYIuZJRxwrgyHwQYP8N+6zEr9y1U3Bl5rwfahvBWXTh
-         IzlA==
+        bh=XrMS+H78cvhwFXbC0E6g3rjtcoxdIYJ+GaG+5au9LuY=;
+        b=XJPb5WLSin+A0CVhUyYCn3gvB9TmeIbG91aSOIfYruFWd0h6oNH3OAUkWZtlV9SM9r
+         EGFzu7cth+cUiZSXwFSjzjAAqyFvyMjhNDRy9Sd4+6qgegiZ0FBK18A2CA9qIjMkRasn
+         Dq1o6cETgLpVrSczkHcIHbGczwxkDS7oj/LJSL8gOjQZWfzA+Zn3M+ESsfNjzZBEVxfa
+         ajPIX3ZJfPl9CWBG2AyRenZkf6hWMNAOCIFVFvM+8yzrovp8BDp/tsu7zi7Qsw8irHO4
+         xIcZRpfzxph6Ri2/+I4n6MFyAUuluvDynB6vqTxdikSTWQskvlFzWcE3+RsOWwGKgq5m
+         MNlQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@sent.com header.s=fm3 header.b=J5GTuTLS;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=ebgaOEje;
+       dkim=pass header.i=@sent.com header.s=fm3 header.b=dFVS7mRN;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=wDoNd3M3;
        spf=pass (google.com: domain of zi.yan@sent.com designates 66.111.4.29 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
 Received: from out5-smtp.messagingengine.com (out5-smtp.messagingengine.com. [66.111.4.29])
-        by mx.google.com with ESMTPS id c197si6198289qkb.179.2019.04.03.19.01.42
+        by mx.google.com with ESMTPS id d1si2281346qkf.152.2019.04.03.19.01.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 19:01:42 -0700 (PDT)
+        Wed, 03 Apr 2019 19:01:44 -0700 (PDT)
 Received-SPF: pass (google.com: domain of zi.yan@sent.com designates 66.111.4.29 as permitted sender) client-ip=66.111.4.29;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@sent.com header.s=fm3 header.b=J5GTuTLS;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=ebgaOEje;
+       dkim=pass header.i=@sent.com header.s=fm3 header.b=dFVS7mRN;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=wDoNd3M3;
        spf=pass (google.com: domain of zi.yan@sent.com designates 66.111.4.29 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.nyi.internal (Postfix) with ESMTP id 5244B21D72;
-	Wed,  3 Apr 2019 22:01:42 -0400 (EDT)
+	by mailout.nyi.internal (Postfix) with ESMTP id 0B22A22585;
+	Wed,  3 Apr 2019 22:01:44 -0400 (EDT)
 Received: from mailfrontend2 ([10.202.2.163])
-  by compute3.internal (MEProxy); Wed, 03 Apr 2019 22:01:42 -0400
+  by compute3.internal (MEProxy); Wed, 03 Apr 2019 22:01:44 -0400
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=sent.com; h=from
 	:to:cc:subject:date:message-id:in-reply-to:references:reply-to
-	:mime-version:content-transfer-encoding; s=fm3; bh=6c2RdtcLhR3zr
-	/QIZTKdBARjyyIAyxC57tVZiXAXuu4=; b=J5GTuTLSH8I1aHJyQfQrBoaGcvamV
-	Iy8yv5kFP32GM5ir8TPfMhhCPPk3V+sNQppl24SNqLUbOygmeyWSCzyQjonRsOnl
-	tcSWm+2A7L458T+/mandh3ct2dyEGuYUpIs62fpBvTKjtENPvFlIDu6f2HJDu1UK
-	4KH8zOxES+AX896LvQ4WVZfyxejccMtQawEM2rt7hN5IaH7VWtDv5+05bQv7tFIr
-	IQnA+iGpPB7BxJ982qBwgvksaGAYmjUPS8HRqb3/P3hhHWkL3iIp/FXyRx97ZkLQ
-	friDO8GWmqJ/1M5tITTcmJSiauq4zI9FzbN2iAS3FZcPBeJB++vs+buHw==
+	:mime-version:content-transfer-encoding; s=fm3; bh=XrMS+H78cvhwF
+	XbC0E6g3rjtcoxdIYJ+GaG+5au9LuY=; b=dFVS7mRNn0EutfXNuwXinLqM4jsU0
+	/G4Zfj5zPHgFLq4R45ZAwVO7wdd+4qeo+pNxUUt9RGp4RyQVOrBFfTlaZhap89mz
+	GoEsvVhtqGntAJex0/3NiAsqKfcCAV5EKXzKZ6I9HeBQlP6OgLgjnbieNhUT+gyj
+	0B7we6pmbNbhBm8HKSiux8kyIpIq1508GQR6EBYolxpuk466prBlkBzxVR8PGDAr
+	wklMI4S+HQIX1tba6rOZOGcPb7gTTpXY1zli5s5Wp9qBXc/67SjhgRmjYJ47qbod
+	dRl4t+b4q53xMBZY5i7+Zr+lc0/tOYHIDkfG7PSSNwvY0v05Ap6Yq2/1Q==
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:reply-to:subject
 	:to:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=6c2RdtcLhR3zr/QIZTKdBARjyyIAyxC57tVZiXAXuu4=; b=ebgaOEje
-	XfLeeFoFbbWGsCIilHerM8zpmpJy9VuAqUO8SPANbdWIprBpImwjQmdZrH9GhpvA
-	8y22W/Wbc/CMgPkQ7+k0faTquoLFuevD9AjwlQ63EfXd+Y1wrTLE0ZfKH0VUhShI
-	dJ5kANFw0ck1R3xaJJZeupCViLpQn2+MH8mAN6VLz/6fQocCYM0g/qo1lRfhFAjO
-	F0z1lvMra0Cnmab/qAoltLHx75BjisDU2yXcVz4N9+Vz44Et5eOoxHY0Cfo7dgLe
-	/SRmB7VMc6yETKQshlBMU15sjPcoO2PI0zneCamMhkQzLJ4Yn7PoWOobQJEEFgTh
-	QlriM+MpCcwWfA==
-X-ME-Sender: <xms:hmWlXM9FYH_7Ot7DjZaYgh-NQjV7GXv91JpomDjv6lFU8NVUSGKK2A>
+	fm2; bh=XrMS+H78cvhwFXbC0E6g3rjtcoxdIYJ+GaG+5au9LuY=; b=wDoNd3M3
+	aDj4rPP1tCcvD31CntXlDuJxGD+XgVLa1OLqTR62VjQ4UzUtUxt/DiZwcZzcLQ2S
+	02/rrlNA7xHgrXIvbUoegmUWnowjYGR8JZX7soycQgK3FQ/2TOnI3t1O+pZNG3fX
+	aCiELZddV0qMktf34aBGO93JbBvQN5Qed7nhbyuaEWThSfQ1+3K4/ZPPR2rfRuiQ
+	FIhX8XmTJAr/bJWavxyPXAN2mIiDDjEQCTv4IvYHYzo+cQJVftvnDLqLOkUyy2W5
+	aXCbwv5hnNZHJ21cGJTDDfCOoZdpx8yqh8MSklrhaZhnlbF1LUxSG1OaT17PCESi
+	tDRkdKorKlcFKw==
+X-ME-Sender: <xms:h2WlXFAn1vYfDv7c0WYlMjM-pDGjm-Ajskbkkw6xYsQ8r07lyJZVHg>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtdeggdehudculddtuddrgedutddrtddtmd
     cutefuodetggdotefrodftvfcurfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdp
     uffrtefokffrpgfnqfghnecuuegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivg
@@ -120,13 +120,13 @@ X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtdeggdehudculddtuddrgedutd
     necuhfhrohhmpegkihcujggrnhcuoeiiihdrhigrnhesshgvnhhtrdgtohhmqeenucfkph
     epvdduiedrvddvkedrudduvddrvddvnecurfgrrhgrmhepmhgrihhlfhhrohhmpeiiihdr
     higrnhesshgvnhhtrdgtohhmnecuvehluhhsthgvrhfuihiivgepudeg
-X-ME-Proxy: <xmx:hmWlXCr7wu0uJB3DkKEAaD9fevhaMZQ-K40RlWpNK9bwuWu2SJFj0A>
-    <xmx:hmWlXEXu1Vfr5Zqvnw9L5wf4lxn4Nvcyn0vZlOCUh3dOQcF4VEpqjA>
-    <xmx:hmWlXBDMh2B-J5XnjjjZHXFfAPegU3l_3Yq-d_9l8Jd14dc92p8fzw>
-    <xmx:hmWlXDQD-RvQadjRdtSkwgg6SMy5WewPJa-MpyAxgbg1B8_lkPF1Ig>
+X-ME-Proxy: <xmx:h2WlXHySZb_F1If-16jluI0ifXBV456RqruGLzwiEoB8hiIwrQ6B1A>
+    <xmx:h2WlXLmz1RPoH3XdWAN_O_b9NlOZPXh95fK4FqPGIW9Z7zOR_-014A>
+    <xmx:h2WlXEHFAJ0bQKbqI1-SAd8oK2TWWLyhLJWCIkOisKp1Qe8YbuO_TA>
+    <xmx:h2WlXIK1mT2CcQ1VDIBcB8r52U16tUSsxZgiGApurauWX61DxHebyA>
 Received: from nvrsysarch5.nvidia.com (thunderhill.nvidia.com [216.228.112.22])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 5D7D01030F;
-	Wed,  3 Apr 2019 22:01:40 -0400 (EDT)
+	by mail.messagingengine.com (Postfix) with ESMTPA id 13C5110310;
+	Wed,  3 Apr 2019 22:01:42 -0400 (EDT)
 From: Zi Yan <zi.yan@sent.com>
 To: Dave Hansen <dave.hansen@linux.intel.com>,
 	Yang Shi <yang.shi@linux.alibaba.com>,
@@ -146,9 +146,9 @@ Cc: Daniel Jordan <daniel.m.jordan@oracle.com>,
 	Javier Cabezas <jcabezas@nvidia.com>,
 	David Nellans <dnellans@nvidia.com>,
 	Zi Yan <ziy@nvidia.com>
-Subject: [RFC PATCH 16/25] exchange page: Add THP exchange support.
-Date: Wed,  3 Apr 2019 19:00:37 -0700
-Message-Id: <20190404020046.32741-17-zi.yan@sent.com>
+Subject: [RFC PATCH 17/25] exchange page: Add exchange_page() syscall.
+Date: Wed,  3 Apr 2019 19:00:38 -0700
+Message-Id: <20190404020046.32741-18-zi.yan@sent.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190404020046.32741-1-zi.yan@sent.com>
 References: <20190404020046.32741-1-zi.yan@sent.com>
@@ -163,252 +163,405 @@ List-ID: <linux-mm.kvack.org>
 
 From: Zi Yan <ziy@nvidia.com>
 
-Enable exchange THPs in the process. It also need to take care of
-exchanging PTE-mapped THPs.
+Users can use the syscall to exchange two lists of pages, similar
+to move_pages() syscall.
 
 Signed-off-by: Zi Yan <ziy@nvidia.com>
 ---
- include/linux/exchange.h |  2 ++
- mm/exchange.c            | 73 +++++++++++++++++++++++++++++++++++++-----------
- mm/migrate.c             |  2 +-
- 3 files changed, 60 insertions(+), 17 deletions(-)
+ arch/x86/entry/syscalls/syscall_64.tbl |   1 +
+ include/linux/syscalls.h               |   5 +
+ mm/exchange.c                          | 346 +++++++++++++++++++++++++++++++++
+ 3 files changed, 352 insertions(+)
 
-diff --git a/include/linux/exchange.h b/include/linux/exchange.h
-index 20d2184..8785d08 100644
---- a/include/linux/exchange.h
-+++ b/include/linux/exchange.h
-@@ -14,6 +14,8 @@ struct exchange_page_info {
- 	int from_page_was_mapped;
- 	int to_page_was_mapped;
+diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
+index 92ee0b4..863a21e 100644
+--- a/arch/x86/entry/syscalls/syscall_64.tbl
++++ b/arch/x86/entry/syscalls/syscall_64.tbl
+@@ -343,6 +343,7 @@
+ 332	common	statx			__x64_sys_statx
+ 333	common	io_pgetevents		__x64_sys_io_pgetevents
+ 334	common	rseq			__x64_sys_rseq
++335	common	exchange_pages	__x64_sys_exchange_pages
+ # don't use numbers 387 through 423, add new calls after the last
+ # 'common' entry
+ 424	common	pidfd_send_signal	__x64_sys_pidfd_send_signal
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index e446806..2c1eb49 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -1203,6 +1203,11 @@ asmlinkage long sys_mmap_pgoff(unsigned long addr, unsigned long len,
+ 			unsigned long fd, unsigned long pgoff);
+ asmlinkage long sys_old_mmap(struct mmap_arg_struct __user *arg);
  
-+	pgoff_t from_index, to_index;
-+
- 	struct list_head list;
- };
++asmlinkage long sys_exchange_pages(pid_t pid, unsigned long nr_pages,
++				const void __user * __user *from_pages,
++				const void __user * __user *to_pages,
++				int __user *status,
++				int flags);
  
+ /*
+  * Not a real system call, but a placeholder for syscalls which are
 diff --git a/mm/exchange.c b/mm/exchange.c
-index 555a72c..45c7013 100644
+index 45c7013..48e344e 100644
 --- a/mm/exchange.c
 +++ b/mm/exchange.c
-@@ -51,7 +51,8 @@ struct page_flags {
- 	unsigned int page_swapcache:1;
- 	unsigned int page_writeback:1;
- 	unsigned int page_private:1;
--	unsigned int __pad:3;
-+	unsigned int page_doublemap:1;
-+	unsigned int __pad:2;
- };
+@@ -22,6 +22,7 @@
+ #include <linux/buffer_head.h>
+ #include <linux/fs.h> /* buffer_migrate_page  */
+ #include <linux/backing-dev.h>
++#include <linux/sched/mm.h>
  
  
-@@ -127,20 +128,23 @@ static void exchange_huge_page(struct page *dst, struct page *src)
- static void exchange_page_flags(struct page *to_page, struct page *from_page)
- {
- 	int from_cpupid, to_cpupid;
--	struct page_flags from_page_flags, to_page_flags;
-+	struct page_flags from_page_flags = {0}, to_page_flags = {0};
- 	struct mem_cgroup *to_memcg = page_memcg(to_page),
- 					  *from_memcg = page_memcg(from_page);
+ #include "internal.h"
+@@ -1212,3 +1213,348 @@ int exchange_pages_concur(struct list_head *exchange_list,
  
- 	from_cpupid = page_cpupid_xchg_last(from_page, -1);
- 
--	from_page_flags.page_error = TestClearPageError(from_page);
-+	from_page_flags.page_error = PageError(from_page);
-+	if (from_page_flags.page_error)
-+		ClearPageError(from_page);
- 	from_page_flags.page_referenced = TestClearPageReferenced(from_page);
- 	from_page_flags.page_uptodate = PageUptodate(from_page);
- 	ClearPageUptodate(from_page);
- 	from_page_flags.page_active = TestClearPageActive(from_page);
- 	from_page_flags.page_unevictable = TestClearPageUnevictable(from_page);
- 	from_page_flags.page_checked = PageChecked(from_page);
--	ClearPageChecked(from_page);
-+	if (from_page_flags.page_checked)
-+		ClearPageChecked(from_page);
- 	from_page_flags.page_mappedtodisk = PageMappedToDisk(from_page);
- 	ClearPageMappedToDisk(from_page);
- 	from_page_flags.page_dirty = PageDirty(from_page);
-@@ -150,18 +154,22 @@ static void exchange_page_flags(struct page *to_page, struct page *from_page)
- 	clear_page_idle(from_page);
- 	from_page_flags.page_swapcache = PageSwapCache(from_page);
- 	from_page_flags.page_writeback = test_clear_page_writeback(from_page);
-+	from_page_flags.page_doublemap = PageDoubleMap(from_page);
- 
- 
- 	to_cpupid = page_cpupid_xchg_last(to_page, -1);
- 
--	to_page_flags.page_error = TestClearPageError(to_page);
-+	to_page_flags.page_error = PageError(to_page);
-+	if (to_page_flags.page_error)
-+		ClearPageError(to_page);
- 	to_page_flags.page_referenced = TestClearPageReferenced(to_page);
- 	to_page_flags.page_uptodate = PageUptodate(to_page);
- 	ClearPageUptodate(to_page);
- 	to_page_flags.page_active = TestClearPageActive(to_page);
- 	to_page_flags.page_unevictable = TestClearPageUnevictable(to_page);
- 	to_page_flags.page_checked = PageChecked(to_page);
--	ClearPageChecked(to_page);
-+	if (to_page_flags.page_checked)
-+		ClearPageChecked(to_page);
- 	to_page_flags.page_mappedtodisk = PageMappedToDisk(to_page);
- 	ClearPageMappedToDisk(to_page);
- 	to_page_flags.page_dirty = PageDirty(to_page);
-@@ -171,6 +179,7 @@ static void exchange_page_flags(struct page *to_page, struct page *from_page)
- 	clear_page_idle(to_page);
- 	to_page_flags.page_swapcache = PageSwapCache(to_page);
- 	to_page_flags.page_writeback = test_clear_page_writeback(to_page);
-+	to_page_flags.page_doublemap = PageDoubleMap(to_page);
- 
- 	/* set to_page */
- 	if (from_page_flags.page_error)
-@@ -197,6 +206,8 @@ static void exchange_page_flags(struct page *to_page, struct page *from_page)
- 		set_page_young(to_page);
- 	if (from_page_flags.page_is_idle)
- 		set_page_idle(to_page);
-+	if (from_page_flags.page_doublemap)
-+		SetPageDoubleMap(to_page);
- 
- 	/* set from_page */
- 	if (to_page_flags.page_error)
-@@ -223,6 +234,8 @@ static void exchange_page_flags(struct page *to_page, struct page *from_page)
- 		set_page_young(from_page);
- 	if (to_page_flags.page_is_idle)
- 		set_page_idle(from_page);
-+	if (to_page_flags.page_doublemap)
-+		SetPageDoubleMap(from_page);
- 
- 	/*
- 	 * Copy NUMA information to the new page, to prevent over-eager
-@@ -599,7 +612,6 @@ static int unmap_and_exchange(struct page *from_page, struct page *to_page,
- 
- 	from_index = from_page->index;
- 	to_index = to_page->index;
--
- 	/*
- 	 * Corner case handling:
- 	 * 1. When a new swap-cache page is read into, it is added to the LRU
-@@ -673,8 +685,6 @@ static int unmap_and_exchange(struct page *from_page, struct page *to_page,
- 			swap(from_page->index, from_index);
- 	}
- 
--
--
- out_unlock_both:
- 	if (to_anon_vma)
- 		put_anon_vma(to_anon_vma);
-@@ -689,6 +699,23 @@ static int unmap_and_exchange(struct page *from_page, struct page *to_page,
- 	return rc;
+ 	return nr_failed?-EFAULT:0;
  }
- 
-+static bool can_be_exchanged(struct page *from, struct page *to)
++
++static int store_status(int __user *status, int start, int value, int nr)
 +{
-+	if (PageCompound(from) != PageCompound(to))
-+		return false;
++	while (nr-- > 0) {
++		if (put_user(value, status + start))
++			return -EFAULT;
++		start++;
++	}
 +
-+	if (PageHuge(from) != PageHuge(to))
-+		return false;
-+
-+	if (PageHuge(from) || PageHuge(to))
-+		return false;
-+
-+	if (compound_order(from) != compound_order(to))
-+		return false;
-+
-+	return true;
++	return 0;
 +}
 +
- /*
-  * Exchange pages in the exchange_list
-  *
-@@ -745,7 +772,8 @@ int exchange_pages(struct list_head *exchange_list,
- 		}
- 
- 		/* TODO: compound page not supported */
--		if (PageCompound(from_page) || page_mapping(from_page)) {
-+		if (!can_be_exchanged(from_page, to_page) ||
-+		    page_mapping(from_page)) {
- 			++failed;
- 			goto putback;
- 		}
-@@ -784,6 +812,8 @@ static int unmap_pair_pages_concur(struct exchange_page_info *one_pair,
- 	struct page *from_page = one_pair->from_page;
- 	struct page *to_page = one_pair->to_page;
- 
-+	one_pair->from_index = from_page->index;
-+	one_pair->to_index = to_page->index;
- 	/* from_page lock down  */
- 	if (!trylock_page(from_page)) {
- 		if (!force || ((mode & MIGRATE_MODE_MASK) == MIGRATE_ASYNC))
-@@ -903,7 +933,6 @@ static int exchange_page_mapping_concur(struct list_head *unmapped_list_ptr,
- 					   struct list_head *exchange_list_ptr,
- 						enum migrate_mode mode)
- {
--	int rc = -EBUSY;
- 	int nr_failed = 0;
- 	struct address_space *to_page_mapping, *from_page_mapping;
- 	struct exchange_page_info *one_pair, *one_pair2;
-@@ -911,6 +940,7 @@ static int exchange_page_mapping_concur(struct list_head *unmapped_list_ptr,
- 	list_for_each_entry_safe(one_pair, one_pair2, unmapped_list_ptr, list) {
- 		struct page *from_page = one_pair->from_page;
- 		struct page *to_page = one_pair->to_page;
-+		int rc = -EBUSY;
- 
- 		VM_BUG_ON_PAGE(!PageLocked(from_page), from_page);
- 		VM_BUG_ON_PAGE(!PageLocked(to_page), to_page);
-@@ -926,8 +956,9 @@ static int exchange_page_mapping_concur(struct list_head *unmapped_list_ptr,
- 		BUG_ON(PageWriteback(to_page));
- 
- 		/* actual page mapping exchange */
--		rc = exchange_page_move_mapping(to_page_mapping, from_page_mapping,
--							to_page, from_page, NULL, NULL, mode, 0, 0);
-+		if (!page_mapped(from_page) && !page_mapped(to_page))
-+			rc = exchange_page_move_mapping(to_page_mapping, from_page_mapping,
-+								to_page, from_page, NULL, NULL, mode, 0, 0);
- 
- 		if (rc) {
- 			if (one_pair->from_page_was_mapped)
-@@ -954,7 +985,7 @@ static int exchange_page_mapping_concur(struct list_head *unmapped_list_ptr,
- 			one_pair->from_page = NULL;
- 			one_pair->to_page = NULL;
- 
--			list_move(&one_pair->list, exchange_list_ptr);
-+			list_del(&one_pair->list);
- 			++nr_failed;
- 		}
- 	}
-@@ -1026,8 +1057,18 @@ static int remove_migration_ptes_concur(struct list_head *unmapped_list_ptr)
- 	struct exchange_page_info *iterator;
- 
- 	list_for_each_entry(iterator, unmapped_list_ptr, list) {
--		remove_migration_ptes(iterator->from_page, iterator->to_page, false);
--		remove_migration_ptes(iterator->to_page, iterator->from_page, false);
-+		struct page *from_page = iterator->from_page;
-+		struct page *to_page = iterator->to_page;
++static int do_exchange_page_list(struct mm_struct *mm,
++		struct list_head *from_pagelist, struct list_head *to_pagelist,
++		bool migrate_mt, bool migrate_concur)
++{
++	int err;
++	struct exchange_page_info *one_pair;
++	LIST_HEAD(exchange_page_list);
 +
-+		swap(from_page->index, iterator->from_index);
-+		if (iterator->from_page_was_mapped)
-+			remove_migration_ptes(iterator->from_page, iterator->to_page, false);
-+		swap(from_page->index, iterator->from_index);
++	while (!list_empty(from_pagelist)) {
++		struct page *from_page, *to_page;
 +
-+		swap(to_page->index, iterator->to_index);
-+		if (iterator->to_page_was_mapped)
-+			remove_migration_ptes(iterator->to_page, iterator->from_page, false);
-+		swap(to_page->index, iterator->to_index);
- 
- 
- 		if (iterator->from_anon_vma)
-diff --git a/mm/migrate.c b/mm/migrate.c
-index a0ca817..da7af68 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -229,7 +229,7 @@ static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,
- 		if (PageKsm(page))
- 			new = page;
- 		else
--			new = page - pvmw.page->index +
-+			new = page - page->index +
- 				linear_page_index(vma, pvmw.address);
- 
- #ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
++		from_page = list_first_entry_or_null(from_pagelist, struct page, lru);
++		to_page = list_first_entry_or_null(to_pagelist, struct page, lru);
++
++		if (!from_page || !to_page)
++			break;
++
++		one_pair = kzalloc(sizeof(struct exchange_page_info), GFP_ATOMIC);
++		if (!one_pair) {
++			err = -ENOMEM;
++			break;
++		}
++
++		list_del(&from_page->lru);
++		list_del(&to_page->lru);
++
++		one_pair->from_page = from_page;
++		one_pair->to_page = to_page;
++
++		list_add_tail(&one_pair->list, &exchange_page_list);
++	}
++
++	if (migrate_concur)
++		err = exchange_pages_concur(&exchange_page_list,
++			MIGRATE_SYNC | (migrate_mt ? MIGRATE_MT : MIGRATE_SINGLETHREAD),
++			MR_SYSCALL);
++	else
++		err = exchange_pages(&exchange_page_list,
++			MIGRATE_SYNC | (migrate_mt ? MIGRATE_MT : MIGRATE_SINGLETHREAD),
++			MR_SYSCALL);
++
++	while (!list_empty(&exchange_page_list)) {
++		struct exchange_page_info *one_pair =
++			list_first_entry(&exchange_page_list,
++							 struct exchange_page_info, list);
++
++		list_del(&one_pair->list);
++		kfree(one_pair);
++	}
++
++	if (!list_empty(from_pagelist))
++		putback_movable_pages(from_pagelist);
++
++	if (!list_empty(to_pagelist))
++		putback_movable_pages(to_pagelist);
++
++	return err;
++}
++
++static int add_page_for_exchange(struct mm_struct *mm,
++		unsigned long from_addr, unsigned long to_addr,
++		struct list_head *from_pagelist, struct list_head *to_pagelist,
++		bool migrate_all)
++{
++	struct vm_area_struct *from_vma, *to_vma;
++	struct page *from_page, *to_page;
++	LIST_HEAD(err_page_list);
++	unsigned int follflags;
++	int err;
++
++	err = -EFAULT;
++	from_vma = find_vma(mm, from_addr);
++	if (!from_vma || from_addr < from_vma->vm_start ||
++		!vma_migratable(from_vma))
++		goto set_from_status;
++
++	/* FOLL_DUMP to ignore special (like zero) pages */
++	follflags = FOLL_GET | FOLL_DUMP;
++	from_page = follow_page(from_vma, from_addr, follflags);
++
++	err = PTR_ERR(from_page);
++	if (IS_ERR(from_page))
++		goto set_from_status;
++
++	err = -ENOENT;
++	if (!from_page)
++		goto set_from_status;
++
++	err = -EACCES;
++	if (page_mapcount(from_page) > 1 && !migrate_all)
++		goto put_and_set_from_page;
++
++	if (PageHuge(from_page)) {
++		if (PageHead(from_page))
++			if (isolate_huge_page(from_page, &err_page_list)) {
++				err = 0;
++			}
++		goto put_and_set_from_page;
++	} else if (PageTransCompound(from_page)) {
++		if (PageTail(from_page)) {
++			err = -EACCES;
++			goto put_and_set_from_page;
++		}
++	}
++
++	err = isolate_lru_page(from_page);
++	if (!err)
++		mod_node_page_state(page_pgdat(from_page), NR_ISOLATED_ANON +
++					page_is_file_cache(from_page), hpage_nr_pages(from_page));
++put_and_set_from_page:
++	/*
++	 * Either remove the duplicate refcount from
++	 * isolate_lru_page() or drop the page ref if it was
++	 * not isolated.
++	 *
++	 * Since FOLL_GET calls get_page(), and isolate_lru_page()
++	 * also calls get_page()
++	 */
++	put_page(from_page);
++set_from_status:
++	if (err)
++		goto out;
++
++	/* to pages  */
++	err = -EFAULT;
++	to_vma = find_vma(mm, to_addr);
++	if (!to_vma ||
++		to_addr < to_vma->vm_start ||
++		!vma_migratable(to_vma))
++		goto set_to_status;
++
++	/* FOLL_DUMP to ignore special (like zero) pages */
++	to_page = follow_page(to_vma, to_addr, follflags);
++
++	err = PTR_ERR(to_page);
++	if (IS_ERR(to_page))
++		goto set_to_status;
++
++	err = -ENOENT;
++	if (!to_page)
++		goto set_to_status;
++
++	err = -EACCES;
++	if (page_mapcount(to_page) > 1 &&
++			!migrate_all)
++		goto put_and_set_to_page;
++
++	if (PageHuge(to_page)) {
++		if (PageHead(to_page))
++			if (isolate_huge_page(to_page, &err_page_list)) {
++				err = 0;
++			}
++		goto put_and_set_to_page;
++	} else if (PageTransCompound(to_page)) {
++		if (PageTail(to_page)) {
++			err = -EACCES;
++			goto put_and_set_to_page;
++		}
++	}
++
++	err = isolate_lru_page(to_page);
++	if (!err)
++		mod_node_page_state(page_pgdat(to_page), NR_ISOLATED_ANON +
++					page_is_file_cache(to_page), hpage_nr_pages(to_page));
++put_and_set_to_page:
++	/*
++	 * Either remove the duplicate refcount from
++	 * isolate_lru_page() or drop the page ref if it was
++	 * not isolated.
++	 *
++	 * Since FOLL_GET calls get_page(), and isolate_lru_page()
++	 * also calls get_page()
++	 */
++	put_page(to_page);
++set_to_status:
++	if (!err) {
++		if ((PageHuge(from_page) != PageHuge(to_page)) ||
++			(PageTransHuge(from_page) != PageTransHuge(to_page))) {
++			list_add(&from_page->lru, &err_page_list);
++			list_add(&to_page->lru, &err_page_list);
++		} else {
++			list_add_tail(&from_page->lru, from_pagelist);
++			list_add_tail(&to_page->lru, to_pagelist);
++		}
++	} else
++		list_add(&from_page->lru, &err_page_list);
++out:
++	if (!list_empty(&err_page_list))
++		putback_movable_pages(&err_page_list);
++	return err;
++}
++/*
++ * Migrate an array of page address onto an array of nodes and fill
++ * the corresponding array of status.
++ */
++static int do_pages_exchange(struct mm_struct *mm, nodemask_t task_nodes,
++			 unsigned long nr_pages,
++			 const void __user * __user *from_pages,
++			 const void __user * __user *to_pages,
++			 int __user *status, int flags)
++{
++	LIST_HEAD(from_pagelist);
++	LIST_HEAD(to_pagelist);
++	int start, i;
++	int err = 0, err1;
++
++	migrate_prep();
++
++	down_read(&mm->mmap_sem);
++	for (i = start = 0; i < nr_pages; i++) {
++		const void __user *from_p, *to_p;
++		unsigned long from_addr, to_addr;
++
++		err = -EFAULT;
++		if (get_user(from_p, from_pages + i))
++			goto out_flush;
++		if (get_user(to_p, to_pages + i))
++			goto out_flush;
++
++		from_addr = (unsigned long)from_p;
++		to_addr = (unsigned long)to_p;
++
++		err = -EACCES;
++		/*
++		 * Errors in the page lookup or isolation are not fatal and we simply
++		 * report them via status
++		 */
++		err = add_page_for_exchange(mm, from_addr, to_addr,
++				&from_pagelist, &to_pagelist,
++				flags & MPOL_MF_MOVE_ALL);
++
++		if (!err)
++			continue;
++
++		err = store_status(status, i, err, 1);
++		if (err)
++			goto out_flush;
++
++		err = do_exchange_page_list(mm, &from_pagelist, &to_pagelist,
++				flags & MPOL_MF_MOVE_MT,
++				flags & MPOL_MF_MOVE_CONCUR);
++		if (err)
++			goto out;
++		if (i > start) {
++			err = store_status(status, start, 0, i - start);
++			if (err)
++				goto out;
++		}
++		start = i;
++	}
++out_flush:
++	/* Make sure we do not overwrite the existing error */
++	err1 = do_exchange_page_list(mm, &from_pagelist, &to_pagelist,
++				flags & MPOL_MF_MOVE_MT,
++				flags & MPOL_MF_MOVE_CONCUR);
++	if (!err1)
++		err1 = store_status(status, start, 0, i - start);
++	if (!err)
++		err = err1;
++out:
++	up_read(&mm->mmap_sem);
++	return err;
++}
++
++SYSCALL_DEFINE6(exchange_pages, pid_t, pid, unsigned long, nr_pages,
++		const void __user * __user *, from_pages,
++		const void __user * __user *, to_pages,
++		int __user *, status, int, flags)
++{
++	const struct cred *cred = current_cred(), *tcred;
++	struct task_struct *task;
++	struct mm_struct *mm;
++	int err;
++	nodemask_t task_nodes;
++
++	/* Check flags */
++	if (flags & ~(MPOL_MF_MOVE|
++				  MPOL_MF_MOVE_ALL|
++				  MPOL_MF_MOVE_MT|
++				  MPOL_MF_MOVE_CONCUR))
++		return -EINVAL;
++
++	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_NICE))
++		return -EPERM;
++
++	/* Find the mm_struct */
++	rcu_read_lock();
++	task = pid ? find_task_by_vpid(pid) : current;
++	if (!task) {
++		rcu_read_unlock();
++		return -ESRCH;
++	}
++	get_task_struct(task);
++
++	/*
++	 * Check if this process has the right to modify the specified
++	 * process. The right exists if the process has administrative
++	 * capabilities, superuser privileges or the same
++	 * userid as the target process.
++	 */
++	tcred = __task_cred(task);
++	if (!uid_eq(cred->euid, tcred->suid) && !uid_eq(cred->euid, tcred->uid) &&
++	    !uid_eq(cred->uid,  tcred->suid) && !uid_eq(cred->uid,  tcred->uid) &&
++	    !capable(CAP_SYS_NICE)) {
++		rcu_read_unlock();
++		err = -EPERM;
++		goto out;
++	}
++	rcu_read_unlock();
++
++	err = security_task_movememory(task);
++	if (err)
++		goto out;
++
++	task_nodes = cpuset_mems_allowed(task);
++	mm = get_task_mm(task);
++	put_task_struct(task);
++
++	if (!mm)
++		return -EINVAL;
++
++	err = do_pages_exchange(mm, task_nodes, nr_pages, from_pages,
++				    to_pages, status, flags);
++
++	mmput(mm);
++
++	return err;
++
++out:
++	put_task_struct(task);
++
++	return err;
++}
 -- 
 2.7.4
 
