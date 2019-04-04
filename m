@@ -2,183 +2,164 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B75EC4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 00:39:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F3C67C10F06
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 00:57:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DD27520820
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 00:39:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AA983214AF
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 00:57:52 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="F2W38VBd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DD27520820
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="YYg9X80s"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AA983214AF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 79BFA6B026A; Wed,  3 Apr 2019 20:39:32 -0400 (EDT)
+	id 2F77B6B0006; Wed,  3 Apr 2019 20:57:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 721A06B026B; Wed,  3 Apr 2019 20:39:32 -0400 (EDT)
+	id 27FBC6B0008; Wed,  3 Apr 2019 20:57:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5C2FB6B026C; Wed,  3 Apr 2019 20:39:32 -0400 (EDT)
+	id 121FF6B000C; Wed,  3 Apr 2019 20:57:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F2ED6B026A
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 20:39:32 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id y17so626432plr.15
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 17:39:32 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C80F36B0006
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 20:57:51 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id s22so674955plq.1
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 17:57:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=wFIVtEVhrslAPc1rxJ7EFYor+Slx2eUn7DRdGymDm7Y=;
-        b=NeyBaCcFTllBcLOW4xo/2c1Y7gC/j/CZ4IXwEMRV7YiGS+8rFo8mHkTFwyDLWcCe3o
-         56ZOs8bYcst5+epLzEDy7MT/h0BcD3ffqoWhRsRGbRcP0fBE3UusFesyTHRA5PHiY0jX
-         zlb5YelDX777J5pwhnXsQ4F8lB2/9fnh7s7DFQBQF0LFp8EVpB4FEKdUvELDTUs5kuGN
-         lHMH4sq/CWkP2aLz4X0LGABUblNunNu6fWchWSp/Rfq0FBp2EuKSIRaQkqdxxdcQ2KCh
-         PQWMWxHClNboXkyJJzY23gJI6YSqPHTW1Ehi4lYj6f8+B8bFIjoAmgFeuV+o8yZ7blXo
-         lrFg==
-X-Gm-Message-State: APjAAAUZTJghXYU5vDnLVWVfQyNV9vI4fJvkAAztGLD+KfenxkvHNX6I
-	TsNK9bj8iz61747/EvPotOiQFzp7Kxe3wKoNqFX2Dsjm7vsmCO/4g+Ic85duP8Jtn8N59WzpuG0
-	PRa0ZWlfsc212wPfXkPNW53XUp+kdSElquEBBtMnuSwiKL6I4jEstMBX78FxUYBT5xg==
-X-Received: by 2002:a17:902:2a29:: with SMTP id i38mr3225584plb.22.1554338371666;
-        Wed, 03 Apr 2019 17:39:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyrfM/Nb4xOm26YnJgv7y6afusLZa2FvZGcY7BnGfsQCQzeAt8+393h++l1Y6abJeDBmYuN
-X-Received: by 2002:a17:902:2a29:: with SMTP id i38mr3225502plb.22.1554338370848;
-        Wed, 03 Apr 2019 17:39:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554338370; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=N9HCmrm8VY61caTtmpBOWPl6XeIKwin31jSQm9heKkE=;
+        b=BLw8AsEJgY/b6ro34AGvLV3R/0xraYR9UCZIDraRuWEyWPTj63ORp6lg93hT1z3MpS
+         sL9hezii/hMYrRmHjpYK4tpjr1WL8tT9V3gXtODEQ1v8IW5VM0AE6hFHlOD+b1gTBGzW
+         ZB1NmjQDoZnYRVb2tyAtdGHxdvvZ3HAUriWoXMQ0HOmA4phn34Ewj9iWcDf68aWrVkKZ
+         YDKjkyayd36wAIC8DcnnHFSxwjcHUalyCeGniVuZ4FzQjUQtCe1t6DLbLGYZPi+NNyYS
+         +eu6t+FiR4Xoij6WPo6gaZ1MWQpwur3NsJUxP0ElmxVOfo7r5p/C/gUzJwkOnrhCtT8u
+         eqrg==
+X-Gm-Message-State: APjAAAWGpd7TaqDA7pfiFt8w22huMQnKCgCdG9nWoClxvjwwl7+3wb8g
+	NV/xFb6OWkHR1svJT87eypVztzuhe1NnLUHs+p9TYHxJ5bCH2M8ee2MkTAmfPPtNHEV5KpZnH9d
+	GljMY/fRSDOm9RlOF723cGLpImphCRdq0FkJnKDYbVj9aUvTu0jFJSX+CYeVP2wBUfw==
+X-Received: by 2002:a17:902:bb98:: with SMTP id m24mr3235256pls.17.1554339471361;
+        Wed, 03 Apr 2019 17:57:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz++mNqtog/XcfkNJo9v2B4ikclO8q4ZlmBtN2pjrGJVL0DxpPgQwHdlDxvMzvgVyPHIfqe
+X-Received: by 2002:a17:902:bb98:: with SMTP id m24mr3235203pls.17.1554339470583;
+        Wed, 03 Apr 2019 17:57:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554339470; cv=none;
         d=google.com; s=arc-20160816;
-        b=dPo+15Oilv0eaF1f3ghKQ9x4skshFaFZ687yuBEv86cwgyvbJkVVXMTY2dCdIfr+a8
-         pFpPf0Ts5vBtlkexi3xizMYn/NAmVC84Yf68PB4OAMhTssM8UwuUxxbWHipz1MinLrwi
-         vNcilzCeizI6J0C5miIzQu1liJ/ql15C3aMM+erzqVvv7gK8gE/ZsXcfVyDKTLEYIyQH
-         vA0W/FO8dqmZdWV+srluBf/3D4XUpGA0F3D9V96HDwuEBbpt5bUxklnmvv3V3MKHFDB0
-         XoSxsEMn210RBzUDqEOVn73pTboPrPOVsR3rxEveCDGjO8PfpiV53Zb0pxBRFGbvcDPT
-         jYLg==
+        b=DZTLRexes2VKcWVlDjnm86Flcslyi4IRZN2b3sLqzzdFSLZydrulnIIUCELyPZ9H91
+         IE2aMQ1SPRh5jROfRxinGOwQ9ibkAhZUi+C8uCrQRS6dtoO3pCGIBE1f4pkSvE/kzQZ2
+         WtwjLrv748lBb7iZD3AzeM+12HPHWrTVLWF0CgBXA2Lu99rRTWggzReKyr4aOj4OcBv+
+         +ZjwKRXbQmRXb9n0w8gsBizKyjrC0ON6Y6+QjAR4xw87Li2KegaQT1yH55OIejv/i/Zi
+         77vUKZRLQKYFGbd4ArQa1Wa7JKcvnwwXN5PvkYaqUhdpmdbG4CecJgO/YosMPSVB7bD3
+         ko1A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=wFIVtEVhrslAPc1rxJ7EFYor+Slx2eUn7DRdGymDm7Y=;
-        b=jp/2Q4pWO6bbQj1tvOiX+6nzvGvRQ0MFoMvTNreSv8Jve0hiJpGVWhvofBPrsLykcy
-         hZEaPXj6DTCn8xDV9UH522OaiKMHUj+PdZiXjcEpHlLRQ23OrC7LW+zqIaUbkZeVxj/V
-         c8AQT/Dy4tL4TeIzlcXsSQZKGkr0S20NM62awMb9zuJpKRfvPX7h7vyKzAOC5sQ8CpNX
-         i0b8Bi1OHOZveMl1tejl8oxJZ0JIVMjyC+d3R5Y00M2wRa2xeJqJg8+nN+97/DgDDSuJ
-         90nUOqmDpWKBhnVO9OGdAo/yjW+tzWaPeoIwJf462hYuqEE9J22TgoFXKxipZQYmHCyi
-         1Klg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=N9HCmrm8VY61caTtmpBOWPl6XeIKwin31jSQm9heKkE=;
+        b=0x56ADTMq2yTw22QtaORoSI/ZBOWTZGVcnRA0++GHCn7HSKCNT+lrgxYwUzA/Rfx8O
+         6xec6alV5l/fqpgPIcE9f95GwLU21rhZ858oqyEBYm1IUakcGtBbuVsxztD5FdGHcfbG
+         Ifmaphsxjg/NBJBe+TiBPsCiN93RAVYMcAt0pG63ZTsULtKbJOK8a2wK4El0z9uWxYkJ
+         5KLVIUjYybe6cpt9RWIeRE4Sia5VqvfxWNG94SoQp+zdACRovp+SoSkp+WsilaMiO/Ts
+         HrSqq2yuDlq+DFnXILLHRNw+6dXmxp3E/mXU4bgGmXenMbY3cdI9zkqIrSaupMSvguoC
+         PFKA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=F2W38VBd;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id s13si15209813pfe.188.2019.04.03.17.39.30
+       dkim=pass header.i=@kernel.org header.s=default header.b=YYg9X80s;
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id z4si15120499plo.166.2019.04.03.17.57.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 03 Apr 2019 17:39:30 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Apr 2019 17:57:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=F2W38VBd;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
-	Content-Type:In-Reply-To:MIME-Version:Date:Message-ID:From:References:Cc:To:
-	Subject:Sender:Reply-To:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=wFIVtEVhrslAPc1rxJ7EFYor+Slx2eUn7DRdGymDm7Y=; b=F2W38VBd9nCA9JmPo6hQStFS/
-	fO4bIQ1TxcWdOBY2/0Xj/6NF+7giJF++5x7D5QnBTFlzj3DaIY0d7dgUSI9xFMXNdQmvrjOIGjNCF
-	WpsKJrreZmJTPtBNpZk4v0kEDuesGRtmxb1kfD3vYFs/vvS7yEG6oktZRrEeCfTD8+OjELtj56sEZ
-	YDAv2iFLz4kxedjnTTTMvhbKQHHsShGT75kHl4NOD1Dc0CNEBQiqQ3OF3n13uhygy4hXOqav26/us
-	DXYMmDw7BDv2p66zfcsYrhZ/K4xQ+M7jm+5U22hmfgwC12opeb0RCRojGZc+lp+G2wWnHQohBJTLt
-	FTTkGiw2Q==;
-Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=dragon.dunlab)
-	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hBqPg-0001fr-HN; Thu, 04 Apr 2019 00:39:28 +0000
-Subject: Re: [kbuild-all] [mmotm:master 19/222]
- arch/sh/kernel/cpu/sh2/clock-sh7619.o:undefined reference to
- `followparent_recalc'
-To: Rong Chen <rong.a.chen@intel.com>, kbuild test robot <lkp@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>,
- Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org,
- Johannes Weiner <hannes@cmpxchg.org>
-References: <201904031355.srXJo4hh%lkp@intel.com>
- <2af6aff3-ac3f-1d53-0d33-f81dd0dfa605@infradead.org>
- <44789370-4ca9-329f-65ad-8ff428a7e91b@intel.com>
- <38dbc113-2b1c-3fe6-ba37-36f89bbb71c4@infradead.org>
- <67b967df-e621-8370-f810-4b62b34ded16@intel.com>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <c6e5f5c7-ec18-8986-5796-6b573ff2e9a9@infradead.org>
-Date: Wed, 3 Apr 2019 17:39:23 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       dkim=pass header.i=@kernel.org header.s=default header.b=YYg9X80s;
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from localhost (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id F278C2082E;
+	Thu,  4 Apr 2019 00:57:49 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1554339470;
+	bh=mJwodE2gRa2C3WW5YdRbgfUkn8szJ9u1XhmMgYBgYBE=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
+	b=YYg9X80sINpVkIevZK5YRlzuwm0+NB1xTF+vpBpkMQnI4BlXUVa3ItjY0O9e4GYm6
+	 t6Q7tRM3rgDP7r6EYRrh/FJ4mrSr1avZZkifdEoeXcKMQxMSwbznEe3lQd/hjJuUy7
+	 2dByCQhDwXcwg4uZVBI9YgDUAM9WHinBax6BHAU8=
+Date: Wed, 3 Apr 2019 20:57:49 -0400
+From: Sasha Levin <sashal@kernel.org>
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: linux-kernel@vger.kernel.org, stable@vger.kernel.org,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Christophe Leroy <christophe.leroy@c-s.fr>,
+	Christoph Hellwig <hch@lst.de>,
+	"David S. Miller" <davem@davemloft.net>,
+	Dennis Zhou <dennis@kernel.org>,
+	Geert Uytterhoeven <geert@linux-m68k.org>,
+	Greentime Hu <green.hu@gmail.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Guan Xuetao <gxt@pku.edu.cn>, Guo Ren <guoren@kernel.org>,
+	Guo Ren <ren_guo@c-sky.com>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	Juergen Gross <jgross@suse.com>, Mark Salter <msalter@redhat.com>,
+	Matt Turner <mattst88@gmail.com>, Max Filippov <jcmvbkbc@gmail.com>,
+	Michal Simek <monstr@monstr.eu>, Paul Burton <paul.burton@mips.com>,
+	Petr Mladek <pmladek@suse.com>, Richard Weinberger <richard@nod.at>,
+	Rich Felker <dalias@libc.org>, Rob Herring <robh+dt@kernel.org>,
+	Rob Herring <robh@kernel.org>, Russell King <linux@armlinux.org.uk>,
+	Stafford Horne <shorne@gmail.com>, Tony Luck <tony.luck@intel.com>,
+	Vineet Gupta <vgupta@synopsys.com>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+Subject: Re: [PATCH AUTOSEL 5.0 015/262] memblock:
+ memblock_phys_alloc_try_nid(): don't panic
+Message-ID: <20190404005748.GJ16241@sasha-vm>
+References: <20190327180158.10245-1-sashal@kernel.org>
+ <20190327180158.10245-15-sashal@kernel.org>
+ <20190328055720.GB14864@rapoport-lnx>
 MIME-Version: 1.0
-In-Reply-To: <67b967df-e621-8370-f810-4b62b34ded16@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <20190328055720.GB14864@rapoport-lnx>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/3/19 5:20 PM, Rong Chen wrote:
-> 
-> On 4/3/19 10:46 PM, Randy Dunlap wrote:
->> On 4/3/19 12:09 AM, Rong Chen wrote:
->>> On 4/3/19 2:26 PM, Randy Dunlap wrote:
->>>> On 4/2/19 10:54 PM, kbuild test robot wrote:
->>>>> Hi Randy,
->>>>>
->>>>> It's probably a bug fix that unveils the link errors.
->>>>>
->>>>> tree:   git://git.cmpxchg.org/linux-mmotm.git master
->>>>> head:   03590d39c08e0f2969871a5efcf27a366c1e8c60
->>>>> commit: cffa367bb8abe4c1424e93e345c7d63844d1c5db [19/222] sh: fix multiple function definition build errors
->>>>> config: sh-allmodconfig (attached as .config)
->>>>> compiler: sh4-linux-gnu-gcc (Debian 7.2.0-11) 7.2.0
->>>>> reproduce:
->>>>>           wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->>>>>           chmod +x ~/bin/make.cross
->>>>>           git checkout cffa367bb8abe4c1424e93e345c7d63844d1c5db
->>>>>           # save the attached .config to linux build tree
->>>>>           GCC_VERSION=7.2.0 make.cross ARCH=sh
->>>>>
->>>>> All errors (new ones prefixed by >>):
->>>>>
->>>>>>> arch/sh/kernel/cpu/sh2/clock-sh7619.o:(.data+0x1c): undefined reference to `followparent_recalc'
->>>>> ---
->>>>> 0-DAY kernel test infrastructure                Open Source Technology Center
->>>>> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
->>>>>
->>>> Hi,
->>>> I suspect that it's more of an invalid .config file.
->>>> How do you generate the .config files?  or is it a defconfig?
->>> the config file was generated by "make ARCH=sh allmodconfig"
->>>
->>>
->>>> Yes, I have seen this build error, but I was able to get around it
->>>> by modifying the .config file.  That's why I suspect that it may be
->>>> an invalid .config file.
->>> Can you share the fix steps? We'll take a look at it.
->> Hi,
+On Thu, Mar 28, 2019 at 07:57:21AM +0200, Mike Rapoport wrote:
+>Hi,
+>
+>On Wed, Mar 27, 2019 at 01:57:50PM -0400, Sasha Levin wrote:
+>> From: Mike Rapoport <rppt@linux.ibm.com>
 >>
->> For this build error:
->>>> arch/sh/kernel/cpu/sh2/clock-sh7619.o:(.data+0x1c): undefined reference to `followparent_recalc'
->> the problem is with CONFIG_COMMON_CLK.  The COMMON_CLK framework does not
->> provide this API.  However, in arch/sh/boards/Kconfig, COMMON_CLK is always
->> selected by SH_DEVICE_TREE.  By disabling SH_DEVICE_TREE, the build
->> succeeds.
-> 
-> Thanks for the explanation, It seems SH_DEVICE_TREE was enabled by allmodconfig.
-> does it mean it's a problem of allmodconfig? we thought kernel could be built successfully.
+>> [ Upstream commit 337555744e6e39dd1d87698c6084dd88a606d60a ]
+>>
+>> The memblock_phys_alloc_try_nid() function tries to allocate memory from
+>> the requested node and then falls back to allocation from any node in
+>> the system.  The memblock_alloc_base() fallback used by this function
+>> panics if the allocation fails.
+>>
+>> Replace the memblock_alloc_base() fallback with the direct call to
+>> memblock_alloc_range_nid() and update the memblock_phys_alloc_try_nid()
+>> callers to check the returned value and panic in case of error.
+>
+>This is a part of memblock refactoring, I don't think it should be applied
+>to -stable.
 
-I think that there are multiple $arch + boards/platforms that are very
-board-specific where allmodconfig doesn't make sense, but that's mostly an
-opinion.  I haven't tried to prove it.
+Dropped, thanks!
 
-
--- 
-~Randy
+--
+Thanks,
+Sasha
 
