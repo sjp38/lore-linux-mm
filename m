@@ -2,219 +2,243 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E003AC4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 09:26:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2023BC4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 09:28:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A0F6D20449
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 09:26:05 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AF99D20820
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 09:27:59 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="lXimA78f"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A0F6D20449
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (1024-bit key) header.d=eInfochipsIndia.onmicrosoft.com header.i=@eInfochipsIndia.onmicrosoft.com header.b="QXMBP+j/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF99D20820
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=einfochips.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2652C6B0007; Thu,  4 Apr 2019 05:26:05 -0400 (EDT)
+	id 485316B0007; Thu,  4 Apr 2019 05:27:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1ED956B0008; Thu,  4 Apr 2019 05:26:05 -0400 (EDT)
+	id 437336B0008; Thu,  4 Apr 2019 05:27:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 08FF86B000A; Thu,  4 Apr 2019 05:26:05 -0400 (EDT)
+	id 3250B6B000A; Thu,  4 Apr 2019 05:27:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DA44D6B0007
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 05:26:04 -0400 (EDT)
-Received: by mail-it1-f197.google.com with SMTP id v11so5108910itb.1
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 02:26:04 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EF3176B0007
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 05:27:58 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id n5so1209201pgk.9
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 02:27:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=X+EiJspXrthvhY7cDQYnv6wc4+xKqln42WsdUBF2ewQ=;
-        b=kdkd15xBqjBbYthVBxLI8DZ/bqJlUBa6u8ZenVodYLc+Jgy4Jw0Y746kW+QSC5UxRA
-         EQOlycSEtLHeasdPUKpUc4/8yHvPF59xfiSFO8+RPu8sy9odmbOmAru3uucwMlPD2FN0
-         ra03t+tbTQI9CHJZUYNKuLT/g7ODSWhUw6n88kz0l6UR7XXNIIpez+QuN7L2eWaCG5ap
-         L9aHPVIrr943dxnXscMd1/aL81O6mZsMyU6ClFTbZYztU+n1iUkNMSH6AcGWyzgmmCKF
-         EEUARmyg01cvWt4MClF2+yPmyJk22LsQQKo6lDpvHjjdhLpxu2tXbxkl/QZEaiChtYuc
-         /Pjg==
-X-Gm-Message-State: APjAAAVzpeKu5KKF0X1nYGWT89o1/z3BYyqz6ibslkiv4dBPgAkxGd2/
-	0DGbgowQDzH8zYOYXLsoielQclkCeTmLPFPLKlimIJ5L3nDKHlU7ywBuXdpbbu3LO4/qFw4x/l2
-	Cur/KUfiEavQ15tAMzbMZfx3u0EDm/cbyBbk5P5S3wZWJpvR84GTIpG1Dof0wnvFmHw==
-X-Received: by 2002:a5e:8418:: with SMTP id h24mr3393031ioj.170.1554369964627;
-        Thu, 04 Apr 2019 02:26:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqycLm1OOo6kI/TG2CeYmCbuDcmNub3BQIFr9FeIL4KXs+/YMYqEX0Ik04HL+oxgh5Ej8ZOA
-X-Received: by 2002:a5e:8418:: with SMTP id h24mr3392996ioj.170.1554369963703;
-        Thu, 04 Apr 2019 02:26:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554369963; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-transfer-encoding:mime-version;
+        bh=5QJEwPl+CXdreFGjX7hUhAb/B83qjn99ySBy4TnWAbk=;
+        b=j/hYRROPT2z73QYWmX9BwSA9LygUbDuEv+Y1zmaffR/jKvgyTPEb9LAOFxBAJsZUV2
+         nuZ2XzvyZoAUdlHd/UxfPlwNFjgHFq2kehDrGJ98ICffNRKLvc1XwuunQ2KouuyF/3GP
+         5XZBD/15m2kXqWlCEWw2DLKjFpo4AZDAbLMr+ljXyNDSB8JW0+QtXA5GI0d1liq5c8Lo
+         MpMGQBhFjW5w/C/asXNMaGSJhdRq5E+oiZyI6vIm6fj9mLhST2lyJrMSApykWl1D4OdG
+         8FU6HU9GR9zjeo0dKpJhFdB4xSBvLy7PgKrm12ZUUQm19kUVLyqHQNxc8r+fpv1m4U3H
+         Cjdg==
+X-Gm-Message-State: APjAAAUnxjwSrOjBLywgoaqFkFiXejbsIinNXkWzCUs5XH+C0aIy/L0V
+	+6clUZYOMS96WSYmJTDCSVgDU9H2SxVvJMUKH2VP2gfPkaz70UKRbhCVB3KCnvcTPzY9vWSugD8
+	Hq69D7gdVymUXOcbLeSWMQF2B7yV0JnAG5uZEZ2h5zrkd/GW7upUpz9sAe/ryb20rfQ==
+X-Received: by 2002:a17:902:2888:: with SMTP id f8mr5344355plb.244.1554370078553;
+        Thu, 04 Apr 2019 02:27:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyj0skoJ9Zy+Xvay3t3x+B5KegkVi+53+4xauKNHaEN2/euZvbj07B+wHC9mqgPuEeK45lt
+X-Received: by 2002:a17:902:2888:: with SMTP id f8mr5344303plb.244.1554370077864;
+        Thu, 04 Apr 2019 02:27:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554370077; cv=none;
         d=google.com; s=arc-20160816;
-        b=jn1jTyGJ13YA6SgnYpCiV+29JgDUf0cvlOxBzGxXaCwkNyq9VW3ks0+yVUhakkfjF9
-         vIhmY9N1a0NJEWh75ira5giQIr7VfYExjQYDPShHT9bbdJZmnlOBvB0C2VDPbYvg6XhK
-         Z3tCS/JclhCkOg3gu4s14mkTxOxCVO5ZITHr+LhT7D8lt4K5ujELH7sPdCqpt4erDBj7
-         wZdSaCGrYBzEd/fiCfwBpX1eermivjM9WzmtXk8zePzf53Zb/j1GI0LelctzwSSYpViN
-         7CxmXB6++U21X2fzmswFhrX9nP4+xSkQ0Oc/+cmegtTPxA2XPRWbMdyQrCF32+Fbw4Nx
-         SNNg==
+        b=WCUtkB+ll69Ha/3h2XxFMejH2noOrB+3H+C0kXb6U1mVc2cJ7kKCpnm1orOyaSjBnC
+         0W62XvwGgoiFsE+1s+U0v0kAupEKQnZYEMNToB0qBZtiWWB0CQje8bP1CbAf5SMBhyh3
+         wZ8Cd/QeTqu7uUNRVRYY47DDK2SQjiLaRBmyaKdaUoMCabmid6hXygi3TnBcHy4geS3C
+         RYkyqk3LZli1/R/lHeckvaWD0jTp3No7c4UNve5drEuo1qvWTY5FmKLWlr35u5C2Pbul
+         a3yKyQsyL8AGfjTZoteOe5eqQFDQUoIhj2mnWrHY9CXa9CPEUkaMJUrYNYmdWfen7adZ
+         Fw2A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=X+EiJspXrthvhY7cDQYnv6wc4+xKqln42WsdUBF2ewQ=;
-        b=Xu/NBg/ipD1u3/F9MG2OQA8HNoyEIh4PC8c5JXVQbucXaOi0e3tIxPOcFRggBjpNqR
-         EyvV8aTvs2wl47Wspvih8zGwo/Tvd1NC6+j+LjG1OLXRb0zzo3bMWfolJcE/aI/ggrkL
-         XzNJD/+xmh1JweohBuFVWKPg03JnKq4hMwhnVlHF9BLEoZdUdQ4kb+3Nsw2ppxW4W8Xw
-         wfOz5n1nX7AYsZVR3GjO+P/Ci4W7+5G+BPTV80Px/Z1sAyHxcUPEmB+yuL0i6jwZGqA0
-         i0VaPJhHzhIWjYuE2J8tYAmT6gUWra4sSiMQrwkQhv2/oT9aOFotKYUUd+KigOUxD0wb
-         EQwQ==
+        h=mime-version:content-transfer-encoding:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:to:from:dkim-signature;
+        bh=5QJEwPl+CXdreFGjX7hUhAb/B83qjn99ySBy4TnWAbk=;
+        b=svr2HqrXNc7k9oaPI7qmBISjxMFGIntMYaGjxbMbcBfnxEq9gVucMaWc22iDW6aZX0
+         FT/2VHkd4XFz5UDfvW6Q/CVm72Sebk0L169foktsnSCu29t9lrcpqNh8vgvNPco/PNF9
+         /l6PPFYcRL7Je6ufxuGscfVD1bhgLIL1z4UaxdSiuU7p5hT/935Vw0vRtPnQI/+P3/9u
+         QnOb2dEWQi3BZtufx8YDuJgQoqtexxG+6Ks7if2ShVGvjbK1k7NXIOGNWdh2pU5GJwB3
+         SPLWGLDHz57gg/xUxZ0P93ghTgyn8PiKp5BAgpEHl0b0CuJn25ZXI5zHb1wH7FtYfwFQ
+         KcXQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=lXimA78f;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id n32si10347018jac.105.2019.04.04.02.26.03
+       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b="QXMBP+j/";
+       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.74 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
+Received: from APC01-HK2-obe.outbound.protection.outlook.com (mail-eopbgr1300074.outbound.protection.outlook.com. [40.107.130.74])
+        by mx.google.com with ESMTPS id 60si16697145plf.122.2019.04.04.02.27.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 04 Apr 2019 02:26:03 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 Apr 2019 02:27:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.74 as permitted sender) client-ip=40.107.130.74;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=lXimA78f;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
-	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=X+EiJspXrthvhY7cDQYnv6wc4+xKqln42WsdUBF2ewQ=; b=lXimA78fwS8UjbrqTeMj6TJtL
-	+Y02yuivEU35LV0e7zjb9RR38MHad76DV8JTThj68HG4BTESroqZUnOlMZeizL0f5MWwAWTJ56zRX
-	YoLqgzc5aOyb1xJ7LazSoQf+AzftKj30wdmdnwDtJNZSg5Ec2X5NZsY9c227nVZlV+fTdTXdgt5Lp
-	BlwRrhXm5gwgz3LPSxFHjuX/3LQTKEIwQ6g8ozwxnmKYDtgvgSkWiINBS2hPO1CganrbSJVUAE/rc
-	VMPGXZdcR+R5gBAVsRDKXO8csbsDQqEnl5x7DaGWJv0wHpRkWdOYc4DtO5N1L3TS36/Uhz9ILLZI2
-	SwrC9HavQ==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hBycO-0002Bh-1i; Thu, 04 Apr 2019 09:25:08 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 76E92203C12D9; Thu,  4 Apr 2019 11:25:06 +0200 (CEST)
-Date: Thu, 4 Apr 2019 11:25:06 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: Khalid Aziz <khalid.aziz@oracle.com>
-Cc: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de,
-	ak@linux.intel.com, liran.alon@oracle.com, keescook@google.com,
-	konrad.wilk@oracle.com,
-	Juerg Haefliger <juerg.haefliger@canonical.com>,
-	deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
-	tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
-	jcm@redhat.com, boris.ostrovsky@oracle.com,
-	kanth.ghatraju@oracle.com, joao.m.martins@oracle.com,
-	jmattson@google.com, pradeep.vincent@oracle.com,
-	john.haxby@oracle.com, tglx@linutronix.de,
-	kirill.shutemov@linux.intel.com, hch@lst.de,
-	steven.sistare@oracle.com, labbott@redhat.com, luto@kernel.org,
-	dave.hansen@intel.com, aaron.lu@intel.com,
-	akpm@linux-foundation.org, alexander.h.duyck@linux.intel.com,
-	amir73il@gmail.com, andreyknvl@google.com,
-	aneesh.kumar@linux.ibm.com, anthony.yznaga@oracle.com,
-	ard.biesheuvel@linaro.org, arnd@arndb.de, arunks@codeaurora.org,
-	ben@decadent.org.uk, bigeasy@linutronix.de, bp@alien8.de,
-	brgl@bgdev.pl, catalin.marinas@arm.com, corbet@lwn.net,
-	cpandya@codeaurora.org, daniel.vetter@ffwll.ch,
-	dan.j.williams@intel.com, gregkh@linuxfoundation.org, guro@fb.com,
-	hannes@cmpxchg.org, hpa@zytor.com, iamjoonsoo.kim@lge.com,
-	james.morse@arm.com, jannh@google.com, jgross@suse.com,
-	jkosina@suse.cz, jmorris@namei.org, joe@perches.com,
-	jrdr.linux@gmail.com, jroedel@suse.de, keith.busch@intel.com,
-	khlebnikov@yandex-team.ru, logang@deltatee.com,
-	marco.antonio.780@gmail.com, mark.rutland@arm.com,
-	mgorman@techsingularity.net, mhocko@suse.com, mhocko@suse.cz,
-	mike.kravetz@oracle.com, mingo@redhat.com, mst@redhat.com,
-	m.szyprowski@samsung.com, npiggin@gmail.com, osalvador@suse.de,
-	paulmck@linux.vnet.ibm.com, pavel.tatashin@microsoft.com,
-	rdunlap@infradead.org, richard.weiyang@gmail.com, riel@surriel.com,
-	rientjes@google.com, robin.murphy@arm.com, rostedt@goodmis.org,
-	rppt@linux.vnet.ibm.com, sai.praneeth.prakhya@intel.com,
-	serge@hallyn.com, steve.capper@arm.com, thymovanbeers@gmail.com,
-	vbabka@suse.cz, will.deacon@arm.com, willy@infradead.org,
-	yang.shi@linux.alibaba.com, yaojun8558363@gmail.com,
-	ying.huang@intel.com, zhangshaokun@hisilicon.com,
-	iommu@lists.linux-foundation.org, x86@kernel.org,
-	linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	linux-security-module@vger.kernel.org,
-	Khalid Aziz <khalid@gonehiking.org>
-Subject: Re: [RFC PATCH v9 03/13] mm: Add support for eXclusive Page Frame
- Ownership (XPFO)
-Message-ID: <20190404092506.GC14281@hirez.programming.kicks-ass.net>
-References: <cover.1554248001.git.khalid.aziz@oracle.com>
- <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
- <20190404072152.GN4038@hirez.programming.kicks-ass.net>
+       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b="QXMBP+j/";
+       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.74 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=eInfochipsIndia.onmicrosoft.com; s=selector1-einfochips-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=5QJEwPl+CXdreFGjX7hUhAb/B83qjn99ySBy4TnWAbk=;
+ b=QXMBP+j/dPNHXsW6tJYHvxmLuObvJoy8gLnpU2EPuy1hFWrXLeOyMGWxP4OB4GXI2MChry09zZxYA9vFVvv00FEOXAZGwOs9iZz0SEBM6IVSAO44ANcidS6DxJWvhdbZFgU5P0bbt6eSFKR5gewmvyJZ1ZXhEI2ShezhDF0JPmA=
+Received: from SG2PR02MB3098.apcprd02.prod.outlook.com (20.177.88.78) by
+ SG2PR02MB3608.apcprd02.prod.outlook.com (20.177.170.141) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1771.15; Thu, 4 Apr 2019 09:27:53 +0000
+Received: from SG2PR02MB3098.apcprd02.prod.outlook.com
+ ([fe80::f432:20e4:2d22:e60b]) by SG2PR02MB3098.apcprd02.prod.outlook.com
+ ([fe80::f432:20e4:2d22:e60b%4]) with mapi id 15.20.1750.017; Thu, 4 Apr 2019
+ 09:27:53 +0000
+From: Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>
+Subject: Re: How to calculate instruction executed for function
+Thread-Topic: How to calculate instruction executed for function
+Thread-Index: AQHU6igi0LAQURcEFkafVLmNd6QLn6YrvLoU
+Date: Thu, 4 Apr 2019 09:27:53 +0000
+Message-ID:
+ <SG2PR02MB309878FDF524EAE5F61228B7E8500@SG2PR02MB3098.apcprd02.prod.outlook.com>
+References:
+ <SG2PR02MB3098EF270AE08CB19E96C5C4E8570@SG2PR02MB3098.apcprd02.prod.outlook.com>
+In-Reply-To:
+ <SG2PR02MB3098EF270AE08CB19E96C5C4E8570@SG2PR02MB3098.apcprd02.prod.outlook.com>
+Accept-Language: en-GB, en-US
+Content-Language: en-GB
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=pankaj.suryawanshi@einfochips.com; 
+x-originating-ip: [14.98.130.2]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: d1e2025e-e65e-4d08-1439-08d6b8dfd0c3
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(7168020)(4627221)(201703031133081)(201702281549075)(8990200)(5600139)(711020)(4605104)(2017052603328)(7193020);SRVR:SG2PR02MB3608;
+x-ms-traffictypediagnostic: SG2PR02MB3608:
+x-microsoft-antispam-prvs:
+ <SG2PR02MB3608E4ADCC4CF947328DA1F2E8500@SG2PR02MB3608.apcprd02.prod.outlook.com>
+x-forefront-prvs: 0997523C40
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(346002)(396003)(39850400004)(136003)(366004)(376002)(189003)(199004)(33656002)(186003)(26005)(6436002)(3846002)(2501003)(6116002)(476003)(446003)(105586002)(316002)(68736007)(106356001)(2906002)(11346002)(229853002)(53936002)(25786009)(110136005)(6246003)(305945005)(7736002)(97736004)(74316002)(99286004)(5024004)(486006)(5660300002)(44832011)(66574012)(52536014)(478600001)(14454004)(7696005)(8936002)(8676002)(102836004)(76176011)(53546011)(78486014)(6506007)(71190400001)(86362001)(55016002)(9686003)(71200400001)(55236004)(81166006)(81156014)(14444005)(256004)(66066001)(586874002);DIR:OUT;SFP:1101;SCL:1;SRVR:SG2PR02MB3608;H:SG2PR02MB3098.apcprd02.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: einfochips.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ tRiJbYgaqEl8TEz0/uORLDPaQ2dWghbagmdfWJcv/694uhTNFCz+5bUQlh++zPhsOjwBUUfUc5LSNENYAnxwTkbiaFCzw2KE7gnuW2te51gTe/c3oisn9fhQF+VgmL+oXgJbwyOLkEuXwe2+06W1rHD5c1AAdy3O0n56Fy9C4CKuRlda0+kD6s2joNanEt72P94fqwjTOtN0cUJERtH4Qgp+Ladwan1N5qnk8EmO+/jhl/AjTNKenX72EbjvgbvUNdzpJNW+Yz0WixxiP3wGMVTs58soZtvTLz3qhTXgKIqtuWA3WquyiVdueozcTFbOpoXdhtQeTKIGIrtVnsQW6fsxLqF/9B7HO59uHsrzxJvsXQJ62Mo5M3pI9xbMD7FtCrmXtDrjTl1ZLI+0MuNx2oZjQ2YK5FLkdPO7y/mJv/M=
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190404072152.GN4038@hirez.programming.kicks-ass.net>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+X-OriginatorOrg: einfochips.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: d1e2025e-e65e-4d08-1439-08d6b8dfd0c3
+X-MS-Exchange-CrossTenant-originalarrivaltime: 04 Apr 2019 09:27:53.7355
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 0adb040b-ca22-4ca6-9447-ab7b049a22ff
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: SG2PR02MB3608
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 04, 2019 at 09:21:52AM +0200, Peter Zijlstra wrote:
-> On Wed, Apr 03, 2019 at 11:34:04AM -0600, Khalid Aziz wrote:
-> > diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> > index 2c471a2c43fa..d17d33f36a01 100644
-> > --- a/include/linux/mm_types.h
-> > +++ b/include/linux/mm_types.h
-> > @@ -204,6 +204,14 @@ struct page {
-> >  #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
-> >  	int _last_cpupid;
-> >  #endif
-> > +
-> > +#ifdef CONFIG_XPFO
-> > +	/* Counts the number of times this page has been kmapped. */
-> > +	atomic_t xpfo_mapcount;
-> > +
-> > +	/* Serialize kmap/kunmap of this page */
-> > +	spinlock_t xpfo_lock;
-> 
-> NAK, see ALLOC_SPLIT_PTLOCKS
-> 
-> spinlock_t can be _huge_ (CONFIG_PROVE_LOCKING=y), also are you _really_
-> sure you want spinlock_t and not raw_spinlock_t ? For
-> CONFIG_PREEMPT_FULL spinlock_t turns into a rtmutex.
-> 
-> > +#endif
-> 
-> Growing the page-frame by 8 bytes (in the good case) is really sad,
-> that's a _lot_ of memory.
 
-So if you use the original kmap_atomic/kmap code from i386 and create
-an alias per user you can do away with all that.
+________________________________________
+From: Pankaj Suryawanshi
+Sent: 03 April 2019 19:50
+To: linux-mm@kvack.org; linux-kernel@vger.kernel.org
+Subject: How to calculate instruction executed for function
 
-Now, that leaves you with the fixmap kmap_atomic code, which I also
-hate, but it gets rid of a lot of the ugly you introduce in these here
-patches.
+Hello,
 
-As to the fixmap kmap_atomic; so fundamentally the PTEs are only used on
-a single CPU and therefore CPU local TLB invalidation _should_ suffice.
+How to calculate instruction executed for function ?
 
-However, speculation...
+For eg.
 
-Another CPU can speculatively hit upon a fixmap entry for another CPU
-and populate it's own TLB entry. Then the TLB invalidate is
-insufficient, it leaves a stale entry in a remote TLB.
+I need to calculate instruction executed for CMA_ALLOC function.
+How many instruction executed for cma_alloc ?
 
-If the remote CPU then re-uses that fixmap slot to alias another page,
-we have two CPUs with different translations for the same VA, a
-condition that AMD CPU's dislike enough to machine check on (IIRC).
 
-Actually hitting that is incredibly difficult (we have to have
-speculation, fixmap reuse and not get a full TLB invalidate in between),
-but, afaict, not impossible.
+CMA_ALLOC :
 
-Your monstrosity from the last patch avoids this particular issue by not
-aliasing in this manner, but it comes at the cost of this page-frame
-bloat. Also, I'm still not sure there's not other problems with it.
+        for 1 cma_alloc success call there will around 75 instruction is ex=
+ecuted, excluding jump, mutex,error case and debug info instruction.
 
-Bah..
+        below are mandatory jump calls that are required for successful all=
+ocations.
+
+        cma_bitmap_aligned_mask
+        cma_bitmap_aligned_offset
+        cma_bitmap_maxno
+        cma_bitmap_pages_to_bits
+        bitmap_find_next_zero_area_off -> find_next_zero_bit -> find_next_b=
+it
+        bitmap_set
+        alloc_contig_range -> start_isolate_page_range
+        __alloc_contig_migrate_range -> isolate_migratepages_range -> recla=
+im_clean_pages_from_list -> shrink_page_list -> migrate_pages
+
+
+        So lets say
+
+        cma_bitmap_aligned_mask  =3D 1 instrs
+        cma_bitmap_aligned_offset =3D 1 instrs
+        cma_bitmap_maxno                  =3D 1 instrs
+        cma_bitmap_pages_to_bits  =3D 1 instrs
+
+        bitmap_find_next_zero_area_off -> find_next_zero_bit -> find_next_b=
+it =3D 3 instrs
+        bitmap_set  =3D 1 instrs
+        alloc_contig_range -> start_isolate_page_range =3D
+
+                                has_unmovable_pages =3D 1 instrs
+                                get_pfnblock_flags_mask =3D 1 instrs
+                                set_pageblock_migratetype =3D 1 instrs
+                                move_freepages_block =3D 1 instrn
+                                __mod_zone_page_state =3D 1 instrs store in=
+fo in vmstat
+                                unset_migratetype_isolate =3D 1 instrs
+
+        __alloc_contig_migrate_range -> isolate_migratepages_range -> recla=
+im_clean_pages_from_list -> shrink_page_list -> migrate_pages
+
+
+        isolate_migratepages_range =3D 3 instrs
+        reclaim_clean_pages_from_list =3D 2 instrs
+        migrate_pages =3D 1 instrs
+
+        --------------------------------------------------------------
+        Total =3D around 20 instrs per page
+
+        20 ns per page on 1ghz processor is minimum excluding any overheads=
+ like mutex, variables, failure/error case,debug/prints.
+
+I roughly calculated this.
+Is it Correct ?
+
+
+Any help would be appreciated.
+
+Regards,
+Pankaj
+***************************************************************************=
+***************************************************************************=
+******* eInfochips Business Disclaimer: This e-mail message and all attachm=
+ents transmitted with it are intended solely for the use of the addressee a=
+nd may contain legally privileged and confidential information. If the read=
+er of this message is not the intended recipient, or an employee or agent r=
+esponsible for delivering this message to the intended recipient, you are h=
+ereby notified that any dissemination, distribution, copying, or other use =
+of this message or its attachments is strictly prohibited. If you have rece=
+ived this message in error, please notify the sender immediately by replyin=
+g to this message and please delete it from your computer. Any views expres=
+sed in this message are those of the individual sender unless otherwise sta=
+ted. Company has taken enough precautions to prevent the spread of viruses.=
+ However the company accepts no liability for any damage caused by any viru=
+s transmitted by this email. **********************************************=
+***************************************************************************=
+************************************
 
