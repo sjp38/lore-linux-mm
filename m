@@ -2,198 +2,249 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 36778C4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 17:02:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E68BEC4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 17:18:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D54A0206DD
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 17:02:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 89A9A206BA
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 17:18:11 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="vRjZAYQr"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D54A0206DD
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="m92GlC4U"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 89A9A206BA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 776846B0010; Thu,  4 Apr 2019 13:02:46 -0400 (EDT)
+	id 1C8F86B0010; Thu,  4 Apr 2019 13:18:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 726C86B0266; Thu,  4 Apr 2019 13:02:46 -0400 (EDT)
+	id 1773D6B026A; Thu,  4 Apr 2019 13:18:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5EFC16B026B; Thu,  4 Apr 2019 13:02:46 -0400 (EDT)
+	id 03F3A6B026B; Thu,  4 Apr 2019 13:18:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1624E6B0010
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 13:02:46 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id y7so2349234wrq.4
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 10:02:46 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BE31A6B0010
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 13:18:10 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id e19so2164516pfd.19
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 10:18:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=DuOGTJZ7sMG2u+bQoSBicKt7dBisbjP7T/Kfoz9vRWs=;
-        b=rWwm/LkcEf4DWaEKLswSrRsuICCJ+asjtefeD3JtKqmO3ZQAToIUb69ty2rnuCaqMe
-         Kcvn1rHNsi4TPPzCCAY1dCy/al7790yP1PPcMPUnf32RiXU+UfCs5V7qiE5ZkM7878KF
-         Si//avMZBoK0mUQpzOxXXAQmZcR+vNKU3Z+yvzBTX7rUNcE6Ziox+NfHfaAzjBu33fPF
-         AvtTyY4Su4nlFclCNNDoQ1t5tn6OYWLT+a9jTJ/fm83YUkFuRqWcBzPVkLp+Zlo5CJ85
-         ViRAiu6bIKOIdlFgNlyq2U1JYEcj37O26DLAFgTSDnKz6pTqOk0uNLJmVr0dw4l3Pztt
-         KKhg==
-X-Gm-Message-State: APjAAAUmEV0Hn7GTO5dgZE3kAt1/JFtd2AOfe+z3xpWZ8f+o3JkO2rXe
-	YgCoeFKyFN47eY/6dQI1ak7HaZbv+96/B98MLuJCeZuMruEiAsssTIHlsfLbhBs9xGSDMwuBgIe
-	oTRw5QMvzgRGHK3fYdxL7P7yT9YvqqtWlsqg4AkZhV0Pd7Wc1VfimQKTEKZLECu8XOQ==
-X-Received: by 2002:adf:fec3:: with SMTP id q3mr4997084wrs.173.1554397365564;
-        Thu, 04 Apr 2019 10:02:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxjPsnt+1Y2HVEX5plXjs6DOc9RfeqDiDQxB5J7K/8YAFrc3bDgSXajmePgE38WcSe9Y91l
-X-Received: by 2002:adf:fec3:: with SMTP id q3mr4997013wrs.173.1554397364461;
-        Thu, 04 Apr 2019 10:02:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554397364; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :organization:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=2gnZpfLx2SGsquTBuuZIgEnDFdOAOjSRDoTrCcLLYUE=;
+        b=rt/sfLYNDnzO8eun9uNcAcWJX9DHRYNqHeU+o8SRsAXKDf9GC72C39EzAtBuVWtvE8
+         svmtgIiRaDgjY/aC0EtAgjmFbfFleRpXriIKC7GbAe2WLufExyFQfBI5xLtg2NHChEaK
+         k43vOwYKGQvOFgBpVnsauDPP39l/OxNkVYNfbWA6lkegQckSfzxcVSBL2/KX1MQcHWAp
+         KmXYsiFX749BI0hhSyyKcmX1MJPCdFN+xrRddW6bHD7JFasb3BpC8EAdErtbKYjhvedT
+         Z16S9Zsvm92Omwp9Xi3BqIePx96CmUZWKm8mDNSFL1UN7PFZOO69606SE9thL6NHYy1g
+         bL5A==
+X-Gm-Message-State: APjAAAV0RGxyNJTxyeL9Jgf/rI47lKrvFeWn0p5kE+xNwkwX2N+A35Ap
+	grLltXc2ByP8kqMMkX2/hHv64iyexFqQwUFP/pOMpnDXeuouPYUzgIB+sVxi1d3bhSMdjnrbRgi
+	QlxRb+s8WGHIbBoPrOL8A5mIv/90ZFtMD3shcboCHbZwnk5Y1NY5uy77t8XDOS6k80A==
+X-Received: by 2002:a17:902:1e2:: with SMTP id b89mr7720872plb.278.1554398290194;
+        Thu, 04 Apr 2019 10:18:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxNLDgffvi65F8BHFYaCOPoObgHI4jsPMx1SzkgdJanL+pd1ZhdeiW7MuJ2d0SXWmdfGSJ6
+X-Received: by 2002:a17:902:1e2:: with SMTP id b89mr7720799plb.278.1554398289229;
+        Thu, 04 Apr 2019 10:18:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554398289; cv=none;
         d=google.com; s=arc-20160816;
-        b=UOiDgkz9bK7be4CEuB6SEcDJRNowj7pDyujhA+wXAn3BQbMgt0UyWE4sogJV1Sqe3k
-         Wzo0YuLGCajGMsn9fpSVzNHcZSZO2dZpaWH2RBLPqTZTt3fnRx/x5f0hKjSrOUTFssgp
-         7F+JGk8AJEyuVTmHorOJzPRhodIhR8W1jDxQvm1ow6rppuhzURW1txeSBj0lPPrGRRwz
-         pyxPmlfsuzVq0p1ShVNRJXvbr53a3ipyOmW9aDU14FnhIt+w1OPAfZvQ5EckMbNgZNeT
-         fResJ18pdECSXWtvoIlG6qVPen3CRyW71HNlr+SS70ldMIE5DrxRRN7hjYbKz/VSL/lR
-         uQIQ==
+        b=C8jM+PN4frayOeDoAhczb5CZSCEtRspoMX9nZM9WWrus3Fjjiws9VSZGj7xSoTmPmD
+         X3Eu46q4YBEigU51S/tYSHridFWCWFn9cT+GqpkdZkoD0foZ/Cu/P7nEI4G1Qlig89sc
+         jW4EioLk2g/LIeFUtkfCK+unzZkJw3gzoLUy7yOWPLUp//lsO/Ui2tZjeSpDP7eJ3wMX
+         vIijkxVVWC+Neow8ufoGoxGGNpcGpqGig8nmHPrNP1xqOLVum1uG+n9uMCycb/zPDz2+
+         0DA3huYTNrasj1YUos5OGKtm+TQ11e8K3dIkt7GxSafIvpiLPZI+o+X74ozxmjMgt9S5
+         G2FA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=DuOGTJZ7sMG2u+bQoSBicKt7dBisbjP7T/Kfoz9vRWs=;
-        b=sm2ANqwzrfR6LUyBmEUBEUYe/E0QEPhi4A5ZFGsEw2sfR6xrS2hFFuekvV0L2WBrRn
-         fe+pJhB3FICB1582h853r/+XuNQNWoQgQGRnaAeEneSirCMpjxD0e9Mo65W7yH5RG7s9
-         6U5WWX3PVdKLOs/6/lBaP35Cskg+t1TikRT5HmjqUqAI2RQYa8vvAbo9gUBJl97d4lbS
-         Sa5IoQ4lgyRkGyhCnmfxR0MGJTZJ9peFkfItANqf5b18tehtRlIApm54gwoQrl4zE5D/
-         8KcsFuYSlenoaXrUb9lS8k33ck1VccEPIE8ZCtfHZiihGnafkZ+mhhp7ZyzCyhWsXEru
-         SyxA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject:dkim-signature;
+        bh=2gnZpfLx2SGsquTBuuZIgEnDFdOAOjSRDoTrCcLLYUE=;
+        b=NhGpNIusNQqcm1bcEYdnoWMMuW1dR2r7fjBPY/F329V9JhNSL9J9B9t9j1lSH2qKJp
+         nqgGHAd47FGQHgkUiYbzmqmmYNruJ2V7p/ZlqvKSbBlS3E/znee+bM1Gywe2GS0wxNvw
+         JgtgZt/iHNs1OL23d93p9HfX64AqudsjSXROdqikSpzpCiyqnGhQVQZnK+z2E72Qwjh/
+         DYeFpXgzh93sIMPOca0b2zf578fD8YzK06lc7Vgaq66vbPagARMm4Q91zlrTLLV1xTQU
+         Johl0eEzaNd3XxZ0M/yJsU779OSnE72NpoWonidIgWfg8Top1u7UyE9Duij8udSoNPQ+
+         lFYQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=vRjZAYQr;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id s13si12998964wri.136.2019.04.04.10.02.44
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=m92GlC4U;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id k14si16361985pll.126.2019.04.04.10.18.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 04 Apr 2019 10:02:44 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 Apr 2019 10:18:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=vRjZAYQr;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
-	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=DuOGTJZ7sMG2u+bQoSBicKt7dBisbjP7T/Kfoz9vRWs=; b=vRjZAYQrTXWQj9Gw7oaVfV3o5
-	m62U3bP3A8Ix76w10FOjTdTA9Hjz+DjEiA/6j1Q+0i79WdBTuGWJSWVvTZfy7egwrXoRmgkNiFARz
-	UIHWXjpMaausOaNPwzR+EPjRGwR6jC4ApaYanMEl4aBW3HM/p1tvuoBdCx2dHmFbgSEsj8k4ALZVU
-	HIX6RehcX1LUGtM1gHenrp9sERqiKs7v7eOiF92sb44r0OllXf6XvBSnLn1wMen+iFT0l9RrChfQQ
-	aroUm8LQ8A2o0F2SEsdFT5esiQnGswOoDDXIDYKu3dgDIjiPqizlYn7K5JrtiOmHTSnc7dmL9aNt4
-	J/5nZmFLg==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hC5kD-0004sc-LX; Thu, 04 Apr 2019 17:01:41 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id D2AE92038C245; Thu,  4 Apr 2019 19:01:39 +0200 (CEST)
-Date: Thu, 4 Apr 2019 19:01:39 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: Khalid Aziz <khalid.aziz@oracle.com>
-Cc: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de,
-	ak@linux.intel.com, liran.alon@oracle.com, keescook@google.com,
-	konrad.wilk@oracle.com,
-	Juerg Haefliger <juerg.haefliger@canonical.com>,
-	deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
-	tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
-	jcm@redhat.com, boris.ostrovsky@oracle.com,
-	kanth.ghatraju@oracle.com, joao.m.martins@oracle.com,
-	jmattson@google.com, pradeep.vincent@oracle.com,
-	john.haxby@oracle.com, tglx@linutronix.de,
-	kirill.shutemov@linux.intel.com, hch@lst.de,
-	steven.sistare@oracle.com, labbott@redhat.com, luto@kernel.org,
-	dave.hansen@intel.com, aaron.lu@intel.com,
-	akpm@linux-foundation.org, alexander.h.duyck@linux.intel.com,
-	amir73il@gmail.com, andreyknvl@google.com,
-	aneesh.kumar@linux.ibm.com, anthony.yznaga@oracle.com,
-	ard.biesheuvel@linaro.org, arnd@arndb.de, arunks@codeaurora.org,
-	ben@decadent.org.uk, bigeasy@linutronix.de, bp@alien8.de,
-	brgl@bgdev.pl, catalin.marinas@arm.com, corbet@lwn.net,
-	cpandya@codeaurora.org, daniel.vetter@ffwll.ch,
-	dan.j.williams@intel.com, gregkh@linuxfoundation.org, guro@fb.com,
-	hannes@cmpxchg.org, hpa@zytor.com, iamjoonsoo.kim@lge.com,
-	james.morse@arm.com, jannh@google.com, jgross@suse.com,
-	jkosina@suse.cz, jmorris@namei.org, joe@perches.com,
-	jrdr.linux@gmail.com, jroedel@suse.de, keith.busch@intel.com,
-	khlebnikov@yandex-team.ru, logang@deltatee.com,
-	marco.antonio.780@gmail.com, mark.rutland@arm.com,
-	mgorman@techsingularity.net, mhocko@suse.com, mhocko@suse.cz,
-	mike.kravetz@oracle.com, mingo@redhat.com, mst@redhat.com,
-	m.szyprowski@samsung.com, npiggin@gmail.com, osalvador@suse.de,
-	paulmck@linux.vnet.ibm.com, pavel.tatashin@microsoft.com,
-	rdunlap@infradead.org, richard.weiyang@gmail.com, riel@surriel.com,
-	rientjes@google.com, robin.murphy@arm.com, rostedt@goodmis.org,
-	rppt@linux.vnet.ibm.com, sai.praneeth.prakhya@intel.com,
-	serge@hallyn.com, steve.capper@arm.com, thymovanbeers@gmail.com,
-	vbabka@suse.cz, will.deacon@arm.com, willy@infradead.org,
-	yang.shi@linux.alibaba.com, yaojun8558363@gmail.com,
-	ying.huang@intel.com, zhangshaokun@hisilicon.com,
-	iommu@lists.linux-foundation.org, x86@kernel.org,
-	linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	linux-security-module@vger.kernel.org,
-	Khalid Aziz <khalid@gonehiking.org>
-Subject: Re: [RFC PATCH v9 03/13] mm: Add support for eXclusive Page Frame
- Ownership (XPFO)
-Message-ID: <20190404170139.GA4038@hirez.programming.kicks-ass.net>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=m92GlC4U;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x34H8ujE143134;
+	Thu, 4 Apr 2019 17:18:05 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=2gnZpfLx2SGsquTBuuZIgEnDFdOAOjSRDoTrCcLLYUE=;
+ b=m92GlC4Ue96N9rSiECgyxTlPHgeb0airlJZPymt+NEs9mUUqQHm0J3jDEvYunKVdwXTy
+ /edNPuXiFl5zsGf+w1/OP+AYK2YGXCGmHNBaZEc8Nwnqs1a5rw2budWjcdyCxvaSy632
+ 6zRWDM4KwwacHFV2Efgu0sqM8IA5B9rfGd0r3RUwf8UFiQVU0qFLSECyzD/Wv6g1+B7g
+ xxHLLcUn9CR4gN+QAjUopwlvCgO3BU+NySoNHryaH51kSd93BqG4AZ0XmaAK3LEacbjn
+ TJ0eh1CMWmBBKJkv7Z1PrQPFVRnFU3qaFJlKoj+nIYkdgvRbd6adXK1vhaQFpPYGSpQL 9w== 
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
+	by userp2130.oracle.com with ESMTP id 2rhyvtgjxw-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 04 Apr 2019 17:18:04 +0000
+Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
+	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x34HHP6F128583;
+	Thu, 4 Apr 2019 17:18:04 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by aserp3020.oracle.com with ESMTP id 2rm9mjrpsx-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 04 Apr 2019 17:18:04 +0000
+Received: from abhmp0012.oracle.com (abhmp0012.oracle.com [141.146.116.18])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x34HI2rS027763;
+	Thu, 4 Apr 2019 17:18:02 GMT
+Received: from [192.168.1.16] (/24.9.64.241)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Thu, 04 Apr 2019 10:18:02 -0700
+Subject: Re: [RFC PATCH v9 00/13] Add support for eXclusive Page Frame
+ Ownership
+To: Nadav Amit <nadav.amit@gmail.com>
+Cc: X86 ML <x86@kernel.org>, linux-arm-kernel@lists.infradead.org,
+        "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>,
+        Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
+        Linux-MM <linux-mm@kvack.org>,
+        LSM List <linux-security-module@vger.kernel.org>
 References: <cover.1554248001.git.khalid.aziz@oracle.com>
- <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
- <20190404074323.GO4038@hirez.programming.kicks-ass.net>
- <b414bacc-2883-1914-38ec-3d8f4a032e10@oracle.com>
+ <3F95B70B-7910-4150-A9D3-05C4D0195B67@gmail.com>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Organization: Oracle Corp
+Message-ID: <e8081e89-3fe2-a6b8-119d-8981cd62c6e0@oracle.com>
+Date: Thu, 4 Apr 2019 11:18:02 -0600
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b414bacc-2883-1914-38ec-3d8f4a032e10@oracle.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <3F95B70B-7910-4150-A9D3-05C4D0195B67@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9217 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1904040110
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9217 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1904040110
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 04, 2019 at 09:15:46AM -0600, Khalid Aziz wrote:
-> Thanks Peter. I really appreciate your review. Your feedback helps make
-> this code better and closer to where I can feel comfortable not calling
-> it RFC any more.
-> 
-> The more I look at xpfo_kmap()/xpfo_kunmap() code, the more I get
-> uncomfortable with it. As you pointed out about calling kmap_atomic from
-> NMI context, that just makes the kmap_atomic code look even worse. I
-> pointed out one problem with this code in cover letter and suggested a
-> rewrite. I see these problems with this code:
+On 4/4/19 10:44 AM, Nadav Amit wrote:
+>> On Apr 3, 2019, at 10:34 AM, Khalid Aziz <khalid.aziz@oracle.com> wrot=
+e:
+>>
+>> This is another update to the work Juerg, Tycho and Julian have
+>> done on XPFO.
+>=20
+> Interesting work, but note that it triggers a warning on my system due =
+to
+> possible deadlock. It seems that the patch-set disables IRQs in
+> xpfo_kunmap() and then might flush remote TLBs when a large page is spl=
+it.
+> This is wrong, since it might lead to deadlocks.
+>=20
+>=20
+> [  947.262208] WARNING: CPU: 6 PID: 9892 at kernel/smp.c:416 smp_call_f=
+unction_many+0x92/0x250
+> [  947.263767] Modules linked in: sb_edac vmw_balloon crct10dif_pclmul =
+crc32_pclmul joydev ghash_clmulni_intel input_leds intel_rapl_perf serio_=
+raw mac_hid sch_fq_codel ib_iser rdma_cm iw_cm ib_cm ib_core vmw_vsock_vm=
+ci_transport vsock vmw_vmci iscsi_tcp libiscsi_tcp libiscsi scsi_transpor=
+t_iscsi ip_tables x_tables autofs4 btrfs zstd_compress raid10 raid456 asy=
+nc_raid6_recov async_memcpy async_pq async_xor async_tx libcrc32c xor rai=
+d6_pq raid1 raid0 multipath linear hid_generic usbhid hid vmwgfx drm_kms_=
+helper syscopyarea sysfillrect sysimgblt fb_sys_fops ttm drm aesni_intel =
+psmouse aes_x86_64 crypto_simd cryptd glue_helper mptspi vmxnet3 scsi_tra=
+nsport_spi mptscsih ahci mptbase libahci i2c_piix4 pata_acpi
+> [  947.274649] CPU: 6 PID: 9892 Comm: cc1 Not tainted 5.0.0+ #7
+> [  947.275804] Hardware name: VMware, Inc. VMware Virtual Platform/440B=
+X Desktop Reference Platform, BIOS 6.00 07/28/2017
+> [  947.277704] RIP: 0010:smp_call_function_many+0x92/0x250
+> [  947.278640] Code: 3b 05 66 fc 4e 01 72 26 48 83 c4 10 5b 41 5c 41 5d=
+ 41 5e 41 5f 5d c3 8b 05 2b cc 7e 01 85 c0 75 bf 80 3d a8 99 4e 01 00 75 =
+b6 <0f> 0b eb b2 44 89 c7 48 c7 c2 a0 9a 61 aa 4c 89 fe 44 89 45 d0 e8
+> [  947.281895] RSP: 0000:ffffafe04538f970 EFLAGS: 00010046
+> [  947.282821] RAX: 0000000000000000 RBX: 0000000000000006 RCX: 0000000=
+000000001
+> [  947.284084] RDX: 0000000000000000 RSI: ffffffffa9078d70 RDI: fffffff=
+faa619aa0
+> [  947.285343] RBP: ffffafe04538f9a8 R08: ffff9d7040000ff0 R09: 0000000=
+000000000
+> [  947.286596] R10: 0000000000000000 R11: 0000000000000000 R12: fffffff=
+fa9078d70
+> [  947.287855] R13: 0000000000000000 R14: 0000000000000001 R15: fffffff=
+faa619aa0
+> [  947.289118] FS:  00007f668b122ac0(0000) GS:ffff9d727fd80000(0000) kn=
+lGS:0000000000000000
+> [  947.290550] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [  947.291569] CR2: 00007f6688389004 CR3: 0000000224496006 CR4: 0000000=
+0003606e0
+> [  947.292861] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000=
+000000000
+> [  947.294125] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000=
+000000400
+> [  947.295394] Call Trace:
+> [  947.295854]  ? load_new_mm_cr3+0xe0/0xe0
+> [  947.296568]  on_each_cpu+0x2d/0x60
+> [  947.297191]  flush_tlb_all+0x1c/0x20
+> [  947.297846]  __split_large_page+0x5d9/0x640
+> [  947.298604]  set_kpte+0xfe/0x260
+> [  947.299824]  get_page_from_freelist+0x1633/0x1680
+> [  947.301260]  ? lookup_address+0x2d/0x30
+> [  947.302550]  ? set_kpte+0x1e1/0x260
+> [  947.303760]  __alloc_pages_nodemask+0x13f/0x2e0
+> [  947.305137]  alloc_pages_vma+0x7a/0x1c0
+> [  947.306378]  wp_page_copy+0x201/0xa30
+> [  947.307582]  ? generic_file_read_iter+0x96a/0xcf0
+> [  947.308946]  do_wp_page+0x1cc/0x420
+> [  947.310086]  __handle_mm_fault+0xc0d/0x1600
+> [  947.311331]  handle_mm_fault+0xe1/0x210
+> [  947.312502]  __do_page_fault+0x23a/0x4c0
+> [  947.313672]  ? _cond_resched+0x19/0x30
+> [  947.314795]  do_page_fault+0x2e/0xe0
+> [  947.315878]  ? page_fault+0x8/0x30
+> [  947.316916]  page_fault+0x1e/0x30
+> [  947.317930] RIP: 0033:0x76581e
+> [  947.318893] Code: eb 05 89 d8 48 8d 04 80 48 8d 34 c5 08 00 00 00 48=
+ 85 ff 74 04 44 8b 67 04 e8 de 80 08 00 81 e3 ff ff ff 7f 48 89 45 00 8b =
+10 <44> 89 60 04 81 e2 00 00 00 80 09 da 89 10 c1 ea 18 83 e2 7f 88 50
+> [  947.323337] RSP: 002b:00007ffde06c0e40 EFLAGS: 00010202
+> [  947.324663] RAX: 00007f6688389000 RBX: 0000000000000004 RCX: 0000000=
+000000001
+> [  947.326317] RDX: 0000000000000000 RSI: 0000000001000001 RDI: 0000000=
+000000017
+> [  947.327973] RBP: 00007f66883882d8 R08: 00000000032e05f0 R09: 00007f6=
+68b30e6f0
+> [  947.329619] R10: 0000000000000002 R11: 00000000032e05f0 R12: 0000000=
+000000000
+> [  947.331260] R13: 00007f6688388230 R14: 00007f6688388288 R15: 00007f6=
+68ac3b0a8
+> [  947.332911] ---[ end trace 7d605a38c67d83ae ]---
+>=20
 
-Well, I no longer use it from NMI context, but I did do that for a
-while. We now have a giant heap of magic in the NMI path that allows us
-to take faults from NMI context (please don't ask), this means we can
-mostly do copy_from_user_inatomic() now.
+Thanks for letting me know. xpfo_kunmap() is not quite right. It will
+end up being rewritten for the next version.
 
-> 1. When xpfo_kmap maps a page back in physmap, it opens up the ret2dir
-> attack security hole again even if just for the duration of kmap. A kmap
-> can stay around for some time if the page is being used for I/O.
-
-Correct.
-
-> 2. This code uses spinlock which leads to problems. If it does not
-> disable IRQ, it is exposed to deadlock around xpfo_lock. If it disables
-> IRQ, I think it can still deadlock around pgd_lock.
-
-I've not spotted that inversion yet, but then I didn't look at the lock
-usage outside of k{,un}map_xpfo().
-
-> I think a better implementation of xpfo_kmap()/xpfo_kunmap() would map
-> the page at a new virtual address similar to what kmap_high for i386
-> does. This avoids re-opening the ret2dir security hole. We can also
-> possibly do away with xpfo_lock saving bytes in page-frame and the not
-> so sane code sequence can go away.
-
-Right, the TLB invalidation issues are still tricky, even there :/
+--
+Khalid
 
