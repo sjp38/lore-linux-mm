@@ -2,186 +2,147 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 59F77C4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 15:53:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2CE06C4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 15:57:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 06E76206BA
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 15:53:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DEE922082E
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 15:57:25 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="jaH0QyHe"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 06E76206BA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="SUh6lLJr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DEE922082E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9A67C6B000A; Thu,  4 Apr 2019 11:53:19 -0400 (EDT)
+	id 86AF36B000D; Thu,  4 Apr 2019 11:57:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 955BA6B000C; Thu,  4 Apr 2019 11:53:19 -0400 (EDT)
+	id 81AA16B000E; Thu,  4 Apr 2019 11:57:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 844736B000D; Thu,  4 Apr 2019 11:53:19 -0400 (EDT)
+	id 6E2586B0010; Thu,  4 Apr 2019 11:57:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 18A206B000A
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 11:53:19 -0400 (EDT)
-Received: by mail-lf1-f69.google.com with SMTP id x18so321597lfe.19
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 08:53:19 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 404D16B000D
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 11:57:25 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id 23so2489640qkl.16
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 08:57:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=69s05neAi83p1BcVREyc1LoY0XUeiOlTcpfAjyTNwYY=;
-        b=FVPo/KHrjkWJwZ+rXJDacJTh2GEAsQ8iJJ2cYGkG7BGFaiC4LNLsgB5T7gLHW9Osfc
-         fbMX5RpxH4TS+FsZ/nWelpa3EuP7O/JgVxjBHXsja4A9dlnJmwsgRKtVdwn8eNnw5r7G
-         yqHRt6Lc8c8aHbmOCORVROZO5AMgBnr8dGkZuPBO4khlRvGwv5aae3XxdrD10eCFeqg/
-         69FQcCdJmeZMWOMuqmRGGcWDRG70fdiWPsFsYGPxmI3iTejkqVmetRg/Q/PXC96wDbXK
-         UBOPDfAToFzBDf1z8r5Dxwx7vmbWalvym5jCTGYinhPBfayFZJ1RUvnu3RL1PQ4sczbi
-         IHVA==
-X-Gm-Message-State: APjAAAX27v1kl19TdpjfhMMc1pWXT9YZbLwKLWXxJj4+D04VcysYhKkW
-	Ym9EbR4KE69y1JvPgkJcqpDZJzw9PjE5BnpyC8RqPX0AwgR3tB3m9nErXXfGPLEDk181lEtK8Cl
-	OsX1SFUxNiIwRRJ9e7/NgUsFm86Y/Q1nPQpoeyhfEX5o0mmi809kGsTWJdl8tTL5+TQ==
-X-Received: by 2002:a2e:9151:: with SMTP id q17mr3958730ljg.87.1554393198541;
-        Thu, 04 Apr 2019 08:53:18 -0700 (PDT)
-X-Received: by 2002:a2e:9151:: with SMTP id q17mr3958686ljg.87.1554393197673;
-        Thu, 04 Apr 2019 08:53:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554393197; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version
+         :feedback-id;
+        bh=RuMz4Toeop1wxCt6X2zIK+G7Ftq7sJ4nnRup7oWLd6w=;
+        b=W3dXfpKQwFKTDnjCUJ3f5/0t9SsqAvYEoShUXevvCl9zHC2OmRQlTYqox4S/3a7rRB
+         8RwKKT85EhFEYXTXGGwkNydWL87fxONqccqe+okJ8Kt8lKk7deCS+qQ7ekYTuQVoM61H
+         cl+npYdPYwa+K2KyxwqZQq3q6QPyPXMojf/4wIgekTlKo6jngTqm9OTdTXWrnTRxcLU0
+         vKUIh0BNK8rw/+b04d5Fx1GiI1lT+iS8CUN3p4R1gSPy6ZK/ihaMJE8AuHe8XSOl/q45
+         ouU/dNJnaNvRt33KCZH8zfr09SB+oAQ8TnZoXimIvcyBUGFgjOM/obWZ8cGoq9yC1hGx
+         a+Xw==
+X-Gm-Message-State: APjAAAXR72IPQQqo1qzaL6xd0KuXfUJ6Rc5HynVr5Fc3RO7jPDtNEm8k
+	Ck6EI7ggVH12wRSCm8wRNFADO4x9iZQfcKqy5PN5n0e5zhBPZn35WD8xZTjnRj/+Lq8HAnZkzII
+	kyZUr3/cMM65QsIKHIqI7oqo9cgYpFtt3Os6K9VF7d7fLckXjLdlMw3ZFnY7ghiw=
+X-Received: by 2002:a0c:88e3:: with SMTP id 32mr5422979qvo.31.1554393444930;
+        Thu, 04 Apr 2019 08:57:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxZSlAvMIV+uytqdkH9cR5Dwh2RlzKe5ymd0zY4Iud92dIoND3FkL3fAyTmiN3ujk/uvS67
+X-Received: by 2002:a0c:88e3:: with SMTP id 32mr5422940qvo.31.1554393444389;
+        Thu, 04 Apr 2019 08:57:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554393444; cv=none;
         d=google.com; s=arc-20160816;
-        b=jCQKbb7R3f+EBBnWxBThLiz0hJF1LJR7t3T+cHVsdT83pyCvYcqDReO10gwjI4rFoF
-         GqB3eYOiK5jvzG/Q8s+iHV3fSEI07d5l0JqjTXxcBfbUFJYjvT9FaGph849ub2g9zCRD
-         VUfO+4hqecjqHV4rfwvtUa8wZgcQ+I7dtTittUJ5G7dazB6tf5yV3fO1SFQ+4fFjdw8C
-         sysYDreeG4VQgxvcbO0fz0oussNs6LAUUM4lTRkFl05JOd0su9kvE9WkXIFlA8YLIYfy
-         84860LOHYHxB/KRtI7WryNyMwzqYsCZ9FOwDrRa+uUXPsEMhmVnAt3L9KbwfHccH1994
-         CElg==
+        b=xoMOad0c7wp3QeSKdiObMa/FVmh+t5qwSTxgtGumZgs+RcmHuvgUijKLqOVf+YEzIC
+         CjaLXisHuwTWeiU646ZSuFnGoslbkl40vuJS2nN4WDvPUOjCw4ZN3DRXQCSEsmkjm5bY
+         EC9XXC9v8jwLfNXc7sSHhyMV2cO0bQ1BtCib/Wz3P/u0tYM0mUE9/ZSAuzQpMiD7M7gJ
+         mKCyE85OyBiKCRDQio0UEEeshOq14X6oal2vBkyrBACiX31Dp8tMJgcFQKN2sQ7hAfkJ
+         xkDAr3C17euA8cysbCY4miy19vjndLPdJsn+DO+2UcdB5ORF6zaI9LWeUggkmIUGu86/
+         02+w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:date:from:dkim-signature;
-        bh=69s05neAi83p1BcVREyc1LoY0XUeiOlTcpfAjyTNwYY=;
-        b=eEHoUaZx2+Do3Sjz9VsjXMc+PPHJXNt8RpLMCI3zMGsHmO1zK+S9ut/09JKy+LATD1
-         nN9XkLxiXM/PsyoPszvwNdrQLCzIVsdCkeudGe02jrlaF2wCOKkp/SKTQ6kJgzADt21X
-         K7OEfSVE/AjlFIQO5xUn7CjE5vE4zspmPa/l6mwDuU6MfOPOGuuwrRJv4yG69BvgnVDR
-         8Qiqji03rJy7hxFHmT05P2EoVQOF/iI7boV1oap1Z6TI9cC79Ow8gSjdkh74p/kX00zE
-         4A31swz4tefvvbYW+AVtXRwdG+5wsQjJ8Wjc45iJETFVI3b60zw/lGp+7awz01W6FhUh
-         I/pw==
+        h=feedback-id:mime-version:user-agent:references:message-id
+         :in-reply-to:subject:cc:to:from:date:dkim-signature;
+        bh=RuMz4Toeop1wxCt6X2zIK+G7Ftq7sJ4nnRup7oWLd6w=;
+        b=V5AfOwVtt6hBPYOH+c1JEDxBMUTmeGFUwl4PedmhF/0TrZx4Tb8FqbWEWX3VBQCK3T
+         4sTBUEcxywY/ZUf9a9wRj29KJ2UKGFVjBlk5FMpAok5nkx2MpSEbxjzrtB6pFIi48lB2
+         ocZ1Lo7dqJBKL1N2dG7OI0I208bN9qhNwTuou2Ue+XDjnNKSVo6kDFSh+c53Uv4Lw2zm
+         Il8OYk6WNeoxpgZSvXGe+P/oR4s1yJ2fYWkCQR1kGDyrSAieCk7yvjFSNu8QguW7WUJq
+         wEgsYEZCI9WkaPv1TvLWNe4dGp95WTZS8Z8MFVoqVEeGqjwpm3pznJ2/alTHLvIiX/bo
+         qD4w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=jaH0QyHe;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x17sor12689266lji.20.2019.04.04.08.53.17
+       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=SUh6lLJr;
+       spf=pass (google.com: domain of 01000169e911ae41-0abde43e-18e8-442b-b289-e796c461f0b1-000000@amazonses.com designates 54.240.9.54 as permitted sender) smtp.mailfrom=01000169e911ae41-0abde43e-18e8-442b-b289-e796c461f0b1-000000@amazonses.com
+Received: from a9-54.smtp-out.amazonses.com (a9-54.smtp-out.amazonses.com. [54.240.9.54])
+        by mx.google.com with ESMTPS id o27si2049572qkk.237.2019.04.04.08.57.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 04 Apr 2019 08:53:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 04 Apr 2019 08:57:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 01000169e911ae41-0abde43e-18e8-442b-b289-e796c461f0b1-000000@amazonses.com designates 54.240.9.54 as permitted sender) client-ip=54.240.9.54;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=jaH0QyHe;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:date:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=69s05neAi83p1BcVREyc1LoY0XUeiOlTcpfAjyTNwYY=;
-        b=jaH0QyHeb+dHGmubQzhMukaX7N16Vxg6TLoBCbEwjeuBdxAScZXs48BE+NaYkURPAW
-         WbsWb00NyxZvd1ZGyxWE6xPlKD+LHFB7+53cGtdRt5Tl1nJ9mYlWDSen+YgJwSbZJGjs
-         lJQDEysz4/HvKafsLo+U2/B5insAknqJviVUz0ATypYdpWsKydZ7Z9/TD4rrSJglCfcW
-         eq4HMzoz2g7sHy+UJuzVlCpeUHeEMaadA/3IXCb4IgP/maO074fOWSQwQEMHamm3g9UD
-         Eylsw3nXTSTRi5/oXqmxARq/tNA8U/G2+XgClXlJ7gI2BvAcM1G6QoAE/ES3Wcjth/I7
-         1lkQ==
-X-Google-Smtp-Source: APXvYqzj0uwo/mfji4kDTEIceD/EGvOp0fUilEJhJczaWSYf+ko+2/oKhY6O+VuCheQOVW9pumjXAg==
-X-Received: by 2002:a2e:292:: with SMTP id y18mr3779169lje.52.1554393197268;
-        Thu, 04 Apr 2019 08:53:17 -0700 (PDT)
-Received: from pc636 ([37.139.158.167])
-        by smtp.gmail.com with ESMTPSA id x2sm3702757lfg.59.2019.04.04.08.53.15
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 04 Apr 2019 08:53:16 -0700 (PDT)
-From: Uladzislau Rezki <urezki@gmail.com>
-X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
-Date: Thu, 4 Apr 2019 17:53:09 +0200
-To: Roman Gushchin <guro@fb.com>
-Cc: "Uladzislau Rezki (Sony)" <urezki@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Thomas Garnier <thgarnie@google.com>,
-	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Joel Fernandes <joelaf@google.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
-	Tejun Heo <tj@kernel.org>
-Subject: Re: [RESEND PATCH 2/3] mm/vmap: add DEBUG_AUGMENT_PROPAGATE_CHECK
- macro
-Message-ID: <20190404155309.udxvjorbq7shug4v@pc636>
-References: <20190402162531.10888-1-urezki@gmail.com>
- <20190402162531.10888-3-urezki@gmail.com>
- <20190403211540.GJ6778@tower.DHCP.thefacebook.com>
+       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=SUh6lLJr;
+       spf=pass (google.com: domain of 01000169e911ae41-0abde43e-18e8-442b-b289-e796c461f0b1-000000@amazonses.com designates 54.240.9.54 as permitted sender) smtp.mailfrom=01000169e911ae41-0abde43e-18e8-442b-b289-e796c461f0b1-000000@amazonses.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1554393444;
+	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
+	bh=RuMz4Toeop1wxCt6X2zIK+G7Ftq7sJ4nnRup7oWLd6w=;
+	b=SUh6lLJrm4vec3E2SFmgWkGVRSs+fQeW9viK/c0l5DTGNw1mokz/ZXG+cWUx+GcS
+	VdamHeX5Ew672CyFv5BEEO1VcQ/dKjT3lLcGTd4srAa+lw8gXVVMT4UuSZyF3sdOz+5
+	fjuOhF88OcO3A9Tz0MOJWTyiC6l/+IqwI7TKccj4=
+Date: Thu, 4 Apr 2019 15:57:24 +0000
+From: Christopher Lameter <cl@linux.com>
+X-X-Sender: cl@nuc-kabylake
+To: Vlastimil Babka <vbabka@suse.cz>
+cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, 
+    David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, 
+    Andrew Morton <akpm@linux-foundation.org>, 
+    Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org
+Subject: Re: [RFC 0/2] add static key for slub_debug
+In-Reply-To: <20190404091531.9815-1-vbabka@suse.cz>
+Message-ID: <01000169e911ae41-0abde43e-18e8-442b-b289-e796c461f0b1-000000@email.amazonses.com>
+References: <20190404091531.9815-1-vbabka@suse.cz>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190403211540.GJ6778@tower.DHCP.thefacebook.com>
-User-Agent: NeoMutt/20170113 (1.7.2)
+Content-Type: text/plain; charset=US-ASCII
+X-SES-Outgoing: 2019.04.04-54.240.9.54
+Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > +#if DEBUG_AUGMENT_PROPAGATE_CHECK
-> > +static void
-> > +augment_tree_propagate_do_check(struct rb_node *n)
-> > +{
-> > +	struct vmap_area *va;
-> > +	struct rb_node *node;
-> > +	unsigned long size;
-> > +	bool found = false;
-> > +
-> > +	if (n == NULL)
-> > +		return;
-> > +
-> > +	va = rb_entry(n, struct vmap_area, rb_node);
-> > +	size = va->subtree_max_size;
-> > +	node = n;
-> > +
-> > +	while (node) {
-> > +		va = rb_entry(node, struct vmap_area, rb_node);
-> > +
-> > +		if (get_subtree_max_size(node->rb_left) == size) {
-> > +			node = node->rb_left;
-> > +		} else {
-> > +			if (__va_size(va) == size) {
-> > +				found = true;
-> > +				break;
-> > +			}
-> > +
-> > +			node = node->rb_right;
-> > +		}
-> > +	}
-> > +
-> > +	if (!found) {
-> > +		va = rb_entry(n, struct vmap_area, rb_node);
-> > +		pr_emerg("tree is corrupted: %lu, %lu\n",
-> > +			__va_size(va), va->subtree_max_size);
-> > +	}
-> > +
-> > +	augment_tree_propagate_do_check(n->rb_left);
-> > +	augment_tree_propagate_do_check(n->rb_right);
-> > +}
-> > +
-> > +static void augment_tree_propagate_from_check(void)
-> 
-> Why do you need this intermediate function?
-> 
-> Other than that looks good to me, please free to use
-> Reviewed-by: Roman Gushchin <guro@fb.com>
-> 
-Will remove, we do not need that extra wrapper.
+On Thu, 4 Apr 2019, Vlastimil Babka wrote:
 
---
-Vlad Rezki
+> I looked a bit at SLUB debugging capabilities and first thing I noticed is
+> there's no static key guarding the runtime enablement as is common for similar
+> debugging functionalities, so here's a RFC to add it. Can be further improved
+> if there's interest.
+
+Well the runtime enablement is per slab cache and static keys are global.
+
+Adding static key adds code to the critical paths. Since the flags for a
+kmem_cache have to be inspected anyways there may not be that much of a
+benefit.
+
+> It's true that in the alloc fast path the debugging check overhead is AFAICS
+> amortized by the per-cpu cache, i.e. when the allocation is from there, no
+> debugging functionality is performed. IMHO that's kinda a weakness, especially
+> for SLAB_STORE_USER, so I might also look at doing something about it, and then
+> the static key might be more critical for overhead reduction.
+
+Moving debugging out of the per cpu fastpath allows that fastpath to be
+much simpler and faster.
+
+SLAB_STORE_USER is mostly used only for debugging in which case we are
+less concerned with performance.
+
+If you want to use SLAB_STORE_USER in the fastpath then we have to do some
+major redesign there.
+
+> In the freeing fast path I quickly checked the stats and it seems that in
+> do_slab_free(), the "if (likely(page == c->page))" is not as likely as it
+> declares, as in the majority of cases, freeing doesn't happen on the object
+> that belongs to the page currently cached. So the advantage of a static key in
+> slow path __slab_free() should be more useful immediately.
+
+Right. The freeing logic is actuall a weakness in terms of performance for
+SLUB due to the need to operate on a per page queue immediately.
 
