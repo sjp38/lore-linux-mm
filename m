@@ -2,190 +2,219 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6C418C10F05
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 08:49:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DFA77C4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 09:09:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 237EB20855
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 08:49:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 237EB20855
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 77EFA20693
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 09:09:53 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="IEBVyolg"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77EFA20693
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B59166B0005; Thu,  4 Apr 2019 04:49:23 -0400 (EDT)
+	id EF3F26B0005; Thu,  4 Apr 2019 05:09:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AE2BB6B0006; Thu,  4 Apr 2019 04:49:23 -0400 (EDT)
+	id EA26B6B0006; Thu,  4 Apr 2019 05:09:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 95B666B0007; Thu,  4 Apr 2019 04:49:23 -0400 (EDT)
+	id D6B0F6B0007; Thu,  4 Apr 2019 05:09:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7176C6B0005
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 04:49:23 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id i124so1569567qkf.14
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 01:49:23 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DDC56B0005
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 05:09:52 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id z12so1186668pgs.4
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 02:09:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references:user-agent:mime-version
          :content-transfer-encoding;
-        bh=T7ZlFQgeBQo/D9kReCYoWeH1L/Suz12Ic6hxKUb+v04=;
-        b=ECG9w7UN/DH5p1IFOyqOv8UFwD7nwyOaOPo5djtWRfwHtQ6ppt04I9p6g4XxfA0OPp
-         gqmLK7dLDTliKymVnGVi/+MHkl1ZuZnefns0ZxV+eOIxqLoOmpw0DJxznXWo5xrZ1apB
-         eDF6RLo15FTrIFhq/oMzu2K1dpUrKNKu2Wlau45gCLX4dcbJt84wTQeHo40ZbEpEChco
-         gaWsbYxclkIYFtRR+Vr0xQeHFkW0fOGqG2k+2pyj0kt0q3m1BksCLAV5QzALdP0JCs0W
-         7aOt3cM6vH1XaDNFqVxcNm3GuH0L5+tfH8wgnQOYAzcngO+Nb04ZzV1lS/aH3pGDdeh3
-         PsAw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVNpOqetzLmLp6s3rHDDzmD/+uA6pkzKOQreaL4pVb7TMpDxYNp
-	FeJccegLWmoeAtt9vyOnHaC7TmthremArJK97ai1mDcZNIObzXHXPTP21YpyB+ljc3H7W3Ndz5J
-	Bl7jfWLJ9WB0I6ydvSl+Nv34goZd/ykY7MHV0k4MWK7QhAliZvfkhavW/HtlaYxC1UQ==
-X-Received: by 2002:a37:aa8c:: with SMTP id t134mr4080287qke.93.1554367763222;
-        Thu, 04 Apr 2019 01:49:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwl8Gp26ImFhFDRHo3jUdcR4oUJ8na18vT3/eHw4QAx/vrtbZUJsRtSBUgKH04WCpr83Yzk
-X-Received: by 2002:a37:aa8c:: with SMTP id t134mr4080267qke.93.1554367762671;
-        Thu, 04 Apr 2019 01:49:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554367762; cv=none;
+        bh=cmewEeo7CPbOt4HdWwgdrWYYs0tc20LVge3PPN7b8tE=;
+        b=kUaxx2Q4gej0aPkDc3b+lNB9SIu9slu4n5Viw81fnuASM3rzECl1nBJuj5/o0U4dgA
+         ah/IVhAmu3nykVQ8MIqV8JOzogucevj/3Ly+CZEED43yAMrxHBsVbWa2nlZQjSJ4jh5G
+         YOAY+ZcQiVYR7QN0sH/PFM4bS+HEfaaiaPyTKfpKTgTlgQUM7XnrTF++Au0iBCSo0O+I
+         mrh0cckasVZZx0wdSKbUYYq6lv6CzofWgl1sq0ZfqZ8930MrLqB9kbceYN91t6ptj5qQ
+         9Mg7YtR3thw129xPM30MmHF5XB2Kso3QyGfD6EU3G+Vod7MhUYw3RQTskdUaWEsfY5BN
+         AnNA==
+X-Gm-Message-State: APjAAAUsNssvHsEt3uAt8YS8EJ0zdESFmINeChcoj6fovJ+04nyC82N1
+	dQULum1HOvmUCgbdHQD+dfcex3V1Gdyf9H2ItPM/QsJxqrK4f5WsJTS3UUFSWL/eMc0XHDEdOey
+	3MOC9jXdG7uoX4Ksv9Utv2c5X0gYs03VrP2ohXKFpatV77MPHBEAFjr67TKHTGPHONw==
+X-Received: by 2002:a17:902:9a43:: with SMTP id x3mr5268436plv.173.1554368992017;
+        Thu, 04 Apr 2019 02:09:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz9+4hRzUMX7myMhV3ULCufcrvrZSHTfqaDPjAHeByuSykCZz9lhLdtrpzK+E24K7zebKKR
+X-Received: by 2002:a17:902:9a43:: with SMTP id x3mr5268368plv.173.1554368991252;
+        Thu, 04 Apr 2019 02:09:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554368991; cv=none;
         d=google.com; s=arc-20160816;
-        b=xJZeYQlb8n/s4GhmLEGi03zz7ohkGZ5mDqi/LCLQg8SRP3Y6Kjpb32j2QhUzAdS/bX
-         3bg1A+I0ynPeOMYIcYbLZ3U2iX9+14c1FJ/C+RYmcYtqF4stYydqsT5MURz4oFO96Hyc
-         NY4I+dIerUqlQ4f4Xzx+qlPpvg2c2pX9n0uXfM4P9tzlQT6h8DEe0dzfDAu6xk4NoNOq
-         7UuM9fjlPcK/7na9xT8depFgaDJjJlmY/33ZS+b5WFjKrqP+n7nGgsbkT0WCtTODSlS5
-         N7/eZY3yGFCoFx6ObpT5y8u06I5+NJWWIu9Lqs11XZfXeUEmMbCsAYanretyFLP9MDpJ
-         t9kA==
+        b=cPGKyxBO1HyObm5lqa3TjmsTWYJX51GTzsQPgAXv/xygqJCQyZtkzp7tnvFkzG2W9W
+         j14PzJ6Ihoflr1uI/l/XbZDlf7qMtYJpxNAo48v38tBszQVQa+dEVi/Gc/+OFNv5dwi9
+         T1AJVbZ+jzqXHzVSOTthQfm0vJAZJwDMtXoAoiV846pH3wgBTIIo4IUhGKJ+g7AkGeCb
+         FBqj5MyqS4zCaH/7Yj818Tv9m15jOLi8gTT6guO99f53GMfMVxRj03tQL9dF4rRN1jG3
+         LntwLMv9c/c3rEbakh/heAbQLYXwSX0orEk5PKuZrVyMllhIlmySrSSaOhXEHgAIw70Z
+         bVpg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=T7ZlFQgeBQo/D9kReCYoWeH1L/Suz12Ic6hxKUb+v04=;
-        b=UaF9guTNryu6tnFyGJJBfekDo6FYPk5IAd96ZhWtqMbTXBucgxy59o3q5P6LEd40Xg
-         sm1LFl3WsC3CV/MtS918/HeuzMY3Wq0qiPZJear5Q3Wsg/qSD+Pg1aYAhHi+Hudu43jo
-         vJcA6lsJxX3aSWlaADJ3gHICU85ar/1Vrdn1LDGnOVI7+f7BtDPeDJMbvCmM6XrwIt3d
-         ++nl2jImLC3MZgedptVAeHtDlJ6VCmiP8wwPtkme7nLgA45HoL+UHfzALAoe+A/Boj1G
-         WERCQPBoYxAZMz9iLhvzrVpKO5quv4KcpAJWfbdYtaWRkF5npqHg9Mymgd+VvCTWsAOj
-         lFGQ==
+        h=content-transfer-encoding:mime-version:user-agent:references
+         :in-reply-to:message-id:date:subject:cc:to:from:dkim-signature;
+        bh=cmewEeo7CPbOt4HdWwgdrWYYs0tc20LVge3PPN7b8tE=;
+        b=NQO+dVWz8ArwHKthW+8oEsm/xURQhyBxIoWjzg9cMtl6dgJ6Ifx9GB5Rs/2RX2+2Ij
+         nmRYqBBWD922RqXnsZS+hiw9VdkS1smQRNjE0C35aAoUBMREhccpXFAqicSozImTKuOF
+         mR1x/8pRmopfWXQ/euwiffqimA7iP2JLhF1xtj/E4/p8H+/zyHxcUfMZzrAQZxG5UCR3
+         y/ciHwGOQDlBBqbiXPR92vTu83Y+z11vvb7UtKE8EECKXF/k5zntBxCrPdqsqi1OEIm8
+         j0gFJvj4YdJeixrPISU6I0C8iPwXia+ZZyiHBqUQ4DtcepfTvZ4CkqWHWdCBWGOige1z
+         lo1w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d4si4366884qkk.210.2019.04.04.01.49.22
+       dkim=pass header.i=@kernel.org header.s=default header.b=IEBVyolg;
+       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id i98si16205376plb.292.2019.04.04.02.09.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Apr 2019 01:49:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 04 Apr 2019 02:09:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+       dkim=pass header.i=@kernel.org header.s=default header.b=IEBVyolg;
+       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
+Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 738E730821A5;
-	Thu,  4 Apr 2019 08:49:21 +0000 (UTC)
-Received: from [10.36.117.116] (ovpn-117-116.ams2.redhat.com [10.36.117.116])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id D700298A9;
-	Thu,  4 Apr 2019 08:49:17 +0000 (UTC)
-Subject: Re: [PATCH 1/6] arm64/mm: Enable sysfs based memory hot add interface
-To: Anshuman Khandual <anshuman.khandual@arm.com>,
- linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
- linux-mm@kvack.org, akpm@linux-foundation.org, will.deacon@arm.com,
- catalin.marinas@arm.com
-Cc: mhocko@suse.com, mgorman@techsingularity.net, james.morse@arm.com,
- mark.rutland@arm.com, robin.murphy@arm.com, cpandya@codeaurora.org,
- arunks@codeaurora.org, dan.j.williams@intel.com, osalvador@suse.de,
- logang@deltatee.com, pasha.tatashin@oracle.com, cai@lca.pw
-References: <1554265806-11501-1-git-send-email-anshuman.khandual@arm.com>
- <1554265806-11501-2-git-send-email-anshuman.khandual@arm.com>
- <4b9dd2b0-3b11-608c-1a40-9a3d203dd904@redhat.com>
- <fc9dadfa-6557-ecef-f027-7f3af098b55b@arm.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <53c380bf-5896-69db-a054-eba1363fce66@redhat.com>
-Date: Thu, 4 Apr 2019 10:49:17 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+	by mail.kernel.org (Postfix) with ESMTPSA id 40D4A20652;
+	Thu,  4 Apr 2019 09:09:50 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1554368990;
+	bh=/nIV/fGH+CgcQy8+EIi55FqpZEINdruxAOGABvN50jE=;
+	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
+	b=IEBVyolg8sZ/+bImPxBfu7KDDMvjcI5GaYWCb6QDVZtkTwHb9ugBhv1JVvR5JVtnA
+	 Tb5a1d16b/JPeiSIHX0RhU8F3SWLmCGxbV95Jk0H2DI0OMp+hQEL3O4is6EgI96y98
+	 IN3XE2H7h/dUDhe7ioh7+gEzDCKU/TsYnzWcqmVo=
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	stable@vger.kernel.org,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Bjorn Helgaas <bhelgaas@google.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dave Jiang <dave.jiang@intel.com>,
+	Ross Zwisler <zwisler@kernel.org>,
+	Vishal Verma <vishal.l.verma@intel.com>,
+	Tom Lendacky <thomas.lendacky@amd.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>,
+	linux-nvdimm@lists.01.org,
+	linux-mm@kvack.org,
+	Huang Ying <ying.huang@intel.com>,
+	Fengguang Wu <fengguang.wu@intel.com>,
+	Borislav Petkov <bp@suse.de>,
+	Yaowei Bai <baiyaowei@cmss.chinamobile.com>,
+	Takashi Iwai <tiwai@suse.de>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Paul Mackerras <paulus@samba.org>,
+	linuxppc-dev@lists.ozlabs.org,
+	Keith Busch <keith.busch@intel.com>,
+	Sasha Levin <sashal@kernel.org>,
+	Michael Ellerman <mpe@ellerman.id.au>
+Subject: [PATCH 5.0 057/246] mm/resource: Return real error codes from walk failures
+Date: Thu,  4 Apr 2019 10:45:57 +0200
+Message-Id: <20190404084621.174666333@linuxfoundation.org>
+X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190404084619.236418459@linuxfoundation.org>
+References: <20190404084619.236418459@linuxfoundation.org>
+User-Agent: quilt/0.65
+X-stable: review
+X-Patchwork-Hint: ignore
 MIME-Version: 1.0
-In-Reply-To: <fc9dadfa-6557-ecef-f027-7f3af098b55b@arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Thu, 04 Apr 2019 08:49:21 +0000 (UTC)
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 04.04.19 07:25, Anshuman Khandual wrote:
-> 
-> 
-> On 04/03/2019 01:50 PM, David Hildenbrand wrote:
->> On 03.04.19 06:30, Anshuman Khandual wrote:
->>> Sysfs memory probe interface (/sys/devices/system/memory/probe) can accept
->>> starting physical address of an entire memory block to be hot added into
->>> the kernel. This is in addition to the existing ACPI based interface. This
->>> just enables it with the required config CONFIG_ARCH_MEMORY_PROBE.
->>>
->> We recently discussed that the similar interface for removal should
->> rather be moved to a debug/test module.
-> 
-> Can we maintain such a debug/test module mainline and enable it when required. Or
-> can have both add and remove interface at /sys/kernel/debug/ just for testing
-> purpose.
+5.0-stable review patch.  If anyone has any objections, please let me know.
 
-I assume we could put such a module into mainline. It could span up an
-interface in debugfs.
+------------------
 
+[ Upstream commit 5cd401ace914dc68556c6d2fcae0c349444d5f86 ]
+
+walk_system_ram_range() can return an error code either becuase
+*it* failed, or because the 'func' that it calls returned an
+error.  The memory hotplug does the following:
+
+	ret = walk_system_ram_range(..., func);
+        if (ret)
+		return ret;
+
+and 'ret' makes it out to userspace, eventually.  The problem
+s, walk_system_ram_range() failues that result from *it* failing
+(as opposed to 'func') return -1.  That leads to a very odd
+-EPERM (-1) return code out to userspace.
+
+Make walk_system_ram_range() return -EINVAL for internal
+failures to keep userspace less confused.
+
+This return code is compatible with all the callers that I
+audited.
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Reviewed-by: Bjorn Helgaas <bhelgaas@google.com>
+Acked-by: Michael Ellerman <mpe@ellerman.id.au> (powerpc)
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Dave Jiang <dave.jiang@intel.com>
+Cc: Ross Zwisler <zwisler@kernel.org>
+Cc: Vishal Verma <vishal.l.verma@intel.com>
+Cc: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: linux-nvdimm@lists.01.org
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: Huang Ying <ying.huang@intel.com>
+Cc: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Borislav Petkov <bp@suse.de>
+Cc: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
+Cc: Takashi Iwai <tiwai@suse.de>
+Cc: Jerome Glisse <jglisse@redhat.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: linuxppc-dev@lists.ozlabs.org
+Cc: Keith Busch <keith.busch@intel.com>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+Signed-off-by: Sasha Levin <sashal@kernel.org>
+---
+ kernel/resource.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/resource.c b/kernel/resource.c
+index 915c02e8e5dd..ca7ed5158cff 100644
+--- a/kernel/resource.c
++++ b/kernel/resource.c
+@@ -382,7 +382,7 @@ static int __walk_iomem_res_desc(resource_size_t start, resource_size_t end,
+ 				 int (*func)(struct resource *, void *))
+ {
+ 	struct resource res;
+-	int ret = -1;
++	int ret = -EINVAL;
+ 
+ 	while (start < end &&
+ 	       !find_next_iomem_res(start, end, flags, desc, first_lvl, &res)) {
+@@ -462,7 +462,7 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
+ 	unsigned long flags;
+ 	struct resource res;
+ 	unsigned long pfn, end_pfn;
+-	int ret = -1;
++	int ret = -EINVAL;
+ 
+ 	start = (u64) start_pfn << PAGE_SHIFT;
+ 	end = ((u64)(start_pfn + nr_pages) << PAGE_SHIFT) - 1;
 -- 
+2.19.1
 
-Thanks,
 
-David / dhildenb
 
