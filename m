@@ -2,831 +2,326 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A17FBC4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 14:36:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9B6D4C4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 14:45:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2AA3D2147C
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 14:36:58 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=eInfochipsIndia.onmicrosoft.com header.i=@eInfochipsIndia.onmicrosoft.com header.b="tuQr8izZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2AA3D2147C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=einfochips.com
+	by mail.kernel.org (Postfix) with ESMTP id 48902206B7
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 14:45:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 48902206B7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B3E1F6B0007; Thu,  4 Apr 2019 10:36:57 -0400 (EDT)
+	id C6FF86B0007; Thu,  4 Apr 2019 10:45:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AEEF26B0008; Thu,  4 Apr 2019 10:36:57 -0400 (EDT)
+	id C20736B0008; Thu,  4 Apr 2019 10:45:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 966946B000A; Thu,  4 Apr 2019 10:36:57 -0400 (EDT)
+	id A9B916B000A; Thu,  4 Apr 2019 10:45:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 40F8B6B0007
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 10:36:57 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id h14so1666657pgn.23
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 07:36:57 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5646D6B0007
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 10:45:41 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id m32so1575629edd.9
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 07:45:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-transfer-encoding:mime-version;
-        bh=25UoWh8LNvZETUZDmQPWQ1Da1WJhmi1uUnfgywPwuHA=;
-        b=t0WqTZPwRKVEKy44ndqTKgwvs8bSno1Qa5iU1S84Z5kQ+s+AodNJEDbNWzhhfxMciw
-         uo8rhZlGFXkaCAyVgXm1zw+Rz8AAzn7oGk85hS4PG5FuICu7Gziwex9RcNg438wOhQui
-         v+ltOfOf4aOBHbIi9Ao9PalbAicZmid2gP+wS93G8YXYeyfQsTLpNUbxAOJpr4hD9N5s
-         SLTBYanJ37Vsvjq2kLqBO+w3hdhM2AmJv9AsYCbALglrenU8EUhJw5MR2nEcTrBInqrz
-         T1skrKrImQ7lsjFlRWXl5eBNIYeky+92awJLs4GY5O8Cnz5r/UBuIY5wX2UewQzEJZck
-         YVLQ==
-X-Gm-Message-State: APjAAAV6HCNL/OK+YCo+h+QR1cpT8QeC8s7yn7nLiSMULa0Lqor/+E07
-	3tgMOQR0cbT5s6lmO8YNNExaxf68ql030yQpWyWKrev/ICa6G7Ct9cfwjOIPHCfLFl85UY/WX+y
-	u+gFiGCkryQh5XFRNPUEp6jZlotKJ3cFX5its7WOSFmeQEXDEmxG4cgBFLoChRmrY1Q==
-X-Received: by 2002:a63:78ce:: with SMTP id t197mr6261727pgc.314.1554388616593;
-        Thu, 04 Apr 2019 07:36:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwsyB4EUvLBATLQy/d6e5fff/MQ9Ee5YkeR0Wxodf2Zh3D2X/Ra//VPb+YIbPuKM4r3oZrj
-X-Received: by 2002:a63:78ce:: with SMTP id t197mr6261492pgc.314.1554388614020;
-        Thu, 04 Apr 2019 07:36:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554388614; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=SsxzbMjBnzNnK0NTB0YxUR6S5RL58sxFqW+F5UlzZrQ=;
+        b=rr8U4ImUr/TWpcyvEMF6bvgnMMTNoagwgY6ERtogyP9KZBFmCUEZ/SIRcEUu3riXMA
+         V4h4buWHT/yKsx4f512p5ym8FM5h2cK4x67IkmC0/R5SIm4ByZenaXmjgVo/PCO5Mw9J
+         7FE0zvpQEsW0JY5KVKjVRDwB49ScuARlyqC83iMrdwRSZboFHfd/flbqZjGmJSiZL4YG
+         kQreJgCvpWMKib3mKUNyKnO5QYAQhSFcNMw5xp+EsdfTZGWs3RABn3LdIbGNSmFFmPbC
+         jeMN10iqcYsAI/3aHX5SBQ1N4Wtl08/sY43UrBZU36MQRmeiHcxG343aO06MqI2iF8TD
+         P1Ww==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAWUhgMWQ3NPzJkUWYWC2KWTmWmn1D7NkPCaNPhmiRD6D8Z+kglt
+	fR/0yFJ7KrnwE1NU/HFjQ4q5v5krqPIF8YjBZhw3R66rNjQyajToM4vhvK+Jf4UyuGix5FvHVqe
+	jb3sybl72/1dqNfojJ6xYDsdnBfCwKobHpk2UKdmtsrSaYlB4irRi7E93p6m+dplWcg==
+X-Received: by 2002:a17:906:4bc3:: with SMTP id x3mr3809316ejv.150.1554389140808;
+        Thu, 04 Apr 2019 07:45:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxb+0Xt0W5tApMbIYZF9v8jwpYw6di8wAGiE/ODn3jXTCtXYseUgk5v2LI7u6M15MnGDgjj
+X-Received: by 2002:a17:906:4bc3:: with SMTP id x3mr3809262ejv.150.1554389139730;
+        Thu, 04 Apr 2019 07:45:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554389139; cv=none;
         d=google.com; s=arc-20160816;
-        b=JfW6bjt7zN5IGlyWZVvSMMN5wrYclfiD+xZZG+10vNdoRUatbaHO2ANhcs5PGT7iCf
-         hS5k/LKNqlShrZ8eogkyWf3QlVQLdvOpF/i/io4mR/XeayXF3SIRtG7mQipqkrxv2Jpe
-         1OQfVuE/UpHG26OT2Ev1aCfp2aIS+FL9cYLmRvu3RGonVkKrMUJ0cp/4YkW3e0gwqljz
-         xLuJd4gS1hOlthe+9ewoz18FzShG1s8ut6aMfjxcc5YOVI3L0TjxM9Z1Xt7REI34Xx5L
-         /JFoPJM362sdGp44uMfPTudVIN6kAHuwvqd+KMALOL4T8it0BaKuGC4dAWWjU4iOAE3Q
-         6feQ==
+        b=KxkO1daExbfZ9mlC/yPJ1Ghm2xN+Z6+HwQb7xi1FT+fayTzJA5oxFU7CNwKZR+FhnV
+         QjnHcoI6vIw8umNOu3ziHuNSzQQR0qxu4zxRS4KLq2IZMLaDcXmCPTSDtSdu3sQYVOcu
+         LIlau8iUw8yr+R4f0tuTsXbr99FZeLj3BD7VFssra6KYkuRASq0nHcI6SkynuierjnP2
+         NEMlmvwXIoqawDyeB4z99hkgOU6QKu4jyrFSmuZUzRozsPUYkpeLNTqaT8wi5pDL1RKc
+         y9INxuUcD6QxxMjBhOykAAm4cZ7Y6zrFwXJgbybjAEoORssV2xJo92g7hXxlE8iilI3C
+         aRxQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=25UoWh8LNvZETUZDmQPWQ1Da1WJhmi1uUnfgywPwuHA=;
-        b=biXXm8r0AypxEeVveAbx9kLd7GJkCqo/f9Lppq259wp5sZHDvH8Lyf5zv/RkDSptC6
-         /nLSca5+gyIuIB/28vI22wN5KacDJdRhu+Vk7y7Lxw/dMngPOO5C4Y5hqlVpHU0+jOGB
-         CZTvkKh3vg0ulgOgT1OmRWwpM7ynjBrsorJN4lhzgY68rqjeyv+yWA+nKXKIRBczaxpl
-         KDl0W0Hu2KIM842u2pq1Mss2W+qhRPJkN9qM0yJKcIpnHkw23KwILYwL8izTdV9Wtj6/
-         G7SkpzMcirVcMe032lGyLvQcC4ax8yZNr4tA2NR4XQsscG2lYT5yODX6ZJyCdZQ3Idi9
-         bfqQ==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=SsxzbMjBnzNnK0NTB0YxUR6S5RL58sxFqW+F5UlzZrQ=;
+        b=T6HwlTZAVkTWLdqkUBrAajO5rA+klmTgvYKjXWanH1Q6s7BX2Omz7DD/ryqZZ63yr0
+         8+ow2OD4vH1suOGT3QuthhdjcxXAl1c/QcqfQpacP7VU9gOZzN9LpeKOtLDN7iyzOxF6
+         tRWSOaOBFJVLRGSVdo7V+rQ1yAdDMk5amijcKtG9QqR21YqZEH7wlHiJYKpRWJ7Ir3EK
+         UCjEEL6mGzlYUTZBO/eHEEXmQkdm7o37y2wRvpJ/CblvjMxENQ6c0qAFlAk7PEP6y0kw
+         alUVq9usBk4YS8OW4wDLGT54cm1U/+L87E3t6laPSlYtZEE/LWpWGlgSs5/wlfVtiQe/
+         NeUQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=tuQr8izZ;
-       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.132.44 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
-Received: from APC01-PU1-obe.outbound.protection.outlook.com (mail-eopbgr1320044.outbound.protection.outlook.com. [40.107.132.44])
-        by mx.google.com with ESMTPS id f4si3273270pgs.215.2019.04.04.07.36.53
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id w27si2541290edl.0.2019.04.04.07.45.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 04 Apr 2019 07:36:54 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.132.44 as permitted sender) client-ip=40.107.132.44;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 Apr 2019 07:45:39 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=tuQr8izZ;
-       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.132.44 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=eInfochipsIndia.onmicrosoft.com; s=selector1-einfochips-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=25UoWh8LNvZETUZDmQPWQ1Da1WJhmi1uUnfgywPwuHA=;
- b=tuQr8izZ27KK4JQLZyPmjsH9ADAw8ktIR3bI4lmIFzPZ93z23Nw0QMB1guFE5P+oqo4a2Q1wsuVJiP/887rkmuoJZCNIDf16m3axtJuhQ05lYArCCdcOqpxsB9Hm2/+txCVOJmFGl5j952wmTDqdbget2ZWyLuMjtSYJRnwtQwc=
-Received: from SG2PR02MB3098.apcprd02.prod.outlook.com (20.177.88.78) by
- SG2PR02MB2560.apcprd02.prod.outlook.com (52.133.137.139) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1771.13; Thu, 4 Apr 2019 14:36:49 +0000
-Received: from SG2PR02MB3098.apcprd02.prod.outlook.com
- ([fe80::f432:20e4:2d22:e60b]) by SG2PR02MB3098.apcprd02.prod.outlook.com
- ([fe80::f432:20e4:2d22:e60b%4]) with mapi id 15.20.1750.017; Thu, 4 Apr 2019
- 14:36:49 +0000
-From: Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
-To: Shyam Saini <mayhs11saini@gmail.com>
-CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: Re: [External] Re: CMA area pages information
-Thread-Topic: [External] Re: CMA area pages information
-Thread-Index: AQHU6GA9RylraT4uwk+04/PdjD+qFqYnI6yAgATuyUCAAAIwgIAAAVdI
-Date: Thu, 4 Apr 2019 14:36:48 +0000
-Message-ID:
- <SG2PR02MB3098D0A55CA3C7486667C46BE8500@SG2PR02MB3098.apcprd02.prod.outlook.com>
-References:
- <SG2PR02MB30986806577CDA3F568553B6E8550@SG2PR02MB3098.apcprd02.prod.outlook.com>
- <SG2PR02MB3098940FD9DFE5662D8CC3C4E8550@SG2PR02MB3098.apcprd02.prod.outlook.com>
- <SG2PR02MB3098C85455119FC48383A332E8500@SG2PR02MB3098.apcprd02.prod.outlook.com>,<CAOfkYf6U3wcs-Z02bHQt5tGXPMbd9cwRwB0GE4i=E93DGs_FZw@mail.gmail.com>
-In-Reply-To:
- <CAOfkYf6U3wcs-Z02bHQt5tGXPMbd9cwRwB0GE4i=E93DGs_FZw@mail.gmail.com>
-Accept-Language: en-GB, en-US
-Content-Language: en-GB
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=pankaj.suryawanshi@einfochips.com; 
-x-originating-ip: [14.98.130.2]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: fb752a23-6ea5-41a5-7feb-08d6b90af8ad
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(7168020)(4627221)(201703031133081)(201702281549075)(8990200)(5600139)(711020)(4605104)(2017052603328)(7193020);SRVR:SG2PR02MB2560;
-x-ms-traffictypediagnostic: SG2PR02MB2560:
-x-microsoft-antispam-prvs:
- <SG2PR02MB256044712295889D5D3F83D5E8500@SG2PR02MB2560.apcprd02.prod.outlook.com>
-x-forefront-prvs: 0997523C40
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(39850400004)(396003)(136003)(376002)(366004)(346002)(199004)(189003)(106356001)(305945005)(7736002)(74316002)(93886005)(99286004)(54906003)(7696005)(6506007)(76176011)(9686003)(55016002)(316002)(5660300002)(2906002)(6436002)(105586002)(14454004)(53946003)(53936002)(478600001)(30864003)(78486014)(33656002)(66574012)(4326008)(86362001)(8676002)(81156014)(68736007)(53546011)(44832011)(11346002)(25786009)(446003)(486006)(66066001)(6116002)(476003)(52536014)(256004)(1411001)(5024004)(71200400001)(8936002)(14444005)(186003)(26005)(3846002)(6916009)(102836004)(71190400001)(97736004)(229853002)(81166006)(55236004)(6246003)(586874002)(559001)(569006);DIR:OUT;SFP:1101;SCL:1;SRVR:SG2PR02MB2560;H:SG2PR02MB3098.apcprd02.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: einfochips.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- dJZx0W8oeXA0lGbdhfclOLIzGOkAD5MVoLpp/3o3I8pas/qN34aMa7y/ERFO8PFHMmFL+Smeho/GKs+Xf/PPO8dNrvEiZrPhxHLRA6Y4jPlpJlslb6TbM0l6NVV+sdPKag9M4/fdkJrdCrKgQB4ej6VfppTZ4I/bXTMOZrl8+ctQkZfqWVf453XMWyg0oR2e/rSilaEcVzx0WJFS2MObTHKCYnDEIL1h3TB3hN5E0NWGbnbbSnyZ3ZlycxrzTjb8rOQ11Z9w1Drn6hsmYR4gSu8Mf18dvhvdyU3vNzO/KTP6KB3td9Y4wJLhit7CF+GUMVSEk9C6TwJ45pbTpN9KACVJdapDaBYcL6lSpzbQZIgE2v6Qgz8YrVRzC4r9UYNt3c2HCsbNHLxQyVApf5eM491calfIet7+0Sh8NWfiBjI=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x34EjJVK106998
+	for <linux-mm@kvack.org>; Thu, 4 Apr 2019 10:45:38 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2rnjrevh71-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 04 Apr 2019 10:45:32 -0400
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Thu, 4 Apr 2019 15:44:19 +0100
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
+	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Thu, 4 Apr 2019 15:44:14 +0100
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x34EiD9760031084
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 4 Apr 2019 14:44:13 GMT
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 4C256A405C;
+	Thu,  4 Apr 2019 14:44:13 +0000 (GMT)
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id DE3F2A4054;
+	Thu,  4 Apr 2019 14:44:11 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.205.215])
+	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Thu,  4 Apr 2019 14:44:11 +0000 (GMT)
+Date: Thu, 4 Apr 2019 17:44:09 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Chen Zhou <chenzhou10@huawei.com>
+Cc: catalin.marinas@arm.com, will.deacon@arm.com, akpm@linux-foundation.org,
+        ard.biesheuvel@linaro.org, takahiro.akashi@linaro.org,
+        linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+        kexec@lists.infradead.org, linux-mm@kvack.org,
+        wangkefeng.wang@huawei.com
+Subject: Re: [PATCH 2/3] arm64: kdump: support more than one crash kernel
+ regions
+References: <20190403030546.23718-1-chenzhou10@huawei.com>
+ <20190403030546.23718-3-chenzhou10@huawei.com>
+ <20190403112929.GA7715@rapoport-lnx>
+ <f98a5559-3659-fb35-3765-15861e70a796@huawei.com>
 MIME-Version: 1.0
-X-OriginatorOrg: einfochips.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: fb752a23-6ea5-41a5-7feb-08d6b90af8ad
-X-MS-Exchange-CrossTenant-originalarrivaltime: 04 Apr 2019 14:36:48.9823
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 0adb040b-ca22-4ca6-9447-ab7b049a22ff
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: SG2PR02MB2560
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <f98a5559-3659-fb35-3765-15861e70a796@huawei.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19040414-0020-0000-0000-0000032C4832
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19040414-0021-0000-0000-0000217E5AC0
+Message-Id: <20190404144408.GA6433@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-04_07:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1904040095
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-________________________________________
-From: Shyam Saini <mayhs11saini@gmail.com>
-Sent: 04 April 2019 19:58
-To: Pankaj Suryawanshi
-Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org
-Subject: [External] Re: CMA area pages information
+On Wed, Apr 03, 2019 at 09:51:27PM +0800, Chen Zhou wrote:
+> Hi Mike,
+> 
+> On 2019/4/3 19:29, Mike Rapoport wrote:
+> > On Wed, Apr 03, 2019 at 11:05:45AM +0800, Chen Zhou wrote:
+> >> After commit (arm64: kdump: support reserving crashkernel above 4G),
+> >> there may be two crash kernel regions, one is below 4G, the other is
+> >> above 4G.
+> >>
+> >> Crash dump kernel reads more than one crash kernel regions via a dtb
+> >> property under node /chosen,
+> >> linux,usable-memory-range = <BASE1 SIZE1 [BASE2 SIZE2]>
+> >>
+> >> Signed-off-by: Chen Zhou <chenzhou10@huawei.com>
+> >> ---
+> >>  arch/arm64/mm/init.c     | 37 +++++++++++++++++++++++++------------
+> >>  include/linux/memblock.h |  1 +
+> >>  mm/memblock.c            | 40 ++++++++++++++++++++++++++++++++++++++++
+> >>  3 files changed, 66 insertions(+), 12 deletions(-)
+> >>
+> >> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+> >> index ceb2a25..769c77a 100644
+> >> --- a/arch/arm64/mm/init.c
+> >> +++ b/arch/arm64/mm/init.c
+> >> @@ -64,6 +64,8 @@ EXPORT_SYMBOL(memstart_addr);
+> >>  phys_addr_t arm64_dma_phys_limit __ro_after_init;
+> >>  
+> >>  #ifdef CONFIG_KEXEC_CORE
+> >> +# define CRASH_MAX_USABLE_RANGES        2
+> >> +
+> >>  static int __init reserve_crashkernel_low(void)
+> >>  {
+> >>  	unsigned long long base, low_base = 0, low_size = 0;
+> >> @@ -346,8 +348,8 @@ static int __init early_init_dt_scan_usablemem(unsigned long node,
+> >>  		const char *uname, int depth, void *data)
+> >>  {
+> >>  	struct memblock_region *usablemem = data;
+> >> -	const __be32 *reg;
+> >> -	int len;
+> >> +	const __be32 *reg, *endp;
+> >> +	int len, nr = 0;
+> >>  
+> >>  	if (depth != 1 || strcmp(uname, "chosen") != 0)
+> >>  		return 0;
+> >> @@ -356,22 +358,33 @@ static int __init early_init_dt_scan_usablemem(unsigned long node,
+> >>  	if (!reg || (len < (dt_root_addr_cells + dt_root_size_cells)))
+> >>  		return 1;
+> >>  
+> >> -	usablemem->base = dt_mem_next_cell(dt_root_addr_cells, &reg);
+> >> -	usablemem->size = dt_mem_next_cell(dt_root_size_cells, &reg);
+> >> +	endp = reg + (len / sizeof(__be32));
+> >> +	while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
+> >> +		usablemem[nr].base = dt_mem_next_cell(dt_root_addr_cells, &reg);
+> >> +		usablemem[nr].size = dt_mem_next_cell(dt_root_size_cells, &reg);
+> >> +
+> >> +		if (++nr >= CRASH_MAX_USABLE_RANGES)
+> >> +			break;
+> >> +	}
+> >>  
+> >>  	return 1;
+> >>  }
+> >>  
+> >>  static void __init fdt_enforce_memory_region(void)
+> >>  {
+> >> -	struct memblock_region reg = {
+> >> -		.size = 0,
+> >> -	};
+> >> -
+> >> -	of_scan_flat_dt(early_init_dt_scan_usablemem, &reg);
+> >> -
+> >> -	if (reg.size)
+> >> -		memblock_cap_memory_range(reg.base, reg.size);
+> >> +	int i, cnt = 0;
+> >> +	struct memblock_region regs[CRASH_MAX_USABLE_RANGES];
+> >> +
+> >> +	memset(regs, 0, sizeof(regs));
+> >> +	of_scan_flat_dt(early_init_dt_scan_usablemem, regs);
+> >> +
+> >> +	for (i = 0; i < CRASH_MAX_USABLE_RANGES; i++)
+> >> +		if (regs[i].size)
+> >> +			cnt++;
+> >> +		else
+> >> +			break;
+> >> +	if (cnt)
+> >> +		memblock_cap_memory_ranges(regs, cnt);
+> > 
+> > Why not simply call memblock_cap_memory_range() for each region?
+> 
+> Function memblock_cap_memory_range() removes all memory type ranges except specified range.
+> So if we call memblock_cap_memory_range() for each region simply, there will be no usable-memory
+> on kdump capture kernel.
 
-CAUTION: This email originated from outside of the organization. Do not cli=
-ck links or open attachments unless you recognize the sender and know the c=
-ontent is safe.
+Thanks for the clarification.
+I still think that memblock_cap_memory_ranges() is overly complex. 
 
+How about doing something like this:
 
+Cap the memory range for [min(regs[*].start, max(regs[*].end)] and then
+removing the range in the middle?
+ 
+> Thanks,
+> Chen Zhou
+> 
+> > 
+> >>  }
+> >>  
+> >>  void __init arm64_memblock_init(void)
+> >> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> >> index 47e3c06..aeade34 100644
+> >> --- a/include/linux/memblock.h
+> >> +++ b/include/linux/memblock.h
+> >> @@ -446,6 +446,7 @@ phys_addr_t memblock_start_of_DRAM(void);
+> >>  phys_addr_t memblock_end_of_DRAM(void);
+> >>  void memblock_enforce_memory_limit(phys_addr_t memory_limit);
+> >>  void memblock_cap_memory_range(phys_addr_t base, phys_addr_t size);
+> >> +void memblock_cap_memory_ranges(struct memblock_region *regs, int cnt);
+> >>  void memblock_mem_limit_remove_map(phys_addr_t limit);
+> >>  bool memblock_is_memory(phys_addr_t addr);
+> >>  bool memblock_is_map_memory(phys_addr_t addr);
+> >> diff --git a/mm/memblock.c b/mm/memblock.c
+> >> index 28fa8926..1a7f4ee7c 100644
+> >> --- a/mm/memblock.c
+> >> +++ b/mm/memblock.c
+> >> @@ -1697,6 +1697,46 @@ void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
+> >>  			base + size, PHYS_ADDR_MAX);
+> >>  }
+> >>  
+> >> +void __init memblock_cap_memory_ranges(struct memblock_region *regs, int cnt)
+> >> +{
+> >> +	int start_rgn[INIT_MEMBLOCK_REGIONS], end_rgn[INIT_MEMBLOCK_REGIONS];
+> >> +	int i, j, ret, nr = 0;
+> >> +
+> >> +	for (i = 0; i < cnt; i++) {
+> >> +		ret = memblock_isolate_range(&memblock.memory, regs[i].base,
+> >> +				regs[i].size, &start_rgn[i], &end_rgn[i]);
+> >> +		if (ret)
+> >> +			break;
+> >> +		nr++;
+> >> +	}
+> >> +	if (!nr)
+> >> +		return;
+> >> +
+> >> +	/* remove all the MAP regions */
+> >> +	for (i = memblock.memory.cnt - 1; i >= end_rgn[nr - 1]; i--)
+> >> +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
+> >> +			memblock_remove_region(&memblock.memory, i);
+> >> +
+> >> +	for (i = nr - 1; i > 0; i--)
+> >> +		for (j = start_rgn[i] - 1; j >= end_rgn[i - 1]; j--)
+> >> +			if (!memblock_is_nomap(&memblock.memory.regions[j]))
+> >> +				memblock_remove_region(&memblock.memory, j);
+> >> +
+> >> +	for (i = start_rgn[0] - 1; i >= 0; i--)
+> >> +		if (!memblock_is_nomap(&memblock.memory.regions[i]))
+> >> +			memblock_remove_region(&memblock.memory, i);
+> >> +
+> >> +	/* truncate the reserved regions */
+> >> +	memblock_remove_range(&memblock.reserved, 0, regs[0].base);
+> >> +
+> >> +	for (i = nr - 1; i > 0; i--)
+> >> +		memblock_remove_range(&memblock.reserved,
+> >> +				regs[i].base, regs[i - 1].base + regs[i - 1].size);
+> >> +
+> >> +	memblock_remove_range(&memblock.reserved,
+> >> +			regs[nr - 1].base + regs[nr - 1].size, PHYS_ADDR_MAX);
+> >> +}
+> >> +
+> >>  void __init memblock_mem_limit_remove_map(phys_addr_t limit)
+> >>  {
+> >>  	phys_addr_t max_addr;
+> >> -- 
+> >> 2.7.4
+> >>
+> > 
+> 
 
-On Thu, Apr 4, 2019 at 7:52 PM Pankaj Suryawanshi <pankaj.suryawanshi@einfo=
-chips.com<mailto:pankaj.suryawanshi@einfochips.com>> wrote:
-
-________________________________________
-From: Pankaj Suryawanshi
-Sent: 01 April 2019 16:34
-To: linux-kernel@vger.kernel.org<mailto:linux-kernel@vger.kernel.org>; linu=
-x-mm@kvack.org<mailto:linux-mm@kvack.org>
-Subject: Re: CMA area pages information
-
-
-________________________________________
-From: Pankaj Suryawanshi
-Sent: 01 April 2019 13:26
-To: linux-kernel@vger.kernel.org<mailto:linux-kernel@vger.kernel.org>; linu=
-x-mm@kvack.org<mailto:linux-mm@kvack.org>
-Subject: CMA area pages information
-
-Hello,
-
-Is there any way to get CMA area pages information (tool/application) ?
-
-Trying to get CMA-pages info using /tools/vm/page-types.c
-
-1. Allocate 100 mb using sample app.
-2. Try to get page info using page-types.c.
-
-Note: cma base-pfn: 0x60000
-          cma reserved 1026 Mib
-
-Pages info i got is
-
-./test -p 3401 -L
-voffset offset  flags
-5c1a3   70e92   ___U_lA____M______________________________
-5c1a4   73104   ___U_l_____M______________________________
-5c1a6   70ad1   ___U_lA____Ma_b___________________________
-71ea1   9f470   __RU_l_____M______u_______________________
-71ea2   9f471   __RU_l_____M______u_______________________
-71ea3   9f472   __RU_l_____M______u_______________________
-71ea4   9f473   __RU_l_____M______u_______________________
-71ea5   9f485   __RU_l_____M______u_______________________
-71ea6   9f486   __RU_l_____M______u_______________________
-71ea7   9f487   __RU_l_____M______u_______________________
-71ea8   9f488   __RU_l_____M______u_______________________
-71ea9   9f489   __RU_l_____M______u_______________________
-71eaa   9f48a   __RU_l_____M______u_______________________
-71eab   9f48b   __RU_l_____M______u_______________________
-71eac   9f48c   __RU_l_____M______u_______________________
-71ead   9f48d   __RU_l_____M______u_______________________
-71eae   9f48e   __RU_l_____M______u_______________________
-71eaf   9f48f   __RU_l_____M______u_______________________
-71eb0   9f490   __RU_l_____M______u_______________________
-71eb1   9f491   __RU_l_____M______u_______________________
-71eb2   9f492   __RU_l_____M______u_______________________
-71eb3   9f493   __RU_l_____M______u_______________________
-71eb4   9f494   __RU_l_____M______u_______________________
-71eb5   9f495   __RU_l_____M______u_______________________
-71eb6   9f496   __RU_l_____M______u_______________________
-71eb7   9f497   __RU_l_____M______u_______________________
-71eb8   9f498   __RU_l_____M______u_______________________
-71eb9   9f499   __RU_l_____M______u_______________________
-71eba   9f49a   __RU_l_____M______u_______________________
-71ebb   9f49b   __RU_l_____M______u_______________________
-71ebc   9f49c   __RU_l_____M______u_______________________
-71ebd   9f49d   __RU_l_____M______u_______________________
-71ebe   9f49e   __RU_l_____M______u_______________________
-71ebf   9f49f   __RU_l_____M______u_______________________
-71ec0   9f4a0   __RU_l_____M______u_______________________
-71ec1   9f56b   __RU_l_____M______u_______________________
-71ec2   9f56c   __RU_l_____M______u_______________________
-71ec3   9f56d   __RU_l_____M______u_______________________
-71ec4   9f56e   __RU_l_____M______u_______________________
-71ec5   9f56f   __RU_l_____M______u_______________________
-71ec6   9f570   __RU_l_____M______u_______________________
-71ec7   9f571   __RU_l_____M______u_______________________
-71ec8   9f572   __RU_l_____M______u_______________________
-71ec9   9f573   __RU_l_____M______u_______________________
-71eca   9f574   __RU_l_____M______u_______________________
-71ecb   9f575   __RU_l_____M______u_______________________
-71ecc   9f576   __RU_l_____M______u_______________________
-71ecd   9f577   __RU_l_____M______u_______________________
-71ece   9f578   __RU_l_____M______u_______________________
-71ecf   9f579   __RU_l_____M______u_______________________
-71ed0   9f57a   __RU_l_____M______u_______________________
-71ed1   9f57b   __RU_l_____M______u_______________________
-71ed2   9f57c   __RU_l_____M______u_______________________
-71ed3   9f5ea   __RU_l_____M______u_______________________
-71ed4   9f5eb   __RU_l_____M______u_______________________
-71ed5   9f5ec   __RU_l_____M______u_______________________
-71ed6   9f5ed   __RU_l_____M______u_______________________
-71ed7   9f5ee   __RU_l_____M______u_______________________
-71ed8   9f5ef   __RU_l_____M______u_______________________
-71ed9   9f5f0   __RU_l_____M______u_______________________
-71eda   9f5f1   __RU_l_____M______u_______________________
-71edb   9f5f2   __RU_l_____M______u_______________________
-71edc   9f5f3   __RU_l_____M______u_______________________
-71edd   9f5f4   __RU_l_____M______u_______________________
-71ede   9f5f5   __RU_l_____M______u_______________________
-71edf   9f5f6   __RU_l_____M______u_______________________
-71ee0   9f5f7   __RU_l_____M______u_______________________
-71ee1   9f5f8   __RU_l_____M______u_______________________
-71ee2   9f5f9   __RU_l_____M______u_______________________
-71ee3   9f5fa   __RU_l_____M______u_______________________
-71ee4   9f5fb   __RU_l_____M______u_______________________
-71ee5   9f5fc   __RU_l_____M______u_______________________
-71ee6   9f5fd   __RU_l_____M______u_______________________
-71ee7   9f5fe   __RU_l_____M______u_______________________
-71ee8   9f5ff   __RU_l_____M______u_______________________
-71ee9   9f600   __RU_l_____M______u_______________________
-71eea   9f601   __RU_l_____M______u_______________________
-71eeb   9f602   __RU_l_____M______u_______________________
-71eec   9f603   __RU_l_____M______u_______________________
-71eed   9f604   __RU_l_____M______u_______________________
-71eee   9f605   __RU_l_____M______u_______________________
-71eef   9f606   __RU_l_____M______u_______________________
-71ef0   9f607   __RU_l_____M______u_______________________
-71ef1   9f608   __RU_l_____M______u_______________________
-71ef2   9f609   __RU_l_____M______u_______________________
-71ef3   9f6b2   __RU_lA____M______________________________
-71ef4   9f6b3   __RU_l_____M______u_______________________
-71ef5   9f6b4   __RU_l_____M______u_______________________
-71ef6   9f6b5   __RU_l_____M______u_______________________
-71ef7   9f6b6   __RU_l_____M______u_______________________
-71ef8   9f6b7   __RU_l_____M______u_______________________
-71ef9   9f6b8   __RU_l_____M______u_______________________
-71efa   9f6b9   __RU_l_____M______u_______________________
-71efb   9f6ba   __RU_l_____M______u_______________________
-71efc   9f67e   __RU_l_____M______u_______________________
-71efd   9f67f   __RU_l_____M______u_______________________
-71efe   9f680   __RU_l_____M______u_______________________
-71eff   9f681   __RU_l_____M______u_______________________
-71f00   9f682   __RU_l_____M______u_______________________
-71f01   9f683   __RU_l_____M______u_______________________
-71f02   9f684   __RU_l_____M______u_______________________
-71f03   9f685   __RU_l_____M______u_______________________
-71f04   9f686   __RU_l_____M______u_______________________
-71f05   9f687   __RU_l_____M______u_______________________
-71f06   9f688   __RU_l_____M______u_______________________
-71f07   9f689   __RU_l_____M______u_______________________
-71f08   9f68a   __RU_l_____M______u_______________________
-71f09   9f68b   __RU_l_____M______u_______________________
-71f0a   9f68c   __RU_l_____M______u_______________________
-71f0b   9f68d   __RU_l_____M______u_______________________
-71f0c   9f68e   __RU_l_____M______u_______________________
-71f0d   9f68f   __RU_l_____M______u_______________________
-71f0e   9f690   __RU_l_____M______u_______________________
-71f0f   9f691   __RU_l_____M______u_______________________
-71f10   9f692   __RU_l_____M______u_______________________
-71f11   9f693   __RU_l_____M______u_______________________
-71f12   9f694   __RU_l_____M______u_______________________
-71f13   9f695   __RU_l_____M______u_______________________
-71f15   9f697   __RU_l_____M______u_______________________
-71f16   9f698   __RU_l_____M______u_______________________
-71f17   9f699   __RU_l_____M______u_______________________
-71f18   9f69a   __RU_l_____M______u_______________________
-71f19   9f69b   __RU_l_____M______u_______________________
-71f1a   9f69c   __RU_l_____M______u_______________________
-71f1b   9f69d   __RU_l_____M______u_______________________
-71f1c   9f69f   __RU_l_____M______u_______________________
-71f1d   9f6a0   __RU_l_____M______u_______________________
-71f1e   9f6a1   __RU_l_____M______u_______________________
-71f1f   9f6a2   __RU_l_____M______u_______________________
-71f20   9f6a3   __RU_l_____M______u_______________________
-71f21   9f6a4   __RU_l_____M______u_______________________
-71f22   9f6a5   __RU_l_____M______u_______________________
-71f23   9f6a6   __RU_l_____M______u_______________________
-71f24   9f6a7   __RU_l_____M______u_______________________
-71f25   9f6a8   __RU_l_____M______u_______________________
-71f26   9f6a9   __RU_lA____M______________________________
-71f27   9f6aa   __RU_lA____M______________________________
-71f28   9f6ab   __RU_lA____M______________________________
-71f29   9f6ac   __RU_lA____M______________________________
-71f2b   9f6ae   __RU_lA____M______________________________
-71f2c   9f474   __RU_lA____M______________________________
-71f2d   9f475   __RU_lA____M______________________________
-71f2e   9f476   __RU_lA____M______________________________
-71f2f   9f477   __RU_lA____M______________________________
-71f34   819bb   ___U_lA____Ma_b___________________________
-71f35   81a0b   ___U_lA____Ma_b___________________________
-71f36   7e16f   ___UDlA____Ma_b___________________________
-71f37   7e403   ___UDlA____Ma_b___________________________
-71f38   8444e   ___U_lA____Ma_b___________________________
-71f39   72081   ___U_lA____Ma_b___________________________
-71f3a   7e713   ___UDlA____Ma_b___________________________
-71f5e   9f677   __RU_l_____M______u_______________________
-71f5f   9f678   __RU_l_____M______u_______________________
-71f60   9f679   __RU_l_____M______u_______________________
-71f61   9f67a   __RU_l_____M______u_______________________
-71f62   79818   ___UDlA____Ma_b___________________________
-71f63   7045d   ___U_lA____Ma_b___________________________
-71f80   815d8   ___U_lA____Ma_b___________________________
-71f83   70a66   ___U_lA____Ma_b___________________________
-71f84   852c5   ___U_lA____Ma_b___________________________
-71f89   86d18   ___U_lA____Ma_b___________________________
-71f93   795cb   ___U_lA____Ma_b___________________________
-71f94   85b2b   ___U_lA____Ma_b___________________________
-71f97   74499   ___U_lA____Ma_b___________________________
-71f98   86a2e   ___U_lA____Ma_b___________________________
-72000   7ddb1   ___U_lA____Ma_b___________________________
-72001   859f1   ___U_lA____Ma_b___________________________
-72005   70f79   ___U_lA____Ma_b___________________________
-72009   799d9   ___UDlA____Ma_b___________________________
-7208c   9f548   __RU_l_____M______u_______________________
-7208d   9f549   __RU_l_____M______u_______________________
-7208e   9f54a   __RU_l_____M______u_______________________
-7208f   9f54b   __RU_l_____M______u_______________________
-72090   9f55d   __RU_l_____M______u_______________________
-72091   9f55e   __RU_l_____M______u_______________________
-72092   9f55f   __RU_l_____M______u_______________________
-72093   9f560   __RU_l_____M______u_______________________
-72094   9f561   __RU_l_____M______u_______________________
-72095   9f562   __RU_l_____M______u_______________________
-72096   9f563   __RU_l_____M______u_______________________
-72097   9f564   __RU_l_____M______u_______________________
-72098   9f565   __RU_l_____M______u_______________________
-72099   9f566   __RU_l_____M______u_______________________
-7209a   9f567   __RU_l_____M______u_______________________
-7209b   9f568   __RU_l_____M______u_______________________
-720ad   7354b   ___U_lA____Ma_b___________________________
-720ae   79029   ___UDlA____Ma_b___________________________
-720cb   9f4ba   __RU_l_____M______u_______________________
-720cc   9f4bb   __RU_l_____M______u_______________________
-720cd   9f4bc   __RU_l_____M______u_______________________
-720ce   9f4bd   __RU_l_____M______u_______________________
-720cf   9f4ef   __RU_l_____M______u_______________________
-720d0   9f4f0   __RU_l_____M______u_______________________
-720d1   9f4f1   __RU_l_____M______u_______________________
-720d2   9f4f2   __RU_l_____M______u_______________________
-720d3   9f4f3   __RU_l_____M______u_______________________
-720d4   9f4f4   __RU_l_____M______u_______________________
-720d5   9f4f5   __RU_l_____M______u_______________________
-720d6   9f4f6   __RU_l_____M______u_______________________
-720d7   9f4f7   __RU_l_____M______u_______________________
-720d8   9f4f8   __RU_l_____M______u_______________________
-720d9   9f4f9   __RU_l_____M______u_______________________
-720da   9f4fa   __RU_l_____M______u_______________________
-720db   9f4fb   __RU_l_____M______u_______________________
-720dc   9f4fc   __RU_l_____M______u_______________________
-720dd   9f4fd   __RU_l_____M______u_______________________
-720de   9f4fe   __RU_l_____M______u_______________________
-720df   9f4ff   __RU_l_____M______u_______________________
-720e0   9f500   __RU_l_____M______u_______________________
-720e1   9f501   __RU_l_____M______u_______________________
-720e2   9f502   __RU_l_____M______u_______________________
-720e3   9f503   __RU_l_____M______u_______________________
-720e4   9f504   __RU_l_____M______u_______________________
-720e5   9f505   __RU_l_____M______u_______________________
-720e6   9f506   __RU_l_____M______u_______________________
-720e7   9f507   __RU_l_____M______u_______________________
-720e8   9f508   __RU_l_____M______u_______________________
-720e9   9f509   __RU_l_____M______u_______________________
-720ea   9f50a   __RU_l_____M______u_______________________
-720eb   9f5b8   __RU_l_____M______u_______________________
-720ec   9f5b9   __RU_l_____M______u_______________________
-720ed   9f5ba   __RU_l_____M______u_______________________
-720ee   9f5bb   __RU_l_____M______u_______________________
-720ef   9f5bc   __RU_l_____M______u_______________________
-720f0   9f5bd   __RU_l_____M______u_______________________
-720f1   9f5be   __RU_l_____M______u_______________________
-720f2   9f5bf   __RU_l_____M______u_______________________
-720f3   9f5c0   __RU_l_____M______u_______________________
-720f4   9f5c1   __RU_l_____M______u_______________________
-720f5   9f5c2   __RU_l_____M______u_______________________
-720f6   9f5c3   __RU_l_____M______u_______________________
-720f7   9f5c4   __RU_l_____M______u_______________________
-720f8   9f5c5   __RU_l_____M______u_______________________
-720f9   9f5c6   __RU_l_____M______u_______________________
-720fa   9f5c7   __RU_l_____M______u_______________________
-720fb   9f5c8   __RU_l_____M______u_______________________
-720fc   9f5c9   __RU_l_____M______u_______________________
-720fd   9f5ca   __RU_l_____M______u_______________________
-720fe   9f5cb   __RU_l_____M______u_______________________
-720ff   9f5cc   __RU_l_____M______u_______________________
-72100   9f5cd   __RU_l_____M______u_______________________
-72101   9f5ce   __RU_l_____M______u_______________________
-72102   9f5cf   __RU_l_____M______u_______________________
-72103   9f5d0   __RU_l_____M______u_______________________
-72104   9f5d1   __RU_l_____M______u_______________________
-72105   9f5d2   __RU_l_____M______u_______________________
-72106   9f5d3   __RU_l_____M______u_______________________
-72107   9f5d4   __RU_l_____M______u_______________________
-72108   9f5d5   __RU_l_____M______u_______________________
-72109   9f5d6   __RU_l_____M______u_______________________
-7210a   9f5d7   __RU_l_____M______u_______________________
-7210b   9f6bc   __RU_lA____M______________________________
-7210c   9f6bd   __RU_l_____M______u_______________________
-7210d   9f6be   __RU_l_____M______u_______________________
-7210e   9f6bf   __RU_l_____M______u_______________________
-7210f   9f62e   __RU_l_____M______u_______________________
-72110   9f62f   __RU_l_____M______u_______________________
-72111   9f630   __RU_l_____M______u_______________________
-72112   9f631   __RU_l_____M______u_______________________
-72113   9f632   __RU_l_____M______u_______________________
-72114   9f633   __RU_l_____M______u_______________________
-72115   9f634   __RU_l_____M______u_______________________
-72116   9f635   __RU_l_____M______u_______________________
-72117   9f636   __RU_l_____M______u_______________________
-72118   9f637   __RU_l_____M______u_______________________
-72119   9f638   __RU_l_____M______u_______________________
-7211a   9f639   __RU_l_____M______u_______________________
-7211b   9f63a   __RU_l_____M______u_______________________
-7211c   9f63b   __RU_l_____M______u_______________________
-7211d   9f63c   __RU_l_____M______u_______________________
-7211e   9f63d   __RU_l_____M______u_______________________
-7211f   9f63e   __RU_l_____M______u_______________________
-72120   9f63f   __RU_l_____M______u_______________________
-72121   9f640   __RU_l_____M______u_______________________
-72122   9f641   __RU_l_____M______u_______________________
-72123   9f642   __RU_l_____M______u_______________________
-72124   9f643   __RU_l_____M______u_______________________
-72125   9f644   __RU_l_____M______u_______________________
-72126   9f645   __RU_l_____M______u_______________________
-72127   9f646   __RU_l_____M______u_______________________
-72128   9f647   __RU_l_____M______u_______________________
-72129   9f648   __RU_l_____M______u_______________________
-7212a   9f649   __RU_l_____M______u_______________________
-7212b   9f64a   __RU_l_____M______u_______________________
-7212c   9f64b   __RU_l_____M______u_______________________
-7212d   9f64c   __RU_l_____M______u_______________________
-7212e   9f64d   __RU_l_____M______u_______________________
-7212f   9f64e   __RU_l_____M______u_______________________
-72130   9f64f   __RU_l_____M______u_______________________
-72131   9f650   __RU_l_____M______u_______________________
-72132   9f651   __RU_l_____M______u_______________________
-72133   9f652   __RU_l_____M______u_______________________
-72134   9f653   __RU_l_____M______u_______________________
-72135   9f654   __RU_l_____M______u_______________________
-72136   9f655   __RU_l_____M______u_______________________
-72137   9f656   __RU_l_____M______u_______________________
-72138   9f657   __RU_l_____M______u_______________________
-72139   9f658   __RU_l_____M______u_______________________
-7213a   9f659   __RU_l_____M______u_______________________
-7213b   9f65a   __RU_l_____M______u_______________________
-7213c   9f65b   __RU_l_____M______u_______________________
-7213d   9f65c   __RU_l_____M______u_______________________
-7213e   9f65d   __RU_l_____M______u_______________________
-7213f   9f663   __RU_l_____M______u_______________________
-72140   9f664   __RU_l_____M______u_______________________
-72141   9f665   __RU_l_____M______u_______________________
-72142   9f666   __RU_l_____M______u_______________________
-72143   9f667   __RU_l_____M______u_______________________
-72144   9f668   __RU_l_____M______u_______________________
-72145   9f669   __RU_l_____M______u_______________________
-72146   9f532   __RU_l_____M______u_______________________
-72147   9f615   __RU_l_____M______u_______________________
-72148   9f616   __RU_l_____M______u_______________________
-72149   9f617   __RU_l_____M______u_______________________
-7214a   9f618   __RU_l_____M______u_______________________
-7214b   9f619   __RU_l_____M______u_______________________
-7214c   9f61a   __RU_l_____M______u_______________________
-7214d   9f61b   __RU_l_____M______u_______________________
-7214e   9f61c   __RU_l_____M______u_______________________
-7214f   9f61d   __RU_l_____M______u_______________________
-72150   9f61e   __RU_l_____M______u_______________________
-72151   9f61f   __RU_l_____M______u_______________________
-72152   9f620   __RU_l_____M______u_______________________
-72153   9f621   __RU_l_____M______u_______________________
-72154   9f622   __RU_l_____M______u_______________________
-72155   9f623   __RU_l_____M______u_______________________
-72156   9f624   __RU_l_____M______u_______________________
-72157   9f625   __RU_l_____M______u_______________________
-72158   9f626   __RU_l_____M______u_______________________
-72159   9f627   __RU_l_____M______u_______________________
-7215a   9f628   __RU_l_____M______u_______________________
-7215b   9f629   __RU_l_____M______u_______________________
-7215c   9f62a   __RU_l_____M______u_______________________
-7215d   9f4cf   __RU_l_____M______u_______________________
-7215e   9f4d0   __RU_l_____M______u_______________________
-7215f   9f4d1   __RU_l_____M______u_______________________
-72160   9f4d2   __RU_l_____M______u_______________________
-72161   9f4d3   __RU_l_____M______u_______________________
-72162   9f4d4   __RU_l_____M______u_______________________
-72163   9f4d5   __RU_l_____M______u_______________________
-72164   9f4d6   __RU_l_____M______u_______________________
-72165   9f4d7   __RU_l_____M______u_______________________
-72166   9f4d8   __RU_l_____M______u_______________________
-72167   9f4d9   __RU_l_____M______u_______________________
-72168   9f4da   __RU_l_____M______u_______________________
-72169   9f4db   __RU_l_____M______u_______________________
-7216a   9f4dc   __RU_l_____M______u_______________________
-7216b   7e111   ___U_lA____Ma_b___________________________
-7216c   81afb   ___UDlA____Ma_b___________________________
-7216d   85c4e   ___UDlA____Ma_b___________________________
-7216e   72289   ___U_lA____Ma_b___________________________
-7216f   7e776   ___UDlA____Ma_b___________________________
-72170   7e7a3   ___UDlA____Ma_b___________________________
-72171   7323b   ___U_lA____Ma_b___________________________
-72172   73258   ___UDlA____Ma_b___________________________
-72173   798b6   ___UDlA____Ma_b___________________________
-72174   730b5   ___UDlA____Ma_b___________________________
-72175   7de2f   ___U_lA____Ma_b___________________________
-72176   74623   ___UDlA____Ma_b___________________________
-72178   794fd   ___UDlA____Ma_b___________________________
-72179   7ab43   ___U_lA____Ma_b___________________________
-721b2   9c571   __RU_lA____M______________________________
-721b4   9c573   __RU_lA____M______________________________
-721b5   9c574   __RU_lA____M______________________________
-721b6   72364   ___U_lA____Ma_b___________________________
-721b7   8554a   ___U_lA____Ma_b___________________________
-721c3   9f50b   __RU_l_____M______u_______________________
-721c4   78337   ___UDlA____Ma_b___________________________
-721ef   9f02b   __RUDl_____M__b___u_______________________
-721f0   9f29b   __RUDl_____M__b___u_______________________
-7220f   9f068   __RUDl_____M__b___u_______________________
-7222f   71d8a   ___UDlA____Ma_b___________________________
-72240   86654   ___U_lA____Ma_b___________________________
-72243   790f4   ___UDlA____Ma_b___________________________
-72244   811c7   ___U_lA____Ma_b___________________________
-72245   8872e   __RUDl_____M__b___u_______________________
-72246   8875d   __RUDl_____M__b___u_______________________
-72247   8875c   __RUDl_____M__b___u_______________________
-72248   8877d   __RUDl_____M__b___u_______________________
-72249   8877c   __RUDl_____M__b___u_______________________
-7224a   8877e   __RUDl_____M__b___u_______________________
-7224b   8877b   __RUDl_____M__b___u_______________________
-7224c   82234   ___U_lA____Ma_b___________________________
-7224d   73559   ___UDlA____Ma_b___________________________
-7224e   91c51   ___U_lA____Ma_b___________________________
-7224f   9f036   __RUDl_____M__b___u_______________________
-7226f   8d1d8   ___U_lA____Ma_b___________________________
-72270   819f7   ___U_lA____Ma_b___________________________
-72271   720dc   ___U_lA____Ma_b___________________________
-72272   9f023   __RUDl_____M__b___u_______________________
-72295   9f068   __RUDl_____M__b___u_______________________
-722b5   8bd9d   ___U_lA____Ma_b___________________________
-722b6   8872e   __RUDl_____M__b___u_______________________
-722b7   8875d   __RUDl_____M__b___u_______________________
-722b8   8875c   __RUDl_____M__b___u_______________________
-722b9   8877d   __RUDl_____M__b___u_______________________
-722ba   8877c   __RUDl_____M__b___u_______________________
-722bb   8877e   __RUDl_____M__b___u_______________________
-722bc   8877b   __RUDl_____M__b___u_______________________
-722bd   81651   ___U_lA____Ma_b___________________________
-722be   7e251   ___UDlA____Ma_b___________________________
-722bf   720e8   ___U_lA____Ma_b___________________________
-722c0   8183b   ___UDlA____Ma_b___________________________
-722c1   84b5b   ___U_lA____Ma_b___________________________
-722c2   8346a   ___UDlA____Ma_b___________________________
-722c8   87a04   ___U_lA____Ma_b___________________________
-722ca   79811   ___UDlA____Ma_b___________________________
-722ce   9f006   __RU_l_____M______u_______________________
-722cf   9f007   __RU_l_____M______u_______________________
-722d0   9f290   __RU_l_____M______u_______________________
-722d1   9f291   __RU_l_____M______u_______________________
-722d2   9f3ca   __RU_l_____M______u_______________________
-722d3   9f3cb   __RU_l_____M______u_______________________
-722d4   9f3cc   __RU_l_____M______u_______________________
-722d5   9f3cd   __RU_l_____M______u_______________________
-722d6   9f3ce   __RU_l_____M______u_______________________
-722d7   9f3cf   __RU_l_____M______u_______________________
-722d8   9f3ac   __RU_l_____M______u_______________________
-722d9   9f3ad   __RU_l_____M______u_______________________
-722da   9f3ae   __RU_l_____M______u_______________________
-722db   9f3af   __RU_l_____M______u_______________________
-722dc   9f3b0   __RU_l_____M______u_______________________
-722dd   9f3b1   __RU_l_____M______u_______________________
-722de   9f3b2   __RU_l_____M______u_______________________
-722df   9f3b3   __RU_l_____M______u_______________________
-722e0   9f3b4   __RU_l_____M______u_______________________
-722e1   9f3b5   __RU_l_____M______u_______________________
-722e2   9f3b6   __RU_l_____M______u_______________________
-722e3   9f3b7   __RU_l_____M______u_______________________
-722e4   9f3b8   __RU_l_____M______u_______________________
-722e5   9f3b9   __RU_l_____M______u_______________________
-722e6   9f3ba   __RU_l_____M______u_______________________
-722e7   9f3bb   __RU_l_____M______u_______________________
-722e8   9f3bc   __RU_l_____M______u_______________________
-722e9   9f3bd   __RU_l_____M______u_______________________
-722ea   9f3be   __RU_l_____M______u_______________________
-722eb   9f3bf   __RU_l_____M______u_______________________
-722ec   9f340   __RU_l_____M______u_______________________
-722ed   9f341   __RU_l_____M______u_______________________
-722ee   9f342   __RU_l_____M______u_______________________
-722ef   9f343   __RU_l_____M______u_______________________
-7231a   9f3d8   __RU_l_____M______u_______________________
-7231b   9f3d9   __RU_l_____M______u_______________________
-7231c   9f3da   __RU_l_____M______u_______________________
-7231d   9f3db   __RU_l_____M______u_______________________
-7231e   9f3dc   __RU_l_____M______u_______________________
-7231f   9f3dd   __RU_l_____M______u_______________________
-72320   9f3de   __RU_l_____M______u_______________________
-72321   9f3df   __RU_l_____M______u_______________________
-72322   9f3e0   __RU_l_____M______u_______________________
-72323   9f3e1   __RU_l_____M______u_______________________
-72324   9f3e2   __RU_l_____M______u_______________________
-72325   9f3e3   __RU_l_____M______u_______________________
-72326   9f3e4   __RU_l_____M______u_______________________
-72327   9f3e5   __RU_l_____M______u_______________________
-72328   9f3e6   __RU_l_____M______u_______________________
-72329   9f3e7   __RU_l_____M______u_______________________
-7232a   9f3e8   __RU_l_____M______u_______________________
-7232b   9f3e9   __RU_l_____M______u_______________________
-7232c   9f3ea   __RU_l_____M______u_______________________
-7232d   9f3eb   __RU_l_____M______u_______________________
-7232e   9f3ec   __RU_l_____M______u_______________________
-7232f   9f3ed   __RU_l_____M______u_______________________
-72340   9f407   __RU_l_____M______u_______________________
-72341   9f408   __RU_l_____M______u_______________________
-72342   9f34d   __RU_l_____M______u_______________________
-72343   9f34e   __RU_l_____M______u_______________________
-72344   9f34f   __RU_l_____M______u_______________________
-72345   9f350   __RU_l_____M______u_______________________
-72346   9f351   __RU_l_____M______u_______________________
-72347   9f352   __RU_l_____M______u_______________________
-72348   9f353   __RU_l_____M______u_______________________
-72349   9f354   __RU_l_____M______u_______________________
-7234a   9f355   __RU_l_____M______u_______________________
-7234b   9f356   __RU_l_____M______u_______________________
-7234c   9f357   __RU_l_____M______u_______________________
-7234d   9f358   __RU_l_____M______u_______________________
-7234e   9f359   __RU_l_____M______u_______________________
-7234f   9f35a   __RU_l_____M______u_______________________
-72350   9f35b   __RU_l_____M______u_______________________
-72351   9f35c   __RU_l_____M______u_______________________
-72352   9f35d   __RU_l_____M______u_______________________
-72353   9f35e   __RU_l_____M______u_______________________
-72354   9f35f   __RU_l_____M______u_______________________
-72355   9f360   __RU_l_____M______u_______________________
-72356   9f361   __RU_l_____M______u_______________________
-72357   9f362   __RU_l_____M______u_______________________
-72358   9f363   __RU_l_____M______u_______________________
-72359   9f364   __RU_l_____M______u_______________________
-7235a   9f365   __RU_l_____M______u_______________________
-7235b   9f366   __RU_l_____M______u_______________________
-7235c   9f367   __RU_l_____M______u_______________________
-7235d   9f368   __RU_l_____M______u_______________________
-7235e   9f369   __RU_l_____M______u_______________________
-7235f   9f36a   __RU_l_____M______u_______________________
-72360   9f36b   __RU_l_____M______u_______________________
-72361   9f36c   __RU_l_____M______u_______________________
-72362   9f36d   __RU_l_____M______u_______________________
-72363   9f36e   __RU_l_____M______u_______________________
-72364   9f36f   __RU_l_____M______u_______________________
-72365   9f370   __RU_l_____M______u_______________________
-72366   9f371   __RU_l_____M______u_______________________
-72367   9f372   __RU_l_____M______u_______________________
-72368   9f373   __RU_l_____M______u_______________________
-72369   9f374   __RU_l_____M______u_______________________
-7236a   9f375   __RU_l_____M______u_______________________
-7236b   9f376   __RU_l_____M______u_______________________
-7236c   9f377   __RU_l_____M______u_______________________
-7236d   9f378   __RU_l_____M______u_______________________
-7236e   9f379   __RU_l_____M______u_______________________
-7236f   9f37a   __RU_l_____M______u_______________________
-72370   9f37b   __RU_l_____M______u_______________________
-72371   9f37c   __RU_l_____M______u_______________________
-72372   9f37d   __RU_l_____M______u_______________________
-72373   9f37e   __RU_l_____M______u_______________________
-72374   9f37f   __RU_l_____M______u_______________________
-72375   9f3c0   __RU_l_____M______u_______________________
-72376   9f3c1   __RU_l_____M______u_______________________
-72377   9f3c2   __RU_l_____M______u_______________________
-72378   9f3c3   __RU_l_____M______u_______________________
-72379   9f3c4   __RU_l_____M______u_______________________
-7237a   9f3c5   __RU_l_____M______u_______________________
-7237b   9f3c6   __RU_l_____M______u_______________________
-7237c   9f3c7   __RU_l_____M______u_______________________
-7237d   9f3c8   __RU_l_____M______u_______________________
-7237e   9f3c9   __RU_l_____M______u_______________________
-7237f   9f3fa   __RU_l_____M______u_______________________
-72380   9f3fb   __RU_l_____M______u_______________________
-72381   9f3fc   __RU_l_____M______u_______________________
-72382   9f29c   __RU_l_____M______u_______________________
-72383   9f29d   __RU_l_____M______u_______________________
-72384   9f29e   __RU_l_____M______u_______________________
-72385   9f29f   __RU_l_____M______u_______________________
-72386   9f2a0   __RU_l_____M______u_______________________
-72387   9f2a1   __RU_l_____M______u_______________________
-72388   9f2a2   __RU_l_____M______u_______________________
-72389   9f2a3   __RU_l_____M______u_______________________
-7238a   9f2a4   __RU_l_____M______u_______________________
-7238b   9f2a5   __RU_l_____M______u_______________________
-7238c   9f2a6   __RU_l_____M______u_______________________
-7238d   7e48e   ___UDlA____Ma_b___________________________
-7238e   8144e   ___U_lA____Ma_b___________________________
-7238f   81958   ___U_lA____Ma_b___________________________
-72390   926c6   ___U_lA____Ma_b___________________________
-72391   79614   ___UDlA____Ma_b___________________________
-72392   78355   ___U_lA____Ma_b___________________________
-72393   79992   ___UDlA____Ma_b___________________________
-72394   79dd1   ___UDlA____Ma_b___________________________
-72395   70d42   ___U_lA____Ma_b___________________________
-72396   7049e   ___U_lA____Ma_b___________________________
-72397   7983a   ___UDlA____Ma_b___________________________
-72398   7964e   ___UDlA____Ma_b___________________________
-7239c   74670   ___UDlA____Ma_b___________________________
-7e954   7468c   ___UDlA____Ma_b___________________________
-7e955   84f40   ___U_lA____Ma_b___________________________
-7e956   7dcf3   ___U_lA____Ma_b___________________________
-7e957   735d5   ___U_lA____Ma_b___________________________
-7e958   732ea   ___U_lA____Ma_b___________________________
-7e959   737cb   __RU_lA____Ma_b___________________________
-7ec00   20ed8   ___________M______________________________
-
-
-             flags      page-count       MB  symbolic-flags                =
-     long-symbolic-flags
-0x0000000000000800               1        0  ___________M__________________=
-____________ mmap
-0x0000000000000828               1        0  ___U_l_____M__________________=
-____________ uptodate,lru,mmap
-0x000000000004082c             444        1  __RU_l_____M______u___________=
-____________ referenced,uptodate,lru,mmap,unevictable
-0x000000000004483c              20        0  __RUDl_____M__b___u___________=
-____________ referenced,uptodate,dirty,lru,mmap,swapbacked,unevictable
-0x0000000000000868               1        0  ___U_lA____M__________________=
-____________ uptodate,lru,active,mmap
-0x000000000000086c              14        0  __RU_lA____M__________________=
-____________ referenced,uptodate,lru,active,mmap
-0x0000000000005868              47        0  ___U_lA____Ma_b_______________=
-____________ uptodate,lru,active,mmap,anonymous,swapbacked
-0x000000000000586c               1        0  __RU_lA____Ma_b_______________=
-____________ referenced,uptodate,lru,active,mmap,anonymous,swapbacked
-0x0000000000005878              31        0  ___UDlA____Ma_b_______________=
-____________ uptodate,dirty,lru,active,mmap,anonymous,swapbacked
-
-What is voffset and Offset ?
-Because cma-reserved range start from 0x60000 and i didnt found single page=
- in that range after allocation cma memory ?
-
-I found locked pages with stack trace using page_owner.c
-
-Page allocated via order 0, mask 0x14213ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD|=
-__GFP_NOWARN|__GFP_NORETRY)
-PFN 555075 type Movable Block 135 type CMA Flags 0x8019042c(referenced|upto=
-date|lru|arch_1|mappedtodisk|unevictable|mlocked)
- get_page_from_freelist+0xa98/0xbf8
- __alloc_pages_nodemask+0xe8/0x124c
- __do_page_cache_readahead+0x120/0x2c4
- ondemand_readahead+0x180/0x2b4
- page_cache_sync_readahead+0x4c/0x6c
- generic_file_read_iter+0x7e8/0xae4
- ext4_file_read_iter+0x3c/0x54
- new_sync_read+0xd4/0x118
- vfs_read+0x15c/0x1ac
- SyS_pread64+0xa0/0xbc
- ret_fast_syscall+0x0/0x4c
-Page has been migrated, last migrate reason: cma
-
-
-but how to know the process name ? who acquire this page ?
-
-Did you look at "current" which is pointer to current process.
-
-print is using debugfs & it prints all pages with above details, so current=
- pointer will not give you what we need.
-
-
-Thanks.
-***************************************************************************=
-***************************************************************************=
-******* eInfochips Business Disclaimer: This e-mail message and all attachm=
-ents transmitted with it are intended solely for the use of the addressee a=
-nd may contain legally privileged and confidential information. If the read=
-er of this message is not the intended recipient, or an employee or agent r=
-esponsible for delivering this message to the intended recipient, you are h=
-ereby notified that any dissemination, distribution, copying, or other use =
-of this message or its attachments is strictly prohibited. If you have rece=
-ived this message in error, please notify the sender immediately by replyin=
-g to this message and please delete it from your computer. Any views expres=
-sed in this message are those of the individual sender unless otherwise sta=
-ted. Company has taken enough precautions to prevent the spread of viruses.=
- However the company accepts no liability for any damage caused by any viru=
-s transmitted by this email. **********************************************=
-***************************************************************************=
-************************************
+-- 
+Sincerely yours,
+Mike.
 
