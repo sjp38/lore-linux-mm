@@ -8,125 +8,125 @@ X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 61C35C4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:02:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 96594C4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:02:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 00CF720820
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:02:38 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3BD0420820
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 02:02:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=sent.com header.i=@sent.com header.b="fdG7ZhJt";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="ndTS5P7P"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 00CF720820
+	dkim=pass (2048-bit key) header.d=sent.com header.i=@sent.com header.b="Yr+ax8/Q";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="oPEdqyfk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3BD0420820
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=sent.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AB6566B027D; Wed,  3 Apr 2019 22:01:57 -0400 (EDT)
+	id 5D5EA6B027E; Wed,  3 Apr 2019 22:01:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A67C06B027E; Wed,  3 Apr 2019 22:01:57 -0400 (EDT)
+	id 55ED36B0280; Wed,  3 Apr 2019 22:01:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8DFA66B027F; Wed,  3 Apr 2019 22:01:57 -0400 (EDT)
+	id 425026B0281; Wed,  3 Apr 2019 22:01:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D5D46B027D
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 22:01:57 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id h51so926041qte.22
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 19:01:57 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CE786B027E
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2019 22:01:59 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id 77so943687qkd.9
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2019 19:01:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
          :date:message-id:in-reply-to:references:reply-to:mime-version
          :content-transfer-encoding;
-        bh=3T42stGTEO5yaBeosRcIHJtycIIQs381815PCz0cSnU=;
-        b=r8Hj1y/jxFQbFqEnvG6lLwMUxb/AHL/wScj8GKZO919UrrRy8RMslJTWaSEY6mZdzU
-         qEfrsyFVt4MLgpHWiTYc9yTY2rk3fQBzGsxIl9FIlpls3s3jaFvNApGRxDpjw0Sjhm8o
-         +AWt4bbVQ63cfXla66enrPDttJmuwyJueMk02Kn4hr5uSYkA1SFzVHhlj3APC6pEKIaT
-         voN95p+1O7abQWNCJK+B8coI9KJdXEryHJzsYJj2soESpps7BdHBFQfPTLGdYlFyJcoC
-         mnmezoXG2m03JB1yn1tQys3Y2sjKjcPfOjbFul/RDOJbtOmNScovQKpH96FK/iihMMit
-         WYHA==
-X-Gm-Message-State: APjAAAVzn/qNN6F3jAwevY4nYcVCIYKznR7uyhlDtaPz3KGlv1d39RhG
-	1czLvpQWpiZZ4ucOvplmikqOGHBbOtExCFFwxCBPKWGOYHLxEKkc/urXo/Pv887dzAWmcrgsHr8
-	4QirIfl3f4QWWunKOrziKK8WvbZsj5WbrWnN4v4ZLuTUQHZ5bFzF73JcGyehQgQREuw==
-X-Received: by 2002:aed:3b62:: with SMTP id q31mr3014410qte.82.1554343317220;
+        bh=PhVR5Tm+hbp1uFSOwTqwsUckzcZYN8AfZd5SoP03jII=;
+        b=LL2wR9rS2dvKE2nJtnOqy7aH32nf8xN7TJNPxJfKHsPk9RUUnTPd5EdCmN5UKJaee8
+         qjjp6MQvH1udhttyqLUCn16Rfi+WClnYoNmKvCK/Vo3x1jyjlvLz/7wFSFupYXuXXwpo
+         ENl3RsunBKweWm2Vl76QZeVMrIJdGeofegP4yIhOHNB2jMnX+Usm0HCUlP2vgXMM/tS6
+         fmWIisP3+ARISD3iei2nFob4kg/BhN7y9mV1Gz1sLGf2JjRF4ayq+JHmG9Pb2gPmMasA
+         6uYUwzK8ZLOeRml2zTW5znyuriu0KsT3y3DbeuRkBuVxZ0mJSpeb1nUweZVfaz/XI2r5
+         CA0A==
+X-Gm-Message-State: APjAAAWvdsFtgRyUgntvs7aarBVGGDLYx0XoW03D6VDAS942BO097C2t
+	InP55NV4aEblP/LVQQN0dx1XbyA++7ma3asagRMkSeNLJlfCBEPF5jwhDDFGZCIOhpAdAqTUooh
+	4QteudnVbYEaCPZIBtpGpwH8WAYX+JgqzBfs+dtQFyz6mEM195RbmhsllryWJwg4NjQ==
+X-Received: by 2002:ac8:538c:: with SMTP id x12mr2947442qtp.238.1554343318865;
+        Wed, 03 Apr 2019 19:01:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzRcYlw5eso3XnHDPhE/wogvkXGUrPjD+8Ohri7ZyaD6OgFM7JExRCqJvx/5ddWKOSkiNUT
+X-Received: by 2002:ac8:538c:: with SMTP id x12mr2947384qtp.238.1554343317667;
         Wed, 03 Apr 2019 19:01:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzrOzSAcECGLFh8ifURex61N/J0iumRmjMNJ+jA3yWwbL/t0LGWTPqADquKNXKS3HS8K97Y
-X-Received: by 2002:aed:3b62:: with SMTP id q31mr3014341qte.82.1554343316046;
-        Wed, 03 Apr 2019 19:01:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554343316; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1554343317; cv=none;
         d=google.com; s=arc-20160816;
-        b=kPgdHehiJiV+z+65hqUVP0UTgIPwdIfUPrS1xZ3KB/Uv9uqC2qDjVo1TU8x7ASEMbb
-         2IZIJJfBinyCQYOqqDtw1/kavctn5oZxQOIW/Qt4/XL9FlyOYeqxgCWsE/5ixWme0cCW
-         8w8bc+sz7LxU0b32EbmnLUWai6phh5LDOBqQiqXd+zqOjMThkLzXEjGYKzoxkUHtNRic
-         hK5x+B2xnf1fAtiMaaz5hls+FynZOPl7veqidMOGWjG9wS0PHRVa6za6ZU5cK0c9uUGY
-         C/yHGPxCt8PjCtyPBynru954TB9KOYRr/UAzQ6/rbFYECjSOvwf+X5FReE666Q76W7u+
-         SPHg==
+        b=xyW7noPnmC7uTYfql5iePLdqY5Ps4k6oArcaQ+NkfZ6uCt0p88/hkzcZPCwWRsiQmO
+         YsJEWjSP9RQ13k/QwTaAq1ybqfhEwdjBUQJ6HkRnZPD7bd7WwxSwhdHxQkWjm1bZcuvD
+         sd2mtRTp0+7dDMk3pl44l6bvAfClJqEiVjA+JAHvSgLpH+/UPmqCZzF7Te+cJKZ0bbg5
+         NZJxvXuM/dJVQuH4kvxiTRXxaHVBN+DjRYsy4HMA4ePrHaqvxM7ww5TDqlB31WQC7b98
+         mJs3r7Kl87IwCoFgzoR+19A6TMNiwVxepJf2qPrabQ3eJkB8vFp/LEFF00o/e9O0+3nS
+         AA0w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:reply-to:references
          :in-reply-to:message-id:date:subject:cc:to:from:dkim-signature
          :dkim-signature;
-        bh=3T42stGTEO5yaBeosRcIHJtycIIQs381815PCz0cSnU=;
-        b=sLfoEKWbOBkc3g2GL6MIM4+CGDB2iQw+mCwx91WpDqkGb0vWCqlep1xQCvrv1VdziD
-         r8TFjNE59GdVwDc6LAnuVLYlyQXQv1Uux+amN/RRESJphkWp7HgF3nrbiTALSBApCaKw
-         ZpbKw3YsyvIj0GHRM4jXSeGulFiXjyu6EQ/o0ndThjPtLVou4yUJfIHXEuVlLVgbN9/g
-         ecp/Yaz1lPMp3BhCBxfabas6yKdYwkqw66e4vR42DGUkWPkm8UiioY7BPKcu39n8clTd
-         xXZdv6yYpdhpFUTVG8xkpdYXzw+Ug88uFlICT3ryiWns8rINwJPApYk9zK9jEJHSf03/
-         MlCg==
+        bh=PhVR5Tm+hbp1uFSOwTqwsUckzcZYN8AfZd5SoP03jII=;
+        b=GQ1boNG0nXiLqE4Q3cxdigM3z6jVumbOVUb67AIUE4wQY9H7xtPO5Opj0NmfpboIEL
+         j1OF+hNGKDGDv9UVY06rsRY13yrrU1BLhYPcRRIz889bx7G2slhky2RcqbAzpPjKqOb0
+         xebLdBHJHpGgOqc9RnCT3pEZe9Tx1mOLBFySp91dxEzJxNqFaNqNU7hjTmhcfzeR6OMl
+         e3akvRz/epXERPxpsHBAT3jd54m1G5hx8oUaM/JqYNIFjhCc8dZPBHtUhA9NagMw83J9
+         K3a+d31PdYtBKuuEz9whFKKcynTdkAVREALQctMUsbBeWIxz7j/eTOd7qPZ6er6zrOcf
+         YFew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@sent.com header.s=fm3 header.b=fdG7ZhJt;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=ndTS5P7P;
+       dkim=pass header.i=@sent.com header.s=fm3 header.b="Yr+ax8/Q";
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=oPEdqyfk;
        spf=pass (google.com: domain of zi.yan@sent.com designates 66.111.4.29 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
 Received: from out5-smtp.messagingengine.com (out5-smtp.messagingengine.com. [66.111.4.29])
-        by mx.google.com with ESMTPS id z10si144395qth.215.2019.04.03.19.01.55
+        by mx.google.com with ESMTPS id b189si5280925qkd.230.2019.04.03.19.01.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Apr 2019 19:01:56 -0700 (PDT)
+        Wed, 03 Apr 2019 19:01:57 -0700 (PDT)
 Received-SPF: pass (google.com: domain of zi.yan@sent.com designates 66.111.4.29 as permitted sender) client-ip=66.111.4.29;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@sent.com header.s=fm3 header.b=fdG7ZhJt;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=ndTS5P7P;
+       dkim=pass header.i=@sent.com header.s=fm3 header.b="Yr+ax8/Q";
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=oPEdqyfk;
        spf=pass (google.com: domain of zi.yan@sent.com designates 66.111.4.29 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.nyi.internal (Postfix) with ESMTP id BE5D922B6A;
-	Wed,  3 Apr 2019 22:01:55 -0400 (EDT)
+	by mailout.nyi.internal (Postfix) with ESMTP id 5ADAD22A8A;
+	Wed,  3 Apr 2019 22:01:57 -0400 (EDT)
 Received: from mailfrontend2 ([10.202.2.163])
-  by compute3.internal (MEProxy); Wed, 03 Apr 2019 22:01:55 -0400
+  by compute3.internal (MEProxy); Wed, 03 Apr 2019 22:01:57 -0400
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=sent.com; h=from
 	:to:cc:subject:date:message-id:in-reply-to:references:reply-to
-	:mime-version:content-transfer-encoding; s=fm3; bh=3T42stGTEO5ya
-	BeosRcIHJtycIIQs381815PCz0cSnU=; b=fdG7ZhJtpi82VTO5NK8xh0TlTw62C
-	8chyJiNLcSRPLCPCzhQNGJA6pRCfAlbglgqgay1XkS7iR8kiNcXOMUBKUSsWmue5
-	leWLYppitvB7QhkUcBz/BEGJnbQkl2+ae5++jORUQZHoRQ/EfFnfrIHb6zaVyGpy
-	+odnxxnOrMYnjyBER2Chm0ZliVIQYufit4BkU0ZTZxWYy++QR3uR6tKLecYqpGXE
-	hY7Tg13vEWZ+uOH4cGGumZAZ0EBPIz+LhMMJEK0quK7aQF1Ap0eq34R3q1bj760H
-	2G9gkIruWkuWmGtX6+CjKXA100hig8M5kexoPWP9WBmuwmJoh4BYLTC/g==
+	:mime-version:content-transfer-encoding; s=fm3; bh=PhVR5Tm+hbp1u
+	FSOwTqwsUckzcZYN8AfZd5SoP03jII=; b=Yr+ax8/QVYPA1+W4dwtnPPgONbRsx
+	CoMF+dfi9QtEPs7g0RiLU0pk0iVzICDgXU+At416R46J4I7W0fTnatME4kl5KAbu
+	zcy+cb/BVsz3H3kZbWWZ9WpsYqBgrPkJifyZQq0NQGJaBQTq1SzAFzQJurhA2+5y
+	O0RrMVKSKeObFdnk6RqGNur+0U6DjptvN0jr9DJnVmwAYeD6I7g8JLUW3xD44aT5
+	12e05CYeOXAtVaDMUatMFf/HENG9325wrtYwsBbHYhuCvNhDQbgpCq5MKFsEaW3Y
+	kYc9owHk7glJtDNRiJDtGpilgFsbr6V8Jjj0cVWjKi4ce6Ts0Y9CHQqfw==
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:reply-to:subject
 	:to:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=3T42stGTEO5yaBeosRcIHJtycIIQs381815PCz0cSnU=; b=ndTS5P7P
-	Qxd+Ar6roAAVVpGH9xCeYy7Geo+mo94CLKb/oUbWs0cCIEiyGxakuKff58A66qvj
-	kgdDO62ecGWtQYlO1OjXrqAjMjH+05dLReIYoEcUqF9KEnVytE2DeZnl/rb/Po0E
-	JMA1ZkWN9x4sTXtvU7BGC0Mr4FCyczgPnHoRomZuvnWkmAXlrta5j3Fybc45HQ6m
-	BtBNbaFeQ2/ENDSfZrwMxeFLzvi15B81siMXbk6Pf3HsKcAVIDW9ujxUZEZLSUim
-	K0aV/eavecjeWXfz67rnUexfMsvqvDJQA6T/TT/oh7/GFQr70ZyOhIsengZEh0qk
-	qj3WXk5xsgjW7g==
-X-ME-Sender: <xms:k2WlXEYsKwVboEkNg4yPp-hFC6sTIZaL4yFO1rhbgTEYXsBg_L37UA>
+	fm2; bh=PhVR5Tm+hbp1uFSOwTqwsUckzcZYN8AfZd5SoP03jII=; b=oPEdqyfk
+	qmB60PvsJ01YVyhW1msq2+79MMbiCd+DOqBpEd4/V4c2ONuYgW8GsXHZakCoiao4
+	l9yLhOoKXJo2VL4oM/S0YbHmTJM42epHCIKJOjcH/Yu3ZtWB5es5DBgjHD7aQ9Sy
+	L7TeL0RCElkGYeWslFraN4QHcpPQGbWYR3JKuX/aSnyuc9GHH35RhRI7T3zGOGzd
+	9sPWcZXsZSAorFAWcUJ77jbioPTPHHMWFXrscP2Ux0wZzw/nKDPs5p1J0vPXyv5D
+	R9pGXdzYZB3ZKXBR+6iuv1bP5hVNpgxYyhY3Z+FLe1ipe4cyT5rheF5Jq3EPkg5E
+	xL7NTzTZordTDg==
+X-ME-Sender: <xms:lWWlXBg96v7_nQzecl-GefNwcOuB2dGuW3H1kL_RfSJmXN6iG5f3gA>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrtdeggdehudculddtuddrgedutddrtddtmd
     cutefuodetggdotefrodftvfcurfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdp
     uffrtefokffrpgfnqfghnecuuegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivg
     hnthhsucdlqddutddtmdenucfjughrpefhvffufffkofgjfhhrggfgsedtkeertdertddt
     necuhfhrohhmpegkihcujggrnhcuoeiiihdrhigrnhesshgvnhhtrdgtohhmqeenucfkph
     epvdduiedrvddvkedrudduvddrvddvnecurfgrrhgrmhepmhgrihhlfhhrohhmpeiiihdr
-    higrnhesshgvnhhtrdgtohhmnecuvehluhhsthgvrhfuihiivgepvddu
-X-ME-Proxy: <xmx:k2WlXM6gnvsxDK2bGl2lCLqIDJYQQdk605pnXCfvAiJGjwlWE4WnvQ>
-    <xmx:k2WlXBl_sSb8wd1O4FkG8JxSfe5tDKvofaEh_8ItYwlJQEE23mgBwQ>
-    <xmx:k2WlXEHhRpLRryFESMkImObinS6l7x5lgX04b9bDI0gxLVleOvWOkg>
-    <xmx:k2WlXHu4Cu86GMcXqOAkMY4hH1c8DAfa0sIhaEnnIHFSZvnHt5K7xg>
+    higrnhesshgvnhhtrdgtohhmnecuvehluhhsthgvrhfuihiivgepvdeg
+X-ME-Proxy: <xmx:lWWlXMDkp52DfJEQ0lOVDpOtrttc7pWAavVCCl5-r-VT9jHnhNIk_g>
+    <xmx:lWWlXNjO_QuyFEOIIiPWuZsTfjBba4NHTHvej_E-0Q4lYds-lwx3Mw>
+    <xmx:lWWlXL1CdJYUDY6mNBJ0XCOZLQT8tEruXPYPpViflNOZ6GYEEuCRUg>
+    <xmx:lWWlXIZbTj45X_AYOJGtQQutMK6xam_fk2i5ijL6pjt793fhHdSkww>
 Received: from nvrsysarch5.nvidia.com (thunderhill.nvidia.com [216.228.112.22])
-	by mail.messagingengine.com (Postfix) with ESMTPA id C218010310;
-	Wed,  3 Apr 2019 22:01:53 -0400 (EDT)
+	by mail.messagingengine.com (Postfix) with ESMTPA id 7114310316;
+	Wed,  3 Apr 2019 22:01:55 -0400 (EDT)
 From: Zi Yan <zi.yan@sent.com>
 To: Dave Hansen <dave.hansen@linux.intel.com>,
 	Yang Shi <yang.shi@linux.alibaba.com>,
@@ -146,9 +146,9 @@ Cc: Daniel Jordan <daniel.m.jordan@oracle.com>,
 	Javier Cabezas <jcabezas@nvidia.com>,
 	David Nellans <dnellans@nvidia.com>,
 	Zi Yan <ziy@nvidia.com>
-Subject: [RFC PATCH 24/25] memory manage: limit migration batch size.
-Date: Wed,  3 Apr 2019 19:00:45 -0700
-Message-Id: <20190404020046.32741-25-zi.yan@sent.com>
+Subject: [RFC PATCH 25/25] memory manage: use exchange pages to memory manage to improve throughput.
+Date: Wed,  3 Apr 2019 19:00:46 -0700
+Message-Id: <20190404020046.32741-26-zi.yan@sent.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190404020046.32741-1-zi.yan@sent.com>
 References: <20190404020046.32741-1-zi.yan@sent.com>
@@ -163,150 +163,227 @@ List-ID: <linux-mm.kvack.org>
 
 From: Zi Yan <ziy@nvidia.com>
 
-Make migration batch size adjustable to avoid excessive migration
-overheads when a lot of pages are under migration.
+1. Exclude file-backed base pages from exchanging.
+2. Split THP in exchange pages if THP support is disabled.
+3. if THP migration is supported, only exchange THPs.
 
 Signed-off-by: Zi Yan <ziy@nvidia.com>
 ---
- kernel/sysctl.c    |  8 ++++++++
- mm/memory_manage.c | 60 ++++++++++++++++++++++++++++++++++++------------------
- 2 files changed, 48 insertions(+), 20 deletions(-)
+ mm/memory_manage.c | 173 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 173 insertions(+)
 
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index b8712eb..b92e2da9 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -105,6 +105,7 @@ extern int accel_page_copy;
- extern unsigned int limit_mt_num;
- extern int use_all_dma_chans;
- extern int limit_dma_chans;
-+extern int migration_batch_size;
- 
- /* External variables not in a header file. */
- extern int suid_dumpable;
-@@ -1470,6 +1471,13 @@ static struct ctl_table vm_table[] = {
- 		.extra1		= &zero,
- 	 },
- 	 {
-+		.procname	= "migration_batch_size",
-+		.data		= &migration_batch_size,
-+		.maxlen		= sizeof(migration_batch_size),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec,
-+	 },
-+	 {
- 		.procname	= "hugetlb_shm_group",
- 		.data		= &sysctl_hugetlb_shm_group,
- 		.maxlen		= sizeof(gid_t),
 diff --git a/mm/memory_manage.c b/mm/memory_manage.c
-index d63ad25..8b76fcf 100644
+index 8b76fcf..d3d07b7 100644
 --- a/mm/memory_manage.c
 +++ b/mm/memory_manage.c
-@@ -16,6 +16,8 @@
- 
- #include "internal.h"
- 
-+int migration_batch_size = 16;
-+
- enum isolate_action {
- 	ISOLATE_COLD_PAGES = 1,
- 	ISOLATE_HOT_PAGES,
-@@ -137,35 +139,49 @@ static unsigned long isolate_pages_from_lru_list(pg_data_t *pgdat,
+@@ -7,6 +7,7 @@
+ #include <linux/mempolicy.h>
+ #include <linux/memcontrol.h>
+ #include <linux/migrate.h>
++#include <linux/exchange.h>
+ #include <linux/mm_inline.h>
+ #include <linux/nodemask.h>
+ #include <linux/rmap.h>
+@@ -253,6 +254,147 @@ static int putback_overflow_pages(unsigned long max_nr_base_pages,
+ 			huge_page_list, nr_huge_pages);
  }
  
- static int migrate_to_node(struct list_head *page_list, int nid,
--		enum migrate_mode mode)
-+		enum migrate_mode mode, int batch_size)
- {
- 	bool migrate_concur = mode & MIGRATE_CONCUR;
-+	bool unlimited_batch_size = (batch_size <=0 || !migrate_concur);
- 	int num = 0;
--	int from_nid;
-+	int from_nid = -1;
- 	int err;
- 
- 	if (list_empty(page_list))
- 		return num;
- 
--	from_nid = page_to_nid(list_first_entry(page_list, struct page, lru));
-+	while (!list_empty(page_list)) {
-+		LIST_HEAD(batch_page_list);
-+		int i;
- 
--	if (migrate_concur)
--		err = migrate_pages_concur(page_list, alloc_new_node_page,
--			NULL, nid, mode, MR_SYSCALL);
--	else
--		err = migrate_pages(page_list, alloc_new_node_page,
--			NULL, nid, mode, MR_SYSCALL);
-+		/* it should move all pages to batch_page_list if !migrate_concur */
-+		for (i = 0; i < batch_size || unlimited_batch_size; i++) {
-+			struct page *item = list_first_entry_or_null(page_list, struct page, lru);
-+			if (!item)
-+				break;
-+			list_move(&item->lru, &batch_page_list);
++static int add_pages_to_exchange_list(struct list_head *from_pagelist,
++	struct list_head *to_pagelist, struct exchange_page_info *info_list,
++	struct list_head *exchange_list, unsigned long info_list_size)
++{
++	unsigned long info_list_index = 0;
++	LIST_HEAD(failed_from_list);
++	LIST_HEAD(failed_to_list);
++
++	while (!list_empty(from_pagelist) && !list_empty(to_pagelist)) {
++		struct page *from_page, *to_page;
++		struct exchange_page_info *one_pair = &info_list[info_list_index];
++		int rc;
++
++		from_page = list_first_entry_or_null(from_pagelist, struct page, lru);
++		to_page = list_first_entry_or_null(to_pagelist, struct page, lru);
++
++		if (!from_page || !to_page)
++			break;
++
++		if (!thp_migration_supported() && PageTransHuge(from_page)) {
++			lock_page(from_page);
++			rc = split_huge_page_to_list(from_page, &from_page->lru);
++			unlock_page(from_page);
++			if (rc) {
++				list_move(&from_page->lru, &failed_from_list);
++				continue;
++			}
 +		}
- 
--	if (err) {
--		struct page *page;
-+		from_nid = page_to_nid(list_first_entry(&batch_page_list, struct page, lru));
- 
--		list_for_each_entry(page, page_list, lru)
--			num += hpage_nr_pages(page);
--		pr_debug("%d pages failed to migrate from %d to %d\n",
--			num, from_nid, nid);
++
++		if (!thp_migration_supported() && PageTransHuge(to_page)) {
++			lock_page(to_page);
++			rc = split_huge_page_to_list(to_page, &to_page->lru);
++			unlock_page(to_page);
++			if (rc) {
++				list_move(&to_page->lru, &failed_to_list);
++				continue;
++			}
++		}
++
++		if (hpage_nr_pages(from_page) != hpage_nr_pages(to_page)) {
++			if (!(hpage_nr_pages(from_page) == 1 && hpage_nr_pages(from_page) == HPAGE_PMD_NR)) {
++				list_del(&from_page->lru);
++				list_add(&from_page->lru, &failed_from_list);
++			}
++			if (!(hpage_nr_pages(to_page) == 1 && hpage_nr_pages(to_page) == HPAGE_PMD_NR)) {
++				list_del(&to_page->lru);
++				list_add(&to_page->lru, &failed_to_list);
++			}
++			continue;
++		}
++
++		/* Exclude file-backed pages, exchange it concurrently is not
++		 * implemented yet. */
++		if (page_mapping(from_page)) {
++			list_del(&from_page->lru);
++			list_add(&from_page->lru, &failed_from_list);
++			continue;
++		}
++		if (page_mapping(to_page)) {
++			list_del(&to_page->lru);
++			list_add(&to_page->lru, &failed_to_list);
++			continue;
++		}
++
++		list_del(&from_page->lru);
++		list_del(&to_page->lru);
++
++		one_pair->from_page = from_page;
++		one_pair->to_page = to_page;
++
++		list_add_tail(&one_pair->list, exchange_list);
++
++		info_list_index++;
++		if (info_list_index >= info_list_size)
++			break;
++	}
++	list_splice(&failed_from_list, from_pagelist);
++	list_splice(&failed_to_list, to_pagelist);
++
++	return info_list_index;
++}
++
++static unsigned long exchange_pages_between_nodes(unsigned long nr_from_pages,
++	unsigned long nr_to_pages, struct list_head *from_page_list,
++	struct list_head *to_page_list, int batch_size,
++	bool huge_page, enum migrate_mode mode)
++{
++	struct exchange_page_info *info_list;
++	unsigned long info_list_size = min_t(unsigned long,
++		nr_from_pages, nr_to_pages) / (huge_page?HPAGE_PMD_NR:1);
++	unsigned long added_size = 0;
++	bool migrate_concur = mode & MIGRATE_CONCUR;
++	LIST_HEAD(exchange_list);
++
++	/* non concurrent does not need to split into batches  */
++	if (!migrate_concur || batch_size <= 0)
++		batch_size = info_list_size;
++
++	/* prepare for huge page split  */
++	if (!thp_migration_supported() && huge_page) {
++		batch_size = batch_size * HPAGE_PMD_NR;
++		info_list_size = info_list_size * HPAGE_PMD_NR;
++	}
++
++	info_list = kvzalloc(sizeof(struct exchange_page_info)*batch_size,
++			GFP_KERNEL);
++	if (!info_list)
++		return 0;
++
++	while (!list_empty(from_page_list) && !list_empty(to_page_list)) {
++		unsigned long nr_added_pages;
++		INIT_LIST_HEAD(&exchange_list);
++
++		nr_added_pages = add_pages_to_exchange_list(from_page_list, to_page_list,
++			info_list, &exchange_list, batch_size);
++
++		/*
++		 * Nothing to exchange, we bail out.
++		 *
++		 * In case from_page_list and to_page_list both only have file-backed
++		 * pages left */
++		if (!nr_added_pages)
++			break;
++
++		added_size += nr_added_pages;
++
++		VM_BUG_ON(added_size > info_list_size);
++
 +		if (migrate_concur)
-+			err = migrate_pages_concur(&batch_page_list, alloc_new_node_page,
-+				NULL, nid, mode, MR_SYSCALL);
++			exchange_pages_concur(&exchange_list, mode, MR_SYSCALL);
 +		else
-+			err = migrate_pages(&batch_page_list, alloc_new_node_page,
-+				NULL, nid, mode, MR_SYSCALL);
- 
--		putback_movable_pages(page_list);
-+		if (err) {
-+			struct page *page;
++			exchange_pages(&exchange_list, mode, MR_SYSCALL);
 +
-+			list_for_each_entry(page, &batch_page_list, lru)
-+				num += hpage_nr_pages(page);
++		memset(info_list, 0, sizeof(struct exchange_page_info)*batch_size);
++	}
 +
-+			putback_movable_pages(&batch_page_list);
-+		}
- 	}
-+	pr_debug("%d pages failed to migrate from %d to %d\n",
-+		num, from_nid, nid);
- 	return num;
- }
++	kvfree(info_list);
++
++	return info_list_size;
++}
++
+ static int do_mm_manage(struct task_struct *p, struct mm_struct *mm,
+ 		const nodemask_t *slow, const nodemask_t *fast,
+ 		unsigned long nr_pages, int flags)
+@@ -261,6 +403,7 @@ static int do_mm_manage(struct task_struct *p, struct mm_struct *mm,
+ 	bool migrate_concur = flags & MPOL_MF_MOVE_CONCUR;
+ 	bool migrate_dma = flags & MPOL_MF_MOVE_DMA;
+ 	bool move_hot_and_cold_pages = flags & MPOL_MF_MOVE_ALL;
++	bool migrate_exchange_pages = flags & MPOL_MF_EXCHANGE;
+ 	struct mem_cgroup *memcg = mem_cgroup_from_task(p);
+ 	int err = 0;
+ 	unsigned long nr_isolated_slow_pages;
+@@ -338,6 +481,35 @@ static int do_mm_manage(struct task_struct *p, struct mm_struct *mm,
+ 			&nr_isolated_fast_base_pages, &nr_isolated_fast_huge_pages,
+ 			move_hot_and_cold_pages?ISOLATE_HOT_AND_COLD_PAGES:ISOLATE_COLD_PAGES);
  
-@@ -325,10 +341,12 @@ static int do_mm_manage(struct task_struct *p, struct mm_struct *mm,
++		if (migrate_exchange_pages) {
++			unsigned long nr_exchange_pages;
++
++			/*
++			 * base pages can include file-backed ones, we do not handle them
++			 * at the moment
++			 */
++			if (!thp_migration_supported()) {
++				nr_exchange_pages =  exchange_pages_between_nodes(nr_isolated_slow_base_pages,
++					nr_isolated_fast_base_pages, &slow_base_page_list,
++					&fast_base_page_list, migration_batch_size, false, mode);
++
++				nr_isolated_fast_base_pages -= nr_exchange_pages;
++			}
++
++			/* THP page exchange */
++			nr_exchange_pages =  exchange_pages_between_nodes(nr_isolated_slow_huge_pages,
++				nr_isolated_fast_huge_pages, &slow_huge_page_list,
++				&fast_huge_page_list, migration_batch_size, true, mode);
++
++			/* split THP above, so we do not need to multiply the counter */
++			if (!thp_migration_supported())
++				nr_isolated_fast_huge_pages -= nr_exchange_pages;
++			else
++				nr_isolated_fast_huge_pages -= nr_exchange_pages * HPAGE_PMD_NR;
++
++			goto migrate_out;
++		} else {
++migrate_out:
  		/* Migrate pages to slow node */
  		/* No multi-threaded migration for base pages */
  		nr_isolated_fast_base_pages -=
--			migrate_to_node(&fast_base_page_list, slow_nid, mode & ~MIGRATE_MT);
-+			migrate_to_node(&fast_base_page_list, slow_nid,
-+				mode & ~MIGRATE_MT, migration_batch_size);
- 
+@@ -347,6 +519,7 @@ static int do_mm_manage(struct task_struct *p, struct mm_struct *mm,
  		nr_isolated_fast_huge_pages -=
--			migrate_to_node(&fast_huge_page_list, slow_nid, mode);
-+			migrate_to_node(&fast_huge_page_list, slow_nid, mode,
-+				migration_batch_size);
+ 			migrate_to_node(&fast_huge_page_list, slow_nid, mode,
+ 				migration_batch_size);
++		}
  	}
  
  	if (nr_isolated_fast_base_pages != ULONG_MAX &&
-@@ -342,10 +360,12 @@ static int do_mm_manage(struct task_struct *p, struct mm_struct *mm,
- 	/* Migrate pages to fast node */
- 	/* No multi-threaded migration for base pages */
- 	nr_isolated_slow_base_pages -=
--		migrate_to_node(&slow_base_page_list, fast_nid, mode & ~MIGRATE_MT);
-+		migrate_to_node(&slow_base_page_list, fast_nid, mode & ~MIGRATE_MT,
-+				migration_batch_size);
- 
- 	nr_isolated_slow_huge_pages -=
--		migrate_to_node(&slow_huge_page_list, fast_nid, mode);
-+		migrate_to_node(&slow_huge_page_list, fast_nid, mode,
-+				migration_batch_size);
- 
- 	return err;
- }
 -- 
 2.7.4
 
