@@ -2,149 +2,158 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 643F3C10F0C
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 13:03:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 900EDC10F0C
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 13:08:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2DC902075E
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 13:03:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2DC902075E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 4D23B2075E
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 13:08:46 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="gH2HKKrq"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D23B2075E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B0D686B0003; Thu,  4 Apr 2019 09:03:16 -0400 (EDT)
+	id E17FD6B0007; Thu,  4 Apr 2019 09:08:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ABE5F6B0005; Thu,  4 Apr 2019 09:03:16 -0400 (EDT)
+	id DC5D36B0008; Thu,  4 Apr 2019 09:08:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9B0456B0007; Thu,  4 Apr 2019 09:03:16 -0400 (EDT)
+	id CDDC66B000C; Thu,  4 Apr 2019 09:08:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4892D6B0003
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 09:03:16 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id c41so1367050edb.7
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 06:03:16 -0700 (PDT)
+Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 69AEA6B0007
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 09:08:45 -0400 (EDT)
+Received: by mail-lf1-f69.google.com with SMTP id w10so269845lfn.20
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 06:08:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=WPlEIfMarxdMuwuQN+csUicmM1PpW6F5XI6wi3gLWA0=;
-        b=Vbi0K2xTIa25YjAx52/7VwF8kEqSls4OUeBmcRMPuRr5TUs7yeSovrCfMT64RSBQpl
-         Q5kT6P8rXsntG+IPRi9fXkNLNW0Rqyw34QyQ7vqoSUDkwLsxJxmsy4BXAB9YGCtE1D3Z
-         dPnbtoKC5IY+/qX8t/zCD7PalwHJJch8X1FCoJtaXIJUpgeT2sPRdTPN2n+87rgrgsGt
-         bM+4oVgYA3omH7CYozGgu+HA9Ll/HxjVS4pVzvAKMfhvAOlmz10MpYvZBVAcy8Jj0CcK
-         wRn9uWU2EwqH2kb6LqxrKYKSVqS7sRqgcs/svMaqo28EYrc7KVWku4e3c446CS37LKXY
-         Pc+Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAVJaasOk+RHXJhkWhYh9etTVdsta5W4QfBteKHekRuPbcJ/OpGt
-	JRfLBfCNVXony/QkQhPQeoKlQ3KEg3SU0O5qtPEIMonsnvq/rvt3ZwDXDz77ZXlyKr+J8UfNKGd
-	4ZxHle05E9gz2zqEIXN9ny2aACHqsq7qKqroQM+2Op6DjqDYMULL5X9h7B1D+zoWVpw==
-X-Received: by 2002:a50:b6d5:: with SMTP id f21mr3762178ede.105.1554382995852;
-        Thu, 04 Apr 2019 06:03:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw14MJCPQZ+jP+hOZ5OQuuMpbcQMLZ23hd3v9ucNShHyarkYT44jXyufGYv07dOJtcIE1DQ
-X-Received: by 2002:a50:b6d5:: with SMTP id f21mr3762105ede.105.1554382994671;
-        Thu, 04 Apr 2019 06:03:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554382994; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=ydhQYDsYO5blITLWkKkMOKoBtLuqbWY/Tzn56seZhUY=;
+        b=ImHe/mvKyfg4bHYFrv9H78zvt6whj1gCVpMJVv71p4Cuw/PrsR55k3aVJjVK+9w9hE
+         lEVSseWKzEIY246Lf5kvigWvAFLkXyQdMuVkYsRlJFXE7dj2JYcevfVQrX1zMs7Y1ixY
+         bPBlX1w0pbyJlDNlpzGuZ7BkEFfAfpsjm26eP7VMTRpqdrBSghEzyh90LaiSGHaESCDg
+         iW/BIh8EJkY9BoL8DrToNG/YdXzqErtBdilinAJ+RyqPTzB8JqiJ2U5IgwWj7vcjbYNI
+         yNVYEngJfbLUQjIzD37atBsld+DBcvUS5wx8D/zWciwIs3ipaFO62W7VLvEj3glWYx8A
+         gSlQ==
+X-Gm-Message-State: APjAAAWxWQlp7DnftAIP94RErNYg3KVvc0m1Oo+nbUoJc8zYnS2oWCHq
+	C200mnc9q+0chh2lM4n9UmpgWt3P7BGOfLNCsr7vq0t+B4+KXZvyLJlDiTRbi4HnwfNkIoyiVFl
+	ccfdgL03592cQsgIPLrQ74aHjAFa0uJf3gjS/ruqF1DpgPI78PGkP98Nn751pRJOe/w==
+X-Received: by 2002:a2e:219:: with SMTP id 25mr3403472ljc.34.1554383324470;
+        Thu, 04 Apr 2019 06:08:44 -0700 (PDT)
+X-Received: by 2002:a2e:219:: with SMTP id 25mr3403417ljc.34.1554383323402;
+        Thu, 04 Apr 2019 06:08:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554383323; cv=none;
         d=google.com; s=arc-20160816;
-        b=kbKH8KJsYD/Kf93ZaX+topbL9jkgR6tpNx+6mH0mE+nMaKayw9Ko1GZJXIKfCGxwEg
-         TCVp3nxrW7rRwd1C26wXIcScSQ5LQvVDlTrjWWsNQKwUWPV+4DOxEDvOrHzU0qrKE6ca
-         ympi3QbYBig8lEDQVyQn3BzyCIgaEwTSICvzCbnHzozWq/4JE9GrWwdvY2ywwwEV8SiC
-         RHeN5P0Bk0gnpprwq81mqSdbpOST5xUYcnNVaYYBitlIlAAduF8HXu+bx8ndpSEB+6iB
-         B8NPXs8sjWAIE4y9GSN0ZvzZAtAXwj3Geyl0HRZah5QxlAwZTReoHaS7IW0ovfkqK+Z9
-         S+OA==
+        b=AXxPlOvAky5QzcyStzYX3ozCnh7xJP7QUIe+87AzUm9wClaBiaNF9x74F/J5Dha8E0
+         YBSmw9F7Kx/vU8r31RDlioAXRClmHIyK1l2lrWdHI+JotfRm9jmgCqNiZLpyb9nsGCuS
+         0StbK323A6y7DrJA68fvnmtPk8x/tH4piQAwTYY8285hcyUeWcROtBw0L3nU6G1qMtTz
+         IFGwJjLE+CQuBY2URHKR66LFPy6MQjceMf4K38UEMHxnSBNTpy4biy6IsoIed/E5+yqx
+         N1ZrRJpnIWx4Alq0DjTExIumOhxwQlcaljql7HVgE7fkZtom9EtcYp6c8Tf/d/Ctvkcc
+         mnTw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=WPlEIfMarxdMuwuQN+csUicmM1PpW6F5XI6wi3gLWA0=;
-        b=Ou8xU6b4VvGn30Kk5y7f81baUgYcCOAJkfhr8mQvWM+rt5U7FG/zrqyc8isUMDuAS5
-         qpitVYT/UQEpgHCmYWUShLA0X0hlsMSPz67PeM3nHg9zENXekPfQ2qPx9zXQw0x+fm2V
-         ibuRvRnAwNNZ9r8uXdIZvXZpxYB7bEYcBzgzCj2Z9zhAP4360v+6jxEoNTE4VZ5UOyvS
-         8ogb1R8qTrUQetV27Sle7Re7+xm5Ytv7xBjwIgVnT5F4S00ID8RVUjAHQHIl7js9K6Ng
-         0bqQq2muO9II6q3NrJw7aDoCOjhTax/DuZ6Y7ikQgtF+6+F+14931ntBewpWTgP+SRmR
-         AhTQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=ydhQYDsYO5blITLWkKkMOKoBtLuqbWY/Tzn56seZhUY=;
+        b=XL4JEM3Pn0/9XQR809ntil37s2dZoMEz6pOA4K/UsNBcTYGMEvW0rKGlzVsUhNuA0h
+         e7s+XsseTFypfydoVu0g2miydgmkRZkn/bgMtxuUOJnmLMhxTbe2Pi6Zskkuc5gAOitZ
+         OF9pg0o+dGM9kJyXHZ9U4WO2sm1sE6u3+NU01Xf1irwYX4iWDl3Gosk/iyIxARg1XbwI
+         y1oHT0zlH/sso+3O9jNS/XH1XB9y4EhYIRYeET4MpQzfxww8l78g/5TTJ5yLs28+L1UP
+         pqycSRdFjdmkfQCXsJWAAjsyt7YVFMuITQDAYY+u3JHkgzh3XLmMm8TaIYWWcZMInG7u
+         /w5Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id w20si6895105eji.303.2019.04.04.06.03.14
-        for <linux-mm@kvack.org>;
-        Thu, 04 Apr 2019 06:03:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=gH2HKKrq;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z8sor5307583lfj.47.2019.04.04.06.08.43
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 04 Apr 2019 06:08:43 -0700 (PDT)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 7D90AA78;
-	Thu,  4 Apr 2019 06:03:13 -0700 (PDT)
-Received: from [10.162.40.100] (p8cg001049571a15.blr.arm.com [10.162.40.100])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C40303F68F;
-	Thu,  4 Apr 2019 06:03:07 -0700 (PDT)
-Subject: Re: [PATCH 2/6] arm64/mm: Enable memory hot remove
-To: Oscar Salvador <osalvador@suse.de>
-Cc: Robin Murphy <robin.murphy@arm.com>, linux-kernel@vger.kernel.org,
- linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
- akpm@linux-foundation.org, will.deacon@arm.com, catalin.marinas@arm.com,
- mhocko@suse.com, mgorman@techsingularity.net, james.morse@arm.com,
- mark.rutland@arm.com, cpandya@codeaurora.org, arunks@codeaurora.org,
- dan.j.williams@intel.com, logang@deltatee.com, pasha.tatashin@oracle.com,
- david@redhat.com, cai@lca.pw, Steven Price <steven.price@arm.com>
-References: <1554265806-11501-1-git-send-email-anshuman.khandual@arm.com>
- <1554265806-11501-3-git-send-email-anshuman.khandual@arm.com>
- <ed4ceac4-b92c-47f4-33b0-ed1d0833b40d@arm.com>
- <55278a57-39bc-be27-5999-81d0da37b746@arm.com>
- <20190404115815.gzk3sgg34eofyxfv@d104.suse.de>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <0c2b5096-a6df-b4ac-ac3b-3fec274837d3@arm.com>
-Date: Thu, 4 Apr 2019 18:33:09 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=gH2HKKrq;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=ydhQYDsYO5blITLWkKkMOKoBtLuqbWY/Tzn56seZhUY=;
+        b=gH2HKKrq1I97KbmXoHT0RPv9oGKzcranbkpFUNclk2IQ/PlMg+i+bBHEhKoYTJXg4e
+         LtoEjliHav/Yfdhpq1UclvTyx4s8eb3Dnx63eGac0SrVNZ930iHOldoOoYvwMld/TWrO
+         1wADWyFBeJ7EmzZlulI+klB53ianLFmNr8Y+DXSCqjyLWSp3oank3TR+VTki5vnNNKUS
+         TvBQPMbhiWn/99s0PdvOiuUnfeIPzy639yCVMFKMb1sPm+avXRlvtTlo4ZHWx/q9d/Gi
+         H92iFBioHoQJuSTW5sPfJwpDnPV1tFj+tsZZoE1zhYEJVhfxwrq3185bw/gPAF7l2ILZ
+         PhfA==
+X-Google-Smtp-Source: APXvYqzAwanZ+nskhouSYnB3oZZUeZzTzBAZAbOnXlbYnKQKzGspAQ0VLl1GDm/+7D/PYNzC/4Gt0g==
+X-Received: by 2002:a19:5201:: with SMTP id m1mr3222474lfb.68.1554383322830;
+        Thu, 04 Apr 2019 06:08:42 -0700 (PDT)
+Received: from kshutemo-mobl1.localdomain ([178.127.198.154])
+        by smtp.gmail.com with ESMTPSA id v26sm3970728lja.60.2019.04.04.06.08.41
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 Apr 2019 06:08:41 -0700 (PDT)
+Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
+	id C004C30039B; Thu,  4 Apr 2019 16:08:39 +0300 (+03)
+Date: Thu, 4 Apr 2019 16:08:39 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Jan Kara <jack@suse.cz>
+Cc: bugzilla-daemon@bugzilla.kernel.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [Bug 203107] New: Bad page map in process during boot
+Message-ID: <20190404130839.5tkpwihuct4mex32@kshutemo-mobl1>
+References: <bug-203107-13602@https.bugzilla.kernel.org/>
+ <20190402101613.GF12133@quack2.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20190404115815.gzk3sgg34eofyxfv@d104.suse.de>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190402101613.GF12133@quack2.suse.cz>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Apr 02, 2019 at 12:16:13PM +0200, Jan Kara wrote:
+> Switching to email...
+> 
+> On Fri 29-03-19 20:46:22, bugzilla-daemon@bugzilla.kernel.org wrote:
+> > https://bugzilla.kernel.org/show_bug.cgi?id=203107
+> > 
+> >             Bug ID: 203107
+> >            Summary: Bad page map in process during boot
+> >            Product: File System
+> >            Version: 2.5
+> >     Kernel Version: 5.0.5
+> >           Hardware: All
+> >                 OS: Linux
+> >               Tree: Mainline
+> >             Status: NEW
+> >           Severity: normal
+> >           Priority: P1
+> >          Component: ext4
+> >           Assignee: fs_ext4@kernel-bugs.osdl.org
+> >           Reporter: echto1@gmail.com
+> >         Regression: No
+> > 
+> > Error occurs randomly at boot after upgrading kernel from 5.0.0 to 5.0.4.
+> > 
+> > https://justpaste.it/387uf
+> 
+> I don't think this is an ext4 error. Sure this is an error in file mapping
+> of libblkid.so.1.1.0 (which is handled by ext4) but the filesystem has very
+> little to say wrt how or which PTEs are installed. And the problem is that
+> invalid PTE (dead000000000100) is present in page tables. So this looks
+> more like a problem in MM itself. Adding MM guys to CC.
 
+0xdead000000000100 and 0xdead000000000200 are LIST_POISON1 and
+LIST_POISON2 repectively. Have no idea how would they end up in page table.
 
-On 04/04/2019 05:28 PM, Oscar Salvador wrote:
-> On Thu, Apr 04, 2019 at 11:09:22AM +0530, Anshuman Khandual wrote:
->>> Do these need to be __meminit? AFAICS it's effectively redundant with the containing #ifdef, and removal feels like it's inherently a later-than-init thing anyway.
->>
->> I was confused here a bit but even X86 does exactly the same. All these functions
->> are still labeled __meminit and all wrapped under CONFIG_MEMORY_HOTPLUG. Is there
->> any concern to have __meminit here ?
-> 
-> We do not really need it as long as the code is within #ifdef CONFIG_MEMORY_HOTPLUG.
-> __meminit is being used when functions that are going to be need for hotplug need
-> to stay around.
-
-Makes sense.
-
-> 
-> /* Used for MEMORY_HOTPLUG */
-> #define __meminit        __section(.meminit.text) __cold notrace \
->                                                   __latent_entropy
-> 
-> #if defined(CONFIG_MEMORY_HOTPLUG)
-> #define MEM_KEEP(sec)    *(.mem##sec)
-> #define MEM_DISCARD(sec)
-> #else
-> #define MEM_KEEP(sec)
-> #define MEM_DISCARD(sec) *(.mem##sec)
-> #endif
-> 
-> So it is kind of redundant to have both.
-> I will clean it up when reposting [1] and [2].
-> 
-> [1] https://patchwork.kernel.org/patch/10875019/
-> [2] https://patchwork.kernel.org/patch/10875021/
-> 
-
-Sure. Will remove them from the proposed functions next time around.
+-- 
+ Kirill A. Shutemov
 
