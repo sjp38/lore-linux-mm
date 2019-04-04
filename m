@@ -2,289 +2,214 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E9E6FC10F0C
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 14:46:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C5F3BC4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 14:47:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 96CD02171F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 14:46:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 96CD02171F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 806DB206B7
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 14:47:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 806DB206B7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2862F6B0007; Thu,  4 Apr 2019 10:46:55 -0400 (EDT)
+	id 236036B0008; Thu,  4 Apr 2019 10:47:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 20D2B6B0008; Thu,  4 Apr 2019 10:46:55 -0400 (EDT)
+	id 1E7A66B000A; Thu,  4 Apr 2019 10:47:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 087D06B000A; Thu,  4 Apr 2019 10:46:55 -0400 (EDT)
+	id 0AD566B000C; Thu,  4 Apr 2019 10:47:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A7E326B0007
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 10:46:54 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id j3so1566190edb.14
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 07:46:54 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D6D536B0008
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 10:47:48 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id 75so2335316qki.13
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 07:47:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=by+qc73PFufYAJcEzQJv2SX/8Vxa3BKPss43cTpMvFU=;
-        b=rsxGgGpsYP1iquj/MBc1dt24zWtX1IlfCTikxgKRrMVyX+/NdjV7vu75IPrhHP/AaR
-         I0fgzY+ShD8TJMzUL9XRX/Jdk5wn0+I6WTgwWN9nrfO2nMd6dOzVb680FMRleODK041e
-         NaC9d+aOboqvzSsZwRlI+hJKEjhFD48b1rcEMCT8m/ZOXMFnmLQbH7GG85fG1BoeFqXi
-         y5DiU86HYwpvhQYyhkObVRRHw0KhYMZFD2RzazX860t2ZJewxv3YHnY9CMvkWqZhBH3L
-         3pl6ZU0qs8MZMjeO4FtZpo2u67d4/7AaWURWjEvKwRUO5Hz3T/cFTYY56fxZyWoWj3u5
-         bSVQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAXmKOLC54v8A3naT8U+cewpyb8fp1+Jutrrm/OyzKWdj7nSB+XG
-	Zo1lc7/8PqHF5+L8ANrPUfu6JJkwEygk9Bmf+zi1wBOdvGG2N/IciiwEH+JrrOUgN0GPI6Nl8TJ
-	M5yGKN1jDrrT4VuzWGKysPqO4EdEaSybb0E29+rDln1Mw5xuybLZJdTPbTTMqFFoQRA==
-X-Received: by 2002:a50:e609:: with SMTP id y9mr4043518edm.81.1554389214232;
-        Thu, 04 Apr 2019 07:46:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy5Q1KpdP6OCvx1/5FtAsvHU1/zmTZUzysznHbE/z1Jme/k13ntnepilRz+F4kKk+owUHbW
-X-Received: by 2002:a50:e609:: with SMTP id y9mr4043470edm.81.1554389213390;
-        Thu, 04 Apr 2019 07:46:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554389213; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=EMWT8PdKLEkL9LuyPygUOuenVj0wbK68lOUlBM1tR8U=;
+        b=U/zjSAmu5ExlYpuL1DC713rov8ji3yw8CTE0YYX+lUrtsS0h94B5OGoLazB9ujzOQ9
+         SmPRz269BmaFXpF1bwE3IkmrlyKWPukwe8phTBGyD1ktDxc9V+njCKfMcwELGtcT26K7
+         E0i01+EnXCjIpF04bGp8FWNSfni3lrrE9IJSzgOwWaZWP0S8GWqu5IAHkJ7sqHUEom4Y
+         lgkl6m0dobOmz3FONN7bkkIdcXyrIZwKeZreYlppnBCIKbkAqYANYrgPhD+1pb6vCPza
+         URZxCtRgeVpBNQKzsEKZnaP+k0zOR8WFDquLqLn+1IGSxbPPXpkdEpTih1rvB6HYuV+N
+         blQA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXNhIW+SZPTqECJwgGnZDL8mudZzQ1UfGk25msjDCLc8/l2bey1
+	MnaFafLecM3s1/WCGMuK2D5eMk+UndR53/lFrARXzqEbYfNpuK1X1KE+qGuXJ2H7Fu7XdL3jlMl
+	Ed6mF3R4fnNRG8G+KGK6mh8SoHxtKLFh5WP+5eOFxJwlei4Uvnbq52qmXJZ3HkSmcsQ==
+X-Received: by 2002:aed:358b:: with SMTP id c11mr5757628qte.70.1554389268568;
+        Thu, 04 Apr 2019 07:47:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwJdHRULx0WkWB4uGVLQxGMxWBWdTUXdsETaWUdMP7AjByIJMbDgTz3T/kNH+qnwPEr+y4S
+X-Received: by 2002:aed:358b:: with SMTP id c11mr5757592qte.70.1554389267981;
+        Thu, 04 Apr 2019 07:47:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554389267; cv=none;
         d=google.com; s=arc-20160816;
-        b=u6Rm//oO9mu5lwSgPB6IiU0wo/Cj026FR6t4OlCJawJewSqrrHxWMOjSt6I4zsV3GZ
-         RJpGUPHdoqJ/wXAK6hBqBS6kNHGa7Lnfks6sQtBTtbEVWWNH1B9/+0zB6Uoy9O8OQ8Zd
-         GmxSrUkJQePFFQj9h9gqZUHBda26jioduKhuJSjh9yh6OcJaseSrM0XY4LlnoqpzoXAN
-         Emw2HeSVPXqRk1mOAvKupXpuq8y2DRacj5SLCMy+UgGdggtozoLKePpf44Xjd7MnYM6H
-         Xu1FFfBo/9tNSGSsR88023YkkMRuzVuHDZDdLSuQ2RsLMv1t6f6ORYj1bp0gmCyvo4XS
-         D4EQ==
+        b=XRFiq9EXrOSFU3z9Z4lOOaa2xFiQKWYNOxqzotJk9hM0YvWNbn3ndaBPZuWPoDXvbD
+         XdxXApxyed5UFjhA3+daRkA/eVcNBjtx2U0ca8ShTaQY1nRYoGDD+s7xk53z+VI/YWhW
+         EQ4StpeWY6hQU/MWy0B6dszcxCQA3VqeM/DEMXnvvBReslFCWLbiuZ3bPMzav2k2YZdS
+         wLc28siE3kXH6A7h3fwkmsjrfKvdlxxeCjtqPnP0R+VwIr/N/0/j9x3goRdelwlunJ70
+         pKPJIWLZQE0iMbYryukUYPXbDI++h1z8ZzH+SOPszAxEkEiVebTQDLJRJ9Hmz9nSQhlb
+         0VZg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=by+qc73PFufYAJcEzQJv2SX/8Vxa3BKPss43cTpMvFU=;
-        b=Cj3n89XXTHoEE8l5x36z2rJ8ujcZH9dKJ2px/sqoComB4Cx0Iu/IQRdUNktYjw9zGP
-         zbc63dOZPuRbmdcj22aqOsbUc59C1bRVceJTa7qs0FgH4A1L4nZQ7+kXdaOwRKk/OHJM
-         hmlnzS4z4D0d1kLU2FegTHydNeEmsSdQ+iT0sIAdVz2wm6nT68b+rZnB4+5qyGGgUu9j
-         U6CJ+U41nsI9lUICc8250s+Lbdd5TmI4aN+/pti3u5j8lrM2b5jVO9STIkf+bTCQLN57
-         uqsuJEEv7g0hxcdeqwI3BCE9qs3jOAjlJnSpRO1Yjii20NqqQpu4/6FtrrxlpNOzRkpf
-         rsSw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=EMWT8PdKLEkL9LuyPygUOuenVj0wbK68lOUlBM1tR8U=;
+        b=muNziUDnE9BF2PmxBxqhEKoLB48u0dhEZbZywXU8yY3JaFSSdhotbY18AitwafLPlB
+         z70GASh7N/VDCcwhCAjiWewH/vQz6xupnju/r34hndVXR/OzsXE2CId4WNqKExDKKmZ+
+         T/7dIDWaI4FZT/0eXatBrQJ6BJX1HdOTfytaJy6BQZXO3KUIoQZlWDtBn4lNIbjhiECD
+         c7aqVeYZ5Y0YBXJkv2ctsF+FrS9y9TBQlvMaxA7kD305n5z52Vr/LyWZRPANpqkUlH+X
+         2Tvtph5eEeyyZJNNCothZm4J61wu34BvOTGylophGcxeLQAkgeP+G19G83sUDE2v410Q
+         uTlg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id q2si5552311edn.429.2019.04.04.07.46.52
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c4si2503921qtp.398.2019.04.04.07.47.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Apr 2019 07:46:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Thu, 04 Apr 2019 07:47:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x34EjH7e106967
-	for <linux-mm@kvack.org>; Thu, 4 Apr 2019 10:46:52 -0400
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2rnjrevk9n-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 04 Apr 2019 10:46:47 -0400
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Thu, 4 Apr 2019 15:46:28 +0100
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
-	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 4 Apr 2019 15:46:24 +0100
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x34EkNON60031206
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 4 Apr 2019 14:46:23 GMT
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 2BDEAA405B;
-	Thu,  4 Apr 2019 14:46:23 +0000 (GMT)
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id B260BA4060;
-	Thu,  4 Apr 2019 14:46:21 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.205.215])
-	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Thu,  4 Apr 2019 14:46:21 +0000 (GMT)
-Date: Thu, 4 Apr 2019 17:46:19 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Chen Zhou <chenzhou10@huawei.com>
-Cc: catalin.marinas@arm.com, will.deacon@arm.com, akpm@linux-foundation.org,
-        ard.biesheuvel@linaro.org, takahiro.akashi@linaro.org,
-        linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
-        kexec@lists.infradead.org, linux-mm@kvack.org,
-        wangkefeng.wang@huawei.com
-Subject: Re: [PATCH 1/3] arm64: kdump: support reserving crashkernel above 4G
-References: <20190403030546.23718-1-chenzhou10@huawei.com>
- <20190403030546.23718-2-chenzhou10@huawei.com>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 30A897D7A3;
+	Thu,  4 Apr 2019 14:47:47 +0000 (UTC)
+Received: from [10.36.117.116] (ovpn-117-116.ams2.redhat.com [10.36.117.116])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id BE6878645A;
+	Thu,  4 Apr 2019 14:47:44 +0000 (UTC)
+Subject: Re: [PATCH 1/2] mm, memory_hotplug: cleanup memory offline path
+To: Oscar Salvador <osalvador@suse.de>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org
+References: <20190404125916.10215-1-osalvador@suse.de>
+ <20190404125916.10215-2-osalvador@suse.de>
+ <f2360f11-4360-b678-f095-c4ebbf7cd0ec@redhat.com>
+ <20190404132506.kaqzop4qs6m56plu@d104.suse.de>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <7874ef85-adc7-95a8-87f4-1f15eb21c677@redhat.com>
+Date: Thu, 4 Apr 2019 16:47:43 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190403030546.23718-2-chenzhou10@huawei.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19040414-0012-0000-0000-0000030B47C8
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19040414-0013-0000-0000-000021435741
-Message-Id: <20190404144618.GB6433@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-04_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1904040095
+In-Reply-To: <20190404132506.kaqzop4qs6m56plu@d104.suse.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Thu, 04 Apr 2019 14:47:47 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On 04.04.19 15:25, Oscar Salvador wrote:
+> On Thu, Apr 04, 2019 at 03:18:00PM +0200, David Hildenbrand wrote:
+>>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>>> index f206b8b66af1..d8a3e9554aec 100644
+>>> --- a/mm/memory_hotplug.c
+>>> +++ b/mm/memory_hotplug.c
+>>> @@ -1451,15 +1451,11 @@ static int
+>>>  offline_isolated_pages_cb(unsigned long start, unsigned long nr_pages,
+>>>  			void *data)
+>>>  {
+>>> -	__offline_isolated_pages(start, start + nr_pages);
+>>> -	return 0;
+>>> -}
+>>> +	unsigned long offlined_pages;
+>>>  
+>>> -static void
+>>> -offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+>>> -{
+>>> -	walk_system_ram_range(start_pfn, end_pfn - start_pfn, NULL,
+>>> -				offline_isolated_pages_cb);
+>>> +	offlined_pages = __offline_isolated_pages(start, start + nr_pages);
+>>> +	*(unsigned long *)data += offlined_pages;
+>>
+>> unsigned long *offlined_pages = data;
+>>
+>> *offlined_pages += __offline_isolated_pages(start, start + nr_pages);
+> 
+> Yeah, more readable.
+> 
+>> Only nits
+> 
+> About the identation, I double checked the code and it looks fine to me.
+> In [1] looks fine too, might be your mail client?
+> 
+> [1] https://patchwork.kernel.org/patch/10885571/
 
-On Wed, Apr 03, 2019 at 11:05:44AM +0800, Chen Zhou wrote:
-> When crashkernel is reserved above 4G in memory, kernel should
-> reserve some amount of low memory for swiotlb and some DMA buffers.
-> 
-> Kernel would try to allocate at least 256M below 4G automatically
-> as x86_64 if crashkernel is above 4G. Meanwhile, support
-> crashkernel=X,[high,low] in arm64.
-> 
-> Signed-off-by: Chen Zhou <chenzhou10@huawei.com>
-> ---
->  arch/arm64/kernel/setup.c |  3 ++
->  arch/arm64/mm/init.c      | 71 +++++++++++++++++++++++++++++++++++++++++++++--
->  2 files changed, 71 insertions(+), 3 deletions(-)
-> 
-> diff --git a/arch/arm64/kernel/setup.c b/arch/arm64/kernel/setup.c
-> index 413d566..82cd9a0 100644
-> --- a/arch/arm64/kernel/setup.c
-> +++ b/arch/arm64/kernel/setup.c
-> @@ -243,6 +243,9 @@ static void __init request_standard_resources(void)
->  			request_resource(res, &kernel_data);
->  #ifdef CONFIG_KEXEC_CORE
->  		/* Userspace will find "Crash kernel" region in /proc/iomem. */
-> +		if (crashk_low_res.end && crashk_low_res.start >= res->start &&
-> +		    crashk_low_res.end <= res->end)
-> +			request_resource(res, &crashk_low_res);
->  		if (crashk_res.end && crashk_res.start >= res->start &&
->  		    crashk_res.end <= res->end)
->  			request_resource(res, &crashk_res);
-> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-> index 6bc1350..ceb2a25 100644
-> --- a/arch/arm64/mm/init.c
-> +++ b/arch/arm64/mm/init.c
-> @@ -64,6 +64,57 @@ EXPORT_SYMBOL(memstart_addr);
->  phys_addr_t arm64_dma_phys_limit __ro_after_init;
->  
->  #ifdef CONFIG_KEXEC_CORE
-> +static int __init reserve_crashkernel_low(void)
-> +{
-> +	unsigned long long base, low_base = 0, low_size = 0;
-> +	unsigned long total_low_mem;
-> +	int ret;
-> +
-> +	total_low_mem = memblock_mem_size(1UL << (32 - PAGE_SHIFT));
-> +
-> +	/* crashkernel=Y,low */
-> +	ret = parse_crashkernel_low(boot_command_line, total_low_mem, &low_size, &base);
-> +	if (ret) {
-> +		/*
-> +		 * two parts from lib/swiotlb.c:
-> +		 * -swiotlb size: user-specified with swiotlb= or default.
-> +		 *
-> +		 * -swiotlb overflow buffer: now hardcoded to 32k. We round it
-> +		 * to 8M for other buffers that may need to stay low too. Also
-> +		 * make sure we allocate enough extra low memory so that we
-> +		 * don't run out of DMA buffers for 32-bit devices.
-> +		 */
-> +		low_size = max(swiotlb_size_or_default() + (8UL << 20), 256UL << 20);
-> +	} else {
-> +		/* passed with crashkernel=0,low ? */
-> +		if (!low_size)
-> +			return 0;
-> +	}
-> +
-> +	low_base = memblock_find_in_range(0, 1ULL << 32, low_size, SZ_2M);
-> +	if (!low_base) {
-> +		pr_err("Cannot reserve %ldMB crashkernel low memory, please try smaller size.\n",
-> +				(unsigned long)(low_size >> 20));
-> +		return -ENOMEM;
-> +	}
-> +
-> +	ret = memblock_reserve(low_base, low_size);
-> +	if (ret) {
-> +		pr_err("%s: Error reserving crashkernel low memblock.\n", __func__);
-> +		return ret;
-> +	}
-> +
-> +	pr_info("Reserving %ldMB of low memory at %ldMB for crashkernel (System RAM: %ldMB)\n",
-> +			(unsigned long)(low_size >> 20),
-> +			(unsigned long)(low_base >> 20),
-> +			(unsigned long)(total_low_mem >> 20));
-> +
-> +	crashk_low_res.start = low_base;
-> +	crashk_low_res.end   = low_base + low_size - 1;
-> +
-> +	return 0;
-> +}
-> +
->  /*
->   * reserve_crashkernel() - reserves memory for crash kernel
->   *
-> @@ -74,19 +125,28 @@ phys_addr_t arm64_dma_phys_limit __ro_after_init;
->  static void __init reserve_crashkernel(void)
->  {
->  	unsigned long long crash_base, crash_size;
-> +	bool high = false;
->  	int ret;
->  
->  	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
->  				&crash_size, &crash_base);
->  	/* no crashkernel= or invalid value specified */
-> -	if (ret || !crash_size)
-> -		return;
-> +	if (ret || !crash_size) {
-> +		/* crashkernel=X,high */
-> +		ret = parse_crashkernel_high(boot_command_line, memblock_phys_mem_size(),
-> +				&crash_size, &crash_base);
-> +		if (ret || !crash_size)
-> +			return;
-> +		high = true;
-> +	}
->  
->  	crash_size = PAGE_ALIGN(crash_size);
->  
->  	if (crash_base == 0) {
->  		/* Current arm64 boot protocol requires 2MB alignment */
-> -		crash_base = memblock_find_in_range(0, ARCH_LOW_ADDRESS_LIMIT,
-> +		crash_base = memblock_find_in_range(0,
-> +				high ? memblock_end_of_DRAM()
-> +				: ARCH_LOW_ADDRESS_LIMIT,
->  				crash_size, SZ_2M);
->  		if (crash_base == 0) {
->  			pr_warn("cannot allocate crashkernel (size:0x%llx)\n",
-> @@ -112,6 +172,11 @@ static void __init reserve_crashkernel(void)
->  	}
->  	memblock_reserve(crash_base, crash_size);
->  
-> +	if (crash_base >= SZ_4G && reserve_crashkernel_low()) {
-> +		memblock_free(crash_base, crash_size);
-> +		return;
-> +	}
-> +
+Double checked, alignment on the parameter on the new line is very weird.
 
-This very reminds what x86 does. Any chance some of the code can be reused
-rather than duplicated?
+And both lines cross 80 lines per line ... nit :)
 
->  	pr_info("crashkernel reserved: 0x%016llx - 0x%016llx (%lld MB)\n",
->  		crash_base, crash_base + crash_size, crash_size >> 20);
->  
-> -- 
-> 2.7.4
 > 
+>>
+>> Reviewed-by: David Hildenbrand <david@redhat.com>
+> 
+> Thanks ;-)
+> 
+
 
 -- 
-Sincerely yours,
-Mike.
+
+Thanks,
+
+David / dhildenb
 
