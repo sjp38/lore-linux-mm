@@ -2,176 +2,192 @@ Return-Path: <SRS0=kGB6=SG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 019FAC4360F
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 17:21:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1A699C4360F
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 17:56:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A903D206DF
-	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 17:21:34 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9D3E120820
+	for <linux-mm@archiver.kernel.org>; Thu,  4 Apr 2019 17:56:33 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="YJNHxbec"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A903D206DF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=amacapital-net.20150623.gappssmtp.com header.i=@amacapital-net.20150623.gappssmtp.com header.b="Sehk7xk8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D3E120820
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amacapital.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2886F6B0010; Thu,  4 Apr 2019 13:21:34 -0400 (EDT)
+	id 26B7C6B000E; Thu,  4 Apr 2019 13:56:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 20F926B026A; Thu,  4 Apr 2019 13:21:34 -0400 (EDT)
+	id 243546B0266; Thu,  4 Apr 2019 13:56:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0FE446B026B; Thu,  4 Apr 2019 13:21:34 -0400 (EDT)
+	id 132406B0269; Thu,  4 Apr 2019 13:56:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FA596B0010
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 13:21:33 -0400 (EDT)
-Received: by mail-lj1-f198.google.com with SMTP id g26so814596ljd.20
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 10:21:33 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D21956B000E
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 13:56:32 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id c64so2237077pfb.6
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 10:56:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=EWEKv1NMWIXiFhq23uo1NeSiJc8e43y5G2cJ0bGNTbM=;
-        b=irTbMfVqQX+/vwco+XCa3/hInt3kuqlKOx7HZUkQW5gr+idaXd5Nhhutw7Yjo3oJxQ
-         2D/5d+/B0+OW74tFvtmmqGcIUpxvJDG0wwEUK9RDFBzsHS6NoXg04885hk1heA3DdAGc
-         pmHhJc5j0MhVkuUopVQUf/s9xyedtg4gHpoxx3741Tyfma7IxhTrWKG27bsU6G1TuHJ1
-         zLVQ4Bu9GxSyu78US1K3XN0ZxZecY/wBSapSKEW/R/YUBuBf83A4vZGZDsnqI4gK/OhI
-         vsUc/0v70Deu1kCb2TkySpbS3oSGxpN18yIJAUSZYOBK59ni30CydeNgDxYWOjwKU0xT
-         GgrA==
-X-Gm-Message-State: APjAAAXIp/i5xwimVWuytnPFAgxhmg6J07a9Zp2HVXiYEbdubw/gyWby
-	FyU6smAIuOeLE0FmhVTqFgPzZfCzXdYsi5JLXiULVWTSBO7rg2hnF2fP45eAQWedGpd3GwUPgfS
-	X8lWRiMmDgyAv24FTbZ7Lrd5xhJo3g0RUe6Yalz115xR0OoGOTB7Jvy+VyY1goYxh0w==
-X-Received: by 2002:a2e:9915:: with SMTP id v21mr4184291lji.154.1554398492759;
-        Thu, 04 Apr 2019 10:21:32 -0700 (PDT)
-X-Received: by 2002:a2e:9915:: with SMTP id v21mr4184253lji.154.1554398491790;
-        Thu, 04 Apr 2019 10:21:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554398491; cv=none;
+        h=x-gm-message-state:dkim-signature:content-transfer-encoding:from
+         :mime-version:subject:date:message-id:references:cc:in-reply-to:to;
+        bh=y0ikJY58io4Wa43GQnKYccs9io+2yziuZbvEkKCZrDU=;
+        b=cz2R1Gls/6/SLwocfGE5ocZ3Aku5QsbSYQLi5zS8SKlRLkRaFlf7N4QaK5T2aTwO0e
+         VI5bMu2gjwwERFyazGDNLKZmBbeMdfRmp8/nE3UanhGYS0kgW6mSzSulEIbF6uoViAkr
+         YfWCIfSj3wG0mVtXhtjvvNIn+0AQR3ilwgsin3EGhGcfat3DgqM4QAUIgvVNnqtrxBpM
+         6GIPRFj0FDZKi+7qYmLPt4vMend4NJLbQwHk39U5EIlMFkEy7fUaCT/43hNFv9z8G7FW
+         X1Xn6HUrS2aXI7iA8EhZHlB0i4LYN22PSL2L2tNwc8YUz7e3dXYWVF6yOKU6ncn8BDye
+         j7oQ==
+X-Gm-Message-State: APjAAAW79RPArZZbVRefsuSPiwdJv/+HQFuYGw5YVWRwPKjxLrDbiQ+5
+	ZoK+6dATWZYeMXTDTEOUvyFSWTN6QvnionRdfGuH3oT8ffbPOn5b31KvByjbKoxvncj5d/9Gv8j
+	Mjqk4JMnfrN4idqaNxr9uGs1KMzomB/Amqm9QyJeMDJxIKqmSQ6fRnmEbMw4IXE0J3w==
+X-Received: by 2002:a63:5854:: with SMTP id i20mr7012818pgm.171.1554400592398;
+        Thu, 04 Apr 2019 10:56:32 -0700 (PDT)
+X-Received: by 2002:a63:5854:: with SMTP id i20mr7012743pgm.171.1554400591370;
+        Thu, 04 Apr 2019 10:56:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554400591; cv=none;
         d=google.com; s=arc-20160816;
-        b=XSJu4M78e2CeDcHq3NHfbggqWiKU8GQrZfnt9AL5uDCsG/C1uJbnjGSAQqVG2FkuGN
-         Cj2lvnOGEoPGt9vWOEEQBq5D19Owz2gz9KTE2QzSjM0///fG9721zgM5CGYNIex6/ysQ
-         UBpbgKOvrorFXdRaR39MKv96cRWF40ZeRQClSt4Y/XBdcZIPaxG29jzmB3QDwCunITiZ
-         d4l1s3s4wJek3i/g1qSfXXwbmNxF/+KT89ycySNtV28fahbDS1y148TWTLNIHh5MWcxv
-         nvLfoZWW/LYcY3o0UIIKu5rh8A1r3pcPmapPZEoHaHwgxbc2wxL9u0s0LpROy0PBOr3i
-         7rlA==
+        b=hm1CpsqtMyZxmOXmoH1t1O3d4k7f8wYugb3gG9uUcBoAzKZ59xhCFYiMBHLTdblscR
+         TcULHAMQTo3o9vpq/vniMxxNRh+EdR8nv8g54c8AIe2+uQUGR6Q/H69e8Utp2Khw1PaJ
+         vqmYJzD3FgINUvKJ+5jWL0ORAYpB7jdoJfysUZozKfWLOvDXWcgVbsVNMPLLLaxPMI3k
+         zrzSBx2G++AOYUKpVFKfVMcA0xBIL7HI3rxsopxtU2PEE1IXYL7uMjI2z+8XDxqp4ExE
+         k1YywqaDZnvOfZ7L0gkP6r27YtB2Iz2qPxFHIZfNZPEpvrgevwpbQSsjsToHFHaIaqRm
+         EbCw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:date:from:dkim-signature;
-        bh=EWEKv1NMWIXiFhq23uo1NeSiJc8e43y5G2cJ0bGNTbM=;
-        b=RW0zGVIctPOJ6vqw5zuXxHTIJoC6rV3ZUU9WZPaLQ1MarSASiD9C8Q50WhHlrNJJTQ
-         azZUDWbDnZ+MAP/pBTVc/AfHpAvdHmS5UOiiEYdB860SxM1w7NnJO3iZg5cSKz1uZ70d
-         6kBtnxZZS4gpJRVSscqTGB32fAMZT5cay9Z3uHIHQxG4+8txe3+09xBvl4qRoUMkYHP5
-         gcePhZoCmeqMT/5gOfIS/Dp1mxWvFemzkkcmJKgaRIbnGgIy9TQUnZsygaxeScLOEEwM
-         xjyu2fVMJcQJl5LNBzpU4QMGvoChSbcTVF0xy0KO5IUkzCuj5CQQYS+O2kUWRR7MJRkR
-         sc7g==
+        h=to:in-reply-to:cc:references:message-id:date:subject:mime-version
+         :from:content-transfer-encoding:dkim-signature;
+        bh=y0ikJY58io4Wa43GQnKYccs9io+2yziuZbvEkKCZrDU=;
+        b=qNv73NhSvsTFw2bzHWpMFR3qb3exgkscLkC54lM+1izvxM7cOnmJkF25LPG2ND2r6R
+         RzmuWLQZwRZlLgBmCU4kQ9CNHo0yt1Eoo6+9MGjJ1G9RuBajI2xxUoR5pi0PFj5+J4It
+         RTfiM1NSStQzNvEKlcV2o7qYsIEcItnAkDye0QvzHeMqeQ7+gqwZ/u9XJz81Wl+0Uq6B
+         xWJiNsSF149bEAmE/+r6XebiPNkHvinDw85pzvLOI2fov0BDAaPVHV5omxkvIGaNfcQi
+         nmml1rAeFxDL1pKsirSbLH1EUR5z10zDHctIj1nyznB6q7hoQKeeTC0P6KB2ceBALe7d
+         8qXw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=YJNHxbec;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=Sehk7xk8;
+       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h10sor5151871lfm.12.2019.04.04.10.21.31
+        by mx.google.com with SMTPS id s20sor9037781pgs.48.2019.04.04.10.56.31
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 04 Apr 2019 10:21:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 04 Apr 2019 10:56:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=YJNHxbec;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=Sehk7xk8;
+       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:date:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=EWEKv1NMWIXiFhq23uo1NeSiJc8e43y5G2cJ0bGNTbM=;
-        b=YJNHxbecPF0ms7B3c9l4EGrQH6ECiqr7q+za9T2PW9134zoLGG+Qu/0lL0jHFki7G1
-         QXCFAM6TweMWpI539dPuiuXxZvQcrs7NLoKmgJ9zk/ThbHVKwAFeQOvEouCXpyUWtigg
-         JeP4RtQiusUun5r+eTVAV6RkMZfc21fvCyJgwU//wYJXKo4U5Ag+reV6as2o/t1AoOgo
-         RFYZPcXFfwGKimNwmfyDcnNGazgrE//p2k6YNsaOFcI5TMC+oEqXEiCRTqSKHqO4beR8
-         WE1jcYV9yS67pwWb/hRRxrdBGTiTDkmpPffeXLP6A9GnOoJIEFOrfcojo+F4QpiN7yS6
-         TswQ==
-X-Google-Smtp-Source: APXvYqwX2OOtfhHY2DL3v1nRqPQ/q7eIwBHPwp188mKsSpo5w7gnU21d7a4viryln88M9dXopIc/mw==
-X-Received: by 2002:a19:ca02:: with SMTP id a2mr4063942lfg.88.1554398491330;
-        Thu, 04 Apr 2019 10:21:31 -0700 (PDT)
-Received: from pc636 ([37.139.158.167])
-        by smtp.gmail.com with ESMTPSA id y10sm3742431lfg.44.2019.04.04.10.21.30
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 04 Apr 2019 10:21:30 -0700 (PDT)
-From: Uladzislau Rezki <urezki@gmail.com>
-X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
-Date: Thu, 4 Apr 2019 19:21:22 +0200
-To: Roman Gushchin <guro@fb.com>
-Cc: Uladzislau Rezki <urezki@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Thomas Garnier <thgarnie@google.com>,
-	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Joel Fernandes <joelaf@google.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
-	Tejun Heo <tj@kernel.org>
-Subject: Re: [RESEND PATCH 1/3] mm/vmap: keep track of free blocks for vmap
- allocation
-Message-ID: <20190404172122.2u5g4eppkn7zcunh@pc636>
-References: <20190402162531.10888-1-urezki@gmail.com>
- <20190402162531.10888-2-urezki@gmail.com>
- <20190403210644.GH6778@tower.DHCP.thefacebook.com>
- <20190404154320.pf3lkwm5zcblvsfv@pc636>
- <20190404165240.GA9713@tower.DHCP.thefacebook.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190404165240.GA9713@tower.DHCP.thefacebook.com>
-User-Agent: NeoMutt/20170113 (1.7.2)
+        d=amacapital-net.20150623.gappssmtp.com; s=20150623;
+        h=content-transfer-encoding:from:mime-version:subject:date:message-id
+         :references:cc:in-reply-to:to;
+        bh=y0ikJY58io4Wa43GQnKYccs9io+2yziuZbvEkKCZrDU=;
+        b=Sehk7xk8bQTT/JxDFUPGFRFUxYLcsMQfrRfyew7KbuwYh+M/QEXM9ZaamFa1jOkCQp
+         eMJ74VXovK6NkKdNMf1h3rqNy2t6VErLaikALh6op6mJTiurskotkpTSY2H1PI9ro+vz
+         KPT/LK1Oq5KRkeXLgFoOntbXBtxIR+meVXx3TbbXU5dntbU84ZxAcy5vVJzNjiJts1As
+         +fm2cXOMg1f60AlVkqilZB5axHaLY3TwSGTCo3FHkUh0bkkITqegzvwe58atgnZ+XoV2
+         qobq+IUPv9Jc+Ic+HbBOdlbQGdEA+rftY+foKBKLo17ZlfL9kywDHzJXXqDgXWW8yc0I
+         rwBw==
+X-Google-Smtp-Source: APXvYqzVPc+o8FBoYa5cZ2Xwpr8Ai4pdgWd+NNbqNTAlXHSLkbDlkmIow3W1gY2wDZUHI4qWeK1HPA==
+X-Received: by 2002:a63:d1f:: with SMTP id c31mr7086401pgl.353.1554400590778;
+        Thu, 04 Apr 2019 10:56:30 -0700 (PDT)
+Received: from [10.233.172.192] (233.sub-97-41-130.myvzw.com. [97.41.130.233])
+        by smtp.gmail.com with ESMTPSA id v20sm24623076pfe.118.2019.04.04.10.56.28
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 Apr 2019 10:56:29 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+From: Andy Lutomirski <luto@amacapital.net>
+Mime-Version: 1.0 (1.0)
+Subject: Re: [RFC PATCH v9 02/13] x86: always set IF before oopsing from page fault
+Date: Thu, 4 Apr 2019 11:11:26 -0600
+Message-Id: <8876301F-C720-4DFD-8D01-F9C526E21A10@amacapital.net>
+References: <cover.1554248001.git.khalid.aziz@oracle.com> <e6c57f675e5b53d4de266412aa526b7660c47918.1554248002.git.khalid.aziz@oracle.com> <CALCETrXvwuwkVSJ+S5s7wTBkNNj3fRVxpx9BvsXWrT=3ZdRnCw@mail.gmail.com> <20190404013956.GA3365@cisco> <CALCETrVp37Xo3EMHkeedP1zxUMf9og=mceBa8c55e1F4G1DRSQ@mail.gmail.com> <20190404154727.GA14030@cisco> <alpine.DEB.2.21.1904041822320.1802@nanos.tec.linutronix.de>
+Cc: Tycho Andersen <tycho@tycho.ws>, Andy Lutomirski <luto@kernel.org>,
+ Khalid Aziz <khalid.aziz@oracle.com>, Juerg Haefliger <juergh@gmail.com>,
+ jsteckli@amazon.de, Andi Kleen <ak@linux.intel.com>, liran.alon@oracle.com,
+ Kees Cook <keescook@google.com>,
+ Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ deepa.srinivasan@oracle.com, chris hyser <chris.hyser@oracle.com>,
+ Tyler Hicks <tyhicks@canonical.com>,
+ "Woodhouse, David" <dwmw@amazon.co.uk>,
+ Andrew Cooper <andrew.cooper3@citrix.com>, Jon Masters <jcm@redhat.com>,
+ Boris Ostrovsky <boris.ostrovsky@oracle.com>, kanth.ghatraju@oracle.com,
+ Joao Martins <joao.m.martins@oracle.com>,
+ Jim Mattson <jmattson@google.com>, pradeep.vincent@oracle.com,
+ John Haxby <john.haxby@oracle.com>,
+ "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+ Christoph Hellwig <hch@lst.de>, steven.sistare@oracle.com,
+ Laura Abbott <labbott@redhat.com>, Dave Hansen <dave.hansen@intel.com>,
+ Peter Zijlstra <peterz@infradead.org>, Aaron Lu <aaron.lu@intel.com>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ alexander.h.duyck@linux.intel.com, Amir Goldstein <amir73il@gmail.com>,
+ Andrey Konovalov <andreyknvl@google.com>, aneesh.kumar@linux.ibm.com,
+ anthony.yznaga@oracle.com, Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Arnd Bergmann <arnd@arndb.de>, arunks@codeaurora.org,
+ Ben Hutchings <ben@decadent.org.uk>,
+ Sebastian Andrzej Siewior <bigeasy@linutronix.de>,
+ Borislav Petkov <bp@alien8.de>, brgl@bgdev.pl,
+ Catalin Marinas <catalin.marinas@arm.com>,
+ Jonathan Corbet <corbet@lwn.net>, cpandya@codeaurora.org,
+ Daniel Vetter <daniel.vetter@ffwll.ch>,
+ Dan Williams <dan.j.williams@intel.com>,
+ Greg KH <gregkh@linuxfoundation.org>, Roman Gushchin <guro@fb.com>,
+ Johannes Weiner <hannes@cmpxchg.org>, "H. Peter Anvin" <hpa@zytor.com>,
+ Joonsoo Kim <iamjoonsoo.kim@lge.com>, James Morse <james.morse@arm.com>,
+ Jann Horn <jannh@google.com>, Juergen Gross <jgross@suse.com>,
+ Jiri Kosina <jkosina@suse.cz>, James Morris <jmorris@namei.org>,
+ Joe Perches <joe@perches.com>, Souptick Joarder <jrdr.linux@gmail.com>,
+ Joerg Roedel <jroedel@suse.de>, Keith Busch <keith.busch@intel.com>,
+ Konstantin Khlebnikov <khlebnikov@yandex-team.ru>,
+ Logan Gunthorpe <logang@deltatee.com>, marco.antonio.780@gmail.com,
+ Mark Rutland <mark.rutland@arm.com>,
+ Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>,
+ Michal Hocko <mhocko@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>,
+ Ingo Molnar <mingo@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>,
+ Marek Szyprowski <m.szyprowski@samsung.com>,
+ Nicholas Piggin <npiggin@gmail.com>, osalvador@suse.de,
+ "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>,
+ pavel.tatashin@microsoft.com, Randy Dunlap <rdunlap@infradead.org>,
+ richard.weiyang@gmail.com, "Serge E. Hallyn" <serge@hallyn.com>,
+ iommu@lists.linux-foundation.org, X86 ML <x86@kernel.org>,
+ linux-arm-kernel <linux-arm-kernel@lists.infradead.org>,
+ "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>,
+ LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
+ LSM List <linux-security-module@vger.kernel.org>,
+ Khalid Aziz <khalid@gonehiking.org>
+In-Reply-To: <alpine.DEB.2.21.1904041822320.1802@nanos.tec.linutronix.de>
+To: Thomas Gleixner <tglx@linutronix.de>
+X-Mailer: iPhone Mail (16D57)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > > 
-> > > Do we need this change?
-> > >
-> > This patch does not tend to refactor the code. I have removed extra empty
-> > lines because i touched the code around. I can either keep that change or
-> > remove it. What is your opinion?
-> 
-> Usually it's better to separate cosmetic changes from functional, if you're
-> not touching directly these lines. Not a big deal, of course.
-> 
-OK. I will keep it as it used to be. When it is a time for refactoring we can 
-fix that.
 
-> > > 
-> > > The function looks much cleaner now, thank you!
-> > > 
-> > > But if I understand it correctly, it returns a node (via parent)
-> > > and a pointer to one of two links, so that the returned value
-> > > is always == parent + some constant offset.
-> > > If so, I wonder if it's cleaner to return a parent node
-> > > (as rb_node*) and a bool value which will indicate if the left
-> > > or the right link should be used.
-> > > 
-> > > Not a strong opinion, just an idea.
-> > > 
-> > I see your point. Yes, that is possible to return "bool" value that
-> > indicates left or right path. After that we can detect the direction.
-> > 
-> > From the other hand, we end up and access the correct link anyway during
-> > the traversal the tree. In case of "bool" way, we will need to add on top
-> > some extra logic that checks where to attach to.
-> 
-> Sure, makes sense. I'd add some comments here then.
-> 
-Will put some explanation and description.
+> On Apr 4, 2019, at 10:28 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
+>=20
+>> On Thu, 4 Apr 2019, Tycho Andersen wrote:
+>>    leaq    -PTREGS_SIZE(%rax), %rsp
+>>    UNWIND_HINT_FUNC sp_offset=3DPTREGS_SIZE
+>>=20
+>> +    /*
+>> +     * If we oopsed in an interrupt handler, interrupts may be off. Let'=
+s turn
+>> +     * them back on before going back to "normal" code.
+>> +     */
+>> +    sti
+>=20
+> That breaks the paravirt muck and tracing/lockdep.
+>=20
+> ENABLE_INTERRUPTS() is what you want plus TRACE_IRQ_ON to keep the tracer
+> and lockdep happy.
+>=20
+>=20
 
-Thank you!
-
---
-Vlad Rezki
+I=E2=80=99m sure we=E2=80=99ll find some other thing we forgot to reset even=
+tually, so let=E2=80=99s do this in C.  Change the call do_exit to call __fi=
+nish_rewind_stack_do_exit and add the latter as a C function that does local=
+_irq_enable() and do_exit().=
 
