@@ -2,244 +2,200 @@ Return-Path: <SRS0=BJvi=SH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3CCE6C4360F
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 15:56:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 96FEDC4360F
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 15:57:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D47112184B
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 15:56:12 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=tycho-ws.20150623.gappssmtp.com header.i=@tycho-ws.20150623.gappssmtp.com header.b="SlpVczIJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D47112184B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=tycho.ws
+	by mail.kernel.org (Postfix) with ESMTP id 4FFF02175B
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 15:57:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4FFF02175B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 595386B0007; Fri,  5 Apr 2019 11:56:12 -0400 (EDT)
+	id D83116B0007; Fri,  5 Apr 2019 11:57:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 51D526B0008; Fri,  5 Apr 2019 11:56:12 -0400 (EDT)
+	id D32C86B0008; Fri,  5 Apr 2019 11:57:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 370956B000D; Fri,  5 Apr 2019 11:56:12 -0400 (EDT)
+	id BD7596B000D; Fri,  5 Apr 2019 11:57:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FAA96B0007
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 11:56:12 -0400 (EDT)
-Received: by mail-yb1-f200.google.com with SMTP id x9so4719487ybj.7
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 08:56:12 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D22E6B0008
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 11:57:15 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id p90so3440287edp.11
+        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 08:57:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=ID62lT7CASQ5exKZNTIxim8rPMV7b2wqTWy85yy70pY=;
-        b=Gtc0HdjhiMRH6BvgWe1ifFMh/GAWdzJ6yuST4dRSgb4W33N5G98zqlsWIgbSCJNC7P
-         Telu5R4aKALoiRt9yEgRYZ7xdywOWDe9t5EP7vEmkdgedOFBcWk29D7qpKkwrKCDkGYk
-         IXnSAU5P+e4TNflMAg7AYGBtB9HKKXV/UmrxNDtQK+FLUPkJhr3spFGt/RkypH3Z4ELN
-         ufk+RnA5uYdBdG+Wyefzp4pav67mAjSFZIpQYyAbVz/iBW+z98lFOW7p4YF1s8OUh1f+
-         EwuH79rhPzqnj4tn3yp5gSR6mMowjiYzsCEWpx1l/J8k5pEtYRx86/ZinMDLaNVn7HXB
-         eW5g==
-X-Gm-Message-State: APjAAAWXbJiDCYp7fSbZ4zGMtb0Q8tJCXAwTdC3MhflkAUeAJveNmQuw
-	8/PFEihtM21X68guUf0mfRx/E4yS458rx0iJ85Zfjz441wF8gyEGaSJS7VC7JmlGyCNngFBmNAO
-	aS2Y5ndgEZs43ejwoXKLNa7iUugrOHHs24PWoh6TUMinDJ8A7tq+2sV0Eivx0zXS0cg==
-X-Received: by 2002:a25:2317:: with SMTP id j23mr11637957ybj.122.1554479771367;
-        Fri, 05 Apr 2019 08:56:11 -0700 (PDT)
-X-Received: by 2002:a25:2317:: with SMTP id j23mr11637898ybj.122.1554479770590;
-        Fri, 05 Apr 2019 08:56:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554479770; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=TMExXfMIIcUlhhKoMJXC4m5FbXBbrHfh3IcqrYDUJhE=;
+        b=rVe4MjVXJDfPwrXf9cfmfMIyT4i1vHu09p45Qlb6ZJ3TraNcDVjiTOTxeRZCXBZ5UN
+         m0C8tprWb3hw0HXeqG/gnP39n59uzdsC62FWdAFv0ncjizQTBH53NC76QbnpA0AM9NlA
+         +7O8wmvShBdY6Q+OS5fLkqQSS9wPDwFiSI7BgkBrYaLW9v99YRkERnucf5hW852udMab
+         qJb7CDqWlEvw6pCwZ/dSaQwkLbL/4p9F/tRXNID7qDKLh1ULu4x6aRWbwlNrY5pa2VEs
+         nveZYTsYOcJ6bkyybUyV6DvCQKSpSs+ssq6j4ig7aPNLcaZS/JB+sRTCpMFZ8NSodGwu
+         l3Tg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+X-Gm-Message-State: APjAAAUrHKNvz9rNwALnJarwWTRruD4XPEiusAIQ/12sb0s3Yo//YJjd
+	UciQ4GuqhJL8HAlm2mYQK19qoX1tKCpkJnCR8oStTtHkXOo3RZl/ZDpuheCuaWS8UMCEiRC/4uJ
+	h0KJzzhIIb7SlLuny69hZra2wsUWdDW7Bk6mQR5pBjcpe9uka2SQHElynkmo1LGhSjA==
+X-Received: by 2002:a17:906:1e89:: with SMTP id e9mr7696087ejj.161.1554479834969;
+        Fri, 05 Apr 2019 08:57:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxrYg9B7HoZh1v/WHPWDgKYli0s8rONf+ylBbCUS3iJDoZNuGWH+jYZ0n+ZxeWeTzsCEEPh
+X-Received: by 2002:a17:906:1e89:: with SMTP id e9mr7696045ejj.161.1554479834042;
+        Fri, 05 Apr 2019 08:57:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554479834; cv=none;
         d=google.com; s=arc-20160816;
-        b=XCcGiZkjTsEZ7DxKFcnq9uVPpObLsWGdW818VJxFT1cexj2r9D9jkhZlOihXulGm/7
-         ytb51S7OJgn4Ub1wwI6HRdkEROweTkGjxBSmhz9XB3/nwvQs44UUOctSrz8f9/mu7VOf
-         qJ9oVCs5D3jllWQIONMOPBAZtS3fmfhL8MGqLbtFQ3Ev2N1LF887ciBjg0iRLnsQErqR
-         ttrI+js/pC74hhqJDjeAmwOTw8eHPPt80Lccw0nYnXQu9SaSwC1VIoPnddRY8UbPchmW
-         7tsj13xQaX7DzHX2rztbHOauXGRRrr7FESiuF23nDRmerD+3H1HeB8Si9rq4GoWEvbX9
-         WxWw==
+        b=TO7eeoJoOank/fB3LFThSsJFQhxWhy4Ri5tQ/oyiZ07khy1X0CgTyLx6r0B+28qYC5
+         ti5iZkiK0XELSUrXvniygWU1Xy1DTZMclDg7RKaZBKCghBLx3DFPdp5wSQW3A64WxEWx
+         G+kqUnwTXRCAo85vTPf4G711ZMu6XgmLM2r38/xjafVYDJhfAcJ9pPJGaKJUcOyRBYrn
+         OSvLIEsp/9Kb+DYuS09WN7m8QDRvjTC+5H02mQUy3DvNWxk0PqjMQNBtbGL1O59hshv7
+         5Zvi1gbbPuhlT2X8eRx7pB1yRWAY3VfzojUYk9xb3vzgAAuIRcLlXymgEiwJz5TpYgLo
+         eU7g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=ID62lT7CASQ5exKZNTIxim8rPMV7b2wqTWy85yy70pY=;
-        b=sfz1EEk0131wOMdyMez72ENEi0w0c5xCnNDRIdIRBO3frva75SXeZABzOTMVH2KGph
-         gqf2wSJxTSzzMJu3Vyj7qdcpnjjsXgI8AfD30IfJ9Xkw67YOwLqs0Y833VmSONO6QXkr
-         qcrhMpnBDypEV8tcXB9U6j07ACrajFmzzBHRdLUcUpdgnT55nEJ2ibGjS5VHBEBLGwCR
-         GvIRReXLoMPEuIX/fVvOnHgWtVIAPipgxCIFpL+erWC9VF1w9h4NBv1+KXlYr+TQYdur
-         TEFWQ1x0iUfzLNpgzae7g7OQ9wZ908EPvwwXZvJWN9G/0HgnAQ7zcJZI/b64/GmNg0RX
-         69hw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:to:subject;
+        bh=TMExXfMIIcUlhhKoMJXC4m5FbXBbrHfh3IcqrYDUJhE=;
+        b=XP5bnVCTTYWFfjM9+hODEIZ46Q7xzRnW02wR75wV7gvfp7WnT4DnXV82h16a5hxIAb
+         YwrT/pWx9Cn/Zo1uAqjuw2P0ckdJ7TNRbyspSB+Q8zKWVr44d7kXaNxYZXDikyODcuLi
+         gecblayGd60lMA8DwY9I+DorRe7TccC9XAs/DknD4lnGBf5OCXXzXf3pfF5Iybxn26A9
+         76T0n0/oyUut7YilPBLqbVKDRwbHUA4qYcN4ChTiMO4lFwVZnWqxQSJfnlMfWXjFO7eP
+         XpKO4VbQRfWqHlzfSxZmmTFFDo6oxbgQJIBCvTnEXZ8lD9fRWwvNrsdYbDpdoUHsTUFg
+         vCUQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@tycho-ws.20150623.gappssmtp.com header.s=20150623 header.b=SlpVczIJ;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of tycho@tycho.ws) smtp.mailfrom=tycho@tycho.ws
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j136sor8234453ywj.10.2019.04.05.08.56.10
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 05 Apr 2019 08:56:10 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of tycho@tycho.ws) client-ip=209.85.220.65;
+       spf=pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id o20si6877877edv.449.2019.04.05.08.57.13
+        for <linux-mm@kvack.org>;
+        Fri, 05 Apr 2019 08:57:14 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@tycho-ws.20150623.gappssmtp.com header.s=20150623 header.b=SlpVczIJ;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of tycho@tycho.ws) smtp.mailfrom=tycho@tycho.ws
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=tycho-ws.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=ID62lT7CASQ5exKZNTIxim8rPMV7b2wqTWy85yy70pY=;
-        b=SlpVczIJK4+1H51yrIy2XZfnWYtmEO8C77COIGAPUsvrvhaEM0m8FRrKyBqnM6gFHh
-         F3pKmsq85ALP71H/Hr7DfbZ8ERn5miX69yKlGBvznyK7Oykz4AisHBQBGcsxJcUG3e8V
-         Y9GcKXwN2Jft4Hs79HORZFiCCnnWZdcsXFw/K5B9RrtuKxwW38YvRvETy8pZArliOfSF
-         Iujj9qL/OF1qJg9m9Y9O8zweIiE3YhQsn0MVqk0fLSK+F84epR/kbKkAlRlnk163SPa6
-         gFJAQgCbFTOMEKLtMia6TzIf49M1a/iPDjXt7LlNXym4YY3YruwJ488KnrSc1wwqL85q
-         /img==
-X-Google-Smtp-Source: APXvYqwxZtHhbIF6A9Haj7ZQVMb9g3SIesRmO9UXkoy0Zl2crMaGtC7JfWk4iUGJpTgrcq4z6Txlcw==
-X-Received: by 2002:a81:69d5:: with SMTP id e204mr11030566ywc.267.1554479769927;
-        Fri, 05 Apr 2019 08:56:09 -0700 (PDT)
-Received: from cisco ([2601:282:901:dd7b:38ae:7ccc:265c:2d2c])
-        by smtp.gmail.com with ESMTPSA id z193sm7435775ywa.70.2019.04.05.08.56.04
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 05 Apr 2019 08:56:08 -0700 (PDT)
-Date: Fri, 5 Apr 2019 09:56:03 -0600
-From: Tycho Andersen <tycho@tycho.ws>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Dave Hansen <dave.hansen@intel.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Khalid Aziz <khalid.aziz@oracle.com>,
-	Andy Lutomirski <luto@kernel.org>,
-	Juerg Haefliger <juergh@gmail.com>, jsteckli@amazon.de,
-	Andi Kleen <ak@linux.intel.com>, liran.alon@oracle.com,
-	Kees Cook <keescook@google.com>,
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
-	deepa.srinivasan@oracle.com, chris hyser <chris.hyser@oracle.com>,
-	Tyler Hicks <tyhicks@canonical.com>,
-	"Woodhouse, David" <dwmw@amazon.co.uk>,
-	Andrew Cooper <andrew.cooper3@citrix.com>,
-	Jon Masters <jcm@redhat.com>,
-	Boris Ostrovsky <boris.ostrovsky@oracle.com>,
-	kanth.ghatraju@oracle.com, Joao Martins <joao.m.martins@oracle.com>,
-	Jim Mattson <jmattson@google.com>, pradeep.vincent@oracle.com,
-	John Haxby <john.haxby@oracle.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Christoph Hellwig <hch@lst.de>, steven.sistare@oracle.com,
-	Laura Abbott <labbott@redhat.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Aaron Lu <aaron.lu@intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	alexander.h.duyck@linux.intel.com,
-	Amir Goldstein <amir73il@gmail.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	aneesh.kumar@linux.ibm.com, anthony.yznaga@oracle.com,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Arnd Bergmann <arnd@arndb.de>, arunks@codeaurora.org,
-	Ben Hutchings <ben@decadent.org.uk>,
-	Sebastian Andrzej Siewior <bigeasy@linutronix.de>,
-	Borislav Petkov <bp@alien8.de>, brgl@bgdev.pl,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Jonathan Corbet <corbet@lwn.net>, cpandya@codeaurora.org,
-	Daniel Vetter <daniel.vetter@ffwll.ch>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Greg KH <gregkh@linuxfoundation.org>, Roman Gushchin <guro@fb.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	"H. Peter Anvin" <hpa@zytor.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	James Morse <james.morse@arm.com>, Jann Horn <jannh@google.com>,
-	Juergen Gross <jgross@suse.com>, Jiri Kosina <jkosina@suse.cz>,
-	James Morris <jmorris@namei.org>, Joe Perches <joe@perches.com>,
-	Souptick Joarder <jrdr.linux@gmail.com>,
-	Joerg Roedel <jroedel@suse.de>, Keith Busch <keith.busch@intel.com>,
-	Konstantin Khlebnikov <khlebnikov@yandex-team.ru>,
-	Logan Gunthorpe <logang@deltatee.com>, marco.antonio.780@gmail.com,
-	Mark Rutland <mark.rutland@arm.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	Michal Hocko <mhocko@suse.com>, Michal Hocko <mhocko@suse.cz>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Ingo Molnar <mingo@redhat.com>,
-	"Michael S. Tsirkin" <mst@redhat.com>,
-	Marek Szyprowski <m.szyprowski@samsung.com>,
-	Nicholas Piggin <npiggin@gmail.com>, osalvador@suse.de,
-	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>,
-	pavel.tatashin@microsoft.com, Randy Dunlap <rdunlap@infradead.org>,
-	richard.weiyang@gmail.com, Rik van Riel <riel@surriel.com>,
-	David Rientjes <rientjes@google.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>,
-	"Serge E. Hallyn" <serge@hallyn.com>,
-	Steve Capper <steve.capper@arm.com>, thymovanbeers@gmail.com,
-	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will.deacon@arm.com>,
-	Matthew Wilcox <willy@infradead.org>, yaojun8558363@gmail.com,
-	Huang Ying <ying.huang@intel.com>, zhangshaokun@hisilicon.com,
-	iommu@lists.linux-foundation.org, X86 ML <x86@kernel.org>,
-	linux-arm-kernel <linux-arm-kernel@lists.infradead.org>,
-	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
-	LSM List <linux-security-module@vger.kernel.org>,
-	Khalid Aziz <khalid@gonehiking.org>
-Subject: Re: [RFC PATCH v9 12/13] xpfo, mm: Defer TLB flushes for non-current
- CPUs (x86 only)
-Message-ID: <20190405155603.GA12463@cisco>
-References: <cover.1554248001.git.khalid.aziz@oracle.com>
- <4495dda4bfc4a06b3312cc4063915b306ecfaecb.1554248002.git.khalid.aziz@oracle.com>
- <CALCETrXMXxnWqN94d83UvGWhkD1BNWiwvH2vsUth1w0T3=0ywQ@mail.gmail.com>
- <91f1dbce-332e-25d1-15f6-0e9cfc8b797b@oracle.com>
- <alpine.DEB.2.21.1904050909520.1802@nanos.tec.linutronix.de>
- <26b00051-b03c-9fce-1446-52f0d6ed52f8@intel.com>
- <DFA69954-3F0F-4B79-A9B5-893D33D87E51@amacapital.net>
+       spf=pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id A7F3A168F;
+	Fri,  5 Apr 2019 08:57:12 -0700 (PDT)
+Received: from [10.1.196.75] (e110467-lin.cambridge.arm.com [10.1.196.75])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 63EEE3F68F;
+	Fri,  5 Apr 2019 08:57:11 -0700 (PDT)
+Subject: Re: struct dev_pagemap corruption
+To: Anshuman Khandual <anshuman.khandual@arm.com>,
+ "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ Linux ARM <linux-arm-kernel@lists.infradead.org>,
+ =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ Dan Williams <dan.j.williams@intel.com>, Will Deacon <will.deacon@arm.com>,
+ Catalin Marinas <catalin.marinas@arm.com>
+References: <7885dce0-edbe-db04-b5ec-bd271c9a0612@arm.com>
+ <5b18e1c2-4ec5-8c61-a658-fb91996b95d0@arm.com>
+ <60d1c5b7-7f85-7658-00f3-a3e5c6edc302@arm.com>
+From: Robin Murphy <robin.murphy@arm.com>
+Message-ID: <32e92df5-40b8-b4e7-afcc-897819a0af86@arm.com>
+Date: Fri, 5 Apr 2019 16:57:09 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+In-Reply-To: <60d1c5b7-7f85-7658-00f3-a3e5c6edc302@arm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-GB
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <DFA69954-3F0F-4B79-A9B5-893D33D87E51@amacapital.net>
-User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 05, 2019 at 09:24:50AM -0600, Andy Lutomirski wrote:
+On 05/04/2019 15:54, Anshuman Khandual wrote:
 > 
 > 
-> > On Apr 5, 2019, at 8:44 AM, Dave Hansen <dave.hansen@intel.com> wrote:
-> > 
-> > On 4/5/19 12:17 AM, Thomas Gleixner wrote:
-> >>> process. Is that an acceptable trade-off?
-> >> You are not seriously asking whether creating a user controllable ret2dir
-> >> attack window is a acceptable trade-off? April 1st was a few days ago.
-> > 
-> > Well, let's not forget that this set at least takes us from "always
-> > vulnerable to ret2dir" to a choice between:
-> > 
-> > 1. fast-ish and "vulnerable to ret2dir for a user-controllable window"
-> > 2. slow and "mitigated against ret2dir"
-> > 
-> > Sounds like we need a mechanism that will do the deferred XPFO TLB
-> > flushes whenever the kernel is entered, and not _just_ at context switch
-> > time.  This permits an app to run in userspace with stale kernel TLB
-> > entries as long as it wants... that's harmless.
+> On 04/05/2019 07:07 PM, Robin Murphy wrote:
+>> On 05/04/2019 05:40, Anshuman Khandual wrote:
+>>> Hello,
+>>>
+>>> On arm64 platform "struct dev_pagemap" is getting corrupted during ZONE_DEVICE
+>>> unmapping path through device_destroy(). Its device memory range end address
+>>> (pgmap->res.end) which is getting corrupted in this particular case. AFAICS
+>>> pgmap which gets initialized by the driver and mapped with devm_memremap_pages()
+>>> should retain it's values during the unmapping path as well. Is this assumption
+>>> right ?
+>>>
+>>> [   62.779412] Call trace:
+>>> [   62.779808]  dump_backtrace+0x0/0x118
+>>> [   62.780460]  show_stack+0x14/0x20
+>>> [   62.781204]  dump_stack+0xa8/0xcc
+>>> [   62.781941]  devm_memremap_pages_release+0x24/0x1d8
+>>> [   62.783021]  devm_action_release+0x10/0x18
+>>> [   62.783911]  release_nodes+0x1b0/0x220
+>>> [   62.784732]  devres_release_all+0x34/0x50
+>>> [   62.785623]  device_release+0x24/0x90
+>>> [   62.786454]  kobject_put+0x74/0xe8
+>>> [   62.787214]  device_destroy+0x48/0x58
+>>> [   62.788041]  zone_device_public_altmap_init+0x404/0x42c [zone_device_public_altmap]
+>>> [   62.789675]  do_one_initcall+0x74/0x190
+>>> [   62.790528]  do_init_module+0x50/0x1c0
+>>> [   62.791346]  load_module+0x1be4/0x2140
+>>> [   62.792192]  __se_sys_finit_module+0xb8/0xc8
+>>> [   62.793128]  __arm64_sys_finit_module+0x18/0x20
+>>> [   62.794128]  el0_svc_handler+0x88/0x100
+>>> [   62.794989]  el0_svc+0x8/0xc
+>>>
+>>> The problem can be traced down here.
+>>>
+>>> diff --git a/drivers/base/devres.c b/drivers/base/devres.c
+>>> index e038e2b3b7ea..2a410c88c596 100644
+>>> --- a/drivers/base/devres.c
+>>> +++ b/drivers/base/devres.c
+>>> @@ -33,7 +33,7 @@ struct devres {
+>>>            * Thus we use ARCH_KMALLOC_MINALIGN here and get exactly the same
+>>>            * buffer alignment as if it was allocated by plain kmalloc().
+>>>            */
+>>> -       u8 __aligned(ARCH_KMALLOC_MINALIGN) data[];
+>>> +       u8 __aligned(__alignof__(unsigned long long)) data[];
+>>>    };
+>>>
+>>> On arm64 ARCH_KMALLOC_MINALIGN -> ARCH_DMA_MINALIGN -> 128
+>>>
+>>> dev_pagemap being added:
+>>>
+>>> #define ZONE_DEVICE_PHYS_START 0x680000000UL
+>>> #define ZONE_DEVICE_PHYS_END   0x6BFFFFFFFUL
+>>> #define ALTMAP_FREE 4096
+>>> #define ALTMAP_RESV 1024
+>>>
+>>>      pgmap->type = MEMORY_DEVICE_PUBLIC;
+>>
+>> Given that what seems to ultimately get corrupted is the memory pointed to by pgmap here, how is *that* being allocated?
 > 
-> I don’t think this is good enough. The bad guys can enter the kernel and arrange for the kernel to wait, *in kernel*, for long enough to set up the attack.  userfaultfd is the most obvious way, but there are plenty. I suppose we could do the flush at context switch *and* entry.  I bet that performance still utterly sucks, though — on many workloads, this turns every entry into a full flush, and we already know exactly how much that sucks — it’s identical to KPTI without PCID.  (And yes, if we go this route, we need to merge this logic together — we shouldn’t write CR3 twice on entry).
+> struct dev_pagemap *pgmap;
 > 
-> I feel like this whole approach is misguided. ret2dir is not such a game changer that fixing it is worth huge slowdowns. I think all this effort should be spent on some kind of sensible CFI. For example, we should be able to mostly squash ret2anything by inserting a check that the high bits of RSP match the value on the top of the stack before any code that pops RSP.  On an FPO build, there aren’t all that many hot POP RSP instructions, I think.
+> pgmap = devm_kzalloc(dev, sizeof(struct dev_pagemap), GFP_KERNEL);
 > 
-> (Actually, checking the bits is suboptimal. Do:
-> 
-> unsigned long offset = *rsp - rsp;
-> offset >>= THREAD_SHIFT;
-> if (unlikely(offset))
-> BUG();
-> POP RSP;
+> Is it problematic to use dev_kzalloc here instead of generic kmalloc/kzalloc
+> functions ? kzalloc() seems to solve the problem. Will do some more testing
+> tomorrow.
 
-This is a neat trick, and definitely prevents going random places in
-the heap. But,
+The important point is that your pgmap is a devres allocation itself, 
+thus changing the alignment of devres::data is moving the thing which 
+was getting corrupted to a different relative location:
 
-> This means that it’s also impossible to trick a function to return into a buffer that is on that function’s stack.)
+(gdb) p sizeof(struct devres) + sizeof(struct dev_pagemap)
+$1 = 296
+(gdb) p sizeof(struct devres) + (size_t)&(((struct dev_pagemap*)0)->res.end)
+$2 = 192
 
-Why is this true? All you're checking is that you can't shift the
-"location" of the stack. If you can inject stuff into a stack buffer,
-can't you just inject the right frame to return to your code as well,
-so you don't have to shift locations?
+vs.
 
-Thanks!
+(gdb) p sizeof(struct devres_node) + sizeof(struct dev_pagemap)
+$3 = 192
+(gdb) p sizeof(struct devres_node) + (size_t)&(((struct 
+dev_pagemap*)0)->res.end)
+$4 = 88
 
-Tycho
+The fact that the corruption of the 128-byte-aligned devres::data occurs 
+exactly where the 8-byte-aligned devres::data would have ended is 
+particularly suspicious...
+
+Robin.
 
