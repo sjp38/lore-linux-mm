@@ -2,275 +2,131 @@ Return-Path: <SRS0=BJvi=SH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2FA0CC4360F
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 11:19:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D5559C4360F
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 12:36:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E465521850
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 11:19:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E465521850
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id 6FDFB21738
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 12:36:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6FDFB21738
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7733C6B0269; Fri,  5 Apr 2019 07:19:17 -0400 (EDT)
+	id CB9096B000D; Fri,  5 Apr 2019 08:36:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 74A1E6B026A; Fri,  5 Apr 2019 07:19:17 -0400 (EDT)
+	id C67D76B0266; Fri,  5 Apr 2019 08:36:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 612C66B026B; Fri,  5 Apr 2019 07:19:17 -0400 (EDT)
+	id B08C56B0269; Fri,  5 Apr 2019 08:36:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 34B5C6B0269
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 07:19:17 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id f11so2789920otl.20
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 04:19:17 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 73F8F6B000D
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 08:36:51 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id s22so4129184plq.1
+        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 05:36:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:organization
-         :mime-version:content-transfer-encoding;
-        bh=16pvh7dsOn1USHP44X+8RYU0uL920arAR58JiS+RMgg=;
-        b=HoUhLLB1BhJIa/vHP1UXrA3shBvGAaKhoPuj8gVINZbP6Oogr+VBPQSKqos9kQ2xvK
-         DaMB+DfyCeq0GkbsXMRhi0KEBaY2NBLI7d72tyrr+I3myUWO0GAgM9q/lYL6wRUen+5b
-         rsZEE8nCtiE3UN/F+gqBUnT34wCmwedKM9Vt1tzS8mabAEYmkrvdPVFf66oED37vRldg
-         CiXUb/tLtAqnBjop2OSVQX7GHajJO3BwTU4vT4ogIs08B8l3dgmFYLfnwS9LeC8cCabw
-         pAi507x/89MDikX/DYLJReQlkKY7nxoXzIai5PCZbUy2XeDcAhQHUWx/W2jfn1Frb0KR
-         hMhA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-X-Gm-Message-State: APjAAAXf+7VBJyMPndRIz0hXfwdjWIBnT5xlDXdy+/Vx8tAI1F70GdXC
-	RjTIBJoRu9jhEhFhVy1Pft79uSPOze4ksHDjvz9SQULjJ1BrzEYyhR+WYm4DEcPKwhGQL2h+618
-	WYkYYb4Ic72T6kbjp778Hl+tfzila2qHmouffKO0pQkYNPhs6dWBjam31szb82mYXQw==
-X-Received: by 2002:aca:b7c5:: with SMTP id h188mr6677845oif.130.1554463156696;
-        Fri, 05 Apr 2019 04:19:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyAwI2Z5iG+bLAt2oRZWNRZXu+zTy63hbkx6LKt2ppRKo4syOP5Dt9LLtt5ctNqjz9zuqT/
-X-Received: by 2002:aca:b7c5:: with SMTP id h188mr6677770oif.130.1554463155050;
-        Fri, 05 Apr 2019 04:19:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554463155; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=X9J+BZCeLM7FNBjPzS9jrmqvvYuyZHO51FULjwaVxxg=;
+        b=DrB0YQyX0HJaF96nMCMHyeQr6M3IX39P8JVnws34H51B597wgz9D75woLluSPtureh
+         A2w9GV3ary7+D6OlYv9iiMqo2sIC5+spaV3Mq0cUjcVeNbyZWoNtKEQSHWNV2Y1eTs3A
+         V7+afVWGwrGSSc+LdoxYsIO/glQ0Rb0YduklxZjNbmywloxggYqWJK9u+r5Z04OP9VHJ
+         P6Vtj99TI8L+NNKrkMWbIfv78Ib7x9k8Wr5fEdEFgia6RIdLs2ZbegfF52jZPRrkahob
+         KGyepYhDNrKPvqAmr/ese9T1gHG3BtYhaIAJiV098yruIkEzyQudvAYRi//WaNypR1Ef
+         dFhg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAX6i5AIghLFTm/VCOJMlK4k8w3H38yDan650KCbCZqRCxgdNPKe
+	b55ovUpwKWhvwAgWTNt0iZye2w+qNm/fstQxyiiap8kBKW/nxCELlgksxmlGD5pPaZhz5q/SDDU
+	qUxnIW8xNp5xp1Pjcw+iHdmakMR3ez++XuPIWvTCCWVylDTv8CDscR9YG1ijKYfEs2Q==
+X-Received: by 2002:a17:902:aa5:: with SMTP id 34mr12518015plp.302.1554467810920;
+        Fri, 05 Apr 2019 05:36:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyUw+AKVpBF8E7bQWNdkGh/ZimGQy/jmMTUevCmAjWtBr/sjMM76xwrCitFwgD082rfYuNo
+X-Received: by 2002:a17:902:aa5:: with SMTP id 34mr12517949plp.302.1554467810109;
+        Fri, 05 Apr 2019 05:36:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554467810; cv=none;
         d=google.com; s=arc-20160816;
-        b=wEPdMt3FrXKy28dWe3GfvWGMUOCTQ4MGsXmbUCUfExU7fFpgCn143ISZXEcnB+RRZ0
-         Duarwf1GlZZlPadHAfRIoYw4Nsz6uMSW6HZOl5xj/HKhN+hZZ5Vt24e0woBmr0tPF9jV
-         JHGOJPrVWwdZcPadOs2jTfw+rnuCHOE74421u2oHSYYaHPzzZbsjDvKKY7wTeZLfELfA
-         sz7Rv1y5ECiFGmauUzEE/7Rm3oc/taGwQa2FXp6Ven2nzz0gEWTm7nkqEr5N9VJU3wYH
-         G6T2ipTbbl2Z/p/9o5OkcmAmOhoHbWOGqF+b8uRw0Pbme7tFvUqXvIfdCQFNFMBJu3+s
-         RJAA==
+        b=E1jpfK0s3jw3OMWOdqS4sw/vMEi02CqaOfpmBuU6wVRLCHs6uBS3SSHLTrsVUPrQ7M
+         OwBMDxZ6VtudTNxnGl1AJQzoRaJJZpamr6RKTKm8L/PpiYk5+YKb72dnLaVwUIAfj/4U
+         BowIV+3f2hdc1B2+qgtrNW9gafJ1Ube8/7oE9nsaM5LkzhR3WUPs+w/xDqDa1g4LDmTp
+         DIx8EjCowTEKfrOqJMHMHqatnHEgrzw+4XQCm5dhlFIzlgkKsgiwh97JuhWmVwVSPrOL
+         ummwQGj7Z9lyg8zZ2I9FxFLOXZZsACNCRUL3zNCZmnOGn3/eQqnfDFCzStXmi32fTib7
+         NHIg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:organization:references
-         :in-reply-to:message-id:subject:cc:to:from:date;
-        bh=16pvh7dsOn1USHP44X+8RYU0uL920arAR58JiS+RMgg=;
-        b=Z8GP/STSVD7mal0l2TzfWNjMXrUJTDgirFF4NQiOVHhOS8Ho/Dbf+bZ0GmqDun6IZN
-         aZQCT5tTB19uXIcDNMTfppcOInYytRGIcibcpLXhCrGGCR/nO6n7TyFb7oxR99dYK7Vq
-         2U6KxyOFg9FciOuAR+KpggFKCGWJ4+MLv463u4Ez+QXZQgwX1q5+2oUsEemqw9Aap14u
-         3mZapOGdHk42UmHkjydy+6xf1NuTE41ZdHfMk93Ge/33o2P7RRAeJRMoI+R8WuZVzj9b
-         gqwY14KTn9Xv5LKawGPydTyDs23eOdmjK/VBamkzYm3RsfmWGKIj2ABwYYlun/y5kf+x
-         Ye4A==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=X9J+BZCeLM7FNBjPzS9jrmqvvYuyZHO51FULjwaVxxg=;
+        b=ni2AAI1YJuuPpPmv7QYosVDJ/kAUPaojGANdD61p5g+wP2urV+RbhM92+j2ido63Ar
+         45c2F+I1C3hJmO3zl/4YfLl2Pn6t8IkW5tvT0zQEqf0qJBY5NIHYI9fvmPo/qBvHn4Re
+         VCPIcNshkhY8qyt41mxCA2vzkD8S3QYmHpG1p5leAYVuZfNKgkl06htPMDw3IaidFoSg
+         x5GXkvrhQLk73j7/docwF9S/KzKS0qWyVueA1SBxiB1cQ1cyhlWpobULi/T4rGinBZFF
+         XPI3oGLEecfs+fquSs30iKm4m0JubGBWwSn3psgns9Vgj5rF/djlSRoyGVFE4WndItnD
+         Kqsw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
-        by mx.google.com with ESMTPS id n2si9249678otl.276.2019.04.05.04.19.14
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id c12si15019134plr.19.2019.04.05.05.36.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Apr 2019 04:19:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
+        Fri, 05 Apr 2019 05:36:50 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-Received: from DGGEMS406-HUB.china.huawei.com (unknown [172.30.72.58])
-	by Forcepoint Email with ESMTP id 1975FDF69102902D2836;
-	Fri,  5 Apr 2019 19:19:10 +0800 (CST)
-Received: from localhost (10.202.226.61) by DGGEMS406-HUB.china.huawei.com
- (10.3.19.206) with Microsoft SMTP Server id 14.3.408.0; Fri, 5 Apr 2019
- 19:19:08 +0800
-Date: Fri, 5 Apr 2019 12:18:57 +0100
-From: Jonathan Cameron <jonathan.cameron@huawei.com>
-To: Dan Williams <dan.j.williams@intel.com>
-CC: <linux-kernel@vger.kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>,
-	Len Brown <lenb@kernel.org>, Keith Busch <keith.busch@intel.com>,
-	<vishal.l.verma@intel.com>, <x86@kernel.org>, <linux-mm@kvack.org>,
-	<linux-nvdimm@lists.01.org>
-Subject: Re: [RFC PATCH 4/5] acpi/hmat: Register special purpose memory as a
- device
-Message-ID: <20190405121857.0000718a@huawei.com>
-In-Reply-To: <155440492988.3190322.4475460421334178449.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <155440490809.3190322.15060922240602775809.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<155440492988.3190322.4475460421334178449.stgit@dwillia2-desk3.amr.corp.intel.com>
-Organization: Huawei
-X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; i686-w64-mingw32)
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from fmsmga007.fm.intel.com ([10.253.24.52])
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 05 Apr 2019 05:36:49 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,312,1549958400"; 
+   d="scan'208";a="140369549"
+Received: from black.fi.intel.com ([10.237.72.28])
+  by fmsmga007.fm.intel.com with ESMTP; 05 Apr 2019 05:36:48 -0700
+Received: by black.fi.intel.com (Postfix, from userid 1000)
+	id 2E4B63B7; Fri,  5 Apr 2019 15:36:47 +0300 (EEST)
+Date: Fri, 5 Apr 2019 15:36:47 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Huang Shijie <sjhuang@iluvatar.ai>, akpm@linux-foundation.org,
+	linux-mm@kvack.org
+Subject: Re: [PATCH] mm:rmap: use the pra.mapcount to do the check
+Message-ID: <20190405123646.fen7bwaewaaiqlxr@black.fi.intel.com>
+References:<20190404054828.2731-1-sjhuang@iluvatar.ai>
+ <de5865e2-a9e4-f0f9-f740-f1301679258a@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.202.226.61]
-X-CFilter-Loop: Reflected
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To:<de5865e2-a9e4-f0f9-f740-f1301679258a@oracle.com>
+User-Agent: NeoMutt/20170714-126-deb55f (1.8.3)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 Apr 2019 12:08:49 -0700
-Dan Williams <dan.j.williams@intel.com> wrote:
-
-> Memory that has been tagged EFI_SPECIAL_PURPOSE, and has performance
-> properties described by the ACPI HMAT is expected to have an application
-> specific consumer.
+On Thu, Apr 04, 2019 at 11:08:33PM +0000, Mike Kravetz wrote:
+> On 4/3/19 10:48 PM, Huang Shijie wrote:
+> > We have the pra.mapcount already, and there is no need to call
+> > the page_mapped() which may do some complicated computing
+> > for compound page.
+> > 
+> > Signed-off-by: Huang Shijie <sjhuang@iluvatar.ai>
 > 
-> Those consumers may want 100% of the memory capacity to be reserved from
-> any usage by the kernel. By default, with this enabling, a platform
-> device is created to represent this differentiated resource.
-> 
-> A follow on change arranges for device-dax to claim these devices by
-> default and provide an mmap interface for the target application.
-> However, if the administrator prefers that some or all of the special
-> purpose memory is made available to the core-mm the device-dax hotplug
-> facility can be used to online the memory with its own numa node.
-> 
-> Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-> Cc: Len Brown <lenb@kernel.org>
-> Cc: Keith Busch <keith.busch@intel.com>
-> Cc: Jonathan Cameron <Jonathan.Cameron@huawei.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> This looks good to me.  I had to convince myself that there were no
+> issues if we were operating on a sub-page of a compound-page.  However,
+> Kirill is the expert here and would know of any subtle issues I may have
+> overlooked.
 
-Hi Dan,
+Looks good to me.
 
-Great to see you getting this discussion going so fast and in
-general the approach makes sense to me.
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-I'm a little confused why HMAT has anything to do with this.
-SPM is defined either via the attribute in SRAT SPA entries,
-EF_MEMORY_SP or via the EFI memory map.
-
-Whether it is in HMAT or not isn't all that relevant.
-Back in the days of the reservation hint (so before yesterday :)
-it was relevant obviously but that's no longer true.
-
-So what am I missing?
-
-Thanks,
-
-Jonathan
-
-
-> ---
->  drivers/acpi/hmat/Kconfig |    1 +
->  drivers/acpi/hmat/hmat.c  |   63 +++++++++++++++++++++++++++++++++++++++++++++
->  include/linux/memregion.h |    3 ++
->  3 files changed, 67 insertions(+)
-> 
-> diff --git a/drivers/acpi/hmat/Kconfig b/drivers/acpi/hmat/Kconfig
-> index 95a29964dbea..4fcf76e8aa1d 100644
-> --- a/drivers/acpi/hmat/Kconfig
-> +++ b/drivers/acpi/hmat/Kconfig
-> @@ -3,6 +3,7 @@ config ACPI_HMAT
->  	bool "ACPI Heterogeneous Memory Attribute Table Support"
->  	depends on ACPI_NUMA
->  	select HMEM_REPORTING
-> +	select MEMREGION
->  	help
->  	 If set, this option has the kernel parse and report the
->  	 platform's ACPI HMAT (Heterogeneous Memory Attributes Table),
-> diff --git a/drivers/acpi/hmat/hmat.c b/drivers/acpi/hmat/hmat.c
-> index e7ae44c8d359..482360004ea0 100644
-> --- a/drivers/acpi/hmat/hmat.c
-> +++ b/drivers/acpi/hmat/hmat.c
-> @@ -13,6 +13,9 @@
->  #include <linux/device.h>
->  #include <linux/init.h>
->  #include <linux/list.h>
-> +#include <linux/mm.h>
-> +#include <linux/memregion.h>
-> +#include <linux/platform_device.h>
->  #include <linux/list_sort.h>
->  #include <linux/node.h>
->  #include <linux/sysfs.h>
-> @@ -612,6 +615,65 @@ static __init void hmat_register_target_perf(struct memory_target *target)
->  	node_set_perf_attrs(mem_nid, &target->hmem_attrs, 0);
->  }
->  
-> +static __init void hmat_register_target_device(struct memory_target *target)
-> +{
-> +	struct memregion_info info;
-> +	struct resource res = {
-> +		.start = target->start,
-> +		.end = target->start + target->size - 1,
-> +		.flags = IORESOURCE_MEM,
-> +		.desc = IORES_DESC_APPLICATION_RESERVED,
-> +	};
-> +	struct platform_device *pdev;
-> +	int rc, id;
-> +
-> +	if (region_intersects(target->start, target->size, IORESOURCE_MEM,
-> +				IORES_DESC_APPLICATION_RESERVED)
-> +			!= REGION_INTERSECTS)
-> +		return;
-> +
-> +	id = memregion_alloc();
-> +	if (id < 0) {
-> +		pr_err("acpi/hmat: memregion allocation failure for %pr\n", &res);
-> +		return;
-> +	}
-> +
-> +	pdev = platform_device_alloc("hmem", id);
-> +	if (!pdev) {
-> +		pr_err("acpi/hmat: hmem device allocation failure for %pr\n", &res);
-> +		goto out_pdev;
-> +	}
-> +
-> +	pdev->dev.numa_node = acpi_map_pxm_to_online_node(target->processor_pxm);
-> +	info = (struct memregion_info) {
-> +		.target_node = acpi_map_pxm_to_node(target->memory_pxm),
-> +	};
-> +	rc = platform_device_add_data(pdev, &info, sizeof(info));
-> +	if (rc < 0) {
-> +		pr_err("acpi/hmat: hmem memregion_info allocation failure for %pr\n", &res);
-> +		goto out_pdev;
-> +	}
-> +
-> +	rc = platform_device_add_resources(pdev, &res, 1);
-> +	if (rc < 0) {
-> +		pr_err("acpi/hmat: hmem resource allocation failure for %pr\n", &res);
-> +		goto out_resource;
-> +	}
-> +
-> +	rc = platform_device_add(pdev);
-> +	if (rc < 0) {
-> +		dev_err(&pdev->dev, "acpi/hmat: device add failed for %pr\n", &res);
-> +		goto out_resource;
-> +	}
-> +
-> +	return;
-> +
-> +out_resource:
-> +	put_device(&pdev->dev);
-> +out_pdev:
-> +	memregion_free(id);
-> +}
-> +
->  static __init void hmat_register_targets(void)
->  {
->  	struct memory_target *target;
-> @@ -619,6 +681,7 @@ static __init void hmat_register_targets(void)
->  	list_for_each_entry(target, &targets, node) {
->  		hmat_register_target_initiators(target);
->  		hmat_register_target_perf(target);
-> +		hmat_register_target_device(target);
->  	}
->  }
->  
-> diff --git a/include/linux/memregion.h b/include/linux/memregion.h
-> index 99fa47793b49..5de2ac7fcf5e 100644
-> --- a/include/linux/memregion.h
-> +++ b/include/linux/memregion.h
-> @@ -1,6 +1,9 @@
->  // SPDX-License-Identifier: GPL-2.0
->  #ifndef _MEMREGION_H_
->  #define _MEMREGION_H_
-> +struct memregion_info {
-> +	int target_node;
-> +};
->  int memregion_alloc(void);
->  void memregion_free(int id);
->  #endif /* _MEMREGION_H_ */
-> 
-
+-- 
+ Kirill A. Shutemov
 
