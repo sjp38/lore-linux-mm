@@ -2,285 +2,272 @@ Return-Path: <SRS0=BJvi=SH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C8507C4360F
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 03:03:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8CEC0C4360F
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 03:13:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 22E62217D4
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 03:03:56 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 22E62217D4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id 107FF21738
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 03:13:45 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="NHq0rRgS"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 107FF21738
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 95E986B000C; Thu,  4 Apr 2019 23:03:56 -0400 (EDT)
+	id 8461D6B000E; Thu,  4 Apr 2019 23:13:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 917976B000D; Thu,  4 Apr 2019 23:03:56 -0400 (EDT)
+	id 7F4BE6B0266; Thu,  4 Apr 2019 23:13:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7FBBD6B000E; Thu,  4 Apr 2019 23:03:56 -0400 (EDT)
+	id 70B286B0269; Thu,  4 Apr 2019 23:13:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 590316B000C
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 23:03:56 -0400 (EDT)
-Received: by mail-vk1-f199.google.com with SMTP id 81so1996163vkn.19
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 20:03:56 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 21FB16B000E
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2019 23:13:45 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id k8so2464356edl.22
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2019 20:13:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
-         :references:cc:from:message-id:date:user-agent:mime-version
-         :in-reply-to:content-transfer-encoding;
-        bh=8n1ufHNp8l7e+vRcjJT0MsQkEFINzxGVulJL7Wf2aKM=;
-        b=UAyCHMbmbLdiP1x9kC0qH72k0JqWtrVhHt9OYLLz4m2XrJq14QGE6k3jUIC77C5wCV
-         NikMsMTAqeGoLh/DMPp/RXcWdWqB+fww+4m54Z8lWs4rKzs/xqci7cb2vNYwx/ou9C4A
-         75+GKWUyJYYS9KmWGsZiObrOcipIKabafGN+PskjfEMjcBcS25iRRbnUaRLJ3EPnJV3n
-         rEBC1txhE03ClqQh/NKvw1rCEmIQRDA0zNU541LqYXmM8RL+Yozv8CLdH/xmkFPKYvhZ
-         Sy+W2mO2E/aEG1cAnZu/1rU5VPvCKnw2FwfD6dgBQ0mGxUe3feovM7qlPdojTbt1KOzC
-         h7rw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
-X-Gm-Message-State: APjAAAUnrnbrw+ZmvbKb0gDH5WMYaJqBk76lzHdVxRhoz2vGce0Buxl3
-	UxT966+N2TXVwAsZ73HG4p4Of6DOKX4bEdb9cwX/MKA5y+P2Vag4dWJFTiaxLlFEw96H6dflTde
-	oSHlMVMHOcUlFItnND1+QWJ4iFTma7/J/UGiU9LkPP5A9I0F9x5k9hF2IOBkUWo6EdA==
-X-Received: by 2002:a1f:b4ce:: with SMTP id d197mr6330281vkf.57.1554433435976;
-        Thu, 04 Apr 2019 20:03:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxBK5lkdMW/XWScFYwoLH5XBesypmPaj1d+ZVbBSAdm9zZAuSCfD5dxMd/W9K6DAEUR2Ffu
-X-Received: by 2002:a1f:b4ce:: with SMTP id d197mr6330235vkf.57.1554433435048;
-        Thu, 04 Apr 2019 20:03:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554433435; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=7JRLk73o3zdzwIeyVvfIEIgIijd2IU7f5ObPNEVJ4Uk=;
+        b=EEsJgME1LwVe83bkFr0vEpvDnvYIO10K1ebE8+lvgev3viFuSJbV25p6uZ6WSrUZ9N
+         gM7IIrdRJ7buC4GLtYDd5CqPoUfuLEM7X4pLc3Eive7tktLI+O6JCChDCSl6+XkbeU7o
+         +/UOo9b5qRcRiPqeywdpb/1791CEqM29EDODAIYbSTCfHZ1N56Bry58g7W+eF6MprWyk
+         52wuHXOvNJ/Rma1+hJQIbWPLagjqNNsywgErXx3s/Ct9VLk1Y5GyxkAIDLJyqRsckEO4
+         +tZZdwHVOFbc9m6TTNoNZBe3y6lxuqsmi8T5Kkt9js2rK8pMms/zeaR80hGt39M5cffQ
+         5ezA==
+X-Gm-Message-State: APjAAAUXTZ/mF5tUHpGZpaQJ6ybLCfjCNdoPONEQkIzf8KnyHKZ4fSIn
+	3k3LXKV6gndFyVaUxTL9loWHxx+z8jqGU5bG2YiCRM2JEt5qhwcYoYjVtUn2oVOhk6J1OqiHc1g
+	GYUOeMNyZeaYcy5Vtc1LgtPBZcjzciE/CLERq46jYfVpesFxb/jUIAZdVQ884SuQk2w==
+X-Received: by 2002:a50:ec0e:: with SMTP id g14mr6272309edr.29.1554434024563;
+        Thu, 04 Apr 2019 20:13:44 -0700 (PDT)
+X-Received: by 2002:a50:ec0e:: with SMTP id g14mr6272263edr.29.1554434023570;
+        Thu, 04 Apr 2019 20:13:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554434023; cv=none;
         d=google.com; s=arc-20160816;
-        b=WTZVuWywGTfPp6j5YgqHBkK2UGT5syDfWQNntHCJ5rG1A/HAIuLmvTMrv86SS0xhkL
-         4ZtTWwGghfR5jBY7wkI/S6VbMvFvj8NgPOKojLFiuVvUK95Bpt9dLhAI28PJf014u1Rq
-         5nE2mIWLViLGPjgQLkJ9jFHV7YUcgcujPp8SUywICM8wMuB9Po4dSgtQHod0Vskoa4We
-         LEKy/vRWTpp42Cl4DKCJpOEXZpG2ogTQtaOhsUw9Cn3hw/p+bB8WM8PErYy4b1Rbura5
-         MWem1Bw5ieuevhMxioPQOvPDvMAahzTRQIwNghwo7+L7bki1HMheuuHU7RN6oqiPOFQd
-         twUg==
+        b=rNNAd0UjoiP/XN5TIU1WvRxTydwJeQZTEr5Tac3KSOvoZwOKs9Om1BPcSy3QyH3lqS
+         70lGrsxghzUJeU/wROloMpZYyIh+B0hGFkizRi8LSLC4aH8KQcv+FSjxJHCwssrRvzku
+         PMJZQi5Dm5ZvkqNj0urVfw24MUba/1sU9BsSrJlKjGYSpGwNw1ShZAATl7QL22R5YfnP
+         1uwfDIiK5AMu8Pf4tEJ6F5wmya5P/welzACIhyVHF6oxw98078X+L1aTNbxpZlUVgTX/
+         /oxbfvPbyhSrpLbUp6R9pjBJqJUNrcqPs287Jd4jL8J9qReeuSh6lcJAyoWXUEsEO7le
+         ZikQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
-         :message-id:from:cc:references:to:subject;
-        bh=8n1ufHNp8l7e+vRcjJT0MsQkEFINzxGVulJL7Wf2aKM=;
-        b=akkEstCYpEG4TUEUwYSHzFIDIpf4UVylF9XHMxpXsbOv4p/r606Gsk3MuduevzR1Gj
-         g6bIZKK/zwyL+14iywzw47v4WirADdWvplgjOEl++YgyqM4g+nogKvk7V3S5L3eSVQXJ
-         ngTvXdlPvxBn5Kswogz2WdhXbLwEVB5HP1KYd2Crp9XwInEnOQKfZGthApG5mbTn3/UH
-         +AylUgEww7leMzOEzBuf8zHGRIcmB5V3gpUg8iy0TjEfDMZ/YSy5dqbNwfFMT4WEOnJA
-         suZ2z2wlQxXnTkIqLPpawLJKuQYOdyvH2VlMLvYqoBx0QYs8MX4HEj1g0AnpHr5Ertqy
-         /Vvg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=7JRLk73o3zdzwIeyVvfIEIgIijd2IU7f5ObPNEVJ4Uk=;
+        b=kazWi40TSiM28KaUZpQixfMww8Z8NOUNpI0+qP9rvWMfC4SI7MAApGZSejkBolHtDh
+         zqD7L3+FIZO/n01JgS1Tf0MmlB06MuuZFfyXo93YLWhusYcQYuZUyLBVBzZf4ZxycfqV
+         5Z2WTGu2K23snNJgdVRtxbqq4e+IHs8nLbihDMhoicGB2suAf5WabFb9Mc71RcAQlAZH
+         5DmNWpVwLV2V7/EBVvAWTRgOf6kqtc5GOH77FRL3MKTlEc2FRWCHwt4BFkH2KsmU/Hty
+         4MujPiyQlfS2ayUWCM0QVblFsyCp8qqjJWEWZ/2kwEOQZiZAdEX2L77NFj5gFnSyDcJI
+         6CQQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
-Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id l21si6803910vso.72.2019.04.04.20.03.54
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=NHq0rRgS;
+       spf=pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=huangzhaoyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z59sor4247265ede.21.2019.04.04.20.13.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Apr 2019 20:03:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.191 as permitted sender) client-ip=45.249.212.191;
+        (Google Transport Security);
+        Thu, 04 Apr 2019 20:13:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
-Received: from DGGEMS406-HUB.china.huawei.com (unknown [172.30.72.58])
-	by Forcepoint Email with ESMTP id 77E4C68E05D71F357661;
-	Fri,  5 Apr 2019 11:03:49 +0800 (CST)
-Received: from [127.0.0.1] (10.177.131.64) by DGGEMS406-HUB.china.huawei.com
- (10.3.19.206) with Microsoft SMTP Server id 14.3.408.0; Fri, 5 Apr 2019
- 11:03:41 +0800
-Subject: Re: [PATCH 1/3] arm64: kdump: support reserving crashkernel above 4G
-To: Mike Rapoport <rppt@linux.ibm.com>
-References: <20190403030546.23718-1-chenzhou10@huawei.com>
- <20190403030546.23718-2-chenzhou10@huawei.com>
- <20190404144618.GB6433@rapoport-lnx>
-CC: <catalin.marinas@arm.com>, <will.deacon@arm.com>,
-	<akpm@linux-foundation.org>, <ard.biesheuvel@linaro.org>,
-	<takahiro.akashi@linaro.org>, <linux-arm-kernel@lists.infradead.org>,
-	<linux-kernel@vger.kernel.org>, <kexec@lists.infradead.org>,
-	<linux-mm@kvack.org>, <wangkefeng.wang@huawei.com>
-From: Chen Zhou <chenzhou10@huawei.com>
-Message-ID: <59ef4532-2402-3887-2794-b503827fac5a@huawei.com>
-Date: Fri, 5 Apr 2019 11:03:39 +0800
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:45.0) Gecko/20100101
- Thunderbird/45.7.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=NHq0rRgS;
+       spf=pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=huangzhaoyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=7JRLk73o3zdzwIeyVvfIEIgIijd2IU7f5ObPNEVJ4Uk=;
+        b=NHq0rRgSwNnu1x+JHk6N4YcwfOsV9hZcvVMfE6qV6BO/wk2mRcrUEcj3WC6cu01eI4
+         oWRDgbhtBxNfIJ2BlcLt0Flx6F8jtIB3Rgf9ar6EkRFSBYOH+pxIEk33S115qOFCAOOx
+         IY0XSba1SPLI/uN2ODIGAetRyopTQkbTmJyAbFKeOBzuFLAn+vGq4zapF5jyiyzBejW7
+         8rt590KbLxtrdzL+64nJg+b/nsGzfGxM3GoZ5CmdCLWneBE3HqJfFLMhHcuPx1zMjGI0
+         OGkvNxSuGwu/vt4b2HqvPzAA549s5Qm2JbLhBjGuPICiJxEp6p1H9+SgQpzKfU3g7LeT
+         aWGA==
+X-Google-Smtp-Source: APXvYqyTWIC9LSPcGZ2dtyNFPvC0AesUA/LfXkH+3MdpjY9Q+HK47P7R6SwRIa2cE7UiTUnFrbc9PG2/m3r9zBwZkew=
+X-Received: by 2002:aa7:d0d3:: with SMTP id u19mr6276058edo.234.1554434023184;
+ Thu, 04 Apr 2019 20:13:43 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190404144618.GB6433@rapoport-lnx>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.177.131.64]
-X-CFilter-Loop: Reflected
+References: <1554348617-12897-1-git-send-email-huangzhaoyang@gmail.com> <20190404071512.GE12864@dhcp22.suse.cz>
+In-Reply-To: <20190404071512.GE12864@dhcp22.suse.cz>
+From: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Date: Fri, 5 Apr 2019 11:13:32 +0800
+Message-ID: <CAGWkznF-LV2BBjcSCmyJzqmYUUvxfNiLbtN5V8xwt3+=uHgqnQ@mail.gmail.com>
+Subject: Re: [PATCH] mm:workingset use real time to judge activity of the file page
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, 
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, 
+	Zhaoyang Huang <zhaoyang.huang@unisoc.com>, Roman Gushchin <guro@fb.com>, 
+	Jeff Layton <jlayton@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, 
+	"open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Pavel Tatashin <pasha.tatashin@soleen.com>, Johannes Weiner <hannes@cmpxchg.org>, geng.ren@unisoc.com
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+resend it via the right mailling list and rewrite the comments by ZY.
 
-Hi Mike,
+On Thu, Apr 4, 2019 at 3:15 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> [Fixup email for Pavel and add Johannes]
+>
+> On Thu 04-04-19 11:30:17, Zhaoyang Huang wrote:
+> > From: Zhaoyang Huang <zhaoyang.huang@unisoc.com>
+> >
+> > In previous implementation, the number of refault pages is used
+> > for judging the refault period of each page, which is not precised as
+> > eviction of other files will be affect a lot on current cache.
+> > We introduce the timestamp into the workingset's entry and refault ratio
+> > to measure the file page's activity. It helps to decrease the affection
+> > of other files(average refault ratio can reflect the view of whole system
+> > 's memory).
+> > The patch is tested on an Android system, which can be described as
+> > comparing the launch time of an application between a huge memory
+> > consumption. The result is launch time decrease 50% and the page fault
+> > during the test decrease 80%.
+> >
+I don't understand what exactly you're saying here, can you please elaborate?
 
-On 2019/4/4 22:46, Mike Rapoport wrote:
-> Hi,
-> 
-> On Wed, Apr 03, 2019 at 11:05:44AM +0800, Chen Zhou wrote:
->> When crashkernel is reserved above 4G in memory, kernel should
->> reserve some amount of low memory for swiotlb and some DMA buffers.
->>
->> Kernel would try to allocate at least 256M below 4G automatically
->> as x86_64 if crashkernel is above 4G. Meanwhile, support
->> crashkernel=X,[high,low] in arm64.
->>
->> Signed-off-by: Chen Zhou <chenzhou10@huawei.com>
->> ---
->>  arch/arm64/kernel/setup.c |  3 ++
->>  arch/arm64/mm/init.c      | 71 +++++++++++++++++++++++++++++++++++++++++++++--
->>  2 files changed, 71 insertions(+), 3 deletions(-)
->>
->> diff --git a/arch/arm64/kernel/setup.c b/arch/arm64/kernel/setup.c
->> index 413d566..82cd9a0 100644
->> --- a/arch/arm64/kernel/setup.c
->> +++ b/arch/arm64/kernel/setup.c
->> @@ -243,6 +243,9 @@ static void __init request_standard_resources(void)
->>  			request_resource(res, &kernel_data);
->>  #ifdef CONFIG_KEXEC_CORE
->>  		/* Userspace will find "Crash kernel" region in /proc/iomem. */
->> +		if (crashk_low_res.end && crashk_low_res.start >= res->start &&
->> +		    crashk_low_res.end <= res->end)
->> +			request_resource(res, &crashk_low_res);
->>  		if (crashk_res.end && crashk_res.start >= res->start &&
->>  		    crashk_res.end <= res->end)
->>  			request_resource(res, &crashk_res);
->> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
->> index 6bc1350..ceb2a25 100644
->> --- a/arch/arm64/mm/init.c
->> +++ b/arch/arm64/mm/init.c
->> @@ -64,6 +64,57 @@ EXPORT_SYMBOL(memstart_addr);
->>  phys_addr_t arm64_dma_phys_limit __ro_after_init;
->>  
->>  #ifdef CONFIG_KEXEC_CORE
->> +static int __init reserve_crashkernel_low(void)
->> +{
->> +	unsigned long long base, low_base = 0, low_size = 0;
->> +	unsigned long total_low_mem;
->> +	int ret;
->> +
->> +	total_low_mem = memblock_mem_size(1UL << (32 - PAGE_SHIFT));
->> +
->> +	/* crashkernel=Y,low */
->> +	ret = parse_crashkernel_low(boot_command_line, total_low_mem, &low_size, &base);
->> +	if (ret) {
->> +		/*
->> +		 * two parts from lib/swiotlb.c:
->> +		 * -swiotlb size: user-specified with swiotlb= or default.
->> +		 *
->> +		 * -swiotlb overflow buffer: now hardcoded to 32k. We round it
->> +		 * to 8M for other buffers that may need to stay low too. Also
->> +		 * make sure we allocate enough extra low memory so that we
->> +		 * don't run out of DMA buffers for 32-bit devices.
->> +		 */
->> +		low_size = max(swiotlb_size_or_default() + (8UL << 20), 256UL << 20);
->> +	} else {
->> +		/* passed with crashkernel=0,low ? */
->> +		if (!low_size)
->> +			return 0;
->> +	}
->> +
->> +	low_base = memblock_find_in_range(0, 1ULL << 32, low_size, SZ_2M);
->> +	if (!low_base) {
->> +		pr_err("Cannot reserve %ldMB crashkernel low memory, please try smaller size.\n",
->> +				(unsigned long)(low_size >> 20));
->> +		return -ENOMEM;
->> +	}
->> +
->> +	ret = memblock_reserve(low_base, low_size);
->> +	if (ret) {
->> +		pr_err("%s: Error reserving crashkernel low memblock.\n", __func__);
->> +		return ret;
->> +	}
->> +
->> +	pr_info("Reserving %ldMB of low memory at %ldMB for crashkernel (System RAM: %ldMB)\n",
->> +			(unsigned long)(low_size >> 20),
->> +			(unsigned long)(low_base >> 20),
->> +			(unsigned long)(total_low_mem >> 20));
->> +
->> +	crashk_low_res.start = low_base;
->> +	crashk_low_res.end   = low_base + low_size - 1;
->> +
->> +	return 0;
->> +}
->> +
->>  /*
->>   * reserve_crashkernel() - reserves memory for crash kernel
->>   *
->> @@ -74,19 +125,28 @@ phys_addr_t arm64_dma_phys_limit __ro_after_init;
->>  static void __init reserve_crashkernel(void)
->>  {
->>  	unsigned long long crash_base, crash_size;
->> +	bool high = false;
->>  	int ret;
->>  
->>  	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
->>  				&crash_size, &crash_base);
->>  	/* no crashkernel= or invalid value specified */
->> -	if (ret || !crash_size)
->> -		return;
->> +	if (ret || !crash_size) {
->> +		/* crashkernel=X,high */
->> +		ret = parse_crashkernel_high(boot_command_line, memblock_phys_mem_size(),
->> +				&crash_size, &crash_base);
->> +		if (ret || !crash_size)
->> +			return;
->> +		high = true;
->> +	}
->>  
->>  	crash_size = PAGE_ALIGN(crash_size);
->>  
->>  	if (crash_base == 0) {
->>  		/* Current arm64 boot protocol requires 2MB alignment */
->> -		crash_base = memblock_find_in_range(0, ARCH_LOW_ADDRESS_LIMIT,
->> +		crash_base = memblock_find_in_range(0,
->> +				high ? memblock_end_of_DRAM()
->> +				: ARCH_LOW_ADDRESS_LIMIT,
->>  				crash_size, SZ_2M);
->>  		if (crash_base == 0) {
->>  			pr_warn("cannot allocate crashkernel (size:0x%llx)\n",
->> @@ -112,6 +172,11 @@ static void __init reserve_crashkernel(void)
->>  	}
->>  	memblock_reserve(crash_base, crash_size);
->>  
->> +	if (crash_base >= SZ_4G && reserve_crashkernel_low()) {
->> +		memblock_free(crash_base, crash_size);
->> +		return;
->> +	}
->> +
-> 
-> This very reminds what x86 does. Any chance some of the code can be reused
-> rather than duplicated?
+The reason it's using distances instead of absolute time is because
+the ordering of the LRU is relative and not based on absolute time.
 
-As i said in the comment, i transport reserve_crashkernel_low() from x86_64. There are minor
-differences. In arm64, we don't need to do insert_resource(), we do request_resource()
-in request_standard_resources() later.
+E.g. if a page is accessed every 500ms, it depends on all other pages
+to determine whether this page is at the head or the tail of the LRU.
 
-How about doing like this:
+So when you refault, in order to determine the relative position of
+the refaulted page in the LRU, you have to compare it to how fast that
+LRU is moving. The absolute refault time, or the average time between
+refaults, is not comparable to what's already in memory.
 
-move common reserve_crashkernel_low() code into kernel/kexec_core.c.
-and do in x86 like this:
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -573,9 +573,12 @@ static void __init reserve_crashkernel(void)
-                return;
-        }
-
--       if (crash_base >= (1ULL << 32) && reserve_crashkernel_low()) {
--               memblock_free(crash_base, crash_size);
--               return;
-+       if (crash_base >= (1ULL << 32)) {
-+               if (reserve_crashkernel_low()) {
-+                       memblock_free(crash_base, crash_size);
-+                       return;
-+               } else
-+                       insert_resource(&iomem_resource, &crashk_low_res);
-        }
-
-> 
->>  	pr_info("crashkernel reserved: 0x%016llx - 0x%016llx (%lld MB)\n",
->>  		crash_base, crash_base + crash_size, crash_size >> 20);
->>  
->> -- 
->> 2.7.4
->>
-> 
+comment by ZY
+For current implementation, it is hard to deal with the evaluation of
+refault period under the scenario of huge dropping of file pages
+within short time, which maybe caused by a high order allocation or
+continues single page allocation in KSWAPD. On the contrary, such page
+which having a big refault_distance will be deemed as INACTIVE
+wrongly, which will be reclaimed earlier than it should be and lead to
+page thrashing. So we introduce 'avg_refault_time' & 'refault_ratio'
+to judge if the refault is a accumulated thing or caused by a tight
+reclaiming. That is to say, a big refault_distance in a long time
+would also be inactive as the result of comparing it with ideal
+time(avg_refault_time: avg_refault_time = delta_lru_reclaimed_pages/
+avg_refault_retio (refault_ratio = lru->inactive_ages / time).
+> > Signed-off-by: Zhaoyang Huang <huangzhaoyang@gmail.com>
+> > ---
+> >  include/linux/mmzone.h |  2 ++
+> >  mm/workingset.c        | 24 +++++++++++++++++-------
+> >  2 files changed, 19 insertions(+), 7 deletions(-)
+> >
+> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > index 32699b2..c38ba0a 100644
+> > --- a/include/linux/mmzone.h
+> > +++ b/include/linux/mmzone.h
+> > @@ -240,6 +240,8 @@ struct lruvec {
+> >       atomic_long_t                   inactive_age;
+> >       /* Refaults at the time of last reclaim cycle */
+> >       unsigned long                   refaults;
+> > +     atomic_long_t                   refaults_ratio;
+> > +     atomic_long_t                   prev_fault;
+> >  #ifdef CONFIG_MEMCG
+> >       struct pglist_data *pgdat;
+> >  #endif
+> > diff --git a/mm/workingset.c b/mm/workingset.c
+> > index 40ee02c..6361853 100644
+> > --- a/mm/workingset.c
+> > +++ b/mm/workingset.c
+> > @@ -159,7 +159,7 @@
+> >                        NODES_SHIFT +  \
+> >                        MEM_CGROUP_ID_SHIFT)
+> >  #define EVICTION_MASK        (~0UL >> EVICTION_SHIFT)
+> > -
+> > +#define EVICTION_JIFFIES (BITS_PER_LONG >> 3)
+> >  /*
+> >   * Eviction timestamps need to be able to cover the full range of
+> >   * actionable refaults. However, bits are tight in the radix tree
+> > @@ -175,18 +175,22 @@ static void *pack_shadow(int memcgid, pg_data_t *pgdat, unsigned long eviction)
+> >       eviction >>= bucket_order;
+> >       eviction = (eviction << MEM_CGROUP_ID_SHIFT) | memcgid;
+> >       eviction = (eviction << NODES_SHIFT) | pgdat->node_id;
+> > +     eviction = (eviction << EVICTION_JIFFIES) | (jiffies >> EVICTION_JIFFIES);
+> >       eviction = (eviction << RADIX_TREE_EXCEPTIONAL_SHIFT);
+> >
+> >       return (void *)(eviction | RADIX_TREE_EXCEPTIONAL_ENTRY);
+> >  }
+> >
+> >  static void unpack_shadow(void *shadow, int *memcgidp, pg_data_t **pgdat,
+> > -                       unsigned long *evictionp)
+> > +                       unsigned long *evictionp, unsigned long *prev_jiffp)
+> >  {
+> >       unsigned long entry = (unsigned long)shadow;
+> >       int memcgid, nid;
+> > +     unsigned long prev_jiff;
+> >
+> >       entry >>= RADIX_TREE_EXCEPTIONAL_SHIFT;
+> > +     entry >>= EVICTION_JIFFIES;
+> > +     prev_jiff = (entry & ((1UL << EVICTION_JIFFIES) - 1)) << EVICTION_JIFFIES;
+> >       nid = entry & ((1UL << NODES_SHIFT) - 1);
+> >       entry >>= NODES_SHIFT;
+> >       memcgid = entry & ((1UL << MEM_CGROUP_ID_SHIFT) - 1);
+> > @@ -195,6 +199,7 @@ static void unpack_shadow(void *shadow, int *memcgidp, pg_data_t **pgdat,
+> >       *memcgidp = memcgid;
+> >       *pgdat = NODE_DATA(nid);
+> >       *evictionp = entry << bucket_order;
+> > +     *prev_jiffp = prev_jiff;
+> >  }
+> >
+> >  /**
+> > @@ -242,8 +247,12 @@ bool workingset_refault(void *shadow)
+> >       unsigned long refault;
+> >       struct pglist_data *pgdat;
+> >       int memcgid;
+> > +     unsigned long refault_ratio;
+> > +     unsigned long prev_jiff;
+> > +     unsigned long avg_refault_time;
+> > +     unsigned long refault_time;
+> >
+> > -     unpack_shadow(shadow, &memcgid, &pgdat, &eviction);
+> > +     unpack_shadow(shadow, &memcgid, &pgdat, &eviction, &prev_jiff);
+> >
+> >       rcu_read_lock();
+> >       /*
+> > @@ -288,10 +297,11 @@ bool workingset_refault(void *shadow)
+> >        * list is not a problem.
+> >        */
+> >       refault_distance = (refault - eviction) & EVICTION_MASK;
+> > -
+> >       inc_lruvec_state(lruvec, WORKINGSET_REFAULT);
+> > -
+> > -     if (refault_distance <= active_file) {
+> > +     lruvec->refaults_ratio = atomic_long_read(&lruvec->inactive_age) / jiffies;
+> > +     refault_time = jiffies - prev_jiff;
+> > +     avg_refault_time = refault_distance / lruvec->refaults_ratio;
+> > +     if (refault_time <= avg_refault_time) {
+> >               inc_lruvec_state(lruvec, WORKINGSET_ACTIVATE);
+> >               rcu_read_unlock();
+> >               return true;
+> > @@ -521,7 +531,7 @@ static int __init workingset_init(void)
+> >        * some more pages at runtime, so keep working with up to
+> >        * double the initial memory by using totalram_pages as-is.
+> >        */
+> > -     timestamp_bits = BITS_PER_LONG - EVICTION_SHIFT;
+> > +     timestamp_bits = BITS_PER_LONG - EVICTION_SHIFT - EVICTION_JIFFIES;
+> >       max_order = fls_long(totalram_pages - 1);
+> >       if (max_order > timestamp_bits)
+> >               bucket_order = max_order - timestamp_bits;
+> > --
+> > 1.9.1
+>
+> --
+> Michal Hocko
+> SUSE Labs
 
