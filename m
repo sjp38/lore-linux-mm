@@ -2,196 +2,205 @@ Return-Path: <SRS0=BJvi=SH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 175EFC4360F
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 12:54:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 34294C4360F
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 13:37:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D2A9520855
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 12:54:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D2A9520855
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id C7CAC21852
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 13:37:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C7CAC21852
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5CE8E6B0269; Fri,  5 Apr 2019 08:54:36 -0400 (EDT)
+	id 118F76B0269; Fri,  5 Apr 2019 09:37:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 57C5F6B026A; Fri,  5 Apr 2019 08:54:36 -0400 (EDT)
+	id 0C94E6B026A; Fri,  5 Apr 2019 09:37:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 46ACE6B026B; Fri,  5 Apr 2019 08:54:36 -0400 (EDT)
+	id EAD186B026B; Fri,  5 Apr 2019 09:37:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E8E5C6B0269
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 08:54:35 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id n12so3205066edo.5
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 05:54:35 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AEFB6B0269
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 09:37:27 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id e55so3267296edd.6
+        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 06:37:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=3CAYcQSK5slfPWqZ7uarhOjxrFvQq+s+S9dj1KY74t8=;
-        b=AuvxCAXGOu0yNzO47Eqa75Wf9E1S/qNUWW8MC5x3RRSuRBgUjm52Q1bCARhjhS3ojw
-         fid/VpIDRfMktZdQREFWAQVNTxcqUw6H7E1aH8iHlciZQWs5zA6Rm7TmdZGD/PZNkE4b
-         zUUbUbnlH8iK2SCr6++HNth0QbyVC1BzzeV+VYhdoFlDhLOKBlMfY8R6wv2IgLpCX8CF
-         wjrlaoh17oJREnDWllPOl3jbSd5UM5v9cdpdM+8t3cIhWBcBQrJU5fxBMpL4LE2DhqXk
-         aB+qrW660w4oV4P69TsytEu5O4aDi1E3veHpJHJNADmmsaGa9yVTDNuBc8cRwqSwyX9d
-         +NEw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAUUFlzUYxMgW/RBcFZPkDFpkpXX5ccfn+w16kHq1DvUJId7Dy54
-	LVGJET1wkom3W2jfqDoZmh/FZWrwQiQx454h6fHsFJEBS6zPfh8at4yS0zlrX0SU8UH9rEqeZYF
-	1ZGPduuzRIN5qQUh8UtAguaiN97D/BwAB/0nwC0ZVjbFG8i798NwRMFnbCdwMX/M=
-X-Received: by 2002:a50:ac07:: with SMTP id v7mr8055562edc.119.1554468875483;
-        Fri, 05 Apr 2019 05:54:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyen3TDNmMb0ZdwLfyxoX+EEN2FAj+OdFScTbakZRaTkN6WyzNzOx0QG+S37TMX4OQo7oLp
-X-Received: by 2002:a50:ac07:: with SMTP id v7mr8055498edc.119.1554468874177;
-        Fri, 05 Apr 2019 05:54:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554468874; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=q8jZOJzUjh4xecTG5NW/zbVw8iQgo/hsoO//hEdsacU=;
+        b=GIRWSrXdTdhFMnvISbnvcsZk4dSvg1L0SHnyxN4MXXdrL34sX24lOvh5RKRfxmQqhI
+         96YCJ4+LYT8CqGB4Mk9KJET6OPrQa8ycGJb7DQNgXFuUrqt7+jQJE6ItaLbD6RVgVFwp
+         lBsC/yI8Ib/uMQApBHPGjwMRAOIN0tW6pEyUOqnIO+fWAmYYDglPF05tXIhXreMlvxEi
+         dB0D9ZYcl885k4WidvtJ/9AX7yapTOqfwthhRPJAaVrgdhO+s9DNqiLt2QKWZH+wMBHQ
+         unLXEUxp2YsyBC6bIeQQnfqaZjltS/RLpohWC0rDi/gbJpj7fh/zPlZm+W4DTRX4cHo2
+         YhPA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+X-Gm-Message-State: APjAAAUo2bjXioL0kt14qQwOVNWIJDk94upVV3AJEJ1ediNy/DMnGgqS
+	SFwSr0y3CxkzLrHrqjTwVDKWeK9tVMUjoBVdXrMIwFYhyuO+nswpPPtX4ovEOrzpcILQc9kGn86
+	ln4lB9iCpvTb0LwJ22sUnpqzP1REGPcgjulss56HKJypAttrrqw7vfQQqOgGHOPI0xw==
+X-Received: by 2002:a50:b4e2:: with SMTP id x31mr8023940edd.210.1554471447189;
+        Fri, 05 Apr 2019 06:37:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxctkcW5WraToCRVQLRGwqfw/0ca9e8495QVCQe77u8nuG1kpUi7RJL8zO8TWW7WyweL3lL
+X-Received: by 2002:a50:b4e2:: with SMTP id x31mr8023873edd.210.1554471446046;
+        Fri, 05 Apr 2019 06:37:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554471446; cv=none;
         d=google.com; s=arc-20160816;
-        b=jTSxn2kmhl6C+jSw8WABfp+03aZUTN6EppiEkX9JWt2mV2r2I6L0hoO/+34vkmVWpi
-         sFCkdLybJw3VJli/F+90FZL/zi9bRL0k9TUmlDKsYJRqZAqE01a9Tg1YJpR1F0PftUxN
-         M+41H/0tlQxfeHqgWydPr9h/U5dL9BlPlnf7Wu0hyBX7cKH8R0pNZG8PqBekZo5mc+QT
-         5mADLQ6r+yZ7niKtR/NuX1m0s5NdS/03oJbJgQzYUtoICo0YDdIyixUOQFXEwRSS4YGG
-         RQI+3pc7TZeCK0cxvezhqWwv3yQPQVHcHu7y3DPfatR5KT843im6tpgPU3Aj18cYmf+1
-         niug==
+        b=YpYMfQPYEmcWmE0Iqhlymj/8YJq5JroNz3CyR1Wj5rDoBChcbZ8bAMOEUHqhsZDUbE
+         roagrtpMvPj9IjzNAYopbHt3g7sPF7ntEU6+RRkBvDA4O0+bkLsQgxS2El2v3/jb2PA0
+         NfByTaTPV8K+FQ7/oxJYAliFOpsBS0+pvt1sWDHpaPcrpwMhfikRvh2ykvRmgGIjnOsk
+         fS5wSdxGBEMGIDQ2TXQGJjXUyKgTJxU6a9qV0HhnmmhuVlRPDQBF8RaGG2RmWDsxa4jD
+         wTrJX6AkjgPdR0dEvsvLK9chhSmsvlch53W2+Cb4VHLFJpAmn6lFkOaHYGbKVpcMD2QS
+         jUkg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=3CAYcQSK5slfPWqZ7uarhOjxrFvQq+s+S9dj1KY74t8=;
-        b=mjZl/HgN/CqZk3REHJUhc6A4kV8tI97nC6B6dIP3v9SXKKLW3zWwlnge1U51FDlL/Z
-         Mex/iesjld4p2bx+eASUc5zPXniFQvu6C0N67y4h8qtGRlZD/NY6zN+rIm1s8ETnCV3t
-         Uqh3rvKCOdTo48kI8M3SmY4V0XHZ9ScKzdVnVBbzvjPMGw+YaYRhHSNepK/dqtj39mPE
-         2LHmv1AREIM90h7GoVuW8a/vx2d6UBVXRc1WVtDeJYKX4I9o7LzE/aT1qJhfTDssjzgs
-         WC5frK7ozGciaplrZnpxSUnvrr2oZsYHZLhIV2goZgGwQ5IBoBGTv2wwpln6JAIOaJBf
-         iwyw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:to:subject;
+        bh=q8jZOJzUjh4xecTG5NW/zbVw8iQgo/hsoO//hEdsacU=;
+        b=QPfMZrqQQdsT6BHcAsBUOpz/ztcfs3HSBDKS6UZLTtZyjqMjMitLyWmCluizu75a/E
+         HZM1IwKw0jzUHWodq5IWQfslGewTiUIfwlR9ACN2+gQnJyjqDXgUG/d0zFcP2NDLoiFO
+         Bh8AvcE/gKeLEA1y6OQcbK+MNTQubw1RSkWLBI19TxNEIOG4ifON95E93VqK7JcC8I98
+         TD2Q6IFLGJL/yI3sBWyvSbusnZmmF4SWoskpeXsMIxni9meoJA0VF39ZI611DeNen3+g
+         XyV+AKaNwfEXI7ABeWY6lDQtaMf9ehAmCyZRzfXOCoIPnuwftX+Av+TWOIJvQlLmRe+0
+         cDcw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from suse.de (nat.nue.novell.com. [2620:113:80c0:5::2222])
-        by mx.google.com with ESMTP id u3si650641edp.137.2019.04.05.05.54.33
+       spf=pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id c55si5515893edb.180.2019.04.05.06.37.25
         for <linux-mm@kvack.org>;
-        Fri, 05 Apr 2019 05:54:34 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) client-ip=2620:113:80c0:5::2222;
+        Fri, 05 Apr 2019 06:37:26 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: by suse.de (Postfix, from userid 1000)
-	id 1E0A94841; Fri,  5 Apr 2019 14:54:32 +0200 (CEST)
-Date: Fri, 5 Apr 2019 14:54:32 +0200
-From: Oscar Salvador <osalvador@suse.de>
-To: Linxu Fang <fanglinxu@huawei.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz,
-	pavel.tatashin@microsoft.com, linux-mm@kvack.org
-Subject: Re: [PATCH V2] mm: fix node spanned pages when we have a node with
- only zone_movable
-Message-ID: <20190405125430.vawudxjcxhbarseg@d104.suse.de>
-References: <1554370704-18268-1-git-send-email-fanglinxu@huawei.com>
+       spf=pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 49C0416A3;
+	Fri,  5 Apr 2019 06:37:24 -0700 (PDT)
+Received: from [10.1.196.75] (e110467-lin.cambridge.arm.com [10.1.196.75])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 158383F68F;
+	Fri,  5 Apr 2019 06:37:22 -0700 (PDT)
+Subject: Re: struct dev_pagemap corruption
+To: Anshuman Khandual <anshuman.khandual@arm.com>,
+ "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ Linux ARM <linux-arm-kernel@lists.infradead.org>,
+ =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ Dan Williams <dan.j.williams@intel.com>, Will Deacon <will.deacon@arm.com>,
+ Catalin Marinas <catalin.marinas@arm.com>
+References: <7885dce0-edbe-db04-b5ec-bd271c9a0612@arm.com>
+From: Robin Murphy <robin.murphy@arm.com>
+Message-ID: <5b18e1c2-4ec5-8c61-a658-fb91996b95d0@arm.com>
+Date: Fri, 5 Apr 2019 14:37:21 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1554370704-18268-1-git-send-email-fanglinxu@huawei.com>
-User-Agent: NeoMutt/20170421 (1.8.2)
+In-Reply-To: <7885dce0-edbe-db04-b5ec-bd271c9a0612@arm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 04, 2019 at 05:38:24PM +0800, Linxu Fang wrote:
-> commit <342332e6a925> ("mm/page_alloc.c: introduce kernelcore=mirror
-> option") and series patches rewrote the calculation of node spanned
-> pages.
-> commit <e506b99696a2> (mem-hotplug: fix node spanned pages when we have a
-> movable node), but the current code still has problems,
-> when we have a node with only zone_movable and the node id is not zero,
-> the size of node spanned pages is double added.
-> That's because we have an empty normal zone, and zone_start_pfn or
-> zone_end_pfn is not between arch_zone_lowest_possible_pfn and
-> arch_zone_highest_possible_pfn, so we need to use clamp to constrain the
-> range just like the commit <96e907d13602> (bootmem: Reimplement
-> __absent_pages_in_range() using for_each_mem_pfn_range()).
+On 05/04/2019 05:40, Anshuman Khandual wrote:
+> Hello,
 > 
-> e.g.
-> Zone ranges:
->   DMA      [mem 0x0000000000001000-0x0000000000ffffff]
->   DMA32    [mem 0x0000000001000000-0x00000000ffffffff]
->   Normal   [mem 0x0000000100000000-0x000000023fffffff]
-> Movable zone start for each node
->   Node 0: 0x0000000100000000
->   Node 1: 0x0000000140000000
-> Early memory node ranges
->   node   0: [mem 0x0000000000001000-0x000000000009efff]
->   node   0: [mem 0x0000000000100000-0x00000000bffdffff]
->   node   0: [mem 0x0000000100000000-0x000000013fffffff]
->   node   1: [mem 0x0000000140000000-0x000000023fffffff]
+> On arm64 platform "struct dev_pagemap" is getting corrupted during ZONE_DEVICE
+> unmapping path through device_destroy(). Its device memory range end address
+> (pgmap->res.end) which is getting corrupted in this particular case. AFAICS
+> pgmap which gets initialized by the driver and mapped with devm_memremap_pages()
+> should retain it's values during the unmapping path as well. Is this assumption
+> right ?
 > 
-> node 0 DMA	spanned:0xfff   present:0xf9e   absent:0x61
-> node 0 DMA32	spanned:0xff000 present:0xbefe0	absent:0x40020
-> node 0 Normal	spanned:0	present:0	absent:0
-> node 0 Movable	spanned:0x40000 present:0x40000 absent:0
-> On node 0 totalpages(node_present_pages): 1048446
-> node_spanned_pages:1310719
-> node 1 DMA	spanned:0	    present:0		absent:0
-> node 1 DMA32	spanned:0	    present:0		absent:0
-> node 1 Normal	spanned:0x100000    present:0x100000	absent:0
-> node 1 Movable	spanned:0x100000    present:0x100000	absent:0
-> On node 1 totalpages(node_present_pages): 2097152
-> node_spanned_pages:2097152
-> Memory: 6967796K/12582392K available (16388K kernel code, 3686K rwdata,
-> 4468K rodata, 2160K init, 10444K bss, 5614596K reserved, 0K
-> cma-reserved)
+> [   62.779412] Call trace:
+> [   62.779808]  dump_backtrace+0x0/0x118
+> [   62.780460]  show_stack+0x14/0x20
+> [   62.781204]  dump_stack+0xa8/0xcc
+> [   62.781941]  devm_memremap_pages_release+0x24/0x1d8
+> [   62.783021]  devm_action_release+0x10/0x18
+> [   62.783911]  release_nodes+0x1b0/0x220
+> [   62.784732]  devres_release_all+0x34/0x50
+> [   62.785623]  device_release+0x24/0x90
+> [   62.786454]  kobject_put+0x74/0xe8
+> [   62.787214]  device_destroy+0x48/0x58
+> [   62.788041]  zone_device_public_altmap_init+0x404/0x42c [zone_device_public_altmap]
+> [   62.789675]  do_one_initcall+0x74/0x190
+> [   62.790528]  do_init_module+0x50/0x1c0
+> [   62.791346]  load_module+0x1be4/0x2140
+> [   62.792192]  __se_sys_finit_module+0xb8/0xc8
+> [   62.793128]  __arm64_sys_finit_module+0x18/0x20
+> [   62.794128]  el0_svc_handler+0x88/0x100
+> [   62.794989]  el0_svc+0x8/0xc
 > 
-> It shows that the current memory of node 1 is double added.
-> After this patch, the problem is fixed.
+> The problem can be traced down here.
 > 
-> node 0 DMA	spanned:0xfff   present:0xf9e   absent:0x61
-> node 0 DMA32	spanned:0xff000 present:0xbefe0	absent:0x40020
-> node 0 Normal	spanned:0	present:0	absent:0
-> node 0 Movable	spanned:0x40000 present:0x40000 absent:0
-> On node 0 totalpages(node_present_pages): 1048446
-> node_spanned_pages:1310719
-> node 1 DMA	spanned:0	    present:0		absent:0
-> node 1 DMA32	spanned:0	    present:0		absent:0
-> node 1 Normal	spanned:0	    present:0		absent:0
-> node 1 Movable	spanned:0x100000    present:0x100000	absent:0
-> On node 1 totalpages(node_present_pages): 1048576
-> node_spanned_pages:1048576
-> memory: 6967796K/8388088K available (16388K kernel code, 3686K rwdata,
-> 4468K rodata, 2160K init, 10444K bss, 1420292K reserved, 0K
-> cma-reserved)
+> diff --git a/drivers/base/devres.c b/drivers/base/devres.c
+> index e038e2b3b7ea..2a410c88c596 100644
+> --- a/drivers/base/devres.c
+> +++ b/drivers/base/devres.c
+> @@ -33,7 +33,7 @@ struct devres {
+>           * Thus we use ARCH_KMALLOC_MINALIGN here and get exactly the same
+>           * buffer alignment as if it was allocated by plain kmalloc().
+>           */
+> -       u8 __aligned(ARCH_KMALLOC_MINALIGN) data[];
+> +       u8 __aligned(__alignof__(unsigned long long)) data[];
+>   };
 > 
-> Signed-off-by: Linxu Fang <fanglinxu@huawei.com>
+> On arm64 ARCH_KMALLOC_MINALIGN -> ARCH_DMA_MINALIGN -> 128
+> 
+> dev_pagemap being added:
+> 
+> #define ZONE_DEVICE_PHYS_START 0x680000000UL
+> #define ZONE_DEVICE_PHYS_END   0x6BFFFFFFFUL
+> #define ALTMAP_FREE 4096
+> #define ALTMAP_RESV 1024
+> 
+> 	pgmap->type = MEMORY_DEVICE_PUBLIC;
 
-Uhmf, I have to confess that this whole thing about kernelcore and movablecore
-makes me head spin.
+Given that what seems to ultimately get corrupted is the memory pointed 
+to by pgmap here, how is *that* being allocated?
 
-I agree that clamping the range to the node's start_pfn/end_pfn is the right
-thing to do.
+Robin.
 
-On the other hand, I cannot figure out why these two statements from
-zone_spanned_pages_in_node() do not help in setting the right values.
-
-*zone_end_pfn = min(*zone_end_pfn, node_end_pfn);
-*zone_start_pfn = max(*zone_start_pfn, node_start_pfn);
-
-If I take one of your examples:
-
-Node 0:
-node_start_pfn=1        node_end_pfn=2822144
-DMA      zone_low=1        zone_high=4096
-DMA32    zone_low=4096     zone_high=1048576
-Normal   zone_low=1048576  zone_high=7942144
-Movable  zone_low=0        zone_high=0
-
-*zone_end_pfn should be set to 2822144, and so zone_end_pfn - zone_start_pfn
-should return the right value?
-Or is it because we have the wrong values before calling
-adjust_zone_range_for_zone_movable() and the whole thing gets messed up there?
-
-Please, note that the patch looks correct to me, I just want to understand
-why those two statements do not help here.
-
--- 
-Oscar Salvador
-SUSE L3
+> 	pgmap->res.start = ZONE_DEVICE_PHYS_START;
+> 	pgmap->res.end = ZONE_DEVICE_PHYS_END;
+> 	pgmap->ref = ref;
+> 	pgmap->kill = zone_device_percpu_kill;
+> 	pgmap->dev = dev;
+> 
+> 	memset(&pgmap->altmap, 0, sizeof(struct vmem_altmap));
+> 	pgmap->altmap.free = ALTMAP_FREE;
+> 	pgmap->altmap.alloc = 0;
+> 	pgmap->altmap.align = 0;
+> 	pgmap->altmap_valid = 1;
+> 
+> 	tmp = (unsigned long *)&pgmap->altmap.base_pfn;
+> 	tmp1 = (unsigned long *)&pgmap->altmap.reserve;
+> 
+> 	*tmp = pgmap->res.start >> PAGE_SHIFT;
+> 	*tmp1 = ALTMAP_RESV;
+> 
+> With the patch:
+> 
+> [   53.027865] XXX: zone_device_public_altmap_init pgmap ffff8005de634218 resource ffff8005de634250 res->start 680000000 res->end 6bfffffff size 40000000
+> [   53.029840] XXX: devm_memremap_pages_release pgmap ffff8005de634218 resource ffff8005de634250 res->start 680000000 res->end 6bfffffff size 40000000
+> 
+> Without the patch:
+> 
+> [   34.326066] XXX: zone_device_public_altmap_init pgmap ffff8005de530a80 resource ffff8005de530ab8 res->start 680000000 res->end 6bfffffff size 40000000
+> [   34.328063] XXX: devm_memremap_pages_release pgmap ffff8005de530a80 resource ffff8005de530ab8 res->start 680000000 res->end 0 size fffffff980000001
+> 
+> Though this prevents the above corruption I wonder what was causing it in the
+> first place and how we can address the problem.
+> 
+> - Anshuman
+> 
+> _______________________________________________
+> linux-arm-kernel mailing list
+> linux-arm-kernel@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+> 
 
