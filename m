@@ -3,197 +3,225 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 61688C4360F
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 07:19:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E2FCFC10F00
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 08:05:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 14B1E217D4
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 07:19:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 14B1E217D4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
+	by mail.kernel.org (Postfix) with ESMTP id 9C036217D4
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 08:05:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9C036217D4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 89BE26B000C; Fri,  5 Apr 2019 03:19:08 -0400 (EDT)
+	id 25F3A6B000C; Fri,  5 Apr 2019 04:05:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 84BE56B000D; Fri,  5 Apr 2019 03:19:08 -0400 (EDT)
+	id 1E73F6B000D; Fri,  5 Apr 2019 04:05:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 713886B000E; Fri,  5 Apr 2019 03:19:08 -0400 (EDT)
+	id 05FEB6B000E; Fri,  5 Apr 2019 04:05:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 23BAC6B000C
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 03:19:08 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id x1so3485667wrd.15
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 00:19:08 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D6C186B000C
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 04:05:16 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id a188so4408861qkf.0
+        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 01:05:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:in-reply-to:message-id:references:user-agent
-         :mime-version;
-        bh=aGWVvxFIrM1sPJnTyuXAQenffgQ11LTCNbKxnnC6SQk=;
-        b=Qa4GBuDzpsbYTodvnhHDkQU+XJ3ZAJWFFR+IZ1wwesZ7TU7Q+9z4eUSmzvMBzqEBSV
-         fF0BeG4Id+Iylp/8BBgv5HL1xKejlT5t8j0S9d/kdfJK21tiXKOCc7TWmBrLbwv/qcSa
-         7EiG4/2F08hNxdX/JItpblc651JGMRd79JODbu1wON5ULTYvjA38T+w+SDSaCP71FAjh
-         LsDI/dJ+Iv4NptM6uWvUtxWRz1P1uSMI51NY2amblMdb3K2BDhYGuj211YQdqtco9hyK
-         M0i4GtA/ie1iynsCgFp9ZDh83Mo/KzHr1ezRwNYGYNPUhuXzTMCwFWbKQli00gNHT71r
-         ecnA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-X-Gm-Message-State: APjAAAU6Eb+S9fsD67DtUhgCWnlHsfSfcolc/n8WW2FiwNSN0WkW4f0H
-	zXQfIhGRWvszu3E066nstpZ6sswKlW8TahxxohldjJUQM+fX1BEp6UrXDeHgBKfNfDlahz5Xfmc
-	Vw2YNql3BwS6bb0rqeECwKRMVqS7Ej69mwM/X3i/TeeEnlDWDOsMPFjfNLSDqOGFHeQ==
-X-Received: by 2002:a1c:6587:: with SMTP id z129mr6910333wmb.84.1554448747526;
-        Fri, 05 Apr 2019 00:19:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz67BYXjtNQWQ2pjECl+fUbt5IsmmuVWehhKLP7PgbiYIloojr0amG4XhJDDrIhntxHSsZU
-X-Received: by 2002:a1c:6587:: with SMTP id z129mr6910273wmb.84.1554448746355;
-        Fri, 05 Apr 2019 00:19:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554448746; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=w8kuRkWkOtRImrq73+ErSyMo6KqtUHPB3SzdjypbOfI=;
+        b=eJDhBeZpfEGH2zK4DZ1goNWUaFa9JYTN6XJpuaIiPFOUXI806ObDCNsQ2e6dlH6Hpz
+         04yq8Bj0XxDvc2t1stV+fOJM0tVSF173+XQwvSn0WVB7jKEGahnbNu9NZzMEPN8pxne/
+         1ZObpcmFQ88t+kg07rbKUvPY1L0dY871lIMxy+8asKCNrKJSGT0SMvRs6hxQsGCLcFiO
+         ZK2hvL+Eb3hontQHrUUxUn9XlZTi6jiLwqNrkNJzHqboDsO7iUXGq8FPm5pjvhOEivMe
+         Xm/yuYY7sqw4lM4AuSl1iKhSesBORxmVOZJFPiZuuRizPt4J1Z56XRXm/r1zlEfqGmrK
+         8c2A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXn+uG0Gws7gVbjNixXgHB8RENunSGloaxPH09PsZN5GpqYlip9
+	c5iEZQjn4iFm94k2wo3hFQ0pgDnDwaLU+l6xEeieDLJW2NRQo2kQzjkEV1rSo5cx0H8b9M9SDyk
+	nP2gaVB4/ehU9TbUve7jjjK+/SXgWzemsuQgMju57YDvowe6yLkrtIWETHJ/lqY60+w==
+X-Received: by 2002:a37:8d44:: with SMTP id p65mr8823558qkd.151.1554451516627;
+        Fri, 05 Apr 2019 01:05:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzJEAxxDYuder3XnaeEHYmJ2KHtkw6nAht+7+AeutP06bRPAX4HOuTPK1bJKPSxWLUqmc5l
+X-Received: by 2002:a37:8d44:: with SMTP id p65mr8823489qkd.151.1554451515541;
+        Fri, 05 Apr 2019 01:05:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554451515; cv=none;
         d=google.com; s=arc-20160816;
-        b=gTeWZpVddDThQWVp+Gz2/6t2z5X29lAaTrUM7IXrvVe47i34RlmAf5IBZkJ5AObNb1
-         7NyGc9nV4czCpLjjcrWTzj9L+Uw1K0BxuPgdJ4cjVtKl4bBBdArTWMX6qGvhix8w6nV9
-         FtUj5DE4iYSsso0KQHU9n7vy6FzwoYC2m7zYk5rRv6qj/WneEayV1qy//psYfiddinSF
-         XccXNrOwVfSucbtW62GpkpDw+BIbnHa5h0nqxGZJM1Spf6e74CyoA926B3hcgchcOOlm
-         9EZtcjRc363vLNh/YPFuH64oMlcJA2pe5yqWrtMrwcoNcL6cIP2sOSybU9gwyUit7Vz4
-         pa9A==
+        b=oNv5f2Cw4f3Ulsx7A2Y4u4t4+OrVkr/MMs6SA/ZmuYYrnCTQxpNi5u+2icOai8nBr5
+         9xmJpUyUOjGtCRhZW/udSHGEJ+ID1cukBpfNMGPzHRKSJOMoFN7apKQcUxgW7NVV6oS7
+         b+911Ke5UHqz8EPhpfEZuSNcCksBrJBMaBrZDJHRJM3oPqMqApCcLBOfKKKuDHvjlwee
+         rpYxPv9DFKQJAcReo2JmfSZmiC71V1lqnR8YBDHgcwisD5nP8A+K2/BC2NqDBbgkiP16
+         ZJld6vxrdtOszIkpPIj4uHsoW7H3/I6QnKkjCcv4vCnBwJMaitlRNoYcaLIYayo8sflG
+         eu/w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date;
-        bh=aGWVvxFIrM1sPJnTyuXAQenffgQ11LTCNbKxnnC6SQk=;
-        b=Tt2v6Bj/tvs28qHw50TR0Q3lrEhBieWjqjjA68+2cC192GYWVEpueBF879J8SxLib7
-         rZIhOZZSPAF6SH728Ontn/UdmDw+auqzLStp9OBNonyLR8tJs4rrqA+KlEvi9x0JGh/O
-         YItS9DbA5zCBhe+CAw1GH6bqzclBcfRJyiYD+JhmmKM25w9TntxITkaBToPC6YLE/iSD
-         +3szzWVXhzRbmVbTmWPTPhOYwR+kA9Ic0D7YGHQ1PptAHugrRKaVR268IJ934KEfptBN
-         Kp7ShjsOBPP9b/OUgPD0N9rPqoC2cEwuNiFh/0v7tCAJRkkFex2z75EkZ4xhfgaJ5eKA
-         g9qQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=w8kuRkWkOtRImrq73+ErSyMo6KqtUHPB3SzdjypbOfI=;
+        b=LFbssWw7m6L3Yux9v+GGHjxMBjX3o2aoqQFGtVDD7aJ4ryWJHr+wUlnLKAV3lq+EG4
+         RzQIFMaclIsjRP4w322XTpZ5CyAk+pVDwa3Bm0b9jG6ORMIl2j/vrXyBVKQmYNJZA8r3
+         wVOABocZOGWMt6ZU3np1xPfEdiMundGUtNLOS4WTGOBl5OFVKYsRyMBXmUnNqh2u+KUl
+         uiMw4NehmD7/0vQo/F0CNSDNwcceJMl+F24/W9KD/3NBDJX+SkTBMSpX7gP+cJ3VbzI1
+         jVQbRUEhIlExxztcRa5qaYN8yxOfABRMmjOW4px4DPiEfjD70zKPbEAggNkh3n7KQenU
+         cUQQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id v3si14073420wri.171.2019.04.05.00.19.06
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m50si4676068qtm.179.2019.04.05.01.05.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Fri, 05 Apr 2019 00:19:06 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Apr 2019 01:05:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-Received: from p5492e2fc.dip0.t-ipconnect.de ([84.146.226.252] helo=nanos)
-	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
-	(Exim 4.80)
-	(envelope-from <tglx@linutronix.de>)
-	id 1hCJ6F-0002zo-Pl; Fri, 05 Apr 2019 09:17:20 +0200
-Date: Fri, 5 Apr 2019 09:17:17 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-To: Khalid Aziz <khalid.aziz@oracle.com>
-cc: Andy Lutomirski <luto@kernel.org>, Juerg Haefliger <juergh@gmail.com>, 
-    Tycho Andersen <tycho@tycho.ws>, jsteckli@amazon.de, 
-    Andi Kleen <ak@linux.intel.com>, liran.alon@oracle.com, 
-    Kees Cook <keescook@google.com>, 
-    Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, 
-    deepa.srinivasan@oracle.com, chris hyser <chris.hyser@oracle.com>, 
-    Tyler Hicks <tyhicks@canonical.com>, 
-    "Woodhouse, David" <dwmw@amazon.co.uk>, 
-    Andrew Cooper <andrew.cooper3@citrix.com>, Jon Masters <jcm@redhat.com>, 
-    Boris Ostrovsky <boris.ostrovsky@oracle.com>, kanth.ghatraju@oracle.com, 
-    Joao Martins <joao.m.martins@oracle.com>, 
-    Jim Mattson <jmattson@google.com>, pradeep.vincent@oracle.com, 
-    John Haxby <john.haxby@oracle.com>, 
-    "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, 
-    Christoph Hellwig <hch@lst.de>, steven.sistare@oracle.com, 
-    Laura Abbott <labbott@redhat.com>, Dave Hansen <dave.hansen@intel.com>, 
-    Peter Zijlstra <peterz@infradead.org>, Aaron Lu <aaron.lu@intel.com>, 
-    Andrew Morton <akpm@linux-foundation.org>, 
-    alexander.h.duyck@linux.intel.com, Amir Goldstein <amir73il@gmail.com>, 
-    Andrey Konovalov <andreyknvl@google.com>, aneesh.kumar@linux.ibm.com, 
-    anthony.yznaga@oracle.com, Ard Biesheuvel <ard.biesheuvel@linaro.org>, 
-    Arnd Bergmann <arnd@arndb.de>, arunks@codeaurora.org, 
-    Ben Hutchings <ben@decadent.org.uk>, 
-    Sebastian Andrzej Siewior <bigeasy@linutronix.de>, 
-    Borislav Petkov <bp@alien8.de>, brgl@bgdev.pl, 
-    Catalin Marinas <catalin.marinas@arm.com>, 
-    Jonathan Corbet <corbet@lwn.net>, cpandya@codeaurora.org, 
-    Daniel Vetter <daniel.vetter@ffwll.ch>, 
-    Dan Williams <dan.j.williams@intel.com>, 
-    Greg KH <gregkh@linuxfoundation.org>, Roman Gushchin <guro@fb.com>, 
-    Johannes Weiner <hannes@cmpxchg.org>, "H. Peter Anvin" <hpa@zytor.com>, 
-    Joonsoo Kim <iamjoonsoo.kim@lge.com>, James Morse <james.morse@arm.com>, 
-    Jann Horn <jannh@google.com>, Juergen Gross <jgross@suse.com>, 
-    Jiri Kosina <jkosina@suse.cz>, James Morris <jmorris@namei.org>, 
-    Joe Perches <joe@perches.com>, Souptick Joarder <jrdr.linux@gmail.com>, 
-    Joerg Roedel <jroedel@suse.de>, Keith Busch <keith.busch@intel.com>, 
-    Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, 
-    Logan Gunthorpe <logang@deltatee.com>, marco.antonio.780@gmail.com, 
-    Mark Rutland <mark.rutland@arm.com>, 
-    Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, 
-    Michal Hocko <mhocko@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>, 
-    Ingo Molnar <mingo@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, 
-    Marek Szyprowski <m.szyprowski@samsung.com>, 
-    Nicholas Piggin <npiggin@gmail.com>, osalvador@suse.de, 
-    "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, 
-    pavel.tatashin@microsoft.com, Randy Dunlap <rdunlap@infradead.org>, 
-    richard.weiyang@gmail.com, Rik van Riel <riel@surriel.com>, 
-    David Rientjes <rientjes@google.com>, Robin Murphy <robin.murphy@arm.com>, 
-    Steven Rostedt <rostedt@goodmis.org>, 
-    Mike Rapoport <rppt@linux.vnet.ibm.com>, 
-    Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>, 
-    "Serge E. Hallyn" <serge@hallyn.com>, Steve Capper <steve.capper@arm.com>, 
-    thymovanbeers@gmail.com, Vlastimil Babka <vbabka@suse.cz>, 
-    Will Deacon <will.deacon@arm.com>, Matthew Wilcox <willy@infradead.org>, 
-    yang.shi@linux.alibaba.com, yaojun8558363@gmail.com, 
-    Huang Ying <ying.huang@intel.com>, zhangshaokun@hisilicon.com, 
-    iommu@lists.linux-foundation.org, X86 ML <x86@kernel.org>, 
-    linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, 
-    "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, 
-    LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
-    LSM List <linux-security-module@vger.kernel.org>, 
-    Khalid Aziz <khalid@gonehiking.org>
-Subject: Re: [RFC PATCH v9 12/13] xpfo, mm: Defer TLB flushes for non-current
- CPUs (x86 only)
-In-Reply-To: <91f1dbce-332e-25d1-15f6-0e9cfc8b797b@oracle.com>
-Message-ID: <alpine.DEB.2.21.1904050909520.1802@nanos.tec.linutronix.de>
-References: <cover.1554248001.git.khalid.aziz@oracle.com> <4495dda4bfc4a06b3312cc4063915b306ecfaecb.1554248002.git.khalid.aziz@oracle.com> <CALCETrXMXxnWqN94d83UvGWhkD1BNWiwvH2vsUth1w0T3=0ywQ@mail.gmail.com>
- <91f1dbce-332e-25d1-15f6-0e9cfc8b797b@oracle.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 8A91E81E19;
+	Fri,  5 Apr 2019 08:05:14 +0000 (UTC)
+Received: from [10.36.117.86] (ovpn-117-86.ams2.redhat.com [10.36.117.86])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id BEE511001E8A;
+	Fri,  5 Apr 2019 08:05:10 +0000 (UTC)
+Subject: Re: [PATCH 2/2] mm, memory_hotplug: provide a more generic
+ restrictions for memory hotplug
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Oscar Salvador <osalvador@suse.de>, akpm@linux-foundation.org,
+ dan.j.williams@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+References: <20190404125916.10215-1-osalvador@suse.de>
+ <20190404125916.10215-3-osalvador@suse.de>
+ <880c5d09-7d4e-2a97-e826-a8a6572216b2@redhat.com>
+ <20190404180144.lgpf6qgnp67ib5s7@d104.suse.de>
+ <5f735328-3451-ebd7-048e-e83e74e2c622@redhat.com>
+ <20190405071418.GN12864@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <a4230528-dc7e-e17c-c363-e3da7961dbf1@redhat.com>
+Date: Fri, 5 Apr 2019 10:05:09 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-Linutronix-Spam-Score: -1.0
-X-Linutronix-Spam-Level: -
-X-Linutronix-Spam-Status: No , -1.0 points, 5.0 required,  ALL_TRUSTED=-1,SHORTCIRCUIT=-0.0001
+In-Reply-To: <20190405071418.GN12864@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Fri, 05 Apr 2019 08:05:14 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 Apr 2019, Khalid Aziz wrote:
-> When xpfo unmaps a page from physmap only (after mapping the page in
-> userspace in response to an allocation request from userspace) on one
-> processor, there is a small window of opportunity for ret2dir attack on
-> other cpus until the TLB entry in physmap for the unmapped pages on
-> other cpus is cleared. Forcing that to happen synchronously is the
-> expensive part. A multiple of these requests can come in over a very
-> short time across multiple processors resulting in every cpu asking
-> every other cpusto flush TLB just to close this small window of
-> vulnerability in the kernel. If each request is processed synchronously,
-> each CPU will do multiple TLB flushes in short order. If we could
-> consolidate these TLB flush requests instead and do one TLB flush on
-> each cpu at the time of context switch, we can reduce the performance
-> impact significantly. This bears out in real life measuring the system
-> time when doing a parallel kernel build on a large server. Without this,
-> system time on 96-core server when doing "make -j60 all" went up 26x.
-> After this optimization, impact went down to 1.44x.
+On 05.04.19 09:14, Michal Hocko wrote:
+> On Thu 04-04-19 20:27:41, David Hildenbrand wrote:
+>> On 04.04.19 20:01, Oscar Salvador wrote:
+> [...]
+>>> But I am not really convinced by MHP_SYSTEM_RAM name, and I think we should stick
+>>> with MHP_MEMBLOCK_API because it represents __what__ is that flag about and its
+>>> function, e.g: create memory block devices.
 > 
-> The trade-off with this strategy is, the kernel on a cpu is vulnerable
-> for a short time if the current running processor is the malicious
+> Exactly
 
-The "short" time to next context switch on the other CPUs is how short
-exactly? Anything from 1us to seconds- think NOHZ FULL - and even w/o that
-10ms on a HZ=100 kernel is plenty of time to launch an attack.
+Fine with me for keeping what Oscar has.
 
-> process. Is that an acceptable trade-off?
+> 
+>> This nicely aligns with the sub-section memory add support discussion.
+>>
+>> MHP_MEMBLOCK_API immediately implies that
+>>
+>> - memory is used as system ram. Memory can be onlined/offlined. Markers
+>>   at sections indicate if the section is online/offline.
+> 
+> No there is no implication like that. It means only that the onlined
+> memory has a sysfs interface. Nothing more, nothing less
 
-You are not seriously asking whether creating a user controllable ret2dir
-attack window is a acceptable trade-off? April 1st was a few days ago.
+As soon as there is a online/offline interface, you *can* (and user
+space usually *will*) online that memory. Onlining/offlining is only
+defined for memory to be added to the buddy - memory to be used as
+"system ram". Doing it for random device memory will not work / result
+in undefined behavior.
+
+Not adding memory block devices for system ram will not allow user space
+to online/offline it and break kdump reload for hot-added memory. But
+memory can be onlined/offlined using internal APIs of course - if that's
+what you were referring to.
+
+> 
+> This is an internal API so we are not carving anything into the stone.
+
+That is true.
+
+> So can we simply start with what we have and go from there?
+
+Sure, what Oscar does here is just a simple refactoring of the interface
+and I was just wondering if the interface needs a general overhaul.
+
+>I am getting
+> felling that this discussion just makes the whole thing more muddy.
+
+I think this discussion is helpful to understand how the whole thing is
+supposed to work :) At least on my side.
+
+
+Meanwhile, I will have a look if memory block devices cannot simply be
+created by the caller of arch_add_memory(). At least it feels like
+creating memory bock devices could be factored out - I remember that it
+was not that easy.
+
+
+-- 
 
 Thanks,
 
-	tglx
+David / dhildenb
 
