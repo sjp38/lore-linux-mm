@@ -2,124 +2,184 @@ Return-Path: <SRS0=BJvi=SH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 75345C282CE
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 21:27:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B6F2FC282DC
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 22:12:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F417621726
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 21:27:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F417621726
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=vt.edu
+	by mail.kernel.org (Postfix) with ESMTP id 58A902186A
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 22:12:11 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="b3nTx7+C"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 58A902186A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 583BD6B0007; Fri,  5 Apr 2019 17:27:47 -0400 (EDT)
+	id DC69E6B0007; Fri,  5 Apr 2019 18:12:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 50D696B0008; Fri,  5 Apr 2019 17:27:47 -0400 (EDT)
+	id D50BC6B0008; Fri,  5 Apr 2019 18:12:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3ADD06B000C; Fri,  5 Apr 2019 17:27:47 -0400 (EDT)
+	id BC9F26B000C; Fri,  5 Apr 2019 18:12:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 15D4E6B0007
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 17:27:47 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id k13so6524609qtc.23
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 14:27:47 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 82B306B0007
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 18:12:10 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id j18so5333208pfi.20
+        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 15:12:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:sender:from:to
-         :cc:subject:in-reply-to:references:mime-version:date:message-id;
-        bh=Y79cdCdF/M5lgfA1xcm93DhUSoi2n3NbM7Cae4JkvcY=;
-        b=ouHcb3uz+bfYJ8raaGj0bPq4PmLLw2sZq5cj18W2TMklfff3bGYFzzdOv7U1iFTXzn
-         HuAQBlQ+cSXSB7L1fcCGiO3uU7RQywygmJVCaj4mqM4GfA9hRjyDK8YBHyanl18+7H4E
-         mSmkYbNIFOwYtfUWrYOn0Ic/EEqo3oQMT1YCp+ofkQ0womXwgSKtlKtfx+xZRunuhXiz
-         Bvy2Z0gFq+wbMJaHnhfRPdHhHnNh3fXwm7qLX1ssTQi1E1gJcnuw8zx7SNKVMJTq+Sif
-         Ozj1JWCihjUAtdkMo7vA3DmBBsPKL0hdtO66s+rkx8cW5sdIG2DPiz7Fowuy31JJRxtm
-         qa3Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of valdis@vt.edu designates 2607:b400:92:8300:0:c6:2117:b0e as permitted sender) smtp.mailfrom=valdis@vt.edu;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=vt.edu
-X-Gm-Message-State: APjAAAUW5BeS6KNj285TQ5Fhc0oMM02G5N90JiNPxIVbyo9DwwpD2zGq
-	PWZb+Wl1WDYqpK53NX6HLjhDC/J5QCojDNmCbiKMB1/eGsTSdek2dd7LnNFIObnTSkXVz6olUXy
-	UoArx8AkhguXjrl9SMx/N+ckvpQhbNsrMaQUPSlCCM01xx/OJzmIQ5UsxV45mk3plhcw3nHQ3FB
-	RZDViHMEB4bzrC6miwjimcXSrwBsdqlB/rhTZKGfnxyI5ehf8N11gAZUOVrYhiUw==
-X-Received: by 2002:aed:3c75:: with SMTP id u50mr13020884qte.128.1554499666852;
-        Fri, 05 Apr 2019 14:27:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwSVhEHtttyHizGkmDlfdDRKuiJjWw5gFcYVj+2N1o4LFFdJcu6evmOGat2Rsh9iadZydXT
-X-Received: by 2002:aed:3c75:: with SMTP id u50mr13020851qte.128.1554499666202;
-        Fri, 05 Apr 2019 14:27:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554499666; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
+         :message-id:user-agent:mime-version:content-transfer-encoding;
+        bh=RFlyHVCvfroOhB2uXylkan752Y+bFRMjZlocuMb6szU=;
+        b=BX5RN13Rs4QWoqAapV3gcMIQ1Lr6irUBxhR4AKvoS2fIedYkcOdpEa+7vmp9h/nCac
+         Nyzobd9JJRAH3PsZJRT0G1Wergxn0kcPm7Vn2wds2ElZzfyFSPyyEnswh0ffh7ufugk+
+         m7fi/p3TMUAuM7Bb6aKUfUR1kqBPKhQ0yU/3wA4nDOltdTNM+eYJvFu3RhM/hKa9kXk0
+         uoPPFa9n2I298aJ/LFxIn85unBItKEQ6MoT+wBIkoqGOV5hp2SQpwmhi0MXb14kTXBtv
+         QCfPHhYiOy0AFZPQbIvbp1/RnRj9e6VMevbIC8WB9VvF40I7f93YC9bL6cKkSNrJ0Y2C
+         chmg==
+X-Gm-Message-State: APjAAAWDY1tfLnwiyNQatuTyyBxjgb2Z/F8GdhtILQfcHfJpugXR5nTi
+	njcF4PWfuyyeBazL8e+hHxrPQ5tYr8FgcC5xK3KxGtavqBaIUI38vYIMhUUofgkgfxaXSB1gHyV
+	xt8Wu6okxQ3PRMmcWU+TIwCruovvdJ4yiWhieZkUVJsrK3L9owHPqpJDQ3ghtm7xWZw==
+X-Received: by 2002:a17:902:6a89:: with SMTP id n9mr15840515plk.76.1554502329874;
+        Fri, 05 Apr 2019 15:12:09 -0700 (PDT)
+X-Received: by 2002:a17:902:6a89:: with SMTP id n9mr15840424plk.76.1554502328779;
+        Fri, 05 Apr 2019 15:12:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554502328; cv=none;
         d=google.com; s=arc-20160816;
-        b=DS87HVMLUyDaPnG+1Ahjog7XPOFSVrgcD77IBSDeqtEEF+Fqr41qlF/Aj6wO63UX2B
-         WDW3biWbbLvHDBHy4aTWNHkT5TCHG1DT/fHFLvcR1v4Ixya65s/xMP41d8aQnGPJcsg/
-         DxwuFWkcEs1tw9QrochsMZqqgzQ8OXgqxeRpK2pXEAkez8Rmg35OpBtqzjY7dN25tE2l
-         2iMuBXDN5nHtvktWSllzoTbKdEW14lvSLzQ7V1sD+dACB0klGAuquBIr5NBmdVlzm7bT
-         ImwwdpMbOlSC6KRt5oxm+Pttn7lN8oWatIDQIxLAYgZni2p76j+cD2uj975QQwqum6Xo
-         Jlqg==
+        b=To3njzS0M2unFlhOZmxv/eYd2FJm4yrSs+C4ZCoXjPWyW3Wf741E4dXIe8jg6vgSJo
+         ZRH8JRBmvD1LAj1H3T0ehlNrBoNy7vLt0pa1w9TiBkMffXR+98ex3bPmPpHodGQKPn7b
+         EZGGODZoGbqovSoptHg+SD2OLIOSKmwYa8vMNvtTBcuqU83TTsQScUdtxW/BXUkUtTo8
+         kYrdFXptp6BdT3Tc4yovuSGWzIo6Ml3IcZcfmzko7+GkI+zESIt8FD0g2Vi3chG8j7K4
+         3ZPHxDf8YpYyY1XdQGi9bw9tGFvMETz5tphKxovYaLE5uggjpZAtJbKLLNxq4Sbhjl5K
+         DGhQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:mime-version:references:in-reply-to:subject:cc:to
-         :from:sender;
-        bh=Y79cdCdF/M5lgfA1xcm93DhUSoi2n3NbM7Cae4JkvcY=;
-        b=E1bfoyWByuaIvCOuywW34doCNv+e3a0KVxoH8gI+JfyllDZ7quu2ka2B2g1YJMe9AT
-         GD8IsnPA84VPspBK9+fHXyLe+nUk2aY74Iqq/0sZj5VWsv/azcNtjvSfUXguBYboHC9L
-         kYxQhZvf5MeLXv1UrTWKdB3XvY///HPPwfLLmLphhhzh+/pcsFgIVcfpriWDTAIlPaZ4
-         63Z7d9eDwSXT5hSW3x/TZlGBVXtN2nDVdWE2R7h9wJ8wEKSOhzT9mE+YndGbDeGwYuT+
-         63mO6fTENKnK2zP7jnOYE7Do3tpGcrfVVvfB9G76QadkxyFS7TA0P3f9KgsvbHujGJTL
-         utvg==
+        h=content-transfer-encoding:mime-version:user-agent:message-id:date
+         :cc:to:from:subject:dkim-signature;
+        bh=RFlyHVCvfroOhB2uXylkan752Y+bFRMjZlocuMb6szU=;
+        b=TFRnOC8q/fzUfomgis71nlqHhyDyZ5hCw22qdROquSJvYmq1TibB8/eQZPvojy+D3N
+         hKMxZ1QojuOmz9mbV9cG6CuBHdubZi8qWEZu4Uh09h5nFj5PYKNkzsh90Qa8OBdX1nTt
+         PgiEWkBxPzI9clIAlISbKgLCaJmYYtw4IYlFKMrvpQfOthixVA6l7Q97IptRlfZamxVB
+         kP97C1kGO99iLIz5O+vZEieHnT/NN5SDTbHjH+bTKGHuOoNjx41yZc1ZIn44VJKAg5Yh
+         YZLBYJg4BQ5ZFQmzS1j0tC5BJUcysQ80L9xfZF9WOmiij9psd06+1UE9TYS9ZAa2l34t
+         3Gfw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of valdis@vt.edu designates 2607:b400:92:8300:0:c6:2117:b0e as permitted sender) smtp.mailfrom=valdis@vt.edu;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=vt.edu
-Received: from omr1.cc.vt.edu (omr1.cc.ipv6.vt.edu. [2607:b400:92:8300:0:c6:2117:b0e])
-        by mx.google.com with ESMTPS id z31si661757qtz.218.2019.04.05.14.27.46
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=b3nTx7+C;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h68sor23860543pfj.73.2019.04.05.15.12.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Apr 2019 14:27:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of valdis@vt.edu designates 2607:b400:92:8300:0:c6:2117:b0e as permitted sender) client-ip=2607:b400:92:8300:0:c6:2117:b0e;
+        (Google Transport Security);
+        Fri, 05 Apr 2019 15:12:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of valdis@vt.edu designates 2607:b400:92:8300:0:c6:2117:b0e as permitted sender) smtp.mailfrom=valdis@vt.edu;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=vt.edu
-Received: from mr5.cc.vt.edu (mr5.cc.ipv6.vt.edu [IPv6:2607:b400:92:8400:0:72:232:758b])
-	by omr1.cc.vt.edu (8.14.4/8.14.4) with ESMTP id x35LRjti017652
-	for <linux-mm@kvack.org>; Fri, 5 Apr 2019 17:27:45 -0400
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by mr5.cc.vt.edu (8.14.7/8.14.7) with ESMTP id x35LReDI009007
-	for <linux-mm@kvack.org>; Fri, 5 Apr 2019 17:27:45 -0400
-Received: by mail-qt1-f197.google.com with SMTP id q12so6624521qtr.3
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 14:27:45 -0700 (PDT)
-X-Received: by 2002:a0c:d092:: with SMTP id z18mr11840005qvg.14.1554499660598;
-        Fri, 05 Apr 2019 14:27:40 -0700 (PDT)
-X-Received: by 2002:a0c:d092:: with SMTP id z18mr11839994qvg.14.1554499660359;
-        Fri, 05 Apr 2019 14:27:40 -0700 (PDT)
-Received: from turing-police ([2601:5c0:c001:4341::9ca])
-        by smtp.gmail.com with ESMTPSA id p62sm6308944qkd.27.2019.04.05.14.27.38
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 05 Apr 2019 14:27:38 -0700 (PDT)
-From: "Valdis Kl=?utf-8?Q?=c4=93?=tnieks" <valdis.kletnieks@vt.edu>
-X-Google-Original-From: "Valdis Kl=?utf-8?Q?=c4=93?=tnieks" <Valdis.Kletnieks@vt.edu>
-X-Mailer: exmh version 2.9.0 11/07/2018 with nmh-1.7+dev
-To: Pankaj Suryawanshi <suryawanshipankaj@yahoo.com>
-cc: LKML <linux-kernel@vger.kernel.org>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "kernelnewbies@kernelnewbies.org" <kernelnewbies@kernelnewbies.org>
-Subject: Re: How to calculate page address to PFN in user space.
-In-reply-to: <1536252828.16026118.1554461687939@mail.yahoo.com>
-References: <1536252828.16026118.1554461687939.ref@mail.yahoo.com>
- <1536252828.16026118.1554461687939@mail.yahoo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Date: Fri, 05 Apr 2019 17:27:37 -0400
-Message-ID: <6977.1554499657@turing-police>
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.052605, version=1.2.4
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=b3nTx7+C;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=subject:from:to:cc:date:message-id:user-agent:mime-version
+         :content-transfer-encoding;
+        bh=RFlyHVCvfroOhB2uXylkan752Y+bFRMjZlocuMb6szU=;
+        b=b3nTx7+CUxVUlQscReM8Uk0JVZUKeHtdrGfJ+wUfk33PvUsvBzQAIzRc0Ik1qHli+/
+         zTx/G00PbwkkS0GfK1dhoOcSSY3F5ZNAqhIl5zI6blFbjIrCcDlPlYKyHamM5/T0GfJX
+         RHUbjorVVLWuSmbEbsexEY6xUYeP0iGnIeMgZ8QDwGvBBm8SDRV2POijtZccOQP/ae7d
+         pfq9ekZoa6baUfaKVE9wTeoBy1a/zegQwxayKkYT1XwadVo/t3hEXPUAaFlz/j3lM36W
+         DD85qcu4vx4fHBvmm6bDEDvE7zIn1c3CpVX3eS2RVq5DdVpJj/zOzz8O3cKBug+QAMC4
+         JXQA==
+X-Google-Smtp-Source: APXvYqzcZRP6M2t/f+TFS8bfJasWfrNHx5XYhr8s6AbPgY9grB0g7CJ3SNDhP2NHNMThRf34AJUEoQ==
+X-Received: by 2002:aa7:82d6:: with SMTP id f22mr15222497pfn.190.1554502328079;
+        Fri, 05 Apr 2019 15:12:08 -0700 (PDT)
+Received: from localhost.localdomain (50-126-100-225.drr01.csby.or.frontiernet.net. [50.126.100.225])
+        by smtp.gmail.com with ESMTPSA id q81sm42013500pfi.102.2019.04.05.15.12.06
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Apr 2019 15:12:07 -0700 (PDT)
+Subject: [mm PATCH v7 0/4] Deferred page init improvements
+From: Alexander Duyck <alexander.duyck@gmail.com>
+To: linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: pavel.tatashin@microsoft.com, mhocko@suse.com, dave.jiang@intel.com,
+ linux-nvdimm@lists.01.org, alexander.h.duyck@linux.intel.com,
+ linux-kernel@vger.kernel.org, willy@infradead.org, mingo@kernel.org,
+ yi.z.zhang@linux.intel.com, khalid.aziz@oracle.com, rppt@linux.vnet.ibm.com,
+ vbabka@suse.cz, sparclinux@vger.kernel.org, dan.j.williams@intel.com,
+ ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, davem@davemloft.net,
+ kirill.shutemov@linux.intel.com
+Date: Fri, 05 Apr 2019 15:12:06 -0700
+Message-ID: <20190405221043.12227.19679.stgit@localhost.localdomain>
+User-Agent: StGit/0.17.1-dirty
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 05 Apr 2019 10:54:47 -0000, Pankaj Suryawanshi said:
+This patchset is essentially a refactor of the page initialization logic
+that is meant to provide for better code reuse while providing a
+significant improvement in deferred page initialization performance.
 
-> I have PFN of all processes in user space, how to calculate page address to PFN.
+In my testing on an x86_64 system with 384GB of RAM I have seen the
+following. In the case of regular memory initialization the deferred init
+time was decreased from 3.75s to 1.38s on average. This amounts to a 172%
+improvement for the deferred memory initialization performance.
 
-*All* user processes?  That's going to be a lot of PFN's.  What problem are you trying
-to solve here?
+I have called out the improvement observed with each patch.
 
-(Hint - under what cases does the kernel care about the PFN of *any* user page?)
+v1->v2:
+    Fixed build issue on PowerPC due to page struct size being 56
+    Added new patch that removed __SetPageReserved call for hotplug
+v2->v3:
+    Rebased on latest linux-next
+    Removed patch that had removed __SetPageReserved call from init
+    Added patch that folded __SetPageReserved into set_page_links
+    Tweaked __init_pageblock to use start_pfn to get section_nr instead of pfn
+v3->v4:
+    Updated patch description and comments for mm_zero_struct_page patch
+        Replaced "default" with "case 64"
+        Removed #ifndef mm_zero_struct_page
+    Fixed typo in comment that ommited "_from" in kerneldoc for iterator
+    Added Reviewed-by for patches reviewed by Pavel
+    Added Acked-by from Michal Hocko
+    Added deferred init times for patches that affect init performance
+    Swapped patches 5 & 6, pulled some code/comments from 4 into 5
+v4->v5:
+    Updated Acks/Reviewed-by
+    Rebased on latest linux-next
+    Split core bits of zone iterator patch from MAX_ORDER_NR_PAGES init
+v5->v6:
+    Rebased on linux-next with previous v5 reverted
+    Drop the "This patch" or "This change" from patch descriptions.
+    Cleaned up patch descriptions for patches 3 & 4
+    Fixed kerneldoc for __next_mem_pfn_range_in_zone
+    Updated several Reviewed-by, and incorporated suggestions from Pavel
+    Added __init_single_page_nolru to patch 5 to consolidate code
+    Refactored iterator in patch 7 and fixed several issues
+v6->v7:
+    Updated MAX_ORDER_NR_PAGES patch to stop on section aligned boundaries
+    Dropped patches 5-7
+        Will follow-up later with reserved bit rework before resubmitting
+
+---
+
+Alexander Duyck (4):
+      mm: Use mm_zero_struct_page from SPARC on all 64b architectures
+      mm: Drop meminit_pfn_in_nid as it is redundant
+      mm: Implement new zone specific memblock iterator
+      mm: Initialize MAX_ORDER_NR_PAGES at a time instead of doing larger sections
+
+
+ arch/sparc/include/asm/pgtable_64.h |   30 -----
+ include/linux/memblock.h            |   41 +++++++
+ include/linux/mm.h                  |   41 ++++++-
+ mm/memblock.c                       |   64 ++++++++++
+ mm/page_alloc.c                     |  218 ++++++++++++++++++++++-------------
+ 5 files changed, 277 insertions(+), 117 deletions(-)
+
+--
 
