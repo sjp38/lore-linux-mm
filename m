@@ -6,78 +6,78 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 48332C10F00
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 13:51:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C2FC2C10F0F
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 13:51:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 03B8921738
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 13:51:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 03B8921738
+	by mail.kernel.org (Postfix) with ESMTP id 7F55121738
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 13:51:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F55121738
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 448236B026C; Fri,  5 Apr 2019 09:51:24 -0400 (EDT)
+	id 77D766B026D; Fri,  5 Apr 2019 09:51:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3F4226B026D; Fri,  5 Apr 2019 09:51:24 -0400 (EDT)
+	id 7271E6B026E; Fri,  5 Apr 2019 09:51:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2BADE6B0270; Fri,  5 Apr 2019 09:51:24 -0400 (EDT)
+	id 646126B0270; Fri,  5 Apr 2019 09:51:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C02AC6B026C
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 09:51:23 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id s27so3278945eda.16
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 06:51:23 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 132E36B026E
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 09:51:24 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id w3so3302918edt.2
+        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 06:51:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=01tDvYmxF/9KT991KCuHbvIVLzPFrrD4a7OhNA6ejgo=;
-        b=pk77Mv3+KbljNAZNG8kjsxEqZSROUmBvE1rtPIcQJQJ5krNuRqWDjVNpWla3XcI1B2
-         MsupLhyGqgk+o7rPaid2wQDXrERfMrSxYKIElHl/Y1ivdl4vWxm36uemA4vvJD5IWACe
-         iHsW1m8GOGhe3c9c8TwS/zdn5pNV50f41CbE4NrZVgCD4MXBD3IV75O+javKIuU4yh3k
-         MVV9/7o02GRcnf92ZGzTsU2R4Xk9X4uTS6V3LF9kLEZjVseHnaqnoPiFe4nTq6rKqUBV
-         o4uoKW0PhiMpIcdZoHeJKjWEVB2uXBh/56RudwIM65EF0v7RjWUY1bsRs2cC0BFZJRiP
-         CSww==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.192 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: APjAAAXUGXslEnGa/U0P8KuJZ69wDNexkB1EJyDGc+Z9jy8gVBnPSPY0
-	FAjNPRtiwEFpy7CiVzS8r3UsslsGjFwWuZHvaPzyNZC1+gqqj7goxCDDXp4dLu45jzo+5e/nTZe
-	jQ8vLiofc7l6CZIELe6eWVeSxkWwChWEmGbMJvm6LShxNgc+q6ZRQ3yEkzj5kpJtzRg==
-X-Received: by 2002:aa7:c803:: with SMTP id a3mr8311226edt.39.1554472283244;
+        bh=05XxbmfCAjHMhi/VtlSMkPiApWuac6A+r9QYYikljpc=;
+        b=l0YCdaJ1sIOXyTHSASbCuIi+yseTVmj2tWgovWNGVWxubrVsBXF+49FeLom/BRGMG7
+         WnwNG9K+AB/nk8VaF0HhymEyRZ6fcAFX9EuEq1zwli+nyBrQzqSARFwY+4Ewb5q0r8EZ
+         wfLxguIgTj2xvFrEXf+5JeNYMP7sZq2KWAFqHUWrZ5mhR1jjDVSekdydm/0B9tJFC3pZ
+         SfWWLvX3ABMuhPOsSDo8R9ecKuOQMaBeCAeTOxSKr/bbGPksKSihJnMU0sb3dGhndzKu
+         gb5kauvQqgfyvlAUIgb9jlgx31XcdVZ1cWMSNj6KULvu4hN4vrIeaQOOGWOC5jnppOaZ
+         0ioQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAW6VXkDHbmxcI6GY4tYnAcED+U9qw8sG3lHN8x0XZXsaBXtW3GS
+	wr2l7jg6dzucd+CrjCjBPWSDEwI0XMuBolpYwVR18+aQPOFekZTU3FBaWtWrfAIVvtOmoua5j//
+	D9EOXBgwiXpKxSzOMYFdTUN+ttrf/J7ur0QyL5paPjcUg2XAR5e+ktiiLuayiIQhA8w==
+X-Received: by 2002:a17:906:4453:: with SMTP id i19mr7563876ejp.39.1554472283551;
         Fri, 05 Apr 2019 06:51:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwLNGKvpIjqFQcaBQ1K0R6L7ao7ZcIT0DLD7AAMNKznT2cXvDdL8JPm3vywR/Ho35jpft/w
-X-Received: by 2002:aa7:c803:: with SMTP id a3mr8311141edt.39.1554472282015;
+X-Google-Smtp-Source: APXvYqwWErtYNv/ks6sxsjxuoVvBogJ1JNPEoZ0xa4d3+php/EZuRVWicG76pCsgUSVlds7sdcqk
+X-Received: by 2002:a17:906:4453:: with SMTP id i19mr7563800ejp.39.1554472282003;
         Fri, 05 Apr 2019 06:51:22 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1554472282; cv=none;
         d=google.com; s=arc-20160816;
-        b=atjZ9ji3gre4tOYKGH5Qiwa6bUGNywvkKuUpvTEnj/CLR1f40+qNYFb2WcSvMg2qvL
-         m4KmbFCRQeAiczLAbsqe1UUvTY+TBVFzcWmtWWAuoQKthcOb/k2oBHgDAqX+L6ZKRw+5
-         YrWQc2gprtG2n8SIz+zuMSTryuhj2MXIX85Fp0SEvK7/qzhBfUHQvMKBMvtjWqasgV+Q
-         HVrJ67G1VGdSY1oOJuWLpfWlf8bii+qmKTPc6b5ZeRUkzyZezuhBNgxOcSr2EpArO4Fe
-         4eO+xfS5d0qUqWA8WbFKzuYrNqkVZO+sONLdPaG9P4T0qMj008A08Fok60eQoA8S6ADM
-         EM+w==
+        b=f/olmr0vwAmceH0odu1O4hXHok1pWoIh5fNQ5/biGybeaXBB4MtQZC+7Zb0iuOxgWk
+         zRCIcTmSrGifzjyjUBIbeyfgmymjhqVNLAkMiLMntm+30NX4NSYorXN3pXoEg5VGW6z3
+         Tit7IUF/xCFp64aCiacDXkqxlVsN89fB9CwlRx3pEmZJQUsJA3LS4bLvD68t+V9FEWsO
+         e9z6EqSHw7tj47PrLdxBa8/E/WCoDMEpnDC/lYfwBZ7JGXWvRDngsIfiqMjj1s2GOqbh
+         QdZQHkcd0JJpXYF8M/Hx8n0UTkCQ4FkIpdVauCHXcMkyZguFarKwD0b0MlFGOH9t1m3b
+         4UYA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=01tDvYmxF/9KT991KCuHbvIVLzPFrrD4a7OhNA6ejgo=;
-        b=ntp4WHLs5ByCfc9oeJtm+cvTpKW0Z9qYqueFYvvwZEsrCdKyEMVbZFrJJciy0o035F
-         /Y4kJ0p6hLwkw1Rda2WsSqLuN9HIteU3pLpoHRQPkC/qQUZs/7jRlDwsQ+6LSdJ7JQfV
-         F5jjCv5VNonBoar2kgnjAcQ/ce5agm70dRInj8BijM/lIUAS9hmh5EmEVdhOtqffbw0U
-         SFwTvYiSJpnTckKEECQ/3PbrramSQByqmbrrwQb8g+Anmx0+75/bQONNakqD39HQycRr
-         h5hUycZWxHIVxN9URUq/wNskTsMtWt9tTZ49m9JjEFtiv0HJPYognkJ5FycLErC/SGm0
-         t2PA==
+        bh=05XxbmfCAjHMhi/VtlSMkPiApWuac6A+r9QYYikljpc=;
+        b=KqqM1PYSW/ylKEa/qB72IWwSzO+CPXSY2zNNarZq6oE8N8423vP+fvoFoY5FqHP+Uo
+         i1s49fkEHUP5NVpbBTz8nV0FOU7OYAEzal6XfYPZOssFUkBfEDeFN+h8sh0cha4vVlAT
+         RrUu1U7E8DBf4pxLCPlCvFK6UZjki4SVdexx0FPvYDB//DqYm7GckpuZir8fPe63I4CT
+         JELhdVCFss1ei93V1Ns2KbODYey5+woxyjY8TTcsYlTB6fLRRIVCxVLiWNVYguDk2yLb
+         bLwuIyD1mH/RHtR9SmOGVt38yM2B9pgk3l0dRXXi7r4Wlu3beDipidYUxQHJBOz7CimO
+         AyMA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.192 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp24.blacknight.com (outbound-smtp24.blacknight.com. [81.17.249.192])
-        by mx.google.com with ESMTPS id x38si1405063edm.253.2019.04.05.06.51.21
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id ce3si2496598ejb.400.2019.04.05.06.51.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 05 Apr 2019 06:51:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.192 as permitted sender) client-ip=81.17.249.192;
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) client-ip=81.17.249.8;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.192 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
 Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp24.blacknight.com (Postfix) with ESMTPS id 727D3B8B7F
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 14:51:21 +0100 (IST)
-Received: (qmail 28399 invoked from network); 5 Apr 2019 13:51:21 -0000
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 7E7D098D8C
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 13:51:21 +0000 (UTC)
+Received: (qmail 28412 invoked from network); 5 Apr 2019 13:51:21 -0000
 Received: from unknown (HELO stampy.163woodhaven.lan) (mgorman@techsingularity.net@[37.228.225.79])
   by 81.17.254.9 with ESMTPA; 5 Apr 2019 13:51:21 -0000
 From: Mel Gorman <mgorman@techsingularity.net>
@@ -86,9 +86,9 @@ Cc: Andrew Morton <akpm@linux-foundation.org>,
 	Linux-MM <linux-mm@kvack.org>,
 	LKML <linux-kernel@vger.kernel.org>,
 	Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 1/2] mm/compaction.c: correct zone boundary handling when resetting pageblock skip hints
-Date: Fri,  5 Apr 2019 14:51:19 +0100
-Message-Id: <20190405135120.27532-2-mgorman@techsingularity.net>
+Subject: [PATCH 2/2] mm/compaction.c: abort search if isolation fails
+Date: Fri,  5 Apr 2019 14:51:20 +0100
+Message-Id: <20190405135120.27532-3-mgorman@techsingularity.net>
 X-Mailer: git-send-email 2.16.4
 In-Reply-To: <20190405135120.27532-1-mgorman@techsingularity.net>
 References: <20190405135120.27532-1-mgorman@techsingularity.net>
@@ -98,114 +98,81 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mikhail Gavrilo reported the following bug being triggered in a Fedora
-kernel based on 5.1-rc1 but it is relevant to a vanilla kernel.
+From: Qian Cai <cai@lca.pw>
 
- kernel: page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
- kernel: ------------[ cut here ]------------
- kernel: kernel BUG at include/linux/mm.h:1021!
- kernel: invalid opcode: 0000 [#1] SMP NOPTI
- kernel: CPU: 6 PID: 116 Comm: kswapd0 Tainted: G         C        5.1.0-0.rc1.git1.3.fc31.x86_64 #1
- kernel: Hardware name: System manufacturer System Product Name/ROG STRIX X470-I GAMING, BIOS 1201 12/07/2018
- kernel: RIP: 0010:__reset_isolation_pfn+0x244/0x2b0
- kernel: Code: fe 06 e8 0f 8e fc ff 44 0f b6 4c 24 04 48 85 c0 0f 85 dc fe ff ff e9 68 fe ff ff 48 c7 c6 58 b7 2e 8c 4c 89 ff e8 0c 75 00 00 <0f> 0b 48 c7 c6 58 b7 2e 8c e8 fe 74 00 00 0f 0b 48 89 fa 41 b8 01
- kernel: RSP: 0018:ffff9e2d03f0fde8 EFLAGS: 00010246
- kernel: RAX: 0000000000000034 RBX: 000000000081f380 RCX: ffff8cffbddd6c20
- kernel: RDX: 0000000000000000 RSI: 0000000000000006 RDI: ffff8cffbddd6c20
- kernel: RBP: 0000000000000001 R08: 0000009898b94613 R09: 0000000000000000
- kernel: R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000100000
- kernel: R13: 0000000000100000 R14: 0000000000000001 R15: ffffca7de07ce000
- kernel: FS:  0000000000000000(0000) GS:ffff8cffbdc00000(0000) knlGS:0000000000000000
- kernel: CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
- kernel: CR2: 00007fc1670e9000 CR3: 00000007f5276000 CR4: 00000000003406e0
- kernel: Call Trace:
- kernel:  __reset_isolation_suitable+0x62/0x120
- kernel:  reset_isolation_suitable+0x3b/0x40
- kernel:  kswapd+0x147/0x540
- kernel:  ? finish_wait+0x90/0x90
- kernel:  kthread+0x108/0x140
- kernel:  ? balance_pgdat+0x560/0x560
- kernel:  ? kthread_park+0x90/0x90
- kernel:  ret_from_fork+0x27/0x50
+Running LTP oom01 in a tight loop or memory stress testing put the system
+in a low-memory situation could triggers random memory corruption like
+page flag corruption below due to in fast_isolate_freepages(), if
+isolation fails, next_search_order() does not abort the search immediately
+could lead to improper accesses.
 
-He bisected it down to e332f741a8dd ("mm, compaction: be selective about
-what pageblocks to clear skip hints").  The problem is that the patch in
-question was sloppy with respect to the handling of zone boundaries.  In
-some instances, it was possible for PFNs outside of a zone to be examined
-and if those were not properly initialised or poisoned then it would
-trigger the VM_BUG_ON.  This patch corrects the zone boundary issues when
-resetting pageblock skip hints and Mikhail reported that the bug did not
-trigger after 30 hours of testing.
+UBSAN: Undefined behaviour in ./include/linux/mm.h:1195:50
+index 7 is out of range for type 'zone [5]'
+Call Trace:
+ dump_stack+0x62/0x9a
+ ubsan_epilogue+0xd/0x7f
+ __ubsan_handle_out_of_bounds+0x14d/0x192
+ __isolate_free_page+0x52c/0x600
+ compaction_alloc+0x886/0x25f0
+ unmap_and_move+0x37/0x1e70
+ migrate_pages+0x2ca/0xb20
+ compact_zone+0x19cb/0x3620
+ kcompactd_do_work+0x2df/0x680
+ kcompactd+0x1d8/0x6c0
+ kthread+0x32c/0x3f0
+ ret_from_fork+0x35/0x40
+------------[ cut here ]------------
+kernel BUG at mm/page_alloc.c:3124!
+invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN PTI
+RIP: 0010:__isolate_free_page+0x464/0x600
+RSP: 0000:ffff888b9e1af848 EFLAGS: 00010007
+RAX: 0000000030000000 RBX: ffff888c39fcf0f8 RCX: 0000000000000000
+RDX: 1ffff111873f9e25 RSI: 0000000000000004 RDI: ffffed1173c35ef6
+RBP: ffff888b9e1af898 R08: fffffbfff4fc2461 R09: fffffbfff4fc2460
+R10: fffffbfff4fc2460 R11: ffffffffa7e12303 R12: 0000000000000008
+R13: dffffc0000000000 R14: 0000000000000000 R15: 0000000000000007
+FS:  0000000000000000(0000) GS:ffff888ba8e80000(0000)
+knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 00007fc7abc00000 CR3: 0000000752416004 CR4: 00000000001606a0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+Call Trace:
+ compaction_alloc+0x886/0x25f0
+ unmap_and_move+0x37/0x1e70
+ migrate_pages+0x2ca/0xb20
+ compact_zone+0x19cb/0x3620
+ kcompactd_do_work+0x2df/0x680
+ kcompactd+0x1d8/0x6c0
+ kthread+0x32c/0x3f0
+ ret_from_fork+0x35/0x40
 
-Link: http://lkml.kernel.org/r/20190327085424.GL3189@techsingularity.net
-Fixes: e332f741a8dd ("mm, compaction: be selective about what pageblocks to clear skip hints")
-Reported-by: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Tested-by: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Link: http://lkml.kernel.org/r/20190320192648.52499-1-cai@lca.pw
+Fixes: dbe2d4e4f12e ("mm, compaction: round-robin the order while searching the free lists for a target")
+Signed-off-by: Qian Cai <cai@lca.pw>
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
 Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: Qian Cai <cai@lca.pw>
+Cc: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
 Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/compaction.c | 27 +++++++++++++++++----------
- 1 file changed, 17 insertions(+), 10 deletions(-)
+ mm/compaction.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mm/compaction.c b/mm/compaction.c
-index f171a83707ce..b4930bf93c8a 100644
+index b4930bf93c8a..3319e0872d01 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -242,6 +242,7 @@ __reset_isolation_pfn(struct zone *zone, unsigned long pfn, bool check_source,
- 							bool check_target)
- {
- 	struct page *page = pfn_to_online_page(pfn);
-+	struct page *block_page;
- 	struct page *end_page;
- 	unsigned long block_pfn;
- 
-@@ -267,20 +268,26 @@ __reset_isolation_pfn(struct zone *zone, unsigned long pfn, bool check_source,
- 	    get_pageblock_migratetype(page) != MIGRATE_MOVABLE)
- 		return false;
- 
-+	/* Ensure the start of the pageblock or zone is online and valid */
-+	block_pfn = pageblock_start_pfn(pfn);
-+	block_page = pfn_to_online_page(max(block_pfn, zone->zone_start_pfn));
-+	if (block_page) {
-+		page = block_page;
-+		pfn = block_pfn;
-+	}
-+
-+	/* Ensure the end of the pageblock or zone is online and valid */
-+	block_pfn += pageblock_nr_pages;
-+	block_pfn = min(block_pfn, zone_end_pfn(zone) - 1);
-+	end_page = pfn_to_online_page(block_pfn);
-+	if (!end_page)
-+		return false;
-+
- 	/*
- 	 * Only clear the hint if a sample indicates there is either a
- 	 * free page or an LRU page in the block. One or other condition
- 	 * is necessary for the block to be a migration source/target.
- 	 */
--	block_pfn = pageblock_start_pfn(pfn);
--	pfn = max(block_pfn, zone->zone_start_pfn);
--	page = pfn_to_page(pfn);
--	if (zone != page_zone(page))
--		return false;
--	pfn = block_pfn + pageblock_nr_pages;
--	pfn = min(pfn, zone_end_pfn(zone));
--	end_page = pfn_to_page(pfn);
--
- 	do {
- 		if (pfn_valid_within(pfn)) {
- 			if (check_source && PageLRU(page)) {
-@@ -309,7 +316,7 @@ __reset_isolation_pfn(struct zone *zone, unsigned long pfn, bool check_source,
- static void __reset_isolation_suitable(struct zone *zone)
- {
- 	unsigned long migrate_pfn = zone->zone_start_pfn;
--	unsigned long free_pfn = zone_end_pfn(zone);
-+	unsigned long free_pfn = zone_end_pfn(zone) - 1;
- 	unsigned long reset_migrate = free_pfn;
- 	unsigned long reset_free = migrate_pfn;
- 	bool source_set = false;
+@@ -1370,7 +1370,7 @@ fast_isolate_freepages(struct compact_control *cc)
+ 				count_compact_events(COMPACTISOLATED, nr_isolated);
+ 			} else {
+ 				/* If isolation fails, abort the search */
+-				order = -1;
++				order = cc->search_order + 1;
+ 				page = NULL;
+ 			}
+ 		}
 -- 
 2.16.4
 
