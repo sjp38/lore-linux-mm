@@ -2,103 +2,173 @@ Return-Path: <SRS0=BJvi=SH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MIME_QP_LONG_LINE,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C6A7AC10F00
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 14:58:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0F95DC4360F
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 15:24:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 820B92186A
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 14:58:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 820B92186A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id A92592184B
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 15:24:07 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=amacapital-net.20150623.gappssmtp.com header.i=@amacapital-net.20150623.gappssmtp.com header.b="utPoc6PE"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A92592184B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amacapital.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 217EB6B0269; Fri,  5 Apr 2019 10:58:19 -0400 (EDT)
+	id 33C5B6B0008; Fri,  5 Apr 2019 11:24:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1C5D76B026A; Fri,  5 Apr 2019 10:58:19 -0400 (EDT)
+	id 2EC426B000D; Fri,  5 Apr 2019 11:24:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0B61A6B026B; Fri,  5 Apr 2019 10:58:19 -0400 (EDT)
+	id 165BB6B0269; Fri,  5 Apr 2019 11:24:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B35686B0269
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 10:58:18 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id p90so3352510edp.11
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 07:58:18 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CD12F6B0008
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 11:24:06 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id c7so686178plo.8
+        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 08:24:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=5rCIpsfIpy5BAvhU0U8DQBl3PiS0Eblt96RL0y0Fiw4=;
-        b=TvwchKeCn2G7m5e5xz4FBgfLSOu3Y3/V8+ZP7Qc3HVal9KqSNsnGDVUsbbwYotvSqW
-         iPDHs8Dbahd2sJPtgNmzcuiNu04ZtLvvaVd2fZj0JqpEOJw6ItKyvtxnTiOjPHLLyA81
-         B3spVb6kKxcj6wzN0sz4cCkajB2VEuYOl9+AcrFBvsohhn1f94RHizV/JF6WcOzNMUSi
-         AcB+oFcoSeMU/RfgRhQ8exgu5g+xq2Kpm7bQAYUUgLXjV59YH89JVm3wRSDXzxf/voBU
-         z10cNm7Hxhe4hRACKIiNjw9Yqmt9p6adIywSQYKpjEomKQWHjXwFrP4Q7TBZHa3PRNJK
-         3pig==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAVVCsiOd9kk1t18w+YydrQ34FlscwKSXQhJ/9CoaBKsfS8/+Emv
-	/bbfUZL/QIcmC5FLUfcsUCfzLztBalbwUkHkAMUuespdDtNUS6xDKO+ZJwHmC61dpPmFlSu2ngM
-	AW0Am7YYv1v2hUaKBdrfDOw8yiwq61RA3xjayUeneR8HDnEUAXK01/QTvWLLYd2tk6A==
-X-Received: by 2002:a50:b4af:: with SMTP id w44mr8590547edd.179.1554476298267;
-        Fri, 05 Apr 2019 07:58:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxZ1WEGrqkgWj0Io9i2oNu8wm97gA7GvctDAYmqiAVWWLSqErfD/7dcviYySm1lQPtn2N3V
-X-Received: by 2002:a50:b4af:: with SMTP id w44mr8590498edd.179.1554476297349;
-        Fri, 05 Apr 2019 07:58:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554476297; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=iGOCAhS0Nh0Q28F4cKGMxEhkILlnQQJc9LLSkn976ag=;
+        b=fn4lMikpDMlvWVXu09+ujTT7NpAC2uY2pH4zsv4NrR5F3t5WGuqc9X2NVXBb7zXPms
+         00WCcfXU4fyWD7BcZ3TWPzYHort3Nj1/L9u9SImMXGo04r3K9UN09L0ZKsCaXLfP8C5D
+         NlWZVrTA6eVBwuKTb1bKw8ysw5le3tQ1HeJW24BKsmvU1QHrDuWVUxZwqEamH5R4z2gh
+         /vJ1HGIgDQm3e106t/oRHyOztK/Y6fti/dgiDTsICW2w1No08feYMZlzIeuV0HMAMzKy
+         Xnuc534s2EIwMh8Zt6J66BeLY80r7GqxW9Nd2asLaoFsPW5IeBXI54QkB+onfsWPAxl2
+         BxzA==
+X-Gm-Message-State: APjAAAXnNVvxirtFmQTFq9x0hRPEGuqB+k57Soti8+LpkLG115Bxth7G
+	VYxsOn3i5W2HXGUnNNeQwjnfEhaWO8QbMcpG4SOjNjgZkIDfXUGxvYWwmF6IMBGaHj9+yq7jnAq
+	iuciyf07HpbGd3afphkIHKECZn6MMzEhbmP/UGruiSHe3PvpdBkjCgN6xHyjTfq6jxQ==
+X-Received: by 2002:a63:c40c:: with SMTP id h12mr1589815pgd.39.1554477846193;
+        Fri, 05 Apr 2019 08:24:06 -0700 (PDT)
+X-Received: by 2002:a63:c40c:: with SMTP id h12mr1589730pgd.39.1554477845030;
+        Fri, 05 Apr 2019 08:24:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554477845; cv=none;
         d=google.com; s=arc-20160816;
-        b=qCj0fF5o/GoiJranIxlRI0Owzp88OIxH7QBrA85OELLQxWbvhW7uNLXcDEh4GM73Tl
-         1muH4NlKqAYMSVC3NYBfRMvh8Yr8nrTy7bFSYmXelZ+MeCDbs91n/F+ldT0Tvy+tm8yZ
-         6xIaVYzeiOHdIsbmKDHAEeaEvL7QyySpEZYgT1CgUnXM24sS6lHpYEYfjdPs9cRZrB7P
-         wCJWAd7KxszKURZZAOftQOFCCGmJbEsue/Qu0C4B1eilVhuoD5hv8jb5qbZilbhIJ+Jb
-         QYGChVgtfEbm5TTwFjFFHd6M2caRJXuzmp8+7qozMYE04LJ8Q1bsla7n+54fNnjHDIj5
-         R05Q==
+        b=abZgWKGL1Mu2DvgPVAr02pHoUIUsoJa6iQa4CN/cOibAqO9EPMfqaIwBg++hVWQhx7
+         F4yO2O8HFrIK96LE4D4xFk4o3n+klaqKrU58/VjTCweYGGeoz6TJD19YusDMcHfTLMX8
+         FL19k1VR9CQfYARk8RLTyKoOo/OyAG5j5nGcFPnkU6Fxub/vyrajvn0T765SiK6qAmM0
+         ADY/g2bEpJJ9O5+lEPGUnl/MxIio7YbX16VYyVLYiTpEkhTa8wSnlOpUf2L6klLKOZtd
+         zncNZjLeA/I1m5Wds72s9G0YHyX/wUT+FhsYRhZX4j8ZorL8jMHvknimwFrnSeWTfcFs
+         T9AQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=5rCIpsfIpy5BAvhU0U8DQBl3PiS0Eblt96RL0y0Fiw4=;
-        b=JtlnsXuxt2Uo8J+MIIb+gVEV755HcCO9xdf+bpvPE0llSZ6g4ewa+bcqBzN3HE/w1E
-         PA10RFFet95L0iku5U4Dk6eekXkkgaTJMoilPM4yby5rsz4s49s+wbeJeC3KcY5Phe5C
-         8d/7XlF3OGj0fEX5fPjpl5fJj5Dvmlv66RXkoGSRT0w3JBd3+yOwWefBtPFtHt4FvFqx
-         AaCvKtfbQBLzmM88/ZQvsVsjwBIv29pOoIzNfTTTGoHCYGUWW5rzJRntuoafdxqQQKHJ
-         NLh0ZuiTY187b8qs3SeIounaM5WOuWeTcQkupOm51rBPa18IZVkbi+g2zX/hJmScbzsC
-         7gdA==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=iGOCAhS0Nh0Q28F4cKGMxEhkILlnQQJc9LLSkn976ag=;
+        b=HsnZdKZwOC9YjiaYD/QQ6Eqq8wbq9I17eKwcHmVkMGy6l1oo95oMpcAs712h+r85SC
+         Ht1R+Brqifh0V35q8YRtHFPaampd7X5AGs4UH+H0oLQrv4TSV4+Jaoamk/E6WyJr2qkt
+         iNskS1qqGnm6PAuOHM7Q2mV3SjIz3vfbES8MXamGKnYVHG3PNL6AWEEGSYHFm5dRzhh5
+         A/KreDUJCw9KsSKx0ynhizkdWUSLc+oD9lfRYbWjIAaxyjHEdxcWQ969OdbUfPOrQMem
+         9vPoEGIhMqk9EqGKNktUr25Jibc7KlEjsscUQjq/Z7u0R8UWRYgyVb7HeTK7NR9k8JPW
+         59YQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id ce3si2556698ejb.400.2019.04.05.07.58.17
-        for <linux-mm@kvack.org>;
-        Fri, 05 Apr 2019 07:58:17 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=utPoc6PE;
+       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g6sor26729349pll.50.2019.04.05.08.24.04
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Fri, 05 Apr 2019 08:24:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 55CFF16A3;
-	Fri,  5 Apr 2019 07:58:16 -0700 (PDT)
-Received: from [10.162.40.100] (p8cg001049571a15.blr.arm.com [10.162.40.100])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 09D0B3F68F;
-	Fri,  5 Apr 2019 07:58:13 -0700 (PDT)
-Subject: Re: struct dev_pagemap corruption
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
- Linux ARM <linux-arm-kernel@lists.infradead.org>,
- =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
- Dan Williams <dan.j.williams@intel.com>, Will Deacon <will.deacon@arm.com>
-References: <7885dce0-edbe-db04-b5ec-bd271c9a0612@arm.com>
- <20190405134210.GH4906@arrakis.emea.arm.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <d361c34e-36da-ab1c-dd18-30dd94cac3e1@arm.com>
-Date: Fri, 5 Apr 2019 20:28:15 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
-MIME-Version: 1.0
-In-Reply-To: <20190405134210.GH4906@arrakis.emea.arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=utPoc6PE;
+       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=amacapital-net.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:subject:from:in-reply-to:date:cc
+         :content-transfer-encoding:message-id:references:to;
+        bh=iGOCAhS0Nh0Q28F4cKGMxEhkILlnQQJc9LLSkn976ag=;
+        b=utPoc6PENireic5FOXK/6gNlCZoHxLoVxXvIuWuV2Ldezt4oYNYBwGjH8t1h9Yythn
+         NBMHVmJqsQiSSgLDIbxGelGGWG6PTrg17gPXjFFVs/bZNUfjI99ScPHiJH/n5asWnHTE
+         pxNdiSFNyO4roPwGN23lMX2Kq+37RTiffPJuFlZpFzZur3TJegpdwYUlgYUr+m2i26gm
+         W9XUIX1hCrY/7nA+NUxqTQO7hRs+NL4e2+3/cn/2OjM8JsqZQd2J5vN4EonJXxD2TV7C
+         1PoI0If4qTkO1Kw+8RgLoJOuBc910yXQbM/NoefPRHlg97tXtOA6XN1KTxmL8UFx7IdR
+         NTyg==
+X-Google-Smtp-Source: APXvYqxMP8hSJP5kyoEinr2wbSpbPq5dBS4iQHJvz9gcS8VG3LUoS2p3dEZlZaxIm7Q/ZUuQ39Skcg==
+X-Received: by 2002:a17:902:1008:: with SMTP id b8mr13257931pla.120.1554477844312;
+        Fri, 05 Apr 2019 08:24:04 -0700 (PDT)
+Received: from [100.91.160.246] (72.sub-174-208-6.myvzw.com. [174.208.6.72])
+        by smtp.gmail.com with ESMTPSA id w10sm7488981pfi.126.2019.04.05.08.24.02
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Apr 2019 08:24:03 -0700 (PDT)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (1.0)
+Subject: Re: [RFC PATCH v9 12/13] xpfo, mm: Defer TLB flushes for non-current CPUs (x86 only)
+From: Andy Lutomirski <luto@amacapital.net>
+X-Mailer: iPhone Mail (16D57)
+In-Reply-To: <91f1dbce-332e-25d1-15f6-0e9cfc8b797b@oracle.com>
+Date: Fri, 5 Apr 2019 09:24:01 -0600
+Cc: Andy Lutomirski <luto@kernel.org>, Juerg Haefliger <juergh@gmail.com>,
+ Tycho Andersen <tycho@tycho.ws>, jsteckli@amazon.de,
+ Andi Kleen <ak@linux.intel.com>, liran.alon@oracle.com,
+ Kees Cook <keescook@google.com>,
+ Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ deepa.srinivasan@oracle.com, chris hyser <chris.hyser@oracle.com>,
+ Tyler Hicks <tyhicks@canonical.com>,
+ "Woodhouse, David" <dwmw@amazon.co.uk>,
+ Andrew Cooper <andrew.cooper3@citrix.com>, Jon Masters <jcm@redhat.com>,
+ Boris Ostrovsky <boris.ostrovsky@oracle.com>, kanth.ghatraju@oracle.com,
+ Joao Martins <joao.m.martins@oracle.com>,
+ Jim Mattson <jmattson@google.com>, pradeep.vincent@oracle.com,
+ John Haxby <john.haxby@oracle.com>, Thomas Gleixner <tglx@linutronix.de>,
+ "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+ Christoph Hellwig <hch@lst.de>, steven.sistare@oracle.com,
+ Laura Abbott <labbott@redhat.com>, Dave Hansen <dave.hansen@intel.com>,
+ Peter Zijlstra <peterz@infradead.org>, Aaron Lu <aaron.lu@intel.com>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ alexander.h.duyck@linux.intel.com, Amir Goldstein <amir73il@gmail.com>,
+ Andrey Konovalov <andreyknvl@google.com>, aneesh.kumar@linux.ibm.com,
+ anthony.yznaga@oracle.com, Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Arnd Bergmann <arnd@arndb.de>, arunks@codeaurora.org,
+ Ben Hutchings <ben@decadent.org.uk>,
+ Sebastian Andrzej Siewior <bigeasy@linutronix.de>,
+ Borislav Petkov <bp@alien8.de>, brgl@bgdev.pl,
+ Catalin Marinas <catalin.marinas@arm.com>,
+ Jonathan Corbet <corbet@lwn.net>, cpandya@codeaurora.org,
+ Daniel Vetter <daniel.vetter@ffwll.ch>,
+ Dan Williams <dan.j.williams@intel.com>,
+ Greg KH <gregkh@linuxfoundation.org>, Roman Gushchin <guro@fb.com>,
+ Johannes Weiner <hannes@cmpxchg.org>, "H. Peter Anvin" <hpa@zytor.com>,
+ Joonsoo Kim <iamjoonsoo.kim@lge.com>, James Morse <james.morse@arm.com>,
+ Jann Horn <jannh@google.com>, Juergen Gross <jgross@suse.com>,
+ Jiri Kosina <jkosina@suse.cz>, James Morris <jmorris@namei.org>,
+ Joe Perches <joe@perches.com>, Souptick Joarder <jrdr.linux@gmail.com>,
+ Joerg Roedel <jroedel@suse.de>, Keith Busch <keith.busch@intel.com>,
+ Konstantin Khlebnikov <khlebnikov@yandex-team.ru>,
+ Logan Gunthorpe <logang@deltatee.com>, marco.antonio.780@gmail.com,
+ Mark Rutland <mark.rutland@arm.com>,
+ Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>,
+ Michal Hocko <mhocko@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>,
+ Ingo Molnar <mingo@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>,
+ Marek Szyprowski <m.szyprowski@samsung.com>,
+ Nicholas Piggin <npiggin@gmail.com>, osalvador@suse.de,
+ "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>,
+ pavel.tatashin@microsoft.com, Randy Dunlap <rdunlap@infradead.org>,
+ richard.weiyang@gmail.com, Rik van Riel <riel@surriel.com>,
+ David Rientjes <rientjes@google.com>, Robin Murphy <robin.murphy@arm.com>,
+ Steven Rostedt <rostedt@goodmis.org>,
+ Mike Rapoport <rppt@linux.vnet.ibm.com>,
+ "Serge E. Hallyn" <serge@hallyn.com>, Steve Capper <steve.capper@arm.com>,
+ thymovanbeers@gmail.com, Vlastimil Babka <vbabka@suse.cz>,
+ Will Deacon <will.deacon@arm.com>, Matthew Wilcox <willy@infradead.org>,
+ yaojun8558363@gmail.com, Huang Ying <ying.huang@intel.com>,
+ zhangshaokun@hisilicon.com, iommu@lists.linux-foundation.org,
+ X86 ML <x86@kernel.org>,
+ linux-arm-kernel <linux-arm-kernel@lists.infradead.org>,
+ "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>,
+ LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
+ LSM List <linux-security-module@vger.kernel.org>,
+ Khalid Aziz <khalid@gonehiking.org>
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <C1253C86-DD1F-469F-9B5E-ED7AA9FBEE4D@amacapital.net>
+References: <cover.1554248001.git.khalid.aziz@oracle.com> <4495dda4bfc4a06b3312cc4063915b306ecfaecb.1554248002.git.khalid.aziz@oracle.com> <CALCETrXMXxnWqN94d83UvGWhkD1BNWiwvH2vsUth1w0T3=0ywQ@mail.gmail.com> <91f1dbce-332e-25d1-15f6-0e9cfc8b797b@oracle.com>
+To: Khalid Aziz <khalid.aziz@oracle.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -107,58 +177,64 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-On 04/05/2019 07:12 PM, Catalin Marinas wrote:
-> Hi Anshuman,
-> 
-> On Fri, Apr 05, 2019 at 10:10:22AM +0530, Anshuman Khandual wrote:
->> On arm64 platform "struct dev_pagemap" is getting corrupted during ZONE_DEVICE
->> unmapping path through device_destroy(). Its device memory range end address
->> (pgmap->res.end) which is getting corrupted in this particular case. AFAICS
->> pgmap which gets initialized by the driver and mapped with devm_memremap_pages()
->> should retain it's values during the unmapping path as well. Is this assumption
->> right ?
-> [...]
->> The problem can be traced down here.
->>
->> diff --git a/drivers/base/devres.c b/drivers/base/devres.c
->> index e038e2b3b7ea..2a410c88c596 100644
->> --- a/drivers/base/devres.c
->> +++ b/drivers/base/devres.c
->> @@ -33,7 +33,7 @@ struct devres {
->>          * Thus we use ARCH_KMALLOC_MINALIGN here and get exactly the same
->>          * buffer alignment as if it was allocated by plain kmalloc().
->>          */
->> -       u8 __aligned(ARCH_KMALLOC_MINALIGN) data[];
->> +       u8 __aligned(__alignof__(unsigned long long)) data[];
->>  };
-> [...]
->> With the patch:
->>
->> [   53.027865] XXX: zone_device_public_altmap_init pgmap ffff8005de634218 resource ffff8005de634250 res->start 680000000 res->end 6bfffffff size 40000000
->> [   53.029840] XXX: devm_memremap_pages_release pgmap ffff8005de634218 resource ffff8005de634250 res->start 680000000 res->end 6bfffffff size 40000000
->>
->> Without the patch:
->>
->> [   34.326066] XXX: zone_device_public_altmap_init pgmap ffff8005de530a80 resource ffff8005de530ab8 res->start 680000000 res->end 6bfffffff size 40000000
->> [   34.328063] XXX: devm_memremap_pages_release pgmap ffff8005de530a80 resource ffff8005de530ab8 res->start 680000000 res->end 0 size fffffff980000001
-> 
-> OK, so without this patch pgmap->res.end becomes 0 while it should stay
-> at 0x6bfffffff. Is it easy to reproduce with mainline?
+>>> On Apr 4, 2019, at 4:55 PM, Khalid Aziz <khalid.aziz@oracle.com> wrote:
+>>>=20
+>>> On 4/3/19 10:10 PM, Andy Lutomirski wrote:
+>>> On Wed, Apr 3, 2019 at 10:36 AM Khalid Aziz <khalid.aziz@oracle.com> wro=
+te:
+>>>=20
+>>> XPFO flushes kernel space TLB entries for pages that are now mapped
+>>> in userspace on not only the current CPU but also all other CPUs
+>>> synchronously. Processes on each core allocating pages causes a
+>>> flood of IPI messages to all other cores to flush TLB entries.
+>>> Many of these messages are to flush the entire TLB on the core if
+>>> the number of entries being flushed from local core exceeds
+>>> tlb_single_page_flush_ceiling. The cost of TLB flush caused by
+>>> unmapping pages from physmap goes up dramatically on machines with
+>>> high core count.
+>>>=20
+>>> This patch flushes relevant TLB entries for current process or
+>>> entire TLB depending upon number of entries for the current CPU
+>>> and posts a pending TLB flush on all other CPUs when a page is
+>>> unmapped from kernel space and mapped in userspace. Each core
+>>> checks the pending TLB flush flag for itself on every context
+>>> switch, flushes its TLB if the flag is set and clears it.
+>>> This patch potentially aggregates multiple TLB flushes into one.
+>>> This has very significant impact especially on machines with large
+>>> core counts.
+>>=20
+>> Why is this a reasonable strategy?
+>=20
+> Ideally when pages are unmapped from physmap, all CPUs would be sent IPI
+> synchronously to flush TLB entry for those pages immediately. This may
+> be ideal from correctness and consistency point of view, but it also
+> results in IPI storm and repeated TLB flushes on all processors. Any
+> time a page is allocated to userspace, we are going to go through this
+> and it is very expensive. On a 96-core server, performance degradation
+> is 26x!!
 
-Yeah but with some ZONE_DEVICE series patches.
+Indeed. XPFO is expensive.
 
-> 
-> What's zone_device_public_altmap_init? I couldn't grep it in mainline.
+>=20
+> When xpfo unmaps a page from physmap only (after mapping the page in
+> userspace in response to an allocation request from userspace) on one
+> processor, there is a small window of opportunity for ret2dir attack on
+> other cpus until the TLB entry in physmap for the unmapped pages on
+> other cpus is cleared.
 
-Test module inti function (should have mentioned it clearly).
+Why do you think this window is small? Intervals of seconds to months betwee=
+n context switches aren=E2=80=99t unheard of.
 
-> How's the pgmap allocated?
+And why is a small window like this even helpful?  For a ret2dir attack, you=
+ just need to get CPU A to allocate a page and write the ret2dir payload and=
+ then get CPU B to return to it before context switching.  This should be do=
+able quite reliably.
 
-devm_kzalloc() but the problem seems to be gone with kzalloc().
-
-> 
-> I'd suggest you enable kasan and see if it spots anything.
-> 
-
-Sure.
+So I don=E2=80=99t really have a suggestion, but I think that a 44% regressi=
+on to get a weak defense like this doesn=E2=80=99t seem worthwhile.  I bet t=
+hat any of a number of CFI techniques (RAP-like or otherwise) will be cheape=
+r and protect against ret2dir better.  And they=E2=80=99ll also protect agai=
+nst using other kernel memory as a stack buffer.  There are plenty of those =E2=
+=80=94 think pipe buffers, network buffers, any page cache not covered by XP=
+FO, XMM/YMM saved state, etc.=
 
