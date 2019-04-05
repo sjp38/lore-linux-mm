@@ -2,177 +2,166 @@ Return-Path: <SRS0=BJvi=SH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C2FC2C10F0F
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 13:51:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D8AF2C4360F
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 13:51:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7F55121738
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 13:51:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F55121738
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
+	by mail.kernel.org (Postfix) with ESMTP id 8848C21738
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 13:51:59 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Ioetmh/J"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8848C21738
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 77D766B026D; Fri,  5 Apr 2019 09:51:24 -0400 (EDT)
+	id 137986B026E; Fri,  5 Apr 2019 09:51:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7271E6B026E; Fri,  5 Apr 2019 09:51:24 -0400 (EDT)
+	id 10DD16B026F; Fri,  5 Apr 2019 09:51:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 646126B0270; Fri,  5 Apr 2019 09:51:24 -0400 (EDT)
+	id 024366B0270; Fri,  5 Apr 2019 09:51:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 132E36B026E
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 09:51:24 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id w3so3302918edt.2
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 06:51:24 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C08DF6B026E
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 09:51:58 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id f7so4073718pgi.20
+        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 06:51:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=05XxbmfCAjHMhi/VtlSMkPiApWuac6A+r9QYYikljpc=;
-        b=l0YCdaJ1sIOXyTHSASbCuIi+yseTVmj2tWgovWNGVWxubrVsBXF+49FeLom/BRGMG7
-         WnwNG9K+AB/nk8VaF0HhymEyRZ6fcAFX9EuEq1zwli+nyBrQzqSARFwY+4Ewb5q0r8EZ
-         wfLxguIgTj2xvFrEXf+5JeNYMP7sZq2KWAFqHUWrZ5mhR1jjDVSekdydm/0B9tJFC3pZ
-         SfWWLvX3ABMuhPOsSDo8R9ecKuOQMaBeCAeTOxSKr/bbGPksKSihJnMU0sb3dGhndzKu
-         gb5kauvQqgfyvlAUIgb9jlgx31XcdVZ1cWMSNj6KULvu4hN4vrIeaQOOGWOC5jnppOaZ
-         0ioQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: APjAAAW6VXkDHbmxcI6GY4tYnAcED+U9qw8sG3lHN8x0XZXsaBXtW3GS
-	wr2l7jg6dzucd+CrjCjBPWSDEwI0XMuBolpYwVR18+aQPOFekZTU3FBaWtWrfAIVvtOmoua5j//
-	D9EOXBgwiXpKxSzOMYFdTUN+ttrf/J7ur0QyL5paPjcUg2XAR5e+ktiiLuayiIQhA8w==
-X-Received: by 2002:a17:906:4453:: with SMTP id i19mr7563876ejp.39.1554472283551;
-        Fri, 05 Apr 2019 06:51:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwWErtYNv/ks6sxsjxuoVvBogJ1JNPEoZ0xa4d3+php/EZuRVWicG76pCsgUSVlds7sdcqk
-X-Received: by 2002:a17:906:4453:: with SMTP id i19mr7563800ejp.39.1554472282003;
-        Fri, 05 Apr 2019 06:51:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554472282; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=XY0rcBM7DfXdXLaiCQSB/Ch3HeGmn+6SsthdCa9yhTI=;
+        b=LDrlDV/itegCb8Tpwzc3rnohtSZstZUv8kCpaEKxtYb5i47E6LsicjZ7hkax/uRuI4
+         m3bVP6PYaqcJN5MGa9Xpa+pFXFh4lCePepePS4Etp8IkJBH1QP71CKw6SKnHiJCG35/x
+         Exc2QPLKSwDGkWtA+Zf23XlzlsFOWa98mAp64A7V4Dhdx+VqUxiuFMy8mDp19lgenb+l
+         SnSi+hnZ/UOkwafqRG9NkiWCo0+xGIIXjqpVXXUztOnEZRTvbItp1VfxD6NgWufzA44d
+         vZddpt6uuo/8u9U2d0MJOXgxvMHsvF/UhLjnunEvWtc+Qs+u9RNhD09ZAQzR7yjdtSIQ
+         3zMw==
+X-Gm-Message-State: APjAAAWFt58jA3AvLkRq1QqXt+QhaYYDojwTFw8zGO0Uzaw1SWodihWm
+	qvLU5ah2jIwBOAYAm9nBxidmRAkMZG/StgvqimIgDyLkMRIgOObToclOEjGITtOVx3Xi89wkRBj
+	zx867V4tTWfbmasHL3hKzYtKdEwdRRrCoNGDQDAeeh2Y0HC+4Lx+1jzb2kt3O8eYsxA==
+X-Received: by 2002:a17:902:8349:: with SMTP id z9mr12580363pln.144.1554472318171;
+        Fri, 05 Apr 2019 06:51:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzC+mxPwJ7jTgclBK8jYLb64wTEgQu3WeBvmq17nby85+I8Y4VL2toT7d3pDg0EJfK46e58
+X-Received: by 2002:a17:902:8349:: with SMTP id z9mr12580303pln.144.1554472317418;
+        Fri, 05 Apr 2019 06:51:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554472317; cv=none;
         d=google.com; s=arc-20160816;
-        b=f/olmr0vwAmceH0odu1O4hXHok1pWoIh5fNQ5/biGybeaXBB4MtQZC+7Zb0iuOxgWk
-         zRCIcTmSrGifzjyjUBIbeyfgmymjhqVNLAkMiLMntm+30NX4NSYorXN3pXoEg5VGW6z3
-         Tit7IUF/xCFp64aCiacDXkqxlVsN89fB9CwlRx3pEmZJQUsJA3LS4bLvD68t+V9FEWsO
-         e9z6EqSHw7tj47PrLdxBa8/E/WCoDMEpnDC/lYfwBZ7JGXWvRDngsIfiqMjj1s2GOqbh
-         QdZQHkcd0JJpXYF8M/Hx8n0UTkCQ4FkIpdVauCHXcMkyZguFarKwD0b0MlFGOH9t1m3b
-         4UYA==
+        b=lUKEkHWgcOi7pQqIJSHWQxsjRDxabEPTz4Rb/L+v+5kYT8KTUPGJd4tslu0fyJIfIq
+         ftccrmmkgvoE/asxtqfH/9PDbeun4SF8R5qOhxylYzWBJcyU3i8clxHwjLhtdklfomu2
+         AT2O7TSsJhpx7MiLZDGHaJVEwDRcLTLhvB6sU6DxToxy7R9OL+i2d3k4kDSVcQpxCUmu
+         g4Tnl/ELjx7eNG207mT2ey60uslZWaoJgvOlxqHbwn/vVIe+7ZNP6A2SWFFquZrJAsps
+         xfv2rFPwQmoEkRVlATpRGXijvxSSVHuK1vW2cgaz7NQh/ImEjrG7Q4x4yEmdInlXOpnE
+         6ahA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=05XxbmfCAjHMhi/VtlSMkPiApWuac6A+r9QYYikljpc=;
-        b=KqqM1PYSW/ylKEa/qB72IWwSzO+CPXSY2zNNarZq6oE8N8423vP+fvoFoY5FqHP+Uo
-         i1s49fkEHUP5NVpbBTz8nV0FOU7OYAEzal6XfYPZOssFUkBfEDeFN+h8sh0cha4vVlAT
-         RrUu1U7E8DBf4pxLCPlCvFK6UZjki4SVdexx0FPvYDB//DqYm7GckpuZir8fPe63I4CT
-         JELhdVCFss1ei93V1Ns2KbODYey5+woxyjY8TTcsYlTB6fLRRIVCxVLiWNVYguDk2yLb
-         bLwuIyD1mH/RHtR9SmOGVt38yM2B9pgk3l0dRXXi7r4Wlu3beDipidYUxQHJBOz7CimO
-         AyMA==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=XY0rcBM7DfXdXLaiCQSB/Ch3HeGmn+6SsthdCa9yhTI=;
+        b=YctDN9b74ydd2uCWIormJ61cWwmeoh1SyQoG3r0A3q+xripQhmkbn1QHzNHt+YUiRl
+         uqr549rS482xw628Mkrwh8tHIhHYVCkpBCM8BmFdUs0P1Bd2Ou317h2HQGavuUVkmd2A
+         g+UR0nQocp7iPAWRsTcKDluG2JMGnohX91anCoAFGeIHW/TcFWN8eUCr4Ur52+70zhNX
+         TIV+i9ejksSRAQyK18BQdfuT97QezkYMuAJXQ9yBh9eCyK+2CsMNtgPbad61ndfd25nZ
+         wCBWHt9Wsv3tnwushWYzPQhAugsnO9F0cMGcP/SDWuVQGN+nZQ8aMszng+8+O+BscWzR
+         nWtw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id ce3si2496598ejb.400.2019.04.05.06.51.21
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="Ioetmh/J";
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id k15si18659454pll.142.2019.04.05.06.51.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Apr 2019 06:51:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) client-ip=81.17.249.8;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 05 Apr 2019 06:51:57 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 7E7D098D8C
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 13:51:21 +0000 (UTC)
-Received: (qmail 28412 invoked from network); 5 Apr 2019 13:51:21 -0000
-Received: from unknown (HELO stampy.163woodhaven.lan) (mgorman@techsingularity.net@[37.228.225.79])
-  by 81.17.254.9 with ESMTPA; 5 Apr 2019 13:51:21 -0000
-From: Mel Gorman <mgorman@techsingularity.net>
-To: Linus Torvalds <torvalds@linuxfoundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Linux-MM <linux-mm@kvack.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 2/2] mm/compaction.c: abort search if isolation fails
-Date: Fri,  5 Apr 2019 14:51:20 +0100
-Message-Id: <20190405135120.27532-3-mgorman@techsingularity.net>
-X-Mailer: git-send-email 2.16.4
-In-Reply-To: <20190405135120.27532-1-mgorman@techsingularity.net>
-References: <20190405135120.27532-1-mgorman@techsingularity.net>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="Ioetmh/J";
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Transfer-Encoding
+	:Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
+	Sender:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
+	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=XY0rcBM7DfXdXLaiCQSB/Ch3HeGmn+6SsthdCa9yhTI=; b=Ioetmh/JDU5xbCm+5YaXCT/PRr
+	V9ivB2UTttkyia4RNl7sbmh6dEyNSnHlzthmLFkJ92EDG4CmpSL61jj+vUALVTbCZosk2tuUWFN+D
+	RjH6jR+tSkIXUwx4Tsqby4p59AcMYlBUEHtd5gPLiK6JJqDtc2Z6QT2aTDJM73GqS7qgA6SbIOxjc
+	PvXMxmKrCD7kTlbfgr2f8xgo+q0b+b0H4H81/9PEwB1vBxD3o6zbV95Hj+PHnWmvglgSk54GWLmhH
+	AHIqNo6jBh2+E67wTqJ0PPx+qGKLM73fUpee3olaScZfygfB20g7WMjcA22mJwtNzqS28hpich8FT
+	VEICNCjA==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hCPG7-0005T0-JA; Fri, 05 Apr 2019 13:51:55 +0000
+Date: Fri, 5 Apr 2019 06:51:55 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>,
+	Andrew Morton <akpm@linux-foundation.org>
+Cc: Qian Cai <cai@lca.pw>, Huang Ying <ying.huang@intel.com>,
+	linux-mm@kvack.org
+Subject: Re: page cache: Store only head pages in i_pages
+Message-ID: <20190405135155.GO22763@bombadil.infradead.org>
+References: <1553894734.26196.30.camel@lca.pw>
+ <20190330030431.GX10344@bombadil.infradead.org>
+ <20190330141052.GZ10344@bombadil.infradead.org>
+ <20190331032326.GA10344@bombadil.infradead.org>
+ <20190401091858.s7clitbvf46nomjm@kshutemo-mobl1>
+ <20190401092716.mxw32y4sl66ywc2o@kshutemo-mobl1>
+ <1554383410.26196.39.camel@lca.pw>
+ <20190404134553.vuvhgmghlkiw2hgl@kshutemo-mobl1>
+ <1554413282.26196.40.camel@lca.pw>
+ <20190405133742.goqgpxvbc4jsasz5@kshutemo-mobl1>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190405133742.goqgpxvbc4jsasz5@kshutemo-mobl1>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Qian Cai <cai@lca.pw>
+On Fri, Apr 05, 2019 at 04:37:42PM +0300, Kirill A. Shutemov wrote:
+> On Thu, Apr 04, 2019 at 05:28:02PM -0400, Qian Cai wrote:
+> > On Thu, 2019-04-04 at 16:45 +0300, Kirill A. Shutemov wrote:
+> > > What about this:
+> > > 
+> > > diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+> > > index f939e004c5d1..2e8438a1216a 100644
+> > > --- a/include/linux/pagemap.h
+> > > +++ b/include/linux/pagemap.h
+> > > @@ -335,12 +335,15 @@ static inline struct page *grab_cache_page_nowait(struct
+> > > address_space *mapping,
+> > >  
+> > >  static inline struct page *find_subpage(struct page *page, pgoff_t offset)
+> > >  {
+> > > -	unsigned long index = page_index(page);
+> > > +	unsigned long mask;
+> > > +
+> > > +	if (PageHuge(page))
+> > > +		return page;
+> > >  
+> > >  	VM_BUG_ON_PAGE(PageTail(page), page);
+> > > -	VM_BUG_ON_PAGE(index > offset, page);
+> > > -	VM_BUG_ON_PAGE(index + (1 << compound_order(page)) <= offset, page);
+> > > -	return page - index + offset;
+> > > +
+> > > +	mask = (1UL << compound_order(page)) - 1;
+> > > +	return page + (offset & mask);
+> > >  }
+> > >  
+> > >  struct page *find_get_entry(struct address_space *mapping, pgoff_t offset);
+> > 
+> > It works fine.
+> 
+> Nice.
+> 
+> Matthew, does it look fine to you?
 
-Running LTP oom01 in a tight loop or memory stress testing put the system
-in a low-memory situation could triggers random memory corruption like
-page flag corruption below due to in fast_isolate_freepages(), if
-isolation fails, next_search_order() does not abort the search immediately
-could lead to improper accesses.
-
-UBSAN: Undefined behaviour in ./include/linux/mm.h:1195:50
-index 7 is out of range for type 'zone [5]'
-Call Trace:
- dump_stack+0x62/0x9a
- ubsan_epilogue+0xd/0x7f
- __ubsan_handle_out_of_bounds+0x14d/0x192
- __isolate_free_page+0x52c/0x600
- compaction_alloc+0x886/0x25f0
- unmap_and_move+0x37/0x1e70
- migrate_pages+0x2ca/0xb20
- compact_zone+0x19cb/0x3620
- kcompactd_do_work+0x2df/0x680
- kcompactd+0x1d8/0x6c0
- kthread+0x32c/0x3f0
- ret_from_fork+0x35/0x40
-------------[ cut here ]------------
-kernel BUG at mm/page_alloc.c:3124!
-invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN PTI
-RIP: 0010:__isolate_free_page+0x464/0x600
-RSP: 0000:ffff888b9e1af848 EFLAGS: 00010007
-RAX: 0000000030000000 RBX: ffff888c39fcf0f8 RCX: 0000000000000000
-RDX: 1ffff111873f9e25 RSI: 0000000000000004 RDI: ffffed1173c35ef6
-RBP: ffff888b9e1af898 R08: fffffbfff4fc2461 R09: fffffbfff4fc2460
-R10: fffffbfff4fc2460 R11: ffffffffa7e12303 R12: 0000000000000008
-R13: dffffc0000000000 R14: 0000000000000000 R15: 0000000000000007
-FS:  0000000000000000(0000) GS:ffff888ba8e80000(0000)
-knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 00007fc7abc00000 CR3: 0000000752416004 CR4: 00000000001606a0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-Call Trace:
- compaction_alloc+0x886/0x25f0
- unmap_and_move+0x37/0x1e70
- migrate_pages+0x2ca/0xb20
- compact_zone+0x19cb/0x3620
- kcompactd_do_work+0x2df/0x680
- kcompactd+0x1d8/0x6c0
- kthread+0x32c/0x3f0
- ret_from_fork+0x35/0x40
-
-Link: http://lkml.kernel.org/r/20190320192648.52499-1-cai@lca.pw
-Fixes: dbe2d4e4f12e ("mm, compaction: round-robin the order while searching the free lists for a target")
-Signed-off-by: Qian Cai <cai@lca.pw>
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/compaction.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index b4930bf93c8a..3319e0872d01 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1370,7 +1370,7 @@ fast_isolate_freepages(struct compact_control *cc)
- 				count_compact_events(COMPACTISOLATED, nr_isolated);
- 			} else {
- 				/* If isolation fails, abort the search */
--				order = -1;
-+				order = cc->search_order + 1;
- 				page = NULL;
- 			}
- 		}
--- 
-2.16.4
+Yes, this looks good to me.  I think we'll have opportunities to improve
+it later (eg when unifying THP and hugetlbfs uses of the page cache).
+But for now, Andrew can you add this version as -fix-fix?
 
