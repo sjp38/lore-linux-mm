@@ -6,127 +6,192 @@ X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D5559C4360F
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 12:36:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 175EFC4360F
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 12:54:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6FDFB21738
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 12:36:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6FDFB21738
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id D2A9520855
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 12:54:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D2A9520855
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CB9096B000D; Fri,  5 Apr 2019 08:36:51 -0400 (EDT)
+	id 5CE8E6B0269; Fri,  5 Apr 2019 08:54:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C67D76B0266; Fri,  5 Apr 2019 08:36:51 -0400 (EDT)
+	id 57C5F6B026A; Fri,  5 Apr 2019 08:54:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B08C56B0269; Fri,  5 Apr 2019 08:36:51 -0400 (EDT)
+	id 46ACE6B026B; Fri,  5 Apr 2019 08:54:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 73F8F6B000D
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 08:36:51 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id s22so4129184plq.1
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 05:36:51 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E8E5C6B0269
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 08:54:35 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id n12so3205066edo.5
+        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 05:54:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=X9J+BZCeLM7FNBjPzS9jrmqvvYuyZHO51FULjwaVxxg=;
-        b=DrB0YQyX0HJaF96nMCMHyeQr6M3IX39P8JVnws34H51B597wgz9D75woLluSPtureh
-         A2w9GV3ary7+D6OlYv9iiMqo2sIC5+spaV3Mq0cUjcVeNbyZWoNtKEQSHWNV2Y1eTs3A
-         V7+afVWGwrGSSc+LdoxYsIO/glQ0Rb0YduklxZjNbmywloxggYqWJK9u+r5Z04OP9VHJ
-         P6Vtj99TI8L+NNKrkMWbIfv78Ib7x9k8Wr5fEdEFgia6RIdLs2ZbegfF52jZPRrkahob
-         KGyepYhDNrKPvqAmr/ese9T1gHG3BtYhaIAJiV098yruIkEzyQudvAYRi//WaNypR1Ef
-         dFhg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAX6i5AIghLFTm/VCOJMlK4k8w3H38yDan650KCbCZqRCxgdNPKe
-	b55ovUpwKWhvwAgWTNt0iZye2w+qNm/fstQxyiiap8kBKW/nxCELlgksxmlGD5pPaZhz5q/SDDU
-	qUxnIW8xNp5xp1Pjcw+iHdmakMR3ez++XuPIWvTCCWVylDTv8CDscR9YG1ijKYfEs2Q==
-X-Received: by 2002:a17:902:aa5:: with SMTP id 34mr12518015plp.302.1554467810920;
-        Fri, 05 Apr 2019 05:36:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyUw+AKVpBF8E7bQWNdkGh/ZimGQy/jmMTUevCmAjWtBr/sjMM76xwrCitFwgD082rfYuNo
-X-Received: by 2002:a17:902:aa5:: with SMTP id 34mr12517949plp.302.1554467810109;
-        Fri, 05 Apr 2019 05:36:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554467810; cv=none;
+        bh=3CAYcQSK5slfPWqZ7uarhOjxrFvQq+s+S9dj1KY74t8=;
+        b=AuvxCAXGOu0yNzO47Eqa75Wf9E1S/qNUWW8MC5x3RRSuRBgUjm52Q1bCARhjhS3ojw
+         fid/VpIDRfMktZdQREFWAQVNTxcqUw6H7E1aH8iHlciZQWs5zA6Rm7TmdZGD/PZNkE4b
+         zUUbUbnlH8iK2SCr6++HNth0QbyVC1BzzeV+VYhdoFlDhLOKBlMfY8R6wv2IgLpCX8CF
+         wjrlaoh17oJREnDWllPOl3jbSd5UM5v9cdpdM+8t3cIhWBcBQrJU5fxBMpL4LE2DhqXk
+         aB+qrW660w4oV4P69TsytEu5O4aDi1E3veHpJHJNADmmsaGa9yVTDNuBc8cRwqSwyX9d
+         +NEw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAUUFlzUYxMgW/RBcFZPkDFpkpXX5ccfn+w16kHq1DvUJId7Dy54
+	LVGJET1wkom3W2jfqDoZmh/FZWrwQiQx454h6fHsFJEBS6zPfh8at4yS0zlrX0SU8UH9rEqeZYF
+	1ZGPduuzRIN5qQUh8UtAguaiN97D/BwAB/0nwC0ZVjbFG8i798NwRMFnbCdwMX/M=
+X-Received: by 2002:a50:ac07:: with SMTP id v7mr8055562edc.119.1554468875483;
+        Fri, 05 Apr 2019 05:54:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyen3TDNmMb0ZdwLfyxoX+EEN2FAj+OdFScTbakZRaTkN6WyzNzOx0QG+S37TMX4OQo7oLp
+X-Received: by 2002:a50:ac07:: with SMTP id v7mr8055498edc.119.1554468874177;
+        Fri, 05 Apr 2019 05:54:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554468874; cv=none;
         d=google.com; s=arc-20160816;
-        b=E1jpfK0s3jw3OMWOdqS4sw/vMEi02CqaOfpmBuU6wVRLCHs6uBS3SSHLTrsVUPrQ7M
-         OwBMDxZ6VtudTNxnGl1AJQzoRaJJZpamr6RKTKm8L/PpiYk5+YKb72dnLaVwUIAfj/4U
-         BowIV+3f2hdc1B2+qgtrNW9gafJ1Ube8/7oE9nsaM5LkzhR3WUPs+w/xDqDa1g4LDmTp
-         DIx8EjCowTEKfrOqJMHMHqatnHEgrzw+4XQCm5dhlFIzlgkKsgiwh97JuhWmVwVSPrOL
-         ummwQGj7Z9lyg8zZ2I9FxFLOXZZsACNCRUL3zNCZmnOGn3/eQqnfDFCzStXmi32fTib7
-         NHIg==
+        b=jTSxn2kmhl6C+jSw8WABfp+03aZUTN6EppiEkX9JWt2mV2r2I6L0hoO/+34vkmVWpi
+         sFCkdLybJw3VJli/F+90FZL/zi9bRL0k9TUmlDKsYJRqZAqE01a9Tg1YJpR1F0PftUxN
+         M+41H/0tlQxfeHqgWydPr9h/U5dL9BlPlnf7Wu0hyBX7cKH8R0pNZG8PqBekZo5mc+QT
+         5mADLQ6r+yZ7niKtR/NuX1m0s5NdS/03oJbJgQzYUtoICo0YDdIyixUOQFXEwRSS4YGG
+         RQI+3pc7TZeCK0cxvezhqWwv3yQPQVHcHu7y3DPfatR5KT843im6tpgPU3Aj18cYmf+1
+         niug==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=X9J+BZCeLM7FNBjPzS9jrmqvvYuyZHO51FULjwaVxxg=;
-        b=ni2AAI1YJuuPpPmv7QYosVDJ/kAUPaojGANdD61p5g+wP2urV+RbhM92+j2ido63Ar
-         45c2F+I1C3hJmO3zl/4YfLl2Pn6t8IkW5tvT0zQEqf0qJBY5NIHYI9fvmPo/qBvHn4Re
-         VCPIcNshkhY8qyt41mxCA2vzkD8S3QYmHpG1p5leAYVuZfNKgkl06htPMDw3IaidFoSg
-         x5GXkvrhQLk73j7/docwF9S/KzKS0qWyVueA1SBxiB1cQ1cyhlWpobULi/T4rGinBZFF
-         XPI3oGLEecfs+fquSs30iKm4m0JubGBWwSn3psgns9Vgj5rF/djlSRoyGVFE4WndItnD
-         Kqsw==
+        bh=3CAYcQSK5slfPWqZ7uarhOjxrFvQq+s+S9dj1KY74t8=;
+        b=mjZl/HgN/CqZk3REHJUhc6A4kV8tI97nC6B6dIP3v9SXKKLW3zWwlnge1U51FDlL/Z
+         Mex/iesjld4p2bx+eASUc5zPXniFQvu6C0N67y4h8qtGRlZD/NY6zN+rIm1s8ETnCV3t
+         Uqh3rvKCOdTo48kI8M3SmY4V0XHZ9ScKzdVnVBbzvjPMGw+YaYRhHSNepK/dqtj39mPE
+         2LHmv1AREIM90h7GoVuW8a/vx2d6UBVXRc1WVtDeJYKX4I9o7LzE/aT1qJhfTDssjzgs
+         WC5frK7ozGciaplrZnpxSUnvrr2oZsYHZLhIV2goZgGwQ5IBoBGTv2wwpln6JAIOaJBf
+         iwyw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id c12si15019134plr.19.2019.04.05.05.36.49
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Apr 2019 05:36:50 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
+       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from suse.de (nat.nue.novell.com. [2620:113:80c0:5::2222])
+        by mx.google.com with ESMTP id u3si650641edp.137.2019.04.05.05.54.33
+        for <linux-mm@kvack.org>;
+        Fri, 05 Apr 2019 05:54:34 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) client-ip=2620:113:80c0:5::2222;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from fmsmga007.fm.intel.com ([10.253.24.52])
-  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 05 Apr 2019 05:36:49 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,312,1549958400"; 
-   d="scan'208";a="140369549"
-Received: from black.fi.intel.com ([10.237.72.28])
-  by fmsmga007.fm.intel.com with ESMTP; 05 Apr 2019 05:36:48 -0700
-Received: by black.fi.intel.com (Postfix, from userid 1000)
-	id 2E4B63B7; Fri,  5 Apr 2019 15:36:47 +0300 (EEST)
-Date: Fri, 5 Apr 2019 15:36:47 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Huang Shijie <sjhuang@iluvatar.ai>, akpm@linux-foundation.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH] mm:rmap: use the pra.mapcount to do the check
-Message-ID: <20190405123646.fen7bwaewaaiqlxr@black.fi.intel.com>
-References:<20190404054828.2731-1-sjhuang@iluvatar.ai>
- <de5865e2-a9e4-f0f9-f740-f1301679258a@oracle.com>
+       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: by suse.de (Postfix, from userid 1000)
+	id 1E0A94841; Fri,  5 Apr 2019 14:54:32 +0200 (CEST)
+Date: Fri, 5 Apr 2019 14:54:32 +0200
+From: Oscar Salvador <osalvador@suse.de>
+To: Linxu Fang <fanglinxu@huawei.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz,
+	pavel.tatashin@microsoft.com, linux-mm@kvack.org
+Subject: Re: [PATCH V2] mm: fix node spanned pages when we have a node with
+ only zone_movable
+Message-ID: <20190405125430.vawudxjcxhbarseg@d104.suse.de>
+References: <1554370704-18268-1-git-send-email-fanglinxu@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To:<de5865e2-a9e4-f0f9-f740-f1301679258a@oracle.com>
-User-Agent: NeoMutt/20170714-126-deb55f (1.8.3)
+In-Reply-To: <1554370704-18268-1-git-send-email-fanglinxu@huawei.com>
+User-Agent: NeoMutt/20170421 (1.8.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 04, 2019 at 11:08:33PM +0000, Mike Kravetz wrote:
-> On 4/3/19 10:48 PM, Huang Shijie wrote:
-> > We have the pra.mapcount already, and there is no need to call
-> > the page_mapped() which may do some complicated computing
-> > for compound page.
-> > 
-> > Signed-off-by: Huang Shijie <sjhuang@iluvatar.ai>
+On Thu, Apr 04, 2019 at 05:38:24PM +0800, Linxu Fang wrote:
+> commit <342332e6a925> ("mm/page_alloc.c: introduce kernelcore=mirror
+> option") and series patches rewrote the calculation of node spanned
+> pages.
+> commit <e506b99696a2> (mem-hotplug: fix node spanned pages when we have a
+> movable node), but the current code still has problems,
+> when we have a node with only zone_movable and the node id is not zero,
+> the size of node spanned pages is double added.
+> That's because we have an empty normal zone, and zone_start_pfn or
+> zone_end_pfn is not between arch_zone_lowest_possible_pfn and
+> arch_zone_highest_possible_pfn, so we need to use clamp to constrain the
+> range just like the commit <96e907d13602> (bootmem: Reimplement
+> __absent_pages_in_range() using for_each_mem_pfn_range()).
 > 
-> This looks good to me.  I had to convince myself that there were no
-> issues if we were operating on a sub-page of a compound-page.  However,
-> Kirill is the expert here and would know of any subtle issues I may have
-> overlooked.
+> e.g.
+> Zone ranges:
+>   DMA      [mem 0x0000000000001000-0x0000000000ffffff]
+>   DMA32    [mem 0x0000000001000000-0x00000000ffffffff]
+>   Normal   [mem 0x0000000100000000-0x000000023fffffff]
+> Movable zone start for each node
+>   Node 0: 0x0000000100000000
+>   Node 1: 0x0000000140000000
+> Early memory node ranges
+>   node   0: [mem 0x0000000000001000-0x000000000009efff]
+>   node   0: [mem 0x0000000000100000-0x00000000bffdffff]
+>   node   0: [mem 0x0000000100000000-0x000000013fffffff]
+>   node   1: [mem 0x0000000140000000-0x000000023fffffff]
+> 
+> node 0 DMA	spanned:0xfff   present:0xf9e   absent:0x61
+> node 0 DMA32	spanned:0xff000 present:0xbefe0	absent:0x40020
+> node 0 Normal	spanned:0	present:0	absent:0
+> node 0 Movable	spanned:0x40000 present:0x40000 absent:0
+> On node 0 totalpages(node_present_pages): 1048446
+> node_spanned_pages:1310719
+> node 1 DMA	spanned:0	    present:0		absent:0
+> node 1 DMA32	spanned:0	    present:0		absent:0
+> node 1 Normal	spanned:0x100000    present:0x100000	absent:0
+> node 1 Movable	spanned:0x100000    present:0x100000	absent:0
+> On node 1 totalpages(node_present_pages): 2097152
+> node_spanned_pages:2097152
+> Memory: 6967796K/12582392K available (16388K kernel code, 3686K rwdata,
+> 4468K rodata, 2160K init, 10444K bss, 5614596K reserved, 0K
+> cma-reserved)
+> 
+> It shows that the current memory of node 1 is double added.
+> After this patch, the problem is fixed.
+> 
+> node 0 DMA	spanned:0xfff   present:0xf9e   absent:0x61
+> node 0 DMA32	spanned:0xff000 present:0xbefe0	absent:0x40020
+> node 0 Normal	spanned:0	present:0	absent:0
+> node 0 Movable	spanned:0x40000 present:0x40000 absent:0
+> On node 0 totalpages(node_present_pages): 1048446
+> node_spanned_pages:1310719
+> node 1 DMA	spanned:0	    present:0		absent:0
+> node 1 DMA32	spanned:0	    present:0		absent:0
+> node 1 Normal	spanned:0	    present:0		absent:0
+> node 1 Movable	spanned:0x100000    present:0x100000	absent:0
+> On node 1 totalpages(node_present_pages): 1048576
+> node_spanned_pages:1048576
+> memory: 6967796K/8388088K available (16388K kernel code, 3686K rwdata,
+> 4468K rodata, 2160K init, 10444K bss, 1420292K reserved, 0K
+> cma-reserved)
+> 
+> Signed-off-by: Linxu Fang <fanglinxu@huawei.com>
 
-Looks good to me.
+Uhmf, I have to confess that this whole thing about kernelcore and movablecore
+makes me head spin.
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+I agree that clamping the range to the node's start_pfn/end_pfn is the right
+thing to do.
+
+On the other hand, I cannot figure out why these two statements from
+zone_spanned_pages_in_node() do not help in setting the right values.
+
+*zone_end_pfn = min(*zone_end_pfn, node_end_pfn);
+*zone_start_pfn = max(*zone_start_pfn, node_start_pfn);
+
+If I take one of your examples:
+
+Node 0:
+node_start_pfn=1        node_end_pfn=2822144
+DMA      zone_low=1        zone_high=4096
+DMA32    zone_low=4096     zone_high=1048576
+Normal   zone_low=1048576  zone_high=7942144
+Movable  zone_low=0        zone_high=0
+
+*zone_end_pfn should be set to 2822144, and so zone_end_pfn - zone_start_pfn
+should return the right value?
+Or is it because we have the wrong values before calling
+adjust_zone_range_for_zone_movable() and the whole thing gets messed up there?
+
+Please, note that the patch looks correct to me, I just want to understand
+why those two statements do not help here.
 
 -- 
- Kirill A. Shutemov
+Oscar Salvador
+SUSE L3
 
