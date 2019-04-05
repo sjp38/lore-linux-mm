@@ -2,128 +2,155 @@ Return-Path: <SRS0=BJvi=SH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0480FC282DC
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 17:11:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 59480C282DA
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 17:18:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BFAAA206C0
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 17:11:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BFAAA206C0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 15A852175B
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 17:18:40 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="EbOLckE+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 15A852175B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 584816B0007; Fri,  5 Apr 2019 13:11:22 -0400 (EDT)
+	id 900966B0007; Fri,  5 Apr 2019 13:18:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 532916B0008; Fri,  5 Apr 2019 13:11:22 -0400 (EDT)
+	id 8AFDA6B0008; Fri,  5 Apr 2019 13:18:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 44C5F6B000C; Fri,  5 Apr 2019 13:11:22 -0400 (EDT)
+	id 79E0B6B000C; Fri,  5 Apr 2019 13:18:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EEC7A6B0007
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 13:11:21 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id m32so3593460edd.9
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 10:11:21 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4112B6B0007
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 13:18:40 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id p8so4824642pfd.4
+        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 10:18:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=jWxk0GETdbMHBeJfcbGAniuJenh+xldWuNdVk5rPuLc=;
-        b=HlpTD44A41Xiu+n9eOn/p1LFlGO6K8eHzmVxaIHpxUlsLAw78UEXm/8DtKuAlvthUN
-         bAVTdi34iC1bZ+AiLBBj/s996jpWLacCxOQT1zCmRv0ujcx6lDHiSCl8Lgi2IwsfQcfs
-         dTRwkZiocD0jbfQSo1DJdeRRbz6bjQTwREyzX3DYRdrvHZBarFPQNa9Pt9u6J6yoFOT4
-         WCE7Zir2FcBwIUZ1TNbzR4niy1ZFyzLuFU38sAo1tFoF/ltTP9HXvSIQ9JcGjfft0uOe
-         qyE8a/FgoY9XMdzNuFtnD6qoZ/57uu0jK5MdUexQWEcfZ/FyOgfWEfUA57yIUTwwsn5m
-         YDpg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAV+zrNp7gmYMLlrdclhINqatWexHsN0U+hNXIX1cICYiKCQXA+C
-	0xaYMDjslB0Fnr7aDUi2YmmA4gYT8xgzbif2msjTDWfknTyUyUq1+r0buWSSNFKkPdeQTluBoLV
-	orS0zWogdZaHs12FKcGnywIRxMCoHEjA3vmdvRt0HZSbRgVr2g//okZRfCklv8LN9rg==
-X-Received: by 2002:a50:b1bc:: with SMTP id m57mr9010427edd.116.1554484281539;
-        Fri, 05 Apr 2019 10:11:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxw6TLhO1Qb3JdtfkOrwgjJ1bXhX5GDQ4a90nOy+aSJ53j/LE0cHm7rgwWBX2GlnlTJReFW
-X-Received: by 2002:a50:b1bc:: with SMTP id m57mr9010387edd.116.1554484280769;
-        Fri, 05 Apr 2019 10:11:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554484280; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=hqVjLLqJXHIVHZRkw4agyBYtGmnqgKev2T7NptFo8e0=;
+        b=Aic4kqDUidGwQzPLF3TtDnXm80vB4PIDYYZD9ZhcnfjSWkyyppyDab6vLKjO5H/MRr
+         p11vDSTWW+0pJtbK5FSGJ0avkR1bAvPE6tSIz4GPqsalCRYCcBX1yzUS2SwwzjuEWYbc
+         LyLktTrkTqg52YEwVq0JCYUzmif3r3Rck+aARCVU0tRjP8iOyKmvuLlAKmvExWTFs6zf
+         kIJTxhB/6kvzKAVAarWa4ZVFskTJsJwuAnea+vyNbYvQDSujllkV+NY9hHIMtc+knbCH
+         GV0CPK5IjeqjZCu6eqUyMh82QlVjNnaINdrfVu+YYRsFx1+2KYroTSsxAbSVfEWx+69H
+         iUZQ==
+X-Gm-Message-State: APjAAAWLno7dy3h5D0bPin/m+tc5NaqHy/cQZlsnDNFGDQOwdOV7CYxf
+	OEzN9qYd1RNSlakH7qBpgLZqOQV0Z22D7FU3EPWhkAHtfw/9I6+zMXfz3OiJOXptZ/Ajh8J3/1o
+	3iM/P0ZaExNLvPIJCwK//0VSiSZO3oM3cvWfTA+oywCgrZtQCXOzuyEWETmBazh8ukA==
+X-Received: by 2002:a65:6496:: with SMTP id e22mr13202181pgv.249.1554484719744;
+        Fri, 05 Apr 2019 10:18:39 -0700 (PDT)
+X-Received: by 2002:a65:6496:: with SMTP id e22mr13202104pgv.249.1554484718940;
+        Fri, 05 Apr 2019 10:18:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554484718; cv=none;
         d=google.com; s=arc-20160816;
-        b=RkxEfADfySZfdEHj/Tp4Ss5IwayNG9AGzYCDTdEGmqyoS2VMFvYytYijmtQ/OK4r9M
-         8ncCupdk3le5yxOVbB5WXZtgkEh4HvLesNvjjXvHlAJ490KcqJu/KnPF3kZDsjNXbE0F
-         +9yaBVKxmFXqGb0JgaKjAWswrg2gJhZO/BT3od4NEXXjpl9Hqq0ufquxJZlVmhG2oC/m
-         0vqM7BkpsAdh7T9/0gHOCLTrXZS3gVUF6ScV1/UiL2N9+C1gf88X/17ycC4oCUlwv9wq
-         kHkdA5WdAsqZRXOaRjDOUMow6m6j9yco7ckalUhkHcg+QxRYOcg1WiqS29L3e2sQJlzr
-         l/lg==
+        b=xPGEW3jbjOGT6P1w19CIo7Ml7l3/fYnmM4ofHV/6alO9eR6ZB9a1fBHZWxvA8t+d1a
+         d26c7bsu0sXKAsN/lXBIuRhBT1x22BUzhbREjbBJLOEMPPxrwqvjGmRn5fLoNUyVM89+
+         pSnYy7l1uznLCp+0yv/H2hW2zizyUEyB0owcXaLuAWF3/BFTXRGXuMqbNrGr4rsmJ/T6
+         sksVc/VjinmswpO7LeyfmoZkNjsK532TMNHy2JI7BLAqIGVByMPVXPRC3Ilg7uSaswBy
+         bf3zDkmujakuw20IMUu3FD6yJB4MdruZ63Y978bAEF83TQpnIOxHN77aA2XGiF0W4oJO
+         8kXg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=jWxk0GETdbMHBeJfcbGAniuJenh+xldWuNdVk5rPuLc=;
-        b=vsTDmAP2lifmdu3d/GsyRDjvyXhF7a4rHppl+q13NEvQns0ndyr+H1Km/O1tbd5wZy
-         bfPzo9ij23TRTYe5Fr/rqV0N7Gb22WVeUvjF7ydyKMmXFHWMCRro9AVTdF2uoEW5P/4r
-         KmUTQYbQMqxuyYiRz1G9U5TsfkRMRsM1Fxk8DQyPZzPTKotQZ+85/tPEWqf/LKdk+ChD
-         pnwhwBgZibcap7YLU1LRmmMhUC05+vJz75nPro8lF1BQJxIVXVeBCMuEfKx4iiRCkaW0
-         +UOqp7tWavc4bVjbqo29Kq2wgY3wpUlLZBKBkAVrHmLJAwfnYRaP1hfPJUdqB19g0ltn
-         Diyg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=hqVjLLqJXHIVHZRkw4agyBYtGmnqgKev2T7NptFo8e0=;
+        b=0suBRhxz3BYMz3Srek0sMuU6PYCxnWj4mfLSlxJg9i9xsGgZ3l+SDfUNm7gTEIb966
+         2WQaQ90dCz/kinHpmxo7fIDkXjrfIMqihz3U2oflWp7ld+fTb34I5zA7a0fjR4fRa2Y2
+         hP+c28Rx6Ce+plWXLSNVB5Ir867otDyko8SPrskNJM0BuBhXnmKn3zKrA2m1LwJNlilT
+         6IBerLvmhob7P8vdDwF1FZ32mdoPEkgv6DH0fGWDkk+z1SD3/Myy7kLjpzwKETowicea
+         a4NbMYdckNQJVHN7QuXbszG4DhfKQbV8s1N2/bV0C/JMrbOn53C7IFOvsM4/szY42dOF
+         cTGg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m5si2055693edc.344.2019.04.05.10.11.20
+       dkim=pass header.i=@google.com header.s=20161025 header.b=EbOLckE+;
+       spf=pass (google.com: domain of ndesaulniers@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=ndesaulniers@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f1sor1310224pff.61.2019.04.05.10.18.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Apr 2019 10:11:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Fri, 05 Apr 2019 10:18:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ndesaulniers@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 4FCB0AD7C;
-	Fri,  5 Apr 2019 17:11:19 +0000 (UTC)
-Subject: Re: [RFC 0/2] guarantee natural alignment for kmalloc()
-To: Christopher Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>,
- David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>,
- Ming Lei <ming.lei@redhat.com>, Dave Chinner <david@fromorbit.com>,
- Matthew Wilcox <willy@infradead.org>,
- "Darrick J . Wong" <darrick.wong@oracle.com>, Christoph Hellwig
- <hch@lst.de>, Michal Hocko <mhocko@kernel.org>,
- linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org,
- linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org
-References: <20190319211108.15495-1-vbabka@suse.cz>
- <01000169988d4e34-b4178f68-c390-472b-b62f-a57a4f459a76-000000@email.amazonses.com>
- <5d7fee9c-1a80-6ac9-ac1d-b1ce05ed27a8@suse.cz>
- <010001699c5563f8-36c6909f-ed43-4839-82da-b5f9f21594b8-000000@email.amazonses.com>
- <4d2a55dc-b29f-1309-0a8e-83b057e186e6@suse.cz>
- <01000169a68852ed-d621a35c-af0c-4759-a8a3-e97e7dfc17a5-000000@email.amazonses.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <2b129aec-f9a5-7ab8-ca4a-0a325621d111@suse.cz>
-Date: Fri, 5 Apr 2019 19:11:17 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@google.com header.s=20161025 header.b=EbOLckE+;
+       spf=pass (google.com: domain of ndesaulniers@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=ndesaulniers@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=hqVjLLqJXHIVHZRkw4agyBYtGmnqgKev2T7NptFo8e0=;
+        b=EbOLckE+QInONXLlNWKYel3NJGiKrh//28V6JiKHoekXnaWJEOnMA/wzzTMpAn+4V1
+         Q1bih10evC9y95Y7l5Zjr0W7971tdPOCfbQrbh9sVt1FA2URixmRsPx4D5prztDqLPOU
+         YqmEGNC6nw62YsYqXfpFnJKvEV2EhhpUuB2FudqgGdTqOtc81ZHgH8iJ/SuTteMIhEgs
+         dhUfoNbBz5QQS35qgPREc1YHs91aYjB4BOwHsuFDYyuaTnoqAsIG/ViuXAYF0PylhP/t
+         udTQF+imui84rIiFW0DfrQfX7CfoTWH845a0yXTOG+H+2wmMaick2516HKYeUcL08TIb
+         Rxog==
+X-Google-Smtp-Source: APXvYqxJZn7bBf4oXeCAzQ0xcYU7w0/3wcsx2rsWjz5yyvb/Q1eD2mX/xF0s3t1Ors8XGHzn5yU+BfWd6gHp1LZ8VdU=
+X-Received: by 2002:a62:14d7:: with SMTP id 206mr13520128pfu.162.1554484717893;
+ Fri, 05 Apr 2019 10:18:37 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <01000169a68852ed-d621a35c-af0c-4759-a8a3-e97e7dfc17a5-000000@email.amazonses.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <20190402030956.48166-1-trong@android.com> <20190403152719.GH22763@bombadil.infradead.org>
+In-Reply-To: <20190403152719.GH22763@bombadil.infradead.org>
+From: Nick Desaulniers <ndesaulniers@google.com>
+Date: Fri, 5 Apr 2019 10:18:26 -0700
+Message-ID: <CAKwvOdnJLOCKXZQcrCrsM1j5b4U_0vdV7JhbDtBUdLe3cMYp4A@mail.gmail.com>
+Subject: Re: [PATCH v3] gcov: fix when CONFIG_MODULES is not set
+To: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Tri Vo <trong@android.com>, Peter Oberparleiter <oberpar@linux.ibm.com>, 
+	Greg Hackmann <ghackmann@android.com>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org, 
+	Randy Dunlap <rdunlap@infradead.org>, kbuild test robot <lkp@intel.com>, 
+	LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/22/19 6:52 PM, Christopher Lameter wrote:
-> On Thu, 21 Mar 2019, Vlastimil Babka wrote:
-> 
->> That however doesn't work well for the xfs/IO case where block sizes are
->> not known in advance:
->>
->> https://lore.kernel.org/linux-fsdevel/20190225040904.5557-1-ming.lei@redhat.com/T/#ec3a292c358d05a6b29cc4a9ce3ae6b2faf31a23f
-> 
-> I thought we agreed to use custom slab caches for that?
+On Wed, Apr 3, 2019 at 8:27 AM Matthew Wilcox <willy@infradead.org> wrote:
+>
+> On Tue, Apr 02, 2019 at 10:09:56AM +0700, trong@android.com wrote:
+> > From: Tri Vo <trong@android.com>
+> >
+> > Fixes: 8c3d220cb6b5 ("gcov: clang support")
+>
+> I think this is the wrong fix.  Why not simply:
 
-Hm maybe I missed something but my impression was that xfs/IO folks would have
-to create lots of them for various sizes not known in advance, and that it
-wasn't practical and would welcome if kmalloc just guaranteed the alignment.
-But so far they haven't chimed in here in this thread, so I guess I'm wrong.
+I spoke with Tri quickly about this proposal and we agree it's a better fix.
+
+Andrew, would you mind dropping:
+https://ozlabs.org/~akpm/mmotm/broken-out/gcov-clang-support-fix.patch
+?
+
+Matthew, would you please send that patch with a commit message?  Or
+if you would prefer us to send with your suggested-by tag, we can do
+that, too.  Whichever you prefer, please let me know.  Thanks for the
+suggestion.
+
+>
+> +++ b/include/linux/module.h
+> @@ -709,6 +709,11 @@ static inline bool is_module_text_address(unsigned long addr)
+>         return false;
+>  }
+>
+> +static inline bool within_module(unsigned long addr, const struct module *mod)
+> +{
+> +       return false;
+> +}
+> +
+>  /* Get/put a kernel symbol (calls should be symmetric) */
+>  #define symbol_get(x) ({ extern typeof(x) x __attribute__((weak)); &(x); })
+>  #define symbol_put(x) do { } while (0)
+>
+
+
+-- 
+Thanks,
+~Nick Desaulniers
 
