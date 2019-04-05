@@ -2,149 +2,155 @@ Return-Path: <SRS0=BJvi=SH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-13.0 required=3.0
+	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PULL_REQUEST,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 83F57C10F0F
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 13:42:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DB4C5C4360F
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 13:51:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4C2402186A
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 13:42:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4C2402186A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id A3B9B21738
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 13:51:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A3B9B21738
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D24036B026B; Fri,  5 Apr 2019 09:42:17 -0400 (EDT)
+	id 1275A6B026B; Fri,  5 Apr 2019 09:51:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CD3666B026C; Fri,  5 Apr 2019 09:42:17 -0400 (EDT)
+	id 097DA6B026D; Fri,  5 Apr 2019 09:51:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B9ABA6B026D; Fri,  5 Apr 2019 09:42:17 -0400 (EDT)
+	id EA1E66B026E; Fri,  5 Apr 2019 09:51:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CA436B026B
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 09:42:17 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id p88so3220184edd.17
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 06:42:17 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F4276B026B
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 09:51:23 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id d2so3177936edo.23
+        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 06:51:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=nOVLKPMhicrsHVuH11A/ri87i3/+82LxV/U8vx9I0rM=;
-        b=qwiMhWqO/rT6cQ63aTy95MlP1fgzPAjNTaiqtM2YNOrB2/cIqG66Vs4PzASWPn9tgi
-         r88YuR/NHhj1yk81BKTVCx1AlpOZZlu4gzvmAESS9WuxPUz+0BiXUdKu9+gCJxuTr6Ln
-         1MAq7m2MIOOmI74CDuBxipwh7z5mablYVvyYfu/fZ0hpi4dprK9fsOPFOWXiYa025r2P
-         3iBO8XmR1aqxqLWlBMAgXs2JkyMJUwJK6b37N06MShj9Id6Ppal6B+vaV2ABmqsJ8ipQ
-         sQUqQqZ+F/2B4AmX/v03zTnuG48FSkyqOyGcf94715hba4yfI+mJQeDGFdSyh+YfVQsS
-         hzXQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAWj0XcqHrMYLpxLX4XE/Stxq4+JdsJKRL9oOpojyrPYyp+JoiOy
-	N9lsJMGgOoBnMBlUWd28y0Ar1NvV7VK3JyUbuE1FX8gpieXfnpVOXhZ3PF7ZXRnw+8dSBfxnE7E
-	bVTjSir+rRYPTlbAo9rj3XPQjQWN2XQ4ji1PvS7NahqLziMIrWy4RjRWsfMqXUHtbQw==
-X-Received: by 2002:a17:906:90d3:: with SMTP id v19mr7386498ejw.268.1554471736964;
-        Fri, 05 Apr 2019 06:42:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzIUc2hpD3prxb9BVlmxsAZzGQ4e3HQNFlzNaJgSchfpQzf08G7KBGMh+DZL/8f3Prp3zi4
-X-Received: by 2002:a17:906:90d3:: with SMTP id v19mr7386466ejw.268.1554471736136;
-        Fri, 05 Apr 2019 06:42:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554471736; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=lzcy0m9Ct3wLhEZq/mTvC0ituY1HDTmyz8m7K/d4ouM=;
+        b=MSiqXbnj8oPMpybEZlIkFTu1X2WEhfKxat3FzmIE7JH0ohOEjvq572+egLeusm5VfL
+         sYElXiH8GkTt5UoWAQeoifD279nB0UsTbV6I3wgePqRRRsCp1SW2nBcUtt1dMgoqXrHW
+         wBCCwvpE19pM9pXGwihGP9ujC4FccVbTsDbR2LeP723AC+U1rxKzgmb40cl9VErUtclI
+         0LVTMhEriaMQM2bdLnwmDTsL6HqtYDiISy0yJOwAp9LpE+5+a10BzzvTxZMoAf+QfSTB
+         6qVWHhEfVB3GUlX87zGoOC+egPNgU2Wh7DV2fu2fC9d//gkA6WK07tM7sxWVU766oedY
+         A3zg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.41 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAUQ9EZAUOhXiG1UIcuoGRYC2OZd+pQlaJsXRyKYIS9SGzrqz9tP
+	h/8l4lYr01teJNbWoiNXtOYvT+x0iqBm0sB9reC0+H/KTuUT2N/iFLU2YcaOAs3Z6l5yT/bvyPB
+	3l1/W/Mfru+IrYGsWTHSthun9UdM5xmqnSSF5gJR6dw4NT1kiBmfSGIkrRuGYkk9NSQ==
+X-Received: by 2002:a50:b3b1:: with SMTP id s46mr8330440edd.202.1554472283024;
+        Fri, 05 Apr 2019 06:51:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzjsWsECZ00WBCGMy5NP83D7jkKaH4SyzbxAuYi5FBtRK7qI+p5IvxSoFTyME6kIUMdFxeY
+X-Received: by 2002:a50:b3b1:: with SMTP id s46mr8330380edd.202.1554472281999;
+        Fri, 05 Apr 2019 06:51:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554472281; cv=none;
         d=google.com; s=arc-20160816;
-        b=vflYqr/AwEATCjpquSoysSro8YLVymaNHje5ZmWH6y3Jxw4QQg4JE7xOJI4w38FaKh
-         ztK/CxME0vUGwlUDnlSzzCqcOIPnyhl0hSqDaLCql3LQqxclZtF5SfG22Pj9vK7N9uso
-         ki+IyjlnDZQxOJurYN9kuIagd8KFqGXIXQ7NHshx/MhL/20+iG9Joi7QfR2emEXFotaY
-         O00ypxMeNv26wbrMClF1BDaj+Jt8d06BS9HfZrX32tK8EZoX59eEgaIWgEo1pAqp86RP
-         gqXzeFLsB5PjnGFwf3SEAc1Qu9vvp00URMj2n6HXRhBtT9kPtmVeEpl1XBinqo6Z6fPJ
-         gR4w==
+        b=oR6FWMFAfZa4Gh2UPLaZF6oiwhh7gzMVXKcfLHVbsAIBlYhAECJMr7qvkC8DF9fqNr
+         /KlFUrZO1z12Jd2nAbE6lL0bIWgjRKIFm4LZ3X0OuTmRMYYpmIpHddxVzMdErh0TfiWe
+         sNIOZNrqjBMojOwiS2tN3XaQpU66mPt7P2R9mlGKBdXn+AyUwjshueoZtDB8KBcAiOLw
+         xaPk9h9is6LBdv+T0wYH7+7ebFUMUw9BLrcdtEzU0oGfeA9pr1nvUnP372l59ls8iLgi
+         T97bZp2jd3BQMHzRl43SH+cT2DYBTBu5ifdv9efPIeA9xF2sHj/i0mxUKkVPzFj6Oq9B
+         is8w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=nOVLKPMhicrsHVuH11A/ri87i3/+82LxV/U8vx9I0rM=;
-        b=BYTb0ozSQIvCu1NNK9XCs90BWI66HEExlb6zZ5+bfltfBV9t9o3vAunj+Lja41Lc64
-         iZ1QADZuU4xXS7I2Or2tF24rSE0tUksKsr93XrDouPO63JW8mP41ALbStpJIzb2SbN3C
-         Gw034x95ncfAWdba6CxWmfIIn2vS0d1BtciQLPx4zwBP/Wcep1TywGIyjyBgvH77FyVz
-         PJbEnEvq1ki+eU5aXcS0sa2jcZ2O6XTwVWnM6offYO3R6w3FiaIUS1/+I2tzNQdGwaX2
-         6sWuHjA+ujcPsaxpXVSLmmL22nnTHb+dLJwtL/GnnCfISx6DWjVjXJVRxxvA12ZJ+7QV
-         c4Cg==
+        h=message-id:date:subject:cc:to:from;
+        bh=lzcy0m9Ct3wLhEZq/mTvC0ituY1HDTmyz8m7K/d4ouM=;
+        b=NvY6g4I4yxSXdmEBm8XWvLosbwVnC4Fy8/p9PKuXCooxgerDhoc6uAYeI7S+lpPmxa
+         Lz+t1Bbzna1uqy/oyzwILtk+Va/01MOktHgljFme71/A/FRzYzNBSXEe9kEuzj1lvMkb
+         InQCwqaAsYb0s4cCxwcaqsY0j5OhoPFsKeAkI25p55CdBNId21MsUKErBWuN9XaS3VRa
+         qlnCMZENKWAvrz5EP/tFlpKmVcEH0Su6zdvbEiWSqK0KshxNlZIeEQmYgIiblx3DcJH/
+         0SBri+wPc5KlY+mxFaEAjU5u2yqxuvuGLT3LmOuyG7uxkt2AYQJjMAI3v1fz416MsrBP
+         qfiA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id e6si5969486ejb.264.2019.04.05.06.42.15
-        for <linux-mm@kvack.org>;
-        Fri, 05 Apr 2019 06:42:16 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.41 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp21.blacknight.com (outbound-smtp21.blacknight.com. [81.17.249.41])
+        by mx.google.com with ESMTPS id c2si934203edl.204.2019.04.05.06.51.21
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Apr 2019 06:51:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.41 as permitted sender) client-ip=81.17.249.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id F280B16A3;
-	Fri,  5 Apr 2019 06:42:14 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id BD70B3F68F;
-	Fri,  5 Apr 2019 06:42:13 -0700 (PDT)
-Date: Fri, 5 Apr 2019 14:42:11 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	Linux ARM <linux-arm-kernel@lists.infradead.org>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Will Deacon <will.deacon@arm.com>
-Subject: Re: struct dev_pagemap corruption
-Message-ID: <20190405134210.GH4906@arrakis.emea.arm.com>
-References: <7885dce0-edbe-db04-b5ec-bd271c9a0612@arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <7885dce0-edbe-db04-b5ec-bd271c9a0612@arm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.41 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp21.blacknight.com (Postfix) with ESMTPS id 3C6DAB8B74
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 14:51:21 +0100 (IST)
+Received: (qmail 28386 invoked from network); 5 Apr 2019 13:51:21 -0000
+Received: from unknown (HELO stampy.163woodhaven.lan) (mgorman@techsingularity.net@[37.228.225.79])
+  by 81.17.254.9 with ESMTPA; 5 Apr 2019 13:51:21 -0000
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Linus Torvalds <torvalds@linuxfoundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Linux-MM <linux-mm@kvack.org>,
+	LKML <linux-kernel@vger.kernel.org>,
+	Mel Gorman <mgorman@techsingularity.net>
+Subject: [GIT PULL] mm/compaction functional fixes for v5.1-rc4
+Date: Fri,  5 Apr 2019 14:51:18 +0100
+Message-Id: <20190405135120.27532-1-mgorman@techsingularity.net>
+X-Mailer: git-send-email 2.16.4
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Anshuman,
+The following changes since commit 79a3aaa7b82e3106be97842dedfd8429248896e6:
 
-On Fri, Apr 05, 2019 at 10:10:22AM +0530, Anshuman Khandual wrote:
-> On arm64 platform "struct dev_pagemap" is getting corrupted during ZONE_DEVICE
-> unmapping path through device_destroy(). Its device memory range end address
-> (pgmap->res.end) which is getting corrupted in this particular case. AFAICS
-> pgmap which gets initialized by the driver and mapped with devm_memremap_pages()
-> should retain it's values during the unmapping path as well. Is this assumption
-> right ?
-[...]
-> The problem can be traced down here.
-> 
-> diff --git a/drivers/base/devres.c b/drivers/base/devres.c
-> index e038e2b3b7ea..2a410c88c596 100644
-> --- a/drivers/base/devres.c
-> +++ b/drivers/base/devres.c
-> @@ -33,7 +33,7 @@ struct devres {
->          * Thus we use ARCH_KMALLOC_MINALIGN here and get exactly the same
->          * buffer alignment as if it was allocated by plain kmalloc().
->          */
-> -       u8 __aligned(ARCH_KMALLOC_MINALIGN) data[];
-> +       u8 __aligned(__alignof__(unsigned long long)) data[];
->  };
-[...]
-> With the patch:
-> 
-> [   53.027865] XXX: zone_device_public_altmap_init pgmap ffff8005de634218 resource ffff8005de634250 res->start 680000000 res->end 6bfffffff size 40000000
-> [   53.029840] XXX: devm_memremap_pages_release pgmap ffff8005de634218 resource ffff8005de634250 res->start 680000000 res->end 6bfffffff size 40000000
-> 
-> Without the patch:
-> 
-> [   34.326066] XXX: zone_device_public_altmap_init pgmap ffff8005de530a80 resource ffff8005de530ab8 res->start 680000000 res->end 6bfffffff size 40000000
-> [   34.328063] XXX: devm_memremap_pages_release pgmap ffff8005de530a80 resource ffff8005de530ab8 res->start 680000000 res->end 0 size fffffff980000001
+  Linux 5.1-rc3 (2019-03-31 14:39:29 -0700)
 
-OK, so without this patch pgmap->res.end becomes 0 while it should stay
-at 0x6bfffffff. Is it easy to reproduce with mainline?
+are available in the Git repository at:
 
-What's zone_device_public_altmap_init? I couldn't grep it in mainline.
-How's the pgmap allocated?
+  git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux.git tags/mm-compaction-5.1-rc4
 
-I'd suggest you enable kasan and see if it spots anything.
+for you to fetch changes up to 5b56d996dd50a9d2ca87c25ebb50c07b255b7e04:
+
+  mm/compaction.c: abort search if isolation fails (2019-04-04 11:56:15 +0100)
+
+----------------
+
+Hi Linus,
+
+The merge window for 5.1 introduced a number of compaction-related patches
+authored by myself.  There are intermittent reports of corruption and
+functional issues based on them due to sloppy checking of zone boundaries
+and a corner case where the free lists are overrun.
+
+Reports are not common but at least two users and 0-day have tripped over them.
+There is a chance that one of the syzbot reports are related but it has not
+been confirmed properly.
+
+The normal submission path is through Andrew but it's now late on a Friday
+and I do not know if a round of updates are coming your way or not and
+these patches have been floating around for a while. Given the nature
+of the fixes, I really would prefer to avoid another RC with corruption
+issues creating duplicate reports.
+
+All of these have been successfully tested on older RC windows. This will
+make this branch look like a rebase but they've simply been cherry-picked
+from Andrew's tree and placed on a fresh branch. I've no reason to
+believe that this has invalidated the testing given the lack of change
+in compaction and the nature of the fixes.
+
+Note that you may still receive these from Andrew and there are other
+compaction-related fixes in his tree that are less critical. I do not
+expect them to conflict but there is a non-zero risk of confusion. If
+you get a bunch of patches from Andrew then please ignore this entirely
+so the normal submission path is preserved. Otherwise, please either git
+pull this or pick up the patches directly at your discretion.
+
+Mel Gorman (1):
+  mm/compaction.c: correct zone boundary handling when resetting
+    pageblock skip hints
+
+Qian Cai (1):
+  mm/compaction.c: abort search if isolation fails
+
+ mm/compaction.c | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)
 
 -- 
-Catalin
+2.16.4
 
