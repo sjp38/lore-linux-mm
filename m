@@ -7,99 +7,100 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 00EAFC282CE
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 22:12:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 58E6CC282CE
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 22:12:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 90FC92186A
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 22:12:29 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EED8C21726
+	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 22:12:35 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="JQVCFkvU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 90FC92186A
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="WnKcALRd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EED8C21726
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 27E616B0269; Fri,  5 Apr 2019 18:12:29 -0400 (EDT)
+	id 95C3B6B026B; Fri,  5 Apr 2019 18:12:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2051B6B026A; Fri,  5 Apr 2019 18:12:29 -0400 (EDT)
+	id 8E3876B026C; Fri,  5 Apr 2019 18:12:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 07FDE6B026B; Fri,  5 Apr 2019 18:12:29 -0400 (EDT)
+	id 7845C6B026D; Fri,  5 Apr 2019 18:12:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BB95D6B0269
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 18:12:28 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id e20so5336801pfn.8
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 15:12:28 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 394DC6B026B
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 18:12:35 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id x5so5116107pll.2
+        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 15:12:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
          :message-id:in-reply-to:references:user-agent:mime-version
          :content-transfer-encoding;
-        bh=dVuSGqGMdSL+lYB9NVdPOXJ/yezgrt5Vhv+/46VVp14=;
-        b=KnIY3SQHaNJV2QEFsJ6fbdHsawTVdzMjHGdXXnrSGOYo1v/Yih8u5/np6qRgME1Qjr
-         SbBN8LSCG6M8t/UF3DsN6o0PbZdUqZClrI7weoK6LtGij4EdnB7dDwIwTCk9ZJjS642a
-         B1kEvSvvfbKsqG+iEbdtl84lQJFMGH+kohAPaV39VzJRKE8e7DoWo4v4VYd6goN144F/
-         3H/PajITuezszrEYIYBBSkEDECfZs0aSJyTenDhKmkDwiAZ2qoy6EtlT9FWStEWTORD5
-         QbtwvGbZip9Moh7SgCXfXC2rOZyQrGk0CSpyX8TgxDgd2jLQDpbIF8RiQ7min1uJGN6v
-         24ag==
-X-Gm-Message-State: APjAAAU1mDPgd+9tZOuCBl5CRXjyoZ+irwLHSMOWjFmHi8d208wUb+eu
-	CLpIT0zz9hsuzsFDudjCIq//WqWJ+KreD7FWwnAMNXHdnxUQ9oF2nqwysQrUn3b5rtn/OLuie/N
-	5pmHPteAhPk0V63JXmBjn+aXoPIV7E9wBSzuEE5Ws+Szi2zLkpPLZvFKMVJ7vMtaycg==
-X-Received: by 2002:a62:12d0:: with SMTP id 77mr15016673pfs.15.1554502348368;
-        Fri, 05 Apr 2019 15:12:28 -0700 (PDT)
-X-Received: by 2002:a62:12d0:: with SMTP id 77mr15016600pfs.15.1554502347325;
-        Fri, 05 Apr 2019 15:12:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554502347; cv=none;
+        bh=uA3ehOa7Jw+A2AorvTLb7I9vCJ3fGJ8/5DDYOfi5sas=;
+        b=fX3piJsN2IqWmvdKnfR6yM00hKNiJcU7gxSe8es83mtqBRfcr42Po4Mpw4jMsRzKZk
+         ZgCLBdJsIM6DoZYN/eLwS+f4PHEomXe7yOYtQu/nUH2mRapK8eTrrhhiIGaYVURioOf9
+         MnmymTr6j+ROgYCHWNgmngaYiY0NYfOYrNK9vvygbe3jhZYk6LRvOtxMqeStcmoIOh7n
+         PdCeHNNX9WMCbgAhr8dC9ljQdWc3J5+y8NxvWeTu9tNvM262VQFtSRRe4/KpceNqBnC/
+         d6opuN9ce0g3c0B5XkA3GqfmMGv/ga1DFrLe/Q2as5WGbLo+FjzNkLCRn13sqggLe05x
+         hbmg==
+X-Gm-Message-State: APjAAAWS/Sp09uFbGmmHaMKWu2lKyYB9oT4YyGzxjK+ln5Tqeom00x9p
+	KsyKWU3klyqyBVqaqhSEpuo7olQWOFaavDwnRp7/RXoafqHDmfuOemVuplaPfgvMHdfp701U6O1
+	4JbdmP/YlVdWKg+rsMYpZa1rEiM36rORXlWc7YI6bvB9YZ8o5Q8RTQb/OUsuOgOT+Rg==
+X-Received: by 2002:a63:ce50:: with SMTP id r16mr11630278pgi.89.1554502354805;
+        Fri, 05 Apr 2019 15:12:34 -0700 (PDT)
+X-Received: by 2002:a63:ce50:: with SMTP id r16mr11630192pgi.89.1554502353620;
+        Fri, 05 Apr 2019 15:12:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554502353; cv=none;
         d=google.com; s=arc-20160816;
-        b=HNpDYwyPLyN9EnqzXMhgmdqJiQ3FKWjLbNtFZyxI/st4VR3eUayyKC0ySsjvHtxPHV
-         fAGd1e+wqgZ5Gpflv/jE4r8nVdjoFodA+2bNCWwOERj8rNj4Hv29EaSsvvDCHL0LC36I
-         V/YuXAz2JNARzenj4epvh3IvSfJ/h0YM6gqwVswOSXlRxYJ0NSXawXTJ4lM2rFCrOw7g
-         ucwV5CmGZS4s6lINGdfEZPGNcZHhqiIpvc6qs+c3s0jdcrv4sK6JjRWCaTO3y0PBHNUF
-         CUwpgWAyu0SH70B2maYBGSexWKXuDVce7/HYjGqtYunPVvCZT8sNVYT14oSl+UcrpKfa
-         6CBA==
+        b=zeppFkovAdmt3p+tK5aGW0L/yGV71qyD+yhdWa1PVLvw8JgdFlnlZGf6BHHGi6SqnT
+         aN1j+biFy10kodrwuVkdyRo1lotQIa195fcwkDPeYzJGzrPmMc624Je7IITxSrsopTCw
+         ia98Vg2jyBg43CEbb2yFwgw+GIbIg3nJiNwS92AAOeLbJr8o2Y0+zd1MFwGuV9XTR9U9
+         BUJw62Ie314JPU1A+1j6OGsSmaUH2FLN+uiC8dLsvk6s0LnFo1bzim9mROekvT6COZsQ
+         Xgw11wmCDbWe1S8YHlqA9CSt6XhqqIVfy+hPZtelQ/NaKXzPksRSOXKbZ2iRhpPMpbFM
+         TD4g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:message-id:date:cc:to:from:subject:dkim-signature;
-        bh=dVuSGqGMdSL+lYB9NVdPOXJ/yezgrt5Vhv+/46VVp14=;
-        b=lAxXI0FsIicHIu7uwxxy6ypfETbbYK19lwwVpNqq5h+N5+vr1FTk5przHbWqaRgMif
-         CjCQYqFi/fRjY7hXKQRJuLuRpsDebeLOfQq8255WryQaZmxrJpzE+hn/BtxXzZ3vSATh
-         2B9/rU3jv1u61DWVaASOtCn3AnP06bYMmOdNGIDA0pHLmTm21BgbZMpwQLrilYbEcrt1
-         51gkhgZd7EN9Gj0JjfnK4c/zfr03VFgujCA2d/yghZfBGKpJiiDUpRObJdr6yrPvm3rt
-         kUv+Lv1cDik0i/CEr14xznkWpinEeq/zdND1kGCE3vBvX3oV944D2dPFlbsguVhoQP5w
-         HwCQ==
+        bh=uA3ehOa7Jw+A2AorvTLb7I9vCJ3fGJ8/5DDYOfi5sas=;
+        b=XvaoAODzuBB91ozNOpjWIi8lS2ERB0jdf4wWa0plWbEq0XYEsctosX5vZOyrj+eOSb
+         1t1ey833rqHYCbjO6zJExhSQ5UQkr4TrP5SRT4bWzFaMvDft/2HmijutT4XhuLJ5QqI4
+         M0RWMA1kxS6bUWfKDhBjmEXv2fsXY9Ppq+oe8xYsuqIFoXJbkTvviof8KhxQfrHKming
+         snZYwSaPdYO4yp5DqKCEdAa2udUJ+ummXDp4mq+XiKQoHbx3xNYeCbvGOksoSl0ZBVGr
+         TCRV9v2ozwhNCCrp63DU497Mjn6Ybggmw3dRaBrQE2XnOmQXQ3qvGNU5Ken3K1sOqpO9
+         mQyw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JQVCFkvU;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=WnKcALRd;
        spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z64sor3847683pfz.2.2019.04.05.15.12.27
+        by mx.google.com with SMTPS id k4sor17299299pfa.53.2019.04.05.15.12.33
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 05 Apr 2019 15:12:27 -0700 (PDT)
+        Fri, 05 Apr 2019 15:12:33 -0700 (PDT)
 Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JQVCFkvU;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=WnKcALRd;
        spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=subject:from:to:cc:date:message-id:in-reply-to:references
          :user-agent:mime-version:content-transfer-encoding;
-        bh=dVuSGqGMdSL+lYB9NVdPOXJ/yezgrt5Vhv+/46VVp14=;
-        b=JQVCFkvUkfWotyAFTK0D20cgOePlePMZbaEA60cegN8gvROzBwq6nj7PYVeXVjhR8g
-         NZzIIiVk2R4QQvX6GA8mIKChjKmhPLCY+hYRKgEiuHzfsshVMvf0mOQlLzE+e0mG5L2U
-         prbcDAvY/fTOQJSxxCXfORrqJuu4QoAEf0wXdalbKvLm/vf/DkOoQZdivMOpzrNZP/lN
-         vkS06bjvHACsJldSdBM0ThykU5zprTeBnS46dQ8JZ9hcpXn47Zjhtzeah/QrVfh5i7Vh
-         PVnpqnU7tXzqfiMoHOm76lWBBUH+Mx2uwHhcCELcSLVlkTi6xJuNGIX7/LefnnkIlzvL
-         fIoQ==
-X-Google-Smtp-Source: APXvYqxKbwb1VzShMBMk6QhT/5s3udfUks/YgS3lLw5sgTjR3Ne4rhJN++RLqGAP8qX1lUodDpAx3g==
-X-Received: by 2002:aa7:8289:: with SMTP id s9mr15095613pfm.208.1554502346930;
-        Fri, 05 Apr 2019 15:12:26 -0700 (PDT)
+        bh=uA3ehOa7Jw+A2AorvTLb7I9vCJ3fGJ8/5DDYOfi5sas=;
+        b=WnKcALRdTyp6pCXsE8JbLXwNSXmiTwrFsD86/ca15xC7u7WFUMr1dE7ApT0PWfBIj/
+         fVBe++igQ81F0zOktIZCozX8rjRSnoaY/GpBr5fuTvNnGBXAU/EDVdcQ0j+YK8gSJeFp
+         SozQ8JmKuk9ZMiwRigZonoRQ1Kju/DEIKDhTYiizw22qlnPVmsaxixL9bcZW32E+OvG7
+         XHC2vZ1cNV5OSM9zq4yYXWIslODYdwvFMAYTmV7/VnGEQQYwI/TRwTOOL8ladUa+HnhF
+         1iCWT8NRfzQ4w7IDGGxbRN7d6C/Zjv1zIzS70/GaGt3PS1S0zVGPPvA/WQa7F3kdFjsY
+         gkUg==
+X-Google-Smtp-Source: APXvYqyGZ2UBm/RKCejvVc5BO/RoTRbaNNjBjAA4639olLhxNtuws2N0qQgEDERakVOHFz2Xtsl69Q==
+X-Received: by 2002:a65:5183:: with SMTP id h3mr14500620pgq.53.1554502353162;
+        Fri, 05 Apr 2019 15:12:33 -0700 (PDT)
 Received: from localhost.localdomain (50-126-100-225.drr01.csby.or.frontiernet.net. [50.126.100.225])
-        by smtp.gmail.com with ESMTPSA id f63sm30382350pfc.180.2019.04.05.15.12.25
+        by smtp.gmail.com with ESMTPSA id a3sm39604616pfn.182.2019.04.05.15.12.32
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Apr 2019 15:12:26 -0700 (PDT)
-Subject: [mm PATCH v7 3/4] mm: Implement new zone specific memblock iterator
+        Fri, 05 Apr 2019 15:12:32 -0700 (PDT)
+Subject: [mm PATCH v7 4/4] mm: Initialize MAX_ORDER_NR_PAGES at a time
+ instead of doing larger sections
 From: Alexander Duyck <alexander.duyck@gmail.com>
 To: linux-mm@kvack.org, akpm@linux-foundation.org
 Cc: pavel.tatashin@microsoft.com, mhocko@suse.com, dave.jiang@intel.com,
@@ -109,8 +110,8 @@ Cc: pavel.tatashin@microsoft.com, mhocko@suse.com, dave.jiang@intel.com,
  vbabka@suse.cz, sparclinux@vger.kernel.org, dan.j.williams@intel.com,
  ldufour@linux.vnet.ibm.com, mgorman@techsingularity.net, davem@davemloft.net,
  kirill.shutemov@linux.intel.com
-Date: Fri, 05 Apr 2019 15:12:25 -0700
-Message-ID: <20190405221225.12227.22573.stgit@localhost.localdomain>
+Date: Fri, 05 Apr 2019 15:12:32 -0700
+Message-ID: <20190405221231.12227.85836.stgit@localhost.localdomain>
 In-Reply-To: <20190405221043.12227.19679.stgit@localhost.localdomain>
 References: <20190405221043.12227.19679.stgit@localhost.localdomain>
 User-Agent: StGit/0.17.1-dirty
@@ -125,218 +126,267 @@ List-ID: <linux-mm.kvack.org>
 
 From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 
-Introduce a new iterator for_each_free_mem_pfn_range_in_zone.
+Add yet another iterator, for_each_free_mem_range_in_zone_from, and then
+use it to support initializing and freeing pages in groups no larger than
+MAX_ORDER_NR_PAGES. By doing this we can greatly improve the cache locality
+of the pages while we do several loops over them in the init and freeing
+process.
 
-This iterator will take care of making sure a given memory range provided
-is in fact contained within a zone. It takes are of all the bounds checking
-we were doing in deferred_grow_zone, and deferred_init_memmap. In addition
-it should help to speed up the search a bit by iterating until the end of a
-range is greater than the start of the zone pfn range, and will exit
-completely if the start is beyond the end of the zone.
+We are able to tighten the loops further as a result of the "from" iterator
+as we can perform the initial checks for first_init_pfn in our first call
+to the iterator, and continue without the need for those checks via the
+"from" iterator. I have added this functionality in the function called
+deferred_init_mem_pfn_range_in_zone that primes the iterator and causes us
+to exit if we encounter any failure.
+
+On my x86_64 test system with 384GB of memory per node I saw a reduction in
+initialization time from 1.85s to 1.38s as a result of this patch.
 
 Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
 Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 ---
- include/linux/memblock.h |   25 ++++++++++++++++++
- mm/memblock.c            |   64 ++++++++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c          |   31 +++++++++-------------
- 3 files changed, 101 insertions(+), 19 deletions(-)
+ include/linux/memblock.h |   16 +++++
+ mm/page_alloc.c          |  162 ++++++++++++++++++++++++++++++++++------------
+ 2 files changed, 137 insertions(+), 41 deletions(-)
 
 diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 294d5d80e150..f8b78892b977 100644
+index f8b78892b977..47e3c0612592 100644
 --- a/include/linux/memblock.h
 +++ b/include/linux/memblock.h
-@@ -240,6 +240,31 @@ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
- 	     i >= 0; __next_mem_pfn_range(&i, nid, p_start, p_end, p_nid))
- #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
- 
-+#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
-+void __next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
-+				  unsigned long *out_spfn,
-+				  unsigned long *out_epfn);
+@@ -263,6 +263,22 @@ void __next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
+ 	     __next_mem_pfn_range_in_zone(&i, zone, p_start, p_end);	\
+ 	     i != U64_MAX;					\
+ 	     __next_mem_pfn_range_in_zone(&i, zone, p_start, p_end))
++
 +/**
-+ * for_each_free_mem_range_in_zone - iterate through zone specific free
-+ * memblock areas
++ * for_each_free_mem_range_in_zone_from - iterate through zone specific
++ * free memblock areas from a given point
 + * @i: u64 used as loop variable
 + * @zone: zone in which all of the memory blocks reside
 + * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
 + * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
 + *
 + * Walks over free (memory && !reserved) areas of memblock in a specific
-+ * zone. Available once memblock and an empty zone is initialized. The main
-+ * assumption is that the zone start, end, and pgdat have been associated.
-+ * This way we can use the zone to determine NUMA node, and if a given part
-+ * of the memblock is valid for the zone.
++ * zone, continuing from current position. Available as soon as memblock is
++ * initialized.
 + */
-+#define for_each_free_mem_pfn_range_in_zone(i, zone, p_start, p_end)	\
-+	for (i = 0,							\
-+	     __next_mem_pfn_range_in_zone(&i, zone, p_start, p_end);	\
-+	     i != U64_MAX;					\
++#define for_each_free_mem_pfn_range_in_zone_from(i, zone, p_start, p_end) \
++	for (; i != U64_MAX;					  \
 +	     __next_mem_pfn_range_in_zone(&i, zone, p_start, p_end))
-+#endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
-+
- /**
-  * for_each_free_mem_range - iterate through free memblock areas
-  * @i: u64 used as loop variable
-diff --git a/mm/memblock.c b/mm/memblock.c
-index e7665cf914b1..28fa8926d9f8 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1255,6 +1255,70 @@ int __init_memblock memblock_set_node(phys_addr_t base, phys_addr_t size,
- 	return 0;
- }
- #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
-+#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
-+/**
-+ * __next_mem_pfn_range_in_zone - iterator for for_each_*_range_in_zone()
-+ *
-+ * @idx: pointer to u64 loop variable
-+ * @zone: zone in which all of the memory blocks reside
-+ * @out_spfn: ptr to ulong for start pfn of the range, can be %NULL
-+ * @out_epfn: ptr to ulong for end pfn of the range, can be %NULL
-+ *
-+ * This function is meant to be a zone/pfn specific wrapper for the
-+ * for_each_mem_range type iterators. Specifically they are used in the
-+ * deferred memory init routines and as such we were duplicating much of
-+ * this logic throughout the code. So instead of having it in multiple
-+ * locations it seemed like it would make more sense to centralize this to
-+ * one new iterator that does everything they need.
-+ */
-+void __init_memblock
-+__next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
-+			     unsigned long *out_spfn, unsigned long *out_epfn)
-+{
-+	int zone_nid = zone_to_nid(zone);
-+	phys_addr_t spa, epa;
-+	int nid;
-+
-+	__next_mem_range(idx, zone_nid, MEMBLOCK_NONE,
-+			 &memblock.memory, &memblock.reserved,
-+			 &spa, &epa, &nid);
-+
-+	while (*idx != U64_MAX) {
-+		unsigned long epfn = PFN_DOWN(epa);
-+		unsigned long spfn = PFN_UP(spa);
-+
-+		/*
-+		 * Verify the end is at least past the start of the zone and
-+		 * that we have at least one PFN to initialize.
-+		 */
-+		if (zone->zone_start_pfn < epfn && spfn < epfn) {
-+			/* if we went too far just stop searching */
-+			if (zone_end_pfn(zone) <= spfn) {
-+				*idx = U64_MAX;
-+				break;
-+			}
-+
-+			if (out_spfn)
-+				*out_spfn = max(zone->zone_start_pfn, spfn);
-+			if (out_epfn)
-+				*out_epfn = min(zone_end_pfn(zone), epfn);
-+
-+			return;
-+		}
-+
-+		__next_mem_range(idx, zone_nid, MEMBLOCK_NONE,
-+				 &memblock.memory, &memblock.reserved,
-+				 &spa, &epa, &nid);
-+	}
-+
-+	/* signal end of iteration */
-+	if (out_spfn)
-+		*out_spfn = ULONG_MAX;
-+	if (out_epfn)
-+		*out_epfn = 0;
-+}
-+
-+#endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
+ #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
  
  /**
-  * memblock_alloc_range_nid - allocate boot memory block
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2d2bca9803d2..61467e28c966 100644
+index 61467e28c966..06fbec9edf84 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1613,11 +1613,9 @@ static unsigned long  __init deferred_init_pages(struct zone *zone,
+@@ -1609,16 +1609,100 @@ static unsigned long  __init deferred_init_pages(struct zone *zone,
+ 	return (nr_pages);
+ }
+ 
++/*
++ * This function is meant to pre-load the iterator for the zone init.
++ * Specifically it walks through the ranges until we are caught up to the
++ * first_init_pfn value and exits there. If we never encounter the value we
++ * return false indicating there are no valid ranges left.
++ */
++static bool __init
++deferred_init_mem_pfn_range_in_zone(u64 *i, struct zone *zone,
++				    unsigned long *spfn, unsigned long *epfn,
++				    unsigned long first_init_pfn)
++{
++	u64 j;
++
++	/*
++	 * Start out by walking through the ranges in this zone that have
++	 * already been initialized. We don't need to do anything with them
++	 * so we just need to flush them out of the system.
++	 */
++	for_each_free_mem_pfn_range_in_zone(j, zone, spfn, epfn) {
++		if (*epfn <= first_init_pfn)
++			continue;
++		if (*spfn < first_init_pfn)
++			*spfn = first_init_pfn;
++		*i = j;
++		return true;
++	}
++
++	return false;
++}
++
++/*
++ * Initialize and free pages. We do it in two loops: first we initialize
++ * struct page, then free to buddy allocator, because while we are
++ * freeing pages we can access pages that are ahead (computing buddy
++ * page in __free_one_page()).
++ *
++ * In order to try and keep some memory in the cache we have the loop
++ * broken along max page order boundaries. This way we will not cause
++ * any issues with the buddy page computation.
++ */
++static unsigned long __init
++deferred_init_maxorder(u64 *i, struct zone *zone, unsigned long *start_pfn,
++		       unsigned long *end_pfn)
++{
++	unsigned long mo_pfn = ALIGN(*start_pfn + 1, MAX_ORDER_NR_PAGES);
++	unsigned long spfn = *start_pfn, epfn = *end_pfn;
++	unsigned long nr_pages = 0;
++	u64 j = *i;
++
++	/* First we loop through and initialize the page values */
++	for_each_free_mem_pfn_range_in_zone_from(j, zone, start_pfn, end_pfn) {
++		unsigned long t;
++
++		if (mo_pfn <= *start_pfn)
++			break;
++
++		t = min(mo_pfn, *end_pfn);
++		nr_pages += deferred_init_pages(zone, *start_pfn, t);
++
++		if (mo_pfn < *end_pfn) {
++			*start_pfn = mo_pfn;
++			break;
++		}
++	}
++
++	/* Reset values and now loop through freeing pages as needed */
++	swap(j, *i);
++
++	for_each_free_mem_pfn_range_in_zone_from(j, zone, &spfn, &epfn) {
++		unsigned long t;
++
++		if (mo_pfn <= spfn)
++			break;
++
++		t = min(mo_pfn, epfn);
++		deferred_free_pages(spfn, t);
++
++		if (mo_pfn <= epfn)
++			break;
++	}
++
++	return nr_pages;
++}
++
+ /* Initialise remaining memory on a node */
  static int __init deferred_init_memmap(void *data)
  {
  	pg_data_t *pgdat = data;
--	int nid = pgdat->node_id;
++	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
++	unsigned long spfn = 0, epfn = 0, nr_pages = 0;
++	unsigned long first_init_pfn, flags;
  	unsigned long start = jiffies;
- 	unsigned long nr_pages = 0;
- 	unsigned long spfn, epfn, first_init_pfn, flags;
--	phys_addr_t spa, epa;
- 	int zid;
+-	unsigned long nr_pages = 0;
+-	unsigned long spfn, epfn, first_init_pfn, flags;
+-	int zid;
  	struct zone *zone;
- 	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
-@@ -1654,14 +1652,12 @@ static int __init deferred_init_memmap(void *data)
- 	 * freeing pages we can access pages that are ahead (computing buddy
- 	 * page in __free_one_page()).
+-	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
++	int zid;
+ 	u64 i;
+ 
+ 	/* Bind memory initialisation thread to a local node if possible */
+@@ -1644,22 +1728,20 @@ static int __init deferred_init_memmap(void *data)
+ 		if (first_init_pfn < zone_end_pfn(zone))
+ 			break;
+ 	}
+-	first_init_pfn = max(zone->zone_start_pfn, first_init_pfn);
++
++	/* If the zone is empty somebody else may have cleared out the zone */
++	if (!deferred_init_mem_pfn_range_in_zone(&i, zone, &spfn, &epfn,
++						 first_init_pfn))
++		goto zone_empty;
+ 
+ 	/*
+-	 * Initialize and free pages. We do it in two loops: first we initialize
+-	 * struct page, than free to buddy allocator, because while we are
+-	 * freeing pages we can access pages that are ahead (computing buddy
+-	 * page in __free_one_page()).
++	 * Initialize and free pages in MAX_ORDER sized increments so
++	 * that we can avoid introducing any issues with the buddy
++	 * allocator.
  	 */
--	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
--		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
--		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
-+	for_each_free_mem_pfn_range_in_zone(i, zone, &spfn, &epfn) {
-+		spfn = max_t(unsigned long, first_init_pfn, spfn);
- 		nr_pages += deferred_init_pages(zone, spfn, epfn);
- 	}
--	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
--		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
--		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
-+	for_each_free_mem_pfn_range_in_zone(i, zone, &spfn, &epfn) {
-+		spfn = max_t(unsigned long, first_init_pfn, spfn);
- 		deferred_free_pages(spfn, epfn);
- 	}
+-	for_each_free_mem_pfn_range_in_zone(i, zone, &spfn, &epfn) {
+-		spfn = max_t(unsigned long, first_init_pfn, spfn);
+-		nr_pages += deferred_init_pages(zone, spfn, epfn);
+-	}
+-	for_each_free_mem_pfn_range_in_zone(i, zone, &spfn, &epfn) {
+-		spfn = max_t(unsigned long, first_init_pfn, spfn);
+-		deferred_free_pages(spfn, epfn);
+-	}
++	while (spfn < epfn)
++		nr_pages += deferred_init_maxorder(&i, zone, &spfn, &epfn);
++zone_empty:
  	pgdat_resize_unlock(pgdat, &flags);
-@@ -1669,8 +1665,8 @@ static int __init deferred_init_memmap(void *data)
+ 
  	/* Sanity check that the next zone really is unpopulated */
- 	WARN_ON(++zid < MAX_NR_ZONES && populated_zone(++zone));
- 
--	pr_info("node %d initialised, %lu pages in %ums\n", nid, nr_pages,
--					jiffies_to_msecs(jiffies - start));
-+	pr_info("node %d initialised, %lu pages in %ums\n",
-+		pgdat->node_id,	nr_pages, jiffies_to_msecs(jiffies - start));
- 
- 	pgdat_init_report_one_done();
- 	return 0;
-@@ -1694,13 +1690,11 @@ static int __init deferred_init_memmap(void *data)
- static noinline bool __init
- deferred_grow_zone(struct zone *zone, unsigned int order)
+@@ -1692,9 +1774,9 @@ static int __init deferred_init_memmap(void *data)
  {
--	int nid = zone_to_nid(zone);
--	pg_data_t *pgdat = NODE_DATA(nid);
  	unsigned long nr_pages_needed = ALIGN(1 << order, PAGES_PER_SECTION);
-+	pg_data_t *pgdat = zone->zone_pgdat;
- 	unsigned long nr_pages = 0;
- 	unsigned long first_init_pfn, spfn, epfn, t, flags;
+ 	pg_data_t *pgdat = zone->zone_pgdat;
+-	unsigned long nr_pages = 0;
+-	unsigned long first_init_pfn, spfn, epfn, t, flags;
  	unsigned long first_deferred_pfn = pgdat->first_deferred_pfn;
--	phys_addr_t spa, epa;
++	unsigned long spfn, epfn, flags;
++	unsigned long nr_pages = 0;
  	u64 i;
  
  	/* Only the last zone may have deferred pages */
-@@ -1736,9 +1730,8 @@ static int __init deferred_init_memmap(void *data)
- 		return false;
+@@ -1723,37 +1805,35 @@ static int __init deferred_init_memmap(void *data)
+ 		return true;
  	}
  
--	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
--		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
--		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
-+	for_each_free_mem_pfn_range_in_zone(i, zone, &spfn, &epfn) {
-+		spfn = max_t(unsigned long, first_init_pfn, spfn);
+-	first_init_pfn = max(zone->zone_start_pfn, first_deferred_pfn);
+-
+-	if (first_init_pfn >= pgdat_end_pfn(pgdat)) {
++	/* If the zone is empty somebody else may have cleared out the zone */
++	if (!deferred_init_mem_pfn_range_in_zone(&i, zone, &spfn, &epfn,
++						 first_deferred_pfn)) {
++		pgdat->first_deferred_pfn = ULONG_MAX;
+ 		pgdat_resize_unlock(pgdat, &flags);
+-		return false;
++		return true;
+ 	}
  
- 		while (spfn < epfn && nr_pages < nr_pages_needed) {
- 			t = ALIGN(spfn + PAGES_PER_SECTION, PAGES_PER_SECTION);
-@@ -1752,9 +1745,9 @@ static int __init deferred_init_memmap(void *data)
+-	for_each_free_mem_pfn_range_in_zone(i, zone, &spfn, &epfn) {
+-		spfn = max_t(unsigned long, first_init_pfn, spfn);
++	/*
++	 * Initialize and free pages in MAX_ORDER sized increments so
++	 * that we can avoid introducing any issues with the buddy
++	 * allocator.
++	 */
++	while (spfn < epfn) {
++		/* update our first deferred PFN for this section */
++		first_deferred_pfn = spfn;
++
++		nr_pages += deferred_init_maxorder(&i, zone, &spfn, &epfn);
+ 
+-		while (spfn < epfn && nr_pages < nr_pages_needed) {
+-			t = ALIGN(spfn + PAGES_PER_SECTION, PAGES_PER_SECTION);
+-			first_deferred_pfn = min(t, epfn);
+-			nr_pages += deferred_init_pages(zone, spfn,
+-							first_deferred_pfn);
+-			spfn = first_deferred_pfn;
+-		}
++		/* We should only stop along section boundaries */
++		if ((first_deferred_pfn ^ spfn) < PAGES_PER_SECTION)
++			continue;
+ 
++		/* If our quota has been met we can stop here */
+ 		if (nr_pages >= nr_pages_needed)
  			break;
  	}
  
--	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
--		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
--		epfn = min_t(unsigned long, first_deferred_pfn, PFN_DOWN(epa));
-+	for_each_free_mem_pfn_range_in_zone(i, zone, &spfn, &epfn) {
-+		spfn = max_t(unsigned long, first_init_pfn, spfn);
-+		epfn = min_t(unsigned long, first_deferred_pfn, epfn);
- 		deferred_free_pages(spfn, epfn);
+-	for_each_free_mem_pfn_range_in_zone(i, zone, &spfn, &epfn) {
+-		spfn = max_t(unsigned long, first_init_pfn, spfn);
+-		epfn = min_t(unsigned long, first_deferred_pfn, epfn);
+-		deferred_free_pages(spfn, epfn);
+-
+-		if (first_deferred_pfn == epfn)
+-			break;
+-	}
+-	pgdat->first_deferred_pfn = first_deferred_pfn;
++	pgdat->first_deferred_pfn = spfn;
+ 	pgdat_resize_unlock(pgdat, &flags);
  
- 		if (first_deferred_pfn == epfn)
+ 	return nr_pages > 0;
 
