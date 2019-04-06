@@ -3,95 +3,96 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A986C10F06
-	for <linux-mm@archiver.kernel.org>; Sat,  6 Apr 2019 15:20:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 53E93C282DA
+	for <linux-mm@archiver.kernel.org>; Sat,  6 Apr 2019 17:27:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A020A20B1F
-	for <linux-mm@archiver.kernel.org>; Sat,  6 Apr 2019 15:20:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A020A20B1F
+	by mail.kernel.org (Postfix) with ESMTP id CD9B8213A2
+	for <linux-mm@archiver.kernel.org>; Sat,  6 Apr 2019 17:27:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CD9B8213A2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DAAC86B000E; Sat,  6 Apr 2019 11:20:42 -0400 (EDT)
+	id 3D6BA6B000C; Sat,  6 Apr 2019 13:27:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D32DA6B0266; Sat,  6 Apr 2019 11:20:42 -0400 (EDT)
+	id 3861D6B000D; Sat,  6 Apr 2019 13:27:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BADBD6B0269; Sat,  6 Apr 2019 11:20:42 -0400 (EDT)
+	id 29BA46B000E; Sat,  6 Apr 2019 13:27:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 964546B000E
-	for <linux-mm@kvack.org>; Sat,  6 Apr 2019 11:20:42 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id g25so7538731qkm.22
-        for <linux-mm@kvack.org>; Sat, 06 Apr 2019 08:20:42 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 066346B000C
+	for <linux-mm@kvack.org>; Sat,  6 Apr 2019 13:27:03 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id w124so7786676qkb.12
+        for <linux-mm@kvack.org>; Sat, 06 Apr 2019 10:27:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:user-agent:mime-version;
-        bh=/vHmpH+rTfN6wWQq9Ei9KPoggm34yeLMw3u0GlMGADA=;
-        b=h3jTaMcMlTmpHJZaqc17x87/koHBKyzc0ML1ovwb8f9hNpYQfE6f59/4kTUuUl+Ndg
-         iMBiCzngOJrRayOUCV/7QVTOxUttJDUHSPdOi7o8ks5uXgIjIikVI4AElvNxtuQq3Lwj
-         0dPBjEciYSJ8bh4kN8+Dj62ekEAw3+HQMEz0QwlxO3r6zJsV7e5t9B1Xg2PdX0oBcN6G
-         BkfU8AhW2GubSOKbJtTWzxA0aOU7Cem+bHHSka6ReQl89hmD9QOhsiqxtQCl0n8184GQ
-         o3omjGhcT1q+1PZ3pr3R4NvQ05IsJKCqrHsfJX78H3wTLO2QXwyYuxiIcz01ZHMkaNv0
-         7SzA==
+         :cc:subject:in-reply-to:message-id:references:user-agent
+         :mime-version;
+        bh=0bcn3j5pUCo9Sy9DFVSf4l3NHyvwHGVmtDGK5DL4F0U=;
+        b=lcx+tW1HJmhrs6WE4sTmwzydUkR/UKWGg6yCfBKZjoPtFZj7ZpE3rIRPkSVNun1VYj
+         nF0J5kfhxbJZeQE0vvAMIfL3cb1P12T/8SY0vasCiUrw8ybcLTpy6zpQRRVgD03Vy6CO
+         iTVMq750LFjwMOgpYSMb/Q8Vs/EYgXadn5eDAp/N64WCTUZh4UUrEISNNQcuX7TqyRaN
+         YvqDscMrtTWVJ8nRSdJIGEZrwctMPeKqbVobmb81UWQKO58K1zsDtb3vvAS/GaidVHqI
+         oKPdT5b3k4BW6FMWddtZ4qY/Xjcej6gLcfXG5/XsLueiYnQJbGWJvSfbATmcNpZ8oqQU
+         IxUQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mpatocka@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mpatocka@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWTfC8yyMkmpxDt8MPFt5MyY0GqNTphI5m4jzahdW0vKJx1c1l0
-	C+ljJ+1UpTLrbi5SgQDvxUkI/qQV/sXQHFVmo6NaKrHUMOSDViahn4IAVekGMB2Y4wA+puXeOZa
-	igyDn12I70/r9jYmNl1X8zMAtzVdSX6cV26HaXF0BbwxHV8Qk4GFrRrGZ9WeWE37Epg==
-X-Received: by 2002:a37:7b03:: with SMTP id w3mr15917947qkc.266.1554564042341;
-        Sat, 06 Apr 2019 08:20:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw/iIEAAR91cPWar5UcurFiJhx5FRzVCnCjo+DbPDhgSkoTpCie4k2hYwd/04DgfpUrRRf7
-X-Received: by 2002:a37:7b03:: with SMTP id w3mr15917896qkc.266.1554564041675;
-        Sat, 06 Apr 2019 08:20:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554564041; cv=none;
+X-Gm-Message-State: APjAAAU+qFmQhaAj7fPJY6wOXCYPp+AelGUasedho6mEPrXOXnoWU7eq
+	aOWn8Hh9q6hjUd0y1FbwkJwa3EVhwneR8bNDnjw9eB94fD14PY49fC3hvXlitW/OuWZGWzi/9hD
+	B90u1L1kPlEieaOvUoQDCR9vcbGVoMOU9NBFFc9cDSzNUpjK/OsVOW5RcyeMuuhX0pA==
+X-Received: by 2002:ac8:2ed7:: with SMTP id i23mr17650847qta.326.1554571622710;
+        Sat, 06 Apr 2019 10:27:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxBjnTVfBw9FHNg3C+Q+oTdGJxkIhic3QIhhxIE0DNVpdsaG2MkZFV319bOvywOgSYTpo4h
+X-Received: by 2002:ac8:2ed7:: with SMTP id i23mr17650820qta.326.1554571622026;
+        Sat, 06 Apr 2019 10:27:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554571622; cv=none;
         d=google.com; s=arc-20160816;
-        b=L6FryUvoJXFWISlA9plkVk3H1x4a52n/qkA0JEAXI15YOK/1wPvSfeJ520ugJKKnU2
-         xSfM5OaPr7YHENAQftmYWXfVlmGbq05tBseQNglkiF/xIgkV9sAvNIWbywmaVPGzXKsZ
-         ekHjE2CmEVVAxBq4RRfzBp8dXEGwYKFyqj+e9PCeV+R4RJ10Z5ka2Ls5/ZPxgtaMHM3d
-         jaoWOPunWkBW144JUXS0foq+65EzNCGQeJnfguQgPVnOCNnEa5YtcgbVQZMVZLOVObnP
-         h7PbV+NG80bosKfmuj6v1wZpkNz5XQLH8gC0tGlgz2FAEH7VbBHDhXSjME+IeR7GZ3RU
-         3TIw==
+        b=txfJ1b/Vi5oM1ndyG9+pGSpzLKtzw7PA0YuBYpxUH+CQG6s9MvmOwLUzHpKrAgyvJX
+         DaML1Z0UvRwGbEFVjyC3crqhV4rfhovxO/MBDQ7UFjkgjrzRWBQRdmr6XlGMtJX3dgln
+         RxCfWEjxqbHwsgCRhoqpvn9uWubZb5ZC98oUXtVK8KMlBYif0ckR6MtjQobwd5nveNHT
+         y3Izw/MJGt9bn1pF52uXiQwQHYo9nX5zFCyFXIOeY9Pc14oCYCHlChnnuLGnHbxxSs3K
+         8scnkkSShx8LWh1jptecEhTBD8ANQFF79LziBA2O+K/crRAHDFlke53St72CHB4mCbnX
+         1lQg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:message-id:subject:cc:to:from:date;
-        bh=/vHmpH+rTfN6wWQq9Ei9KPoggm34yeLMw3u0GlMGADA=;
-        b=TYY9Juu3pOP2+Cfh4qJ4JkPN6VueN0YBwe09x23u7tHbWixYbtGLk2Y3xTo5nig5b3
-         4kVOlZaY0sdmI2gnTo0ndRJNVOGng2baKfcHSpk3/jty8NL/zty6JeQuV99pBUE36T6J
-         m/KqNVtreQuvNeUMuQC6+eUWLdaQZsxAcDTk7VYdBH75/ijC2w16Goe4jsYlyMF3UDBt
-         5E5qO5X/GDn8g0A7xjuHk3NwH3Yvo0dx3mhPPBdwh+8YEx0DGNSpD+a7U8PQpE+BWO9U
-         ippCcZICj8vMfnBBFYVK0QqrUmG33Q5BfipoVgdV4cwnfH85fkjPPE3YK25DWA4QfDw6
-         XQhg==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date;
+        bh=0bcn3j5pUCo9Sy9DFVSf4l3NHyvwHGVmtDGK5DL4F0U=;
+        b=EAlcA5rEE5BMsqzhHmXC4eWNhkRW3KtTAZ4d1BoZXTZRsfSqGahZfb28VHrmMXiAOU
+         KR0gDg1l56BbNXik2wTj/p5/otDSLveUNeoB99eWoUBwI2KmlqlM6xB6SEjVXoAtDOKO
+         ePW7/tDfCVvRm4m9F+8MjfqZdNPoHKn3pN8kEDUWXqYJA74mJUbm2MY3205MgTbf3PU2
+         8iCMb0S1jgJq5ARgE0iOgYTH43ajzCxuOVBEJ1sfS0W9kXCcLxfvq4HznQ5k9wj9elYz
+         qUl0pNuzoUv7NeQUvhFSdnZ4pD4GEP4NsQgnkrFezVa97NUWYpnVehl4S7dRDJFohNUZ
+         RUFA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of mpatocka@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mpatocka@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j1si258177qte.42.2019.04.06.08.20.41
+        by mx.google.com with ESMTPS id h5si5452542qkj.3.2019.04.06.10.27.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 06 Apr 2019 08:20:41 -0700 (PDT)
+        Sat, 06 Apr 2019 10:27:02 -0700 (PDT)
 Received-SPF: pass (google.com: domain of mpatocka@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of mpatocka@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mpatocka@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 61B2EC0AC36A;
-	Sat,  6 Apr 2019 15:20:40 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id EE864356DB;
+	Sat,  6 Apr 2019 17:27:00 +0000 (UTC)
 Received: from file01.intranet.prod.int.rdu2.redhat.com (file01.intranet.prod.int.rdu2.redhat.com [10.11.5.7])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id A8BFF60F99;
-	Sat,  6 Apr 2019 15:20:38 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 57D2E17F33;
+	Sat,  6 Apr 2019 17:27:00 +0000 (UTC)
 Received: from file01.intranet.prod.int.rdu2.redhat.com (localhost [127.0.0.1])
-	by file01.intranet.prod.int.rdu2.redhat.com (8.14.4/8.14.4) with ESMTP id x36FKb2a014736;
-	Sat, 6 Apr 2019 11:20:37 -0400
+	by file01.intranet.prod.int.rdu2.redhat.com (8.14.4/8.14.4) with ESMTP id x36HQxHu002281;
+	Sat, 6 Apr 2019 13:26:59 -0400
 Received: from localhost (mpatocka@localhost)
-	by file01.intranet.prod.int.rdu2.redhat.com (8.14.4/8.14.4/Submit) with ESMTP id x36FKZxC014732;
-	Sat, 6 Apr 2019 11:20:36 -0400
+	by file01.intranet.prod.int.rdu2.redhat.com (8.14.4/8.14.4/Submit) with ESMTP id x36HQvku002277;
+	Sat, 6 Apr 2019 13:26:58 -0400
 X-Authentication-Warning: file01.intranet.prod.int.rdu2.redhat.com: mpatocka owned process doing -bs
-Date: Sat, 6 Apr 2019 11:20:35 -0400 (EDT)
+Date: Sat, 6 Apr 2019 13:26:57 -0400 (EDT)
 From: Mikulas Patocka <mpatocka@redhat.com>
 X-X-Sender: mpatocka@file01.intranet.prod.int.rdu2.redhat.com
 To: Mel Gorman <mgorman@techsingularity.net>,
@@ -102,43 +103,54 @@ To: Mel Gorman <mgorman@techsingularity.net>,
         linux-mm@kvack.org
 cc: Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>,
         Zi Yan <zi.yan@cs.rutgers.edu>
-Subject: Memory management broken by "mm: reclaim small amounts of memory
+Subject: Re: Memory management broken by "mm: reclaim small amounts of memory
  when an external fragmentation event occurs"
-Message-ID: <alpine.LRH.2.02.1904061042490.9597@file01.intranet.prod.int.rdu2.redhat.com>
+In-Reply-To: <alpine.LRH.2.02.1904061042490.9597@file01.intranet.prod.int.rdu2.redhat.com>
+Message-ID: <alpine.LRH.2.02.1904061325170.1666@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1904061042490.9597@file01.intranet.prod.int.rdu2.redhat.com>
 User-Agent: Alpine 2.02 (LRH 1266 2009-07-14)
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Sat, 06 Apr 2019 15:20:40 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Sat, 06 Apr 2019 17:27:01 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi
 
-The patch 1c30844d2dfe272d58c8fc000960b835d13aa2ac ("mm: reclaim small 
-amounts of memory when an external fragmentation event occurs") breaks 
-memory management on parisc.
 
-I have a parisc machine with 7GiB RAM, the chipset maps the physical 
-memory to three zones:
-	0) Start 0x0000000000000000 End 0x000000003fffffff Size   1024 MB
-	1) Start 0x0000000100000000 End 0x00000001bfdfffff Size   3070 MB
-	2) Start 0x0000004040000000 End 0x00000040ffffffff Size   3072 MB
-(but it is not NUMA)
+On Sat, 6 Apr 2019, Mikulas Patocka wrote:
 
-With the patch 1c30844d2, the kernel will incorrectly reclaim the first 
-zone when it fills up, ignoring the fact that there are two completely 
-free zones. Basiscally, it limits cache size to 1GiB.
+> Hi
+> 
+> The patch 1c30844d2dfe272d58c8fc000960b835d13aa2ac ("mm: reclaim small 
+> amounts of memory when an external fragmentation event occurs") breaks 
+> memory management on parisc.
+> 
+> I have a parisc machine with 7GiB RAM, the chipset maps the physical 
+> memory to three zones:
+> 	0) Start 0x0000000000000000 End 0x000000003fffffff Size   1024 MB
+> 	1) Start 0x0000000100000000 End 0x00000001bfdfffff Size   3070 MB
+> 	2) Start 0x0000004040000000 End 0x00000040ffffffff Size   3072 MB
+> (but it is not NUMA)
+> 
+> With the patch 1c30844d2, the kernel will incorrectly reclaim the first 
+> zone when it fills up, ignoring the fact that there are two completely 
+> free zones. Basiscally, it limits cache size to 1GiB.
+> 
+> For example, if I run:
+> # dd if=/dev/sda of=/dev/null bs=1M count=2048
+> 
+> - with the proper kernel, there should be "Buffers - 2GiB" when this 
+> command finishes. With the patch 1c30844d2, buffers will consume just 1GiB 
+> or slightly more, because the kernel was incorrectly reclaiming them.
+> 
+> Mikulas
 
-For example, if I run:
-# dd if=/dev/sda of=/dev/null bs=1M count=2048
-
-- with the proper kernel, there should be "Buffers - 2GiB" when this 
-command finishes. With the patch 1c30844d2, buffers will consume just 1GiB 
-or slightly more, because the kernel was incorrectly reclaiming them.
+BTW, 3 years ago, there was exactly the same bug: 
+https://marc.info/?l=linux-kernel&m=146472966215941&w=2
 
 Mikulas
 
