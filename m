@@ -2,186 +2,156 @@ Return-Path: <SRS0=nlaJ=SI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=0.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FORGED_YAHOO_RCVD,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 69B41C282DC
-	for <linux-mm@archiver.kernel.org>; Sat,  6 Apr 2019 05:59:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C3D6DC10F06
+	for <linux-mm@archiver.kernel.org>; Sat,  6 Apr 2019 06:15:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DB22821855
-	for <linux-mm@archiver.kernel.org>; Sat,  6 Apr 2019 05:59:34 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6C0AB2173C
+	for <linux-mm@archiver.kernel.org>; Sat,  6 Apr 2019 06:15:49 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="XzdkRPNx"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB22821855
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=yahoo.com header.i=@yahoo.com header.b="G/bi6eHA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6C0AB2173C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=yahoo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3B8106B026C; Sat,  6 Apr 2019 01:59:34 -0400 (EDT)
+	id DBCDF6B026E; Sat,  6 Apr 2019 02:15:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 369A96B026D; Sat,  6 Apr 2019 01:59:34 -0400 (EDT)
+	id D6BD46B0270; Sat,  6 Apr 2019 02:15:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2579F6B026E; Sat,  6 Apr 2019 01:59:34 -0400 (EDT)
+	id C34376B0271; Sat,  6 Apr 2019 02:15:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 050466B026C
-	for <linux-mm@kvack.org>; Sat,  6 Apr 2019 01:59:34 -0400 (EDT)
-Received: by mail-vk1-f198.google.com with SMTP id 81so3694801vkn.19
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 22:59:33 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B52A6B026E
+	for <linux-mm@kvack.org>; Sat,  6 Apr 2019 02:15:48 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id x5so5696994pll.2
+        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 23:15:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:from:date:message-id
-         :subject:to;
-        bh=uLtgzl+y47IAFLBMiAJzXtmdzwQQQv6bFkF049bGo8Q=;
-        b=OdSzWtMNmeAd0IDo5AlSUU4i/b+RgdQIMguovTOdPGqX4Nn866HYTzjFztE72oERXu
-         JYPhIvqeFWPufYiCZzErKDIZoRuyDl8jyiVpghy9x17jegTIMcLmRAC4QYAEebAI+Tng
-         yXFZTk+ZgzUOT9Zp3ktuVOK7LBG7YZX0OMVFCaIFMmc7wkJ0fW9++y751IGrD+9SI8xR
-         HSh+q/nUQi8SPt/UK9Fe7V14Uj4G9rZVzXWpwrZmLT+synbiKfhPkWhObVSqFkaSEHyK
-         wDSwA5ExXNN+x3GberuOc9IQSPaH2skvJz9FMooyMoDjuw84YmmIQ3x+4iyMV2PjB8fs
-         vczg==
-X-Gm-Message-State: APjAAAUNQirA8hk3pIquraGBRCqOeHFlG/y4uKERYz/0ClCxmbakvTNf
-	4cDwAPRLo2P5dWmQoYzCA8Gf5mPz5Ov1Uk81j7Eei6a93TszLDhG/oU2Brx/exTWjY3R1b9D5Dj
-	huzFUcO6yEbJ2Ht4UH3+26XJlfSbOi1ikhCu9uGBHgA4Huk5Ah/mgTeS0iBELO3ZxUA==
-X-Received: by 2002:a67:83c5:: with SMTP id f188mr10113600vsd.163.1554530373614;
-        Fri, 05 Apr 2019 22:59:33 -0700 (PDT)
-X-Received: by 2002:a67:83c5:: with SMTP id f188mr10113561vsd.163.1554530372246;
-        Fri, 05 Apr 2019 22:59:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554530372; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:reply-to:to:cc
+         :message-id:in-reply-to:references:subject:mime-version
+         :content-transfer-encoding;
+        bh=BFJWdwxeFmvgdvdlDac5VDeh/vYmhJNFPdmYXnJUdGc=;
+        b=eu/CcsV6rkHRr8gSO/a4nUY/wmsKIJYRBHetGCE14skNsah4DHNCjZshD5HcrcPTW+
+         Ln5u1wBXK1Allum8sgmbtV+6xxfDiJt9xpf9KwUv1HNc8RBKDXJLZSXVVeBUxZGNJKf9
+         meI/we+IYLizn52tZHJsY15U/Hty2BeRVrXZZtwd0KgpEKJRxuZM61KSKYrw0oKrw/Rk
+         UMNPI2hFCZJdO0f0cTRr9EZaTfg6AAB9qWMw/YJrjMzopcqLM2cxsBJtgFCXbi+6PIjS
+         Y+BxJYM23ey0f+UhBPUH26BeQZ/qugs7pn+C/3twoiCsEi/hjo0syG06UpdDE2XKTCw6
+         2y4A==
+X-Gm-Message-State: APjAAAXCg+tWV03oN0u8UVHRnBoP0cMOJecL3lYrVCBGb2rStdZ8nC3m
+	mQI1R2Lc1XIi2pfJv16PMJfc5giDyLky3//LyTvySeaB6YpT7x7CnsG7kTzc3Qs4+X4CLh1j4cT
+	88uy3HTINGLHl6K2MatZXXr3rLWHrmWNXAB93nfRp3XpOO5vP1611XzEgCLzfxR8uUg==
+X-Received: by 2002:a63:2c09:: with SMTP id s9mr11382901pgs.411.1554531348093;
+        Fri, 05 Apr 2019 23:15:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzSkBwu3O26l+1dhGMtHnv6fA+RzmIT3MZ7piTjt7Ibn8BjNAmjrv7MTyoHNOYiVAy8A5BX
+X-Received: by 2002:a63:2c09:: with SMTP id s9mr11382856pgs.411.1554531347326;
+        Fri, 05 Apr 2019 23:15:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554531347; cv=none;
         d=google.com; s=arc-20160816;
-        b=v/+PP+DDOTJHTJx9Yxs0OreDP2CTb36eNsNgrMGYOB54WWUz1LtCAqcToOP/2Gp4Wz
-         7a0s30SaXl2b/fqQUunznTqQDEMMBC+iEdOA8pKn1NudWJR9f7cQa9H3C8uni9/hlSXG
-         fiZffwKIhJ6bWKmVbQPVVAZrn+f22syQ9RQ0aBrdfFaShF5gfJrSv1d05eKVxDQJ8qfl
-         OMFtD379+PBwpeMFg9VHEoka6rbCQJoLLuK5msahu6J9JwiCa4OsHcmilPJQvq+wtqLU
-         wTF/jY7xEei2iQpotRvrnEbDXV3q7TlvB8No9U2ycOt5ZlPywbczaRbUK7TH/5ABJAHU
-         hB8g==
+        b=QrcXT1umY8mQsU3ZChLlg4uKU9DaYNWJHsQ/uQlrsCDOdyv+TACMsgNW6qzDh0Fx8N
+         igLpWK0RO8c0dcPfq0cVAMHHMgA1G2uan8IhzG7OUpqws//pbdjaPe2p4cg3IinrME3i
+         ZEhS7WmmO3utGMtkjFUzF/qZkQNfZcdW0ZNbKgLQOmy1mjpV7UR9S2OlBj1r9NMM5kOu
+         ExZOicLRv4RqmsXkoBZ/84HtF3gPDyl5LAjUeky7vju8El1+vrQKLWld/fY1NCUYo0N/
+         QL4DCuLcCGF/fEUwVsJB7faRzAYBG1iabr7G9bt4ZN4pAY9AYOdCHA8VVrUIzpX5vu0U
+         bMFg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:subject:message-id:date:from:mime-version:dkim-signature;
-        bh=uLtgzl+y47IAFLBMiAJzXtmdzwQQQv6bFkF049bGo8Q=;
-        b=DdH6BMjQhyfycstjJa7YTrYGqsAuqa27Uc+HCpiTJlYIqgyTaC2JILN9pEpGpXF8Kv
-         Rd3C82NYfeTC1A2ewjxGgA0ozUyjFJJLc8C/68dzIaJEK1AeoCaIkkUN8TkMeAUjEtnB
-         Cu6Z6BaBNsxV6gHJfFaFu31kIvGKVZzv8aNzZGNK37UkQM74pIj7z/uUt4FZ2Qyhi7Pv
-         AViaSd06AXXRjubub6vPqSKYKR2aaLjeqFo/f6GDm7fV//gX+NLfV4F+HDBCYoKd/uYI
-         OolX+N8m0TgiFIerpL4WsXxGXGljIVvIPxkNLAcVOQh5/UNO5nviA0ymOGo3DiumR33z
-         mM+w==
+        h=content-transfer-encoding:mime-version:subject:references
+         :in-reply-to:message-id:cc:to:reply-to:from:date:dkim-signature;
+        bh=BFJWdwxeFmvgdvdlDac5VDeh/vYmhJNFPdmYXnJUdGc=;
+        b=AM0GTajCbiDPGV+fJ6onzaT5MwwPKGp2dOSMbWFflbrqmu6lTQtZRglNHrLFMb9VE3
+         OQIdGZVn8+kMDMA+eQj6vlZU8xr6BcukW9oOwKxbMyWhwHkvLuYdKMmVoTP5KmjTttbt
+         8kNLBqaSr6dE8EdXV/te+GJS9BBDv0xpkQWNHkxF2jGQppIaxiYUO32MdzlXxdXIo/0e
+         r6XxUbXbG+QVUlmG71NyVmwYBGtRhVNMBXfXS814qynDe4x1OtNmVFMW3bjbNQSy5pkG
+         u2DsHtbiyhBuRnbjxlYHXYhD0mTpCgMnyy7XLmiYMVXygSw0RabkQzM0OV0NE4Bg4XaI
+         CmDQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=XzdkRPNx;
-       spf=pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pankajssuryawanshi@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r6sor15172184vsp.109.2019.04.05.22.59.32
+       dkim=pass header.i=@yahoo.com header.s=s2048 header.b="G/bi6eHA";
+       spf=pass (google.com: domain of suryawanshipankaj@yahoo.com designates 106.10.241.211 as permitted sender) smtp.mailfrom=suryawanshipankaj@yahoo.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=yahoo.com
+Received: from sonic308-21.consmr.mail.sg3.yahoo.com (sonic308-21.consmr.mail.sg3.yahoo.com. [106.10.241.211])
+        by mx.google.com with ESMTPS id t69si20738302pfa.7.2019.04.05.23.15.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 05 Apr 2019 22:59:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Apr 2019 23:15:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of suryawanshipankaj@yahoo.com designates 106.10.241.211 as permitted sender) client-ip=106.10.241.211;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=XzdkRPNx;
-       spf=pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pankajssuryawanshi@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:from:date:message-id:subject:to;
-        bh=uLtgzl+y47IAFLBMiAJzXtmdzwQQQv6bFkF049bGo8Q=;
-        b=XzdkRPNxN+E5x7cMA147ngi9PqZF1Uulpanlf8yImKQjWpEefMF/L3UhwvU79Zhyf3
-         Cu6yM8QemSeOF3qjWl+fctVrVwo1VHt/XtLMUUlJIdATsTQgmQhQDbye5HdROlrw41oj
-         pdw2W4+rvE4xd3uXdVhH1OAKh1XfEtTtrh6CDQQw4qJ7L7I4It+rrnKTrvXC/ZNH7m0J
-         UUlzRAo1/zEA7hKwMCEWN6t670kPKS6Wu12VTeLtSkaVUyUH4kCTzPVZuMXC9jie3uOD
-         JZnAVzT7KyNrCS6zUEN5BltudarfyIWHCZeEo8L34OzjJzZQbLtkexTW0oH56hS+nf29
-         A5WA==
-X-Google-Smtp-Source: APXvYqy4UKsunqxI/fOpkTdAf8nulfxruUmZd2oXxfHy79RjFPK3mjgLdImOcFpEPP4V3Z1y7Dg04kwZfrCS0jpr630=
-X-Received: by 2002:a67:f582:: with SMTP id i2mr11133517vso.33.1554530371758;
- Fri, 05 Apr 2019 22:59:31 -0700 (PDT)
+       dkim=pass header.i=@yahoo.com header.s=s2048 header.b="G/bi6eHA";
+       spf=pass (google.com: domain of suryawanshipankaj@yahoo.com designates 106.10.241.211 as permitted sender) smtp.mailfrom=suryawanshipankaj@yahoo.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=yahoo.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yahoo.com; s=s2048; t=1554531345; bh=BFJWdwxeFmvgdvdlDac5VDeh/vYmhJNFPdmYXnJUdGc=; h=Date:From:Reply-To:To:Cc:In-Reply-To:References:Subject:From:Subject; b=G/bi6eHA1q4GILAKl3kscHU/qhAAadl8CDyCXVCHV4nYqVM/TuPbdzd+gLlfGoxiapeau9PgvRT+hOElVvqjA25xsnwWdBI6z4d5RY9UML81AGynuGGCEadKb0BdXGgAKmXz1xq/kEcHLQXAjjCZY4cctEd6poK5ZUXcGssHS43WSTNm4ERjAR1Q96D1mwZ+Bn0wM33mp0m89GdqUGtCreCI3kj/7iisVqaYdlxj117VbQJxE/yyOdJaSKdLB3qWEETS2WZAl38gFjQ44FymOgy1qlo/pzZjC/Cm+GjSwoi9WBPGEHcIFrm17EA6KKiiT0AzYk4vx9tolaKT5HepxQ==
+X-YMail-OSG: YS8M6PMVM1kUGENqFeq55b0QSQTuukR8ig4hRptCRW1ii6dACBnilc2.m45.mGt
+ Ps8RspU9wK1c6R7SOUqaTfLEZQs6HBB1VeeWPq5EzuMo4h3tRSMkbYrNer8fWMDWJs32dV.dImDp
+ 3boaOZghdRI7numlmAeUTXqNOpzG8eENt1N_2RqBvwVyOlqMl.0BvviKNv9sC47adwAe0mjX.nsq
+ FTg2AFOMHhfrRTN0_BY3G53tpsqTanIsSznKZC8GSqEW1o4_D1y8Wf_d2nNpjPRN2fb5dhQmPdoA
+ A4eGeFJz9Ki3w2Jcmzl61DNpLl_o9IgH5vQxNcg_nnlaBFWlZNTojmKZwVkTmXgZ5IBj527lWNIB
+ HnqJdkdgHXAn5sWGQOF_snFWgPCnD44qMCC6Q727HFJGIKR4_60qhdvLThF6Pv6_MB65dLUzCVM6
+ OEFjmPPJMx.SzQOZ9ZsE8yqW9eAnPe2cEuH_23Hpevj8HpG3_AZoVC9PU_XQjfOqgu7XqsOf8tL5
+ 1bxD26iCl4COHRJRvaWFinfJIwbZfZ3yTjM95MIgEJugN7oGqeAkg5IJig3vPK7q03E29cL0SfpG
+ sPOGIjfxFI13T0hxhoSDLt5PnZsDDpI_eAYwAhJkW7fksB9cKAsxel9hMBaPOJVmaa5b90ERbp0A
+ L41Lc3qRabLFqQ.2YWr9fMQJJCOORI8PblEBz3TsFrF6plshW3HANTxBa_NyShzzmHbLjXudtLrr
+ 3lar5SrVmZPlIESGSV21yxGyj0iay5aE329wTCXrRo21ylPkW2eP4oLawlrdn8oMnPgH4lfcnMAz
+ 1tuK0Eejfdoh4VaSlvx.ITovkNCVthox66GwXCdRWr_laP8RtpEqa1FhERFCY4DKsnMuaMX1Mbdc
+ 7FZX0zLWsVy2aZsw9ea1336nxq1WdRVamoC07fHZCMfhhPe9bTlihzMCDrBEOWTJ3mKR97oQz16y
+ nycYsWg67Y317nNybMOIUu8ABexsuJi9cGpoUHN5OLpn4X9aYBxj19Iukc_ysqYa_UPu.b7nv2FN
+ pND3yWEVQ23KZa8tJn6eipH7WlnKS5VyQOQPh8r7G1S_3Whc6y61pfzsjXPTABO4ljw7ZjmyW33n
+ tyQ--
+Received: from sonic.gate.mail.ne1.yahoo.com by sonic308.consmr.mail.sg3.yahoo.com with HTTP; Sat, 6 Apr 2019 06:15:45 +0000
+Date: Sat, 6 Apr 2019 06:15:41 +0000 (UTC)
+From: Pankaj Suryawanshi <suryawanshipankaj@yahoo.com>
+Reply-To: Pankaj Suryawanshi <suryawanshipankaj@yahoo.com>
+To: =?UTF-8?Q?Valdis_Kl=C4=93tnieks?= <valdis.kletnieks@vt.edu>
+Cc: LKML <linux-kernel@vger.kernel.org>, 
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, 
+	"kernelnewbies@kernelnewbies.org" <kernelnewbies@kernelnewbies.org>
+Message-ID: <1002302887.779027.1554531341350@mail.yahoo.com>
+In-Reply-To: <6977.1554499657@turing-police>
+References: <1536252828.16026118.1554461687939.ref@mail.yahoo.com> <1536252828.16026118.1554461687939@mail.yahoo.com> <6977.1554499657@turing-police>
+Subject: Re: How to calculate page address to PFN in user space.
 MIME-Version: 1.0
-From: Pankaj Suryawanshi <pankajssuryawanshi@gmail.com>
-Date: Sat, 6 Apr 2019 11:29:27 +0530
-Message-ID: <CACDBo57pEVRjOBf0yLMQ+KuGPeOuFcMufGVzjPJVnwfLFjzFSA@mail.gmail.com>
-Subject: vmscan.c: Reclaim unevictable pages.
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
-	kernelnewbies@kernelnewbies.org, vbabka@suse.cz, mhocko@kernel.org, 
-	minchan@kernel.org
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+X-Mailer: WebService/1.1.13212 YahooMailNeo Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello ,
-
-shrink_page_list() returns , number of pages reclaimed, when pages is
-unevictable it returns VM_BUG_ON_PAGE(PageLRU(page) ||
-PageUnevicatble(page),page);
-
-We can add the unevictable pages in reclaim list in
-shrink_page_list(), return total number of reclaim pages including
-unevictable pages, let the caller handle unevictable pages.
-
-I think the problem is shrink_page_list is awkard. If page is
-unevictable it goto activate_locked->keep_locked->keep lables, keep
-lable list_add the unevictable pages and throw the VM_BUG instead of
-passing it to caller while it relies on caller for
-non-reclaimed-non-unevictable  page's putback.
-I think we can make it consistent so that shrink_page_list could
-return non-reclaimed pages via page_list and caller can handle it. As
-an advance, it could try to migrate mlocked pages without retrial.
-
-
-Below is the issue i observed of CMA_ALLOC of large size buffer :
-(Kernel version - 4.14.65 With Android Pie.
-
-[   24.718792] page dumped because: VM_BUG_ON_PAGE(PageLRU(page) ||
-PageUnevictable(page))
-[   24.726949] page->mem_cgroup:bd008c00
-[   24.730693] ------------[ cut here ]------------
-[   24.735304] kernel BUG at mm/vmscan.c:1350!
-[   24.739478] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP ARM
-
-
-Below is the patch which solved this issue :
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index be56e2e..12ac353 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -998,7 +998,7 @@ static unsigned long shrink_page_list(struct
-list_head *page_list,
-                sc->nr_scanned++;
-
-                if (unlikely(!page_evictable(page)))
--                       goto activate_locked;
-+                      goto cull_mlocked;
-
-                if (!sc->may_unmap && page_mapped(page))
-                        goto keep_locked;
-@@ -1331,7 +1331,12 @@ static unsigned long shrink_page_list(struct
-list_head *page_list,
-                } else
-                        list_add(&page->lru, &free_pages);
-                continue;
--
-+cull_mlocked:
-+                if (PageSwapCache(page))
-+                        try_to_free_swap(page);
-+                unlock_page(page);
-+                list_add(&page->lru, &ret_pages);
-+                continue;
- activate_locked:
-                /* Not a candidate for swapping, so reclaim swap space. */
-                if (PageSwapCache(page) && (mem_cgroup_swap_full(page) ||
 
 
 
 
-It fixes the below issue.
+On Saturday, 6 April 2019 2:57 AM, Valdis Kl=C4=93tnieks <valdis.kletnieks@=
+vt.edu> wrote:
 
-1. Large size buffer allocation using cma_alloc successful with
-unevictable pages.
 
-cma_alloc of current kernel will fail due to unevictable page
 
-Please let me know if anything i am missing.
+On Fri, 05 Apr 2019 10:54:47 -0000, Pankaj Suryawanshi said:
 
-Regards,
-Pankaj
+
+> I have PFN of all processes in user space, how to calculate page address =
+to PFN.
+
+*All* user processes?  That's going to be a lot of PFN's.  What problem are=
+ you trying
+
+to solve here?
+
+I am trying to solve problem with cma allocation failure, and try to find p=
+rocess who pinned the pages from cma reserved area.
+
+When cma allocation failed it dumped the information and it contains flags =
+and page address, before failing i have information/PFN of processes who aq=
+uires pages from cma area.=20
+Now i want to find exact PFN of the dumped pages who is responsible for all=
+ocation failure.
+
+Note: I have got the pfn from /tools/vm/page-types.c in user space and i ha=
+ve start pfn of cma reserved area, so i filter the cma area pfn.
+(Hint - under what cases does the kernel care about the PFN of *any* user p=
+age?)
 
