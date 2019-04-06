@@ -1,109 +1,110 @@
-Return-Path: <SRS0=BJvi=SH=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=nlaJ=SI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 23D9DC282DC
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 23:01:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 90EEEC282DC
+	for <linux-mm@archiver.kernel.org>; Sat,  6 Apr 2019 00:09:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BAA112175B
-	for <linux-mm@archiver.kernel.org>; Fri,  5 Apr 2019 23:01:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 266E6218AE
+	for <linux-mm@archiver.kernel.org>; Sat,  6 Apr 2019 00:09:59 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="YKKo0pgc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BAA112175B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Pnr8Qcmz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 266E6218AE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2F5A86B026D; Fri,  5 Apr 2019 19:01:19 -0400 (EDT)
+	id 92A3B6B0005; Fri,  5 Apr 2019 20:09:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2A3CE6B026E; Fri,  5 Apr 2019 19:01:19 -0400 (EDT)
+	id 8D7D86B026E; Fri,  5 Apr 2019 20:09:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1B9DC6B026F; Fri,  5 Apr 2019 19:01:19 -0400 (EDT)
+	id 7EDAA6B026F; Fri,  5 Apr 2019 20:09:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B6B636B026D
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 19:01:18 -0400 (EDT)
-Received: by mail-wm1-f70.google.com with SMTP id k3so4418019wmi.7
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 16:01:18 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FBCD6B0005
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2019 20:09:58 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id e126so6069165ioa.8
+        for <linux-mm@kvack.org>; Fri, 05 Apr 2019 17:09:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=S5YPihc8ey3XnTK6jsq2AQbOX0mAfD6UZn+XISxNaVc=;
-        b=YSnKd41/t+ArJAZyEq3cUBV8LfZ3bh31MTk+HkvinIk3IzZasnMkqgYXs6uaoYtrCE
-         F6GvW6YK+aBgniyRpyejYjx7hz17/d32lEsrbv4POc9WF/ixwn7XOWKZzdcCyEdLtNP6
-         Nv0c386EE03xwP6kzO7i6EdTfmvTyz/XxJCwCdmYObLkQWF6Ws0n4Fd916iyq2wDQ8D/
-         t1ABaVqkjw0/rvSKWc8/wEaIwjw8r2Zt3ngZlpRJLCI2FDmFEhblnppED4w8tJKWCdrT
-         t7efaaTjXjHpKR8OoDXEbHpfyiFZYIhW+tFbsxP2lBQhh18ASLPE2QOTbek8oIgOJLvn
-         4Jbw==
-X-Gm-Message-State: APjAAAXEQcGtrRYj8q16t8yYuktseKTAd+plndXJc3zO1f2+zfes5/wo
-	K7Nyji/QL+KQMgwBSffa5oWS7kt8sxms1zoi8qyCAvVVqbhGkqdvIPZdPrmJrRrGlrwbByG7EDm
-	ViTNEtiOu4dGu+wvLWMRhh5wctAh+0JR8oPkpma8AL8hw++lt6jqxN6il88Ft8HwzTg==
-X-Received: by 2002:a05:6000:1286:: with SMTP id f6mr5220294wrx.93.1554505278080;
-        Fri, 05 Apr 2019 16:01:18 -0700 (PDT)
-X-Received: by 2002:a05:6000:1286:: with SMTP id f6mr5220256wrx.93.1554505277214;
-        Fri, 05 Apr 2019 16:01:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554505277; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:from:date:message-id
+         :subject:to:cc;
+        bh=+uZuXK3Cg5BkLu3R2m2Qt0Oi23SaZRCYQzeotiWu9hc=;
+        b=fZ8bCv+b0WGJjxqYlcRoF9qj23whnJl2OWpd4gb2Tx3z0z0k2wSqmpM0JVU31rOY1L
+         6hjl58wFR59Fw7OgS2lunjPeI9brNb0AUWid+AxR6mLKGaT5vJi5sW+6+GsmqwcNfazh
+         I/sJtmsSLzRKv14cTMqk5RyCnhoNy3gRRoBZyOMAEBmjq1x7UNWXr4Di3ljdQz7IBcWM
+         H5qMV0lZY1foa7Jw2V4YK70d+6OQobKy/iQS+3rvlmIx/NCRzDlpx2WMcOxfkXJSzdwS
+         fNmdst44v917/PBJsK8caRUfPSeUdGryePSaMhyFEqJKMnvqN0YF32/2rFSFdyPPIGoq
+         FZhw==
+X-Gm-Message-State: APjAAAXYSpXAh7bpILhW4kKZBoJb6MSiGP1/YJdR3ldepc7afSp+en9D
+	f3vWzc9JZd6/gTUhqLNKHTY8uNe8dEiL2EdXV13y+WtIzXf4yXsgYksCwMIM9c/iz54Z0zkCYAN
+	PbbE5bzvb0A5GnuvExDciBz5zKze7+sEucgYEQGA+96jgVOKCQwBauoiupXx4BmCpzw==
+X-Received: by 2002:a6b:6b12:: with SMTP id g18mr9952855ioc.14.1554509397973;
+        Fri, 05 Apr 2019 17:09:57 -0700 (PDT)
+X-Received: by 2002:a6b:6b12:: with SMTP id g18mr9952810ioc.14.1554509396791;
+        Fri, 05 Apr 2019 17:09:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554509396; cv=none;
         d=google.com; s=arc-20160816;
-        b=DGOoss/lKoBBSkRTBG7UZjvo7pgQkCuiJykdQFiBQX8PsOzrqe767XMVmiOzKv6+8E
-         FmDWJVD5LBX5XT2e5O2xTp931rd+c2qFuc1UrPUajMlOd/xU7DzxXrPQ5EUPiyoAq3n6
-         kvP9jLmHyakJt7vmGHadUoTw44Z4sk7GPZksjFzLo+2K3CnyJVeGbqmV27EuGL85fC5r
-         SfQ+Dg/0bhjC8+Z9GyESPFyZ6XcbEFAHFMfqjZJl4AY5UrBvKc+s6RkxZEsYJ5p389IT
-         ao1DW/ljjw3VgegTeazUFki1yduQ6v2VRdFUfVd6kIQpKm2S6dPM0ylYZE3QfGEZGtUp
-         5L+Q==
+        b=LlR+6U+t6EASnMDwkQ3l5n7+qM7oY7zpus2g0P3JXrM0XZhb7KSm0zKuH6NnRCjIJ1
+         u9G/6AsDj8mhsI1/LpCq3UEqxHwxvlwa92C8WhFPwOZ67D6NQ6w6yxl4eaSNBiJ50F62
+         GZ/XlYlJ11d2am9YlvSZ9WfDXyi6Wu8XfP1FYNSMH5oyroxdanM9S8baxUyosLTzVHXA
+         NrHuCz93T8c523KqH6dTrm44CZUMbAEgqCiNtv13c6vru9tmONjoBKbVHhRRszSOY26E
+         fOuLOtWTtAGaXlRUDLIPQgFvk02A2w8d31Ezt3dDqhX18KF+pCgrGsq2raz3MMYXEOlZ
+         VKqA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=S5YPihc8ey3XnTK6jsq2AQbOX0mAfD6UZn+XISxNaVc=;
-        b=zHMN9XaTSPxrjP1BR7wbEzNOWxXvP8A1NqdF4xoA/TBQ3W2ANxp/Bk+3q2Dy6KZTK/
-         T3E5l8ohGQ0yM5lGVXUvBXPtJXx8/KYNcR8seuvv5T8+TvZaJA0eqnOLI7DZs86uwT1C
-         RTMYKmEipZWoQ5dNXtHKnNQi/vf+j4YlBew1l/S0rtLK9eV2THsmR3usG9j1nvMKupqM
-         68fsPxX9oq8NSVtjfkkhBqGolkeFRJwEJ4uQAxilcwLPRfSkuW+J24AST5XLleVNBp/J
-         iiG2CwkZSL4+ej0SR5E/dUj/bMiabsQg8J0Nc4qmOJgm3QIUyxuHMWzPd5X08rROOfo5
-         tsBg==
+        h=cc:to:subject:message-id:date:from:mime-version:dkim-signature;
+        bh=+uZuXK3Cg5BkLu3R2m2Qt0Oi23SaZRCYQzeotiWu9hc=;
+        b=w07zTOyVeaNolPvCQlmNwEIgmhQfjlhWF6+TsVgEfEOBz9z5JN5dmrGdt613Iq9L3i
+         h3eCyLa0rcFT5OPZO3NTPKp99w0Xe+OCvVdrTWXEme/tF+iQergD2LMz9yNl+S/zdXzU
+         c7eGqf1XNnGV9vVfVydiPIzFDG4Zo//AsrWCTR5t+U4hHLhF1jF4Fbm8Q6Cpj2VJr+63
+         /I+6ATHPusreJIBkXn13AnqmNQZuoJCAkyHzM8gjRI9r1vGfLuM6tHCv01F6s37+7Yce
+         XUSUwQFPcDFtkGlSBCwN6hrqOyNrKMX+pPCKy6QZYPGc7BP8nukINOTWHMwrRkpTiokl
+         8Tag==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=YKKo0pgc;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z4sor2265159wmb.29.2019.04.05.16.01.16
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Pnr8Qcmz;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id h199sor5995312ith.17.2019.04.05.17.09.56
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 05 Apr 2019 16:01:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 05 Apr 2019 17:09:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=YKKo0pgc;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Pnr8Qcmz;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=S5YPihc8ey3XnTK6jsq2AQbOX0mAfD6UZn+XISxNaVc=;
-        b=YKKo0pgco/Kx9aPOEKbF+EH3xPmDvr0+YAOQh0qpAS+f2SY/oziisv2Gs2yRBksk33
-         mbpLyDlVN8cvelPYumARTahsE9dfPglsUP4ZNE5perqQ2SxhntRgSNbvY0rb8qqJyZA6
-         fEKiBD8uNogBFXZUgEpogoiLCEpKxj93CYh3ptSciVcGGHiH0dws+Ef4gvnqDUU3e0Z+
-         P7Xh3o5RHHTlBIE6RxhzVO/Hkl0zqRrJZ1oMd3dJzARyp5Nta1dSOxZd1pGlLK2hgdFC
-         NLJPzaIAqF21AlPZ7vrbXcaYHkoSbuuqOKPbZBScgbDLhboTKjVGSadfTAbgVhy/zBnq
-         U8uA==
-X-Google-Smtp-Source: APXvYqxCrYc9pFeXiakCF1G8nrTZNXMtwpV8VNxw85t8B13v+EJ70dhIkCS2h6lj+NAHvoI86BgUQnhG3KiGVp7hzEQ=
-X-Received: by 2002:a1c:40d6:: with SMTP id n205mr8824562wma.140.1554505276628;
- Fri, 05 Apr 2019 16:01:16 -0700 (PDT)
+        d=gmail.com; s=20161025;
+        h=mime-version:from:date:message-id:subject:to:cc;
+        bh=+uZuXK3Cg5BkLu3R2m2Qt0Oi23SaZRCYQzeotiWu9hc=;
+        b=Pnr8Qcmz5UA3Vq8hzId7rtXzoTDHe+wd5mhOyTxaUsKYIUhWd6C+4BBbLROLNVT11A
+         88Rp2XHc7s0GEEh3AwJiGHc5Ytt1l+r5JTrcTdiRzGQ7ZJEd+ICBqAqPLOM7SALWyOaO
+         xrl1kbNQINdnJ+49uLIfBIOvM/kB8G7IokkksV6x9SjHsdTvIhgXpVW11QQ4csezlTSZ
+         ByFVwSr7wy6DiiH0RQEViqIFKCroQvgDra9/qD4bqUaI4wGgJHz6R9Jg5x4TpEbb8WP5
+         MVBbAaM5ARHjDJp0KWy0+xahJHq9Eaf83OmNOz/ezj4d0HK2xSiFKFpG39UAvoYGPbaT
+         jzQA==
+X-Google-Smtp-Source: APXvYqw3Drw5oqr7TTrV7zTrQdEEoKBMGAwzJWRcUZ5Q6L3u0TvUlbUhcUSDaIhf45VwUMOvJ1Pg/hocSByuFV7OQd4=
+X-Received: by 2002:a24:7c52:: with SMTP id a79mr12697448itd.51.1554509396242;
+ Fri, 05 Apr 2019 17:09:56 -0700 (PDT)
 MIME-Version: 1.0
-References: <CAPcyv4gQNM9RbTbRWKnG6Vby_CW9CJ9EZTARsVNi=9cas7ZR2A@mail.gmail.com>
- <20180125072351.GA11093@infradead.org> <20180125160802.GD10706@ziepe.ca>
- <20180125164750.GB31752@infradead.org> <CAPcyv4hi98RDD=F1rhumgCF+UiOisidmeAVrDePrTzF1ArXj4A@mail.gmail.com>
-In-Reply-To: <CAPcyv4hi98RDD=F1rhumgCF+UiOisidmeAVrDePrTzF1ArXj4A@mail.gmail.com>
-From: Jason Gunthorpe <jgg@ziepe.ca>
-Date: Fri, 5 Apr 2019 20:01:05 -0300
-Message-ID: <CALEgSQvkUHLeS_7nBtrqoiEJ__Du4ZwZ4fFr_TSxZy-FhBWO-w@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] Filesystem-DAX, page-pinning, and RDMA
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Christoph Hellwig <hch@infradead.org>, lsf-pc@lists.linux-foundation.org, 
-	Michal Hocko <mhocko@kernel.org>, Linux MM <linux-mm@kvack.org>, 
-	linux-rdma <linux-rdma@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Fri, 5 Apr 2019 17:09:45 -0700
+Message-ID: <CAKgT0Ue4LufT4q4dLwjqhGRpDbVnucNWhmhwWxbwtytgjxx+Kw@mail.gmail.com>
+Subject: Thoughts on simple scanner approach for free page hinting
+To: "Michael S. Tsirkin" <mst@redhat.com>, David Hildenbrand <david@redhat.com>, 
+	Nitesh Narayan Lal <nitesh@redhat.com>
+Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
+	linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com, 
+	pagupta@redhat.com, wei.w.wang@intel.com, 
+	Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>, dodgen@google.com, 
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com, 
+	Andrea Arcangeli <aarcange@redhat.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -111,32 +112,101 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 26, 2018 at 10:50 PM Dan Williams <dan.j.williams@intel.com> wrote:
->
-> On Thu, Jan 25, 2018 at 8:47 AM, Christoph Hellwig <hch@infradead.org> wrote:
-> > On Thu, Jan 25, 2018 at 09:08:02AM -0700, Jason Gunthorpe wrote:
-> >> On Wed, Jan 24, 2018 at 11:23:51PM -0800, Christoph Hellwig wrote:
-> >> > On Wed, Jan 24, 2018 at 07:56:02PM -0800, Dan Williams wrote:
-> >> > > Particular people that would be useful to have in attendance are
-> >> > > Michal Hocko, Christoph Hellwig, and Jason Gunthorpe (cc'd).
-> >> >
-> >> > I won't be able to make it - I'll have to do election work and
-> >> > count the ballots for our city council and mayor election.
-> >>
-> >> I also have a travel conflict for that week in April and cannot make
-> >> it.
-> >
-> > Are any of you going to be in the Bay Area in February for Usenix
-> > FAST / LinuxFAST?
->
-> I'll be around, but that said I still think it's worthwhile to have
-> this conversation at LSF/MM. While we have a plan for filesystem-dax
-> vs RDMA, there's still the open implications for the mm in other
-> scenarios. I see Michal has also proposed this topic.
+So I am starting this thread as a spot to collect my thoughts on the
+current guest free page hinting design as well as point out a few
+possible things we could do to improve upon it.
 
-I also didn't make the cut for LSF/MM - is there some other conference
-people will be at to discuss this intersection with RDMA, prior to
-plumbers?
+1. The current design isn't likely going to scale well to multiple
+VCPUs. The issue specifically is that the zone lock must be held to
+pull pages off of the free list and to place them back there once they
+have been hinted upon. As a result it would likely make sense to try
+to limit ourselves to only having one thread performing the actual
+hinting so that we can avoid running into issues with lock contention
+between threads.
 
-Jason
+2. There are currently concerns about the hinting triggering false OOM
+situations if too much memory is isolated while it is being hinted. My
+thought on this is to simply avoid the issue by only hint on a limited
+amount of memory at a time. Something like 64MB should be a workable
+limit without introducing much in the way of regressions. However as a
+result of this we can easily be overrun while waiting on the host to
+process the hinting request. As such we will probably need a way to
+walk the free list and free pages after they have been freed instead
+of trying to do it as they are freed.
+
+3. Even with the current buffering which is still on the larger side
+it is possible to overrun the hinting limits if something causes the
+host to stall and a large swath of memory is released. As such we are
+still going to need some sort of scanning mechanism or will have to
+live with not providing accurate hints.
+
+4. In my opinion, the code overall is likely more complex then it
+needs to be. We currently have 2 allocations that have to occur every
+time we provide a hint all the way to the host, ideally we should not
+need to allocate more memory to provide hints. We should be able to
+hold the memory use for a memory hint device constant and simply map
+the page address and size to the descriptors of the virtio-ring.
+
+With that said I have a few ideas that may help to address the 4
+issues called out above. The basic idea is simple. We use a high water
+mark based on zone->free_area[order].nr_free to determine when to wake
+up a thread to start hinting memory out of a given free area. From
+there we allocate non-"Offline" pages from the free area and assign
+them to the hinting queue up to 64MB at a time. Once the hinting is
+completed we mark them "Offline" and add them to the tail of the
+free_area. Doing this we should cycle the non-"Offline" pages slowly
+out of the free_area. In addition the search cost should be minimal
+since all of the "Offline" pages should be aggregated to the tail of
+the free_area so all pages allocated off of the free_area will be the
+non-"Offline" pages until we shift over to them all being "Offline".
+This should be effective for MAX_ORDER - 1 and MAX_ORDER - 2 pages
+since the only real consumer of add_to_free_area_tail is
+__free_one_page which uses it to place a page with an order less than
+MAX_ORDER - 2 on the tail of a free_area assuming that it should be
+freeing the buddy of that page shortly. The only other issue with
+adding to tail would be the memory shuffling which was recently added,
+but I don't see that as being something that will be enabled in most
+cases so we could probably just make the features mutually exclusive,
+at least for now.
+
+So if I am not mistaken this would essentially require a couple
+changes to the mm infrastructure in order for this to work.
+
+First we would need to split nr_free into two counters, something like
+nr_freed and nr_bound. You could use nr_freed - nr_bound to get the
+value currently used for nr_free. When we pulled the pages for hinting
+we would reduce the nr_freed value and then add back to it when the
+pages are returned. When pages are allocated they would increment the
+nr_bound value. The idea behind this is that we can record nr_free
+when we collect the pages and save it to some local value. This value
+could then tell us how many new pages have been added that have not
+been hinted upon.
+
+In addition we will need some way to identify which pages have been
+hinted on and which have not. The way I believe easiest to do this
+would be to overload the PageType value so that we could essentially
+have two values for "Buddy" pages. We would have our standard "Buddy"
+pages, and "Buddy" pages that also have the "Offline" value set in the
+PageType field. Tracking the Online vs Offline pages this way would
+actually allow us to do this with almost no overhead as the mapcount
+value is already being reset to clear the "Buddy" flag so adding a
+"Offline" flag to this clearing should come at no additional cost.
+
+Lastly we would need to create a specialized function for allocating
+the non-"Offline" pages, and to tweak __free_one_page to tail enqueue
+"Offline" pages. I'm thinking the alloc function it would look
+something like __rmqueue_smallest but without the "expand" and needing
+to modify the !page check to also include a check to verify the page
+is not "Offline". As far as the changes to __free_one_page it would be
+a 2 line change to test for the PageType being offline, and if it is
+to call add_to_free_area_tail instead of add_to_free_area.
+
+Anyway this email ended up being pretty massive by the time I was
+done. Feel free to reply to parts of it and we can break it out into
+separate threads of discussion as necessary. I will start working on
+coding some parts of this next week.
+
+Thanks.
+
+- Alex
 
