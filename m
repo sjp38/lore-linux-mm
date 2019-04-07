@@ -2,184 +2,180 @@ Return-Path: <SRS0=rDiK=SJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E13F3C10F0E
-	for <linux-mm@archiver.kernel.org>; Sun,  7 Apr 2019 20:27:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EA29AC282DE
+	for <linux-mm@archiver.kernel.org>; Sun,  7 Apr 2019 22:11:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 85F4A20880
-	for <linux-mm@archiver.kernel.org>; Sun,  7 Apr 2019 20:27:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7C68120880
+	for <linux-mm@archiver.kernel.org>; Sun,  7 Apr 2019 22:11:15 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="FqmdE+7E"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 85F4A20880
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="VF6J7VpL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7C68120880
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 35ED26B000A; Sun,  7 Apr 2019 16:27:41 -0400 (EDT)
+	id C86F26B0005; Sun,  7 Apr 2019 18:11:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 30C076B000C; Sun,  7 Apr 2019 16:27:41 -0400 (EDT)
+	id C0C1E6B0006; Sun,  7 Apr 2019 18:11:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1FCD16B000E; Sun,  7 Apr 2019 16:27:41 -0400 (EDT)
+	id AACF76B0007; Sun,  7 Apr 2019 18:11:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D947B6B000A
-	for <linux-mm@kvack.org>; Sun,  7 Apr 2019 16:27:40 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id m35so5713960pgl.6
-        for <linux-mm@kvack.org>; Sun, 07 Apr 2019 13:27:40 -0700 (PDT)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A9196B0005
+	for <linux-mm@kvack.org>; Sun,  7 Apr 2019 18:11:14 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id q23so7035280otk.10
+        for <linux-mm@kvack.org>; Sun, 07 Apr 2019 15:11:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
-         :message-id:in-reply-to:references:user-agent:mime-version
-         :content-transfer-encoding;
-        bh=Kv3ME1CHuNV3vr0SQcA7uFv9ps91/aQadFGc+0Oqa8Q=;
-        b=HkYIYX9/Dv7N/Bj3tuj25md4Ye4YHoCTjbw9fKzGiy7gi7he0Ig8qKxDQ1hrO2YM6r
-         wTHq08mj313A1WmYTOjs2e2xN71sPNd1j9nG07f8KOrGry11w1wrZ4VUJqbrqKfgOD1B
-         mHlRGKAMh5lPunTJA1Pms/WWR5o7ly8il4Ws1cxLnImWn30ZpErgyFsWwVX33HiIWb06
-         svgDaoEI+m4wj8oH3Ok5HsL3x3jGyBlpWJeKBitjhMrGswd+zrUv5qgDW8tt9/ziYrPH
-         5djButMyI+xffqF+NuHk+3yXExHGIGwX8uTow9MraZg8dS3PUbiZjU+n2/naaDZeESIq
-         8pOA==
-X-Gm-Message-State: APjAAAU4z5dc+IKvcr1FkFKVlTO7QZbl8KCt63kgAL3sxHAot1CN8ida
-	jwh+Z6prYdJUiFWpUu/env0pA7FjguhDxkWHLtAjs2Noz3ZVVDdgcUWL3wt8qd0jOjJOCbunS8p
-	Jddszc7tDeP39nXUEdW4f6An8jdMxMtLAbFctKCtga0tkD6GAblcnlS1yDYo8ENV4Sw==
-X-Received: by 2002:aa7:91d5:: with SMTP id z21mr25745838pfa.222.1554668860438;
-        Sun, 07 Apr 2019 13:27:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyY3JXs9h0l/S2PNpWUK+0KqcCmFMhNIK2wlP352waedzLBCT4NcsPoaIZT5j/RggAfaKTd
-X-Received: by 2002:aa7:91d5:: with SMTP id z21mr25745801pfa.222.1554668859799;
-        Sun, 07 Apr 2019 13:27:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554668859; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=B2XZYc73eRD7vceltyVRxYxMZptJ0KGjDTZjSsKaM94=;
+        b=obwELRKzLD/cDi+QibewaIvckyqn8hcUwqnM3CdWATY9Y+QEvI3/ovm0eCvwjN+fiu
+         HkRkIcVLGbciYFWKPafGynAxm5AqNkE0fRXuz4UHZ+CVO3uI5OSDsf/6t19SA9ri/p+J
+         lu+wwI9Fx8OBawbndK1xGRkIac0fa66lQYhB2e99RCJdm6KorVWrx4sTReUVbDXF/+X8
+         dpOrPHn8NUknWg/ybMBP3W6l3XoG7I8r7zzJL+PRRD3qKKSVbPuxfqQAyWaHyEclRmbQ
+         35kEHtFT+AYk7dITH9HUJNT8wyAXnESz9BciX0ZriAOLfh1y7FMbVoYmxXXZsSf5qIJq
+         gKxQ==
+X-Gm-Message-State: APjAAAXkntoDeQrn4e1nxCNzJzMjKCeUb3wu4hCunCp3wG3cGHdgYYFq
+	on8Ffm44C/61YO20FyQcsuXmW+p2O/JNAGup3O/mw/xUrnQ2Q/Q0TpdWX4QNi8N0ZX1jR9oXgvF
+	wntoz3z1x8V9Uo1Q0IRbtwk69f/OM//NA2UraGGDW7Ql8Pf1z1syS3CfbhA3yyKr+ig==
+X-Received: by 2002:a9d:5f06:: with SMTP id f6mr17366132oti.18.1554675074120;
+        Sun, 07 Apr 2019 15:11:14 -0700 (PDT)
+X-Received: by 2002:a9d:5f06:: with SMTP id f6mr17366104oti.18.1554675073437;
+        Sun, 07 Apr 2019 15:11:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554675073; cv=none;
         d=google.com; s=arc-20160816;
-        b=dBB+oAz3Wt7H0RNsGZJC2Hy2oZnHqYR2Zv1PMQja2m2PHOq65JdoGS8n4ynrlUur5z
-         euW3tiA6PPfJ5lM4YiQKjY+HDwuS5bUlTgvRNAvG4Y14DgNp4oxFMuRYB/kFagGhcZZ7
-         Q5yt9qaTcbJ+ERXDjQ7gZRrVnNxPiZLYbvlTVXXxTkszM0HOD1l5ej/8aLw6jdPYhZ5w
-         7fD8qEUNA+r/hKzltz8YvLy+kuoHjQ6rx62nz8u/ws78ukyuOueYLk6Npeh0j6EcxYfe
-         zUMH0FHgdk/fCIVHxsdyx84BzzZI81yarjW1mBPkJHzJt6ueArD0G8Y0N1Za66qzl0CB
-         Znlw==
+        b=ETy/sIhqmmCxWsSM8rge5xgH0VIk+RNKTCVTWtjrTdu2Gd7599E8kIn7REPMn2XiGB
+         yXCFnGpCOpzVnsTjxZntSgYf4AlGMzRGaYJbFzxaiRZBr0iEJi/4mWwphzb/9txqx+dr
+         irqOa+xY+F8uWEPuAx23dJEARhEv03jl7Im0GScfez505MX5tEOOYaaU4/V/y3KSnxF6
+         D3/Jk1yghl4q3cIbaHLr5ZeBrPKcTtCGi6Fv1iOd/12WodH8MsspwSVfM6mpaMoK09GS
+         6W8KCFN+arGaasVMjPA3Dz5K1RMh9a34zWn694dj/YxKWGhoHvCLOzwYdvMNfHBogIcS
+         SmEQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:message-id:date:cc:to:from:subject:dkim-signature;
-        bh=Kv3ME1CHuNV3vr0SQcA7uFv9ps91/aQadFGc+0Oqa8Q=;
-        b=wpgQ79g9jIJmbQCQ/SYMrjE74oZNYBfTNjqK4b6dpCgPmJvCxRba8+3zMQMsO5YKUc
-         7su6ew4xG66IEiQ2+IhhIjcw10tj0I/obpHkxCuMeuvQYpFZp5zfSPg7/ZT8V3WzgSyQ
-         4/fkRnPlbgngVVZYHpuhy77wJMROSUm3sDDfuGCchheMsrZVyHArxgqyhH9tSuARmSvk
-         S0TArjxrSV4HLBf/Wf0LHtJmW5mFZlt7CyeUJjUs9Vp22C5TDwtoSi2/xQ7Qo86+/qfe
-         BrqS2lxnAQmmKJUhYTV01jJDX5FpFl1sZYChhf0V0GTz/f9wVMNTNQC1WhH1QS0h07qg
-         9/wg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=B2XZYc73eRD7vceltyVRxYxMZptJ0KGjDTZjSsKaM94=;
+        b=Aq6valSs8lLMH7oBrob6qTCWJ2xFOm76Vm83gOkCl5zbNCDEi2RmKkEIvGX50SExA8
+         or99ESaaB52jtZdfR9EhQG4N3bf8wcdBAgjUHrhsVgw0TpxbQHpjnV6QiiTXnfg5V+4H
+         SQBBBPXDNq7otu/583r8n6aNV5p6vfa9SFoE4WauP48L885WDRyAuzfMTjyDvruOPtoi
+         69489z7nJcSTFEj/NPjZbiB1FOThngRwsi+anuPl4OKCYjVx62GAK8wQV0LKogs4yuT+
+         J+eWk4AWeDmOR80vYUUzk/czuAecMcagQxtSa7Uxg/uXZ1E6xZamG5OkDkpCDHVVKdRo
+         FI+w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=FqmdE+7E;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id m3si24276883pfh.249.2019.04.07.13.27.39
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=VF6J7VpL;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r83sor3562749oia.30.2019.04.07.15.11.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 07 Apr 2019 13:27:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        (Google Transport Security);
+        Sun, 07 Apr 2019 15:11:12 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=FqmdE+7E;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x37KJMGV068386;
-	Sun, 7 Apr 2019 20:27:38 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : from : to :
- cc : date : message-id : in-reply-to : references : mime-version :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=Kv3ME1CHuNV3vr0SQcA7uFv9ps91/aQadFGc+0Oqa8Q=;
- b=FqmdE+7Eb0IBxrlLL177cZCTndZa9EnxerIHOWMihSBaobMZoAfDXGpnG3KAO2PnBn5o
- ZwG+Nv8XeBhXoUuCDPMo8M6rqDJSbmbEMqxwPv4JvxiPs+yGhldsSkGZVrESeou6My2N
- yVdhuQWdBtjo0gBw/obdeV1UDO9cU9SZxVz+DXGoP/q9uqrwEFpn1oKfKMntBqCVoB2r
- k6SHjsQde/s5HkMbDT/OuNcUZsVVVYdGUyBDXfwPr2Rf7bQPHrMNVV4VgkrME2zEiIpD
- OatzVYGxPrgkE2508YGx0ghlOoT1YMXn9+yO4UA3nQj/gqeupshVeoyk/7VZABXza44u Cw== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by aserp2130.oracle.com with ESMTP id 2rphme3be7-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Sun, 07 Apr 2019 20:27:38 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x37KRcwU195361;
-	Sun, 7 Apr 2019 20:27:38 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by userp3020.oracle.com with ESMTP id 2rpkehdurk-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Sun, 07 Apr 2019 20:27:37 +0000
-Received: from abhmp0018.oracle.com (abhmp0018.oracle.com [141.146.116.24])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x37KRauR032494;
-	Sun, 7 Apr 2019 20:27:36 GMT
-Received: from localhost (/67.169.218.210)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Sun, 07 Apr 2019 13:27:36 -0700
-Subject: [PATCH 4/4] xfs: don't allow most setxattr to immutable files
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-To: darrick.wong@oracle.com
-Cc: david@fromorbit.com, linux-xfs@vger.kernel.org, linux-mm@kvack.org,
-        linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org,
-        linux-btrfs@vger.kernel.org
-Date: Sun, 07 Apr 2019 13:27:29 -0700
-Message-ID: <155466884962.633834.14320700092446721044.stgit@magnolia>
-In-Reply-To: <155466882175.633834.15261194784129614735.stgit@magnolia>
-References: <155466882175.633834.15261194784129614735.stgit@magnolia>
-User-Agent: StGit/0.17.1-dirty
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=VF6J7VpL;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=B2XZYc73eRD7vceltyVRxYxMZptJ0KGjDTZjSsKaM94=;
+        b=VF6J7VpLiFG+tX7uSQBIb+AwaLMM5daXTCJr5O14/07I+crMC/7CyhhDhw/rkhgzqV
+         QAJpzGmLF77WW5GGQgOi7zXJLDOUf9PWcJXZpAaDnR8G2Z/o32w5PyVXb2/17NUKOENd
+         ILp3C+qJyDufmz/H2FvScxkpoEoX8y3/OKQkd3xj2xNV8GjV5iFpzzmF+UKZJX1J+Nbv
+         +s8qytEbKUXRw946ci+uDxo4I/DMq3otb4OcjI6kzqUlEJ+XYDKXR8Rkk3WUGRzttS9r
+         3gvfgcy6yRVczoPA5o6/ZvBoApQtsCN3QuyBLTFSXyHZBeidoj1Uji54NX/l7khGIYFi
+         58RA==
+X-Google-Smtp-Source: APXvYqzY6+cyTHrSoY4urPHyhyziXZg+NKTZb0BCBZ46NSBkQJtTlIpQKITlrqnG9yYnwNxu42BStWrEHG+Tle46O5A=
+X-Received: by 2002:aca:f581:: with SMTP id t123mr14992918oih.0.1554675072260;
+ Sun, 07 Apr 2019 15:11:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9220 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=1 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1904070194
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9220 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=1 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1904070193
+References: <1554265806-11501-1-git-send-email-anshuman.khandual@arm.com>
+ <1554265806-11501-7-git-send-email-anshuman.khandual@arm.com>
+ <ea5567c7-caad-8a4e-7c6f-cec4b772a526@arm.com> <0d72db39-e20d-1cbd-368e-74dda9b6c936@arm.com>
+ <CAPcyv4h5YskvjR306FsHnVHpPjnT4s2JPJXgk6CxiMz8bjhqkg@mail.gmail.com> <a16a9867-7019-10ab-1901-c114bcd8712b@arm.com>
+In-Reply-To: <a16a9867-7019-10ab-1901-c114bcd8712b@arm.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Sun, 7 Apr 2019 15:11:00 -0700
+Message-ID: <CAPcyv4j0Z2ASeJGgS18Bpgr_2F8XdZdCq4T9W5fgkG1oWKtNHg@mail.gmail.com>
+Subject: Re: [PATCH 6/6] arm64/mm: Enable ZONE_DEVICE
+To: Robin Murphy <robin.murphy@arm.com>
+Cc: Anshuman Khandual <anshuman.khandual@arm.com>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, 
+	Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, 
+	Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, james.morse@arm.com, 
+	Mark Rutland <mark.rutland@arm.com>, cpandya@codeaurora.org, arunks@codeaurora.org, 
+	osalvador@suse.de, Logan Gunthorpe <logang@deltatee.com>, 
+	David Hildenbrand <david@redhat.com>, cai@lca.pw, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	"Weiny, Ira" <ira.weiny@intel.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Darrick J. Wong <darrick.wong@oracle.com>
+On Thu, Apr 4, 2019 at 2:47 AM Robin Murphy <robin.murphy@arm.com> wrote:
+>
+> On 04/04/2019 06:04, Dan Williams wrote:
+> > On Wed, Apr 3, 2019 at 9:42 PM Anshuman Khandual
+> > <anshuman.khandual@arm.com> wrote:
+> >>
+> >>
+> >>
+> >> On 04/03/2019 07:28 PM, Robin Murphy wrote:
+> >>> [ +Dan, Jerome ]
+> >>>
+> >>> On 03/04/2019 05:30, Anshuman Khandual wrote:
+> >>>> Arch implementation for functions which create or destroy vmemmap mapping
+> >>>> (vmemmap_populate, vmemmap_free) can comprehend and allocate from inside
+> >>>> device memory range through driver provided vmem_altmap structure which
+> >>>> fulfils all requirements to enable ZONE_DEVICE on the platform. Hence just
+> >>>
+> >>> ZONE_DEVICE is about more than just altmap support, no?
+> >>
+> >> Hot plugging the memory into a dev->numa_node's ZONE_DEVICE and initializing the
+> >> struct pages for it has stand alone and self contained use case. The driver could
+> >> just want to manage the memory itself but with struct pages either in the RAM or
+> >> in the device memory range through struct vmem_altmap. The driver may not choose
+> >> to opt for HMM, FS DAX, P2PDMA (use cases of ZONE_DEVICE) where it may have to
+> >> map these pages into any user pagetable which would necessitate support for
+> >> pte|pmd|pud_devmap.
+> >
+> > What's left for ZONE_DEVICE if none of the above cases are used?
+> >
+> >> Though I am still working towards getting HMM, FS DAX, P2PDMA enabled on arm64,
+> >> IMHO ZONE_DEVICE is self contained and can be evaluated in itself.
+> >
+> > I'm not convinced. What's the specific use case.
+>
+> The fundamental "roadmap" reason we've been doing this is to enable
+> further NVDIMM/pmem development (libpmem/Qemu/etc.) on arm64. The fact
+> that ZONE_DEVICE immediately opens the door to the various other stuff
+> that the CCIX folks have interest in is a definite bonus, so it would
+> certainly be preferable to get arm64 on par with the current state of
+> things rather than try to subdivide the scope further.
+>
+> I started working on this from the ZONE_DEVICE end, but got bogged down
+> in trying to replace my copied-from-s390 dummy hot-remove implementation
+> with something proper. Anshuman has stepped in to help with hot-remove
+> (since we also have cloud folks wanting that for its own sake), so is
+> effectively coming at the problem from the opposite direction, and I'll
+> be the first to admit that we've not managed the greatest job of meeting
+> in the middle and coordinating our upstream story; sorry about that :)
+>
+> Let me freshen up my devmap patches and post them properly, since that
+> discussion doesn't have to happen in the context of hot-remove; they're
+> effectively just parallel dependencies for ZONE_DEVICE.
 
-The chattr manpage has this to say about immutable files:
-
-"A file with the 'i' attribute cannot be modified: it cannot be deleted
-or renamed, no link can be created to this file, most of the file's
-metadata can not be modified, and the file can not be opened in write
-mode."
-
-However, we don't actually check the immutable flag in the setattr code,
-which means that we can update project ids and extent size hints on
-supposedly immutable files.  Therefore, reject a setattr call on an
-immutable file except for the case where we're trying to unset
-IMMUTABLE.
-
-Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
----
- fs/xfs/xfs_ioctl.c |    8 ++++++++
- 1 file changed, 8 insertions(+)
-
-
-diff --git a/fs/xfs/xfs_ioctl.c b/fs/xfs/xfs_ioctl.c
-index 5a1b96dad901..1215713d7814 100644
---- a/fs/xfs/xfs_ioctl.c
-+++ b/fs/xfs/xfs_ioctl.c
-@@ -1061,6 +1061,14 @@ xfs_ioctl_setattr_xflags(
- 	    !capable(CAP_LINUX_IMMUTABLE))
- 		return -EPERM;
- 
-+	/*
-+	 * If immutable is set and we are not clearing it, we're not allowed
-+	 * to change anything else in the inode.
-+	 */
-+	if ((ip->i_d.di_flags & XFS_DIFLAG_IMMUTABLE) &&
-+	    (fa->fsx_xflags & FS_XFLAG_IMMUTABLE))
-+		return -EPERM;
-+
- 	/* diflags2 only valid for v3 inodes. */
- 	di_flags2 = xfs_flags2diflags2(ip, fa->fsx_xflags);
- 	if (di_flags2 && ip->i_d.di_version < 3)
+Sounds good. It's also worth noting that Ira's recent patches for
+supporting get_user_pages_fast() for "longterm" pins relies on
+PTE_DEVMAP to determine when fast-GUP is safe to proceed, or whether
+it needs to fall back to slow-GUP. So it really is the case that
+"devmap" support is an assumption for ZONE_DEVICE.
 
