@@ -7,119 +7,118 @@ X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CDC49C10F0E
-	for <linux-mm@archiver.kernel.org>; Sun,  7 Apr 2019 20:27:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D399DC282DD
+	for <linux-mm@archiver.kernel.org>; Sun,  7 Apr 2019 20:27:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 725CE20880
-	for <linux-mm@archiver.kernel.org>; Sun,  7 Apr 2019 20:27:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8047D20880
+	for <linux-mm@archiver.kernel.org>; Sun,  7 Apr 2019 20:27:33 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Bf+U77Rr"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 725CE20880
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="CRe/lqFK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8047D20880
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 24A6F6B0007; Sun,  7 Apr 2019 16:27:27 -0400 (EDT)
+	id 162A96B0008; Sun,  7 Apr 2019 16:27:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1FB1C6B0008; Sun,  7 Apr 2019 16:27:27 -0400 (EDT)
+	id 111146B000A; Sun,  7 Apr 2019 16:27:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0C4126B000A; Sun,  7 Apr 2019 16:27:27 -0400 (EDT)
+	id F41876B000C; Sun,  7 Apr 2019 16:27:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BEA226B0007
-	for <linux-mm@kvack.org>; Sun,  7 Apr 2019 16:27:26 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id n23so8393297plp.23
-        for <linux-mm@kvack.org>; Sun, 07 Apr 2019 13:27:26 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BCE136B0008
+	for <linux-mm@kvack.org>; Sun,  7 Apr 2019 16:27:32 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id j1so8879512pff.1
+        for <linux-mm@kvack.org>; Sun, 07 Apr 2019 13:27:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
          :message-id:in-reply-to:references:user-agent:mime-version
          :content-transfer-encoding;
-        bh=8Z5m1t1XYo17k81EeuKWtqQr0sJBxzEuI/QLbKGy0SI=;
-        b=lDAYltWFStZHo0ph43QE7ff6dE75sPJZM9xRGp8frto0BV50DlzTZA4sDE7agXwILy
-         2XJDx+on/Nstcf6hR05Bh1grAEdCxUf/86QD1eWbznmv7U1GsfdOZL/OZVvFRAP+VOHG
-         GDaA6fKXcxnWFkQ4JmsU5Ylf5edsYGsuDo+6zNX485b2C5x4MeDahJiU2Glqy43yBVpS
-         O6xr+ZuRaO4PhP7bKPhSZO1Kuwh/qI1mF5isequg625Aamn8Fb+iOtKHe12rd2qs6zVd
-         ai/2je4LllVST61LYeZeBLRQywYEphGv2WJLtte0MwSLR+PDWFCjuAvl81lMcAdB6dM7
-         DVDQ==
-X-Gm-Message-State: APjAAAUpDm9+Y1Z8eQFecVYbCDJlRole/9AeCmBD82HKryjanxn/hh+A
-	2kEZ+F8/JDlrJAqpNF7gcVk/KyM5AgNY/AHiQYstyj7CgiqbltVjeQ/nitxDiaYnpjFp2TqbQXW
-	BhO9WPW+vXUKSCzXgRbfhjNsnbymeQzgl6b33PVCpuN30KNouYjey3pN9xnNf90raHA==
-X-Received: by 2002:a17:902:d701:: with SMTP id w1mr26742118ply.124.1554668846379;
-        Sun, 07 Apr 2019 13:27:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxeGeeMuid3LL+BgIDRNE/A+dFMiIv8zyVFcqFmYrwGud9paT40qtp1bOZW7jCuJfw6v8LO
-X-Received: by 2002:a17:902:d701:: with SMTP id w1mr26742085ply.124.1554668845778;
-        Sun, 07 Apr 2019 13:27:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554668845; cv=none;
+        bh=dhZCzWJyJFoBJ75COkiuAKNuKnOrPDc1hKAQlxLkLTw=;
+        b=oMSNizE4SoidUp3LRamgEhCDz05lcOSdiQVQW5iiHRUWd3Jr0A2vm3lyaaIomkTipB
+         O61fKDqBIneWeyu5vIG+2KXtsbd3EneYVZCBD2To482+myCpRundLLU2fXPjVRapGGwm
+         NdsMCOx28/uaadXd0upC2W7dVIizRAoqWBNXw89BooM0+bR5uB6cr0sdiBhwcXEN9org
+         LRpnRRGxR2JdIrQKV1QzQSs1R9h5HhRu36aQjbk++wl3zzimw1pqxgDQ+jjFjAWglvou
+         BMJSJRmYjL6d997RIhXa3IkT0kFh4dXGykT/sEt4Dklst4xYfNDixKsECwf/3Cp6iHvp
+         zZpw==
+X-Gm-Message-State: APjAAAVxAn3zWioXFmEfwv3HVhpBGFCO3Gtzv1iC3mVHD25mNGJCmkS5
+	vq0JNTTDk5JaxSWvEowbzs8T3k+8JJGKiNN53y+4J9jnctXI4v4IUWNQ8DXowbrxO+QCt0Gein4
+	miJOsRLPdiynEVeo8RW2mZkKSFjgT0wDLdnNq40Wj3x4B8WVSVB84rNj0WxNqQ7dIzw==
+X-Received: by 2002:a63:4241:: with SMTP id p62mr24553605pga.379.1554668852315;
+        Sun, 07 Apr 2019 13:27:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzn5xD5ZVK4pMevXZQrrWeydqfIjIhblah5a1naTlriVNLe5iocpFsrLjobwALpeRBhBpVL
+X-Received: by 2002:a63:4241:: with SMTP id p62mr24553571pga.379.1554668851559;
+        Sun, 07 Apr 2019 13:27:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554668851; cv=none;
         d=google.com; s=arc-20160816;
-        b=v8r893AEkXPNL8MDo5GEc0pQrlDldqGMIfxLetsUE2bVZ3R2jL/opN+g9v3EyCWdTz
-         YzNc6yXzhd7aRhGdHWgWGaDxnk9bpC3pFkxUpHL2Z4TCsbdBxu36iOPQjiGJbKB5EHq0
-         vCmj2ePws7dykSahdSwGAFmv+xs3lCK+XXyWbhSjJxWtMPRmYObv6JrbUCyg+Ul0OrOT
-         zX2WO8twwKtbk+E4PB0eEifOFzld8n32o4nVnEbblw83HsSvX98k/U0fSVwUCPdXddwj
-         WnQ0RSeyfy0OB58ZGAqdgZr1Mu9WY3AwJdEH/LZo+ts0YEI4JNyx3n0QrRlI4sMoN64Y
-         VTHg==
+        b=SMP9J793o6jjKC+y92bR+CTP8YwmGhPPTde6HyiNRoSMLncmfkPcWqNMIH83lvfl+5
+         9KzcJgSyaVIqV8ACwYhQwy2Q3XDGJYFJ3fVgEMXx6NpGKy259Oy4AxUjKhKpI68eRCvV
+         Kkyvldu6wXs3zT/5bPTY12PspjF2ax+CF+GwobDWaPgKgO8SJ8UA6llMfNJwVOuNIgq+
+         SUsiimS3ZUYXHRqFiKVPHkXb/lVf926ZsCgZIPhVoSBRRd4zi/fJ6LsHkGy16TjMAEkD
+         IJL1ajOlsY8+mUgOQQ/0+WiTS7nJ9MF6JciP4hnNQtwq8tI0WvSCAttoNW3SLxzdCWKi
+         nWgw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:message-id:date:cc:to:from:subject:dkim-signature;
-        bh=8Z5m1t1XYo17k81EeuKWtqQr0sJBxzEuI/QLbKGy0SI=;
-        b=HvEKl9IFFXnsW7rWEd6GlXVrDrOkJaAf7dEmzAUhzTAi1pXyW6gML8rqrfHwTYfCGM
-         KCYxq1Gjl6VzNaooN76q7UICXc/DXDAMRr69KlobBJLnxgOuUbwJ+H1kVJY3X7EC4aJg
-         9EU7FrvnN7Wqj4sXGjesORE4tara2w+h7pVk9tdPBStspyQMwbVF/AolYH5SLpF2frR5
-         7GfwuMuiC0mvXs5jR7x6YQGKDwmELOe7XOqqakGqXAfdXcG2CrJA+KRB9Q8vK1zlS5FS
-         SCmKB3RJup8DS9wnZB+KZ45yduNIfD8klLGZm7RoERPMfOj13Dt3ZcR/tjv6XqhWuobZ
-         voEg==
+        bh=dhZCzWJyJFoBJ75COkiuAKNuKnOrPDc1hKAQlxLkLTw=;
+        b=ZGbYuP3GcwtUPP5WZBBeRqP2uCyFnG52wmmKpSdxWM18IXsMzvb2ygQ6Iz4TKiXGzx
+         BfkTUIGw8a/CC8ZAvIBWl/PS8zebjEci5iPcw+/+4xKwTSngnXuiqmKafG3Ouideye1e
+         IUcgwXvt8wK8ja8iBEPxVNGAh026fAJmvH5gCiWZg639wMo25T7z1WyFsiZ47uHXC9Ut
+         08HTP2vJ7NHaucuT+vBPkKC3UVvFzxNZ1obNFdngfUjnCngRE/cAxTDoqX65Rc0k9DXe
+         SlsHmlTVwikg9+fAbJ1BTLEkXzElPtHIcPTsevtE47ITMlVsz0gmPEtme7TAAfUVPW33
+         89mw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Bf+U77Rr;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="CRe/lqFK";
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id g31si9064462plg.154.2019.04.07.13.27.25
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id t2si23797406pgp.444.2019.04.07.13.27.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 07 Apr 2019 13:27:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Sun, 07 Apr 2019 13:27:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Bf+U77Rr;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="CRe/lqFK";
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x37KJAPu068364;
-	Sun, 7 Apr 2019 20:27:24 GMT
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x37KKx2b063305;
+	Sun, 7 Apr 2019 20:27:30 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : from : to :
  cc : date : message-id : in-reply-to : references : mime-version :
  content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=8Z5m1t1XYo17k81EeuKWtqQr0sJBxzEuI/QLbKGy0SI=;
- b=Bf+U77RrhMcfTj1v1gaW3yOQVeLbEwkx+IqYrvDZSHA4XvFsHoVdzDQp1UJmGyYGl1NY
- nLmP2BJmYhQ+lLH/nQ4fJGT5knqbikx5g72pw8AfspalqslfMMd+EyB1qTEXgHUtZpvm
- pwcVuKpb4P0r25JdLmQfPxNFhFqQXAyaHml+q2pWD5UPO8SPBRLfcaEUDXqOxHQAMOTs
- VFadZXcrryQADXtYye8y12fGrQgz9yCanT8vW5eNfdCu3nroDUxu9oR7JBBT8TxSceVc
- n/PO+0jiArYAl3Q7QA/0NTDttRHUGrR1eUS80qh8BkUZbNCK9FDSqJX08JYUdsr85KVZ Xw== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by aserp2130.oracle.com with ESMTP id 2rphme3be2-1
+ bh=dhZCzWJyJFoBJ75COkiuAKNuKnOrPDc1hKAQlxLkLTw=;
+ b=CRe/lqFKWCFJxRbNttxCQ7SgecorAo+xzZO4nrDxSoo57SsBzEOA9wJUTk2F/AQGBe5s
+ JAng93IH3nOYiG5MGf5Cxd6svj1EormZb5HPvrDMfTvMnxU4XilaeGJRU6Mbt5C0Vf2l
+ RAA91h8Dk/rhw5jXOIU4P6oTvAvYot+PWuaCGHjRxLpDLcTy1XMzZFgx4EMzEtjfkIED
+ WHUprTx6Ib5AoO5lzg3SyMJyPlUDb6CJb1+EE0co82tH6donqaKKWHGiO1ISV0wRnizQ
+ jjvmSwm9RZfxqF8KHAzR/Wsc3W+4OaidB9o/oCfxwEbWxadBowI17mBce1p8mXBX9Arc KA== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by userp2130.oracle.com with ESMTP id 2rpkhsk6be-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Sun, 07 Apr 2019 20:27:24 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x37KPpp5193773;
-	Sun, 7 Apr 2019 20:27:24 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by userp3020.oracle.com with ESMTP id 2rpkehduqn-1
+	Sun, 07 Apr 2019 20:27:30 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x37KR2p3165960;
+	Sun, 7 Apr 2019 20:27:30 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userp3030.oracle.com with ESMTP id 2rph7rqdh8-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Sun, 07 Apr 2019 20:27:23 +0000
-Received: from abhmp0010.oracle.com (abhmp0010.oracle.com [141.146.116.16])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x37KRMgr027225;
-	Sun, 7 Apr 2019 20:27:23 GMT
+	Sun, 07 Apr 2019 20:27:30 +0000
+Received: from abhmp0009.oracle.com (abhmp0009.oracle.com [141.146.116.15])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x37KRT4A031880;
+	Sun, 7 Apr 2019 20:27:29 GMT
 Received: from localhost (/67.169.218.210)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Sun, 07 Apr 2019 13:27:22 -0700
-Subject: [PATCH 2/4] xfs: unlock inode when xfs_ioctl_setattr_get_trans
- can't get transaction
+	with ESMTP ; Sun, 07 Apr 2019 13:27:29 -0700
+Subject: [PATCH 3/4] xfs: flush page mappings as part of setting immutable
 From: "Darrick J. Wong" <darrick.wong@oracle.com>
 To: darrick.wong@oracle.com
 Cc: david@fromorbit.com, linux-xfs@vger.kernel.org, linux-mm@kvack.org,
         linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org,
         linux-btrfs@vger.kernel.org
-Date: Sun, 07 Apr 2019 13:27:16 -0700
-Message-ID: <155466883603.633834.5683596746694707981.stgit@magnolia>
+Date: Sun, 07 Apr 2019 13:27:23 -0700
+Message-ID: <155466884294.633834.1486289166159962611.stgit@magnolia>
 In-Reply-To: <155466882175.633834.15261194784129614735.stgit@magnolia>
 References: <155466882175.633834.15261194784129614735.stgit@magnolia>
 User-Agent: StGit/0.17.1-dirty
@@ -127,14 +126,14 @@ MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9220 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=1 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=911
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=3 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
  adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
  engine=8.0.1-1810050000 definitions=main-1904070193
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9220 signatures=668685
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=1 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=938 adultscore=0
+ suspectscore=3 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
  definitions=main-1904070193
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -145,27 +144,109 @@ List-ID: <linux-mm.kvack.org>
 
 From: Darrick J. Wong <darrick.wong@oracle.com>
 
-We passed an inode into xfs_ioctl_setattr_get_trans with join_flags
-indicating which locks are held on that inode.  If we can't allocate a
-transaction then we need to unlock the inode before we bail out.
+The chattr manpage has this to say about immutable files:
+
+"A file with the 'i' attribute cannot be modified: it cannot be deleted
+or renamed, no link can be created to this file, most of the file's
+metadata can not be modified, and the file can not be opened in write
+mode."
+
+This means that we need to flush the page cache when setting the
+immutable flag so that all mappings will become read-only again and
+therefore programs cannot continue to write to writable mappings.
 
 Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
 ---
- fs/xfs/xfs_ioctl.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ fs/xfs/xfs_ioctl.c |   51 ++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 44 insertions(+), 7 deletions(-)
 
 
 diff --git a/fs/xfs/xfs_ioctl.c b/fs/xfs/xfs_ioctl.c
-index 6ecdbb3af7de..91938c4f3c67 100644
+index 91938c4f3c67..5a1b96dad901 100644
 --- a/fs/xfs/xfs_ioctl.c
 +++ b/fs/xfs/xfs_ioctl.c
-@@ -1142,7 +1142,7 @@ xfs_ioctl_setattr_get_trans(
+@@ -998,6 +998,31 @@ xfs_diflags_to_linux(
+ #endif
+ }
  
- 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_ichange, 0, 0, 0, &tp);
++/*
++ * Lock the inode against file io and page faults, then flush all dirty pages
++ * and wait for writeback and direct IO operations to finish.  Returns with
++ * the relevant inode lock flags set in @join_flags.  Caller is responsible for
++ * unlocking even on error return.
++ */
++static int
++xfs_ioctl_setattr_flush(
++	struct xfs_inode	*ip,
++	int			*join_flags)
++{
++	struct inode		*inode = VFS_I(ip);
++
++	/* Already locked the inode from IO?  Assume we're done. */
++	if (((*join_flags) & (XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL)) ==
++			     (XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL))
++		return 0;
++
++	/* Lock and flush all mappings and IO in preparation for flag change */
++	*join_flags = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
++	xfs_ilock(ip, *join_flags);
++	inode_dio_wait(inode);
++	return filemap_write_and_wait(inode->i_mapping);
++}
++
+ static int
+ xfs_ioctl_setattr_xflags(
+ 	struct xfs_trans	*tp,
+@@ -1092,25 +1117,22 @@ xfs_ioctl_setattr_dax_invalidate(
+ 	if (!(fa->fsx_xflags & FS_XFLAG_DAX) && !IS_DAX(inode))
+ 		return 0;
+ 
+-	if (S_ISDIR(inode->i_mode))
++	if (!S_ISREG(inode->i_mode))
+ 		return 0;
+ 
+ 	/* lock, flush and invalidate mapping in preparation for flag change */
+-	xfs_ilock(ip, XFS_MMAPLOCK_EXCL | XFS_IOLOCK_EXCL);
+-	error = filemap_write_and_wait(inode->i_mapping);
++	error = xfs_ioctl_setattr_flush(ip, join_flags);
  	if (error)
--		return ERR_PTR(error);
-+		goto out_unlock;
+ 		goto out_unlock;
+ 	error = invalidate_inode_pages2(inode->i_mapping);
+ 	if (error)
+ 		goto out_unlock;
+-
+-	*join_flags = XFS_MMAPLOCK_EXCL | XFS_IOLOCK_EXCL;
+ 	return 0;
  
- 	xfs_ilock(ip, XFS_ILOCK_EXCL);
- 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL | join_flags);
+ out_unlock:
+-	xfs_iunlock(ip, XFS_MMAPLOCK_EXCL | XFS_IOLOCK_EXCL);
++	xfs_iunlock(ip, *join_flags);
++	*join_flags = 0;
+ 	return error;
+-
+ }
+ 
+ /*
+@@ -1356,6 +1378,21 @@ xfs_ioctl_setattr(
+ 	if (code)
+ 		goto error_free_dquots;
+ 
++	/*
++	 * If we are trying to set immutable on a file then flush everything to
++	 * disk to force all writable memory mappings back through the
++	 * pagefault handler.
++	 */
++	if (S_ISREG(VFS_I(ip)->i_mode) && !IS_IMMUTABLE(VFS_I(ip)) &&
++	    (fa->fsx_xflags & FS_XFLAG_IMMUTABLE)) {
++		code = xfs_ioctl_setattr_flush(ip, &join_flags);
++		if (code) {
++			xfs_iunlock(ip, join_flags);
++			join_flags = 0;
++			goto error_free_dquots;
++		}
++	}
++
+ 	tp = xfs_ioctl_setattr_get_trans(ip, join_flags);
+ 	if (IS_ERR(tp)) {
+ 		code = PTR_ERR(tp);
 
