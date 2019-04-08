@@ -2,292 +2,202 @@ Return-Path: <SRS0=5KBY=SK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B8630C282DE
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 06:57:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DAC1CC282DE
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 07:05:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 67BAA20880
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 06:57:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 67BAA20880
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 990C3218DA
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 07:05:59 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 990C3218DA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2214E6B028D; Mon,  8 Apr 2019 02:57:29 -0400 (EDT)
+	id 12F5F6B028F; Mon,  8 Apr 2019 03:05:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1D09A6B028E; Mon,  8 Apr 2019 02:57:29 -0400 (EDT)
+	id 0E0E16B0290; Mon,  8 Apr 2019 03:05:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0991A6B028F; Mon,  8 Apr 2019 02:57:29 -0400 (EDT)
+	id EE99E6B0291; Mon,  8 Apr 2019 03:05:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A842F6B028D
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 02:57:28 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id k8so6287764edl.22
-        for <linux-mm@kvack.org>; Sun, 07 Apr 2019 23:57:28 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CA9766B028F
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 03:05:58 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id e31so11969417qtb.0
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 00:05:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=JX4NsSEWMKIZq8QXWZQA15wAIG4xjcde0E0JzTiwd0k=;
-        b=QTJEiLbxFkyrwQ9tQM/EVzCZ98is5Cdw2t/G9tx9NMCyI/mxRs9btLgCTQ9aNRHr4Z
-         LxXatsx6vDMTl4sLA2h0WyjUQmek7Cr64zqNJalbCCnwARCx1LfDvxtXiIP/wLT0+Idt
-         qdmhmFW7aJXOC2/yashRp4FEFTW5KN+4orpLQ+3cXsKMI6oXHSt1jzylv87Z48/1dIT/
-         tunyuuVdaCgqsFGcjSh39FDme+rvUBAtufIQ0N4e5TbvF6ReoRRhwvK3qff4f93/p1W0
-         Vz9ZTVtSj4dHuV27282Y54jEX4kEzmzHqAxn2g8zZO1qIexTzLvYwU4e2UZoTH9m8hfo
-         176w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAW9Dx6gzooWxVx1hzO33oL751qZJIf1vFGerYE3YLGwqnRGkR14
-	2L2jBkt2cJ8oXlbfk3IBmu+EKTBni3A52oQo83xCUBub2H774QCbUG7RCEFepSyvV65uJat490n
-	rM0/Udv9ZPLkI/d307hW7jmqgP+xnC9q23Ed9lnVkqSeBC22IQJ5Xo01nbVlvb8urhA==
-X-Received: by 2002:a17:906:6992:: with SMTP id i18mr15455222ejr.224.1554706648212;
-        Sun, 07 Apr 2019 23:57:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwdOsnHvI2v/0/655DXzcKUBnmqyAl4Cx5bHEj2Oi8M9JSw9WN3NfJO9a2NNGuneqDLiGJg
-X-Received: by 2002:a17:906:6992:: with SMTP id i18mr15455170ejr.224.1554706647145;
-        Sun, 07 Apr 2019 23:57:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554706647; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=P+9nGPLUpGp9qF3FpUQLKLCiQ0DxQkFJX5Awlv364ng=;
+        b=NJNpXQqSoDM1Xi9Ox9S1FRnNvxl1L7GXogNIe8bK9iH0utdm+XTw3mD5lvlLcQHhkQ
+         +dkUe3Qn40+yyWMt+eTco8yVIQcB2EYpefQVJGCIq4qvhF7VIyRMU++iwcHfjPqAT/Sb
+         aGgfgON4Z3nNm8udVoVtZn9xZ5XYPrvbzzkHTRLxrOrR1phc+AOW8y5/9KR+8ZMJkLWj
+         vjVMeXHZLvAHoR56y/K4IuCgLjLAOex1yddVoE0T3ISfayUJPyIchuCpQDlM/pQBZ3mx
+         HLYxYHPVbPqrN4pKelRqcO3F17DpTCYDYdJ/tpOxPSblutn2tVAb/spFQq4tM23Q2/S6
+         gqLQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWZ5BaUuneOBXnNjRNvsekGQiNDMeoVTlo3Z/ANv+CKGZLL8fmP
+	2md6rSVYseMoDMcnUNL/2sMtF7xI9stiXsb/aQJ/tIWMmJwIZw5rSn762nJwQqXISfSsPzh1+wN
+	ok/dczzyTZDtCQFwiygSkxfiX8lYwiPI0k/uspyDeSXWmixde6PQuYVjDKSdZJtYgpg==
+X-Received: by 2002:a37:4b41:: with SMTP id y62mr21715927qka.104.1554707158525;
+        Mon, 08 Apr 2019 00:05:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyAN5iWqPD1hYSvzKk2h2vwzHLl06mS22GUVTmyIASz32lEW4n5mgqYk/5RBqhzs5SHl7du
+X-Received: by 2002:a37:4b41:: with SMTP id y62mr21715908qka.104.1554707157993;
+        Mon, 08 Apr 2019 00:05:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554707157; cv=none;
         d=google.com; s=arc-20160816;
-        b=pb7tk6XZZX6x+r+MA9NdYsWYPDb94gRq0GL5tof14ay7i3mSfPKD+nbmXf16RG27Qk
-         4uSMXUNjqu34pGulxgQc9/XNjP5FHO75aOzuGoT7qlpIm8uDfURBF8F4B07wvk7CD2qT
-         PEXLbsAaX6YCD9nRarN/1xnGAXoMnmK24UIujL18oxRDVDA0fS1K8leu5ckJsQ/N9Mvt
-         HAcIzte+hXTT6Tt0J0dXnyixqKcKy0Sa68uq9owt5r2osTRJy7vv1XGbkWej7OUmuFWB
-         ghovA1neDepQUyVaGqwI4GCCdhk3hlF9kIgTVeJfF0pm8Az/5+vNyKxaZlpOxgFqluQn
-         nE6w==
+        b=i3fMKW4R7/GV1K/3Ro689Tdf0m6TIJj7Rp2hQBQ6HcTLQZfjTva+GqEFIsVZUKwLLy
+         GNbuJv5SGBeuMN3t3TfWErJTIWQPjZYWPnyU/4Hs4Olk89bk2b+oZ90WXgp7ddXXnGYV
+         xJKNbR1OGeMUCOJxzp45NXkdFmbiyGcduQD0Zf8Y7C/2CBys1VkxH9dNmpiD9U41m43H
+         9hroCHFdb5MpYp8L2ToKYTpQnCEQPu9pXKsL5r8HruQT8PGy6U+2ddkaEPjLFK7APzhQ
+         NdyOhc6cqo1b7SvotMCro2p40EVB8Rg5RBt/eUOaoaSsxd4nM/P1KTBjA+02nIP1gm3X
+         bfcg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=JX4NsSEWMKIZq8QXWZQA15wAIG4xjcde0E0JzTiwd0k=;
-        b=XNhObPd1y7PKwDPKqI4jPv+5DugQzodFaRCJBq1xxsCxmrhPSBaG9zSjKcZuWMP4Va
-         rUreH4wiFwi37CUBbn4cc+ehoaN0JhFlqT2wjzvp4oQjN7LGfBIVtHNp8VJ/YB+mnM21
-         OTkhgjWpyBxjCAsGd6gWp2dZlHdxs8WvH8owmdctNIjVw9iz2it8fkX8JYl3PCYT8gy2
-         mzoq02kJf8uXsNI1NbfTOncGvklrzrngRB721j6aIjs5RzF1Ol5+TtdKtCl95F9EDHWj
-         qfdCwjBOg6V+AfBG29IxwmC28vbGANDXLBRuoZ+CrByW2rn52yNNCoq6zzybcoFSM6lo
-         r22g==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=P+9nGPLUpGp9qF3FpUQLKLCiQ0DxQkFJX5Awlv364ng=;
+        b=fTWK5P6kZ91Lu3m113zzy7zDrggpWoFpo/RXNWdh6YpAaZaiaA+Emc8WT6HQTHvdpD
+         K14y1PYy9TXf4JxCG2ktpqeFKGT4V1c80HLxveS+Wwrsbyrhpsf4AjxLDlDAGQB47Zua
+         /U4wjjZIfYk/MKaURbNP6SDTEux4/dg21YbdxhwwsKirEFPGLzhLfERwZSDdguvGT4lN
+         cWiiZHOLV6EGH8WEsu6qxXDGmXQGhowFZ/vnRP775rvqw4oQz0ACOUA+n8MpeguRRdKA
+         90WF9pREQH0Nb9bvKXDWDf7RZHAgBT+BSE+/1gSp0UBjBwdEH2bziOqHjVAytViGzyv/
+         lHag==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id z7si3679497ejn.268.2019.04.07.23.57.26
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o23si4705390qkk.147.2019.04.08.00.05.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 07 Apr 2019 23:57:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Mon, 08 Apr 2019 00:05:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x386oG7n012936
-	for <linux-mm@kvack.org>; Mon, 8 Apr 2019 02:57:25 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2rr049uy8s-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 08 Apr 2019 02:57:25 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 8 Apr 2019 07:57:23 +0100
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
-	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Mon, 8 Apr 2019 07:57:17 +0100
-Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x386vGwj61669536
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 8 Apr 2019 06:57:16 GMT
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id B39554C052;
-	Mon,  8 Apr 2019 06:57:16 +0000 (GMT)
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 7B0BD4C04E;
-	Mon,  8 Apr 2019 06:57:14 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.206.109])
-	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Mon,  8 Apr 2019 06:57:14 +0000 (GMT)
-Date: Mon, 8 Apr 2019 09:57:12 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Chen Zhou <chenzhou10@huawei.com>
-Cc: catalin.marinas@arm.com, will.deacon@arm.com, akpm@linux-foundation.org,
-        ard.biesheuvel@linaro.org, takahiro.akashi@linaro.org,
-        linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
-        kexec@lists.infradead.org, linux-mm@kvack.org,
-        wangkefeng.wang@huawei.com
-Subject: Re: [PATCH 2/3] arm64: kdump: support more than one crash kernel
- regions
-References: <20190403030546.23718-1-chenzhou10@huawei.com>
- <20190403030546.23718-3-chenzhou10@huawei.com>
- <20190403112929.GA7715@rapoport-lnx>
- <f98a5559-3659-fb35-3765-15861e70a796@huawei.com>
- <20190404144408.GA6433@rapoport-lnx>
- <783b8712-ddb1-a52b-81ee-0c6a216e5b7d@huawei.com>
- <4b188535-c12d-e05b-9154-2c2d580f903b@huawei.com>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 08514461CD;
+	Mon,  8 Apr 2019 07:05:57 +0000 (UTC)
+Received: from [10.36.117.53] (ovpn-117-53.ams2.redhat.com [10.36.117.53])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 4A4556085B;
+	Mon,  8 Apr 2019 07:05:54 +0000 (UTC)
+Subject: Re: [RESENT PATCH] mm/memory_hotplug: Do not unlock when fails to
+ take the device_hotplug_lock
+To: zhong jiang <zhongjiang@huawei.com>, akpm@linux-foundation.org,
+ rafael@kernel.org, rafael.j.wysocki@intel.com, mhocko@suse.com,
+ osalvador@suse.de
+Cc: vbabka@suse.cz, iamjoonsoo.kim@lge.com, bsingharora@gmail.com,
+ gregkh@linuxfoundation.org, yangyingliang@huawei.com,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org
+References: <1554696437-9593-1-git-send-email-zhongjiang@huawei.com>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <209a8820-7f4f-c36c-2f48-ebfc31e64428@redhat.com>
+Date: Mon, 8 Apr 2019 09:05:53 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4b188535-c12d-e05b-9154-2c2d580f903b@huawei.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19040806-0028-0000-0000-0000035E5F11
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19040806-0029-0000-0000-0000241D77B5
-Message-Id: <20190408065711.GA8403@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-08_04:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1904080064
+In-Reply-To: <1554696437-9593-1-git-send-email-zhongjiang@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Mon, 08 Apr 2019 07:05:57 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On 08.04.19 06:07, zhong jiang wrote:
+> When adding the memory by probing memory block in sysfs interface, there is an
+> obvious issue that we will unlock the device_hotplug_lock when fails to takes it.
+> 
+> That issue was introduced in Commit 8df1d0e4a265
+> ("mm/memory_hotplug: make add_memory() take the device_hotplug_lock")
+> 
+> We should drop out in time when fails to take the device_hotplug_lock.
+> 
+> Fixes: 8df1d0e4a265 ("mm/memory_hotplug: make add_memory() take the device_hotplug_lock")
+> Reported-by: Yang yingliang <yangyingliang@huawei.com>
+> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+> ---
+>  drivers/base/memory.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index d9ebb89..0c9e22f 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -507,7 +507,7 @@ static ssize_t probe_store(struct device *dev, struct device_attribute *attr,
+>  
+>  	ret = lock_device_hotplug_sysfs();
+>  	if (ret)
+> -		goto out;
+> +		return ret;
+>  
+>  	nid = memory_add_physaddr_to_nid(phys_addr);
+>  	ret = __add_memory(nid, phys_addr,
+> 
 
-On Fri, Apr 05, 2019 at 11:47:27AM +0800, Chen Zhou wrote:
-> Hi Mike,
-> 
-> On 2019/4/5 10:17, Chen Zhou wrote:
-> > Hi Mike,
-> > 
-> > On 2019/4/4 22:44, Mike Rapoport wrote:
-> >> Hi,
-> >>
-> >> On Wed, Apr 03, 2019 at 09:51:27PM +0800, Chen Zhou wrote:
-> >>> Hi Mike,
-> >>>
-> >>> On 2019/4/3 19:29, Mike Rapoport wrote:
-> >>>> On Wed, Apr 03, 2019 at 11:05:45AM +0800, Chen Zhou wrote:
-> >>>>> After commit (arm64: kdump: support reserving crashkernel above 4G),
-> >>>>> there may be two crash kernel regions, one is below 4G, the other is
-> >>>>> above 4G.
-> >>>>>
-> >>>>> Crash dump kernel reads more than one crash kernel regions via a dtb
-> >>>>> property under node /chosen,
-> >>>>> linux,usable-memory-range = <BASE1 SIZE1 [BASE2 SIZE2]>
-> >>>>>
-> >>>>> Signed-off-by: Chen Zhou <chenzhou10@huawei.com>
-> >>>>> ---
-> >>>>>  arch/arm64/mm/init.c     | 37 +++++++++++++++++++++++++------------
-> >>>>>  include/linux/memblock.h |  1 +
-> >>>>>  mm/memblock.c            | 40 ++++++++++++++++++++++++++++++++++++++++
-> >>>>>  3 files changed, 66 insertions(+), 12 deletions(-)
-> >>>>>
-> >>>>> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-> >>>>> index ceb2a25..769c77a 100644
-> >>>>> --- a/arch/arm64/mm/init.c
-> >>>>> +++ b/arch/arm64/mm/init.c
-> >>>>> @@ -64,6 +64,8 @@ EXPORT_SYMBOL(memstart_addr);
-> >>>>>  phys_addr_t arm64_dma_phys_limit __ro_after_init;
-> >>>>>  
-> >>>>>  #ifdef CONFIG_KEXEC_CORE
-> >>>>> +# define CRASH_MAX_USABLE_RANGES        2
-> >>>>> +
-> >>>>>  static int __init reserve_crashkernel_low(void)
-> >>>>>  {
-> >>>>>  	unsigned long long base, low_base = 0, low_size = 0;
-> >>>>> @@ -346,8 +348,8 @@ static int __init early_init_dt_scan_usablemem(unsigned long node,
-> >>>>>  		const char *uname, int depth, void *data)
-> >>>>>  {
-> >>>>>  	struct memblock_region *usablemem = data;
-> >>>>> -	const __be32 *reg;
-> >>>>> -	int len;
-> >>>>> +	const __be32 *reg, *endp;
-> >>>>> +	int len, nr = 0;
-> >>>>>  
-> >>>>>  	if (depth != 1 || strcmp(uname, "chosen") != 0)
-> >>>>>  		return 0;
-> >>>>> @@ -356,22 +358,33 @@ static int __init early_init_dt_scan_usablemem(unsigned long node,
-> >>>>>  	if (!reg || (len < (dt_root_addr_cells + dt_root_size_cells)))
-> >>>>>  		return 1;
-> >>>>>  
-> >>>>> -	usablemem->base = dt_mem_next_cell(dt_root_addr_cells, &reg);
-> >>>>> -	usablemem->size = dt_mem_next_cell(dt_root_size_cells, &reg);
-> >>>>> +	endp = reg + (len / sizeof(__be32));
-> >>>>> +	while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
-> >>>>> +		usablemem[nr].base = dt_mem_next_cell(dt_root_addr_cells, &reg);
-> >>>>> +		usablemem[nr].size = dt_mem_next_cell(dt_root_size_cells, &reg);
-> >>>>> +
-> >>>>> +		if (++nr >= CRASH_MAX_USABLE_RANGES)
-> >>>>> +			break;
-> >>>>> +	}
-> >>>>>  
-> >>>>>  	return 1;
-> >>>>>  }
-> >>>>>  
-> >>>>>  static void __init fdt_enforce_memory_region(void)
-> >>>>>  {
-> >>>>> -	struct memblock_region reg = {
-> >>>>> -		.size = 0,
-> >>>>> -	};
-> >>>>> -
-> >>>>> -	of_scan_flat_dt(early_init_dt_scan_usablemem, &reg);
-> >>>>> -
-> >>>>> -	if (reg.size)
-> >>>>> -		memblock_cap_memory_range(reg.base, reg.size);
-> >>>>> +	int i, cnt = 0;
-> >>>>> +	struct memblock_region regs[CRASH_MAX_USABLE_RANGES];
-> >>>>> +
-> >>>>> +	memset(regs, 0, sizeof(regs));
-> >>>>> +	of_scan_flat_dt(early_init_dt_scan_usablemem, regs);
-> >>>>> +
-> >>>>> +	for (i = 0; i < CRASH_MAX_USABLE_RANGES; i++)
-> >>>>> +		if (regs[i].size)
-> >>>>> +			cnt++;
-> >>>>> +		else
-> >>>>> +			break;
-> >>>>> +	if (cnt)
-> >>>>> +		memblock_cap_memory_ranges(regs, cnt);
-> >>>>
-> >>>> Why not simply call memblock_cap_memory_range() for each region?
-> >>>
-> >>> Function memblock_cap_memory_range() removes all memory type ranges except specified range.
-> >>> So if we call memblock_cap_memory_range() for each region simply, there will be no usable-memory
-> >>> on kdump capture kernel.
-> >>
-> >> Thanks for the clarification.
-> >> I still think that memblock_cap_memory_ranges() is overly complex. 
-> >>
-> >> How about doing something like this:
-> >>
-> >> Cap the memory range for [min(regs[*].start, max(regs[*].end)] and then
-> >> removing the range in the middle?
-> > 
-> > Yes, that would be ok. But that would do one more memblock_cap_memory_range operation.
-> > That is, if there are n regions, we need to do (n + 1) operations, which doesn't seem to
-> > matter.
-> > 
-> > I agree with you, your idea is better.
-> > 
-> > Thanks,
-> > Chen Zhou
-> 
-> Sorry, just ignore my previous reply, I got that wrong.
-> 
-> I think it carefully, we can cap the memory range for [min(regs[*].start, max(regs[*].end)]
-> firstly. But how to remove the middle ranges, we still can't use memblock_cap_memory_range()
-> directly and the extra remove operation may be complex.
-> 
-> For more than one regions, i think add a new memblock_cap_memory_ranges() may be better.
-> Besides, memblock_cap_memory_ranges() is also applicable for one region.
-> 
-> How about replace memblock_cap_memory_range() with memblock_cap_memory_ranges()?
+Indeed
 
-arm64 is the only user of both MEMBLOCK_NOMAP and memblock_cap_memory_range()
-and I don't expect other architectures will use these interfaces.
-It seems that capping the memory for arm64 crash kernel the way I've
-suggested can be implemented in fdt_enforce_memory_region(). If we'd ever
-need such functionality elsewhere or CRASH_MAX_USABLE_RANGES will need to
-grow we'll rethink the solution.
- 
-> Thanks,
-> Chen Zhou
+Reviewed-by: David Hildenbrand <david@redhat.com>
 
 -- 
-Sincerely yours,
-Mike.
+
+Thanks,
+
+David / dhildenb
 
