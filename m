@@ -2,196 +2,172 @@ Return-Path: <SRS0=5KBY=SK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8BEBCC282CE
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 09:39:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 41AADC282CE
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 09:52:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 33E1820880
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 09:39:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 33E1820880
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id E9A5220870
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 09:52:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E9A5220870
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9BE766B0008; Mon,  8 Apr 2019 05:39:04 -0400 (EDT)
+	id 658B06B0005; Mon,  8 Apr 2019 05:52:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9468E6B000A; Mon,  8 Apr 2019 05:39:04 -0400 (EDT)
+	id 608956B0006; Mon,  8 Apr 2019 05:52:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7C1A26B000C; Mon,  8 Apr 2019 05:39:04 -0400 (EDT)
+	id 51F2D6B0008; Mon,  8 Apr 2019 05:52:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 51DF26B0008
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 05:39:04 -0400 (EDT)
-Received: by mail-yw1-f69.google.com with SMTP id s65so9386913ywf.10
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 02:39:04 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 04B7B6B0005
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 05:52:31 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id 41so6657386edq.0
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 02:52:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:mime-version:message-id;
-        bh=xWD03Zqt1SJ9xAy4s328/gi1lbz9D0FCaf2vPXGYinI=;
-        b=TyVxyvFBpR1yfZThw/hh/CvIgAMbTljiNI14WPDPczHRwDsgr34mcXTyLnzPk88smB
-         FgQNC04wAlgFru3OseGqsSrJGyzfWKPA0PCcisU5x9E1j99NNNzlZ1vOpMetal6wWHZe
-         GpRIgrNKNeV/uNgCV95ri/aIAMhikyr/L7dyOiBnXFmYHl3yQp/IHAJFDiWLvqUtMpbG
-         /aWdhf0MgNg0E8rP9NSwGskoPFJu0gzWIheBqDoiOKwmK+DVCQw0hqLmNtcUG99aOF1u
-         +ATG8Sj1MIVIYRhdZXdN2uIrAAWlmFqz+IzarQe1L4BF+bfgrddSG6Xt3BU84nGtIwDf
-         R+dA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAXA9wi8ksWH0li4UHCNn+w7BzM15B7wJDrNQugKFAuCAn3HW/cL
-	pTh1DAr5Irw+KeuJAKQY3SgpjZUCY/HtbVsqmWQe5Lve8mO8cxQKGqtg3SQkabZN30ocIVeNQ66
-	30gftgmJHWBISc+avvhmOEsSy9dTAS+SkusjIb1Alj662D/H8V1WZsj//KuEEk51xXA==
-X-Received: by 2002:a25:1144:: with SMTP id 65mr23749313ybr.142.1554716344055;
-        Mon, 08 Apr 2019 02:39:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwu5Zut2WjCMQAmvy7m18fmuFWhTAmkawAMxFIN7Wd2/VHWn1smAYWH9NCEvr6Pym17M8Lf
-X-Received: by 2002:a25:1144:: with SMTP id 65mr23749285ybr.142.1554716343416;
-        Mon, 08 Apr 2019 02:39:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554716343; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=2cR0ZRuDYpk/c4TkK7NYVQi/deaGtPIjt528UU4ieLk=;
+        b=JjZSgxuBNShDy+hKRI8ZEc7VMrtukbXoDfmEvQmo9qvkIKCQWMZ6DPubxqpfpoRrLW
+         kA7iTtPg/d6BL1Ol3lBY7U24X1BZG8PvioznBEgex/wIJUXrlmPh0m9m5T3EtGBIqUxo
+         6lV2oVxfqbijf+T++n5pFIcvoaAo+wU0KEMv9cqOApFt9fSoeiBkLc+9vYuE4eyJ34OL
+         CRCxXNh8JMxSAHmoigt1SzaVQhxRpevSE75g4MFJoVsqcYqQFUMSAeQUKU+ftlPJ5cO5
+         BPqc6rMy2rVjvego7DFSCAEjbKDf8/iKzWMxxucAXRU89JzHn6gAsGS9X9iqH1BReq0Z
+         DxIA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.246 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAWMaY5HUhUTLDrca6t84vs3T4UT7wLrE9ZP1o0NsxmLUOBLZJg3
+	cBM0Rz4hu0mz4ULjhR30RB9biz1wEWGuC5hpgjlVN5pX/Brh/lXxWpRfcJSlx4sr8BHn4zW9aFH
+	xk8MquQrIgYhBD/6MlqhT0hQ4Tluwr1THTSzXO/Y8Ed1pRhXYlDjUxpcZK7pOYNktMA==
+X-Received: by 2002:a50:e610:: with SMTP id y16mr17471322edm.67.1554717150571;
+        Mon, 08 Apr 2019 02:52:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyZEaC6OGFaHBDYfhvyST5lxgn9esbJlgNq/I1DCDFokJ17ozkGV4B89PppMuaG9AjU1S+T
+X-Received: by 2002:a50:e610:: with SMTP id y16mr17471272edm.67.1554717149387;
+        Mon, 08 Apr 2019 02:52:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554717149; cv=none;
         d=google.com; s=arc-20160816;
-        b=ThzTF0QOcZJWI0JosCEBk+aNLIDH/uzNtJvKIB+/qzHBhAFiM6/3qaDjRAbctuicKY
-         xJv8HdgtcFba7izMOqXy3vvgArT5vIe05JY2/rmXNU4agLe3/yu6yEBnVwbfwP2KMSR9
-         bPuXczJOAUwDOtOgKEO6fywXmcPxgz22p6zzUJl9t2pvQ5Ty2ODd4Oo7c+DOn1j05OS6
-         DCNJM3mwfHA/u3jqAd12RZ9+PjZ4pMQJGdBdzgnfQJnNdNUh+9137fziC/LC5vUIzDuI
-         d6+VEIhU1eo8HfyKHJqYcEF76NiogAP2Xn4r//x6My8N64i/pkGQ4fYBMGSJ7Lz9KSso
-         1rBA==
+        b=UaJH00QFV5Wvk+W9hELJclLPJt6IRrzkKugHVoNwrxrY81Qexs+Ovq9IsBP8TJFq1U
+         7LbzjOH5RIqo4pWCIZC/c/o4EQlc8rABaZi0gdgBdEkskTBFibOdxadI+5w8oaAcFl2C
+         I9j0JxwKmVZYb/Tga0yw4WVjz0L3VwZjQPdmh7qaPf84ca703GkKL0NFMSgkUv9xMOBz
+         qZDu+8u4ym6Sb5VyfXju7l0hgbaLSc+Q2dQ+LUuNJGGhtTCm5XlyevLM3dfY03iChWTQ
+         YLP1G8MXH9JdYPdJrVhbxLLcbauNEfJtUgrKFYUTY31kLvwZ3tjGzvFT6tXO+VvQSFRf
+         vyvw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=xWD03Zqt1SJ9xAy4s328/gi1lbz9D0FCaf2vPXGYinI=;
-        b=0FpPB8W0XteeHwCiScWwJTlG2MLX/Jmul48lZP1XtEs1NvInWMZ9ajX8cmCojlmAHs
-         VtHzr3yNhvl0usH7uyTjNwoNHSz8Vjlu8Noae0p4a8J1aexyv5dAp7mZPQrecF4WMkrN
-         bVcBrcnlh1F7cwNMg0fH83KKZEtsRYTwMMCJdRQ/f7jVhj7HE8b4u/+/DGUAnLLuSpVj
-         raUGogN+GRzt5jF31HPdNaChKpAksbOoFgH3v1RLD3Jks/kAMvMNS8d5kgZeAsR35sWU
-         bVoAMSVatWEhzG1MIVnvHja88GsUOoBXsEX7eoEVnBJqZqq0HNbtxd+WxpStS5fzE1Y4
-         p4mw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=2cR0ZRuDYpk/c4TkK7NYVQi/deaGtPIjt528UU4ieLk=;
+        b=qCTDPDOozeNgQdw7B3iHi3Gx0/cZxh1uU+COvCilBLSoUNdi40lfPEfdOJhTVu4Jr9
+         Ff7PKtnSeXjH1GSGKUZILYJkJ390YFoLhmcGo7He9Eds5FKO6DB/xk3+cJoBz3gOxgfC
+         hhVpUsPSi4MIT9e8PHhKdKfCBUCk9Pdp+2zdRg8Ij+e2tfxAKP0FoUjEwG28gOlRK86t
+         IZfxpfyH2cn1px1NnABL/g5M/Au1IBHIjz4IfXpuSXcEoUszEgtXcRdMZZDJre7hN7yL
+         P/PhrsDqcKHBWnfSoR+mzvFDUyeWzYkQ6JmO2E5aa/G4WLX39wp1SLFsCfQdd6Twl6+l
+         ozFA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 207si18247466ywy.172.2019.04.08.02.39.03
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.246 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp19.blacknight.com (outbound-smtp19.blacknight.com. [46.22.139.246])
+        by mx.google.com with ESMTPS id d32si5870680eda.79.2019.04.08.02.52.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Apr 2019 02:39:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Mon, 08 Apr 2019 02:52:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.246 as permitted sender) client-ip=46.22.139.246;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x389U8h0105126
-	for <linux-mm@kvack.org>; Mon, 8 Apr 2019 05:39:03 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2rr2uv2t0h-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 08 Apr 2019 05:39:02 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Mon, 8 Apr 2019 10:39:00 +0100
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
-	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Mon, 8 Apr 2019 10:38:57 +0100
-Received: from d06av24.portsmouth.uk.ibm.com (mk.ibm.com [9.149.105.60])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x389cuWp56688680
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 8 Apr 2019 09:38:56 GMT
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id ACFBD42049;
-	Mon,  8 Apr 2019 09:38:56 +0000 (GMT)
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 1190842041;
-	Mon,  8 Apr 2019 09:38:55 +0000 (GMT)
-Received: from skywalker.linux.ibm.com (unknown [9.124.31.209])
-	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Mon,  8 Apr 2019 09:38:54 +0000 (GMT)
-X-Mailer: emacs 26.1 (via feedmail 11-beta-1 I)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <zwisler@kernel.org>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        linux-nvdimm <linux-nvdimm@lists.01.org>,
-        Linux MM <linux-mm@kvack.org>,
-        linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
-        linux-fsdevel <linux-fsdevel@vger.kernel.org>,
-        Alexander Viro <viro@zeniv.linux.org.uk>
-Subject: Re: [PATCH v2] fs/dax: deposit pagetable even when installing zero page
-In-Reply-To: <CAPcyv4irZP2F1acuco7UVbvTARzn5SXvCAWstFYtP7ygLRSXTg@mail.gmail.com>
-References: <20190309120721.21416-1-aneesh.kumar@linux.ibm.com> <8736nrnzxm.fsf@linux.ibm.com> <20190313095834.GF32521@quack2.suse.cz> <CAPcyv4irZP2F1acuco7UVbvTARzn5SXvCAWstFYtP7ygLRSXTg@mail.gmail.com>
-Date: Mon, 08 Apr 2019 15:08:53 +0530
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.246 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp19.blacknight.com (Postfix) with ESMTPS id C48491C24D3
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 10:52:28 +0100 (IST)
+Received: (qmail 31562 invoked from network); 8 Apr 2019 09:52:28 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 8 Apr 2019 09:52:28 -0000
+Date: Mon, 8 Apr 2019 10:52:24 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Helge Deller <deller@gmx.de>,
+	"James E.J. Bottomley" <James.Bottomley@hansenpartnership.com>,
+	John David Anglin <dave.anglin@bell.net>,
+	linux-parisc@vger.kernel.org, linux-mm@kvack.org,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Zi Yan <zi.yan@cs.rutgers.edu>
+Subject: Re: Memory management broken by "mm: reclaim small amounts of memory
+ when an external fragmentation event occurs"
+Message-ID: <20190408095224.GA18914@techsingularity.net>
+References: <alpine.LRH.2.02.1904061042490.9597@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-X-TM-AS-GCONF: 00
-x-cbid: 19040809-0020-0000-0000-0000032D6DD8
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19040809-0021-0000-0000-0000217F8DDF
-Message-Id: <87r2acn8eq.fsf@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-08_04:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1904080088
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1904061042490.9597@file01.intranet.prod.int.rdu2.redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Sat, Apr 06, 2019 at 11:20:35AM -0400, Mikulas Patocka wrote:
+> Hi
+> 
+> The patch 1c30844d2dfe272d58c8fc000960b835d13aa2ac ("mm: reclaim small 
+> amounts of memory when an external fragmentation event occurs") breaks 
+> memory management on parisc.
+> 
+> I have a parisc machine with 7GiB RAM, the chipset maps the physical 
+> memory to three zones:
+> 	0) Start 0x0000000000000000 End 0x000000003fffffff Size   1024 MB
+> 	1) Start 0x0000000100000000 End 0x00000001bfdfffff Size   3070 MB
+> 	2) Start 0x0000004040000000 End 0x00000040ffffffff Size   3072 MB
+> (but it is not NUMA)
+> 
+> With the patch 1c30844d2, the kernel will incorrectly reclaim the first 
+> zone when it fills up, ignoring the fact that there are two completely 
+> free zones. Basiscally, it limits cache size to 1GiB.
+> 
+> For example, if I run:
+> # dd if=/dev/sda of=/dev/null bs=1M count=2048
+> 
+> - with the proper kernel, there should be "Buffers - 2GiB" when this 
+> command finishes. With the patch 1c30844d2, buffers will consume just 1GiB 
+> or slightly more, because the kernel was incorrectly reclaiming them.
+> 
 
- Hi Dan,
+I could argue that the feature is behaving as expected for separate
+pgdats but that's neither here nor there. The bug is real but I have a
+few questions.
 
-Dan Williams <dan.j.williams@intel.com> writes:
+First, if pa-risc is !NUMA then why are separate local ranges
+represented as separate nodes? Is it because of DISCONTIGMEM or something
+else? DISCONTIGMEM is before my time so I'm not familiar with it and
+I consider it "essentially dead" but the arch init code seems to setup
+pgdats for each physical contiguous range so it's a possibility. The most
+likely explanation is pa-risc does not have hardware with addressing
+limitations smaller than the CPUs physical address limits and it's
+possible to have more ranges than available zones but clarification would
+be nice.  By rights, SPARSEMEM would be supported on pa-risc but that
+would be a time-consuming and somewhat futile exercise.  Regardless of the
+explanation, as pa-risc does not appear to support transparent hugepages,
+an option is to special case watermark_boost_factor to be 0 on DISCONTIGMEM
+as that commit was primarily about THP with secondary concerns around
+SLUB. This is probably the most straight-forward solution but it'd need
+a comment obviously. I do not know what the distro configurations for
+pa-risc set as I'm not a user of gentoo or debian.
 
-> On Wed, Mar 13, 2019 at 2:58 AM Jan Kara <jack@suse.cz> wrote:
->>
->> On Wed 13-03-19 10:17:17, Aneesh Kumar K.V wrote:
->> >
->> > Hi Dan/Andrew/Jan,
->> >
->> > "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> writes:
->> >
->> > > Architectures like ppc64 use the deposited page table to store hardware
->> > > page table slot information. Make sure we deposit a page table when
->> > > using zero page at the pmd level for hash.
->> > >
->> > > Without this we hit
->> > >
->> > > Unable to handle kernel paging request for data at address 0x00000000
->> > > Faulting instruction address: 0xc000000000082a74
->> > > Oops: Kernel access of bad area, sig: 11 [#1]
->> > > ....
->> > >
->> > > NIP [c000000000082a74] __hash_page_thp+0x224/0x5b0
->> > > LR [c0000000000829a4] __hash_page_thp+0x154/0x5b0
->> > > Call Trace:
->> > >  hash_page_mm+0x43c/0x740
->> > >  do_hash_page+0x2c/0x3c
->> > >  copy_from_iter_flushcache+0xa4/0x4a0
->> > >  pmem_copy_from_iter+0x2c/0x50 [nd_pmem]
->> > >  dax_copy_from_iter+0x40/0x70
->> > >  dax_iomap_actor+0x134/0x360
->> > >  iomap_apply+0xfc/0x1b0
->> > >  dax_iomap_rw+0xac/0x130
->> > >  ext4_file_write_iter+0x254/0x460 [ext4]
->> > >  __vfs_write+0x120/0x1e0
->> > >  vfs_write+0xd8/0x220
->> > >  SyS_write+0x6c/0x110
->> > >  system_call+0x3c/0x130
->> > >
->> > > Fixes: b5beae5e224f ("powerpc/pseries: Add driver for PAPR SCM regions")
->> > > Reviewed-by: Jan Kara <jack@suse.cz>
->> > > Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
->> >
->> > Any suggestion on which tree this patch should got to? Also since this
->> > fix a kernel crash, we may want to get this to 5.1?
->>
->> I think this should go through Dan's tree...
->
-> I'll merge this and let it soak in -next for a week and then submit for 5.1-rc2.
+Second, if you set the sysctl vm.watermark_boost_factor=0, does the
+problem go away? If so, an option would be to set this sysctl to 0 by
+default on distros that support pa-risc. Would that be suitable?
 
-Any update on this? Did you get to merge this?
+Finally, I'm sure this has been asked before buy why is pa-risc alive?
+It appears a new CPU has not been manufactured since 2005. Even Alpha
+I can understand being semi-alive since it's an interesting case for
+weakly-ordered memory models. pa-risc appears to be supported and active
+for debian at least so someone cares. It's not the only feature like this
+that is bizarrely alive but it is curious -- 32 bit NUMA support on x86,
+I'm looking at you, your machines are all dead since the early 2000's
+AFAIK and anyone else using NUMA on 32-bit x86 needs their head examined.
 
--aneesh
+-- 
+Mel Gorman
+SUSE Labs
 
