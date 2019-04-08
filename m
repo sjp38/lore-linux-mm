@@ -3,78 +3,79 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0147EC10F13
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 20:51:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 50082C10F14
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 21:21:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A376D20857
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 20:51:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A376D20857
+	by mail.kernel.org (Postfix) with ESMTP id E7E8020880
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 21:21:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E7E8020880
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3F7166B000A; Mon,  8 Apr 2019 16:51:23 -0400 (EDT)
+	id 6C4006B0010; Mon,  8 Apr 2019 17:21:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 37C6F6B000C; Mon,  8 Apr 2019 16:51:23 -0400 (EDT)
+	id 673456B0266; Mon,  8 Apr 2019 17:21:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1F7416B000E; Mon,  8 Apr 2019 16:51:23 -0400 (EDT)
+	id 514DD6B0269; Mon,  8 Apr 2019 17:21:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EAC346B000A
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 16:51:22 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id a15so12664867qkl.23
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 13:51:22 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F7886B0010
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 17:21:05 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id d131so12750048qkc.18
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 14:21:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:references:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=qWgoqLrehLWrlYPdO3DLSlxzqJjTk6sf/El8Ywa/2fU=;
-        b=L9bTSvnweWyjoovmXdzIc3vSBSnVY6ez8CMCJENnonDNnlUbvsy1Qtw1UhXGrf56R9
-         +/dpzLetquO5jyOvAy/BLoAdOecMXvJP550oXAlkbALcSfNc8CZXiZ9Z8Rcwy6JVTObj
-         wfm60tMJAYsZFY9ONHt8mLaRQS3Ygmsq4+0FliKQb2b8cWDXRBKRsXninbGk3ulesmWm
-         Vq7j4C+fNt91AlNG6o237723AddH4/0AvPCVAxtVpp1tBasWB4KH3Os4Tlh9FgaulToe
-         KuNw6w67IhC4GG9jzkqU5qEJ8WIenIYGt005lrb4p/+hcRsg2fZknhEBYclY4BLdefjP
-         R8TQ==
+        bh=u+Ou+EjAwe1biDFWdQSr+ppkGPSuSGxcyU+YS/IhJe8=;
+        b=NCUrehuVlWD31xf/NESvsn2SY46//db77ZmZSYkLdl2Xqo9iHc71mi9PZ/t4/OLTeJ
+         tnn1YrzJk+aT6Y150eiVWljj7a12QfxC9+8tEu+bZe4d9M5/sDhb2aZB+n8VrEauNCX3
+         3cMgmkVflEWBYTssm90Fhbl/e2+GvYhBSQ9Y++lHNbViuXMNMVsk5Xt7SwhSxwaPP6Sz
+         rHWhIyfRbuL9o6SBkZqzixaIPHDPm20aOaksMgJEML8+mJ9GdIzbrM+yXRAkGqQWFcHL
+         UNkoyrJ+6J05IVN3dwrvVh9F5UiaTL5QXEYtlLihgnO8oc3F7xJ1cgh4ZakGCPX1Oviq
+         qbkw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVWXGA/47fvEPGmdGKGwGcc9R0mCxjrl7A4Fs278+RNBTvVkvco
-	EwlAm5f3WGX3ogUH3UHdzW6zacBo2MKC2aaof4cKmpvkVtUxNg5wS1Qzd/VIkIaP+M6fV9jrQ8t
-	xeJs6qlEvlfMEQoOS6ici4QZkWHKz+K4QnWFomV1/bVmIU/VTMUjmpVq9ug/c2VB8XQ==
-X-Received: by 2002:a37:638c:: with SMTP id x134mr23942593qkb.107.1554756682647;
-        Mon, 08 Apr 2019 13:51:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwPc3FjawPIFKus+RkLr/z7cHTTK+mm/ehMwTOpEkCTsdlnJUxDlfvQdlrailFuyCYc/UNK
-X-Received: by 2002:a37:638c:: with SMTP id x134mr23942543qkb.107.1554756681892;
-        Mon, 08 Apr 2019 13:51:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554756681; cv=none;
+X-Gm-Message-State: APjAAAXXwmsQrpTF8qR5TcKDJyiydq+BrLlXua1Apt471TOqm0kd1mDw
+	bLx9nn0+uqtqStVEFcTxOSvQ16Da26+Wh39eA/KlFK9Hh4g5ee3ut7/P+3VgZqNU1dkifcBTj23
+	4LsVVpyLQqdGb8ju7qb/smI5L7W49nTg9FYmYXYvNGlE20e1kNc9v6COkS3JQ1eLiVA==
+X-Received: by 2002:a37:a34a:: with SMTP id m71mr24773664qke.323.1554758464889;
+        Mon, 08 Apr 2019 14:21:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwiFR02uiDnt+y+wDwDDGZMIhQMmKc6R7r6RzrP8Yvht+wYL2yykvHDr71gj9iDX9V+E+qs
+X-Received: by 2002:a37:a34a:: with SMTP id m71mr24773617qke.323.1554758464110;
+        Mon, 08 Apr 2019 14:21:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554758464; cv=none;
         d=google.com; s=arc-20160816;
-        b=pftQrqoP2/UkBlS/vTdiGIou4GQ4KaQkNekRJJY81sYet/5uslZdN0jAWg9DeI1bZx
-         iszbGYPjpP4POb2a9SDuwOvB74+CiilaHwG+NeVY22QnVg2ptjfAv0eGUz2sgC0sffE4
-         cgjsWNGNVJQFotRu5kHydT6T+vqYhISJri7VIaPZfrNLmZ1cfiotdGZNgWIspiXpc9LA
-         yfk6NwCCells4Nyp7M5xLKbP/P+XD4Odh1jlrv0bmud945HnVEScQpvIA/CtYRAwIQYz
-         S+IG+yX9+8YphR1F5zw32qqQrQhBDwd/nO7aQ72V5mDIgbJ89IqD0uatg4gQqButys93
-         VnjQ==
+        b=tMiAaHhCiN7sblo/I2KAhlMtyUsHkbVUsVJJ5c2Bf2IjmYkcdTlDiCi4gkKsJHb92n
+         I3J1CkbYay5EozNQ/SK7y4j8fP8B1Ds7aDbsLL56OxH0jzFVL7dsYSqduUhdGkGLm0s4
+         Vu/Dsp1KfuxxYPLLhlOia7Vly/Ff91Rj5WiGouPJXJDOegdxLRY6KabKpQQDZKePy2t8
+         H7iLv0ULULTIPAf6hLyPA2aTPdbAW57hvrPcGrY102M2MwK0kr/0QBn2o4vUNYxf8uSW
+         m411ZtD7fMb8xeceYMxl1y7FRc5sUeJrZ2Ar3G5/dEzG/MUYStaLM9sgFYnEfjNqutKp
+         Nqqw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=qWgoqLrehLWrlYPdO3DLSlxzqJjTk6sf/El8Ywa/2fU=;
-        b=a6vGj2VU/lu7auyM/qNpSlmkJV6R47+siYMjs9J9rCUOtPN41Q8g4ZWQ0Gm18IdjAd
-         8+hZ1SDvO/Lds5XlY2utnZ9lDY23OPmLDziu5DPpU/HRHv2UDugQuUWj+uHirRBhSA6J
-         L9A2W8VZ6L66TXFa56C6iBAKG0WqRmWWsmBDTYRuQ+Im9KTBkUc0Jd7wEzLgWEJkD267
-         LhfuzYWINl9HWqvVDnFrJ/qCSCs8w0fjMOo+y6InTYb8czxREXnwmof7MeDaahR4eeKh
-         xrVFApsdma25sGzptGnCO+281Yrm3zLiUs9jAPw43NKvg+rf9X+wXzD7lNPCp6S2LZZe
-         /7jA==
+         :user-agent:date:message-id:organization:autocrypt:openpgp
+         :references:cc:to:from:subject;
+        bh=u+Ou+EjAwe1biDFWdQSr+ppkGPSuSGxcyU+YS/IhJe8=;
+        b=dbGoXDaFUAtoSVMRmUZnvkDJnzsGf5wUi9Q5CuxGe4o+rU2MiZreSIGc/uVFYbRfqm
+         eHte0++Veb4pr5ZDn4B77NLZXfCTEjK8r+iywjPmSrtwAcmlf1dWTyYuM0bS9NUXmnqS
+         amoDT+IPaLc4eGtMuYS2++3FkkkEUAz2HvQenSqpe5dVC7SkSzYNwB24kyOfHfemzEtD
+         3gJ6BwMPVv7+XvdiIrVKfyKKkxQYH1drHs+MZauza4BVpVN/KZVEMS83DvrDg4y2GaQv
+         25rcCcvYgZy4i8EQp4CZmBSoResjmoz4Ci6T5K7AXeyZno0bErb7OSiPTFqxHPEcKbAj
+         m9bg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r15si8787913qkm.252.2019.04.08.13.51.21
+        by mx.google.com with ESMTPS id q8si2735399qte.254.2019.04.08.14.21.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Apr 2019 13:51:21 -0700 (PDT)
+        Mon, 08 Apr 2019 14:21:04 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
@@ -82,12 +83,13 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id E89A73092645;
-	Mon,  8 Apr 2019 20:51:20 +0000 (UTC)
-Received: from [10.36.116.113] (ovpn-116-113.ams2.redhat.com [10.36.116.113])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 7E7C260472;
-	Mon,  8 Apr 2019 20:51:11 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 239E881DFF;
+	Mon,  8 Apr 2019 21:21:03 +0000 (UTC)
+Received: from [10.36.116.17] (ovpn-116-17.ams2.redhat.com [10.36.116.17])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id BA75B6014C;
+	Mon,  8 Apr 2019 21:20:53 +0000 (UTC)
 Subject: Re: Thoughts on simple scanner approach for free page hinting
+From: David Hildenbrand <david@redhat.com>
 To: Alexander Duyck <alexander.duyck@gmail.com>
 Cc: "Michael S. Tsirkin" <mst@redhat.com>,
  Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>,
@@ -102,7 +104,7 @@ References: <CAKgT0Ue4LufT4q4dLwjqhGRpDbVnucNWhmhwWxbwtytgjxx+Kw@mail.gmail.com>
  <CAKgT0UfbVS2iupbf4Dfp91PAdgHNHwZ-RNyL=mcPsS_68Ly_9Q@mail.gmail.com>
  <ef4c219f-6686-f5f6-fd22-d1da0b1720f3@redhat.com>
  <CAKgT0Ucp1nt4roC1xdZEMcD17TvJovsDKBdkRK6vA_4bUM8bdw@mail.gmail.com>
-From: David Hildenbrand <david@redhat.com>
+ <efe01b95-33d4-71ce-2a48-ec43f0846d68@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  xsFNBFXLn5EBEAC+zYvAFJxCBY9Tr1xZgcESmxVNI/0ffzE/ZQOiHJl6mGkmA1R7/uUpiCjJ
@@ -148,127 +150,133 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <efe01b95-33d4-71ce-2a48-ec43f0846d68@redhat.com>
-Date: Mon, 8 Apr 2019 22:51:10 +0200
+Message-ID: <9da317cb-38ee-9b02-2549-65d8b45d5354@redhat.com>
+Date: Mon, 8 Apr 2019 23:20:52 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <CAKgT0Ucp1nt4roC1xdZEMcD17TvJovsDKBdkRK6vA_4bUM8bdw@mail.gmail.com>
+In-Reply-To: <efe01b95-33d4-71ce-2a48-ec43f0846d68@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Mon, 08 Apr 2019 20:51:21 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Mon, 08 Apr 2019 21:21:03 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 08.04.19 22:10, Alexander Duyck wrote:
-> On Mon, Apr 8, 2019 at 11:40 AM David Hildenbrand <david@redhat.com> wrote:
->>
+On 08.04.19 22:51, David Hildenbrand wrote:
+> On 08.04.19 22:10, Alexander Duyck wrote:
+>> On Mon, Apr 8, 2019 at 11:40 AM David Hildenbrand <david@redhat.com> wrote:
+>>>
+>>>>>>
+>>>>>> In addition we will need some way to identify which pages have been
+>>>>>> hinted on and which have not. The way I believe easiest to do this
+>>>>>> would be to overload the PageType value so that we could essentially
+>>>>>> have two values for "Buddy" pages. We would have our standard "Buddy"
+>>>>>> pages, and "Buddy" pages that also have the "Offline" value set in the
+>>>>>> PageType field. Tracking the Online vs Offline pages this way would
+>>>>>> actually allow us to do this with almost no overhead as the mapcount
+>>>>>> value is already being reset to clear the "Buddy" flag so adding a
+>>>>>> "Offline" flag to this clearing should come at no additional cost.
 >>>>>
->>>>> In addition we will need some way to identify which pages have been
->>>>> hinted on and which have not. The way I believe easiest to do this
->>>>> would be to overload the PageType value so that we could essentially
->>>>> have two values for "Buddy" pages. We would have our standard "Buddy"
->>>>> pages, and "Buddy" pages that also have the "Offline" value set in the
->>>>> PageType field. Tracking the Online vs Offline pages this way would
->>>>> actually allow us to do this with almost no overhead as the mapcount
->>>>> value is already being reset to clear the "Buddy" flag so adding a
->>>>> "Offline" flag to this clearing should come at no additional cost.
->>>>
->>>> Just nothing here that this will require modifications to kdump
->>>> (makedumpfile to be precise and the vmcore information exposed from the
->>>> kernel), as kdump only checks for the the actual mapcount value to
->>>> detect buddy and offline pages (to exclude them from dumps), they are
->>>> not treated as flags.
->>>>
->>>> For now, any mapcount values are really only separate values, meaning
->>>> not the separate bits are of interest, like flags would be. Reusing
->>>> other flags would make our life a lot easier. E.g. PG_young or so. But
->>>> clearing of these is then the problematic part.
->>>>
->>>> Of course we could use in the kernel two values, Buddy and BuddyOffline.
->>>> But then we have to check for two different values whenever we want to
->>>> identify a buddy page in the kernel.
->>>
->>> Actually this may not be working the way you think it is working.
->>
->> Trust me, I know how it works. That's why I was giving you the notice.
->>
->> Read the first paragraph again and ignore the others. I am only
->> concerned about makedumpfile that has to be changed.
->>
->> PAGE_OFFLINE_MAPCOUNT_VALUE
->> PAGE_BUDDY_MAPCOUNT_VALUE
->>
->> Once you find out how these values are used, you should understand what
->> has to be changed and where.
-> 
-> Ugh. Is there an official repo I am supposed to refer to for makedumpfile?
-> 
-> As far as the changes needed I don't think this would necessitate
-> additional exports. We could probably just get away with having
-> makedumpfile generate a new value by simply doing an "&" of the two
-> values to determine what an offline buddy would be. If need be I can
-> submit a patch for that. I find it kind of annoying that the kernel is
-> handling identifying these bits one way, and makedumpfile is doing it
-> another way. It should have been setup to handle this all the same
-> way.
-> 
->>
+>>>>> Just nothing here that this will require modifications to kdump
+>>>>> (makedumpfile to be precise and the vmcore information exposed from the
+>>>>> kernel), as kdump only checks for the the actual mapcount value to
+>>>>> detect buddy and offline pages (to exclude them from dumps), they are
+>>>>> not treated as flags.
 >>>>>
->>>>> Lastly we would need to create a specialized function for allocating
->>>>> the non-"Offline" pages, and to tweak __free_one_page to tail enqueue
->>>>> "Offline" pages. I'm thinking the alloc function it would look
->>>>> something like __rmqueue_smallest but without the "expand" and needing
->>>>> to modify the !page check to also include a check to verify the page
->>>>> is not "Offline". As far as the changes to __free_one_page it would be
->>>>> a 2 line change to test for the PageType being offline, and if it is
->>>>> to call add_to_free_area_tail instead of add_to_free_area.
+>>>>> For now, any mapcount values are really only separate values, meaning
+>>>>> not the separate bits are of interest, like flags would be. Reusing
+>>>>> other flags would make our life a lot easier. E.g. PG_young or so. But
+>>>>> clearing of these is then the problematic part.
+>>>>>
+>>>>> Of course we could use in the kernel two values, Buddy and BuddyOffline.
+>>>>> But then we have to check for two different values whenever we want to
+>>>>> identify a buddy page in the kernel.
 >>>>
->>>> As already mentioned, there might be scenarios where the additional
->>>> hinting thread might consume too much CPU cycles, especially if there is
->>>> little guest activity any you mostly spend time scanning a handful of
->>>> free pages and reporting them. I wonder if we can somehow limit the
->>>> amount of wakeups/scans for a given period to mitigate this issue.
+>>>> Actually this may not be working the way you think it is working.
 >>>
->>> That is why I was talking about breaking nr_free into nr_freed and
->>> nr_bound. By doing that I can record the nr_free value to a
->>> virtio-balloon specific location at the start of any walk and should
->>> know exactly now many pages were freed between that call and the next
->>> one. By ordering things such that we place the "Offline" pages on the
->>> tail of the list it should make the search quite fast since we would
->>> just be always allocating off of the head of the queue until we have
->>> hinted everything int he queue. So when we hit the last call to alloc
->>> the non-"Offline" pages and shut down our thread we can use the
->>> nr_freed value that we recorded to know exactly how many pages have
->>> been added that haven't been hinted.
+>>> Trust me, I know how it works. That's why I was giving you the notice.
 >>>
->>>> One main issue I see with your approach is that we need quite a lot of
->>>> core memory management changes. This is a problem. I wonder if we can
->>>> factor out most parts into callbacks.
+>>> Read the first paragraph again and ignore the others. I am only
+>>> concerned about makedumpfile that has to be changed.
 >>>
->>> I think that is something we can't get away from. However if we make
->>> this generic enough there would likely be others beyond just the
->>> virtualization drivers that could make use of the infrastructure. For
->>> example being able to track the rate at which the free areas are
->>> cycling in and out pages seems like something that would be useful
->>> outside of just the virtualization areas.
+>>> PAGE_OFFLINE_MAPCOUNT_VALUE
+>>> PAGE_BUDDY_MAPCOUNT_VALUE
+>>>
+>>> Once you find out how these values are used, you should understand what
+>>> has to be changed and where.
 >>
->> Might be, but might be the other extreme, people not wanting such
->> special cases in core mm. I assume the latter until I see a very clear
->> design where such stuff has been properly factored out.
+>> Ugh. Is there an official repo I am supposed to refer to for makedumpfile?
+>>
+>> As far as the changes needed I don't think this would necessitate
+>> additional exports. We could probably just get away with having
+>> makedumpfile generate a new value by simply doing an "&" of the two
+>> values to determine what an offline buddy would be. If need be I can
+>> submit a patch for that. I find it kind of annoying that the kernel is
+>> handling identifying these bits one way, and makedumpfile is doing it
+>> another way. It should have been setup to handle this all the same
+>> way.
+>>
+>>>
+>>>>>>
+>>>>>> Lastly we would need to create a specialized function for allocating
+>>>>>> the non-"Offline" pages, and to tweak __free_one_page to tail enqueue
+>>>>>> "Offline" pages. I'm thinking the alloc function it would look
+>>>>>> something like __rmqueue_smallest but without the "expand" and needing
+>>>>>> to modify the !page check to also include a check to verify the page
+>>>>>> is not "Offline". As far as the changes to __free_one_page it would be
+>>>>>> a 2 line change to test for the PageType being offline, and if it is
+>>>>>> to call add_to_free_area_tail instead of add_to_free_area.
+>>>>>
+>>>>> As already mentioned, there might be scenarios where the additional
+>>>>> hinting thread might consume too much CPU cycles, especially if there is
+>>>>> little guest activity any you mostly spend time scanning a handful of
+>>>>> free pages and reporting them. I wonder if we can somehow limit the
+>>>>> amount of wakeups/scans for a given period to mitigate this issue.
+>>>>
+>>>> That is why I was talking about breaking nr_free into nr_freed and
+>>>> nr_bound. By doing that I can record the nr_free value to a
+>>>> virtio-balloon specific location at the start of any walk and should
+>>>> know exactly now many pages were freed between that call and the next
+>>>> one. By ordering things such that we place the "Offline" pages on the
+>>>> tail of the list it should make the search quite fast since we would
+>>>> just be always allocating off of the head of the queue until we have
+>>>> hinted everything int he queue. So when we hit the last call to alloc
+>>>> the non-"Offline" pages and shut down our thread we can use the
+>>>> nr_freed value that we recorded to know exactly how many pages have
+>>>> been added that haven't been hinted.
+>>>>
+>>>>> One main issue I see with your approach is that we need quite a lot of
+>>>>> core memory management changes. This is a problem. I wonder if we can
+>>>>> factor out most parts into callbacks.
+>>>>
+>>>> I think that is something we can't get away from. However if we make
+>>>> this generic enough there would likely be others beyond just the
+>>>> virtualization drivers that could make use of the infrastructure. For
+>>>> example being able to track the rate at which the free areas are
+>>>> cycling in and out pages seems like something that would be useful
+>>>> outside of just the virtualization areas.
+>>>
+>>> Might be, but might be the other extreme, people not wanting such
+>>> special cases in core mm. I assume the latter until I see a very clear
+>>> design where such stuff has been properly factored out.
+>>
+>> The only real pain point I am seeing right now is the assumptions
+>> makedumpfile is currently making about how mapcount is being used to
+>> indicate pagetype. If we patch it to fix it most of the other bits are
+>> minor.
 > 
-> The only real pain point I am seeing right now is the assumptions
-> makedumpfile is currently making about how mapcount is being used to
-> indicate pagetype. If we patch it to fix it most of the other bits are
-> minor.
+> I'll be curious how splitting etc. will be handled. Especially if you
+> want to set Offline for all affected sub pages.
+> 
 
-I'll be curious how splitting etc. will be handled. Especially if you
-want to set Offline for all affected sub pages.
+Answering that myself, I guess you are planning to change the buddy to
+basically copy the offline value to sub-pages when splitting, also
+attaching them to the tail of the list instead of the head.
 
 -- 
 
