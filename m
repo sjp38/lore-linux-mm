@@ -2,76 +2,76 @@ Return-Path: <SRS0=5KBY=SK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0EA98C282CE
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 10:12:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 94EA2C10F14
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 10:12:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C820220880
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 10:12:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C820220880
+	by mail.kernel.org (Postfix) with ESMTP id 47AD3208E3
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 10:12:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 47AD3208E3
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 648D16B0005; Mon,  8 Apr 2019 06:12:36 -0400 (EDT)
+	id EAF156B0006; Mon,  8 Apr 2019 06:12:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5F7F06B0006; Mon,  8 Apr 2019 06:12:36 -0400 (EDT)
+	id E36216B0008; Mon,  8 Apr 2019 06:12:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4E7176B0008; Mon,  8 Apr 2019 06:12:36 -0400 (EDT)
+	id D4B516B000A; Mon,  8 Apr 2019 06:12:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E5486B0005
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 06:12:36 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id d49so12180355qtk.8
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 03:12:36 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B423D6B0006
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 06:12:40 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id g48so12250730qtk.19
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 03:12:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=ZUL8Fv31s+1wfFRlAq3PiY1SqK5fwriE7DqsfWk4nwg=;
-        b=jSxw2olAQ4iiVgYgn8JjfnFqNRWAkCB5qsh33f3c7EcQV2gy6+2K8yFaxk4xL6UF4Z
-         tvlNXY//z6J15rF7pRFj3zn5HYU3KeXprBNf9FZ4n3lE+qe+voDhzq+2AONkbE5DRE2j
-         UVy+hZjK99e1cE5GftAez0PT/hDgo0lQWN7/hoNKWXyRUOIK7UJ4VYuFbE6fywYB0BDd
-         nltoG1UQsfErBDhGr9d8DlilvARStZ1B9pXDweuAat7laRn5Ly3t8t8mWhz/2uPw2esb
-         D2t7C31O+Kp8j+unDit/kHU+I96pR+AGNB383LFzP+/IBwUby+0qWGkDSDtsLQxHAM7r
-         UulA==
+         :subject:date:message-id:in-reply-to:references;
+        bh=c1qEfMhK2jjJVhzLElZ0ixQesqaRds3kjLS7FD8LKgE=;
+        b=b4nxzHlLiPmcIY1U8PPDP4mFdv2tbo8CjjbxiLxeVy4t8Av85jeqAyxlXbUn4WN50y
+         kHn4nwEXZfjBble+l9H7OaCBaWgQq/Lt8BigLu1TS3l3E8HylW6nQeORn7mhQ6/xbx8s
+         Vcxo0jDC5u+cJ2GmYBcwozFbNgqEYApyX8lzMvtr/+/Gh6kIYk59cZGtajYmS4Wi4NrR
+         8AqipkKn5XtIGISEVinSMwwhXijCKZFD5NbAQodsBEoD3OVftVMAB6INfUybnM8l262q
+         6y5iuToV5rZPT/p/kHKG5OWfIqhPbR/Gdm17drw4sVR312wtmRaEbPMYfp4fH1E3bcTk
+         jjZQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUiP+kbxx6sWOSP7YWOhFKYKJHBOYfGhNwJNJ76M2HPYSOWn+z5
-	wNHNJj7D8dBGPaLUyW7ovoqiQAI9TQB3mAsaNdLMXo6/DGkVThoMFvyhsvfF4eOuoHhJ5ygHV7p
-	7lKTKhIUc9/rYQdL3MPSPNGPq9QqGQg9lUiM2RskClI6+mNnvwY9E8GaltSmCgnPHvA==
-X-Received: by 2002:ac8:30d1:: with SMTP id w17mr22593557qta.4.1554718355970;
-        Mon, 08 Apr 2019 03:12:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqweobNnabIb94rcbSRNF1ZdtJ2pR4essLH/Udn5wF4KnoMzvj/56XmhB5qrvUsB+PyuUpVv
-X-Received: by 2002:ac8:30d1:: with SMTP id w17mr22593531qta.4.1554718355356;
-        Mon, 08 Apr 2019 03:12:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554718355; cv=none;
+X-Gm-Message-State: APjAAAXpfPMUo0H22+6VrggIJvXODd9oHzUt6pGwbJ9S+Cp6qDbdkC4Q
+	+WCl+zbb02fJBE42RSGJ/hu2JDVjueaGxU7rUiJMXGnUN3O+eBZqABWnk6DUN/KeCXrCFXGgtlo
+	L7LEC/z3kzyM1kBSOA8l5yRiaMLURMjaaryrn/UA4rHN3tFuQNIg2GZKz7jLazVxdAQ==
+X-Received: by 2002:ae9:e313:: with SMTP id v19mr20533504qkf.153.1554718360473;
+        Mon, 08 Apr 2019 03:12:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxH0u2fLvrbCVq30j31v8hFeWi7Lptuc6KxiLiy4YbHEFjwxX5VP3Ong8IwbsFVYt9tE32b
+X-Received: by 2002:ae9:e313:: with SMTP id v19mr20533459qkf.153.1554718359648;
+        Mon, 08 Apr 2019 03:12:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554718359; cv=none;
         d=google.com; s=arc-20160816;
-        b=JVkgMwlSkDnQo9sV4ssV5c5Ib8OEm0Ul2yiqGaIzcwebqCXiDdAz85YXiOH9jZKzBB
-         sJWtG31DYYI4tLaRLD1ZPLYbTPwkrt/J69jg61/XuhWQDgZPNON/dXZGOXNHdAqjEJaQ
-         r5mIcopvJgFaKL5UJFZVNMF22GX7KubIHxn1Go41vuC/jR6OoLr8E41slO7CG8389hr0
-         P/ynAex5iYg/EkcaSv/qEBKIfhbKN22zi7La35p7Qm9Y7Se8J7/BKXgVSG0dL+1C2lGL
-         Skdf5yJACRREum7nxaOPfD34o1z1IIh4HeAx2RzgqoGAPGASRTQ8goPGrg5uXYWe714o
-         Gqvw==
+        b=N3ENKXUpRabHQA0nRdq/7imWMkOrSsnUQvUaQIq0AgGMJvT6tCnYgu55MfX51o84NU
+         Glcv+xYC+ppOIV+AN/pA1wFJ5lxzkDMljUYmCz1fNwpk5x9qcF8D5BLabiSY1U6IQe7P
+         Qj561qwScHBpWvhs3oq/223n1sNkvUkckQurw+kQ9AAbxG+3jzEdr5ccmr3CY9qZFPT2
+         aACkWKhFrTXJz89nEdjP9nh9yzJUaxZtckkUFL2h1/Pi/NCPl6OHRnILAQ1vcXEgMu9c
+         LpsVz7V8awx9Nzg15PyGWz6bRgX+M3jM7Nv7qbChRdynzp4VUdxEeDbpiktF2OfMl5ko
+         syYw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=ZUL8Fv31s+1wfFRlAq3PiY1SqK5fwriE7DqsfWk4nwg=;
-        b=Q5X0Lnwjww//y1se+3TkQ/cEPOG2ubVSaA6Jj8mJBwYZK8kHMcMc0jhDXirFapkuUi
-         oYNN7KrrxhtYwkXs4PSPyZCYc99wzfb9Oq2+qurTs7lwh9zDRrD+4BGgWX65tjM5jjtt
-         nOh05tQfUCdLthq7ElqMYHfiAzoI44BJJKn1GX1syBgXG4gaa4YTEfX4pq9cksKJwpPk
-         MOutsd2kmWEGV8MQkVoXpCP3xLBnKdtriI8EgxPNpauEnZLC2jIzYDQspyczIcGiCjf1
-         CYhwWa/STuibAa0OB0rV4Vc98F+7EEmITP/NZMlUCI4pXSZDOByQ6sjd33FZGPjLQbcN
-         K11A==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from;
+        bh=c1qEfMhK2jjJVhzLElZ0ixQesqaRds3kjLS7FD8LKgE=;
+        b=m1emaikR9pI4XiyCGlyZloDSJN1FKIbkmaNkTcz0iU2IH9lfh0JaR7PyDLB/I0xnEb
+         Yp3y4HAIFltHFNJ6IBugN9/MsR5xIR6fY+VDGQx94CT/ukdSj/13+1GQoZ+JTRVA0xDw
+         xlGt78R+SrMJpzMF/Ci+mka0GmbJ/vAWViNB/etyWskdcL+M0FgTzqgjblO5cYZUiGv3
+         VRjuTidPa7kUB2JVVLPZSnyc5uTjKXyx1z44zp7kcWuosIOpASeoltif41cUQ6QCX6rP
+         Wtvi/7xFBNxp0JlmkFjG1HqGR2kp9Iim0byyq2MaV+dQFa1Z+anwITaH+ym1H3uHlHo5
+         aoZQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b47si5140833qvd.155.2019.04.08.03.12.35
+        by mx.google.com with ESMTPS id q46si295562qtf.237.2019.04.08.03.12.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Apr 2019 03:12:35 -0700 (PDT)
+        Mon, 08 Apr 2019 03:12:39 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
@@ -79,11 +79,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 3BF2D30821C0;
-	Mon,  8 Apr 2019 10:12:34 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id BB04559460;
+	Mon,  8 Apr 2019 10:12:38 +0000 (UTC)
 Received: from t460s.redhat.com (ovpn-117-53.ams2.redhat.com [10.36.117.53])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 9E39319C57;
-	Mon,  8 Apr 2019 10:12:27 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 8293F27196;
+	Mon,  8 Apr 2019 10:12:34 +0000 (UTC)
 From: David Hildenbrand <david@redhat.com>
 To: linux-kernel@vger.kernel.org
 Cc: Andrew Morton <akpm@linux-foundation.org>,
@@ -103,45 +103,52 @@ Cc: Andrew Morton <akpm@linux-foundation.org>,
 	linux-mm@kvack.org,
 	dan.j.williams@intel.com,
 	David Hildenbrand <david@redhat.com>
-Subject: [PATCH RFC 0/3] mm/memory_hotplug: Factor out memory block device handling
-Date: Mon,  8 Apr 2019 12:12:23 +0200
-Message-Id: <20190408101226.20976-1-david@redhat.com>
+Subject: [PATCH RFC 1/3] mm/memory_hotplug: Simplify and fix check_hotplug_memory_range()
+Date: Mon,  8 Apr 2019 12:12:24 +0200
+Message-Id: <20190408101226.20976-2-david@redhat.com>
+In-Reply-To: <20190408101226.20976-1-david@redhat.com>
+References: <20190408101226.20976-1-david@redhat.com>
 X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Mon, 08 Apr 2019 10:12:34 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Mon, 08 Apr 2019 10:12:38 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We only want memory block devices for memory to be onlined/offlined
-(add/remove from the buddy). This is required so user space can
-online/offline memory and kdump gets notified about newly onlined memory.
+By converting start and size to page granularity, we actually ignore
+unaligned parts within a page instead of properly bailing out with an
+error.
 
-Only such memory has the requirement of having to span whole memory blocks.
-Let's factor out creation/removal of memory block devices.
+Signed-off-by: David Hildenbrand <david@redhat.com>
+---
+ mm/memory_hotplug.c | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)
 
-This not only allows to clean up arch_add_memory() to get rid of
-want_memblock, but also reduces locking overhead and eventually allows
-us to handle errors while adding memory in a nicer fashion.
-
-Only did a quick sanity test with DIMM plug/unplug. This should be
-sufficient to discuss the general approach. Patches are against
-next/master.
-
-David Hildenbrand (3):
-  mm/memory_hotplug: Simplify and fix check_hotplug_memory_range()
-  mm/memory_hotplug: Create memory block devices after arch_add_memory()
-  mm/memory_hotplug: Remove memory block devices before
-    arch_remove_memory()
-
- drivers/base/memory.c  | 108 +++++++++++++++++++++--------------------
- drivers/base/node.c    |   7 ++-
- include/linux/memory.h |   4 +-
- include/linux/node.h   |   6 +--
- mm/memory_hotplug.c    |  38 +++++++--------
- 5 files changed, 81 insertions(+), 82 deletions(-)
-
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index f206b8b66af1..680dcc67f9d5 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1070,16 +1070,11 @@ int try_online_node(int nid)
+ 
+ static int check_hotplug_memory_range(u64 start, u64 size)
+ {
+-	unsigned long block_sz = memory_block_size_bytes();
+-	u64 block_nr_pages = block_sz >> PAGE_SHIFT;
+-	u64 nr_pages = size >> PAGE_SHIFT;
+-	u64 start_pfn = PFN_DOWN(start);
+-
+ 	/* memory range must be block size aligned */
+-	if (!nr_pages || !IS_ALIGNED(start_pfn, block_nr_pages) ||
+-	    !IS_ALIGNED(nr_pages, block_nr_pages)) {
++	if (!size || !IS_ALIGNED(start, memory_block_size_bytes()) ||
++	    !IS_ALIGNED(size, memory_block_size_bytes())) {
+ 		pr_err("Block size [%#lx] unaligned hotplug range: start %#llx, size %#llx",
+-		       block_sz, start, size);
++		       memory_block_size_bytes(), start, size);
+ 		return -EINVAL;
+ 	}
+ 
 -- 
 2.17.2
 
