@@ -2,136 +2,265 @@ Return-Path: <SRS0=5KBY=SK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AD1BFC10F13
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 15:15:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AFC38C10F13
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 15:18:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3C3FA2148E
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 15:15:14 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 528C92148E
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 15:18:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="GvgiXh2j"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C3FA2148E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Klr4Aced"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 528C92148E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9F8CA6B0005; Mon,  8 Apr 2019 11:15:13 -0400 (EDT)
+	id E3B1E6B0007; Mon,  8 Apr 2019 11:18:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9A7766B0006; Mon,  8 Apr 2019 11:15:13 -0400 (EDT)
+	id DEBC26B0008; Mon,  8 Apr 2019 11:18:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 897046B0007; Mon,  8 Apr 2019 11:15:13 -0400 (EDT)
+	id CDB396B000A; Mon,  8 Apr 2019 11:18:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A44C6B0005
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 11:15:13 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id i124so11913177qkf.14
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 08:15:13 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B2D506B0007
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 11:18:47 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id s24so11338939ioe.17
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 08:18:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=CtKcuxRi7xBhOKcFdvYKUwz6gnLJDyf5JeeaCI9u4lU=;
-        b=PoTpTOp+K8ailA+2izP6YQPNaqjZ4MS8ie6CE96B3E6LC6FEnGaFrcJWIZp9FZ3Y8z
-         OzB+VWihcv+llM+T1EBb3lWNRfOrkv6GicMxyj0sQqNT+DsNBf6GVPuHeKkJHeNi4mD2
-         qNvQ1+yYW355NFOQRt0+uQ4gOvI/taSousRhV/NYCEyDMR5v2ZDVedc5zQ+UKgfAwRK+
-         jT/TAH1o1FZ1I2V4CrxnAs/6VMmxonoC8uFah4dLZ3HcrVYw/ft6AD/45NhDDGLm0UKT
-         07WH+Q5EtCQGJEA4kdhddNlBbXp3+jxZymuE2vM4Ao80XMMV15W6MA1CTJs2602snb1J
-         N0eQ==
-X-Gm-Message-State: APjAAAVMhVvtWoT5lwTJaw1EYe/puq0rdQovKe0borJwzxbIrLEbZf/A
-	K0xEJOKyDLIkZ59i/Bi7lhPQBO8d6/BgeT8VK/OBpjls18PzJQREIGmMjn+8KC9hHFvZC6decuK
-	Yq7yGo6a/0A0KS+/XLZU4btRkhwzFfd+6IEeJSZr1VjWNY+TTXM6TtgOKO0G8IdE=
-X-Received: by 2002:aed:3c5b:: with SMTP id u27mr25301947qte.6.1554736513081;
-        Mon, 08 Apr 2019 08:15:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyS1wh9YT+zQ+c1/Xx66WnkOTDx6eybARA2URfwP+UGNs73Knh5veWj0AeZHu9HqG2ao/ug
-X-Received: by 2002:aed:3c5b:: with SMTP id u27mr25301857qte.6.1554736512199;
-        Mon, 08 Apr 2019 08:15:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554736512; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=9Ad7AdjXU9ameo2mNrt8hvSxpBLgf7Vhvuo315awnqU=;
+        b=V1CUUDT9DZYlsWQDbxev19YvC7YOJ9bzWutveZUUTT9N6dAQhxdAqriW2fKpNl+VEO
+         FInvOhBObM6cxKQxF8ZMqY+NtxkdCf3C/8ip/kVNjKJrtcIf3rXy/MUbmaLbtYs4oO1z
+         xVV5t0yHBo4QU4DZr+KsXcxbBnFKRAFPdHvUkEK3hgEFDfz/kRbeuru58Os55Eqjy6/v
+         nmPLf+ihPPJovShP8qQ2USD4F36Aoatt92xQbzMkVxT8LSyWRXcMh9SyhxMPgMIWAzjO
+         R73mK9oEs6ULToQaF7PRfeFvSbFaJEhy5OWLWC0oMl0v/Skd6rSZbHqG/JbzxJmiZh+b
+         hMvg==
+X-Gm-Message-State: APjAAAWLzZrXKMQLapxfKpcw+Ayww9VLCWSWl+fGuPp2QRqKBLsnxE+8
+	vOybyRYF8QuJCUoel6bRYgZ2y/B90SSYVhZImEQae8cDq+TzuP7StBa7mxGTXq2kz2qSqsKfEyG
+	8632itDb735ODAHbpW4Hc5NgvvZU0MDmVch3V3xX8SPu2SDYE4vLG6GbUUZBxsH4jlw==
+X-Received: by 2002:a24:3dc7:: with SMTP id n190mr20577768itn.62.1554736727453;
+        Mon, 08 Apr 2019 08:18:47 -0700 (PDT)
+X-Received: by 2002:a24:3dc7:: with SMTP id n190mr20577654itn.62.1554736726378;
+        Mon, 08 Apr 2019 08:18:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554736726; cv=none;
         d=google.com; s=arc-20160816;
-        b=x022tulSQL+oASdiO9k82sH3eHMfGRDUVq5hrYJszyQMF14n/EW1wZRwxI4zQMtvd3
-         0TIFvl490bltYxxCpnHJcoFO+N1UV+WE1dMx3QfBDUNW6LtBdfvlKMAgPNfa0zfYdohw
-         ktS16aXfavHnUOUjzD+a0XBVQ2RqBwfHJt6WUd920i+kcxEY24gckqyoFqmv5r7ui4Se
-         AJGOGEzPQD32XK2I729Ki0S7l+FDiNINkEZ/TG1QPq2QPSrbdlJ4crdGtF6SAMTX6fVM
-         MLuJJ5GiuT2Y1ussitGsAkm+8eZma6+3ZHcUqOd+VIA/4HKXlMmPXl+1D1MPSTZznMA5
-         9zdA==
+        b=pG8ZRL7vxA0S0Smy5tSc0H31/jZENpFywHsHOt+j0OchePkRnzXxKEN6/xTm6R4C/K
+         rhYRrZaRFyYo0x4gk1jTHju+upbiK4w0WtgHxeXMBBwfqYQyMHbMuBi7RjT9ohyliVOu
+         1YTICTdKPCMpCqrv+HcZRBHOaq/4PRgYMilnV5Z8KoQT+9sprNRlt6yJf2frRf2DwStw
+         T8Ip6wPXns7PD9PatxUiy2aqFY9+rNaSmnd5GvBJbvr9H6IzyaGhJS/FIz8xVnfSv4VB
+         qQFrarFdfxZZhvXDq/T7mFTdXrrfihnXlFQtVsqelE3ZnWa4pLFYcUcrg7Hl4vNPnHVa
+         ML7w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=CtKcuxRi7xBhOKcFdvYKUwz6gnLJDyf5JeeaCI9u4lU=;
-        b=fPuDE8PHaDb5fVnPqmYYfyLb1NG6rkJOIiIpNnGO8tC6ZlCiMB2U3Ukx9qhxRMHETg
-         //y5TnECd0CBdTMMPA4sDbPFWH0rgd90QLJl21rQUoBlcdyno5Q9mq8i8uZNY7eqf8CU
-         EN4T0W6fDDwlzhUfgPenZISHEAgTrNKJgRDR4Me37Kxwihu1AnSkN1vBBkQE5UvI/vUZ
-         hdOJTRK05UDE1HlZDago02gb6I6FqOgRD4aCP6L9ARWtDjCZfeeSlCinPZg4RQ80iDjP
-         gZwgpKuF3tTO0Ekp1aHy3RcNeN4WNtIbOvl4D5hJjwQls3iUkfMSZjvU+8ppd8p25BIk
-         It2g==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=9Ad7AdjXU9ameo2mNrt8hvSxpBLgf7Vhvuo315awnqU=;
+        b=RTtrLKEq1Pk0ReFnHLxa2YRdZrM5XH44D0H1zWQNjh2y1JRlDQSzkzHCPLx7Rv3fBW
+         4gnp1OKXH4W986NryR5jIZY5mhhKn/Mj5Ao7DtJpuUrjixSabbAaflAIEJ1/1U066GJt
+         nuy7JmozJmp1JNCHlTRrdisWs/P3eduFCBUXEvrOV7yw+NjC3QIgMAns2DZLeIEyIKWg
+         zwiP2gbj/0AYH+QWZLASe8/mhqsFc2/utmszNUA1MfV8rMrnF+ap+EluDgzqC1VES3bx
+         dfgcC6iY3jrqdIPTiNe3zR+EyWm6dBQDGloLKfuPRqot8o8nfPsNyA3FtGLtp6RI7jiL
+         rGfg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=GvgiXh2j;
-       spf=pass (google.com: domain of 01000169fd847a25-5933cc1e-a520-416a-b634-84b3e7ce9960-000000@amazonses.com designates 54.240.9.99 as permitted sender) smtp.mailfrom=01000169fd847a25-5933cc1e-a520-416a-b634-84b3e7ce9960-000000@amazonses.com
-Received: from a9-99.smtp-out.amazonses.com (a9-99.smtp-out.amazonses.com. [54.240.9.99])
-        by mx.google.com with ESMTPS id q27si2560254qkn.246.2019.04.08.08.15.12
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Klr4Aced;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 127sor59029516jaz.12.2019.04.08.08.18.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 08 Apr 2019 08:15:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 01000169fd847a25-5933cc1e-a520-416a-b634-84b3e7ce9960-000000@amazonses.com designates 54.240.9.99 as permitted sender) client-ip=54.240.9.99;
+        (Google Transport Security);
+        Mon, 08 Apr 2019 08:18:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=GvgiXh2j;
-       spf=pass (google.com: domain of 01000169fd847a25-5933cc1e-a520-416a-b634-84b3e7ce9960-000000@amazonses.com designates 54.240.9.99 as permitted sender) smtp.mailfrom=01000169fd847a25-5933cc1e-a520-416a-b634-84b3e7ce9960-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1554736511;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=lNudCzZ4w2s8/H8+lpBX7L/o8a8N/r9Gfx4wno1thXs=;
-	b=GvgiXh2jwzAKEcSIvSEHZ7wXwO53kEXUrIQ32sBEP9JQ5xZuwvt2G2bVkMYkRab/
-	s8KivUTDhpY3S/pzO5O2k7tEkQI0ZyRGpdsqWx71a9wJfL775CkbpHGn71j6vP8XsjD
-	q7weJEid6EUbqwZjDvHiR2VVskTLBYw+21QKoko0=
-Date: Mon, 8 Apr 2019 15:15:11 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
-To: Linus Torvalds <torvalds@linux-foundation.org>
-cc: Qian Cai <cai@lca.pw>, Andrew Morton <akpm@linux-foundation.org>, 
-    penberg@kernel.org, David Rientjes <rientjes@google.com>, 
-    iamjoonsoo.kim@lge.com, Tejun Heo <tj@kernel.org>, 
-    Linux-MM <linux-mm@kvack.org>, 
-    Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH] slab: fix a crash by reading /proc/slab_allocators
-In-Reply-To: <CAHk-=wgr5ZYM3b4Sn9AwnJkiDNeHcW6qLY1Aha3VGT3pPih+WQ@mail.gmail.com>
-Message-ID: <01000169fd847a25-5933cc1e-a520-416a-b634-84b3e7ce9960-000000@email.amazonses.com>
-References: <20190406225901.35465-1-cai@lca.pw> <CAHk-=wgr5ZYM3b4Sn9AwnJkiDNeHcW6qLY1Aha3VGT3pPih+WQ@mail.gmail.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Klr4Aced;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=9Ad7AdjXU9ameo2mNrt8hvSxpBLgf7Vhvuo315awnqU=;
+        b=Klr4AcedXx6EGvpASoRhkbaiXG0ydzxtI+rPrewCYsTiVGFA+5bpdnsxDX8VtCpt0u
+         nCHcRrzAZio4Ju8BOQwIjHt2VeerBKScixd1CB1shkTCVl0O/35qgWqP9o6IAoZph3/q
+         SJXF0yUrGyFa1c5BjefUghgcfgBMTnlZRZC3x6dQNWAOV2hG1VCmLrtTpTJSe/mMEK+n
+         OAxH6E398pyzLUrsc0nQB97Dy5Kg13ML9mHqdgapdVEXIAO94wOpIZod+slygLUkWr5D
+         ki08oJ74V0DmQVIA6qpJzS9ESSDOn6KkeLooUjuLjqbrNNar72DDtkoTvZ9De6aWgdQB
+         QNaw==
+X-Google-Smtp-Source: APXvYqyeadTJY73h1ipvgeAyLEjTLmudhCISSDw0Y4WHYDT300Xsu0YsvCa92oN0H7NY5xyTePQX/dR5eYb+F9LrjqE=
+X-Received: by 2002:a02:c6d8:: with SMTP id r24mr3072108jan.93.1554736725871;
+ Mon, 08 Apr 2019 08:18:45 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.04.08-54.240.9.99
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
+References: <CAKgT0Ue4LufT4q4dLwjqhGRpDbVnucNWhmhwWxbwtytgjxx+Kw@mail.gmail.com>
+ <ef0c542a-ded5-f063-e6e2-8e84d1c12c85@redhat.com>
+In-Reply-To: <ef0c542a-ded5-f063-e6e2-8e84d1c12c85@redhat.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Mon, 8 Apr 2019 08:18:35 -0700
+Message-ID: <CAKgT0UfyG=0wg5jzZPcnh7Q1rf0+gd9H5Q4626GTft85EiJNeA@mail.gmail.com>
+Subject: Re: Thoughts on simple scanner approach for free page hinting
+To: Nitesh Narayan Lal <nitesh@redhat.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, David Hildenbrand <david@redhat.com>, kvm list <kvm@vger.kernel.org>, 
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
+	Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com, pagupta@redhat.com, 
+	wei.w.wang@intel.com, Yang Zhang <yang.zhang.wz@gmail.com>, 
+	Rik van Riel <riel@surriel.com>, dodgen@google.com, 
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com, 
+	Andrea Arcangeli <aarcange@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 7 Apr 2019, Linus Torvalds wrote:
-
-> On Sat, Apr 6, 2019 at 12:59 PM Qian Cai <cai@lca.pw> wrote:
+On Mon, Apr 8, 2019 at 5:24 AM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+>
+>
+> On 4/5/19 8:09 PM, Alexander Duyck wrote:
+> > So I am starting this thread as a spot to collect my thoughts on the
+> > current guest free page hinting design as well as point out a few
+> > possible things we could do to improve upon it.
 > >
-> > The commit 510ded33e075 ("slab: implement slab_root_caches list")
-> > changes the name of the list node within "struct kmem_cache" from
-> > "list" to "root_caches_node", but leaks_show() still use the "list"
-> > which causes a crash when reading /proc/slab_allocators.
->
-> The patch does seem to be correct, and I have applied it.
->
-> However, it does strike me that apparently this wasn't caught for two
-> years. Which makes me wonder whether we should (once again) discuss
-> just removing SLAB entirely, or at least removing the
-> /proc/slab_allocators file. Apparently it has never been used in the
-> last two years. At some point a "this can't have worked if  anybody
-> ever tried to use it" situation means that the code should likely be
-> excised.
+> > 1. The current design isn't likely going to scale well to multiple
+> > VCPUs. The issue specifically is that the zone lock must be held to
+> > pull pages off of the free list and to place them back there once they
+> > have been hinted upon. As a result it would likely make sense to try
+> > to limit ourselves to only having one thread performing the actual
+> > hinting so that we can avoid running into issues with lock contention
+> > between threads.
+> >
+> > 2. There are currently concerns about the hinting triggering false OOM
+> > situations if too much memory is isolated while it is being hinted. My
+> > thought on this is to simply avoid the issue by only hint on a limited
+> > amount of memory at a time. Something like 64MB should be a workable
+> > limit without introducing much in the way of regressions. However as a
+> > result of this we can easily be overrun while waiting on the host to
+> > process the hinting request. As such we will probably need a way to
+> > walk the free list and free pages after they have been freed instead
+> > of trying to do it as they are freed.
+> >
+> > 3. Even with the current buffering which is still on the larger side
+> > it is possible to overrun the hinting limits if something causes the
+> > host to stall and a large swath of memory is released. As such we are
+> > still going to need some sort of scanning mechanism or will have to
+> > live with not providing accurate hints.
+> >
+> > 4. In my opinion, the code overall is likely more complex then it
+> > needs to be. We currently have 2 allocations that have to occur every
+> > time we provide a hint all the way to the host, ideally we should not
+> > need to allocate more memory to provide hints. We should be able to
+> > hold the memory use for a memory hint device constant and simply map
+> > the page address and size to the descriptors of the virtio-ring.
+> >
+> > With that said I have a few ideas that may help to address the 4
+> > issues called out above. The basic idea is simple. We use a high water
+> > mark based on zone->free_area[order].nr_free to determine when to wake
+> > up a thread to start hinting memory out of a given free area. From
+> > there we allocate non-"Offline" pages from the free area and assign
+> > them to the hinting queue up to 64MB at a time. Once the hinting is
+> > completed we mark them "Offline" and add them to the tail of the
+> > free_area. Doing this we should cycle the non-"Offline" pages slowly
+> > out of the free_area.
+> any ideas about how are you planning to control this?
 
-This is only occurring with specially build kernels so that memory leaks
-can be investigated. The same is done with other tools (kasan and friends)
-today I guess and also the SLUB debugging tools are much more user
-friendly. So this means that some esoteric debugging feature of SLAB was
-broken.
+You mean in terms of switching the hinting on/off? The setup should be
+pretty simple. Basically we would still need a hook like the one you
+added after the allocation to determine where the free page ultimately
+landed and to do a check against the high water mark I mentioned.
+Basically if there is something like 2X the number of pages needed to
+fulfill the 64MB requirement we could then kick off a thread running
+on the zone to begin populating the hints and notifying the
+virtio-balloon interface. When we can no longer fill the ring we would
+simply stop the thread until we get back to the 2X state for nr_freed
+versus the last nr_freed value we had hinted upon. It wouldn't be
+dissimilar to how we currently handle the Tx path in many NICs where
+we shut off hinting.
+
+For examples of doing something like this you could look at the Rx
+softIRQ handling in the NIC drivers. Basically the idea there is you
+trigger the event once, and then the thread is running until all work
+has been completed. The thread itself is limiting itself to only
+processing some number of fixed buffers for each request, and when it
+can no longer get a full set it stops and waits to be rescheduled by
+an interrupt.
+
+> > In addition the search cost should be minimal
+> > since all of the "Offline" pages should be aggregated to the tail of
+> > the free_area so all pages allocated off of the free_area will be the
+> > non-"Offline" pages until we shift over to them all being "Offline".
+> > This should be effective for MAX_ORDER - 1 and MAX_ORDER - 2 pages
+> > since the only real consumer of add_to_free_area_tail is
+> > __free_one_page which uses it to place a page with an order less than
+> > MAX_ORDER - 2 on the tail of a free_area assuming that it should be
+> > freeing the buddy of that page shortly. The only other issue with
+> > adding to tail would be the memory shuffling which was recently added,
+> > but I don't see that as being something that will be enabled in most
+> > cases so we could probably just make the features mutually exclusive,
+> > at least for now.
+> >
+> > So if I am not mistaken this would essentially require a couple
+> > changes to the mm infrastructure in order for this to work.
+> >
+> > First we would need to split nr_free into two counters, something like
+> > nr_freed and nr_bound. You could use nr_freed - nr_bound to get the
+> > value currently used for nr_free. When we pulled the pages for hinting
+> > we would reduce the nr_freed value and then add back to it when the
+> > pages are returned. When pages are allocated they would increment the
+> > nr_bound value. The idea behind this is that we can record nr_free
+> > when we collect the pages and save it to some local value. This value
+> > could then tell us how many new pages have been added that have not
+> > been hinted upon.
+> >
+> > In addition we will need some way to identify which pages have been
+> > hinted on and which have not. The way I believe easiest to do this
+> > would be to overload the PageType value so that we could essentially
+> > have two values for "Buddy" pages. We would have our standard "Buddy"
+> > pages, and "Buddy" pages that also have the "Offline" value set in the
+> > PageType field. Tracking the Online vs Offline pages this way would
+> > actually allow us to do this with almost no overhead as the mapcount
+> > value is already being reset to clear the "Buddy" flag so adding a
+> > "Offline" flag to this clearing should come at no additional cost.
+> >
+> > Lastly we would need to create a specialized function for allocating
+> > the non-"Offline" pages, and to tweak __free_one_page to tail enqueue
+> > "Offline" pages. I'm thinking the alloc function it would look
+> > something like __rmqueue_smallest but without the "expand" and needing
+> > to modify the !page check to also include a check to verify the page
+> > is not "Offline". As far as the changes to __free_one_page it would be
+> > a 2 line change to test for the PageType being offline, and if it is
+> > to call add_to_free_area_tail instead of add_to_free_area.
+> Is it possible that once the pages are offline, there is a large
+> allocation request in the guest needing those offline pages as well?
+
+It is possible. However the behavior here would be no different from a
+NIC driver. NIC drivers will sit on a swath of memory for Rx purposes
+waiting for the DMA to occur. Here we are sitting on 64MB which for a
+large allocation should not be that significant.
+
+As far as avoiding it, I don't think there is any way we can avoid
+such an event completely. There are scenerios where the hitning will
+get hung up while sitting on memory for an extended period of time.
+That is why I am thinking our best mitigation for now would be to keep
+the amount of hinting we are doing confined to something on the
+smaller side such as 64M or less which I have already mentioned. By
+doing that if we do hit one of the problematic scenarios we should
+have minimal impact.
+
+> >
+> > Anyway this email ended up being pretty massive by the time I was
+> > done. Feel free to reply to parts of it and we can break it out into
+> > separate threads of discussion as necessary. I will start working on
+> > coding some parts of this next week.
+> >
+> > Thanks.
+> >
+> > - Alex
+> --
+> Regards
+> Nitesh
+>
 
