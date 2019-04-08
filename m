@@ -2,197 +2,316 @@ Return-Path: <SRS0=5KBY=SK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C457EC10F13
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 11:37:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 44200C10F14
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 12:24:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 735AE2070D
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 11:37:07 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="ZFSwn4+i"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 735AE2070D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id CAE0B21473
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 12:24:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CAE0B21473
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0D8BF6B0005; Mon,  8 Apr 2019 07:37:07 -0400 (EDT)
+	id 2B3866B0003; Mon,  8 Apr 2019 08:24:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0883E6B0006; Mon,  8 Apr 2019 07:37:07 -0400 (EDT)
+	id 239F16B0005; Mon,  8 Apr 2019 08:24:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E91616B0008; Mon,  8 Apr 2019 07:37:06 -0400 (EDT)
+	id 0B37B6B0006; Mon,  8 Apr 2019 08:24:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C45786B0005
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 07:37:06 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id k13so12296977qtc.23
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 04:37:06 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D5FC96B0003
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 08:24:56 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id c67so11458484qkg.5
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 05:24:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=qq3D3diVxA3pGGNFraFuDmpOfxDU2goQ7+Y69KnRSt4=;
-        b=O8Mbj35hyAwv+ZKVsPjBh0TaY07yy+1em5G18qzD2ZumgHHFBgnKZ0cptcFfQcFR4e
-         gSRwo+yAkZpEs1JJNnT50UJp+v/H8RLtz9ZxsAiDwXium58pds6Nmg9vgjf9WH72CagR
-         5uVC9oK225kDQivQPp2bEkHZuh3ps+4F2S4rfub05XQ9ue0lfT6kv9tYFMYC+/i6kil+
-         hyyYl4b6c+c6pbQzC5OMqk84HxiZawyFdjit7veKAUcnn/yJXRbcdeWIUUpnJTT4XZ2n
-         w8gnEq3V30AZqsSqtgh9jTbh/0ezRhkEnQrzxfQRrCaqA7BeogJ3fivSb9tAJdx/H81i
-         wTpA==
-X-Gm-Message-State: APjAAAWF2suxfbx42UtF0meBzj/LGrweiVlRbtgqNt68AzgGBeIXtm46
-	c0rwC4YFIFuUJeXZXS9PLAIrWv5AVqQzTSjafT6Yh0mXsO+g7G3RwZpqGgAF4vTlArCzTc/kQPe
-	dq7jTsGit3tC86fMxtCHd0DcduAXKI3eF3IDRv3UFhQZQ6/91jnkoCI9B33npmUKtLg==
-X-Received: by 2002:a0c:d162:: with SMTP id c31mr5155099qvh.157.1554723426528;
-        Mon, 08 Apr 2019 04:37:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzOikjKJm3gKydRS/1evn9h+fCtchCetnQG6YNqWhTIy5SnSzLFedpcxO8q35vSTjHD/iOP
-X-Received: by 2002:a0c:d162:: with SMTP id c31mr5155057qvh.157.1554723425735;
-        Mon, 08 Apr 2019 04:37:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554723425; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to;
+        bh=GQgASu60MkLmXGsb2I4ZL3OGFp2X4s3FczXxfjBFql4=;
+        b=qTt93HIv6DjGvi6NZ89cP1XocY3VS1D3oOoOMwsIgSSvssAq03CioOT4zjgx1npLhh
+         dDv3WkC4JUJ2ZkKkv76vLunCDWMKcvGrepxGkgBj6l/iPVFqVGYthYXrZmMRCd1HExCV
+         sY+888FuRsHGdMQ0TQWAQzouzQ0L8oA3A8FNGz6PiOY8vCl1F9rjdeuJZ5liVdw9DqkS
+         XdNi/gGYGm55a9wiaybOmuXQGrrcsbCX6xJs0QIbI2g81GHmu+gaDPTVCs8Y2usOIDHG
+         +Z0/+pWhUY1BaW+/cfJYTAmtNKcExaTLpgo062JIXOGZ3WncpzCRCUFcQWjdeXK5S6oe
+         91DQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAX/BE+DfOWCPOOsNw241ZMSegwpYkEZhmudxrkhmvGHiOTws0uR
+	Jgb2eE4clz/95q1e+00JiVKGvF8fnGHI5eg2Ik2WcXTkrCn/yAswCOsbSXAbVnOTnX7juJEgkKK
+	DDQIqJxNnuEJ4r5JDHdAnHpIT3ET21Fg/keqIWw+9ch5kWopPEspZ+nR8mP9FfPtOVg==
+X-Received: by 2002:a37:a5d8:: with SMTP id o207mr22668872qke.0.1554726296559;
+        Mon, 08 Apr 2019 05:24:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzfikAVcdz8u47lrCqskBP2YsDqR1rDmDoDuqtlmGMCEkiqHlVoat4/HVNhlbnSzFXiKY5t
+X-Received: by 2002:a37:a5d8:: with SMTP id o207mr22668804qke.0.1554726295647;
+        Mon, 08 Apr 2019 05:24:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554726295; cv=none;
         d=google.com; s=arc-20160816;
-        b=bUlUt47qhtJv9euTQUj9tWW+cO+z7l3oLPvUdmJxMFXWGvKRJY2SGMsl7ePjAsxj3D
-         dZckD8PfsfuleeWOPElD6zNX5cWGNPBc0u7vi8qvf96X3VTOcJKzCTjZC2crRZ/1M8f6
-         6VdBiECrPfHC4tRzTZdnhtpWxkpA7t9+QuuAJv03ZfG9xJan0CxnNqtYjjRCAO0puZt6
-         m75N/HbKRcIPJudH9gYxsJq7ikqFyLSyy1QIAQS+NYaQuAWMUrhLXr3RKFZIyYstDjKs
-         3nM6pAzN9DFImWMBNLm3cpfrCjMfVBZTQoh2af9ZmUDOVrOnxc6n2bOC4qOZT4LDf2iw
-         QWZg==
+        b=smYyHKdVrmJeGPs0FUafFFMdoVKyTzU9d92xR1NSi4H+bPBWZdSz9uCbePF6yo44Bo
+         nf2JU0rAM1dtjq+n6M6S2sHwp5fz2DXjx4Gq58LG73pbGZi+O5Wz+1srseHnUA5R136m
+         oQ8U7X97YSI9Nru23DsxZEyek529szd98PDaRLSPO8RDvTT7ORLwb0m+ecdv694+hTFW
+         9z83TrICakaubfSjr0Zj+IBYf/fb4YUXR2vUNk3ahN8P4z5H4Kj8/VVnLvc6AeO2ZfGq
+         m4cdvNb024mMgklQZolBfgceA/CcEDAbzwmSJynEJqvOjKRCD4Ps5pIg7c5G2KMOdwL2
+         QSxA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=qq3D3diVxA3pGGNFraFuDmpOfxDU2goQ7+Y69KnRSt4=;
-        b=DRby/2OzoNX9uvtCFGYB0bIJsGT4vlqJDfTbFj/mLH4UZ4klqjJI8KOX5EGkjNLH5F
-         rtH2WMuEVvBXjiYD9ZeSzeYMCBF8nO8VJCFW1BGQhiSC+nJyMWN7ZoEHV+VbbLAaNtWg
-         DpOrGY3o3OV/gi0YjpNixTKzmg2ErrV3B5YUVRPrz/tDdBlRMKvXV0b8cUxwGoz+k9CV
-         4dSN+LNFIYEZuAYuF3JZHFkjdh8bIG/EFH4mTx8T2aAlB2KN/Qb+lTyP+OFdhMsCUZfA
-         hc6lBQWaLFMCjOtgJyidIsOxY0Ij08nGT2K5uaqwybxS25YqOgCnDQ1TbZW4oWXjSKgY
-         kg1A==
+        h=in-reply-to:mime-version:user-agent:date:message-id:organization
+         :autocrypt:openpgp:from:references:cc:to:subject;
+        bh=GQgASu60MkLmXGsb2I4ZL3OGFp2X4s3FczXxfjBFql4=;
+        b=pmxZL35auWLMy5U5Qz3OSULCMZNpYgYdFJWRqKPNb0KbM++Dgm4ivjNawcHWzYryeU
+         KG99kAbyH8LReEzOWK4WouuiSBdiFRmVDfASakV8pCXpF40EXnl6v+kw7wV5rePoYh08
+         FcRCHNw/BWpJeLlkZDFZFuat22tskLyGQU/D3XgNLMUiqNHBKuQc4AZaiyRVEOFn1D+k
+         tctnHmPHZ9UXx/bZu1bF/4IIfsrmq5fSfzuIxrec9AXtE+J5sLVUL6L9A+e0OxyBmV5q
+         e1zyZ6FCBloFU4nkNShqB29s+5wNwDnGJyL9j46fyo3iPEIPPEjfqtmYSG/IwENeAXNY
+         ssoA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=ZFSwn4+i;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id 200si1552987qkd.55.2019.04.08.04.37.05
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w2si9235086qvc.80.2019.04.08.05.24.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Apr 2019 04:37:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        Mon, 08 Apr 2019 05:24:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=ZFSwn4+i;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x38BT5i5126300;
-	Mon, 8 Apr 2019 11:36:55 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
- mime-version : subject : from : in-reply-to : date : cc :
- content-transfer-encoding : message-id : references : to;
- s=corp-2018-07-02; bh=qq3D3diVxA3pGGNFraFuDmpOfxDU2goQ7+Y69KnRSt4=;
- b=ZFSwn4+i6TN5tsKbcoMjrUm32uO7+yYh4aQXPnr+H7hFYRkQPd7INyvzdAhjo4r/WCT2
- LR/ymO2up/qRwrousBy3Bsu8FaH9Dar+SEVcCgY0DL3iDpi/0cfD1kwfW2EKSKtxZc0R
- dumJFlakROVgeOBf4gGX1muKnKQ539FdW1c6ROqt/Tt014SW8HEGBXEtYJ3RfZL91hN9
- t8rLXpLpHdPU3DPyxm6Ooymegvm14X/0AVZ/+w94HlNS9R0yIWZ69HT0NZSTCSkLeD4P
- gZiNEXGpYe7G9oAhXN6sSI6gHvhL2dqthWcAFq2MEoHBK59P2fgfWrvUJED11J3fa321 9w== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by userp2120.oracle.com with ESMTP id 2rpmrpwkwq-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 08 Apr 2019 11:36:54 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x38BZXDE191953;
-	Mon, 8 Apr 2019 11:36:54 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserp3020.oracle.com with ESMTP id 2rpytayyug-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 08 Apr 2019 11:36:53 +0000
-Received: from abhmp0012.oracle.com (abhmp0012.oracle.com [141.146.116.18])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x38BalGM016696;
-	Mon, 8 Apr 2019 11:36:48 GMT
-Received: from [192.168.0.110] (/73.243.10.6)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 08 Apr 2019 04:36:47 -0700
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.8\))
-Subject: Re: Read-only Mapping of Program Text using Large THP Pages
-From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <20190220171905.GJ12668@bombadil.infradead.org>
-Date: Mon, 8 Apr 2019 05:36:46 -0600
-Cc: Keith Busch <keith.busch@intel.com>, Linux-MM <linux-mm@kvack.org>,
-        linux-fsdevel@vger.kernel.org, linux-nvme@lists.infradead.org,
-        linux-block@vger.kernel.org
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <B53C9F2D-966C-4DFD-8151-0A7255ACA9AD@oracle.com>
-References: <379F21DD-006F-4E33-9BD5-F81F9BA75C10@oracle.com>
- <20190220134454.GF12668@bombadil.infradead.org>
- <07B3B085-C844-4A13-96B1-3DB0F1AF26F5@oracle.com>
- <20190220144345.GG12668@bombadil.infradead.org>
- <20190220163921.GA4451@localhost.localdomain>
- <20190220171905.GJ12668@bombadil.infradead.org>
-To: Matthew Wilcox <willy@infradead.org>
-X-Mailer: Apple Mail (2.3445.104.8)
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9220 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1904080100
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9220 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1904080100
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 7BDE0883CA;
+	Mon,  8 Apr 2019 12:24:54 +0000 (UTC)
+Received: from [10.18.17.32] (dhcp-17-32.bos.redhat.com [10.18.17.32])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 5804B665C4;
+	Mon,  8 Apr 2019 12:24:45 +0000 (UTC)
+Subject: Re: Thoughts on simple scanner approach for free page hinting
+To: Alexander Duyck <alexander.duyck@gmail.com>,
+ "Michael S. Tsirkin" <mst@redhat.com>, David Hildenbrand <david@redhat.com>
+Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+ linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>,
+ lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
+ Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
+ dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>
+References: <CAKgT0Ue4LufT4q4dLwjqhGRpDbVnucNWhmhwWxbwtytgjxx+Kw@mail.gmail.com>
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ VujM7c/b4pps
+Organization: Red Hat Inc,
+Message-ID: <ef0c542a-ded5-f063-e6e2-8e84d1c12c85@redhat.com>
+Date: Mon, 8 Apr 2019 08:24:43 -0400
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
+MIME-Version: 1.0
+In-Reply-To: <CAKgT0Ue4LufT4q4dLwjqhGRpDbVnucNWhmhwWxbwtytgjxx+Kw@mail.gmail.com>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="njUWTaoJWBqh1lxfc3zrAPUOXJa2c60xB"
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Mon, 08 Apr 2019 12:24:54 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--njUWTaoJWBqh1lxfc3zrAPUOXJa2c60xB
+Content-Type: multipart/mixed; boundary="pt3BIrnFE3FYH1MLYjSIxqGd4MxszPRyq";
+ protected-headers="v1"
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>,
+ "Michael S. Tsirkin" <mst@redhat.com>, David Hildenbrand <david@redhat.com>
+Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+ linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>,
+ lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
+ Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
+ dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>
+Message-ID: <ef0c542a-ded5-f063-e6e2-8e84d1c12c85@redhat.com>
+Subject: Re: Thoughts on simple scanner approach for free page hinting
+References: <CAKgT0Ue4LufT4q4dLwjqhGRpDbVnucNWhmhwWxbwtytgjxx+Kw@mail.gmail.com>
+In-Reply-To: <CAKgT0Ue4LufT4q4dLwjqhGRpDbVnucNWhmhwWxbwtytgjxx+Kw@mail.gmail.com>
+
+--pt3BIrnFE3FYH1MLYjSIxqGd4MxszPRyq
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
 
 
-> On Feb 20, 2019, at 10:19 AM, Matthew Wilcox <willy@infradead.org> =
-wrote:
->=20
-> Yes, on reflection, NVMe is probably an example where we'd want to =
-send
-> three commands (one for the critical page, one for the part before and =
-one
-> for the part after); it has low per-command overhead so it should be =
-fine.
->=20
-> Thinking about William's example of a 1GB page, with a x4 link running
-> at 8Gbps, a 1GB transfer would take approximately a quarter of a =
-second.
-> If we do end up wanting to support 1GB pages, I think we'll want that
-> low-priority queue support ... and to qualify drives which actually =
-have
-> the ability to handle multiple commands in parallel.
+On 4/5/19 8:09 PM, Alexander Duyck wrote:
+> So I am starting this thread as a spot to collect my thoughts on the
+> current guest free page hinting design as well as point out a few
+> possible things we could do to improve upon it.
+>
+> 1. The current design isn't likely going to scale well to multiple
+> VCPUs. The issue specifically is that the zone lock must be held to
+> pull pages off of the free list and to place them back there once they
+> have been hinted upon. As a result it would likely make sense to try
+> to limit ourselves to only having one thread performing the actual
+> hinting so that we can avoid running into issues with lock contention
+> between threads.
+>
+> 2. There are currently concerns about the hinting triggering false OOM
+> situations if too much memory is isolated while it is being hinted. My
+> thought on this is to simply avoid the issue by only hint on a limited
+> amount of memory at a time. Something like 64MB should be a workable
+> limit without introducing much in the way of regressions. However as a
+> result of this we can easily be overrun while waiting on the host to
+> process the hinting request. As such we will probably need a way to
+> walk the free list and free pages after they have been freed instead
+> of trying to do it as they are freed.
+>
+> 3. Even with the current buffering which is still on the larger side
+> it is possible to overrun the hinting limits if something causes the
+> host to stall and a large swath of memory is released. As such we are
+> still going to need some sort of scanning mechanism or will have to
+> live with not providing accurate hints.
+>
+> 4. In my opinion, the code overall is likely more complex then it
+> needs to be. We currently have 2 allocations that have to occur every
+> time we provide a hint all the way to the host, ideally we should not
+> need to allocate more memory to provide hints. We should be able to
+> hold the memory use for a memory hint device constant and simply map
+> the page address and size to the descriptors of the virtio-ring.
+>
+> With that said I have a few ideas that may help to address the 4
+> issues called out above. The basic idea is simple. We use a high water
+> mark based on zone->free_area[order].nr_free to determine when to wake
+> up a thread to start hinting memory out of a given free area. From
+> there we allocate non-"Offline" pages from the free area and assign
+> them to the hinting queue up to 64MB at a time. Once the hinting is
+> completed we mark them "Offline" and add them to the tail of the
+> free_area. Doing this we should cycle the non-"Offline" pages slowly
+> out of the free_area.=20
+any ideas about how are you planning to control this?
+> In addition the search cost should be minimal
+> since all of the "Offline" pages should be aggregated to the tail of
+> the free_area so all pages allocated off of the free_area will be the
+> non-"Offline" pages until we shift over to them all being "Offline".
+> This should be effective for MAX_ORDER - 1 and MAX_ORDER - 2 pages
+> since the only real consumer of add_to_free_area_tail is
+> __free_one_page which uses it to place a page with an order less than
+> MAX_ORDER - 2 on the tail of a free_area assuming that it should be
+> freeing the buddy of that page shortly. The only other issue with
+> adding to tail would be the memory shuffling which was recently added,
+> but I don't see that as being something that will be enabled in most
+> cases so we could probably just make the features mutually exclusive,
+> at least for now.
+>
+> So if I am not mistaken this would essentially require a couple
+> changes to the mm infrastructure in order for this to work.
+>
+> First we would need to split nr_free into two counters, something like
+> nr_freed and nr_bound. You could use nr_freed - nr_bound to get the
+> value currently used for nr_free. When we pulled the pages for hinting
+> we would reduce the nr_freed value and then add back to it when the
+> pages are returned. When pages are allocated they would increment the
+> nr_bound value. The idea behind this is that we can record nr_free
+> when we collect the pages and save it to some local value. This value
+> could then tell us how many new pages have been added that have not
+> been hinted upon.
+>
+> In addition we will need some way to identify which pages have been
+> hinted on and which have not. The way I believe easiest to do this
+> would be to overload the PageType value so that we could essentially
+> have two values for "Buddy" pages. We would have our standard "Buddy"
+> pages, and "Buddy" pages that also have the "Offline" value set in the
+> PageType field. Tracking the Online vs Offline pages this way would
+> actually allow us to do this with almost no overhead as the mapcount
+> value is already being reset to clear the "Buddy" flag so adding a
+> "Offline" flag to this clearing should come at no additional cost.
+>
+> Lastly we would need to create a specialized function for allocating
+> the non-"Offline" pages, and to tweak __free_one_page to tail enqueue
+> "Offline" pages. I'm thinking the alloc function it would look
+> something like __rmqueue_smallest but without the "expand" and needing
+> to modify the !page check to also include a check to verify the page
+> is not "Offline". As far as the changes to __free_one_page it would be
+> a 2 line change to test for the PageType being offline, and if it is
+> to call add_to_free_area_tail instead of add_to_free_area.
+Is it possible that once the pages are offline, there is a large
+allocation request in the guest needing those offline pages as well?
+>
+> Anyway this email ended up being pretty massive by the time I was
+> done. Feel free to reply to parts of it and we can break it out into
+> separate threads of discussion as necessary. I will start working on
+> coding some parts of this next week.
+>
+> Thanks.
+>
+> - Alex
+--=20
+Regards
+Nitesh
 
-I just got my denial for LSF/MM, so I was hopeful someone who will
-be attending can talk to the filesystem folks in an effort to determine =
-what
-the best approach may be going forward for filling a PMD sized page to =
-satisfy
-a page fault.
 
-The two obvious solutions are to either read the full content of the PMD
-sized page before the fault can be satisfied, or as Matthew suggested
-perhaps satisfy the fault temporarily with a single PAGESIZE page and =
-use a
-readahead to populate the other 511 pages. The next page fault would =
-then
-be satisfied by replacing the PAGESIZE page already mapped with a =
-mapping for
-the full PMD page.=20
+--pt3BIrnFE3FYH1MLYjSIxqGd4MxszPRyq--
 
-The latter approach seems like it could be a performance win at the sake =
-of some
-complexity. However, with the advent of faster storage arrays and more =
-SSD, let
-alone NVMe, just reading the full contents of a PMD sized page may =
-ultimately be
-the cleanest way to go as slow physical media becomes less of a concern =
-in the
-future.
+--njUWTaoJWBqh1lxfc3zrAPUOXJa2c60xB
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
 
-Thanks in advance to anyone who wants to take this issue up.=
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEkXcoRVGaqvbHPuAGo4ZA3AYyozkFAlyrPYwACgkQo4ZA3AYy
+oznpSA//axsfJiWt0W5AbdGPm5Veo7CmnDLt6jlDH0lM7uji3BnfL9mxcHruoLIC
+62iRfMZ+ank2gZzyGyhhy7gYfIeQtbzBkYJAsUBV7NBu5WTwI03C3e4ipWZd3d1G
+1W/vSU4kavSfIMcxjdDwD0uaJhJhvybz6cPs/Mmwe+UmgYKBloP4jntx9Wadmx+J
+CMTwuDl8RViz/VobReQiIg5PdgebFqDojcPSQVV8jLxj0PP9F4YznN2x9zzQg9Yq
+eHgaXqii6EW7DN5M/hxPXBwXtO636LtJrXWSZTDsF/qnLX+tc8PzRv+pNTYyo1WV
+4vbg/wzknckDQhWsEz2jeqNRr3x+/e7L/YQGP+JCeVihDZnms6uut/T7c7mAvuCq
+kFPSJEx5xnYs2yxwJCKU3enqe8j6rZ+zYToHRNFwnbo6I1Q24LTVi/XIklyp9Rug
+Z7twHWJ35R3WwAbDA9YEROHSjG4qKor4MKMxrWzQdK5bFD1tJ0eLqBCK9lczQZBb
+DjBRyXWQ+S3c1Qs8sWhgDAM1q2wyyQYjpUzg7OgLvmAn7U4y/pxZb5M3kxFfx7Js
+AP+/mKQRoALp/+D1ZPElH6LQ2IOxcoM6Y/6aHcMVYNRNQJHBTIjtTplqLA1sbaxV
+sc7bDt1Gs7ivLwV3wNE3Lw3dtg40cVjTkYKSNy9KsMD6kERADnk=
+=2pVJ
+-----END PGP SIGNATURE-----
+
+--njUWTaoJWBqh1lxfc3zrAPUOXJa2c60xB--
 
