@@ -2,316 +2,198 @@ Return-Path: <SRS0=5KBY=SK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 44200C10F14
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 12:24:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 63F97C10F13
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 12:54:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CAE0B21473
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 12:24:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CAE0B21473
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 011B621473
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 12:54:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 011B621473
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2B3866B0003; Mon,  8 Apr 2019 08:24:57 -0400 (EDT)
+	id 9044C6B0005; Mon,  8 Apr 2019 08:54:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 239F16B0005; Mon,  8 Apr 2019 08:24:57 -0400 (EDT)
+	id 8B11C6B0006; Mon,  8 Apr 2019 08:54:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0B37B6B0006; Mon,  8 Apr 2019 08:24:57 -0400 (EDT)
+	id 7A11D6B0007; Mon,  8 Apr 2019 08:54:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D5FC96B0003
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 08:24:56 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id c67so11458484qkg.5
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 05:24:56 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 296DF6B0005
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 08:54:52 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id e55so6914836edd.6
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 05:54:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to;
-        bh=GQgASu60MkLmXGsb2I4ZL3OGFp2X4s3FczXxfjBFql4=;
-        b=qTt93HIv6DjGvi6NZ89cP1XocY3VS1D3oOoOMwsIgSSvssAq03CioOT4zjgx1npLhh
-         dDv3WkC4JUJ2ZkKkv76vLunCDWMKcvGrepxGkgBj6l/iPVFqVGYthYXrZmMRCd1HExCV
-         sY+888FuRsHGdMQ0TQWAQzouzQ0L8oA3A8FNGz6PiOY8vCl1F9rjdeuJZ5liVdw9DqkS
-         XdNi/gGYGm55a9wiaybOmuXQGrrcsbCX6xJs0QIbI2g81GHmu+gaDPTVCs8Y2usOIDHG
-         +Z0/+pWhUY1BaW+/cfJYTAmtNKcExaTLpgo062JIXOGZ3WncpzCRCUFcQWjdeXK5S6oe
-         91DQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAX/BE+DfOWCPOOsNw241ZMSegwpYkEZhmudxrkhmvGHiOTws0uR
-	Jgb2eE4clz/95q1e+00JiVKGvF8fnGHI5eg2Ik2WcXTkrCn/yAswCOsbSXAbVnOTnX7juJEgkKK
-	DDQIqJxNnuEJ4r5JDHdAnHpIT3ET21Fg/keqIWw+9ch5kWopPEspZ+nR8mP9FfPtOVg==
-X-Received: by 2002:a37:a5d8:: with SMTP id o207mr22668872qke.0.1554726296559;
-        Mon, 08 Apr 2019 05:24:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzfikAVcdz8u47lrCqskBP2YsDqR1rDmDoDuqtlmGMCEkiqHlVoat4/HVNhlbnSzFXiKY5t
-X-Received: by 2002:a37:a5d8:: with SMTP id o207mr22668804qke.0.1554726295647;
-        Mon, 08 Apr 2019 05:24:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554726295; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=06peTqdcNInZ+oWxyV+sSkHnBCLYisC/RHJzONNwdUE=;
+        b=HXBHZ82OnoCcW50zBkgBASfZOOUv2Csejme/QlQueJLztfLWN3FdMPSAKJVbopxsuy
+         36TJ1H+gHC/ta4dGI4SWPYfjFEyiACR49tknN3rQzKpExdIOfBF1Cek7jpCtI9DwRov3
+         0jWUzK0enY2Ia98zU4153zCh5L9cs+E1TZL8rrJOu5uNYjBkPwv4+E/FJu3TadSaN/QL
+         UARfzJHG+/XVtuz21OXashcfJspCf5XA2XGqtiNWp2d93tOOpEWaPei1tq3G5QmY8Ujo
+         HKgkWpvVlQ2Ur/24Z2mHIkpnw8dbp+dx5gGSYYo6kZLj/iRzq5rnDQMZ9kguinrOHulC
+         Hyug==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.190 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAXe1knpNTEvOwCsIKsObQ92XXn2zevupr8M2mOH9Y9v+Y93UVeo
+	0NozjXai6epzItMhxLmz0TR8GR5a7J3z12mi8in6K1E5gmsKi++f61vTDfCWduTjUiAXL8zHJbC
+	XFeRNsdH2NIkwZMVZF6lQdtKC6rJKls180vJKkk6cBq8dCH8GVmYOYGZSP7api/AFEw==
+X-Received: by 2002:a50:fa06:: with SMTP id b6mr13663870edq.76.1554728091602;
+        Mon, 08 Apr 2019 05:54:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz4e2uCZ54R9pwwzum8j0BBvG0gAXOSbVBvgWB7AGlOcu+OoNuZhUQ0DKYOxBDu1+7ZuNp/
+X-Received: by 2002:a50:fa06:: with SMTP id b6mr13663812edq.76.1554728090521;
+        Mon, 08 Apr 2019 05:54:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554728090; cv=none;
         d=google.com; s=arc-20160816;
-        b=smYyHKdVrmJeGPs0FUafFFMdoVKyTzU9d92xR1NSi4H+bPBWZdSz9uCbePF6yo44Bo
-         nf2JU0rAM1dtjq+n6M6S2sHwp5fz2DXjx4Gq58LG73pbGZi+O5Wz+1srseHnUA5R136m
-         oQ8U7X97YSI9Nru23DsxZEyek529szd98PDaRLSPO8RDvTT7ORLwb0m+ecdv694+hTFW
-         9z83TrICakaubfSjr0Zj+IBYf/fb4YUXR2vUNk3ahN8P4z5H4Kj8/VVnLvc6AeO2ZfGq
-         m4cdvNb024mMgklQZolBfgceA/CcEDAbzwmSJynEJqvOjKRCD4Ps5pIg7c5G2KMOdwL2
-         QSxA==
+        b=CUc3srBaqMFMAz3VDn88lCS7DahkTHUmSY5edGNTKxe4ujI1fc8kZxqlfnOerTchIY
+         T2xogiQfjJ3QRHOuIof04xSuo3+pbs3T7qcSEkJ7k/UfptWDxnoUM+AKg4ke5cgzl8CM
+         pLhItEeJIOnCcUqLQ2vITWCnl+eHJBeGktqq+2eBd21covOZz5kU0ThJybwchPaVe0cc
+         xoR/73b6FlPkokheSIbEWosKhL9HpvVO73zyQ6vwJzGsWxr45sDwv/tHYd8Oz7okS771
+         EuMUWo1fdpKNPl9beOZrobC8AfIK2tKNAgSSNAlLnQQYE+pxM2hR0I0hPE8TYIq9OrIJ
+         9fMw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:mime-version:user-agent:date:message-id:organization
-         :autocrypt:openpgp:from:references:cc:to:subject;
-        bh=GQgASu60MkLmXGsb2I4ZL3OGFp2X4s3FczXxfjBFql4=;
-        b=pmxZL35auWLMy5U5Qz3OSULCMZNpYgYdFJWRqKPNb0KbM++Dgm4ivjNawcHWzYryeU
-         KG99kAbyH8LReEzOWK4WouuiSBdiFRmVDfASakV8pCXpF40EXnl6v+kw7wV5rePoYh08
-         FcRCHNw/BWpJeLlkZDFZFuat22tskLyGQU/D3XgNLMUiqNHBKuQc4AZaiyRVEOFn1D+k
-         tctnHmPHZ9UXx/bZu1bF/4IIfsrmq5fSfzuIxrec9AXtE+J5sLVUL6L9A+e0OxyBmV5q
-         e1zyZ6FCBloFU4nkNShqB29s+5wNwDnGJyL9j46fyo3iPEIPPEjfqtmYSG/IwENeAXNY
-         ssoA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=06peTqdcNInZ+oWxyV+sSkHnBCLYisC/RHJzONNwdUE=;
+        b=jGWxByIDdcNe62fSiFyXSqnerAKrYEpo9giUx4g/7+yfVFspCQysGlw93POQPEUMa9
+         OyLo8ribEjlzqXClnYEZzIVWehLoe+bEGSZEEv/ziYWSVEPGcl3ndsEK9grTwLEdKZYJ
+         I2/9IH/scK3CoGNKYPoF18l3oAi9vTDylSItdxQu7ScESrNnJ1YQ4zB0TmACuvmWPmEs
+         4ensdWuF9YtIk4mcuUIy9T5RHu1xaQQifWgB3uaC+MxGpLh/KgsIWcTLUWKKrFsjprub
+         1xLIJt/Gt5kUIwwjcFm5rcLA7OlZjpis5DnhnJEeqB2ooegjrMHR3ufVH+fvbOHiUaI5
+         nwUg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w2si9235086qvc.80.2019.04.08.05.24.55
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.190 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp22.blacknight.com (outbound-smtp22.blacknight.com. [81.17.249.190])
+        by mx.google.com with ESMTPS id d23si976217edp.178.2019.04.08.05.54.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Apr 2019 05:24:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Mon, 08 Apr 2019 05:54:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.190 as permitted sender) client-ip=81.17.249.190;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 7BDE0883CA;
-	Mon,  8 Apr 2019 12:24:54 +0000 (UTC)
-Received: from [10.18.17.32] (dhcp-17-32.bos.redhat.com [10.18.17.32])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 5804B665C4;
-	Mon,  8 Apr 2019 12:24:45 +0000 (UTC)
-Subject: Re: Thoughts on simple scanner approach for free page hinting
-To: Alexander Duyck <alexander.duyck@gmail.com>,
- "Michael S. Tsirkin" <mst@redhat.com>, David Hildenbrand <david@redhat.com>
-Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
- linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>,
- lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
- Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
- dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
- dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>
-References: <CAKgT0Ue4LufT4q4dLwjqhGRpDbVnucNWhmhwWxbwtytgjxx+Kw@mail.gmail.com>
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- VujM7c/b4pps
-Organization: Red Hat Inc,
-Message-ID: <ef0c542a-ded5-f063-e6e2-8e84d1c12c85@redhat.com>
-Date: Mon, 8 Apr 2019 08:24:43 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.190 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp22.blacknight.com (Postfix) with ESMTPS id 182DC10C016
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 13:54:50 +0100 (IST)
+Received: (qmail 18696 invoked from network); 8 Apr 2019 12:54:50 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 8 Apr 2019 12:54:49 -0000
+Date: Mon, 8 Apr 2019 13:54:48 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Helge Deller <deller@gmx.de>,
+	"James E.J. Bottomley" <James.Bottomley@hansenpartnership.com>,
+	John David Anglin <dave.anglin@bell.net>,
+	linux-parisc@vger.kernel.org, linux-mm@kvack.org,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Zi Yan <zi.yan@cs.rutgers.edu>
+Subject: Re: Memory management broken by "mm: reclaim small amounts of memory
+ when an external fragmentation event occurs"
+Message-ID: <20190408125448.GB18914@techsingularity.net>
+References: <alpine.LRH.2.02.1904061042490.9597@file01.intranet.prod.int.rdu2.redhat.com>
+ <20190408095224.GA18914@techsingularity.net>
+ <alpine.LRH.2.02.1904080639570.4674@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <CAKgT0Ue4LufT4q4dLwjqhGRpDbVnucNWhmhwWxbwtytgjxx+Kw@mail.gmail.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="njUWTaoJWBqh1lxfc3zrAPUOXJa2c60xB"
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Mon, 08 Apr 2019 12:24:54 +0000 (UTC)
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1904080639570.4674@file01.intranet.prod.int.rdu2.redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---njUWTaoJWBqh1lxfc3zrAPUOXJa2c60xB
-Content-Type: multipart/mixed; boundary="pt3BIrnFE3FYH1MLYjSIxqGd4MxszPRyq";
- protected-headers="v1"
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-To: Alexander Duyck <alexander.duyck@gmail.com>,
- "Michael S. Tsirkin" <mst@redhat.com>, David Hildenbrand <david@redhat.com>
-Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
- linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>,
- lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
- Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
- dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
- dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>
-Message-ID: <ef0c542a-ded5-f063-e6e2-8e84d1c12c85@redhat.com>
-Subject: Re: Thoughts on simple scanner approach for free page hinting
-References: <CAKgT0Ue4LufT4q4dLwjqhGRpDbVnucNWhmhwWxbwtytgjxx+Kw@mail.gmail.com>
-In-Reply-To: <CAKgT0Ue4LufT4q4dLwjqhGRpDbVnucNWhmhwWxbwtytgjxx+Kw@mail.gmail.com>
+On Mon, Apr 08, 2019 at 07:10:11AM -0400, Mikulas Patocka wrote:
+> > First, if pa-risc is !NUMA then why are separate local ranges
+> > represented as separate nodes? Is it because of DISCONTIGMEM or something
+> > else? DISCONTIGMEM is before my time so I'm not familiar with it and
+> 
+> I'm not an expert in this area, I don't know.
+> 
 
---pt3BIrnFE3FYH1MLYjSIxqGd4MxszPRyq
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Content-Language: en-US
+Ok.
 
+> > I consider it "essentially dead" but the arch init code seems to setup
+> > pgdats for each physical contiguous range so it's a possibility. The most
+> > likely explanation is pa-risc does not have hardware with addressing
+> > limitations smaller than the CPUs physical address limits and it's
+> > possible to have more ranges than available zones but clarification would
+> > be nice.  By rights, SPARSEMEM would be supported on pa-risc but that
+> > would be a time-consuming and somewhat futile exercise.  Regardless of the
+> > explanation, as pa-risc does not appear to support transparent hugepages,
+> > an option is to special case watermark_boost_factor to be 0 on DISCONTIGMEM
+> > as that commit was primarily about THP with secondary concerns around
+> > SLUB. This is probably the most straight-forward solution but it'd need
+> > a comment obviously. I do not know what the distro configurations for
+> > pa-risc set as I'm not a user of gentoo or debian.
+> 
+> I use Debian Sid, but I compile my own kernel. I uploaded the kernel 
+> .config here: 
+> http://people.redhat.com/~mpatocka/testcases/parisc-config.txt
+> 
 
-On 4/5/19 8:09 PM, Alexander Duyck wrote:
-> So I am starting this thread as a spot to collect my thoughts on the
-> current guest free page hinting design as well as point out a few
-> possible things we could do to improve upon it.
->
-> 1. The current design isn't likely going to scale well to multiple
-> VCPUs. The issue specifically is that the zone lock must be held to
-> pull pages off of the free list and to place them back there once they
-> have been hinted upon. As a result it would likely make sense to try
-> to limit ourselves to only having one thread performing the actual
-> hinting so that we can avoid running into issues with lock contention
-> between threads.
->
-> 2. There are currently concerns about the hinting triggering false OOM
-> situations if too much memory is isolated while it is being hinted. My
-> thought on this is to simply avoid the issue by only hint on a limited
-> amount of memory at a time. Something like 64MB should be a workable
-> limit without introducing much in the way of regressions. However as a
-> result of this we can easily be overrun while waiting on the host to
-> process the hinting request. As such we will probably need a way to
-> walk the free list and free pages after they have been freed instead
-> of trying to do it as they are freed.
->
-> 3. Even with the current buffering which is still on the larger side
-> it is possible to overrun the hinting limits if something causes the
-> host to stall and a large swath of memory is released. As such we are
-> still going to need some sort of scanning mechanism or will have to
-> live with not providing accurate hints.
->
-> 4. In my opinion, the code overall is likely more complex then it
-> needs to be. We currently have 2 allocations that have to occur every
-> time we provide a hint all the way to the host, ideally we should not
-> need to allocate more memory to provide hints. We should be able to
-> hold the memory use for a memory hint device constant and simply map
-> the page address and size to the descriptors of the virtio-ring.
->
-> With that said I have a few ideas that may help to address the 4
-> issues called out above. The basic idea is simple. We use a high water
-> mark based on zone->free_area[order].nr_free to determine when to wake
-> up a thread to start hinting memory out of a given free area. From
-> there we allocate non-"Offline" pages from the free area and assign
-> them to the hinting queue up to 64MB at a time. Once the hinting is
-> completed we mark them "Offline" and add them to the tail of the
-> free_area. Doing this we should cycle the non-"Offline" pages slowly
-> out of the free_area.=20
-any ideas about how are you planning to control this?
-> In addition the search cost should be minimal
-> since all of the "Offline" pages should be aggregated to the tail of
-> the free_area so all pages allocated off of the free_area will be the
-> non-"Offline" pages until we shift over to them all being "Offline".
-> This should be effective for MAX_ORDER - 1 and MAX_ORDER - 2 pages
-> since the only real consumer of add_to_free_area_tail is
-> __free_one_page which uses it to place a page with an order less than
-> MAX_ORDER - 2 on the tail of a free_area assuming that it should be
-> freeing the buddy of that page shortly. The only other issue with
-> adding to tail would be the memory shuffling which was recently added,
-> but I don't see that as being something that will be enabled in most
-> cases so we could probably just make the features mutually exclusive,
-> at least for now.
->
-> So if I am not mistaken this would essentially require a couple
-> changes to the mm infrastructure in order for this to work.
->
-> First we would need to split nr_free into two counters, something like
-> nr_freed and nr_bound. You could use nr_freed - nr_bound to get the
-> value currently used for nr_free. When we pulled the pages for hinting
-> we would reduce the nr_freed value and then add back to it when the
-> pages are returned. When pages are allocated they would increment the
-> nr_bound value. The idea behind this is that we can record nr_free
-> when we collect the pages and save it to some local value. This value
-> could then tell us how many new pages have been added that have not
-> been hinted upon.
->
-> In addition we will need some way to identify which pages have been
-> hinted on and which have not. The way I believe easiest to do this
-> would be to overload the PageType value so that we could essentially
-> have two values for "Buddy" pages. We would have our standard "Buddy"
-> pages, and "Buddy" pages that also have the "Offline" value set in the
-> PageType field. Tracking the Online vs Offline pages this way would
-> actually allow us to do this with almost no overhead as the mapcount
-> value is already being reset to clear the "Buddy" flag so adding a
-> "Offline" flag to this clearing should come at no additional cost.
->
-> Lastly we would need to create a specialized function for allocating
-> the non-"Offline" pages, and to tweak __free_one_page to tail enqueue
-> "Offline" pages. I'm thinking the alloc function it would look
-> something like __rmqueue_smallest but without the "expand" and needing
-> to modify the !page check to also include a check to verify the page
-> is not "Offline". As far as the changes to __free_one_page it would be
-> a 2 line change to test for the PageType being offline, and if it is
-> to call add_to_free_area_tail instead of add_to_free_area.
-Is it possible that once the pages are offline, there is a large
-allocation request in the guest needing those offline pages as well?
->
-> Anyway this email ended up being pretty massive by the time I was
-> done. Feel free to reply to parts of it and we can break it out into
-> separate threads of discussion as necessary. I will start working on
-> coding some parts of this next week.
->
-> Thanks.
->
-> - Alex
---=20
-Regards
-Nitesh
+DISCONTIGMEM is set so based on the arch init code. Glancing at the
+history, it seems my assumption was accurate. Discontig used NUMA
+structures for non-NUMA machines to allow code to be reused and simplify
+matters.
 
+I'll put together a patch that disables this feature on DISCONTIG as it
+is surprising in the DISCONTIGMEM.
 
---pt3BIrnFE3FYH1MLYjSIxqGd4MxszPRyq--
+> > Second, if you set the sysctl vm.watermark_boost_factor=0, does the
+> > problem go away? If so, an option would be to set this sysctl to 0 by
+> > default on distros that support pa-risc. Would that be suitable?
+> 
+> I have tried it and the problem almost goes away. With 
+> vm.watermark_boost_factor=0, if I read 2GiB data from the disk, the buffer 
+> cache will contain about 1.8GiB. So, there's still some superfluous page 
+> reclaim, but it is smaller.
+> 
 
---njUWTaoJWBqh1lxfc3zrAPUOXJa2c60xB
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
+Ok, for NUMA, I would generally expect some small amounts of reclaim on
+a per-node basis from kswapd waking up as the node fills. I know in your
+case there is no NUMA but from a memory consumption/reclaim point of
+view, it doesn't matter. There are multiple active node structures so
+it's treated as such.
 
------BEGIN PGP SIGNATURE-----
+In the short-term, I suggest you update /etc/sysctl.conf to workaround
+the issue.
 
-iQIzBAEBCAAdFiEEkXcoRVGaqvbHPuAGo4ZA3AYyozkFAlyrPYwACgkQo4ZA3AYy
-oznpSA//axsfJiWt0W5AbdGPm5Veo7CmnDLt6jlDH0lM7uji3BnfL9mxcHruoLIC
-62iRfMZ+ank2gZzyGyhhy7gYfIeQtbzBkYJAsUBV7NBu5WTwI03C3e4ipWZd3d1G
-1W/vSU4kavSfIMcxjdDwD0uaJhJhvybz6cPs/Mmwe+UmgYKBloP4jntx9Wadmx+J
-CMTwuDl8RViz/VobReQiIg5PdgebFqDojcPSQVV8jLxj0PP9F4YznN2x9zzQg9Yq
-eHgaXqii6EW7DN5M/hxPXBwXtO636LtJrXWSZTDsF/qnLX+tc8PzRv+pNTYyo1WV
-4vbg/wzknckDQhWsEz2jeqNRr3x+/e7L/YQGP+JCeVihDZnms6uut/T7c7mAvuCq
-kFPSJEx5xnYs2yxwJCKU3enqe8j6rZ+zYToHRNFwnbo6I1Q24LTVi/XIklyp9Rug
-Z7twHWJ35R3WwAbDA9YEROHSjG4qKor4MKMxrWzQdK5bFD1tJ0eLqBCK9lczQZBb
-DjBRyXWQ+S3c1Qs8sWhgDAM1q2wyyQYjpUzg7OgLvmAn7U4y/pxZb5M3kxFfx7Js
-AP+/mKQRoALp/+D1ZPElH6LQ2IOxcoM6Y/6aHcMVYNRNQJHBTIjtTplqLA1sbaxV
-sc7bDt1Gs7ivLwV3wNE3Lw3dtg40cVjTkYKSNy9KsMD6kERADnk=
-=2pVJ
------END PGP SIGNATURE-----
+> BTW. I'm interested - on real NUMA machines - is reclaiming the file cache 
+> really a better option than allocating the file cache from non-local node?
+> 
 
---njUWTaoJWBqh1lxfc3zrAPUOXJa2c60xB--
+The patch is not related to file cache concerns, it's for long-term
+viability of high-order allocations, particularly THP but also SLUB which
+uses high-order allocations by default.
+
+> 
+> > Finally, I'm sure this has been asked before buy why is pa-risc alive?
+> > It appears a new CPU has not been manufactured since 2005. Even Alpha
+> > I can understand being semi-alive since it's an interesting case for
+> > weakly-ordered memory models. pa-risc appears to be supported and active
+> > for debian at least so someone cares. It's not the only feature like this
+> > that is bizarrely alive but it is curious -- 32 bit NUMA support on x86,
+> > I'm looking at you, your machines are all dead since the early 2000's
+> > AFAIK and anyone else using NUMA on 32-bit x86 needs their head examined.
+> 
+> I use it to test programs for portability to risc.
+> 
+> If one could choose between buying an expensive power system or a cheap 
+> pa-risc system, pa-risc may be a better choice. The last pa-risc model has 
+> four cores at 1.1GHz, so it is not completely unuseable.
+
+Well if it was me and I was checking portability to risc, I'd probably
+get hold of a raspberry pi but we all have different ways of looking at
+things.
+
+-- 
+Mel Gorman
+SUSE Labs
 
