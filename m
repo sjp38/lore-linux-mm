@@ -2,158 +2,136 @@ Return-Path: <SRS0=5KBY=SK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 09227C10F13
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 14:29:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AD1BFC10F13
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 15:15:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AC9A0206C0
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 14:29:15 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3C3FA2148E
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 15:15:14 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=hansenpartnership.com header.i=@hansenpartnership.com header.b="ilwFB7fJ";
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=hansenpartnership.com header.i=@hansenpartnership.com header.b="GLNUu1vY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC9A0206C0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=HansenPartnership.com
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="GvgiXh2j"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C3FA2148E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 49E8B6B0007; Mon,  8 Apr 2019 10:29:15 -0400 (EDT)
+	id 9F8CA6B0005; Mon,  8 Apr 2019 11:15:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 426096B0008; Mon,  8 Apr 2019 10:29:15 -0400 (EDT)
+	id 9A7766B0006; Mon,  8 Apr 2019 11:15:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2EDAE6B000A; Mon,  8 Apr 2019 10:29:15 -0400 (EDT)
+	id 897046B0007; Mon,  8 Apr 2019 11:15:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AA6D6B0007
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 10:29:15 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id x2so10645199ywc.7
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 07:29:15 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A44C6B0005
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 11:15:13 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id i124so11913177qkf.14
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 08:15:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:message-id:subject
-         :from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=bjb1TNxwO9IQ74vJIuqW39NOHI4Pt0ZKoVwses82HUc=;
-        b=ECIR1IF0VI97Yq7KLrIUToip6fhB7uYiEY+ebFz2K27JoTjys+NkF4a0upM97I2AVz
-         nBG49uD9n5vBoLR4dtXrLC1t2Ww0LH4BqY5folatsFgcnEODz8d3OMaekz9RwXhHYGaw
-         SmrKLJ+SXRfOKiAiLGeqrTRxXHkypBCAw+wCtatWB2DZDVW+M95/lmd1LxuAM+18eT0S
-         /LCxJI+q1FaV4c7SF49FrYopWgarZ+m3UjXYiCckINqpaefCYUsXhWr9PidTGCmj/8Yg
-         OU05+MTVJrlBYeKpytxkA5Xvl5wqiOkIfBb3JUOeyB+nAebcgz1fG41u/PHr+2C4wNqK
-         OOqw==
-X-Gm-Message-State: APjAAAXI1vo4t2SzhNYJsP+CLuEv8LoIiJj5GQhb72LkgDifLsAJMTUX
-	PNXwlrsdxWXHWyI1yy21TyJHrEyn4No8LQQxlDPyXvrsQSVIAGFAERXHUicg+N0WMcegCgqaPww
-	XeRF9bLzyWx+K+QYRzGhKO7lz+we8JHfQA+qQUFfG+E0dLJdb4i65JpbfHWH9ElzfGA==
-X-Received: by 2002:a81:71d5:: with SMTP id m204mr23630753ywc.462.1554733754698;
-        Mon, 08 Apr 2019 07:29:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzd+ZD0W3+b1KetM9bCPICu9WGAuxyytxLBMtSaO966elcjpeTA7mO5uAGhxw8/WljOowC/
-X-Received: by 2002:a81:71d5:: with SMTP id m204mr23630710ywc.462.1554733754017;
-        Mon, 08 Apr 2019 07:29:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554733754; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version
+         :feedback-id;
+        bh=CtKcuxRi7xBhOKcFdvYKUwz6gnLJDyf5JeeaCI9u4lU=;
+        b=PoTpTOp+K8ailA+2izP6YQPNaqjZ4MS8ie6CE96B3E6LC6FEnGaFrcJWIZp9FZ3Y8z
+         OzB+VWihcv+llM+T1EBb3lWNRfOrkv6GicMxyj0sQqNT+DsNBf6GVPuHeKkJHeNi4mD2
+         qNvQ1+yYW355NFOQRt0+uQ4gOvI/taSousRhV/NYCEyDMR5v2ZDVedc5zQ+UKgfAwRK+
+         jT/TAH1o1FZ1I2V4CrxnAs/6VMmxonoC8uFah4dLZ3HcrVYw/ft6AD/45NhDDGLm0UKT
+         07WH+Q5EtCQGJEA4kdhddNlBbXp3+jxZymuE2vM4Ao80XMMV15W6MA1CTJs2602snb1J
+         N0eQ==
+X-Gm-Message-State: APjAAAVMhVvtWoT5lwTJaw1EYe/puq0rdQovKe0borJwzxbIrLEbZf/A
+	K0xEJOKyDLIkZ59i/Bi7lhPQBO8d6/BgeT8VK/OBpjls18PzJQREIGmMjn+8KC9hHFvZC6decuK
+	Yq7yGo6a/0A0KS+/XLZU4btRkhwzFfd+6IEeJSZr1VjWNY+TTXM6TtgOKO0G8IdE=
+X-Received: by 2002:aed:3c5b:: with SMTP id u27mr25301947qte.6.1554736513081;
+        Mon, 08 Apr 2019 08:15:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyS1wh9YT+zQ+c1/Xx66WnkOTDx6eybARA2URfwP+UGNs73Knh5veWj0AeZHu9HqG2ao/ug
+X-Received: by 2002:aed:3c5b:: with SMTP id u27mr25301857qte.6.1554736512199;
+        Mon, 08 Apr 2019 08:15:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554736512; cv=none;
         d=google.com; s=arc-20160816;
-        b=GdEhCnQ/zIk1mOtXrZq0JIEYSF1sieUdIL1z1Jcn9FZRDRezol+7Cw8W26aeNZWUAv
-         inFc9v7PSUQe3jKXXx4w3XH4O44NOFGYXlnKTohSN1lNYUUIMs6MF4TI6BNNJEhX+KUN
-         nfrJT7GDRaX5sK152vxKAzUEmGqsznmX6pgNAT23bKjmjIrKSTGfWbMpNpTU2jfx6Lws
-         R3XwmaPJusSvJPiPQVJOH9JMi0M3Hr+4Y0m9u9ZqQDQY09FLweu/z/+AzEc45BzZejHJ
-         by0m2QHHsN8L0YzsOWtuW2npml6rXvCR1gnzxEGYuJAnVECzC7StynZfzcfvEyCIxyne
-         yOEA==
+        b=x022tulSQL+oASdiO9k82sH3eHMfGRDUVq5hrYJszyQMF14n/EW1wZRwxI4zQMtvd3
+         0TIFvl490bltYxxCpnHJcoFO+N1UV+WE1dMx3QfBDUNW6LtBdfvlKMAgPNfa0zfYdohw
+         ktS16aXfavHnUOUjzD+a0XBVQ2RqBwfHJt6WUd920i+kcxEY24gckqyoFqmv5r7ui4Se
+         AJGOGEzPQD32XK2I729Ki0S7l+FDiNINkEZ/TG1QPq2QPSrbdlJ4crdGtF6SAMTX6fVM
+         MLuJJ5GiuT2Y1ussitGsAkm+8eZma6+3ZHcUqOd+VIA/4HKXlMmPXl+1D1MPSTZznMA5
+         9zdA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature:dkim-signature;
-        bh=bjb1TNxwO9IQ74vJIuqW39NOHI4Pt0ZKoVwses82HUc=;
-        b=HxFjIWWU9fep3qj/hrENZMgsgTcHiVM3kAllLu4GAOLbsUApr7fcyqpNJlRTnNEZWf
-         L73oOd9AFEk4Xc4BADQmHsPLOjQAK6usWBL4BhPbBeAxgjOEHF+XK4A/T1R1VLRkVvOQ
-         OJTf4gI+QbFpzHyCmAM6raAfxDuOapvMS4DboXZNkcHt/vhB4GjfgtSDRWQUzWwHYic+
-         +PJpZ6KuyTCr7YHfEY3LIeyh+S7RxDsERp8qadIckocfEOmAa/HuhGpJZ2zRerRMMK1K
-         S1ZiW/mUATZjb++JmhsQi9MoCulSjZSr1qYx9wHdNFZtQdv95E/j84/8lvtgEyu1ecFx
-         3UyA==
+        h=feedback-id:mime-version:user-agent:references:message-id
+         :in-reply-to:subject:cc:to:from:date:dkim-signature;
+        bh=CtKcuxRi7xBhOKcFdvYKUwz6gnLJDyf5JeeaCI9u4lU=;
+        b=fPuDE8PHaDb5fVnPqmYYfyLb1NG6rkJOIiIpNnGO8tC6ZlCiMB2U3Ukx9qhxRMHETg
+         //y5TnECd0CBdTMMPA4sDbPFWH0rgd90QLJl21rQUoBlcdyno5Q9mq8i8uZNY7eqf8CU
+         EN4T0W6fDDwlzhUfgPenZISHEAgTrNKJgRDR4Me37Kxwihu1AnSkN1vBBkQE5UvI/vUZ
+         hdOJTRK05UDE1HlZDago02gb6I6FqOgRD4aCP6L9ARWtDjCZfeeSlCinPZg4RQ80iDjP
+         gZwgpKuF3tTO0Ekp1aHy3RcNeN4WNtIbOvl4D5hJjwQls3iUkfMSZjvU+8ppd8p25BIk
+         It2g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=fail header.i=@hansenpartnership.com header.s=20151216 header.b=ilwFB7fJ;
-       dkim=fail header.i=@hansenpartnership.com header.s=20151216 header.b=GLNUu1vY;
-       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTPS id e2si14380153ybe.268.2019.04.08.07.29.13
+       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=GvgiXh2j;
+       spf=pass (google.com: domain of 01000169fd847a25-5933cc1e-a520-416a-b634-84b3e7ce9960-000000@amazonses.com designates 54.240.9.99 as permitted sender) smtp.mailfrom=01000169fd847a25-5933cc1e-a520-416a-b634-84b3e7ce9960-000000@amazonses.com
+Received: from a9-99.smtp-out.amazonses.com (a9-99.smtp-out.amazonses.com. [54.240.9.99])
+        by mx.google.com with ESMTPS id q27si2560254qkn.246.2019.04.08.08.15.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 08 Apr 2019 07:29:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) client-ip=66.63.167.143;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 08 Apr 2019 08:15:12 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 01000169fd847a25-5933cc1e-a520-416a-b634-84b3e7ce9960-000000@amazonses.com designates 54.240.9.99 as permitted sender) client-ip=54.240.9.99;
 Authentication-Results: mx.google.com;
-       dkim=fail header.i=@hansenpartnership.com header.s=20151216 header.b=ilwFB7fJ;
-       dkim=fail header.i=@hansenpartnership.com header.s=20151216 header.b=GLNUu1vY;
-       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
-Received: from localhost (localhost [127.0.0.1])
-	by bedivere.hansenpartnership.com (Postfix) with ESMTP id 5958A8EE0ED;
-	Mon,  8 Apr 2019 07:29:12 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=hansenpartnership.com;
-	s=20151216; t=1554733752;
-	bh=R2xhiC+0vMbSg7pyXTxfOfREJ8q93QOZwD4dtmqxljg=;
-	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
-	b=ilwFB7fJ1cbzFOf0lhsWoMxFI35bb2euibmlYKN0cxpzcwEUYt2YgMhpP7icNK+4X
-	 JkAQcPyRFWB6jaR4LO5qn5p8cHBh519VWuXd6+aSGznAPErnEFpJfWfNgQUW+vBtL8
-	 ebxAmLJJyEGo/raFw3pF04m5c+D8owzM/hBhBE2c=
-Received: from bedivere.hansenpartnership.com ([127.0.0.1])
-	by localhost (bedivere.hansenpartnership.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id bADbGIfHE9TE; Mon,  8 Apr 2019 07:29:12 -0700 (PDT)
-Received: from [153.66.254.194] (unknown [50.35.68.20])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by bedivere.hansenpartnership.com (Postfix) with ESMTPSA id 80F3E8EE062;
-	Mon,  8 Apr 2019 07:29:11 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=hansenpartnership.com;
-	s=20151216; t=1554733751;
-	bh=R2xhiC+0vMbSg7pyXTxfOfREJ8q93QOZwD4dtmqxljg=;
-	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
-	b=GLNUu1vYWD0x6NFM0uqCmwhz6PZzlLG7BZZqdWvMjwsNnixiLPttT06aQEa8KPU7x
-	 owAuI+OKkBHyI+lc6yGODSnZ5PLrq/QXDry2XXSaYf9qHi3OHu677NuE27baySRIHg
-	 4WrQ7Rf5ffDnXRDCNt+tyLUbVpEMigHNVThrQlOI=
-Message-ID: <1554733749.3137.6.camel@HansenPartnership.com>
-Subject: Re: Memory management broken by "mm: reclaim small amounts of
- memory when an external fragmentation event occurs"
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-To: Mel Gorman <mgorman@techsingularity.net>, Mikulas Patocka
-	 <mpatocka@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Helge Deller <deller@gmx.de>,
-  John David Anglin <dave.anglin@bell.net>, linux-parisc@vger.kernel.org,
- linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli
- <aarcange@redhat.com>, Zi Yan <zi.yan@cs.rutgers.edu>
-Date: Mon, 08 Apr 2019 07:29:09 -0700
-In-Reply-To: <20190408095224.GA18914@techsingularity.net>
-References: 
-	<alpine.LRH.2.02.1904061042490.9597@file01.intranet.prod.int.rdu2.redhat.com>
-	 <20190408095224.GA18914@techsingularity.net>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.26.6 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=GvgiXh2j;
+       spf=pass (google.com: domain of 01000169fd847a25-5933cc1e-a520-416a-b634-84b3e7ce9960-000000@amazonses.com designates 54.240.9.99 as permitted sender) smtp.mailfrom=01000169fd847a25-5933cc1e-a520-416a-b634-84b3e7ce9960-000000@amazonses.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1554736511;
+	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
+	bh=lNudCzZ4w2s8/H8+lpBX7L/o8a8N/r9Gfx4wno1thXs=;
+	b=GvgiXh2jwzAKEcSIvSEHZ7wXwO53kEXUrIQ32sBEP9JQ5xZuwvt2G2bVkMYkRab/
+	s8KivUTDhpY3S/pzO5O2k7tEkQI0ZyRGpdsqWx71a9wJfL775CkbpHGn71j6vP8XsjD
+	q7weJEid6EUbqwZjDvHiR2VVskTLBYw+21QKoko0=
+Date: Mon, 8 Apr 2019 15:15:11 +0000
+From: Christopher Lameter <cl@linux.com>
+X-X-Sender: cl@nuc-kabylake
+To: Linus Torvalds <torvalds@linux-foundation.org>
+cc: Qian Cai <cai@lca.pw>, Andrew Morton <akpm@linux-foundation.org>, 
+    penberg@kernel.org, David Rientjes <rientjes@google.com>, 
+    iamjoonsoo.kim@lge.com, Tejun Heo <tj@kernel.org>, 
+    Linux-MM <linux-mm@kvack.org>, 
+    Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH] slab: fix a crash by reading /proc/slab_allocators
+In-Reply-To: <CAHk-=wgr5ZYM3b4Sn9AwnJkiDNeHcW6qLY1Aha3VGT3pPih+WQ@mail.gmail.com>
+Message-ID: <01000169fd847a25-5933cc1e-a520-416a-b634-84b3e7ce9960-000000@email.amazonses.com>
+References: <20190406225901.35465-1-cai@lca.pw> <CAHk-=wgr5ZYM3b4Sn9AwnJkiDNeHcW6qLY1Aha3VGT3pPih+WQ@mail.gmail.com>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+X-SES-Outgoing: 2019.04.08-54.240.9.99
+Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2019-04-08 at 10:52 +0100, Mel Gorman wrote:
-> First, if pa-risc is !NUMA then why are separate local ranges
-> represented as separate nodes? Is it because of DISCONTIGMEM or
-> something else? DISCONTIGMEM is before my time so I'm not familiar
-> with it and I consider it "essentially dead" but the arch init code
-> seems to setup pgdats for each physical contiguous range so it's a
-> possibility. The most likely explanation is pa-risc does not have
-> hardware with addressing limitations smaller than the CPUs physical
-> address limits and it's possible to have more ranges than available
-> zones but clarification would be nice.
+On Sun, 7 Apr 2019, Linus Torvalds wrote:
 
-Let me try, since I remember the ancient history.  In the early days,
-there had to be a single mem_map array covering all of physical memory.
- Some pa-risc systems had huge gaps in the physical memory; I think one
-gap was somewhere around 1GB, so this lead us to wasting huge amounts
-of space in mem_map on non-existent memory.  What CONFIG_DISCONTIGMEM
-did was allow you to represent this discontinuity on a non-NUMA system
-using numa nodes, so we effectively got one node per discontiguous
-range.  It's hacky, but it worked.  I thought we finally got converted
-to sparsemem by the NUMA people, but I can't find the commit.
+> On Sat, Apr 6, 2019 at 12:59 PM Qian Cai <cai@lca.pw> wrote:
+> >
+> > The commit 510ded33e075 ("slab: implement slab_root_caches list")
+> > changes the name of the list node within "struct kmem_cache" from
+> > "list" to "root_caches_node", but leaks_show() still use the "list"
+> > which causes a crash when reading /proc/slab_allocators.
+>
+> The patch does seem to be correct, and I have applied it.
+>
+> However, it does strike me that apparently this wasn't caught for two
+> years. Which makes me wonder whether we should (once again) discuss
+> just removing SLAB entirely, or at least removing the
+> /proc/slab_allocators file. Apparently it has never been used in the
+> last two years. At some point a "this can't have worked if  anybody
+> ever tried to use it" situation means that the code should likely be
+> excised.
 
-James
+This is only occurring with specially build kernels so that memory leaks
+can be investigated. The same is done with other tools (kasan and friends)
+today I guess and also the SLUB debugging tools are much more user
+friendly. So this means that some esoteric debugging feature of SLAB was
+broken.
 
