@@ -2,138 +2,142 @@ Return-Path: <SRS0=5KBY=SK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C7A7C10F13
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 17:26:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DF1C6C10F14
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 17:32:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EF414213F2
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 17:26:38 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9C1932148E
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 17:32:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="BwFDwO7H"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EF414213F2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="l5c7+WZx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9C1932148E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8D3886B0008; Mon,  8 Apr 2019 13:26:38 -0400 (EDT)
+	id 1F14E6B000D; Mon,  8 Apr 2019 13:32:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 883076B000C; Mon,  8 Apr 2019 13:26:38 -0400 (EDT)
+	id 1A16C6B000E; Mon,  8 Apr 2019 13:32:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 723FB6B000D; Mon,  8 Apr 2019 13:26:38 -0400 (EDT)
+	id 0B7816B0010; Mon,  8 Apr 2019 13:32:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 366786B0008
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 13:26:38 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id 14so10601548pgf.22
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 10:26:38 -0700 (PDT)
+Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DAB496B000D
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 13:32:26 -0400 (EDT)
+Received: by mail-vs1-f69.google.com with SMTP id a17so2338268vso.15
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 10:32:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version;
-        bh=6QxCx1woXIJoxK0RRPDeFB8xTfIuPiCOmQqUjahb29M=;
-        b=qpth63qAUgqWyIbdFD2ADW2cf9RJb/E5gWiRIui+NbG48yuVAiKEKcD22eMWu32oru
-         7/H4HmBpCLqqy17mQqTZzxxeEGpFO4Ipv6BJFgchBV9ho+3Pl0G9FgDtHjO1/XGcCOI8
-         RdJGP7xpD1w+SFoy4iI4H5vHJHLqbv0VSsguA6HUnrBwR+Ck9vRVVn/iDUhRwfPlHbA0
-         GM73/0ALtDEvm3aPQUxVaM03fW3LvqHHpr6KdNfn0tJ/MmkBRjxZFAt/uv+f6YcPZRjP
-         EWWqtACT6Kvn9G+arrD3pJIi17amxYlogMCv/mOUb0HEg3zBiZsZFEy3+qPnO/OMrsox
-         OPpA==
-X-Gm-Message-State: APjAAAWAQz5JLuOQYumEU915qbq4utqEyTQmwVfvPLbLz+03ZSS73Ylu
-	VDY8DBjQmcCKGS/LXM+jnrvpv4q4/SXYnqCcp/7Nf8H8sQTssfDTR9tVlWRbfJ9LtRruZNE8L9B
-	bPji4tKvfNsK5xVN2EFEoVzWoHSx+OvITIKxlMhn5462puxLEhu4zZfExoeRUr/m9ag==
-X-Received: by 2002:a17:902:9a95:: with SMTP id w21mr30303506plp.74.1554744397716;
-        Mon, 08 Apr 2019 10:26:37 -0700 (PDT)
-X-Received: by 2002:a17:902:9a95:: with SMTP id w21mr30303465plp.74.1554744397079;
-        Mon, 08 Apr 2019 10:26:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554744397; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:from:date:message-id
+         :subject:to;
+        bh=ajZNHx/mikUePwu4fOF1edmFuVfA9nuB9PUv4B+gVXo=;
+        b=mOYh3ja7AiCQ0jYujNke5JMTAAWNX180rQT9n0D1lct7B73w1rgEW/5rnrwpFemLdT
+         DmW98gSW5jJT4rlgDXxQj2UU9TDwsvCbqcNn4mdB3J2NFvZ4W5IY8F4qpQcoa2xAOOMJ
+         PUz2I8KucH/5z0yDyCSkyoegKLX02OK5N7IMMXFLsS44BGbCirxsHyNMM5jbGOhdvCRu
+         y3L7sr2FMy4f3ku3m9iMVOd23XAndmD2luz2kFRBKIVFUbqSsWQufKfRHv1u3Y80JkuM
+         dlE8RwKqj2FpL9YILVI7XVfQzrueyqH9D+LWSW9gezXrruSdB1qCp8C66BuK7eAoElTv
+         Tnow==
+X-Gm-Message-State: APjAAAUrQ5R1G/OgjIjokSO4TPeBsUwt72i6eA549U3UNltaMc26cotR
+	J6weE0dkl5kST/6z6eOnA+T5M0QIKJ8WgNkKxnrNyrpryQsfwo/uYGjvrz5AohQ2UVHaxWKpjo2
+	JAPQYjmMIMBfIWCzjWw7/RMjJM6Opj6QiSmmf+al6/4nViZ5eLtgEHHBSZazZTEPsjg==
+X-Received: by 2002:a9f:2a8d:: with SMTP id z13mr16408978uai.62.1554744746432;
+        Mon, 08 Apr 2019 10:32:26 -0700 (PDT)
+X-Received: by 2002:a9f:2a8d:: with SMTP id z13mr16408922uai.62.1554744745476;
+        Mon, 08 Apr 2019 10:32:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554744745; cv=none;
         d=google.com; s=arc-20160816;
-        b=XDDuO9xoogKsvRI/t7UcObbMPcsxV4kh4uEZrodn+wnT8jwzzkeuU2FwxKgzFMUSYq
-         47fJ/1Bpq8cy9JSKW7XHRI9ZfcnhnVbYSj3fb/Ug0vuZIvx5hYXPT4hfqXC0Rc8Cy3rg
-         XYI4RCLfqqmitCyQNqOVtuveNgNYMO8EzNgUGdMSvsfSGEkRUg+SbXZTgKD0Q88PzgDh
-         i9Rx0DByxsPeiBRn0C7jn4dVERmtPDpKvy9U4wh3MQ1SjI70NzWj3PzoQJItZmd1i0mT
-         pADRARyZYCANsDSZiyz5o6IQuVJaHqXgqZTnkDgj8RsTf7uBNntZfam1YzctPXiLFidz
-         z6gQ==
+        b=ZFMh+tDHS3fj8R0rOvdrZ9hI5L74eA30t/EUJd2J1KV8/U9b4+eOu6qe1R52lx0lD5
+         CuKMhGo1SJ+P+W5YDE+R00VZqGNUwhcgSsY4AXS+TVFCB3WxZKiw7J81ZUf1J74+yM9x
+         3HIxrV5QSNeZS0Ql23RTuI/rSv5p9R0lHa8FMu/3omi5+gN2ml9Xm8/6zlay7HYAZax1
+         IqxHR7QEAX2Tbg08YYOL/pcfJJ8VmaXIMZ0xtvB5kJE5bmZaRJ1R+VoeCl6Y0gd1uM5T
+         FFbw4GaXJLX30h8qGw8tgezsmRdZejuSZT3bu3exwPnHevEJ72E6GLsJlKdDHMy1GhZo
+         7Erw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date:dkim-signature;
-        bh=6QxCx1woXIJoxK0RRPDeFB8xTfIuPiCOmQqUjahb29M=;
-        b=P1Fl8l3ofpAtauXjKnpTkECThYaPWMzMBxR5QOoY8Epb2BOtrjFpfxoc2eLTVJX6x5
-         0JuWaZYok/mDxSqHRgBzSfcCw/huSm577J3Nmc8FR4CHN54WexZGI8WIdPVcKkZ1xR3+
-         gcCnXqlLZOaZNJmdrwHxX73/bysdg+RY6/+i6sDwMObM0yP0QcozHHAFaNE+KOXmzhX5
-         GtHHoTzMlepd4UgwOrMyFaLs9FPdnUMfUHQwnRdw3UUiqzY96PaN/m+HvJcOeAueQdWw
-         BvyymfyP8ADc9rt4gn3iSD9lj+/f3bv7JASZDFqO1UGxachhxL2odiNPd1pTrzn1fRf3
-         JE2w==
+        h=to:subject:message-id:date:from:mime-version:dkim-signature;
+        bh=ajZNHx/mikUePwu4fOF1edmFuVfA9nuB9PUv4B+gVXo=;
+        b=lSyuOWUFqReZlnVfdEjqMVsKeL1OcF19Fg3sA8kVhxU6m5Bipbi8zIP/om2WlFTJr5
+         +lB5uQvi/EYVo8TKFFy9Lxw5BVOrRMQB/GEBlj0d1srLRW4gqAjzY11pevR4IzBcp8h3
+         5PfAlDvXd46cLU04tQJsXhFAyMRUyjc2E1K1KwXFwu4fR6GgyyWqG9EtrGIDcdPhOk2N
+         5C2jrufYC7HI0uYsOvGRy/RAGCbn2r+Jio8FiUUlp+h9eE6WuZbsScv3tRK6YqIEqtvx
+         VIa/9MIfDNCq33geJ1U/nj9K+piouzwwZ1dr7JqDA6NOyErCq0cZfUZcb4X0ABqQqv7k
+         8vpQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=BwFDwO7H;
-       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c189sor12348962pfg.45.2019.04.08.10.26.36
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=l5c7+WZx;
+       spf=pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pankajssuryawanshi@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id j131sor18245427vsd.72.2019.04.08.10.32.25
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 08 Apr 2019 10:26:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 08 Apr 2019 10:32:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=BwFDwO7H;
-       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=l5c7+WZx;
+       spf=pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pankajssuryawanshi@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:from:to:cc:subject:in-reply-to:message-id:references
-         :user-agent:mime-version;
-        bh=6QxCx1woXIJoxK0RRPDeFB8xTfIuPiCOmQqUjahb29M=;
-        b=BwFDwO7HJYO/Sbbcl6GcpnqnkQ4R9noghslVuBIR+gRjaWXL6r1GbrudJUXrRfBigr
-         TKdQ7T7tXJ4kfqwb2xPtKx0RUcdCZ5O8GOL3mEX/8doZRh9RsZbteU+JVSTZNbdI0Hvn
-         UHb02KHL5Ce9FFqCkC/G5noSeBD6J2gGwSKIvms09qpFjWVHolNvSOSu41FyT0m3wRL6
-         7R2ljrawSF/wN1T/kd+Htjyd58MnRGhVT+QC8iobCL3XWEZxx7RKmENejmWknC63Jrr2
-         G8xV9D8zEh4G/1MfkcnBXmEfSObjtJd6K6A1XkuH/A0YHD7JUskDNQxVx401rdpvexeN
-         jJHw==
-X-Google-Smtp-Source: APXvYqxoD7TJg/5RfiXfJwBrQPJ5TVIwaYDza8AWix3cekWOYoWn0tQ/GaA6txBLqUceRZqwTvpb5w==
-X-Received: by 2002:a62:ac08:: with SMTP id v8mr30836524pfe.42.1554744395845;
-        Mon, 08 Apr 2019 10:26:35 -0700 (PDT)
-Received: from [100.112.89.103] ([104.133.8.103])
-        by smtp.gmail.com with ESMTPSA id x128sm26790619pfx.103.2019.04.08.10.26.34
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 08 Apr 2019 10:26:34 -0700 (PDT)
-Date: Mon, 8 Apr 2019 10:26:17 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-X-X-Sender: hugh@eggly.anvils
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-cc: Hugh Dickins <hughd@google.com>, "Alex Xu (Hello71)" <alex_y_xu@yahoo.ca>, 
-    Vineeth Pillai <vpillai@digitalocean.com>, 
-    Andrew Morton <akpm@linux-foundation.org>, 
-    Kelley Nielsen <kelleynnn@gmail.com>, linux-kernel@vger.kernel.org, 
-    linux-mm@kvack.org, Rik van Riel <riel@surriel.com>, 
-    Huang Ying <ying.huang@intel.com>, Al Viro <viro@zeniv.linux.org.uk>
-Subject: Re: shmem_recalc_inode: unable to handle kernel NULL pointer
- dereference
-In-Reply-To: <1b0bc97a-8162-d4df-7187-7636e5934b23@yandex-team.ru>
-Message-ID: <alpine.LSU.2.11.1904081014060.2770@eggly.anvils>
-References: <1553440122.7s759munpm.astroid@alex-desktop.none> <CANaguZB8szw13MkaiT9kcN8Fux6hYZnuD-p6_OPve6n2fOTuoQ@mail.gmail.com> <1554048843.jjmwlalntd.astroid@alex-desktop.none> <alpine.LSU.2.11.1903311146040.2667@eggly.anvils> <alpine.LSU.2.11.1904021701270.5045@eggly.anvils>
- <alpine.LSU.2.11.1904041836030.25100@eggly.anvils> <56deb587-8cd6-317a-520f-209207468c55@yandex-team.ru> <alpine.LSU.2.11.1904072206030.1769@eggly.anvils> <1b0bc97a-8162-d4df-7187-7636e5934b23@yandex-team.ru>
-User-Agent: Alpine 2.11 (LSU 23 2013-08-11)
+        d=gmail.com; s=20161025;
+        h=mime-version:from:date:message-id:subject:to;
+        bh=ajZNHx/mikUePwu4fOF1edmFuVfA9nuB9PUv4B+gVXo=;
+        b=l5c7+WZx6MfsyrofU3Pmy0q97Z5nBitN+Sjxf5Co/Z3gGd4ZM+9A6ZrPKLJpZiaUTH
+         CsHC4gWe26RJx5Rj/UZBbL2MlkhE+MymDeI/vwAlgwYHkwKkynao0I5iqOCjDUtfc1Qr
+         VBR49ZvovNS62zVmW6RqcPaJvpBxAtB3pBQvRZXtDrQ8TkTRlOKvslA/5A+td08DI0P8
+         285qCEVFrB0/MujELW3bVXp9gZHgM8hgy3To5BPt5qHUmiCKIht8IXVe1ZK8mWylUIGx
+         e4h/0W05JgSUiGcPJOxfQzYFFKyUqLg8sW7howIrQVq0c61JPrNv3tNsGTn3pXy9e6V+
+         9tHw==
+X-Google-Smtp-Source: APXvYqxvoOvMGsdGQ57l/2vJ38ZLo/tTfijphZX/eefshUQXutbAVGd39edodapItVKrCZLbXwLdQqKszGePOVSp3vs=
+X-Received: by 2002:a05:6102:3c2:: with SMTP id n2mr17487291vsq.41.1554744745049;
+ Mon, 08 Apr 2019 10:32:25 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Pankaj Suryawanshi <pankajssuryawanshi@gmail.com>
+Date: Mon, 8 Apr 2019 23:02:13 +0530
+Message-ID: <CACDBo56tsSnb7aou6bRizhbcNneoOh+a07nAfvq3K9v_9z_HjQ@mail.gmail.com>
+Subject: Memory Configuration for 32-bit, 64-bit and PAE enabled OS
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
+	kernelnewbies@kernelnewbies.org
+Content-Type: multipart/alternative; boundary="0000000000003ec4b10586083832"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 8 Apr 2019, Konstantin Khlebnikov wrote:
-> 
-> I suppose your solution will wait for wakeup from shmem_evict_inode()?
+--0000000000003ec4b10586083832
+Content-Type: text/plain; charset="UTF-8"
 
-No, it's the other way round: shmem_unuse() gets on with its work without
-delay, shmem_evict_inode() waits until the stop_eviction count has gone
-down to zero, saying nobody else is at work on the inode.
+I am confuse about memory configuration, i have below questions.
 
-Waiting in shmem_evict_inode() might be more worrying, if it weren't
-already packed full with lock_page()s. And less attractive with the old
-quadratic style of swapoff, when shmem_evict_inode() would have freed
-the inode's swap much more efficiently than swapoff could then manage.
+1.if 32-bit os maximum virtual address is 4GB, When i have 4 gb of ram for
+32-bit os, What about the virtual memory size ? is it required virtual
+memory(disk space) or we can directly use physical memory ?
 
-Hugh
+2.In 32-bit os 12 bits are offset because page size=4k i.e 2^12 and 2^20
+for page addresses What about 64-bit os, What is offset size ? What is page
+size ? How it calculated.
+
+3.What is PAE? If enabled how to decide size of PAE, what is maximum and
+minimum size of extended memory.
+
+Regards,
+Pankaj
+
+--0000000000003ec4b10586083832
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">I am confuse about memory configuration, i have below ques=
+tions.<br><br>1.if 32-bit os maximum virtual address is 4GB, When i have 4 =
+gb of ram for 32-bit os, What about the virtual memory size ? is it require=
+d virtual memory(disk space) or we can directly use physical memory ?<br><b=
+r>2.In 32-bit os 12 bits are offset because page size=3D4k i.e 2^12 and 2^2=
+0 for page addresses What about 64-bit os, What is offset size ? What is pa=
+ge size ? How it calculated.<br><br><div>3.What is PAE? If enabled how to d=
+ecide size of PAE, what is maximum and minimum size of extended memory.</di=
+v><div><br></div><div>Regards,</div><div>Pankaj<br></div><br></div>
+
+--0000000000003ec4b10586083832--
 
