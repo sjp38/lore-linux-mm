@@ -2,314 +2,262 @@ Return-Path: <SRS0=5KBY=SK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 900FEC282CE
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 15:38:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DD91DC10F13
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 15:41:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3FDB12147A
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 15:38:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FDB12147A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id 8A0812147A
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 15:41:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A0812147A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CA7BB6B000A; Mon,  8 Apr 2019 11:38:57 -0400 (EDT)
+	id 293826B0003; Mon,  8 Apr 2019 11:41:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C2E9F6B000C; Mon,  8 Apr 2019 11:38:57 -0400 (EDT)
+	id 269316B000C; Mon,  8 Apr 2019 11:41:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AF6826B000D; Mon,  8 Apr 2019 11:38:57 -0400 (EDT)
+	id 12FCF6B000D; Mon,  8 Apr 2019 11:41:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 841966B000A
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 11:38:57 -0400 (EDT)
-Received: by mail-vk1-f198.google.com with SMTP id l85so7054439vke.15
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 08:38:57 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E2BBC6B0003
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 11:41:41 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id z34so13087690qtz.14
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 08:41:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
-         :references:cc:from:message-id:date:user-agent:mime-version
-         :in-reply-to:content-transfer-encoding;
-        bh=B2zQdtwjklDumVUu5gcZqByPiJgG72Kp5qgn10S2SP4=;
-        b=P3BOzocZxnqTmTttbwE891X6YtcEcrYGfu6jNBew3i2Syq2NTGJ+UI8MH/MbC5oI32
-         y0CHp5op/KFtSBeU5v5mD50kNQIdb+uRv8qCbzOsI0sUSR+x4GkgXqWtJcFP32SDc5G3
-         O9ODSyN9xxeahZjxS5p9+Ycxr7ctCmjd5Ece7dhNJrFDLwnLTLcXoCJcfjyQZB9x0GIx
-         fr5WqOGRint7PqA7stIEY8soZ6fk6D/vDfInpLpd7guWEYMaAunvBrDd+bL4hUItQ/Q3
-         A/AgORpuNNF0LPKnD4K+XGJQ1mvlxw2TXK0TTh2OlKlRA7dVeOXmdtI0Dn+t0qQfkG71
-         63xA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
-X-Gm-Message-State: APjAAAXMZhFCi2Gmx+Bb6m9iDkN8716ahoBM8w6JqY9hBDM7Il1AtpE1
-	PlRIQ9PF1RR8ya+WP3QBOwEKsqJDZKe9wYW4UOOFwcA1V+sHdlG0jDd+PNq8FtZ3Nw9NB1HokS7
-	Y3sBFNgkd1kmYVKD++lpM6nzsQMDjQhY/v1LQQFs8kxuU8mQU61FCxrDQ0UsuCR2rrA==
-X-Received: by 2002:ab0:20a6:: with SMTP id y6mr14970842ual.98.1554737937214;
-        Mon, 08 Apr 2019 08:38:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxWxxzqcQvPInB2ANgYnwuP+se5c5AFsGyVBKaeR8izq6y1fo2sO99YwQr0TMK8KICeZ5f+
-X-Received: by 2002:ab0:20a6:: with SMTP id y6mr14970797ual.98.1554737936339;
-        Mon, 08 Apr 2019 08:38:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554737936; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=KbSK/X7JpCK8bNGWrUsaZVBhOGOX0n/BBtcnFxS/8fs=;
+        b=OaCZh0nIaMkq/+cC+S6iDFmM1NpeaVWJ7HP1/29vUT0vpOuqA31Mndznj4f8pSuLbH
+         63V6r/li6nxEbkTF/vyUPW98tV025wzEZFYjPH5SgTTrm6hvFixhsaBs9X9ZlkIAlP9Z
+         ZZSi5FXMQceD8sp7dlN0xFDTW+vRTkkpwohGN0lOaxUYYxqgZxHdq+Y2aIP2o5nIzque
+         IOA1ziAWoOqpAcWVuW1jps6J3sFn3urXIn+TAl/mFX14/AnNraXtrFQHKAYABeRgKs/Q
+         9P6L53qIXvPLJ4ur2G2xPhm+N6CiqG3zdn9OHPTe6JM2nhuBz4a8V2fuPb9ec2k0a2vx
+         ctNw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVrdRyW7eHH4YV86jrN2h5QW/RmFG3JajMeI2l5hP6SEU2Iszp8
+	lCnzymWT3Z3Btq++tf8704B0vTfoRnFXboHWYz1o+3gByQxW2LGXiPbeMpUi8uxuoCPzJu3sHC3
+	Bm4oxN2WCQtHIF51iSYgYsEw+48qRQfoPnp4/QGP7IceXZH2GOlLqcNiMwRye8VM9SQ==
+X-Received: by 2002:ac8:1a6d:: with SMTP id q42mr24351879qtk.129.1554738101690;
+        Mon, 08 Apr 2019 08:41:41 -0700 (PDT)
+X-Received: by 2002:ac8:1a6d:: with SMTP id q42mr24351809qtk.129.1554738100829;
+        Mon, 08 Apr 2019 08:41:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554738100; cv=none;
         d=google.com; s=arc-20160816;
-        b=tsTefj+11sHPe5i4FEPNQP82psqSG5IJWX6zQiJgZNKftg3cXSg7rlzj6WfbNCbLIp
-         SqjWVG+8FEzalPcj6tFaeNS6gNF8L4HJxDKryBYjigcz8Dif4LLhvldcn2UgMn551Z8z
-         vEg/sn0j3hzcOL1jXNKkZdkT4dQwP3M36pIZ7Ni+kC8hZcWHm86UAtWjGlvLFdV24UiS
-         9TbM6GHlhJP+FYjgq98hj8b9o1zpmVsWTz60eTP8oHRjJj31ZLkgs3+LUIpoMRW3d1sQ
-         A3ORHrl9k6Q5ROXFjh90MqgZPCTcPYnlx51Q9eYifN8d8vGLrRyBe43UFh5X0Va55B1d
-         4CgQ==
+        b=sRUlWZLFSEk1xgG0j0VIUAol9IkVPYjLT5I065xQL9WU2X4egm7Ul1/JQmtYZseVl/
+         p5PkPiNip7kDIC6KJ9jJqpsLYIDc6+YCU35xWAxjAePaaIwsL7RYQZ65810W9bGmw16u
+         p5L9ezc0EqxpEi2kUpG+2BvwvTfk03jljBxs5WSbvvqZ4C9SbcX4EAhcJ0qwNVdqAIVu
+         vGpWG0wc1rgGF4+ebpeyCPY8U7JDllzmZvtd2rZIcpOJzqEXn3SSSymlGwSVuzfwLvrl
+         DqMFWVxP9UMuIlCqRjlBWgqEbMa3FA8FX5Jyrdmae4/abYflZv3XT/ej+GLfmqloMeUp
+         d4iQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
-         :message-id:from:cc:references:to:subject;
-        bh=B2zQdtwjklDumVUu5gcZqByPiJgG72Kp5qgn10S2SP4=;
-        b=ndrPvXG0pbRW8P7oScHtyRQuxU1VhPhQkob4Ff7o8h6ArHGYT/fNYE44BGPIcFPaES
-         M4u5zn/iId3G5QOZJsCkHrrOD7erLL0aZwOaB+1Vskh6ydACTjzULCsaRk60JLQaUZ1O
-         vnpw+Y+lcF0ZDUmtHa0AsT4xaTkdB4XsASNhZZJFjp6lyIRhbx6NPykjMj0y8sY1S36W
-         BaA/x6kU1YKrs24axfemBSTEPdw5UtSqwr/pEJOXTIaCTMfCAMS4hX7pEiAaon7EHI6H
-         FNZAJWSgRbBWy2BCrieagPwmpsVAq6jSsKFAVm0D/hMh3U+8njWkOizFEXZSWUOuqzrA
-         9qlw==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=KbSK/X7JpCK8bNGWrUsaZVBhOGOX0n/BBtcnFxS/8fs=;
+        b=Xgo/G4is7l8L2RLbcS+EyUw+39OHKFuaeIYXrTEzCUasGKobvqgrKM/kIdbXeIHyev
+         2CEEzYKsX+SabMMYSHeOyiMmcLz8dvEOI+ndtlOt2cIGfVB/etDI4kttT6DU7rGpgs1+
+         9v5U8mM99oI+zZs7iQNQ5wlrg9gdS7jR/SfxpqTZjqZfiECI4JqETTQsIxIeJAFRgvXa
+         sTJRPb0SH/Nn4Heo2iBMZRk7J44n1FiLZPInvdXfuE/C8DivFirjj8iH9gUjWjGgXh0n
+         T3j+65WouRdltmNq51oDWbWvHGb52ZI4o20WBPbRSZx5hrEx5XAx0JvTQGcHCbBC9mD+
+         pAvg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
-Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id x25si5436290uar.209.2019.04.08.08.38.55
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j4sor17303569qki.39.2019.04.08.08.41.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Apr 2019 08:38:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.191 as permitted sender) client-ip=45.249.212.191;
+        (Google Transport Security);
+        Mon, 08 Apr 2019 08:41:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
-Received: from DGGEMS405-HUB.china.huawei.com (unknown [172.30.72.60])
-	by Forcepoint Email with ESMTP id 6796C636F9A6EFFFA345;
-	Mon,  8 Apr 2019 23:38:49 +0800 (CST)
-Received: from [127.0.0.1] (10.177.131.64) by DGGEMS405-HUB.china.huawei.com
- (10.3.19.205) with Microsoft SMTP Server id 14.3.408.0; Mon, 8 Apr 2019
- 23:38:42 +0800
-Subject: Re: [PATCH 2/3] arm64: kdump: support more than one crash kernel
- regions
-To: Mike Rapoport <rppt@linux.ibm.com>
-References: <20190403030546.23718-1-chenzhou10@huawei.com>
- <20190403030546.23718-3-chenzhou10@huawei.com>
- <20190403112929.GA7715@rapoport-lnx>
- <f98a5559-3659-fb35-3765-15861e70a796@huawei.com>
- <20190404144408.GA6433@rapoport-lnx>
- <783b8712-ddb1-a52b-81ee-0c6a216e5b7d@huawei.com>
- <4b188535-c12d-e05b-9154-2c2d580f903b@huawei.com>
- <20190408065711.GA8403@rapoport-lnx>
- <3fc772a2-292b-9c2a-465f-eabe86961dfd@huawei.com>
-CC: <wangkefeng.wang@huawei.com>, <ard.biesheuvel@linaro.org>,
-	<catalin.marinas@arm.com>, <will.deacon@arm.com>,
-	<linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>,
-	<takahiro.akashi@linaro.org>, <akpm@linux-foundation.org>,
-	<kexec@lists.infradead.org>, <linux-arm-kernel@lists.infradead.org>
-From: Chen Zhou <chenzhou10@huawei.com>
-Message-ID: <2aadfb89-4ac0-a9a9-e157-a23d686cb374@huawei.com>
-Date: Mon, 8 Apr 2019 23:38:41 +0800
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:45.0) Gecko/20100101
- Thunderbird/45.7.1
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqyR+Tmybn5PEyV/U1anHtWHt8mzskoJUOa0HgzEm9nr8z+jOm6rM1uak2YaEiN2laszY0bl6Q==
+X-Received: by 2002:a05:620a:1472:: with SMTP id j18mr23201976qkl.63.1554738100329;
+        Mon, 08 Apr 2019 08:41:40 -0700 (PDT)
+Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
+        by smtp.gmail.com with ESMTPSA id n41sm20262796qtf.63.2019.04.08.08.41.36
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 08 Apr 2019 08:41:39 -0700 (PDT)
+Date: Mon, 8 Apr 2019 11:41:35 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: Nitesh Narayan Lal <nitesh@redhat.com>,
+	David Hildenbrand <david@redhat.com>,
+	kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+	linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>,
+	lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
+	Yang Zhang <yang.zhang.wz@gmail.com>,
+	Rik van Riel <riel@surriel.com>, dodgen@google.com,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com,
+	Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: Thoughts on simple scanner approach for free page hinting
+Message-ID: <20190408114052-mutt-send-email-mst@kernel.org>
+References: <CAKgT0Ue4LufT4q4dLwjqhGRpDbVnucNWhmhwWxbwtytgjxx+Kw@mail.gmail.com>
+ <ef0c542a-ded5-f063-e6e2-8e84d1c12c85@redhat.com>
+ <CAKgT0UfyG=0wg5jzZPcnh7Q1rf0+gd9H5Q4626GTft85EiJNeA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <3fc772a2-292b-9c2a-465f-eabe86961dfd@huawei.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.177.131.64]
-X-CFilter-Loop: Reflected
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKgT0UfyG=0wg5jzZPcnh7Q1rf0+gd9H5Q4626GTft85EiJNeA@mail.gmail.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Mike,
+On Mon, Apr 08, 2019 at 08:18:35AM -0700, Alexander Duyck wrote:
+> On Mon, Apr 8, 2019 at 5:24 AM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+> >
+> >
+> > On 4/5/19 8:09 PM, Alexander Duyck wrote:
+> > > So I am starting this thread as a spot to collect my thoughts on the
+> > > current guest free page hinting design as well as point out a few
+> > > possible things we could do to improve upon it.
+> > >
+> > > 1. The current design isn't likely going to scale well to multiple
+> > > VCPUs. The issue specifically is that the zone lock must be held to
+> > > pull pages off of the free list and to place them back there once they
+> > > have been hinted upon. As a result it would likely make sense to try
+> > > to limit ourselves to only having one thread performing the actual
+> > > hinting so that we can avoid running into issues with lock contention
+> > > between threads.
+> > >
+> > > 2. There are currently concerns about the hinting triggering false OOM
+> > > situations if too much memory is isolated while it is being hinted. My
+> > > thought on this is to simply avoid the issue by only hint on a limited
+> > > amount of memory at a time. Something like 64MB should be a workable
+> > > limit without introducing much in the way of regressions. However as a
+> > > result of this we can easily be overrun while waiting on the host to
+> > > process the hinting request. As such we will probably need a way to
+> > > walk the free list and free pages after they have been freed instead
+> > > of trying to do it as they are freed.
+> > >
+> > > 3. Even with the current buffering which is still on the larger side
+> > > it is possible to overrun the hinting limits if something causes the
+> > > host to stall and a large swath of memory is released. As such we are
+> > > still going to need some sort of scanning mechanism or will have to
+> > > live with not providing accurate hints.
+> > >
+> > > 4. In my opinion, the code overall is likely more complex then it
+> > > needs to be. We currently have 2 allocations that have to occur every
+> > > time we provide a hint all the way to the host, ideally we should not
+> > > need to allocate more memory to provide hints. We should be able to
+> > > hold the memory use for a memory hint device constant and simply map
+> > > the page address and size to the descriptors of the virtio-ring.
+> > >
+> > > With that said I have a few ideas that may help to address the 4
+> > > issues called out above. The basic idea is simple. We use a high water
+> > > mark based on zone->free_area[order].nr_free to determine when to wake
+> > > up a thread to start hinting memory out of a given free area. From
+> > > there we allocate non-"Offline" pages from the free area and assign
+> > > them to the hinting queue up to 64MB at a time. Once the hinting is
+> > > completed we mark them "Offline" and add them to the tail of the
+> > > free_area. Doing this we should cycle the non-"Offline" pages slowly
+> > > out of the free_area.
+> > any ideas about how are you planning to control this?
 
-On 2019/4/8 16:39, Chen Zhou wrote:
+I think supplying the 64M value from host is probably reasonable.
 
->>>
->>> Sorry, just ignore my previous reply, I got that wrong.
->>>
->>> I think it carefully, we can cap the memory range for [min(regs[*].start, max(regs[*].end)]
->>> firstly. But how to remove the middle ranges, we still can't use memblock_cap_memory_range()
->>> directly and the extra remove operation may be complex.
->>>
->>> For more than one regions, i think add a new memblock_cap_memory_ranges() may be better.
->>> Besides, memblock_cap_memory_ranges() is also applicable for one region.
->>>
->>> How about replace memblock_cap_memory_range() with memblock_cap_memory_ranges()?
->>
->> arm64 is the only user of both MEMBLOCK_NOMAP and memblock_cap_memory_range()
->> and I don't expect other architectures will use these interfaces.
->> It seems that capping the memory for arm64 crash kernel the way I've
->> suggested can be implemented in fdt_enforce_memory_region(). If we'd ever
->> need such functionality elsewhere or CRASH_MAX_USABLE_RANGES will need to
->> grow we'll rethink the solution.
 > 
-> Ok, i will implement that in fdt_enforce_memory_region() in next version.
-> And we will support at most two crash kernel regions now.
+> You mean in terms of switching the hinting on/off? The setup should be
+> pretty simple. Basically we would still need a hook like the one you
+> added after the allocation to determine where the free page ultimately
+> landed and to do a check against the high water mark I mentioned.
+> Basically if there is something like 2X the number of pages needed to
+> fulfill the 64MB requirement we could then kick off a thread running
+> on the zone to begin populating the hints and notifying the
+> virtio-balloon interface. When we can no longer fill the ring we would
+> simply stop the thread until we get back to the 2X state for nr_freed
+> versus the last nr_freed value we had hinted upon. It wouldn't be
+> dissimilar to how we currently handle the Tx path in many NICs where
+> we shut off hinting.
 > 
-> Thanks,
-> Chen Zhou
+> For examples of doing something like this you could look at the Rx
+> softIRQ handling in the NIC drivers. Basically the idea there is you
+> trigger the event once, and then the thread is running until all work
+> has been completed. The thread itself is limiting itself to only
+> processing some number of fixed buffers for each request, and when it
+> can no longer get a full set it stops and waits to be rescheduled by
+> an interrupt.
 > 
-
-I implement that in fdt_enforce_memory_region() simply as below.
-You have a look at if it is the way you suggested.
-
-diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-index f9fa5f8..52bd69db 100644
---- a/arch/arm64/mm/init.c
-+++ b/arch/arm64/mm/init.c
-@@ -65,6 +65,11 @@ phys_addr_t arm64_dma_phys_limit __ro_after_init;
-
- #ifdef CONFIG_KEXEC_CORE
-
-+/* at most two crash kernel regions, low_region and high_region */
-+#define CRASH_MAX_USABLE_RANGES        2
-+#define LOW_REGION_IDX                 0
-+#define HIGH_REGION_IDX                        1
-+
- /*
-  * reserve_crashkernel() - reserves memory for crash kernel
-  *
-@@ -296,8 +301,8 @@ static int __init early_init_dt_scan_usablemem(unsigned long node,
-                const char *uname, int depth, void *data)
- {
-        struct memblock_region *usablemem = data;
--       const __be32 *reg;
--       int len;
-+       const __be32 *reg, *endp;
-+       int len, nr = 0;
-
-        if (depth != 1 || strcmp(uname, "chosen") != 0)
-                return 0;
-@@ -306,22 +311,62 @@ static int __init early_init_dt_scan_usablemem(unsigned long node,
-        if (!reg || (len < (dt_root_addr_cells + dt_root_size_cells)))
-                return 1;
-
--       usablemem->base = dt_mem_next_cell(dt_root_addr_cells, &reg);
--       usablemem->size = dt_mem_next_cell(dt_root_size_cells, &reg);
-+       endp = reg + (len / sizeof(__be32));
-+       while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
-+               usablemem[nr].base = dt_mem_next_cell(dt_root_addr_cells, &reg);
-+               usablemem[nr].size = dt_mem_next_cell(dt_root_size_cells, &reg);
-+
-+               if (++nr >= CRASH_MAX_USABLE_RANGES)
-+                       break;
-+       }
-
-        return 1;
- }
-
- static void __init fdt_enforce_memory_region(void)
- {
--       struct memblock_region reg = {
--               .size = 0,
--       };
-+       int i, cnt = 0;
-+       struct memblock_region regs[CRASH_MAX_USABLE_RANGES];
-+
-+       memset(regs, 0, sizeof(regs));
-+       of_scan_flat_dt(early_init_dt_scan_usablemem, regs);
-+
-+       for (i = 0; i < CRASH_MAX_USABLE_RANGES; i++)
-+               if (regs[i].size)
-+                       cnt++;
-+               else
-+                       break;
-+
-+       if (cnt - 1 == LOW_REGION_IDX)
-+               memblock_cap_memory_range(regs[LOW_REGION_IDX].base,
-+                               regs[LOW_REGION_IDX].size);
-+       else if (cnt - 1 == HIGH_REGION_IDX) {
-+               /*
-+                * Two crash kernel regions, cap the memory range
-+                * [regs[LOW_REGION_IDX].base, regs[HIGH_REGION_IDX].end]
-+                * and then remove the memory range in the middle.
-+                */
-+               int start_rgn, end_rgn, i, ret;
-+               phys_addr_t mid_base, mid_size;
-+
-+               mid_base = regs[LOW_REGION_IDX].base + regs[LOW_REGION_IDX].size;
-+               mid_size = regs[HIGH_REGION_IDX].base - mid_base;
-+               ret = memblock_isolate_range(&memblock.memory, mid_base, mid_size,
-+                               &start_rgn, &end_rgn);
-
--       of_scan_flat_dt(early_init_dt_scan_usablemem, &reg);
-+               if (ret)
-+                       return;
-
--       if (reg.size)
--               memblock_cap_memory_range(reg.base, reg.size);
-+               memblock_cap_memory_range(regs[LOW_REGION_IDX].base,
-+                               regs[HIGH_REGION_IDX].base - regs[LOW_REGION_IDX].base +
-+                               regs[HIGH_REGION_IDX].size);
-+               for (i = end_rgn - 1; i >= start_rgn; i--) {
-+                       if (!memblock_is_nomap(&memblock.memory.regions[i]))
-+                               memblock_remove_region(&memblock.memory, i);
-+               }
-+               memblock_remove_range(&memblock.reserved, mid_base,
-+                               mid_base + mid_size);
-+       }
- }
-
- void __init arm64_memblock_init(void)
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 294d5d8..787d252 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -110,9 +110,15 @@ void memblock_discard(void);
-
- phys_addr_t memblock_find_in_range(phys_addr_t start, phys_addr_t end,
-                                   phys_addr_t size, phys_addr_t align);
-+void memblock_remove_region(struct memblock_type *type, unsigned long r);
- void memblock_allow_resize(void);
- int memblock_add_node(phys_addr_t base, phys_addr_t size, int nid);
- int memblock_add(phys_addr_t base, phys_addr_t size);
-+int memblock_isolate_range(struct memblock_type *type,
-+                                       phys_addr_t base, phys_addr_t size,
-+                                       int *start_rgn, int *end_rgn);
-+int memblock_remove_range(struct memblock_type *type,
-+                                       phys_addr_t base, phys_addr_t size);
- int memblock_remove(phys_addr_t base, phys_addr_t size);
- int memblock_free(phys_addr_t base, phys_addr_t size);
- int memblock_reserve(phys_addr_t base, phys_addr_t size);
-diff --git a/mm/memblock.c b/mm/memblock.c
-index e7665cf..7130c3a 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -357,7 +357,7 @@ phys_addr_t __init_memblock memblock_find_in_range(phys_addr_t start,
-        return ret;
- }
-
--static void __init_memblock memblock_remove_region(struct memblock_type *type, unsigned long r)
-+void __init_memblock memblock_remove_region(struct memblock_type *type, unsigned long r)
- {
-        type->total_size -= type->regions[r].size;
-        memmove(&type->regions[r], &type->regions[r + 1],
-@@ -724,7 +724,7 @@ int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
-  * Return:
-  * 0 on success, -errno on failure.
-  */
--static int __init_memblock memblock_isolate_range(struct memblock_type *type,
-+int __init_memblock memblock_isolate_range(struct memblock_type *type,
-                                        phys_addr_t base, phys_addr_t size,
-                                        int *start_rgn, int *end_rgn)
- {
-@@ -784,7 +784,7 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
-        return 0;
- }
-
--static int __init_memblock memblock_remove_range(struct memblock_type *type,
-+int __init_memblock memblock_remove_range(struct memblock_type *type,
-                                          phys_addr_t base, phys_addr_t size)
- {
-        int start_rgn, end_rgn;
-
-
-Thanks,
-Chen Zhou
-
-
-
-> _______________________________________________
-> linux-arm-kernel mailing list
-> linux-arm-kernel@lists.infradead.org
-> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+> > > In addition the search cost should be minimal
+> > > since all of the "Offline" pages should be aggregated to the tail of
+> > > the free_area so all pages allocated off of the free_area will be the
+> > > non-"Offline" pages until we shift over to them all being "Offline".
+> > > This should be effective for MAX_ORDER - 1 and MAX_ORDER - 2 pages
+> > > since the only real consumer of add_to_free_area_tail is
+> > > __free_one_page which uses it to place a page with an order less than
+> > > MAX_ORDER - 2 on the tail of a free_area assuming that it should be
+> > > freeing the buddy of that page shortly. The only other issue with
+> > > adding to tail would be the memory shuffling which was recently added,
+> > > but I don't see that as being something that will be enabled in most
+> > > cases so we could probably just make the features mutually exclusive,
+> > > at least for now.
+> > >
+> > > So if I am not mistaken this would essentially require a couple
+> > > changes to the mm infrastructure in order for this to work.
+> > >
+> > > First we would need to split nr_free into two counters, something like
+> > > nr_freed and nr_bound. You could use nr_freed - nr_bound to get the
+> > > value currently used for nr_free. When we pulled the pages for hinting
+> > > we would reduce the nr_freed value and then add back to it when the
+> > > pages are returned. When pages are allocated they would increment the
+> > > nr_bound value. The idea behind this is that we can record nr_free
+> > > when we collect the pages and save it to some local value. This value
+> > > could then tell us how many new pages have been added that have not
+> > > been hinted upon.
+> > >
+> > > In addition we will need some way to identify which pages have been
+> > > hinted on and which have not. The way I believe easiest to do this
+> > > would be to overload the PageType value so that we could essentially
+> > > have two values for "Buddy" pages. We would have our standard "Buddy"
+> > > pages, and "Buddy" pages that also have the "Offline" value set in the
+> > > PageType field. Tracking the Online vs Offline pages this way would
+> > > actually allow us to do this with almost no overhead as the mapcount
+> > > value is already being reset to clear the "Buddy" flag so adding a
+> > > "Offline" flag to this clearing should come at no additional cost.
+> > >
+> > > Lastly we would need to create a specialized function for allocating
+> > > the non-"Offline" pages, and to tweak __free_one_page to tail enqueue
+> > > "Offline" pages. I'm thinking the alloc function it would look
+> > > something like __rmqueue_smallest but without the "expand" and needing
+> > > to modify the !page check to also include a check to verify the page
+> > > is not "Offline". As far as the changes to __free_one_page it would be
+> > > a 2 line change to test for the PageType being offline, and if it is
+> > > to call add_to_free_area_tail instead of add_to_free_area.
+> > Is it possible that once the pages are offline, there is a large
+> > allocation request in the guest needing those offline pages as well?
 > 
-> .
+> It is possible. However the behavior here would be no different from a
+> NIC driver. NIC drivers will sit on a swath of memory for Rx purposes
+> waiting for the DMA to occur. Here we are sitting on 64MB which for a
+> large allocation should not be that significant.
 > 
+> As far as avoiding it, I don't think there is any way we can avoid
+> such an event completely. There are scenerios where the hitning will
+> get hung up while sitting on memory for an extended period of time.
+> That is why I am thinking our best mitigation for now would be to keep
+> the amount of hinting we are doing confined to something on the
+> smaller side such as 64M or less which I have already mentioned. By
+> doing that if we do hit one of the problematic scenarios we should
+> have minimal impact.
+> 
+> > >
+> > > Anyway this email ended up being pretty massive by the time I was
+> > > done. Feel free to reply to parts of it and we can break it out into
+> > > separate threads of discussion as necessary. I will start working on
+> > > coding some parts of this next week.
+> > >
+> > > Thanks.
+> > >
+> > > - Alex
+> > --
+> > Regards
+> > Nitesh
+> >
 
