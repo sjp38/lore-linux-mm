@@ -2,103 +2,98 @@ Return-Path: <SRS0=5KBY=SK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E06A4C282CE
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 04:10:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9BEF3C282CE
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 04:21:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A85AB208E3
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 04:10:56 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A85AB208E3
+	by mail.kernel.org (Postfix) with ESMTP id 245FB20879
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 04:21:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 245FB20879
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 18BB96B0273; Mon,  8 Apr 2019 00:10:56 -0400 (EDT)
+	id AD2126B0275; Mon,  8 Apr 2019 00:21:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 13BA26B0274; Mon,  8 Apr 2019 00:10:56 -0400 (EDT)
+	id AA88F6B0276; Mon,  8 Apr 2019 00:21:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0025B6B0275; Mon,  8 Apr 2019 00:10:55 -0400 (EDT)
+	id 9BE4D6B0277; Mon,  8 Apr 2019 00:21:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C8F0C6B0273
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 00:10:55 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id v10so5122482oie.4
-        for <linux-mm@kvack.org>; Sun, 07 Apr 2019 21:10:55 -0700 (PDT)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7171C6B0275
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 00:21:11 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id e185so5092782oib.18
+        for <linux-mm@kvack.org>; Sun, 07 Apr 2019 21:21:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :date:from:user-agent:mime-version:to:cc:subject:references
-         :in-reply-to:content-transfer-encoding;
-        bh=b5sznIioWGEpJugfwCT/wZ++mYHhvA/9vVZtqOrlnM8=;
-        b=phElmQTzCWuAgSulZrRDGW3YjiuxBY34CzqgF32tkb/7+7TYcyd/tPO6YGMYYt7cHM
-         LKIInwyY775YM4IehrfzUZ/6kWLSIg++ORfzN+1CDXc+qEbVkg13ZtPp5r1ME73JmhoW
-         BZViEFFFxXZ7xZIXc+rg9vJk2Fm5BT4kFt7GSw9DZn1FEWkvSyiNQIR4YHpovzbnl/cQ
-         Mko3rzXrDdbkqyESvyDLW60az5M8h3WKlmZoxaJw5pya6MVt4eXtaEvCyeQDxXyQIDC4
-         JlYKI72PI1/6XgczuL30yKYn7hLXv9LComTeIHXfylHhkmc0ae1SdIk5Oa50VVCBIHYz
-         G07g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-X-Gm-Message-State: APjAAAXoHfUN6xewIovcErTMVrm4b/5hNsLwzDCP2jf2UVPwBHJC6qyM
-	KpN3BVldiYcAN8woWYTWFAcjaAP3MfPbszmdtVl/RC3YuRga6tzg8Bn9Ml4nPeGh3lDzND8H+3B
-	aRyaWqA/cQEBZUBkW3PafNkKAC9VRkmowqecDtQUZ5CEybUzIHEpT1bt2CUn9qbplkQ==
-X-Received: by 2002:a9d:63d5:: with SMTP id e21mr17023655otl.288.1554696655540;
-        Sun, 07 Apr 2019 21:10:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw8C0PxEd875aUdtr+GPXnxdpiyJlS1zPXbWgmyn1Nw64njVH1dDobkfq4+BF74ZNie1/p4
-X-Received: by 2002:a9d:63d5:: with SMTP id e21mr17023639otl.288.1554696655005;
-        Sun, 07 Apr 2019 21:10:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554696655; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version;
+        bh=tILU93jPluV8AQsh1jvaP7I5f8WGs+HjCHykl3kw2tg=;
+        b=B9H/lakEIH25nd5Ud/efCm8/7pscqpqKQu4NHGP+q1arNJNFmfVt/zYQxSxwFQ7lOt
+         QCfwGqy5iqQKUUWf5Sm9d9bJNfnHKY8xbsfWSETKvgf/gf4xFmIIPQHqC1Kn4G72nQVi
+         imBu6WubG3zI03STV9lScVJwy1Uuy5ozlhf/BNoBBgCk3qzr5IzAoAUfWYdHMbtZF9U7
+         lsfctjo9WJFDRYy0DM0mqoRJFdR2hXUWsMuX9TfuDs8QadeTgdetEEgZSea51bEIy1N2
+         nKbt0yeTC9FwnzSu/4ZsbpLs+JhKzoVEa5Wy32S5qt8GnyJ88FYXn1tnvaJ3Sl60sEuz
+         VfVw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fanglinxu@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=fanglinxu@huawei.com
+X-Gm-Message-State: APjAAAUYkAK6U0z7Zf77giOib/KWyFdnCaKsmMrPKu+E3M9y6O9nFYHM
+	GTuADVhwOMqi9qeJQEfIifrjWCphMLSH1m9E+X9z5bnbmd5G8kz8G+PiE487boel7oobb4U4orR
+	Sj9tZJXAZ9bp748bNT3LPnyCkajy2mdl84JgEiF9HvLoYADtexXycso74IHr242xUaQ==
+X-Received: by 2002:aca:da43:: with SMTP id r64mr14511472oig.11.1554697271094;
+        Sun, 07 Apr 2019 21:21:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwESmc/7aD3iDlG2f1cR2eCmqaUa6st2VRiBsRqHAht+RlMz6UCX9MYxbztmTzodTN3PYX2
+X-Received: by 2002:aca:da43:: with SMTP id r64mr14511448oig.11.1554697270252;
+        Sun, 07 Apr 2019 21:21:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554697270; cv=none;
         d=google.com; s=arc-20160816;
-        b=Xh5OnYubHQ+0nnJPgZ87Z+zkjieELMAZew2xohmTFPiiXFnj1PtcKdVItFF1HM94MZ
-         eOM8oNPwf9NoXMOH2pFWdwl7NHby2JGi77qKMh9BBHVg51pQM7dcQfZvdegsIA1oXSuY
-         UIv4oz/Frg6RJn2Wie1vLrK4m6IwR/g6DJWStTzqZznrOHdr27By6h6zADox2Uj06ULh
-         RpTCG8DUs04N4l/KDG7RlBbx72Sy3qWQhwY5tlZwg8U1nHvh9HBmzgyB+BBbZPVDRrga
-         32gBQE70/Vg+bpdQeemcn8yCjH7/I7CybHtVbnvpf511eQqk+lmRR596xMrPa94JRwV0
-         2YVg==
+        b=Yt9fX9nXm0ORCQ+Fp8LS0i8iZT4CTpnwoUV3wjgHiEJQwhr7s6VOVkFRnkzM3VpdK6
+         a96ZWusBI0242FCKOXPJ5Tz0WQikUtn41KZIKDhtbVE3UYmSmljLNOjHwsa8MLxmiakr
+         qdbV1jbAOTVFlu60vJxb2QBa9bqN56m30z/tQirXVo/Q8XJjcGizdwKVX7o4Qj253EyO
+         SzjkgFngFLcvIm3isnh3v/uaRGaXefMKY6Mct7to5LPDeyxfq01++Kyw0EwaMRdFpn+v
+         X0Vhueebji5pZWfiSnaj0CtRYZ/Sv98OaeujaeHRmiv9o2Wext3t81iQGRKn8dYvE3Y9
+         BrhQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:references:subject:cc:to
-         :mime-version:user-agent:from:date:message-id;
-        bh=b5sznIioWGEpJugfwCT/wZ++mYHhvA/9vVZtqOrlnM8=;
-        b=l3WE9NRpygBxdMf7wJnMxBRpgit2ddBcFSCFaHk2GTpdYPiWZN2AAQWR8ahum1fb5K
-         cZRySV57IMv3sWpN7n2ZB7BAu191EzeRSGxiB9jK1TTCw3hOIiyAS9L0tWiAffYPvQaY
-         PWIOu7DsKW2YPGqzflfq0dXaMnonyYpxwA/4N15PKxfhYBg8p9Pb85ou4EAgYkgwktHh
-         Uu77hWiUfQUwGh8MVADqou+awNlUa4Rj8WFp+Nvhx6X5F7s+RNoaO7iZmU+TeWewGuT0
-         5IgA6XL+hppfWk8hQK+R9C1hqsh1V8xiTeLdpH7naq0Fu2ah/g3sV/YGssrwOaWYf/TM
-         2RvA==
+        h=mime-version:references:in-reply-to:message-id:date:subject:cc:to
+         :from;
+        bh=tILU93jPluV8AQsh1jvaP7I5f8WGs+HjCHykl3kw2tg=;
+        b=WF+n8SrQdbdXMtxEq18dSyp6VMjN3s6v2/Ph72J8uyz0L7qfnPxQC4O7350xTAl6BD
+         wHM3bpaiguKWCK0h/miR4GbD4coIIkdHoSRue5td8rqHAYTDVB+Jd4SeWtMCNRl4jL8d
+         TIFlRSS6v4FkKAaFjsttWbnHWQeKfNHQF9zguMSpKxE2Fav0NLYfqOey985ZJetxVNJz
+         mex+k3Pac87LyhUm7s/eHtYVEcze1uFIuKFZjfITnEbuVuq+nag6rFDU/iZ301uP3EMl
+         zMwotbPH+OUBjYW5M/Q3hZjtYLaUclOSDwh03NuSpcvU0bPvrVYF4/wpQCXduIuChpms
+         vUyg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
-        by mx.google.com with ESMTPS id y198si12227290oie.112.2019.04.07.21.10.54
+       spf=pass (google.com: domain of fanglinxu@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=fanglinxu@huawei.com
+Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
+        by mx.google.com with ESMTPS id g7si14311844otk.143.2019.04.07.21.21.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 07 Apr 2019 21:10:54 -0700 (PDT)
-Received-SPF: pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
+        Sun, 07 Apr 2019 21:21:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of fanglinxu@huawei.com designates 45.249.212.35 as permitted sender) client-ip=45.249.212.35;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from DGGEMS404-HUB.china.huawei.com (unknown [172.30.72.60])
-	by Forcepoint Email with ESMTP id 55C5DACF789DC3F79613;
-	Mon,  8 Apr 2019 12:10:49 +0800 (CST)
-Received: from [127.0.0.1] (10.177.29.68) by DGGEMS404-HUB.china.huawei.com
- (10.3.19.204) with Microsoft SMTP Server id 14.3.408.0; Mon, 8 Apr 2019
- 12:10:39 +0800
-Message-ID: <5CAAC9BD.5080400@huawei.com>
-Date: Mon, 8 Apr 2019 12:10:37 +0800
-From: zhong jiang <zhongjiang@huawei.com>
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20120428 Thunderbird/12.0.1
+       spf=pass (google.com: domain of fanglinxu@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=fanglinxu@huawei.com
+Received: from DGGEMS402-HUB.china.huawei.com (unknown [172.30.72.60])
+	by Forcepoint Email with ESMTP id A7A9355B5584F68B9ED1;
+	Mon,  8 Apr 2019 12:21:04 +0800 (CST)
+Received: from huawei.com (10.66.68.70) by DGGEMS402-HUB.china.huawei.com
+ (10.3.19.202) with Microsoft SMTP Server id 14.3.408.0; Mon, 8 Apr 2019
+ 12:20:55 +0800
+From: Linxu Fang <fanglinxu@huawei.com>
+To: <osalvador@suse.de>
+CC: <akpm@linux-foundation.org>, <fanglinxu@huawei.com>, <linux-mm@kvack.org>,
+	<mhocko@suse.com>, <pavel.tatashin@microsoft.com>, <vbabka@suse.cz>
+Subject: Re: [PATCH V2] mm: fix node spanned pages when we have a node with only zone_movable
+Date: Mon, 8 Apr 2019 12:18:48 +0800
+Message-ID: <1554697128-17696-1-git-send-email-fanglinxu@huawei.com>
+X-Mailer: git-send-email 2.8.1.windows.1
+In-Reply-To: <20190405125430.vawudxjcxhbarseg@d104.suse.de>
+References: <20190405125430.vawudxjcxhbarseg@d104.suse.de>
 MIME-Version: 1.0
-To: <akpm@linux-foundation.org>, <rafael@kernel.org>, <david@redhat.com>,
-	<rafael.j.wysocki@intel.com>, <mhocko@suse.com>, <osalvador@suse.de>
-CC: <vbabka@suse.cz>, <iamjoonsoo.kim@lge.com>, <bsingharora@gmail.com>,
-	<gregkh@linuxfoundation.org>, <yangyingliang@huawei.com>,
-	<linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>
-Subject: Re: [PATCH] mm/memory_hotplug: Do not unlock when fails to take the
- device_hotplug_lock
-References: <1554696012-9254-1-git-send-email-zhongjiang@huawei.com>
-In-Reply-To: <1554696012-9254-1-git-send-email-zhongjiang@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.177.29.68]
+Content-Type: text/plain
+X-Originating-IP: [10.66.68.70]
 X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -106,38 +101,61 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I am sorry,  It is incorrect.  please ignore the patch.  I will resent it.
+> Uhmf, I have to confess that this whole thing about kernelcore and movablecore
+> makes me head spin.
 
-Thanks,
-zhong jiang
-On 2019/4/8 12:00, zhong jiang wrote:
-> When adding the memory by probing memory block in sysfs interface, there is an
-> obvious issue that we will unlock the device_hotplug_lock when fails to takes it.
->
-> That issue was introduced in Commit 8df1d0e4a265
-> ("mm/memory_hotplug: make add_memory() take the device_hotplug_lock")
->
-> We should drop out in time when fails to take the device_hotplug_lock.
->
-> Fixes: 8df1d0e4a265 ("mm/memory_hotplug: make add_memory() take the device_hotplug_lock")
-> Reported-by: Yang yingliang <yangyingliang@huawei.com>
-> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
-> ---
->  drivers/base/memory.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-> index d9ebb89..8b0cec7 100644
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -507,7 +507,7 @@ static ssize_t probe_store(struct device *dev, struct device_attribute *attr,
->  
->  	ret = lock_device_hotplug_sysfs();
->  	if (ret)
-> -		goto out;
-> +		goto ret;
->  
->  	nid = memory_add_physaddr_to_nid(phys_addr);
->  	ret = __add_memory(nid, phys_addr,
+> I agree that clamping the range to the node's start_pfn/end_pfn is the right
+> thing to do.
 
+> On the other hand, I cannot figure out why these two statements from
+> zone_spanned_pages_in_node() do not help in setting the right values.
+
+> *zone_end_pfn = min(*zone_end_pfn, node_end_pfn);
+> *zone_start_pfn = max(*zone_start_pfn, node_start_pfn);
+
+> If I take one of your examples:
+
+> Node 0:
+> node_start_pfn=1        node_end_pfn=2822144
+> DMA      zone_low=1        zone_high=4096
+> DMA32    zone_low=4096     zone_high=1048576
+> Normal   zone_low=1048576  zone_high=7942144
+> Movable  zone_low=0        zone_high=0
+
+> *zone_end_pfn should be set to 2822144, and so zone_end_pfn - zone_start_pfn
+> should return the right value?
+> Or is it because we have the wrong values before calling
+> adjust_zone_range_for_zone_movable() and the whole thing gets messed up there?
+
+> Please, note that the patch looks correct to me, I just want to understand
+> why those two statements do not help here.
+
+
+Of course, the following statements have similar functions as clamp
+
+* zone_end_pfn = min (* zone_end_pfn, node_end_pfn);
+* zone_start_pfn = max (* zone_start_pfn, node_start_pfn);
+
+> Or is it because we have the wrong values before calling
+> adjust_zone_range_for_zone_movable() and the whole thing gets messed up there?
+
+Yes, we have the wrong values before calling adjust_zone_range_for_zone_movable() 
+and the whole thing gets messed up there
+
+Let's focus on the process of adjust_zone_range_for_zone_movable, in the last
+conditional statement:
+
+/* Check if this whole range is within ZONE_MOVABLE*/
+} Other if (* zone_start_pfn >= zone_movable_pfn [nid])
+* zone_start_pfn = zone_end_pfn;
+
+For node 1, when zone_type is ZONE_NORMAL, if there is no clamp when entering 
+adjustment_zone_range_for_zone_movable, then *zone_start_pfn does not satisfy the 
+condition and will not be corrected, this is the root cause of BUG.
+
+This fix only considers the minimum risk changes of this point without affecting
+the results of other values, such as spanned pages, present pages and absent pages
+of every node.
+
+Perhaps, a series of optimizations can also be made. Thank you for your review.
 
