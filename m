@@ -2,257 +2,196 @@ Return-Path: <SRS0=5KBY=SK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 76E9FC282CE
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 09:09:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8BEBCC282CE
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 09:39:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 203D420870
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 09:09:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 203D420870
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 33E1820880
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 09:39:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 33E1820880
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 911646B0005; Mon,  8 Apr 2019 05:09:35 -0400 (EDT)
+	id 9BE766B0008; Mon,  8 Apr 2019 05:39:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8C1C76B0006; Mon,  8 Apr 2019 05:09:35 -0400 (EDT)
+	id 9468E6B000A; Mon,  8 Apr 2019 05:39:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 78CB76B0008; Mon,  8 Apr 2019 05:09:35 -0400 (EDT)
+	id 7C1A26B000C; Mon,  8 Apr 2019 05:39:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 284716B0005
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 05:09:35 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id h27so6413193eda.8
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 02:09:35 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 51DF26B0008
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 05:39:04 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id s65so9386913ywf.10
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 02:39:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=67edrvGha09PRa5kZyhnWFIeeKHJlmBQlrnVMoxrxhc=;
-        b=ep65tYgzNp0OP5lrPf0shI+q+k+OYsa4ZzbtSwaxG+mH0SP+J3OJl9sWN6jtDoAhVv
-         hdd4oLp3bj/OEVmY/BluPygekAmGSB8ccaL6Fzfc0RZPlCfn55Opq3VR6eSw6kBALXoF
-         oP6I/WZ14i6st0+KLzuJHwDAk0at0CIE5VjVSvZ1PlTXakqCKFmJGm1v/wn0dW8J/Rs9
-         paFQfgNk3PYMR+ExfbB1e2T3AvSsjclTJyOiGlD/WW4psRXiXK61AzIEb/3lN4Zz5wot
-         0eCQA3O9Fdsu3anapjjrWMfFFTiBXuHU2S+mbSLV9ordVwg6rIpB6koTo+5W25N2f7sk
-         HkBw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of marc.zyngier@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=marc.zyngier@arm.com
-X-Gm-Message-State: APjAAAVX0BYlwzVnydMj8tJexGCEC7LM/oj+e/ATwOBTFwQhw/wzZutS
-	ZPABK/YZZxijvqrgKwpz5MnM/WMTZHspQAiP0WUYluw5x1TNntvSSxqQZEc6O837nNigiq7aatx
-	7u7vOioiv9XGRbd5ipQSdG2PSwUDNvRTNDYnLsVePpYx01LaufCAIFbHltFNwsMWuDQ==
-X-Received: by 2002:a50:ac44:: with SMTP id w4mr18561792edc.241.1554714574697;
-        Mon, 08 Apr 2019 02:09:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyvOnao+L0Wp8G0EzDZCeNtqdTAsOrs03EK06MKjkk6BGd8sxG5n0BwXetW7rWUWArTI85C
-X-Received: by 2002:a50:ac44:: with SMTP id w4mr18561744edc.241.1554714573721;
-        Mon, 08 Apr 2019 02:09:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554714573; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:in-reply-to:references:date:mime-version:message-id;
+        bh=xWD03Zqt1SJ9xAy4s328/gi1lbz9D0FCaf2vPXGYinI=;
+        b=TyVxyvFBpR1yfZThw/hh/CvIgAMbTljiNI14WPDPczHRwDsgr34mcXTyLnzPk88smB
+         FgQNC04wAlgFru3OseGqsSrJGyzfWKPA0PCcisU5x9E1j99NNNzlZ1vOpMetal6wWHZe
+         GpRIgrNKNeV/uNgCV95ri/aIAMhikyr/L7dyOiBnXFmYHl3yQp/IHAJFDiWLvqUtMpbG
+         /aWdhf0MgNg0E8rP9NSwGskoPFJu0gzWIheBqDoiOKwmK+DVCQw0hqLmNtcUG99aOF1u
+         +ATG8Sj1MIVIYRhdZXdN2uIrAAWlmFqz+IzarQe1L4BF+bfgrddSG6Xt3BU84nGtIwDf
+         R+dA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAXA9wi8ksWH0li4UHCNn+w7BzM15B7wJDrNQugKFAuCAn3HW/cL
+	pTh1DAr5Irw+KeuJAKQY3SgpjZUCY/HtbVsqmWQe5Lve8mO8cxQKGqtg3SQkabZN30ocIVeNQ66
+	30gftgmJHWBISc+avvhmOEsSy9dTAS+SkusjIb1Alj662D/H8V1WZsj//KuEEk51xXA==
+X-Received: by 2002:a25:1144:: with SMTP id 65mr23749313ybr.142.1554716344055;
+        Mon, 08 Apr 2019 02:39:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwu5Zut2WjCMQAmvy7m18fmuFWhTAmkawAMxFIN7Wd2/VHWn1smAYWH9NCEvr6Pym17M8Lf
+X-Received: by 2002:a25:1144:: with SMTP id 65mr23749285ybr.142.1554716343416;
+        Mon, 08 Apr 2019 02:39:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554716343; cv=none;
         d=google.com; s=arc-20160816;
-        b=AsPLLh/esQbSoKGJkZ4kB6Z+qybfmJOwHL0IfpPW1cNaAE2mSfhnLACVcMvr4DB1/T
-         XNCy37cFQAjREGQa9VZvcXZ8aHIe9CVa4E7wCZW+gSN7Tu6rnWADGaItp3gsIDspwOy9
-         gOmN2ISQYTeHV++8hNTUk+fdsl4swb4DGRzQy8TURTkqtPCSdqgesWv1GCQWKObkp5C4
-         rg6E6wp9C0WwrltPnKI+L2tMaRNTeaX/xlMHoTDUeNMcz8R4f96TsS4Uf5GuvA6oLpoR
-         F8TjOOOoIUSGDeBUOK9MF+/Y0H5MscPAFCmXgQzkwsUXZ41B2nUmjV50iKxanrHQMV4y
-         X1HQ==
+        b=ThzTF0QOcZJWI0JosCEBk+aNLIDH/uzNtJvKIB+/qzHBhAFiM6/3qaDjRAbctuicKY
+         xJv8HdgtcFba7izMOqXy3vvgArT5vIe05JY2/rmXNU4agLe3/yu6yEBnVwbfwP2KMSR9
+         bPuXczJOAUwDOtOgKEO6fywXmcPxgz22p6zzUJl9t2pvQ5Ty2ODd4Oo7c+DOn1j05OS6
+         DCNJM3mwfHA/u3jqAd12RZ9+PjZ4pMQJGdBdzgnfQJnNdNUh+9137fziC/LC5vUIzDuI
+         d6+VEIhU1eo8HfyKHJqYcEF76NiogAP2Xn4r//x6My8N64i/pkGQ4fYBMGSJ7Lz9KSso
+         1rBA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=67edrvGha09PRa5kZyhnWFIeeKHJlmBQlrnVMoxrxhc=;
-        b=Dqc/zRLaCXWbdqcl2hZB49p205P2U2D9PTu3iSMYxH46kVz4G9SoJYFf83epd+P4ob
-         P5p8qiMLXYETGQ+O9N4T4NtrcXoJAyLrku0fST6Vr9bG+JIlbGgSniM22F/pylN4KI48
-         +x0uXcEFtHyNm07qeiuHFX24qgK3rGbSvZnUfbOJVDrrRUKddenOppTmdbNAMwWD7Gea
-         3/pqY9ApnoXFRMH3jJN1wTZZ3MhajR/a+j45X4gIQ+3tfo73PgiEQDeshnq++p7A9Vjz
-         7EBedOr6XJk3rEKPIyklNygrTKjyuSsDHaGa+2XdkgTxyVQBZsiHA2Bl2EB7Fh96BE4N
-         9CJA==
+        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
+         :from;
+        bh=xWD03Zqt1SJ9xAy4s328/gi1lbz9D0FCaf2vPXGYinI=;
+        b=0FpPB8W0XteeHwCiScWwJTlG2MLX/Jmul48lZP1XtEs1NvInWMZ9ajX8cmCojlmAHs
+         VtHzr3yNhvl0usH7uyTjNwoNHSz8Vjlu8Noae0p4a8J1aexyv5dAp7mZPQrecF4WMkrN
+         bVcBrcnlh1F7cwNMg0fH83KKZEtsRYTwMMCJdRQ/f7jVhj7HE8b4u/+/DGUAnLLuSpVj
+         raUGogN+GRzt5jF31HPdNaChKpAksbOoFgH3v1RLD3Jks/kAMvMNS8d5kgZeAsR35sWU
+         bVoAMSVatWEhzG1MIVnvHja88GsUOoBXsEX7eoEVnBJqZqq0HNbtxd+WxpStS5fzE1Y4
+         p4mw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of marc.zyngier@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=marc.zyngier@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id a21si1950328edy.122.2019.04.08.02.09.33
-        for <linux-mm@kvack.org>;
-        Mon, 08 Apr 2019 02:09:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of marc.zyngier@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 207si18247466ywy.172.2019.04.08.02.39.03
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Apr 2019 02:39:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of marc.zyngier@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=marc.zyngier@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 5E9EB15AD;
-	Mon,  8 Apr 2019 02:09:32 -0700 (PDT)
-Received: from [10.1.196.92] (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 12C303F718;
-	Mon,  8 Apr 2019 02:09:27 -0700 (PDT)
-Subject: Re: [PATCH V2] KVM: ARM: Remove pgtable page standard functions from
- stage-2 page tables
-To: Will Deacon <will.deacon@arm.com>,
- Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org,
- catalin.marinas@arm.com, mark.rutland@arm.com, yuzhao@google.com,
- suzuki.poulose@arm.com, christoffer.dall@arm.com, james.morse@arm.com,
- julien.thierry@arm.com, kvmarm@lists.cs.columbia.edu
-References: <3be0b7e0-2ef8-babb-88c9-d229e0fdd220@arm.com>
- <1552397145-10665-1-git-send-email-anshuman.khandual@arm.com>
- <20190401161638.GB22092@fuggles.cambridge.arm.com>
-From: Marc Zyngier <marc.zyngier@arm.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=marc.zyngier@arm.com; prefer-encrypt=mutual; keydata=
- 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
-Organization: ARM Ltd
-Message-ID: <77aaaaca-f9fb-cbad-74f6-e3bd159e7b37@arm.com>
-Date: Mon, 8 Apr 2019 10:09:25 +0100
-User-Agent: Mozilla/5.0 (X11; Linux aarch64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x389U8h0105126
+	for <linux-mm@kvack.org>; Mon, 8 Apr 2019 05:39:03 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2rr2uv2t0h-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 08 Apr 2019 05:39:02 -0400
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Mon, 8 Apr 2019 10:39:00 +0100
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Mon, 8 Apr 2019 10:38:57 +0100
+Received: from d06av24.portsmouth.uk.ibm.com (mk.ibm.com [9.149.105.60])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x389cuWp56688680
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 8 Apr 2019 09:38:56 GMT
+Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id ACFBD42049;
+	Mon,  8 Apr 2019 09:38:56 +0000 (GMT)
+Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 1190842041;
+	Mon,  8 Apr 2019 09:38:55 +0000 (GMT)
+Received: from skywalker.linux.ibm.com (unknown [9.124.31.209])
+	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Mon,  8 Apr 2019 09:38:54 +0000 (GMT)
+X-Mailer: emacs 26.1 (via feedmail 11-beta-1 I)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>
+Cc: Ross Zwisler <zwisler@kernel.org>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        linux-nvdimm <linux-nvdimm@lists.01.org>,
+        Linux MM <linux-mm@kvack.org>,
+        linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
+        linux-fsdevel <linux-fsdevel@vger.kernel.org>,
+        Alexander Viro <viro@zeniv.linux.org.uk>
+Subject: Re: [PATCH v2] fs/dax: deposit pagetable even when installing zero page
+In-Reply-To: <CAPcyv4irZP2F1acuco7UVbvTARzn5SXvCAWstFYtP7ygLRSXTg@mail.gmail.com>
+References: <20190309120721.21416-1-aneesh.kumar@linux.ibm.com> <8736nrnzxm.fsf@linux.ibm.com> <20190313095834.GF32521@quack2.suse.cz> <CAPcyv4irZP2F1acuco7UVbvTARzn5SXvCAWstFYtP7ygLRSXTg@mail.gmail.com>
+Date: Mon, 08 Apr 2019 15:08:53 +0530
 MIME-Version: 1.0
-In-Reply-To: <20190401161638.GB22092@fuggles.cambridge.arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
+X-TM-AS-GCONF: 00
+x-cbid: 19040809-0020-0000-0000-0000032D6DD8
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19040809-0021-0000-0000-0000217F8DDF
+Message-Id: <87r2acn8eq.fsf@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-08_04:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1904080088
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 01/04/2019 17:16, Will Deacon wrote:
-> [+KVM/ARM folks, since I can't take this without an Ack in place from them]
-> 
-> My understanding is that this patch is intended to replace patch 3/4 in
-> this series:
-> 
-> http://lists.infradead.org/pipermail/linux-arm-kernel/2019-March/638083.html
-> 
-> On Tue, Mar 12, 2019 at 06:55:45PM +0530, Anshuman Khandual wrote:
->> ARM64 standard pgtable functions are going to use pgtable_page_[ctor|dtor]
->> or pgtable_pmd_page_[ctor|dtor] constructs. At present KVM guest stage-2
->> PUD|PMD|PTE level page tabe pages are allocated with __get_free_page()
->> via mmu_memory_cache_alloc() but released with standard pud|pmd_free() or
->> pte_free_kernel(). These will fail once they start calling into pgtable_
->> [pmd]_page_dtor() for pages which never originally went through respective
->> constructor functions. Hence convert all stage-2 page table page release
->> functions to call buddy directly while freeing pages.
->>
->> Reviewed-by: Suzuki K Poulose <suzuki.poulose@arm.com>
->> Acked-by: Yu Zhao <yuzhao@google.com>
->> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
->> ---
->> Changes in V2:
->>
->> - Updated stage2_pud_free() with NOP as per Suzuki
->> - s/__free_page/free_page/ in clear_stage2_pmd_entry() for uniformity
->>
->>  arch/arm/include/asm/stage2_pgtable.h   | 4 ++--
->>  arch/arm64/include/asm/stage2_pgtable.h | 4 ++--
->>  virt/kvm/arm/mmu.c                      | 2 +-
->>  3 files changed, 5 insertions(+), 5 deletions(-)
->>
->> diff --git a/arch/arm/include/asm/stage2_pgtable.h b/arch/arm/include/asm/stage2_pgtable.h
->> index de2089501b8b..fed02c3b4600 100644
->> --- a/arch/arm/include/asm/stage2_pgtable.h
->> +++ b/arch/arm/include/asm/stage2_pgtable.h
->> @@ -32,14 +32,14 @@
->>  #define stage2_pgd_present(kvm, pgd)		pgd_present(pgd)
->>  #define stage2_pgd_populate(kvm, pgd, pud)	pgd_populate(NULL, pgd, pud)
->>  #define stage2_pud_offset(kvm, pgd, address)	pud_offset(pgd, address)
->> -#define stage2_pud_free(kvm, pud)		pud_free(NULL, pud)
->> +#define stage2_pud_free(kvm, pud)		do { } while (0)
->>  
->>  #define stage2_pud_none(kvm, pud)		pud_none(pud)
->>  #define stage2_pud_clear(kvm, pud)		pud_clear(pud)
->>  #define stage2_pud_present(kvm, pud)		pud_present(pud)
->>  #define stage2_pud_populate(kvm, pud, pmd)	pud_populate(NULL, pud, pmd)
->>  #define stage2_pmd_offset(kvm, pud, address)	pmd_offset(pud, address)
->> -#define stage2_pmd_free(kvm, pmd)		pmd_free(NULL, pmd)
->> +#define stage2_pmd_free(kvm, pmd)		free_page((unsigned long)pmd)
->>  
->>  #define stage2_pud_huge(kvm, pud)		pud_huge(pud)
->>  
->> diff --git a/arch/arm64/include/asm/stage2_pgtable.h b/arch/arm64/include/asm/stage2_pgtable.h
->> index 5412fa40825e..915809e4ac32 100644
->> --- a/arch/arm64/include/asm/stage2_pgtable.h
->> +++ b/arch/arm64/include/asm/stage2_pgtable.h
->> @@ -119,7 +119,7 @@ static inline pud_t *stage2_pud_offset(struct kvm *kvm,
->>  static inline void stage2_pud_free(struct kvm *kvm, pud_t *pud)
->>  {
->>  	if (kvm_stage2_has_pud(kvm))
->> -		pud_free(NULL, pud);
->> +		free_page((unsigned long)pud);
->>  }
->>  
->>  static inline bool stage2_pud_table_empty(struct kvm *kvm, pud_t *pudp)
->> @@ -192,7 +192,7 @@ static inline pmd_t *stage2_pmd_offset(struct kvm *kvm,
->>  static inline void stage2_pmd_free(struct kvm *kvm, pmd_t *pmd)
->>  {
->>  	if (kvm_stage2_has_pmd(kvm))
->> -		pmd_free(NULL, pmd);
->> +		free_page((unsigned long)pmd);
->>  }
->>  
->>  static inline bool stage2_pud_huge(struct kvm *kvm, pud_t pud)
->> diff --git a/virt/kvm/arm/mmu.c b/virt/kvm/arm/mmu.c
->> index e9d28a7ca673..cbfbdadca8a5 100644
->> --- a/virt/kvm/arm/mmu.c
->> +++ b/virt/kvm/arm/mmu.c
->> @@ -191,7 +191,7 @@ static void clear_stage2_pmd_entry(struct kvm *kvm, pmd_t *pmd, phys_addr_t addr
->>  	VM_BUG_ON(pmd_thp_or_huge(*pmd));
->>  	pmd_clear(pmd);
->>  	kvm_tlb_flush_vmid_ipa(kvm, addr);
->> -	pte_free_kernel(NULL, pte_table);
->> +	free_page((unsigned long)pte_table);
->>  	put_page(virt_to_page(pmd));
->>  }
->>  
->> -- 
->> 2.20.1
->>
 
-Looks good to me, please take it via the arm64 tree with my
+ Hi Dan,
 
-Acked-by: Marc Zyngier <marc.zyngier@arm.com>
+Dan Williams <dan.j.williams@intel.com> writes:
 
-Thanks,
+> On Wed, Mar 13, 2019 at 2:58 AM Jan Kara <jack@suse.cz> wrote:
+>>
+>> On Wed 13-03-19 10:17:17, Aneesh Kumar K.V wrote:
+>> >
+>> > Hi Dan/Andrew/Jan,
+>> >
+>> > "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> writes:
+>> >
+>> > > Architectures like ppc64 use the deposited page table to store hardware
+>> > > page table slot information. Make sure we deposit a page table when
+>> > > using zero page at the pmd level for hash.
+>> > >
+>> > > Without this we hit
+>> > >
+>> > > Unable to handle kernel paging request for data at address 0x00000000
+>> > > Faulting instruction address: 0xc000000000082a74
+>> > > Oops: Kernel access of bad area, sig: 11 [#1]
+>> > > ....
+>> > >
+>> > > NIP [c000000000082a74] __hash_page_thp+0x224/0x5b0
+>> > > LR [c0000000000829a4] __hash_page_thp+0x154/0x5b0
+>> > > Call Trace:
+>> > >  hash_page_mm+0x43c/0x740
+>> > >  do_hash_page+0x2c/0x3c
+>> > >  copy_from_iter_flushcache+0xa4/0x4a0
+>> > >  pmem_copy_from_iter+0x2c/0x50 [nd_pmem]
+>> > >  dax_copy_from_iter+0x40/0x70
+>> > >  dax_iomap_actor+0x134/0x360
+>> > >  iomap_apply+0xfc/0x1b0
+>> > >  dax_iomap_rw+0xac/0x130
+>> > >  ext4_file_write_iter+0x254/0x460 [ext4]
+>> > >  __vfs_write+0x120/0x1e0
+>> > >  vfs_write+0xd8/0x220
+>> > >  SyS_write+0x6c/0x110
+>> > >  system_call+0x3c/0x130
+>> > >
+>> > > Fixes: b5beae5e224f ("powerpc/pseries: Add driver for PAPR SCM regions")
+>> > > Reviewed-by: Jan Kara <jack@suse.cz>
+>> > > Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+>> >
+>> > Any suggestion on which tree this patch should got to? Also since this
+>> > fix a kernel crash, we may want to get this to 5.1?
+>>
+>> I think this should go through Dan's tree...
+>
+> I'll merge this and let it soak in -next for a week and then submit for 5.1-rc2.
 
-	M.
--- 
-Jazz is not dead. It just smells funny...
+Any update on this? Did you get to merge this?
+
+-aneesh
 
