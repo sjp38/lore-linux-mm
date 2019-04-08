@@ -2,159 +2,170 @@ Return-Path: <SRS0=5KBY=SK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AC4C1C10F0E
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 01:23:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 82A57C10F0E
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 01:30:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 146E420879
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 01:23:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2C23420880
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 01:30:22 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=iluvatar.ai header.i=@iluvatar.ai header.b="Zbc+c/tj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 146E420879
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=iluvatar.ai
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="EDyFgf/a"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2C23420880
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 517856B0005; Sun,  7 Apr 2019 21:23:27 -0400 (EDT)
+	id A404E6B0007; Sun,  7 Apr 2019 21:30:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 49E736B0006; Sun,  7 Apr 2019 21:23:27 -0400 (EDT)
+	id 9C8BF6B0008; Sun,  7 Apr 2019 21:30:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 38E046B0007; Sun,  7 Apr 2019 21:23:27 -0400 (EDT)
+	id 86A4C6B000A; Sun,  7 Apr 2019 21:30:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F2FBD6B0005
-	for <linux-mm@kvack.org>; Sun,  7 Apr 2019 21:23:26 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id t17so8803541plj.18
-        for <linux-mm@kvack.org>; Sun, 07 Apr 2019 18:23:26 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 622936B0007
+	for <linux-mm@kvack.org>; Sun,  7 Apr 2019 21:30:21 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id w11so9974501iom.20
+        for <linux-mm@kvack.org>; Sun, 07 Apr 2019 18:30:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:content-disposition:dkim-signature:date:from:to
-         :cc:subject:message-id:references:mime-version:in-reply-to
-         :user-agent;
-        bh=Ux048TmV854h+e950bXokICm1VWZROCck0ccAamUXr0=;
-        b=r2YrthpkKi9BiQiNeE9I1qdiPwnKXOY7gAMXZMJcSAKv7YOkC7TvG6tyTUZjbXRQGl
-         E5f7vsFLc5K9CbRFJdyvBwvobgH29F4ZhxSjgZKwE5XVX0LMgQOrz2hNzflQRk4piPfK
-         nAJ4r60KpYFyN9Pe1MyMZOkRrESdj+MgydJDBBlW9ZLkxybARybmVR0OTWvo3tAC4Pfx
-         LkBL+CgzX8wN5fxxjqjIxgJojEUrOZZ9TLlv1JLIkJGuV5Uxf12Ca3AcZgRIW/ACfccf
-         k8+/SniC0iei3IZtkqUZmLCGKsZLN4OY9pAz1yIQ5ng7GkmLHeGXbf9gkfo8eCsfXrpv
-         8fTw==
-X-Gm-Message-State: APjAAAV2RQI0zXGW3SlqwmIWaNF72gtQni0+Dm7RM7HyP5+uO6okuoBS
-	9A/fbhsemF/bhIOWrVH52M9JAREwyzhb77DJH7sVua3K4b8QSVn76EYwYVSfIkBPvlU7BJ6ahn8
-	M2JlZbCTAIwXADHmyeE6MF4SAzbbMZvz16ZgeCSEt4K35nqf8tMOp8Vl5Kh3yh029UA==
-X-Received: by 2002:a63:945:: with SMTP id 66mr24473619pgj.128.1554686606437;
-        Sun, 07 Apr 2019 18:23:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxObPIvxDa2KEISXYWPo43t3nMoNk/wPR/u+CdGe4vqrcEHOJCHlMAdeeayHDez1f3NK6Aw
-X-Received: by 2002:a63:945:: with SMTP id 66mr24473558pgj.128.1554686605437;
-        Sun, 07 Apr 2019 18:23:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554686605; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=nCywoWrMYJtCxHlq86kes488DcNaYRqh8YYUtxyVIWY=;
+        b=JwhNlIOFbHPkEO4Ex+eyDzlJdnZeYHsSWWTg7xQHupq88NtJvpF7VnMCDfMraWcOYx
+         Zfp0BrGj4JnKNWiF/SjL9jgAP1zxQcW3PaCSE1pJR/VwLqFvrl5Dl6J764sHWiVUZpkh
+         j2yeKfgRXWrLZAw32s0g/7KhbCsHp3SxEhM/zOrOa9RdLTwNXrp2Hz3xgM7llZSWZRzb
+         qiDPQJ6SlqikQ0Iq1f0fr7XOptg1Z4hyZ5nRo3wLw5XT9rTc7jIyRBzInyCB3jCJm5pS
+         h8aXUBae7b5sxUXHS5OvULjfay9kAA+s2Wfmg5YwcG+/Rdk31a9YkfuZVjd6e8DSZpZi
+         K2qQ==
+X-Gm-Message-State: APjAAAVmL+Kr/NgtaPHOYmIIaCdLWKt2hIcO0RfADX95Hffw7hZJGLJ+
+	Efa4jWMjesn0t97nh60cM7AhnmqTWaYB3lD3XB3UYKsUjBnxc1jLGthfmqmFnPqM1KKYsWxA5La
+	B6PWYWMAuK9+4x3xU20M4yT+eJVG4ucCPYOr8g9l9Q/5AKxoHetwkBKTPDQr6+mTCtw==
+X-Received: by 2002:a02:1006:: with SMTP id 6mr19357098jay.47.1554687021144;
+        Sun, 07 Apr 2019 18:30:21 -0700 (PDT)
+X-Received: by 2002:a02:1006:: with SMTP id 6mr19357054jay.47.1554687020345;
+        Sun, 07 Apr 2019 18:30:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554687020; cv=none;
         d=google.com; s=arc-20160816;
-        b=So3CfPIHQ9/+3pi575x2JwdEYGk1JVB/m++HN08U5u0vN24DEZhJQ/8As+wgehpedb
-         Vp0KNkWWCdYChmJdA3NDnoU1AaZklSqF+1IQqVXURyrA9it5Ttn5cLTXrc1ZSjBeXZOc
-         VoT5QqDPF/hUW7k0dXFVZP0UN9z3q94D0hm8+86tCSseuGY1qinCfHkFKRNzDm35ZxNu
-         IAnVVAJCCacs20erNOP92k3sNav33X63pFK2flTX8JXMd3yh195HnoPcP4Zi4sTMaxe2
-         QPXvJvHr5i/qj4CYFfvd/v2Ld4kw1qJWF0mDqc4Y2WGSWJAP+QAmHlYw7qqRliePW1rn
-         7KNw==
+        b=w3GAkOWL1mgWZOjipbs+ZA08i0jy0Qx2hZ15T/M3LXeup5vftaRfNtCAt26Uk84YWq
+         15U7vhAH6RY3UgKjo3Hou1PgV7KGH2jQbZsMNg10wey5gcofENFZ58R5rPOeWvHtsEMV
+         m2ONJcSrrMR9jhRS3pT+dFBlldzRWlyGPfJoFBF2XPkssriZ2/a9yz35jzIcH5pKJPVI
+         zRisydzMoEJ7RKzQ+JyULoi142mlAzTgHAg5TR+4xXas+FlJeu52zVyGjVepaQY8LL2Y
+         hZqEtH9+U2afvp7hsNuVj+Q4qmsqkF6HXb4EvqEMNfEq5R4kP6sEp2QmWJrZFpPYkUCc
+         0Z4Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:mime-version:references:message-id:subject
-         :cc:to:from:date:dkim-signature:content-disposition;
-        bh=Ux048TmV854h+e950bXokICm1VWZROCck0ccAamUXr0=;
-        b=R9Rf5aeVIUompCmXYT9PXXDqayF4nYjnraKUrZrhsF2Vd5HuhFRdafm2gt1FSdpYnF
-         xSVwz/kfLdsEIVaCiKZeSRFvqmpbhDhIwKviCIwP6cwSp7CPY13lEY+ZkccTJ/VYiv5n
-         ziH+vyKxTCDiczKbVRO+sOjQSqU6900ulvZxkQduSO44CjuKtundCUKCLV3ftir83naQ
-         5Ubh+iZvf/5DlgcyEkT5OSHHZMuxB9d7FWEeNmQLZ78MaiBb+rK4YCVb8G76yxZhNlMM
-         GPE6Q0ElUhRznJQjpKwuYQfr9AlqZu7F5zECZzfXtsa+Jj0i1o+rSixdr96KpLAtQVFp
-         v6sw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=nCywoWrMYJtCxHlq86kes488DcNaYRqh8YYUtxyVIWY=;
+        b=U1COkiHhjKKg7rHR5ECrGzDkbFEtduRKVyXnWPJXL9Jgkj4wU0fj/mvgf1Yph/dCdS
+         Hu/NezIr2A+r2fC6S6DRJWILY0fhAMYoQypsgVkxUV4sQW9c/ZbwzI0KK0HOLMEJofv7
+         UMSbmI3A1tTl2wraP+O0+UZMaozHgqyJAKRchSLls00/gnLuTmybJTnoeosC+eJehONb
+         cH+m4p8rN0UtXSxLhLziWwjc66Kh8zlLP43EGQ4fyOMyF8T9IWjYXBrPkd+WEkdJOf7L
+         geoLEKPAiNGyi5P6Yym47WxnUhietmDc0YfNYuHSXZ0XsnRADXDThMSU3xQOFRvEpLRd
+         B5qA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@iluvatar.ai header.s=key_2018 header.b="Zbc+c/tj";
-       spf=pass (google.com: domain of sjhuang@iluvatar.ai designates 103.91.158.24 as permitted sender) smtp.mailfrom=sjhuang@iluvatar.ai;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=iluvatar.ai
-Received: from smg.iluvatar.ai (owa.iluvatar.ai. [103.91.158.24])
-        by mx.google.com with ESMTP id h187si11314923pgc.287.2019.04.07.18.23.24
-        for <linux-mm@kvack.org>;
-        Sun, 07 Apr 2019 18:23:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sjhuang@iluvatar.ai designates 103.91.158.24 as permitted sender) client-ip=103.91.158.24;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="EDyFgf/a";
+       spf=pass (google.com: domain of yuq825@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yuq825@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u63sor12606089ita.2.2019.04.07.18.30.20
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Sun, 07 Apr 2019 18:30:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yuq825@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@iluvatar.ai header.s=key_2018 header.b="Zbc+c/tj";
-       spf=pass (google.com: domain of sjhuang@iluvatar.ai designates 103.91.158.24 as permitted sender) smtp.mailfrom=sjhuang@iluvatar.ai;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=iluvatar.ai
-X-AuditID: 0a650161-78bff700000078a3-78-5caaa28bd427
-Received: from owa.iluvatar.ai (s-10-101-1-102.iluvatar.local [10.101.1.102])
-	by smg.iluvatar.ai (Symantec Messaging Gateway) with SMTP id 22.E3.30883.B82AAAC5; Mon,  8 Apr 2019 09:23:23 +0800 (HKT)
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-DKIM-Signature: v=1; a=rsa-sha256; d=iluvatar.ai; s=key_2018;
-	c=relaxed/relaxed; t=1554686603; h=from:subject:to:date:message-id;
-	bh=Ux048TmV854h+e950bXokICm1VWZROCck0ccAamUXr0=;
-	b=Zbc+c/tjn6VUUGy7gHT+rvKNJnbSpGkvqNlxx5CXMucMs21p//6rIXdkO+/THtZae3SDSXz+hZM
-	AloXWfy1olhnocsuAnEPf1MhRrZfCCkRpesAd+0Fl6WMgQfap04teimdi94j/nLFVieD0OgWKFIqA
-	lCZ/bjkmFE2Rm3TjdhQ=
-Received: from hsj-Precision-5520 (10.101.199.253) by
- S-10-101-1-102.iluvatar.local (10.101.1.102) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256_P256) id
- 15.1.1415.2; Mon, 8 Apr 2019 09:23:23 +0800
-Date: Mon, 8 Apr 2019 09:23:21 +0800
-From: Huang Shijie <sjhuang@iluvatar.ai>
-To: Ira Weiny <ira.weiny@intel.com>
-CC: <akpm@linux-foundation.org>, <sfr@canb.auug.org.au>, <linux-mm@kvack.org>,
-	<linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH] mm/gup.c: fix the wrong comments
-Message-ID: <20190408012320.GA11988@hsj-Precision-5520>
-References: <20190404072347.3440-1-sjhuang@iluvatar.ai>
- <20190404165046.GB1857@iweiny-DESK2.sc.intel.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="EDyFgf/a";
+       spf=pass (google.com: domain of yuq825@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yuq825@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=nCywoWrMYJtCxHlq86kes488DcNaYRqh8YYUtxyVIWY=;
+        b=EDyFgf/aPlebajoC3F/rMiW8uhpJusnN1Doo0IEat36waEOQrFZEIAZiCvz6XjGPn8
+         64fxb3Z5KMIyegaBOtMs3K36vCj3bo7LAM90Ti4EptH33l6FEfO2aLVZUWnGRKl6M4Sb
+         bSve5k/6mBxguDsWmeJnNglLxvj3+hZg9xMKjPPn1Q3iscYJ+WB1E2BvEhbwIiVS528s
+         K5T/OYLeVzAmCEp+qmQxMynGFOcvJnoXi7/BWG1oC3mA6uPXBH6/kc91ykqMYBIyxidk
+         MxacnA8ycu7Bcz51sw3xdypNpGF0iiqvJpSUcoy6vpJUR9Mq3I3k5bbQ+afUsOkkle8t
+         26UQ==
+X-Google-Smtp-Source: APXvYqz4jjlqKA12Lbb36/Yv08soFZcRR4DzriZpseKnQLfWTot1LMnhnhLz3Rn17Wv6H3kwXT3lcegcV8Kvgtv0sLk=
+X-Received: by 2002:a24:c544:: with SMTP id f65mr18703899itg.90.1554687019377;
+ Sun, 07 Apr 2019 18:30:19 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190404165046.GB1857@iweiny-DESK2.sc.intel.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
-X-Originating-IP: [10.101.199.253]
-X-ClientProxiedBy: S-10-101-1-105.iluvatar.local (10.101.1.105) To
- S-10-101-1-102.iluvatar.local (10.101.1.102)
-X-Brightmail-Tracker: H4sIAAAAAAAAA+NgFnrNLMWRmVeSWpSXmKPExsXClcqYptu9aFWMQesJDYs569ewWex/+pzF
-	4vKuOWwW99b8Z7XYuvcquwOrR+ONG2wei/e8ZPLY9GkSu8eJGb9ZPD5vkgtgjeKySUnNySxL
-	LdK3S+DK+HaMrWAHR8XO1sUsDYxn2LoYOTgkBEwkjk7i72Lk4hASOMEosX9XP2MXIycHs4CO
-	xILdn8BqmAWkJZb/4wCpYRF4yyTxfPELZoiGb4wSy6Z/ZAdpYBFQkVi29zqYzSagITH3xF1m
-	EFtEQFni9L+rbBBD8yUe3ZvNDDJUWMBU4s/GDBCTV8Bc4uhGf5AKIYFsidWXPoB18goISpyc
-	+YQFxOYUsJN483ED2GmiQBMPbDvOBNIqJKAg8WKlFkhYQkBJYsneWUwQdqHEjIkrGCcwCs9C
-	8swshGdmIVmwgJF5FSN/cW66XmZOaVliSWKRXmLmJkZIDCTuYLzR+VLvEKMAB6MSD++N7FUx
-	QqyJZcWVuYcYJTiYlUR4d04FCvGmJFZWpRblxxeV5qQWH2KU5mBREuctm2gSIySQnliSmp2a
-	WpBaBJNl4uCUamCaOV3o6p1NBisO9qzcL1O4fstiTe1vL1xUFTd83KEi0b6i7IpZ9pIXjBW+
-	5+S/HX1jejbrrpf0bNaLNW9d/tk+vXsnc5XWnQyRLWJFN7deZzsheaS72f60XcXT4g9+9Tvt
-	O6dvc7Bcv2PGrFOfjx2zTp//zdNngYvC0g3ZXlV/24LTBV3VlX6wf7ueeXDBL5t/J/ieyEgf
-	3cTe4lPQfWZi11nlojVlx+u4P7fvZvDauPHkhnkVT5q/c0pGVAb+XDj/UKld4IfKayc+bpe9
-	uNGvqUHD+aZ1T8JJCY6pa55N4d22y9+Zg3VWn/15cevgeboMDs/Xnvr06P0TwS3S/DqurWls
-	G086WpiX2RpJyLtOUWIpzkg01GIuKk4EALCAxvD+AgAA
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000009, version=1.2.4
+References: <201904061457.ZCY5n0Jo%lkp@intel.com> <c71215b3-8a6a-a4dd-b9bd-9252bd052a32@infradead.org>
+In-Reply-To: <c71215b3-8a6a-a4dd-b9bd-9252bd052a32@infradead.org>
+From: Qiang Yu <yuq825@gmail.com>
+Date: Mon, 8 Apr 2019 09:30:08 +0800
+Message-ID: <CAKGbVbsFXvEjxNH7Wm5Qr8ODyDfJ438qRELn0AB1BJdVV1AK6Q@mail.gmail.com>
+Subject: Re: [mmotm:master 227/248] lima_gem.c:undefined reference to `vmf_insert_mixed'
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: kbuild test robot <lkp@intel.com>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org, 
+	Linux Memory Management List <linux-mm@kvack.org>, Manfred Spraul <manfred@colorfullife.com>, 
+	Johannes Weiner <hannes@cmpxchg.org>, lima@lists.freedesktop.org, 
+	dri-devel <dri-devel@lists.freedesktop.org>
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 04, 2019 at 09:50:47AM -0700, Ira Weiny wrote:
-> On Thu, Apr 04, 2019 at 03:23:47PM +0800, Huang Shijie wrote:
-> > When CONFIG_HAVE_GENERIC_GUP is defined, the kernel will use its own
-> > get_user_pages_fast().
-> > 
-> > In the following scenario, we will may meet the bug in the DMA case:
-> > 	    .....................
-> > 	    get_user_pages_fast(start,,, pages);
-> > 	        ......
-> > 	    sg_alloc_table_from_pages(, pages, ...);
-> > 	    .....................
-> > 
-> > The root cause is that sg_alloc_table_from_pages() requires the
-> > page order to keep the same as it used in the user space, but
-> > get_user_pages_fast() will mess it up.
-> 
-> I wonder if there is something we can do to change sg_alloc_table_from_pages()
-> to work?  Reading the comment for it there is no indication of this limitation.
-The sg_alloc_table_from_pages() cannot work if the page order is wrong...
+Thanks Randy, I can add these.
 
-> So should we update that comment as well?
-Okay.
+Where should I send/submit the patch to in this case? Still drm-misc?
 
-I will create a DMA patch to add more comment for sg_alloc_table_from_pages().
+Regards,
+Qiang
 
-Thanks
-Huang Shijie
+
+On Mon, Apr 8, 2019 at 3:08 AM Randy Dunlap <rdunlap@infradead.org> wrote:
+>
+> On 4/5/19 11:47 PM, kbuild test robot wrote:
+> > Hi Andrew,
+> >
+> > It's probably a bug fix that unveils the link errors.
+> >
+> > tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> > head:   b09c000f671826e6f073a7f89b266e4ac998952b
+> > commit: 39a08f353e1f30f7ba2e8b751a9034010a99666c [227/248] linux-next-git-rejects
+> > config: sh-allyesconfig (attached as .config)
+> > compiler: sh4-linux-gnu-gcc (Debian 7.2.0-11) 7.2.0
+> > reproduce:
+> >         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+> >         chmod +x ~/bin/make.cross
+> >         git checkout 39a08f353e1f30f7ba2e8b751a9034010a99666c
+> >         # save the attached .config to linux build tree
+> >         GCC_VERSION=7.2.0 make.cross ARCH=sh
+> >
+> > All errors (new ones prefixed by >>):
+> >
+> >    arch/sh/kernel/cpu/sh2/clock-sh7619.o:(.data+0x1c): undefined reference to `followparent_recalc'
+> >    drivers/gpu/drm/lima/lima_gem.o: In function `lima_gem_fault':
+> >>> lima_gem.c:(.text+0x6c): undefined reference to `vmf_insert_mixed'
+>
+>
+> vmf_insert_mixed() is only built for MMU configs, and the attached config
+> does not set/enable MMU.
+> Maybe this driver should depend on MMU, like several other drm drivers do.
+>
+>
+> Also, lima_gem.c needs this line to be added to it:
+>
+> --- mmotm-2019-0405-1828.orig/drivers/gpu/drm/lima/lima_gem.c
+> +++ mmotm-2019-0405-1828/drivers/gpu/drm/lima/lima_gem.c
+> @@ -1,6 +1,7 @@
+>  // SPDX-License-Identifier: GPL-2.0 OR MIT
+>  /* Copyright 2017-2019 Qiang Yu <yuq825@gmail.com> */
+>
+> +#include <linux/mm.h>
+>  #include <linux/sync_file.h>
+>  #include <linux/pfn_t.h>
+>
+>
+>
+> --
+> ~Randy
 
