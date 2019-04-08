@@ -3,91 +3,90 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1307BC10F14
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 20:47:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0147EC10F13
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 20:51:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 939B720880
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 20:47:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 939B720880
+	by mail.kernel.org (Postfix) with ESMTP id A376D20857
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 20:51:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A376D20857
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D45836B000A; Mon,  8 Apr 2019 16:47:22 -0400 (EDT)
+	id 3F7166B000A; Mon,  8 Apr 2019 16:51:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CF59F6B000C; Mon,  8 Apr 2019 16:47:22 -0400 (EDT)
+	id 37C6F6B000C; Mon,  8 Apr 2019 16:51:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BBDEC6B000E; Mon,  8 Apr 2019 16:47:22 -0400 (EDT)
+	id 1F7416B000E; Mon,  8 Apr 2019 16:51:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 95B576B000A
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 16:47:22 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id f15so13814348qtk.16
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 13:47:22 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EAC346B000A
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 16:51:22 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id a15so12664867qkl.23
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 13:51:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=xef8B79Okmiccc5bP3vCgDVQFXeltJ4WGK5PPtcRGXg=;
-        b=ldhHJiVj8+SEiQK7G0XZI+rkygNrbWPRQ1RoakLzUtaBYc3YMGuD15xwpUQV5teiKS
-         6JflWnjbcMLY6xTX/iclPVGXh73KhE9z7/kmvOeB7dLTA7awB41nHkKBaMB9SMREKqSu
-         8b7GK+CgaSEQXVIvPV09M2YvZKSSeIRxWczhR6PnuF1XV32iGPCW2dUaYTMd/Atw9vW7
-         LEG1RbFwYD9R3nGTZNuH4HosVUOGTcyeO7+nzXPvuebb6O5X7mrZtHD0KHrmfk+a1ihg
-         tMtsmPUQjdeghRfeEmP/Bk3b+kk1nFOX88/EJfpUuim+KdzjyCeESeqameDVAFK0tk/e
-         HUVw==
+        bh=qWgoqLrehLWrlYPdO3DLSlxzqJjTk6sf/El8Ywa/2fU=;
+        b=L9bTSvnweWyjoovmXdzIc3vSBSnVY6ez8CMCJENnonDNnlUbvsy1Qtw1UhXGrf56R9
+         +/dpzLetquO5jyOvAy/BLoAdOecMXvJP550oXAlkbALcSfNc8CZXiZ9Z8Rcwy6JVTObj
+         wfm60tMJAYsZFY9ONHt8mLaRQS3Ygmsq4+0FliKQb2b8cWDXRBKRsXninbGk3ulesmWm
+         Vq7j4C+fNt91AlNG6o237723AddH4/0AvPCVAxtVpp1tBasWB4KH3Os4Tlh9FgaulToe
+         KuNw6w67IhC4GG9jzkqU5qEJ8WIenIYGt005lrb4p/+hcRsg2fZknhEBYclY4BLdefjP
+         R8TQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWfFMA56ElXlsGUsT34lLOJhYCVGzFb1xO324wvUfgA+E+cYsCs
-	ngaLpkQsoQ7Io0ft77pgwpf9daUp0X7rBU/f4Iy4G6CirdX6hjPUeDNcASiJSmTuqJjfilUCwn+
-	vVHas9xLMkVgZdxOOgTrMFRNnUv04SCc8tw5VSdIxdkf4mS+SJeGaSLMTVZhZ3VJAgA==
-X-Received: by 2002:a0c:9524:: with SMTP id l33mr25820354qvl.41.1554756442373;
-        Mon, 08 Apr 2019 13:47:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwKKPjJsYfxwKj1jNNXJlTbrEgFcGwyFkXMd2J9EKSwC8rtyIbeuBPHNH+sD8M6yM5YGVpO
-X-Received: by 2002:a0c:9524:: with SMTP id l33mr25820306qvl.41.1554756441638;
-        Mon, 08 Apr 2019 13:47:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554756441; cv=none;
+X-Gm-Message-State: APjAAAVWXGA/47fvEPGmdGKGwGcc9R0mCxjrl7A4Fs278+RNBTvVkvco
+	EwlAm5f3WGX3ogUH3UHdzW6zacBo2MKC2aaof4cKmpvkVtUxNg5wS1Qzd/VIkIaP+M6fV9jrQ8t
+	xeJs6qlEvlfMEQoOS6ici4QZkWHKz+K4QnWFomV1/bVmIU/VTMUjmpVq9ug/c2VB8XQ==
+X-Received: by 2002:a37:638c:: with SMTP id x134mr23942593qkb.107.1554756682647;
+        Mon, 08 Apr 2019 13:51:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwPc3FjawPIFKus+RkLr/z7cHTTK+mm/ehMwTOpEkCTsdlnJUxDlfvQdlrailFuyCYc/UNK
+X-Received: by 2002:a37:638c:: with SMTP id x134mr23942543qkb.107.1554756681892;
+        Mon, 08 Apr 2019 13:51:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554756681; cv=none;
         d=google.com; s=arc-20160816;
-        b=jssrcanLRG28+qM8oEp1iQpx0via7uZDxLQWmBinum0eWIGyyEEjxoO5BNUdHRiWf2
-         wgJ9IT3PxonxLkPgD5wRN19BP51qNE79AqePnK+ABu/ZNgQ6VxWFKMEli6KH0rjaLS/O
-         ym9ez/w23sBaYRT09X1UiTRCgC+XuwvqPCPCMaGE7x2AYDZDjlnZW4G6tNS114b4s+1n
-         C4ECVtnSyWb6/fsAuuVW6DHtwPnyHCS5Xlzex033kqXjVbhm3FP6bW5KkK0Jr/lvUj0s
-         kVNXSkVCtND6p5huz0/4ExKHi+KI1YtbmzDX3lNCb82TZodK+6V004256D6fHUXnCsUi
-         cUag==
+        b=pftQrqoP2/UkBlS/vTdiGIou4GQ4KaQkNekRJJY81sYet/5uslZdN0jAWg9DeI1bZx
+         iszbGYPjpP4POb2a9SDuwOvB74+CiilaHwG+NeVY22QnVg2ptjfAv0eGUz2sgC0sffE4
+         cgjsWNGNVJQFotRu5kHydT6T+vqYhISJri7VIaPZfrNLmZ1cfiotdGZNgWIspiXpc9LA
+         yfk6NwCCells4Nyp7M5xLKbP/P+XD4Odh1jlrv0bmud945HnVEScQpvIA/CtYRAwIQYz
+         S+IG+yX9+8YphR1F5zw32qqQrQhBDwd/nO7aQ72V5mDIgbJ89IqD0uatg4gQqButys93
+         VnjQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=xef8B79Okmiccc5bP3vCgDVQFXeltJ4WGK5PPtcRGXg=;
-        b=VsFXgr8x7Er0i5lxGO0/CjipSE6DhjDyvukePYucOID5q2tCaFpBm5cFJKH6xOye5f
-         fi4dvm5pfDvuSsxnsbnVRFy6FFWwwUbg/1hAVfEmKfLYFi/jutc1fvWrQPVS7J894XZg
-         YT5xRQNLy3M5PfeFFfWZT5qWEmztFN2rS21BuG7Lz7H2Gao85fgNwcJdDqyLBmxfaaRI
-         83c+3ZJPFMBBpqcl4MGvwwo1//PdiPFUKKqMKh1eD/bD3HasRVdqf0fyvIRtRb5JauPD
-         uPoPfPcTPWzA1QR2FKlIIOHhkVL1h2S3878ix9XVjRFocrP6amdJdLgkCSYOlmQ8QCzd
-         0WCg==
+        bh=qWgoqLrehLWrlYPdO3DLSlxzqJjTk6sf/El8Ywa/2fU=;
+        b=a6vGj2VU/lu7auyM/qNpSlmkJV6R47+siYMjs9J9rCUOtPN41Q8g4ZWQ0Gm18IdjAd
+         8+hZ1SDvO/Lds5XlY2utnZ9lDY23OPmLDziu5DPpU/HRHv2UDugQuUWj+uHirRBhSA6J
+         L9A2W8VZ6L66TXFa56C6iBAKG0WqRmWWsmBDTYRuQ+Im9KTBkUc0Jd7wEzLgWEJkD267
+         LhfuzYWINl9HWqvVDnFrJ/qCSCs8w0fjMOo+y6InTYb8czxREXnwmof7MeDaahR4eeKh
+         xrVFApsdma25sGzptGnCO+281Yrm3zLiUs9jAPw43NKvg+rf9X+wXzD7lNPCp6S2LZZe
+         /7jA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y10si1240076qkl.86.2019.04.08.13.47.21
+        by mx.google.com with ESMTPS id r15si8787913qkm.252.2019.04.08.13.51.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Apr 2019 13:47:21 -0700 (PDT)
+        Mon, 08 Apr 2019 13:51:21 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id A84D0308213E;
-	Mon,  8 Apr 2019 20:47:20 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id E89A73092645;
+	Mon,  8 Apr 2019 20:51:20 +0000 (UTC)
 Received: from [10.36.116.113] (ovpn-116-113.ams2.redhat.com [10.36.116.113])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id BC86E5D719;
-	Mon,  8 Apr 2019 20:47:10 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 7E7C260472;
+	Mon,  8 Apr 2019 20:51:11 +0000 (UTC)
 Subject: Re: Thoughts on simple scanner approach for free page hinting
 To: Alexander Duyck <alexander.duyck@gmail.com>
 Cc: "Michael S. Tsirkin" <mst@redhat.com>,
@@ -149,17 +148,17 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <b86e69f8-88b9-d579-f318-097203a73673@redhat.com>
-Date: Mon, 8 Apr 2019 22:47:09 +0200
+Message-ID: <efe01b95-33d4-71ce-2a48-ec43f0846d68@redhat.com>
+Date: Mon, 8 Apr 2019 22:51:10 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.4.0
 MIME-Version: 1.0
 In-Reply-To: <CAKgT0Ucp1nt4roC1xdZEMcD17TvJovsDKBdkRK6vA_4bUM8bdw@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Mon, 08 Apr 2019 20:47:20 +0000 (UTC)
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Mon, 08 Apr 2019 20:51:21 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -218,14 +217,58 @@ On 08.04.19 22:10, Alexander Duyck wrote:
 > handling identifying these bits one way, and makedumpfile is doing it
 > another way. It should have been setup to handle this all the same
 > way.
+> 
+>>
+>>>>>
+>>>>> Lastly we would need to create a specialized function for allocating
+>>>>> the non-"Offline" pages, and to tweak __free_one_page to tail enqueue
+>>>>> "Offline" pages. I'm thinking the alloc function it would look
+>>>>> something like __rmqueue_smallest but without the "expand" and needing
+>>>>> to modify the !page check to also include a check to verify the page
+>>>>> is not "Offline". As far as the changes to __free_one_page it would be
+>>>>> a 2 line change to test for the PageType being offline, and if it is
+>>>>> to call add_to_free_area_tail instead of add_to_free_area.
+>>>>
+>>>> As already mentioned, there might be scenarios where the additional
+>>>> hinting thread might consume too much CPU cycles, especially if there is
+>>>> little guest activity any you mostly spend time scanning a handful of
+>>>> free pages and reporting them. I wonder if we can somehow limit the
+>>>> amount of wakeups/scans for a given period to mitigate this issue.
+>>>
+>>> That is why I was talking about breaking nr_free into nr_freed and
+>>> nr_bound. By doing that I can record the nr_free value to a
+>>> virtio-balloon specific location at the start of any walk and should
+>>> know exactly now many pages were freed between that call and the next
+>>> one. By ordering things such that we place the "Offline" pages on the
+>>> tail of the list it should make the search quite fast since we would
+>>> just be always allocating off of the head of the queue until we have
+>>> hinted everything int he queue. So when we hit the last call to alloc
+>>> the non-"Offline" pages and shut down our thread we can use the
+>>> nr_freed value that we recorded to know exactly how many pages have
+>>> been added that haven't been hinted.
+>>>
+>>>> One main issue I see with your approach is that we need quite a lot of
+>>>> core memory management changes. This is a problem. I wonder if we can
+>>>> factor out most parts into callbacks.
+>>>
+>>> I think that is something we can't get away from. However if we make
+>>> this generic enough there would likely be others beyond just the
+>>> virtualization drivers that could make use of the infrastructure. For
+>>> example being able to track the rate at which the free areas are
+>>> cycling in and out pages seems like something that would be useful
+>>> outside of just the virtualization areas.
+>>
+>> Might be, but might be the other extreme, people not wanting such
+>> special cases in core mm. I assume the latter until I see a very clear
+>> design where such stuff has been properly factored out.
+> 
+> The only real pain point I am seeing right now is the assumptions
+> makedumpfile is currently making about how mapcount is being used to
+> indicate pagetype. If we patch it to fix it most of the other bits are
+> minor.
 
-Here you go:
-
-https://sourceforge.net/p/makedumpfile/code/ci/master/tree/
-
-for now we only had one type at a time, so it wasn't an issue. E.g.
-Buddy or Offline were never used in combination with other types. They
-had distinct mapcount values.
+I'll be curious how splitting etc. will be handled. Especially if you
+want to set Offline for all affected sub pages.
 
 -- 
 
