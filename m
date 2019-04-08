@@ -2,190 +2,211 @@ Return-Path: <SRS0=5KBY=SK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EEC9AC282CE
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 04:44:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 80F6EC282CE
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 05:04:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9835220883
-	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 04:44:25 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1D14D2083E
+	for <linux-mm@archiver.kernel.org>; Mon,  8 Apr 2019 05:04:26 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="gnGCe3xj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9835220883
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="HyhogeWZ";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="xjTLQQUD"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1D14D2083E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=tobin.cc
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2855E6B0279; Mon,  8 Apr 2019 00:44:25 -0400 (EDT)
+	id 81B016B027A; Mon,  8 Apr 2019 01:04:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 23D7E6B027A; Mon,  8 Apr 2019 00:44:25 -0400 (EDT)
+	id 7C99F6B027C; Mon,  8 Apr 2019 01:04:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 124A86B027B; Mon,  8 Apr 2019 00:44:25 -0400 (EDT)
+	id 692476B027D; Mon,  8 Apr 2019 01:04:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C51026B0279
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 00:44:24 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id h15so9234994pgi.19
-        for <linux-mm@kvack.org>; Sun, 07 Apr 2019 21:44:24 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 476C96B027A
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 01:04:26 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id 54so11699694qtn.15
+        for <linux-mm@kvack.org>; Sun, 07 Apr 2019 22:04:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=0pfBnB60nfaq0Lris59bgawiBT3Gg1IQEoag+3VPJ9A=;
-        b=X2dpZHHwz9rOj4tQTp0N+YHeyemdb9TGvY74navrEg1ZWjAnKaIWVXEcBs1bBgucC6
-         DfbjLNqpWYWccNOtkrQZnu96LYeOjmjyRiS7OOaTx7O8OHxTR5E28c07TR2huFuVt0sW
-         coHHsk3EmeNyF1RsJ9vqKipKu5uNcNoKQ24zMWdpB1uBjZPPiLIdMToFzywW41mXWv0w
-         nEbINwHegLZSvdmZBZjynt+5/tgfRs9lS5/6gp7IxAupr1LqwIva6npgA10sJJn1L3Q/
-         JLPZ9aWXBYgERYVzsb+ndo399L5c8JNbywFDBX8uoQbzfmbj5wbBVzSKTaKOhmLul1dd
-         tKXg==
-X-Gm-Message-State: APjAAAU7JkUlvvYhknzdOokNVGtTCo4phe2w/grJlEMMrZDb4DsLbll4
-	sZPD+U1Cu0eHuHBUrYKb9YySxlNXNYNpF17Ip8tAxpgS4w5s7kT0EkLxxoufEKjDfWpNtfwbln3
-	BiwIxp/IPJx6jzvJJkcTd2cP+V1ZNOlVJDWUu17fhNG6g7dTx/b/BYxum/YGDmg4H6g==
-X-Received: by 2002:a17:902:ea0d:: with SMTP id cu13mr27742216plb.92.1554698664269;
-        Sun, 07 Apr 2019 21:44:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxjpaZyYw9r2ZZ2beptZXwR6H/JdjMwCrSWxEn6qEFWkqpokZ6q/jtG7wMlvdJrLAeLuCMC
-X-Received: by 2002:a17:902:ea0d:: with SMTP id cu13mr27742161plb.92.1554698663042;
-        Sun, 07 Apr 2019 21:44:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554698663; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:date:from:to:cc
+         :subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=hE/ilqrmaBWBrc9SZREc/D/cYwcvR1SyLzOeCz+R+CA=;
+        b=te8CtGloOoLMooJTxjMIALpal2QKuZNZnbx7C/+aa29GGW7PqRj3nxj433EnZ5VeLV
+         hJrSGXFt3q4XFn4tloE24MJ8kvk3Xs26bJUO37uLcriWDPiWXZpbKpLmpw0wL+64VOHK
+         KzFfjWqUj0jmdTBqSuMBef8dGLPhcy6xF1VFFD69liHgaaTLfXVUlYU+3E9yOiRfp6ys
+         Hr4JsmxuqtCqTfSPYdBB+AFKnpsoNl4IDW48DAnaUx0lktWeUaoklWyYgfeg1OtKMiWG
+         xIvjClV9cF9I3OWEhEMg78wpLOg2CmsEZsn9utQ/VFqPVvubGN7Rv5CWnpef52Qhl5Pb
+         1wWw==
+X-Gm-Message-State: APjAAAWrBuRe01YQFYrw3K62z4AOE5145zPIzCsFVEXRq5hmgifLWMxV
+	De01cZp0fmYn6d/MM8rPhI/nBtyXntYIM1KLbNE4U/QsF0gC752FSK6XtsWEowZnocxrqvor9mE
+	2AIHPmIi1roC5znTEQqGYjuhJpcNV4EPHFQQRR0Uh8o9voKEOiqTyHhN2Zl7yYyevzA==
+X-Received: by 2002:ac8:3812:: with SMTP id q18mr22001915qtb.17.1554699865978;
+        Sun, 07 Apr 2019 22:04:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzNh1M46z8O6fu4Ahgj6nGfOOs1U+XUx2/YAWfp3ZzldyVFheE+E16PU4XZ26XPODepN8lZ
+X-Received: by 2002:ac8:3812:: with SMTP id q18mr22001887qtb.17.1554699865303;
+        Sun, 07 Apr 2019 22:04:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554699865; cv=none;
         d=google.com; s=arc-20160816;
-        b=VBifTVVfveEmopmBBQQOYRBb8qZQ+KhJrRpWI8qSfYOurylXiuT0CHYYMD7BwY5g8Y
-         7c8HFBmBLOCVlxgtl1k6CqMeIXgCV+b9EXy1wtL4QNXPhHeyVCpv2aXZl+aoKT4vGOFp
-         Akn1IxnF1yIIZjJDzdGj1iquq5N3psUF4p/DhwmoRAX+eV7ApmrL1QVCjIqD/tWKxlL5
-         mPH2+JVYCNnlPF17bFd0QgCO3nbi3EAGNTOW4Wf2hVxlWLjRXZrvZTIJm1S5epwkLLrb
-         rnLGa+jkFC6SiA3NK7qImLm+U4IIk14W8pQ2AhDOUNvtG0gBelo47hWyeFV0nxIMUP/S
-         Tl8w==
+        b=UAi9mV9mi64+NXFd5lGHz643ZtcgkKOq0/C46UkkxTJKWWdvgG6J+Uhr+FHIUOaruz
+         OPiAyPqiUtQR8BAyC6KluIogHwsWx0gswu+hFwChZ12+nBldMPlWCo0QClu7xGK+sPVM
+         JJE4AiT/jRbpxxKYFZzgV/RtqQvaYDMMxPlnJ8qAgsjMt1IdqJM3IK8CVTDBMDSdft6B
+         H+BBhaLrq7Ab7UHXTxAmLcFgvT1ElmhUkN7676SSdmHujlqkUnIIIDGccxoNqQSb2mYU
+         Or4Pm6HAKxppAlEuOyL/zCsyqpyMKfGVZ7pBdmoJdNPGM8/I3AloH6xKgqpFP3g7C0fR
+         fMLw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=0pfBnB60nfaq0Lris59bgawiBT3Gg1IQEoag+3VPJ9A=;
-        b=OnVakgYccwQUE3X7gXSfi2teK5utS9pqIPVcp2ElB4AWL4CjTEdX2238S7AavdBm6/
-         +kna3GdaG05OtsQ2boQMx1nbvbnZf9x8zPwqtOUP/kkckH6DN83m3muWJTvhnE6wsnoo
-         864MQiNZLOZPnOKQuaWNnJOxbQenKgXitibBZsDQEzJodD5zMwDBdSOK/3CX1W2FRYiC
-         QGPsqUkdfuFZhYMeg/bAJJS2ktRlFU4xCnimCqEPPMB9mg6S5aUppLSlF1MampnVtMdP
-         voJGrNIPzv3LMCy9eySlmnURBktNIIK4mk79uJl8Ll7BOZ43muOP+z6fAz6uoK/+54a0
-         meTw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature:dkim-signature;
+        bh=hE/ilqrmaBWBrc9SZREc/D/cYwcvR1SyLzOeCz+R+CA=;
+        b=qYGFJZd52OfZg/zdBPB+t9Xm4CUTUZWvIvscyHIvEOBj2yOv8TZGqOSbUXas6JSmxy
+         D9dkK/DFp5eMEaFSgs3vbehnnekTdGdaPoZNuG3rp84moXyOq/UZIHQLjcScR23MT2Bp
+         ejTn7gJ67cRV+mYZAcYESOMV20xcacZ5c8n9UgFl2Q9Cyw93tgRJ/gs/nowKFYBAfKJA
+         NyHZp0qq5x8CvCgwoK8OMeCMF28LaU6E8a9n8tf6EHSlurAqWfOhcBg/39VJROo8BjJw
+         Z5oZyv5Obf15/ZtY7iM8TowOFjUUuC806MCI+fHBlhIhVLPn0TUyFS2wyGxjCz+PS199
+         z3zw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=gnGCe3xj;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id e22si24286196pgv.323.2019.04.07.21.44.22
+       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=HyhogeWZ;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=xjTLQQUD;
+       spf=neutral (google.com: 66.111.4.28 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
+Received: from out4-smtp.messagingengine.com (out4-smtp.messagingengine.com. [66.111.4.28])
+        by mx.google.com with ESMTPS id h50si231827qvd.87.2019.04.07.22.04.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 07 Apr 2019 21:44:23 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 07 Apr 2019 22:04:25 -0700 (PDT)
+Received-SPF: neutral (google.com: 66.111.4.28 is neither permitted nor denied by best guess record for domain of me@tobin.cc) client-ip=66.111.4.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=gnGCe3xj;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
-	Content-Type:In-Reply-To:MIME-Version:Date:Message-ID:From:References:Cc:To:
-	Subject:Sender:Reply-To:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=0pfBnB60nfaq0Lris59bgawiBT3Gg1IQEoag+3VPJ9A=; b=gnGCe3xjoHoh34UQiWRArnDC/
-	gCin2I2YIjvw53ApSM20j5U+CLCEYAAJTyfLO3Ns63RDLMpOQ4EIqWO9arQBWMCYXV9CEZGjonh/i
-	HxkugAB5Yf38U+XfhZygPC28Cyw7zUiLx/RCmhRpZjHsEIiWc7kuJFzXGlUt3YrRQLm17UEhYT1/I
-	deLJ6YUjh6hMTlBKpYdntjn/FtQgLAIi0ZkYPEeR2gdJWReuDNVrGBdL8bsW0uhPTSyqmcEIpLjgO
-	Wuh6KwbrfcVdeSv5tIYcodxMfKeqNpogs9j3cDk+MTR2KE6ihtNHfzfompCAIWbNkeaABH9ekVTtK
-	QGjOWY+xA==;
-Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=midway.dunlab)
-	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hDM8q-00018R-5f; Mon, 08 Apr 2019 04:44:20 +0000
-Subject: Re: [mmotm:master 227/248] lima_gem.c:undefined reference to
- `vmf_insert_mixed'
-To: Qiang Yu <yuq825@gmail.com>
-Cc: kbuild test robot <lkp@intel.com>,
- Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org,
- Linux Memory Management List <linux-mm@kvack.org>,
- Manfred Spraul <manfred@colorfullife.com>,
- Johannes Weiner <hannes@cmpxchg.org>, lima@lists.freedesktop.org,
- dri-devel <dri-devel@lists.freedesktop.org>
-References: <201904061457.ZCY5n0Jo%lkp@intel.com>
- <c71215b3-8a6a-a4dd-b9bd-9252bd052a32@infradead.org>
- <CAKGbVbsFXvEjxNH7Wm5Qr8ODyDfJ438qRELn0AB1BJdVV1AK6Q@mail.gmail.com>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <162043bc-a3c6-f5d6-f073-c52b1c5ec8b9@infradead.org>
-Date: Sun, 7 Apr 2019 21:44:18 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=HyhogeWZ;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=xjTLQQUD;
+       spf=neutral (google.com: 66.111.4.28 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
+Received: from compute5.internal (compute5.nyi.internal [10.202.2.45])
+	by mailout.nyi.internal (Postfix) with ESMTP id 8414D21BF4;
+	Mon,  8 Apr 2019 01:04:24 -0400 (EDT)
+Received: from mailfrontend1 ([10.202.2.162])
+  by compute5.internal (MEProxy); Mon, 08 Apr 2019 01:04:24 -0400
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=tobin.cc; h=date
+	:from:to:cc:subject:message-id:references:mime-version
+	:content-type:in-reply-to; s=fm2; bh=hE/ilqrmaBWBrc9SZREc/D/cYwc
+	vR1SyLzOeCz+R+CA=; b=HyhogeWZnD8yWEIQknvyT1SZOB03vFgHKf0YM4TEvKB
+	ow4G6H2/eZ7U3U3FNtqrcxUlaRhND4Ww/6yWCXXOX5Gts49b+TL4c+jSvT8c5JM8
+	e7jUZaZkCiRHQgqf/Fo+NC2VlK0lpPw87Zfa6UicQ/ztfazPe9BO5lAb5ePZ5lZL
+	B2eFZEsfHaJ2NeCE6BrTfhc8HjbGadVAr3ckqvXK6mlx05mMNRwaiMrkxemc+fsn
+	Mt+bTsM6Yf0ArfrIoXFypKmUw7JWwNp99xs8LPeoalfYJQUetTifBgyhTzbMdKSs
+	gxgaTiwJr+FDLjr8Ij+ZqbEmwIwtyJCJI9VMEKph8Qw==
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-type:date:from:in-reply-to
+	:message-id:mime-version:references:subject:to:x-me-proxy
+	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=hE/ilq
+	rmaBWBrc9SZREc/D/cYwcvR1SyLzOeCz+R+CA=; b=xjTLQQUDJ69DcUCKDOYLB/
+	ZNqQToz4JG5wXILgejFTmOnPuGr6O6x9kweZxzao2qr8eZGlO4N4NOKyGyqW+J/s
+	DqE+Kg0Nw8QpUN0IbRb3wINS1LbxtPK695ulSW7yRtZp3ljT3CeSxkdvvIpAAbW6
+	m0gQVXk+D7xpRw8AFWO2gcQuWxJ76xxSXDOnL3gke2eJPoLOG+FBLHG2AQUc7heZ
+	bzhtMw7/gBBtiHpr7ug11ZQwGBIu9Ej6OhW0AuH2XO72KAcbo/UOXKv2uCUOBC16
+	LgqGnZL3PWsjCKXaDFaeTb5Rp/ybgOIXt/oa+31Od7TM6nkXcpKF0J+gMoJZFlAA
+	==
+X-ME-Sender: <xms:VtaqXHQrl2Rnm3zZ9_DnRhtf5LNc7F4A2po8z70IBvEpc84NSOtUiw>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddruddvgdelvdcutefuodetggdotefrodftvf
+    curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
+    uegrihhlohhuthemuceftddtnecufghrlhcuvffnffculddvtddmnecujfgurhepfffhvf
+    fukfhfgggtuggjofgfsehttdertdforedvnecuhfhrohhmpedfvfhosghinhcuvedrucfj
+    rghrughinhhgfdcuoehmvgesthhosghinhdrtggtqeenucfkphepuddvgedrudeiledrud
+    ehvddrvddvleenucfrrghrrghmpehmrghilhhfrhhomhepmhgvsehtohgsihhnrdgttgen
+    ucevlhhushhtvghrufhiiigvpedt
+X-ME-Proxy: <xmx:VtaqXFM55y-Lsvx9BfNr-Jd_qUDbfDVeqsbqBQutxhqk5m8vt3nfQA>
+    <xmx:VtaqXEFFVgAswZvjh2f7zizTGf0Fmijw_DixNW3IknTr3QYTvL0_JQ>
+    <xmx:VtaqXNj-NJrq2bOcUmicHU0C3RK17vHZS3kvisD6cQqpuCPudp9rsw>
+    <xmx:WNaqXOxY7Aimmz5vAghteFC5XVtiYBCokC2ennYuK6mvdCNcHove3g>
+Received: from localhost (124-169-152-229.dyn.iinet.net.au [124.169.152.229])
+	by mail.messagingengine.com (Postfix) with ESMTPA id AED3CE460B;
+	Mon,  8 Apr 2019 01:04:21 -0400 (EDT)
+Date: Mon, 8 Apr 2019 15:03:52 +1000
+From: "Tobin C. Harding" <me@tobin.cc>
+To: Qian Cai <cai@lca.pw>
+Cc: akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org,
+	rientjes@google.com, iamjoonsoo.kim@lge.com, tj@kernel.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] slab: fix a crash by reading /proc/slab_allocators
+Message-ID: <20190408050352.GA8889@eros.localdomain>
+References: <20190406225901.35465-1-cai@lca.pw>
 MIME-Version: 1.0
-In-Reply-To: <CAKGbVbsFXvEjxNH7Wm5Qr8ODyDfJ438qRELn0AB1BJdVV1AK6Q@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190406225901.35465-1-cai@lca.pw>
+X-Mailer: Mutt 1.11.4 (2019-03-13)
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/7/19 6:30 PM, Qiang Yu wrote:
-> Thanks Randy, I can add these.
+On Sat, Apr 06, 2019 at 06:59:01PM -0400, Qian Cai wrote:
+> The commit 510ded33e075 ("slab: implement slab_root_caches list")
+> changes the name of the list node within "struct kmem_cache" from
+> "list" to "root_caches_node", but leaks_show() still use the "list"
+> which causes a crash when reading /proc/slab_allocators.
 > 
-> Where should I send/submit the patch to in this case? Still drm-misc?
-
-Sounds good to me.
-
-Thanks.
-
-> Regards,
-> Qiang
+> BUG: unable to handle kernel NULL pointer dereference at
+> 00000000000000aa
+> PGD 0 P4D 0
+> Oops: 0000 [#1] SMP DEBUG_PAGEALLOC PTI
+> CPU: 3 PID: 5925 Comm: ldd Not tainted 5.1.0-rc3-mm1+ #6
+> RIP: 0010:__lock_acquire.isra.14+0x4b4/0xa50
+> Call Trace:
+>  <IRQ>
+>  lock_acquire+0xa3/0x180
+>  _raw_spin_lock+0x2f/0x40
+>  do_drain+0x61/0xc0
+>  flush_smp_call_function_queue+0x3a/0x110
+>  generic_smp_call_function_single_interrupt+0x13/0x2b
+>  smp_call_function_interrupt+0x66/0x1a0
+>  call_function_interrupt+0xf/0x20
+>  </IRQ>
+> RIP: 0010:__tlb_remove_page_size+0x8c/0xe0
+>  zap_pte_range+0x39f/0xc80
+>  unmap_page_range+0x38a/0x550
+>  unmap_single_vma+0x7d/0xe0
+>  unmap_vmas+0xae/0xd0
+>  exit_mmap+0xae/0x190
+>  mmput+0x7a/0x150
+>  do_exit+0x2d9/0xd40
+>  do_group_exit+0x41/0xd0
+>  __x64_sys_exit_group+0x18/0x20
+>  do_syscall_64+0x68/0x381
+>  entry_SYSCALL_64_after_hwframe+0x44/0xa9
 > 
+> Fixes: 510ded33e075 ("slab: implement slab_root_caches list")
+> Signed-off-by: Qian Cai <cai@lca.pw>
+> ---
+>  mm/slab.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
 > 
-> On Mon, Apr 8, 2019 at 3:08 AM Randy Dunlap <rdunlap@infradead.org> wrote:
->>
->> On 4/5/19 11:47 PM, kbuild test robot wrote:
->>> Hi Andrew,
->>>
->>> It's probably a bug fix that unveils the link errors.
->>>
->>> tree:   git://git.cmpxchg.org/linux-mmotm.git master
->>> head:   b09c000f671826e6f073a7f89b266e4ac998952b
->>> commit: 39a08f353e1f30f7ba2e8b751a9034010a99666c [227/248] linux-next-git-rejects
->>> config: sh-allyesconfig (attached as .config)
->>> compiler: sh4-linux-gnu-gcc (Debian 7.2.0-11) 7.2.0
->>> reproduce:
->>>         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->>>         chmod +x ~/bin/make.cross
->>>         git checkout 39a08f353e1f30f7ba2e8b751a9034010a99666c
->>>         # save the attached .config to linux build tree
->>>         GCC_VERSION=7.2.0 make.cross ARCH=sh
->>>
->>> All errors (new ones prefixed by >>):
->>>
->>>    arch/sh/kernel/cpu/sh2/clock-sh7619.o:(.data+0x1c): undefined reference to `followparent_recalc'
->>>    drivers/gpu/drm/lima/lima_gem.o: In function `lima_gem_fault':
->>>>> lima_gem.c:(.text+0x6c): undefined reference to `vmf_insert_mixed'
->>
->>
->> vmf_insert_mixed() is only built for MMU configs, and the attached config
->> does not set/enable MMU.
->> Maybe this driver should depend on MMU, like several other drm drivers do.
->>
->>
->> Also, lima_gem.c needs this line to be added to it:
->>
->> --- mmotm-2019-0405-1828.orig/drivers/gpu/drm/lima/lima_gem.c
->> +++ mmotm-2019-0405-1828/drivers/gpu/drm/lima/lima_gem.c
->> @@ -1,6 +1,7 @@
->>  // SPDX-License-Identifier: GPL-2.0 OR MIT
->>  /* Copyright 2017-2019 Qiang Yu <yuq825@gmail.com> */
->>
->> +#include <linux/mm.h>
->>  #include <linux/sync_file.h>
->>  #include <linux/pfn_t.h>
->>
->>
->>
->> --
->> ~Randy
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 46a6e084222b..9142ee992493 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -4307,7 +4307,8 @@ static void show_symbol(struct seq_file *m, unsigned long address)
+>  
+>  static int leaks_show(struct seq_file *m, void *p)
+>  {
+> -	struct kmem_cache *cachep = list_entry(p, struct kmem_cache, list);
+> +	struct kmem_cache *cachep = list_entry(p, struct kmem_cache,
+> +					       root_caches_node);
+>  	struct page *page;
+>  	struct kmem_cache_node *n;
+>  	const char *name;
+> -- 
+> 2.17.2 (Apple Git-113)
 > 
 
+For what its worth
 
--- 
-~Randy
+Reviewed-by: Tobin C. Harding <tobin@kernel.org>
+
+thanks,
+Tobin.
 
