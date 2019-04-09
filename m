@@ -4,187 +4,129 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D1D72C282CE
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 11:19:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 53ED8C282CE
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 12:13:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7E15C2084B
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 11:19:15 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E2E1020857
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 12:13:24 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="PwT0K4nl"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7E15C2084B
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="uYWG8C9f"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E2E1020857
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ED8A56B000C; Tue,  9 Apr 2019 07:19:14 -0400 (EDT)
+	id 401C56B000C; Tue,  9 Apr 2019 08:13:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E883F6B000D; Tue,  9 Apr 2019 07:19:14 -0400 (EDT)
+	id 3B0B46B000D; Tue,  9 Apr 2019 08:13:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D76936B000E; Tue,  9 Apr 2019 07:19:14 -0400 (EDT)
+	id 29F2A6B000E; Tue,  9 Apr 2019 08:13:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F97D6B000C
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 07:19:14 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id y10so4153844pll.14
-        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 04:19:14 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EA1816B000C
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 08:13:23 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id d1so12463420pgk.21
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 05:13:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=E01rP1CzaZ83xn8o+c2fpKU03Lvuczg2ah01j9WWPH4=;
-        b=Yfskg8cmdNct6J8Fgo6cUTjCqYj6Q92EIWEHDPqkKhtI+h1u2aQF4GI8ms9EN7qq13
-         3frZvLS1oIuIhbW6FGFRR1Dnm2cpjS+pYM9Ke19QAStoUsV2mVJpZBFNg1tgwnSkv63D
-         A1iYpFvmgzr6+NH6U9OST54oVBpD/DMQPnqLikwIzbu9+qjy91mG5HspnoIJiwaju17a
-         yb+EkeLJHJdZA2/wDIc5hPNFixoDtxP8McOzktLmt8rjilS1ZB+ahlAXxSFBSM2dXKLt
-         iIDpoH981JFUoNyuWn/1h/8Hi8/KWyetr+Kr4tqzlpRqhMJtzdP+xbRbSfJ2wLUBH41p
-         9eTA==
-X-Gm-Message-State: APjAAAUJoOAvrVedBxDLlqB5N6ZqK5v/6T1Kh/W6ecCz3pTEC327t6Z4
-	KcT5WbMBk4yEuXPxwxR/ZxEsPzdy/xKMdfncgB1+iFtYMg8CVyAABu5GTSm73UCniG8lDCCRTRg
-	N99UKut0aEDX1Qv0gMxUTRJobLzkMXUPcRTdzErx6cZ3f78E6fHMfcUaG+XOdeqwySg==
-X-Received: by 2002:a63:4e64:: with SMTP id o36mr34723847pgl.213.1554808754059;
-        Tue, 09 Apr 2019 04:19:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyTD6k0eJBTX2/MBGNYvb09I71Z3bSv+2g2kIcuwuC2Uf5Dzh7pHYOWWGwAVN2U3gDWuA8q
-X-Received: by 2002:a63:4e64:: with SMTP id o36mr34723782pgl.213.1554808753157;
-        Tue, 09 Apr 2019 04:19:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554808753; cv=none;
+        bh=VRvsXTQ3GjdpdN5n2kYCn2enLOEYsHiI8Nby7QD3k1k=;
+        b=sAuz8X+DW6uotV2lkb8oUOrm2b7K2S8TpUMQllf0S06FJYR/2S03f4PtW1St31ZocW
+         lt21e2m/gh9BM9x9DjHFQIR0Hyd4+9sdAw9DsSacdqRrnpDE19GKDAK5oMhYRL6kQhxh
+         ETa6ThN40zU+RxTCCxBNHx9wOA5wHZjrhuyrq81kr2BgUFdnYxV5PSeqaprmDV938xhB
+         xUuaI2/SDOIYoaqoh/rptGgJmYO0UXemcRoFkeyk5g4qCeFS2zDTx1acPPiE8l/Y9e/g
+         rpsTyV8SmO2SWi/o27sYo5tdGOJJBvH2jCATulKKtTLhbTXar2fUkNA78neI4GAEulsA
+         p6AA==
+X-Gm-Message-State: APjAAAXdv7Ksuyvp6jYUy9iQoveW+5qyhlNIXb1LlUHzqKrALx891FOj
+	c7ubf6suUKdAXCqBIBq3/lAzHdU/7wRFAod5cg0kGcnd5NbcP8TKDnr2NKPSlAK0EwsEo2g0iyP
+	zZzIZtT9kCPk6H7TPEicpBygsneWppi7G9ZDu4uOvTm0el0na0LSNmB6t7LWFFJXAFg==
+X-Received: by 2002:a17:902:2ac3:: with SMTP id j61mr37121145plb.112.1554812003268;
+        Tue, 09 Apr 2019 05:13:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzTQaCfDs0KYqadBvc8lFwNG+z2vUjFHrGt8mf7h12r9Ku9lKk9hUShMnZBHxbFt1J+3xcr
+X-Received: by 2002:a17:902:2ac3:: with SMTP id j61mr37121064plb.112.1554812002454;
+        Tue, 09 Apr 2019 05:13:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554812002; cv=none;
         d=google.com; s=arc-20160816;
-        b=bSGieCy2iFq6dxk0mHfNEZM7OoGfcZqkmykbcv3uRSoAuDNTZoi5kGH5By2bCo9eXy
-         Nil28a1CPZ8ffXq+kRKlpJVhNQO+BlFwpuJbBVSojge0+SqYvnUORm8YBgeAbD3Sirui
-         f5BATy7WKOjtzK6/TYDojDqiaKDsrnRU/CNItgmIdqs7DBdVsN2zSE3HTb93EKzZxA3a
-         tb6TBocHpJvcWd3swKaz53LvWjOPPmSi0ZvwMoOw2/xzdiHigPZB6mBgzD3Z6X9H6j68
-         ofqmaY+MRU7D86nbJM8nhN1b1DL2aYCWFVQFqoAWjwFExqE+KxD4axzFQcsJX2YYpo8S
-         ZlRQ==
+        b=Cl5lKODz+gFGxPZyfSHPStb9cNkvuvHuwPnD/r6lQYoPLYDLJ70xS9Wt8mjxIIQUT/
+         YBvsCcB2SPqHD9p2jAek3EEormBqRlJKpbb7ZnHDvPJptsM+A4gDIMK4BZazo/rO0aSD
+         85BVNyP1bxYl66/ZaEsakNs2sal79hbUTUmLt2GcldqfOyDpnQZCsd2b3YhXmHTzbUL3
+         RGuLiPbAwK4FMvc53u0usrVU9Y4l44w1UFi6tr/uph4iXtBhm3bNvkeiW1ig2cb3XJhy
+         UforjtXY0KqzASWoci+kBCUvTAxKw6O1nvhx/bM1sqeyTvm3L5XYhx87lH/rNiFAQwoC
+         Vf4Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=E01rP1CzaZ83xn8o+c2fpKU03Lvuczg2ah01j9WWPH4=;
-        b=aBxIzmLljSdWzCwsrPRxIPxEZGsknhcSgor6L5mPiMLqZSBnGFOnp5xe1dybbKF9oL
-         zbDfxRjVwoGgTt9mjAZbjhchGhJhsNMkS68zfYDmIqX/2hu5LL9BBHizrwDi9lFRQ1yx
-         yH4DFUdK8YLHjiInENt4f/1fjNsWDGhCmhuR+CU2wmcfH8sbNd19NpVCbMEfHDqkERxC
-         4I0PFv6NkotURgFobP1vGS4efy4j6vnysJfvefKl2+IXpktWeIgR5Vxwfvsst+EOV3+T
-         3j2kk2qoW/p3ul0DnhIiZeOH+YNB8wStjTW1ZRcvZqJya+AQd7mK73Slghi0LYhWMKfr
-         7waQ==
+        bh=VRvsXTQ3GjdpdN5n2kYCn2enLOEYsHiI8Nby7QD3k1k=;
+        b=LEarxJIrbCS35dApvPIjSX5KFqpyd+aTLSqQJLFybnUIbwUcufiyywbOFUWuI8x5YW
+         8Mc7k4PlBCopF9sFRLS5mSXAQWCeRgbDLabYuBBJveGYzDOPq9uCEkLpnxnT94y0Yg9r
+         6i1OZvFCOMgZAYNWWOkPPn1ip/PY7Dyg3pFHET4ZfyRPinsvZwJVJOh6jrW8uNJ2daev
+         rX+XVSuJoJHP2aURV0XhDXrbFcNm/Lw3fO6sDeutKO2/tWRfzKi9dHWI+fTYxKr5m5Ov
+         eiN+S0sLsT5BMg1k0F6ex9WmW4ulZUWkkgxlJqHjknL9asfsp7Ug2k2G8GRRSruYGmI5
+         oUoQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=PwT0K4nl;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 198.137.202.133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [198.137.202.133])
-        by mx.google.com with ESMTPS id i26si29607342pfd.140.2019.04.09.04.19.12
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=uYWG8C9f;
+       spf=pass (google.com: best guess record for domain of batv+31c75a5d3837fdba6a7a+5707+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+31c75a5d3837fdba6a7a+5707+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id z189si13025311pfz.126.2019.04.09.05.13.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 09 Apr 2019 04:19:13 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 198.137.202.133 as permitted sender) client-ip=198.137.202.133;
+        Tue, 09 Apr 2019 05:13:22 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+31c75a5d3837fdba6a7a+5707+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=PwT0K4nl;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 198.137.202.133 as permitted sender) smtp.mailfrom=willy@infradead.org
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=uYWG8C9f;
+       spf=pass (google.com: best guess record for domain of batv+31c75a5d3837fdba6a7a+5707+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+31c75a5d3837fdba6a7a+5707+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
 	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
 	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
 	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
 	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=E01rP1CzaZ83xn8o+c2fpKU03Lvuczg2ah01j9WWPH4=; b=PwT0K4nl0C08dBLQN0wy7x7xH
-	Wa02Me+d0qh8DbWHZYZE9bp7fomcBEi3facq6HUAVgZW29g43+x9/jjvwrxASsZi1LkDPVdV1kkXA
-	spYD2wmPJo0vIB/Lq/lWuw7DQWRI5vzxORwGjcELcZ4GRHk3STryCC5fzqC0VG3if87CfNyPyc39e
-	0vYX7KALh6ly40A3kGUuEVPiNkqM5wW2TCE9DWNE+umNaUPsTWtDGtdRlYlVtsv8IcFqqubvqUcbo
-	tsMRXp3md5QlcqVwmqPGTLK/r8GUeM0c+uxIjwwoR1tljkTYjr6O9kqK7i/YUnC0jmvANRPve5QkG
-	LVQuBTjaQ==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hDomQ-0000gi-0S; Tue, 09 Apr 2019 11:19:06 +0000
-Date: Tue, 9 Apr 2019 04:19:05 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Huang Shijie <sjhuang@iluvatar.ai>
-Cc: akpm@linux-foundation.org, william.kucharski@oracle.com,
-	ira.weiny@intel.com, palmer@sifive.com, axboe@kernel.dk,
-	keescook@chromium.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 1/2] mm/gup.c: fix the wrong comments
-Message-ID: <20190409111905.GY22763@bombadil.infradead.org>
-References: <20190408023746.16916-1-sjhuang@iluvatar.ai>
- <20190408141313.GU22763@bombadil.infradead.org>
- <20190409010832.GA28081@hsj-Precision-5520>
- <20190409024929.GW22763@bombadil.infradead.org>
- <20190409030417.GA3324@hsj-Precision-5520>
+	 bh=VRvsXTQ3GjdpdN5n2kYCn2enLOEYsHiI8Nby7QD3k1k=; b=uYWG8C9fa2W/1ofQ/6IyFNpSO
+	iu0V82Kq9jQiAgCdfjkjKw22uXQPkJMHiYDnFmiTPazLx6S1iUbd6O2uU8UWQKigb3LKxiuwwUlgJ
+	es8/g9LVDGAPfERmZO5jE5hTxgoi6XD/ZKl4vUm6HU9Vgn7BVC8C9//Jky9Rgcs6wTYggR6JnbTeq
+	MWCyz+g4viZ43BaZzTYSyJxJllb79/Tb/Qe67urnB/U0sXvBsdb/B9KDgv50dFC/hm4lv0N0KOBtn
+	Jnyy1hwkXfhvsJ+jySxvJjcVAg8i8swVl0wtetpC1Sf3TQPK9jPuJvRD0I0ZclNbO36pE9UmYfddb
+	BR/4NS4NQ==;
+Received: from hch by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hDpcs-0000al-IJ; Tue, 09 Apr 2019 12:13:18 +0000
+Date: Tue, 9 Apr 2019 05:13:18 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-kernel@vger.kernel.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>,
+	Len Brown <lenb@kernel.org>, Keith Busch <keith.busch@intel.com>,
+	Jonathan Cameron <Jonathan.Cameron@huawei.com>,
+	vishal.l.verma@intel.com, x86@kernel.org, linux-mm@kvack.org,
+	linux-nvdimm@lists.01.org
+Subject: Re: [RFC PATCH 4/5] acpi/hmat: Register special purpose memory as a
+ device
+Message-ID: <20190409121318.GA16955@infradead.org>
+References: <155440490809.3190322.15060922240602775809.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <155440492988.3190322.4475460421334178449.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190409030417.GA3324@hsj-Precision-5520>
+In-Reply-To: <155440492988.3190322.4475460421334178449.stgit@dwillia2-desk3.amr.corp.intel.com>
 User-Agent: Mutt/1.9.2 (2017-12-15)
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 09, 2019 at 11:04:18AM +0800, Huang Shijie wrote:
-> On Mon, Apr 08, 2019 at 07:49:29PM -0700, Matthew Wilcox wrote:
-> > On Tue, Apr 09, 2019 at 09:08:33AM +0800, Huang Shijie wrote:
-> > > On Mon, Apr 08, 2019 at 07:13:13AM -0700, Matthew Wilcox wrote:
-> > > > On Mon, Apr 08, 2019 at 10:37:45AM +0800, Huang Shijie wrote:
-> > > > > The root cause is that sg_alloc_table_from_pages() requires the
-> > > > > page order to keep the same as it used in the user space, but
-> > > > > get_user_pages_fast() will mess it up.
-> > > > 
-> > > > I don't understand how get_user_pages_fast() can return the pages in a
-> > > > different order in the array from the order they appear in userspace.
-> > > > Can you explain?
-> > > Please see the code in gup.c:
-> > > 
-> > > 	int get_user_pages_fast(unsigned long start, int nr_pages,
-> > > 				unsigned int gup_flags, struct page **pages)
-> > > 	{
-> > > 		.......
-> > > 		if (gup_fast_permitted(start, nr_pages)) {
-> > > 			local_irq_disable();
-> > > 			gup_pgd_range(addr, end, gup_flags, pages, &nr);               // The @pages array maybe filled at the first time.
-> > 
-> > Right ... but if it's not filled entirely, it will be filled part-way,
-> > and then we stop.
-> > 
-> > > 			local_irq_enable();
-> > > 			ret = nr;
-> > > 		}
-> > > 		.......
-> > > 		if (nr < nr_pages) {
-> > > 			/* Try to get the remaining pages with get_user_pages */
-> > > 			start += nr << PAGE_SHIFT;
-> > > 			pages += nr;                                                  // The @pages is moved forward.
-> > 
-> > Yes, to the point where gup_pgd_range() stopped.
-> > 
-> > > 			if (gup_flags & FOLL_LONGTERM) {
-> > > 				down_read(&current->mm->mmap_sem);
-> > > 				ret = __gup_longterm_locked(current, current->mm,      // The @pages maybe filled at the second time
-> > 
-> > Right.
-> > 
-> > > 				/*
-> > > 				 * retain FAULT_FOLL_ALLOW_RETRY optimization if
-> > > 				 * possible
-> > > 				 */
-> > > 				ret = get_user_pages_unlocked(start, nr_pages - nr,    // The @pages maybe filled at the second time.
-> > > 							      pages, gup_flags);
-> > 
-> > Yes.  But they'll be in the same order.
-> > 
-> > > BTW, I do not know why we mess up the page order. It maybe used in some special case.
-> > 
-> > I'm not discounting the possibility that you've found a bug.
-> > But documenting that a bug exists is not the solution; the solution is
-> > fixing the bug.
-> I do not think it is a bug :)
+On Thu, Apr 04, 2019 at 12:08:49PM -0700, Dan Williams wrote:
+> Memory that has been tagged EFI_SPECIAL_PURPOSE, and has performance
+> properties described by the ACPI HMAT is expected to have an application
+> specific consumer.
 > 
-> If we use the get_user_pages_unlocked(), DMA is okay, such as:
->                      ....
-> 		     get_user_pages_unlocked()
-> 		     sg_alloc_table_from_pages()
-> 	             .....
-> 
-> I think the comment is not accurate enough. So just add more comments, and tell the driver
-> users how to use the GUPs.
+> Those consumers may want 100% of the memory capacity to be reserved from
+> any usage by the kernel. By default, with this enabling, a platform
+> device is created to represent this differentiated resource.
 
-gup_fast() and gup_unlocked() should return the pages in the same order.
-If they do not, then it is a bug.
+This sounds more than weird.  Since when did we let the firmware decide
+who can use the memory?
 
