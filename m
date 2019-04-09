@@ -2,178 +2,194 @@ Return-Path: <SRS0=58dN=SL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8F25DC10F0E
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 06:55:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 053E5C282DA
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 07:05:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3553020880
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 06:55:39 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=eInfochipsIndia.onmicrosoft.com header.i=@eInfochipsIndia.onmicrosoft.com header.b="FR518TLZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3553020880
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=einfochips.com
+	by mail.kernel.org (Postfix) with ESMTP id C1A9420857
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 07:05:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C1A9420857
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C1C6E6B0008; Tue,  9 Apr 2019 02:55:38 -0400 (EDT)
+	id 4E66A6B0008; Tue,  9 Apr 2019 03:05:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BCABF6B000C; Tue,  9 Apr 2019 02:55:38 -0400 (EDT)
+	id 4972A6B000C; Tue,  9 Apr 2019 03:05:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A92C86B000D; Tue,  9 Apr 2019 02:55:38 -0400 (EDT)
+	id 339376B000D; Tue,  9 Apr 2019 03:05:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F43F6B0008
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 02:55:38 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id g83so12357476pfd.3
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 23:55:38 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 128856B0008
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 03:05:32 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id d139so13762669qke.20
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 00:05:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:subject:thread-topic
-         :thread-index:date:message-id:accept-language:content-language
-         :content-transfer-encoding:mime-version;
-        bh=mhvftYmBbxKShj+CoY7y/lw9q0Ayo3jaUwg6pzEUmPo=;
-        b=ffTzu/t+Y/OcHP3TDn+CyLGslobAoOc6bKOFdplgakPfefuu+1/kSDcKfQFpcSXQJq
-         Fk0zwzJNPxFJIwmw12spf3AQMU+cs0K+aEdc7MpjNuIvGkwvxfQl6yQT+JORqMQZ3zCi
-         mLgCnJPQCGlzi1qeiHczwA+nYxSPc6FTbFvK8CuB5/hwhkbkrmp8JGuQ7vyULBhJiqtW
-         EBjQOstDFbqDrDuT7DzZIw77kGaMHKrq/KefVfggXYSbvcZVesprmM2pJ4gf5wB+gRWx
-         tbl0uDRDMpF2v8f0Ulpxf59pa4gsFTrmaZJmMKTOsLkEVAkEojHdxon2gZ5MxcIfZG7M
-         npXw==
-X-Gm-Message-State: APjAAAWVhNlkMOUQv+zFi23+SgmAt51/xMLUYJpzDVkO6XjEEwZBh7bn
-	p3DzqVuRqCy9Ge1yB10ILaC4M64E03/1iKn+upfQepfX3GVvEp3YfP5N66FCBhpgerhf2IlT8x7
-	j2Zs9Z5grx/ETUyLAhGCj0BfzedptVx8XAYqbkJG4sUH//mhtORBLGuyKLK22PHtwgA==
-X-Received: by 2002:a63:6844:: with SMTP id d65mr33421555pgc.393.1554792937966;
-        Mon, 08 Apr 2019 23:55:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyk7+xuxLnb2WtJpw7B5i6FK9t+C4wTtYk08dxaNCAMv9JvcTu2fBSRZQBUgJvKkkd1tkLU
-X-Received: by 2002:a63:6844:: with SMTP id d65mr33421501pgc.393.1554792936961;
-        Mon, 08 Apr 2019 23:55:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554792936; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=I6+MdslU3EkJ4tsZVZTvXKUXn46wzotr+UL+V4Rkt1I=;
+        b=sjxG598HE0/MP6F2MmuSMt2QzWIUtc3YQnLRt1CohinMSjHlqIQrrfgo5tuED5ADYr
+         U4w/MQMAQr9Lk/b/nYU/kzWuJd7lK9fOImh/zLhjqUpmyIZ0TgaKyGJcsEEgBgFOBARe
+         efzWc3FkmGlPg1olky5uk72CH2fZBlAUn5Jh4xEhmbGpyjysmxZI6IxJQodC7G8YXI4I
+         qGYOX2O8WeTpA0a95SVP8j2J/i3otdq4RBbZj2eabJPHV9QBJ1Hx7m19cU1FfbnEa7+D
+         ZiAWt3WQHBRrNzZkfRxcJHqdHm1yjUkd++GjsIAetBDlBUan7GyPKlh99bWwSayDmDx3
+         XXtA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWOv/9MGDz35Wn/QVp/yVnSRUTPlSB9Ueld89mmJm2X+WFY0t9E
+	SXO3DbeBEt2HLSvFyu1EJlm0H/VMpZrt0IXoghwg1ccbAgmqq9cm27oMKJtKGSTajQttn6v392t
+	6/hT/M+47CMhzt3MhkyCQB6M5kacOTTsjBrR0WzpkNKOPmleM+dczkTrmoCe2lr3ETw==
+X-Received: by 2002:a0c:d28f:: with SMTP id q15mr27730888qvh.185.1554793531857;
+        Tue, 09 Apr 2019 00:05:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz9OyYnV+eJ0VLiKTU4E0j6usu14vgsXIkXu64RuQutRJEZQypEKBOBZKPuRTSOFZjkD2Dn
+X-Received: by 2002:a0c:d28f:: with SMTP id q15mr27730835qvh.185.1554793531097;
+        Tue, 09 Apr 2019 00:05:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554793531; cv=none;
         d=google.com; s=arc-20160816;
-        b=TpZ1pYvjsq4bwhP/V+/R1uBDiAMyK+JtQEeTCpFGKTzw3qmLcr3BXnigE39otrgSyo
-         Fb+RR3T81tMxPk2/ZYpJkKVTvEgqspXtCsZ/F8ssjCacuzns5rQPZkvoNwrf0iNHjEnf
-         seDT0bAbSgbaP5ko4AF4ZzApguf7Tpt29euUjtgNY0KKuZxPNx3ADAGTdmRW1McpQhK2
-         W8aoSFygI4SUAc+0zsCBXikxg58wJmNvozSNPSyMAnz9kzDxDPrwy0QIMpMX/60POqrx
-         plLLAjXH8eg2PUga69QWyjYCPWcgCSmNnHAwvvxFEMpBZa+oSCqqOWNEiVnHnVwIij8U
-         k7Qg==
+        b=yWj8fn8hyh5jsADWKbsscxvt8DdQc/x1U8eOuI5bbEug0p1FPc/JW4G+CamxYpdX9o
+         Gi/xghnkPL11fXDmUkxUy7gKDkN4i24FYg/qTo0xTrIISSa6dP2q0pR6wbjDwpMQqHcf
+         0lWSEzTRFb07aLCdyQ1UF2M0ppwj1noYQOrdAzXBcJQkTmjgC3WZrlMWN9CSMVjIXOKF
+         mwEW+5ZZgFKkpe8N777xRaBxg/YVEcoGel7cE1Yv2Wpao1M02/t0OpwmE4qJEbWVZmQW
+         jZIdlt+MXt2GhucCeQ4gQffDsYStqWtafbUXFAFly3Zb1YmkBI5MVYZMKE/rzfXazmoT
+         Lf7A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-language
-         :accept-language:message-id:date:thread-index:thread-topic:subject
-         :to:from:dkim-signature;
-        bh=mhvftYmBbxKShj+CoY7y/lw9q0Ayo3jaUwg6pzEUmPo=;
-        b=0xBDXbGKrU0pm+dQkSeDsEaVJ9qOA7SaGJwG7Ajuy8RA5t2LFDz30cH6UYKARoMBDx
-         dEyYfxFbIxUYT99dq31Vp4/Sw+SgpqRq8iXcrgEUug9mP7JWQgBQcQXW5oXKFrYHYST+
-         R1UAoB8Iux8NpOeJ1DMme9NLliZuQT3cc/bmBMs6b1Ktmu+DKG8iMRM3sn0w6LQfJL85
-         3d/6wjye0LSZpiqBotg+a0zVBxuFdxQic2H+N3tKX+O6Fcfz6mjEocp5mPNh8KcU8i88
-         RDZ+ntDFGIH+watu9K4jOV+k2Sk1VPnWhjy7KgbYiO7jLJXHnDxihh0PcZX19BR89CnC
-         ps4w==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=I6+MdslU3EkJ4tsZVZTvXKUXn46wzotr+UL+V4Rkt1I=;
+        b=BLS43eBoqstjtsKw8QEam5swH4Ppl96bxN8Hgutlj9voYsdX7JbCE/d8r/XIdoIXIZ
+         fr9t8IydQ+etHQpb3/wJaiKGSV8HHDnC7mhPd1geh+hskpGk7As8YhlRi20voFu5HtrD
+         +5oPRuJSRPiRBiq69WUprOgflnhdTcBYHMWirR8fHa5Zh3/yO4IivWjNSH9MUREdFg2+
+         Jk87qiCtstCZhYRIXMI/T7DcgNlYHoM4K7+UPDRw6JyG6IJsSkS6JRbTq8zIGsHOZCPC
+         r/hIy4/5akEn+pxuI1RDDDuHc0LmiBlKDA4bZ83CEdYCRcNJy3fKzS7ceqrO2eDShTuh
+         D9kQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=FR518TLZ;
-       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.41 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
-Received: from APC01-HK2-obe.outbound.protection.outlook.com (mail-eopbgr1300041.outbound.protection.outlook.com. [40.107.130.41])
-        by mx.google.com with ESMTPS id t10si10215535pgc.65.2019.04.08.23.55.36
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v91si2976785qte.315.2019.04.09.00.05.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 08 Apr 2019 23:55:36 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.41 as permitted sender) client-ip=40.107.130.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Apr 2019 00:05:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=FR518TLZ;
-       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.41 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=eInfochipsIndia.onmicrosoft.com; s=selector1-einfochips-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=mhvftYmBbxKShj+CoY7y/lw9q0Ayo3jaUwg6pzEUmPo=;
- b=FR518TLZ4+8qiRHTrjxuqnhhLEUQdi7ILgmL65iyZBsuNf1ZrXcpLQNMGqdXrb78k/A4fFRht2bVkqjBi9fVyMpzWJjV1OEFbaFSqAOP8bS9YRx4Fh166s74KRntHrTvLdPrMAchXL2/gcCLml6d6ECSVF6Eb1d2ixitRHM8H1k=
-Received: from SG2PR02MB3098.apcprd02.prod.outlook.com (20.177.88.78) by
- SG2PR02MB4043.apcprd02.prod.outlook.com (20.178.156.204) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1792.14; Tue, 9 Apr 2019 06:55:34 +0000
-Received: from SG2PR02MB3098.apcprd02.prod.outlook.com
- ([fe80::f432:20e4:2d22:e60b]) by SG2PR02MB3098.apcprd02.prod.outlook.com
- ([fe80::f432:20e4:2d22:e60b%4]) with mapi id 15.20.1771.019; Tue, 9 Apr 2019
- 06:55:34 +0000
-From: Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
-To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: Basics : Memory Configuration
-Thread-Topic: Basics : Memory Configuration
-Thread-Index: AQHU7qEJC6EuUiGvjEiZ+OVh95dcdw==
-Date: Tue, 9 Apr 2019 06:55:34 +0000
-Message-ID:
- <SG2PR02MB3098925678D8D40B683E10E2E82D0@SG2PR02MB3098.apcprd02.prod.outlook.com>
-Accept-Language: en-GB, en-US
-Content-Language: en-GB
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=pankaj.suryawanshi@einfochips.com; 
-x-originating-ip: [14.98.130.2]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 751437ea-88cb-4a1e-d3a0-08d6bcb85d6c
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(7168020)(4627221)(201703031133081)(201702281549075)(8990200)(5600139)(711020)(4605104)(2017052603328)(7193020);SRVR:SG2PR02MB4043;
-x-ms-traffictypediagnostic: SG2PR02MB4043:
-x-microsoft-antispam-prvs:
- <SG2PR02MB4043FF045576F230EF49F1B3E82D0@SG2PR02MB4043.apcprd02.prod.outlook.com>
-x-forefront-prvs: 000227DA0C
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(39850400004)(366004)(396003)(346002)(136003)(376002)(189003)(199004)(9686003)(3846002)(6116002)(2906002)(476003)(44832011)(66066001)(7696005)(486006)(25786009)(99286004)(316002)(110136005)(14454004)(68736007)(55016002)(53936002)(81166006)(305945005)(7736002)(33656002)(8676002)(81156014)(74316002)(478600001)(6436002)(26005)(14444005)(55236004)(102836004)(8936002)(256004)(5024004)(71200400001)(186003)(2501003)(6506007)(86362001)(5660300002)(52536014)(105586002)(106356001)(66574012)(78486014)(97736004)(71190400001);DIR:OUT;SFP:1101;SCL:1;SRVR:SG2PR02MB4043;H:SG2PR02MB3098.apcprd02.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: einfochips.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- OLQhb5QUQA9QWg7Owjq+RUq0FC+c+7gqkaSiU/vsJWQSEsMLhNOCPJdpdjXpTy9d4b5YqwYIUmTu1zZplHJ3tCLwxJkuUxpwTEa/o6mX9K6PiOQfTkvfv4dt1Hb21f4zdf8pI+/q0VgwqAkwHOo2B7v5bSg8eoHTet3pQt/nOEHWYv4DsA2GkWf8fGuL3yz/d4PbkSqFH2JtO9Q0I2tdEfKOPfHhFKL5sAMb802GeewZZ4f/F0vvj543d88so4FYgzXEeCdzJP9WBx36UDM0kaTE6AboXa93slIsITtqQ0rLNT4fCE6nsncX+pRJut8h6FdkUVkNrLGf5SnTDhiygUrhiqawGRKqwnrjKj1isTSZRCr66Jspj2DbcFkbMUL4tqnMPAirSweRm8SVdu84tM2Ozo2AH1lJIAjk5a0nIII=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 11D85C04D943;
+	Tue,  9 Apr 2019 07:05:30 +0000 (UTC)
+Received: from [10.36.117.49] (ovpn-117-49.ams2.redhat.com [10.36.117.49])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id E109110A1822;
+	Tue,  9 Apr 2019 07:05:16 +0000 (UTC)
+Subject: Re: Thoughts on simple scanner approach for free page hinting
+To: "Michael S. Tsirkin" <mst@redhat.com>,
+ Alexander Duyck <alexander.duyck@gmail.com>
+Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>,
+ LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+ Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com,
+ pagupta@redhat.com, wei.w.wang@intel.com,
+ Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
+ dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>
+References: <CAKgT0Ue4LufT4q4dLwjqhGRpDbVnucNWhmhwWxbwtytgjxx+Kw@mail.gmail.com>
+ <20190408203541-mutt-send-email-mst@kernel.org>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <ba84ec1f-79f2-e15b-e225-7d2e2885a4c6@redhat.com>
+Date: Tue, 9 Apr 2019 09:05:16 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-X-OriginatorOrg: einfochips.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 751437ea-88cb-4a1e-d3a0-08d6bcb85d6c
-X-MS-Exchange-CrossTenant-originalarrivaltime: 09 Apr 2019 06:55:34.5650
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 0adb040b-ca22-4ca6-9447-ab7b049a22ff
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: SG2PR02MB4043
+In-Reply-To: <20190408203541-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Tue, 09 Apr 2019 07:05:30 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On 09.04.19 04:44, Michael S. Tsirkin wrote:
+> On Fri, Apr 05, 2019 at 05:09:45PM -0700, Alexander Duyck wrote:
+>> In addition we will need some way to identify which pages have been
+>> hinted on and which have not. The way I believe easiest to do this
+>> would be to overload the PageType value so that we could essentially
+>> have two values for "Buddy" pages. We would have our standard "Buddy"
+>> pages, and "Buddy" pages that also have the "Offline" value set in the
+>> PageType field. Tracking the Online vs Offline pages this way would
+>> actually allow us to do this with almost no overhead as the mapcount
+>> value is already being reset to clear the "Buddy" flag so adding a
+>> "Offline" flag to this clearing should come at no additional cost.
+> 
+> It bothers me a bit that this doesn't scale to multiple hint types
+> if we ever need them. Would it be better to have two
+> free lists: hinted and non-hinted one?
 
-I am confuse about memory configuration and I have below questions
+That would imply having to change all places trying to allocate memory
+to have a look at both lists? I think that could be factored out. I
+assume keeping track of the amount of pages would feel more naturally
+than having split counters for the existing lists.
 
-1. if 32-bit os maximum virtual address is 4GB, When i have 4 gb of ram for=
- 32-bit os, What about the virtual memory size ? is it required virtual mem=
-ory(disk space) or we can directly use physical memory ?
+I think I'd actually prefer something like that, avoiding mixing page
+types and working with different types per list.
 
-2. In 32-bit os 12 bits are offset because page size=3D4k i.e 2^12 and 2^20=
- for page addresses
-   What about 64-bit os, What is offset size ? What is page size ? How it c=
-alculated.
+-- 
 
-3. What is PAE? If enabled how to decide size of PAE, what is maximum and m=
-inimum size of extended memory.
+Thanks,
 
-Regards,
-Pankaj
-***************************************************************************=
-***************************************************************************=
-******* eInfochips Business Disclaimer: This e-mail message and all attachm=
-ents transmitted with it are intended solely for the use of the addressee a=
-nd may contain legally privileged and confidential information. If the read=
-er of this message is not the intended recipient, or an employee or agent r=
-esponsible for delivering this message to the intended recipient, you are h=
-ereby notified that any dissemination, distribution, copying, or other use =
-of this message or its attachments is strictly prohibited. If you have rece=
-ived this message in error, please notify the sender immediately by replyin=
-g to this message and please delete it from your computer. Any views expres=
-sed in this message are those of the individual sender unless otherwise sta=
-ted. Company has taken enough precautions to prevent the spread of viruses.=
- However the company accepts no liability for any damage caused by any viru=
-s transmitted by this email. **********************************************=
-***************************************************************************=
-************************************
+David / dhildenb
 
