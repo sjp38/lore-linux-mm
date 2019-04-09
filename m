@@ -2,153 +2,142 @@ Return-Path: <SRS0=58dN=SL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 75D8AC10F0E
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 05:20:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 701A5C282CE
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 06:08:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3712520883
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 05:20:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3712520883
+	by mail.kernel.org (Postfix) with ESMTP id 1F85420883
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 06:08:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1F85420883
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A400B6B000C; Tue,  9 Apr 2019 01:20:26 -0400 (EDT)
+	id 7F6DF6B0007; Tue,  9 Apr 2019 02:08:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9EE4D6B0010; Tue,  9 Apr 2019 01:20:26 -0400 (EDT)
+	id 7A6916B0008; Tue,  9 Apr 2019 02:08:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8DC5D6B0266; Tue,  9 Apr 2019 01:20:26 -0400 (EDT)
+	id 695C26B000C; Tue,  9 Apr 2019 02:08:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 564F86B000C
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 01:20:26 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id j1so11582260pll.13
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 22:20:26 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CAEB6B0007
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 02:08:54 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id y64so13747690qka.3
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 23:08:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=1YUfMPM7RT1o5URCsP5/A8wjExy9E/3T5zL1WxdDFpI=;
-        b=ocT8ZfxKCO1z/eF5PshUiuu2hMYworhHYMbqqJ1F0tPqnUU1vxaz/3h8KOJK0rt8b/
-         NwZbllRxECoHhgWEHrVCCBMBX2gUMMkeQ+lyRg/h8ZxSUD12BHuqeHNUXYoYZIPhtY4T
-         yr7aPEQJjE8UfAPMFsSRr455J13JqLOBTUNa1s4DPU/V8dZ678W3nsF7xETc19OmRSxr
-         WTt1Cn3YUGeT1YvAKTfbBNJW6tbiSMsKVCI7ZH47VkI7VhznBqYPuL+Yf3Rl0loYBaDH
-         +hpClDqVjDH7GVckqJirGl/YFWIU6JAGSTX7w4XlbrqiTlLZhLIWaNgoOzODX6Uyecdm
-         pHhQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bhsharma@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bhsharma@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXGrZo15Q/eSEGqurYu2x6vEHJuudmDtyyhBZtuFeKYSDUtQWKl
-	MX7V+MfyTiigppFyYnupNbIoVSw/HQ04HMNXpaNQsfMiFdCprmOOT6BKKtXTXL6R+GcKpacUln+
-	l9tEqEbWf+BEYnOto572LDtMX8o7B14A382qLbDr8bZXwr9QA6KuUUYLCkJZsZobpMA==
-X-Received: by 2002:a17:902:8ecc:: with SMTP id x12mr34809440plo.0.1554787225964;
-        Mon, 08 Apr 2019 22:20:25 -0700 (PDT)
-X-Received: by 2002:a17:902:8ecc:: with SMTP id x12mr34809389plo.0.1554787225216;
-        Mon, 08 Apr 2019 22:20:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554787225; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=gI+CJWeJWAeL1EpC4t/1QXmZ455u94XXr+h646lWamQ=;
+        b=jPunfyzHxkXgZ+cD8us8aWSLbRQ2/OJ+B3SaZtdhceEdQ/uL2yiyJK08vokaF51PVo
+         MA/Z66IH73IDk/qAILwzCS71kFfDffVJtsJQgkWE40vD9xCiZ/6f1px5SpY+emKvqDOk
+         izaxaXEATs74vv2P9Qv/8m/e6PxfqA3+7mx8Yd/Lyt8VfdDezkthcX/RLmERLHVYqQSf
+         Nbr+GBpT/0NwAH894wx3JiZFhQ6cwbBtx9W5n9uRBqx4m6oyHOzeOyf11lrDcX/KVF5c
+         lSLF7NmZUikAy1FXarA+QwRvQahlAiVAnDvTdNrIGMhQ7AdFQx6Q4gdhN9NKJTmxbDhV
+         UZ7w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUxx+W7OtcefpuymUr79t4j1htOGf83ho3tPI8InHIaTQr5xI+R
+	0FzxCgTOaCdSGo1o7fvWWm7eEqNpCbbAZgATH9vjncY/DlQcc51HLv3GdE6efBm+Q3WpK9GX5bD
+	Re8imhRa+aS8R73BwmyRha36pY+CHDrsBhiQPxQx4qriXxqk9OCtdU1BZzUWxVk4x+A==
+X-Received: by 2002:ac8:3328:: with SMTP id t37mr28164110qta.246.1554790134017;
+        Mon, 08 Apr 2019 23:08:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwUpOqbMPT/XjaWtYz4+88VOtI2PMq5e4qTakhz7RjK+/olFnBjI41TGbvEBCsTwFMDS9jJ
+X-Received: by 2002:ac8:3328:: with SMTP id t37mr28164071qta.246.1554790133093;
+        Mon, 08 Apr 2019 23:08:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554790133; cv=none;
         d=google.com; s=arc-20160816;
-        b=Z/CvFE/lXM6eCsDFshkAS2iraIxnEozbehNdlpDe0qq8cjcdzui4jNqXvHYYrwlaPk
-         ghb7R2v6bTLAbsxZMLFZXosVolvRvDiUPk4hLUs1RfUcnTn9+haNloEceZiVwg/SQRlv
-         0VvIXKRPX8EAR+ID8odYxJNCSO9ODgKtgUvJ9zU7ytnagBlJlioA+ovrsPAus7MimAdo
-         UTSC+eRNFFWBg1feuRknJjlNRMcdsZmTQI5mxMaO6h7oaeN7GM4Wifc23FnD7P7Yv2kj
-         X2P+CYVHnnydI9V+uUAB/eubUp8p6T75yScibIrBHRVaSTsX0ctZi8uIFx9Ytg6kKPup
-         EuCw==
+        b=meczIzqO3eW0kcPIUgaZ/iSnEJ0CsPF0Mzw1WDMmKt2IUra4YFZT+1INMOA82Nxu5A
+         iAbb50nTb3fqB5jrVD2vKOJTEyJpnQWVmOQB7elwnjJTj6fY+ak3xspYVbr6FMwXUS9i
+         P49tIWvjuoOeZjhGpPEW3qphiFekPcS7vS2aOlkNUuksP2aztTtglvomVMrrZR4VYT6Y
+         D+YL94U9L+Iri3pGF3lTtu2dt/FYOHc+U1ucs6VNiY+1sDGKQs6PXB8Swh+25r0jbeWp
+         fynSXjyjVDJgK+RyZ1EILUe+RmTCZCM9G3bATdEPDldiNEx79+BTEmYQvRX+WIEN49ZH
+         U/XQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=1YUfMPM7RT1o5URCsP5/A8wjExy9E/3T5zL1WxdDFpI=;
-        b=lvqxqHGd+Tuxt17cA2CZSFQ0DqAR3Kafzo7pghp/i+18PzHroj64hV16h64/XQEbD7
-         mSBIjKpsvwx7EuebvYpBAb+4U0z7uPEGuUnagUgO1+LUFfbhc+4nO0VcYQiMIBl9uzVb
-         Nx69zyZ7j0ma5w/eKTlAbjF8D3I7/dT3hhxT3QmXwRLrJsk7qL9yRv/Xgn+h8LadRNHb
-         lsbmf+jY8QgEH2OS8L7QtK9DY1+HlVsetCMgJbY8APEnUT/NhEzk8MytwhiVWO5QP+2g
-         d6cj1Zb8McgWBC4ZJeAKruTdQEENU7LRTtLQD6JUNM6KDlcT5ViWFI7KB01qsixl1G1K
-         Ozmg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=gI+CJWeJWAeL1EpC4t/1QXmZ455u94XXr+h646lWamQ=;
+        b=Fu0YIov1O81H7oXCZPKrjWzf2K/wCLImudGl7k2BubnY/ImEhnY/wnJsCu31lxq99S
+         wYwp7MzdN/unF8MNE7EzffwLd7NwAy7Bq+edwRW5HyglzFu3iVwMkTaMdo5urmJ7nSkb
+         B34jsLVK9IWFCqjzXxTh0zT8c/Y5Rxp9OyUJGl9dK/SkHn6t2is4t9DarN6BP/7Us1SZ
+         kj+7oOPpKIhJ2DTALovLJKGReiFn62Ho9fkwU0zbx1OJGj6F1FV7xnmuQCRLi6uNFt51
+         kFSapo8/OLWULsLCng5gMfCURjST/AJzVT9pG88FUwvKzt3iZVhvp7+w7RZGKbuPpV2H
+         alXw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of bhsharma@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bhsharma@redhat.com;
+       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 38sor39518916pln.23.2019.04.08.22.20.25
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id h15si94195qvo.209.2019.04.08.23.08.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 08 Apr 2019 22:20:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of bhsharma@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of bhsharma@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bhsharma@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqzhrg94zZKMqARZTPlnpBF65FbExNLYEDlH8PaVsNnFFrNS5x/xA9UeSdVBUIhP+KvcD/Laog==
-X-Received: by 2002:a17:902:b715:: with SMTP id d21mr35489861pls.103.1554787224724;
-        Mon, 08 Apr 2019 22:20:24 -0700 (PDT)
-Received: from localhost.localdomain ([209.132.188.81])
-        by smtp.gmail.com with ESMTPSA id y19sm43192451pfn.164.2019.04.08.22.20.19
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Apr 2019 22:20:23 -0700 (PDT)
-Subject: Re: [PATCH 0/3] support reserving crashkernel above 4G on arm64 kdump
-To: Chen Zhou <chenzhou10@huawei.com>, catalin.marinas@arm.com,
- will.deacon@arm.com, akpm@linux-foundation.org, rppt@linux.ibm.com,
- ard.biesheuvel@linaro.org, takahiro.akashi@linaro.org
-Cc: wangkefeng.wang@huawei.com, kexec@lists.infradead.org,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- linux-arm-kernel@lists.infradead.org
-References: <20190403030546.23718-1-chenzhou10@huawei.com>
-From: Bhupesh Sharma <bhsharma@redhat.com>
-Message-ID: <49012d55-2020-e2ac-1102-59a5f3911a29@redhat.com>
-Date: Tue, 9 Apr 2019 13:20:16 +0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.2.1
+        Mon, 08 Apr 2019 23:08:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 130523086216;
+	Tue,  9 Apr 2019 06:08:51 +0000 (UTC)
+Received: from xz-x1 (dhcp-14-116.nay.redhat.com [10.66.14.116])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id E9A0F63F7C;
+	Tue,  9 Apr 2019 06:08:41 +0000 (UTC)
+Date: Tue, 9 Apr 2019 14:08:39 +0800
+From: Peter Xu <peterx@redhat.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: David Hildenbrand <david@redhat.com>, Hugh Dickins <hughd@google.com>,
+	Maya Gokhale <gokhale2@llnl.gov>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Pavel Emelyanov <xemul@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Denis Plotnikov <dplotnikov@virtuozzo.com>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Marty McFadden <mcfadden8@llnl.gov>, Mel Gorman <mgorman@suse.de>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: [PATCH v3 00/28] userfaultfd: write protection support
+Message-ID: <20190409060839.GE3389@xz-x1>
+References: <20190320020642.4000-1-peterx@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20190403030546.23718-1-chenzhou10@huawei.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20190320020642.4000-1-peterx@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Tue, 09 Apr 2019 06:08:52 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Chen,
-
-Thanks for the patchset.
-
-Before I review the patches in detail, I have a couple of generic 
-queries. Please see them in-line:
-
-On 04/03/2019 11:05 AM, Chen Zhou wrote:
-> When crashkernel is reserved above 4G in memory, kernel should reserve
-> some amount of low memory for swiotlb and some DMA buffers. So there may
-> be two crash kernel regions, one is below 4G, the other is above 4G.
+On Wed, Mar 20, 2019 at 10:06:14AM +0800, Peter Xu wrote:
+> This series implements initial write protection support for
+> userfaultfd.  Currently both shmem and hugetlbfs are not supported
+> yet, but only anonymous memory.  This is the 3nd version of it.
 > 
-> Crash dump kernel reads more than one crash kernel regions via a dtb
-> property under node /chosen,
-> linux,usable-memory-range = <BASE1 SIZE1 [BASE2 SIZE2]>.
+> The latest code can also be found at:
 > 
-> Besides, we need to modify kexec-tools:
->    arm64: support more than one crash kernel regions
+>   https://github.com/xzpeter/linux/tree/uffd-wp-merged
 > 
-> Chen Zhou (3):
->    arm64: kdump: support reserving crashkernel above 4G
->    arm64: kdump: support more than one crash kernel regions
->    kdump: update Documentation about crashkernel on arm64
-> 
->   Documentation/admin-guide/kernel-parameters.txt |   4 +-
->   arch/arm64/kernel/setup.c                       |   3 +
->   arch/arm64/mm/init.c                            | 108 ++++++++++++++++++++----
->   include/linux/memblock.h                        |   1 +
->   mm/memblock.c                                   |  40 +++++++++
->   5 files changed, 139 insertions(+), 17 deletions(-)
+> Note again that the first 5 patches in the series can be seen as
+> isolated work on page fault mechanism.  I would hope that they can be
+> considered to be reviewed/picked even earlier than the rest of the
+> series since it's even useful for existing userfaultfd MISSING case
+> [8].
 
-I am wondering about the use-case for the same. I remember normally 
-fedora-based arm64 systems can do well with a maximum crashkernel size 
-of <=512MB reserved below the 4G boundary.
-
-So, do you mean that for your use-case (may be a huawei board based 
-setup?), you need:
-
-- more than 512MB of crashkernel size, or
-- you want to split the crashkernel reservation across the 4GB boundary 
-irrespective of the crashkernel size value.
+Ping - any further comments for v3?  Is there any chance to have this
+series (or the first 5 patches) for 5.2?
 
 Thanks,
-Bhupesh
+
+-- 
+Peter Xu
 
