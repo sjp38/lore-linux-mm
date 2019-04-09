@@ -4,88 +4,89 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 82E47C282DA
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 18:24:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 416C5C10F0E
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 18:26:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1C9DD2077C
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 18:24:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C9DD2077C
+	by mail.kernel.org (Postfix) with ESMTP id F20F62133D
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 18:26:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F20F62133D
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6E1476B0006; Tue,  9 Apr 2019 14:24:33 -0400 (EDT)
+	id 8B3EB6B0006; Tue,  9 Apr 2019 14:26:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 669A66B000A; Tue,  9 Apr 2019 14:24:33 -0400 (EDT)
+	id 863B36B000A; Tue,  9 Apr 2019 14:26:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 50B6E6B0266; Tue,  9 Apr 2019 14:24:33 -0400 (EDT)
+	id 72CB36B0266; Tue,  9 Apr 2019 14:26:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EF3926B0006
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 14:24:32 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id w27so9236752edb.13
-        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 11:24:32 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E95F6B0006
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 14:26:03 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id n11so3210736edy.5
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 11:26:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=yDRII9QSeEWAXRN8hwlPSBFO/5gnddeHuvhHslccZgA=;
-        b=pXqs8Z6UcpZJ9RdEYB5CerV8aFRJvz006WR4QOyWWZojsT9mZ6w57zi5MXbkOR8ivj
-         POf3ddWlekfaucLKyTAkaMUWQfgO55Q3MuQBoFNfUEppifoDXWAN/6bmeULt0Qok4pZR
-         cY5GkWW7Qvz0fNog97z17hxMq7IdcR0+KRI10LZRUSOOaPwHps7ZewLAIwZFK1vIrZgu
-         KWGnuROHPY+6VSiX9pp3LIFu2WH3q3AOotIsP9IJT12Cx1lEazbb7leqY4IRyqn3OXkW
-         xqShJIv2giXnKiwup9xdwmQJqm2taXMiST7ufEdLHWJyw/eUZnZgBGPHw2XCVwFNbCoT
-         maxA==
+        bh=ZYUvmpuTIuS5ukrvgoc/xspgSlKudh9rjsz1N9KfWcI=;
+        b=q8Y1vFRQ/ywhTkGCdTiqBxyeGj5Qr0UbiUw6J5ATbJGvFVI685z+WQ0mBNu2VuMo0Y
+         ScZmSeoSdx2LGwUUIc/sZiv1KEyglhkZ14bmQ+QCARUT/Faoi0L15TFa1E5/KVsxxhhE
+         O/9Lc39+26x8vzQJsCzbo17jQ3Eumao9NgLxA7pZ9F+/vnewX9ZPHo75CmsYPlk40Tra
+         R1J2flM27VE6LkL43zZXiVuyBYUXlYChTzIA5shoAcW30lUxYlP8Qip7dD8J+8gtEK3Y
+         rlBlVtaG/qFeZQHwlIgK8GQmIs0s1513QQdE4SD1sicJcRNNvheO1/xNd3mY9OvowUxH
+         5tmg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAVc7VLpUVeLMadqCtTDTKYS172SN1xrQDqoRuxtmAVYaK9SlR0+
-	lfEgJ7rkVBSgM/2z2SoYtfhHsnAHq2PcqpofSIx36LD3us8zN3IbhqLgImCQEtDNBN4EcZbhK6D
-	pWwk2uN/1/7UzED6KesYXdyPW8VgyyW2pJHugYxVzgY22GAMtHSZDe5iI71ktvu967g==
-X-Received: by 2002:a50:f419:: with SMTP id r25mr24644077edm.250.1554834272420;
-        Tue, 09 Apr 2019 11:24:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy0J6b2L/wo/EDhMZv6/TK/ph3HiYghAYH6aH+MzdqaPlHhyAzBpbC/s3uYDOmuE26eZJDN
-X-Received: by 2002:a50:f419:: with SMTP id r25mr24644027edm.250.1554834271413;
-        Tue, 09 Apr 2019 11:24:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554834271; cv=none;
+X-Gm-Message-State: APjAAAVeKzkhdaVnJpoNicys0QcNxPZm7mYqpiELJEj+5ozzHLi568z9
+	KRtIyczi5zTdT6LGDeMkBXhDH7YWwRavS8Sbax9C87f0145nKJOpzA4DXaXx4AHeS0wWe0CcRTs
+	tnracZA/tjfL5ViFFjDiJWwFUEGoS9MC6TWmWAsOPVbmK5/aBHY8z7iTMNKj4kFr8OQ==
+X-Received: by 2002:aa7:d44d:: with SMTP id q13mr24417048edr.230.1554834362691;
+        Tue, 09 Apr 2019 11:26:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw0Dr8td3mhEH3Rk/JTBebdSxPa0Yp3i7yB6kQEqtJMI5+T8RXFk2eaRqIX0aXwgdhAtA5V
+X-Received: by 2002:aa7:d44d:: with SMTP id q13mr24417017edr.230.1554834361987;
+        Tue, 09 Apr 2019 11:26:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554834361; cv=none;
         d=google.com; s=arc-20160816;
-        b=jlCedWLHVO/Dy0BEp6fabvGxGeMB4nov+yMESDjV1CI57wO89ugyM6h6QJPx/i4LMW
-         zlW9hl5IbVee4FauNyRcQdJUfHfIWE6BCAEg6GYab2NznCi4Mor+v0rNjiM4TjfdD8/g
-         BOZ1qet4TXMYrOq5dJxVvzMVDlvSHDMcAItxfwv7bfKJ31kws21f8PuvzGfAwlWUF3ju
-         pQ+rZwz/esO4epsptq/lzT4pq5IcigRCq9mL8dnhKTxeUUMuBJyJSvx7rxJlpRJVGbs2
-         8N0t7zOynD2c+w/uhf5Q8lhDCo40pTCKFOTaFZ96ACW8CI1OYWwqkEt2ho+svKnnn6ll
-         WvNA==
+        b=PZ04RLs7n4Z+1lUtpC2PjQIxzgwH4uEZUke0OuQPQOuAeaYygIO3ePTcFhoCElvnAW
+         KIMN3CY91QNEWDcKJX0brgRbdf5GgfKAAgP5NGvNX4qtkMhH0fDV89EPsNtrEd4Ltyvy
+         vZmTmtDxfqwmdyAtbSO4BA0CM9g06friJKhrKLn37pk61aaVD3noErcKZIjUrNZLTYjY
+         JKMbiS6TTcay7XtDaW0Zxadr6KwZ2OPRMi6XtYB6lRGDEBLqjuYRvNffKP3ruGC1Ok9G
+         zZBs6C7zWGORe3qpzH9opLDZ6w8UBBzmRGcp2rJAFuFN8WJli7Wm/e3ZelNgN/lhkWii
+         9yKQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
          :subject;
-        bh=yDRII9QSeEWAXRN8hwlPSBFO/5gnddeHuvhHslccZgA=;
-        b=PCOnjm4Brol8+eQuMvdKkBpkjtpb691MQwkl9+Fn9y6yDiQc7zy52GvNQ2n3rRIntc
-         IZtCLms/lB0TPmSfcXr+fNmfeBPzoNZAHrNZEIeGc3KmEQJ/j7jWJJ8hzwaSE1Db2Jhe
-         CHXcK3dkg7mOnpVrY/QaDyTbwCciosDx4J0Ei6S1GqnElw57H6LOTn2sagSCkVNarZqx
-         /g8qVsO8Htd+PWDVHlVJX3Wneu0bcaCwUO11q2wlDtQy1VNeDA3hEU/9KHlANzGXF8YV
-         dVEseqdLuUmDLkzl1zpOl/WWMnH31YNBJ/k8SK2xd5YT2oNelfoLGtgdoYio4cwRA0/l
-         Zfjw==
+        bh=ZYUvmpuTIuS5ukrvgoc/xspgSlKudh9rjsz1N9KfWcI=;
+        b=Pn4Y7zcivlWC+rkffoXpNhBPW33YHeywZnMzuXYkHozTqQ86Y09QyOcVB7+rC7fWRQ
+         PdzUCVtc7VzuFJnv+HLlMXx2TOZBtN+aoZKyT0/d5hmZFNYUFQJVI8q0uBLtSaFAA2yT
+         K1Pln549Tf2scvlw0JpnU4DsZeN1rpOhK/mUVLYrj853jGBoGJSdb+JTO6UvPfdnobPo
+         bwFerxnryDjCRKA4CZYT2JL34hxi8trjL/WTibAfrCmEZy3o9lajxWEKv3Zp+I2q60ou
+         OEPzWkn3Yv3PgXg9D09yw+PUcODzKhVTPq82esUJs4e1Ld3fT/RJnNdYyOA6lw2pB9Gd
+         LdsQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k20si368967edq.315.2019.04.09.11.24.31
+        by mx.google.com with ESMTPS id z19si4161270ejx.279.2019.04.09.11.26.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Apr 2019 11:24:31 -0700 (PDT)
+        Tue, 09 Apr 2019 11:26:01 -0700 (PDT)
 Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 8C349AE07;
-	Tue,  9 Apr 2019 18:24:30 +0000 (UTC)
-Subject: Re: [PATCH 4.19.y 1/2] mm: hide incomplete nr_indirectly_reclaimable
- in /proc/zoneinfo
+	by mx1.suse.de (Postfix) with ESMTP id 93727AE88;
+	Tue,  9 Apr 2019 18:26:01 +0000 (UTC)
+Subject: Re: [PATCH 4.19.y 2/2] mm: hide incomplete nr_indirectly_reclaimable
+ in sysfs
 To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, stable@vger.kernel.org
 Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>
 References: <155482954165.2823.13770062042177591566.stgit@buzz>
+ <155482954368.2823.12386748649541618609.stgit@buzz>
 From: Vlastimil Babka <vbabka@suse.cz>
 Openpgp: preference=signencrypt
 Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
@@ -148,12 +149,12 @@ Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
  5ZFJyfGsOiNUcMoO/17FO4EBxSDP3FDLllpuzlFD7SXkfJaMWYmXIlO0jLzdfwfcnDzBbPwO
  hBM8hvtsyq8lq8vJOxv6XD6xcTtj5Az8t2JjdUX6SF9hxJpwhBU0wrCoGDkWp4Bbv6jnF7zP
  Nzftr4l8RuJoywDIiJpdaNpSlXKpj/K6KrnyAI/joYc7
-Message-ID: <1accd98d-506d-9dff-c962-6dc17b072c27@suse.cz>
-Date: Tue, 9 Apr 2019 20:21:13 +0200
+Message-ID: <6a297270-5879-5a57-d41b-7d0629c53fd6@suse.cz>
+Date: Tue, 9 Apr 2019 20:22:45 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <155482954165.2823.13770062042177591566.stgit@buzz>
+In-Reply-To: <155482954368.2823.12386748649541618609.stgit@buzz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -164,80 +165,51 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On 4/9/19 7:05 PM, Konstantin Khlebnikov wrote:
-> From: Roman Gushchin <guro@fb.com>
+> This fixes /sys/devices/system/node/node*/vmstat format:
 > 
-> [ commit c29f9010a35604047f96a7e9d6cbabfa36d996d1 from 4.14.y ]
+> ...
+> nr_dirtied 6613155
+> nr_written 5796802
+>  11089216
+> ...
 > 
-> Yongqin reported that /proc/zoneinfo format is broken in 4.14
-> due to commit 7aaf77272358 ("mm: don't show nr_indirectly_reclaimable
-> in /proc/vmstat")
-> 
-> Node 0, zone      DMA
->   per-node stats
->       nr_inactive_anon 403
->       nr_active_anon 89123
->       nr_inactive_file 128887
->       nr_active_file 47377
->       nr_unevictable 2053
->       nr_slab_reclaimable 7510
->       nr_slab_unreclaimable 10775
->       nr_isolated_anon 0
->       nr_isolated_file 0
->       <...>
->       nr_vmscan_write 0
->       nr_vmscan_immediate_reclaim 0
->       nr_dirtied   6022
->       nr_written   5985
->                    74240
->       ^^^^^^^^^^
->   pages free     131656
-> 
-> The problem is caused by the nr_indirectly_reclaimable counter,
-> which is hidden from the /proc/vmstat, but not from the
-> /proc/zoneinfo. Let's fix this inconsistency and hide the
-> counter from /proc/zoneinfo exactly as from /proc/vmstat.
-> 
-> BTW, in 4.19+ the counter has been renamed and exported by
-
-This was actually 4.20+ and this mistake is why we initially forgot
-about 4.19 stable in [1]
-
-[1]
-https://lore.kernel.org/linux-mm/20181030174649.16778-1-guro@fb.com/
-
-> the commit b29940c1abd7 ("mm: rename and change semantics of
-> nr_indirectly_reclaimable_bytes"), so there is no such a problem
-> anymore.
+> In upstream branch this fixed by commit b29940c1abd7 ("mm: rename and
+> change semantics of nr_indirectly_reclaimable_bytes").
 > 
 > Cc: <stable@vger.kernel.org> # 4.19.y
+
+So given the same circumstances as patch 1/2, shouldn't this also
+include 4.14.y ?
+
 > Fixes: 7aaf77272358 ("mm: don't show nr_indirectly_reclaimable in /proc/vmstat")
-> Reported-by: Yongqin Liu <yongqin.liu@linaro.org>
-> Signed-off-by: Roman Gushchin <guro@fb.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 > Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-
-Thanks.
-
+> Cc: Roman Gushchin <guro@fb.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
 > ---
->  mm/vmstat.c |    4 ++++
->  1 file changed, 4 insertions(+)
+>  drivers/base/node.c |    7 ++++++-
+>  1 file changed, 6 insertions(+), 1 deletion(-)
 > 
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 72ef3936d15d..7b8937cb2876 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -1550,6 +1550,10 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
->  	if (is_zone_first_populated(pgdat, zone)) {
->  		seq_printf(m, "\n  per-node stats");
->  		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
-> +			/* Skip hidden vmstat items. */
-> +			if (*vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
-> +					 NR_VM_NUMA_STAT_ITEMS] == '\0')
-> +				continue;
->  			seq_printf(m, "\n      %-12s %lu",
->  				vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
->  				NR_VM_NUMA_STAT_ITEMS],
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index 1ac4c36e13bb..c3968e2d0a98 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -197,11 +197,16 @@ static ssize_t node_read_vmstat(struct device *dev,
+>  			     sum_zone_numa_state(nid, i));
+>  #endif
+>  
+> -	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
+> +	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
+> +		/* Skip hidden vmstat items. */
+> +		if (*vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
+> +				 NR_VM_NUMA_STAT_ITEMS] == '\0')
+> +			continue;
+>  		n += sprintf(buf+n, "%s %lu\n",
+>  			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
+>  			     NR_VM_NUMA_STAT_ITEMS],
+>  			     node_page_state(pgdat, i));
+> +	}
+>  
+>  	return n;
+>  }
 > 
 
