@@ -2,162 +2,150 @@ Return-Path: <SRS0=58dN=SL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7BF29C282DA
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 14:43:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A8DF3C282CE
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 14:49:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3B7AE208C0
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 14:43:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B7AE208C0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 641A12064B
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 14:49:32 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="Jgo77ysd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 641A12064B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CB5F26B0010; Tue,  9 Apr 2019 10:43:27 -0400 (EDT)
+	id F23D86B0010; Tue,  9 Apr 2019 10:49:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C647D6B0269; Tue,  9 Apr 2019 10:43:27 -0400 (EDT)
+	id ED31A6B0269; Tue,  9 Apr 2019 10:49:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B2E946B026A; Tue,  9 Apr 2019 10:43:27 -0400 (EDT)
+	id DE9716B026A; Tue,  9 Apr 2019 10:49:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 683446B0010
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 10:43:27 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id l19so8662121edr.12
-        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 07:43:27 -0700 (PDT)
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B6A2B6B0010
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 10:49:31 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id d63so7615480oig.0
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 07:49:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=POBBhKXh7zW2WcFHIt6RBnZ+MCssZ0smmDtbk80yIDc=;
-        b=oDR7J2dnknoPDmNcBB2ygjQPErztkDlCE7lbrv/i1pNkVSFwV/cQB3IcMeP0GX2UIe
-         rNGBXx2FdBaBH8PjfMXM4TcshdQTSuUE7XCXaYQg2EJHLDq7M8TkLevhq9E3Cn/qBKgC
-         mCTq0csx7fY2k7HFZ7FBhBdIwubv6QYiMXGk2fZCC6I1wVdaSY+6DjC4wDqLv3TpGGvS
-         CBtFU4ktxRwvPsSUsxzqhcY6vT20UC3ougrY0TZZw3uLv10WDNoCV6XMs/cRD12D6/kM
-         P04/1pbh8NrjLFPvMPuOIwA230gur3u288SoSbWCHV78Rtc3aXoU8pf7Kly9bOayjX3V
-         NNdg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAX3HsH1KiObk4lkb33iY0Fe+FnrQf7OujvLm49X42pzp9XpjLdz
-	F1+AhVKWnXTuxWYGgGxiC5T01o7FdptF4YaIlZcAusS2AydqgPh3VNFFQzm00XH4mIcuCSm7wpC
-	rTEZVcJLxiB9fJYnL2DdUpmhV7FX32noEQqawGVex2aJFbJ/asGHNvfGzEDRycFCGtg==
-X-Received: by 2002:a50:cb06:: with SMTP id g6mr5900104edi.89.1554821006973;
-        Tue, 09 Apr 2019 07:43:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzg2DHD9sk8ZKUB6UBhWd5eSIs2m0oYJcayN6xmo/PW7upaehu4UwgY6T2RMZSyTZowBxwp
-X-Received: by 2002:a50:cb06:: with SMTP id g6mr5900068edi.89.1554821006101;
-        Tue, 09 Apr 2019 07:43:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554821006; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=k18vVFTc+hq7WxyjyyY6YPjDwfffABYGdRiJn2pWXkA=;
+        b=HWl4XntSc3fleEYUygwcIUp28w0o+6ggrrXaVakjDm2/WGduIKDcOEHgnSSjbCELCF
+         zELz5zNzUDTHiuLvPfqoobwD4pKDqYN1PK6jncppu5Pi3bT1GMTheH2BASHPXNDWgPBj
+         VV012MvNNYEmwopWoy036Yuc/7K3O3tmG+xoglik7926dI0eYROC5Q3cH7la4wDn3FG3
+         XPJ3hyQjNKGTncWgpVCDx7FQkAlGaVswJtlULLxLlOqwqCR2oFLqR7xlAE+wzFC5VvXi
+         rh4H6UZYr8FDl3xLVjiKXiexPtWp+qPu5er1wRxkrwR97Icz4CcVS6EbC6DiyRkJRV4k
+         +BQA==
+X-Gm-Message-State: APjAAAV3AUXvhKddhq88FWg0fo0Y368HfIcgVGzaDb8x8bL4VyLcskFP
+	VnM63xWskrTVhqxGOb0eDe2P906wq+q11nXxV4EHHdkTKaQNNpuaAuB5hwWpahoyAXMTDAOYxiJ
+	k/VUmS2IiN0yRcp2JzxNEJNg/AT1h4wSO8Cn23ShtFunmMovo7WCVPcBD4DSUGucynQ==
+X-Received: by 2002:aca:5f46:: with SMTP id t67mr20963852oib.96.1554821371207;
+        Tue, 09 Apr 2019 07:49:31 -0700 (PDT)
+X-Received: by 2002:aca:5f46:: with SMTP id t67mr20963817oib.96.1554821370428;
+        Tue, 09 Apr 2019 07:49:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554821370; cv=none;
         d=google.com; s=arc-20160816;
-        b=Gd0K8o6rbmbZbHLzCDPSomho20xR8mJW4eBrsovboOd6v6a/UceZyTL2qy2luvuBcH
-         JPlPnh2qvjrsvB1tVwlS8Vot9rpt7485DNCwpeBJ3cw1mYb6m/se/s2O6Ni5apqJ/iPr
-         jtSCQW5xCQc0h4ElrawpeIqznSyXu5Rc75moM+vNou3grMDumb5vTSKPpkNOWXBkwoIY
-         xvohKil57IGAwcLY8fKJ7fBX05dhWh5MoSfn3m0k8I1EwIkzqmGQNTvqWo04eTki2/hJ
-         wrvvP1toWWz2FVzKVM5z4GH4TaDdVDAXv//vyNnK6Ib3r47jjb968BmDxDnuhAhGe7EY
-         L36A==
+        b=oTQrfftS8wevmdup2KpbOwgcjPNHR7vF0eoLcWOrLsM7YZ4UgbaTjGw1CBn6NQMOBv
+         65VpuIdmvfh/aNmXYU1v8RbbluVketBzhN8hVXgu9KySybrKLPI0YIXmv2doEHqYmUTl
+         AwD2pH5C+QGo/cijIA78KxPGHv1RpjWDMZINpzsro4Y6NrJd3Nby9qa/w2rw2t9bZOti
+         Ae2sUXTkfDptQH6KHYwF4OXSvoY9rHaIPSp0apul7J5QcZaEreivpWKLJ77dUyCyYXCa
+         kd/yv6BKqLfhzTEuQayaNY8NhZFhUpVMO+JmbQjAgS0C/XLR0TUMHnUn2jF3mSH0KS0r
+         6GKQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=POBBhKXh7zW2WcFHIt6RBnZ+MCssZ0smmDtbk80yIDc=;
-        b=gN4tvLF7HxLtY6BxoU5hnqqnzv+12sFhczSyJ3j/EsvDILvNqSEVh7qF8cc/ALoEs7
-         +ESavko9hvx0HFfy6s8DLGqyE8KZdq+wYc6o7NWq8dP0fVcchtwxbwPyl5bFwmi+a3XU
-         JvJp8Ri2L5LJx9MOyYymGSPILlxkqehFZ8QaLMPmQyRq3JznkYwGSR6GKsoyauG07DJJ
-         P+hMZFvQzpWXize4d6aFd2fZd3b3HQ8eaeHYnjGh3Uzowdi/3GR16dW09hofYOgsI+j5
-         sNV49/l9C8nhku4uJddmY0/+PdQxENqkZLinm0eBzMKJK33j313TWowud26+r1ogDASy
-         PCeA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=k18vVFTc+hq7WxyjyyY6YPjDwfffABYGdRiJn2pWXkA=;
+        b=PdFT0cUxA85oBp8dMgD/qv/vqNK/JSDh60fmkkDi8ebfLAv5qGBwrMjLpKuG0YF0d6
+         HLdI6/TO12gfB/LetMTJeSrhVfOs3U8iawYFadwQgQDQyN0ERVlAnmkydNLAjQdOzNLd
+         42v+phyF0Izt1CtKaDZdCrroVdOtj7lnFCHuaNLhKeu/CGgQzV5eJ+Vb8ok2nFS0czCe
+         BTkJ7KcPsVfOK6jHe20PmxUCDu8nW5RUnEMSt7XrP/YGZLUE/dEkNjVzTCZwRDSTDiZ9
+         ykGMsHDRGKpDy+DyfZwxoHq9FjMKpEu814apWdYG7TJHJl4SvA62cAWJX3JG+B18aCNo
+         Rbcg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y22si656214ejr.376.2019.04.09.07.43.25
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Jgo77ysd;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 90sor18609022otl.123.2019.04.09.07.49.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Apr 2019 07:43:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Tue, 09 Apr 2019 07:49:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 2033EAFDA;
-	Tue,  9 Apr 2019 14:43:25 +0000 (UTC)
-Subject: Re: [PATCH] mm/vmstat: fix /proc/vmstat format for
- CONFIG_DEBUG_TLBFLUSH=y CONFIG_SMP=n
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-mm@kvack.org,
- Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: Roman Gushchin <guro@fb.com>, Jann Horn <jannh@google.com>
-References: <155481488468.467.4295519102880913454.stgit@buzz>
- <a606145d-b2e6-a55d-5e62-52492309e7dc@suse.cz>
- <bfcc286e-48dd-8069-3287-a923e4b5ab65@yandex-team.ru>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <81880eb3-ab26-e968-1820-5d5e46f82836@suse.cz>
-Date: Tue, 9 Apr 2019 16:43:24 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Jgo77ysd;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=k18vVFTc+hq7WxyjyyY6YPjDwfffABYGdRiJn2pWXkA=;
+        b=Jgo77ysdABrsaTRjIOT4m1WX7sd5vCQoSB0IvxSSxjkBx5SSkMCVcYRu31lVFo++J/
+         qeN/swtfSsbbUtk6/Mfg65URcmgy6WN/PonezV4buI7RlC5k4UssuwFRoVGKkSBHr0NZ
+         ZxKANLnCf4TmqK9je9dP3w7NyWJEp2CYvmvAipxPX7D8VtteU943JskqA6G7zNP4gtY4
+         rktE27jcfl4IJ05xwRioHCOfRVfZ6CT+1UgIeiaWGjOehMrX/GPKcIfaMNA7ya89ptNk
+         efIb3nMvbvj/6xWyrmqvWNYdhQlXl7i03tMBK6puOtBiHLNhruokv0aCYHV5baradbuA
+         65Ng==
+X-Google-Smtp-Source: APXvYqzg2IjJpUJv7Oc9XxacrOBeMKvYZMxzbtRcNRaccyHw1L7vBYcvCvlbRGK54j//hFmYexJmqA8Zwi+Vc4sFHeU=
+X-Received: by 2002:a9d:6a88:: with SMTP id l8mr24365746otq.260.1554821370037;
+ Tue, 09 Apr 2019 07:49:30 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <bfcc286e-48dd-8069-3287-a923e4b5ab65@yandex-team.ru>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <155440490809.3190322.15060922240602775809.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <155440492988.3190322.4475460421334178449.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20190409121318.GA16955@infradead.org>
+In-Reply-To: <20190409121318.GA16955@infradead.org>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 9 Apr 2019 07:49:18 -0700
+Message-ID: <CAPcyv4h3M7fGtdWt_dUVGkp1A2VZjR98wg0xAzipVccYZuChqg@mail.gmail.com>
+Subject: Re: [RFC PATCH 4/5] acpi/hmat: Register special purpose memory as a device
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, 
+	Len Brown <lenb@kernel.org>, Keith Busch <keith.busch@intel.com>, 
+	Jonathan Cameron <Jonathan.Cameron@huawei.com>, Vishal L Verma <vishal.l.verma@intel.com>, 
+	X86 ML <x86@kernel.org>, Linux MM <linux-mm@kvack.org>, 
+	linux-nvdimm <linux-nvdimm@lists.01.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/9/19 3:28 PM, Konstantin Khlebnikov wrote:
-> On 09.04.2019 16:16, Vlastimil Babka wrote:
->> On 4/9/19 3:01 PM, Konstantin Khlebnikov wrote:
->>> Commit 58bc4c34d249 ("mm/vmstat.c: skip NR_TLB_REMOTE_FLUSH* properly")
->>> depends on skipping vmstat entries with empty name introduced in commit
->>> 7aaf77272358 ("mm: don't show nr_indirectly_reclaimable in /proc/vmstat")
->>> but reverted in commit b29940c1abd7 ("mm: rename and change semantics of
->>> nr_indirectly_reclaimable_bytes").
->> 
->> Oops, good catch.
-> 
-> Also 4.19.y has broken format in /sys/devices/system/node/node*/vmstat and /proc/zoneinfo.
-> Do you have any plans on pushing related slab changes into that stable branch?
+On Tue, Apr 9, 2019 at 5:13 AM Christoph Hellwig <hch@infradead.org> wrote:
+>
+> On Thu, Apr 04, 2019 at 12:08:49PM -0700, Dan Williams wrote:
+> > Memory that has been tagged EFI_SPECIAL_PURPOSE, and has performance
+> > properties described by the ACPI HMAT is expected to have an application
+> > specific consumer.
+> >
+> > Those consumers may want 100% of the memory capacity to be reserved from
+> > any usage by the kernel. By default, with this enabling, a platform
+> > device is created to represent this differentiated resource.
+>
+> This sounds more than weird.  Since when did we let the firmware decide
+> who can use the memory?
 
-Hmm do you mean this?
-https://lore.kernel.org/linux-mm/20181030174649.16778-1-guro@fb.com/
+There's 2 related motivations for playing along with this "special
+purpose" attribute. Before this bit we've seen gross hacks in platform
+firmware trying to game OS behavior by lying about numa distances in
+the ACPI SLIT. For example "near" high bandwidth memory being set at a
+large distance to prevent the kernel from allocating from it by
+default as much as possible. Secondly, allow niche applications
+guarantees about being able to claim all of a given designated
+resource.
 
-Looks like Roman marked it wrongly for # 4.14.x-4.18.x and I didn't notice, my
-slab changes are indeed 4.20, so we should resend for 4.19.
+The above comes with the option to override this default reservation
+and just turn it back over to the page allocator i.e. ignore the
+platform firmware hint.
 
->> 
->>> So, skipping no longer works and /proc/vmstat has misformatted lines " 0".
->>> This patch simply shows debug counters "nr_tlb_remote_*" for UP.
->> 
->> Right, that's the the best solution IMHO.
->> 
->>> Fixes: 58bc4c34d249 ("mm/vmstat.c: skip NR_TLB_REMOTE_FLUSH* properly")
->>> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
->> 
->> Acked-by: Vlastimil Babka <vbabka@suse.cz>
->> 
->>> ---
->>>   mm/vmstat.c |    5 -----
->>>   1 file changed, 5 deletions(-)
->>>
->>> diff --git a/mm/vmstat.c b/mm/vmstat.c
->>> index 36b56f858f0f..a7d493366a65 100644
->>> --- a/mm/vmstat.c
->>> +++ b/mm/vmstat.c
->>> @@ -1274,13 +1274,8 @@ const char * const vmstat_text[] = {
->>>   #endif
->>>   #endif /* CONFIG_MEMORY_BALLOON */
->>>   #ifdef CONFIG_DEBUG_TLBFLUSH
->>> -#ifdef CONFIG_SMP
->>>   	"nr_tlb_remote_flush",
->>>   	"nr_tlb_remote_flush_received",
->>> -#else
->>> -	"", /* nr_tlb_remote_flush */
->>> -	"", /* nr_tlb_remote_flush_received */
->>> -#endif /* CONFIG_SMP */
->>>   	"nr_tlb_local_flush_all",
->>>   	"nr_tlb_local_flush_one",
->>>   #endif /* CONFIG_DEBUG_TLBFLUSH */
->>>
->> 
-> 
+The alternative is arranging for "special purpose" memory to be given
+to the page allocator by default with the hope that it can be reserved
+/ claimed early so the administrator can prevent unwanted allocations.
+It just seemed overall easier to "default reserve with the option to
+hot-add" instead of "default online with option / hope of hot-remove
+or early allocation".
 
