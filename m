@@ -2,183 +2,201 @@ Return-Path: <SRS0=58dN=SL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EA7ADC282CE
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 03:30:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3CF5DC282DA
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 04:30:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A8536213F2
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 03:30:25 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="zPUCIEg5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A8536213F2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id CF26720883
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 04:30:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF26720883
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 44FC46B0006; Mon,  8 Apr 2019 23:30:25 -0400 (EDT)
+	id 1FECA6B0007; Tue,  9 Apr 2019 00:30:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3FF536B0008; Mon,  8 Apr 2019 23:30:25 -0400 (EDT)
+	id 1AF876B0008; Tue,  9 Apr 2019 00:30:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2EF156B000C; Mon,  8 Apr 2019 23:30:25 -0400 (EDT)
+	id 0C5B36B000C; Tue,  9 Apr 2019 00:30:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EB9586B0006
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 23:30:24 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id y10so3374959pll.14
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 20:30:24 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C881F6B0007
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 00:30:45 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id b34so11483144pld.17
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 21:30:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=yNAnix0vPb3Rl0k78u1G6bUYV+iub+YsxxG7ebwDs7U=;
-        b=Lu1ssFZAiTCxS9TRh2+RKwfv2lZkbHi96NTZrVlRWDRq3HW0hTzMK1R7r7R7PpjUst
-         y6SxLCL/Sfj/T6Tl5Svmeb0IhglFkPh9uw4+WcZelzfqM8REmKwPci/D2rk7Nwg9qTIS
-         FyUiVCcQFtLAX3tgw+eoQqlxJfZpsqaBY+kpwiHMpvdTCL0BIQ/hSfBf30dPj78xd823
-         08e8gv7ENmMzJ/krDPu5mWlRq7ONhLGctXd2rTeGu7bOXRlRQbUuCD9WEtYEHynXYikX
-         PI/GX4pe+D5QIRsavV3VZjb/Us/A/H7w32dhp89NECRncYLKnauzYha+qhZ0fQH4mMYL
-         hgGQ==
-X-Gm-Message-State: APjAAAXmhQ1z6OKCraLD/fcfQHjsLFHRxSvXa4oYhI46O/jBT19uwjWc
-	QPqhbsWRFYtRQgVHPOk8VVdF0dEMBQ4HrRKSepqRRuJqa0n52/jxMFyvsQmJ+NA1Fj2NV021yAd
-	Bscim+6tuGrDABzzMWb60g5s4DeSVzseIO72pCleaRJj/B0jipkYdgAQe/YHOF85h2g==
-X-Received: by 2002:a17:902:aa87:: with SMTP id d7mr34484646plr.146.1554780624399;
-        Mon, 08 Apr 2019 20:30:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw0br0WCqb1gGij9IUg2OWfX9DQPcqvQZeaIL+6UBgeuRN4vtpIgDi6hMnkq63qWH2dhRNc
-X-Received: by 2002:a17:902:aa87:: with SMTP id d7mr34484563plr.146.1554780623629;
-        Mon, 08 Apr 2019 20:30:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554780623; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=aZRCsChXF6RozXz3lALP+22GHRpyOuulCIr0ckS3XBY=;
+        b=ZS58jx/ZdP1RLgxyBzUSDVCkNgaF9Wfm0T0sp/vLqq43ZBkzyBw9LhCA1R8iL4J4HJ
+         3tfqxZTn3+SED7/S/DKd70YKNymtA/qlhJaOUbXVSxT0M/C3j795J8aSlpjwxbsJ8kyR
+         JKDGR+wpmakjb7ygJeMIhCyvPwkExtHkbYvCDP96CqwrUDCqrIHeSAJxhsHT5ww2N4w/
+         C1dZTGvQpV7TqueTkGwMHZQGQ18fCsHFztqF4Kn5DNLMrfeEbcUmfV90/Jlh/ZTICNkb
+         8leGgfdbJajfhP35WFVgvTQ2Ob97lnOZQIcfS0fHZTRYjBUzdlqVq3Wmv1G0/vmIzGpe
+         6dwA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+X-Gm-Message-State: APjAAAWERUYGcuR1q0HZDYmoT6D7GO0XyO3wZW1miBQmJwFeWMFfHwgx
+	VorJggofQuPg/DQd4OOd9WRuqqWFIJZ+v0WJhQa6fNAIKyrpEtZkhBJNF4n5Fpz7qjnd033EXT+
+	3cdq5G+qzbr18x03s+0YShO6lT+OsAsYxuWjvxeTdbaPHg9GvPBatM96Gutuo2Chrmg==
+X-Received: by 2002:a17:902:1105:: with SMTP id d5mr10153450pla.311.1554784245230;
+        Mon, 08 Apr 2019 21:30:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxmALYLCHAsBn83JJ3nNMRFXZyvwVbhSWqX/OHYmSAmotVBFeeEFH9Q38SI374ote4WeX+W
+X-Received: by 2002:a17:902:1105:: with SMTP id d5mr10153381pla.311.1554784244469;
+        Mon, 08 Apr 2019 21:30:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554784244; cv=none;
         d=google.com; s=arc-20160816;
-        b=Q1JeE2wMCqtaqz9Qfln34LQmkTZr5bI5y3x+Ns+F4YjJWW4SV6w2hxVIajNAF/7VF4
-         PlJ3F2OFm8UmQ8TB3SX+AcHwuppNQeTha2McWvXPsiRLbVBxZB9WpSH4RnFB0E2lWote
-         yxvME+NXSOkGnKB/q3REj+TGXTtMxXh2QRXjd/Cf/KoZ/HU2aQVVFuWR9STn+mAz8lPU
-         rqLVcZCkhVTfg2qh2uvwkDJadlVb0oKAucTsPo9NfPZoPChWapRbkzjb/Vz9Cir4kNOO
-         wpM3NDTtVqJQm3jSQ1PHIxdbu7MO6YbJqtJu9Zzg3ABVSZWsHHfNhTKA+RHUCAVguCgP
-         KFYA==
+        b=eAHVGKDHWkFhuve3Ckxmm0AwdiSCMqwOe8/2f1RhOgV9sKTybUXM9+fLy5ZVbdGlMn
+         KrmwFoxGRtansGliMb+93XWT6aJBZeywzRsUCBENpyJRhvnaW9/Rsyhb6E4rnxyX3Pjb
+         g8qd0BacbymioOdf1kjlaB/ct9+5ppz0DIqLvBRdrV7EK6g3DdXG7IysSpYrlQEXE2Co
+         djxxts18MLZwt6ffV+JOz7bgNYOvk23j/8HIQ1csXHO1fVP/kTZ0ZLWPZkhRoV1OpwIX
+         IvSxzGisE5cL7jrLNWKYvzgJrohzjYu3ZDlzPc+m2dCxXXxKz+TwhDMBWJdiMuWeQecz
+         WM3w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:to:subject
-         :dkim-signature;
-        bh=yNAnix0vPb3Rl0k78u1G6bUYV+iub+YsxxG7ebwDs7U=;
-        b=f8aBhdkQnsbBixq0e70cxFAfo78MTsjRTB2FLk2JFiGvkSp+RT0BC/BNGwe52BncM8
-         pyaGOxLn44d7m/DUY4Z5LFZvB4AJzYqF4kMHKniGEpMqLh90tHawIYbqi/iIQIo4BNMk
-         QTUzMRbwjpBzyNxBTBbwdHw6S2EMMX+2ANG81eUdP4+DdqpT/kBlAKv0V4NaD25a91Y9
-         O7VffhiCyd4wUEqkmT39kI8ZkG3Lod3GtOTCW61LTiWXexoQDDFpOn+hxhchZJm0QLF2
-         7oVjIkhO3OV5TWKjgBtAmndvijlHwVAg0Garckb1K2hcli3RK2YpbPFsHbVt/XlOT3Xs
-         0IvA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date;
+        bh=aZRCsChXF6RozXz3lALP+22GHRpyOuulCIr0ckS3XBY=;
+        b=NHhdIAUWxYsNdCZ+bYK/1pL7fj7+jqFTaeFaoRuN43QYAFH1wrAFEMAR5SBpABVJh2
+         TluM24/Vazz9t4+sE47qH0/wp8dS1FCpbZkZ7xhdJS8bNzT4kWYb/wGgtv0mkCT5htvV
+         iJbhUw8ogwVeaRqouJTXRg5Rz49bQ2JPL6aZ+eZeSMO7Olgl38SV9JuqDSEf8yyznyor
+         D7VXyYM9XyJFO52uhJDNxst+ULYXxcbCzwNQyMkpZ4OBoiasqGcpfJjQEqH2otnCKYVP
+         L4HRU33sgsacbic3odZ743Gf7VO2UXBd1RfV1/0jKnTVn6ZLmx+voZ0Roo7014fYQ6JD
+         Vufw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=zPUCIEg5;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id f1si28072408pgm.373.2019.04.08.20.30.23
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 14si27999218pgv.248.2019.04.08.21.30.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Apr 2019 20:30:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Mon, 08 Apr 2019 21:30:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=zPUCIEg5;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x393T152151814;
-	Tue, 9 Apr 2019 03:30:19 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=yNAnix0vPb3Rl0k78u1G6bUYV+iub+YsxxG7ebwDs7U=;
- b=zPUCIEg5CUbDsP0wiNhIk8OvKl7JmuJp/okBnahAcSyFxQGyUIBX0mUXXvSDwxGePx48
- NrjyTdGtU6SokLBju1C5MHRO0FJXgs6UmehpqLkJwBelmrbkxGxMum3xPyNtznCJKNyK
- tsuyXYXsx+cmTxCu9OF5v546DaJIpch/WUPBPAU0Awd6uy7o5zpfnAy6J79W1BDCI29d
- wZxF0RYoFjH9WuwuJIQcM/3JVB+lqv5g3l++SgMFyFu8b5baxaJCrool/xQ0LfBpjJc5
- bG42V9v+I+cQdSbMNEUon2THP8ovxp9E6fz/8kazU/0MNxC81zFK+2hjaBsRWs5b615w Fw== 
-Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
-	by aserp2130.oracle.com with ESMTP id 2rphmeacg6-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 09 Apr 2019 03:30:19 +0000
-Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
-	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x393TlYX158719;
-	Tue, 9 Apr 2019 03:30:18 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserp3030.oracle.com with ESMTP id 2rpj5aava2-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 09 Apr 2019 03:30:18 +0000
-Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x393UFQU025909;
-	Tue, 9 Apr 2019 03:30:16 GMT
-Received: from [192.168.1.222] (/50.38.38.67)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 08 Apr 2019 20:30:15 -0700
-Subject: Re: [PATCH v2 0/2] A couple hugetlbfs fixes
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-        Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>,
-        Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-        "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-        Andrew Morton <akpm@linux-foundation.org>
-References: <20190328234704.27083-1-mike.kravetz@oracle.com>
- <20190408194815.77d4mftojhkrgbhv@linux-r8p5>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <ec2426bc-d817-f645-b868-9edb9b4c54ca@oracle.com>
-Date: Mon, 8 Apr 2019 20:30:14 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
-MIME-Version: 1.0
-In-Reply-To: <20190408194815.77d4mftojhkrgbhv@linux-r8p5>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9221 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=923
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1904090022
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9221 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=933 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1904090023
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id A8EC8E26;
+	Tue,  9 Apr 2019 04:30:43 +0000 (UTC)
+Date: Mon, 8 Apr 2019 21:30:41 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Oscar Salvador <osalvador@suse.de>
+Cc: mhocko@suse.com, david@redhat.com, dan.j.williams@intel.com,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH v2 2/2] mm, memory_hotplug: provide a more generic
+ restrictions for memory hotplug
+Message-Id: <20190408213041.50350dac32ed315839c57e09@linux-foundation.org>
+In-Reply-To: <20190408082633.2864-3-osalvador@suse.de>
+References: <20190408082633.2864-1-osalvador@suse.de>
+	<20190408082633.2864-3-osalvador@suse.de>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/8/19 12:48 PM, Davidlohr Bueso wrote:
-> On Thu, 28 Mar 2019, Mike Kravetz wrote:
+On Mon,  8 Apr 2019 10:26:33 +0200 Oscar Salvador <osalvador@suse.de> wrote:
+
+> arch_add_memory, __add_pages take a want_memblock which controls whether
+> the newly added memory should get the sysfs memblock user API (e.g.
+> ZONE_DEVICE users do not want/need this interface). Some callers even
+> want to control where do we allocate the memmap from by configuring
+> altmap.
 > 
->> - A BUG can be triggered (not easily) due to temporarily mapping a
->>  page before doing a COW.
+> Add a more generic hotplug context for arch_add_memory and __add_pages.
+> struct mhp_restrictions contains flags which contains additional
+> features to be enabled by the memory hotplug (MHP_MEMBLOCK_API
+> currently) and altmap for alternative memmap allocator.
 > 
-> But you actually _have_ seen it? Do you have the traces? I ask
-> not because of the patches perse, but because it would be nice
-> to have a real snipplet in the Changelog for patch 2.
+> This patch shouldn't introduce any functional change.
 
-Yes, I actually saw this problem.  It happened while I was debugging and
-testing some patches for hugetlb migration.  The BUG I hit was in
-unaccount_page_cache_page(): VM_BUG_ON_PAGE(page_mapped(page), page).
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: mm-memory_hotplug-provide-a-more-generic-restrictions-for-memory-hotplug-fix
 
-Stack trace was something like:
-unaccount_page_cache_page
-  __delete_from_page_cache
-    delete_from_page_cache
-      remove_huge_page
-        remove_inode_hugepages
-          hugetlbfs_punch_hole
-            hugetlbfs_fallocate
+x86_64 allnoconfig:
 
-When I hit that, it took me a while to figure out how it could happen.
-i.e. How could a page be mapped at that point in remove_inode_hugepages?
-It checks page_mapped and we are holding the fault mutex.  With some
-additional debug code (strategic udelays) I could hit the issue on a
-somewhat regular basis and verified another thread was in the
-hugetlb_no_page/hugetlb_cow path for the same page at the same time.
+In file included from ./include/linux/mmzone.h:744:0,
+                 from ./include/linux/gfp.h:6,
+                 from ./include/linux/umh.h:4,
+                 from ./include/linux/kmod.h:22,
+                 from ./include/linux/module.h:13,
+                 from init/do_mounts.c:1:
+./include/linux/memory_hotplug.h:353:11: warning: ‘struct mhp_restrictions’ declared inside parameter list will not be visible outside of this definition or declaration
+    struct mhp_restrictions *restrictions);
+           ^~~~~~~~~~~~~~~~
 
-Unfortunately, I did not save the traces.  I am trying to recreate now.
-However, my test system was recently updated and it might take a little
-time to recreate.
--- 
-Mike Kravetz
+Fix this by moving the arch_add_memory() definition inside
+CONFIG_MEMORY_HOTPLUG and moving the mhp_restrictions definition to a more
+appropriate place.
+
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: David Hildenbrand <david@redhat.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Oscar Salvador <osalvador@suse.de>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ include/linux/memory_hotplug.h |   24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
+
+--- a/include/linux/memory_hotplug.h~mm-memory_hotplug-provide-a-more-generic-restrictions-for-memory-hotplug-fix
++++ a/include/linux/memory_hotplug.h
+@@ -54,6 +54,16 @@ enum {
+ };
+ 
+ /*
++ * Restrictions for the memory hotplug:
++ * flags:  MHP_ flags
++ * altmap: alternative allocator for memmap array
++ */
++struct mhp_restrictions {
++	unsigned long flags;
++	struct vmem_altmap *altmap;
++};
++
++/*
+  * Zone resizing functions
+  *
+  * Note: any attempt to resize a zone should has pgdat_resize_lock()
+@@ -101,6 +111,8 @@ extern void __online_page_free(struct pa
+ 
+ extern int try_online_node(int nid);
+ 
++extern int arch_add_memory(int nid, u64 start, u64 size,
++			struct mhp_restrictions *restrictions);
+ extern u64 max_mem_size;
+ 
+ extern bool memhp_auto_online;
+@@ -126,16 +138,6 @@ extern int __remove_pages(struct zone *z
+ 
+ #define MHP_MEMBLOCK_API               (1<<0)
+ 
+-/*
+- * Restrictions for the memory hotplug:
+- * flags:  MHP_ flags
+- * altmap: alternative allocator for memmap array
+- */
+-struct mhp_restrictions {
+-	unsigned long flags;
+-	struct vmem_altmap *altmap;
+-};
+-
+ /* reasonably generic interface to expand the physical pages */
+ extern int __add_pages(int nid, unsigned long start_pfn, unsigned long nr_pages,
+ 		       struct mhp_restrictions *restrictions);
+@@ -349,8 +351,6 @@ extern int walk_memory_range(unsigned lo
+ extern int __add_memory(int nid, u64 start, u64 size);
+ extern int add_memory(int nid, u64 start, u64 size);
+ extern int add_memory_resource(int nid, struct resource *resource);
+-extern int arch_add_memory(int nid, u64 start, u64 size,
+-			struct mhp_restrictions *restrictions);
+ extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+ 		unsigned long nr_pages, struct vmem_altmap *altmap);
+ extern bool is_memblock_offlined(struct memory_block *mem);
+_
 
