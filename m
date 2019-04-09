@@ -2,225 +2,178 @@ Return-Path: <SRS0=58dN=SL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CC657C10F0E
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 06:17:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8F25DC10F0E
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 06:55:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 80E072083E
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 06:17:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3553020880
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 06:55:39 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="iKpuC37b"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 80E072083E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=eInfochipsIndia.onmicrosoft.com header.i=@eInfochipsIndia.onmicrosoft.com header.b="FR518TLZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3553020880
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=einfochips.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1D6FA6B0007; Tue,  9 Apr 2019 02:17:53 -0400 (EDT)
+	id C1C6E6B0008; Tue,  9 Apr 2019 02:55:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 185996B0008; Tue,  9 Apr 2019 02:17:53 -0400 (EDT)
+	id BCABF6B000C; Tue,  9 Apr 2019 02:55:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 09F8A6B000C; Tue,  9 Apr 2019 02:17:53 -0400 (EDT)
+	id A92C86B000D; Tue,  9 Apr 2019 02:55:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 991E16B0007
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 02:17:52 -0400 (EDT)
-Received: by mail-lf1-f71.google.com with SMTP id j20so2180016lfh.23
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 23:17:52 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F43F6B0008
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 02:55:38 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id g83so12357476pfd.3
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 23:55:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=XVUI5sWl/mko1IjkbRDCczAOo+DWIKHvVwzZKO9ey8M=;
-        b=RlBgkYva4QgNHirrTIlq9W7HI98nh+dTg5zFVbVB9PlgZJoj1DOcrLU2eyY0h4l3+M
-         biRQ7IN/9bJmT3mf7kxlvIWvE6YsTgMCupSoo4JXUBvJ4bFrbBoCNOwdNLiWaiMRYclN
-         sYc3HUpr6Ih+bD6Blt6Jrancb5MqjPxQy5IAaRWaEGQSDogHsXmQdKZ2cKGJINqKbBdP
-         N4/K41k9iDGYO5tXq2PVh6AeufqZztpMYcxoMJtUaDyzV/ihHOYyl6BZPVcHlWstCAcb
-         O5ZmBjX0rwmV8dlIBVZe+KgBCwBY/vaYSnWxL2tLQXRV4CRdNzTHUtTKIBFZeXpjgPzq
-         7F2w==
-X-Gm-Message-State: APjAAAXsNcyh5ivVXoZfDnqIXwFX0K1lErRIFUgmzCzptEhaPsEkqOjd
-	BOQoW5IBDrOXlKqoE+Edfx5H1d5Kj463UmoZDt6YVXr8I66WoT2JbCd+rLhSMMGbmkSAqPqrUzG
-	SdUJ3CwRL+gmPU+7gCfiNnUyc4NT0DrSc7dJm1eoOR4K+Xih7RdO+rw7bgFhnk/ADdA==
-X-Received: by 2002:ac2:4246:: with SMTP id m6mr18676727lfl.131.1554790670609;
-        Mon, 08 Apr 2019 23:17:50 -0700 (PDT)
-X-Received: by 2002:ac2:4246:: with SMTP id m6mr18676671lfl.131.1554790669596;
-        Mon, 08 Apr 2019 23:17:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554790669; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:subject:thread-topic
+         :thread-index:date:message-id:accept-language:content-language
+         :content-transfer-encoding:mime-version;
+        bh=mhvftYmBbxKShj+CoY7y/lw9q0Ayo3jaUwg6pzEUmPo=;
+        b=ffTzu/t+Y/OcHP3TDn+CyLGslobAoOc6bKOFdplgakPfefuu+1/kSDcKfQFpcSXQJq
+         Fk0zwzJNPxFJIwmw12spf3AQMU+cs0K+aEdc7MpjNuIvGkwvxfQl6yQT+JORqMQZ3zCi
+         mLgCnJPQCGlzi1qeiHczwA+nYxSPc6FTbFvK8CuB5/hwhkbkrmp8JGuQ7vyULBhJiqtW
+         EBjQOstDFbqDrDuT7DzZIw77kGaMHKrq/KefVfggXYSbvcZVesprmM2pJ4gf5wB+gRWx
+         tbl0uDRDMpF2v8f0Ulpxf59pa4gsFTrmaZJmMKTOsLkEVAkEojHdxon2gZ5MxcIfZG7M
+         npXw==
+X-Gm-Message-State: APjAAAWVhNlkMOUQv+zFi23+SgmAt51/xMLUYJpzDVkO6XjEEwZBh7bn
+	p3DzqVuRqCy9Ge1yB10ILaC4M64E03/1iKn+upfQepfX3GVvEp3YfP5N66FCBhpgerhf2IlT8x7
+	j2Zs9Z5grx/ETUyLAhGCj0BfzedptVx8XAYqbkJG4sUH//mhtORBLGuyKLK22PHtwgA==
+X-Received: by 2002:a63:6844:: with SMTP id d65mr33421555pgc.393.1554792937966;
+        Mon, 08 Apr 2019 23:55:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyk7+xuxLnb2WtJpw7B5i6FK9t+C4wTtYk08dxaNCAMv9JvcTu2fBSRZQBUgJvKkkd1tkLU
+X-Received: by 2002:a63:6844:: with SMTP id d65mr33421501pgc.393.1554792936961;
+        Mon, 08 Apr 2019 23:55:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554792936; cv=none;
         d=google.com; s=arc-20160816;
-        b=eV2NlZyvpyUk5dbepQK4WUyz62X8bevClgAr0+2eKlEj/vypeGLm3FNim0Nr4YiS0W
-         T9jPr9vkeRJe0l7cVF/ZZNOzYBeMQ+rxoLsv2mjE9JDDNKyfc3bcOlEaMVjXVKEDWLPG
-         C9qKyFlimnzArpIh9mBQNfnA8xcuyi95garYfEsv05JSmcfbkOKsuAVj1fGa1I+egKzx
-         XdD6c6C+g5HBDj8PBY97pYxmNvtM/WR8jEVNCLS5erXpfPjFZQ5aDeA/sCBArQhCkkVe
-         6sIuLjfeAivT9xwE5iDsK5s+YHvNC73jrhbt3sXHscfxJ6fakD+enpDX/rhG9GZIZtmV
-         P2ZA==
+        b=TpZ1pYvjsq4bwhP/V+/R1uBDiAMyK+JtQEeTCpFGKTzw3qmLcr3BXnigE39otrgSyo
+         Fb+RR3T81tMxPk2/ZYpJkKVTvEgqspXtCsZ/F8ssjCacuzns5rQPZkvoNwrf0iNHjEnf
+         seDT0bAbSgbaP5ko4AF4ZzApguf7Tpt29euUjtgNY0KKuZxPNx3ADAGTdmRW1McpQhK2
+         W8aoSFygI4SUAc+0zsCBXikxg58wJmNvozSNPSyMAnz9kzDxDPrwy0QIMpMX/60POqrx
+         plLLAjXH8eg2PUga69QWyjYCPWcgCSmNnHAwvvxFEMpBZa+oSCqqOWNEiVnHnVwIij8U
+         k7Qg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=XVUI5sWl/mko1IjkbRDCczAOo+DWIKHvVwzZKO9ey8M=;
-        b=c46ZSt5j83TeLE3FT2L7Y/yyoNua+Ks9rq82WBwpn7aEX0CFp4tjry9MWcg1hcR9ZU
-         Xtb4M+oGbulpighXIb7XG0xFM1sDMUs/WB1DsVGN93bT+q1P4WkaWgnTc+0/Ypcsr+2z
-         H073R98nydF6Nk+2tJECJj8xTxrmKb08xSOJOeL69zuUqizwmgJ2lbfXkG8YlyA29O5r
-         4kGuORMP2NnNDeSDMpgibE9LrKQHNeN1OocSTiLW30XR9y08nwY//N4mppvEYs/ujxPc
-         FdJFzeEJwHXdwnUskX8BiqCTUWJRqLzT92y9sNc7yAaviNojOECiQcFyz+atOVi5dUAz
-         qBZA==
+        h=mime-version:content-transfer-encoding:content-language
+         :accept-language:message-id:date:thread-index:thread-topic:subject
+         :to:from:dkim-signature;
+        bh=mhvftYmBbxKShj+CoY7y/lw9q0Ayo3jaUwg6pzEUmPo=;
+        b=0xBDXbGKrU0pm+dQkSeDsEaVJ9qOA7SaGJwG7Ajuy8RA5t2LFDz30cH6UYKARoMBDx
+         dEyYfxFbIxUYT99dq31Vp4/Sw+SgpqRq8iXcrgEUug9mP7JWQgBQcQXW5oXKFrYHYST+
+         R1UAoB8Iux8NpOeJ1DMme9NLliZuQT3cc/bmBMs6b1Ktmu+DKG8iMRM3sn0w6LQfJL85
+         3d/6wjye0LSZpiqBotg+a0zVBxuFdxQic2H+N3tKX+O6Fcfz6mjEocp5mPNh8KcU8i88
+         RDZ+ntDFGIH+watu9K4jOV+k2Sk1VPnWhjy7KgbYiO7jLJXHnDxihh0PcZX19BR89CnC
+         ps4w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iKpuC37b;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c4sor1198575lfm.57.2019.04.08.23.17.49
+       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=FR518TLZ;
+       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.41 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
+Received: from APC01-HK2-obe.outbound.protection.outlook.com (mail-eopbgr1300041.outbound.protection.outlook.com. [40.107.130.41])
+        by mx.google.com with ESMTPS id t10si10215535pgc.65.2019.04.08.23.55.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 08 Apr 2019 23:17:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 08 Apr 2019 23:55:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.41 as permitted sender) client-ip=40.107.130.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iKpuC37b;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=FR518TLZ;
+       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.41 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=XVUI5sWl/mko1IjkbRDCczAOo+DWIKHvVwzZKO9ey8M=;
-        b=iKpuC37b/W9gnQHlKyXQsrbKJd+/drf2Hv8V3oXIdmLPXDVZ9PIoNs12K3H/oeXZSd
-         ntqA/DPibQG3kCHwVQ1+u5E6p3D1xq3D5anzZWBFdTux4ntxY/u+UD79r72OeMCnFR4v
-         +v8oEW8Pce6NPS6evVaWwTmOR8s28EpacqA8lf/PLOsdQOlml8q7m5VaVbiRssH/Cj+I
-         lIdgJUEIvd3wzqVYEklHNeJxatPwj86ktRvsFhosFc+61nBn7yd3rTm8VkMoXQXoLx6I
-         AfzL866vMcmHkMBVnb2EODlFqUt/Tf6sb5rLwjofq6ZQKlmgWDWmVXOru/yi09PGWw6w
-         Hk4Q==
-X-Google-Smtp-Source: APXvYqzRVyYQF95nCiqgET1kk0SjOcmMhC+aOUtHZXTsDUtBuKrygbCT0gC/J5XPE8cvaOujK9I/d9QG6rJVxJTRI3I=
-X-Received: by 2002:a19:f013:: with SMTP id p19mr12738522lfc.36.1554790669149;
- Mon, 08 Apr 2019 23:17:49 -0700 (PDT)
+ d=eInfochipsIndia.onmicrosoft.com; s=selector1-einfochips-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=mhvftYmBbxKShj+CoY7y/lw9q0Ayo3jaUwg6pzEUmPo=;
+ b=FR518TLZ4+8qiRHTrjxuqnhhLEUQdi7ILgmL65iyZBsuNf1ZrXcpLQNMGqdXrb78k/A4fFRht2bVkqjBi9fVyMpzWJjV1OEFbaFSqAOP8bS9YRx4Fh166s74KRntHrTvLdPrMAchXL2/gcCLml6d6ECSVF6Eb1d2ixitRHM8H1k=
+Received: from SG2PR02MB3098.apcprd02.prod.outlook.com (20.177.88.78) by
+ SG2PR02MB4043.apcprd02.prod.outlook.com (20.178.156.204) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1792.14; Tue, 9 Apr 2019 06:55:34 +0000
+Received: from SG2PR02MB3098.apcprd02.prod.outlook.com
+ ([fe80::f432:20e4:2d22:e60b]) by SG2PR02MB3098.apcprd02.prod.outlook.com
+ ([fe80::f432:20e4:2d22:e60b%4]) with mapi id 15.20.1771.019; Tue, 9 Apr 2019
+ 06:55:34 +0000
+From: Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: Basics : Memory Configuration
+Thread-Topic: Basics : Memory Configuration
+Thread-Index: AQHU7qEJC6EuUiGvjEiZ+OVh95dcdw==
+Date: Tue, 9 Apr 2019 06:55:34 +0000
+Message-ID:
+ <SG2PR02MB3098925678D8D40B683E10E2E82D0@SG2PR02MB3098.apcprd02.prod.outlook.com>
+Accept-Language: en-GB, en-US
+Content-Language: en-GB
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=pankaj.suryawanshi@einfochips.com; 
+x-originating-ip: [14.98.130.2]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 751437ea-88cb-4a1e-d3a0-08d6bcb85d6c
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(7168020)(4627221)(201703031133081)(201702281549075)(8990200)(5600139)(711020)(4605104)(2017052603328)(7193020);SRVR:SG2PR02MB4043;
+x-ms-traffictypediagnostic: SG2PR02MB4043:
+x-microsoft-antispam-prvs:
+ <SG2PR02MB4043FF045576F230EF49F1B3E82D0@SG2PR02MB4043.apcprd02.prod.outlook.com>
+x-forefront-prvs: 000227DA0C
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(39850400004)(366004)(396003)(346002)(136003)(376002)(189003)(199004)(9686003)(3846002)(6116002)(2906002)(476003)(44832011)(66066001)(7696005)(486006)(25786009)(99286004)(316002)(110136005)(14454004)(68736007)(55016002)(53936002)(81166006)(305945005)(7736002)(33656002)(8676002)(81156014)(74316002)(478600001)(6436002)(26005)(14444005)(55236004)(102836004)(8936002)(256004)(5024004)(71200400001)(186003)(2501003)(6506007)(86362001)(5660300002)(52536014)(105586002)(106356001)(66574012)(78486014)(97736004)(71190400001);DIR:OUT;SFP:1101;SCL:1;SRVR:SG2PR02MB4043;H:SG2PR02MB3098.apcprd02.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: einfochips.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ OLQhb5QUQA9QWg7Owjq+RUq0FC+c+7gqkaSiU/vsJWQSEsMLhNOCPJdpdjXpTy9d4b5YqwYIUmTu1zZplHJ3tCLwxJkuUxpwTEa/o6mX9K6PiOQfTkvfv4dt1Hb21f4zdf8pI+/q0VgwqAkwHOo2B7v5bSg8eoHTet3pQt/nOEHWYv4DsA2GkWf8fGuL3yz/d4PbkSqFH2JtO9Q0I2tdEfKOPfHhFKL5sAMb802GeewZZ4f/F0vvj543d88so4FYgzXEeCdzJP9WBx36UDM0kaTE6AboXa93slIsITtqQ0rLNT4fCE6nsncX+pRJut8h6FdkUVkNrLGf5SnTDhiygUrhiqawGRKqwnrjKj1isTSZRCr66Jspj2DbcFkbMUL4tqnMPAirSweRm8SVdu84tM2Ozo2AH1lJIAjk5a0nIII=
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-References: <cover.1552921225.git.jrdr.linux@gmail.com> <CAFqt6zaV5zcc495BBk1Wi7p+zOF8y=P5KRfKkvwY=stagUFKWQ@mail.gmail.com>
-In-Reply-To: <CAFqt6zaV5zcc495BBk1Wi7p+zOF8y=P5KRfKkvwY=stagUFKWQ@mail.gmail.com>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Tue, 9 Apr 2019 11:47:37 +0530
-Message-ID: <CAFqt6zbDk7OAdk-WXG50Frppny0DOpdwR1vnTS7pCpjf66j3aQ@mail.gmail.com>
-Subject: Re: [RESEND PATCH v4 0/9] mm: Use vm_map_pages() and
- vm_map_pages_zero() API
-To: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, 
-	Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, 
-	Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@surriel.com>, 
-	Stephen Rothwell <sfr@canb.auug.org.au>, rppt@linux.vnet.ibm.com, 
-	Peter Zijlstra <peterz@infradead.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, 
-	iamjoonsoo.kim@lge.com, treding@nvidia.com, Kees Cook <keescook@chromium.org>, 
-	Marek Szyprowski <m.szyprowski@samsung.com>, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, 
-	Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, oleksandr_andrushchenko@epam.com, 
-	joro@8bytes.org, pawel@osciak.com, Kyungmin Park <kyungmin.park@samsung.com>, 
-	mchehab@kernel.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, 
-	Juergen Gross <jgross@suse.com>
-Cc: linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, 
-	linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, 
-	dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, 
-	xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, 
-	linux-media@vger.kernel.org
-Content-Type: text/plain; charset="UTF-8"
+X-OriginatorOrg: einfochips.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 751437ea-88cb-4a1e-d3a0-08d6bcb85d6c
+X-MS-Exchange-CrossTenant-originalarrivaltime: 09 Apr 2019 06:55:34.5650
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 0adb040b-ca22-4ca6-9447-ab7b049a22ff
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: SG2PR02MB4043
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew/ Michal,
+Hello,
 
-On Mon, Apr 1, 2019 at 10:56 AM Souptick Joarder <jrdr.linux@gmail.com> wrote:
->
-> Hi Andrew,
->
-> On Tue, Mar 19, 2019 at 7:47 AM Souptick Joarder <jrdr.linux@gmail.com> wrote:
-> >
-> > Previouly drivers have their own way of mapping range of
-> > kernel pages/memory into user vma and this was done by
-> > invoking vm_insert_page() within a loop.
-> >
-> > As this pattern is common across different drivers, it can
-> > be generalized by creating new functions and use it across
-> > the drivers.
-> >
-> > vm_map_pages() is the API which could be used to map
-> > kernel memory/pages in drivers which has considered vm_pgoff.
-> >
-> > vm_map_pages_zero() is the API which could be used to map
-> > range of kernel memory/pages in drivers which has not considered
-> > vm_pgoff. vm_pgoff is passed default as 0 for those drivers.
-> >
-> > We _could_ then at a later "fix" these drivers which are using
-> > vm_map_pages_zero() to behave according to the normal vm_pgoff
-> > offsetting simply by removing the _zero suffix on the function
-> > name and if that causes regressions, it gives us an easy way to revert.
-> >
-> > Tested on Rockchip hardware and display is working fine, including talking
-> > to Lima via prime.
-> >
-> > v1 -> v2:
-> >         Few Reviewed-by.
-> >
-> >         Updated the change log in [8/9]
-> >
-> >         In [7/9], vm_pgoff is treated in V4L2 API as a 'cookie'
-> >         to select a buffer, not as a in-buffer offset by design
-> >         and it always want to mmap a whole buffer from its beginning.
-> >         Added additional changes after discussing with Marek and
-> >         vm_map_pages() could be used instead of vm_map_pages_zero().
-> >
-> > v2 -> v3:
-> >         Corrected the documentation as per review comment.
-> >
-> >         As suggested in v2, renaming the interfaces to -
-> >         *vm_insert_range() -> vm_map_pages()* and
-> >         *vm_insert_range_buggy() -> vm_map_pages_zero()*.
-> >         As the interface is renamed, modified the code accordingly,
-> >         updated the change logs and modified the subject lines to use the
-> >         new interfaces. There is no other change apart from renaming and
-> >         using the new interface.
-> >
-> >         Patch[1/9] & [4/9], Tested on Rockchip hardware.
-> >
-> > v3 -> v4:
-> >         Fixed build warnings on patch [8/9] reported by kbuild test robot.
-> >
-> > Souptick Joarder (9):
-> >   mm: Introduce new vm_map_pages() and vm_map_pages_zero() API
-> >   arm: mm: dma-mapping: Convert to use vm_map_pages()
-> >   drivers/firewire/core-iso.c: Convert to use vm_map_pages_zero()
-> >   drm/rockchip/rockchip_drm_gem.c: Convert to use vm_map_pages()
-> >   drm/xen/xen_drm_front_gem.c: Convert to use vm_map_pages()
-> >   iommu/dma-iommu.c: Convert to use vm_map_pages()
-> >   videobuf2/videobuf2-dma-sg.c: Convert to use vm_map_pages()
-> >   xen/gntdev.c: Convert to use vm_map_pages()
-> >   xen/privcmd-buf.c: Convert to use vm_map_pages_zero()
->
-> Is it fine to take these patches into mm tree for regression ?
+I am confuse about memory configuration and I have below questions
 
-v4 of this series has not received any further comments/ kbuild error
-in last 8 weeks (including
-the previously posted v4).
+1. if 32-bit os maximum virtual address is 4GB, When i have 4 gb of ram for=
+ 32-bit os, What about the virtual memory size ? is it required virtual mem=
+ory(disk space) or we can directly use physical memory ?
 
-Any suggestion, if it safe to take these changes through mm tree ? or any
-other tree is preferred ?
+2. In 32-bit os 12 bits are offset because page size=3D4k i.e 2^12 and 2^20=
+ for page addresses
+   What about 64-bit os, What is offset size ? What is page size ? How it c=
+alculated.
 
->
-> >
-> >  arch/arm/mm/dma-mapping.c                          | 22 ++----
-> >  drivers/firewire/core-iso.c                        | 15 +---
-> >  drivers/gpu/drm/rockchip/rockchip_drm_gem.c        | 17 +----
-> >  drivers/gpu/drm/xen/xen_drm_front_gem.c            | 18 ++---
-> >  drivers/iommu/dma-iommu.c                          | 12 +---
-> >  drivers/media/common/videobuf2/videobuf2-core.c    |  7 ++
-> >  .../media/common/videobuf2/videobuf2-dma-contig.c  |  6 --
-> >  drivers/media/common/videobuf2/videobuf2-dma-sg.c  | 22 ++----
-> >  drivers/xen/gntdev.c                               | 11 ++-
-> >  drivers/xen/privcmd-buf.c                          |  8 +--
-> >  include/linux/mm.h                                 |  4 ++
-> >  mm/memory.c                                        | 81 ++++++++++++++++++++++
-> >  mm/nommu.c                                         | 14 ++++
-> >  13 files changed, 134 insertions(+), 103 deletions(-)
-> >
-> > --
-> > 1.9.1
-> >
+3. What is PAE? If enabled how to decide size of PAE, what is maximum and m=
+inimum size of extended memory.
+
+Regards,
+Pankaj
+***************************************************************************=
+***************************************************************************=
+******* eInfochips Business Disclaimer: This e-mail message and all attachm=
+ents transmitted with it are intended solely for the use of the addressee a=
+nd may contain legally privileged and confidential information. If the read=
+er of this message is not the intended recipient, or an employee or agent r=
+esponsible for delivering this message to the intended recipient, you are h=
+ereby notified that any dissemination, distribution, copying, or other use =
+of this message or its attachments is strictly prohibited. If you have rece=
+ived this message in error, please notify the sender immediately by replyin=
+g to this message and please delete it from your computer. Any views expres=
+sed in this message are those of the individual sender unless otherwise sta=
+ted. Company has taken enough precautions to prevent the spread of viruses.=
+ However the company accepts no liability for any damage caused by any viru=
+s transmitted by this email. **********************************************=
+***************************************************************************=
+************************************
 
