@@ -2,149 +2,215 @@ Return-Path: <SRS0=58dN=SL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E4AABC282DA
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 09:20:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 99C8DC282CE
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 09:20:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ACEA121473
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 09:20:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ACEA121473
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 2256D20818
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 09:20:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2256D20818
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 434146B0008; Tue,  9 Apr 2019 05:20:47 -0400 (EDT)
+	id AE97D6B000C; Tue,  9 Apr 2019 05:20:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3E3EB6B000C; Tue,  9 Apr 2019 05:20:47 -0400 (EDT)
+	id A995B6B000D; Tue,  9 Apr 2019 05:20:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2D4006B000D; Tue,  9 Apr 2019 05:20:47 -0400 (EDT)
+	id 962146B0010; Tue,  9 Apr 2019 05:20:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D65B96B0008
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 05:20:46 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id f9so5536718edy.4
-        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 02:20:46 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 74D156B000C
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 05:20:53 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id m8so13910379qka.10
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 02:20:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=LWYtPi/oAp5kLr9CpcOmqDnw+cN50JJ0w+QimGsCwAQ=;
-        b=TNY75FmB30Nd9WjF235b01m8bGzZbp7xypZapU7a1OvDYAEIhH5mUXc/LNCapHPZah
-         m2rRAHqxeScGn9FGKGx01PWA5Z4kCT9SeaFWxAiUR9EEF29uVsQJLXDcILv9d/AKJDom
-         Zsse88aCZriRCuMF4Ycl5kZa/lzdd9Bp/L/UgPAqwBy2b+xLSBZQxiw7rIqCteKBHXSb
-         yZ+pFStxgxdsrqGvDr+0Q1wJgzrWNe3FjF7KMOHYghzjD33LRr10odI4pY4U+LkQwADm
-         +0YeDajqSYKvJhsQa/mws2QiUPQ8KoqXFqUDHN3mkrpDW0/fz1162rVH0+laXA8mldM+
-         Uypw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVktMXGbYoLgo052FWGEBf81nW5W3KnmowL2s2PnA272s3P+sAF
-	F7vhbU4zSk0KD4rDNJgo6+GouKFqALDGQyD4c/RMPRsfapQyS7hZvsKIRTxUAzdtvTozCyy6IpX
-	iIZh7VX0AoOLt0P+CqsK2X0rdKsHxRGSgZpsmK8Af2M3og+PMTnntZOBqdvXSLWs=
-X-Received: by 2002:a17:906:7e47:: with SMTP id z7mr17819408ejr.248.1554801646352;
-        Tue, 09 Apr 2019 02:20:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqypEU06dECraDq/6ffxjvf3X4B8+ackTiATrfLXgiFNKmHo37o/xiuHmRNy6+dUFgc1xu7H
-X-Received: by 2002:a17:906:7e47:: with SMTP id z7mr17819373ejr.248.1554801645504;
-        Tue, 09 Apr 2019 02:20:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554801645; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=Xe+hfYdJggKQTjeuEVUY2BmIq0F0w8jXqNm7nRPanVM=;
+        b=VjuSt8lc4DIupgBWTdVhkMYmWKoJIoDyEln+9RKIlFjwFC/X2zW83pqF7gz/iS/p2K
+         V28/dDkivdW5cpReMd7JhSHd/XZA+O0/n1cTzUgHryb81mgjMLDmKl3uegH1EF7MtANG
+         FZvz3vmoxlXzJDDo1hSg1zT+X4D/YBtQbi92PtmuNBHx0gc8wthLqpc7miCwZlm6KDlH
+         STyPtWdOn48K6JMo+3/eOOoDBEkLNNfERh2i+4bmZq38IUt1ICNwxRxSVlln0Lnh7+Tn
+         CO9USyJksTzzu7dlB9hVHAuo5BAInAtsLPCp2G9C2eQY2EzUU8dCkDJ0SVBtPrgLPnjV
+         q1RA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUBnhpkVcX2PjgnBZM6hgYzFkF2YYlJrvGBVosg4KFxTFukla0C
+	dWQEvNYR2Ux4SW1eu7wcvEnq6G0O6LLXV1cHfBXAkd0L0mtupVEyMQ1Dj4x6q3PCTvn/w6xfuFq
+	dTfNARsyM33Ch8Ty7YlSNznMCoMoFBCX0Xiwui4cUE3Bg6J2gHdZLVZUE8Rp47SKDQw==
+X-Received: by 2002:ac8:66d0:: with SMTP id m16mr4669151qtp.215.1554801653078;
+        Tue, 09 Apr 2019 02:20:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxh5aPy/O54GNGzEKoRzvDgqs3Jwz9koORzWLy+c11ugxC+xArk0Ys/cd7nZYUi0w82KToa
+X-Received: by 2002:ac8:66d0:: with SMTP id m16mr4669112qtp.215.1554801652427;
+        Tue, 09 Apr 2019 02:20:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554801652; cv=none;
         d=google.com; s=arc-20160816;
-        b=YfJdk9wYFVU2vfxfMoYDiMiB2o3rd+8cZ41RUca9R52HfBeB4t3adh4MRlmHcGUEL3
-         ifH1REUPeAdApwQNtI/VE3+7Lc19EkoKyDfcGkkcUi1cfwaXiEUfIPFJDqPVmrs/uiVX
-         uIEbjJvUUs4Nm5nHO+EMzu3cxGlvHGs/3n2l+cILryraidAZrDjUDk4D/iUQGvp1y2t1
-         d/JAFAINDqTp6x9JrjFl21OpX7m1MKA1WlA5vz+QSLMIWtAiqSkhZY+mSQFz885TxfLl
-         Ve6lLVOJBKcZ4hU54TdbvQ/rD+gunFGCJLUV/aWUMhAiDuFsaXYpuFEIzOc+A/WFTQuC
-         hc8A==
+        b=YwqwuZyONB9dGZy8JQ4NYEMEJH4H5HXNPDd5BJ6jzOfmmfiBZzhYFlabQwFYaLBBZO
+         uUMwl42ewQmEsirtuS8R8QmmRjBP5aYqHTatk6YEwcpLeRll6EsldZjYZWkANiVbnJ1v
+         0t7Jlyqzsln/92pq1wZckihazpdlhpWytDkJRuC/LxN8+KLp/iPaHmKtjyZXkLOrUZ/l
+         CAqDP6tKARLIRUAawhm5DER8b7O1aBrWLCT9+u8SqF05luBY0r/pL6TMsOaJBPJ8u001
+         On/DIavWfIdXEf5UUfKdAMqErPuk9zabfC1lRm/zJqLzj0lUr9UV/xMBvnj1GH93izhL
+         bNSQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=LWYtPi/oAp5kLr9CpcOmqDnw+cN50JJ0w+QimGsCwAQ=;
-        b=QYc19TJ1S0ip2vpenZPnLsMsm7MTRBRYf3eKcM9//W1SgM/HQBd4SYmcuCr5yEYD/b
-         lp/vCu9SUgF+0LYyW6URWOsbnz6USypqMks7kJ53SQN3ELW4WQnQQcDB+ZGN2Y1Czy6v
-         /oVpm1VC50ceMksfhrOfRlHumyPVMY90Nb4Tyl+CIZcfDB8up844XRE9jGE5UgbpIlyX
-         N4iG+j8sq6rk2yEFCqiAYrVsmmX9bgxbjCu7SX9zL4JkGdLPQDWzrFMUedEYPIbWRW8q
-         64OPiEldf7BJ1btvm0A/bbOFcF+LaHTSCEghiFI9YEpBgNeRgkaQoeVLaaOXsklyL2bm
-         UvIA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=Xe+hfYdJggKQTjeuEVUY2BmIq0F0w8jXqNm7nRPanVM=;
+        b=lbJDjIlmdU/khoX2WrrMtgghUsNK4VMDhdIUMyRlpOWco9zkA8V6027iLV41k3gugG
+         vG4vBS87LMhwyyHECxnaDXpASqqDiVykffO3YBSaQ0ymzYjVTA4OtaREF5qhxk956ViM
+         OWvq+3uiqQVhUjCdO/10ChpVWsUSrelXD4NPEOz2lZY/PIwtidMtJeGHxnEtHgWYhZAk
+         LgAOtFY8sdewqEMTAvs8auG3Sj38nqcQu1YAHQo1KmOZBFycx2P5314a2nbs0wOVZm9x
+         0LU4UTWpRty8wblzOyfEkqAg4m4nDT1YFJrvee2vFfDiECB2J+UsKXWzN0NQWxXVzH5B
+         k57A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b10si294651eds.235.2019.04.09.02.20.45
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 15si4063807qkj.154.2019.04.09.02.20.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Apr 2019 02:20:45 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Tue, 09 Apr 2019 02:20:52 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 8F75FAEDF;
-	Tue,  9 Apr 2019 09:20:44 +0000 (UTC)
-Date: Tue, 9 Apr 2019 11:20:42 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Christoph Hellwig <hch@lst.de>, Christopher Lameter <cl@linux.com>,
-	linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Ming Lei <ming.lei@redhat.com>, Dave Chinner <david@fromorbit.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	"Darrick J . Wong" <darrick.wong@oracle.com>,
-	linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org,
-	lsf-pc@lists.linux-foundation.org
-Subject: Re: [RFC 0/2] guarantee natural alignment for kmalloc()
-Message-ID: <20190409092042.GB10383@dhcp22.suse.cz>
-References: <20190319211108.15495-1-vbabka@suse.cz>
- <01000169988d4e34-b4178f68-c390-472b-b62f-a57a4f459a76-000000@email.amazonses.com>
- <5d7fee9c-1a80-6ac9-ac1d-b1ce05ed27a8@suse.cz>
- <010001699c5563f8-36c6909f-ed43-4839-82da-b5f9f21594b8-000000@email.amazonses.com>
- <4d2a55dc-b29f-1309-0a8e-83b057e186e6@suse.cz>
- <01000169a68852ed-d621a35c-af0c-4759-a8a3-e97e7dfc17a5-000000@email.amazonses.com>
- <2b129aec-f9a5-7ab8-ca4a-0a325621d111@suse.cz>
- <20190407080020.GA9949@lst.de>
- <af1e0b95-f654-4fa9-d400-af01043907ab@suse.cz>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id B830A3086237;
+	Tue,  9 Apr 2019 09:20:50 +0000 (UTC)
+Received: from [10.36.117.49] (ovpn-117-49.ams2.redhat.com [10.36.117.49])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 7E69D608A7;
+	Tue,  9 Apr 2019 09:20:37 +0000 (UTC)
+Subject: Re: Thoughts on simple scanner approach for free page hinting
+To: Alexander Duyck <alexander.duyck@gmail.com>,
+ "Michael S. Tsirkin" <mst@redhat.com>, Nitesh Narayan Lal <nitesh@redhat.com>
+Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+ linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>,
+ lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
+ Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
+ dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>
+References: <CAKgT0Ue4LufT4q4dLwjqhGRpDbVnucNWhmhwWxbwtytgjxx+Kw@mail.gmail.com>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <d2413648-8943-4414-708a-9442ab4b9e65@redhat.com>
+Date: Tue, 9 Apr 2019 11:20:36 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <af1e0b95-f654-4fa9-d400-af01043907ab@suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <CAKgT0Ue4LufT4q4dLwjqhGRpDbVnucNWhmhwWxbwtytgjxx+Kw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Tue, 09 Apr 2019 09:20:51 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 09-04-19 10:07:42, Vlastimil Babka wrote:
-> On 4/7/19 10:00 AM, Christoph Hellwig wrote:
-> > On Fri, Apr 05, 2019 at 07:11:17PM +0200, Vlastimil Babka wrote:
-> >> On 3/22/19 6:52 PM, Christopher Lameter wrote:
-> >> > On Thu, 21 Mar 2019, Vlastimil Babka wrote:
-> >> > 
-> >> >> That however doesn't work well for the xfs/IO case where block sizes are
-> >> >> not known in advance:
-> >> >>
-> >> >> https://lore.kernel.org/linux-fsdevel/20190225040904.5557-1-ming.lei@redhat.com/T/#ec3a292c358d05a6b29cc4a9ce3ae6b2faf31a23f
-> >> > 
-> >> > I thought we agreed to use custom slab caches for that?
-> >> 
-> >> Hm maybe I missed something but my impression was that xfs/IO folks would have
-> >> to create lots of them for various sizes not known in advance, and that it
-> >> wasn't practical and would welcome if kmalloc just guaranteed the alignment.
-> >> But so far they haven't chimed in here in this thread, so I guess I'm wrong.
-> > 
-> > Yes, in XFS we might have quite a few.  Never mind all the other
-> > block level consumers that might have similar reasonable expectations
-> > but haven't triggered the problematic drivers yet.
+> With that said I have a few ideas that may help to address the 4
+> issues called out above. The basic idea is simple. We use a high water
+> mark based on zone->free_area[order].nr_free to determine when to wake
+> up a thread to start hinting memory out of a given free area. From
+> there we allocate non-"Offline" pages from the free area and assign
+> them to the hinting queue up to 64MB at a time. Once the hinting is
+> completed we mark them "Offline" and add them to the tail of the
+> free_area. Doing this we should cycle the non-"Offline" pages slowly
+> out of the free_area. In addition the search cost should be minimal
+> since all of the "Offline" pages should be aggregated to the tail of
+> the free_area so all pages allocated off of the free_area will be the
+> non-"Offline" pages until we shift over to them all being "Offline".
+> This should be effective for MAX_ORDER - 1 and MAX_ORDER - 2 pages
+> since the only real consumer of add_to_free_area_tail is
+> __free_one_page which uses it to place a page with an order less than
+> MAX_ORDER - 2 on the tail of a free_area assuming that it should be
+> freeing the buddy of that page shortly. The only other issue with
+> adding to tail would be the memory shuffling which was recently added,
+> but I don't see that as being something that will be enabled in most
+> cases so we could probably just make the features mutually exclusive,
+> at least for now.
 > 
-> What about a LSF session/BoF to sort this out, then? Would need to have people
-> from all three MM+FS+IO groups, I suppose.
+> So if I am not mistaken this would essentially require a couple
+> changes to the mm infrastructure in order for this to work.
+> 
+> First we would need to split nr_free into two counters, something like
+> nr_freed and nr_bound. You could use nr_freed - nr_bound to get the
+> value currently used for nr_free. When we pulled the pages for hinting
+> we would reduce the nr_freed value and then add back to it when the
+> pages are returned. When pages are allocated they would increment the
+> nr_bound value. The idea behind this is that we can record nr_free
+> when we collect the pages and save it to some local value. This value
+> could then tell us how many new pages have been added that have not
+> been hinted upon.
+> 
+> In addition we will need some way to identify which pages have been
+> hinted on and which have not. The way I believe easiest to do this
+> would be to overload the PageType value so that we could essentially
+> have two values for "Buddy" pages. We would have our standard "Buddy"
+> pages, and "Buddy" pages that also have the "Offline" value set in the
+> PageType field. Tracking the Online vs Offline pages this way would
+> actually allow us to do this with almost no overhead as the mapcount
+> value is already being reset to clear the "Buddy" flag so adding a
+> "Offline" flag to this clearing should come at no additional cost.
 
-Sounds like a good plan. Care to send an email to lsf-pc mailing list so
-that it doesn't fall through cracks please?
+BTW I like the idea of allocating pages that have already been hinted as
+last "choice", allocating pages that have not been hinted yet first.
 
 -- 
-Michal Hocko
-SUSE Labs
+
+Thanks,
+
+David / dhildenb
 
