@@ -3,119 +3,138 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D2F42C282DA
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 12:27:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 034F6C282CE
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 12:59:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 99C5A2084F
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 12:27:38 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 99C5A2084F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id BEC4521874
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 12:59:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BEC4521874
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1D2986B0008; Tue,  9 Apr 2019 08:27:38 -0400 (EDT)
+	id 53DBD6B0008; Tue,  9 Apr 2019 08:59:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 182346B0010; Tue,  9 Apr 2019 08:27:38 -0400 (EDT)
+	id 4C5866B000D; Tue,  9 Apr 2019 08:59:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 072F66B0266; Tue,  9 Apr 2019 08:27:38 -0400 (EDT)
+	id 38CF66B000E; Tue,  9 Apr 2019 08:59:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D54DE6B0008
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 08:27:37 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id k28so9852355otf.3
-        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 05:27:37 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DD8796B0008
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 08:59:56 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id k8so8608653edl.22
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 05:59:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :references:in-reply-to:from:date:message-id:subject:to:cc;
-        bh=z/trgQiJ5D0wolVVcdbJRsKAhdLxgTEUNygK62iDo80=;
-        b=WvAEVZNZ3ojF0GNCUNkpmUUoJie4nPe0I9sKXMBJUqGJ0IcjhdDR1phFkcHenYYhzP
-         XbvpMRcvG2fZq+v7xO9//KBqUBsESPnjzpc/1jFTcxQu0jT/ReOs0Mx0Qr4/8dQXf+or
-         PamhaqDxh2FV3rnhLgqe6EML8LOhvx90ETlZxeoVsuHW7mI0AIR6i8Ad3IWL4Y7TMigE
-         bEefKW9Yz20BIlxac2G9sMhXZsmEnHNWyIvG19bfruTmD9aWiA/QPr5cVdBmR/uH/awl
-         2MkPS8zpM9n4ZfkxvctOkHxIqpEZ+gyrM72YHhUiQw4UdRRDJaqCVkMNcPQm3wfO5RkL
-         865Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of agruenba@redhat.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=agruenba@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVZriwm1HPabSlOazGqSDGri5UG9Vb/sE9pJVTh2XMVvxubK9Qr
-	ad03wzwrRlLBZch4FaEwJpXvC/O7b1s09xepJVYsj6GI4xq/A5wh99ZnYQ8ObU+rBE3B2N7TBXB
-	97MznTbwCOW/nG9MVzgh30xq35l5nyHT0BbfqwzJRVJqhlIWvczfzHxdKhMBlUdTgWA==
-X-Received: by 2002:aca:4987:: with SMTP id w129mr19457973oia.33.1554812857434;
-        Tue, 09 Apr 2019 05:27:37 -0700 (PDT)
-X-Received: by 2002:aca:4987:: with SMTP id w129mr19457936oia.33.1554812856667;
-        Tue, 09 Apr 2019 05:27:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554812856; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=uIvO0Bh+ze5opiMLu1WYLITUUhyx38LPIW5JC/Xq+uI=;
+        b=qTKZecAOkzGYElQr61aDaYZtzt71yGUcI9aNIuh5orbTGLdHVd0dZo1XTUpQ2e1U+F
+         JXQFPDfrMLabMOzRSzCM8Jk2/TPZKXObReioMiRWfXJcJrOdmv21RjlRTR9M9WxOSM46
+         Ru+DqZs50MqrPfGU7yV/QJOv1n/plvExqSTUB6MwHeL1Quj9uOFe+/1zXB/VikM+h4yX
+         D/zUHSTSARSDdB1EXlzBHv/LYSvPHCn5mwYs39qThA11P3iC6vhmpdVYO0ufS+63+jp2
+         nB7cJBz5iL4+HrLbb39EPTiIg2yPJdkJBkTlj4+VbGpIJJEPaieKsVay8GzTVM9Xjkrq
+         ZWbw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAUduS9ewLyMNzJ0cbivC+swA3FybW/YtIKwSE3F3UmG7ri3jb7U
+	WujDiuTaq1lNBvjcs9Rv66jsLuJWA0x+3ESsg057LUE2Dmf0Cql8V3tB3lIcamtds6EIuSSiDq7
+	UwfzItwEpGQKcq7pqovMOiVjTL0GQVwcYZKNFCN3MQF1rtOfb2OBIhQtfL4xPOqTSCw==
+X-Received: by 2002:a50:a705:: with SMTP id h5mr23236765edc.226.1554814796462;
+        Tue, 09 Apr 2019 05:59:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyWJQl+32EyqzRE1z9K9jULe9OdCmwtDw1fjTrIKA/rtqGPIpC5c9Ir7i5ptPVLHipvwIXl
+X-Received: by 2002:a50:a705:: with SMTP id h5mr23236713edc.226.1554814795451;
+        Tue, 09 Apr 2019 05:59:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554814795; cv=none;
         d=google.com; s=arc-20160816;
-        b=y4uybqCQWckMemoso7JeYZB6JWgrop7xDhzDsuu64oojVxQAD91X5bZxZQn1o+DONq
-         wWNFnHSbasWyHlsTh67ccZP8sug9fvFaw7V8asjjG+ZXMY2sqOJNN8jAI9XCnt7M0MzC
-         pKYqpqd+Z0FcyL5ovH4p5dwllE69rG3rFu8NVHWhaqai21cuK8SwKK4+5PZEiyom+v/Q
-         ZplHu2TcmXYkVuYzXzId/F8/NQSKt1bdFflsijWB//H+XJRyopSvnjr4JrhXFBe/YLNf
-         zwj0yHizvQyvy3HMKhwVRbKOYIw0LzizvSt9t5dH0OE0IdrZqeB0t+mBXY6G5cQyqTOZ
-         H6Aw==
+        b=eMOMUZURfCsMXuUn2ig/ApWCPgsJnYLqX75zvZ7U1CQ5jiVTrTZk67djTkIwvYu7tl
+         wuYVqtJdKetAS4fFk4tidAFx396w2sB/c/EgaMLMg3VXwa7Lz+SuPCWECcNjiAXtUCC8
+         PWM054GOo26chgJaf0jg/Sz8ANzUBoz9vul1//912CcBVMumcI5WLPlDSgRoBBxtTVJY
+         Pu6pCysHfWDZVz6QJ/5iQ0NStQN/KQfaRrDEuM1ChotVMZXRSZd7H+CrBmjxSOLs7n8c
+         5Zi6Lg3045tbJvlPmU03dVCFebS6ZA/BqXrwupaIJOAy4or2TLKcP13Mu6M859TflEbc
+         GtvQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version;
-        bh=z/trgQiJ5D0wolVVcdbJRsKAhdLxgTEUNygK62iDo80=;
-        b=ERPOx4oqNZEkuqJbg7TbGf7tJyjbmT5OXU8vwScaP+a7HcC8hDwCCQ1+dcQft6eKjU
-         bxBTjcc1JeUfgNl3x6UBbv6KmBA/prIVY/g/BzuSILqE6xr8z64Rr0cyN/gwg+Uu+VAh
-         /64uqpGCrHfTeDT65pZblh+3sx4ijPWVS2ms9vQkQC2GLU3eays59Q9WvDm8t36qDatC
-         HOzNiRXmorQ8k44G2QBAw0KFG6j+x79idOKYzpAqLQpBB6N6OpBYfvcmwLENdd6KdiyN
-         jNgwa1CJM6N2xmMtdAXYx4A3jHMJgXgegw/v1NRcZxOaHZTgzeVippd//TDiuaGgOC0r
-         okBw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=uIvO0Bh+ze5opiMLu1WYLITUUhyx38LPIW5JC/Xq+uI=;
+        b=Ml8chs/U9EJto60izIKGoPRm4L06Rz9+0GXHxezpCLUxVWbztbe9+G3XWwo/VEaiQL
+         qQkJb0bweKxWdK0q2KBBIghbe519gipwjcObdQL7SNgk3zJdAy1BQe21t0zZATlXVvIf
+         okyUiZqODbvvYgVZxaJIEQcuffyTmph3BzpmaBADOslTlr0TVRg6VSj5bpaeUZolfVPE
+         RgnvzENwOzmzgLp/VFKvlAIf2AaZcu8qGaHqRsLgockmrBZE67Wq5EitA0n2eTViTkqN
+         zbc7bGLX6N0nfF9VEdNuMc85Zk0YsoGtq5mz00gNeByWutlWLykt5r+SOQb6+08SGaJL
+         JtBw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of agruenba@redhat.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=agruenba@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id p4sor18242918otk.185.2019.04.09.05.27.36
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s17si3535394edx.387.2019.04.09.05.59.55
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 09 Apr 2019 05:27:36 -0700 (PDT)
-Received-SPF: pass (google.com: domain of agruenba@redhat.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Apr 2019 05:59:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of agruenba@redhat.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=agruenba@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqxRkNBis9kJov7vODTzte23h9mG5xtLuhpJGipOgzqSo/aswf6p88ymfgByWoZzTo2EibkGP01+RTjwIlBzdfQ=
-X-Received: by 2002:a05:6830:128c:: with SMTP id z12mr24617786otp.101.1554812856369;
- Tue, 09 Apr 2019 05:27:36 -0700 (PDT)
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 49F92AC31;
+	Tue,  9 Apr 2019 12:59:54 +0000 (UTC)
+Subject: Re: [PATCH v5 2/7] slob: Respect list_head abstraction layer
+To: "Tobin C. Harding" <me@tobin.cc>, Roman Gushchin <guro@fb.com>
+Cc: "Tobin C. Harding" <tobin@kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>,
+ Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
+ Joonsoo Kim <iamjoonsoo.kim@lge.com>, Matthew Wilcox <willy@infradead.org>,
+ "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+References: <20190402230545.2929-1-tobin@kernel.org>
+ <20190402230545.2929-3-tobin@kernel.org>
+ <20190403180026.GC6778@tower.DHCP.thefacebook.com>
+ <20190403211354.GC23288@eros.localdomain>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <63e395fc-41c5-00bf-0767-a313554f7b23@suse.cz>
+Date: Tue, 9 Apr 2019 14:59:52 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-References: <20190321131304.21618-1-agruenba@redhat.com> <20190328165104.GA21552@lst.de>
- <CAHc6FU49oBdo8mAq7hb1greR+B1C_Fpy5JU7RBHfRYACt1S4wA@mail.gmail.com>
- <20190407073213.GA9509@lst.de> <CAHc6FU7kgm4OyrY-KRb8H2w6LDrWDSJ2p=UgZeeJ8YrHynKU2w@mail.gmail.com>
- <20190408134405.GA15023@quack2.suse.cz> <20190409121508.GA9532@lst.de>
-In-Reply-To: <20190409121508.GA9532@lst.de>
-From: Andreas Gruenbacher <agruenba@redhat.com>
-Date: Tue, 9 Apr 2019 14:27:25 +0200
-Message-ID: <CAHc6FU7gq4JkZHPqW5LT1k7ARVJX611kZPQ3QFxiuYv4Jbvzrw@mail.gmail.com>
-Subject: Re: gfs2 iomap dealock, IOMAP_F_UNBALANCED
-To: Christoph Hellwig <hch@lst.de>
-Cc: Jan Kara <jack@suse.cz>, cluster-devel <cluster-devel@redhat.com>, 
-	Dave Chinner <david@fromorbit.com>, Ross Lagerwall <ross.lagerwall@citrix.com>, 
-	Mark Syms <Mark.Syms@citrix.com>, =?UTF-8?B?RWR3aW4gVMO2csO2aw==?= <edvin.torok@citrix.com>, 
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190403211354.GC23288@eros.localdomain>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Apr 2019 at 14:15, Christoph Hellwig <hch@lst.de> wrote:
-> On Mon, Apr 08, 2019 at 03:44:05PM +0200, Jan Kara wrote:
-> > > We won't be able to do a log flush while another transaction is
-> > > active, but that's what's needed to clean dirty pages. iomap doesn't
-> > > allow us to put the block allocation into a separate transaction from
-> > > the page writes; for that, the opposite to the page_done hook would
-> > > probably be needed.
-> >
-> > I agree that a ->page_prepare() hook would be probably the cleanest
-> > solution for this.
->
-> That doesn't sound too bad to me.
+On 4/3/19 11:13 PM, Tobin C. Harding wrote:
 
-Okay, I'll see how the code for that will turn out.
+> According to 0day test robot this is triggering an error from
+> CHECK_DATA_CORRUPTION when the kernel is built with CONFIG_DEBUG_LIST.
 
-Thanks,
-Andreas
+FWIW, that report [1] was for commit 15c8410c67adef from next-20190401. I've
+checked and it's still the v4 version, although the report came after you
+submitted v5 (it wasn't testing the patches from mailing list, but mmotm). I
+don't see any report for the v5 version so I'd expect it to be indeed fixed by
+the new approach that adds boolean return parameter to slob_page_alloc().
+
+Vlastimil
+
+[1] https://lore.kernel.org/linux-mm/5ca413c6.9TM84kwWw8lLhnmK%25lkp@intel.com/T/#u
+
+> I think this is because list_rotate_to_front() puts the list into an
+> invalid state before it calls __list_add().  The thing that has me
+> stumped is why this was not happening before this patch series was
+> applied?  ATM I'm not able to get my test module to trigger this but I'm
+> going to try a bit harder today.  If I'm right one solution is to modify
+> list_rotate_to_front() to _not_ call __list_add() but do it manually,
+> this solution doesn't sit well with me though.
+> 
+> So, summing up, I think the patch is correct in that it does the correct
+> thing but I think the debugging code doesn't like it because we are
+> violating typical usage - so the patch is wrong :)
+> 
+> thanks,
+> Tobin.
+> 
 
