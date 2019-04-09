@@ -2,284 +2,221 @@ Return-Path: <SRS0=58dN=SL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CE978C10F0E
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 10:12:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0BEAAC10F0E
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 10:17:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8C75B20857
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 10:12:07 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="R5oPG4fi"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8C75B20857
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id BCD1E21473
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 10:17:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BCD1E21473
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 19BC96B0007; Tue,  9 Apr 2019 06:12:07 -0400 (EDT)
+	id 8015C6B000D; Tue,  9 Apr 2019 06:17:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 14CAC6B000C; Tue,  9 Apr 2019 06:12:07 -0400 (EDT)
+	id 7B14F6B0010; Tue,  9 Apr 2019 06:17:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 03BF76B000D; Tue,  9 Apr 2019 06:12:07 -0400 (EDT)
+	id 69FDE6B0266; Tue,  9 Apr 2019 06:17:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C1CB06B0007
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 06:12:06 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id q18so12040971pll.16
-        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 03:12:06 -0700 (PDT)
+Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 427E76B000D
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 06:17:38 -0400 (EDT)
+Received: by mail-vs1-f69.google.com with SMTP id h23so2766788vsp.14
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 03:17:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=kR/WYu04whmVY+fiZg5v0EICJidMNyAzVyli+JbH0e4=;
-        b=Byw5kb0j3om7kRzMPIrd5CeSj4caqcJVk7w08nL54p1bxOp3Q1mhk0D98h2EmawsmW
-         xEX15fTwVMG5IzsH96ct8K9WKKWOoAdLVXfmWfTvLNaNJoFQ0jFKGhNXGiQgRHC5VuWa
-         7aSSJMC/P0HhD3Twvmhx56ukLCPHsnM2ZJTEGIF1pYaBAcOnxW8o6ajsxbYLxN+qCQx1
-         KB14hdfxGtPzMbXczNq+iti5AReo+qts4PJWCVggGgvB7qclRLQiacJ1sCzvKTzpaEO7
-         oAAvCxj212jhz33ZwSVZOx0tmvsz0+HLdxipHuHkk1XptLwPNpFrLSQ+M1Co32u/9qPM
-         gi4Q==
-X-Gm-Message-State: APjAAAXkWXpNtKJ5ehKYcBXUdwgpS4uSDh4HbjZjjXHDL1eyWArLZ/xn
-	5nW1Hm2JmcNucWV5xiEQDzi7UlW6rdmYAavdhXts9FaHBkr/g3NA77P171072SA//+c4qexbFpI
-	IYBhtZZMnGO3Gd1xWH10WMiTnE8KaJqSCPFl3K+O7N3HjQ5Xfh45HXKrF5QBzqRbDMA==
-X-Received: by 2002:a17:902:1101:: with SMTP id d1mr18970718pla.16.1554804726241;
-        Tue, 09 Apr 2019 03:12:06 -0700 (PDT)
-X-Received: by 2002:a17:902:1101:: with SMTP id d1mr18970577pla.16.1554804724789;
-        Tue, 09 Apr 2019 03:12:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554804724; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=BbYjAm+yXyOq6O85Gve2jDCfjYogITxlH3pTVha67WQ=;
+        b=PF+7oPEo6+N4nng8DbjcEPkXlzys6F51xT/UpWnKX7LGmln3UVr6DyLlzC0KE1loZj
+         LhnHuNYma18YAAQacPvwicqq5r1xE5kP0tGTr+ZytfNPM+Zy5ecsvMCzrVZq0h7/nKsT
+         /qEyrnAhmZLRMGhx80VsQp/bpT4LW1W0h4qNxkUp7Y/P8fN9PVu1Sp/gkh8E8W9WowIy
+         d58go78co/dO+/sbgXT10+PPG9Y/eAv7N9b48GHPzU0NpCunY525lx4wm9hcyVexnkpg
+         aHJ00JrHcMccEhRLeyeYcW6/LIOwlAY9MOYFT2EhU+iPR1kSPJnzwqFtatNKihDcN769
+         eObg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
+X-Gm-Message-State: APjAAAVbprHIZyfYsI2+Pt2kLUKy3EJ+1q6J9dyR+sbIcqGL2icKD8pY
+	MyiNjNO4KTtJijaPofov4Qz/KhpfdSnrt+5zDT9a3yASnPmmWVAVZA5R3CmIvh43qkaqzOPx88Y
+	AqQ8vAo8gIn7r4wr7vu+e7zIkiEt9k8lxLMJekp0V0CR9OwWQNKihWgQ3OacIBMk3zw==
+X-Received: by 2002:a67:e20c:: with SMTP id g12mr20769845vsa.188.1554805057983;
+        Tue, 09 Apr 2019 03:17:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwX84mCGR2gdRwwcn8tNyw0D88modxXemVmfvMvB2blGdMCKweQyShCZxxH9PWpL9yvGqsF
+X-Received: by 2002:a67:e20c:: with SMTP id g12mr20769810vsa.188.1554805057032;
+        Tue, 09 Apr 2019 03:17:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554805057; cv=none;
         d=google.com; s=arc-20160816;
-        b=l8U+5+tOLEmCG2HH+FUz3rP1SoKak6yk3wHJ/gp3rt9KMIr3LpNSL3QQcMPIAU/ltT
-         EXPXx59mmoA5VmXuZ1No5dxQgfRY8N2wU2s4g9WlWXEpY/n/DBe3cLlhDgvQCWOFO+8w
-         F1Pn0kCoGoNU6hIEV3eHt7kRi6bOm3l+Gp3vl5zUuvFs/gV/kbaUrPPp6uPjLtUly1l8
-         cxvOX3OllT0njC3/QMqXKm1TvNPa1EpDVKVLybQ0gV3Smz2HddhNxzbe5ufhz3fT5faI
-         z15L/RTqokFCq9vHkfwGDJ0kxMKMpcw5g5d7Nv4xKbJdUECX7hJE9ZCeFvW3+gTCq79q
-         7yEg==
+        b=N6jGCkSI/Y6Rfctcndubp9PYOe0qgjZ7ALcelxOfq4CU3v4wbPLUhdDRaVKCmte61X
+         BPyHwBU3qFmzXW9BcADq8f+qHqSEfytMz1E04It7uIBHOIHw+OJghOv8diRYUHe7ohvt
+         biVyLpXOe5+JGI+Ke86VnIYS8efbCjTjR1ikYULeQvmDEr7M/s/1vuPWj/uYsVY5m8MV
+         7CXESrh1eii63ub8kA39DhpqC0rapfefGJWdaS1YNJgXVsXq9gKAmXThKYxhmoHINkzw
+         k9twBjSFa4toKUvMe5yhd2Ga426v9y5zom+oLBCle+DvqLODxFXm+OdUIc+TKCw4Bq7r
+         1Plg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=kR/WYu04whmVY+fiZg5v0EICJidMNyAzVyli+JbH0e4=;
-        b=vi1y/+HGgMnyXoO1zI7j3xEHEsIE/cjW2fMUfCNWCwaYcgOdzUQ/eVAI7EmXBy4E3b
-         w+2VOMGbq54eze77ESbaWiuo/I1kaCKVkXHwy1x3y03O0ZdYET8dQXr1HrYzen0fVtT4
-         0q5F5vMZwxq+NEQgox5egpO4gR9rNoj9V1JbZDL4yst0YkWBl8MkrsV+C7fFuOqzn2oK
-         b0hMKfkY5UyNdP1Vs5ihxUNu4nMQYWa8t0wZwWdu0az3CCnYAYvEkTvo5/ceWM+lkiT4
-         ZcwpUgjQtl3pUjhgBolSNKmY63AMSs/Lq+5XIMiUThNmOQreacVvvt+IYwlOJnG0MdTg
-         IRmA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=BbYjAm+yXyOq6O85Gve2jDCfjYogITxlH3pTVha67WQ=;
+        b=HKJC5init35TqFaWi4gPOZ672bRRre9Efz3aXJf6VmO/LtK1gR3nOf4/DJUNGyQpIU
+         6erWKhN6j7yPDGSqp8+nKfLXol3BTcPbLr/JjgCPuP6OBk2RDZJkLAjDuuXT0ujSVhUt
+         izV8LkrbRgnfVe+UzBy1fksnGs9h1/CzmScsHFeNfUZ6IJTXITGLXkR1EbvqcM3jbDUo
+         zUY03IKvpnEqXRJEOStsw5q9XDFdon4qbpeDjMQ66IYnAChzTostBQZE3Za9AQ90xr5x
+         2q88XBXJ88OQUqgbT+AE2Hp+C0AFzi+8sytoIHKNxpPIgoqI8TFNSdlEoDSZ4H7Nmyu5
+         c0hA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=R5oPG4fi;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k11sor36471603plt.36.2019.04.09.03.12.04
+       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
+Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
+        by mx.google.com with ESMTPS id q19si6187412vsn.70.2019.04.09.03.17.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 09 Apr 2019 03:12:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=R5oPG4fi;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id;
-        bh=kR/WYu04whmVY+fiZg5v0EICJidMNyAzVyli+JbH0e4=;
-        b=R5oPG4fi53Y2+InXX6Q7DtCDxJnraev67W9SjAqjYuUKIPAyrLtzdFCBo57h98zvi7
-         yZQDMu6d3JgTOfubySaq3jl3s3PRXacHvv/Hrnfk0d5NtZTQLbTAHJtUmEQ7ht6+qsLj
-         4dBAFPKkaBRF5YTpKR1gf0WFN7m+lvOsFJmp2wI/dKDLbleh42swIGzTbathtfQs2aqN
-         pLBlTYx9LlznDm1iz89qw1nv2yn5Tdl95eppCJt+LHtth/W1aXvUIgZ2lXXFSpoKzt6h
-         IMcIB4TKbuC/NSWIga6U5UWAUg+bIvze+BJRpxtNLSYzYLS+5zaK1B+324LGvdhR2YOe
-         5u5g==
-X-Google-Smtp-Source: APXvYqyNkzhYVithZXgfgiXg33aGYlWcxz2VW+xG0BFVZ3ori5Z15dSB0kZCj9bBcJ3lNPVn5bbOog==
-X-Received: by 2002:a17:902:be04:: with SMTP id r4mr36715533pls.218.1554804724438;
-        Tue, 09 Apr 2019 03:12:04 -0700 (PDT)
-Received: from localhost.localdomain ([203.100.54.194])
-        by smtp.gmail.com with ESMTPSA id a3sm53107589pfn.182.2019.04.09.03.12.02
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Apr 2019 03:12:03 -0700 (PDT)
-From: Yafang Shao <laoar.shao@gmail.com>
-To: mhocko@suse.com,
-	akpm@linux-foundation.org
-Cc: linux-mm@kvack.org,
-	shaoyafang@didiglobal.com,
-	Yafang Shao <laoar.shao@gmail.com>
-Subject: [PATCH] mm/vmscan: expose cgroup_ino for memcg reclaim tracepoints
-Date: Tue,  9 Apr 2019 18:11:40 +0800
-Message-Id: <1554804700-7813-1-git-send-email-laoar.shao@gmail.com>
-X-Mailer: git-send-email 1.8.3.1
+        Tue, 09 Apr 2019 03:17:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
+Received: from DGGEMS402-HUB.china.huawei.com (unknown [172.30.72.58])
+	by Forcepoint Email with ESMTP id 5F1B8B18EC5747D21AA4;
+	Tue,  9 Apr 2019 18:17:31 +0800 (CST)
+Received: from localhost.localdomain.localdomain (10.175.113.25) by
+ DGGEMS402-HUB.china.huawei.com (10.3.19.202) with Microsoft SMTP Server id
+ 14.3.408.0; Tue, 9 Apr 2019 18:17:24 +0800
+From: Chen Zhou <chenzhou10@huawei.com>
+To: <tglx@linutronix.de>, <mingo@redhat.com>, <bp@alien8.de>,
+	<ebiederm@xmission.com>, <rppt@linux.ibm.com>, <catalin.marinas@arm.com>,
+	<will.deacon@arm.com>, <akpm@linux-foundation.org>,
+	<ard.biesheuvel@linaro.org>
+CC: <horms@verge.net.au>, <takahiro.akashi@linaro.org>,
+	<linux-arm-kernel@lists.infradead.org>, <linux-kernel@vger.kernel.org>,
+	<kexec@lists.infradead.org>, <linux-mm@kvack.org>,
+	<wangkefeng.wang@huawei.com>, Chen Zhou <chenzhou10@huawei.com>
+Subject: [PATCH v3 2/4] arm64: kdump: support reserving crashkernel above 4G
+Date: Tue, 9 Apr 2019 18:28:17 +0800
+Message-ID: <20190409102819.121335-3-chenzhou10@huawei.com>
+X-Mailer: git-send-email 2.20.1
+In-Reply-To: <20190409102819.121335-1-chenzhou10@huawei.com>
+References: <20190409102819.121335-1-chenzhou10@huawei.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain
+X-Originating-IP: [10.175.113.25]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We can use the exposed cgroup_ino to trace specified cgroup.
+When crashkernel is reserved above 4G in memory, kernel should
+reserve some amount of low memory for swiotlb and some DMA buffers.
 
-For example,
-step 1, get the inode of the specified cgroup
-	$ ls -di /tmp/cgroupv2/foo
-step 2, set this inode into tracepoint filter to trace this cgroup only
-	(assume the inode is 11)
-	$ cd /sys/kernel/debug/tracing/events/vmscan/
-	$ echo 'cgroup_ino == 11' > mm_vmscan_memcg_reclaim_begin/filter
-	$ echo 'cgroup_ino == 11' > mm_vmscan_memcg_reclaim_end/filter
+Kernel would try to allocate at least 256M below 4G automatically
+as x86_64 if crashkernel is above 4G. Meanwhile, support
+crashkernel=X,[high,low] in arm64.
 
-Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+Signed-off-by: Chen Zhou <chenzhou10@huawei.com>
 ---
- include/trace/events/vmscan.h | 71 +++++++++++++++++++++++++++++++++++--------
- mm/vmscan.c                   | 18 ++++++++---
- 2 files changed, 72 insertions(+), 17 deletions(-)
+ arch/arm64/include/asm/kexec.h |  3 +++
+ arch/arm64/kernel/setup.c      |  3 +++
+ arch/arm64/mm/init.c           | 26 +++++++++++++++++++++-----
+ 3 files changed, 27 insertions(+), 5 deletions(-)
 
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index c27a563..3be0023 100644
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -133,18 +133,43 @@
- );
+diff --git a/arch/arm64/include/asm/kexec.h b/arch/arm64/include/asm/kexec.h
+index 67e4cb7..32949bf 100644
+--- a/arch/arm64/include/asm/kexec.h
++++ b/arch/arm64/include/asm/kexec.h
+@@ -28,6 +28,9 @@
  
- #ifdef CONFIG_MEMCG
--DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_reclaim_begin,
-+DECLARE_EVENT_CLASS(mm_vmscan_memcg_reclaim_begin_template,
+ #define KEXEC_ARCH KEXEC_ARCH_AARCH64
  
--	TP_PROTO(int order, gfp_t gfp_flags),
-+	TP_PROTO(unsigned int cgroup_ino, int order, gfp_t gfp_flags),
- 
--	TP_ARGS(order, gfp_flags)
-+	TP_ARGS(cgroup_ino, order, gfp_flags),
++/* 2M alignment for crash kernel regions */
++#define CRASH_ALIGN	SZ_2M
 +
-+	TP_STRUCT__entry(
-+		__field(unsigned int, cgroup_ino)
-+		__field(int, order)
-+		__field(gfp_t, gfp_flags)
-+	),
+ #ifndef __ASSEMBLY__
+ 
+ /**
+diff --git a/arch/arm64/kernel/setup.c b/arch/arm64/kernel/setup.c
+index 413d566..82cd9a0 100644
+--- a/arch/arm64/kernel/setup.c
++++ b/arch/arm64/kernel/setup.c
+@@ -243,6 +243,9 @@ static void __init request_standard_resources(void)
+ 			request_resource(res, &kernel_data);
+ #ifdef CONFIG_KEXEC_CORE
+ 		/* Userspace will find "Crash kernel" region in /proc/iomem. */
++		if (crashk_low_res.end && crashk_low_res.start >= res->start &&
++		    crashk_low_res.end <= res->end)
++			request_resource(res, &crashk_low_res);
+ 		if (crashk_res.end && crashk_res.start >= res->start &&
+ 		    crashk_res.end <= res->end)
+ 			request_resource(res, &crashk_res);
+diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+index 972bf43..3bebddf 100644
+--- a/arch/arm64/mm/init.c
++++ b/arch/arm64/mm/init.c
+@@ -64,6 +64,7 @@ EXPORT_SYMBOL(memstart_addr);
+ phys_addr_t arm64_dma_phys_limit __ro_after_init;
+ 
+ #ifdef CONFIG_KEXEC_CORE
 +
-+	TP_fast_assign(
-+		__entry->cgroup_ino	= cgroup_ino;
-+		__entry->order		= order;
-+		__entry->gfp_flags	= gfp_flags;
-+	),
+ /*
+  * reserve_crashkernel() - reserves memory for crash kernel
+  *
+@@ -74,20 +75,30 @@ phys_addr_t arm64_dma_phys_limit __ro_after_init;
+ static void __init reserve_crashkernel(void)
+ {
+ 	unsigned long long crash_base, crash_size;
++	bool high = false;
+ 	int ret;
+ 
+ 	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
+ 				&crash_size, &crash_base);
+ 	/* no crashkernel= or invalid value specified */
+-	if (ret || !crash_size)
+-		return;
++	if (ret || !crash_size) {
++		/* crashkernel=X,high */
++		ret = parse_crashkernel_high(boot_command_line,
++				memblock_phys_mem_size(),
++				&crash_size, &crash_base);
++		if (ret || !crash_size)
++			return;
++		high = true;
++	}
+ 
+ 	crash_size = PAGE_ALIGN(crash_size);
+ 
+ 	if (crash_base == 0) {
+ 		/* Current arm64 boot protocol requires 2MB alignment */
+-		crash_base = memblock_find_in_range(0, ARCH_LOW_ADDRESS_LIMIT,
+-				crash_size, SZ_2M);
++		crash_base = memblock_find_in_range(0,
++				high ? memblock_end_of_DRAM()
++				: ARCH_LOW_ADDRESS_LIMIT,
++				crash_size, CRASH_ALIGN);
+ 		if (crash_base == 0) {
+ 			pr_warn("cannot allocate crashkernel (size:0x%llx)\n",
+ 				crash_size);
+@@ -105,13 +116,18 @@ static void __init reserve_crashkernel(void)
+ 			return;
+ 		}
+ 
+-		if (!IS_ALIGNED(crash_base, SZ_2M)) {
++		if (!IS_ALIGNED(crash_base, CRASH_ALIGN)) {
+ 			pr_warn("cannot reserve crashkernel: base address is not 2MB aligned\n");
+ 			return;
+ 		}
+ 	}
+ 	memblock_reserve(crash_base, crash_size);
+ 
++	if (crash_base >= SZ_4G && reserve_crashkernel_low()) {
++		memblock_free(crash_base, crash_size);
++		return;
++	}
 +
-+	TP_printk("cgroup_ino=%u order=%d gfp_flags=%s",
-+		__entry->cgroup_ino, __entry->order,
-+		show_gfp_flags(__entry->gfp_flags))
- );
+ 	pr_info("crashkernel reserved: 0x%016llx - 0x%016llx (%lld MB)\n",
+ 		crash_base, crash_base + crash_size, crash_size >> 20);
  
--DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_softlimit_reclaim_begin,
-+DEFINE_EVENT(mm_vmscan_memcg_reclaim_begin_template,
-+	mm_vmscan_memcg_reclaim_begin,
- 
--	TP_PROTO(int order, gfp_t gfp_flags),
-+	TP_PROTO(unsigned int cgroup_ino, int order, gfp_t gfp_flags),
- 
--	TP_ARGS(order, gfp_flags)
-+	TP_ARGS(cgroup_ino, order, gfp_flags)
-+);
-+
-+DEFINE_EVENT(mm_vmscan_memcg_reclaim_begin_template,
-+	mm_vmscan_memcg_softlimit_reclaim_begin,
-+
-+	TP_PROTO(unsigned int cgroup_ino, int order, gfp_t gfp_flags),
-+
-+	TP_ARGS(cgroup_ino, order, gfp_flags)
- );
- #endif /* CONFIG_MEMCG */
- 
-@@ -173,18 +198,40 @@
- );
- 
- #ifdef CONFIG_MEMCG
--DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_reclaim_end,
-+DECLARE_EVENT_CLASS(mm_vmscan_memcg_reclaim_end_template,
- 
--	TP_PROTO(unsigned long nr_reclaimed),
-+	TP_PROTO(unsigned int cgroup_ino, unsigned long nr_reclaimed),
- 
--	TP_ARGS(nr_reclaimed)
-+	TP_ARGS(cgroup_ino, nr_reclaimed),
-+
-+	TP_STRUCT__entry(
-+		__field(unsigned int, cgroup_ino)
-+		__field(unsigned long, nr_reclaimed)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->cgroup_ino	= cgroup_ino;
-+		__entry->nr_reclaimed	= nr_reclaimed;
-+	),
-+
-+	TP_printk("cgroup_ino=%u nr_reclaimed=%lu",
-+		__entry->cgroup_ino, __entry->nr_reclaimed)
- );
- 
--DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_softlimit_reclaim_end,
-+DEFINE_EVENT(mm_vmscan_memcg_reclaim_end_template,
-+	mm_vmscan_memcg_reclaim_end,
- 
--	TP_PROTO(unsigned long nr_reclaimed),
-+	TP_PROTO(unsigned int cgroup_ino, unsigned long nr_reclaimed),
- 
--	TP_ARGS(nr_reclaimed)
-+	TP_ARGS(cgroup_ino, nr_reclaimed)
-+);
-+
-+DEFINE_EVENT(mm_vmscan_memcg_reclaim_end_template,
-+	mm_vmscan_memcg_softlimit_reclaim_end,
-+
-+	TP_PROTO(unsigned int cgroup_ino, unsigned long nr_reclaimed),
-+
-+	TP_ARGS(cgroup_ino, nr_reclaimed)
- );
- #endif /* CONFIG_MEMCG */
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 347c9b3..15a9eb9 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3268,8 +3268,10 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
- 	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
- 			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
- 
--	trace_mm_vmscan_memcg_softlimit_reclaim_begin(sc.order,
--						      sc.gfp_mask);
-+	trace_mm_vmscan_memcg_softlimit_reclaim_begin(
-+				cgroup_ino(memcg->css.cgroup),
-+				sc.order,
-+				sc.gfp_mask);
- 
- 	/*
- 	 * NOTE: Although we can get the priority field, using it
-@@ -3280,7 +3282,9 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
- 	 */
- 	shrink_node_memcg(pgdat, memcg, &sc);
- 
--	trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaimed);
-+	trace_mm_vmscan_memcg_softlimit_reclaim_end(
-+				cgroup_ino(memcg->css.cgroup),
-+				sc.nr_reclaimed);
- 
- 	*nr_scanned = sc.nr_scanned;
- 	return sc.nr_reclaimed;
-@@ -3318,7 +3322,9 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 
- 	zonelist = &NODE_DATA(nid)->node_zonelists[ZONELIST_FALLBACK];
- 
--	trace_mm_vmscan_memcg_reclaim_begin(0, sc.gfp_mask);
-+	trace_mm_vmscan_memcg_reclaim_begin(
-+				cgroup_ino(memcg->css.cgroup),
-+				0, sc.gfp_mask);
- 
- 	psi_memstall_enter(&pflags);
- 	noreclaim_flag = memalloc_noreclaim_save();
-@@ -3328,7 +3334,9 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 	memalloc_noreclaim_restore(noreclaim_flag);
- 	psi_memstall_leave(&pflags);
- 
--	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
-+	trace_mm_vmscan_memcg_reclaim_end(
-+				cgroup_ino(memcg->css.cgroup),
-+				nr_reclaimed);
- 
- 	return nr_reclaimed;
- }
 -- 
-1.8.3.1
+2.7.4
 
