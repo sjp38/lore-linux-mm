@@ -2,142 +2,216 @@ Return-Path: <SRS0=58dN=SL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 701A5C282CE
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 06:08:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8A2EEC10F0E
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 06:12:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1F85420883
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 06:08:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1F85420883
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 3C1C820883
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 06:12:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C1C820883
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7F6DF6B0007; Tue,  9 Apr 2019 02:08:54 -0400 (EDT)
+	id CB1496B0007; Tue,  9 Apr 2019 02:12:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7A6916B0008; Tue,  9 Apr 2019 02:08:54 -0400 (EDT)
+	id C38406B0008; Tue,  9 Apr 2019 02:12:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 695C26B000C; Tue,  9 Apr 2019 02:08:54 -0400 (EDT)
+	id B28B56B000C; Tue,  9 Apr 2019 02:12:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CAEB6B0007
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 02:08:54 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id y64so13747690qka.3
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 23:08:54 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 636746B0007
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 02:12:03 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id p88so8081433edd.17
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 23:12:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=gI+CJWeJWAeL1EpC4t/1QXmZ455u94XXr+h646lWamQ=;
-        b=jPunfyzHxkXgZ+cD8us8aWSLbRQ2/OJ+B3SaZtdhceEdQ/uL2yiyJK08vokaF51PVo
-         MA/Z66IH73IDk/qAILwzCS71kFfDffVJtsJQgkWE40vD9xCiZ/6f1px5SpY+emKvqDOk
-         izaxaXEATs74vv2P9Qv/8m/e6PxfqA3+7mx8Yd/Lyt8VfdDezkthcX/RLmERLHVYqQSf
-         Nbr+GBpT/0NwAH894wx3JiZFhQ6cwbBtx9W5n9uRBqx4m6oyHOzeOyf11lrDcX/KVF5c
-         lSLF7NmZUikAy1FXarA+QwRvQahlAiVAnDvTdNrIGMhQ7AdFQx6Q4gdhN9NKJTmxbDhV
-         UZ7w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUxx+W7OtcefpuymUr79t4j1htOGf83ho3tPI8InHIaTQr5xI+R
-	0FzxCgTOaCdSGo1o7fvWWm7eEqNpCbbAZgATH9vjncY/DlQcc51HLv3GdE6efBm+Q3WpK9GX5bD
-	Re8imhRa+aS8R73BwmyRha36pY+CHDrsBhiQPxQx4qriXxqk9OCtdU1BZzUWxVk4x+A==
-X-Received: by 2002:ac8:3328:: with SMTP id t37mr28164110qta.246.1554790134017;
-        Mon, 08 Apr 2019 23:08:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwUpOqbMPT/XjaWtYz4+88VOtI2PMq5e4qTakhz7RjK+/olFnBjI41TGbvEBCsTwFMDS9jJ
-X-Received: by 2002:ac8:3328:: with SMTP id t37mr28164071qta.246.1554790133093;
-        Mon, 08 Apr 2019 23:08:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554790133; cv=none;
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=W+MqTxrHTTZ+YutO2kReARe8t8kkc5GLWYNjOGD63qs=;
+        b=bb79ByEWC/HwY8x5pivLBFhhuQJGjU9Q/srsTTvbTB5vt8UZbnoFdhIn3Wj9rxwAbD
+         3EuFmGd2qdCgse9DLwtZy2gJ7g4ooKHbovJR+1MiYXksCKDUua9Z+PYYs57Ywj4egGpU
+         79CWEL6yfKaRTXjiXgRdQnWMCpKnvCBrElCS6yCPofT64JnnR6bglUsfw99AEsYMUh29
+         Q8Kn7G7o+lQLiYUpp03qbnSsRzWDcQuCM6QQFMx7ewB7WyVxRZ8SZAyqwciwgDP+BOAT
+         94diBjL1j/Jm8ym85VP/lRRxUbb0pe0K0Xt2kpeFjoqX7ZlsPiGA7PW+s5lK32jIJ/rW
+         TXcQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAVSlGWUbEy5kT21JhfWU7MLlqmzIPsMPwfvrvTb8Ta3RkzmBdLX
+	3g8PHpQem4j4jRIKbIjQiLKvdbjYJHPzcJrke0fx7bFywThC/3UwMmwysFE4KABpRcEyydP0zqh
+	WlGLtK39nO8nITLG/igURr6oT2SlnVtcHtuQwwIIfRsrwogkSJPyycoWK8UqeECo=
+X-Received: by 2002:a50:fe03:: with SMTP id f3mr21923478edt.57.1554790322934;
+        Mon, 08 Apr 2019 23:12:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwl5ztiseNZKYC2jryXpmwqgQcABUrc1xy4jokT0UiZ0gZojQI/Y92CjiviRhUhA/Oximxx
+X-Received: by 2002:a50:fe03:: with SMTP id f3mr21923431edt.57.1554790322113;
+        Mon, 08 Apr 2019 23:12:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554790322; cv=none;
         d=google.com; s=arc-20160816;
-        b=meczIzqO3eW0kcPIUgaZ/iSnEJ0CsPF0Mzw1WDMmKt2IUra4YFZT+1INMOA82Nxu5A
-         iAbb50nTb3fqB5jrVD2vKOJTEyJpnQWVmOQB7elwnjJTj6fY+ak3xspYVbr6FMwXUS9i
-         P49tIWvjuoOeZjhGpPEW3qphiFekPcS7vS2aOlkNUuksP2aztTtglvomVMrrZR4VYT6Y
-         D+YL94U9L+Iri3pGF3lTtu2dt/FYOHc+U1ucs6VNiY+1sDGKQs6PXB8Swh+25r0jbeWp
-         fynSXjyjVDJgK+RyZ1EILUe+RmTCZCM9G3bATdEPDldiNEx79+BTEmYQvRX+WIEN49ZH
-         U/XQ==
+        b=FgZGBkUZgWxUAwewY56TP8xgNsobOb4lk4u2W4aG4HiZGUebc+IK+9UalIPFb0sZ8E
+         2QzbEleMcJUyf8pqajNVqp8sqrgyyCF7MQuw7kTxtp6W2pvJC2LC/cdXUT+ghWgS3WDP
+         Hts51Yy79w30f/UcFHVPnZFvUqDV/WwSyerknduODzc07XLsxAZQCJHaGvFWebJVTsxL
+         U/oCF+KpkvqSAWdOxRmJ5M5/iRDanQrmLgFj+smJuRlVwvyQaAwwILegHMiPzZZoT3lu
+         idJ8eYkKALx3MTQMZv3E23eUjzCp6XR5OrWQwxHtJ5FpukGBs85Bj28qWZ8Er0iJO3Jz
+         Cp2g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=gI+CJWeJWAeL1EpC4t/1QXmZ455u94XXr+h646lWamQ=;
-        b=Fu0YIov1O81H7oXCZPKrjWzf2K/wCLImudGl7k2BubnY/ImEhnY/wnJsCu31lxq99S
-         wYwp7MzdN/unF8MNE7EzffwLd7NwAy7Bq+edwRW5HyglzFu3iVwMkTaMdo5urmJ7nSkb
-         B34jsLVK9IWFCqjzXxTh0zT8c/Y5Rxp9OyUJGl9dK/SkHn6t2is4t9DarN6BP/7Us1SZ
-         kj+7oOPpKIhJ2DTALovLJKGReiFn62Ho9fkwU0zbx1OJGj6F1FV7xnmuQCRLi6uNFt51
-         kFSapo8/OLWULsLCng5gMfCURjST/AJzVT9pG88FUwvKzt3iZVhvp7+w7RZGKbuPpV2H
-         alXw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=W+MqTxrHTTZ+YutO2kReARe8t8kkc5GLWYNjOGD63qs=;
+        b=z6wR1bk6ZQ3UFeXSKAL/DvqchO/l9/T86WhhwGAm/0bNZ0pg+C+PGQiq5AJXZ/XjNU
+         csW4Rr2OKWoAsvngy0RGUuv5o+uU5wvmnnVp/7+Gma6VNpfh/r7iA24jAPtKz78p7hmS
+         Hir62GTGZw+C1Jp1GyipMN2VBflI18k/vx/IewYfc5R5s2kIf6q8ClBgbu4EsOBcKRzU
+         yhCHV2Y+I+BPJfdbG2ZXK3BseOe4XCyh6WKc5BqWcvY9Aqx35W/DyzydzBDYsT01bqJp
+         qSSWbbrn+sudpxigqArygwE7mVGZDat1SbVw8N/3YS+e3O0JZUKyPldal9M0oMslxlfX
+         hXhA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h15si94195qvo.209.2019.04.08.23.08.52
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w4si168022edl.327.2019.04.08.23.12.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Apr 2019 23:08:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Mon, 08 Apr 2019 23:12:02 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 130523086216;
-	Tue,  9 Apr 2019 06:08:51 +0000 (UTC)
-Received: from xz-x1 (dhcp-14-116.nay.redhat.com [10.66.14.116])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id E9A0F63F7C;
-	Tue,  9 Apr 2019 06:08:41 +0000 (UTC)
-Date: Tue, 9 Apr 2019 14:08:39 +0800
-From: Peter Xu <peterx@redhat.com>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: David Hildenbrand <david@redhat.com>, Hugh Dickins <hughd@google.com>,
-	Maya Gokhale <gokhale2@llnl.gov>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Pavel Emelyanov <xemul@virtuozzo.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Denis Plotnikov <dplotnikov@virtuozzo.com>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Marty McFadden <mcfadden8@llnl.gov>, Mel Gorman <mgorman@suse.de>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH v3 00/28] userfaultfd: write protection support
-Message-ID: <20190409060839.GE3389@xz-x1>
-References: <20190320020642.4000-1-peterx@redhat.com>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 36CE4AD5E;
+	Tue,  9 Apr 2019 06:12:01 +0000 (UTC)
+Date: Tue, 9 Apr 2019 08:12:00 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Oscar Salvador <osalvador@suse.de>, david@redhat.com,
+	dan.j.williams@intel.com, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [PATCH v2 2/2] mm, memory_hotplug: provide a more generic
+ restrictions for memory hotplug
+Message-ID: <20190409061200.GA10383@dhcp22.suse.cz>
+References: <20190408082633.2864-1-osalvador@suse.de>
+ <20190408082633.2864-3-osalvador@suse.de>
+ <20190408213041.50350dac32ed315839c57e09@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190320020642.4000-1-peterx@redhat.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190408213041.50350dac32ed315839c57e09@linux-foundation.org>
 User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Tue, 09 Apr 2019 06:08:52 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 20, 2019 at 10:06:14AM +0800, Peter Xu wrote:
-> This series implements initial write protection support for
-> userfaultfd.  Currently both shmem and hugetlbfs are not supported
-> yet, but only anonymous memory.  This is the 3nd version of it.
+On Mon 08-04-19 21:30:41, Andrew Morton wrote:
+> On Mon,  8 Apr 2019 10:26:33 +0200 Oscar Salvador <osalvador@suse.de> wrote:
 > 
-> The latest code can also be found at:
+> > arch_add_memory, __add_pages take a want_memblock which controls whether
+> > the newly added memory should get the sysfs memblock user API (e.g.
+> > ZONE_DEVICE users do not want/need this interface). Some callers even
+> > want to control where do we allocate the memmap from by configuring
+> > altmap.
+> > 
+> > Add a more generic hotplug context for arch_add_memory and __add_pages.
+> > struct mhp_restrictions contains flags which contains additional
+> > features to be enabled by the memory hotplug (MHP_MEMBLOCK_API
+> > currently) and altmap for alternative memmap allocator.
+> > 
+> > This patch shouldn't introduce any functional change.
 > 
->   https://github.com/xzpeter/linux/tree/uffd-wp-merged
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: mm-memory_hotplug-provide-a-more-generic-restrictions-for-memory-hotplug-fix
 > 
-> Note again that the first 5 patches in the series can be seen as
-> isolated work on page fault mechanism.  I would hope that they can be
-> considered to be reviewed/picked even earlier than the rest of the
-> series since it's even useful for existing userfaultfd MISSING case
-> [8].
+> x86_64 allnoconfig:
+> 
+> In file included from ./include/linux/mmzone.h:744:0,
+>                  from ./include/linux/gfp.h:6,
+>                  from ./include/linux/umh.h:4,
+>                  from ./include/linux/kmod.h:22,
+>                  from ./include/linux/module.h:13,
+>                  from init/do_mounts.c:1:
+> ./include/linux/memory_hotplug.h:353:11: warning: ‘struct mhp_restrictions’ declared inside parameter list will not be visible outside of this definition or declaration
+>     struct mhp_restrictions *restrictions);
+>            ^~~~~~~~~~~~~~~~
+> 
+> Fix this by moving the arch_add_memory() definition inside
+> CONFIG_MEMORY_HOTPLUG and moving the mhp_restrictions definition to a more
+> appropriate place.
 
-Ping - any further comments for v3?  Is there any chance to have this
-series (or the first 5 patches) for 5.2?
+LGTM. Thanks for the fixup!
 
-Thanks,
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: David Hildenbrand <david@redhat.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Oscar Salvador <osalvador@suse.de>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  include/linux/memory_hotplug.h |   24 ++++++++++++------------
+>  1 file changed, 12 insertions(+), 12 deletions(-)
+> 
+> --- a/include/linux/memory_hotplug.h~mm-memory_hotplug-provide-a-more-generic-restrictions-for-memory-hotplug-fix
+> +++ a/include/linux/memory_hotplug.h
+> @@ -54,6 +54,16 @@ enum {
+>  };
+>  
+>  /*
+> + * Restrictions for the memory hotplug:
+> + * flags:  MHP_ flags
+> + * altmap: alternative allocator for memmap array
+> + */
+> +struct mhp_restrictions {
+> +	unsigned long flags;
+> +	struct vmem_altmap *altmap;
+> +};
+> +
+> +/*
+>   * Zone resizing functions
+>   *
+>   * Note: any attempt to resize a zone should has pgdat_resize_lock()
+> @@ -101,6 +111,8 @@ extern void __online_page_free(struct pa
+>  
+>  extern int try_online_node(int nid);
+>  
+> +extern int arch_add_memory(int nid, u64 start, u64 size,
+> +			struct mhp_restrictions *restrictions);
+>  extern u64 max_mem_size;
+>  
+>  extern bool memhp_auto_online;
+> @@ -126,16 +138,6 @@ extern int __remove_pages(struct zone *z
+>  
+>  #define MHP_MEMBLOCK_API               (1<<0)
+>  
+> -/*
+> - * Restrictions for the memory hotplug:
+> - * flags:  MHP_ flags
+> - * altmap: alternative allocator for memmap array
+> - */
+> -struct mhp_restrictions {
+> -	unsigned long flags;
+> -	struct vmem_altmap *altmap;
+> -};
+> -
+>  /* reasonably generic interface to expand the physical pages */
+>  extern int __add_pages(int nid, unsigned long start_pfn, unsigned long nr_pages,
+>  		       struct mhp_restrictions *restrictions);
+> @@ -349,8 +351,6 @@ extern int walk_memory_range(unsigned lo
+>  extern int __add_memory(int nid, u64 start, u64 size);
+>  extern int add_memory(int nid, u64 start, u64 size);
+>  extern int add_memory_resource(int nid, struct resource *resource);
+> -extern int arch_add_memory(int nid, u64 start, u64 size,
+> -			struct mhp_restrictions *restrictions);
+>  extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+>  		unsigned long nr_pages, struct vmem_altmap *altmap);
+>  extern bool is_memblock_offlined(struct memory_block *mem);
+> _
+> 
 
 -- 
-Peter Xu
+Michal Hocko
+SUSE Labs
 
