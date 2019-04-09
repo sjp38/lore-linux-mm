@@ -2,155 +2,128 @@ Return-Path: <SRS0=58dN=SL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 96561C10F13
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 01:56:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6ADEAC10F13
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 02:44:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4592B20880
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 01:56:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4592B20880
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id 18AEB217F4
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 02:44:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 18AEB217F4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D47FC6B0006; Mon,  8 Apr 2019 21:56:25 -0400 (EDT)
+	id 7CEEC6B0008; Mon,  8 Apr 2019 22:44:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CD10C6B0007; Mon,  8 Apr 2019 21:56:25 -0400 (EDT)
+	id 77CB76B000C; Mon,  8 Apr 2019 22:44:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B98FC6B0010; Mon,  8 Apr 2019 21:56:25 -0400 (EDT)
+	id 66B596B0010; Mon,  8 Apr 2019 22:44:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B3486B0006
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 21:56:25 -0400 (EDT)
-Received: by mail-vk1-f199.google.com with SMTP id l85so7780641vke.15
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 18:56:25 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 458DA6B0008
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 22:44:30 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id g48so14632096qtk.19
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 19:44:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version;
-        bh=Rk7EBGKHYxPZokmPrqnUYQttfXrxyEBg2xHpg6SKjiM=;
-        b=mjRBWiNq77QY0dMGIUbYyFkcpVMnTT0b5otBvHR169JI7WZbeuKfHB5Nn58F3Wi3Ld
-         qUNyKS+sS1/H7s94ZO933WYqY58WTi7YurHE2SHoBqTCJWtv7jhO1L8bx8WOrXs0DNWl
-         7A+7ZuO8FEfFY/rJOkavv8lwIU5Pks3i83tj0al42CfQOxFCDkyQGwE4iMTPl5QH9Lm0
-         pKS7Tg4IbnG0UMqu3y7gMvcTmyxQobZnYh3mo0HhOGA+jXwGwCobR+LKZ6JZMtz+snDZ
-         ju+LhPq2zon3SMUfw/i0yTpupY2kXzAh6eJB6eQEHbFrCTA4WdTiNMyH6bnMNwAlwcCn
-         2Zjg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of luojiajun3@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=luojiajun3@huawei.com
-X-Gm-Message-State: APjAAAVZJNSSJMhY/gD99wOHOs9NPe8LkduUAQukYlSrhld6ZpMl8Jxa
-	d6rQm+KvI+jGA7oz5a2sR8IrmBtWES3QAENmY9WehK+p+SFJv0fLlako4hh0tpVzhPXqOQjK0AK
-	tSeRSBOcKjiyNVlJN/YYXLPGvnwBVIJ5vDdESQFZNfJIotsRUlaTBj927TZRjQuzNJA==
-X-Received: by 2002:a1f:bcf:: with SMTP id 198mr7967611vkl.35.1554774985163;
-        Mon, 08 Apr 2019 18:56:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz8PBo7EIX8QCmxJHKVyv7XzyOvycL3agSD2HWBEK9DTDDjvwPBPj7cr9m763YGgU+EQw7y
-X-Received: by 2002:a1f:bcf:: with SMTP id 198mr7967578vkl.35.1554774984055;
-        Mon, 08 Apr 2019 18:56:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554774984; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=GWVLGd3rRWNvU7sP85NRp5wt10btcwDSd57p3ueaPIg=;
+        b=Gk/yeBzNJ3vl4QUPxk18QYbpKUP09Cg3cLgtAg6bmIsC3gjR+ZT5brQHz2xMP6HOFg
+         V4ml8mNsr3IldDJQ3CcrUpL4s/MiTA6TOdCyANCQsd0mtguhpBn92kFki4cqLHXv13iW
+         fJiNP+yYjBGpNWpNR8J7Ef6I1eTbjX5xSMqyTY5ATZMa6Hehm3Bo1m+sot42Q4Y6PfmP
+         reJuN5UBtatj4h3hrR1rtPiX87lMXk/eB/bKMAbYijnwXeiQ7EnxhOsbfbSNsjXfK8V9
+         i3yIjhA0flMJcaYJF91Un8dNXxm8al5dW7et8nGSuQH6M8JcBYSNcac1KolI5YOTOVFw
+         7RoQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVgDhrJ4LxsLL8mI8wDJGmez8plGg1/x8lYsviikF/rDOQL2dep
+	iffx+uUmcktinyICr3pYOEi3c4S8s2MZjBw4hKxg8qtiNJEaOESF9R6imwQ/pjTqm8kSmIojtRp
+	UdDUykVet9yRpc8bFFYUlFxzK4dkDdKwpx2E7ZnbDIA1CcZKxnYrsAK6DBdiqN8Dh8A==
+X-Received: by 2002:a37:a557:: with SMTP id o84mr26471805qke.277.1554777869947;
+        Mon, 08 Apr 2019 19:44:29 -0700 (PDT)
+X-Received: by 2002:a37:a557:: with SMTP id o84mr26471775qke.277.1554777869259;
+        Mon, 08 Apr 2019 19:44:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554777869; cv=none;
         d=google.com; s=arc-20160816;
-        b=KHchU4Devm2TbajXaM/aMlN9sfl8wNxCSg0KguSSVrCUaVwEx8VAwvhLtRTcD98wER
-         Mli9nM1SftcFoYoPLy8dekdRLn2F+H1fDM6hSOaBlXvMGWUvz2ZIF57r9MlNHjEQFBRL
-         P9YY4AZb+9tED3b+5GI4y3ZsGZF4MLJd9NTMWJ1Ky1hci0BEa1eLRGUGMQnbMGP7SN3L
-         Y9FJsSIDXvmXksp0Bger4Zw2JUfMmopc4JZw+LZkqXMuB2TJhYRU4gZ1MxUMdvdzS6kB
-         /0RQ4KgGpBJyR94PDi9b6niXYUHleZ3SBvLSKgnpqlv8RmvAwSRfwUkadHB4lEKgH1Vl
-         6thg==
+        b=YB7+IS2uPPfX+nHc5g+Abz3NNGUefvtNWTEBecir7Ds+rvsbmvJiSUN1S99bCW5H7q
+         YUnj7hus+L8dBAF4iTNGXjExdl8knxoph+gQZyV9Tvkh2PbidIU3nUjvBgh7ba560kEQ
+         G8WqMKgampag0DHHoS6k31WXSqQcOqejz33kbSF0mToIsdMuLPYLBbhvjRrOp6w0iDJw
+         t/wxST0DS3qkDPJKzHQPT5If2JpkvJO+K8M8OnRbysUyaGRRoXIR+jgQsDZM15LZdwRM
+         XxXDuyTrrbBCUKoE/ouX3rl2etaGsbgsYKAcq+Ljceb35UQTtIr4C0RYTh3+tK+Vepd8
+         qblA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:subject:cc:to:from;
-        bh=Rk7EBGKHYxPZokmPrqnUYQttfXrxyEBg2xHpg6SKjiM=;
-        b=wzyIirTs/t56gQNWK4tZxcwnvkRU/DPCvjqk9nytZTGRMYWjO2BU1iKCJHyDVO7F2c
-         U5zjd+dyXnOn2CmMEgfu2Uz4t5mWiCs3GZJ+XDln0hInek2df+svU+sxhcSt2p8ANsdm
-         +MWIBCTZG3cKaoVCpZAr5ZJwBFTKGjrUE3CuLt8/p+sTr0s3mphlAPnTtdnxXdbfGvk3
-         RNp5H5YEmrQFhgg7KZlFMFOS59JodXOOC2R6153AFVbXg1pP0uLj5bf8RnWGJK1aaHaG
-         ECiBoDOwVW6nPj6rPyWK9BN8sPsYHdvU3D7RnTWcPpsLjKSIfbC+kCC9j7YV4WG/XCyM
-         WeOg==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=GWVLGd3rRWNvU7sP85NRp5wt10btcwDSd57p3ueaPIg=;
+        b=V0PkdAotwWru02rOZlpkC4Je7oUKy5/7Xhhc/eS+2hLJpOAnIn0XE5uZNbrHAWV3zx
+         8Mg37X+VgJ7BYd2NAWPfhBVpQI4c+L8UiaQ0YzmAnpnoKqAZRtkoHbst/iE385Tic/sr
+         hDb+XpKf2Q00rGNzvL4WOHcUR+4RO3ESC8BPIRl9U3Nnj+EWisFEB0dP/bQMNw2+5oet
+         5lcWqVCw9W4DSgVRAW7t53UYYbM2sxDoG069DusRvvsMyGeEc//qA8L1sYHCwS7w8B39
+         QAiPln1g9Jy0jRIizADvF8OGoyZVhI1RoB5DUqJSVHUnIPWbQAt7ivfzWCblTjw8rC08
+         iPsw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of luojiajun3@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=luojiajun3@huawei.com
-Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
-        by mx.google.com with ESMTPS id b70si11395358vsd.270.2019.04.08.18.56.23
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a6sor37780227qtk.58.2019.04.08.19.44.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Apr 2019 18:56:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luojiajun3@huawei.com designates 45.249.212.35 as permitted sender) client-ip=45.249.212.35;
+        (Google Transport Security);
+        Mon, 08 Apr 2019 19:44:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of luojiajun3@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=luojiajun3@huawei.com
-Received: from DGGEMS407-HUB.china.huawei.com (unknown [172.30.72.60])
-	by Forcepoint Email with ESMTP id 663C3C52863B6876C231;
-	Tue,  9 Apr 2019 09:56:10 +0800 (CST)
-Received: from huawei.com (10.90.53.225) by DGGEMS407-HUB.china.huawei.com
- (10.3.19.207) with Microsoft SMTP Server id 14.3.408.0; Tue, 9 Apr 2019
- 09:56:00 +0800
-From: luojiajun <luojiajun3@huawei.com>
-To: <linux-mm@kvack.org>
-CC: <mike.kravetz@oracle.com>, <yi.zhang@huawei.com>, <miaoxie@huawei.com>
-Subject: [PATCH] hugetlbfs: end hpage in hugetlbfs_fallocate overflow
-Date: Tue, 9 Apr 2019 10:00:26 +0800
-Message-ID: <1554775226-67213-1-git-send-email-luojiajun3@huawei.com>
-X-Mailer: git-send-email 2.7.4
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqyA+PmYoJsgVkbSjy9sMazqV1hbg1cOyBmP6u5iAlIm/HSoNFnjKe4pAk1znbUJVzee8rnXlw==
+X-Received: by 2002:ac8:184b:: with SMTP id n11mr28387822qtk.210.1554777868868;
+        Mon, 08 Apr 2019 19:44:28 -0700 (PDT)
+Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
+        by smtp.gmail.com with ESMTPSA id n188sm17572320qkb.40.2019.04.08.19.44.26
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 08 Apr 2019 19:44:27 -0700 (PDT)
+Date: Mon, 8 Apr 2019 22:44:25 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: David Hildenbrand <david@redhat.com>,
+	Nitesh Narayan Lal <nitesh@redhat.com>,
+	kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+	linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>,
+	lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
+	Yang Zhang <yang.zhang.wz@gmail.com>,
+	Rik van Riel <riel@surriel.com>, dodgen@google.com,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com,
+	Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: Thoughts on simple scanner approach for free page hinting
+Message-ID: <20190408203541-mutt-send-email-mst@kernel.org>
+References: <CAKgT0Ue4LufT4q4dLwjqhGRpDbVnucNWhmhwWxbwtytgjxx+Kw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-X-Originating-IP: [10.90.53.225]
-X-CFilter-Loop: Reflected
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKgT0Ue4LufT4q4dLwjqhGRpDbVnucNWhmhwWxbwtytgjxx+Kw@mail.gmail.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In hugetlbfs_fallocate, start is rounded down and end is rounded up.
-But it is inappropriate to use loff_t rounding up end, it may cause
-overflow.
+On Fri, Apr 05, 2019 at 05:09:45PM -0700, Alexander Duyck wrote:
+> In addition we will need some way to identify which pages have been
+> hinted on and which have not. The way I believe easiest to do this
+> would be to overload the PageType value so that we could essentially
+> have two values for "Buddy" pages. We would have our standard "Buddy"
+> pages, and "Buddy" pages that also have the "Offline" value set in the
+> PageType field. Tracking the Online vs Offline pages this way would
+> actually allow us to do this with almost no overhead as the mapcount
+> value is already being reset to clear the "Buddy" flag so adding a
+> "Offline" flag to this clearing should come at no additional cost.
 
-UBSAN: Undefined behaviour in fs/hugetlbfs/inode.c:582:22
-signed integer overflow:
-2097152 + 9223372036854775805 cannot be represented in type 'long long int'
-CPU: 0 PID: 2669 Comm: syz-executor662 Not tainted 4.19.30 #5
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), 
-BIOS 1.10.2-1ubuntu1 04/01/2014
-Call Trace:
- __dump_stack lib/dump_stack.c:77 [inline]
- dump_stack+0xca/0x13e lib/dump_stack.c:113
- ubsan_epilogue+0xe/0x81 lib/ubsan.c:159
- handle_overflow+0x193/0x1e2 lib/ubsan.c:190
- hugetlbfs_fallocate+0xe72/0x1140 fs/hugetlbfs/inode.c:582
- vfs_fallocate+0x346/0x7a0 fs/open.c:308
- ioctl_preallocate+0x15d/0x200 fs/ioctl.c:482
- file_ioctl fs/ioctl.c:498 [inline]
- do_vfs_ioctl+0xde3/0x10a0 fs/ioctl.c:688
- ksys_ioctl+0x89/0xa0 fs/ioctl.c:705
- __do_sys_ioctl fs/ioctl.c:712 [inline]
- __se_sys_ioctl fs/ioctl.c:710 [inline]
- __x64_sys_ioctl+0x74/0xb0 fs/ioctl.c:710
- do_syscall_64+0xc8/0x580 arch/x86/entry/common.c:290
- entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x44a3e9
+It bothers me a bit that this doesn't scale to multiple hint types
+if we ever need them. Would it be better to have two
+free lists: hinted and non-hinted one?
 
-Fix this problem by casting loff_t to unsigned long long when end
-is rounded up.
 
-This problem can be reproduced by syzkaller
-
-Signed-off-by: luojiajun <luojiajun3@huawei.com>
----
- fs/hugetlbfs/inode.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 7f33244..0fe07f2 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -578,8 +578,9 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
- 	 * For this range, start is rounded down and end is rounded up
- 	 * as well as being converted to page offsets.
- 	 */
--	start = offset >> hpage_shift;
--	end = (offset + len + hpage_size - 1) >> hpage_shift;
-+	start = (unsigned long long)offset >> hpage_shift;
-+	end = ((unsigned long long)(offset + len + hpage_size) - 1)
-+			>> hpage_shift;
- 
- 	inode_lock(inode);
- 
 -- 
-2.7.4
+MST
 
