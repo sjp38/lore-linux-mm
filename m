@@ -2,228 +2,168 @@ Return-Path: <SRS0=58dN=SL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B7370C10F0E
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 08:24:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7E27EC282DA
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 09:08:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 40FCE20880
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 08:24:24 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="l885hRvr"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 40FCE20880
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 36DEE2133D
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 09:08:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 36DEE2133D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A52B86B0006; Tue,  9 Apr 2019 04:24:23 -0400 (EDT)
+	id 7E5606B0006; Tue,  9 Apr 2019 05:08:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A01526B0007; Tue,  9 Apr 2019 04:24:23 -0400 (EDT)
+	id 795B96B0007; Tue,  9 Apr 2019 05:08:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8F0846B0008; Tue,  9 Apr 2019 04:24:23 -0400 (EDT)
+	id 6855D6B0008; Tue,  9 Apr 2019 05:08:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 67D4E6B0006
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 04:24:23 -0400 (EDT)
-Received: by mail-yw1-f69.google.com with SMTP id b131so12576299ywe.21
-        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 01:24:23 -0700 (PDT)
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D0966B0006
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 05:08:16 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id r84so7164268oia.9
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 02:08:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=bWQFwo7IHDylYNN8NyHxPZ7hU2kY+f0QWx1JmjnI1F8=;
-        b=pswFNWNwF5FMj5qYsGx5gSps/BmBzXv04W/smysRLt3842A/tjOL0N5xMvkO0xLpsH
-         O+LtHMn2vSJ4BkPsp+Ky52K2A4Di4E2gWzkH6NbwIswxXq3V1/Cm0EI2tY+WLptQ2RMa
-         JMbKM18HM8b26SI+zhWTkwK5WLrULGqM2SbibTMDsBQEYv+QHNMi2RXZ6MDsW+R3SaAH
-         0AFKHu27c7Qw+iVFexdZKeUXi1wT3l1Eo1O0A6b8d4qQxxeOqZ+8Qw5I65FXY+VFemuh
-         NF50AbbdieHiFOvU5dzqe8xqBClquGkHmlix7934t95xz5Ex6moEVwGC6liJTyxub8Lx
-         sCIg==
-X-Gm-Message-State: APjAAAXFtEd5vgAh05oFoZ5nnV3I4Uav872f9bFysrzsWzZ8FUQGzlMA
-	o4zI/7XQb2GKn4Fr5JKmwbCvhYNTDkBITPoh9c3RxX/mRbW2ETcEAzuXOtM3zOcbO84X+qhuwdG
-	zD7BbkguyzE8XlHL4T76LocHQ0cNirCLo6qFDpES2hUSFsItpSfFDmHvpd30FGkn1EQ==
-X-Received: by 2002:a25:320d:: with SMTP id y13mr29382221yby.466.1554798263110;
-        Tue, 09 Apr 2019 01:24:23 -0700 (PDT)
-X-Received: by 2002:a25:320d:: with SMTP id y13mr29382186yby.466.1554798262433;
-        Tue, 09 Apr 2019 01:24:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554798262; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:cc:from:message-id:date:user-agent:mime-version
+         :in-reply-to:content-transfer-encoding;
+        bh=jiBy5RRRTqg5OdOcbnJEnDi6Tzr+NTnRMya9wFlIzJc=;
+        b=Bwy5g1HEYLuaT3+LflNT7QdU5CAoVeXHi85FI/ShI2GDPs9RDK7a6IsCBh2rbIrTbS
+         vdS1d9lm8zLNHjdcjQzTFpedY4FBVNX82rpd3+2JwstePONUTRzFr5As0JSwhKMYWyPb
+         ylQPXWqdpbjLiLA9LSBB3QUMoYIP6ws6yeVNmiZSu79Z5oCrmvX9JvUl8IOT4geWc4Pa
+         LG1u6pmaBrMVzz7WyGOnQH2Hxl6IT4UhocofSAzL908S7kAm7v+xlvay7iSRGSkNJbdj
+         mnYXPbhSzw6gE/vvUmQyCc0w331ttAxqiKHP26tl5Q1v3C1nm6KPiQDtkQCUk9YEPtln
+         uHZw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
+X-Gm-Message-State: APjAAAUaMzXEkCZjIuEPb+tSAhERK5ARZb8YGUzTadbroI2xEa8UofBE
+	v+uMoRYmlplPexHySTBKHVk3WvDzxoe9vCbfEltX0y6r5fUzsVeXa5yIFP09MvRc+MsttmbEeWM
+	1hjgvWx5bvG/N2qD9LgIe69tToYmWb4YgWXOr1a+mlM+GNix+HKmCh1roT+h0C9y9Ug==
+X-Received: by 2002:a05:6830:144c:: with SMTP id w12mr12015090otp.192.1554800895797;
+        Tue, 09 Apr 2019 02:08:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwU9c260oI6XrjHLdi/yE0ggMYfOpFtrOQXy81vGyxwFZCRP8plb3Tje1xtzwelcBtlBLcq
+X-Received: by 2002:a05:6830:144c:: with SMTP id w12mr12015036otp.192.1554800894961;
+        Tue, 09 Apr 2019 02:08:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554800894; cv=none;
         d=google.com; s=arc-20160816;
-        b=slW/kKPBOvU8skF04uilKt7PZrgMenNbrzGvrGWIFnDELlJh+YeZItCdeKDVTxDmo4
-         yG79oLKSIaeu3b7QfAWReR9PZvnGXy3KGVbWFbJXhvc43SccDpaUxUBBp8VfOt1vUNeJ
-         gHXfz247m8YqzDIa0lSRA4PZF3AIkmh07qYVobqrH8iYrMPEcCUm5oi/kKDW0U+ll782
-         kr16bTe290pCUtdMGyXuWAz6E6BVgiLf2jU9hg2pHyupY5OoG5NVGw0q1VLToce1V02m
-         TmPxl3XM0xS6/b3uIV6rrPFaPGKYp6TZzwVYh13jjzgzdcRClzEbOWQ+tYax8TkwRDnU
-         3A8Q==
+        b=iSU68gSr8ueiEeSVly5sH/FKJGgQ3QpSo8KI8rrejVbFMQNfdonjuEm8Bi/D27mWrj
+         04ENDLpMrEZ04UAPwhj4N2k9sVxyTV+8uoiIxIwtzU1ae8034S4CR12J9nXQQz3pgxTb
+         tU7yLLj6MOS4ebEMg02HO8gslfkGyWI9eMlPcAMzLC7TVxKZjbIB+TbvmZ9lKMsplQn0
+         BzJy8ACws3gTDnGSQPByLtu2i8ihBduoX53p6ndeYd7i+FdQDPv5ezQHTL6i47to1tYt
+         HUlV/RaqUfTaURiXCPYqVQJ/oQ4XN6ug8mJXFqDQlCMooJqEkcwMEp5n2IS3RjtTCLAX
+         ADYg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=bWQFwo7IHDylYNN8NyHxPZ7hU2kY+f0QWx1JmjnI1F8=;
-        b=JwDqOs7zIWcKrQLcbKCYljnpajvg5Haf1ZKfCFQC4EKQUILmTH8cXDRJe7c9sX3E/Q
-         Ei+eTeECXNFsOY1cC5GuT3wwWvb/STPZ0lPav/tBZrgvVddN/QjK/WqGQSmMODZ0dFG+
-         1cMjuyXuznz6/ciGfdqUaIyiG8rUFFTlpt0p90v9JezHW79XL7Mwv38KzLTXW5pD4J0i
-         CMLHjV18nlbsKaoPLGnd256jqKrwG8D+Y7vrZb0fVoAJGX1Yw3PrsyqTEmPJa97J8Ozj
-         h5JjivO7TGJTx25FDTV/uRlpP8DzTLxWhYtsisBEX3bNOsijvM+JorNHDw/1sk3vDUO/
-         TZgA==
+        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
+         :message-id:from:cc:references:to:subject;
+        bh=jiBy5RRRTqg5OdOcbnJEnDi6Tzr+NTnRMya9wFlIzJc=;
+        b=gdS0AxN4ZXA1zukgpiWIR0kAUrxSAJeqXC6fjSoYAV9BC6w722dqFBJKzkIyS1uinW
+         TwKFjD5Rq0P8AyvGkxg4a7MN6Cq+V88PYRubqVm/mwVqufTcMR+pHiA+VlMzsPHLLiM4
+         t6OMaW1mAc32Q6ROWx05xS3aypeZnPYVrUtZRmW39RRA3Saj/+HQfP3nxT4yRAf8alzQ
+         96OQALu9MR6MitMV8Ulghf5AwiulOw2tfggFBBmSMunD4gYF3DJxBcME+sU9vMT38c5u
+         LgRncPLNCS0hDecIDZy2kQLt7bxeMsiiib9+cUI/jSdNJiwqNSEZTFjb8C9v+AGzLvbH
+         QpqA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=l885hRvr;
-       spf=pass (google.com: domain of amir73il@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=amir73il@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s12sor11125064ywg.89.2019.04.09.01.24.22
+       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
+Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
+        by mx.google.com with ESMTPS id k11si16969483otk.162.2019.04.09.02.08.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 09 Apr 2019 01:24:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of amir73il@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Apr 2019 02:08:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.35 as permitted sender) client-ip=45.249.212.35;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=l885hRvr;
-       spf=pass (google.com: domain of amir73il@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=amir73il@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=bWQFwo7IHDylYNN8NyHxPZ7hU2kY+f0QWx1JmjnI1F8=;
-        b=l885hRvrFXm9KxwnJJq0DifCiw24GZL7QCGuCEL8qQOU8Eq/Qud59KwIfmSRv2Sh9G
-         fT1vppb0DHQgkOaVCIxm+Gd73163C6x60XGT+zTB9ls15VR2EODAeYlNDYoJ7AjCkm/2
-         lcSni2HLILDC5T1izm9kB39F/ppk6RqWWGQpEUwNbr85Px4WHx/QSL7eOv5mKcIpKfmn
-         pGp6Cl3s4cB54vyVpnF/u0cVMU9nvxlLbjKhd+I81VMojpwTO6D0Sh+gj5bKmpnm+BMQ
-         NjIthNgLfnJJmf22TnnRFF4EMDYMoi9Yn7c7XCxnHLaP2ayAyOW4hXRx7rt7h82BRb2l
-         t2Ug==
-X-Google-Smtp-Source: APXvYqzou3QnWh3Vv2nMQWyo4D7id6da58r3bg3DsHGTl7DQcgno15ZNugvun/RPcvRvvDvoF1Ocf7d6VA6OL7YiVfs=
-X-Received: by 2002:a81:1383:: with SMTP id 125mr27735505ywt.265.1554798262016;
- Tue, 09 Apr 2019 01:24:22 -0700 (PDT)
+       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
+Received: from DGGEMS414-HUB.china.huawei.com (unknown [172.30.72.58])
+	by Forcepoint Email with ESMTP id 90249B177B81D34F2DA8;
+	Tue,  9 Apr 2019 17:08:09 +0800 (CST)
+Received: from [127.0.0.1] (10.177.131.64) by DGGEMS414-HUB.china.huawei.com
+ (10.3.19.214) with Microsoft SMTP Server id 14.3.408.0; Tue, 9 Apr 2019
+ 17:08:01 +0800
+Subject: Re: [PATCH 0/3] support reserving crashkernel above 4G on arm64 kdump
+To: Bhupesh Sharma <bhsharma@redhat.com>, <catalin.marinas@arm.com>,
+	<will.deacon@arm.com>, <akpm@linux-foundation.org>, <rppt@linux.ibm.com>,
+	<ard.biesheuvel@linaro.org>, <takahiro.akashi@linaro.org>
+References: <20190403030546.23718-1-chenzhou10@huawei.com>
+ <49012d55-2020-e2ac-1102-59a5f3911a29@redhat.com>
+CC: <wangkefeng.wang@huawei.com>, <kexec@lists.infradead.org>,
+	<linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>,
+	<linux-arm-kernel@lists.infradead.org>
+From: Chen Zhou <chenzhou10@huawei.com>
+Message-ID: <573f2b4b-9a55-d9b2-6de5-0b60eba0b211@huawei.com>
+Date: Tue, 9 Apr 2019 17:07:59 +0800
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:45.0) Gecko/20100101
+ Thunderbird/45.7.1
 MIME-Version: 1.0
-References: <155466882175.633834.15261194784129614735.stgit@magnolia>
- <155466884962.633834.14320700092446721044.stgit@magnolia> <20190409031929.GE5147@magnolia>
-In-Reply-To: <20190409031929.GE5147@magnolia>
-From: Amir Goldstein <amir73il@gmail.com>
-Date: Tue, 9 Apr 2019 11:24:10 +0300
-Message-ID: <CAOQ4uxgDQHJntoO6EZ1fn-iBVo8gshsSpHd_UB1cnXUJ3CXOTg@mail.gmail.com>
-Subject: Re: [PATCH v2 4/4] xfs: don't allow most setxattr to immutable files
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Dave Chinner <david@fromorbit.com>, linux-xfs <linux-xfs@vger.kernel.org>, 
-	Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, 
-	Ext4 <linux-ext4@vger.kernel.org>, Linux Btrfs <linux-btrfs@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <49012d55-2020-e2ac-1102-59a5f3911a29@redhat.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.177.131.64]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 9, 2019 at 6:19 AM Darrick J. Wong <darrick.wong@oracle.com> wrote:
->
-> From: Darrick J. Wong <darrick.wong@oracle.com>
->
-> The chattr manpage has this to say about immutable files:
->
-> "A file with the 'i' attribute cannot be modified: it cannot be deleted
-> or renamed, no link can be created to this file, most of the file's
-> metadata can not be modified, and the file can not be opened in write
-> mode."
->
-> However, we don't actually check the immutable flag in the setattr code,
-> which means that we can update project ids and extent size hints on
-> supposedly immutable files.  Therefore, reject a setattr call on an
-> immutable file except for the case where we're trying to unset
-> IMMUTABLE.
->
-> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-> ---
->  fs/xfs/xfs_ioctl.c |   46 ++++++++++++++++++++++++++++++++++++++++++++--
->  1 file changed, 44 insertions(+), 2 deletions(-)
->
-> diff --git a/fs/xfs/xfs_ioctl.c b/fs/xfs/xfs_ioctl.c
-> index 5a1b96dad901..67d12027f563 100644
-> --- a/fs/xfs/xfs_ioctl.c
-> +++ b/fs/xfs/xfs_ioctl.c
-> @@ -1023,6 +1023,40 @@ xfs_ioctl_setattr_flush(
->         return filemap_write_and_wait(inode->i_mapping);
->  }
->
-> +/*
-> + * If immutable is set and we are not clearing it, we're not allowed to change
-> + * anything else in the inode.
+Hi Bhupesh,
 
-This looks correct, but FYI, neither xfs_io nor chattr clears 'immutable'
-and sets projid/*extsize in one ioctl/xfsctl, so there is no justification to
-making an extra effort to support that use case. You could do with
-checking 'immutable' inside xfs_ioctl_setattr_check_projid/*extsize()
-and leave only the di_flags check here.
+On 2019/4/9 13:20, Bhupesh Sharma wrote:
+> Hi Chen,
+> 
+> Thanks for the patchset.
+> 
+> Before I review the patches in detail, I have a couple of generic queries. Please see them in-line:
+> 
+> On 04/03/2019 11:05 AM, Chen Zhou wrote:
+>> When crashkernel is reserved above 4G in memory, kernel should reserve
+>> some amount of low memory for swiotlb and some DMA buffers. So there may
+>> be two crash kernel regions, one is below 4G, the other is above 4G.
+>>
+>> Crash dump kernel reads more than one crash kernel regions via a dtb
+>> property under node /chosen,
+>> linux,usable-memory-range = <BASE1 SIZE1 [BASE2 SIZE2]>.
+>>
+>> Besides, we need to modify kexec-tools:
+>>    arm64: support more than one crash kernel regions
+>>
+>> Chen Zhou (3):
+>>    arm64: kdump: support reserving crashkernel above 4G
+>>    arm64: kdump: support more than one crash kernel regions
+>>    kdump: update Documentation about crashkernel on arm64
+>>
+>>   Documentation/admin-guide/kernel-parameters.txt |   4 +-
+>>   arch/arm64/kernel/setup.c                       |   3 +
+>>   arch/arm64/mm/init.c                            | 108 ++++++++++++++++++++----
+>>   include/linux/memblock.h                        |   1 +
+>>   mm/memblock.c                                   |  40 +++++++++
+>>   5 files changed, 139 insertions(+), 17 deletions(-)
+> 
+> I am wondering about the use-case for the same. I remember normally fedora-based arm64 systems can do well with a maximum crashkernel size of <=512MB reserved below the 4G boundary.
+> 
+> So, do you mean that for your use-case (may be a huawei board based setup?), you need:
+> 
+> - more than 512MB of crashkernel size, or
+> - you want to split the crashkernel reservation across the 4GB boundary irrespective of the crashkernel size value.
+> 
+> Thanks,
+> Bhupesh
+> 
+> 
+> .
+> 
 
-Some would say that will be cleaner code.
-Its a matter of taste and its your subsystem, so feel free to dismiss
-this comments.
+I do this based on below reasons.
+
+1. ARM64 kdump support crashkernel=Y[@X], but now it seems unusable if X is specified above 4GB.
+2. There are some cases we couldn't reserve 512MB crashkernel below 4G successfully if there is
+no continous 512MB system RAM below 4GB. In this case, we need to reserve crashkernel above 4GB.
+3. As the memory increases, the bitmap_size in makedumpfile may also increases, we need more memory
+in kdump capture kernel for kernel dump.
 
 Thanks,
-Amir.
+Chen Zhou
 
-> Don't error out if we're only trying to set
-> + * immutable on an immutable file.
-> + */
-> +static int
-> +xfs_ioctl_setattr_immutable(
-> +       struct xfs_inode        *ip,
-> +       struct fsxattr          *fa,
-> +       uint16_t                di_flags,
-> +       uint64_t                di_flags2)
-> +{
-> +       struct xfs_mount        *mp = ip->i_mount;
-> +
-> +       if (!(ip->i_d.di_flags & XFS_DIFLAG_IMMUTABLE) ||
-> +           !(fa->fsx_xflags & FS_XFLAG_IMMUTABLE))
-> +               return 0;
-> +
-> +       if ((ip->i_d.di_flags & ~XFS_DIFLAG_IMMUTABLE) !=
-> +           (di_flags & ~XFS_DIFLAG_IMMUTABLE))
-> +               return -EPERM;
-> +       if (ip->i_d.di_version >= 3 && ip->i_d.di_flags2 != di_flags2)
-> +               return -EPERM;
-> +       if (xfs_get_projid(ip) != fa->fsx_projid)
-> +               return -EPERM;
-> +       if (ip->i_d.di_extsize != fa->fsx_extsize >> mp->m_sb.sb_blocklog)
-> +               return -EPERM;
-> +       if (ip->i_d.di_version >= 3 && (di_flags2 & XFS_DIFLAG2_COWEXTSIZE) &&
-> +           ip->i_d.di_cowextsize != fa->fsx_cowextsize >> mp->m_sb.sb_blocklog)
-> +               return -EPERM;
-> +
-> +       return 0;
-> +}
-> +
->  static int
->  xfs_ioctl_setattr_xflags(
->         struct xfs_trans        *tp,
-> @@ -1030,7 +1064,9 @@ xfs_ioctl_setattr_xflags(
->         struct fsxattr          *fa)
->  {
->         struct xfs_mount        *mp = ip->i_mount;
-> +       uint16_t                di_flags;
->         uint64_t                di_flags2;
-> +       int                     error;
->
->         /* Can't change realtime flag if any extents are allocated. */
->         if ((ip->i_d.di_nextents || ip->i_delayed_blks) &&
-> @@ -1061,12 +1097,18 @@ xfs_ioctl_setattr_xflags(
->             !capable(CAP_LINUX_IMMUTABLE))
->                 return -EPERM;
->
-> -       /* diflags2 only valid for v3 inodes. */
-> +       /* Don't allow changes to an immutable inode. */
-> +       di_flags = xfs_flags2diflags(ip, fa->fsx_xflags);
->         di_flags2 = xfs_flags2diflags2(ip, fa->fsx_xflags);
-> +       error = xfs_ioctl_setattr_immutable(ip, fa, di_flags, di_flags2);
-> +       if (error)
-> +               return error;
-> +
-> +       /* diflags2 only valid for v3 inodes. */
->         if (di_flags2 && ip->i_d.di_version < 3)
->                 return -EINVAL;
->
-> -       ip->i_d.di_flags = xfs_flags2diflags(ip, fa->fsx_xflags);
-> +       ip->i_d.di_flags = di_flags;
->         ip->i_d.di_flags2 = di_flags2;
->
->         xfs_diflags_to_linux(ip);
 
