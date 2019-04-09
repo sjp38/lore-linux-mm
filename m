@@ -6,72 +6,72 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C7E13C282CE
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 10:02:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BDF55C282CE
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 10:02:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8569120883
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 10:02:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8569120883
+	by mail.kernel.org (Postfix) with ESMTP id 7584920857
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 10:02:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7584920857
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 268B06B0007; Tue,  9 Apr 2019 06:02:06 -0400 (EDT)
+	id 12DF16B000D; Tue,  9 Apr 2019 06:02:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 211146B000D; Tue,  9 Apr 2019 06:02:06 -0400 (EDT)
+	id 0DE416B0010; Tue,  9 Apr 2019 06:02:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 091E56B0010; Tue,  9 Apr 2019 06:02:06 -0400 (EDT)
+	id F12966B0266; Tue,  9 Apr 2019 06:02:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DCF976B0007
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 06:02:05 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id s70so14081076qka.1
-        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 03:02:05 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D28176B000D
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 06:02:09 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id q12so15398065qtr.3
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 03:02:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=74ERUBoHJPrSHJLqNHZrJXdfWEaat/pYAfyl8SvmS20=;
-        b=KVHWxYIpUFEQYjqISyy6wdkYh8lALbYlghxhV6038VEzLKlB13HhD3NR+/0I3MmqS5
-         bXO5PPkQantmy/twkL2koRUu+kZ8RQbKET84+ealK3nImoEokXvvRsmP4AVdMfxPVdnl
-         +HtMXq29dMDzuvgKCcjU9EqrSz68mPWZz4YktM8dUKS8h6f3X9utKCf3xbOhEDK3nRrN
-         Xbry/crCSfKLymEmwRCnIo03cngaHSCsjRjblId5PbYXC7mYlhxGJvFfthZN7kmQuhmn
-         uMJm9Q26rLDLKNu6858K/E+Y0dQ81583cEJKGiBQF779VnCQ7yXGoLsa9qDlqyMaLgwb
-         VKBg==
+        bh=WZXpfD7EsjnN1SQ5fEAHTKPSxNkAK91+tRvlhxLuxp4=;
+        b=OrLO0RD7lP38aBYK0L7e11lbFguMw+tkE4dYKKTnM1Fn/IZWZ7jmTmUjNHtIssW77g
+         GT0MLTMCtbtHKu9XzDKC0zydM4J33YpAR1g120LmXQKIt7hwFfxeIvNvxYE2JjYolw+g
+         e1mKR/SP8WH+2nFTt8OEk4qlQwvpUvWtIHONNJwewF92p4uWuXJDD5tmuVfzzXgH/LU0
+         K3uRLYOqYjLrJgQyZYrPU8Vw1FRJ0fBDcvUrRq43XZGSPx53kGzwwR4fNJqgGKMryM+8
+         HWikoNmJslfbvJrSc1i6uHVt10pVJIgzqK4IbOSQPnSwg7fIqIRUSrzTNMIVVS2b23Qg
+         llxw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUaxTerhhyoTet1vzvmR5qnnPhERHxpJRSjqhYS8Lj7P7n3KM14
-	LdWJx1r984x6TzORjO0MimrJl3cMcd1GKZ1h/9UkqLf2wq6fzZ6bqnil7hy7OCGakGULF8acCJ4
-	tDa+3ILkv6TS/cYQwzW33o5ElWqacWnWLZ/tt73OtjV1NbGXJFmHImGcvIJOszl2rgA==
-X-Received: by 2002:a37:7381:: with SMTP id o123mr26048453qkc.96.1554804125658;
-        Tue, 09 Apr 2019 03:02:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxSgt8T2z3qmK8qXWjxc0JSp4NEOKNJdynYL1jO/FfzAz/J4/+6nAt5ZZoibivFe4C/TaHy
-X-Received: by 2002:a37:7381:: with SMTP id o123mr26048374qkc.96.1554804124488;
-        Tue, 09 Apr 2019 03:02:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554804124; cv=none;
+X-Gm-Message-State: APjAAAWWq30reG8OZIeGfbCahg5V6rDnTp0o+7nG6DCNmDrBCzBtDayX
+	8eYWnk19g0b/Xl4Qy5OT+AGeuDIE4APh9B7oQZ88T3/09pMzKAnth2lvV/TwhKmSaJzgf+2mXBz
+	H6YVyplZwLE99aMjHW1Qxe25sJVAEo7pEfXd0Bhfu4tx+zT8/X8URhuq4l7Nd8qIhyg==
+X-Received: by 2002:ac8:33dd:: with SMTP id d29mr28897957qtb.320.1554804129343;
+        Tue, 09 Apr 2019 03:02:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqySvfIWMatmY9RsXJHCKM4kKpRTAgWF3ZPgkD+opWIVZj+zeDilJGnTP+btgh+JuTlEjBbF
+X-Received: by 2002:ac8:33dd:: with SMTP id d29mr28897841qtb.320.1554804127943;
+        Tue, 09 Apr 2019 03:02:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554804127; cv=none;
         d=google.com; s=arc-20160816;
-        b=eHo3eWOawb0lp/mcyGw+apcGp9FWBfkqcvO9/ertx1Qokb/ea46t+V4b6Hf7ATB4Nt
-         HCTxWcdLGy6Dxc8txPJfD751i+dsz7bRsOGuubBa002Adeitm7ll5ZKXwFYGaqLSBpad
-         igsc4ucvYbQ6wMXC0On3hQJRNhzrda6U54m6dppoANNBLKkG3Rd2o+n2vzxEPNPhKJFC
-         mJH6JUoZLzkR1z/oBBS4m/sEfDQzxpn7UMmR0cQz9hqleSTRKE32B7Xzo8u4Wso4ytOE
-         qZUW6yuGjF9uj7np/7kCxiX3vemKW8JdN6iceaoT+aMZCMd+8+a40e6eTrG0IdhpdOT7
-         X5TQ==
+        b=sNT2mYZ+V1WhsOXwjDKAdmozSF1SWre8g31QqXADzfNO9XVPTz59zbmchel2wRKBi1
+         mlgZQ82eodCnF4xrYv9X/jJr1JVNqNngsNmYXqR/UKQ0JiKAUHPh+ZZ7z7tS+n0BOv8I
+         /RpvrOzPo7vR+/ipzsSii1sLNrPqlWN7U2KBXED8+HC0/EwJfps3W0XTXj70n6CMRE5N
+         qEXqq8EqCtzvs6zJDbLJGfioK2DR/XgngSzWUN3ZwgAtILRkbTIs/S+fXTDiEJy29ijA
+         Lg+hIIc3lutQ1VZ+uLzIE8fdlMEqypkFTCvA9Fbw47qugvw7vnDjAmv3XgGgPrMUuQ7I
+         8OCA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=74ERUBoHJPrSHJLqNHZrJXdfWEaat/pYAfyl8SvmS20=;
-        b=Bokh8C8/8svrmhp/2bnbJrrpvZ+s3phZmYNoTaz6yPlbpv/ixMa4idSnXmAoMofwAq
-         yTTuZkeOOXKjcjyPgwBMTsIEswy5s3BkNCSsqbnBZ6Q4zk8k3zUBSe30GEvHjXXHIc/r
-         HmmoaLKm4zO+Mu7oGP+lHs6Gwsh4FQ8o74KT3S8cI3Vvhkx4YsweSeCr9QuRBCnXljC2
-         uXw3yI9JxpbIHJO72qjX/BsURrD1zQvnfpfKEuaoOeHvpA0GLQoHcr2CpTeauIUELkB8
-         /NrepMlNcPenbF2ZE+XdLBvn0kFjNcmB1qx+KjWU9zUEQ1xeIpQAA7+yGl2rWSmbTOia
-         pneg==
+        bh=WZXpfD7EsjnN1SQ5fEAHTKPSxNkAK91+tRvlhxLuxp4=;
+        b=y5BsLKuA3H40Ggr7qzXboQWDUzFJhOEfFFOcxcXAe46k5RbvcOBYh3RV9AEkGzRrja
+         DXDk+09iLEc5RFYfH4uE5GCj8hgnBTYarggf/f6QnSHacYlzGMB1kLTypWvXpNlK6QV5
+         aG3l2fo/GoRkcsUG9eTWgvaV95hgZLSyXLZKKqo4OO1wZFPZoD0JLAZNdRnK7B8voYV9
+         f4YaUvTfIMIT70htBWlyxd+8Rdo2d3CHY5P+fcc7fxBsscFHia2WRYwrz3efTn6GL5lh
+         75GQ/GnKgxgFr6eZpeQtf6akZRj1KlE7REylvzgC2SffYFGoULF4vGYA0NrPBVHnZrGK
+         5iUQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u17si624711qka.140.2019.04.09.03.02.04
+        by mx.google.com with ESMTPS id i16si1401059qkk.141.2019.04.09.03.02.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Apr 2019 03:02:04 -0700 (PDT)
+        Tue, 09 Apr 2019 03:02:07 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
@@ -79,128 +79,135 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 98722307D860;
-	Tue,  9 Apr 2019 10:02:03 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id E0441308794C;
+	Tue,  9 Apr 2019 10:02:06 +0000 (UTC)
 Received: from t460s.redhat.com (ovpn-117-49.ams2.redhat.com [10.36.117.49])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 5767F5D721;
-	Tue,  9 Apr 2019 10:02:00 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id ED59E5D71E;
+	Tue,  9 Apr 2019 10:02:03 +0000 (UTC)
 From: David Hildenbrand <david@redhat.com>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org,
 	David Hildenbrand <david@redhat.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Rafael J. Wysocki" <rafael@kernel.org>,
+	Ingo Molnar <mingo@kernel.org>,
+	Andrew Banman <andrew.banman@hpe.com>,
+	"mike.travis@hpe.com" <mike.travis@hpe.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Oscar Salvador <osalvador@suse.de>,
 	Michal Hocko <mhocko@suse.com>,
 	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Wei Yang <richard.weiyang@gmail.com>,
 	Qian Cai <cai@lca.pw>,
+	Wei Yang <richard.weiyang@gmail.com>,
 	Arun KS <arunks@codeaurora.org>,
 	Mathieu Malaterre <malat@debian.org>
-Subject: [PATCH v1 1/4] mm/memory_hotplug: Release memory resource after arch_remove_memory()
-Date: Tue,  9 Apr 2019 12:01:45 +0200
-Message-Id: <20190409100148.24703-2-david@redhat.com>
+Subject: [PATCH v1 2/4] mm/memory_hotplug: Make unregister_memory_section() never fail
+Date: Tue,  9 Apr 2019 12:01:46 +0200
+Message-Id: <20190409100148.24703-3-david@redhat.com>
 In-Reply-To: <20190409100148.24703-1-david@redhat.com>
 References: <20190409100148.24703-1-david@redhat.com>
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Tue, 09 Apr 2019 10:02:03 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Tue, 09 Apr 2019 10:02:07 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-__add_pages() doesn't add the memory resource, so __remove_pages()
-shouldn't remove it. Let's factor it out. Especially as it is a special
-case for memory used as system memory, added via add_memory() and
-friends.
+Failing while removing memory is mostly ignored and cannot really be
+handled. Let's treat errors in unregister_memory_section() in a nice
+way, warning, but continuing.
 
-We now remove the resource after removing the sections instead of doing
-it the other way around. I don't think this change is problematic.
-
-add_memory()
-	register memory resource
-	arch_add_memory()
-
-remove_memory
-	arch_remove_memory()
-	release memory resource
-
-While at it, explain why we ignore errors and that it only happeny if
-we remove memory in a different granularity as we added it.
-
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: "Rafael J. Wysocki" <rafael@kernel.org>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Andrew Banman <andrew.banman@hpe.com>
+Cc: "mike.travis@hpe.com" <mike.travis@hpe.com>
+Cc: David Hildenbrand <david@redhat.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Oscar Salvador <osalvador@suse.de>
 Cc: Michal Hocko <mhocko@suse.com>
-Cc: David Hildenbrand <david@redhat.com>
 Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>
 Cc: Qian Cai <cai@lca.pw>
+Cc: Wei Yang <richard.weiyang@gmail.com>
 Cc: Arun KS <arunks@codeaurora.org>
 Cc: Mathieu Malaterre <malat@debian.org>
 Signed-off-by: David Hildenbrand <david@redhat.com>
 ---
- mm/memory_hotplug.c | 34 ++++++++++++++++++++--------------
- 1 file changed, 20 insertions(+), 14 deletions(-)
+ drivers/base/memory.c  | 16 +++++-----------
+ include/linux/memory.h |  2 +-
+ mm/memory_hotplug.c    |  4 +---
+ 3 files changed, 7 insertions(+), 15 deletions(-)
 
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index 0c9e22ffa47a..f180427e48f4 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -734,15 +734,18 @@ unregister_memory(struct memory_block *memory)
+ {
+ 	BUG_ON(memory->dev.bus != &memory_subsys);
+ 
+-	/* drop the ref. we got in remove_memory_section() */
++	/* drop the ref. we got via find_memory_block() */
+ 	put_device(&memory->dev);
+ 	device_unregister(&memory->dev);
+ }
+ 
+-static int remove_memory_section(struct mem_section *section)
++void unregister_memory_section(struct mem_section *section)
+ {
+ 	struct memory_block *mem;
+ 
++	if (WARN_ON_ONCE(!present_section(section)))
++		return;
++
+ 	mutex_lock(&mem_sysfs_mutex);
+ 
+ 	/*
+@@ -763,15 +766,6 @@ static int remove_memory_section(struct mem_section *section)
+ 
+ out_unlock:
+ 	mutex_unlock(&mem_sysfs_mutex);
+-	return 0;
+-}
+-
+-int unregister_memory_section(struct mem_section *section)
+-{
+-	if (!present_section(section))
+-		return -EINVAL;
+-
+-	return remove_memory_section(section);
+ }
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ 
+diff --git a/include/linux/memory.h b/include/linux/memory.h
+index a6ddefc60517..e1dc1bb2b787 100644
+--- a/include/linux/memory.h
++++ b/include/linux/memory.h
+@@ -113,7 +113,7 @@ extern int register_memory_isolate_notifier(struct notifier_block *nb);
+ extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
+ int hotplug_memory_register(int nid, struct mem_section *section);
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-extern int unregister_memory_section(struct mem_section *);
++extern void unregister_memory_section(struct mem_section *);
+ #endif
+ extern int memory_dev_init(void);
+ extern int memory_notify(unsigned long val, void *v);
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 4970ff658055..696ed7ee5e28 100644
+index 696ed7ee5e28..b0cb05748f99 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -562,20 +562,6 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
- 	if (is_dev_zone(zone)) {
- 		if (altmap)
- 			map_offset = vmem_altmap_offset(altmap);
--	} else {
--		resource_size_t start, size;
--
--		start = phys_start_pfn << PAGE_SHIFT;
--		size = nr_pages * PAGE_SIZE;
--
--		ret = release_mem_region_adjustable(&iomem_resource, start,
--					size);
--		if (ret) {
--			resource_size_t endres = start + size - 1;
--
--			pr_warn("Unable to release resource <%pa-%pa> (%d)\n",
--					&start, &endres, ret);
--		}
- 	}
+@@ -527,9 +527,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms,
+ 	if (!valid_section(ms))
+ 		return ret;
  
- 	clear_zone_contiguous(zone);
-@@ -1820,6 +1806,25 @@ void try_offline_node(int nid)
- }
- EXPORT_SYMBOL(try_offline_node);
+-	ret = unregister_memory_section(ms);
+-	if (ret)
+-		return ret;
++	unregister_memory_section(ms);
  
-+static void __release_memory_resource(u64 start, u64 size)
-+{
-+	int ret;
-+
-+	/*
-+	 * When removing memory in the same granularity as it was added,
-+	 * this function never fails. It might only fail if resources
-+	 * have to be adjusted or split. We'll ignore the error, as
-+	 * removing of memory cannot fail.
-+	 */
-+	ret = release_mem_region_adjustable(&iomem_resource, start, size);
-+	if (ret) {
-+		resource_size_t endres = start + size - 1;
-+
-+		pr_warn("Unable to release resource <%pa-%pa> (%d)\n",
-+			&start, &endres, ret);
-+	}
-+}
-+
- /**
-  * remove_memory
-  * @nid: the node ID
-@@ -1854,6 +1859,7 @@ void __ref __remove_memory(int nid, u64 start, u64 size)
- 	memblock_remove(start, size);
- 
- 	arch_remove_memory(nid, start, size, NULL);
-+	__release_memory_resource(start, size);
- 
- 	try_offline_node(nid);
- 
+ 	scn_nr = __section_nr(ms);
+ 	start_pfn = section_nr_to_pfn((unsigned long)scn_nr);
 -- 
 2.17.2
 
