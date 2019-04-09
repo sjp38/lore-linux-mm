@@ -2,411 +2,349 @@ Return-Path: <SRS0=58dN=SL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6509BC282DE
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 07:21:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DDD99C282CE
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 07:33:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 088B92133D
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 07:21:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 088B92133D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id 96D2220880
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 07:33:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 96D2220880
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A357C6B000D; Tue,  9 Apr 2019 03:21:08 -0400 (EDT)
+	id 065306B026A; Tue,  9 Apr 2019 03:33:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 996656B0266; Tue,  9 Apr 2019 03:21:08 -0400 (EDT)
+	id 0147F6B026B; Tue,  9 Apr 2019 03:33:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7E9796B0269; Tue,  9 Apr 2019 03:21:08 -0400 (EDT)
+	id E1FB46B026C; Tue,  9 Apr 2019 03:33:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DC016B000D
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 03:21:08 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id f11so9433559otl.20
-        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 00:21:08 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C16FF6B026A
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 03:33:23 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id i124so13860472qkf.14
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 00:33:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=L9SLP2c/iQfBHl1G8VYuSHf9dO1JsLc3WxrsdgDGbc0=;
-        b=dkvZiVs6EQgRxPkTqfeDWP88he+6Z8ziJuDPTICwRAoFF5Q7uD39LZRo00ztARNKgl
-         kCswZOrzCXD2Ye4SsrqPzkU9XYROYoULH2BWgO3Mb6Eb9u6v642Lu4iNHxX4RbKKjdVK
-         dTnHVe33fc5a+zRjo1xaqSrhJxkNboz47TeqJvz0s16gzIDxUPFnZyA36F7hh7wLZQ4L
-         elhyyJorzCNhTYuliwT9oaWStv2fKt6OsZvyUre8JWbEiyFw1CfIc7Si8xLZSUUuX0jo
-         qqlEVqKKa22NIfTOJcla6/+4f3O7+yPR3KyX3QZLDXhom/KnvnPcjRPfVMxcnbaBn0bt
-         VQBA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
-X-Gm-Message-State: APjAAAUNh1mOVpYkkhQsVESc+jKtFSwR6C+mda/13JzcpYLL7EI75hN5
-	Ke/q2+yrG9nmryI7izNKjmeY7YbjpS2h0FI2yocfGAjU6Ck2kKIYX4d6MkWjmNPiZBmTTgc7O1q
-	S3uVnnFFP4g/WHYIOYJc7gmnqP8cBSaUzmXCMRvlqbt1hDKO0/CO5RU2UDI9Fg5ZxnQ==
-X-Received: by 2002:aca:1303:: with SMTP id e3mr17600425oii.140.1554794467993;
-        Tue, 09 Apr 2019 00:21:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw70ys0tOHxzB/u02W4ZJ3xE4b0xxHLeT+Ag+u2UPdSAPVqxGTx1yPcPDa4nSI3Usdjvor0
-X-Received: by 2002:aca:1303:: with SMTP id e3mr17600384oii.140.1554794466301;
-        Tue, 09 Apr 2019 00:21:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554794466; cv=none;
+        bh=Cc7Vg/6MC08QKkSJpzQaJSPziiPH9y1C8pe7V4WC3Dw=;
+        b=nT3n1GAsru2LjQwz1N6dAP0mA560EcQ6BXQxGv48xyTnh57MXk64PiWptMhJYkScSN
+         v3DL/DjuZknEepmbUpqHcWUGiyZ0pfW7B3Rxvm1HZDpIh19YBnvX5RGSrk3JKBadbdAV
+         ssR59nWAXl2kDmntsTkoI5SmI1k0f2ToNbtGtTFjDpNjZm75Ev7IUY7uuxujce2v1eqH
+         fiUpjGPIw9LyqoJUo/UDW35uEGzTfyTtwCvub16jsSNtiBQ6e8nn6pxIEvjo+M2ZGk8M
+         yAaOQbiDuudCsVkcYc69c/tDEi+sRj5WIb0aZ0hqAMKT7CxeL0g+QDePUAmW2FRPQ5bI
+         wMpQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXeUw3u/ZRXn+k4snnVeiBGQrK7d7rSU/DNELEUiGnZmPUIGzJv
+	alHvwWoHcx90313K1n0ShtVZDw11OIvHNcAkCWj3z3O2PecbKpKEgiofIOSCOBjB0qy84f3kpEX
+	HMOlvc7B83izBbnE+mWMa8e+o0Lp5627znd6vRifV9oUAcJonuODPVYVV+vX3D+JnTg==
+X-Received: by 2002:a0c:9e62:: with SMTP id z34mr27878110qve.81.1554795203445;
+        Tue, 09 Apr 2019 00:33:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx8BjHtzS4RJ1Vbh0kxzjKBK3CU55xaXgl2ZCTlAUCoah59i74Ep4bg9Sw0ivzrwVaouUVC
+X-Received: by 2002:a0c:9e62:: with SMTP id z34mr27878050qve.81.1554795202613;
+        Tue, 09 Apr 2019 00:33:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554795202; cv=none;
         d=google.com; s=arc-20160816;
-        b=hStQQI/ja4LN6N6CLSvM1jk0ZERvnao3Y6cc6dmF2Rsdeqne4Qexku6HnJoH/GYhiu
-         eugKG30ieqOAaLVIT7nCHpucaVmcs008iJoHMYi/IqnmyYl323i9txxzmit8ZtWOpLjJ
-         G9m/1VizooT1qPOw3srLxIDdclL0B2FdDOWnApko5y/iSYS9tsKT/gt0+8WPe/yp0+uu
-         nNhv8fI37OXs8wZuuz3FTH1F4m6YZYtpqWmCuGp6T71LIitE6eBPXlpMUszK8qHl3qFj
-         6QeQJbIDrJiU5liYXfOfuMuAy3usv48nJG8S7GUHpJIE6G+0mGUzZ488X90repnl9rNP
-         tmEA==
+        b=KJ6q8XBZ28s0EaeMBeN7fUahI7x++mArTmaHmCySEWdiyV00guLCYE1HD4h+bGMpP0
+         4BnnRNAMjVpfTGf/2HoZZ3eBZBNCuA4uqQLyjto4hJzY9lgH0VnUs4ywJ7M1xAI+UASH
+         VY9JItVmrmpJxpLnmqnj/O5jqHskY23gWZGcbiuRWuGwsjNWgsxnIo3DaLuk1Ym4OGjG
+         hQVs3IGmmT36iGK4Xi+KUUnzx/BLotEnJPNS7bIL3hupzwmHjlhZEvH2jGFujBx2Y3gA
+         YRxmd99uDHIkDroyQPjydQFIRtX2fKX+xsPKP9rG6PhLgsghRdqk6tLCjjW0gVhkvrmw
+         3iyA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=L9SLP2c/iQfBHl1G8VYuSHf9dO1JsLc3WxrsdgDGbc0=;
-        b=X4eR4CwE2jlRiwymnUAU6zXHZl2shsovIdhHdFREEvK/qQ+Fkyw670TjXmbQaAvMuK
-         H9GMeLoFypXa6JTKHl7sYYyhr4tbC9FBAw6V9udma1LefrbSg3M0y+YKn888OjSGHlfN
-         guzatVvYGZ8lrvYhyThjr3aiiPJSTTMR4uqDrbs5e0itnQjF66FlBvdAus/klUrCO+kG
-         xBA7V+Ij5wtezjw6vulIEri7p241rT4z33m255FrLPa66vMfMQwBwl7xIir4fQIESrAh
-         N353I6oN/gfc3dqiCmSTT9qKdfeVzG12qeUwj6vIp29E5CXNFvM5IfZgNE0A47iQWDtX
-         YEGw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=Cc7Vg/6MC08QKkSJpzQaJSPziiPH9y1C8pe7V4WC3Dw=;
+        b=pfevtbTjBKUfx56FJZcnF90GoIHQsKMUCohj8MF5QruwwYeWZ0nA2oTfuOZQqtCrt9
+         66uRUxiCy4DHGeSrVZFnbs5MVc47SEfEMRGDtqrtY4ygrf69QEVpFS0FLjevOMMRMcHP
+         vCstujamw/NILG5hsVEavO05pa31w8hVk5Lkej0F9yTTGq6A2Zav0l02bKh/kNuz7XRW
+         lTLXvjt/QticJSwb84gpmkwYNxtdPSF36dH06Bn6ralX5daGluavbbo4nQi/84aHrYYU
+         2czA+duqLUODU1UROZ+mDan94QS8EnjAU4nb9aJjPRmeMar/H+TKm+58SAqKgj2/Oqt6
+         l8Lw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
-Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
-        by mx.google.com with ESMTPS id d4si15291484oih.83.2019.04.09.00.21.05
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q3si3662933qtq.31.2019.04.09.00.33.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Apr 2019 00:21:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.35 as permitted sender) client-ip=45.249.212.35;
+        Tue, 09 Apr 2019 00:33:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
-Received: from DGGEMS402-HUB.china.huawei.com (unknown [172.30.72.59])
-	by Forcepoint Email with ESMTP id 9BF98538DF1686C1E0B8;
-	Tue,  9 Apr 2019 15:21:00 +0800 (CST)
-Received: from localhost.localdomain.localdomain (10.175.113.25) by
- DGGEMS402-HUB.china.huawei.com (10.3.19.202) with Microsoft SMTP Server id
- 14.3.408.0; Tue, 9 Apr 2019 15:20:49 +0800
-From: Chen Zhou <chenzhou10@huawei.com>
-To: <rppt@linux.ibm.com>, <catalin.marinas@arm.com>, <will.deacon@arm.com>,
-	<akpm@linux-foundation.org>, <ard.biesheuvel@linaro.org>
-CC: <horms@verge.net.au>, <takahiro.akashi@linaro.org>,
-	<linux-arm-kernel@lists.infradead.org>, <linux-kernel@vger.kernel.org>,
-	<kexec@lists.infradead.org>, <linux-mm@kvack.org>,
-	<wangkefeng.wang@huawei.com>, Chen Zhou <chenzhou10@huawei.com>
-Subject: [PATCH v2 1/3] arm64: kdump: support reserving crashkernel above 4G
-Date: Tue, 9 Apr 2019 15:31:41 +0800
-Message-ID: <20190409073143.75808-2-chenzhou10@huawei.com>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190409073143.75808-1-chenzhou10@huawei.com>
-References: <20190409073143.75808-1-chenzhou10@huawei.com>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 7F09C2D80F;
+	Tue,  9 Apr 2019 07:33:21 +0000 (UTC)
+Received: from [10.36.117.49] (ovpn-117-49.ams2.redhat.com [10.36.117.49])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 1A4EF108BEF9;
+	Tue,  9 Apr 2019 07:33:17 +0000 (UTC)
+Subject: Re: [PATCH RFC 2/3] mm/memory_hotplug: Create memory block devices
+ after arch_add_memory()
+To: linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ "Rafael J . Wysocki" <rafael@kernel.org>, Ingo Molnar <mingo@kernel.org>,
+ Andrew Banman <andrew.banman@hpe.com>, mike.travis@hpe.com,
+ Jonathan Cameron <Jonathan.Cameron@huawei.com>,
+ Oscar Salvador <osalvador@suse.de>, Michal Hocko <mhocko@suse.com>,
+ Pavel Tatashin <pavel.tatashin@microsoft.com>,
+ Wei Yang <richard.weiyang@gmail.com>, Qian Cai <cai@lca.pw>,
+ Arun KS <arunks@codeaurora.org>, Mathieu Malaterre <malat@debian.org>,
+ linux-mm@kvack.org, dan.j.williams@intel.com
+References: <20190408101226.20976-1-david@redhat.com>
+ <20190408101226.20976-3-david@redhat.com>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ xsFNBFXLn5EBEAC+zYvAFJxCBY9Tr1xZgcESmxVNI/0ffzE/ZQOiHJl6mGkmA1R7/uUpiCjJ
+ dBrn+lhhOYjjNefFQou6478faXE6o2AhmebqT4KiQoUQFV4R7y1KMEKoSyy8hQaK1umALTdL
+ QZLQMzNE74ap+GDK0wnacPQFpcG1AE9RMq3aeErY5tujekBS32jfC/7AnH7I0v1v1TbbK3Gp
+ XNeiN4QroO+5qaSr0ID2sz5jtBLRb15RMre27E1ImpaIv2Jw8NJgW0k/D1RyKCwaTsgRdwuK
+ Kx/Y91XuSBdz0uOyU/S8kM1+ag0wvsGlpBVxRR/xw/E8M7TEwuCZQArqqTCmkG6HGcXFT0V9
+ PXFNNgV5jXMQRwU0O/ztJIQqsE5LsUomE//bLwzj9IVsaQpKDqW6TAPjcdBDPLHvriq7kGjt
+ WhVhdl0qEYB8lkBEU7V2Yb+SYhmhpDrti9Fq1EsmhiHSkxJcGREoMK/63r9WLZYI3+4W2rAc
+ UucZa4OT27U5ZISjNg3Ev0rxU5UH2/pT4wJCfxwocmqaRr6UYmrtZmND89X0KigoFD/XSeVv
+ jwBRNjPAubK9/k5NoRrYqztM9W6sJqrH8+UWZ1Idd/DdmogJh0gNC0+N42Za9yBRURfIdKSb
+ B3JfpUqcWwE7vUaYrHG1nw54pLUoPG6sAA7Mehl3nd4pZUALHwARAQABzSREYXZpZCBIaWxk
+ ZW5icmFuZCA8ZGF2aWRAcmVkaGF0LmNvbT7CwX4EEwECACgFAljj9eoCGwMFCQlmAYAGCwkI
+ BwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEE3eEPcA/4Na5IIP/3T/FIQMxIfNzZshIq687qgG
+ 8UbspuE/YSUDdv7r5szYTK6KPTlqN8NAcSfheywbuYD9A4ZeSBWD3/NAVUdrCaRP2IvFyELj
+ xoMvfJccbq45BxzgEspg/bVahNbyuBpLBVjVWwRtFCUEXkyazksSv8pdTMAs9IucChvFmmq3
+ jJ2vlaz9lYt/lxN246fIVceckPMiUveimngvXZw21VOAhfQ+/sofXF8JCFv2mFcBDoa7eYob
+ s0FLpmqFaeNRHAlzMWgSsP80qx5nWWEvRLdKWi533N2vC/EyunN3HcBwVrXH4hxRBMco3jvM
+ m8VKLKao9wKj82qSivUnkPIwsAGNPdFoPbgghCQiBjBe6A75Z2xHFrzo7t1jg7nQfIyNC7ez
+ MZBJ59sqA9EDMEJPlLNIeJmqslXPjmMFnE7Mby/+335WJYDulsRybN+W5rLT5aMvhC6x6POK
+ z55fMNKrMASCzBJum2Fwjf/VnuGRYkhKCqqZ8gJ3OvmR50tInDV2jZ1DQgc3i550T5JDpToh
+ dPBxZocIhzg+MBSRDXcJmHOx/7nQm3iQ6iLuwmXsRC6f5FbFefk9EjuTKcLMvBsEx+2DEx0E
+ UnmJ4hVg7u1PQ+2Oy+Lh/opK/BDiqlQ8Pz2jiXv5xkECvr/3Sv59hlOCZMOaiLTTjtOIU7Tq
+ 7ut6OL64oAq+zsFNBFXLn5EBEADn1959INH2cwYJv0tsxf5MUCghCj/CA/lc/LMthqQ773ga
+ uB9mN+F1rE9cyyXb6jyOGn+GUjMbnq1o121Vm0+neKHUCBtHyseBfDXHA6m4B3mUTWo13nid
+ 0e4AM71r0DS8+KYh6zvweLX/LL5kQS9GQeT+QNroXcC1NzWbitts6TZ+IrPOwT1hfB4WNC+X
+ 2n4AzDqp3+ILiVST2DT4VBc11Gz6jijpC/KI5Al8ZDhRwG47LUiuQmt3yqrmN63V9wzaPhC+
+ xbwIsNZlLUvuRnmBPkTJwwrFRZvwu5GPHNndBjVpAfaSTOfppyKBTccu2AXJXWAE1Xjh6GOC
+ 8mlFjZwLxWFqdPHR1n2aPVgoiTLk34LR/bXO+e0GpzFXT7enwyvFFFyAS0Nk1q/7EChPcbRb
+ hJqEBpRNZemxmg55zC3GLvgLKd5A09MOM2BrMea+l0FUR+PuTenh2YmnmLRTro6eZ/qYwWkC
+ u8FFIw4pT0OUDMyLgi+GI1aMpVogTZJ70FgV0pUAlpmrzk/bLbRkF3TwgucpyPtcpmQtTkWS
+ gDS50QG9DR/1As3LLLcNkwJBZzBG6PWbvcOyrwMQUF1nl4SSPV0LLH63+BrrHasfJzxKXzqg
+ rW28CTAE2x8qi7e/6M/+XXhrsMYG+uaViM7n2je3qKe7ofum3s4vq7oFCPsOgwARAQABwsFl
+ BBgBAgAPBQJVy5+RAhsMBQkJZgGAAAoJEE3eEPcA/4NagOsP/jPoIBb/iXVbM+fmSHOjEshl
+ KMwEl/m5iLj3iHnHPVLBUWrXPdS7iQijJA/VLxjnFknhaS60hkUNWexDMxVVP/6lbOrs4bDZ
+ NEWDMktAeqJaFtxackPszlcpRVkAs6Msn9tu8hlvB517pyUgvuD7ZS9gGOMmYwFQDyytpepo
+ YApVV00P0u3AaE0Cj/o71STqGJKZxcVhPaZ+LR+UCBZOyKfEyq+ZN311VpOJZ1IvTExf+S/5
+ lqnciDtbO3I4Wq0ArLX1gs1q1XlXLaVaA3yVqeC8E7kOchDNinD3hJS4OX0e1gdsx/e6COvy
+ qNg5aL5n0Kl4fcVqM0LdIhsubVs4eiNCa5XMSYpXmVi3HAuFyg9dN+x8thSwI836FoMASwOl
+ C7tHsTjnSGufB+D7F7ZBT61BffNBBIm1KdMxcxqLUVXpBQHHlGkbwI+3Ye+nE6HmZH7IwLwV
+ W+Ajl7oYF+jeKaH4DZFtgLYGLtZ1LDwKPjX7VAsa4Yx7S5+EBAaZGxK510MjIx6SGrZWBrrV
+ TEvdV00F2MnQoeXKzD7O4WFbL55hhyGgfWTHwZ457iN9SgYi1JLPqWkZB0JRXIEtjd4JEQcx
+ +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <c8402806-4674-d3b2-1bdf-3fbc0971e075@redhat.com>
+Date: Tue, 9 Apr 2019 09:33:17 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Content-Type: text/plain
-X-Originating-IP: [10.175.113.25]
-X-CFilter-Loop: Reflected
+In-Reply-To: <20190408101226.20976-3-david@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Tue, 09 Apr 2019 07:33:21 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When crashkernel is reserved above 4G in memory, kernel should
-reserve some amount of low memory for swiotlb and some DMA buffers.
+On 08.04.19 12:12, David Hildenbrand wrote:
+> Only memory added via add_memory() and friends will need memory
+> block devices - only memory to be used via the buddy and to be onlined/
+> offlined by user space in memory block granularity.
+> 
+> Move creation of memory block devices out of arch_add_memory(). Create all
+> devices after arch_add_memory() succeeded. We can later drop the
+> want_memblock parameter, because it is now effectively stale.
+> 
+> Only after memory block devices have been added, memory can be onlined
+> by user space. This implies, that memory is not visible to user space at
+> all before arch_add_memory() succeeded.
+> 
+> Issue 1: __add_pages() does not remove pages in case something went
+> wrong. If this is the case, we would now no longer create memory block
+> devices for such "partially added memory". So the memory would not be
+> usable/onlinable. Bad? Or related to issue 2 (e.g. fix __add_pages()
+> to remove any parts that were added in case of an error). Functions that
+> fail and don't clean up are not that nice.
+> 
+> Issue 2: In case we can't add memory block devices, and we don't have
+> HOTREMOVE, we can't remove the pages via arch_remove_pages. Maybe we should
+> try to get rid of CONFIG_MEMORY_HOTREMOVE, so we can handle all failures
+> in a nice way? Or at least allow arch_remove_pages() and friends, so a
+> subset of CONFIG_MEMORY_HOTREMOVE.
+> 
+> Signed-off-by: David Hildenbrand <david@redhat.com>
+> ---
+>  drivers/base/memory.c  | 67 +++++++++++++++++++++++++-----------------
+>  include/linux/memory.h |  2 +-
+>  mm/memory_hotplug.c    | 17 +++++++----
+>  3 files changed, 53 insertions(+), 33 deletions(-)
+> 
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index d9ebb89816f7..847b33061e2e 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -701,44 +701,57 @@ static int add_memory_block(int base_section_nr)
+>  	return 0;
+>  }
+>  
+> -/*
+> - * need an interface for the VM to add new memory regions,
+> - * but without onlining it.
+> - */
+> -int hotplug_memory_register(int nid, struct mem_section *section)
+> +static void unregister_memory(struct memory_block *memory)
+>  {
+> -	int ret = 0;
+> +	BUG_ON(memory->dev.bus != &memory_subsys);
+> +
+> +	/* drop the ref. we got via find_memory_block() */
+> +	put_device(&memory->dev);
+> +	device_unregister(&memory->dev);
+> +}
+> +
+> +int hotplug_memory_register(unsigned long start, unsigned long size)
+> +{
+> +	unsigned long block_nr_pages = memory_block_size_bytes() >> PAGE_SHIFT;
+> +	unsigned long start_pfn = PFN_DOWN(start);
+> +	unsigned long end_pfn = start_pfn + (size >> PAGE_SHIFT);
+> +	unsigned long pfn;
+>  	struct memory_block *mem;
+> +	int ret = 0;
+>  
+> -	mutex_lock(&mem_sysfs_mutex);
+> +	BUG_ON(!IS_ALIGNED(start, memory_block_size_bytes()));
+> +	BUG_ON(!IS_ALIGNED(size, memory_block_size_bytes()));
+>  
+> -	mem = find_memory_block(section);
+> -	if (mem) {
+> -		mem->section_count++;
+> -		put_device(&mem->dev);
+> -	} else {
+> -		ret = init_memory_block(&mem, section, MEM_OFFLINE);
+> +	mutex_lock(&mem_sysfs_mutex);
+> +	for (pfn = start_pfn; pfn != end_pfn; pfn += block_nr_pages) {
+> +		mem = find_memory_block(__pfn_to_section(pfn));
+> +		if (mem) {
+> +			WARN_ON_ONCE(false);
+> +			put_device(&mem->dev);
+> +			continue;
+> +		}
+> +		ret = init_memory_block(&mem, __pfn_to_section(pfn),
+> +					MEM_OFFLINE);
+>  		if (ret)
+> -			goto out;
+> -		mem->section_count++;
+> +			break;
+> +		mem->section_count = memory_block_size_bytes() /
+> +				     MIN_MEMORY_BLOCK_SIZE;
+> +	}
+> +	if (ret) {
+> +		end_pfn = pfn;
+> +		for (pfn = start_pfn; pfn != end_pfn; pfn += block_nr_pages) {
+> +			mem = find_memory_block(__pfn_to_section(pfn));
+> +			if (!mem)
+> +				continue;
+> +			mem->section_count = 0;
+> +			unregister_memory(mem);
+> +		}
+>  	}
+> -
+> -out:
+>  	mutex_unlock(&mem_sysfs_mutex);
+>  	return ret;
+>  }
+>  
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
+> -static void
+> -unregister_memory(struct memory_block *memory)
+> -{
+> -	BUG_ON(memory->dev.bus != &memory_subsys);
+> -
+> -	/* drop the ref. we got in remove_memory_section() */
+> -	put_device(&memory->dev);
+> -	device_unregister(&memory->dev);
+> -}
+> -
+>  static int remove_memory_section(struct mem_section *section)
+>  {
+>  	struct memory_block *mem;
+> diff --git a/include/linux/memory.h b/include/linux/memory.h
+> index a6ddefc60517..e275dc775834 100644
+> --- a/include/linux/memory.h
+> +++ b/include/linux/memory.h
+> @@ -111,7 +111,7 @@ extern int register_memory_notifier(struct notifier_block *nb);
+>  extern void unregister_memory_notifier(struct notifier_block *nb);
+>  extern int register_memory_isolate_notifier(struct notifier_block *nb);
+>  extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
+> -int hotplug_memory_register(int nid, struct mem_section *section);
+> +int hotplug_memory_register(unsigned long start, unsigned long size);
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
+>  extern int unregister_memory_section(struct mem_section *);
+>  #endif
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 680dcc67f9d5..13ee0a26e034 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -260,11 +260,7 @@ static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
+>  	ret = sparse_add_one_section(nid, phys_start_pfn, altmap);
+>  	if (ret < 0)
+>  		return ret;
+> -
+> -	if (!want_memblock)
+> -		return 0;
+> -
+> -	return hotplug_memory_register(nid, __pfn_to_section(phys_start_pfn));
+> +	return 0;
+>  }
+>  
+>  /*
+> @@ -1125,6 +1121,17 @@ int __ref add_memory_resource(int nid, struct resource *res)
+>  	if (ret < 0)
+>  		goto error;
+>  
+> +	/* create memory block devices after memory was added */
+> +	ret = hotplug_memory_register(start, size);
+> +#ifdef CONFIG_MEMORY_HOTREMOVE
+> +	if (ret) {
+> +		arch_remove_memory(nid, start, size, NULL);
+> +		goto error;
+> +	}
+> +#else
+> +	WARN_ON(ret);
+> +#endif
+> +
+>  	if (new_node) {
+>  		/* If sysfs file of new node can't be created, cpu on the node
+>  		 * can't be hot-added. There is no rollback way now.
+> 
 
-Kernel would try to allocate at least 256M below 4G automatically
-as x86_64 if crashkernel is above 4G. Meanwhile, support
-crashkernel=X,[high,low] in arm64.
+FWIW, I think we should first try to make sure arch_remove_memory()
+cannot fail / will not ignore errors if possible. There are still some
+things in there that need more re-factoring first.
 
-Signed-off-by: Chen Zhou <chenzhou10@huawei.com>
----
- arch/arm64/include/asm/kexec.h |  3 ++
- arch/arm64/kernel/setup.c      |  3 ++
- arch/arm64/mm/init.c           | 26 +++++++++++++----
- arch/x86/include/asm/kexec.h   |  3 ++
- arch/x86/kernel/setup.c        | 66 +++++-------------------------------------
- include/linux/kexec.h          |  1 +
- kernel/kexec_core.c            | 53 +++++++++++++++++++++++++++++++++
- 7 files changed, 91 insertions(+), 64 deletions(-)
-
-diff --git a/arch/arm64/include/asm/kexec.h b/arch/arm64/include/asm/kexec.h
-index 67e4cb7..32949bf 100644
---- a/arch/arm64/include/asm/kexec.h
-+++ b/arch/arm64/include/asm/kexec.h
-@@ -28,6 +28,9 @@
- 
- #define KEXEC_ARCH KEXEC_ARCH_AARCH64
- 
-+/* 2M alignment for crash kernel regions */
-+#define CRASH_ALIGN	SZ_2M
-+
- #ifndef __ASSEMBLY__
- 
- /**
-diff --git a/arch/arm64/kernel/setup.c b/arch/arm64/kernel/setup.c
-index 413d566..82cd9a0 100644
---- a/arch/arm64/kernel/setup.c
-+++ b/arch/arm64/kernel/setup.c
-@@ -243,6 +243,9 @@ static void __init request_standard_resources(void)
- 			request_resource(res, &kernel_data);
- #ifdef CONFIG_KEXEC_CORE
- 		/* Userspace will find "Crash kernel" region in /proc/iomem. */
-+		if (crashk_low_res.end && crashk_low_res.start >= res->start &&
-+		    crashk_low_res.end <= res->end)
-+			request_resource(res, &crashk_low_res);
- 		if (crashk_res.end && crashk_res.start >= res->start &&
- 		    crashk_res.end <= res->end)
- 			request_resource(res, &crashk_res);
-diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-index 972bf43..3bebddf 100644
---- a/arch/arm64/mm/init.c
-+++ b/arch/arm64/mm/init.c
-@@ -64,6 +64,7 @@ EXPORT_SYMBOL(memstart_addr);
- phys_addr_t arm64_dma_phys_limit __ro_after_init;
- 
- #ifdef CONFIG_KEXEC_CORE
-+
- /*
-  * reserve_crashkernel() - reserves memory for crash kernel
-  *
-@@ -74,20 +75,30 @@ phys_addr_t arm64_dma_phys_limit __ro_after_init;
- static void __init reserve_crashkernel(void)
- {
- 	unsigned long long crash_base, crash_size;
-+	bool high = false;
- 	int ret;
- 
- 	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
- 				&crash_size, &crash_base);
- 	/* no crashkernel= or invalid value specified */
--	if (ret || !crash_size)
--		return;
-+	if (ret || !crash_size) {
-+		/* crashkernel=X,high */
-+		ret = parse_crashkernel_high(boot_command_line,
-+				memblock_phys_mem_size(),
-+				&crash_size, &crash_base);
-+		if (ret || !crash_size)
-+			return;
-+		high = true;
-+	}
- 
- 	crash_size = PAGE_ALIGN(crash_size);
- 
- 	if (crash_base == 0) {
- 		/* Current arm64 boot protocol requires 2MB alignment */
--		crash_base = memblock_find_in_range(0, ARCH_LOW_ADDRESS_LIMIT,
--				crash_size, SZ_2M);
-+		crash_base = memblock_find_in_range(0,
-+				high ? memblock_end_of_DRAM()
-+				: ARCH_LOW_ADDRESS_LIMIT,
-+				crash_size, CRASH_ALIGN);
- 		if (crash_base == 0) {
- 			pr_warn("cannot allocate crashkernel (size:0x%llx)\n",
- 				crash_size);
-@@ -105,13 +116,18 @@ static void __init reserve_crashkernel(void)
- 			return;
- 		}
- 
--		if (!IS_ALIGNED(crash_base, SZ_2M)) {
-+		if (!IS_ALIGNED(crash_base, CRASH_ALIGN)) {
- 			pr_warn("cannot reserve crashkernel: base address is not 2MB aligned\n");
- 			return;
- 		}
- 	}
- 	memblock_reserve(crash_base, crash_size);
- 
-+	if (crash_base >= SZ_4G && reserve_crashkernel_low()) {
-+		memblock_free(crash_base, crash_size);
-+		return;
-+	}
-+
- 	pr_info("crashkernel reserved: 0x%016llx - 0x%016llx (%lld MB)\n",
- 		crash_base, crash_base + crash_size, crash_size >> 20);
- 
-diff --git a/arch/x86/include/asm/kexec.h b/arch/x86/include/asm/kexec.h
-index 003f2da..485a514 100644
---- a/arch/x86/include/asm/kexec.h
-+++ b/arch/x86/include/asm/kexec.h
-@@ -18,6 +18,9 @@
- 
- # define KEXEC_CONTROL_CODE_MAX_SIZE	2048
- 
-+/* 16M alignment for crash kernel regions */
-+#define CRASH_ALIGN		(16 << 20)
-+
- #ifndef __ASSEMBLY__
- 
- #include <linux/string.h>
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index 3773905..4182035 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -447,9 +447,6 @@ static void __init memblock_x86_reserve_range_setup_data(void)
- 
- #ifdef CONFIG_KEXEC_CORE
- 
--/* 16M alignment for crash kernel regions */
--#define CRASH_ALIGN		(16 << 20)
--
- /*
-  * Keep the crash kernel below this limit.  On 32 bits earlier kernels
-  * would limit the kernel to the low 512 MiB due to mapping restrictions.
-@@ -463,59 +460,6 @@ static void __init memblock_x86_reserve_range_setup_data(void)
- # define CRASH_ADDR_HIGH_MAX	MAXMEM
- #endif
- 
--static int __init reserve_crashkernel_low(void)
--{
--#ifdef CONFIG_X86_64
--	unsigned long long base, low_base = 0, low_size = 0;
--	unsigned long total_low_mem;
--	int ret;
--
--	total_low_mem = memblock_mem_size(1UL << (32 - PAGE_SHIFT));
--
--	/* crashkernel=Y,low */
--	ret = parse_crashkernel_low(boot_command_line, total_low_mem, &low_size, &base);
--	if (ret) {
--		/*
--		 * two parts from lib/swiotlb.c:
--		 * -swiotlb size: user-specified with swiotlb= or default.
--		 *
--		 * -swiotlb overflow buffer: now hardcoded to 32k. We round it
--		 * to 8M for other buffers that may need to stay low too. Also
--		 * make sure we allocate enough extra low memory so that we
--		 * don't run out of DMA buffers for 32-bit devices.
--		 */
--		low_size = max(swiotlb_size_or_default() + (8UL << 20), 256UL << 20);
--	} else {
--		/* passed with crashkernel=0,low ? */
--		if (!low_size)
--			return 0;
--	}
--
--	low_base = memblock_find_in_range(0, 1ULL << 32, low_size, CRASH_ALIGN);
--	if (!low_base) {
--		pr_err("Cannot reserve %ldMB crashkernel low memory, please try smaller size.\n",
--		       (unsigned long)(low_size >> 20));
--		return -ENOMEM;
--	}
--
--	ret = memblock_reserve(low_base, low_size);
--	if (ret) {
--		pr_err("%s: Error reserving crashkernel low memblock.\n", __func__);
--		return ret;
--	}
--
--	pr_info("Reserving %ldMB of low memory at %ldMB for crashkernel (System low RAM: %ldMB)\n",
--		(unsigned long)(low_size >> 20),
--		(unsigned long)(low_base >> 20),
--		(unsigned long)(total_low_mem >> 20));
--
--	crashk_low_res.start = low_base;
--	crashk_low_res.end   = low_base + low_size - 1;
--	insert_resource(&iomem_resource, &crashk_low_res);
--#endif
--	return 0;
--}
--
- static void __init reserve_crashkernel(void)
- {
- 	unsigned long long crash_size, crash_base, total_mem;
-@@ -573,9 +517,13 @@ static void __init reserve_crashkernel(void)
- 		return;
- 	}
- 
--	if (crash_base >= (1ULL << 32) && reserve_crashkernel_low()) {
--		memblock_free(crash_base, crash_size);
--		return;
-+	if (crash_base >= (1ULL << 32)) {
-+		if (reserve_crashkernel_low()) {
-+			memblock_free(crash_base, crash_size);
-+			return;
-+		}
-+
-+		insert_resource(&iomem_resource, &crashk_low_res);
- 	}
- 
- 	pr_info("Reserving %ldMB of memory at %ldMB for crashkernel (System RAM: %ldMB)\n",
-diff --git a/include/linux/kexec.h b/include/linux/kexec.h
-index b9b1bc5..6140cf8 100644
---- a/include/linux/kexec.h
-+++ b/include/linux/kexec.h
-@@ -281,6 +281,7 @@ extern void __crash_kexec(struct pt_regs *);
- extern void crash_kexec(struct pt_regs *);
- int kexec_should_crash(struct task_struct *);
- int kexec_crash_loaded(void);
-+int __init reserve_crashkernel_low(void);
- void crash_save_cpu(struct pt_regs *regs, int cpu);
- extern int kimage_crash_copy_vmcoreinfo(struct kimage *image);
- 
-diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
-index d714044..f8e8f80 100644
---- a/kernel/kexec_core.c
-+++ b/kernel/kexec_core.c
-@@ -39,6 +39,8 @@
- #include <linux/compiler.h>
- #include <linux/hugetlb.h>
- #include <linux/frame.h>
-+#include <linux/memblock.h>
-+#include <linux/swiotlb.h>
- 
- #include <asm/page.h>
- #include <asm/sections.h>
-@@ -96,6 +98,57 @@ int kexec_crash_loaded(void)
- }
- EXPORT_SYMBOL_GPL(kexec_crash_loaded);
- 
-+int __init reserve_crashkernel_low(void)
-+{
-+	unsigned long long base, low_base = 0, low_size = 0;
-+	unsigned long total_low_mem;
-+	int ret;
-+
-+	total_low_mem = memblock_mem_size(1UL << (32 - PAGE_SHIFT));
-+
-+	/* crashkernel=Y,low */
-+	ret = parse_crashkernel_low(boot_command_line, total_low_mem, &low_size, &base);
-+	if (ret) {
-+		/*
-+		 * two parts from lib/swiotlb.c:
-+		 * -swiotlb size: user-specified with swiotlb= or default.
-+		 *
-+		 * -swiotlb overflow buffer: now hardcoded to 32k. We round it
-+		 * to 8M for other buffers that may need to stay low too. Also
-+		 * make sure we allocate enough extra low memory so that we
-+		 * don't run out of DMA buffers for 32-bit devices.
-+		 */
-+		low_size = max(swiotlb_size_or_default() + (8UL << 20), 256UL << 20);
-+	} else {
-+		/* passed with crashkernel=0,low ? */
-+		if (!low_size)
-+			return 0;
-+	}
-+
-+	low_base = memblock_find_in_range(0, 1ULL << 32, low_size, CRASH_ALIGN);
-+	if (!low_base) {
-+		pr_err("Cannot reserve %ldMB crashkernel low memory, please try smaller size.\n",
-+		       (unsigned long)(low_size >> 20));
-+		return -ENOMEM;
-+	}
-+
-+	ret = memblock_reserve(low_base, low_size);
-+	if (ret) {
-+		pr_err("%s: Error reserving crashkernel low memblock.\n", __func__);
-+		return ret;
-+	}
-+
-+	pr_info("Reserving %ldMB of low memory at %ldMB for crashkernel (System low RAM: %ldMB)\n",
-+		(unsigned long)(low_size >> 20),
-+		(unsigned long)(low_base >> 20),
-+		(unsigned long)(total_low_mem >> 20));
-+
-+	crashk_low_res.start = low_base;
-+	crashk_low_res.end   = low_base + low_size - 1;
-+
-+	return 0;
-+}
-+
- /*
-  * When kexec transitions to the new kernel there is a one-to-one
-  * mapping between physical and virtual addresses.  On processors
 -- 
-2.7.4
+
+Thanks,
+
+David / dhildenb
 
