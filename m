@@ -4,111 +4,107 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EEB50C282CE
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 02:49:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C0CCC10F13
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 02:54:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A033B213F2
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 02:49:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BA45A213F2
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 02:54:57 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="IQx6HQ79"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A033B213F2
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="clvnIESy"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA45A213F2
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3FB0F6B0008; Mon,  8 Apr 2019 22:49:39 -0400 (EDT)
+	id 57CBE6B0008; Mon,  8 Apr 2019 22:54:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 380FA6B000C; Mon,  8 Apr 2019 22:49:39 -0400 (EDT)
+	id 52A1F6B000C; Mon,  8 Apr 2019 22:54:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 223016B0010; Mon,  8 Apr 2019 22:49:39 -0400 (EDT)
+	id 419796B0010; Mon,  8 Apr 2019 22:54:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E8B436B0008
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 22:49:38 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id 14so11526503pgf.22
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 19:49:38 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 09E736B0008
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 22:54:57 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id x5so11356955pll.2
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 19:54:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=+sTnbP4kwIRGvZ3/0p8aO28bolyQS4PZg/H+Zbxqxf0=;
-        b=jibhjBHRL7nbpnG4j4rJegp7d01H5/16AAuMpyKrhm/4Jyci4PnPQCMlN+3ZfnisrK
-         e7a8EQZxIdCzUN6q9vmvs+5fTUBoMNM8CZ/kdywHM5b+lHQQJafLiFif8HZcapr8X2ju
-         aCKeR9bqrT7F4w/nPYRkeT3B/BjyCh2HHyUkSyt2smmhZEsPQc5awb/xStz1pcRGB2XR
-         sOHyYHPrau3GSJ6tEC7G0vk26NLm2aXAVznCm5eZR4ip43WmPGVsSziKeeMFZaNnfzbL
-         dITQctzYgtz9wItBfdu3FAJw5txjv5CPPdQnTeDczLXskb9m+bUv+kB9UKHCblQH/q8e
-         bzcg==
-X-Gm-Message-State: APjAAAUW4c49bjvPmVN80bgpg+gGyr1nEqEHAJXoup+79hEMJlea4A+1
-	k7xm1gO06y/wiWkxk7nssas9yihPYVRk3vJ7tsTNvK5K+WYj9zPjEuUrlF52xEQWZKB7w0plYkJ
-	IZv2zfq8940bYZ7tAXHtAJmn0FpKVNIubdWRC2G/iI22m2S9FZEGKWoXBOLZNBZEK2Q==
-X-Received: by 2002:a17:902:421:: with SMTP id 30mr33026983ple.142.1554778178383;
-        Mon, 08 Apr 2019 19:49:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyF3a3HawzOgZv4aTaNNcy2yw68080ns2mGJLOX7tkB8F1t2daj+dAPmlqBMgFw4zkS9iNf
-X-Received: by 2002:a17:902:421:: with SMTP id 30mr33026944ple.142.1554778177628;
-        Mon, 08 Apr 2019 19:49:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554778177; cv=none;
+        bh=0Xj8zhLCzeTFxHr8TcWbrxXHhH4ZpaJguBiDDKrkeXc=;
+        b=nlSlW/m85zH+IhWDG3JlMHUrpna2ueWioHPC0mFZ0q5VpjiSk4cInglB9MvyWWXPRL
+         Y8lhd7G5jhLZDyCkTfzSVkwB3eUbZVoqct5r+1nkg28USrnrutPegY7379lSqfJpuwuM
+         DQZoMi8QsBdsOtqI8UZdBpda+tYSPg1Z+NjMSi6Z4f0LgVDBa5CqpWn1zacWxV9P7pbC
+         siIK8FxeKPiUgc9moOwaofdWPhmXF+PVe3KNav4pX1dUOJjg/A4cHxZ3qyH1uCYPpXz8
+         QjBGe9F5eIHsWI3ANNXmNzm0IFRUlCAfDg5Vy9YWOib9CZwqkJZLGHK7bl/DXhwIcls4
+         8HFw==
+X-Gm-Message-State: APjAAAWiX35m6nFAmaAM1cpT6VTcTAuCW3T0vf4bWK6jYYUCmVHNvbzV
+	VQ2DDrOTj4P4+nQ9AqCmcz8yLwr3GrPUBMroT4wHknFCQ7uEwIlOziVcbbxiUrztoVXsVTd8D4d
+	sSMNmeSfQYmLD5rYkWKJnt1B3SHajf7tIPJr4jzyw4zyc8fMfJGxcs1Qt7Zy8zMy4Bw==
+X-Received: by 2002:a63:d444:: with SMTP id i4mr32689882pgj.149.1554778496543;
+        Mon, 08 Apr 2019 19:54:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxOhVHaACDGNhQxbKkZj7sVoSV0EllsBILJgXom/8ifODHNDp63MDQeqn6WEFt5C+9JAhZE
+X-Received: by 2002:a63:d444:: with SMTP id i4mr32689841pgj.149.1554778495819;
+        Mon, 08 Apr 2019 19:54:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554778495; cv=none;
         d=google.com; s=arc-20160816;
-        b=HriWpcvFewiVkG3fZKBtyO6qrPsTERf+g79vsL/oPHpjWbEPJxnDzXaZ3bEy4LXczm
-         h62vZcpaDGQnzkwqwrUNe2zVjmXMRJPeBH00AXOT5MgWGW3O3odBLh94FLISq4y/cB49
-         MXPovgiV5Jf6ZdBGi3EyzOUeTGnGSZqcztpBckNN4gm6cg3zmJh5tveAnY9apDK4jVFX
-         LgUucNHzqUe3dIfKpGQvid5+CoNzgOBQ8W0yj1tmBhsAElh/6gH7LNKcjGECFVgfDc+8
-         usm8SxVjrEN3a3uF3j0Q3Tm5bDR5FR16kbdWN1KuZmYX7eSpV4CZ/NNBVTfEzGBgwgx4
-         Ojcw==
+        b=ZC7DzrxKLk4K7pKrR5hLqMOXP1AD+DJKEOXm+nv+7U7pweh/AapcJDNY9XkU37qGBo
+         BN2KTIZs0jP/YaMkmm3t+qryI3V74Uc5gJ8zM2NSXuB+phA1fWQaG08rXqlUQwSR8QAx
+         USkAy/lecoCGr8GXSOETnEPJeFDuhH0MIjwMm9F2F/QTTgjWgiNbcvM2tTenhDJvB9zs
+         vpOBgF66BdlQo5zcnFtEM1SBMPj+UZT8uWY9pziGOmp9402KiNBkTKtJn8+o8DB4Jx3f
+         1u3aLYYiT++wltPccXj/TjYkMwxjNYy9bX0mTv5GptWaO+zW02j2kuy03fJ9o4gMMWow
+         8YjQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=+sTnbP4kwIRGvZ3/0p8aO28bolyQS4PZg/H+Zbxqxf0=;
-        b=TNomkCra4Uoj4HBiQVdMXSsONgsZ/XnsFVF/85CdFwNOAKgHZz7fu0oEoM3Gsg5BpY
-         chW8Z2ZGxjKelZv6izFIhFx3g9GCTgB3CatDRAod5f2zZDXVy/dlRYCzqUtirIhEYdxU
-         zXcPcBEraDB6sE7SGIDhPA6G3R15yIizl5UM4tYmaR1a2HjnkSX301uFGpLBY4Qq28N8
-         +KcOzIgoioETbchxOSG9BK8f68KF4BlEZnkmFWeBIdj+8fKujPWSkcF9L8IrjlqziOIo
-         bGlBFR1u5ZteER9RSEG4kGAgWXoXfGPdbwuDyAYf37m56nd+tWmJqg9UiUDQToK/+bRC
-         R6UQ==
+        bh=0Xj8zhLCzeTFxHr8TcWbrxXHhH4ZpaJguBiDDKrkeXc=;
+        b=HwlCy3YnlxTV4fqGJJ+CatFAGNlpapNWovr+idA1dohmF32RgncuaimsjEIy1jYQO1
+         Z4gtz2u8bdFR6doLBCi6io6UP6CxBO8xLwRC7Jie7MFGrJUXW79G9m9y0ZgRVQsp7UUp
+         A+oeMywfast17dS01G1vmD/WT6V7vPM+3eeLx8BccPgykomwFPvmFRjSVkZ77VW9z9X0
+         R5tEdHUMO+2jAgmZtv8g27bQ41Gwp431cw7grpCb4L9vjz0wfzb5EmT4sYL/cYMQuLNT
+         46ZMzfypbAQvsHKk7jHWK9opkHEZsYBB2B5m+B+UR0ypLXC/vz8lD9aADMqUkjUg5yAp
+         ONkQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=IQx6HQ79;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 198.137.202.133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [198.137.202.133])
-        by mx.google.com with ESMTPS id a192si9940428pge.50.2019.04.08.19.49.37
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=clvnIESy;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id q4si21858178pll.127.2019.04.08.19.54.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 08 Apr 2019 19:49:37 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 198.137.202.133 as permitted sender) client-ip=198.137.202.133;
+        Mon, 08 Apr 2019 19:54:55 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=IQx6HQ79;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 198.137.202.133 as permitted sender) smtp.mailfrom=willy@infradead.org
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=clvnIESy;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
 	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
 	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
 	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
 	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=+sTnbP4kwIRGvZ3/0p8aO28bolyQS4PZg/H+Zbxqxf0=; b=IQx6HQ79QqGX7eO8jyasd4v0j
-	m0c3D2/Hhq55NUArw4A9igZl44KnhAW/Sv4D9pcn9ybJiD1U9U71AOe4AmNjs6nHdT0V54uLfvQK9
-	ZECByfGXchDZxYKEHi1vGG2paLGfUqgreqgIBGpnn5ucQnO01Ft48qBLY1uEMm0VrT3HM/MXxl/Xq
-	jwluodV18EV3WZ/b9691OyDEwNOaRBAhZtPtRtEU8kTf0w+Mh/cZmGMTMeSu63RA5m6r6MCKwwv4M
-	apckaLCSx3COmCMyv98QI5NS1daHb5QAPSE2I5Bho5fP3vvWu3gX+CrXYF3BcK1Cp7lAr5fNtfs+8
-	i11Fn3SWg==;
+	 bh=0Xj8zhLCzeTFxHr8TcWbrxXHhH4ZpaJguBiDDKrkeXc=; b=clvnIESy+HewfFcgtwh7/pkRG
+	Pp59QzSClAziE0ntBSnSD//KmxwWt/zqY1c/gPascj1STKUXPFPvAbEIrLxw6MzWJmNBlhvQT9nH3
+	F9rgUPkXTpXu5oSHZfnbsLPsntKWXMOzm5FMpwV+mOelg1TUg32BGXgq/0gcY1BrsuT49/qkSL7lT
+	9oO880iHtITsCgihrl+mdEJbTioys1V+VmtlogAk0UnlCKPuPbjrdvupz2+Ff0ZicdiXw8Ec32VrF
+	rrhiYxSkzDD+5OpmlSLVdAWHMd6gKYZ+qZUBUuFxmXNGKVC4PjVqVaYRAZedM1Jga/9iozNkGd9MM
+	74TbGlUYA==;
 Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hDgpG-0001c2-5h; Tue, 09 Apr 2019 02:49:30 +0000
-Date: Mon, 8 Apr 2019 19:49:29 -0700
+	id 1hDguU-0002uv-Ol; Tue, 09 Apr 2019 02:54:54 +0000
+Date: Mon, 8 Apr 2019 19:54:54 -0700
 From: Matthew Wilcox <willy@infradead.org>
-To: Huang Shijie <sjhuang@iluvatar.ai>
-Cc: akpm@linux-foundation.org, william.kucharski@oracle.com,
-	ira.weiny@intel.com, palmer@sifive.com, axboe@kernel.dk,
-	keescook@chromium.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 1/2] mm/gup.c: fix the wrong comments
-Message-ID: <20190409024929.GW22763@bombadil.infradead.org>
-References: <20190408023746.16916-1-sjhuang@iluvatar.ai>
- <20190408141313.GU22763@bombadil.infradead.org>
- <20190409010832.GA28081@hsj-Precision-5520>
+To: luojiajun <luojiajun3@huawei.com>
+Cc: linux-mm@kvack.org, mike.kravetz@oracle.com, yi.zhang@huawei.com,
+	miaoxie@huawei.com
+Subject: Re: [PATCH] hugetlbfs: end hpage in hugetlbfs_fallocate overflow
+Message-ID: <20190409025454.GX22763@bombadil.infradead.org>
+References: <1554775226-67213-1-git-send-email-luojiajun3@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190409010832.GA28081@hsj-Precision-5520>
+In-Reply-To: <1554775226-67213-1-git-send-email-luojiajun3@huawei.com>
 User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -116,58 +112,36 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 09, 2019 at 09:08:33AM +0800, Huang Shijie wrote:
-> On Mon, Apr 08, 2019 at 07:13:13AM -0700, Matthew Wilcox wrote:
-> > On Mon, Apr 08, 2019 at 10:37:45AM +0800, Huang Shijie wrote:
-> > > The root cause is that sg_alloc_table_from_pages() requires the
-> > > page order to keep the same as it used in the user space, but
-> > > get_user_pages_fast() will mess it up.
-> > 
-> > I don't understand how get_user_pages_fast() can return the pages in a
-> > different order in the array from the order they appear in userspace.
-> > Can you explain?
-> Please see the code in gup.c:
+On Tue, Apr 09, 2019 at 10:00:26AM +0800, luojiajun wrote:
+> In hugetlbfs_fallocate, start is rounded down and end is rounded up.
+> But it is inappropriate to use loff_t rounding up end, it may cause
+> overflow.
 > 
-> 	int get_user_pages_fast(unsigned long start, int nr_pages,
-> 				unsigned int gup_flags, struct page **pages)
-> 	{
-> 		.......
-> 		if (gup_fast_permitted(start, nr_pages)) {
-> 			local_irq_disable();
-> 			gup_pgd_range(addr, end, gup_flags, pages, &nr);               // The @pages array maybe filled at the first time.
+> UBSAN: Undefined behaviour in fs/hugetlbfs/inode.c:582:22
+> signed integer overflow:
+> 2097152 + 9223372036854775805 cannot be represented in type 'long long int'
 
-Right ... but if it's not filled entirely, it will be filled part-way,
-and then we stop.
+This patch can't fix this bug.
 
-> 			local_irq_enable();
-> 			ret = nr;
-> 		}
-> 		.......
-> 		if (nr < nr_pages) {
-> 			/* Try to get the remaining pages with get_user_pages */
-> 			start += nr << PAGE_SHIFT;
-> 			pages += nr;                                                  // The @pages is moved forward.
+> @@ -578,8 +578,9 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
+>  	 * For this range, start is rounded down and end is rounded up
+>  	 * as well as being converted to page offsets.
+>  	 */
+> -	start = offset >> hpage_shift;
+> -	end = (offset + len + hpage_size - 1) >> hpage_shift;
+> +	start = (unsigned long long)offset >> hpage_shift;
+> +	end = ((unsigned long long)(offset + len + hpage_size) - 1)
+> +			>> hpage_shift;
 
-Yes, to the point where gup_pgd_range() stopped.
+I suspect you mean:
 
-> 			if (gup_flags & FOLL_LONGTERM) {
-> 				down_read(&current->mm->mmap_sem);
-> 				ret = __gup_longterm_locked(current, current->mm,      // The @pages maybe filled at the second time
+	end = (((unsigned long long)offset + len + hpage_size) - 1) >>
+			hpage_shift;
 
-Right.
+Otherwise, you're going to do the arithmetic in long long, then cast
+to unsigned long long before the shift.
 
-> 				/*
-> 				 * retain FAULT_FOLL_ALLOW_RETRY optimization if
-> 				 * possible
-> 				 */
-> 				ret = get_user_pages_unlocked(start, nr_pages - nr,    // The @pages maybe filled at the second time.
-> 							      pages, gup_flags);
-
-Yes.  But they'll be in the same order.
-
-> BTW, I do not know why we mess up the page order. It maybe used in some special case.
-
-I'm not discounting the possibility that you've found a bug.
-But documenting that a bug exists is not the solution; the solution is
-fixing the bug.
+BTW, don't say "this can be reproduced using syzcaller".  This is an easy
+case to extract a small reproducer from ... which would have helped you
+notice that you haven't fixed the problem.
 
