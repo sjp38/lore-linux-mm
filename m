@@ -2,147 +2,128 @@ Return-Path: <SRS0=58dN=SL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7CE19C10F0E
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 13:02:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 20AE0C282DE
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 13:08:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 455372084F
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 13:02:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 455372084F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
+	by mail.kernel.org (Postfix) with ESMTP id DBB8520855
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 13:08:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DBB8520855
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D77DA6B000D; Tue,  9 Apr 2019 09:02:26 -0400 (EDT)
+	id 7CD816B0008; Tue,  9 Apr 2019 09:08:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D26EC6B000E; Tue,  9 Apr 2019 09:02:26 -0400 (EDT)
+	id 77DBE6B000D; Tue,  9 Apr 2019 09:08:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BEFA06B0010; Tue,  9 Apr 2019 09:02:26 -0400 (EDT)
+	id 645D26B000E; Tue,  9 Apr 2019 09:08:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 710D36B000D
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 09:02:26 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id o8so2118824edq.1
-        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 06:02:26 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 304266B0008
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 09:08:02 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id s6so772567edr.21
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 06:08:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=2RymSiVH8W4SJMBL3FEStegmjqfCTIJor8UL1qw5SDA=;
-        b=P4YzMV1ANkwdFsRJWQTQqq/BWhPUx73oOgWqNwGIluJtlGgYmvMsMOskSyYkzoolnH
-         WlQCv6ytYMefRb58PJ7sAJeL09XEATYbtw6t0awFcoO854pMHYGxGll3cZmu2X+Ul9z0
-         ypro2C/eZ/xMhcA+4UxlLyRLSb7VKdc97mwz125IqHcX4zGcabsh2WdyVOZ8MZIunRfB
-         4Jo/zzkTMFQ7AIK9UnqPv9tRTDsxfvbSInOKFnCWQmb1sMn713+7h/1QxuYCYpz6ma7u
-         eqPm67A9/tt9UZZC2N1a5j21zH3S3VL6LosQeAhRtHlrCMS0/CxDfODwPPQqMWQMi6s5
-         iwdw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of pmladek@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=pmladek@suse.com
-X-Gm-Message-State: APjAAAUMVytZUS0HIEDBpKrFQyPqgJ4KP79LZNayQnxpM12ufDwgHJ7S
-	sz0+N+jd2Isxdvemh302UxBsSF8hRbqGNV1UEBX0taci/xIYZun+ZJBspZOQjpPzM597yvMH9jK
-	j+2jPrnPDxiDDsPlmM4VWbBjJaAp8O3VP+drRSv0Kb7+/J6QkFYaWpfbym4CsEPgQbQ==
-X-Received: by 2002:a50:ec86:: with SMTP id e6mr22633737edr.204.1554814946027;
-        Tue, 09 Apr 2019 06:02:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzf2gb4I74zzl5FGhlZgD+gTEJpxa1b+c/PEhU2Uri2iK2iyEvPmJhJo2f6EbsijIUskaGl
-X-Received: by 2002:a50:ec86:: with SMTP id e6mr22633672edr.204.1554814945066;
-        Tue, 09 Apr 2019 06:02:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554814945; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=PswzQ2aW5SrNl7OVEPd2WzPDPU0VgDCaQWosqiH4MPM=;
+        b=PF9+WLqVbq/PKhvxg4l6lEtQSqfahbn8Ic153Kh1e/W+NMdsUQudNzW+xOQ32uADfb
+         AFY9Ufrp7EwxI23Aqx1Odb9KA6vjg9eyyf/SUqyV+O8xsC5n+JTe9yk/u2VMxuEK9niQ
+         yx2lyRtqMNNUpIow8YzuAA7bfsqbliXv+JurZF4R5a+KYhYms8iMOmZqADnnGoj34A6j
+         Et8jfj0KA/Y9xloVQL+2BDrVupUjf7vqOxqMQa2oKrGGgNkwrOiCLkZoH3/Nr54HaUt9
+         6nzmBfeILA5Ql81UavpAwa7JfcoBNYwhxbrTqYhBGQ0WoGexe/EThzROQZufJVhaqcDx
+         yIpg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAXAGbeQeUEt3sjaNljcGQk/tgHoLki9EMPD5VuAUEc2jJIvEPBF
+	Q1o7UDGnUS3+Q+T8S5RHOrD67Y1Q7tQTdxP0jsoIb96s3BrHMr1sPpxUksY+oCaOrR1fWUJUxGa
+	sri7wUKzP+Z22i+uY1bbyDPSNewZ1EqSsmnb5VzMoGCHSBxIDwcvxMflJEYD3uygeUg==
+X-Received: by 2002:a17:906:31cf:: with SMTP id f15mr20024070ejf.246.1554815281728;
+        Tue, 09 Apr 2019 06:08:01 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxf56J78KIF5ep9BhdZwxOOZwnOA6Yl/7LiZSY6g8kSE6nqH2CAwOvfiEdl62gZ0X2enOIG
+X-Received: by 2002:a17:906:31cf:: with SMTP id f15mr20024033ejf.246.1554815280928;
+        Tue, 09 Apr 2019 06:08:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554815280; cv=none;
         d=google.com; s=arc-20160816;
-        b=UphygfyqszZrgOT9vsn6D009i+/T1NKVP3gR0rFXlcQOAaK8JoJsBdaxcUX6Ewsat8
-         0qF7NU6GvgLz1Q+3gZ4zme01HF4o8Tx+aeD624KsOnWm+Ep2g2USH+Y6NxRjEcdDHZ4s
-         wWLuDMLg9GPCeX6EiYKmBxQKtkhtMNcSDzqwFQRhqzeOU/DI2m+e/10NBZA31gG5bgk+
-         hvGPFPb0y3iXdfApLFzfrXnvDeocgeOIateJo/rfmUhrMTyodDrn3cm9EJZsijPWKSIX
-         ZXz7b0PTiOVc9yp7tuYfNYrFRXAtLgfurchNLWnkh3LUfAZnoaVNNJSpqLFCSrVKfBJ/
-         FR5w==
+        b=erV6kLHEew/wUrt+D2spjTJaCa+W3MiZw7ilhtF9ff+ap8gm5qQ4LkHDQ/ZH5CknCC
+         +kHsDmAdI4kFFZQW1+Wl+TGosOtS81LHVyowKdM7ZMinO/RfV0Uwuf+Gy2YlLnS6+sgZ
+         bSOzbNfYk59dImwMabZ2+L4RdgkxP3S1b6hgLxdQX8+riLoGoCc6Ikq1gVnx2LGw0rGG
+         UJxGlla/ePGFMwqNRS0U6STV2HmGmNCv12NdpAAtDKqD4v/I96AZ3hTGLo2C/jeQf52Z
+         cx1Dr/XnOVT8yxtfbL9sl5lI/UMp1W2em5hMbCLbMNbDcuGOlElVgTIxKax7/Q/WKg71
+         mdQg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=2RymSiVH8W4SJMBL3FEStegmjqfCTIJor8UL1qw5SDA=;
-        b=oTT3Q89u5WnefvE3NzE2FRPIVR+xClgm+TRbWhMiZk2/laY6CRa6xZKhEbPvrc2Y7d
-         bCmYVLfVuzoSkKhcIrMCdQJI5BWvpA4T+67wHShZCdEdEeeCuAYhKyh+S90sH8z0cwDc
-         gUu/yovyO8GbJEwZXrWP6Ycw/Jodg/JlHKVp/zxB1XyQNBbOL89lctzwYvlHfxnidDoP
-         1NxXDOP76wfITbr2RKhiuyJWs16lfZ7pczOm8/+XuV3e9A7xs+bv0TcXvyqn9dfgCik8
-         kEfHSUxD0YwMFNscOICbvJpxme/kaMtzXbRt9n0C1kCsiaMVoqtMEplTr+jFPUA8r3Nr
-         jV7g==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=PswzQ2aW5SrNl7OVEPd2WzPDPU0VgDCaQWosqiH4MPM=;
+        b=VXbyIf0RNNSJXJB4R4HsVHf7GbEVBBx/XxuDZudhnGCbR5x3KWc/58u6/NtBpVLUDr
+         PgFMNYtez1c9jeFGOdnhDgp7NEJPMQ/qMVi1VnTpKZQ6IdtfsIX2qpC0DqrHhhc8AfGO
+         cNeb/ZptLCWNyhN6oXP52Bt3kFxJM8da34bnNpSkKwbr20yEB/qKEnGUJC4aEPydUQjf
+         a1YHcrkpxEckYwnA2xzcEccR5MPn7eto345/fH90vylPjRE0/MvXQ/VTY97o46cGHVce
+         2II6yuvfzdCR7te/sFcDmjTsOpUmJJLIAqwRSMRSWdiFzfJhnQOlhykoq0bzQlWDi174
+         XRHw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of pmladek@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=pmladek@suse.com
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t2si2220059ejs.335.2019.04.09.06.02.24
+        by mx.google.com with ESMTPS id s17si3542752edx.387.2019.04.09.06.08.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Apr 2019 06:02:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pmladek@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Tue, 09 Apr 2019 06:08:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of pmladek@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=pmladek@suse.com
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 634F5ACC1;
-	Tue,  9 Apr 2019 13:02:24 +0000 (UTC)
-Date: Tue, 9 Apr 2019 15:02:23 +0200
-From: Petr Mladek <pmladek@suse.com>
-To: Sakari Ailus <sakari.ailus@linux.intel.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>,
-	linux-kernel@vger.kernel.org,
-	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
-	linux-arm-kernel@lists.infradead.org, sparclinux@vger.kernel.org,
-	linux-um@lists.infradead.org, xen-devel@lists.xenproject.org,
-	linux-acpi@vger.kernel.org, linux-pm@vger.kernel.org,
-	drbd-dev@lists.linbit.com, linux-block@vger.kernel.org,
-	linux-mmc@vger.kernel.org, linux-nvdimm@lists.01.org,
-	linux-pci@vger.kernel.org, linux-scsi@vger.kernel.org,
-	linux-btrfs@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
-	linux-mm@kvack.org, ceph-devel@vger.kernel.org,
-	netdev@vger.kernel.org,
-	Anna-Maria Gleixner <anna-maria@linutronix.de>
-Subject: Re: [PATCH v2 1/1] treewide: Switch printk users from %pf and %pF to
- %ps and %pS, respectively
-Message-ID: <20190409130223.qylyzna7syu5cdc4@pathway.suse.cz>
-References:<20190325193229.23390-1-sakari.ailus@linux.intel.com>
- <20190326133510.cylhvyvc7l77bqdg@pathway.suse.cz>
- <20190403112814.7frkxkwmitzugzmt@paasikivi.fi.intel.com>
+	by mx1.suse.de (Postfix) with ESMTP id 09070ACC1;
+	Tue,  9 Apr 2019 13:08:00 +0000 (UTC)
+Subject: Re: [PATCH v5 0/7] mm: Use slab_list list_head instead of lru
+To: "Tobin C. Harding" <tobin@kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>
+Cc: Roman Gushchin <guro@fb.com>, Christoph Lameter <cl@linux.com>,
+ Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
+ Joonsoo Kim <iamjoonsoo.kim@lge.com>, Matthew Wilcox <willy@infradead.org>,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <20190402230545.2929-1-tobin@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <a4950b5e-1af8-4ce6-8b01-ea9c9caa45d0@suse.cz>
+Date: Tue, 9 Apr 2019 15:07:58 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To:<20190403112814.7frkxkwmitzugzmt@paasikivi.fi.intel.com>
-User-Agent: NeoMutt/20170912 (1.9.0)
+In-Reply-To: <20190402230545.2929-1-tobin@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 2019-04-03 14:28:14, Sakari Ailus wrote:
-> Ping.
-> 
-> On Tue, Mar 26, 2019 at 02:35:10PM +0100, Petr Mladek wrote:
-> > Linus,
-> > 
-> > On Mon 2019-03-25 21:32:28, Sakari Ailus wrote:
-> > > %pF and %pf are functionally equivalent to %pS and %ps conversion
-> > > specifiers. The former are deprecated, therefore switch the current users
-> > > to use the preferred variant.
-> > > 
-> > > The changes have been produced by the following command:
-> > > 
-> > > 	git grep -l '%p[fF]' | grep -v '^\(tools\|Documentation\)/' | \
-> > > 	while read i; do perl -i -pe 's/%pf/%ps/g; s/%pF/%pS/g;' $i; done
-> > > 
-> > > And verifying the result.
-> > 
-> > I guess that the best timing for such tree-wide clean up is the end
-> > of the merge window. Should we wait for 5.2 or is it still acceptable
-> > to push this for 5.1-rc3?
-> 
-> The patch still cleanly applies to linux-next as wells as Linus's tree.
-> Some %pf bits have appeared and fixed since (include/trace/events/timer.h);
-> the fix is in linux-next so once that and this patch are merged, there are
-> no remaining %pf (or %pF) users left.
+On 4/3/19 1:05 AM, Tobin C. Harding wrote:
+> Tobin C. Harding (7):
+>   list: Add function list_rotate_to_front()
+>   slob: Respect list_head abstraction layer
+>   slob: Use slab_list instead of lru
+>   slub: Add comments to endif pre-processor macros
+>   slub: Use slab_list instead of lru
+>   slab: Use slab_list instead of lru
+>   mm: Remove stale comment from page struct
 
-I have pushed the patch into printk.git, branch for-5.2-pf-removal.
-It is v2 without the include/trace/events/timer.h stuff.
+For the whole series:
 
-Best Regards,
-Petr
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+> 
+>  include/linux/list.h     | 18 ++++++++++++
+>  include/linux/mm_types.h |  2 +-
+>  mm/slab.c                | 49 ++++++++++++++++----------------
+>  mm/slob.c                | 59 +++++++++++++++++++++++++++------------
+>  mm/slub.c                | 60 ++++++++++++++++++++--------------------
+>  5 files changed, 115 insertions(+), 73 deletions(-)
+> 
 
