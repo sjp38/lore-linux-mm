@@ -2,241 +2,183 @@ Return-Path: <SRS0=58dN=SL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A533FC10F13
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 03:19:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EA7ADC282CE
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 03:30:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3755020880
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 03:19:38 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A8536213F2
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 03:30:25 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="PcJU3m2j"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3755020880
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="zPUCIEg5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A8536213F2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D08996B0008; Mon,  8 Apr 2019 23:19:37 -0400 (EDT)
+	id 44FC46B0006; Mon,  8 Apr 2019 23:30:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CB9C66B000C; Mon,  8 Apr 2019 23:19:37 -0400 (EDT)
+	id 3FF536B0008; Mon,  8 Apr 2019 23:30:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BABB06B0010; Mon,  8 Apr 2019 23:19:37 -0400 (EDT)
+	id 2EF156B000C; Mon,  8 Apr 2019 23:30:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E98C6B0008
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 23:19:37 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id 14so11578277pgf.22
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 20:19:37 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EB9586B0006
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2019 23:30:24 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id y10so3374959pll.14
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2019 20:30:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=mIexr26prDUKCxTAI0NcBS7KOdrcFft7Rki/xwxHOyk=;
-        b=jl2MPcRNMkbzG4wNYBEsFG3/UJlvFd8kS3KlHnMsCkd1dMHb92MgMC4qXWskM7WCuP
-         68pQgdWLoKqe4B8PO9U0lwLYl9TypDIZ/j+A2OOSU4izOr6k+ErFgJvRIvay0KIqQeZ7
-         FNUC2r4xjQp6xtUyGjbGjYL12RjOPs0PzFhYXTw6Alf0ve7TBAqxdjvwqL7SQfFsrGbR
-         NnPxQelnmqgrwM4YecLn6QtFaN5GF+LL5o1n/b93qBt8N3lntjzEo/lVp09fz75ffkIf
-         li16/JZT3qr725+p9EYhcdNx/6lXW11Ng6RASuz7j3F5pOrxJ3aMaYkMfzls3p8ZfXJo
-         WKEQ==
-X-Gm-Message-State: APjAAAXh49lgBMd8lJ+Cwi4nj0zruR9NXaNcbMBhtkmN9Znq/Tjgi96k
-	MBYKrC3vicXBqsVOdZj8LbAGkf8BJhl96DrLXL9F3HnGYk2GC86wa43sHogh9IPgxj6RVmn4TIJ
-	4ORFZn4eWCXXd+JfQFdOJjXpqiNQkPYMGWo/CLVfEocdHwImsu7gqYIB60hhTOA5Yig==
-X-Received: by 2002:a63:554b:: with SMTP id f11mr31990609pgm.77.1554779977016;
-        Mon, 08 Apr 2019 20:19:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyOsp5mjd7kXyLHfarEex9YwbDs8NS5pPx4szgDKyMmyCOxFMBrXy0yMCTKo99yJmp1mYnr
-X-Received: by 2002:a63:554b:: with SMTP id f11mr31990561pgm.77.1554779976300;
-        Mon, 08 Apr 2019 20:19:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554779976; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=yNAnix0vPb3Rl0k78u1G6bUYV+iub+YsxxG7ebwDs7U=;
+        b=Lu1ssFZAiTCxS9TRh2+RKwfv2lZkbHi96NTZrVlRWDRq3HW0hTzMK1R7r7R7PpjUst
+         y6SxLCL/Sfj/T6Tl5Svmeb0IhglFkPh9uw4+WcZelzfqM8REmKwPci/D2rk7Nwg9qTIS
+         FyUiVCcQFtLAX3tgw+eoQqlxJfZpsqaBY+kpwiHMpvdTCL0BIQ/hSfBf30dPj78xd823
+         08e8gv7ENmMzJ/krDPu5mWlRq7ONhLGctXd2rTeGu7bOXRlRQbUuCD9WEtYEHynXYikX
+         PI/GX4pe+D5QIRsavV3VZjb/Us/A/H7w32dhp89NECRncYLKnauzYha+qhZ0fQH4mMYL
+         hgGQ==
+X-Gm-Message-State: APjAAAXmhQ1z6OKCraLD/fcfQHjsLFHRxSvXa4oYhI46O/jBT19uwjWc
+	QPqhbsWRFYtRQgVHPOk8VVdF0dEMBQ4HrRKSepqRRuJqa0n52/jxMFyvsQmJ+NA1Fj2NV021yAd
+	Bscim+6tuGrDABzzMWb60g5s4DeSVzseIO72pCleaRJj/B0jipkYdgAQe/YHOF85h2g==
+X-Received: by 2002:a17:902:aa87:: with SMTP id d7mr34484646plr.146.1554780624399;
+        Mon, 08 Apr 2019 20:30:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw0br0WCqb1gGij9IUg2OWfX9DQPcqvQZeaIL+6UBgeuRN4vtpIgDi6hMnkq63qWH2dhRNc
+X-Received: by 2002:a17:902:aa87:: with SMTP id d7mr34484563plr.146.1554780623629;
+        Mon, 08 Apr 2019 20:30:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554780623; cv=none;
         d=google.com; s=arc-20160816;
-        b=iIBmJoHQCNsJl+LdNX5D74PI6GF20zg/uVD6+0QHRs8/tzVkJIANZUVDh39IiE5B9h
-         jWTx5CFMdh+pzCwzBZHHUB3GjlTdxYNp1wnpG5qz94467e+/S1Z6T86JNBOKjt2Q6Ist
-         KraIeuXLSNZWih/rlh3SDB+yvdxPdebSYEX7/y7rmpEDSnKAvH3ioDJC2cLDo3Ct/GsL
-         e0Z4jAgeKHcntePJDMfI+TxO+kvvuU8AwiJagI7da1TFB1JmDKu78IIfTk8gIBarfDd+
-         FudgpdpMt7MvtXV0tisHLeU+4vwB5NwFiYLZk4lDmq9sERQhCQJc/Nmi0Fm7aX+oqOY7
-         dn+Q==
+        b=Q1JeE2wMCqtaqz9Qfln34LQmkTZr5bI5y3x+Ns+F4YjJWW4SV6w2hxVIajNAF/7VF4
+         PlJ3F2OFm8UmQ8TB3SX+AcHwuppNQeTha2McWvXPsiRLbVBxZB9WpSH4RnFB0E2lWote
+         yxvME+NXSOkGnKB/q3REj+TGXTtMxXh2QRXjd/Cf/KoZ/HU2aQVVFuWR9STn+mAz8lPU
+         rqLVcZCkhVTfg2qh2uvwkDJadlVb0oKAucTsPo9NfPZoPChWapRbkzjb/Vz9Cir4kNOO
+         wpM3NDTtVqJQm3jSQ1PHIxdbu7MO6YbJqtJu9Zzg3ABVSZWsHHfNhTKA+RHUCAVguCgP
+         KFYA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=mIexr26prDUKCxTAI0NcBS7KOdrcFft7Rki/xwxHOyk=;
-        b=Qj3Rqe3zu0QRPvWsZ7tBc5jHPh0LOfF70IUvlYtGRE05qXeu/UFrCwPpvdroEAoxke
-         UKgv1pdAAo8woY0f2jFzbI9svPtkEHFEtiLjozXWHNSk9pyfObXjHyEBmgxY9WwStNoM
-         ou2cOb9+qJcjLQeVcptLLRRmd0AN9/5bYhiK6ZNJj1fpNovHBsnj+XNzhKQAMucwJw4Q
-         R5sZgG6ATZroVJOmXwh0PfpQzCJNul+nJWXSnkPhPEEPuDX7TQ/7ACNPpiVrnmkrs0l8
-         6t5ULNtASR9/QfnI7Aa+CZph9ddlVCqaVnVMJiHAkYv3uEdtcjZRR6RQIdGZg5gPFxxG
-         wsAQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:to:subject
+         :dkim-signature;
+        bh=yNAnix0vPb3Rl0k78u1G6bUYV+iub+YsxxG7ebwDs7U=;
+        b=f8aBhdkQnsbBixq0e70cxFAfo78MTsjRTB2FLk2JFiGvkSp+RT0BC/BNGwe52BncM8
+         pyaGOxLn44d7m/DUY4Z5LFZvB4AJzYqF4kMHKniGEpMqLh90tHawIYbqi/iIQIo4BNMk
+         QTUzMRbwjpBzyNxBTBbwdHw6S2EMMX+2ANG81eUdP4+DdqpT/kBlAKv0V4NaD25a91Y9
+         O7VffhiCyd4wUEqkmT39kI8ZkG3Lod3GtOTCW61LTiWXexoQDDFpOn+hxhchZJm0QLF2
+         7oVjIkhO3OV5TWKjgBtAmndvijlHwVAg0Garckb1K2hcli3RK2YpbPFsHbVt/XlOT3Xs
+         0IvA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=PcJU3m2j;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=zPUCIEg5;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id h73si29558506pfj.220.2019.04.08.20.19.36
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id f1si28072408pgm.373.2019.04.08.20.30.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Apr 2019 20:19:36 -0700 (PDT)
-Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        Mon, 08 Apr 2019 20:30:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=PcJU3m2j;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=zPUCIEg5;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x393J3k7149070;
-	Tue, 9 Apr 2019 03:19:34 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=mIexr26prDUKCxTAI0NcBS7KOdrcFft7Rki/xwxHOyk=;
- b=PcJU3m2jkXxT1SoOhu8yxDga6jXv9iveASgfuDZdeeEZD6yrbeYY59jk+hCUMTyyifo2
- 4KoDZoRe4xx0tufR1Ni6Rh4RMZr79ND4tBvE6uFdttE0S/S3Evjs7R2RbCios+mF1z4N
- xLuYAiAHDWCM9fBxcskAE3537t0zZa1EL/eSflEX540lUJqxH+kAQc/lMmlWSs+rK/te
- hedhGPyrBaRKAfY7VDSlsBkWcHR9gVBZJLx0vcJypoGqdz0OVtWFVXFy/b5YlG4MABIY
- CTNvFoKhF+xkf71nWmccOtmba4XhJBKomWLNfoNXCvPpReF7jS1kMiYkRVDHpznqNOl/ Iw== 
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x393T152151814;
+	Tue, 9 Apr 2019 03:30:19 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=yNAnix0vPb3Rl0k78u1G6bUYV+iub+YsxxG7ebwDs7U=;
+ b=zPUCIEg5CUbDsP0wiNhIk8OvKl7JmuJp/okBnahAcSyFxQGyUIBX0mUXXvSDwxGePx48
+ NrjyTdGtU6SokLBju1C5MHRO0FJXgs6UmehpqLkJwBelmrbkxGxMum3xPyNtznCJKNyK
+ tsuyXYXsx+cmTxCu9OF5v546DaJIpch/WUPBPAU0Awd6uy7o5zpfnAy6J79W1BDCI29d
+ wZxF0RYoFjH9WuwuJIQcM/3JVB+lqv5g3l++SgMFyFu8b5baxaJCrool/xQ0LfBpjJc5
+ bG42V9v+I+cQdSbMNEUon2THP8ovxp9E6fz/8kazU/0MNxC81zFK+2hjaBsRWs5b615w Fw== 
 Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
-	by userp2120.oracle.com with ESMTP id 2rpmrq23mf-1
+	by aserp2130.oracle.com with ESMTP id 2rphmeacg6-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 09 Apr 2019 03:19:34 +0000
+	Tue, 09 Apr 2019 03:30:19 +0000
 Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
-	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x393JXDv139555;
-	Tue, 9 Apr 2019 03:19:33 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserp3030.oracle.com with ESMTP id 2rpj5aarp5-1
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x393TlYX158719;
+	Tue, 9 Apr 2019 03:30:18 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by aserp3030.oracle.com with ESMTP id 2rpj5aava2-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 09 Apr 2019 03:19:33 +0000
-Received: from abhmp0002.oracle.com (abhmp0002.oracle.com [141.146.116.8])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x393JV4Q010397;
-	Tue, 9 Apr 2019 03:19:32 GMT
-Received: from localhost (/67.169.218.210)
+	Tue, 09 Apr 2019 03:30:18 +0000
+Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x393UFQU025909;
+	Tue, 9 Apr 2019 03:30:16 GMT
+Received: from [192.168.1.222] (/50.38.38.67)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 08 Apr 2019 20:19:31 -0700
-Date: Mon, 8 Apr 2019 20:19:29 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-To: david@fromorbit.com, amir73il@gmail.com
-Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
-        linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org,
-        linux-btrfs@vger.kernel.org
-Subject: [PATCH v2 4/4] xfs: don't allow most setxattr to immutable files
-Message-ID: <20190409031929.GE5147@magnolia>
-References: <155466882175.633834.15261194784129614735.stgit@magnolia>
- <155466884962.633834.14320700092446721044.stgit@magnolia>
+	with ESMTP ; Mon, 08 Apr 2019 20:30:15 -0700
+Subject: Re: [PATCH v2 0/2] A couple hugetlbfs fixes
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+        Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>,
+        Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+        "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+        Andrew Morton <akpm@linux-foundation.org>
+References: <20190328234704.27083-1-mike.kravetz@oracle.com>
+ <20190408194815.77d4mftojhkrgbhv@linux-r8p5>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <ec2426bc-d817-f645-b868-9edb9b4c54ca@oracle.com>
+Date: Mon, 8 Apr 2019 20:30:14 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <155466884962.633834.14320700092446721044.stgit@magnolia>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <20190408194815.77d4mftojhkrgbhv@linux-r8p5>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9221 signatures=668685
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=923
  adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1904090021
+ engine=8.0.1-1810050000 definitions=main-1904090022
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9221 signatures=668685
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
  suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=933 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1904090021
+ definitions=main-1904090023
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Darrick J. Wong <darrick.wong@oracle.com>
+On 4/8/19 12:48 PM, Davidlohr Bueso wrote:
+> On Thu, 28 Mar 2019, Mike Kravetz wrote:
+> 
+>> - A BUG can be triggered (not easily) due to temporarily mapping a
+>>  page before doing a COW.
+> 
+> But you actually _have_ seen it? Do you have the traces? I ask
+> not because of the patches perse, but because it would be nice
+> to have a real snipplet in the Changelog for patch 2.
 
-The chattr manpage has this to say about immutable files:
+Yes, I actually saw this problem.  It happened while I was debugging and
+testing some patches for hugetlb migration.  The BUG I hit was in
+unaccount_page_cache_page(): VM_BUG_ON_PAGE(page_mapped(page), page).
 
-"A file with the 'i' attribute cannot be modified: it cannot be deleted
-or renamed, no link can be created to this file, most of the file's
-metadata can not be modified, and the file can not be opened in write
-mode."
+Stack trace was something like:
+unaccount_page_cache_page
+  __delete_from_page_cache
+    delete_from_page_cache
+      remove_huge_page
+        remove_inode_hugepages
+          hugetlbfs_punch_hole
+            hugetlbfs_fallocate
 
-However, we don't actually check the immutable flag in the setattr code,
-which means that we can update project ids and extent size hints on
-supposedly immutable files.  Therefore, reject a setattr call on an
-immutable file except for the case where we're trying to unset
-IMMUTABLE.
+When I hit that, it took me a while to figure out how it could happen.
+i.e. How could a page be mapped at that point in remove_inode_hugepages?
+It checks page_mapped and we are holding the fault mutex.  With some
+additional debug code (strategic udelays) I could hit the issue on a
+somewhat regular basis and verified another thread was in the
+hugetlb_no_page/hugetlb_cow path for the same page at the same time.
 
-Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
----
- fs/xfs/xfs_ioctl.c |   46 ++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 44 insertions(+), 2 deletions(-)
-
-diff --git a/fs/xfs/xfs_ioctl.c b/fs/xfs/xfs_ioctl.c
-index 5a1b96dad901..67d12027f563 100644
---- a/fs/xfs/xfs_ioctl.c
-+++ b/fs/xfs/xfs_ioctl.c
-@@ -1023,6 +1023,40 @@ xfs_ioctl_setattr_flush(
- 	return filemap_write_and_wait(inode->i_mapping);
- }
- 
-+/*
-+ * If immutable is set and we are not clearing it, we're not allowed to change
-+ * anything else in the inode.  Don't error out if we're only trying to set
-+ * immutable on an immutable file.
-+ */
-+static int
-+xfs_ioctl_setattr_immutable(
-+	struct xfs_inode	*ip,
-+	struct fsxattr		*fa,
-+	uint16_t		di_flags,
-+	uint64_t		di_flags2)
-+{
-+	struct xfs_mount	*mp = ip->i_mount;
-+
-+	if (!(ip->i_d.di_flags & XFS_DIFLAG_IMMUTABLE) ||
-+	    !(fa->fsx_xflags & FS_XFLAG_IMMUTABLE))
-+		return 0;
-+
-+	if ((ip->i_d.di_flags & ~XFS_DIFLAG_IMMUTABLE) !=
-+	    (di_flags & ~XFS_DIFLAG_IMMUTABLE))
-+		return -EPERM;
-+	if (ip->i_d.di_version >= 3 && ip->i_d.di_flags2 != di_flags2)
-+		return -EPERM;
-+	if (xfs_get_projid(ip) != fa->fsx_projid)
-+		return -EPERM;
-+	if (ip->i_d.di_extsize != fa->fsx_extsize >> mp->m_sb.sb_blocklog)
-+		return -EPERM;
-+	if (ip->i_d.di_version >= 3 && (di_flags2 & XFS_DIFLAG2_COWEXTSIZE) &&
-+	    ip->i_d.di_cowextsize != fa->fsx_cowextsize >> mp->m_sb.sb_blocklog)
-+		return -EPERM;
-+
-+	return 0;
-+}
-+
- static int
- xfs_ioctl_setattr_xflags(
- 	struct xfs_trans	*tp,
-@@ -1030,7 +1064,9 @@ xfs_ioctl_setattr_xflags(
- 	struct fsxattr		*fa)
- {
- 	struct xfs_mount	*mp = ip->i_mount;
-+	uint16_t		di_flags;
- 	uint64_t		di_flags2;
-+	int			error;
- 
- 	/* Can't change realtime flag if any extents are allocated. */
- 	if ((ip->i_d.di_nextents || ip->i_delayed_blks) &&
-@@ -1061,12 +1097,18 @@ xfs_ioctl_setattr_xflags(
- 	    !capable(CAP_LINUX_IMMUTABLE))
- 		return -EPERM;
- 
--	/* diflags2 only valid for v3 inodes. */
-+	/* Don't allow changes to an immutable inode. */
-+	di_flags = xfs_flags2diflags(ip, fa->fsx_xflags);
- 	di_flags2 = xfs_flags2diflags2(ip, fa->fsx_xflags);
-+	error = xfs_ioctl_setattr_immutable(ip, fa, di_flags, di_flags2);
-+	if (error)
-+		return error;
-+
-+	/* diflags2 only valid for v3 inodes. */
- 	if (di_flags2 && ip->i_d.di_version < 3)
- 		return -EINVAL;
- 
--	ip->i_d.di_flags = xfs_flags2diflags(ip, fa->fsx_xflags);
-+	ip->i_d.di_flags = di_flags;
- 	ip->i_d.di_flags2 = di_flags2;
- 
- 	xfs_diflags_to_linux(ip);
+Unfortunately, I did not save the traces.  I am trying to recreate now.
+However, my test system was recently updated and it might take a little
+time to recreate.
+-- 
+Mike Kravetz
 
