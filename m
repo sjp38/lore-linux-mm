@@ -2,417 +2,284 @@ Return-Path: <SRS0=58dN=SL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CB3AAC10F0E
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 10:02:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CE978C10F0E
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 10:12:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7A31E20883
-	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 10:02:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7A31E20883
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 8C75B20857
+	for <linux-mm@archiver.kernel.org>; Tue,  9 Apr 2019 10:12:07 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="R5oPG4fi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8C75B20857
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1CA316B0266; Tue,  9 Apr 2019 06:02:25 -0400 (EDT)
+	id 19BC96B0007; Tue,  9 Apr 2019 06:12:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 17B976B0269; Tue,  9 Apr 2019 06:02:25 -0400 (EDT)
+	id 14CAC6B000C; Tue,  9 Apr 2019 06:12:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0418F6B026A; Tue,  9 Apr 2019 06:02:24 -0400 (EDT)
+	id 03BF76B000D; Tue,  9 Apr 2019 06:12:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D5AFD6B0266
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 06:02:24 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id q12so15398762qtr.3
-        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 03:02:24 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C1CB06B0007
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 06:12:06 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id q18so12040971pll.16
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 03:12:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=a/tN9TnrR5De10wKWpMYgYMrOCjvKExDFMseAllPzSw=;
-        b=dj4NCnAaS8sAGEg7QNHE1nK69DwV2W/0AnoEgCkygY1HBYC/zgxw2Nl+ANreK59Zqx
-         vP40xcZ4qqd8tFth1Xidmc1KktKsyVtN1BpRpZTHUpUXKjMPSOzAGCy5IrKgFoOqpz5Q
-         zat2YG/a4qyqTgwwq0YN2Z8sBxWuylfRKk/M674LwLVuuqLys6Q3cJWT8go6Sp0qXL8o
-         ijZjKChTW0vsYnKwLLmIiWXJlWDJrvOceGxDiELKmUYvLmhbuW+aSC9tFIiZAoHprRUr
-         2//0UOkAShOi59qiUE+r4YTkakXLvl51N3YNLJOjO0TinOYJSj65AjN0eUPgx9xyl0rH
-         oofA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVezPPPGDekW3SbtUrSoDyS7/Sd4UGa9poS7dw6Zzl6OBRuGYGh
-	3aHksLxGHuQfQKMuxNIuVtI6Mc9Ks6Y1gBQS9mrAGfD4UvtGWcK5OgJYUA0nAYD7SYWCCUFKBXu
-	Jip+xGXhO4g+DKaIk/qZNFAkrAEXK+MchA+gvOMRL2jVWFYsFOVeIdfFTpJetB50t2g==
-X-Received: by 2002:ac8:234e:: with SMTP id b14mr28798435qtb.271.1554804144531;
-        Tue, 09 Apr 2019 03:02:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx59LuZ7N9Z+idFgzqQ2ovzmTPlYBWltNpww9VgNWFhcaOWe/MP1hCr/b83GIweD9H0b9xj
-X-Received: by 2002:ac8:234e:: with SMTP id b14mr28798324qtb.271.1554804143205;
-        Tue, 09 Apr 2019 03:02:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554804143; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=kR/WYu04whmVY+fiZg5v0EICJidMNyAzVyli+JbH0e4=;
+        b=Byw5kb0j3om7kRzMPIrd5CeSj4caqcJVk7w08nL54p1bxOp3Q1mhk0D98h2EmawsmW
+         xEX15fTwVMG5IzsH96ct8K9WKKWOoAdLVXfmWfTvLNaNJoFQ0jFKGhNXGiQgRHC5VuWa
+         7aSSJMC/P0HhD3Twvmhx56ukLCPHsnM2ZJTEGIF1pYaBAcOnxW8o6ajsxbYLxN+qCQx1
+         KB14hdfxGtPzMbXczNq+iti5AReo+qts4PJWCVggGgvB7qclRLQiacJ1sCzvKTzpaEO7
+         oAAvCxj212jhz33ZwSVZOx0tmvsz0+HLdxipHuHkk1XptLwPNpFrLSQ+M1Co32u/9qPM
+         gi4Q==
+X-Gm-Message-State: APjAAAXkWXpNtKJ5ehKYcBXUdwgpS4uSDh4HbjZjjXHDL1eyWArLZ/xn
+	5nW1Hm2JmcNucWV5xiEQDzi7UlW6rdmYAavdhXts9FaHBkr/g3NA77P171072SA//+c4qexbFpI
+	IYBhtZZMnGO3Gd1xWH10WMiTnE8KaJqSCPFl3K+O7N3HjQ5Xfh45HXKrF5QBzqRbDMA==
+X-Received: by 2002:a17:902:1101:: with SMTP id d1mr18970718pla.16.1554804726241;
+        Tue, 09 Apr 2019 03:12:06 -0700 (PDT)
+X-Received: by 2002:a17:902:1101:: with SMTP id d1mr18970577pla.16.1554804724789;
+        Tue, 09 Apr 2019 03:12:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554804724; cv=none;
         d=google.com; s=arc-20160816;
-        b=m1D+uQ3AxT6QvA6TIBH1oDGWYWofmf/F04RA6hIYALB6DJcJIQMbRNQJpy/F9F1mMQ
-         TX0c5ZEtMcLT5v0BOXXoKO/+ajA8zBBhCQIbAajojl2XkxaXlh9ZZBrLFgz6GhavVD6y
-         b8adJdoukSKKBbNDqweRYXYocu+b68gylxbNHvvqohxCY4OVIv4YDuNKtFM742+Os6Dh
-         cT5CDQjjyI/RX9E9cSXUp/QwReEA1JD4bAotEVYDv0dY+cJtLaKZtYBNK61HnFmL4R82
-         GoPtvPPr8s7RgVJpqSbZMOY7NGGNcO91OzebPETdIeryjpQUcAhvuH4UlztAt6KpieZO
-         Z/bw==
+        b=l8U+5+tOLEmCG2HH+FUz3rP1SoKak6yk3wHJ/gp3rt9KMIr3LpNSL3QQcMPIAU/ltT
+         EXPXx59mmoA5VmXuZ1No5dxQgfRY8N2wU2s4g9WlWXEpY/n/DBe3cLlhDgvQCWOFO+8w
+         F1Pn0kCoGoNU6hIEV3eHt7kRi6bOm3l+Gp3vl5zUuvFs/gV/kbaUrPPp6uPjLtUly1l8
+         cxvOX3OllT0njC3/QMqXKm1TvNPa1EpDVKVLybQ0gV3Smz2HddhNxzbe5ufhz3fT5faI
+         z15L/RTqokFCq9vHkfwGDJ0kxMKMpcw5g5d7Nv4xKbJdUECX7hJE9ZCeFvW3+gTCq79q
+         7yEg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=a/tN9TnrR5De10wKWpMYgYMrOCjvKExDFMseAllPzSw=;
-        b=I7Tc1i04Vh/q68DlXysjMFVGJCu56qqhEKASbbufFvkuCp6ZQXV/TTFon2U0SZvEYA
-         MCW82I4eOm8mVcO03IK4AxV09yCD/vi9bZ4eZIhGVWIqp3GKy2CRGmKNOJRXOdG8fxmN
-         y8FMEIEUi2U1Ik9dm5on89t+RZeMF9oP2u+ifShnRZvkpdkvya1kekmhh7fedf06hRNY
-         VeFfO6ukpAPtTUYnQVGoXUnuSUACEIbMlWryGlcsWU9kDUakW5DyX/itEGH8kzf+ZFuK
-         Kzk7fV1d38CHHL7whLrgyzPWXNivUesoYF2+TFNSyqClaPDWJPsPc6TptaYBoPYMiOQE
-         3kdQ==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=kR/WYu04whmVY+fiZg5v0EICJidMNyAzVyli+JbH0e4=;
+        b=vi1y/+HGgMnyXoO1zI7j3xEHEsIE/cjW2fMUfCNWCwaYcgOdzUQ/eVAI7EmXBy4E3b
+         w+2VOMGbq54eze77ESbaWiuo/I1kaCKVkXHwy1x3y03O0ZdYET8dQXr1HrYzen0fVtT4
+         0q5F5vMZwxq+NEQgox5egpO4gR9rNoj9V1JbZDL4yst0YkWBl8MkrsV+C7fFuOqzn2oK
+         b0hMKfkY5UyNdP1Vs5ihxUNu4nMQYWa8t0wZwWdu0az3CCnYAYvEkTvo5/ceWM+lkiT4
+         ZcwpUgjQtl3pUjhgBolSNKmY63AMSs/Lq+5XIMiUThNmOQreacVvvt+IYwlOJnG0MdTg
+         IRmA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x22si4114081qvc.42.2019.04.09.03.02.23
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=R5oPG4fi;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k11sor36471603plt.36.2019.04.09.03.12.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Apr 2019 03:02:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Tue, 09 Apr 2019 03:12:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id DE6FB30018EA;
-	Tue,  9 Apr 2019 10:02:21 +0000 (UTC)
-Received: from t460s.redhat.com (ovpn-117-49.ams2.redhat.com [10.36.117.49])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 67F095D71F;
-	Tue,  9 Apr 2019 10:02:13 +0000 (UTC)
-From: David Hildenbrand <david@redhat.com>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org,
-	David Hildenbrand <david@redhat.com>,
-	Tony Luck <tony.luck@intel.com>,
-	Fenghua Yu <fenghua.yu@intel.com>,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Paul Mackerras <paulus@samba.org>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	Martin Schwidefsky <schwidefsky@de.ibm.com>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	Yoshinori Sato <ysato@users.sourceforge.jp>,
-	Rich Felker <dalias@libc.org>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Andy Lutomirski <luto@kernel.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>,
-	Borislav Petkov <bp@alien8.de>,
-	"H. Peter Anvin" <hpa@zytor.com>,
-	x86@kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Oscar Salvador <osalvador@suse.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Christophe Leroy <christophe.leroy@c-s.fr>,
-	Stefan Agner <stefan@agner.ch>,
-	Nicholas Piggin <npiggin@gmail.com>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Vasily Gorbik <gor@linux.ibm.com>,
-	Arun KS <arunks@codeaurora.org>,
-	Geert Uytterhoeven <geert@linux-m68k.org>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	Rob Herring <robh@kernel.org>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Wei Yang <richard.weiyang@gmail.com>,
-	Qian Cai <cai@lca.pw>,
-	Mathieu Malaterre <malat@debian.org>,
-	linux-ia64@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org,
-	linux-sh@vger.kernel.org,
-	linux-s390@vger.kernel.org
-Subject: [PATCH v1 4/4] mm/memory_hotplug: Make __remove_pages() and arch_remove_memory() never fail
-Date: Tue,  9 Apr 2019 12:01:48 +0200
-Message-Id: <20190409100148.24703-5-david@redhat.com>
-In-Reply-To: <20190409100148.24703-1-david@redhat.com>
-References: <20190409100148.24703-1-david@redhat.com>
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Tue, 09 Apr 2019 10:02:22 +0000 (UTC)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=R5oPG4fi;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id;
+        bh=kR/WYu04whmVY+fiZg5v0EICJidMNyAzVyli+JbH0e4=;
+        b=R5oPG4fi53Y2+InXX6Q7DtCDxJnraev67W9SjAqjYuUKIPAyrLtzdFCBo57h98zvi7
+         yZQDMu6d3JgTOfubySaq3jl3s3PRXacHvv/Hrnfk0d5NtZTQLbTAHJtUmEQ7ht6+qsLj
+         4dBAFPKkaBRF5YTpKR1gf0WFN7m+lvOsFJmp2wI/dKDLbleh42swIGzTbathtfQs2aqN
+         pLBlTYx9LlznDm1iz89qw1nv2yn5Tdl95eppCJt+LHtth/W1aXvUIgZ2lXXFSpoKzt6h
+         IMcIB4TKbuC/NSWIga6U5UWAUg+bIvze+BJRpxtNLSYzYLS+5zaK1B+324LGvdhR2YOe
+         5u5g==
+X-Google-Smtp-Source: APXvYqyNkzhYVithZXgfgiXg33aGYlWcxz2VW+xG0BFVZ3ori5Z15dSB0kZCj9bBcJ3lNPVn5bbOog==
+X-Received: by 2002:a17:902:be04:: with SMTP id r4mr36715533pls.218.1554804724438;
+        Tue, 09 Apr 2019 03:12:04 -0700 (PDT)
+Received: from localhost.localdomain ([203.100.54.194])
+        by smtp.gmail.com with ESMTPSA id a3sm53107589pfn.182.2019.04.09.03.12.02
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Apr 2019 03:12:03 -0700 (PDT)
+From: Yafang Shao <laoar.shao@gmail.com>
+To: mhocko@suse.com,
+	akpm@linux-foundation.org
+Cc: linux-mm@kvack.org,
+	shaoyafang@didiglobal.com,
+	Yafang Shao <laoar.shao@gmail.com>
+Subject: [PATCH] mm/vmscan: expose cgroup_ino for memcg reclaim tracepoints
+Date: Tue,  9 Apr 2019 18:11:40 +0800
+Message-Id: <1554804700-7813-1-git-send-email-laoar.shao@gmail.com>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-All callers of arch_remove_memory() ignore errors. And we should really
-try to remove any errors from the memory removal path.
-No more errors are reported from __remove_pages(). BUG() in s390x code
-in case arch_remove_memory() is triggered. We may implement that properly
-later. WARN in case powerpc code failed to remove the section mapping,
-which is better than ignoring the error completely right now.
+We can use the exposed cgroup_ino to trace specified cgroup.
 
-Cc: Tony Luck <tony.luck@intel.com>
-Cc: Fenghua Yu <fenghua.yu@intel.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
-Cc: Rich Felker <dalias@libc.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: x86@kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Mike Rapoport <rppt@linux.ibm.com>
-Cc: Oscar Salvador <osalvador@suse.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Christophe Leroy <christophe.leroy@c-s.fr>
-Cc: Stefan Agner <stefan@agner.ch>
-Cc: Nicholas Piggin <npiggin@gmail.com>
-Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-Cc: Vasily Gorbik <gor@linux.ibm.com>
-Cc: Arun KS <arunks@codeaurora.org>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
-Cc: Rob Herring <robh@kernel.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>
-Cc: Qian Cai <cai@lca.pw>
-Cc: Mathieu Malaterre <malat@debian.org>
-Cc: linux-ia64@vger.kernel.org
-Cc: linuxppc-dev@lists.ozlabs.org
-Cc: linux-sh@vger.kernel.org
-Cc: linux-s390@vger.kernel.org
-Signed-off-by: David Hildenbrand <david@redhat.com>
+For example,
+step 1, get the inode of the specified cgroup
+	$ ls -di /tmp/cgroupv2/foo
+step 2, set this inode into tracepoint filter to trace this cgroup only
+	(assume the inode is 11)
+	$ cd /sys/kernel/debug/tracing/events/vmscan/
+	$ echo 'cgroup_ino == 11' > mm_vmscan_memcg_reclaim_begin/filter
+	$ echo 'cgroup_ino == 11' > mm_vmscan_memcg_reclaim_end/filter
+
+Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
 ---
- arch/ia64/mm/init.c            | 11 +++--------
- arch/powerpc/mm/mem.c          | 11 ++++-------
- arch/s390/mm/init.c            |  5 +++--
- arch/sh/mm/init.c              | 11 +++--------
- arch/x86/mm/init_32.c          |  5 +++--
- arch/x86/mm/init_64.c          | 10 +++-------
- include/linux/memory_hotplug.h |  8 ++++----
- mm/memory_hotplug.c            |  5 ++---
- 8 files changed, 25 insertions(+), 41 deletions(-)
+ include/trace/events/vmscan.h | 71 +++++++++++++++++++++++++++++++++++--------
+ mm/vmscan.c                   | 18 ++++++++---
+ 2 files changed, 72 insertions(+), 17 deletions(-)
 
-diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
-index 379eb1f9adc9..d28e29103bdb 100644
---- a/arch/ia64/mm/init.c
-+++ b/arch/ia64/mm/init.c
-@@ -682,20 +682,15 @@ int arch_add_memory(int nid, u64 start, u64 size,
- }
+diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+index c27a563..3be0023 100644
+--- a/include/trace/events/vmscan.h
++++ b/include/trace/events/vmscan.h
+@@ -133,18 +133,43 @@
+ );
  
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
-+void arch_remove_memory(int nid, u64 start, u64 size,
-+			struct vmem_altmap *altmap)
- {
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
- 	struct zone *zone;
--	int ret;
+ #ifdef CONFIG_MEMCG
+-DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_reclaim_begin,
++DECLARE_EVENT_CLASS(mm_vmscan_memcg_reclaim_begin_template,
  
- 	zone = page_zone(pfn_to_page(start_pfn));
--	ret = __remove_pages(zone, start_pfn, nr_pages, altmap);
--	if (ret)
--		pr_warn("%s: Problem encountered in __remove_pages() as"
--			" ret=%d\n", __func__,  ret);
--
--	return ret;
-+	__remove_pages(zone, start_pfn, nr_pages, altmap);
- }
- #endif
- #endif
-diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
-index 76deaa8525db..cc9425fb9056 100644
---- a/arch/powerpc/mm/mem.c
-+++ b/arch/powerpc/mm/mem.c
-@@ -131,8 +131,8 @@ int __meminit arch_add_memory(int nid, u64 start, u64 size,
- }
+-	TP_PROTO(int order, gfp_t gfp_flags),
++	TP_PROTO(unsigned int cgroup_ino, int order, gfp_t gfp_flags),
  
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int __meminit arch_remove_memory(int nid, u64 start, u64 size,
--					struct vmem_altmap *altmap)
-+void __meminit arch_remove_memory(int nid, u64 start, u64 size,
-+				  struct vmem_altmap *altmap)
- {
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
-@@ -147,14 +147,13 @@ int __meminit arch_remove_memory(int nid, u64 start, u64 size,
- 	if (altmap)
- 		page += vmem_altmap_offset(altmap);
+-	TP_ARGS(order, gfp_flags)
++	TP_ARGS(cgroup_ino, order, gfp_flags),
++
++	TP_STRUCT__entry(
++		__field(unsigned int, cgroup_ino)
++		__field(int, order)
++		__field(gfp_t, gfp_flags)
++	),
++
++	TP_fast_assign(
++		__entry->cgroup_ino	= cgroup_ino;
++		__entry->order		= order;
++		__entry->gfp_flags	= gfp_flags;
++	),
++
++	TP_printk("cgroup_ino=%u order=%d gfp_flags=%s",
++		__entry->cgroup_ino, __entry->order,
++		show_gfp_flags(__entry->gfp_flags))
+ );
  
--	ret = __remove_pages(page_zone(page), start_pfn, nr_pages, altmap);
--	if (ret)
--		return ret;
-+	__remove_pages(page_zone(page), start_pfn, nr_pages, altmap);
+-DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_softlimit_reclaim_begin,
++DEFINE_EVENT(mm_vmscan_memcg_reclaim_begin_template,
++	mm_vmscan_memcg_reclaim_begin,
  
- 	/* Remove htab bolted mappings for this section of memory */
- 	start = (unsigned long)__va(start);
- 	flush_inval_dcache_range(start, start + size);
- 	ret = remove_section_mapping(start, start + size);
-+	WARN_ON_ONCE(ret);
+-	TP_PROTO(int order, gfp_t gfp_flags),
++	TP_PROTO(unsigned int cgroup_ino, int order, gfp_t gfp_flags),
  
- 	/* Ensure all vmalloc mappings are flushed in case they also
- 	 * hit that section of memory
-@@ -162,8 +161,6 @@ int __meminit arch_remove_memory(int nid, u64 start, u64 size,
- 	vm_unmap_aliases();
+-	TP_ARGS(order, gfp_flags)
++	TP_ARGS(cgroup_ino, order, gfp_flags)
++);
++
++DEFINE_EVENT(mm_vmscan_memcg_reclaim_begin_template,
++	mm_vmscan_memcg_softlimit_reclaim_begin,
++
++	TP_PROTO(unsigned int cgroup_ino, int order, gfp_t gfp_flags),
++
++	TP_ARGS(cgroup_ino, order, gfp_flags)
+ );
+ #endif /* CONFIG_MEMCG */
  
- 	resize_hpt_for_hotplug(memblock_phys_mem_size());
--
--	return ret;
- }
- #endif
- #endif /* CONFIG_MEMORY_HOTPLUG */
-diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
-index f5db961ad792..31b1071315d7 100644
---- a/arch/s390/mm/init.c
-+++ b/arch/s390/mm/init.c
-@@ -234,14 +234,15 @@ int arch_add_memory(int nid, u64 start, u64 size,
- }
+@@ -173,18 +198,40 @@
+ );
  
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
-+void arch_remove_memory(int nid, u64 start, u64 size,
-+			struct vmem_altmap *altmap)
- {
+ #ifdef CONFIG_MEMCG
+-DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_reclaim_end,
++DECLARE_EVENT_CLASS(mm_vmscan_memcg_reclaim_end_template,
+ 
+-	TP_PROTO(unsigned long nr_reclaimed),
++	TP_PROTO(unsigned int cgroup_ino, unsigned long nr_reclaimed),
+ 
+-	TP_ARGS(nr_reclaimed)
++	TP_ARGS(cgroup_ino, nr_reclaimed),
++
++	TP_STRUCT__entry(
++		__field(unsigned int, cgroup_ino)
++		__field(unsigned long, nr_reclaimed)
++	),
++
++	TP_fast_assign(
++		__entry->cgroup_ino	= cgroup_ino;
++		__entry->nr_reclaimed	= nr_reclaimed;
++	),
++
++	TP_printk("cgroup_ino=%u nr_reclaimed=%lu",
++		__entry->cgroup_ino, __entry->nr_reclaimed)
+ );
+ 
+-DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_softlimit_reclaim_end,
++DEFINE_EVENT(mm_vmscan_memcg_reclaim_end_template,
++	mm_vmscan_memcg_reclaim_end,
+ 
+-	TP_PROTO(unsigned long nr_reclaimed),
++	TP_PROTO(unsigned int cgroup_ino, unsigned long nr_reclaimed),
+ 
+-	TP_ARGS(nr_reclaimed)
++	TP_ARGS(cgroup_ino, nr_reclaimed)
++);
++
++DEFINE_EVENT(mm_vmscan_memcg_reclaim_end_template,
++	mm_vmscan_memcg_softlimit_reclaim_end,
++
++	TP_PROTO(unsigned int cgroup_ino, unsigned long nr_reclaimed),
++
++	TP_ARGS(cgroup_ino, nr_reclaimed)
+ );
+ #endif /* CONFIG_MEMCG */
+ 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 347c9b3..15a9eb9 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3268,8 +3268,10 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
+ 	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+ 			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
+ 
+-	trace_mm_vmscan_memcg_softlimit_reclaim_begin(sc.order,
+-						      sc.gfp_mask);
++	trace_mm_vmscan_memcg_softlimit_reclaim_begin(
++				cgroup_ino(memcg->css.cgroup),
++				sc.order,
++				sc.gfp_mask);
+ 
  	/*
- 	 * There is no hardware or firmware interface which could trigger a
- 	 * hot memory remove on s390. So there is nothing that needs to be
- 	 * implemented.
+ 	 * NOTE: Although we can get the priority field, using it
+@@ -3280,7 +3282,9 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
  	 */
--	return -EBUSY;
-+	BUG();
+ 	shrink_node_memcg(pgdat, memcg, &sc);
+ 
+-	trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaimed);
++	trace_mm_vmscan_memcg_softlimit_reclaim_end(
++				cgroup_ino(memcg->css.cgroup),
++				sc.nr_reclaimed);
+ 
+ 	*nr_scanned = sc.nr_scanned;
+ 	return sc.nr_reclaimed;
+@@ -3318,7 +3322,9 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 
+ 	zonelist = &NODE_DATA(nid)->node_zonelists[ZONELIST_FALLBACK];
+ 
+-	trace_mm_vmscan_memcg_reclaim_begin(0, sc.gfp_mask);
++	trace_mm_vmscan_memcg_reclaim_begin(
++				cgroup_ino(memcg->css.cgroup),
++				0, sc.gfp_mask);
+ 
+ 	psi_memstall_enter(&pflags);
+ 	noreclaim_flag = memalloc_noreclaim_save();
+@@ -3328,7 +3334,9 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 	memalloc_noreclaim_restore(noreclaim_flag);
+ 	psi_memstall_leave(&pflags);
+ 
+-	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
++	trace_mm_vmscan_memcg_reclaim_end(
++				cgroup_ino(memcg->css.cgroup),
++				nr_reclaimed);
+ 
+ 	return nr_reclaimed;
  }
- #endif
- #endif /* CONFIG_MEMORY_HOTPLUG */
-diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
-index 168d3a6b9358..5aeb4d7099a1 100644
---- a/arch/sh/mm/init.c
-+++ b/arch/sh/mm/init.c
-@@ -429,20 +429,15 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
- #endif
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
-+void arch_remove_memory(int nid, u64 start, u64 size,
-+			struct vmem_altmap *altmap)
- {
- 	unsigned long start_pfn = PFN_DOWN(start);
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
- 	struct zone *zone;
--	int ret;
- 
- 	zone = page_zone(pfn_to_page(start_pfn));
--	ret = __remove_pages(zone, start_pfn, nr_pages, altmap);
--	if (unlikely(ret))
--		pr_warn("%s: Failed, __remove_pages() == %d\n", __func__,
--			ret);
--
--	return ret;
-+	__remove_pages(zone, start_pfn, nr_pages, altmap);
- }
- #endif
- #endif /* CONFIG_MEMORY_HOTPLUG */
-diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
-index 755dbed85531..075e568098f2 100644
---- a/arch/x86/mm/init_32.c
-+++ b/arch/x86/mm/init_32.c
-@@ -860,14 +860,15 @@ int arch_add_memory(int nid, u64 start, u64 size,
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
-+void arch_remove_memory(int nid, u64 start, u64 size,
-+			struct vmem_altmap *altmap)
- {
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
- 	struct zone *zone;
- 
- 	zone = page_zone(pfn_to_page(start_pfn));
--	return __remove_pages(zone, start_pfn, nr_pages, altmap);
-+	__remove_pages(zone, start_pfn, nr_pages, altmap);
- }
- #endif
- #endif
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index db42c11b48fb..20d14254b686 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -1141,24 +1141,20 @@ kernel_physical_mapping_remove(unsigned long start, unsigned long end)
- 	remove_pagetable(start, end, true, NULL);
- }
- 
--int __ref arch_remove_memory(int nid, u64 start, u64 size,
--				struct vmem_altmap *altmap)
-+void __ref arch_remove_memory(int nid, u64 start, u64 size,
-+			      struct vmem_altmap *altmap)
- {
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
- 	struct page *page = pfn_to_page(start_pfn);
- 	struct zone *zone;
--	int ret;
- 
- 	/* With altmap the first mapped page is offset from @start */
- 	if (altmap)
- 		page += vmem_altmap_offset(altmap);
- 	zone = page_zone(page);
--	ret = __remove_pages(zone, start_pfn, nr_pages, altmap);
--	WARN_ON_ONCE(ret);
-+	__remove_pages(zone, start_pfn, nr_pages, altmap);
- 	kernel_physical_mapping_remove(start, start + size);
--
--	return ret;
- }
- #endif
- #endif /* CONFIG_MEMORY_HOTPLUG */
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index d0a145ffa4fe..9d0efac902ec 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -112,10 +112,10 @@ static inline bool movable_node_is_enabled(void)
- }
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--extern int arch_remove_memory(int nid, u64 start, u64 size,
--				struct vmem_altmap *altmap);
--extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
--	unsigned long nr_pages, struct vmem_altmap *altmap);
-+extern void arch_remove_memory(int nid, u64 start, u64 size,
-+			       struct vmem_altmap *altmap);
-+extern void __remove_pages(struct zone *zone, unsigned long start_pfn,
-+			   unsigned long nr_pages, struct vmem_altmap *altmap);
- #endif /* CONFIG_MEMORY_HOTREMOVE */
- 
- /*
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 17a60281c36f..52fef4a81e4c 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -548,8 +548,8 @@ static void __remove_section(struct zone *zone, struct mem_section *ms,
-  * sure that pages are marked reserved and zones are adjust properly by
-  * calling offline_pages().
-  */
--int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
--		 unsigned long nr_pages, struct vmem_altmap *altmap)
-+void __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
-+		    unsigned long nr_pages, struct vmem_altmap *altmap)
- {
- 	unsigned long i;
- 	unsigned long map_offset = 0;
-@@ -580,7 +580,6 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
- 	}
- 
- 	set_zone_contiguous(zone);
--	return 0;
- }
- #endif /* CONFIG_MEMORY_HOTREMOVE */
- 
 -- 
-2.17.2
+1.8.3.1
 
