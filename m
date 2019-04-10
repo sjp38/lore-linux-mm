@@ -2,147 +2,111 @@ Return-Path: <SRS0=DRoR=SM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ED162C10F14
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 15:34:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C1ED6C10F11
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 15:49:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A8BAB20818
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 15:34:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 77C6420830
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 15:49:59 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="xJDIIxl1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A8BAB20818
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="NfXujEP7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77C6420830
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4387A6B029F; Wed, 10 Apr 2019 11:34:57 -0400 (EDT)
+	id 1218F6B02A0; Wed, 10 Apr 2019 11:49:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3E7C46B02A0; Wed, 10 Apr 2019 11:34:57 -0400 (EDT)
+	id 0CF4C6B02A2; Wed, 10 Apr 2019 11:49:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2D73A6B02A1; Wed, 10 Apr 2019 11:34:57 -0400 (EDT)
+	id F25F66B02A3; Wed, 10 Apr 2019 11:49:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D41EE6B029F
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 11:34:56 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id k4so1649121wrw.11
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 08:34:56 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D54FE6B02A0
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 11:49:58 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id t22so2625195qtc.13
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 08:49:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=arxBGNSX0OUYGmyljwVEu7bbeV7OhkzO+FdllTWnzPo=;
-        b=if8UTdMRlxtLibvXMroMHYhumptiIO0MuHS2lxnqBQwppIycxT9tyLJWbTUEOkGQ9f
-         gEsYe4WUK7i+PHG+lEJf1b4HHdfiCQYEI0JNYpv5k+1qhClwb7jQ9n5ddaTs5LIee093
-         TlzYxf+Sj+msMIijYZhkv5++xOBH0wlojseAtlhSgGwysmjHRFstPnj6MjsA2tJ8QdTQ
-         iEYxbQLdSawYeTVZiCxdZtsP+sVlFVLcwrYVJ2Kk5g2+CX4vU0m0oSWKCJX+oisryeE+
-         kaVrMb923wiUjRXo28x+M4FXDrEbr9NKrXB9KynQGuoC3A8Seg6B69X6AwnKIyIZCPiE
-         PHww==
-X-Gm-Message-State: APjAAAV4pmMlTo/Xc5+PINV1B5mCzz6ynzTIk+4T6JEUDO48LT5k0Udb
-	cwI7eoWGda+GYc2Gh/D5PvAVO84x0hQCYPOdD0b9aXGg0l29hLGukLddpxjSNC2tAkI5Wrx61Cr
-	ot8CaPxi2myBn9MxKj6pS7OT5knIdqOTPE7pbKQRHeKbybwy8u5GoxC/ReqwIJQ7NGw==
-X-Received: by 2002:a5d:4b01:: with SMTP id v1mr26817943wrq.48.1554910496265;
-        Wed, 10 Apr 2019 08:34:56 -0700 (PDT)
-X-Received: by 2002:a5d:4b01:: with SMTP id v1mr26817902wrq.48.1554910495582;
-        Wed, 10 Apr 2019 08:34:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554910495; cv=none;
+         :in-reply-to:message-id:references:user-agent:mime-version
+         :feedback-id;
+        bh=0XwwQPRGaw7KgTDhnUmgjcd43E3sjloMv0Xkja5uBiE=;
+        b=ZIAhG3wXNQD+ph2n7BJFSY8Zi55SUJsatSRvdf93gKS8raIBEKAVL1JRNpRcaLXaOx
+         UYPWTOpAIlybaoPqIX34Vr5i0jxCErV8T3uttItqpGKJa5rAlWB6pGOz49LkRuyGHExY
+         /3gxM/XKx8xKnSlhIMZ/qVtB8NshDbOIGjeXLKezGVr+YRUUIFphln5c40k3Y3tSrjAf
+         M6x0NytNovdzx1J5WzCUXy5DLk+2yhnQhIXWsTy1TgsyRc7hZbDDD4oQwUiAmGa1oLNC
+         DGjKCj9hIr90VxptkLyEDWvRNZ7jEDuntGnemCahTVyHw/0dSDjMklud8fsRwT7Bal1w
+         5IOg==
+X-Gm-Message-State: APjAAAX0LcS4UN9Qsp/CNTrktHeP+gD9+YttgzCwo1fJAP6R8ZaKK66e
+	tik+/gU+zuLzbV/lhVJ04SxmaXYbUJTK3bXcQMLEqG7gM8Y2Ls9VNF7PJOtpq/BtGms45ihGPHG
+	1ALU8c8nE11bCKP9/2zmFrp5V2OvSfrm+p2RxYHNXeDDfA0bJvwYPfrOCcDT+FEw=
+X-Received: by 2002:a37:c20c:: with SMTP id i12mr32213163qkm.94.1554911398521;
+        Wed, 10 Apr 2019 08:49:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzpQo/uVj2Vvv/wHay/4GfxGPWOdSKPWIPFl3Ya7OYwYJp+8L1TblAzcs3Z7ML/AxMVhaU5
+X-Received: by 2002:a37:c20c:: with SMTP id i12mr32213122qkm.94.1554911397943;
+        Wed, 10 Apr 2019 08:49:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554911397; cv=none;
         d=google.com; s=arc-20160816;
-        b=yGfX/jt1ql7SwF8++9sv18mJLhV6Z8wf3cCcvzBElw4cR5UuU+mfyRy2UPDDyjYtwl
-         Ru7UxLyV7jSd0MWxt6988H3bCuccBgwaBvSU6nr5ChkNDdEyGJEKbFcAmwwtM73lI0O0
-         Hku7eBjZ6Lmlt0/FjRhelmJn/inpPUgl+cXulZukZiHie6ZNxST5wp+2VdI9TZ8pd6dc
-         7lLN7BCJfH8dioBVInKVef9vIsEuhHo3wBBpUobqJ/3lT9qEEkHShOWGk++kuvir/ECJ
-         tCZmXVnsT7vdeWLM7CRjg94y792Iv/i8aeIjL3gyRabSeK6qt8/BGYa2v/f86iUV5OM6
-         HPQw==
+        b=YwSoJcmWe2+fbS7ix/UvQa/A/ThJLlkfeqpFjJYy+JWlLof4L/Smb0ZMD9CP7EJS3H
+         JtdUhW3ZX6PwLbOVLuTU5zM+IS9J1fOpmFX3b1+e4sTWIB4Jmf+3SvSczMe/LLFodjm6
+         guShRdjZ9eeqEmJoaC/RcG2CM0MBWvbaHQoRdMjmGE7dSEj5otKbb5qRWJC5ClQtXA1w
+         Md5EZgT9I4BUVA2jWPjIBIt0vxTaJLtf1AYRWU7VXMTVHznYdwXbycMz4zVwZUGKs2vx
+         0qNxcgCJo/WutAX8m+fZbwPkrwwaSQlUkBm5KaNYiTwk0RGuNfpuS4UCS5HmeptCCL+N
+         g3mw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=arxBGNSX0OUYGmyljwVEu7bbeV7OhkzO+FdllTWnzPo=;
-        b=apHv9UtjjOg26lCWkqN+Ci/g/tXlyx7UF2ulP9HPLWtOMBQcOVYvFt7UwsjSPm5QUD
-         LorilncFRKXYG1S8PFcRsOZATxP0qTRC8B+B4OcoDNCCKzObEUHVvoDf4PquhMMfjyKZ
-         QiP+GNB4PbeqS7M5Jq7R8WZNTuh1C1GUFBdbl0IeaFKuzm54nTcIB61dI6e9Hs9Qo6zQ
-         wH2y/F5EMXNVVVfM8OXpBb0aAAfSI0prUEjWIJI8qbcO9zYfHtgMMNn5PiAz8pYPUNji
-         u4mvZgY6OuLOQIbK1wlg+7+AyiyXD3ajQCp4k3UXSzXT6quTc8aV5agwi1JObYfxqsKq
-         u3ug==
+        h=feedback-id:mime-version:user-agent:references:message-id
+         :in-reply-to:subject:cc:to:from:date:dkim-signature;
+        bh=0XwwQPRGaw7KgTDhnUmgjcd43E3sjloMv0Xkja5uBiE=;
+        b=Bvx/nIF2PKPYRODhSt3b3RuuUNOzaCQBiezaqjdXO2oS2TWPu9EvPAPwUBxekCZ3Cp
+         0VQuXHd469znuFEgL4RBbJgIbECF1HB/iDMMtxqTCpVhbHTipwqXW7QT/iBXESwPXSnw
+         m5oJSrLKIIawg7oXEkLiPOo9nvYnruEIxDLzbvLobqm60Dc8Dee2me/jehyv2IhYYkJZ
+         VWSDOniF+gjtStoVWQ0JaIhWMM81skC5oTirF1/2qyn97mK8mRCcQbePuU9uigKMcYW2
+         WtX9L6u8kzTmBLy0jvRjBXSGgal8sJ250sjSzpoBOA+CYaIMmhJCgp2mPCuEcyGjAona
+         02Lw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=xJDIIxl1;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w2sor26393405wrm.19.2019.04.10.08.34.55
+       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=NfXujEP7;
+       spf=pass (google.com: domain of 0100016a07f105bf-7e1f2eda-fffe-4418-9b7e-9f6572e08633-000000@amazonses.com designates 54.240.9.99 as permitted sender) smtp.mailfrom=0100016a07f105bf-7e1f2eda-fffe-4418-9b7e-9f6572e08633-000000@amazonses.com
+Received: from a9-99.smtp-out.amazonses.com (a9-99.smtp-out.amazonses.com. [54.240.9.99])
+        by mx.google.com with ESMTPS id q45si2298492qtq.348.2019.04.10.08.49.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 10 Apr 2019 08:34:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 10 Apr 2019 08:49:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 0100016a07f105bf-7e1f2eda-fffe-4418-9b7e-9f6572e08633-000000@amazonses.com designates 54.240.9.99 as permitted sender) client-ip=54.240.9.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=xJDIIxl1;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chrisdown.name; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=arxBGNSX0OUYGmyljwVEu7bbeV7OhkzO+FdllTWnzPo=;
-        b=xJDIIxl1eeL/dAIbEYlOuZSAFwejku7gsZgBW1BS1TBrC2f9JSBLITDJqVqs0PSeI4
-         maDchJybAJdG0zBjinmp9wRxhX9DKa0H/MmG6XAo+vD62eSzMbE6SshIV9gtBlg76KPQ
-         89iiOrmmBwbKuVrud8G0hORSsuQSWFNviuPfM=
-X-Google-Smtp-Source: APXvYqwZJTtXFr6jhEhKPNCvW4MV9AmarGhvGr6jmEIy7i40TneIr27Iec90v8rr29B2QsQpsb/+5g==
-X-Received: by 2002:adf:f050:: with SMTP id t16mr23381660wro.198.1554910490281;
-        Wed, 10 Apr 2019 08:34:50 -0700 (PDT)
-Received: from localhost ([2620:10d:c092:200::1:4ff4])
-        by smtp.gmail.com with ESMTPSA id 7sm122837004wrc.81.2019.04.10.08.34.49
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 10 Apr 2019 08:34:49 -0700 (PDT)
-Date: Wed, 10 Apr 2019 16:34:49 +0100
-From: Chris Down <chris@chrisdown.name>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>,
-	Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org,
-	cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH REBASED] mm: Throttle allocators when failing reclaim
- over memory.high
-Message-ID: <20190410153449.GA14915@chrisdown.name>
-References: <20190201191636.GA17391@chrisdown.name>
- <20190410153307.GA11122@chrisdown.name>
+       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=NfXujEP7;
+       spf=pass (google.com: domain of 0100016a07f105bf-7e1f2eda-fffe-4418-9b7e-9f6572e08633-000000@amazonses.com designates 54.240.9.99 as permitted sender) smtp.mailfrom=0100016a07f105bf-7e1f2eda-fffe-4418-9b7e-9f6572e08633-000000@amazonses.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1554911397;
+	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
+	bh=0XwwQPRGaw7KgTDhnUmgjcd43E3sjloMv0Xkja5uBiE=;
+	b=NfXujEP7h7+awlKKkWFlPto3lUIHLNPSEeH2fpwtFZJcm19WAbmiVRddnWr/diGu
+	yC1Gt9xkJAb1CccRjBG/XUMEfA3vxkczeUiODt/eDSJdm3J+TP7iNelFVdGYmF9IGei
+	M1M7ccKjDXShc0ywiZsxsnfUx0pfoTPzdYkNiO8U=
+Date: Wed, 10 Apr 2019 15:49:57 +0000
+From: Christopher Lameter <cl@linux.com>
+X-X-Sender: cl@nuc-kabylake
+To: Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
+cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 
+    "linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: Re: [External] Re: Basics : Memory Configuration
+In-Reply-To: <SG2PR02MB30989B644196598CEDDD5337E82E0@SG2PR02MB3098.apcprd02.prod.outlook.com>
+Message-ID: <0100016a07f105bf-7e1f2eda-fffe-4418-9b7e-9f6572e08633-000000@email.amazonses.com>
+References: <SG2PR02MB3098925678D8D40B683E10E2E82D0@SG2PR02MB3098.apcprd02.prod.outlook.com>,<0100016a02d5038e-2e436033-7726-4d2a-b29d-d3dbc4c66637-000000@email.amazonses.com> <SG2PR02MB30989B644196598CEDDD5337E82E0@SG2PR02MB3098.apcprd02.prod.outlook.com>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20190410153307.GA11122@chrisdown.name>
-User-Agent: Mutt/1.11.4 (2019-03-13)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Content-Type: text/plain; charset=US-ASCII
+X-SES-Outgoing: 2019.04.10-54.240.9.99
+Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.002054, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hey Michal,
-
-Just to come back to your last e-mail about how this interacts with OOM.
-
-Michal Hocko writes:
-> I am not really opposed to the throttling in the absence of a reclaimable
-> memory. We do that for the regular allocation paths already
-> (should_reclaim_retry). A swapless system with anon memory is very likely to
-> oom too quickly and this sounds like a real problem. But I do not think that
-> we should throttle the allocation to freeze it completely. We should
-> eventually OOM. And that was my question about essentially. How much we
-> can/should throttle to give a high limit events consumer enough time to
-> intervene. I am sorry to still not have time to study the patch more closely
-> but this should be explained in the changelog. Are we talking about
-> seconds/minutes or simply freeze each allocator to death?
-
-Per-allocation, the maximum is 2 seconds (MEMCG_MAX_HIGH_DELAY_JIFFIES), so we 
-don't freeze things to death -- they can recover if they are amenable to it.  
-The idea here is that primarily you handle it, just like memory.oom_control in 
-v1 (as mentioned in the commit message, or as a last resort, the kernel will 
-still OOM if our userspace daemon has kicked the bucket or is otherwise 
-ineffective.
-
-If you're setting memory.high and memory.max together, then setting memory.high 
-always has to come with a.) tolerance of heavy throttling by your application, 
-and b.) userspace intervention in the case of high memory pressure resulting. 
-This patch doesn't really change those semantics.
+Please respond to my comments in the way that everyone else communicates
+here. I cannot distinguish what you said from what I said before.
 
