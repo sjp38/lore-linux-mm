@@ -2,265 +2,130 @@ Return-Path: <SRS0=DRoR=SM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 41262C10F0E
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 02:11:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CFA18C10F0E
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 02:46:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AFD7621741
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 02:11:07 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="0pg82SOI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AFD7621741
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 8FBAE20857
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 02:46:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8FBAE20857
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1D9CB6B0006; Tue,  9 Apr 2019 22:11:07 -0400 (EDT)
+	id 0AF196B0003; Tue,  9 Apr 2019 22:46:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1898F6B0008; Tue,  9 Apr 2019 22:11:07 -0400 (EDT)
+	id 05CEA6B0005; Tue,  9 Apr 2019 22:46:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 029556B000A; Tue,  9 Apr 2019 22:11:06 -0400 (EDT)
+	id E8EBF6B0006; Tue,  9 Apr 2019 22:46:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D044C6B0006
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 22:11:06 -0400 (EDT)
-Received: by mail-it1-f199.google.com with SMTP id q203so871461itb.2
-        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 19:11:06 -0700 (PDT)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C77E16B0003
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 22:46:55 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id f11so307916otl.20
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 19:46:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=8B9lCJLeymvncj1USaXc65os0BUeWCHWyugSHvMXZpk=;
-        b=nlKVBYKiQdFS9pPtBdyZtMJWRvbcZ97w68nzTtHjMYE77YLdZbLICZ217LOURl7stE
-         tqG/LXTQcDy5ttRA+Kv89NkKSmXB+fGTDqUdGEJgX+Xpd6TwMBfeuCkBFeuPxv7LXTxj
-         O2tYsOrS9UY7/MNlLZA0acifmkV9LQBYDx5IhNqMMLBzsUH3s5SrMLoPid5GVe9MCls7
-         lTYtoybduZ6mBaZWhEPEgFybISBexkbq2lcqvyXRa50SFwhL9tT7iaRW041eLGP84cS9
-         lymhStDyvJGNu2hGk8fDVsHEtgJT+uhGbtV4+8UpGwmpBx2l+/IG2CaHHKwielDYDV9w
-         6wDA==
-X-Gm-Message-State: APjAAAXUfuAhxbuaLtejOi9gfv/ua3aWl3d3RyhH39/bPDEbT9DZyDMz
-	yF25/OYOGPxyzttSPPTOxX+mbmQeFlIfQxCEemU6lsIL1oR61iTNAZKplU7YY2N9/JovE8x4xCG
-	pN52+K9YflkOrR7pRXivCgy+Z6e9mZPXB2yWyZ2nludDOxMt1rOFV7nfZb9QIOuM=
-X-Received: by 2002:a02:9345:: with SMTP id e5mr29070921jah.29.1554862266456;
-        Tue, 09 Apr 2019 19:11:06 -0700 (PDT)
-X-Received: by 2002:a02:9345:: with SMTP id e5mr29070891jah.29.1554862265610;
-        Tue, 09 Apr 2019 19:11:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554862265; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version;
+        bh=JvrZJYm1SW+A7krIN3Wqu100/PlRw/ToSA51zEq6mqU=;
+        b=Q8aGPzMgnX97IgcrVmkZUZTSZBPY8yvdy1oCmWHqOnxfhoJ9xgb8sjeX9poxq+3QQ9
+         9xIt00rYBOuutqjyaOSHe5MWNP7PbQqtOhEm9CJpM8WcXEiiMax6/7iRzuyy0jYKGTFG
+         3ueTFYXirId00xGiL7qLymCED0PSpPxa1cI0NPekVi7WLg+RKF/bfv9jzlOrH1QKQz5k
+         bff2hOYQGrtp21RSOFRBkb05BXhT42QvSzSnhNqlUqJP80hgta1bAeT78IhMRRAXMaOs
+         stPUfrIZj8o3TPBFAsTh/uQBhrjZX66gnMgNw3UGysyQpQlVS3zXboRZEiQOduVN3tQF
+         TUuw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yuyufen@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=yuyufen@huawei.com
+X-Gm-Message-State: APjAAAUoWzc+VQzar1PbZUvAxMSZ8A064fKi1Nv5K+rmEc/IwZI8miag
+	LDXhQ0mxUWqWQGZXZ2DJ8j7meUJNFiMsnKdLe1W2q/QB5hIwvcQWZs1sDv6UgPqwP6oPjS/Ruw+
+	wggiG4pwMzKaBFYP11tbdC1UxUY3yO5Pr9E+pbo5jb4YeB9qxD4W/Bo/t47KVyyPMOg==
+X-Received: by 2002:aca:ed88:: with SMTP id l130mr1052574oih.70.1554864415476;
+        Tue, 09 Apr 2019 19:46:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwq+wHbfeF9L45bMVS5hqoG/kSrGvcvucTGpN0VUiLd6SebZ7Ia8j/74ZJzyLH9gEIvz1qw
+X-Received: by 2002:aca:ed88:: with SMTP id l130mr1052541oih.70.1554864414480;
+        Tue, 09 Apr 2019 19:46:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554864414; cv=none;
         d=google.com; s=arc-20160816;
-        b=oa6sIs4Wr/2EojAmOpWVFJ+KFW1hoWc9BJKI5B+InNEXImA9Wmz6RONGxDU/QGvPFl
-         IivpWXfgmHWz+eIkZG0pZfZRv5W5nHQGWnlBzAWVFgP+XwCrgluEHks/+YQPzIdmX4j+
-         Lkv8MFEev7ELV7rs7SOQRCB6tkKOA6nRyTmKS13JOGZEFEf4DNGcAVn1dX0RJ9gQSJUY
-         SKwRLnGRyDwAXdu1iJoiN6YmHgcNadaIqOQTDQhaMzNYW6fcCzTcMSkK4NU/J9s+EirD
-         mS7P6pXVfsu+YwKo8va0Ol/raia+6jM+zsuc6g2YiFr9ydY+lJxmt987zscjjafT9TDM
-         78tw==
+        b=LL+mw4iG0KvmFDDR8j1IZbs/U8Y/hZYzgCNOQjxgdv/kRP31IEfVRUGhDoR1Yr12Am
+         5vI2H3CwqILgpEokQ9hYaGJV6bXIL3Ni4Onv1nXSh2xU+Bz4D/v1B5FvHgjdVxOR3mXi
+         BBzrL6ypQkljGuouEGFy02r30vlafyhLAAH4wtKZdcMO0OS6jPgc3gCdboIeRINlyXTb
+         DrtSNQkiPKJchgj+LtCsBBUynykurUdA2pgDYwpMIwNuFV4Xr/e2BrWPju891bH47XyU
+         El1I9ULefbNbHxMn5XtKAvGSS6DKNETZj6M/dhZhSErsKwOuOrWw8K0q+028mbw1Vhhe
+         3xVg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=8B9lCJLeymvncj1USaXc65os0BUeWCHWyugSHvMXZpk=;
-        b=Uxil8YnJkyxXw5AH16NaHDAYXB+43vbNookCVuAeAsU0BvWg0R1wOVP+oTw/RX1XfR
-         I9DYom5duWdPv91HKwOdlX5dv+klospp0yKZQk95HWVDK5uToIzIJmPJZPs9Lcn1BsBc
-         ygt+FXZUp0I0uFDjSeqyUEn0/QGlEDgnkxeZjxUbOFpGbaeUw5hdG8uKFiMFi2a0DQRX
-         r0kcPUwtAypx9aqdpMnTV91PL7QvkzaHWUoMjhQsqOQYcb9t5u11SwI4myt6YpZ4Gz4p
-         f6aoX1J26jH/xr6lyILsDPqtRgrkFCIbfn7VIG97+GqFNpZd4AUSvwSte7+w6b9Cgszc
-         KHrA==
+        h=mime-version:message-id:date:subject:cc:to:from;
+        bh=JvrZJYm1SW+A7krIN3Wqu100/PlRw/ToSA51zEq6mqU=;
+        b=fukH3l1KvXsL5TVUE50SiUCz5C8cSnskqZsPPuuMStOG1sNVrxmUSKyHYuxFJ4ma9z
+         fodrakViP5uYHbcP4ho20/FMDhgC7c1ClW2XQeG+jGAJPq3kOm89JydwFH0O7JK6I5ju
+         KG8d/lYsCuK7clC8X2g+Zy/F+MpOTXQnaR+MYrfI/Luh2oeSh//fchLEu0zXreo5ljc/
+         zuiF4BIwCVgmncQ51A3xePjeFmkUzt/6BbQdU4AEIw2gWfSOI+5hjcqSW/KcjcA+qX10
+         G4DGTBUxT6WVwR613mlavQbRCHG5Dsed0VQL9O8MCUvGEIaRIulDytRX3zEbREjmIs4B
+         xEKw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=0pg82SOI;
-       spf=pass (google.com: domain of dan.j.williams@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z200sor1328995itb.10.2019.04.09.19.11.05
+       spf=pass (google.com: domain of yuyufen@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=yuyufen@huawei.com
+Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id p10si12570869oia.172.2019.04.09.19.46.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 09 Apr 2019 19:11:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Apr 2019 19:46:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yuyufen@huawei.com designates 45.249.212.191 as permitted sender) client-ip=45.249.212.191;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=0pg82SOI;
-       spf=pass (google.com: domain of dan.j.williams@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=8B9lCJLeymvncj1USaXc65os0BUeWCHWyugSHvMXZpk=;
-        b=0pg82SOIoW+W0YyQ5xNEBnjnawiZOHXDiuZNgyjrwjgZQVrzEqerg/C2BIDdLhZsrx
-         BfncUG+4tjPZyT9n4MVhPIsZzQ5we0g0OVnYX360flRNGMeDn72PFN1iToOP9GdCUDg0
-         G17T6+fhfo1nFUUiTU1MzCp5pnSyUtLBbOeB+vsrj5pXvbjlGzZ0M9a6zeZFNbtNKFBs
-         X97KEc9tWuLfrmmbAHImpZuMTZN4cUyDfx5XtG3PQtqK2SZDK/sXcoSYkbd89/NVVLYK
-         HVA+Lt/knOIPRU9rX43xJMnm/MkWKzXMJDG/BFCBRY3CghycFuzFgCmEmyV9O9yCW5U6
-         askg==
-X-Google-Smtp-Source: APXvYqyBAmPBedawt4crdvXhqyaXfSyXYDKADKRRvPMkEuPYFjXBMi1U8GsELuKKDQOczQgHbY1p7WZkDktP5lqZiKM=
-X-Received: by 2002:a24:7c52:: with SMTP id a79mr1472650itd.51.1554862264952;
- Tue, 09 Apr 2019 19:11:04 -0700 (PDT)
+       spf=pass (google.com: domain of yuyufen@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=yuyufen@huawei.com
+Received: from DGGEMS412-HUB.china.huawei.com (unknown [172.30.72.59])
+	by Forcepoint Email with ESMTP id 5031411A6EBB1533747E;
+	Wed, 10 Apr 2019 10:46:49 +0800 (CST)
+Received: from huawei.com (10.90.53.225) by DGGEMS412-HUB.china.huawei.com
+ (10.3.19.212) with Microsoft SMTP Server id 14.3.408.0; Wed, 10 Apr 2019
+ 10:46:47 +0800
+From: Yufen Yu <yuyufen@huawei.com>
+To: <mike.kravetz@oracle.com>, <linux-mm@kvack.org>
+CC: <kirill.shutemov@linux.intel.com>, <n-horiguchi@ah.jp.nec.com>,
+	<mhocko@kernel.org>
+Subject: [PATCH] hugetlbfs: fix protential null pointer dereference
+Date: Wed, 10 Apr 2019 10:50:37 +0800
+Message-ID: <20190410025037.144872-1-yuyufen@huawei.com>
+X-Mailer: git-send-email 2.16.2.dirty
 MIME-Version: 1.0
-References: <155440490809.3190322.15060922240602775809.stgit@dwillia2-desk3.amr.corp.intel.com>
- <155440491334.3190322.44013027330479237.stgit@dwillia2-desk3.amr.corp.intel.com>
- <CAKv+Gu8ocQGxTAapfjb5WufhL=Qj54LythHcPHsyy+wUnVBnfA@mail.gmail.com>
- <CAPcyv4gUL8j+EaAZ556_NKXLgva++HgPBOeeAUNHN+DAWaewaQ@mail.gmail.com> <CAKv+Gu_M-V-3ahHTj10iyx=eC2pBzFg027NmdBX1x7nXrpqK7g@mail.gmail.com>
-In-Reply-To: <CAKv+Gu_M-V-3ahHTj10iyx=eC2pBzFg027NmdBX1x7nXrpqK7g@mail.gmail.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 9 Apr 2019 19:10:53 -0700
-Message-ID: <CAA9_cmeRqr=b-hmaxA0aLZE98YGS9hF8h8JGGp9K6c_qhLK3AQ@mail.gmail.com>
-Subject: Re: [RFC PATCH 1/5] efi: Detect UEFI 2.8 Special Purpose Memory
-To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, "the arch/x86 maintainers" <x86@kernel.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
-	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, 
-	Darren Hart <dvhart@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, 
-	Andy Shevchenko <andy@infradead.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
+X-Originating-IP: [10.90.53.225]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 9, 2019 at 10:21 AM Ard Biesheuvel
-<ard.biesheuvel@linaro.org> wrote:
->
-> On Tue, 9 Apr 2019 at 09:44, Dan Williams <dan.j.williams@intel.com> wrote:
-> >
-> > On Fri, Apr 5, 2019 at 9:21 PM Ard Biesheuvel <ard.biesheuvel@linaro.org> wrote:
-> > >
-> > > Hi Dan,
-> > >
-> > > On Thu, 4 Apr 2019 at 21:21, Dan Williams <dan.j.williams@intel.com> wrote:
-> > > >
-> > > > UEFI 2.8 defines an EFI_MEMORY_SP attribute bit to augment the
-> > > > interpretation of the EFI Memory Types as "reserved for a special
-> > > > purpose".
-> > > >
-> > > > The proposed Linux behavior for special purpose memory is that it is
-> > > > reserved for direct-access (device-dax) by default and not available for
-> > > > any kernel usage, not even as an OOM fallback. Later, through udev
-> > > > scripts or another init mechanism, these device-dax claimed ranges can
-> > > > be reconfigured and hot-added to the available System-RAM with a unique
-> > > > node identifier.
-> > > >
-> > > > A follow-on patch integrates parsing of the ACPI HMAT to identify the
-> > > > node and sub-range boundaries of EFI_MEMORY_SP designated memory. For
-> > > > now, arrange for EFI_MEMORY_SP memory to be reserved.
-> > > >
-> > > > Cc: Thomas Gleixner <tglx@linutronix.de>
-> > > > Cc: Ingo Molnar <mingo@redhat.com>
-> > > > Cc: Borislav Petkov <bp@alien8.de>
-> > > > Cc: "H. Peter Anvin" <hpa@zytor.com>
-> > > > Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-> > > > Cc: Darren Hart <dvhart@infradead.org>
-> > > > Cc: Andy Shevchenko <andy@infradead.org>
-> > > > Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> > > > ---
-> > > >  arch/x86/Kconfig                  |   18 ++++++++++++++++++
-> > > >  arch/x86/boot/compressed/eboot.c  |    5 ++++-
-> > > >  arch/x86/boot/compressed/kaslr.c  |    2 +-
-> > > >  arch/x86/include/asm/e820/types.h |    9 +++++++++
-> > > >  arch/x86/kernel/e820.c            |    9 +++++++--
-> > > >  arch/x86/platform/efi/efi.c       |   10 +++++++++-
-> > > >  include/linux/efi.h               |   14 ++++++++++++++
-> > > >  include/linux/ioport.h            |    1 +
-> > > >  8 files changed, 63 insertions(+), 5 deletions(-)
-> > > >
-> > > > diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> > > > index c1f9b3cf437c..cb9ca27de7a5 100644
-> > > > --- a/arch/x86/Kconfig
-> > > > +++ b/arch/x86/Kconfig
-> > > > @@ -1961,6 +1961,24 @@ config EFI_MIXED
-> > > >
-> > > >            If unsure, say N.
-> > > >
-> > > > +config EFI_SPECIAL_MEMORY
-> > > > +       bool "EFI Special Purpose Memory Support"
-> > > > +       depends on EFI
-> > > > +       ---help---
-> > > > +         On systems that have mixed performance classes of memory EFI
-> > > > +         may indicate special purpose memory with an attribute (See
-> > > > +         EFI_MEMORY_SP in UEFI 2.8). A memory range tagged with this
-> > > > +         attribute may have unique performance characteristics compared
-> > > > +         to the system's general purpose "System RAM" pool. On the
-> > > > +         expectation that such memory has application specific usage
-> > > > +         answer Y to arrange for the kernel to reserve it for
-> > > > +         direct-access (device-dax) by default. The memory range can
-> > > > +         later be optionally assigned to the page allocator by system
-> > > > +         administrator policy. Say N to have the kernel treat this
-> > > > +         memory as general purpose by default.
-> > > > +
-> > > > +         If unsure, say Y.
-> > > > +
-> > >
-> > > EFI_MEMORY_SP is now part of the UEFI spec proper, so it does not make
-> > > sense to make any understanding of it Kconfigurable.
-> >
-> > No, I think you're misunderstanding what this Kconfig option is trying
-> > to achieve.
-> >
-> > The configuration capability is solely for the default kernel policy.
-> > As can already be seen by Christoph's response [1] the thought that
-> > the firmware gets more leeway to dictate to Linux memory policy may be
-> > objectionable.
-> >
-> > [1]: https://lore.kernel.org/lkml/20190409121318.GA16955@infradead.org/
-> >
-> > So the Kconfig option is gating whether the kernel simply ignores the
-> > attribute and gives it to the page allocator by default. Anything
-> > fancier, like sub-dividing how much is OS managed vs device-dax
-> > accessed requires the OS to reserve it all from the page-allocator by
-> > default until userspace policy can be applied.
-> >
->
-> I don't think this policy should dictate whether we pretend that the
-> attribute doesn't exist in the first place. We should just wire up the
-> bit fully, and only apply this policy at the very end.
+After commit 58b6e5e8f1ad ("hugetlbfs: fix memory leak for resv_map"),
+i_mapping->private_data will be NULL for mode that is not regular and link.
+Then, it might cause NULL pointer derefernce in hugetlb_reserve_pages()
+when do_mmap. We can avoid protential null pointer dereference by
+judging whether it have been allocated.
 
-The bit is just a policy hint, if the kernel is not implementing any
-of the policy why even check for the bit?
+Fixes: 58b6e5e8f1ad ("hugetlbfs: fix memory leak for resv_map")
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Signed-off-by: Yufen Yu <yuyufen@huawei.com>
+---
+ mm/hugetlb.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
->
-> > > Instead, what I would prefer is to implement support for EFI_MEMORY_SP
-> > > unconditionally (including the ability to identify it in the debug
-> > > dump of the memory map etc), in a way that all architectures can use
-> > > it. Then, I think we should never treat it as ordinary memory and make
-> > > it the firmware's problem not to use the EFI_MEMORY_SP attribute in
-> > > cases where it results in undesired behavior in the OS.
-> >
-> > No, a policy of "never treat it as ordinary memory" confuses the base
-> > intent of the attribute which is an optional hint to get the OS to not
-> > put immovable / non-critical allocations in what could be a precious
-> > resource.
-> >
->
-> The base intent is to prevent the OS from using memory that is
-> co-located with an accelerator for any purpose other than what the
-> accelerator needs it for. Having a Kconfigurable policy that may be
-> disabled kind of misses the point IMO. I think 'optional hint' doesn't
-> quite capture the intent.
-
-That's not my understanding, and an EFI attribute is the wrong
-mechanism to meet such a requirement. If this memory is specifically
-meant for use with a given accelerator then it had better be marked
-reserved and the accelerator driver is then responsible for publishing
-the resource to the OS if at all.
-
-You did prompt me to go back and re-read the wording in the spec. It
-still seems clear to me that the attribute is an optional hint not a
-hard requirement. Whether the OS honors an optional hint is an OS
-policy and I fail to see why the OS should bother to detect the bit
-without implementing any associated policy.
-
-> > Moreover, the interface for platform firmware to indicate that a
-> > memory range should never be treated as ordinary memory is simply the
-> > existing "reserved" memory type, not this attribute. That's the
-> > mechanism to use when platform firmware knows that a driver is needed
-> > for a given mmio resource.
-> >
->
-> Reserved memory is memory that simply should never touched at all by
-> the OS, and on ARM, we take care never to map it anywhere.
-
-That's not a guarantee, at least on x86. Some shipping persistent
-memory platforms describe it as reserved and then the ACPI NFIT
-further describes what that reserved memory contains and how the OS
-can use it. See commit af1996ef59db "ACPI: Change NFIT driver to
-insert new resource".
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 97b1e0290c66..15e4baf2aa7d 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -4465,6 +4465,8 @@ int hugetlb_reserve_pages(struct inode *inode,
+ 	 */
+ 	if (!vma || vma->vm_flags & VM_MAYSHARE) {
+ 		resv_map = inode_resv_map(inode);
++		if (!resv_map)
++			return -EOPNOTSUPP;
+ 
+ 		chg = region_chg(resv_map, from, to);
+ 
+-- 
+2.16.2.dirty
 
