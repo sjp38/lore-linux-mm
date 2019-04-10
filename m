@@ -2,157 +2,235 @@ Return-Path: <SRS0=DRoR=SM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 970B2C10F11
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 07:33:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F3848C282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 07:54:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5D1BD2183E
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 07:33:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5D1BD2183E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
+	by mail.kernel.org (Postfix) with ESMTP id AEE2A20674
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 07:54:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AEE2A20674
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C81076B026B; Wed, 10 Apr 2019 03:33:27 -0400 (EDT)
+	id 40C426B026D; Wed, 10 Apr 2019 03:54:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C30726B026C; Wed, 10 Apr 2019 03:33:27 -0400 (EDT)
+	id 397016B026E; Wed, 10 Apr 2019 03:54:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B4F9C6B026D; Wed, 10 Apr 2019 03:33:27 -0400 (EDT)
+	id 260446B026F; Wed, 10 Apr 2019 03:54:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 667FD6B026B
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 03:33:27 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id g1so752104edm.16
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 00:33:27 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F3DD26B026D
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 03:54:05 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id b188so1240624qkg.15
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 00:54:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-transfer-encoding:content-language;
-        bh=Q6IKcts9K6jG5BnhXi+W/xQfDM0V2xlEsrUrw5ztWk0=;
-        b=oX6yyTUvewuKH8JD2Ixtd4uiTkqopOnuZNTmJ5NUJLsH87BC28YBAZsFUVnpZhrF8n
-         qVoMnwSTaTNJdRsqmnDDXfGsNnfVY0HLZc8EAnnkijcETqMZwSeb/YGUMVhZ3d3vYsQW
-         X8FiguivqGPsm7mEkvxC57l8NYZcFJo7+mK4m8vTVMmEq0vHVTQtRXgRykqA2IoA/VDB
-         4uSZTlNoyGCa9CMwUqHr7pvqfqW0Gg4TJXzBI31LGPkXrvhCLEjbwHajlJw6bf9z22rO
-         geuMc4O5DaT6Wpj7nehO07uJzZg3aihTn7tW81kCFLvAsq+em6X4nOVbrv70s5gu8y4n
-         r0hQ==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Gm-Message-State: APjAAAXiZ+yHpWxMwioG8Onvd/17VjLn+SnHyTV0eQXJmcEB/AcoJUwh
-	6qPhnCvd2RSkdJj3Cfb5HzHIS2GD8/3RyDzkkBWzkyTnBLAR3C5/5PTQHT9TAGYsc1uCfVxka37
-	lJ9FKmHTXGNPMfldyYVyvrn95PfHWj0MBIXn9iw7JLLnvl8sk0IwT0r50vh6+QSc=
-X-Received: by 2002:a17:906:e285:: with SMTP id gg5mr22275760ejb.229.1554881606868;
-        Wed, 10 Apr 2019 00:33:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx9zVdZlFjybTxDkhU5oIhqz7heUt9GX8RDm98knAFpSTvCDAyAft3mC9Tq13iMli1xmbvM
-X-Received: by 2002:a17:906:e285:: with SMTP id gg5mr22275722ejb.229.1554881606080;
-        Wed, 10 Apr 2019 00:33:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554881606; cv=none;
+        bh=L744jdFsHrSPvq4+8Q/UN3c+NA4ULvvZJVno1mznp1A=;
+        b=crntbzMzRBJmKVXGVbIrdbTTG+NpjbrbZV3DRWrAOk69781QPIzVjncbjO1Br+8tLT
+         UD73Pqz0NMV9vkjM8lN9apwdstrIxRJdQvR31maR/jSQi1A8t6FrnWtjcBcwJQpqnwC5
+         03DhcHgE1TXZLl9F+xxnu6W8QXz0CAq4QvqoTyBM+Sr1ggJpTK+jzeEHFvkCiYhns/xA
+         7a8GJ86MoSTNDSfyu8hWz72nHLYO/YWB88a5UgZ6nCCs9MlYhkLFWN5HZPBHFAA51nFl
+         sVVI7dqQdUyUVIEYGcO+iv4d+/HxHbOakthW1VDlfV2xqgrAgjKZg0gT0Cizw4HGSroN
+         gqbA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWsMQrJRlaIhyEpc+WYSngpLlWmiB1jTEOxygArpZp/NFUAcrWt
+	RmDeR80jRBsp/RPT5SozMnvyYXiwqd+x/oSQKSK4Es4kjw94+mPMuLKGMcbrzP3D4VMpfWLWdu4
+	x5XdV73WT98ox+bRT+Fs52LzbWPfHH0ik7aW3RO2SlqYo8v2H/iLN4wry2cKT+I0Itg==
+X-Received: by 2002:a37:a81:: with SMTP id 123mr31914953qkk.290.1554882845719;
+        Wed, 10 Apr 2019 00:54:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyPXRrl4pYdQCK57muWV734wvthGOvFyS1+4qXdiclzE3FWRn/K2UIk52X2jIBtgpx88+9s
+X-Received: by 2002:a37:a81:: with SMTP id 123mr31914925qkk.290.1554882845028;
+        Wed, 10 Apr 2019 00:54:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554882845; cv=none;
         d=google.com; s=arc-20160816;
-        b=TA34L2wauAiKlCMuxEfgdq1e4WgcNGErMl41DS0U5+mC3/0de9sU8UocM3xQSQYKSp
-         GQlIBds++tHFM0aoBntkMyBc9uk/IyP+EukPWAJPUTV5T2jqFPGZWMGf7sviShsxiH9E
-         QZIm8CWTS0kmXW8W+GMrYV7DWBNcHdZAwREgCRKlToJfN9TtUJuy+ANLeSJPHPfLlgfV
-         SsgwsraT7xVZ99rVVB+A4lzyg/hfM6YuawhNRXMuge+yS8E/O66lbdR/FVih2e0kbmfY
-         J2kAX7zYA7j1GkEy3CqRmKFAGiE4E4Q7h4bbq9ncrZnl33SjgxYEx9XBX0LfKIwirnK7
-         mrAg==
+        b=cyhlPtm0BsfXiXkGD9V5xczKzFABC/rzHUUyxL9dyKCRS6Y9r2/WU25NlfFjYtWTGU
+         LKrg9Cd4V77RHOcs1vsN7p4hc/81XoX4yF3Ad5Zuq7rWYqkTZpUANpOtPxMcqy9xrQFy
+         e3MwHMVAgVx2hJb0rgCikek8ta+bRMUCep3anODXCck8sIrqtgjM7R2aFbFedT8HK1Hw
+         yQpQBcpC33tKIwesiPZMc+PmCNmb28KRVu/MmqimiIb5DdfTXJejoDb6tjhiabIBFNC4
+         914IY+lUYTbnFsC6otpwLV6zTo9zvGiUsDOJ+2GmXMZ4aiWyg5mNZo6OGU+jgdrn0z/N
+         PTmg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-language:content-transfer-encoding:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=Q6IKcts9K6jG5BnhXi+W/xQfDM0V2xlEsrUrw5ztWk0=;
-        b=D4lXQ0rUwE5Z6W1KWhKIc4wbDzYLOXOSEpBebK0rBFMMPMWEFdsPnZa2SmbNrYniqq
-         emzWF4qRB9h4eNDat5qWXbQSID5owu5IJhBLNBrw1lccRb3T4Lreah/WIk+Pg+uWbQoX
-         bRXCFM9eDa2v5HMWvCXVuD9d4TF0eNae7TjOPtSUXClj6FAl793kRbWqic6QJPJ1uwVA
-         1M11rHAUUW9GC8YJ7jOdhr68jtIJS6JMHgSiiXyzfIh/gvVbdkWP2Wt65wHFhU317ibL
-         5bjldsgePtwbQKI+e7blJPaGKmj82utwX5S5qo4GgIoCh2BWImTDIe+SwcbcLFTH+iGZ
-         cUvQ==
+        bh=L744jdFsHrSPvq4+8Q/UN3c+NA4ULvvZJVno1mznp1A=;
+        b=05K6uqYTGEQM/wmONZ1+UDwjiZCLZcjmot4bBPfYKZOeP29OGmpVJdqYslotSqRZ44
+         iPnxo0ZwRkf/XeiVH1PrECQ3lhj05EtIpMW1T2BwE9XRCxLg7cPOVQ4uywoJGtdy3pko
+         zV+GTwEkwSZJlM5nrno0lhPlvGv1CcCSWIF5az8tiJTO/rJmA8km9/ML4nWj/c2PaZ3Q
+         PgXfq6PzBBW5Y4JZqQlt0YQ6gCLCqxQNpBbxBpixoLTJQQ27Ufg54tPs4H2lBbFffd6D
+         IYWPGPz4vmeh+ihxdf+tq5yJVst7V9L6BqsSXAFWYUuYPNEke5fkC+qLVhdVBgPHGoqk
+         Ss/Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-Received: from relay9-d.mail.gandi.net (relay9-d.mail.gandi.net. [217.70.183.199])
-        by mx.google.com with ESMTPS id f5si2939398edy.201.2019.04.10.00.33.25
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c58si3088360qta.208.2019.04.10.00.54.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 10 Apr 2019 00:33:26 -0700 (PDT)
-Received-SPF: neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.199;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Apr 2019 00:54:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Originating-IP: 81.250.144.103
-Received: from [10.30.1.20] (lneuilly-657-1-5-103.w81-250.abo.wanadoo.fr [81.250.144.103])
-	(Authenticated sender: alex@ghiti.fr)
-	by relay9-d.mail.gandi.net (Postfix) with ESMTPSA id BF3AAFF80C;
-	Wed, 10 Apr 2019 07:33:21 +0000 (UTC)
-Subject: Re: [PATCH v2 2/5] arm64, mm: Move generic mmap layout functions to
- mm
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Albert Ou <aou@eecs.berkeley.edu>, Kees Cook <keescook@chromium.org>,
- Catalin Marinas <catalin.marinas@arm.com>, Palmer Dabbelt
- <palmer@sifive.com>, Will Deacon <will.deacon@arm.com>,
- Russell King <linux@armlinux.org.uk>, Ralf Baechle <ralf@linux-mips.org>,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- Paul Burton <paul.burton@mips.com>, Alexander Viro
- <viro@zeniv.linux.org.uk>, James Hogan <jhogan@kernel.org>,
- linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>,
- linux-mips@vger.kernel.org, linux-riscv@lists.infradead.org,
- linux-arm-kernel@lists.infradead.org, Luis Chamberlain <mcgrof@kernel.org>
-References: <20190404055128.24330-1-alex@ghiti.fr>
- <20190404055128.24330-3-alex@ghiti.fr> <20190410065908.GC2942@infradead.org>
-From: Alexandre Ghiti <alex@ghiti.fr>
-Message-ID: <8d482fd0-b926-6d11-0554-a0f9001d19aa@ghiti.fr>
-Date: Wed, 10 Apr 2019 09:32:28 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.5.2
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 7CCA6C002965;
+	Wed, 10 Apr 2019 07:54:03 +0000 (UTC)
+Received: from [10.72.12.186] (ovpn-12-186.pek2.redhat.com [10.72.12.186])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 2125419C72;
+	Wed, 10 Apr 2019 07:53:53 +0000 (UTC)
+Subject: Re: [PATCH net] vhost: flush dcache page when logging dirty pages
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: kvm@vger.kernel.org,
+ "open list:VIRTIO GPU DRIVER" <virtualization@lists.linux-foundation.org>,
+ netdev@vger.kernel.org, linux-kernel@vger.kernel.org,
+ Christoph Hellwig <hch@infradead.org>,
+ James Bottomley <James.Bottomley@hansenpartnership.com>,
+ Andrea Arcangeli <aarcange@redhat.com>, linux@armlinux.org.uk,
+ linux-arm-kernel@lists.infradead.org,
+ Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
+ linuxppc-dev@lists.ozlabs.org, Ralf Baechle <ralf@linux-mips.org>,
+ Paul Burton <paul.burton@mips.com>, James Hogan <jhogan@kernel.org>,
+ linux-mips@vger.kernel.org, Linux-MM <linux-mm@kvack.org>
+References: <20190409041647.21269-1-jasowang@redhat.com>
+ <20190409085607-mutt-send-email-mst@kernel.org>
+From: Jason Wang <jasowang@redhat.com>
+Message-ID: <b635592f-a2c5-5687-e634-6fcd4f5a1e36@redhat.com>
+Date: Wed, 10 Apr 2019 15:53:52 +0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <20190410065908.GC2942@infradead.org>
+In-Reply-To: <20190409085607-mutt-send-email-mst@kernel.org>
 Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: fr
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Wed, 10 Apr 2019 07:54:04 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/10/2019 08:59 AM, Christoph Hellwig wrote:
-> On Thu, Apr 04, 2019 at 01:51:25AM -0400, Alexandre Ghiti wrote:
->> - fix the case where stack randomization should not be taken into
->>    account.
-> Hmm.  This sounds a bit vague.  It might be better if something
-> considered a fix is split out to a separate patch with a good
-> description.
 
-Ok, I will move this fix in another patch.
+On 2019/4/9 下午9:14, Michael S. Tsirkin wrote:
+> On Tue, Apr 09, 2019 at 12:16:47PM +0800, Jason Wang wrote:
+>> We set dirty bit through setting up kmaps and access them through
+>> kernel virtual address, this may result alias in virtually tagged
+>> caches that require a dcache flush afterwards.
+>>
+>> Cc: Christoph Hellwig <hch@infradead.org>
+>> Cc: James Bottomley <James.Bottomley@HansenPartnership.com>
+>> Cc: Andrea Arcangeli <aarcange@redhat.com>
+>> Fixes: 3a4d5c94e9593 ("vhost_net: a kernel-level virtio server")
+> This is like saying "everyone with vhost needs this".
+> In practice only might affect some architectures.
+
+
+For the archs that does need dcache flushing, the function is just a nop.
+
+
+> Which ones?
+
+
+There're more than 10 archs that have ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 
+defined, just cc some maintainers of some more influenced ones.
+
+
+> You want to Cc the relevant maintainers
+> who understand this...
+>
+>> Signed-off-by: Jason Wang <jasowang@redhat.com>
+> I am not sure this is a good idea.
+> The region in question is supposed to be accessed
+> by userspace at the same time, through atomic operations.
+>
+> How do we know userspace didn't access it just before?
+
+
+get_user_pages() will do both flush_annon_page() to make sure the 
+userspace write is visible to kernel.
+
 
 >
->> +config ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
->> +	bool
->> +	help
->> +	  This allows to use a set of generic functions to determine mmap base
->> +	  address by giving priority to top-down scheme only if the process
->> +	  is not in legacy mode (compat task, unlimited stack size or
->> +	  sysctl_legacy_va_layout).
-> Given that this is an option that is just selected by other Kconfig
-> options the help text won't ever be shown.  I'd just move it into a
-> comment bove the definition.
+> Is that an issue at all given we use
+> atomics for access? Documentation/core-api/cachetlb.rst does
+> not mention atomics.
+> Which architectures are affected?
+> Assuming atomics actually do need a flush, then don't we need
+> a flush in the other direction too? How are atomics
+> supposed to work at all?
 
-Oh yes, it does not appear, thanks, I'll move it above the definition.
+
+It's the issue of visibility, atomic operation is just one of the 
+possible operations. If we can finally makes the write visible to each 
+other, there will be no issue.
+
+It looks to me we could still end up alias if userspace is accessing the 
+dirty log between get_user_pages_fast() and flush_dcache_page(). But the 
+flush_dcache_page() can guarantee what kernel wrote is visible to 
+userspace finally though some bits cleared by userspace might still 
+there. We may end up with more dirty pages noticed by userspace which 
+should be harmless.
+
 
 >
->> +#ifdef CONFIG_MMU
->> +#ifdef CONFIG_ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
-> I don't think we need the #ifdef CONFIG_MMU here,
-> CONFIG_ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT should only be selected
-> if the MMU is enabled to start with.
+>
+> I really think we need new APIs along the lines of
+> set_bit_to_user.
 
-Ok, thanks.
 
->> +#ifdef CONFIG_ARCH_HAS_ELF_RANDOMIZE
->> +unsigned long arch_mmap_rnd(void)
-> Now that a bunch of architectures use a version in common code
-> the arch_ prefix is a bit mislead.  Probably not worth changing
-> here, but some time in the future it could use a new name.
+Can we simply do:
 
-Ok I'll keep it in mind for later,
+get_user()
 
-Thanks for your time,
+set bit
 
-Alex
+put_user()
+
+instead?
+
+
+>
+>> ---
+>>   drivers/vhost/vhost.c | 1 +
+>>   1 file changed, 1 insertion(+)
+>>
+>> diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
+>> index 351af88231ad..34a1cedbc5ba 100644
+>> --- a/drivers/vhost/vhost.c
+>> +++ b/drivers/vhost/vhost.c
+>> @@ -1711,6 +1711,7 @@ static int set_bit_to_user(int nr, void __user *addr)
+>>   	base = kmap_atomic(page);
+>>   	set_bit(bit, base);
+>>   	kunmap_atomic(base);
+>> +	flush_dcache_page(page);
+>>   	set_page_dirty_lock(page);
+>>   	put_page(page);
+>>   	return 0;
+> Ignoring the question of whether this actually helps, I doubt
+> flush_dcache_page is appropriate here.  Pls take a look at
+> Documentation/core-api/cachetlb.rst as well as the actual
+> implementation.
+>
+> I think you meant flush_kernel_dcache_page, and IIUC it must happen
+> before kunmap, not after (which you still have the va locked).
+
+
+Looks like you're right.
+
+Thanks
+
+
+>
+>> -- 
+>> 2.19.1
 
