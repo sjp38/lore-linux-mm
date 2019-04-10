@@ -2,156 +2,236 @@ Return-Path: <SRS0=DRoR=SM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2E14DC10F11
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 04:21:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 85F0FC10F11
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 06:06:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E42792082E
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 04:21:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E42792082E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id ED1A82070D
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 06:06:41 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=eInfochipsIndia.onmicrosoft.com header.i=@eInfochipsIndia.onmicrosoft.com header.b="B84SeBoL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED1A82070D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=einfochips.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7B9A06B0003; Wed, 10 Apr 2019 00:21:09 -0400 (EDT)
+	id 6A72E6B0003; Wed, 10 Apr 2019 02:06:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7688C6B0005; Wed, 10 Apr 2019 00:21:09 -0400 (EDT)
+	id 689916B0005; Wed, 10 Apr 2019 02:06:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6803E6B0006; Wed, 10 Apr 2019 00:21:09 -0400 (EDT)
+	id 547D76B0006; Wed, 10 Apr 2019 02:06:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f197.google.com (mail-vk1-f197.google.com [209.85.221.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 432676B0003
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 00:21:09 -0400 (EDT)
-Received: by mail-vk1-f197.google.com with SMTP id k78so447041vkk.17
-        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 21:21:09 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1861E6B0003
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 02:06:41 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id e12so1169273pgh.2
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 23:06:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=PLxPvC2vZwl/2vSFXixmIqsGdw30nNYGQO8XXcT/S7E=;
-        b=cFnpfnmEfN4h0qrVwPynfawXH1uNR1E7cyjF/lC/MgCbbddIsF+9yFosF9japO84Wv
-         LKdxvVb4zVL7sJAIyfjXQtlspByqTfiJNBixqmdM0p/uxcG+WlIuqj8GDrzdYFBiraRq
-         Uj8s+dXemg5BloyKks9GcvoX3dZNg7bJP/tIzTQh5TKbe7lZdSMe5l1roc6Szaf5avEZ
-         LGZJ7GEKD20DE5UVHuTg2iTw2z8po/51fzFhlZmnrPhAAXxpVLuGKiAXsVWFj6o40DyB
-         KRMG1MLOTmZGycZyu1kr8FrcsbLCyKLCLfH0jgdpNhnS06awIC4CJ2bMO4KlPGu/Swfh
-         M2VQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yuyufen@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=yuyufen@huawei.com
-X-Gm-Message-State: APjAAAUfDeY+0upSlFs3kPxzQZktRjXRThqRotV1HRR3a9oHWgj3j0lb
-	N+t79b9NJsdYkKPEyzNxFp3cnvHUsn3W7YfEOYsnzG3AKRjtu+j8RwdGjN99AAurz5vgNp2FX+C
-	toH93sclbUutUl6lRHfWhXJiUTRmWKGE7rDw/fu4LWB2UI0ISzJ4iqq0y0SdooHkQdQ==
-X-Received: by 2002:a67:f414:: with SMTP id p20mr22206366vsn.94.1554870068928;
-        Tue, 09 Apr 2019 21:21:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxyTX0AN8y+t5hLMKT0N4mCPQQsms1SnSr8mF8DqN7EeUpLoiSS0DgBJyKmHivQhZRxPy+/
-X-Received: by 2002:a67:f414:: with SMTP id p20mr22206354vsn.94.1554870068288;
-        Tue, 09 Apr 2019 21:21:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554870068; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-transfer-encoding:mime-version;
+        bh=ynrFHRlZLrj5J+eHpTcvYxhKBma448ynGvYpIOwKqZk=;
+        b=RzTkfCSX3ofTCZQ3uzmySxHKy2HYJolLDAdu1bMECs73JaDrJvI/gFjxzweE5WUxFt
+         NG7M88vQ9HgVgMwaD45YiV9+/pYrYzvhYR73a7LuLtzgZbeEkjmhzunuE6i+lUzDGZUL
+         BVogRIMaDGvsdkP70UHs4+ay+j92lW4eUctpGhS779YaFT01mTzdJgFFgoeqMoWp3XTX
+         1ETQ1OjqXEsrCvlQ/tuKk+BJqd/j5ZtWdIWzChd1B+iYaimLwV3Xhqr7+OFmcOTgRGqX
+         ZJHE/asZLbxRRXWGfvmCT0xscdc+IRMgwme4DaJqNZAbqV0HqMgHS2oXMnCM52zQBldj
+         +LuQ==
+X-Gm-Message-State: APjAAAWEmhSMUVEQORA4mMi11mRVEXh1LvDgl0ycw5vZGj39uoPCxidP
+	xboDaod1+vFRlgcq0CUgEh70QZI9/61Zo43OOJKxhkPwDa9lgTYPy/BAuhm7wAv1T27bH3fqkMs
+	dQlJQ4B6jkdJhd/uhmNYeKdss8EqajhVtfPeb+TZB6pm1GB/jQcwu14hxa9WCCtH3yA==
+X-Received: by 2002:a62:184a:: with SMTP id 71mr22755511pfy.1.1554876400330;
+        Tue, 09 Apr 2019 23:06:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwMB7Tqse0glXQjANik4sh8ipai6gdBNMrdpfoHL9oMJ7L5RGxsuP4YUVMQT/7Khp8KgSuZ
+X-Received: by 2002:a62:184a:: with SMTP id 71mr22755435pfy.1.1554876399432;
+        Tue, 09 Apr 2019 23:06:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554876399; cv=none;
         d=google.com; s=arc-20160816;
-        b=hJz+ZLv3u6vwNdlvOlFAT9jlFY7TjXe35ho3jBUMIZ/EO8PcWaWQI6d3czTyT+92JG
-         BUW3/HCm5J91UX2FJQ3uy3S3Of9445VXviHghTDJftgmhnvx8+l/hX5sfpLrgoVy8u+3
-         OziSqJx3b4qjnZlOgUEO5Y57oHnLum4I4v3gBbH25tK1AoWbE5HnD9vY05hf2V0AYjF3
-         8X4u3+xOl/qa96POYXpYbaTeB2ofmaMExg6bkBjkGSr4hufe8nw8xLQWkb2mp+cdobsv
-         nAmBx6bJENmG6bQz/oLco2OZtSu6JMzywgoLQPTqgxKuGl0WlelQUPcjiu/asfV3egcu
-         oEXw==
+        b=lOe4nj2wpPuhvq0RVwJackA9QzELuPBVEAjdaPwWZ/W4Iqu3IeovdzmyDTXZOBZs1z
+         G18yUbb8hZcNS0di0sNLrnd7LvZfd2XAS4PdvSQtZciuAcVZiCUQ1wvQceicDV3wEpFV
+         CBnKaeFZb8PNrjKWAU5yagxmbFKPxgH8VS61oQkXab9f0WKZV0j+F4k5KmDniy3/X4tP
+         kkPEAUQ+OczCPz93Hd5eqtJMNTgewvrwAebOprNEIZsm/qk4JFQv4xwqEteL5iBHbXfD
+         NiiCZ2hQhubbd5A6ev/Zp8+S702f+kVs36nCQQoWgF9ltu7sQgbYq5Uf0PPexye2Oiso
+         ItVg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=PLxPvC2vZwl/2vSFXixmIqsGdw30nNYGQO8XXcT/S7E=;
-        b=vmiwCthU/PdwQ2VceOtvD+Cd25K3zgUPN0HIFc7N3SvUrdL/lB9SGk4F2TvEDvyY0B
-         DpHUJA6JtmS/u+wtlzDXgjbXqvKTR7w5APZ05Aj0vTs/kWjRLg4gYt8jZrZP2UVwPlJf
-         nhwwWAlHVjxWhGMWay/5MPq2To/wtS0I3XZFufIV38UXxKa4yMG+fduwv6SV60DKYvQG
-         F7dJU03EvP/wsnipAuPJVr7Hxr3UnyI9P+nJTD4D2Qwk19ww0eQ0r+IcBgQnErK4H/nH
-         S10FR52spJ9JAePlcnb7vqj/FUV0p/g9BmMv5ZCy58S4r9QPEOHeRq1jYUf/CwYR0tJJ
-         YYrQ==
+        h=mime-version:content-transfer-encoding:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=ynrFHRlZLrj5J+eHpTcvYxhKBma448ynGvYpIOwKqZk=;
+        b=pqmFsgroH6t6VLC5TiVNHCBRqcDlbE61tuXWogl3F4UJUKkoVV3CUVjcAVjSGRFfGL
+         2pAubah71gAIzW53ZlApYy5xomPTnvozAUq43rdZRhw6aMX8FYQSFFTw3JsZsMiKGopY
+         TCxcEt7xuW08MlgZOMcswuqOS2rNDM5rYepIaNfFfuSyJwb7Zqiln7CMxIoAatlEiTRr
+         bclRXQ9abOdK3ER9JyExFZMqDAGAS56Nb0pJzp0mKBzLT205Xt/p+/4y/xM5lUSpuOm+
+         Ki1fwzFUvKfaQYprRgVnGI2RUesRK1bCfOfZWuboAPF+Vb5nyeWQBGKPdgqEolnEcPxy
+         mYDQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yuyufen@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=yuyufen@huawei.com
-Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id t14si6829245vsp.341.2019.04.09.21.21.06
+       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=B84SeBoL;
+       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.131.53 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
+Received: from APC01-SG2-obe.outbound.protection.outlook.com (mail-eopbgr1310053.outbound.protection.outlook.com. [40.107.131.53])
+        by mx.google.com with ESMTPS id x13si18160323pga.2.2019.04.09.23.06.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Apr 2019 21:21:08 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yuyufen@huawei.com designates 45.249.212.190 as permitted sender) client-ip=45.249.212.190;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 09 Apr 2019 23:06:39 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.131.53 as permitted sender) client-ip=40.107.131.53;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yuyufen@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=yuyufen@huawei.com
-Received: from DGGEMS402-HUB.china.huawei.com (unknown [172.30.72.60])
-	by Forcepoint Email with ESMTP id C31E9789D2AF0F397F06;
-	Wed, 10 Apr 2019 12:21:00 +0800 (CST)
-Received: from [127.0.0.1] (10.177.219.49) by DGGEMS402-HUB.china.huawei.com
- (10.3.19.202) with Microsoft SMTP Server id 14.3.408.0; Wed, 10 Apr 2019
- 12:20:51 +0800
-Subject: Re: [PATCH] hugetlbfs: fix protential null pointer dereference
-To: Mike Kravetz <mike.kravetz@oracle.com>, <linux-mm@kvack.org>
-CC: <kirill.shutemov@linux.intel.com>, <n-horiguchi@ah.jp.nec.com>,
-	<mhocko@kernel.org>, <yuyufen@huawei.com>
-References: <20190410025037.144872-1-yuyufen@huawei.com>
- <e8dd99bb-c357-962a-9f29-b7f25c636714@oracle.com>
-From: yuyufen <yuyufen@huawei.com>
-Message-ID: <1a43c780-3ded-a7bc-391e-f85295eb942d@huawei.com>
-Date: Wed, 10 Apr 2019 12:20:50 +0800
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:52.0) Gecko/20100101
- Thunderbird/52.2.1
+       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=B84SeBoL;
+       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.131.53 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=eInfochipsIndia.onmicrosoft.com; s=selector1-einfochips-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=ynrFHRlZLrj5J+eHpTcvYxhKBma448ynGvYpIOwKqZk=;
+ b=B84SeBoLbbtVkwbBVgf5tZWBOduQogOzy+ZJ8ATNuN5dg1VuAcHQ9zX9r0n3LuX2ic3CM/qaA/aTwEQWH7iGsF9Igp2DrRlTLAjz8Mun3BpCXTugbYGDfwcYpTwDu9uqV/oLZ+B15u7lmVH7mznHkN9Eugw26DgkcsTHHnLZtPU=
+Received: from SG2PR02MB3098.apcprd02.prod.outlook.com (20.177.88.78) by
+ SG2PR02MB1567.apcprd02.prod.outlook.com (10.167.77.141) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1771.19; Wed, 10 Apr 2019 06:06:36 +0000
+Received: from SG2PR02MB3098.apcprd02.prod.outlook.com
+ ([fe80::f432:20e4:2d22:e60b]) by SG2PR02MB3098.apcprd02.prod.outlook.com
+ ([fe80::f432:20e4:2d22:e60b%4]) with mapi id 15.20.1771.019; Wed, 10 Apr 2019
+ 06:06:36 +0000
+From: Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
+To: Christopher Lameter <cl@linux.com>
+CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: Re: [External] Re: Basics : Memory Configuration
+Thread-Topic: [External] Re: Basics : Memory Configuration
+Thread-Index: AQHU7qEJC6EuUiGvjEiZ+OVh95dcd6Yz/amAgADo4Wc=
+Date: Wed, 10 Apr 2019 06:06:36 +0000
+Message-ID:
+ <SG2PR02MB30989B644196598CEDDD5337E82E0@SG2PR02MB3098.apcprd02.prod.outlook.com>
+References:
+ <SG2PR02MB3098925678D8D40B683E10E2E82D0@SG2PR02MB3098.apcprd02.prod.outlook.com>,<0100016a02d5038e-2e436033-7726-4d2a-b29d-d3dbc4c66637-000000@email.amazonses.com>
+In-Reply-To:
+ <0100016a02d5038e-2e436033-7726-4d2a-b29d-d3dbc4c66637-000000@email.amazonses.com>
+Accept-Language: en-GB, en-US
+Content-Language: en-GB
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=pankaj.suryawanshi@einfochips.com; 
+x-originating-ip: [14.98.130.2]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: cc86bda2-c7a8-422d-8c58-08d6bd7ab055
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(7168020)(4627221)(201703031133081)(201702281549075)(8990200)(5600139)(711020)(4605104)(2017052603328)(7193020);SRVR:SG2PR02MB1567;
+x-ms-traffictypediagnostic: SG2PR02MB1567:
+x-microsoft-antispam-prvs:
+ <SG2PR02MB15676281446B4EBE6DB49FA7E82E0@SG2PR02MB1567.apcprd02.prod.outlook.com>
+x-forefront-prvs: 00032065B2
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(346002)(39840400004)(376002)(136003)(366004)(396003)(189003)(199004)(66066001)(54906003)(25786009)(478600001)(33656002)(6116002)(3846002)(76176011)(2906002)(55016002)(78486014)(6436002)(86362001)(52536014)(7696005)(11346002)(229853002)(14454004)(71200400001)(6916009)(446003)(71190400001)(316002)(186003)(14444005)(4326008)(7736002)(53936002)(105586002)(256004)(81166006)(5660300002)(99286004)(6246003)(476003)(55236004)(6506007)(9686003)(8676002)(53546011)(106356001)(8936002)(66574012)(97736004)(81156014)(68736007)(44832011)(74316002)(305945005)(486006)(26005)(5024004)(102836004)(586874002);DIR:OUT;SFP:1101;SCL:1;SRVR:SG2PR02MB1567;H:SG2PR02MB3098.apcprd02.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: einfochips.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ bmlzdzWn2Pk1q+5mTtZD2YfVM4p8MYkS2goKRW2wAiGy3RGQ5ZA+V1EAlAr02T/h9h9tivL/4aZi4r8ZyEjCtBh19n8bwbymr9vwGmayKtsH2Ck1uG6De9jH5PFvDWs1nXlLAoJHGsiQqXVPwzEgR3sjzs46gKhGdkM0xwHnPayqhi/0BfUOOLgwo0PTPYaNU8PuyFx8gKlI9tOdR2dLCskYMBq9mPNcYb7xmpdC+f1hdDJO696BMrmebIWtGf2zzlhjSm50YGZpXtk6Yy/U2WUHP3b+mlH4XWzHRFs8aM3d4KOJx/+Tv/qr0rgl1NZtYLjNxBmZCkrbnYaHq9GzaC34fcrKhex5/Nf/keW2C5fzWYE8DnYoHn74JaVB1B+d33RV/i2YHlGKpyLijCKgPhU3R7NWufaLGyUlTROKy7M=
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <e8dd99bb-c357-962a-9f29-b7f25c636714@oracle.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-X-Originating-IP: [10.177.219.49]
-X-CFilter-Loop: Reflected
+X-OriginatorOrg: einfochips.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: cc86bda2-c7a8-422d-8c58-08d6bd7ab055
+X-MS-Exchange-CrossTenant-originalarrivaltime: 10 Apr 2019 06:06:36.0929
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 0adb040b-ca22-4ca6-9447-ab7b049a22ff
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: SG2PR02MB1567
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, Mike
+
+________________________________________
+From: Christopher Lameter <cl@linux.com>
+Sent: 09 April 2019 21:31
+To: Pankaj Suryawanshi
+Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org
+Subject: [External] Re: Basics : Memory Configuration
 
 
-On 2019/4/10 11:38, Mike Kravetz wrote:
-> On 4/9/19 7:50 PM, Yufen Yu wrote:
->> After commit 58b6e5e8f1ad ("hugetlbfs: fix memory leak for resv_map"),
->> i_mapping->private_data will be NULL for mode that is not regular and link.
->> Then, it might cause NULL pointer derefernce in hugetlb_reserve_pages()
->> when do_mmap. We can avoid protential null pointer dereference by
->> judging whether it have been allocated.
->>
->> Fixes: 58b6e5e8f1ad ("hugetlbfs: fix memory leak for resv_map")
->> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->> Cc: Michal Hocko <mhocko@kernel.org>
->> Signed-off-by: Yufen Yu <yuyufen@huawei.com>
-> Thanks for catching this.  I mistakenly thought all the code was checking
-> for NULL resv_map.  That certainly is one (and only) place where it is not
-> checked.  Have you verified that this is possible?  Should be pretty easy
-> to do.  If you have not, I can try to verify tomorrow.
+On Tue, 9 Apr 2019, Pankaj Suryawanshi wrote:
 
-I honestly say that I don't have verified.
 
->> ---
->>   mm/hugetlb.c | 2 ++
->>   1 file changed, 2 insertions(+)
->>
->> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->> index 97b1e0290c66..15e4baf2aa7d 100644
->> --- a/mm/hugetlb.c
->> +++ b/mm/hugetlb.c
->> @@ -4465,6 +4465,8 @@ int hugetlb_reserve_pages(struct inode *inode,
->>   	 */
->>   	if (!vma || vma->vm_flags & VM_MAYSHARE) {
->>   		resv_map = inode_resv_map(inode);
->> +		if (!resv_map)
->> +			return -EOPNOTSUPP;
-> I'm not sure about the return code here.  Note that all callers of
-> hugetlb_reserve_pages() force return value of -ENOMEM if non-zero value
-> is returned.  I think we would like to return -EACCES in this situation.
-> The mmap man page says:
->
->         EACCES A  file descriptor refers to a non-regular file.  Or ...
+> I am confuse about memory configuration and I have below questions
 
-Thanks for your suggestion. It is more reasonable to use -EACCES.
+Hmmm... Yes some of the terminology that you use is a bit confusing.
 
-Yufen
-Thanks.
+> 1. if 32-bit os maximum virtual address is 4GB, When i have 4 gb of ram
+> for 32-bit os, What about the virtual memory size ? is it required
+> virtual memory(disk space) or we can directly use physical memory ?
+
+The virtual memory size is the maximum virtual size of a single process.
+Multiple processes can run and each can use different amounts of physical
+memory. So both are actually independent.
+
+The size of the virtual memory space per process is configurable on x86 32
+bit (2G, 3G, 4G). Thus the possible virtual process size may vary
+depending on the hardware architecture and the configuration of the
+kernel.
+
+If i have configures VMSPLIT =3D 2G/2G what does it mean ?
+Virtual memory uses disk space ? let say for 32-bit os i have 4GB ram than =
+what is the use case of virtual memory ?
+
+If i have 32-bit and 2gb/3gb ram than virtual memory is useful  because its=
+ less than 4GB ?
+
+> 2. In 32-bit os 12 bits are offset because page size=3D4k i.e 2^12 and
+> 2^20 for page addresses
+>    What about 64-bit os, What is offset size ? What is page size ? How it=
+ calculated.
+
+12 bits are passed through? Thats what you mean?
+
+The remainder of the bits  are used to lookup the physical frame
+number(PFN) in the page tables.
+
+64 bit is the same. However, the number of bits used for lookups in the
+page tables are much higher.
+
+for 32-bit os page size is 4k, what is the page size for 64-bit os ? page s=
+ize and offset is related to each other ?
+
+if i increase the page size from 4k to 8k, does it change the offset size t=
+hat it 2^12 to 2^13 ?
+
+Why only 48 bits are used in 64-bit os ?
+
+
+> 3. What is PAE? If enabled how to decide size of PAE, what is maximum
+> and minimum size of extended memory.
+
+PAE increases the physical memory size that can be addressed through a
+page table lookup. The number of bits that can be specified in the PFN is
+increased and thus more than 4GB of physical memory can be used by the
+operating system. However, the virtual memory size stays the same and an
+individual process still cannot use more memory.
+
+Let say i have ,enabled PAE for 32-bit os with 6GB ram.Virtual size is same=
+ 4GB, 32-bit os cant address more thatn 4gb, Than what is the use of 6GB wi=
+th PAE enabled.
+
+***************************************************************************=
+***************************************************************************=
+******* eInfochips Business Disclaimer: This e-mail message and all attachm=
+ents transmitted with it are intended solely for the use of the addressee a=
+nd may contain legally privileged and confidential information. If the read=
+er of this message is not the intended recipient, or an employee or agent r=
+esponsible for delivering this message to the intended recipient, you are h=
+ereby notified that any dissemination, distribution, copying, or other use =
+of this message or its attachments is strictly prohibited. If you have rece=
+ived this message in error, please notify the sender immediately by replyin=
+g to this message and please delete it from your computer. Any views expres=
+sed in this message are those of the individual sender unless otherwise sta=
+ted. Company has taken enough precautions to prevent the spread of viruses.=
+ However the company accepts no liability for any damage caused by any viru=
+s transmitted by this email. **********************************************=
+***************************************************************************=
+************************************
 
