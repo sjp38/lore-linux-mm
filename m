@@ -2,182 +2,147 @@ Return-Path: <SRS0=DRoR=SM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 40B31C10F11
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 15:07:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ED162C10F14
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 15:34:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 925B92082E
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 15:07:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 925B92082E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id A8BAB20818
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 15:34:57 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="xJDIIxl1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A8BAB20818
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 401466B029D; Wed, 10 Apr 2019 11:07:12 -0400 (EDT)
+	id 4387A6B029F; Wed, 10 Apr 2019 11:34:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3B08F6B029E; Wed, 10 Apr 2019 11:07:12 -0400 (EDT)
+	id 3E7C46B02A0; Wed, 10 Apr 2019 11:34:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2EE6A6B029F; Wed, 10 Apr 2019 11:07:12 -0400 (EDT)
+	id 2D73A6B02A1; Wed, 10 Apr 2019 11:34:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BC6696B029D
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 11:07:11 -0400 (EDT)
-Received: by mail-lj1-f198.google.com with SMTP id v20so567594ljk.7
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 08:07:11 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D41EE6B029F
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 11:34:56 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id k4so1649121wrw.11
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 08:34:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:date:message-id:user-agent:mime-version
-         :content-transfer-encoding;
-        bh=RbuphLDB+mN5EpFYMulzUBA0h0k4c65mv71IO28HzLA=;
-        b=eTLoyUf47V0SdfE5BVZN//55wrEWMXG/AodNspHnCYL3NCb0JiUhhIj7tMvfcEJDVV
-         wrui7he5XazbSwoSZMowG8vLyFUN95hKOkop/YO2BL1Nsh8bUW5Fj738GGxFZSc/eJPr
-         l2sPIqFAd6w6C0nsIQ4Fj6XT9NHTktADSVHwn7WdtrZK9iqwXw+VnlTr2S9X3jefz/SQ
-         o3LNftJRLwgku6bRCSge70jJ4ooboOwT/IJSv3iyAz/2+vmgUNWVKgKN6v6s7ztb1Kos
-         ieEMsgFXqzgC2VDwTJrt2hxJYQe3EBUAm7iDP3qs7pGGLvARS05d8nxyHcoN57ygdQnD
-         GxpQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAW3Gmfhz/SPQ6tDjT0A4wAjnJFlj5X88j1wEcRmhfJxWGUB+lPy
-	hr7Y7BvEgaFWoLFXEFAdMxfAMghf/f76KJjZ2Odr31a/z1vUXJMr2Ih/6MlOC7bleS0mgzzgIK0
-	+VrKWUmr1vGrpnFkzZCk8D6TRb5NEj48nCsHUJqRYEtKklnb/M2Qiisvd7t0imfWIIw==
-X-Received: by 2002:ac2:4554:: with SMTP id j20mr24770003lfm.112.1554908830936;
-        Wed, 10 Apr 2019 08:07:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzS8agfbfK47B2Xq4nrSO8w+r0GBQ3xmcyUOSPmUsopJD5LT+ah8cF0TO6wyYZYvAtC34mi
-X-Received: by 2002:ac2:4554:: with SMTP id j20mr24769946lfm.112.1554908829888;
-        Wed, 10 Apr 2019 08:07:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554908829; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=arxBGNSX0OUYGmyljwVEu7bbeV7OhkzO+FdllTWnzPo=;
+        b=if8UTdMRlxtLibvXMroMHYhumptiIO0MuHS2lxnqBQwppIycxT9tyLJWbTUEOkGQ9f
+         gEsYe4WUK7i+PHG+lEJf1b4HHdfiCQYEI0JNYpv5k+1qhClwb7jQ9n5ddaTs5LIee093
+         TlzYxf+Sj+msMIijYZhkv5++xOBH0wlojseAtlhSgGwysmjHRFstPnj6MjsA2tJ8QdTQ
+         iEYxbQLdSawYeTVZiCxdZtsP+sVlFVLcwrYVJ2Kk5g2+CX4vU0m0oSWKCJX+oisryeE+
+         kaVrMb923wiUjRXo28x+M4FXDrEbr9NKrXB9KynQGuoC3A8Seg6B69X6AwnKIyIZCPiE
+         PHww==
+X-Gm-Message-State: APjAAAV4pmMlTo/Xc5+PINV1B5mCzz6ynzTIk+4T6JEUDO48LT5k0Udb
+	cwI7eoWGda+GYc2Gh/D5PvAVO84x0hQCYPOdD0b9aXGg0l29hLGukLddpxjSNC2tAkI5Wrx61Cr
+	ot8CaPxi2myBn9MxKj6pS7OT5knIdqOTPE7pbKQRHeKbybwy8u5GoxC/ReqwIJQ7NGw==
+X-Received: by 2002:a5d:4b01:: with SMTP id v1mr26817943wrq.48.1554910496265;
+        Wed, 10 Apr 2019 08:34:56 -0700 (PDT)
+X-Received: by 2002:a5d:4b01:: with SMTP id v1mr26817902wrq.48.1554910495582;
+        Wed, 10 Apr 2019 08:34:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554910495; cv=none;
         d=google.com; s=arc-20160816;
-        b=R1tyA+22+Nx9IpOXrDnOFs55M7pGLHZALmJolJ5egiNc6KCCY8wmtXNbFfGbQbBIz/
-         Ov6gCLUf73NzmIlx5wAqFZSRp2UBeO0un9zLIoPJSCMI4nOFFrEIQOmMR3j2zoyvTOfs
-         EmJi7fBj5pzk6JDjcvduFQwxc8fM74cuP24tR0WM/mrQ0kKsML8fGp1w39U6Van94r8Q
-         fK9lsOmhzHH7rieZExv9Vn+Z8d736D9cvbmbWJBBHZivnzWvJzFdmHXn/HyOXKBQT87Y
-         hnULbNfwZtV6i8J5jWqh025vhGtcCg//1fWjnqiS1hU1rbwN4iquxXyhfwnVJt+A5biq
-         z1jw==
+        b=yGfX/jt1ql7SwF8++9sv18mJLhV6Z8wf3cCcvzBElw4cR5UuU+mfyRy2UPDDyjYtwl
+         Ru7UxLyV7jSd0MWxt6988H3bCuccBgwaBvSU6nr5ChkNDdEyGJEKbFcAmwwtM73lI0O0
+         Hku7eBjZ6Lmlt0/FjRhelmJn/inpPUgl+cXulZukZiHie6ZNxST5wp+2VdI9TZ8pd6dc
+         7lLN7BCJfH8dioBVInKVef9vIsEuhHo3wBBpUobqJ/3lT9qEEkHShOWGk++kuvir/ECJ
+         tCZmXVnsT7vdeWLM7CRjg94y792Iv/i8aeIjL3gyRabSeK6qt8/BGYa2v/f86iUV5OM6
+         HPQw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:message-id:date
-         :to:from:subject;
-        bh=RbuphLDB+mN5EpFYMulzUBA0h0k4c65mv71IO28HzLA=;
-        b=j8Fa8smca/4ZAe7mp8omRIITEDa+FSbHL2A85kyMpORFUVCswBOZtpmQgBYo7f1wdT
-         Ucsvk/I1VszhE8JQm5ZlCeBm7h2yjlX/ivqL5Z72uCzEBFmYVXHKH2AvMz6RWhp+BnaH
-         Ej639Yl3OCWg2dKjjNUMR64aZgsDfFxCIA3tPLflfK5i+CxZkNpP4oDObm09KfDHXhPE
-         v3RFG7VcSmVzkfcbUBc9O4SJiqPoSSHculKt84IXD9RP3GI9BdiGkxE196FXKqAS9aRi
-         yOY5ZN3eofvf08+JkXCH1epaMjNokaDLHElHyyJB14FwxSDp88NUGbDhR64uB4muLK28
-         cwEA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=arxBGNSX0OUYGmyljwVEu7bbeV7OhkzO+FdllTWnzPo=;
+        b=apHv9UtjjOg26lCWkqN+Ci/g/tXlyx7UF2ulP9HPLWtOMBQcOVYvFt7UwsjSPm5QUD
+         LorilncFRKXYG1S8PFcRsOZATxP0qTRC8B+B4OcoDNCCKzObEUHVvoDf4PquhMMfjyKZ
+         QiP+GNB4PbeqS7M5Jq7R8WZNTuh1C1GUFBdbl0IeaFKuzm54nTcIB61dI6e9Hs9Qo6zQ
+         wH2y/F5EMXNVVVfM8OXpBb0aAAfSI0prUEjWIJI8qbcO9zYfHtgMMNn5PiAz8pYPUNji
+         u4mvZgY6OuLOQIbK1wlg+7+AyiyXD3ajQCp4k3UXSzXT6quTc8aV5agwi1JObYfxqsKq
+         u3ug==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id r15si29804954lji.60.2019.04.10.08.07.09
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=xJDIIxl1;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w2sor26393405wrm.19.2019.04.10.08.34.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Apr 2019 08:07:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        (Google Transport Security);
+        Wed, 10 Apr 2019 08:34:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.169] (helo=localhost.localdomain)
-	by relay.sw.ru with esmtp (Exim 4.91)
-	(envelope-from <ktkhai@virtuozzo.com>)
-	id 1hEEoc-0006KG-0W; Wed, 10 Apr 2019 18:07:06 +0300
-Subject: [PATCH] mm: Simplify shrink_inactive_list()
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-To: akpm@linux-foundation.org, mhocko@suse.com, hannes@cmpxchg.org,
- dave@stgolabs.net, ktkhai@virtuozzo.com, linux-mm@kvack.org
-Date: Wed, 10 Apr 2019 18:07:04 +0300
-Message-ID: <155490878845.17489.11907324308110282086.stgit@localhost.localdomain>
-User-Agent: StGit/0.18
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=xJDIIxl1;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chrisdown.name; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=arxBGNSX0OUYGmyljwVEu7bbeV7OhkzO+FdllTWnzPo=;
+        b=xJDIIxl1eeL/dAIbEYlOuZSAFwejku7gsZgBW1BS1TBrC2f9JSBLITDJqVqs0PSeI4
+         maDchJybAJdG0zBjinmp9wRxhX9DKa0H/MmG6XAo+vD62eSzMbE6SshIV9gtBlg76KPQ
+         89iiOrmmBwbKuVrud8G0hORSsuQSWFNviuPfM=
+X-Google-Smtp-Source: APXvYqwZJTtXFr6jhEhKPNCvW4MV9AmarGhvGr6jmEIy7i40TneIr27Iec90v8rr29B2QsQpsb/+5g==
+X-Received: by 2002:adf:f050:: with SMTP id t16mr23381660wro.198.1554910490281;
+        Wed, 10 Apr 2019 08:34:50 -0700 (PDT)
+Received: from localhost ([2620:10d:c092:200::1:4ff4])
+        by smtp.gmail.com with ESMTPSA id 7sm122837004wrc.81.2019.04.10.08.34.49
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 10 Apr 2019 08:34:49 -0700 (PDT)
+Date: Wed, 10 Apr 2019 16:34:49 +0100
+From: Chris Down <chris@chrisdown.name>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>,
+	Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org,
+	cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH REBASED] mm: Throttle allocators when failing reclaim
+ over memory.high
+Message-ID: <20190410153449.GA14915@chrisdown.name>
+References: <20190201191636.GA17391@chrisdown.name>
+ <20190410153307.GA11122@chrisdown.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <20190410153307.GA11122@chrisdown.name>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This merges together duplicating patterns of code.
-Changes in enum vm_event_item is made to underline
-that *_DIRECT and *_KSWAPD must differ by 1.
+Hey Michal,
 
-Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
----
- include/linux/vm_event_item.h |    4 ++--
- mm/vmscan.c                   |   31 +++++++++----------------------
- 2 files changed, 11 insertions(+), 24 deletions(-)
+Just to come back to your last e-mail about how this interacts with OOM.
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 47a3441cf4c4..8f1403e692a2 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -31,9 +31,9 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		PGLAZYFREED,
- 		PGREFILL,
- 		PGSTEAL_KSWAPD,
--		PGSTEAL_DIRECT,
-+		PGSTEAL_DIRECT = PGSTEAL_KSWAPD + 1,
- 		PGSCAN_KSWAPD,
--		PGSCAN_DIRECT,
-+		PGSCAN_DIRECT = PGSCAN_KSWAPD + 1,
- 		PGSCAN_DIRECT_THROTTLE,
- #ifdef CONFIG_NUMA
- 		PGSCAN_ZONE_RECLAIM_FAILED,
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 836b28913bd7..f8ac0825d1c7 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1907,6 +1907,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	unsigned long nr_taken;
- 	struct reclaim_stat stat;
- 	int file = is_file_lru(lru);
-+	int is_direct = !current_is_kswapd();
- 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
- 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
- 	bool stalled = false;
-@@ -1934,17 +1935,10 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, nr_taken);
- 	reclaim_stat->recent_scanned[file] += nr_taken;
- 
--	if (current_is_kswapd()) {
--		if (global_reclaim(sc))
--			__count_vm_events(PGSCAN_KSWAPD, nr_scanned);
--		count_memcg_events(lruvec_memcg(lruvec), PGSCAN_KSWAPD,
--				   nr_scanned);
--	} else {
--		if (global_reclaim(sc))
--			__count_vm_events(PGSCAN_DIRECT, nr_scanned);
--		count_memcg_events(lruvec_memcg(lruvec), PGSCAN_DIRECT,
--				   nr_scanned);
--	}
-+	if (global_reclaim(sc))
-+		__count_vm_events(PGSCAN_KSWAPD + is_direct, nr_scanned);
-+	__count_memcg_events(lruvec_memcg(lruvec), PGSCAN_KSWAPD + is_direct,
-+			     nr_scanned);
- 	spin_unlock_irq(&pgdat->lru_lock);
- 
- 	if (nr_taken == 0)
-@@ -1955,17 +1949,10 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 
- 	spin_lock_irq(&pgdat->lru_lock);
- 
--	if (current_is_kswapd()) {
--		if (global_reclaim(sc))
--			__count_vm_events(PGSTEAL_KSWAPD, nr_reclaimed);
--		count_memcg_events(lruvec_memcg(lruvec), PGSTEAL_KSWAPD,
--				   nr_reclaimed);
--	} else {
--		if (global_reclaim(sc))
--			__count_vm_events(PGSTEAL_DIRECT, nr_reclaimed);
--		count_memcg_events(lruvec_memcg(lruvec), PGSTEAL_DIRECT,
--				   nr_reclaimed);
--	}
-+	if (global_reclaim(sc))
-+		__count_vm_events(PGSTEAL_KSWAPD + is_direct, nr_reclaimed);
-+	__count_memcg_events(lruvec_memcg(lruvec), PGSTEAL_KSWAPD + is_direct,
-+			     nr_reclaimed);
- 	reclaim_stat->recent_rotated[0] = stat.nr_activate[0];
- 	reclaim_stat->recent_rotated[1] = stat.nr_activate[1];
- 
+Michal Hocko writes:
+> I am not really opposed to the throttling in the absence of a reclaimable
+> memory. We do that for the regular allocation paths already
+> (should_reclaim_retry). A swapless system with anon memory is very likely to
+> oom too quickly and this sounds like a real problem. But I do not think that
+> we should throttle the allocation to freeze it completely. We should
+> eventually OOM. And that was my question about essentially. How much we
+> can/should throttle to give a high limit events consumer enough time to
+> intervene. I am sorry to still not have time to study the patch more closely
+> but this should be explained in the changelog. Are we talking about
+> seconds/minutes or simply freeze each allocator to death?
+
+Per-allocation, the maximum is 2 seconds (MEMCG_MAX_HIGH_DELAY_JIFFIES), so we 
+don't freeze things to death -- they can recover if they are amenable to it.  
+The idea here is that primarily you handle it, just like memory.oom_control in 
+v1 (as mentioned in the commit message, or as a last resort, the kernel will 
+still OOM if our userspace daemon has kicked the bucket or is otherwise 
+ineffective.
+
+If you're setting memory.high and memory.max together, then setting memory.high 
+always has to come with a.) tolerance of heavy throttling by your application, 
+and b.) userspace intervention in the case of high memory pressure resulting. 
+This patch doesn't really change those semantics.
 
