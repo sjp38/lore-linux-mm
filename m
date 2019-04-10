@@ -2,146 +2,171 @@ Return-Path: <SRS0=DRoR=SM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B65BDC10F14
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 10:15:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8CDEAC10F11
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 10:48:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7BC712133D
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 10:15:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7BC712133D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 3DC4F20850
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 10:48:30 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=nxp.com header.i=@nxp.com header.b="A1n7ucjV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3DC4F20850
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nxp.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0BF3D6B0277; Wed, 10 Apr 2019 06:15:01 -0400 (EDT)
+	id 9A5396B0279; Wed, 10 Apr 2019 06:48:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 045376B0278; Wed, 10 Apr 2019 06:15:00 -0400 (EDT)
+	id 92D2F6B027A; Wed, 10 Apr 2019 06:48:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E4F6D6B0279; Wed, 10 Apr 2019 06:15:00 -0400 (EDT)
+	id 7CE486B027B; Wed, 10 Apr 2019 06:48:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BF17A6B0277
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 06:15:00 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id g7so1534186qkb.7
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 03:15:00 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B5AE6B0279
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 06:48:29 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id w27so1034518edb.13
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 03:48:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=NlFuMUS94v2NpXZV1dscR6EYhD7U+tt6O7E/YGeBZFI=;
-        b=kyQZOhu7CctKwWcn79vI+3r+gEFI9hWbMSDZGFw+wP2/Ut1+ZyFNHonJSS8z726CGj
-         i8Djqt3RyMFq7XPz5hTMNkVjzGwkMvjE5Vhby52QqBm43YdzAPtqB3daKVeoCCHSf7l3
-         iS05Yts9hBbcsdroN/cS5fcg53hbfZtEpQWkmXda9tuUJ+ujetG5ySeEMnnjdce0YxXl
-         nD8j17hCcIvo27k9TygiSaQVtz7Ww7ER22FKqcLLh1O+L9qY7cYoM/h33xAZkM8jXOzU
-         UG+WAbEGPqA04d0QEkCGravYRXITtnq+e3zEyLul/yv/Mw+CKk/DPi2sJtvEWOPZzYUs
-         mNIw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUx0LS3XH5OGglGv8IgYdVjq493dqY17lL3aknH8/miT4twoACQ
-	IOJbDr4RvEu6MbxIreTy44DU6qfdz+FzI9ZQddBRdZXJ8+NzaeJONI6dtKFfNWcbaLeMXl/idn0
-	cXB9ppWJHVLQ3a+UEO/fLfZwRsLStLUf46N2OTRHQMSmEqtg4JYyMuIm4wq7m5SmSYQ==
-X-Received: by 2002:a0c:9666:: with SMTP id 35mr34172042qvy.30.1554891300532;
-        Wed, 10 Apr 2019 03:15:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwxYscZGVUm4AJ6dOzogYyns97Ku8p4tgxlbE5FDNAHB/5lP2PSVRktirQxKXnz7pMbAXY/
-X-Received: by 2002:a0c:9666:: with SMTP id 35mr34171982qvy.30.1554891299599;
-        Wed, 10 Apr 2019 03:14:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554891299; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:accept-language:content-language
+         :content-transfer-encoding:mime-version;
+        bh=RregPHHcbcgiEmzXfOp04YmDavjHKFPYjchxoWZoSRs=;
+        b=oD6TBWlE8zSaUtGD1qnrAef/OeIXKZSwPSrfolIFwcuVoD8PKlBcw8NQrNJxkZ0IbU
+         4SZH7aSaXpdGnIcZzSdpTgBwb3vRAXSok4wjZYWThVi/yvPVKbTfvKBjOCjSoXhAaAJ0
+         WpuX1hNW7G4UrL5/WkH9vecx2IY1gxP7/QrtAPPg3SCxIQMIpAr5jWghYOh3bqOcwCUS
+         foQHthNeTnrorpW36PQKOH0ncYIobx4fH4Z2Ywpg83duGv4VzSHVNCF8XU0jZ4JOQO0Y
+         e3PFPVS2mze1PUqkAgnIvWB44WDFy+RujjfoURFSXxNn5016f4U1/i6p2aG8/XesKhWA
+         As+A==
+X-Gm-Message-State: APjAAAUAfdqjQD86hrdcWaQvq3dcGX4uAdnar4Np4wbaNKHGP4htQB7S
+	yzMSNjbF7XRxb2YDKTOA3fd76ZyagBbaGsPQ+VF/4kX8wUOI2rHpabPUvX49ceaNt+eqUrg9U3K
+	z/sKw3vSLZfK65okBm8PWCa0SiaPP+3voULaTQbCgKFajt9cDcH9AoMw/jKLDltmYAQ==
+X-Received: by 2002:a05:6402:709:: with SMTP id w9mr27491974edx.14.1554893308622;
+        Wed, 10 Apr 2019 03:48:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxICPkt2GocRWNmoxZJ1WDBPFnuVSMGbItpKVh77GQ++RA0lpasS9dG9zkhzZkc8p/B0VWY
+X-Received: by 2002:a05:6402:709:: with SMTP id w9mr27491939edx.14.1554893307790;
+        Wed, 10 Apr 2019 03:48:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554893307; cv=none;
         d=google.com; s=arc-20160816;
-        b=Xcbw8tPH9DiWCTirkt2yv4CFBbT2p73tC6VTIULflvbA9sJsRKDazqD0J2bFbccNk6
-         T63t1OeDKJ6U+dJvc8mULPXsClLq0m2rhUU5J7FXeJlUAofDXTqn/p5TFhMuiCvWpj7e
-         T6KvyruuNcB3rVkFujlVWfr/DrmoUax4zq8VKDaA4kFrDqxm+tFAHYrs5tW4ZttP7eoj
-         44iXQpBwwMMkEavI9JQd47X1Y2XU/WI+SIE+3dhXEs5FoODNZPBYYBrzi3mZebGafy8D
-         S5oJk/JCSPJGiQnECO+47jm+bfLN54KPHmS760uj7wIxgpYog4Q54gB4isapverhgeXP
-         d+AA==
+        b=vGFO8hVqNKz18j7uFB1JSf9YTgee3fiElPkpILCs44DDa4gr7A2grPjTa6+3eTNjPz
+         I5BAEYV9lVcCxWMyQlsxLFl7t0EbSHWl/Zlj5HbrWmUNP+a6m76aqpctbH8NF9Q4i4rn
+         IO3/0d4JNinuVCR0KANzm9WUf9N9ip9szfEqnSH1ixexMk2ibdQr5AuaNgNIA5IxlVJh
+         UreDLIkue+YiK7EHCHUvedoDsI3l73PxWMCZFs7YHOUftRp2CsUJ7gT/e2oxKU27OvvC
+         CaYvihqsU9/2lbipqQX6C/M8EVL6PdXtrfVIrDBpnzhXQjttLbRViCqs6HuoE0f15Xe+
+         MHRA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=NlFuMUS94v2NpXZV1dscR6EYhD7U+tt6O7E/YGeBZFI=;
-        b=GWc3rjR4d1+z58fSiThrFzBS/1jIQ2nyuVstlWp/kXI2T+PUHGu9TzhHo4st7oKKrt
-         GELgkLApjYxj6klgnQ+L4FQEv7R96SxC+fg76Xnn33h7ro8eys4tXo0F5jgZTZjzw8DY
-         0exDL/o20Wtzl2E4ns2FmjCwt733ShltzW6jo8y0TWJSYMRxykeyIQ4ybO1BgzIuz2Ye
-         7j8PzwtryX2kwdh+IU4ep0uwHUNlLSYHrE1eRVEXp7dYyAHtfYal59qEZN+7k0412vJs
-         UauAy12aGLyo1K9h8GIjt3hlCK8KrqKT6FiCmRQsQuonb6GHJwn4aNz5fxBBR8bV10vN
-         7GCg==
+        h=mime-version:content-transfer-encoding:content-language
+         :accept-language:message-id:date:thread-index:thread-topic:subject
+         :cc:to:from:dkim-signature;
+        bh=RregPHHcbcgiEmzXfOp04YmDavjHKFPYjchxoWZoSRs=;
+        b=uFAOqOe+ARgm1QHqmhr87sUfE3HhFobyOmOh5Ym8DTXaKAtmQo/ZgUkyNKUpNCt9cP
+         GV8nnMmlNa/WeNNektOShojgsw3mCyqnFGT3Dkwpd2Fg/6GzfB14429kMi4qlxAmS2zk
+         blJRocl+QfFvpuc463CrFWA0MounDZ1W2DpowEWiZtGlTDfh8xISDUlN+qU+om8YwONj
+         K94PShCDGfoiTpNbx95wWWP18Wgxf6NlvHxJOKa9ELPh3L6q7D7jJjZVkRvuQ/MglLHA
+         baxndpkCFVcHq6kQi2WeCXAB/EajrMUEe++WDYpempqcWvM9LOYIUz46wfeGX2kVHgFw
+         Rr+w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i13si2561908qta.371.2019.04.10.03.14.59
+       dkim=pass header.i=@nxp.com header.s=selector1 header.b=A1n7ucjV;
+       spf=pass (google.com: domain of jared.hu@nxp.com designates 40.107.3.50 as permitted sender) smtp.mailfrom=jared.hu@nxp.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nxp.com
+Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30050.outbound.protection.outlook.com. [40.107.3.50])
+        by mx.google.com with ESMTPS id h44si356467ede.156.2019.04.10.03.48.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Apr 2019 03:14:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 10 Apr 2019 03:48:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jared.hu@nxp.com designates 40.107.3.50 as permitted sender) client-ip=40.107.3.50;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id A3C4EC01089C;
-	Wed, 10 Apr 2019 10:14:58 +0000 (UTC)
-Received: from t460s.redhat.com (unknown [10.36.118.36])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 55B5917F4C;
-	Wed, 10 Apr 2019 10:14:56 +0000 (UTC)
-From: David Hildenbrand <david@redhat.com>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org,
-	David Hildenbrand <david@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Oscar Salvador <osalvador@suse.de>,
-	Michal Hocko <mhocko@suse.com>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Wei Yang <richard.weiyang@gmail.com>,
-	Qian Cai <cai@lca.pw>,
-	Arun KS <arunks@codeaurora.org>,
-	Mathieu Malaterre <malat@debian.org>
-Subject: [PATCH] mm/memory_hotplug: Drop memory device reference after find_memory_block()
-Date: Wed, 10 Apr 2019 12:14:55 +0200
-Message-Id: <20190410101455.17338-1-david@redhat.com>
+       dkim=pass header.i=@nxp.com header.s=selector1 header.b=A1n7ucjV;
+       spf=pass (google.com: domain of jared.hu@nxp.com designates 40.107.3.50 as permitted sender) smtp.mailfrom=jared.hu@nxp.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nxp.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nxp.com; s=selector1;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=RregPHHcbcgiEmzXfOp04YmDavjHKFPYjchxoWZoSRs=;
+ b=A1n7ucjV+IgLd+0URyR8KHqaXAVroNrIcWNFJauAD6IRuw9X3NZeZ+A6V21eGa1sAh1TciVPHp4WQ7jIFi4onG2KQ49Zpzu06+qnVkmXjUe41OXB7ox3Ry6hFHhx7mZHymjFoK9I5Auotwx9zBXhMGi98tygyZUS7AjtUVbRlhQ=
+Received: from VE1PR04MB6429.eurprd04.prod.outlook.com (20.179.232.154) by
+ VE1PR04MB6528.eurprd04.prod.outlook.com (20.179.233.225) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1771.16; Wed, 10 Apr 2019 10:48:26 +0000
+Received: from VE1PR04MB6429.eurprd04.prod.outlook.com
+ ([fe80::45ab:e480:592b:2592]) by VE1PR04MB6429.eurprd04.prod.outlook.com
+ ([fe80::45ab:e480:592b:2592%3]) with mapi id 15.20.1771.016; Wed, 10 Apr 2019
+ 10:48:26 +0000
+From: Jared Hu <jared.hu@nxp.com>
+To: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "vbabka@suse.cz"
+	<vbabka@suse.cz>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>,
+	"labbott@redhat.com" <labbott@redhat.com>, "huyue2@yulong.com"
+	<huyue2@yulong.com>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>,
+	"rppt@linux.ibm.com" <rppt@linux.ibm.com>, "andreyknvl@google.com"
+	<andreyknvl@google.com>
+CC: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: question for cma alloc fail issue
+Thread-Topic: question for cma alloc fail issue
+Thread-Index: AdTvhcYnK7CyihaiRpazlRl1Ut2i9Q==
+Date: Wed, 10 Apr 2019 10:48:26 +0000
+Message-ID:
+ <VE1PR04MB64290E25D6BAB7E702D08A54982E0@VE1PR04MB6429.eurprd04.prod.outlook.com>
+Accept-Language: zh-CN, en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jared.hu@nxp.com; 
+x-originating-ip: [119.31.174.71]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 6bc0d664-7704-4ad4-36eb-08d6bda20fa0
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600139)(711020)(4605104)(4618075)(2017052603328)(7193020);SRVR:VE1PR04MB6528;
+x-ms-traffictypediagnostic: VE1PR04MB6528:
+x-microsoft-antispam-prvs:
+ <VE1PR04MB6528D33331B781FEA95A1C11982E0@VE1PR04MB6528.eurprd04.prod.outlook.com>
+x-forefront-prvs: 00032065B2
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(136003)(376002)(396003)(39860400002)(366004)(346002)(53754006)(189003)(199004)(110136005)(186003)(81156014)(8676002)(66066001)(8936002)(2201001)(68736007)(81166006)(25786009)(508600001)(86362001)(6506007)(102836004)(71190400001)(71200400001)(6436002)(6116002)(3846002)(33656002)(486006)(476003)(74316002)(2906002)(55016002)(44832011)(9686003)(53936002)(7736002)(26005)(14454004)(305945005)(2501003)(4326008)(7696005)(105586002)(5660300002)(97736004)(99286004)(106356001)(316002)(52536014)(256004);DIR:OUT;SFP:1101;SCL:1;SRVR:VE1PR04MB6528;H:VE1PR04MB6429.eurprd04.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: nxp.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ J6+V/PEqek2e5yNGEMoV8EfmgBVZYpP8pJiDrlp5tR+oSrm2FonWDqUmMadretXpy4TEmhKvuHvF+TQ7Gw/ecuKf33CuOlM0HQNkdXI/04Xeytg/Re9A5FWaGvKjg2xxVkWgQvYuJ2NhWio32gX1ZUzglS3thDE0XHzfm7IFnRHCeebNVAaqS4fm4nj4S3lgN1GbImpJbPDaYyB6zDCDmzW0vxt8byesq8IrWIAJPaoFG7FdcqD2RJ3suOPhxkE5/CyrDGLfXMDvxN2EQX5QUuRjgmEbVssMNX1pMxvYZzX7Ic4rIA0yY5w5HQOhcBTTv9eb22754TqC0dlWw0ezQEmJo1EXG5eauwP3LdQqebjLOYrQ558mfNYKGt7LmlWznVDf5cKCTF8wKpTSGCxUFAexMTp6kuvatvtsh0z/eXQ=
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Wed, 10 Apr 2019 10:14:58 +0000 (UTC)
+X-OriginatorOrg: nxp.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 6bc0d664-7704-4ad4-36eb-08d6bda20fa0
+X-MS-Exchange-CrossTenant-originalarrivaltime: 10 Apr 2019 10:48:26.2532
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 686ea1d3-bc2b-4c6f-a92c-d99c5c301635
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VE1PR04MB6528
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-While current node handling is probably terribly broken for memory block
-devices that span several nodes (only possible when added during boot,
-and something like that should be blocked completely), properly put the
-device reference we obtained via find_memory_block() to get the nid.
-
-Fixes: d0dc12e86b31 ("mm/memory_hotplug: optimize memory hotplug")
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Oscar Salvador <osalvador@suse.de>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: David Hildenbrand <david@redhat.com>
-Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>
-Cc: Qian Cai <cai@lca.pw>
-Cc: Arun KS <arunks@codeaurora.org>
-Cc: Mathieu Malaterre <malat@debian.org>
-Signed-off-by: David Hildenbrand <david@redhat.com>
----
- mm/memory_hotplug.c | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 5eb4a4c7c21b..328878b6799d 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -854,6 +854,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- 	 */
- 	mem = find_memory_block(__pfn_to_section(pfn));
- 	nid = mem->nid;
-+	put_device(&mem->dev);
- 
- 	/* associate pfn range with the zone */
- 	zone = move_pfn_range(online_type, nid, pfn, nr_pages);
--- 
-2.20.1
+SGkgQWxso6wNCg0KV2UgYXJlIGZhY2luZyBhIGNtYSBtZW1vcnkgYWxsb2MgaXNzdWUgb24gbGlu
+dXggNC4xNC45OCBhbmQgbG93ZXIgdmVyc2lvbi4NCg0KSW4gb3VyIHBsYXRmb3JtIGlteDhtLCB3
+ZSB1c2luZyBjbWEgdG8gYWxsb2NhdGUgbGFyZ2UgY29udGludW91cyBtZW1vcnkNCmJsb2NrIHRv
+IHN1cHBvcnQgemVyby1jb3B5IGJldHdlZW4gdmlkZW8gZGVjb2RlIGFuZCBkaXNwbGF5IHN1Yi1z
+eXN0ZW0uDQpCdXQgYWZ0ZXIgbG9uZyB0aW1lIGxvb3AgdmlkZW8gcGxheWJhY2sgdGVzdCwgc3lz
+dGVtIHdpbGwgcmVwb3J0IGFsbG9jDQpjbWEgZmFpbCByZXQ9YnVzeS4gV2UgdGFrZSBhIGRlZXAg
+bG9vayBpbnRvIGNtYS5jIGZvdW5kIHRoZXJlIGFyZSBzdGlsbA0Kc29tZSBiaWcgZnJlZSBhcmVh
+cyBpbiBjbWEtPmJpdG1hcCB0aGF0IG1heWJlIGNhbiBhbGxvYyAzNTk1IHBhZ2VzLg0KDQpIZXJl
+IGFyZSBzb21lIHF1ZXN0aW9uczoNCjEuIGluIF9fYWxsb2NfY29udGlnX21pZ3JhdGVfcmFuZ2Uo
+KSBjYy0+bnJfbWlncmF0ZXBhZ2VzIGFsd2F5cyBiZWVuIDANCkRvZXMgY2MtPm5yX21pZ3JhdGVw
+YWdlcyA9IDAgbWVhbnMgdGhlcmUgaXMgbm8gcGFnZSBjYW4gYmUgcmVjbGFpbWVkIG9yDQptaWdy
+YXRlZD8gV2hpY2gga2luZCBvZiBwYWdlcyB0aGF0IGNhbm5vdCBiZWVuIHJlY2xhaW1lZC4NCg0K
+Mi4gVGhlIHBhZ2VzIHRoYXQgYXJlIGZyZWUgaW4gY21hLT5iaXRtYXAgc2VlbSBub3QgZnJlZSBp
+biBCdWRkeSBzeXN0ZW0/DQpQYWdlQnVkZHkoKSB0ZXN0IGNhbiBhbHNvIHJldHVybiBmYWxzZSBl
+dmVuIGlmIHRoZSBwYWdlIGlzIGluIHRoZSBmcmVlIGxpc3QgaW4gY21hIGJpdG1hcA0KSSB0ZXN0
+IHRoZSBmYWlsIHBhZ2Ugd2l0aCBwYWdlX2lzX2ZpbGVfY2FjaGUocGFnZSkgd2hpY2ggcmV0dXJu
+IDAuDQpjb21tZW50IHNob3c6IDAgaWYgQHBhZ2UgaXMgYW5vbnltb3VzLCB0bXBmcyBvciBvdGhl
+cndpc2UgcmFtIG9yIHN3YXAgYmFja2VkLg0KV2hhdCBkb2VzIHN3YXAgYmFja2VkIG1lYW4/IFdo
+aWNoIG9uZSBtYXliZSBvY2N1cHkgdGhlc2UgcGFnZXM/DQoNCkNvdWxkIHNvbWVvbmUgZ2l2ZSBt
+ZSBhIGZhdm9yIHRvIGRlYnVnIHRoaXMgaXNzdWU/DQoNCkJlc3QgcmVnYXJlZHMNCkphcmVkIEh1
+DQo=
 
